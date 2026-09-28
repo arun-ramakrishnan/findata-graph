@@ -4,6 +4,10 @@ unlock, operator-directed 2026-09-26).
 Golden toy: hand-computed offsets/neighbors; determinism: byte-identical
 rebuild; staleness: generation drift flips `fresh`; BFS reference: parity
 with brute-force distances on a seeded random graph.
+
+csr_lane_remediation (2026-09-28, from the ef8a17d4 OCR delegation review):
+lane activation from the production call shape, per-generation substrate
+caching, and the `src == dst` contract the SQL path pins.
 """
 
 from __future__ import annotations
@@ -21,6 +25,45 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from helpers.graph import csr  # noqa: E402
 
 _EDGES = [("a", "b"), ("b", "c"), ("d", "e"), ("a", "c")]
+
+
+class _Rows:
+    """DuckDB-shaped result stub: only ``fetchone`` is used by the lane."""
+
+    def __init__(self, rows):
+        self._rows = rows
+
+    def fetchone(self):
+        return self._rows[0] if self._rows else None
+
+
+class _StubCon:
+    """Minimal stand-in for the two metadata probes the CSR lane makes.
+
+    The lane reads ``_build_meta.generation`` (to prove this connection was
+    built from the CSR's own edge set) and ``v_node`` (the S3 ``src == dst``
+    contract). Both are covered by the real build; stubbing them keeps these
+    unit tests fast instead of copying the production DB.
+    """
+
+    def __init__(self, generation: str | None, v_node: set[str]):
+        self._generation = generation
+        self._v_node = v_node
+
+    def execute(self, sql, params=None):
+        if "_build_meta" in sql:
+            return _Rows([] if self._generation is None else [(self._generation,)])
+        if "v_node" in sql:
+            return _Rows([(1,)] if params[0] in self._v_node else [])
+        raise AssertionError(f"unexpected SQL in the CSR lane: {sql!r}")
+
+
+@pytest.fixture(autouse=True)
+def _isolate_csr_cache():
+    """The substrate cache is module-side state — keep tests hermetic."""
+    csr.clear_cache()
+    yield
+    csr.clear_cache()
 
 
 @pytest.fixture()
@@ -75,6 +118,119 @@ def test_generation_drift_flips_fresh(csr_db: Path, tmp_path: Path):
 def test_missing_artifacts_degrade_open(tmp_path: Path):
     _m, _off, _nbr, _names, fresh = csr.load(tmp_path / "absent")
     assert fresh is False and _names == []
+
+
+# --------------------------------------------------------------------------- #
+# csr_lane_remediation — the ef8a17d4 OCR delegation review findings          #
+# --------------------------------------------------------------------------- #
+
+
+def test_lane_serves_the_production_call_shape(csr_db: Path, tmp_path: Path):
+    """S1: the gate needs `edge_label=None`, but the parameter default was
+    the RECOGNISED label "BelongsTo" — a filter — so the lane never fired for
+    the API route or the CLI. This pins that the unfiltered shape the callers
+    now pass actually reaches the substrate and returns a real path."""
+    out = tmp_path / "csr"
+    csr.build(csr_db, out)
+    con = _StubCon(generation="42", v_node={"a", "b", "c", "d", "e"})
+    result, fresh = csr.try_shortest_path(con, "a", "c", 5, out_dir=out, db_path=csr_db)
+    assert fresh is True, "generation match must activate the lane"
+    # the toy graph has a direct a-c edge, so the 1-hop path is the
+    # hop-shortest answer; the lane must return it, not a longer walk
+    assert [n for n, _hop in result] == ["a", "c"]
+    assert [h for _n, h in result] == [0, 1], "hop indices stay 0-based and contiguous"
+    # d-e is a separate component from a-b-c: unreachable, but the lane
+    # applied (fresh=True) rather than handing back to SQL
+    unreachable, fresh2 = csr.try_shortest_path(con, "a", "d", 5, out_dir=out, db_path=csr_db)
+    assert fresh2 is True and unreachable is None
+
+
+def test_src_eq_dst_matches_sql_contract(csr_db: Path, tmp_path: Path):
+    """S3: `_shortest_path_bfs` pins `src == dst` -> [(src, 0)] for any name
+    known to `v_node`, even with zero edges. The CSR universe is edge
+    ENDPOINTS only, so a known-but-edgeless entity was absent from `pos` and
+    read as (None, True) — "lane applied, no path". Divergence closed."""
+    out = tmp_path / "csr"
+    csr.build(csr_db, out)  # universe is {a,b,c,d,e}; "z" has no edges at all
+    con = _StubCon(generation="42", v_node={"a", "z"})
+    # known + edgeless: SQL says [(z, 0)], not "unreachable"
+    assert csr.try_shortest_path(con, "z", "z", 5, out_dir=out, db_path=csr_db) == (
+        [("z", 0)],
+        True,
+    )
+    # known + CSR-resident: same zero-hop contract
+    assert csr.try_shortest_path(con, "a", "a", 5, out_dir=out, db_path=csr_db) == (
+        [("a", 0)],
+        True,
+    )
+    # unknown to v_node: both lanes return None
+    assert csr.try_shortest_path(con, "nope", "nope", 5, out_dir=out, db_path=csr_db) == (
+        None,
+        True,
+    )
+
+
+def test_cache_memoises_substrate_per_generation(csr_db: Path, tmp_path: Path, monkeypatch):
+    """S2: the per-call `load()` re-parsed csr_names.json and rebuilt the
+    22k-entry name->id map on EVERY call (~7.2 ms), which erased the lane's
+    advantage (1.27x integrated, not the advertised 50-300x). The derived
+    substrate must be paid once per (out_dir, generation)."""
+    out = tmp_path / "csr"
+    csr.build(csr_db, out)
+    con = _StubCon(generation="42", v_node={"a", "b", "c", "d", "e"})
+    calls = []
+    real_load = csr.load
+
+    def _counting_load(*a, **kw):
+        calls.append(1)
+        return real_load(*a, **kw)
+
+    monkeypatch.setattr(csr, "load", _counting_load)
+    args = ("a", "c", 5)
+    kwargs = {"out_dir": out, "db_path": csr_db}
+    first, fresh1 = csr.try_shortest_path(con, *args, **kwargs)
+    second, fresh2 = csr.try_shortest_path(con, *args, **kwargs)
+    assert fresh1 is True and fresh2 is True
+    assert first == second, "a warm call must return the identical path"
+    assert len(calls) == 1, "second call must hit the cache, not re-parse/rebuild"
+
+
+def test_cache_never_serves_a_stale_generation(csr_db: Path, tmp_path: Path):
+    """S2 safety: the cache is keyed on the LIVE generation, so a rebuild
+    misses the cache and the existing loud fallback still fires. Caching the
+    substrate must not turn a stale CSR into a silently-wrong answer."""
+    out = tmp_path / "csr"
+    csr.build(csr_db, out)
+    con = _StubCon(generation="42", v_node={"a", "b", "c", "d", "e"})
+    args = ("a", "c", 5)
+    kwargs = {"out_dir": out, "db_path": csr_db}
+    assert csr.try_shortest_path(con, *args, **kwargs)[1] is True, "warm first"
+    con_db = sqlite3.connect(str(csr_db))
+    con_db.execute("UPDATE db_meta SET value='43' WHERE key='generation'")
+    con_db.commit()
+    con_db.close()
+    result, fresh = csr.try_shortest_path(con, *args, **kwargs)
+    assert result is None and fresh is False, "drift must fall back to SQL, never serve stale"
+    # and the drifted generation did not get memoised
+    assert not any(key[1] == "43" for key in csr._CACHE), "drift must not populate the cache"
+
+
+def test_warm_call_stays_on_the_lane_without_a_db_path(csr_db: Path, tmp_path: Path):
+    """S2 regression: `query.shortest_path` calls the lane with NO db_path
+    (the DuckDB `_build_meta` match is the only generation gate it can check).
+    An earlier cache keyed freshness on `live_gen is not None`, which is False
+    in that shape, so the FIRST call used the lane and every later call
+    degraded to SQL — warm measured slower than cold (28 ms vs 15 ms). The
+    cache-hit freshness rule must match load()'s on both paths."""
+    out = tmp_path / "csr"
+    csr.build(csr_db, out)
+    con = _StubCon(generation="42", v_node={"a", "b", "c", "d", "e"})
+    kwargs = {"out_dir": out}  # no db_path — the production call shape
+    first, fresh1 = csr.try_shortest_path(con, "a", "c", 5, **kwargs)
+    assert fresh1 is True, "cold call must take the lane"
+    second, fresh2 = csr.try_shortest_path(con, "a", "c", 5, **kwargs)
+    assert fresh2 is True, "warm call must STAY on the lane, not fall back to SQL"
+    assert second == first
 
 
 def test_bfs_reference_random_graph(csr_db: Path, tmp_path: Path):

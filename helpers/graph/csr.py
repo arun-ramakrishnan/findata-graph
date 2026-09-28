@@ -21,6 +21,13 @@ loudly, never silently (vault_scaling fallback doctrine). This module
 is structure-only: edge labels/weights/as-of stay on the DuckDB path
 until a filtered workload proves hot (B-A non-goal).
 
+Caching: :func:`try_shortest_path` memoises the derived substrate (mmaps,
+names, name -> id) per (out_dir, live generation). The generation is
+re-read on every call and is the cache key, so the gate above is
+unchanged — drift misses the cache and falls back exactly as before
+(:func:`clear_cache` drops it explicitly for tests and post-rebuild
+callers).
+
 Int32 holds while N, M < 2³¹ (live: N=22,054, M=114,782; the recorded
 growth path past that is shard-by-node-range, never a silent widen).
 """
@@ -43,6 +50,27 @@ if str(_PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(_PROJECT_ROOT))
 
 from helpers.core.db import connect  # noqa: E402  # needs the shim above
+
+# Module-side substrate cache, keyed on (out_dir, live SQLite generation).
+# The lane used to re-parse csr_names.json and rebuild the 22k-entry
+# name -> id map on EVERY call (~7.2 ms measured), which erased the whole
+# point of the fast path: end-to-end was 9.15 ms vs 11.6 ms SQL (1.27x),
+# not the 0.08-0.26 ms kernel-vs-SQL figure the commit advertised.
+#
+# Freshness is NOT cached: the live db_meta.generation is re-read on every
+# call and is the cache key, so a rebuild lands on a different key and the
+# stale entry is never served (drift -> fresh=False -> SQL fallback, the
+# same loud fallback doctrine the manifest gate already enforces). Only the
+# derived artefacts (mmaps + names + pos) are memoised.
+_CACHE: dict[
+    tuple[str, str | None], tuple[dict, np.ndarray, np.ndarray, list[str], dict[str, int]]
+] = {}
+_CACHE_MAX = 4
+
+
+def clear_cache() -> None:
+    """Drop the memoised substrate (tests, and any post-rebuild caller)."""
+    _CACHE.clear()
 
 
 def _read_edges(db_path: str | Path) -> list[tuple[str, str]]:
@@ -76,6 +104,7 @@ def build(db_path: str | Path, out_dir: str | Path = DEFAULT_OUT_DIR) -> dict:
     names = sorted({s for s, _ in edges} | {t for _, t in edges})
     pos = {n: i for i, n in enumerate(names)}
     n = len(names)
+    clear_cache()  # the bins below are rewritten under any live memmap
     r = np.fromiter((pos[s] for s, _ in edges), dtype=np.int64, count=len(edges))
     c = np.fromiter((pos[t] for _, t in edges), dtype=np.int64, count=len(edges))
     both_r = np.concatenate([r, c])
@@ -238,7 +267,30 @@ def try_shortest_path(
     ``[(name, hop_index)]`` path (or None = unreachable within hops),
     ``fresh`` False means "lane did not apply" — fall back to SQL.
     """
-    manifest, offsets, neighbors, names, fresh = load(out_dir, db_path=db_path)
+    out = Path(out_dir)
+    # Freshness is re-read every call and is the cache key (see _CACHE), so
+    # a rebuild lands on a fresh key and the stale substrate is never served.
+    live_gen = _live_generation(db_path) if db_path is not None else None
+    cache_key = (str(out), live_gen)
+    cached = _CACHE.get(cache_key)
+    if cached is not None:
+        manifest, offsets, neighbors, names, pos = cached
+        # Mirror load()'s freshness rule exactly: with no db_path there is no
+        # generation to compare, so the manifest check is skipped (the
+        # DuckDB _build_meta gate below still applies). Deriving this
+        # differently from the miss path silently degraded every warm call to
+        # the SQL fallback while the cold call used the lane.
+        fresh = True
+        if db_path is not None:
+            fresh = live_gen is not None and live_gen == manifest.get("generation")
+    else:
+        manifest, offsets, neighbors, names, fresh = load(out, db_path=db_path)
+        pos = {}
+        if fresh and names:
+            pos = {n: i for i, n in enumerate(names)}
+            if len(_CACHE) >= _CACHE_MAX:
+                _CACHE.clear()
+            _CACHE[cache_key] = (manifest, offsets, neighbors, names, pos)
     if not fresh or not names:
         return None, False
     try:
@@ -249,7 +301,14 @@ def try_shortest_path(
         return None, False
     if row is None or str(row[0]) != str(manifest.get("generation")):
         return None, False
-    pos = {n: i for i, n in enumerate(names)}
+    if src == dst:
+        # CSR universe is edge ENDPOINTS, so a known-but-edgeless entity is
+        # absent from ``pos`` and would read as "unreachable". The SQL path
+        # pins src == dst -> [(src, 0)] for any name known to v_node, so
+        # resolve it there first and match the contract (csr_lane_remediation
+        # S3; the old comment here claimed SQL parity that did not hold).
+        known = duckdb_con.execute("SELECT 1 FROM v_node WHERE name = ?", [src]).fetchone()
+        return ([(src, 0)], True) if known is not None else (None, True)
     if src not in pos or dst not in pos:
         # edge-endpoint universe: a name with no edges cannot lie on any
         # path — genuinely unreachable, exactly what the SQL BFS returns.

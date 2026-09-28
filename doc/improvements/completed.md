@@ -7754,9 +7754,25 @@ per the ladder's own build-early aim).
   contamination). Crossover: Python-CSR 0.08 ms 1-hop (startup-free);
   Mojo 10-15 ms long-hop vs 32-39 ms Python (2.7-3×) — Python serves
   the default path, Mojo owns long-hop/batch.
+- **Corrected 2026-09-28** (`csr_lane_remediation`, from an OCR
+  delegation review of `ef8a17d4`): the promotion above was **inert and
+  its number kernel-only**. The gate needs `edge_label is None` but the
+  default was the recognised label `"BelongsTo"` (a filter) and neither
+  caller passed it — so the lane never fired, and the default served
+  `None` for genuinely-connected pairs (a user-facing bug). Per-call
+  `csr.load()` + 22k `pos` rebuild (~7.2 ms) also left the integrated
+  path at 1.27×, not 50-300×. Both fixed: **integrated, best-of-15 /
+  median-of-15 on the live 22,054-node graph — 1-hop 42.6× / 44.4×
+  (0.41-0.45 ms vs 17.5-19.1 ms), 2-hop 4.9× / 5.7× (kernel-bound: the
+  Python `bfs_path` is the parity oracle, so the 2-hop ceiling is the
+  reference kernel not the substrate), cold one-shot ~2× (9.6 ms)**.
+  The §3 default-serving verdict (Python-CSR, Mojo for long hops) is
+  unchanged.
 - Defects caught: shard-column diagonal indexing (job-count-invariance
   golden), fixed-anchor co-location, and here the parity gate caught
-  first-claim vs MIN-claimant parent divergence.
+  first-claim vs MIN-claimant parent divergence. Post-landing review
+  caught the inert promotion above — the parity gate could not, since the
+  lane's problem was its *callers*, not its paths.
 
 Execution record: `archive/graph/csr_substrate.md`.
 

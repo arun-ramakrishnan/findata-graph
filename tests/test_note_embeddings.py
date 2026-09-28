@@ -358,3 +358,26 @@ class TestNearDuplicateNotes:
         assert all(
             "The_Chatter" not in pa and "The_Chatter" not in pb for pa, pb, _ta, _tb, _s in loose
         )
+
+    def test_limit_zero_returns_empty(self, note_con):
+        """csr_lane_remediation S4: the bounded accumulator short-circuits on
+        limit=0; the retired unbounded version returned [] via `out[:0]`.
+        Regression for the IndexError an intermediate heap attempt raised."""
+        con, _ = note_con
+        assert near_duplicate_notes(con, min_sim=0.0, limit=0) == []
+
+    def test_bounded_accumulator_is_exact_under_pruning(self, note_con):
+        """csr_lane_remediation S4: the accumulator prunes to `limit` once the
+        buffer passes 4x. Pruning is only sound if the surviving top-`limit`
+        equals the unpruned sort+truncate — so compare the pruning path against
+        the exact reference over a limit small enough to force many prunes."""
+        con, _ = note_con
+        # min_sim=0.0 keeps every pair, so the buffer is at its widest and the
+        # 4x prune fires repeatedly; limits of 1/2/3 all prune, 10_000 never does.
+        reference = near_duplicate_notes(con, min_sim=0.0, limit=10_000)
+        assert reference, "the wide threshold must still find pairs"
+        sims = [s for *_rest, s in reference]
+        assert sims == sorted(sims, reverse=True), "reference must be similarity-ordered"
+        for limit in (1, 2, 3, 7):
+            pruned = near_duplicate_notes(con, min_sim=0.0, limit=limit)
+            assert pruned == reference[:limit], f"limit={limit} diverged from the reference"

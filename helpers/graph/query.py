@@ -2299,6 +2299,20 @@ def shortest_path(
     loudly-quietly (fresh=False → SQL, never an error). Determinism:
     BFS visits neighbors in ascending sorted-id order, identical to the
     SQL path's layer order for hop-shortest semantics.
+
+    csr_lane_remediation S1 (2026-09-28): this signature's default
+    ``edge_label`` is a *recognised* label ("BelongsTo"), so it is a
+    FILTER and the gate above was never true for the production callers —
+    the lane was dead in production while the docs advertised the
+    promotion. Both the API route and the ``shortest`` CLI now pass
+    ``edge_label=None`` explicitly (the API docstring has always promised
+    "all edge types (undirected)"), so the lane actually fires.
+    **Do not reintroduce a filter default at either production call site
+    (the ``app.py`` route or the ``shortest`` CLI subcommand)** — omitting
+    ``edge_label=None`` silently disables the fast path. Changing this
+    signature's default to ``None`` is a separate, API-visible behaviour
+    change and is NOT covered by S1. ``as_of``-filtered calls stay on SQL
+    by design.
     """
     if edge_label is None and as_of is None:
         try:
@@ -3605,9 +3619,19 @@ def near_duplicate_notes(
     GEMM (1,186²×384 ≈ 0.5 GFLOP). The section→path collapse is
     vectorized the same way (np.add.at replaces the per-row Python float
     loop). Exactness unchanged: same renormalized means, same
-    sim = 1 − d²/2 = cosine, same (dist, path_a, path_b) ordering;
-    candidate blocks scan the upper triangle so memory stays
-    O(block·paths), never O(paths²).
+    sim = 1 − d²/2 = cosine, same (dist, path_a, path_b) ordering.
+
+    Memory (csr_lane_remediation S4, 2026-09-28): the earlier claim that
+    the block loop keeps this "O(block·paths), never O(paths²)" was wrong
+    about the dominant term — ``S = X @ X.T`` materialises the FULL P×P
+    f64 matrix before the blocks are read (8·P² bytes; 800 MB at the
+    10,000-path ceiling, ~11 MB at the live 1,186 paths). What the blocks
+    do bound is the *scan*; the GEMM is what the ceiling is really
+    guarding. The pair accumulator is separately bounded to O(limit): it is
+    pruned back to ``limit`` (sort + slice, no heap) whenever it reaches
+    ``4 x limit``, so a low ``min_sim`` can no longer accumulate tens of
+    millions of pairs ahead of the truncation. ``min_sim`` is API-floored
+    at 0.9, so the wide case is latent, not live.
 
     A maintenance command, deliberately NOT an API hot path and NOT
     generation-cached. Returns ``list[(path_a, path_b, title_a,
@@ -3647,7 +3671,18 @@ def near_duplicate_notes(
     # unit-norm); sim = 1 − d²/2 degenerates to it for normalized means.
     S = X @ X.T
 
-    out: list[tuple[int, int, float]] = []
+    # Bounded top-`limit` accumulator (csr_lane_remediation S4). The order is
+    # (-sim, path_a, path_b) ascending, so sort + truncate is exact — but the
+    # retired version appended EVERY pair above min_sim first, which at a low
+    # min_sim and the 10,000-path ceiling could hold ~50M pairs before the
+    # truncation ever ran. Pruning to `limit` once the buffer passes 4x keeps
+    # memory O(limit) at amortised-sort cost, and is exact: a discarded pair
+    # already has `limit` pairs ranked ahead of it in the buffer, so it can
+    # never reach the final top-`limit`.
+    if limit == 0:
+        return []
+    out: list[tuple[float, str, str, int, int]] = []
+    prune_at = 4 * limit
     BLOCK = 512
     for lo in range(0, P, BLOCK):
         hi = min(lo + BLOCK, P)
@@ -3662,14 +3697,18 @@ def near_duplicate_notes(
             # (dist, path_a, path_b) tie-break is identical
             if paths[a_i] > paths[b_i]:
                 a_i, b_i = b_i, a_i
-            out.append((a_i, b_i, float(block[a, b])))
+            out.append((-float(block[a, b]), paths[a_i], paths[b_i], a_i, b_i))
+            if len(out) >= prune_at:
+                out.sort()
+                del out[limit:]
     if not out:
         return []
-    # (dist, path_a, path_b) ascending == (sim, path_a, path_b) descending;
-    # guard memory: only the global top-`limit` can survive the order.
-    out.sort(key=lambda t: (-t[2], paths[t[0]], paths[t[1]]))
-    out = out[:limit]
-    return [(paths[a], paths[b], titles[a], titles[b], sim) for a, b, sim in out]
+    out.sort()
+    del out[limit:]
+    return [
+        (paths[a_i], paths[b_i], titles[a_i], titles[b_i], -neg_sim)
+        for neg_sim, _pa, _pb, a_i, b_i in out
+    ]
 
 
 # --------------------------------------------------------------------------- #
@@ -3920,6 +3959,11 @@ def _cli(argv: list[str] | None = None) -> int:  # noqa: C901
     sp.add_argument("src")
     sp.add_argument("dst")
     sp.add_argument("--max-hops", type=int, default=5)
+    sp.add_argument(
+        "--edge-label",
+        default=None,
+        help="Restrict to one edge label (e.g. SubsidiaryOf). Default: all edge types",
+    )
 
     sp = sub.add_parser(
         "sql", help="Run arbitrary SQL over the attached databases (fin.*, e_*, v_node)"
@@ -4053,7 +4097,9 @@ def _cli(argv: list[str] | None = None) -> int:  # noqa: C901
         for direction, other, label in neighbors(con, args.entity):
             print(f"{direction:3} --{label}--> {other}")
     elif args.cmd == "shortest":
-        path = shortest_path(con, args.src, args.dst, max_hops=args.max_hops)
+        path = shortest_path(
+            con, args.src, args.dst, max_hops=args.max_hops, edge_label=args.edge_label
+        )
         if path is None:
             print(f"no path {args.src!r} → {args.dst!r} within {args.max_hops} hops")
             return 1

@@ -2168,7 +2168,9 @@ def api_graph_shortest():
     try:
         from helpers.graph.query import shortest_path
 
-        path = shortest_path(get_graph_connection(), a_canon, b_canon, max_hops, as_of=as_of)
+        path = shortest_path(
+            get_graph_connection(), a_canon, b_canon, max_hops, edge_label=None, as_of=as_of
+        )
     except Exception as e:
         app.logger.exception("graph shortest failed a=%r b=%r", a_canon, b_canon)
         return jsonify({"error": f"graph query failed: {e}"}), 500
