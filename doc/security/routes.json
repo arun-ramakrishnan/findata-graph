@@ -1,0 +1,236 @@
+{
+  "schema": "route-skeleton.v1",
+  "source": "app.py",
+  "note": "Public surface SHAPE only \u2014 route paths and methods, which are already literals in the tracked, public app.py. Deliberately excludes attack_class, verdict, reviewed, method-of-review and fingerprint: those live in the operator-local coverage ledger (gitignored doc/local/security/coverage-ledger.json) and are an attack-surface map. This file is a commitment device so a surface change is a deliberate diff \u2014 it does NOT assert that any route was security-reviewed. Regenerate: python3 helpers/validators/route_skeleton.py --write",
+  "count": 38,
+  "routes": [
+    {
+      "path": "/",
+      "methods": [
+        "GET"
+      ]
+    },
+    {
+      "path": "/api/analytics/<name>",
+      "methods": [
+        "GET"
+      ]
+    },
+    {
+      "path": "/api/docs",
+      "methods": [
+        "GET"
+      ]
+    },
+    {
+      "path": "/api/docs/content",
+      "methods": [
+        "GET"
+      ]
+    },
+    {
+      "path": "/api/docs/search",
+      "methods": [
+        "GET"
+      ]
+    },
+    {
+      "path": "/api/entities",
+      "methods": [
+        "GET"
+      ]
+    },
+    {
+      "path": "/api/entity/<path:entity_path>",
+      "methods": [
+        "GET"
+      ]
+    },
+    {
+      "path": "/api/events/<path:name>",
+      "methods": [
+        "GET"
+      ]
+    },
+    {
+      "path": "/api/graph/bridges",
+      "methods": [
+        "GET"
+      ]
+    },
+    {
+      "path": "/api/graph/cloud",
+      "methods": [
+        "GET"
+      ]
+    },
+    {
+      "path": "/api/graph/co-mentions",
+      "methods": [
+        "GET"
+      ]
+    },
+    {
+      "path": "/api/graph/country/<path:name>",
+      "methods": [
+        "GET"
+      ]
+    },
+    {
+      "path": "/api/graph/edges-by-year",
+      "methods": [
+        "GET"
+      ]
+    },
+    {
+      "path": "/api/graph/edition_companies",
+      "methods": [
+        "GET"
+      ]
+    },
+    {
+      "path": "/api/graph/exposure",
+      "methods": [
+        "GET"
+      ]
+    },
+    {
+      "path": "/api/graph/hyper/edge/<edge_type>/<path:label>",
+      "methods": [
+        "GET"
+      ]
+    },
+    {
+      "path": "/api/graph/hyper/neighbors/<path:name>",
+      "methods": [
+        "GET"
+      ]
+    },
+    {
+      "path": "/api/graph/hyper/structure",
+      "methods": [
+        "GET"
+      ]
+    },
+    {
+      "path": "/api/graph/metrics/<metric>",
+      "methods": [
+        "GET"
+      ]
+    },
+    {
+      "path": "/api/graph/near-duplicates",
+      "methods": [
+        "GET"
+      ]
+    },
+    {
+      "path": "/api/graph/neighbors/<path:name>",
+      "methods": [
+        "GET"
+      ]
+    },
+    {
+      "path": "/api/graph/peers/<path:name>",
+      "methods": [
+        "GET"
+      ]
+    },
+    {
+      "path": "/api/graph/positions",
+      "methods": [
+        "GET"
+      ]
+    },
+    {
+      "path": "/api/graph/refresh",
+      "methods": [
+        "POST"
+      ]
+    },
+    {
+      "path": "/api/graph/sector/<path:name>",
+      "methods": [
+        "GET"
+      ]
+    },
+    {
+      "path": "/api/graph/semantic/<path:name>",
+      "methods": [
+        "GET"
+      ]
+    },
+    {
+      "path": "/api/graph/shortest",
+      "methods": [
+        "GET"
+      ]
+    },
+    {
+      "path": "/api/graph/similar/<path:note_path>",
+      "methods": [
+        "GET"
+      ]
+    },
+    {
+      "path": "/api/graph/stats",
+      "methods": [
+        "GET"
+      ]
+    },
+    {
+      "path": "/api/graph/suggestions",
+      "methods": [
+        "GET"
+      ]
+    },
+    {
+      "path": "/api/resolve",
+      "methods": [
+        "GET"
+      ]
+    },
+    {
+      "path": "/api/scripts/search",
+      "methods": [
+        "GET"
+      ]
+    },
+    {
+      "path": "/api/search",
+      "methods": [
+        "GET"
+      ]
+    },
+    {
+      "path": "/api/sectors",
+      "methods": [
+        "GET"
+      ]
+    },
+    {
+      "path": "/api/stats",
+      "methods": [
+        "GET"
+      ]
+    },
+    {
+      "path": "/entity/<path:entity_path>",
+      "methods": [
+        "GET"
+      ]
+    },
+    {
+      "path": "/findata",
+      "methods": [
+        "GET"
+      ]
+    },
+    {
+      "path": "/points_and_figures/images/<path:filename>",
+      "methods": [
+        "GET"
+      ]
+    }
+  ]
+}

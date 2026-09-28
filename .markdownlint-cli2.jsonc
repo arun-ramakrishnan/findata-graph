@@ -12,7 +12,13 @@
   // wrapper's argv instead (helpers/misc/markdown_lint.py `_CMD`) —
   // same coverage for `make md-lint`, and a bare targeted invocation
   // now lints exactly the files you name (~0.5s, no --no-globs needed).
-  // ignores: keep heavy non-source trees out of every walk.
+  // ignores: keep heavy non-source trees out of every walk. ONE block only —
+  // this file previously declared "ignores" twice (a second block at the end
+  // of the object), and JSON takes the LAST duplicate, so the tree excludes
+  // below were silently dead while still reading as configured. They are inert
+  // for `make md-lint` (its globs are scoped to doc/ + findata/, so those
+  // trees are never matched) but they are the only guard for a targeted run
+  // from a directory that does contain a nested node_modules/.venv.
   "ignores": [
     "**/node_modules/**",
     "**/.venv/**",
@@ -20,7 +26,8 @@
     "**/.git/**",
     "Mojo/bin/**",
     "db-backup/**",
-    "snapshots/**"
+    "snapshots/**",
+    "findata/_pending_triage_report.md"  // run artifact, not corpus
   ],
   "noBanner": true,
   "noProgress": true,
@@ -82,7 +89,4 @@
       }
     }
   ],
-  "ignores": [
-    "findata/_pending_triage_report.md"  // run artifact, not corpus
-  ]
 }

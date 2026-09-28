@@ -1685,6 +1685,26 @@ def check_coverage_ledger() -> tuple[list[str], list[str]]:
     return [], []
 
 
+def check_route_skeleton() -> tuple[list[str], list[str]]:
+    """Published surface-shape skeleton (route_skeleton module).
+
+    The coverage ledger's verdicts are operator-local by design, so its
+    completeness half only holds for the operator: on any fresh clone the
+    ledger is absent and the check skips. The route skeleton is the tracked,
+    publishable half — route paths and methods, already public as literals in
+    app.py — so an unlisted new route fails the gate for everyone. Absence of
+    the skeleton is fatal, not a skip; that visibility is the whole point.
+    """
+    from helpers.validators.route_skeleton import (
+        DEFAULT_APP,
+        DEFAULT_SKELETON,
+        check as skeleton_check,
+    )
+
+    fatal, advisory = skeleton_check(DEFAULT_APP, DEFAULT_SKELETON)
+    return fatal, advisory
+
+
 CHECKS = [
     ("Python syntax", check_python_syntax),
     ("JS syntax", check_js_syntax),
@@ -1715,6 +1735,7 @@ CHECKS = [
     # security-coverage #247b S3: API-route coverage ledger (advisory-skip
     # when the operator-local ledger is absent)
     ("Coverage ledger", check_coverage_ledger),
+    ("Route skeleton", check_route_skeleton),
 ]
 
 

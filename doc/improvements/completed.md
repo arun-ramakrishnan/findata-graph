@@ -8111,3 +8111,73 @@ Execution record: `archive/ui/findata_graph_desktop.md` (S7 option i
 bundled-GGUF query embedding + S8 follow-ups live on as accepted
 future work) + `archive/pipeline/company_metrics_null_labels.md`
 (archived **deferred** — `guidance_*` backfill trigger inside).
+
+## 309. CSR shortest_path lane remediation — the lane actually fires
+
+Execution record: `archive/graph/csr_lane_remediation.md`
+
+- The correction itself is recorded in #301 above (inert promotion,
+  kernel-only number, and the corrected median-of-15 figures). This
+  entry closes the proposal that produced it.
+- S1 activation: `edge_label=None` is now passed **explicitly** from the
+  API route (`app.py`) and from the CLI, which gained `--edge-label`
+  defaulting to `None`. The signature default stayed a recognised
+  label so the unfiltered case is always opt-in-visible rather than
+  implicit.
+- S2 caching: module-side cache in `csr.py` keyed on the connection's
+  `generation`, with the freshness rule matching `load()` on both the
+  `db_path` and no-`db_path` paths. Recovers the integrated-path win
+  that per-call `csr.load()` + 22k `pos` rebuild (~7.2 ms) had erased.
+- S3 `src == dst`: short-circuit in `try_shortest_path` matching SQL's
+  `[(src, 0)]`, with the `_build_meta` safety gate still ahead of it.
+- S4 near-dup memory: docstring reworded and a sort/truncation guard
+  added so the bound is pinned, not just the observed result.
+- Verification: a post-landing OCR delegation review mutation-tested the
+  spine — disabling the prune, injecting the `limit + 1` off-by-one,
+  regressing no-DB freshness, breaking `src == dst`, making the cache
+  ignore its generation, and dropping memoisation each turned a test
+  red (6/6). Two earlier mutations passed and were both no-ops, not
+  gaps.
+- Known gap, deliberately not closed here: the route activation has no
+  correctness test. `tests/bench_shortest_path.py` calls the library
+  function directly and asserts latency only, so nothing pins the
+  route's own `edge_label=None` call or its agreement with SQL.
+
+## 310. OCR review pipeline hardening — and a runbook that could not authenticate
+
+Execution record: `archive/tooling/ocr_review_pipeline.md`
+
+- S1 `.opencodereview/rule.json` widened from a tests-only `include` to
+  `tests/**/*.py` + `helpers/**/*.py` + `app.py`. The tests-only
+  version satisfied the documented test-spine check while selecting
+  **zero** production files — necessary but not sufficient.
+- S2 `doc/procedures/ocr_review.md`: nine defects corrected, the
+  load-bearing one being key extraction. The runbook grepped
+  `ZCODE_API_KEY` (which does not exist) and used a `cut` that split on
+  the first `=` only, so a malformed `KEY==<value>` line silently
+  yielded a 50-char token and a bare 401 on every request. Cost one
+  full 15-minute managed pass before it was diagnosed. Also: venv
+  paths for the four query CLIs, `$OCR` prefixes, `delegate preview`
+  has no `-o` (the interleave needs stripping, not redirecting),
+  `include` is a restrictive allow-list, `status: failed` + zero
+  comments is not a clean bill, `$TMPDIR` not `/tmp`, and scratch
+  evidence is not citable.
+- S3 `make review-patch` **demoted** to the deterministic part only.
+- S4 mode decision: delegation is the loop; managed is a second
+  opinion. A `glm-5.3-flash` pass returned 0 findings on a diff where
+  the host track found five, so the flash tier is recorded as
+  recall-limited — a zero-comment managed run is evidence of nothing.
+
+## 311. Route skeleton — publish the surface shape, keep the verdicts local
+
+Execution record: `archive/security/security_route_skeleton.md`
+
+- S1 `helpers/validators/route_skeleton.py`: `route_inventory` walks
+  `app.py` via `ast` (no import, no side effects) and reports the
+  surface shape.
+- S2 `doc/security/routes.json`, generated and tracked via `--write`.
+- S3 wired into `static_checks.py` as `("Route skeleton", …)`, agreeing
+  with `app.py` at 38 routes.
+- Emits one advisory **by design**: shape agreement is not a security
+  verdict, and the check says so in its own output. It will not be
+  cleared by silencing the line.

@@ -34,19 +34,16 @@ entry number and stale DONE pointers):
 
 ## Current live proposals
 
-- `csr_lane_remediation.md` — filed 2026-09-28. CSR shortest_path lane
-  remediation: activation (pass `edge_label=None` from API/CLI), module-side
-  load/pos cache keyed on generation, `src == dst` contract parity, near-dup
-  docstring fix. Fixes the four findings from the ef8a17d4 OCR delegation
-  review.
-- `ocr_review_pipeline.md` — filed 2026-09-28. OCR review pipeline hardening:
-  `.opencodereview/rule.json` (re-include tests), `doc/procedures/ocr_review.md`,
-  `make review-patch` wrapper, standing-mode decision. Gate coupling stays off.
+_(none)_
 
-_(The last archived proposals were archived 2026-09-28
-(`findata_graph_desktop` as completed.md entry 308 — Tauri desktop
-demo-to-full-app, S1–S8; `company_metrics_null_labels` as entry 308 deferred)
-and 2026-09-27 (c901_complexity_debt as completed.md entry 306,
+_(The last archived proposals were archived 2026-09-28:
+`csr_lane_remediation` as completed.md entry 309 — CSR shortest_path lane
+remediation, S1–S4, the lane now actually fires; `ocr_review_pipeline` as entry
+310 — rule layer, procedure, mode decision; `security_route_skeleton` as entry
+311 — the published route-surface shape. That same day
+`findata_graph_desktop` landed as entry 308 — Tauri desktop demo-to-full-app,
+S1–S8, with `company_metrics_null_labels` as entry 308 deferred; and
+2026-09-27 (c901_complexity_debt as completed.md entry 306,
 chain_tally_determinism as entry 305; pytest_tmpfs_amplification followed
 the same day as entry 307, born-executed); see the Previously chain below
 for their records.)_
@@ -406,4 +403,4 @@ completed.md entry 247 (archived to `../archive/tooling/`);
 industry_coding_completion.md executed 2026-09-19 as entry 248
 (archived to `../archive/database/`); nic2008_seed_table.md executed
 2026-09-19 as entry 246 (archived to `../archive/database/`);
-tmpdir_sanitization.md archived 2026-09-17 as entry 245.)_
+tmpdir_sanitization.md archived 2026-09-17 as entry 245.)*
