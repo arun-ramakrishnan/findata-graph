@@ -8181,3 +8181,56 @@ Execution record: `archive/security/security_route_skeleton.md`
 - Emits one advisory **by design**: shape agreement is not a security
   verdict, and the check says so in its own output. It will not be
   cleared by silencing the line.
+
+## 312. OCR review remediation — the two-leg findings, executed + the three-leg review experiment
+
+**Proposal**: `doc/improvements/archive/tooling/ocr_remediation.md`
+(filed 2026-09-28, executed 2026-09-29).
+
+- S1–S6: all 15 live findings from the two-leg OCR review of
+  `0b63ce4507` — the under-lock read-only downgrade restored
+  (`query._build_graph_connection`), zero-resolved list mentions
+  sidecar-first (`extract_relations`, edge delta 0 measured; eval gate
+  164/164 ACCEPT), ruff-sweep truthfulness + direction-aware
+  sort-guard extension (12 call sites), parity fixture registration
+  (5 of 6 S2 splits + `helpers/graph/fixture_graph_db.py`; print_stats
+  blocked, c901 D1 owner), harness robustness (F8–F12, F14), dead-weight
+  cleanups. S7/S8 from the launch incidents: `ocr_key_map.py`
+  provider→env-var table + no-plaintext bridge; prompt-ceiling discipline.
+- S9–S12, the three-leg review experiment on the arc's own commit:
+  managed glm-5.3 (20 findings, 19 confirmed + 1 partial, 0 FP — incl.
+  two mutation-vacuous regression tests, rewritten and mutation-proven),
+  delegation+host A/B (2.5 min / ~12.6k fresh tok vs 47.4 min / ~726k;
+  2 LOWs the managed leg missed), cross-model delegation
+  (opencode + Muse Spark 1.3: 2 unique LOWs — the key-map pop-by-value
+  leak, the harvest catch precision — both fixed). Doctrine landed:
+  mutation-check the TEST, not just the fix; fixture-reality host duty
+  (procedure §3/§5). Provider probes: edenai/litellm/ollama-cloud have
+  no env fallback (api_key_cmd only).
+
+## 313. Gate index grammar coverage — integrity/verify gates indexed (S1–S3 from banked #302 design)
+
+**Design**: `archive/tooling/gate_index_grammar_coverage.md` (banked
+2026-09-26, born-archived without implementation; executed 2026-09-29 on
+its revisit trigger — the rescan kept growing ~9.5 MB/day).
+
+- S1 grammar + indexing: search_tui gains `_INTEGRITY_TITLE_RE` /
+  `_VERIFY_TITLE_RE` (+ `_INTEGRITY_ENDED_RE` completeness marker) and a
+  pure `_parse_verify_chunk` factoring; gate_query `_split_blocks` emits
+  `integrity`/`verify` kinds, `_parse_block` dispatches to two new
+  RunBlock builders (integrity: one leg per `## CHECK (SEV)` section,
+  FAIL iff `-> errors=N` > 0, summary `N/M checks ok · integrity
+  PASS|FAIL`; verify: metrics summary + `### bucket (N)` legs), and
+  `_store_run` takes a lean report path (no junit, no warning
+  mis-ingestion, exit_code 0/1 by error counters).
+- S2 rotation catch-up: `rotate --apply` archived 97 runs (31.5 MB →
+  22 MB live integrity file, zst archive); parse_state offset shift
+  verified by a clean post-rotate refresh.
+- S3 loud zero-block invariant: `refresh()` names any file yielding zero
+  blocks over newly-read bytes, on both `refresh` and every command's
+  auto-refresh.
+- Measured: backfill 918 s one-time (564 runs total — integrity 195,
+  verify 170 — 0 parse errors, 0 zero-block files); incremental refresh
+  **1.29 s → 0.65 s median**; `latest --gate integrity`, `failures`,
+  `timing` live for both kinds (run 833: 17/17 checks ok · integrity
+  PASS). Tests: gate_query suite 32 passed; types green.

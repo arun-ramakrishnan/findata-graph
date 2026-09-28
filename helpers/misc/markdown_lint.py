@@ -137,11 +137,19 @@ def _corpus_files() -> list[Path]:
     roots from the same argv so the two can never drift. A globs edit
     is a rebuild (delete the sidecar), while rule/override edits
     self-flush via the config-hash key.
+
+    An unreadable/unparseable config yields an empty corpus, which
+    ``main`` reads as "the walk failed" and answers with a whole-corpus
+    cli2 run — correct coverage, but the content-hash cache is bypassed
+    and every gate run costs the full lint. That degradation is silent,
+    so it is reported (2026-09-29: a trailing comma in the config made
+    ``_jsonc_loads`` raise and silently killed the cache for a day).
     """
     try:
         cfg = _jsonc_loads(_CONFIG_PATH.read_text(encoding="utf-8"))
         ignores = [str(p) for p in cfg.get("ignores", [])]
-    except OSError, ValueError:
+    except (OSError, ValueError) as exc:
+        print(f"WARNING: {_CONFIG_PATH.name} unreadable/unparseable ({exc}); cache disabled")
         return []
     roots = sorted({str(a).split("/**", 1)[0] for a in _CMD if str(a).endswith("/**/*.md")})
     files: list[Path] = []

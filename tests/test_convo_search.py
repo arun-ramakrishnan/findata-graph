@@ -147,6 +147,64 @@ def test_harvest_cold_dedup_and_incremental(convo_env):
     assert stats2["lanes"].count("total new: 0") == 3
 
 
+def test_harvest_skips_unreadable_source_and_keeps_the_rest(convo_env, monkeypatch):
+    """One corrupt source must not abort the lane (observed 2026-09-29).
+
+    A truncated timeshift image raised a bare `disk I/O error` out of
+    `_harvest_opencode_db` and took down every other snapshot AND the live db
+    with it. The lane now skips the bad source, names it in its stats, and
+    still harvests everything else.
+    """
+    tmp = convo_env
+    oc_snap = tmp / "snap_old/localhost/home/arun/.local/share/opencode/opencode.db"
+    oc_live = tmp / "live/opencode.db"
+    boom = tmp / "snap_bad/localhost/home/arun/.local/share/opencode/opencode.db"
+    boom.parent.mkdir(parents=True, exist_ok=True)
+    boom.write_bytes(b"this is not a sqlite database at all")
+
+    real_read = hc._harvest_opencode_db
+
+    def flaky(path, src, hwm):
+        if path == boom:
+            raise hc.sqlite3.DatabaseError("database disk image is malformed")
+        return real_read(path, src, hwm)
+
+    monkeypatch.setattr(hc, "_harvest_opencode_db", flaky)
+    monkeypatch.setattr(
+        hc,
+        "_opencode_sources",
+        lambda: [
+            (oc_snap, "opencode-snap:t0", True),
+            (boom, "opencode-snap:corrupt", True),
+            (oc_live, "opencode:live", False),
+        ],
+    )
+
+    stats = hc.harvest(corpus_root=tmp / "corpus", db=tmp / "convo_search.duckdb")
+    # "lanes" is the lane reports newline-joined — no blank lines, so there is
+    # nothing to split on (an earlier draft's split("\n\n") was a silent no-op);
+    # assert against the whole report.
+    opencode_lane = stats["lanes"]
+
+    # the bad source is named, not swallowed
+    assert "SKIP unreadable" in opencode_lane
+    assert "corrupt" in opencode_lane
+    # ...and the healthy sources either side of it still landed
+    assert "opencode-snap:t0" in opencode_lane
+    assert "opencode:live" in opencode_lane
+
+    import pyarrow.parquet as pq
+
+    files = sorted((tmp / "corpus").rglob("*.parquet"))
+    rows = {
+        r["part_id"]: r for f in files if "opencode" in str(f) for r in pq.read_table(f).to_pylist()
+    }
+    # live's newer p1 still wins the dedup, and its new part is present:
+    # proof the harvest continued past the corrupt source
+    assert rows["p1"]["text"] == "the igraph decision record UPDATED"
+    assert rows["p3"]["text"] == "a brand new live part"
+
+
 def test_harvest_check_detects_drift(convo_env):
     tmp = convo_env
     db = tmp / "convo_search.duckdb"

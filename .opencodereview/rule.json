@@ -2,13 +2,16 @@
   "include": [
     "tests/**/*.py",
     "helpers/**/*.py",
-    "app.py"
+    "app.py",
+    "Mojo/src/**/*.mojo",
+    "Mojo/tests/**/*.mojo"
   ],
   "exclude": [
     "static/**/*.bundle.js",
     "static/**/*.bundle.js.map",
     "node_modules/**",
     "findata/**",
-    "doc/local/**"
+    "doc/local/**",
+    "Mojo/vendor/**"
   ]
 }

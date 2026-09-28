@@ -135,6 +135,7 @@ def test_lane_serves_the_production_call_shape(csr_db: Path, tmp_path: Path):
     con = _StubCon(generation="42", v_node={"a", "b", "c", "d", "e"})
     result, fresh = csr.try_shortest_path(con, "a", "c", 5, out_dir=out, db_path=csr_db)
     assert fresh is True, "generation match must activate the lane"
+    assert result is not None, "lane applied on a connected pair must yield a path"
     # the toy graph has a direct a-c edge, so the 1-hop path is the
     # hop-shortest answer; the lane must return it, not a longer walk
     assert [n for n, _hop in result] == ["a", "c"]
@@ -292,10 +293,17 @@ class TestMojoBfsParity:
 
     @staticmethod
     def _run(binary: Path, out: Path, src: int, dst: int, max_hops: int = 5):
+        import os
         import subprocess
 
         n = len(json.loads((out / "csr_names.json").read_text()))
         m = int((out / "csr_neighbors.bin").stat().st_size // 4)
+        # The Mojo bridge resolves libpython from the python3 on PATH at
+        # runtime (completed.md #202): without the venv bin first, the
+        # sys_exit(2) UNREACHABLE path aborts with `symbol not found:
+        # PyRun_SimpleString` even though the reachable paths succeed.
+        venv_bin = Path(__file__).resolve().parents[1] / ".venv" / "bin"
+        env = dict(os.environ, PATH=f"{venv_bin}:{os.environ.get('PATH', '')}")
         proc = subprocess.run(
             [
                 str(binary),
@@ -310,6 +318,7 @@ class TestMojoBfsParity:
             capture_output=True,
             text=True,
             timeout=60,
+            env=env,
         )
         return proc
 

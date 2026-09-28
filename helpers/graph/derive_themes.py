@@ -224,7 +224,11 @@ def _resolve_theme_company_name(note: Path, path_to_name: dict[str, str] | None)
     try:
         rel = note.resolve().relative_to(_REPO_ROOT).as_posix()
     except ValueError:
-        rel = note.stem
+        # Corpus-lane paths may already be repo-relative (findata/Companies/…);
+        # resolving those against a CWD ≠ repo root throws them outside the
+        # tree, and the stem fallback silently misses the path_to_name join
+        # (ocr_remediation F5 — the as_posix() arm the refactor dropped).
+        rel = note.as_posix() if not note.is_absolute() else note.stem
     if path_to_name is not None:
         return path_to_name.get(rel)
     return note.stem

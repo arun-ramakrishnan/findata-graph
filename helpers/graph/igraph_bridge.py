@@ -540,7 +540,7 @@ def main(argv: list[str] | None = None) -> int:  # noqa: C901  # CLI dispatch; a
             )
         return 0
 
-    ranked = sorted(result.items(), key=lambda kv: kv[1], reverse=True)[: args.top]
+    ranked = sorted(result.items(), key=lambda kv: (-kv[1], kv[0]))[: args.top]
     for name, score in ranked:
         print(f"  {name}: {score:.6f}")
     if extra:

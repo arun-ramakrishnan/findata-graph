@@ -11,6 +11,7 @@ and the FK-safety contract (every event's entity must exist).
 
 from __future__ import annotations
 
+import shutil
 import sqlite3
 from contextlib import redirect_stderr
 from io import StringIO
@@ -21,8 +22,7 @@ import pytest
 
 from helpers.core.db import connect as db_connect  # noqa: E402
 from helpers.graph import derive_events as de  # noqa: E402
-from helpers.graph.query import DB_PATH  # noqa: E402
-from tests.helpers import copy_production_db  # noqa: E402
+from tests._tmp_hygiene import schema_template  # noqa: E402
 
 pytestmark = [pytest.mark.integration]
 
@@ -55,12 +55,13 @@ def _note(title: str) -> str:
 
 
 class _EventsProject:
-    def __init__(self, root: Path):
+    def __init__(self, root: Path, tmp_path_factory):
         self.root = root
+        self.tmpf = tmp_path_factory
         self.db = root / "research.db"
         self.companies = root / "findata" / "Companies" / "Banking"
         self.companies.mkdir(parents=True)
-        copy_production_db(DB_PATH, self.db)
+        shutil.copyfile(schema_template(self.tmpf), self.db)
         dst = sqlite3.connect(str(self.db))
         dst.executemany(
             "INSERT INTO entities (name, entity_type, file_path) VALUES (?, 'company', ?)",
@@ -101,8 +102,8 @@ class _EventsProject:
 
 
 @pytest.fixture
-def events_project(tmp_path) -> _EventsProject:
-    return _EventsProject(tmp_path)
+def events_project(tmp_path, tmp_path_factory) -> _EventsProject:
+    return _EventsProject(tmp_path, tmp_path_factory)
 
 
 class TestDeriveEventsCli:

@@ -36,7 +36,11 @@ entry number and stale DONE pointers):
 
 _(none)_
 
-_(The last archived proposals were archived 2026-09-28:
+_(The last archived proposal was archived 2026-09-29:
+`ocr_remediation` as completed.md entry 312 — the two-leg OCR review
+remediation executed through S12, including the three-leg review experiment
+(managed glm-5.3, delegation+host A/B, cross-model Muse Spark 1.3
+delegation). Before that, 2026-09-28:
 `csr_lane_remediation` as completed.md entry 309 — CSR shortest_path lane
 remediation, S1–S4, the lane now actually fires; `ocr_review_pipeline` as entry
 310 — rule layer, procedure, mode decision; `security_route_skeleton` as entry

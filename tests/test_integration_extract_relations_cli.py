@@ -11,6 +11,7 @@ canonical ordering, and re-apply idempotence.
 
 from __future__ import annotations
 
+import shutil
 import sqlite3
 from contextlib import redirect_stderr
 from io import StringIO
@@ -21,8 +22,7 @@ import pytest
 
 from helpers.core.db import connect as db_connect  # noqa: E402
 from helpers.graph import extract_relations as xr  # noqa: E402
-from helpers.graph.query import DB_PATH  # noqa: E402
-from tests.helpers import copy_production_db  # noqa: E402
+from tests._tmp_hygiene import schema_template  # noqa: E402
 
 pytestmark = [pytest.mark.integration]
 
@@ -47,8 +47,8 @@ _FSN = "FSN E-Commerce"  # reached via the "nykaa" brand alias
 _UNKNOWN = "Globex"  # unresolved -> sidecar
 
 
-def _make_db(db: Path) -> None:
-    copy_production_db(DB_PATH, db)
+def _make_db(db: Path, tmp_path_factory) -> None:
+    shutil.copyfile(schema_template(tmp_path_factory), db)
     dst = sqlite3.connect(str(db))
     dst.executemany(
         "INSERT INTO entities (name, entity_type) VALUES (?, 'company')", [(_REL,), (_FSN,)]
@@ -58,14 +58,15 @@ def _make_db(db: Path) -> None:
 
 
 class _XrProject:
-    def __init__(self, root: Path):
+    def __init__(self, root: Path, tmp_path_factory):
         self.root = root
+        self.tmpf = tmp_path_factory
         self.db = root / "research.db"
         self.vault = root / "findata"
         (self.vault / "The_Chatter").mkdir(parents=True)
         (self.vault / "The_Chatter" / "TC_Alpha.md").write_text(_NEWSLETTER, encoding="utf-8")
         self.sidecar = self.vault / "_pending_relations.txt"
-        _make_db(self.db)
+        _make_db(self.db, self.tmpf)
 
     def run(self, monkeypatch, *args: str) -> tuple[int, str]:
         monkeypatch.setattr(xr, "_REPO_ROOT", self.root)
@@ -92,8 +93,8 @@ class _XrProject:
 
 
 @pytest.fixture
-def xr_project(tmp_path) -> _XrProject:
-    return _XrProject(tmp_path)
+def xr_project(tmp_path, tmp_path_factory) -> _XrProject:
+    return _XrProject(tmp_path, tmp_path_factory)
 
 
 class TestExtractRelationsCli:

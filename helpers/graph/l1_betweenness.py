@@ -591,7 +591,7 @@ def main(argv: list[str] | None = None) -> int:
     )
 
     norm = (info["endpoints"] - 1) * (info["endpoints"] - 2) / 2.0
-    ranked = sorted(scores.items(), key=lambda kv: kv[1], reverse=True)[: args.top]
+    ranked = sorted(scores.items(), key=lambda kv: (-kv[1], kv[0]))[: args.top]
     print(f"[{BETWEENNESS_METRIC}] top {min(args.top, len(scores))} (normalized)")
     for name, s in ranked:
         print(f"  {name}: {s / norm:.6f}")

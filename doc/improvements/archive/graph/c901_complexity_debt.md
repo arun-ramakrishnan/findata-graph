@@ -373,6 +373,24 @@ after S2 still leaves a strict improvement (§5).
   domain-logic population, or when a maintainer files a specific
   function as a problem.
 
+### D1.s7 (filed 2026-09-29, DEFERRED) — `print_stats` parity fixture
+
+`print_stats` (stats.py, 27) is the one S2 heavy hitter that never became
+a parity fixture (ocr_remediation S4/F7 registered the other five):
+`make parity` cannot render it because it opens the **live production
+DB** twice through `helpers.core.db.connect()` (stats.py — the
+`longest_chains` and `hyper_structure` sections) plus the census/hygiene
+helpers (`_print_country_census`, `_print_data_hygiene`), and the harness
+hands a fixture only a module object — no DB injection point exists.
+**The slice** (when taken): thread an optional `db_path` through
+`print_stats` → the two `connect()` sites and the two census/hygiene
+helpers (default `None` = live DB, so the CLI is unchanged), then
+register the fixture with the `fixture_graph_db` builder. Seams named by
+ocr_remediation S9's review (the `DatabaseIntegrityChecker` half already
+takes `db_path=` — only the four `connect()`-family sites lack it).
+Deferred with D1: it is plumbing, not a split, and moves with the
+domain-logic population's harness work.
+
 ## 4. Acceptance criteria & shakedown
 
 1. `make lint-audit` green with **no new** suppression added; the

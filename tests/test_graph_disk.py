@@ -226,6 +226,50 @@ class TestDiskBasics:
         assert rcs == [0] * 6, f"child failures: {list(zip(rcs, results))}"
         assert duckdb_path.exists()
 
+    def test_read_only_downgrade_under_lock(self, tmp_db, tmp_path, monkeypatch):
+        """connect(read_only=True) routed INTO _build_graph_connection (outer
+        needs_build=True) must still get a read-only connection when the cache
+        is warm again by the time the flock is held.
+
+        Regression (F1) — mutation-hardened (ocr review, c83a11d9 [14]): the
+        original version warmed the cache first, so connect() took the OUTER
+        fast path (query.py read_only/needs_build check) and the test passed
+        identically on pre-fix code. The discriminator: outer _is_warm=False
+        (cache flipped cold), warm AGAIN under the lock — exactly the
+        waiter-behind-a-builder interleave. Only the under-lock re-check
+        routes this to the read-only open; the mutated shape opens read-write.
+        """
+        import helpers.graph.query as gq
+
+        duckdb_path = _duckdb_for(tmp_db)
+        assert not duckdb_path.exists()
+
+        # Build the cache so a warm file EXISTS...
+        con = connect(tmp_db, duckdb_path=duckdb_path)
+        con.close()
+        assert duckdb_path.exists()
+
+        # ...then force the OUTER check cold so connect() must enter
+        # _build_graph_connection (the pre-fix code had no re-check inside).
+        # Under the lock the REAL warmness is restored — the "concurrent
+        # builder finished a moment ago" state: needs_build computes False
+        # in there, and ONLY the under-lock read_only re-check downgrades.
+        real_is_warm = gq._is_warm
+        calls = {"n": 0}
+
+        def cold_then_real(*args, **kwargs):
+            calls["n"] += 1
+            return real_is_warm(*args, **kwargs) if calls["n"] > 1 else False
+
+        monkeypatch.setattr(gq, "_is_warm", cold_then_real)
+
+        con = connect(tmp_db, read_only=True, duckdb_path=duckdb_path)
+        try:
+            with pytest.raises(Exception, match="read.only|read-only|Cannot"):
+                con.execute("CREATE TABLE _test_write_fail (x INT)")
+        finally:
+            con.close()
+
     def test_corrupted_file_treated_as_cold(self, tmp_db):
         # Write garbage to the .duckdb path; _is_warm should return False,
         # and connect() should rebuild.

@@ -3,6 +3,8 @@
 **Date:** 2026-09-28 · **Proposal:** `doc/improvements/archive/tooling/ocr_review_pipeline.md` (S2)
 **Scope:** `.opencodereview/rule.json`, `ocr delegate preview` / `ocr delegate rule` (bun global install, unpinned), the four repo indexes, and the host-agent review loop. Not the domain triage kit in `review-kit.md` — that one rehouses evidence queues, it does not review diffs.
 
+**Related issue:** [prime-agent#3082](https://github.com/PrimeIntellect-ai/prime-agent/issues/3082) — kernel snapshot/restore silently truncates files: dill-revived `'w'` file handles reopen with `O_TRUNC` at every kernel restart. This zeroed the evidence file `doc/local/engineering/code_review.md` three times during the 2026-09-28 trial. Until it lands upstream, write doc-local notes with `Path(p).write_text(...)` — never a captured `open(..., 'w')` handle.
+
 ## What this loop is
 
 OCR contributes two deterministic things — **which files are reviewable** and **a checklist of things to look for**. The host agent contributes judgment. Delegation mode calls no LLM, so it is free and needs no key. Output is advisory: never a `make qa` leg, never fails a build.
@@ -60,7 +62,30 @@ Read `reviewable_count` / `total_files` / `reviewable_files` (entries are object
 1. **at least one `tests/` path.** The default selection excludes tests, and this repo already paid for that: `csr_lane_fixes` saw 3/10 files and zero test lines — which is how an inert CSR lane plus two green-but-broken defects shipped. No test path ⇒ stop and fix `.opencodereview/rule.json`.
 2. **at least one non-test source path.** `include` is a restrictive allow-list, not additive: `{"include": ["tests/**/*.py"]}` passes check 1, reports green, and reviews nothing that matters — the mirror image of the first failure, and more dangerous because the check comes back satisfied.
 
-The rule was widened to `tests/**/*.py`, `helpers/**/*.py`, `app.py` on 2026-09-28 (6/14 reviewable on that range: 3 production, 2 test, 1 JSON; 8 exclusions all Markdown). Re-derive the ratio every run — never store it. `--exclude a,b` merges with the rule excludes for a one-off; `-B <file>` supplies background (§2).
+The rule was widened to `tests/**/*.py`, `helpers/**/*.py`, `app.py` on 2026-09-28 (6/14 reviewable on that range: 3 production, 2 test, 1 JSON; 8 exclusions all Markdown) and to `Mojo/src/**/*.mojo` + `Mojo/tests/**/*.mojo` (`Mojo/vendor/**` excluded) on 2026-09-29 — the ef8a17d4 review had to cover the Mojo BFS by hand before that; `ocr delegate preview --commit ef8a17d4` now selects 12/16 with `bfs_csr.mojo` visible. Re-derive the ratio every run — never store it. `--exclude a,b` merges with the rule excludes for a one-off; `-B <file>` supplies background (§2).
+
+**`make review-patch` runs this check mechanically** (ocr_review_pipeline S3's deterministic remainder): stgit→ref mapping (`--stack N` ⇒ `HEAD~N..HEAD`), the roster print, and the selection-teeth assertion — every rule-covered family with diff traffic must have a selected file, checked against a **hardcoded** product-family list (`tests/`, `Mojo/src/`, `Mojo/tests/`) so a rule.json regression fires instead of self-masking. Mutation-verified 2026-09-29 (drop `tests/` from the rule ⇒ exit 1 naming the family). Advisory only — never a `make qa` leg. The two manual checks above stay as the judgment layer on top.
+
+## 1b. Review freshness — was this diff already reviewed?
+
+`make review-patch` also prints a freshness line; the ledger behind it is
+`memory/data/review-freshness.json` (machine-local, gitignored),
+driven by `helpers/misc/review_freshness.py`:
+
+    $OCR="$OCR" ; .venv/bin/python3 helpers/misc/review_freshness.py --stack N
+    .venv/bin/python3 helpers/misc/review_freshness.py --stack N --record \
+        --leg delegation --leg managed --note "verdict pointer"
+
+- The **fingerprint is the sha256 of the range's diff TEXT**, not the commit
+  SHA: stgit refreshes mint new SHAs for identical content, and freshness is
+  about content. Same diff after a refresh stays FRESH; any content change
+  goes STALE; no row → UNREVIEWED.
+- **After a review completes, `--record` it** (legs: `delegation` / `managed`,
+  repeatable; `--note` carries the verdict pointer, e.g. the code_review.md
+  section). Upsert by fingerprint — re-reviewing the same diff updates the
+  row instead of duplicating it.
+- Verified 2026-09-29: record ⇒ FRESH; perturbed fingerprint ⇒ STALE ("the
+  stack changed since it was reviewed"); empty ledger ⇒ UNREVIEWED.
 
 **Workspace mode is empty on a refreshed stack:** bare `$OCR delegate preview` diffs the working tree, and a refreshed stack has a clean tree. Not a bug — pass a ref.
 
@@ -87,6 +112,7 @@ The host agent then reviews the diff against that checklist:
 - run verdicts under the repo venv (`.venv/bin/python3`, never bare `python3`);
 - verify every finding against source, and **cross-check the gate** — if `make qa` (ruff, md-lint, ty, pytest) already flags it, it is not a review finding;
 - **a test's docstring is a claim, not evidence.** Check the asserted branch is *reachable*. Cheap mutation check: neuter the branch, run the test, confirm it goes red, then restore — and prefer a self-validating precondition (`assert len(reference) >= 4 * limit`) so a shrunken corpus fails loudly. Paid case: four tests claimed "the 4× prune fires repeatedly; limits 1/2/3 all prune", but the fixture built 4 paths = 6 pairs so only `limit=1` crossed `prune_at`, and disabling the branch left all four green.
+- **fixture reality — verify the fixture exercises what its comment names.** For a diff that adds tests or fixtures, check cross-file: trigger phrasings actually match the PATTERNS they claim to exercise ("customers include" is not a customer_of trigger; the paren form is), sentinels match the real regex (an invented `<!-- auto:chatter -->` silently falls back to whole-body scan), and referenced constants are actually consumed (a fixture `INDEX_NOISE` dead next to the module's own frozenset tests nothing). Paid case: the c83a11d9 managed leg found four such fixtures — each rendered green-and-vacuous while its comment claimed lane coverage. The generic OCR checklist cannot carry this (project rules don't surface, S4a); it is a host duty.
 
 ## 4. Triage — severity, then the operator
 
@@ -118,6 +144,8 @@ A finding set is a hypothesis until it survives these checks. Two legs make it m
 ## 5. Apply and verify
 
 Apply **only operator-accepted** fixes. Then re-run step 1 and re-review the same ref: fixing a finding does not close it, the re-review does.
+
+**Mutation-check the TEST, not just the fix** (learned the expensive way, c83a11d9 round 2026-09-29): a new regression test written alongside a fix can pass identically on the pre-fix code — the c83a round's two HIGH-severity catches were exactly such vacuous tests (the S1 test warmed the cache and never reached the fixed route; the F2 test resolved nothing anywhere, so both paths emitted the same row). Before calling a fix closed: strip/neuter the fix, run the new test, confirm it goes RED, restore. A test that cannot fail on the bug it pins is a docstring.
 
 ### Managed mode — results file, sessions, failure shapes
 
@@ -225,14 +253,27 @@ Hand the host agent the brief and the resolved refs; it runs selection + checkli
 
 ### 5b. Managed review (costs tokens; second opinion)
 
-The variable is `Z_AI_CODING_API_KEY` — **not** `ZCODE_API_KEY`, which appears nowhere in `memory/.env`. A duplicated `=` (`Z_AI_CODING_API_KEY=="<key>"`) makes every `NAME=VALUE` parser assign a value beginning with `=`, and z.ai answers `401 / code 1000` on every request — hit on 2026-09-28, costing a full 15-minute pass. Keep the guard line (no-op when well-formed):
+**Ask the operator for the key's variable name (`<KEY_NAME>`, required) and optionally the file it lives in (`<KEY_FILE>`)** — do not assume or hardcode either. If no file is given, the variable is expected to be already present in the environment. A duplicated `=` (`<KEY_NAME>=="<key>"`) makes every `NAME=VALUE` parser assign a value beginning with `=`, and z.ai answers `401 / code 1000` on every request — hit on 2026-09-28, costing a full 15-minute pass. Keep the guard line (no-op when well-formed).
 
-    ZKEY=$(grep -m1 '^Z_AI_CODING_API_KEY=' memory/.env | cut -d= -f2- | tr -d "\"' \r\n")
-    ZKEY=${ZKEY#=}                      # defensive: no-op on a well-formed line
-    Z_AI_CODING_API_KEY="$ZKEY" $OCR review \
-        --from "$X" --to "$Y" --model glm-5.3-flash \
-        --concurrency 2 \
-        -B "$TMPDIR/ocr_brief.md" --format json -o review.json
+**Then map the key onto the PROVIDER's expected env name** — the operator's name is never enough by itself (hit 2026-09-29: exporting the operator key under the house name failed with *"provider z-ai-coding has no api_key or api_key_cmd configured and no environment variable fallback found"*; every built-in provider has its own fixed fallback name, e.g. `z-ai-coding` → `Z_AI_CODING_API_KEY`). The table + bridge live in `helpers/misc/ocr_key_map.py`:
+
+    .venv/bin/python3 helpers/misc/ocr_key_map.py list          # provider -> env var (no secrets)
+    .venv/bin/python3 helpers/misc/ocr_key_map.py run \
+        --provider z-ai-coding --key-name "$KEY_NAME" --key-file "$KEY_FILE" \
+        -- $OCR review --from "$X" --to "$Y" --model glm-5.3 \
+          --concurrency 2 -B "$TMPDIR/ocr_brief.md" --format json -o review.json
+
+`run` resolves the operator key (flags or `OCR_KEY_NAME`/`OCR_KEY_FILE`), execs the command with the provider's env var set, and the key crosses only via the child's environment — never argv, never config.json, never output. Verified end-to-end 2026-09-29 (`ocr llm test` through the bridge).
+
+**No plaintext at rest — three routes, in order of preference:**
+
+1. **Per-invocation bridge** (`run` above) — nothing persisted anywhere; the operator supplies name+file every run.
+2. **`api_key_cmd`** (persistent, still no key at rest): `ocr config set providers.z-ai-coding.api_key_cmd "grep -m1 '^<KEY_NAME>=' <KEY_FILE> | cut -d= -f2-"` — config.json (0600) stores only the *command*; OCR runs it at invocation and hard-fails on non-zero/empty output (no silent fallback). The command string does name the key variable and file — acceptable: it is not the secret.
+3. **Static `api_key`** — plain text in config.json. **Never use it.** (`ocr config provider` TUI writes this form.)
+
+Precedence inside OCR: `api_key` > `api_key_cmd` > env-var fallback (the table). **Route 2 is CONFIGURED (2026-09-29):** `providers.z-ai-coding.api_key_cmd` greps the operator's key name from the key file at invocation (command recorded in config, secret never is — `ocr llm test` passes with zero key env vars exported). Managed launches therefore need **no key step at all**; route 1 (the `ocr_key_map.py run` bridge) remains for other providers and for runs where the operator wants per-invocation key supply. Note: provider probes showed `edenai`/`litellm`/`ollama-cloud` have no env fallback — for those, `api_key_cmd` is the only no-plaintext route.
+
+**Prompt ceiling vs the model's context window.** OCR already chunks: a review runs as subtasks of *one file or a bundle of related files*, each subtask's prompt capped by `max_tokens` (embedded default **200,000** for `ocr review`). A model with a smaller window does not need diff-chunking built — it needs the ceiling lowered: `--max-tokens N` per run (≈60–70% of the model's context, leaving room for the tool loop and the fixed 16,384 output cap), or `ocr config set max_tokens N` to persist. If a single reviewable file exceeds even the lowered ceiling, no config saves that subtask — that diff is a delegation-mode job (the host agent reads big files in slices). Know the window before launching; the provider table names endpoints, not model context sizes.
 
 Key hygiene: the stored value may be quoted (`tr -d '"'` strips that too); the 2026-09-28 key was 49 characters and every wrong variant measured 50 or 52. Probe before spending a run — a 401 costs a full pass and yields no findings:
 

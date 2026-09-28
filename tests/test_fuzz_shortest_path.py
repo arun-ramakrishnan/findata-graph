@@ -17,6 +17,7 @@ oracle logic.
 from __future__ import annotations
 
 import random
+import shutil
 import sqlite3
 from collections import deque
 
@@ -26,8 +27,7 @@ from hypothesis import strategies as st
 
 
 from helpers.graph import query as gq  # noqa: E402
-from helpers.graph.query import DB_PATH  # noqa: E402
-from tests.helpers import copy_production_db  # noqa: E402
+from tests._tmp_hygiene import schema_template  # noqa: E402
 
 duckdb = pytest.importorskip("duckdb")
 
@@ -105,7 +105,7 @@ def con(tmp_path_factory):
     # returns the pruned pages to the OS instead of leaving a full-size
     # sparse copy.
     tmp = tmp_path_factory.mktemp("shortest_path") / "sp.db"
-    copy_production_db(DB_PATH, tmp, vacuum=True)
+    shutil.copyfile(schema_template(tmp_path_factory), tmp)
     dst = sqlite3.connect(str(tmp))
     dst.executemany(
         "INSERT INTO entities (name, entity_type) VALUES (?, 'company')",

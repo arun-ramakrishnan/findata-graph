@@ -9,8 +9,9 @@ area: "helpers/misc/gate_query.py, helpers/misc/search_tui.py (shared report gra
 
 # Gate index grammar coverage — grammar-gap diagnosis banked; S1–S3 designed, not adopted
 
-**Date:** 2026-09-26 · **Status:** EXECUTED 2026-09-26 (completed.md #302 —
-born-archived, concluded without implementation) ·
+**Date:** 2026-09-26 · **Status:** EXECUTED 2026-09-26 (completed.md
+entry 302 — born-archived, design banked); S1–S3 IMPLEMENTED 2026-09-29
+(completed.md entry 313) ·
 **Area:** helpers/misc/gate_query.py + helpers/misc/search_tui.py (shared report grammar), outputs rotation
 
 > **Record (2026-09-26):** concluded at operator review WITHOUT
@@ -19,6 +20,15 @@ born-archived, concluded without implementation) ·
 > integrity/verify runs unindexed, rotation still blind; the rescan
 > keeps growing ~9.5 MB/day until S1 lands. Revisit trigger recorded
 > in pending.md.
+>
+> **IMPLEMENTED 2026-09-29 (completed.md #313)** — S1–S3 executed exactly
+> as designed below. Measured: full backfill 918 s one-time (564 runs —
+> integrity 195, verify 170 — zero parse errors, zero zero-block files);
+> incremental refresh 1.29 s → **0.65 s median**; `latest --gate
+> integrity` / `failures` / `timing` live for both new kinds; S2 rotation
+> archived 97 runs (31.5 MB → 22 MB live) with parse_state offset shift
+> verified post-rotate; S3 zero-block invariant warns on `refresh` and on
+> every auto-refresh.
 
 ## 1. Motivation
 

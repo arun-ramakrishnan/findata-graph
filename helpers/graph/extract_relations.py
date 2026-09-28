@@ -1893,6 +1893,25 @@ def _is_generic_target(target_mention: str, edge_type: str, body: str, m: re.Mat
     return False
 
 
+def _list_chunks(target_mention: str, edge_type: str) -> list[str]:
+    """Non-empty chunks of a list-shaped customer_of / competes_with mention.
+
+    Single split-point for the list-shape decision (ocr review, c83a11d9
+    [17]: the split ran three times per mention — once per _is_list_shaped
+    call and again in the chunk body). Empty for non-list lanes and
+    single-token mentions, so ``len()`` IS the list-shape test.
+    """
+    if edge_type not in ("customer_of", "competes_with"):
+        return []
+    raw = _LIST_CHUNK_SPLIT_RE.split(target_mention)
+    return [c.strip() for c in raw if c.strip()]
+
+
+def _is_list_shaped(target_mention: str, edge_type: str) -> bool:
+    """Check if a mention is list-shaped for customer_of / competes_with."""
+    return len(_list_chunks(target_mention, edge_type)) > 1
+
+
 def _resolve_list_chunks(
     target_mention: str,
     edge_type: str,
@@ -1911,10 +1930,7 @@ def _resolve_list_chunks(
 
     Emits one edge per resolvable chunk. Returns (edges, emitted_any).
     """
-    if edge_type not in ("customer_of", "competes_with"):
-        return [], False
-    raw = _LIST_CHUNK_SPLIT_RE.split(target_mention)
-    chunks = [c.strip() for c in raw if c.strip()]
+    chunks = _list_chunks(target_mention, edge_type)
     if len(chunks) <= 1:
         return [], False
     edges: list[Edge] = []
@@ -2074,6 +2090,21 @@ def _process_pattern_matches(
             )
             if emitted_any:
                 edges_by_type.setdefault(edge_type, []).extend(list_edges)
+                continue
+
+            if _is_list_shaped(target_mention, edge_type):
+                if _should_skip_unresolved(target_mention, edge_type, source_entity):
+                    continue
+                unresolved.append(
+                    Unresolved(
+                        edge_type=edge_type,
+                        source=source_entity,
+                        target_mention=target_mention,
+                        quote=_extract_quote_around(body, m.start()),
+                        edition=edition_title,
+                        direction=direction,
+                    )
+                )
                 continue
 
             if edge_type in INSTITUTION_LANES:

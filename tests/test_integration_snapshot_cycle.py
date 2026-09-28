@@ -20,6 +20,7 @@ from __future__ import annotations
 import logging
 
 from helpers.core.zstd_io import compress_file, decompress_file
+import shutil
 import sqlite3
 import sys
 from pathlib import Path
@@ -42,7 +43,6 @@ pytestmark = [pytest.mark.integration]
 
 duckdb = pytest.importorskip("duckdb")
 
-from helpers.graph.query import DB_PATH  # noqa: E402
 
 _log = logging.getLogger("test_snapshot_cycle")
 
@@ -59,16 +59,16 @@ _EDGES = [
 ]
 
 
-def _seeded_db(tmp_path: Path, name: str = "src.db") -> Path:
+def _seeded_db(tmp_path: Path, name: str = "src.db", tmp_path_factory=None) -> Path:
     """Schema-only production backup, wiped + reseeded (test_graph.py's
     _minimal_db pattern: real schema + db_meta, scenario rows only).
     VACUUM compacts the freed production pages away — the file is then
     ~100KB instead of tens of MB, which the snapshot paths care
     about (they copy the whole file)."""
-    from tests.helpers import DERIVED_TABLES_NO_FTS_META, copy_production_db  # noqa: E402
+    from tests._tmp_hygiene import schema_template  # noqa: E402
 
     db = tmp_path / name
-    copy_production_db(DB_PATH, db, tables=DERIVED_TABLES_NO_FTS_META)
+    shutil.copyfile(schema_template(tmp_path_factory), db)
     dst = sqlite3.connect(str(db))
     dst.executemany(
         "INSERT INTO entities (name, entity_type, sector_classification) VALUES (?,?,?)", _ENTITIES
@@ -90,7 +90,7 @@ def cycle(tmp_path_factory):
     costs ~0.9s). Tests never mutate these files in ways later tests
     observe — the drift test restores the generation it bumps."""
     tmp_path = tmp_path_factory.mktemp("snapshot_cycle")
-    db = _seeded_db(tmp_path)
+    db = _seeded_db(tmp_path, tmp_path_factory=tmp_path_factory)
     con = connect(db, fresh=True)
     con.close()
     return db, db.with_suffix(".duckdb")

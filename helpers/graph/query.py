@@ -447,6 +447,7 @@ def _build_graph_connection(
     fresh: bool,
     rebuild: bool,
     stamp_centrality: bool,
+    read_only: bool = False,
 ) -> duckdb.DuckDBPyConnection:
     """Build or open a read-write connection, serialized cross-process."""
     lock_path = Path(str(duckdb_path) + ".build.lock")
@@ -468,6 +469,8 @@ def _build_graph_connection(
             needs_build = (
                 fresh or rebuild or not (duckdb_path.exists() and _is_warm(duckdb_path, db_path))
             )
+            if read_only and not needs_build:
+                return _open_read_only_connection(duckdb_path, db_path)
             con = duckdb.connect(str(duckdb_path))
             _prep_graph_connection(con)
             _attach_sqlite(con, db_path)
@@ -554,7 +557,9 @@ def connect(
     if read_only and not needs_build:
         return _open_read_only_connection(duckdb_path, db_path)
 
-    return _build_graph_connection(duckdb_path, db_path, fresh, rebuild, stamp_centrality)
+    return _build_graph_connection(
+        duckdb_path, db_path, fresh, rebuild, stamp_centrality, read_only
+    )
 
 
 def _check_generation_staleness(con, duckdb_path: Path, db_path: Path | None) -> bool:
@@ -3883,7 +3888,7 @@ def pagerank(
         )
     companies = _company_names(con)
     rows = [(name, float(score)) for name, score in scores.items() if name in companies]
-    rows.sort(key=lambda kv: kv[1], reverse=True)
+    rows.sort(key=lambda kv: (-kv[1], kv[0]))
     return rows
 
 
@@ -3911,7 +3916,7 @@ def pagerank_weighted(
         )
     companies = _company_names(con)
     rows = [(name, float(score)) for name, score in scores.items() if name in companies]
-    rows.sort(key=lambda kv: kv[1], reverse=True)
+    rows.sort(key=lambda kv: (-kv[1], kv[0]))
     return rows
 
 
@@ -3944,7 +3949,7 @@ def clustering_coefficient(
     ccs = onager_clustering(con, edge_types=[_label_to_edge_type(edge_label)])
     companies = _company_names(con)
     rows = [(name, float(cc)) for name, cc in ccs.items() if name in companies]
-    rows.sort(key=lambda kv: kv[1], reverse=True)
+    rows.sort(key=lambda kv: (-kv[1], kv[0]))
     return rows
 
 

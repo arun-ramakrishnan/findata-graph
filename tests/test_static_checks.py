@@ -1574,8 +1574,11 @@ _SIDECAR_BACKUP_COVERAGE_ALLOWLIST = {"test_db_maint_convo.py"}
 # sqlite3.connect + .backup() of their own.
 _PRODUCTION_COPY_ALLOWLIST = {
     "helpers.py",
+    # downsampler class — operator-adjudicated VALID 2026-09-29: these
+    # pin assertions against real downsampled production data; per-scope
+    # backups stay (D2 closed: the schema-class consumers moved to
+    # tests._tmp_hygiene.schema_template).
     "test_integration_maint_chain.py",
-    "test_integration_near_duplicates.py",
     "test_integration_note_writers.py",
     "test_static_checks.py",  # this guard's own text
 }

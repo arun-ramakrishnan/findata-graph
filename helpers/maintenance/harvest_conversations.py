@@ -322,7 +322,30 @@ def _harvest_opencode(store: Store, writer: SessionWriter) -> str:
             stats.append(f"{src}: quiet")
             continue
         hwm = int(hwm_raw) if hwm_raw is not None else None
-        rows, new_hwm = _harvest_opencode_db(path, src, hwm)
+        # One unreadable source must not abort the whole lane: a corrupt or
+        # truncated backup image otherwise costs every other snapshot AND the
+        # live db, and surfaces as a bare "disk I/O error" that names no file.
+        # Observed 2026-09-29: timeshift snapshot 2026-09-28_23-23-31 failed
+        # integrity_check ("database disk image is malformed") at message
+        # rowid 29963, while the other 7 sources scanned clean. Skip + name it.
+        # Two corruption modes live here: a bad sqlite image raises
+        # sqlite3.DatabaseError/OSError at open, and a valid image with a
+        # corrupt row raises json.JSONDecodeError or AttributeError (JSON
+        # scalar where a dict is expected) when the message/part `data`
+        # columns are parsed inside _harvest_opencode_db. Catch those EXACT
+        # types — a bare ValueError net would silently skip-and-relabel
+        # unrelated bugs as "unreadable source" (muse-review finding 2,
+        # 2026-09-29: silent data loss wearing a corruption label).
+        try:
+            rows, new_hwm = _harvest_opencode_db(path, src, hwm)
+        except (
+            sqlite3.DatabaseError,
+            OSError,
+            json.JSONDecodeError,
+            AttributeError,
+        ) as exc:
+            stats.append(f"{src}: SKIP unreadable ({type(exc).__name__}: {exc})")
+            continue
         writer.add("opencode", rows)
         store.register("opencode", rows)
         store.set_watermark(key, str(new_hwm))
@@ -337,7 +360,11 @@ def _harvest_opencode(store: Store, writer: SessionWriter) -> str:
         if store.watermark(key) is not None:
             stats.append("opencode-traces: quiet")
             continue
-        rows = _harvest_traces_duckdb(bdb)
+        try:
+            rows = _harvest_traces_duckdb(bdb)
+        except Exception as exc:  # noqa: BLE001 — duckdb raises its own hierarchy
+            stats.append(f"opencode-traces:{_snap_ts(bdb)}: SKIP unreadable ({exc})")
+            continue
         writer.add("opencode", rows)
         store.register("opencode", rows)
         store.set_watermark(key, str(len(rows)))

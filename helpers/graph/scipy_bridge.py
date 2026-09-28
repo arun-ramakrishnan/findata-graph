@@ -770,7 +770,7 @@ def _run_exact_lane(args: argparse.Namespace, scon) -> int:
             "(rebuild the contract or check edge ingest)"
         )
     payload = {c: float(vec[pos[c]]) for c in contract}
-    ranked = sorted(payload.items(), key=lambda kv: kv[1], reverse=True)[: args.top]
+    ranked = sorted(payload.items(), key=lambda kv: (-kv[1], kv[0]))[: args.top]
     print(f"[{metric}] top {min(args.top, len(payload))}")
     for name, score in ranked:
         print(f"  {name}: {score:.6f}")
@@ -918,7 +918,7 @@ def main(argv: list[str] | None = None) -> int:  # noqa: C901
 
     if args.metrics in ("closeness", "both"):
         clo_map = dict(zip(src_names, clo))
-        ranked = sorted(clo_map.items(), key=lambda kv: kv[1], reverse=True)[: args.top]
+        ranked = sorted(clo_map.items(), key=lambda kv: (-kv[1], kv[0]))[: args.top]
         print(f"[{CLOSINESS_METRIC}] top {min(args.top, len(clo_map))}")
         for name, score in ranked:
             print(f"  {name}: {score:.6f}")
@@ -936,7 +936,7 @@ def main(argv: list[str] | None = None) -> int:  # noqa: C901
             print(f"{note} {len(clo_map)} rows under {CLOSINESS_METRIC!r}")
     if args.metrics in ("harmonic", "both"):
         harm_map = dict(zip(src_names, harm))
-        ranked = sorted(harm_map.items(), key=lambda kv: kv[1], reverse=True)[: args.top]
+        ranked = sorted(harm_map.items(), key=lambda kv: (-kv[1], kv[0]))[: args.top]
         print(f"[{HARMONIC_METRIC}] top {min(args.top, len(harm_map))}")
         for name, score in ranked:
             print(f"  {name}: {score:.6f}")

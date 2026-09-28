@@ -237,6 +237,10 @@ def _split_blocks(text: str, base_offset: int) -> list[tuple[int, int, str, list
             kind = "gate"
         elif st._PERF_HEADER_RE.match(stripped):  # noqa: SLF001
             kind = "perf"
+        elif st._INTEGRITY_TITLE_RE.match(stripped):  # noqa: SLF001
+            kind = "integrity"
+        elif st._VERIFY_TITLE_RE.match(stripped):  # noqa: SLF001
+            kind = "verify"
         if kind:
             starts.append((i, base_offset + offs[i], kind))
     blocks = []
@@ -266,11 +270,77 @@ def _parse_block(gate: str, kind: str, lines: list[str]) -> st.RunBlock | None:
     try:
         if kind == "perf":
             rb = st._build_perf_block(gate, lines)  # noqa: SLF001
+        elif kind == "integrity":
+            rb = _build_integrity_block(gate, lines)
+        elif kind == "verify":
+            rb = _build_verify_block(gate, lines)
         else:
             rb = st._build_gate_block(gate, lines)  # noqa: SLF001
     except Exception:
         return None
     return rb
+
+
+_INTEGRITY_GEN_RE = re.compile(r"^\*\*Generated:\*\*\s+(\d{4}-\d{2}-\d{2})T(\d{2}:\d{2}:\d{2})")
+
+
+def _build_integrity_block(gate: str, lines: list[str]) -> st.RunBlock:
+    """Integrity report block -> RunBlock: one leg per `## CHECK (SEV)`
+    section, FAIL iff its `-> errors=N` counter is > 0 (the section may
+    DECLARE an ERROR level yet pass — integrity_verdict's own rule)."""
+    rows = st._parse_integrity_chunk(lines)  # noqa: SLF001
+    steps = []
+    ok = 0
+    for r in rows:
+        errors = max((int(n) for n in st._ERR_COUNTER_RE.findall(r.summary)), default=0)  # noqa: SLF001
+        failed = r.severity.upper() == "ERROR" and errors > 0
+        steps.append(st.RunStep(r.name, None, "✗ FAIL" if failed else "✓ OK"))
+        ok += not failed
+    m = next((_INTEGRITY_GEN_RE.match(ln) for ln in lines if ln.startswith("**Generated:**")), None)
+    ts = f"{m.group(1)} {m.group(2)}" if m else ""
+    elapsed = next(
+        (
+            float(e.group(1))
+            for ln in lines
+            if (e := st._ELAPSED_RE.search(ln))  # noqa: SLF001
+        ),
+        None,
+    )
+    total = len(rows)
+    verdict = "PASS" if ok == total else "FAIL"
+    return st.RunBlock(
+        gate,
+        ts,
+        None,
+        tuple(steps),
+        f"{ok}/{total} checks ok · integrity {verdict}",
+        elapsed,
+    )
+
+
+def _build_verify_block(gate: str, lines: list[str]) -> st.RunBlock:
+    """Verify report block -> RunBlock: metrics from the table, one leg per
+    `### bucket (N)` issue section, `## Verdict` line as the summary."""
+    vr = st._parse_verify_chunk(lines)  # noqa: SLF001
+    steps: list[st.RunStep] = []
+    section = ""
+    for ln in lines:
+        if ln.startswith("## "):
+            section = ln[3:].strip()
+            continue
+        bm = st._VERIFY_BUCKET_RE.match(ln)  # noqa: SLF001
+        if bm:
+            sev = "✗ FAIL" if "ERROR" in section.upper() else "⚠ WARN"
+            steps.append(st.RunStep(bm.group(1), None, f"{sev} ({bm.group(2)})"))
+    verdict_ln = next((ln for ln in lines if ln.startswith("## Verdict")), None)
+    vidx = lines.index(verdict_ln) if verdict_ln else len(lines)
+    verdict_text = next(
+        (ln.strip().lstrip("-").strip() for ln in lines[vidx + 1 :] if ln.strip()), ""
+    )
+    summary = f"{vr.total_files} files · {vr.errors} errors, {vr.warnings} warnings" + (
+        f" · {verdict_text[:120]}" if verdict_text else ""
+    )
+    return st.RunBlock(gate, vr.timestamp, None, tuple(steps), summary, None)
 
 
 def _leg_err_head(lines: list[str], label: str) -> str | None:
@@ -851,7 +921,13 @@ def _retained_artifact_records(wt: str, artifact_dir: str | None) -> list[dict]:
 def refresh(con, *, full: bool = False, root: Path | None = None) -> dict:
     """Incremental byte-offset index of every report copy. Returns counts."""
     root = root or ROOT
-    counts = {"files": 0, "runs": 0, "skipped_pending": 0, "parse_errors": 0}
+    counts: dict = {
+        "files": 0,
+        "runs": 0,
+        "skipped_pending": 0,
+        "parse_errors": 0,
+        "zero_block_files": [],
+    }
     for gate, path, wt, _kind in report_copies(root):
         try:
             raw = path.read_bytes()
@@ -875,8 +951,23 @@ def refresh(con, *, full: bool = False, root: Path | None = None) -> dict:
             has_summary = bool(_SUMMARY_ROW_RE.search("\n".join(lines)))
             has_exit = any(ln.startswith("**Exit:**") for ln in lines)
             has_bench_rows = sum(1 for ln in lines if st._PERF_TABLE_ROW_RE.match(ln)) >= 2  # noqa: SLF001
+            # kind-aware completeness: an integrity run is finished iff its
+            # meta line carries **Ended:**; a verify run iff ## Verdict landed
+            # (both appended-per-run writers tail with a partial block on a
+            # mid-write crash — same pending-tail rule as gate blocks).
+            has_kind_marker = (
+                any(st._INTEGRITY_ENDED_RE.search(ln) for ln in lines)  # noqa: SLF001
+                if kind == "integrity"
+                else any(ln.strip() == "## Verdict" for ln in lines)
+                if kind == "verify"
+                else False
+            )
             complete = (
-                (not is_last) or has_summary or has_exit or (kind == "perf" and has_bench_rows)
+                (not is_last)
+                or has_summary
+                or has_exit
+                or (kind == "perf" and has_bench_rows)
+                or has_kind_marker
             )
             if is_last and not complete:
                 counts["skipped_pending"] += 1
@@ -890,6 +981,11 @@ def refresh(con, *, full: bool = False, root: Path | None = None) -> dict:
             new_off = eoff
             _store_run(con, rel, wt, gate, kind, lines, rb, meta, boff, eoff - boff, complete=True)
             counts["runs"] += 1
+        if not blocks and text.strip():
+            # S3 loud zero-block invariant: newly-read bytes that yield no
+            # parseable block mean a writer drifted off the shared grammar
+            # (the exact silent 45 MB-rescan failure class) — name it.
+            counts["zero_block_files"].append(rel)
         now = datetime.now()
         con.execute(
             "INSERT OR REPLACE INTO parse_state VALUES (?, ?, ?, ?, ?)",
@@ -899,8 +995,58 @@ def refresh(con, *, full: bool = False, root: Path | None = None) -> dict:
     return counts
 
 
+def _integrity_err_head(
+    rows: list[st.CheckRow] | tuple[st.CheckRow, ...], label: str
+) -> str | None:
+    """First detail lines of a failed integrity section, capped like
+    ``_leg_err_head``."""
+    r = next((r for r in rows if r.name == label), None)
+    if r is None or not r.detail:
+        return None
+    text = "\n".join(r.detail[:6]).strip()
+    return text[:2000] or None
+
+
+def _store_report_run(con, rel, wt, gate, kind, lines, rb, boff, nbytes, complete) -> int:
+    """Lean store path for the integrity/verify report kinds: no junit
+    artifacts, no warning records (integrity `## SECTION` headings must not
+    be mis-ingested as warnings), exit_code 0/1 by the run's own error
+    counters; legs carry the per-check/bucket verdicts."""
+    if kind == "integrity":
+        rows = st._parse_integrity_chunk(lines)  # noqa: SLF001
+        exit_code = 1 if "integrity FAIL" in rb.summary else 0
+    else:
+        rows = ()  # verify legs carry their own counts; no detail heads
+        m = re.search(r"\b([1-9]\d*) errors", rb.summary)
+        exit_code = 1 if m else 0
+    started = gen = _ts(rb.timestamp) or datetime.now()
+    run_id = con.execute(
+        """INSERT INTO runs (src_rel, wt, gate, started_at, generated_at, elapsed_s,
+                             jobs, python_ver, commit_sha, patch_name, exit_code, summary,
+                             header_offset, nbytes, junit_path, arch_path, artifact_schema,
+                             artifact_dir, artifact_state, complete)
+           VALUES (?, ?, ?, ?, ?, ?, NULL, NULL, NULL, NULL, ?, ?, ?, ?, NULL, NULL,
+                   NULL, NULL, NULL, ?) RETURNING run_id""",
+        [rel, wt, gate, started, gen, rb.elapsed, exit_code, rb.summary, boff, nbytes, complete],
+    ).fetchone()[0]
+    con.execute("DELETE FROM legs WHERE run_id = ?", [run_id])
+    for s in rb.steps:
+        err_head = (
+            _integrity_err_head(rows, s.label)
+            if kind == "integrity" and "FAIL" in s.status
+            else None
+        )
+        con.execute(
+            "INSERT INTO legs VALUES (?, ?, ?, ?, ?)",
+            [run_id, s.label, s.seconds, s.status, err_head],
+        )
+    return run_id
+
+
 def _store_run(con, rel, wt, gate, kind, lines, rb, meta, boff, nbytes, complete) -> int:  # noqa: C901
     con.execute("DELETE FROM runs WHERE src_rel = ? AND header_offset = ?", [rel, boff])
+    if kind in ("integrity", "verify"):
+        return _store_report_run(con, rel, wt, gate, kind, lines, rb, boff, nbytes, complete)
     gen = _ts(rb.timestamp) or datetime.now()
     started = _ts(meta.get("started")) or gen
     pyv = next((ln.split("**Python:**")[-1].strip() for ln in lines if "**Python:**" in ln), None)
@@ -1983,10 +2129,18 @@ def cmd_rotate(con, args) -> str:
 
 def cmd_refresh(con, args) -> str:
     counts = refresh(con, full=args.full)
+    warning = (
+        ""
+        if not counts.get("zero_block_files")
+        else (
+            "\nWARNING: zero parseable blocks over newly-read bytes (writer drifted off "
+            f"the shared grammar): {', '.join(counts['zero_block_files'])}"
+        )
+    )
     return (
         f"indexed: {counts['files']} files, {counts['runs']} new runs, "
         f"{counts['skipped_pending']} pending tails, {counts['parse_errors']} parse errors"
-    )
+    ) + warning
 
 
 # ---------------------------------------------------------------- main
@@ -2117,6 +2271,13 @@ def main(argv: list[str] | None = None) -> int:
     try:
         if args.cmd != "refresh":
             counts = refresh(con)
+            if counts.get("zero_block_files"):
+                print(
+                    "WARNING: report file(s) yielded zero parseable blocks over newly-read "
+                    f"bytes — writer drifted off the shared grammar: "
+                    f"{', '.join(counts['zero_block_files'])}",
+                    file=sys.stderr,
+                )
             if counts["skipped_pending"]:
                 print(
                     "WARNING: gate report has an incomplete trailing run; it is not indexed yet. "

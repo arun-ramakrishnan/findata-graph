@@ -611,6 +611,15 @@ _INTEGRITY_SECTION_RE = re.compile(
     re.IGNORECASE,
 )
 
+# Integrity/verify writer title formats (gate_index_grammar_coverage S1):
+# the two appended-per-run report copies whose H1s are not leg-shaped and
+# therefore were invisible to the `# make <target>` block grammar.
+_INTEGRITY_TITLE_RE = re.compile(r"^# FinData Knowledge Graph — Database Integrity Report\s*$")
+_VERIFY_TITLE_RE = re.compile(r"^# FinData Knowledge Graph — Notes Verification Report\s*$")
+# integrity completeness marker: the meta line carries **Ended:** only on a
+# finished run (a crashed writer's trailing block lacks it).
+_INTEGRITY_ENDED_RE = re.compile(r"\*\*Ended:\*\*")
+
 
 def _parse_gate_table_block(lines: list[str]) -> tuple[tuple[RunStep, ...], str]:
     """Parse markdown table rows into (steps, summary)."""
@@ -878,39 +887,45 @@ def parse_verify_runs(path: Path) -> list[VerifyRun]:
     runs: list[VerifyRun] = []
     for bi, s in enumerate(starts):
         chunk = lines[s : starts[bi + 1] if bi + 1 < len(starts) else len(lines)]
-        ts = ""
-        files = errors = warnings = 0
-        issues: list[VerifyIssue] = []
-        in_issues = False
-        bucket = ""
-        for ln in chunk:
-            g = _PERF_META_RE.match(ln)
-            if g:
-                ts = g.group(1)
-                continue
-            m = _VERIFY_METRIC_ROW_RE.match(ln)
-            if m:
-                key, val = m.group(1), int(m.group(2))
-                if key == "Total Files Checked":
-                    files = val
-                elif key == "Errors":
-                    errors = val
-                else:
-                    warnings = val
-                continue
-            if ln.startswith("## "):
-                in_issues = "ERROR" in ln.upper() or "WARNING" in ln.upper()
-                bucket = ""
-                continue
-            bm = _VERIFY_BUCKET_RE.match(ln)
-            if bm and in_issues:
-                bucket = bm.group(1)
-                continue
-            im = _VERIFY_ITEM_RE.match(ln)
-            if im and in_issues and bucket:
-                issues.append(VerifyIssue(bucket, f"{im.group(1)}: {im.group(2)}"))
-        runs.append(VerifyRun(ts, files, errors, warnings, tuple(issues)))
+        runs.append(_parse_verify_chunk(chunk))
     return runs
+
+
+def _parse_verify_chunk(chunk: list[str]) -> VerifyRun:
+    """One ``#``-header verify block -> VerifyRun (pure; single source for
+    both the run-history walker and gate_query's per-block indexing)."""
+    ts = ""
+    files = errors = warnings = 0
+    issues: list[VerifyIssue] = []
+    in_issues = False
+    bucket = ""
+    for ln in chunk:
+        g = _PERF_META_RE.match(ln)
+        if g:
+            ts = g.group(1)
+            continue
+        m = _VERIFY_METRIC_ROW_RE.match(ln)
+        if m:
+            key, val = m.group(1), int(m.group(2))
+            if key == "Total Files Checked":
+                files = val
+            elif key == "Errors":
+                errors = val
+            else:
+                warnings = val
+            continue
+        if ln.startswith("## "):
+            in_issues = "ERROR" in ln.upper() or "WARNING" in ln.upper()
+            bucket = ""
+            continue
+        bm = _VERIFY_BUCKET_RE.match(ln)
+        if bm and in_issues:
+            bucket = bm.group(1)
+            continue
+        im = _VERIFY_ITEM_RE.match(ln)
+        if im and in_issues and bucket:
+            issues.append(VerifyIssue(bucket, f"{im.group(1)}: {im.group(2)}"))
+    return VerifyRun(ts, files, errors, warnings, tuple(issues))
 
 
 _ERR_COUNTER_RE = re.compile(r"\berrors=(\d+)")

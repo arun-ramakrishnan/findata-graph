@@ -670,6 +670,50 @@ class TestCompetesWithExtraction:
         # No competes_with sidecar entries (partial success suppresses sidecar).
         assert [u for u in unresolved if u.edge_type == "competes_with"] == []
 
+    def test_competes_with_zero_resolved_chunks_goes_to_sidecar(self, tmp_path, monkeypatch):
+        """List-shaped mention whose WHOLE mention resolves but NO chunk does
+        must go to the unresolved sidecar, NOT emit the whole-mention edge.
+
+        Regression (F2). Mutation-hardened (ocr review, c83a11d9 [15]): the
+        original version resolved nothing anywhere, so the pre-fix fall-through
+        produced the identical sidecar row and the test passed on mutated code.
+        The discriminator: alias the FULL mention to a resolvable entity that
+        is NOT one of the chunks — the fixed path (sidecar-first) must never
+        reach the alias, so it yields a sidecar row sourced from the section
+        company; the mutated path resolves the whole mention and emits an edge
+        instead.
+        """
+        import json
+
+        import helpers.graph.extract_relations as er
+
+        alias_file = tmp_path / "aliases.json"
+        alias_file.write_text(json.dumps({"basf, bayer, and syngenta": "Akzo Nobel"}))
+        monkeypatch.setattr(er, "ALIAS_OVERRIDES_PATH", alias_file)
+        er._alias_overrides.cache_clear()
+
+        resolver = EntityResolver(["UPL", "Akzo Nobel"])
+        content = (
+            "## UPL | Large Cap | Chemicals\n\nCompetitors such as BASF, Bayer, and Syngenta.\n"
+        )
+        try:
+            by_type, unresolved = extract_relations(
+                content,
+                edition_title="T",
+                newsletter_type="The_Chatter",
+                resolver=resolver,
+            )
+        finally:
+            er._alias_overrides.cache_clear()
+
+        # NO edge: the whole-mention alias ("Akzo Nobel") must stay unreached
+        assert by_type.get("competes_with", []) == []
+        cw_sidecar = [u for u in unresolved if u.edge_type == "competes_with"]
+        assert len(cw_sidecar) == 1
+        # sidecar sourced from the SECTION company, mention = the full list
+        assert cw_sidecar[0].source == "UPL"
+        assert cw_sidecar[0].target_mention == "BASF, Bayer, and Syngenta"
+
     def test_competes_with_unresolved_single_mention_goes_to_sidecar(
         self,
         resolver,

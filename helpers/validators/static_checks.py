@@ -1367,6 +1367,15 @@ def _ruff_c901_findings(root: Path) -> dict[str, dict[str, int]]:
     except (subprocess.TimeoutExpired, OSError) as e:
         raise RuntimeError(f"ruff C901 sweep failed to run: {e}") from e
 
+    # ruff exits 0 = clean, 1 = findings; >= 2 means the sweep itself failed
+    # (syntax error in a target, bad invocation, ...). Swallowing that here
+    # would make a broken sweep indistinguishable from "no findings".
+    if proc.returncode not in (0, 1):
+        stderr_tail = proc.stderr.strip().splitlines()[-1] if proc.stderr.strip() else ""
+        raise RuntimeError(
+            f"ruff C901 sweep failed (rc={proc.returncode}): {stderr_tail or 'no stderr'}"
+        )
+
     found: dict[str, dict[str, int]] = {}
     for line in proc.stdout.splitlines():
         m = re.match(r"^(.+?):\d+:\d+: C901 `([^`]+)` is too complex \((\d+)", line)
@@ -1525,8 +1534,26 @@ def check_bare_negated_sort_keys(scope: set[Path] | None = None) -> list[str]:
 
     AST scan (regexes miss multi-line lambdas). Scope: sorts whose FIRST
     positional is a ``<mapping>.items()`` call — single-field sorts of
-    unique keys elsewhere are out of scope by proposal. A key lambda whose
-    body is a bare unary minus (no tuple) is the violation.
+    unique keys elsewhere are out of scope by proposal. Violating shapes
+    (ocr_remediation F3 adjudication 2026-09-29, probe: 9 genuine sites,
+    0 false positives):
+
+    - a bare unary minus body (the original rule), and
+    - ANY other single-field value sort — ``key=lambda kv: kv[1]`` with or
+      without ``reverse=True`` ties identically; only the direction
+      differs.
+
+    Accepted scope, stated EXACTLY as the code accepts it (ocr review F8(2)):
+    a literal ``kv[0]`` subscript is the only statically-provable key-field
+    shape — a *derived* key body like ``kv[0].lower()`` or ``str(kv[0])`` is
+    a Call and lands in the flagged branch (over-approximation, latent: no
+    live sites; accept via the c901-suppression mechanism if one ever
+    exists). Tuple-key bodies are trusted, not proven: the checker cannot
+    verify the tuple's last element is unique per entry (ocr review F8(3)) —
+    e.g. onager.py's ``(-len(kv[1]), min(kv[1]))`` IS deterministic because
+    component min-ids are unique across disjoint groups, but only the author
+    can see that. Single-field sorts of unique keys outside ``.items()``
+    remain out of scope (#305 §5).
 
     A scope restricts to dirty files (dirty-gating); None falls back to
     the module-global _DIRTY_PY_SCOPE (itself None = full).
@@ -1557,12 +1584,38 @@ def check_bare_negated_sort_keys(scope: set[Path] | None = None) -> list[str]:
             if key is None or not isinstance(key.value, ast.Lambda):
                 continue
             body = key.value.body
+            rel = py.relative_to(REPO_ROOT).as_posix()
             if isinstance(body, ast.UnaryOp) and isinstance(body.op, ast.USub):
-                rel = py.relative_to(REPO_ROOT).as_posix()
                 failures.append(
                     f"{rel}:{node.lineno}: sorted(<dict>.items(), key=…) with a bare "
                     "negated field ties render in PYTHONHASHSEED order — add a name "
                     "tiebreak: key=lambda kv: (-kv[1], kv[0])"
+                )
+            elif isinstance(body, ast.Tuple):
+                continue  # deterministic by construction
+            elif (
+                isinstance(body, ast.Subscript)
+                and isinstance(body.slice, ast.Constant)
+                and body.slice.value == 0
+            ):
+                continue  # keyed on the unique key field — no ties possible
+            else:
+                # direction-aware hint (ocr review F8(1)): suggesting the
+                # negated form for an ascending sort would silently invert it
+                descending = any(
+                    kw.arg == "reverse" and getattr(kw.value, "value", True) is True
+                    for kw in node.keywords
+                )
+                hint = (
+                    "key=lambda kv: (-kv[1], kv[0])"
+                    if descending
+                    else "key=lambda kv: (kv[1], kv[0])"
+                )
+                failures.append(
+                    f"{rel}:{node.lineno}: sorted(<dict>.items(), key=…) with a "
+                    f"single value field ({'descending' if descending else 'ascending'}) "
+                    "ties render in PYTHONHASHSEED order — add a name tiebreak: "
+                    f"{hint}"
                 )
     return failures
 

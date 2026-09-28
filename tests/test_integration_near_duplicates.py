@@ -12,6 +12,7 @@ SQLite side (it is a QA tripwire, not a writer).
 from __future__ import annotations
 
 import hashlib
+import shutil
 import sqlite3
 from contextlib import redirect_stderr, redirect_stdout
 from io import StringIO
@@ -21,8 +22,7 @@ import pytest
 
 
 from helpers.graph import query  # noqa: E402
-from helpers.graph.query import DB_PATH  # noqa: E402
-from tests.helpers import copy_production_db  # noqa: E402
+from tests._tmp_hygiene import schema_template  # noqa: E402
 
 pytestmark = [pytest.mark.integration]
 
@@ -45,10 +45,10 @@ _VECS = {
 }
 
 
-def _make_db(db_path: Path) -> None:
+def _make_db(db_path: Path, tmp_path_factory) -> None:
     """Production-schema DB with 5 company note_search rows whose embedding
     vectors are the controlled set above."""
-    copy_production_db(DB_PATH, db_path)
+    shutil.copyfile(schema_template(tmp_path_factory), db_path)
     dst = sqlite3.connect(str(db_path))
     for stem in "ABCDE":
         dst.execute(
@@ -83,7 +83,7 @@ def _run(monkeypatch, db: Path, *args: str) -> tuple[int, str, str]:
 @pytest.fixture(scope="module")
 def dup_db(tmp_path_factory) -> Path:
     db = tmp_path_factory.mktemp("near_dup") / "dup.db"
-    _make_db(db)
+    _make_db(db, tmp_path_factory)
     con = query.connect(db, fresh=True)  # materialise v_note_embeddings once
     con.close()
     return db
@@ -136,12 +136,12 @@ class TestNearDuplicatesCli:
         conn.close()
         assert rows_after == rows_before
 
-    def test_empty_index_degrades_cleanly(self, tmp_path, monkeypatch):
+    def test_empty_index_degrades_cleanly(self, tmp_path, tmp_path_factory, monkeypatch):
         db = tmp_path / "empty.db"
-        src = sqlite3.connect(str(DB_PATH))
+        # schema template: production schema + db_meta, zero rows — the
+        # note_search/meta deletes below are no-ops kept for intent.
+        shutil.copyfile(schema_template(tmp_path_factory), db)
         dst = sqlite3.connect(str(db))
-        src.backup(dst)
-        src.close()
         for t in ("note_search", "note_search_meta"):
             dst.execute(f"DELETE FROM {t}")  # noqa: S608  # schema-constant identifiers
         dst.commit()

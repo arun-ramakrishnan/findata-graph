@@ -10,6 +10,7 @@ Run:
 
 from __future__ import annotations
 
+import shutil
 import sqlite3
 from pathlib import Path
 
@@ -54,6 +55,7 @@ from helpers.graph.query import (  # noqa: E402
     suppliers_and_customers,
     weakly_connected_components,
 )
+from tests._tmp_hygiene import schema_template  # noqa: E402
 from tests.helpers import (  # noqa: E402
     DERIVED_TABLES_NO_FTS_META,
     copy_production_db,
@@ -68,17 +70,19 @@ def con():
     c.close()
 
 
-def _minimal_db(tmp_path, name):
+def _minimal_db(tmp_path, name, tmp_path_factory=None):
     """Schema-only copy of the production DB for scenario tests.
 
-    Backs up ``memory/research.db`` (WAL-flushed via the backup API, real
-    schema + db_meta), then wipes every populated table. Callers seed only
-    the rows their scenario needs, so connect()/rebuild pay just the
-    per-connect floor instead of a full live-corpus materialisation
-    (~1.2s per build).
+    Byte-copies the shared schema template (real schema + db_meta, zero
+    rows — the D2 replacement for the per-scope production backup).
+    Callers seed only the rows their scenario needs, so connect()/rebuild
+    pay just the per-connect floor instead of a full live-corpus
+    materialisation (~1.2s per build).
     """
     tmp_db = tmp_path / name
-    # 8-table wipe (no note_search_meta — matches the original list exactly).
+    if tmp_path_factory is not None:
+        shutil.copyfile(schema_template(tmp_path_factory), tmp_db)
+        return tmp_db
     return copy_production_db(DB_PATH, tmp_db, tables=DERIVED_TABLES_NO_FTS_META)
 
 
@@ -768,7 +772,7 @@ class TestCascadePropagation:
     connect(), so propagation = open a fresh session after a SQLite change.
     """
 
-    def test_rename_propagates(self, tmp_path):
+    def test_rename_propagates(self, tmp_path, tmp_path_factory):
         """Copy DB, rename an entity in SQLite, reopen DuckDB, confirm.
 
         Under the disk-based DuckDB model, a second ``connect(tmp_db)``
@@ -779,7 +783,7 @@ class TestCascadePropagation:
         # Schema-only copy: the scenario needs just its two synthetic
         # entities — a full-corpus copy would make each of the two builds
         # below pay live-scale materialisation.
-        tmp_db = _minimal_db(tmp_path, "test_cascade.db")
+        tmp_db = _minimal_db(tmp_path, "test_cascade.db", tmp_path_factory)
 
         # Insert a synthetic entity + edge we can rename safely.
         from helpers.core.db import connect as sqlite_connect
@@ -836,7 +840,7 @@ class TestBundleFShortestPathCycleGuard:
     for exact-token membership.
     """
 
-    def test_prefix_collision_path_is_found(self, tmp_path):
+    def test_prefix_collision_path_is_found(self, tmp_path, tmp_path_factory):
         """A path whose expansion must revisit a SHORT name that is a prefix
         of a node already in the path.
 
@@ -850,7 +854,7 @@ class TestBundleFShortestPathCycleGuard:
         """
         import sqlite3
 
-        tmp_db = _minimal_db(tmp_path, "f1_cycle.db")
+        tmp_db = _minimal_db(tmp_path, "f1_cycle.db", tmp_path_factory)
         conn = sqlite3.connect(str(tmp_db))
         try:
             # Seed the prefix-collision chain (tables are empty — the

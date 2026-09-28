@@ -3,19 +3,23 @@
 Full annotated triage map with live-verified trigger status.
 Open items below keep their revisit triggers inline; executed work is compressed to records.
 
-- **production-DB copies in tests (§D2) — DEFERRED 2026-09-27
-  (pytest_tmpfs_amplification #307)**: the per-test/per-worker copiers
-  are fixed and guarded (shared trimmed template, `backup_sidecars=False`,
-  keep-1 roots — see `archive/testing/pytest_tmpfs_amplification.md`);
-  the module/class-scoped population remains:
-  `copy_production_db` consumers (`test_fuzz_shortest_path` 1×~308 MB
-  vacuumed copy/worker, `test_graph` module copy, the two integration
-  CLIs) plus inline backups in three `test_integration_*` files —
-  integration-gate only, 1× per scope. Move onto a shared full-corpus
-  pruned template (same S1 mechanism) only if: quota/disk-I/O errors
-  recur in /tmp, or a new full-corpus fixture is about to be added. The
-  guard allowlist in `tests/test_static_checks.py`
-  (`_PRODUCTION_COPY_ALLOWLIST`) is the burn-down list.
+- **production-DB copies in tests (§D2) — CLOSED 2026-09-29 (schema class
+  migrated; downsampler class adjudicated VALID)**: the schema-only class
+  migrated onto a shared per-run `schema_template()`
+  (`tests/_tmp_hygiene.py`, same flock+atomic-publish S1 mechanism as
+  `trimmed_template`; production schema + db_meta, zero rows, VACUUMed
+  tiny — FTS5 gotchas encoded: `delete-all` only for contentless/
+  external-content tables, never DELETE shadows). Migrated consumers:
+  test_fuzz_shortest_path (the ~308 MB/worker vacuumed copy), test_graph
+  `_minimal_db`, both extraction/events CLIs, snapshot_cycle,
+  near_duplicates (both sites). **Operator adjudication 2026-09-29: the
+  remaining downsampler class (`test_integration_maint_chain.py`,
+  `test_integration_note_writers.py`) is a VALID use case** — they pin
+  assertions against real downsampled production data (company subsets
+  with live edges/tags/metrics), which no template can substitute; their
+  per-scope backups stay, guarded by the allowlist. `helpers.py`
+  `copy_production_db` stays as their sanctioned builder. No further
+  D2 work.
 
 - **trace-analyzer coverage — EXECUTED 2026-09-26 (#303)**
   (`archive/tooling/trace_analyzer_legs.md`): 10 legs + `--legs` landed
@@ -39,18 +43,16 @@ Open items below keep their revisit triggers inline; executed work is compressed
   **Open follow-up:** add `error_message` to the request schema, and decide
   per provider-absent column whether to document or drop it.
 
-- **gate_query integrity/verify grammar gap — DIAGNOSED + DESIGNED, not adopted 2026-09-26 (#302)**
+- **gate_query integrity/verify grammar gap — IMPLEMENTED 2026-09-29 (completed.md #313; designed #302)**
   (`archive/tooling/gate_index_grammar_coverage.md`): the integrity and verify
-  report titles never match the `# make <target> — gate report` block grammar,
-  so parse offsets stay 0 and every gate_query invocation (main() auto-refresh)
-  rescans them in full: 47.3 of 48.9 MB corpus bytes (integrity 45.5 MB / 116
-  runs + wt 1.77 MB / 65 + verify 37 KB / 102), refresh 1.29 s median vs 0.20 s
-  import-only, per-run integrity growth 16 KB → 735 KB ≈ +9.5 MB/day, rotate
-  structurally blind (zero runs rows). S1–S3 designed in the proposal
-  (search_tui grammar reuse → index both gates, rotate catch-up, loud
-  zero-block warning; projected ≤ 0.35 s). Revisit when refresh wall crosses
-  tolerance (weeks at current growth) or integrity/verify runs are needed in
-  gate_query answers.
+  report titles never matched the `# make <target> — gate report` block grammar,
+  so parse offsets stayed 0 and every gate_query invocation (main() auto-refresh)
+  rescanned them in full: 47.3 of 48.9 MB corpus bytes. S1–S3 executed exactly as
+  designed (search_tui grammar reuse → both gates indexed; rotate catch-up —
+  97 runs / 31.5 MB archived, live file 22 MB; loud zero-block invariant).
+  Measured: backfill 918 s one-time (564 runs: integrity 195, verify 170,
+  0 parse errors); incremental refresh 1.29 s → **0.65 s median**;
+  `latest --gate integrity` / `failures` / `timing` live.
 
 - **gate_query historical/artifact intelligence — EXECUTED 2026-09-24 (#286)**
   (`archive/tooling/gate_query_improvements.md`): added run comparison,

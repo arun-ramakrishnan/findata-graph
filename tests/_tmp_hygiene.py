@@ -114,31 +114,100 @@ def trimmed_template(tmp_path_factory) -> Path:
     Callers treat the returned file as READ-ONLY (byte-copy it per test);
     the file is shared concurrently by all workers of this run.
     """
+    return _shared_template(tmp_path_factory, "trimmed_template.db", build_trimmed_template)
+
+
+def build_schema_template(dst: Path) -> Path:
+    """Production SCHEMA + db_meta, zero rows, VACUUMed tiny (D2).
+
+    Serves the schema-only test class (fuzz_shortest_path, test_graph, the
+    extraction/events CLIs, snapshot_cycle, near_duplicates): they backed up
+    the production DB only to wipe it and seed their own rows — the backup
+    was pure schema donor. FTS5 virtual tables are cleared with the
+    ``delete-all`` command — never DELETE their shadow tables directly
+    (zeroing ``%_data`` corrupts the index: "invalid fts5 file format",
+    hit 2026-09-29); ``db_meta`` rows survive (schema_version/generation
+    behavior under test matches the old copy_production_db path, which
+    kept them).
+    """
+    src = sqlite3.connect(str(DB_PATH))
+    out = sqlite3.connect(str(dst))
+    try:
+        src.backup(out)
+        virtual = {
+            r[0]
+            for r in out.execute(
+                "SELECT name FROM sqlite_master WHERE type='table' "
+                "AND sql LIKE 'CREATE VIRTUAL TABLE%'"
+            )
+        }
+        shadows = {
+            f"{v}_{suffix}"
+            for v in virtual
+            for suffix in ("data", "idx", "content", "docsize", "config")
+        }
+        tables = [
+            r[0]
+            for r in out.execute(
+                "SELECT name FROM sqlite_master WHERE type='table' "
+                "AND name NOT LIKE 'sqlite_%' AND name != 'db_meta'"
+            )
+            if r[0] not in shadows
+        ]
+        # FKs are off on this raw connection; VACUUM below compacts anyway.
+        ddl = {
+            r[0]: (r[1] or "")
+            for r in out.execute("SELECT name, sql FROM sqlite_master WHERE type='table'")
+        }
+        for t in tables:
+            if t in virtual:
+                # 'delete-all' is only legal on contentless/external-content
+                # fts5 tables; a contentful fts5 (note_search) takes DELETE.
+                if "content=" in ddl.get(t, ""):
+                    out.execute(f'INSERT INTO "{t}"("{t}") VALUES(\'delete-all\')')  # noqa: S608
+                else:
+                    out.execute(f'DELETE FROM "{t}"')  # noqa: S608
+            else:
+                out.execute(f'DELETE FROM "{t}"')  # noqa: S608  # names from sqlite_master
+        out.commit()
+        out.execute("VACUUM")
+    finally:
+        out.close()
+        src.close()
+    return dst
+
+
+def schema_template(tmp_path_factory) -> Path:
+    """The shared schema-only template: built once per run, byte-copy per
+    scope. Same sharing contract as :func:`trimmed_template`."""
+    return _shared_template(tmp_path_factory, "schema_template.db", build_schema_template)
+
+
+def _shared_template(tmp_path_factory, filename: str, build) -> Path:
+    """Once-per-run flock-shared template build (the #307 S1 mechanism)."""
     base = tmp_path_factory.getbasetemp()
     if base.name.startswith("popen-gw"):
         # xdist worker: <run-root>/popen-gw<k> — the run root is the
         # natural once-per-run home, owned by pytest's own retention.
         shared = base.parent / "_worker_shared"
         shared.mkdir(parents=True, exist_ok=True)
-        target = shared / "trimmed_template.db"
-        with open(shared / "trimmed_template.lock", "w") as lockfh:
+        target = shared / filename
+        with open(shared / (filename + ".lock"), "w") as lockfh:
             fcntl.flock(lockfh, fcntl.LOCK_EX)
             if not target.exists():
                 # Build beside the target, publish atomically: a crashed
                 # builder leaves only an ignored .part for the next run.
-                with tempfile.NamedTemporaryFile(
-                    dir=shared, prefix=".trimmed_part.", delete=False
-                ) as part:
+                with tempfile.NamedTemporaryFile(dir=shared, prefix=".part.", delete=False) as part:
                     part_path = Path(part.name)
                 try:
-                    build_trimmed_template(part_path)
+                    build(part_path)
                     os.replace(part_path, target)
                 finally:
                     part_path.unlink(missing_ok=True)
         return target
     # Single-process run: no peers to share with (the parent of a bare
     # run root is shared ACROSS runs — wrong scope), so build locally.
-    return build_trimmed_template(tmp_path_factory.mktemp("template") / "template.db")
+    return build(tmp_path_factory.mktemp("template") / filename)
 
 
 def prune_old_pytest_roots(current: Path, quiet_seconds: float = 1800.0) -> list[Path]:

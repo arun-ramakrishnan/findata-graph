@@ -242,7 +242,9 @@ def cached_embed_batch(
     Hits are served from the pooled store cache; only the misses go through ONE
     ``embed_missing`` call (the batch embedder — a single llama.cpp call for
     the whole corpus), and those vectors are stored back into the cache.
-    Returns ``(vectors_in_input_order, {"hits", "misses", "dirty"})``.
+    Returns ``(vectors_in_input_order, {"hits", "misses", "unique_misses",
+    "dirty"})`` — ``misses`` counts input texts, ``unique_misses`` the
+    deduplicated embed calls actually issued.
 
     Cache rows are committed here, not by the caller's later transaction:
     pre-warm flows (e.g. a count-only run) must persist them (the

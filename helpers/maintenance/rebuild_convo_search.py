@@ -400,12 +400,15 @@ def _rebuild_check_mode(db_path: Path, files: list[Path], timer: _Phases) -> dic
 
 
 def _rebuild_full_mode(
-    con, files: list[Path], stored: dict, timer: _Phases
+    con, files: list[Path], stored: dict
 ) -> tuple[list[dict], dict, list[tuple[str, str]], dict]:
     """Full rebuild mode: read all files, diff, and prepare rows."""
     target = _read_files(files)
     current = {rel: h for rel, (h, _rows) in target.items()}
     diff = _diff(current, stored)
+    # Wholesale delete is deliberate (T8 lesson, converse of the delta path):
+    # a full rebuild clears the index — and, via _fts_sync(full=True), the FTS
+    # sidecar — instead of reconciling row-by-row against it.
     con.execute("DELETE FROM convo_search")
     con.execute("DELETE FROM convo_meta")
     drop_keys: list[tuple[str, str]] = []
@@ -414,9 +417,17 @@ def _rebuild_full_mode(
 
 
 def _rebuild_incremental_mode(
-    con, files: list[Path], stored: dict, timer: _Phases
+    con, files: list[Path], stored: dict
 ) -> tuple[list[dict], dict, list[tuple[str, str]], dict]:
-    """Incremental rebuild mode: delta-only processing."""
+    """Incremental rebuild mode: delta-only processing.
+
+    Delta-only is the T8b fix, not a style choice: re-inserting unchanged
+    rows costs ~11 s of FTS re-tokenization per run for text that never
+    changed. Harness parts are append-only, so row_no shifts ONLY on a
+    compaction — which is exactly why row_no is part of the change
+    fingerprint below (a compaction re-shifts every later row while the
+    text stays identical, and only the fingerprint catches it).
+    """
     current = {str(f.relative_to(REPO)): _file_hash(f) for f in files}
     diff = _diff(current, stored)
     wanted = set(diff["new"]) | set(diff["changed"])
@@ -494,9 +505,9 @@ def rebuild(db_path: Path, write: bool = True, incremental: bool = False) -> dic
         con.execute(CONVO_META_DDL)
         stored = _strip_prefix(_stored_hashes(con))
         if incremental:
-            keep, current, drop_keys, diff = _rebuild_incremental_mode(con, files, stored, timer)
+            keep, current, drop_keys, diff = _rebuild_incremental_mode(con, files, stored)
         else:
-            keep, current, drop_keys, diff = _rebuild_full_mode(con, files, stored, timer)
+            keep, current, drop_keys, diff = _rebuild_full_mode(con, files, stored)
 
         timer.mark("hash+read")
         rows = keep

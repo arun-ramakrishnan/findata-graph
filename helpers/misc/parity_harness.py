@@ -49,6 +49,8 @@ from pathlib import Path
 from types import ModuleType
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
 SEEDS = (0, 1, 7)
 DEFAULT_REF = "HEAD"
 
@@ -109,6 +111,91 @@ def _render_bfs_path(mod: ModuleType) -> str:
     return "\n".join(rows)
 
 
+def _render_extract_relations(mod: ModuleType) -> str:
+    """Fixed newsletter blocks through the full extraction pipeline."""
+    from helpers.graph.fixture_graph_db import RELATION_CONTENTS, RELATION_KNOWN_NAMES
+
+    resolver = mod.EntityResolver(list(RELATION_KNOWN_NAMES))
+    rows: list[str] = []
+    for i, content in enumerate(RELATION_CONTENTS):
+        by_type, unresolved = mod.extract_relations(
+            content,
+            edition_title=f"Edition {i}",
+            newsletter_type="The_Chatter",
+            resolver=resolver,
+        )
+        rows.append(f"--- content {i}")
+        for et in sorted(by_type):
+            for e in sorted(by_type[et], key=lambda e: (e.source, e.target)):
+                props = ", ".join(f"{k}={v!r}" for k, v in sorted(e.properties.items()))
+                rows.append(f"{et}: {e.source} -> {e.target} props({props})")
+        for u in sorted(unresolved, key=lambda u: (u.edge_type, u.target_mention)):
+            rows.append(f"UNRESOLVED {u.edge_type}: {u.target_mention!r}")
+    return "\n".join(rows)
+
+
+def _render_resolve_ladder(mod: ModuleType) -> str:
+    """Fixed (name, resolver_map) cases through the S2 tier ladder."""
+    from helpers.graph.fixture_graph_db import LADDER_CASES
+
+    rows = []
+    for name, resolver_map in LADDER_CASES:
+        entity, tier, suggestions = mod._resolve_ladder(name, resolver_map)
+        rows.append(
+            f"{name!r} map={sorted(resolver_map.items())} => "
+            f"({entity!r}, {tier!r}, {suggestions!r})"
+        )
+    return "\n".join(rows)
+
+
+def _render_theme_membership(mod: ModuleType) -> str:
+    """Fixed Companies note tree; stems as company names (map=None)."""
+    import tempfile
+    from helpers.graph.fixture_graph_db import THEME_NOTES, build_note_tree
+
+    with tempfile.TemporaryDirectory(prefix="parity-themes-") as tmp:
+        root = build_note_tree(Path(tmp), THEME_NOTES) / "Companies"
+        got = sorted(
+            (company, theme, tuple(aliases))
+            for company, theme, aliases in mod.extract_theme_membership(root=root)
+        )
+    return "\n".join(repr(row) for row in got)
+
+
+def _render_extract_citations(mod: ModuleType) -> str:
+    """Fixed derived-note vault; the vault must be NAMED findata (join keys)."""
+    import tempfile
+    from helpers.graph.fixture_graph_db import (
+        CITED_EDITION_STEMS,
+        CITED_PATH_TO_NAME,
+        CITED_VAULT_NOTES,
+        build_note_tree,
+    )
+
+    with tempfile.TemporaryDirectory(prefix="parity-cited-") as tmp:
+        vault = build_note_tree(Path(tmp) / "findata", CITED_VAULT_NOTES)
+        citations, stats = mod.extract_citations(
+            vault, CITED_PATH_TO_NAME, set(CITED_EDITION_STEMS)
+        )
+    rows = [repr(c) for c in sorted(citations)]
+    rows.append(f"stats={sorted(stats.items())}")
+    return "\n".join(rows)
+
+
+def _render_l1b_compute(mod: ModuleType) -> str:
+    """Fixture graph DB through compute(); sorted scores + stable info dump."""
+    import json
+    import tempfile
+    from helpers.graph.fixture_graph_db import build_graph_fixture_db
+
+    with tempfile.TemporaryDirectory(prefix="parity-l1b-") as tmp:
+        db = build_graph_fixture_db(Path(tmp) / "fixture.db")
+        scores, info = mod.compute(db_path=str(db), jobs=1)
+    rows = [f"{n}={s:.9f}" for n, s in sorted(scores.items())]
+    rows.append("info=" + json.dumps(info, sort_keys=True, default=str))
+    return "\n".join(rows)
+
+
 REGISTRY: dict[str, Fixture] = {
     "bfs_path": Fixture(
         name="bfs_path",
@@ -116,10 +203,42 @@ REGISTRY: dict[str, Fixture] = {
         render=_render_bfs_path,
         note="level-BFS over CSR; no DB, so it needs no fixture database",
     ),
-    # DB-backed extractions (longest_chains, ...) register here. They need a
-    # graph-schema conn factory reachable from helpers/ -- tests/ is not
-    # importable from here, so the factory has to land under helpers/ first.
-    #
+    # c901 S2 splits (#306), registered by ocr_remediation S4/F7 so their
+    # one-shot parity proofs are re-runnable. Fixture inputs live in
+    # helpers/graph/fixture_graph_db.py. print_stats is NOT registered: it
+    # opens the live production DB through helpers.core.db.connect() and the
+    # census/hygiene helpers — fixture-rendering it needs a db path threaded
+    # through that plumbing (deferred c901 D1 owner).
+    "extract_relations": Fixture(
+        name="extract_relations",
+        relpath="helpers/graph/extract_relations.py",
+        render=_render_extract_relations,
+        note="full pipeline over fixed newsletter blocks incl. zero-resolved list chunks",
+    ),
+    "_resolve_ladder": Fixture(
+        name="_resolve_ladder",
+        relpath="helpers/graph/derive_insights.py",
+        render=_render_resolve_ladder,
+        note="S2 tier ladder over exact/strip/qualifier/fuzzy/miss cases",
+    ),
+    "extract_theme_membership": Fixture(
+        name="extract_theme_membership",
+        relpath="helpers/graph/derive_themes.py",
+        render=_render_theme_membership,
+        note="theme scan over a fixed Companies note tree (stem-name convenience)",
+    ),
+    "extract_citations": Fixture(
+        name="extract_citations",
+        relpath="helpers/graph/derive_cited_in.py",
+        render=_render_extract_citations,
+        note="citations over a fixed vault incl. PDF-skip, unknown-id and unmapped-entity paths",
+    ),
+    "l1_betweenness_compute": Fixture(
+        name="l1_betweenness_compute",
+        relpath="helpers/graph/l1_betweenness.py",
+        render=_render_l1b_compute,
+        note="folded betweenness over a fixture graph DB (noise/self-loop rows included)",
+    ),
     # Canaries: never part of a default run, but registered so the test suite
     # can drive both verdicts through the real subprocess path. A harness that
     # has only ever printed PASS is indistinguishable from no harness.
@@ -144,7 +263,9 @@ REGISTRY: dict[str, Fixture] = {
 # --- worker: render one side, one seed ------------------------------------ #
 
 
-def _load_baseline(ref: str, relpath: str, canonical: str) -> ModuleType:
+def _load_baseline(
+    ref: str, relpath: str, canonical: str, restore_after: bool = False
+) -> ModuleType:
     """Exec ``git show <ref>:<relpath>`` as ``canonical`` and return it.
 
     The module object is handed straight to the fixture's render, so the
@@ -171,7 +292,31 @@ def _load_baseline(ref: str, relpath: str, canonical: str) -> ModuleType:
     # __file__ must match the live module's, or a fixture that reads it (or
     # opens something relative to it) sees a spurious difference.
     module.__file__ = str(REPO_ROOT / relpath)
-    exec(compile(proc.stdout, module.__file__, "exec"), module.__dict__)  # noqa: S102
+    # Register before exec: py3.14 dataclass processing resolves string
+    # annotations via sys.modules[cls.__module__] and gets None back (then
+    # crashes) when the exec'd module was never registered.
+    prev = sys.modules.get(canonical)
+    sys.modules[canonical] = module
+    try:
+        exec(compile(proc.stdout, module.__file__, "exec"), module.__dict__)  # noqa: S102
+    except BaseException:
+        # A half-initialized module must not stay registered under the REAL
+        # import name — later imports would resolve to it and die confusingly.
+        if prev is None:
+            sys.modules.pop(canonical, None)
+        else:
+            sys.modules[canonical] = prev
+        raise
+    # In-process callers (tests) pass restore_after=True: the exec'd baseline
+    # must not outlive the call under the REAL import name, or every later
+    # import of the live module silently resolves to HEAD's code. The worker
+    # subprocess keeps the registration (lazy self-imports during render need
+    # it; the process exits after render anyway).
+    if restore_after:
+        if prev is None:
+            sys.modules.pop(canonical, None)
+        else:
+            sys.modules[canonical] = prev
     return module
 
 
@@ -220,6 +365,14 @@ def _run_side(fixture: Fixture, side: str, ref: str, seed: int) -> str:
 def _first_diff(a: str, b: str) -> str:
     """First differing line, for a diagnosable failure message."""
     a_lines, b_lines = a.splitlines(), b.splitlines()
+    # F10: content identical modulo the final newline must be reported as
+    # exactly that — the generic length message would claim "N vs N" lines.
+    if a_lines == b_lines and a != b and a.rstrip("\n") == b.rstrip("\n"):
+        return (
+            "differs only in the trailing newline "
+            f"(baseline ends with newline: {a.endswith(chr(10))}, "
+            f"working: {b.endswith(chr(10))})"
+        )
     for i, (la, lb) in enumerate(zip(a_lines, b_lines), start=1):
         if la != lb:
             return f"line {i}:\n    baseline: {la}\n    working:  {lb}"
@@ -236,9 +389,15 @@ def compare(fixture: Fixture, ref: str, seeds: tuple[int, ...]) -> tuple[bool, l
     """Return (parity_ok, report lines) for one fixture."""
     report: list[str] = []
     ok = True
+    # Render each (side, seed) exactly once (F11 — the parity and
+    # determinism loops used to run every render twice) and reuse.
+    renders = {
+        (side, seed): _run_side(fixture, side, ref, seed)
+        for side in ("baseline", "live")
+        for seed in seeds
+    }
     for seed in seeds:
-        base = _run_side(fixture, "baseline", ref, seed)
-        live = _run_side(fixture, "live", ref, seed)
+        base, live = renders[("baseline", seed)], renders[("live", seed)]
         if base == live:
             report.append(
                 f"  PARITY ok       seed={seed} ({len(live.splitlines())} rows identical)"
@@ -247,15 +406,18 @@ def compare(fixture: Fixture, ref: str, seeds: tuple[int, ...]) -> tuple[bool, l
         ok = False
         report.append(f"  PARITY MISMATCH seed={seed}")
         report.append(f"    {_first_diff(base, live)}")
+    # F14: judge each seed against a FIXED baseline seed (the first of the
+    # ordered tuple). The old condition never referenced the outer seed, so
+    # one differing seed reported every seed as unstable.
+    anchor = seeds[0]
     for side in ("baseline", "live"):
-        renders = {seed: _run_side(fixture, side, ref, seed) for seed in seeds}
-        unstable = {
-            s: r for s, r in renders.items() if any(r != renders[0] for r in renders.values())
-        }
+        side_renders = {seed: renders[(side, seed)] for seed in seeds}
+        unstable = {s: r for s, r in side_renders.items() if r != side_renders[anchor]}
         if unstable:
             report.append(
                 f"  DETERMINISM {side} output varies with PYTHONHASHSEED "
-                f"(seeds {sorted(unstable)} differ) -- pre-existing, see chain_tally_determinism"
+                f"(seeds {sorted(unstable)} differ from seed {anchor}) "
+                "-- pre-existing, see chain_tally_determinism"
             )
     return ok, report
 
@@ -292,7 +454,16 @@ def main(argv: list[str] | None = None) -> int:
         print(f"unknown fixture(s): {', '.join(unknown)}", file=sys.stderr)
         print(f"registered: {', '.join(REGISTRY) or '(none)'}", file=sys.stderr)
         return 2
-    seeds = tuple(int(s) for s in args.seeds.split(",") if s.strip())
+    # F9: a blank or malformed --seeds used to parse to an empty tuple and
+    # print a vacuous "N/N byte-identical" with exit 0. Never a traceback,
+    # never a vacuous run: argparse-error instead.
+    raw_seeds = [s.strip() for s in args.seeds.split(",")]
+    if not raw_seeds or not all(s.isdecimal() for s in raw_seeds):
+        parser.error(
+            f"--seeds must be a comma-separated list of non-negative integers "
+            f"(got {args.seeds!r}; e.g. 0,1,7)"
+        )
+    seeds = tuple(int(s) for s in raw_seeds)
 
     print(f"parity vs {args.ref} | seeds {seeds}")
     failures = 0

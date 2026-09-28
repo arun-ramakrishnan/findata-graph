@@ -111,9 +111,16 @@ def test_first_diff_points_at_the_offending_line():
 
 def test_baseline_module_exposes_the_same_file_path():
     """A fixture reading __file__ must not see a phantom difference."""
-    mod = ph._load_baseline("HEAD", "helpers/graph/csr.py", "helpers.graph.csr")
+    # _load_baseline registers the exec'd module under the REAL import name
+    # (required for the py3.14 dataclass restore). In-process callers pass
+    # restore_after=True so the registration is undone after the call. The
+    # live module may legitimately already be in sys.modules (another test
+    # imported it) — the contract is that sys.modules never holds the
+    # BASELINE object, so assert identity, not absence.
+    mod = ph._load_baseline("HEAD", "helpers/graph/csr.py", "helpers.graph.csr", restore_after=True)
     assert mod.__file__ == str(ph.REPO_ROOT / "helpers/graph/csr.py")
     assert callable(mod.bfs_path)
+    assert ph.sys.modules.get("helpers.graph.csr") is not mod
 
 
 def test_registered_fixture_is_byte_identical_to_head():
@@ -136,9 +143,22 @@ def test_harness_fails_on_a_working_tree_that_differs():
     assert any("TAMPERED-WORKING-TREE" in line for line in report)
 
 
-def test_canaries_are_excluded_from_a_default_run():
-    """A default run must not report the deliberate canaries as failures."""
+def test_canaries_are_excluded_from_a_default_run(capsys):
+    """A default run must exclude canaries BY ROSTER, not merely exit 0.
+
+    F6: `main([]) == 0` holds even when canaries fail (they are simply not
+    in the default name list), so the old assertion proved nothing. Assert
+    the printed run actually names every non-canary fixture and no canary.
+    """
     assert ph.main([]) == 0
+    out = capsys.readouterr().out
+    canaries = {n for n, f in ph.REGISTRY.items() if f.canary}
+    expected = {n for n, f in ph.REGISTRY.items() if not f.canary}
+    run = {line.split(":")[0] for line in out.splitlines() if line.endswith(("PASS", "DIVERGED"))}
+    assert expected <= run, f"default run skipped fixtures: {sorted(expected - run)}"
+    assert not (run & canaries), f"canaries leaked into default run: {sorted(run & canaries)}"
+    # the closing count must reflect the non-canary roster exactly
+    assert f"{len(expected)}/{len(expected)} fixture(s) byte-identical" in out
 
 
 def test_divergence_warns_by_default_and_only_gates_under_strict(capsys):

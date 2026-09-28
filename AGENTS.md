@@ -78,10 +78,42 @@ gate_query recent --gate qa --last 10 --tests  # PASS/FAIL + failed ids
 gate_query timing --leg <leg> --last 10      # where the time goes
 ```
 
+## Thesis first — search before you claim
+
+**Never state a claim about what this repo has, lacks, or already does
+until a search backs it.** Session context is a *cache*, not a source; a
+confident answer from a thin session is a guess wearing a suit.
+
+Applies to every claim: "we already have X", "there's no Y here", "that
+file is at path P", "the patch isn't refreshed", "finding F is still
+open". Before asserting, run the index that owns the question —
+`doc_query` for design/paths, `note_query` for the vault, `convo_query`
+for what past sessions decided, `script_query` before grepping,
+`ripwire` for structure, `git`/`stg` for tree state, `ls`/`test -f` for
+existence. Then cite the hit.
+
+Three rules that follow:
+
+- **Absence claims need a search too.** "There's no PPR retrieval" is a
+  finding, not a default. Absence of memory is not absence of code.
+- **Never name a path you haven't stat'd.** A plausible-looking path
+  invented from a neighbouring file is the single most common error;
+  `ls` it or query for it. Fabricated paths read as authoritative.
+- **Stale ≠ false, but stale is not a claim either.** Re-read live tree
+  state (`git status`, `stg status`, `stg series`) at the moment of
+  speaking. A snapshot from earlier in the session is not evidence about
+  now — the user may have refreshed, committed, or deleted.
+
+Reading a file to check a path is fine; reading one to *understand* a
+subsystem is what the indexes are for. Land the conclusion with the
+locator (`path:line`, hit count, command + output) so it can be
+re-verified without re-deriving it.
+
 ## Rules
 
 - The four query CLIs = INTENT; STRUCTURE = `ripwire`, `rg` fallback;
   Mojo language/API → **Mojo docs MCP, never web fetchers**.
+- **Thesis first** (see above): search, then claim, then cite the hit.
 - **Keep the session todo list current** — a stale list misleads.
 - Blocking `make qa` (ruff, md-lint, types, pytest, integrity,
   snapshot…), non-blocking `make advisory`. After editing `doc/**`,

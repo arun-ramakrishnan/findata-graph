@@ -277,7 +277,7 @@ def betweenness_centrality(
         if own:
             con.close()
     if top_k is not None and top_k > 0:
-        return dict(sorted(bc.items(), key=lambda kv: kv[1], reverse=True)[:top_k])
+        return dict(sorted(bc.items(), key=lambda kv: (-kv[1], kv[0]))[:top_k])
     return bc
 
 
@@ -767,7 +767,7 @@ def _run_betweenness(con, *, edges, top_k, approximate, db_path=None, **_) -> di
     if edges is None and _l1b_routed():
         result = _run_l1b_lane(db_path)
         if top_k is not None and top_k > 0:
-            result = dict(sorted(result.items(), key=lambda kv: kv[1], reverse=True)[:top_k])
+            result = dict(sorted(result.items(), key=lambda kv: (-kv[1], kv[0]))[:top_k])
         return result
     return betweenness_centrality(
         con, top_k=top_k, approximate=_resolve_approx(approximate, True), edges=edges
@@ -1148,7 +1148,7 @@ def _print_result(
         ]:
             print(f"  community {label}: {size} nodes")
         return
-    ranked = sorted(result.items(), key=lambda kv: kv[1], reverse=True)
+    ranked = sorted(result.items(), key=lambda kv: (-kv[1], kv[0]))
     limit = top if top is not None else 10
     for name, value in ranked[:limit]:
         print(f"  {name:40} {_format_value(value)}")
@@ -1465,9 +1465,7 @@ def _cli(argv: list[str] | None = None) -> int:  # noqa: C901
                         result = heavy_futures.pop("l1b").get()
                         if args.top is not None and args.top > 0:
                             result = dict(
-                                sorted(result.items(), key=lambda kv: kv[1], reverse=True)[
-                                    : args.top
-                                ]
+                                sorted(result.items(), key=lambda kv: (-kv[1], kv[0]))[: args.top]
                             )
                     elif args.all and _scipy_routed(metric):
                         if not scipy_results:
