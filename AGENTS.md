@@ -91,6 +91,12 @@ gate_query timing --leg <leg> --last 10      # where the time goes
 - Full gates ONCE per arc, on the user's go. After fixes, re-run ONLY
   the failed legs (their individual make targets), not the whole gate.
   The user stages and commits — leave the tree dirty.
+- **OCR review is advisory** — read `doc/procedures/ocr_review.md` first.
+  `ocr delegate preview|rule` give selection + checklist; the HOST agent
+  is the reviewer and the sole carrier of these conventions (OCR's own
+  `rules` key is unverified — do not add it). Never a gate. Step 0: ask
+  which ref, never the moving stgit top. Prove a `tests/` path is
+  selected before trusting a review. Apply only accepted findings.
 - **No patch/commit lifecycle ops.** Never `stg
   new`/`push`/`pop`/`delete`/`squash`, never
   `git commit`/`amend`/`rebase` — the operator owns patch structure.

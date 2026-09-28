@@ -79,7 +79,7 @@ _NOTES = [
 ]
 
 
-def _make_db(tmp_path, dims=_DIM, with_model_stamp=None):
+def _make_db(tmp_path, dims=_DIM, with_model_stamp=None, extra_companies=0):
     db_path = tmp_path / "notes.db"
     conn = sqlite3.connect(str(db_path))
     conn.executescript(_SCHEMA)
@@ -127,6 +127,26 @@ def _make_db(tmp_path, dims=_DIM, with_model_stamp=None):
             "content, embedding) VALUES (?,?,?,?,?,?)",
             (dtype, fpath, title, "", f"body of {title}", json.dumps(stored)),
         )
+    # Optional near-parallel company notes, all +x-ish so every mutual cosine
+    # is positive and the pair count grows as C(n, 2). The default fixture
+    # yields only 6 pairs, which is not enough to cross prune_at=4*limit for
+    # any limit above 1 — see the wide_note_con fixture and
+    # test_bounded_accumulator_is_exact_under_pruning.
+    for i in range(extra_companies):
+        vec = [1.0, 0.02 * (i + 1), 0.0, 0.0]
+        stored = vec if dims == _DIM else vec + [0.0] * (dims - _DIM)
+        conn.execute(
+            "INSERT INTO note_search (doc_type, file_path, title, sector, "
+            "content, embedding) VALUES (?,?,?,?,?,?)",
+            (
+                "company",
+                f"findata/Companies/Synthetic/Synth_{i}.md",
+                f"Synth {i}",
+                "",
+                f"body of Synth {i}",
+                json.dumps(stored),
+            ),
+        )
     if with_model_stamp is not None:
         conn.execute(
             "CREATE TABLE IF NOT EXISTS db_meta (key TEXT PRIMARY KEY, value TEXT NOT NULL)"
@@ -143,6 +163,16 @@ def _make_db(tmp_path, dims=_DIM, with_model_stamp=None):
 @pytest.fixture
 def note_con(tmp_path):
     db_path = _make_db(tmp_path)
+    con = connect(db_path=db_path, fresh=True)
+    yield con, db_path
+    con.close()
+
+
+@pytest.fixture
+def wide_note_con(tmp_path):
+    """9 company paths -> 36 pairs, enough to cross prune_at=4*limit for every
+    limit the pruning test exercises (4/8/12/28)."""
+    db_path = _make_db(tmp_path, extra_companies=5)
     con = connect(db_path=db_path, fresh=True)
     yield con, db_path
     con.close()
@@ -366,18 +396,57 @@ class TestNearDuplicateNotes:
         con, _ = note_con
         assert near_duplicate_notes(con, min_sim=0.0, limit=0) == []
 
-    def test_bounded_accumulator_is_exact_under_pruning(self, note_con):
-        """csr_lane_remediation S4: the accumulator prunes to `limit` once the
-        buffer passes 4x. Pruning is only sound if the surviving top-`limit`
-        equals the unpruned sort+truncate — so compare the pruning path against
-        the exact reference over a limit small enough to force many prunes."""
-        con, _ = note_con
-        # min_sim=0.0 keeps every pair, so the buffer is at its widest and the
-        # 4x prune fires repeatedly; limits of 1/2/3 all prune, 10_000 never does.
+    def test_bounded_accumulator_is_exact_under_pruning(self, wide_note_con):
+        """csr_lane_remediation S4: the accumulator is bounded, and pruning is
+        exact — both asserted, not inspected.
+
+        Two separate properties, two separate assertions:
+          * **the bound holds** — ``stats["peak"]`` never exceeds prune_at, and
+            ``stats["prunes"] > 0`` proves the prune actually ran;
+          * **pruning is sound** — the result equals the unpruned top-`limit``.
+
+        The second alone is worthless as a check on the *bound*: the final
+        `out.sort(); del out[limit:]` makes the return value invariant to how
+        much the buffer retains. Verified by mutation — with the prune branch
+        disabled this test used to stay green, as did an injected
+        `del out[limit + 1:]` off-by-one. The `stats` seam is what makes
+        prune-absence detectable; without it only the soundness half is
+        testable.
+
+        The corpus must reach prune_at or nothing executes: the default fixture
+        yields 6 pairs, so only limit=1 (prune_at=4) would prune and limits
+        2/3/7 (8/12/28) would be untested no-ops. The precondition below fails
+        loudly if the corpus is ever shrunk back.
+        """
+        con, _ = wide_note_con
+        # min_sim=0.0 keeps every pair (the guard is sim >= min_sim), so the
+        # buffer is at its widest: 9 company paths -> C(9,2) = 36 pairs.
         reference = near_duplicate_notes(con, min_sim=0.0, limit=10_000)
-        assert reference, "the wide threshold must still find pairs"
+        assert len(reference) == 36, f"expected 36 pairs, got {len(reference)}"
         sims = [s for *_rest, s in reference]
         assert sims == sorted(sims, reverse=True), "reference must be similarity-ordered"
         for limit in (1, 2, 3, 7):
+            prune_at = 4 * limit
+            # Strictly greater: the unpruned buffer would be this large, so
+            # peak <= prune_at is a real constraint rather than one any buffer
+            # of this corpus satisfies trivially. This assertion is the control.
+            assert len(reference) > prune_at, (
+                f"corpus yields {len(reference)} pairs, not more than "
+                f"prune_at={prune_at} — the peak assertion below would be vacuous"
+            )
+            stats: dict = {}
+            pruned = near_duplicate_notes(con, min_sim=0.0, limit=limit, stats=stats)
+            assert stats["prunes"] > 0, f"limit={limit}: the 4x prune never fired"
+            assert stats["peak"] <= prune_at, (
+                f"limit={limit}: accumulator peaked at {stats['peak']}, above prune_at={prune_at}"
+            )
+            assert stats["post_prune_max"] <= limit, (
+                f"limit={limit}: prune left {stats['post_prune_max']} pairs, above limit={limit}"
+            )
+            assert pruned == reference[:limit], (
+                f"limit={limit} diverged from the reference — pruning discarded a top-{limit} pair"
+            )
             pruned = near_duplicate_notes(con, min_sim=0.0, limit=limit)
-            assert pruned == reference[:limit], f"limit={limit} diverged from the reference"
+            assert pruned == reference[:limit], (
+                f"limit={limit} diverged from the reference — pruning discarded a top-{limit} pair"
+            )

@@ -3602,6 +3602,7 @@ def near_duplicate_notes(
     min_sim: float = 0.9,
     doc_type: str = "company",
     limit: int = 100,
+    stats: dict | None = None,
 ) -> list[tuple[str, str, str, str, float]]:
     """Near-duplicate NOTE pairs above a cosine threshold (QA tripwire).
 
@@ -3632,6 +3633,17 @@ def near_duplicate_notes(
     ``4 x limit``, so a low ``min_sim`` can no longer accumulate tens of
     millions of pairs ahead of the truncation. ``min_sim`` is API-floored
     at 0.9, so the wide case is latent, not live.
+
+    ``stats`` (optional, test seam): when a dict is passed it receives
+    ``peak`` (the accumulator high-water mark), ``prunes`` (how many times the
+    4x bound actually fired) and ``post_prune_max`` (the largest buffer size
+    immediately after a prune — so "pruned back to ``limit``" is asserted, not
+    assumed). The bound is otherwise **unobservable from the return value** —
+    the final sort+truncate below makes the result invariant to how much the
+    buffer retains, so an output-equality test passes whether pruning runs or
+    not. This seam is what lets the bound be asserted rather than merely
+    inspected. Costs a few dict lookups per candidate pair when supplied,
+    nothing when not.
 
     A maintenance command, deliberately NOT an API hot path and NOT
     generation-cached. Returns ``list[(path_a, path_b, title_a,
@@ -3698,9 +3710,14 @@ def near_duplicate_notes(
             if paths[a_i] > paths[b_i]:
                 a_i, b_i = b_i, a_i
             out.append((-float(block[a, b]), paths[a_i], paths[b_i], a_i, b_i))
+            if stats is not None and len(out) > stats.get("peak", 0):
+                stats["peak"] = len(out)
             if len(out) >= prune_at:
                 out.sort()
                 del out[limit:]
+                if stats is not None:
+                    stats["prunes"] = stats.get("prunes", 0) + 1
+                    stats["post_prune_max"] = max(stats.get("post_prune_max", 0), len(out))
     if not out:
         return []
     out.sort()

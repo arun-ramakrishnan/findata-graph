@@ -1,0 +1,14 @@
+{
+  "include": [
+    "tests/**/*.py",
+    "helpers/**/*.py",
+    "app.py"
+  ],
+  "exclude": [
+    "static/**/*.bundle.js",
+    "static/**/*.bundle.js.map",
+    "node_modules/**",
+    "findata/**",
+    "doc/local/**"
+  ]
+}

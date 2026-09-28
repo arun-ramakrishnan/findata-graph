@@ -2,6 +2,8 @@
 title: "CSR shortest_path lane remediation — activation, caching, contract, docstring"
 status: proposed
 filed: "2026-09-28"
+executed: null
+completed_md: null
 area: "helpers/graph/csr.py, helpers/graph/query.py, app.py, tests/test_csr.py"
 ---
 
