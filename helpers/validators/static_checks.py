@@ -1524,7 +1524,7 @@ def _is_items_call(node: ast.expr) -> bool:
     )
 
 
-def check_bare_negated_sort_keys(scope: set[Path] | None = None) -> list[str]:
+def check_bare_negated_sort_keys(scope: set[Path] | None = None) -> list[str]:  # noqa: C901
     """chain_tally_determinism S3: reject tally renders with hash-order ties.
 
     ``sorted(d.items(), key=lambda kv: -kv[1])`` sorts by count only; equal
