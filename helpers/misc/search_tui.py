@@ -1647,9 +1647,12 @@ def db_schema(store: str, root: Path | None = None) -> list[DbTable]:
             return tables
         finally:
             conn.close()
-    import duckdb  # lazy: duckdb is a main dep, not part of the tui extra
 
-    conn = duckdb.connect(str(path), read_only=True)
+    from helpers.misc.duckdb_lock import open_read_only
+
+    # S2/S3 (duckdb_transient_lock_retry): queue on the store's io.lock
+    # + retry transient conflicts instead of failing the schema view.
+    conn = open_read_only(path)
     try:
         names = conn.execute(
             "SELECT table_name, table_type FROM information_schema.tables"
@@ -1708,10 +1711,13 @@ def _db_run_sqlite(path: Path, sql: str, limit: int, timeout_ms: int) -> DbResul
 
 
 def _db_run_duckdb(path: Path, sql: str, limit: int) -> DbResult:
-    import duckdb  # lazy: see db_schema
+
+    from helpers.misc.duckdb_lock import open_read_only
 
     t0 = time.perf_counter()
-    conn = duckdb.connect(str(path), read_only=True)
+    # S2/S3: queue on the store's io.lock + retry transient conflicts
+    # (the SQL error path below stays the DbResult data channel).
+    conn = open_read_only(path)
     try:
         try:
             cur = conn.execute(sql)

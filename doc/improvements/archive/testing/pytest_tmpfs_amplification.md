@@ -93,6 +93,45 @@ several hundred MB per `.run()` call, invisible in the test code.
 
 ## 5. §D2 — deferred: module/class-scoped production copies
 
+> **§D2 CLOSED 2026-09-29** — and both trigger conditions below are now
+> structurally dead. (a) The schema-only class was migrated onto a shared
+> per-run `schema_template()` (`tests/_tmp_hygiene.py`, same flock +
+> atomic-publish mechanism as S1; production schema + db_meta, zero rows,
+> VACUUMed): `test_fuzz_shortest_path` (the ~308 MB/worker vacuumed copy),
+> `test_graph` `_minimal_db`, both extraction/events CLIs,
+> `snapshot_cycle`, and `near_duplicates` (both sites) no longer copy
+> production per worker at all. (b) The remaining downsampler class
+> (`test_integration_maint_chain.py`, `test_integration_note_writers.py`)
+> was adjudicated VALID by the operator — the copies ARE the fixture
+> (assertions pin real downsampled production data); they stay per-scope,
+> guarded by the shrinking `_PRODUCTION_COPY_ALLOWLIST`
+> (tests/test_static_checks.py). No further D2 work. De-triggering
+> context, same day: the pytest basetemp moved off the 7.1 GB tmpfs to
+> `/mnt/data/tmp` (223 GB disk; zswap contention relieved — the live lane
+> measured FASTER on disk), and the xdist graph cache itself became one
+> shared read-only file (proposals/xdist_shared_graph_cache.md) — so
+> neither "quota/disk-I/O errors recur" nor cache amplification can fire
+> as originally framed.
+>
+> **Bug class found during the 2026-09-29 re-examination, now fixed at
+> the chokepoint: a pruned copy MUST VACUUM.** SQLite DELETE frees pages
+> but never returns them, so backup-then-prune without VACUUM ships the
+> dead pages for the whole module lifetime. Measured on
+> `note_writers._build_db` (full backup, keep-1-company prune, no
+> VACUUM): 307.2 MB → 232.0 MB once VACUUMed — ~75 MB (24%) was dead
+> pages; the remaining 232 MB is genuinely retained data (that prune
+> clears only entities/graph_edges, so quotes/metrics/note_search rows
+> for dropped companies stay — trimming those would change fixture
+> semantics and was deliberately not done). Fixes: the missing VACUUM
+> added in `_WritersProject._build_db` (inline comment names the class),
+> and `helpers.copy_production_db` flipped to `vacuum=True` BY DEFAULT
+> for pruned copies (keep_all=True returns before any prune; explicit
+> `vacuum=False` remains the documented opt-out) — so the sanctioned
+> builder can never mint the class again. Census at fix time: the only
+> other pruned caller was `_minimal_db`'s dead no-factory fallback;
+> query_plans/rebuild_schema pass keep_all=True (exempt); maint_chain
+> always VACUUMed (10 MB from a 184-entity keep-list).
+
 The remaining full-corpus copies are amortised (1× per worker or per
 class), not per-test — tolerable until the trigger fires:
 

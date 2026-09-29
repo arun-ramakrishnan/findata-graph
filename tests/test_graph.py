@@ -83,7 +83,12 @@ def _minimal_db(tmp_path, name, tmp_path_factory=None):
     if tmp_path_factory is not None:
         shutil.copyfile(schema_template(tmp_path_factory), tmp_db)
         return tmp_db
-    return copy_production_db(DB_PATH, tmp_db, tables=DERIVED_TABLES_NO_FTS_META)
+    return copy_production_db(
+        DB_PATH,
+        tmp_db,
+        requestor="test_graph._minimal_db",
+        tables=DERIVED_TABLES_NO_FTS_META,
+    )
 
 
 # --------------------------------------------------------------------------- #

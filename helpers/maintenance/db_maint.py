@@ -424,13 +424,21 @@ class DBMaintainer:
             self._log(logging.INFO, f"{label} absent — backup skipped ({src})")
             return 0
         try:
-            con = duckdb.connect(str(src), read_only=True)
-            try:
-                con.execute("CHECKPOINT;")
-            except duckdb.Error as e:
-                self._log(logging.WARNING, f"read-only CHECKPOINT failed ({e}); copying as-is")
-            finally:
-                con.close()
+            # S3 (duckdb_transient_lock_retry): the whole open+checkpoint
+            # window sits under io.lock SH — a concurrent long writer
+            # (rebuild, stamp) makes the backup QUEUE instead of hitting
+            # the RW hold and skipping; a queued writer waits its turn
+            # behind the checkpoint.
+            from helpers.misc.duckdb_lock import io_lock as _io_lock
+
+            with _io_lock(src, exclusive=False):
+                con = duckdb.connect(str(src), read_only=True)
+                try:
+                    con.execute("CHECKPOINT;")
+                except duckdb.Error as e:
+                    self._log(logging.WARNING, f"read-only CHECKPOINT failed ({e}); copying as-is")
+                finally:
+                    con.close()
         except (duckdb.Error, OSError) as e:
             self._log(logging.WARNING, f"{label} busy/unreadable ({e}); backup skipped")
             return 0
@@ -821,15 +829,21 @@ class DBMaintainer:
 
         before_size = self.duckdb_path.stat().st_size
         self._log(logging.INFO, f"DuckDB CHECKPOINT ({self.duckdb_path})")
-        con = duckdb.connect(str(self.duckdb_path))
-        try:
-            con.execute("CHECKPOINT;")
-            self._log(logging.INFO, "DuckDB VACUUM")
-            con.execute("VACUUM;")
-            # Final checkpoint to flush VACUUM's rewrite to the main file.
-            con.execute("CHECKPOINT;")
-        finally:
-            con.close()
+        # S3 (duckdb_transient_lock_retry): LOCK_EX spans the
+        # checkpoint+VACUUM window — readers queue on the io.lock instead
+        # of racing the RW hold.
+        from helpers.misc.duckdb_lock import io_lock as _io_lock
+
+        with _io_lock(self.duckdb_path, exclusive=True):
+            con = duckdb.connect(str(self.duckdb_path))
+            try:
+                con.execute("CHECKPOINT;")
+                self._log(logging.INFO, "DuckDB VACUUM")
+                con.execute("VACUUM;")
+                # Final checkpoint to flush VACUUM's rewrite to the main file.
+                con.execute("CHECKPOINT;")
+            finally:
+                con.close()
         after_size = self.duckdb_path.stat().st_size
         self._log(
             logging.INFO,

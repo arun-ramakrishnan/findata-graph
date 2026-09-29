@@ -1595,7 +1595,9 @@ def test_no_production_db_backups_in_tests():
     The lesson: a session/module-scoped fixture that backs up the
     production DB per xdist worker materialised ~6x 308 MB per
     live-invariants run and filled the tmpfs — 65 gate failures that
-    looked like code. Route through tests/_tmp_hygiene.trimmed_template.
+    looked like code. Route through the shared template family in
+    tests/_tmp_hygiene (trimmed_template / schema_template /
+    full_template, per the data shape the tests need).
     """
     for py in sorted(_tests_dir().glob("*.py")):
         rel = f"tests/{py.name}"
@@ -1609,9 +1611,46 @@ def test_no_production_db_backups_in_tests():
         assert not (has_connect and has_backup), (
             f"{rel}: copies a sqlite DB inside a test — production-sized "
             "materialisations per worker are the tmpfs-amplification bug. "
-            "Build from the shared trimmed template "
-            "(tests._tmp_hygiene.trimmed_template) instead."
+            "Build from the shared template family in tests/_tmp_hygiene "
+            "(trimmed/schema/full, per the data shape the tests need) instead."
         )
+
+
+def test_copy_production_db_requestors_are_sanctioned():
+    """copy_production_db call sites and SANCTIONED_REQUESTORS stay in
+    1:1 lockstep (production_db_copy_audit, 2026-09-29).
+
+    Deny-by-default at runtime only bites when the call is MADE; this
+    guard bites at review time — an unsanctioned (or dead) entry can't
+    land silently. Every call site must pass ``requestor="<key>"`` as a
+    string literal, every key must be in the registry, and every
+    registry key must still have a live call site.
+    """
+    from tests.helpers import SANCTIONED_REQUESTORS
+
+    call_re = re.compile(r"copy_production_db\((?:[^()]|\([^()]*\))*\)", re.DOTALL)
+    req_re = re.compile(r'requestor="([^"]+)"')
+    seen: set[str] = set()
+    for py in sorted(_tests_dir().glob("*.py")):
+        if py.name == "helpers.py":
+            continue  # the chokepoint module itself (no call sites; the
+            # runtime gate + its registry live there)
+        text = py.read_text(encoding="utf-8", errors="replace")
+        for call in call_re.findall(text):
+            m = req_re.search(call)
+            assert m is not None, (
+                f"tests/{py.name}: copy_production_db without a literal "
+                'requestor="..." — the sanction gate needs a statically '
+                "checkable key"
+            )
+            seen.add(m.group(1))
+    unsanctioned = seen - set(SANCTIONED_REQUESTORS)
+    assert not unsanctioned, f"unsanctioned copy_production_db requestors: {sorted(unsanctioned)}"
+    dead = set(SANCTIONED_REQUESTORS) - seen
+    assert not dead, (
+        f"sanctioned but no live call site (sanctions must not outlive "
+        f"their requestors): {sorted(dead)}"
+    )
 
 
 def test_dbmaintainer_constructions_opt_out_of_sidecar_backups():

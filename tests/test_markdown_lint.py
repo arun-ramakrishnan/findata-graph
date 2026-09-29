@@ -103,6 +103,32 @@ def test_config_file_matches_pinned_helper():
     assert (PROJECT_ROOT / ".markdownlint-cli2.jsonc").is_file()
 
 
+def test_shipped_config_parses_and_yields_a_corpus():
+    # Existence is not parseability. The cache is driven by _corpus_files(),
+    # which returns [] when the config will not parse — and main() reads an
+    # empty corpus as "the walk failed", falling back to a whole-corpus cli2
+    # run. Coverage survived that, but the content-hash cache was bypassed
+    # silently for a day: commit 93b56e87 added a trailing comma, cli2
+    # tolerated it, _jsonc_loads did not, and `make md-lint` kept printing
+    # "clean" while linting the full corpus every run. These two assertions
+    # fail on the next config edit that reintroduces that class of error.
+    cfg = ml._jsonc_loads(ml._CONFIG_PATH.read_text(encoding="utf-8"))
+    assert isinstance(cfg, dict)
+    files = ml._corpus_files()
+    assert files, "config parsed but the corpus walk came back empty"
+    assert all(f.suffix == ".md" for f in files)
+
+
+def test_unparseable_config_degrades_loudly(capsys, monkeypatch, tmp_path):
+    # The empty-corpus fallback is correct but silent, which is what hid the
+    # regression above. It must announce itself so a slow gate is explained.
+    bad = tmp_path / ".markdownlint-cli2.jsonc"
+    bad.write_text('{"ignores": ["x/**",],}', encoding="utf-8")
+    monkeypatch.setattr(ml, "_CONFIG_PATH", bad)
+    assert ml._corpus_files() == []
+    assert "unreadable/unparseable" in capsys.readouterr().out
+
+
 @pytest.mark.parametrize(
     ("arg", "full"),
     [([], False), (["--full"], True)],

@@ -91,6 +91,31 @@ def _duckdb_for(tmp_db: Path) -> Path:
     return tmp_db.with_suffix(".duckdb")
 
 
+def _child_open(duckdb_path: Path, *, read_only: bool) -> tuple[int, str, str]:
+    """Open the cache file in a subprocess; return (rc, stdout, stderr).
+
+    A separate process is required: DuckDB's file lock is per-process, so
+    an in-process second open would succeed and prove nothing.
+    """
+    code = (
+        "import sys, duckdb\n"
+        f"con = duckdb.connect(sys.argv[1], read_only={read_only!r})\n"
+        "con.execute('SELECT 1').fetchone()\n"
+        "con.close()\n"
+        "print('OPENED')\n"
+    )
+    env = {**os.environ, "PYTHONPATH": f"{REPO_ROOT}{os.pathsep}{REPO_ROOT / 'helpers'}"}
+    proc = subprocess.run(  # noqa: S603  # list-form, shell=False, controlled argv (sys.executable + fixed child code)
+        [sys.executable, "-c", code, str(duckdb_path)],
+        capture_output=True,
+        text=True,
+        env=env,
+        cwd=str(REPO_ROOT),
+        check=False,
+    )
+    return proc.returncode, proc.stdout, proc.stderr
+
+
 # --------------------------------------------------------------------------- #
 # TestDiskBasics                                                               #
 # --------------------------------------------------------------------------- #
@@ -269,6 +294,56 @@ class TestDiskBasics:
                 con.execute("CREATE TABLE _test_write_fail (x INT)")
         finally:
             con.close()
+
+    def test_rw_holder_blocks_a_read_only_opener(self, tmp_db):
+        """A read-write holder EXCLUDES a read-only opener (the false clause).
+
+        Regression (2026-09-29): the ``connect()`` docstring claimed
+        read-only openers "never contend with (or against) a writer".
+        The opposite is true — a read-write holder blocks every other
+        opener, read-only included. Read-only is safe against other
+        READERS, never against a writer.
+
+        The child opens with ``duckdb.connect`` directly, deliberately
+        NOT through ``connect()``: the point is DuckDB's file-level
+        semantics. Going through ``connect()`` would take the
+        ``<cache>.build.lock`` flock and quietly serialise the open,
+        which is exactly the coordination this test must not credit.
+        """
+        duckdb_path = _duckdb_for(tmp_db)
+        connect(tmp_db).close()  # build once so the child meets a warm file
+        # Control: the identical child MUST open when nothing holds the
+        # file. Without this, a broken child harness (bad import, wrong
+        # path) would fail the same way and the test would pass for the
+        # wrong reason — this is the mutation check.
+        ctl_rc, ctl_out, ctl_err = _child_open(duckdb_path, read_only=True)
+        assert ctl_rc == 0 and "OPENED" in ctl_out, f"control did not open: {ctl_err!r}"
+        con = connect(tmp_db)  # read-write HOLDER (the blocker)
+        try:
+            assert con.execute("SELECT 1").fetchone() == (1,)
+            rc, out, err = _child_open(duckdb_path, read_only=True)
+        finally:
+            con.close()
+        assert rc != 0, f"read-only opener succeeded against a live RW holder: {out!r}"
+        assert "Conflicting lock" in err, f"expected a lock conflict, got: {err!r}"
+
+    def test_read_only_holder_blocks_a_read_write_opener(self, tmp_db):
+        """The converse row: a read-only holder also excludes a writer.
+
+        Completes the matrix pinned by the two tests above, so the
+        docstring's table is verified in both directions.
+        """
+        duckdb_path = _duckdb_for(tmp_db)
+        warm = connect(tmp_db)
+        warm.close()
+        ro = duckdb.connect(str(duckdb_path), read_only=True)
+        try:
+            assert ro.execute("SELECT 1").fetchone() == (1,)
+            rc, out, err = _child_open(duckdb_path, read_only=False)
+        finally:
+            ro.close()
+        assert rc != 0, f"read-write opener succeeded against a live RO holder: {out!r}"
+        assert "Conflicting lock" in err, f"expected a lock conflict, got: {err!r}"
 
     def test_corrupted_file_treated_as_cold(self, tmp_db):
         # Write garbage to the .duckdb path; _is_warm should return False,
@@ -823,6 +898,7 @@ class TestProductionPath:
     rebuilding at the end so subsequent test runs see a warm file.
     """
 
+    @pytest.mark.real_graph_cache
     def test_default_connect_uses_memory_graph_duckdb(self):
         c = connect()  # no args = production default
         try:

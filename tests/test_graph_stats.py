@@ -122,6 +122,68 @@ def test_bar_zero_total():
     assert result == "[" + " " * 30 + "] 0"
 
 
+class TestStalenessVerdict:
+    """graph_analytics freshness must compare timestamps, not raw strings
+    (doc/improvements/archive/graph/graph_analytics_staleness_comparison.md).
+
+    `entities.last_updated` carries both the space-separated `utc_now()`
+    shape and ISO-T legacy rows; `computed_at` is space-separated. A raw
+    `>` decides at index 10 ('T' > ' ') whenever the date prefixes tie,
+    so a same-day FRESH snapshot printed STALE. These tests construct
+    exactly that collision — the one a next-day recompute can never
+    reproduce by accident, which is why the old freshness test never
+    caught it.
+    """
+
+    @staticmethod
+    def _conn(entity_stamps, computed_at):
+        con = sqlite3.connect(":memory:")
+        con.execute("CREATE TABLE entities (last_updated TEXT)")
+        con.executemany("INSERT INTO entities VALUES (?)", [(s,) for s in entity_stamps])
+        con.execute("CREATE TABLE graph_analytics (computed_at TEXT)")
+        con.execute("INSERT INTO graph_analytics VALUES (?)", (computed_at,))
+        con.commit()
+        return con
+
+    def test_same_day_iso_entity_vs_space_analytics_is_fresh(self):
+        # THE discriminator: ISO entity stamp at 00:13, analytics computed
+        # 17:59 the SAME day — analytics is later in time, so fresh. The
+        # pre-fix string compare said STALE ('T' beats ' ' at index 10).
+        # NULL + empty-string rows mirror the live column shape and must
+        # not poison the verdict.
+        con = self._conn([None, "", "2026-09-25T00:13:27.091137"], "2026-09-25 17:59:26")
+        lines = stats._staleness_verdict(con)
+        con.close()
+        assert any("✓ fresh" in ln for ln in lines), lines
+
+    def test_iso_entity_genuinely_later_same_day_is_stale(self):
+        # converse: the ISO side is genuinely later (23:59 vs 17:59), so
+        # STALE — time decides, not format. Guards an over-correction
+        # that flipped the direction instead of fixing the parse.
+        con = self._conn(["2026-09-25T23:59:00"], "2026-09-25 17:59:26")
+        lines = stats._staleness_verdict(con)
+        con.close()
+        assert any("⚠ STALE" in ln for ln in lines), lines
+
+    def test_older_analytics_reports_stale_with_raw_strings(self):
+        # cross-day staleness still fires, and the banner keeps the raw
+        # stamp strings readable for humans.
+        con = self._conn(["2026-09-26 10:00:00"], "2026-09-25 17:59:26")
+        lines = stats._staleness_verdict(con)
+        con.close()
+        assert any("⚠ STALE" in ln for ln in lines), lines
+        assert any("2026-09-25 17:59:26" in ln for ln in lines), lines
+
+    def test_unparseable_entity_stamps_are_indeterminate_not_fresh(self):
+        # widened guard: MAX(julianday(...)) over NULL/empty-only rows is
+        # NULL — unknown must not be reported as fresh.
+        con = self._conn([None, ""], "2026-09-25 17:59:26")
+        lines = stats._staleness_verdict(con)
+        con.close()
+        assert not any("✓ fresh" in ln for ln in lines), lines
+        assert any("INDETERMINATE" in ln for ln in lines), lines
+
+
 class TestLongestChainsExact:
     """scipy_exact_universe S2: exact=True lifts the root sample; the
     default path stays sampled (gate-safe)."""

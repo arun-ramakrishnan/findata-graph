@@ -17,6 +17,11 @@ Author: agent (session: graph-engine consolidation follow-up)
 
 ## Motivation
 
+> **Historical (2026-08-14).** DuckDB is no longer pinned — the pin was removed
+> by this proposal and the project now tracks latest (1.5.6 as of 2026-09-29).
+> The 404 below was real at the time and the reasoning is preserved as the
+> decision record; it does not describe the current posture.
+
 duckpgq (DuckDB community extension, SQL/PGQ property-graph queries) is the
 sole reason DuckDB is pinned to 1.5.4: the duckpgq extension has no build for
 DuckDB 1.5.5 (HTTP 404 on INSTALL), while every other extension we use —

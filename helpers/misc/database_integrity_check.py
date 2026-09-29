@@ -1810,7 +1810,13 @@ class DatabaseIntegrityChecker:
             return {"skipped": True, "reason": "duckdb not installed", "errors": 0, "warnings": 1}
 
         try:
-            con = duckdb.connect(str(duckdb_path), read_only=True)
+            from helpers.misc.duckdb_lock import connect_with_lock_retry
+
+            # S2 (duckdb_transient_lock_retry): retry a transient lock
+            # conflict across the ladder first — only a conflict that
+            # outlives it (or any other failure) falls through to the
+            # "cache unreadable" drift ERROR below.
+            con = connect_with_lock_retry(lambda: duckdb.connect(str(duckdb_path), read_only=True))
         except Exception as e:
             # Corrupted / unreadable cache — treat as a drift ERROR (the
             # app would also fail to read it). Fresh-rebuild fixes it.

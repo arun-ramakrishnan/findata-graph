@@ -159,7 +159,9 @@ class TestGroupPass:
         companies = {"TVSMOTOR": "TVS Motor Company"}
         norm = {"TVS_Holdings": "TVS Holdings"}  # resolves
         pairs = rps.build_pairs(con)
-        n_ent, n_edges, written, _ = rps.apply_pairs(conn, pairs, companies, norm, dry_run=False)
+        n_ent, n_edges, written, _, _cycles = rps.apply_pairs(
+            conn, pairs, companies, norm, dry_run=False
+        )
         assert written == 3
         rows = conn.execute(
             "SELECT source, target, edge_type, symmetric FROM graph_edges ORDER BY edge_type, source"
@@ -194,7 +196,9 @@ class TestGroupPass:
             ],
         )
         pairs = rps.build_pairs(con)
-        n_ent, n_edges, written, n_unres = rps.apply_pairs(conn, pairs, {}, {}, dry_run=True)
+        n_ent, n_edges, written, n_unres, _cycles = rps.apply_pairs(
+            conn, pairs, {}, {}, dry_run=True
+        )
         assert n_unres == 1 and n_edges == 0
 
 
@@ -237,7 +241,9 @@ class TestSupplyPass:
         companies = {"TVSMOTOR": "TVS Motor Company"}
         norm = {"SUNDARAM_AUTO": "Sundaram Auto"}
         pairs = rps.build_supply_pairs(con)
-        n_edges, written = rps.apply_supply_pairs(conn, pairs, companies, norm, dry_run=False)
+        n_edges, written, _cross = rps.apply_supply_pairs(
+            conn, pairs, companies, norm, dry_run=False
+        )
         assert written == 2  # two-way trading lands both directions
         rows = conn.execute(
             "SELECT source, target, properties FROM graph_edges WHERE edge_type='supplier_to'"
@@ -272,3 +278,282 @@ class TestRatingsPass:
         assert json.loads(row[2])["rating"] == "AA+"
         kinds = dict(conn.execute("SELECT name, entity_type FROM entities").fetchall())
         assert kinds["CRISIL Ratings"] == "institution"
+
+
+class TestSymmetricEmissionPrecision:
+    """Vigil symmetric-emission S2/S3: same-ref mutual pairs are filing
+    noise, cross-ref pairs are never touched, dups are flagged. S1
+    measured: 37 same-ref subsidiary cycles (all exactly sub_fwd+sub_rev,
+    15 rule-order artifacts) + 91 cross-period supplier aggregates out of
+    4,452 same-ref supplier mutuals; 32 cross-ref mutuals stay."""
+
+    @staticmethod
+    def _seed_cycle(
+        con, symbol="TVSMOTOR", ref_texts=("Holding Company", "Wholly owned subsidiary")
+    ):
+        """One filer, one counter entity, TWO raw spellings whose rows
+        classify to opposite directions (how live cycles arise —
+        build_pairs' DISTINCT ON is per raw counter_party)."""
+        _seed_rpt(
+            con,
+            [
+                (
+                    symbol,
+                    "TVS Motor Company Limited",
+                    "ABC Auto Components Limited",
+                    ref_texts[0],
+                    "Group Companies",
+                    "Any other transaction",
+                    None,
+                    "31-MAR-2026",
+                    "2026-03-31",
+                    "https://x/rev.xml",
+                ),
+                (
+                    symbol,
+                    "TVS Motor Company Limited",
+                    "ABC Auto Components Pvt Ltd",
+                    ref_texts[1],
+                    "Group Companies",
+                    "Any other transaction",
+                    None,
+                    "31-MAR-2025",
+                    "2025-03-31",
+                    "https://x/fwd.xml",
+                ),
+            ],
+        )
+
+    def test_same_ref_sub_cycle_collapses_at_mint(self, lane):
+        con, conn = lane
+        self._seed_cycle(con)
+        companies = {"TVSMOTOR": "TVS Motor Company"}
+        norm = {"ABC_Auto_Components": "ABC Auto Components"}  # both spellings resolve
+        pairs = rps.build_pairs(con)
+        n_ent, n_edges, written, _, n_cycles = rps.apply_pairs(
+            conn, pairs, companies, norm, dry_run=False
+        )
+        assert n_cycles == 1
+        assert written == 1  # only the sub_fwd direction survives
+        rows = conn.execute(
+            "SELECT source, target, properties FROM graph_edges WHERE edge_type='subsidiary_of'"
+        ).fetchall()
+        assert rows == [("ABC Auto Components", "TVS Motor Company", rows[0][2])]
+        assert json.loads(rows[0][2])["xbrl_url"] == "https://x/fwd.xml"  # sub_fwd evidence
+
+    def test_prune_drops_existing_same_ref_cycle_only(self, lane):
+        con, conn = lane
+        for name in ("ABC Auto Components", "Cross Co", "Cross Holding"):
+            conn.execute(
+                "INSERT INTO entities VALUES (?, 'company', ?, NULL)",
+                (name, name.replace(" ", "_")),
+            )
+        # same-ref cycle (rpt:TVSMOTOR): (TVS->ABC) is the sub_rev noise side
+        conn.executemany(
+            "INSERT INTO graph_edges (source, target, edge_type, source_ref, properties) "
+            "VALUES (?, ?, 'subsidiary_of', ?, ?)",
+            [
+                (
+                    "TVS Motor Company",
+                    "ABC Auto Components",
+                    "vigil:rpt:TVSMOTOR",
+                    json.dumps({"relationship": "Holding Company"}),
+                ),
+                (
+                    "ABC Auto Components",
+                    "TVS Motor Company",
+                    "vigil:rpt:TVSMOTOR",
+                    json.dumps({"relationship": "Wholly owned subsidiary"}),
+                ),
+                # cross-ref mutual: NEVER touched
+                (
+                    "Cross Holding",
+                    "Cross Co",
+                    "vigil:rpt:OTHER",
+                    json.dumps({"relationship": "Holding Company"}),
+                ),
+                (
+                    "Cross Co",
+                    "Cross Holding",
+                    "vigil:rpt:CROSSCO",
+                    json.dumps({"relationship": "Wholly owned subsidiary"}),
+                ),
+            ],
+        )
+        conn.commit()
+        counts = rps.prune_symmetric_artifacts(
+            conn, con, {"TVSMOTOR": "TVS Motor Company"}, {}, dry_run=False
+        )
+        assert counts["subsidiary_cycles_dropped"] == 1
+        remaining = conn.execute(
+            "SELECT source, target, source_ref FROM graph_edges "
+            "WHERE edge_type='subsidiary_of' ORDER BY source_ref"
+        ).fetchall()
+        assert ("ABC Auto Components", "TVS Motor Company", "vigil:rpt:TVSMOTOR") in remaining
+        # the cross-ref pair survives intact (2 rows)
+        assert sum(1 for r in remaining if r[2] != "vigil:rpt:TVSMOTOR") == 2
+
+    def test_prune_flags_entity_dup_never_merges(self, lane):
+        con, conn = lane
+        conn.execute("INSERT INTO entities VALUES ('Dup Co', 'company', 'Same_Thing', NULL)")
+        conn.execute("INSERT INTO entities VALUES ('Dup Company', 'company', 'Same_Thing', NULL)")
+        # the mutual pair's ENDPOINTS are the normalized-collision pair —
+        # flagged for the resolver lane, never merged or cycle-cut
+        conn.executemany(
+            "INSERT INTO graph_edges (source, target, edge_type, source_ref, properties) "
+            "VALUES (?, ?, 'subsidiary_of', 'vigil:rpt:DUP', ?)",
+            [
+                ("Dup Co", "Dup Company", json.dumps({"relationship": "Holding Company"})),
+                ("Dup Company", "Dup Co", json.dumps({"relationship": "Wholly owned subsidiary"})),
+            ],
+        )
+        conn.commit()
+        counts = rps.prune_symmetric_artifacts(
+            conn, con, {"DUP": "TVS Motor Company"}, {}, dry_run=True
+        )
+        assert counts["entity_dup_flagged"] == 1
+        assert counts["subsidiary_cycles_dropped"] == 0
+        assert conn.execute("SELECT COUNT(*) FROM graph_edges").fetchone()[0] == 2
+
+    def test_supplier_crossperiod_collapses_to_dominant_direction(self, lane):
+        con, conn = lane
+        _seed_rpt(
+            con,
+            [
+                (
+                    "TVSMOTOR",
+                    "TVS Motor Company Limited",
+                    "Sundaram Auto",
+                    "Fellow Subsidiary",
+                    "Group Companies",
+                    "Sale of goods or services",
+                    "1500",
+                    "31-MAR-2026",
+                    "2026-03-31",
+                    "https://x/s.xml",
+                ),
+                (
+                    "TVSMOTOR",
+                    "TVS Motor Company Limited",
+                    "Sundaram Auto",
+                    "Fellow Subsidiary",
+                    "Group Companies",
+                    "Purchase of goods or services",
+                    "700",
+                    "31-MAR-2025",
+                    "2025-03-31",
+                    "https://x/p.xml",
+                ),
+            ],
+        )
+        conn.execute(
+            "INSERT INTO entities VALUES ('Sundaram Auto', 'company', 'Sundaram_Auto', NULL)"
+        )
+        conn.commit()
+        pairs = rps.build_supply_pairs(con)
+        assert pairs[0]["sale_period"] == "31-MAR-2026"
+        assert pairs[0]["buy_period"] == "31-MAR-2025"
+        n_edges, written, n_cross = rps.apply_supply_pairs(
+            conn,
+            pairs,
+            {"TVSMOTOR": "TVS Motor Company"},
+            {"SUNDARAM_AUTO": "Sundaram Auto"},
+            dry_run=False,
+        )
+        assert (n_edges, written, n_cross) == (1, 1, 1)
+        src_e, dst_e, props = conn.execute(
+            "SELECT source, target, properties FROM graph_edges WHERE edge_type='supplier_to'"
+        ).fetchone()
+        assert (src_e, dst_e) == ("TVS Motor Company", "Sundaram Auto")  # larger amount wins
+        p = json.loads(props)
+        assert p["sale_amount"] == 1500.0 and p["purchase_amount"] == 700.0  # both kept
+        assert p["two_way"] == "cross-period"
+
+    def test_supplier_same_period_two_way_still_survives(self, lane):
+        """The existing two-way test's S2 twin: equal periods keep BOTH
+        directions — the fix must not over-collapse genuine two-way."""
+        con, conn = lane
+        _seed_rpt(
+            con,
+            [
+                (
+                    "TVSMOTOR",
+                    "TVS Motor Company Limited",
+                    "Sundaram Auto",
+                    "Fellow Subsidiary",
+                    "Group Companies",
+                    "Sale of goods or services",
+                    "1500",
+                    "31-MAR-2026",
+                    "2026-03-31",
+                    "https://x/s.xml",
+                ),
+                (
+                    "TVSMOTOR",
+                    "TVS Motor Company Limited",
+                    "Sundaram Auto",
+                    "Fellow Subsidiary",
+                    "Group Companies",
+                    "Purchase of goods or services",
+                    "700",
+                    "31-MAR-2026",
+                    "2026-03-31",
+                    "https://x/p.xml",
+                ),
+            ],
+        )
+        conn.execute(
+            "INSERT INTO entities VALUES ('Sundaram Auto', 'company', 'Sundaram_Auto', NULL)"
+        )
+        conn.commit()
+        n_edges, _, n_cross = rps.apply_supply_pairs(
+            conn,
+            rps.build_supply_pairs(con),
+            {"TVSMOTOR": "TVS Motor Company"},
+            {"SUNDARAM_AUTO": "Sundaram Auto"},
+            dry_run=False,
+        )
+        assert (n_edges, n_cross) == (2, 0)
+
+    def test_classify_mirror_agrees_with_sql(self, lane):
+        """The load-bearing pin: classify_relationship reproduces the
+        _CLASSIFY_SQL CASE order — including the rule-order artifact
+        ('Subsidiary of Holding Company' routes sub_rev, which is what
+        manufactured 15 of the 37 live cycles)."""
+        cases = [
+            ("Holding Company", None, "sub_rev"),
+            ("Subsidiary of Holding Company", None, "sub_rev"),  # rule-order artifact
+            ("Subsidiary of Ultimate holding company", None, "sub_rev"),  # artifact
+            ("Wholly Owned Subsidiary", None, "sub_fwd"),
+            ("Subsidiary", None, "sub_fwd"),
+            ("Step-down subsidiary", None, "sub_fwd"),
+            ("Fellow Subsidiary", None, "same_group"),
+            ("Subsidiary of listed holding company", None, "sub_rev"),  # '%holding%' fires first
+            ("Subsidiary of listed company", None, "same_group"),
+            ("Joint Venture", None, "jv_with"),
+            ("Key Management Personnel", "KMP", None),
+            ("Anything", "Promoter Group", "same_group"),
+            ("Anything", "Relatives", None),
+        ]
+        con, _conn = lane
+        for rel, grp, want in cases:
+            _seed_rpt(
+                con,
+                [
+                    (
+                        "SY",
+                        "E",
+                        "Counter Co",
+                        rel,
+                        grp or "Relatives",
+                        None,
+                        None,
+                        None,
+                        None,
+                        None,
+                    )
+                ],
+            )
+            sql_cls = next((p["cls"] for p in rps.build_pairs(con)), None)
+            py_cls = rps.classify_relationship(rel, grp)
+            assert sql_cls == py_cls == want, (rel, sql_cls, py_cls, want)

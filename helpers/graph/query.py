@@ -67,6 +67,7 @@ from helpers.graph.onager import (  # noqa: E402  (sys.path set above)
     onager_components,
     onager_pagerank,
 )
+from helpers.misc.duckdb_lock import connect_with_lock_retry, io_lock  # noqa: E402
 
 DB_PATH = PROJECT_ROOT / "memory" / "research.db"
 # Disk-based DuckDB cache. The materialised tables (v_node, e_*) persist
@@ -424,9 +425,11 @@ def connect_read_only(
     a cold/stale cache). Loads the sqlite+vss extensions (the vss scalars
     back :func:`semantic_neighbors`) and, when *attach_db* is given,
     ATTACHes that SQLite file as ``fin``. Raises duckdb.IOException when the
-    cache file is missing/cold — the caller owns the error message.
+    cache file is missing/cold — the caller owns the error message. A
+    transient lock conflict (racing a foreign writer) is retried across the
+    bounded ladder first (duckdb_transient_lock_retry S2).
     """
-    con = duckdb.connect(str(duckdb_path), read_only=True)
+    con = connect_with_lock_retry(lambda: duckdb.connect(str(duckdb_path), read_only=True))
     _prep_graph_connection(con)
     if attach_db is not None:
         _attach_sqlite(con, Path(attach_db))
@@ -434,8 +437,10 @@ def connect_read_only(
 
 
 def _open_read_only_connection(duckdb_path: Path, db_path: Path) -> duckdb.DuckDBPyConnection:
-    """Open a read-only connection to a warm cache."""
-    con = duckdb.connect(str(duckdb_path), read_only=True)
+    """Open a read-only connection to a warm cache (transient-lock retry
+    per duckdb_transient_lock_retry S2 — the ladder covers a short
+    foreign holder; the stamp's io_lock window covers the long one)."""
+    con = connect_with_lock_retry(lambda: duckdb.connect(str(duckdb_path), read_only=True))
     _prep_graph_connection(con)
     _attach_sqlite(con, db_path)
     return con
@@ -516,10 +521,34 @@ def connect(
             cache; the always-available stamp lane is
             :func:`stamp_centrality_cache`.
             DuckDB allows any NUMBER of read-only openers across
-            processes but a single read-write one — so pure readers
-            (algorithms --compute, suggest_relations) pass True and never
-            contend with (or against) a writer under `make advisory`'s
-            parallel steps. Requires a warm cache; cold/stale falls back
+            processes but a single read-write one. The consequential
+            rule, which an earlier revision of this docstring got
+            backwards: a read-write holder EXCLUDES every other opener,
+            read-only included. The matrix (measured 2026-09-29 on
+            duckdb 1.5.6; a blocked open raises ``Could not set lock on
+            file "...": Conflicting lock is held``):
+
+            ==========  ==========  =============================
+            holder      opener      result
+            ==========  ==========  =============================
+            RO          RO          concurrent, N allowed
+            RW          —           exclusive
+            RW          RO          CONFLICT — reader is blocked
+            RW          RW          CONFLICT
+            RO          RW          CONFLICT — writer is blocked
+            ==========  ==========  =============================
+
+            So pure readers (``algorithms --compute``,
+            ``suggest_relations``) are safe to run concurrently with
+            *each other* under ``make advisory``'s parallel steps, but
+            NOT with an unsynchronised writer. Read-only remains the
+            right choice for them; what read-only does not buy is
+            safety against a concurrent writer.
+
+            The ``<cache>.build.lock`` flock covers builds that go
+            through this function and nothing else — it does not
+            serialise a foreign writer that never takes the lock.
+            Requires a warm cache; cold/stale falls back
             to the read-write BUILD path (a read-only opener cannot
             materialise), serialized by an flock on ``<cache>.build.lock``
             and re-checked under the lock — parallel advisory steps
@@ -656,7 +685,10 @@ def _is_warm(duckdb_path: Path, db_path: Path | None = None) -> bool:
     cache on EVERY connect (2026-09-19: every graph CLI paid ~2s for this).
     """
     try:
-        con = duckdb.connect(str(duckdb_path), read_only=True)
+        # Retry, not fail: a transient conflict here must not masquerade
+        # as a cold cache (a spurious False sends the build path at the
+        # file while a foreign writer holds it) — S2.
+        con = connect_with_lock_retry(lambda: duckdb.connect(str(duckdb_path), read_only=True))
         try:
             r = con.execute("SELECT value FROM _build_meta WHERE key='schema_version'").fetchone()
             if r is None or r[0] != _SCHEMA_VERSION:
@@ -926,6 +958,11 @@ def _resolve_duckdb_path(db_path: Path) -> Path:
     return db_path.with_suffix(".duckdb")
 
 
+import itertools  # noqa: E402  (module-level counter for swap temp uniqueness)
+
+_SWAP_TMP_SEQ = itertools.count()
+
+
 def _rebuild_via_swap(
     db_path: Path | str = DB_PATH, *, fresh: bool, stamp_centrality: bool = False
 ) -> None:
@@ -942,11 +979,17 @@ def _rebuild_via_swap(
 
     Two concurrent rebuilds each get their own pid-tagged temp and race
     only on the final rename — last writer wins, both files valid.
+    Reentrant calls in ONE process (the stamp lane now swaps too, and a
+    nested rebuild under it was observed in test) get a unique sequence
+    tag on top of the pid — two same-pid temps would unlink each other
+    mid-build.
     """
     import os
 
     duckdb_path = _resolve_duckdb_path(Path(db_path))
-    tmp = duckdb_path.with_name(f"{duckdb_path.name}.rebuild-{os.getpid()}.tmp")
+    tmp = duckdb_path.with_name(
+        f"{duckdb_path.name}.rebuild-{os.getpid()}-{next(_SWAP_TMP_SEQ)}.tmp"
+    )
     tmp_wal = tmp.with_name(tmp.name + ".wal")
     # connect() sidecar lock for the TEMP path — pid-tagged, so this
     # process is its only ever user; unlink it or every swap-rebuild
@@ -969,7 +1012,14 @@ def _rebuild_via_swap(
         # Clean close leaves no WAL behind; refuse to swap otherwise.
         if tmp_wal.exists():
             raise RuntimeError(f"rebuild temp not cleanly closed: {tmp_wal} still exists")
-        os.replace(tmp, duckdb_path)
+        # S3 (duckdb_transient_lock_retry): the swap instant takes the live
+        # file's io.lock, so a stamp holding LOCK_EX across its window
+        # cannot be orphaned mid-write by this rename. The temp-side
+        # build.lock taken above is pid-tagged (never contended), so this
+        # nesting cannot form the io.lock -> build.lock / build.lock ->
+        # io.lock ABBA cycle with the stamp window.
+        with io_lock(duckdb_path, exclusive=True):
+            os.replace(tmp, duckdb_path)
     finally:
         tmp.unlink(missing_ok=True)
         tmp_wal.unlink(missing_ok=True)
@@ -1063,10 +1113,12 @@ def stamp_centrality_cache(
     maint``) or ``python3 helpers/graph/query.py stamp-centrality``.
 
     A cold cache is built first (data-only), then stamped: one call
-    fully warms the cache. The connect() is read-write and therefore
-    flock-serialized cross-process like every writer; in-flight readers
-    keep serving the old tables until they close (stale-by-one-stamp,
-    the documented refresh contract).
+    fully warms the cache — implemented as a FULL swap rebuild with the
+    stamp inside the build (contention-window minimization S2): the
+    Onager compute runs on a pid-tagged temp sibling and the live file's
+    only lock moment is the os.replace instant; in-flight readers keep
+    serving the old tables until they close (stale-by-one-stamp, the
+    documented refresh contract).
     """
     _announce_destructive_op(
         "re-stamp centrality tables",
@@ -1076,40 +1128,33 @@ def stamp_centrality_cache(
         "tens of seconds post-S6 (27.5 s measured 2026-09-26; was minutes pre-diet)",
         "idempotent re-stamp; pre-stamp state unrecoverable (stamps are cache, not source)",
     )
-    clear_graph_cache()
-    # stamp_centrality_cache can lose a RACE with a concurrent rebuild:
-    # rebuild() swaps a fresh data-only file in via os.replace, the stamping
-    # connection keeps writing to the ORPHANED inode, and the tables die with
-    # it (observed live 2026-09-23: 6-min stamp, exit 0, zero tables). The
-    # connect() flock does not help — it serialises the OPEN, not the stamp's
-    # minutes-long compute window. Guard: remember the file's inode, compare
-    # after the stamp; a changed inode means a swap happened mid-stamp, so
-    # retry once on the new file (idempotent) and hard-fail if it swaps twice.
-    resolved = (
-        duckdb_path
-        if duckdb_path is not None
-        else (DUCKDB_PATH if Path(db_path) == DB_PATH else Path(db_path).with_suffix(".duckdb"))
+    _announce_destructive_op(
+        "re-stamp centrality tables",
+        db_path,
+        "drops + restamps seven Onager-native v_centrality_* tables plus the "
+        "three S6 all-universe tables (lane-served skipped per ROUTING)",
+        "tens of seconds post-S6 (27.5 s measured 2026-09-26; was minutes pre-diet)",
+        "idempotent re-stamp; pre-stamp state unrecoverable (stamps are cache, not source)",
     )
-    resolved = Path(resolved)
-    for _attempt in (1, 2):
-        inode_before = resolved.stat().st_ino if resolved.exists() else None
-        con = connect(db_path=db_path, duckdb_path=duckdb_path)
-        try:
-            _materialise_centrality_cache(con, db_path=db_path)
-        finally:
-            con.close()
-        inode_after = resolved.stat().st_ino if resolved.exists() else None
-        if inode_before == inode_after:
-            return
-        print(
-            f"centrality stamp: cache file was rebuilt concurrently "
-            f"({resolved}); restamping on the new file",
-            file=sys.stderr,
+    # contention-window minimization S2 (database_contention_window_
+    # minimization.md): the stamp goes through the swap pattern — the FULL
+    # rebuild + stamp happens on a pid-tagged TEMP sibling and os.replace
+    # swaps it in. The live file is never opened read-write, so its only
+    # lock moment is the swap instant (io.lock EX inside _rebuild_via_swap);
+    # the 27.5 s Onager compute locks nothing but our private copy, and
+    # in-flight readers keep serving the old stamp until they close
+    # (stale-by-one, the documented refresh contract). The old orphaned-
+    # inode race (2026-09-23: swap mid-stamp killed the tables) is
+    # structurally gone: we never write the live file, and concurrent
+    # swaps are last-writer-wins on valid files.
+    if duckdb_path is not None and Path(duckdb_path) != _resolve_duckdb_path(Path(db_path)):
+        raise ValueError(
+            f"stamp_centrality_cache: duckdb_path {duckdb_path} does not match "
+            f"the sibling resolution of {db_path} — the swap lane stamps the "
+            "resolved pair only"
         )
-    raise RuntimeError(
-        f"centrality stamp lost the concurrent-rebuild race twice on {resolved}; "
-        "rerun stamp-centrality when the rebuild traffic settles"
-    )
+    _rebuild_via_swap(db_path, fresh=True, stamp_centrality=True)
+    clear_graph_cache()  # in-process query results keyed by the prior generation
 
 
 def update_extensions() -> list[tuple[str, str]]:

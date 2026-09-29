@@ -153,6 +153,37 @@ def load_ratings(con: duckdb.DuckDBPyConnection, cache: Path) -> int:
 # --------------------------------------------------------------------------- #
 # classify + derive
 # --------------------------------------------------------------------------- #
+
+
+def classify_relationship(text: str | None, rel_group: str | None = None) -> str | None:
+    """Python mirror of the ``_CLASSIFY_SQL`` CASE (same clause order).
+
+    Vigil symmetric-emission S2: the mint-side and the prune-side must
+    classify IDENTICALLY, and SQL CASE order is load-bearing —
+    ``'%holding company%'`` fires before the ``'%subsidiar%'`` catch, so
+    texts like 'Subsidiary of Holding Company' route to ``sub_rev``.
+    Pinned by test against the SQL on seeded texts.
+    """
+    t = (text or "").lower()
+    if "holding company" in t:
+        return "sub_rev"
+    if "fellow subsidiar" in t:
+        return "same_group"
+    if t.startswith("subsidiary of listed") or t.startswith("subsidiary of ultimate"):
+        return "same_group"
+    if "joint venture" in t:
+        return "jv_with"
+    if "associat" in t:
+        return "same_group"
+    if "common control" in t or "promoter group" in t:
+        return "same_group"
+    if "subsidiar" in t or "wholly owned" in t:
+        return "sub_fwd"
+    if rel_group in ("Group Companies", "Promoter Group", "Common Control/Influence"):
+        return "same_group"
+    return None
+
+
 _CLASSIFY_SQL = """
 CASE
   WHEN lower(relationship) LIKE '%holding company%' THEN 'sub_rev'
@@ -270,11 +301,12 @@ def apply_pairs(  # noqa: C901  # the filer/counter/edge-class resolution ladder
     *,
     max_new_entities: int = 60000,
     dry_run: bool = True,
-) -> tuple[int, int, int, int]:
+) -> tuple[int, int, int, int, int]:
     """Create counter-party entities + structural edges.
 
     Returns (n_new_entities, n_edges_would_or_written, n_written,
-    n_unresolved_filers). Upsert-latest per (source, target, edge_type).
+    n_unresolved_filers, n_cycles_dropped). Upsert-latest per
+    (source, target, edge_type).
     """
 
     existing = {r[0] for r in conn.execute("SELECT name FROM entities").fetchall()}
@@ -318,6 +350,7 @@ def apply_pairs(  # noqa: C901  # the filer/counter/edge-class resolution ladder
                 "dst": dst,
                 "etype": etype,
                 "symm": symm,
+                "cls": p["cls"],
                 "source_ref": f"{SOURCE_REF_PREFIX}:{p['symbol']}",
                 "props": json.dumps(
                     {
@@ -333,6 +366,30 @@ def apply_pairs(  # noqa: C901  # the filer/counter/edge-class resolution ladder
                 ),
             }
         )
+    # Vigil symmetric-emission S2: one filer's filing can mint BOTH
+    # directions of a subsidiary_of pair (a 'Holding Company' row routes
+    # sub_rev, a 'Wholly Owned Subsidiary' row routes sub_fwd — 37 live
+    # cycles, 15 of them pure rule-order artifacts where the text was
+    # 'Subsidiary of (Ultimate) Holding Company'). Same-ref cycles are
+    # filing noise: keep the sub_fwd direction (the counter claimed as
+    # the filer's subsidiary), drop the sub_rev mint. Cross-ref pairs are
+    # never touched here.
+    n_cycles_dropped = 0
+    by_ref: dict[str, list[dict]] = {}
+    for e in edges:
+        if e["etype"] == "subsidiary_of":
+            by_ref.setdefault(e["source_ref"], []).append(e)
+    dropped: set[int] = set()
+    for group in by_ref.values():
+        for i, e1 in enumerate(group):
+            for e2 in group[i + 1 :]:
+                if e1["src"] == e2["dst"] and e1["dst"] == e2["src"]:
+                    loser = e1 if e1["cls"] == "sub_rev" else e2
+                    if loser["cls"] == "sub_rev":
+                        dropped.add(id(loser))
+                        n_cycles_dropped += 1
+    if dropped:
+        edges = [e for e in edges if id(e) not in dropped]
     n_written = 0
     if not dry_run:
         with conn:
@@ -352,7 +409,7 @@ def apply_pairs(  # noqa: C901  # the filer/counter/edge-class resolution ladder
                     (e["src"], e["dst"], e["etype"], e["props"], e["source_ref"], e["symm"]),
                 )
                 n_written += cur.rowcount
-    return len(new_entities), len(edges), n_written, len(unresolved_filers)
+    return len(new_entities), len(edges), n_written, len(unresolved_filers), n_cycles_dropped
 
 
 _SALE_TYPES = ("Sale of goods or services", "Sale of fixed assets")
@@ -369,6 +426,12 @@ _SUPPLY_SQL = """
                                               'Purchase of fixed assets')
                     THEN TRY_CAST(amount_during_period AS DOUBLE) END) AS buy_amt,
            MAX(period_end_date) AS period_end,
+           MAX(CASE WHEN transaction_type IN ('Sale of goods or services',
+                                              'Sale of fixed assets')
+                    THEN period_end_date END) AS sale_period,
+           MAX(CASE WHEN transaction_type IN ('Purchase of goods or services',
+                                              'Purchase of fixed assets')
+                    THEN period_end_date END) AS buy_period,
            any_value(xbrl_url) AS xbrl_url,
            any_value(relationship) AS relationship
     FROM rpt_transactions
@@ -384,12 +447,16 @@ def build_supply_pairs(con: duckdb.DuckDBPyConnection) -> list[dict]:
 
     Direction: filer SELLS to counter -> supplier_to(filer, counter);
     filer BUYS from counter -> supplier_to(counter, filer). Two-way
-    trading lands both edges. Counter-parties resolve only (the group
-    pass already created structural entities)."""
+    trading lands both edges ONLY when both directions are evidenced in
+    the same period_end (vigil symmetric-emission S2: the pre-fix MAX
+    aggregates spanned all periods, so a sale in one period and a
+    purchase in another manufactured a mutual pair under one ref).
+    Counter-parties resolve only (the group pass already created
+    structural entities)."""
     # interpolated parts are module-level type-name tuples
     rows = con.execute(_SUPPLY_SQL).fetchall()
     out = []
-    for sym, cp, sale_amt, buy_amt, pend, url, rel in rows:
+    for sym, cp, sale_amt, buy_amt, pend, sale_period, buy_period, url, rel in rows:
         clean = _clean_counterparty(cp)
         if clean is None:
             continue
@@ -401,6 +468,8 @@ def build_supply_pairs(con: duckdb.DuckDBPyConnection) -> list[dict]:
                 "sale_amt": sale_amt,
                 "buy_amt": buy_amt,
                 "period_end": pend,
+                "sale_period": sale_period,
+                "buy_period": buy_period,
                 "xbrl_url": url,
                 "relationship": rel,
             }
@@ -415,12 +484,20 @@ def apply_supply_pairs(
     norm_to_name: dict[str, str],
     *,
     dry_run: bool = True,
-) -> tuple[int, int]:
+) -> tuple[int, int, int]:
     """supplier_to edges (source=supplier, target=customer), weight 1.0,
-    amounts in properties. Returns (n_edges, n_written)."""
+    amounts in properties. Returns (n_edges, n_written,
+    n_crossperiod_collapsed).
+
+    Vigil symmetric-emission S2: both directions only when BOTH are
+    evidenced in the same period_end; a cross-period aggregate keeps ONE
+    edge — the larger-amount direction (tie: the sale direction), with
+    BOTH amounts and both period_ends in properties so no evidence is
+    lost. Cross-ref pairs are never touched here."""
     from helpers.maintenance.shareholding_sync import _normalize  # noqa: PLC0415
 
     edges = []
+    n_cross = 0
     for p in pairs:
         filer = companies.get(p["symbol"])
         if filer is None:
@@ -440,9 +517,34 @@ def apply_supply_pairs(
             sort_keys=True,
         )
         ref = f"{SOURCE_REF_PREFIX}:{p['symbol']}"
-        if p["sale_amt"] is not None:
+        if p["sale_amt"] is not None and p["buy_amt"] is not None:
+            if p["sale_period"] == p["buy_period"]:
+                # genuinely two-way within one reporting period
+                edges.append((filer, cp_ent, props, ref))
+                edges.append((cp_ent, filer, props, ref))
+            else:
+                # MAX-aggregate artifact: one dominant direction survives,
+                # both amounts + both period_ends preserved in properties
+                sale_wins = (p["sale_amt"] or 0.0) >= (p["buy_amt"] or 0.0)
+                src_e, dst_e = (filer, cp_ent) if sale_wins else (cp_ent, filer)
+                survivor = json.dumps(
+                    {
+                        "sale_amount": p["sale_amt"],
+                        "purchase_amount": p["buy_amt"],
+                        "sale_period_end": p["sale_period"],
+                        "purchase_period_end": p["buy_period"],
+                        "two_way": "cross-period",
+                        "xbrl_url": p["xbrl_url"],
+                        "relationship": p["relationship"],
+                        "counter_display": p["counter_display"],
+                    },
+                    sort_keys=True,
+                )
+                edges.append((src_e, dst_e, survivor, ref))
+                n_cross += 1
+        elif p["sale_amt"] is not None:
             edges.append((filer, cp_ent, props, ref))
-        if p["buy_amt"] is not None:
+        elif p["buy_amt"] is not None:
             edges.append((cp_ent, filer, props, ref))
     n_written = 0
     if not dry_run:
@@ -457,7 +559,142 @@ def apply_supply_pairs(
                     (src, dst, props, ref),
                 )
                 n_written += cur.rowcount
-    return len(edges), n_written
+    return len(edges), n_written, n_cross
+
+
+def _supply_direction_evidence(
+    src: duckdb.DuckDBPyConnection, symbol: str, counter_norm: str
+) -> dict:
+    """Per-direction period sets + MAX amounts for one (filer symbol,
+    normalized counter), via the same resolution ladder as the mint pass
+    (raw counter_party -> _clean_counterparty -> _normalize)."""
+    sale_periods: set[str] = set()
+    buy_periods: set[str] = set()
+    sale_max = buy_max = None
+    sql_types = _SUPPLY_TYPES_SQL
+    for cp, ttype, pend, amt in src.execute(
+        f"""
+        SELECT counter_party, transaction_type, period_end_date,
+               TRY_CAST(amount_during_period AS DOUBLE)
+        FROM rpt_transactions
+        WHERE symbol = ? AND transaction_type IN ({sql_types})
+        """,  # noqa: S608  # module-constant type-name tuple
+        [symbol],
+    ).fetchall():
+        clean = _clean_counterparty(cp)
+        if clean is None or _normalize(clean).upper() != counter_norm:
+            continue
+        if ttype.startswith("Sale"):
+            sale_periods.add(pend)
+            if amt is not None:
+                sale_max = amt if sale_max is None else max(sale_max, amt)
+        else:
+            buy_periods.add(pend)
+            if amt is not None:
+                buy_max = amt if buy_max is None else max(buy_max, amt)
+    return {
+        "sale_periods": sale_periods,
+        "buy_periods": buy_periods,
+        "sale_max": sale_max,
+        "buy_max": buy_max,
+    }
+
+
+def prune_symmetric_artifacts(
+    conn: sqlite3.Connection,
+    src: duckdb.DuckDBPyConnection,
+    companies: dict[str, str],
+    norm_to_name: dict[str, str],
+    *,
+    dry_run: bool = True,
+) -> dict:
+    """Existing-graph cleanup for same-ref symmetric emission (S2).
+
+    Deterministic, same-ref scope ONLY — cross-ref pairs are never
+    touched (that is the zero-evidence contradiction class, out of
+    scope), and the mint-time equivalents in ``apply_pairs`` /
+    ``apply_supply_pairs`` keep a re-run from re-creating either
+    artifact:
+
+    1. ``subsidiary_of`` cycles: both directions share one filer ref and
+       classify sub_fwd + sub_rev (the S1 table: 37 live cycles, every
+       one exactly this shape). The sub_rev edge is the filing-noise
+       side; it is deleted. The surviving sub_fwd edge keeps its
+       ``xbrl_url`` evidence untouched.
+    2. ``supplier_to`` cross-period: both directions share one filer ref
+       but are evidenced in DISJOINT period_end sets (S1: 91 of 4,452
+       same-ref mutuals). Keep the larger-amount direction (tie: the
+       sale direction); the upsert then refreshes the survivor's
+       properties with both amounts + both period_ends.
+    3. Entity-dup mutuals (normalized_name collision on the endpoints)
+       are FLAGGED here, never merged (resolver-lane material).
+    """
+    norms = {
+        r[0]: (r[1] or "")
+        for r in conn.execute("SELECT name, normalized_name FROM entities").fetchall()
+        if r[0]
+    }
+    counts = {
+        "subsidiary_cycles_dropped": 0,
+        "supplier_crossperiod_dropped": 0,
+        "entity_dup_flagged": 0,
+        "unresolved_symbol_skipped": 0,
+    }
+    mutuals = conn.execute(
+        """
+        SELECT e1.edge_type, e1.source, e1.target, e1.properties,
+               e2.properties, e1.source_ref
+        FROM graph_edges e1
+        JOIN graph_edges e2
+          ON e1.source = e2.target AND e1.target = e2.source
+         AND e1.edge_type = e2.edge_type
+        WHERE e1.edge_type IN ('supplier_to', 'subsidiary_of')
+          AND e1.source < e1.target
+          AND e1.source_ref = e2.source_ref
+        """
+    ).fetchall()
+    deletions: list[tuple[str, str, str, str]] = []  # (source, target, edge_type, ref)
+    for etype, a, b, p1, p2, ref in mutuals:
+        if norms.get(a) and norms.get(a) == norms.get(b):
+            counts["entity_dup_flagged"] += 1
+            print(f"  [dup-flag] {etype} {a} <-> {b} (normalized-name collision; resolver lane)")
+            continue
+        if etype == "subsidiary_of":
+            j1, j2 = json.loads(p1 or "{}"), json.loads(p2 or "{}")
+            c1 = classify_relationship(j1.get("relationship"))
+            c2 = classify_relationship(j2.get("relationship"))
+            if {c1, c2} != {"sub_fwd", "sub_rev"}:
+                continue  # not the S1 cycle shape; leave untouched
+            loser_is_e1 = c1 == "sub_rev"
+            loser = (a, b) if loser_is_e1 else (b, a)
+            deletions.append((*loser, etype, ref))
+            counts["subsidiary_cycles_dropped"] += 1
+        else:  # supplier_to
+            symbol = ref.rsplit(":", 1)[-1]
+            filer = companies.get(symbol)
+            if filer is None or filer not in (a, b):
+                counts["unresolved_symbol_skipped"] += 1
+                continue
+            counter_ent: str = b if a == filer else a
+            ev = _supply_direction_evidence(src, symbol, (norms.get(counter_ent) or "").upper())
+            if not ev["sale_periods"] or not ev["buy_periods"]:
+                continue
+            if ev["sale_periods"] & ev["buy_periods"]:
+                continue  # both directions evidenced in a shared period — legit
+            sale_wins = (ev["sale_max"] or 0.0) >= (ev["buy_max"] or 0.0)
+            loser_src: str = counter_ent if sale_wins else filer
+            loser_dst: str = filer if sale_wins else counter_ent
+            deletions.append((loser_src, loser_dst, etype, ref))
+            counts["supplier_crossperiod_dropped"] += 1
+    if deletions and not dry_run:
+        with conn:
+            for s, t, et, ref in deletions:
+                conn.execute(
+                    "DELETE FROM graph_edges WHERE source = ? AND target = ? "
+                    "AND edge_type = ? AND source_ref = ?",
+                    (s, t, et, ref),
+                )
+    return counts
 
 
 def build_rating_pairs(con: duckdb.DuckDBPyConnection) -> list[dict]:
@@ -601,9 +838,22 @@ def main(argv: list[str] | None = None) -> int:  # noqa: C901  # pass-per-flag C
     mode = "APPLY" if args.apply else "dry-run"
     from collections import Counter
 
+    if args.group or args.supply_chain:
+        # Vigil symmetric-emission S2: clean existing same-ref artifacts
+        # BEFORE the passes; the mint-time drops keep a re-run from
+        # re-creating them. Same-ref scope only; dups flagged, not merged.
+        pcounts = prune_symmetric_artifacts(
+            conn, src, companies, norm_to_name, dry_run=not args.apply
+        )
+        print(
+            f"[{mode}:prune] subsidiary_cycles_dropped={pcounts['subsidiary_cycles_dropped']} "
+            f"supplier_crossperiod_dropped={pcounts['supplier_crossperiod_dropped']} "
+            f"entity_dup_flagged={pcounts['entity_dup_flagged']} "
+            f"unresolved_symbol_skipped={pcounts['unresolved_symbol_skipped']}"
+        )
     if args.group:
         pairs = build_pairs(src)
-        n_ent, n_edges, n_written, n_unres = apply_pairs(
+        n_ent, n_edges, n_written, n_unres, n_cycles = apply_pairs(
             conn,
             pairs,
             companies,
@@ -615,15 +865,16 @@ def main(argv: list[str] | None = None) -> int:  # noqa: C901  # pass-per-flag C
         print(
             f"[{mode}:group] pairs={len(pairs)} by_class={dict(by_cls)} "
             f"new_entities={n_ent} edges={n_edges} written={n_written} "
-            f"unresolved_filers={n_unres}"
+            f"unresolved_filers={n_unres} cycles_dropped={n_cycles}"
         )
     if args.supply_chain:
         spairs = build_supply_pairs(src)
-        n_edges, n_written = apply_supply_pairs(
+        n_edges, n_written, n_cross = apply_supply_pairs(
             conn, spairs, companies, norm_to_name, dry_run=not args.apply
         )
         print(
-            f"[{mode}:supply] pairs={len(spairs)} supplier_to_edges={n_edges} written={n_written}"
+            f"[{mode}:supply] pairs={len(spairs)} supplier_to_edges={n_edges} "
+            f"written={n_written} crossperiod_collapsed={n_cross}"
         )
     if args.ratings:
         try:

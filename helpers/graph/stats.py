@@ -462,7 +462,14 @@ def _print_structure_metrics() -> None:
         try:
             import duckdb as _dq
 
-            _gcon = _dq.connect(str(_PROJECT_ROOT / "memory" / "graph.duckdb"), read_only=True)
+            from helpers.misc.duckdb_lock import connect_with_lock_retry
+
+            # S2 (duckdb_transient_lock_retry): a stamp holding the file
+            # RW is transient from a reader's viewpoint — retry, don't
+            # fail the stats report.
+            _gcon = connect_with_lock_retry(
+                lambda: _dq.connect(str(_PROJECT_ROOT / "memory" / "graph.duckdb"), read_only=True)
+            )
             try:
                 rows = _gcon.execute("SELECT metric, value FROM v_graph_structure").fetchall()
             finally:
@@ -480,6 +487,40 @@ def _print_structure_metrics() -> None:
                 print("  exact (stamped): absent — run make stamp-centrality")
         except Exception as e:  # noqa: BLE001  # advisory; never fail stats
             print(f"  exact (stamped): unavailable ({type(e).__name__})")
+
+
+def _staleness_verdict(conn) -> list[str]:
+    """The fresh/stale verdict lines for graph_analytics vs entities.
+
+    `last_updated` carries two TEXT shapes in one column — the
+    space-separated `utc_now()` convention and ISO-T legacy rows
+    (db.py "Bundle T1") — while `computed_at` is space-separated. A raw
+    string compare therefore decides at index 10 ('T' > ' ') whenever
+    the date prefixes tie, reporting a same-day FRESH snapshot as
+    STALE. `julianday()` parses both shapes (and skips NULL/empty as
+    NULL), so the decision is by time; the raw strings stay in the
+    banner for humans.
+    """
+    entity_last, entity_jd = conn.execute(
+        "SELECT MAX(last_updated), MAX(julianday(last_updated)) FROM entities"
+    ).fetchone()
+    analytics_last, analytics_jd = conn.execute(
+        "SELECT MAX(computed_at), MAX(julianday(computed_at)) FROM graph_analytics"
+    ).fetchone()
+    if entity_jd is None or analytics_jd is None:
+        # widened guard: no parseable stamp on one side is unknown, not fresh
+        return [
+            f"\n  ⚠ INDETERMINATE: entities.last_updated={entity_last!r} "
+            f"analytics.computed_at={analytics_last!r}",
+            "    No parseable timestamp on one side — run `make recompute-graph`.",
+        ]
+    if entity_jd > analytics_jd:
+        return [
+            f"\n  ⚠ STALE: entities.last_updated={entity_last} "
+            f"> analytics.computed_at={analytics_last}",
+            "    Run `make recompute-graph` to refresh.",
+        ]
+    return ["\n  ✓ fresh (analytics computed at/after most recent entity update)"]
 
 
 def _print_data_hygiene(n_companies: int) -> None:
@@ -528,24 +569,8 @@ def _print_data_hygiene(n_companies: int) -> None:
         else:
             for metric, n, last_at in ga_metrics:
                 print(f"  {metric:25} {n:5} rows  last: {last_at}")
-            most_recent_entity = conn.execute("SELECT MAX(last_updated) FROM entities").fetchone()[
-                0
-            ]
-            most_recent_analytics = conn.execute(
-                "SELECT MAX(computed_at) FROM graph_analytics"
-            ).fetchone()[0]
-            if (
-                most_recent_entity
-                and most_recent_analytics
-                and most_recent_entity > most_recent_analytics
-            ):
-                print(
-                    f"\n  ⚠ STALE: entities.last_updated={most_recent_entity} "
-                    f"> analytics.computed_at={most_recent_analytics}"
-                )
-                print("    Run `make recompute-graph` to refresh.")
-            else:
-                print("\n  ✓ fresh (analytics computed at/after most recent entity update)")
+            for line in _staleness_verdict(conn):
+                print(line)
 
         notes_dir = _PROJECT_ROOT / "findata" / "Companies"
         if notes_dir.is_dir():

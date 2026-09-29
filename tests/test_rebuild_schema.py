@@ -5,10 +5,15 @@ canonical DDL constants — landing the json_valid CHECK (P1), the canonical
 entities layout + complete name-suffix CHECK (P2), and the reversed
 graph_analytics PK (P3) — while preserving every row.
 
-These tests run against a COPY of the live DB (sqlite3.backup into tmp_path),
-not the live DB itself, so they're safe to run in CI without mutating
-production data. They're NOT marked ``live`` because they don't hit
-memory/research.db directly — they copy it and rebuild the copy.
+These tests run against a per-test CLONE of the live DB — reflink from
+the once-per-run shared full-corpus template
+(``tests._tmp_hygiene.full_template``), production_db_copy_audit S3:
+the template IS a backup of the same live DB (same schema, same rows),
+so only the copy mechanism changed (backup 1.07 s → reflink clone
+0.017 s + copyfile fallback, measured 2026-09-29), not the provenance.
+Per-test files stay: these tests mutate. They're NOT marked ``live``
+because they don't hit memory/research.db directly — they clone the
+template and rebuild the clone.
 """
 
 import sqlite3
@@ -16,17 +21,27 @@ from pathlib import Path
 
 import pytest
 
-from helpers.graph.query import DB_PATH
 from helpers.maintenance.rebuild_schema import rebuild
 import helpers.maintenance.rebuild_schema as rs  # noqa: E402
-from tests.helpers import copy_production_db  # noqa: E402
+from tests._tmp_hygiene import full_template, reflink_or_copy  # noqa: E402
 
 
 @pytest.fixture
-def tmp_db(tmp_path) -> Path:
-    """A copy of the production SQLite DB at tmp_path/test.db."""
+def tmp_db(tmp_path, tmp_path_factory) -> Path:
+    """A per-test mutable clone of the live corpus: reflink (or
+    copyfile fallback) from the shared full template (S3). Provenance
+    is unchanged — the template is built from the same live DB each
+    run — and the mutating tests keep their isolated file; only the
+    copy cost dropped (on btrfs the clone is metadata-only COW)."""
     out = tmp_path / "test.db"
-    return copy_production_db(DB_PATH, out, keep_all=True)
+    reflink_or_copy(full_template(tmp_path_factory), out)
+    # The copy flips to WAL: rebuild's write phase measured 3.50 s on WAL
+    # vs 4.15 s on the template's DELETE mode (2026-09-29). The TEMPLATE
+    # stays DELETE for sidecar-free sharing; only this private copy flips.
+    con = sqlite3.connect(str(out))
+    con.execute("PRAGMA journal_mode=WAL")
+    con.close()
+    return out
 
 
 def _ddl_for(con, table):

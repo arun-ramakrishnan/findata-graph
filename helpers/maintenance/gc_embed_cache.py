@@ -136,9 +136,12 @@ def _read_refs(refs) -> tuple[dict[str, set[str]], dict[str, int]]:
         bucket = live.setdefault(ref.label, set())
         try:
             if str(ref.path).endswith(".duckdb"):
-                import duckdb
+                # S2/S3 (duckdb_transient_lock_retry): queue on the
+                # store's io.lock and retry transient conflicts — a GC
+                # run must not die because a writer held the file.
+                from helpers.misc.duckdb_lock import open_read_only
 
-                con = duckdb.connect(str(ref.path), read_only=True)
+                con = open_read_only(ref.path)
             else:
                 con = sqlite3.connect(f"file:{ref.path}?mode=ro", uri=True, timeout=10)
             try:

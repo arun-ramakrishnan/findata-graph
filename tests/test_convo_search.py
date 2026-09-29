@@ -749,3 +749,85 @@ def test_query_hybrid_fuse(convo_env, monkeypatch):
         assert all(r["harness"] == "prime-rlm" for r in out_oc["results"])
     finally:
         con.close()
+
+
+def test_rebuild_toctou_redo_on_mid_embed_change(convo_env, monkeypatch, capsys):
+    """Contention-window S3: a concurrent rebuild that commits inside the
+    embed gap must be detected at the write window (BEFORE any write) and
+    trigger a clean redo — never a stale-diff double-apply."""
+    tmp = convo_env
+    db = tmp / "idx" / "convo_search.duckdb"
+    hc.harvest(corpus_root=tmp / "corpus", db=db)
+    monkeypatch.setattr(rcs, "REPO", tmp)
+    monkeypatch.setattr(rcs, "CORPUS_DIR_GLOB", "corpus/*/*/*.parquet")
+    monkeypatch.setattr(
+        rcs,
+        "_embed",
+        lambda texts: (
+            [[float(len(t) % 7), 1.0, 0.0] for t in texts],
+            {"hits": 0, "misses": len(texts)},
+            3,
+            "test-model",
+        ),
+    )
+    real = rcs._stored_hashes
+    calls = {"n": 0}
+
+    def racing(con):
+        calls["n"] += 1
+        hashes = dict(real(con))
+        if calls["n"] == 2:
+            # call 2 = the attempt-1 write-window verify: pretend a
+            # concurrent rebuild committed a different hash state (on a
+            # FIRST rebuild the table is still empty — synthesize the
+            # foreign commit instead of mutating nothing)
+            if hashes:
+                for k in hashes:
+                    hashes[k] = "concurrent-" + hashes[k]
+                    break
+            else:
+                hashes["corpus/seed.parquet"] = "concurrent-hash"
+        return hashes
+
+    monkeypatch.setattr(rcs, "_stored_hashes", racing)
+    stats = rcs.rebuild(db, write=True)  # attempt 1 redoes; attempt 2 lands
+    assert calls["n"] >= 4, "verify must have fired on both attempts"
+    assert stats["indexed"] > 0 and stats["total"] == stats["indexed"]
+    assert "re-reading the diff" in capsys.readouterr().err
+    # the landed state is consistent: check mode sees no drift
+    fresh = rcs.rebuild(db, write=False)
+    assert fresh["index_stale"] is False
+
+
+def test_rebuild_fts_sync_runs_outside_the_duckdb_window(convo_env, monkeypatch):
+    """Contention-window S3 de-nesting: when the FTS sync runs, the
+    convo duckdb connection must be CLOSED — an RO open succeeding at
+    that moment is the discriminator (an RW holder would refuse it)."""
+    tmp = convo_env
+    db = tmp / "idx" / "convo_search.duckdb"
+    hc.harvest(corpus_root=tmp / "corpus", db=db)
+    monkeypatch.setattr(rcs, "REPO", tmp)
+    monkeypatch.setattr(rcs, "CORPUS_DIR_GLOB", "corpus/*/*/*.parquet")
+    monkeypatch.setattr(
+        rcs,
+        "_embed",
+        lambda texts: (
+            [[float(len(t) % 7), 1.0, 0.0] for t in texts],
+            {"hits": 0, "misses": len(texts)},
+            3,
+            "test-model",
+        ),
+    )
+    real = rcs._fts_sync
+    observed = {"ro_open_ok": None}
+
+    def probing(sconn, drop_keys, rows, full):
+        con = duckdb.connect(str(db), read_only=True)  # fails under an RW holder
+        con.close()
+        observed["ro_open_ok"] = True
+        return real(sconn, drop_keys, rows, full=full)
+
+    monkeypatch.setattr(rcs, "_fts_sync", probing)
+    stats = rcs.rebuild(db, write=True)
+    assert stats["indexed"] > 0
+    assert observed["ro_open_ok"] is True

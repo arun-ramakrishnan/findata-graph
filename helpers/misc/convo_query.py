@@ -85,7 +85,13 @@ class ConvoConnections:
 
 
 def connect(db_path: Path) -> ConvoConnections:
-    con = duckdb.connect(str(db_path), read_only=True)
+    # S2+S3 (duckdb_transient_lock_retry): queue on <db>.io.lock while a
+    # long writer (rebuild_convo_search, ~2 min) holds LOCK_EX, retry
+    # short foreign holders on the ladder; the flock releases at open —
+    # DuckDB's own per-file lock protects the connection from then on.
+    from helpers.misc.duckdb_lock import open_read_only
+
+    con = open_read_only(db_path)
     sconn = sqlite3.connect(  # noqa: S608  # FTS sidecar is a plain sqlite file, read-only URI
         f"file:{db_path.parent / FTS_DB_NAME}?mode=ro", uri=True
     )
@@ -296,6 +302,9 @@ def expand(pointer: str, max_chars: int = 4000) -> dict:
     return {
         **rec,
         "harness": harness,
+        # the corpus carries no `text_len` column (that lives only in the
+        # DuckDB index) — derive it here so both call sites can rely on it
+        "text_len": len(text),
         "text": text[:max_chars],
         "truncated": len(text) > max_chars,
         "pointer": pointer,

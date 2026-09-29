@@ -676,15 +676,76 @@ def _write_test_metadata(session):
 
 def pytest_configure(config):
     worker = os.environ.get("PYTEST_XDIST_WORKER")
-    if not worker:
-        return
-    from helpers.graph import query as gq
+    if worker:
+        from helpers.graph import query as gq
 
-    key = f"{worker}-{os.getpid()}"
-    gq._REAL_DUCKDB_PATH = gq.DUCKDB_PATH
-    gq.DUCKDB_PATH = gq.DUCKDB_PATH.with_name(
-        f"{gq.DUCKDB_PATH.stem}.xdist-{key}{gq.DUCKDB_PATH.suffix}"
-    )
+        # S2: ONE shared cache instead of N per-worker copies (~164 MB ->
+        # ~41 MB transient peak on 4 workers; measured 2026-09-29: the
+        # shared shape also OPENS faster — 3.2 s vs 5.5 s wall — because
+        # four parallel 40 MB materialisations contend). The first cold
+        # worker builds under the existing <cache>.build.lock flock;
+        # waiters re-check warmth under the lock and attach read-only.
+        gq._REAL_DUCKDB_PATH = gq.DUCKDB_PATH
+        gq.DUCKDB_PATH = gq.DUCKDB_PATH.with_name(
+            f"{gq.DUCKDB_PATH.stem}.xdist-shared{gq.DUCKDB_PATH.suffix}"
+        )
+        gq.connect = _make_shared_cache_connect(gq)
+        return
+    # Controller / plain run: this invocation's workers do not exist
+    # yet, so any graph.xdist-* on disk is an orphan (killed leg) or a
+    # CONCURRENT invocation's live cache — the sweep's PID guard keeps
+    # the latter (xdist_shared_graph_cache S1). Best-effort, observable.
+    try:
+        from helpers.graph import query as gq
+        from tests._tmp_hygiene import sweep_stale_xdist_caches
+
+        removed = sweep_stale_xdist_caches(gq.DUCKDB_PATH.parent)
+        if removed:
+            names = ", ".join(p.name for p in removed)
+            print(f"[xdist-cache] reclaimed {len(removed)} stale file(s): {names}")
+    except Exception:  # noqa: S110  # hygiene must never fail a run
+        pass
+
+
+def _make_shared_cache_connect(gq):
+    """S2/S3: force every default-path ``connect()`` in an xdist worker
+    onto the READ-ONLY shared-cache open, retried across the transient
+    lock ladder.
+
+    An RW holder excludes every other opener (the DuckDB matrix), so a
+    worker holding the shared file read-write for a module lifetime
+    would wedge the whole suite — the original per-worker-cache failure
+    mode, reborn on one file. Read-only openers coexist across
+    processes, which is the entire point of sharing. The retry (S3,
+    helpers/misc/duckdb_lock.py — one helper, no second ladder) covers
+    the residual window: a warm outer check racing a rebuilder's RW
+    hold resolves in under a second and must not kill a worker.
+
+    Scope is deliberately narrow: only calls that resolve to the
+    PRODUCTION db_path with NO explicit duckdb_path. Anything pointing
+    at a tmp fixture keeps full semantics — connect() already isolates
+    those to a sibling ``<db>.duckdb`` — and ``real_graph_cache``-marked
+    tests get the pristine production path + real connect via the
+    autouse opt-out fixture.
+    """
+    import functools
+    from pathlib import Path
+
+    from helpers.misc.duckdb_lock import connect_with_lock_retry
+
+    orig_connect = gq.connect
+
+    @functools.wraps(orig_connect)
+    def _shared_connect(*args, **kwargs):
+        db_path = args[0] if args else kwargs.get("db_path", gq.DB_PATH)
+        explicit_duckdb = "duckdb_path" in kwargs or len(args) > 1
+        if explicit_duckdb or Path(db_path) != Path(gq.DB_PATH):
+            return orig_connect(*args, **kwargs)
+        kwargs.pop("read_only", None)  # the shared-cache invariant wins
+        return connect_with_lock_retry(lambda: orig_connect(*args, read_only=True, **kwargs))
+
+    gq._REAL_CONNECT = orig_connect
+    return _shared_connect
 
 
 @pytest.fixture(autouse=True)
@@ -699,17 +760,21 @@ def _real_graph_cache_optout(request):
         return
     from helpers.graph import query as gq
 
-    redirected = gq.DUCKDB_PATH
+    redirected_path, redirected_connect = gq.DUCKDB_PATH, gq.connect
     gq.DUCKDB_PATH = gq._REAL_DUCKDB_PATH
+    gq.connect = getattr(gq, "_REAL_CONNECT", redirected_connect)
     yield
-    gq.DUCKDB_PATH = redirected
+    gq.DUCKDB_PATH = redirected_path
+    gq.connect = redirected_connect
 
 
 def pytest_unconfigure(config):
     """Keep-1 pytest run roots (tests/_tmp_hygiene.py): gate_query owns
-    run history (junit + artifacts retained per run), so stale /tmp
-    roots are pure tmpfs ballast. Quiet-window + current-run guards
-    keep concurrent live runs untouched. Best-effort by design.
+    run history (junit + artifacts retained per run), so stale basetemp
+    roots are pure ballast — tmpfs-capped /tmp in shells without TMPDIR,
+    disk under /mnt/data/tmp where the operator set it (2026-09-28).
+    Quiet-window + current-run guards keep concurrent live runs
+    untouched. Best-effort by design.
     """
     try:
         factory = getattr(config, "_tmp_path_factory", None)
@@ -725,15 +790,21 @@ def pytest_unconfigure(config):
 
 def pytest_sessionfinish(session, exitstatus):
     _write_test_metadata(session)
-    worker = os.environ.get("PYTEST_XDIST_WORKER")
-    if not worker:
-        return
-    from helpers.graph import query as gq
+    if os.environ.get("PYTEST_XDIST_WORKER"):
+        return  # workers own no private cache under the shared-cache design
+    # S2 bookkeeping: read-only opens never touch mtime, so the shared
+    # cache's age is "last session finish", not "last build". Stamp it
+    # here (controller only, xdist runs only) and the S1 sweep's age
+    # rule reclaims only caches no xdist session has used for 24 h —
+    # a daily-used cache is never rebuilt just for age.
+    if getattr(session.config.option, "numprocesses", None):
+        try:
+            from helpers.graph import query as gq
 
-    cache = gq.DUCKDB_PATH
-    if f".xdist-{worker}-{os.getpid()}" not in cache.name:
-        return  # name guard: never unlink anything but this worker's copy
-    # cache file + .wal + .build.lock, plus the rebuild path's
-    # <cache>.rebuild-<id>.tmp[.build.lock] temporaries (prefix glob)
-    for leftover in cache.parent.glob(cache.name + "*"):
-        leftover.unlink(missing_ok=True)
+            shared = gq.DUCKDB_PATH.with_name(
+                f"{gq.DUCKDB_PATH.stem}.xdist-shared{gq.DUCKDB_PATH.suffix}"
+            )
+            if shared.exists():
+                os.utime(shared)
+        except Exception:  # noqa: S110  # hygiene must never fail a run
+            pass

@@ -1,8 +1,8 @@
-"""pytest tmpfs hygiene: one shared trimmed template per run, keep-1 roots.
+"""pytest tmp hygiene: one shared trimmed template per run, keep-1 roots.
 
-Two amplifiers filled the 7.1 GB tmpfs and poisoned gates with `disk I/O
-error` cascades that masqueraded as test failures (advisory run 547: 65
-environmental failures):
+Historically tmpfs-bound (2026-09-27, advisory run 547): two amplifiers
+filled the 7.1 GB /tmp tmpfs and poisoned gates with `disk I/O error`
+cascades that masqueraded as test failures (65 environmental failures):
 
 1. The production-DB trim was session-scoped, but an xdist worker IS a
    session, so `-n auto` built one 308 MB -> ~76 MB template per worker;
@@ -29,14 +29,25 @@ mid-build leaves nothing but an ignored `.part`.
 Single-process runs (no `popen-gw` in basetemp.name) have no peers and
 build locally as before — sharing would point at the parent of the run
 root, which IS shared across runs.
+
+NB (2026-09-28, operator): the basetemp moved OFF tmpfs — gate runs in
+the operator's shell set ``TMPDIR=/mnt/data/tmp`` (223 GB disk), so the
+7.1 GB tmpfs cap no longer binds there. The amplifier story above is
+the historical motivation; the keep-1 retention stays as plain disk
+hygiene (``make tmp-sweep`` follows ``tempfile.gettempdir()`` and so
+sweeps whichever root is active). Agent shells that do NOT inherit
+TMPDIR still land on /tmp tmpfs — the cap still binds for agent-driven
+heavy runs unless TMPDIR is exported.
 """
 
 from __future__ import annotations
 
 import fcntl
 import os
+import re
 import shutil
 import sqlite3
+import subprocess
 import tempfile
 import time
 from pathlib import Path
@@ -183,6 +194,63 @@ def schema_template(tmp_path_factory) -> Path:
     return _shared_template(tmp_path_factory, "schema_template.db", build_schema_template)
 
 
+def build_full_template(dst: Path) -> Path:
+    """Full live corpus, once per run (production_db_copy_audit S2/S3).
+
+    Serves the two former keep_all amplifiers: query_plans opens the
+    template READ-ONLY in place (EXPLAIN never writes; ten
+    byte-identical per-test backups were pure waste), and rebuild_schema
+    copyfiles it per test (isolation without the backup — measured
+    2026-09-29: backup 1.07 s vs copyfile 0.22 s for the 307 MiB file).
+
+    The journal-mode normalisation is load-bearing: a backup inherits
+    the source's WAL header, and every mode=ro open of a WAL file
+    creates -shm/-wal sidecars the reader can neither checkpoint nor
+    remove — on a shared template that means N concurrent readers
+    racing sidecars onto one file. DELETE mode makes the published file
+    self-contained; read-only opens then touch nothing.
+    """
+    src = sqlite3.connect(str(DB_PATH))
+    out = sqlite3.connect(str(dst))
+    try:
+        src.backup(out)
+        out.execute("PRAGMA journal_mode=DELETE")
+        out.commit()
+    finally:
+        out.close()
+        src.close()
+    return dst
+
+
+def full_template(tmp_path_factory) -> Path:
+    """The shared full-corpus template: built once per run, opened
+    read-only (query_plans) or byte-copied per test (rebuild_schema).
+    Same sharing contract as :func:`trimmed_template`."""
+    return _shared_template(tmp_path_factory, "full_template.db", build_full_template)
+
+
+def reflink_or_copy(src: Path, dst: Path) -> Path:
+    """Reflink-favouring clone for template donors (S3, 2026-09-29).
+
+    On reflink-capable filesystems (btrfs — /mnt/data is btrfs) the
+    clone is metadata-only COW: a 307 MiB full-template donor costs
+    0.017 s and ~zero bytes instead of a full read+write (copyfile
+    0.221 s; the pre-S3 sqlite backup 1.07 s). Only the extents a test
+    actually rewrites get materialised. Falls back to a plain copyfile
+    (tmpfs, ext4, missing cp) so behaviour on /tmp or foreign CI is
+    unchanged. DONORS ONLY, never a live database: a reflink snapshots
+    extents, not WAL state — clone from closed, checkpointed templates.
+    """
+    try:
+        subprocess.run(
+            ["cp", "--reflink=auto", str(src), str(dst)],  # noqa: S603, S607  # constant argv
+            check=True,
+        )
+    except OSError, subprocess.CalledProcessError:
+        shutil.copyfile(src, dst)
+    return dst
+
+
 def _shared_template(tmp_path_factory, filename: str, build) -> Path:
     """Once-per-run flock-shared template build (the #307 S1 mechanism)."""
     base = tmp_path_factory.getbasetemp()
@@ -249,3 +317,84 @@ def prune_old_pytest_roots(current: Path, quiet_seconds: float = 1800.0) -> list
         shutil.rmtree(sib, ignore_errors=True)
         pruned.append(sib)
     return pruned
+
+
+def _default_pid_alive(pid: int) -> bool:
+    """`os.kill(pid, 0)` as a liveness probe: no signal is delivered, the
+    kernel only checks the PID. PermissionError means the PID exists but
+    is owned by another user — still alive, keep the conservative read."""
+    try:
+        os.kill(pid, 0)
+    except ProcessLookupError:
+        return False
+    except OSError:
+        return True
+    return True
+
+
+def sweep_stale_xdist_caches(
+    directory: Path,
+    *,
+    max_age_seconds: float = 24 * 3600.0,
+    now: float | None = None,
+    pid_alive=_default_pid_alive,
+) -> list[Path]:
+    """Reclaim orphaned per-worker xdist graph caches
+    (xdist_shared_graph_cache S1; wired to pytest_configure in conftest.py).
+
+    `pytest_sessionfinish` deletes a worker's cache family only on a
+    graceful exit — a SIGKILLed/OOM-killed/timed-out leg leaves the
+    `graph.xdist-<worker>-<pid>` files (`.duckdb` + `.wal` +
+    `.build.lock` + rebuild temporaries) on disk forever. The sweep runs
+    once per invocation BEFORE this run's workers exist (controller or
+    plain-run configure), so the only live files it can see belong to a
+    CONCURRENT invocation — exactly what the guards protect:
+
+    - PID liveness (primary, exact): the owning PID is embedded in the
+      filename; a live owner means keep. The advisory gate runs two
+      pytest invocations at once (entry 189), and one may never delete
+      the other's cache.
+    - mtime floor (backstop): a dead worker whose PID has since been
+      recycled by an unrelated process looks alive; the file's age
+      eventually settles it.
+    - the S2 shared cache (`graph.xdist-shared.*`) has NO owner PID, so
+      it is age-only: reclaimed once no xdist session has used it for
+      the floor (the controller stamps mtime at session finish — RO
+      opens never touch it).
+    - a name the parser cannot attribute is kept, never guessed at.
+
+    Returns the removed paths (conftest prints them; empty stays silent).
+    """
+    removed: list[Path] = []
+    if now is None:
+        now = time.time()
+    try:
+        candidates = sorted(directory.glob("graph.xdist-*"))
+    except OSError:
+        return removed
+    for f in candidates:
+        try:
+            fresh = (now - f.stat().st_mtime) < max_age_seconds
+        except OSError:
+            continue
+        if f.name.startswith("graph.xdist-shared."):
+            # S2 shared cache: age-only (no owner PID to probe); a
+            # controller-stamped mtime means "an xdist session finished
+            # with me recently" — keep. Age it out and the next run just
+            # rebuilds once.
+            if fresh:
+                continue
+        else:
+            # owner key is `gw<k>-<pid>`; the pid must end at a `.` so a
+            # number embedded in a suffix can never masquerade as one
+            m = re.match(r"^graph\.xdist-gw\d+-(\d+)(?:\.|$)", f.name)
+            if m is None:
+                continue
+            if pid_alive(int(m.group(1))) and fresh:
+                continue
+        try:
+            f.unlink()
+        except OSError:
+            continue
+        removed.append(f)
+    return removed

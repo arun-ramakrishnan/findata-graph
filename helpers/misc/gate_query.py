@@ -186,7 +186,12 @@ CREATE TABLE IF NOT EXISTS parse_state (
 
 
 def connect() -> duckdb.DuckDBPyConnection:
-    con = duckdb.connect(str(DB_PATH))  # sqlite rule is helpers.core.db; DuckDB goes direct
+    from helpers.misc.duckdb_lock import connect_with_lock_retry
+
+    # S2 (duckdb_transient_lock_retry): two concurrent gate_query
+    # invocations (query + refresh) race this RW open; the ladder
+    # absorbs the transient conflict.
+    con = connect_with_lock_retry(lambda: duckdb.connect(str(DB_PATH)))
     con.execute(SCHEMA)
     return con
 

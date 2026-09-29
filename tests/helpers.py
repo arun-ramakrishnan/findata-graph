@@ -38,13 +38,34 @@ DERIVED_TABLES = (
 # snapshot_cycle's 8-table subset (drops note_search_meta for size).
 DERIVED_TABLES_NO_FTS_META = tuple(t for t in DERIVED_TABLES if t != "note_search_meta")
 
+# Operator-owned sanction registry (production_db_copy_audit, 2026-09-29).
+# A sanction is sized against the data of its day and nothing re-audits
+# it as the data grows — the keep_all amplifiers (10 + 20 full 307 MiB
+# copies per run) proved it. So the chokepoint denies by default: every
+# requestor must appear here WITH a reason, and adding an entry is an
+# operator decision, not an agent convenience. The paired static check
+# (test_static_checks.py::test_copy_production_db_requestors_are_sanctioned)
+# pins that live call sites and registry entries stay in 1:1 lockstep.
+# Prefer the shared template family in tests/_tmp_hygiene (trimmed /
+# schema / full) — reach for a fresh production copy only when a test
+# genuinely needs live data no template provides.
+SANCTIONED_REQUESTORS = {
+    "test_graph._minimal_db": (
+        "2026-08-21 — schema-donor fallback when tmp_path_factory is "
+        "unavailable; every live caller passes the factory and copies the "
+        "shared schema_template instead (D2). Retained for manual/debug "
+        "invocation only."
+    ),
+}
+
 
 def copy_production_db(
     src_db: Path | str,
     dst_path: Path | str,
     *,
+    requestor: str,
     tables: tuple[str, ...] = DERIVED_TABLES,
-    vacuum: bool = False,
+    vacuum: bool = True,
     keep_all: bool = False,
 ) -> Path:
     """Backup the production DB, prune derived tables + entities.
@@ -52,12 +73,33 @@ def copy_production_db(
     Args:
         src_db: live DB file (callers pass their ``DB_PATH``).
         dst_path: destination file.
+        requestor: sanction key naming this caller — must be a key of
+            :data:`SANCTIONED_REQUESTORS` (operator-approved, with
+            reason) or the copy is DENIED. Deny-by-default is the
+            sanctions-decay corrective: new copy sites get re-audited
+            at the moment they appear, not silently inherited.
         tables: derived-table list to DELETE (snapshot_cycle drops
             ``note_search_meta`` — pass the 8-table subset).
-        vacuum: compact freed pages (snapshot_cycle's ~100KB goal).
-        keep_all: pure copy — skip all DELETEs (query_plans,
-            rebuild_schema fixtures need the full live corpus).
+        vacuum: compact freed pages. DEFAULTS ON for pruned copies —
+            DELETE never returns pages, so a prune without VACUUM keeps
+            the full ~307 MB file for a handful of rows (97% dead pages
+            measured 2026-09-29 on note_writers; bug class recorded in
+            pytest_tmpfs_amplification.md §D2). Pass ``vacuum=False``
+            only if a test genuinely wants the raw pruned file.
+        keep_all: pure copy — skip all DELETEs; returns before any
+            prune/VACUUM decision.
+
+    Raises:
+        PermissionError: ``requestor`` is not in the sanction registry.
     """
+    if requestor not in SANCTIONED_REQUESTORS:
+        raise PermissionError(
+            f"copy_production_db: requestor {requestor!r} is not sanctioned. "
+            "Production-DB copies are operator-approved — add the requestor "
+            "+ reason to SANCTIONED_REQUESTORS in tests/helpers.py (and "
+            "check the shared template family in tests/_tmp_hygiene first; "
+            "a fresh full copy is the option of last resort)."
+        )
     dst = Path(dst_path)
     src = sqlite3.connect(str(src_db))
     dst_conn = sqlite3.connect(str(dst))

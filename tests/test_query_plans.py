@@ -10,10 +10,13 @@ SCAN) over the expected index. If a future schema change (dropping an
 index, a query rewrite, a PK reversal) silently degrades a hot path to a
 full scan, these tests fail immediately.
 
-These tests run against a COPY of the live DB (sqlite3.backup into
-tmp_path), not the live DB itself. They're marked ``live`` because they
-need the real schema + indexes (a synthetic fixture might not reproduce
-the planner's index choices).
+These tests run against the once-per-run shared full-corpus template
+(``tests/_tmp_hygiene.full_template``, a backup of the live DB built
+once per run), opened READ-ONLY in place — production_db_copy_audit S2:
+every test here is EXPLAIN-only, so the ten former per-test backups
+(10 × 307 MiB ≈ 3.0 GiB transient per run) were byte-identical waste.
+They're marked ``live`` because they need the real schema + indexes (a
+synthetic fixture might not reproduce the planner's index choices).
 """
 
 import sqlite3
@@ -21,15 +24,21 @@ from pathlib import Path
 
 import pytest
 
-from helpers.graph.query import DB_PATH
-from tests.helpers import copy_production_db  # noqa: E402
+from tests._tmp_hygiene import full_template  # noqa: E402
 
 
-@pytest.fixture
-def tmp_db(tmp_path) -> Path:
-    """A copy of the production SQLite DB at tmp_path/test.db."""
-    out = tmp_path / "test.db"
-    return copy_production_db(DB_PATH, out, keep_all=True)
+@pytest.fixture(scope="module")
+def tmp_db(tmp_path_factory) -> Path:
+    """The shared full-corpus template (S2): read-only EXPLAIN tests
+    share ONE copy instead of backing up per test. ``_ro`` fails loudly
+    if a future test tries to write the file every worker shares."""
+    return full_template(tmp_path_factory)
+
+
+def _ro(db: Path) -> sqlite3.Connection:
+    """Read-only connection: a write attempt raises instead of mutating
+    the shared template."""
+    return sqlite3.connect(f"file:{db}?mode=ro", uri=True)
 
 
 def _plan_detail(conn, sql, params=()):
@@ -45,7 +54,7 @@ class TestEntityQueryPlans:
 
     def test_entity_by_name_uses_pk(self, tmp_db):
         """Direct lookup by name (the PK) must SEARCH, not SCAN."""
-        con = sqlite3.connect(str(tmp_db))
+        con = _ro(tmp_db)
         try:
             detail = _plan_detail(con, "SELECT name FROM entities WHERE name = ?", ("CEAT",))
             assert "SEARCH" in detail, f"name lookup scanning: {detail}"
@@ -56,7 +65,7 @@ class TestEntityQueryPlans:
         """The C2 guard: COLLATE NOCASE resolver must use the NOCASE index.
         (Mirrors the existing test_static_checks.py guard, but against the
         live schema to catch a production-index drop.)"""
-        con = sqlite3.connect(str(tmp_db))
+        con = _ro(tmp_db)
         try:
             detail = _plan_detail(
                 con,
@@ -72,7 +81,7 @@ class TestEntityQueryPlans:
     def test_entity_by_file_path_uses_index(self, tmp_db):
         """Q1 guard: file_path lookup must use idx_entities_file_path, not
         SCAN. This was a full scan before Q1 added the index."""
-        con = sqlite3.connect(str(tmp_db))
+        con = _ro(tmp_db)
         try:
             detail = _plan_detail(
                 con,
@@ -94,7 +103,7 @@ class TestGraphAnalyticsQueryPlans:
         """P3 guard: WHERE metric=? must SEARCH via the reversed PK
         (metric, entity_name), not SCAN. This was a full scan before P3
         reversed the PK column order."""
-        con = sqlite3.connect(str(tmp_db))
+        con = _ro(tmp_db)
         try:
             detail = _plan_detail(
                 con,
@@ -118,7 +127,7 @@ class TestEntityTagsQueryPlans:
     def test_tags_by_entity_name_uses_index(self, tmp_db):
         """The entity_tags lookup by entity_name (used by api_entity_detail
         to fetch tags) must SEARCH via the PK, not SCAN."""
-        con = sqlite3.connect(str(tmp_db))
+        con = _ro(tmp_db)
         try:
             detail = _plan_detail(
                 con,
@@ -145,7 +154,7 @@ class TestGraphEdgesQueryPlans:
         the planner uses sqlite_autoindex_graph_edges_1, the UNIQUE(source,
         target, edge_type) index that leads with `source`; it's covering for a
         source-only filter."""
-        con = sqlite3.connect(str(tmp_db))
+        con = _ro(tmp_db)
         try:
             detail = _plan_detail(
                 con,
@@ -160,7 +169,7 @@ class TestGraphEdgesQueryPlans:
         """Filtering graph_edges by target (the reverse-edge lookup) must
         SEARCH via ge_target_idx (the UNIQUE index is source-first, so it
         can't serve a target-only filter)."""
-        con = sqlite3.connect(str(tmp_db))
+        con = _ro(tmp_db)
         try:
             detail = _plan_detail(
                 con,
@@ -175,7 +184,7 @@ class TestGraphEdgesQueryPlans:
 
     def test_edges_by_type_uses_index(self, tmp_db):
         """Filtering graph_edges by edge_type must use ge_type_idx."""
-        con = sqlite3.connect(str(tmp_db))
+        con = _ro(tmp_db)
         try:
             detail = _plan_detail(
                 con,
@@ -191,7 +200,7 @@ class TestGraphEdgesQueryPlans:
     def test_edges_unique_constraint_used_for_lookup(self, tmp_db):
         """The (source, target, edge_type) UNIQUE constraint must be used
         for a full triple lookup (the apply_edges existence check)."""
-        con = sqlite3.connect(str(tmp_db))
+        con = _ro(tmp_db)
         try:
             detail = _plan_detail(
                 con,
@@ -210,7 +219,7 @@ class TestGraphEdgesQueryPlans:
         tripwire (test_cross_sector_bridges_plan_uses_indexes) that the empty
         tests/test_sql_perf_guards.py husk was meant to hold; it lives here now.
         """
-        con = sqlite3.connect(str(tmp_db))
+        con = _ro(tmp_db)
         try:
             sql = """
                 SELECT e.edge_type,

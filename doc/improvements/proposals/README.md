@@ -34,10 +34,81 @@ entry number and stale DONE pointers):
 
 ## Current live proposals
 
-_(none)_
+Four live, all **OPEN** (slices unstarted). A live proposal has exactly
+two real outcomes — `status: proposed` while it sits here,
+`status: executed` once archived with a `../completed.md` number — so the
+only tag below is **OPEN**. Frontmatter stays `status: proposed` for all
+four because the archive branch demands a `../completed.md` number not
+yet allocated.
 
-_(The last archived proposal was archived 2026-09-29:
-`ocr_remediation` as completed.md entry 312 — the two-leg OCR review
+Archived 2026-09-29 in one batch (the three DONE proposals), records
+in `../completed.md` and `../archive/`: #314
+`duckdb_concurrency_model_correction`, #315
+`duckdb_pin_reconciliation`, and #316
+`graph_analytics_staleness_comparison`.
+
+- `production_db_copy_audit.md` — **EXECUTED 2026-09-29 — awaiting
+  `make qa`** (all four slices + the operator's mid-arc addition: the
+  `copy_production_db` chokepoint now denies by default behind the
+  operator-owned `SANCTIONED_REQUESTORS` registry + 1:1 static check).
+  Measured: the two keep_all amplifiers went 30 backups ≈ 9.0 GiB →
+  1 shared `full_template` + reflink clones (**−61% write volume,
+  −23% wall**: 38.08 → 29.31 s for the same 30 tests); note_writers
+  fixture 232.0 → 23.6 MiB (content-prune proven safe by writer
+  read-surface analysis); production backup lane 1,506 MiB → 749 MiB
+  zst in 16.56 s/run, options recorded, no change made. Census
+  revisit trigger armed in `../pending.md` (re-run when any store
+  ~doubles).
+- `xdist_shared_graph_cache.md` — **DONE, awaiting `make qa`.** Under
+  `-n auto` each worker materialises its own 41 MB copy of the same graph cache
+  (~164 MB peak on 4 workers, 1.8 GB `memory/`, 80 MB of orphans that
+  graceful-exit cleanup never reclaims). Delivered 2026-09-29: S1 sweeps
+  stale `graph.xdist-*` by PID liveness at session start; S2 shares ONE
+  read-only cache (workers force-RO on the default path; measured 69.5 MiB
+  peak / 40 MiB steady vs ~164 MB, live lane 165 s vs 187-308 s greens);
+  S3 rides `duckdb_lock.py`. The serialisation fear was measured away
+  before landing.
+- `duckdb_transient_lock_retry.md` — **EXECUTED 2026-09-30 — awaiting
+  `make qa`** (S1 landed 2026-09-29 as `helpers/misc/duckdb_lock.py`;
+  S2–S4 delivered: the ladder is wired at all six openers plus three
+  census additions, and S3's `io_lock` gives every long writer
+  (`rebuild_convo_search` ~2 min, `stamp_centrality_cache`, the bench
+  ETL) a `LOCK_EX` compute-window against `LOCK_SH` readers that queue
+  via `open_read_only` instead of failing. S4's two cross-process
+  classes run real subprocesses: RW-holder/RO-opener retry, and the
+  blocking-reader case no ladder can satisfy). Cited to DBX
+  (Apache-2.0) as provenance only — DBX was evaluated and not adopted, and
+  nothing here depends on it. Scope note: this helps an opener racing a foreign
+  writer, not pytest timeouts, and would not have prevented the xdist cache
+  exhaustion above.
+
+- `vigil_symmetric_emission_precision.md` — **EXECUTED 2026-09-30**
+  (S1–S3; all five acceptance boxes ticked). S1's table split the 4,521
+  mutual same-type pairs into 4,361 legit same-period two-way supplier
+  pairs (kept), 91 cross-period MAX-aggregate artifacts, and 37
+  same-ref `subsidiary_of` cycles (every one one-filer sub_fwd+sub_rev,
+  15 pure rule-order artifacts). S2 landed the deterministic fix —
+  classify-mirror, mint-time drops, per-direction supply periods,
+  same-ref-scoped prune — and S3 took it through the eval gate (ACCEPT,
+  164 questions) to canonical apply: cycles 37 → 0, artifacts → 0,
+  cross-ref pairs untouched, graph rebuilt and verified.
+
+- `database_contention_window_minimization.md` — **EXECUTED 2026-09-30
+  (same day)**. The operator's principle — open with intent, hold locks
+  minimally, never nest a second store's read-write work inside a primary
+  hold window — encoded after an estate census (both engines + the
+  cross-store map) found exactly two long windows. S2: the stamp lane now
+  swaps (live `graph.duckdb` never opened RW; 71/71 reader connects
+  served through a live 2m30s stamp). S3: the convo rebuild runs three
+  intent-scoped windows with the embed phase and FTS sync lockless
+  (measured: ~11 s of duckdb windows in a 29 s hot rebuild; cold embed
+  leaves the windows entirely), with a TOCTOU re-verify for the embed
+  gap. Latent reentrancy bug fixed on the way (swap temp names now
+  per-call unique). Proposed-queue state after this: **empty — five
+  DONE awaiting the one parked `make qa`**.
+
+_(Previously: `ocr_remediation` archived 2026-09-29 as completed.md
+entry 312 — the two-leg OCR review
 remediation executed through S12, including the three-leg review experiment
 (managed glm-5.3, delegation+host A/B, cross-model Muse Spark 1.3
 delegation). Before that, 2026-09-28:

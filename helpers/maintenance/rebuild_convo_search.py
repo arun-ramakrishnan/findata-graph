@@ -36,6 +36,8 @@ if str(_REPO_ROOT) not in sys.path:
 
 import duckdb  # noqa: E402  # after the sys.path shim (bare-script convention)
 
+from helpers.misc.duckdb_lock import connect_with_lock_retry, io_lock, open_read_only  # noqa: E402
+
 REPO = _REPO_ROOT
 CORPUS_DIR_GLOB = "memory/data/harness/*/conversations/*.parquet"
 FTS_DB_NAME = "convo_search_fts.db"
@@ -379,7 +381,7 @@ def _rebuild_check_mode(db_path: Path, files: list[Path], timer: _Phases) -> dic
     if not db_path.exists():
         diff = {"new": sorted(current), "changed": [], "deleted": []}
     else:
-        con = duckdb.connect(str(db_path), read_only=True)
+        con = open_read_only(db_path)  # S2/S3: queue + retry, never race the writer
         try:
             diff = _diff(current, _strip_prefix(_stored_hashes(con)))
         finally:
@@ -462,7 +464,12 @@ def _rebuild_embed_and_persist(
     incremental: bool,
     timer: _Phases,
 ) -> tuple[dict, str, int]:
-    """Embed rows, persist to DuckDB and FTS, return (cstats, model_label, dims)."""
+    """Embed rows, persist to DuckDB and FTS, return (cstats, model_label, dims).
+
+    Retained as the single-write-window variant used by tests; the CLI
+    rebuild() uses the three-window flow (contention-window
+    minimization S3) that keeps the embed phase OUTSIDE any lock.
+    """
     vecs, cstats, dims, model_label = _embed([r["snippet"] for r in rows])
     timer.mark("embed")
     if drop_keys:
@@ -488,7 +495,22 @@ def _rebuild_embed_and_persist(
 
 
 def rebuild(db_path: Path, write: bool = True, incremental: bool = False) -> dict:
-    """The S2 core. ``--check`` (write=False) never resolves the embedder."""
+    """The S2 core. ``--check`` (write=False) never resolves the embedder.
+
+    Contention-window minimization S3 — three intent-scoped windows with
+    the embed phase OUTSIDE any lock:
+
+    1. read window (io.lock EX, seconds): DDL + stored hashes + diff;
+    2. embed (NO convo-db connection — its cache writes land on the
+       shared embed_store.db, which must never nest inside this db's
+       window);
+    3. write window (io.lock EX, seconds): TOCTOU re-verify of the
+       stored hashes, then delete + bulk insert; close;
+    4. FTS sync on the independent sqlite store, THEN a tiny meta window
+       (meta is written only after FTS succeeded — the old one-window
+       failure ordering preserved: a failed FTS leaves meta stale and
+       the next run redoes).
+    """
     db_path = Path(db_path)
     db_path.parent.mkdir(parents=True, exist_ok=True)
     global _FTS_DB_PATH
@@ -499,26 +521,94 @@ def rebuild(db_path: Path, write: bool = True, incremental: bool = False) -> dic
     if not write:
         return _rebuild_check_mode(db_path, files, timer)
 
-    con = duckdb.connect(str(db_path))
-    try:
-        con.execute(CONVO_SEARCH_DDL)
-        con.execute(CONVO_META_DDL)
-        stored = _strip_prefix(_stored_hashes(con))
-        if incremental:
-            keep, current, drop_keys, diff = _rebuild_incremental_mode(con, files, stored)
-        else:
-            keep, current, drop_keys, diff = _rebuild_full_mode(con, files, stored)
-
+    rows: list[dict] = []
+    vecs: list[list[float]] = []
+    stored: dict[str, str] = {}
+    keep: list[dict] = []
+    current: dict[str, str] = {}
+    drop_keys: list[tuple[str, str]] = []
+    diff: dict[str, list[str]] = {}
+    cstats: dict = {}
+    model_label = ""
+    dims = 0
+    total = 0
+    for _attempt in (1, 2):
+        # -- 1. read window ------------------------------------------------
+        with io_lock(db_path, exclusive=True):
+            con = connect_with_lock_retry(lambda: duckdb.connect(str(db_path)))
+            try:
+                con.execute(CONVO_SEARCH_DDL)
+                con.execute(CONVO_META_DDL)
+                stored = _strip_prefix(_stored_hashes(con))
+                if incremental:
+                    keep, current, drop_keys, diff = _rebuild_incremental_mode(con, files, stored)
+                else:
+                    keep, current, drop_keys, diff = _rebuild_full_mode(con, files, stored)
+            finally:
+                con.close()
         timer.mark("hash+read")
+
+        # -- 2. embed, lockless (its cache lives in the shared embed_store) -
         rows = keep
-        cstats, model_label, dims = _rebuild_embed_and_persist(
-            con, rows, drop_keys, current, incremental, timer
+        vecs, cstats, dims, model_label = _embed([r["snippet"] for r in rows])
+        timer.mark("embed")
+
+        # -- 3. write window (TOCTOU re-verify BEFORE any write) -----------
+        with io_lock(db_path, exclusive=True):
+            con = connect_with_lock_retry(lambda: duckdb.connect(str(db_path)))
+            try:
+                if _strip_prefix(_stored_hashes(con)) != stored:
+                    # A concurrent rebuild applied a diff inside our embed
+                    # gap. Nothing written yet on this attempt — redo from
+                    # the read window (the fresh diff will come back empty
+                    # for identical corpus, making the redo a clean no-op).
+                    print(
+                        f"convo rebuild: hash state changed mid-embed "
+                        f"({db_path}); re-reading the diff",
+                        file=sys.stderr,
+                    )
+                    continue
+                if drop_keys:
+                    _delete_duckdb_keys(con, drop_keys)
+                if rows:
+                    _bulk_insert(con, rows, vecs)
+                total_row = con.execute("SELECT COUNT(*) FROM convo_search").fetchone()
+                total = total_row[0] if total_row else 0
+            finally:
+                # DuckDB closes BEFORE the flock releases — a queued
+                # reader's post-flock open is then collision-free.
+                con.close()
+        timer.mark("duckdb_write")
+        break
+    else:
+        raise RuntimeError(
+            f"convo rebuild lost the interleave race twice on {db_path}; "
+            "rerun when concurrent rebuild traffic settles"
         )
-        total_row = con.execute("SELECT COUNT(*) FROM convo_search").fetchone()
-        total = total_row[0] if total_row else 0
-        timer.mark("meta")
+
+    # -- 4. FTS sync: independent sqlite store, OUTSIDE the duckdb window --
+    from helpers.core.db import connect as db_connect
+
+    sconn = db_connect(_FTS_DB_PATH)
+    try:
+        _fts_sync(sconn, drop_keys, rows, full=not incremental)
     finally:
-        con.close()
+        sconn.close()
+    timer.mark("fts_sync")
+
+    # -- meta window: only after FTS succeeded (failure ordering preserved) -
+    with io_lock(db_path, exclusive=True):
+        con = connect_with_lock_retry(lambda: duckdb.connect(str(db_path)))
+        try:
+            con.executemany(
+                "INSERT OR REPLACE INTO convo_meta VALUES (?, ?)",
+                [(f"file:{rel}", h) for rel, h in current.items()]
+                + [("embed_model", model_label), ("embed_dims", str(dims))],
+            )
+        finally:
+            con.close()
+    timer.mark("meta")
+
     timings = timer.as_dict()
     timings["total"] = round(sum(timings.values()), 2)
     return {

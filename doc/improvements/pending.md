@@ -3,6 +3,21 @@
 Full annotated triage map with live-verified trigger status.
 Open items below keep their revisit triggers inline; executed work is compressed to records.
 
+- **production-store copy census — TRIGGER ARMED 2026-09-29**
+  (`proposals/production_db_copy_audit.md`, executed same day): every
+  copy/backup site is verdict-tabled there, and the chokepoint is
+  gated deny-by-default — `copy_production_db(requestor=...)` +
+  the operator-owned `SANCTIONED_REQUESTORS` registry in
+  `tests/helpers.py`, with a static check holding call sites and
+  registry in 1:1 lockstep. **REVISIT TRIGGER: re-run the census
+  (store sizes, per-run transient, backup-lane cost) when any
+  production store roughly doubles** — a sanction is sized against the
+  data of its day and decays silently otherwise (the keep_all class:
+  copies sanctioned as small became 307 MiB × 30 per gate run). Store
+  sizes at filing: convo_search 820.5, research 307.2, embed_store
+  184.6, convo_fts 102.0, corpus 52.6, graph 39.3 + 39.0, doc_search
+  24.7 MiB.
+
 - **production-DB copies in tests (§D2) — CLOSED 2026-09-29 (schema class
   migrated; downsampler class adjudicated VALID)**: the schema-only class
   migrated onto a shared per-run `schema_template()`
@@ -19,7 +34,10 @@ Open items below keep their revisit triggers inline; executed work is compressed
   with live edges/tags/metrics), which no template can substitute; their
   per-scope backups stay, guarded by the allowlist. `helpers.py`
   `copy_production_db` stays as their sanctioned builder. No further
-  D2 work.
+  D2 work — superseded the same day by the estate-wide chase
+  (`proposals/production_db_copy_audit.md`, the census item above),
+  which fixed the keep_all amplifiers D2's census never listed,
+  content-pruned note_writers, and gated the chokepoint.
 
 - **trace-analyzer coverage — EXECUTED 2026-09-26 (#303)**
   (`archive/tooling/trace_analyzer_legs.md`): 10 legs + `--legs` landed

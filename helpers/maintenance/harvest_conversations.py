@@ -34,6 +34,7 @@ harvests.
 from __future__ import annotations
 
 import argparse
+import fcntl
 import hashlib
 import json
 import re
@@ -51,6 +52,11 @@ REPO = Path(__file__).resolve().parents[2]
 SNAP_ROOT = Path("/mnt/store/timeshift/snapshots")
 CORPUS_ROOT = REPO / "memory/data/harness"
 INDEX_DB = REPO / "memory/convo_search.duckdb"
+
+# The Store's S3 io-lock coordination imports helpers.misc.duckdb_lock at
+# module level — as a bare-script entry point this file must bootstrap
+# sys.path itself before that import (static check: entry-point sys.path).
+sys.path.insert(0, str(REPO))
 
 _SCHEMA = pa.schema(
     [
@@ -122,12 +128,22 @@ def _row(
 
 
 class Store:
-    """Watermark + part registry backed by the convo_search duckdb."""
+    """Watermark + part registry backed by the convo_search duckdb.
+
+    S3 (duckdb_transient_lock_retry): the read-only branch queues on the
+    index's io.lock and retries transient conflicts; the WRITER branch
+    takes LOCK_EX for the Store's lifetime (released in close()) so a
+    concurrent rebuild queues instead of colliding with the watermark
+    DDL/writes.
+    """
 
     def __init__(self, db: Path, read_only: bool = False) -> None:
         import duckdb
 
+        from helpers.misc.duckdb_lock import open_read_only
+
         self.read_only = read_only
+        self._io_lock_fh = None
         if read_only:
             # --check must never write: a check that CREATEs tables takes the
             # DuckDB write lock and collides with a running rebuild.
@@ -136,9 +152,13 @@ class Store:
                 self._wm, self._parts = {}, {}
                 self._pending_wm, self._pending_parts = [], []
                 return
-            self.con = duckdb.connect(str(db), read_only=True)
+            self.con = open_read_only(db)
         else:
             db.parent.mkdir(parents=True, exist_ok=True)
+            # Lifetime LOCK_EX: held until close() releases it. A crashed
+            # harvest releases via process death (kernel-managed flock).
+            self._io_lock_fh = open(str(db) + ".io.lock", "w")
+            fcntl.flock(self._io_lock_fh.fileno(), fcntl.LOCK_EX)
             self.con = duckdb.connect(str(db))
             self.con.execute(
                 "CREATE TABLE IF NOT EXISTS harvest_meta ("
@@ -202,6 +222,12 @@ class Store:
     def close(self) -> None:
         if self.con is not None:
             self.con.close()
+        if self._io_lock_fh is not None:
+            # DuckDB closed first; releasing LOCK_EX now lets queued
+            # readers/rebuilds proceed against a quiescent file.
+            fcntl.flock(self._io_lock_fh.fileno(), fcntl.LOCK_UN)
+            self._io_lock_fh.close()
+            self._io_lock_fh = None
 
 
 class SessionWriter:

@@ -8234,3 +8234,75 @@ its revisit trigger — the rescan kept growing ~9.5 MB/day).
   **1.29 s → 0.65 s median**; `latest --gate integrity`, `failures`,
   `timing` live for both kinds (run 833: 17/17 checks ok · integrity
   PASS). Tests: gate_query suite 32 passed; types green.
+
+## 314. DuckDB concurrency model corrected — an RW holder excludes every opener
+
+**Proposal**:
+`doc/improvements/archive/graph/duckdb_concurrency_model_correction.md`
+(filed 2026-09-29, executed 2026-09-29).
+
+- S1: the `connect()` docstring invariant — read-only openers "never
+  contend with (or against) a writer" — was measured false on duckdb
+  1.5.6: a read-write holder blocks EVERY opener, read-only included.
+  Replaced with the measured five-row matrix inline, plus an explicit
+  statement of what the `<cache>.build.lock` flock does and does not
+  cover (connect()-mediated builds, nothing else).
+- S2: both conflict directions pinned by cross-process negative tests
+  (`tests/test_graph_disk.py`), each with an A/B control open so a
+  broken child harness cannot pass for the wrong reason.
+- S3 caller audit, by mechanism: 37 coordinated read-only openers (via
+  `connect()`, flock-protected build fallback) vs 24 uncoordinated
+  (direct `duckdb.connect`, no flock/fallback/retry) — the population
+  `duckdb_transient_lock_retry.md` exists to cover.
+  `convo_query.py:88` confirmed as the one live-writer site (unlocked
+  ~2-min `rebuild_convo_search` hold); `stats.py:465` production-path
+  read checked and dismissed (v_graph_structure is stamp-lane-only).
+
+## 315. DuckDB pin reconciliation — lock re-resolved to 1.5.6, stale pins annotated
+
+**Proposal**:
+`doc/improvements/archive/tooling/duckdb_pin_reconciliation.md`
+(filed 2026-09-29, executed 2026-09-29).
+
+- S1: `uv lock --upgrade-package duckdb` 1.5.5 -> 1.5.6 (uv preserves
+  an existing resolution by default — plain `uv lock` was a no-op); the
+  only version change was duckdb, the remaining churn was missing
+  dev-extra completions. Venv and lock now agree, so `make install-dev`
+  cannot silently downgrade the measured environment. `uv.lock` is
+  gitignored per-machine state — nothing to commit.
+- S2: the stale 1.5.4 mentions in `duckpgq_retirement.md` and
+  `duckdb_consolidation_assessment.md` annotated as historical-at-the-
+  time; the decision record's reasoning stays legible.
+- S3: the `duckdb-rs` coupling recorded for any future Rust decision —
+  the crate version encodes the engine (no 1.5.6 crate exists; depend
+  with a tilde), and `bundled` omits ICU, which would surface as
+  runtime failures on time casts (our graph is time-series). Inert
+  today: nothing depends on duckdb-rs. The 2.0 gate was dropped —
+  single-writer / multiple-readers is the accepted model.
+
+## 316. graph_analytics staleness compared as timestamps, not strings
+
+**Proposal**:
+`doc/improvements/archive/graph/graph_analytics_staleness_comparison.md`
+(filed 2026-09-29, executed 2026-09-29).
+
+- The `stats.py` freshness banner compared two TEXT columns of
+  DIFFERENT shapes (`utc_now()` space-separated vs ISO-T legacy rows)
+  with a raw `>`, deciding at index 10 ('T' beats ' ') whenever the
+  date prefixes tied — reporting a same-day FRESH snapshot as STALE.
+  Live snapshot flipped STALE -> fresh on unchanged data (entities
+  09-25 04:33 vs analytics 09-25 17:59 by time).
+- S1: decision moved to `MAX(julianday(col))` on both sides in a new
+  `_staleness_verdict()` helper — the SQLite twin of the
+  `analytics.py:376` TRY_CAST precedent; julianday parses both shapes
+  and turns NULL/empty into NULL, which MAX skips. Guard widened per
+  the risk note: an unparseable side prints INDETERMINATE, never
+  fresh. Raw stamp strings stay in the banner for humans.
+- S2 decided: the 129 legacy ISO rows stay untouched — the cast reads
+  them correctly at both consumers, no writer emits the shape, and a
+  rebuild_schema migration would churn classified rows for zero
+  query-visible benefit.
+- S3: `TestStalenessVerdict` (4 tests) constructs the same-day
+  collision explicitly (with NULL + empty rows mixed in, mirroring the
+  live column); mutation-checked — reverting to the string compare
+  fails exactly the discriminator test.

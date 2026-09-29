@@ -89,7 +89,38 @@ class _WritersProject:
         # non-company) and would pollute the count assertions.
         dst.execute("DELETE FROM graph_edges WHERE edge_type = 'cited_in'")
         dst.execute("DELETE FROM entities WHERE name NOT IN (SELECT name FROM keep)")
+        # Content-table prune (production_db_copy_audit S1, 2026-09-29):
+        # the three writers' read surfaces are entities, graph_edges and
+        # quotes (derive_cited_in's quote_counts scans the whole table
+        # but only (kept-entity, edition) pairs are ever looked up), and
+        # no test in this module reads any of these — yet they held
+        # ~200 MiB of dropped-company data (graph_analytics alone ~100
+        # MiB: the pre-S1 232 MiB fixture size was retained data, not a
+        # live requirement).
+        for tbl, col in (
+            ("graph_analytics", "entity_name"),
+            ("company_metrics", "entity"),
+            ("company_embeddings", "company_name"),
+            ("entity_identifiers", "entity_name"),
+            ("events", "entity"),
+            ("quotes", "entity"),  # kept-entity rows stay: the n_quotes signal
+        ):
+            dst.execute(f"DELETE FROM {tbl} WHERE {col} NOT IN (SELECT name FROM keep)")
+        # hyper store: rows FK-bound to dropped entities; unread here.
+        dst.execute("DELETE FROM hyper_incidences")
+        dst.execute("DELETE FROM hyper_edges")
+        # note_search/note_search_meta: unread here (the fixture vault
+        # supplies its own three docs). Contentful FTS5 takes a plain
+        # DELETE — never touch the shadow tables directly.
+        dst.execute("DELETE FROM note_search")
+        dst.execute("DELETE FROM note_search_meta")
         dst.commit()
+        # A pruned copy MUST VACUUM: DELETE frees pages but never returns
+        # them (75 MiB/24% dead pages at fix time, 2026-09-29; sibling
+        # _MaintProject._build_db has always been the correct pattern).
+        # Prune-without-VACUUM is a bug class, see
+        # doc/improvements/archive/testing/pytest_tmpfs_amplification.md §D2.
+        dst.execute("VACUUM")
         dst.close()
 
     def _build_vault(self) -> None:
