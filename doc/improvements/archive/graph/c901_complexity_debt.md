@@ -449,7 +449,7 @@ domain-logic population's harness work.
 - **Not touching the S-rule per-file-ignores** for `tests/**` — those
   are correct, and appear in §2 only to complete the census.
 - **Not fixing the tally determinism bug here** — see
-  `../proposals/chain_tally_determinism.md`; it owns that defect. Do not
+  `../tooling/chain_tally_determinism.md`; it owns that defect. Do not
   land both in one change (shared `stats.py` surface).
 - **Not touching `print_stats` in S1/S2 scope creep** — it is S2's
   first named target but stays suppressed until its own parity harness

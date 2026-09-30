@@ -56,12 +56,30 @@ rg -n 'archive/[A-Za-z0-9_./-]+\.txt' doc --glob '*.md' \
       [ -f "doc/improvements/$p" ] || echo "MISSING $line"
     done
 
-# Live proposals/ paths that no longer exist (exclude completed.md history)
-rg -o 'doc/improvements/proposals/[A-Za-z0-9_./-]+\.md' \
-  doc/procedures doc/design doc/improvements/pending.md \
-  doc/improvements/proposals README.md AGENTS.md 2>/dev/null \
-  | sort -u | while IFS= read -r p; do
-      [ -f "$p" ] || echo "MISSING $p"
+# Live proposals/ paths that no longer exist. completed.md is EXCLUDED by
+# design — it is the historical record of where proposals used to live
+# (the original recipe's "exclude completed.md history"). Absolute AND
+# relative forms: pending.md cites `proposals/<name>.md` (resolves from
+# doc/improvements/), procedures cite `../proposals/<name>.md`. rg -o over
+# multiple paths prefixes `file:` — strip it before the existence test or
+# every real ref false-MISSINGs (measured 2026-09-30; three false hits on
+# existing files under the old form). Known-exempt residue after the
+# completed.md exclusion (doctrine: narrative that RECORDS an old path is
+# fine): unified_search.md:191 ("removed" record),
+# trace_analyzer_legs.md:523 ("then at"). Code-side refs (helpers/tests
+# docstrings citing proposals/) are the REVIEW checklist's diff-scoped
+# duty (doc/procedures/ocr_review.md §4b step 8) — fixture strings in
+# tests make a mechanical code sweep false-positive-prone.
+rg -o '(?:\.\./)*(?:doc/improvements/)?proposals/[A-Za-z0-9_./-]+\.md' \
+  doc README.md AGENTS.md --glob '!doc/improvements/completed.md' 2>/dev/null \
+  | sed 's/^[^:]*://; s/^[^:]*://' | sort -u \
+  | grep -v '/X\.md$\|^X\.md$' \
+  | while IFS= read -r ref; do
+      case "$ref" in
+        doc/improvements/*) [ -f "$ref" ] || echo "MISSING $ref" ;;
+        *) [ -f "doc/improvements/$ref" ] || \
+           [ -f "doc/improvements/proposals/$ref" ] || echo "MISSING $ref (relative)"
+      esac
     done
 
 # Archive load-bearing pointers that still aim at proposals/ (A4 class)

@@ -3,13 +3,21 @@
     "tests/**/*.py",
     "helpers/**/*.py",
     "app.py",
+    "desktop/**/*.py",
+    "bench_data/**/*.py",
     "Mojo/src/**/*.mojo",
-    "Mojo/tests/**/*.mojo"
+    "Mojo/tests/**/*.mojo",
+    "doc/procedures/**",
+    "doc/improvements/**"
   ],
   "exclude": [
     "static/**/*.bundle.js",
     "static/**/*.bundle.js.map",
     "node_modules/**",
+    "**/package-lock.json",
+    "**/*.lock",
+    "snapshots/**",
+    ".opencodereview/**",
     "findata/**",
     "doc/local/**",
     "Mojo/vendor/**"

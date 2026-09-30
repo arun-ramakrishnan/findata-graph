@@ -8,7 +8,10 @@ stack to a ref range, run `ocr delegate preview`, print the roster, and
 ASSERT that every rule-covered family the diff touches actually has a
 selected file. The assertion exists because the defect class that shipped
 the inert CSR lane was exactly this: tests changed, tests not selected,
-nobody noticed. Advisory only — never a `make qa` leg.
+nobody noticed. Since ocr_selection_drift (2026-09-30) the roster ships
+with the host-carried house checklist too — OCR's project-rules channel
+is inert (verified 1.12.11), so this script is where the conventions
+become visible at the point of use. Advisory only — never a `make qa` leg.
 
 Usage:
     review_selection.py                # top patch (--commit HEAD)
@@ -36,6 +39,30 @@ RULE_JSON = REPO_ROOT / ".opencodereview" / "rule.json"
 # lost the family instead of firing. These are the product-critical roots
 # whose exclusion shipped defects (inert CSR lane; Mojo reviewed by hand).
 PRODUCT_FAMILIES = ("Mojo/src/", "Mojo/tests/", "tests/")
+
+# Host-carried review conventions (ocr_selection_drift S3). OCR's
+# project-rules channel is inert — the `rules` key, a `rules/` dir file and
+# the `--rule` object all surface nowhere (probed 1.12.11) — so the host is
+# the only carrier. Printed with the roster so every review starts from the
+# house checklist, not just OCR's generic one.
+HOUSE_CHECKLIST = (
+    "noqa sits on the line the linter reports the diagnostic "
+    "(ruff: S607 anchors on the argv-list line; S603 fires only on non-literal argv)",
+    "a test's docstring is a claim, not evidence: mutation-check the teeth "
+    "(neuter the branch, test goes red, restore)",
+    "fixture reality: fixtures must exercise what their comment names "
+    "(triggers match PATTERNS, sentinels match the real regex, constants are consumed)",
+    "no literal /tmp paths in tests (S108); scratch lives under ${TMPDIR:-/tmp} and is never cited as evidence",
+    "verdicts run under .venv/bin/python3, never bare python3",
+    "cross-check make qa: a finding the gate already flags is not a review finding",
+    "pointer sweep after any git mv/deletion: grep the old path repo-wide; a "
+    "live trigger or a touched file citing a moved path is a finding (armed "
+    "pointers are blocking)",
+    "cross-file consistency: a batch move/rewrite must agree with its siblings "
+    "— status lines, dates, index entries (one stale line falsifies the batch)",
+    "precision over recall; correctness and security are blocking; report the "
+    "dedup arithmetic (raw minus both-legs minus false positives)",
+)
 
 
 def _families() -> tuple[list[str], list[str]]:
@@ -172,6 +199,9 @@ def main(argv: list[str] | None = None) -> int:  # noqa: C901  # pass-per-flag C
         print(line)
     except (Exception, SystemExit) as e:  # noqa: BLE001  # freshness is context, never a failure
         print(f"review-freshness: unavailable ({type(e).__name__}: {e})")
+    print("\nhouse checklist (host-carried; OCR's rules key is inert — verified 1.12.11):")
+    for item in HOUSE_CHECKLIST:
+        print(f"  * {item}")
     return 0
 
 

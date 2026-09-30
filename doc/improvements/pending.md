@@ -4,7 +4,7 @@ Full annotated triage map with live-verified trigger status.
 Open items below keep their revisit triggers inline; executed work is compressed to records.
 
 - **production-store copy census — TRIGGER ARMED 2026-09-29**
-  (`proposals/production_db_copy_audit.md`, executed same day): every
+  (`archive/testing/production_db_copy_audit.md`, executed same day): every
   copy/backup site is verdict-tabled there, and the chokepoint is
   gated deny-by-default — `copy_production_db(requestor=...)` +
   the operator-owned `SANCTIONED_REQUESTORS` registry in
@@ -35,7 +35,7 @@ Open items below keep their revisit triggers inline; executed work is compressed
   per-scope backups stay, guarded by the allowlist. `helpers.py`
   `copy_production_db` stays as their sanctioned builder. No further
   D2 work — superseded the same day by the estate-wide chase
-  (`proposals/production_db_copy_audit.md`, the census item above),
+  (`archive/testing/production_db_copy_audit.md`, the census item above),
   which fixed the keep_all amplifiers D2's census never listed,
   content-pruned note_writers, and gated the chokepoint.
 

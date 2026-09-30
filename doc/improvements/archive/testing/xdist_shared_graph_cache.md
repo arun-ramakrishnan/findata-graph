@@ -222,5 +222,5 @@ load-bearing), `:686` (the redirect), `:726-739` (graceful-exit-only cleanup),
 `doc/improvements/completed.md` entry 189 (gate parallelism phase 2),
 `doc/improvements/archive/tooling/gate_xdist_phase2.md` (Slice C, still OFF),
 `helpers/graph/query.py:414-441` (existing read-only openers),
-`doc/improvements/proposals/duckdb_transient_lock_retry.md` (S1 shared
+`../tooling/duckdb_transient_lock_retry.md` (S1 shared
 classifier this must not duplicate).

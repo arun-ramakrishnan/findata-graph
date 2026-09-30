@@ -14,7 +14,7 @@ OCR contributes two deterministic things — **which files are reviewable** and 
 OCR is installed globally with bun — **unpinned, latest** (house choice 2026-09-28; the npm global was removed). Nothing installs into the repo: there is still no `package.json` here to hang a devDependency on.
 
     bun add -g @alibaba-group/open-code-review     # install, or refresh to latest
-    ocr --version                                  # open-code-review v1.12.10 (579b931) linux/amd64
+    ocr --version                                  # open-code-review v1.12.11 (a758d9c) linux/amd64
 
 `ocr` is then the command. `$OCR` stays the indirection the rest of this procedure uses:
 
@@ -59,10 +59,10 @@ Refs are SHAs: resolve patch names with `stg id <name>` first, because an agent 
 
 Read `reviewable_count` / `total_files` / `reviewable_files` (entries are objects with a `path` key, not strings) and verify **both halves**:
 
-1. **at least one `tests/` path.** The default selection excludes tests, and this repo already paid for that: `csr_lane_fixes` saw 3/10 files and zero test lines — which is how an inert CSR lane plus two green-but-broken defects shipped. No test path ⇒ stop and fix `.opencodereview/rule.json`.
-2. **at least one non-test source path.** `include` is a restrictive allow-list, not additive: `{"include": ["tests/**/*.py"]}` passes check 1, reports green, and reviews nothing that matters — the mirror image of the first failure, and more dangerous because the check comes back satisfied.
+1. **at least one `tests/` path.** This repo already paid for an invisible test spine: `csr_lane_fixes` saw 3/10 files and zero test lines — which is how an inert CSR lane plus two green-but-broken defects shipped. No test path ⇒ stop and fix `.opencodereview/rule.json`. (On 1.12.10 the *default* selection excluded tests and only `include` admitted them; on 1.12.11 the extension allow-list selects tests like all code — the check stays because it is the teeth, not because the default still hides tests.)
+2. **at least one non-test source path.** On 1.12.10 `include` was a restrictive allow-list — `{"include": ["tests/**/*.py"]}` passed check 1, reported green, and reviewed nothing that mattered. **1.12.11 inverted this (sandbox-probed 2026-09-30): `include` is additive, and selection defaults to an extension allow-list (`.py`/`.pyi`/`.ipynb`/`.json` observed), so every code-shaped file in the diff is reviewable unless `exclude` prunes it.** The mirror-image failure is dead; the live risks are its inverse — stray code files sneaking into the roster, and stale excludes — because `exclude` is now the only pruner and `make review-patch`'s teeth assertion is the guard.
 
-The rule was widened to `tests/**/*.py`, `helpers/**/*.py`, `app.py` on 2026-09-28 (6/14 reviewable on that range: 3 production, 2 test, 1 JSON; 8 exclusions all Markdown) and to `Mojo/src/**/*.mojo` + `Mojo/tests/**/*.mojo` (`Mojo/vendor/**` excluded) on 2026-09-29 — the ef8a17d4 review had to cover the Mojo BFS by hand before that; `ocr delegate preview --commit ef8a17d4` now selects 12/16 with `bfs_csr.mojo` visible. Re-derive the ratio every run — never store it. `--exclude a,b` merges with the rule excludes for a one-off; `-B <file>` supplies background (§2).
+The rule was widened to `tests/**/*.py`, `helpers/**/*.py`, `app.py` on 2026-09-28 (6/14 reviewable on that range: 3 production, 2 test, 1 JSON; 8 exclusions all Markdown) and to `Mojo/src/**/*.mojo` + `Mojo/tests/**/*.mojo` (`Mojo/vendor/**` excluded) on 2026-09-29 — the ef8a17d4 review had to cover the Mojo BFS by hand before that; `ocr delegate preview --commit ef8a17d4` now selects 12/16 with `bfs_csr.mojo` visible. On 2026-09-30 (`ocr_selection_drift`) it gained `doc/procedures/**` + `doc/improvements/**` — under 1.12.11's additive semantics an explicit include is what admits `.md` past the `unsupported_ext` gate. The excludes are boundary declarations, not selection tuning: `findata/**` is the writer-owned vault, and `doc/local/**` is gitignored machine-local evidence — inert for selection (never in a diff) but kept so a force-add or a future careless `doc/**` include can never pull local evidence into review rosters (operator ruling 2026-09-30). Re-derive the ratio every run — never store it. `--exclude a,b` merges with the rule excludes for a one-off; `-B <file>` supplies background (§2).
 
 **`make review-patch` runs this check mechanically** (ocr_review_pipeline S3's deterministic remainder): stgit→ref mapping (`--stack N` ⇒ `HEAD~N..HEAD`), the roster print, and the selection-teeth assertion — every rule-covered family with diff traffic must have a selected file, checked against a **hardcoded** product-family list (`tests/`, `Mojo/src/`, `Mojo/tests/`) so a rule.json regression fires instead of self-masking. Mutation-verified 2026-09-29 (drop `tests/` from the rule ⇒ exit 1 naming the family). Advisory only — never a `make qa` leg. The two manual checks above stay as the judgment layer on top.
 
@@ -87,6 +87,18 @@ driven by `helpers/misc/review_freshness.py`:
 - Verified 2026-09-29: record ⇒ FRESH; perturbed fingerprint ⇒ STALE ("the
   stack changed since it was reviewed"); empty ledger ⇒ UNREVIEWED.
 
+**Landed ranges cannot be recorded — the tool is stack-scoped (gap,
+measured 2026-09-30).** `review_freshness.py --stack N` fingerprints
+`HEAD~N..HEAD` only; a landed range like `8711c96d..a363d12a` has no
+applied stack, `--stack 0` raises by design, and `--stack 1` would
+fingerprint the wrong diff (e.g. a snapshots-only commit). Three of the
+nine bake-off rounds independently hit this and correctly declined to
+record rather than write a false row. Interim rule: **never `--stack N` a
+landed range** — hand-compute the fingerprint (sha256 of
+`git diff X..Y` text, first 16) and note the verdict pointer in the
+review report; a `--from/--to` mode is deferred
+(`proposals/ocr_rule_census.md` S7).
+
 **Workspace mode is empty on a refreshed stack:** bare `$OCR delegate preview` diffs the working tree, and a refreshed stack has a clean tree. Not a bug — pass a ref.
 
 ## 2. Grounding — brief from the indexes, not from memory
@@ -106,6 +118,17 @@ Three rules that decide whether the brief works:
     $OCR delegate rule <path> [<path>…]
 
 Rules come back grouped by content and annotated with the files each group applies to. Honour OCR's own guidance: favour precision over recall, treat security and correctness as blocking, stay silent when context is unclear — a false alarm costs more reviewer trust than a missed minor issue.
+
+**Where the house rules live** (census 2026-09-30, `proposals/ocr_rule_census.md` — OCR carries none of them; the host is the carrier):
+
+| Carrier | What it owns |
+|---|---|
+| house checklist (`helpers/misc/review_selection.py` `HOUSE_CHECKLIST`, printed by `make review-patch`) | the 9 review-time duties: noqa placement, test teeth, fixture reality, `/tmp` ban, `.venv` interpreter, gate dedup, pointer sweep, cross-file consistency, dedup arithmetic |
+| `helpers/validators/static_checks.py` | 26 executable families — dead/misplaced C901 noqa, proposal lifecycle, frontmatter schema contract, sqlite-helper usage, coverage ledger, route skeleton (per-handler review freshness), and more; qa-gated |
+| ruff configs | gate `select=["E","F"]` (`pyproject.toml`); advisory `lint-audit` `--select S,UP,C901`; `tests/**` per-file-ignores `E402,S101,S311,S603` |
+| `doc/procedures/doc-hygiene.md` | doc-corpus sweeps: broken archive-index links, `.txt` ghosts, live refs to missing `proposals/`, archive→`proposals/` stale pointers (A4) |
+| md-lint tiers | `doc/` + findata Tier-1 defect rules only; Tier-2/3 permanently off over findata (`markdown_lint_adoption.md` §6) |
+| gate legs | qa = tmp-sweep, lint, md-lint, types, deptry, static_checks, pytest, notes, integrity, snapshot; advisory = +ty-tests, live-invariants, frontend, graph algos, analytics, suggestions, search-freshness, lint-audit (`tests/run_gate_report.py`) |
 
 The host agent then reviews the diff against that checklist:
 
@@ -140,6 +163,8 @@ A finding set is a hypothesis until it survives these checks. Two legs make it m
 4. **Sweep the vault before calling anything a defect.** `doc_query.py`, `convo_query.py`, an `rg` over `pending.md` and the `status: deferred|rejected` markers, `ripwire . --grep=<symbol>` — then classify each finding: **regression-of-record** (violates what a completed entry landed), **documented scope** (the proposal drew the boundary on purpose), **known class / deferred**, or **novel**. The sweep's job is to find the ones that are none of your business before the operator has to.
 5. **File the proposal before fixing** — house rule for multi-slice work; the index line in `proposals/README.md` rides the same patch, and anything touching rosters/crosswalks/extractor rules carries the eval-gate bullet.
 6. **Persist the triage**, not just the verdict: accounting table, presence-script output, sweep queries with their hits, false-positive list — in `doc/local/engineering/code_review.md` (gitignored evidence home). The false positives matter; they stop the next session re-litigating them.
+7. **Audit commit/gate claims against the corpus** (bake-off class 7, caught by only 2 of 9 rounds): a commit message's "make qa 11/11" is a hypothesis — re-derive via `gate_query recent --gate qa`, and `git merge-base --is-ancestor <sha> HEAD` any SHA the claim leans on (a gate recorded at a rewritten, non-ancestor SHA backs nothing). The companion proposal record often states it accurately; diff the two.
+8. **Sweep for pointers the diff broke.** Any `git mv`/deletion in range: grep the old path repo-wide (docs *and* code — a docstring in a touched `.py` counts). doc-hygiene's sweeps own the doc corpus (`proposals/` refs, A4 archive pointers); the review-time duty is diff-scoped because fixture strings in tests make a mechanical code sweep false-positive-prone — read the citing line before filing. An armed `pending.md` trigger pointing nowhere is blocking.
 
 ## 5. Apply and verify
 
@@ -171,13 +196,33 @@ Loop: review → accept fixes → re-review the same ref → `compare` the two s
 
 Advisory. Record findings in the review report, not in `doc/improvements/`, unless the operator asks for a proposal. Gate coupling stays off.
 
+**Every review report carries its own price (operator rule 2026-09-30).**
+Capture what the harness exposes, and say which parts are estimates:
+
+| Field | Source |
+|---|---|
+| phase wall times | OCR `preview`/`rule` are deterministic sub-second; the host review dominates — timestamp start/end |
+| requests, input split cache-read vs fresh, output tokens | zcode hosts: `~/.zcode/cli/db/db.sqlite` `model_usage` (open `mode=ro`; GLM feed: `input_tokens` INCLUDES cache reads — fresh = input − cache_read; no cache-write bucket). **Filter by `session_id`** — the table has no `model` column and parallel sessions (bake-off rounds!) share the DB, so a time-window-only query silently sums them (measured 2026-09-30: two overlapping rounds contributed 25 + 53 requests to one naive window) |
+| notional cost | rates per 1M (GLM-5.3: cached $0.26 / uncached $1.40 / output $4.40) × volumes |
+| actually billed | plan-side reality — the coding-plan subscription meters $0 marginal; say so instead of implying API spend |
+
+Measured example (2026-09-30 glm-5.3 delegation round): 27 requests
+(review turns through snapshot time — the session then continued, reaching
+53 requests / 6.48 M input by 19:37 IST as the patch and proposal were
+filed from the same session), 1,430,594 input (1,370,112 cache-read =
+95.8 %, 60,482 fresh), 26,694 output → $0.56 notional, $0 billed, ~9 min
+wall; the OCR delegation leg itself $0 / 0 tokens / 0.3 s. Delegation reviews are free by design — the
+cost line is the host's, and it is what keeps delegation-vs-managed
+comparisons honest (see the cache-fairness note in
+`doc/local/engineering/code_review.md`).
+
 ## Known limits
 
 | Limit | Consequence |
 |---|---|
-| Markdown and other non-code get no coverage | the Python rule group matches `**/*.{py,pyi,ipynb}` only; no Markdown group exists (`ocr_design`: 1/2 files, `.md` skipped). This repo is documentation-heavy — for doc-heavy diffs the loop adds little; read those yourself |
-| project `rules` content does not reach OCR | `.opencodereview/rule.json` accepts a `rules` array, but it surfaces in neither `ocr delegate rule` nor `ocr rules check` — so **the host agent is the only carrier of the `AGENTS.md` conventions**; read them before reviewing |
-| selection is only as good as the rules | verify the test spine every run; do not assume |
+| Markdown gets only the generic `default` group | 1.12.11 ships a system `default` rule group (generic Correctness checklist) that resolves `.md`/`.mojo` at the rule layer; selection still drops `.md` as `unsupported_ext` unless an explicit include admits it — the rule has carried `doc/procedures/**` + `doc/improvements/**` since 2026-09-30. The default checklist is not doc-aware: the host still reads doc-heavy diffs itself |
+| project `rules` content does not reach OCR | re-verified on 1.12.11 (2026-09-30 probes): a `rules` array in `rule.json` and a `.opencodereview/rules/` dir file surface nowhere; the `--rule <file>` flag on `delegate rule`/`review` parses a single `ProjectRule` object whose schema is undocumented — guessed field names are silently ignored (probe: parsed clean, resolution unchanged). **The host agent is the only carrier of the `AGENTS.md` conventions**; `make review-patch` prints the house checklist alongside OCR's |
+| selection is only as good as the rules | 1.12.11: selection defaults to an extension allow-list; `include` adds paths (it is what admits `.md`), `exclude` prunes. Verify the test spine every run; `make review-patch` asserts it mechanically |
 | coverage is diff-scoped | whole-file problems outside the diff are out of scope; `ocr scan` exists for that and is a separate decision |
 
 ## Keeping this current
@@ -190,7 +235,7 @@ Advisory. Record findings in the review report, not in `doc/improvements/`, unle
 
 **Both schemas (`rules` entries, `--tools` entries) accept unknown keys silently.** When you add either, verify the key is actually read — grep the consumer's output for a unique marker string — before believing it works.
 
-Last verified **2026-09-28** against the bun global install — package `1.12.10`, native binary `v1.12.10 (579b931)`, `ocr` → `~/.bun/bin/ocr` — with `rule.json` selecting 5/10 files, model `glm-5.3`, tool inventory `code_comment`/`code_search`/`file_read`/`file_read_diff`/`file_find`/`task_done`/`approve_all_comments`.
+Last verified **2026-09-30** against the bun global install — package `1.12.11`, native binary `v1.12.11 (a758d9c)`, `ocr` → `~/.bun/bin/ocr`. Re-verified live: `delegate preview --from/--to --format json` and `delegate rule` flags behave unchanged; selection semantics re-probed in a sandbox repo (include now additive — §1); the project-rules channel re-probed dead (Known limits); `rule.json` selecting 10/19 on the lint-audit range with the test spine visible. Carried over from the 2026-09-28 stamp (package `1.12.10`, binary `v1.12.10 (579b931)`, 5/10 selected) but NOT re-checked in this pass: the managed-mode tool inventory (`code_comment`/`code_search`/`file_read`/`file_read_diff`/`file_find`/`task_done`/`approve_all_comments`) — re-probe before relying on it.
 
 Revisit when any of these change — each invalidates a specific claim above:
 

@@ -20,7 +20,7 @@ area: "helpers/graph/stats.py + 13 files; guard in helpers/validators/static_che
 ## 1. Motivation
 
 Found while establishing the parity baseline for the C901 debt arc
-(`../proposals/c901_complexity_debt.md` §3.1). The first
+(`../graph/c901_complexity_debt.md` §3.1). The first
 `longest_chains` before/after diff reported a **divergence** on two
 lines. It was not a regression: the refactor was byte-identical, and the
 "divergence" was the same code rendering differently in two processes
@@ -207,7 +207,7 @@ checkout).
   selection rule is documented as relying on that ordering
   (`stats.py`, "both orientations of a pair always get the same
   verdict"). Only the *tally rendering* is at issue.
-- **Not the C901 work** — see `../proposals/c901_complexity_debt.md`.
+- **Not the C901 work** — see `../graph/c901_complexity_debt.md`.
   The only overlap is that both touch `stats.py`; order the two arcs so
   they do not collide in the same change.
 - **Not a repo-wide `ORDER BY` policy** for SQL-fed tallies. If S2 finds

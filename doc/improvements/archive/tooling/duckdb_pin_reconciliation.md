@@ -50,7 +50,7 @@ release-train race". So tracking 1.5.6 automatically is the **intended**
 posture, and the only genuine inconsistency was the lock lagging the venv.
 
 This mattered beyond hygiene: every concurrency measurement taken for
-`../../proposals/duckdb_transient_lock_retry.md` and
+`duckdb_transient_lock_retry.md` and
 `../graph/duckdb_concurrency_model_correction.md`
 ran on the **installed 1.5.6**, not the locked 1.5.5 — so until S1 the measured
 environment was not what `uv sync` would reproduce.

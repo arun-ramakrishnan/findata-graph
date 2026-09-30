@@ -25,7 +25,7 @@ area: "helpers/graph/query.py, tests"
 > named: **37 coordinated vs 24 uncoordinated** read-only openers. One
 > finding is real and stays **open**: `convo_query.py:88` has a confirmed live
 > writer, and its remedy is the `convo_search.duckdb` flock work in
-> `../../proposals/duckdb_transient_lock_retry.md` S3, which remains open.
+> `../tooling/duckdb_transient_lock_retry.md` S3, which remains open.
 > The other (`stats.py:465` hardcoding the production path) was checked and
 > **dismissed**: `v_graph_structure` is stamp-lane-only, so the production read
 > is intentional. Frontmatter stays `status: proposed` because
@@ -109,7 +109,7 @@ defended. Census of `read_only=True` across `helpers/`, split by mechanism:
   `snapshot_db.py` (6), `fold_identifiers.py:46`, `gc_embed_cache.py:141`,
   `bench/fts_duckdb_parity.py:152`. These turn an unsynchronised writer into a
   hard `Conflicting lock` failure with no recovery — this is the population
-  `../../proposals/duckdb_transient_lock_retry.md` exists to cover, and this audit is the
+  `../tooling/duckdb_transient_lock_retry.md` exists to cover, and this audit is the
   concrete justification for it.
 
 Two findings the four originally-named sites did not surface:
@@ -142,7 +142,7 @@ silently returns **zero** matches here, because `[^)]*` stops at the `)` of
 
 - **No behaviour change.** This corrects a stated invariant and adds a test.
   The retry that actually addresses the gap is P1
-  (`../../proposals/duckdb_transient_lock_retry.md`); this proposal makes the truth legible.
+  (`../tooling/duckdb_transient_lock_retry.md`); this proposal makes the truth legible.
 - **No `eval-gate` bullet.** No query-visible semantics change.
 
 ## Acceptance
@@ -156,5 +156,5 @@ silently returns **zero** matches here, because `[^)]*` stops at the `)` of
 ## Follows
 
 `doc/local/evaluations/dbx_assessment.md`. Companion to P1
-(`../../proposals/duckdb_transient_lock_retry.md`), which closes the gap this proposal
+(`../tooling/duckdb_transient_lock_retry.md`), which closes the gap this proposal
 documents.

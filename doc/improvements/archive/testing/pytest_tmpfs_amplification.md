@@ -109,7 +109,7 @@ several hundred MB per `.run()` call, invisible in the test code.
 > context, same day: the pytest basetemp moved off the 7.1 GB tmpfs to
 > `/mnt/data/tmp` (223 GB disk; zswap contention relieved — the live lane
 > measured FASTER on disk), and the xdist graph cache itself became one
-> shared read-only file (proposals/xdist_shared_graph_cache.md) — so
+> shared read-only file (xdist_shared_graph_cache.md) — so
 > neither "quota/disk-I/O errors recur" nor cache amplification can fire
 > as originally framed.
 >
