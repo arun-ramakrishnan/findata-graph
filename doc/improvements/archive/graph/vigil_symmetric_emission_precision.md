@@ -1,9 +1,9 @@
 ---
 title: "Fix VIGIL symmetric-emission pairs: deterministic direction precision in related_party_sync"
-status: proposed
+status: executed
 filed: "2026-09-29"
-executed: null
-completed_md: null
+executed: "2026-09-30"
+completed_md: "320"
 area: "helpers/maintenance/related_party_sync.py"
 ---
 
