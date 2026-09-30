@@ -101,7 +101,7 @@ def _rule_excluded(path: str, exclude_globs: list[str]) -> bool:
 
 def _ref_args(stack: int) -> list[str]:
     if stack <= 1:
-        head = subprocess.run(  # noqa: S603  # fixed argv, no shell
+        head = subprocess.run(  # fixed argv, no shell
             [  # noqa: S607  # git from PATH by design
                 "git",
                 "rev-parse",

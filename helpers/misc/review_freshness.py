@@ -63,7 +63,7 @@ def fingerprint(stack: int) -> tuple[str, str]:
             "the top patch under a lying scope label"
         )
     text = _diff_text(stack)
-    applied = subprocess.run(  # noqa: S603, S607  # fixed argv, no shell; stg from PATH by design
+    applied = subprocess.run(  # fixed argv, no shell; stg from PATH by design
         ["stg", "series", "--applied"],  # noqa: S607  # stg from PATH by design
         capture_output=True,
         text=True,

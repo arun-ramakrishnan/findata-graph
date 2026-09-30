@@ -166,7 +166,7 @@ class TestSharedCacheConnect:
     """The conftest worker wrapper: a default-path connect() becomes a
     shared-cache READ-ONLY open (an RW holder would exclude every other
     worker) with transient-lock retry; anything pointing at an explicit
-    tmp path passes through with untouched semantics."""
+    non-production path passes through with untouched semantics."""
 
     @staticmethod
     def _stub_gq():
@@ -207,7 +207,7 @@ class TestSharedCacheConnect:
         wrapped(gq.DB_PATH)
         assert recorded[0] == (((gq.DB_PATH),), {"read_only": True})
 
-    def test_tmp_db_passes_through_untouched(self):
+    def test_non_production_db_passes_through_untouched(self):
         _gq, recorded, wrapped = self._wrapped()
         wrapped("/somewhere/fixture.db")  # not the production DB_PATH
         assert recorded == [(("/somewhere/fixture.db",), {})]

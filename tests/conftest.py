@@ -723,7 +723,7 @@ def _make_shared_cache_connect(gq):
 
     Scope is deliberately narrow: only calls that resolve to the
     PRODUCTION db_path with NO explicit duckdb_path. Anything pointing
-    at a tmp fixture keeps full semantics — connect() already isolates
+    at an explicit non-production path keeps full semantics — connect() already isolates
     those to a sibling ``<db>.duckdb`` — and ``real_graph_cache``-marked
     tests get the pristine production path + real connect via the
     autouse opt-out fixture.
