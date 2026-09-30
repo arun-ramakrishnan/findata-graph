@@ -8306,3 +8306,143 @@ its revisit trigger — the rescan kept growing ~9.5 MB/day).
   collision explicitly (with NULL + empty rows mixed in, mirroring the
   live column); mutation-checked — reverting to the string compare
   fails exactly the discriminator test.
+
+## 317. xdist shared graph cache — one RO cache + orphan sweep + ladder-gated open
+
+Filed 2026-09-29 (executed S1–S3 same day; archived 2026-09-30 after the
+gate run).
+
+- S1: `sweep_stale_xdist_caches()` (tests/_tmp_hygiene.py, wired to
+  pytest_configure) reclaims orphaned per-worker `graph.xdist-*` caches —
+  PID-liveness from the filename (primary), 24 h mtime floor (recycled-PID
+  backstop), age-only rule for the owner-less shared family; 80 MB
+  stranded since 2026-09-27 reclaimed at build time.
+- S2/S3: ONE `graph.xdist-shared.duckdb` serves all workers — conftest
+  `_make_shared_cache_connect` forces READ_ONLY on default-path connects
+  (an RW holder would exclude every worker; sibling-resolution keeps
+  test fixtures isolated; `real_graph_cache` opt-out restores path AND
+  connect). Controller stamps mtime at session finish so the sweep's age
+  rule never deletes a cache a daily run just used. The open rides
+  `duckdb_lock.connect_with_lock_retry` (built to the transient-lock
+  proposal's S1 spec). Measured: live lane cold 241/241 in 165 s
+  (recent greens 187–308 s), ~40 MiB steady vs ~164 MB+ per-worker.
+- The serialization fear was measured away BEFORE landing: shared
+  3.2 s vs private 5.5 s cold (4 procs); disk tempdir beat tmpfs on
+  both paths (zswap contention root-caused with the operator).
+
+## 318. Production-DB copy audit — the keep_all amplifiers, the sanction gate, the census
+
+Filed and executed 2026-09-29 (archived 2026-09-30 after the gate run).
+Born from the §D2 re-examination: sanctions decay with data growth —
+copies sanctioned as small became 30 full-corpus 307 MiB backups per
+gate run, invisible because each was individually "sanctioned".
+
+- S2: `full_template()` (once-per-run flock+publish template,
+  journal_mode=DELETE so read-only opens mint no WAL sidecars) +
+  module-scoped `mode=ro` opens in test_query_plans — 10 × 307 MiB
+  backups → zero per-test copies.
+- S3: rebuild_schema clones the template per test (`reflink_or_copy` —
+  btrfs 307 MiB clone = 0.017 s, copyfile fallback) with a per-clone WAL
+  flip (rebuild 3.50 s WAL vs 4.15 s DELETE). Same 30 tests: 38.08 →
+  29.31 s, write volume ~14.3 → ~5.6 GiB (−61%). Provenance question
+  answered in writing: no assertion depends on fresh-backup provenance.
+- S1: note_writers content-prune proven safe by writer read-surface
+  analysis (bsh/ssw/dci read entities/graph_edges/kept-quotes only);
+  fixture 232.0 → 23.6 MiB. Verdict table in the proposal.
+- S4: production backup lane measured into scratch (1,506 MiB → 749 MiB
+  zst, 16.56 s; convo_search.duckdb 52% of lane time); options recorded,
+  no lane change. Census revisit trigger armed in pending.md (re-run
+  when any store ~doubles).
+- Operator addition: the chokepoint now DENIES BY DEFAULT —
+  `copy_production_db(requestor=...)` requires a key in the
+  operator-owned `SANCTIONED_REQUESTORS` registry (reason+date); a
+  static check holds call sites and registry in 1:1 lockstep.
+- Prune-without-VACUUM bug class fixed at the builder
+  (`vacuum=True` default for pruned copies) + class note in §D2.
+
+## 319. DuckDB transient-lock retry — classify, back off, coordinate
+
+S1 landed 2026-09-29 (in service of #317's shared-cache open); S2–S4
+executed 2026-09-30 (archived 2026-09-30 after the gate run).
+
+- `helpers/misc/duckdb_lock.py`: conjunctive
+  `is_transient_lock_error` (file-open phrase AND lock phrase — a
+  disjunction would retry missing-file/permission failures), pinned
+  50→800 ms ladder (1.55 s cap), `connect_with_lock_retry`, plus the S3
+  mechanism: `io_lock()` (`<db>.io.lock` flocks) and `open_read_only()`
+  (queue at open, ladder-retry, release — DuckDB's own lock protects the
+  opened reader).
+- S2: the ladder wired at all six listed openers + census additions
+  (query.py ×3 including `_is_warm` — a transient conflict there must
+  not fake a cold verdict; search_tui ×2; gc_embed_cache;
+  model_analytics ×3); context_pack/algorithms inherit for free.
+- S3: long writers hold LOCK_EX across the whole compute window with
+  DuckDB closed before flock release — convo rebuild (~2 min), harvest
+  Store lifetime, db_maint CHECKPOINT/VACUUM, agent_traces ETL; readers
+  queue or retry. Residual recorded: pre-flock readers holding a conn
+  across a writer's whole window still defeat it after 1.55 s (status
+  quo, strictly improved).
+- S4: two real-subprocess cross-process tests (RW-holder/RO-opener
+  retry; the blocking-reader case no ladder can satisfy). 11 tests.
+- Operator challenge captured ("a DB lock held that long looks
+  broken"): the flock holds nothing longer — embedded-mode connections
+  always held the file lock; the shrink follow-ups became #321.
+
+## 320. VIGIL symmetric-emission precision — same-ref mutual pairs cut deterministically
+
+Filed 2026-09-29, executed 2026-09-30 (archived 2026-09-30).
+
+- S1 audit: of 4,521 mutual same-type pairs — supplier_to same-ref
+  4,361 both-evidenced-in-a-shared-period (legit two-way) + 91
+  cross-period MAX-aggregate artifacts + 30 cross-ref; subsidiary_of 37
+  same-ref cycles, EVERY one exactly sub_fwd+sub_rev from one filer's
+  filing (15 pure rule-order artifacts: 'Subsidiary of Holding Company'
+  hits `%holding company%` before `%subsidiar%`); 2 cross-ref; zero
+  normalized-name dups.
+- S2: `classify_relationship` Python mirror of the SQL CASE (rule order
+  load-bearing, pinned vs SQL), mint-time drops in `apply_pairs`
+  (sub_rev side of a same-ref cycle never minted) and
+  `apply_supply_pairs` (per-direction periods via new `_SUPPLY_SQL`
+  columns; both edges only when sale_period == buy_period, else the
+  larger-amount survivor — tie: sale — carrying both amounts + both
+  period_ends + `two_way: cross-period`), plus
+  `prune_symmetric_artifacts()` — same-ref-scoped cleanup of the
+  existing graph, dups flagged never merged.
+- S3: 6 new tests (14/14 module; collapse/survive/untouched/flagged +
+  classify-mirror-vs-SQL); eval gate ACCEPT (164 questions, 0
+  regressions) between the candidate-copy dry-run (identical 37+91
+  counts) and the canonical apply. Post-apply: cycles 37 → 0, artifacts
+  0 (91 pruned + 729 mint-time collapses), 4,367 legit two-way intact,
+  cross-ref untouched, 57,515 edges, graph rebuilt. db_meta generation
+  bump drove the same-day snapshot re-capture.
+
+## 321. Contention-window minimization — open with intent, hold locks minimally
+
+Filed and executed 2026-09-30. Encodes the operator's rulings: writes
+open with specific intent and locks are held minimally (sqlite AND
+duckdb); never nest a second store's read-write work inside a primary
+hold window (a hold on store A is silently extended by contention on
+store B).
+
+- S1 census: exactly two long windows estate-wide —
+  `stamp_centrality_cache` (~27.5 s, 100% in-DB Onager SQL) and
+  `rebuild_convo_search` (~2 min, ~90% embedding compute whose cache
+  writes land on the SHARED embed_store.db). SQLite side scanned: WAL
+  persistent on the cross-referenced stores, no long-hold offenders;
+  the one live cross-store violation was the convo window nesting
+  embed_store + FTS writes (rare-but-real stretch: the search-fresh
+  lanes are 99% reads, APPLY is the rarer write subset).
+- S2: the stamp lane delegates to `_rebuild_via_swap(fresh=True,
+  stamp_centrality=True)` — the live graph.duckdb is never opened RW;
+  its only lock moment is the os.replace instant. Measured live: 71/71
+  reader connects served through a full 2m30s stamp, all 9 centrality
+  tables landed. Latent bug fixed on the way: swap temps were
+  pid-tagged only, so nested same-process swaps unlinked each other's
+  temp — temps now carry a per-call sequence tag.
+- S3: convo `rebuild()` runs read window → lockless embed → write
+  window (TOCTOU re-verify of stored hashes BEFORE any write, redo
+  on change) → FTS sync after the duckdb conn closes → tiny meta
+  window (meta only after FTS success — failure ordering preserved).
+  Measured live on a 61k-row full rebuild: duckdb windows ≈ 11 s of
+  29 s wall (hot embed cache); cold embed and the 15.5 s FTS sync are
+  structurally outside any window.

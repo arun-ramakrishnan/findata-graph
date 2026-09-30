@@ -15,6 +15,14 @@ commit, referenced by nothing). Entry numbers point at
 - [`security_route_skeleton.md`](security/security_route_skeleton.md) — Route skeleton — `ast`-derived inventory of `app.py`'s 38 routes published to `doc/security/routes.json` and checked by `static_checks.py`; the emitted advisory is shape agreement, explicitly not a security verdict — completed.md #311
 
 ## graph/ — Graph layer — algorithms, DuckPGQ retirement, Onager, knowledge-model design
+
+- [`vigil_symmetric_emission_precision.md`](graph/vigil_symmetric_emission_precision.md) —
+  VIGIL same-ref mutual pairs cut deterministically: 37 same-ref
+  subsidiary_of cycles (all one-filer sub_fwd+sub_rev, 15 rule-order
+  artifacts) and 91 cross-period supplier aggregates removed; 4,367 legit
+  same-period two-way pairs kept; classify-mirror pinned vs SQL; eval gate
+  ACCEPT (164 q) then canonical apply — cycles 37→0, cross-ref untouched —
+  completed.md #320
 - [`duckdb_concurrency_model_correction.md`](graph/duckdb_concurrency_model_correction.md) — DuckDB concurrency model correction — the `connect()` docstring's "readers never contend with a writer" clause measured false on duckdb 1.5.6 (an RW holder excludes EVERY opener); five-row matrix inline, both conflict directions pinned by cross-process negative tests with A/B controls, and the 37-coordinated / 24-uncoordinated read-only caller audit recorded — completed.md #314
 - [`graph_analytics_staleness_comparison.md`](graph/graph_analytics_staleness_comparison.md) — graph_analytics staleness as timestamps — the stats freshness banner's raw string compare across the utc_now/ISO-T shape split decided at index 10 on same-date ties (fresh reported STALE); now `MAX(julianday(col))` both sides in `_staleness_verdict()` with an INDETERMINATE guard; 129 legacy ISO rows left in place; same-day collision test mutation-checked — completed.md #316
 - [`hgx_first_scaling.md`](graph/hgx_first_scaling.md) — HGX-first scaling — h_edge/h_incidence cache (schema 15, TIER2 12), incidence-native stats section + co-membership suggestions + hyper API, S3 longest_chains cap 3000 (stride-sampled lower bounds) — D4 absorbed, igraph retired per D16 — completed.md #241
@@ -108,6 +116,19 @@ commit, referenced by nothing). Entry numbers point at
 
 ## testing/ — Testing & QA — integration, stateful/relational, lint, coverage
 
+- [`xdist_shared_graph_cache.md`](testing/xdist_shared_graph_cache.md) — one
+  shared read-only xdist graph cache (`graph.xdist-shared.duckdb`, force-RO
+  default-path connects, controller mtime stamping) + orphan sweep (PID
+  liveness + mtime floor) + ladder-gated open; live lane 165 s cold vs
+  187–308 s greens, ~40 MiB steady vs ~164 MB per-worker — completed.md #317
+- [`production_db_copy_audit.md`](testing/production_db_copy_audit.md) —
+  estate-wide production-DB copy census; the keep_all amplifiers (30 × 307 MiB
+  backups/run) replaced by a shared full_template + reflink clones (−61%
+  write volume, −23% wall); note_writers 232.0 → 23.6 MiB by read-surface
+  proof; `copy_production_db` deny-by-default behind the operator-owned
+  `SANCTIONED_REQUESTORS` registry; backup lane measured, options recorded;
+  census revisit trigger armed — completed.md #318
+
 - [`test_data_items.md`](testing/test_data_items.md) — Proposal: normalize test result data for historical debugging — immutable JUnit/manifest retention, 15-field test facts, xdist-safe worker metadata, and rebuildable artifact ingestion — completed.md #285
 - [`test_gap_closure.md`](testing/test_gap_closure.md) — Test-gap closure from a full-suite branch-coverage run — date rot (already fixed by operator), availability hot-route budgets, first perf legs to drive the Flask request path, worker + BrokenProcessPool fallback tests, fuzz guard for the last quadratic regex — completed.md #256
 - [`integration_plan.txt`](testing/integration_plan.txt) — INTEGRATION TEST PLAN — FinData Knowledge Graph
@@ -137,6 +158,20 @@ commit, referenced by nothing). Entry numbers point at
 - [`company_metrics_null_labels.md`](pipeline/company_metrics_null_labels.md) — Proposal (deferred): backfill `metric_label` on 3,119 guidance-style NULL rows (476 entities, desktop S3 finding); `guidance_*` vocabulary, NULL keeps meaning "unlabeled" — completed.md #308
 
 ## tooling/ — Tooling & performance — MCP eval, doc browser/search, perf review, tech survey
+
+- [`duckdb_transient_lock_retry.md`](tooling/duckdb_transient_lock_retry.md) —
+  conjunctive transient-lock classifier + pinned 50→800 ms ladder wired at
+  all production openers, and `io_lock`/`open_read_only` coordination: long
+  writers (convo rebuild ~2 min, graph stamp, bench ETL, db_maint
+  checkpoint) hold LOCK_EX across the compute window while readers queue;
+  two real-subprocess cross-process tests — completed.md #319
+- [`database_contention_window_minimization.md`](tooling/database_contention_window_minimization.md) —
+  "open with intent, hold locks minimally" made structural: estate census
+  (sqlite + duckdb + cross-store nesting map) → the stamp lane swaps (live
+  file never RW; 71/71 readers served through a live 2m30s stamp) and the
+  convo rebuild runs three intent-scoped windows with embed + FTS lockless
+  (~11 s of duckdb windows in a 29 s hot rebuild); reentrant swap-temp bug
+  fixed — completed.md #321
 - [`duckdb_pin_reconciliation.md`](tooling/duckdb_pin_reconciliation.md) — DuckDB pin reconciliation — uv.lock re-resolved 1.5.5→1.5.6 (gitignored per-machine state; venv/lock agree so `make install-dev` can't downgrade), the stale 1.5.4 doc pins annotated historical, and the duckdb-rs version/ICU coupling banked for any future Rust decision; the 2.0 gate dropped — single-writer / multiple-readers accepted — completed.md #315
 - [`agent_traces_store.md`](tooling/agent_traces_store.md) — Proposal: agent behavioral-trace DuckDB (`agent_traces.py`: zcode/opencode/prime loaders, ~127k rows, 10 report legs incl. tool economics, agentic depth, context lifecycle, delegation; provider-keyed oc dedupe; recovery feeds gone-from-disk recorded) — completed.md #297
 - [`convo_search.md`](tooling/convo_search.md) — Convo search — the harnesses' own deleted history made queryable: 141-file parquet corpus (96,907 rows) from three harnesses + seven snapshots, pointer/snippet/vector index (53,423 rows) with an FTS5 sidecar, hybrid RRF query + search_tui lane 4, `make convo-fresh`; three performance defects found by measurement (45-82 min insert → 2 min, 3m24s incremental → 8.6 s) and a compaction guard on the row_no pointers — completed.md #304
