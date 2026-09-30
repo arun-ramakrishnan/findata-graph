@@ -143,7 +143,9 @@ def _read_refs(refs) -> tuple[dict[str, set[str]], dict[str, int]]:
 
                 con = open_read_only(ref.path)
             else:
-                con = sqlite3.connect(f"file:{ref.path}?mode=ro", uri=True, timeout=10)
+                from helpers.core.db import connect
+
+                con = connect(ref.path, read_only=True)
             try:
                 rows = con.execute(ref.sql).fetchall()
                 counts[ref.label] = len(rows)
@@ -178,7 +180,9 @@ def _classify(refs) -> tuple[dict[str, set[str]], dict[str, int], dict[str, str]
     """Read refs, then mark any source whose coverage looks WRONG as
     'unverified' so its cache rows are never deleted."""
     live, counts = _read_refs(refs)
-    con = sqlite3.connect(f"file:{STORE}?mode=ro", uri=True, timeout=10)
+    from helpers.core.db import connect
+
+    con = connect(STORE, read_only=True)
     try:
         rows = con.execute(f"SELECT model, source, text_hash FROM {CACHE_TABLE}").fetchall()  # noqa: S608
     finally:
@@ -246,8 +250,10 @@ def gc(refs=DEFAULT_REFS, apply: bool = False) -> dict:
     if not apply:
         return out
     live, _counts, unverified, extra = _classify(refs)
+    from helpers.core.db import connect
+
     try:
-        con = sqlite3.connect(str(STORE), timeout=30)
+        con = connect(STORE)
     except sqlite3.Error as exc:
         raise RuntimeError(f"cache store not writable ({exc})") from exc
     try:

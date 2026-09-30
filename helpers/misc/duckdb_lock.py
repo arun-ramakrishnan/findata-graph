@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 """Transient DuckDB file-lock classification, a bounded retry ladder, and
 cross-process io-lock coordination.
 

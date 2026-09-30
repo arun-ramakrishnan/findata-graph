@@ -39,6 +39,8 @@ import hashlib
 import json
 import re
 import sqlite3
+
+from helpers.core.db import connect
 import sys
 import time
 from collections.abc import Iterator
@@ -292,7 +294,7 @@ def _oc_part_rows(cur_parts: Iterator[tuple], msgs: dict[str, tuple], src: str) 
 
 
 def _harvest_opencode_db(db_path: Path, src: str, hwm: int | None) -> tuple[list[dict], int]:
-    con = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)
+    con = connect(db_path, read_only=True)
     try:
         msgs = {
             r[0]: (
@@ -681,7 +683,7 @@ def _drift(store: Store) -> list[str]:
             if store.watermark(key) is None:
                 drift.append(f"new {src}")
             continue
-        con = sqlite3.connect(f"file:{path}?mode=ro", uri=True)
+        con = connect(path, read_only=True)
         try:
             row = con.execute("SELECT COALESCE(MAX(time_updated), 0) FROM part").fetchone()
             hwm = row[0] if row else 0
