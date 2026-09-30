@@ -1,9 +1,9 @@
 ---
 title: "Audit and de-amplify production-DB copies (keep_all + backup lanes)"
-status: proposed
+status: executed
 filed: "2026-09-29"
-executed: null
-completed_md: null
+executed: "2026-09-30"
+completed_md: "318"
 area: "tests/, helpers/maintenance/"
 ---
 
@@ -14,7 +14,7 @@ area: "tests/, helpers/maintenance/"
 # Audit and de-amplify production-DB copies
 
 **Date:** 2026-09-29 · **Status:** EXECUTED — S1–S4 DELIVERED SAME DAY ·
-AWAITING `make qa` (parked with the session's other gates) ·
+ARCHIVED 2026-09-30 ·
 **Area:** `tests/`, `helpers/maintenance/`
 
 > **Disposition: EXECUTED 2026-09-29.** All four slices delivered in one
@@ -29,8 +29,7 @@ AWAITING `make qa` (parked with the session's other gates) ·
 > the production lane is measured (1,506 MiB → 749 MiB zst, 16.56 s per
 > run) with options recorded for the operator, no action taken. The
 > census revisit trigger is armed in `doc/improvements/pending.md`.
-> Frontmatter stays `status: proposed` until archival per
-> `check_proposal_lifecycle` (archive = post-`make qa`).
+> Archived 2026-09-30 after the gate run (completed.md #318).
 
 ## Motivation
 
