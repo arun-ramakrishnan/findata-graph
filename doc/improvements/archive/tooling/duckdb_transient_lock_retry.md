@@ -1,9 +1,9 @@
 ---
 title: "DuckDB transient-lock retry — classify and back off instead of failing the leg"
-status: proposed
+status: executed
 filed: "2026-09-29"
-executed: null
-completed_md: null
+executed: "2026-09-30"
+completed_md: "319"
 area: "helpers/graph/query.py, helpers/misc/, tests"
 ---
 
@@ -14,7 +14,7 @@ area: "helpers/graph/query.py, helpers/misc/, tests"
 # DuckDB transient-lock retry — classify and back off instead of failing the leg
 
 **Date:** 2026-09-29 · **Status:** EXECUTED — S1–S4 DELIVERED 2026-09-30 ·
-AWAITING `make qa` (parked with the session's other gates) ·
+ARCHIVED 2026-09-30 ·
 **Area:** `helpers/graph/query.py`, `helpers/misc/`, `tests`
 
 > **Disposition: EXECUTED 2026-09-30** (S1 was delivered 2026-09-29 in
