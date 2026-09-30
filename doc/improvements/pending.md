@@ -10,7 +10,7 @@ Open items below keep their revisit triggers inline; executed work is compressed
   (12>10), `query.near_duplicate_notes` (12>10), `review_selection.main`
   (11>10; 12 in the working tree since the house checklist grew `main`).
   Each split lands → its `# noqa: C901` comes off. Disposition record:
-  `proposals/review_findings_collation.md` (class 8, S6).
+  `archive/tooling/review_findings_collation.md` (class 8, S6).
 
 - **production-store copy census — TRIGGER ARMED 2026-09-29**
   (`archive/testing/production_db_copy_audit.md`, executed same day): every

@@ -1,9 +1,9 @@
 ---
 title: "Review findings collation — one disposition sheet for the ten bake-off classes"
-status: proposed
+status: executed
 filed: "2026-09-30"
-executed: null
-completed_md: null
+executed: "2026-09-30"
+completed_md: "324"
 area: "helpers/misc (review tooling), tests, doc/improvements archive pointers"
 ---
 
@@ -13,7 +13,7 @@ area: "helpers/misc (review tooling), tests, doc/improvements archive pointers"
      archival, flip status/executed/completed_md in the same change. -->
 # Review findings collation — one disposition sheet for the ten bake-off classes
 
-**Date:** 2026-09-30 · **Status:** PROPOSED ·
+**Date:** 2026-09-30 · **Status:** EXECUTED 2026-09-30 — S1–S7 DELIVERED ·
 **Area:** findings from the 9-model delegation bake-off + 3 zcode re-review
 legs, over `8711c96d..a363d12a` (fingerprint `a51bb91a91fbe061`)
 

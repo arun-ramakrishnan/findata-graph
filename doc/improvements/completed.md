@@ -8446,3 +8446,73 @@ store B).
   Measured live on a 61k-row full rebuild: duckdb windows ≈ 11 s of
   29 s wall (hot embed cache); cold embed and the 15.5 s FTS sync are
   structurally outside any window.
+
+## 322. OCR selection drift — refresh the procedure for 1.12.11, admit doc Markdown, carry the house checklist
+
+Filed and executed 2026-09-30. The unpinned bun global moved OCR
+1.12.10 -> 1.12.11 and the revisit table fired for real: sandbox probes
+proved `include` flipped from restrictive allow-list to additive (the
+extension allow-list now selects every code file; `exclude` is the only
+pruner), a system `default` rule group resolves `.md`/`.mojo`, and the
+project-rules channel (`rules` key, `rules/` dir, `--rule` object) is
+inert. The nine-model delegation bake-off that surfaced the drift is
+recorded in `doc/local/notes/delegation_reviews.md`.
+
+- S1 procedure refresh (`doc/procedures/ocr_review.md`): stamp ->
+  2026-09-30 / 1.12.11; the include-is-additive caveat; the §6
+  review-cost capture requirement with the `session_id` telemetry rule
+  (a naive time-window query provably mixes parallel sessions).
+- S2 `rule.json` admits `doc/procedures/**` + `doc/improvements/**` —
+  mutation-verified 19/19 vs 10/19 on the lint-audit range.
+- S3 `review_selection.py`: HOUSE_CHECKLIST — 9 host-carried review
+  duties printed by `make review-patch` (noqa placement, test teeth,
+  fixture reality, /tmp ban, .venv interpreter, gate dedup, pointer
+  sweep, cross-file consistency, dedup arithmetic).
+- S4 evidence: glm-5.3 round triage in
+  `doc/local/engineering/code_review.md` Leg 4; freshness-ledger note
+  repointed. Upstream filings dropped (non-goal).
+
+## 323. OCR rule census — version-proof selection, a rule-source catalog, and a working pointer sweep
+
+Filed and executed 2026-09-30. Census via the four indexes + ripwire
+after the bake-off showed rules scattered across six carriers; live
+checks found the doc-hygiene pointer sweep false-MISSINGing real refs
+while relative-form refs escaped it, and 9 live stale archive pointers.
+
+- S1 `rule.json`: declarative `desktop/**/*.py` + `bench_data/**/*.py`
+  includes (version-proofing against a semantics flip);
+  `**/package-lock.json` + `**/*.lock` + `snapshots/**` +
+  `.opencodereview/**` excludes — selection stable at 19/19.
+- S2 ocr_review.md §1b: landed-range freshness-ledger gap (never
+  `--stack N` a landed range; `--from/--to` mode deferred).
+- S3 ocr_review.md §3: rule-source catalog — six carriers tabulated.
+- S4 ocr_review.md §4b steps 7-8: claim-audit (gate_query +
+  merge-base on claimed SHAs — bake-off class 7, caught by 2 of 9
+  rounds) and the diff-scoped pointer sweep.
+- S5 doc-hygiene.md: live-proposals sweep repaired (`rg -o` file:
+  prefix stripped, relative `proposals/` forms matched, completed.md
+  excluded by design) — converges to 2 documented known-exempt hits.
+- S6 nine live stale archive-pointer sites fixed across 5 archived
+  proposals + pending.md.
+
+## 324. Review findings collation — one disposition sheet for the ten bake-off classes
+
+Filed and executed 2026-09-30. Ten review legs (nine blind models +
+three zcode legs, $0.061 -> $0.021) produced findings scattered across
+ephemeral reports and gitignored evidence; one sheet carries the
+class x discoverer matrix with verification and disposition.
+
+- S4 the only Medium: `tests/test_review_tooling.py` — 12 hermetic
+  tests for the untested review CLIs; 3 guards mutation-checked
+  strip->RED->restore.
+- S1-S3, S7 executed: two dead noqa directives -> bare comments; test
+  renamed for its real fixture; the duckdb_pin archive record aligned
+  to the canonical 09-29 batch; 15 stale docstring refs repointed to
+  archive homes (4x the leg-10 sample).
+- S5 ruling: green gate run — qa 10/11 in-gate + pytest leg re-run
+  3670 passed (format-footprint caught the new test file's own nit;
+  snapshot drift recaptured per the gate's prescription).
+- S6 ruling: the four C901-masked functions scheduled as named D1
+  splits in `../pending.md`; each split landing removes its noqa.
+- §8 closure: workspace-mode re-review of the fix diff, 23/23, every
+  hunk matched its recorded intent.

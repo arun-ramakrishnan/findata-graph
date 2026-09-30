@@ -97,7 +97,7 @@ record rather than write a false row. Interim rule: **never `--stack N` a
 landed range** — hand-compute the fingerprint (sha256 of
 `git diff X..Y` text, first 16) and note the verdict pointer in the
 review report; a `--from/--to` mode is deferred
-(`proposals/ocr_rule_census.md` S7).
+(`../archive/tooling/ocr_rule_census.md` S7).
 
 **Workspace mode is empty on a refreshed stack:** bare `$OCR delegate preview` diffs the working tree, and a refreshed stack has a clean tree. Not a bug — pass a ref.
 
@@ -119,7 +119,7 @@ Three rules that decide whether the brief works:
 
 Rules come back grouped by content and annotated with the files each group applies to. Honour OCR's own guidance: favour precision over recall, treat security and correctness as blocking, stay silent when context is unclear — a false alarm costs more reviewer trust than a missed minor issue.
 
-**Where the house rules live** (census 2026-09-30, `proposals/ocr_rule_census.md` — OCR carries none of them; the host is the carrier):
+**Where the house rules live** (census 2026-09-30, `../archive/tooling/ocr_rule_census.md` — OCR carries none of them; the host is the carrier):
 
 | Carrier | What it owns |
 |---|---|

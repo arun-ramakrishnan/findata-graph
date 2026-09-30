@@ -1,9 +1,9 @@
 ---
 title: "OCR rule census — version-proof selection, a rule-source catalog, and a working pointer sweep"
-status: proposed
+status: executed
 filed: "2026-09-30"
-executed: null
-completed_md: null
+executed: "2026-09-30"
+completed_md: "323"
 area: ".opencodereview/rule.json, doc/procedures/ocr_review.md, doc/procedures/doc-hygiene.md"
 ---
 
@@ -13,7 +13,7 @@ area: ".opencodereview/rule.json, doc/procedures/ocr_review.md, doc/procedures/d
      archival, flip status/executed/completed_md in the same change. -->
 # OCR rule census — version-proof selection, a rule-source catalog, and a working pointer sweep
 
-**Date:** 2026-09-30 · **Status:** PROPOSED ·
+**Date:** 2026-09-30 · **Status:** EXECUTED 2026-09-30 — S1–S6 DELIVERED ·
 **Area:** `.opencodereview/rule.json` · `doc/procedures/ocr_review.md` ·
 `doc/procedures/doc-hygiene.md` · stale archive pointers
 

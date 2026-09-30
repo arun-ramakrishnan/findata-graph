@@ -1,16 +1,15 @@
 ---
 title: "OCR selection drift — refresh the procedure for 1.12.11, admit doc Markdown, carry the house checklist, price every review"
-status: proposed
+status: executed
 filed: "2026-09-30"
-executed: null
-completed_md: null
+executed: "2026-09-30"
+completed_md: "322"
 area: "doc/procedures/ocr_review.md, .opencodereview/rule.json, helpers/misc/review_selection.py"
 ---
 
 # OCR selection drift — refresh the procedure for 1.12.11, admit doc Markdown, carry the house checklist, price every review
 
-**Date:** 2026-09-30 · **Status:** PROPOSED (S1–S4 executed in the filing
-session; archival awaits the operator gate flow) ·
+**Date:** 2026-09-30 · **Status:** EXECUTED 2026-09-30 — S1–S4 DELIVERED ·
 **Area:** OCR review loop — procedure doc, selection rules, delegation spine
 
 ## 1. Motivation

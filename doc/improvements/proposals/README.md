@@ -34,40 +34,12 @@ entry number and stale DONE pointers):
 
 ## Current live proposals
 
-Three live, **OPEN** (the first two executed/landed in their filing
-sessions; archival awaits the operator gate flow). Frontmatter stays
-`status: proposed` until the
-archive branch mints a `../completed.md` number.
-
-- `review_findings_collation.md` — **EXECUTED 2026-09-30 — S1–S7
-  delivered in the filing session, both rulings taken (green gate,
-  D1 splits scheduled); archival awaits the gate flow.** One
-  disposition sheet for the ten finding classes from the 9-model
-  bake-off + 3 zcode re-review legs: two dead noqas (S1), test-naming
-  honesty (S2), one stale archive status line (S3), a small test file
-  for the untested review tooling — the bake-off's only Medium (S4),
-  and three operator decisions (gate-record claim, C901 policy, RUF100
-  adoption) + a pre-existing pointer/noqa sweep (S7). Class 6 (dangling
-  pointers) already executed via `ocr_rule_census.md` S6.
-- `ocr_rule_census.md` — **PROPOSED 2026-09-30 (S1–S6 in-tree).** Rule census via the
-  four indexes + ripwire: rule.json selection hardening (declarative
-  `desktop`/`bench_data` includes; lock/snapshot/config excludes),
-  ocr_review.md gains a rule-source catalog, the §1b landed-range ledger
-  gap, and the §4b claim-audit step; doc-hygiene's broken live-proposals
-  sweep repaired; nine live stale pointer sites fixed.
-- `ocr_selection_drift.md` — **EXECUTED 2026-09-30 — awaiting `make qa`.**
-  The unpinned bun global moved OCR 1.12.10 → 1.12.11 and the revisit
-  table fired for real: sandbox probes proved `include` flipped from
-  restrictive allow-list to additive (an extension allow-list now selects
-  every code file; `exclude` is the only pruner), a system `default` rule
-  group now resolves `.md`/`.mojo`, and the project-rules channel
-  (`rules` key, `rules/` dir, `--rule` object) is still inert. Delivered:
-  procedure stamp/claims refresh + the operator's new §6 review-cost
-  capture requirement; `rule.json` admits `doc/procedures/**` +
-  `doc/improvements/**`; `make review-patch` emits a host-carried house
-  checklist; the glm-5.3 round triage persisted to
-  `doc/local/engineering/code_review.md`. Upstream filings explicitly
-  dropped (non-goal).
+_(none)_ — the 2026-09-30 review-arc batch archived 2026-09-30 in one
+batch after the green gate (qa 10/11 in-gate + pytest leg re-run 3670
+passed; advisory 11/12 with the by-design drifting lane), records in
+`../completed.md` and `../archive/`: #322 `ocr_selection_drift`, #323
+`ocr_rule_census`, and #324 `review_findings_collation` (all
+`../archive/tooling/`).
 
 Archived 2026-09-29 in one batch (the three DONE proposals), records
 in `../completed.md` and `../archive/`: #314
