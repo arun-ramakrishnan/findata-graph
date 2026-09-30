@@ -16,6 +16,8 @@ commit, referenced by nothing). Entry numbers point at
 
 ## graph/ — Graph layer — algorithms, DuckPGQ retirement, Onager, knowledge-model design
 
+- [`graph_rebuild_scaling_probe.md`](graph/graph_rebuild_scaling_probe.md) — Graph rebuild scaling probe — **executed 2026-10-01** (filed, deferred, executed same day): `tests/bench_rebuild_scale.py` lands as a sibling to the existing `tests/bench_scale_bfs.py` and times the *shipping* `query.connect(rebuild=True)` path; measured T(R) ≈ 1.47 s + 2.52 µs·R with T1 = 3.99 s and T2 = 28.08 s, ~82% of the intercept fixed, 5 s crossed at R ≈ 1.40 M = 12.2× live = **T1, not T2**; corrects the record twice over (the ladder rewrite already existed since #204 Phase 0, and its `--degree` default 22 is ~8.4× the measured 2.61 directed rows/node); first-pass evidence under [`graph/evidence/p22/`](graph/evidence/p22/README.md) — completed.md #325
+
 - [`vigil_symmetric_emission_precision.md`](graph/vigil_symmetric_emission_precision.md) —
   VIGIL same-ref mutual pairs cut deterministically: 37 same-ref
   subsidiary_of cycles (all one-filer sub_fwd+sub_rev, 15 rule-order

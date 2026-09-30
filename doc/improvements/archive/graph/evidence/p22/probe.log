@@ -1,0 +1,16 @@
+   k  entities    edges  e_all_und rebuild_s  duck_MB
+   1     26153    57515     115030      2.38     39.5
+Traceback (most recent call last):
+  File "/mnt/data/tmp/p22/scale_probe.py", line 97, in <module>
+    db, n = clone(k)
+            ~~~~~^^^
+  File "/mnt/data/tmp/p22/scale_probe.py", line 56, in clone
+    con.execute(
+    ~~~~~~~~~~~^
+        f"INSERT INTO graph_edges ({','.join(c for c in gc if c != 'id')}) "
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        f"SELECT {gexpr} FROM graph_edges"
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+sqlite3.OperationalError: 13 values for 12 columns

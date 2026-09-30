@@ -24,7 +24,7 @@ QA_JOBS ?= 1
 # is just a no-op directory on PATH and lookup falls through to the system.
 export PATH := $(CURDIR)/.venv/bin:$(PATH)
 
-.PHONY: help qa test live-invariants perf cover fuzz integration snapshot snapshot-check snapshot-restore sync-tags sync-coverage-tags sync-sector-links static-checks license-check tmp-sweep install-dev triage-quotes graph-smoke graph-stats graph-algos graph-rebuild update-extensions recompute-graph recompute-hyper search-fresh convo-fresh embed-gc search-tui derive-relations derive-co-mentions derive-themes derive-events derive-insights derive-indices quote-coverage derive-themes-rebuild derive-cited-in derive-cited-in-rebuild derive-hyperedges derive-all refresh-indices refresh-vigil refresh-shp frontend frontend-check fold-identifiers format maint maint-full md-lint metrics-rebuild mojo-bench mojo-build mojo-test mojo-format relations-enrich lint types types-tests lint-audit deptry advisory secret-scan script-search-rebuild triage-relations live-invariants stamp-centrality parity review-patch
+.PHONY: help qa test live-invariants perf cover fuzz integration snapshot snapshot-check snapshot-restore sync-tags sync-coverage-tags sync-sector-links static-checks license-check tmp-sweep install-dev triage-quotes graph-smoke graph-stats graph-algos graph-rebuild graph-rebuild-bench update-extensions recompute-graph recompute-hyper search-fresh convo-fresh embed-gc search-tui derive-relations derive-co-mentions derive-themes derive-events derive-insights derive-indices quote-coverage derive-themes-rebuild derive-cited-in derive-cited-in-rebuild derive-hyperedges derive-all refresh-indices refresh-vigil refresh-shp frontend frontend-check fold-identifiers format maint maint-full md-lint metrics-rebuild mojo-bench mojo-build mojo-test mojo-format relations-enrich lint types types-tests lint-audit deptry advisory secret-scan script-search-rebuild triage-relations live-invariants stamp-centrality parity review-patch
 
 help:           ## Show available targets (alphabetical; entries generated from the ## annotations — keep both in sync)
 > @echo "FinData targets (alphabetical):"
@@ -279,6 +279,9 @@ triage-quotes: ## Triage the quote entity worklist: report + bucketed decisions 
 graph-algos:    ## Smoke test the Onager algorithm layer (all 14 metrics, no writes)
 > python3 helpers/graph/algorithms.py --all --no-apply
 > @echo "✓ Onager graph-algorithm layer smoke test passed (all metrics, nothing written)"
+
+graph-rebuild-bench:   ## Measure the production graph-rebuild cost ladder (tests/bench_rebuild_scale.py; opt-in, NOT a perf leg)
+> .venv/bin/python3 tests/bench_rebuild_scale.py $(if $(ROWS),--rows $(ROWS),) $(if $(REPS),--reps $(REPS),) $(if $(BREAKDOWN),--breakdown,) $(if $(DENSITY),--density-check,)
 
 graph-rebuild:  ## Rebuild the disk-based DuckDB cache from SQLite (run after parse_newsletter --apply / derive-relations)
 > python3 helpers/graph/query.py rebuild

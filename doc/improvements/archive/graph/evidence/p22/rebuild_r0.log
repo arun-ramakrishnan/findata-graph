@@ -1,0 +1,18 @@
+production rebuild cost — T(R) ~= a + b*R, R = e_all_und doubled rows
+degree 2.61 directed edges/node · notes 17237 · best of 3
+
+    R target     R actual   entities      edges   best_s  duck_MB
+           0            2          4          1     1.47     30.8
+   1,000,000    1,000,000    191,570    500,000     3.99     35.8
+
+fit: T(R) ~= 1.47 s + 2.52 us * R
+  5 s line crossed at R ~= 1,401,108 doubled rows (12.2x live)
+
+fixed-cost breakdown (R=0 intercept is the total; parts do not sum to it)
+  extension INSTALL+LOAD (sqlite, vss)      0.236 s
+  ATTACH the sqlite as fin                   0.003 s
+  56 x DROP TABLE IF EXISTS               0.021 s
+  -> residual = planning + executing the CTAS set over the attached sqlite
+  measured total at R=2: see the table above
+
+production memory/graph.duckdb + memory/research.db unchanged (size+mtime).

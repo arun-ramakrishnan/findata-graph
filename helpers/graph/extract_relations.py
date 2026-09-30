@@ -72,8 +72,15 @@ try:
 
     _HAS_CORPUS = True
 except ImportError:  # pragma: no cover
+    import sys
+
     Corpus = None  # type: ignore[assignment]
     _HAS_CORPUS = False
+    # A foreign package named `helpers` (the PyPI namesake of the repo
+    # package) can satisfy this import in script mode and cache a `helpers`
+    # lacking .core in sys.modules — evict it so the post-bootstrap imports
+    # re-resolve to the repo package.
+    sys.modules.pop("helpers", None)
 
 import argparse
 import json

@@ -34,12 +34,21 @@ entry number and stale DONE pointers):
 
 ## Current live proposals
 
-_(none)_ — the 2026-09-30 review-arc batch archived 2026-09-30 in one
+_(none)_
+
+`../archive/graph/graph_rebuild_scaling_probe.md` was filed, deferred and
+**executed** on 2026-10-01 (`../completed.md` #325): the production rebuild
+harness is now in-repo at `tests/bench_rebuild_scale.py`, T1 and T2 are
+measured rather than projected, and `../archive/graph/vault_scaling.md`
+§3.1's
+"cited-but-unreproducible" caveat is retired.
+
+_(previously: the 2026-09-30 review-arc batch archived 2026-09-30 in one
 batch after the green gate (qa 10/11 in-gate + pytest leg re-run 3670
 passed; advisory 11/12 with the by-design drifting lane), records in
 `../completed.md` and `../archive/`: #322 `ocr_selection_drift`, #323
 `ocr_rule_census`, and #324 `review_findings_collation` (all
-`../archive/tooling/`).
+`../archive/tooling/`)._
 
 Archived 2026-09-29 in one batch (the three DONE proposals), records
 in `../completed.md` and `../archive/`: #314

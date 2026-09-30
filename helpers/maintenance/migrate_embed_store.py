@@ -37,12 +37,12 @@ import sqlite3  # noqa: F401  # sqlite3.Error still caught on the mirror check
 import sys
 from pathlib import Path
 
-from helpers.core.db import connect
-
 # Repo root bootstrap: helpers/maintenance/migrate_embed_store.py -> parents[2].
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
+
+from helpers.core.db import connect  # noqa: E402  # after sys.path bootstrap
 
 # Legacy file -> pooled-cache cohort stamp.
 LEGACY_SOURCES = {

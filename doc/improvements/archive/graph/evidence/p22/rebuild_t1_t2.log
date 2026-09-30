@@ -1,0 +1,27 @@
+production rebuild cost — T(R) ~= a + b*R, R = e_all_und doubled rows
+degree 2.61 directed edges/node · notes 17237 · best of 3
+
+    R target     R actual   entities      edges   best_s  duck_MB
+   1,000,000    1,000,000    191,570    500,000     3.94     35.8
+  10,000,000   10,000,000  1,915,708  5,000,000    28.08    209.8
+
+fit: T(R) ~= 1.25 s + 2.68 us * R
+  5 s line crossed at R ~= 1,396,297 doubled rows (12.1x live)
+Traceback (most recent call last):
+  File "/home/arun/Research/findata-graph/tests/bench_rebuild_scale.py", line 438, in <module>
+    raise SystemExit(main())
+                     ~~~~^^
+  File "/home/arun/Research/findata-graph/tests/bench_rebuild_scale.py", line 424, in main
+    _generate(db, 0, degree=args.degree, notes=0, dims=LIVE["dims"])
+    ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/arun/Research/findata-graph/tests/bench_rebuild_scale.py", line 214, in _generate
+    con.executemany(
+    ~~~~~~~~~~~~~~~^
+        "INSERT INTO graph_edges (source, target, edge_type, weight, properties, source_ref,"
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<15 lines>...
+        ),
+        ^^
+    )
+    ^
+sqlite3.IntegrityError: CHECK constraint failed: source != target

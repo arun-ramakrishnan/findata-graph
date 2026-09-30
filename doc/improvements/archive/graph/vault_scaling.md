@@ -44,9 +44,9 @@ widen.
 
 | tier | rows (e_all_und doubled) | fires | serves queries |
 |---|---|---|---|
-| T0 now | 34K | — | DuckDB BFS (8–44 ms, green) |
+| T0 now | 115K (was 34K at filing) | — | DuckDB BFS (8–44 ms, green) |
 | T1 | ~1M (full BFS > 100 ms) | build CSR (Phase B-A) | DuckDB + ART-index bridge and/or tiered-budget waiver |
-| T2 | ~10M (rebuild > 5 s) | rebuild-at-scale + Mojo BFS promotion on measured >2× crossover | CSR + Mojo BFS (parity-gated) |
+| T2 | ~10M (re-anchor 2026-10-01: the "rebuild > 5 s" that used to label this row is reached at ~907K rows, i.e. T1; at T2's own ~10M the measured rebuild is ~32 s) | rebuild-at-scale + Mojo BFS promotion on measured >2× crossover | CSR + Mojo BFS (parity-gated) |
 | T3 | 100M | full validation legs mandatory pre-promotion | CSR + Mojo BFS, direction-optimized |
 
 Phase 0/1/2 split (operator decision 2026-09-04, build-early aim):
@@ -75,20 +75,67 @@ temp-write dominated. Sublinear to 10M, linear after. ART index at
 100M: 85 s build, 1750→955 ms (1.8×) — engine tweaks are <2× class.
 Rebuild breaks first (~10M vs 5 s budget).
 
-Statement timing (34K — driver innocent): 16 statements/query, none
-dominant (expand ~9 ms; reconstruct one SELECT/hop ~13 ms at depth 5;
-1–3 ms DDL churn/level). Round-trips are µs — fusing saves nothing.
+### 3.1 production rebuild, measured 2026-10-01 (supersedes the column above)
 
-Rejected (stay rejected): recursive-CTE rewrite (regresses B2 —
-enumerated all simple paths, multi-second at hops=5; no early exit, no
-clean visited state, same scans); bidirectional BFS as primary (<2×
-class — add-on only); Mojo-over-DuckDB bridge (parity lesson,
-mojo_pilot.md:467-480); liteparse promotion / PDF re-review (closed);
-Mojo-over-bridge for any DB-marshaling path.
+The `materialize` column above is **not a production rebuild measurement**, for
+two independent reasons, both verified 2026-10-01 (detail in
+`graph_rebuild_scaling_probe.md` §1a, `completed.md` #325):
 
-TaskGroup 2.7–3.0× planning band (2.89× fanout probe, 2.69–3.01×
-MAX-parallel; 4.00× seen once — not a planning number). Per-cpu merge
-pattern for frontier claims. 64B-aligned loads (vmovaps lesson).
+1. **Different function, different substrate.** It was measured by
+   `_materialise_walk_substrate` — the `e_dir` + `e_all_und` CTAS pair — on a
+   purpose-built synthetic **DuckDB**: no SQLite ATTACH, no `v_node` and its
+   per-row correlated `market_cap` subselect, no per-`edge_type` tables, no
+   hypergraph, no note embeddings, no DROP churn. The tier ladder is about
+   `query.connect(rebuild=True)` → `_build_graph` (schema 17: 56 DROPs +
+   ~50 CTAS).
+2. **Density.** `tests/bench_scale_bfs.py --degree` defaults to 22 with help
+   text "prod ~= 22.4", but the live corpus measures **2.61** directed
+   rows/node (5.22 doubled) — the reference harness builds graphs ~8.4x
+   denser than production.
+
+The rewrite provenance is also stale: `/tmp/scale_bfs.py` was replaced
+in-repo by `tests/bench_scale_bfs.py` at `completed.md` #204 Phase 0
+(2026-09-04). What was missing was a harness for the *production* path, and
+that is `tests/bench_rebuild_scale.py` (a sibling, not a replacement): it
+clones production's schema with no rows, bulk-generates a synthetic source at
+a requested R, and times the real rebuild. It asserts production
+`memory/graph.duckdb` and `memory/research.db` are byte-unchanged after every
+run.
+
+| R = `e_all_und` doubled rows | entities | directed edges | rebuild (s) | duckdb |
+|---|---|---|---|---|
+| 0 (schema only) | 4 | 1 | **1.47** | 30.8 MB |
+| 115,030 (live) | 22,036 | 57,515 | **2.01** | 30.8 MB |
+| 1,000,000 (T1) | 191,570 | 500,000 | **3.99** | 35.8 MB |
+| 10,000,000 (T2) | 1,915,708 | 5,000,000 | **28.08** | 209.8 MB |
+
+**T(R) ≈ 1.47 s + 2.52 µs·R** (best-of-3, this box, 2026-10-01). Fixed-cost
+decomposition at R=0: extension `INSTALL`+`LOAD` 0.236 s, `ATTACH` 0.003 s,
+56 x `DROP TABLE IF EXISTS` 0.021 s, residual CTAS planning+execution
+~1.21 s — **~82% of the intercept is fixed statement overhead**, which is why
+P2.2 incremental refresh is held in favour of statement-count reduction,
+table-level dirty tracking, and moving the rebuild off the query path
+(`archive/graph/graph_pending.md` P2.2).
+
+Consequences for this ladder:
+
+- The 5 s line is crossed at **R ~= 1.40 M** = **12.2x live volume** — at
+  **T1, not T2**, so the T2 row label above is a tier off on both counts.
+- At T1 the production rebuild measures **3.99 s** and at T2 **28.08 s**
+  (against the old column's 0.5 s / 5.0 s: **8.0x** and **5.6x**).
+- Because the cost is overhead-dominated, the ladder's own §2 remedy — a
+  recorded waiver plus the ART bridge — remains the correct response to
+  crossing 5 s. It is still untriggered at live scale.
+
+Provenance: reproducible with
+`.venv/bin/python3 tests/bench_rebuild_scale.py --rows 0 1000000 10000000 --reps 3 --breakdown`.
+The residual caveat is that this synthetic curve is ~23% below what
+production pays today: `make perf`'s `graph_rebuild` leg measures 2.57 s and
+a real-source clone probe 2.62 s at R=115,030, against this harness's 2.01 s,
+because the generated source is leaner than a 307 MB copy of
+`memory/research.db`. Use this table for ladder and budget decisions; use the
+clone figure for current production cost. The 1-expand and BFS columns above
+are **not** superseded — they measure query time, not materialisation.
 
 ## 4. Phase A — corpus layer (absorbs old S1b.4–6)
 

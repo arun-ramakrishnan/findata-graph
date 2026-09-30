@@ -39,8 +39,6 @@ import hashlib
 import json
 import re
 import sqlite3
-
-from helpers.core.db import connect
 import sys
 import time
 from collections.abc import Iterator
@@ -59,6 +57,8 @@ INDEX_DB = REPO / "memory/convo_search.duckdb"
 # module level — as a bare-script entry point this file must bootstrap
 # sys.path itself before that import (static check: entry-point sys.path).
 sys.path.insert(0, str(REPO))
+
+from helpers.core.db import connect  # noqa: E402  (bare-script entry point; bootstrap above)
 
 _SCHEMA = pa.schema(
     [

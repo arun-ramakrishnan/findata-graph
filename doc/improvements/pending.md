@@ -274,12 +274,40 @@ Open items below keep their revisit triggers inline; executed work is compressed
   with a one-model registry (swap needs `model_path` + explicit `dimension` +
   full rebuild — upstream issue #1523); `vlm` key is `api_base`.
 
-- **P2.2 incremental DuckDB materialization** (archive/graph/graph_pending.txt)
+- **P2.2 incremental DuckDB materialization — HELD 2026-10-01, trigger
+  criterion retired** (`archive/graph/graph_pending.md`; dead `.txt` path
+  fixed in this edit)
   — row trigger FIRED 2026-09-05 (17,323 graph_edges > 10k) but the deferred
   reason (rebuild cost) is not binding: full rebuild measures 3.0 s against
   vault_scaling's 5 s DuckDB budget. Scale strategy is owned by
   `archive/graph/vault_scaling.md` (#204); re-evaluate when its T1 fires
   (~1M doubled rows; currently 34K) or measured rebuild > 5 s.
+  **Re-decided 2026-10-01 on measurement, not on the 5 s line** (that line is
+  the T2 ladder LABEL, and the ladder's own §2 answers the over-budget band
+  with a recorded waiver + ART bridge, not with this item). Scratch-isolated
+  rebuild cost, R = `e_all_und` doubled rows: **T(R) ≈ 2.28 s + 3.0 µs·R**
+  (measured R=0 → 2.28 s, R=115,030 live → 2.62 s, R=460,120 → 3.72 s), so at
+  live scale the rebuild is **~87% fixed statement overhead** (0.29 s ext
+  INSTALL/LOAD, 0.21 s for 56 `DROP TABLE IF EXISTS`, ~1.70 s planning +
+  executing ~50 CTAS) and only ~13% per-row. P2.2's row-level diff therefore
+  targets the small term while adding partial-application risk against the
+  single file-level `_build_meta.generation` stamp read by 23 `connect()`
+  callers, `csr.py:298` and snapshot verification. **HOLD in favour of:**
+  (ii) fold the 12 `EDGE_REGISTRY` CTAS + `e_all_und`/`e_dir` into one
+  `edge_type`-discriminated scan of `fin.graph_edges` and drop the
+  duplicated `v_centrality_*` DROPs (aims at the 1.70 s);
+  (iii) table-level dirty tracking via per-input hashes in `_build_meta`,
+  rebuilding only dirty tables — scales with the *dominant* term and keeps
+  per-table drop-and-rebuild correctness; (C) call `rebuild()` from
+  `derive-relations --apply` / `parse_newsletter --apply` and make the
+  stale-cache path fail fast, because **no ingest lane calls `rebuild()`
+  today** so the cost is paid inline by the first graph query after any
+  generation bump (and `read_only=True` callers cannot take the RO fast path
+  when stale — they serialise on `<cache>.build.lock`). Also note the record
+  itself is stale: `PROPERTY GRAPH` was retired (#92) and the build is ~118
+  statements, not "34 tables". Re-anchor + in-repo probe filed as
+  `archive/graph/graph_rebuild_scaling_probe.md` (DEFERRED); the ladder's materialize
+  column is re-anchored in `archive/graph/vault_scaling.md`.
 
   - **graph_db optimization — ALL ISSUES EXECUTED 2026-09-10**
     (`archive/graph/graph_db_optimization.md`, completed.md #222):

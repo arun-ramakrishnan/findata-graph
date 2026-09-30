@@ -1,0 +1,13 @@
+   k  entities    edges  e_all_und rebuild_s  duck_MB
+Traceback (most recent call last):
+  File "/mnt/data/tmp/p22/scale_probe.py", line 94, in <module>
+    db, n = clone(k)
+            ~~~~~^^^
+  File "/mnt/data/tmp/p22/scale_probe.py", line 61, in clone
+    con.execute(
+    ~~~~~~~~~~~^
+        f"INSERT OR IGNORE INTO {t} ({','.join(tc)}) SELECT {texpr} FROM {t}"
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+sqlite3.IntegrityError: datatype mismatch

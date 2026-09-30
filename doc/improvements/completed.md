@@ -8516,3 +8516,57 @@ class x discoverer matrix with verification and disposition.
   splits in `../pending.md`; each split landing removes its noqa.
 - §8 closure: workspace-mode re-review of the fix diff, 23/23, every
   hunk matched its recorded intent.
+
+## 325. Graph rebuild scaling probe — in-repo harness, measured T1/T2, ladder re-anchored
+
+Filed, deferred and executed 2026-10-01. The P2.2 re-decision retired the
+"rebuild > 5 s" trigger; this entry lands the harness that makes the
+replacement numbers reproducible.
+
+- **Harness: `tests/bench_rebuild_scale.py`**, a sibling to the existing
+  `tests/bench_scale_bfs.py` (not a replacement). Clones production's schema
+  with no rows, bulk-generates a synthetic source at a requested R, and times
+  the **shipping** path `query.connect(rebuild=True)` → `_build_graph`
+  (schema 17: 56 DROPs + ~50 CTAS over attached SQLite). Reuses the sibling's
+  conventions — min-of-N, `tempfile.mkdtemp(prefix="scale_bfs_")` so
+  `tmp_sweep.py` reaps it, deterministic Knuth hashing, no RNG state, not a
+  `make perf` leg — and **asserts production `memory/graph.duckdb` /
+  `research.db` are byte-unchanged** (size + mtime) after every run.
+- **Measured (best-of-3, R = `e_all_und` doubled rows):** R=0 → **1.47 s**;
+  R=115,030 (live) → **2.01 s**; R=1M (T1) → **3.99 s**; R=10M (T2) →
+  **28.08 s**. **T(R) ≈ 1.47 s + 2.52 µs·R**; 5 s is crossed at
+  **R ≈ 1.40 M = 12.2× live**, i.e. at T1.
+- **Fixed cost is still the story:** at R=0 the intercept decomposes as
+  extension INSTALL+LOAD 0.236 s, ATTACH 0.003 s, 56 × DROP 0.021 s, residual
+  CTAS planning+execution ≈ 1.21 s — **~82% fixed**. That is what holds P2.2
+  (a row-level diff would target the 2.5 µs/row term while adding
+  partial-application risk to the shared `_build_meta.generation` stamp read
+  by 23 `connect()` callers, `csr.py:298` and snapshot verification).
+- **PREMISE CORRECTION.** This proposal was filed claiming the ladder's
+  in-repo rewrite "never happened". It had: `tests/bench_scale_bfs.py` has
+  been it since `completed.md` #204 Phase 0 (2026-09-04). The real gap was
+  that the ladder's `materialize` column is not a production measurement, for
+  **two** independent reasons — (1) it times
+  `_materialise_walk_substrate` (e_dir + e_all_und only) on a synthetic
+  DuckDB, missing `v_node`, the 17 `e_*`, hyper, notes and the DROP churn
+  (**8.0×** under at R=1M, **5.6×** at R=10M); (2) its `--degree` default of
+  22 ("prod ≈ 22.4") is **~8.4× the measured 2.61** directed rows/node.
+  `--density-check` separates the two.
+- **Ladder corrected:** T2's label "~10M (rebuild > 5 s)" was wrong twice —
+  a figure from a function the ladder never described, placed a tier late.
+  `vault_scaling.md` §2 and the new §3.1 carry the measured curve; §3.1's
+  *"cited-but-unreproducible"* caveat is **retired** because the harness is
+  in-repo.
+- **Three witnesses on current production cost:** `make perf`'s
+  `graph_rebuild` leg 2.57 s, the real-data clone probe 2.62 s, the synthetic
+  harness 2.01 s at the same scale. Synthetic is ~23% low (leaner source) and
+  is the right curve for ladder decisions; the clone is production's cost.
+- **Evidence preserved:** the first-pass probe's harness, its three failed
+  runs, and both harness logs are under
+  `../archive/graph/evidence/p22/`, with the three bugs it fixed (FTS5
+  shadow-table ordering in the schema clone, the `UNIQUE(source, target,
+  edge_type)` birthday collision solved by ordered-pair enumeration, and the
+  `company_n == 1` self-loop at R=0) recorded in that directory's README.
+- **Descoped:** the S5 anti-rot guard (superseded by an in-repo harness) and
+  the `--from-real` cross-check mode (superseded by the three-witness
+  agreement). Residual and re-open triggers in the archived file's §7.

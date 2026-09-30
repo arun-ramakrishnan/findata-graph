@@ -43,8 +43,6 @@ import sqlite3
 import sys
 from pathlib import Path
 
-from helpers.core.vec_codec import load_vec
-
 # Repo root: helpers/core/vec_search.py -> parents[2]. Must be on sys.path
 # BEFORE any `from helpers.core.db import ...` so the script works as a
 # subprocess (python3 helpers/core/vec_search.py) the same way it works
@@ -55,6 +53,8 @@ if str(_REPO_ROOT) not in sys.path:
 
 import struct  # noqa: E402  # after sys.path bootstrap
 from collections.abc import Iterable, Sequence  # noqa: E402
+
+from helpers.core.vec_codec import load_vec  # noqa: E402  # after sys.path bootstrap
 
 VEC_TABLE = "note_search_vec"
 # The vec0 virtual table must NOT live in research.db itself: DuckDB's
