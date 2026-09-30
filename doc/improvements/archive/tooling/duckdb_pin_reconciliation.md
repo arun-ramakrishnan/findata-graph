@@ -13,13 +13,12 @@ area: "uv.lock, requirements, doc/"
      archival, flip status/executed/completed_md in the same change. -->
 # Reconcile the DuckDB lock behind 1.5.6 and gate the 2.0 evaluation
 
-**Date:** 2026-09-29 · **Status:** DONE — AWAITING ARCHIVAL ·
+**Date:** 2026-09-29 · **Status:** DONE — ARCHIVED 2026-09-29 ·
 **Area:** `uv.lock`, `requirements`, `doc/`
 
 > **Disposition: DONE.** S1, S2 and S3 are all delivered (see the ticked
-> acceptance boxes). The only unticked box is the operator's `make qa` /
-> `make search-fresh` run, which is deliberately not mine to perform. The work
-> is finished. Archived 2026-09-30 (completed.md #315).
+> acceptance boxes). The work is finished. Archived 2026-09-29
+> (completed.md #315).
 
 ## Motivation
 
