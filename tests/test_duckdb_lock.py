@@ -1,6 +1,6 @@
 """helpers/misc/duckdb_lock.py — transient-lock classification + ladder.
 
-Spec: ``doc/improvements/proposals/duckdb_transient_lock_retry.md`` S1+S3 —
+Spec: ``doc/improvements/archive/tooling/duckdb_transient_lock_retry.md`` S1+S3 —
 the CONJUNCTION is load-bearing (a disjunction would retry missing-file
 and permission-denied failures). First call site: the xdist shared-cache
 open (xdist_shared_graph_cache S3). The classifier is validated against

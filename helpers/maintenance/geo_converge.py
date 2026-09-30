@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Converge company-note geography to the ticker-derived country vocabulary.
 
-Country layer C2 (doc/improvements/proposals/country_layer_institution_lanes.md).
+Country layer C2 (doc/improvements/archive/graph/country_layer_institution_lanes.md).
 Three geography carriers disagreed (measured 2026-09-09: 971 india tag rows
 vs 95 geography: keys vs 850 India-exchange tickers); C1 made
 entities.ticker the authority via listed_in edges, and this editor

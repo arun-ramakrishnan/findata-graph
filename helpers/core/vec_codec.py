@@ -15,7 +15,7 @@ DuckDB FLOAT[]) already quantizes to f32.
 Rejected riders, measured on this box (Skylake: AVX2+F16C, no
 AVX512-FP16): f16 — 3.6x CPU penalty in numpy compute for ~12 MB;
 int8 — 18/59 top-5 flips naive. Both parked behind revisit triggers in
-doc/improvements/proposals/embedding_blob_migration.md §6.
+doc/improvements/archive/database/embedding_blob_migration.md §6.
 """
 
 from __future__ import annotations

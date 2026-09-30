@@ -154,7 +154,7 @@ _graph_lock = threading.Lock()
 # immediately produces a fresh ETag.
 _graph_etag: str | None = None
 
-# AVAIL-1 fix (doc/improvements/proposals/near_duplicates_api_compute_cap.md):
+# AVAIL-1 fix (doc/improvements/archive/security/near_duplicates_api_compute_cap.md):
 # memo for the near-duplicates pairwise self-join — an unauthenticated O(n^2)
 # query measured at 52.8 s over 9,282 company docs (43 M pairs). Keyed on the
 # cache generation (the same built_at the ETag derives) + (doc_type, min_sim,

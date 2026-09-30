@@ -2,7 +2,7 @@
 """Review kit — the journaled sitting workflow shared by every triage queue.
 
 Extracted from ``seed_nic2008.review`` (proposal
-``doc/improvements/proposals/review_kit.md`` S1, follows completed.md #246).
+``doc/improvements/archive/tooling/review_kit.md`` S1, follows completed.md #246).
 The kit owns the WORKFLOW SPINE and never writes domain data:
 
   * session-bounded append-only JSONL journal (``sitting-start`` /

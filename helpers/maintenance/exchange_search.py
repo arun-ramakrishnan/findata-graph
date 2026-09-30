@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """BSE company-name search — tier 2 of the GF ticker-fallback proposal
-(doc/improvements/proposals/google_finance_ticker_fallback.md §4.1).
+(doc/improvements/archive/pipeline/google_finance_ticker_fallback.md §4.1).
 
 Resolves company NAME -> (scrip code, NSE symbol, listed name) via BSE's
 own PeerSmartSearch service (the autocomplete behind bseindia.com's search

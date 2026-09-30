@@ -10,7 +10,7 @@ resolves the moment the holder closes — but it surfaces as a hard
 backs off across a short ladder instead of failing the leg, and (S3)
 coordinates LONG holds that no ladder can cover.
 
-Specified in ``doc/improvements/proposals/duckdb_transient_lock_retry.md``
+Specified in ``doc/improvements/archive/tooling/duckdb_transient_lock_retry.md``
 S1+S3 (reimplemented from DBX t8y2/dbx master 497d7c9e, Apache-2.0, as a
 provenance citation only — the borrowed artefact is the idea, a
 conjunctive transient classifier plus a bounded ladder, rewritten in

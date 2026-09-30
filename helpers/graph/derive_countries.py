@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Derive ``listed_in`` edges (company -> country) from exchange tickers.
 
-Country layer C1 (doc/improvements/proposals/country_layer_institution_lanes.md).
+Country layer C1 (doc/improvements/archive/graph/country_layer_institution_lanes.md).
 Geography is derived from the one authoritative signal — the exchange
 ticker suffix on ``entities.ticker`` — never from chatter (country
 mentions are noise-classified by ``noise_target`` at write time) and

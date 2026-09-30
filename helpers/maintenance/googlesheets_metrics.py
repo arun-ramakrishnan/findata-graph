@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """GOOGLEFINANCE-via-Google-Sheets metrics batch — S3 of the combined
 market-data resolution proposal
-(doc/improvements/proposals/market_data_resolution.md).
+(doc/improvements/archive/pipeline/market_data_resolution.md).
 
 Mechanism proven live 2026-08-25 on the 'Search Test' scratch sheet:
 service account (gitignored memory/goog_svc_account.json) -> gspread ->

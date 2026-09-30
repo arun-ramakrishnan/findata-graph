@@ -2,7 +2,7 @@
 """Relations-enrichment driver — "Relations 2.0" (E2 slice).
 
 One driver per source (proposal
-doc/improvements/proposals/relation_enrichment_sources.md §6.1), each source
+doc/improvements/archive/pipeline/relation_enrichment_sources.md §6.1), each source
 independently runnable and independently idempotent:
 
     python3 helpers/maintenance/enrich_relations.py --source yfinance --dry-run
@@ -23,7 +23,7 @@ in later slices:
     embeddings -> E3     coinfer -> E4     holders -> E5     wikidata -> deferred
 
 Google-Finance fallback (F2/F3,
-doc/improvements/proposals/google_finance_ticker_fallback.md):
+doc/improvements/archive/pipeline/google_finance_ticker_fallback.md):
 ``--source googlefinance`` re-attacks exactly the yfinance failures
 (``## ticker_issues`` of the last report) plus an opt-in unlisted set:
 curated overrides first (entity_gf_map, read-only until F4), then tier-1

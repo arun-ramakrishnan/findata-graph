@@ -7,7 +7,7 @@ compresses the WAL-consistent plain staging copy into ``<name>.zst``.
 stdlib ``compression.zstd`` (PEP 784, Python 3.14) at the LIBRARY
 DEFAULT level — per the #174 level policy there is deliberately no
 explicit level switch (see
-doc/improvements/proposals/zstd_binary_backups.md §2).
+doc/improvements/archive/database/zstd_binary_backups.md §2).
 
 Manual recovery of a compressed backup:
   zstd -dc db-backup/research_backup.db.zst > memory/research.db

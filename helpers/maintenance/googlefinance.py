@@ -2,7 +2,7 @@
 """Google Finance thin client - quote-page fetcher and parser (F1).
 
 Part of the GF ticker-fallback proposal
-(doc/improvements/proposals/google_finance_ticker_fallback.md). Google
+(doc/improvements/archive/pipeline/google_finance_ticker_fallback.md). Google
 Finance has NO public API (shut down 2012) and no maintained python
 library; the beta quote pages embed their data in AF_initDataCallback
 payloads plus rendered label/value text. This module fetches a slug page

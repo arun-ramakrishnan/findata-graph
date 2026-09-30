@@ -866,7 +866,7 @@ SUB_SECTOR_ALIASES.update(
 
 # subsector_authoring_pass S1 (2026-09-19): 8 labels onto EXISTING nodes
 # — the operator-approved resolution of the 16 parked worklist buckets
-# (decision matrix in doc/improvements/proposals/subsector_authoring_pass.md).
+# (decision matrix in doc/improvements/archive/graph/subsector_authoring_pass.md).
 # The split buckets (Banks - Regional, Capital Markets, Utilities -
 # Renewable, Packaging & Containers, Metal Fabrication) and the
 # Semiconductors bucket (per-company onto the existing Design/Foundry/

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """FinnHub symbol search — discovery source #1 of the combined
 market-data resolution proposal
-(doc/improvements/proposals/market_data_resolution.md §3 stage 1).
+(doc/improvements/archive/pipeline/market_data_resolution.md §3 stage 1).
 
 Resolves company NAME -> Yahoo-format ticker (``544399.BO``,
 ``TMPV.NS``) via finnhub.io's documented /search endpoint, free tier.

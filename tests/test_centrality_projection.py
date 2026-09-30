@@ -5,7 +5,7 @@ The nine Onager-backed centralities exclude ``listed_on_index`` on the
 DB path (index hubs are membership lists, not mediators — with them in
 the projection NIFTY SME EMERGE ranked betweenness #2 on the live
 graph). Synthetic ``edges=`` lists and explicit ``edge_types`` bypass
-the exclusion. See doc/improvements/proposals/graph_centrality_index_noise.md.
+the exclusion. See doc/improvements/archive/graph/graph_centrality_index_noise.md.
 """
 
 from __future__ import annotations

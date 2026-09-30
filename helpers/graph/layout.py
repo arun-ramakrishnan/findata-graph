@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Server-side whole-graph layout — precomputed cloud positions (lane 3).
 
-Companions: ``doc/improvements/proposals/graph_rendering_overhaul.md`` (S0
+Companions: ``doc/improvements/archive/ui/graph_rendering_overhaul.md`` (S0
 measured fcose at 55 s client-side at the 1,649/19,261 scale; this module
 turns that into a snapshot-time job with an edge-set hash gate, the same
 pattern as ``helpers/core/embed_matrix.py``). The engine is a numpy

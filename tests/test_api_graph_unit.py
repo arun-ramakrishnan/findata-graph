@@ -1337,7 +1337,7 @@ class TestHyperAPI:
 
 
 # ----- AVAIL-1: near-duplicates memo + corpus ceiling --------------------- #
-# (doc/improvements/proposals/near_duplicates_api_compute_cap.md) The
+# (doc/improvements/archive/security/near_duplicates_api_compute_cap.md) The
 # unauthenticated O(n^2) self-join is memoized per cache generation and
 # refused over a corpus ceiling. Pure unit tests — _graph_build_etag, the
 # candidate count, and the join itself are all monkeypatched, so no live
@@ -1405,7 +1405,7 @@ class TestNearDuplicatesAVAIL1:
 
 
 # ----- CONC-1: per-request connections ------------------------------------- #
-# (doc/improvements/proposals/conc1_graph_connection_isolation.md) The old
+# (doc/improvements/archive/security/conc1_graph_connection_isolation.md) The old
 # process-wide singleton cross-returned rows between concurrent requests
 # (63 wrong + 126 errors / 3,000). Requests must now each get their own
 # connection; the direct-call (no request context) singleton path is
