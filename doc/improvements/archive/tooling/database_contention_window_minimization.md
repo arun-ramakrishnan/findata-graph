@@ -1,9 +1,9 @@
 ---
 title: "Contention-window minimization: open with intent, hold locks minimally (sqlite + duckdb)"
-status: proposed
+status: executed
 filed: "2026-09-30"
-executed: null
-completed_md: null
+executed: "2026-09-30"
+completed_md: "321"
 area: "helpers/graph/query.py, helpers/maintenance/rebuild_convo_search.py"
 ---
 
