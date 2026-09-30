@@ -31,7 +31,7 @@ import hashlib
 import json
 import subprocess
 import sys
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -44,7 +44,7 @@ LEDGER = REPO_ROOT / "memory" / "data" / "review-freshness.json"
 def _diff_text(stack: int) -> str:
     range_args = ["HEAD~1..HEAD"] if stack <= 1 else [f"HEAD~{stack}", "HEAD"]
     proc = subprocess.run(  # noqa: S603  # fixed argv, no shell
-        ["git", "diff", *range_args],
+        ["git", "diff", *range_args],  # noqa: S607  # git from PATH by design
         capture_output=True,
         text=True,
         cwd=REPO_ROOT,
@@ -63,8 +63,8 @@ def fingerprint(stack: int) -> tuple[str, str]:
             "the top patch under a lying scope label"
         )
     text = _diff_text(stack)
-    applied = subprocess.run(  # noqa: S603
-        ["stg", "series", "--applied"],
+    applied = subprocess.run(  # noqa: S603, S607  # fixed argv, no shell; stg from PATH by design
+        ["stg", "series", "--applied"],  # noqa: S607  # stg from PATH by design
         capture_output=True,
         text=True,
         cwd=REPO_ROOT,
@@ -149,7 +149,7 @@ def main(argv: list[str] | None = None) -> int:
         live = next((r for r in rows if r.get("fingerprint") == fp), None)
         if live is not None:
             live["legs"] = sorted(set(live.get("legs", [])) | set(legs))
-            live["reviewed_at"] = datetime.now(timezone.utc).isoformat(timespec="seconds")
+            live["reviewed_at"] = datetime.now(UTC).isoformat(timespec="seconds")
             if args.note:
                 live["note"] = args.note
             row = live
@@ -158,7 +158,7 @@ def main(argv: list[str] | None = None) -> int:
                 "scope": scope,
                 "stack": args.stack,
                 "fingerprint": fp,
-                "reviewed_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+                "reviewed_at": datetime.now(UTC).isoformat(timespec="seconds"),
                 "legs": legs,
                 "note": args.note,
             }

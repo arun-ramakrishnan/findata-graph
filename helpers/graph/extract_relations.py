@@ -2054,7 +2054,7 @@ def _dedup_edges(edges_by_type: dict[str, list[Edge]]) -> None:
         edges_by_type[et] = deduped
 
 
-def _process_pattern_matches(
+def _process_pattern_matches(  # noqa: C901  # pattern dispatch nested by design (pattern x match x direction)
     body: str,
     source_entity: str,
     resolver: EntityResolver,

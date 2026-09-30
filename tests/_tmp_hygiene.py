@@ -98,7 +98,9 @@ def build_trimmed_template(dst: Path) -> Path:
             ("company_metrics", "entity"),
             ("company_embeddings", "company_name"),
         ):
-            dstdb.execute(f"DELETE FROM {tbl} WHERE {col} NOT IN (SELECT name FROM keep)")
+            dstdb.execute(
+                f"DELETE FROM {tbl} WHERE {col} NOT IN (SELECT name FROM keep)"  # noqa: S608  # schema-constant identifiers
+            )
         dstdb.execute("DELETE FROM entities WHERE name NOT IN (SELECT name FROM keep)")
         # note_search feeds v_note_embeddings: keep the kept entities' docs
         # plus a small newsletter slice so the doc_type mix stays realistic.

@@ -47,9 +47,6 @@ import time
 from collections.abc import Callable, Iterator
 from contextlib import contextmanager
 from pathlib import Path
-from typing import TypeVar
-
-T = TypeVar("T")
 
 # file-open half: how DuckDB phrases the failed open itself
 _FILE_OPEN_PHRASES = (
@@ -87,7 +84,7 @@ def lock_retry_delay(attempt: int) -> float | None:
     return None
 
 
-def connect_with_lock_retry(
+def connect_with_lock_retry[T](
     open_fn: Callable[[], T],
     *,
     sleep: Callable[[float], None] = time.sleep,

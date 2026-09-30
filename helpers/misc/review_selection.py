@@ -75,13 +75,21 @@ def _rule_excluded(path: str, exclude_globs: list[str]) -> bool:
 def _ref_args(stack: int) -> list[str]:
     if stack <= 1:
         head = subprocess.run(  # noqa: S603  # fixed argv, no shell
-            ["git", "rev-parse", "HEAD"], capture_output=True, text=True, cwd=REPO_ROOT, check=True
+            [  # noqa: S607  # git from PATH by design
+                "git",
+                "rev-parse",
+                "HEAD",
+            ],
+            capture_output=True,
+            text=True,
+            cwd=REPO_ROOT,
+            check=True,
         ).stdout.strip()
         return ["--commit", head]
     return ["--from", f"HEAD~{stack}", "--to", "HEAD"]
 
 
-def main(argv: list[str] | None = None) -> int:
+def main(argv: list[str] | None = None) -> int:  # noqa: C901  # pass-per-flag CLI
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     ap.add_argument(
         "--stack",

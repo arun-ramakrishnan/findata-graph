@@ -19,11 +19,7 @@ area: "uv.lock, requirements, doc/"
 > **Disposition: DONE.** S1, S2 and S3 are all delivered (see the ticked
 > acceptance boxes). The only unticked box is the operator's `make qa` /
 > `make search-fresh` run, which is deliberately not mine to perform. The work
-> is finished; only the archival move (archive/ + a `completed.md` entry number)
-> is outstanding. Frontmatter stays `status: proposed` because
-> `check_proposal_lifecycle` (helpers/validators/static_checks.py:967-970)
-> requires live proposals to be `proposed`, and the archive branch requires a
-> real `completed_md` number we have not allocated yet.
+> is finished. Archived 2026-09-30 (completed.md #315).
 
 ## Motivation
 

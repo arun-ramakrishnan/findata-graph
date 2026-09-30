@@ -246,7 +246,7 @@ def bfs_path(
     return None
 
 
-def try_shortest_path(
+def try_shortest_path(  # noqa: C901  # one branch per shortest-path strategy; splitting scatters the ladder
     duckdb_con,
     src: str,
     dst: str,

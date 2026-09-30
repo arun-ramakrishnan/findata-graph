@@ -343,8 +343,8 @@ def _metric_values(
         rows.extend(
             {"entity": r[0], "value": r[1]}
             for r in conn.execute(
-                "SELECT entity_name, CAST(json_extract(value, '$.value') AS REAL) AS v "
-                "FROM graph_analytics WHERE metric = ? AND entity_name IN ({}) ".format(  # noqa: S608  # placeholder list only; values bound
+                "SELECT entity_name, CAST(json_extract(value, '$.value') AS REAL) AS v "  # noqa: S608  # placeholder list only; values bound
+                "FROM graph_analytics WHERE metric = ? AND entity_name IN ({}) ".format(
                     ",".join("?" for _ in missing)
                 )
                 + "AND json_extract(value, '$.value') IS NOT NULL",

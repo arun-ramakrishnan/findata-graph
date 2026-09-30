@@ -3647,7 +3647,7 @@ def edition_companies(
     return [(row[0], row[1], row[2]) for row in r]
 
 
-def near_duplicate_notes(
+def near_duplicate_notes(  # noqa: C901  # dup-note pipeline: fetch, renormalise, score, group in one pass
     con: duckdb.DuckDBPyConnection,
     min_sim: float = 0.9,
     doc_type: str = "company",

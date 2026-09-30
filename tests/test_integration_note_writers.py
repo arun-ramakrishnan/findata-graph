@@ -105,7 +105,9 @@ class _WritersProject:
             ("events", "entity"),
             ("quotes", "entity"),  # kept-entity rows stay: the n_quotes signal
         ):
-            dst.execute(f"DELETE FROM {tbl} WHERE {col} NOT IN (SELECT name FROM keep)")
+            dst.execute(
+                f"DELETE FROM {tbl} WHERE {col} NOT IN (SELECT name FROM keep)"  # noqa: S608  # schema-constant identifiers
+            )
         # hyper store: rows FK-bound to dropped entities; unread here.
         dst.execute("DELETE FROM hyper_incidences")
         dst.execute("DELETE FROM hyper_edges")

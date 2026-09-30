@@ -209,13 +209,13 @@ class TestSharedCacheConnect:
 
     def test_tmp_db_passes_through_untouched(self):
         _gq, recorded, wrapped = self._wrapped()
-        wrapped("/tmp/fixture.db")  # not the production DB_PATH
-        assert recorded == [(("/tmp/fixture.db",), {})]
+        wrapped("/somewhere/fixture.db")  # not the production DB_PATH
+        assert recorded == [(("/somewhere/fixture.db",), {})]
 
     def test_explicit_duckdb_path_passes_through_untouched(self):
         _gq, recorded, wrapped = self._wrapped()
-        wrapped(duckdb_path="/tmp/own.duckdb")
-        assert recorded == [((), {"duckdb_path": "/tmp/own.duckdb"})]
+        wrapped(duckdb_path="/somewhere/own.duckdb")
+        assert recorded == [((), {"duckdb_path": "/somewhere/own.duckdb"})]
 
     def test_transient_lock_conflict_is_retried(self):
         gq = self._stub_gq()[0]
