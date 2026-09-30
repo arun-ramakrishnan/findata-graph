@@ -3,6 +3,15 @@
 Full annotated triage map with live-verified trigger status.
 Open items below keep their revisit triggers inline; executed work is compressed to records.
 
+- **C901 D1 splits — four named functions scheduled (operator ruling
+  2026-09-30)** (`archive/graph/c901_complexity_debt.md` §4.1 "no new
+  suppression" vs the lint-audit arc's four new masks):
+  `csr.try_shortest_path` (11>10), `extract_relations._process_pattern_matches`
+  (12>10), `query.near_duplicate_notes` (12>10), `review_selection.main`
+  (11>10; 12 in the working tree since the house checklist grew `main`).
+  Each split lands → its `# noqa: C901` comes off. Disposition record:
+  `proposals/review_findings_collation.md` (class 8, S6).
+
 - **production-store copy census — TRIGGER ARMED 2026-09-29**
   (`archive/testing/production_db_copy_audit.md`, executed same day): every
   copy/backup site is verdict-tabled there, and the chokepoint is

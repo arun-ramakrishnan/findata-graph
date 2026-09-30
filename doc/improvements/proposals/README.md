@@ -39,7 +39,9 @@ sessions; archival awaits the operator gate flow). Frontmatter stays
 `status: proposed` until the
 archive branch mints a `../completed.md` number.
 
-- `review_findings_collation.md` — **PROPOSED 2026-09-30.** One
+- `review_findings_collation.md` — **EXECUTED 2026-09-30 — S1–S7
+  delivered in the filing session, both rulings taken (green gate,
+  D1 splits scheduled); archival awaits the gate flow.** One
   disposition sheet for the ten finding classes from the 9-model
   bake-off + 3 zcode re-review legs: two dead noqas (S1), test-naming
   honesty (S2), one stale archive status line (S3), a small test file
