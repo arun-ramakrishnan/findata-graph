@@ -1,9 +1,9 @@
 ---
 title: "Share one read-only graph cache across xdist workers and reclaim orphans"
-status: proposed
+status: executed
 filed: "2026-09-29"
-executed: null
-completed_md: null
+executed: "2026-09-30"
+completed_md: "317"
 area: "tests/conftest.py, helpers/graph/query.py, memory/"
 ---
 
@@ -13,7 +13,7 @@ area: "tests/conftest.py, helpers/graph/query.py, memory/"
      archival, flip status/executed/completed_md in the same change. -->
 # Share one read-only graph cache across xdist workers and reclaim orphans
 
-**Date:** 2026-09-29 · **Status:** DONE — AWAITING `make qa` ·
+**Date:** 2026-09-29 · **Status:** DONE — ARCHIVED 2026-09-30 ·
 **Area:** `tests/conftest.py`, `helpers/graph/query.py`, `memory/`
 
 > **Disposition: S1–S3 delivered 2026-09-29.** Only the operator's
@@ -48,9 +48,7 @@ area: "tests/conftest.py, helpers/graph/query.py, memory/"
 > checkpointed-away WAL) and a 40 MiB / 2-file steady state, vs
 > ~164 MB+ of per-worker copies; warm re-run 33 s vs 37 s cold. NB the
 > old entry-189 band (43.8-51.2 s) was stale — the box below is
-> re-baselined accordingly. Frontmatter stays `status: proposed` until
-> archival (`check_proposal_lifecycle` requires a live proposal to read
-> `proposed`).
+> re-baselined accordingly. Archived 2026-09-30 after the gate run (completed.md #317).
 
 ## Motivation
 
