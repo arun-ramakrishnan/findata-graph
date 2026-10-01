@@ -989,3 +989,31 @@ def test_cli_end_to_end(corpus, capsys, monkeypatch):
     assert "graph_l1_betweenness" in capsys.readouterr().out
     assert gq.main(["timing", "--leg", "graph_l1_betweenness"]) == 0
     capsys.readouterr()
+
+
+JUNIT_SLOWEST = """<testsuites><testsuite tests="3" failures="0">
+  <testcase classname="tests.test_order" name="test_fast" time="0.01"/>
+  <testcase classname="tests.test_order" name="test_mid" time="1.10"/>
+  <testcase classname="tests.test_order" name="test_heavy" time="3.25"/>
+</testsuite></testsuites>"""
+
+
+def test_tests_slowest_ranks_descending(corpus):
+    """`tests --run N --slowest` must rank seconds DESC (gate_wall_time_reclaim
+    S5). The legacy --run branch had no ORDER BY, so it returned pytest
+    execution order — the FASTEST tests first — and a timing analysis reading
+    the default sort reported the opposite of the truth (found 2026-10-01:
+    run 1155's 92.25s critical-path test was invisible under 0.01s rows)."""
+    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    _write(corpus / "qa_report.md", _gate_block(now, now))
+    _write(corpus / ".junit" / "qa.junit.xml", JUNIT_SLOWEST)
+    con = gq.connect()
+    gq.refresh(con)
+    run_id = con.execute("SELECT MAX(run_id) FROM tests").fetchone()[0]
+    out = gq.cmd_tests(
+        con,
+        SimpleNamespace(run=run_id, outcome="all", slowest=True, json=False),
+    )
+    secs = [float(line.split("(")[1].rstrip("s)")) for line in out.splitlines()]
+    assert secs == [3.25, 1.10, 0.01]
+    con.close()

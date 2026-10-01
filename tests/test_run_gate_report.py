@@ -334,3 +334,33 @@ def test_qa_gate_includes_markdown_lint():
     assert "md-lint" in step.args  # ("make", "md-lint"); make is which()-resolved
     assert not step.nonblocking  # a blocking lint, like ruff's "lint" row
     assert "md-lint" not in [s.label for s in rgr.GATES["advisory"].steps]  # qa owns it now
+
+
+def test_exclusive_step_runs_after_pool_drains(tmp_path):
+    """Exclusive steps (the suite-scale legs) run alone after every shared
+    step finishes — they own the cores instead of bidding for them
+    (gate_wall_time_reclaim S1 revised, 2026-10-01). The shared step writes
+    its done-marker at +0.5s; the exclusive step checks for it at +0.3s of
+    ITS OWN lifetime — if the two ever overlapped, the marker would not
+    exist yet and the exclusive step would exit 1."""
+    done = tmp_path / "shared_done"
+    shared = (
+        sys.executable,
+        "-c",
+        f"import time, pathlib; time.sleep(0.5); pathlib.Path({str(done)!r}).write_text('1')",
+    )
+    excl = (
+        sys.executable,
+        "-c",
+        f"import time, pathlib, sys; time.sleep(0.3); sys.exit(0 if pathlib.Path({str(done)!r}).exists() else 1)",
+    )
+    gate = rgr.Gate(
+        steps=(
+            rgr.Step("shared", shared),
+            rgr.Step("excl", excl, exclusive=True),
+        )
+    )
+    results = rgr.run_gate(gate, jobs=4)
+    by_label = {r.step.label: r for r in results}
+    assert by_label["shared"].rc == 0
+    assert by_label["excl"].rc == 0, "exclusive step overlapped the shared step"

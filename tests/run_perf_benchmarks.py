@@ -76,10 +76,13 @@ BENCHMARKS: list[tuple[str, list[str], float]] = [
     # 10.0s since 2026-09-14: static_checks gained the S19 data-format AST
     # guards (zstd + Arrow-in-flight scans over the helper corpus).
     ("static_checks", ["helpers/validators/static_checks.py"], 7.0),
-    # 6.0 since 2026-09-23 (S5): S4 made --check verify every parquet table
-    # with a zstd roundtrip (58 tables) — legitimate assurance growth; was
-    # 4.0s and measured 4.55-4.67 standalone.
-    ("snapshot_check", ["helpers/maintenance/snapshot_db.py", "--check"], 6.0),
+    # 9.0 since 2026-10-01 (gate_wall_time_reclaim S3): --check verifies
+    # every parquet table with a zstd roundtrip and the corpus has grown
+    # past the 58-table assumption the 6.0 budget was sized against
+    # (2026-09-23, S4/S5) — standalone breach measured 6.99s in the run-1155
+    # era perf reports (5.33-6.99s band). Re-baseline if the table count
+    # jumps again.
+    ("snapshot_check", ["helpers/maintenance/snapshot_db.py", "--check"], 9.0),
     ("graph_pagerank", ["helpers/graph/algorithms.py", "pagerank", "--top", "10"], 3.0),
     # --compute (graph_centrality_persistent_cache): the centrality legs
     # bypass the v_centrality_* disk cache so these budgets keep

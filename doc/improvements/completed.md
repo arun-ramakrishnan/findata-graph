@@ -8701,3 +8701,68 @@ corrected text moved into the entry docstring).
   P=1,186) and the LRU bounds cache size, not compute. Recorded as a
   fact for the operator, not remediated; any clamping or memo-key
   quantisation is a separate decision with its own security review.
+
+## 331. Gate wall time reclaim — measurement-first de-flake of the qa/advisory/perf surface
+
+Filed and executed 2026-10-01. The filed proposal's evidence layer survived
+full verification (every cited line, the critical-path table, the md-lint
+bimodality, the `--slowest` sort bug all reproduced), but the same-day
+measurement pass inverted its central remedy before it could ship — recorded
+as §8 corrections in the archived file, with the do-not-repeat invariants in
+§10.
+
+- **S1 (revised — the filed fix was inverted).** The filed remedy capped
+  xdist inside the gate pool (`cores // jobs` = 2 workers): measurement
+  showed the suite packs at **3.9x** on 4 workers (735s serial / 187s wall,
+  junit), so capping would roughly double the leg. The real cost was
+  sequencing — the ten cheap legs co-running inside pytest's window dragged
+  it ~28s (215.19s gate vs 187.05s standalone `make test`). Fix:
+  `Step.exclusive` in `tests/run_gate_report.py` — the pytest leg runs
+  after the pool drains, alone, at full `-n auto`; the stale "different
+  axes" comment corrected. Regression-pinned by
+  `test_exclusive_step_runs_after_pool_drains`.
+- **S6 (new — the pressure the proposal missed).** `TMPDIR` was set only
+  in the operator's interactive shells, so harness/non-interactive shells
+  put pytest basetemp on the 7.1G tmpfs — four xdist workers each holding
+  multi-hundred-MB temp projects in RAM (colliding with the operator's
+  zswap; `/tmp` has since moved off tmpfs system-wide by operator
+  decision). Makefile now defaults `TMPDIR` to `/mnt/data/tmp/findata`
+  (mkdir'd, `/tmp` fallback, explicit TMPDIR always wins).
+- **S2 (scoped).** §2.2's "maint-chain test grew +107% in 4 days" resolved
+  by measurement: the module runs 55.5s standalone; the 44-92s spread was
+  intra-suite co-run contention, not corpus growth. The filed aggressive
+  options were not built. Shipped: `test_unshimmed_step_fails_loudly`
+  prepends its fake step (abort contract proven at step 1; mid-chain
+  abort stays with `test_step_failure_aborts_chain`), saving the full
+  TIER1 run it used to pay. Module 55.5s → 49.9s standalone.
+- **S3.** `snapshot_check` 6.0 → 9.0 with dated cause (standalone breach
+  6.99s; 5.86-5.91s quiet-box re-verification). The filed `static_checks`
+  7.0 → 10.0 bump DROPPED — it runs 2.5-3.4s standalone against 7.0; the
+  filed §2.4 had conflated gate-leg times (contended) with the standalone
+  context the budgets actually bind on.
+- **S4 dropped.** The md-lint 86-143s cold regime is the cache's one-time
+  full-corpus bootstrap (all readings on 2026-09-28/29); post-churn runs
+  re-lint ~50 files in ~1s. Built on an artifact, not a recurring cost.
+- **S5.** `gate_query tests --run N --slowest` had no ORDER BY — it
+  returned pytest execution order (fastest first), silently inverting the
+  query (found on run 1155: 0.01s rows where the 92.25s critical-path
+  test was requested). Now orders `seconds DESC`; regression-pinned.
+- **S7 (found live, same evening).** `gate_query refresh` ingested each
+  new qa run's junit with ~7,400 single-row DuckDB INSERTs (per-run
+  DELETE + full re-insert is the correct contract — the junit is written
+  atomically, not byte-diffable — but row-at-a-time execution cost ~0.6ms
+  per row): **35.94s measured per new qa run**. Now Arrow-batched via a
+  registered temp view (pyarrow, already a repo dependency): **0.45s**
+  (~80x), identical row counts, all 33 gate_query round-trips green.
+  Anatomy + invariants recorded in the archived file §10 (any per-row
+  parameterised INSERT inside a DuckDB writer is a defect at this
+  corpus scale; batch through Arrow).
+- **Outcome (quiet box):** `make qa` 216.0s → 219.6s (11/11) — the ~28s
+  scheduling win traded against a ~24s disk-temp penalty for the old
+  tmpfs floor, taken deliberately for the memory-pressure/zswap relief;
+  `make advisory` 210.7s → 172.1s (11/12, the by-design convo self-drift
+  lane only); `make perf` 24/25 with the single red being load noise
+  (10.85s loaded vs 5.9s standalone against the 9.0 budget). The
+  non-negotiable win: the pytest leg runs uncontended, so its junit
+  timings are analysis-grade — the 32s-vs-92s measurement lottery that
+  started this arc is gone.

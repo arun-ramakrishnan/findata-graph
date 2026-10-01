@@ -130,6 +130,13 @@ class Step:
     label: str
     args: tuple[str, ...]
     nonblocking: bool = False  # recorded, never fails the gate (advisory's ty-tests)
+    # Exclusive steps own the cores: in a parallel gate they run AFTER the
+    # pool drains, one at a time (gate_wall_time_reclaim, 2026-10-01). The
+    # qa pytest leg co-running with the ten short legs measured a ~28s drag
+    # (215s gate vs 187s standalone) while the suite itself packs at 3.9x
+    # on 4 workers — so the legs that fit inside its shadow are cheap, but
+    # the drag is not. Only cheap steps should co-run.
+    exclusive: bool = False
     # Per-step report-tail override (None -> _TAIL_LINES). Steps whose
     # output is a diagnostic DIGEST (ty-tests concise: 1 line/diagnostic)
     # raise it so every diagnostic lands in the report, not just the last
@@ -181,11 +188,14 @@ GATES: dict[str, Gate] = {
             Step("types", (_TY, "check", "helpers", "app.py")),
             Step("deptry", (_DEPTRY, ".")),
             Step("static_checks", (_PY, "helpers/validators/static_checks.py")),
-            # -n auto (not the gate's -j): pytest workers scale with CORES,
-            # steps with the user's concurrency preference — different axes.
-            # The suite is the qa critical path (113s serial -> ~65s on 4
-            # workers, 2026-08-31 shakedown: 2423 passed, no shared-state
-            # breakage).
+            # -n auto, EXCLUSIVE (runs after the cheap legs drain): the suite
+            # packs at 3.9x on 4 workers (735s serial / 187s wall, junit
+            # 2026-10-01), so capping -n would trade the whole run's
+            # parallelism for a ~40s contention window — while co-running
+            # the ten short legs inside that window dragged this leg ~28s
+            # (215s gate vs 187s standalone). Different axes was the old
+            # framing (2026-08-31); the corrected one is sequencing, not
+            # worker counts (gate_wall_time_reclaim S1 revised).
             Step(
                 "pytest",
                 (
@@ -202,6 +212,7 @@ GATES: dict[str, Gate] = {
                     str(_JUNIT_DIR / "qa.metadata.json"),
                     "tests",
                 ),
+                exclusive=True,
             ),
             Step("verify_notes", (_PY, "helpers/validators/verify_notes.py")),
             Step("integrity_check", (_PY, "helpers/misc/database_integrity_check.py")),
@@ -354,18 +365,28 @@ def run_gate(gate: Gate, jobs: int = 1) -> list[Result]:
     parallel (user directive 2026-08-25: run everything, find the failures
     at the end in the summary table + report tails). Results are returned
     in gate step order regardless of completion order.
+
+    jobs>1 phases by ``Step.exclusive``: the shared pool drains every
+    non-exclusive step first, then exclusive steps (the suite-scale legs)
+    run alone — they own the cores instead of bidding for them
+    (gate_wall_time_reclaim, 2026-10-01).
     """
     if jobs <= 1:
         return [run_step(s) for s in gate.steps]
 
     lock = threading.Lock()
     by_step: dict[str, Result] = {}
+    front = [s for s in gate.steps if not s.exclusive]
+    tail = [s for s in gate.steps if s.exclusive]
     with ThreadPoolExecutor(max_workers=min(jobs, len(gate.steps))) as pool:
         futures: dict[Future, Step] = {
-            pool.submit(run_step, s, jobs=jobs, out_lock=lock): s for s in gate.steps
+            pool.submit(run_step, s, jobs=jobs, out_lock=lock): s for s in front
         }
         for fut in as_completed(futures):
             by_step[futures[fut].label] = fut.result()
+        # Pool drained: exclusive steps run alone, sequentially.
+        for s in tail:
+            by_step[s.label] = run_step(s, jobs=jobs, out_lock=lock)
     return [by_step[s.label] for s in gate.steps]
 
 

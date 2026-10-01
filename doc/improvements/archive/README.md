@@ -183,6 +183,19 @@ commit, referenced by nothing). Entry numbers point at
 
 ## tooling/ — Tooling & performance — MCP eval, doc browser/search, perf review, tech survey
 
+- [`gate_wall_time_reclaim.md`](tooling/gate_wall_time_reclaim.md) —
+  gate wall time reclaim — measurement-first de-flake of the qa/advisory/perf
+  surface: the filed xdist worker cap inverted by measurement (suite packs 3.9x
+  on 4 workers; the real cost was sequencing, fixed by `Step.exclusive` —
+  pytest runs after the cheap-leg pool drains), TMPDIR defaulted to disk
+  scratch (tmpfs memory pressure + zswap collision), the maint-chain
+  "creep" identified as co-run contention (unshimmed test fails at step 1),
+  `snapshot_check` re-budgeted 6.0 → 9.0 with standalone evidence,
+  `gate_query --slowest` rank fix, and the `refresh` per-run ingestion
+  batched (~7,400 single-row DuckDB INSERTs → Arrow; 35.94s → 0.45s per new
+  qa run, ~80x) — with the don't-repeat invariants in §10. Quiet box: qa
+  219.6s (11/11), advisory 172.1s (11/12), the pytest leg uncontended and
+  its junit timings analysis-grade — completed.md #331
 - [`c901_d1_split_batch1.md`](tooling/c901_d1_split_batch1.md) —
   C901 D1 splits batch 1 — the three P2.2-safe ruling masks split
   extraction-only (`csr.try_shortest_path` → _hit_fresh/_cache_lookup/_generation_ok;

@@ -36,6 +36,16 @@ entry number and stale DONE pointers):
 
 _(none)_
 
+Archived 2026-10-01: `gate_wall_time_reclaim`
+(`../archive/tooling/`, completed.md #331) — the gate wall-time reclaim
+arc executed same-day with the §8 measurement corrections: the pytest
+leg runs exclusively after the cheap-leg pool drains, TMPDIR defaults
+to disk scratch, the maint-chain unshimmed test fails at step 1,
+`snapshot_check` re-budgeted 6.0 → 9.0, `gate_query --slowest` ranks
+descending, and `refresh` per-run junit ingestion is Arrow-batched
+(35.94s → 0.45s per new qa run). Quiet box: qa 219.6s (11/11),
+advisory 172.1s (11/12).
+
 Archived 2026-10-01 in one batch (all five filed and executed the same
 day in the c901 D1 splits + near-duplicate series), records in
 `../completed.md` and `../archive/`, entries #326-#330:

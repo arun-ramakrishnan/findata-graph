@@ -24,6 +24,17 @@ QA_JOBS ?= 1
 # is just a no-op directory on PATH and lookup falls through to the system.
 export PATH := $(CURDIR)/.venv/bin:$(PATH)
 
+# Scratch on disk, not the 7.1G tmpfs (gate_wall_time_reclaim 2026-10-01):
+# pytest basetemp, bench scratch and db-backup staging follow TMPDIR, and an
+# unset TMPDIR puts them all in RAM-backed /tmp where four xdist workers each
+# holding multi-hundred-MB temp projects create memory pressure — the
+# maint-chain tests measured 3x their standalone wall under that regime.
+# Default to the operator's 2026-09-28 disk scratch mount when it exists;
+# an explicit TMPDIR always wins. tmp_sweep reaps via tempfile.gettempdir(),
+# which follows this variable.
+export TMPDIR ?= $(shell test -d /mnt/data/tmp && { mkdir -p /mnt/data/tmp/findata; echo /mnt/data/tmp/findata; } || echo /tmp)
+
+
 .PHONY: help qa test live-invariants perf cover fuzz integration snapshot snapshot-check snapshot-restore sync-tags sync-coverage-tags sync-sector-links static-checks license-check tmp-sweep install-dev triage-quotes graph-smoke graph-stats graph-algos graph-rebuild graph-rebuild-bench update-extensions recompute-graph recompute-hyper search-fresh convo-fresh embed-gc search-tui derive-relations derive-co-mentions derive-themes derive-events derive-insights derive-indices quote-coverage derive-themes-rebuild derive-cited-in derive-cited-in-rebuild derive-hyperedges derive-all refresh-indices refresh-vigil refresh-shp frontend frontend-check fold-identifiers format maint maint-full md-lint metrics-rebuild mojo-bench mojo-build mojo-test mojo-format relations-enrich lint types types-tests lint-audit deptry advisory secret-scan script-search-rebuild triage-relations live-invariants stamp-centrality parity review-patch
 
 help:           ## Show available targets (alphabetical; entries generated from the ## annotations — keep both in sync)

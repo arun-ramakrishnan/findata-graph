@@ -628,13 +628,23 @@ class TestMaintChain:
 
     def test_unshimmed_step_fails_loudly(self, project, monkeypatch):
         """A maint step whose script has no dispatcher shim aborts the
-        chain — new steps cannot run half-executed or silently skipped."""
+        chain — new steps cannot run half-executed or silently skipped.
+
+        The fake step is PREPENDED, not appended: the abort contract is
+        "the chain never executes past a shim miss", which a first-step
+        miss proves at zero chain cost (the mid-chain later-steps-never-run
+        half is test_step_failure_aborts_chain's job). Appended, this test
+        paid a full TIER1 run (~10s standalone, ~15s under xdist co-run)
+        before reaching the assertion — the third-most-expensive test in
+        the suite for a property the first step already demonstrates
+        (gate_wall_time_reclaim S2)."""
         fake = ("future step", [sys.executable, "helpers/maintenance/future.py"])
-        monkeypatch.setattr(maint, "TIER1_STEPS", [*maint.TIER1_STEPS, fake])
+        monkeypatch.setattr(maint, "TIER1_STEPS", [fake, *maint.TIER1_STEPS])
         record = _make_dispatcher(project, monkeypatch, [])
         assert maint.main([]) == 1
         assert record[-1][1] == "UNSHIMMED"
         assert record[-1][2] == 1
+        assert len(record) == 1  # nothing ran before or after the miss
 
     def test_step_failure_aborts_chain(self, project, monkeypatch):
         """A failing step stops the run: later steps never execute (the

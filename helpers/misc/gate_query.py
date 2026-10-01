@@ -1048,6 +1048,29 @@ def _store_report_run(con, rel, wt, gate, kind, lines, rb, boff, nbytes, complet
     return run_id
 
 
+def _insert_rows_batch(con, table: str, columns: str | None, rows: list[tuple]) -> None:
+    """Batch-insert via an Arrow-registered temp view. DuckDB single-row
+    INSERTs cost ~0.6 ms each (3,000 rows: 1.78s row-at-a-time vs 0.02s
+    batched, measured 2026-10-01), so every new qa run was paying ~7,400
+    of them — ~36s inside refresh — because the junit per-test ingestion
+    re-inserts a run's WHOLE testcase list whenever the run block lands
+    (the reports are byte-incremental; the junit is not: it is written
+    atomically at run end). pyarrow is already a repo dependency
+    (hyper_arrow, query)."""
+    import pyarrow as pa
+
+    if not rows:
+        return
+    tbl = pa.Table.from_pydict({f"c{i}": list(col) for i, col in enumerate(zip(*rows))})
+    con.register("_gq_batch", tbl)
+    try:
+        collist = f" ({columns})" if columns else ""
+        select = ", ".join(f"c{i}" for i in range(tbl.num_columns))
+        con.execute(f"INSERT INTO {table}{collist} SELECT {select} FROM _gq_batch")
+    finally:
+        con.unregister("_gq_batch")
+
+
 def _store_run(con, rel, wt, gate, kind, lines, rb, meta, boff, nbytes, complete) -> int:  # noqa: C901
     con.execute("DELETE FROM runs WHERE src_rel = ? AND header_offset = ?", [rel, boff])
     if kind in ("integrity", "verify"):
@@ -1186,37 +1209,39 @@ def _store_run(con, rel, wt, gate, kind, lines, rb, meta, boff, nbytes, complete
                 [run_id, s.label, s.seconds or 0.0, budgets.get(s.label), s.status],
             )
     con.execute("DELETE FROM tests WHERE run_id = ?", [run_id])
-    for node, outcome, secs, ehead, eblob in jrows:
-        con.execute(
-            "INSERT INTO tests VALUES (?, ?, ?, ?, ?, ?, ?)",
-            [run_id, "pytest", node, outcome, secs, ehead, eblob],
-        )
+    if jrows:
+        _insert_rows_batch(con, "tests", None, [(run_id, "pytest", *row) for row in jrows])
     con.execute("DELETE FROM test_facts WHERE run_id = ?", [run_id])
-    for fact in jfacts:
-        con.execute(
-            """INSERT INTO test_facts
-               (run_id, leg, node_id, file, outcome, seconds, phase, phase_seconds_json,
-                markers_json, file_line, err_head, err_blob, error_fingerprint, worker,
-                artifact_schema)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+    if jfacts:
+        _insert_rows_batch(
+            con,
+            "test_facts",
+            (
+                "run_id, leg, node_id, file, outcome, seconds, phase, phase_seconds_json, "
+                "markers_json, file_line, err_head, err_blob, error_fingerprint, worker, "
+                "artifact_schema"
+            ),
             [
-                run_id,
-                "pytest",
-                fact["node_id"],
-                fact["file"],
-                fact["outcome"],
-                fact["seconds"],
-                fact["phase"],
-                json.dumps(fact["phase_seconds"], separators=(",", ":"))
-                if fact["phase_seconds"]
-                else None,
-                json.dumps(fact["markers"], separators=(",", ":")) if fact["markers"] else None,
-                fact["file_line"],
-                fact["err_head"],
-                fact["err_blob"],
-                fact["error_fingerprint"],
-                fact["worker"],
-                fact["artifact_schema"],
+                (
+                    run_id,
+                    "pytest",
+                    fact["node_id"],
+                    fact["file"],
+                    fact["outcome"],
+                    fact["seconds"],
+                    fact["phase"],
+                    json.dumps(fact["phase_seconds"], separators=(",", ":"))
+                    if fact["phase_seconds"]
+                    else None,
+                    json.dumps(fact["markers"], separators=(",", ":")) if fact["markers"] else None,
+                    fact["file_line"],
+                    fact["err_head"],
+                    fact["err_blob"],
+                    fact["error_fingerprint"],
+                    fact["worker"],
+                    fact["artifact_schema"],
+                )
+                for fact in jfacts
             ],
         )
     if junit_path is not None:
@@ -1808,6 +1833,14 @@ def cmd_tests(con, args) -> str:
         if args.outcome != "all":
             q += " AND outcome = ?"
             args_list.append(args.outcome)
+        # --slowest must actually rank descending (gate_wall_time_reclaim
+        # S5): the legacy --run branch had no ORDER BY, so it returned
+        # pytest execution order — the FASTEST tests first — and a timing
+        # analysis reading the default sort would report the opposite of
+        # the truth (found 2026-10-01 on run 1155: 0.01s rows where the
+        # 92.25s maint-chain test was requested).
+        if getattr(args, "slowest", False):
+            q += " ORDER BY seconds DESC"
         rows = con.execute(q + " LIMIT 200", args_list).fetchall()
         if args.json:
             return json.dumps(
