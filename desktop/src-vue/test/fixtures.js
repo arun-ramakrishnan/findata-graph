@@ -1,7 +1,7 @@
 export const FIXTURES = {
   "stats": {
     "entities": 26153,
-    "edges": 57632,
+    "edges": 57515,
     "entity_types": [
       {
         "type": "company",
@@ -47,11 +47,11 @@ export const FIXTURES = {
     "edge_types": [
       {
         "type": "supplier_to",
-        "count": 16674
+        "count": 16594
       },
       {
         "type": "subsidiary_of",
-        "count": 11625
+        "count": 11588
       },
       {
         "type": "same_group",
@@ -2274,11 +2274,11 @@ export const FIXTURES = {
     "relationship_types": [
       {
         "edge_type": "supplier_to",
-        "count": 16674
+        "count": 16594
       },
       {
         "edge_type": "subsidiary_of",
-        "count": 11625
+        "count": 11588
       },
       {
         "edge_type": "same_group",
@@ -2491,6 +2491,10 @@ export const FIXTURES = {
       "title": "country layer institution lanes"
     },
     {
+      "path": "doc/improvements/archive/graph/csr_lane_remediation.md",
+      "title": "csr lane remediation"
+    },
+    {
       "path": "doc/improvements/archive/graph/csr_substrate.md",
       "title": "csr substrate"
     },
@@ -2507,6 +2511,10 @@ export const FIXTURES = {
       "title": "derive render shared note grouping"
     },
     {
+      "path": "doc/improvements/archive/graph/duckdb_concurrency_model_correction.md",
+      "title": "duckdb concurrency model correction"
+    },
+    {
       "path": "doc/improvements/archive/graph/duckpgq_retirement.md",
       "title": "duckpgq retirement"
     },
@@ -2515,12 +2523,24 @@ export const FIXTURES = {
       "title": "easygraph cpp readoption"
     },
     {
+      "path": "doc/improvements/archive/graph/evidence/p22/README.md",
+      "title": "Evidence \u2014 P2.2 rebuild-cost probe (2026-10-01)"
+    },
+    {
+      "path": "doc/improvements/archive/graph/evidence/p22/scale_probe.py.txt",
+      "title": "!/usr/bin/env python3"
+    },
+    {
       "path": "doc/improvements/archive/graph/get_ticker_fixes.md",
       "title": "get ticker fixes"
     },
     {
       "path": "doc/improvements/archive/graph/graph_algos.md",
       "title": "graph algos"
+    },
+    {
+      "path": "doc/improvements/archive/graph/graph_analytics_staleness_comparison.md",
+      "title": "graph analytics staleness comparison"
     },
     {
       "path": "doc/improvements/archive/graph/graph_centrality_index_noise.md",
@@ -2545,6 +2565,10 @@ export const FIXTURES = {
     {
       "path": "doc/improvements/archive/graph/graph_perf_l1_bfs_scale.md",
       "title": "graph perf l1 bfs scale"
+    },
+    {
+      "path": "doc/improvements/archive/graph/graph_rebuild_scaling_probe.md",
+      "title": "graph rebuild scaling probe"
     },
     {
       "path": "doc/improvements/archive/graph/hgx_first_scaling.md",
@@ -2585,6 +2609,10 @@ export const FIXTURES = {
     {
       "path": "doc/improvements/archive/graph/live_inv_longest_chains.md",
       "title": "live inv longest chains"
+    },
+    {
+      "path": "doc/improvements/archive/graph/near_duplicate_gemm_rework_record.md",
+      "title": "near duplicate gemm rework record"
     },
     {
       "path": "doc/improvements/archive/graph/networkx_duckpgq_gap_plan.md",
@@ -2683,6 +2711,10 @@ export const FIXTURES = {
       "title": "vault scaling"
     },
     {
+      "path": "doc/improvements/archive/graph/vigil_symmetric_emission_precision.md",
+      "title": "vigil symmetric emission precision"
+    },
+    {
       "path": "doc/improvements/archive/graph/word_overlap_alias_guard.md",
       "title": "word overlap alias guard"
     },
@@ -2713,6 +2745,10 @@ export const FIXTURES = {
     {
       "path": "doc/improvements/archive/pipeline/bse_shareholding_rss.md",
       "title": "bse shareholding rss"
+    },
+    {
+      "path": "doc/improvements/archive/pipeline/company_metrics_null_labels.md",
+      "title": "company metrics null labels"
     },
     {
       "path": "doc/improvements/archive/pipeline/concall_title_edition_normalisation.md",
@@ -2771,12 +2807,32 @@ export const FIXTURES = {
       "title": "conc1 graph connection isolation"
     },
     {
+      "path": "doc/improvements/archive/security/desktop_security_hardening.md",
+      "title": "desktop security hardening"
+    },
+    {
+      "path": "doc/improvements/archive/security/near_duplicate_guard_invariant.md",
+      "title": "near duplicate guard invariant"
+    },
+    {
       "path": "doc/improvements/archive/security/near_duplicates_api_compute_cap.md",
       "title": "near duplicates api compute cap"
     },
     {
       "path": "doc/improvements/archive/security/post_review_api_reaudit.md",
       "title": "post review api reaudit"
+    },
+    {
+      "path": "doc/improvements/archive/security/security_route_skeleton.md",
+      "title": "security route skeleton"
+    },
+    {
+      "path": "doc/improvements/archive/security/snapshot_restore_sql_injection.md",
+      "title": "snapshot restore sql injection"
+    },
+    {
+      "path": "doc/improvements/archive/testing/bold_line_ratio_floor.md",
+      "title": "bold line ratio floor"
     },
     {
       "path": "doc/improvements/archive/testing/consolidate_tests_fixtures.md",
@@ -2799,6 +2855,14 @@ export const FIXTURES = {
       "title": "LINT ANALYSIS \u2014 ruff replaces flake8 (FinData knowledge graph)"
     },
     {
+      "path": "doc/improvements/archive/testing/production_db_copy_audit.md",
+      "title": "production db copy audit"
+    },
+    {
+      "path": "doc/improvements/archive/testing/pytest_tmpfs_amplification.md",
+      "title": "pytest tmpfs amplification"
+    },
+    {
       "path": "doc/improvements/archive/testing/stateful_relational_test_plan.txt",
       "title": "STATEFUL / RELATIONAL TEST PLAN \u2014 FinData Knowledge Graph"
     },
@@ -2813,6 +2877,10 @@ export const FIXTURES = {
     {
       "path": "doc/improvements/archive/testing/tmpdir_sanitization.md",
       "title": "tmpdir sanitization"
+    },
+    {
+      "path": "doc/improvements/archive/testing/xdist_shared_graph_cache.md",
+      "title": "xdist shared graph cache"
     },
     {
       "path": "doc/improvements/archive/tooling/advisory_gate_perf_reports.md",
@@ -2841,6 +2909,14 @@ export const FIXTURES = {
     {
       "path": "doc/improvements/archive/tooling/argv_seam_tail.md",
       "title": "argv seam tail"
+    },
+    {
+      "path": "doc/improvements/archive/tooling/c901_d1_split_batch1.md",
+      "title": "c901 d1 split batch1"
+    },
+    {
+      "path": "doc/improvements/archive/tooling/c901_d1_split_near_duplicate_notes.md",
+      "title": "c901 d1 split near duplicate notes"
     },
     {
       "path": "doc/improvements/archive/tooling/chain_tally_determinism.md",
@@ -2875,6 +2951,10 @@ export const FIXTURES = {
       "title": "corpus uniformity"
     },
     {
+      "path": "doc/improvements/archive/tooling/database_contention_window_minimization.md",
+      "title": "database contention window minimization"
+    },
+    {
       "path": "doc/improvements/archive/tooling/dirty_gated_corpus_validation.md",
       "title": "dirty gated corpus validation"
     },
@@ -2893,6 +2973,14 @@ export const FIXTURES = {
     {
       "path": "doc/improvements/archive/tooling/docs_consistency_audit.md",
       "title": "docs consistency audit"
+    },
+    {
+      "path": "doc/improvements/archive/tooling/duckdb_pin_reconciliation.md",
+      "title": "duckdb pin reconciliation"
+    },
+    {
+      "path": "doc/improvements/archive/tooling/duckdb_transient_lock_retry.md",
+      "title": "duckdb transient lock retry"
     },
     {
       "path": "doc/improvements/archive/tooling/fastjsonschema_split_track.md",
@@ -2917,6 +3005,10 @@ export const FIXTURES = {
     {
       "path": "doc/improvements/archive/tooling/gate_run_search.md",
       "title": "gate run search"
+    },
+    {
+      "path": "doc/improvements/archive/tooling/gate_wall_time_reclaim.md",
+      "title": "gate wall time reclaim"
     },
     {
       "path": "doc/improvements/archive/tooling/gate_xdist_phase2.md",
@@ -2975,6 +3067,22 @@ export const FIXTURES = {
       "title": "note section search"
     },
     {
+      "path": "doc/improvements/archive/tooling/ocr_remediation.md",
+      "title": "ocr remediation"
+    },
+    {
+      "path": "doc/improvements/archive/tooling/ocr_review_pipeline.md",
+      "title": "ocr review pipeline"
+    },
+    {
+      "path": "doc/improvements/archive/tooling/ocr_rule_census.md",
+      "title": "ocr rule census"
+    },
+    {
+      "path": "doc/improvements/archive/tooling/ocr_selection_drift.md",
+      "title": "ocr selection drift"
+    },
+    {
       "path": "doc/improvements/archive/tooling/parallel_cold_embed.md",
       "title": "parallel cold embed"
     },
@@ -2989,6 +3097,10 @@ export const FIXTURES = {
     {
       "path": "doc/improvements/archive/tooling/perf_optimization.md",
       "title": "perf optimization"
+    },
+    {
+      "path": "doc/improvements/archive/tooling/review_findings_collation.md",
+      "title": "review findings collation"
     },
     {
       "path": "doc/improvements/archive/tooling/review_kit.md",
@@ -3059,6 +3171,10 @@ export const FIXTURES = {
       "title": "consolidate frontend reader"
     },
     {
+      "path": "doc/improvements/archive/ui/findata_graph_desktop.md",
+      "title": "findata graph desktop"
+    },
+    {
       "path": "doc/improvements/archive/ui/graph_docs_ui_redesign.md",
       "title": "graph docs ui redesign"
     },
@@ -3093,174 +3209,6 @@ export const FIXTURES = {
     {
       "path": "doc/improvements/proposals/README.md",
       "title": "Live proposals"
-    },
-    {
-      "path": "doc/improvements/proposals/csr_lane_remediation.md",
-      "title": "csr lane remediation"
-    },
-    {
-      "path": "doc/improvements/proposals/ocr_review_pipeline.md",
-      "title": "ocr review pipeline"
-    },
-    {
-      "path": "doc/local/README.md",
-      "title": "Local notes \u2014 research, eval, trials, engineering"
-    },
-    {
-      "path": "doc/local/engineering/capture_traces.md",
-      "title": "Coding-agent trace stores \u2014 inventory, findings, and capture plan"
-    },
-    {
-      "path": "doc/local/engineering/code_review.md",
-      "title": "Agentic code review \u2014 OpenCodeReview (alibaba/open-code-review)"
-    },
-    {
-      "path": "doc/local/engineering/consolidate_memory.md",
-      "title": "Consolidating the ZCode agent memory pool"
-    },
-    {
-      "path": "doc/local/engineering/git_identity_scrub.md",
-      "title": "Scrubbing `ramakrishnan@hpe.com` from git history \u2014 parked plan"
-    },
-    {
-      "path": "doc/local/engineering/split_patch.md",
-      "title": "SPLITTING AN STGIT PATCH BY FILE PATHS  (worked recipe, 2026-09-07)"
-    },
-    {
-      "path": "doc/local/engineering/stgit_workflow.md",
-      "title": "StGit on a shared stack \u2014 read-side doctrine and refresh hazards"
-    },
-    {
-      "path": "doc/local/eval.txt",
-      "title": "doc/local/engineering/ontology_assessment.md doc/local/evaluations/typedb_assessment.db doc/improvements/proposals/archi"
-    },
-    {
-      "path": "doc/local/evaluations/algorithms_assessment.md",
-      "title": "Algorithms assessment \u2014 by layer"
-    },
-    {
-      "path": "doc/local/evaluations/archify_eval.md",
-      "title": "archify eval"
-    },
-    {
-      "path": "doc/local/evaluations/chromadb_assessment.md",
-      "title": "Assessment: ChromaDB as a Context-Management Layer vs Our doc_search/note_search"
-    },
-    {
-      "path": "doc/local/evaluations/duckdb_consolidation_assessment.md",
-      "title": "DuckDB full consolidation assessment (sqlite/vec/FTS + graph \u2192 one engine)"
-    },
-    {
-      "path": "doc/local/evaluations/duckdb_vector_search_assessment.md",
-      "title": "Why not DuckDB for the search/doc/notes store? (MotherDuck series assessed)"
-    },
-    {
-      "path": "doc/local/evaluations/embed_model_eval.md",
-      "title": "Embedding-model alternates eval (bge-small \u2192 ?) \u2014 2026-09-05"
-    },
-    {
-      "path": "doc/local/evaluations/graph_layer.md",
-      "title": "Graph layer \u2014 NetworkX replacement eval (live notes)"
-    },
-    {
-      "path": "doc/local/evaluations/hyper_graph_assessment.md",
-      "title": "Assessment: Hypergraph support \u2014 HIF / HyperNetX / HypergraphX / HAT"
-    },
-    {
-      "path": "doc/local/evaluations/langgraph_assessment.md",
-      "title": "Assessment: Would LangGraph Benefit the Newsletter Pipeline?"
-    },
-    {
-      "path": "doc/local/evaluations/local_pdf_engine_trial.md",
-      "title": "Local PDF engine trial \u2014 content parity vs Paddle/GLM notes"
-    },
-    {
-      "path": "doc/local/evaluations/logica_assessment.md",
-      "title": "Assessment: Logica (incl. Logica-TGD) for the graph layer + ontological enforcement"
-    },
-    {
-      "path": "doc/local/evaluations/openui_assessment.md",
-      "title": "OpenUI Assessment"
-    },
-    {
-      "path": "doc/local/evaluations/semantica_evaluation.md",
-      "title": "Semantica (semantica-agi/semantica) \u2014 evaluation for this repo"
-    },
-    {
-      "path": "doc/local/evaluations/tauri_assessment.md",
-      "title": "tauri assessment"
-    },
-    {
-      "path": "doc/local/evaluations/terrain_c4_evaluation.md",
-      "title": "Assessment: sopaco/terrain \u2014 structured-markdown C4 docs (Litho engine) vs our archify diagram pipeline"
-    },
-    {
-      "path": "doc/local/evaluations/tui_db_assessment.md",
-      "title": "tui db assessment"
-    },
-    {
-      "path": "doc/local/evaluations/univer_assessment.md",
-      "title": "Univer Assessment"
-    },
-    {
-      "path": "doc/local/evaluations/web_components_assessment.md",
-      "title": "Web components assessment \u2014 sugar-high + web-llm"
-    },
-    {
-      "path": "doc/local/evaluations/xchange_filings.md",
-      "title": "Exchange & regulatory filings \u2014 US SEC vs Indian MCA/SEBI mapping"
-    },
-    {
-      "path": "doc/local/mojo/mojo_build_recipe.md",
-      "title": "Mojo build: current setup + the deferred rattler-build recipe plan"
-    },
-    {
-      "path": "doc/local/mojo/mojo_concurrency.md",
-      "title": "Mojo concurrency \u2014 the working model (2026-08-29)"
-    },
-    {
-      "path": "doc/local/mojo/mojo_pilot.md",
-      "title": "Mojo Pilot \u2014 findings log (2026-08-28)"
-    },
-    {
-      "path": "doc/local/notes/agent_skills.md",
-      "title": "Agent Skills \u2014 document run: google/skills + mattpocock/skills"
-    },
-    {
-      "path": "doc/local/notes/auto_ctx_loads.md",
-      "title": "auto ctx loads"
-    },
-    {
-      "path": "doc/local/notes/model_usage.md",
-      "title": "LLM usage analytics \u2014 unified telemetry map and local analytics store"
-    },
-    {
-      "path": "doc/local/notes/skills_symlink.md",
-      "title": "Skills Symlink \u2014 Common Store `~/.agents/skills` \u2192 Harness `skills/` dirs"
-    },
-    {
-      "path": "doc/local/notes/snapshot.md",
-      "title": "git skip-worktree on snapshots/ (scratch)"
-    },
-    {
-      "path": "doc/local/notes/threeui_notes.md",
-      "title": "ThreeUI \u2014 reference note for the frontend design work"
-    },
-    {
-      "path": "doc/local/perf/graph_scaling.md",
-      "title": "Graph scaling \u2014 consolidated perf record"
-    },
-    {
-      "path": "doc/local/perf/perf_skills.md",
-      "title": "Intel Performance Skills \u2014 Eval for Local Intel CPU (no discrete GPU)"
-    },
-    {
-      "path": "doc/local/perf/skylake_eval.md",
-      "title": "Skylake HD 530 \u2014 GPU Exploration Eval Runbook (2026-09-20)"
-    },
-    {
-      "path": "doc/local/security/security_evaluation.md",
-      "title": "Proposal: Security evaluation of the repository \u2014 web surface, ingestion"
     },
     {
       "path": "doc/okf/README.md",
@@ -3301,6 +3249,10 @@ export const FIXTURES = {
     {
       "path": "doc/procedures/nic-coding.md",
       "title": "NIC-2008 coding \u2014 promotion and vintage discipline"
+    },
+    {
+      "path": "doc/procedures/ocr_review.md",
+      "title": "Procedure: OCR delegation review (advisory, no LLM)"
     },
     {
       "path": "doc/procedures/ontology-gate.md",
@@ -3355,7 +3307,7 @@ export const FIXTURES = {
       },
       {
         "metric": "eigenvector_centrality",
-        "value": "{\"value\": 0.05400171387234328}"
+        "value": "{\"value\": 0.05400171387234329}"
       },
       {
         "metric": "harmonic_centrality",
@@ -3387,7 +3339,7 @@ export const FIXTURES = {
       },
       {
         "metric": "louvain_community",
-        "value": "{\"community\": 5, \"modularity\": 0.40720071983621325}"
+        "value": "{\"community\": 0, \"modularity\": 0.4150284724874982}"
       },
       {
         "metric": "pagerank",
@@ -3395,7 +3347,7 @@ export const FIXTURES = {
       },
       {
         "metric": "pagerank_weighted",
-        "value": "{\"value\": 0.0004738482316756672}"
+        "value": "{\"value\": 0.00047383211116927267}"
       },
       {
         "metric": "s_betweenness",

@@ -114,17 +114,17 @@ pass. Review by attack class, not by route:
 
 | Class | Status here | Notes |
 |---|---|---|
-| Injection (SQL/command/XSS/template) | covered, clean | 2026-08-17 + 13-route re-audit 2026-09-18 |
-| Web protocol / auth | covered | SEC-1..5; Phase 4 dormant, deploy-gated |
-| Client-side / DOM | covered | SEC-4 + full `innerHTML`/`escapeHtml` audit |
-| Supply chain / release | covered, beyond skill | `pip-audit`, extension pinning (D8), key hygiene (SEC-9, closed) |
-| Secrets / PII in vault | covered | vault + snapshots content scan |
+| Injection (SQL/command/XSS/template) | covered, clean | 2026-08-17 + 13-route re-audit 2026-09-18; desktop Rust IPC family-audited 2026-10-01 (Addendum 7 §A) |
+| Web protocol / auth | covered | SEC-1..5; dev bind landed 2026-10-01, platform auth deploy-gated |
+| Client-side / DOM | covered | SEC-4 + full `innerHTML`/`escapeHtml` audit; desktop `v-html` sinks verified 2026-10-01 (Addendum 7 §A) |
+| Supply chain / release | covered, beyond skill | `pip-audit`, extension pinning (D8), key hygiene (SEC-9, closed); + Rust `cargo-audit` leg and npm prod-deps audit (Addendum 7 §E) |
+| Secrets / PII in vault | covered | vault + snapshots content scan; machine-local stores are gitignored and out of scan scope by design — leak-surface review is operator-local (never named in tracked docs) |
 | Resource exhaustion / availability | covered 2026-09-18 | Addendum 3; **AVAIL-1 confirmed** |
-| AI / LLM | n/a | embeddings only, no chat completion, no tool-calling |
+| AI / LLM | local-only | embeddings via local GGUF (llama.cpp, SHA-256-pinned model); no chat completion, no tool-calling |
 | Protocols / RPC / messaging | n/a | no gRPC / GraphQL / protobuf |
-| Desktop / mobile / IPC | n/a | — |
-| Memory safety / binary | watch | parsers are vendored C++ (PyMuPDF, DuckDB, sqlite-vec) — Python surface reviewed, internals not |
-| Cloud / deployment | partial | nixpacks/Railway config; SEC-5 deploy-gated |
+| Desktop / mobile / IPC | covered 2026-10-01 | Tauri viewer: Rust IPC + `v-html` sinks + opener path (Addendum 7 §A-C; DESK-1/2 hardening notes) |
+| Memory safety / binary | watch | parsers are vendored C++ (PyMuPDF, DuckDB, sqlite-vec, llama.cpp, Mojo CSR lanes) — Python surface reviewed, internals not |
+| Cloud / deployment | partial | nixpacks/gunicorn config; SEC-5 platform-auth deploy-gated |
 
 When you run a class for the first time, expect the finding there: every
 confirmed finding in this repo's history came from a class that had never

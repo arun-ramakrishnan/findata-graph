@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 import logging
+import os
 import sqlite3
 import sys
 from pathlib import Path
@@ -10,6 +11,7 @@ import pytest
 
 
 from helpers.core.env import REPO_ROOT  # noqa: E402
+from helpers.maintenance import snapshot_db  # noqa: E402
 from helpers.maintenance.snapshot_db import (  # noqa: E402
     _list_sqlite_tables,
     _list_duckdb_tables,
@@ -534,3 +536,193 @@ def test_quick_fail_closed_on_missing_snapshot(tmp_path, caplog):
     with caplog.at_level(logging.INFO, logger="snapshot_db"):
         assert _cmd_quick(snap_base, live_db, live_dd, logging.getLogger("snapshot_db")) == 1
     assert "snapshot=None" in caplog.text
+
+
+# -- SNAP-1: restore interpolates snapshot filenames into SQL — the gate ---- //
+# (security_evaluation Addendum 7 §H; fix proposal
+# doc/improvements/archive/security/snapshot_restore_sql_injection.md)
+
+
+def _write_parquet(path: Path, rows: dict) -> None:
+    import pyarrow as pa
+    import pyarrow.parquet as pq
+
+    pq.write_table(pa.table(rows), path)
+
+
+def test_restore_duckdb_rejects_sql_in_parquet_stem(tmp_path):
+    """The Addendum 7 §H PoC: a stem carrying SQL must be refused, and no
+    side-effect artifact (ATTACHed DB) may materialize."""
+    pytest.importorskip("duckdb")
+
+    pq_dir = tmp_path / "parquet"
+    pq_dir.mkdir()
+    ext = tmp_path / "ext.duckdb"
+    # no "/" in the stem (it must be one filename); read_parquet/ATTACH
+    # resolve relative to CWD, so the restore below runs with cwd=tmp_path
+    malicious = (
+        "t1 SELECT * FROM read_parquet('x.parquet'); "
+        "ATTACH 'ext.duckdb' AS ext; "
+        "CREATE TABLE ext.pwned(a INTEGER); "
+        "INSERT INTO ext.pwned VALUES (42); --"
+    )
+    assert len(malicious) + len(".parquet") < 255  # filename length sanity
+    (pq_dir / f"{malicious}.parquet").write_bytes(b"")
+    (tmp_path / "_schema.duckdb.sql").write_text("CREATE TABLE t1(a INTEGER);\n")
+    cwd = Path.cwd()
+    try:
+        os.chdir(tmp_path)
+        _write_parquet(tmp_path / "x.parquet", {"a": [1]})
+        with pytest.raises(ValueError, match="UNEXPECTED SNAPSHOT FILE"):
+            restore_duckdb_from_parquet(pq_dir, tmp_path / "t.duckdb", _log)
+    finally:
+        os.chdir(cwd)
+
+    # pre-fix behaviour: attacker SQL ran and ext.duckdb materialized
+    assert not ext.exists()
+
+
+def test_restore_sqlite_rejects_unknown_stem_and_columns(tmp_path):
+    pq_dir = tmp_path / "parquet"
+    pq_dir.mkdir()
+    (tmp_path / "_schema.sqlite.sql").write_text("CREATE TABLE entities(name TEXT, note TEXT);\n")
+    # stem is not a schema table
+    _write_parquet(pq_dir / "entities_evil.parquet", {"name": ["x"]})
+    with pytest.raises(ValueError, match="UNEXPECTED SNAPSHOT FILE"):
+        restore_sqlite_from_parquet(pq_dir, tmp_path / "t.db", _log)
+
+    # stem is a table but a column is foreign (bracket-escape class)
+    _write_parquet(pq_dir / "entities.parquet", {"name": ["x"], "Evil": ["y"]})
+    with pytest.raises(ValueError, match="UNEXPECTED SNAPSHOT COLUMN"):
+        restore_sqlite_from_parquet(pq_dir, tmp_path / "t.db", _log)
+
+
+def test_restore_duckdb_benign_restore_still_passes_gate(tmp_path):
+    """Control: the gate must not refuse a legitimate snapshot (regression
+    guard for the allowlist itself)."""
+    duckdb = pytest.importorskip("duckdb")
+
+    pq_dir = tmp_path / "parquet"
+    pq_dir.mkdir()
+    (tmp_path / "_schema.duckdb.sql").write_text("CREATE TABLE v_node(id INTEGER, name VARCHAR);\n")
+    _write_parquet(pq_dir / "v_node.parquet", {"id": [1, 2], "name": ["A", None]})
+    info = restore_duckdb_from_parquet(pq_dir, tmp_path / "t.duckdb", _log)
+    assert info["tables"]["v_node"] == 2
+    con = duckdb.connect(str(tmp_path / "t.duckdb"), read_only=True)
+    assert con.execute("SELECT COUNT(*) FROM v_node").fetchone()[0] == 2
+    con.close()
+
+
+# -- verify-path gates (verify_injection_and_boundary_remediation S2): the
+# VERIFY half had the same filename->SQL class SNAP-1 fixed on restore, plus
+# a fail-open skip route. Both routes pinned here; both gates
+# mutation-verified (strip _verify_gate_stem -> RED).
+
+
+def _scratch_truth_db(path: Path, rows: int = 5) -> None:
+    con = sqlite3.connect(path)
+    con.execute("CREATE TABLE entities(name TEXT)")
+    con.executemany("INSERT INTO entities VALUES (?)", [(f"r{i}",) for i in range(rows)])
+    con.commit()
+    con.close()
+
+
+def test_verify_sqlite_injection_stem_raises(tmp_path):
+    """The ]-escape that executed SQL pre-fix must now raise (regex gate)."""
+    import pyarrow as pa
+    import pyarrow.parquet as pq
+
+    pq_dir = tmp_path / "pq" / "sqlite"
+    pq_dir.mkdir(parents=True)
+    sdb = tmp_path / "s.db"
+    _scratch_truth_db(sdb)
+    stem = "entities] UNION SELECT COUNT(*) FROM entities LIMIT 1 --"
+    pq.write_table(pa.table({"name": [f"x{i}" for i in range(5)]}), pq_dir / f"{stem}.parquet")
+    pq.write_table(pa.table({"name": [f"r{i}" for i in range(5)]}), pq_dir / "entities.parquet")
+    with pytest.raises(ValueError, match="UNEXPECTED SNAPSHOT FILE"):
+        snapshot_db._verify_parquet_sqlite_side(pq_dir.parent, sdb, _log)
+
+
+def test_verify_sqlite_missing_live_table_is_a_mismatch_not_a_skip(tmp_path):
+    """A regex-legal stem absent from the live schema must surface as a
+    mismatch (drift), never as a silent tables_checked shrink."""
+    import pyarrow as pa
+    import pyarrow.parquet as pq
+
+    pq_dir = tmp_path / "pq" / "sqlite"
+    pq_dir.mkdir(parents=True)
+    sdb = tmp_path / "s.db"
+    _scratch_truth_db(sdb)
+    pq.write_table(pa.table({"name": ["x"]}), pq_dir / "ghost_table.parquet")
+    res = snapshot_db._verify_parquet_sqlite_side(pq_dir.parent, sdb, _log)
+    assert res["tables_checked"] == 0
+    assert res["mismatches"] == ["sqlite/ghost_table: MISSING ON LIVE"]
+
+
+def test_verify_sqlite_erroring_stem_fails_closed(tmp_path, monkeypatch):
+    """Pre-fix, an erroring live query was swallowed -> verify passed. Now a
+    live-side error is a mismatch entry (gate fails loudly)."""
+    import pyarrow as pa
+    import pyarrow.parquet as pq
+
+    pq_dir = tmp_path / "pq" / "sqlite"
+    pq_dir.mkdir(parents=True)
+    sdb = tmp_path / "s.db"
+    _scratch_truth_db(sdb)
+    # deterministic live-side failure: wrap the connection so the COUNT
+    # errors while the gate's schema read passes (SQLite's 1/0 is NULL, not
+    # an error, so a view trick does not work here)
+    real = sqlite3.connect(sdb)
+
+    class _CountFails:
+        def execute(self, sql, *a):
+            if sql.strip().upper().startswith("SELECT COUNT(*)"):
+                raise sqlite3.OperationalError("mocked live failure")
+            return real.execute(sql, *a)
+
+        def close(self):
+            real.close()
+
+    monkeypatch.setattr(snapshot_db, "connect", lambda *a, **k: _CountFails())
+    pq.write_table(pa.table({"name": ["x"]}), pq_dir / "entities.parquet")
+    res = snapshot_db._verify_parquet_sqlite_side(pq_dir.parent, sdb, _log)
+    assert any("ERROR" in m for m in res["mismatches"]), res
+    assert res["tables_checked"] == 0
+
+
+def test_verify_duckdb_injection_stem_raises(tmp_path):
+    duckdb = pytest.importorskip("duckdb")
+    import pyarrow as pa
+    import pyarrow.parquet as pq
+
+    pq_dir = tmp_path / "pq" / "duckdb"
+    pq_dir.mkdir(parents=True)
+    gdb = tmp_path / "g.duckdb"
+    con = duckdb.connect(str(gdb))
+    con.execute("CREATE TABLE entities(name VARCHAR)")
+    con.close()
+    stem = "entities WHERE 1=0 UNION SELECT 999 --"
+    pq.write_table(pa.table({"name": [f"x{i}" for i in range(5)]}), pq_dir / f"{stem}.parquet")
+    with pytest.raises(ValueError, match="UNEXPECTED SNAPSHOT FILE"):
+        snapshot_db._verify_parquet_duckdb_side(pq_dir.parent, gdb, _log)
+
+
+def test_verify_ephemeral_absent_still_skips_quietly(tmp_path):
+    duckdb = pytest.importorskip("duckdb")
+    import pyarrow as pa
+    import pyarrow.parquet as pq
+    from helpers.graph.query import EPHEMERAL_TABLES
+
+    ephemeral = sorted(EPHEMERAL_TABLES)[0]
+    pq_dir = tmp_path / "pq" / "duckdb"
+    pq_dir.mkdir(parents=True)
+    gdb = tmp_path / "g.duckdb"
+    con = duckdb.connect(str(gdb))
+    con.execute("CREATE TABLE entities(name VARCHAR)")
+    con.execute("INSERT INTO entities VALUES ('r0')")
+    con.close()
+    pq.write_table(pa.table({"name": ["x"]}), pq_dir / "entities.parquet")
+    pq.write_table(pa.table({"a": [1]}), pq_dir / f"{ephemeral}.parquet")
+    res = snapshot_db._verify_parquet_duckdb_side(pq_dir.parent, gdb, _log)
+    assert res["mismatches"] == [], res
+    assert res["tables_checked"] == 1  # ephemeral skipped, entities checked

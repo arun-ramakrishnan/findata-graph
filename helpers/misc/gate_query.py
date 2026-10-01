@@ -1066,7 +1066,7 @@ def _insert_rows_batch(con, table: str, columns: str | None, rows: list[tuple]) 
     try:
         collist = f" ({columns})" if columns else ""
         select = ", ".join(f"c{i}" for i in range(tbl.num_columns))
-        con.execute(f"INSERT INTO {table}{collist} SELECT {select} FROM _gq_batch")
+        con.execute(f"INSERT INTO {table}{collist} SELECT {select} FROM _gq_batch")  # noqa: S608  # identifiers are schema constants at every call site ("tests"/"test_facts" + literal column list); row data rides the registered Arrow view as bound data
     finally:
         con.unregister("_gq_batch")
 

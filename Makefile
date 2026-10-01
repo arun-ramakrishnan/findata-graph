@@ -35,12 +35,13 @@ export PATH := $(CURDIR)/.venv/bin:$(PATH)
 export TMPDIR ?= $(shell test -d /mnt/data/tmp && { mkdir -p /mnt/data/tmp/findata; echo /mnt/data/tmp/findata; } || echo /tmp)
 
 
-.PHONY: help qa test live-invariants perf cover fuzz integration snapshot snapshot-check snapshot-restore sync-tags sync-coverage-tags sync-sector-links static-checks license-check tmp-sweep install-dev triage-quotes graph-smoke graph-stats graph-algos graph-rebuild graph-rebuild-bench update-extensions recompute-graph recompute-hyper search-fresh convo-fresh embed-gc search-tui derive-relations derive-co-mentions derive-themes derive-events derive-insights derive-indices quote-coverage derive-themes-rebuild derive-cited-in derive-cited-in-rebuild derive-hyperedges derive-all refresh-indices refresh-vigil refresh-shp frontend frontend-check fold-identifiers format maint maint-full md-lint metrics-rebuild mojo-bench mojo-build mojo-test mojo-format relations-enrich lint types types-tests lint-audit deptry advisory secret-scan script-search-rebuild triage-relations live-invariants stamp-centrality parity review-patch
+.PHONY: help qa test live-invariants perf cover fuzz integration snapshot snapshot-check snapshot-restore sync-tags sync-coverage-tags sync-sector-links static-checks license-check tmp-sweep install-dev triage-quotes graph-smoke graph-stats graph-algos graph-rebuild graph-rebuild-bench update-extensions recompute-graph recompute-hyper search-fresh convo-fresh embed-gc search-tui derive-relations derive-co-mentions derive-themes derive-events derive-insights derive-indices quote-coverage derive-themes-rebuild derive-cited-in derive-cited-in-rebuild derive-hyperedges derive-all refresh-indices refresh-vigil refresh-shp frontend frontend-check fold-identifiers format maint maint-full md-lint metrics-rebuild mojo-bench mojo-build mojo-test mojo-format relations-enrich lint types types-tests lint-audit deptry advisory secret-scan cargo-audit script-search-rebuild triage-relations live-invariants stamp-centrality parity review-patch
 
 help:           ## Show available targets (alphabetical; entries generated from the ## annotations — keep both in sync)
 > @echo "FinData targets (alphabetical):"
 > @echo "  advisory                 Run advisory (non-gating) checks in PARALLEL (default 4 jobs; override: make advisory -j N): ty on tests, live invariants, frontend, graph algos, analytics, suggestions, doc/script/note-search freshness checks, lint-audit (appends outputs/advisory_report.md)"
 > @echo "  analytics                Read-only analytics over the git-tracked Parquet snapshot (A3; arg = report name)"
+> @echo "  cargo-audit              RustSec scan of desktop/src-tauri/Cargo.lock (advisory; SKIPs without cargo-audit)"
 > @echo "  convo-fresh              Check conversation corpus+index freshness — harvest sources vs parquet corpus vs pointer index (exit 1 on drift; APPLY=1 harvests+rebuilds; also run by make advisory)"
 > @echo "  cover                    Run all tests with coverage over helpers/ (branch + missing-line report)"
 > @echo "  deptry                   Run deptry dependency-health scan (unused/undeclared/transitive deps)"
@@ -314,6 +315,13 @@ update-extensions: ## Update all installed DuckDB extensions to latest (weekly c
 secret-scan: ## Incremental git-history secret scan (state under .git/secret-scan/)
 > python3 helpers/misc/git_secret_scan.py
 > @echo "✓ Secret scan complete (incremental; state: .git/secret-scan/state.json)"
+
+cargo-audit: ## RustSec scan of the desktop lockfile (advisory; SKIPs without cargo-audit; security_evaluation Addendum 7 §E)
+> @if command -v cargo-audit >/dev/null 2>&1 || [ -x "$$HOME/.cargo/bin/cargo-audit" ]; then \
+> 	cd desktop/src-tauri && PATH="$$HOME/.cargo/bin:$$PATH" cargo audit; \
+> else \
+> 	echo "SKIP cargo-audit: not installed (cargo install cargo-audit --locked)"; \
+> fi
 
 script-search-rebuild: ## Rebuild the script metadata index (script_search sidecar; query via helpers/misc/script_query.py)
 > python3 helpers/maintenance/rebuild_script_search.py

@@ -583,6 +583,11 @@ impl Db {
 
     /// Read a markdown note. Paths are repo-relative and must live under
     /// `findata/` or `doc/`.
+    ///
+    /// Prefix + `..` checks are vault discipline, NOT a sandbox: symlinks
+    /// inside the tree are not canonicalized, so this is not a hard
+    /// boundary against a hostile local filesystem (accepted for the
+    /// operator-local threat model; see desktop_security_hardening DESK-3).
     pub fn read_note(&self, rel: &str) -> Result<NoteContent> {
         let rel = rel.trim().trim_start_matches('/');
         if rel.contains("..") || Path::new(rel).is_absolute() {

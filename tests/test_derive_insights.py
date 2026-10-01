@@ -1896,19 +1896,24 @@ class TestRenderNotesBumpsFrontmatter:
 
     NOTE = _OKF_NOTE
 
-    def _setup(self, tmp_path):
+    def _setup(self, tmp_path, monkeypatch):
+        # repo-relative file_path under a redirected PROJECT_ROOT — the
+        # production contract (absolute or escaping rows are skipped by
+        # _paths_by_entity containment since snapshot_restore_sql_injection S4)
+        monkeypatch.setattr(di, "PROJECT_ROOT", tmp_path)
         conn = _connect(tmp_path)
-        note = tmp_path / "Marico.md"
+        note = tmp_path / "findata" / "Marico.md"
+        note.parent.mkdir(parents=True, exist_ok=True)
         note.write_text(self.NOTE, encoding="utf-8")
         conn.execute(
             "INSERT INTO entities(name, file_path) VALUES (?, ?)",
-            ("Marico", str(note)),
+            ("Marico", "findata/Marico.md"),
         )
         conn.commit()
         return conn, note
 
-    def test_write_bumps_generated(self, tmp_path):
-        conn, note = self._setup(tmp_path)
+    def test_write_bumps_generated(self, tmp_path, monkeypatch):
+        conn, note = self._setup(tmp_path, monkeypatch)
         quotes = [
             di.Quote(
                 entity="Marico",
@@ -1933,8 +1938,8 @@ class TestRenderNotesBumpsFrontmatter:
         finally:
             conn.close()
 
-    def test_dry_run_leaves_note_untouched(self, tmp_path):
-        conn, note = self._setup(tmp_path)
+    def test_dry_run_leaves_note_untouched(self, tmp_path, monkeypatch):
+        conn, note = self._setup(tmp_path, monkeypatch)
         quotes = [
             di.Quote(
                 entity="Marico",

@@ -38,7 +38,7 @@ RULE_JSON = REPO_ROOT / ".opencodereview" / "rule.json"
 # the mutation self-masking — remove "tests/" from the rule and the check
 # lost the family instead of firing. These are the product-critical roots
 # whose exclusion shipped defects (inert CSR lane; Mojo reviewed by hand).
-PRODUCT_FAMILIES = ("Mojo/src/", "Mojo/tests/", "tests/")
+PRODUCT_FAMILIES = ("Mojo/src/", "Mojo/tests/", "tests/", "desktop/src-tauri/", "desktop/src-vue/")
 
 # Host-carried review conventions (ocr_selection_drift S3). OCR's
 # project-rules channel is inert — the `rules` key, a `rules/` dir file and
@@ -60,6 +60,19 @@ HOUSE_CHECKLIST = (
     "pointers are blocking)",
     "cross-file consistency: a batch move/rewrite must agree with its siblings "
     "— status lines, dates, index entries (one stale line falsifies the batch)",
+    "path/identifier hygiene (Addendum 7 §H): a DB-sourced string reaching a "
+    "filesystem join carries a containment check (resolve + is_relative_to), "
+    "and an f-string SQL identifier or file path interpolated from repo-tracked "
+    "filenames is manifest/allowlist-gated — unquoted interpolation is a "
+    "finding even when operator-triggered",
+    "content-derived URLs (SEC-6 class): a fetch of a URL extracted from "
+    "document/feed content sits behind a scheme allowlist and, when the target "
+    "is feed-controlled, a pinned host; a noqa or comment claiming a control "
+    "the code does not enforce is itself a finding",
+    "tracked fixture/bundle files are publication surfaces: anything a "
+    "committed fixture, snapshot, or bundle embeds must come only from "
+    "git-tracked trees — a generator that reads machine-local stores needs an "
+    "explicit exclusion whose test asserts the boundary",
     "precision over recall; correctness and security are blocking; report the "
     "dedup arithmetic (raw minus both-legs minus false positives)",
 )

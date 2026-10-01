@@ -1999,7 +1999,12 @@ def _by_path(
 
 
 def _paths_by_entity(conn, entities: list[str]) -> dict[str, str]:
-    """entity -> repo-relative note path (shared by both note renderers)."""
+    """entity -> repo-relative note path (shared by both note renderers).
+
+    Containment (snapshot_restore_sql_injection S4): ``file_path`` is a DB
+    string that becomes a read+write filesystem join in the renderers; a
+    row whose resolved path escapes the vault is skipped loudly.
+    """
     if not entities:
         return {}
     placeholders = ",".join("?" for _ in entities)
@@ -2008,7 +2013,19 @@ def _paths_by_entity(conn, entities: list[str]) -> dict[str, str]:
         f"AND file_path IS NOT NULL",
         tuple(entities),
     ).fetchall()
-    return {r["name"]: r["file_path"] for r in rows}
+    vault = (PROJECT_ROOT / "findata").resolve()
+    paths: dict[str, str] = {}
+    for r in rows:
+        rel: str = r["file_path"]
+        if not (PROJECT_ROOT / rel).resolve().is_relative_to(vault):
+            print(
+                f"WARNING: skipping {r['name']!r}: entities.file_path "
+                f"{rel!r} resolves outside findata/ (tampered row?)",
+                file=sys.stderr,
+            )
+            continue
+        paths[r["name"]] = rel
+    return paths
 
 
 def render_notes(  # noqa: C901

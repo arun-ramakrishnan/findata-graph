@@ -36,6 +36,22 @@ entry number and stale DONE pointers):
 
 _(none)_
 
+Archived 2026-10-01: `verify_injection_and_boundary_remediation`
+(`../archive/security/`, completed.md #334) — the 272477d4a review
+follow-ups executed same day: verify-path gates (HIGH), fail-open
+regression tests, fixtures canonicalization, noqa/anchor cleanup,
+selection-drift record, review-rule adds.
+
+Archived 2026-10-01 (both from the 2026-10-01 security drift sweep,
+Addendum 7, executed same-day):
+`desktop_security_hardening` (`../archive/security/`, completed.md #332 —
+webview CSP, opener scope, claim correction) and
+`snapshot_restore_sql_injection` (`../archive/security/`, completed.md #333
+— the pass's confirmed HIGH finding: restore interpolates snapshot parquet
+filenames into SQL; both restore paths now schema-gate every identifier,
+PoC regression tests mutation-verified, `derive_insights` path containment
+added).
+
 Archived 2026-10-01: `gate_wall_time_reclaim`
 (`../archive/tooling/`, completed.md #331) — the gate wall-time reclaim
 arc executed same-day with the §8 measurement corrections: the pytest

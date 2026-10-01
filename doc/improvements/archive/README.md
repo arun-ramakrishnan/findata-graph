@@ -16,6 +16,21 @@ commit, referenced by nothing). Entry numbers point at
   separately (`near_duplicates_default` 7.0 s / `_wide` 8.0 s, measured 2.2–2.4 s /
   3.5–3.6 s warm); AVAIL-1 scope note appended (continuous `min_sim` permits distinct
   ~2 s computes; the LRU bounds cache size, not compute) — completed.md #330
+- [`verify_injection_and_boundary_remediation.md`](security/verify_injection_and_boundary_remediation.md) — the 272477d4a review
+  follow-ups (two converging delegation legs): verify-path identifier gates + fail-closed semantics
+  (restore was fixed, verify was not — `]`-escape and truth-agnostic fail-opens reproduced), fixtures
+  boundary canonicalization, dead-noqa/`\Z` cleanup, OCR selection-drift record, review-rule adds
+  (desktop + far-doc families, PRODUCT_FAMILIES widened) — completed.md #334
+- [`desktop_security_hardening.md`](security/desktop_security_hardening.md) — DESK-1/2/3 hardening —
+  webview CSP set (same-origin default, ipc confined to connect-src, devCsp for the
+  Vite dev server), opener capability scheme-scoped https/http at the ACL layer,
+  arc-doc "least-privilege" claim corrected; posture pinned by
+  `tests/test_desktop_security_posture.py` (mutation-verified) — completed.md #332
+- [`snapshot_restore_sql_injection.md`](security/snapshot_restore_sql_injection.md) — SNAP-1 fix —
+  restore paths interpolate snapshot filenames into SQL: both restores now gate
+  every parquet stem against the schema's own tables (+ regex) and SQLite column
+  names against the target table; PoC + benign-control regression tests
+  (mutation-verified); derive_insights `file_path` containment added — completed.md #333
 - [`post_review_api_reaudit.md`](security/post_review_api_reaudit.md) — Security coverage expansion — availability class + cumulative coverage machinery — post-close re-audit (S1), availability review (S2, AVAIL-1), coverage ledger + validator (S3), adversarial-validation trial (S4, AVAIL-2 + CONC-1) — completed.md #247b
 - [`avail2_metric_regex_deAmbiguate.md`](security/avail2_metric_regex_deAmbiguate.md) — AVAIL-2 fix — cubic ReDoS in the metric range patterns removed at the pattern; length cap rejected on corpus measurement in favour of the adversarial fuzz guard (10,349 ms old vs ~1 ms fixed) — completed.md #250
 - [`conc1_graph_connection_isolation.md`](security/conc1_graph_connection_isolation.md) — CONC-1 fix — per-request graph connections (flask.g + teardown); shared singleton cross-return (63 wrong/3,000 -> 0) eliminated; direct-call singleton preserved — completed.md #251

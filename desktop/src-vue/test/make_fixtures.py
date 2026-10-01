@@ -15,6 +15,7 @@ else walk up from the repo root. Default: this repo's memory/research.db.
 
 import json
 import os
+import posixpath
 import sqlite3
 from pathlib import Path
 
@@ -284,13 +285,29 @@ def _suggest(conn: sqlite3.Connection, q: str) -> list:
 
 
 def _docs(doc_conn: sqlite3.Connection) -> list:
-    """Mirror `findata-core::browse_docs(None)`: DISTINCT doc_search rows."""
-    return [
-        {"path": r[0], "title": r[1]}
-        for r in doc_conn.execute(
-            "SELECT file_path, max(title) FROM doc_search GROUP BY file_path ORDER BY file_path"
-        ).fetchall()
-    ]
+    """Mirror `findata-core::browse_docs(None)`: DISTINCT doc_search rows.
+
+    Only rows from git-tracked doc/ trees: fixtures.js is committed to the
+    public repo, so it must never carry the private local-notes tree that
+    the sidecar also indexes (same boundary as .gitignore). Paths are
+    canonicalized before the boundary check (verify_injection_and_boundary_
+    remediation S3): `./doc/local/x`, a missing trailing slash, or an
+    absolute path must not slip a prefix test.
+    """
+    docs = []
+    for r in doc_conn.execute(
+        "SELECT file_path, max(title) FROM doc_search GROUP BY file_path ORDER BY file_path"
+    ).fetchall():
+        raw, title = r[0], r[1]
+        if not isinstance(raw, str) or raw == "":
+            continue
+        norm = posixpath.normpath(raw)
+        if posixpath.isabs(norm) or norm.startswith(".."):
+            continue
+        if norm == "doc/local" or norm.startswith("doc/local/"):
+            continue
+        docs.append({"path": norm, "title": title})
+    return docs
 
 
 def _metrics(conn: sqlite3.Connection, name: str) -> dict:

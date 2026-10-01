@@ -8,7 +8,16 @@
     "Mojo/src/**/*.mojo",
     "Mojo/tests/**/*.mojo",
     "doc/procedures/**",
-    "doc/improvements/**"
+    "doc/improvements/**",
+    "desktop/src-tauri/**/*.rs",
+    "desktop/src-vue/src/**/*.js",
+    "desktop/src-vue/src/**/*.vue",
+    "desktop/src-vue/test/**/*.js",
+    "doc/design/**",
+    "doc/reference/**",
+    "doc/okf/**",
+    "doc/templates/**",
+    "doc/security/**"
   ],
   "exclude": [
     "static/**/*.bundle.js",

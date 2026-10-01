@@ -3551,7 +3551,10 @@ def _api_bad_request(e):
 
 
 if __name__ == "__main__":
-    host = os.getenv("FLASK_HOST", "0.0.0.0")  # noqa: S104  # containerized deploy intentionally binds all interfaces
+    # Dev default is loopback (SEC-5 Phase 4, Addendum 7 §F): gunicorn never
+    # runs this block, so the deploy path is unaffected. Opt back into LAN
+    # exposure explicitly via FLASK_HOST=0.0.0.0.
+    host = os.getenv("FLASK_HOST", "127.0.0.1")
     port = int(os.getenv("FLASK_PORT", 5200))
     debug_mode = os.getenv("FLASK_DEBUG", "False").lower() in ["true", "1", "t"]
     app.run(host=host, port=port, debug=debug_mode)

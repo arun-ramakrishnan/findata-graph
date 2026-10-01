@@ -8766,3 +8766,107 @@ as §8 corrections in the archived file, with the do-not-repeat invariants in
   non-negotiable win: the pytest leg runs uncontended, so its junit
   timings are analysis-grade — the 32s-vs-92s measurement lottery that
   started this arc is gone.
+
+## 332. Desktop security hardening — webview CSP, opener scope, claim correction
+
+Filed and executed 2026-10-01 (same session as the Addendum 7 drift sweep that
+spawned it). Zero confirmed findings; all three slices are defense-in-depth on
+the Tauri surface, closing the consequences of a *future* injection rather
+than any present one.
+
+- **S1 — webview CSP (DESK-1).** `tauri.conf.json` `csp: null` → a
+  same-origin-default CSP (`default-src 'self'`, `script-src 'self'`, ipc
+  origins confined to `connect-src`), plus a `devCsp` allowing the
+  localhost:5173 dev server + HMR websocket. Tauri injects nonces for its
+  own bootstrap assets; validated by `cargo check`/`cargo test` (tauri-build
+  parses the config).
+- **S2 — opener scope (DESK-2).** The capability-level permission is now the
+  object form with `allow: [{url: https://**}, {url: http://**}]` — the
+  http(s) scheme gate is structural at the ACL layer instead of living only
+  in the frontend regex. The bare string form (scope-free) is the asserted
+  regression class.
+- **S3 — claim correction + DESK-3 record.** The desktop arc doc's S6
+  "least-privilege URL perm" row now carries the 2026-10-01 correction (it
+  shipped scope-free; the scope landed same day); `read_note`'s docstring
+  states the prefix/`..` checks are vault discipline, not a sandbox (no
+  symlink canonicalization — operator-local threat, accepted).
+- **S4 — posture pins.** `tests/test_desktop_security_posture.py`: static
+  assertions over both configs riding `make qa` — CSP non-null/tight and the
+  opener scope exactly scheme-scoped; both pins mutation-verified (csp→null
+  and scope-free-string both go RED). `cargo test -p findata-core` 20/20.
+
+## 333. Snapshot restore SQL injection — schema-derived identifier gates (SNAP-1)
+
+Filed and executed 2026-10-01. The pass's one CONFIRMED HIGH finding
+(security_evaluation Addendum 7 §H): `restore_duckdb_from_parquet`
+interpolated snapshot parquet filenames into SQL as unquoted identifiers, and
+the Addendum's bounded reproduction executed attacker SQL (ATTACH + CREATE +
+INSERT materialized a side-effect DB) from a crafted filename — the snapshot
+tree is git-tracked public content, so the trigger is a tampered snapshot
+restored by the operator.
+
+- **S1 — DuckDB gate.** `_snapshot_identifier()` validates every parquet
+  stem against `^[a-z_][a-z0-9_]*$` AND the set of base tables the
+  just-applied schema DDL created (schema-derived, so sources.duckdb/D15 is
+  gated by the same rule; the export-side manifest stays where it is).
+  Single quotes in the interpolated path are doubled. The old noqa
+  ("identifiers come from the snapshot's own file names") asserted
+  provenance, not a control — replaced by gate-claiming noqas.
+- **S2 — SQLite twin.** Same stem gate against `sqlite_master` + column
+  validation: every parquet column must match the identifier regex AND be a
+  column of the target table (`UNEXPECTED SNAPSHOT COLUMN` otherwise) —
+  closing the bracket-escape class the Addendum held as needs_validation.
+- **S3 — regression tests.** The §H PoC as pytest (malicious stem →
+  `UNEXPECTED SNAPSHOT FILE`, no side-effect DB materializes), the SQLite
+  stem+column rejections, and a benign-restore control. Both gates
+  mutation-verified RED (stem-gate bypass; column-gate bypass).
+- **S4 — derive_insights containment.** `_paths_by_entity` now resolves
+  `PROJECT_ROOT / file_path` and skips+warns rows escaping `findata/` —
+  the one place a DB string became a read+write filesystem join. One test
+  updated to the production contract (repo-relative file_path under a
+  monkeypatched PROJECT_ROOT, the file's own established pattern).
+- **Verification:** `tests/test_snapshot_db.py` 25/25, `test_derive_insights.py`
+  186/186, `make snapshot-check` — the real tracked snapshot round-trips
+  clean through the gated paths (55 tables + 3 sources OK, no legitimate
+  name refused); all 43 tracked stems and all 91 schema columns
+  regex-conformant by enumeration.
+
+## 334. Verify-path injection + boundary remediation — the 272477d4a review follow-ups
+
+Filed and executed 2026-10-01. Two independent delegation legs
+(space-bunny/opencode, glm-5.3-flash/zcode) converged on the same four
+findings in the security arc's own commit — headlined by HIGH-1: SNAP-1 was
+remediated on the restore paths only, while both verify paths still
+interpolated repo-tracked filenames into SQL and failed open. Re-executed in
+scratch three ways before filing (injection both sides incl. the `]`-escape
+that closes Addendum 7 §H's needs_validation variant; skip-route and
+truth-agnostic mirror-route fail-opens).
+
+- **S1 — verify identifier gates.** `_verify_gate_stem`: malformed stem →
+  loud ValueError; stem absent from the live schema → `MISSING ON LIVE`
+  mismatch (the silent `except-continue` skip route is gone; ephemeral
+  absent-on-live keeps its info+skip contract); DuckDB path interpolation
+  quote-doubled. Real snapshot round-trips clean: 55 tables + 3 sources, no
+  legitimate name refused.
+- **S2 — fail-open regression tests.** Injection stems raise; missing-live
+  is a mismatch; a live-side error is a mismatch entry (fail closed);
+  ephemeral contract preserved; benign roundtrip unchanged. Verify gate
+  mutation-verified RED (4 tests fail with the gate neutered).
+- **S3 — fixtures boundary canonicalization.** `make_fixtures._docs`
+  normalizes every path (posixpath.normpath), rejects absolute/`..`, and
+  excludes `doc/local` by normalized prefix; the artifact test gained a
+  normalized sweep covering the bypass shapes (`./doc/local/x`, `doc/local`,
+  absolute) — bypass mutation RED, post-fix artifact green with 0 leaks.
+- **S4 — dead-noqa/anchor cleanup.** The PRAGMA line's dead `noqa: S603`
+  replaced by a truth-telling comment; the verify rewrite removed the dead
+  `S608`/`S112` noqas; `_SNAPSHOT_IDENT_RE` `$` → `\Z`.
+- **S5/S6 — review-surface adds.** `ocr_review.md` §1 records that 1.12.11's
+  extension allow-list also selects `.rs`/`.js`/extensionless `Makefile`
+  (observed 22/22); `rule.json` declares the desktop Rust/Vue families and
+  the far-doc doc/ families; `PRODUCT_FAMILIES` gains `desktop/src-tauri/` +
+  `desktop/src-vue/` so `make review-patch` teeth demand desktop coverage on
+  desktop diff traffic. Teeth: "every rule-covered family with diff traffic
+  is visible" with the widened set.
+- **Verification:** 158 tests across the five touched files; both new gates
+  mutation-verified; `make snapshot-check` clean; ruff format footprint
+  clean (372 files); lint-audit, md-lint, static-checks green.

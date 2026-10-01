@@ -65,6 +65,7 @@ the SQLite VACUUM and the snapshot refreshed together.
 
 import argparse
 import logging
+import re
 import sqlite3
 import sys
 import tempfile
@@ -871,6 +872,53 @@ def export_parquet_sqlite(sqlite_path: Path, out_dir: Path, logger: logging.Logg
     return {"tables": results, "total_bytes": total_bytes, "dir": str(out_dir)}
 
 
+def _verify_gate_stem(stem: str, live_tables: frozenset[str], pf: Path) -> str | None:
+    """Verify-side stem gate (verify_injection_and_boundary_remediation S1).
+
+    Restore raises on any unexpected stem; verify has one legitimate
+    non-present outcome, so the gate is three-valued:
+    - malformed stem (anything the identifier regex refuses) -> loud
+      ValueError — a tampered filename is never contract-legal;
+    - stem missing from the live schema -> returns ``"MISSING ON LIVE"``
+      (real drift, surfaces as a mismatch instead of the old silent skip);
+    - else -> None (checked normally).
+    """
+    if not _SNAPSHOT_IDENT_RE.match(stem):
+        raise ValueError(
+            f"UNEXPECTED SNAPSHOT FILE {pf.name!r}: stem {stem!r} is not a "
+            "schema identifier — refusing verify (tampered snapshot?)"
+        )
+    if stem not in live_tables:
+        return "MISSING ON LIVE"
+    return None
+
+
+def _verify_duckdb_counts(con, tname: str, pf: Path, stamp_meta: bool) -> tuple[int, int]:
+    """Live vs snapshot row counts for one gated stem. Raises on live-side
+    errors — the caller records them as mismatches, never skips."""
+    from helpers.graph.query import STAMP_OWNED_META_KEYS
+
+    path_sql = str(pf).replace("'", "''")
+    if stamp_meta:
+        ph = ", ".join("?" for _ in STAMP_OWNED_META_KEYS)
+        src = con.execute(
+            f"SELECT COUNT(*) FROM _build_meta WHERE key NOT IN ({ph})",  # noqa: S608  # stem gated by _verify_gate_stem; fragment is ?-clauses
+            tuple(STAMP_OWNED_META_KEYS),
+        ).fetchone()
+        snap = con.execute(
+            f"SELECT COUNT(*) FROM '{path_sql}' WHERE key NOT IN ({ph})",  # noqa: S608  # path quote-doubled; stem gated (S1)
+            tuple(STAMP_OWNED_META_KEYS),
+        ).fetchone()
+    else:
+        src = con.execute(
+            f"SELECT COUNT(*) FROM {tname}"  # noqa: S608  # stem gated by _verify_gate_stem (regex + live-schema membership)
+        ).fetchone()
+        snap = con.execute(
+            f"SELECT COUNT(*) FROM '{path_sql}'"  # noqa: S608  # path quote-doubled; stem gated by _verify_gate_stem (S1)
+        ).fetchone()
+    return (src[0] if src is not None else 0), (snap[0] if snap is not None else 0)
+
+
 def _verify_parquet_duckdb_side(
     parquet_dir: Path,
     duckdb_path: Path | None,
@@ -891,45 +939,38 @@ def _verify_parquet_duckdb_side(
 
             con = duckdb.connect(str(duckdb_path), read_only=True)
             try:
+                live_tables = frozenset(
+                    r[0]
+                    for r in con.execute(
+                        "SELECT table_name FROM information_schema.tables "
+                        "WHERE table_schema = 'main' AND table_type = 'BASE TABLE'"
+                    ).fetchall()
+                )
                 pq_files = sorted(duckdb_pq_dir.glob("*.parquet"))
                 for pf in pq_files:
                     tname = pf.stem
-                    # S4 (graph_perf_l1_bfs_scale): _build_meta counts only
-                    # materialisation-owned keys — the centrality stamp's
-                    # extra key is contract-legal drift on either side.
-                    stamp_meta = tname == "_build_meta" and bool(STAMP_OWNED_META_KEYS)
-                    if stamp_meta:
-                        ph = ", ".join("?" for _ in STAMP_OWNED_META_KEYS)
-                        meta_sql = f"key NOT IN ({ph})"  # noqa: S608  # parameterized; identifier is schema-constant
-                    try:
-                        if stamp_meta:
-                            _row = con.execute(
-                                f"SELECT COUNT(*) FROM _build_meta WHERE {meta_sql}",  # noqa: S608  # parameterized; schema-constant
-                                tuple(STAMP_OWNED_META_KEYS),
-                            ).fetchone()
-                        else:
-                            _row = con.execute(
-                                f"SELECT COUNT(*) FROM {tname}"  # noqa: S608  # parameterized; interpolated parts are `?`-clauses / schema-constant identifiers
-                            ).fetchone()
-                        src_cnt = _row[0] if _row is not None else 0
-                    except Exception:  # noqa: S112  # best-effort; skip item on failure
+                    gate = _verify_gate_stem(tname, live_tables, pf)
+                    if gate is not None:
                         if tname in EPHEMERAL_TABLES:
                             logger.info(
                                 "Parquet verify: ephemeral %s absent on the live side "
                                 "(contract-legal; make stamp-centrality restores it)",
                                 tname,
                             )
-                        continue  # table may not exist in this version
-                    if stamp_meta:
-                        _row = con.execute(
-                            f"SELECT COUNT(*) FROM '{pf}' WHERE {meta_sql}",  # noqa: S608  # literal parquet path + parameterized keys
-                            tuple(STAMP_OWNED_META_KEYS),
-                        ).fetchone()
-                    else:
-                        _row = con.execute(
-                            f"SELECT COUNT(*) FROM '{pf}'"  # noqa: S608  # parameterized; interpolated parts are `?`-clauses / schema-constant identifiers
-                        ).fetchone()
-                    snap_cnt = _row[0] if _row is not None else 0
+                            continue
+                        result["mismatches"].append(f"{subdir}/{tname}: {gate}")
+                        continue
+                    # S4 (graph_perf_l1_bfs_scale): _build_meta counts only
+                    # materialisation-owned keys — the centrality stamp's
+                    # extra key is contract-legal drift on either side.
+                    stamp_meta = tname == "_build_meta" and bool(STAMP_OWNED_META_KEYS)
+                    try:
+                        src_cnt, snap_cnt = _verify_duckdb_counts(con, tname, pf, stamp_meta)
+                    except (
+                        Exception
+                    ) as exc:  # fail closed: a live-side error is a verify result, not a skip
+                        result["mismatches"].append(f"{subdir}/{tname}: ERROR {type(exc).__name__}")
+                        continue
                     result["tables_checked"] += 1
                     if src_cnt != snap_cnt:
                         result["mismatches"].append(f"{subdir}/{tname}: {snap_cnt}/{src_cnt}")
@@ -950,14 +991,27 @@ def _verify_parquet_sqlite_side(
         if sqlite_pq_dir.exists():
             scon = connect(sqlite_path, read_only=True)
             try:
+                live_tables = frozenset(
+                    r[0]
+                    for r in scon.execute(
+                        "SELECT name FROM sqlite_master WHERE type = 'table'"
+                    ).fetchall()
+                )
                 pq_files = sorted(sqlite_pq_dir.glob("*.parquet"))
                 for pf in pq_files:
                     tname = pf.stem
+                    gate = _verify_gate_stem(tname, live_tables, pf)
+                    if gate is not None:
+                        result["mismatches"].append(f"sqlite/{tname}: {gate}")
+                        continue
                     try:
                         src_cnt = scon.execute(
-                            f"SELECT COUNT(*) FROM [{tname}]"  # noqa: S608  # parameterized; interpolated parts are `?`-clauses / schema-constant identifiers
+                            f"SELECT COUNT(*) FROM [{tname}]"  # noqa: S608  # stem gated by _verify_gate_stem (regex excludes ']' and quote chars)
                         ).fetchone()[0]
-                    except Exception:  # noqa: S112  # best-effort; skip item on failure
+                    except (
+                        Exception
+                    ) as exc:  # fail closed: a live-side error is a verify result, not a skip
+                        result["mismatches"].append(f"sqlite/{tname}: ERROR {type(exc).__name__}")
                         continue
                     snap_cnt = pq.read_metadata(pf).num_rows
                     result["tables_checked"] += 1
@@ -1002,6 +1056,27 @@ def verify_parquet_snapshot(
 # ---------------------------------------------------------------------------
 # Restore: rebuild the live databases from the git-tracked Parquet snapshot
 # ---------------------------------------------------------------------------
+
+
+_SNAPSHOT_IDENT_RE = re.compile(r"^[a-z_][a-z0-9_]*\Z")
+
+
+def _snapshot_identifier(stem: str, tables: frozenset[str], src: Path) -> str:
+    """Validate a snapshot parquet stem as a schema table identifier (SNAP-1).
+
+    Restore interpolates file stems into SQL identifiers; the parquet dir
+    is repo-tracked content, so provenance is not a control. The stem must
+    be plain lowercase-underscore AND a base table the just-applied schema
+    DDL created — anything else is a tampered or mismatched snapshot and
+    restore refuses loudly instead of executing it.
+    """
+    if not _SNAPSHOT_IDENT_RE.match(stem) or stem not in tables:
+        raise ValueError(
+            f"UNEXPECTED SNAPSHOT FILE {src.name!r}: stem {stem!r} is not a "
+            "table created by the snapshot schema DDL — refusing restore "
+            "(tampered or mismatched snapshot?)"
+        )
+    return stem
 
 
 def _parquet_rows(path: Path) -> tuple[list[str], list[tuple]]:
@@ -1059,15 +1134,31 @@ def restore_sqlite_from_parquet(parquet_dir: Path, target: Path, logger: logging
         # load itself must not enforce FKs (table order is alphabetical).
         con.execute("PRAGMA foreign_keys=OFF")
         con.execute("PRAGMA journal_mode=OFF")  # fresh build: max speed
+        schema_tables = frozenset(
+            r[0]
+            for r in con.execute("SELECT name FROM sqlite_master WHERE type = 'table'").fetchall()
+        )
         for pf in sorted(parquet_dir.glob("*.parquet")):
-            tname = pf.stem
+            tname = _snapshot_identifier(pf.stem, schema_tables, pf)
+            table_cols = frozenset(
+                r[1]
+                for r in con.execute(
+                    f"PRAGMA table_info({tname})"
+                ).fetchall()  # tname validated by _snapshot_identifier (SNAP-1); no linter rule fires on this line — a noqa here would be dead
+            )
             cols, rows = _parquet_rows(pf)
             if not cols:
                 continue
+            bad_cols = [c for c in cols if not _SNAPSHOT_IDENT_RE.match(c) or c not in table_cols]
+            if bad_cols:
+                raise ValueError(
+                    f"UNEXPECTED SNAPSHOT COLUMN(S) {bad_cols!r} in {pf.name!r}: "
+                    "not columns of the schema table — refusing restore"
+                )
             collist = ", ".join(f"[{c}]" for c in cols)
             marks = ", ".join("?" * len(cols))
             con.executemany(
-                f"INSERT INTO [{tname}] ({collist}) VALUES ({marks})",  # noqa: S608  # identifiers come from the snapshot's own file names
+                f"INSERT INTO [{tname}] ({collist}) VALUES ({marks})",  # noqa: S608  # identifier + columns validated by _snapshot_identifier (SNAP-1)
                 rows,
             )
             restored[tname] = len(rows)
@@ -1117,13 +1208,23 @@ def restore_duckdb_from_parquet(
     restored: dict[str, int] = {}
     try:
         con.execute(schema_path.read_text())
+        # SNAP-1: the only identifiers restore may interpolate are stems the
+        # applied schema itself created — schema-derived, not manifest-listed,
+        # so sources.duckdb (D15) is gated by the same rule.
+        schema_tables = frozenset(
+            r[0]
+            for r in con.execute(
+                "SELECT table_name FROM information_schema.tables "
+                "WHERE table_schema = 'main' AND table_type = 'BASE TABLE'"
+            ).fetchall()
+        )
         for pf in sorted(parquet_dir.glob("*.parquet")):
-            tname = pf.stem
+            tname = _snapshot_identifier(pf.stem, schema_tables, pf)
             con.execute(
-                f"INSERT INTO {tname} SELECT * FROM read_parquet('{pf}')"  # noqa: S608  # identifiers come from the snapshot's own file names
+                f"INSERT INTO {tname} SELECT * FROM read_parquet('{str(pf).replace(chr(39), chr(39) * 2)}')"  # noqa: S608  # identifier + path validated by _snapshot_identifier (SNAP-1)
             )
             row = con.execute(
-                f"SELECT COUNT(*) FROM {tname}"  # noqa: S608  # identifiers come from the snapshot's own file names
+                f"SELECT COUNT(*) FROM {tname}"  # noqa: S608  # identifier validated by _snapshot_identifier (SNAP-1)
             ).fetchone()
             if row is None:  # COUNT(*) always returns a row
                 raise RuntimeError(f"COUNT(*) returned no row for {tname}")
