@@ -36,6 +36,12 @@ entry number and stale DONE pointers):
 
 _(none)_
 
+Archived 2026-10-02: `typed_trace_contracts` and
+`trace_quote_citations` (`../archive/tooling/`, completed.md #335/#336) —
+both adapted from the whiteboard evaluation
+(`../../local/evaluations/whiteboard_assessment.md`): validated trace
+ingest contracts plus stable `agent-trace:` citations.
+
 Archived 2026-10-01: `verify_injection_and_boundary_remediation`
 (`../archive/security/`, completed.md #334) — the 272477d4a review
 follow-ups executed same day: verify-path gates (HIGH), fail-open

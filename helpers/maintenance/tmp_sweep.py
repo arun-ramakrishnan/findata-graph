@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Gate-front temp-dir hygiene sweep (tmpdir_sanitization S7).
 
-Reaps THIS repo's /tmp residue before a gate run so a near-full tmpfs can
+Reaps THIS repo's $TMPDIR residue before a gate run so a full temp dir can
 never crash the very run that exists to catch problems. Only removes
 entries the sweep can prove this repo owns:
 
@@ -150,7 +150,11 @@ def main(argv: list[str] | None = None) -> int:
         default=DEFAULT_MIN_AGE_HOURS,
         help=f"skip entries newer than this (default {DEFAULT_MIN_AGE_HOURS:g})",
     )
-    ap.add_argument("--tempdir", default=tempfile.gettempdir(), help="temp root (default $TMPDIR)")
+    ap.add_argument(
+        "--tempdir",
+        default=os.environ.get("TMPDIR") or tempfile.gettempdir(),
+        help="temp root (default: $TMPDIR, else the system temp dir)",
+    )
     args = ap.parse_args(argv)
 
     if args.apply and args.check:

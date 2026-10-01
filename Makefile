@@ -24,12 +24,11 @@ QA_JOBS ?= 1
 # is just a no-op directory on PATH and lookup falls through to the system.
 export PATH := $(CURDIR)/.venv/bin:$(PATH)
 
-# Scratch on disk, not the 7.1G tmpfs (gate_wall_time_reclaim 2026-10-01):
-# pytest basetemp, bench scratch and db-backup staging follow TMPDIR, and an
-# unset TMPDIR puts them all in RAM-backed /tmp where four xdist workers each
-# holding multi-hundred-MB temp projects create memory pressure — the
-# maint-chain tests measured 3x their standalone wall under that regime.
-# Default to the operator's 2026-09-28 disk scratch mount when it exists;
+# Scratch on disk, not an unmanaged default temp dir (gate_wall_time_reclaim
+# 2026-10-01): pytest basetemp, bench scratch and db-backup staging follow
+# TMPDIR, and an unset TMPDIR would dump multi-hundred-MB xdist temp projects
+# into the OS temp path with no project-specific hygiene sweep.
+# Default to the operator's disk scratch mount when it exists;
 # an explicit TMPDIR always wins. tmp_sweep reaps via tempfile.gettempdir(),
 # which follows this variable.
 export TMPDIR ?= $(shell test -d /mnt/data/tmp && { mkdir -p /mnt/data/tmp/findata; echo /mnt/data/tmp/findata; } || echo /tmp)
@@ -112,7 +111,7 @@ help:           ## Show available targets (alphabetical; entries generated from 
 > @echo "  sync-sector-links        WRITE the auto company index into sector notes (explicit; maint-full only checks staleness)"
 > @echo "  sync-tags                Rebuild entity_tags from note YAML (mirrors entity_type/sector/market_cap/subsector)"
 > @echo "  test                     pytest unit tests only (no live DB, no slow benchmarks)"
-> @echo "  tmp-sweep                Reap this repo's /tmp residue (scratch DBs, stale bench dirs, TUI log) — 24h age guard, dry-run by default; APPLY=1 removes (proposal: tmpdir_sanitization)"
+> @echo "  tmp-sweep                Reap this repo's temp-dir residue (scratch DBs, stale bench dirs, TUI log) — 24h age guard, dry-run by default; APPLY=1 removes (proposal: tmpdir_sanitization)"
 > @echo "  triage-quotes            Triage the quote entity worklist: report + bucketed decisions file (triage_pending_quotes)"
 > @echo "  triage-relations         Triage the _pending_relations queue: report + bucketed decisions file (pending_relations_triage)"
 > @echo "  types                    Run ty type checker on helpers + app.py (Astral uv+ruff stack)"
@@ -134,7 +133,7 @@ license-check:  ## Verify AGPL metadata, root license, and third-party inventory
 parity:         ## Byte-compare registered refactor targets against REF (default HEAD) across pinned hash seeds (warns; STRICT=1 to gate)
 > python3 helpers/misc/parity_harness.py $(if $(REF),--ref $(REF),) $(if $(STRICT),--strict,)
 
-tmp-sweep:      ## Reap this repo's /tmp residue (scratch DBs, stale bench dirs, TUI log) — 24h age guard, dry-run by default; APPLY=1 removes (proposal: tmpdir_sanitization)
+tmp-sweep:      ## Reap this repo's temp-dir residue (scratch DBs, stale bench dirs, TUI log) — 24h age guard, dry-run by default; APPLY=1 removes (proposal: tmpdir_sanitization)
 > python3 helpers/maintenance/tmp_sweep.py $(if $(APPLY),--apply,)
 
 qa:             ## Run lint + markdown lint + types + deptry + static + pytest + notes + integrity + snapshot in PARALLEL (default 4 jobs; override: make qa -j N; run-all — failures reported at the end; appends outputs/qa_report.md)

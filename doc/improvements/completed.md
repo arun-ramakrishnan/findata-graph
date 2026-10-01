@@ -1,7 +1,7 @@
 <!-- markdownlint-disable MD041 -- first line is intentionally bold metadata, not a heading -->
 
 **Generated**: 2026-09-24
-**Total completed**: 183 items
+**Total completed**: 185 items
 
 > **Note:** Full implementation details, code references, and rationale are in the `doc/improvements/archive/` subdirectory. This file is a summary view.
 
@@ -8870,3 +8870,47 @@ truth-agnostic mirror-route fail-opens).
 - **Verification:** 158 tests across the five touched files; both new gates
   mutation-verified; `make snapshot-check` clean; ruff format footprint
   clean (372 files); lint-audit, md-lint, static-checks green.
+
+## 335. Typed trace contracts — validated ingest and drift visibility
+
+Filed and executed 2026-10-02. The trace-store loader moved from positional,
+stringly code to the existing star-schema contract plus a per-harness parser
+registry, then gained warn-first validation and a drift leg.
+
+- **S1 — contracts + registry.** `bench_data/code/trace_contracts.py` owns
+  the loader contract dataclasses/`ColumnSpec`s, `register_parser`/`get_parser`,
+  and the unified `_insert_all` insert path; `agent_traces.py` parsers route
+  through it. Full-rebuild parity was verified twice by frozen-source
+  row-count/content-checksum rebuilds.
+- **S2 — validate-at-ingest.** `validate_rows` rejects and counts unknown
+  kind rows, unknown fields, missing required fields, and type mismatches
+  before insert; `load_log` gains `rows_ok`, `rows_rejected`,
+  `unknown_fields`; policy remains warn+count, no silent widening.
+- **S3 — synthetic fixtures + contract tests.** Per-harness minimal fixtures
+  under `tests/fixtures/trace_contracts/`; mutation pairs prove dropping a
+  required field or smuggling an unknown field goes RED.
+- **S4 — drift leg.** `agent_traces.py report --legs validation` summarizes
+  per-source loads, accepted/rejected rows, and unknown-field counts from
+  `load_log`.
+- **Verification:** `tests/test_trace_contracts_s2_s4.py` 8 passed; touched
+  ruff/format checks clean; `trace_quote` tests unaffected.
+
+## 336. Trace quote citations — stable anchors and a doc resolver
+
+Filed and executed 2026-10-02. Arc records now carry a resolvable
+`agent-trace:` token shape instead of relying on prose references to
+transcript rows.
+
+- **S1 — grammar + resolver CLI.** `helpers/misc/trace_quote.py` resolves
+  `agent-trace:<harness>#<kind>:<id>` for turn/tool/req/event, prints row
+  context, emits near-miss suggestions for unknown ids, supports `--json`
+  and `--db`.
+- **S2 — anchor stability.** `helpers/misc/anchor_stability.py` measured two
+  full re-ingest runs; every documented identity column was harness-native
+  and 100.00% stable, making all four anchor kinds legal. Record in
+  `capture_traces.md` §11.
+- **S3 — doc wiring + advisory leg.** `trace_quote --sweep <path>` resolves
+  `agent-trace:` tokens under docs, exits 1 on unresolved tokens, and the
+  citation convention lives in `capture_traces.md` §12.
+- **Verification:** `tests/test_trace_quote_s1.py` 38 passed; live
+  `trace_quote --sweep doc/` reports 1 token, 0 unresolved.

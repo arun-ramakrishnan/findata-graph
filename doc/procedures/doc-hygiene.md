@@ -27,6 +27,7 @@ batch of proposal archival, or at arc end when a sweep turns up rot.
 | Stale path | **Live** doc points at `improvements/proposals/<file>` that now lives under `archive/`; **or** an archive file's still-load-bearing pointer (supersession, cross-ref) still aims at `proposals/` instead of the archived sibling | Path inventory (live + archive) |
 | Missing frontmatter | Legacy archive `.md` has no YAML `---` block (no `status` / `completed_md` for the lifecycle checker to see) | Frontmatter presence census |
 | Orphaned local ref | A `doc/local/` path is referenced from a git-tracked doc but the file no longer exists (common when local notes are deleted without cleaning up back-references) | Path existence (below) |
+| Citation rot | An `agent-trace:` token in a live doc no longer resolves in the local trace store | `trace_quote --sweep` (below) |
 
 Historical narrative inside `completed.md` and `archive/**` that *records*
 an old path is fine — only **live** operators (`pending.md`, `proposals/
@@ -215,7 +216,15 @@ rg -o 'doc/local/[A-Za-z0-9_./-]+\.(?:md|txt)' \
   done
 ```
 
-## Remediation Map (advisory only)
+### 7. agent-trace citation rot (advisory)
+
+```bash
+# Resolve every agent-trace:<harness>#<kind>:<id> token under doc/
+# Non-zero means at least one cited turn/tool/request/event is gone.
+.venv/bin/python3 helpers/misc/trace_quote.py --sweep doc/
+```
+
+### Remediation Map (advisory only)
 
 **Not part of this procedure.** Findings above are report-only; apply
 the matching row only after the operator explicitly approves a fix.
@@ -234,6 +243,7 @@ Nothing here is executed by the sweep.
 | Stale path (archive cross-ref) | Repoint the supersession/see-also to the archived sibling (often same directory: `hgx_first_scaling.md`, not `../../proposals/…`). |
 | Missing frontmatter | Optionally backfill `--- title/status/executed/completed_md/area ---` to match the completed.md entry so the lifecycle checker sees the file; not qa-blocking today. |
 | Orphaned local ref | Either restore the local note or remove the dangling reference from the live doc. **Rule: when deleting a `doc/local/` note, always sweep for back-references first.** |
+| Citation rot | Re-anchor the `agent-trace:` token to the correct harness/kind/id, or remove the claim if its evidence is gone. |
 | After an approved fix | `make search-fresh APPLY=1`, then plain `make search-fresh` (rc=0). Doc-only edits do not need full `make qa` unless code touched — but md-lint + static checks are cheap and worth a local run. |
 
 ## Out of scope

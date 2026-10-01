@@ -120,9 +120,11 @@ re-verified without re-deriving it.
   `Makefile` or helper docstrings: `make search-fresh` (advisory).
 - Markdown lint-only: NEVER `markdownlint --fix` on `findata/**`
   (writer-owned vault). `doc/` is remediable.
-- Full gates ONCE per arc, on the user's go. After fixes, re-run ONLY
-  the failed legs (their individual make targets), not the whole gate.
-  The user stages and commits — leave the tree dirty.
+- Gate arcs follow `doc/procedures/gates.md`: full gates ONCE per arc
+  (qa + integration + perf + advisory) on the user's go; `search-fresh`/
+  `convo-fresh` APPLY once at arc start; fixes validated by TARGETED tests
+  only — never `make pytest`/`make test`; perf timing failures parked, no
+  reruns. The user stages and commits — leave the tree dirty.
 - **OCR review is advisory** — read `doc/procedures/ocr_review.md` first.
   `ocr delegate preview|rule` give selection + checklist; the HOST agent
   is the reviewer and the sole carrier of these conventions (OCR's own
@@ -133,6 +135,11 @@ re-verified without re-deriving it.
   new`/`push`/`pop`/`delete`/`squash`, never
   `git commit`/`amend`/`rebase` — the operator owns patch structure.
   Edit files; `stg refresh` into the CURRENT top patch only (scoped
-  pathspec when the tree holds unrelated dirt). If asked to prepare a
-  patch message, read `doc/procedures/commit-messages.md` first.
+  pathspec when the tree holds unrelated dirt). EXCEPTION — gate
+  close-out per `doc/procedures/gates.md`: on the arc's explicit go the
+  agent may `stg new` the `gate_fixes` collector and, if the operator
+  opts in, distribute fixes into owning patches (`stg refresh -p` fast
+  path, `goto -k`/`spill` fallback) and message via `stg edit -f`. If
+  asked to prepare a patch message, read `doc/procedures/commit-messages.md`
+  first.
 - Use `.venv/bin/python3` explicitly in non-interactive shells.

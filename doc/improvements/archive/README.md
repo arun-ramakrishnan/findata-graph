@@ -198,6 +198,8 @@ commit, referenced by nothing). Entry numbers point at
 
 ## tooling/ — Tooling & performance — MCP eval, doc browser/search, perf review, tech survey
 
+- [`typed_trace_contracts.md`](tooling/typed_trace_contracts.md) — typed trace contracts — frozen contract dataclasses for the star schema, `@register_parser` harness registry, warn+count validate-at-ingest, `load_log.rows_ok/rows_rejected/unknown_fields`, synthetic fixture tests and `report --legs validation` — completed.md #335
+- [`trace_quote_citations.md`](tooling/trace_quote_citations.md) — agent-trace citations — stable `agent-trace:<harness>#<kind>:<id>` resolver, two-run anchor-stability census (all listed ids 100% stable), `--sweep` doc reference-rot mode, §12 citation convention — completed.md #336
 - [`gate_wall_time_reclaim.md`](tooling/gate_wall_time_reclaim.md) —
   gate wall time reclaim — measurement-first de-flake of the qa/advisory/perf
   surface: the filed xdist worker cap inverted by measurement (suite packs 3.9x
