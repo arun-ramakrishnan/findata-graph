@@ -2061,7 +2061,123 @@ def _dedup_edges(edges_by_type: dict[str, list[Edge]]) -> None:
         edges_by_type[et] = deduped
 
 
-def _process_pattern_matches(  # noqa: C901  # pattern dispatch nested by design (pattern x match x direction)
+def _queue_unresolved(
+    unresolved: list[Unresolved],
+    *,
+    edge_type: str,
+    source_entity: str,
+    target_mention: str,
+    body: str,
+    m: re.Match,
+    edition_title: str,
+    direction: str,
+) -> None:
+    """Record an unresolved mention after the noise-gate skip check — the
+    two call sites (list-shaped, unresolved-target) were byte-identical."""
+    if _should_skip_unresolved(target_mention, edge_type, source_entity):
+        return
+    unresolved.append(
+        Unresolved(
+            edge_type=edge_type,
+            source=source_entity,
+            target_mention=target_mention,
+            quote=_extract_quote_around(body, m.start()),
+            edition=edition_title,
+            direction=direction,
+        )
+    )
+
+
+def _resolve_target(target_mention: str, edge_type: str, resolver: EntityResolver) -> str | None:
+    """Institution lanes try the institution resolver first, then the
+    general resolver; everything else resolves directly."""
+    if edge_type in INSTITUTION_LANES:
+        return resolve_institution(target_mention) or resolver.resolve(target_mention)
+    return resolver.resolve(target_mention)
+
+
+def _process_match(
+    m: re.Match,
+    *,
+    body: str,
+    source_entity: str,
+    resolver: EntityResolver,
+    edition_title: str,
+    newsletter_type: str,
+    doc_type: str,
+    source_ref_default: str,
+    edges_by_type: dict[str, list[Edge]],
+    unresolved: list[Unresolved],
+    target_mention: str,
+    stake_pct: float | None,
+    edge_type: str,
+    symmetric: bool,
+    direction: str,
+) -> None:
+    """Per-match tail of the pattern dispatch: list-chunk resolution, the
+    list-shaped and unresolved deferrals, then edge creation."""
+    list_edges, emitted_any = _resolve_list_chunks(
+        target_mention,
+        edge_type,
+        source_entity,
+        resolver,
+        body,
+        m,
+        edition_title,
+        newsletter_type,
+        doc_type,
+        source_ref_default,
+        symmetric,
+        direction,
+    )
+    if emitted_any:
+        edges_by_type.setdefault(edge_type, []).extend(list_edges)
+        return
+    if _is_list_shaped(target_mention, edge_type):
+        _queue_unresolved(
+            unresolved,
+            edge_type=edge_type,
+            source_entity=source_entity,
+            target_mention=target_mention,
+            body=body,
+            m=m,
+            edition_title=edition_title,
+            direction=direction,
+        )
+        return
+    target_entity = _resolve_target(target_mention, edge_type, resolver)
+    if target_entity is None:
+        _queue_unresolved(
+            unresolved,
+            edge_type=edge_type,
+            source_entity=source_entity,
+            target_mention=target_mention,
+            body=body,
+            m=m,
+            edition_title=edition_title,
+            direction=direction,
+        )
+        return
+    if target_entity == source_entity:
+        return
+    edge = _create_relation_edge(
+        source_entity,
+        target_entity,
+        edge_type,
+        symmetric,
+        direction,
+        body,
+        m,
+        edition_title,
+        newsletter_type,
+        doc_type,
+        source_ref_default,
+        stake_pct,
+    )
+    edges_by_type.setdefault(edge_type, []).append(edge)
+
+
+def _process_pattern_matches(
     body: str,
     source_entity: str,
     resolver: EntityResolver,
@@ -2080,78 +2196,23 @@ def _process_pattern_matches(  # noqa: C901  # pattern dispatch nested by design
                 continue
             if _is_generic_target(target_mention, edge_type, body, m):
                 continue
-
-            list_edges, emitted_any = _resolve_list_chunks(
-                target_mention,
-                edge_type,
-                source_entity,
-                resolver,
-                body,
+            _process_match(
                 m,
-                edition_title,
-                newsletter_type,
-                doc_type,
-                source_ref_default,
-                symmetric,
-                direction,
+                body=body,
+                source_entity=source_entity,
+                resolver=resolver,
+                edition_title=edition_title,
+                newsletter_type=newsletter_type,
+                doc_type=doc_type,
+                source_ref_default=source_ref_default,
+                edges_by_type=edges_by_type,
+                unresolved=unresolved,
+                target_mention=target_mention,
+                stake_pct=stake_pct,
+                edge_type=edge_type,
+                symmetric=symmetric,
+                direction=direction,
             )
-            if emitted_any:
-                edges_by_type.setdefault(edge_type, []).extend(list_edges)
-                continue
-
-            if _is_list_shaped(target_mention, edge_type):
-                if _should_skip_unresolved(target_mention, edge_type, source_entity):
-                    continue
-                unresolved.append(
-                    Unresolved(
-                        edge_type=edge_type,
-                        source=source_entity,
-                        target_mention=target_mention,
-                        quote=_extract_quote_around(body, m.start()),
-                        edition=edition_title,
-                        direction=direction,
-                    )
-                )
-                continue
-
-            if edge_type in INSTITUTION_LANES:
-                target_entity = resolve_institution(target_mention) or resolver.resolve(
-                    target_mention
-                )
-            else:
-                target_entity = resolver.resolve(target_mention)
-            if target_entity is None:
-                if _should_skip_unresolved(target_mention, edge_type, source_entity):
-                    continue
-                unresolved.append(
-                    Unresolved(
-                        edge_type=edge_type,
-                        source=source_entity,
-                        target_mention=target_mention,
-                        quote=_extract_quote_around(body, m.start()),
-                        edition=edition_title,
-                        direction=direction,
-                    )
-                )
-                continue
-            if target_entity == source_entity:
-                continue
-
-            edge = _create_relation_edge(
-                source_entity,
-                target_entity,
-                edge_type,
-                symmetric,
-                direction,
-                body,
-                m,
-                edition_title,
-                newsletter_type,
-                doc_type,
-                source_ref_default,
-                stake_pct,
-            )
-            edges_by_type.setdefault(edge_type, []).append(edge)
 
 
 def extract_relations(

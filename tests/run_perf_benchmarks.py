@@ -222,6 +222,26 @@ BENCHMARKS: list[tuple[str, list[str], float]] = [
         ["helpers/maintenance/enrich_from_yfinance.py", "--company", "Infosys"],
         5.0,
     ),
+    # Near-duplicate GEMM endpoint (near_duplicate_guard_invariant S2,
+    # 2026-10-01): this compute had NO leg and NO budget — the function's
+    # ~2 s live wall was invisible to make perf. Two thresholds budgeted
+    # SEPARATELY so a default-vs-wide divergence shows in the table rather
+    # than averaging away. The 4x accumulator prune fires 188x on the
+    # default path (peak pinned at 4 x limit), so the wide threshold is
+    # consistently the slower leg. Measured CLI walls 2026-10-01:
+    # min_sim 0.9 -> 2.2-2.4 s warm (4.3 s cold first-open);
+    # min_sim 0.01 -> 3.5-3.6 s. Budgets ~2x warm headroom, still far
+    # below any super-linear decay.
+    (
+        "near_duplicates_default",
+        ["helpers/graph/query.py", "near-duplicates", "--min-sim", "0.9", "--limit", "100"],
+        7.0,
+    ),
+    (
+        "near_duplicates_wide",
+        ["helpers/graph/query.py", "near-duplicates", "--min-sim", "0.01", "--limit", "100"],
+        8.0,
+    ),
 ]
 
 

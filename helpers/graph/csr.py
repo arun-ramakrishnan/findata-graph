@@ -246,7 +246,60 @@ def bfs_path(
     return None
 
 
-def try_shortest_path(  # noqa: C901  # one branch per shortest-path strategy; splitting scatters the ladder
+def _hit_fresh(manifest: dict, db_path: str | Path | None, live_gen: str | None) -> bool:
+    """Cache-hit freshness: mirror load()'s rule exactly. With no db_path
+    there is no generation to compare, so the manifest check is skipped
+    (the DuckDB _build_meta gate in try_shortest_path still applies).
+    Deriving this differently from the miss path silently degraded every
+    warm call to the SQL fallback while the cold call used the lane."""
+    if db_path is None:
+        return True
+    return live_gen is not None and live_gen == manifest.get("generation")
+
+
+def _cache_lookup(
+    cache_key: tuple[str, str | None],
+    out: Path,
+    db_path: str | Path | None,
+    live_gen: str | None,
+) -> tuple[dict, np.ndarray, np.ndarray, list[str], dict[str, int]] | None:
+    """Cache hit or load, with pos derived and the entry stored on a fresh
+    miss. Returns None when the substrate is stale or empty — the caller
+    falls back to the SQL path. A stale HIT must not reload: it returns
+    None directly, the same single-load semantics as the pre-split body."""
+    cached = _CACHE.get(cache_key)
+    if cached is not None:
+        manifest, offsets, neighbors, names, pos = cached
+        if not _hit_fresh(manifest, db_path, live_gen):
+            return None
+        return manifest, offsets, neighbors, names, pos
+    manifest, offsets, neighbors, names, fresh = load(out, db_path=db_path)
+    pos: dict[str, int] = {}
+    if fresh and names:
+        pos = {n: i for i, n in enumerate(names)}
+        if len(_CACHE) >= _CACHE_MAX:
+            _CACHE.clear()
+        _CACHE[cache_key] = (manifest, offsets, neighbors, names, pos)
+    if not fresh or not names:
+        return None
+    return manifest, offsets, neighbors, names, pos
+
+
+def _generation_ok(duckdb_con, manifest: dict) -> bool:
+    """The DuckDB-side safety gate: this connection must have been built
+    from the same edge set the CSR manifest was."""
+    try:
+        row = duckdb_con.execute(
+            "SELECT value FROM _build_meta WHERE key = 'generation'"
+        ).fetchone()
+    except Exception:  # noqa: BLE001  # cold/odd con -> SQL path
+        return False
+    if row is None or str(row[0]) != str(manifest.get("generation")):
+        return False
+    return True
+
+
+def try_shortest_path(
     duckdb_con,
     src: str,
     dst: str,
@@ -272,34 +325,11 @@ def try_shortest_path(  # noqa: C901  # one branch per shortest-path strategy; s
     # a rebuild lands on a fresh key and the stale substrate is never served.
     live_gen = _live_generation(db_path) if db_path is not None else None
     cache_key = (str(out), live_gen)
-    cached = _CACHE.get(cache_key)
-    if cached is not None:
-        manifest, offsets, neighbors, names, pos = cached
-        # Mirror load()'s freshness rule exactly: with no db_path there is no
-        # generation to compare, so the manifest check is skipped (the
-        # DuckDB _build_meta gate below still applies). Deriving this
-        # differently from the miss path silently degraded every warm call to
-        # the SQL fallback while the cold call used the lane.
-        fresh = True
-        if db_path is not None:
-            fresh = live_gen is not None and live_gen == manifest.get("generation")
-    else:
-        manifest, offsets, neighbors, names, fresh = load(out, db_path=db_path)
-        pos = {}
-        if fresh and names:
-            pos = {n: i for i, n in enumerate(names)}
-            if len(_CACHE) >= _CACHE_MAX:
-                _CACHE.clear()
-            _CACHE[cache_key] = (manifest, offsets, neighbors, names, pos)
-    if not fresh or not names:
+    entry = _cache_lookup(cache_key, out, db_path, live_gen)
+    if entry is None:
         return None, False
-    try:
-        row = duckdb_con.execute(
-            "SELECT value FROM _build_meta WHERE key = 'generation'"
-        ).fetchone()
-    except Exception:  # noqa: BLE001  # cold/odd con -> SQL path
-        return None, False
-    if row is None or str(row[0]) != str(manifest.get("generation")):
+    manifest, offsets, neighbors, names, pos = entry
+    if not _generation_ok(duckdb_con, manifest):
         return None, False
     if src == dst:
         # CSR universe is edge ENDPOINTS, so a known-but-edgeless entity is

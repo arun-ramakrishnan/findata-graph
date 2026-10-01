@@ -89,3 +89,19 @@ In the house route-integration pattern (e.g. `tests/test_api_graph_*`):
   bounded by `top*8` over materialised tables) is a watch item, not a
   finding; it gets the same memo treatment only if it crosses into
   confirmed territory.
+
+## 6. Scope note (appended 2026-10-01 — near_duplicate_guard_invariant S3)
+
+The memo closes *repeated identical* compute within a cache generation:
+the key is `(gen, doc_type, min_sim, limit)` (app.py:403) and `min_sim`
+is continuous over `(0, 1]` — 0.9 is the API default, not a floor
+(app.py:2398-2401) — so distinct thresholds are distinct keys and a
+client can still force *distinct* ~2 s computes by varying `min_sim`
+(measured 2026-10-01: 2.07 s at 0.9 vs 2.34 s at 0.001, P=1,186; the
+LRU bounds cache size, not compute). Pre-existing and bounded — far
+below the 59.31 s per-call cost this proposal closed — recorded as a
+fact for the operator, not remediated here. Any clamping or memo-key
+quantisation is a separate decision with its own security review. The
+per-call cost is now gated going forward by the
+`near_duplicates_default` / `near_duplicates_wide` legs in
+`tests/run_perf_benchmarks.py` (near_duplicate_guard_invariant S2).

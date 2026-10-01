@@ -307,12 +307,21 @@ def test_bold_line_regex_scales_subquadratically():
             best = min(best, (time.perf_counter() - t0) * 1000)
         timings_ms.append(best)
     growth = [timings_ms[i + 1] / max(timings_ms[i], 0.01) for i in range(3)]
-    # First doubling starts from a sub-ms baseline under xdist and can
-    # ratio-inflate (2026-09-22: 0.36→4.44 ms = 12.3x while middle/last
-    # ratios stayed at the calibrated ~4.2x / ~2.9x). Warm-up + min-of-5
-    # plus a floor on the denominator keeps the middle-doubling
-    # discriminator (nested-quantifier regression = 12.2x there) without
-    # flakes from a cold first sample.
-    assert max(growth) < 8.0, (
-        f"BOLD_LINE_RE growth superquadratic: {timings_ms} ms, ratios {growth}"
+    # Score only ratios whose base is big enough to be timing rather than
+    # scheduler noise: at n=160 the match is sub-ms, so one preempted
+    # sample inflates that first ratio past any threshold (2026-09-22:
+    # 0.36→4.44 ms = 12.3x; gate 1137 2026-09-30: ratios [12.39, 4.88,
+    # 1.03] — only the first exceeded, and under load the large-n samples
+    # inflate together, deflating the LAST ratio below the healthy ~4.2x).
+    # The middle doubling (base >= ~1.5 ms) stayed stable in every recorded
+    # run and carries the discriminator (nested-quantifier regression =
+    # 12.2x there). Warm-up + min-of-5 stay; the 8.0 threshold stays.
+    scored = [g for g, base in zip(growth, timings_ms) if base >= 1.0]
+    assert scored, (
+        f"BOLD_LINE_RE unmeasurable at the calibrated sizes (all bases "
+        f"< 1 ms): {timings_ms} — recalibrate the size ladder"
+    )
+    assert max(scored) < 8.0, (
+        f"BOLD_LINE_RE growth superquadratic: {timings_ms} ms, ratios "
+        f"{growth} (scored on >=1 ms bases: {scored})"
     )

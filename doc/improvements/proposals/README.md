@@ -36,19 +36,32 @@ entry number and stale DONE pointers):
 
 _(none)_
 
-`../archive/graph/graph_rebuild_scaling_probe.md` was filed, deferred and
-**executed** on 2026-10-01 (`../completed.md` #325): the production rebuild
-harness is now in-repo at `tests/bench_rebuild_scale.py`, T1 and T2 are
-measured rather than projected, and `../archive/graph/vault_scaling.md`
-§3.1's
-"cited-but-unreproducible" caveat is retired.
+Archived 2026-10-01 in one batch (all five filed and executed the same
+day in the c901 D1 splits + near-duplicate series), records in
+`../completed.md` and `../archive/`, entries #326-#330:
+`bold_line_ratio_floor` (`../archive/testing/`),
+`c901_d1_split_batch1` and `c901_d1_split_near_duplicate_notes` (both
+`../archive/tooling/`), `near_duplicate_gemm_rework_record`
+(`../archive/graph/`), and `near_duplicate_guard_invariant`
+(`../archive/security/`). All
+four C901 ruling masks are off; the near-duplicate split landed behind
+the `near_duplicate_notes` parity fixture (88 rows byte-identical
+across seeds {0, 1, 7}) with the 4× prune held by the stats-seam test;
+the corrected guard invariant is gated by two new `make perf` legs.
 
-_(previously: the 2026-09-30 review-arc batch archived 2026-09-30 in one
-batch after the green gate (qa 10/11 in-gate + pytest leg re-run 3670
-passed; advisory 11/12 with the by-design drifting lane), records in
-`../completed.md` and `../archive/`: #322 `ocr_selection_drift`, #323
+`../archive/graph/graph_rebuild_scaling_probe.md` was filed, deferred
+and **executed** on 2026-10-01 (`../completed.md` #325): the production
+rebuild harness is now in-repo at `tests/bench_rebuild_scale.py`, T1
+and T2 are measured rather than projected, and
+`../archive/graph/vault_scaling.md` §3.1's "cited-but-unreproducible"
+caveat is retired.
+
+_(previously: the 2026-09-30 review-arc batch archived 2026-09-30 in
+one batch after the green gate (qa 10/11 in-gate + pytest leg re-run
+3670 passed; advisory 11/12 with the by-design drifting lane), records
+in `../completed.md` and `../archive/`: #322 `ocr_selection_drift`, #323
 `ocr_rule_census`, and #324 `review_findings_collation` (all
-`../archive/tooling/`)._
+`../archive/tooling/`).)_
 
 Archived 2026-09-29 in one batch (the three DONE proposals), records
 in `../completed.md` and `../archive/`: #314

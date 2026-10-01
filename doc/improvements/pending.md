@@ -11,6 +11,16 @@ Open items below keep their revisit triggers inline; executed work is compressed
   (11>10; 12 in the working tree since the house checklist grew `main`).
   Each split lands → its `# noqa: C901` comes off. Disposition record:
   `archive/tooling/review_findings_collation.md` (class 8, S6).
+  **Batch 1 landed 2026-10-01** (csr, extract_relations,
+  review_selection — masks off, parity green; see
+  `archive/tooling/c901_d1_split_batch1.md`).
+  **`query.near_duplicate_notes` landed 2026-10-01** (split behind a
+  parity fixture — byte-identical across pinned hash seeds; mask off;
+  see `archive/tooling/c901_d1_split_near_duplicate_notes.md`; the earlier
+  batch-2 hold expired — the P2.2 arc was doc-only). **All four ruling
+  masks executed.** What remains in `query.py` are the two pre-existing
+  unruled `_cli` masks (`:1594` booked to the next c901 pass by
+  collation S7; `:4055` unruled).
 
 - **production-store copy census — TRIGGER ARMED 2026-09-29**
   (`archive/testing/production_db_copy_audit.md`, executed same day): every

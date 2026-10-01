@@ -196,6 +196,40 @@ def _render_l1b_compute(mod: ModuleType) -> str:
     return "\n".join(rows)
 
 
+def _render_near_duplicate_notes(mod: ModuleType) -> str:
+    """The seeded fixture DB through the full parameter matrix.
+
+    The fixture (helpers/graph/fixture_note_embeddings.py) seeds a tie
+    lattice (four pairs bit-identical at 0.96, two at 1.0, four more at
+    0.9899…), a multi-section path, a zero vector, and both doc types, so
+    the render pins the `(-sim, path_a, path_b)` ordering, the canonical
+    string orientation, the mean collapse, and the zero-norm guard (at
+    min_sim=0.0 the zero-vector pairs are present at sim 0.0 — a dropped
+    guard turns them NaN and they vanish). The 4x prune is deliberately
+    NOT in this surface: the final sort+truncate makes the return value
+    invariant to buffer size (the function's own docstring records this),
+    so the prune is witnessed by the stats-seam tests in
+    tests/test_note_embeddings.py, never by parity.
+    """
+    from helpers.graph.fixture_note_embeddings import near_dup_con
+
+    rows: list[str] = []
+    con = near_dup_con()
+    try:
+        for doc_type in ("company", "newsletter"):
+            for min_sim in (0.9, 0.4, 0.0):
+                for limit in (0, 1, 2, 100):
+                    got = mod.near_duplicate_notes(
+                        con, min_sim=min_sim, doc_type=doc_type, limit=limit
+                    )
+                    rows.append(f"doc_type={doc_type} min_sim={min_sim} limit={limit}")
+                    for pair in got:
+                        rows.append(f"  {pair!r}")
+    finally:
+        con.close()
+    return "\n".join(rows)
+
+
 REGISTRY: dict[str, Fixture] = {
     "bfs_path": Fixture(
         name="bfs_path",
@@ -238,6 +272,12 @@ REGISTRY: dict[str, Fixture] = {
         relpath="helpers/graph/l1_betweenness.py",
         render=_render_l1b_compute,
         note="folded betweenness over a fixture graph DB (noise/self-loop rows included)",
+    ),
+    "near_duplicate_notes": Fixture(
+        name="near_duplicate_notes",
+        relpath="helpers/graph/query.py",
+        render=_render_near_duplicate_notes,
+        note="GEMM near-dup pipeline over a seeded tie lattice (c901_d1_split_near_duplicate_notes S1); prune lives in the stats-seam tests, not here",
     ),
     # Canaries: never part of a default run, but registered so the test suite
     # can drive both verdicts through the real subprocess path. A harness that

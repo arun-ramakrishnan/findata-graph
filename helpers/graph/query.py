@@ -52,7 +52,7 @@ import sys
 import threading
 from datetime import date
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from collections.abc import Callable
 
 import duckdb
@@ -68,6 +68,9 @@ from helpers.graph.onager import (  # noqa: E402  (sys.path set above)
     onager_pagerank,
 )
 from helpers.misc.duckdb_lock import connect_with_lock_retry, io_lock  # noqa: E402
+
+if TYPE_CHECKING:
+    import numpy as np
 
 DB_PATH = PROJECT_ROOT / "memory" / "research.db"
 # Disk-based DuckDB cache. The materialised tables (v_node, e_*) persist
@@ -3647,7 +3650,101 @@ def edition_companies(
     return [(row[0], row[1], row[2]) for row in r]
 
 
-def near_duplicate_notes(  # noqa: C901  # dup-note pipeline: fetch, renormalise, score, group in one pass
+def _collapsed_note_matrix(
+    rows: list[tuple[str, str, list[float]]],
+) -> tuple[np.ndarray, list[str], list[str]]:
+    """Vectorized section→path collapse: one renormalized mean vector per
+    path (c901_d1_split_near_duplicate_notes S2 — the numerical core of
+    near_duplicate_notes). First-seen path order is preserved by the dict
+    and is what makes the np.add.at accumulation bit-reproducible: reordering
+    rows within a path changes low-order float bits, so the row sequence is
+    part of the contract, not an implementation detail."""
+    import numpy as np
+
+    dim = len(rows[0][2])
+    acc: dict[str, list] = {}
+    for fp, title, _emb in rows:
+        if fp not in acc:
+            acc[fp] = [title, len(acc)]
+    P = len(acc)
+    X = np.zeros((P, dim), dtype=np.float64)
+    emb_rows = np.array([[float(v) for v in emb] for _fp, _t, emb in rows])
+    path_idx = np.array([acc[fp][1] for fp, _t, _emb in rows])
+    np.add.at(X, path_idx, emb_rows)
+    counts = np.bincount(path_idx, minlength=P).astype(np.float64)
+    X /= counts[:, None]
+    norms = np.sqrt((X * X).sum(-1))
+    norms[norms == 0] = 1.0
+    X /= norms[:, None]
+
+    paths = [fp for fp in sorted(acc, key=lambda k: acc[k][1])]
+    titles = [acc[fp][0] for fp in paths]
+    return X, paths, titles
+
+
+def _pair_mask(block: np.ndarray, lo: int, P: int, min_sim: float) -> np.ndarray:
+    """Upper-triangle candidate mask for one block: above min_sim, no self
+    pairs, `a < b` only (index space)."""
+    import numpy as np
+
+    hi = lo + block.shape[0]
+    mask = block >= float(min_sim)
+    mask[np.arange(hi - lo), np.arange(lo, hi)] = False  # no self pairs
+    mask &= np.arange(P)[None, :] > np.arange(lo, hi)[:, None]  # a < b only
+    return mask
+
+
+def _scan_top_pairs(
+    S: np.ndarray,
+    paths: list[str],
+    limit: int,
+    min_sim: float,
+    stats: dict | None,
+) -> list[tuple[float, str, str, int, int]]:
+    """Bounded top-`limit` scan over the similarity matrix — the block loop,
+    the canonical string orientation, the 4x prune with its stats bookkeeping,
+    and the final exact sort + truncate. Returns `(-sim, path_a, path_b, a_i,
+    b_i)` tuples, sorted, at most `limit` of them."""
+    import numpy as np
+
+    # Bounded top-`limit` accumulator (csr_lane_remediation S4). The order is
+    # (-sim, path_a, path_b) ascending, so sort + truncate is exact — but the
+    # retired version appended EVERY pair above min_sim first, which at a low
+    # min_sim and the 10,000-path ceiling could hold ~50M pairs before the
+    # truncation ever ran. Pruning to `limit` once the buffer passes 4x keeps
+    # memory O(limit) at amortised-sort cost, and is exact: a discarded pair
+    # already has `limit` pairs ranked ahead of it in the buffer, so it can
+    # never reach the final top-`limit`.
+    out: list[tuple[float, str, str, int, int]] = []
+    prune_at = 4 * limit
+    BLOCK = 512
+    P = len(paths)
+    for lo in range(0, P, BLOCK):
+        hi = min(lo + BLOCK, P)
+        block = S[lo:hi]
+        mask = _pair_mask(block, lo, P, min_sim)
+        for a, b in np.argwhere(mask):
+            a_i, b_i = int(lo + a), int(b)
+            # canonical string orientation — matches the retired SQL
+            # join's `a.file_path < b.file_path` pair emission, so the
+            # (dist, path_a, path_b) tie-break is identical
+            if paths[a_i] > paths[b_i]:
+                a_i, b_i = b_i, a_i
+            out.append((-float(block[a, b]), paths[a_i], paths[b_i], a_i, b_i))
+            if stats is not None and len(out) > stats.get("peak", 0):
+                stats["peak"] = len(out)
+            if len(out) >= prune_at:
+                out.sort()
+                del out[limit:]
+                if stats is not None:
+                    stats["prunes"] = stats.get("prunes", 0) + 1
+                    stats["post_prune_max"] = max(stats.get("post_prune_max", 0), len(out))
+    out.sort()
+    del out[limit:]
+    return out
+
+
+def near_duplicate_notes(
     con: duckdb.DuckDBPyConnection,
     min_sim: float = 0.9,
     doc_type: str = "company",
@@ -3680,9 +3777,12 @@ def near_duplicate_notes(  # noqa: C901  # dup-note pipeline: fetch, renormalise
     do bound is the *scan*; the GEMM is what the ceiling is really
     guarding. The pair accumulator is separately bounded to O(limit): it is
     pruned back to ``limit`` (sort + slice, no heap) whenever it reaches
-    ``4 x limit``, so a low ``min_sim`` can no longer accumulate tens of
-    millions of pairs ahead of the truncation. ``min_sim`` is API-floored
-    at 0.9, so the wide case is latent, not live.
+    ``4 x limit`` — unconditionally ≤ 2,000, because the API validates
+    ``1 <= limit <= 500``. The bound does not depend on ``min_sim``: the
+    API domain is the full ``(0, 1]`` (0.9 is only the default), and the
+    prune is load-bearing on the default path — 188 fires measured at
+    ``min_sim=0.9``, P=1,186 (2026-10-01; counter table in the
+    near_duplicate_gemm_rework_record proposal).
 
     ``stats`` (optional, test seam): when a dict is passed it receives
     ``peak`` (the accumulator high-water mark), ``prunes`` (how many times the
@@ -3699,8 +3799,6 @@ def near_duplicate_notes(  # noqa: C901  # dup-note pipeline: fetch, renormalise
     generation-cached. Returns ``list[(path_a, path_b, title_a,
     title_b, sim)]`` sorted by descending similarity.
     """
-    import numpy as np
-
     limit = max(0, int(limit))
     rows = con.execute(
         "SELECT file_path, title, emb FROM v_note_embeddings WHERE doc_type = ?",
@@ -3708,70 +3806,15 @@ def near_duplicate_notes(  # noqa: C901  # dup-note pipeline: fetch, renormalise
     ).fetchall()
     if not rows:
         return []
-    dim = len(rows[0][2])
-    # Vectorized section→path collapse: one mean vector per path,
-    # renormalized (identical arithmetic to the per-row Python loop it
-    # replaces; first-seen path order preserved by the dict).
-    acc: dict[str, list] = {}
-    for fp, title, _emb in rows:
-        if fp not in acc:
-            acc[fp] = [title, len(acc)]
-    P = len(acc)
-    X = np.zeros((P, dim), dtype=np.float64)
-    emb_rows = np.array([[float(v) for v in emb] for _fp, _t, emb in rows])
-    path_idx = np.array([acc[fp][1] for fp, _t, _emb in rows])
-    np.add.at(X, path_idx, emb_rows)
-    counts = np.bincount(path_idx, minlength=P).astype(np.float64)
-    X /= counts[:, None]
-    norms = np.sqrt((X * X).sum(-1))
-    norms[norms == 0] = 1.0
-    X /= norms[:, None]
-
-    paths = [fp for fp in sorted(acc, key=lambda k: acc[k][1])]
-    titles = [acc[fp][0] for fp in paths]
+    X, paths, titles = _collapsed_note_matrix(rows)
     # Exact GEMM: S = X Xᵀ is the cosine similarity matrix (rows are
     # unit-norm); sim = 1 − d²/2 degenerates to it for normalized means.
     S = X @ X.T
-
-    # Bounded top-`limit` accumulator (csr_lane_remediation S4). The order is
-    # (-sim, path_a, path_b) ascending, so sort + truncate is exact — but the
-    # retired version appended EVERY pair above min_sim first, which at a low
-    # min_sim and the 10,000-path ceiling could hold ~50M pairs before the
-    # truncation ever ran. Pruning to `limit` once the buffer passes 4x keeps
-    # memory O(limit) at amortised-sort cost, and is exact: a discarded pair
-    # already has `limit` pairs ranked ahead of it in the buffer, so it can
-    # never reach the final top-`limit`.
     if limit == 0:
         return []
-    out: list[tuple[float, str, str, int, int]] = []
-    prune_at = 4 * limit
-    BLOCK = 512
-    for lo in range(0, P, BLOCK):
-        hi = min(lo + BLOCK, P)
-        block = S[lo:hi]
-        mask = block >= float(min_sim)
-        mask[np.arange(hi - lo), np.arange(lo, hi)] = False  # no self pairs
-        mask &= np.arange(P)[None, :] > np.arange(lo, hi)[:, None]  # a < b only
-        for a, b in np.argwhere(mask):
-            a_i, b_i = int(lo + a), int(b)
-            # canonical string orientation — matches the retired SQL
-            # join's `a.file_path < b.file_path` pair emission, so the
-            # (dist, path_a, path_b) tie-break is identical
-            if paths[a_i] > paths[b_i]:
-                a_i, b_i = b_i, a_i
-            out.append((-float(block[a, b]), paths[a_i], paths[b_i], a_i, b_i))
-            if stats is not None and len(out) > stats.get("peak", 0):
-                stats["peak"] = len(out)
-            if len(out) >= prune_at:
-                out.sort()
-                del out[limit:]
-                if stats is not None:
-                    stats["prunes"] = stats.get("prunes", 0) + 1
-                    stats["post_prune_max"] = max(stats.get("post_prune_max", 0), len(out))
+    out = _scan_top_pairs(S, paths, limit, min_sim, stats)
     if not out:
         return []
-    out.sort()
-    del out[limit:]
     return [
         (paths[a_i], paths[b_i], titles[a_i], titles[b_i], -neg_sim)
         for neg_sim, _pa, _pb, a_i, b_i in out

@@ -53,6 +53,7 @@ help:           ## Show available targets (alphabetical; entries generated from 
 > @echo "  fuzz                     Run Hypothesis property-based tests (deterministic seed for reproducibility)"
 > @echo "  graph-algos              Smoke test the Onager algorithm layer (all 14 metrics, no writes)"
 > @echo "  graph-rebuild            Rebuild the disk-based DuckDB cache from SQLite, data-only (run after parse_newsletter --apply / derive-relations)"
+> @echo "  graph-rebuild-bench      Measure the production graph-rebuild cost ladder (tests/bench_rebuild_scale.py; opt-in, NOT a perf leg)"
 > @echo "  graph-smoke              Quick smoke test of the graph query layer (sector-of + neighbors)"
 > @echo "  graph-stats              Print a one-shot summary of the graph state (entities, edges, sectors, hygiene)"
 > @echo "  hif-export               Export the hypergraph in HIF to snapshots/hif/ (rides make snapshot; SOURCES=... to override)"

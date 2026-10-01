@@ -8570,3 +8570,134 @@ replacement numbers reproducible.
 - **Descoped:** the S5 anti-rot guard (superseded by an in-repo harness) and
   the `--from-real` cross-check mode (superseded by the three-witness
   agreement). Residual and re-open triggers in the archived file's §7.
+
+## 326. Bold-line ratio floor — the scaling gate's one recurring flake closed at the discriminator
+
+Filed and executed 2026-10-01. `test_bold_line_regex_scales_subquadratically`
+was the gate's one recurring flake: at n=160 the match is sub-millisecond, so
+one preempted sample inflates the FIRST growth ratio past any threshold
+(2026-09-22: 0.36→4.44 ms = 12.3×; gate 1137: ratios [12.39, 4.88, 1.03] —
+only the first exceeded) while under load the large-n samples inflate
+together and deflate the LAST ratio below the healthy ~4.2×.
+
+- **Fix:** score only ratios whose base is ≥ 1 ms — timing, not scheduler
+  noise. The middle doubling (base ≥ ~1.5 ms) stayed stable in every
+  recorded run and carries the discriminator (nested-quantifier regression
+  = 12.2× there). Warm-up + min-of-5 stay; the 8.0 threshold stays.
+- **Unmeasurable guard:** if every base lands < 1 ms at the calibrated
+  sizes the test now fails with "recalibrate the size ladder" rather than
+  passing vacuously.
+- **Evidence-first:** isolated PASS + full-leg re-run recorded at filing
+  (2026-09-30 collation context, §S5); appendix log in the archived file.
+
+## 327. C901 D1 splits batch 1 — csr, extract_relations, review_selection, masks off
+
+Executed 2026-10-01 (filed same day). Implements the collation S6 ruling:
+one mask in, one split out, extraction-only per the c901 S2–S5 house
+pattern.
+
+- **`csr.try_shortest_path`** (11>10): extracted `_hit_fresh` (cache-hit
+  freshness rule mirroring `load()`, comment preserved verbatim),
+  `_cache_lookup` (hit/miss + pos derivation + evict-then-store;
+  stale-hit-must-NOT-reload semantics preserved), `_generation_ok` (the
+  `_build_meta` generation gate). Entry keeps the ladder: substrate gate →
+  src==dst → endpoint membership → BFS.
+- **`extract_relations._process_pattern_matches`** (12>10): extracted
+  `_queue_unresolved` (the two byte-identical `Unresolved(...)` blocks
+  deduped, `_should_skip_unresolved` noise gate carried),
+  `_resolve_target` (INSTITUTION_LANES branch), `_process_match` (per-match
+  tail). The main function is now the double loop plus two guards.
+- **`review_selection.main`** (11>10): extracted `_in_family` (the
+  triple-duplicated prefix-or-startswith test), `_family_traffic`,
+  `_selection_teeth`, `_print_freshness` (advisory freshness with lazy
+  import) + ~4 new helper tests in `tests/test_review_tooling.py` (12→16).
+- **Fold-collision retraction recorded:** batch 1 had excluded
+  `query.near_duplicate_notes` fearing a P2.2 collision; that arc's diff
+  was doc-only, so the exclusion premise was dead (#328 split it).
+- All four ruling masks now executed; the three pre-existing `_cli` masks
+  (`query.py:1594`, `query.py:4055`, `extract_relations.py:2775`) remain —
+  one booked to the next c901 pass by collation S7, two unruled.
+
+## 328. near_duplicate_notes split — parity fixture first, prune through the stats seam
+
+Executed 2026-10-01 (filed same day; ran second after #327 — the
+sequencing constraint had expired with the P2.2 premise).
+
+- **S1 fixture** (`helpers/graph/fixture_note_embeddings.py`): deterministic
+  in-memory DuckDB with `v_note_embeddings` seeded to a tie lattice — a/c
+  and b/d normalize to identical unit vectors (two bit-identical 1.0
+  pairs), four pairs bit-identical at 0.96, four at 0.9899…, (c,d)
+  inserted index-reversed so the canonical orientation swap is
+  load-bearing — plus a multi-section path, a zero vector, and both doc
+  types. Registered in `parity_harness.REGISTRY` with `render(mod)`
+  (module by argument, per harness contract). Four gap tests in
+  `TestNearDuplicateInvariants`: tie order/orientation, zero-norm guard
+  (verified RED with the guard line stripped), multi-section mean
+  (0.5, first-seen title), and the `app.py` memo key-covers-signature
+  invariant (AST pin: key ⊇ {gen, doc_type, min_sim, limit}).
+- **S2 split:** `query.near_duplicate_notes` (129 lines, mccabe 12) →
+  `_collapsed_note_matrix` / `_pair_mask` / `_scan_top_pairs`; entry keeps
+  the clamp, the empty and `limit == 0` guards in the original order, and
+  the projection; `noqa: C901` off. Parity 88 rows byte-identical across
+  seeds {0, 1, 7}, pre-split vs post-split, three consecutive runs.
+- **Prune NOT witnessed by parity** (§5a correction, kept): the final
+  sort+truncate makes the return value invariant to buffer size, so the
+  4× bound rides on the existing stats-seam test
+  (`test_bounded_accumulator_is_exact_under_pruning`), which held through
+  the split.
+- **Shakedown:** live `make graph-rebuild` + near-duplicates CLI call +
+  post-rebuild stats sweep reproducing prunes=188, peak=400,
+  post_prune_max=100 at P=1,186 — split path agrees with the memo at
+  production scale.
+
+## 329. Near-duplicate GEMM rework record — the 2026-09-26 exactness claim pulled out of a code comment
+
+Filed 2026-10-01; S2+S3 executed same day (S1 is this entry + the archived
+record, which became the durable home of what lived only in a `query.py`
+comment block: `rg near_dup_prune doc/` → 0 hits before this arc).
+
+- **What the record pins:** the SQL-join → one f64 GEMM rework's claims —
+  same renormalized means, `sim = 1 − d²/2` = cosine on unit-norm rows,
+  `(dist, path_a, path_b)` triple-key ordering identical to the retired
+  SQL join's pair emission — plus the bounded accumulator's exactness
+  argument (a discarded pair already has `limit` pairs ranked ahead of it)
+  and its accumulation-order dependency.
+- **S2 (`TestNearDuplicateNumerics`):** collapse determinism
+  (bit-identical `tobytes()` across calls) with the order dependency made
+  OBSERVABLE via a 1e16-absorption witness — in the documented section
+  order comp-0 sums to 1.0 (normalized direction 0.4472…), in the
+  perturbed big-pair-first order to 2.0 (0.7071…) — verified RED under a
+  surgical within-path order-reversal mutation; cross-path interleaving
+  that preserves first-seen and per-path section order proven free; the
+  returned sim equals both u·v and 1 − |u−v|²/2 = 0.5 on the controlled
+  (e_multi, f_dir) pair. Tie-break owned by #328's lattice test,
+  referenced not duplicated.
+- **S3 sweep re-run post-split** (read-only `memory/graph.duckdb`):
+  prunes 188 → 2,342 across the threshold sweep, peak pinned 400,
+  post_prune_max 100 at every threshold, wall 1.75–3.30 s. Stable.
+
+## 330. Near-duplicate guard invariant — the docstring's "API-floored at 0.9" corrected, endpoint gated
+
+Filed and executed 2026-10-01 (S1 landed before the #328 split so the
+corrected text moved into the entry docstring).
+
+- **S1:** the false claim "min_sim is API-floored at 0.9, so the wide case
+  is latent, not live" is gone (`rg "API-floored"` → 0). The true
+  invariant: the prune bound is `4 × limit`, unconditionally ≤ 2,000
+  because the API validates `1 <= limit <= 500`; the bound does not depend
+  on `min_sim` (API domain the full `(0, 1]`, 0.9 only the default); the
+  prune is load-bearing on the DEFAULT path — 188 fires measured at
+  `min_sim=0.9`, P=1,186 (counter table in #329's record).
+- **S2:** two `make perf` legs budgeted separately so a default-vs-wide
+  divergence shows in the table rather than averaging away —
+  `near_duplicates_default` (min_sim 0.9, budget 7.0 s; measured 2.2–2.4 s
+  warm / 4.3 s cold) and `near_duplicates_wide` (min_sim 0.01, budget
+  8.0 s; measured 3.5–3.6 s). ~2× warm headroom, far below any
+  super-linear decay.
+- **S3:** dated scope note appended to
+  `../archive/security/near_duplicates_api_compute_cap.md` — the memo
+  closes *repeated identical* compute per key; continuous `min_sim`
+  permits distinct ~2 s computes (2.07 s at 0.9 vs 2.34 s at 0.001,
+  P=1,186) and the LRU bounds cache size, not compute. Recorded as a
+  fact for the operator, not remediated; any clamping or memo-key
+  quantisation is a separate decision with its own security review.

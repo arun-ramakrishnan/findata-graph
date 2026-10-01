@@ -144,3 +144,47 @@ class TestReviewSelection:
     def test_house_checklist_is_carried(self):
         assert len(rs.HOUSE_CHECKLIST) >= 9
         assert all(item.strip() for item in rs.HOUSE_CHECKLIST)
+
+
+class TestSelectionTeeth:
+    """The split teeth helpers (c901_d1_split_batch1 S3): violation =
+    a rule-covered family with diff traffic OCR selected nothing from."""
+
+    GLOBS = ["Mojo/vendor/**"]
+
+    def test_family_with_selected_traffic_is_no_violation(self):
+        assert rs._selection_teeth(["tests/test_x.py"], [], ["tests/"], self.GLOBS) == []
+
+    def test_touched_but_unselected_family_is_a_violation(self):
+        # the shipped-defect class: tests changed, tests invisible
+        assert rs._selection_teeth(
+            ["helpers/misc/x.py"], ["tests/test_x.py"], ["tests/"], self.GLOBS
+        ) == ["tests/"]
+
+    def test_rule_excluded_traffic_is_declared_invisible(self):
+        # vendor hits are excluded traffic, not a family the include missed
+        assert rs._selection_teeth([], ["Mojo/vendor/lib/x.mojo"], ["Mojo/src/"], self.GLOBS) == []
+
+    def test_in_family_covers_exact_root_and_prefix(self):
+        assert rs._in_family("tests", "tests")
+        assert rs._in_family("tests/test_x.py", "tests/")
+        assert not rs._in_family("testsuite/test_x.py", "tests/")
+
+
+class TestPrintFreshness:
+    def test_fresh_row_prints_the_reviewed_line(self, ledger, capsys):
+        rf.main(["--record", "--leg", "delegation", "--note", "test verdict"])
+        rs._print_freshness(1)
+        out = capsys.readouterr().out
+        # rf.main --record also prints (its "recorded …" line precedes ours)
+        assert "review-freshness: FRESH (reviewed " in out
+        assert "legs=['delegation']" in out and "test verdict" in out
+
+    def test_unavailable_never_raises(self, ledger, monkeypatch, capsys):
+        def boom(stack):
+            raise RuntimeError("ledger corrupt")
+
+        monkeypatch.setattr(rf, "status", boom)
+        rs._print_freshness(1)  # advisory context — must not raise
+        out = capsys.readouterr().out
+        assert out == "review-freshness: unavailable (RuntimeError: ledger corrupt)\n"

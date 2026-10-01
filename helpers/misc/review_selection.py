@@ -116,7 +116,62 @@ def _ref_args(stack: int) -> list[str]:
     return ["--from", f"HEAD~{stack}", "--to", "HEAD"]
 
 
-def main(argv: list[str] | None = None) -> int:  # noqa: C901  # pass-per-flag CLI
+def _in_family(path: str, root: str) -> bool:
+    return path == root.rstrip("/") or path.startswith(root)
+
+
+def _family_traffic(
+    reviewable: list[str],
+    excluded: list[str],
+    root: str,
+    exclude_globs: list[str],
+) -> tuple[list[str], list[str]]:
+    """(touched, selected) diff traffic for one include family. Rule-excluded
+    paths (Mojo/vendor/**) are DECLARED invisible — they are not diff
+    traffic the include family failed to show."""
+    candidates = [p for p in reviewable + excluded if _in_family(p, root)]
+    touched = [p for p in candidates if not _rule_excluded(p, exclude_globs)]
+    selected = [p for p in reviewable if _in_family(p, root)]
+    return touched, selected
+
+
+def _selection_teeth(
+    reviewable: list[str],
+    excluded: list[str],
+    include_roots: list[str],
+    exclude_globs: list[str],
+) -> list[str]:
+    """Include roots with rule-covered diff traffic that OCR selected
+    nothing from — the shipped-defect class (tests changed, tests
+    invisible in the review)."""
+    violations = []
+    for root in include_roots:
+        touched, selected = _family_traffic(reviewable, excluded, root, exclude_globs)
+        if touched and not selected:
+            violations.append(root)
+    return violations
+
+
+def _print_freshness(stack: int) -> None:
+    """Review freshness (ocr_review_pipeline gap: was this diff already
+    reviewed, and did it change since?). Advisory context only — a stale
+    or unreviewed verdict never fails the run."""
+    try:
+        from helpers.misc import review_freshness as rf
+
+        state, row, _ = rf.status(stack)
+        line = f"review-freshness: {state}"
+        if row is not None:
+            line += f" (reviewed {row['reviewed_at']} legs={row.get('legs')}"
+            if row.get("note"):
+                line += f", {row['note']}"
+            line += ")"
+        print(line)
+    except (Exception, SystemExit) as e:  # noqa: BLE001  # freshness is context, never a failure
+        print(f"review-freshness: unavailable ({type(e).__name__}: {e})")
+
+
+def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     ap.add_argument(
         "--stack",
@@ -162,17 +217,7 @@ def main(argv: list[str] | None = None) -> int:  # noqa: C901  # pass-per-flag C
         print(f"  - {path} (excluded)")
 
     include_roots, exclude_globs = _families()
-    violations = []
-    for root in include_roots:
-        candidates = [
-            p for p in reviewable + excluded if p == root.rstrip("/") or p.startswith(root)
-        ]
-        # rule-excluded paths (Mojo/vendor/**) are DECLARED invisible — they
-        # are not diff traffic the include family failed to show.
-        touched = [p for p in candidates if not _rule_excluded(p, exclude_globs)]
-        selected = [p for p in reviewable if p == root.rstrip("/") or p.startswith(root)]
-        if touched and not selected:
-            violations.append(root)
+    violations = _selection_teeth(reviewable, excluded, include_roots, exclude_globs)
     if violations:
         print(
             "\nSELECTION DEFECT: rule-covered families changed but nothing from them "
@@ -183,22 +228,7 @@ def main(argv: list[str] | None = None) -> int:  # noqa: C901  # pass-per-flag C
         )
         return 1
     print("selection-teeth OK: every rule-covered family with diff traffic is visible")
-    # Review freshness (ocr_review_pipeline gap: was this diff already
-    # reviewed, and did it change since?). Advisory context only — a stale
-    # or unreviewed verdict never fails the run.
-    try:
-        from helpers.misc import review_freshness as rf
-
-        state, row, _ = rf.status(args.stack)
-        line = f"review-freshness: {state}"
-        if row is not None:
-            line += f" (reviewed {row['reviewed_at']} legs={row.get('legs')}"
-            if row.get("note"):
-                line += f", {row['note']}"
-            line += ")"
-        print(line)
-    except (Exception, SystemExit) as e:  # noqa: BLE001  # freshness is context, never a failure
-        print(f"review-freshness: unavailable ({type(e).__name__}: {e})")
+    _print_freshness(args.stack)
     print("\nhouse checklist (host-carried; OCR's rules key is inert — verified 1.12.11):")
     for item in HOUSE_CHECKLIST:
         print(f"  * {item}")

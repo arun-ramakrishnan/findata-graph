@@ -140,9 +140,7 @@ def _clone_schema(dest: Path) -> None:
     src = sqlite3.connect(f"file:{SRC_DB}?mode=ro", uri=True)
     objs = [
         (typ, sql)
-        for typ, sql in src.execute(
-            "SELECT type, sql FROM sqlite_master WHERE sql IS NOT NULL"
-        )
+        for typ, sql in src.execute("SELECT type, sql FROM sqlite_master WHERE sql IS NOT NULL")
         # sqlite_stat1 is ANALYZE's own table, reserved for internal use.
         if "sqlite_stat" not in sql
     ]
@@ -228,9 +226,7 @@ def _generate(dest: Path, rows: int, *, degree: float, notes: int, dims: int) ->
                 0,
                 "derive",
             )
-            for i, (a, d) in enumerate(
-                (i % company_n, 1 + i // company_n) for i in range(directed)
-            )
+            for i, (a, d) in enumerate((i % company_n, 1 + i // company_n) for i in range(directed))
         ),
     )
 
@@ -240,7 +236,10 @@ def _generate(dest: Path, rows: int, *, degree: float, notes: int, dims: int) ->
     con.executemany(
         "INSERT INTO hyper_edges (edge_type, label, weight, source_ref, properties, source_tier)"
         " VALUES (?,?,?,?,?,?)",
-        (("sector", f"Syn_{i:06d}", 1.0, "synthetic://bench", "{}", "derive") for i in range(h_edges)),
+        (
+            ("sector", f"Syn_{i:06d}", 1.0, "synthetic://bench", "{}", "derive")
+            for i in range(h_edges)
+        ),
     )
     # Same collision-free pairing for the incidences' (edge_id, entity) PK.
     con.executemany(
@@ -353,8 +352,10 @@ def _density_check(rows: int, reps: int) -> None:
     """Compare the ladder column with the production path at the same R."""
     print("\ndensity check — ladder `materialize` vs the production rebuild")
     print(f"{'variant':>34} {'best_s':>8}")
-    for label, degree in (("ladder degree 22 (sibling default)", SIBLING_DEGREE),
-                          ("measured degree 2.61 (production)", LIVE["degree_directed"])):
+    for label, degree in (
+        ("ladder degree 22 (sibling default)", SIBLING_DEGREE),
+        ("measured degree 2.61 (production)", LIVE["degree_directed"]),
+    ):
         scratch = Path(tempfile.mkdtemp(prefix="scale_bfs_"))
         try:
             db = scratch / "research.db"
@@ -368,17 +369,33 @@ def _density_check(rows: int, reps: int) -> None:
 
 def main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    p.add_argument("--rows", type=int, nargs="*", default=None,
-                   help="e_all_und doubled-row targets (default: live, T1)")
+    p.add_argument(
+        "--rows",
+        type=int,
+        nargs="*",
+        default=None,
+        help="e_all_und doubled-row targets (default: live, T1)",
+    )
     p.add_argument("--reps", type=int, default=3, help="Best-of-N, min reported")
-    p.add_argument("--degree", type=float, default=LIVE["degree_directed"],
-                   help=f"Directed edges/node (measured {LIVE['degree_directed']}; "
-                        f"sibling defaults to {SIBLING_DEGREE})")
-    p.add_argument("--notes", type=int, default=LIVE["notes"],
-                   help="note_search rows -> v_note_embeddings (0 disables that stage)")
+    p.add_argument(
+        "--degree",
+        type=float,
+        default=LIVE["degree_directed"],
+        help=f"Directed edges/node (measured {LIVE['degree_directed']}; "
+        f"sibling defaults to {SIBLING_DEGREE})",
+    )
+    p.add_argument(
+        "--notes",
+        type=int,
+        default=LIVE["notes"],
+        help="note_search rows -> v_note_embeddings (0 disables that stage)",
+    )
     p.add_argument("--breakdown", action="store_true", help="Fixed-cost decomposition")
-    p.add_argument("--density-check", action="store_true",
-                   help="Compare the sibling ladder's default degree against the measured one")
+    p.add_argument(
+        "--density-check",
+        action="store_true",
+        help="Compare the sibling ladder's default degree against the measured one",
+    )
     p.add_argument("--keep", action="store_true", help="Keep the scratch directory")
     args = p.parse_args(argv)
 
@@ -389,22 +406,24 @@ def main(argv: list[str] | None = None) -> int:
     before = _prod_guard()
 
     print("production rebuild cost — T(R) ~= a + b*R, R = e_all_und doubled rows")
-    print(f"degree {args.degree} directed edges/node · notes {args.notes} · "
-          f"best of {args.reps}\n")
-    print(f"{'R target':>12} {'R actual':>12} {'entities':>10} {'edges':>10} "
-          f"{'best_s':>8} {'duck_MB':>8}")
+    print(f"degree {args.degree} directed edges/node · notes {args.notes} · best of {args.reps}\n")
+    print(
+        f"{'R target':>12} {'R actual':>12} {'entities':>10} {'edges':>10} "
+        f"{'best_s':>8} {'duck_MB':>8}"
+    )
     fits: list[tuple[float, float]] = []
     for rows in targets:
         scratch = Path(tempfile.mkdtemp(prefix="scale_bfs_"))
         try:
             db = scratch / "research.db"
             _clone_schema(db)
-            counts = _generate(db, rows, degree=args.degree, notes=args.notes,
-                               dims=LIVE["dims"])
+            counts = _generate(db, rows, degree=args.degree, notes=args.notes, dims=LIVE["dims"])
             best, doubled, size = _time_rebuild(db, args.reps)
             fits.append((doubled, best))
-            print(f"{rows:>12,} {doubled:>12,} {counts['entities']:>10,} "
-                  f"{counts['graph_edges']:>10,} {best:>8.2f} {size / 1048576:>8.1f}")
+            print(
+                f"{rows:>12,} {doubled:>12,} {counts['entities']:>10,} "
+                f"{counts['graph_edges']:>10,} {best:>8.2f} {size / 1048576:>8.1f}"
+            )
         finally:
             if args.keep:
                 print(f"  kept: {scratch}")
@@ -417,8 +436,10 @@ def main(argv: list[str] | None = None) -> int:
         intercept = t0 - slope * r0
         cross = (5.0 - intercept) / slope if slope > 0 else float("inf")
         print(f"\nfit: T(R) ~= {intercept:.2f} s + {slope * 1e6:.2f} us * R")
-        print(f"  5 s line crossed at R ~= {cross:,.0f} doubled rows "
-              f"({cross / LIVE['rows']:.1f}x live)")
+        print(
+            f"  5 s line crossed at R ~= {cross:,.0f} doubled rows "
+            f"({cross / LIVE['rows']:.1f}x live)"
+        )
     if args.breakdown:
         scratch = Path(tempfile.mkdtemp(prefix="scale_bfs_"))
         try:

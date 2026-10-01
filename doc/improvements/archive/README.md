@@ -8,6 +8,14 @@ commit, referenced by nothing). Entry numbers point at
 
 ## security/ — Security arcs over the API + ingestion surface
 
+- [`near_duplicate_guard_invariant.md`](security/near_duplicate_guard_invariant.md) —
+  near-duplicate guard invariant — the docstring's "min_sim is API-floored at 0.9,
+  so the wide case is latent" corrected to the true derivation (`4 × limit ≤ 2000`
+  because the API validates `limit ≤ 500`; 0.9 is only the default, domain `(0, 1]`;
+  the prune fires 188× on the default path, P=1,186); two `make perf` legs budgeted
+  separately (`near_duplicates_default` 7.0 s / `_wide` 8.0 s, measured 2.2–2.4 s /
+  3.5–3.6 s warm); AVAIL-1 scope note appended (continuous `min_sim` permits distinct
+  ~2 s computes; the LRU bounds cache size, not compute) — completed.md #330
 - [`post_review_api_reaudit.md`](security/post_review_api_reaudit.md) — Security coverage expansion — availability class + cumulative coverage machinery — post-close re-audit (S1), availability review (S2, AVAIL-1), coverage ledger + validator (S3), adversarial-validation trial (S4, AVAIL-2 + CONC-1) — completed.md #247b
 - [`avail2_metric_regex_deAmbiguate.md`](security/avail2_metric_regex_deAmbiguate.md) — AVAIL-2 fix — cubic ReDoS in the metric range patterns removed at the pattern; length cap rejected on corpus measurement in favour of the adversarial fuzz guard (10,349 ms old vs ~1 ms fixed) — completed.md #250
 - [`conc1_graph_connection_isolation.md`](security/conc1_graph_connection_isolation.md) — CONC-1 fix — per-request graph connections (flask.g + teardown); shared singleton cross-return (63 wrong/3,000 -> 0) eliminated; direct-call singleton preserved — completed.md #251
@@ -16,6 +24,14 @@ commit, referenced by nothing). Entry numbers point at
 
 ## graph/ — Graph layer — algorithms, DuckPGQ retirement, Onager, knowledge-model design
 
+- [`near_duplicate_gemm_rework_record.md`](graph/near_duplicate_gemm_rework_record.md) —
+  near-duplicate GEMM rework record — the 2026-09-26 SQL→GEMM rework's measurement,
+  exactness argument (`sim = 1 − d²/2` = cosine on unit-norm rows, the
+  `(dist, path_a, path_b)` triple-key tie order) and accumulation-order dependency
+  pulled out of a query.py comment into a durable record; TestNearDuplicateNumerics
+  pins collapse determinism with a 1e16-absorption order witness (RED under
+  within-path reversal), cross-path interleaving free, the identity on a controlled
+  pair; post-split sweep prunes 188→2,342, peak pinned 400 — completed.md #329
 - [`graph_rebuild_scaling_probe.md`](graph/graph_rebuild_scaling_probe.md) — Graph rebuild scaling probe — **executed 2026-10-01** (filed, deferred, executed same day): `tests/bench_rebuild_scale.py` lands as a sibling to the existing `tests/bench_scale_bfs.py` and times the *shipping* `query.connect(rebuild=True)` path; measured T(R) ≈ 1.47 s + 2.52 µs·R with T1 = 3.99 s and T2 = 28.08 s, ~82% of the intercept fixed, 5 s crossed at R ≈ 1.40 M = 12.2× live = **T1, not T2**; corrects the record twice over (the ladder rewrite already existed since #204 Phase 0, and its `--degree` default 22 is ~8.4× the measured 2.61 directed rows/node); first-pass evidence under [`graph/evidence/p22/`](graph/evidence/p22/README.md) — completed.md #325
 
 - [`vigil_symmetric_emission_precision.md`](graph/vigil_symmetric_emission_precision.md) —
@@ -118,6 +134,12 @@ commit, referenced by nothing). Entry numbers point at
 
 ## testing/ — Testing & QA — integration, stateful/relational, lint, coverage
 
+- [`bold_line_ratio_floor.md`](testing/bold_line_ratio_floor.md) —
+  bold-line ratio floor — the scaling gate's one recurring flake closed at the
+  discriminator: score only growth ratios whose base is ≥ 1 ms, so sub-millisecond
+  scheduler noise cannot inflate the first doubling (gate 1137: [12.39, 4.88, 1.03]);
+  the middle doubling carries the 12.2× nested-quantifier regression discriminator;
+  warm-up + min-of-5 + the 8.0 threshold stay — completed.md #326
 - [`xdist_shared_graph_cache.md`](testing/xdist_shared_graph_cache.md) — one
   shared read-only xdist graph cache (`graph.xdist-shared.duckdb`, force-RO
   default-path connects, controller mtime stamping) + orphan sweep (PID
@@ -161,6 +183,22 @@ commit, referenced by nothing). Entry numbers point at
 
 ## tooling/ — Tooling & performance — MCP eval, doc browser/search, perf review, tech survey
 
+- [`c901_d1_split_batch1.md`](tooling/c901_d1_split_batch1.md) —
+  C901 D1 splits batch 1 — the three P2.2-safe ruling masks split
+  extraction-only (`csr.try_shortest_path` → _hit_fresh/_cache_lookup/_generation_ok;
+  `extract_relations._process_pattern_matches` → _queue_unresolved/_resolve_target/
+  _process_match; `review_selection.main` → _in_family/_family_traffic/
+  _selection_teeth/_print_freshness + helper tests); stale-hit-must-not-reload and
+  the noise gate carried verbatim; the P2.2 fold-collision exclusion retracted
+  (the arc was doc-only) — completed.md #327
+- [`c901_d1_split_near_duplicate_notes.md`](tooling/c901_d1_split_near_duplicate_notes.md) —
+  near_duplicate_notes split behind a parity fixture — `query.near_duplicate_notes`
+  (129 lines, mccabe 12) → _collapsed_note_matrix/_pair_mask/_scan_top_pairs;
+  `helpers/graph/fixture_note_embeddings.py` seeds a tie lattice (two bit-identical
+  1.0 pairs, four at 0.96, (c,d) index-reversed so the orientation swap is
+  load-bearing), multi-section path, zero vector; parity 88 rows byte-identical
+  across seeds {0, 1, 7}; the 4× prune witnessed through the `stats` seam, never by
+  parity (the return value is invariant to buffer size) — completed.md #328
 - [`duckdb_transient_lock_retry.md`](tooling/duckdb_transient_lock_retry.md) —
   conjunctive transient-lock classifier + pinned 50→800 ms ladder wired at
   all production openers, and `io_lock`/`open_read_only` coordination: long
