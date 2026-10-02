@@ -162,17 +162,27 @@ Open items below keep their revisit triggers inline; executed work is compressed
   the umbrella's §7 footnotes (owned-elsewhere / converters /
   no-consumer-recorded dispositions, nothing else silently owed).
 
-- **Served-vs-stamp convention fork (closeness/harmonic) — OPEN,
-  reconcile later**: served `graph_analytics` rows live in the lane
-  universe (all-edges projection, `(N-1)/sum`), while `v_centrality_*`
-  stamps live in the Onager universe (ex-index projection + an
-  underived ×1.2383 global rescale, rank-exact r=1.0 — dead theories:
-  formula, edge set, N, weights, directedness, staleness all
-  checked). Current posture (scipy_routing_dispatch §2): wire the
-  served universe, preserve bit-exact, do not move served absolutes
-  on an underived constant. **Trigger for reconciliation**: Onager
-  C++ source access, or a cross-generation experiment pinning the
-  constant to a projection/parameter.
+- **Served-vs-stamp convention fork (closeness/harmonic) — RESOLVED
+  2026-10-02 (Onager C++ source verification)**: the fork is the
+  `listed_on_index` edge set, not a formula or constant. Verification
+  (appendix to `doc/improvements/archive/graph/scipy_routing_dispatch.md`): (a) Onager C++/Rust source
+  (`onager/src/algorithms/centrality.rs`, `external/graphina/src/centrality/`)
+  has **no global normalization** — closeness = improved
+  Wasserman-Faust `(reachable/sum)*(reachable/(n-1))`, harmonic =
+  `sum(1/d)`, both pass through FFI unchanged; (b) stored
+  `graph_analytics` `closeness_centrality`/`harmonic_centrality` are
+  **bit-exact** with the lane on the all-edges projection
+  (`max_abs = 0.00e+00`, n=22054 nodes, 1734 contract names); (c) the
+  "underived ×1.2383 constant" is **disproven** — the all-edges/ex-index
+  ratio is not constant (closeness p10/med/p90: 0.8829/0.9133/0.9538;
+  harmonic: 1.1077/1.1419/1.1795) and ranks stay nearly identical
+  (ρ ≥ 0.9596). Resolution: keep the current posture
+  (scipy_routing_dispatch §2) — serve the all-edges lane, preserve
+  bit-exact. The "black-box C++ normalization" and "underived constant"
+  theories were refuted by source inspection; reconciling by unifying
+  the projection would shift served absolutes (-4-12% closeness,
+  -10-18% harmonic on disconnected components) with no net gain since
+  rankings are preserved.
 
 - **graph_perf_l1 S1 write-surface call — RESOLVED 2026-09-23**: the
   restricted-source lane writes `graph_analytics` (the contract's own

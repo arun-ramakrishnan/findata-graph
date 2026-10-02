@@ -72,6 +72,48 @@ Consequences, each load-bearing for the design below:
   on the basis of an underived black-box constant is riskier than
   preserving them, and rankings are identical either way.
 
+### Appendix: 2026-10-02 reconciliation (resolved) — Onager source access
+
+Trigger fired: Onager C++/Rust source available at
+`github.com/CogitatorTech/onager` (the live extension builds
+Graphina from it; `external/graphina` submodule at `835d1bc0`,
+graphina's `centrality` package). Onager's
+`onager/src/algorithms/centrality.rs` /
+`onager/src/ffi/centrality.rs` are the authoritative implementations
+of `onager_ctr_closeness` / `onager_ctr_harmonic`. Full source-verified
+reconciliation below; `pending.md` entry resolved 2026-10-02.
+
+- **No black-box C++ normalization exists.** Inspected the FFI and
+  algorithms layers: closeness = improved Wasserman-Faust
+  `(reachable / sum_dist) * (reachable / (n - 1))` (giant-component
+  rows collapse to classic `(n - 1) / sum_dist`), harmonic =
+  `sum(1 / distance)`; the FFI passes results through unchanged.
+  `rg normalize|rescale` across `onager/src/` returns only the
+  betweenness `normalized` flag.
+- **Served values are bit-exact with the lane on the all-edges
+  projection.** Recomputed the lane `fused_derive` over the live
+  projection (n = 22,054 nodes, 57,515 edges, 1,734 contract names):
+  `graph_analytics.closeness_centrality` max_abs diff = `0.00e+00`;
+  `harmonic_centrality` max_abs diff = `0.00e+00`.
+- **The fork is the edge set, not a constant.** Served = lane on all
+  edges (incl. `listed_on_index`, 36% of edges / 57 star hubs); Onager
+  = `_onager_central` with `EDGE_TYPES_EXCLUDED_FROM_CENTRALITY`
+  (ex-`listed_on_index`). all-edges vs ex-index lane ratios on the
+  current graph: closeness p10/med/p90 = 0.8829/0.9133/0.9538;
+  harmonic = 1.1077/1.1419/1.1795. Ranks remain nearly identical
+  (Spearman ρ = 0.9596 closeness / 0.9656 harmonic); divergence is
+  confined to tiny disconnected components.
+- **The ×1.2383 constant is disproven.** It is not constant on the
+  current graph (ratios span 0.86–0.96 and 1.09–1.18), and 1.2383
+  matches neither projection; it was almost certainly a single-point /
+  older-generation measurement that was codified as a constant.
+- **Resolution:** keep the §2 posture (serve the all-edges lane,
+  preserve bit-exact). The "underived black-box constant" basis for
+  the fork has been derived and rejected by source inspection;
+  unifying the projection would shift served absolutes (-4–12%
+  closeness, -10–18% harmonic on disconnected components) with no
+  ranking gain (ρ ≥ 0.9596).
+
 ## 3. What gets wired, exactly
 
 `compute(metric, con, ...)` (`algorithms.py:776`) dispatches via

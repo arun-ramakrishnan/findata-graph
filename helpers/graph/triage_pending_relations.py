@@ -520,7 +520,17 @@ def _parse_accept(d: dict, decision: str, entity_names: set[str]) -> dict | None
         return None
     # Explicit target override for mangled mentions; otherwise the row's own
     # target_mention must BE the entity (link-prediction rows always are).
-    target = parts[1].strip() if len(parts) > 1 else _norm_target(d["target_mention"])
+    explicit_target = parts[1].strip() if len(parts) > 1 else None
+    if d.get("direction", "forward") == "reverse":
+        # reverse captures ("acquired by X", "sources from X"): the extractor
+        # captured the mention as edge source, so the mention is the true
+        # source and the row's source is the true target — unless the
+        # operator explicitly overrides the target in the accept decision.
+        source = _norm_target(d["target_mention"])
+        target = explicit_target or d["source"]
+    else:
+        source = d["source"]
+        target = explicit_target or _norm_target(d["target_mention"])
     if target not in entity_names:
         print(
             f"ERROR: accept target {target!r} is not an existing entity "
@@ -528,9 +538,9 @@ def _parse_accept(d: dict, decision: str, entity_names: set[str]) -> dict | None
             file=sys.stderr,
         )
         return None
-    if d["source"] not in entity_names:
+    if source not in entity_names:
         print(
-            f"ERROR: accept source {d['source']!r} is not an existing entity (row {d['id']})",
+            f"ERROR: accept source {source!r} is not an existing entity (row {d['id']})",
             file=sys.stderr,
         )
         return None
@@ -539,18 +549,14 @@ def _parse_accept(d: dict, decision: str, entity_names: set[str]) -> dict | None
         properties["score"] = d["score"]
     if d.get("method"):
         properties["method"] = d["method"]
-    # Direction-aware (2026-09-05): reverse captures ("parent company of X",
-    # "acquired by X", "sources from X") make the MENTION the edge source;
-    # swap so `accept:` writes the edge in the orientation the extractor
-    # would have. Symmetric types canonicalise downstream (no-op there).
-    source, target = d["source"], target
-    if d.get("direction", "forward") == "reverse":
-        source, target = target, source
+    # Direction-aware (2026-09-05): symmetric types canonicalise downstream
+    # (no-op there).
+    symmetric = edge_type in _SYMMETRIC_ACCEPT_TYPES
     return {
         "source": source,
         "target": target,
         "edge_type": edge_type,
-        "symmetric": edge_type in _SYMMETRIC_ACCEPT_TYPES,
+        "symmetric": symmetric,
         "properties": properties,
     }
 
