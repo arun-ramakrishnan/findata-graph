@@ -1,0 +1,19 @@
+'#': B2 relation sidecar - per-relation, auditable + re-ingestible via extract_relations
+edge_type: acquired
+source: Tata Consultancy Services
+target: MHP
+counterparties:
+- Tata Consultancy Services
+- MHP
+as_of: '2026-10-03'
+confidence: 0.85
+provenance:
+  type: triage:accept
+  source_ref: triage:accept
+  row_id: 56b484c95c
+  decision: accept:acquired:MHP
+  bucket: manual
+  word_overlap: false
+  note: mention Porsche is the PRIOR OWNER; true target MHP (Porsche's automotive-consulting arm, ~€700mn) acquired by TCS; direction corrected to forward
+  permalink: null
+

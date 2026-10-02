@@ -1,0 +1,19 @@
+'#': B2 relation sidecar - per-relation, auditable + re-ingestible via extract_relations
+edge_type: jv_with
+source: Globus Spirits
+target: ANSA McAL
+counterparties:
+- Globus Spirits
+- ANSA McAL
+as_of: '2026-10-03'
+confidence: 0.6
+provenance:
+  type: triage:accept
+  source_ref: triage:accept
+  row_id: b4b8e26a5d
+  decision: accept:jv_with:ANSA McAL
+  bucket: stub_candidate
+  word_overlap: false
+  note: real company (CARIB Premium Strong Beer JV with ANSA McAL)
+  permalink: null
+

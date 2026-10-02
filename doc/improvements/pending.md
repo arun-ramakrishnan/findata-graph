@@ -281,12 +281,17 @@ Open items below keep their revisit triggers inline; executed work is compressed
   the worker/`BrokenProcessPool` fallback is tested, and the last
   quadratic regex has a fuzz guard. `make qa` 10/10.
 
-- **B2 relation sidecars** — optional tech-avenues leftover
-  (`archive/tooling/tech_avenues.txt` §3): per-relation YAML sidecars with
-  provenance (edge_type, counterparties, as_of, confidence, source permalink).
-  The only unblocked medium item anywhere in the backlog — but the driver is
-  weak while `findata/_pending_relations.txt` stays near-empty (queue
-  run book: derive-triage-relations cycle below).
+- **B2 relation sidecars — IMPLEMENTED 2026-10-03** (tech-avenues leftover,
+  `archive/tooling/tech_avenues.md` §3): per-relation YAML sidecars in
+  `findata/Misc/_relations/<source>-<edge_type>-<target>.yaml` with
+  edge_type, counterparties, as_of, confidence, provenance. Sidecar promotion
+  is wired into `extract_relations` (B2 lane, `promote:sidecar` source_ref) —
+  idempotent re-ingestion of human-accepted edges. Closed the B2 triage queue
+  in one pass (8 prose rows: 1 discard to the noise gate, 7 accepts -> 7
+  edges in `graph_edges`/`graph.duckdb`), including a fix for
+  `triage_pending_relations.py::_parse_accept` (reverse-capture rows with an
+  explicit accept target produced a self-loop; now writes the mention as
+  source with the accepted target).
 
 - **OpenViking context-server pilot DEFERRED** (2026-08-20; gap targeted real semantic embeddings — closed in-house #141, bge-small-en). Revive only for the context-server differentiators (L0/L1 hierarchy,
   automatic memory extraction, retrieval traces); the labeled eval set

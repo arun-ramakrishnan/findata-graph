@@ -1,0 +1,19 @@
+'#': B2 relation sidecar - per-relation, auditable + re-ingestible via extract_relations
+edge_type: acquired
+source: Clix Capital
+target: Lakshmi Vilas Bank
+counterparties:
+- Clix Capital
+- Lakshmi Vilas Bank
+as_of: '2026-10-03'
+confidence: 0.85
+provenance:
+  type: triage:accept
+  source_ref: triage:accept
+  row_id: b08248f15e
+  decision: accept:acquired:Lakshmi Vilas Bank
+  bucket: alias_candidate
+  word_overlap: true
+  note: 'captured reversed: LVB merged into Clix Capital (2020), survivor = Clix; direction swap writes Clix Capital -> Lakshmi Vilas Bank acquired'
+  permalink: null
+

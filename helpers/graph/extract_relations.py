@@ -103,6 +103,7 @@ from helpers.core.db import connect, utc_now  # noqa: E402
 from helpers.core.frontmatter import (  # noqa: E402  # after the sys.path bootstrap above
     strip_frontmatter as _strip_yaml_front_matter,
     _FM_RE as _YAML_FRONT_MATTER_RE,
+    yaml_safe_load,
 )
 from helpers.graph.triage_pending_relations import noise_target  # noqa: E402
 
@@ -115,6 +116,9 @@ NEWSLETTER_DIRS = {
     "The_PlotLines": _REPO_ROOT / "findata" / "The_PlotLines",
 }
 SIDECAR_PATH = _REPO_ROOT / "findata" / "Misc" / "_pending_relations.txt"
+# B2: per-relation YAML sidecars (audit + re-ingestion lane, one file per
+# accepted edge).
+RELATIONS_DIR = _REPO_ROOT / "findata" / "Misc" / "_relations"
 # Runtime-loaded curated aliases (written by triage_pending_relations
 # --apply-decisions): {"<lowercased mention>": "<existing entity name>"}.
 # Git-tracked data, NOT code — triage cycles must not require code edits.
@@ -2566,6 +2570,121 @@ def apply_edges(
     return ApplyEdgesResult(inserted, skipped_fk, skipped_suppressed)
 
 
+def promote_relation_sidecars(conn, dry_run: bool = True) -> tuple[int, int]:
+    """Promote B2 relation sidecars (findata/_relations/*.yaml) into graph_edges.
+
+    One YAML file per accepted edge — the B2 provenance lane of the
+    relations pipeline (`doc/improvements/archive/tooling/tech_avenues.md`,
+    item B2). Each file is self-describing: edge_type, source, target,
+    counterparties, as_of, confidence, provenance (row_id/decision/
+    bucket/word_overlap).
+
+    Edges are INSERT OR IGNOREd with source_ref=promote:sidecar:<slug>,
+    so promotion is idempotent against corpus extraction: a sidecar edge
+    that already exists (e.g. written earlier via triage:accept) is simply
+    re-confirmed, not duplicated. source_ref is distinct from corpus
+    source_refs (derive:relations:*) so auditors can filter by provenance
+    lane.
+
+    Returns (promoted, skipped): promoted = files whose edge would (dry_run)
+    or did land;     skipped = files that failed validation or integrity.
+    """
+    # RELATIONS_DIR is the module-level constant so tests can retarget it
+    # via monkeypatch (temp dir) without patching private implementation details.
+    if not RELATIONS_DIR.exists():
+        return 0, 0
+
+    promoted = skipped = 0
+    yaml_files = sorted(RELATIONS_DIR.glob("*.yaml"))
+    if not yaml_files:
+        return 0, 0
+
+    print(f"B2 sidecar promotion: scanning {len(yaml_files)} file(s) in {RELATIONS_DIR}")
+
+    _ACCEPT_EDGE_TYPES = frozenset(
+        {
+            "competes_with",
+            "jv_with",
+            "supplier_to",
+            "customer_of",
+            "acquired",
+            "subsidiary_of",
+            "same_group",
+            "co_mentioned_in",
+            "semantic_peer",
+            "invested_in",
+            "exposed_to",
+            "cited_in",
+        }
+    )
+    _SYMMETRIC_TYPES = frozenset(
+        {
+            "competes_with",
+            "jv_with",
+            "same_group",
+            "co_mentioned_in",
+            "semantic_peer",
+            "invested_in",
+            "exposed_to",
+            "cited_in",
+        }
+    )
+
+    with conn:
+        for path in yaml_files:
+            slug = path.name
+            try:
+                sidecar = yaml_safe_load(path.read_text(encoding="utf-8"))
+            except Exception as exc:  # corrupt YAML: never abort the run
+                print(f"  SKIP {slug}: unreadable YAML ({exc})", file=sys.stderr)
+                skipped += 1
+                continue
+
+            missing = [k for k in ("edge_type", "source", "target", "as_of") if k not in sidecar]
+            if missing:
+                print(f"  SKIP {slug}: missing required fields {missing}", file=sys.stderr)
+                skipped += 1
+                continue
+
+            edge_type = sidecar["edge_type"]
+            source = sidecar["source"]
+            target = sidecar["target"]
+
+            if edge_type not in _ACCEPT_EDGE_TYPES:
+                print(
+                    f"  SKIP {slug}: edge_type {edge_type!r} not a supported edge type",
+                    file=sys.stderr,
+                )
+                skipped += 1
+                continue
+
+            props = {
+                "doc_type": "sidecar",
+                "b2_version": "0.1",
+                "provenance": sidecar.get("provenance", {}),
+            }
+            edge = Edge(
+                source=source,
+                target=target,
+                edge_type=edge_type,
+                properties=props,
+                source_ref=f"promote:sidecar:{slug}",
+                symmetric=edge_type in _SYMMETRIC_TYPES,
+                valid_from=None,
+            )
+            result = apply_edges([edge], conn=conn, dry_run=dry_run, existing=None)
+            if result.inserted:
+                print(
+                    f"  promoted {slug}: {source} -> {target} ({edge_type}) "
+                    f"({'APPLY' if not dry_run else 'dry-run'})",
+                    file=sys.stderr,
+                )
+            promoted += result.inserted
+            skipped += result.skipped_fk
+
+    return promoted, skipped
+
+
 def write_sidecar(unresolved: list[Unresolved], path: Path = SIDECAR_PATH) -> int:
     """Append unresolved matches to the sidecar file for human triage.
 
@@ -2851,6 +2970,16 @@ def _cli(argv: list[str] | None = None) -> int:  # noqa: C901
     finally:
         # We keep the connection open for apply_edges below.
         pass
+
+    # B2: promote relation sidecars (audited, re-ingestible edges) before
+    # corpus extraction — the human-reviewed lane is the authority;
+    # INSERT OR IGNORE semantics keep everything idempotent.
+    sidecar_promoted, sidecar_skipped = promote_relation_sidecars(conn, dry_run=not args.apply)
+    print(
+        f"B2 sidecars: promoted={sidecar_promoted} skipped={sidecar_skipped} "
+        f"({'dry-run' if not args.apply else 'APPLY'})",
+        file=sys.stderr,
+    )
 
     total_extracted = 0
     total_applied = 0

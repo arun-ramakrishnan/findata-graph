@@ -128,13 +128,20 @@ B1. Typed frontmatter contract (JSON Schema) (DONE 2026-08-17 — completed.md #
       Purely for OUR pipeline (static_checks, verify_notes,
       extract_relations, app.parse_yaml_frontmatter).
 
-B2. Relation sidecars with provenance (MEDIUM, builds on H4 cleanup)
+B2. Relation sidecars with provenance (MEDIUM, builds on H4 cleanup) —
+  **IMPLEMENTED 2026-10-03**
     - Promote structured edges to per-relation YAML sidecars (e.g.
-      _relations/JSW_Paints.yaml) carrying edge_type, counterparties,
-      as_of, confidence, source permalink — the _pending_relations.txt
-      queue already proved the review workflow; sidecars make accepted
-      edges auditable and re-ingestible (extract_relations already speaks
-      YAML).
+      `findata/Misc/_relations/<source>-<edge_type>-<target>.yaml`)
+      carrying edge_type, counterparties, as_of, confidence, provenance
+      (row_id/decision/bucket/word_overlap). Sidecars are re-ingestible
+      via the B2 lane in `extract_relations` (`promote:sidecar`
+      source_ref, `INSERT OR IGNORE` — idempotent against corpus
+      extraction and `triage:accept` edges).
+    - Closed the B2 triage queue in one pass: 8 prose rows -> 1 discard
+      (noise gate) + 7 accepted edges (live in `graph_edges` +
+      `graph.duckdb`). Includes a fix for
+      `triage_pending_relations.py::_parse_accept` (reverse-capture rows
+      with an explicit accept target previously produced a self-loop).
     - Review surface = our own tools (CLI report + tests), not any vault UI.
 
 B3. ANTI-RECOMMENDATION: YAML anchors/merge keys in frontmatter.
