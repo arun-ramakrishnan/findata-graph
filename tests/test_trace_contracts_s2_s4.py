@@ -70,6 +70,7 @@ def _memory_store() -> duckdb.DuckDBPyConnection:
     con = duckdb.connect(":memory:")
     con.execute(agent_traces.SCHEMA)
     agent_traces._ensure_load_log_outcome_columns(con)
+    agent_traces._ensure_model_request_error_message(con)
     return con
 
 
@@ -187,4 +188,48 @@ def test_load_log_gains_outcome_columns_and_validation_leg() -> None:
     ]
     con.close()
 
+
+# --------------------------------------------------------------------------
+# trace_error_forensics S2: error_message optional-but-typed, and the zcode
+# extract mapping pinned so dropping the field turns these tests RED.
+# --------------------------------------------------------------------------
+
+
+def test_error_message_is_optional_but_typed() -> None:
+    row = json.loads((FIXTURE_DIR / "zcode.json").read_text())["fact_model_request"][0]
+    # required=False: a row omitting the key entirely is accepted...
+    omitted = {k: v for k, v in row.items() if k != "error_message"}
+    trace_contracts.reset_validation()
+    assert trace_contracts.validate_rows("fact_model_request", [omitted], "zcode") == [omitted]
+    # ...but a wrong-typed value is still rejected.
+    trace_contracts.reset_validation()
+    bad = dict(row, error_message=123)
+    assert trace_contracts.validate_rows("fact_model_request", [bad], "zcode") == []
+    assert trace_contracts.validation_summary()["type_error_count"] == 1
+
+
+def test_zcode_error_row_round_trips_error_message() -> None:
+    """The error-carrying fixture row mirrors the real no-usage-payload shape:
+    NULL tokens, error_type + error_message set, error_code NULL — and the
+    message survives the contract insert."""
+    rows = json.loads((FIXTURE_DIR / "zcode.json").read_text())["fact_model_request"]
+    err = next(r for r in rows if r["request_id"] == "synthetic-error")
+    assert err["input"] is None and err["error_message"] == "synthetic"
+    trace_contracts.reset_validation()
+    assert trace_contracts.validate_rows("fact_model_request", [err], "zcode") == [err]
+    con = _memory_store()
+    trace_contracts._insert_all(con, "fact_model_request", [err], "zcode")
+    got = con.execute(
+        "SELECT error_message, error_type, error_code, input "
+        "FROM fact_model_request WHERE request_id = 'synthetic-error'"
+    ).fetchone()
+    assert got == ("synthetic", "synthetic", None, None)
     con.close()
+
+
+def test_zcode_extract_pins_error_message_mapping() -> None:
+    """Mutation pin (trace_error_forensics S2): the zcode extract's column
+    list must equal the contract schema exactly — dropping error_message
+    from either side goes RED."""
+    assert "error_message" in agent_traces._Z_REQUESTS
+    assert agent_traces._Z_REQUEST_COLS == trace_contracts.table_cols("fact_model_request")

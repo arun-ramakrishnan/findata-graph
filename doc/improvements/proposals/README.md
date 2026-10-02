@@ -36,6 +36,12 @@ entry number and stale DONE pointers):
 
 _(none)_
 
+Archived 2026-10-02 (same day as filing): `trace_error_forensics`
+(`../archive/tooling/`, completed.md #337) — `error_message` on the
+request fact plus `report --legs column_dispositions`; attribution
+upstream-verified against github.com/zai-org/ZCode (corrected table:
+`../../local/engineering/capture_traces.md` §9.4.2).
+
 Archived 2026-10-02: `typed_trace_contracts` and
 `trace_quote_citations` (`../archive/tooling/`, completed.md #335/#336) —
 both adapted from the whiteboard evaluation

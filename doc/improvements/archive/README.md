@@ -200,6 +200,7 @@ commit, referenced by nothing). Entry numbers point at
 
 - [`typed_trace_contracts.md`](tooling/typed_trace_contracts.md) — typed trace contracts — frozen contract dataclasses for the star schema, `@register_parser` harness registry, warn+count validate-at-ingest, `load_log.rows_ok/rows_rejected/unknown_fields`, synthetic fixture tests and `report --legs validation` — completed.md #335
 - [`trace_quote_citations.md`](tooling/trace_quote_citations.md) — agent-trace citations — stable `agent-trace:<harness>#<kind>:<id>` resolver, two-run anchor-stability census (all listed ids 100% stable), `--sweep` doc reference-rot mode, §12 citation convention — completed.md #336
+- [`trace_error_forensics.md`](tooling/trace_error_forensics.md) — trace error forensics — `error_message` on the request fact (contract + zcode extract + ALTER migration; populated on non-completed rows only), synthetic error-row fixture with extract mapping pins, `report --legs column_dispositions` printing the §9.4.2 three-way labels (provider-absent / harness-wired / class-gated) — completed.md #337
 - [`gate_wall_time_reclaim.md`](tooling/gate_wall_time_reclaim.md) —
   gate wall time reclaim — measurement-first de-flake of the qa/advisory/perf
   surface: the filed xdist worker cap inverted by measurement (suite packs 3.9x

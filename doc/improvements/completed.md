@@ -1,7 +1,7 @@
 <!-- markdownlint-disable MD041 -- first line is intentionally bold metadata, not a heading -->
 
 **Generated**: 2026-09-24
-**Total completed**: 185 items
+**Total completed**: 186 items
 
 > **Note:** Full implementation details, code references, and rationale are in the `doc/improvements/archive/` subdirectory. This file is a summary view.
 
@@ -8914,3 +8914,33 @@ transcript rows.
   citation convention lives in `capture_traces.md` §12.
 - **Verification:** `tests/test_trace_quote_s1.py` 38 passed; live
   `trace_quote --sweep doc/` reports 1 token, 0 unresolved.
+
+## 337. Trace error forensics — error_message column + column dispositions
+
+Filed and executed 2026-10-02. Closes the S11 residue: the one joinable
+gap (error text at the request fact) plus corrected zero-column
+attribution from upstream source verification
+(github.com/zai-org/ZCode; corrected table in
+`doc/local/engineering/capture_traces.md` §9.4.2).
+
+- **S1 — error_message.** Optional `ColumnSpec` on the request-fact
+  contract; zcode extract + column list extended beside `error_code`;
+  `_ensure_model_request_error_message()` migrates existing stores at
+  every CLI entry (ADD COLUMN appends physically last; all access is
+  name-keyed). Reload parity per-row on shared request ids: every
+  pre-existing column byte-stable, 0 missing rows, live source grew
+  6137 -> 6214 mid-arc; populated exactly on the 41 non-completed rows
+  (23 cancelled + 18 error, error_type co-populated 1:1), opencode/prime
+  NULL by design.
+- **S2 — synthetic fixture + mapping pins.** Error-carrying fixture row
+  mirroring the real no-usage-payload shape (NULL tokens); three tests —
+  optional-but-typed validation, insert round-trip, and
+  `_Z_REQUEST_COLS == table_cols(...)` extract pin. Mutation verified:
+  strip -> RED, restore byte-identical.
+- **S3 — column_dispositions leg.** `report --legs column_dispositions`
+  prints the three-way §9.4.2 labels (provider-absent / harness-wired
+  none-observed / class-gated) beside live per-source nonzero counts —
+  e.g. reasoning zcode 0 provider-absent vs opencode 3825/6150 alive.
+- **Verification:** targeted tests 52 passed (contracts + quote
+  suites); ruff clean; gates quartet qa 11/11, integration 1/1, perf
+  25/25, advisory 11/12 (convo-fresh self-drift only).
