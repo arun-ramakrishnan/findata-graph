@@ -1,0 +1,16 @@
+'#': B2 relation sidecar - web-verified correction of deleted 71579 (Clix Capital deal collapsed)
+edge_type: acquired
+source: DBS Group
+target: Lakshmi Vilas Bank
+counterparties:
+- DBS Group
+- Lakshmi Vilas Bank
+as_of: '2020-11-27'
+confidence: 1.0
+provenance:
+  type: cleanup:web_verified
+  source_ref: cleanup:2026-10-03
+  row_id: '71579'
+  decision: 'corrected:acquired:Lakshmi Vilas Bank (DBS Bank India, RBI scheme effective 2020-11-27; the Clix merger never completed)'
+  note: 'RBI press release prid=50713; GoI sanctioned scheme under Section 45 Banking Regulation Act'
+  permalink: 'https://www.rbi.org.in/scripts/BS_PressReleaseDisplay.aspx?prid=50713'

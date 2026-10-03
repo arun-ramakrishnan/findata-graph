@@ -391,6 +391,41 @@ def write_report(triage: dict, names: set[str]) -> None:  # noqa: C901
         lines.append(f"| _word-overlap alias (confirm before accepting)_ | {wo_count} |")
     lines.append("")
     order = ["discard", "alias_candidate", "stub_candidate", "manual", "bad_source"]
+    # Advisory LLM pre-annotations (helpers/graph/triage_preannotate.py),
+    # keyed by row triple. Lazy import: preannotate imports this module.
+    try:
+        from helpers.graph.triage_preannotate import ANNOTATIONS, load_annotations
+
+        annotations = load_annotations(ANNOTATIONS)
+    except Exception as exc:  # best-effort — never blocks the report
+        print(f"WARNING: pre-annotations unavailable ({exc})", file=sys.stderr)
+        annotations = {}
+    if annotations:
+        lines.append(
+            f"- pre-annotation: {len(annotations)} rows carry advisory LLM "
+            f"verdicts (`{Path(ANNOTATIONS).name}`) — advisory only, the human "
+            f"gate below is unchanged"
+        )
+        lines.append("")
+
+    def _annot(r: dict) -> list[str]:
+        a = annotations.get((r["edge_type"], r["source"], r["target_mention"]))
+        if not a:
+            return []
+        verdict = "ADMIT" if a.get("rubric_admit") else "keep-out"
+        esc = " ESC" if a.get("escalated") else ""
+        retry = " NEEDS-RETRY" if a.get("needs_retry") else ""
+        out = [
+            f"  - _pre-annotate: {verdict}{esc}{retry} "
+            f"p_fact={a.get('p_fact', 0):.2f} p_rubric={a.get('p_rubric', 0):.2f}"
+        ]
+        if a.get("evidence_url"):
+            out.append(f"  - _evidence: {a['evidence_url']}")
+            if a.get("support_quote"):
+                q = str(a["support_quote"])
+                out.append(f"  - _quote: {q[:160]}{'...' if len(q) > 160 else ''}_")
+        return out
+
     for b in order:
         rows = [r for r in triage["prose"] if r["bucket"] == b]
         if not rows:
@@ -410,6 +445,7 @@ def write_report(triage: dict, names: set[str]) -> None:  # noqa: C901
                 + (f" _({r['detail']})_" if r["detail"] else "")
             )
             lines.append(f"  > {r['quote']}")
+            lines.extend(_annot(r))
         lines.append("")
     lines.append(
         "## suggested rows on the sidecar (moved out on --write; "

@@ -140,6 +140,45 @@ class TestBuildTriage:
         assert "confirm? word-overlap alias" in report
 
 
+class TestPreannotationRendering:
+    """Advisory LLM verdicts (triage_preannotate) render beside each row;
+    the human decisions file/gate is untouched."""
+
+    def test_advisory_verdicts_render(self, paths, monkeypatch):
+        from helpers.graph import triage_preannotate as tp
+
+        ann = paths.parent / "_pending_annotations.jsonl"
+        ann.write_text(
+            json.dumps(
+                {
+                    "id": "supplier_to:Graphite India:Colgate-Palmolive Company",
+                    "p_fact": 0.85,
+                    "factually_accurate": True,
+                    "rubric_admit": True,
+                    "p_rubric": 0.92,
+                    "escalated": True,
+                    "evidence_url": "https://news.example/x",
+                    "support_quote": "Graphite supplies Colgate",
+                }
+            )
+            + "\n"
+            + json.dumps({"id": "broken"})
+            + "\nnot json\n",
+            encoding="utf-8",
+        )
+        monkeypatch.setattr(tp, "ANNOTATIONS", ann)
+        paths.write_text(
+            _row("supplier_to", "Graphite India", "Colgate-Palmolive Company") + "\n",
+            encoding="utf-8",
+        )
+        assert tpr.main([]) == 0
+        report = tpr.REPORT.read_text(encoding="utf-8")
+        assert "pre-annotation: 1 rows" in report
+        assert "_pre-annotate: ADMIT ESC p_fact=0.85 p_rubric=0.92" in report
+        assert "_evidence: https://news.example/x" in report
+        assert "_quote: Graphite supplies Colgate" in report
+
+
 class TestNoiseGate:
     """G3: `discard` decisions persist as a runtime noise gate so plain
     discards do NOT re-enter the sidecar on the next full-corpus extract

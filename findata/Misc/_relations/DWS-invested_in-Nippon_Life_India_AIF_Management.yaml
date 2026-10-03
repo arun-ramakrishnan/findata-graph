@@ -1,0 +1,16 @@
+'#': B2 relation sidecar - web-verified correction of deleted 71573 (was jv_with, wrong type and direction)
+edge_type: invested_in
+source: DWS
+target: Nippon Life India AIF Management
+counterparties:
+- DWS
+- Nippon Life India AIF Management
+as_of: '2025-11-13'
+confidence: 0.85
+provenance:
+  type: cleanup:web_verified
+  source_ref: cleanup:2026-10-03
+  row_id: '71573'
+  decision: 'corrected:invested_in:Nippon Life India AIF Management (DWS up to 40% minority stake via fresh issuance; board authorized 2025-11-13)'
+  note: 'primary source: findata/The_Chatter/Reliance_PayTM_Nykaa.md Q3 FY26 concall, Sundeep Sikka quote; collab extends to passive products and global distribution'
+  permalink: null

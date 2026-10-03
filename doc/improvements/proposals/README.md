@@ -34,7 +34,14 @@ entry number and stale DONE pointers):
 
 ## Current live proposals
 
-_(none)_
+`triage_preannotation_escalation.md` (filed 2026-10-03, **implemented**
+same day) — glm-5.3 batch two-question pre-annotation with context for
+the relations triage queue, plus batched evidence escalation for
+low-confidence rows; backdrop from `jev_assessment.md`; regression key
+is the Jev-pilot eval-v3 set (floor: artifacts 37/37, Q2 ≥ 53/56 —
+held at acceptance: 37/37, 55/56); human `--apply-decisions` gate
+unchanged. Remaining: live-queue dry-run, report integration, browser
+search lane.
 
 Archived 2026-10-02 (same day as filing): `trace_error_forensics`
 (`../archive/tooling/`, completed.md #337) — `error_message` on the

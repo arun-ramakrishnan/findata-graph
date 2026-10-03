@@ -1,0 +1,16 @@
+'#': B2 relation sidecar - web-verified correction replacing deleted 71571 (target was mangled alias Caring Beauty)
+edge_type: acquired
+source: "L'Oreal"
+target: Kering Beaute
+counterparties:
+- "L'Oreal"
+- Kering Beaute
+as_of: '2026-03-31'
+confidence: 1.0
+provenance:
+  type: cleanup:web_verified
+  source_ref: cleanup:2026-10-03
+  row_id: '71571'
+  decision: 'corrected:acquired:Kering Beaute (completed 2026-03-31, ~EUR 4bn incl House of Creed + 50-year licences Bottega Veneta/Balenciaga; announced 2025-10-19)'
+  note: 'L''Oreal and Kering press releases; replaces mangled target Caring Beauty (entity removed)'
+  permalink: 'https://www.loreal.com/en/press-release/group/loreal-completes-the-acquisition-of-kering-beaute/'

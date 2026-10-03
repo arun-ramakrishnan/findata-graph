@@ -143,3 +143,9 @@ re-verified without re-deriving it.
   asked to prepare a patch message, read `doc/procedures/commit-messages.md`
   first.
 - Use `.venv/bin/python3` explicitly in non-interactive shells.
+- **Backgrounding past a tool call (all harnesses):** tool timeouts kill
+  the process GROUP — plain `&`/nohup children die with it. Use
+  `setsid bash -c '<abs cmd> > <abs log> 2>&1; echo $? > <cmd>.exit' </dev/null >/dev/null 2>&1 &`
+  — absolute paths INSIDE the subshell (cwd binds at parse time), then
+  poll the `.exit` marker with short commands; never sleep-poll, never
+  assume death from a missing log before checking the marker.
