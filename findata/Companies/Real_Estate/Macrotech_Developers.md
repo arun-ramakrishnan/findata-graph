@@ -16,16 +16,20 @@ tags:
 - risk_investment/cyclical
 - sector/real_estate
 created: '2025-11-16'
-last_modified: '2026-09-10'
+last_modified: '2026-10-03'
 generated:
   by: derive_insights.py/v1
-  at: '2026-09-25T17:24:32Z'
-stale_after: '2027-02-11'
+  at: '2026-10-03T17:10:54Z'
+stale_after: '2027-04-01'
 sources:
 - id: Making_It_Work
   resource: /findata/The_Chatter/Making_It_Work.md
   title: 'The Chatter: Making It Work'
   last_modified: '2026-08-15'
+- id: Adani_Power_Motilal_Oswal
+  resource: /findata/The_Chatter/Adani_Power_Motilal_Oswal.md
+  title: 'The Chatter: Adani Power, Motilal Oswal, Ather & More'
+  last_modified: '2026-10-03'
 ---
 
 # Macrotech Developers
@@ -163,3 +167,20 @@ _Source: yfinance | Refreshed: 2026-08-10_
 *Source: The Chatter — The Chatter: Making It Work*
 
 <!-- END auto chatter block -->
+
+## The Chatter — Adani Power Motilal Oswal
+
+**FY31 targets: profits >₹8,500 cr at ~20% ROE:** 20% profit CAGR over 5 years (from ~₹3,450 cr to >₹8,500 cr by FY31), ROE moving from ~16% to ~20% with very conservative leverage — the Devco (development) business turns net cash positive in 2–3 years and remaining corporate debt will be LRD-backed against rental assets.
+
+**Pricing for margins below wage inflation:** Management wants to nudge price growth up from 5–6% to 6–8% while staying below 10–12% white-collar salary growth to preserve affordability — lifting Devco EBITDA margin from the early-30s to the mid-30s (or slightly ahead) by decade-end.
+
+**660-acre data-centre park with near-world-lowest power cost:** Approved under Maharashtra's Green Data Centre Policy (tax waivers + fiscal incentives); 5 transmission lines crossing the land let operators tie up power from anywhere in India at ~₹6–7/unit landed vs ₹10–12 typical industrial tariffs in Maharashtra.
+
+**1 GW powered shell, self-funded by land sales:** ₹10,000–11,000 crore of capex funded entirely by selling the remaining 140 acres of Phase 1 (₹9,000–10,000 crore); once operational by FY32, it should generate ₹2,000–2,500 crore of high-margin recurring rental income.
+
+**Two-phase city playbook + JDA/outright mix:** New cities enter via a 2–3 year pilot (local empowered team, low-risk JDAs) before growth phase — NCR is the newest pilot with 2 JDA projects of ~₹4,000 crore combined GDV. JDAs are underwritten at >30% IRR / 18–19% PBT margins; outright land at 28–30% PBT / 18–19% IRR — the blend produces the targeted 20% PAT margin and 20% ROE. Rate-hike risk is muted: LTVs are 20–30% in premium and luxury buyers barely use mortgages.
+
+> "Power can essentially be delivered here at about 6 to 7 rupees per unit, compared with the 10 to 12 rupees that is often seen in industrial tariffs across Maharashtra."
+> — Anand Kumar, Head of Investor Relations
+
+*Source: The Chatter — Adani Power Motilal Oswal*

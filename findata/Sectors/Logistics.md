@@ -110,7 +110,7 @@ Logistics sector covering transportation, warehousing, and supply chain solution
 
 ## All Companies (auto)
 
-<!-- Auto-generated from the SQLite source of truth. 29 company note(s) in Logistics. Do not edit by hand — re-run `python3 helpers/maintenance/sync_sector_wikilinks.py` to refresh. Curated highlights live in the editorial sections above. -->
+<!-- Auto-generated from the SQLite source of truth. 30 company note(s) in Logistics. Do not edit by hand — re-run `python3 helpers/maintenance/sync_sector_wikilinks.py` to refresh. Curated highlights live in the editorial sections above. -->
 
 - [[ABS_Marine_Services|ABS Marine Services]]
 - [[Afcom_Holdings|Afcom Holdings]]
@@ -132,6 +132,7 @@ Logistics sector covering transportation, warehousing, and supply chain solution
 - [[Maersk]]
 - [[Mahindra_Logistics|Mahindra Logistics]]
 - [[Paradeep_Parivahan|Paradeep Parivahan]]
+- [[Sankyu_Corporation|Sankyu Corporation]]
 - [[Shadowfax_Technologies|Shadowfax Technologies]]
 - [[Skyways_Air_Services|Skyways Air Services]]
 - [[Snowman_Logistics|Snowman Logistics]]

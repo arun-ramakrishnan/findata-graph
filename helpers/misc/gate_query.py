@@ -23,7 +23,8 @@ the two prompts actually ask:
     rotate      archive run prefixes to outputs/archives/*.zst (dry-run default;
                 keep policy: last 30 runs per report, rotate past 8 MB —
                 override with --keep-runs / --max-mb)
-    refresh     force (re)index (--full rebuilds; default incremental)
+    refresh     force (re)index (--full rebuilds; default incremental;
+                --check reports drift without indexing, exit 1 when behind)
 
 Refresh runs automatically before every verb. The reports stay the
 source of truth; the index (``outputs/gate_runs.duckdb``) is derived
@@ -923,8 +924,14 @@ def _retained_artifact_records(wt: str, artifact_dir: str | None) -> list[dict]:
     return records
 
 
-def refresh(con, *, full: bool = False, root: Path | None = None) -> dict:
-    """Incremental byte-offset index of every report copy. Returns counts."""
+def refresh(con, *, full: bool = False, check: bool = False, root: Path | None = None) -> dict:  # noqa: C901  (per-kind incremental ingestion branches)
+    """Incremental byte-offset index of every report copy. Returns counts.
+
+    ``check=True`` reports drift without writing: counts ``changed_files`` /
+    ``changed_bytes`` / ``new_files`` (files the byte-offset ladder would
+    re-read) instead of parsing or touching ``parse_state``. A truncated
+    file (size shrank) re-reads whole on the real run, so it counts as
+    drifted with no byte delta."""
     root = root or ROOT
     counts: dict = {
         "files": 0,
@@ -932,6 +939,9 @@ def refresh(con, *, full: bool = False, root: Path | None = None) -> dict:
         "skipped_pending": 0,
         "parse_errors": 0,
         "zero_block_files": [],
+        "changed_files": 0,
+        "changed_bytes": 0,
+        "new_files": 0,
     }
     for gate, path, wt, _kind in report_copies(root):
         try:
@@ -942,6 +952,19 @@ def refresh(con, *, full: bool = False, root: Path | None = None) -> dict:
         row = con.execute(
             "SELECT parse_offset, size, mtime_ns FROM parse_state WHERE src_rel = ?", [rel]
         ).fetchone()
+        if check:
+            counts["files"] += 1
+            if full or row is None:
+                counts["changed_files"] += 1
+                counts["changed_bytes"] += len(raw)
+                if row is None:
+                    counts["new_files"] += 1
+            elif row[1] > len(raw):
+                counts["changed_files"] += 1  # truncated/rotated: full re-parse pending
+            elif len(raw) > row[0]:
+                counts["changed_files"] += 1
+                counts["changed_bytes"] += len(raw) - row[0]
+            continue
         new_offset = 0 if (full or row is None) else min(row[0], len(raw))
         if row is not None and row[1] > len(raw):
             new_offset = 0  # truncated/rotated by hand: re-parse whole file
@@ -2165,7 +2188,20 @@ def cmd_rotate(con, args) -> str:
     return header + "\n" + "\n".join(out)
 
 
+def _refresh_check_message(counts: dict) -> str:
+    if counts["changed_files"] == 0:
+        return f"gate index up to date ({counts['files']} report copies scanned)"
+    return (
+        f"check: {counts['changed_files']} of {counts['files']} report copies drifted "
+        f"({counts['changed_bytes']} new bytes, {counts['new_files']} new file(s)) "
+        "not yet indexed — APPLY=1 (make gate-fresh) or `gate_query refresh` to index"
+    )
+
+
 def cmd_refresh(con, args) -> str:
+    if args.check:
+        counts = refresh(con, full=args.full, check=True)
+        return _refresh_check_message(counts)
     counts = refresh(con, full=args.full)
     warning = (
         ""
@@ -2300,6 +2336,11 @@ def _build_parser() -> argparse.ArgumentParser:  # noqa: C901
             )
         if name == "refresh":
             sp.add_argument("--full", action="store_true")
+            sp.add_argument(
+                "--check",
+                action="store_true",
+                help="report drift without indexing (exit 1 when behind; make gate-fresh default)",
+            )
     return ap
 
 
@@ -2340,6 +2381,12 @@ def main(argv: list[str] | None = None) -> int:
             "rotate": cmd_rotate,
             "refresh": cmd_refresh,
         }[args.cmd]
+        if args.cmd == "refresh" and args.check:
+            # Check mode: report drift only (no auto-refresh, no writes);
+            # exit 1 when the index is behind — the search-fresh convention.
+            counts = refresh(con, full=args.full, check=True)
+            print(_refresh_check_message(counts))
+            return 1 if counts["changed_files"] else 0
         print(fn(con, args))
     finally:
         con.close()

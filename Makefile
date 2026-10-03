@@ -34,7 +34,7 @@ export PATH := $(CURDIR)/.venv/bin:$(PATH)
 export TMPDIR ?= $(shell test -d /mnt/data/tmp && { mkdir -p /mnt/data/tmp/findata; echo /mnt/data/tmp/findata; } || echo /tmp)
 
 
-.PHONY: help qa test live-invariants perf cover fuzz integration snapshot snapshot-check snapshot-restore sync-tags sync-coverage-tags sync-sector-links static-checks license-check tmp-sweep install-dev triage-quotes graph-smoke graph-stats graph-algos graph-rebuild graph-rebuild-bench update-extensions recompute-graph recompute-hyper search-fresh convo-fresh embed-gc search-tui derive-relations derive-co-mentions derive-themes derive-events derive-insights derive-indices quote-coverage derive-themes-rebuild derive-cited-in derive-cited-in-rebuild derive-hyperedges derive-all refresh-indices refresh-vigil refresh-shp frontend frontend-check fold-identifiers format maint maint-full md-lint metrics-rebuild mojo-bench mojo-build mojo-test mojo-format relations-enrich lint types types-tests lint-audit deptry advisory secret-scan cargo-audit script-search-rebuild triage-relations live-invariants stamp-centrality parity review-patch
+.PHONY: help qa test live-invariants perf cover fuzz integration snapshot snapshot-check snapshot-restore sync-tags sync-coverage-tags sync-sector-links static-checks license-check tmp-sweep install-dev triage-quotes gate-fresh graph-smoke graph-stats graph-algos graph-rebuild graph-rebuild-bench update-extensions recompute-graph recompute-hyper search-fresh convo-fresh embed-gc search-tui derive-relations derive-co-mentions derive-themes derive-events derive-insights derive-indices quote-coverage derive-themes-rebuild derive-cited-in derive-cited-in-rebuild derive-hyperedges derive-all refresh-indices refresh-vigil refresh-shp frontend frontend-check fold-identifiers format maint maint-full md-lint metrics-rebuild mojo-bench mojo-build mojo-test mojo-format relations-enrich lint types types-tests lint-audit deptry advisory secret-scan cargo-audit script-search-rebuild triage-relations live-invariants stamp-centrality parity review-patch
 
 help:           ## Show available targets (alphabetical; entries generated from the ## annotations — keep both in sync)
 > @echo "FinData targets (alphabetical):"
@@ -62,6 +62,7 @@ help:           ## Show available targets (alphabetical; entries generated from 
 > @echo "  frontend                 Build the TypeScript frontend bundle into static/findata.bundle.js (needs Bun)"
 > @echo "  frontend-check           Type-check + prettier format-check the TypeScript frontend (fast, needs Bun)"
 > @echo "  fuzz                     Run Hypothesis property-based tests (deterministic seed for reproducibility)"
+> @echo "  gate-fresh               Check gate-run index freshness (gate_query; default reports drift + exit 1 when behind, APPLY=1 force-indexes incrementally; refresh also runs automatically before every gate_query verb)"
 > @echo "  graph-algos              Smoke test the Onager algorithm layer (all 14 metrics, no writes)"
 > @echo "  graph-rebuild            Rebuild the disk-based DuckDB cache from SQLite, data-only (run after parse_newsletter --apply / derive-relations)"
 > @echo "  graph-rebuild-bench      Measure the production graph-rebuild cost ladder (tests/bench_rebuild_scale.py; opt-in, NOT a perf leg)"
@@ -339,6 +340,13 @@ search-fresh:    ## Check ALL search indexes for staleness — doc/, script meta
 >   if [ $$rc -eq 0 ]; then echo "✓ all search indexes fresh (doc_search, script_search, note_search)"; fi; \
 >   exit $$rc
 
+gate-fresh: ## Check gate-run index freshness for helpers/misc/gate_query.py (default: report drift, exit 1 when the index is behind — nothing written; APPLY=1 force-indexes incrementally; refresh also runs automatically before every gate_query verb)
+> @if [ -n "$(APPLY)" ]; then \
+> 	python3 helpers/misc/gate_query.py refresh; \
+> 	echo "✓ gate index refreshed (outputs/gate_runs.duckdb; query: gate_query latest|failures|recent)"; \
+> else \
+> 	python3 helpers/misc/gate_query.py refresh --check; \
+> fi
 
 convo-fresh:      ## Check conversation corpus+index freshness — harness sources vs parquet corpus vs pointer index (every check runs even if one fails; exit 1 on drift; APPLY=1 harvests+incrementally rebuilds; also run by make advisory)
 > @rc=0; \

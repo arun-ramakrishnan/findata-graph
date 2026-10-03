@@ -15,7 +15,12 @@ last_modified: '2026-10-02'
 generated:
   by: parse_newsletter.py/v1
   at: '2026-10-02T18:28:57Z'
-stale_after: '2027-03-31'
+stale_after: '2027-02-11'
+sources:
+- id: A_Quarter_That_Refuses_To_Behave
+  resource: /findata/The_Chatter/A_Quarter_That_Refuses_To_Behave.md
+  title: 'The Chatter: A Quarter That Refuses To Behave'
+  last_modified: '2026-08-15'
 ---
 
 # Sankyu Corporation

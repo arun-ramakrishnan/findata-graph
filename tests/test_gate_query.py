@@ -184,6 +184,55 @@ def test_refresh_latest_incremental(corpus):
     con.close()
 
 
+def test_refresh_check_reports_drift_without_writing(corpus):
+    rep = corpus / "qa_report.md"
+    _write(rep, _gate_block("2026-09-23 10:00:00", "2026-09-23 09:59:50"))
+    con = gq.connect()
+    # fresh index: file not yet indexed -> drift reported, nothing written
+    counts = gq.refresh(con, check=True)
+    assert counts["changed_files"] == 1
+    assert counts["new_files"] == 1
+    assert counts["changed_bytes"] == rep.stat().st_size
+    assert one(con, "SELECT COUNT(*) FROM runs")[0] == 0
+    assert con.execute("SELECT COUNT(*) FROM parse_state").fetchone()[0] == 0
+    # apply, then check: up to date
+    assert gq.refresh(con)["runs"] == 1
+    counts = gq.refresh(con, check=True)
+    assert counts["changed_files"] == 0
+    assert gq._refresh_check_message(counts).startswith("gate index up to date")
+    # appended bytes re-flag drift with the byte delta
+    first_len = rep.stat().st_size
+    _write(rep, _gate_block("2026-09-23 11:00:00", "2026-09-23 10:59:50"))
+    counts = gq.refresh(con, check=True)
+    assert counts["changed_files"] == 1 and counts["new_files"] == 0
+    assert counts["changed_bytes"] == rep.stat().st_size - first_len
+    con.close()
+
+
+def test_refresh_check_full_counts_everything(corpus):
+    rep = corpus / "qa_report.md"
+    _write(rep, _gate_block("2026-09-23 10:00:00", "2026-09-23 09:59:50"))
+    con = gq.connect()
+    assert gq.refresh(con)["runs"] == 1
+    counts = gq.refresh(con, check=True, full=True)
+    assert counts["changed_files"] == 1
+    assert counts["changed_bytes"] == rep.stat().st_size
+    con.close()
+
+
+def test_main_refresh_check_exit_codes(corpus, capsys):
+    rep = corpus / "qa_report.md"
+    _write(rep, _gate_block("2026-09-23 10:00:00", "2026-09-23 09:59:50"))
+    # drift -> exit 1, message names the drifted file state
+    assert gq.main(["refresh", "--check"]) == 1
+    out = capsys.readouterr().out
+    assert "drifted" in out and "not yet indexed" in out
+    # apply -> exit 0; re-check -> exit 0, up to date
+    assert gq.main(["refresh"]) == 0
+    assert gq.main(["refresh", "--check"]) == 0
+    assert "gate index up to date" in capsys.readouterr().out
+
+
 def test_pending_tail_not_indexed(corpus):
     rep = corpus / "qa_report.md"
     _write(rep, _gate_block("2026-09-23 10:00:00", "2026-09-23 09:59:50"))
