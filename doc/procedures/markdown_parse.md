@@ -6,9 +6,51 @@ Parse documents to extract entities (companies, sectors), create synchronized SQ
 
 **Inputs are either (a) an existing markdown newsletter or (b) a source PDF.** For a PDF, first convert it to markdown with `helpers/pdf/pdf_conv_md.py` (see [PDF → Markdown](#pdf--markdown)) — that step also downloads + embeds the figures, so no separate image capture is needed. For an existing markdown, **capture its remote OCR-crop images FIRST (see [Image Capture](#image-capture)), before any parsing** — the signed URLs expire and the inline embeds are later used to attach figures to company notes.
 
-> **Output destination — ask the user; never assume.** There is no safe way to infer the destination from the input. For a **PDF**, ask the user which directory to store the converted `.md` in before running `pdf_conv_md.py`. For an **existing markdown**, capture is in-place (the source `.md` is rewritten and figures land in its own `images/` dir), so confirm the markdown's location with the user rather than relocating it.
+> **Output destination — the vault convention names it (see [Output destinations](#output-destinations)).** A PDF going to `findata/The_Chatter/` (or its figures to `<edition>/images/`) triggers no question. For an **existing markdown**, capture is in-place by convention (the source `.md` is rewritten and figures land in its own `images/` dir), so the location is the input file's own location — no question. Only a **non-conventional** destination is surfaced — once — with the conventional alternative named.
+
+## Output destinations
+
+The vault convention names the destination for every input type. A PDF
+landing in a **conventional** directory triggers no question; a **non-
+conventional** destination is surfaced — once — to the operator, with the
+conventional alternative named. This is the target state that drives the
+question budget to zero.
+
+| Input | Conventional destination |
+|---|---|
+| Newsletter PDF → markdown | `findata/The_Chatter/<edition>.md` |
+| Figures embedded in a PDF note | `findata/The_Chatter/<edition>/images/` |
+| Existing newsletter markdown (image capture in-place) | unchanged, figures into its own `images/` sibling |
+| Company notes | `findata/Companies/{Sector}/{Company}.md` |
+| Sector notes | `findata/Sectors/{Sector}.md` |
+| Super-sector catch-all (quotes) | `findata/Super_Sectors/Quotes.md` |
+| Misc / triage sidecars | `findata/Misc/` |
+| Points and figures | `findata/Points_And_Figures/` |
+| Plotlines | `findata/The_PlotLines/` |
+
+The converter and image capture always write exactly where asked — they
+refuse no destination. The convention lives here so the operator is never
+asked about a conventional path; for anything else the single fallback ask
+names the ambiguity: *"this is landing in `<chosen_dir>`; the convention is
+`<conventional>`; keep it here or move?"*.
+
+**Why.** There is still no safe programmatic way to infer destination from
+input, so a non-conventional path is always surfaced — but the surface is
+now a named ambiguity instead of an open question, and it appears once per
+operation.
 
 ## Workflow
+
+**Stage order is a dependency chain, not a menu.** 1–4 (capture) → 5
+(enhance, which writes the `## The Chatter` blocks) → 6 (facts) → 7
+(index) → 8 (entities) → **9 relations** → **10 events** → **11
+insights**. Stage 11 reads the Stage 5 chatter blocks, so running it
+before Stage 5 has run yields nothing; Stage 10 promotes the relation
+edges Stage 9 resolves, so it reads best after 9. Stages 9 and 11 are
+separately invocable and are routinely run out of order in practice —
+that is fine, as long as you know which upstream stage has not run yet.
+Everything after 8 is `make derive-*`; there is no stage that runs
+them for you except `maint-full`.
 
 > **One-command entry point.** Stages 1–4 + 6–7 are automated by
 > `helpers/core/parse_newsletter.py`. Run it first; it emits a
@@ -21,7 +63,7 @@ Parse documents to extract entities (companies, sectors), create synchronized SQ
 > ```
 
 0. **Convert PDF → markdown** *(PDF inputs only)* — **ask the user for the destination directory first** (there is no safe way to infer it). Then convert the source PDF with `helpers/pdf/pdf_conv_md.py` into a The_Chatter-style `.md` in that directory. The script also emits the note's frontmatter (OKF provenance + namespaced `series/`/`publisher/` tags derived from the destination directory — see [Tags](#tags)) and downloads + embeds the figures as `![[images/<slug>_p{p}_img{N}.jpeg]]` into a sibling `images/` dir, so **no separate image capture is needed for PDF inputs** (see [PDF → Markdown](#pdf--markdown)). Then proceed to Stage 1.
-1. **Capture images** *(existing-markdown inputs only)* — **confirm the markdown's location with the user first** (capture is in-place: it rewrites the source `.md` and drops figures into its own `images/` dir). Then download all remote `<img>` crops and rewrite the source `.md` so figures embed inline next to their content (see [Image Capture](#image-capture)). Do this **before** parsing, since the signed URLs expire and the inline embeds are later used to attach figures to company notes. *(Skipped for PDF inputs — already done by Stage 0.)*
+1. **Capture images** *(existing-markdown inputs only)* — in-place by convention (the source `.md` is rewritten and figures land in its own `images/` dir). No question: the location is the input file's own location. Then download all remote `<img>` crops and rewrite the source `.md` so figures embed inline next to their content (see [Image Capture](#image-capture)). Do this **before** parsing, since the signed URLs expire and the inline embeds are later used to attach figures to company notes. *(Skipped for PDF inputs — already done by Stage 0.)*
 2. **Extract entities** — companies/sectors from document content.
 3. **Get tickers** — the orchestrator uses `get_tickers.search_ticker()` (which delegates to `fuzzy_match.word_overlap_match()` for name matching). **Prefer NSE (`.NS`) over BSE (`.BO`)** — NSE is the canonical Indian listing in this KB; use `.BO` only when a name is BSE-only (e.g. SME-only listings).
 4. **Add each NEW entity** — create SQLite record + markdown file + tags only for companies not already in the DB (see [Adding an Entity](#adding-an-entity)). When lifting insights from a newsletter, also embed the figure(s) that sit under that company's section as `![[images/<slug>_p{p}_img{N}.jpeg]]` so the chart travels with the insight.
@@ -57,6 +99,26 @@ Parse documents to extract entities (companies, sectors), create synchronized SQ
    constraint: an edge discovered in both a newsletter and a company note
    is persisted once; whichever runs first wins the `source_ref`.
 
+   **`make derive-relations` WRITES.** The Makefile target passes
+   `--apply` unconditionally (`Makefile` `derive-relations:`), so the
+   target resolves edges into `graph_edges` on the spot. For a preview use
+   the bare script (`python3 helpers/graph/extract_relations.py findata`),
+   which is dry-run by default. There is no dry-run flavour of the make
+   target — do not reach for it to "see what would happen".
+
+   **Two working trees share one database but not one corpus.**
+   `memory/research.db` is a single inode across worktrees, while
+   `findata/` is a per-tree directory. An entity's `file_path` is
+   therefore resolved against *whichever tree you are standing in*: a
+   stub note committed in one tree reads as a **missing file** in the
+   other, and `database_integrity_check` exits non-zero there for a
+   defect that does not exist in the tree that has the file. Measured
+   2026-10-03: `Kering Beaute` was reported as a missing note in the main
+   tree while the file was committed and clean in the worktree
+   (`c232c1468`). Before chasing a missing-file report, check whether the
+   file exists in another tree; if it does, copy it across rather than
+   re-creating it.
+
    **Temporal extraction** for `acquired` edges: the helper also extracts
    a year/month/FY-quarter from the surrounding prose (e.g. "in 2024",
    "Dec 2025", "Q4 FY26") and populates the `valid_from` column (DB DATE)
@@ -74,11 +136,71 @@ Parse documents to extract entities (companies, sectors), create synchronized SQ
    > extract → sidecar → triage → decisions → apply, with the loop
    > closure (archify; JSON IR is the committed source). Re-render when
    > the triage contract changes.
-   1. `make triage-relations` (or `python3 helpers/graph/triage_pending_relations.py`) — dedupes, splits `suggested` rows (link-prediction candidates, `_pending_suggestions.txt`) from true extraction misses, buckets prose rows (`discard` noise / `alias_candidate` / `stub_candidate` / `manual`), and writes the eyeball report + an annotated-ready `findata/_pending_triage_decisions.jsonl`.
+   1. `make triage-relations` (or `python3 helpers/graph/triage_pending_relations.py`) — dedupes, splits `suggested` rows (link-prediction candidates, `_pending_suggestions.txt`) from true extraction misses, buckets prose rows (`discard` noise / `alias_candidate` / `stub_candidate` / `manual`), and writes the eyeball report + an annotated-ready `findata/Misc/_pending_triage_decisions.jsonl`.
    2. Annotate `decision` per row in the decisions file: `discard` | `alias:<Existing Entity Name>` | `stub` | `skip` (foreign/out-of-corpus parents).
    3. `python3 helpers/graph/triage_pending_relations.py --apply-decisions` — persists alias entries to git-tracked `findata/Misc/relation_aliases.json` (loaded by the extractor at run time — triage cycles need no code edits), drops applied rows, moves suggestions out, keeps unresolved rows deduped, and prints the follow-up chain (re-run extract → roster sync if stubs → `make graph-rebuild` → snapshot). Stub creation itself stays explicit (collision-check discipline); the script prints a stub plan.
    4. `--clear` truncates the queue once everything is resolved.
-   Countries/generic-phrase/mangled-fragment targets never enter the queue anymore (write-time noise gate in the extractor).
+
+   **The queue file is append-only; only the report dedupes.** Repeated
+   `derive-relations` runs re-append the same rows, so judge the
+   *distinct* set. Measured 2026-10-03: 29 queue lines collapsed to **3**
+   distinct `(edge_type, source, target_mention)` rows. The report's own
+   header counts (`prose rows (true queue)`) are computed after dedupe, so
+   a stale report and a growing queue will disagree — re-run
+   `make triage-relations` before reading it.
+
+   **A decision's key is fragile.** Decisions key on `_row_id`, a hash of
+   `(edge_type, source, target_mention)` computed from the queue row *at
+   report time* — the queue rows carry no id of their own. Because the
+   hash takes `target_mention` verbatim, any change to the extractor's
+   surface output (a fragment suffix appearing or disappearing) orphans
+   every prior decision: measured 2026-10-03, all 8 rows in
+   `_pending_triage_decisions.jsonl` no longer joined to any queued row,
+   including a correct `accept:acquired:MHP`. Expect to re-judge after any
+   extractor change, and keep the raw row next to the decision.
+
+   **Extractor rows carry no provenance.** Rows from
+   `extract_relations.py` have only `edge_type`/`source`/`target_mention`/
+   `quote`/`edition`/`direction` — no `origin`/`method`/`score`, unlike
+   `coinfer` or link-prediction suggestions. When several producers share
+   the sidecar you cannot tell from a row which one emitted it.
+
+   **Any entity you accept, alias or stub needs its note file in the same
+   tree, in the same sitting.** Stub creation stays explicit (step 3
+   prints a stub plan) but the note write is the operator's job, and an
+   entity row without a resolvable note fails `database_integrity_check`.
+   A stub created only in another tree fails exactly this way.
+
+   **Rows carrying `agent_id` need the agent registered** in
+   `provenance_agents` first; the FK is `ON DELETE SET NULL`, so `NULL` is
+   the correct "unknown" and `''` is not (it fails `foreign_key_check`).
+   See `.opencode/AGENTS.md` for the write-path rule.
+
+   **Noise gate: what it actually catches (corrected 2026-10-03).** The
+   write-time gate is real (`noise_target()` in
+   `triage_pending_relations.py`, consumed at `extract_relations.py:1989`)
+   and it drops empty targets, targets under 4 chars (except institution
+   short names), countries, generic prefixes, listed generic suffixes and
+   junk patterns. An earlier version of this line claimed mangled
+   fragments never reach the queue. **They do.** A live
+   `make derive-relations` queue held three rows that
+   `noise_target()` returns `False` for, with no clause firing on any of
+   them:
+     - *fragment with a distinctive token* —
+       `"European giant DWS Group l divesting a minority stake"` (53
+       chars). A deny-list cannot see a sentence that contains a real
+       company token.
+     - *trailing function word glued to a name* —
+       `"Sankyu Corporation involving"`. Neither `corporation` nor
+       `involving` is in the suffix list.
+     - *not noise at all* — `"Porsche"`, a genuine name captured from the
+       wrong sentence (the announcement was TCS→MHP, and the row's quote
+       is a newsletter header). No target-side gate can catch this; it
+       needs a sentence-integrity check upstream.
+
+   So the residual queue is **expected to need judgement**, not just
+   aliasing: expect sentence fragments and wrong-counterparty rows, and
+   discard them explicitly rather than assuming the gate removed them.
 
 10. **Refresh the events timeline** *(automatic with `make maint-full`, or manual)* — D7. The `events` table (acquisition / jv / guidance / management_change) is reconciled against the full corpus by `derive_events.py`, which (a) promotes `acquired`/`jv_with` edges into event rows and (b) extracts new guidance + management-change events from the `## The Chatter` blocks just enhanced in Stage 5. This runs automatically as the 6th step of `make maint-full` (post-ingest cleanup), so a normal ingest → enhance → `maint-full` cycle refreshes the timeline with no extra command. To run it standalone:
 
@@ -90,7 +212,42 @@ Parse documents to extract entities (companies, sectors), create synchronized SQ
 
    Idempotent via DELETE-then-INSERT of derived rows (`source_ref LIKE 'derive:events:%'`); hand-seeded `manual:`/`migration:` rows are preserved. Query the timeline via `GET /api/events/<company>`.
 
-11. **Auto-extract concall quotes + magnitudes** *(standalone command)* — `derive_insights.py` reads each company's `## [Concall]` body and captures every verbatim quote + speaker attribution + paraphrase into the `quotes` table, plus financial magnitudes (₹/%/bps/$bn) into `company_metrics`. It renders the quotes into a sentinel-wrapped `## The Chatter — <edition>` block in each company note (the deterministic first pass of Stage 5; hand-written blocks are never clobbered). Run after the newsletter is parsed and entities exist:
+   **Zero derived events is a legitimate outcome, not a failure.** Both
+   prose extractors are gated conjunctions: guidance needs a fiscal token
+   AND a metric AND a forward-looking signal; a management change needs a
+   change verb AND an executive title AND must clear the acquisition,
+   business-model and appointed-title negative gates. A newsletter with no
+   qualifying sentence yields nothing. When a run logs 0, confirm with
+   `python3 helpers/graph/derive_events.py -v` instead of assuming a
+   defect.
+
+   **`magnitude` is overloaded for management-change rows.** Guidance
+   stores the percent, or `NULL` when the metric matched without one;
+   `management_change` stores the executive *title*
+   (`derive_events.py:466`). Consumers reading `magnitude` as numeric will
+   meet text — branch on `event_type` first.
+
+11. **Auto-extract concall quotes + magnitudes** *(standalone command)* — `derive_insights.py` reads each company's `## [Concall]` body and captures every verbatim quote + speaker attribution + paraphrase into the `quotes` table, plus financial magnitudes (₹/%/bps/$bn) into `company_metrics`. It renders the quotes into a sentinel-wrapped `## The Chatter — <edition>` block in each company note (the deterministic first pass of Stage 5; hand-written blocks are never clobbered).
+
+    > **Edition entity — self-healing on apply.** Masthead / preamble
+    > commentary is attributed to the **edition** entity (the note STEM,
+    > `entity_type='edition'`) by `iter_edition_note_section`, and
+    > `quotes.entity` carries a FK to `entities(name)`. `derive_insights`
+    > handles a missing row itself: on `--apply` it creates the edition
+    > entity for any `edition_note` quote whose entity is unknown (the
+    > S4/G5 ingest-gap repair, with `derive_cited_in`'s
+    > normalized_name collision guard) and prints
+    > `edition entity created: <stem>`. So the apply does not abort on a
+    > fresh newsletter — but it only mints the *entity*, never the
+    > `cited_in` edges. Run `derive_cited_in.py --apply` when you want the
+    > edition's citations projected (it is also step 0d of `maint-full`,
+    > ahead of this step):
+    >
+    > ```bash
+    > python3 helpers/graph/derive_cited_in.py --apply    # edition entities + cited_in (idempotent)
+    > ```
+
+    Run after the newsletter is parsed and entities exist:
 
     ```bash
     make derive-insights                                        # DRY-RUN preview (writes nothing)
@@ -116,7 +273,7 @@ sectors = re.findall(r"#(?:Banking|Healthcare|Technology)", content)
 
 When the input is a source PDF (rather than an existing newsletter markdown), convert it first. `helpers/pdf/pdf_conv_md.py` is **local-first** (2026-08-26, lite-OCR fallback 2026-09-01): by default (`--engine auto`) it parses the PDF locally with `pymupdf4llm` (~2s, born-digital), and falls back to `liteparse` OCR (`Tesseract 5.5.0` `eng 4.0M`, `0.16–0.30s`, `TESSDATA_PREFIX=/usr/share/tesseract-ocr/5/tessdata`) for scanned PDFs (`MIN_CHARS_PER_PAGE 100` refusal), then `pix2text` `mfd-1.5` formula opt-in (`2–7s` LaTeX `MPLBACKEND=agg`) when the OCR is sparse or formula-heavy, and finally the Paddle AI Studio `PP-StructureV3` job API (`PADDLE_API_KEY`) only when all local engines refuse. The fast `liteparse no-ocr` (`0.10s`, `20.5×`, `bbox` per token) is available as `helpers/pdf/liteparse_engine.py` sidecar for RAG grounding (`--engine lite`) but **not** used for markdown primary — `pdf_local` stays primary for born-digital (Slice 1 gap `96.04%` accepted). Any engine writes a The_Chatter-style `.md` **plus** the figures already downloaded/copied and embedded — so a PDF input skips the [Image Capture](#image-capture) step entirely. The note frontmatter records which engine ran (`generated.by: pdf_conv_md.py/pymupdf4llm-X.Y.Z` vs `.../liteparse-2.0.0-ocr-eng` vs `.../pix2text-mfd-1.5` vs `.../PP-StructureV3`).
 
-**Destination directory — always ask the user.** The `<output_dir>` argument is explicit and required; there is no safe way to infer it. Ask the user which directory to write into (a newsletter dir like `findata/The_Chatter/`, or any other path they choose) before running the converter, and use exactly that.
+**Destination directory — the convention names it.** The `<output_dir>` argument is explicit and required. By convention a newsletter PDF goes to `findata/The_Chatter/` and its figures to `<edition>/images/` (see [Output destinations](#output-destinations)). Only a **non-conventional** destination is surfaced — once — to the operator, with the conventional alternative named: *"this PDF is landing in `<chosen_dir>`; the convention is `findata/The_Chatter/<stem>.md` or `<edition>/images/`; keep it here or move?"*. Use exactly the convention (or the confirmed deviation).
 
 ```bash
 # Convert a PDF into <output_dir> (local engine by default; no API key needed).
@@ -169,7 +326,7 @@ Prior newsletters already follow this pattern (e.g. `findata/Points_And_Figures/
 
 ### How to capture
 
-The helper writes in-place: figures go into the markdown's own `images/` dir and the source `.md` is rewritten where it already lives. Confirm that location with the user before running — do not move or copy the markdown to relocate the output.
+The helper writes in-place: figures go into the markdown's own `images/` dir and the source `.md` is rewritten where it already lives. This is in-place by convention, so no location question is asked — do not move or copy the markdown to relocate the output.
 
 ```bash
 # Download + verify + rewrite the source .md in place. Idempotent & resumable
@@ -668,6 +825,7 @@ def validate_bidirectional_sync():
 - [ ] Enhanced tags populated
 - [ ] **Existing entities enhanced** — every existing company with a concall/management section in the newsletter has a `## The Chatter — <edition>` block appended (see [Enhancing Existing Entities](#enhancing-existing-entities))
 - [ ] **Edition citations spliced** — every hand-written edition block's edition is in that note's `sources[]` (run `backfill_okf_provenance.py --apply` after enhancing; maint-full's PRE_FULL okf-backfill converges the same thing)
+- [ ] **Key-Figures render confirmed, not assumed** — with `--stale-only`, the chatter pass bumps `generated.at` on the notes it writes, so the Key-Figures pass in the SAME invocation gates them: a dry-run promising "N key-figures notes would write" can apply as 0 (measured 2026-10-03: 9 promised, 0 wrote). Until the gate is evaluated once per run, finish with an ungated `python3 helpers/graph/derive_insights.py findata --apply` when that happens
 - [ ] **Sector-note auto rosters refreshed** (`sync_sector_wikilinks`) — mandatory after any entity creation; stale rosters pass every other validator (user catch 2026-08-25; `make sync-sector-links` — bare script run is a dry-run report)
 - [ ] Short, token-efficient names (no `Ltd`/`Company` suffixes)
 - [ ] **(Newsletter inputs)** Relevant figures embedded in company notes via `![[images/<slug>_p{p}_img{N}.jpeg]]`
@@ -689,4 +847,4 @@ JOIN entity_tags b ON b.entity_name = e.name AND b.tag = 'market_cap/large_cap';
 ```
 
 ---
-*Version 8.7 | B1 frontmatter contract wired in: schema reference + the four drift rules (no `"N/A"` tickers, quoted ISO dates, underscore-only permalink segments, no rogue keys), schema check in Validation + checklist, schema-evolution path documented. Prior 8.6: Output destination is now explicit: **ask the user where output goes — never assume**. PDF inputs: ask for the `<output_dir>` before running `pdf_conv_md.py`. Markdown inputs: capture is in-place (rewrites the source `.md`, figures into its own `images/`), so confirm the markdown's location with the user. Prior 8.5: filenames are just the PDF stem (no `_by_<Model>` suffix); Stage 0 → markdown.*
+*Version 8.8 | S1 destination asks replaced: the vault convention table (`### Output destinations`) names the conventional destination per input type; the three "ask the user — never assume" prompts became no question for a conventional destination and one fallback ask naming the ambiguity for a non-conventional one. Prior 8.7: B1 frontmatter contract wired in: schema reference + the four drift rules (no `"N/A"` tickers, quoted ISO dates, underscore-only permalink segments, no rogue keys), schema check in Validation + checklist, schema-evolution path documented. Prior 8.6: Output destination is now explicit: **ask the user where output goes — never assume**. PDF inputs: ask for the `<output_dir>` before running `pdf_conv_md.py`. Markdown inputs: capture is in-place (rewrites the source `.md`, figures into its own `images/`), so confirm the markdown's location with the user. Prior 8.5: filenames are just the PDF stem (no `_by_<Model>` suffix); Stage 0 → markdown.*

@@ -412,6 +412,30 @@ class TestValidateFilePath:
         ok, msg = checker.validate_file_path("", "company")
         assert ok is False
 
+    def test_missing_names_tree_with_the_file(self, tmp_path):
+        # S7: trees share memory/research.db but not findata/ — the note lives
+        # in a sibling checkout; the checker must say that instead of a bare
+        # "does not exist".
+        this_tree = tmp_path / "this"
+        sibling = tmp_path / "main"
+        (sibling / "findata/Companies/X").mkdir(parents=True)
+        (sibling / "findata/Companies/X/Missing.md").write_text("# Note")
+        (this_tree / "findata/Companies/X").mkdir(parents=True)
+        checker = DatabaseIntegrityChecker(base_path=str(this_tree), other_roots=[str(sibling)])
+        ok, msg = checker.validate_file_path("findata/Companies/X/Missing.md", "company")
+        assert ok is False
+        assert "present in" in msg and str(sibling) in msg
+        assert "this tree" in msg
+
+    def test_missing_no_other_tree_keeps_old_msg(self, tmp_path):
+        checker = DatabaseIntegrityChecker(
+            base_path=str(tmp_path), other_roots=[str(tmp_path / "nowhere")]
+        )
+        ok, msg = checker.validate_file_path("findata/Companies/X/Missing.md", "company")
+        assert ok is False
+        assert msg.startswith("File does not exist:")
+        assert "present in" not in msg
+
     def test_nonexistent_file(self, tmp_path):
         checker = DatabaseIntegrityChecker(base_path=str(tmp_path))
         ok, msg = checker.validate_file_path("findata/Companies/X/Missing.md", "company")

@@ -11,6 +11,8 @@ Performs, in this order:
   6. Post-maintenance metrics
   7. integrity_check + foreign_key_check   (verify final state)
   8. (optional) --sync-check shells out to verify_notes.py + database_integrity_check.py
+  S8: agent_id guard triggers installed at run start; provenance_agent_report
+      is emitted after step 7 (both advisory/DDL, never fail-blocking)
 
 Note: index *usage* cannot be detected (SQLite keeps no per-index read counters),
 so only structural *redundancy* is reported, never "unused".
@@ -89,6 +91,90 @@ if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
 from helpers.core.env import REPO_ROOT  # noqa: E402  (folds _compute_root)
+
+_AGENT_FACT_TABLES: tuple[str, ...] = (
+    "graph_edges",
+    "events",
+    "quotes",
+    "company_metrics",
+    "hyper_edges",
+)
+
+
+def install_agent_id_guard(conn: sqlite3.Connection) -> list[str]:
+    """S8 guard: reject ``''``/unregistered ``agent_id`` writes in the DB
+    itself, so the rule holds even on raw ``sqlite3.connect`` (FK off).
+
+    The FK on ``agent_id`` already covers FK-off sessions for unregistered
+    ids; the trigger additionally quarantines the empty-string case — the
+    class of five-edge ``db_maint`` drift the S8 audit recorded. Table
+    tables absent or lacking the column are skipped silently.
+    """
+    if (
+        conn.execute(
+            "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='provenance_agents'"
+        ).fetchone()[0]
+        == 0
+    ):
+        return []
+    installed: list[str] = []
+    for table in _AGENT_FACT_TABLES:
+        for event in ("INSERT", "UPDATE"):
+            ddl = (
+                f"CREATE TRIGGER IF NOT EXISTS {table}_agent_id_registered_{event.lower()} "  # noqa: S608  # {table} rides the _AGENT_FACT_TABLES constant
+                f'BEFORE {event} ON "{table}" '
+                "FOR EACH ROW "
+                "WHEN NEW.agent_id IS NOT NULL "
+                "     AND (LENGTH(NEW.agent_id) = 0 "
+                "          OR NEW.agent_id NOT IN (SELECT agent_id FROM provenance_agents)) "
+                "BEGIN "
+                "    SELECT RAISE(ABORT, 'agent_id must be NULL or a registered non-empty id'); "
+                "END"
+            )
+            try:
+                conn.execute(ddl)
+                installed.append(f"{table}:{event}")
+            except sqlite3.OperationalError as exc:
+                msg = str(exc)
+                if "no such table" in msg or "no such column" in msg:
+                    continue
+                raise
+    return installed
+
+
+def provenance_agent_report(conn: sqlite3.Connection) -> dict:
+    """S8 advisory probe: counts of ``''`` and unregistered ``agent_id``
+    rows per fact table, plus the registered-agent count. Return shape:
+    ``{"registered": int, "empty_agent_id": {table: count},
+       "unregistered_agent_id": {table: [ids]}}``.
+    """
+    out: dict = {"registered": 0, "empty_agent_id": {}, "unregistered_agent_id": {}}
+    try:
+        out["registered"] = conn.execute("SELECT COUNT(*) FROM provenance_agents").fetchone()[0]
+        id_ok = True
+    except sqlite3.OperationalError:
+        id_ok = False
+    for table in _AGENT_FACT_TABLES:
+        try:
+            empty = conn.execute(
+                f'SELECT COUNT(*) FROM "{table}" WHERE agent_id IS NOT NULL AND LENGTH(agent_id)=0'  # noqa: S608  # {table} rides the _AGENT_FACT_TABLES constant
+            ).fetchone()[0]
+        except sqlite3.OperationalError:
+            continue
+        if empty:
+            out["empty_agent_id"][table] = empty
+        if id_ok:
+            try:
+                unreg = conn.execute(
+                    f'SELECT DISTINCT agent_id FROM "{table}" '  # noqa: S608  # {table} rides the _AGENT_FACT_TABLES constant
+                    "WHERE agent_id IS NOT NULL AND LENGTH(agent_id) > 0 "
+                    "AND agent_id NOT IN (SELECT agent_id FROM provenance_agents)"
+                ).fetchall()
+                if unreg:
+                    out["unregistered_agent_id"][table] = sorted(r[0] for r in unreg)
+            except sqlite3.OperationalError:
+                pass
+    return out
 
 
 class DBMaintainer:
@@ -685,6 +771,8 @@ class DBMaintainer:
             "SNAPSHOT",
             "integrity_check",
             "foreign_key_check",
+            "agent_id_guard",
+            "provenance_agent_report",
         ]
         if self.duckdb_path and self.duckdb_path.exists():
             steps.extend(["DuckDB BACKUP", "DuckDB CHECKPOINT", "DuckDB VACUUM"])
@@ -704,6 +792,13 @@ class DBMaintainer:
             before = self.metrics(conn)
             before_staleness = self.stat_staleness(conn)
             indexes = self.index_report(conn)
+
+            guard_installed = install_agent_id_guard(conn)
+            self._log(
+                logging.INFO,
+                f"S8 agent_id guard installed: {len(guard_installed)} trigger(s) "
+                f"({len(guard_installed) // 2} fact table(s), INSERT+UPDATE)",
+            )
 
             self._log(logging.INFO, f"Backing up to {self.backup_path}")
             backup_size = self._backup(conn)
@@ -778,6 +873,19 @@ class DBMaintainer:
 
             integrity = conn.execute("PRAGMA integrity_check").fetchone()[0]
             fk_violations = conn.execute("PRAGMA foreign_key_check").fetchall()
+            provenance_report = provenance_agent_report(conn)
+            if provenance_report["empty_agent_id"] or provenance_report["unregistered_agent_id"]:
+                self._log(
+                    logging.WARNING,
+                    f"S8: '' agent_id rows: {provenance_report['empty_agent_id']}; "
+                    f"unregistered: {provenance_report['unregistered_agent_id']} — "
+                    "repair via helpers/misc/backfill_row_provenance.py --apply",
+                )
+            else:
+                self._log(
+                    logging.INFO,
+                    f"S8: provenance clean (registered agents: {provenance_report['registered']})",
+                )
         finally:
             conn.close()
 
@@ -792,6 +900,7 @@ class DBMaintainer:
             "indexes": indexes,
             "integrity_check": integrity,
             "foreign_key_violations": len(fk_violations),
+            "provenance_agent_report": provenance_report,
         }
 
         # Optional DuckDB cache maintenance. Runs after SQLite so the
@@ -937,6 +1046,12 @@ def _print_report(r: dict) -> None:  # noqa: C901
     print("\n=== INTEGRITY ===")
     print(f"integrity_check: {r['integrity_check']}")
     print(f"foreign_key_check: {r['foreign_key_violations']} violations")
+    p = r.get("provenance_agent_report") or {}
+    print(
+        f"provenance_agents: {p.get('registered', '?')} registered; "
+        f"empty-agent_id rows: {p.get('empty_agent_id', {})}; "
+        f"unregistered: {p.get('unregistered_agent_id', {})}"
+    )
 
 
 def _run_sync_check(root: Path) -> dict:

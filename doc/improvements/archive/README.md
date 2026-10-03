@@ -39,6 +39,33 @@ commit, referenced by nothing). Entry numbers point at
 
 ## graph/ — Graph layer — algorithms, DuckPGQ retirement, Onager, knowledge-model design
 
+- [`search_enablers.md`](graph/search_enablers.md) —
+  search enablers — evidence lanes for triage escalation: zero-key Bing/Google
+  News RSS primary, DDG/Bing html demoted to relevance+host-gated fallback,
+  Brave API backup only, NEW `_fetch_page_text` direct-fetch layer (r.jina.ai
+  demoted after blanket 403s), verbatim-in-evidence quote gate; acceptance on
+  the frozen eval-v3 set — floors held exactly (37/37, 55/56), the TCS–MHP row
+  flipped unaided (False 0.7 → True 0.95 with a verified quote + lane URL),
+  Q1 48 → 51 all truth-correcting — completed.md #344
+
+- [`triage_preannotation_escalation.md`](graph/triage_preannotation_escalation.md) —
+  pre-annotation + retrieval escalation for the relations triage queue — glm-5.3
+  batch two-question pre-annotation with context, batched evidence escalation for
+  low-confidence rows (eval-v3 floors held: 37/37, Q2 55/56, TCS–MHP flipped with
+  quoted evidence); closed with the live-queue dry-run over producer-hygiene rows
+  and zero-orphan decision carry across the canonical-id re-key — completed.md #342
+
+- [`extract_target_binding.md`](graph/extract_target_binding.md) —
+  extract_relations `acquired from|by` target binding — breadcrumb headline
+  (`**MHP acquired from Porsche:**`) bound the prior owner as target; the fix
+  binds the pre-verb object as forward when it is not the section company, gated
+  to `acquired`-anchored matches after live-verifying demerged/merged collateral,
+  plus the `mhp` exact-name noise-gate exemption (the corrected row was dying
+  before reaching the queue); gate key 59 items, non-noise recall 1.0 —
+  completed.md #343
+
+- [`derive_insights_apply_gate.md`](graph/derive_insights_apply_gate.md) — derive_insights apply-gate — deterministic duplicate-fact collapse, full-sentence skip guard, decision briefs, `--stale-only` two-pass, key pin; in-arc defects landed: S2 vault bug (`findata/findata/...` resolution → live gate 0/4302 rows), non-hermetic S3/S4 fixtures, first-pass non-idempotency documented — completed.md #339
+
 - [`near_duplicate_gemm_rework_record.md`](graph/near_duplicate_gemm_rework_record.md) —
   near-duplicate GEMM rework record — the 2026-09-26 SQL→GEMM rework's measurement,
   exactness argument (`sim = 1 − d²/2` = cosine on unit-norm rows, the
@@ -180,6 +207,8 @@ commit, referenced by nothing). Entry numbers point at
 
 ## pipeline/ — Data pipeline — parsing, PDF conversion hardening, enrichment, corpus audit
 
+- [`markdown_parse_procedure_audit.md`](pipeline/markdown_parse_procedure_audit.md) — markdown_parse.md audit — 11 asserted-but-unverified guards, noise-gate claim false, triage key orphaned 8/8 decisions; doc corrections + code slices S0–S8 landed, extractor write-gate eval key DONE — completed.md #340
+
 - [`parse_extraction_gaps.txt`](pipeline/parse_extraction_gaps.txt) — Parse & Extraction Coverage Gaps — what the markdown pipeline drops
 - [`pdf_conv_md_hardening_fuzz.md`](pipeline/pdf_conv_md_hardening_fuzz.md) — Proposal: Harden Paddle `parse_pages`, consolidate `slugify`, add fuzz coverage — completed.md #114
 - [`metric_improvs.txt`](pipeline/metric_improvs.txt) — yfinance Enrichment Proposal — metric_improvs.txt
@@ -197,6 +226,16 @@ commit, referenced by nothing). Entry numbers point at
 - [`company_metrics_null_labels.md`](pipeline/company_metrics_null_labels.md) — Proposal (deferred): backfill `metric_label` on 3,119 guidance-style NULL rows (476 entities, desktop S3 finding); `guidance_*` vocabulary, NULL keeps meaning "unlabeled" — completed.md #308
 
 ## tooling/ — Tooling & performance — MCP eval, doc browser/search, perf review, tech survey
+
+- [`system_one_typed_judgment_framework.md`](tooling/system_one_typed_judgment_framework.md) —
+  System One typed-judgment framework — the reusable second source for triage
+  queues: typed client (`noul`/`choice`/`score`, `ab()` with per-carrier keys,
+  cost-capped, cached), sitting A/B block + non-terminal `second-opinion`
+  journal line, S6 "no key, no show" as executable registry, S7 question
+  pinning; AC#2 closed with 0/56 per-item verdict diffs vs the eval-v3 record
+  and both key-dispute items flagged, $0 ledger — completed.md #345
+
+- [`provider_drift_glm_mercury.md`](tooling/provider_drift_glm_mercury.md) — provider-drift — mercury-decide bit-stable ×3 same key, GLM lane drifted same window (admit 3→0, 5 fact flips); decision: GLM = discovery/extraction, mercury = rubric cross-check — completed.md #341
 
 - [`typed_trace_contracts.md`](tooling/typed_trace_contracts.md) — typed trace contracts — frozen contract dataclasses for the star schema, `@register_parser` harness registry, warn+count validate-at-ingest, `load_log.rows_ok/rows_rejected/unknown_fields`, synthetic fixture tests and `report --legs validation` — completed.md #335
 - [`trace_quote_citations.md`](tooling/trace_quote_citations.md) — agent-trace citations — stable `agent-trace:<harness>#<kind>:<id>` resolver, two-run anchor-stability census (all listed ids 100% stable), `--sweep` doc reference-rot mode, §12 citation convention — completed.md #336

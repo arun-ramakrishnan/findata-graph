@@ -1018,3 +1018,110 @@ class TestCrossNoteGroups:
         from helpers.graph.extract_relations import _derive_cross_note_groups
 
         assert _derive_cross_note_groups({"Adani": {"Adani Enterprises": 4}}) == []
+
+
+# --------------------------------------------------------------------------- #
+# Reverse-`acquired from|by` target binding (2026-10-04, extract_target_binding)#
+# --------------------------------------------------------------------------- #
+# Breadcrumb/headline form "**MHP acquired from Porsche:** ..." must bind the
+# edge to the object that precedes the verb, not to the post-`from` prior
+# owner (``Porsche``). Regression row: dataset/gate3 items id
+# 56b484c95c — operator note: "true target MHP; direction corrected to
+# forward".
+class TestReverseAcquiredPredecessorBinding:
+    @pytest.fixture
+    def resolver(self):
+        return EntityResolver(
+            [
+                "Tata Consultancy Services",
+                "Porsche",
+                "MHP",
+                "ParentCo",
+                "SteelCo",
+            ]
+        )
+
+    def test_acquired_from_headlines_binds_object_before_verb(self, resolver):
+        content = (
+            "## Tata Consultancy Services | Large Cap | IT Services\n\n"
+            "**MHP acquired from Porsche:** TCS takes over Porsche's "
+            "automotive-consulting arm MHP, ~€700 mn revenue at double-digit "
+            "margins.\n"
+        )
+        by_type, unresolved = extract_relations(
+            content,
+            edition_title="The Chatter — Tata Consultancy Services",
+            newsletter_type="The_Chatter",
+            resolver=resolver,
+        )
+        assert "acquired" in by_type
+        edge = by_type["acquired"][0]
+        assert edge.source == "Tata Consultancy Services"
+        assert edge.target == "MHP"
+        assert not any(e.target == "Porsche" for edges in by_type.values() for e in edges)
+        assert unresolved == []
+
+    def test_acquired_by_binds_object_before_verb(self, resolver):
+        """`by` variant of the breadcrumb binding: the pre-verb object is the
+        acquired item and must be the target — never the post-`by` party.
+        Source stays the section company (the proposal's company-centric
+        shape; the target is what the queue keys on)."""
+        content = (
+            "## Tata Consultancy Services | Large Cap | IT Services\n\n"
+            "MHP acquired by Porsche, closing the deal this quarter.\n"
+        )
+        by_type, unresolved = extract_relations(
+            content,
+            edition_title="E1",
+            newsletter_type="The_Chatter",
+            resolver=resolver,
+        )
+        assert "acquired" in by_type
+        edge = by_type["acquired"][0]
+        assert edge.source == "Tata Consultancy Services"
+        assert edge.target == "MHP"
+        assert not any(e.target == "Porsche" for edges in by_type.values() for e in edges)
+        assert unresolved == []
+
+    def test_generic_object_still_noise_gated(self, resolver):
+        """A generic pre-verb object must not mint a row just because the
+        rewrite now looks BEFORE the verb — the generic-acquired noise gate
+        still applies to the rewritten mention."""
+        content = (
+            "## Tata Consultancy Services | Large Cap | IT Services\n\n"
+            "Products Inc acquired by Porsche, closing the deal this quarter.\n"
+        )
+        by_type, unresolved = extract_relations(
+            content,
+            edition_title="E1",
+            newsletter_type="The_Chatter",
+            resolver=resolver,
+        )
+        assert "acquired" not in by_type
+        assert unresolved == []
+
+    def test_demerged_and_merged_keep_legacy_reverse_shape(self, resolver):
+        """Scope guard (extract_target_binding.md: "do not parallel-edit the
+        other reverse patterns"): `demerged from` / `merged with` have no
+        acquired-object reading, so the rewrite must not fire on them. A
+        cross-company mention keeps the legacy reverse endpoints (the
+        post-`from`/`with` party as the continuing entity) instead of minting
+        (section, acquired, <pre-verb object>)."""
+        for prose in (
+            "SteelCo demerged from ParentCo last quarter.\n",
+            "SteelCo merged with ParentCo in April.\n",
+        ):
+            content = "## Tata Consultancy Services | Large Cap | IT Services\n\n" + prose
+            by_type, unresolved = extract_relations(
+                content,
+                edition_title="E1",
+                newsletter_type="The_Chatter",
+                resolver=resolver,
+            )
+            pairs = {(e.source, e.target) for es in by_type.values() for e in es}
+            assert ("ParentCo", "Tata Consultancy Services") in pairs, (
+                f"legacy reverse shape lost for: {prose!r}"
+            )
+            assert not any("SteelCo" in p for p in pairs), (
+                f"rewrite leaked into the non-acquired reverse pattern: {prose!r}"
+            )

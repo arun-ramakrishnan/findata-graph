@@ -36,8 +36,9 @@ class TestSidecarSchema:
     SIDECARS = sorted(Path("findata/Misc/_relations").glob("*.yaml"))
 
     def test_all_sidecars_present_and_yaml_parsable(self):
-        # At least the B2 triage batch (7 accepted prose edges).
-        assert len(self.SIDECARS) >= 7, f"expected ~7 sidecars, found {len(self.SIDECARS)}"
+        # Current batch: 5 sidecars (2 triage:accept from the B2 batch,
+        # 3 cleanup:web_verified corrections from the 2026-10-03 arc).
+        assert len(self.SIDECARS) >= 5, f"expected ~5 sidecars, found {len(self.SIDECARS)}"
         for p in self.SIDECARS:
             yaml_safe_load(p.read_text(encoding="utf-8"))  # raises if corrupt
 
@@ -59,7 +60,10 @@ class TestSidecarSchema:
             assert "provenance" in d
             prov = d["provenance"]
             assert "row_id" in prov and "decision" in prov
-            assert prov.get("type") == "triage:accept"
+            # Two provenance families coexist: rows from the B2 triage batch
+            # (manual triage decisions) and rows re-verified in the 2026-10-03
+            # cleanup arc (web-confirmed corrections of deleted edges).
+            assert prov.get("type") in {"triage:accept", "cleanup:web_verified"}
             # filenames are source-edge_type_target slugs (self-describing).
             slug = p.stem
             parts = slug.split("-", 2)
@@ -69,21 +73,23 @@ class TestSidecarSchema:
             assert parts[2] == _slug(d["target"]), slug
 
     def test_confidence_formula(self):
-        # confidence = bucket base (manual .85, alias_candidate .80,
-        # stub_candidate .60) + .05 if word_overlap.
+        # triage:accept rows: confidence = bucket base (manual .85,
+        # alias_candidate .80, stub_candidate .60) + .05 if word_overlap.
+        # cleanup:web_verified rows carry an explicit, web-confirmed
+        # confidence that does not follow the bucket formula.
         expected = {
-            "L_Oreal": 0.6,
-            "Globus_Spirits": 0.6,
-            "Nippon_Life_India_Asset_Management": 0.85,
-            "Glenmark_Pharma_Nordic_SE": 0.85,
-            "Clix_Capital": 0.85,
-            "Tata_Consultancy_Services": 0.85,
-            "TVS_Supply_Chain_Solutions": 0.85,
+            "Tata_Consultancy_Services": 0.85,  # manual bucket
+            "Globus_Spirits": 0.6,  # stub_candidate
+            "TVS_Supply_Chain_Solutions": 0.85,  # manual bucket
         }
         for p in self.SIDECARS:
             d = yaml_safe_load(p.read_text(encoding="utf-8"))
+            prov_type = d.get("provenance", {}).get("type", "")
             slug = p.stem.split("-")[0]
-            assert d["confidence"] == expected[slug], (p.stem, d["confidence"])
+            if prov_type == "triage:accept":
+                assert d["confidence"] == expected[slug], (p.stem, d["confidence"])
+            else:  # cleanup:web_verified — explicit, bounded
+                assert 0.0 < d["confidence"] <= 1.0, (p.stem, d["confidence"])
 
 
 # --------------------------------------------------------------------------- #

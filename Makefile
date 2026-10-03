@@ -388,7 +388,7 @@ derive-co-mentions: ## Derive co_mentioned_in edges from newsletter enhancement 
 
 derive-relations: ## Extract jv_with/acquired/subsidiary_of/same_group/supplier_to/customer_of edges from newsletter prose
 > python3 helpers/graph/extract_relations.py findata/The_Chatter findata/Points_And_Figures findata/The_PlotLines --apply
-> @echo "✓ structured relation edges refreshed (unresolved -> findata/_pending_relations.txt)"
+> @echo "✓ structured relation edges refreshed (unresolved -> findata/Misc/_pending_relations.txt; APPLIED, not a dry-run)"
 
 derive-themes: ## Derive exposed_to (company -> theme) edges from company-note prose
 > python3 helpers/graph/derive_themes.py --apply

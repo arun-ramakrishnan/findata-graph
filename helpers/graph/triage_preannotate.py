@@ -1,7 +1,8 @@
 """Pre-annotation + retrieval escalation for the relations triage queue.
 
-Proposal: doc/improvements/proposals/triage_preannotation_escalation.md
-(S1 pre-annotator, S2 retrieval escalation, S3 human gate unchanged).
+Proposal: doc/improvements/archive/graph/triage_preannotation_escalation.md
+(executed 2026-10-04, completed.md #342; S1 pre-annotator, S2 retrieval
+escalation, S3 human gate unchanged).
 
 Reads the ``_pending_relations.txt`` queue (JSONL rows as written by
 ``extract_relations.write_sidecar``: edge_type/source/target_mention/
@@ -63,7 +64,7 @@ Return ONLY a JSON array, no prose, no markdown fence. One object per item, keys
 
 EVIDENCE_BATCH_PROMPT = """You previously judged numbered claims about business relations as factually uncertain. Below each claim are web-search results retrieved now. Decide Q1 again for each: did the claimed relation actually occur in the real world - these two parties, this type of event, in this direction? Wrong type, counterparty, or direction AS STATED means false.
 
-Rules: judge against the world using the retrieved results. To answer true you must be able to point at a supporting snippet. If the results are irrelevant or unhelpful, keep your prior judgment (answer false with low confidence).
+Rules: judge against the world using the retrieved results. To answer true you must be able to point at a supporting snippet or a sentence from a fetched page text. If the results are irrelevant or unhelpful, keep your prior judgment (answer false with low confidence).
 
 Items:
 {items}
@@ -168,7 +169,11 @@ def fresh_flag(row: dict) -> bool:
 # judge + retrieval                                                            #
 # --------------------------------------------------------------------------- #
 def call_glm(prompt: str, key: str, model: str, retries: int = 3) -> str:
-    """One chat completion, temperature 0, bounded retry. Returns raw content."""
+    """One chat completion, bounded retry. Returns raw content.
+
+    No `temperature` field on purpose: the provider endpoint behaves
+    erratically when temperature is set (operator, 2026-10-04), and our
+    measurements showed temperature 0 did NOT buy determinism anyway."""
     last: Exception | None = None
     for attempt in range(retries):
         try:
@@ -176,7 +181,6 @@ def call_glm(prompt: str, key: str, model: str, retries: int = 3) -> str:
                 {
                     "model": model,
                     "messages": [{"role": "user", "content": prompt}],
-                    "temperature": 0,
                     "max_tokens": 16000,
                 }
             ).encode()
@@ -185,7 +189,7 @@ def call_glm(prompt: str, key: str, model: str, retries: int = 3) -> str:
                 data=body,
                 headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json"},
             )
-            with urllib.request.urlopen(req, timeout=300) as r:
+            with urllib.request.urlopen(req, timeout=300) as r:  # noqa: S310  # allowlisted bases; query params quoted
                 return json.loads(r.read())["choices"][0]["message"]["content"]
         except Exception as exc:  # noqa: BLE001 — bounded retry, re-raised after
             last = exc
@@ -218,9 +222,11 @@ def judge_rows(
     out: dict[str, dict] = {}
     for start in range(0, len(rows), size):
         chunk = rows[start : start + size]
-        prompt = BATCH_HDR + "\n".join(
-            _fmt_item(i, r) for i, r in enumerate(chunk, start=1)
-        ) + BATCH_SCHEMA
+        prompt = (
+            BATCH_HDR
+            + "\n".join(_fmt_item(i, r) for i, r in enumerate(chunk, start=1))
+            + BATCH_SCHEMA
+        )
         content = call_glm(prompt, key, model)
         m = re.search(r"\[.*\]", content, re.S)
         if not m:
@@ -255,35 +261,228 @@ def judge_row(row: dict, key: str, model: str) -> dict:
     return a
 
 
-def web_search(query: str, retries: int = 2) -> list[dict]:
-    """DDG html first, Bing fallback. Returns [{title,url,snippet}] (<=5).
+_DDG_BASE = "https://html.duckduckgo.com/html/?q="
+_BING_HTML_BASE = "https://www.bing.com/search?q="
+_BING_NEWS_BASE = "https://www.bing.com/news/search?q="
+_GOOGLE_NEWS_BASE = "https://news.google.com/rss/search?q="
+_GOOGLE_NEWS_TAIL = "&hl=en-IN&gl=IN&ceid=IN:en"
 
-    Raises RuntimeError when both providers fail (rate limit, captcha,
-    network) so callers can mark the row needs-retry instead of hanging.
+
+def _html_lane(query: str, base: str, parse) -> list[dict]:
+    """Legacy scraping lane (captcha/homepage-prone) — degraded fallback only."""
+    for attempt in range(2):
+        try:
+            req = urllib.request.Request(  # noqa: S310  # allowlisted bases; query params quoted
+                base + urllib.parse.quote_plus(query),
+                headers={"User-Agent": "Mozilla/5.0 (X11; Linux x86_64) triage-preannotate"},
+            )
+            with urllib.request.urlopen(req, timeout=30) as r:  # noqa: S310  # allowlisted bases; query params quoted
+                html = r.read().decode("utf-8", "replace")
+            snippets = parse(html)
+            if snippets:
+                return snippets
+        except Exception:  # noqa: BLE001 — retry then fall through
+            time.sleep(2 * (attempt + 1))
+    return []
+
+
+def _rss_get(url: str) -> str:
+    req = urllib.request.Request(  # noqa: S310  # allowlisted bases; query params quoted
+        url, headers={"User-Agent": "Mozilla/5.0 (X11; Linux x86_64) triage-preannotate"}
+    )
+    with urllib.request.urlopen(req, timeout=30) as r:  # noqa: S310  # allowlisted bases; query params quoted
+        return r.read().decode("utf-8", "replace")
+
+
+def _unwrap_bing_news_url(link: str) -> str:
+    """Bing News wraps targets as apiclick.aspx?...&url=<article url>; the
+    value may be percent-encoded or plain."""
+    link = link.replace("&amp;", "&")
+    m = re.search(r"[?&]url=([^&]+)", link)
+    if not m:
+        return link
+    target = urllib.parse.unquote(m.group(1))
+    return target if target.startswith("http") else link
+
+
+def _parse_bing_news_rss(xml: str) -> list[dict]:
+    out = []
+    for item in re.findall(r"<item>(.*?)</item>", xml, re.S):
+        title = re.search(r"<title>(.*?)</title>", item, re.S)
+        link = re.search(r"<link>(.*?)</link>", item, re.S)
+        desc = re.search(r"<description>(.*?)</description>", item, re.S)
+        if not (title and link):
+            continue
+        headline = _strip_tags(title.group(1)).strip()
+        out.append(
+            {
+                "title": headline,
+                "url": _unwrap_bing_news_url(link.group(1)),
+                "snippet": (_strip_tags(desc.group(1)).strip() if desc else headline)[:400],
+            }
+        )
+    return out
+
+
+def _parse_google_news_rss(xml: str) -> list[dict]:
+    """Headlines are the evidence (verified 2026-09-29: the TCS-MHP fact sits
+    in the titles); links stay news.google.com redirects — do not chain them
+    through readers (r.jina.ai 403s google redirect pages)."""
+    out = []
+    for title, link in re.findall(r"<item><title>(.*?)</title><link>(.*?)</link>", xml, re.S):
+        headline = _strip_tags(title).strip()
+        out.append({"title": headline, "url": link.strip(), "snippet": headline[:400]})
+    return out
+
+
+def _relevance_filter(snippets: list[dict], query: str, source: str = "") -> list[dict]:
+    """Drop noise results; off-topic evidence is worse than none.
+
+    Two gates (field findings 2026-09-29 + 2026-10-04):
+    * a result's title+snippet must share at least one >=4-char query token —
+      the html lanes answer brand queries with brand homepages and unrelated
+      retail pages;
+    * a result hosted on the SOURCE entity's own domain must never evidence
+      that source's row (a TCS row is not evidenced by tcs.com). Match by
+      source word tokens and word initials ("Tata Consultancy Services" ->
+      "tcs") against the host.
     """
-    snippets: list[dict] = []
-    for base, parse in (
-        ("https://html.duckduckgo.com/html/?q=", _parse_ddg),
-        ("https://www.bing.com/search?q=", _parse_bing),
-    ):
-        for attempt in range(retries):
-            try:
-                req = urllib.request.Request(
-                    base + urllib.parse.quote_plus(query),
-                    headers={"User-Agent": "Mozilla/5.0 (X11; Linux x86_64) triage-preannotate"},
-                )
-                with urllib.request.urlopen(req, timeout=30) as r:
-                    html = r.read().decode("utf-8", "replace")
-                snippets = parse(html)
-                if snippets:
-                    return snippets[:5]
-            except Exception:  # noqa: BLE001 — fall through providers/attempts
-                time.sleep(2 * (attempt + 1))
-    raise RuntimeError(f"web search failed on both providers: {query!r}")
+    tokens = {w for w in re.findall(r"[a-z]{4,}", query.lower())}
+    src_tokens = {w.lower() for w in re.findall(r"[A-Za-z]{3,}", source)}
+    initials = "".join(w[0] for w in re.findall(r"[A-Za-z]", source)).lower()
+    kept = []
+    for r in snippets:
+        hay = (r.get("title", "") + " " + r.get("snippet", "")).lower()
+        if tokens and not any(t in hay for t in tokens):
+            continue
+        host = (urllib.parse.urlparse(r.get("url", "")).hostname or "").lower()
+        if source and (
+            any(t in host for t in src_tokens if len(t) >= 3)
+            or (len(initials) >= 2 and initials in host)
+        ):
+            continue
+        kept.append(r)
+    return kept
+
+
+def _search_bing_news(query: str) -> list[dict]:
+    return _parse_bing_news_rss(
+        _rss_get(_BING_NEWS_BASE + urllib.parse.quote_plus(query) + "&format=rss")
+    )
+
+
+def _search_google_news(query: str) -> list[dict]:
+    out = _parse_google_news_rss(
+        _rss_get(_GOOGLE_NEWS_BASE + urllib.parse.quote_plus(query) + _GOOGLE_NEWS_TAIL)
+    )
+    return out[:5]  # measured 100 items on a 10-item probe day; cap explicitly
+
+
+def _term_windows(text: str, terms: tuple[str, ...], width: int = 700, max_windows: int = 3) -> str:
+    """Up to `max_windows` ~width-char windows of `text` around term hits."""
+    low, hits = text.lower(), []
+    for term in terms:
+        t = (term or "").lower().strip()
+        if len(t) < 3:
+            continue
+        start = 0
+        while len(hits) < max_windows * 2:
+            i = low.find(t, start)
+            if i < 0:
+                break
+            hits.append(max(0, i - width // 3))
+            start = i + len(t)
+    if not hits:
+        return text[:1200]
+    windows, last = [], -(10**9)
+    for h in sorted(hits):
+        if h - last < width // 2:
+            continue
+        windows.append(text[h : h + width])
+        last = h
+        if len(windows) >= max_windows:
+            break
+    return " ... ".join(windows)
+
+
+def _fetch_page_text(url: str, terms: tuple[str, ...] = (), timeout: int = 30) -> tuple[str, str]:
+    """Fetch a result page's text; direct first, r.jina.ai reader fallback
+    (proposal: search_enablers.md, S3 fetch layer).
+
+    Returns (text, via): text is term-windowed (up to 3 ~700-char windows
+    around the row terms) or the page head; failures return ("", "none") so
+    escalation degrades to snippet evidence. Never raises.
+    """
+    transports = (
+        (
+            "direct",
+            url,
+            {
+                "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36",
+                "Accept": "text/html,application/xhtml+xml,*/*;q=0.8",
+            },
+        ),
+        (
+            "reader",
+            "https://r.jina.ai/" + url,
+            {"User-Agent": "Mozilla/5.0 (X11; Linux x86_64) triage-preannotate"},
+        ),
+    )
+    for via, fetch_url, headers in transports:
+        try:
+            req = urllib.request.Request(fetch_url, headers=headers)  # noqa: S310  # allowlisted bases; query params quoted
+            with urllib.request.urlopen(req, timeout=timeout) as r:  # noqa: S310  # allowlisted bases; query params quoted
+                raw = r.read(500_000).decode("utf-8", "replace")
+            text = re.sub(r"\s{2,}", " ", _strip_tags(raw)).strip()
+            if len(text) < 200:
+                continue
+            return _term_windows(text, terms), via
+        except Exception:  # noqa: S112, BLE001 — best effort; next transport
+            continue
+    return "", "none"
+
+
+def web_search(query: str, retries: int = 1) -> list[dict]:
+    """Agent-safe lanes first (proposal: search_enablers.md), html last.
+
+    Lanes, first non-empty wins (returns [{title,url,snippet}] <=5):
+      1. Bing News RSS   — direct article URLs via the apiclick `url=` param
+      2. Google News RSS — headline-as-evidence; links stay google redirects
+      3. DDG html        — legacy scraping (captcha-prone, degraded fallback)
+      4. Bing html       — legacy scraping fallback
+
+    Raises RuntimeError when every lane fails/empties so callers can mark the
+    row needs-retry instead of hanging. `retries` is accepted for caller
+    compatibility; RSS lanes are single-attempt by design.
+    """
+    lanes = (
+        ("bing-news", _search_bing_news),
+        ("google-news", _search_google_news),
+        ("ddg-html", lambda q: _html_lane(q, _DDG_BASE, _parse_ddg)),
+        ("bing-html", lambda q: _html_lane(q, _BING_HTML_BASE, _parse_bing)),
+    )
+    failures = []
+    for name, lane in lanes:
+        try:
+            snippets = lane(query)
+        except Exception as err:  # noqa: BLE001 — lane failure degrades, never hangs
+            failures.append(f"{name}: {type(err).__name__}")
+            continue
+        if name.endswith("-html"):
+            snippets = _relevance_filter(snippets, query)  # brand-homepage noise gate
+        if snippets:
+            return snippets[:5]
+        failures.append(f"{name}: empty")
+    raise RuntimeError(f"web search failed on all lanes ({', '.join(failures)}): {query!r}")
 
 
 def _strip_tags(s: str) -> str:
-    return re.sub(r"<[^>]+>", "", s).replace("&amp;", "&").replace("&#x27;", "'").replace("&quot;", '"')
+    return (
+        re.sub(r"<[^>]+>", "", s)
+        .replace("&amp;", "&")
+        .replace("&#x27;", "'")
+        .replace("&quot;", '"')
+    )
 
 
 def _parse_ddg(html: str) -> list[dict]:
@@ -329,22 +528,42 @@ def _unwrap_bing_url(href: str) -> str:
         try:
             pad = "=" * (-len(m.group(1)) % 4)
             return base64.b64decode(m.group(1) + pad).decode("utf-8", "replace")
-        except Exception:  # noqa: BLE001 — malformed wrapper, return as-is
+        except Exception:  # noqa: S110, BLE001 — malformed wrapper, return as-is
             pass
     return href
+
+
+def evidence_query(row: dict) -> str:
+    """Search query for one escalation row: the entity pair and the relation
+    type, preferring the PRE-truncation mention when the row carries one.
+
+    Measured 2026-10-04, and the obvious first answer was wrong: adding the
+    row `quote` to the query made results WORSE (5 -> 2 on 2 of 3 live
+    rows), because the quote is a mid-word-clipped 120-char window carrying
+    unrelated entities and URL residue ("rtnersh", "dian Bank Amagi CMR
+    Green", "youtube.com/watch?v=LzlH"), and those tokens narrow a news
+    query to nothing.
+
+    What actually helps is `truncated_from` (S6): the full captured mention
+    keeps the relation words ("Sankyu Corporation involving") without the
+    window's debris. Rows with no truncation are unaffected.
+    """
+    mention = row.get("truncated_from") or row.get("target_mention", "")
+    parts = [row.get("source", ""), mention, str(row.get("edge_type", "")).replace("_", " ")]
+    return " ".join(p for p in parts if p)
 
 
 def _search_evidence(row: dict, retries: int = 1) -> list[dict]:
     """One quick search sweep for a row; empty on failure (best effort —
     the sweep runs once per row, never blocking on provider rate limits)."""
-    query = f'{row["source"]} {row["target_mention"]} {row["edge_type"].replace("_", " ")}'
+    query = evidence_query(row)
     try:
-        return web_search(query, retries=retries)
+        return _relevance_filter(web_search(query, retries=retries), query, source=row["source"])
     except RuntimeError:
         return []
 
 
-def escalate_rows(rows: list[dict], annotations: dict[str, dict], key: str, model: str) -> int:
+def escalate_rows(rows: list[dict], annotations: dict[str, dict], key: str, model: str) -> int:  # noqa: C901  (transport fallback + one evidence-batch judge per row)
     """S2 for ALL low-confidence rows in ONE evidence-batch judge call.
 
     Per-row retrieval (search each row, judge each row separately) costs a
@@ -355,7 +574,11 @@ def escalate_rows(rows: list[dict], annotations: dict[str, dict], key: str, mode
 
     Mutates the annotations in place; returns the escalated count.
     """
-    todo = [(r, annotations[r["id"]]) for r in rows if r["id"] in annotations and needs_escalation(annotations[r["id"]])]
+    todo = [
+        (r, annotations[r["id"]])
+        for r in rows
+        if r["id"] in annotations and needs_escalation(annotations[r["id"]])
+    ]
     if not todo:
         return 0
     searched: list[tuple[dict, dict, list[dict]]] = []
@@ -368,23 +591,39 @@ def escalate_rows(rows: list[dict], annotations: dict[str, dict], key: str, mode
         searched.append((row, a, results))
     if not searched:
         return len(todo)  # all searches failed; nothing to re-judge
-    items = [
-        _EVIDENCE_ITEM.format(
-            i=i,
-            edge_type=row["edge_type"],
-            source=row["source"],
-            target_mention=row["target_mention"],
-            context=row.get("quote") or "(none)",
-            prior=a["factually_accurate"],
-            p_prior=a["p_fact"],
-            evidence="\n\n".join(
-                f"[{j + 1}] {r['title']}\n{r['url']}\n{r['snippet']}" for j, r in enumerate(results)
-            ),
+    items, evidence_text = [], {}
+    for i, (row, a, results) in enumerate(searched, 1):
+        # S3 fetch layer (search_enablers.md): verbatim quotes need page text,
+        # not snippet luck. One page per row, top result only, best effort.
+        page, via = "", "none"
+        if results:
+            try:
+                page, via = _fetch_page_text(
+                    results[0]["url"], (row["source"], row["target_mention"])
+                )
+            except Exception:  # noqa: BLE001 — fetch is best effort
+                page, via = "", "none"
+        evidence = "\n\n".join(
+            f"[{j + 1}] {r['title']}\n{r['url']}\n{r['snippet']}" for j, r in enumerate(results)
         )
-        for i, (row, a, results) in enumerate(searched, 1)
-    ]
+        if page:
+            evidence += f"\n\n   fetched page text (via {via}):\n{page}"
+        evidence_text[i] = evidence
+        items.append(
+            _EVIDENCE_ITEM.format(
+                i=i,
+                edge_type=row["edge_type"],
+                source=row["source"],
+                target_mention=row["target_mention"],
+                context=row.get("quote") or "(none)",
+                prior=a["factually_accurate"],
+                p_prior=a["p_fact"],
+                evidence=evidence,
+            )
+        )
     prompt = EVIDENCE_BATCH_PROMPT.format(items="\n\n".join(items))
-    replies = {int(r["id"]): r for r in json.loads(re.search(r"\[.*\]", call_glm(prompt, key, model), re.S).group(0))}
+    _m = re.search(r"\[.*\]", call_glm(prompt, key, model), re.S)
+    replies = {int(r["id"]): r for r in json.loads(_m.group(0) if _m else "[]")}
     for i, (row, a, results) in enumerate(searched, 1):
         r = replies.get(i)
         if r is None:
@@ -394,7 +633,18 @@ def escalate_rows(rows: list[dict], annotations: dict[str, dict], key: str, mode
         url = (r.get("evidence_url") or "").strip()
         a["support_quote"] = quote or None
         a["evidence_url"] = url or None
-        if quote and url:  # apply the evidence verdict only when quoted
+
+        # Verbatim-in-evidence check: a quote that appears nowhere in the
+        # snippets or fetched page text is not evidence (measured risk once
+        # page text lands — the judge can paraphrase or quote a snippet).
+        def norm(s):
+            return re.sub(r"\W+", " ", s).lower().strip()
+
+        if quote and url and norm(quote) not in norm(evidence_text.get(i, "")):
+            a["needs_retry"] = True
+            a["quote_unverified"] = True
+            continue
+        if quote and url:  # apply the evidence verdict only when quoted AND verified
             a["p_fact"] = float(r.get("p_fact", a["p_fact"]))
             a["factually_accurate"] = bool(r.get("factually_accurate", a["factually_accurate"]))
             # Rubric clause (d): admission requires the fact to hold.
@@ -440,7 +690,10 @@ def run(argv: list[str] | None = None) -> int:
     args.out.parent.mkdir(parents=True, exist_ok=True)
 
     annotations = judge_rows(
-        rows, key, args.model, on_chunk=lambda done, total: print(f"judged {done}/{total}", flush=True)
+        rows,
+        key,
+        args.model,
+        on_chunk=lambda done, total: print(f"judged {done}/{total}", flush=True),
     )
     missing = [r for r in rows if r["id"] not in annotations]
     for row in missing:  # decode-dropout retry, one row at a time

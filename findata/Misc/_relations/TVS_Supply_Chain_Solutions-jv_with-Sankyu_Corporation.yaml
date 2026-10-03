@@ -1,0 +1,18 @@
+'#': B2 relation sidecar - per-relation, auditable + re-ingestible via extract_relations
+edge_type: jv_with
+source: TVS Supply Chain Solutions
+target: Sankyu Corporation
+counterparties:
+- TVS Supply Chain Solutions
+- Sankyu Corporation
+as_of: '2026-10-03'
+confidence: 0.85
+provenance:
+  type: triage:accept
+  source_ref: triage:accept
+  row_id: 1a3f30c430
+  decision: accept:jv_with:Sankyu Corporation
+  bucket: manual
+  word_overlap: false
+  note: mangled mention (strategic alliance with Sankyu Corporation, small equity stake); regenerated 2026-10-04 after the S6 producer fix, prior artifact deleted as malformed-provenance cleanup
+  permalink: null

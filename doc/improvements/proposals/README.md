@@ -34,14 +34,15 @@ entry number and stale DONE pointers):
 
 ## Current live proposals
 
-`triage_preannotation_escalation.md` (filed 2026-10-03, **implemented**
-same day) — glm-5.3 batch two-question pre-annotation with context for
-the relations triage queue, plus batched evidence escalation for
-low-confidence rows; backdrop from `jev_assessment.md`; regression key
-is the Jev-pilot eval-v3 set (floor: artifacts 37/37, Q2 ≥ 53/56 —
-held at acceptance: 37/37, 55/56); human `--apply-decisions` gate
-unchanged. Remaining: live-queue dry-run, report integration, browser
-search lane.
+_(none)_
+
+Archived 2026-10-04: `system_one_typed_judgment_framework`
+(`../archive/tooling/`, completed.md #345) — the reusable typed-judgment
+second source: client + carrier registry + sitting A/B block with the
+non-terminal `second-opinion` journal line, S6 "no key, no show" made
+executable, question pinning; AC#2 closed by replaying eval-v3 through
+the shipped module with 0/56 verdict diffs vs the record and both
+key-dispute items flagged.
 
 Archived 2026-10-02 (same day as filing): `trace_error_forensics`
 (`../archive/tooling/`, completed.md #337) — `error_message` on the
@@ -50,6 +51,26 @@ upstream-verified against github.com/zai-org/ZCode (corrected table:
 `../../local/engineering/capture_traces.md` §9.4.2).
 
 Archived 2026-10-03: `duckdb_kill_recovery_test` (`../archive/tooling/`, completed.md #338) — kill-mid-write subprocess recovery contracts for synthetic DuckDB stores.
+
+Archived 2026-10-04: (`derive_insights_apply_gate`, `markdown_parse_procedure_audit`, `provider_drift_glm_mercury`) — apply-gate landed (#339), markdown_parse audit landed (#340), two-carrier drift decision recorded (#341).
+
+Archived 2026-10-04: `triage_preannotation_escalation`
+(`../archive/graph/`, completed.md #342) — pre-annotation + retrieval
+escalation; the closing criterion (live-queue dry-run over
+producer-hygiene rows, decisions carried across the canonical-id re-key
+with zero orphans) met 2026-10-04.
+
+Archived 2026-10-04: `extract_target_binding` (`../archive/graph/`,
+completed.md #343) — reverse `acquired by|from` breadcrumb binding fixed
+with an `acquired`-anchor scope guard (demerged/merged collateral
+verified live, then gated) and the `mhp` noise-gate exemption; gate key
+59 items, non-noise recall 1.0.
+
+Archived 2026-10-04: `search_enablers` (`../archive/graph/`,
+completed.md #344) — zero-key RSS lanes + direct page fetch + the
+verbatim-quote evidence gate; acceptance re-run on the frozen eval-v3
+set: floors held exactly (37/37, 55/56), TCS–MHP flipped **unaided**,
+Q1 48 → 51 all truth-correcting.
 
 Archived 2026-10-02: `typed_trace_contracts` and
 `trace_quote_citations` (`../archive/tooling/`, completed.md #335/#336) —

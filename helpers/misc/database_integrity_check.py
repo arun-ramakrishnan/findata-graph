@@ -22,6 +22,33 @@ _REPO_ROOT = Path(__file__).resolve().parents[2]
 if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
+
+def _sibling_worktree_roots(base_path: Path) -> list[Path]:
+    """Sibling git-worktree/checkout roots of `base_path`, excluding it."""
+    try:
+        import subprocess
+
+        out = subprocess.run(  # noqa: S603  # literal git argv; base_path is this repo's worktree
+            ["git", "-C", str(base_path), "worktree", "list", "--porcelain"],  # noqa: S607  # literal 'git' resolved from PATH
+            capture_output=True,
+            text=True,
+            timeout=10,
+        ).stdout
+    except Exception:  # noqa: BLE001
+        return []
+    roots: list[Path] = []
+    this = base_path.resolve()
+    for line in out.splitlines():
+        if line.startswith("worktree "):
+            p = Path(line.removeprefix("worktree ").strip())
+            try:
+                if p.resolve() != this:
+                    roots.append(p)
+            except OSError:
+                continue
+    return roots
+
+
 # The event-type vocabulary (D7). Imported at module level so this file is
 # self-contained when run as a subprocess (the static check requires any
 # helpers.* import to be preceded by a sys.path bootstrap).
@@ -175,12 +202,18 @@ class DatabaseIntegrityChecker:
         self,
         db_path: str | None = None,
         base_path: str | None = None,
+        other_roots: list[str] | None = None,
     ):
         # Derive from repo root by default so the script is portable; allow
         # explicit overrides for tests / alternate layouts.
         self.db_path = db_path or str(_REPO_ROOT / "memory" / "research.db")
         self.base_path = Path(base_path) if base_path else _REPO_ROOT
         self.findata_path = self.base_path / "findata"
+        self.other_roots: list[Path] = (
+            [Path(p) for p in other_roots]
+            if other_roots is not None
+            else _sibling_worktree_roots(self.base_path)
+        )
         self._conn: sqlite3.Connection | None = None
 
     def get_connection(self) -> sqlite3.Connection:
@@ -240,6 +273,14 @@ class DatabaseIntegrityChecker:
 
         # Check if file exists
         if not full_path.exists():
+            # S7: trees share one memory/research.db but per-tree findata/
+            # corpora, so a missing-file row is almost always a tree-visibility
+            # artifact, not a missing note. Name the tree that HAS it.
+            for sibling in self.other_roots:
+                if (sibling / file_path).exists():
+                    return False, (
+                        f"File does not exist in this tree: {full_path} (present in {sibling})"
+                    )
             return False, f"File does not exist: {full_path}"
 
         # Check if it's a markdown file

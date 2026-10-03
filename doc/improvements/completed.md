@@ -8976,3 +8976,134 @@ Follow-up note: `Caring Beauty` orphan-note drift was found by static
 checks and its missing entity row was backfilled through
 `parse_newsletter.create_entity(..., apply=True)` before archiving;
 static checks are green again.
+
+## 339. derive_insights apply-gate — collapse, skip guard, decision briefs, stale-only, key pin
+
+Filed 2026-10-03; executed 2026-10-04. The concall-body capture gate:
+deterministic duplicate-fact collapse, the full-sentence skip guard,
+plain-English decision briefs with a top-3 shortlist, `--stale-only`
+two-pass fix, and the screening key pin.
+
+Two live-session defects fixed in-arc:
+
+- **S2 gate-call vault bug.** `_cli` passed `PROJECT_ROOT / "findata"` as
+  `_skip_guard`'s vault while `entities.file_path` is repo-root-relative, so
+  every row resolved `findata/findata/...` and was skipped — live gate
+  reported `0 rows for apply`. Fixed (`distinct, PROJECT_ROOT, ...`);
+  `_skip_guard`'s own unit tests had encoded the correct contract (vault =
+  repo root), which hid the call-site bug. Live now: `4302 metrics -> 1557
+  rows for apply (757 collapsed, 1988 skipped)`; the remaining skips are
+  genuine `no full quote` (rendered notes carry paraphrases, not verbatim
+  quotes) and are stable across passes.
+- **S3/S4 fixtures were non-hermetic.** `_expand_paths("findata")` probes
+  `Path("findata").is_dir()` against CWD, so patching `PROJECT_ROOT` alone
+  scanned the live vault; fixed with `monkeypatch.chdir(repo)`, the fixture
+  note moved into `findata/The_Chatter/`, and source-quote sentences mirrored
+  into the entity note so the guard retains rows.
+
+Non-obvious property documented in the proposal: the gate is **not
+idempotent on its first pass** — each render is what puts the next sentence
+into the note, so run 1 retains fewer rows than run 2 (fixture: 2 of 3, then
+3 of 3). Idempotency and `--stale-only` tests now warm up to the fixed point.
+
+Eval key pinned: `derive_metrics_gate_key.py`, 15-row labeled seed, PASS
+(pin check + 14/14 label agreement).
+
+## 340. markdown_parse procedure audit — false claims, unguarded gates, manual-step budget
+
+Filed 2026-10-03; executed 2026-10-04. Audited `doc/procedures/markdown_parse.md`
+against measurement: 11 asserted-but-unverified guards, two already documented
+as fixed. Headlines: the noise-gate claim ("mangled fragments never enter the
+queue") was false (live rows fail `noise_target()` with no clause firing); the
+triage key (`_row_id`, a verbatim hash of `target_mention`) orphaned 8 of 8
+prior decisions; the "only manual step" claim was false (six stages need a
+human); the destination-directory rule was codified three times as "never
+assume". Doc corrections landed with code slices S0–S8 done 2026-10-04;
+evaluator write-gate key done (`extractor_gate_key.py`: noise 49/49 recall
+1.0, non-noise kept 9/9, bucket agreement 8/9, truncation 4/8). The vault's
+extractor windows carry the measured `derive_events` decision tree (276,716
+windows → 530 guidance / 6 management events, 58% guidance rows lacking
+`magnitude`, 87% lacking `event_date`).
+
+## 341. Provider-drift — GLM pre-annotator is not verdict-stable; mercury is
+
+Filed 2026-10-04; executed 2026-10-04. Two-carrier drift probe on the
+eval-v3 key, same tree/same code: mercury-decide:free bit-stable across three
+same-key runs (0 fact flips, 0 admit flips); the GLM lane drifted the same
+window (admit 3→0, escalated 19→27, evidence_url 7→2, 5 fact flips incl. 3
+hard admit flips, key ids 20/47/54). Operator decision 2026-10-04:
+**GLM stays the discovery/extraction lane; mercury owns the
+rubric-management cross-check** — GLM `p_fact`/`p_rubric` is scout material,
+never a partition of the write layer. Record:
+`doc/local/evaluations/jev_pilot/legs3/drift_log.md`.
+
+## 342. Pre-annotation + retrieval escalation for the relations triage queue
+
+Filed 2026-10-03; executed 2026-10-04 (`jev_eval` + `system_one` patches).
+glm-5.3 batch two-question pre-annotation with context for the relations
+queue, plus batched evidence escalation for low-confidence rows
+(`helpers/graph/triage_preannotate.py`). Acceptance on the eval-v3 key:
+artifact rejection 37/37 (floor held), Q2 55/56 (bar ≥53), the TCS–MHP
+escalation probe flipped with quoted evidence + URL. Final criterion
+closed 2026-10-04: the live-queue dry-run parsed all 3 producer-hygiene
+rows (0 suggested / 3 prose / 28 dupes absorbed) and the canonical-id
+decisions file carried the operator's 3 accept verdicts across the
+re-key with zero orphans. Operator-supplied-URL weakness executed
+separately as search_enablers (still live). Record:
+`doc/local/evaluations/jev_pilot/preannotate/`.
+
+## 343. extract_relations `acquired from|by` target binding (breadcrumb MHP rows)
+
+Filed 2026-10-04; executed 2026-10-04 (`system_one` patch). The reverse
+`acquired by|from` patterns bound the post-`from` party as target —
+`acquired:TCS:Porsche` (the prior owner) instead of `(TCS, acquired, MHP,
+forward)`, 9 duplicate malformed rows in the 31-line sidecar. Fix binds
+the pre-verb object as a forward target when it is not the section
+company (`_reverse_acquired_predecessor`), with a measured scope guard:
+the rewrite fires on `acquired`-anchored matches only — ungated, it also
+caught the H1 `demerged from`/`merged with` patterns and minted
+`(section, acquired, SteelCo)` from a cross-company mention (verified
+live, then gated). Second measured fix: `noise_target("MHP")` was True
+(the `<4`-char fragment rule), killing the corrected queue row before
+stub creation — exact-name corporate exemption
+`tpr._CORPORATE_SHORT_NAMES`. Gate key re-run at 59 items: noise 49/49
+dropped, non-noise 10/10 kept (recall 1.0), bucket 9/10. Regression:
+`TestReverseAcquiredPredecessorBinding` (4 tests). Live outcome:
+`Tata_Consultancy_Services-acquired-MHP.yaml` (direction forward).
+
+## 344. Search enablers — evidence lanes for triage escalation
+
+Filed 2026-10-03; executed 2026-10-04. The escalation lane's one unaided
+failure (TCS–MHP needed an operator-supplied URL) fixed with zero-key
+lanes primary: Bing News RSS (`url=`-unwrapped) → Google News RSS
+(capped) → DDG/Bing html as relevance+host-gated fallback (DDG re-probed
+reachable-but-confidently-wrong) → Brave API backup only (attribution
+clause); plus the NEW `_fetch_page_text` direct-fetch layer (r.jina.ai
+demoted to silent extra leg after 403s) and the verbatim-in-evidence
+quote gate — flips require a quote verifiable in snippets or fetched page
+text, else `needs_retry`+`quote_unverified`. Acceptance on the frozen
+eval-v3 set (`legs3/preann4-search-enablers/`): artifact rejection 37/37,
+Q2 55/56 (floor ≥53, same miss as the record), TCS–MHP flipped unaided
+(False 0.7 → True 0.95, verified quote + lane URL), Q1 48 → 51 with all
+three changes truth-correcting and zero regressions; 9 needs_retry + 2
+quote_unverified rows degraded honestly. Record:
+`doc/local/evaluations/jev_pilot/legs3/preann4-search-enablers/`.
+
+## 345. System One typed-judgment framework — reusable second source for triage queues
+
+Filed 2026-10-03; executed 2026-10-04 (`system_one` patch + closure).
+`helpers/core/typed_judgment.py` — typed questions (noul/choice/score),
+multi-carrier `ab()` with per-carrier `keys=`, cost-capped, cached,
+plain-English briefs and `rank_contentious` on one shared `AGREE_TOL` —
+wired into the relations queue as the second source: carrier lines +
+AGREE/DISAGREE flag in the report, consolidated brief on contested rows,
+the sitting rendering the A/B block and journaling the verdict pair as a
+NON-TERMINAL `second-opinion` line beside the human decision (never a
+vote, never parks), and the S6 policy made executable
+(`SURFACE_EVAL_KEYS`/`require_surface_key` — no key, no show). AC#2
+closed by replaying the frozen eval-v3 key through the shipped module:
+**46/56 / 54/56 / 37/37 with 0/56 per-item verdict diffs vs the record**,
+both key-dispute items (47, 54) flagged DISAGREE; ledger 56 calls,
+27.7 s, $0.0000. Tests: typed_judgment 31, sitting/pinning 4
+(`TestS5SecondOpinionSitting`, `TestS7QuestionPinning`). Run record:
+`doc/local/evaluations/jev_pilot/legs3/module-ab-mercury/`.

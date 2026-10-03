@@ -19,6 +19,9 @@ The two headline correctness properties (each has a dedicated test class):
 
 from __future__ import annotations
 
+import contextlib
+import io
+import os
 import re
 import sqlite3
 import sys
@@ -939,6 +942,95 @@ def _fm_sources(text):
     return {s["id"]: s for s in yaml_safe_load(text.split("---")[1]).get("sources", [])}
 
 
+class TestStaleOnlyTwoPass:
+    """S5 regression (measured 2026-10-03): in ONE --stale-only invocation the
+    chatter pass bumps generated.at on the notes it writes, so the key-figures
+    pass that follows re-reads a note whose stamp it just moved and gates it —
+    a dry-run promising "9 key-figures notes would write" applied as 0.
+
+    The gate must therefore be evaluated against the PRE-WRITE frontmatter,
+    snapshotted once per run, so both passes decide on the same evidence."""
+
+    def test_key_figures_not_starved_by_the_chatter_pass(self, tmp_path, monkeypatch):
+        vault, index = _splice_vault(tmp_path, monkeypatch)
+        note = vault / "Companies" / "Marico.md"
+        # Fresh stamp, only the OLD edition in sources: both passes must render
+        # (the new edition is absent from sources -> forced render).
+        note.write_text(
+            _note_with_fm(
+                "derive_insights.py/v1",
+                "2026-08-16T00:00:00Z",
+                [("Old_Edition", "2026-08-15")],
+                body="# Marico\n",
+            )
+        )
+        quotes = {("Marico", "My Edition"): [di.Quote(entity="Marico", quote_text="A quote.")]}
+        metrics = [
+            di.Metric(
+                entity="Marico",
+                metric_label="revenue",
+                value_raw="₹1,000 cr",
+                as_of_edition="My Edition",
+            )
+        ]
+        conn = TestSpliceConvergence()._marico_db(tmp_path)
+        try:
+            di._reset_gate_snapshot()
+            cw, _sk, cg = di.render_notes(
+                quotes, dry_run=False, conn=conn, stale_only=True, index=index
+            )
+            # chatter pass wrote and bumped generated.at + spliced sources
+            after_chatter = note.read_text()
+            kw, kg = di.render_metrics_notes(
+                {"Marico": metrics}, dry_run=False, conn=conn, stale_only=True, index=index
+            )
+        finally:
+            conn.close()
+        assert (cw, cg) == (1, 0), "chatter pass should render the drifted note"
+        assert di._BEGIN in after_chatter
+        assert (kw, kg) == (1, 0), (
+            "key-figures pass must NOT be gated by the chatter pass's own "
+            "generated.at bump (S5) — this is the live 2026-10-03 bug"
+        )
+        final = note.read_text()
+        assert di._KF_BEGIN in final or "Key Figures" in final
+        assert set(_fm_sources(final)) == {"Old_Edition", "My_Edition"}
+
+    def test_second_run_reaches_the_fixed_point(self, tmp_path, monkeypatch):
+        """The snapshot is per-RUN: a later run re-evaluates the gate normally."""
+        vault, index = _splice_vault(tmp_path, monkeypatch)
+        note = vault / "Companies" / "Marico.md"
+        note.write_text(
+            _note_with_fm(
+                "derive_insights.py/v1",
+                "2026-08-16T00:00:00Z",
+                [("Old_Edition", "2026-08-15")],
+                body="# Marico\n",
+            )
+        )
+        quotes = {("Marico", "My Edition"): [di.Quote(entity="Marico", quote_text="A quote.")]}
+        metrics = [
+            di.Metric(
+                entity="Marico",
+                metric_label="revenue",
+                value_raw="₹1,000 cr",
+                as_of_edition="My Edition",
+            )
+        ]
+        conn = TestSpliceConvergence()._marico_db(tmp_path)
+        try:
+            for run in (1, 2):
+                di._reset_gate_snapshot()  # one snapshot per run
+                di.render_notes(quotes, dry_run=False, conn=conn, stale_only=True, index=index)
+                w, g = di.render_metrics_notes(
+                    {"Marico": metrics}, dry_run=False, conn=conn, stale_only=True, index=index
+                )
+                if run == 2:
+                    assert (w, g) == (0, 1), "run 2 must gate: evidence did not move"
+        finally:
+            conn.close()
+
+
 class TestSpliceSources:
     def test_body_edition_spliced_with_round_trip(self, tmp_path, monkeypatch):
         vault, index = _splice_vault(tmp_path, monkeypatch)
@@ -1192,6 +1284,10 @@ Marico is a consumer goods company.
                 {"Marico": ms}, dry_run=False, conn=conn, stale_only=True, index=index
             )
             fixed = note.read_text()
+            # Two runs, so drop the S5 gate snapshot (one per CLI invocation;
+            # _cli does this itself) — otherwise run 2 would gate on run 1's
+            # pre-write state and render again instead of reaching fixed point.
+            di._reset_gate_snapshot()
             w2, g2 = di.render_metrics_notes(
                 {"Marico": ms}, dry_run=False, conn=conn, stale_only=True, index=index
             )
@@ -2708,3 +2804,337 @@ class TestApplyQuotesDedup:
         assert n.total == 1 and len(rows) == 1
         assert rows[0][2] == "derive:quotes:S:53"  # first occurrence kept
         c.close()
+
+
+# --------------------------------------------------------------------------- #
+# S1/S2/S3/S4: derive_insights apply-gate (markdown_parse_procedure_audit.md
+# slices for the derive_insights write path)                                  #
+# --------------------------------------------------------------------------- #
+_SAMPLE_NOTE = """\
+# Marico FMCG
+
+## Marico Ltd. | Large Cap | FMCG
+
+Marico is a consumer goods company.
+
+## [Concall]
+
+"Our EBITDA margin was 12%."
+
+— Saugata Gupta, MD & CEO
+"""
+
+# The two concall sentences `scan` lifts metrics out of _SAMPLE_NEWSLETTER.
+# Mirrored verbatim into the company note so the S2 skip guard keeps the rows;
+# drift here shows up as "skipped: N (no full quote)" in the S3 brief.
+_MARICO_QUOTE_SENTENCES = """\
+"Parachute Rigids delivered 10% volume growth, its strongest performance in the last 20 quarters, and gained more than 400 basis points in volume share, marking a new high."
+
+"With copra prices having corrected by about 35% from peak levels, we expect prices to remain range-bound."
+"""
+
+
+class TestS1Collapse:
+    """S1: deterministic duplicate-fact collapse — same value canonicalizes."""
+
+    def test_collapse_dash_variants(self):
+        """1–2% / 1-2% / 1 - 2 % collapse to one distinct fact (count 3)."""
+        metrics = [
+            di.Metric(entity="A", value_raw="1–2%", metric_label="margin"),
+            di.Metric(entity="A", value_raw="1-2%", metric_label="margin"),
+            di.Metric(entity="A", value_raw="1 - 2 %", metric_label="margin"),
+        ]
+        clusters, retained = di._collapse_metrics(metrics)
+        assert len(retained) == 1
+        assert len(clusters) == 1
+        (key, count) = clusters[0]
+        assert key == ("A", "", "1-2%")
+        assert count == 3
+
+    def test_collapse_commas_and_parens(self):
+        """Indian-format commas and wrapped values collapse."""
+        metrics = [
+            di.Metric(entity="A", value_raw="₹2,75,972 crore", metric_label="revenue"),
+            di.Metric(entity="A", value_raw="Rs 275972 crore", metric_label="revenue"),
+            di.Metric(entity="A", value_raw="(12%)", metric_label="margin"),
+            di.Metric(entity="A", value_raw="12%", metric_label="margin"),
+        ]
+        clusters, retained = di._collapse_metrics(metrics)
+        # currency prefix (Rs vs ₹) is not normalized by the S1 rules
+        assert len(retained) == 3
+        counts = [c for _, c in sorted(clusters, key=lambda t: t[0][2])]
+        assert sorted(counts) == [1, 1, 2]  # 275972 x1, Rs 275972 x1, 12% x2
+
+    def test_whitespace_collapsed(self):
+        metrics = [
+            di.Metric(entity="A", value_raw="   25%   ", metric_label="x"),
+            di.Metric(entity="A", value_raw="25%", metric_label="x"),
+            di.Metric(entity="A", value_raw="25%,", metric_label="x"),
+        ]
+        clusters, retained = di._collapse_metrics(metrics)
+        assert len(retained) == 1
+        (key, count) = clusters[0]
+        assert key[2] == "25%"
+        assert count == 3
+
+    def test_key_is_triple_not_value(self):
+        """Same value is distinct across edition or entity — value alone is
+        never the collapse key."""
+        metrics = [
+            di.Metric(entity="A", value_raw="25%", metric_label="margin", as_of_edition="E1"),
+            di.Metric(entity="A", value_raw="25%", metric_label="growth", as_of_edition="E2"),
+            di.Metric(entity="B", value_raw="25%", metric_label="margin", as_of_edition="E1"),
+        ]
+        clusters, retained = di._collapse_metrics(metrics)
+        assert len(retained) == 3
+        assert len(clusters) == 3
+
+    def test_empty_input(self):
+        clusters, retained = di._collapse_metrics([])
+        assert clusters == []
+        assert retained == []
+
+
+class TestS2SkipGuard:
+    """S2: skip guard — retain only rows whose full sentence lives in the
+    edition note; skipped rows are counted, never silently dropped."""
+
+    def test_retained_when_quote_found(self, tmp_path):
+        vault = tmp_path / "vault"
+        note = vault / "findata" / "Companies" / "A" / "A.md"
+        note.parent.mkdir(parents=True)
+        note.write_text("A is growing. The EBITDA margin is 12%.", encoding="utf-8")
+        metrics = [
+            di.Metric(
+                entity="A",
+                value_raw="12%",
+                metric_label="margin",
+                source_quote="The EBITDA margin is 12%",
+                as_of_edition="E1",
+            ),
+        ]
+        path_index = {"A": "findata/Companies/A/A.md"}
+        kept, skipped = di._skip_guard(metrics, vault, path_index)
+        assert kept == metrics
+        assert skipped == []
+
+    def test_skipped_when_quote_not_found(self, tmp_path):
+        vault = tmp_path / "vault"
+        note = vault / "findata" / "Companies" / "A" / "A.md"
+        note.parent.mkdir(parents=True)
+        note.write_text("A is growing. The revenue is 10%.", encoding="utf-8")
+        metrics = [
+            di.Metric(
+                entity="A",
+                value_raw="12%",
+                metric_label="margin",
+                source_quote="The EBITDA margin is 12%",
+                as_of_edition="E1",
+            ),
+        ]
+        path_index = {"A": "findata/Companies/A/A.md"}
+        kept, skipped = di._skip_guard(metrics, vault, path_index)
+        assert kept == []
+        assert len(skipped) == 1
+        assert "no full quote" in skipped[0]
+
+    def test_skipped_when_note_missing(self, tmp_path):
+        metrics = [
+            di.Metric(
+                entity="A",
+                value_raw="12%",
+                metric_label="margin",
+                source_quote="The EBITDA margin is 12%",
+                as_of_edition="E1",
+            ),
+        ]
+        path_index = {"A": "findata/Companies/A/A.md"}
+        kept, skipped = di._skip_guard(metrics, tmp_path, path_index)
+        assert kept == []
+        assert any("note missing" in s for s in skipped)
+
+    def test_skipped_when_source_quote_missing(self, tmp_path):
+        vault = tmp_path / "vault"
+        note = vault / "findata" / "Companies" / "A" / "A.md"
+        note.parent.mkdir(parents=True)
+        note.write_text("A is growing.", encoding="utf-8")
+        metrics = [
+            di.Metric(
+                entity="A",
+                value_raw="12%",
+                metric_label="margin",
+                source_quote=None,
+                as_of_edition="E1",
+            ),
+        ]
+        path_index = {"A": "findata/Companies/A/A.md"}
+        kept, skipped = di._skip_guard(metrics, vault, path_index)
+        assert kept == []
+        assert any("no full quote" in s for s in skipped)
+
+
+class TestS3Brief:
+    """S3: decision brief before the write — deterministic counts printed and
+    written to outputs/; no row is dropped by the brief."""
+
+    @staticmethod
+    def _make_repo(tmp_path, monkeypatch):
+        """Hermetic vault: one newsletter under a newsletter tree (what `scan`
+        actually reads) plus the company note the skip guard resolves against.
+
+        `_expand_paths("findata")` probes `Path("findata").is_dir()` relative to
+        CWD, so patching `di.PROJECT_ROOT` alone leaves the CLI walking the live
+        repo. `chdir` is load-bearing here, not hygiene.
+        """
+        repo = tmp_path / "repo"
+        findata = repo / "findata"
+        nl = findata / "The_Chatter" / "E1.md"
+        nl.parent.mkdir(parents=True)
+        nl.write_text(_SAMPLE_NEWSLETTER, encoding="utf-8")
+        note = findata / "Companies" / "Marico" / "Marico.md"
+        note.parent.mkdir(parents=True)
+        # S2 keeps a metric only when its source quote is verbatim in the note.
+        note.write_text(
+            "# Marico FMCG\n\n## Marico Ltd. | Large Cap | FMCG\n\n"
+            + _SAMPLE_NOTE
+            + "\n## Concall highlights\n\n"
+            + _MARICO_QUOTE_SENTENCES
+            + "\n",
+            encoding="utf-8",
+        )
+        db_path = tmp_path / "test_insights.db"
+        conn = sqlite3.connect(db_path)
+        conn.row_factory = sqlite3.Row
+        conn.executescript(_schema_sql())
+        conn.execute(
+            "INSERT INTO entities(name, entity_type, file_path) "
+            "VALUES ('Marico','company','findata/Companies/Marico/Marico.md')"
+        )
+        # DLF is resolvable but its note is absent, so the S2 guard must skip
+        # its metric ("note missing") — the brief's skipped: line needs a
+        # non-zero count to be exercised at all.
+        conn.execute(
+            "INSERT INTO entities(name, entity_type, file_path) "
+            "VALUES ('DLF','company','findata/Companies/Real_Estate/DLF.md')"
+        )
+        conn.commit()
+        conn.close()
+        monkeypatch.chdir(repo)
+
+        def _fresh():
+            c = sqlite3.connect(db_path)
+            c.row_factory = sqlite3.Row
+            return c
+
+        return repo, db_path, _fresh
+
+    def test_brief_prints_counts(self, tmp_path, monkeypatch):
+        repo, db_path, _fresh = self._make_repo(tmp_path, monkeypatch)
+        monkeypatch.setattr(di, "connect", _fresh)
+        monkeypatch.setattr(di, "render_notes", lambda *a, **k: (0, 0, 0))
+        monkeypatch.setattr(di, "render_metrics_notes", lambda *a, **k: (0, 0))
+        monkeypatch.setattr(di, "PROJECT_ROOT", repo)
+        with contextlib.redirect_stdout(io.StringIO()) as out:
+            rc = di._cli(["--no-notes"])
+        text = out.getvalue()
+        assert rc == 0
+        assert "derive-insights gate" in text
+        assert "distinct facts:" in text
+        assert "collapsed:" in text
+        assert "skipped:" in text
+        assert "no judgment reaches the write" in text.lower()
+        assert "outputs/derive_insights.md" in text
+
+    def test_brief_written_to_outputs(self, tmp_path, monkeypatch):
+        repo, db_path, _fresh = self._make_repo(tmp_path, monkeypatch)
+        monkeypatch.setattr(di, "connect", _fresh)
+        monkeypatch.setattr(di, "render_notes", lambda *a, **k: (0, 0, 0))
+        monkeypatch.setattr(di, "render_metrics_notes", lambda *a, **k: (0, 0))
+        monkeypatch.setattr(di, "PROJECT_ROOT", repo)
+        di._cli(["--no-notes"])
+        assert (repo / "outputs" / "derive_insights.md").exists()
+
+    def test_brief_without_advisory_shows_disabled(self, tmp_path, monkeypatch):
+        repo, db_path, _fresh = self._make_repo(tmp_path, monkeypatch)
+        monkeypatch.setattr(di, "connect", _fresh)
+        monkeypatch.setattr(di, "render_notes", lambda *a, **k: (0, 0, 0))
+        monkeypatch.setattr(di, "render_metrics_notes", lambda *a, **k: (0, 0))
+        monkeypatch.setattr(di, "PROJECT_ROOT", repo)
+        with contextlib.redirect_stdout(io.StringIO()) as out:
+            di._cli(["--no-notes"])
+        text = out.getvalue()
+        assert "S4 disabled: set TYPED_JUDGMENT=1" in text
+
+    def test_brief_shortlist_when_advisory_enabled(self, tmp_path, monkeypatch):
+        from helpers.core import typed_judgment as tj
+
+        repo, db_path, _fresh = self._make_repo(tmp_path, monkeypatch)
+        monkeypatch.setattr(di, "connect", _fresh)
+        monkeypatch.setattr(di, "render_notes", lambda *a, **k: (0, 0, 0))
+        monkeypatch.setattr(di, "render_metrics_notes", lambda *a, **k: (0, 0))
+        monkeypatch.setattr(di, "PROJECT_ROOT", repo)
+        monkeypatch.setenv("TYPED_JUDGMENT", "1")
+
+        def _fake_ask(*a, **kw):
+            return tj.CallResult(
+                carrier="inception/mercury-decide:free",
+                model="inception/mercury-decide:free",
+                answers={
+                    "q1": {"noul": 0.45},  # ambiguous: |0.45-0.5| <= 0.2
+                    "q2": {"choice": "other", "probabilities": {"other": 0.5}},
+                },
+                wall_s=0.01,
+                context_used_pct=0.0,
+                cents=0.0,
+                attempts=1,
+                cached=False,
+            )
+
+        monkeypatch.setattr(tj, "ask", _fake_ask)
+        with contextlib.redirect_stdout(io.StringIO()) as out:
+            rc = di._cli(["--no-notes"])
+        text = out.getvalue()
+        assert rc == 0
+        assert "ranked shortlist" in text
+        assert "the carrier is ambivalent" in text
+        assert (
+            "the models do not get a vote on the write" in text
+            or "does not get a vote on the write" in text
+        )
+
+
+class TestS4Advisory:
+    """S4: advisory enrichment — mercury-decide:free screening is opt-in via
+    TYPED_JUDGMENT=1, never drops a row, and errors are absorbed."""
+
+    def test_advisory_skipped_when_flag_off(self, tmp_path, monkeypatch):
+        repo, db_path, _fresh = TestS3Brief._make_repo(tmp_path, monkeypatch)
+        monkeypatch.setattr(di, "connect", _fresh)
+        monkeypatch.setattr(di, "render_notes", lambda *a, **k: (0, 0, 0))
+        monkeypatch.setattr(di, "render_metrics_notes", lambda *a, **k: (0, 0))
+        monkeypatch.setattr(di, "PROJECT_ROOT", repo)
+        # no TYPED_JUDGMENT set
+        assert os.environ.get("TYPED_JUDGMENT") is None
+        with contextlib.redirect_stdout(io.StringIO()) as out:
+            rc = di._cli(["--no-notes"])
+        assert rc == 0
+        assert "S4 disabled" in out.getvalue()
+
+    def test_advisory_error_absorbed(self, tmp_path, monkeypatch):
+        from helpers.core import typed_judgment as tj
+
+        repo, db_path, _fresh = TestS3Brief._make_repo(tmp_path, monkeypatch)
+        monkeypatch.setattr(di, "connect", _fresh)
+        monkeypatch.setattr(di, "render_notes", lambda *a, **k: (0, 0, 0))
+        monkeypatch.setattr(di, "render_metrics_notes", lambda *a, **k: (0, 0))
+        monkeypatch.setattr(di, "PROJECT_ROOT", repo)
+        monkeypatch.setenv("TYPED_JUDGMENT", "1")
+
+        def _flaky_ask(*a, **kw):
+            raise RuntimeError("carrier exploded")
+
+        monkeypatch.setattr(tj, "ask", _flaky_ask)
+        with contextlib.redirect_stdout(io.StringIO()) as out:
+            rc = di._cli(["--no-notes"])
+        assert rc == 0, "carrier failure must not break the write"
+        assert "S4 advisory skipped" in out.getvalue()

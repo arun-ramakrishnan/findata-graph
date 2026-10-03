@@ -41,6 +41,7 @@ import hashlib
 import json
 import re
 import sys
+import unicodedata
 from pathlib import Path
 
 # Repo root: helpers/graph/triage_pending_relations.py -> parents[2]. Must be
@@ -65,6 +66,10 @@ NOISE_FILE = _REPO_ROOT / "findata" / "Misc" / "relation_noise.json"
 REPORT = _REPO_ROOT / "findata" / "Misc" / "_pending_triage_report.md"
 REVIEW_JOURNAL_DIR = _REPO_ROOT / "outputs" / "relations_review"
 DECISIONS = _REPO_ROOT / "findata" / "Misc" / "_pending_triage_decisions.jsonl"
+# S5 second-opinion sources: the pre-annotate carrier lanes' advisory
+# annotations (glm batch + mercury decisions lane). Read-side only.
+ANNOTATIONS = _REPO_ROOT / "findata" / "Misc" / "_pending_annotations.jsonl"
+MERCURY_ANNOTATIONS = _REPO_ROOT / "findata" / "Misc" / "_pending_annotations_mercury.jsonl"
 # graph_edges write target for `accept:` decisions. None = connect()'s
 # default (memory/research.db); tests point it at a tmp schema file.
 EDGE_DB_PATH: Path | None = None
@@ -188,11 +193,12 @@ def noise_target(target: str) -> bool:
     tl = t.lower()
     return (
         not t
-        # Institution short-names are exempt from the fragment-length rule
-        # ("RBI" is 3 chars): regulator mentions must reach the sidecar,
-        # not die silently (country layer arc I1). Exact-name only — the
-        # rest of the fragment class is untouched.
-        or (len(tl) < 4 and tl not in _INSTITUTION_SHORT_NAMES)
+        # Institution/corporate short-names are exempt from the
+        # fragment-length rule ("RBI" is 3 chars): regulator and acronym
+        # company mentions must reach the sidecar, not die silently
+        # (country layer arc I1; corporate add measured 2026-10-04).
+        # Exact-name only — the rest of the fragment class is untouched.
+        or (len(tl) < 4 and tl not in _INSTITUTION_SHORT_NAMES and tl not in _CORPORATE_SHORT_NAMES)
         or tl in COUNTRIES
         or bool(_GENERIC_PREFIX.match(tl))
         or bool(_GENERIC_SUFFIX.search(tl))
@@ -205,11 +211,57 @@ def noise_target(target: str) -> bool:
 # lowercased); extend both together.
 _INSTITUTION_SHORT_NAMES = frozenset({"rbi", "sebi"})
 
+# Corporate acronyms measured through the gate: 3-letter company names are
+# real entities, not mangled fragments. Measured case: "MHP" — the
+# extract_target_binding fix binds the breadcrumb object `MHP acquired from
+# Porsche` correctly, but this gate killed the queue row before the operator
+# could stub it (gate3 item 9e2f51c07d, labeled from the operator-corrected
+# row 56b484c95c). Exact-name only, per the I1 arc's deliberate narrowness;
+# company names do NOT go into INSTITUTION_MENTIONS (wrong lane).
+_CORPORATE_SHORT_NAMES = frozenset({"mhp"})
 
-def _row_id(edge_type: str, source: str, target: str) -> str:
-    """Stable short id for a (edge, source, target) — the decisions key."""
-    h = hashlib.sha256(f"{edge_type}\x1f{source}\x1f{target}".encode()).hexdigest()
+
+def _norm_id_part(s: str) -> str:
+    """Canonical form of one id component (NFKC, casefold, boundary
+    punctuation, possessive, collapsed whitespace).
+
+    Deliberately WIDER than `_norm_target`, which feeds the noise gate: an id
+    must survive a re-capture that differs only in punctuation or case
+    ("Porsche's" == "Porsche"), or every operator decision orphans on the
+    next extractor run. S4 measured that cost: 8/8 live decisions had
+    orphaned because the id hashed the verbatim mention.
+    """
+    t = unicodedata.normalize("NFKC", s or "").strip()
+    t = _norm_target(t).casefold()
+    return " ".join(t.split())
+
+
+def row_join_key(edge_type: str, source: str, target: str) -> tuple[str, str, str]:
+    """Id-INDEPENDENT join key (normalized triple).
+
+    This is what carries an operator decision across an id change: decisions
+    rows store the triple verbatim, so re-keying is lossless.
+    """
+    return (
+        _norm_id_part(edge_type),
+        _norm_id_part(source),
+        _norm_id_part(target),
+    )
+
+
+def row_id(edge_type: str, source: str, target: str) -> str:
+    """CANONICAL stable id for a queue row — the decisions key.
+
+    Stamped into the row at WRITE time (extract_relations.write_sidecar) and
+    preferred over recomputation on read, so a decisions file written before
+    an extractor change still joins.
+    """
+    h = hashlib.sha256("\x1f".join(row_join_key(edge_type, source, target)).encode()).hexdigest()
     return h[:10]
+
+
+# Back-compat alias: pre-S4 name, still referenced in docstrings.
+_row_id = row_id
 
 
 def _norm_target(t: str) -> str:
@@ -268,6 +320,14 @@ def _bucket(edge_type: str, target: str, names: set[str]) -> tuple[str, str, boo
     tl = t.lower()
     if noise_target(t):
         return "discard", "country/generic/fragment", False
+    # S6 interaction: after predicate truncation the mention can be an EXACT
+    # existing entity name ("Sankyu Corporation involving" -> "Sankyu
+    # Corporation"). The stub branch below would then read as "create a new
+    # entity", i.e. invite a DUPLICATE stub for a name already in the graph.
+    # A queued row whose target is already a known name is a RESOLVER GAP, so
+    # say that instead and keep it out of the stub lane. O(1), exact case.
+    if t in names:
+        return "manual", "already a known entity — resolver gap", False
     # Alias candidate: the fuzzy matcher resolves it to a DIFFERENT
     # existing name (exact-cased match means the extractor should already
     # have resolved it, so only report genuine re-spellings).
@@ -291,9 +351,9 @@ def build_triage(lines: list[str], names: set[str]) -> dict:
 
     Returns {"suggested": [...], "prose": [...], "unparseable": [...],
     "dupes": n} where each row dict carries id/edge_type/source/
-    target_mention/quote/edition/direction/bucket/detail."""
+    target_mention/quote/edition/direction/origin/method/bucket/detail."""
     suggested, prose, unparseable = [], [], []
-    seen: set[str] = set()
+    seen: set[tuple[str, str, str]] = set()
     dupes = 0
     for line in lines:
         line = line.strip()
@@ -304,13 +364,17 @@ def build_triage(lines: list[str], names: set[str]) -> dict:
         except ValueError:
             unparseable.append(line)
             continue
-        key = f"{d.get('edge_type')}\x1f{d.get('source')}\x1f{d.get('target_mention')}"
+        key = row_join_key(d.get("edge_type", ""), d.get("source", ""), d.get("target_mention", ""))
         if key in seen:
             dupes += 1
             continue
         seen.add(key)
         row = {
-            "id": _row_id(d.get("edge_type", ""), d.get("source", ""), d.get("target_mention", "")),
+            # S4: prefer the id stamped at write time. Legacy rows (written
+            # before S4) have none and get the canonical id computed here —
+            # the same function, so the two paths agree.
+            "id": d.get("id")
+            or row_id(d.get("edge_type", ""), d.get("source", ""), d.get("target_mention", "")),
             "edge_type": d.get("edge_type", ""),
             "source": d.get("source", ""),
             "target_mention": d.get("target_mention", ""),
@@ -318,6 +382,9 @@ def build_triage(lines: list[str], names: set[str]) -> dict:
             "edition": d.get("edition", ""),
             # Pre-2026-09-05 rows lack the flag; legacy rows are forward.
             "direction": d.get("direction", "forward"),
+            # S4 provenance: empty on legacy rows, never guessed.
+            "origin": d.get("origin", ""),
+            "method": d.get("method", ""),
         }
         if row["edge_type"] == "suggested":
             suggested.append(row)
@@ -332,13 +399,85 @@ def build_triage(lines: list[str], names: set[str]) -> dict:
     return {"suggested": suggested, "prose": prose, "unparseable": unparseable, "dupes": dupes}
 
 
+# S7 (system_one_typed_judgment_framework.md): the typed question text IS the
+# regression surface. These two strings are the relations surface's pinned
+# questions — any change invalidates the surface's eval key
+# (doc/local/evaluations/jev_pilot/dataset/eval3/items.json, registered in
+# typed_judgment.SURFACE_EVAL_KEYS) and must re-run it before carrier
+# verdicts are shown again. tests/test_relations_queue_hygiene.py pins them.
+Q1_FACTUAL_QUESTION = "Is this claimed relation real in the world?"
+Q2_ADMIT_QUESTION = "Admit this row to the knowledge graph?"
+
+
+def decision_brief_for_rows(rows: list[dict], glm: dict, mercury: dict) -> list[str]:
+    """S3: one consolidated brief — contested items only, worst gap first.
+
+    A row earns one card per CONTESTED question: Q1 factuality
+    (``p_fact``) or Q2 admission lean (``p_rubric``), whichever the two
+    carriers disagree on by more than ``AGREE_TOL`` (0.2). Rows both
+    carriers annotated and agreed on — and rows only one carrier
+    annotated — get no card: silence is the correct reading there.
+
+    Both gaps feed the ranking, so a row the carriers agree to reject but
+    dispute the factuality of still surfaces: the disagreement a human
+    needs is the factual one. Returns markdown lines; the caller owns
+    the section heading.
+    """
+    from helpers.core.typed_judgment import AGREE_TOL, brief, gap_of, require_surface_key
+
+    require_surface_key("relations_triage_queue")
+    ctx = "see the queue sidecar row above; this advises whether a human should review it"
+    questions = (
+        ("Q1 factual", Q1_FACTUAL_QUESTION, "p_fact"),
+        ("admission", Q2_ADMIT_QUESTION, "p_rubric"),
+    )
+
+    def lean(a: dict, m: dict, field: str) -> dict[str, dict]:
+        return {
+            "glm-5.3": {"noul": float(a.get(field, 0.0))},
+            "mercury-decide": {"noul": float(m.get(field, 0.0))},
+        }
+
+    gaps: dict[str, list[float]] = {}
+    for r in rows:
+        key = (r["edge_type"], r["source"], r["target_mention"])
+        a, m = glm.get(key), mercury.get(key)
+        if not a or not m:
+            continue
+        gaps[r["id"]] = [gap_of(lean(a, m, f)) for _, _, f in questions]
+    ranked = sorted(
+        ((iid, g) for iid, g in gaps.items() if max(g) > AGREE_TOL),
+        key=lambda t: (-max(t[1]), t[0]),
+    )
+    if not ranked:
+        return [
+            "- (no contested rows: every annotated two-carrier pair differs by"
+            f" at most the {AGREE_TOL} agreement tolerance)"
+        ]
+    by_id = {r["id"]: r for r in rows}
+    lines: list[str] = []
+    for iid, g in ranked:
+        lines.append(f"### `{iid}` — Q1 factual gap {g[0]:.2f}, admission gap {g[1]:.2f}")
+        row = by_id[iid]
+        key = (row["edge_type"], row["source"], row["target_mention"])
+        a, m = glm[key], mercury[key]
+        for (label, question, field), gap in zip(questions, g):
+            if gap <= AGREE_TOL:
+                continue
+            lines.append(brief(question, lean(a, m, field), context=ctx, contested=True))
+            lines.append("")
+    return lines
+
+
 def write_report(triage: dict, names: set[str]) -> None:  # noqa: C901
     """``names`` is the full canonical-name set (VSS hints need it; the
     count in the report header is len(names))."""
     """Emit the eyeball report + the decisions file (non-destructive).
 
-    NOTE: the decisions file is REGENERATED here — annotate only after the
-    last --report run, or annotations are lost."""
+    NOTE: the decisions file is REGENERATED here, but prior annotations are
+    now CARRIED FORWARD (matched on the normalized triple), so annotating
+    before a re-run no longer loses decisions. Annotate the file after the
+    report to pick up fresh vss_hint/bucket values."""
     lines = [
         "# Pending-relations triage report",
         "",
@@ -400,6 +539,7 @@ def write_report(triage: dict, names: set[str]) -> None:  # noqa: C901
     except Exception as exc:  # best-effort — never blocks the report
         print(f"WARNING: pre-annotations unavailable ({exc})", file=sys.stderr)
         annotations = {}
+
     if annotations:
         lines.append(
             f"- pre-annotation: {len(annotations)} rows carry advisory LLM "
@@ -408,22 +548,51 @@ def write_report(triage: dict, names: set[str]) -> None:  # noqa: C901
         )
         lines.append("")
 
+    from pathlib import Path as _P
+
+    mercury_annotations = _P(_P(ANNOTATIONS).parent / "_pending_annotations_mercury.jsonl")
+    try:
+        mercury_map = load_annotations(mercury_annotations)
+    except Exception as exc:  # best-effort — never blocks the report
+        print(f"WARNING: mercury pre-annotations unavailable ({exc})", file=sys.stderr)
+        mercury_map = {}
+    if mercury_map:
+        lines.append(
+            f"- mercury pre-annotations: {len(mercury_map)} rows carry advisory "
+            f"`inception/mercury-decide:free` verdicts (`{mercury_annotations.name}`) — "
+            f"advisory only, the human gate below is unchanged"
+        )
+        lines.append("")
+
     def _annot(r: dict) -> list[str]:
         a = annotations.get((r["edge_type"], r["source"], r["target_mention"]))
-        if not a:
+        m = mercury_map.get((r["edge_type"], r["source"], r["target_mention"]))
+        if not a and not m:
             return []
-        verdict = "ADMIT" if a.get("rubric_admit") else "keep-out"
-        esc = " ESC" if a.get("escalated") else ""
-        retry = " NEEDS-RETRY" if a.get("needs_retry") else ""
-        out = [
-            f"  - _pre-annotate: {verdict}{esc}{retry} "
-            f"p_fact={a.get('p_fact', 0):.2f} p_rubric={a.get('p_rubric', 0):.2f}"
-        ]
-        if a.get("evidence_url"):
-            out.append(f"  - _evidence: {a['evidence_url']}")
-            if a.get("support_quote"):
-                q = str(a["support_quote"])
-                out.append(f"  - _quote: {q[:160]}{'...' if len(q) > 160 else ''}_")
+        out: list[str] = []
+
+        def _line(a2, label):
+            if not a2:
+                return []
+            verdict = "ADMIT" if a2.get("rubric_admit") else "keep-out"
+            esc = " ESC" if a2.get("escalated") else ""
+            retry = " NEEDS-RETRY" if a2.get("needs_retry") else ""
+            ls_ = [
+                f"  - _{label}: {verdict}{esc}{retry} "
+                f"p_fact={a2.get('p_fact', 0):.2f} p_rubric={a2.get('p_rubric', 0):.2f}"
+            ]
+            if a2.get("evidence_url"):
+                ls_.append(f"  - _evidence: {a2['evidence_url']}")
+                if a2.get("support_quote"):
+                    q = str(a2["support_quote"])
+                    ls_.append(f"  - _quote: {q[:160]}{'...' if len(q) > 160 else ''}_")
+            return ls_
+
+        out.extend(_line(a, "pre-annotate"))
+        out.extend(_line(m, "mercury"))
+        if a and m:
+            agree = a.get("rubric_admit") == m.get("rubric_admit")
+            out.append(f"  - _2-carrier: {'AGREE' if agree else 'DISAGREE'}")
         return out
 
     for b in order:
@@ -447,6 +616,10 @@ def write_report(triage: dict, names: set[str]) -> None:  # noqa: C901
             lines.append(f"  > {r['quote']}")
             lines.extend(_annot(r))
         lines.append("")
+    lines.append("## Decision brief (contested rows only)")
+    lines.append("")
+    lines.extend(decision_brief_for_rows(triage["prose"], annotations, mercury_map))
+    lines.append("")
     lines.append(
         "## suggested rows on the sidecar (moved out on --write; "
         "triage the suggestions file itself via accept:/discard)"
@@ -458,8 +631,24 @@ def write_report(triage: dict, names: set[str]) -> None:  # noqa: C901
         lines.append(f"- … and {len(triage['suggested']) - 50} more")
     Path(REPORT).write_text("\n".join(lines) + "\n", encoding="utf-8")
 
+    # S4: carry prior annotations forward across the rewrite. Matched on the
+    # NORMALIZED TRIPLE, not the id, so a decision survives both an id
+    # algorithm change and a re-capture that only shifts punctuation/case.
+    # Before S4 this file was wiped on every --report run (the "annotate only
+    # after the last --report" caveat), which is how 8/8 live decisions were
+    # left orphaned against the report.
+    prior: dict[tuple[str, str, str], dict] = {}
+    if Path(DECISIONS).exists():
+        for d in _read_decisions(Path(DECISIONS)):
+            k = row_join_key(
+                d.get("edge_type", ""), d.get("source", ""), d.get("target_mention", "")
+            )
+            # First writer wins; a re-run must not silently flip a decision.
+            prior.setdefault(k, d)
+
     with Path(DECISIONS).open("w", encoding="utf-8") as f:
         for r in triage["prose"]:
+            was = prior.get(row_join_key(r["edge_type"], r["source"], r["target_mention"]))
             f.write(
                 json.dumps(
                     {
@@ -471,8 +660,10 @@ def write_report(triage: dict, names: set[str]) -> None:  # noqa: C901
                         "bucket": r["bucket"],
                         "word_overlap": r.get("word_overlap", False),
                         "vss_hint": vss_cache.get(r.get("target_mention", ""), ""),
-                        "decision": None,
-                        "note": None,
+                        "origin": r.get("origin", ""),
+                        "method": r.get("method", ""),
+                        "decision": (was or {}).get("decision"),
+                        "note": (was or {}).get("note"),
                     },
                     ensure_ascii=False,
                 )
@@ -580,7 +771,14 @@ def _parse_accept(d: dict, decision: str, entity_names: set[str]) -> dict | None
             file=sys.stderr,
         )
         return None
-    properties: dict = {"edition": d.get("edition", ""), "origin": d.get("origin", "manual_triage")}
+    # `or`, not `.get(k, default)`: legacy rows now carry an explicit EMPTY
+    # origin (S4 made the key always present), and `.get` would hand that
+    # empty string back in place of the default, silently stamping edges
+    # with origin=''.
+    properties: dict = {
+        "edition": d.get("edition", ""),
+        "origin": d.get("origin") or "manual_triage",
+    }
     if d.get("score") is not None:
         properties["score"] = d["score"]
     if d.get("method"):
@@ -951,6 +1149,20 @@ def review(  # noqa: C901 — keypress parsing + kit wiring, split would scatter
             decided_rows.append(d)
     parked_ids = latest_action_by(journal_path, key_field="id")
 
+    # S5 second-opinion maps (read-side; absent files never block a sitting).
+    from helpers.graph.triage_preannotate import load_annotations
+
+    try:
+        ab_map = load_annotations(ANNOTATIONS)
+    except Exception as exc:  # best-effort — the sitting is the human gate
+        print_fn(f"(glm pre-annotations unavailable: {exc})")
+        ab_map = {}
+    try:
+        mercury_map = load_annotations(MERCURY_ANNOTATIONS)
+    except Exception as exc:
+        print_fn(f"(mercury pre-annotations unavailable: {exc})")
+        mercury_map = {}
+
     def _key(r: dict) -> tuple[str, str, str]:
         return (r["edge_type"], r["source"], r["target_mention"])
 
@@ -1012,6 +1224,82 @@ def review(  # noqa: C901 — keypress parsing + kit wiring, split would scatter
         elif e.get("decision"):
             print_fn(f"     (previous: {e['decision']})")
 
+    # S5 (system_one_typed_judgment_framework.md): the sitting renders the
+    # pre-annotation A/B as a plain-English second opinion beside the
+    # evidence, and journals the verdict pair as a NON-TERMINAL line
+    # (action `second-opinion` — never parks) beside the human decision.
+    # Read-side only: no model calls here, the annotations already exist.
+    from helpers.core.typed_judgment import AGREE_TOL, gap_of, require_surface_key
+
+    require_surface_key("relations_triage_queue")
+
+    def _pair(e: dict) -> tuple[dict | None, dict | None]:
+        key = (e["edge_type"], e["source"], e["target_mention"])
+        return ab_map.get(key), mercury_map.get(key)
+
+    def _ab_block(e: dict) -> None:
+        a, m = _pair(e)
+        if not a and not m:
+            return
+        for label, src in (("glm-5.3", a), ("mercury", m)):
+            if not src:
+                print_fn(f"     ab {label}: (no annotations)")
+                continue
+            verdict = "admit" if float(src.get("p_rubric", 0)) > 0.5 else "keep-out"
+            esc = " [ESC]" if src.get("escalated") else ""
+            retry = " NEEDS-RETRY" if src.get("needs_retry") else ""
+            print_fn(
+                f"     ab {label}: fact p={float(src.get('p_fact', 0)):.2f}"
+                f" / admission p={float(src.get('p_rubric', 0)):.2f} -> {verdict}{esc}{retry}"
+            )
+        if a and m:
+            gaps = {
+                f: gap_of(
+                    {
+                        "glm-5.3": {"noul": float(a.get(f, 0))},
+                        "mercury-decide": {"noul": float(m.get(f, 0))},
+                    }
+                )
+                for f in ("p_fact", "p_rubric")
+            }
+            tag = "AGREE" if max(gaps.values()) <= AGREE_TOL else "DISAGREE"
+            print_fn(f"     ab 2-carrier: {tag} (worst gap {max(gaps.values()):.2f})")
+            if tag == "DISAGREE":
+                print_fn("     ab the models do not get a vote — your call decides the row")
+
+    _AB_FIELDS = ("p_fact", "p_rubric")
+
+    def _note_second_opinion(rid: str, e: dict, note) -> None:
+        """Journal the carrier verdict pair as a NON-TERMINAL line (action
+        `second-opinion` — latest_action_by only parks on approve/skip, so
+        this never changes walk inclusion). Beside the human decision."""
+        a, m = _pair(e)
+        if not a and not m:
+            return
+        lean = {}
+        if a:
+            lean["glm-5.3"] = {"noul": float(a.get("p_rubric", 0))}
+        if m:
+            lean["mercury-decide"] = {"noul": float(m.get("p_rubric", 0))}
+        note(
+            {
+                "id": rid,
+                "action": "second-opinion",
+                "ab": {
+                    "p_fact": {"glm": (a or {}).get("p_fact"), "mercury": (m or {}).get("p_fact")}
+                    if a or m
+                    else {},
+                    "p_rubric": {
+                        "glm": (a or {}).get("p_rubric"),
+                        "mercury": (m or {}).get("p_rubric"),
+                    }
+                    if a or m
+                    else {},
+                },
+                "gap_admission": round(gap_of(lean), 4) if len(lean) == 2 else None,
+            }
+        )
+
     def render(idx: int, total: int, e: dict) -> None:
         hdr = (
             f"[{idx}/{total}] `{e['id']}` {e['source']} —[{e['edge_type']}]→ {e['target_mention']}"
@@ -1020,9 +1308,17 @@ def review(  # noqa: C901 — keypress parsing + kit wiring, split would scatter
             hdr += f"  ({e['bucket']})"
         print_fn(hdr)
         _evidence(e)
+        _ab_block(e)
 
     def ask(e: dict, note) -> dict:  # noqa: C901
         rid = e["id"]
+        _noted = {"done": False}
+
+        def _note_ab_once() -> None:
+            if not _noted["done"]:
+                _note_second_opinion(rid, e, note)
+                _noted["done"] = True
+
         while True:
             ans = input_fn(
                 "  accept a[/TYPE[/TARGET]] / d / al NAME / st / p / ? / q / x: "
@@ -1030,6 +1326,7 @@ def review(  # noqa: C901 — keypress parsing + kit wiring, split would scatter
             ans, _, free_note = ans.partition("|")
             ans, free_note = ans.strip(), free_note.strip()
             if ans in {"p", "q", "x"}:
+                _note_ab_once()
                 return {"id": rid, "action": {"p": "skip", "q": "quit", "x": "abort"}[ans]}
             if ans == "?":
                 print_fn("\n".join(legend))
@@ -1123,6 +1420,7 @@ def review(  # noqa: C901 — keypress parsing + kit wiring, split would scatter
             d = {"id": rid, "action": "approve", "file_decision": file_decision, "note": free_note}
             for k in _REVIEW_FILE_FIELDS:
                 d[k] = e.get(k, False if k == "word_overlap" else "")
+            _note_ab_once()
             return d
 
     def spec_of(d: dict, e: dict) -> str:  # noqa: ARG001 — d carries the row fields
@@ -1158,6 +1456,109 @@ def review(  # noqa: C901 — keypress parsing + kit wiring, split would scatter
     ).run()
 
 
+_ALLOWED_BUCKETS = {"discard", "alias_candidate", "stub_candidate", "manual", "bad_source"}
+_SIDECAR_REQUIRED = (
+    "id",
+    "edge_type",
+    "source",
+    "target_mention",
+    "quote",
+    "edition",
+    "direction",
+    "origin",
+    "method",
+)
+_DECISIONS_REQUIRED = (
+    "id",
+    "edge_type",
+    "source",
+    "target_mention",
+    "direction",
+    "bucket",
+    "word_overlap",
+    "vss_hint",
+    "origin",
+    "method",
+    "decision",
+    "note",
+)
+
+
+def verify_queue_files(sidecar: Path, decisions: Path) -> list[str]:  # noqa: C901  (S2 battery: one assert ladder per queue stage)
+    """S2: per-stage expected-output assertions.
+
+    INVARIANTS (what "done" means for Stage 9 surfaces):
+      sidecar — every line is JSON with the full S4 field set, ids unique,
+                origin/method present, truncated_from is a string or null
+      decisions — every line is JSON with the full field set, ids unique,
+                  bucket is a known value, decision is null or free text
+      coherence — every decision row's id appears in the current sidecar
+                  (no orphan decisions; a post-clear state is also
+                  reported because all decisions stop joining)
+
+    Returns a list of violations; empty list == clean.
+    """
+    violations: list[str] = []
+    sidecar_rows: list[dict] = []
+    seen_ids: set[str] = set()
+
+    def _read_jsonl(path: Path, label: str) -> list[dict]:
+        rows: list[dict] = []
+        for i, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
+            if not line.strip() or line.lstrip().startswith("#"):
+                continue
+            try:
+                rows.append(json.loads(line))
+            except json.JSONDecodeError as exc:
+                violations.append(f"{label}:{i} not JSON: {exc}")
+        return rows
+
+    if not sidecar.exists():
+        violations.append(f"sidecar missing: {sidecar}")
+    else:
+        for i, row in enumerate(_read_jsonl(sidecar, "sidecar"), 1):
+            rid = row.get("id")
+            if not rid:
+                violations.append(f"sidecar:{i} missing 'id'")
+            elif rid in seen_ids:
+                violations.append(f"duplicate row id {rid}")
+            else:
+                seen_ids.add(rid)
+            for f in _SIDECAR_REQUIRED:
+                if f not in row:
+                    violations.append(f"{rid or f'row:{i}'}: missing {f!r}")
+            if not row.get("origin"):
+                violations.append(f"{rid or f'row:{i}'}: missing 'origin'")
+            if not row.get("method"):
+                violations.append(f"{rid or f'row:{i}'}: missing 'method'")
+            tf = row.get("truncated_from")
+            if tf is not None and not isinstance(tf, str):
+                violations.append(f"{rid or f'row:{i}'}: truncated_from is not a string")
+            sidecar_rows.append(row)
+
+    if decisions.exists():
+        sidecar_ids = {r.get("id") for r in sidecar_rows}
+        dec_ids: set[str] = set()
+        for i, d in enumerate(_read_jsonl(decisions, "decisions"), 1):
+            did = d.get("id")
+            if not did:
+                violations.append(f"decisions:{i} missing 'id'")
+            elif did in dec_ids:
+                violations.append(f"duplicate decisions id {did}")
+            else:
+                dec_ids.add(did)
+            for f in _DECISIONS_REQUIRED:
+                if f not in d:
+                    violations.append(f"{did or f'row:{i}'}: missing {f!r}")
+            if d.get("bucket") is not None and d.get("bucket") not in _ALLOWED_BUCKETS:
+                violations.append(f"{did or f'row:{i}'}: unknown bucket {d.get('bucket')!r}")
+            if d.get("decision") is not None and not isinstance(d.get("decision"), str):
+                violations.append(f"{did or f'row:{i}'}: 'decision' is not a string")
+            if did and did not in sidecar_ids:
+                violations.append(f"decisions row {did} does not join the current sidecar (orphan)")
+    return violations
+
+
 def main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     p.add_argument(
@@ -1174,6 +1575,11 @@ def main(argv: list[str] | None = None) -> int:
     )
     p.add_argument(
         "--clear", action="store_true", help="truncate the sidecar to 0 (post-triage endgame)"
+    )
+    p.add_argument(
+        "--verify",
+        action="store_true",
+        help="assert sidecar + decisions coherence only; never mutates",
     )
     p.add_argument(
         "--review",
@@ -1196,6 +1602,15 @@ def main(argv: list[str] | None = None) -> int:
     if args.clear:
         Path(SIDECAR).write_text("", encoding="utf-8")
         print(f"cleared {SIDECAR}")
+        return 0
+    if args.verify:
+        violations = verify_queue_files(Path(SIDECAR), Path(args.decisions))
+        if violations:
+            print(f"verify FAILED ({len(violations)}):")
+            for v in violations:
+                print(f"  - {v}")
+            return 1
+        print(f"verify OK: {Path(SIDECAR)} + {Path(args.decisions)}")
         return 0
     if args.review:
         review(

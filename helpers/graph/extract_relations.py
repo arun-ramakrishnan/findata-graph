@@ -105,7 +105,10 @@ from helpers.core.frontmatter import (  # noqa: E402  # after the sys.path boots
     _FM_RE as _YAML_FRONT_MATTER_RE,
     yaml_safe_load,
 )
-from helpers.graph.triage_pending_relations import noise_target  # noqa: E402
+from helpers.graph.triage_pending_relations import (  # noqa: E402
+    noise_target,
+    row_id,
+)
 
 # --------------------------------------------------------------------------- #
 # Paths                                                                       #
@@ -539,6 +542,11 @@ class Unresolved:
     `direction` carries the pattern's forward/reverse flag so a later
     `accept:` triage decision can write the edge in the same orientation the
     extractor would have (reverse captures make the MENTION the source).
+
+    S4 provenance + identity: `id` is the canonical decisions key, stamped
+    here at WRITE time (never re-derived by a reader), `origin` names the
+    producer, and `method` the capture lane. Legacy sidecar rows lack all
+    three; readers must treat them as absent, never as "" meaning something.
     """
 
     edge_type: str
@@ -547,6 +555,16 @@ class Unresolved:
     quote: str
     edition: str
     direction: str = "forward"
+    id: str = ""
+    origin: str = "extract"
+    method: str = ""
+    # S6: the predicate-absorbing mention this row was truncated FROM, so a
+    # reviewer can see what the capture really said. None = no truncation.
+    truncated_from: str | None = None
+
+    def __post_init__(self) -> None:
+        if not self.id:
+            self.id = row_id(self.edge_type, self.source, self.target_mention)
 
 
 # --------------------------------------------------------------------------- #
@@ -1858,6 +1876,27 @@ def _extract_target_mention(m: re.Match, edge_type: str) -> tuple[str, float | N
     return target_mention, stake_pct
 
 
+_ACQUIRED_PREDECESSOR_RE = re.compile(
+    r"((?-i:[A-Z])[A-Za-z0-9&.\-']*(?:[ \-](?-i:[A-Z])[A-Za-z0-9&.\-']*)*)\s*[*_\"']*\s*$"
+)
+
+
+def _reverse_acquired_predecessor(body: str, m: re.Match) -> str | None:
+    """Object noun phrase immediately before `acquired by|from X`.
+
+    The reverse `acquired` patterns capture the post-`by|from` party as the
+    target; but in ``**MHP acquired from Porsche:**`` the acquired object
+    (MHP) precedes the verb and ``Porsche`` is the prior owner. Without this,
+    the extractor mints `acquired:<section>:Porsche` with direction
+    `reverse`. Returns the preceding proper noun, or None.
+    """
+    pre = body[: m.start()]
+    mm = _ACQUIRED_PREDECESSOR_RE.search(pre)
+    if not mm:
+        return None
+    return mm.group(1).strip().strip("#>*_\"'.,()[]{}-:;")
+
+
 def _is_generic_acquired(target_mention: str) -> bool:
     """Check if an acquired target is a generic false positive."""
     lower_mention = f" {target_mention.lower().strip()} "
@@ -1984,6 +2023,161 @@ def _resolve_list_chunks(
     return edges, bool(edges)
 
 
+# --------------------------------------------------------------------------- #
+# S5 sentence-integrity gate                                                  #
+# --------------------------------------------------------------------------- #
+# MEASURED 2026-10-03 on the 31-row live queue: the "relation verb and the
+# counterparty co-occur in one sentence" clause is VACUOUS for regex rows —
+# the pattern matched, so the verb is inside the sentence by construction,
+# and the test cannot fail on any live row. The failure it was written for is
+# STRUCTURAL: `**MHP acquired from Porsche:**` is a newsletter bold LABEL, not
+# a prose sentence, and the regex matched happily inside it (that row is the
+# one the operator had to adjudicate by hand). So the gate tests prose-ness,
+# and keeps the co-occurrence assertion only as a cheap guard for future
+# non-regex producers.
+#
+# Scope note: this gate deliberately does NOT catch the other two live shapes
+# ("European giant DWS Group l divesting a minority stake", "Sankyu
+# Corporation involving"). Those are prose sentences whose MENTION absorbed
+# the predicate — noise classification, i.e. S6, not sentence integrity.
+_LABEL_SPAN = re.compile(r"\*\*[^*\n]{1,140}:\*\*")
+_MD_HEADING = re.compile(r"^\s{0,3}#{1,6}\s")
+_MD_TABLE = re.compile(r"^\s*\|")
+_SENT_END = re.compile(r"[.!?](?=\s|$)|\n")
+
+# Write-time deferral counters by reason. Module-level because a skip must
+# reach the CLI summary without changing the (load-bearing) return shape of
+# extract_relations(); single-run CLI, reset per run.
+_SKIP_STATS: dict[str, int] = {}
+
+
+def skip_stats() -> dict[str, int]:
+    """Write-time skip counters by reason. A skip is a REPORT LINE, never a
+    silent filter — the CLI prints this every run."""
+    return dict(_SKIP_STATS)
+
+
+def reset_skip_stats() -> None:
+    _SKIP_STATS.clear()
+
+
+def _enclosing_sentence(body: str, start: int, end: int) -> str:
+    """The source sentence containing ``body[start:end]``.
+
+    Derived from ``body``, never from the stored quote: the quote is a
+    mid-word-clipped 120-char window (measured on 31/31 live rows — e.g.
+    "rtnersh with Japan's Nippon Life Insurance..."), so it cannot answer
+    "is this one sentence".
+    """
+    left = 0
+    for m in _SENT_END.finditer(body, 0, start):
+        left = m.end()
+    right = len(body)
+    nxt = _SENT_END.search(body, end)
+    if nxt:
+        right = nxt.start()
+    return body[left:right]
+
+
+def _sentence_integrity_reject(
+    body: str,
+    m: re.Match,
+    target_mention: str,
+    *,
+    list_shaped: bool = False,
+) -> str | None:
+    """Reason to drop this capture at write time, or None to keep it.
+
+    A structural markdown line (heading, table row) or a bold label span
+    (``**...:**``) is metadata, not prose — a relation verb inside one yields
+    a deferral no human can adjudicate, because the sentence that would have
+    carried the fact is a different line.
+    """
+    if not body:
+        return "no_body"
+    line_start = body.rfind("\n", 0, m.start()) + 1
+    line_end = body.find("\n", m.start())
+    line = body[line_start : line_end if line_end != -1 else len(body)]
+    offset = m.start() - line_start
+    if _MD_HEADING.match(line):
+        return "heading_line"
+    if _MD_TABLE.match(line):
+        return "table_row"
+    for lm in _LABEL_SPAN.finditer(line):
+        if lm.start() <= offset < lm.end():
+            return "label_not_prose"
+
+    sent = _enclosing_sentence(body, m.start(), m.end())
+    if not sent.strip():
+        return "empty_sentence"
+    # The captured mention must lie wholly inside that one sentence.
+    # Skipped for list-shaped deferrals, whose span covers several names by
+    # design (Pattern A captures the whole list span).
+    if not list_shaped and " ".join(target_mention.split()) not in " ".join(sent.split()):
+        return "mention_spans_sentences"
+    # Weak by construction (see the note above): the match text is inside the
+    # sentence we just derived, so this only fires if the sentence derivation
+    # or a future non-regex producer breaks the invariant.
+    verb = m.group(0).split(maxsplit=1)[0] if m.group(0).split() else ""
+    if verb and verb.lower() not in sent.lower():
+        return "verb_not_in_sentence"
+    return None
+
+
+# --------------------------------------------------------------------------- #
+# S6 predicate-absorbing mention truncation                                   #
+# --------------------------------------------------------------------------- #
+# MEASURED 2026-10-04 on the live queue: a capture can run PAST the entity
+# name and absorb the predicate that follows it, because the patterns
+# terminate on the first accepted boundary — which may be a preposition or a
+# hard newline:
+#     "Sankyu Corporation involving"                        (wrap at \n)
+#     "European giant DWS Group l divesting a minority stake"  (terminates at " in ")
+# Both are REAL relations the operator adjudicated as true
+# (accept:jv_with:Sankyu Corporation, accept:jv_with:DWS), and both targets
+# are already entities — so truncating turns a fuzzy guess into an exact
+# resolution. It also makes the pre-annotator's Q2 question well-posed: that
+# question is built from target_mention, and asked against a name+predicate
+# fragment the judge returned keep-out/keep-out/ADMIT across three identical
+# runs (measured), i.e. it was guessing.
+#
+# DO NOT add `corporation`/`group` to the noise suffix list to catch these.
+# That was the original S6 wording and it is wrong: it would classify
+# "Sankyu Corporation" and "DWS Group" as noise and silently discard two
+# facts the operator explicitly accepted. Truncate, never discard.
+#
+# Closed set, and deliberately NOT a blanket `-ing` rule: real names end in
+# -ing (Sterling, Huntington, Genting) and "Indian Bank" must survive.
+_PREDICATE_BOUNDARY = re.compile(
+    r"\s(?:involving|divesting|acquiring|investing|partnering|"
+    r"collaborating|targeting|merging|demerging|selling|buying|"
+    r"planning|seeking|weighing|reporting|ranked|expected|reported|"
+    r"which|while|whereas)\b",
+    re.IGNORECASE,
+)
+# A trailing lone lowercase letter is OCR garble ("Group l divesting"), not a
+# name element. Uppercase single letters are left alone ("Company A").
+_TRAILING_GARBLE_TOKEN = re.compile(r"\s+[a-z]$")
+
+
+def truncate_mention(mention: str) -> tuple[str, str]:
+    """Split a predicate-absorbing mention into ``(entity_name, original)``.
+
+    Returns the mention unchanged (with an empty original) when no boundary
+    is found, so the common case is a no-op. Only a SUFFIX is ever removed:
+    leading tokens are never stripped, because they can be real name
+    elements ("Indian Bank", "European Airlines").
+    """
+    original = mention
+    m = _PREDICATE_BOUNDARY.search(mention)
+    if m is not None:
+        mention = mention[: m.start()]
+    mention = _TRAILING_GARBLE_TOKEN.sub("", mention).strip(" .,;:")
+    if not mention or mention == original:
+        return original, ""
+    return mention, original
+
+
 def _should_skip_unresolved(target_mention: str, edge_type: str, source_entity: str) -> bool:
     """Check noise gate and G3 discard gate for unresolved targets."""
     if noise_target(target_mention):
@@ -2075,19 +2269,30 @@ def _queue_unresolved(
     m: re.Match,
     edition_title: str,
     direction: str,
+    list_shaped: bool = False,
 ) -> None:
-    """Record an unresolved mention after the noise-gate skip check — the
-    two call sites (list-shaped, unresolved-target) were byte-identical."""
-    if _should_skip_unresolved(target_mention, edge_type, source_entity):
+    """Record an unresolved mention after the S6 truncation and the
+    noise-gate and S5 sentence-integrity checks. Every skip is counted by
+    reason (never a silent filter)."""
+    clean, original = truncate_mention(target_mention)
+    if _should_skip_unresolved(clean, edge_type, source_entity):
+        _SKIP_STATS["noise_gate"] = _SKIP_STATS.get("noise_gate", 0) + 1
+        return
+    reason = _sentence_integrity_reject(body, m, clean, list_shaped=list_shaped)
+    if reason:
+        _SKIP_STATS[reason] = _SKIP_STATS.get(reason, 0) + 1
         return
     unresolved.append(
         Unresolved(
             edge_type=edge_type,
             source=source_entity,
-            target_mention=target_mention,
+            target_mention=clean,
             quote=_extract_quote_around(body, m.start()),
             edition=edition_title,
             direction=direction,
+            origin="extract",
+            method=f"regex:{edge_type}",
+            truncated_from=original or None,
         )
     )
 
@@ -2147,6 +2352,7 @@ def _process_match(
             m=m,
             edition_title=edition_title,
             direction=direction,
+            list_shaped=True,
         )
         return
     target_entity = _resolve_target(target_mention, edge_type, resolver)
@@ -2195,7 +2401,26 @@ def _process_pattern_matches(
     """Process all pattern matches for one section body."""
     for pat, edge_type, symmetric, direction in PATTERNS:
         for m in pat.finditer(body):
-            target_mention, stake_pct = _extract_target_mention(m, edge_type)
+            match_direction = direction
+            if (
+                edge_type == "acquired"
+                and direction == "reverse"
+                and m.group(0).lower().startswith("acquired")
+            ):
+                # "**MHP acquired from Porsche:**" — the post-by|from party is
+                # the prior owner; the acquired object precedes the verb.
+                # `acquired`-anchored matches only: the other reverse
+                # `acquired` patterns (demerged from / merged with) have no
+                # acquired-object reading and keep the legacy reverse shape
+                # (extract_target_binding.md, "do not parallel-edit").
+                pred_obj = _reverse_acquired_predecessor(body, m)
+                if pred_obj and pred_obj.lower() != (source_entity or "").lower():
+                    target_mention, stake_pct = pred_obj, None
+                    match_direction = "forward"
+                else:
+                    target_mention, stake_pct = _extract_target_mention(m, edge_type)
+            else:
+                target_mention, stake_pct = _extract_target_mention(m, edge_type)
             if not target_mention:
                 continue
             if _is_generic_target(target_mention, edge_type, body, m):
@@ -2215,7 +2440,7 @@ def _process_pattern_matches(
                 stake_pct=stake_pct,
                 edge_type=edge_type,
                 symmetric=symmetric,
-                direction=direction,
+                direction=match_direction,
             )
 
 
@@ -2685,22 +2910,65 @@ def promote_relation_sidecars(conn, dry_run: bool = True) -> tuple[int, int]:
     return promoted, skipped
 
 
+def _sidecar_ids(path: Path) -> set[str]:
+    """Ids already present in the sidecar — stamped ones, else computed.
+
+    Tolerates the legacy 6-field rows (pre-S4) and unparseable lines: a
+    garbage line must not make append fail, it just cannot dedupe.
+    """
+    ids: set[str] = set()
+    if not path.exists():
+        return ids
+    for line in path.read_text(encoding="utf-8").splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        try:
+            d = json.loads(line)
+        except ValueError:
+            continue
+        if not isinstance(d, dict):
+            continue
+        ids.add(
+            d.get("id")
+            or row_id(d.get("edge_type", ""), d.get("source", ""), d.get("target_mention", ""))
+        )
+    return ids
+
+
 def write_sidecar(unresolved: list[Unresolved], path: Path = SIDECAR_PATH) -> int:
     """Append unresolved matches to the sidecar file for human triage.
 
-    Format: one JSON-lines entry per match, with `edge_type`, `source`,
+    Format: one JSON-lines entry per match, with `id`, `edge_type`, `source`,
     `target_mention`, `quote`, `edition`, `direction` ('forward' |
     'reverse' — the orientation the edge would take once the mention
-    resolves). The file is append-only and
-    re-running this script will append duplicates; users are expected to
-    clear it before each batch run.
+    resolves), `origin` and `method`.
+
+    S4: the file was append-only and re-running the script appended
+    duplicates — the caller was expected to clear it by hand, and never did
+    (measured: 31 lines, 3 distinct rows). Dedupe is now on the canonical
+    `id`, which is also the decisions key, so one row can never be ambiguous
+    between two decisions. The FIRST occurrence wins; a later row that
+    differs only in edition/quote is absorbed, not appended.
+
+    Returns the number of rows actually appended.
     """
     if not unresolved:
         return 0
     path.parent.mkdir(parents=True, exist_ok=True)
+    seen = _sidecar_ids(path)
+    fresh: list[Unresolved] = []
+    for u in unresolved:
+        rid = u.id or row_id(u.edge_type, u.source, u.target_mention)
+        if rid in seen:
+            continue
+        seen.add(rid)
+        fresh.append(u)
+    if not fresh:
+        return 0
     n = 0
     with path.open("a", encoding="utf-8") as f:
-        for u in unresolved:
+        for u in fresh:
             f.write(json.dumps(asdict(u), ensure_ascii=False) + "\n")
             n += 1
     return n
@@ -2987,6 +3255,7 @@ def _cli(argv: list[str] | None = None) -> int:  # noqa: C901
     total_skipped_fk = 0
     total_skipped_suppressed = 0
     total_ambiguous = 0
+    reset_skip_stats()
     per_type_totals: dict[str, int] = {}
 
     use_parallel = len(nl_paths) >= _PARALLEL_THRESHOLD
@@ -3184,6 +3453,11 @@ def _cli(argv: list[str] | None = None) -> int:  # noqa: C901
         )
     if total_ambiguous:
         print(f"      ambiguous_resolves={total_ambiguous}", file=sys.stderr)
+    # S5: every write-time skip is a report line, counted by reason.
+    skips = skip_stats()
+    if skips:
+        detail = " ".join(f"{k}={v}" for k, v in sorted(skips.items()))
+        print(f"      sidecar_skipped={sum(skips.values())} ({detail})", file=sys.stderr)
     for et in sorted(per_type_totals):
         print(f"  {per_type_totals[et]:4d}  {et}", file=sys.stderr)
 
@@ -3194,6 +3468,7 @@ def _cli(argv: list[str] | None = None) -> int:  # noqa: C901
             "total_edges": total_extracted,
             "total_unresolved": total_unresolved,
             "total_ambiguous": total_ambiguous,
+            "sidecar_skipped": skip_stats(),
         }
         Path(args.counts_json).write_text(
             json.dumps(payload, indent=2, sort_keys=True),

@@ -94,6 +94,7 @@ import argparse
 import datetime as _dt
 import json
 import html
+import os
 import re
 import sys
 from dataclasses import dataclass, field
@@ -244,6 +245,41 @@ def _stale_only_skip(
     if not dates:
         return None
     return max(dates) <= at
+
+
+_GATE_FM_SNAPSHOT: dict[str, dict] = {}
+"""Per-run pre-write frontmatter for the ``--stale-only`` gate (S5).
+
+Both render passes gate on ``max(sources[].last_modified) <= generated.at``.
+The chatter pass bumps ``generated.at`` (and splices sources) when it writes,
+so a Key-Figures pass running afterwards **in the same invocation** re-reads a
+note whose stamp it just moved and gates it — measured 2026-10-03: the dry-run
+promised "9 key-figures notes would write" and the apply wrote 0.
+
+Snapshotting the frontmatter the FIRST time a path is evaluated makes both
+passes decide on the same evidence state. Only the gate reads the snapshot;
+rendering always works on the current text, so pass 2 still sees pass 1's
+block and never clobbers it.
+"""
+
+
+def _gate_fm(path, text: str, fm: dict | None) -> dict | None:
+    """Frontmatter to gate on for ``path``: the pre-write snapshot if we have one."""
+    key = str(path)
+    if key not in _GATE_FM_SNAPSHOT:
+        _GATE_FM_SNAPSHOT[key] = fm if isinstance(fm, dict) else {}
+    return _GATE_FM_SNAPSHOT[key] or None
+
+
+def _reset_gate_snapshot() -> None:
+    """Clear the per-run snapshot.
+
+    ``_cli`` calls this once per invocation, so the two render passes of one
+    run share a snapshot. A caller that drives the renderers directly (tests,
+    library use) is running TWO runs and must call this between them,
+    otherwise the second run gates on the first run's pre-write state.
+    """
+    _GATE_FM_SNAPSHOT.clear()
 
 
 def _scanned_stems(editions, index: dict, memo: dict[str, str | None]) -> frozenset[str]:
@@ -429,6 +465,78 @@ def _canonicalize(raw: str) -> str:
     canonical = _SUFFIX2_RE.sub("", canonical).strip()
     return canonical
 
+
+def _canonical_metric_value(value_raw: str) -> str:
+    """Deterministic collapse key for a metric's VALUE (S1).
+
+    NFKC normalization, dash folding (en/em/hyphen -> single hyphen),
+    whitespace collapse, comma stripping, trailing/leading parens and
+    commas trimmed. The key groups rows into collapse clusters; the
+    cluster is REPORTED rather than dropped — a collapse is an audit trail,
+    not a deletion (see the S1 risk: never collapse by value alone).
+    """
+    import unicodedata
+
+    v = unicodedata.normalize("NFKC", str(value_raw))
+    v = re.sub(r"[\u2013\u2014\u002d]", "-", v)  # dash folding
+    v = re.sub(r"\s+", " ", v).strip()  # whitespace collapse
+    v = re.sub(r"\s*-\s*", "-", v)  # range form: fold spaces around the hyphen
+    v = re.sub(r"\s*%\s*", "%", v)  # attach percent sign
+    v = v.strip("(),")  # parens/trailing comma trim
+    v = v.replace(",", "")  # comma stripping
+    return v
+
+
+def _collapse_metrics(
+    metrics: list[Metric],
+) -> tuple[list[tuple[tuple[str, str, str], int]], list[Metric]]:
+    """Deterministic duplicate-fact collapse (S1).
+
+    Key: ``(entity, edition, canonical_value)`` where ``canonical_value``
+    is NFKC + dash-folding + whitespace/commas stripped. Keep the first
+    occurrence, count the rest; Duplicates are reported, never dropped.
+    """
+    collapsed: dict[tuple[str, str, str], int] = {}
+    seen: set[tuple[str, str, str]] = set()
+    clusters: list[tuple[tuple[str, str, str], int]] = []
+    retained: list[Metric] = []
+    for m in metrics:
+        v_can = _canonical_metric_value(m.value_raw)
+        key = (m.entity, m.as_of_edition or "", v_can)
+        if key in seen:
+            collapsed[key] = collapsed.get(key, 0) + 1
+            continue
+        seen.add(key)
+        retained.append(m)
+    clusters = sorted((key, 1 + collapsed.get(key, 0)) for key in seen)
+    return clusters, retained
+
+
+def _skip_guard(
+    retained: list[Metric],
+    vault: Path,
+    path_index: dict[str, str],
+) -> tuple[list[Metric], list[str]]:
+    """S2 skip guard: keep a row only if its full sentence lives in its
+    edition note; otherwise skip (counted) — never silently dropped and
+    never sent to a carrier."""
+    kept: list[Metric] = []
+    skipped: list[str] = []
+    for m in retained:
+        note_path = path_index.get(m.entity)
+        if not note_path or not (vault / note_path).exists():
+            skipped.append(f"{m.entity} @ {m.as_of_edition}: {m.value_raw!r} (note missing)")
+            continue
+        text = (vault / note_path).read_text(encoding="utf-8")
+        sq = (m.source_quote or "").strip().strip('"').strip("'")
+        if not sq or sq not in text:
+            skipped.append(f"{m.entity} @ {m.as_of_edition}: {m.value_raw!r} (no full quote)")
+            continue
+        kept.append(m)
+    return kept, skipped
+
+
+# --- S1 heading family (quote_capture_coverage proposal, 2026-09-07) --------
 
 # --- S1 heading family (quote_capture_coverage proposal, 2026-09-07) --------
 # Shared predicates: ONE source of truth for iter_company_sections,
@@ -2095,8 +2203,9 @@ def render_notes(  # noqa: C901
             merged_stems: set[str] = set()
             for _, edict in entities:
                 merged_stems.update(_scanned_stems(edict, index, stem_memo))
-            gated_candidate = (
-                stale_only and _stale_only_skip(text, frozenset(merged_stems), fm=fm_once) is True
+            gated_candidate = stale_only and (
+                _stale_only_skip(text, frozenset(merged_stems), fm=_gate_fm(p, text, fm_once))
+                is True
             )
             # Render ALL editions that have quotes (one auto block per
             # edition scanned, so a note accumulates its edition history).
@@ -2395,7 +2504,9 @@ def _render_metric_note(
     for _, ms in entities:
         merged_stems.update(_scanned_stems({m.as_of_edition for m in ms}, index, stem_memo))
     fm_once = _load_frontmatter(text)
-    if stale_only and _stale_only_skip(text, frozenset(merged_stems), fm=fm_once) is True:
+    if stale_only and (
+        _stale_only_skip(text, frozenset(merged_stems), fm=_gate_fm(p, text, fm_once)) is True
+    ):
         return "gated"
     original_text = text
     # S2: the KF plan searches the note once; entities apply block-locally
@@ -3213,6 +3324,8 @@ def _cli(argv: list[str] | None = None) -> int:  # noqa: C901
         "serial regardless.",
     )
     args = p.parse_args(argv)
+    # S5: one gate snapshot per invocation (never carried across runs).
+    _reset_gate_snapshot()
 
     conn = connect()
     try:
@@ -3227,16 +3340,32 @@ def _cli(argv: list[str] | None = None) -> int:  # noqa: C901
         else:
             quotes, metrics = scan(args.target, conn, workers=args.workers)
 
-        # Summary.
+        # --- S1/S2/S3/S4: pre-write hygiene and gate (markdown_parse S2 slice) ---
         by_speaker: dict[str, int] = {}
         for q in quotes:
             key = q.speaker_name or "(anonymous)"
             by_speaker[key] = by_speaker.get(key, 0) + 1
         entities_with_quotes = {q.entity for q in quotes}
-        entities_with_metrics = {m.entity for m in metrics}
 
+        # S1/S2: deterministic duplicate-fact collapse + skip guard (S2 of
+        # markdown_parse_procedure_audit).
+        N = len(metrics)
+        collapsed_clusters, distinct = _collapse_metrics(metrics)
+        retained, skipped = _skip_guard(
+            distinct,
+            PROJECT_ROOT,
+            _paths_by_entity(conn, [m.entity for m in distinct]),
+        )
+        C = sum(c - 1 for _, c in collapsed_clusters if c > 1)
+        K = len(skipped)
+        R = len(retained)
+
+        entities_with_metrics = {m.entity for m in retained}
+
+        # Summary.
         print(
-            f"quotes={len(quotes)} metrics={len(metrics)} "
+            f"quotes={len(quotes)} metrics={N} -> {R} rows for apply "
+            f"({C} collapsed, {K} skipped) "
             f"entities_quotes={len(entities_with_quotes)} "
             f"entities_metrics={len(entities_with_metrics)} "
             f"({'apply' if args.apply else 'dry-run'})",
@@ -3250,11 +3379,141 @@ def _cli(argv: list[str] | None = None) -> int:  # noqa: C901
                 f"distinct_speakers={len(by_speaker)}",
                 file=sys.stderr,
             )
-        if metrics:
+        if retained:
             by_unit: dict[str, int] = {}
-            for m in metrics:
+            for m in retained:
                 by_unit[m.unit or "(none)"] = by_unit.get(m.unit or "(none)", 0) + 1
             print(f"  metrics_by_unit: {by_unit}", file=sys.stderr)
+
+        # --- S3 decision brief (pre-write gate) ---
+        brief_lines: list[str] = []
+        brief_lines.append(f"derive-insights gate — {N} metric rows scanned")
+        brief_lines.append(f"  distinct facts: {R} ({N} - {C} collapsed - {K} skipped)")
+        brief_lines.append(f"  mechanical remainder: {R} rows pass unchanged to apply_metrics")
+        brief_lines.append(
+            "  write gate: no row is dropped by model verdict; retained rows await the operator"
+        )
+        if collapsed_clusters:
+            brief_lines.append(f"  collapsed: {C} rows across {len(collapsed_clusters)} clusters:")
+            for key, count in sorted(
+                collapsed_clusters, key=lambda t: (-t[1], t[0][0], t[0][1], t[0][2])
+            ):
+                entity, edition, v_can = key
+                brief_lines.append(f"    {v_can} x{count} (entity={entity}, edition={edition!r})")
+        if skipped:
+            brief_lines.append(f"  skipped: {K} (no full quote):")
+            for s in skipped[:20]:
+                brief_lines.append(f"    - {s}")
+            if len(skipped) > 20:
+                brief_lines.append(f"    ... and {len(skipped) - 20} more")
+        brief_lines.append("")
+        brief_lines.append("No judgment reaches the write; the brief is advisory only.")
+
+        # S4: optional advisory enrichment — mercury-decide:free per retained
+        # metric. Only when TYPED_JUDGMENT=1; advisory only, never drops a row.
+        shortlist: list[tuple[Metric, tj.CallResult]] = []
+        if os.environ.get("TYPED_JUDGMENT"):
+            try:
+                from helpers.core import typed_judgment as tj
+
+                tol = 0.2
+                for m in retained:
+                    state = (
+                        f"Edition {m.as_of_edition or ''} for {m.entity}: "
+                        f'source quote = "{m.source_quote or ""}"'
+                    )
+
+                    q1 = tj.noul(
+                        "is this a standalone recordable business metric, or a passing mention? (noul = P(standalone metric))",
+                        {"standalone": "recordable business metric", "passing": "passing mention"},
+                    )
+                    q2 = tj.choice(
+                        "what kind of metric is this?",
+                        {
+                            "capacity": "capacity",
+                            "margin": "margin",
+                            "growth": "growth",
+                            "share": "share",
+                            "cost": "cost",
+                            "guidance": "guidance",
+                            "other": "other",
+                        },
+                    )
+                    verdict = tj.ask(
+                        state,
+                        {"q1": q1, "q2": q2},
+                        "inception/mercury-decide:free",
+                        use_cache=True,
+                    )
+                    if verdict.error is None and "q1" in verdict.answers:
+                        shortlist.append((m, verdict))
+            except Exception as exc:  # never let a carrier fail the write
+                brief_lines.append(f"  [S4 advisory skipped: {exc}]")
+        brief_lines.append("")
+        brief_lines.append("  ranked shortlist (worst first, |P(standalone)-0.5| <= 0.2, top=3):")
+        tol = 0.2
+
+        def _ambiguity(v: tj.CallResult) -> float | None:
+            p = v.answers.get("q1", {}).get("noul")
+            return abs(float(p) - 0.5) if p is not None else None
+
+        if shortlist:
+            scored = sorted(
+                shortlist, key=lambda t: (_ambiguity(t[1]) or 1.0, t[0].entity, t[0].value_raw)
+            )
+            shown = 0
+            for m, v in scored:
+                a = _ambiguity(v)
+                if a is None or a > tol:
+                    break
+                shown += 1
+                p = v.answers.get("q1", {}).get("noul")
+                brief_lines.append(f"### {m.entity} @ {m.as_of_edition} ({m.value_raw}):")
+                verdict_line = (
+                    "the carrier is ambivalent — you decide"
+                    if a <= tol
+                    else "the carrier is confident — advisory only"
+                )
+                brief_lines.append(verdict_line)
+                brief_lines.append("")
+                brief_lines.append(
+                    f"QUESTION: is {m.value_raw} a standalone recordable business metric, or a passing mention?"
+                )
+                brief_lines.append("")
+                brief_lines.append("WHAT THE CARRIER SAYS (advisory only):")
+                brief_lines.append(
+                    f"  - inception/mercury-decide:free: {tj.describe_answer({'noul': p})}"
+                )
+                brief_lines.append("")
+                brief_lines.append("The carrier does not get a vote on the write.")
+                brief_lines.append("")
+            if shown < len(scored):
+                brief_lines.append(f"    ... and {len(scored) - shown} more borderline rows")
+        elif shortlist:
+            brief_lines.append("    (none within 0.2 of the boundary)")
+        else:
+            brief_lines.append("    (S4 disabled: set TYPED_JUDGMENT=1)")
+        brief_lines.append("")
+        brief_lines.append("  the same brief is written to outputs/derive_insights.md below.")
+        print("\n".join(brief_lines))
+
+        # Write the gate brief to outputs/ (the unattended maint-full path
+        # has no human — write the block as the audit expects).
+        try:
+            outputs_dir = PROJECT_ROOT / "outputs"
+            outputs_dir.mkdir(exist_ok=True)
+            (outputs_dir / "derive_insights.md").write_text(
+                "\n".join(brief_lines), encoding="utf-8"
+            )
+        except OSError as exc:
+            print(
+                f"  [brief: could not write {outputs_dir}/derive_insights.md: {exc}]",
+                file=sys.stderr,
+            )
+
+        # S1/S2: dedupe + skip guard have now narrowed the stream; all
+        # downstream apply/render passes run on the retained set.
+        metrics = retained
 
         # One edition index for the whole run: normalizes as_of_edition to
         # stems at the write boundary + the render-side splice machinery.

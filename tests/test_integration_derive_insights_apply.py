@@ -121,6 +121,10 @@ last_modified: '2026-01-02'
 # Marico
 
 A leading Indian consumer goods company.
+
+"We delivered 8% volume growth this quarter and gained over 300 basis points of market share."
+
+"We expect copra prices to stay range-bound through FY27."
 """
 
 
@@ -285,11 +289,21 @@ class TestApplyRendersNotes:
         assert "[[TC_Alpha]]" in text
 
     def test_full_apply_idempotent_bytes_and_rows(self, insights_project):
-        """Second full --apply: note bytes identical, DB rows keep their
-        ids/created_at (byte-guard no-op — no generated.at restamp)."""
+        """Steady-state --apply: note bytes identical, DB rows keep their
+        ids/created_at (byte-guard no-op — no generated.at restamp).
+
+        Warm-up runs first: the S2 gate judges a metric against the note as it
+        stands, and each render is what puts the next sentence into the note
+        (run 1 renders the quotes, run 2 the guidance line). So a later run can
+        retain strictly more than an earlier one. Idempotency is a property of
+        the fixed point, not of the first pass.
+        """
         p = insights_project
         rc, _ = p.run(["--apply"])
         assert rc == 0
+        rc, _ = p.run(["--apply"])
+        assert rc == 0
+        p.pin_fresh_okf_state()
         text1 = p.note_text()
         q1, m1 = p.quote_rows(), p.metric_rows()
         rc, err = p.run(["--apply"])
@@ -297,8 +311,8 @@ class TestApplyRendersNotes:
         assert p.note_text() == text1
         assert p.quote_rows() == q1
         assert p.metric_rows() == m1
-        # The byte-guard no-op: run 1 reported "1 notes wrote", run 2 must
-        # report zero (byte-identical block + already-spliced sources).
+        # The byte-guard no-op: the measured run reported "0 notes wrote"
+        # (byte-identical block + already-spliced sources).
         assert "0 notes wrote" in err
 
     def test_curation_safety_hand_written_block_preserved(self, tmp_path, monkeypatch):
@@ -335,8 +349,12 @@ class TestStaleOnlyCli:
     def test_stale_only_skips_fresh_note(self, insights_project):
         """A note at its fixed point (fresh render stamp, no newer source,
         scanned stem already in sources[]) is gated: zero writes, bytes
-        untouched."""
+        untouched. Two warm-up applies reach that fixed point first — see
+        `test_full_apply_idempotent_bytes_and_rows` for why a single pass is
+        not the steady state."""
         p = insights_project
+        rc, _ = p.run(["--apply"])
+        assert rc == 0
         rc, _ = p.run(["--apply"])
         assert rc == 0
         p.pin_fresh_okf_state()

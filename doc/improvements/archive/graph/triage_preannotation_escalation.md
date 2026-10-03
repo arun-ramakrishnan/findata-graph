@@ -1,22 +1,29 @@
 ---
 title: Pre-annotation + retrieval escalation for the relations triage queue
-status: implemented
+status: executed
 filed: '2026-10-03'
 area: graph
+executed: '2026-10-04'
+completed_md: '342'
 ---
 
 # Proposal: Pre-annotation + retrieval escalation for the relations triage queue
 
 **Date**: 2026-10-03
-**Status**: IMPLEMENTED (S1–S2–S4; S3 unchanged). Module:
-`helpers/graph/triage_preannotate.py`; tests:
+**Status**: EXECUTED 2026-10-04 (completed.md #342). S1–S2–S4 landed (S3
+unchanged). Module: `helpers/graph/triage_preannotate.py`; tests:
 `tests/test_triage_preannotate.py`; acceptance record:
 `../../local/evaluations/jev_pilot/preannotate/` — artifact rejection
 37/37 (floor held), Q2 55/56 (bar ≥53), TCS-MHP escalation probe flipped
-with quoted evidence + URL (operator-supplied URL; autonomous search
-providers remain the weak leg — browser/search-API lane is the
-follow-up). Live-queue dry-run (criterion 3) awaits the next natural
-queue fill.
+with quoted evidence + URL (operator-supplied URL; the autonomous-search
+weak leg was executed by the `search_enablers.md` follow-up, still live).
+Final criterion closed 2026-10-04: the live-queue dry-run parsed all 3
+producer-hygiene queue rows (0 suggested / 3 prose / 28 dupes absorbed)
+after the `markdown_parse_procedure_audit` producer fixes, and the
+canonical-id decisions file carried the operator's 3 accept verdicts
+across the re-key with zero orphans. The TCS–MHP row's corrected edge
+(`Tata_Consultancy_Services-acquired-MHP.yaml`, direction forward) is the
+arc's live outcome.
 **Depends on**: `triage_pending_relations.py` queue machinery (S1–S3,
 archived `../archive/graph/pending_relations_triage.md`); B2 relation
 sidecars; the Jev-pattern pilot record (`../../local/evaluations/jev_pilot/`,
@@ -142,8 +149,9 @@ The pre-annotator only reads the queue and writes advisory annotations.
 
 ## Remaining rollout
 
-1. **Live-queue dry-run** (criterion 3) — awaiting the next natural
-   `_pending_relations.txt` fill; the queue is empty today. Command:
+1. **Live-queue dry-run** (criterion 3) — unblocked 2026-10-04; runs
+   against a copy of the live queue in `$TMPDIR` with the sidecar path
+   retargeted, so the run is zero-write against the repo. Command:
    `.venv/bin/python3 -m helpers.graph.triage_preannotate` (report-only;
    annotations land in `findata/Misc/_pending_annotations.jsonl`).
 2. **Report integration — DONE (2026-10-03).** `write_report` renders

@@ -114,6 +114,16 @@ re-verified without re-deriving it.
 - The four query CLIs = INTENT; STRUCTURE = `ripwire`, `rg` fallback;
   Mojo language/API → **Mojo docs MCP, never web fetchers**.
 - **Thesis first** (see above): search, then claim, then cite the hit.
+- **All `memory/research.db` writes go through `helpers.core.db.connect()`**
+  — never a raw `sqlite3.connect()`. Raw connections leave `PRAGMA
+  foreign_keys` **OFF**, so an unregistered `agent_id` (e.g. `''`) inserts
+  silently and surfaces hours later as a `foreign_key_check` failure in the
+  integrity gate. `connect()` defaults `enable_fk=True`
+  (`helpers/core/db.py:136`), so the bad row raises `IntegrityError` at the
+  INSERT that caused it. Only the doc-index/lint paths may pass
+  `enable_fk=False`. Any row carrying `agent_id` needs that agent registered
+  in `provenance_agents` first (FK → `ON DELETE SET NULL`, so `NULL` is the
+  correct "unknown" value, never `''`).
 - **Keep the session todo list current** — a stale list misleads.
 - Blocking `make qa` (ruff, md-lint, types, pytest, integrity,
   snapshot…), non-blocking `make advisory`. After editing `doc/**`,
@@ -149,3 +159,7 @@ re-verified without re-deriving it.
   — absolute paths INSIDE the subshell (cwd binds at parse time), then
   poll the `.exit` marker with short commands; never sleep-poll, never
   assume death from a missing log before checking the marker.
+- **Scratch files: `$TMPDIR` ONLY** (here `/mnt/data/tmp`). Never
+  `/tmp/opencode` or any other `/tmp` path — the operator rejects those
+  calls. Expand it (`"${TMPDIR:-/tmp}/x"`) when it may be unset, and put
+  logs, `.exit` markers and driver scripts there too.
