@@ -42,6 +42,8 @@ request fact plus `report --legs column_dispositions`; attribution
 upstream-verified against github.com/zai-org/ZCode (corrected table:
 `../../local/engineering/capture_traces.md` §9.4.2).
 
+Archived 2026-10-03: `duckdb_kill_recovery_test` (`../archive/tooling/`, completed.md #338) — kill-mid-write subprocess recovery contracts for synthetic DuckDB stores.
+
 Archived 2026-10-02: `typed_trace_contracts` and
 `trace_quote_citations` (`../archive/tooling/`, completed.md #335/#336) —
 both adapted from the whiteboard evaluation

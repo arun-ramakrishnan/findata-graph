@@ -1,7 +1,7 @@
 <!-- markdownlint-disable MD041 -- first line is intentionally bold metadata, not a heading -->
 
 **Generated**: 2026-09-24
-**Total completed**: 186 items
+**Total completed**: 187 items
 
 > **Note:** Full implementation details, code references, and rationale are in the `doc/improvements/archive/` subdirectory. This file is a summary view.
 
@@ -8944,3 +8944,35 @@ attribution from upstream source verification
 - **Verification:** targeted tests 52 passed (contracts + quote
   suites); ruff clean; gates quartet qa 11/11, integration 1/1, perf
   25/25, advisory 11/12 (convo-fresh self-drift only).
+
+## 338. DuckDB kill recovery — subprocesses test kill-mid-write, rerun convergence, WAL cost
+
+Filed 2026-10-03; executed 2026-10-03. Triggered by the duckdb-jepsen
+evaluation's nemesis (process kill) with our Clojure/Elle tooling ruled
+out (`doc/local/evaluations/jepsen_assessment.md`). Synthetic stores
+only; no production DB copies or live-store mutation.
+
+- **S1 — kill + reopen invariants.** `tests/test_duckdb_kill_recovery.py`
+  spawns a real Python writer subprocess, SIGKILLs at jittered delays,
+  then reopens read-only. For both store shapes (`convo_search`
+  composite-PK append; `agent_traces.fact_turn` PK shape), assert:
+  reopen succeeds, zero duplicate business keys, row count is a
+  committed prefix for the autocommit shape or 0-or-committed for the
+  staged-transaction shape, and ≥1 kill landed mid-write (the marker file
+  remains). Autocommit rows are per-batch INSERT OR IGNORE; staged rows
+  are explicit BEGIN/COMMIT and no watermarks leak.
+- **S2 — rerun convergence.** After the kill point, the same writer is
+  rerun to completion; the final row set hashes equal to a clean
+  single-run baseline, pinning INSERT OR IGNORE idempotence across
+  kill points.
+- **S3 — replay cost guard.** Reopen-after-kill is timed and must stay
+  under 2 s (probe measured 15–44 ms); a slow replay path fails loudly.
+- **Verification:** targeted tests 4 passed; ruff clean; static checks
+  pass. The tests land in the default pytest leg (`not live` marker), so
+  qa runs them via `make qa`/`make test`; advisory only type-checks the
+  file.
+
+Follow-up note: `Caring Beauty` orphan-note drift was found by static
+checks and its missing entity row was backfilled through
+`parse_newsletter.create_entity(..., apply=True)` before archiving;
+static checks are green again.
