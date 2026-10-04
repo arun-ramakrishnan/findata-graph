@@ -310,3 +310,103 @@ CREATE TRIGGER trg_graph_edges_insert_gen AFTER INSERT ON graph_edges BEGIN UPDA
 CREATE TRIGGER trg_graph_edges_delete_gen AFTER DELETE ON graph_edges BEGIN UPDATE db_meta SET value = CAST(CAST(value AS INTEGER)+1 AS TEXT) WHERE key='generation'; END;
 
 CREATE TRIGGER trg_graph_edges_update_gen AFTER UPDATE ON graph_edges BEGIN UPDATE db_meta SET value = CAST(CAST(value AS INTEGER)+1 AS TEXT) WHERE key='generation'; END;
+
+CREATE TRIGGER graph_edges_agent_id_registered_insert
+BEFORE INSERT ON "graph_edges"
+FOR EACH ROW
+WHEN NEW.agent_id IS NOT NULL
+     AND (LENGTH(NEW.agent_id) = 0
+          OR NEW.agent_id NOT IN (SELECT agent_id FROM provenance_agents))
+BEGIN
+    SELECT RAISE(ABORT, 'agent_id must be NULL or a registered non-empty id');
+END;
+
+CREATE TRIGGER graph_edges_agent_id_registered_update
+BEFORE UPDATE ON "graph_edges"
+FOR EACH ROW
+WHEN NEW.agent_id IS NOT NULL
+     AND (LENGTH(NEW.agent_id) = 0
+          OR NEW.agent_id NOT IN (SELECT agent_id FROM provenance_agents))
+BEGIN
+    SELECT RAISE(ABORT, 'agent_id must be NULL or a registered non-empty id');
+END;
+
+CREATE TRIGGER events_agent_id_registered_insert
+BEFORE INSERT ON "events"
+FOR EACH ROW
+WHEN NEW.agent_id IS NOT NULL
+     AND (LENGTH(NEW.agent_id) = 0
+          OR NEW.agent_id NOT IN (SELECT agent_id FROM provenance_agents))
+BEGIN
+    SELECT RAISE(ABORT, 'agent_id must be NULL or a registered non-empty id');
+END;
+
+CREATE TRIGGER events_agent_id_registered_update
+BEFORE UPDATE ON "events"
+FOR EACH ROW
+WHEN NEW.agent_id IS NOT NULL
+     AND (LENGTH(NEW.agent_id) = 0
+          OR NEW.agent_id NOT IN (SELECT agent_id FROM provenance_agents))
+BEGIN
+    SELECT RAISE(ABORT, 'agent_id must be NULL or a registered non-empty id');
+END;
+
+CREATE TRIGGER quotes_agent_id_registered_insert
+BEFORE INSERT ON "quotes"
+FOR EACH ROW
+WHEN NEW.agent_id IS NOT NULL
+     AND (LENGTH(NEW.agent_id) = 0
+          OR NEW.agent_id NOT IN (SELECT agent_id FROM provenance_agents))
+BEGIN
+    SELECT RAISE(ABORT, 'agent_id must be NULL or a registered non-empty id');
+END;
+
+CREATE TRIGGER quotes_agent_id_registered_update
+BEFORE UPDATE ON "quotes"
+FOR EACH ROW
+WHEN NEW.agent_id IS NOT NULL
+     AND (LENGTH(NEW.agent_id) = 0
+          OR NEW.agent_id NOT IN (SELECT agent_id FROM provenance_agents))
+BEGIN
+    SELECT RAISE(ABORT, 'agent_id must be NULL or a registered non-empty id');
+END;
+
+CREATE TRIGGER company_metrics_agent_id_registered_insert
+BEFORE INSERT ON "company_metrics"
+FOR EACH ROW
+WHEN NEW.agent_id IS NOT NULL
+     AND (LENGTH(NEW.agent_id) = 0
+          OR NEW.agent_id NOT IN (SELECT agent_id FROM provenance_agents))
+BEGIN
+    SELECT RAISE(ABORT, 'agent_id must be NULL or a registered non-empty id');
+END;
+
+CREATE TRIGGER company_metrics_agent_id_registered_update
+BEFORE UPDATE ON "company_metrics"
+FOR EACH ROW
+WHEN NEW.agent_id IS NOT NULL
+     AND (LENGTH(NEW.agent_id) = 0
+          OR NEW.agent_id NOT IN (SELECT agent_id FROM provenance_agents))
+BEGIN
+    SELECT RAISE(ABORT, 'agent_id must be NULL or a registered non-empty id');
+END;
+
+CREATE TRIGGER hyper_edges_agent_id_registered_insert
+BEFORE INSERT ON "hyper_edges"
+FOR EACH ROW
+WHEN NEW.agent_id IS NOT NULL
+     AND (LENGTH(NEW.agent_id) = 0
+          OR NEW.agent_id NOT IN (SELECT agent_id FROM provenance_agents))
+BEGIN
+    SELECT RAISE(ABORT, 'agent_id must be NULL or a registered non-empty id');
+END;
+
+CREATE TRIGGER hyper_edges_agent_id_registered_update
+BEFORE UPDATE ON "hyper_edges"
+FOR EACH ROW
+WHEN NEW.agent_id IS NOT NULL
+     AND (LENGTH(NEW.agent_id) = 0
+          OR NEW.agent_id NOT IN (SELECT agent_id FROM provenance_agents))
+BEGIN
+    SELECT RAISE(ABORT, 'agent_id must be NULL or a registered non-empty id');
+END;
