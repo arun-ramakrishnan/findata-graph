@@ -965,6 +965,19 @@ def main(argv: list[str] | None = None):  # noqa: C901
         log("done", "OK" + "" if analytics_ok else " (analytics reported issues)")
     else:
         log("done", "OK")
+    # graph_rebuild_fast_path S2 (rebuild-on-apply): the apply wrote
+    # entities/edges — refresh the DuckDB cache NOW so the first graph
+    # query after the ingest doesn't pay the rebuild inline. S1's dirty
+    # tracking makes this proportionate; an idempotent re-run patches to
+    # a cheap no-op.
+    if args.apply:
+        try:
+            from helpers.graph.query import rebuild as _rebuild
+
+            log("7", "rebuilding graph cache...")
+            _rebuild()
+        except Exception as exc:  # noqa: BLE001  # the ingest is applied; the stale cache fails loud downstream
+            print(f"WARNING: post-apply graph rebuild failed: {exc}", file=sys.stderr)
     if args.apply:
         conn.close()
     sys.exit(0)

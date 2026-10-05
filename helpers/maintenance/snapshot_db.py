@@ -359,7 +359,7 @@ def verify_duckdb_snapshot(  # noqa: C901
                 if t == "_build_meta" and STAMP_OWNED_META_KEYS:
                     ph = ", ".join("?" for _ in STAMP_OWNED_META_KEYS)
                     _row = con.execute(
-                        f"SELECT COUNT(*) FROM _build_meta WHERE key NOT IN ({ph})",  # noqa: S608  # parameterized; schema-constant
+                        f"SELECT COUNT(*) FROM _build_meta WHERE key NOT IN ({ph}) AND key NOT LIKE 'fp:%'",  # noqa: S608  # parameterized; schema-constant (fp:* = graph_rebuild_fast_path S1 input fingerprints — per-rebuild drift is contract-legal, same class as the stamp keys)
                         tuple(STAMP_OWNED_META_KEYS),
                     ).fetchone()
                 else:
@@ -902,11 +902,11 @@ def _verify_duckdb_counts(con, tname: str, pf: Path, stamp_meta: bool) -> tuple[
     if stamp_meta:
         ph = ", ".join("?" for _ in STAMP_OWNED_META_KEYS)
         src = con.execute(
-            f"SELECT COUNT(*) FROM _build_meta WHERE key NOT IN ({ph})",  # noqa: S608  # stem gated by _verify_gate_stem; fragment is ?-clauses
+            f"SELECT COUNT(*) FROM _build_meta WHERE key NOT IN ({ph}) AND key NOT LIKE 'fp:%'",  # noqa: S608  # stem gated by _verify_gate_stem; fragment is ?-clauses (fp:* = graph_rebuild_fast_path S1 fingerprints, per-rebuild contract-legal drift)
             tuple(STAMP_OWNED_META_KEYS),
         ).fetchone()
         snap = con.execute(
-            f"SELECT COUNT(*) FROM '{path_sql}' WHERE key NOT IN ({ph})",  # noqa: S608  # path quote-doubled; stem gated (S1)
+            f"SELECT COUNT(*) FROM '{path_sql}' WHERE key NOT IN ({ph}) AND key NOT LIKE 'fp:%'",  # noqa: S608  # path quote-doubled; stem gated (S1); fp:* excluded (graph_rebuild_fast_path S1)
             tuple(STAMP_OWNED_META_KEYS),
         ).fetchone()
     else:

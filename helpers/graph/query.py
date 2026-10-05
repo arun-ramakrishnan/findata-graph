@@ -46,6 +46,7 @@ from __future__ import annotations
 import argparse
 import fcntl
 import logging
+import os
 import functools
 import re
 import sys
@@ -449,6 +450,45 @@ def _open_read_only_connection(duckdb_path: Path, db_path: Path) -> duckdb.DuckD
     return con
 
 
+class GraphCacheStaleError(RuntimeError):
+    """graph_rebuild_fast_path S2: a read-only open hit a STALE cache.
+
+    Raised instead of silently unlinking the cache and rebuilding inline
+    (the pre-S2 behaviour serialised every RO caller behind a full build
+    on the build.lock). Remedy: ``make graph-rebuild`` — with S1's dirty
+    tracking that is a proportionate copy-then-patch. Set
+    ``GRAPH_STALE_REBUILD=inline`` to restore the inline rebuild (the
+    test suite does, via conftest).
+    """
+
+
+def _stale_not_cold(duckdb_path: Path, db_path: Path | None) -> bool:
+    """True when the cache file has a matching schema but is stale.
+
+    Cold (missing file / no schema) returns False — the bootstrap build
+    contract (shared xdist cache, first-run) stays inline. Staleness is
+    the union of the three drift checks _is_warm runs.
+    """
+    try:
+        con = connect_with_lock_retry(lambda: duckdb.connect(str(duckdb_path), read_only=True))
+        try:
+            r = con.execute("SELECT value FROM _build_meta WHERE key='schema_version'").fetchone()
+            if r is None or r[0] != _SCHEMA_VERSION:
+                return False
+            return (
+                _check_generation_staleness(con, duckdb_path, db_path)
+                or _check_duckdb_version_drift(con)
+                or _check_note_embed_drift(con, duckdb_path, db_path)
+            )
+        finally:
+            con.close()
+    except duckdb.Error:
+        return False
+
+
+_GRAPH_STALE_ENV = "GRAPH_STALE_REBUILD"
+
+
 def _build_graph_connection(
     duckdb_path: Path,
     db_path: Path,
@@ -463,6 +503,18 @@ def _build_graph_connection(
     with open(lock_path, "w") as lf:
         fcntl.flock(lf.fileno(), fcntl.LOCK_EX)
         try:
+            if (
+                read_only
+                and not fresh
+                and not rebuild
+                and duckdb_path.exists()
+                and _stale_not_cold(duckdb_path, db_path)
+                and os.environ.get(_GRAPH_STALE_ENV, "fail") != "inline"
+            ):
+                raise GraphCacheStaleError(
+                    "graph cache is stale — run `make graph-rebuild` "
+                    f"(or set {_GRAPH_STALE_ENV}=inline to restore inline rebuild)"
+                )
             if (
                 not fresh
                 and not rebuild
@@ -825,6 +877,10 @@ def _mark_warm(con: duckdb.DuckDBPyConnection, db_path: Path) -> None:
         base_vals.append(("duckdb_version", str(duckdb_ver)))
     for k, v in base_vals:
         con.execute("INSERT OR REPLACE INTO _build_meta(key, value) VALUES (?, ?)", (k, v))
+    # graph_rebuild_fast_path S1: stamp per-input fingerprints so the NEXT
+    # rebuild can patch instead of rebuilding everything. Best-effort — a
+    # failure leaves no keys and the next rebuild falls back to full.
+    _stamp_fingerprints(con)
 
 
 # Vertex/hierarchy/embedding tables materialised OUTSIDE the EDGE_REGISTRY
@@ -901,6 +957,303 @@ EPHEMERAL_TABLES = frozenset(t for t in _EXTRA_MATERIALIZED if t.startswith("v_c
 # drift, not staleness.
 STAMP_OWNED_META_KEYS = frozenset({"louvain_modularity"})
 
+# --------------------------------------------------------------------------- #
+# graph_rebuild_fast_path S1: per-input dirty tracking
+# --------------------------------------------------------------------------- #
+# The file-level generation stamp makes ANY sqlite write stale the whole
+# cache, and a rebuild then re-plans every CTAS against inputs that mostly
+# did not change (T(R) ≈ 2.28 s + 3.0 µs·R, ~87% fixed overhead at live
+# scale — pending.md P2.2). These fingerprints give rebuild() the missing
+# per-slice signal: hash aggregates over exactly the input slice each
+# materialised table reads, stored in _build_meta under ``fp:`` keys and
+# diffed on the next rebuild. A missing or mismatched fingerprint is
+# conservative: the table rebuilds.
+_FP_KEY_PREFIX = "fp:"
+
+_EDGE_FP_COLS = "source, target, weight, properties, source_ref, valid_from, valid_to"
+
+
+def _compute_input_fingerprints(con: duckdb.DuckDBPyConnection) -> dict[str, str]:
+    """Fingerprint every materialised table's input slice, one scan each.
+
+    Requires ``fin`` ATTACHed (the build and patch paths both do). The edge
+    fingerprint is a single GROUPING SETS pass — per-edge-type rows plus a
+    grand-total row (NULL edge_type → the ``edges:@all`` substrate unit;
+    graph_edges.edge_type is NOT NULL by the integrity contract). ``hash()``
+    is deterministic per DuckDB version and version drift forces a full
+    rebuild anyway (_check_duckdb_version_drift); BIT_XOR is
+    order-independent so no ORDER BY is needed. Optional sources that are
+    absent (hypergraph store, company_embeddings on a pristine clone)
+    fingerprint as ``absent`` and stay absent-consistent.
+    """
+    fps: dict[str, str] = {}
+    rows = con.execute(
+        f"""
+        SELECT edge_type, COUNT(*),
+               COALESCE(BIT_XOR(hash({_EDGE_FP_COLS})), 0)
+        FROM fin.graph_edges
+        GROUP BY GROUPING SETS ((edge_type), ())
+        """
+    ).fetchall()
+    for etype, cnt, x in rows:
+        key = "edges:@all" if etype is None else f"edges:{etype}"
+        fps[key] = f"{int(cnt)}:{int(x)}"
+    # vertices: v_node reads entities (filtered kinds) plus the market_cap
+    # tag slice of entity_tags (the correlated subselect in the CTAS).
+    ent = con.execute(
+        """
+        SELECT COUNT(*), COALESCE(BIT_XOR(hash(name, entity_type,
+               sector_classification, ticker)), 0)
+        FROM fin.entities
+        WHERE entity_type IN ('company', 'sector', 'super_sector', 'sub_sector',
+                              'theme', 'edition', 'institution', 'country',
+                              'index', 'person')
+        """
+    ).fetchone()
+    assert ent is not None  # noqa: S101  # ty narrowing; COUNT aggregate always returns one row
+    tags = con.execute(
+        "SELECT COUNT(*), COALESCE(BIT_XOR(hash(entity_name, tag)), 0) "
+        "FROM fin.entity_tags WHERE tag LIKE 'market_cap/%'"
+    ).fetchone()
+    assert tags is not None  # noqa: S101  # ty narrowing; COUNT aggregate always returns one row
+    fps["vertices"] = f"{int(ent[0])}:{int(ent[1])}:{int(tags[0])}:{int(tags[1])}"
+    try:
+        he = con.execute(
+            "SELECT COUNT(*), COALESCE(BIT_XOR(hash(id, edge_type, label, weight, "
+            "valid_from, valid_to, source_ref)), 0) FROM fin.hyper_edges"
+        ).fetchone()
+        hi = con.execute(
+            "SELECT COUNT(*), COALESCE(BIT_XOR(hash(edge_id, entity_name, weight, "
+            "direction, role, valid_from, valid_to)), 0) FROM fin.hyper_incidences"
+        ).fetchone()
+        assert he is not None and hi is not None  # noqa: S101  # ty narrowing; COUNT aggregates always return one row
+        fps["hyper"] = f"{int(he[0])}:{int(he[1])}:{int(hi[0])}:{int(hi[1])}"
+    except duckdb.Error:
+        # pristine clone: the hypergraph store is absent — h_* stay absent too
+        fps["hyper"] = "absent"
+    try:
+        emb = con.execute(
+            "SELECT COUNT(*), COALESCE(SUM(length(embedding)), 0) FROM fin.company_embeddings"
+        ).fetchone()
+        assert emb is not None  # noqa: S101  # ty narrowing; COUNT aggregate always returns one row
+        fps["embeddings"] = f"{int(emb[0])}:{int(emb[1])}"
+    except duckdb.Error:
+        fps["embeddings"] = "absent"
+    try:
+        n = con.execute(
+            "SELECT COUNT(*) FROM fin.note_search WHERE embedding IS NOT NULL AND embedding != ''"
+        ).fetchone()
+        assert n is not None  # noqa: S101  # ty narrowing; COUNT aggregate always returns one row
+    except duckdb.Error:
+        fps["note_embeddings"] = "absent"
+        return fps
+    # dims ride the fingerprint too: a model swap that keeps count+model
+    # but changes vector length must dirty v_note_embeddings (the stored
+    # note_embed_dims stamp alone would only catch it one connect later).
+    dims = ""
+    try:
+        row = con.execute(
+            "SELECT embedding FROM fin.note_search "
+            "WHERE embedding IS NOT NULL AND embedding != '' LIMIT 1"
+        ).fetchone()
+        if row and row[0]:
+            from helpers.core.vec_codec import load_vec as _load_vec
+
+            vec = _load_vec(row[0])
+            if vec:
+                dims = str(len(vec))
+    except Exception:  # noqa: S110, BLE001  # unparsable blob counts as absent dims
+        pass
+    model = ""
+    try:
+        r = con.execute("SELECT value FROM fin.db_meta WHERE key='note_embed_model'").fetchone()
+        model = r[0] if r and r[0] else ""
+    except duckdb.Error:
+        pass
+    fps["note_embeddings"] = f"{int(n[0])}:{dims}:{model}"
+    return fps
+
+
+def _load_stored_fingerprints(con: duckdb.DuckDBPyConnection) -> dict[str, str] | None:
+    """Stored ``fp:*`` keys from _build_meta, prefix-stripped.
+
+    None when no fingerprints exist — a cache built before
+    graph_rebuild_fast_path S1, or _build_meta absent. The caller falls back
+    to a full build, which stamps fingerprints for next time (_mark_warm).
+    """
+    try:
+        rows = con.execute(
+            "SELECT key, value FROM _build_meta WHERE key LIKE ?", (f"{_FP_KEY_PREFIX}%",)
+        ).fetchall()
+    except duckdb.Error:
+        return None
+    if not rows:
+        return None
+    return {k[len(_FP_KEY_PREFIX) :]: v for k, v in rows}
+
+
+def _stamp_fingerprints(con: duckdb.DuckDBPyConnection) -> None:
+    """Compute + upsert the fp:* keys into _build_meta (best-effort).
+
+    Called from the full-build path (_mark_warm) so the NEXT rebuild can
+    patch instead of rebuilding. A failure here leaves no keys — the next
+    rebuild falls back to a full build (conservative).
+    """
+    try:
+        _upsert_fingerprints(con, _compute_input_fingerprints(con))
+    except Exception:  # noqa: BLE001  # fingerprints are an optimisation; never fail a build
+        print(
+            "WARNING: input fingerprint stamping failed; next rebuild will be full", file=sys.stderr
+        )
+
+
+def _patch_capable(duckdb_path: Path) -> bool:
+    """Warm-schema check WITHOUT the generation/note-embed staleness arms.
+
+    graph_rebuild_fast_path S1: the copy-then-patch lane must trigger
+    exactly when the cache is schema-warm but STALE — which is where
+    ``_is_warm`` returns False. The fingerprint diff subsumes generation
+    and note-embed drift (note dims+model ride the note fingerprint);
+    DuckDB version drift still forbids patching because ``hash()``
+    stability is per version.
+    """
+    try:
+        con = connect_with_lock_retry(lambda: duckdb.connect(str(duckdb_path), read_only=True))
+        try:
+            r = con.execute("SELECT value FROM _build_meta WHERE key='schema_version'").fetchone()
+            if r is None or r[0] != _SCHEMA_VERSION:
+                return False
+            return not _check_duckdb_version_drift(con)
+        finally:
+            con.close()
+    except duckdb.Error:
+        return False
+
+
+def _drop_centrality_stamps(con: duckdb.DuckDBPyConnection) -> None:
+    """Drop every v_centrality_* / structure stamp + the louvain meta key.
+
+    The centrality_rebuild_contract on a patched edge set: absence ==
+    compute on demand — a partial edge rebuild must never leave a stamp
+    computed over the previous edge universe.
+    """
+    for t in _CENTRALITY_TABLES:
+        con.execute(f"DROP TABLE IF EXISTS {t}")
+    ph = ",".join("?" for _ in STAMP_OWNED_META_KEYS)
+    con.execute(
+        f"DELETE FROM _build_meta WHERE key IN ({ph})",  # noqa: S608  # ?-clauses; STAMP_OWNED_META_KEYS is a schema constant
+        tuple(STAMP_OWNED_META_KEYS),
+    )
+
+
+def _upsert_fingerprints(
+    con: duckdb.DuckDBPyConnection, fps: dict[str, str], prefix: str = _FP_KEY_PREFIX
+) -> None:
+    """Upsert (prefixed) fingerprint keys into _build_meta (S1 helper)."""
+    for unit, fp in fps.items():
+        con.execute(
+            "INSERT OR REPLACE INTO _build_meta(key, value) VALUES (?, ?)",
+            (prefix + unit, fp),
+        )
+
+
+def _patch_vertices(con: duckdb.DuckDBPyConnection) -> None:
+    """Drop + rebuild v_node and its kind projections (S1 patch arm)."""
+    for t in (
+        "v_node",
+        "v_company",
+        "v_sector",
+        "v_super_sector",
+        "v_sub_sector",
+        "v_theme",
+        "v_edition",
+        "v_institution",
+        "v_country",
+        "v_index",
+    ):
+        con.execute(f"DROP TABLE IF EXISTS {t}")
+    _materialise_v_nodes(con)
+
+
+def _patch_edge_tables(
+    con: duckdb.DuckDBPyConnection, edge_dirty: set[str], vertices_dirty: bool
+) -> None:
+    """Drop + rebuild the dirty edge tables and the walk substrate (S1 arm).
+
+    ``vertices_dirty`` forces every table: v_node ids are ``row_number()``
+    over entities, so any entity change can shift ids everywhere.
+    """
+    _stage_edges(con)
+    _resolve_edges(con)
+    for etype, spec in EDGE_REGISTRY.items():
+        if etype in edge_dirty or vertices_dirty:
+            con.execute(f"DROP TABLE IF EXISTS {spec['table']}")
+            _materialise_edge_table(con, etype, spec)
+    for mixed_etype, mixed in _MIXED_EDGE_TABLES.items():
+        if mixed_etype in edge_dirty or vertices_dirty:
+            con.execute(f"DROP TABLE IF EXISTS {mixed['table']}")
+            con.execute(mixed["ctas"])
+    con.execute("DROP TABLE IF EXISTS e_dir")
+    con.execute("DROP TABLE IF EXISTS e_all_und")
+    _materialise_walk_substrate(con)
+
+
+def _patch_dirty_tables(tmp_duckdb_path: Path, db_path: Path) -> bool:
+    """graph_rebuild_fast_path S1 core: patch a COPY of the warm cache.
+
+    The caller has copied the live cache file to *tmp_duckdb_path*; this
+    opens it read-write (a pid-tagged temp — never the live file), diffs
+    per-input fingerprints against the stored ``fp:*`` keys, and
+    drop-and-recreates ONLY the tables whose inputs changed. Returns True
+    when the temp was patched (the caller swaps it in); False when the
+    caller must fall back to a full build (no stored fingerprints, or any
+    internal failure — the temp is discarded either way).
+
+    Dependency closure: v_node ids are ``row_number()`` over entities, so
+    ANY entity change can shift ids — vertices dirty forces every
+    v_node-joined table (all edges, substrate, v_embeddings). The
+    substrate follows any edge change by its own ``edges:@all``
+    fingerprint. Any edge/vertex change drops the ``v_centrality_*``
+    stamps (centrality_rebuild_contract: absence == compute on demand)
+    and the stamp-owned ``louvain_modularity`` meta key.
+    """
+    con = duckdb.connect(str(tmp_duckdb_path))
+    try:
+        _prep_graph_connection(con)
+        _attach_sqlite(con, db_path)
+        stored = _load_stored_fingerprints(con)
+        if stored is None:
+            return False
+        fps = _compute_input_fingerprints(con)
+        dirty = {u for u, fp in fps.items() if stored.get(u) != fp}
+        vertices_dirty = "vertices" in dirty
+        edge_dirty = {u[len("edges:") :] for u in dirty if u.startswith("edges:")}
+        any_edge_dirty = bool(edge_dirty)
+        if vertices_dirty:
+            _patch_vertices(con)
+        if any_edge_dirty or vertices_dirty:
+            _patch_edge_tables(con, edge_dirty, vertices_dirty)
+        if "hyper" in dirty:
+            con.execute("DROP TABLE IF EXISTS h_edge")
+            con.execute("DROP TABLE IF EXISTS h_incidence")
+            _materialise_hyper(con)
+        if "embeddings" in dirty or vertices_dirty:
+            con.execute("DROP TABLE IF EXISTS v_embeddings")
+            _materialise_embeddings(con)
+        if "note_embeddings" in dirty:
+            con.execute("DROP TABLE IF EXISTS v_note_embeddings")
+            _materialise_note_embeddings(con)
+        if vertices_dirty or any_edge_dirty:
+            _drop_centrality_stamps(con)
+        _mark_warm(con, db_path)
+        _upsert_fingerprints(con, fps)
+        return True
+    except Exception:  # noqa: BLE001  # any patch failure falls back to the full build
+        print("WARNING: dirty-table patch failed; falling back to full rebuild", file=sys.stderr)
+        return False
+    finally:
+        con.close()
+
 
 def _build_graph(
     con: duckdb.DuckDBPyConnection,
@@ -929,14 +1282,25 @@ def _build_graph(
     # rebuild=True path: drop existing materialised tables so CREATE
     # TABLE AS SELECT doesn't fail on the warm file. fresh=True path:
     # file was deleted so none of these exist; DROP IF EXISTS is a no-op.
-    for spec in EDGE_REGISTRY.values():
-        con.execute(f"DROP TABLE IF EXISTS {spec['table']}")
-    # Bundle M4: also drop the hierarchy vertex projections + the
-    # belongs_to edge table (declared outside EDGE_REGISTRY). D4 adds v_theme
-    # (theme projection) + e_exposed_to (company -> theme edge), also declared
-    # outside the registry for the same mixed-endpoint reason.
-    for t in _EXTRA_MATERIALIZED:
-        con.execute(f"DROP TABLE IF EXISTS {t}")
+    # graph_rebuild_fast_path S3: on the swap flow the temp file is empty,
+    # so the whole pre-drop pass is pure planning overhead (~46 statements,
+    # ~0.2 s of the fixed band) — skip it when the catalog is provably
+    # empty. TEMP staging tables live in the temp schema, not 'main'.
+    pre_existing = con.execute(
+        "SELECT COUNT(*) FROM information_schema.tables "
+        "WHERE table_schema = 'main' AND table_name != '_build_meta'"
+    ).fetchone()
+    assert pre_existing is not None  # noqa: S101  # ty narrowing; COUNT aggregate always returns one row
+    if pre_existing[0]:
+        for spec in EDGE_REGISTRY.values():
+            con.execute(f"DROP TABLE IF EXISTS {spec['table']}")
+        # Bundle M4: also drop the hierarchy vertex projections + the
+        # belongs_to edge table (declared outside EDGE_REGISTRY). D4 adds
+        # v_theme (theme projection) + e_exposed_to (company -> theme edge),
+        # also declared outside the registry for the same mixed-endpoint
+        # reason.
+        for t in _EXTRA_MATERIALIZED:
+            con.execute(f"DROP TABLE IF EXISTS {t}")
 
     _materialise_vertices(con)
     _materialise_edges(con)
@@ -1004,14 +1368,39 @@ def _rebuild_via_swap(
     tmp_wal.unlink(missing_ok=True)
     tmp_lock.unlink(missing_ok=True)
     try:
-        c = connect(
-            db_path=db_path,
-            duckdb_path=tmp,
-            rebuild=True,
-            fresh=fresh,
-            stamp_centrality=stamp_centrality,
-        )
-        c.close()
+        # graph_rebuild_fast_path S1: when the live cache is warm and
+        # cleanly closed, COPY it to the temp and rebuild only the tables
+        # whose input fingerprints changed (copy-then-patch). The live file
+        # is never opened read-write — same invariant as the full build; the
+        # patch happens entirely on the pid-tagged copy. Falls back to the
+        # full build below when the copy/patch says so (no stored
+        # fingerprints, live WAL present, any internal failure). The stamp
+        # lane keeps the full build: stamping must refresh every
+        # v_centrality_* table regardless of input dirt, and patch's
+        # contract is to DROP them.
+        patched = False
+        if not fresh and not stamp_centrality:
+            live_wal = Path(str(duckdb_path) + ".wal")
+            if duckdb_path.exists() and not live_wal.exists() and _patch_capable(duckdb_path):
+                import shutil
+
+                try:
+                    shutil.copyfile(duckdb_path, tmp)
+                    patched = _patch_dirty_tables(tmp, Path(db_path))
+                except OSError:
+                    patched = False
+            if not patched:
+                tmp.unlink(missing_ok=True)
+                tmp_wal.unlink(missing_ok=True)
+        if not patched:
+            c = connect(
+                db_path=db_path,
+                duckdb_path=tmp,
+                rebuild=True,
+                fresh=fresh,
+                stamp_centrality=stamp_centrality,
+            )
+            c.close()
         # Clean close leaves no WAL behind; refuse to swap otherwise.
         if tmp_wal.exists():
             raise RuntimeError(f"rebuild temp not cleanly closed: {tmp_wal} still exists")
@@ -1194,6 +1583,18 @@ def update_extensions() -> list[tuple[str, str]]:
 
 
 def _materialise_vertices(con: duckdb.DuckDBPyConnection) -> None:
+    """Materialise the vertex layer: v_node + projections + v_embeddings.
+
+    Thin orchestrator over :func:`_materialise_v_nodes` (split out for the
+    graph_rebuild_fast_path S1 patch lane, which rebuilds vertices and
+    embeddings on independent input fingerprints) and
+    :func:`_materialise_embeddings`.
+    """
+    _materialise_v_nodes(con)
+    _materialise_embeddings(con)
+
+
+def _materialise_v_nodes(con: duckdb.DuckDBPyConnection) -> None:
     """Create a single vertex table with globally-unique contiguous IDs.
 
     duckpgq v1.5 silently merges vertex-table IDs across tables when more
@@ -1293,23 +1694,6 @@ def _materialise_vertices(con: duckdb.DuckDBPyConnection) -> None:
     # listed_on_index (company -> index, NSE constituent-derived).
     # Out-of-registry like v_country for the same mixed-endpoint reason.
     con.execute("CREATE TABLE v_index AS SELECT id, name FROM v_node WHERE kind='index'")
-    # P2.5: v_embeddings — vector embeddings for semantic similarity search.
-    # Sourced from fin.company_embeddings (FLOAT[emb_dim]) if it exists in the
-    # SQLite DB; created as an empty table with a matching schema if not (so
-    # wrappers can test existence without a special case). The FLOAT[N] type
-    # is required by DuckDB's VSS scalar functions (array_cosine_similarity,
-    # array_distance, etc.).
-    #
-    # Population is handled by helpers/graph/embeddings.py, which fetches
-    # real embeddings from an LLM API (OpenAI text-embedding-3-small by
-    # default) and writes them to the SQLite source. On the next rebuild
-    # (or connect with rebuild=True), the embeddings are projected from
-    # SQLite into DuckDB via the CTAS below.
-    #
-    # If the SQLite table doesn't exist yet (fresh DB), create an empty
-    # DuckDB table with the right schema so semantic_neighbors() can return
-    # empty results instead of an error.
-    _materialise_embeddings(con)
 
 
 def _fin_sqlite_path(con: duckdb.DuckDBPyConnection) -> str | None:
@@ -1589,9 +1973,159 @@ _CENTRALITY_TABLES = (
 )
 
 
+def _stamp_arrow_table(
+    con: duckdb.DuckDBPyConnection,
+    table: str,
+    cols: list[tuple[str, str]],
+    rows: list[tuple],
+) -> None:
+    """Materialise ``table`` from ``rows`` via a registered Arrow relation.
+
+    (graph_rebuild_fast_path S4: extracted from the stamp lane so the
+    per-metric arms can live in their own functions with no C901 mask.)
+
+    executemany() on the persistent cache costs ~4ms/row (per-row WAL
+    appends — measured 6.8s for 1.7K rows, which would price the ten-table
+    stamp at ~60s); one registered Arrow relation + CTAS is the house
+    pattern instead (same as _materialise_note_embeddings). Row lists are
+    column-pivoted here, not at the call sites.
+    """
+    import pyarrow as _pa
+
+    types = {"VARCHAR": _pa.string(), "DOUBLE": _pa.float64(), "BIGINT": _pa.int64()}
+    con.execute(f"DROP TABLE IF EXISTS {table}")
+    if rows:
+        src = f"{table}_src"
+        con.register(
+            src,
+            _pa.table(
+                {n: _pa.array([r[i] for r in rows], type=types[t]) for i, (n, t) in enumerate(cols)}
+            ),
+        )
+        con.execute(f"CREATE TABLE {table} AS SELECT * FROM {src}")
+        con.unregister(src)
+    else:
+        con.execute(f"CREATE TABLE {table}({', '.join(f'{n} {t}' for n, t in cols)})")
+
+
+_SCORE_COLS: list[tuple[str, str]] = [("name", "VARCHAR"), ("score", "DOUBLE")]
+
+
+def _stamp_score_metric(
+    con: duckdb.DuckDBPyConnection,
+    name: str,
+    fn: Callable[..., dict[str, float]],
+    lane_served: set[str],
+) -> None:
+    """Stamp ONE Onager score metric, or drop-and-warn (best-effort).
+
+    Lane-served metrics (scipy_routing_dispatch S1/S3) are skipped —
+    stamping their Onager full-pop scale would fork values against the
+    served universe AND cost the whole minutes-scale share of this job —
+    and any stale table from an older stamp is removed so absence stays
+    the "compute on demand" contract. Single source of truth: the ROUTING
+    table (reverting a value resumes its stamp).
+    """
+    if f"{name}_centrality" in lane_served:
+        con.execute(f"DROP TABLE IF EXISTS v_centrality_{name}")
+        print(f"centrality cache: {name} skipped (lane-served)", file=sys.stderr)
+        return
+    try:
+        scores = fn(con)
+        _stamp_arrow_table(con, f"v_centrality_{name}", _SCORE_COLS, list(scores.items()))
+    except Exception as e:  # noqa: BLE001  # drop + warn; readers compute
+        con.execute(f"DROP TABLE IF EXISTS v_centrality_{name}")
+        print(f"centrality cache: {name} unstamped: {e}", file=sys.stderr)
+
+
+def _stamp_voterank_and_louvain(con: duckdb.DuckDBPyConnection) -> None:
+    """Stamp the two special-shape metrics (graph_rebuild_fast_path S4).
+
+    VoteRank is list-valued: ``score`` stores the 1-based seed rank and
+    the reader reconstructs the order. Louvain's modularity scalar is
+    stamped into ``_build_meta`` (``louvain_modularity``) so
+    ``louvain_communities`` can serve a complete LouvainResult. Both
+    best-effort: a failure drops the table and warns.
+    """
+    from helpers.graph.algorithms import louvain_communities, voterank_seeds
+
+    try:
+        seeds = voterank_seeds(con)
+        _stamp_arrow_table(
+            con,
+            "v_centrality_voterank",
+            _SCORE_COLS,
+            [(name, float(rank)) for rank, name in enumerate(seeds, 1)],
+        )
+    except Exception as e:  # noqa: BLE001
+        con.execute("DROP TABLE IF EXISTS v_centrality_voterank")
+        print(f"centrality cache: voterank unstamped: {e}", file=sys.stderr)
+    try:
+        louvain = louvain_communities(con)
+        _stamp_arrow_table(
+            con,
+            "v_centrality_louvain",
+            [("name", "VARCHAR"), ("community_id", "BIGINT")],
+            list(louvain.labels.items()),
+        )
+        con.execute(_BUILD_META_DDL)
+        con.execute(
+            "INSERT OR REPLACE INTO _build_meta(key, value) VALUES ('louvain_modularity', ?)",
+            (repr(louvain.modularity),),
+        )
+    except Exception as e:  # noqa: BLE001
+        con.execute("DROP TABLE IF EXISTS v_centrality_louvain")
+        print(f"centrality cache: louvain unstamped: {e}", file=sys.stderr)
+
+
+def _stamp_full_universe(con: duckdb.DuckDBPyConnection, db_path: Path | str | None) -> None:
+    """Stamp the scipy_exact_universe S6 all-universe tables (S4 split).
+
+    Stamped by DEFAULT — the pre-lane surfaces were NULL (structure) and
+    unserved (full-walk centralities), so defaulting protects no existing
+    behaviour; one shared dijkstra pass yields both (~40 s at the 22k-node
+    live scale; the old full stamp cost ~6 min). Compute-only contract:
+    these tables never feed the 1,734-row lane-served graph_analytics
+    contract. Advisory lane: a failure drops all three and warns.
+    """
+    from helpers.graph import scipy_bridge as _sb_full
+
+    try:
+        A_fu, names_fu = _sb_full.load_projection(
+            str(db_path) if db_path else _sb_full.DEFAULT_DB_PATH
+        )
+        fu = _sb_full.full_universe_stats(A_fu, jobs=4)
+        _stamp_arrow_table(
+            con,
+            "v_centrality_closeness_full",
+            _SCORE_COLS,
+            list(zip(names_fu, map(float, fu["closeness"]))),
+        )
+        _stamp_arrow_table(
+            con,
+            "v_centrality_harmonic_full",
+            _SCORE_COLS,
+            list(zip(names_fu, map(float, fu["harmonic"]))),
+        )
+        _stamp_arrow_table(
+            con,
+            "v_graph_structure",
+            [("metric", "VARCHAR"), ("value", "DOUBLE")],
+            [(k, float(v)) for k, v in fu["structure"].items()],
+        )
+    except Exception as e:  # noqa: BLE001  # drop + warn; advisory lane
+        for t in (
+            "v_centrality_closeness_full",
+            "v_centrality_harmonic_full",
+            "v_graph_structure",
+        ):
+            con.execute(f"DROP TABLE IF EXISTS {t}")
+        print(f"centrality cache: all-universe unstamped: {e}", file=sys.stderr)
+
+
 def _materialise_centrality_cache(
     con: duckdb.DuckDBPyConnection, db_path: Path | str | None = None
-) -> None:  # noqa: C901
+) -> None:
     """Stamp the ten Onager structural metrics into per-metric tables.
 
     graph_centrality_persistent_cache: the scores are a pure function of
@@ -1602,17 +2136,13 @@ def _materialise_centrality_cache(
     ``_build_meta`` stamp is the invalidation token, so the tables carry
     no generation column (the same contract as ``v_node``).
 
-    VoteRank is list-valued: ``score`` stores the 1-based seed rank and
-    the reader reconstructs the order. Louvain's modularity scalar is
-    stamped into ``_build_meta`` (``louvain_modularity``) so
-    ``louvain_communities`` can serve a complete LouvainResult.
-
     Best-effort per metric: a metric that fails to compute is DROPPED
     (table absent) with a stderr warning and readers fall back to live
     compute — a broken stamp must never take the whole rebuild down
     (graph queries don't depend on these tables). Under
     ``bypass_centrality_cache`` so the stamp itself never reads the
-    half-built tables it is replacing.
+    half-built tables it is replacing. (graph_rebuild_fast_path S4: the
+    per-metric arms were extracted into module helpers — mask off.)
     """
     from helpers.graph.algorithms import (  # lazy: algorithms imports query
         betweenness_centrality,
@@ -1624,20 +2154,11 @@ def _materialise_centrality_cache(
         katz_centrality,
         laplacian_centrality,
         local_reaching_centrality,
-        louvain_communities,
-        voterank_seeds,
     )
-    from helpers.graph.onager import with_onager_connection
     from helpers.graph import scipy_bridge as _sb
+    from helpers.graph.onager import with_onager_connection
 
-    #: Metrics compute() serves from a lane (scipy_routing_dispatch S1/S3):
-    #: stamping their Onager full-pop scale would fork values against the
-    #: served universe AND cost the whole minutes-scale share of this job
-    #: (~400 s of 5-6 min at VIGIL scale). Skipped — readers compute on
-    #: demand (ephemerality). Single source of truth: the ROUTING table
-    #: (reverting a value resumes its stamp).
-    _LANE_SERVED = {m for m, o in _sb.ROUTING.items() if o in ("SCIPY", "L1B_FOLD")}
-
+    lane_served = {m for m, o in _sb.ROUTING.items() if o in ("SCIPY", "L1B_FOLD")}
     score_metrics: list[tuple[str, Callable[..., dict[str, float]]]] = [
         ("degree", degree_centrality),
         ("closeness", closeness_centrality),
@@ -1648,115 +2169,11 @@ def _materialise_centrality_cache(
         ("laplacian", laplacian_centrality),
         ("local_reaching", local_reaching_centrality),
     ]
-
-    def _stamp(table: str, cols: list[tuple[str, str]], rows: list[tuple]) -> None:
-        # executemany() on the persistent cache costs ~4ms/row (per-row
-        # WAL appends — measured 6.8s for 1.7K rows, which would price the
-        # ten-table stamp at ~60s); one registered Arrow relation + CTAS
-        # is the house pattern instead (same as _materialise_note_
-        # embeddings). Row lists are column-pivoted here, not at the call
-        # sites.
-        import pyarrow as _pa
-
-        types = {"VARCHAR": _pa.string(), "DOUBLE": _pa.float64(), "BIGINT": _pa.int64()}
-        con.execute(f"DROP TABLE IF EXISTS {table}")
-        if rows:
-            src = f"{table}_src"
-            con.register(
-                src,
-                _pa.table(
-                    {
-                        n: _pa.array([r[i] for r in rows], type=types[t])
-                        for i, (n, t) in enumerate(cols)
-                    }
-                ),
-            )
-            con.execute(f"CREATE TABLE {table} AS SELECT * FROM {src}")
-            con.unregister(src)
-        else:
-            con.execute(f"CREATE TABLE {table}({', '.join(f'{n} {t}' for n, t in cols)})")
-
-    _SCORE_COLS = [("name", "VARCHAR"), ("score", "DOUBLE")]
-
     with with_onager_connection(con), bypass_centrality_cache():
         for name, fn in score_metrics:
-            if f"{name}_centrality" in _LANE_SERVED:
-                # Lane-served: skip (see _LANE_SERVED above) — and make
-                # sure no stale table lingers from an older stamp.
-                con.execute(f"DROP TABLE IF EXISTS v_centrality_{name}")
-                print(
-                    f"centrality cache: {name} skipped (lane-served)",
-                    file=sys.stderr,
-                )
-                continue
-            try:
-                scores = fn(con)
-                _stamp(f"v_centrality_{name}", _SCORE_COLS, list(scores.items()))
-            except Exception as e:  # noqa: BLE001  # drop + warn; readers compute
-                con.execute(f"DROP TABLE IF EXISTS v_centrality_{name}")
-                print(f"centrality cache: {name} unstamped: {e}", file=sys.stderr)
-        try:
-            seeds = voterank_seeds(con)
-            _stamp(
-                "v_centrality_voterank",
-                _SCORE_COLS,
-                [(name, float(rank)) for rank, name in enumerate(seeds, 1)],
-            )
-        except Exception as e:  # noqa: BLE001
-            con.execute("DROP TABLE IF EXISTS v_centrality_voterank")
-            print(f"centrality cache: voterank unstamped: {e}", file=sys.stderr)
-        try:
-            louvain = louvain_communities(con)
-            _stamp(
-                "v_centrality_louvain",
-                [("name", "VARCHAR"), ("community_id", "BIGINT")],
-                list(louvain.labels.items()),
-            )
-            con.execute(_BUILD_META_DDL)
-            con.execute(
-                "INSERT OR REPLACE INTO _build_meta(key, value) VALUES ('louvain_modularity', ?)",
-                (repr(louvain.modularity),),
-            )
-        except Exception as e:  # noqa: BLE001
-            con.execute("DROP TABLE IF EXISTS v_centrality_louvain")
-            print(f"centrality cache: louvain unstamped: {e}", file=sys.stderr)
-        # scipy_exact_universe S6: the all-universe lane is stamped by
-        # DEFAULT — the pre-lane surfaces were NULL (structure) and
-        # unserved (full-walk centralities), so defaulting protects no
-        # existing behaviour; one shared dijkstra pass yields both
-        # (~40 s at the 22k-node live scale; the old full stamp cost
-        # ~6 min). Compute-only contract: these tables never feed the
-        # 1,734-row lane-served graph_analytics contract.
-        try:
-            from helpers.graph import scipy_bridge as _sb_full
-
-            A_fu, names_fu = _sb_full.load_projection(
-                str(db_path) if db_path else _sb_full.DEFAULT_DB_PATH
-            )
-            fu = _sb_full.full_universe_stats(A_fu, jobs=4)
-            _stamp(
-                "v_centrality_closeness_full",
-                _SCORE_COLS,
-                list(zip(names_fu, map(float, fu["closeness"]))),
-            )
-            _stamp(
-                "v_centrality_harmonic_full",
-                _SCORE_COLS,
-                list(zip(names_fu, map(float, fu["harmonic"]))),
-            )
-            _stamp(
-                "v_graph_structure",
-                [("metric", "VARCHAR"), ("value", "DOUBLE")],
-                [(k, float(v)) for k, v in fu["structure"].items()],
-            )
-        except Exception as e:  # noqa: BLE001  # drop + warn; advisory lane
-            for t in (
-                "v_centrality_closeness_full",
-                "v_centrality_harmonic_full",
-                "v_graph_structure",
-            ):
-                con.execute(f"DROP TABLE IF EXISTS {t}")
-            print(f"centrality cache: all-universe unstamped: {e}", file=sys.stderr)
+            _stamp_score_metric(con, name, fn, lane_served)
+        _stamp_voterank_and_louvain(con)
+        _stamp_full_universe(con, db_path)
 
 
 def _stage_edges(con: duckdb.DuckDBPyConnection) -> None:
@@ -1783,6 +2200,186 @@ def _stage_edges(con: duckdb.DuckDBPyConnection) -> None:
     con.execute("CREATE OR REPLACE TEMP TABLE _stg_edges AS SELECT * FROM fin.graph_edges")
 
 
+# Mixed-endpoint edge tables declared OUTSIDE EDGE_REGISTRY (see the Bundle
+# M4/D4 notes in their SQL comments): each maps table name → its CTAS. The
+# dict form gives the graph_rebuild_fast_path S1 patch lane per-table
+# granularity (re-execute one entry) while _materialise_edges keeps the
+# original full-build order.
+_MIXED_EDGE_TABLES: dict[str, dict[str, str]] = {
+    "belongs_to": {
+        "table": "e_belongs_to",
+        "ctas": """
+        CREATE TABLE e_belongs_to AS
+        SELECT src_id AS child_id,
+               dst_id AS parent_id,
+               weight, properties, source_ref, valid_from, valid_to
+        FROM _edge_resolved
+        WHERE edge_type = 'belongs_to'
+          AND src_kind IN ('sector', 'sub_sector')
+          AND dst_kind IN ('super_sector', 'sector')
+        """,
+    },
+    "exposed_to": {
+        "table": "e_exposed_to",
+        "ctas": """
+        CREATE TABLE e_exposed_to AS
+        SELECT src_id AS company_id,
+               dst_id AS theme_id,
+               weight, properties, source_ref, valid_from, valid_to
+        FROM _edge_resolved
+        WHERE edge_type = 'exposed_to'
+          AND src_kind = 'company'
+          AND dst_kind = 'theme'
+        """,
+    },
+    "cited_in": {
+        "table": "e_cited_in",
+        "ctas": """
+        CREATE TABLE e_cited_in AS
+        SELECT src_id AS company_id,
+               dst_id AS edition_id,
+               weight, properties, source_ref, valid_from, valid_to
+        FROM _edge_resolved
+        WHERE edge_type = 'cited_in'
+          AND src_kind IN ('company', 'sector', 'super_sector')
+          AND dst_kind = 'edition'
+        """,
+    },
+    "listed_in": {
+        "table": "e_listed_in",
+        "ctas": """
+        CREATE TABLE e_listed_in AS
+        SELECT src_id AS company_id,
+               dst_id AS country_id,
+               weight, properties, source_ref, valid_from, valid_to
+        FROM _edge_resolved
+        WHERE edge_type = 'listed_in'
+          AND src_kind = 'company'
+          AND dst_kind = 'country'
+        """,
+    },
+    "listed_on_index": {
+        "table": "e_listed_on_index",
+        "ctas": """
+        CREATE TABLE e_listed_on_index AS
+        SELECT src_id AS company_id,
+               dst_id AS index_id,
+               weight, properties, source_ref, valid_from, valid_to
+        FROM _edge_resolved
+        WHERE edge_type = 'listed_on_index'
+          AND src_kind = 'company'
+          AND dst_kind = 'index'
+        """,
+    },
+}
+
+
+def _resolve_edges(con: duckdb.DuckDBPyConnection) -> None:
+    """graph_rebuild_fast_path S3: resolve every staged edge ONCE.
+
+    One pass over ``_stg_edges`` joined twice against v_node produces the
+    session-local ``_edge_resolved`` (ids + endpoint kinds + payload); the
+    per-type CTAS in :func:`_materialise_edge_table` and
+    ``_MIXED_EDGE_TABLES`` become filtered projections of it instead of
+    ~17 re-scans + re-joins of the staged copy. TEMP = session-scoped,
+    never reaches the file (same discipline as ``_stg_edges``). Endpoint
+    kind filters preserve the old projection-table JOIN semantics exactly:
+    ``src_kind = 'company'`` selects precisely the rows the ``v_company``
+    JOIN bound.
+    """
+    con.execute(
+        """
+        CREATE OR REPLACE TEMP TABLE _edge_resolved AS
+        SELECT src.id AS src_id, dst.id AS dst_id,
+               src.kind AS src_kind, dst.kind AS dst_kind,
+               ge.edge_type, ge.weight, ge.properties, ge.source_ref,
+               ge.valid_from, ge.valid_to
+        FROM _stg_edges ge
+        JOIN v_node src ON src.name = ge.source
+        JOIN v_node dst ON dst.name = ge.target
+        """
+    )
+
+
+def _materialise_edge_table(
+    con: duckdb.DuckDBPyConnection, etype: str, spec: dict[str, str]
+) -> None:
+    """Create ONE EDGE_REGISTRY edge table.
+
+    Split from the registry loop (graph_rebuild_fast_path S1) so the
+    dirty-tracking patch lane can rebuild a single table. Three CTAS
+    shapes, keyed off the spec:
+
+    * ``invested_in`` (E5): mixed source — institution holders plus a
+      handful of company holders (e.g. Sanofi as holder) that already
+      exist as company entities. The generic v_institution JOIN would
+      drop the company-holder edge (714 vs 715); v_node with kind IN
+      resolves both.
+    * ``src_kinds`` in spec (VIGIL relation lanes, 2026-09-22): mixed
+      company/institution endpoints — the invested_in pattern
+      generalised to the registry.
+    * default: single-kind pair resolved against the projection tables
+      (``_KIND_TO_TABLE``).
+    """
+    if etype == "invested_in":
+        src_id_col = spec["src"]
+        dst_id_col = spec["dst"]
+        con.execute(
+            f"""
+            CREATE TABLE {spec["table"]} AS
+            SELECT src_id AS {src_id_col},
+                   dst_id AS {dst_id_col},
+                   weight, properties, source_ref, valid_from, valid_to
+            FROM _edge_resolved
+            WHERE edge_type = '{etype}'
+              AND src_kind IN ('institution', 'company', 'person')
+              AND dst_kind = 'company'
+            """
+        )
+        return
+    if "src_kinds" in spec:
+        _sk = ", ".join(f"'{k.strip()}'" for k in spec["src_kinds"].split(","))
+        _dk = ", ".join(f"'{k.strip()}'" for k in spec["dst_kinds"].split(","))
+        con.execute(
+            f"""
+            CREATE TABLE {spec["table"]} AS
+            SELECT src_id AS {spec["src"]},
+                   dst_id AS {spec["dst"]},
+                   weight, properties, source_ref, valid_from, valid_to
+            FROM _edge_resolved
+            WHERE edge_type = '{etype}'
+              AND src_kind IN ({_sk})
+              AND dst_kind IN ({_dk})
+            """
+        )
+        return
+    src_id_col = spec["src"]
+    dst_id_col = spec["dst"]
+    # Bundle L2: e_acquired carries a typed `year` column projected from
+    # properties JSON ONCE at materialise time, so acquisitions() and the
+    # AcquiredBy arm of company_neighbors_bundle read it directly instead
+    # of calling json_extract_string(e.properties, 'year') per query.
+    # json_extract_string returns VARCHAR (matches the consumers' string
+    # contract); COALESCE gives '' for the ~10/22 edges with no year.
+    # Only e_acquired gets the extra column — other edge types have no
+    # single hot-read JSON key worth denormalising (see Bundle L2 notes).
+    year_col = ""
+    if etype == "acquired":
+        year_col = ", COALESCE(json_extract_string(properties, 'year'), '') AS year"
+    con.execute(
+        f"""
+        CREATE TABLE {spec["table"]} AS
+        SELECT src_id AS {src_id_col},
+               dst_id AS {dst_id_col},
+               weight, properties, source_ref, valid_from, valid_to{year_col}
+        FROM _edge_resolved
+        WHERE edge_type = '{etype}'
+          AND src_kind = '{spec["src_kind"]}'
+          AND dst_kind = '{spec["dst_kind"]}'
+        """
+    )
+
+
 def _materialise_edges(con: duckdb.DuckDBPyConnection) -> None:
     """Create per-label edge tables for every registered edge type.
 
@@ -1807,195 +2404,18 @@ def _materialise_edges(con: duckdb.DuckDBPyConnection) -> None:
     graph declaration work correctly.
     """
     _stage_edges(con)
-    # Generic kind → projection table mapping (supports the institution kind
-    # introduced for invested_in without special-casing each branch).
-    _KIND_TO_TABLE: dict[str, str] = {
-        "company": "v_company",
-        "sector": "v_sector",
-        "super_sector": "v_super_sector",
-        "sub_sector": "v_sub_sector",
-        "theme": "v_theme",
-        "edition": "v_edition",
-        "institution": "v_institution",
-    }
+    _resolve_edges(con)
     for etype, spec in EDGE_REGISTRY.items():
-        # E5: invested_in has a mixed source — institution holders plus a
-        # handful of company holders (e.g. Sanofi as holder) that already
-        # exist as company entities. The generic v_institution JOIN would
-        # drop the company-holder edge (714 vs 715). Handle via v_node
-        # with kind IN so both institutions and companies are resolved.
-        if etype == "invested_in":
-            src_id_col = spec["src"]
-            dst_id_col = spec["dst"]
-            con.execute(
-                f"""
-                CREATE TABLE {spec["table"]} AS
-                SELECT src.id   AS {src_id_col},
-                       dst.id   AS {dst_id_col},
-                       ge.weight, ge.properties, ge.source_ref,
-                       ge.valid_from, ge.valid_to
-                FROM _stg_edges ge
-                JOIN v_node src ON src.name = ge.source
-                              AND src.kind IN ('institution', 'company', 'person')
-                JOIN v_node dst ON dst.name = ge.target
-                              AND dst.kind = 'company'
-                WHERE ge.edge_type = '{etype}'
-                """
-            )
-            continue
-        if "src_kinds" in spec:
-            # VIGIL relation lanes (2026-09-22): mixed company/institution
-            # endpoints, resolved against v_node with a kind IN filter —
-            # the invested_in (E5) pattern generalised to the registry.
-            _sk = ", ".join(f"'{k.strip()}'" for k in spec["src_kinds"].split(","))
-            _dk = ", ".join(f"'{k.strip()}'" for k in spec["dst_kinds"].split(","))
-            con.execute(
-                f"""
-                CREATE TABLE {spec["table"]} AS
-                SELECT src.id AS {spec["src"]},
-                       dst.id AS {spec["dst"]},
-                       ge.weight, ge.properties, ge.source_ref,
-                       ge.valid_from, ge.valid_to
-                FROM _stg_edges ge
-                JOIN v_node src ON src.name = ge.source
-                              AND src.kind IN ({_sk})
-                JOIN v_node dst ON dst.name = ge.target
-                              AND dst.kind IN ({_dk})
-                WHERE ge.edge_type = '{etype}'
-                """
-            )
-            continue
-        src_table = _KIND_TO_TABLE.get(spec["src_kind"], "v_company")
-        dst_table = _KIND_TO_TABLE.get(spec["dst_kind"], "v_company")
-        src_id_col = spec["src"]
-        dst_id_col = spec["dst"]
-        # Bundle L2: e_acquired carries a typed `year` column projected from
-        # properties JSON ONCE at materialise time, so acquisitions() and the
-        # AcquiredBy arm of company_neighbors_bundle read it directly instead
-        # of calling json_extract_string(e.properties, 'year') per query.
-        # json_extract_string returns VARCHAR (matches the consumers' string
-        # contract); COALESCE gives '' for the ~10/22 edges with no year.
-        # Only e_acquired gets the extra column — other edge types have no
-        # single hot-read JSON key worth denormalising (see Bundle L2 notes).
-        year_col = ""
-        if etype == "acquired":
-            year_col = ", COALESCE(json_extract_string(ge.properties, 'year'), '') AS year"
-        con.execute(
-            f"""
-            CREATE TABLE {spec["table"]} AS
-            SELECT src.id   AS {src_id_col},
-                   dst.id   AS {dst_id_col},
-                   ge.weight, ge.properties, ge.source_ref,
-                   ge.valid_from, ge.valid_to{year_col}
-            FROM _stg_edges ge
-            JOIN {src_table} src ON src.name = ge.source
-            JOIN {dst_table} dst ON dst.name = ge.target
-            WHERE ge.edge_type = '{etype}'
-            """
-        )
+        _materialise_edge_table(con, etype, spec)
 
-    # Bundle M4: `belongs_to` is the sector-hierarchy edge (sector ->
-    # super_sector AND sub_sector -> sector). It can't go through the
-    # generic registry loop above because that loop is structurally binary
-    # (src_kind/dst_kind each resolve to exactly one of v_company/v_sector).
-    # belongs_to has MIXED endpoints, so it gets a dedicated CTAS that JOINs
-    # v_node directly with kind filters. The two valid kind-pairs are:
-    #   sector -> super_sector   (42 edges)
-    #   sub_sector -> sector     (21 edges)
-    # Created unconditionally even if empty (no hierarchy built yet) so the
-    # property-graph declaration can skip it cleanly.
-    con.execute(
-        """
-        CREATE TABLE e_belongs_to AS
-        SELECT src.id AS child_id,
-               dst.id AS parent_id,
-               ge.weight, ge.properties, ge.source_ref,
-               ge.valid_from, ge.valid_to
-        FROM _stg_edges ge
-        JOIN v_node src ON src.name = ge.source
-                      AND src.kind IN ('sector', 'sub_sector')
-        JOIN v_node dst ON dst.name = ge.target
-                      AND dst.kind IN ('super_sector', 'sector')
-        WHERE ge.edge_type = 'belongs_to'
-        """
-    )
-    # D4: the exposed_to edge (company -> theme). Same out-of-registry reason
-    # as belongs_to: mixed endpoint kinds (company vs theme) don't fit the
-    # binary EDGE_REGISTRY loop (which resolves only company<->sector). JOINs
-    # v_node directly with kind filters. Created unconditionally so the
-    # property-graph declaration can skip it cleanly when empty.
-    con.execute(
-        """
-        CREATE TABLE e_exposed_to AS
-        SELECT src.id AS company_id,
-               dst.id AS theme_id,
-               ge.weight, ge.properties, ge.source_ref,
-               ge.valid_from, ge.valid_to
-        FROM _stg_edges ge
-        JOIN v_node src ON src.name = ge.source
-                      AND src.kind = 'company'
-        JOIN v_node dst ON dst.name = ge.target
-                      AND dst.kind = 'theme'
-        WHERE ge.edge_type = 'exposed_to'
-        """
-    )
-    # okf_activation P: the cited_in edge (company/sector -> edition) — OKF
-    # provenance made traversable. Same out-of-registry reason as the two
-    # above: mixed endpoint kinds. Created unconditionally so it exists
-    # cleanly when empty.
-    con.execute(
-        """
-        CREATE TABLE e_cited_in AS
-        SELECT src.id AS company_id,
-               dst.id AS edition_id,
-               ge.weight, ge.properties, ge.source_ref,
-               ge.valid_from, ge.valid_to
-        FROM _stg_edges ge
-        JOIN v_node src ON src.name = ge.source
-                      AND src.kind IN ('company', 'sector', 'super_sector')
-        JOIN v_node dst ON dst.name = ge.target
-                      AND dst.kind = 'edition'
-        WHERE ge.edge_type = 'cited_in'
-        """
-    )
-    # Country layer C1: the listed_in edge (company -> country), derived
-    # from exchange tickers (helpers/graph/derive_countries.py). Same
-    # out-of-registry reason as the two above: mixed endpoint kinds.
-    # Created unconditionally so it exists cleanly when empty.
-    con.execute(
-        """
-        CREATE TABLE e_listed_in AS
-        SELECT src.id AS company_id,
-               dst.id AS country_id,
-               ge.weight, ge.properties, ge.source_ref,
-               ge.valid_from, ge.valid_to
-        FROM _stg_edges ge
-        JOIN v_node src ON src.name = ge.source
-                      AND src.kind = 'company'
-        JOIN v_node dst ON dst.name = ge.target
-                      AND dst.kind = 'country'
-        WHERE ge.edge_type = 'listed_in'
-        """
-    )
-    # Index-membership fill S3: the listed_on_index edge (company -> index),
-    # derived from NSE index constituents (helpers/graph/derive_indices.py).
-    # Same out-of-registry reason as listed_in: mixed endpoint kinds.
-    # Created unconditionally so it exists cleanly when empty.
-    con.execute(
-        """
-        CREATE TABLE e_listed_on_index AS
-        SELECT src.id AS company_id,
-               dst.id AS index_id,
-               ge.weight, ge.properties, ge.source_ref,
-               ge.valid_from, ge.valid_to
-        FROM _stg_edges ge
-        JOIN v_node src ON src.name = ge.source
-                      AND src.kind = 'company'
-        JOIN v_node dst ON dst.name = ge.target
-                      AND dst.kind = 'index'
-        WHERE ge.edge_type = 'listed_on_index'
-        """
-    )
+    # Mixed-endpoint tables (Bundle M4 belongs_to, D4 exposed_to,
+    # okf_activation P cited_in, Country layer C1 listed_in, Index-membership
+    # fill S3 listed_on_index): each can't go through the generic registry
+    # loop because that loop is structurally binary — mixed kind-pairs get
+    # dedicated CTAS, kept verbatim in _MIXED_EDGE_TABLES. Created
+    # unconditionally even if empty so downstream consumers skip them cleanly.
+    for _mixed in _MIXED_EDGE_TABLES.values():
+        con.execute(_mixed["ctas"])
     # sql_capability_unlocks B1: whole-graph adjacency substrates for the
     # walk queries (see _materialise_walk_substrate for the details).
     _materialise_walk_substrate(con)
@@ -4052,7 +4472,7 @@ def _label_to_table(label: str) -> str | None:
 # --------------------------------------------------------------------------- #
 # CLI
 # --------------------------------------------------------------------------- #
-def _cli(argv: list[str] | None = None) -> int:  # noqa: C901
+def _cli(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(description="FinData graph query CLI")
     sub = p.add_subparsers(dest="cmd", required=True)
 
@@ -4162,6 +4582,29 @@ def _cli(argv: list[str] | None = None) -> int:  # noqa: C901
 
     args = p.parse_args(argv)
 
+    handled = _cli_admin_cmd(args)
+    if handled is not None:
+        return handled
+
+    con = connect()
+    for arm in (
+        _cli_sector_arms,
+        _cli_edge_arms,
+        _cli_pair_arms,
+        _cli_semantic_arms,
+        _cli_note_arms,
+        _cli_market_arms,
+    ):
+        handled = arm(con, args)
+        if handled is not None:
+            return handled
+    return 0
+
+
+def _cli_admin_cmd(args: argparse.Namespace) -> int | None:
+    """graph_rebuild_fast_path S4: the no-connection admin arms of _cli,
+    extracted with the mask off. Returns None when *args.cmd* is not one
+    of these (the caller falls through to the query arms)."""
     # rebuild / fresh / update-extensions don't need a query connection.
     if args.cmd == "rebuild":
         rebuild(stamp_centrality=args.stamp_centrality)
@@ -4193,9 +4636,11 @@ def _cli(argv: list[str] | None = None) -> int:  # noqa: C901
         else:
             print("✓ all extensions up to date")
         return 0
+    return None
 
-    con = connect()
 
+def _cli_sector_arms(con: duckdb.DuckDBPyConnection, args: argparse.Namespace) -> int | None:
+    """S4 split: sector/neighborhood print arms. None = not my command."""
     if args.cmd == "sector-of":
         print(sector_of(con, args.company) or "<no sector>")
     elif args.cmd == "sector-members":
@@ -4215,7 +4660,14 @@ def _cli(argv: list[str] | None = None) -> int:  # noqa: C901
             return 1
         for name, hop in path:
             print(f"  hop {hop}: {name}")
-    elif args.cmd == "sql":
+    else:
+        return None
+    return 0
+
+
+def _cli_edge_arms(con: duckdb.DuckDBPyConnection, args: argparse.Namespace) -> int | None:
+    """S4 split: raw-SQL and pairwise-relation print arms. None = not mine."""
+    if args.cmd == "sql":
         for row in sql(con, args.query):
             print(row)
     elif args.cmd == "peers":
@@ -4224,7 +4676,14 @@ def _cli(argv: list[str] | None = None) -> int:  # noqa: C901
             print(f"no competitors recorded for {args.company!r}")
         for p in peers_list:
             print(p)
-    elif args.cmd == "jv-partners":
+    else:
+        return None
+    return 0
+
+
+def _cli_pair_arms(con: duckdb.DuckDBPyConnection, args: argparse.Namespace) -> int | None:
+    """S4 split: JV / group-sibling print arms. None = not my command."""
+    if args.cmd == "jv-partners":
         partners = jv_partners(con, args.company)
         if not partners:
             print(f"no JVs recorded for {args.company!r}")
@@ -4236,27 +4695,14 @@ def _cli(argv: list[str] | None = None) -> int:  # noqa: C901
             print(f"no group siblings recorded for {args.company!r}")
         for s in sibs:
             print(s)
-    elif args.cmd == "acquisitions":
-        acqs = acquisitions(con, args.acquirer)
-        if not acqs:
-            print(f"no acquisitions recorded for {args.acquirer!r}")
-        for acquired, year in acqs:
-            print(f"{acquired:30} {year}")
-    elif args.cmd == "cycles":
-        # Bundle G3 diagnostic: directed cycles in the graph. Should be empty
-        # for symmetric edge types (one directed row per pair) and strictly
-        # acyclic types (acquired, subsidiary_of). Any cycle is a data bug.
-        cycles = find_cycles(
-            con, max_hops=args.max_hops, edge_label=args.edge_label, limit=args.limit
-        )
-        if not cycles:
-            label_note = f" for edge_label={args.edge_label!r}" if args.edge_label else ""
-            print(f"no directed cycles found{label_note} (max_hops={args.max_hops})")
-        else:
-            for c in cycles:
-                print("  " + " -> ".join(c))
-            print(f"({len(cycles)} cycle(s))", file=sys.stderr)
-    elif args.cmd == "semantic-neighbors":
+    else:
+        return None
+    return 0
+
+
+def _cli_semantic_arms(con: duckdb.DuckDBPyConnection, args: argparse.Namespace) -> int | None:
+    """S4 split: embedding-backed print arms. None = not my command."""
+    if args.cmd == "semantic-neighbors":
         results = semantic_neighbors(
             con, args.company, k=args.k, metric=args.metric, cross_sector=args.cross_sector
         )
@@ -4278,7 +4724,14 @@ def _cli(argv: list[str] | None = None) -> int:  # noqa: C901
         for path, title, sim in results:
             print(f"{sim:.4f}  {title}  ({path})")
         print(f"({len(results)} results)", file=sys.stderr)
-    elif args.cmd == "notes-like":
+    else:
+        return None
+    return 0
+
+
+def _cli_note_arms(con: duckdb.DuckDBPyConnection, args: argparse.Namespace) -> int | None:
+    """S4 split: note-embedding print arms. None = not my command."""
+    if args.cmd == "notes-like":
         results = notes_like_entity(con, args.entity, k=args.k)
         if results is None:
             print(f"no embedded note for entity {args.entity!r}")
@@ -4294,6 +4747,33 @@ def _cli(argv: list[str] | None = None) -> int:  # noqa: C901
         for path, title, sim in results:
             print(f"{sim:.4f}  {title}  ({path})")
         print(f"({len(results)} results)", file=sys.stderr)
+    else:
+        return None
+    return 0
+
+
+def _cli_market_arms(con: duckdb.DuckDBPyConnection, args: argparse.Namespace) -> int | None:
+    """S4 split: acquisitions/cycles/near-duplicate arms. None = not mine."""
+    if args.cmd == "acquisitions":
+        acqs = acquisitions(con, args.acquirer)
+        if not acqs:
+            print(f"no acquisitions recorded for {args.acquirer!r}")
+        for acquired, year in acqs:
+            print(f"{acquired:30} {year}")
+    elif args.cmd == "cycles":
+        # Bundle G3 diagnostic: directed cycles in the graph. Should be empty
+        # for symmetric edge types (one directed row per pair) and strictly
+        # acyclic types (acquired, subsidiary_of). Any cycle is a data bug.
+        cycles = find_cycles(
+            con, max_hops=args.max_hops, edge_label=args.edge_label, limit=args.limit
+        )
+        if not cycles:
+            label_note = f" for edge_label={args.edge_label!r}" if args.edge_label else ""
+            print(f"no directed cycles found{label_note} (max_hops={args.max_hops})")
+        else:
+            for c in cycles:
+                print("  " + " -> ".join(c))
+            print(f"({len(cycles)} cycle(s))", file=sys.stderr)
     elif args.cmd == "near-duplicates":
         pairs = near_duplicate_notes(
             con, min_sim=args.min_sim, doc_type=args.doc_type, limit=args.limit
@@ -4303,6 +4783,8 @@ def _cli(argv: list[str] | None = None) -> int:  # noqa: C901
         for pa, pb, ta, tb, sim in pairs:
             print(f"{sim:.4f}  {ta or pa}  <->  {tb or pb}")
         print(f"({len(pairs)} pair(s))", file=sys.stderr)
+    else:
+        return None
     return 0
 
 

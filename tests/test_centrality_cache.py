@@ -252,8 +252,41 @@ def test_rebuild_stamp_centrality_true_one_shot(cache_db):
 
 
 def test_stamp_centrality_cache_recreates_tables(cache_db):
-    """The explicit lane re-creates what a data-only rebuild dropped."""
-    gq.rebuild(db_path=cache_db)  # data-only: tables gone
+    """The explicit lane re-creates what a rebuild dropped.
+
+    graph_rebuild_fast_path S1 refines the drop contract: a rebuild whose
+    input fingerprints prove the edge set UNCHANGED keeps the stamps (a
+    stamp belongs to exactly one edge set — that set did not change); a
+    rebuild after an edge WRITE drops them. Both arms asserted; the lane
+    re-creates after the drop arm.
+    """
+    # arm 1 — unchanged edge set: stamps survive the rebuild
+    gq.rebuild(db_path=cache_db)
+    con = gq.connect(db_path=cache_db, read_only=True)
+    try:
+        row = con.execute(  # noqa: S608  # constant list
+            "SELECT count(*) FROM information_schema.tables WHERE table_name LIKE 'v_centrality_%'"
+        ).fetchone()
+        assert row is not None
+        assert row[0] > 0
+    finally:
+        con.close()
+    # arm 2 — an edge write bumps the generation: rebuild drops the stamps
+    import sqlite3 as _sq
+
+    _con = _sq.connect(str(cache_db))
+    _con.execute(
+        "INSERT INTO graph_edges (source, target, edge_type, source_ref) "
+        "VALUES ((SELECT name FROM entities WHERE entity_type='company' LIMIT 1), "
+        "(SELECT name FROM entities WHERE entity_type='company' ORDER BY name LIMIT 1 OFFSET 1), "
+        "'jv_with', 's1')"
+    )
+    _con.execute(
+        "UPDATE db_meta SET value = CAST(CAST(value AS INTEGER) + 1 AS TEXT) WHERE key='generation'"
+    )
+    _con.commit()
+    _con.close()
+    gq.rebuild(db_path=cache_db)  # data-only + dirty edges: tables gone
     con = gq.connect(db_path=cache_db, read_only=True)
     try:
         row = con.execute(  # noqa: S608  # constant list

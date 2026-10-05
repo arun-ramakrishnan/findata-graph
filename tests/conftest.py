@@ -675,6 +675,11 @@ def _write_test_metadata(session):
 
 
 def pytest_configure(config):
+    # graph_rebuild_fast_path S2: tests keep the inline-rebuild posture
+    # (the suite rebuilds stale caches freely); production CLIs fail
+    # fast instead. Individual tests opt into the fail-fast arm with
+    # monkeypatch.delenv.
+    os.environ.setdefault("GRAPH_STALE_REBUILD", "inline")
     worker = os.environ.get("PYTEST_XDIST_WORKER")
     if worker:
         from helpers.graph import query as gq

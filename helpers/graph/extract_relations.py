@@ -3440,6 +3440,19 @@ def _cli(argv: list[str] | None = None) -> int:  # noqa: C901
         conn.commit()
     conn.close()
 
+    # graph_rebuild_fast_path S2 (rebuild-on-apply): the apply just wrote
+    # graph_edges — refresh the DuckDB cache NOW instead of leaving the
+    # first graph query (or, post-S2, every read-only open) to pay for it.
+    # S1's dirty tracking makes this proportionate: only the written edge
+    # types + the walk substrate rebuild.
+    if args.apply and total_applied:
+        try:
+            from helpers.graph.query import rebuild as _rebuild
+
+            _rebuild()
+        except Exception as exc:  # noqa: BLE001  # edges are applied; the stale cache fails loud downstream
+            print(f"WARNING: post-apply graph rebuild failed: {exc}", file=sys.stderr)
+
     print("", file=sys.stderr)
     print(
         f"TOTAL files={len(nl_paths)} extracted={total_extracted} "

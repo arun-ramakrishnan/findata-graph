@@ -34,25 +34,28 @@ entry number and stale DONE pointers):
 
 ## Current live proposals
 
-- `markdown_fold.md` — **doc/ `.txt` → `.md` conversion sweep** (12
-  remaining prose files, continuing `4e1ec8f32` / `711c9a32a`): convert
-  (S1), repoint ~109 file-level references (S2), hygiene/gates (S5) —
-  the conversion half of the same arc (filed 2026-10-05).
+None — the pending-improvements arc is fully closed. Its three slices
+are all archived 2026-10-05: `markdown_fold` (`../archive/tooling/`,
+completed.md #346 — the conversion half), `graph_rebuild_fast_path`
+(`../archive/graph/`, completed.md entry 347 — the four measured P2.2
+successors:
+fingerprint dirty tracking + copy-then-patch rebuild (no-op 1.11 s vs
+3.51 s fresh), rebuild-on-apply + stale fail-fast, the single-scan
+`_edge_resolved` fold with 31/31 table parity at live scale, and the
+C901 mask splits), and `improvs_backlog_record`
+(`../archive/tooling/`, entry 348 — the 21-row backlog recorded into
+the perpetual tracker, working copy folded away). The committed live-trigger list remains
+`doc/improvements/pending.md`; the standing backlog census lives in
+`../archive/tooling/pending_improvs.md` (perpetual).
 
-- `graph_rebuild_fast_path.md` — **graph rebuild fast path**, the four
-  measured P2.2 successors in one arc: per-input dirty tracking so a
-  no-op rebuild is bounded and partial ingests rebuild only dependents
-  (S1); rebuild-on-apply + stale fail-fast so no first query after a
-  generation bump pays the rebuild inline (S2); the 12 `EDGE_REGISTRY`
-  CTAS + `e_all_und`/`e_dir` folded into one discriminated scan
-  against the ~1.70 s fixed band (S3); the two unruled `_cli` C901
-  masks split off (S4) (filed 2026-10-05).
-
-Note: the pending-improvements backlog working copy lives in the
-gitignored local file `doc/local/pending_improvs.md` (ultimate fold
-target: `doc/improvements/archive/tooling/pending_improvs.md`); its
-unique slices will be created as separate proposals under
-`doc/improvements/proposals/` (e.g. `markdown_fold.md`).
+Archived 2026-10-05: `markdown_fold` (`../archive/tooling/`,
+completed.md #346) — the conversion half of the pending-improvements arc:
+the last 12 prose `.txt` under `doc/improvements/archive/**` → `.md` with
+content preserved verbatim (S1), 67 inbound references repointed (S2),
+and the hygiene set green — `make md-lint` 0 over all 1668 files,
+frontmatter corpus test passed, `check_proposal_lifecycle()` fatal `[]`,
+`make search-fresh APPLY=1` then plain rc=0 (S5). The content half
+landed as entries 347/348 below.
 
 Archived 2026-10-04: `system_one_typed_judgment_framework`
 (`../archive/tooling/`, completed.md #345) — the reusable typed-judgment

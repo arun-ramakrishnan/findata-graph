@@ -39,6 +39,13 @@ commit, referenced by nothing). Entry numbers point at
 
 ## graph/ — Graph layer — algorithms, DuckPGQ retirement, Onager, knowledge-model design
 
+- [`graph_rebuild_fast_path.md`](graph/graph_rebuild_fast_path.md) —
+  graph rebuild fast path — per-input fingerprints (`fp:*` in
+  `_build_meta`) + copy-then-patch rebuild (no-op 1.11 s vs 3.51 s
+  fresh), rebuild-on-apply + stale fail-fast, single-scan
+  `_edge_resolved` fold (parity 31/31 tables at live scale), centrality
+  + `_cli` splits (zero C901 masks) — completed.md #347
+
 - [`search_enablers.md`](graph/search_enablers.md) —
   search enablers — evidence lanes for triage escalation: zero-key Bing/Google
   News RSS primary, DDG/Bing html demoted to relevance+host-gated fallback,
@@ -226,6 +233,11 @@ commit, referenced by nothing). Entry numbers point at
 - [`company_metrics_null_labels.md`](pipeline/company_metrics_null_labels.md) — Proposal (deferred): backfill `metric_label` on 3,119 guidance-style NULL rows (476 entities, desktop S3 finding); `guidance*` vocabulary, NULL keeps meaning "unlabeled" — completed.md #308
 
 ## tooling/ — Tooling & performance — MCP eval, doc browser/search, perf review, tech survey
+
+- [`improvs_backlog_record.md`](tooling/improvs_backlog_record.md) —
+  improvs backlog record — the 2026-10-05 backlog (21 rows, 5
+  categories) recorded into the perpetual tracker, then the gitignored
+  working copy folded away (no fresh file ever) — completed.md #348
 
 - [`system_one_typed_judgment_framework.md`](tooling/system_one_typed_judgment_framework.md) —
   System One typed-judgment framework — the reusable second source for triage

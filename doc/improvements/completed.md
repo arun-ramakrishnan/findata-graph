@@ -9149,3 +9149,48 @@ re-indented to 4 spaces (4/4 in that file now pass). Non-goals preserved:
 The proposal is archived at `doc/improvements/archive/tooling/markdown_fold.md`
 with `status: executed` + this number; the arc itself stays open until the
 pending-improvements slice proposal(s) are green.
+
+## 347. Graph rebuild fast path — dirty tracking, rebuild-on-apply, single-scan fold, mask hygiene
+
+Filed 2026-10-05; executed 2026-10-05 (`graph_rebuild_fast_path`
+proposal — the four measured P2.2 successors in one arc). **S1**:
+per-input fingerprints (`fp:*` keys in `_build_meta`, one GROUPING SETS
+pass over `graph_edges` + per-slice scans) and a copy-then-patch
+`rebuild()` — the live cache is copied to the pid-tagged temp, only
+tables whose inputs changed are drop-and-rebuilt (v_node dependency
+closure; conservative fallback on missing fingerprints/WAL/failure).
+Live: full build 3.51 s → **no-op patch rebuild 1.11 s**. **S2**:
+`extract-relations --apply` and `parse-newsletter --apply` call
+`rebuild()` post-write; a stale read-only open raises
+`GraphCacheStaleError` instead of silently rebuilding inline
+(`GRAPH_STALE_REBUILD=inline` restores the old posture; cold caches
+still build). **S3**: one `_edge_resolved` pass feeds all 12 registry +
+5 mixed edge CTAS as filtered projections — **parity 31/31 tables
+content-identical** to the pre-fold snapshot parquets at live scale
+(57,574 edges, 26,160 nodes); pre-drop pass skipped on empty catalogs.
+**S4**: centrality-stamp + `_cli` splits — `ruff --select C901` clean
+on `helpers/graph/query.py`, zero masks. Contract refinement: a rebuild
+on a provably unchanged edge set KEEPS the `v_centrality_*` stamps.
+Snapshot verification excludes `fp:*` (contract-legal drift class).
+Gates (operator-run 2026-10-05): qa 10/11 → types fixed targeted,
+advisory 10/12 → lint-audit fixed, convo-fresh always-red by design,
+integration 1/1, perf 25/25 — **graph_rebuild bench 3.04 s → 1.45 s**
+(the patch lane engages in the bench itself). 12 hermetic tests in
+`tests/test_graph_rebuild_fast_path.py`.
+
+## 348. Record the pending-improvements backlog into the perpetual tracker, then fold the working copy away
+
+Filed 2026-10-05; executed 2026-10-05 (`improvs_backlog_record`
+proposal — the content half of the pending-improvements arc that
+`markdown_fold` #346 began). **S1**: all 21 rows of the 2026-10-05
+backlog (5 categories incl. DB and Onager) recorded into
+`doc/improvements/archive/tooling/pending_improvs.md` — banner
+HISTORICAL → **perpetual improvements tracker**, A–F bundles kept
+verbatim as dated history with the item-number citation promise, stale
+`.txt` sibling names repointed, a *Where tracking lives now* note
+naming `doc/improvements/pending.md` as the committed live-trigger
+list. **S2**: the working copy's mid-arc re-verdicts merged into the
+tracker census and the gitignored `doc/local/pending_improvs.md`
+deleted — single home, no fresh file created at any point. Final
+census: rows 4/5/6/12 EXECUTED (entry 347), rows 1–3/7/8/11/13/14
+CLOSED, 9/10 NO-ACTION, 15–21 BLOCKED.
