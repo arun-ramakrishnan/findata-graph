@@ -1,6 +1,6 @@
 # Instructions for LLM/agent sessions
 
-Query, don't scan — five indexes cover this repo; grep and wholesale
+Query, don't scan — six indexes cover this repo; grep and wholesale
 reads are the fallback. TUI lanes are a usability shell over the CLIs
 below, never the only way in.
 
@@ -12,6 +12,7 @@ below, never the only way in.
 | scripts/tests/make/Mojo | `helpers/misc/script_query.py` | `script_search.db` |
 | **past agent sessions** (opencode+prime-rlm+zcode) | `helpers/misc/convo_query.py` | `convo_search.duckdb` + `_fts.db` |
 | vault notes (`findata/**`) | `helpers/misc/note_query.py` | `research.db` (`note_search`) |
+| **harness memory** (zcode pool + prime global + opencode) | `helpers/misc/memory_query.py` | `memory_search.db` |
 | gate-run reports | `helpers/misc/gate_query.py` | `outputs/*_report.md` |
 | code structure / callers | `ripwire` | offline binary |
 | why a process or file is busy | `witr` | live |
@@ -21,7 +22,7 @@ One rule the table hides: **harness conversations are not in `doc/`.**
 Docs hold conclusions; `convo_search` holds the path to them — dead
 ends, discarded options, why a live default is what it is.
 
-## The four query CLIs
+## The five query CLIs
 
 ```bash
 Q=".venv/bin/python3 helpers/misc"
@@ -29,6 +30,7 @@ $Q/doc_query.py "why did we not adopt langgraph" --limit 5   # doc/ incl doc/loc
 $Q/note_query.py "promoter holding" --limit 5              # findata/** vault
 $Q/script_query.py "<task>" --kind script|test|make|mojo   # before grepping
 $Q/convo_query.py "hypergraph scaling ceiling" --limit 5   # past sessions
+$Q/memory_query.py "stg refresh scope" --kind zcode|prime|opencode  # harness memory pools
 ```
 
 - **doc/script/note hits are text locators** (`path:line`) — Read only
@@ -88,7 +90,8 @@ Applies to every claim: "we already have X", "there's no Y here", "that
 file is at path P", "the patch isn't refreshed", "finding F is still
 open". Before asserting, run the index that owns the question —
 `doc_query` for design/paths, `note_query` for the vault, `convo_query`
-for what past sessions decided, `script_query` before grepping,
+for what past sessions decided, `memory_query` for harness-memory
+doctrine, `script_query` before grepping,
 `ripwire` for structure, `git`/`stg` for tree state, `ls`/`test -f` for
 existence. Then cite the hit.
 

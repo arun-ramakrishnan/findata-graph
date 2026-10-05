@@ -10,17 +10,20 @@ lane  source   backend
 1     docs     helpers/misc/doc_query.py (FTS5 + embeddings, --json)
 2     scripts  helpers/misc/script_query.py (--json; make/test/mojo too)
 3     notes    note_search FTS5 + f32 cosine (RRF hybrid; bm25 toggle)
-4     convo    helpers/misc/convo_query.py (FTS5 + cosine, RRF; corpus
+4     memory   harness-memory pools via memory_query core (zcode/prime/
+              opencode records; RRF hybrid; bm25 toggle)
+5     convo    helpers/misc/convo_query.py (FTS5 + cosine, RRF; corpus
               pointers file.parquet:<row>, --json)
-5     code     ripwire --for= (verbs: callers:/impact:/grep:/recall:)
-6     literal  rg (gitignore-aware, no color, path:line:text rows)
-7     reports  outputs/*_report.md (verbs: qa:/advisory:/integration:/
+6     code     ripwire --for= (verbs: callers:/impact:/grep:/recall:)
+7     literal  rg (gitignore-aware, no color, path:line:text rows)
+8     reports  outputs/*_report.md (verbs: qa:/advisory:/integration:/
               maint:/perf:/integrity:/verify:; empty query = per-report overview)
- ===== ======== =====================================================
+===== ======== =====================================================
 
-Lanes 1-3 are the indexes ``make search-fresh`` maintains; 4-5 are the
+Lanes 1-4 are the indexes ``make search-fresh`` maintains; 5 is the
+harvested conversation corpus (``make convo-fresh``); 6-7 are the
 stateless structure/literal tools from AGENTS.md (``--grep`` always
-carries ``--grep-in=any``); 6 reads the append-only ``outputs/`` run
+carries ``--grep-in=any``); 8 reads the append-only ``outputs/`` run
 reports (only as fresh as the last gate run — the status bar says which
 runs are shown). Nothing here builds a new index — a lane is
 only as fresh as ``make search-fresh APPLY=1`` left it (the status bar
@@ -64,7 +67,7 @@ from pathlib import Path, PurePosixPath
 from typing import Any
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-LANES: tuple[str, ...] = ("docs", "scripts", "notes", "convo", "code", "literal", "reports")
+LANES: tuple[str, ...] = ("docs", "scripts", "notes", "memory", "convo", "code", "literal", "reports")
 DEFAULT_LIMIT = 40
 RG_ROW_CAP = 300
 _SUB_TIMEOUT = 90  # ripwire walks the tree; doc/script CLIs embed queries.
@@ -411,6 +414,45 @@ def _run_notes(q: str, limit: int, mode: str = "hybrid") -> tuple[list[Hit], str
     return fused, f"{len(fused)} hits · note_search hybrid · RRF{_NOTES_RRF_K}"
 
 
+def _run_memory(q: str, limit: int, mode: str = "hybrid") -> tuple[list[Hit], str]:
+    """Harness-memory lane: one row per record across the three pools.
+
+    Core lives in ``rebuild_memory_search.search_memories`` (the same core
+    ``memory_query.py`` exposes) — this lane only maps rows to ``Hit``.
+    In-process like notes (the pools are small; a subprocess would cost
+    more than the query)."""
+    from helpers.core.db import connect as _db_connect
+    from helpers.maintenance import rebuild_memory_search as rms
+
+    db = rms.MEMORY_DB
+    if not db.exists():
+        return [], "memory_search sidecar missing — rebuild_memory_search.py"
+    try:
+        conn = _db_connect(db, read_only=True, wal=False)
+        try:
+            out = rms.search_memories(conn, q, limit=limit, hybrid=(mode != "bm25"))
+        finally:
+            conn.close()
+    except sqlite3.Error as e:  # pragma: no cover - defensive
+        return [], f"memory_search error: {e}"
+    hits = [
+        Hit(
+            path=r.get("path", ""),
+            line=None,
+            title=r.get("title") or r.get("name", ""),
+            section=r.get("kind") or "",
+            snippet=r.get("snippet") or "",
+            score=r.get("score"),
+            lane="memory",
+            kind=r.get("kind") or "",
+        )
+        for r in out.get("results", [])
+    ]
+    if not hits:
+        return [], f"0 hits · memory_search {out.get('mode', 'bm25')}"
+    return hits, f"{len(hits)} hits · memory_search {out.get('mode', 'bm25')}"
+
+
 def _run_code(q: str, limit: int, mode: str = "hybrid") -> tuple[list[Hit], str]:
     if shutil.which("ripwire") is None:
         return [], "ripwire missing on PATH"
@@ -513,6 +555,7 @@ _LANE_RUNNERS: dict[str, _LaneRunner] = {
     "docs": _run_docs,
     "scripts": _run_scripts,
     "notes": _run_notes,
+    "memory": _run_memory,
     "convo": _run_convo,
     "code": _run_code,
     "literal": _run_literal,
@@ -555,6 +598,7 @@ INDEXES: tuple[tuple[str, str, str], ...] = (
     ("docs", "memory/doc_search.db", "helpers/maintenance/rebuild_doc_search.py"),
     ("scripts", "memory/script_search.db", "helpers/maintenance/rebuild_script_search.py"),
     ("notes", "memory/research.db", "helpers/maintenance/rebuild_note_search.py"),
+    ("memory", "memory/memory_search.db", "helpers/maintenance/rebuild_memory_search.py"),
 )
 
 # ---------------------------------------------------------------------------
@@ -1847,6 +1891,7 @@ def index_ages(root: Path) -> str:
         ("docs", "memory/doc_search.db"),
         ("scripts", "memory/script_search.db"),
         ("notes", "memory/research.db"),
+        ("memory", "memory/memory_search.db"),
         ("convo", "memory/convo_search.duckdb"),
     ):
         f = root / rel

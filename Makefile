@@ -34,11 +34,11 @@ export PATH := $(CURDIR)/.venv/bin:$(PATH)
 export TMPDIR ?= $(shell test -d /mnt/data/tmp && { mkdir -p /mnt/data/tmp/findata; echo /mnt/data/tmp/findata; } || echo /tmp)
 
 
-.PHONY: help qa test live-invariants perf cover fuzz integration snapshot snapshot-check snapshot-restore sync-tags sync-coverage-tags sync-sector-links static-checks license-check tmp-sweep install-dev triage-quotes gate-fresh graph-smoke graph-stats graph-algos graph-rebuild graph-rebuild-bench update-extensions recompute-graph recompute-hyper search-fresh convo-fresh embed-gc search-tui derive-relations derive-co-mentions derive-themes derive-events derive-insights derive-indices quote-coverage derive-themes-rebuild derive-cited-in derive-cited-in-rebuild derive-hyperedges derive-all refresh-indices refresh-vigil refresh-shp frontend frontend-check fold-identifiers format maint maint-full md-lint metrics-rebuild mojo-bench mojo-build mojo-test mojo-format relations-enrich lint types types-tests lint-audit deptry advisory secret-scan cargo-audit script-search-rebuild triage-relations live-invariants stamp-centrality parity review-patch
+.PHONY: help qa test live-invariants perf cover fuzz integration snapshot snapshot-check snapshot-restore sync-tags sync-coverage-tags sync-sector-links static-checks license-check tmp-sweep install-dev triage-quotes gate-fresh graph-smoke graph-stats graph-algos graph-rebuild graph-rebuild-bench update-extensions recompute-graph recompute-hyper search-fresh convo-fresh embed-gc search-tui derive-relations derive-co-mentions derive-themes derive-events derive-insights derive-indices quote-coverage derive-themes-rebuild derive-cited-in derive-cited-in-rebuild derive-hyperedges derive-all refresh-indices refresh-vigil refresh-shp frontend frontend-check fold-identifiers format maint maint-full md-lint metrics-rebuild mojo-bench mojo-build mojo-test mojo-format relations-enrich lint types types-tests lint-audit deptry advisory secret-scan cargo-audit script-search-rebuild memory-search-rebuild triage-relations live-invariants stamp-centrality parity review-patch
 
 help:           ## Show available targets (alphabetical; entries generated from the ## annotations — keep both in sync)
 > @echo "FinData targets (alphabetical):"
-> @echo "  advisory                 Run advisory (non-gating) checks in PARALLEL (default 4 jobs; override: make advisory -j N): ty on tests, live invariants, frontend, graph algos, analytics, suggestions, doc/script/note-search freshness checks, lint-audit (appends outputs/advisory_report.md)"
+> @echo "  advisory                 Run advisory (non-gating) checks in PARALLEL (default 4 jobs; override: make advisory -j N): ty on tests, live invariants, frontend, graph algos, analytics, suggestions, doc/script/note/memory-search freshness checks, lint-audit (appends outputs/advisory_report.md)"
 > @echo "  analytics                Read-only analytics over the git-tracked Parquet snapshot (A3; arg = report name)"
 > @echo "  cargo-audit              RustSec scan of desktop/src-tauri/Cargo.lock (advisory; SKIPs without cargo-audit)"
 > @echo "  convo-fresh              Check conversation corpus+index freshness — harvest sources vs parquet corpus vs pointer index (exit 1 on drift; APPLY=1 harvests+rebuilds; also run by make advisory)"
@@ -98,7 +98,8 @@ help:           ## Show available targets (alphabetical; entries generated from 
 > @echo "  refresh-xbrl             D20: incremental NSE XBRL sweep, unseen filings only (ARGS=--new for IPOs; APPLY=1 to write)"
 > @echo "  review-patch             OCR delegation selection roster for the stgit stack (advisory; asserts tests/Mojo visibility per rule.json; STACK=N for HEAD~N..HEAD)"
 > @echo "  script-search-rebuild    Rebuild the script metadata index (script_search sidecar; query via helpers/misc/script_query.py)"
-> @echo "  search-fresh             Check ALL search indexes for staleness — doc/, script metadata, note embeddings (every check runs even if one fails; exit 1 on drift; APPLY=1 refreshes them instead; also run by make advisory)"
+> @echo "  memory-search-rebuild    Rebuild the harness-memory index (memory_search sidecar; query via helpers/misc/memory_query.py)"
+> @echo "  search-fresh             Check ALL search indexes for staleness — doc/, script metadata, note embeddings, harness memory (every check runs even if one fails; exit 1 on drift; APPLY=1 refreshes them instead; also run by make advisory)"
 > @echo "  search-tui               Full-screen search front door — docs/scripts/notes indexes + ripwire + rg lanes; enter reads markdown via glow"
 > @echo "  secret-scan              Incremental git-history secret scan (state under .git/secret-scan/)"
 > @echo "  snapshot                 Refresh the versioned DB snapshot"
@@ -327,17 +328,21 @@ script-search-rebuild: ## Rebuild the script metadata index (script_search sidec
 > python3 helpers/maintenance/rebuild_script_search.py
 > @echo "✓ script_search index rebuilt (memory/script_search.db; gate: make search-fresh / advisory)"
 
-search-fresh:    ## Check ALL search indexes for staleness — doc/, script metadata, note embeddings (every check runs even if one fails; exit 1 on drift; APPLY=1 refreshes them instead; also run by make advisory)
+memory-search-rebuild: ## Rebuild the harness-memory index (memory_search sidecar; query via helpers/misc/memory_query.py)
+> python3 helpers/maintenance/rebuild_memory_search.py
+> @echo "✓ memory_search index rebuilt (memory/memory_search.db; gate: make search-fresh / advisory)"
+
+search-fresh:    ## Check ALL search indexes for staleness — doc/, script metadata, note embeddings, harness memory (every check runs even if one fails; exit 1 on drift; APPLY=1 refreshes them instead; also run by make advisory)
 > @rc=0; \
 >   extra="$(if $(APPLY),,--check)"; \
 >   echo "search-fresh: $(if $(APPLY),APPLY — refreshing,check) mode"; \
->   for s in rebuild_doc_search rebuild_script_search rebuild_note_search; do \
+>   for s in rebuild_doc_search rebuild_script_search rebuild_note_search rebuild_memory_search; do \
 >     t0=$$(date +%s%3N); \
 >     echo "--- $$s $$extra"; \
 >     python3 helpers/maintenance/$$s.py $$extra || rc=1; \
 >     echo "    took $$(( $$(date +%s%3N) - t0 ))ms"; \
 >   done; \
->   if [ $$rc -eq 0 ]; then echo "✓ all search indexes fresh (doc_search, script_search, note_search)"; fi; \
+>   if [ $$rc -eq 0 ]; then echo "✓ all search indexes fresh (doc_search, script_search, note_search, memory_search)"; fi; \
 >   exit $$rc
 
 gate-fresh: ## Check gate-run index freshness for helpers/misc/gate_query.py (default: report drift, exit 1 when the index is behind — nothing written; APPLY=1 force-indexes incrementally; refresh also runs automatically before every gate_query verb)
@@ -524,6 +529,6 @@ md-lint:        ## Markdown lint via pinned markdownlint-cli2 — doc/ prose bas
 deptry:         ## Run deptry dependency-health scan (unused/undeclared/transitive deps)
 > deptry .
 
-advisory:       ## Run advisory (non-gating) checks in PARALLEL (default 4 jobs; override: make advisory -j N): ty on tests, live invariants, frontend, graph algos, analytics, suggestions, doc/script/note-search freshness checks, lint-audit (appends outputs/advisory_report.md)
+advisory:       ## Run advisory (non-gating) checks in PARALLEL (default 4 jobs; override: make advisory -j N): ty on tests, live invariants, frontend, graph algos, analytics, suggestions, doc/script/note/memory-search freshness checks, lint-audit (appends outputs/advisory_report.md)
 > python3 tests/run_gate_report.py advisory
 > @echo "✓ Advisory checks complete (appended to outputs/advisory_report.md; these do NOT block \`make qa\`)"

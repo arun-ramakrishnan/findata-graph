@@ -3,8 +3,8 @@
 **Date:** 2026-09-23 (merged from `doc-search.md`, `script-search.md`,
 `search-tui.md`)
 **Scope:** build/refresh/query of every search index this repo keeps
-fresh (`doc_search`, `script_search`, `note_search`), the shared
-`--check` contract, and the terminal front door (`search_tui`).
+fresh (`doc_search`, `script_search`, `note_search`, `memory_search`), the
+shared `--check` contract, and the terminal front door (`search_tui`).
 Embedding **apply** / model upgrades (company embeddings + note vectors
 write path) stay in `doc/procedures/embeddings.md` — that procedure owns
 the write side; this one owns freshness and query.
@@ -24,8 +24,9 @@ the write side; this one owns freshness and query.
 | `doc_search` FTS5 (BM25, section-level) + per-chunk embeddings | `memory/doc_search.db` (gitignored sidecar) | `doc/**` (incl. gitignored `doc/local/`) | `doc_query.py`, `GET /api/docs/search` |
 | `script_search` FTS5 + embeddings, hybrid RRF | `memory/script_search.db` (gitignored sidecar) | `helpers/**`, `tests/**`, `app.py`, Makefile | `script_query.py` |
 | `note_search` FTS5 (+ vec0 mirror in research.db) | inside `memory/research.db` | `findata/**` markdowns | `GET /api/search?hybrid=true`, TUI notes lane |
+| `memory_search` FTS5 + embeddings, hybrid RRF | `memory/memory_search.db` (gitignored sidecar) | harness memory pools: zcode (`~/.zcode/cli/memories/`), prime-rlm (`harness_state.json`), opencode (`.opencode/memory/*.logfmt`) | `memory_query.py` (`--kind zcode\|prime\|opencode`) |
 | Embed cache `(sha256(text), model) -> vector` | pooled `memory/embed_store.db` (schema `vecdb`) | shared by all indexers | automatic |
-| TUI (consumer only — builds no index) | reads the three above + `ripwire` + `rg` | — | `make search-tui` |
+| TUI (consumer only — builds no index) | reads the `doc_search`/`script_search`/`note_search` sidecars + `ripwire` + `rg` | — | `make search-tui` |
 
 Sidecars are deliberately NOT in `research.db`: `doc/local/` is private
 and the published DB is the git-tracked `snapshots/parquet/` export, so
@@ -36,22 +37,23 @@ Sidecars are derived state — delete and rebuild.
 
 ## Shared `--check` contract
 
-All three rebuilders share one drift-gate contract (`make search-fresh`
-runs them sequentially; the advisory gate runs three parallel rows):
+All four rebuilders share one drift-gate contract (`make search-fresh`
+runs them sequentially; the advisory gate runs the checks in parallel):
 
 | Rebuilder | Index | `--check` exit 1 on |
 |---|---|---|
 | `rebuild_doc_search.py` | `doc_search` | content-hash / mtime / count drift |
 | `rebuild_script_search.py` | `script_search` | same |
 | `rebuild_note_search.py` | `note_search` | FRESH/STALE drift report (#164, 2026-08-26) |
+| `rebuild_memory_search.py` | `memory_search` | harness-pool source-file content-hash drift |
 
 `--check` writes no index rows (it may warm the embed cache) and exits 1
 on drift with the exact refresh command in the output — house gate
 doctrine, CI-able as-is.
 
 ```bash
-make search-fresh              # check all three (every check runs even if one fails)
-make search-fresh APPLY=1      # refresh all three instead
+make search-fresh              # check all four (every check runs even if one fails)
+make search-fresh APPLY=1      # refresh all four instead
 ```
 
 **Which mode when**
@@ -214,11 +216,51 @@ exist).
 
 ---
 
+## memory_search — the harness-memory index
+
+### What it answers
+
+Durable cross-session doctrine living OUTSIDE the tree in three harness
+memory pools (layout record:
+`doc/local/engineering/consolidate_memory.md`): the zcode per-project
+markdown pool, the prime-rlm global store, and the opencode
+simple-memory records. `AGENTS.md` directs sessions to query
+`memory_query.py` for "what did we settle about X" before re-deriving
+doctrine — one row per MEMORY RECORD (the recall unit in every harness),
+`path` locator (zcode) or `path#record` (prime/opencode).
+
+### Build / refresh
+
+```bash
+.venv/bin/python3 helpers/maintenance/rebuild_memory_search.py              # full
+.venv/bin/python3 helpers/maintenance/rebuild_memory_search.py --incremental
+.venv/bin/python3 helpers/maintenance/rebuild_memory_search.py --check
+```
+
+Full rewrite is the everyday path (machine-local pools are small —
+~83 records); `--incremental` is a row-keyed courtesy diff. Freshness =
+source-file content-hash diff (mtime is a carry hint only). The
+opencode leg's format contract is owned by the external plugin
+(`@knikolov/opencode-plugin-simple-memory` v2.0.0, verified 2026-10-05):
+a plugin upgrade that changes the record shape is the watch item.
+
+### Query
+
+```bash
+.venv/bin/python3 helpers/misc/memory_query.py "stg refresh scope"
+.venv/bin/python3 helpers/misc/memory_query.py "witr duckdb" --kind prime
+.venv/bin/python3 helpers/misc/memory_query.py "operator contract" --json
+```
+
+---
+
 ## Search TUI (`search_tui`)
 
 **Scope:** one full-screen terminal front door over every search surface
 the repo already keeps fresh. No new index — the TUI is a consumer of
-the three `search-fresh` sidecars plus two stateless structural tools.
+the `doc_search`/`script_search`/`note_search` sidecars plus two
+stateless structural tools. (The harness-memory pools are CLI-only:
+`memory_query.py` — no TUI lane yet.)
 
 ### Lanes
 
@@ -321,12 +363,14 @@ extra.
 ## Gates & perf coverage
 
 - **Freshness:** out of `make perf` (2026-08-26, #159) — lives in
-  `make search-fresh` (all three `--check`s) and three advisory rows
-  (`doc-search-check`, `script-search-check`, `note-search-check`; STALE
-  = FAILED with the refresh command in the tail).
+  `make search-fresh` (all four `--check`s) and four advisory rows
+  (`doc-search-check`, `script-search-check`, `note-search-check`,
+  `memory-search-check`; STALE = FAILED with the refresh command in the
+  tail).
 - **`make perf`:** query-latency only — `doc_query` hybrid (budget 3.0 s;
-  warm ≈0.6 s incl. model load) and `script_query` hybrid (budget 3.0 s)
-  as real subprocesses against the live tree.
+  warm ≈0.6 s incl. model load), `script_query` hybrid (budget 3.0 s),
+  and `memory_query` hybrid (budget 3.0 s) as real subprocesses against
+  the live tree.
 - **Not in `make qa`:** doc/code edits land between maint cycles and
   would redden qa constantly — staleness degrades to scan / warn-answer
   instead. Freshness gates stay in `search-fresh` + advisory.

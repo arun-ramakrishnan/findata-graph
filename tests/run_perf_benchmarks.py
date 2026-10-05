@@ -201,10 +201,15 @@ BENCHMARKS: list[tuple[str, list[str], float]] = [
     ("derive_events", ["helpers/graph/derive_events.py"], 3.0),
     # Search-index freshness --checks LEFT perf 2026-08-26 (#159): the
     # STALE gate is owned by `make search-fresh` + the advisory gate's
-    # doc/script/note-search-check rows (exit 1 on drift, per-index report
-    # tails). Perf keeps only the QUERY-latency pair below.
+    # doc/script/note/memory-search-check rows (exit 1 on drift, per-index
+    # report tails). Perf keeps only the QUERY-latency rows below.
     ("doc_query", ["helpers/misc/doc_query.py", "embed cache sidecar", "--limit", "5"], 3.0),
     ("script_query", ["helpers/misc/script_query.py", "database integrity", "--limit", "5"], 3.0),
+    (
+        "memory_query",
+        ["helpers/misc/memory_query.py", "stg refresh scope", "--limit", "5"],
+        3.0,
+    ),
     # Local PDF pipeline (#156/#157) on the largest Reports PDF (30 pp):
     # convert + render + verify. Warm ≈3.2s on this box (2026-09-01; the
     # older ≈7.5s figure was a slower corpus/machine state); Tesseract on

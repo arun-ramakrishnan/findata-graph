@@ -96,6 +96,12 @@ DEFAULT_REFS: tuple[Ref, ...] = (
         _doc_text,
     ),
     Ref(
+        "memory",
+        REPO / "memory/memory_search.db",
+        "SELECT title, purpose, content FROM memory_search",
+        _doc_text,
+    ),
+    Ref(
         "note",
         REPO / "memory/research.db",
         "SELECT title, sector, section_title, content FROM note_search",

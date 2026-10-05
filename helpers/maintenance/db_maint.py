@@ -657,6 +657,7 @@ class DBMaintainer:
             "corpus.db",
             "doc_search.db",
             "script_search.db",
+            "memory_search.db",
             "convo_search.duckdb",
             "convo_search_fts.db",
             "data/sources.duckdb",

@@ -1228,10 +1228,11 @@ class SearchApp(App[None]):
         ("1", "lane('docs')", "docs"),
         ("2", "lane('scripts')", "scripts"),
         ("3", "lane('notes')", "notes"),
-        ("4", "lane('convo')", "convo"),
-        ("5", "lane('code')", "code"),
-        ("6", "lane('literal')", "rg"),
-        ("7", "lane('reports')", "reports"),
+        ("4", "lane('memory')", "memory"),
+        ("5", "lane('convo')", "convo"),
+        ("6", "lane('code')", "code"),
+        ("7", "lane('literal')", "rg"),
+        ("8", "lane('reports')", "reports"),
         ("escape", "blur_to_results", "to results"),
     ]
 
