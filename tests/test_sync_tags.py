@@ -271,7 +271,7 @@ def test_sync_tags_skips_sector_entities_with_self_referential_tag(tmp_path, mon
 # --------------------------------------------------------------------------- #
 # C1 regression guard (D3, 2026-07-30)                                        #
 # --------------------------------------------------------------------------- #
-# findata_corpus_audit.txt C1: the geography/business_model/risk_investment/
+# findata_corpus_audit.md C1: the geography/business_model/risk_investment/
 # investment_theme namespaces were read from YAML but silently DROPPED by
 # sync_tags.py's ALLOWED_CATEGORIES allowlist — ~3,100 tags invisible to every
 # entity_tags query. This test pins that all four namespaces are admitted, so a

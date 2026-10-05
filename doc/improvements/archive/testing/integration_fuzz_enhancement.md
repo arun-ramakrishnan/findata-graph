@@ -15,7 +15,7 @@ Status: EXECUTED (2026-08-22 — see §10 Implementation log)
 ## 1. TL;DR
 
 Both suites were last extended around the 2026-08-12 integration plan
-(`archive/testing/integration_plan.txt`). Since then the write-side of the
+(`archive/testing/integration_plan.md`). Since then the write-side of the
 pipeline grew substantially — derive_insights note rendering + stable
 writes, the `--no-notes` maint-full contract, OKF `sources[]` splicing,
 the near-duplicate tripwire, the snapshot create/verify/restore cycle —

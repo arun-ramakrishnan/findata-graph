@@ -2,7 +2,7 @@
 
 Source: read-only audit (2026-07-26) of the graph algorithm layer, prompted by
 "what algorithms do we support and can DuckDB extend them". Built on top of
-the closed Bundles A-F in pending_improvs.txt (those fixed correctness,
+the closed Bundles A-F in pending_improvs.md (those fixed correctness,
 integrity, latency, ingest cost, schema hygiene, and cleanups). This file is
 deliberately scoped to algorithm COVERAGE and ENGINE EXTENSION — i.e. what
 metrics the graph layer can compute and whether more of that work can move
@@ -11,7 +11,7 @@ into DuckDB instead of Python/NetworkX.
 Methodology: every claim is backed by file:line references and (for "not
 implemented" claims) verified by repo-wide search. The five "extension
 opportunities" are inferred from the architecture, not from a prior audit —
-they are candidates, not committed work. None are in pending_improvs.txt;
+they are candidates, not committed work. None are in pending_improvs.md;
 that audit considered algorithm coverage "closed" via the DuckPGQ-primary +
 NetworkX-fallback split.
 

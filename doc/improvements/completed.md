@@ -164,11 +164,11 @@
 ## Performance Optimization (2026-08-10)
 
 Four graph + maintenance scripts optimized based on a wall-clock sweep of the
-full pipeline (`perf_improvs.txt`, archived). All 4 unit test suites pass
+full pipeline (`perf_improvs.md`, archived). All 4 unit test suites pass
 (113 tests); 4 new perf-gate tests added to `test_performance.py` to guard
 against regression. `make perf` now covers 16 benchmarks + 3 scaling tests.
 
-Full analysis and before/after timings: `doc/improvements/archive/tooling/perf_improvs.txt`.
+Full analysis and before/after timings: `doc/improvements/archive/tooling/perf_improvs.md`.
 
 ### P0 — closeness_centrality weighted Dijkstra → unweighted BFS  [CRITICAL]
 
@@ -327,7 +327,7 @@ reporting in USD.
 `tests/test_enrich_yfinance.py` (32 tests), Makefile `metrics-rebuild` target.
 
 **Verification**: 801/931 tickers fetched (130 bad), 61.6s, 32/32 unit tests,
-15/15 perf benchmarks. Details: `doc/improvements/archive/pipeline/metric_improvs.txt` § 11.
+15/15 perf benchmarks. Details: `doc/improvements/archive/pipeline/metric_improvs.md` § 11.
 70. **Frontmatter dedup — consolidate all 7 duplicate functions** (2026-08-11)
 
 Created `helpers/core/frontmatter.py` as the single canonical frontmatter module
@@ -378,7 +378,7 @@ File reduced from 183KB/484 rows → 8KB/18 rows.
 
 **Date**: 2026-08-11
 **Status**: COMPLETE
-**Proposal**: `doc/improvements/archive/database/duckdb_improvs.txt` Bundle L, item L1
+**Proposal**: `doc/improvements/archive/database/duckdb_improvs.md` Bundle L, item L1
 
 Export all materialised DuckDB tables (20 tables) and SQLite data tables
 (9 tables, excluding FTS5 virtual tables) to portable Parquet files under
@@ -432,7 +432,7 @@ db-backup/parquet/
 
 **Date**: 2026-08-11
 **Status**: COMPLETE
-**Proposal**: `doc/improvements/archive/pipeline/findata_corpus_audit.txt` item H4
+**Proposal**: `doc/improvements/archive/pipeline/findata_corpus_audit.md` item H4
 
 Closed out the 18 deferred foreign-entity rows left by the H4 pass. All
 `_pending_relations.txt` rows are now resolved — the backlog is EMPTY.
@@ -869,7 +869,7 @@ duckpgq behavior (CSR construction fails on empty tables).
 
 87. **SQL Query Improvements A1-A3: cross-engine consistency fixes** (2026-08-13)
 
-Three correctness/consistency fixes from `doc/improvements/archive/database/sql_query_improvements.txt`:
+Three correctness/consistency fixes from `doc/improvements/archive/database/sql_query_improvements.md`:
 
 - **A1**: `market_cap_sql()` (db.py) — wrapped tag with `MIN()` so the SQLite
   correlated subselect matches DuckDB's deterministic alphabetically-first
@@ -967,7 +967,7 @@ transactional maintenance ops). All slices implemented and green:
   writes happen first, file move last.
 
 Two production bugs found by the differential/transactional tests are now fixed.
-Full plan + status: `doc/improvements/archive/testing/stateful_relational_test_plan.txt`.
+Full plan + status: `doc/improvements/archive/testing/stateful_relational_test_plan.md`.
 
 92. **ruff lint cleanup — 166 → 0, lint gated into `make qa`** (2026-08-13)
 
@@ -999,7 +999,7 @@ pytest**. Deleted the dead definition and ported its stronger `== 1` assertion
 **Gate:** `make lint` is green; `ruff check .` added as the first step of
 `make qa` (fastest fail) so the 166 can't regress. ruff 0.16.2 caught a prior
 real bug too (`db_maint.py` referenced `sys.stderr` with no `import sys` —
-fixed at adoption time). Full detail: `doc/improvements/archive/testing/lint_analysis.txt`.
+fixed at adoption time). Full detail: `doc/improvements/archive/testing/lint_analysis.md`.
 
 ## 91. duckpgq retirement, Phase A — Onager-backed pagerank / WCC / clustering
 
@@ -2626,7 +2626,7 @@ changes).
 - **Zero-byte stub removed**: `sqlite_improvs.txt` (empty since the
   initial commit, referenced by nothing except one stale test docstring
   pointing at a never-existing `doc/improvements/sqlite_improvs.txt`
-  path — corrected to `archive/database/sql_query_improvements.txt`).
+  path — corrected to `archive/database/sql_query_improvements.md`).
 - **All 71 path references updated across 30 files**: app.py, 12
   helpers/, 14 tests/, doc/{okf,graph_design,markdown_parse},
   completed.md (17), pending.md (2), and cross-refs inside two archived
@@ -9107,3 +9107,45 @@ both key-dispute items (47, 54) flagged DISAGREE; ledger 56 calls,
 27.7 s, $0.0000. Tests: typed_judgment 31, sitting/pinning 4
 (`TestS5SecondOpinionSitting`, `TestS7QuestionPinning`). Run record:
 `doc/local/evaluations/jev_pilot/legs3/module-ab-mercury/`.
+
+## 346. doc/ `.txt` → `.md` conversion sweep — archive migration finished (12 files)
+
+Filed 2026-10-05; executed 2026-10-05 (`markdown_fold` proposal, S1/S2/S5 —
+the conversion half of the pending-improvements arc; the content half —
+backlog recording + close-out fold, incl. its S3/S4 — becomes separate
+proposals per the operator's arc split). Finishes the migration started in
+`4e1ec8f32` / `711c9a32a`: the last **12 prose `.txt` files** under
+`doc/improvements/archive/**` now exist as `.md`, content preserved
+verbatim with only lint-blocking formatting applied (`===`/`---` banner
+rules → `##`/`###`, non-H1 title lines → H1, tab→2-space, dedent,
+`market_cap/*`-style glob literals and `_*`-leading identifiers → inline
+code spans). Fidelity verified by wrap-insensitive word-multiset diff:
+exact word-count parity on 8 of 12 files, the other 4 differing only by
+removed banner rules. S2 repointed **67 inbound references** — the `.txt`
+references in surviving files drop 76 → 9, and those 9 are the proposal's
+own migration record (archive README index lines, sibling cross-references,
+`completed.md` path citations, 5 `helpers/**` comments, 9 `tests/**`, 2
+`helpers/misc/embed_eval_questions.json` labels); the desktop doc-browser
+fixture was regenerated from the refreshed index via
+`make -C desktop fixtures` (13 fixture paths → `.md`). The 38
+`findata/**` vault stubs need no edit — their anchor is the item number
+(`item #11`), not the path; the vault is writer-owned. Acceptance:
+`find doc -name '*.txt' ! -name '*.py.txt'` returns only the §5
+`doc/local/**` data artifacts; **`make md-lint` → 0** (the gate the `.txt`
+extension was dodging) over all 1668 files;
+`test_frontmatter_schema.py::TestCorpusWalker::test_live_corpus_is_clean`
+passes; `check_proposal_lifecycle()` fatal `[]` (the headerless
+conversions stay outside the frontmatter contract);
+`make search-fresh APPLY=1` then plain (rc=0, all three indexes fresh)
+and the converted files answer `doc_query`. Ruff 0.16 formats Python blocks
+inside `.md`, so the dedent is a gate risk rather than a cosmetic one: the
+`.txt` → `.md` rename newly exposed every fenced `python` block to
+`ruff format`, and the 2-space dedent in
+`archive/tooling/mcp_tool_eval.md` failed
+`tests/test_lint_gates.py::test_ruff_format_footprint_clean` until it was
+re-indented to 4 spaces (4/4 in that file now pass). Non-goals preserved:
+`doc/local/**` data artifacts, `archive/graph/evidence/p22/scale_probe.py.txt`,
+`doc/improvements/pending.md`, the vault, and the backlog content itself.
+The proposal is archived at `doc/improvements/archive/tooling/markdown_fold.md`
+with `status: executed` + this number; the arc itself stays open until the
+pending-improvements slice proposal(s) are green.

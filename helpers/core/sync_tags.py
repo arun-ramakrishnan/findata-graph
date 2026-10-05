@@ -70,7 +70,7 @@ except ImportError:  # pragma: no cover
 # case). The four C1 namespaces below — geography/business_model/risk_investment
 # /investment_theme — were long DEFERRED (no concrete query use case when
 # ALLOWED_CATEGORIES was first written), which silently dropped ~3,100 tags that
-# the notes carried in YAML (findata_corpus_audit.txt C1). They are now admitted
+# the notes carried in YAML (findata_corpus_audit.md C1). They are now admitted
 # (2026-07-30, D3): they carry real classification signal, and investment_theme
 # in particular underpins the D4 cross-sector theme layer. Verify_notes now
 # WARNS on values outside the known-good set per namespace, so adding a

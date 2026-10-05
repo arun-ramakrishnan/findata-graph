@@ -9,12 +9,12 @@ The closed bundles covered correctness, schema, and indexing fixes that
 landed in the live DB and validators. The active improvement tracking now
 lives in the sibling survey files, each with a distinct scope:
 
-  - sqlite_improvs.txt   — SQLite-layer improvements (built on A–F)
-  - duckdb_improvs.txt   — DuckDB engine surface (built on A–F + G–J)
-  - graph_improvs.txt    — graph algorithm coverage (G–J; candidates, not
-                           committed work)
-  - findata_corpus_audit.txt — markdown ↔ SQLite ↔ DuckDB ↔ graph coverage
-  - hierarchy_design_roadmap.txt — forward-looking sector-hierarchy design
+- sqlite_improvs.txt   — SQLite-layer improvements (built on A–F)
+- duckdb_improvs.md   — DuckDB engine surface (built on A–F + G–J)
+- graph_improvs.txt    — graph algorithm coverage (G–J; candidates, not
+  committed work)
+- findata_corpus_audit.md — markdown ↔ SQLite ↔ DuckDB ↔ graph coverage
+- hierarchy_design_roadmap.txt — forward-looking sector-hierarchy design
 
 If you arrived here from a "Bundle Xn" or "item #n" citation, that item is
 closed; see the relevant sibling file above for the current state of that

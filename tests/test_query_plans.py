@@ -140,7 +140,7 @@ class TestEntityTagsQueryPlans:
 
     # NOTE: a tag-prefix LIKE ('sector/%') is intentionally NOT covered here.
     # LIKE with a wildcard defeats the index unless case_sensitive_like is
-    # set or the index is COLLATE NOCASE (see doc/improvements/pending_improvs.txt C3, DONE).
+    # set or the index is COLLATE NOCASE (see doc/improvements/pending_improvs.md C3, DONE).
     # The scan is the documented, accepted behavior — not a regression.
 
 

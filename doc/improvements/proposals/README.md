@@ -34,7 +34,25 @@ entry number and stale DONE pointers):
 
 ## Current live proposals
 
-_(none)_
+- `markdown_fold.md` — **doc/ `.txt` → `.md` conversion sweep** (12
+  remaining prose files, continuing `4e1ec8f32` / `711c9a32a`): convert
+  (S1), repoint ~109 file-level references (S2), hygiene/gates (S5) —
+  the conversion half of the same arc (filed 2026-10-05).
+
+- `graph_rebuild_fast_path.md` — **graph rebuild fast path**, the four
+  measured P2.2 successors in one arc: per-input dirty tracking so a
+  no-op rebuild is bounded and partial ingests rebuild only dependents
+  (S1); rebuild-on-apply + stale fail-fast so no first query after a
+  generation bump pays the rebuild inline (S2); the 12 `EDGE_REGISTRY`
+  CTAS + `e_all_und`/`e_dir` folded into one discriminated scan
+  against the ~1.70 s fixed band (S3); the two unruled `_cli` C901
+  masks split off (S4) (filed 2026-10-05).
+
+Note: the pending-improvements backlog working copy lives in the
+gitignored local file `doc/local/pending_improvs.md` (ultimate fold
+target: `doc/improvements/archive/tooling/pending_improvs.md`); its
+unique slices will be created as separate proposals under
+`doc/improvements/proposals/` (e.g. `markdown_fold.md`).
 
 Archived 2026-10-04: `system_one_typed_judgment_framework`
 (`../archive/tooling/`, completed.md #345) — the reusable typed-judgment

@@ -30,7 +30,7 @@ behind.
 
 ## 2. Background — why cosine, and why now
 
-- The 2026-08-09 vss adoption (duckdb_improvs.txt N5) verified brute
+- The 2026-08-09 vss adoption (duckdb_improvs.md N5) verified brute
   cosine at ~3 ms @ 1k and parked the HNSW family behind a quarterly
   extension re-check; brute cosine then became the shipped ranking.
 - `local_embedder._normalize` L2-normalises every vector at write
@@ -168,4 +168,4 @@ vectors approach ~10^6 (full evidence also in pending.md N5-5).
   invariant this swap relies on.
 - doc/improvements/archive/database/embed_store_consolidation.md #7 —
   the original COSINE-opclass blocker.
-- duckdb_improvs.txt N5 — the 2026-08-09 adoption + deferral record.
+- duckdb_improvs.md N5 — the 2026-08-09 adoption + deferral record.

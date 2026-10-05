@@ -475,7 +475,7 @@ Code (path constants — MUST repoint): `helpers/validators/frontmatter_schema.p
 Data: `helpers/misc/embed_eval_questions.json`. Docs: `README.md` (root),
 `doc/okf.md`, `doc/findata.md`, `doc/procedures/markdown_parse.md`,
 `doc/schema/frontmatter_keys.md` (moves with the dir), `doc/improvements/completed.md`
-+ `archive/tooling/mcp_tool_eval.txt` (historical — leave).
++ `archive/tooling/mcp_tool_eval.md` (historical — leave).
 
 ## Appendix 2 — design-doc reference inventory (S1 mv sweep, 2026-08-31)
 

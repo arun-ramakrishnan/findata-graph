@@ -60,7 +60,7 @@ So ~3511 of 3634 edges are STRUCTURE + CO-OCCURRENCE. The genuinely commercial
 relationships — who competes with whom, who supplies whom, who is a customer —
 total ELEVEN (7+3+1, plus same_group's 4). The richest part of a financial
 knowledge graph is its thinnest part. Every TIER 1/2 proposal is aimed at
-rebalancing this. (Note: findata_corpus_audit.txt H1 already measured the
+rebalancing this. (Note: findata_corpus_audit.md H1 already measured the
 typed-edge gap at "~10% of available signal" and closed the *extraction* side
 of it; the proposals here address the *modelling* side — capturing signal the
 current two-anchor, company-only design structurally cannot hold.)

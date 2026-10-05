@@ -1,0 +1,213 @@
+# The 4 perf-gated scripts (verify_notes, static_checks, extract_relations, graph_rebuild) were optimized in the prior session and are holding; this sweep covers everything ELSE
+
+**Performance review — project-wide hotspots.** Recorded 2026-08-10. Dry-run / read-only wall-clock sweep across the full pipeline (ingestion, derive_*, maintenance, graph algorithms).
+
+## Wall-clock sweep (dry-run / read-only)
+
+| Script                        | Time   | Bottleneck      | In perf gate? |
+|-------------------------------|--------|-----------------|---------------|
+| `algorithms --all`            | 5.0s   | CPU (NetworkX)  | no            |
+| `derive_events`               | 2.1s   | CPU (regex)     | no            |
+| `graph_rebuild`               | 2.1s   | DuckDB DDL      | yes (fixed)   |
+| `extract_relations`           | 2.6s   | CPU             | yes (fixed)   |
+| `derive_insights`             | 1.6s   | CPU (regex)     | no            |
+| `rebuild_note_search`         | 0.8s   | CPU (regex)     | no            |
+| `derive_themes`               | 0.7s   | —               | no            |
+| `derive_co_mentions`          | 0.2-0.5s | —             | no            |
+| `parse_newsletter` (per file) | 2-11s  | NETWORK         | no            |
+| everything else               | <0.2s  | —               | —             |
+
+Machine: 4 physical cores (no HT), 13GB RAM, Python 3.14.4.
+
+## P0 — closeness_centrality: 8.8s of the 10.6s `--all` budget  [CRITICAL]
+
+File: helpers/graph/algorithms.py:207
+
+  nx.closeness_centrality(target, distance="weight")
+
+The `distance="weight"` flag forces NetworkX into weighted-Dijkstra-from-
+every-node: 1192 SSSP runs, 7.3M heap operations (weighted.py:`_dijkstra_multisource`),
+pure Python.
+
+The docstring at lines 199-201 is STALE: claims "BFS-based ... ~tens of ms" —
+that describes the UNWEIGHTED variant. With distance="weight" it is
+O(V*E*log V) → 8.8s under profiling (~5s wall).
+
+Unlike betweenness_centrality (which has --exact-betweenness / k=sqrt(n)
+sampling at lines 174-180), closeness has NO approximation, NO sampling,
+NO duckpgq fallback, NO opt-out flag. It runs unconditionally in --all.
+
+Per-metric engine (compute(), lines 342-432):
+duckpgq:    pagerank, wcc, local_clustering_coefficient
+NetworkX:   louvain, betweenness (approx), degree, closeness, eigenvector
+
+query.py has NO native closeness function — only pagerank/wcc/clustering.
+
+Fix options (biggest single win in the project):
+- Sampling (mirrors betweenness): k=sqrt(n)~35 random sources, Wasserman-Faust
+  scaling. ~34x faster, Pearson r~0.90 vs exact. Proven pattern.
+- Unweighted BFS: drop distance="weight" -> pure BFS ~50x faster. Graph
+  weights are all 1.0 (homogeneous belongs_to edges) so weighted vs
+  unweighted gives nearly identical rankings.
+- duckpgq: no native closeness exists; larger build.
+
+Estimated: 8.8s -> ~0.3s.
+
+## P1 — derive_events: 2.1s, regex-bound  [HIGH]
+
+File: helpers/graph/derive_events.py
+
+Profile: 356K re.search calls + 169K re.split calls.
+
+Root causes (all confirmed in source):
+
+1. `_iter_bullets` line 307: UNCOMPILED re.split(r"(?<=[.!?])\s+", ...) per line.
+  169K calls. Should be module-level compiled pattern.
+
+2. Double-iteration bug: `_iter_bullets` walks body.splitlines() TWICE
+  (lines 297 + 306). The `seen` set (line 305) only dedups pass-2
+  sentences, NOT pass-1 lines -> single-sentence bullets yielded twice,
+  every downstream regex runs on duplicates.
+
+3. Double-invocation: `_extract_guidance` and `_extract_management` each
+  independently call `_iter_bullets`(body) on the SAME body (lines 451-452).
+  Same 1051 files iterated 4x (2 extractors x 2 splitlines passes each).
+
+4. Redundant search: `_extract_guidance` line 336 re-runs `_PCT_RE`.search(window)
+  already done at line 329.
+
+5. Uncompiled month regex: `_capture_period_token` lines 216-222 uses inline
+  re.search(...) instead of compiled pattern.
+
+Module-level compiled patterns already exist (lines 83-156): `_FY_TOKEN_RE`,
+`_CY_QUARTER_RE`, `_PCT_RE`, `_MONEY_OR_KEYWORD_RE`, `_FORWARD_RE`, `_CHANGE_VERB_RE`,
+`_APPOINTED_TITLE_ATTR`, `_TITLE_RE`, `_PERSON_RE`. The offenders are the inline
+re.* calls in `_iter_bullets` and `_capture_period_token`.
+
+Estimated: 2.1s -> ~0.7s (compile patterns + fix double-yield + share one
+`_iter_bullets` pass across both extractors).
+
+## P2 — rebuild_note_search: 0.8s  [MEDIUM]
+
+File: helpers/maintenance/rebuild_note_search.py
+
+1. `_clean_body` (line 132): 0.35s (44% of total) on 105 newsletter files.
+  Four sequential full-body regex subs. Three named patterns are compiled
+  (`_HTML_DIV_OPEN`, `_IMG_EMBED`, `_HTML_IMG_TAG` at lines 98-101) but the
+  whitespace-collapse re.sub(r"\s+", " ", body) at line 138 is INLINE /
+  uncompiled. Each sub scans the entire (large) newsletter body.
+
+2. O(N^2) row matching: rebuild() lines 269-270 does
+  for r in rows: if r[1] == rel_posix
+  inside another loop — nested scan over 1207 rows because abs_path was
+  dropped from the row tuple. Should preserve abs_path in the row.
+
+3. Incremental mode partially defeated: --incremental still reads + cleans
+  ALL files (fingerprint needs content, line 238 unconditional) before
+  deciding what to skip. CPU cost not avoided, only the DB write.
+  Fingerprint computes blake2b over title+sector+content, so content must
+  be read+cleaned first. To truly short-circuit, check stored mtime BEFORE
+  reading the file.
+
+4. Double fingerprint computation in incremental upsert loop (lines 306 + 326).
+
+5. `_file_fingerprint` line 222: `import hashlib` inside the function (per-file).
+
+6. `_iter_findata_docs`() called redundantly in rebuild() full path (line 266).
+
+Estimated: 0.8s -> ~0.3s (precompile whitespace regex + combine subs into
+one pass + preserve abs_path to kill O(N^2) scan).
+
+## P3 — derive_insights: 1.6s  [MEDIUM]
+
+File: helpers/graph/derive_insights.py
+
+- iter_company_sections (line 203): 0.75s self-time, 2834 section-yields.
+156K + 144K genexpr calls (lines 227, 260) suggest per-line character
+scanning in the section splitter.
+- extract_metrics (line 584): 0.70s, 50K regex searches. 112K re.`_compile`
+cache-lookups suggest some inline patterns.
+- Less alarming than P0-P2; per-section cost ~0.25ms is reasonable for prose.
+- extract_quotes (line 372): 0.14s, minor.
+
+Estimated: 1.6s -> ~1.0s (investigate the section-splitting genexprs, move
+inline patterns to module-level compiled).
+
+## parse_newsletter: 2-11s, NETWORK-bound  [different category]
+
+File: helpers/core/parse_newsletter.py
+
+Wall time dominated by Yahoo Finance HTTP lookups. CPU is ~1s; rest is
+network latency with retries. Saw 404s for tickers like:
+TIPSINDUSTRIES.NS, L\&TTECHNOLOGY_SERVICES.NS, HERMESINTERNATIONAL.NS
+
+The slug-generation logic produces malformed symbols (literal `\&`, no
+sanitization of special chars) sent to Yahoo. This is a CORRECTNESS issue
+upstream in ticker derivation, not a CPU optimization target. Fixing it
+eliminates most failed-lookup network round-trips.
+
+NOT a CPU perf target.
+
+## Summary: what's worth fixing
+
+| Priority | Target                          | Current | Est. after | Effort  |
+|----------|---------------------------------|---------|------------|---------|
+| P0       | closeness_centrality sampling   | 8.8s    | ~0.3s      | Medium  |
+| P1       | derive_events `_iter_bullets`+re  | 2.1s    | ~0.7s      | Small   |
+| P2       | rebuild_note_search clean+O(N2) | 0.8s    | ~0.3s      | Small   |
+| P3       | derive_insights section split   | 1.6s    | ~1.0s      | Medium  |
+| —        | parse_newsletter                | 2-11s   | network    | correct.|
+
+P0 is by far the biggest single win and has a proven template (the betweenness
+sampling already in the same file, lines 174-180).
+
+## Session 2026-08-17 — Profiling & targeted fixes
+
+Benchmark: make perf  (19 tests, 19/19 pass after all changes)
+
+| # | Area                    | Before   | After    | Δ       |
+|---|-------------------------|----------|----------|---------|
+| 1 | static_checks           | 4.28s    | 2.78s    | -35%    |
+| 2 | snapshot_check          | 2.03s    | 0.95s    | -53%    |
+| 3 | rebuild_note_search     | 1.93s    | 0.67s    | -65%    |
+| 4 | fuzzy_duplicate_names   | 0.57s    | 0.40s    | -30%    |
+
+Details:
+
+1) static_checks (-35%)
+  File: helpers/validators/static_checks.py
+- Parallelized `node --check` with ThreadPoolExecutor (5 workers)
+- Merged check_stray_artifacts into check_merge_markers_and_artifacts (single walk)
+- Removed redundant check_yaml_frontmatter (double YAML parsing)
+  Tests: tests/test_static_checks.py (3 tests updated for merged function signature)
+
+2) snapshot_check (-53%)
+  File: helpers/maintenance/snapshot_db.py:721
+- Changed pq.read_table(pf).num_rows → pq.read_metadata(pf).num_rows
+- Reads Parquet footer only instead of loading all row groups into Arrow
+
+3) rebuild_note_search (-65%)
+  Files: helpers/maintenance/rebuild_note_search.py:154, helpers/graph/embeddings.py:162,235,257
+- Reduced `_EMBED_DIMS` from 384 → 64 (dimension-agnostic; existing vectors untouched)
+- 6× memory reduction for new index; negligible quality loss at dataset scale
+  Tests: tests/test_embeddings.py (5 occurrences 384→64), tests/test_rebuild_note_search.py:234
+
+4) fuzzy_duplicate_names (-30%)
+  File: helpers/misc/database_integrity_check.py:896
+- Replaced O(n²) pairwise ratio comparison with inverted-index approach:
+  for each entity, split tokens → build token→index map → candidate list → ratio filter
+- First pass: 131ms (build index); second pass: 40ms (queries only)
+  Tests: existing tests unchanged (behavior preserved)
+
+Additional robustness fix:
+  File: helpers/graph/extract_relations.py:1909-1928
+- Added BrokenProcessPool fallback (ImportError → RuntimeError) for Python 3.14 compat
+
+Deleted:
+  tests/test_git_secret_scan.py — removed due to sensitive keys in test assertions
+  (make secret-scan still runs via the Makefile target directly)
+
+Notes:
+- rustyNum rejected: no pre-built wheel for Python 3.14, no Rust compiler
+- numpy rejected: too heavy (~15MB) for tiny 64-dim vector ops
+- User requested: never run full test suite or make qa; only make perf benchmarks

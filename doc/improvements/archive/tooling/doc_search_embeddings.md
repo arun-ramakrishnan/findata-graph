@@ -13,7 +13,7 @@ area: '`helpers/maintenance/rebuild_doc_search.py` (indexer +'
 green, live index built + evaled; archived same day; completed.md #148)
 **Date:** 2026-08-23
 **Author:** Agent analysis (user-directed)
-**Builds on:** doc_browser.txt (completed.md #107 — the filesystem doc
+**Builds on:** doc_browser.md (completed.md #107 — the filesystem doc
 browser this upgrades), local_embeddings (completed.md #141 — the shared
 embedder + cache this reuses), and the RRF hybrid ranking in
 `app.py::_hybrid_search_results`.

@@ -18,9 +18,9 @@ Open items below keep their revisit triggers inline; executed work is compressed
   parity fixture — byte-identical across pinned hash seeds; mask off;
   see `archive/tooling/c901_d1_split_near_duplicate_notes.md`; the earlier
   batch-2 hold expired — the P2.2 arc was doc-only). **All four ruling
-  masks executed.** What remains in `query.py` are the two pre-existing
-  unruled `_cli` masks (`:1594` booked to the next c901 pass by
-  collation S7; `:4055` unruled).
+   masks executed.** What remains in `query.py` are the two pre-existing
+   unruled C901 masks (`_materialise_centrality_cache` at `:1594` booked
+   to the next c901 pass by collation S7; `_cli` at `:4055` unruled).
 
 - **production-store copy census — TRIGGER ARMED 2026-09-29**
   (`archive/testing/production_db_copy_audit.md`, executed same day): every
@@ -77,8 +77,9 @@ Open items below keep their revisit triggers inline; executed work is compressed
   context overrun. S11 concluded with no join — 6 of 7 dead columns are
   empty at the source, and the one genuinely partial column
   (`error_message`, 16/3160) needs a schema addition, not a loader fix.
-  **Open follow-up:** add `error_message` to the request schema, and decide
-  per provider-absent column whether to document or drop it.
+  Closed 2026-10-02 by `trace_error_forensics` (completed.md #337): the
+  column landed on the request schema and every provider-absent column
+  got a disposition label (`report --legs column_dispositions`).
 
 - **gate_query integrity/verify grammar gap — IMPLEMENTED 2026-09-29 (completed.md #313; designed #302)**
   (`archive/tooling/gate_index_grammar_coverage.md`): the integrity and verify

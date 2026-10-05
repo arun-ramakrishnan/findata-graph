@@ -80,7 +80,7 @@ SUPER_SECTORS_DIR = VAULT_ROOT / "Super_Sectors"
 # The `_Super` suffix is self-documenting about the level and is applied
 # only where a collision exists; the other 7 names stay as approved.
 #
-# Collision/oddball resolutions (see doc/improvements/findata_corpus_audit.txt M4):
+# Collision/oddball resolutions (see doc/improvements/findata_corpus_audit.md M4):
 #   - Capital_Markets   -> Financials    (capital-markets/investing, GICS)
 #   - Media_Entertainment -> Communication Services (GICS, not Cons. Disc.)
 #   - Telecommunications  -> Communication Services (primary classification)

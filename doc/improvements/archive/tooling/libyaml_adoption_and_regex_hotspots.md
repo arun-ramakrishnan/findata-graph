@@ -34,7 +34,7 @@ the shared core helper `helpers/core/frontmatter.py`.
 The same profiling pass confirmed a second, independent class: the graph
 derivation scripts are **regex-bound** (`derive_events` 56%,
 `derive_themes` 49% of runtime in `re.Pattern.search`). This was known —
-`perf_improvs.txt` P1 (2026-08-17) documented `derive_events` at 356K
+`perf_improvs.md` P1 (2026-08-17) documented `derive_events` at 356K
 `re.search` calls; the compile/double-iteration fixes landed, but the raw
 search-count cost remains (270K calls today).
 
@@ -112,7 +112,7 @@ the shared loader in the 10 fm-parsing helpers — is optional S5.
 
 ### 2.5 Ruled out (measured, do not re-audit)
 
-- **numpy** — rejected 2026-08-17 (perf_improvs.txt): "too heavy (~15MB)
+- **numpy** — rejected 2026-08-17 (perf_improvs.md): "too heavy (~15MB)
   for tiny 64-dim vector ops". No `import numpy` exists in helpers/ or
   app.py; heavy numerics already live in C (Onager, sqlite-vec,
   llama.cpp, FTS5).
@@ -328,4 +328,4 @@ S5 swapped all 26 test-side `yaml.safe_load` sites across 11 modules
 | 2026-09-01 | `.venv/bin/python3 -m pytest tests/test_derive_insights.py -q -p no:xdist` | 144 passed 1.54 s | profile: imports 0.77 s, poll 0.20 s |
 | 2026-09-01 | pytest 7 YAML-heavy modules --durations=15 | 268 passed 4.76 s | slowest: corpus walk 0.73 s, mojo format 0.41 s |
 | 2026-08-28→09-01 | `make perf` (perf_report.txt) | derive_insights 2.88–3.73 s vs 4.0 s budget | trigger for this proposal |
-| 2026-08-17 | perf_improvs.txt (archived) | derive_events 356K re.search documented P1 | compile fixes landed; volume remains |
+| 2026-08-17 | perf_improvs.md (archived) | derive_events 356K re.search documented P1 | compile fixes landed; volume remains |

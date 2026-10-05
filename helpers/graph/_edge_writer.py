@@ -7,7 +7,7 @@ public ``apply_edges`` wrappers delegate here.
 
 Note: `extract_relations.apply_edges` is a *different* shape (returns
 ``ApplyEdgesResult``, tracks FK failures + suppressed edges, cyclo 13) and
-is intentionally NOT folded in — see mcp_tool_eval.txt §D.
+is intentionally NOT folded in — see mcp_tool_eval.md §D.
 """
 
 from __future__ import annotations

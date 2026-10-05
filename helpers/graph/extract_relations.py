@@ -271,7 +271,7 @@ _ALIASES: dict[str, str] = {
     # parent is a DIFFERENT entity from the Indian subsidiary — do NOT
     # add an alias that collapses the two (would suppress legitimate
     # `subsidiary_of` edges to a future parent stub). Those parents are
-    # tracked as stub candidates in doc/improvements/pending_improvs.txt.
+    # tracked as stub candidates in doc/improvements/pending_improvs.md.
     "bata": "Bata India",  # "Bata" alone = Indian entity; "Bata (BN) B.V." is a stub candidate
     "ceat": "CEAT",  # single canonical entity
     "diageo": "Diageo plc",  # entity is the global plc itself

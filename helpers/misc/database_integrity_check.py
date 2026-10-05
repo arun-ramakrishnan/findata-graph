@@ -1318,7 +1318,7 @@ class DatabaseIntegrityChecker:
         to the alphabetically-FIRST (most-optimistic) tier. So a company
         tagged both ``large_cap`` and ``mid_cap`` shows as ``large_cap`` in
         every consumer (sector_members, the /api/graph/sector endpoint, the
-        market-cap distribution). See findata_corpus_audit.txt C2-FIX.
+        market-cap distribution). See findata_corpus_audit.md C2-FIX.
 
         ERROR-level: the live graph was clean as of the 2026-08-05 dedupe
         (helpers/maintenance/dedupe_market_cap_tags.py), so any nonzero value

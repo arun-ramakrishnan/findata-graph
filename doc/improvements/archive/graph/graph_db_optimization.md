@@ -17,7 +17,7 @@ area: helpers/graph/onager.py, helpers/graph/algorithms.py, helpers/graph/derive
 
 ## Current State Summary
 
-The prior session (2026-08-17) fixed four items (static_checks -35%, snapshot_check -53%, rebuild_note_search -65%, fuzzy_duplicate_names -30%) and refactored `closeness_centrality` from NetworkX (`nx.closeness_centrality(target, distance="weight")`, 8.8s) to Onager DuckDB extension (`onager_ctr_closeness`, 1.7s). The `perf_improvs.txt` P0 item is resolved; remaining targets are discussed below.
+The prior session (2026-08-17) fixed four items (static_checks -35%, snapshot_check -53%, rebuild_note_search -65%, fuzzy_duplicate_names -30%) and refactored `closeness_centrality` from NetworkX (`nx.closeness_centrality(target, distance="weight")`, 8.8s) to Onager DuckDB extension (`onager_ctr_closeness`, 1.7s). The `perf_improvs.md` P0 item is resolved; remaining targets are discussed below.
 
 | Benchmark | Latest | Budget | Status |
 |---|---|---|---|

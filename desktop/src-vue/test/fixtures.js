@@ -1,11 +1,11 @@
 export const FIXTURES = {
   "stats": {
-    "entities": 26153,
-    "edges": 57515,
+    "entities": 26160,
+    "edges": 57574,
     "entity_types": [
       {
         "type": "company",
-        "count": 25469
+        "count": 25475
       },
       {
         "type": "institution",
@@ -17,7 +17,7 @@ export const FIXTURES = {
       },
       {
         "type": "edition",
-        "count": 120
+        "count": 121
       },
       {
         "type": "index",
@@ -47,15 +47,15 @@ export const FIXTURES = {
     "edge_types": [
       {
         "type": "supplier_to",
-        "count": 16594
+        "count": 16600
       },
       {
         "type": "subsidiary_of",
-        "count": 11588
+        "count": 11596
       },
       {
         "type": "same_group",
-        "count": 9819
+        "count": 9828
       },
       {
         "type": "listed_on_index",
@@ -63,11 +63,11 @@ export const FIXTURES = {
       },
       {
         "type": "competes_with",
-        "count": 3581
+        "count": 3578
       },
       {
         "type": "cited_in",
-        "count": 1950
+        "count": 1961
       },
       {
         "type": "co_mentioned_in",
@@ -75,15 +75,15 @@ export const FIXTURES = {
       },
       {
         "type": "has_company",
-        "count": 1186
+        "count": 1192
       },
       {
         "type": "part_of",
-        "count": 1186
+        "count": 1192
       },
       {
         "type": "jv_with",
-        "count": 1077
+        "count": 1089
       },
       {
         "type": "listed_in",
@@ -91,7 +91,7 @@ export const FIXTURES = {
       },
       {
         "type": "invested_in",
-        "count": 799
+        "count": 800
       },
       {
         "type": "exposed_to",
@@ -107,11 +107,11 @@ export const FIXTURES = {
       },
       {
         "type": "acquired",
-        "count": 46
+        "count": 55
       },
       {
         "type": "semantic_peer",
-        "count": 30
+        "count": 24
       },
       {
         "type": "regulated_by",
@@ -1699,6 +1699,11 @@ export const FIXTURES = {
         "entity_type": "company"
       },
       {
+        "id": "Clix Capital",
+        "label": "Clix Capital",
+        "entity_type": "company"
+      },
+      {
         "id": "Coforge",
         "label": "Coforge",
         "entity_type": "company"
@@ -1706,6 +1711,11 @@ export const FIXTURES = {
       {
         "id": "Comfort Click",
         "label": "Comfort Click",
+        "entity_type": "company"
+      },
+      {
+        "id": "DBS Group",
+        "label": "DBS Group",
         "entity_type": "company"
       },
       {
@@ -1854,6 +1864,11 @@ export const FIXTURES = {
         "entity_type": "company"
       },
       {
+        "id": "Kering Beaute",
+        "label": "Kering Beaute",
+        "entity_type": "company"
+      },
+      {
         "id": "Kotak Mahindra Bank",
         "label": "Kotak Mahindra Bank",
         "entity_type": "company"
@@ -1864,8 +1879,23 @@ export const FIXTURES = {
         "entity_type": "company"
       },
       {
+        "id": "L'Oreal",
+        "label": "L'Oreal",
+        "entity_type": "company"
+      },
+      {
         "id": "LTM",
         "label": "LTM",
+        "entity_type": "company"
+      },
+      {
+        "id": "Lakshmi Vilas Bank",
+        "label": "Lakshmi Vilas Bank",
+        "entity_type": "company"
+      },
+      {
+        "id": "Larsen & Toubro",
+        "label": "Larsen & Toubro",
         "entity_type": "company"
       },
       {
@@ -1886,6 +1916,11 @@ export const FIXTURES = {
       {
         "id": "M1Xchange",
         "label": "M1Xchange",
+        "entity_type": "company"
+      },
+      {
+        "id": "MHP",
+        "label": "MHP",
         "entity_type": "company"
       },
       {
@@ -1954,6 +1989,21 @@ export const FIXTURES = {
         "entity_type": "company"
       },
       {
+        "id": "Samvardhana Motherson Global Carriers",
+        "label": "Samvardhana Motherson Global Carriers",
+        "entity_type": "company"
+      },
+      {
+        "id": "Samvardhana Motherson Innovative Autosystems B.V. & Co. KG",
+        "label": "Samvardhana Motherson Innovative Autosystems B.V. & Co. KG",
+        "entity_type": "company"
+      },
+      {
+        "id": "Samvardhana Motherson Innovative Autosystems de Mexico, S.A. de C.V",
+        "label": "Samvardhana Motherson Innovative Autosystems de Mexico, S.A. de C.V",
+        "entity_type": "company"
+      },
+      {
         "id": "Samvardhana Motherson Innovative solutions",
         "label": "Samvardhana Motherson Innovative solutions",
         "entity_type": "company"
@@ -1966,6 +2016,11 @@ export const FIXTURES = {
       {
         "id": "Sapphire Foods India",
         "label": "Sapphire Foods India",
+        "entity_type": "company"
+      },
+      {
+        "id": "Shapoorji Pallonji and Company",
+        "label": "Shapoorji Pallonji and Company",
         "entity_type": "company"
       },
       {
@@ -1986,6 +2041,11 @@ export const FIXTURES = {
       {
         "id": "Tata Capital",
         "label": "Tata Capital",
+        "entity_type": "company"
+      },
+      {
+        "id": "Tata Consultancy Services",
+        "label": "Tata Consultancy Services",
         "entity_type": "company"
       },
       {
@@ -2269,20 +2329,65 @@ export const FIXTURES = {
         "source": "Kansai Nerolac Paints",
         "target": "Nerofix",
         "edge_type": "acquired"
+      },
+      {
+        "source": "Tata Consultancy Services",
+        "target": "MHP",
+        "edge_type": "acquired"
+      },
+      {
+        "source": "Larsen & Toubro",
+        "target": "LTM",
+        "edge_type": "acquired"
+      },
+      {
+        "source": "Samvardhana Motherson Innovative Autosystems de Mexico, S.A. de C.V",
+        "target": "Motherson Sumi Wiring India",
+        "edge_type": "acquired"
+      },
+      {
+        "source": "Samvardhana Motherson Global Carriers",
+        "target": "Motherson Sumi Wiring India",
+        "edge_type": "acquired"
+      },
+      {
+        "source": "Lunolux",
+        "target": "Shapoorji Pallonji and Company",
+        "edge_type": "acquired"
+      },
+      {
+        "source": "Samvardhana Motherson Innovative Autosystems B.V. & Co. KG",
+        "target": "Motherson Sumi Wiring India",
+        "edge_type": "acquired"
+      },
+      {
+        "source": "DBS Group",
+        "target": "Lakshmi Vilas Bank",
+        "edge_type": "acquired"
+      },
+      {
+        "source": "L'Oreal",
+        "target": "Kering Beaute",
+        "edge_type": "acquired"
+      },
+      {
+        "source": "Clix Capital",
+        "target": "Lakshmi Vilas Bank",
+        "edge_type": "acquired"
       }
     ],
     "relationship_types": [
       {
         "edge_type": "supplier_to",
-        "count": 16594
+        "count": 16600
       },
       {
         "edge_type": "subsidiary_of",
-        "count": 11588
+        "count": 11596
       },
       {
         "edge_type": "same_group",
-        "count": 9819
+        "count": 9828
       },
       {
         "edge_type": "listed_on_index",
@@ -2290,11 +2395,11 @@ export const FIXTURES = {
       },
       {
         "edge_type": "competes_with",
-        "count": 3581
+        "count": 3578
       },
       {
         "edge_type": "cited_in",
-        "count": 1950
+        "count": 1961
       },
       {
         "edge_type": "co_mentioned_in",
@@ -2302,15 +2407,15 @@ export const FIXTURES = {
       },
       {
         "edge_type": "has_company",
-        "count": 1186
+        "count": 1192
       },
       {
         "edge_type": "part_of",
-        "count": 1186
+        "count": 1192
       },
       {
         "edge_type": "jv_with",
-        "count": 1077
+        "count": 1089
       },
       {
         "edge_type": "listed_in",
@@ -2318,7 +2423,7 @@ export const FIXTURES = {
       },
       {
         "edge_type": "invested_in",
-        "count": 799
+        "count": 800
       },
       {
         "edge_type": "exposed_to",
@@ -2334,11 +2439,11 @@ export const FIXTURES = {
       },
       {
         "edge_type": "acquired",
-        "count": 46
+        "count": 55
       },
       {
         "edge_type": "semantic_peer",
-        "count": 30
+        "count": 24
       },
       {
         "edge_type": "regulated_by",
@@ -2353,8 +2458,8 @@ export const FIXTURES = {
         "count": 1
       }
     ],
-    "total_nodes": 83,
-    "total_edges": 46,
+    "total_nodes": 95,
+    "total_edges": 55,
     "as_of": null
   },
   "docs": [
@@ -2399,7 +2504,7 @@ export const FIXTURES = {
       "title": "company embeddings maint"
     },
     {
-      "path": "doc/improvements/archive/database/duckdb_improvs.txt",
+      "path": "doc/improvements/archive/database/duckdb_improvs.md",
       "title": "DuckDB Improvements \u2014 core features, SQL, & extension surface"
     },
     {
@@ -2463,7 +2568,7 @@ export const FIXTURES = {
       "title": "sql capability unlocks"
     },
     {
-      "path": "doc/improvements/archive/database/sql_query_improvements.txt",
+      "path": "doc/improvements/archive/database/sql_query_improvements.md",
       "title": "SQL QUERY IMPROVEMENTS \u2014 FinData Knowledge Graph"
     },
     {
@@ -2499,6 +2604,10 @@ export const FIXTURES = {
       "title": "csr substrate"
     },
     {
+      "path": "doc/improvements/archive/graph/derive_insights_apply_gate.md",
+      "title": "derive insights apply gate"
+    },
+    {
       "path": "doc/improvements/archive/graph/derive_insights_perf.md",
       "title": "derive insights perf"
     },
@@ -2529,6 +2638,10 @@ export const FIXTURES = {
     {
       "path": "doc/improvements/archive/graph/evidence/p22/scale_probe.py.txt",
       "title": "!/usr/bin/env python3"
+    },
+    {
+      "path": "doc/improvements/archive/graph/extract_target_binding.md",
+      "title": "extract target binding"
     },
     {
       "path": "doc/improvements/archive/graph/get_ticker_fixes.md",
@@ -2699,12 +2812,20 @@ export const FIXTURES = {
       "title": "scipy yen k shortest"
     },
     {
+      "path": "doc/improvements/archive/graph/search_enablers.md",
+      "title": "search enablers"
+    },
+    {
       "path": "doc/improvements/archive/graph/subsector_authoring_pass.md",
       "title": "subsector authoring pass"
     },
     {
       "path": "doc/improvements/archive/graph/suggested_relations_accept.md",
       "title": "suggested relations accept"
+    },
+    {
+      "path": "doc/improvements/archive/graph/triage_preannotation_escalation.md",
+      "title": "triage preannotation escalation"
     },
     {
       "path": "doc/improvements/archive/graph/vault_scaling.md",
@@ -2755,7 +2876,7 @@ export const FIXTURES = {
       "title": "concall title edition normalisation"
     },
     {
-      "path": "doc/improvements/archive/pipeline/findata_corpus_audit.txt",
+      "path": "doc/improvements/archive/pipeline/findata_corpus_audit.md",
       "title": "Findata Corpus Audit \u2014 markdown \u2194 SQLite \u2194 DuckDB \u2194 graph coverage"
     },
     {
@@ -2771,19 +2892,23 @@ export const FIXTURES = {
       "title": "local pdf conversion fallback"
     },
     {
+      "path": "doc/improvements/archive/pipeline/markdown_parse_procedure_audit.md",
+      "title": "markdown parse procedure audit"
+    },
+    {
       "path": "doc/improvements/archive/pipeline/market_data_resolution.md",
       "title": "market data resolution"
     },
     {
-      "path": "doc/improvements/archive/pipeline/metric_improvs.txt",
-      "title": "yfinance Enrichment Proposal \u2014 metric_improvs.txt"
+      "path": "doc/improvements/archive/pipeline/metric_improvs.md",
+      "title": "yfinance Enrichment Proposal \u2014 metric_improvs.md"
     },
     {
       "path": "doc/improvements/archive/pipeline/ownership_ingestion_nse_shp.md",
       "title": "ownership ingestion nse shp"
     },
     {
-      "path": "doc/improvements/archive/pipeline/parse_extraction_gaps.txt",
+      "path": "doc/improvements/archive/pipeline/parse_extraction_gaps.md",
       "title": "Parse & Extraction Coverage Gaps \u2014 what the markdown pipeline drops"
     },
     {
@@ -2831,6 +2956,10 @@ export const FIXTURES = {
       "title": "snapshot restore sql injection"
     },
     {
+      "path": "doc/improvements/archive/security/verify_injection_and_boundary_remediation.md",
+      "title": "verify injection and boundary remediation"
+    },
+    {
       "path": "doc/improvements/archive/testing/bold_line_ratio_floor.md",
       "title": "bold line ratio floor"
     },
@@ -2847,11 +2976,11 @@ export const FIXTURES = {
       "title": "integration fuzz enhancement"
     },
     {
-      "path": "doc/improvements/archive/testing/integration_plan.txt",
+      "path": "doc/improvements/archive/testing/integration_plan.md",
       "title": "INTEGRATION TEST PLAN \u2014 FinData Knowledge Graph"
     },
     {
-      "path": "doc/improvements/archive/testing/lint_analysis.txt",
+      "path": "doc/improvements/archive/testing/lint_analysis.md",
       "title": "LINT ANALYSIS \u2014 ruff replaces flake8 (FinData knowledge graph)"
     },
     {
@@ -2863,7 +2992,7 @@ export const FIXTURES = {
       "title": "pytest tmpfs amplification"
     },
     {
-      "path": "doc/improvements/archive/testing/stateful_relational_test_plan.txt",
+      "path": "doc/improvements/archive/testing/stateful_relational_test_plan.md",
       "title": "STATEFUL / RELATIONAL TEST PLAN \u2014 FinData Knowledge Graph"
     },
     {
@@ -2959,7 +3088,7 @@ export const FIXTURES = {
       "title": "dirty gated corpus validation"
     },
     {
-      "path": "doc/improvements/archive/tooling/doc_browser.txt",
+      "path": "doc/improvements/archive/tooling/doc_browser.md",
       "title": "Doc Browser & Search \u2014 web UI for the doc/ corpus"
     },
     {
@@ -2973,6 +3102,10 @@ export const FIXTURES = {
     {
       "path": "doc/improvements/archive/tooling/docs_consistency_audit.md",
       "title": "docs consistency audit"
+    },
+    {
+      "path": "doc/improvements/archive/tooling/duckdb_kill_recovery_test.md",
+      "title": "duckdb kill recovery test"
     },
     {
       "path": "doc/improvements/archive/tooling/duckdb_pin_reconciliation.md",
@@ -3027,12 +3160,16 @@ export const FIXTURES = {
       "title": "maint runtime hardening"
     },
     {
+      "path": "doc/improvements/archive/tooling/markdown_fold.md",
+      "title": "markdown fold"
+    },
+    {
       "path": "doc/improvements/archive/tooling/markdown_lint_adoption.md",
       "title": "markdown lint adoption"
     },
     {
-      "path": "doc/improvements/archive/tooling/mcp_tool_eval.txt",
-      "title": "================================================================================"
+      "path": "doc/improvements/archive/tooling/mcp_tool_eval.md",
+      "title": "mcp_tool_eval.md \u2014 codebase-memory-mcp hygiene audit (Aug 2026)"
     },
     {
       "path": "doc/improvements/archive/tooling/md_lint_cache.md",
@@ -3087,16 +3224,20 @@ export const FIXTURES = {
       "title": "parallel cold embed"
     },
     {
-      "path": "doc/improvements/archive/tooling/pending_improvs.txt",
+      "path": "doc/improvements/archive/tooling/pending_improvs.md",
       "title": "Pending Improvements \u2014 HISTORICAL (Bundles A\u2013F closed)"
     },
     {
-      "path": "doc/improvements/archive/tooling/perf_improvs.txt",
-      "title": "Performance review \u2014 project-wide hotspots"
+      "path": "doc/improvements/archive/tooling/perf_improvs.md",
+      "title": "The 4 perf-gated scripts (verify_notes, static_checks, extract_relations, graph_rebuild) were optimized in the prior session and are holding; this sweep covers everything ELSE"
     },
     {
       "path": "doc/improvements/archive/tooling/perf_optimization.md",
       "title": "perf optimization"
+    },
+    {
+      "path": "doc/improvements/archive/tooling/provider_drift_glm_mercury.md",
+      "title": "provider drift glm mercury"
     },
     {
       "path": "doc/improvements/archive/tooling/review_findings_collation.md",
@@ -3147,6 +3288,10 @@ export const FIXTURES = {
       "title": "snapshot fresh gate"
     },
     {
+      "path": "doc/improvements/archive/tooling/system_one_typed_judgment_framework.md",
+      "title": "system one typed judgment framework"
+    },
+    {
       "path": "doc/improvements/archive/tooling/tech_avenues.md",
       "title": "tech avenues"
     },
@@ -3157,6 +3302,18 @@ export const FIXTURES = {
     {
       "path": "doc/improvements/archive/tooling/trace_analyzer_legs.md",
       "title": "trace analyzer legs"
+    },
+    {
+      "path": "doc/improvements/archive/tooling/trace_error_forensics.md",
+      "title": "trace error forensics"
+    },
+    {
+      "path": "doc/improvements/archive/tooling/trace_quote_citations.md",
+      "title": "trace quote citations"
+    },
+    {
+      "path": "doc/improvements/archive/tooling/typed_trace_contracts.md",
+      "title": "typed trace contracts"
     },
     {
       "path": "doc/improvements/archive/tooling/utc_now_unification.md",
@@ -3211,6 +3368,10 @@ export const FIXTURES = {
       "title": "Live proposals"
     },
     {
+      "path": "doc/improvements/proposals/graph_rebuild_fast_path.md",
+      "title": "graph rebuild fast path"
+    },
+    {
       "path": "doc/okf/README.md",
       "title": "Open Knowledge Format (OKF) \u2014 Design"
     },
@@ -3237,6 +3398,10 @@ export const FIXTURES = {
     {
       "path": "doc/procedures/embeddings.md",
       "title": "Local Embeddings & Note-Search Procedure"
+    },
+    {
+      "path": "doc/procedures/gates.md",
+      "title": "Gate arc protocol"
     },
     {
       "path": "doc/procedures/maintenance.md",
@@ -3295,35 +3460,35 @@ export const FIXTURES = {
     "analytics": [
       {
         "metric": "betweenness_centrality",
-        "value": "{\"value\": 0.0014423293609033326}"
+        "value": "{\"value\": 0.0014410419170704013}"
       },
       {
         "metric": "closeness_centrality",
-        "value": "{\"value\": 0.34394934260804466}"
+        "value": "{\"value\": 0.3439502361910107}"
       },
       {
         "metric": "degree_centrality",
-        "value": "{\"value\": 0.0022367194780987883}"
+        "value": "{\"value\": 0.0022357818249569145}"
       },
       {
         "metric": "eigenvector_centrality",
-        "value": "{\"value\": 0.05400171387234329}"
+        "value": "{\"value\": 0.05397691241312448}"
       },
       {
         "metric": "harmonic_centrality",
-        "value": "{\"value\": 7549.3166666666675}"
+        "value": "{\"value\": 7552.400000000001}"
       },
       {
         "metric": "ho_pagerank",
-        "value": "{\"value\": 0.0027456, \"s\": 1, \"sources\": [\"sector\", \"theme\", \"industry\", \"sub_sector\"], \"weighted\": false}"
+        "value": "{\"value\": 0.00271967, \"s\": 1, \"sources\": [\"sector\", \"theme\", \"industry\", \"sub_sector\"], \"weighted\": false}"
       },
       {
         "metric": "hypermmsbm_community",
-        "value": "{\"block\": 0, \"memberships\": {\"0\": 1.0, \"1\": 0.0, \"2\": 0.0, \"3\": 0.0, \"4\": 0.0, \"5\": 0.0, \"6\": 0.0, \"7\": 0.0}, \"k\": 8, \"seed\": 42}"
+        "value": "{\"block\": 5, \"memberships\": {\"0\": 0.0, \"1\": 0.0, \"2\": 0.0, \"3\": 0.0, \"4\": 0.0, \"5\": 1.0, \"6\": 0.0, \"7\": 0.0}, \"k\": 8, \"seed\": 42}"
       },
       {
         "metric": "katz_centrality",
-        "value": "{\"value\": 1.0048358837996647}"
+        "value": "{\"value\": 1.004835884022563}"
       },
       {
         "metric": "laplacian_centrality",
@@ -3339,15 +3504,15 @@ export const FIXTURES = {
       },
       {
         "metric": "louvain_community",
-        "value": "{\"community\": 0, \"modularity\": 0.4150284724874982}"
+        "value": "{\"community\": 5, \"modularity\": 0.40838960533146107}"
       },
       {
         "metric": "pagerank",
-        "value": "{\"value\": 0.00047060843669505335}"
+        "value": "{\"value\": 0.0004703060159665641}"
       },
       {
         "metric": "pagerank_weighted",
-        "value": "{\"value\": 0.00047383211116927267}"
+        "value": "{\"value\": 0.0004736518486176779}"
       },
       {
         "metric": "s_betweenness",
@@ -4068,915 +4233,915 @@ export const FIXTURES = {
   "metric_values": [
     {
       "entity": "Reliance Industries",
-      "value": 0.008720597485902738
+      "value": 0.008714722590054007
     },
     {
       "entity": "Mahindra & Mahindra",
-      "value": 0.006808528850895325
+      "value": 0.006803957311818522
     },
     {
       "entity": "JSW Energy",
-      "value": 0.006291826457325963
+      "value": 0.006289006320897696
     },
     {
       "entity": "Wipro",
-      "value": 0.006225903054548383
+      "value": 0.0062228939995478535
     },
     {
       "entity": "Infosys",
-      "value": 0.006071191415878344
+      "value": 0.006068087105646205
     },
     {
       "entity": "Schneider Electric Infrastructure",
-      "value": 0.005650414858249882
+      "value": 0.0056453840027553175
     },
     {
       "entity": "Tata Steel",
-      "value": 0.005364596464886552
+      "value": 0.005362411558321742
     },
     {
       "entity": "Siemens",
-      "value": 0.004935090295793086
+      "value": 0.004932620983760614
     },
     {
       "entity": "Tech Mahindra",
-      "value": 0.004867192928924627
+      "value": 0.00486437479462677
     },
     {
       "entity": "Axis Bank",
-      "value": 0.004559054321193628
+      "value": 0.004556814505203015
     },
     {
       "entity": "ITC",
-      "value": 0.004520889019166289
+      "value": 0.004519061302769111
     },
     {
       "entity": "Samvardhana Motherson International",
-      "value": 0.004254415345457457
+      "value": 0.004230038268408179
     },
     {
       "entity": "Bharti Airtel",
-      "value": 0.00409099552216331
+      "value": 0.004089037805132554
     },
     {
       "entity": "Adani Ports and Special Economic Zone",
-      "value": 0.00389845299480258
+      "value": 0.0038963154337456197
     },
     {
       "entity": "Embassy Developments",
-      "value": 0.0038371819867220195
+      "value": 0.0038355384263275925
     },
     {
       "entity": "Glenmark Pharmaceuticals",
-      "value": 0.0037034932173783774
+      "value": 0.003681025117514434
     },
     {
       "entity": "Adani Green Energy",
-      "value": 0.003552906729080337
+      "value": 0.003550993959667698
     },
     {
       "entity": "Honeywell Automation India",
-      "value": 0.0034942587576787545
+      "value": 0.003492775485873304
     },
     {
       "entity": "Mankind Pharma",
-      "value": 0.0032083758570621225
+      "value": 0.0032067852119969367
     },
     {
       "entity": "HCL Technologies",
-      "value": 0.0031726063310290554
+      "value": 0.0031682312132399
     },
     {
       "entity": "Aurobindo Pharma",
-      "value": 0.0031671308867413507
+      "value": 0.003165503257343874
     },
     {
       "entity": "Hitachi Energy India",
-      "value": 0.00314100349278624
+      "value": 0.003038707285627288
     },
     {
       "entity": "Tata Consultancy Services",
-      "value": 0.0029927766502067764
+      "value": 0.003001926607203813
     },
     {
       "entity": "Prestige Estates Projects",
-      "value": 0.002989093487494923
+      "value": 0.0029877062625972115
     },
     {
       "entity": "Godrej Consumer Products",
-      "value": 0.002873639754925868
+      "value": 0.0028721793907514766
     },
     {
       "entity": "JSW Steel",
-      "value": 0.0028635139931183517
+      "value": 0.002862365471454299
     },
     {
       "entity": "Bosch",
-      "value": 0.002800951994659814
+      "value": 0.00279930934180388
     },
     {
       "entity": "Tata Motors Passenger Vehicles",
-      "value": 0.0027745616129035027
+      "value": 0.0027724786096603054
     },
     {
       "entity": "Sun Pharmaceutical Industries",
-      "value": 0.002734113175517652
+      "value": 0.0027328664054597895
     },
     {
       "entity": "ABB India",
-      "value": 0.0026667278699722785
+      "value": 0.0026656696954129224
     },
     {
       "entity": "Redington",
-      "value": 0.002657217105460101
+      "value": 0.0026556966374588964
     },
     {
       "entity": "Entero Healthcare Solutions",
-      "value": 0.002410273422371862
+      "value": 0.0024092502896107385
     },
     {
       "entity": "GE Vernova T&D India",
-      "value": 0.00240579812043262
+      "value": 0.0024047783879379554
     },
     {
       "entity": "Adani Energy Solutions",
-      "value": 0.0023431912193905536
+      "value": 0.0023419093288576435
     },
     {
       "entity": "Dilip Buildcon",
-      "value": 0.002337082307609316
+      "value": 0.002336092506948411
     },
     {
       "entity": "Torrent Power",
-      "value": 0.0023299878867274
+      "value": 0.0023293515698013605
     },
     {
       "entity": "Power Grid Corporation of India",
-      "value": 0.002296024128952132
+      "value": 0.002295009064336463
     },
     {
       "entity": "GMR Airports",
-      "value": 0.002288629464365893
+      "value": 0.00228777100707986
     },
     {
       "entity": "Voltas",
-      "value": 0.0022848317050506886
+      "value": 0.0022840975953291407
     },
     {
       "entity": "Ashoka Buildcon",
-      "value": 0.0021934763553104752
+      "value": 0.0021925452503582183
     },
     {
       "entity": "Godrej Properties",
-      "value": 0.002170741611704239
+      "value": 0.002169668635624233
     },
     {
       "entity": "Vesuvius India",
-      "value": 0.002150116941898208
+      "value": 0.002149204242507725
     },
     {
       "entity": "Brainbees Solutions",
-      "value": 0.0021398799163287584
+      "value": 0.0021389604846780426
     },
     {
       "entity": "BASF India",
-      "value": 0.0020622299575694682
+      "value": 0.0020599737551506934
     },
     {
       "entity": "GMR Power and Urban Infra",
-      "value": 0.0020593041700774574
+      "value": 0.0020584642645880727
     },
     {
       "entity": "BLS International Services",
-      "value": 0.00204280081124899
+      "value": 0.0020418874825519073
     },
     {
       "entity": "Sudarshan Chemical Industries",
-      "value": 0.002029719643666568
+      "value": 0.0020288605099563627
     },
     {
       "entity": "Oracle Financial Services Software",
-      "value": 0.0020003992439141948
+      "value": 0.001999573061757274
     },
     {
       "entity": "THE INDIAN HOTELS CO",
-      "value": 0.001991600434330631
+      "value": 0.0019906286145945007
     },
     {
       "entity": "Siemens Energy India",
-      "value": 0.001959803959254772
+      "value": 0.0019589603387628095
     },
     {
       "entity": "Strides Pharma Science",
-      "value": 0.001942996003339989
+      "value": 0.001942141756167169
     },
     {
       "entity": "Grasim Industries",
-      "value": 0.0018466224356985218
+      "value": 0.0018707793344742982
     },
     {
       "entity": "Asian Paints",
-      "value": 0.0018313118069955008
+      "value": 0.0018300052594761415
     },
     {
       "entity": "Vodafone Idea",
-      "value": 0.00182530955452846
+      "value": 0.0018225064902262097
     },
     {
       "entity": "Patel Engineering",
-      "value": 0.0018117906925127869
+      "value": 0.0018110216337485136
     },
     {
       "entity": "Phoenix Mills",
-      "value": 0.0018055203049167528
+      "value": 0.0018047049376794001
     },
     {
       "entity": "Cummins India",
-      "value": 0.0017935218895643236
+      "value": 0.0017924532417271622
     },
     {
       "entity": "TARC",
-      "value": 0.0017815619278938632
+      "value": 0.0017808056757784487
     },
     {
       "entity": "Dr Reddys Laboratories",
-      "value": 0.0017732095582372956
+      "value": 0.0017723245153815391
     },
     {
       "entity": "KSB",
-      "value": 0.0017477630755653888
+      "value": 0.0017470480091323858
     },
     {
       "entity": "Linde India",
-      "value": 0.0017382025144815872
+      "value": 0.0017374646679279464
     },
     {
       "entity": "Hindalco Industries",
-      "value": 0.0016952572770102085
+      "value": 0.0016931397635108726
     },
     {
       "entity": "Bikaji Foods International",
-      "value": 0.0016225788986516773
+      "value": 0.0016219132535170426
     },
     {
       "entity": "Share India Securities",
-      "value": 0.0015647648608324803
+      "value": 0.0015641006365259315
     },
     {
       "entity": "Schaeffler India",
-      "value": 0.0015606927248252593
+      "value": 0.001559852801019154
     },
     {
       "entity": "Hindustan Unilever",
-      "value": 0.001551006029859986
+      "value": 0.0015504384906549389
     },
     {
       "entity": "Tata Communications",
-      "value": 0.001543461819365271
+      "value": 0.0015426779242400553
     },
     {
       "entity": "Cholamandalam Financial Holdings",
-      "value": 0.0015347993131865634
+      "value": 0.0015344234113455766
     },
     {
       "entity": "Zydus Lifesciences",
-      "value": 0.0015150922304716262
+      "value": 0.001515981300294517
     },
     {
       "entity": "Man Infraconstruction",
-      "value": 0.0014780460340079295
+      "value": 0.001477418620824923
     },
     {
       "entity": "Emami",
-      "value": 0.0014598519648156495
+      "value": 0.0014591681234267287
     },
     {
       "entity": "Ashok Leyland",
-      "value": 0.001451493411055528
+      "value": 0.001450810864184277
     },
     {
       "entity": "CIE Automotive India",
-      "value": 0.001417932085906108
+      "value": 0.0014173463146901469
     },
     {
       "entity": "Mastek",
-      "value": 0.0014130069138895123
+      "value": 0.001412407109049172
     },
     {
       "entity": "Ambuja Cements",
-      "value": 0.0013988009288300044
+      "value": 0.0013979145823628304
     },
     {
       "entity": "TVS Supply Chain Solutions",
-      "value": 0.001379739265545482
+      "value": 0.0013859092737420753
     },
     {
       "entity": "Thermax",
-      "value": 0.0013654842563841799
-    },
-    {
-      "entity": "Larsen & Toubro",
-      "value": 0.0013549031459125643
+      "value": 0.0013649622956585627
     },
     {
       "entity": "ZF Commercial Vehicle Control Systems India",
-      "value": 0.0013262838885941678
+      "value": 0.0013257150631319227
+    },
+    {
+      "entity": "Larsen & Toubro",
+      "value": 0.0013162351930240204
     },
     {
       "entity": "Jio Financial Services",
-      "value": 0.0013097303611710727
+      "value": 0.0013086993326063999
     },
     {
       "entity": "Coforge",
-      "value": 0.00130418966833935
+      "value": 0.0013033475399744311
     },
     {
       "entity": "Elgi Equipments",
-      "value": 0.0012894745065655743
+      "value": 0.0012888770848547685
     },
     {
       "entity": "DOMS Industries",
-      "value": 0.0012866150435698707
+      "value": 0.0012861781187020241
     },
     {
       "entity": "CESC",
-      "value": 0.0012829201102012887
+      "value": 0.001282310957824855
     },
     {
       "entity": "IFCI",
-      "value": 0.0012806138825188671
+      "value": 0.0012800229769568802
     },
     {
       "entity": "Bharat Forge",
-      "value": 0.0012418327798136201
+      "value": 0.0012408985887928717
     },
     {
       "entity": "Escorts Kubota",
-      "value": 0.001216214222437087
+      "value": 0.001215887246366512
     },
     {
       "entity": "Tube Investments of India",
-      "value": 0.0012147622519088981
+      "value": 0.0012145665219692914
     },
     {
       "entity": "CRISIL",
-      "value": 0.001191448136501195
+      "value": 0.0011904895073076088
     },
     {
       "entity": "REC",
-      "value": 0.0011813396049908658
+      "value": 0.0011808471853123634
     },
     {
       "entity": "G R Infraprojects",
-      "value": 0.001179318003331538
+      "value": 0.0011788176813932608
     },
     {
       "entity": "Suzlon Energy",
-      "value": 0.0011776363579245575
+      "value": 0.001177097088501177
     },
     {
       "entity": "Sunteck Realty",
-      "value": 0.0011766208901182107
+      "value": 0.0011761236301648383
     },
     {
       "entity": "Indian Oil Corporation",
-      "value": 0.0011538299148376617
+      "value": 0.0011531052228185143
     },
     {
       "entity": "Persistent Systems",
-      "value": 0.00115142525830524
+      "value": 0.001150580826136181
     },
     {
       "entity": "Tata Technologies",
-      "value": 0.0011445166054913187
-    },
-    {
-      "entity": "Kirloskar Oil Eng",
-      "value": 0.0011416292134684095
-    },
-    {
-      "entity": "Jindal Steel",
-      "value": 0.0011379524721750708
-    },
-    {
-      "entity": "Anant Raj",
-      "value": 0.0011330087062661573
-    },
-    {
-      "entity": "Atul",
-      "value": 0.001129942978257816
+      "value": 0.0011438176735130228
     },
     {
       "entity": "UltraTech Cement",
-      "value": 0.0011176105115703588
+      "value": 0.0011418456062472777
+    },
+    {
+      "entity": "Kirloskar Oil Eng",
+      "value": 0.0011411690916596803
+    },
+    {
+      "entity": "Jindal Steel",
+      "value": 0.001137574059618908
+    },
+    {
+      "entity": "Anant Raj",
+      "value": 0.0011316950578447612
+    },
+    {
+      "entity": "Atul",
+      "value": 0.0011294647559581476
     },
     {
       "entity": "Ingersoll-Rand (India)",
-      "value": 0.0011094910200035828
+      "value": 0.001109020054095649
     },
     {
       "entity": "Godrej Industries",
-      "value": 0.0011037980163113694
+      "value": 0.0011032646401067942
     },
     {
       "entity": "Motilal Oswal Financial Services",
-      "value": 0.0010991314806932464
+      "value": 0.0010991787213036266
     },
     {
       "entity": "Reliance Power",
-      "value": 0.0010822296260628898
-    },
-    {
-      "entity": "Maruti Suzuki India",
-      "value": 0.001070504237565359
-    },
-    {
-      "entity": "Timken India",
-      "value": 0.0010617645882809933
+      "value": 0.001081709934456098
     },
     {
       "entity": "Adani Power",
-      "value": 0.001058292189730168
+      "value": 0.0010666692012407317
+    },
+    {
+      "entity": "Timken India",
+      "value": 0.0010613854672820676
     },
     {
       "entity": "TVS Motor Company",
-      "value": 0.0010572297798825217
+      "value": 0.0010559898548485327
+    },
+    {
+      "entity": "Maruti Suzuki India",
+      "value": 0.0010455397303248636
     },
     {
       "entity": "Welspun Living",
-      "value": 0.0010368574980897888
+      "value": 0.0010364521016171736
     },
     {
       "entity": "Tata Teleservices (Maharashtra)",
-      "value": 0.0010287436359837764
+      "value": 0.0010281581947482628
     },
     {
       "entity": "Pidilite Industries",
-      "value": 0.0010260330099138835
-    },
-    {
-      "entity": "Quess Corp",
-      "value": 0.0010202851892865152
+      "value": 0.0010254013431390692
     },
     {
       "entity": "Cyient",
-      "value": 0.001017976602267681
+      "value": 0.001017989674604657
     },
     {
       "entity": "LT Foods",
-      "value": 0.0010128558931882124
-    },
-    {
-      "entity": "GAIL India",
-      "value": 0.0010126089581313196
+      "value": 0.0010124998682668896
     },
     {
       "entity": "Lemon Tree Hotels",
-      "value": 0.00101251862341356
+      "value": 0.0010121026732587298
+    },
+    {
+      "entity": "GAIL India",
+      "value": 0.0010117522532775188
+    },
+    {
+      "entity": "Quess Corp",
+      "value": 0.0010115817283858138
     },
     {
       "entity": "Afcons Infrastructure",
-      "value": 0.0010099917540048427
+      "value": 0.0010092315287102739
     },
     {
       "entity": "Puravankara",
-      "value": 0.0010010924864728955
+      "value": 0.0010006675344693913
     },
     {
       "entity": "SRF",
-      "value": 0.0009988850838660854
+      "value": 0.0009983584238726392
     },
     {
       "entity": "Alkem Laboratories",
-      "value": 0.0009930201580664146
+      "value": 0.0009923080970266535
     },
     {
       "entity": "Tata Consumer Products",
-      "value": 0.000990420869873733
+      "value": 0.0009903427036685739
     },
     {
       "entity": "Kirloskar Brothers",
-      "value": 0.0009882896778718832
+      "value": 0.0009878762923374372
     },
     {
       "entity": "NTPC",
-      "value": 0.0009831801372012575
+      "value": 0.0009828265402749554
     },
     {
       "entity": "Carborundum Universal",
-      "value": 0.0009781604925206049
+      "value": 0.0009780059106815307
     },
     {
       "entity": "Varun Beverages",
-      "value": 0.0009704331132859105
+      "value": 0.0009700717135842445
     },
     {
       "entity": "Route Mobile",
-      "value": 0.0009692620120459573
+      "value": 0.000968791304360079
     },
     {
       "entity": "KPIT Technologies",
-      "value": 0.0009615401767984157
+      "value": 0.0009611633199017284
     },
     {
       "entity": "Federal Bank",
-      "value": 0.0009388185201034201
+      "value": 0.0009383567029567384
     },
     {
       "entity": "Tata Elxsi",
-      "value": 0.0009374140864939008
+      "value": 0.0009369779580079071
     },
     {
       "entity": "GMM Pfaudler",
-      "value": 0.0009360533663544803
+      "value": 0.0009356560226936371
     },
     {
       "entity": "PNC Infratech",
-      "value": 0.0009360533663544803
+      "value": 0.0009356560226936371
     },
     {
       "entity": "Biocon",
-      "value": 0.0009348311365266189
+      "value": 0.0009318263472827665
     },
     {
       "entity": "Britannia Industries",
-      "value": 0.0009303477248881006
+      "value": 0.0009304023736450633
     },
     {
       "entity": "RHI MAGNESITA INDIA",
-      "value": 0.0009291923698140484
+      "value": 0.0009287786130919331
     },
     {
       "entity": "Jubilant Pharmova",
-      "value": 0.0009286741518765498
+      "value": 0.0009282942764630371
     },
     {
       "entity": "Bata India",
-      "value": 0.0009215900924173065
+      "value": 0.0009209438850087192
     },
     {
       "entity": "Network18 Media & Investments",
-      "value": 0.0009112588254583555
+      "value": 0.0009106666770989272
     },
     {
       "entity": "Titan Company",
-      "value": 0.0009084535252733438
+      "value": 0.0009079847152713419
     },
     {
       "entity": "E.I.D. Parry (India)",
-      "value": 0.0008983111564647746
+      "value": 0.0008983213127632852
     },
     {
       "entity": "ACC",
-      "value": 0.0008955723565202748
+      "value": 0.0008949900309736686
     },
     {
       "entity": "Aditya Birla Capital",
-      "value": 0.0008808405452499952
+      "value": 0.000878108163661714
     },
     {
       "entity": "Brigade Enterprises",
-      "value": 0.0008779212529319713
+      "value": 0.0008768955166473572
     },
     {
       "entity": "HEG",
-      "value": 0.0008737152873085076
+      "value": 0.0008733542708451509
     },
     {
       "entity": "Hexaware Technologies",
-      "value": 0.0008727779965650459
+      "value": 0.0008720823771702225
     },
     {
       "entity": "JBM Auto",
-      "value": 0.0008722625633393755
+      "value": 0.000871764844676479
     },
     {
       "entity": "IRB Infrastructure Developers",
-      "value": 0.0008710142462360655
+      "value": 0.0008706445109178826
     },
     {
       "entity": "AWL Agri Business",
-      "value": 0.0008708149417499629
+      "value": 0.000870340857706458
     },
     {
       "entity": "Coal India",
-      "value": 0.0008612209007562064
-    },
-    {
-      "entity": "Thomas Cook (India)",
-      "value": 0.0008568039088988679
+      "value": 0.0008608336917140696
     },
     {
       "entity": "Sterlite Technologies",
-      "value": 0.0008331453366086463
+      "value": 0.0008325122709990213
     },
     {
       "entity": "JM Financial",
-      "value": 0.0008281526094509149
+      "value": 0.0008269093013595363
     },
     {
       "entity": "Leela Palaces Hotels & Resorts",
-      "value": 0.0008201839239857075
+      "value": 0.0008197866634498224
+    },
+    {
+      "entity": "Thomas Cook (India)",
+      "value": 0.0008161538254477768
     },
     {
       "entity": "Bank of Baroda",
-      "value": 0.0008167156167680945
+      "value": 0.000815923542213061
     },
     {
       "entity": "Edelweiss Financial Services",
-      "value": 0.000808756868281151
+      "value": 0.0008083412914283218
     },
     {
       "entity": "Mahindra Lifespace Developers",
-      "value": 0.0008073526340426845
+      "value": 0.0008068858476648344
     },
     {
       "entity": "Max Healthcare Institute",
-      "value": 0.0008049652419440005
+      "value": 0.0008047012198530057
     },
     {
       "entity": "JK Cement",
-      "value": 0.0008035389110199504
+      "value": 0.0008026726625210234
     },
     {
       "entity": "Manappuram Finance",
-      "value": 0.0007894180436978914
+      "value": 0.0007890948705152078
     },
     {
       "entity": "State Bank of India",
-      "value": 0.0007705303205238796
+      "value": 0.0007698359202955947
     },
     {
       "entity": "Bharat Petroleum Corporation",
-      "value": 0.0007657700984884841
+      "value": 0.0007654364729211818
     },
     {
       "entity": "Emcure Pharmaceuticals",
-      "value": 0.0007641893376642761
+      "value": 0.000763642292582172
     },
     {
       "entity": "Life Insurance Corporation of India",
-      "value": 0.000761017891126364
+      "value": 0.0007606473621371414
     },
     {
       "entity": "Castrol India",
-      "value": 0.0007602426888894041
+      "value": 0.0007599022157806554
     },
     {
       "entity": "Swan Corp",
-      "value": 0.000758674508556334
+      "value": 0.0007585297407979442
     },
     {
       "entity": "Tata Chemicals",
-      "value": 0.0007579120049468437
+      "value": 0.0007576819130370027
     },
     {
       "entity": "PCBL Chemical",
-      "value": 0.0007556116550431856
+      "value": 0.0007552666010299326
     },
     {
       "entity": "Apollo Tyres",
-      "value": 0.0007495987249421467
+      "value": 0.0007493018167421872
     },
     {
       "entity": "Max Financial Services",
-      "value": 0.0007383211788178955
+      "value": 0.0007379971094556378
     },
     {
       "entity": "Power Mech Projects",
-      "value": 0.0007347099183913936
+      "value": 0.0007344176690489429
     },
     {
       "entity": "Inox Wind",
-      "value": 0.0007337155825443223
-    },
-    {
-      "entity": "Sterling and Wilson Renewable Energy",
-      "value": 0.00072963594482848
+      "value": 0.0007332416772157269
     },
     {
       "entity": "NHPC",
-      "value": 0.0007224901579562916
+      "value": 0.0007221804595465858
+    },
+    {
+      "entity": "Sterling and Wilson Renewable Energy",
+      "value": 0.0007195305107055636
     },
     {
       "entity": "Sona BLW Precision Forgings",
-      "value": 0.0007178993957748827
+      "value": 0.0007174377825787799
     },
     {
       "entity": "Kotak Mahindra Bank",
-      "value": 0.0007175951073669189
+      "value": 0.0007172611906720727
     },
     {
       "entity": "AIA Engineering",
-      "value": 0.0007087939677315183
+      "value": 0.0007084994715274514
     },
     {
       "entity": "Jain Irrigation Systems",
-      "value": 0.0007051544351145691
+      "value": 0.0007048974301651713
     },
     {
       "entity": "Yes Bank",
-      "value": 0.0007037401045835334
+      "value": 0.0007033480567062636
     },
     {
       "entity": "Dabur India",
-      "value": 0.0006967878406451697
+      "value": 0.000696561380132985
     },
     {
       "entity": "EIH",
-      "value": 0.0006899154146788136
+      "value": 0.0006896033310312252
     },
     {
       "entity": "Bharti Hexacom",
-      "value": 0.0006790557196743211
-    },
-    {
-      "entity": "Himadri Speciality Chemical",
-      "value": 0.0006788633593707181
+      "value": 0.0006787484721212188
     },
     {
       "entity": "JK Tyre & Industries",
-      "value": 0.0006780731688708088
+      "value": 0.0006777853347740337
     },
     {
-      "entity": "Indian Metals & Ferro Alloys",
-      "value": 0.0006758968858808237
+      "entity": "Himadri Speciality Chemical",
+      "value": 0.0006773998424131325
     },
     {
       "entity": "Usha Martin",
-      "value": 0.0006741055393965409
+      "value": 0.0006758039032186225
+    },
+    {
+      "entity": "Indian Metals & Ferro Alloys",
+      "value": 0.0006756099755906177
     },
     {
       "entity": "Ipca Laboratories",
-      "value": 0.0006711055801917352
+      "value": 0.0006705165315305397
     },
     {
       "entity": "Chalet Hotels",
-      "value": 0.0006650187857772207
+      "value": 0.0006647615431663697
     },
     {
       "entity": "Torrent Pharmaceuticals",
-      "value": 0.0006644729346255889
+      "value": 0.0006641919628691341
     },
     {
       "entity": "Sanofi India",
-      "value": 0.0006621004668888682
+      "value": 0.00066190563021342
     },
     {
       "entity": "Asahi India Glass",
-      "value": 0.0006605851657745001
+      "value": 0.0006591980959344214
     },
     {
       "entity": "Max Estates",
-      "value": 0.0006565680937273102
+      "value": 0.000655694406626088
     },
     {
       "entity": "KNR Constructions",
-      "value": 0.0006544910297068226
+      "value": 0.0006542132076542808
     },
     {
       "entity": "Minda Corporation",
-      "value": 0.0006541606410654658
+      "value": 0.0006538719850423537
     },
     {
       "entity": "Rail Vikas Nigam",
-      "value": 0.0006516350078002691
+      "value": 0.000651289940768322
     },
     {
       "entity": "DCM Shriram",
-      "value": 0.0006514798714743708
+      "value": 0.0006512008669650375
     },
     {
       "entity": "Prism Johnson",
-      "value": 0.0006502838118599443
+      "value": 0.0006500128415244396
     },
     {
       "entity": "SBI Life Insurance Company",
-      "value": 0.0006443500862732161
+      "value": 0.0006441499448064484
     },
     {
       "entity": "Reliance Infrastructure",
-      "value": 0.0006435212562056605
+      "value": 0.0006432389826881925
     },
     {
       "entity": "Amber Enterprises India",
-      "value": 0.0006426052190973387
+      "value": 0.0006427117492022972
     },
     {
       "entity": "Transrail Lighting",
-      "value": 0.0006425407499416751
+      "value": 0.0006422642462840569
     },
     {
       "entity": "Canara Bank",
-      "value": 0.0006133237067924509
+      "value": 0.0006129512346418199
     },
     {
       "entity": "Varroc Engineering",
-      "value": 0.0005750799645923963
-    },
-    {
-      "entity": "Polycab India",
-      "value": 0.0005132913429734107
+      "value": 0.000574818834369841
     },
     {
       "entity": "HDFC AMC",
-      "value": 0.0005130139867600766
+      "value": 0.000512667575137162
+    },
+    {
+      "entity": "Polycab India",
+      "value": 0.0005120467196697829
     },
     {
       "entity": "Lumax Auto Technologies",
-      "value": 0.0004963277864845748
+      "value": 0.0004961636688968016
     },
     {
       "entity": "CEAT",
-      "value": 0.00047060843669505335
+      "value": 0.0004703060159665641
     },
     {
       "entity": "Angel One",
-      "value": 0.00043875176649393427
+      "value": 0.00043799406853949253
     },
     {
       "entity": "Shree Cement",
-      "value": 0.000402390048617891
+      "value": 0.00040193078673198316
     },
     {
       "entity": "Piramal Finance",
-      "value": 0.00039515065467902
+      "value": 0.0003949553840688556
     },
     {
       "entity": "Uno Minda",
-      "value": 0.00039023930627885277
+      "value": 0.00038993386317205935
     },
     {
       "entity": "AU Small Finance Bank",
-      "value": 0.0003435448306277706
+      "value": 0.0003433615546297796
     },
     {
       "entity": "360 ONE WAM",
-      "value": 0.00033925877152674673
+      "value": 0.00033887126368991715
     },
     {
       "entity": "Swiggy",
-      "value": 0.0003378559693930073
+      "value": 0.0003376844434677142
     },
     {
       "entity": "Banco Products (India)",
-      "value": 0.00033234797391868586
+      "value": 0.0003321765282036243
     },
     {
       "entity": "Hyundai Motor India",
-      "value": 0.00032921680427867877
+      "value": 0.000328641411142394
     },
     {
       "entity": "Shree Digvijay Cement",
-      "value": 0.00029212354775016476
+      "value": 0.00029198634845269274
     },
     {
       "entity": "MOIL",
-      "value": 0.0002768082044067922
+      "value": 0.00027669825885294247
     },
     {
       "entity": "5paisa Capital",
-      "value": 0.00025099301036794703
+      "value": 0.000250428936135905
     },
     {
       "entity": "Saudi Aramco",
-      "value": 0.00024687255780381364
+      "value": 0.0002467481979989589
     },
     {
       "entity": "Tenneco Clean Air India",
-      "value": 0.00023465755937549624
+      "value": 0.00023477845238344385
     },
     {
       "entity": "MRF",
-      "value": 0.00023448109529523148
+      "value": 0.00023425587588813562
     },
     {
       "entity": "Muthoot Capital Services",
-      "value": 0.00022997898745458865
+      "value": 0.0002297988601688641
     },
     {
       "entity": "Belrise Industries",
-      "value": 0.00022144583841478792
+      "value": 0.00022142021030321192
     },
     {
       "entity": "WeWork India Management",
-      "value": 0.0002090530828312356
+      "value": 0.00020886193636046745
     },
     {
       "entity": "ICICI Lombard General Insurance",
-      "value": 0.0001930487324876039
+      "value": 0.00019294704547641805
     },
     {
       "entity": "Shriram Pistons",
-      "value": 0.00015002415009835796
+      "value": 0.00015000256969002518
     },
     {
       "entity": "RPG Enterprises",
-      "value": 2.4431378814119172e-05
+      "value": 2.4419804182689696e-05
     },
     {
       "entity": "Camso",
-      "value": 1.596707915601453e-05
+      "value": 1.5958362317696504e-05
     }
   ],
   "hyperedges": [
