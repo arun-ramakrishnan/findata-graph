@@ -193,6 +193,7 @@ class TestResolveTurn:
         res = tq.resolve(duckdb.connect(str(store)), "agent-trace:prime#turn:t1a")
         assert res.found
         assert res.kind == "turn"
+        assert res.row is not None
         assert res.row["turn_id"] == "t1a"
         assert res.row["session_id"] == "sess-001"
         assert res.context["model_requests"][0]["request_id"] == "r1a"

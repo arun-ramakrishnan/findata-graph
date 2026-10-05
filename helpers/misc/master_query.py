@@ -311,7 +311,10 @@ def main(argv: list[str] | None = None) -> int:
         f"(default {DEFAULT_AGE_GUARD_HOURS:g}); gates/code/literal exempt",
     )
     p.add_argument(
-        "--json", action="store_true", dest="as_json", help="structured output (adds flat when --flat)"
+        "--json",
+        action="store_true",
+        dest="as_json",
+        help="structured output (adds flat when --flat)",
     )
     p.add_argument("--serial", action="store_true", help="run legs sequentially (debug)")
     args = p.parse_args(argv)

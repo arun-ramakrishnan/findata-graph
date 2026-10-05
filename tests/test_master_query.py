@@ -18,9 +18,28 @@ from helpers.maintenance import rebuild_memory_search as rms  # noqa: E402
 
 pytestmark = [pytest.mark.integration]
 
-_H1 = Hit(path="doc/a.md", line=3, title="A", section="s1", snippet="alpha match", score=0.5, lane="docs")
-_H2 = Hit(path="helpers/x.py", line=None, title="x", section="", snippet="beta match", score=0.4, lane="scripts")
-_H3 = Hit(path="~/m/memory.md", line=None, title="m", section="zcode", snippet="alpha too", score=0.3, lane="memory", kind="zcode")
+_H1 = Hit(
+    path="doc/a.md", line=3, title="A", section="s1", snippet="alpha match", score=0.5, lane="docs"
+)
+_H2 = Hit(
+    path="helpers/x.py",
+    line=None,
+    title="x",
+    section="",
+    snippet="beta match",
+    score=0.4,
+    lane="scripts",
+)
+_H3 = Hit(
+    path="~/m/memory.md",
+    line=None,
+    title="m",
+    section="zcode",
+    snippet="alpha too",
+    score=0.3,
+    lane="memory",
+    kind="zcode",
+)
 
 
 def _fake_runner(lane, query, limit, mode="hybrid"):
@@ -89,7 +108,9 @@ class TestFanOut:
 
 class TestRrfFlat:
     def test_rank_order_and_leg_tags(self):
-        per_leg = mq.fan_out("q", ["docs", "scripts", "memory"], 4, lane_runner=_fake_runner, parallel=False)
+        per_leg = mq.fan_out(
+            "q", ["docs", "scripts", "memory"], 4, lane_runner=_fake_runner, parallel=False
+        )
         flat = mq.rrf_flat(per_leg, 3)
         # rank 1 in every leg -> same RRF; ties break by canonical leg
         # order (docs < scripts < memory)
@@ -158,9 +179,7 @@ class TestAgeGuard:
         """docs+notes read 100h old; scripts reads fresh; memory reads
         missing (None — the file-gone case degrades via its own status)."""
         ages = {"docs": 100.0, "notes": 100.0, "scripts": 0.5, "memory": None}
-        monkeypatch.setattr(
-            mq, "_leg_age_hours", lambda leg, root=None: ages.get(leg)
-        )
+        monkeypatch.setattr(mq, "_leg_age_hours", lambda leg, root=None: ages.get(leg))
 
     def test_aged_leg_skipped_without_running(self, aged_legs, monkeypatch):
         calls = []
@@ -181,14 +200,14 @@ class TestAgeGuard:
         def spy(lane, query, limit, mode="hybrid"):
             return [_H3], "1 hits · memory_search hybrid"
 
-        out = mq.fan_out(
-            "q", ["memory"], 4, lane_runner=spy, parallel=False, age_guard_hours=24.0
-        )
+        out = mq.fan_out("q", ["memory"], 4, lane_runner=spy, parallel=False, age_guard_hours=24.0)
         assert out["memory"][0] == [_H3]  # None age -> run, own degradation path
 
     def test_convo_refresh_hint_is_convo_fresh(self, monkeypatch):
         monkeypatch.setattr(mq, "_leg_age_hours", lambda leg, root=None: 50.0)
-        out = mq.fan_out("q", ["convo"], 4, lane_runner=_fake_runner, parallel=False, age_guard_hours=24.0)
+        out = mq.fan_out(
+            "q", ["convo"], 4, lane_runner=_fake_runner, parallel=False, age_guard_hours=24.0
+        )
         assert "make convo-fresh APPLY=1" in out["convo"][1]
 
     def test_gates_exempt_from_guard(self, monkeypatch):
@@ -198,7 +217,9 @@ class TestAgeGuard:
             "_leg_age_hours",
             lambda leg, root=None: 999.0 if leg in mq._SIDECAR_BY_LEG else None,
         )
-        out = mq.fan_out("q", ["gates"], 4, lane_runner=_fake_runner, parallel=False, age_guard_hours=1.0)
+        out = mq.fan_out(
+            "q", ["gates"], 4, lane_runner=_fake_runner, parallel=False, age_guard_hours=1.0
+        )
         # gates has no guarded sidecar -> never aged out; the backend ran
         assert out["gates"] == ([_H1], "1 hits · reports hybrid")
 

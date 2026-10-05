@@ -106,6 +106,14 @@ from helpers.graph import scipy_bridge as _sb  # noqa: E402
 
 _LANE_ROUTED = {m for m, o in _sb.ROUTING.items() if o in ("SCIPY", "L1B_FOLD")}
 
+# The stamp lane and the SCIPY/L1B_FORK lanes fan centrality work out through
+# fork_map (fork context, CoW by design); the 3.14 fork-after-threads notice
+# is expected here, not a regression signal — same posture as
+# test_scipy_bridge::test_compute_jobs1_matches_jobs2.
+pytestmark = pytest.mark.filterwarnings(
+    "ignore:This process .* is multi-threaded.*:DeprecationWarning"
+)
+
 
 def _build_sqlite(
     db_path, generation: int = 1, extra_edges: list[tuple[str, str, str]] | None = None

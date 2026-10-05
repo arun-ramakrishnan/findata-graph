@@ -194,7 +194,8 @@ def test_refresh_check_reports_drift_without_writing(corpus):
     assert counts["new_files"] == 1
     assert counts["changed_bytes"] == rep.stat().st_size
     assert one(con, "SELECT COUNT(*) FROM runs")[0] == 0
-    assert con.execute("SELECT COUNT(*) FROM parse_state").fetchone()[0] == 0
+    parse_row = con.execute("SELECT COUNT(*) FROM parse_state").fetchone()
+    assert parse_row is not None and parse_row[0] == 0
     # apply, then check: up to date
     assert gq.refresh(con)["runs"] == 1
     counts = gq.refresh(con, check=True)
@@ -1058,7 +1059,9 @@ def test_tests_slowest_ranks_descending(corpus):
     _write(corpus / ".junit" / "qa.junit.xml", JUNIT_SLOWEST)
     con = gq.connect()
     gq.refresh(con)
-    run_id = con.execute("SELECT MAX(run_id) FROM tests").fetchone()[0]
+    run_row = con.execute("SELECT MAX(run_id) FROM tests").fetchone()
+    assert run_row is not None
+    run_id = run_row[0]
     out = gq.cmd_tests(
         con,
         SimpleNamespace(run=run_id, outcome="all", slowest=True, json=False),

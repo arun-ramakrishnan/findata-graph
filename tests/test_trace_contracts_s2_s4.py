@@ -92,7 +92,8 @@ def test_insert_all_rejects_bad_and_keeps_good() -> None:
     bad_lenient = dict(good, smuggled_field="nope", session_id=f"{good['session_id']}-bad")
     trace_contracts.reset_validation()
     trace_contracts._insert_all(con, "fact_turn", [good, bad_lenient], "opencode")
-    assert con.execute("SELECT count(*) FROM fact_turn").fetchone()[0] == 2
+    inserted = con.execute("SELECT count(*) FROM fact_turn").fetchone()
+    assert inserted is not None and inserted[0] == 2
     con.close()
 
 
@@ -147,7 +148,8 @@ def test_loader_wires_validation_end_to_end() -> None:
     assert summary["rows_ok"] == 1
     assert summary["rows_rejected"] == 1
     assert summary["unknown_field_count"] == 1
-    assert con.execute("SELECT COUNT(*) FROM fact_turn").fetchone()[0] == 2
+    inserted = con.execute("SELECT COUNT(*) FROM fact_turn").fetchone()
+    assert inserted is not None and inserted[0] == 2
     # mirror main()'s load_log write so the S4 SQL leg can read it
     from datetime import UTC, datetime
 

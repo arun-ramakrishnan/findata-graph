@@ -4,6 +4,7 @@ judge + web search monkeypatched, tmp queue/annotation files.
 """
 
 import json
+from urllib.error import URLError
 
 import pytest
 
@@ -558,7 +559,7 @@ class TestSearchEnablers:
         def fake_urlopen(req, timeout=30):
             calls.append(req.full_url)
             if len(calls) == 1:
-                raise tp.urllib.error.URLError("403 blocked")
+                raise URLError("403 blocked")
             return FakeResp(
                 "Porsche sold MHP to Tata Consultancy Services for 320 million euros. " * 6
             )
@@ -569,7 +570,7 @@ class TestSearchEnablers:
 
     def test_fetch_all_transports_fail(self, monkeypatch):
         def boom(req, timeout=30):
-            raise tp.urllib.error.URLError("down")
+            raise URLError("down")
 
         monkeypatch.setattr(tp.urllib.request, "urlopen", boom)
         assert tp._fetch_page_text("https://example.com/x", ("x",)) == ("", "none")

@@ -247,9 +247,10 @@ def test_rebuild_index_and_check(convo_env, monkeypatch):
         "SELECT COUNT(*) FROM convo_search "
         "WHERE ts IS NULL OR text_len <> length(snippet) "
         "OR (embedding IS NOT NULL AND len(embedding) <> 3)"
-    ).fetchone()[0]
+    ).fetchone()
+    assert typed is not None
     con.close()
-    assert typed == 0, f"{typed} rows lost a column in the bulk insert"
+    assert typed[0] == 0, f"{typed[0]} rows lost a column in the bulk insert"
     assert all(r[0] in ("opencode", "prime-rlm", "zcode") for r in rows)
     assert all(r[3] is not None for r in rows)
     # --check on a fresh index: not stale
@@ -470,7 +471,9 @@ def test_index_skips_protocol_markers_but_corpus_keeps_them(convo_env, monkeypat
     try:
         n = con.execute(
             "SELECT COUNT(*) FROM convo_search WHERE part_type LIKE 'step-%'"
-        ).fetchone()[0]
+        ).fetchone()
+        assert n is not None
+        n = n[0]
     finally:
         con.close()
     assert n == 0, f"{n} protocol-marker rows reached the index"

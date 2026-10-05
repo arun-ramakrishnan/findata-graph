@@ -620,6 +620,9 @@ def test_s_t_lanes_live_under_budget():
 # --- scipy_exact_universe: structure lane + all-universe centralities ---
 
 
+# jobs=2 structure lane fork-splits by design (fork_map CoW) — same posture
+# as test_compute_jobs1_matches_jobs2 below.
+@pytest.mark.filterwarnings("ignore:This process .* is multi-threaded.*:DeprecationWarning")
 def test_structure_stats_golden(store):
     """P3 (a-b-c) + isolated pair (d-e): exact scalars, giant-comp radius."""
     s = sb.structure_stats(sb.load_projection(store)[0], jobs=2)

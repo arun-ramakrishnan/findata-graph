@@ -54,6 +54,7 @@ class _StubCon:
         if "_build_meta" in sql:
             return _Rows([] if self._generation is None else [(self._generation,)])
         if "v_node" in sql:
+            assert params is not None
             return _Rows([(1,)] if params[0] in self._v_node else [])
         raise AssertionError(f"unexpected SQL in the CSR lane: {sql!r}")
 

@@ -154,13 +154,15 @@ def _reopen(db: Path, shape: str) -> tuple[int, int, float]:
                 "SELECT source, session_id, turn_id, ts, day, duration_ms, model_requests, model_retries, tool_calls, tool_errors, tokens, context_exceeded, status FROM fact_turn"
             ).fetchall()
         if shape == "convo_search":
-            dupe_count = con.execute(
+            dupe_row = con.execute(
                 "SELECT COUNT(*) FROM (SELECT harness, part_id FROM convo_search GROUP BY harness, part_id HAVING COUNT(*) > 1)"
-            ).fetchone()[0]
+            ).fetchone()
         else:
-            dupe_count = con.execute(
+            dupe_row = con.execute(
                 "SELECT COUNT(*) FROM (SELECT source, session_id, turn_id FROM fact_turn GROUP BY source, session_id, turn_id HAVING COUNT(*) > 1)"
-            ).fetchone()[0]
+            ).fetchone()
+        assert dupe_row is not None
+        dupe_count = dupe_row[0]
         return len(rows), dupe_count, (time.perf_counter() - t0) * 1000
     finally:
         con.close()
@@ -172,13 +174,15 @@ def _assert_no_dupes(db: Path, shape: str) -> None:
     con = duckdb.connect(str(db), read_only=True)
     try:
         if shape == "convo_search":
-            dupes = con.execute(
+            dupe_row = con.execute(
                 "SELECT COUNT(*) FROM (SELECT harness, part_id FROM convo_search GROUP BY harness, part_id HAVING COUNT(*) > 1)"
-            ).fetchone()[0]
+            ).fetchone()
         else:
-            dupes = con.execute(
+            dupe_row = con.execute(
                 "SELECT COUNT(*) FROM (SELECT source, session_id, turn_id FROM fact_turn GROUP BY source, session_id, turn_id HAVING COUNT(*) > 1)"
-            ).fetchone()[0]
+            ).fetchone()
+        assert dupe_row is not None
+        dupes = dupe_row[0]
         assert dupes == 0, f"duplicate business keys in {db}"
     finally:
         con.close()

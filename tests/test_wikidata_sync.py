@@ -5,6 +5,7 @@ from __future__ import annotations
 import sqlite3
 import sys
 from pathlib import Path
+from typing import Any
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
@@ -77,7 +78,7 @@ def test_uncorroborated_result_is_close_match() -> None:
 def test_ambiguous_results_stay_close_match() -> None:
     conn = _db()
 
-    def search(name: str) -> list[dict[str, str]]:
+    def search(candidate: dict[str, str | None]) -> list[dict[str, Any]]:
         return [
             {"id": "Q1", "label": "Alpha Limited"},
             {"id": "Q2", "label": "Alpha Limited"},

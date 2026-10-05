@@ -32,11 +32,7 @@ _ZCODE_NOTE = (
     "The operator owns stgit patch structure; agents edit files.\n"
 )
 
-_ZCODE_INDEX = (
-    "# Memory index\n"
-    "\n"
-    "- [user-workflow](user-workflow.md) — gates, patches, staging\n"
-)
+_ZCODE_INDEX = "# Memory index\n\n- [user-workflow](user-workflow.md) — gates, patches, staging\n"
 
 _PRIME_STATE = {
     "schema": 1,
@@ -62,15 +58,15 @@ _PRIME_STATE = {
 }
 
 _OPENCODE_LOGFMT = (
-    'ts=2026-09-24T13:54:48.990Z type=context scope=findata-graph/identity '
+    "ts=2026-09-24T13:54:48.990Z type=context scope=findata-graph/identity "
     'content="Canonical identity: repo \\"findata-graph\\", origin fixed." '
-    'tags=identity,harness-shared\n'
-    'ts=2026-09-24T13:54:54.010Z type=preference scope=findata-graph/operator-workflow '
+    "tags=identity,harness-shared\n"
+    "ts=2026-09-24T13:54:54.010Z type=preference scope=findata-graph/operator-workflow "
     'content="Follow the repository AGENTS.md as the authority for gates." '
-    'tags=workflow,operator-contract\n'
+    "tags=workflow,operator-contract\n"
     # plugin escapeValue contract: a REAL newline inside content rides as
     # the two-char \n escape — must decode back to a newline, not 'n'
-    'ts=2026-09-25T00:00:00Z type=context scope=findata-graph/multiline '
+    "ts=2026-09-25T00:00:00Z type=context scope=findata-graph/multiline "
     'content="alpha\\nbeta" tags=x\n'
 )
 _OPENCODE_DELETIONS = 'ts=2026-09-24T00:00:00Z type=context scope=x content="deleted record"\n'
@@ -165,7 +161,7 @@ class TestBuild:
     def test_abbrev_home_prefixes_under_home(self, monkeypatch):
         monkeypatch.setenv("HOME", "/home/fake")
         assert rms._abbrev_home(Path("/home/fake/x/memory/a.md")) == "~/x/memory/a.md"
-        assert rms._abbrev_home(Path("/tmp/elsewhere/a.md")) == "/tmp/elsewhere/a.md"
+        assert rms._abbrev_home(Path("/tmp/elsewhere/a.md")) == "/tmp/elsewhere/a.md"  # noqa: S108  # fixture: non-HOME path must not be abbreviated
 
     def test_memory_md_row_without_frontmatter(self, tree):
         _rebuild(tree)
@@ -269,8 +265,7 @@ class TestFreshnessAndIncremental:
         conn = rms.connect_memory_db(tree / "memory_search.db")
         try:
             kinds = {
-                r[0]
-                for r in conn.execute("SELECT DISTINCT kind FROM memory_search").fetchall()
+                r[0] for r in conn.execute("SELECT DISTINCT kind FROM memory_search").fetchall()
             }
             meta = {
                 r[0] for r in conn.execute("SELECT unit_path FROM memory_search_meta").fetchall()

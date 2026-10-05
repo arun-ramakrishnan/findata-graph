@@ -311,7 +311,9 @@ def _time_rebuild(db: Path, reps: int) -> tuple[float, int, int]:
     import duckdb
 
     ro = duckdb.connect(str(duck), read_only=True)
-    doubled = ro.execute("SELECT COUNT(*) FROM e_all_und").fetchone()[0]
+    doubled_row = ro.execute("SELECT COUNT(*) FROM e_all_und").fetchone()
+    assert doubled_row is not None
+    doubled = doubled_row[0]
     ro.close()
     return best, doubled, duck.stat().st_size
 
@@ -360,7 +362,7 @@ def _density_check(rows: int, reps: int) -> None:
         try:
             db = scratch / "research.db"
             _clone_schema(db)
-            _generate(db, rows, degree=degree, notes=LIVE["notes"], dims=LIVE["dims"])
+            _generate(db, rows, degree=degree, notes=int(LIVE["notes"]), dims=int(LIVE["dims"]))
             best, doubled, _ = _time_rebuild(db, reps)
             print(f"{label:>34} {best:>8.2f}   (R={doubled:,})")
         finally:
@@ -402,7 +404,7 @@ def main(argv: list[str] | None = None) -> int:
     if not SRC_DB.is_file():
         print(f"no production schema source at {SRC_DB}", file=sys.stderr)
         return 2
-    targets = args.rows if args.rows else [LIVE["rows"], 1_000_000]
+    targets = args.rows if args.rows else [int(LIVE["rows"]), 1_000_000]
     before = _prod_guard()
 
     print("production rebuild cost — T(R) ~= a + b*R, R = e_all_und doubled rows")
@@ -417,7 +419,9 @@ def main(argv: list[str] | None = None) -> int:
         try:
             db = scratch / "research.db"
             _clone_schema(db)
-            counts = _generate(db, rows, degree=args.degree, notes=args.notes, dims=LIVE["dims"])
+            counts = _generate(
+                db, rows, degree=args.degree, notes=args.notes, dims=int(LIVE["dims"])
+            )
             best, doubled, size = _time_rebuild(db, args.reps)
             fits.append((doubled, best))
             print(
@@ -445,7 +449,7 @@ def main(argv: list[str] | None = None) -> int:
         try:
             db = scratch / "research.db"
             _clone_schema(db)
-            _generate(db, 0, degree=args.degree, notes=0, dims=LIVE["dims"])
+            _generate(db, 0, degree=args.degree, notes=0, dims=int(LIVE["dims"]))
             _breakdown(db)
         finally:
             if not args.keep:

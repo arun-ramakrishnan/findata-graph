@@ -461,46 +461,38 @@ class TestAbPerCarrierKeys:
     single-key form. Routing is observable through the Authorization header
     of the fake _post, in carrier order."""
 
-    def test_keys_map_routes_per_carrier(self):
+    def test_keys_map_routes_per_carrier(self, monkeypatch):
         calls = []
 
-        def fake_post(url, headers, body, timeout):
+        def fake_post(url: str, headers: dict, body: dict, timeout: float) -> tuple[int, dict]:
             calls.append(headers.get("Authorization", ""))
             return _ok()
 
-        orig = tj._post
-        tj._post = fake_post
-        try:
-            verdicts, agreement = tj.ab(
-                "state text",
-                {"is_acq": tj.noul("Did A acquire B?", {"true": "acquired", "false": "no"})},
-                ["glm-5.3", "mercury-decide"],
-                keys={"glm-5.3": "zai-key", "mercury-decide": "or-key"},
-                use_cache=False,
-            )
-        finally:
-            tj._post = orig
+        monkeypatch.setattr(tj, "_post", fake_post)
+        verdicts, agreement = tj.ab(
+            "state text",
+            {"is_acq": tj.noul("Did A acquire B?", {"true": "acquired", "false": "no"})},
+            ["glm-5.3", "mercury-decide"],
+            keys={"glm-5.3": "zai-key", "mercury-decide": "or-key"},
+            use_cache=False,
+        )
         assert calls == ["Bearer zai-key", "Bearer or-key"]
         assert "mercury-decide" in verdicts and "glm-5.3" in verdicts
         assert agreement["is_acq"]["agree"] is True
 
-    def test_shared_key_still_applies_to_every_carrier(self):
+    def test_shared_key_still_applies_to_every_carrier(self, monkeypatch):
         calls = []
 
-        def fake_post(url, headers, body, timeout):
+        def fake_post(url: str, headers: dict, body: dict, timeout: float) -> tuple[int, dict]:
             calls.append(headers.get("Authorization", ""))
             return _ok()
 
-        orig = tj._post
-        tj._post = fake_post
-        try:
-            tj.ab(
-                "state text",
-                {"is_acq": tj.noul("Did A acquire B?", {"true": "acquired", "false": "no"})},
-                ["glm-5.3", "mercury-decide"],
-                key="shared-key",
-                use_cache=False,
-            )
-        finally:
-            tj._post = orig
+        monkeypatch.setattr(tj, "_post", fake_post)
+        tj.ab(
+            "state text",
+            {"is_acq": tj.noul("Did A acquire B?", {"true": "acquired", "false": "no"})},
+            ["glm-5.3", "mercury-decide"],
+            key="shared-key",
+            use_cache=False,
+        )
         assert calls == ["Bearer shared-key", "Bearer shared-key"]

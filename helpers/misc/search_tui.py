@@ -67,7 +67,16 @@ from pathlib import Path, PurePosixPath
 from typing import Any
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-LANES: tuple[str, ...] = ("docs", "scripts", "notes", "memory", "convo", "code", "literal", "reports")
+LANES: tuple[str, ...] = (
+    "docs",
+    "scripts",
+    "notes",
+    "memory",
+    "convo",
+    "code",
+    "literal",
+    "reports",
+)
 DEFAULT_LIMIT = 40
 RG_ROW_CAP = 300
 _SUB_TIMEOUT = 90  # ripwire walks the tree; doc/script CLIs embed queries.

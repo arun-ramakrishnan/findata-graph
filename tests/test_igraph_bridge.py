@@ -105,8 +105,8 @@ def test_toy_parity_vs_onager_baseline():
     ig_pr = B.weighted_pagerank(g)
     # Baseline values are rounded to 5dp (mass 0.99999), so tolerance is 1e-4.
     assert abs(sum(ig_pr.values()) - sum(on_pr.values())) < 1e-4
-    assert set(sorted(ig_pr, key=ig_pr.get, reverse=True)[:4]) == set(
-        sorted(on_pr, key=on_pr.get, reverse=True)[:4]
+    assert set(sorted(ig_pr, key=lambda k: ig_pr[k], reverse=True)[:4]) == set(
+        sorted(on_pr, key=lambda k: on_pr[k], reverse=True)[:4]
     )
 
     # Degree centrality is exact on both engines.
@@ -168,7 +168,7 @@ def test_persist_apply_delegates_to_write_analytics(monkeypatch):
     import types
 
     stub = types.ModuleType("helpers.graph.algorithms")
-    stub.write_analytics = _fake
+    setattr(stub, "write_analytics", _fake)
     monkeypatch.setitem(sys.modules, "helpers.graph.algorithms", stub)
     n = B.persist("igraph_leiden", {"A": 0, "B": 1}, apply=True)
     assert n == 2 and calls["metric"] == "igraph_leiden"
@@ -228,6 +228,7 @@ def test_maxflow_mincut_chokepoint():
 
     g1, _ = B.build_graph([("S", "A", "competes_with", 1.0), ("A", "T", "competes_with", 1.0)])
     r1 = B.maxflow_mincut(g1, "S", "T")
+    assert r1 is not None
     assert r1["maxflow"] == 1.0 and r1["mincut"] == 1.0
     assert r1["edge_connectivity"] == 1 and r1["vertex_connectivity"] == 1
     assert B.maxflow_mincut(g, "S", "NOPE") is None

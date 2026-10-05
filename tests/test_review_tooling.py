@@ -60,12 +60,14 @@ class TestReviewFreshness:
         rows = json.loads(ledger.read_text())
         assert len(rows) == 1 and rows[0]["legs"] == ["delegation", "managed"]
         state, row, scope = rf.status(1)
+        assert row is not None
         assert state == "FRESH" and row["fingerprint"] == fp and scope == "HEAD~1..HEAD"
 
     def test_content_change_goes_stale_same_scope(self, ledger, monkeypatch):
         rf.main(["--record"])
         monkeypatch.setattr(rf, "_diff_text", lambda stack: "diff-text-B\n")
         state, row, scope = rf.status(1)
+        assert row is not None
         assert state == "STALE" and scope == "HEAD~1..HEAD" and row["legs"] == ["delegation"]
 
     def test_unreviewed_when_no_row(self, ledger):

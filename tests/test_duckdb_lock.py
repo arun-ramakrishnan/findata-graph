@@ -155,7 +155,8 @@ class TestCrossProcess:
             con = connect_with_lock_retry(lambda: duckdb.connect(str(duckdb_path), read_only=True))
             elapsed = time.perf_counter() - t0
             try:
-                assert con.execute("SELECT COUNT(*) FROM t").fetchone()[0] == 0
+                count_row = con.execute("SELECT COUNT(*) FROM t").fetchone()
+                assert count_row is not None and count_row[0] == 0
             finally:
                 con.close()
             assert elapsed >= 0.4  # the ladder actually waited out the holder
@@ -180,7 +181,8 @@ class TestCrossProcess:
             con = open_read_only(duckdb_path)  # queues on <db>.io.lock
             elapsed = time.perf_counter() - t0
             try:
-                assert con.execute("SELECT COUNT(*) FROM t").fetchone()[0] == 0
+                count_row = con.execute("SELECT COUNT(*) FROM t").fetchone()
+                assert count_row is not None and count_row[0] == 0
             finally:
                 con.close()
             assert elapsed >= 1.5  # queued out the writer's window, not retried

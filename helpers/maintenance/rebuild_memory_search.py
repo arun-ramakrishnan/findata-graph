@@ -176,10 +176,7 @@ def _split_zcode_frontmatter(text: str) -> tuple[dict[str, str], str]:
         return {}, text
     fm = text[3:end]
     body = text[end + 4 :]
-    fields = {
-        key: _folded_fm_field(fm, key)
-        for key in ("name", "description")
-    }
+    fields = {key: _folded_fm_field(fm, key) for key in ("name", "description")}
     # type lives NESTED under `metadata:` (node_type/type/originSessionId) —
     # the ^key anchor must not match it top-level, so dig it out of the
     # indented block instead.
@@ -261,7 +258,7 @@ def _extract_prime_units(state: Path) -> tuple[list[dict], dict[str, tuple[float
         raw = state.read_text(encoding="utf-8", errors="replace")
         mtime = state.stat().st_mtime
         doc = json.loads(raw)
-    except (OSError, json.JSONDecodeError):
+    except OSError, json.JSONDecodeError:
         return [], meta
     loc = _abbrev_home(state)
     entries = doc.get("entries") if isinstance(doc, dict) else None
@@ -682,7 +679,9 @@ def _stored_embed_dims(conn: sqlite3.Connection) -> int | None:
     return len(vec) if vec else None
 
 
-def _cosine_leg(conn: sqlite3.Connection, q: str) -> tuple[list[tuple[int, float]], dict[int, float]]:
+def _cosine_leg(
+    conn: sqlite3.Connection, q: str
+) -> tuple[list[tuple[int, float]], dict[int, float]]:
     """Cosine ranking: (scored [(rowid, sim)] desc, sims map). ([], {}) when
     the embedder is unavailable or stored dims mismatch — the BM25 leg then
     carries the whole ranking (the house degradation contract)."""
@@ -748,7 +747,9 @@ def search_memories(
     scored, sims = _cosine_leg(conn, q) if hybrid else ([], {})
     cos_rank = {rid: pos for pos, (rid, _s) in enumerate(scored)} if scored else None
 
-    candidates: list[tuple[int, sqlite3.Row, str]] = [(pos, row, row[7]) for pos, row in enumerate(page)]
+    candidates: list[tuple[int, sqlite3.Row, str]] = [
+        (pos, row, row[7]) for pos, row in enumerate(page)
+    ]
     if cos_rank is not None:
         page_rids = {row[0] for row in page}
         rows_by_rid = {

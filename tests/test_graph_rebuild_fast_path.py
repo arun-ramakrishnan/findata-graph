@@ -186,7 +186,9 @@ class TestDirtyTracking:
         # and the new edge is served
         con = q.connect(unit_db, read_only=True)
         try:
-            n = con.execute("SELECT COUNT(*) FROM e_jv").fetchone()[0]
+            n = con.execute("SELECT COUNT(*) FROM e_jv").fetchone()
+            assert n is not None
+            n = n[0]
         finally:
             con.close()
         assert n == 1
