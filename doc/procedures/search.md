@@ -24,9 +24,10 @@ the write side; this one owns freshness and query.
 | `doc_search` FTS5 (BM25, section-level) + per-chunk embeddings | `memory/doc_search.db` (gitignored sidecar) | `doc/**` (incl. gitignored `doc/local/`) | `doc_query.py`, `GET /api/docs/search` |
 | `script_search` FTS5 + embeddings, hybrid RRF | `memory/script_search.db` (gitignored sidecar) | `helpers/**`, `tests/**`, `app.py`, Makefile | `script_query.py` |
 | `note_search` FTS5 (+ vec0 mirror in research.db) | inside `memory/research.db` | `findata/**` markdowns | `GET /api/search?hybrid=true`, TUI notes lane |
-| `memory_search` FTS5 + embeddings, hybrid RRF | `memory/memory_search.db` (gitignored sidecar) | harness memory pools: zcode (`~/.zcode/cli/memories/`), prime-rlm (`harness_state.json`), opencode (`.opencode/memory/*.logfmt`) | `memory_query.py` (`--kind zcode\|prime\|opencode`) |
+| `memory_search` FTS5 + embeddings, hybrid RRF | `memory/memory_search.db` (gitignored sidecar) | harness memory pools: zcode (`~/.zcode/cli/memories/`), prime-rlm (`harness_state.json`), opencode (`.opencode/memory/*.logfmt`) | `memory_query.py` (`--kind zcode\|prime\|opencode`), TUI memory lane |
 | Embed cache `(sha256(text), model) -> vector` | pooled `memory/embed_store.db` (schema `vecdb`) | shared by all indexers | automatic |
-| TUI (consumer only — builds no index) | reads the `doc_search`/`script_search`/`note_search` sidecars + `ripwire` + `rg` | — | `make search-tui` |
+| `master_query` (client only — builds no index) | fans out over all six corpus legs, grouped results | — | `master_query.py`, `--legs`/`--flat`/`--json` |
+| TUI (consumer only — builds no index) | reads the four `search-fresh` sidecars + `ripwire` + `rg` | — | `make search-tui` |
 
 Sidecars are deliberately NOT in `research.db`: `doc/local/` is private
 and the published DB is the git-tracked `snapshots/parquet/` export, so
@@ -254,13 +255,50 @@ a plugin upgrade that changes the record shape is the watch item.
 
 ---
 
+## master_query — the federated front door
+
+**Scope:** ONE query fanned out over every corpus leg, grouped per-leg
+results — the grand-unified client (the settled #229 doctrine:
+unification lives in the CLIENT; per-leg ranking is never blended —
+the score spaces are incomparable). Backends are the search_tui lane
+adapters (`run_lane`), so the CLI owns no backend logic. Legs: `docs`,
+`notes`, `scripts`, `memory`, `convo`, `gates` (default six) +
+`code` (ripwire) and `literal` (rg) via `--legs all`. Every leg
+degrades independently (missing sidecar = that leg's status, never a
+failed query).
+
+```bash
+.venv/bin/python3 helpers/misc/master_query.py "embed cache"           # all six corpus legs
+.venv/bin/python3 helpers/misc/master_query.py "stg refresh" --legs memory,convo
+.venv/bin/python3 helpers/misc/master_query.py "integrity" --flat      # + rank-RRF reading order
+.venv/bin/python3 helpers/misc/master_query.py "graph rebuild" --age-guard 12  # skip stale-index legs
+.venv/bin/python3 helpers/misc/master_query.py "graph rebuild" --json  # structured, per-leg
+```
+
+`--flat` is the ONE cross-leg blend, and it is rank-based only: RRF
+over each leg's hit RANKS, leg-tagged, ties broken by canonical leg
+order. `--age-guard [HOURS]` (default 24) is the freshness ENFORCEMENT
+dial for a single call: index legs whose sidecar mtime is older than
+the threshold are skipped up front with the age and refresh command in
+the status (`gates` exempt — self-refreshing; `code`/`literal`
+stateless; the `notes` age is approximate — its "sidecar" is the
+shared research.db). A skipped leg does not count as answered: all
+legs skipped/errored → exit 1. Measured (2026-10-05, warm): full
+six-leg hybrid ≈9 s wall (parallel fan-out; each semantic leg pays its
+own embedder/matrix load), `--bm25` ≈0.9 s, single-leg subsets
+0.1–3.4 s. For interactive agent use prefer `--legs memory,convo,gates`
+or `--bm25`; the full hybrid sweep is the wide net. No perf-bench row:
+it is a client over legs that are individually benchmarked. Exit 0
+when at least one leg answered, 1 when every leg degraded.
+
+---
+
 ## Search TUI (`search_tui`)
 
 **Scope:** one full-screen terminal front door over every search surface
 the repo already keeps fresh. No new index — the TUI is a consumer of
-the `doc_search`/`script_search`/`note_search` sidecars plus two
-stateless structural tools. (The harness-memory pools are CLI-only:
-`memory_query.py` — no TUI lane yet.)
+the `doc_search`/`script_search`/`note_search`/`memory_search`
+sidecars plus two stateless structural tools.
 
 ### Lanes
 
@@ -269,9 +307,11 @@ stateless structural tools. (The harness-memory pools are CLI-only:
 | 1 | docs | `helpers/misc/doc_query.py --json` | FTS5 + embeddings over `doc/` (incl. `doc/local/`) |
 | 2 | scripts | `helpers/misc/script_query.py --json` | helpers/tests/make/mojo; `make` rows jump to the Makefile rule |
 | 3 | notes | `note_search` FTS5 in `memory/research.db` | bm25-ranked keyword search over the findata vault |
-| 4 | code | `ripwire` | default `--for=`; verbs below |
-| 5 | literal | `rg` | gitignore-aware, `path:line:text` rows, capped at 300 |
-| 6 | reports | `outputs/*_report.md` | append-only run reports; empty query = per-report overview |
+| 4 | memory | `rebuild_memory_search.search_memories` (in-process) | harness pools zcode/prime/opencode; one row per record |
+| 5 | convo | `helpers/misc/convo_query.py --json` | corpus pointers `file.parquet:<row>`; `make convo-fresh` |
+| 6 | code | `ripwire` | default `--for=`; verbs below |
+| 7 | literal | `rg` | gitignore-aware, `path:line:text` rows, capped at 300 |
+| 8 | reports | `outputs/*_report.md` | append-only run reports; empty query = per-report overview |
 
 Code-lane verbs: `callers:SYM`, `impact:SYM`, `grep:STR` (always
 `--grep-in=any`), `recall: question`. Else → `--for=<query>`.
@@ -287,7 +327,7 @@ Unknown `x:` prefixes are plain text.
 | Key | Action |
 |-----|--------|
 | type + enter | run the query (enter-to-search; no type-to-search) |
-| `1`-`6` | switch lane and re-run (stale rows clear immediately) |
+| `1`-`8` | switch lane and re-run (stale rows clear immediately) |
 | tab / shift+tab | cycle panes: query → tabs → results → preview |
 | `m` | toggle hybrid / bm25 match mode (docs & scripts lanes) |
 | `t` | cycle theme (github-dark → github-light → solarized-dark → high-contrast) |

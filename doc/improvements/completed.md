@@ -9228,3 +9228,42 @@ touched suites; ruff + ty clean. Eval-v3 regression re-run through the
 shipped module (frozen record untouched): artifacts 37/37, Q2 54/56
 (bar ≥53); S3 re-judge test-verified only (36 escalations, zero verified
 flips live).
+
+## 351. Master query — the federated search front door and its age guard
+
+Filed and executed 2026-10-05 (`master_search_age_guard` proposal,
+archive/tooling). **S1**: `helpers/misc/master_query.py` — one federated
+query fanned out over the six corpus legs (docs/notes/scripts/memory/
+convo/gates; `--legs all` adds ripwire + rg) in a thread pool, grouped
+per-leg results with independent degradation, `--flat` rank-RRF reading
+order (the #229 client-side-unification doctrine: no score-space
+blending), `--json`, `--serial`; backends are the search_tui
+`run_lane` adapters (zero backend logic in the client). Plus the
+search_tui memory lane (8 lanes, keys renumbered, index monitor +
+status-bar ages) over the `memory_search` sidecar from the paired
+`memory_search` patch. **S2**: `--age-guard [HOURS]` (default 24) —
+index legs whose sidecar mtime exceeds the threshold skip up front
+with the age + refresh command in the status (gates exempt as
+self-refreshing, code/literal stateless, notes age approximate via
+the shared research.db), JSON `skipped: true`, all-skipped → exit 1;
+and the front-door interpreter guard (python-dotenv sentinel → exit 2
+with the `.venv/bin/python3` instruction) after the first live use
+died as a six-leg error cascade under ~/.local/bin/python 3.14.
+Measured: full six-leg hybrid ≈9 s wall, `--bm25` ≈0.9 s. Docs:
+AGENTS.md surface table + six-CLIs block, doc/procedures/search.md
+master section + TUI lane table (fixed pre-existing convo-lane drift
+there). Gates: targeted tests 29+19+75 pass, ruff/ty clean, md-lint 0,
+static_checks all pass.
+
+## 352. Memory search — one FTS5 sidecar over the three harness pools
+
+Filed and executed 2026-10-05 (`memory_search_sidecar` proposal,
+`doc/improvements/archive/tooling/`; filed after implementation so the
+feature has search context). **S1**: `rebuild_memory_search.py`
+normalizes the three harness pools (zcode markdown + MEMORY.md, prime
+harness_state.json, opencode logfmt) into one FTS5 sidecar
+(`memory/memory_search.db`: 86 rows — 31/28/27 — with per-source
+mtime+hash meta). **S2**: `memory_query.py` (104 lines) with `--kind`
+pool filter, `--json`, and stale-warns-and-answers semantics.
+Boundary: the federated leg + TUI lane belong to #351. Tests: 19 + 29
+passed; ruff/ty clean.

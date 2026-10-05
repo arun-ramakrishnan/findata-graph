@@ -254,6 +254,8 @@ commit, referenced by nothing). Entry numbers point at
 
 - [`provider_drift_glm_mercury.md`](tooling/provider_drift_glm_mercury.md) — provider-drift — mercury-decide bit-stable ×3 same key, GLM lane drifted same window (admit 3→0, 5 fact flips); decision: GLM = discovery/extraction, mercury = rubric cross-check — completed.md #341
 
+- [`memory_search_sidecar.md`](tooling/memory_search_sidecar.md) — one FTS5 sidecar over the three harness memory pools (zcode/prime/opencode, 86 rows) + `memory_query.py` CLI with kind filter and stale-warns-and-answers — completed.md #352
+
 - [`jev_pilot_maintenance_gaps.md`](tooling/jev_pilot_maintenance_gaps.md) — S2 evidence executed (WorkflowEvals agent_trace: flash 0.8568 ≈ genuine Jev 0.8612 > mercury-2 0.7829; preference flash > free-jev > mercury-decide > paid jev); S1/S3–S5 + mercury producer deferred — completed.md #349
 
 - [`typed_trace_contracts.md`](tooling/typed_trace_contracts.md) — typed trace contracts — frozen contract dataclasses for the star schema, `@register_parser` harness registry, warn+count validate-at-ingest, `load_log.rows_ok/rows_rejected/unknown_fields`, synthetic fixture tests and `report --legs validation` — completed.md #335

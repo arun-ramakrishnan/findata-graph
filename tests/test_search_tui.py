@@ -302,7 +302,7 @@ def test_app_pilot_rows_preview_monitor(monkeypatch: pytest.MonkeyPatch) -> None
     rows, moved, mrows, relane = asyncio.run(drive())
     assert rows == 3  # duplicate path:line rows survive (index keys)
     assert moved  # preview follows the cursor
-    assert mrows == 3  # monitor: three indexes, ages only, no auto checks
+    assert mrows == 4  # monitor: four indexes (docs/scripts/notes/memory), ages only
     assert relane == 3  # lane switch re-runs (mocked) and repopulates
 
 
@@ -469,7 +469,7 @@ def test_index_monitor_double_refresh_guard_pilot(monkeypatch: pytest.MonkeyPatc
                     break
             return list(calls)
 
-    assert sorted(asyncio.run(drive())) == ["docs", "notes", "scripts"]
+    assert sorted(asyncio.run(drive())) == ["docs", "memory", "notes", "scripts"]
 
 
 _VERIFY_RUNS_FIXTURE = (

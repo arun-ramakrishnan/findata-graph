@@ -1,13 +1,15 @@
 # Instructions for LLM/agent sessions
 
-Query, don't scan — six indexes cover this repo; grep and wholesale
-reads are the fallback. TUI lanes are a usability shell over the CLIs
-below, never the only way in.
+Query, don't scan — six indexes cover this repo, and one federated
+front door fans out over all of them; grep and wholesale reads are the
+fallback. TUI lanes are a usability shell over the CLIs below, never
+the only way in.
 
 ## Search surfaces — pick the index by intent
 
 | intent | tool | index |
 |---|---|---|
+| **anything, once** (federated grouped results) | `helpers/misc/master_query.py` | all six |
 | design/decision/history in `doc/` | `helpers/misc/doc_query.py` | `doc_search.db` |
 | scripts/tests/make/Mojo | `helpers/misc/script_query.py` | `script_search.db` |
 | **past agent sessions** (opencode+prime-rlm+zcode) | `helpers/misc/convo_query.py` | `convo_search.duckdb` + `_fts.db` |
@@ -16,16 +18,17 @@ below, never the only way in.
 | gate-run reports | `helpers/misc/gate_query.py` | `outputs/*_report.md` |
 | code structure / callers | `ripwire` | offline binary |
 | why a process or file is busy | `witr` | live |
-| all of it, interactively | `make search-tui` (lanes 1-7) | — |
+| all of it, interactively | `make search-tui` (lanes 1-8) | — |
 
 One rule the table hides: **harness conversations are not in `doc/`.**
 Docs hold conclusions; `convo_search` holds the path to them — dead
 ends, discarded options, why a live default is what it is.
 
-## The five query CLIs
+## The six query CLIs
 
 ```bash
 Q=".venv/bin/python3 helpers/misc"
+$Q/master_query.py "embed cache"                           # ALL legs, grouped; --flat rank-RRF; --age-guard N skips stale-index legs
 $Q/doc_query.py "why did we not adopt langgraph" --limit 5   # doc/ incl doc/local
 $Q/note_query.py "promoter holding" --limit 5              # findata/** vault
 $Q/script_query.py "<task>" --kind script|test|make|mojo   # before grepping

@@ -28,16 +28,21 @@ that leg's status, never as a failure of the whole query (the house
 lives here (per-leg status + index ages); the freshness GATES stay
 where the contracts live: `make search-fresh` (docs/notes/scripts/
 memory) and `make convo-fresh` (corpus chain); the gate index refreshes
-itself before every query.
+itself before every query. `--age-guard [HOURS]` (default 24) turns
+that reporting into enforcement for one call: index legs whose sidecar
+is older than the threshold are skipped up front with the refresh
+command in the status — stale hits never reach the caller.
 
 Usage:
     python3 helpers/misc/master_query.py "embed cache"
     python3 helpers/misc/master_query.py "stg refresh" --legs memory,convo
     python3 helpers/misc/master_query.py "integrity" --flat --limit 4
+    python3 helpers/misc/master_query.py "graph rebuild" --age-guard 12
     python3 helpers/misc/master_query.py "graph rebuild" --json
 
 Exit codes: 0 at least one leg actually ran (hits or an honest "0 hits"),
-1 no leg ran (every sidecar missing / every leg errored), 2 usage error.
+1 no leg ran (every sidecar missing / every leg errored or
+age-guard-skipped), 2 usage error.
 """
 
 from __future__ import annotations
@@ -46,6 +51,7 @@ import argparse
 import json
 import re
 import sys
+import time
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import asdict
 from pathlib import Path
@@ -58,6 +64,7 @@ if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
 from helpers.misc import search_tui as st  # noqa: E402
+from helpers.misc.search_tui import Hit  # noqa: E402
 
 RRF_K = 60
 
@@ -77,7 +84,42 @@ _LEGS: dict[str, str] = {
 DEFAULT_LEGS = ("docs", "notes", "scripts", "memory", "convo", "gates")
 ALL_LEGS = ("docs", "notes", "scripts", "memory", "convo", "gates", "code", "literal")
 
+# Age-guard scope (S2): legs backed by a dedicated sidecar file whose
+# mtime is the index age. notes' file is the SHARED research.db — many
+# subsystems touch it, so its age reads fresh (the guard is
+# approximate there; documented, not load-bearing). gates is exempt
+# (self-refreshing before every query verb), code/literal stateless.
+_SIDECAR_BY_LEG: dict[str, str] = {
+    "docs": "memory/doc_search.db",
+    "scripts": "memory/script_search.db",
+    "notes": "memory/research.db",
+    "memory": "memory/memory_search.db",
+    "convo": "memory/convo_search.duckdb",
+}
+_REFRESH_BY_LEG: dict[str, str] = {
+    "docs": "make search-fresh APPLY=1",
+    "scripts": "make search-fresh APPLY=1",
+    "notes": "make search-fresh APPLY=1",
+    "memory": "make search-fresh APPLY=1",
+    "convo": "make convo-fresh APPLY=1",
+}
+DEFAULT_AGE_GUARD_HOURS = 24.0
+
 _ANSWERED = re.compile(r"^\d+ hits")
+
+
+def _leg_age_hours(leg: str, root: Path | None = None) -> float | None:
+    """Hours since the leg's sidecar was last written, or None when the
+    leg has no guarded sidecar or the file is missing (missing lets the
+    leg degrade with its own status instead of an age skip)."""
+    rel = _SIDECAR_BY_LEG.get(leg)
+    if rel is None:
+        return None
+    f = (root or _REPO_ROOT) / rel
+    try:
+        return max((time.time() - f.stat().st_mtime) / 3600.0, 0.0)
+    except OSError:
+        return None
 
 
 def parse_legs(spec: str) -> list[str]:
@@ -113,6 +155,7 @@ def fan_out(
     mode: str = "hybrid",
     lane_runner=None,
     parallel: bool = True,
+    age_guard_hours: float | None = None,
 ) -> dict[str, tuple[list, str]]:
     """Run every leg, return {leg: (hits, status)} keyed by caller's name.
 
@@ -120,7 +163,12 @@ def fan_out(
     unit-tested adapters — the master CLI owns NO backend logic). Legs
     run in a thread pool by default: the corpus legs mix subprocess CLIs
     and in-process embedders, so wall-clock is the slowest leg, not the
-    sum. A raising leg degrades to ([], "error: ...")."""
+    sum. A raising leg degrades to ([], "error: ...").
+
+    ``age_guard_hours`` (S2, `--age-guard`): legs whose guarded sidecar
+    (``_SIDECAR_BY_LEG``) is older than the threshold are skipped up
+    front — status names the age and the refresh command; the backend
+    never runs. A skipped leg is not "answered" (exit-1 eligible)."""
     runner = lane_runner or st.run_lane
     ordered: list[str] = []
     for leg in legs:
@@ -128,6 +176,14 @@ def fan_out(
             ordered.append(leg)
 
     def _one(leg: str) -> tuple[str, tuple[list, str]]:
+        if age_guard_hours is not None:
+            age = _leg_age_hours(leg)
+            if age is not None and age > age_guard_hours:
+                return leg, (
+                    [],
+                    f"skipped: index {age:.1f}h old exceeds the {age_guard_hours:g}h "
+                    f"age guard (refresh: {_REFRESH_BY_LEG.get(leg, 'make search-fresh APPLY=1')})",
+                )
         try:
             hits, status = runner(_LEGS[leg], query, limit, mode)
             return leg, (hits, status)
@@ -153,7 +209,7 @@ def rrf_flat(per_leg: dict[str, tuple[list, str]], limit: int) -> list[dict]:
     RRF, similarity) are incomparable, but "how highly did this rank in
     its own leg" is not. Ties break by canonical leg order (repo
     surfaces before harness surfaces before stateless tools)."""
-    scored: list[tuple[float, int, str, object]] = []
+    scored: list[tuple[float, int, str, Hit]] = []
     for leg, (hits, _status) in per_leg.items():
         pri = _leg_priority(leg)
         for rank, hit in enumerate(hits):
@@ -201,6 +257,33 @@ def render_flat(flat: list[dict]) -> None:
             print(f"           {r['snippet'][:140]}")
 
 
+def _import_dotenv() -> None:
+    import dotenv  # noqa: F401  (sentinel import — see interpreter_problem)
+
+
+def interpreter_problem() -> str | None:
+    """None when THIS interpreter can run the master fan-out; else one
+    actionable error line.
+
+    Sentinel = python-dotenv: helpers.core.env imports it at module load,
+    so every in-process leg (notes, memory) dies without it and the
+    subprocess legs inherit the same broken env — the symptom is a
+    confusing six-leg error cascade. Happens when the CLI is invoked
+    with a bare ``python`` that resolves outside the repo .venv (e.g.
+    ~/.local/bin/python 3.14) — the AGENTS.md ``.venv/bin/python3``
+    rule. Checked up front so the front door fails LOUD and instructive
+    instead."""
+    try:
+        _import_dotenv()
+    except ModuleNotFoundError:
+        return (
+            f"ERROR: {sys.executable} is not the repo venv — python-dotenv is "
+            "missing, so every search leg would fail. Run:\n"
+            "  .venv/bin/python3 helpers/misc/master_query.py '<query>'"
+        )
+    return None
+
+
 def main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     p.add_argument("query", nargs="?", default="", help="free-text query")
@@ -218,10 +301,25 @@ def main(argv: list[str] | None = None) -> int:
         "--flat", action="store_true", help="also emit a rank-RRF cross-leg reading order"
     )
     p.add_argument(
+        "--age-guard",
+        nargs="?",
+        type=float,
+        const=DEFAULT_AGE_GUARD_HOURS,
+        default=None,
+        metavar="HOURS",
+        help="skip index legs whose sidecar is older than HOURS "
+        f"(default {DEFAULT_AGE_GUARD_HOURS:g}); gates/code/literal exempt",
+    )
+    p.add_argument(
         "--json", action="store_true", dest="as_json", help="structured output (adds flat when --flat)"
     )
     p.add_argument("--serial", action="store_true", help="run legs sequentially (debug)")
     args = p.parse_args(argv)
+
+    problem = interpreter_problem()
+    if problem is not None:
+        print(problem, file=sys.stderr)
+        return 2
 
     try:
         legs = parse_legs(args.legs)
@@ -231,7 +329,12 @@ def main(argv: list[str] | None = None) -> int:
 
     mode = "bm25" if args.bm25 else "hybrid"
     per_leg = fan_out(
-        args.query, legs, max(1, min(args.limit, 20)), mode, parallel=not args.serial
+        args.query,
+        legs,
+        max(1, min(args.limit, 20)),
+        mode,
+        parallel=not args.serial,
+        age_guard_hours=args.age_guard,
     )
     flat = rrf_flat(per_leg, args.limit) if args.flat else []
     answered = any(_leg_answered(status) for _h, status in per_leg.values())
@@ -240,9 +343,15 @@ def main(argv: list[str] | None = None) -> int:
         payload = {
             "query": args.query,
             "mode": mode,
+            "age_guard_hours": args.age_guard,
             "index_ages": st.index_ages(_REPO_ROOT),
             "legs": {
-                leg: {"status": status, "count": len(hits), "results": [asdict(h) for h in hits]}
+                leg: {
+                    "status": status,
+                    "skipped": status.startswith("skipped:"),
+                    "count": len(hits),
+                    "results": [asdict(h) for h in hits],
+                }
                 for leg, (hits, status) in per_leg.items()
             },
         }

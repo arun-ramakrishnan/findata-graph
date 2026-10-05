@@ -38,6 +38,18 @@ _(none)_ — the queue is empty as of 2026-10-05: both audit follow-ups
 are archived (`preannotate_escalation_logic_flaws` #350,
 `jev_pilot_maintenance_gaps` #349).
 
+Archived 2026-10-05: `master_search_age_guard`
+(`../archive/tooling/`, completed.md #351) — the federated
+master_query front door over the six corpus legs (S1: grouped
+per-leg results, `--flat` rank-RRF, the search_tui memory lane) and
+its `--age-guard` stale-index skip flag + the front-door interpreter
+guard (S2).
+
+Archived 2026-10-05: `memory_search_sidecar`
+(`../archive/tooling/`, completed.md #352) — one FTS5 sidecar over
+the three harness memory pools + `memory_query.py` CLI (filed after
+implementation, for search context; federated leg belongs to #351).
+
 _(Previously none — the pending-improvements arc is fully closed. Its three slices
 are all archived 2026-10-05: `markdown_fold` (`../archive/tooling/`,
 completed.md #346 — the conversion half), `graph_rebuild_fast_path`
