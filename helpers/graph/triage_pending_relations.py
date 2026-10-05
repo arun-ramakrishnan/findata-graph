@@ -1241,16 +1241,34 @@ def review(  # noqa: C901 — keypress parsing + kit wiring, split would scatter
         a, m = _pair(e)
         if not a and not m:
             return
+
+        def _num(src: dict, field: str) -> tuple[str, float | None]:
+            """Renderable text + value for an optional probability field —
+            missing/unparseable reads as a marker, never a fabricated 0.0
+            (which would print a confident keep-out the carrier never gave)."""
+            v = src.get(field)
+            if v is None:
+                return "(none)", None
+            try:
+                f = float(v)
+            except TypeError, ValueError:
+                return "(unparseable)", None
+            return f"{f:.2f}", f
+
         for label, src in (("glm-5.3", a), ("mercury", m)):
             if not src:
                 print_fn(f"     ab {label}: (no annotations)")
                 continue
-            verdict = "admit" if float(src.get("p_rubric", 0)) > 0.5 else "keep-out"
+            pf_t, _ = _num(src, "p_fact")
+            pr_t, pr = _num(src, "p_rubric")
+            if pr is None:
+                verdict = "(no p_rubric)"
+            else:
+                verdict = "admit" if pr > 0.5 else "keep-out"
             esc = " [ESC]" if src.get("escalated") else ""
             retry = " NEEDS-RETRY" if src.get("needs_retry") else ""
             print_fn(
-                f"     ab {label}: fact p={float(src.get('p_fact', 0)):.2f}"
-                f" / admission p={float(src.get('p_rubric', 0)):.2f} -> {verdict}{esc}{retry}"
+                f"     ab {label}: fact p={pf_t} / admission p={pr_t} -> {verdict}{esc}{retry}"
             )
         if a and m:
             gaps = {
@@ -1277,10 +1295,13 @@ def review(  # noqa: C901 — keypress parsing + kit wiring, split would scatter
         if not a and not m:
             return
         lean = {}
-        if a:
-            lean["glm-5.3"] = {"noul": float(a.get("p_rubric", 0))}
-        if m:
-            lean["mercury-decide"] = {"noul": float(m.get("p_rubric", 0))}
+        for carrier, src in (("glm-5.3", a), ("mercury-decide", m)):
+            if not src or src.get("p_rubric") is None:
+                continue  # journal the raw pair below; never fabricate a lean
+            try:
+                lean[carrier] = {"noul": float(src["p_rubric"])}
+            except TypeError, ValueError:
+                continue
         note(
             {
                 "id": rid,

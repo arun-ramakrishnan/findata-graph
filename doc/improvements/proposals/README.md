@@ -34,7 +34,11 @@ entry number and stale DONE pointers):
 
 ## Current live proposals
 
-None — the pending-improvements arc is fully closed. Its three slices
+_(none)_ — the queue is empty as of 2026-10-05: both audit follow-ups
+are archived (`preannotate_escalation_logic_flaws` #350,
+`jev_pilot_maintenance_gaps` #349).
+
+_(Previously none — the pending-improvements arc is fully closed. Its three slices
 are all archived 2026-10-05: `markdown_fold` (`../archive/tooling/`,
 completed.md #346 — the conversion half), `graph_rebuild_fast_path`
 (`../archive/graph/`, completed.md entry 347 — the four measured P2.2
@@ -46,7 +50,7 @@ C901 mask splits), and `improvs_backlog_record`
 (`../archive/tooling/`, entry 348 — the 21-row backlog recorded into
 the perpetual tracker, working copy folded away). The committed live-trigger list remains
 `doc/improvements/pending.md`; the standing backlog census lives in
-`../archive/tooling/pending_improvs.md` (perpetual).
+`../archive/tooling/pending_improvs.md` (perpetual).)_
 
 Archived 2026-10-05: `markdown_fold` (`../archive/tooling/`,
 completed.md #346) — the conversion half of the pending-improvements arc:

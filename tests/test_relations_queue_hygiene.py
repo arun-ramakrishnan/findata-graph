@@ -773,6 +773,34 @@ class TestS5SecondOpinionSitting:
         # `skip` parks; the second-opinion line must not have.
         assert parked == {}
 
+    def test_missing_fields_render_as_markers_not_fabricated_zeros(
+        self, paths, tmp_path, monkeypatch
+    ):
+        paths.write_text(
+            _json_row("acquired", "Tata Consultancy Services", "Porsche") + "\n",
+            encoding="utf-8",
+        )
+        self._carrier_files(
+            tmp_path,
+            monkeypatch,
+            glm={"id": self.GLM_ID, "p_fact": 0.9, "escalated": False},  # no p_rubric
+            mercury={"id": self.GLM_ID, "p_fact": 0.07, "p_rubric": 0.01, "escalated": False},
+        )
+        out: list[str] = []
+        tpr.review(
+            input_fn=lambda _: "d",
+            print_fn=out.append,
+            apply=False,
+        )
+        text = "\n".join(out)
+        assert "(no p_rubric)" in text  # honest marker, not keep-out from 0.0
+        journal = tmp_path / "journal_dir" / "journal.jsonl"
+        lines = [json.loads(line) for line in journal.read_text().splitlines() if line.strip()]
+        pairs = [d for d in lines if d.get("action") == "second-opinion"]
+        assert len(pairs) == 1
+        assert pairs[0]["ab"]["p_rubric"]["glm"] is None  # journal keeps the None
+        assert pairs[0]["gap_admission"] is None  # no fabricated lean, no gap
+
 
 class TestS7QuestionPinning:
     """S7: the typed question text IS the regression surface. These exact

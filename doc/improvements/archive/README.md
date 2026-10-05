@@ -62,6 +62,11 @@ commit, referenced by nothing). Entry numbers point at
   quoted evidence); closed with the live-queue dry-run over producer-hygiene rows
   and zero-orphan decision carry across the canonical-id re-key — completed.md #342
 
+- [`preannotate_escalation_logic_flaws.md`](graph/preannotate_escalation_logic_flaws.md) —
+  escalation judgment-flaw repairs (initials domain gate, fresh-flag routing,
+  timeless-cache stamps, Q2 re-judge on flips, survivor-unknowns, honesty tail;
+  eval-v3 floors re-held 37/37 + Q2 54/56) — completed.md #350
+
 - [`extract_target_binding.md`](graph/extract_target_binding.md) —
   extract_relations `acquired from|by` target binding — breadcrumb headline
   (`**MHP acquired from Porsche:**`) bound the prior owner as target; the fix
@@ -248,6 +253,8 @@ commit, referenced by nothing). Entry numbers point at
   and both key-dispute items flagged, $0 ledger — completed.md #345
 
 - [`provider_drift_glm_mercury.md`](tooling/provider_drift_glm_mercury.md) — provider-drift — mercury-decide bit-stable ×3 same key, GLM lane drifted same window (admit 3→0, 5 fact flips); decision: GLM = discovery/extraction, mercury = rubric cross-check — completed.md #341
+
+- [`jev_pilot_maintenance_gaps.md`](tooling/jev_pilot_maintenance_gaps.md) — S2 evidence executed (WorkflowEvals agent_trace: flash 0.8568 ≈ genuine Jev 0.8612 > mercury-2 0.7829; preference flash > free-jev > mercury-decide > paid jev); S1/S3–S5 + mercury producer deferred — completed.md #349
 
 - [`typed_trace_contracts.md`](tooling/typed_trace_contracts.md) — typed trace contracts — frozen contract dataclasses for the star schema, `@register_parser` harness registry, warn+count validate-at-ingest, `load_log.rows_ok/rows_rejected/unknown_fields`, synthetic fixture tests and `report --legs validation` — completed.md #335
 - [`trace_quote_citations.md`](tooling/trace_quote_citations.md) — agent-trace citations — stable `agent-trace:<harness>#<kind>:<id>` resolver, two-run anchor-stability census (all listed ids 100% stable), `--sweep` doc reference-rot mode, §12 citation convention — completed.md #336

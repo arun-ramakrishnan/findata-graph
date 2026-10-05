@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 """Pre-annotation + retrieval escalation for the relations triage queue.
 
 Proposal: doc/improvements/archive/graph/triage_preannotation_escalation.md
@@ -40,7 +41,7 @@ from helpers.graph.triage_pending_relations import SIDECAR as QUEUE  # noqa: E40
 
 ANNOTATIONS = _REPO_ROOT / "findata" / "Misc" / "_pending_annotations.jsonl"
 BASE_URL = "https://api.z.ai/api/coding/paas/v4/chat/completions"
-DEFAULT_MODEL = "glm-5.3"
+DEFAULT_MODEL = "glm-5.3-flash"
 
 # Pinned two-question prompt (eval-v3 judge, build_eval3.py HDR/SCHEMA,
 # 2026-10-03 run: Q2 artifact rejection 37/37, overall 54/56). Prompt text
@@ -79,6 +80,21 @@ _EVIDENCE_ITEM = """{i}. edge_type: {edge_type}
    prior judgment: factually_accurate={prior} (p_fact={p_prior:.2f})
    retrieved results:
 {evidence}"""
+
+# Follow-up surface for verified fact flips (S3): the base Q2 was judged
+# under a false-fact assumption, so a proven-true fact re-opens admission.
+# NEW prompt text, not a BATCH_HDR change — the eval-v3 key pins that
+# header; this question is asked only post-evidence and is covered by its
+# own substring pin in tests/test_triage_preannotate.py.
+Q2_FOLLOWUP_HDR = """A claimed business relation below was judged factually uncertain, but retrieved evidence has since PROVEN the underlying fact TRUE (supporting quote and URL verified on file). Decide ONE question: should this edge be admitted to a curated company knowledge graph? Admit ONLY if ALL hold:
+(a) the counterparty is a specific named company or institution - not a sector, category, customer class, government body, project, or geography;
+(b) the relation is cleanly stated - if the vault context is garbled, a fragment, or merely a co-mention with no asserted relation, reject;
+(c) the edge type matches the event (acquisition, joint venture, supply, competition).
+
+Claim:
+{claim}
+
+Return ONLY a JSON object, no prose, no markdown fence: {{"rubric_admit":bool,"p_rubric":number}}"""
 
 _DATE_RE = re.compile(r"\d{4}-\d{2}-\d{2}")
 _FRESH_DAYS = 90
@@ -133,7 +149,8 @@ def edition_is_recent(edition: str, today: time.struct_time | None = None) -> bo
     except ValueError:
         return False
     now = datetime.date.today() if today is None else datetime.date(*today[:3])
-    return (now - d).days <= _FRESH_DAYS
+    delta = (now - d).days
+    return 0 <= delta <= _FRESH_DAYS
 
 
 def load_annotations(path: Path = ANNOTATIONS) -> dict[tuple[str, str, str], dict]:
@@ -206,6 +223,18 @@ def _fmt_item(i: int, row: dict) -> str:
     )
 
 
+def _as_bool(v) -> bool | None:
+    """Strict booleans from judge replies: real bools pass; "true"/"false"
+    strings (any case) coerce; anything else (1/0, "yes", None) is None so
+    the row takes the decode-dropout path instead of bool()'s truthiness
+    trap (bool("false") is True — measured once, never again)."""
+    if isinstance(v, bool):
+        return v
+    if isinstance(v, str) and v.strip().lower() in ("true", "false"):
+        return v.strip().lower() == "true"
+    return None
+
+
 def judge_rows(
     rows: list[dict], key: str, model: str, size: int = 10, on_chunk=None
 ) -> dict[str, dict]:
@@ -236,18 +265,33 @@ def judge_rows(
             r = replies.get(i)
             if r is None:
                 continue
+            fb, rb = _as_bool(r.get("factually_accurate")), _as_bool(r.get("rubric_admit"))
+            if fb is None or rb is None:
+                continue  # malformed booleans: dropout, retried via judge_row
+            try:
+                pf, pr = float(r.get("p_fact", 0.0)), float(r.get("p_rubric", 0.0))
+            except TypeError, ValueError:
+                continue
             out[row["id"]] = {
                 "id": row["id"],
-                "p_fact": float(r.get("p_fact", 0.0)),
-                "factually_accurate": bool(r.get("factually_accurate", False)),
-                "rubric_admit": bool(r.get("rubric_admit", False)),
-                "p_rubric": float(r.get("p_rubric", 0.0)),
+                "p_fact": pf,
+                "factually_accurate": fb,
+                "rubric_admit": rb,
+                "p_rubric": pr,
                 "fresh_flag": fresh_flag(row),
                 "context_chars": len(row.get("quote") or ""),
                 "escalated": False,
                 "evidence_url": None,
                 "support_quote": None,
             }
+        kept = sum(1 for row in chunk if row["id"] in out)
+        if kept < len(chunk):
+            print(
+                f"judge coverage: {kept}/{len(chunk)} rows kept in chunk starting "
+                f"{start} (dropout — retry via judge_row)",
+                file=sys.stderr,
+                flush=True,
+            )
         if on_chunk:
             on_chunk(start + len(chunk), len(rows))
     return out
@@ -349,7 +393,11 @@ def _relevance_filter(snippets: list[dict], query: str, source: str = "") -> lis
     """
     tokens = {w for w in re.findall(r"[a-z]{4,}", query.lower())}
     src_tokens = {w.lower() for w in re.findall(r"[A-Za-z]{3,}", source)}
-    initials = "".join(w[0] for w in re.findall(r"[A-Za-z]", source)).lower()
+    # word-initials ("Tata Consultancy Services" -> "tcs"; acronyms expand
+    # letter-by-letter, so "DBS Group" -> "dbsg"). The old char-class
+    # ([A-Za-z]) yielded every letter concatenated — never a host
+    # substring — so initialism domains (tcs.com) slipped through.
+    initials = "".join(w[0] for w in re.findall(r"[A-Za-z][a-z]*", source)).lower()
     kept = []
     for r in snippets:
         hay = (r.get("title", "") + " " + r.get("snippet", "")).lower()
@@ -644,11 +692,31 @@ def escalate_rows(rows: list[dict], annotations: dict[str, dict], key: str, mode
             a["needs_retry"] = True
             a["quote_unverified"] = True
             continue
+        if bool(quote) != bool(url):
+            # half-evidence (quote without URL or vice versa): the base
+            # judgment stands, flagged — silently applying or dropping a
+            # half-quoted verdict would both be dishonest
+            a["evidence_incomplete"] = True
+            continue
         if quote and url:  # apply the evidence verdict only when quoted AND verified
+            flipped = not a["factually_accurate"] and bool(
+                r.get("factually_accurate", a["factually_accurate"])
+            )
             a["p_fact"] = float(r.get("p_fact", a["p_fact"]))
             a["factually_accurate"] = bool(r.get("factually_accurate", a["factually_accurate"]))
             # Rubric clause (d): admission requires the fact to hold.
             a["rubric_admit"] = a["rubric_admit"] and a["factually_accurate"]
+            if flipped and not a["rubric_admit"]:
+                # the base Q2 was judged under a false-fact assumption and
+                # the fact just proved true: re-open admission with a
+                # follow-up instead of leaving a factual Q2 miss buried
+                rejudged = rejudge_rubric(row, key, model)
+                if rejudged is None:
+                    a["rubric_rejudge_failed"] = True
+                else:
+                    a["rubric_admit"] = rejudged["rubric_admit"]
+                    a["p_rubric"] = rejudged["p_rubric"]
+                    a["rubric_rejudged"] = True
     return len(todo)
 
 
@@ -658,11 +726,46 @@ def escalate(row: dict, annotation: dict, key: str, model: str) -> dict:
     return annotation
 
 
+def rejudge_rubric(row: dict, key: str, model: str) -> dict | None:
+    """Q2 follow-up for a VERIFIED fact flip (base fact False -> evidence
+    True with quote + URL): the base rubric was judged under a false-fact
+    assumption, so admission re-opens. Returns {"rubric_admit", "p_rubric"}
+    or None when the reply is unusable (caller keeps the prior rubric)."""
+    claim = (
+        f"edge_type: {row['edge_type']}\n"
+        f"source: {row['source']}\n"
+        f"counterparty (target mention): {row['target_mention']}\n"
+        f"context: {row.get('quote') or '(none)'}"
+    )
+    try:
+        content = call_glm(Q2_FOLLOWUP_HDR.format(claim=claim), key, model)
+    except Exception:  # noqa: BLE001 — caller keeps the prior rubric
+        return None
+    m = re.search(r"\{.*\}", content, re.S)
+    if not m:
+        return None
+    try:
+        r = json.loads(m.group(0))
+    except ValueError:
+        return None
+    if not isinstance(r, dict) or not isinstance(r.get("rubric_admit"), bool):
+        return None
+    try:
+        pr = float(r.get("p_rubric", 0.0))
+    except TypeError, ValueError:
+        return None
+    return {"rubric_admit": r["rubric_admit"], "p_rubric": pr}
+
+
 def needs_escalation(annotation: dict) -> bool:
-    """Low CONFIDENCE in the fact boolean (p_fact < 0.5, either direction) —
-    knowledge gap or fresh event. Retrieval resolves either; the direction
-    comes from the boolean, so a confident reject never escalates."""
-    return annotation["p_fact"] < 0.5
+    """Escalate on low CONFIDENCE in the fact boolean (p_fact < 0.5, either
+    direction) OR a fresh edition date — knowledge gap or fresh event.
+    Retrieval resolves either; the boolean's direction still comes from
+    the judge, so a confident STALE reject never escalates, while a
+    confident FRESH verdict (admit or reject) always does: a parametric
+    judge cannot know a fresh event, so retrieval is the only guard
+    against a hallucinated fresh admit as well as a false fresh reject."""
+    return annotation["p_fact"] < 0.5 or bool(annotation.get("fresh_flag", False))
 
 
 # --------------------------------------------------------------------------- #
@@ -701,7 +804,14 @@ def run(argv: list[str] | None = None) -> int:
             annotations[row["id"]] = judge_row(row, key, args.model)
         except ValueError:
             continue
+    still_missing = [r["id"] for r in rows if r["id"] not in annotations]
     print(f"judged {len(annotations)}/{len(rows)} rows", flush=True)
+    if still_missing:
+        print(
+            f"judge dropout unrecovered for {len(still_missing)} rows "
+            f"(first: {still_missing[0][:70]}): re-run with --limit or inspect the judge reply",
+            flush=True,
+        )
 
     def _dump() -> int:
         admits = sum(1 for a in annotations.values() if a["rubric_admit"])

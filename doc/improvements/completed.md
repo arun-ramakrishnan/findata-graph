@@ -9194,3 +9194,37 @@ tracker census and the gitignored `doc/local/pending_improvs.md`
 deleted — single home, no fresh file created at any point. Final
 census: rows 4/5/6/12 EXECUTED (entry 347), rows 1–3/7/8/11/13/14
 CLOSED, 9/10 NO-ACTION, 15–21 BLOCKED.
+
+## 349. jev-pilot maintenance gaps — S2 evidence executed, code slices deferred
+
+Filed 2026-10-05; executed 2026-10-05 (`jev_pilot_maintenance_gaps`
+proposal, `doc/improvements/archive/tooling/`). S2 evidence arm ran
+same day: WorkflowEvals agent_trace vendored to
+`bench_data/workflowevals/`, 4-carrier legs over 1124 instances with a
+canonical `rescore_legs.py` (two same-day scorer bugs found and fixed:
+bool-on-float, dropped ref decode) — genuine Jev 0.8612 ≈ flash 0.8568
+> mercury-2 0.7829, mercury-decide partial (328 quota-errors); flash ×
+mercury disagreements go 67/33 to flash, flash × Jev splits 48/52.
+Carrier preference decided: flash > free-jev backup > mercury-decide
+> paid Jev. mercury-2 adapter lane removed with a fail-closed
+allowlist after unapproved spend (~$0.75 of $1.45 key usage; jev leg
+900K tok / $0.03). **Deferred:** S1 advisory wiring, S3 truncation
+rule (+ontology gate), S4 runner re-pointing, S5 tol naming, and the
+S2 mercury producer — remainder in the archived copy's §3 slices.
+
+## 350. Pre-annotation escalation judgment flaws — S1–S4 repaired, eval floors re-held
+
+Filed 2026-10-05; executed 2026-10-05 (`preannotate_escalation_logic_flaws`
+proposal, `doc/improvements/archive/graph/`). **S1**: word-initials domain
+gate (tcs.com-class exclusion now fires), `needs_escalation` = low-confidence
+OR fresh flag, edition lower bound, `DEFAULT_MODEL` → glm-5.3-flash with
+flash eval-v3 re-run gate. **S2**: timestamped/carrier-stamped cache blobs,
+never-cache-empty, `cache_age_days()` for the drift lane. **S3**: Q2
+follow-up re-judge on verified flips (+failure flag), `ab()` single-source
+unknowns, `brief()` needs 2 carriers to agree. **S4**: missing-field render
+markers, journal lean honesty, half-evidence flag, strict `_as_bool`,
+coverage warnings, rank docstring. Tests: 335 passed across the four
+touched suites; ruff + ty clean. Eval-v3 regression re-run through the
+shipped module (frozen record untouched): artifacts 37/37, Q2 54/56
+(bar ≥53); S3 re-judge test-verified only (36 escalations, zero verified
+flips live).

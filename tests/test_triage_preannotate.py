@@ -97,6 +97,9 @@ class TestFreshFlag:
     def test_edition_malformed_date(self):
         assert not tp.edition_is_recent("2026-13-99")
 
+    def test_future_edition_not_recent(self):
+        assert not tp.edition_is_recent("Edition 2027-01-01 ne Sleek")
+
 
 class TestJudgeRows:
     def _row(self, target="Beta Ltd", quote="Acme acquired Beta."):
@@ -131,6 +134,11 @@ class TestJudgeRows:
     def test_needs_escalation_gate(self):
         assert tp.needs_escalation({"p_fact": 0.3})
         assert not tp.needs_escalation({"p_fact": 0.8})
+        # fresh verdicts escalate whatever the confidence direction —
+        # a parametric judge cannot know a fresh event
+        assert tp.needs_escalation({"p_fact": 0.9, "fresh_flag": True})
+        assert tp.needs_escalation({"p_fact": 0.05, "fresh_flag": True})
+        assert not tp.needs_escalation({"p_fact": 0.9, "fresh_flag": False})
 
 
 class TestEscalate:
@@ -168,6 +176,117 @@ class TestEscalate:
             # rubric clause (d) is an AND with the fact: quoted true keeps the
             # admit; an unquoted flip changes nothing (rubric stays at prior)
             assert a["rubric_admit"] is True
+
+    def test_verified_flip_rejudges_q2(self, monkeypatch):
+        monkeypatch.setattr(
+            tp,
+            "web_search",
+            lambda q, retries=1: [
+                {
+                    "title": "Acme buys Beta",
+                    "url": "https://x/n",
+                    "snippet": "Acme buys Beta confirmed by regulators",
+                }
+            ],
+        )
+
+        def fake_call(prompt, key, model):
+            if "retrieved results:" in prompt:
+                return '[{"id":1,"factually_accurate":true,"p_fact":0.95,"support_quote":"Acme buys Beta","evidence_url":"https://x/n"}]'
+            assert "PROVEN the underlying fact TRUE" in prompt  # new follow-up surface
+            return '{"rubric_admit":true,"p_rubric":0.8}'
+
+        monkeypatch.setattr(tp, "call_glm", fake_call)
+        a = {"p_fact": 0.2, "factually_accurate": False, "rubric_admit": False, "p_rubric": 0.1}
+        tp.escalate_rows([self._row()], {self._row()["id"]: a}, "k", "m")
+        assert a["factually_accurate"] is True
+        assert a["rubric_admit"] is True and a["p_rubric"] == 0.8
+        assert a.get("rubric_rejudged") is True
+
+    def test_failed_followup_keeps_prior_rubric_with_flag(self, monkeypatch):
+        monkeypatch.setattr(
+            tp,
+            "web_search",
+            lambda q, retries=1: [
+                {
+                    "title": "Acme buys Beta",
+                    "url": "https://x/n",
+                    "snippet": "Acme buys Beta confirmed by regulators",
+                }
+            ],
+        )
+
+        def fake_call(prompt, key, model):
+            if "retrieved results:" in prompt:
+                return '[{"id":1,"factually_accurate":true,"p_fact":0.95,"support_quote":"Acme buys Beta","evidence_url":"https://x/n"}]'
+            return "no json here"
+
+        monkeypatch.setattr(tp, "call_glm", fake_call)
+        a = {"p_fact": 0.2, "factually_accurate": False, "rubric_admit": False, "p_rubric": 0.1}
+        tp.escalate_rows([self._row()], {self._row()["id"]: a}, "k", "m")
+        assert a["factually_accurate"] is True  # fact verdict stands
+        assert a["rubric_admit"] is False  # prior rubric kept...
+        assert a.get("rubric_rejudge_failed") is True  # ...but flagged, not silent
+
+    def test_half_evidence_quote_without_url_flagged_not_applied(self, monkeypatch):
+        monkeypatch.setattr(
+            tp,
+            "web_search",
+            lambda q, retries=1: [
+                {
+                    "title": "Acme buys Beta",
+                    "url": "https://x/n",
+                    "snippet": "Acme buys Beta confirmed by regulators",
+                }
+            ],
+        )
+        # quote present, URL empty: half-evidence — base kept, flagged
+        monkeypatch.setattr(
+            tp,
+            "call_glm",
+            lambda p, k, m: (
+                '[{"id":1,"factually_accurate":true,"p_fact":0.95,"support_quote":"Acme buys Beta","evidence_url":""}]'
+            ),
+        )
+        a = {"p_fact": 0.2, "factually_accurate": False, "rubric_admit": False, "p_rubric": 0.1}
+        tp.escalate_rows([self._row()], {self._row()["id"]: a}, "k", "m")
+        assert a["factually_accurate"] is False
+        assert a.get("evidence_incomplete") is True
+        assert "needs_retry" not in a  # search succeeded; verdict incomplete, not retryable
+
+    def test_as_bool_strict(self):
+        assert tp._as_bool(True) is True and tp._as_bool(False) is False
+        assert tp._as_bool("TRUE") is True and tp._as_bool("false") is False
+        for junk in (None, 1, 0, "yes", "no", "", "maybe"):
+            assert tp._as_bool(junk) is None
+
+    def test_string_bools_coerce_without_truthiness_trap(self, monkeypatch):
+        # bool("false") is True — string booleans must coerce, not invert
+        monkeypatch.setattr(
+            tp,
+            "call_glm",
+            lambda p, k, m: (
+                '[{"id":1,"factually_accurate":"false","p_fact":0.98,"rubric_admit":"FALSE","p_rubric":0.9}]'
+            ),
+        )
+        out = tp.judge_rows([self._row()], "k", "m")
+        assert out[self._row()["id"]]["factually_accurate"] is False
+        assert out[self._row()["id"]]["rubric_admit"] is False
+
+    def test_malformed_bools_take_dropout_path(self, monkeypatch):
+        monkeypatch.setattr(
+            tp,
+            "call_glm",
+            lambda p, k, m: (
+                '[{"id":1,"factually_accurate":"nope","p_fact":0.98,"rubric_admit":1,"p_rubric":0.9}]'
+            ),
+        )
+        assert tp.judge_rows([self._row()], "k", "m") == {}
+
+    def test_chunk_dropout_warns_on_stderr(self, monkeypatch, capsys):
+        monkeypatch.setattr(tp, "call_glm", lambda p, k, m: "[]")
+        assert tp.judge_rows([self._row()], "k", "m") == {}
+        assert "judge coverage: 0/1" in capsys.readouterr().err
 
     def test_batch_one_evidence_call_for_many_rows(self, monkeypatch):
         calls = []
@@ -395,6 +514,29 @@ class TestSearchEnablers:
         )
         assert [k["url"] for k in kept] == ["https://n.in/mhp"]
 
+    def test_relevance_filter_initialism_domain_excluded(self):
+        # the title shares a query token, so only the DOMAIN gate can drop
+        # the tcs.com row (word-initials Tata Consultancy Services -> tcs)
+        snips = [
+            {
+                "title": "Tata Consultancy Services results",
+                "url": "https://www.tcs.com/investor-news",
+                "snippet": "Tata Consultancy Services reports growth",
+            },
+            {
+                "title": "Tata Consultancy Services results",
+                "url": "https://example.com/tcs-news",
+                "snippet": "Tata Consultancy Services reports growth",
+            },
+        ]
+        kept = tp._relevance_filter(
+            snips, "Tata Consultancy Services MHP acquired", source="Tata Consultancy Services"
+        )
+        assert [k["url"] for k in kept] == ["https://example.com/tcs-news"]
+
+    def test_default_model_is_flash(self):
+        assert tp.DEFAULT_MODEL == "glm-5.3-flash"
+
     def test_fetch_direct_hit_windows(self, monkeypatch):
         monkeypatch.setattr(
             tp.urllib.request,
@@ -433,7 +575,7 @@ class TestSearchEnablers:
         assert tp._fetch_page_text("https://example.com/x", ("x",)) == ("", "none")
 
     def test_escalate_fetched_page_text_in_prompt_and_flip(self, monkeypatch):
-        captured = {}
+        captured = []
         monkeypatch.setattr(
             tp,
             "web_search",
@@ -455,15 +597,19 @@ class TestSearchEnablers:
         )
 
         def fake_glm(prompt, key, model):
-            captured["prompt"] = prompt
-            return '[{"id":1,"factually_accurate":true,"p_fact":0.9,"support_quote":"Porsche sold MHP to TCS for 320 million euros","evidence_url":"https://example.com/deal"}]'
+            captured.append(prompt)
+            if "retrieved results:" in prompt:
+                return '[{"id":1,"factually_accurate":true,"p_fact":0.9,"support_quote":"Porsche sold MHP to TCS for 320 million euros","evidence_url":"https://example.com/deal"}]'
+            return '{"rubric_admit":true,"p_rubric":0.85}'
 
         monkeypatch.setattr(tp, "call_glm", fake_glm)
         row = tp.parse_rows([_qrow()])[0]
         a = {"p_fact": 0.2, "factually_accurate": False, "rubric_admit": False, "p_rubric": 0.9}
         tp.escalate_rows([row], {row["id"]: a}, "k", "m")
-        assert "fetched page text (via reader)" in captured["prompt"]
+        assert "fetched page text (via reader)" in captured[0]
         assert a["factually_accurate"] is True and a["support_quote"]
+        # verified flip with base rubric False re-opens admission via follow-up
+        assert a["rubric_admit"] is True and a.get("rubric_rejudged") is True
 
     def test_escalate_unverifiable_quote_needs_retry_no_flip(self, monkeypatch):
         monkeypatch.setattr(

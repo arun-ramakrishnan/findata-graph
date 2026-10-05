@@ -214,6 +214,31 @@ class TestCache:
         tj.ask("S", other, "mercury-decide", key="k", transport=counting)
         assert n["n"] == 2
 
+    def test_cache_blob_carries_timestamp_and_carrier(self, tmp_path):
+        tj.ask("S", _q(), "mercury-decide", key="k", transport=lambda *_: _ok())
+        blobs = list((tj.CACHE_DIR).glob("*.json"))
+        assert len(blobs) == 1
+        blob = json.loads(blobs[0].read_text())
+        assert blob["carrier"] == "mercury-decide" and blob["model"]
+        assert blob["ts"]  # parsable timestamp, not decoration
+
+    def test_empty_answers_never_cached(self):
+        tj.ask(
+            "S",
+            _q(),
+            "mercury-decide",
+            key="k",
+            transport=lambda *_: (200, {"answers": {}}),
+        )
+        assert list(tj.CACHE_DIR.glob("*.json")) == []
+
+    def test_cache_age_days(self):
+        assert tj.cache_age_days("mercury-decide", "S", _q()) is None
+        tj.ask("S", _q(), "mercury-decide", key="k", transport=lambda *_: _ok())
+        age = tj.cache_age_days("mercury-decide", "S", _q())
+        assert age is not None and 0 <= age < 1
+        assert tj.cache_age_days("mercury-decide", "S", _q(), use_cache=False) is None
+
 
 class TestSpendCap:
     def test_cap_blocks_further_calls(self):
@@ -299,6 +324,34 @@ class TestAb:
         assert v["mercury-decide"].ok is True
         assert v["mercury-2"].ok is False and v["mercury-2"].error
 
+    def test_single_survivor_is_unknown_not_agreement(self):
+        def transport(url, body, timeout):
+            if body["model"].startswith("inception/mercury-2"):
+                return 400, {"error": {"message": "nope"}}
+            return _ok()  # decisions lane
+
+        _, ag = tj.ab(
+            "S",
+            {"is_acq": _q()["is_acq"]},
+            ["mercury-decide", "mercury-2"],
+            key="k",
+            transport=transport,
+            max_attempts=1,
+        )
+        assert ag["is_acq"]["agree"] is False
+        assert ag["is_acq"].get("single_source") is True
+
+    def test_single_carrier_ask_still_agrees_with_itself(self):
+        _, ag = tj.ab(
+            "S",
+            {"is_acq": _q()["is_acq"]},
+            ["mercury-decide"],
+            key="k",
+            transport=lambda *_: _ok(),
+        )
+        assert ag["is_acq"]["agree"] is True
+        assert "single_source" not in ag["is_acq"]
+
 
 class TestCli:
     def test_cli_appends_jsonl(self, tmp_path, monkeypatch, capsys):
@@ -363,6 +416,10 @@ class TestDecisionBriefs:
         )
         assert card.splitlines()[0] == "the carriers AGREE"
         assert "DISAGREE" not in card
+
+    def test_brief_single_survivor_renders_contested(self):
+        card = tj.brief("Is this a co-mention artifact?", {"a": {"noul": 0.02}})
+        assert card.splitlines()[0] == "the carriers DISAGREE — you decide"
 
     def test_rank_contentious_surfaces_only_contested(self):
         per_item = {

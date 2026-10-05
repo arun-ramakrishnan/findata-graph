@@ -43,6 +43,7 @@ the ``openrouter`` entry of ``~/.local/share/opencode/auth.json``.
 
 from __future__ import annotations
 
+import datetime
 import hashlib
 import json
 import os
@@ -78,6 +79,7 @@ __all__ = [
     "ab",
     "AGREE_TOL",
     "brief",
+    "cache_age_days",
     "describe_answer",
     "gap_of",
     "rank_contentious",
@@ -250,6 +252,24 @@ def cache_path(
     return CACHE_DIR / f"{carrier.id.replace('/', '_')}-{key[:24]}.json"
 
 
+def cache_age_days(
+    carrier: str, state: str, questions: dict, use_cache: bool = True
+) -> float | None:
+    """Age in days of the cached verdict for this exact call — None when
+    uncached, disabled, or timestamp-less (pre-S2 blobs carry no ts).
+    Lets the drift lane tell a stale read from provider drift instead
+    of conflating the two."""
+    tpath = cache_path(CARRIERS.get(carrier, Carrier(carrier)), state, questions, use_cache)
+    if not tpath or not tpath.is_file():
+        return None
+    try:
+        ts = json.loads(tpath.read_text()).get("ts", "")
+        then = datetime.datetime.strptime(ts, "%Y-%m-%dT%H:%M:%S")
+    except ValueError, TypeError:
+        return None
+    return (datetime.datetime.now() - then).total_seconds() / 86400
+
+
 def _post(url: str, headers: dict, body: dict, timeout: float) -> tuple[int, dict]:
     import requests
 
@@ -366,7 +386,9 @@ def ask(  # noqa: C901  (dispatch ladder: 3 question types + cache/carrier/ledge
             )
             if stats:
                 stats.call(prompt=pt, completion=ct)
-            if tpath:
+            if tpath and res.answers:
+                # never persist an empty verdict: a parse failure or rate
+                # limit cached as {} reads as a permanent answer later
                 tpath.write_text(
                     json.dumps(
                         {
@@ -375,6 +397,9 @@ def ask(  # noqa: C901  (dispatch ladder: 3 question types + cache/carrier/ledge
                             "prompt_tokens": pt,
                             "completion_tokens": ct,
                             "context_used_pct": ctx_pct,
+                            "ts": time.strftime("%Y-%m-%dT%H:%M:%S"),
+                            "carrier": carrier,
+                            "model": c.id,
                         }
                     )
                 )
@@ -439,6 +464,7 @@ def ab(
             error=None if r.answers else f"http/attempts={r.attempts}",
         )
     agreement: dict[str, dict] = {}
+    multi = len(verdicts) > 1
     for q in questions:
         values = {}
         for name, v in verdicts.items():
@@ -449,13 +475,19 @@ def ab(
                 values[name] = a["choice"]
             elif "score" in a:
                 values[name] = a["score"]
+        # single survivor of a multi-carrier ask is UNKNOWN, never
+        # consensus: a dead second source must not read as agreement
+        single = multi and len(values) <= 1
         if len({v for v in values.values() if not isinstance(v, float)}) > 1:
             agree = False
         elif len(values) > 1 and all(isinstance(v, float) for v in values.values()):
             agree = max(values.values()) - min(values.values()) <= AGREE_TOL
         else:
             agree = len(set(values.values())) <= 1
-        agreement[q] = {"agree": agree, "values": values}
+        entry: dict = {"agree": agree and not single, "values": values}
+        if single:
+            entry["single_source"] = True
+        agreement[q] = entry
     return verdicts, agreement
 
 
@@ -554,7 +586,12 @@ def describe_answer(ans: dict) -> str:
 
 
 def gap_of(answers: dict[str, dict]) -> float:
-    """Disagreement magnitude in [0,1] across carriers for one question."""
+    """Disagreement magnitude in [0,1] across carriers for one question.
+
+    0.0 on a SINGLE carrier means unmeasured, not agreement — the
+    unknown handling lives in ab() (single_source flag) and brief()
+    (>1 carrier required to agree). Numeric callers must only feed it
+    two-carrier maps (the triage surfaces enforce both-required)."""
     ps = [float(a["noul"]) for a in answers.values() if a and "noul" in a]
     if len(ps) > 1:
         return max(ps) - min(ps)
@@ -578,9 +615,13 @@ def brief(
     disagree (``contested`` unset, inferred from the gap) the card says so
     in the first line — the operator reads the disagreement before the
     numbers, because that is the information the human is there for.
+    Agreement requires more than one carrier: a lone survivor renders
+    contested (unknown, not consensus).
     """
     lines = []
-    agree = gap_of(answers) <= AGREE_TOL if contested is None else not contested
+    agree = (
+        (len(answers) > 1 and gap_of(answers) <= AGREE_TOL) if contested is None else not contested
+    )
     verdict = "the carriers AGREE" if agree else "the carriers DISAGREE — you decide"
     lines.append(f"{verdict}")
     lines.append("")
@@ -609,7 +650,7 @@ def rank_contentious(
     """Rank items by cross-carrier disagreement, worst first.
 
     ``per_item`` is ``{item_id: {carrier: raw answer}}``. Returns the
-    ``top`` ids with a gap above zero — the shortlist a human should
+    ``top`` ids with a gap above AGREE_TOL — the shortlist a human should
     actually look at, instead of the whole queue.
     """
     scored = [(iid, g) for iid, ans in per_item.items() if (g := gap_of(ans)) > AGREE_TOL]
