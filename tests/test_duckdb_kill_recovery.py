@@ -123,7 +123,7 @@ def _schema_sql(shape: str) -> str:
         from helpers.maintenance.rebuild_convo_search import CONVO_SEARCH_DDL
 
         return CONVO_SEARCH_DDL
-    from bench_data.code.agent_traces import SCHEMA
+    from helpers.analytics.agent_traces import SCHEMA
 
     return SCHEMA
 

@@ -14,7 +14,7 @@ import duckdb
 
 REPO = Path("/home/arun/Research/findata-graph")
 DB_PATH = REPO / "memory" / "data" / "agent_traces.duckdb"
-AGENT_TRACES = REPO / "bench_data" / "code" / "agent_traces.py"
+AGENT_TRACES = REPO / "helpers" / "analytics" / "agent_traces.py"
 
 ID_COLS = {
     "dim_session": ("source", "session_id"),
@@ -23,6 +23,7 @@ ID_COLS = {
     "fact_model_request": ("source", "request_id"),
     "fact_event": ("source", "span_id"),
     "fact_file_edit": ("source", "snapshot_hash"),
+    "fact_model_step": ("source", "request_id"),
 }
 
 

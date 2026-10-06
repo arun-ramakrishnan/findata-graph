@@ -34,6 +34,21 @@ entry number and stale DONE pointers):
 
 ## Current live proposals
 
+_(none)_ — archived 2026-10-06: `zcode_rollout_step_ingest`
+(`../archive/tooling/`, completed.md #358) and
+`zcode_conversation_ingest_repair` (`../archive/tooling/`, #359) —
+rollout step ingest into `fact_model_step` (reasoning content,
+tool-call args, compaction shape; token-parity invariant,
+byte-invariance guard, seventh anchor column) and the conversation-side
+repair (model normalization + one-shot corpus migration,
+`messagesKind`-aware strategy, searchable error rows,
+`convo_union.py` retired).
+
+Archived 2026-10-06: `model_analytics_self_contained`
+(`../archive/tooling/`, completed.md #357) — vendored the legacy
+usage-query clients into the tracked spend loader (single maintained
+home, AST decoupling test, spend parity proven).
+
 _(none)_ — archived 2026-10-06: `csr_freshness_lane` (`../archive/graph/`, #354), `convo_search_swap_rebuild` (`../archive/database/`, #355), `generic_analytics_lane` (`../archive/database/`, #356) — CSR freshness gate + rebuild targets, convo_search swap-rebuild compaction, generic analytics lane over the parquet snapshot.
 
 _(none)_ — archived 2026-10-06: `teleocr_pdf_fallback`

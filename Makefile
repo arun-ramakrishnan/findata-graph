@@ -34,12 +34,13 @@ export PATH := $(CURDIR)/.venv/bin:$(PATH)
 export TMPDIR ?= $(shell test -d /mnt/data/tmp && { mkdir -p /mnt/data/tmp/findata; echo /mnt/data/tmp/findata; } || echo /tmp)
 
 
-.PHONY: help qa test live-invariants perf cover fuzz integration snapshot snapshot-check snapshot-restore sync-tags sync-coverage-tags sync-sector-links static-checks license-check tmp-sweep install-dev triage-quotes gate-fresh graph-smoke graph-stats graph-algos graph-rebuild graph-rebuild-bench update-extensions recompute-graph recompute-hyper search-fresh convo-fresh embed-gc search-tui derive-relations derive-co-mentions derive-themes derive-events derive-insights derive-indices quote-coverage derive-themes-rebuild derive-cited-in derive-cited-in-rebuild derive-hyperedges derive-all refresh-indices refresh-vigil refresh-shp frontend frontend-check fold-identifiers format maint maint-full md-lint metrics-rebuild mojo-bench mojo-build mojo-test mojo-format relations-enrich lint types types-tests lint-audit deptry advisory secret-scan cargo-audit script-search-rebuild memory-search-rebuild triage-relations live-invariants stamp-centrality parity review-patch teleocr-server csr csr-check csr-rebuild convo-search-rebuild convo-search-check analytics-parquet
+.PHONY: help qa test live-invariants perf cover fuzz integration snapshot snapshot-check snapshot-restore sync-tags sync-coverage-tags sync-sector-links static-checks license-check tmp-sweep install-dev triage-quotes gate-fresh graph-smoke graph-stats graph-algos graph-rebuild graph-rebuild-bench update-extensions recompute-graph recompute-hyper search-fresh convo-fresh embed-gc search-tui derive-relations derive-co-mentions derive-themes derive-events derive-insights derive-indices quote-coverage derive-themes-rebuild derive-cited-in derive-cited-in-rebuild derive-hyperedges derive-all refresh-indices refresh-vigil refresh-shp frontend frontend-check fold-identifiers format maint maint-full md-lint metrics-rebuild mojo-bench mojo-build mojo-test mojo-format relations-enrich lint types types-tests lint-audit deptry advisory secret-scan cargo-audit script-search-rebuild memory-search-rebuild triage-relations live-invariants stamp-centrality parity review-patch teleocr-server csr csr-check csr-rebuild convo-search-rebuild convo-search-check analytics-parquet analytics-fresh
 
 help:           ## Show available targets (alphabetical; entries generated from the ## annotations — keep both in sync)
 > @echo "FinData targets (alphabetical):"
 > @echo "  advisory                 Run advisory (non-gating) checks in PARALLEL (default 4 jobs; override: make advisory -j N): ty on tests, live invariants, frontend, graph algos, analytics, suggestions, doc/script/note/memory-search freshness checks, lint-audit (appends outputs/advisory_report.md)"
 > @echo "  analytics                Read-only analytics over the git-tracked Parquet snapshot (A3; arg = report name)"
+> @echo "  analytics-fresh          Analytics stores (agent_traces + model_usage) vs harness frontiers — read-only drift report, exit 1 when a completed day is missing; APPLY=1 runs incremental load all on both loaders"
 > @echo "  analytics-parquet        Ad-hoc read-only SQL over the Parquet snapshot (--list/--stats/--query; tables are <side>__<name>)"
 > @echo "  cargo-audit              RustSec scan of desktop/src-tauri/Cargo.lock (advisory; SKIPs without cargo-audit)"
 > @echo "  convo-fresh              Check conversation corpus+index freshness — harvest sources vs parquet corpus vs pointer index (exit 1 on drift; APPLY=1 harvests+rebuilds; also run by make advisory)"
@@ -391,6 +392,17 @@ convo-fresh:      ## Check conversation corpus+index freshness — harness sourc
 >   python3 helpers/maintenance/rebuild_convo_search.py $(if $(APPLY),--incremental,--check) || rc=1; \
 >   echo "    took $$(( $$(date +%s%3N) - t1 ))ms"; \
 >   if [ $$rc -eq 0 ]; then echo "✓ convo corpus+index fresh"; fi; \
+>   exit $$rc
+
+analytics-fresh:  ## Analytics stores (agent_traces + model_usage) vs harness frontiers — read-only drift report, exit 1 when a completed day is missing; APPLY=1 runs incremental load all on both loaders
+> @rc=0; \
+>   echo "analytics-fresh: $(if $(APPLY),APPLY — loading,check) mode"; \
+>   if [ -n "$(APPLY)" ]; then \
+>     python3 helpers/analytics/model_analytics.py load all || rc=1; \
+>     python3 helpers/analytics/agent_traces.py load all || rc=1; \
+>   fi; \
+>   python3 helpers/misc/analytics_fresh.py || rc=1; \
+>   if [ $$rc -eq 0 ]; then echo "✓ analytics stores fresh"; fi; \
 >   exit $$rc
 
 

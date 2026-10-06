@@ -20,7 +20,7 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(PROJECT_ROOT))
 sys.path.insert(0, str(PROJECT_ROOT / "helpers"))
 
-from bench_data.code import agent_traces, trace_contracts  # noqa: E402
+from helpers.analytics import agent_traces, trace_contracts  # noqa: E402
 
 FIXTURE_DIR = PROJECT_ROOT / "tests" / "fixtures" / "trace_contracts"
 

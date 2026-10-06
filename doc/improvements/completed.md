@@ -9353,3 +9353,76 @@ mounts every `snapshots/parquet/{duckdb,sqlite,sources}/*.parquet` as a
 Verified: `--stats` prints counts for all ~300 tables (e.g.
 `duckdb__e_all_und`: 115,148); `--query` returns expected counts; ruff/ty
 clean on the new package.
+
+## 357. model_analytics self-contained — vendored legacy usage clients
+
+Filed and executed 2026-10-06 (`model_analytics_self_contained`
+proposal, `doc/improvements/archive/tooling/`). The tracked spend
+loader imported two git-ignored legacy scripts at three lazy sites —
+and `load all`'s per-source try/except turned a missing sibling into
+silent spend double-counting (`_drop_api_covered` with nothing to drop
+against). Owner ruling: legacy stays out of git. **S1**: vendored the
+zai client verbatim (`load_api_key`, `_zai_parse_range`, `fetch` +
+folds/merges, `local_stats`, `day_cost` + rate table; sole rename
+forced by the loader's own store-aware `parse_range`). **S2**:
+vendored opencode `local_latency` + `DAY`/`DAY_MSG`. **S3**: AST test
+banning sibling imports, fresh-clone simulation (poisoned module
+names, still imports + prices), parity by AST identity (13 functions +
+8 consts) and live figures identical to baseline (zai 90/$833.9975,
+opencode 162/$0.8960, prime-rlm 72/$128.3353). Verified: `load all`
+green, sibling CLIs untouched, ruff/ty/pytest/static/md-lint/format
+green (the move also fixed 4 latent ty errors and 7 format spots).
+
+## 358. zcode rollout step ingest — per-attempt model-I/O into fact_model_step
+
+Filed and executed 2026-10-06 (`zcode_rollout_step_ingest` proposal,
+`doc/improvements/archive/tooling/`). The open-sourced zcode harness
+writes normalized per-attempt step responses to
+`~/.zcode/cli/rollout/model-io-sess_*.jsonl`; the trace store did not
+read them, and the 2026-09-25 "no raw bodies needed" trigger was met by
+three structured signals with no home in the schema. **S1**:
+`load rollout [--days|--full]` → new `fact_model_step`
+(PK `(source, request_id)`, `source='zcode_rollout'` — the requestId
+space is disjoint from `model_usage.id`, 0/680 overlap, so never a
+`fact_model_request` merge), contract-validated, token contract
+`input = in − cacheRead` with provider `total_tokens` stored raw as the
+parity anchor; heads capped (8 KiB), raw bodies never stored. **S2**:
+step-grain report legs — `reasoning_ratio` carries content-blind-0%
+repair (403/680 steps carry reasoning text; live: 310/439, avg 1,460
+chars), `context_lifecycle` the full/delta/tail compaction cadence
+(live: tail 75.6%), `error_taxonomy`/`failure_forensics` the
+responseId-less quota/network failures (previously skipped entirely).
+**S3**: token-parity invariant on the `validation` leg
+(`sum(input+cache_read+output−total_tokens)=0`, live 0 over 4,857
+accepted rows, DRIFT-labelled never normalized), aggregate-leg
+byte-invariance test pinning every non-opted leg across a step load,
+`fact_model_step.request_id` added as the seventh anchor-stability
+column (100.00% across two full re-ingests), `agent-trace:zcode-rollout#step:<request_id>`
+citation grammar. Shakedown also fixed two latent bugs: `fact_log`
+had no CREATE anywhere (fresh clones crashed `--range all` and the
+`reliability` leg), and two unordered `string_agg`s made report output
+nondeterministic. Live: idempotent 433-row windows across rotation,
+`load all`/`make analytics-fresh` include the source.
+
+## 359. zcode conversation ingest repair — normalized-rollout harvest + convo_union retirement
+
+Filed and executed 2026-10-06 (`zcode_conversation_ingest_repair`
+proposal, `doc/improvements/archive/tooling/`). The same format change
+that #358 ingests degraded both zcode conversation readers: the live
+harvester carried 14 dict-shaped `model` values over 7,670 corpus parts
+(breaking model faceting) and skipped error records, and the legacy
+union builder (`convo_union.py`) yielded 396/396 NULL response texts
+with no artifact and no callers. **S1**: model identity normalized at
+write (`response.modelId ?? record.model.modelId`) plus a one-shot
+`--migrate-zcode-models` corpus rewrite (7,670 values / 32 files, 1.5s)
+covering rotated-away sessions the watermark can never re-harvest —
+corpus now 5 plain-string models over 7,865 parts, zero `{` shapes.
+**S2**: `full`-kind requests preferred for conversation rows with
+`contextKind`/`partial` meta on tail/delta fallbacks; responseId-less
+error records become searchable `error` rows under synthetic
+`zc:<sid>:err:<requestId>` part ids. **S3**: `convo_union.py` retired
+(no callers, no artifact), references repointed in `capture_traces.md`
+and the rollout proposal. Verified: `convo-fresh APPLY=1` green (2m0s,
+496 sessions, embed cache text-addressed so the model-only rewrite
+cannot invalidate entries), 6 fixture tests pinning S1+S2, ruff/ty/
+static/md-lint/search-fresh green.

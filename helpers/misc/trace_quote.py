@@ -684,7 +684,7 @@ def main(argv: list[str] | None = None) -> int:
     if not Path(args.db).exists():
         print(f"error: trace store not found at {args.db}", file=sys.stderr)
         print(
-            "build it by running: python3 bench_data/code/agent_traces.py load <harness>",
+            "build it by running: python3 helpers/analytics/agent_traces.py load <harness>",
             file=sys.stderr,
         )
         print(

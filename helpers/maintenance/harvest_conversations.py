@@ -15,9 +15,12 @@ part_id collision:
   pre-redaction ``agent_traces.duckdb`` fact_event lane (bus events
   recovered after db deletion/redaction), then the live db.
 - prime-rlm: live + snapshot ``sessions/*.jsonl``.
-- zcode: live + snapshot ``rollout/model-io-*.jsonl`` (fullest request
-  per session = final context; per-response ``text``/``reasoningText``
-  keyed by responseId).
+- zcode: live + snapshot ``rollout/model-io-*.jsonl`` — model identity
+  normalized to a plain string at write (S1,
+  zcode_conversation_ingest_repair), fullest ``full``-kind request per
+  session = final context (tail/delta fallbacks marked partial in
+  meta), per-response ``text``/``reasoningText`` keyed by responseId,
+  responseId-less error records as searchable ``error`` rows (S2).
 
 Incremental: per-source watermarks in ``memory/convo_search.duckdb``
 (opencode: max ``time_updated`` per db; files: mtime+size). Immutable
@@ -535,18 +538,57 @@ def _zc_content(content: object) -> str:
     return ""
 
 
-def _zcode_best_and_resps(files: list[Path]) -> tuple[dict | None, dict]:
-    """Find the fullest request and collect responses by id."""
-    best, best_n, resps = None, -1, {}
+def _zc_model_value(v: object) -> str:
+    """S1 (zcode_conversation_ingest_repair): a plain model string out of
+    any recorded model shape. The normalized rollout carries
+    `model: {modelId, providerId}` (older snapshot shapes add
+    role/source/variant keys), which `_s` json-encoded into the corpus
+    and broke model faceting — 14 distinct dict values over 7,670 parts."""
+    if isinstance(v, str):
+        s = v.strip()
+        if not s.startswith("{"):
+            return s
+        try:
+            v = json.loads(s)
+        except json.JSONDecodeError:
+            return s
+    if isinstance(v, dict):
+        return str(v.get("modelId") or "")
+    return str(v or "")
+
+
+def _zc_model(d: dict, resp: dict) -> str:
+    """S1 resolution order: response.modelId ?? record.model.modelId."""
+    mid = resp.get("modelId")
+    if isinstance(mid, str) and mid:
+        return mid
+    return _zc_model_value(d.get("model"))
+
+
+def _zcode_best_and_resps(files: list[Path]) -> tuple[dict | None, bool, dict, dict]:
+    """Find the fullest request and collect responses by id.
+
+    S2 (zcode_conversation_ingest_repair): only `full`-kind requests
+    carry the whole context, so they are preferred for the conversation
+    rows; a tail/delta fallback is flagged partial. ResponseId-less
+    error records come back as error entries keyed by requestId —
+    failures stay searchable instead of being skipped."""
+    best, best_n = None, -1
+    best_full, best_full_n = None, -1
+    resps: dict[str, tuple] = {}
+    errs: dict[str, tuple] = {}
     for f in files:
         for line in open(f, errors="replace"):
             try:
                 d = json.loads(line)
             except json.JSONDecodeError:
                 continue
-            n = (d.get("request") or {}).get("messageCount") or 0
+            req = d.get("request") or {}
+            n = req.get("messageCount") or 0
             if n > best_n:
                 best, best_n = d, n
+            if req.get("messagesKind") == "full" and n > best_full_n:
+                best_full, best_full_n = d, n
             r = d.get("response") or {}
             rid = r.get("responseId")
             if rid:
@@ -554,17 +596,36 @@ def _zcode_best_and_resps(files: list[Path]) -> tuple[dict | None, dict]:
                     d.get("startedAt"),
                     r.get("text") or "",
                     r.get("reasoningText") or "",
-                    r.get("model") or d.get("model") or "",
+                    _zc_model(d, r),
                 )
-    return best, resps
+            elif d.get("error"):
+                e = d["error"] or {}
+                key = d.get("requestId") or f"attempt{len(errs)}"
+                errs[key] = (
+                    d.get("startedAt"),
+                    f"{e.get('name') or 'Error'}: {e.get('message') or ''}".strip(),
+                    _zc_model(d, r),
+                )
+    if best_full is not None:
+        return best_full, False, resps, errs
+    return best, best is not None, resps, errs
 
 
-def _zcode_req_rows(best: dict, sid: str, src_tag: str) -> list[dict]:
-    """Build request-message rows from the fullest request."""
+def _zcode_req_rows(best: dict, sid: str, src_tag: str, partial: bool) -> list[dict]:
+    """Build request-message rows from the fullest request.
+
+    S2: the request's messagesKind rides the meta — `full` rows are the
+    whole conversation; `tail`/`delta` (and kind-blind fallbacks) are
+    marked partial so a reader never mistakes a compacted context for
+    the conversation."""
     rows = []
     rid = best.get("requestId") or "req"
     ts = _iso_ms(best.get("startedAt") or best.get("completedAt"))
-    for i, m in enumerate((best.get("request") or {}).get("messages") or []):
+    req = best.get("request") or {}
+    meta: dict = {"messageOffset": req.get("messageOffset"), "contextKind": req.get("messagesKind")}
+    if partial:
+        meta["partial"] = True
+    for i, m in enumerate(req.get("messages") or []):
         text = _zc_content(m.get("content"))
         if not text:
             continue
@@ -576,18 +637,21 @@ def _zcode_req_rows(best: dict, sid: str, src_tag: str) -> list[dict]:
                 ts,
                 m.get("role", ""),
                 "zcode",
-                best.get("model") or "",
+                _zc_model(best, best.get("response") or {}),
                 "req-msg",
                 text,
-                {"messageOffset": (best.get("request") or {}).get("messageOffset")},
+                meta,
                 f"zcode:{src_tag}",
             )
         )
     return rows
 
 
-def _zcode_resp_rows(resps: dict, sid: str, src_tag: str) -> list[dict]:
-    """Build response and reasoning rows from collected responses."""
+def _zcode_resp_rows(resps: dict, errs: dict, sid: str, src_tag: str) -> list[dict]:
+    """Build response, reasoning, and error rows from collected attempts.
+
+    S2: error attempts (no responseId) become searchable `error` rows
+    keyed by synthetic `zc:<sid>:err:<requestId>` part ids."""
     rows = []
     for rid, (started, text, reasoning, model) in resps.items():
         ts = _iso_ms(started)
@@ -623,16 +687,33 @@ def _zcode_resp_rows(resps: dict, sid: str, src_tag: str) -> list[dict]:
                     f"zcode:{src_tag}",
                 )
             )
+    for rid, (started, message, model) in errs.items():
+        rows.append(
+            _row(
+                f"zc:{sid}:err:{rid}",
+                rid,
+                sid,
+                _iso_ms(started),
+                "assistant",
+                "zcode",
+                model,
+                "error",
+                message,
+                {},
+                f"zcode:{src_tag}",
+            )
+        )
     return rows
 
 
 def _harvest_zcode_file(files: list[Path], sid: str, src_tag: str) -> list[dict]:
-    """One zcode session: fullest request = final context; responses by id."""
-    best, resps = _zcode_best_and_resps(files)
+    """One zcode session: fullest full-kind request = final context;
+    responses by id; error attempts searchable (S1+S2)."""
+    best, partial, resps, errs = _zcode_best_and_resps(files)
     rows = []
     if best:
-        rows.extend(_zcode_req_rows(best, sid, src_tag))
-    rows.extend(_zcode_resp_rows(resps, sid, src_tag))
+        rows.extend(_zcode_req_rows(best, sid, src_tag, partial))
+    rows.extend(_zcode_resp_rows(resps, errs, sid, src_tag))
     return rows
 
 
@@ -720,6 +801,32 @@ def _zcode_groups() -> dict[str, list[Path]]:
     return groups
 
 
+def _migrate_zcode_models(corpus_root: Path) -> tuple[int, int]:
+    """S1 one-shot (zcode_conversation_ingest_repair): rewrite existing
+    zcode parquet `model` values from the pre-normalization dict shapes
+    to the plain modelId string. Sessions whose rollout file already
+    rotated away never re-harvest, so this — not the watermark — is what
+    makes the corpus facet-clean (zero `{` model values). Text is
+    untouched, so the embed cache stays valid."""
+    fixed_files = fixed_rows = 0
+    for f in sorted((corpus_root / "zcode" / "conversations").glob("*.parquet")):
+        t = pq.read_table(f)
+        models = t.column("model").to_pylist()
+        new = [_zc_model_value(m) for m in models]
+        if new == models:
+            continue
+        pq.write_table(
+            pa.Table.from_pylist(
+                [{**r, "model": m} for r, m in zip(t.to_pylist(), new)], schema=_SCHEMA
+            ),
+            f,
+            compression="zstd",
+        )
+        fixed_rows += sum(1 for a, b in zip(models, new) if a != b)
+        fixed_files += 1
+    return fixed_files, fixed_rows
+
+
 def harvest(check: bool = False, corpus_root: Path = CORPUS_ROOT, db: Path = INDEX_DB) -> dict:
     """The S1 core: union all sources into the per-session parquet corpus."""
     t0 = time.perf_counter()
@@ -771,7 +878,20 @@ def main(argv: list[str] | None = None) -> int:
     )
     p.add_argument("--corpus-root", default=str(CORPUS_ROOT))
     p.add_argument("--db", default=str(INDEX_DB))
+    p.add_argument(
+        "--migrate-zcode-models",
+        action="store_true",
+        help="one-shot (zcode_conversation_ingest_repair S1): rewrite existing "
+        "zcode parquet model dicts to plain modelId strings; no harvest",
+    )
     args = p.parse_args(argv)
+    if args.migrate_zcode_models:
+        files, rows = _migrate_zcode_models(Path(args.corpus_root))
+        print(
+            f"migrated {rows} model values across {files} zcode parquet files",
+            file=sys.stderr,
+        )
+        return 0
     out = harvest(check=args.check, corpus_root=Path(args.corpus_root), db=Path(args.db))
     if out["check"]:
         if out["index_stale"]:
