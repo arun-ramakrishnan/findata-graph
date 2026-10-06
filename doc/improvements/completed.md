@@ -9426,3 +9426,55 @@ and the rollout proposal. Verified: `convo-fresh APPLY=1` green (2m0s,
 496 sessions, embed cache text-addressed so the model-only rewrite
 cannot invalidate entries), 6 fixture tests pinning S1+S2, ruff/ty/
 static/md-lint/search-fresh green.
+
+## 360. shared query vector — one embed across the master_query fan-out
+
+Filed and executed 2026-10-06 (`shared_query_vector` proposal,
+`doc/improvements/archive/tooling/`). Every hybrid `master_query`
+embedded the same query text five times — three child CLIs each
+loading the granite GGUF plus the parent once more — measuring 5.0s
+wall / 15.3s CPU (~3× CPU inflation) per parallel query; the vector is
+identical across legs by construction. **S1**: the parent embeds once
+(`rebuild_common.make_query_vector`; bm25 skips) and threads the
+vector through `run_lane` into the in-process legs (`semantic_hits`,
+`search_memories` gain an optional `query_vec`). **S2**:
+`--query-vector '<json>'` on `doc_query`/`script_query`/`convo_query`
+(≈3 KB argv) lets a subprocess leg skip its own model load; no flag =
+today's standalone path. **S3**: each leg stamp-checks the vector's
+`(model_label, dims)` against its index and falls back to its own
+embed with the degradation named in status — a pseudo or stale vector
+never scores silently. Verified: shared-vs-own vectors bit-identical
+across all five legs (`--serial` diff empty), forced stamp mismatch
+degrades with status intact, standalone CLIs unchanged
+(`test_shared_query_vector.py`, 537 lines; convo/master/embedder
+suites green). Projected ≈2s wall / ~1× CPU per query (§4 table).
+
+## 361. TS↔server contract hardening — type-aware assertions, valibot guards, no-cache bundles
+
+Filed 2026-10-06, executed 2026-10-06/07 (`ts_contract_hardening`
+proposal, `doc/improvements/archive/ui/`). The frontend trusted
+`response.json() as T`: type-blind presence-only assertions, 13 of 25
+frontend-consumed routes without shape coverage, and static bundles
+shipping with no `Cache-Control`. **S1**: `tests/api_contract.py` — a
+type-aware parser/asserter (60 interfaces; unions, literals, tuples,
+Records, generics; `assert_type` mirrors the declared TS shapes) —
+replacing the isinstance spot-checks; contract suite now 73 tests.
+**S2**: coverage 12 → 25/25 routes on the hermetic graph fixture.
+**S3** (spike §3a–c): guards/valibot/zod bake-off — zod dominated
+(+35% wire), and the zero-dep generator shipped a union bug (every
+multi-member union always rejected), fixed to sequential accept-any +
+required-key presence + call-site guards (shakeable exports alone
+measured insufficient); operator accepted **valibot ^1.5.0** —
+`gen_api_guards.py` emits `schemas_valibot.ts` (446 lines) +
+`guards.ts` (489-line `safeParse` wrappers, was 2,758 hand-rolled),
+`--check` + a 14-case bun battery over the emitted TS wired into
+`frontend-check`; `fetchJson<T>(url, guard?)` validated at every view
+call site (per-bundle guard shaking; findata +6.3% raw/+4.8% wire,
+entity 122 KB). **S4**: `after_request` `no-cache` on
+`GET /static/*.bundle.js`; D3's premise corrected in-record (Flask
+`SEND_FILE_MAX_AGE_DEFAULT=None` already no-caches all static).
+Verified: contract 73/73, battery 14/14, tsc/prettier clean; gates qa
+11/11, integration 727/727, advisory 12/14 (ty-tests = pre-existing
+non-arc traces-file errors; convo-fresh-check = live-store drift
+class), perf parked (timing leg). Follow-up filed:
+`desktop_ipc_shape_guards` (Tauri IPC shapes).

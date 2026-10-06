@@ -42,7 +42,7 @@ _H3 = Hit(
 )
 
 
-def _fake_runner(lane, query, limit, mode="hybrid"):
+def _fake_runner(lane, query, limit, mode="hybrid", query_vec=None):
     """Two legs with hits, one honest-empty, one degraded. Signature
     matches st.run_lane (lane first) — fan_out forwards positionally."""
     table = {
@@ -93,7 +93,7 @@ class TestFanOut:
         assert "missing" in out["convo"][1]
 
     def test_raising_leg_degrades_to_error(self):
-        def boom(query, lane, limit, mode="hybrid"):
+        def boom(query, lane, limit, mode="hybrid", query_vec=None):
             raise RuntimeError("disk on fire")
 
         out = mq.fan_out("q", ["docs"], 4, lane_runner=boom, parallel=False)
@@ -184,7 +184,7 @@ class TestAgeGuard:
     def test_aged_leg_skipped_without_running(self, aged_legs, monkeypatch):
         calls = []
 
-        def spy(lane, query, limit, mode="hybrid"):
+        def spy(lane, query, limit, mode="hybrid", query_vec=None):
             calls.append(lane)
             return [_H1], "1 hits · doc_search hybrid"
 
@@ -197,7 +197,7 @@ class TestAgeGuard:
         assert calls == ["scripts"]  # the aged backend never ran
 
     def test_missing_sidecar_age_passes_through(self, aged_legs):
-        def spy(lane, query, limit, mode="hybrid"):
+        def spy(lane, query, limit, mode="hybrid", query_vec=None):
             return [_H3], "1 hits · memory_search hybrid"
 
         out = mq.fan_out("q", ["memory"], 4, lane_runner=spy, parallel=False, age_guard_hours=24.0)

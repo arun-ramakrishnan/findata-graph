@@ -39,6 +39,7 @@ import hashlib
 import math
 import os
 import sys
+import threading
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
@@ -95,6 +96,16 @@ _POOL_MIN_TEXTS = 8  # below this the spawn overhead beats the speedup
 _MODEL = None
 _verified = False
 
+# Serializes model init AND every create_embedding forward (2026-10-06:
+# master_query fans its in-process legs out over threads, and two threads
+# entering Llama() together killed the process — silent exit 0, no
+# traceback. llama-cpp-python wraps each load in suppress_stdout_stderr,
+# which dup2s process-global fds 1/2; interleaved save/restore leaves
+# stdout pointing at /dev/null, so all later output vanishes. The Llama
+# object itself is not documented thread-safe either, so forwards queue
+# here too — never nested, plain Lock is enough).
+_EMBED_LOCK = threading.Lock()
+
 
 def _shutdown_model() -> None:
     """Close the llama.cpp handle during interpreter exit, while llama_cpp
@@ -146,27 +157,39 @@ def _get_model(n_threads: int | None = None):
     """Lazy model singleton. ``n_threads=1`` is the pool-worker shape:
     per-doc forwards are sync-bound past 1 thread (bench 2026-08-29);
     the default (None) keeps llama.cpp's own thread choice for
-    single-text/query callers."""
+    single-text/query callers. Double-checked locking: concurrent first
+    touches queue on _EMBED_LOCK instead of racing two Llama() inits
+    (see _EMBED_LOCK — the race silently eats the process's stdout)."""
     global _MODEL
     if _MODEL is None:
-        if not available():
-            raise RuntimeError(
-                f"local embedder unavailable: {MODEL_ID} backend or model file "
-                "missing (gate on available() or see local_embedder docstring)"
-            )
-        from llama_cpp import Llama
+        with _EMBED_LOCK:
+            if _MODEL is None:
+                if not available():
+                    raise RuntimeError(
+                        f"local embedder unavailable: {MODEL_ID} backend or model file "
+                        "missing (gate on available() or see local_embedder docstring)"
+                    )
+                from llama_cpp import Llama
 
-        kwargs: dict = {}
-        if n_threads is not None:
-            kwargs["n_threads"] = n_threads
-        _MODEL = Llama(
-            model_path=str(MODEL_PATH),
-            embedding=True,
-            n_ctx=_N_CTX,
-            verbose=False,
-            **kwargs,
-        )
+                kwargs: dict = {}
+                if n_threads is not None:
+                    kwargs["n_threads"] = n_threads
+                _MODEL = Llama(
+                    model_path=str(MODEL_PATH),
+                    embedding=True,
+                    n_ctx=_N_CTX,
+                    verbose=False,
+                    **kwargs,
+                )
     return _MODEL
+
+
+def _encode(model, text: str) -> list[float]:
+    """One embedding forward, serialized on _EMBED_LOCK (Llama objects are
+    not thread-safe; concurrent forwards from the search fan-out are the
+    other half of the 2026-10-06 silent-death report)."""
+    with _EMBED_LOCK:
+        return model.create_embedding(input=[text])["data"][0]["embedding"]
 
 
 def _normalize(vec: list[float]) -> list[float]:
@@ -184,7 +207,7 @@ def _embed(text: str) -> list[float]:
     if not text or not text.strip():
         raise ValueError("cannot embed empty text")
     model = _get_model()
-    vec = model.create_embedding(input=[text])["data"][0]["embedding"]
+    vec = _encode(model, text)
     return _normalize(vec)
 
 
@@ -218,7 +241,7 @@ def embed_documents(texts: list[str]) -> list[list[float]]:
     model = _get_model()
     out = []
     for text in texts:
-        vec = model.create_embedding(input=[text])["data"][0]["embedding"]
+        vec = _encode(model, text)
         out.append(_normalize(vec) if any(vec) else vec)
     return out
 

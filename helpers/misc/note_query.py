@@ -153,17 +153,49 @@ def note_query_embedder():
     return query_embedder()
 
 
-def semantic_hits(db_path: Path, query: str, limit: int) -> tuple[list[dict], str]:
+def _stored_note_model(db_path: Path) -> str | None:
+    """db_meta.note_embed_model — the real index-side model label (the
+    matrix meta stamps a generic 'note_search'; the SQL home carries the
+    model the rows were built with). None when unstamped (dims-only
+    back-compat, not a reject)."""
+    try:
+        from helpers.core.db import connect as db_connect
+
+        conn = db_connect(Path(db_path), read_only=True, wal=False)
+        try:
+            row = conn.execute(
+                "SELECT value FROM db_meta WHERE key = 'note_embed_model'"
+            ).fetchone()
+        finally:
+            conn.close()
+    except Exception:  # noqa: BLE001  # missing table / locked db -> None
+        return None
+    return row[0] if row else None
+
+
+def semantic_hits(db_path: Path, query: str, limit: int, query_vec=None) -> tuple[list[dict], str]:
     """Exact cosine top-k over the note matrix. Returns (hits, reason).
 
     Hits carry path/line/score only — the bm25 leg owns the prose fields.
+    ``query_vec`` (shared_query_vector): a parent-fanned-out embedding
+    used instead of a local model load when its stamp matches; on
+    mismatch the leg embeds locally as before.
     """
     try:
         import numpy as np
 
+        from helpers.maintenance import rebuild_common as rbc
+
         matrix = load_notes_matrix(str(db_path))
-        embed_query, _d = note_query_embedder()
-        raw = matrix.top_k(np.asarray(embed_query(query)), max(limit * 4, SEMANTIC_CANDIDATES))
+        vec: list[float] | None = None
+        if query_vec is not None:
+            vec = rbc.check_query_vector(
+                _stored_note_model(db_path), int(matrix.meta["dims"]), query_vec
+            )
+        if vec is None:
+            embed_query, _d = note_query_embedder()
+            vec = embed_query(query)
+        raw = matrix.top_k(np.asarray(vec), max(limit * 4, SEMANTIC_CANDIDATES))
         best: dict[Key, float] = {}
         for key, score in raw:
             path, _sep, anchor = str(key).partition("#")

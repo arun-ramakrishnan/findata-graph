@@ -106,6 +106,16 @@ def _stored_dims(con: ConvoConnections) -> int | None:
     return int(row[0]) if row else None
 
 
+def _stored_model(con: ConvoConnections) -> str | None:
+    """Index-side model label from convo_meta, or None when the sidecar
+    predates the stamp (dims-only back-compat, not a reject)."""
+    try:
+        row = con.ddb.execute("SELECT value FROM convo_meta WHERE key = 'embed_model'").fetchone()
+    except duckdb.CatalogException:
+        return None
+    return row[0] if row else None
+
+
 def _fts_hits(con: ConvoConnections, query: str, limit: int) -> list[tuple[Key, float]]:
     """Token-quoted FTS5 bm25 (lower-is-better rank → negate to score)."""
     q = " ".join(f'"{w.replace(chr(34), chr(34) * 2)}"' for w in query.split())
@@ -117,15 +127,22 @@ def _fts_hits(con: ConvoConnections, query: str, limit: int) -> list[tuple[Key, 
     return [((harness, pid), -float(rank)) for harness, pid, rank in rows]
 
 
-def _cos_hits(con: ConvoConnections, query: str, limit: int, dims: int) -> list[tuple[Key, float]]:
+def _cos_hits(
+    con: ConvoConnections, query: str, limit: int, dims: int, query_vec=None
+) -> list[tuple[Key, float]]:
     from helpers.core import local_embedder as le
+    from helpers.maintenance import rebuild_common as rbc
 
-    if le.available():
-        qv = le.embed_query(query)
-    else:
-        from helpers.graph.embeddings import _pseudo_embedding
+    qv: list[float] | None = None
+    if query_vec is not None:
+        qv = rbc.check_query_vector(_stored_model(con), dims, query_vec)
+    if qv is None:
+        if le.available():
+            qv = le.embed_query(query)
+        else:
+            from helpers.graph.embeddings import _pseudo_embedding
 
-        qv = _pseudo_embedding(query, dims)
+            qv = _pseudo_embedding(query, dims)
     if len(qv) != dims:
         return []
     # cast width MUST match the stored vectors (384 for the house embedder,
@@ -216,13 +233,16 @@ def search(
     hybrid: bool = True,
     harness: str | None = None,
     kinds: list[str] | None = None,
+    query_vec=None,
 ) -> dict:
     """Hybrid (default) or bm25-only search; returns the result dicts.
 
     ``kinds`` restricts hits by part_type (e.g. ``["text", "reasoning"]``
     for pure conversation). When it is set the candidate pool is
     over-fetched, otherwise a tool-heavy result set would starve the
-    filter.
+    filter. ``query_vec`` (shared_query_vector): a parent-fanned-out
+    embedding used instead of a local model load when its stamp matches;
+    on mismatch the leg embeds locally as before.
     """
     dims = _stored_dims(con)
     pool = max(limit * 4, 20) * (3 if kinds else 1)
@@ -231,7 +251,7 @@ def search(
         ranked = fts
         mode = "bm25"
     else:
-        cos = _cos_hits(con, query, pool, dims)
+        cos = _cos_hits(con, query, pool, dims, query_vec)
         ranked = sorted(_rrf(fts, cos).items(), key=lambda kv: (-kv[1], kv[0]))
         mode = "hybrid"
     ranked = _apply_prior(con, ranked, kinds)
@@ -328,6 +348,14 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--limit", type=int, default=5, help="max hits (default 5)")
     p.add_argument("--db", default=str(DEFAULT_DB), help="convo_search duckdb path")
     p.add_argument("--bm25", action="store_true", help="lexical leg only (skip cosine)")
+    p.add_argument(
+        "--query-vector",
+        default=None,
+        metavar="JSON",
+        help="shared query embedding (shared_query_vector: parent fanned-out "
+        '{"model","dims","vector"} — skips this leg\'s own model load; '
+        "absent/garbled = embed locally as before)",
+    )
     p.add_argument("--harness", default=None, choices=HARNESSES, help="filter hits to one harness")
     p.add_argument(
         "--kinds",
@@ -369,6 +397,8 @@ def main(argv: list[str] | None = None) -> int:
             unknown = [k for k in kinds if k not in KINDS]
             if unknown:
                 p.error(f"unknown part_type(s) {unknown}; known: {','.join(KINDS)}")
+        from helpers.maintenance import rebuild_common as rbc
+
         out = search(
             con,
             args.query,
@@ -376,6 +406,7 @@ def main(argv: list[str] | None = None) -> int:
             hybrid=not args.bm25,
             harness=args.harness,
             kinds=kinds,
+            query_vec=rbc.parse_query_vector_flag(args.query_vector),
         )
     finally:
         con.close()

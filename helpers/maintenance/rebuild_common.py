@@ -186,6 +186,84 @@ def resolve_embedder(
     return _pseudo, pseudo_dims, f"dry-run-v{pseudo_dims}", True
 
 
+@dataclass(frozen=True)
+class QueryVector:
+    """One shared query embedding (shared_query_vector proposal, 2026-10-06).
+
+    Same text + same model = identical floats, so the master_query parent
+    embeds once and fans this out instead of each leg loading the GGUF.
+    The stamp (model label + dims) is the contract: a leg only scores
+    this against its index when the stamp matches the index's stored
+    stamp — otherwise it falls back to its own embed (today's path).
+    Labels mirror resolve_embedder: the granite MODEL_ID or dry-run-vN.
+    """
+
+    vector: tuple[float, ...]
+    model: str
+    dims: int
+
+    def to_json(self) -> str:
+        """Compact argv-safe encoding for the --query-vector CLI flag."""
+        return json.dumps({"model": self.model, "dims": self.dims, "vector": list(self.vector)})
+
+
+def make_query_vector(text: str) -> QueryVector | None:
+    """Embed once for the fan-out (parent side). None when there is
+    nothing to embed (empty text) or the embed raises — legs then fall
+    back to their own embed, exactly today's behavior."""
+    if not text or not text.strip():
+        return None
+    try:
+        from helpers.core import local_embedder as le
+
+        if le.available():
+            return QueryVector(tuple(le.embed_query(text)), le.MODEL_ID, le.DIM)
+        from helpers.graph.embeddings import _pseudo_embedding
+
+        vec = _pseudo_embedding(text, 64)
+        return QueryVector(tuple(vec), "dry-run-v64", 64)
+    except Exception:  # noqa: BLE001  # embed failure -> per-leg fallback, never a dead query
+        return None
+
+
+def check_query_vector(
+    stored_model: str | None, stored_dims: int | None, qv: QueryVector | None
+) -> list[float] | None:
+    """Usable vector or None (fall back to the leg's own embed).
+
+    Accept on dims match AND (no stored label yet, or label match). A
+    storeddims mismatch covers the real/pseudo split (384 vs 64); the
+    label covers same-dims model swaps. Missing stored label (old
+    sidecar) keeps today's dims-only behavior, not a hard reject.
+    """
+    if qv is None or stored_dims is None:
+        return None
+    if stored_dims != qv.dims or qv.dims != len(qv.vector):
+        return None
+    if stored_model is not None and stored_model != qv.model:
+        return None
+    return list(qv.vector)
+
+
+def parse_query_vector_flag(raw: str | None) -> QueryVector | None:
+    """Parse a --query-vector JSON payload (child-CLI side). None on
+    missing/garbled input (stderr warning) — the leg falls back to its
+    own embed, so a bad flag never kills a query."""
+    if not raw:
+        return None
+    try:
+        d = json.loads(raw)
+        vec = tuple(float(x) for x in d["vector"])
+        qv = QueryVector(vector=vec, model=str(d["model"]), dims=int(d["dims"]))
+    except ValueError, TypeError, KeyError, AttributeError:
+        print("WARNING: --query-vector payload unparseable, embedding locally", file=sys.stderr)
+        return None
+    if qv.dims <= 0 or len(vec) != qv.dims:
+        print("WARNING: --query-vector dims mismatch payload, embedding locally", file=sys.stderr)
+        return None
+    return qv
+
+
 def backup_last_good_index(db_path: Path, spec: IndexBackupSpec) -> None:
     """Last-good recovery copy of an INDEX DB into db-backup/.
 
@@ -295,6 +373,14 @@ def run_query_cli(argv: list[str] | None, spec: QueryCliSpec) -> int:
     p.add_argument(
         "--json", action="store_true", dest="as_json", help="emit the raw result dicts as JSON"
     )
+    p.add_argument(
+        "--query-vector",
+        default=None,
+        metavar="JSON",
+        help="shared query embedding (shared_query_vector: parent fanned-out "
+        '{"model","dims","vector"} — skips this leg\'s own model load; '
+        "absent/garbled = embed locally as before)",
+    )
     args = p.parse_args(argv)
 
     conn = spec.connect_fn(Path(args.db) if args.db else spec.default_db())
@@ -305,6 +391,7 @@ def run_query_cli(argv: list[str] | None, spec: QueryCliSpec) -> int:
         if spec.stale_fn(conn):
             print(spec.stale_warning, file=sys.stderr)
         kwargs = spec.search_kwargs(args) if spec.search_kwargs is not None else {}
+        kwargs["query_vec"] = parse_query_vector_flag(args.query_vector)
         out = spec.search_fn(
             conn,
             args.query,

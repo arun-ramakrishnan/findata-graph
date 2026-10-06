@@ -739,7 +739,9 @@ def test_query_hybrid_fuse(convo_env, monkeypatch):
         ).fetchall()
         assert fts_rows, "fts sidecar empty"
         monkeypatch.setattr(
-            cq, "_cos_hits", lambda c, q, limit, dims: [(("prime-rlm", "pm1:0"), 0.9)]
+            cq,
+            "_cos_hits",
+            lambda c, q, limit, dims, query_vec=None: [(("prime-rlm", "pm1:0"), 0.9)],
         )
         out = cq.search(con, "hello", limit=3)
         assert out["mode"] == "hybrid"

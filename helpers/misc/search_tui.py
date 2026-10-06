@@ -354,7 +354,9 @@ def _rrf_note_hits(bm25_hits: list[Hit], semantic_hits: list[Hit], limit: int) -
     return [_note_hit(r) for r in fused]
 
 
-def _semantic_note_hits(db_path: Path, query: str, limit: int) -> tuple[list[Hit] | None, str]:
+def _semantic_note_hits(
+    db_path: Path, query: str, limit: int, query_vec=None
+) -> tuple[list[Hit] | None, str]:
     """Semantic leg over the note matrix. ``(None, reason)`` = degrade.
 
     Core lives in ``note_query`` (which owns the staleness gate and the
@@ -362,7 +364,7 @@ def _semantic_note_hits(db_path: Path, query: str, limit: int) -> tuple[list[Hit
     """
     from helpers.misc import note_query as nq
 
-    rows, reason = nq.semantic_hits(db_path, query, limit)
+    rows, reason = nq.semantic_hits(db_path, query, limit, query_vec)
     if not rows and reason:
         return None, reason
     return [_note_hit(r) for r in rows], reason
@@ -379,13 +381,23 @@ def _run(argv: list[str]) -> str:
     return r.stdout if r.returncode == 0 else ""
 
 
-def _run_docs(q: str, limit: int, mode: str = "hybrid") -> tuple[list[Hit], str]:
+def _query_vector_arg(query_vec) -> list[str]:
+    """--query-vector argv for a subprocess leg (shared_query_vector: the
+    parent embeds once; the child skips its own model load). Empty when
+    there is no shared vector — the child embeds locally as before."""
+    if query_vec is None:
+        return []
+    return ["--query-vector", query_vec.to_json()]
+
+
+def _run_docs(q: str, limit: int, mode: str = "hybrid", query_vec=None) -> tuple[list[Hit], str]:
     # hybrid blends the embedding cosine: sections that never contain the
     # query word can rank (semantic recall). --bm25 = lexical leg only —
     # every hit contains the word (operator toggle, key m).
     argv = [sys.executable, "helpers/misc/doc_query.py", q, "--limit", str(limit)]
     if mode == "bm25":
         argv.append("--bm25")
+    argv.extend(_query_vector_arg(query_vec))
     argv.append("--json")
     raw = _run(argv)
     hits = parse_doc_json(raw, limit) if raw.strip().startswith("{") else []
@@ -394,10 +406,11 @@ def _run_docs(q: str, limit: int, mode: str = "hybrid") -> tuple[list[Hit], str]
     return hits, f"{len(hits)} hits · doc_search {mode}"
 
 
-def _run_scripts(q: str, limit: int, mode: str = "hybrid") -> tuple[list[Hit], str]:
+def _run_scripts(q: str, limit: int, mode: str = "hybrid", query_vec=None) -> tuple[list[Hit], str]:
     argv = [sys.executable, "helpers/misc/script_query.py", q, "--limit", str(limit)]
     if mode == "bm25":
         argv.append("--bm25")
+    argv.extend(_query_vector_arg(query_vec))
     argv.append("--json")
     raw = _run(argv)
     hits = parse_script_json(raw, limit) if raw.strip().startswith("{") else []
@@ -406,7 +419,7 @@ def _run_scripts(q: str, limit: int, mode: str = "hybrid") -> tuple[list[Hit], s
     return hits, f"{len(hits)} hits · script_search {mode}"
 
 
-def _run_notes(q: str, limit: int, mode: str = "hybrid") -> tuple[list[Hit], str]:
+def _run_notes(q: str, limit: int, mode: str = "hybrid", query_vec=None) -> tuple[list[Hit], str]:
     db = REPO_ROOT / "memory" / "research.db"
     if not db.exists():
         return [], "memory/research.db missing"
@@ -416,14 +429,14 @@ def _run_notes(q: str, limit: int, mode: str = "hybrid") -> tuple[list[Hit], str
         return [], f"note_search error: {e}"
     if mode == "bm25":
         return bm25_hits, f"{len(bm25_hits)} hits · note_search bm25"
-    semantic_hits, reason = _semantic_note_hits(db, q, limit)
+    semantic_hits, reason = _semantic_note_hits(db, q, limit, query_vec)
     if semantic_hits is None:
         return bm25_hits, f"{len(bm25_hits)} hits · note_search bm25 fallback · {reason}"
     fused = _rrf_note_hits(bm25_hits, semantic_hits, limit)
     return fused, f"{len(fused)} hits · note_search hybrid · RRF{_NOTES_RRF_K}"
 
 
-def _run_memory(q: str, limit: int, mode: str = "hybrid") -> tuple[list[Hit], str]:
+def _run_memory(q: str, limit: int, mode: str = "hybrid", query_vec=None) -> tuple[list[Hit], str]:
     """Harness-memory lane: one row per record across the three pools.
 
     Core lives in ``rebuild_memory_search.search_memories`` (the same core
@@ -439,7 +452,9 @@ def _run_memory(q: str, limit: int, mode: str = "hybrid") -> tuple[list[Hit], st
     try:
         conn = _db_connect(db, read_only=True, wal=False)
         try:
-            out = rms.search_memories(conn, q, limit=limit, hybrid=(mode != "bm25"))
+            out = rms.search_memories(
+                conn, q, limit=limit, hybrid=(mode != "bm25"), query_vec=query_vec
+            )
         finally:
             conn.close()
     except sqlite3.Error as e:  # pragma: no cover - defensive
@@ -462,7 +477,7 @@ def _run_memory(q: str, limit: int, mode: str = "hybrid") -> tuple[list[Hit], st
     return hits, f"{len(hits)} hits · memory_search {out.get('mode', 'bm25')}"
 
 
-def _run_code(q: str, limit: int, mode: str = "hybrid") -> tuple[list[Hit], str]:
+def _run_code(q: str, limit: int, mode: str = "hybrid", query_vec=None) -> tuple[list[Hit], str]:
     if shutil.which("ripwire") is None:
         return [], "ripwire missing on PATH"
     raw = _run(ripwire_argv(q))
@@ -488,7 +503,7 @@ def _run_code(q: str, limit: int, mode: str = "hybrid") -> tuple[list[Hit], str]
     return [], "no ripwire rows for that query — try callers:/impact:/grep:/recall:"
 
 
-def _run_literal(q: str, limit: int, mode: str = "hybrid") -> tuple[list[Hit], str]:
+def _run_literal(q: str, limit: int, mode: str = "hybrid", query_vec=None) -> tuple[list[Hit], str]:
     if shutil.which("rg") is None:
         return [], "rg missing on PATH"
     # regex first (rg is a regex tool); -F fallback only when the pattern
@@ -546,10 +561,11 @@ def parse_convo_json(raw: str, limit: int) -> list[Hit]:
     return hits
 
 
-def _run_convo(q: str, limit: int, mode: str = "hybrid") -> tuple[list[Hit], str]:
+def _run_convo(q: str, limit: int, mode: str = "hybrid", query_vec=None) -> tuple[list[Hit], str]:
     argv = [sys.executable, "helpers/misc/convo_query.py", q, "--limit", str(limit)]
     if mode == "bm25":
         argv.append("--bm25")
+    argv.extend(_query_vector_arg(query_vec))
     argv.append("--json")
     raw = _run(argv)
     if not raw.strip():
@@ -558,7 +574,7 @@ def _run_convo(q: str, limit: int, mode: str = "hybrid") -> tuple[list[Hit], str
     return hits, f"{len(hits)} hits · convo_search {mode}"
 
 
-_LaneRunner = Callable[[str, int, str], tuple[list[Hit], str]]
+_LaneRunner = Callable[..., tuple[list[Hit], str]]
 
 _LANE_RUNNERS: dict[str, _LaneRunner] = {
     "docs": _run_docs,
@@ -569,16 +585,23 @@ _LANE_RUNNERS: dict[str, _LaneRunner] = {
     "code": _run_code,
     "literal": _run_literal,
     # reports adapters live below (beside the other parse_*); resolve late.
-    "reports": lambda q, limit, mode="hybrid": _run_reports(q, limit, mode),  # noqa: E731
+    "reports": lambda q, limit, mode="hybrid", query_vec=None: _run_reports(  # noqa: E731
+        q, limit, mode
+    ),
 }
 
 
-def run_lane(lane: str, query: str, limit: int, mode: str = "hybrid") -> tuple[list[Hit], str]:
+def run_lane(
+    lane: str, query: str, limit: int, mode: str = "hybrid", query_vec=None
+) -> tuple[list[Hit], str]:
     """Execute one lane. Returns (hits, status message for the bar).
 
     ``mode`` applies to the two hybrid backends: "hybrid" (semantic +
     lexical blend, default) or "bm25" (every hit contains the word).
     The reports lane accepts an empty query (per-report overview).
+    ``query_vec`` (shared_query_vector): a parent-fanned-out embedding —
+    hybrid legs score it instead of loading the model when its stamp
+    matches; code/literal/reports ignore it.
     """
     q = query.strip()
     if not q and lane != "reports":
@@ -586,7 +609,7 @@ def run_lane(lane: str, query: str, limit: int, mode: str = "hybrid") -> tuple[l
     runner = _LANE_RUNNERS.get(lane)
     if runner is None:
         return [], f"unknown lane {lane!r}"
-    return runner(q, limit, mode)
+    return runner(q, limit, mode, query_vec)
 
 
 def call_chain(symbol: str) -> dict:
@@ -1432,7 +1455,7 @@ def _run_verify_hits(
     )
 
 
-def _run_reports(q: str, limit: int, mode: str = "hybrid") -> tuple[list[Hit], str]:
+def _run_reports(q: str, limit: int, mode: str = "hybrid", query_vec=None) -> tuple[list[Hit], str]:
     """Reports lane: verbs select a file, text filters rows, empty = overview."""
     verb, text = _split_report_verb(q)
     files = report_files()  # main copies + each outputs/wt/<name>/outputs copy

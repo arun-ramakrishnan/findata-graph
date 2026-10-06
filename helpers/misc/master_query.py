@@ -168,12 +168,20 @@ def fan_out(
     ``age_guard_hours`` (S2, `--age-guard`): legs whose guarded sidecar
     (``_SIDECAR_BY_LEG``) is older than the threshold are skipped up
     front — status names the age and the refresh command; the backend
-    never runs. A skipped leg is not "answered" (exit-1 eligible)."""
+    never runs. A skipped leg is not "answered" (exit-1 eligible).
+
+    Shared query vector (shared_query_vector proposal): hybrid mode
+    embeds the query ONCE here and fans the vector out to every leg
+    (``query_vec`` runner kwarg) instead of each leg loading the GGUF.
+    bm25 mode embeds nothing (as before — no vector is needed)."""
+    from helpers.maintenance import rebuild_common as rbc
+
     runner = lane_runner or st.run_lane
     ordered: list[str] = []
     for leg in legs:
         if leg not in ordered:
             ordered.append(leg)
+    shared_vec = rbc.make_query_vector(query) if mode != "bm25" and query.strip() else None
 
     def _one(leg: str) -> tuple[str, tuple[list, str]]:
         if age_guard_hours is not None:
@@ -185,7 +193,7 @@ def fan_out(
                     f"age guard (refresh: {_REFRESH_BY_LEG.get(leg, 'make search-fresh APPLY=1')})",
                 )
         try:
-            hits, status = runner(_LEGS[leg], query, limit, mode)
+            hits, status = runner(_LEGS[leg], query, limit, mode, query_vec=shared_vec)
             return leg, (hits, status)
         except Exception as exc:  # noqa: BLE001  # one leg must not fail the fan-out
             return leg, ([], f"error: {type(exc).__name__}: {exc}")

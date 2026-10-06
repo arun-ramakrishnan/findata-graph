@@ -44,6 +44,15 @@ gate anchored on the existing `make fixtures` pipeline (real
 research.db payloads). Compiled-in dist makes the stale-bundle
 concern structurally N/A (recorded, S4). S1–S4, awaiting review.
 
+_(none)_ — archived 2026-10-07: `shared_query_vector`
+(`../archive/tooling/`, completed.md #360) and `ts_contract_hardening`
+(`../archive/ui/`, #361) — one query vector shared across the
+master_query fan-out (parent embeds once, `--query-vector` legs,
+stamp-checked fallback) and the TS↔server contract hardening
+(type-aware assertions 25/25 routes, valibot runtime guards generated
+into `fetchJson`, bundle no-cache header; desktop twin filed as
+`desktop_ipc_shape_guards`).
+
 _(none)_ — archived 2026-10-06: `zcode_rollout_step_ingest`
 (`../archive/tooling/`, completed.md #358) and
 `zcode_conversation_ingest_repair` (`../archive/tooling/`, #359) —

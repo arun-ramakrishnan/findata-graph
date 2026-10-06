@@ -19,6 +19,8 @@ bypasses embed_query/embed_document at a call site.
 import hashlib
 import importlib.util
 import math
+import os
+import threading
 
 import pytest
 
@@ -208,3 +210,44 @@ class TestParallelPool:
 
 def _fake_vec(text: str) -> list[float]:
     return [float(len(text)), 1.0]
+
+
+# --------------------------------------------------------------------------- #
+# Thread safety (master_query flake, 2026-10-06)                              #
+# --------------------------------------------------------------------------- #
+@needs_model
+class TestThreadSafety:
+    """The search fan-out embeds from a thread pool: concurrent first
+    touches raced two Llama() inits, and llama-cpp-python's
+    suppress_stdout_stderr dup2s process-global fds 1/2 per init — the
+    interleaved save/restore left stdout pointing at /dev/null, so the
+    process exited 0 with no output and no traceback (plus stray ``load:``
+    lines on the terminal mid-race). _EMBED_LOCK serializes init and
+    forwards; this pins it with a barrier-forced pile-up."""
+
+    def test_concurrent_first_touch_keeps_stdout_and_vectors(self, real_backend, monkeypatch):
+        monkeypatch.setattr(LE, "_MODEL", None)  # force the double-init race
+        before = os.fstat(1).st_ino
+        barrier = threading.Barrier(4)
+        out, errs = {}, {}
+
+        def work(i):
+            try:
+                barrier.wait(timeout=60)
+                out[i] = LE.embed_query("aquaculture feed company")
+            except Exception as exc:  # noqa: BLE001 — collected, asserted below
+                errs[i] = exc
+
+        threads = [threading.Thread(target=work, args=(i,)) for i in range(4)]
+        for t in threads:
+            t.start()
+        for t in threads:
+            t.join(120)
+        assert not [t for t in threads if t.is_alive()], "embed threads hung"
+        assert not errs, f"concurrent embed raised: {errs}"
+        assert sorted(out) == [0, 1, 2, 3]
+        for v in out.values():
+            assert len(v) == LE.DIM
+        assert list(out.values())[0] == LE.embed_query("aquaculture feed company")
+        assert os.fstat(1).st_ino == before, "stdout fd clobbered by concurrent load"
+        print("stdout alive after concurrent first touch")

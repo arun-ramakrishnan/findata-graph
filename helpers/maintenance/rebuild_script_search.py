@@ -1434,19 +1434,39 @@ def _script_stored_embed_dims(conn: sqlite3.Connection) -> int | None:
     return len(vec) if vec else None
 
 
+def _script_stored_embed_model(conn: sqlite3.Connection) -> str | None:
+    """Index-side model label from script_search_info, or None when the
+    sidecar predates the stamp (dims-only back-compat, not a reject)."""
+    try:
+        row = conn.execute(
+            "SELECT value FROM script_search_info WHERE key = 'embed_model'"
+        ).fetchone()
+    except Exception:  # noqa: S110  # missing table on old sidecars -> None
+        return None
+    return row[0] if row else None
+
+
 def _cosine_leg(
-    conn: sqlite3.Connection, q: str
+    conn: sqlite3.Connection, q: str, query_vec: rbc.QueryVector | None = None
 ) -> tuple[list[tuple[int, float]], dict[int, float]]:
     """Cosine ranking: (scored [(rowid, sim)] sorted desc, sims map).
 
     ([], {}) when the embedder is unavailable or the stored dims mismatch —
     the BM25 leg then carries the whole ranking (same degradation contract
-    as rebuild_doc_search.search_docs)."""
+    as rebuild_doc_search.search_docs). ``query_vec`` (shared_query_vector):
+    a parent-fanned-out embedding used instead of a local model load when
+    its stamp matches; on mismatch the leg embeds locally as before."""
     try:
-        embed_q, _dims = rds.query_embedder()
-        q_vec = embed_q(q)
-        if _script_stored_embed_dims(conn) != len(q_vec):
-            return [], {}
+        idx_dims = _script_stored_embed_dims(conn)
+        q_vec: list[float] | None = None
+        if query_vec is not None:
+            q_vec = rbc.check_query_vector(_script_stored_embed_model(conn), idx_dims, query_vec)
+        if q_vec is None:
+            embed_q, _dims = rds.query_embedder()
+            candidate = embed_q(q)
+            if idx_dims != len(candidate):
+                return [], {}
+            q_vec = candidate
     except Exception:  # noqa: S110  # embedder unavailable -> BM25 only
         return [], {}
     sims: dict[int, float] = {}
@@ -1571,6 +1591,7 @@ def search_scripts(
     kind: str | None = None,
     area: str | None = None,
     hybrid: bool = True,
+    query_vec: rbc.QueryVector | None = None,
 ) -> dict:
     """Hybrid BM25 + cosine search over script_search. Never raises.
 
@@ -1602,7 +1623,7 @@ def search_scripts(
     except sqlite3.Error:
         return {"mode": "bm25", "results": []}
 
-    scored, sims = _cosine_leg(conn, q) if hybrid else ([], {})
+    scored, sims = _cosine_leg(conn, q, query_vec) if hybrid else ([], {})
     cos_rank = {rid: pos for pos, (rid, _s) in enumerate(scored)} if scored else None
     hits = _fused_hits(
         conn,

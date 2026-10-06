@@ -249,6 +249,17 @@ def query_embedder() -> tuple[Callable[[str], list[float]], int]:
     return _pseudo, _PSEUDO_DIMS
 
 
+def stored_embed_model(conn: sqlite3.Connection) -> str | None:
+    """Index-side model label from doc_search_info, or None when the
+    sidecar predates the stamp (shared_query_vector: missing label keeps
+    the dims-only back-compat check, not a hard reject)."""
+    try:
+        row = conn.execute("SELECT value FROM doc_search_info WHERE key = 'embed_model'").fetchone()
+    except Exception:  # noqa: S110  # missing table on old sidecars -> None
+        return None
+    return row[0] if row else None
+
+
 def stored_embed_dims(conn: sqlite3.Connection) -> int | None:
     """Dims of the first stored doc_search embedding, or None when empty.
 
@@ -756,6 +767,7 @@ def search_docs(  # noqa: C901
     offset: int = 0,
     *,
     hybrid: bool = True,
+    query_vec: rbc.QueryVector | None = None,
 ) -> dict:
     """Hybrid BM25 + cosine search over doc_search. Never raises.
 
@@ -763,6 +775,10 @@ def search_docs(  # noqa: C901
     a dims mismatch or embedder failure drops the cosine leg (mode bm25);
     the CALLER handles missing/stale tables (scan fallback) — this
     function requires doc_index_ready(conn).
+
+    ``query_vec`` (shared_query_vector): a parent-fanned-out embedding
+    used instead of a local model load when its stamp matches the
+    index's; on stamp mismatch the leg embeds locally as before.
 
     Candidate generation (the eval-driven difference from /api/search):
     the union of the BM25 page (limit+offset rows) and the top cosine
@@ -799,11 +815,14 @@ def search_docs(  # noqa: C901
     q_vec: list[float] | None = None
     if hybrid:
         try:
-            embed_q, _dims = query_embedder()
-            candidate = embed_q(q)
             idx_dims = stored_embed_dims(conn)
-            if idx_dims is not None and idx_dims == len(candidate):
-                q_vec = candidate
+            if query_vec is not None:
+                q_vec = rbc.check_query_vector(stored_embed_model(conn), idx_dims, query_vec)
+            if q_vec is None:
+                embed_q, _dims = query_embedder()
+                candidate = embed_q(q)
+                if idx_dims is not None and idx_dims == len(candidate):
+                    q_vec = candidate
         except Exception:  # noqa: S110  # embedder unavailable -> BM25 only
             q_vec = None
 
