@@ -34,7 +34,7 @@ Performance (S0 baseline `2.19-2.42s` YAML hot, `THR=": _build_resolver_map`):
 """
 
 from __future__ import annotations
-# ruff: noqa: C901, S101, S110, UP037  # S1b scale: Corpus + stale advisory, complexity is domain logic not lint
+# ruff: noqa: S101, S110, UP037  # S1b scale: Corpus + stale advisory, complexity is domain logic not lint
 
 import datetime
 import os
@@ -184,7 +184,7 @@ class Corpus:
     notes: list[Note]
 
     @classmethod
-    def load(
+    def load(  # noqa: C901
         cls, root: str | Path = "findata", *, workers: int = 1, use_cache: bool = True
     ) -> "Corpus":
         """One walk+parse. `use_cache=True` hits `memory/corpus.db` per-file mtime
@@ -332,7 +332,7 @@ class Corpus:
         return {n.path: n for n in self.notes}
 
     @classmethod
-    def iter_notes(
+    def iter_notes(  # noqa: C901
         cls, root: str | Path = "findata", *, fields: str = "frontmatter", use_cache: bool = True
     ) -> "Iterator[Note]":
         """S2a lazy iteration — stream Notes without materializing `list[Note]`.

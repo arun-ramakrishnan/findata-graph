@@ -316,6 +316,7 @@ GATES: dict[str, Gate] = {
                 (_PY, "helpers/maintenance/rebuild_memory_search.py", "--check"),
             ),
             Step("convo-fresh-check", (_MAKE, "convo-fresh")),
+            Step("csr-fresh-check", (_MAKE, "csr-check")),
             Step("lint-audit", (_RUFF, "check", "--select", "S,UP,C901", ".")),
         ),
     ),

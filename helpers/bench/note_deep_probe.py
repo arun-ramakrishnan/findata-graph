@@ -188,7 +188,7 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     return parser.parse_args(argv)
 
 
-def run(argv: list[str] | None = None) -> int:  # noqa: C901  # bench script: one straight-line report
+def run(argv: list[str] | None = None) -> int:
     args = _parse_args(argv)
     questions = json.loads(args.questions.read_text(encoding="utf-8"))["questions"]
 

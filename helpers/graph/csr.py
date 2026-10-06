@@ -356,7 +356,23 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--db", default="memory/research.db")
     ap.add_argument("--out", default=str(DEFAULT_OUT_DIR))
     ap.add_argument("--verify", action="store_true", help="verify checksum after build")
+    ap.add_argument("--check", action="store_true", help="report freshness; exit 1 if stale")
     args = ap.parse_args(argv)
+    if args.check:
+        import json
+
+        out = Path(args.out)
+        try:
+            manifest = json.loads((out / "csr_manifest.json").read_text())
+        except OSError, json.JSONDecodeError:
+            print(f"CSR: manifest missing or corrupt at {out}")
+            return 1
+        live = _live_generation(args.db)
+        if live is None or str(manifest.get("generation")) != str(live):
+            print(f"CSR: stale — manifest gen={manifest.get('generation')} live gen={live}")
+            return 1
+        print(f"CSR: fresh (gen={live})")
+        return 0
     t0 = time.perf_counter()
     manifest = build(args.db, args.out)
     t1 = time.perf_counter()

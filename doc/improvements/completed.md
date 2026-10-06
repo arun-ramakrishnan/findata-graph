@@ -9305,3 +9305,51 @@ advisory 10/13 (S310 loopback noqas; search lanes re-converged;
 standalone patched binary stays, convergence trigger recorded in the
 archived proposal. Tests: 17 new engine tests (stubbed HTTP server, no
 llama.cpp in CI) + dispatcher/fuzz suites updated, 55+ green; ruff/ty clean.
+
+## 354. CSR fast-lane freshness — rebuild target, --check gate, advisory wiring
+
+Filed and executed 2026-10-06 (`csr_freshness_lane` proposal,
+`doc/improvements/archive/graph/`). The CSR substrate (`memory/csr/`) was
+stale — built at gen 373511 against a live gen 414554 — so every
+unfiltered shortest-path call silently fell back to the 477 ms recursive
+CTE instead of the ~1 ms CSR path. **S1**: `make csr` / `make csr-rebuild`
+targets drive `helpers/graph/csr.py` (build + `--verify` checksum; 0.20 s
+on 22,063 nodes / 57,574 edges). **S2**: `csr.py --check` compares the
+manifest generation to the live `db_meta.generation`, printing fresh/stale
+and exiting 1 on drift; wired as `make csr-check`. **S3**: `csr-fresh-check`
+step added to the advisory gate (`tests/run_gate_report.py`), warning (not
+failing) on staleness. Substrate rebuilt to gen 414554, `fresh=True`
+verified by `--check`; proposal archived.
+
+## 355. convo_search.duckdb swap-rebuild — atomic pid-tagged temp + os.replace
+
+Filed and executed 2026-10-06 (`convo_search_swap_rebuild` proposal,
+`doc/improvements/archive/database/`). The 648 MB store held ~431 MB of
+dead/fragmented space from the in-place DELETE+reinsert cycle — DuckDB
+1.5.6 VACUUM reclaims 0 bytes; only a table rewrite recovers it, and the
+old rebuild wrote in place, so the space never came back. **S1**:
+``rebuild_convo_search.py --swap`` builds a fresh compact DB into
+``<path>.rebuild-<pid>.tmp`` then ``os.replace`` atomically (graph-lane
+``_rebuild_via_swap`` pattern): embed runs lock-free, the only live-file
+exclusive window is the swap instant, FTS syncs after. **S2**: ``--swap``
+flag plumbed through ``rebuild_common.RebuildCliSpec`` (`swap_help`) so
+only the convo lane opts in. **S3**: `make convo-search-rebuild` /
+`make convo-search-check` targets. Measured: 648 MB → 213 MB (66%
+reclaimed), 76,652 rows, phases hash+read=2.0s embed=2.37s
+duckdb_write=7.13s swap=0.02s fts_sync=13.84s, embed cache 76,652 hits /
+0 misses, `--check` clean.
+
+## 356. Generic analytics lane — read-only SQL over the Parquet snapshot
+
+Filed and executed 2026-10-06 (`generic_analytics_lane` proposal,
+`doc/improvements/archive/database/`). No dedicated read-only lane existed
+to query the git-tracked parquet snapshot — every ad-hoc query opened a
+live store (lock risk) or hand-mounted views. **S1**:
+`helpers/maintenance/analytics/` package — `query.py:connect_snapshots()`
+mounts every `snapshots/parquet/{duckdb,sqlite,sources}/*.parquet` as a
+`<side>__<stem>` DuckDB view in a fresh in-memory connection. **S2**:
+`cli.py` with `--list` / `--stats` / `--query`. **S3**:
+`make analytics-parquet` target (row counts). Live stores never opened.
+Verified: `--stats` prints counts for all ~300 tables (e.g.
+`duckdb__e_all_und`: 115,148); `--query` returns expected counts; ruff/ty
+clean on the new package.

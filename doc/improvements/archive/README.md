@@ -38,6 +38,7 @@ commit, referenced by nothing). Entry numbers point at
 - [`security_route_skeleton.md`](security/security_route_skeleton.md) — Route skeleton — `ast`-derived inventory of `app.py`'s 38 routes published to `doc/security/routes.json` and checked by `static_checks.py`; the emitted advisory is shape agreement, explicitly not a security verdict — completed.md #311
 
 ## graph/ — Graph layer — algorithms, DuckPGQ retirement, Onager, knowledge-model design
+- [`csr_freshness_lane.md`](graph/csr_freshness_lane.md) — CSR fast-lane freshness — `make csr` / `make csr-check` / `make csr-rebuild` + `csr.py --check` (manifest gen vs live gen, exit 1 on stale) wired into the advisory gate; substrate rebuilt gen 373511 → 414554 (`fresh=True`, ~1 ms vs 477 ms fallback) — completed.md #354
 
 - [`graph_rebuild_fast_path.md`](graph/graph_rebuild_fast_path.md) —
   graph rebuild fast path — per-input fingerprints (`fp:*` in
@@ -154,6 +155,8 @@ commit, referenced by nothing). Entry numbers point at
 - [`centrality_rebuild_contract.md`](graph/centrality_rebuild_contract.md) — Proposal: Centrality rebuild contract — rebuild data-only (369.9s → 3.19s; 99.5% was the BFS-family stamp), ten v_centrality_* dropped at rebuild with readers falling back to live compute; explicit stamp lane stamp_centrality_cache() / make stamp-centrality / maint step 3b (5m59s at scale, warm reads 0.017s); stamp-vs-rebuild swap race found and guarded (inode check + retry) — completed.md #271
 
 ## database/ — Databases — DuckDB/SQLite engine and SQL query improvements
+- [`convo_search_swap_rebuild.md`](database/convo_search_swap_rebuild.md) — convo_search.duckdb swap-rebuild — `--swap` builds a fresh compact DB into a pid-tagged temp then `os.replace` atomic swap (graph-lane `_rebuild_via_swap` pattern); 648 MB → 213 MB (66% reclaimed), embed cache 76,652 hits / 0 misses — completed.md #355
+- [`generic_analytics_lane.md`](database/generic_analytics_lane.md) — Generic analytics lane — `helpers/maintenance/analytics/` mounts every `snapshots/parquet/{duckdb,sqlite,sources}/*.parquet` as `<side>__<stem>` DuckDB views (`query.py`/`cli.py`); `--list`/`--stats`/`--query`; `make analytics-parquet`; live stores never opened — completed.md #356
 - [`industry_coding_completion.md`](database/industry_coding_completion.md) — Industry coding completion — scorer v2 bench (all variants falsified, scorer unchanged), yfinance identity guard + alias map (Felix-Gold poisoning killed), per-company NIC-2008 stamps for flagged labels (11 notes: 8 Conglomerates + A&D electronics cluster), Confectioners 10721 pin (164 gate questions), WAL journal_size_limit — completed.md #248
 
 - [`nic2008_seed_table.md`](database/nic2008_seed_table.md) — NIC-2008 vocabulary as a versioned canonical table (1,301 subclasses) + own concept scheme (2,067 concepts), journaled operator review tool (sittings, batch confirm, match-type stacking, skip-parking), 85/117 labels coded onto 101 active crosswalk lanes, 163 gate pins — completed.md #246

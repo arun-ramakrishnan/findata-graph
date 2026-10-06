@@ -23,6 +23,7 @@ first pass — the content-addressed cache absorbs unchanged snippets);
 from __future__ import annotations
 
 import hashlib
+import os
 import sqlite3
 import sys
 from pathlib import Path
@@ -494,7 +495,106 @@ def _rebuild_embed_and_persist(
     return cstats, model_label, dims
 
 
-def rebuild(db_path: Path, write: bool = True, incremental: bool = False) -> dict:
+def rebuild_via_swap(db_path: Path, incremental: bool = False) -> dict:
+    """Full rebuild into a pid-tagged temp, then atomic ``os.replace`` swap.
+
+    The in-place DELETE+reinsert cycle leaves 67% of the file as dead /
+    fragmented space; DuckDB 1.5.6 VACUUM reclaims 0 bytes here. Building
+    a fresh compact DB in ``<path>.rebuild-<pid>.tmp`` and swapping it in
+    reclaims it (graph lane's ``_rebuild_via_swap`` pattern).
+
+    Lock contract (S3 preserved): embed runs with NO live-db connection;
+    the only live-file exclusive window is the final swap instant. FTS
+    sync (independent sqlite store) runs after the swap, so a failed FTS
+    leaves the fresh DuckDB live with a stale FTS — the next ``--check``
+    catches it and a re-run redoes the sync.
+    """
+    db_path = Path(db_path)
+    db_path.parent.mkdir(parents=True, exist_ok=True)
+    global _FTS_DB_PATH
+    _FTS_DB_PATH = fts_db_for(db_path)
+    timer = _Phases()
+
+    files = _corpus_files()
+
+    tmp = db_path.with_name(f"{db_path.name}.rebuild-{os.getpid()}.tmp")
+    tmp_wal = tmp.with_name(tmp.name + ".wal")
+    tmp_lock = tmp.with_name(tmp.name + ".build.lock")
+    tmp.unlink(missing_ok=True)
+    tmp_wal.unlink(missing_ok=True)
+    tmp_lock.unlink(missing_ok=True)
+
+    try:
+        target = _read_files(files)
+        keep = [r for _h, rr in target.values() for r in rr]
+        current = {rel: h for rel, (h, _rows) in target.items()}
+        timer.mark("hash+read")
+
+        vecs, cstats, dims, model_label = _embed([r["snippet"] for r in keep])
+        timer.mark("embed")
+
+        con = duckdb.connect(str(tmp))
+        try:
+            con.execute(CONVO_SEARCH_DDL)
+            con.execute(CONVO_META_DDL)
+            if keep:
+                _bulk_insert(con, keep, vecs)
+            con.executemany(
+                "INSERT OR REPLACE INTO convo_meta VALUES (?, ?)",
+                [(f"file:{rel}", h) for rel, h in current.items()]
+                + [("embed_model", model_label), ("embed_dims", str(dims))],
+            )
+        finally:
+            con.close()
+        timer.mark("duckdb_write")
+
+        if tmp_wal.exists():
+            raise RuntimeError(f"rebuild temp not cleanly closed: {tmp_wal} still exists")
+
+        with io_lock(db_path, exclusive=True):
+            os.replace(tmp, db_path)
+        timer.mark("swap")
+
+        from helpers.core.db import connect as db_connect
+
+        sconn = db_connect(_FTS_DB_PATH)
+        try:
+            _fts_sync(sconn, [], keep, full=True)
+        finally:
+            sconn.close()
+        timer.mark("fts_sync")
+
+        total_row = (
+            duckdb.connect(str(db_path), read_only=True)
+            .execute("SELECT COUNT(*) FROM convo_search")
+            .fetchone()
+        )
+        total = total_row[0] if total_row else 0
+    finally:
+        tmp.unlink(missing_ok=True)
+        tmp_wal.unlink(missing_ok=True)
+        tmp_lock.unlink(missing_ok=True)
+
+    timings = timer.as_dict()
+    timings["total"] = round(sum(timings.values()), 2)
+    return {
+        "indexed": len(keep),
+        "mode": "swap",
+        "timings": timings,
+        "total": total,
+        "embedded": cstats["misses"],
+        "embed_cache_hits": cstats["hits"],
+        "embed_cache_misses": cstats["misses"],
+        "index_stale": False,
+        "stale_new": [],
+        "stale_changed": [],
+        "stale_deleted": [],
+    }
+
+
+def rebuild(
+    db_path: Path, write: bool = True, incremental: bool = False, swap: bool = False
+) -> dict:
     """The S2 core. ``--check`` (write=False) never resolves the embedder.
 
     Contention-window minimization S3 — three intent-scoped windows with
@@ -520,6 +620,8 @@ def rebuild(db_path: Path, write: bool = True, incremental: bool = False) -> dic
     files = _corpus_files()
     if not write:
         return _rebuild_check_mode(db_path, files, timer)
+    if swap:
+        return rebuild_via_swap(db_path, incremental=incremental)
 
     rows: list[dict] = []
     vecs: list[list[float]] = []
@@ -651,6 +753,7 @@ def main(argv: list[str] | None = None) -> int:
         db_help="convo_search duckdb path",
         check_help="report corpus-vs-index drift, exit 1, no writes",
         incremental_help="reprocess only new/changed corpus files",
+        swap_help="atomic pid-tagged temp + os.replace swap (compacts the duckdb; graph-lane pattern)",
         rebuild_fn=rebuild,
         summary=summary,
         migrated_msg="",

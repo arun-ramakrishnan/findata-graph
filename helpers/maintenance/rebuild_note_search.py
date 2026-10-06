@@ -614,7 +614,7 @@ def _stamp_note_model(conn, model_label: str) -> None:
     conn.commit()
 
 
-def rebuild(  # noqa: C901  # noqa anchor moved to the statement's diagnostic line (ruff-format split)
+def rebuild(  # noqa: C901
     db_path: Path,
     write: bool = True,
     incremental: bool = False,

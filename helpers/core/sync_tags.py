@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# ruff: noqa: C901, S101, S110, UP037
+# ruff: noqa: S101, S110, UP037
 """
 Sync note tags into the SQLite `entity_tags` table (normalized, searchable).
 
@@ -202,7 +202,7 @@ def rebuild_note_tags(conn, root: Path | None = None) -> tuple[int, int]:
     return len({n for n, _ in bulk}), len(bulk)
 
 
-def _sync_from_corpus(
+def _sync_from_corpus(  # noqa: C901
     corpus, conn
 ) -> tuple[
     list[tuple[str, str]],
@@ -232,7 +232,7 @@ def _sync_from_corpus(
         note = by_path.get(Path(file_path)) or by_path.get(_REPO_ROOT / file_path)
         if note is None:
             # suffix fallback for cache with opposite root form
-            for kk, vv in by_path.items():  # noqa: C901
+            for kk, vv in by_path.items():
                 if kk.as_posix().endswith(file_path) or Path(file_path).as_posix() == kk.as_posix():
                     note = vv
                     break
@@ -268,7 +268,7 @@ def _sync_from_corpus(
     return bulk, no_tags, missing_files, sector_updates, unknown_sectors, geo_slop_rows
 
 
-def _print_warnings(
+def _print_warnings(  # noqa: C901
     missing_files: list[tuple[str, str]],
     no_tags: list[str],
     unknown_sectors: list[tuple[str, str]],

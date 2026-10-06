@@ -39,7 +39,7 @@ STATE: dict[str, Any] = {"model_id": "NaviDC-OCR-Q4_K_M", "responses": [], "requ
 
 
 class _StubHandler(BaseHTTPRequestHandler):
-    def log_message(self, *args: object) -> None:  # silence
+    def log_message(self, format: str, *args: object) -> None:  # silence
         return
 
     def _send(self, code: int, payload: dict) -> None:

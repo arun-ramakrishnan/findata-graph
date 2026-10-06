@@ -44,7 +44,7 @@ Usage:
 """
 
 from __future__ import annotations
-# ruff: noqa: C901, S101, S110, UP037  # S1b scale: Corpus + stale advisory, complexity is domain logic not lint
+# ruff: noqa: S101, S110, UP037  # S1b scale: Corpus + stale advisory, complexity is domain logic not lint
 
 import argparse
 import collections
@@ -84,7 +84,7 @@ EDGE_TYPE = "cited_in"
 SOURCE_REF = "derive:cited_in"
 
 
-def edition_notes(vault: Path, corpus=None) -> list[dict]:
+def edition_notes(vault: Path, corpus=None) -> list[dict]:  # noqa: C901
     """One record per source-tree note: {stem, file_path, title}.
 
     Fails loudly on duplicate stems across the three trees — the stem is
@@ -277,7 +277,7 @@ def _collect_note_citations(
         citations.append((entity, s["id"], resource))
 
 
-def extract_citations(
+def extract_citations(  # noqa: C901
     vault: Path,
     path_to_name: dict[str, str],
     edition_stems: set[str],
@@ -419,7 +419,7 @@ _ARGS = dcli.DeriveArgsSpec(
 )
 
 
-def _cli(argv: list[str] | None = None) -> int:  # noqa: C901
+def _cli(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(
         description="Derive cited_in (note -> edition) edges from OKF sources[].",
     )

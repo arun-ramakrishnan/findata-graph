@@ -749,7 +749,7 @@ def doc_index_stale(conn: sqlite3.Connection, root: Path | None = None) -> bool:
     return bool(meta.keys() - on_disk)
 
 
-def search_docs(  # noqa: C901  # noqa anchor moved to the statement's diagnostic line (ruff-format split)
+def search_docs(  # noqa: C901
     conn: sqlite3.Connection,
     q: str,
     limit: int = 25,

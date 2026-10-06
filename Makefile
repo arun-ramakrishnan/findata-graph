@@ -34,15 +34,21 @@ export PATH := $(CURDIR)/.venv/bin:$(PATH)
 export TMPDIR ?= $(shell test -d /mnt/data/tmp && { mkdir -p /mnt/data/tmp/findata; echo /mnt/data/tmp/findata; } || echo /tmp)
 
 
-.PHONY: help qa test live-invariants perf cover fuzz integration snapshot snapshot-check snapshot-restore sync-tags sync-coverage-tags sync-sector-links static-checks license-check tmp-sweep install-dev triage-quotes gate-fresh graph-smoke graph-stats graph-algos graph-rebuild graph-rebuild-bench update-extensions recompute-graph recompute-hyper search-fresh convo-fresh embed-gc search-tui derive-relations derive-co-mentions derive-themes derive-events derive-insights derive-indices quote-coverage derive-themes-rebuild derive-cited-in derive-cited-in-rebuild derive-hyperedges derive-all refresh-indices refresh-vigil refresh-shp frontend frontend-check fold-identifiers format maint maint-full md-lint metrics-rebuild mojo-bench mojo-build mojo-test mojo-format relations-enrich lint types types-tests lint-audit deptry advisory secret-scan cargo-audit script-search-rebuild memory-search-rebuild triage-relations live-invariants stamp-centrality parity review-patch teleocr-server
+.PHONY: help qa test live-invariants perf cover fuzz integration snapshot snapshot-check snapshot-restore sync-tags sync-coverage-tags sync-sector-links static-checks license-check tmp-sweep install-dev triage-quotes gate-fresh graph-smoke graph-stats graph-algos graph-rebuild graph-rebuild-bench update-extensions recompute-graph recompute-hyper search-fresh convo-fresh embed-gc search-tui derive-relations derive-co-mentions derive-themes derive-events derive-insights derive-indices quote-coverage derive-themes-rebuild derive-cited-in derive-cited-in-rebuild derive-hyperedges derive-all refresh-indices refresh-vigil refresh-shp frontend frontend-check fold-identifiers format maint maint-full md-lint metrics-rebuild mojo-bench mojo-build mojo-test mojo-format relations-enrich lint types types-tests lint-audit deptry advisory secret-scan cargo-audit script-search-rebuild memory-search-rebuild triage-relations live-invariants stamp-centrality parity review-patch teleocr-server csr csr-check csr-rebuild convo-search-rebuild convo-search-check analytics-parquet
 
 help:           ## Show available targets (alphabetical; entries generated from the ## annotations — keep both in sync)
 > @echo "FinData targets (alphabetical):"
 > @echo "  advisory                 Run advisory (non-gating) checks in PARALLEL (default 4 jobs; override: make advisory -j N): ty on tests, live invariants, frontend, graph algos, analytics, suggestions, doc/script/note/memory-search freshness checks, lint-audit (appends outputs/advisory_report.md)"
 > @echo "  analytics                Read-only analytics over the git-tracked Parquet snapshot (A3; arg = report name)"
+> @echo "  analytics-parquet        Ad-hoc read-only SQL over the Parquet snapshot (--list/--stats/--query; tables are <side>__<name>)"
 > @echo "  cargo-audit              RustSec scan of desktop/src-tauri/Cargo.lock (advisory; SKIPs without cargo-audit)"
 > @echo "  convo-fresh              Check conversation corpus+index freshness — harvest sources vs parquet corpus vs pointer index (exit 1 on drift; APPLY=1 harvests+rebuilds; also run by make advisory)"
+> @echo "  convo-search-check        Report convo_search.duckdb file size vs payload (advisory; swap-rebuild candidate)"
+> @echo "  convo-search-rebuild      Rebuild convo_search.duckdb via atomic pid-tagged temp + os.replace swap (compacts; graph-lane pattern)"
 > @echo "  cover                    Run all tests with coverage over helpers/ (branch + missing-line report)"
+> @echo "  csr                      Build the CSR substrate (memory/csr/; shortest-path fast lane)"
+> @echo "  csr-check                Check CSR substrate freshness (exit 1 if stale; also run by make advisory)"
+> @echo "  csr-rebuild              Rebuild the CSR substrate regardless of freshness"
 > @echo "  deptry                   Run deptry dependency-health scan (unused/undeclared/transitive deps)"
 > @echo "  derive-all               READ-ONLY preview of every derive-* step (dry-runs; nothing written, sidecar suppressed)"
 > @echo "  derive-cited-in          Derive cited_in (note -> edition) edges from OKF sources[] frontmatter (okf_activation P)"
@@ -280,6 +286,9 @@ graph-stats:    ## Print a one-shot summary of the graph state (entities, edges,
 analytics:       ## Read-only analytics over the git-tracked Parquet snapshot (A3; arg = report name)
 > python3 helpers/graph/analytics.py $(REPORT)
 
+analytics-parquet: ## Ad-hoc read-only SQL over the Parquet snapshot (tables are <side>__<name>; --list/--stats/--query)
+> .venv/bin/python3 helpers/maintenance/analytics/cli.py --stats
+
 suggest-relations: ## Print link-prediction relation suggestions (C2; append with --append)
 > python3 helpers/graph/suggest_relations.py
 
@@ -305,6 +314,15 @@ graph-rebuild:  ## Rebuild the disk-based DuckDB cache from SQLite (run after pa
 stamp-centrality: ## Re-stamp v_centrality_* tables on the warm cache (lane-served metrics skipped per ROUTING; centrality_rebuild_contract explicit lane)
 > python3 helpers/graph/query.py stamp-centrality
 > @echo "✓ Centrality cache stamped (v_centrality_* tables warm; lane-served metrics skipped)"
+
+csr:             ## Build the CSR substrate (memory/csr/; shortest-path fast lane)
+> .venv/bin/python3 helpers/graph/csr.py --db memory/research.db --out memory/csr --verify
+
+csr-check:       ## Check CSR substrate freshness (exit 1 if stale; also run by make advisory)
+> .venv/bin/python3 helpers/graph/csr.py --db memory/research.db --out memory/csr --check
+
+csr-rebuild:     ## Rebuild the CSR substrate regardless of freshness
+> .venv/bin/python3 helpers/graph/csr.py --db memory/research.db --out memory/csr --verify
 
 near-duplicates: ## Report near-duplicate note pairs above cosine 0.9 (rename tripwire; READ-ONLY — triage by hand, remediation is user-held)
 > python3 helpers/graph/query.py near-duplicates --min-sim 0.9
@@ -332,6 +350,13 @@ script-search-rebuild: ## Rebuild the script metadata index (script_search sidec
 memory-search-rebuild: ## Rebuild the harness-memory index (memory_search sidecar; query via helpers/misc/memory_query.py)
 > python3 helpers/maintenance/rebuild_memory_search.py
 > @echo "✓ memory_search index rebuilt (memory/memory_search.db; gate: make search-fresh / advisory)"
+
+convo-search-rebuild: ## Rebuild convo_search.duckdb via atomic swap (compacts the duckdb; graph-lane pattern)
+> python3 helpers/maintenance/rebuild_convo_search.py --swap
+> @echo "✓ convo_search rebuilt via atomic swap (memory/convo_search.duckdb)"
+
+convo-search-check: ## Report convo_search.duckdb file size vs payload (advisory; swap-rebuild candidate)
+> @.venv/bin/python3 -c "import duckdb,os;d='memory/convo_search.duckdb';c=duckdb.connect(d,read_only=True);r=c.execute('SELECT COUNT(*) FROM convo_search').fetchone();c.close();size=os.path.getsize(d)/1e6;print(f'  convo_search: {size:.0f} MB, {r[0]:,} rows')"
 
 search-fresh:    ## Check ALL search indexes for staleness — doc/, script metadata, note embeddings, harness memory (every check runs even if one fails; exit 1 on drift; APPLY=1 refreshes them instead; also run by make advisory)
 > @rc=0; \

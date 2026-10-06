@@ -42,7 +42,7 @@ Usage:
 """
 
 from __future__ import annotations
-# ruff: noqa: C901, S101, S110, UP037  # S1b scale: Corpus + stale advisory, complexity is domain logic not lint
+# ruff: noqa: S101, S110, UP037  # S1b scale: Corpus + stale advisory, complexity is domain logic not lint
 
 try:
     from helpers.core.corpus import Corpus  # S1b shared walk
@@ -537,7 +537,7 @@ def _dedup(events: list[Event]) -> list[Event]:
     return out
 
 
-def extract_from_prose(
+def extract_from_prose(  # noqa: C901
     root: Path = COMPANIES_DIR,
     path_to_name: dict[str, str] | None = None,
     corpus=None,  # S1b shared walk: pre-parsed notes (helpers.core.corpus)
@@ -703,7 +703,7 @@ _ARGS = dcli.DeriveArgsSpec(
 )
 
 
-def _cli(argv: list[str] | None = None) -> int:  # noqa: C901
+def _cli(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(
         description="Derive the events timeline table (acquisition/jv/guidance/"
         "management_change) from graph_edges + company-note prose.",

@@ -34,6 +34,8 @@ entry number and stale DONE pointers):
 
 ## Current live proposals
 
+_(none)_ — archived 2026-10-06: `csr_freshness_lane` (`../archive/graph/`, #354), `convo_search_swap_rebuild` (`../archive/database/`, #355), `generic_analytics_lane` (`../archive/database/`, #356) — CSR freshness gate + rebuild targets, convo_search swap-rebuild compaction, generic analytics lane over the parquet snapshot.
+
 _(none)_ — archived 2026-10-06: `teleocr_pdf_fallback`
 (`../archive/pipeline/`, completed.md #353) — TeleOCR (NaviDC-OCR)
 Q4_K_M as the local terminal OCR engine (`pdf_local` → lite OCR →

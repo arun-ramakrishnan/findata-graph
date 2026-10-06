@@ -27,7 +27,7 @@ Usage:
 """
 
 from __future__ import annotations
-# ruff: noqa: C901, S101, S110, UP037  # S1b scale: Corpus + stale advisory, complexity is domain logic not lint
+# ruff: noqa: S101, S110, UP037  # S1b scale: Corpus + stale advisory, complexity is domain logic not lint
 
 import argparse
 import re
@@ -255,7 +255,7 @@ def _match_theme_aliases(scan_text: str) -> dict[str, list[str]]:
     return dict(matched)
 
 
-def extract_theme_membership(
+def extract_theme_membership(  # noqa: C901
     root: Path = COMPANIES_DIR,
     path_to_name: dict[str, str] | None = None,
     corpus: Corpus | None = None,  # S1b: pre-loaded Corpus (shared across maint --full)
@@ -372,7 +372,7 @@ _ARGS = dcli.DeriveArgsSpec(
 )
 
 
-def _cli(argv: list[str] | None = None) -> int:  # noqa: C901
+def _cli(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(
         description="Derive exposed_to (company -> theme) edges from company notes.",
     )

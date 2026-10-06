@@ -49,6 +49,7 @@ class RebuildCliSpec:
     migrated_msg: str
     resolve_db: Callable[[str], Path | None] | None = None
     handle_errors: bool = True
+    swap_help: str | None = None
 
 
 @dataclass(frozen=True)
@@ -90,6 +91,8 @@ def build_rebuild_parser(spec: RebuildCliSpec) -> argparse.ArgumentParser:
     p.add_argument("--db", default=spec.default_db, help=spec.db_help)
     p.add_argument("--check", action="store_true", help=spec.check_help)
     p.add_argument("--incremental", action="store_true", help=spec.incremental_help)
+    if spec.swap_help is not None:
+        p.add_argument("--swap", action="store_true", help=spec.swap_help)
     return p
 
 
@@ -252,14 +255,17 @@ def run_rebuild_cli(argv: list[str] | None, spec: RebuildCliSpec) -> int:
     else:
         db_path = Path(args.db)
 
+    kwargs: dict = dict(write=not args.check, incremental=args.incremental)
+    if spec.swap_help is not None:
+        kwargs["swap"] = args.swap
     if spec.handle_errors:
         try:
-            stats = spec.rebuild_fn(db_path, write=not args.check, incremental=args.incremental)
+            stats = spec.rebuild_fn(db_path, **kwargs)
         except Exception as exc:  # pragma: no cover - defensive
             print(f"ERROR: {exc}", file=sys.stderr)
             return 1
     else:
-        stats = spec.rebuild_fn(db_path, write=not args.check, incremental=args.incremental)
+        stats = spec.rebuild_fn(db_path, **kwargs)
 
     print(spec.summary(stats), file=sys.stderr)
     if not args.check:
