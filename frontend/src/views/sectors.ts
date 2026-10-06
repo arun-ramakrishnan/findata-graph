@@ -4,7 +4,7 @@
 
 import type { SectorsResponse } from "../../types/api";
 import { getEl, escapeHtml, truncateText } from "../core/dom";
-import { fetchJson } from "../core/api";
+import { fetchJson, isSectorsResponse } from "../core/api";
 import { loadActive } from "../core/loadActive";
 
 export class SectorsView {
@@ -21,7 +21,7 @@ export class SectorsView {
 
     async load(): Promise<void> {
         await loadActive({
-            fetch: () => fetchJson<SectorsResponse>("/api/sectors"),
+            fetch: () => fetchJson<SectorsResponse>("/api/sectors", isSectorsResponse),
             // Unguarded: the sector-filter dropdown lives in the companies
             // view but is populated from here — must run even when this
             // view is not visible.

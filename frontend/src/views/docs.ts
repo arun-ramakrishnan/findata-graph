@@ -26,7 +26,17 @@ import type {
     VaultEntity,
 } from "../../types/api";
 import { getEl, escapeHtml, formatBytes } from "../core/dom";
-import { fetchJson } from "../core/api";
+import {
+    fetchJson,
+    isDocContentResponse,
+    isDocSearchResponse,
+    isDocsResponse,
+    isEditionCompaniesResponse,
+    isEntitiesResponse,
+    isEntityDetailResponse,
+    isSearchResponse,
+    isSimilarNotesResponse,
+} from "../core/api";
 import {
     closeLightbox,
     highlightSnippet,
@@ -239,7 +249,7 @@ export class DocsView {
             return;
         }
         try {
-            const data = await fetchJson<DocsResponse>("/api/docs");
+            const data = await fetchJson<DocsResponse>("/api/docs", isDocsResponse);
             this.renderGroups([
                 {
                     label: null,
@@ -264,7 +274,10 @@ export class DocsView {
     /** Fetch the vault entity list once; also builds the wikilink index. */
     private async ensureVault(): Promise<VaultEntity[]> {
         if (this.vaultEntities) return this.vaultEntities;
-        const data = await fetchJson<EntitiesResponse>("/api/entities?limit=5000");
+        const data = await fetchJson<EntitiesResponse>(
+            "/api/entities?limit=5000",
+            isEntitiesResponse,
+        );
         const withNotes = data.entities.filter((e) => e.file_path);
         this.vaultEntities = withNotes;
         this.wikilinks = buildWikilinkIndex(withNotes);
@@ -348,7 +361,7 @@ export class DocsView {
         }
         try {
             const url = `/api/docs/search?q=${encodeURIComponent(query)}`;
-            const data = await fetchJson<DocSearchResponse>(url);
+            const data = await fetchJson<DocSearchResponse>(url, isDocSearchResponse);
             this.renderGroups([
                 {
                     label: null,
@@ -383,7 +396,7 @@ export class DocsView {
         const hybrid = (getEl("hybrid-search") as HTMLInputElement).checked;
         const url = `/api/search?q=${encodeURIComponent(query)}&limit=50${hybrid ? "&hybrid=1" : ""}`;
         try {
-            const data = await fetchJson<SearchResponse>(url);
+            const data = await fetchJson<SearchResponse>(url, isSearchResponse);
             this.renderGroups([
                 {
                     label: null,
@@ -491,7 +504,7 @@ export class DocsView {
         this.markActiveRow(path);
         try {
             const url = `/api/docs/content?path=${encodeURIComponent(path)}`;
-            const data = await fetchJson<DocContentResponse>(url);
+            const data = await fetchJson<DocContentResponse>(url, isDocContentResponse);
             const { html, headings } = processRichContent(data.content);
             getEl("docs-content-empty").style.display = "none";
             const pane = getEl("docs-content-pane");
@@ -530,7 +543,7 @@ export class DocsView {
         void this.ensureVault().catch(() => undefined);
         try {
             const url = `/api/entity/${encodeURIComponent(filePath)}`;
-            const entity = await fetchJson<EntityDetailResponse>(url);
+            const entity = await fetchJson<EntityDetailResponse>(url, isEntityDetailResponse);
             const fm = entity.frontmatter;
             const isEdition =
                 entity.entity_type === "edition" || fmString(fm, "type") === "newsletter";
@@ -609,6 +622,7 @@ export class DocsView {
         try {
             const similar = await fetchJson<SimilarNotesResponse>(
                 `/api/graph/similar/${encodeURIComponent(entity.file_path)}?k=6`,
+                isSimilarNotesResponse,
             );
             if (similar.neighbors.length) {
                 parts.push('<h4><i class="fas fa-clone"></i> Similar notes</h4>');
@@ -622,6 +636,7 @@ export class DocsView {
             try {
                 const companies = await fetchJson<EditionCompaniesResponse>(
                     `/api/graph/edition_companies?edition=${encodeURIComponent(stem)}&k=8`,
+                    isEditionCompaniesResponse,
                 );
                 if (companies.companies.length) {
                     parts.push(

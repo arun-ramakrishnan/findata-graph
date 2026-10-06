@@ -3,7 +3,7 @@
 
 import type { GraphStatsResponse, StatsResponse } from "../../types/api";
 import { getEl, escapeHtml } from "../core/dom";
-import { fetchJson } from "../core/api";
+import { fetchJson, isGraphStatsResponse, isStatsResponse } from "../core/api";
 import { loadActive } from "../core/loadActive";
 
 export class StatsView {
@@ -16,7 +16,7 @@ export class StatsView {
 
     async load(): Promise<void> {
         await loadActive({
-            fetch: () => fetchJson<StatsResponse>("/api/stats"),
+            fetch: () => fetchJson<StatsResponse>("/api/stats", isStatsResponse),
             display: (data) => this.displayStats(data),
             isActive: this.isActive,
             onError: (error) => console.error("Error loading stats:", error),
@@ -24,7 +24,7 @@ export class StatsView {
         // Graph statistics block (edge types, structure, hygiene, staleness).
         // Fetched independently so a failure here doesn't hide /api/stats.
         await loadActive({
-            fetch: () => fetchJson<GraphStatsResponse>("/api/graph/stats"),
+            fetch: () => fetchJson<GraphStatsResponse>("/api/graph/stats", isGraphStatsResponse),
             display: (data) => this.displayGraphStats(data),
             isActive: this.isActive,
             onError: (error) => {

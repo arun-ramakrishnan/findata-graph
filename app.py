@@ -1855,6 +1855,28 @@ def _graph_cache_headers(response):
     return response
 
 
+@app.after_request
+def _static_bundle_cache_headers(response):
+    """Force revalidation of the committed JS bundles (ts_contract_hardening S4).
+
+    The bundles are rebuilt on frontend deploys while their URLs stay
+    constant, so a browser heuristic freshness window can serve yesterday's
+    bundle against today's API — the stale-bundle window (concern D). Policy:
+    ``Cache-Control: no-cache``, mirroring the /api/graph/* handler above —
+    the browser MUST revalidate instead of trusting a stale local copy.
+
+    Scoped to GET /static/*.bundle.js 200s; everything else passes through.
+    """
+    if (
+        request.method == "GET"
+        and request.path.startswith("/static/")
+        and request.path.endswith(".bundle.js")
+        and response.status_code == 200
+    ):
+        response.headers["Cache-Control"] = "no-cache"
+    return response
+
+
 def _entity_file_path(name: str) -> str | None:
     """Return file_path for an entity name, or None. Used so the UI can link
     from a graph node straight to /entity/<path>."""

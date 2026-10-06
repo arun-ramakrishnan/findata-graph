@@ -525,10 +525,12 @@ frontend: ## Build the TypeScript frontend bundle into static/findata.bundle.js 
 > cd frontend && bun install --frozen-lockfile && bun run build
 > @echo "✓ frontend bundle rebuilt (static/findata.bundle.js)"
 
-frontend-check: ## Type-check + prettier format-check the TypeScript frontend (fast, needs Bun)
+frontend-check: ## Type-check + prettier + guard behaviour/regeneration checks (fast, needs Bun)
 > cd frontend && bun x tsc --noEmit
 > cd frontend && bun x prettier --check src types
-> @echo "✓ frontend type-check + prettier passed (strict)"
+> cd frontend && bun test tests
+> .venv/bin/python3 helpers/misc/gen_api_guards.py --check
+> @echo "✓ frontend type-check + prettier + guard behaviour + regeneration passed (strict)"
 
 fold-identifiers: ## Fold exchange ISIN/CIK values into the entity identifier registry
 > python3 helpers/maintenance/fold_identifiers.py --apply

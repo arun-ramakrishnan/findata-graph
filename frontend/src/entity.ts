@@ -18,7 +18,14 @@ import type {
     SimilarNotesResponse,
 } from "../types/api";
 import { getEl, escapeHtml } from "./core/dom";
-import { fetchJson } from "./core/api";
+import {
+    fetchJson,
+    isEntitiesResponse,
+    isEntityDetailResponse,
+    isEventsResponse,
+    isSemanticResponse,
+    isSimilarNotesResponse,
+} from "./core/api";
 import {
     buildWikilinkIndex,
     chipSpans,
@@ -107,6 +114,7 @@ class EntityPage {
         try {
             const entity = await fetchJson<EntityDetailResponse>(
                 `/api/entity/${encodeURIComponent(this.entityPath)}`,
+                isEntityDetailResponse,
             );
             this.entity = entity;
             this.displayEntity();
@@ -224,7 +232,10 @@ class EntityPage {
     /** Vertical events timeline (dated oldest→newest, undated last). */
     private async loadEvents(name: string): Promise<void> {
         try {
-            const data = await fetchJson<EventsResponse>(`/api/events/${encodeURIComponent(name)}`);
+            const data = await fetchJson<EventsResponse>(
+                `/api/events/${encodeURIComponent(name)}`,
+                isEventsResponse,
+            );
             if (!data.events.length) return;
             getEl("events-tl").innerHTML = data.events
                 .map((ev) => {
@@ -260,6 +271,7 @@ class EntityPage {
         try {
             const data = await fetchJson<SemanticResponse>(
                 `/api/graph/semantic/${encodeURIComponent(name)}?k=8`,
+                isSemanticResponse,
             );
             if (!data.neighbors.length) return;
             getEl("peers-chips").innerHTML = data.neighbors
@@ -283,6 +295,7 @@ class EntityPage {
         try {
             const data = await fetchJson<SimilarNotesResponse>(
                 `/api/graph/similar/${encodeURIComponent(filePath)}?k=6`,
+                isSimilarNotesResponse,
             );
             if (!data.neighbors.length) return;
             getEl("similar-list").innerHTML = data.neighbors
@@ -309,7 +322,10 @@ class EntityPage {
     private async ensureWikilinkIndex(): Promise<Map<string, string> | null> {
         if (this.wikilinks) return this.wikilinks;
         try {
-            const data = await fetchJson<EntitiesResponse>("/api/entities?limit=5000");
+            const data = await fetchJson<EntitiesResponse>(
+                "/api/entities?limit=5000",
+                isEntitiesResponse,
+            );
             const index = buildWikilinkIndex(data.entities);
             this.wikilinks = index;
             return index;

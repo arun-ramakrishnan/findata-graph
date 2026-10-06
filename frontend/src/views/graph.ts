@@ -51,7 +51,27 @@ import type {
     YearEdgeCount,
 } from "../../types/api";
 import { getEl, escapeHtml } from "../core/dom";
-import { fetchJson, postJson } from "../core/api";
+import {
+    fetchJson,
+    postJson,
+    isBridgesResponse,
+    isCoMentionsResponse,
+    isCompanyNeighbors,
+    isSectorNeighbors,
+    isEdgesByYearResponse,
+    isEntitiesResponse,
+    isEventsResponse,
+    isGraphCloudResponse,
+    isGraphPositionsResponse,
+    isGraphRefreshResponse,
+    isLinkPredictionResponse,
+    isMetricGroupsResponse,
+    isMetricRankedResponse,
+    isMetricSeedsResponse,
+    isNearDuplicatesResponse,
+    isShortestPathResponse,
+    isSuggestionsResponse,
+} from "../core/api";
 import {
     GraphRenderer,
     type EdgeHoverInfo,
@@ -189,6 +209,10 @@ const _NON_EVENT_GROUPS = new Set([
     "theme",
 ]);
 
+/** neighbors/ serves CompanyNeighbors for entities, SectorNeighbors for sectors. */
+const isNeighborsUnion = (v: unknown): string | null =>
+    isCompanyNeighbors(v) === null ? null : isSectorNeighbors(v);
+
 export class GraphView {
     // --- graph-tab state (lazy-initialized in loadGraphView) -------------- //
     graph: GraphState | null = null;
@@ -300,7 +324,10 @@ export class GraphView {
                 const btn = getEl("graph-refresh-db") as HTMLButtonElement;
                 btn.disabled = true;
                 try {
-                    const data = await postJson<GraphRefreshResponse>("/api/graph/refresh");
+                    const data = await postJson<GraphRefreshResponse>(
+                        "/api/graph/refresh",
+                        isGraphRefreshResponse,
+                    );
                     if (data.status !== "ok") {
                         this._setGraphStatus("refresh failed");
                         return;
@@ -476,11 +503,17 @@ export class GraphView {
         try {
             const dl = getEl("graph-entities-list");
             const parts: string[] = [];
-            const dc = await fetchJson<EntitiesResponse>("/api/entities?type=company&limit=3000");
+            const dc = await fetchJson<EntitiesResponse>(
+                "/api/entities?type=company&limit=3000",
+                isEntitiesResponse,
+            );
             (dc.entities || []).forEach((e) => {
                 parts.push(`<option value="${e.name}">${e.name}</option>`);
             });
-            const ds = await fetchJson<EntitiesResponse>("/api/entities?type=sector&limit=500");
+            const ds = await fetchJson<EntitiesResponse>(
+                "/api/entities?type=sector&limit=500",
+                isEntitiesResponse,
+            );
             (ds.entities || []).forEach((e) => {
                 parts.push(`<option value="${e.name}">${e.name} (sector)</option>`);
             });
@@ -499,7 +532,7 @@ export class GraphView {
         this._setGraphStatus("Loading full graph...");
         let data: GraphCloudResponse;
         try {
-            data = await fetchJson<GraphCloudResponse>("/api/graph/cloud");
+            data = await fetchJson<GraphCloudResponse>("/api/graph/cloud", isGraphCloudResponse);
         } catch (e) {
             this._setGraphStatus(`Error: ${(e as Error).message}`);
             return;
@@ -540,7 +573,10 @@ export class GraphView {
      * components/concentric default remains fully functional without them. */
     private async _loadCachedPositions(): Promise<void> {
         try {
-            const data = await fetchJson<GraphPositionsResponse>("/api/graph/positions");
+            const data = await fetchJson<GraphPositionsResponse>(
+                "/api/graph/positions",
+                isGraphPositionsResponse,
+            );
             const graph = this.graph;
             if (!data.positions || !graph?.cloud) return;
             const positions: Record<string, { x: number; y: number }> = {};
@@ -936,6 +972,7 @@ export class GraphView {
             try {
                 const m = await fetchJson<MetricGroupsResponse>(
                     "/api/graph/metrics/louvain_community",
+                    isMetricGroupsResponse,
                 );
                 const map = new Map<string, number>();
                 m.groups.forEach((g) => g.members.forEach((name) => map.set(name, g.label)));
@@ -986,6 +1023,7 @@ export class GraphView {
                 try {
                     const data = await fetchJson<MetricSeedsResponse>(
                         "/api/graph/metrics/voterank",
+                        isMetricSeedsResponse,
                     );
                     seeds = data.seeds;
                     this.graph.rankSeeds = seeds;
@@ -1028,6 +1066,7 @@ export class GraphView {
                     // The payload branch serves every entity; `top` slices here.
                     data = await fetchJson<LinkPredictionResponse>(
                         `/api/graph/metrics/${metric}?top=${top}`,
+                        isLinkPredictionResponse,
                     );
                     this.graph.rankData.set(key, data);
                 } catch (e) {
@@ -1074,6 +1113,7 @@ export class GraphView {
             try {
                 data = await fetchJson<MetricRankedResponse>(
                     `/api/graph/metrics/${metric}?top=${top}`,
+                    isMetricRankedResponse,
                 );
                 this.graph.rankData.set(key, data);
             } catch (e) {
@@ -1119,6 +1159,7 @@ export class GraphView {
             try {
                 this.graph.rankGroups = await fetchJson<MetricGroupsResponse>(
                     "/api/graph/metrics/louvain_community",
+                    isMetricGroupsResponse,
                 );
             } catch (e) {
                 mount.innerHTML = `<p class="hint">unavailable — ${escapeHtml((e as Error).message)}</p>`;
@@ -1179,6 +1220,7 @@ export class GraphView {
             try {
                 const data = await fetchJson<SuggestionsResponse>(
                     `/api/graph/suggestions?method=${method}&top=15&min_score=${minScore}`,
+                    isSuggestionsResponse,
                 );
                 rows = data.suggestions;
                 this.graph.suggestions.set(method, rows);
@@ -1225,6 +1267,7 @@ export class GraphView {
             try {
                 this.graph.timeByYear = await fetchJson<EdgesByYearResponse>(
                     "/api/graph/edges-by-year",
+                    isEdgesByYearResponse,
                 );
             } catch (e) {
                 mount.innerHTML = `<p class="hint">unavailable — ${escapeHtml((e as Error).message)}</p>`;
@@ -1283,7 +1326,10 @@ export class GraphView {
         if (!this.graph.timeBridges) {
             mount.innerHTML = `<p class="hint"><i class="fas fa-spinner fa-spin"></i> loading…</p>`;
             try {
-                this.graph.timeBridges = await fetchJson<BridgesResponse>("/api/graph/bridges");
+                this.graph.timeBridges = await fetchJson<BridgesResponse>(
+                    "/api/graph/bridges",
+                    isBridgesResponse,
+                );
             } catch (e) {
                 mount.innerHTML = `<p class="hint">unavailable — ${escapeHtml((e as Error).message)}</p>`;
                 return;
@@ -1318,6 +1364,7 @@ export class GraphView {
             try {
                 this.graph.timeCoMentions = await fetchJson<CoMentionsResponse>(
                     "/api/graph/co-mentions?top=15",
+                    isCoMentionsResponse,
                 );
             } catch (e) {
                 mount.innerHTML = `<p class="hint">unavailable — ${escapeHtml((e as Error).message)}</p>`;
@@ -1358,6 +1405,7 @@ export class GraphView {
         try {
             this.graph.nearDup = await fetchJson<NearDuplicatesResponse>(
                 "/api/graph/near-duplicates?min_sim=0.9&limit=50",
+                isNearDuplicatesResponse,
             );
         } catch (e) {
             mount.innerHTML = `<p class="hint">unavailable — ${escapeHtml((e as Error).message)}</p>`;
@@ -1427,7 +1475,7 @@ export class GraphView {
         let data: NeighborsBundle;
         try {
             const url = `/api/graph/neighbors/${encodeURIComponent(name)}` + (qs ? `?${qs}` : "");
-            data = await fetchJson<NeighborsBundle>(url);
+            data = await fetchJson<NeighborsBundle>(url, isNeighborsUnion);
         } catch (e) {
             this._setGraphStatus(`Error: ${(e as Error).message}`);
             return;
@@ -1646,6 +1694,7 @@ export class GraphView {
         try {
             data = await fetchJson<NeighborsBundle>(
                 `/api/graph/neighbors/${encodeURIComponent(name)}`,
+                isNeighborsUnion,
             );
         } catch (e) {
             this._setGraphStatus(`Error: ${(e as Error).message}`);
@@ -1901,7 +1950,10 @@ export class GraphView {
             <p class="hint"><i class="fas fa-spinner fa-spin"></i></p>`;
         let data: EventsResponse;
         try {
-            data = await fetchJson<EventsResponse>(`/api/events/${encodeURIComponent(name)}`);
+            data = await fetchJson<EventsResponse>(
+                `/api/events/${encodeURIComponent(name)}`,
+                isEventsResponse,
+            );
         } catch {
             // 404 or worse: most entities simply have no events — stay quiet.
             if (this.graph.detailSeq === seq) mount.innerHTML = "";
@@ -1963,7 +2015,10 @@ export class GraphView {
         if (asOf) params.set("as_of", asOf);
         result.innerHTML = '<p><i class="fas fa-spinner fa-spin"></i> Finding path...</p>';
         try {
-            const data = await fetchJson<ShortestPathResponse>(`/api/graph/shortest?${params}`);
+            const data = await fetchJson<ShortestPathResponse>(
+                `/api/graph/shortest?${params}`,
+                isShortestPathResponse,
+            );
             this._renderShortestPath(data);
         } catch (e) {
             result.innerHTML = `<p class="error">${escapeHtml((e as Error).message)}</p>`;

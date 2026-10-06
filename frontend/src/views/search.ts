@@ -11,7 +11,13 @@
 // grammar so it borrows python and says so — "mojo≈python").
 
 import type { DocSearchResponse, ScriptSearchResponse, SearchResponse } from "../../types/api";
-import { ApiError, fetchJson } from "../core/api";
+import {
+    ApiError,
+    fetchJson,
+    isDocSearchResponse,
+    isScriptSearchResponse,
+    isSearchResponse,
+} from "../core/api";
 import { getEl, escapeHtml } from "../core/dom";
 import { highlightCode, highlightSnippet } from "../core/markdown";
 
@@ -134,11 +140,18 @@ export class SearchView {
         const enc = encodeURIComponent(q);
         const kindQ = this.kindFilter ? `&kind=${this.kindFilter}` : "";
         const [docs, scripts, notes] = await Promise.allSettled([
-            fetchJson<DocSearchResponse>(`/api/docs/search?q=${enc}&limit=${PER_CORPUS_LIMIT}`),
+            fetchJson<DocSearchResponse>(
+                `/api/docs/search?q=${enc}&limit=${PER_CORPUS_LIMIT}`,
+                isDocSearchResponse,
+            ),
             fetchJson<ScriptSearchResponse>(
                 `/api/scripts/search?q=${enc}&limit=${PER_CORPUS_LIMIT}${kindQ}`,
+                isScriptSearchResponse,
             ),
-            fetchJson<SearchResponse>(`/api/search?q=${enc}&limit=${PER_CORPUS_LIMIT}`),
+            fetchJson<SearchResponse>(
+                `/api/search?q=${enc}&limit=${PER_CORPUS_LIMIT}`,
+                isSearchResponse,
+            ),
         ]);
 
         if (!this.isActive()) return; // user switched away mid-flight

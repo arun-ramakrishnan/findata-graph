@@ -8,7 +8,7 @@
 
 import type { EntitiesResponse, EntityListItem, SearchResponse } from "../../types/api";
 import { getEl, escapeHtml } from "../core/dom";
-import { fetchJson } from "../core/api";
+import { fetchJson, isEntitiesResponse } from "../core/api";
 import { loadActive } from "../core/loadActive";
 import { showLoading, showError } from "../core/toast";
 import { highlightSnippet } from "../core/markdown";
@@ -136,7 +136,10 @@ export class CompaniesView {
                         params.set("type", "company");
                     }
 
-                    return fetchJson<EntitiesResponse>(`/api/entities?${params}`);
+                    return fetchJson<EntitiesResponse>(
+                        `/api/entities?${params}`,
+                        isEntitiesResponse,
+                    );
                 },
                 // totalCount tracks the query even when this view is hidden.
                 onFetched: (data) => {
