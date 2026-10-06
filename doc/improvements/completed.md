@@ -9267,3 +9267,41 @@ mtime+hash meta). **S2**: `memory_query.py` (104 lines) with `--kind`
 pool filter, `--json`, and stale-warns-and-answers semantics.
 Boundary: the federated leg + TUI lane belong to #351. Tests: 19 + 29
 passed; ruff/ty clean.
+
+## 353. TeleOCR PDF fallback — local terminal OCR engine, Paddle API retirement
+
+Filed and executed 2026-10-06 (`teleocr_pdf_fallback` proposal,
+`doc/improvements/archive/pipeline/`; trial
+`doc/local/evaluations/local_pdf_engine_trial.md` §TeleOCR addendum,
+artifacts `bench_data/teleocr/`). **S1**: `helpers/pdf/teleocr_engine.py`
+— stdlib client over a llama-server running the TeleOCR/NaviDC-OCR
+Qwen2.5-VL GGUF (Q4_K_M + mmproj-f16 in `models/`), trial guards baked in
+(official prompt, temp 0, `repeat_penalty 1.15`/256, max_tokens cap → one
+retry at 1.3 → refuse rather than emit a truncated page), D3
+assume-running preflight (`/health` + `/v1/models` identity, actionable
+error, `make teleocr-server` target), LaTeX-unwrap post-process
+(dictionary word-join repair + unicode math map ∫Σ√π + `\!`/`\&`/`\%`
+escape classes + MinerU token strip), pages shape mirroring
+`liteparse_engine` so `plan_images`/`to_wikilinks`/`verify_extraction`
+work verbatim. **S2**: `pdf_conv_md.py --engine teleocr|auto`
+(auto = `pdf_local` → lite OCR → teleocr terminal); **Paddle API cut**
+(client, `parse_pages`, `--token/--model/--timeout`, refusal texts;
+`matplotlib` orphan dep removed) and **pix2text branch removed**
+(`pix2text_markdown.py` + 5 tests + deptry DEP001 ignore — subsumed by
+teleocr). **S3**: 4 end-to-end acceptance runs — number recall 100%
+stable (financial 9/9, formula digits, control page in exact number
+parity with the pdf_local text layer, zero phantoms), word recall ties
+Tesseract in good runs (93.3 vs 94.5), formula glyphs preserved; llama.cpp
+CPU generation variance (temp 0 notwithstanding) drops the table header
+row in ~half the runs — Tesseract's determinism keeps the first rung
+(D5 escalation order deferred until real scanned docs arrive).
+**S4**: `markdown_parse.md` engine chain rewritten; stale refs swept.
+Gate record: qa 9/11 → fixed legs re-run clean (113 targeted);
+integration 13/13; perf 25/26 (`graph_l1_centrality` parked, unrelated);
+advisory 10/13 (S310 loopback noqas; search lanes re-converged;
+`convo-fresh` drift class; `ty-tests` pre-existing noise). llama-cpp-python
+0.3.36 (embedder runtime) empirically cannot load the GGUF (same
+`check_tensor_dims` head_dim-128 bug as stock master — fix in no upstream);
+standalone patched binary stays, convergence trigger recorded in the
+archived proposal. Tests: 17 new engine tests (stubbed HTTP server, no
+llama.cpp in CI) + dispatcher/fuzz suites updated, 55+ green; ruff/ty clean.

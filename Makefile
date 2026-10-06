@@ -34,7 +34,7 @@ export PATH := $(CURDIR)/.venv/bin:$(PATH)
 export TMPDIR ?= $(shell test -d /mnt/data/tmp && { mkdir -p /mnt/data/tmp/findata; echo /mnt/data/tmp/findata; } || echo /tmp)
 
 
-.PHONY: help qa test live-invariants perf cover fuzz integration snapshot snapshot-check snapshot-restore sync-tags sync-coverage-tags sync-sector-links static-checks license-check tmp-sweep install-dev triage-quotes gate-fresh graph-smoke graph-stats graph-algos graph-rebuild graph-rebuild-bench update-extensions recompute-graph recompute-hyper search-fresh convo-fresh embed-gc search-tui derive-relations derive-co-mentions derive-themes derive-events derive-insights derive-indices quote-coverage derive-themes-rebuild derive-cited-in derive-cited-in-rebuild derive-hyperedges derive-all refresh-indices refresh-vigil refresh-shp frontend frontend-check fold-identifiers format maint maint-full md-lint metrics-rebuild mojo-bench mojo-build mojo-test mojo-format relations-enrich lint types types-tests lint-audit deptry advisory secret-scan cargo-audit script-search-rebuild memory-search-rebuild triage-relations live-invariants stamp-centrality parity review-patch
+.PHONY: help qa test live-invariants perf cover fuzz integration snapshot snapshot-check snapshot-restore sync-tags sync-coverage-tags sync-sector-links static-checks license-check tmp-sweep install-dev triage-quotes gate-fresh graph-smoke graph-stats graph-algos graph-rebuild graph-rebuild-bench update-extensions recompute-graph recompute-hyper search-fresh convo-fresh embed-gc search-tui derive-relations derive-co-mentions derive-themes derive-events derive-insights derive-indices quote-coverage derive-themes-rebuild derive-cited-in derive-cited-in-rebuild derive-hyperedges derive-all refresh-indices refresh-vigil refresh-shp frontend frontend-check fold-identifiers format maint maint-full md-lint metrics-rebuild mojo-bench mojo-build mojo-test mojo-format relations-enrich lint types types-tests lint-audit deptry advisory secret-scan cargo-audit script-search-rebuild memory-search-rebuild triage-relations live-invariants stamp-centrality parity review-patch teleocr-server
 
 help:           ## Show available targets (alphabetical; entries generated from the ## annotations — keep both in sync)
 > @echo "FinData targets (alphabetical):"
@@ -112,6 +112,7 @@ help:           ## Show available targets (alphabetical; entries generated from 
 > @echo "  sync-coverage-tags       Converge The Chatter company/<slug> tags from quote coverage"
 > @echo "  sync-sector-links        WRITE the auto company index into sector notes (explicit; maint-full only checks staleness)"
 > @echo "  sync-tags                Rebuild entity_tags from note YAML (mirrors entity_type/sector/market_cap/subsector)"
+> @echo "  teleocr-server           Start the TeleOCR llama-server (Q4_K_M + mmproj from models/) on 127.0.0.1:8731 — Ctrl-C to stop; teleocr_engine only ever assumes it is running (D3), never spawns it"
 > @echo "  test                     pytest unit tests only (no live DB, no slow benchmarks)"
 > @echo "  tmp-sweep                Reap this repo's temp-dir residue (scratch DBs, stale bench dirs, TUI log) — 24h age guard, dry-run by default; APPLY=1 removes (proposal: tmpdir_sanitization)"
 > @echo "  triage-quotes            Triage the quote entity worklist: report + bucketed decisions file (triage_pending_quotes)"
@@ -366,6 +367,15 @@ convo-fresh:      ## Check conversation corpus+index freshness — harness sourc
 >   echo "    took $$(( $$(date +%s%3N) - t1 ))ms"; \
 >   if [ $$rc -eq 0 ]; then echo "✓ convo corpus+index fresh"; fi; \
 >   exit $$rc
+
+
+teleocr-server:  ## Start the TeleOCR llama-server (Q4_K_M + mmproj from models/) on 127.0.0.1:8731 — Ctrl-C to stop; teleocr_engine only ever assumes it is running (D3), never spawns it
+> @if [ -n "$$TELEOCR_LLAMA_BIN" ]; then bin=$$TELEOCR_LLAMA_BIN; \
+> elif command -v llama-server >/dev/null 2>&1; then bin=llama-server; \
+> elif [ -x /mnt/data/tmp/teleocr_trial/llama.cpp/build/bin/llama-server ]; then bin=/mnt/data/tmp/teleocr_trial/llama.cpp/build/bin/llama-server; \
+> else echo "llama-server not found — build it (bench_data/teleocr/README.md has the recipe + required qwen2vl patch) or set TELEOCR_LLAMA_BIN"; exit 1; fi; \
+> echo "teleocr-server: $$bin (Ctrl-C to stop)"; \
+> $$bin -m models/NaviDC-OCR-Q4_K_M.gguf --mmproj models/NaviDC-OCR-mmproj-f16.gguf --host 127.0.0.1 --port 8731 -c 8192 -t 4
 
 
 embed-gc:       ## Evict dead rows from the shared embed cache (trial/spike leftovers); report-only + exit 1 when dead rows exist, APPLY=1 deletes + VACUUMs

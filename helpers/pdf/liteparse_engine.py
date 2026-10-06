@@ -25,8 +25,8 @@ Slice handling:
   for born-digital markdown (96.04% recall gap accepted). The sidecar is
   available via `convert(..., ocr=False)` and `get_bbox_sidecar`.
 * Slice 2: `pdf_conv_md --engine auto` uses this engine for the OCR
-   fallback chain (`pdf_local` -> `lite OCR` -> `Paddle`; `pix2text`
-   disabled 2026-09-02 — excluded from pipelines, nvidia deps).
+   fallback chain (`pdf_local` -> `lite OCR` -> `teleocr`; Paddle cut and
+   pix2text removed 2026-10-06, teleocr_pdf_fallback proposal).
 """
 
 from __future__ import annotations
@@ -227,7 +227,7 @@ def convert(
         if avg_chars < MIN_CHARS_PER_PAGE:
             raise LocalRefusalError(
                 f"text layer too thin ({len(res.text)} chars over {len(res.pages)} pages, "
-                f"avg {int(avg_chars)}/page < {MIN_CHARS_PER_PAGE}) — scanned PDF? use ocr=True or Paddle"
+                f"avg {int(avg_chars)}/page < {MIN_CHARS_PER_PAGE}) — scanned PDF? use ocr=True or teleocr"
             )
 
     return _pages_from_liteparse_res(res, per_page_images)

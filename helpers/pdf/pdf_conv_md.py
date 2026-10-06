@@ -1,15 +1,21 @@
 #!/usr/bin/env python3
-"""Convert a PDF to markdown using the Paddle AI Studio document-parsing API.
+"""Convert a PDF to markdown via the local engine chain.
 
-Submits the source PDF to the PP-StructureV3 job endpoint, polls until the job
-finishes, downloads the JSONL result, and writes:
+Runs a linear fallback chain over local engines (no network APIs since the
+Paddle cut, D2 2026-10-06 — see doc/improvements/proposals/teleocr_pdf_fallback.md):
+
+    auto (default): pdf_local (pymupdf4llm, born-digital)
+                 -> lite OCR (Tesseract, scanned)
+                 -> teleocr (TeleOCR GGUF via llama-server, terminal)
+
+and writes:
 
     <output_dir>/<stem>.md            combined markdown in the The_Chatter
                                       style, with images embedded as Obsidian
                                       wikilinks (![[images/<name>]])
     <output_dir>/<stem>.json          raw per-page structured result (the shape
                                       used by the Reports/ eval JSONs)
-    <output_dir>/images/              embedded images downloaded as
+    <output_dir>/images/              embedded images copied as
                                       <stem>_p<page>_img<N>.<ext>, matching the
                                       findata/The_Chatter/images convention
 
@@ -19,20 +25,20 @@ Usage
 
 Options
 -------
-    --engine ENGINE          auto (default) | local | paddle. auto runs the
-                             LOCAL no-OCR engine first (no API key needed;
-                             born-digital PDFs only) and falls back to the
-                             Paddle API when the local engine refuses a PDF
-                             (no usable text layer). local/paddle force one
-                             engine. Trial: doc/local/trials/local_pdf_engine_trial.md
-    --model PP-StructureV3   Paddle model name (default: PP-StructureV3)
-    --token TOKEN            Paddle API token (required for the Paddle engine
-                             unless PADDLE_API_KEY is set in memory/.env or
-                             the environment)
-    --timeout SECONDS        max wall-clock time to wait for a Paddle job
-                             (default: 600)
-    --no-images              skip downloading embedded images (leaves the
-                             absolute <img src=...> URLs in the markdown)
+    --engine ENGINE          auto (default) | local | lite | lite-ocr |
+                             teleocr. auto runs the LOCAL no-OCR engine
+                             first (born-digital PDFs only), falls back to
+                             lite OCR (Tesseract) when it refuses a PDF (no
+                             usable text layer), then to teleocr — the
+                             TeleOCR GGUF via a running llama-server
+                             (assumed-running contract, D3: start it with
+                             `make teleocr-server`). The rest force one
+                             engine. Trial:
+                             doc/local/evaluations/local_pdf_engine_trial.md
+    --teleocr-port PORT      llama-server port for the teleocr engine
+                             (default 8731 / TELEOCR_PORT)
+    --no-images              skip copying embedded images (leaves the
+                             relative imgs/ srcs in the markdown)
     --no-verify              skip the post-conversion self-check (coverage
                              vs the PDF text layer, number audit, wikilink
                              integrity; writes <stem>.verify.json and prints
@@ -43,12 +49,10 @@ from __future__ import annotations
 
 import argparse
 import json
-import os
 import re
 import shutil
 import sys
 import tempfile
-import time
 from pathlib import Path
 from urllib.parse import urlparse
 
@@ -62,7 +66,7 @@ from helpers.pdf.pdf_local import (  # noqa: E402
     convert as convert_local,
 )
 
-# LiteParse + Pix2Text engines (Slice 2, liteparse_pdf_engine proposal)
+# LiteParse engine (Slice 2, liteparse_pdf_engine proposal #186):
 # liteparse_engine mirrors pdf_local.convert shape and provides the bbox
 # sidecar for no-OCR plus the OCR fallback with image sidecar.
 try:  # noqa: E402
@@ -80,22 +84,24 @@ try:  # noqa: E402
     from helpers.pdf.liteparse_markdown import convert_liteparse_ocr as _lite_ocr_convert  # noqa: E402
 except ImportError:  # pragma: no cover
     _lite_ocr_convert = None
-# pix2text excluded from pipelines (2026-09-02): pulls large nvidia/CUDA deps
-# Keep module file for reference but never import it here to avoid deptry/ty
-# `unresolved-import` noise and accidental installs. The auto chain and the
-# --engine pix2text path below both short-circuit with a clear error.
-_pix2text_convert = None  # type: ignore[assignment]
+# TeleOCR engine (teleocr_pdf_fallback proposal): TeleOCR GGUF via llama-server,
+# the local terminal OCR rung (D2: Paddle API cut 2026-10-06; D4: pix2text
+# branch removed — subsumed, see helpers/pdf/teleocr_engine.py docstring).
+from helpers.pdf.teleocr_engine import (  # noqa: E402
+    ENGINE_LABEL as _TELEOCR_LABEL,
+    TeleOCRRefused,
+    convert as _teleocr_convert,
+)
 from helpers.pdf.verify_extraction import (  # noqa: E402
     verify as verify_extraction,
 )
-from helpers.core.env import load_memory_env
 from helpers.core.frontmatter import (  # noqa: E402
     iso_now_utc,
     moddate_to_iso_date,
     render_frontmatter,
 )
 
-import requests
+import requests  # write_outputs remote-URL branch (local engines emit local paths)
 
 # Known series -> publisher (newsletter_notes_adoption.md S2, accepted Q1:
 # omit-when-unknown — extend this map when a new series lands).
@@ -104,10 +110,6 @@ _PUBLISHER_BY_SERIES = {
     "points_and_figures": "zerodha",
     "the_plotlines": "zerodha",
 }
-
-JOB_URL = "https://paddleocr.aistudio-app.com/api/v2/ocr/jobs"
-DEFAULT_MODEL = "PP-StructureV3"
-POLL_INTERVAL = 5
 
 # An <img> wrapped in the centered <div> the API emits around each image.
 # Group 1 captures the relative imgs/... src.
@@ -127,91 +129,6 @@ CONTENT_TYPE_EXT = {
     "image/webp": ".webp",
 }
 DEFAULT_EXT = ".jpeg"
-
-
-def submit_job(pdf_path: Path, token: str, model: str, optional_payload: dict) -> str:
-    """Submit the PDF and return the job id."""
-    headers = {"Authorization": f"bearer {token}"}
-    data = {"model": model, "optionalPayload": json.dumps(optional_payload)}
-    with pdf_path.open("rb") as f:
-        # 300s, not the AI-Studio sample's unbounded POST and not the old
-        # 60s cap: the multipart upload to the CN-hosted job API can stall
-        # past 60s on a cold/slow route (observed repeatedly 2026-08-25) —
-        # the failure was always a client-side write timeout, never a
-        # server rejection. requests' timeout applies per-socket-op, so a
-        # healthy transfer resets it chunk-by-chunk.
-        resp = requests.post(JOB_URL, headers=headers, data=data, files={"file": f}, timeout=300)
-    if resp.status_code != 200:
-        raise RuntimeError(f"submit failed {resp.status_code}: {resp.text}")
-    return resp.json()["data"]["jobId"]
-
-
-def poll_job(job_id: str, token: str, timeout: int) -> str:
-    """Poll until the job is done/failed and return the JSONL result URL."""
-    headers = {"Authorization": f"bearer {token}"}
-    deadline = time.time() + timeout
-    while time.time() < deadline:
-        resp = requests.get(f"{JOB_URL}/{job_id}", headers=headers, timeout=60)
-        if resp.status_code != 200:
-            raise RuntimeError(f"poll failed {resp.status_code}: {resp.text}")
-        data = resp.json()["data"]
-        state = data["state"]
-        if state == "done":
-            return data["resultUrl"]["jsonUrl"]
-        if state == "failed":
-            raise RuntimeError(f"job failed: {data.get('errorMsg')}")
-        progress = data.get("extractProgress", {})
-        if progress:
-            print(
-                f"  {state}: {progress.get('extractedPages', 0)}/"
-                f"{progress.get('totalPages', '?')} pages"
-            )
-        time.sleep(POLL_INTERVAL)
-    raise TimeoutError(f"job {job_id} not done within {timeout}s")
-
-
-def download_jsonl(url: str) -> list[dict]:
-    resp = requests.get(url, timeout=120)
-    resp.raise_for_status()
-    return [json.loads(line) for line in resp.text.strip().splitlines() if line.strip()]
-
-
-def parse_pages(lines: list[dict]) -> list[dict]:
-    """Extract one page object per JSONL line (the Reports/ eval shape).
-
-    Robust to unexpected Paddle JSONL shapes (an error object, a missing or
-    empty ``result``/``layoutParsingResults``, or a page whose ``markdown`` key
-    is absent): such lines are skipped with a warning instead of raising, so a
-    single malformed page cannot abort the whole conversion.
-
-    Returns only successfully parsed pages.
-    """
-    pages = []
-    for idx, line in enumerate(lines):
-        if not isinstance(line, dict):
-            print(f"  warn: parse_pages[{idx}]: not a JSON object, skip")
-            continue
-        result = line.get("result")
-        if not isinstance(result, dict):
-            print(f"  warn: parse_pages[{idx}]: missing/non-dict 'result', skip")
-            continue
-        lpr_list = result.get("layoutParsingResults")
-        if not isinstance(lpr_list, list) or not lpr_list:
-            print(f"  warn: parse_pages[{idx}]: empty/missing layoutParsingResults, skip")
-            continue
-        lpr = lpr_list[0]
-        if not isinstance(lpr, dict) or "markdown" not in lpr:
-            print(f"  warn: parse_pages[{idx}]: lpr[0] missing 'markdown', skip")
-            continue
-        pages.append(
-            {
-                "prunedResult": lpr.get("prunedResult"),
-                "markdown": lpr["markdown"],
-                "outputImages": lpr.get("outputImages", []),
-                "inputImage": lpr.get("inputImage"),
-            }
-        )
-    return pages
 
 
 def image_extension(url: str, content_type: str | None) -> str:
@@ -431,44 +348,27 @@ def write_outputs(
         print(f"images captured: {n_captured} -> {img_dir}")
 
 
-def _convert_paddle(pdf_path: Path, args: argparse.Namespace) -> list[dict]:
-    """The Paddle API path (submit, poll, download, parse)."""
-    load_memory_env()  # memory/.env may supply PADDLE_API_KEY
-    args.token = args.token or os.environ.get("PADDLE_API_KEY")
-    if not args.token:
-        raise SystemExit("error: no API token: set PADDLE_API_KEY or pass --token")
-    optional_payload = {
-        "useDocOrientationClassify": False,
-        "useDocUnwarping": False,
-        "useChartRecognition": False,
-    }
-    print(f"submitting {pdf_path.name} to model {args.model} ...")
-    job_id = submit_job(pdf_path, args.token, args.model, optional_payload)
-    print(f"job id: {job_id}")
-    jsonl_url = poll_job(job_id, args.token, args.timeout)
-    lines = download_jsonl(jsonl_url)
-    print(f"result lines: {len(lines)}")
-    return parse_pages(lines)
-
-
 def main(argv: list[str] | None = None) -> int:  # noqa: C901  # engine dispatch — linear fallback chain, not refactorable without obscuring
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[1])
     ap.add_argument("source_pdf", help="path to the source PDF file")
     ap.add_argument("output_dir", help="directory to store the results in")
     ap.add_argument(
         "--engine",
-        choices=("auto", "local", "paddle", "lite", "lite-ocr", "pix2text"),
+        choices=("auto", "local", "lite", "lite-ocr", "teleocr"),
         default="auto",
         help=(
             "auto (default): pdf_local (pymupdf4llm) for born-digital, "
-            "then lite OCR (Tesseract) for scanned, Paddle API last; "
-            "pix2text is currently disabled (excluded from pipelines — nvidia deps); "
-            "local/paddle/lite/lite-ocr/pix2text force one (pix2text errors with hint)"
+            "then lite OCR (Tesseract) for scanned, then teleocr (TeleOCR "
+            "GGUF via a running llama-server — `make teleocr-server`) as "
+            "the local terminal rung; the rest force one engine"
         ),
     )
-    ap.add_argument("--model", default=DEFAULT_MODEL)
-    ap.add_argument("--token", default=os.environ.get("PADDLE_API_KEY"))
-    ap.add_argument("--timeout", type=int, default=600)
+    ap.add_argument(
+        "--teleocr-port",
+        type=int,
+        default=None,
+        help="llama-server port for the teleocr engine (default 8731 / TELEOCR_PORT)",
+    )
     ap.add_argument("--no-images", action="store_true")
     ap.add_argument("--no-verify", action="store_true", help="skip the post-conversion self-check")
     ap.add_argument(
@@ -485,18 +385,22 @@ def main(argv: list[str] | None = None) -> int:  # noqa: C901  # engine dispatch
         print(f"error: not found: {pdf_path}", file=sys.stderr)
         return 1
 
-    # Engine chain (2026-09-02, pix2text excluded):
-    # auto: pdf_local (born-digital) -> lite OCR (Tesseract, 0.3s) -> Paddle last
-    # pix2text (mfd-1.5) disabled — excluded from pipelines to avoid large nvidia/CUDA deps.
-    # pdf_local stays primary for non-OCR per review; lite is OCR fallback, not markdown replacement.
+    # Engine chain (2026-10-06, teleocr_pdf_fallback: paddle cut D2, pix2text
+    # removed D4):
+    # auto: pdf_local (born-digital) -> lite OCR (Tesseract, 0.3s) -> teleocr
+    # (TeleOCR GGUF via llama-server, terminal local rung; ~40-120s/page CPU —
+    # fine at 5-6 docs/week).
+    # pdf_local stays primary for non-OCR per review; lite is OCR fallback,
+    # not markdown replacement; teleocr only sees pages the text layer
+    # refused and Tesseract could not parse.
     pages: list[dict] | None = None
     engine_label = ""
     tmpdir: tempfile.TemporaryDirectory[str] | None = None
 
-    # Helper to wrap lite/pix2text markdown (plain text) into the pdf_conv_md pages shape
+    # Helper to wrap lite markdown (plain text) into the pdf_conv_md pages shape
     def _wrap_markdown_as_pages(md_text: str, label: str) -> list[dict]:
         # Minimal pages shape: single page with text, no images (images via pymupdf sidecar if needed)
-        # Downstream parse_newsletter handles "## " headings added by lite/pix2text markdown
+        # Downstream parse_newsletter handles "## " headings added by lite markdown
         return [
             {
                 "prunedResult": None,
@@ -557,8 +461,6 @@ def main(argv: list[str] | None = None) -> int:  # noqa: C901  # engine dispatch
                     engine_label = _LITE_OCR_LABEL if want_ocr else _LITE_NOCR_LABEL
                     total_chars = sum(len(p["markdown"]["text"]) for p in pages)
                     print(f"parsed via {engine_label} ({total_chars} chars, {len(pages)}p)")
-                    if args.engine in ("lite", "lite-ocr"):
-                        pass
                 except LocalRefusalError as e:
                     print(
                         f"  lite {args.engine} refused ({e}) — trying next fallback",
@@ -589,18 +491,27 @@ def main(argv: list[str] | None = None) -> int:  # noqa: C901  # engine dispatch
                     pages = None
             else:
                 print("  lite not available (liteparse not installed)", file=sys.stderr)
-        # 3. pix2text — DISABLED (excluded from pipelines 2026-09-02, nvidia deps)
-        if args.engine == "pix2text":
+        # 3. teleocr — local terminal OCR (TeleOCR GGUF via llama-server)
+        if pages is None and args.engine in ("auto", "teleocr"):
+            try:
+                pages = _teleocr_convert(pdf_path, port=args.teleocr_port)
+                engine_label = _TELEOCR_LABEL
+                total_chars = sum(len(p["markdown"]["text"]) for p in pages)
+                print(f"parsed via {engine_label} ({total_chars} chars, {len(pages)}p)")
+            except TeleOCRRefused as e:
+                print(f"  teleocr refused ({e})", file=sys.stderr)
+                pages = None
+            except Exception as e:
+                print(f"  teleocr failed ({e})", file=sys.stderr)
+                pages = None
+        if pages is None:
             print(
-                "error: --engine pix2text is currently disabled (excluded from pipelines "
-                "to avoid large nvidia/CUDA dependencies). Use --engine auto/lite-ocr "
-                "(Tesseract) or --engine paddle instead.",
+                "error: all engines exhausted — pdf_local refused, lite OCR failed, "
+                "teleocr unavailable-or-refused. Is the llama-server up? "
+                "`make teleocr-server` (see doc/improvements/proposals/teleocr_pdf_fallback.md)",
                 file=sys.stderr,
             )
             return 1
-        if pages is None:
-            engine_label = args.model
-            pages = _convert_paddle(pdf_path, args)
 
         stem = slugify(pdf_path.stem)
         fm = build_okf_frontmatter(

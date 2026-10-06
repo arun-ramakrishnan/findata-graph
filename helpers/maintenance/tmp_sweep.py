@@ -55,9 +55,9 @@ FILE_GLOBS = (
 )
 # Directory globs for scratch trees.
 DIR_GLOBS = (
-    "pix2text_*",  # helpers/pdf/pix2text_markdown.py (S4)
     "pdf_local_*",  # helpers/pdf/pdf_conv_md.py
     "lite_*",
+    "teleocr_*",  # helpers/pdf/teleocr_engine.py renders
     "fts_parity_*",  # helpers/bench/fts_duckdb_parity.py (S5)
     "md_lint_shard_*",  # helpers/misc/markdown_lint.py
     "scale_bfs_*",  # tests/bench_scale_bfs.py

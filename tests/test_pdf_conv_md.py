@@ -4,7 +4,6 @@ from __future__ import annotations
 
 
 from helpers.pdf.pdf_conv_md import (  # noqa: E402
-    parse_pages,
     plan_images,
     resolve_markdown,
     slugify,
@@ -29,40 +28,6 @@ def test_slugify_strip_leading_trailing():
 
 def test_slugify_no_change_already_clean():
     assert slugify("Already_Clean") == "Already_Clean"
-
-
-# ---------------------------------------------------------------------------
-# parse_pages
-# ---------------------------------------------------------------------------
-def _line(text="page text", images=None):
-    return {
-        "result": {
-            "layoutParsingResults": [
-                {
-                    "prunedResult": {"parsing_res_list": []},
-                    "markdown": {"text": text, "images": images or {}},
-                    "outputImages": {},
-                    "inputImage": "https://x/img.png",
-                }
-            ]
-        }
-    }
-
-
-def test_parse_pages_extracts_one_page_per_line():
-    pages = parse_pages([_line("a"), _line("b"), _line("c")])
-    assert len(pages) == 3
-    assert pages[0]["markdown"]["text"] == "a"
-    assert pages[1]["markdown"]["text"] == "b"
-
-
-def test_parse_pages_single_lpr_per_line():
-    pages = parse_pages([_line("x")])
-    assert set(pages[0]) == {"prunedResult", "markdown", "outputImages", "inputImage"}
-
-
-def test_parse_pages_empty():
-    assert parse_pages([]) == []
 
 
 # ---------------------------------------------------------------------------

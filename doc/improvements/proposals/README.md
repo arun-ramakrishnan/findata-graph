@@ -34,9 +34,16 @@ entry number and stale DONE pointers):
 
 ## Current live proposals
 
-_(none)_ — the queue is empty as of 2026-10-05: both audit follow-ups
+_(none)_ — archived 2026-10-06: `teleocr_pdf_fallback`
+(`../archive/pipeline/`, completed.md #353) — TeleOCR (NaviDC-OCR)
+Q4_K_M as the local terminal OCR engine (`pdf_local` → lite OCR →
+teleocr), the Paddle-API retirement path; trial evidence in
+`../local/evaluations/local_pdf_engine_trial.md` §TeleOCR addendum +
+`bench_data/teleocr/` (models in `models/`, gitignored).
+
+_(Queue was empty as of 2026-10-05: both audit follow-ups
 are archived (`preannotate_escalation_logic_flaws` #350,
-`jev_pilot_maintenance_gaps` #349).
+`jev_pilot_maintenance_gaps` #349).)_
 
 Archived 2026-10-05: `master_search_age_guard`
 (`../archive/tooling/`, completed.md #351) — the federated

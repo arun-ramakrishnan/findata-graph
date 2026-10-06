@@ -36,6 +36,7 @@ following remain under their own rights or are not relicensed by the project:
 | pymupdf4llm | MIT wrapper; bundles PyMuPDF terms | Verify wrapper and bundled notices |
 | PyMuPDF | AGPL-3.0 | PDF engine; compatibility requires AGPL distribution review |
 | liteparse | Verify release license | OCR/PDF fallback |
+| TeleOCR GGUF (nandraj/NaviDC-OCR-GGUF) | Apache-2.0 (model weights) | Terminal OCR fallback runtime (models/; llama.cpp box-side, MIT) |
 | sqlite-vec | MIT (verify release) | SQLite vector extension |
 | jsonschema | MIT | JSON Schema validation |
 | fastjsonschema | MIT | Fast validation path |

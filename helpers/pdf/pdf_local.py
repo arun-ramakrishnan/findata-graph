@@ -10,7 +10,7 @@ writing) is engine-agnostic and works unchanged for locally parsed PDFs.
 Engine: pymupdf4llm (PyMuPDF). Born-digital PDFs only — page rasters are
 never OCR'd (embedded images are extracted as files, not read). A PDF
 without a usable text layer raises :class:`LocalRefusalError` so callers
-can fall back to an OCR engine (the Paddle API).
+can fall back to an OCR engine (lite OCR, teleocr).
 
 Normalizations applied to pymupdf4llm output (tuned on the 7-PDF trial,
 ``doc/local/trials/local_pdf_engine_trial.md``; word recall 96-98.6% vs the
@@ -144,7 +144,7 @@ def _assert_text_layer(pdf_path: Path) -> None:
         raise LocalRefusalError(
             f"text layer too thin ({total} chars over {n_pages} pages, "
             f"avg {total // max(n_pages, 1)}/page < {MIN_CHARS_PER_PAGE}) — "
-            "scanned PDF? use the Paddle OCR engine"
+            "scanned PDF? the OCR fallbacks (lite OCR, teleocr) handle it"
         )
 
 

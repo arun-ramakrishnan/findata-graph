@@ -41,12 +41,11 @@ dependencies = [
     # imported directly by production code, so it is declared.
     "numpy",
     # PDF pipeline (helpers/pdf/pdf_conv_md.py + helpers/pdf/pdf_local.py):
-    # requests for the Paddle API engine; pymupdf4llm for the local no-OCR
-    # engine (default, local-first per operator decision 2026-08-26).
-    # liteparse (Tesseract 5.5.0 eng) is the default OCR fallback for scanned
-    # (0.3s, above Paddle) per liteparse_pdf_engine proposal Slice 2.
-    # pix2text (mfd-1.5) disabled 2026-09-02 — excluded from pipelines to
-    # avoid large nvidia/CUDA deps; file kept for reference only.
+    # requests for write_outputs' remote-URL image branch; pymupdf4llm for the
+    # local no-OCR engine (default, local-first per operator decision 2026-08-26).
+    # liteparse (Tesseract 5.5.0 eng) is the scanned OCR fallback (0.3s) and
+    # teleocr (TeleOCR GGUF via llama-server) the terminal rung, per the
+    # teleocr_pdf_fallback proposal (Paddle API cut, pix2text removed 2026-10-06).
     "requests",
     "pymupdf4llm",
     "pymupdf", # imported directly (Pixmap/text-layer guard), not just transitively
@@ -80,8 +79,6 @@ dependencies = [
     # Mojo regex bridge (Mojo/bench/mojo_regex_*.py + Mojo/src via Python
     # `regex` interop) — active Mojo code uses `import regex`, so runtime.
     "regex",
-    # OCR Dependency
-    "matplotlib",
     # Second dyadic graph engine (helpers/graph/igraph_bridge.py, restored
     # D17 2026-09-26): GPL-2.0-or-later is integration-clean under the
     # AGPL-3.0-or-later repo license — the D14/D16 pilot-venv split is
@@ -221,11 +218,6 @@ optional_dependencies_dev_groups = ["dev", "mojo"]
 # findata-knowledge-graph is the `all` meta-extra's self-reference to the project
 # itself; with [tool.uv] package = false it is never installed, so it can never be
 # imported either.
-# pix2text (mfd-1.5) is deliberately NOT in [project].dependencies since
-# 2026-09-02 (excluded from pipelines — large nvidia/CUDA deps); the file
-# helpers/pdf/pix2text_markdown.py is kept for reference only and imports
-# pix2text inside a function. Silence DEP001 for it so `make deptry` does
-# not fail on the intentionally-missing dep.
 # regex: imported only by Mojo/bench tooling (mojo_regex_battery.py,
 # mojo_regex_corpus.py), which extend_exclude removes from scanning — it
 # stays a direct dependency for the same reason it was promoted 2026-08-30
@@ -233,4 +225,4 @@ optional_dependencies_dev_groups = ["dev", "mojo"]
 # tree-sitter + tree-sitter-sql: DbScreen SQL highlighting — the TextArea
 # loads the grammar at runtime (TextArea language="sql"), so no repo file
 # imports them directly; declared in the tui extra, not the dev group.
-per_rule_ignores = "DEP001=pix2text,DEP002=gunicorn|Werkzeug|finnhub-python|regex|tree-sitter|tree-sitter-sql"
+per_rule_ignores = "DEP002=gunicorn|Werkzeug|finnhub-python|regex|tree-sitter|tree-sitter-sql"
