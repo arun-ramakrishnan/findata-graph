@@ -1311,6 +1311,24 @@ def rebuild(
             if write:
                 embed_fn, embed_dims, model_label, gemma_active = resolve_script_embedder()
                 stats["embed_model"] = model_label
+                if (
+                    not gemma_active
+                    and _script_stored_embed_model(conn) == gemma_embedder.MODEL_LABEL
+                ):
+                    # llamacpp_unified_server_build S3: the silent-granite-
+                    # fallback is correct at query time but catastrophic at
+                    # maint time — this rebuild would re-embed the whole
+                    # surface granite and flip the gemma stamp (the exact
+                    # accident the search-fresh revert was). Loud, on stderr.
+                    print(
+                        "WARNING: script_search is gemma-stamped "
+                        f"({gemma_embedder.MODEL_LABEL}) but the gemma "
+                        "sidecar is down — this rebuild re-embeds granite "
+                        "and UN-MIGRATES the stamp. Start it with "
+                        "`make embgemma-server` and retry, or force "
+                        "SCRIPT_EMBEDDER=granite if un-migrating is meant.",
+                        file=sys.stderr,
+                    )
                 if model_label != f"dry-run-v{rds._PSEUDO_DIMS}":
                     # Gemma is a trial-class backend while granite stays
                     # live on the other surfaces: NEVER purge_foreign here

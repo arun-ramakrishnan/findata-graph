@@ -181,7 +181,7 @@ def available(port: int | None = None) -> bool:
 def _post_embedding(text: str, port: int | None = None) -> list[float]:
     """One /v1/embeddings forward. Returns the raw 768-d server vector."""
     body = json.dumps({"input": text}).encode()
-    req = urllib.request.Request(
+    req = urllib.request.Request(  # noqa: S310
         f"{_base_url(port)}/v1/embeddings", body, {"Content-Type": "application/json"}
     )
     try:

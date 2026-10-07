@@ -243,6 +243,16 @@ class TestVectorShape:
         assert out == {"mode": "vector", "results": []}
 
 
+class _RecordingEmbed:
+    """Minimal CachedEmbed stand-in for rebuild-harness tests."""
+
+    def __init__(self, fn, label, conn, source="", purge_foreign=False):
+        self.hits = self.misses = self.dirty = 0
+
+    def __call__(self, text):
+        return [1.0] * 512
+
+
 class TestCacheNoPurge:
     """The gemma path must NEVER purge_foreign: granite rows stay live on
     the other surfaces while the scripts trial runs."""
@@ -278,6 +288,34 @@ class TestCacheNoPurge:
         assert seen["label"] == gemma_embedder.MODEL_LABEL
         assert seen["purge_foreign"] is False
 
+    def test_gemma_stamp_with_sidecar_down_warns_loud(self, tmp_path, monkeypatch, capsys):
+        """S3 (llamacpp_unified_server_build): a gemma-stamped index being
+        rebuilt while the sidecar is down would silently re-embed granite
+        and flip the stamp (the search-fresh revert accident). The rebuild
+        must warn on stderr; the rebuild itself still completes."""
+        monkeypatch.delenv("SCRIPT_EMBEDDER", raising=False)
+        monkeypatch.setattr(gemma_embedder, "available", lambda port=None: False)
+        monkeypatch.setattr(
+            rss, "_script_stored_embed_model", lambda conn: gemma_embedder.MODEL_LABEL
+        )
+        monkeypatch.setattr(rss, "CachedEmbed", _RecordingEmbed)
+        monkeypatch.setattr(rss, "BACKUP_DIR", tmp_path / "db-backup")
+        (tmp_path / "helpers" / "misc").mkdir(parents=True)
+        (tmp_path / "helpers" / "misc" / "w.py").write_text('"""Do widgets."""\n')
+        (tmp_path / "tests").mkdir()
+        (tmp_path / "app.py").write_text('"""App."""\n')
+        (tmp_path / "Makefile").write_text("qa: ## Q\n\techo q\n")
+        rss.rebuild(
+            tmp_path / "s.db",
+            helpers_root=tmp_path / "helpers",
+            tests_root=tmp_path / "tests",
+            app_py=tmp_path / "app.py",
+            makefile=tmp_path / "Makefile",
+        )
+        err = capsys.readouterr().err
+        assert "UN-MIGRATES the stamp" in err
+        assert "make embgemma-server" in err
+
     def test_foreign_rows_survive_without_purge(self, tmp_path):
         from helpers.core.embed_cache import CachedEmbed
 
@@ -285,9 +323,9 @@ class TestCacheNoPurge:
         cached_embed_batch(
             conn, ["granite text"], "granite-embedding-97m-r2", lambda ts: [[1.0, 0.0] for _ in ts]
         )
-        before = conn.execute(f"SELECT COUNT(*) FROM {EMBED_CACHE_TABLE}").fetchone()[0]
+        before = conn.execute(f"SELECT COUNT(*) FROM {EMBED_CACHE_TABLE}").fetchone()[0]  # noqa: S608
         CachedEmbed(lambda t: [0.0, 1.0], gemma_embedder.MODEL_LABEL, conn, source="script")
-        after = conn.execute(f"SELECT COUNT(*) FROM {EMBED_CACHE_TABLE}").fetchone()[0]
+        after = conn.execute(f"SELECT COUNT(*) FROM {EMBED_CACHE_TABLE}").fetchone()[0]  # noqa: S608
         assert (before, after) == (1, 1)
 
 

@@ -249,6 +249,13 @@ commit, referenced by nothing). Entry numbers point at
   untouched), vector-only mode + identifier router, both-sides
   prefix/stamp contract tests, 54-q bank gate (live intent 0.964, ident
   8/8) — completed.md #363
+- [`llamacpp_unified_server_build.md`](tooling/llamacpp_unified_server_build.md) —
+  one owned llama.cpp build for both server legs (pinned `78651c4` +
+  vendored qwen2vl head_dim patch — upstream still unfixed; the two
+  scratch builds were mutually exclusive): `vendor/llamacpp/` recipe +
+  PROVENANCE, `make llamacpp-build/-health`, Makefile rewire, maint-time
+  stamp-vs-sidecar warning; executed same day, dual-load cutover proof —
+  completed.md #364
 - [`improvs_backlog_record.md`](tooling/improvs_backlog_record.md) —
   improvs backlog record — the 2026-10-05 backlog (21 rows, 5
   categories) recorded into the perpetual tracker, then the gitignored

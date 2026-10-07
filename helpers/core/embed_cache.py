@@ -78,21 +78,33 @@ def _hash(text: str) -> str:
     return hashlib.sha256(text.encode("utf-8", errors="replace")).hexdigest()
 
 
-def purge_foreign_models(conn, model_label: str) -> int:
-    """GC for the pooled cache: delete rows whose model label differs.
+def purge_foreign_models(conn, model_label: str, source: str = "") -> int:
+    """GC for the pooled cache: delete rows that can never be served again.
 
-    A model swap leaves the previous generation's rows permanently
-    unreachable (model is part of the lookup key, so they can never be
-    served — only bytes). Production indexers run this so swaps
-    self-clean instead of stranding dead vectors per generation (the
-    2026-09-16 bge-small leftover: ~11k rows, 11 days unnoticed).
+    Lookup key is (text_hash, model), so a model swap strands the previous
+    generation's rows as dead bytes. Since embedgemma adoption the store is
+    MULTI-model (scripts gemma, notes/docs granite), so "foreign model" is
+    only dead WITHIN the calling indexer's own source cohort — a global
+    ``model !=`` purge from the granite indexers deleted every other
+    surface's rows on every rebuild (the script_search gemma cache was
+    wiped by each search-fresh, forcing a full ~550-row HTTP re-embed —
+    hit ten times on 2026-10-07 before the fix). Scoped purge: pass the
+    caller's ``source`` cohort and only that cohort's foreign-model rows
+    die. Source-less callers keep the legacy global purge.
     Best-effort: failures return 0, never break the embed flow.
     """
     try:
-        cur = conn.execute(
-            f"DELETE FROM {EMBED_CACHE_TABLE} WHERE model != ?",  # noqa: S608  # constant table name
-            (model_label,),
-        )
+        if source:
+            cur = conn.execute(
+                f"DELETE FROM {EMBED_CACHE_TABLE} "  # noqa: S608  # constant table name
+                "WHERE source = ? AND model != ?",
+                (source, model_label),
+            )
+        else:
+            cur = conn.execute(
+                f"DELETE FROM {EMBED_CACHE_TABLE} WHERE model != ?",  # noqa: S608  # constant table name
+                (model_label,),
+            )
         conn.commit()
         return cur.rowcount or 0
     except Exception:  # noqa: S110  # purge is never load-bearing
@@ -125,10 +137,11 @@ class CachedEmbed:
         self.dirty = 0
         self._ok = self._try_init()
         if purge_foreign and self._ok:
-            gone = purge_foreign_models(self._conn, model_label)
+            gone = purge_foreign_models(self._conn, model_label, self._source)
             if gone:
                 print(
-                    f"[embed-cache] purged {gone} foreign-model row(s) (model-swap GC)",
+                    f"[embed-cache] purged {gone} foreign-model row(s) in "
+                    f"source cohort {self._source!r} (model-swap GC)",
                     file=sys.stderr,
                     flush=True,
                 )
@@ -182,6 +195,12 @@ class CachedEmbed:
                     "(text_hash, model, embedding, source) VALUES (?, ?, ?, ?)",
                     (h, self._model, pack_f32(vec), self._source),
                 )
+                # Commit per row (WAL = tiny writer windows, the house
+                # pattern): a long rebuild that dies mid-pass — OOM kill,
+                # sidecar crash — otherwise loses the WHOLE pass's embeds
+                # with its end-of-run commit (2026-10-07: 550 gemma embeds,
+                # ~17 min, evaporated when the sidecar was SIGKILLed).
+                self._conn.commit()
                 self.dirty += 1
             except Exception:  # noqa: S110  # cache write fails -> fine
                 pass
@@ -264,10 +283,11 @@ def cached_embed_batch(
         stats["unique_misses"] = len(texts)
         return vecs, stats
     if purge_foreign:
-        gone = purge_foreign_models(conn, model_label)
+        gone = purge_foreign_models(conn, model_label, source)
         if gone:
             print(
-                f"[embed-cache] purged {gone} foreign-model row(s) (model-swap GC)",
+                f"[embed-cache] purged {gone} foreign-model row(s) in "
+                f"source cohort {source!r} (model-swap GC)",
                 file=sys.stderr,
                 flush=True,
             )

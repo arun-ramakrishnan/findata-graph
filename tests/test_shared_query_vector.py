@@ -19,6 +19,7 @@ import math
 
 import pytest
 
+from helpers.core import gemma_embedder
 from helpers.maintenance import rebuild_common as rbc
 from helpers.misc import master_query as mq
 
@@ -465,8 +466,14 @@ class TestLiveNoLocalLoad:
         # falls back to its own (gemma sidecar) embed and the paraphrase
         # query routes vector-only. Either stamp's healthy mode passes
         # (rollback-safe); the granite hooks above still prove no granite
-        # load happens on this path.
-        assert out["mode"] in ("hybrid", "vector") and out["results"]
+        # load happens on this path. The result PAGE needs the sidecar
+        # (sidecar down = empty vector page by design, never a silent
+        # BM25 substitution), so page content is asserted only when the
+        # sidecar is reachable — the test_gemma_adoption live-class
+        # guard, inline.
+        assert out["mode"] in ("hybrid", "vector")
+        if gemma_embedder.available():
+            assert out["results"]
 
         rms_mod, conn = _live_memory()
         try:

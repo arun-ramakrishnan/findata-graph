@@ -9548,3 +9548,64 @@ refuses-when-unavailable gate; full-suite alphabetical order is
 unaffected. Verified: targeted script/master/embed suites green, ruff +
 `ty` clean, search-fresh converged. Raw material: `bench_data/embgemma2/`
 (gitignored eval archive).
+
+## 364. Unified llama.cpp server build — one owned binary for teleocr + embgemma
+
+Executes `archive/tooling/llamacpp_unified_server_build.md` (filed and
+executed the same day). Motivation proven empirically before filing: the
+two scratch builds are mutually exclusive (teleocr's 5e03bdd predates
+gemma arch #30054; the 78651c4 gemma build fails NaviDC at load with the
+stock-loader head_dim error — evidence
+`bench_data/teleocr/outputs/build/navidc_load_fail_78651c4.log`), so the
+common build is llama.cpp `78651c4` + the 35-line qwen2vl head_dim patch
+(still required upstream as of 2026-10-07). **S1**:
+`vendor/llamacpp/` — `build.sh` (pinned fetch, patch `--check` fails
+loudly on drift, CPU AVX2 `GGML_NATIVE=ON`, installs `llama-server` +
+the .so set into gitignored `models/llamacpp/bin/`),
+`patches/qwen2vl_head_dim.patch` (vendored from the teleocr trial
+archive), `PROVENANCE.md` (commit, sha256 set, flags, dual-load
+verdict; the re-pin gate). **S2**: `make llamacpp-build` + both server
+targets rewired env → owned binary → PATH → scratch (scratch demoted,
+removed next arc); recipe builds in ~3 min. **S3**:
+`make llamacpp-health` (identity + live 768-d embed probe per leg —
+catches wrong-server-on-port) and the maint-time guard in
+`rebuild_script_search` (gemma-stamped index + sidecar down → loud
+stderr warning instead of a silent granite un-migration; pinned by
+`test_gemma_stamp_with_sidecar_down_warns_loud`). Cutover: both live
+servers restarted from the owned binary; dual-load proof green (NaviDC
+chat completion + gemma 768-d embedding, one binary); bank gate green
+post-cutover (intent 0.964 / ident 8/8); teleocr control OCR clean. A
+same-day incident (both servers killed mid-rebuild) exercised the
+recovery path for real: owned binary brought both legs back,
+`llamacpp-health` ok/ok. Verified: 31/31 gemma suite + cache suite,
+ruff + `ty` clean, search-fresh converged. `models/llamacpp/` is a
+build artifact like the GGUFs (recipe reproduces); the fossil scratch
+binaries remain in `bench_data/*/outputs/build/` as provenance only.
+
+## 365. Embed-cache model GC scoped to source cohorts (multi-model store)
+
+The gemma cutover exposed a single-tenant assumption in the shared
+embed store (`memory/embed_store.db`, 94k granite + 550 gemma rows):
+`purge_foreign_models` deleted `WHERE model != <caller's label>`
+GLOBALLY, and the granite indexers (doc/memory, plus note/convo/company
+batch paths) run it on every rebuild — each `search-fresh` APPLY wiped
+the script surface's live gemma rows (lookup key is `(text_hash,
+model)`, so other models' rows are invisible to a granite caller, never
+read, never missed), forcing a full ~550-row HTTP re-embed on the next
+script rebuild (~15-20 min of "search-fresh got slow"; hit ten times on
+2026-10-07, incl. once via the cutover rebuild itself). Fix:
+`purge_foreign_models(conn, model, source)` — the purge now dies
+`WHERE source = <cohort> AND model != <label>`, so an indexer GCs only
+its OWN cohort's dead generations; all five `purge_foreign=True` call
+sites carry proper cohorts (note/doc/memory/convo/company); source-less
+callers keep the legacy global purge. Second, independent durability
+fix from the same incident: `CachedEmbed.__call__` cache inserts now
+COMMIT PER ROW (WAL tiny-writer pattern, same contract
+`cached_embed_batch` already documented) — previously the whole pass's
+embeds rode the end-of-run transaction and a mid-run server kill
+erased ~17 min of gemma embeds. `tests/test_embed_cache.py` fully
+hermetic (`:memory:` mains — a file main attaches the REAL store) with
+the `TestPurgeIsPerCohort` pin (doc purge keeps script-cohort gemma
+rows; own cohort still GC'd; batch path same). Verified: 44 passed +
+2 live-skips, ruff + `ty` clean; post-fix `search-fresh` APPLY ran all
+four legs in ~15 s with gemma rows intact (was 15-20 min + wipe).

@@ -34,6 +34,13 @@ entry number and stale DONE pointers):
 
 ## Current live proposals
 
+_(none)_ — archived 2026-10-07: `llamacpp_unified_server_build`
+(`../archive/tooling/`, completed.md #364) — one owned llama.cpp build
+for both server legs (pinned `78651c4` + vendored qwen2vl patch,
+`vendor/llamacpp/` recipe + PROVENANCE, `models/llamacpp/bin/` binary,
+Makefile rewire, `make llamacpp-health`, maint-time stamp-vs-sidecar
+warning); executed same day with the dual-load cutover proof.
+
 _(none)_ — archived 2026-10-07: `script_search_gemma_adoption`
 (`../archive/tooling/`, completed.md #363) — EmbeddingGemma-2 Q8@512
 vector-primary for `script_search` (D3 sidecar client, per-surface

@@ -45,7 +45,7 @@ from __future__ import annotations
 
 import fcntl
 import time
-from collections.abc import Callable, Iterator
+from collections.abc import Callable, Generator
 from contextlib import contextmanager
 from pathlib import Path
 
@@ -108,7 +108,7 @@ def connect_with_lock_retry[T](
 
 
 @contextmanager
-def io_lock(db_path: Path | str, *, exclusive: bool) -> Iterator[None]:
+def io_lock(db_path: Path | str, *, exclusive: bool) -> Generator[None]:
     """Cross-process coordination flock on ``<db>.io.lock`` (S3).
 
     Readers pass ``exclusive=False`` (``LOCK_SH`` — any number may hold

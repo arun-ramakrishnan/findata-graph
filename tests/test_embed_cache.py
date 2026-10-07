@@ -12,8 +12,11 @@ import sqlite3
 from helpers.core.embed_cache import EMBED_CACHE_TABLE, cached_embed_batch
 
 
-def _conn(tmp_path):
-    return sqlite3.connect(str(tmp_path / "cache_test.db"))
+def _conn(tmp_path=None):
+    # :memory: main -> _store_path attaches an anonymous in-memory vecdb,
+    # so every test is hermetic no matter where tmp_path points (a file
+    # main would attach the REAL memory/embed_store.db and leak rows).
+    return sqlite3.connect(":memory:")
 
 
 def _fake_embed():
@@ -117,6 +120,87 @@ class TestCachedEmbedBatch:
         assert st["misses"] == 1
         assert st["hits"] == 0
         assert len(calls) == 2  # re-embedded
+
+
+class TestPurgeIsPerCohort:
+    """Multi-model store (embedgemma adoption): the granite indexers run
+    purge_foreign on every rebuild — scoped to THEIR source cohort, or a
+    doc/memory rebuild deletes the script surface's live gemma rows and
+    forces a full ~550-row HTTP re-embed on every search-fresh (hit ten
+    times on 2026-10-07)."""
+
+    def _seed_multi_model(self, conn):
+        from helpers.core.vec_search import _attach_vec_db
+
+        from helpers.core.embed_cache import EMBED_CACHE_DDL
+
+        _attach_vec_db(conn)  # :memory: main -> hermetic in-memory vecdb
+        conn.execute(EMBED_CACHE_DDL)
+        rows = [
+            ("h-gemma-script", "embeddinggemma-2-q8_512", "script"),
+            ("h-granite-script", "granite-embedding-97m-r2", "script"),
+            ("h-gemma-doc", "embeddinggemma-2-q8_512", "doc"),
+            ("h-granite-doc", "granite-embedding-97m-r2", "doc"),
+        ]
+        for h, model, source in rows:
+            conn.execute(
+                f"INSERT OR REPLACE INTO {EMBED_CACHE_TABLE} VALUES (?, ?, ?, ?)",  # noqa: S608
+                (h, model, b"\x00" * 8, source),
+            )
+        conn.commit()
+
+    def _labels(self, conn):
+        return sorted(
+            (r[0], r[1])
+            for r in conn.execute(f"SELECT text_hash, model FROM {EMBED_CACHE_TABLE}")  # noqa: S608
+        )
+
+    def test_doc_purge_keeps_other_cohorts(self, tmp_path):
+        from helpers.core.embed_cache import purge_foreign_models
+
+        conn = _conn(tmp_path)
+        self._seed_multi_model(conn)
+        gone = purge_foreign_models(conn, "granite-embedding-97m-r2", "doc")
+        assert gone == 1  # only doc's own gemma row dies
+        assert self._labels(conn) == [
+            ("h-gemma-script", "embeddinggemma-2-q8_512"),
+            ("h-granite-doc", "granite-embedding-97m-r2"),
+            ("h-granite-script", "granite-embedding-97m-r2"),
+        ]
+
+    def test_legacy_global_purge_when_no_cohort(self, tmp_path):
+        from helpers.core.embed_cache import purge_foreign_models
+
+        conn = _conn(tmp_path)
+        self._seed_multi_model(conn)
+        gone = purge_foreign_models(conn, "granite-embedding-97m-r2")
+        assert gone == 2  # source-less callers keep the legacy global GC
+        assert self._labels(conn) == [
+            ("h-granite-doc", "granite-embedding-97m-r2"),
+            ("h-granite-script", "granite-embedding-97m-r2"),
+        ]
+
+    def test_batch_purge_uses_its_source_cohort(self, tmp_path):
+        from helpers.core.embed_cache import _hash
+
+        conn = _conn(tmp_path)
+        self._seed_multi_model(conn)
+        fn, calls = _fake_embed()
+        cached_embed_batch(
+            conn,
+            ["aa"],
+            "granite-embedding-97m-r2",
+            fn,
+            source="doc",
+            purge_foreign=True,
+        )
+        assert self._labels(conn) == [
+            (_hash("aa"), "granite-embedding-97m-r2"),  # newly embedded
+            ("h-gemma-script", "embeddinggemma-2-q8_512"),
+            ("h-granite-doc", "granite-embedding-97m-r2"),
+            ("h-granite-script", "granite-embedding-97m-r2"),
+        ]
+        assert calls == [["aa"]]
 
 
 class TestPoolWorkers:
