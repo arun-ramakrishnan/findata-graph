@@ -68,6 +68,7 @@ operator, **BLOCKED** = gated on an external/upstream condition,
 | 19 | Trigger-gated (leave) | Ontology governance (a) mapping-record glossary, (b) LLM-judge protocol 2 | triggers: a metrics Q&A lane proposal; an LLM-API posture (terrain C4 revival) | BLOCKED | `pending.md` "Ontology governance #244 deferred" |
 | 20 | Trigger-gated (leave) | OpenViking context-server pilot | revive only for its differentiators (L0/L1 hierarchy, automatic memory extraction, retrieval traces); labeled eval set transfers verbatim | BLOCKED | `pending.md` "OpenViking … DEFERRED" |
 | 21 | Trigger-gated (leave) | scipy minimum-spanning-tree lane | deferred need (Kruskal toy oracle recorded) | BLOCKED | `pending.md` "scipy_algos umbrella batch" |
+| 22 | Tests/gates | `local_embedder._MODEL` lazy singleton bypasses the conftest pin | the autouse `_no_local_embedder` pin patches `available()`, but `get_model()` returns the cached live `Llama` without consulting it — once a live-embedding module has instantiated the singleton, a suite re-ordering reddens the refuses-when-unavailable gate (seen 2026-10-07: `test_shared_query_vector` before `test_local_embedder`; full-suite alphabetical order unaffected; noted not-fixed in completed.md #363) | **UNLOCK** — small fix, e.g. pin also Nones `_MODEL`, or `get_model()` re-checks `available()` on the cached path | `helpers/core/local_embedder.py:96,164-184` · `tests/conftest.py:445-469` |
 
 **Census (updated 2026-10-05, close-out):** rows 4, 5, 6 and 12
 EXECUTED via `graph_rebuild_fast_path.md` (S1–S4; parity 31/31 tables,
@@ -77,4 +78,5 @@ entry 347). CLOSED (8): 1, 2, 3, 7, 8, 11, 13, 14 — rows 1–3/8 by the
 in flight; row 8's file turned out to be already removed), 11 done in
 place, and 13 resolved: the "untracked residue" was the never-committed
 working draft of archived #312 (all findings executed). NO-ACTION (2):
-9, 10. BLOCKED (7): 15–21.
+9, 10. BLOCKED (7): 15–21. Row 22 filed 2026-10-07 (UNLOCK) from the
+script_search_gemma_adoption arc.

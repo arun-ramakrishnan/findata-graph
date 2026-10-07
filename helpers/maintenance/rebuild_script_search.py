@@ -66,6 +66,7 @@ Exit codes: 0 success/fresh, 1 fatal error OR --check detected drift.
 import ast
 import hashlib
 import json
+import os
 import re
 import shutil
 import sqlite3
@@ -81,8 +82,9 @@ _REPO_ROOT = Path(__file__).resolve().parents[2]
 if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
+from helpers.core import gemma_embedder  # noqa: E402
 from helpers.core.embed_cache import CachedEmbed  # noqa: E402
-from helpers.core.vec_codec import load_vec  # noqa: E402
+from helpers.core.vec_codec import load_vec, pack_f32  # noqa: E402
 from helpers.maintenance import rebuild_common as rbc  # noqa: E402
 from helpers.maintenance import rebuild_doc_search as rds  # noqa: E402
 
@@ -386,7 +388,73 @@ def _make_refs(targets: list[dict], known_paths: list[str]) -> dict[str, list[st
     return refs
 
 
-def _compose_rows(py_units: list[dict], make_unit: dict | None, embed_fn) -> list[tuple]:
+# --- Script-surface embedder selector (script_search_gemma_adoption S1) ---
+# local_embedder is the single source of truth for every OTHER surface, so
+# its constants are never swapped: the script surface resolves the
+# EmbeddingGemma-2 sidecar backend whenever it is available (default
+# follows availability; SCRIPT_EMBEDDER=granite forces the shared path).
+SCRIPT_EMBEDDER_ENV = "SCRIPT_EMBEDDER"
+
+
+def _gemma_basis(title: str, purpose: str, content: str) -> str:
+    """Gemma doc-side basis: the two-sided prefix contract's index half
+    (assessment §5.1 — `title: {t} | text: {content}`, `title: none` when
+    absent, mirroring the eval). Applied at the index site, never inside
+    the embedder module, so cache keys are exactly the embedded text."""
+    return f"title: {title or 'none'} | text: {purpose}\n{content[: rds._EMBED_BODY_CAP]}"
+
+
+def resolve_script_embedder() -> tuple:
+    """(embed_fn, dims, model_label, gemma_active) for the script surface.
+
+    Adoption default (script_search_gemma_adoption S4): gemma whenever the
+    sidecar/model is available, granite fallback otherwise — the default
+    follows availability so house rebuilds (search-fresh, maint) cannot
+    silently un-migrate the surface (a default-granite selector let one
+    `make search-fresh APPLY=1` revert the cutover, caught by the bank
+    gate). SCRIPT_EMBEDDER overrides: `granite` forces the shared path,
+    `gemma` forces gemma (warn + granite fallback when unavailable, never
+    a half-migrated index).
+    """
+    want = os.environ.get(SCRIPT_EMBEDDER_ENV, "").strip().lower()
+    if want == "granite":
+        fn, dims, label = rds.resolve_embedder()
+        return fn, dims, label, False
+    if gemma_embedder.available():
+        return (
+            gemma_embedder.embed_document,
+            gemma_embedder.DIM,
+            gemma_embedder.MODEL_LABEL,
+            True,
+        )
+    if want == "gemma":
+        print(
+            "WARNING: SCRIPT_EMBEDDER=gemma but the gemma sidecar/model is "
+            "unavailable — falling back to the granite path",
+            file=sys.stderr,
+            flush=True,
+        )
+    fn, dims, label = rds.resolve_embedder()
+    return fn, dims, label, False
+
+
+def query_embedder(model_label: str | None = None) -> tuple:
+    """Selector-aware query side: (embed_fn, dims).
+
+    The INDEX stamp decides, not the env — the query must live in the
+    index's vector space. A gemma-stamped index with a down sidecar
+    raises at embed time and the cosine leg degrades to BM25-only (same
+    contract as a missing granite backend); it never embeds granite
+    vectors against a gemma index.
+    """
+    if model_label == gemma_embedder.MODEL_LABEL:
+        return gemma_embedder.embed_query, gemma_embedder.DIM
+    return rds.query_embedder()
+
+
+def _compose_rows(
+    py_units: list[dict], make_unit: dict | None, embed_fn, gemma: bool = False
+) -> list[tuple]:
     """Compose every FTS row from the extracted units (pure function of the
     units — deterministic, so row-level diffs are meaningful). Mojo units
     (kind='mojo') ride the same _row/embed path."""
@@ -429,6 +497,7 @@ def _compose_rows(py_units: list[dict], make_unit: dict | None, embed_fn) -> lis
                 purpose=purpose,
                 content=content,
                 embed_fn=embed_fn,
+                gemma=gemma,
             )
         )
 
@@ -447,6 +516,7 @@ def _compose_rows(py_units: list[dict], make_unit: dict | None, embed_fn) -> lis
                     tests=sorted(tested_by.get(u["rel"], [])),
                 ),
                 embed_fn=embed_fn,
+                gemma=gemma,
             )
         )
     for u in tests:
@@ -462,6 +532,7 @@ def _compose_rows(py_units: list[dict], make_unit: dict | None, embed_fn) -> lis
                     imports=sorted(d for d in u["imports"] if d in dotted_to_rel),
                 ),
                 embed_fn=embed_fn,
+                gemma=gemma,
             )
         )
     for u in mojo_units:
@@ -474,6 +545,7 @@ def _compose_rows(py_units: list[dict], make_unit: dict | None, embed_fn) -> lis
                 purpose=u["purpose"],
                 content=_mojo_content(u),
                 embed_fn=embed_fn,
+                gemma=gemma,
             )
         )
     for u in ts_units:
@@ -486,6 +558,7 @@ def _compose_rows(py_units: list[dict], make_unit: dict | None, embed_fn) -> lis
                 purpose=u["purpose"],
                 content=_ts_content(u),
                 embed_fn=embed_fn,
+                gemma=gemma,
             )
         )
     return rows
@@ -522,11 +595,30 @@ def _module_content(
 
 
 def _row(
-    *, title: str, kind: str, rel_path: str, area: str, purpose: str, content: str, embed_fn
+    *,
+    title: str,
+    kind: str,
+    rel_path: str,
+    area: str,
+    purpose: str,
+    content: str,
+    embed_fn,
+    gemma: bool = False,
 ) -> tuple:
     """One FTS row tuple, embedding via the doc_search helper (title +
     purpose + capped content as the vector basis — the purpose paragraph
-    dominates, which is exactly the intent signal this index exists for)."""
+    dominates, which is exactly the intent signal this index exists for).
+    gemma=True switches the basis to the gemma doc-side prefix form and
+    packs the (already 512-d) vector directly; the granite path is
+    untouched."""
+    if gemma:
+        try:
+            vec = embed_fn(_gemma_basis(title, purpose, content))
+        except Exception:  # noqa: S110  # best-effort; missing rows stay searchable
+            vec = None
+        embedding = pack_f32(vec) if vec else None
+    else:
+        embedding = rds._embedding_f32(embed_fn, title, purpose, content)
     return (
         title,
         kind,
@@ -534,7 +626,7 @@ def _row(
         area,
         purpose,
         content,
-        rds._embedding_f32(embed_fn, title, purpose, content),
+        embedding,
     )
 
 
@@ -1214,13 +1306,22 @@ def rebuild(
         # shared text populations with the other indexers are free cache hits).
         embed_dims = rds._PSEUDO_DIMS
         model_label: str | None = None
+        gemma_active = False
         if embed_fn is None:
             if write:
-                embed_fn, embed_dims, model_label = rds.resolve_embedder()
+                embed_fn, embed_dims, model_label, gemma_active = resolve_script_embedder()
                 stats["embed_model"] = model_label
                 if model_label != f"dry-run-v{rds._PSEUDO_DIMS}":
+                    # Gemma is a trial-class backend while granite stays
+                    # live on the other surfaces: NEVER purge_foreign here
+                    # (that would GC the granite rows notes/docs still
+                    # serve). The granite path keeps its swap-GC.
                     embed_fn = CachedEmbed(
-                        embed_fn, model_label, conn, source="script", purge_foreign=True
+                        embed_fn,
+                        model_label,
+                        conn,
+                        source="script",
+                        purge_foreign=not gemma_active,
                     )
             else:
                 # --check: verdict is unit content-hash — skip model
@@ -1235,7 +1336,7 @@ def rebuild(
             makefile,
             conn=conn,
         )
-        all_rows = _compose_rows(py_units, make_unit, embed_fn)
+        all_rows = _compose_rows(py_units, make_unit, embed_fn, gemma=gemma_active)
 
         if isinstance(embed_fn, CachedEmbed):
             stats["embed_cache_hits"] = embed_fn.hits
@@ -1462,7 +1563,9 @@ def _cosine_leg(
         if query_vec is not None:
             q_vec = rbc.check_query_vector(_script_stored_embed_model(conn), idx_dims, query_vec)
         if q_vec is None:
-            embed_q, _dims = rds.query_embedder()
+            # Stamp decides the query backend (never the env): the query
+            # must live in the index's vector space.
+            embed_q, _dims = query_embedder(_script_stored_embed_model(conn))
             candidate = embed_q(q)
             if idx_dims != len(candidate):
                 return [], {}
@@ -1582,6 +1685,63 @@ def _hit_dicts(hits: list[tuple[float, sqlite3.Row, str]], sims: dict[int, float
     ]
 
 
+def _vector_hits(
+    conn: sqlite3.Connection,
+    scored: list[tuple[int, float]],
+    sims: dict[int, float],
+    kind: str | None,
+    area: str | None,
+    limit: int,
+    offset: int,
+) -> list[tuple[float, sqlite3.Row, str]]:
+    """Vector-only page: cosine-ranked rows (kind/area-filtered like the
+    BM25 page), score = cosine similarity (no RRF — there is nothing to
+    fuse). A dead cosine leg yields an empty page, never a silent BM25
+    substitution (the mode says "vector"; the fan-out's other legs still
+    answer). Snippet = content head, same as cosine-only extras above."""
+    rows_by_rid = _rows_by_rid(conn, kind, area)
+    hits: list[tuple[float, sqlite3.Row, str]] = []
+    for rid, sim in scored[: limit + offset]:
+        row = rows_by_rid.get(rid)
+        if row is None:
+            continue
+        head = " ".join((row[6] or "").split())[:200]
+        hits.append((sim, row, head))
+    return hits[offset : offset + limit]
+
+
+# Code-punctuation triggers: a multi-token query containing one of these
+# is an exact invocation/identifier, not a paraphrase (assessment §5.2 —
+# fixed fusion weights fail one side or the other, so the router splits
+# by query shape instead of weighting).
+_ROUTER_CODE_CHARS = ("_", "--", "::", "(", ")", "/")
+
+
+def is_identifier_query(q: str) -> bool:
+    """True when q is identifier-shaped: a single bare token, or a
+    multi-token query carrying code punctuation (an exact invocation like
+    `rev-list --all --objects`). Natural-language paraphrase (the
+    vector-primary surface) rarely contains these markers. Public for
+    the contract test; the bank in helpers/misc/script_eval_questions.json
+    pins the boundary."""
+    toks = q.split()
+    if not toks:
+        return False
+    if len(toks) == 1:
+        return True
+    return any(c in q for c in _ROUTER_CODE_CHARS)
+
+
+def _is_gemma_index(conn: sqlite3.Connection) -> bool:
+    """True when the connected index is gemma-stamped (the shape switch
+    below keys on the stamp, never the env — mixed-version sidecars rank
+    in their own space)."""
+    try:
+        return _script_stored_embed_model(conn) == gemma_embedder.MODEL_LABEL
+    except Exception:  # noqa: S110  # no stamp table -> granite-era sidecar
+        return False
+
+
 def search_scripts(
     conn: sqlite3.Connection,
     q: str,
@@ -1592,6 +1752,7 @@ def search_scripts(
     area: str | None = None,
     hybrid: bool = True,
     query_vec: rbc.QueryVector | None = None,
+    vector_only: bool = False,
 ) -> dict:
     """Hybrid BM25 + cosine search over script_search. Never raises.
 
@@ -1599,10 +1760,25 @@ def search_scripts(
     (the vector leg is a co-equal retriever for OR-joined question-shaped
     tokens); differs in filtering on UNINDEXED kind/area columns (cheap at
     ~200 rows) and NO per-file diversification cap — every row already IS
-    a distinct script/test/target."""
+    a distinct script/test/target.
+
+    Vector-primary (script_search_gemma_adoption S2): on a gemma-stamped
+    index the default shape routes by query — identifier-shaped queries
+    take the lexical path (BM25 owns exact lookups), everything else goes
+    vector-only (the 0.964 arm; equal-weight RRF dilutes it to 0.908).
+    Granite-stamped indexes keep today's hybrid default untouched.
+    Explicit vector_only=True forces the vector shape on any index;
+    explicit hybrid=False keeps the BM25 shape on any index."""
     expr = rds.fts_match_expr(q)
     if not expr:
         return {"mode": "bm25", "results": []}
+    # Shape switch: explicit flags always win; otherwise a gemma-stamped
+    # index routes (identifier -> lexical, paraphrase -> vector-only) and
+    # a granite index keeps the hybrid default. BM25 owns exact lookups
+    # (27/27 at rank 1, every leg — assessment §3.4).
+    gemma_idx = hybrid and not vector_only and _is_gemma_index(conn)
+    routed_vector = vector_only or (gemma_idx and not is_identifier_query(q))
+    routed_lexical = gemma_idx and is_identifier_query(q)
     where = "script_search MATCH ?"
     params: list = [expr]
     if kind:
@@ -1623,7 +1799,18 @@ def search_scripts(
     except sqlite3.Error:
         return {"mode": "bm25", "results": []}
 
-    scored, sims = _cosine_leg(conn, q, query_vec) if hybrid else ([], {})
+    scored, sims = (
+        _cosine_leg(conn, q, query_vec)
+        if (routed_vector or (hybrid and not routed_lexical))
+        else ([], {})
+    )
+    if routed_vector:
+        return {
+            "mode": "vector",
+            "results": _hit_dicts(
+                _vector_hits(conn, scored, sims, kind, area, limit, offset), sims
+            ),
+        }
     cos_rank = {rid: pos for pos, (rid, _s) in enumerate(scored)} if scored else None
     hits = _fused_hits(
         conn,

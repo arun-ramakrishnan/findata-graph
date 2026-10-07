@@ -34,7 +34,7 @@ export PATH := $(CURDIR)/.venv/bin:$(PATH)
 export TMPDIR ?= $(shell test -d /mnt/data/tmp && { mkdir -p /mnt/data/tmp/findata; echo /mnt/data/tmp/findata; } || echo /tmp)
 
 
-.PHONY: help qa test live-invariants perf cover fuzz integration snapshot snapshot-check snapshot-restore sync-tags sync-coverage-tags sync-sector-links static-checks license-check tmp-sweep install-dev triage-quotes gate-fresh graph-smoke graph-stats graph-algos graph-rebuild graph-rebuild-bench update-extensions recompute-graph recompute-hyper search-fresh convo-fresh embed-gc search-tui derive-relations derive-co-mentions derive-themes derive-events derive-insights derive-indices quote-coverage derive-themes-rebuild derive-cited-in derive-cited-in-rebuild derive-hyperedges derive-all refresh-indices refresh-vigil refresh-shp frontend frontend-check fold-identifiers format maint maint-full md-lint metrics-rebuild mojo-bench mojo-build mojo-test mojo-format relations-enrich lint types types-tests lint-audit deptry advisory secret-scan cargo-audit script-search-rebuild memory-search-rebuild triage-relations live-invariants stamp-centrality parity review-patch teleocr-server csr csr-check csr-rebuild convo-search-rebuild convo-search-check analytics-parquet analytics-fresh
+.PHONY: help qa test live-invariants perf cover fuzz integration snapshot snapshot-check snapshot-restore sync-tags sync-coverage-tags sync-sector-links static-checks license-check tmp-sweep install-dev triage-quotes gate-fresh graph-smoke graph-stats graph-algos graph-rebuild graph-rebuild-bench update-extensions recompute-graph recompute-hyper search-fresh convo-fresh embed-gc search-tui derive-relations derive-co-mentions derive-themes derive-events derive-insights derive-indices quote-coverage derive-themes-rebuild derive-cited-in derive-cited-in-rebuild derive-hyperedges derive-all refresh-indices refresh-vigil refresh-shp frontend frontend-check fold-identifiers format maint maint-full md-lint metrics-rebuild mojo-bench mojo-build mojo-test mojo-format relations-enrich lint types types-tests lint-audit deptry advisory secret-scan cargo-audit script-search-rebuild memory-search-rebuild triage-relations live-invariants stamp-centrality parity review-patch teleocr-server embgemma-server csr csr-check csr-rebuild convo-search-rebuild convo-search-check analytics-parquet analytics-fresh
 
 help:           ## Show available targets (alphabetical; entries generated from the ## annotations — keep both in sync)
 > @echo "FinData targets (alphabetical):"
@@ -119,6 +119,7 @@ help:           ## Show available targets (alphabetical; entries generated from 
 > @echo "  sync-coverage-tags       Converge The Chatter company/<slug> tags from quote coverage"
 > @echo "  sync-sector-links        WRITE the auto company index into sector notes (explicit; maint-full only checks staleness)"
 > @echo "  sync-tags                Rebuild entity_tags from note YAML (mirrors entity_type/sector/market_cap/subsector)"
+> @echo "  embgemma-server          Start the EmbeddingGemma-2 llama-server (Q8_0 from models/) on 127.0.0.1:8732 — Ctrl-C to stop; gemma_embedder only ever assumes it is running (D3), never spawns it"
 > @echo "  teleocr-server           Start the TeleOCR llama-server (Q4_K_M + mmproj from models/) on 127.0.0.1:8731 — Ctrl-C to stop; teleocr_engine only ever assumes it is running (D3), never spawns it"
 > @echo "  test                     pytest unit tests only (no live DB, no slow benchmarks)"
 > @echo "  tmp-sweep                Reap this repo's temp-dir residue (scratch DBs, stale bench dirs, TUI log) — 24h age guard, dry-run by default; APPLY=1 removes (proposal: tmpdir_sanitization)"
@@ -404,6 +405,15 @@ analytics-fresh:  ## Analytics stores (agent_traces + model_usage) vs harness fr
 >   python3 helpers/misc/analytics_fresh.py || rc=1; \
 >   if [ $$rc -eq 0 ]; then echo "✓ analytics stores fresh"; fi; \
 >   exit $$rc
+
+
+embgemma-server:  ## Start the EmbeddingGemma-2 llama-server (Q8_0 from models/) on 127.0.0.1:8732 — Ctrl-C to stop; gemma_embedder only ever assumes it is running (D3), never spawns it
+> @if [ -n "$$EMBGEMMA_LLAMA_BIN" ]; then bin=$$EMBGEMMA_LLAMA_BIN; \
+> elif command -v llama-server >/dev/null 2>&1; then bin=llama-server; \
+> elif [ -x /mnt/data/tmp/embgemma2/llama.cpp/build/bin/llama-server ]; then bin=/mnt/data/tmp/embgemma2/llama.cpp/build/bin/llama-server; \
+> else echo "llama-server not found — build llama.cpp master past PR #30054 (doc/local/evaluations/emb_gemma_assessment.md §2) or set EMBGEMMA_LLAMA_BIN"; exit 1; fi; \
+> echo "embgemma-server: $$bin (Ctrl-C to stop)"; \
+> $$bin -m models/embeddinggemma-2-Q8_0.gguf --embeddings --pooling mean --host 127.0.0.1 --port 8732 -c 8192 -b 2048 -ub 2048 -t 4
 
 
 teleocr-server:  ## Start the TeleOCR llama-server (Q4_K_M + mmproj from models/) on 127.0.0.1:8731 — Ctrl-C to stop; teleocr_engine only ever assumes it is running (D3), never spawns it

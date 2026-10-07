@@ -92,6 +92,9 @@ def fake_local(seeded, monkeypatch):
     monkeypatch.setattr(LE, "embed_document", _vec)
     monkeypatch.setattr(LE, "embed_query", _vec)
     monkeypatch.setattr(LE, "DIM", 8)
+    # Force the shared (granite) path: otherwise the availability default
+    # would resolve the live gemma sidecar here and defeat the fake.
+    monkeypatch.setenv("SCRIPT_EMBEDDER", "granite")
     rss.rebuild(write=True)  # resolve_embedder -> fake via local_embedder
     return LE
 

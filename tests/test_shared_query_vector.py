@@ -460,7 +460,13 @@ class TestLiveNoLocalLoad:
             out = rss_mod.search_scripts(conn, _Q, limit=_LIM, query_vec=qv)
         finally:
             conn.close()
-        assert out["mode"] == "hybrid" and out["results"]
+        # Gemma-stamped live index (script_search_gemma_adoption): the
+        # granite shared vector is stamp-rejected by design, so the leg
+        # falls back to its own (gemma sidecar) embed and the paraphrase
+        # query routes vector-only. Either stamp's healthy mode passes
+        # (rollback-safe); the granite hooks above still prove no granite
+        # load happens on this path.
+        assert out["mode"] in ("hybrid", "vector") and out["results"]
 
         rms_mod, conn = _live_memory()
         try:

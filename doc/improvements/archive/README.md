@@ -243,6 +243,12 @@ commit, referenced by nothing). Entry numbers point at
 
 ## tooling/ — Tooling & performance — MCP eval, doc browser/search, perf review, tech survey
 
+- [`script_search_gemma_adoption.md`](tooling/script_search_gemma_adoption.md) —
+  script_search gemma adoption — EmbeddingGemma-2 Q8@512 vector-primary
+  for scripts: D3 sidecar client + per-surface selector (granite default
+  untouched), vector-only mode + identifier router, both-sides
+  prefix/stamp contract tests, 54-q bank gate (live intent 0.964, ident
+  8/8) — completed.md #363
 - [`improvs_backlog_record.md`](tooling/improvs_backlog_record.md) —
   improvs backlog record — the 2026-10-05 backlog (21 rows, 5
   categories) recorded into the perpetual tracker, then the gitignored

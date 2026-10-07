@@ -9512,3 +9512,39 @@ the previously parked `graph_l1_centrality` at 3.92s), advisory 12/14
 (ty-tests = pre-existing non-arc traces-file errors; convo-fresh =
 live-store drift class). Eval gate: N/A recorded — no query-visible
 semantics change.
+
+## 363. script_search gemma adoption — EmbeddingGemma-2 Q8@512 vector-primary for scripts
+
+Follows the 2026-10-07 eval verdict (ADOPT scripts now; HOLD notes/docs;
+KEEP granite elsewhere) and the same-day operator ruling KEEP Q8_0 after
+the Q6 recall leg ran (§4.7: Q6 matches Q8 on every labelled leg but its
++7-10% throughput is too minimal — Q6 stays rehabilitated-on-record as
+the fallback). **S1**: `helpers/core/gemma_embedder.py` — D3
+assume-running sidecar client (127.0.0.1:8732, `make embgemma-server`;
+llama-cpp-python 0.3.36 cannot load the arch so no in-process path
+exists), truncate-768->512 + re-normalise, two-sided prefixes (query
+side in the module, doc-side `title: {t} | text: {c}` basis at the
+index site), stamp `embeddinggemma-2-q8_512`; per-surface selector
+(default follows gemma availability, so house rebuilds cannot silently
+un-migrate — a default-granite draft let one search-fresh revert the
+cutover, caught by the bank gate; `SCRIPT_EMBEDDER=granite` forces the
+shared path; `local_embedder` constants never swapped) with
+warn-and-fall-back; gemma path wires
+`purge_foreign=False` (94,635 granite cache rows intact, 551 gemma rows
+added). **S2**: vector-only ranking mode + `is_identifier_query` router
+(single token or code punctuation → lexical, else vector), stamp-decided
+shapes, granite default byte-identical. **S3**: `tests/test_gemma_adoption.py`
+(29 tests: both-sides prefix pin, stamp, selector, bank-pinned router
+boundary 8/8 + 0/46, no-purge wiring) + the repo bank
+`helpers/misc/script_eval_questions.json` (46 intent + 8 ident) +
+`helpers/bench/script_eval_bank.py` gate (floors intent 0.94 / ident
+1.000). **S4**: production cutover 548/548 rows gemma-stamped; gate on
+live: intent MRR 0.964 / R@5 1.000, ident 8/8 MRR 1.000 (granite
+like-for-like baseline 0.914 / 0.643). Found along the way (not fixed,
+out of scope): the `local_embedder._MODEL` singleton bypasses the
+conftest pin once a live-embedding module loads it — suites running
+`test_shared_query_vector` before `test_local_embedder` redden the
+refuses-when-unavailable gate; full-suite alphabetical order is
+unaffected. Verified: targeted script/master/embed suites green, ruff +
+`ty` clean, search-fresh converged. Raw material: `bench_data/embgemma2/`
+(gitignored eval archive).

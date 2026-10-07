@@ -34,6 +34,12 @@ entry number and stale DONE pointers):
 
 ## Current live proposals
 
+_(none)_ — archived 2026-10-07: `script_search_gemma_adoption`
+(`../archive/tooling/`, completed.md #363) — EmbeddingGemma-2 Q8@512
+vector-primary for `script_search` (D3 sidecar client, per-surface
+selector, vector-only mode + identifier router, prefix/stamp contract
+tests, 54-q bank gate green on live: intent 0.964, ident 8/8).
+
 _(none)_ — archived 2026-10-07: `desktop_ipc_shape_guards`
 (`../archive/ui/`, completed.md #362) — valibot schemas over the
 Tauri app's 20 wire structs (the 21st `pub struct`, `Db`, never

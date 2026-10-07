@@ -1,0 +1,317 @@
+{
+ "provenance": "emb_gemma_assessment \u00a7\u00a73.2/3.4/3.5; banks live at bench_data/embgemma2/scripts/ (code_questions.json: 28 easy from a 70-row index sample; code_questions_hard.json: 18 hard with answers in details: sections; scripts-leg 8 of ident_leg.py, seed 11 pools). Absolute numbers optimistic (lexical leakage, single author); like-for-like ordering is the signal.",
+ "intent": [
+  {
+   "q": "is a pinned worker pool actually faster than serial embedding on this box",
+   "expected": [
+    "helpers/bench/embed_pool_probe.py"
+   ]
+  },
+  {
+   "q": "convert stored vectors between JSON text and compact binary float32 blobs",
+   "expected": [
+    "helpers/core/vec_codec.py"
+   ]
+  },
+  {
+   "q": "scan every commit blob in the repo for leaked API keys",
+   "expected": [
+    "helpers/misc/git_secret_scan.py"
+   ]
+  },
+  {
+   "q": "rename a company across the whole knowledge graph atomically",
+   "expected": [
+    "helpers/maintenance/rename_entity.py"
+   ]
+  },
+  {
+   "q": "which environment variable holds the key for each OCR vendor",
+   "expected": [
+    "helpers/misc/ocr_key_map.py"
+   ]
+  },
+  {
+   "q": "pull exchange integrated filing XBRL numbers into the company metrics table",
+   "expected": [
+    "helpers/maintenance/ingest_nse_xbrl.py"
+   ]
+  },
+  {
+   "q": "check whether the analytics parquet store has gone stale",
+   "expected": [
+    "helpers/misc/analytics_fresh.py"
+   ]
+  },
+  {
+   "q": "keep only the newest scratch file per template and prune the rest",
+   "expected": [
+    "tests/test_tmp_hygiene.py"
+   ]
+  },
+  {
+   "q": "retry ladder when a duckdb file is locked by another process",
+   "expected": [
+    "helpers/misc/duckdb_lock.py",
+    "tests/test_duckdb_lock.py"
+   ]
+  },
+  {
+   "q": "compare sqlite fts5 ranking against duckdb bm25 on the notes index",
+   "expected": [
+    "helpers/bench/fts_duckdb_parity.py",
+    "tests/test_fts_duckdb_parity.py"
+   ]
+  },
+  {
+   "q": "simd versus parallel cosine scan at 100 thousand vectors in mojo",
+   "expected": [
+    "Mojo/src/bench/bench_scale.mojo"
+   ]
+  },
+  {
+   "q": "regression tests for the patched yaml lexer under the vendored mojo parser",
+   "expected": [
+    "Mojo/tests/test_yaml_frontmatter.mojo"
+   ]
+  },
+  {
+   "q": "browser view with entity cards, list toggle and pagination",
+   "expected": [
+    "frontend/src/views/companies.ts"
+   ]
+  },
+  {
+   "q": "utilities every frontend view uses to build dom nodes",
+   "expected": [
+    "frontend/src/core/dom.ts"
+   ]
+  },
+  {
+   "q": "find overlapping communities from the hyperedge incidence store",
+   "expected": [
+    "helpers/graph/hyper_communities.py"
+   ]
+  },
+  {
+   "q": "create edges when two companies appear in the same newsletter block",
+   "expected": [
+    "helpers/graph/derive_co_mentions.py"
+   ]
+  },
+  {
+   "q": "does the typescript frontend still agree with the backend json types",
+   "expected": [
+    "tests/test_integration_ts_contract.py"
+   ]
+  },
+  {
+   "q": "tests pinning the desktop app security posture",
+   "expected": [
+    "tests/test_desktop_security_posture.py"
+   ]
+  },
+  {
+   "q": "approve or reject queued pending relations workflow tests",
+   "expected": [
+    "tests/test_triage_pending_relations.py"
+   ]
+  },
+  {
+   "q": "ingest shareholding pattern disclosures from the exchange rss feed",
+   "expected": [
+    "helpers/maintenance/shareholding_sync.py"
+   ]
+  },
+  {
+   "q": "cumulative coverage gate that must never regress across arcs",
+   "expected": [
+    "helpers/validators/coverage_ledger.py"
+   ]
+  },
+  {
+   "q": "read and write yaml front matter in markdown notes",
+   "expected": [
+    "helpers/core/frontmatter.py"
+   ]
+  },
+  {
+   "q": "fill in missing agent identity and source tier on existing rows",
+   "expected": [
+    "helpers/misc/backfill_row_provenance.py"
+   ]
+  },
+  {
+   "q": "sync new exchange listings and ipo intake",
+   "expected": [
+    "helpers/maintenance/exchange_sync.py"
+   ]
+  },
+  {
+   "q": "worker function run inside a process pool for relation extraction",
+   "expected": [
+    "helpers/graph/_extract_worker.py"
+   ]
+  },
+  {
+   "q": "graph algorithms backed by onager instead of networkx",
+   "expected": [
+    "helpers/graph/onager.py"
+   ]
+  },
+  {
+   "q": "rebuild the full text search index over the vault markdown",
+   "expected": [
+    "helpers/maintenance/rebuild_note_search.py"
+   ]
+  },
+  {
+   "q": "rebuild the nse index constituent membership table",
+   "expected": [
+    "helpers/maintenance/index_sync.py"
+   ]
+  },
+  {
+   "q": "why does the ticker lookup fail with a 422 on long company names and what does the free tier not allow",
+   "expected": [
+    "helpers/maintenance/finnhub_search.py"
+   ]
+  },
+  {
+   "q": "validator that rejects unknown keys in note front matter using json schemas per note type",
+   "expected": [
+    "helpers/validators/frontmatter_schema.py"
+   ]
+  },
+  {
+   "q": "frozen binary adjacency layout with int32 offsets and neighbor ids sorted ascending, ids from sorted names",
+   "expected": [
+    "helpers/graph/csr.py"
+   ]
+  },
+  {
+   "q": "serialize a scored ego subgraph into markdown meant to be consumed by an llm agent",
+   "expected": [
+    "helpers/graph/context_pack.py"
+   ]
+  },
+  {
+   "q": "reconcile geography keys on notes with exchange tickers, deduping extra tags",
+   "expected": [
+    "helpers/maintenance/geo_converge.py"
+   ]
+  },
+  {
+   "q": "ask one narrow yes no question to a free decisions endpoint and get a probability distribution back",
+   "expected": [
+    "helpers/core/typed_judgment.py"
+   ]
+  },
+  {
+   "q": "why aligned float32 matrices matter: vector loads segfaulted on misaligned inputs",
+   "expected": [
+    "helpers/core/embed_matrix.py"
+   ]
+  },
+  {
+   "q": "populate company vector rows with hash vectors for dry runs or the real local model",
+   "expected": [
+    "helpers/graph/embeddings.py"
+   ]
+  },
+  {
+   "q": "assert every touched test family has a selected file because an inert lane once shipped",
+   "expected": [
+    "helpers/misc/review_selection.py"
+   ]
+  },
+  {
+   "q": "git diff driver that prints schema and a deterministic row sample for binary columnar files",
+   "expected": [
+    "helpers/misc/parquet_textconv.py"
+   ]
+  },
+  {
+   "q": "auto generated section listing every company in a sector as wikilinks with no phantom links",
+   "expected": [
+    "helpers/maintenance/sync_sector_wikilinks.py"
+   ]
+  },
+  {
+   "q": "why promoter level ownership edges cannot be derived from the public filing feed with masked ids",
+   "expected": [
+    "helpers/maintenance/shareholding_sync.py"
+   ]
+  },
+  {
+   "q": "the index keeps pointers into the archive plus a short snippet rather than full conversation bodies",
+   "expected": [
+    "helpers/maintenance/rebuild_convo_search.py"
+   ]
+  },
+  {
+   "q": "registry for lei isin cik and historic corporate identification numbers versus the live one on entities",
+   "expected": [
+    "helpers/misc/backfill_identifiers.py"
+   ]
+  },
+  {
+   "q": "rebuild the tag table from note metadata with delete and reinsert so it self heals",
+   "expected": [
+    "helpers/core/sync_tags.py"
+   ]
+  },
+  {
+   "q": "score ranking variants for industry code suggestion against operator attested crosswalk pins",
+   "expected": [
+    "helpers/misc/nic_scorer_bench.py"
+   ]
+  },
+  {
+   "q": "why per commit grep for secrets blew up and what single pass approach replaced it",
+   "expected": [
+    "helpers/misc/git_secret_scan.py"
+   ]
+  },
+  {
+   "q": "rounding json doubles to float32 changed cosine by less than one in a hundred million",
+   "expected": [
+    "helpers/core/vec_codec.py"
+   ]
+  }
+ ],
+ "ident": [
+  {
+   "q": "fork_map",
+   "substr": "fork_map"
+  },
+  {
+   "q": "token_type_count",
+   "substr": "token_type_count"
+  },
+  {
+   "q": "zeMemAllocShared",
+   "substr": "zeMemAllocShared"
+  },
+  {
+   "q": "PARQUET_TEXTCONV_ROWS",
+   "substr": "PARQUET_TEXTCONV_ROWS"
+  },
+  {
+   "q": "rev-list --all --objects",
+   "substr": "rev-list --all --objects"
+  },
+  {
+   "q": "unpack_f32",
+   "substr": "unpack_f32"
+  },
+  {
+   "q": "vmovaps",
+   "substr": "vmovaps"
+  },
+  {
+   "q": "CachedEmbed",
+   "substr": "CachedEmbed"
+  }
+ ]
+}
