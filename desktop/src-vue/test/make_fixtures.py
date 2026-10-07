@@ -76,14 +76,16 @@ def main() -> None:
 def _stats(conn: sqlite3.Connection) -> dict:
     entities = conn.execute("SELECT COUNT(*) FROM entities").fetchone()[0]
     edges = conn.execute("SELECT COUNT(*) FROM graph_edges").fetchone()[0]
+    # Rust `Vec<(String, i64)>` serializes as JSON arrays of pairs — mirror
+    # that (App.vue destructures `[type, count]`), not objects.
     entity_types = [
-        {"type": r[0], "count": r[1]}
+        [r[0], r[1]]
         for r in conn.execute(
             "SELECT entity_type, COUNT(*) AS n FROM entities GROUP BY 1 ORDER BY n DESC"
         ).fetchall()
     ]
     edge_types = [
-        {"type": r[0], "count": r[1]}
+        [r[0], r[1]]
         for r in conn.execute(
             "SELECT edge_type, COUNT(*) AS n FROM graph_edges GROUP BY 1 ORDER BY n DESC"
         ).fetchall()

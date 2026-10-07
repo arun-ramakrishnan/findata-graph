@@ -34,15 +34,13 @@ entry number and stale DONE pointers):
 
 ## Current live proposals
 
-`desktop_ipc_shape_guards` — PROPOSED 2026-10-06: the desktop-side
-twin of ts_contract_hardening — the Tauri app's 14 `invoke()` results
-are consumed as `any` by src-vue (the 21 `findata-core` structs type
-only the producer), so a Rust field rename reaches the UI as a quiet
-`undefined`; fix = hand-written valibot schemas over the IPC contract,
-one validated `ipc()` wrapper in api.js, and a fixture-driven contract
-gate anchored on the existing `make fixtures` pipeline (real
-research.db payloads). Compiled-in dist makes the stale-bundle
-concern structurally N/A (recorded, S4). S1–S4, awaiting review.
+_(none)_ — archived 2026-10-07: `desktop_ipc_shape_guards`
+(`../archive/ui/`, completed.md #362) — valibot schemas over the
+Tauri app's 20 wire structs (the 21st `pub struct`, `Db`, never
+crosses the IPC), one `ipc()` wrapper validating all 14 `invoke()`
+results (`IpcShapeError` names cmd + dot path), the fixture-driven
+contract gate (`make contract` / `make check`) that caught the live
+stats tuple drift in-survey, and the build-hygiene note.
 
 _(none)_ — archived 2026-10-07: `shared_query_vector`
 (`../archive/tooling/`, completed.md #360) and `ts_contract_hardening`

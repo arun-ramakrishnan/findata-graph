@@ -3,128 +3,128 @@ export const FIXTURES = {
     "entities": 26160,
     "edges": 57574,
     "entity_types": [
-      {
-        "type": "company",
-        "count": 25475
-      },
-      {
-        "type": "institution",
-        "count": 250
-      },
-      {
-        "type": "sub_sector",
-        "count": 142
-      },
-      {
-        "type": "edition",
-        "count": 121
-      },
-      {
-        "type": "index",
-        "count": 57
-      },
-      {
-        "type": "sector",
-        "count": 42
-      },
-      {
-        "type": "person",
-        "count": 30
-      },
-      {
-        "type": "country",
-        "count": 21
-      },
-      {
-        "type": "theme",
-        "count": 12
-      },
-      {
-        "type": "super_sector",
-        "count": 10
-      }
+      [
+        "company",
+        25475
+      ],
+      [
+        "institution",
+        250
+      ],
+      [
+        "sub_sector",
+        142
+      ],
+      [
+        "edition",
+        121
+      ],
+      [
+        "index",
+        57
+      ],
+      [
+        "sector",
+        42
+      ],
+      [
+        "person",
+        30
+      ],
+      [
+        "country",
+        21
+      ],
+      [
+        "theme",
+        12
+      ],
+      [
+        "super_sector",
+        10
+      ]
     ],
     "edge_types": [
-      {
-        "type": "supplier_to",
-        "count": 16600
-      },
-      {
-        "type": "subsidiary_of",
-        "count": 11596
-      },
-      {
-        "type": "same_group",
-        "count": 9828
-      },
-      {
-        "type": "listed_on_index",
-        "count": 6615
-      },
-      {
-        "type": "competes_with",
-        "count": 3578
-      },
-      {
-        "type": "cited_in",
-        "count": 1961
-      },
-      {
-        "type": "co_mentioned_in",
-        "count": 1329
-      },
-      {
-        "type": "has_company",
-        "count": 1192
-      },
-      {
-        "type": "part_of",
-        "count": 1192
-      },
-      {
-        "type": "jv_with",
-        "count": 1089
-      },
-      {
-        "type": "listed_in",
-        "count": 930
-      },
-      {
-        "type": "invested_in",
-        "count": 800
-      },
-      {
-        "type": "exposed_to",
-        "count": 359
-      },
-      {
-        "type": "rated_by",
-        "count": 216
-      },
-      {
-        "type": "belongs_to",
-        "count": 184
-      },
-      {
-        "type": "acquired",
-        "count": 55
-      },
-      {
-        "type": "semantic_peer",
-        "count": 24
-      },
-      {
-        "type": "regulated_by",
-        "count": 17
-      },
-      {
-        "type": "approved_by",
-        "count": 8
-      },
-      {
-        "type": "customer_of",
-        "count": 1
-      }
+      [
+        "supplier_to",
+        16600
+      ],
+      [
+        "subsidiary_of",
+        11596
+      ],
+      [
+        "same_group",
+        9828
+      ],
+      [
+        "listed_on_index",
+        6615
+      ],
+      [
+        "competes_with",
+        3578
+      ],
+      [
+        "cited_in",
+        1961
+      ],
+      [
+        "co_mentioned_in",
+        1329
+      ],
+      [
+        "has_company",
+        1192
+      ],
+      [
+        "part_of",
+        1192
+      ],
+      [
+        "jv_with",
+        1089
+      ],
+      [
+        "listed_in",
+        930
+      ],
+      [
+        "invested_in",
+        800
+      ],
+      [
+        "exposed_to",
+        359
+      ],
+      [
+        "rated_by",
+        216
+      ],
+      [
+        "belongs_to",
+        184
+      ],
+      [
+        "acquired",
+        55
+      ],
+      [
+        "semantic_peer",
+        24
+      ],
+      [
+        "regulated_by",
+        17
+      ],
+      [
+        "approved_by",
+        8
+      ],
+      [
+        "customer_of",
+        1
+      ]
     ]
   },
   "sectors": [
@@ -2504,6 +2504,10 @@ export const FIXTURES = {
       "title": "company embeddings maint"
     },
     {
+      "path": "doc/improvements/archive/database/convo_search_swap_rebuild.md",
+      "title": "convo search swap rebuild"
+    },
+    {
       "path": "doc/improvements/archive/database/duckdb_improvs.md",
       "title": "DuckDB Improvements \u2014 core features, SQL, & extension surface"
     },
@@ -2518,6 +2522,10 @@ export const FIXTURES = {
     {
       "path": "doc/improvements/archive/database/embedding_blob_migration.md",
       "title": "embedding blob migration"
+    },
+    {
+      "path": "doc/improvements/archive/database/generic_analytics_lane.md",
+      "title": "generic analytics lane"
     },
     {
       "path": "doc/improvements/archive/database/granite_reprobe_multilingual.md",
@@ -2594,6 +2602,10 @@ export const FIXTURES = {
     {
       "path": "doc/improvements/archive/graph/country_layer_institution_lanes.md",
       "title": "country layer institution lanes"
+    },
+    {
+      "path": "doc/improvements/archive/graph/csr_freshness_lane.md",
+      "title": "csr freshness lane"
     },
     {
       "path": "doc/improvements/archive/graph/csr_lane_remediation.md",
@@ -2680,6 +2692,10 @@ export const FIXTURES = {
       "title": "graph perf l1 bfs scale"
     },
     {
+      "path": "doc/improvements/archive/graph/graph_rebuild_fast_path.md",
+      "title": "graph rebuild fast path"
+    },
+    {
       "path": "doc/improvements/archive/graph/graph_rebuild_scaling_probe.md",
       "title": "graph rebuild scaling probe"
     },
@@ -2746,6 +2762,10 @@ export const FIXTURES = {
     {
       "path": "doc/improvements/archive/graph/person_resolver_lane.md",
       "title": "person resolver lane"
+    },
+    {
+      "path": "doc/improvements/archive/graph/preannotate_escalation_logic_flaws.md",
+      "title": "preannotate escalation logic flaws"
     },
     {
       "path": "doc/improvements/archive/graph/qa_live_test_isolation.md",
@@ -2922,6 +2942,10 @@ export const FIXTURES = {
     {
       "path": "doc/improvements/archive/pipeline/relation_enrichment_sources.md",
       "title": "relation enrichment sources"
+    },
+    {
+      "path": "doc/improvements/archive/pipeline/teleocr_pdf_fallback.md",
+      "title": "teleocr pdf fallback"
     },
     {
       "path": "doc/improvements/archive/security/avail2_metric_regex_deAmbiguate.md",
@@ -3152,6 +3176,14 @@ export const FIXTURES = {
       "title": "graph docs ui polish"
     },
     {
+      "path": "doc/improvements/archive/tooling/improvs_backlog_record.md",
+      "title": "improvs backlog record"
+    },
+    {
+      "path": "doc/improvements/archive/tooling/jev_pilot_maintenance_gaps.md",
+      "title": "jev pilot maintenance gaps"
+    },
+    {
       "path": "doc/improvements/archive/tooling/libyaml_adoption_and_regex_hotspots.md",
       "title": "libyaml adoption and regex hotspots"
     },
@@ -3168,12 +3200,24 @@ export const FIXTURES = {
       "title": "markdown lint adoption"
     },
     {
+      "path": "doc/improvements/archive/tooling/master_search_age_guard.md",
+      "title": "master search age guard"
+    },
+    {
       "path": "doc/improvements/archive/tooling/mcp_tool_eval.md",
       "title": "mcp_tool_eval.md \u2014 codebase-memory-mcp hygiene audit (Aug 2026)"
     },
     {
       "path": "doc/improvements/archive/tooling/md_lint_cache.md",
       "title": "md lint cache"
+    },
+    {
+      "path": "doc/improvements/archive/tooling/memory_search_sidecar.md",
+      "title": "memory search sidecar"
+    },
+    {
+      "path": "doc/improvements/archive/tooling/model_analytics_self_contained.md",
+      "title": "model analytics self contained"
     },
     {
       "path": "doc/improvements/archive/tooling/mojo_db_integrity_port.md",
@@ -3225,7 +3269,7 @@ export const FIXTURES = {
     },
     {
       "path": "doc/improvements/archive/tooling/pending_improvs.md",
-      "title": "Pending Improvements \u2014 HISTORICAL (Bundles A\u2013F closed)"
+      "title": "Pending Improvements \u2014 perpetual improvements tracker"
     },
     {
       "path": "doc/improvements/archive/tooling/perf_improvs.md",
@@ -3276,6 +3320,10 @@ export const FIXTURES = {
       "title": "shared corpus incremental derive"
     },
     {
+      "path": "doc/improvements/archive/tooling/shared_query_vector.md",
+      "title": "shared query vector"
+    },
+    {
       "path": "doc/improvements/archive/tooling/shared_routines_cli_guards.md",
       "title": "shared routines cli guards"
     },
@@ -3324,6 +3372,14 @@ export const FIXTURES = {
       "title": "validator lint cleanup"
     },
     {
+      "path": "doc/improvements/archive/tooling/zcode_conversation_ingest_repair.md",
+      "title": "zcode conversation ingest repair"
+    },
+    {
+      "path": "doc/improvements/archive/tooling/zcode_rollout_step_ingest.md",
+      "title": "zcode rollout step ingest"
+    },
+    {
       "path": "doc/improvements/archive/ui/consolidate_frontend_reader.md",
       "title": "consolidate frontend reader"
     },
@@ -3352,6 +3408,10 @@ export const FIXTURES = {
       "title": "sugar high highlighter"
     },
     {
+      "path": "doc/improvements/archive/ui/ts_contract_hardening.md",
+      "title": "ts contract hardening"
+    },
+    {
       "path": "doc/improvements/archive/ui/unified_search.md",
       "title": "unified search"
     },
@@ -3368,8 +3428,8 @@ export const FIXTURES = {
       "title": "Live proposals"
     },
     {
-      "path": "doc/improvements/proposals/graph_rebuild_fast_path.md",
-      "title": "graph rebuild fast path"
+      "path": "doc/improvements/proposals/desktop_ipc_shape_guards.md",
+      "title": "desktop ipc shape guards"
     },
     {
       "path": "doc/okf/README.md",

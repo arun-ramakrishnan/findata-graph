@@ -53,6 +53,13 @@ but resolves `frontendDist` from `src-tauri/` — so the conf uses
 (needed only for Windows/macOS — generate via `cargo tauri icon`
 when those targets ship).
 
+Build hygiene (ipc_guards S4): the UI is compiled INTO the binary
+(`frontendDist: ../src-vue/dist`), so the HTTP SPA's stale-bundle
+window cannot occur at runtime — but a binary built from a stale
+`dist` bakes stale UI in. `make build` and `make bundle` rebuild the
+frontend first; a bare `cd src-tauri && cargo build --release` does
+NOT — run `npm --prefix src-vue run build` yourself before it.
+
 ## Test fixtures (freshness)
 
 `src-vue/test/fixtures.js` is generated from the live `memory/research.db`
@@ -66,6 +73,13 @@ The Rust tests (`make test`) always run against the live DB, not the
 fixtures; the fixtures only drive the headless harness (`make smoke`
 via `test.html`). Stale fixtures → smoke screenshots drift from the live
 app; re-run `make fixtures` and re-shoot.
+
+The IPC contract gate (`make contract`, ipc_guards S3) asserts every
+fixture payload against `src/lib/schemas.js` — the valibot mirror of the
+Rust return types that `api.js` also validates every `invoke()` result
+against (S1/S2). Regenerating fixtures after a Rust struct change
+without updating a schema fails `make check` naming the command and
+field.
 
 ## What the app does
 

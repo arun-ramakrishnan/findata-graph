@@ -9478,3 +9478,37 @@ Verified: contract 73/73, battery 14/14, tsc/prettier clean; gates qa
 non-arc traces-file errors; convo-fresh-check = live-store drift
 class), perf parked (timing leg). Follow-up filed:
 `desktop_ipc_shape_guards` (Tauri IPC shapes).
+
+## 362. desktop IPC shape guards — valibot schemas over the Tauri invoke surface
+
+Filed 2026-10-06, executed 2026-10-07 (`desktop_ipc_shape_guards`
+proposal, `doc/improvements/archive/ui/`). The Vue side assumed the
+shapes of all 14 Tauri `invoke()` results with nothing checking: the
+Rust structs type the producer only, `api.js` returned raw promises,
+and `store.js` consumed everything as `any` under checkJs — a Rust
+field rename reached the UI as a quiet `undefined`. **S1**: `lib/schemas.js`
+— hand-written valibot schemas for the 20 wire structs (the 21st
+`pub struct`, `Db`, is the connection handle, never serialized) plus
+an `AnalyticsValue` union for the inner analytics shapes.
+**S2**: one `ipc(schema, cmd, args)` helper throwing
+`IpcShapeError(cmd, path, message)`; all 14 wrappers one-liners over
+it, names/args unchanged so `store.js` needed no edits — its
+try/catch surfaces drift loudly; MetricsPanel's prober interprets
+only schema-valid input. **S3**: `test/contract.test.js` (node:test)
+asserts every `fixtures.js` payload against its schema, wired as
+`make contract` / `make check` — and the survey's live drift (stats
+fixtures emitted `{type, count}` objects where Rust
+`Vec<(String, i64)>` serializes `[type, count]` pairs and `App.vue`
+destructures tuples) was fixed at the mirror and is now pinned; the
+AC2 shakedown proved the alarm (a `snippet`→`excerpt` rename failed
+the test naming command + field). **S4**: README build-hygiene note —
+the dist is compiled into the binary (stale-bundle N/A at runtime);
+a bare `cargo build --release` skips the frontend build, documented.
+Verified: desktop `make check` green (vue-tsc clean + contract
+14/14), `make fixtures` regenerates, ruff/md-lint/search-fresh green,
+repo `make frontend-check` untouched-green; gates qa 11/11 (run
+1301), integration 727/727 (run 1308), perf 26/26 (run 1303, incl.
+the previously parked `graph_l1_centrality` at 3.92s), advisory 12/14
+(ty-tests = pre-existing non-arc traces-file errors; convo-fresh =
+live-store drift class). Eval gate: N/A recorded — no query-visible
+semantics change.

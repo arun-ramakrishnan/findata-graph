@@ -5,7 +5,7 @@
 #   make test      data-layer tests against the live research.db (read-only)
 #   make build     production frontend + release binary
 
-.PHONY: install dev tauri test build clean fixtures smoke
+.PHONY: install dev tauri test build clean fixtures smoke contract check
 
 install:
 	npm --prefix src-vue install
@@ -46,6 +46,16 @@ bundle:
 # Svelte question closed — safety without a language migration).
 typecheck:
 	npm --prefix src-vue run typecheck
+
+# ipc_guards S3: the consumer-side contract gate — every fixtures.js
+# payload asserted against its lib/schemas.js schema (the valibot mirror
+# of the Rust return types). A Rust struct change (or make_fixtures.py
+# mirror update) that outpaces a schema fails here naming cmd + field.
+contract:
+	npm --prefix src-vue run test:contract
+
+# Full consumer-side check lane: types + IPC contract.
+check: typecheck contract
 
 test:
 	cd src-tauri && cargo test -p findata-core

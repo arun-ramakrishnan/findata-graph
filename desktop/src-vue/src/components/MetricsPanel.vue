@@ -88,21 +88,28 @@
 
 <script setup>
 import { computed } from 'vue'
+import * as v from 'valibot'
+import { AnalyticsValueSchema } from '../lib/schemas'
 import { store } from '../lib/store'
 
 // Split the raw analytics JSON into rankable scalars vs group labels.
-// Shapes mirror the Flask /api/graph/metrics split: {"value": float} ranks,
-// {"community"|"componentId"|"block": int} groups, payloads never arrive
-// (the core excludes link_prediction/voterank).
+// The inner value is schema-validated (AnalyticsValueSchema mirrors the
+// {value: f64} scalar / {community|componentId|block: int} label shapes;
+// payloads never arrive — the core excludes link_prediction/voterank) so
+// only known shapes get interpreted; anything else degrades to raw
+// display instead of being guessed at.
 function parse(metric, raw) {
   try {
-    const v = JSON.parse(raw)
-    if (typeof v?.value === 'number') return { kind: 'scalar', display: fmtNum(v.value) }
+    const probe = v.safeParse(AnalyticsValueSchema, JSON.parse(raw))
+    if (!probe.success) return { kind: 'raw', display: String(raw).slice(0, 40) }
+    // The schema pinned the shape; key-probing is display-only.
+    const val = /** @type {Record<string, unknown>} */ (probe.output)
+    if (typeof val.value === 'number') return { kind: 'scalar', display: fmtNum(val.value) }
     for (const k of ['community', 'componentId', 'block']) {
-      if (Number.isInteger(v?.[k])) return { kind: 'label', display: `#${v[k]}` }
+      if (Number.isInteger(val[k])) return { kind: 'label', display: `#${val[k]}` }
     }
   } catch {
-    /* fall through to raw */
+    /* invalid JSON or schema drift — fall through to raw */
   }
   return { kind: 'raw', display: String(raw).slice(0, 40) }
 }

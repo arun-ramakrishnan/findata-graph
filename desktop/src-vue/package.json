@@ -7,13 +7,15 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "typecheck": "vue-tsc --noEmit -p jsconfig.json"
+    "typecheck": "vue-tsc --noEmit -p jsconfig.json",
+    "test:contract": "node --test test/contract.test.js"
   },
   "dependencies": {
     "@tauri-apps/api": "^2.0.0",
     "@tauri-apps/plugin-opener": "^2.6.0",
     "d3": "^7.9.0",
     "markdown-it": "^14.1.0",
+    "valibot": "^1.5.0",
     "vue": "^3.5.0"
   },
   "devDependencies": {
