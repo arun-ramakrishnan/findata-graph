@@ -273,6 +273,7 @@ def _prime_agg(rows, source: str, con, since: date | None) -> int:
         _delete_window(con, source, since)
         con.executemany(
             f"""
+            INSERT INTO fact_usage
             (source, day, provider, model, reqs, fresh_in, cached, cache_write,
              output, reasoning, tokens, cost_usd, cost_basis, loaded_at)
             VALUES ('{source}', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, now())""",  # noqa: S608  # constants + fixed columns, not user input
