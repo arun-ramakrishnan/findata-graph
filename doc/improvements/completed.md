@@ -9609,3 +9609,24 @@ the `TestPurgeIsPerCohort` pin (doc purge keeps script-cohort gemma
 rows; own cohort still GC'd; batch path same). Verified: 44 passed +
 2 live-skips, ruff + `ty` clean; post-fix `search-fresh` APPLY ran all
 four legs in ~15 s with gemma rows intact (was 15-20 min + wipe).
+
+## 366. Granite sidecar selector — filed and archived DEFERRED same day
+
+**2026-10-08 — filed and archived DEFERRED the same day, never
+executed.** Proposal: prefer a shared granite llama-server (a third leg
+on the unified vendored binary, proposed :8733) for embed workloads
+over per-process in-process loads — in-process models bill per process
+(each xdist worker / parallel session holds its own weights + compute
+buffers), while the sidecar pattern shares one instance at ~1 ms client
+cost vs granite's ~4 ms warm in-process embed. In-process granite STAYS
+the always-works fallback (no surface gains a hard server dependency);
+gemma stays sidecar-required with `guard_gemma_stamp` refusals. Slices
+sketched for execution: a `granite-server` target + `llamacpp-health`
+leg, `GRANITE_EMBEDDER=auto|sidecar|process` (no demotion guard needed
+— a runtime swap does not change the model label), the cache-key
+decision (sidecar vs in-process embeds are near-identity cos 0.99984,
+not bit-identical), tests stay hermetic. Deferred rationale + four
+revisit triggers (measured parallel-run overhead, a fourth gemma
+surface, the PyPI llama-cpp-python wheel shipping llama.cpp #30054,
+trivial-RSS scratch de-risk) in §5 of the archived copy. Raw record:
+`doc/improvements/archive/tooling/granite_sidecar_selector.md`.

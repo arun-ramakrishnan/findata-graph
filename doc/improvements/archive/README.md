@@ -249,6 +249,11 @@ commit, referenced by nothing). Entry numbers point at
   untouched), vector-only mode + identifier router, both-sides
   prefix/stamp contract tests, 54-q bank gate (live intent 0.964, ident
   8/8) — completed.md #363
+- [`granite_sidecar_selector.md`](tooling/granite_sidecar_selector.md) —
+  prefer a shared granite llama-server (third leg on the unified binary,
+  proposed :8733) for embed workloads; in-process granite stays the
+  always-works fallback — filed and archived **DEFERRED** same day
+  (never executed; revisit triggers in §5) — completed.md #366
 - [`llamacpp_unified_server_build.md`](tooling/llamacpp_unified_server_build.md) —
   one owned llama.cpp build for both server legs (pinned `78651c4` +
   vendored qwen2vl head_dim patch — upstream still unfixed; the two

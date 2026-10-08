@@ -8,6 +8,7 @@ module's own contracts (model keying, degradation, length guard).
 """
 
 import sqlite3
+from pathlib import Path
 
 from helpers.core.embed_cache import EMBED_CACHE_TABLE, cached_embed_batch
 
@@ -234,3 +235,37 @@ class TestPoolWorkers:
         assert LE._pool_workers(100, None) == 2
         monkeypatch.setenv("EMBED_POOL_WORKERS", "bogus")
         assert LE._pool_workers(100, None) == 4  # unparsable -> default
+
+
+class TestNoIndexerAutoPurges:
+    """2026-10-08 doctrine: NO automatic model-difference purge anywhere.
+
+    The cache is a (text_hash, model) memo — a stamp-mismatched index can
+    never READ another model's rows, so foreign rows are rollback
+    insurance, not garbage; dead-text eviction belongs to `make embed-gc`.
+    Three live incidents (global purge, per-cohort purge, then a
+    sidecar-down fallback rebuild that flipped the stamp and purged with
+    it) each destroyed the adopted gemma script cache before this landed.
+    ``purge_foreign_models`` survives as an explicit one-off retirement
+    tool; its tests live in TestPurgeIsPerCohort / test_vec_search."""
+
+    PRODUCTION_FILES = (
+        "helpers/core/embed_cache.py",
+        "helpers/maintenance/rebuild_note_search.py",
+        "helpers/maintenance/rebuild_doc_search.py",
+        "helpers/maintenance/rebuild_memory_search.py",
+        "helpers/maintenance/rebuild_convo_search.py",
+        "helpers/maintenance/rebuild_script_search.py",
+        "helpers/graph/embeddings.py",
+    )
+
+    def test_no_production_caller_opts_into_purge(self):
+        root = Path(__file__).resolve().parents[1]
+        offenders = []
+        for rel in self.PRODUCTION_FILES:
+            for i, line in enumerate(
+                (root / rel).read_text(encoding="utf-8").splitlines(), start=1
+            ):
+                if "purge_foreign=True" in line or "purge_foreign=not" in line:
+                    offenders.append(f"{rel}:{i}")
+        assert offenders == []

@@ -533,9 +533,10 @@ def rebuild(
                 embed_fn, embed_dims, model_label = rds.resolve_embedder()
                 stats["embed_model"] = model_label
                 if model_label != f"dry-run-v{rds._PSEUDO_DIMS}":
-                    embed_fn = CachedEmbed(
-                        embed_fn, model_label, conn, source="memory", purge_foreign=True
-                    )
+                    # No automatic model-difference purge (2026-10-08): a
+                    # prior-model row is rollback insurance, dead-text
+                    # eviction is `make embed-gc`.
+                    embed_fn = CachedEmbed(embed_fn, model_label, conn, source="memory")
             else:
                 # --check: verdict is source-file content-hash — skip model
                 # resolution + cache (the house --check doctrine).

@@ -422,7 +422,7 @@ embgemma-server:  ## Start the EmbeddingGemma-2 llama-server (Q8_0 from models/)
 > elif [ -x /mnt/data/tmp/embgemma2/llama.cpp/build/bin/llama-server ]; then bin=/mnt/data/tmp/embgemma2/llama.cpp/build/bin/llama-server; \
 > else echo "llama-server not found — make llamacpp-build (vendor/llamacpp, one binary for both legs) or set EMBGEMMA_LLAMA_BIN"; exit 1; fi; \
 > echo "embgemma-server: $$bin (Ctrl-C to stop)"; \
-> $$bin -m models/embeddinggemma-2-Q8_0.gguf --embeddings --pooling mean --host 127.0.0.1 --port 8732 -c 8192 -b 2048 -ub 2048 -t 4
+> $$bin -m models/embeddinggemma-2-Q8_0.gguf --embeddings --pooling mean --host 127.0.0.1 --port 8732 -c 16384 -b 16384 -ub 16384 -t 4
 
 
 teleocr-server:  ## Start the TeleOCR llama-server (Q4_K_M + mmproj from models/) on 127.0.0.1:8731 — Ctrl-C to stop; teleocr_engine only ever assumes it is running (D3), never spawns it

@@ -270,13 +270,14 @@ def populate_local(conn: sqlite3.Connection, company: str | None = None) -> int:
     # Index side is embed_document — never the BGE query prefix; see
     # local_embedder.
     texts = [_get_company_text(conn, n) for n in names]
+    # No automatic model-difference purge (2026-10-08): a prior-model row
+    # is rollback insurance, dead-text eviction is `make embed-gc`.
     vecs, cache_stats = cached_embed_batch(
         conn,
         texts,
         local_embedder.MODEL_ID,
         local_embedder.embed_documents_parallel,
         source="company",
-        purge_foreign=True,
     )
     # Stable-write upsert (maint_full_zero_churn F2): an unchanged vector
     # writes NOTHING — INSERT OR REPLACE here used to delete+reinsert every

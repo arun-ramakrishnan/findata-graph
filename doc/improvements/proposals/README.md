@@ -34,6 +34,13 @@ entry number and stale DONE pointers):
 
 ## Current live proposals
 
+_(none)_ — `granite_sidecar_selector` was FILED and ARCHIVED
+**DEFERRED** the same day (2026-10-08, never executed): prefer a shared
+granite llama-server (third leg on the unified binary, proposed :8733)
+for embed workloads; in-process granite stays the always-works fallback.
+Revisit triggers in the archived copy §5
+(`../archive/tooling/`, completed.md #366).
+
 _(none)_ — archived 2026-10-07: `llamacpp_unified_server_build`
 (`../archive/tooling/`, completed.md #364) — one owned llama.cpp build
 for both server legs (pinned `78651c4` + vendored qwen2vl patch,

@@ -263,13 +263,14 @@ def _cached_batch(texts: list[str], model_label: str, le) -> tuple[list[list[flo
 
     sconn = db_connect(_FTS_DB_PATH)
     try:
+        # No automatic model-difference purge (2026-10-08): a prior-model
+        # row is rollback insurance, dead-text eviction is `make embed-gc`.
         return cached_embed_batch(
             sconn,
             texts,
             model_label,
             le.embed_documents_parallel,
             source="convo",
-            purge_foreign=True,
         )
     finally:
         sconn.close()

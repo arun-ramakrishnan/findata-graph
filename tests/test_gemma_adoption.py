@@ -288,11 +288,11 @@ class TestCacheNoPurge:
         assert seen["label"] == gemma_embedder.MODEL_LABEL
         assert seen["purge_foreign"] is False
 
-    def test_gemma_stamp_with_sidecar_down_warns_loud(self, tmp_path, monkeypatch, capsys):
-        """S3 (llamacpp_unified_server_build): a gemma-stamped index being
-        rebuilt while the sidecar is down would silently re-embed granite
-        and flip the stamp (the search-fresh revert accident). The rebuild
-        must warn on stderr; the rebuild itself still completes."""
+    def test_gemma_stamp_with_sidecar_down_refuses(self, tmp_path, monkeypatch):
+        """2026-10-08: a gemma-stamped index rebuilt while the sidecar is
+        down must REFUSE — populate-the-granite-leg un-migrated the stamp
+        and (pre-doctrine-fix) purged its cache. SCRIPT_EMBEDDER=granite
+        is the only way through."""
         monkeypatch.delenv("SCRIPT_EMBEDDER", raising=False)
         monkeypatch.setattr(gemma_embedder, "available", lambda port=None: False)
         monkeypatch.setattr(
@@ -305,16 +305,41 @@ class TestCacheNoPurge:
         (tmp_path / "tests").mkdir()
         (tmp_path / "app.py").write_text('"""App."""\n')
         (tmp_path / "Makefile").write_text("qa: ## Q\n\techo q\n")
-        rss.rebuild(
-            tmp_path / "s.db",
+        kwargs = dict(
             helpers_root=tmp_path / "helpers",
             tests_root=tmp_path / "tests",
             app_py=tmp_path / "app.py",
             makefile=tmp_path / "Makefile",
         )
-        err = capsys.readouterr().err
-        assert "UN-MIGRATES the stamp" in err
-        assert "make embgemma-server" in err
+        with pytest.raises(gemma_embedder.GemmaStampDemotion) as ei:
+            rss.rebuild(tmp_path / "s.db", **kwargs)
+        assert "make embgemma-server" in str(ei.value)
+
+        # The explicit escape completes the rebuild (demotion on record).
+        monkeypatch.setenv("SCRIPT_EMBEDDER", "granite")
+        stats = rss.rebuild(tmp_path / "s.db", **kwargs)
+        assert stats["embed_model"] != gemma_embedder.MODEL_LABEL
+
+
+class TestGuardGemmaStamp:
+    """The top-level demotion guard (2026-10-08) — reusable by every
+    surface that adopts gemma; scripts just happen to be the first."""
+
+    def test_passes_when_not_gemma_stamped(self):
+        gemma_embedder.guard_gemma_stamp("granite-embedding-97m-r2", "granite-embedding-97m-r2")
+        gemma_embedder.guard_gemma_stamp(None, "whatever")
+
+    def test_passes_when_resolved_is_gemma(self):
+        gemma_embedder.guard_gemma_stamp(gemma_embedder.MODEL_LABEL, gemma_embedder.MODEL_LABEL)
+
+    def test_raises_on_silent_demotion(self):
+        with pytest.raises(gemma_embedder.GemmaStampDemotion):
+            gemma_embedder.guard_gemma_stamp(gemma_embedder.MODEL_LABEL, "granite-embedding-97m-r2")
+
+    def test_explicit_granite_escape_passes(self):
+        gemma_embedder.guard_gemma_stamp(
+            gemma_embedder.MODEL_LABEL, "granite-embedding-97m-r2", escape="granite"
+        )
 
     def test_foreign_rows_survive_without_purge(self, tmp_path):
         from helpers.core.embed_cache import CachedEmbed

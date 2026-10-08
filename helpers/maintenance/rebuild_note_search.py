@@ -640,7 +640,10 @@ def rebuild(  # noqa: C901
                 embed_fn, embed_dims, model_label = resolve_embedder()
                 stats["embed_model"] = model_label
                 cache = (
-                    CachedEmbed(embed_fn, model_label, conn, source="note", purge_foreign=True)
+                    # No automatic model-difference purge (2026-10-08): a
+                    # prior-model row is rollback insurance, dead-text
+                    # eviction is `make embed-gc`.
+                    CachedEmbed(embed_fn, model_label, conn, source="note")
                     # Pseudo embedding is a hash — caching it would only bloat
                     # the sidecar; only the real model costs CPU per doc.
                     if (model_label != f"dry-run-v{_PSEUDO_DIMS}")

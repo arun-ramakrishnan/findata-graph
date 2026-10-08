@@ -408,13 +408,12 @@ def resolve_script_embedder() -> tuple:
     """(embed_fn, dims, model_label, gemma_active) for the script surface.
 
     Adoption default (script_search_gemma_adoption S4): gemma whenever the
-    sidecar/model is available, granite fallback otherwise — the default
-    follows availability so house rebuilds (search-fresh, maint) cannot
-    silently un-migrate the surface (a default-granite selector let one
-    `make search-fresh APPLY=1` revert the cutover, caught by the bank
-    gate). SCRIPT_EMBEDDER overrides: `granite` forces the shared path,
-    `gemma` forces gemma (warn + granite fallback when unavailable, never
-    a half-migrated index).
+    sidecar/model is available, granite fallback otherwise — for indexes
+    NOT gemma-stamped. A gemma-stamped index REFUSES the fallback at the
+    write path (helpers.core.gemma_embedder.guard_gemma_stamp, 2026-10-08:
+    the silent fallback un-migrated the stamp twice live); SCRIPT_EMBEDDER
+    overrides: `granite` forces the shared path (the demotion escape),
+    `gemma` forces gemma.
     """
     want = os.environ.get(SCRIPT_EMBEDDER_ENV, "").strip().lower()
     if want == "granite":
@@ -1311,36 +1310,24 @@ def rebuild(
             if write:
                 embed_fn, embed_dims, model_label, gemma_active = resolve_script_embedder()
                 stats["embed_model"] = model_label
-                if (
-                    not gemma_active
-                    and _script_stored_embed_model(conn) == gemma_embedder.MODEL_LABEL
-                ):
-                    # llamacpp_unified_server_build S3: the silent-granite-
-                    # fallback is correct at query time but catastrophic at
-                    # maint time — this rebuild would re-embed the whole
-                    # surface granite and flip the gemma stamp (the exact
-                    # accident the search-fresh revert was). Loud, on stderr.
-                    print(
-                        "WARNING: script_search is gemma-stamped "
-                        f"({gemma_embedder.MODEL_LABEL}) but the gemma "
-                        "sidecar is down — this rebuild re-embeds granite "
-                        "and UN-MIGRATES the stamp. Start it with "
-                        "`make embgemma-server` and retry, or force "
-                        "SCRIPT_EMBEDDER=granite if un-migrating is meant.",
-                        file=sys.stderr,
-                    )
+                # Top-level demotion guard (helpers.core.gemma_embedder,
+                # 2026-10-08): a gemma-stamped index is never silently
+                # re-embedded by the fallback model — that un-migrated the
+                # stamp AND purged its cache twice in one day. SCRIPT_
+                # EMBEDDER=granite is the explicit escape.
+                gemma_embedder.guard_gemma_stamp(
+                    _script_stored_embed_model(conn),
+                    model_label,
+                    os.environ.get(SCRIPT_EMBEDDER_ENV),
+                )
                 if model_label != f"dry-run-v{rds._PSEUDO_DIMS}":
-                    # Gemma is a trial-class backend while granite stays
-                    # live on the other surfaces: NEVER purge_foreign here
-                    # (that would GC the granite rows notes/docs still
-                    # serve). The granite path keeps its swap-GC.
-                    embed_fn = CachedEmbed(
-                        embed_fn,
-                        model_label,
-                        conn,
-                        source="script",
-                        purge_foreign=not gemma_active,
-                    )
+                    # NO automatic model-difference purge, on EITHER path
+                    # (2026-10-08: a sidecar-down granite fallback purged
+                    # the gemma rows — the third purge incident). The
+                    # script cohort is multi-model by adoption design; the
+                    # non-active model's rows are the rollback path, and
+                    # dead-text eviction is `make embed-gc`.
+                    embed_fn = CachedEmbed(embed_fn, model_label, conn, source="script")
             else:
                 # --check: verdict is unit content-hash — skip model
                 # resolution + sidecar cache lookups (mirror of the

@@ -315,7 +315,9 @@ export interface ScriptSearchHit {
 
 export interface ScriptSearchResponse {
     query: string;
-    mode: "hybrid" | "bm25";
+    /** "vector" = the gemma semantic leg served the hit (script_search gemma
+     *  adoption); "hybrid" = BM25 + semantic fused; "bm25" = lexical only. */
+    mode: "hybrid" | "bm25" | "vector";
     /** True when the sidecar no longer matches the tree (warn-and-answer). */
     stale: boolean;
     results: ScriptSearchHit[];

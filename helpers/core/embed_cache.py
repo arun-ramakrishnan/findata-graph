@@ -19,10 +19,13 @@ optional ``source`` column only stamps which indexer wrote a row (cohort
 analytics) and never participates in lookups. A model swap re-embeds
 everything (label is part of the key), which is exactly the required
 semantics: vectors from different models must never be served for each
-other's spaces. Since 2026-09-16 the swap also self-cleans: production
-indexers pass ``purge_foreign=True`` so the previous generation's
-unreachable rows are GCed at attach (bench/trial embedders must NOT —
-they share this store with candidate labels).
+other's spaces. Since 2026-10-08 no production indexer purges foreign
+models at all: a stamp-mismatched index can never READ another model's
+rows, so the previous generation's rows are rollback insurance, not
+garbage — and a sidecar-down fallback rebuild that flipped a stamp used
+to destroy the adopted model's whole cache with it (three live incidents
+2026-10-07/08). Dead-text eviction is `make embed-gc`'s job; the explicit
+``purge_foreign_models()`` survives for one-off model retirement only.
 
 Everything here is best-effort: when the store can't be attached the callers
 degrade to uncached embedding (correct, just slower).
@@ -79,19 +82,19 @@ def _hash(text: str) -> str:
 
 
 def purge_foreign_models(conn, model_label: str, source: str = "") -> int:
-    """GC for the pooled cache: delete rows that can never be served again.
+    """Explicit one-off GC: delete a cohort's foreign-model cache rows.
 
+    NO production caller (2026-10-08 doctrine) — kept for deliberate
+    model retirement only (e.g. retiring a quant candidate for good).
     Lookup key is (text_hash, model), so a model swap strands the previous
-    generation's rows as dead bytes. Since embedgemma adoption the store is
-    MULTI-model (scripts gemma, notes/docs granite), so "foreign model" is
-    only dead WITHIN the calling indexer's own source cohort — a global
-    ``model !=`` purge from the granite indexers deleted every other
-    surface's rows on every rebuild (the script_search gemma cache was
-    wiped by each search-fresh, forcing a full ~550-row HTTP re-embed —
-    hit ten times on 2026-10-07 before the fix). Scoped purge: pass the
-    caller's ``source`` cohort and only that cohort's foreign-model rows
-    die. Source-less callers keep the legacy global purge.
-    Best-effort: failures return 0, never break the embed flow.
+    generation's rows as dead bytes — but a stamp-mismatched index can
+    never READ them, so they are rollback insurance, not garbage: the
+    automatic per-indexer purge (global, then per-cohort) destroyed the
+    adopted gemma script cache three times live (2026-10-07/08 — the
+    third was a sidecar-down fallback rebuild that flipped the stamp and
+    purged with it). Automatic purge is gone; dead-text eviction is
+    `make embed-gc`. Source scopes the DELETE to one cohort; source-less
+    callers purge globally. Best-effort: failures return 0.
     """
     try:
         if source:

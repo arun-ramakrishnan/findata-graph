@@ -215,7 +215,7 @@ export const ScriptSearchHitSchema = v.object({
 
 export const ScriptSearchResponseSchema = v.object({
     query: v.string(),
-    mode: v.picklist(["hybrid", "bm25"]),
+    mode: v.picklist(["hybrid", "bm25", "vector"]),
     stale: v.boolean(),
     results: v.array(ScriptSearchHitSchema),
 });

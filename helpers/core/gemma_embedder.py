@@ -36,8 +36,12 @@ assessment number was measured against. Fetch once with:
 then verify the hash matches MODEL_SHA256 before use.
 
 Callers must gate on available() (best-effort pattern: a missing model
-file or a down sidecar must never break a rebuild — the script-surface
-selector falls back to the granite path with a warning).
+file or a down sidecar must never break a rebuild of a NON-gemma-stamped
+index — the selector falls back to the granite path). A gemma-STAMPED
+index refuses the fallback instead: :func:`guard_gemma_stamp` raises, so
+a sidecar-down rebuild can never silently un-migrate a gemma surface
+(2026-10-08: the fallback populated the granite leg and un-migrated the
+script stamp while the servers were down).
 """
 
 from __future__ import annotations
@@ -77,6 +81,43 @@ _TASK_PREFIXES = {"code": QUERY_PREFIX_CODE, "search": QUERY_PREFIX_SEARCH}
 # granite QueryVector against a gemma index (or vice versa) degrades to
 # the leg's own embed — never mixed-model scores.
 MODEL_LABEL = "embeddinggemma-2-q8_512"
+
+
+class GemmaStampDemotion(RuntimeError):
+    """A rebuild tried to move a gemma-stamped index to another model.
+
+    Raised by :func:`guard_gemma_stamp` (2026-10-08): with the sidecar
+    down, the follow-availability selector fell back to granite and
+    silently re-embedded + un-migrated the script stamp (after purging
+    its cache). Demotion must be EXPLICIT or refused.
+    """
+
+
+def guard_gemma_stamp(
+    stored_model: str | None, resolved_model: str, escape: str | None = None
+) -> None:
+    """Top-level guard for ANY gemma-adopted surface's rebuild write path.
+
+    Refuses (raises :class:`GemmaStampDemotion`) when the stored index
+    stamp is the gemma label but this rebuild resolved a DIFFERENT
+    embedder — unless ``escape`` is the caller's explicit override value
+    ("granite"). Call right after resolving the embedder, passing the
+    stored-stamp lookup, the resolved model label, and the surface's env
+    value; a gemma-adopted surface must never be silently populated by
+    the fallback model, no matter how many surfaces move to gemma.
+    """
+    if stored_model != MODEL_LABEL or resolved_model == MODEL_LABEL:
+        return
+    if (escape or "").strip().lower() == "granite":
+        return
+    raise GemmaStampDemotion(
+        f"index is gemma-stamped ({MODEL_LABEL}) but the gemma sidecar is "
+        f"down and this rebuild resolved {resolved_model!r} — refusing to "
+        "populate the fallback model's leg and un-migrate the stamp. "
+        "Start the sidecar with `make embgemma-server` and retry, or set "
+        "the surface's embedder env to granite to un-migrate explicitly."
+    )
+
 
 # D3 sidecar: assume running, never spawn. Port override for tests.
 EMBGEMMA_HOST = "127.0.0.1"
