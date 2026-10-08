@@ -145,12 +145,16 @@ def load_notes_matrix(db_path: str):
     return matrix
 
 
-@lru_cache(maxsize=1)
-def note_query_embedder():
-    """Cached query embedder for the note semantic leg."""
+def note_query_embedder(model_label: str | None = None):
+    """Cached query embedder for the note semantic leg.
+
+    Follows the index STAMP (notes_gemma_adoption S3): callers pass the
+    stored db_meta.note_embed_model so the backend matches the vector
+    space the matrix was built in, whatever NOTES_EMBEDDER says. None
+    (unstamped legacy index) keeps the in-process resolution."""
     from helpers.maintenance.rebuild_note_search import query_embedder
 
-    return query_embedder()
+    return query_embedder(model_label)
 
 
 def _stored_note_model(db_path: Path) -> str | None:
@@ -193,7 +197,7 @@ def semantic_hits(db_path: Path, query: str, limit: int, query_vec=None) -> tupl
                 _stored_note_model(db_path), int(matrix.meta["dims"]), query_vec
             )
         if vec is None:
-            embed_query, _d = note_query_embedder()
+            embed_query, _d = note_query_embedder(_stored_note_model(db_path))
             vec = embed_query(query)
         raw = matrix.top_k(np.asarray(vec), max(limit * 4, SEMANTIC_CANDIDATES))
         best: dict[Key, float] = {}

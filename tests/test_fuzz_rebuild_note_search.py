@@ -100,10 +100,15 @@ def test_newsletter_title_typed(text):
 )
 def test_carry_row_is_db_consistency_only(dtype, title_a, title_b):
     """The P2.2 carry contract: an entity row carries iff its entities-row
-    metadata matches the stored row; non-entity docs always carry."""
-    row = (dtype, "findata/x.md", title_a, "sec", "content", None)
-    ent_by_path: dict[str, tuple[str, str | None]] = {"findata/x.md": (title_a, "sec")}
-    ent_changed: dict[str, tuple[str, str | None]] = {"findata/x.md": (title_b, "sec")}
+    metadata matches the stored row (title, sector, and post-adoption
+    ticker/edge_context enrichment); non-entity docs always carry."""
+    row = (dtype, "findata/x.md", title_a, "sec", "content", None, "", "", "TICK", "ctx")
+    ent_by_path: dict[str, tuple[str, str | None, str, str]] = {
+        "findata/x.md": (title_a, "sec", "TICK", "ctx")
+    }
+    ent_changed: dict[str, tuple[str, str | None, str, str]] = {
+        "findata/x.md": (title_b, "sec", "TICK", "ctx")
+    }
     if dtype in ("company", "sector", "super_sector"):
         assert rns._carry_row(row, dtype, "findata/x.md", ent_by_path) is True
         same_meta = title_b == title_a

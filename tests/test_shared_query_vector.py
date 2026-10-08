@@ -333,7 +333,7 @@ class TestNotesHermetic:
         def _boom(_t: str):
             raise RuntimeError("must not embed locally")
 
-        monkeypatch.setattr(nq, "note_query_embedder", lambda: (_boom, 8))
+        monkeypatch.setattr(nq, "note_query_embedder", lambda _stamp: (_boom, 8))
         qv = rbc.QueryVector(tuple(le.embed_query("cache design")), le.MODEL_ID, 8)
         rows, reason = nq.semantic_hits(seeded_notes, "cache design", 5, qv)
         assert rows, reason
@@ -375,8 +375,49 @@ def _live_memory():
     return rms, conn
 
 
+def _hits(result) -> list[dict]:
+    """Normalize a leg's return shape to a list of hit dicts.
+
+    The legs differ: `search_docs`/`search_scripts`/`search_memories`/
+    `convo_query.search` return a dict carrying `results`; `note_query.
+    semantic_hits` returns a (hits, reason) tuple.
+    """
+    if isinstance(result, tuple):
+        result = result[0]
+    if isinstance(result, dict):
+        result = result.get("results", [])
+    return list(result)
+
+
+def _assert_same_ranking(own, other, tol: float = 2e-3) -> None:
+    """The shared-vector contract: same hit ORDER, and scores that agree
+    within the embed runtime's reproducibility envelope.
+
+    The class used to assert bit-identical returns. That held while the
+    surfaces embedded IN-PROCESS (one deterministic forward per call). It
+    cannot hold for the sidecar runtimes: llama.cpp selects kernels and
+    reduction orders by batch shape, so two identical queries served in
+    different batch compositions differ at ~1e-4 (measured under xdist:
+    score 0.810721 vs 0.810956, similarity 0.758294 vs 0.757722 — deltas
+    2.4e-4 and 5.7e-4, hit ORDER identical in both). So the tolerance is
+    the measured envelope, and the assertion that must never loosen is
+    the ordering one: the shared vector must not change WHICH documents
+    come back or in what sequence.
+    """
+    a_hits, b_hits = _hits(own), _hits(other)
+    key = lambda h: (h.get("path"), h.get("line") or h.get("name"))  # noqa: E731
+    assert [key(h) for h in a_hits] == [key(h) for h in b_hits], "hit order diverged"
+    for a, b in zip(a_hits, b_hits, strict=True):
+        for field in ("score", "similarity"):
+            av, bv = a.get(field), b.get(field)
+            if isinstance(av, float) and isinstance(bv, float):
+                assert abs(av - bv) <= tol, f"{field} diverged beyond {tol}: {av} vs {bv}"
+            else:
+                assert av == bv, f"{field} diverged: {av!r} vs {bv!r}"
+
+
 @needs_model
-class TestLiveBitIdentical:
+class TestLiveSharedVectorParity:
     @pytest.fixture(autouse=True)
     def _real(self, real_backend):
         return real_backend
@@ -385,7 +426,9 @@ class TestLiveBitIdentical:
         rds, conn = _live_docs()
         try:
             own = rds.search_docs(conn, _Q, limit=_LIM)
-            assert rds.search_docs(conn, _Q, limit=_LIM, query_vec=rbc.make_query_vector(_Q)) == own
+            _assert_same_ranking(
+                own, rds.search_docs(conn, _Q, limit=_LIM, query_vec=rbc.make_query_vector(_Q))
+            )
         finally:
             conn.close()
 
@@ -393,8 +436,8 @@ class TestLiveBitIdentical:
         rss, conn = _live_scripts()
         try:
             own = rss.search_scripts(conn, _Q, limit=_LIM)
-            assert (
-                rss.search_scripts(conn, _Q, limit=_LIM, query_vec=rbc.make_query_vector(_Q)) == own
+            _assert_same_ranking(
+                own, rss.search_scripts(conn, _Q, limit=_LIM, query_vec=rbc.make_query_vector(_Q))
             )
         finally:
             conn.close()
@@ -403,9 +446,8 @@ class TestLiveBitIdentical:
         rms, conn = _live_memory()
         try:
             own = rms.search_memories(conn, _Q, limit=_LIM)
-            assert (
-                rms.search_memories(conn, _Q, limit=_LIM, query_vec=rbc.make_query_vector(_Q))
-                == own
+            _assert_same_ranking(
+                own, rms.search_memories(conn, _Q, limit=_LIM, query_vec=rbc.make_query_vector(_Q))
             )
         finally:
             conn.close()
@@ -414,7 +456,9 @@ class TestLiveBitIdentical:
         from helpers.misc import note_query as nq
 
         own = nq.semantic_hits(nq.DEFAULT_DB, _Q, _LIM)
-        assert nq.semantic_hits(nq.DEFAULT_DB, _Q, _LIM, rbc.make_query_vector(_Q)) == own
+        _assert_same_ranking(
+            own, nq.semantic_hits(nq.DEFAULT_DB, _Q, _LIM, rbc.make_query_vector(_Q))
+        )
 
     def test_convo(self):
         from helpers.misc import convo_query as cq
@@ -422,7 +466,9 @@ class TestLiveBitIdentical:
         con = cq.connect(cq.DEFAULT_DB)
         try:
             own = cq.search(con, _Q, limit=_LIM)
-            assert cq.search(con, _Q, limit=_LIM, query_vec=rbc.make_query_vector(_Q)) == own
+            _assert_same_ranking(
+                own, cq.search(con, _Q, limit=_LIM, query_vec=rbc.make_query_vector(_Q))
+            )
         finally:
             con.close()
 
@@ -513,7 +559,9 @@ class TestLiveFallback:
         rds, conn = _live_docs()
         try:
             own = rds.search_docs(conn, _Q, limit=_LIM)
-            assert rds.search_docs(conn, _Q, limit=_LIM, query_vec=self._tampered()) == own
+            _assert_same_ranking(
+                own, rds.search_docs(conn, _Q, limit=_LIM, query_vec=self._tampered())
+            )
         finally:
             conn.close()
 
@@ -521,7 +569,9 @@ class TestLiveFallback:
         rss, conn = _live_scripts()
         try:
             own = rss.search_scripts(conn, _Q, limit=_LIM)
-            assert rss.search_scripts(conn, _Q, limit=_LIM, query_vec=self._tampered()) == own
+            _assert_same_ranking(
+                own, rss.search_scripts(conn, _Q, limit=_LIM, query_vec=self._tampered())
+            )
         finally:
             conn.close()
 
@@ -529,7 +579,9 @@ class TestLiveFallback:
         rms, conn = _live_memory()
         try:
             own = rms.search_memories(conn, _Q, limit=_LIM)
-            assert rms.search_memories(conn, _Q, limit=_LIM, query_vec=self._tampered()) == own
+            _assert_same_ranking(
+                own, rms.search_memories(conn, _Q, limit=_LIM, query_vec=self._tampered())
+            )
         finally:
             conn.close()
 
@@ -537,7 +589,7 @@ class TestLiveFallback:
         from helpers.misc import note_query as nq
 
         own = nq.semantic_hits(nq.DEFAULT_DB, _Q, _LIM)
-        assert nq.semantic_hits(nq.DEFAULT_DB, _Q, _LIM, self._tampered()) == own
+        _assert_same_ranking(own, nq.semantic_hits(nq.DEFAULT_DB, _Q, _LIM, self._tampered()))
 
     def test_convo(self):
         from helpers.misc import convo_query as cq
@@ -545,6 +597,6 @@ class TestLiveFallback:
         con = cq.connect(cq.DEFAULT_DB)
         try:
             own = cq.search(con, _Q, limit=_LIM)
-            assert cq.search(con, _Q, limit=_LIM, query_vec=self._tampered()) == own
+            _assert_same_ranking(own, cq.search(con, _Q, limit=_LIM, query_vec=self._tampered()))
         finally:
             con.close()

@@ -34,6 +34,28 @@ entry number and stale DONE pointers):
 
 ## Current live proposals
 
+**`granite_sidecar_selector`** (filed 2026-10-08, REVIVED same day) —
+prefer the shared granite llama-server for embed workloads, in-process
+stays the fallback: third leg on the unified llama.cpp binary
+(`:8733`, `make granite-server`, granite leg in `llamacpp-health`),
+`GRANITE_EMBEDDER=auto|sidecar|process` selector with the operator's
+failsafe-first ruling (no server found → today's in-process behavior,
+never a refusal), hermetic tests unchanged. Filed and parked DEFERRED
+in the morning (completed.md #366); §5 trigger #4 fired by afternoon —
+scratch trial: 384-d verified on :8733, RSS 212 MB (gemma leg 1.5-1.7
+GB), 1.41/s contended. Execution in flight in the `granite_serve`
+patch; serve test runs gated on the notes full-pool gemma embed.
+
+**`notes_query_side_levers_trial`** (filed 2026-10-08) — notes query-side
+levers before any model swap: bm25 column boosts (query-side only, zero
+rebuild) + header/edge enrichment (scratch FTS with ticker + accepted-
+edge context), evaluated on a 53-question derive-seeded bank whose
+expects come from accepted `graph_edges` row-sets; then granite-vs-gemma
+hybrids on the best query config. Operator directives baked in: context
+axis is measured-dead, hard questions > MRR parity (tie-break to the
+model that answers them), multilingual weight is strategic (concall
+endgame), convo stays granite. No live stamp change rides this trial.
+
 _(none)_ — archived 2026-10-08 (filed + executed + archived same day):
 `company_embeddings_gemma_trial` (`../archive/tooling/`, completed.md
 entry 368) — the third gemma surface, ADOPTED on the facet-expanded

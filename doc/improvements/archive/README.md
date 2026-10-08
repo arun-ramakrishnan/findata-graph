@@ -243,6 +243,13 @@ commit, referenced by nothing). Entry numbers point at
 
 ## tooling/ — Tooling & performance — MCP eval, doc browser/search, perf review, tech survey
 
+- [`notes_gemma_adoption.md`](tooling/notes_gemma_adoption.md) —
+  notes gemma adoption — the trial winner's shape live: edge-enriched
+  lexical leg (ticker + edge_context, rare-first @ 900) + gemma
+  query/section vectors (pure-prose prefixed basis) + RRF k=60; 17,263
+  npz vectors seeded into the production cache (zero re-embeds);
+  `guard_gemma_stamp` refusal semantics; bank gate 41/75 (the recorded
+  trial number) — completed.md #369
 - [`script_search_gemma_adoption.md`](tooling/script_search_gemma_adoption.md) —
   script_search gemma adoption — EmbeddingGemma-2 Q8@512 vector-primary
   for scripts: D3 sidecar client + per-surface selector (granite default

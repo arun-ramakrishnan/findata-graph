@@ -1,5 +1,6 @@
 import logging
 import os
+import sqlite3
 import threading
 from collections import OrderedDict
 import time
@@ -774,7 +775,19 @@ def _resolve_query_vec(conn, query: str) -> list[float] | None:
             stored_embed_dims,
         )
 
-        embed_q, _dims = query_embedder()
+        # The backend follows the index stamp (notes_gemma_adoption S3): a
+        # gemma-stamped index must be queried with gemma even when the
+        # embedder env says otherwise. Unstamped -> None -> legacy path.
+        # A db with no db_meta table at all is an unstamped index, NOT a
+        # failure — the SELECT must not abort the whole resolver into a
+        # silent BM25-only degrade.
+        try:
+            stamp_row = conn.execute(
+                "SELECT value FROM db_meta WHERE key = 'note_embed_model'"
+            ).fetchone()
+        except sqlite3.Error:  # no db_meta (hermetic/minimal db) -> unstamped
+            stamp_row = None
+        embed_q, _dims = query_embedder(stamp_row[0] if stamp_row else None)
         q_vec = embed_q(query)
         idx_dims = stored_embed_dims(conn)
         if idx_dims is not None and idx_dims != len(q_vec):

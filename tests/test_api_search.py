@@ -248,7 +248,7 @@ def _three_dim_query_space(monkeypatch):
     query_embedder to a mismatching width."""
     from helpers.maintenance import rebuild_note_search as RNS
 
-    monkeypatch.setattr(RNS, "query_embedder", lambda: ((lambda text: [0.0, 1.0, 0.0]), 3))
+    monkeypatch.setattr(RNS, "query_embedder", lambda _stamp: ((lambda text: [0.0, 1.0, 0.0]), 3))
 
 
 def _results(resp):
@@ -592,7 +592,7 @@ class TestHybridKnnPath:
         monkeypatch.setattr(
             RNS,
             "query_embedder",
-            lambda: ((lambda text: [0.1] * 64), 64),
+            lambda _stamp: ((lambda text: [0.1] * 64), 64),
         )
         r = client.get("/api/search?q=feed&hybrid=true&limit=20")
         assert r.status_code == 200

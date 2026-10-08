@@ -66,6 +66,7 @@ detected drift (the house --check gate doctrine).
 """
 
 import hashlib
+import os
 import re
 import sys
 from collections.abc import Callable
@@ -108,12 +109,15 @@ NOTE_SEARCH_DDL = (
     "embedding UNINDEXED, "  # 5
     "section_title, "  # 6 — '' for the preamble chunk
     "anchor UNINDEXED, "  # 7 — line number of the section H2 ('1' preamble)
+    "ticker, "  # 8 — entities.ticker for company docs ('' otherwise)
+    "edge_context, "  # 9 — ACCEPTED graph relations as text (notes_gemma_adoption S2)
     "tokenize = 'porter unicode61'"
     ")"
 )
 
 # Columns we expect in note_search. Used by _migrate_schema to detect a stale
-# (pre-sectioning / pre-embedding) table and drop it so the new DDL applies.
+# (pre-sectioning / pre-embedding / pre-enrichment) table and drop it so the
+# new DDL applies.
 _NOTE_SEARCH_COLUMNS = {
     "doc_type",
     "file_path",
@@ -123,6 +127,8 @@ _NOTE_SEARCH_COLUMNS = {
     "embedding",
     "section_title",
     "anchor",
+    "ticker",
+    "edge_context",
 }
 
 # Section body cap for the embedding text base (mirrors doc_search's
@@ -187,14 +193,17 @@ def _newsletter_title(text: str) -> str:
     return m.group(1).strip() if m else ""
 
 
-# Embedding resolution (local_embeddings proposal, 2026-08-20): the index
-# uses the real local bge-small model when the backend + pinned model file
-# are present (helpers/core/local_embedder.py), else falls back to the
-# deterministic 64-dim pseudo-embedding with a one-time WARNING — a missing
-# model must never break `make maint`. The QUERY side of hybrid search
-# (app.py) resolves through query_embedder() so both sides always come from
-# the same model; vec_search.stored_dims gates the read path against a
-# rebuilt-with-a-different-model index.
+# Embedding resolution (notes_gemma_adoption S2, 2026-10-08): the notes
+# surface adopts the embeddinggemma sidecar as PRIMARY (the extended-bank
+# winner, hy_gemma_enriched 41/75) with the legacy in-process model as
+# failsafe for indexes that were never gemma-stamped. A gemma-stamped
+# notes index REFUSES a non-gemma rebuild at the write path
+# (guard_gemma_stamp semantics — the notes vectors are banked in
+# embed_cache under the gemma label; silently repopulating them with
+# another model would serve a wrong vector space). The QUERY side follows
+# the stored stamp, not the env. Env: NOTES_EMBEDDER=auto|gemma|granite.
+NOTES_EMBEDDER_ENV = "NOTES_EMBEDDER"
+
 _PSEUDO_DIMS = 64
 
 _pseudo_warned = False
@@ -203,20 +212,50 @@ _pseudo_warned = False
 def resolve_embedder() -> tuple[Callable[[str], list[float]], int, str]:
     """Index-side embedder: (embed_fn(text) -> list[float], dims, model_label).
 
-    Real local model when available, pseudo fallback otherwise. Resolved
-    once per rebuild and threaded through _collect_rows; the label is
-    recorded in the stats report.
+    Gemma sidecar when reachable (adoption default), else the legacy
+    in-process resolver (granite model, pseudo fallback) with the usual
+    warnings — the STAMP GUARD at the write path decides whether that
+    failsafe may actually run (a gemma-stamped index refuses it).
+    Resolved once per rebuild and threaded through _collect_rows; the
+    label is recorded in the stats report.
     """
+    mode = os.environ.get(NOTES_EMBEDDER_ENV, "auto").strip().lower()
+    from helpers.core import gemma_embedder
+
+    if mode in ("auto", "gemma") and gemma_embedder.available():
+        return gemma_embedder.embed_document, gemma_embedder.DIM, gemma_embedder.MODEL_LABEL
+    if mode == "gemma":
+        print(
+            "WARNING: NOTES_EMBEDDER=gemma but the sidecar is down; "
+            "resolving the failsafe (the stamp guard still applies at write time)",
+            file=sys.stderr,
+            flush=True,
+        )
     global _pseudo_warned
     fn, dims, label, _pseudo_warned = rbc.resolve_embedder(_pseudo_warned, _PSEUDO_DIMS)
     return fn, dims, label
 
 
-def query_embedder() -> tuple[Callable[[str], list[float]], int]:
-    """Query-side counterpart for hybrid search (app.py): same availability
-    gate, embed_query semantics (BGE retrieval prefix). Must resolve to the
-    same model the index was built with — callers enforce that via
-    stored_embed_dims()."""
+def query_embedder(model_label: str | None = None) -> tuple[Callable[[str], list[float]], int]:
+    """Query-side counterpart for hybrid search (app.py, note_query.py).
+
+    Backend follows the INDEX STAMP, not the env: a gemma-stamped index
+    must be queried with gemma even when NOTES_EMBEDDER asks for granite
+    — anything else is a zip-truncated cosine. Callers pass the stored
+    stamp (db_meta.note_embed_model / _stored_note_model); None (legacy
+    unstamped index) keeps the in-process resolution. Callers further
+    gate on stored_embed_dims(), so a stamp/dims disagreement still
+    degrades to BM25-only instead of garbage."""
+    from helpers.core import gemma_embedder
+
+    if model_label == gemma_embedder.MODEL_LABEL:
+        if not gemma_embedder.available():
+            raise RuntimeError(
+                "notes index is gemma-stamped but the sidecar is down — "
+                "start it (make gemma-server) or the semantic leg degrades to BM25"
+            )
+        return gemma_embedder.embed_query, gemma_embedder.DIM
+
     from helpers.core import local_embedder
 
     if local_embedder.available():
@@ -285,11 +324,17 @@ from helpers.core.vec_codec import load_vec, pack_f32  # noqa: E402
 
 def _embedding_text(title: str, sector: str, section_title: str, content: str) -> str:
     """Section-level embedding text basis — MUST stay identical across the
-    per-doc and batch paths or the pooled cache keys diverge. Mirrors
-    rebuild_doc_search: title + sector + section heading + capped section
-    body, so the vector is dominated by the headings (heading-typed
-    queries) while the section body finally fits the 512-token window."""
-    return f"{title}\n{sector}\n{section_title}\n{content[:_SECTION_EMBED_CAP]}"
+    per-doc and batch paths or the pooled cache keys diverge.
+
+    notes_gemma_adoption S2 (2026-10-08): the embeddinggemma query-side
+    contract — a task-prefixed composition. This string is byte-identical
+    to the trial arm that won the extended bank (hy_gemma_enriched 41/75)
+    AND to helpers/maintenance/seed_note_gemma_cache.py, so the seeded
+    cache (17,263 vectors banked from the definitive 4-hour npz) hits
+    with zero re-embeds. Doc-side rows use the bare document form; the
+    query side adds its own instruction prefix (gemma_embedder.embed_query).
+    """
+    return f"title: {title} | text: {sector} — {section_title}\n{content[:_SECTION_EMBED_CAP]}"
 
 
 def _embedding_f32(
@@ -319,8 +364,73 @@ def _iter_findata_docs():
         yield dtype, p, rel
 
 
+# --- Edge-context enrichment (notes_gemma_adoption S2, 2026-10-08) ----------
+# Production port of the trial winner's composition
+# (bench_data/embgemma2/notes_build_enriched.py: rare-first, cap 900,
+# per-rel 8 — the exact shape the extended bank scored 41/75).
+# edge_context is INDEXED FTS text: the company's accepted graph relations
+# as discriminative lexical segments, rare relations first so truncation
+# pressure can't eat them. vector-basis enrichment was REJECTED (§6.4) —
+# edges stay lexical-only.
+_CTX_CAP = 900
+_CTX_PER_REL = 8
+_CTX_SEG_ORDER = ("group", "competitor", "supplier", "customer", "parent", "subsidiaries")
+
+
+def _edge_ctx_maps(conn) -> tuple[dict[str, str], dict[str, str]]:
+    """(ticker_by_name, edge_context_by_name) for company docs, from the
+    accepted graph_edges + entities. Byte-equivalent to the trial
+    builder (notes_build_enriched.collect + context_for). Hermetic dbs
+    without the substrate (entities/graph_edges) enrich to empty — the
+    pre-adoption behavior, never a rebuild failure."""
+    have = {r[0] for r in conn.execute("SELECT name FROM sqlite_master WHERE type='table'")}
+    if "entities" not in have or "graph_edges" not in have:
+        return {}, {}
+
+    from collections import defaultdict
+
+    norm: dict[str, str] = {}
+    ticker: dict[str, str] = {}
+    for name, normalized_name, tick in conn.execute(
+        "SELECT name, normalized_name, ticker FROM entities WHERE entity_type='company'"
+    ):
+        norm[name] = normalized_name
+        ticker[normalized_name] = tick or ""
+
+    def collect(etype: str, flip: bool = False) -> dict[str, list[str]]:
+        m: dict[str, list[str]] = defaultdict(list)
+        for s, t in conn.execute(
+            "SELECT source, target FROM graph_edges WHERE edge_type=?", (etype,)
+        ):
+            s, t = norm.get(s), norm.get(t)
+            if s is None or t is None:
+                continue
+            a, b = (t, s) if flip else (s, t)
+            m[a].append(b)
+        return m
+
+    rel = {
+        "parent": collect("subsidiary_of"),
+        "subsidiaries": collect("subsidiary_of", flip=True),
+        "competitor": collect("competes_with"),
+        "supplier": collect("supplier_to", flip=True),
+        "customer": collect("supplier_to"),
+        "group": collect("same_group"),
+    }
+
+    ctx: dict[str, str] = {}
+    for title in ticker:
+        bits: list[str] = []
+        for label in _CTX_SEG_ORDER:
+            others = rel[label].get(title, [])
+            if others:
+                bits.append(f"{label}: {', '.join(sorted(set(others))[:_CTX_PER_REL])}")
+        ctx[title] = ("; ".join(bits))[:_CTX_CAP]
+    return ticker, ctx
+
+
 def _carry_row(
-    row: tuple, dtype: str, rel_posix: str, ent_by_path: dict[str, tuple[str, str | None]]
+    row: tuple, dtype: str, rel_posix: str, ent_by_path: dict[str, tuple[str, str | None, str, str]]
 ) -> bool:
     """P2.2: can the stored note_search row be carried verbatim?
 
@@ -330,8 +440,10 @@ def _carry_row(
     content-hash diff then upserts it instead of carrying staleness).
     """
     if dtype in ("company", "sector", "super_sector"):
-        norm, sec = ent_by_path.get(rel_posix, ("", None))
-        return (norm or "") == row[2] and (sec or "") == row[3]
+        norm, sec, tick, ctx = ent_by_path.get(rel_posix, ("", None, "", ""))
+        # ticker/edge_context must match too — a graph_edges change without a
+        # file touch must never carry stale enrichment (notes_gemma_adoption S2).
+        return (norm or "") == row[2] and (sec or "") == row[3] and row[8] == tick and row[9] == ctx
     return True
 
 
@@ -346,14 +458,31 @@ def _emit_row(
     anchor: str,
     body: str,
     embed_fn,
+    ticker: str = "",
+    edge_context: str = "",
 ) -> None:
     """Append one SECTION row — single emission point for both modes.
 
     Two-phase mode (``deferred`` is a list): row gets a None embedding and
     (row_index, text) lands in the caller's deferred list for the batch
-    embed pass. Per-doc mode: embedding computed inline via embed_fn."""
+    embed pass. Per-doc mode: embedding computed inline via embed_fn.
+    ticker/edge_context are note-level enrichment columns (identical for
+    every section of a doc — notes_gemma_adoption S2)."""
     if deferred is not None:
-        rows.append((dtype, rel_posix, title, sector, body, None, section_title, anchor))
+        rows.append(
+            (
+                dtype,
+                rel_posix,
+                title,
+                sector,
+                body,
+                None,
+                section_title,
+                anchor,
+                ticker,
+                edge_context,
+            )
+        )
         deferred.append((len(rows) - 1, _embedding_text(title, sector, section_title, body)))
     else:
         rows.append(
@@ -366,6 +495,8 @@ def _emit_row(
                 _embedding_f32(embed_fn, title, sector, section_title, body),
                 section_title,
                 anchor,
+                ticker,
+                edge_context,
             )
         )
 
@@ -388,7 +519,7 @@ def _try_carry(
     abs_path,
     dtype: str,
     reuse: dict[str, tuple[float, list[tuple]]],
-    ent_by_path: dict[str, tuple[str, str | None]],
+    ent_by_path: dict[str, tuple[str, str | None, str, str]],
     carried: set[str] | None,
 ) -> bool:
     """P2.2 verbatim-carry attempt: the stored rows carry over when the
@@ -450,12 +581,19 @@ def _collect_rows(
     # title fallback chain: entities.title doesn't exist as a column; the
     # note's YAML title is human form. Use normalized_name (the DB key) as the
     # FTS title for entity docs — it's the resolvable handle the API/graph use.
-    ent_by_path: dict[str, tuple[str, str | None]] = {}
+    ent_by_path: dict[str, tuple[str, str | None, str, str]] = {}
+    ticker_map, ctx_map = _edge_ctx_maps(conn)
     for r in conn.execute(
         "SELECT file_path, normalized_name, sector_classification "
         "FROM entities WHERE file_path IS NOT NULL"
     ):
-        ent_by_path[r["file_path"]] = (r["normalized_name"] or "", r["sector_classification"])
+        norm = r["normalized_name"] or ""
+        ent_by_path[r["file_path"]] = (
+            norm,
+            r["sector_classification"],
+            ticker_map.get(norm, ""),
+            ctx_map.get(norm, ""),
+        )
 
     rows = []
     for dtype, abs_path, rel in _iter_findata_docs():
@@ -469,9 +607,10 @@ def _collect_rows(
         except OSError:
             continue
         sector = ""
+        ticker = ctx = ""
         if dtype in ("company", "sector", "super_sector"):
             fm_title, body = _strip_frontmatter(text)
-            norm_name, sector = ent_by_path.get(rel_posix, ("", None))
+            norm_name, sector, ticker, ctx = ent_by_path.get(rel_posix, ("", None, "", ""))
             # Prefer the DB normalized_name (resolvable handle); fall back to
             # the YAML title if the entity isn't in the DB (shouldn't happen
             # for entity docs, but be defensive).
@@ -493,6 +632,8 @@ def _collect_rows(
                 str(anchor),
                 sec_body.strip(),
                 embed_fn,
+                ticker,
+                ctx,
             )
     return rows
 
@@ -555,7 +696,7 @@ def _migrate_schema(conn) -> bool:
     ).fetchone()
     if not sql:
         return False  # no table yet — fresh create will have the new schema
-    if "section_title" in sql[0] and "embedding" in sql[0]:
+    if all(name in sql[0] for name in ("section_title", "embedding", "ticker", "edge_context")):
         return False  # already current
     conn.execute("DROP TABLE note_search")
     return True
@@ -639,6 +780,24 @@ def rebuild(  # noqa: C901
             if write:
                 embed_fn, embed_dims, model_label = resolve_embedder()
                 stats["embed_model"] = model_label
+                # guard_gemma_stamp (notes_gemma_adoption S2): a gemma-stamped
+                # notes index refuses a non-gemma rebuild — the vectors are
+                # banked in embed_cache under the gemma label, and a fallback
+                # rebuild would un-migrate the stamp AND serve a wrong vector
+                # space. NOTES_EMBEDDER=granite is the explicit escape.
+                from helpers.core.gemma_embedder import guard_gemma_stamp
+
+                conn.execute(
+                    "CREATE TABLE IF NOT EXISTS db_meta (key TEXT PRIMARY KEY, value TEXT NOT NULL)"
+                )
+                stored = conn.execute(
+                    "SELECT value FROM db_meta WHERE key = 'note_embed_model'"
+                ).fetchone()
+                guard_gemma_stamp(
+                    stored[0] if stored else None,
+                    model_label,
+                    os.environ.get(NOTES_EMBEDDER_ENV),
+                )
                 cache = (
                     # No automatic model-difference purge (2026-10-08): a
                     # prior-model row is rollback insurance, dead-text
@@ -675,7 +834,7 @@ def rebuild(  # noqa: C901
             reuse: dict[str, tuple[float, list[tuple]]] = {}
             for r in conn.execute(
                 "SELECT doc_type, file_path, title, sector, content, embedding, "
-                "section_title, anchor FROM note_search"
+                "section_title, anchor, ticker, edge_context FROM note_search"
             ):
                 prev = existing.get(r[1])
                 if prev is not None:
@@ -713,8 +872,8 @@ def rebuild(  # noqa: C901
                     # fails.
                     conn.commit()
         else:
+            from helpers.core import gemma_embedder, local_embedder
             from helpers.core.embed_cache import cached_embed_batch
-            from helpers.core import local_embedder
 
             # Empty/whitespace texts stay un-embedded (same degrade as the
             # per-doc path's except-None) instead of poisoning the batch.
@@ -722,8 +881,19 @@ def rebuild(  # noqa: C901
             texts = [text for _i, text in deferred if text.strip()]
             if model_label is None:  # unreachable: batch mode implies resolve
                 raise RuntimeError("batch embed without a model label")
+            if model_label == gemma_embedder.MODEL_LABEL:
+                # Sidecar batches are plain serial requests (the granite spawn
+                # pool's process fan-out doesn't apply to an HTTP embedder);
+                # steady-state is cache hits — the batch fn only runs for
+                # genuinely new section bases (fresh ingests).
+                def _gemma_batch(missing: list[str]) -> list[list[float]]:
+                    return [gemma_embedder.embed_document(t) for t in missing]
+
+                batch_fn: Callable[[list[str]], list[list[float]]] = _gemma_batch
+            else:
+                batch_fn = local_embedder.embed_documents_parallel
             print(
-                f"[notes] phase: embedding {len(texts)} section bases (serial per-text)...",
+                f"[notes] phase: embedding {len(texts)} section bases...",
                 file=sys.stderr,
                 flush=True,
             )
@@ -732,7 +902,7 @@ def rebuild(  # noqa: C901
                     conn,
                     texts,
                     model_label,
-                    local_embedder.embed_documents_parallel,
+                    batch_fn,
                     source="note",
                 )
                 by_idx = dict(zip(idxs, vec_list))
@@ -818,7 +988,7 @@ def rebuild(  # noqa: C901
                 tuple(r)
                 for r in conn.execute(
                     "SELECT doc_type, file_path, title, sector, content, embedding, "
-                    "section_title, anchor FROM note_search"
+                    "section_title, anchor, ticker, edge_context FROM note_search"
                 )
             ]
             content_changed = _Counter(existing_rows) != _Counter(rows)
@@ -829,7 +999,8 @@ def rebuild(  # noqa: C901
                     conn.executemany(
                         "INSERT INTO note_search "
                         "(doc_type, file_path, title, sector, content, embedding, "
-                        "section_title, anchor) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                        "section_title, anchor, ticker, edge_context) "
+                        "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                         rows,
                     )
                 # Refresh meta for incremental next run
@@ -923,8 +1094,8 @@ def rebuild(  # noqa: C901
                     conn.execute("DELETE FROM note_search WHERE file_path = ?", (fpath,))
                     conn.executemany(
                         "INSERT INTO note_search (doc_type, file_path, title, sector, "
-                        "content, embedding, section_title, anchor) "
-                        "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                        "content, embedding, section_title, anchor, ticker, edge_context) "
+                        "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                         doc_rows,
                     )
                     conn.execute(

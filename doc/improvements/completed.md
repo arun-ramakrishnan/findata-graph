@@ -9698,3 +9698,30 @@ a BLOB — no such DuckDB function, silently stamped `absent` since the
 (`octet_length` now; query.py). Tests: TestCompanyGemmaMigration (7) +
 legacy lanes pinned to the granite selector; 67 targeted green. Raw
 record: `doc/improvements/archive/tooling/company_embeddings_gemma_trial.md`.
+
+## 369. notes gemma adoption — edge-enriched lexical leg + gemma vectors live
+
+**2026-10-08 — filed, executed 2026-10-09, archived the same day**
+(fourth gemma surface; the notes query-side trial's winning shape).
+S1: one-shot seeder banked the definitive 4-hour npz (17,263 section
+vectors) into `vecdb.embed_cache` under the gemma label — 17,263/17,263
+matched, zero corpus drift (the first draft OOM'd the box by
+re-decompressing the npz per row; the streaming rewrite runs 1.55 s at
+253 MB peak). S2: FTS DDL + `_migrate_schema` carry indexed `ticker` +
+`edge_context` (production `context_for` port: accepted graph_edges,
+rare-first @ 900/8); `_embedding_text` flipped to the gemma doc-side
+prefix basis (byte-parity with the seed); gemma-first resolver
+(`NOTES_EMBEDDER=auto|gemma|granite`) + `guard_gemma_stamp` write
+refusal; sidecar-aware batch path. S3: `query_embedder(model_label)`
+follows the index stamp in `note_query` + app.py (sidecar-down on a
+gemma index degrades to BM25-only with reason). S4: production bank
+gate **41/75** (floor 39 — the recorded trial number reproduced;
+relational sweep intact; the compare-tier flip is the trial's
+documented 444-row pool-depression); gc notes dead 0 (granite rows
+retained as rollback insurance); snapshot-check green. Live index:
+17,263 rows @ 512-d, stamp `embeddinggemma-2-q8_512`. The seed proved
+its worth same-day: a stale worktree rebuilt notes with granite and
+purged the cache rows, and the npz re-seeded the index back in minutes
+instead of a ~100-minute re-embed. Raw record:
+`doc/improvements/archive/tooling/notes_gemma_adoption.md`.
+

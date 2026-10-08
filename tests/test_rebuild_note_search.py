@@ -203,8 +203,10 @@ class TestRebuild:
 
 class TestEmbeddingColumn:
     """N5 item: note_search carries an `embedding` UNINDEXED column for hybrid
-    ranking. Populated by default with a deterministic pseudo-embedding; an
-    injected embed_fn overrides it (real-embedding path)."""
+    ranking. notes_gemma_adoption S2: the default resolution is the gemma
+    sidecar (512-d) when reachable; the deterministic pseudo-embedding is the
+    failsafe-of-the-failsafe (sidecar down AND local model missing). Tests
+    pin the backend they assert on."""
 
     def test_schema_has_embedding_column(self, seeded_tree):
         rns.rebuild(seeded_tree, write=True)
@@ -217,7 +219,11 @@ class TestEmbeddingColumn:
         finally:
             con.close()
 
-    def test_all_rows_get_pseudo_embedding(self, seeded_tree):
+    def test_all_rows_get_pseudo_embedding(self, seeded_tree, monkeypatch):
+        from helpers.core import gemma_embedder, local_embedder
+
+        monkeypatch.setattr(gemma_embedder, "available", lambda port=None: False)
+        monkeypatch.setattr(local_embedder, "available", lambda: False)
         stats = rns.rebuild(seeded_tree, write=True)
         assert stats["embedded"] == 4  # 4 section rows (see TestRebuild)
 
@@ -231,6 +237,55 @@ class TestEmbeddingColumn:
                 assert vec is not None and len(vec) == 64
         finally:
             con.close()
+
+    def test_gemma_sidecar_up_embeds_512(self, seeded_tree, monkeypatch):
+        """Adoption default: sidecar reachable -> 512-d vectors + gemma stamp."""
+        from helpers.core import gemma_embedder
+
+        monkeypatch.setattr(gemma_embedder, "available", lambda port=None: True)
+        monkeypatch.setattr(
+            gemma_embedder,
+            "embed_document",
+            lambda text, port=None: [0.1] * gemma_embedder.DIM,
+        )
+        stats = rns.rebuild(seeded_tree, write=True)
+        assert stats["embed_model"] == gemma_embedder.MODEL_LABEL
+        assert stats["embedded"] == 4
+        con = sqlite3.connect(str(seeded_tree))
+        try:
+            vec = load_vec(con.execute("SELECT embedding FROM note_search LIMIT 1").fetchone()[0])
+            assert vec is not None and len(vec) == 512
+            stamp = con.execute(
+                "SELECT value FROM db_meta WHERE key='note_embed_model'"
+            ).fetchone()[0]
+            assert stamp == gemma_embedder.MODEL_LABEL
+        finally:
+            con.close()
+
+    def test_gemma_stamped_index_refuses_fallback_rebuild(self, seeded_tree, monkeypatch):
+        """guard_gemma_stamp semantics: a gemma-stamped notes index refuses a
+        non-gemma rebuild when the sidecar is down (the notes hard sidecar
+        dependency). NOTES_EMBEDDER=granite is the explicit escape."""
+        from helpers.core import gemma_embedder
+
+        monkeypatch.setattr(gemma_embedder, "available", lambda port=None: True)
+        monkeypatch.setattr(
+            gemma_embedder,
+            "embed_document",
+            lambda text, port=None: [0.1] * gemma_embedder.DIM,
+        )
+        rns.rebuild(seeded_tree, write=True)  # stamp the index gemma
+
+        monkeypatch.setattr(gemma_embedder, "available", lambda port=None: False)
+        from helpers.core import local_embedder
+
+        monkeypatch.setattr(local_embedder, "available", lambda: True)
+        with pytest.raises(Exception, match="gemma-stamped"):
+            rns.rebuild(seeded_tree, write=True)
+        # Explicit escape: the demotion is allowed when the operator opts in.
+        monkeypatch.setenv("NOTES_EMBEDDER", "granite")
+        stats = rns.rebuild(seeded_tree, write=True)
+        assert stats["embed_model"] != gemma_embedder.MODEL_LABEL
 
     def test_injected_embed_fn_is_used(self, seeded_tree):
         def tiny_embed(text):
@@ -351,6 +406,16 @@ def fake_local(monkeypatch):
 
 
 class TestLocalEmbedderWiring:
+    """LEGACY in-process resolution path (notes_gemma_adoption S2): these
+    pin the gemma sidecar unreachable so the resolver exercises the local
+    model / pseudo failsafe contract it always had."""
+
+    @pytest.fixture(autouse=True)
+    def gemma_down(self, monkeypatch):
+        from helpers.core import gemma_embedder
+
+        monkeypatch.setattr(gemma_embedder, "available", lambda port=None: False)
+
     def test_resolve_embedder_picks_local(self, fake_local):
         fn, dims, label = rns.resolve_embedder()
         assert fn is fake_local.embed_document
@@ -673,22 +738,32 @@ class TestVecMirror:
             conn.close()
         assert not any("Agriculture.md" in fp for fp in fps)
 
-    def test_vec_similarity_matches_python_cosine(self, seeded_tree):
+    def test_vec_similarity_matches_python_cosine(self, seeded_tree, monkeypatch):
         """KNN similarity over the mirrored table == float64 cosine of the
-        embedding column (the response contract must not change with A1)."""
+        embedding column (the response contract must not change with A1).
+
+        Hermetic on the temp tree at the pseudo failsafe (gemma + local
+        pinned down): this test historically rebuilt the LIVE db with
+        whatever the resolver picked (pseudo when the model was gone) —
+        notes_gemma_adoption made that both wrong (512-d rows vs the
+        asserted 64-d query) and destructive (it silently migrated the
+        live index mid-suite)."""
         import math
 
-        import helpers.maintenance.rebuild_note_search as R
+        from helpers.core import gemma_embedder, local_embedder
         from helpers.core.vec_search import knn_similarities
 
-        R.rebuild(R.DEFAULT_DB)
-        conn = self._vec_conn(R.DEFAULT_DB)
+        monkeypatch.setattr(gemma_embedder, "available", lambda port=None: False)
+        monkeypatch.setattr(local_embedder, "available", lambda: False)
+
+        rns.rebuild(seeded_tree)
+        conn = self._vec_conn(seeded_tree)
         try:
             rows = conn.execute(
                 "SELECT file_path, anchor, embedding FROM note_search WHERE embedding IS NOT NULL"
             ).fetchall()
-            q = R._default_embed("Acme Feeds shrimp feed")
-            got = knn_similarities(conn, q, k=len(rows), dims=R._PSEUDO_DIMS)
+            q = rns._default_embed("Acme Feeds shrimp feed")
+            got = knn_similarities(conn, q, k=len(rows), dims=rns._PSEUDO_DIMS)
             assert got is not None
             for fp, anchor, emb in rows:
                 from helpers.core.vec_codec import load_vec
@@ -831,7 +906,15 @@ class TestStalenessCheck:
 class TestBatchEmbedPath:
     """Two-phase batch mode (parallel_cold_embed proposal): rows collected
     without embeddings, misses batch-embedded via cached_embed_batch ->
-    embed_documents_parallel, warm cycles all-hits."""
+    embed_documents_parallel, warm cycles all-hits. Legacy (local-pool)
+    contract: the gemma sidecar is pinned down so the local batch fn is
+    the one under test (notes_gemma_adoption S2)."""
+
+    @pytest.fixture(autouse=True)
+    def gemma_down(self, monkeypatch):
+        from helpers.core import gemma_embedder
+
+        monkeypatch.setattr(gemma_embedder, "available", lambda port=None: False)
 
     def test_batch_attaches_vectors_and_seeds_cache(self, seeded_tree, fake_local):
         stats = rns.rebuild(seeded_tree, write=True)
