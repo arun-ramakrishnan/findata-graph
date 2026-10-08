@@ -78,7 +78,7 @@ _CACHE_DB_RETAIN = 1  # keep DB even when findata max_mtime == cache, for increm
 @dataclass(frozen=True)
 class Note:
     path: Path
-    text: str
+    text: str  # in-memory only on fresh loads; NOT persisted (cache v2) — cache hits carry ""
     frontmatter: dict[str, Any]
     body: str
 
@@ -208,11 +208,9 @@ class Corpus:
                 )
                 try:
                     cur = conn.execute(
-                        "SELECT path, mtime, content_hash, frontmatter_json, body, text FROM corpus_cache"
+                        "SELECT path, mtime, content_hash, frontmatter_json, body FROM corpus_cache"
                     )
-                    cached = {
-                        row[0]: (row[1], row[2], row[3], row[4], row[5]) for row in cur.fetchall()
-                    }
+                    cached = {row[0]: (row[1], row[2], row[3], row[4]) for row in cur.fetchall()}
                 finally:
                     conn.close()
                 notes: list[Note] = []
@@ -223,7 +221,7 @@ class Corpus:
                     rec = cached.get(key)
                     # S1b.2: content-hash verdict (blake2b 8) like note_search P2.1, mtime is carry hint
                     if rec:
-                        cached_mtime, cached_hash, fm_json, body, text = rec
+                        cached_mtime, cached_hash, fm_json, body = rec
                         # Quick mtime+hash check: if mtime matches and hash matches, reuse without read
                         # If mtime differs but content same (git worktree skew), still reuse via hash
                         # Compute hash lazily only if mtime differs
@@ -233,7 +231,9 @@ class Corpus:
                                 fm = _json.loads(fm_json) if fm_json else {}
                             except Exception:
                                 fm = {}
-                            notes.append(Note(path=pp, text=text, frontmatter=fm, body=body))
+                            # text is NOT persisted (cache v2) — cache-hit notes
+                            # carry empty text; no consumer reads Note.text
+                            notes.append(Note(path=pp, text="", frontmatter=fm, body=body))
                             continue
                         # mtime miss — need to check content hash to avoid false full rebuild on touch
                         # Read file to compute hash (still need read, but we can compare)
@@ -249,9 +249,9 @@ class Corpus:
                                     fm = _json.loads(fm_json) if fm_json else {}
                                 except Exception:
                                     fm = {}
-                                notes.append(Note(path=pp, text=text, frontmatter=fm, body=body))
+                                notes.append(Note(path=pp, text="", frontmatter=fm, body=body))
                                 # Upsert mtime drift fix
-                                to_upsert.append((key, mtime, cached_hash, fm_json, body, text))
+                                to_upsert.append((key, mtime, cached_hash, fm_json, body))
                                 continue
                         except OSError:
                             pass
@@ -263,9 +263,7 @@ class Corpus:
                             n.text.encode("utf-8", errors="replace"), digest_size=8
                         ).hexdigest()
                         notes.append(n)
-                        to_upsert.append(
-                            (key, mtime, ch, _json.dumps(n.frontmatter), n.body, n.text)
-                        )
+                        to_upsert.append((key, mtime, ch, _json.dumps(n.frontmatter), n.body))
                 # Upsert misses
                 if to_upsert:
                     conn = (
@@ -275,7 +273,7 @@ class Corpus:
                     )
                     try:
                         conn.executemany(
-                            "INSERT OR REPLACE INTO corpus_cache(path, mtime, content_hash, frontmatter_json, body, text) VALUES (?,?,?,?,?,?)",
+                            "INSERT OR REPLACE INTO corpus_cache(path, mtime, content_hash, frontmatter_json, body) VALUES (?,?,?,?,?)",
                             to_upsert,
                         )
                         conn.commit()
@@ -359,8 +357,8 @@ class Corpus:
                 mtimes = {pp: pp.stat().st_mtime for pp in files}
                 conn = _db_connect(_CACHE_DB)  # ty: ignore[call-non-callable]  # _HAS_DB_CONNECT-gated above
                 try:
-                    # list rows so the light (3-col) and full (6-col) dicts share
-                    # a value type — rec[3]/rec[4] only read under fields="all"
+                    # list rows so the light (3-col) and full (4-col) dicts share
+                    # a value type — rec[3] is only read under fields="all"
                     if light:
                         cur = conn.execute(
                             "SELECT path, mtime, content_hash, frontmatter_json FROM corpus_cache"
@@ -368,7 +366,7 @@ class Corpus:
                         cached = {row[0]: list(row[1:]) for row in cur.fetchall()}
                     else:
                         cur = conn.execute(
-                            "SELECT path, mtime, content_hash, frontmatter_json, body, text FROM corpus_cache"
+                            "SELECT path, mtime, content_hash, frontmatter_json, body FROM corpus_cache"
                         )
                         cached = {row[0]: list(row[1:]) for row in cur.fetchall()}
                 finally:
@@ -399,12 +397,13 @@ class Corpus:
                         if rec:
                             fm_json = rec[2]
                             body = "" if light else rec[3]
-                            text = "" if light else rec[4]
                             try:
                                 fm = _json.loads(fm_json) if fm_json else {}
                             except Exception:
                                 fm = {}
-                            yield Note(path=pp, text=text, frontmatter=fm, body=body)
+                            # text is NOT persisted (cache v2) — no consumer
+                            # reads Note.text; cache hits carry empty text
+                            yield Note(path=pp, text="", frontmatter=fm, body=body)
                             continue
                         n = _load_one(pp)
                         if n is None:
@@ -417,9 +416,7 @@ class Corpus:
                             if light
                             else n
                         )
-                        to_upsert.append(
-                            (key, mtime, ch, _json.dumps(n.frontmatter), n.body, n.text)
-                        )
+                        to_upsert.append((key, mtime, ch, _json.dumps(n.frontmatter), n.body))
                 finally:
                     if to_upsert or mtime_fixups:
                         try:
@@ -427,7 +424,7 @@ class Corpus:
                             try:
                                 if to_upsert:
                                     conn.executemany(
-                                        "INSERT OR REPLACE INTO corpus_cache(path, mtime, content_hash, frontmatter_json, body, text) VALUES (?,?,?,?,?,?)",
+                                        "INSERT OR REPLACE INTO corpus_cache(path, mtime, content_hash, frontmatter_json, body) VALUES (?,?,?,?,?)",
                                         to_upsert,
                                     )
                                 if mtime_fixups:
@@ -482,7 +479,7 @@ def _init_db_cache(notes: list[Note], root: Path | None = None) -> None:
         )
         try:
             conn.execute(
-                "CREATE TABLE IF NOT EXISTS corpus_cache(path TEXT PRIMARY KEY, mtime REAL, content_hash TEXT, frontmatter_json TEXT, body TEXT, text TEXT)"
+                "CREATE TABLE IF NOT EXISTS corpus_cache(path TEXT PRIMARY KEY, mtime REAL, content_hash TEXT, frontmatter_json TEXT, body TEXT)"
             )
             rows = []
             for n in notes:
@@ -500,11 +497,10 @@ def _init_db_cache(notes: list[Note], root: Path | None = None) -> None:
                         ch,
                         _json.dumps(n.frontmatter),
                         n.body,
-                        n.text,
                     )
                 )
             conn.executemany(
-                "INSERT OR REPLACE INTO corpus_cache(path, mtime, content_hash, frontmatter_json, body, text) VALUES (?,?,?,?,?,?)",
+                "INSERT OR REPLACE INTO corpus_cache(path, mtime, content_hash, frontmatter_json, body) VALUES (?,?,?,?,?)",
                 rows,
             )
             conn.commit()

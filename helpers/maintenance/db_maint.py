@@ -465,7 +465,7 @@ class DBMaintainer:
     def _backup_corpus(self) -> int:
         """Paired recovery copy of the S1b corpus cache (memory/corpus.db).
 
-        corpus_cache holds path/mtime/content_hash/frontmatter/body/text
+        corpus_cache holds path/mtime/content_hash/frontmatter_json/body
         for every vault note — the private-content class the git snapshot
         deliberately excludes, so this is its only recovery copy
         (operator decision 2026-09-04). Rebuildable (one findata walk),
