@@ -78,6 +78,9 @@ class Ref:
     # all read "dead" (2026-10-08: the granite _doc_text recipe marked
     # all 550 gemma script rows dead)
     text_by_model: dict[str, Callable[[tuple], str]] | None = None
+    # same dispatch for text_db Refs (company: the basis re-reads the
+    # note through the connection), overriding text_db per stamp
+    text_db_by_model: dict[str, Callable[[Any, tuple], str]] | None = None
 
 
 def _doc_text(row: tuple) -> str:
@@ -98,6 +101,15 @@ def _company_text_db(conn, row: tuple) -> str:
     from helpers.graph.embeddings import _get_company_text
 
     return _get_company_text(conn, row[0] or "")
+
+
+def _company_text_gemma_db(conn, row: tuple) -> str:
+    """The gemma company basis — the recipe the gemma populate actually
+    hashed (same title/sector/body as the granite lane, prefixed); must
+    match it or live rows read dead."""
+    from helpers.graph.embeddings import _company_text_pair
+
+    return _company_text_pair(conn, row[0] or "")[1]
 
 
 def _script_text_gemma(row: tuple) -> str:
@@ -145,14 +157,16 @@ DEFAULT_REFS: tuple[Ref, ...] = (
         stamp_sql="SELECT value FROM db_meta WHERE key = 'note_embed_model'",
     ),
     Ref("convo", REPO / "memory/convo_search.duckdb", "SELECT snippet FROM convo_search"),
-    # the company lane (helpers/graph/embeddings.py) — a trial cohort that
-    # nothing rebuilds on demand, so its rows are pure bloat
     Ref(
         "company",
+        # the company lane (helpers/graph/embeddings.py): maintained by
+        # populate_local --maint; its gemma basis re-reads the note (the
+        # granite lane is the default text_db)
         REPO / "memory/research.db",
         "SELECT DISTINCT company_name FROM company_embeddings",
         text_db=_company_text_db,
         stamp_sql="SELECT model FROM company_embeddings LIMIT 1",
+        text_db_by_model={_GEMMA_MODEL_LABEL: _company_text_gemma_db},
     ),
 )
 

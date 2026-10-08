@@ -642,9 +642,20 @@ def run_yfinance_pass(
 
 
 # --------------------------------------------------------------------------- #
-# E3: semantic_peer from DuckDB VSS (bge-small-en-v1.5, 384d)                 #
+# E3: semantic_peer from DuckDB VSS (model follows the company_embeddings      #
+# stamp: granite 384d, gemma 512d since 2026-10-08)                           #
 # --------------------------------------------------------------------------- #
-EMBEDDINGS_SOURCE_REF_PREFIX = "embeddings:bge-small:v1"
+def _live_embeddings_source_prefix(conn: sqlite3.Connection) -> str:
+    """Report-fallback source prefix from the LIVE company_embeddings stamp
+    (the old constant hardcoded `bge-small` — stale branding across the
+    granite swap and the 2026-10-08 gemma adoption)."""
+    try:
+        r = conn.execute("SELECT model FROM company_embeddings LIMIT 1").fetchone()
+    except sqlite3.OperationalError:
+        return "embeddings:unknown"
+    return f"embeddings:{r[0]}" if r and r[0] else "embeddings:unknown"
+
+
 EMBEDDINGS_REPORT_PATH = PROJECT_ROOT / "outputs" / "relations_report.md"
 
 
@@ -830,7 +841,9 @@ def run_embeddings_pass(
     )
     try:
         today = utc_today_iso()
-        source_prefix = edges[0][3].rsplit(":", 1)[0] if edges else EMBEDDINGS_SOURCE_REF_PREFIX
+        source_prefix = (
+            edges[0][3].rsplit(":", 1)[0] if edges else _live_embeddings_source_prefix(conn)
+        )
         lines = [
             "",
             f"## semantic_peer  # E3 {source_prefix} (k={k}, threshold={threshold})",

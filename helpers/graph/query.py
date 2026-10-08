@@ -1032,10 +1032,15 @@ def _compute_input_fingerprints(con: duckdb.DuckDBPyConnection) -> dict[str, str
         # pristine clone: the hypergraph store is absent — h_* stay absent too
         fps["hyper"] = "absent"
     try:
+        # octet_length, NOT length: DuckDB's sqlite scanner hands the
+        # embedding over as BLOB and length(BLOB) does not exist (the old
+        # expression raised BinderException -> the fingerprint silently
+        # stamped 'absent' -> fast-path rebuilds never saw embedding
+        # changes; caught 2026-10-08 by the gemma company flip)
         emb = con.execute(
-            "SELECT COUNT(*), COALESCE(SUM(length(embedding)), 0) FROM fin.company_embeddings"
+            "SELECT COUNT(*), COALESCE(SUM(octet_length(embedding)), 0) FROM fin.company_embeddings"
         ).fetchone()
-        assert emb is not None  # noqa: S101  # ty narrowing; COUNT aggregate always returns one row
+        assert emb is not None  # noqa: S101  # ty narrowing; COUNT aggregates always return one row
         fps["embeddings"] = f"{int(emb[0])}:{int(emb[1])}"
     except duckdb.Error:
         fps["embeddings"] = "absent"

@@ -68,6 +68,23 @@ def _pick_embedder(rows, embed_fn):
             )
             return None, 0
         return (lambda q, _d: local_embedder.embed_query(q)), dims
+    # Gemma-stamped table (company adoption, 2026-10-08): the stamp-keyed
+    # query side — search-task prefix (name-variant lookups are prose, not
+    # code). Sidecar down -> no match (never a mixed-model score).
+    from helpers.core import gemma_embedder
+
+    if model == gemma_embedder.MODEL_LABEL:
+        if dims != gemma_embedder.DIM:
+            return None, 0
+        if not gemma_embedder.available():
+            print(
+                f"WARNING: company_embeddings model is {model!r} but the gemma "
+                "sidecar is unavailable — VSS match skipped "
+                "(`make embgemma-server`).",
+                file=sys.stderr,
+            )
+            return None, 0
+        return (lambda q, _d: gemma_embedder.embed_query(q, task="search")), dims
     # Real (API) model: cannot recompute the query vector without the
     # provider key from this CLI. Caller may inject embed_fn instead.
     return None, 0

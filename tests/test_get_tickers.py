@@ -660,6 +660,23 @@ class TestVssRunIndex:
     """S3 (scan_render_vss_microperf): the fetch-once run index must agree
     with the per-call path, and the tripwire must fire only on change."""
 
+    @staticmethod
+    def _live_dims(db_path, default=384):
+        """Width of the first stored company vector (384 granite / 512 gemma)."""
+        import sqlite3
+
+        from helpers.core.vec_codec import load_vec
+
+        con = sqlite3.connect(str(db_path))
+        try:
+            row = con.execute("SELECT embedding FROM company_embeddings LIMIT 1").fetchone()
+        except sqlite3.Error:
+            return default
+        finally:
+            con.close()
+        vec = load_vec(row[0]) if row else None
+        return len(vec) if vec else default
+
     def _parity(self, db, vec_fn, queries, entities):
         embed = _test_embed_fn(vec_fn)
         index = gt.build_vss_run_index(db_path=db, embed_fn=embed)
@@ -688,7 +705,12 @@ class TestVssRunIndex:
             pytest.skip("no live research.db")
         import hashlib
 
-        def vec_fn(name, dims=384):
+        # Read the LIVE width instead of pinning 384: the company surface
+        # adopted gemma (512-d), and a hardcoded width made this live-parity
+        # test fail the matmul the day the flip landed.
+        dims = self._live_dims(live)
+
+        def vec_fn(name, dims=dims):
             h = hashlib.sha256(name.encode()).digest()
             v = []
             for i in range(dims):

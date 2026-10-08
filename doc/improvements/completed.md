@@ -9650,3 +9650,51 @@ the stamp. Live: 90/90 cold re-embed (~2-3 min), stamp
 across the memory/gc/gemma modules. Fusion shape unchanged — memory
 stays hybrid. Raw record:
 `doc/improvements/archive/tooling/memory_search_gemma_migration.md`.
+
+## 368. company_embeddings gemma trial — three-way bank, ADOPTED on the facet-expanded record
+
+**2026-10-08 — filed, executed and archived the same day** (third gemma
+surface; the trial the company surface was always going to need, because
+its vectors feed semantic peer EDGES — a silent-quality regression
+surface). Bank: 41 questions in
+`helpers/misc/company_eval_questions.json` — 12 vss name variants
+(seed-verbatim from embed_eval_questions.json), 17 neighbors/peers
+(KNN from the company's own doc vector, the `semantic_neighbors`
+production path; pass = >=3 of top-5 share the sector; 7 new-sector
+pairs), 12 relation questions with expects DERIVED from `subsidiary_of`
+row-sets (6 parent-ward, 6 subsidiaries-ward) — no hand-authored
+answers. Scratch arms only during measurement: granite via the
+production cached_embed_batch path (1,191/1,192 cache hits), gemma
+2.7/s (~9.5 min). Numbers (granite vs gemma): vss 12/12 vs 12/12 at
+top-1 (saturated), neighbors+peers 10 vs 9, relation-parent 6/6 both,
+relation-SUBSIDIARIES 3/6 vs 5/6 — the harder slice is a clear gemma
+win. Facet expansion on the operator's instruction before concluding:
+full ledger gemma 32/41 vs 31/41; the marquee peers flip (5paisa
+Capital) = granite's label-pure-but-business-wrong AMC wall vs gemma's
+true broker/platform cohort; counterweights kept on record (granite
+top-10 sector mass 44 vs 27, Amber/Akzo/AU wins); gemma's similarity
+space is CALIBRATED (0.74-0.85 spread vs granite's 0.87-0.93
+compression — peer-edge cosine weights discriminate); hybrid with a
+header-FTS bm25 leg at the entity level EVALUATED AND DECLINED (vss
+saturated, peers queryless, note_search already carries the bm25 half
+of company search). The pre-registered rule returned HOLD by one peers
+question; the operator's ruling — gemma's semantic analysis of the
+UNNAMED edges is what this surface ships — overrides it with the
+counterweights recorded (assessment §6.3). ADOPTED + executed live the
+same day: `resolve_company_embedder` (`COMPANY_EMBEDDER=granite`
+escape) + `guard_gemma_stamp` in `populate_local` (gemma-stamped table
+refuses the granite fallback; maint degrades to WARNING), gemma basis =
+shared `_gemma_basis` over the unchanged title/sector/body (granite
+lane byte-identical), stamp-keyed query side in
+`vss_index._pick_embedder` (search task; sidecar down -> no match),
+embed-gc `text_db_by_model` company recipe, peer-edge relabel
+(`embeddings:bge-small:v1` constant replaced by the live stamp). Live:
+1,192 rows gemma/512 (the 1,193rd was a ghost, Caring Beauty), live
+bank gate == scratch arm, gc 1,192 referenced / 0 dead / 1,196 granite
+RETAINED, graph-rebuild + snapshot. FOUND ALONG THE WAY + fixed: the
+rebuild fast path's company-embeddings fingerprint called `length()` on
+a BLOB — no such DuckDB function, silently stamped `absent` since the
+1.5.6 bump, fast-path rebuilds never saw embedding changes
+(`octet_length` now; query.py). Tests: TestCompanyGemmaMigration (7) +
+legacy lanes pinned to the granite selector; 67 targeted green. Raw
+record: `doc/improvements/archive/tooling/company_embeddings_gemma_trial.md`.

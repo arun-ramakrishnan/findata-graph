@@ -255,6 +255,16 @@ commit, referenced by nothing). Entry numbers point at
   recipe), STAMP-KEYED query side (the granite-hardwired fallback would
   have silently bm25-degraded a gemma-stamped index), embed-gc
   stamp-following Ref; 90/90 live, recall sanity green — completed.md #367
+- [`company_embeddings_gemma_trial.md`](tooling/company_embeddings_gemma_trial.md) —
+  company gemma trial: 41-question three-way bank (vss / neighbors-peers /
+  graph-derived relations), scratch granite+gemma arms; pre-registered
+  rule's narrow HOLD overridden by the facet-expanded record (full ledger
+  gemma 32/41 vs 31/41, relation-subsidiaries — the harder slice — 5/6 vs
+  3/6, calibrated space vs granite's compressed one; counterweights kept)
+  and ADOPTED: full per-surface acceptance set live (1,192 rows gemma/512,
+  live gate == scratch arm, gc 0 dead / granite retained, graph-rebuild +
+  snapshot, peer-edge relabel) + the fp `length(BLOB)` fingerprint fix —
+  completed.md #368
 - [`granite_sidecar_selector.md`](tooling/granite_sidecar_selector.md) —
   prefer a shared granite llama-server (third leg on the unified binary,
   proposed :8733) for embed workloads; in-process granite stays the

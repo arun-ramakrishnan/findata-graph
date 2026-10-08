@@ -17,6 +17,14 @@ Two modes:
   run time; the model file (gitignored) is fetched once per the local_embedder
   docstring.
 
+GEMMA ADOPTION (2026-10-08, company_embeddings_gemma_trial, completed.md
+#368): the real lane is SELECTOR-based — EmbeddingGemma-2 (512d, sidecar,
+``_gemma_basis`` doc-side prefix) when available, granite-embedding-97m-r2
+(384d, in-process) otherwise; ``COMPANY_EMBEDDER=granite`` forces granite
+and ``guard_gemma_stamp`` refuses a granite rebuild of a gemma-stamped
+table (the maint path degrades to a WARNING instead). The vss query side
+is stamp-keyed in ``helpers/core/vss_index._pick_embedder``.
+
 (The earlier real-API path — OpenAI text-embedding-3-small — was never
 invoked anywhere and was removed 2026-08-17; see completed.md #115.)
 
@@ -62,6 +70,7 @@ import argparse
 import hashlib
 import json
 import math
+import os
 import re
 import sqlite3
 import sys
@@ -169,26 +178,34 @@ def _overview_body(content: str, cap: int = 1500) -> str:
     return content[:cap].strip()
 
 
-def _get_company_text(conn: sqlite3.Connection, company_name: str) -> str:
-    """Extract the text content of a company's markdown note for embedding.
+def _company_text_pair(conn: sqlite3.Connection, company_name: str) -> tuple[str, str]:
+    """``(granite_basis, gemma_basis)`` for one company, identical content
+    resolution in both lanes.
 
     Reads the markdown file referenced by the entity's file_path, strips
-    YAML frontmatter, and returns name + sector + the overview body
-    (see _overview_body). Falls back to the company name + sector if the
-    file is missing.
+    YAML frontmatter, and returns name + sector + the overview body (see
+    _overview_body). Falls back to the company name + sector if the file
+    is missing. The granite lane is BYTE-IDENTICAL to the pre-gemma
+    _get_company_text (cache keys must not drift); the gemma lane wraps
+    the same title/sector/body in the shared doc-side prefix
+    (rebuild_script_search._gemma_basis, cap unchanged at 1500).
     """
+    from helpers.maintenance.rebuild_script_search import _gemma_basis
+
     r = conn.execute(
         "SELECT file_path, sector_classification FROM entities WHERE name = ?", (company_name,)
     ).fetchone()
 
     if not r:
-        return company_name
+        return company_name, company_name
 
     file_path, sector = r
+    sector_or = sector or ""
 
     # Exchange-seeded stub (D17): file_path IS NULL — no note exists yet.
     if not file_path:
-        return f"{company_name}. {sector or ''}"
+        stub = f"{company_name}. {sector_or}"
+        return stub, stub
 
     # Try to read the markdown file
     full_path = PROJECT_ROOT / file_path
@@ -201,11 +218,55 @@ def _get_company_text(conn: sqlite3.Connection, company_name: str) -> str:
                 parts = content.split("---", 2)
                 if len(parts) >= 3:
                     content = parts[2]
-            return f"{company_name}. {sector or ''}. {_overview_body(content)}"
+            body = _overview_body(content)
+            return (
+                f"{company_name}. {sector_or}. {body}",
+                _gemma_basis(company_name, sector_or, body),
+            )
         except Exception:  # noqa: S110  # best-effort; ignore failure (cleanup/optional read)
             pass
 
-    return f"{company_name}. {sector or ''}"
+    stub = f"{company_name}. {sector_or}"
+    return stub, stub
+
+
+def _get_company_text(conn: sqlite3.Connection, company_name: str) -> str:
+    """Extract the text content of a company's markdown note for embedding
+    (the granite lane of _company_text_pair; kept as the canonical single
+    -text helper for callers outside populate)."""
+    return _company_text_pair(conn, company_name)[0]
+
+
+COMPANY_EMBEDDER_ENV = "COMPANY_EMBEDDER"
+
+
+def _stored_model(conn: sqlite3.Connection) -> str | None:
+    """The table's current model stamp, or None when empty/absent."""
+    try:
+        r = conn.execute("SELECT model FROM company_embeddings LIMIT 1").fetchone()
+    except sqlite3.OperationalError:
+        return None
+    return r[0] if r else None
+
+
+def resolve_company_embedder(conn: sqlite3.Connection) -> tuple[bool, int, str]:
+    """``(gemma_active, dims, model_label)`` for the company surface.
+
+    Adoption default (company_embeddings_gemma_trial, completed.md #368):
+    gemma whenever the sidecar/model is available, granite fallback
+    otherwise — for tables NOT gemma-stamped. A gemma-stamped table
+    REFUSES the fallback at the write path (guard_gemma_stamp), mirroring
+    the script/memory selectors; ``COMPANY_EMBEDDER=granite`` is the
+    escape that legitimizes a deliberate granite rebuild.
+    """
+    from helpers.core import gemma_embedder
+
+    env = os.environ.get(COMPANY_EMBEDDER_ENV, "").strip().lower()
+    if gemma_embedder.available() and env != "granite":
+        return True, gemma_embedder.DIM, gemma_embedder.MODEL_LABEL
+    from helpers.core import local_embedder
+
+    return False, local_embedder.DIM, local_embedder.MODEL_ID
 
 
 def _ensure_single_model(conn: sqlite3.Connection, model: str) -> None:
@@ -229,27 +290,42 @@ def _ensure_single_model(conn: sqlite3.Connection, model: str) -> None:
 
 
 def populate_local(conn: sqlite3.Connection, company: str | None = None) -> int:
-    """Populate embeddings with the local bge-small-en-v1.5 model.
+    """Populate embeddings with the selected local model (selector:
+    gemma sidecar when available, granite otherwise — see
+    resolve_company_embedder; a gemma-stamped table refuses the granite
+    fallback unless COMPANY_EMBEDDER says granite).
 
     Goes through the shared Q3 content-hash cache (helpers/core/
     embed_cache.py): unchanged companies are cache hits (no embed), changed
-    ones re-embed via ONE batch call and update the cache — so this path
-    seeds the cache, making every later refresh (e.g. ``--maint``) warm.
-    Also GCs rows whose company no longer exists in ``entities``.
+    ones re-embed and update the cache — so this path seeds the cache,
+    making every later refresh (e.g. ``--maint``) warm. Also GCs rows whose
+    company no longer exists in ``entities``.
 
     Returns the number of rows inserted/updated. Raises SystemExit when the
-    local embedder is unavailable or the table holds foreign-model rows.
+    resolved embedder is unavailable, the table holds foreign-model rows,
+    or the demotion guard fires.
     """
-    from helpers.core import local_embedder
+    from helpers.core import gemma_embedder, local_embedder
     from helpers.core.embed_cache import cached_embed_batch
+    from helpers.core.gemma_embedder import guard_gemma_stamp
 
-    if not local_embedder.available():
-        raise SystemExit(
-            "local embedder unavailable — see the download command in "
-            "helpers/core/local_embedder.py's docstring."
-        )
-    _ensure_schema(conn, local_embedder.DIM)
-    _ensure_single_model(conn, local_embedder.MODEL_ID)
+    gemma_active, dims, model_label = resolve_company_embedder(conn)
+    guard_gemma_stamp(_stored_model(conn), model_label, os.environ.get(COMPANY_EMBEDDER_ENV))
+    if gemma_active:
+
+        def embed_missing(texts: list[str]) -> list[list[float]]:
+            return [gemma_embedder.embed_document(t) for t in texts]
+
+    else:
+        if not local_embedder.available():
+            raise SystemExit(
+                "local embedder unavailable — see the download command in "
+                "helpers/core/local_embedder.py's docstring."
+            )
+        embed_missing = local_embedder.embed_documents_parallel
+
+    _ensure_schema(conn, dims)
+    _ensure_single_model(conn, model_label)
 
     if company:
         names = [company]
@@ -269,14 +345,14 @@ def populate_local(conn: sqlite3.Connection, company: str | None = None) -> int:
     # ~15 min -> ~4 min; warm cycles have ~0 misses and never spawn it).
     # Index side is embed_document — never the BGE query prefix; see
     # local_embedder.
-    texts = [_get_company_text(conn, n) for n in names]
+    texts = [_company_text_pair(conn, n)[1 if gemma_active else 0] for n in names]
     # No automatic model-difference purge (2026-10-08): a prior-model row
     # is rollback insurance, dead-text eviction is `make embed-gc`.
     vecs, cache_stats = cached_embed_batch(
         conn,
         texts,
-        local_embedder.MODEL_ID,
-        local_embedder.embed_documents_parallel,
+        model_label,
+        embed_missing,
         source="company",
     )
     # Stable-write upsert (maint_full_zero_churn F2): an unchanged vector
@@ -295,7 +371,7 @@ def populate_local(conn: sqlite3.Connection, company: str | None = None) -> int:
             "    created_at = excluded.created_at "
             "WHERE company_embeddings.embedding IS NOT excluded.embedding "
             "   OR company_embeddings.model     IS NOT excluded.model",
-            (name, vec_blob, local_embedder.MODEL_ID),
+            (name, vec_blob, model_label),
         )
         count += cur.rowcount
 
@@ -330,45 +406,66 @@ def populate_local(conn: sqlite3.Connection, company: str | None = None) -> int:
 def maint_refresh(conn: sqlite3.Connection) -> int:
     """``--maint`` entry point: best-effort cached refresh for maint-full.
 
-    Three-way gate (company_embeddings_maint proposal §3.3) — never fails
-    the housekeeping run, never auto-upgrades the table:
+    Gate (generalized 2026-10-08 for the gemma adoption — the stamp
+    cutover itself stays the user-held apply, never mid-housekeeping):
 
-    - local embedder unavailable -> one WARNING, exit 0 (company embeddings
-      stay as-is rather than silently regressing to pseudo).
-    - table's model labels are not exactly [bge-small-en-v1.5] (empty table,
-      pre-apply pseudo rows, or a mixed/broken state) -> one WARNING naming
-      the remediation, exit 0. The upgrade to bge is the user-held apply
-      (doc/procedures/embeddings.md); maint only keeps an already-applied
-      table fresh.
+    - a gemma-stamped table with the sidecar down -> the demotion guard's
+      SystemExit caught here -> one WARNING, exit 0 (never populate the
+      fallback leg silently — the 2026-10-08 07:40 un-migration class).
+    - table's model labels hold anything beyond the two real models
+      (empty table, pseudo rows, legacy bge) -> one WARNING naming the
+      remediation, exit 0.
+    - resolved model != stored stamp (granite<->gemma cutover pending) ->
+      one WARNING ("--clear" + the apply), exit 0.
+    - resolved granite but the local embedder is unavailable -> one
+      WARNING, exit 0.
     - otherwise -> cached populate + GC (seconds on a no-change cycle).
     """
-    from helpers.core import local_embedder
+    from helpers.core import gemma_embedder, local_embedder
+    from helpers.core.gemma_embedder import GemmaStampDemotion, guard_gemma_stamp
 
-    if not local_embedder.available():
+    gemma_active, dims, model_label = resolve_company_embedder(conn)
+    env = os.environ.get(COMPANY_EMBEDDER_ENV)
+    stored = _stored_model(conn)
+    try:
+        guard_gemma_stamp(stored, model_label, env)
+    except GemmaStampDemotion as e:
+        print(f"WARNING: {e} — refresh skipped", file=sys.stderr)
+        return 0
+    if not gemma_active and not local_embedder.available():
         print(
-            "WARNING: local bge-small embedder unavailable — company-embeddings "
+            "WARNING: local granite embedder unavailable — company-embeddings "
             "refresh skipped (table left as-is). Setup: "
             "helpers/core/local_embedder.py module docstring.",
             file=sys.stderr,
         )
         return 0
-
     models = stats(conn)["models"]
-    if models != [local_embedder.MODEL_ID]:
-        if not models:
-            print(
-                "WARNING: company_embeddings is empty — run the local-embeddings "
-                "apply first (doc/procedures/embeddings.md); maint never "
-                "auto-populates. Refresh skipped.",
-                file=sys.stderr,
-            )
-        else:
-            print(
-                f"WARNING: company_embeddings holds model labels {models}, not "
-                f"[{local_embedder.MODEL_ID!r}] — run --clear + the local-"
-                "embeddings apply (maint never auto-upgrades). Refresh skipped.",
-                file=sys.stderr,
-            )
+    known = {local_embedder.MODEL_ID, gemma_embedder.MODEL_LABEL}
+    if any(m not in known for m in models):
+        print(
+            f"WARNING: company_embeddings holds model labels {models}, not a "
+            "known real model — run --clear + the local-embeddings apply "
+            "(maint never migrates stamps). Refresh skipped.",
+            file=sys.stderr,
+        )
+        return 0
+    if not models:
+        print(
+            "WARNING: company_embeddings is empty — run the local-embeddings "
+            "apply first (doc/procedures/embeddings.md); maint never "
+            "auto-populates. Refresh skipped.",
+            file=sys.stderr,
+        )
+        return 0
+    if stored != model_label:
+        print(
+            f"WARNING: company_embeddings is {stored!r}-stamped but the "
+            f"resolved embedder is {model_label!r} — the cutover is the "
+            "user-held apply (--clear + the embeddings apply), maint never "
+            "migrates stamps. Refresh skipped.",
+            file=sys.stderr,
+        )
         return 0
 
     count = populate_local(conn)
@@ -466,10 +563,12 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--model",
         default=None,
-        help="Model label. The special value 'bge-small-en-v1.5' "
-        "populates via the LOCAL real embedder "
-        "(helpers/core/local_embedder.py); anything else is a "
-        "pseudo-embedding label (default: dry-run-v{dims})",
+        help="Model label. The legacy alias 'bge-small-en-v1.5' (and any "
+        "'granite*'/'gemma*' value) populates via the SELECTED local "
+        "embedder — resolve_company_embedder: gemma sidecar when "
+        "available, granite otherwise, COMPANY_EMBEDDER=granite forces "
+        "granite; anything else is a pseudo-embedding label "
+        "(default: dry-run-v{dims})",
     )
     parser.add_argument(
         "--dims",
@@ -517,11 +616,12 @@ def main(argv: list[str] | None = None) -> int:
 
     from helpers.core import local_embedder
 
-    if args.model == local_embedder.MODEL_ID:
-        # Local real path: dims + label come from the module, not the CLI.
+    if args.model in (local_embedder.MODEL_ID, "bge-small-en-v1.5", "granite", "gemma"):
+        # Real path: dims + label come from the selector, not the CLI.
+        gemma_active, dims, model_label = resolve_company_embedder(conn)
         print(
-            f"Generating local embeddings ({local_embedder.MODEL_ID}, "
-            f"dims={local_embedder.DIM})...",
+            f"Generating local embeddings (selected {model_label}, "
+            f"dims={dims}, gemma_active={gemma_active})...",
             file=sys.stderr,
         )
         count = populate_local(conn, company=args.company)

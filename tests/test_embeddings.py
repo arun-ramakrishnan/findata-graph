@@ -716,3 +716,160 @@ class TestMaintRefresh:
         # generation alone.
         populate_local(conn)
         assert get_generation(conn) == 101
+
+
+# ---------------------------------------------------------------------------
+# gemma adoption (company_embeddings_gemma_trial, completed.md #368)
+# ---------------------------------------------------------------------------
+@pytest.fixture(autouse=True)
+def _granite_selector_default(monkeypatch):
+    """The pre-adoption lanes below test the granite path they were
+    written for — pin the selector; TestCompanyGemmaMigration opts back
+    into availability-following by deleting the env in its fixture."""
+    monkeypatch.setenv("COMPANY_EMBEDDER", "granite")
+
+
+class TestCompanyGemmaMigration:
+    """Selector + guard + basis + query-side contracts for the 2026-10-08
+    company-surface gemma adoption (mirrors TestMemoryGemmaMigration)."""
+
+    @pytest.fixture
+    def entities_conn(self, tmp_path, monkeypatch):
+        """research-shaped conn: one company with a note file."""
+        import helpers.graph.embeddings as emb_mod
+
+        conn, _ = _make_embed_db(tmp_path)
+        conn.execute("""
+            CREATE TABLE entities (
+                name TEXT PRIMARY KEY, entity_type TEXT, file_path TEXT,
+                sector_classification TEXT
+            )
+        """)
+        note = tmp_path / "TestCo.md"
+        note.write_text(
+            "---\ntitle: TestCo\ntype: company\nticker: TST.NS\n---\n"
+            "# TestCo\n\n## Company Overview\n\nA test concrete maker.\n"
+        )
+        conn.execute(
+            "INSERT INTO entities VALUES ('TestCo', 'company', 'TestCo.md', 'Building_Materials')"
+        )
+        conn.commit()
+        monkeypatch.setattr(emb_mod, "PROJECT_ROOT", tmp_path)
+        monkeypatch.delenv("COMPANY_EMBEDDER", raising=False)
+        return conn
+
+    def test_selector_follows_sidecar(self, entities_conn, monkeypatch):
+        from helpers.core import gemma_embedder, local_embedder
+        from helpers.graph.embeddings import resolve_company_embedder
+
+        monkeypatch.setattr(gemma_embedder, "available", lambda: True)
+        assert resolve_company_embedder(entities_conn) == (
+            True,
+            gemma_embedder.DIM,
+            gemma_embedder.MODEL_LABEL,
+        )
+        monkeypatch.setenv("COMPANY_EMBEDDER", "granite")
+        assert resolve_company_embedder(entities_conn) == (
+            False,
+            local_embedder.DIM,
+            local_embedder.MODEL_ID,
+        )
+
+    def test_populate_gemma_stamps_and_seeds_cache(self, entities_conn, monkeypatch):
+        from helpers.core import gemma_embedder
+
+        calls: list[str] = []
+
+        def fake_embed(text: str) -> list[float]:
+            calls.append(text)
+            return [0.5] * gemma_embedder.DIM
+
+        monkeypatch.setattr(gemma_embedder, "available", lambda: True)
+        monkeypatch.setattr(gemma_embedder, "embed_document", fake_embed)
+        count = populate_local(entities_conn)
+        assert count == 1
+        row = entities_conn.execute(
+            "SELECT model, length(embedding) FROM company_embeddings"
+        ).fetchone()
+        assert row[0] == gemma_embedder.MODEL_LABEL
+        assert row[1] == gemma_embedder.DIM * 4
+        # the embedded text is the gemma basis, prefix and all
+        assert calls == [
+            "title: TestCo | text: Building_Materials\nCompany Overview\n\nA test concrete maker."
+        ]
+
+    def test_guard_refuses_granite_rebuild_of_gemma_stamp(self, entities_conn, monkeypatch):
+        from helpers.core import gemma_embedder
+        from helpers.core.gemma_embedder import GemmaStampDemotion
+        from helpers.graph.embeddings import populate_local
+
+        # stamp the table gemma hermetically (fake sidecar), then drop it
+        monkeypatch.setattr(gemma_embedder, "available", lambda: True)
+        monkeypatch.setattr(gemma_embedder, "embed_document", lambda t: [0.5] * gemma_embedder.DIM)
+        populate_local(entities_conn)
+        assert entities_conn.execute("SELECT COUNT(*) FROM company_embeddings").fetchone()[0] == 1
+        monkeypatch.setattr(gemma_embedder, "available", lambda: False)
+        with pytest.raises(GemmaStampDemotion):
+            populate_local(entities_conn)
+
+    def test_guard_escape_env_legitimizes_granite(self):
+        from helpers.core.gemma_embedder import (
+            MODEL_LABEL,
+            GemmaStampDemotion,
+            guard_gemma_stamp,
+        )
+
+        # no raise: the env escape names granite deliberately
+        guard_gemma_stamp(MODEL_LABEL, "granite-embedding-97m-r2", "granite")
+        # no raise: resolving gemma onto anything is never a demotion
+        guard_gemma_stamp("granite-embedding-97m-r2", MODEL_LABEL, None)
+        with pytest.raises(GemmaStampDemotion):
+            guard_gemma_stamp(MODEL_LABEL, "granite-embedding-97m-r2", None)
+
+    def test_company_text_pair_bytes(self, entities_conn):
+        from helpers.graph.embeddings import _company_text_pair
+
+        granite, gemma = _company_text_pair(entities_conn, "TestCo")
+        assert granite == ("TestCo. Building_Materials. Company Overview\n\nA test concrete maker.")
+        assert gemma == (
+            "title: TestCo | text: Building_Materials\nCompany Overview\n\nA test concrete maker."
+        )
+        assert _company_text_pair(entities_conn, "Ghost") == ("Ghost", "Ghost")
+
+    def test_pick_embedder_gemma_stamp_keyed(self, entities_conn, monkeypatch, capsys):
+        from helpers.core import gemma_embedder
+        from helpers.core.vec_codec import pack_f32
+        from helpers.core.vss_index import _pick_embedder
+
+        seen: dict = {}
+
+        def fake_query(text: str, *, task: str = "code"):
+            seen["task"] = task
+            return [0.25] * gemma_embedder.DIM
+
+        rows = [("TestCo", pack_f32([0.1] * gemma_embedder.DIM), gemma_embedder.MODEL_LABEL)]
+        monkeypatch.setattr(gemma_embedder, "available", lambda: True)
+        monkeypatch.setattr(gemma_embedder, "embed_query", fake_query)
+        fn, dims = _pick_embedder(rows, None)
+        assert dims == gemma_embedder.DIM
+        assert len(fn("some longName", dims)) == gemma_embedder.DIM
+        assert seen["task"] == "search"
+
+        monkeypatch.setattr(gemma_embedder, "available", lambda: False)
+        assert _pick_embedder(rows, None) == (None, 0)
+        assert "sidecar is unavailable" in capsys.readouterr().err
+
+    def test_gc_company_recipe_follows_stamp(self, entities_conn):
+        from helpers.core import gemma_embedder
+        from helpers.graph.embeddings import _company_text_pair
+        from helpers.maintenance.gc_embed_cache import (
+            DEFAULT_REFS,
+            _company_text_gemma_db,
+        )
+
+        ref = next(r for r in DEFAULT_REFS if r.label == "company")
+        assert ref.text_db_by_model == {gemma_embedder.MODEL_LABEL: _company_text_gemma_db}
+        assert (
+            _company_text_gemma_db(entities_conn, ("TestCo",))
+            == (_company_text_pair(entities_conn, "TestCo")[1])
+        )

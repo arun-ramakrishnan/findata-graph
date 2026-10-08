@@ -1,0 +1,263 @@
+{
+  "_comment": "Company-surface gemma trial bank (company_embeddings_gemma_trial S1, 2026-10-08). vss: Yahoo-style longName queries, ANY-OF recall@5 over company doc vectors (seed from embed_eval_questions.json, ground truth verified 2026-08-21 against raw corpus). neighbors: KNN from the company's own doc vector (mirrors semantic_neighbors, the peer-edge path), top-5 excl self, pass if >=3 share the sector; 'source':'trial' rows added for sectors the seed under-covers. relation: expects DERIVED from graph_edges subsidiary_of row-sets (source=subsidiary, target=parent), ANY-OF recall@5 on the question text. Cohort = entities.company with file_path NOT NULL.",
+  "vss": [
+    {
+      "query": "Avanti Feeds Limited",
+      "expect": "Avanti Feeds"
+    },
+    {
+      "query": "Avenue Supermarts Limited",
+      "expect": "Avenue Supermarts DMart"
+    },
+    {
+      "query": "NVIDIA Corporation",
+      "expect": "NVIDIA Corporation"
+    },
+    {
+      "query": "Exide Industries Limited",
+      "expect": "Exide Industries"
+    },
+    {
+      "query": "Metropolis Healthcare Ltd",
+      "expect": "Metropolis Healthcare"
+    },
+    {
+      "query": "Pine Labs Private Limited",
+      "expect": "Pine Labs"
+    },
+    {
+      "query": "Apollo Tyres Limited",
+      "expect": "Apollo Tyres"
+    },
+    {
+      "query": "Dr. Lal PathLabs Limited",
+      "expect": "Dr. Lal PathLabs"
+    },
+    {
+      "query": "Mazagon Dock Shipbuilders Limited",
+      "expect": "Mazagon Dock Shipbuilders"
+    },
+    {
+      "query": "CEAT Limited",
+      "expect": "CEAT"
+    },
+    {
+      "query": "Jain Irrigation Systems Limited",
+      "expect": "Jain Irrigation Systems"
+    },
+    {
+      "query": "Cochin Shipyard Limited",
+      "expect": "Cochin Shipyard"
+    }
+  ],
+  "neighbors": [
+    {
+      "company": "Avanti Feeds",
+      "sector": "Agriculture"
+    },
+    {
+      "company": "CEAT",
+      "sector": "Automotive"
+    },
+    {
+      "company": "Coal India",
+      "sector": "Mining"
+    },
+    {
+      "company": "Dr. Lal PathLabs",
+      "sector": "Diagnostics"
+    },
+    {
+      "company": "Exide Industries",
+      "sector": "Automotive"
+    },
+    {
+      "company": "HDFC Life",
+      "sector": "Insurance"
+    },
+    {
+      "company": "Metropolis Healthcare",
+      "sector": "Diagnostics"
+    },
+    {
+      "company": "NVIDIA Corporation",
+      "sector": "Semiconductors"
+    },
+    {
+      "company": "Pine Labs",
+      "sector": "Fintech_Payments"
+    },
+    {
+      "company": "Cochin Shipyard",
+      "sector": "Defense"
+    },
+    {
+      "company": "AU Small Finance Bank",
+      "sector": "Banking",
+      "source": "trial"
+    },
+    {
+      "company": "Akzo Nobel India",
+      "sector": "Building_Materials",
+      "source": "trial"
+    },
+    {
+      "company": "5paisa Capital",
+      "sector": "Capital_Markets",
+      "source": "trial"
+    },
+    {
+      "company": "20 Microns",
+      "sector": "Chemicals",
+      "source": "trial"
+    },
+    {
+      "company": "Bajaj Electricals",
+      "sector": "Consumer",
+      "source": "trial"
+    },
+    {
+      "company": "3M India",
+      "sector": "Diversified",
+      "source": "trial"
+    },
+    {
+      "company": "Amber Enterprises India",
+      "sector": "EMS_Manufacturing",
+      "source": "trial"
+    }
+  ],
+  "relation": [
+    {
+      "id": "rel_parent_3m_india",
+      "question": "parent company of 3M India",
+      "company": "3M India",
+      "direction": "parent",
+      "expect": [
+        "3M Company"
+      ],
+      "source": "graph:subsidiary_of"
+    },
+    {
+      "id": "rel_parent_abbott_india",
+      "question": "parent company of Abbott India",
+      "company": "Abbott India",
+      "direction": "parent",
+      "expect": [
+        "Abbott Laboratories"
+      ],
+      "source": "graph:subsidiary_of"
+    },
+    {
+      "id": "rel_parent_accelya_solutions_india",
+      "question": "parent company of Accelya Solutions India",
+      "company": "Accelya Solutions India",
+      "direction": "parent",
+      "expect": [
+        "Accelya Holding World"
+      ],
+      "source": "graph:subsidiary_of"
+    },
+    {
+      "id": "rel_parent_bajaj_finance",
+      "question": "parent company of Bajaj Finance",
+      "company": "Bajaj Finance",
+      "direction": "parent",
+      "expect": [
+        "Bajaj Finserv"
+      ],
+      "source": "graph:subsidiary_of"
+    },
+    {
+      "id": "rel_parent_bajaj_housing_finance",
+      "question": "parent company of Bajaj Housing Finance",
+      "company": "Bajaj Housing Finance",
+      "direction": "parent",
+      "expect": [
+        "Bajaj Finance",
+        "Bajaj Finserv"
+      ],
+      "source": "graph:subsidiary_of"
+    },
+    {
+      "id": "rel_parent_bajel_projects",
+      "question": "parent company of Bajel Projects",
+      "company": "Bajel Projects",
+      "direction": "parent",
+      "expect": [
+        "Bajaj Electricals"
+      ],
+      "source": "graph:subsidiary_of"
+    },
+    {
+      "id": "rel_subs_bajaj_finserv",
+      "question": "subsidiaries of Bajaj Finserv",
+      "company": "Bajaj Finserv",
+      "direction": "subsidiaries",
+      "expect": [
+        "Bajaj Finance",
+        "Bajaj Housing Finance"
+      ],
+      "source": "graph:subsidiary_of"
+    },
+    {
+      "id": "rel_subs_godrej_industries",
+      "question": "subsidiaries of Godrej Industries",
+      "company": "Godrej Industries",
+      "direction": "subsidiaries",
+      "expect": [
+        "Godrej Agrovet",
+        "Godrej Properties"
+      ],
+      "source": "graph:subsidiary_of"
+    },
+    {
+      "id": "rel_subs_grasim_industries",
+      "question": "subsidiaries of Grasim Industries",
+      "company": "Grasim Industries",
+      "direction": "subsidiaries",
+      "expect": [
+        "UltraTech Cement",
+        "Vodafone Idea"
+      ],
+      "source": "graph:subsidiary_of"
+    },
+    {
+      "id": "rel_subs_hdfc_bank",
+      "question": "subsidiaries of HDFC Bank",
+      "company": "HDFC Bank",
+      "direction": "subsidiaries",
+      "expect": [
+        "HDB Financial Services",
+        "HDFC AMC"
+      ],
+      "source": "graph:subsidiary_of"
+    },
+    {
+      "id": "rel_subs_mahindra_&_mahindra",
+      "question": "subsidiaries of Mahindra & Mahindra",
+      "company": "Mahindra & Mahindra",
+      "direction": "subsidiaries",
+      "expect": [
+        "CIE Automotive India",
+        "Mahindra & Mahindra Financial Services",
+        "Mahindra EPC Irrigation",
+        "Mahindra Logistics",
+        "SML Mahindra",
+        "Swaraj Engines"
+      ],
+      "source": "graph:subsidiary_of"
+    },
+    {
+      "id": "rel_subs_niit",
+      "question": "subsidiaries of NIIT",
+      "company": "NIIT",
+      "direction": "subsidiaries",
+      "expect": [
+        "NIIT Learning Systems",
+        "Wall Education"
+      ],
+      "source": "graph:subsidiary_of"
+    }
+  ]
+}

@@ -35,6 +35,17 @@ entry number and stale DONE pointers):
 ## Current live proposals
 
 _(none)_ — archived 2026-10-08 (filed + executed + archived same day):
+`company_embeddings_gemma_trial` (`../archive/tooling/`, completed.md
+entry 368) — the third gemma surface, ADOPTED on the facet-expanded
+record: 41-question three-way bank, pre-registered rule's narrow HOLD
+overridden by the operator's unnamed-edge ruling (full ledger gemma 32/41
+vs 31/41; relation-subsidiaries — the harder slice — 5/6 vs 3/6;
+calibrated similarity space vs granite's compressed one), full
+per-surface acceptance set executed live (1,192 rows gemma/512, live
+gate == scratch arm, gc 0 dead / granite retained, graph-rebuild +
+snapshot).
+
+_(none)_ — archived 2026-10-08 (filed + executed + archived same day):
 `memory_search_gemma_migration` (`../archive/tooling/`, completed.md
 entry 367) — the second gemma surface (90 records, ~2-3 min cold):
 per-surface selector + demotion guard, gemma prefix basis, stamp-keyed
