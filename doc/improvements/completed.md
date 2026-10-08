@@ -9725,3 +9725,25 @@ purged the cache rows, and the npz re-seeded the index back in minutes
 instead of a ~100-minute re-embed. Raw record:
 `doc/improvements/archive/tooling/notes_gemma_adoption.md`.
 
+## 370. granite sidecar selector — shared llama-server preferred, in-process stays fallback
+
+**2026-10-08 — filed + parked DEFERRED in the morning (completed.md
+same-day on the trivial-RSS trigger, executed
+2026-10-09, archived the same day** (supersedes entry 366 — the archive path
+entry 366 cites no longer exists; the revived file is the record). Third
+server leg on the unified binary (`make granite-server`, :8733, granite
+leg in `llamacpp-health`); `GRANITE_EMBEDDER=auto|sidecar|process`
+selector, failsafe-first (no server → today's in-process behavior,
+never a refusal; same label both runtimes so no demotion-guard class).
+Measured: 384-d verified, RSS 212 MB (gemma leg 1.5-1.7 GB); quiet
+re-rate sidecar 2.86/s vs in-process 2.08/s (1.38×, same box state);
+4-worker parallel 32.6 s vs 143.3 s (4.4×; 212 MB shared vs 420
+MB/process); S3 verdict frozen accept-drift (doc_search 2.0% /
+memory_search 18.3% of bases exceed the in-process 2048-token ctx —
+the sidecar's 16k window embeds them fuller). 23 local_embedder tests
+green (5 new hermetic selector tests). TeleOCR leg folded into the
+same arc: NaviDC pair decompressed from `.zst`, mmproj f16→Q8_0
+(1,266→800 MiB, byte-identical OCR on the working page), server
+on-demand only (~2.5 GB — D3, never auto-spawned). Raw record:
+`doc/improvements/archive/tooling/granite_sidecar_selector.md`.
+

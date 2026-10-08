@@ -30,16 +30,27 @@ Callers must gate on ``available()`` (best-effort pattern: a missing model
 must never break ``make maint``); the ``embed_*`` functions raise
 RuntimeError when the backend is absent so the failure is loud where the
 caller chose not to gate.
+
+Sidecar runtime (granite_sidecar_selector, revived 2026-10-08): with the
+shared granite llama-server up (``make granite-server``, :8733), embeds
+prefer it — one process holds the weights, consumers are loopback HTTP
+clients — and the in-process path above remains the failsafe: the
+``GRANITE_EMBEDDER=auto|sidecar|process`` selector (default ``auto``)
+degrades to this module's local model on ANY sidecar failure, never a
+refusal. ``available()`` stays in-process-only, so no surface gains a
+hard server dependency.
 """
 
 from __future__ import annotations
 
 import atexit
 import hashlib
+import json
 import math
 import os
 import sys
 import threading
+import urllib.request
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
@@ -90,6 +101,72 @@ _N_CTX = 2048
 # miss-heavy batches; warm cycles (0 misses) never reach it.
 _DEFAULT_POOL_WORKERS = 4
 _POOL_MIN_TEXTS = 8  # below this the spawn overhead beats the speedup
+
+# --- Sidecar runtime (granite_sidecar_selector, revived 2026-10-08) ---------
+# One shared granite llama-server (the unified vendored binary, third leg,
+# `make granite-server`) can carry every embed workload: one process holds
+# the weights (~212 MB RSS measured) and each consumer is a thin loopback
+# HTTP client. FAILSAFE-FIRST (operator ruling): GRANITE_EMBEDDER selects
+#   auto    (default) probe per call — sidecar when healthy, in-process on
+#           ANY failure (down, hung, bad shape, mid-batch death); a surface
+#           that works today cannot regress because the server is missing.
+#   sidecar hard dependency — failures raise loudly (tests, benchmarks).
+#   process never touch the network (today's behavior, escape hatch).
+# No demotion guard: the model label is identical across runtimes, so
+# stamps and cached (text, model) keys stay valid; cross-runtime vectors
+# are near-identity (cos 0.99984 precedent) and retrieval-irrelevant.
+_SIDECAR_HOST = os.environ.get("GRANITE_SIDECAR_HOST", "127.0.0.1")
+_SIDECAR_PORT = int(os.environ.get("GRANITE_SIDECAR_PORT", "8733"))
+
+
+def _sidecar_mode() -> str:
+    """Resolve GRANITE_EMBEDDER; unknown values degrade to auto (fail-safe)."""
+    mode = os.environ.get("GRANITE_EMBEDDER", "auto").strip().lower()
+    return mode if mode in ("auto", "sidecar", "process") else "auto"
+
+
+def _sidecar_healthy() -> bool:
+    """Loopback /health probe. Sub-ms when up, immediate refused when down;
+    the 0.5s timeout only bounds a hung server (auto then fails safe)."""
+    try:
+        with urllib.request.urlopen(  # noqa: S310 — loopback, host from env
+            f"http://{_SIDECAR_HOST}:{_SIDECAR_PORT}/health", timeout=0.5
+        ) as r:
+            return json.load(r).get("status") == "ok"
+    except Exception:
+        return False
+
+
+def _sidecar_vec(text: str) -> list[float]:
+    """One sidecar forward, UNNORMALIZED — mirrors _encode's contract so
+    both runtimes share the _normalize call sites byte-for-byte."""
+    body = json.dumps({"input": text}).encode()
+    req = urllib.request.Request(  # noqa: S310 — loopback, host from env
+        f"http://{_SIDECAR_HOST}:{_SIDECAR_PORT}/v1/embeddings",
+        body,
+        {"Content-Type": "application/json"},
+    )
+    with urllib.request.urlopen(req, timeout=120) as r:
+        vec = json.load(r)["data"][0]["embedding"]
+    if len(vec) != DIM:
+        raise RuntimeError(
+            f"granite sidecar returned {len(vec)} dims, expected {DIM} — wrong model on port?"
+        )
+    return vec
+
+
+def _sidecar_ready_for(mode: str) -> bool:
+    """True when the embed path may use the sidecar in this mode."""
+    if mode == "process":
+        return False
+    healthy = _sidecar_healthy()
+    if mode == "sidecar" and not healthy:
+        raise RuntimeError(
+            f"GRANITE_EMBEDDER=sidecar but no granite llama-server on "
+            f"{_SIDECAR_HOST}:{_SIDECAR_PORT} (start it with `make granite-server`)"
+        )
+    return healthy
+
 
 # Load-once cache. _verified guards the (one-off, ~0.1s) sha256 check so
 # repeated available() calls don't re-hash the 35MB file per process.
@@ -202,13 +279,28 @@ def _normalize(vec: list[float]) -> list[float]:
     return [x / norm for x in vec]
 
 
-def _embed(text: str) -> list[float]:
-    """Raw embed + L2 normalise. Empty input raises — callers decide fallback."""
-    if not text or not text.strip():
-        raise ValueError("cannot embed empty text")
+def _embed_process(text: str) -> list[float]:
+    """In-process embed: the always-works fallback and `process` mode."""
     model = _get_model()
     vec = _encode(model, text)
     return _normalize(vec)
+
+
+def _embed(text: str) -> list[float]:
+    """Raw embed + L2 normalise, sidecar-first with the failsafe (auto):
+    any sidecar failure — down, hung, bad shape, mid-flight death — lands
+    on the in-process path, so a missing server can never regress a
+    surface that works today. Empty input raises — callers decide fallback."""
+    if not text or not text.strip():
+        raise ValueError("cannot embed empty text")
+    mode = _sidecar_mode()
+    if _sidecar_ready_for(mode):
+        try:
+            return _normalize(_sidecar_vec(text))
+        except Exception:
+            if mode == "sidecar":
+                raise
+    return _embed_process(text)
 
 
 def embed_document(text: str) -> list[float]:
@@ -238,6 +330,18 @@ def embed_documents(texts: list[str]) -> list[list[float]]:
     """
     if not texts:
         return []
+    mode = _sidecar_mode()
+    if _sidecar_ready_for(mode):
+        out = []
+        for text in texts:
+            try:
+                vec = _sidecar_vec(text)
+            except Exception:
+                if mode == "sidecar":
+                    raise
+                vec = _encode(_get_model(), text)  # auto failsafe mid-batch
+            out.append(_normalize(vec) if any(vec) else vec)
+        return out
     model = _get_model()
     out = []
     for text in texts:
@@ -354,9 +458,16 @@ def embed_documents_parallel(texts: list[str], workers: int | None = None) -> li
     disabled (EMBED_POOL_WORKERS=0/1) or the batch is tiny. Fail-loud:
     a worker crash surfaces as an exception here — callers decide their
     own degrade policy.
+
+    Sidecar-first: when the shared granite server is up, the spawn pool
+    is skipped entirely — the server does its own queueing and N spawn
+    workers would each load an in-process model for nothing.
     """
     if not texts:
         return []
+    mode = _sidecar_mode()
+    if _sidecar_ready_for(mode):
+        return embed_documents(texts)
     n = _pool_workers(len(texts), workers)
     if n == 0:
         return embed_documents(texts)

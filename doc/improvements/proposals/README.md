@@ -34,18 +34,6 @@ entry number and stale DONE pointers):
 
 ## Current live proposals
 
-**`granite_sidecar_selector`** (filed 2026-10-08, REVIVED same day) —
-prefer the shared granite llama-server for embed workloads, in-process
-stays the fallback: third leg on the unified llama.cpp binary
-(`:8733`, `make granite-server`, granite leg in `llamacpp-health`),
-`GRANITE_EMBEDDER=auto|sidecar|process` selector with the operator's
-failsafe-first ruling (no server found → today's in-process behavior,
-never a refusal), hermetic tests unchanged. Filed and parked DEFERRED
-in the morning (completed.md #366); §5 trigger #4 fired by afternoon —
-scratch trial: 384-d verified on :8733, RSS 212 MB (gemma leg 1.5-1.7
-GB), 1.41/s contended. Execution in flight in the `granite_serve`
-patch; serve test runs gated on the notes full-pool gemma embed.
-
 **`notes_query_side_levers_trial`** (filed 2026-10-08) — notes query-side
 levers before any model swap: bm25 column boosts (query-side only, zero
 rebuild) + header/edge enrichment (scratch FTS with ticker + accepted-
@@ -73,13 +61,6 @@ entry 367) — the second gemma surface (90 records, ~2-3 min cold):
 per-surface selector + demotion guard, gemma prefix basis, stamp-keyed
 query side (fixing the silent bm25-only degradation of a gemma-stamped
 index), embed-gc stamp-following Ref.
-
-_(none)_ — `granite_sidecar_selector` was FILED and ARCHIVED
-**DEFERRED** the same day (2026-10-08, never executed): prefer a shared
-granite llama-server (third leg on the unified binary, proposed :8733)
-for embed workloads; in-process granite stays the always-works fallback.
-Revisit triggers in the archived copy §5
-(`../archive/tooling/`, completed.md #366).
 
 _(none)_ — archived 2026-10-07: `llamacpp_unified_server_build`
 (`../archive/tooling/`, completed.md #364) — one owned llama.cpp build

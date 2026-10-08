@@ -81,10 +81,63 @@ class TestConstantsContract:
         assert len(LE.MODEL_SHA256) == 64
 
 
+class TestSidecarSelector:
+    """GRANITE_EMBEDDER=auto|sidecar|process (granite_sidecar_selector S2).
+    Hermetic: the probe and the HTTP client are monkeypatched; no test
+    touches a live server."""
+
+    def test_auto_up_prefers_sidecar(self, monkeypatch):
+        hits = []
+        monkeypatch.setattr(LE, "_sidecar_healthy", lambda: True)
+        monkeypatch.setattr(LE, "_sidecar_vec", lambda t: hits.append(t) or [0.5] * LE.DIM)
+        monkeypatch.setattr(LE, "available", lambda: True)
+        vec = LE.embed_document("x")
+        assert hits and len(vec) == LE.DIM
+
+    def test_auto_down_falls_safe_to_process(self, monkeypatch):
+        monkeypatch.setattr(LE, "_sidecar_healthy", lambda: False)
+        called = []
+        monkeypatch.setattr(LE, "_sidecar_vec", lambda t: called.append(t) or [0.5] * LE.DIM)
+        # Stub the process leg — this asserts the ROUTING (network untouched,
+        # fallback reached); calling the real _embed_process would load the
+        # live model into module state, defeating the conftest hermetic pin.
+        monkeypatch.setattr(LE, "_embed_process", lambda t: [0.25] * LE.DIM)
+        vec = LE.embed_document("x")
+        assert not called  # the network was never touched
+        assert len(vec) == LE.DIM
+
+    def test_process_mode_never_touches_network(self, monkeypatch):
+        monkeypatch.setenv("GRANITE_EMBEDDER", "process")
+        monkeypatch.setattr(LE, "_sidecar_healthy", lambda: True)
+        monkeypatch.setattr(LE, "_sidecar_vec", lambda t: [0.1] * LE.DIM)
+        monkeypatch.setattr(LE, "_embed_process", lambda t: [0.25] * LE.DIM)
+        LE.embed_document("x")  # reaching here means no sidecar call happened
+
+    def test_sidecar_mode_down_refuses_with_guidance(self, monkeypatch):
+        monkeypatch.setenv("GRANITE_EMBEDDER", "sidecar")
+        monkeypatch.setattr(LE, "_sidecar_healthy", lambda: False)
+        with pytest.raises(RuntimeError, match="granite-server"):
+            LE.embed_document("x")
+
+    def test_unknown_mode_degrades_to_auto(self):
+        assert LE._sidecar_mode.__doc__  # documented failsafe
+        old = os.environ.get("GRANITE_EMBEDDER")
+        os.environ["GRANITE_EMBEDDER"] = "bogus"
+        try:
+            assert LE._sidecar_mode() == "auto"
+        finally:
+            if old is None:
+                os.environ.pop("GRANITE_EMBEDDER", None)
+            else:
+                os.environ["GRANITE_EMBEDDER"] = old
+
+
 class TestGates:
-    def test_embed_refuses_when_unavailable(self):
-        # conftest pins available() -> False: embed_* must raise, not return
-        # junk vectors.
+    def test_embed_refuses_when_unavailable(self, monkeypatch):
+        # conftest pins available() -> False; the sidecar is pinned down too
+        # (granite_sidecar_selector S2: auto would otherwise serve the live
+        # server — here BOTH runtimes are out, which is the only refuse case).
+        monkeypatch.setattr(LE, "_sidecar_healthy", lambda: False)
         with pytest.raises(RuntimeError, match="unavailable"):
             LE.embed_document("text")
         with pytest.raises(RuntimeError, match="unavailable"):
@@ -226,6 +279,10 @@ class TestThreadSafety:
     forwards; this pins it with a barrier-forced pile-up."""
 
     def test_concurrent_first_touch_keeps_stdout_and_vectors(self, real_backend, monkeypatch):
+        # The in-process dup2/stdout hazard is what's under test — pin
+        # GRANITE_EMBEDDER=process so the first-touch race exercises THIS
+        # backend, not the sidecar (granite_sidecar_selector S2).
+        monkeypatch.setenv("GRANITE_EMBEDDER", "process")
         monkeypatch.setattr(LE, "_MODEL", None)  # force the double-init race
         before = os.fstat(1).st_ino
         barrier = threading.Barrier(4)

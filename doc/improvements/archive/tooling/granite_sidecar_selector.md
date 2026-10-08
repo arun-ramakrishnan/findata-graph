@@ -1,9 +1,9 @@
 ---
 title: "Prefer the shared granite llama-server for embed workloads; in-process stays the fallback"
-status: deferred
+status: executed
 filed: "2026-10-08"
-executed: "2026-10-08"
-completed_md: "366"
+executed: "2026-10-09"
+completed_md: "370"
 area: "helpers/core/local_embedder + Makefile + vendor/llamacpp"
 ---
 
@@ -14,8 +14,9 @@ area: "helpers/core/local_embedder + Makefile + vendor/llamacpp"
 
 # Prefer the shared granite llama-server for embed workloads; in-process stays the fallback
 
-**Date:** 2026-10-08 · **Status:** ARCHIVED DEFERRED (filed and parked
-the same day, never executed — revisit triggers in §5) ·
+**Date:** 2026-10-08 · **Status:** PROPOSED (revived same day — filed and
+parked in the morning, §5 trigger #4 fired by afternoon; execution in
+flight in the `granite_serve` patch) ·
 **Area:** helpers/core/local_embedder + Makefile + vendor/llamacpp
 
 **Follows:** `doc/improvements/archive/tooling/llamacpp_unified_server_build.md`
@@ -54,8 +55,13 @@ loads its own copy.
 - **S1 — third server leg on the owned binary**: host
   `models/granite-embedding-97M-multilingual-r2-Q8_0.gguf` with the same
   vendored llama-server (proposed port 8733), a `make granite-server`
-  target mirroring `embgemma-server` (env → `models/llamacpp/bin` →
-  PATH resolution), and a granite leg in `llamacpp-health`.
+  target (env → `models/llamacpp/bin` resolution). **Operator ruling at
+  revival (2026-10-08): our unified server ONLY — no system-PATH or
+  scratch-build fallbacks in the resolution chain** ("it supports all
+  our models in one umbrella"); a missing binary errors with
+  `make llamacpp-build` guidance. Ruling applied to ALL THREE server
+  targets (embgemma + teleocr trimmed to the same two-step chain in the
+  same change). Plus a granite leg in `llamacpp-health`.
 - **S2 — prefer-sidecar selector in `local_embedder`**:
   `GRANITE_EMBEDDER=auto|sidecar|process`, default auto — sidecar when
   healthy, in-process otherwise. **No demotion guard is needed here**:
@@ -114,3 +120,93 @@ sidecar covers the hot surface, and the embed cache keeps warm rebuilds
   reopens in the other direction;
 - a scratch trial shows the granite server leg costs trivial RSS/ops —
   cheap early de-risk that would fast-track S1.
+
+## 6. Revival (2026-10-08, same day — trigger #4 fired)
+
+The de-risk trial ran against the unified binary that afternoon, while
+the notes full-pool gemma embed held the box:
+
+- `models/llamacpp/bin/llama-server` + the granite Q8 GGUF on **:8733**
+  (`--embeddings --pooling mean`): health ok, identity verified, live
+  embeds return **384-d** (the stored dimension).
+- **RSS 212 MB** (gemma leg: 1.5-1.7 GB) — the "trivial RSS" trigger,
+  satisfied with an order of magnitude to spare.
+- Rate 1.41/s at ~3.1k-char texts **contended** (the gemma embed owned
+  all four cores); the quiet §4.1 bar is 5.24/s server-side. Quiet
+  re-measure is an acceptance step, gated on the notes definitive run
+  finishing.
+
+Operator revived the proposal and opened the `granite_serve` patch.
+**Failsafe-first ruling (operator, same day): the in-process path stays
+the load-bearing fallback — if no server is found, every granite
+consumer must behave exactly as today.** S2's selector is therefore the
+first scaffold slice: `GRANITE_EMBEDDER=auto|sidecar|process`, default
+`auto` = probe once per call-site batch, sidecar when healthy,
+in-process on ANY failure (probe, request, shape), never a refusal;
+`process` never touches the network; only `sidecar` is a hard
+dependency (tests/benchmarks).
+
+Serve test runs (acceptance #1/#3, quiet re-rate) are gated on the
+notes gemma embed completing (~20:57). S3 decision defaults to
+**accept drift** (same model label, no cache-key suffix — a per-runtime
+key would re-embed the corpus for no retrieval-visible gain at the
+0.99984-cos precedent); the ctx-window nuance (in-process `_N_CTX`
+2048 vs server window) is bounded to bases over ~2048 tokens and is
+counted before the verdict freezes.
+
+## 7. Execution record (2026-10-09)
+
+- **Acceptance #1 — three-leg health**: `make llamacpp-health` green
+  (embgemma :8732, teleocr :8731, granite :8733 — identity + live
+  384-d embed). The teleocr leg needed the NaviDC pair decompressed
+  from `.zst` into the shared `models/` symlink first.
+- **Quiet re-rate** (64 × 3.1k-char texts, single client, three
+  servers resident on the 4-core box): sidecar **2.86/s** vs
+  in-process **2.08/s** measured back-to-back in the same box state —
+  sidecar 1.38× faster. The historical 5.24/s bar was a different box
+  state (2026-10-07, pre notes-flip resident models); the absolute
+  number moved, the relative verdict favors the server.
+- **Acceptance #3 — parallel sharing** (4 worker processes × 16
+  embeds): sidecar **32.6 s** (1.96/s aggregate) vs process
+  **143.3 s** (0.45/s) — **4.4×**. RSS: in-process 420 MB **per
+  process** (×N consumers) vs the one 212 MB server shared by all.
+- **S3 verdict frozen: accept drift.** Window count: doc_search
+  61/3,045 (2.0%) and memory_search 17/93 (18.3%) bases exceed the
+  in-process 2048-token ctx — the sidecar's 16,384 window embeds those
+  fuller; cached truncated vectors age out with their texts. No
+  cache-key suffix.
+- **S4 — suites**: local_embedder 23 green (5 new hermetic selector
+  tests: auto-up prefers sidecar, auto-down fails safe, process never
+  touches the network, sidecar-down refuses with `make granite-server`
+  guidance, unknown env degrades to auto); embed_cache, vec_search,
+  rebuilders green; ruff/format clean. Selector tests stub
+  `_embed_process` — calling the real loader would load the live model
+  into module state and defeat the conftest hermetic pin.
+- **Doctrine holds**: failsafe-first verified live (auto + server down
+  → in-process, byte-identical labels, no stamp surface). granite is
+  no longer the last in-process model in the hot path — but it remains
+  the always-works fallback, exactly as ruled.
+
+## 8. Server-leg operations reference (2026-10-09)
+
+One vendored binary serves all three legs:
+`models/llamacpp/bin/llama-server` (pin `78651c41` + qwen2vl
+head-dim patch; rebuild: `make llamacpp-build`). Resolution chain is
+env override → `models/llamacpp/bin` ONLY — no system-PATH or
+scratch-build fallbacks (operator ruling). Health: `make
+llamacpp-health` probes all three (identity + live embed where
+applicable). `vendor/llamacpp/PROVENANCE.md` carries the binary hash
+set + the mmproj requant verdict.
+
+| leg | port (env) | model files | idle RSS | lifecycle |
+|---|---|---|---|---|
+| embgemma | 8732 (`EMBGEMMA_PORT`) | `models/embeddinggemma-2-Q8_0.gguf` (~615 MB) | ~1.6 GB | **always-on for search**: notes/company/memory/script surfaces are gemma-stamped — down → queries degrade BM25-only, rebuilds REFUSE |
+| granite | 8733 (`GRANITE_SIDECAR_PORT`, `GRANITE_EMBEDDER=auto\|sidecar\|process`) | `models/granite-embedding-97M-multilingual-r2-Q8_0.gguf` (~104 MB) | ~212 MB | **optional, failsafe-first**: doc_search/memory/convo consumers fall back to in-process automatically; a down server costs throughput, nothing breaks |
+| teleocr | 8731 (`TELEOCR_PORT`) | `models/NaviDC-OCR-Q4_K_M.gguf` (LLM, 484 MB, original — never requantized further) + `models/NaviDC-OCR-mmproj-q8_0.gguf` (vision encoder, 800 MB; requantized f16→Q8_0 2026-10-09, byte-identical OCR on the working test page) | ~2.5 GB | **ON-DEMAND ONLY**: consumer is the advisory PDF→md OCR flow (`pdf_conv_md` → `teleocr_engine`), never gates/search; D3 — no auto-spawn; start `make teleocr-server`, run the OCR work, kill it |
+
+Model-file state: the superseded `NaviDC-OCR-mmproj-f16.gguf` (1.27 GB)
+is retained as the quality-fallback artifact (deletable once q8_0 is
+trusted across real batches); the `.zst` model archives were removed
+from the shared `models/` symlink target on 2026-10-09 (compression
+judged not worth it — Q4_K_M weights are near-incompressible; the real
+lever was the mmproj requant).

@@ -34,7 +34,7 @@ export PATH := $(CURDIR)/.venv/bin:$(PATH)
 export TMPDIR ?= $(shell test -d /mnt/data/tmp && { mkdir -p /mnt/data/tmp/findata; echo /mnt/data/tmp/findata; } || echo /tmp)
 
 
-.PHONY: help qa test live-invariants perf cover fuzz integration snapshot snapshot-check snapshot-restore sync-tags sync-coverage-tags sync-sector-links static-checks license-check tmp-sweep install-dev triage-quotes gate-fresh graph-smoke graph-stats graph-algos graph-rebuild graph-rebuild-bench update-extensions recompute-graph recompute-hyper search-fresh convo-fresh embed-gc search-tui derive-relations derive-co-mentions derive-themes derive-events derive-insights derive-indices quote-coverage derive-themes-rebuild derive-cited-in derive-cited-in-rebuild derive-hyperedges derive-all refresh-indices refresh-vigil refresh-shp frontend frontend-check fold-identifiers format maint maint-full md-lint metrics-rebuild mojo-bench mojo-build mojo-test mojo-format relations-enrich lint types types-tests lint-audit deptry advisory secret-scan cargo-audit script-search-rebuild memory-search-rebuild triage-relations live-invariants stamp-centrality parity review-patch teleocr-server embgemma-server llamacpp-build llamacpp-health csr csr-check csr-rebuild convo-search-rebuild convo-search-check analytics-parquet analytics-fresh
+.PHONY: help qa test live-invariants perf cover fuzz integration snapshot snapshot-check snapshot-restore sync-tags sync-coverage-tags sync-sector-links static-checks license-check tmp-sweep install-dev triage-quotes gate-fresh graph-smoke graph-stats graph-algos graph-rebuild graph-rebuild-bench update-extensions recompute-graph recompute-hyper search-fresh convo-fresh embed-gc search-tui derive-relations derive-co-mentions derive-themes derive-events derive-insights derive-indices quote-coverage derive-themes-rebuild derive-cited-in derive-cited-in-rebuild derive-hyperedges derive-all refresh-indices refresh-vigil refresh-shp frontend frontend-check fold-identifiers format maint maint-full md-lint metrics-rebuild mojo-bench mojo-build mojo-test mojo-format relations-enrich lint types types-tests lint-audit deptry advisory secret-scan cargo-audit script-search-rebuild memory-search-rebuild triage-relations live-invariants stamp-centrality parity review-patch teleocr-server embgemma-server granite-server llamacpp-build llamacpp-health csr csr-check csr-rebuild convo-search-rebuild convo-search-check analytics-parquet analytics-fresh
 
 help:           ## Show available targets (alphabetical; entries generated from the ## annotations — keep both in sync)
 > @echo "FinData targets (alphabetical):"
@@ -71,6 +71,7 @@ help:           ## Show available targets (alphabetical; entries generated from 
 > @echo "  frontend-check           Type-check + prettier format-check the TypeScript frontend (fast, needs Bun)"
 > @echo "  fuzz                     Run Hypothesis property-based tests (deterministic seed for reproducibility)"
 > @echo "  gate-fresh               Check gate-run index freshness (gate_query; default reports drift + exit 1 when behind, APPLY=1 force-indexes incrementally; refresh also runs automatically before every gate_query verb)"
+> @echo "  granite-server           Start the granite-embedding-97m llama-server (Q8_0 from models/) on 127.0.0.1:8733 — Ctrl-C to stop; local_embedder only ever assumes it is running (D3), never spawns it"
 > @echo "  graph-algos              Smoke test the Onager algorithm layer (all 14 metrics, no writes)"
 > @echo "  graph-rebuild            Rebuild the disk-based DuckDB cache from SQLite, data-only (run after parse_newsletter --apply / derive-relations)"
 > @echo "  graph-rebuild-bench      Measure the production graph-rebuild cost ladder (tests/bench_rebuild_scale.py; opt-in, NOT a perf leg)"
@@ -418,21 +419,25 @@ llamacpp-health:  ## One-shot probe of both server legs: :8732 embgemma (embeddi
 embgemma-server:  ## Start the EmbeddingGemma-2 llama-server (Q8_0 from models/) on 127.0.0.1:8732 — Ctrl-C to stop; gemma_embedder only ever assumes it is running (D3), never spawns it
 > @if [ -n "$$EMBGEMMA_LLAMA_BIN" ]; then bin=$$EMBGEMMA_LLAMA_BIN; \
 > elif [ -x models/llamacpp/bin/llama-server ]; then bin=models/llamacpp/bin/llama-server; \
-> elif command -v llama-server >/dev/null 2>&1; then bin=llama-server; \
-> elif [ -x /mnt/data/tmp/embgemma2/llama.cpp/build/bin/llama-server ]; then bin=/mnt/data/tmp/embgemma2/llama.cpp/build/bin/llama-server; \
-> else echo "llama-server not found — make llamacpp-build (vendor/llamacpp, one binary for both legs) or set EMBGEMMA_LLAMA_BIN"; exit 1; fi; \
+> else echo "unified llama-server not found — make llamacpp-build (vendor/llamacpp, one binary for all legs) or set EMBGEMMA_LLAMA_BIN"; exit 1; fi; \
 > echo "embgemma-server: $$bin (Ctrl-C to stop)"; \
 > $$bin -m models/embeddinggemma-2-Q8_0.gguf --embeddings --pooling mean --host 127.0.0.1 --port 8732 -c 16384 -b 16384 -ub 16384 -t 4
 
 
-teleocr-server:  ## Start the TeleOCR llama-server (Q4_K_M + mmproj from models/) on 127.0.0.1:8731 — Ctrl-C to stop; teleocr_engine only ever assumes it is running (D3), never spawns it
+granite-server:  ## Start the granite-embedding-97m llama-server (Q8_0 from models/) on 127.0.0.1:8733 — Ctrl-C to stop; local_embedder only ever assumes it is running (D3), never spawns it
+> @if [ -n "$$GRANITE_LLAMA_BIN" ]; then bin=$$GRANITE_LLAMA_BIN; \
+> elif [ -x models/llamacpp/bin/llama-server ]; then bin=models/llamacpp/bin/llama-server; \
+> else echo "unified llama-server not found — make llamacpp-build (vendor/llamacpp, one binary for all legs) or set GRANITE_LLAMA_BIN"; exit 1; fi; \
+> echo "granite-server: $$bin (Ctrl-C to stop)"; \
+> $$bin -m models/granite-embedding-97M-multilingual-r2-Q8_0.gguf --embeddings --pooling mean --host 127.0.0.1 --port 8733 -c 16384 -b 16384 -ub 16384 -t 4
+
+
+teleocr-server:  ## Start the TeleOCR llama-server (Q4_K_M + mmproj q8_0 from models/) on 127.0.0.1:8731 — Ctrl-C to stop; teleocr_engine only ever assumes it is running (D3), never spawns it
 > @if [ -n "$$TELEOCR_LLAMA_BIN" ]; then bin=$$TELEOCR_LLAMA_BIN; \
 > elif [ -x models/llamacpp/bin/llama-server ]; then bin=models/llamacpp/bin/llama-server; \
-> elif command -v llama-server >/dev/null 2>&1; then bin=llama-server; \
-> elif [ -x /mnt/data/tmp/teleocr_trial/llama.cpp/build/bin/llama-server ]; then bin=/mnt/data/tmp/teleocr_trial/llama.cpp/build/bin/llama-server; \
-> else echo "llama-server not found — make llamacpp-build (vendor/llamacpp, one binary for both legs) or set TELEOCR_LLAMA_BIN"; exit 1; fi; \
+> else echo "unified llama-server not found — make llamacpp-build (vendor/llamacpp, one binary for all legs) or set TELEOCR_LLAMA_BIN"; exit 1; fi; \
 > echo "teleocr-server: $$bin (Ctrl-C to stop)"; \
-> $$bin -m models/NaviDC-OCR-Q4_K_M.gguf --mmproj models/NaviDC-OCR-mmproj-f16.gguf --host 127.0.0.1 --port 8731 -c 8192 -t 4
+> $$bin -m models/NaviDC-OCR-Q4_K_M.gguf --mmproj models/NaviDC-OCR-mmproj-q8_0.gguf --host 127.0.0.1 --port 8731 -c 8192 -t 4
 
 
 embed-gc:       ## Evict dead rows from the shared embed cache (trial/spike leftovers); report-only + exit 1 when dead rows exist, APPLY=1 deletes + VACUUMs

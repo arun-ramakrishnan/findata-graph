@@ -250,6 +250,12 @@ commit, referenced by nothing). Entry numbers point at
   npz vectors seeded into the production cache (zero re-embeds);
   `guard_gemma_stamp` refusal semantics; bank gate 41/75 (the recorded
   trial number) — completed.md #369
+- [`granite_sidecar_selector.md`](tooling/granite_sidecar_selector.md) —
+  granite sidecar preference — third leg on the unified binary (:8733),
+  `GRANITE_EMBEDDER=auto|sidecar|process` failsafe-first; quiet 2.86/s
+  vs in-process 2.08/s, 4.4× under 4-way parallelism, S3 verdict
+  accept-drift; supersedes #366 (filed + parked DEFERRED, revived
+  same-day on the trivial-RSS trigger) — completed.md #370
 - [`script_search_gemma_adoption.md`](tooling/script_search_gemma_adoption.md) —
   script_search gemma adoption — EmbeddingGemma-2 Q8@512 vector-primary
   for scripts: D3 sidecar client + per-surface selector (granite default
@@ -272,11 +278,6 @@ commit, referenced by nothing). Entry numbers point at
   live gate == scratch arm, gc 0 dead / granite retained, graph-rebuild +
   snapshot, peer-edge relabel) + the fp `length(BLOB)` fingerprint fix —
   completed.md #368
-- [`granite_sidecar_selector.md`](tooling/granite_sidecar_selector.md) —
-  prefer a shared granite llama-server (third leg on the unified binary,
-  proposed :8733) for embed workloads; in-process granite stays the
-  always-works fallback — filed and archived **DEFERRED** same day
-  (never executed; revisit triggers in §5) — completed.md #366
 - [`llamacpp_unified_server_build.md`](tooling/llamacpp_unified_server_build.md) —
   one owned llama.cpp build for both server legs (pinned `78651c4` +
   vendored qwen2vl head_dim patch — upstream still unfixed; the two

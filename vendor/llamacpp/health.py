@@ -1,16 +1,19 @@
 #!/usr/bin/env python3
-"""One-shot health probe for the two llama-server legs
-(llamacpp_unified_server_build S3 — `make llamacpp-health`).
+"""One-shot health probe for the three llama-server legs
+(llamacpp_unified_server_build S3 — `make llamacpp-health`; granite leg
+added by granite_sidecar_selector S1).
 
 :8732 embgemma — /v1/models identity must contain "gemma"; a live embed
                 must return SERVER_DIMS (768; the 512 client-side
                 truncation is the embedder's contract, not the server's).
 :8731 teleocr  — /v1/models identity must contain the NaviDC GGUF name.
+:8733 granite — /v1/models identity must contain "granite"; a live embed
+                must return 384 dims (local_embedder.DIM).
 
-Exit 0 only when both legs answer with the expected identity. Usable
+Exit 0 only when all legs answer with the expected identity. Usable
 from maint / cron / operator shell; read-only over loopback.
 
-Usage: python3 vendor/llamacpp/health.py [--port-gemma 8732 --port-ocr 8731]
+Usage: python3 vendor/llamacpp/health.py [--port-gemma 8732 --port-ocr 8731 --port-granite 8733]
 """
 
 from __future__ import annotations
@@ -22,7 +25,9 @@ import urllib.request
 
 GEMMA_MODEL_SUBSTR = "gemma"  # same identity rule as gemma_embedder
 OCR_MODEL_SUBSTR = "navidc-ocr"
+GRANITE_MODEL_SUBSTR = "granite"  # same identity rule as local_embedder
 GEMMA_SERVER_DIMS = 768
+GRANITE_SERVER_DIMS = 384
 
 
 def _get(url: str, timeout: float = 5) -> dict:
@@ -58,6 +63,24 @@ def check_gemma(port: int) -> list[str]:
     return errs
 
 
+def check_granite(port: int) -> list[str]:
+    errs = []
+    ident = _identity(port)
+    if GRANITE_MODEL_SUBSTR not in ident.lower():
+        errs.append(f"identity {ident!r} lacks {GRANITE_MODEL_SUBSTR!r} — wrong server on port?")
+        return errs
+    try:
+        out = _post(f"http://127.0.0.1:{port}/v1/embeddings", {"input": "warm"})
+        dims = len(out["data"][0]["embedding"])
+        if dims != GRANITE_SERVER_DIMS:
+            errs.append(
+                f"embed returned {dims} dims, expected {GRANITE_SERVER_DIMS} — wrong model?"
+            )
+    except Exception as e:  # noqa: BLE001 — probe reports, never raises
+        errs.append(f"embed request failed: {e}")
+    return errs
+
+
 def check_ocr(port: int) -> list[str]:
     ident = _identity(port)
     if OCR_MODEL_SUBSTR not in ident.lower():
@@ -69,12 +92,14 @@ def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     ap.add_argument("--port-gemma", type=int, default=8732)
     ap.add_argument("--port-ocr", type=int, default=8731)
+    ap.add_argument("--port-granite", type=int, default=8733)
     args = ap.parse_args(argv)
 
     ok = True
     for name, port, fn in (
         ("embgemma", args.port_gemma, check_gemma),
         ("teleocr", args.port_ocr, check_ocr),
+        ("granite", args.port_granite, check_granite),
     ):
         try:
             errs = fn(port)
