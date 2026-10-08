@@ -133,6 +133,9 @@ DEFAULT_REFS: tuple[Ref, ...] = (
         "SELECT title, purpose, content FROM memory_search",
         _doc_text,
         stamp_sql="SELECT value FROM memory_search_info WHERE key = 'embed_model'",
+        # same (title, purpose, content) shape as scripts — shared gemma
+        # recipe
+        text_by_model={_GEMMA_MODEL_LABEL: _script_text_gemma},
     ),
     Ref(
         "note",

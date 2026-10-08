@@ -34,6 +34,13 @@ entry number and stale DONE pointers):
 
 ## Current live proposals
 
+_(none)_ — archived 2026-10-08 (filed + executed + archived same day):
+`memory_search_gemma_migration` (`../archive/tooling/`, completed.md
+entry 367) — the second gemma surface (90 records, ~2-3 min cold):
+per-surface selector + demotion guard, gemma prefix basis, stamp-keyed
+query side (fixing the silent bm25-only degradation of a gemma-stamped
+index), embed-gc stamp-following Ref.
+
 _(none)_ — `granite_sidecar_selector` was FILED and ARCHIVED
 **DEFERRED** the same day (2026-10-08, never executed): prefer a shared
 granite llama-server (third leg on the unified binary, proposed :8733)

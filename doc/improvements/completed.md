@@ -9630,3 +9630,23 @@ revisit triggers (measured parallel-run overhead, a fourth gemma
 surface, the PyPI llama-cpp-python wheel shipping llama.cpp #30054,
 trivial-RSS scratch de-risk) in §5 of the archived copy. Raw record:
 `doc/improvements/archive/tooling/granite_sidecar_selector.md`.
+
+## 367. memory_search gemma migration — per-surface selector + stamp-keyed query side
+
+**2026-10-08 — filed, executed and archived the same day** (second gemma
+surface; the cheapest per §6.2 — 90 records, ~2-3 min cold). Selector
+`resolve_memory_embedder` (`MEMORY_EMBEDDER=granite` escape) +
+`guard_gemma_stamp` wired into the rebuild write path; the gemma prefix
+basis reuses the shared `_gemma_basis` recipe over
+title/purpose/content (cap unchanged — recipe parity with the granite
+path); the query side is stamp-keyed (`_query_embedder_for`) — FOUND
+ALONG THE WAY: the old local fallback was granite-hardwired, so a
+gemma-stamped index would have degraded to bm25-only silently (512/384
+dims mismatch empties the cosine leg); embed-gc's memory Ref follows
+the stamp. Live: 90/90 cold re-embed (~2-3 min), stamp
+`embeddinggemma-2-q8_512`/512, recall sanity green through the real
+`memory_query` CLI (mode=hybrid), embed-gc memory cohort 90 referenced
+/ 0 dead / 145 granite retained (rollback). 7 contract tests; 63 green
+across the memory/gc/gemma modules. Fusion shape unchanged — memory
+stays hybrid. Raw record:
+`doc/improvements/archive/tooling/memory_search_gemma_migration.md`.

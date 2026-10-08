@@ -249,6 +249,12 @@ commit, referenced by nothing). Entry numbers point at
   untouched), vector-only mode + identifier router, both-sides
   prefix/stamp contract tests, 54-q bank gate (live intent 0.964, ident
   8/8) — completed.md #363
+- [`memory_search_gemma_migration.md`](tooling/memory_search_gemma_migration.md) —
+  memory_search gemma migration: per-surface selector (`MEMORY_EMBEDDER`)
+  + `guard_gemma_stamp`, gemma prefix basis (shared `_gemma_basis`
+  recipe), STAMP-KEYED query side (the granite-hardwired fallback would
+  have silently bm25-degraded a gemma-stamped index), embed-gc
+  stamp-following Ref; 90/90 live, recall sanity green — completed.md #367
 - [`granite_sidecar_selector.md`](tooling/granite_sidecar_selector.md) —
   prefer a shared granite llama-server (third leg on the unified binary,
   proposed :8733) for embed workloads; in-process granite stays the

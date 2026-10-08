@@ -14,6 +14,7 @@ from pathlib import Path
 import pytest
 
 
+from helpers.core import gemma_embedder
 from helpers.maintenance import rebuild_memory_search as rms  # noqa: E402
 from helpers.misc import memory_query  # noqa: E402
 
@@ -129,6 +130,99 @@ def _rebuild(tree, db=None, **kw):
     kw.setdefault("prime_state", tree / "prime" / "harness" / "harness_state.json")
     kw.setdefault("opencode_dir", tree / "opencode")
     return rms.rebuild(db or tree / "memory_search.db", embed_fn=_fake_embed, **kw)
+
+
+class TestMemoryGemmaMigration:
+    """memory_search gemma migration (2026-10-08): per-surface selector,
+    top-level demotion guard, gemma prefix basis, stamp-keyed query side.
+    Mirrors the script-adoption contract tests."""
+
+    def _gemma_rebuild(self, tree, calls):
+        """Rebuild with the gemma path forced via a recording embedder.
+        Patches are scoped to THIS call (pytest.MonkeyPatch.context) so a
+        later phase in the same test sees the REAL resolver — the refusal
+        test depends on that."""
+        with pytest.MonkeyPatch.context() as mp:
+            mp.setattr(gemma_embedder, "available", lambda port=None: True)
+
+            def _rec(text: str) -> list[float]:
+                calls.append(text)
+                return [0.5] * gemma_embedder.DIM
+
+            mp.setattr(
+                rms,
+                "resolve_memory_embedder",
+                lambda: (_rec, gemma_embedder.DIM, gemma_embedder.MODEL_LABEL, True),
+            )
+            kw = dict(
+                zcode_projects=tree / "zcode-projects",
+                prime_state=tree / "prime" / "harness" / "harness_state.json",
+                opencode_dir=tree / "opencode",
+                embed_fn=None,
+            )
+            return rms.rebuild(tree / "memory_search.db", **kw)
+
+    def test_gemma_stamp_and_prefix_basis(self, tree, monkeypatch):
+        calls: list[str] = []
+        stats = self._gemma_rebuild(tree, calls)
+        assert stats["embed_model"] == gemma_embedder.MODEL_LABEL
+        assert stats["embedded"] == stats["total_rows"] == 7
+
+        con = __import__("sqlite3").connect(str(tree / "memory_search.db"))
+        try:
+            info = dict(con.execute("SELECT key, value FROM memory_search_info").fetchall())
+        finally:
+            con.close()
+        assert info == {
+            "embed_model": gemma_embedder.MODEL_LABEL,
+            "embed_dims": str(gemma_embedder.DIM),
+        }
+        # every basis is gemma-prefixed over the same title/purpose/content
+        assert calls and all(c.startswith("title: ") and " | text: " in c for c in calls)
+
+    def test_gemma_stamp_sidecar_down_refuses(self, tree, monkeypatch):
+        calls: list[str] = []
+        self._gemma_rebuild(tree, calls)  # stamp the index gemma
+        monkeypatch.setattr(gemma_embedder, "available", lambda port=None: False)
+        monkeypatch.delenv("MEMORY_EMBEDDER", raising=False)
+
+        kw = dict(
+            zcode_projects=tree / "zcode-projects",
+            prime_state=tree / "prime" / "harness" / "harness_state.json",
+            opencode_dir=tree / "opencode",
+            embed_fn=None,
+        )
+        with pytest.raises(gemma_embedder.GemmaStampDemotion) as ei:
+            rms.rebuild(tree / "memory_search.db", **kw)
+        assert "make embgemma-server" in str(ei.value)
+
+        # the explicit escape completes (demotion on record)
+        monkeypatch.setenv("MEMORY_EMBEDDER", "granite")
+        stats = rms.rebuild(tree / "memory_search.db", **kw)
+        assert stats["embed_model"] != gemma_embedder.MODEL_LABEL
+
+    def test_cosine_leg_query_side_is_stamp_keyed(self, tree, monkeypatch):
+        import sqlite3
+
+        calls: list[str] = []
+        self._gemma_rebuild(tree, calls)  # gemma-stamped index
+
+        seen: list[str] = []
+
+        def _fake_query(_q: str) -> list[float]:
+            seen.append(_q)
+            return [0.5] * gemma_embedder.DIM
+
+        monkeypatch.setattr(gemma_embedder, "embed_query", _fake_query)
+        monkeypatch.setattr(gemma_embedder, "available", lambda port=None: True)
+
+        con = sqlite3.connect(str(tree / "memory_search.db"))
+        try:
+            scored, _sims = rms._cosine_leg(con, "gate idioms")
+        finally:
+            con.close()
+        assert seen == ["gate idioms"]  # the gemma query embedder ran
+        assert scored  # the 512-d vectors rank against the 512-d index
 
 
 class TestBuild:

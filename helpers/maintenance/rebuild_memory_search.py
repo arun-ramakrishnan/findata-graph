@@ -46,6 +46,7 @@ Exit codes: 0 success/fresh, 1 fatal error OR --check detected drift.
 
 import hashlib
 import json
+import os
 import re
 import sqlite3
 import sys
@@ -59,6 +60,7 @@ _REPO_ROOT = Path(__file__).resolve().parents[2]
 if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
+from helpers.core import gemma_embedder  # noqa: E402
 from helpers.core.embed_cache import CachedEmbed  # noqa: E402
 from helpers.maintenance import rebuild_common as rbc  # noqa: E402
 from helpers.maintenance import rebuild_doc_search as rds  # noqa: E402
@@ -362,9 +364,77 @@ def _collect_units(
     return units, meta
 
 
-def _row(u: dict, embed_fn) -> tuple:
+MEMORY_EMBEDDER_ENV = "MEMORY_EMBEDDER"
+
+
+def resolve_memory_embedder() -> tuple:
+    """(embed_fn, dims, model_label, gemma_active) for the memory surface.
+
+    memory_search gemma migration (2026-10-08): gemma whenever the
+    sidecar/model is available, granite otherwise — mirroring
+    resolve_script_embedder. A gemma-stamped index refuses the fallback
+    at the write path (helpers.core.gemma_embedder.guard_gemma_stamp).
+    MEMORY_EMBEDDER overrides: `granite` forces the shared in-process
+    path (the demotion escape), `gemma` forces gemma.
+    """
+    want = os.environ.get(MEMORY_EMBEDDER_ENV, "").strip().lower()
+    if want == "granite":
+        fn, dims, label = rds.resolve_embedder()
+        return fn, dims, label, False
+    if gemma_embedder.available():
+        return (
+            gemma_embedder.embed_document,
+            gemma_embedder.DIM,
+            gemma_embedder.MODEL_LABEL,
+            True,
+        )
+    if want == "gemma":
+        print(
+            "WARNING: MEMORY_EMBEDDER=gemma but the gemma sidecar/model is "
+            "unavailable — falling back to the granite path",
+            file=sys.stderr,
+            flush=True,
+        )
+    fn, dims, label = rds.resolve_embedder()
+    return fn, dims, label, False
+
+
+def _query_embedder_for(stored_model: str | None) -> tuple:
+    """Stamp-keyed query embedder (the script adoption's pattern): a
+    gemma-stamped memory index embeds queries with the gemma sidecar
+    (search-task prefix); anything else keeps the shared granite query
+    embedder. Sidecar down -> granite 384 -> dims mismatch -> BM25-only
+    (the house degradation contract, never mixed-model scores)."""
+    if stored_model == gemma_embedder.MODEL_LABEL and gemma_embedder.available():
+        return gemma_embedder.embed_query, gemma_embedder.DIM
+    return rds.query_embedder()
+
+
+def _row(u: dict, embed_fn, gemma: bool = False) -> tuple:
     """One FTS row tuple; embed basis = title + purpose + capped content,
-    identical to the script/doc rows so the shared GC text basis holds."""
+    identical to the script/doc rows so the shared GC text basis holds.
+    gemma=True wraps the SAME title/purpose/content in the gemma doc-side
+    prefix form (shared recipe with rebuild_script_search._gemma_basis) —
+    the prefix is load-bearing (1.000 -> 0.880 without it)."""
+    if gemma:
+        from helpers.maintenance.rebuild_script_search import _gemma_basis
+
+        try:
+            vec = embed_fn(_gemma_basis(u["title"], u["purpose"], u["content"]))
+        except Exception:  # noqa: S110  # best-effort; missing rows stay searchable
+            vec = None
+        from helpers.core.vec_codec import pack_f32
+
+        emb = pack_f32(vec) if vec else None
+        return (
+            u["title"],
+            u["kind"],
+            u["name"],
+            u["source_path"],
+            u["purpose"],
+            u["content"],
+            emb,
+        )
     return (
         u["title"],
         u["kind"],
@@ -376,8 +446,8 @@ def _row(u: dict, embed_fn) -> tuple:
     )
 
 
-def _compose_rows(units: list[dict], embed_fn) -> list[tuple]:
-    return [_row(u, embed_fn) for u in units]
+def _compose_rows(units: list[dict], embed_fn, gemma: bool = False) -> list[tuple]:
+    return [_row(u, embed_fn, gemma=gemma) for u in units]
 
 
 def _migrate_schema(conn: sqlite3.Connection) -> bool:
@@ -528,10 +598,21 @@ def rebuild(
         conn.execute(MEMORY_SEARCH_INFO_DDL)
         embed_dims = rds._PSEUDO_DIMS
         model_label: str | None = None
+        gemma_active = False
         if embed_fn is None:
             if write:
-                embed_fn, embed_dims, model_label = rds.resolve_embedder()
+                embed_fn, embed_dims, model_label, gemma_active = resolve_memory_embedder()
                 stats["embed_model"] = model_label
+                # Top-level demotion guard (helpers.core.gemma_embedder):
+                # a gemma-stamped memory index is never silently
+                # re-embedded by the fallback model — that exact accident
+                # un-migrated the script stamp twice. MEMORY_EMBEDDER=
+                # granite is the explicit escape.
+                gemma_embedder.guard_gemma_stamp(
+                    _stored_embed_model(conn),
+                    model_label,
+                    os.environ.get(MEMORY_EMBEDDER_ENV),
+                )
                 if model_label != f"dry-run-v{rds._PSEUDO_DIMS}":
                     # No automatic model-difference purge (2026-10-08): a
                     # prior-model row is rollback insurance, dead-text
@@ -543,7 +624,7 @@ def rebuild(
                 embed_fn = rds._noop_embed
 
         units, files_meta = _collect_units(zcode_projects, prime_state, opencode_dir)
-        all_rows = _compose_rows(units, embed_fn)
+        all_rows = _compose_rows(units, embed_fn, gemma=gemma_active)
 
         if isinstance(embed_fn, CachedEmbed):
             stats["embed_cache_hits"] = embed_fn.hits
@@ -707,7 +788,7 @@ def _cosine_leg(
         if query_vec is not None:
             q_vec = rbc.check_query_vector(_stored_embed_model(conn), idx_dims, query_vec)
         if q_vec is None:
-            embed_q, _dims = rds.query_embedder()
+            embed_q, _dims = _query_embedder_for(_stored_embed_model(conn))
             candidate = embed_q(q)
             if idx_dims != len(candidate):
                 return [], {}
