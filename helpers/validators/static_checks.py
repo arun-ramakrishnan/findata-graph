@@ -1676,12 +1676,12 @@ def _noqa_inside_string_tokens(source: str) -> list[int]:
             for off in range(1 + body.count("\n")):
                 if _NOQA_IN_LITERAL_RE.search(body[off] if off < len(body) else ""):
                     hits.append(first + off)
-    except (tokenize.TokenError, IndentationError, SyntaxError):
+    except tokenize.TokenError, IndentationError, SyntaxError:
         return hits  # malformed segment: the syntax leg owns the report
     return hits
 
 
-def _node_segment(src_lines: list[bytes], node: ast.AST) -> str | None:
+def _node_segment(src_lines: list[bytes], node: ast.expr) -> str | None:
     """Exact source text of `node`, sliced from pre-split UTF-8 lines.
 
     Replaces `ast.get_source_segment`, which re-splits the WHOLE source on
@@ -1699,7 +1699,7 @@ def _node_segment(src_lines: list[bytes], node: ast.AST) -> str | None:
     end_col = node.end_col_offset
     if end_lineno == lineno:
         return src_lines[lineno - 1][col:end_col].decode("utf-8", errors="replace")
-    parts = [src_lines[lineno - 1][col:], *src_lines[lineno:end_lineno - 1]]
+    parts = [src_lines[lineno - 1][col:], *src_lines[lineno : end_lineno - 1]]
     parts.append(src_lines[end_lineno - 1][:end_col])
     return b"".join(parts).decode("utf-8", errors="replace")
 

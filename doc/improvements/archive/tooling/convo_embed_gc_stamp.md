@@ -1,9 +1,9 @@
 ---
 title: "convo cohort: give the embed-gc Ref an active stamp so rollback insurance arms before a migration"
-status: proposed
+status: executed
 filed: "2026-10-09"
-executed: null
-completed_md: null
+executed: "2026-10-09"
+completed_md: "376"
 area: "helpers/maintenance/gc_embed_cache.py + tests/test_embed_gc.py"
 ---
 
@@ -66,12 +66,14 @@ Two facts make the change safe today and necessary eventually:
 One line in `DEFAULT_REFS` (`gc_embed_cache.py:150`):
 
 ```python
-Ref(
-    "convo",
-    REPO / "memory/convo_search.duckdb",
-    "SELECT snippet FROM convo_search",
-    stamp_sql="SELECT value FROM convo_meta WHERE key = 'embed_model'",
-),
+(
+    Ref(
+        "convo",
+        REPO / "memory/convo_search.duckdb",
+        "SELECT snippet FROM convo_search",
+        stamp_sql="SELECT value FROM convo_meta WHERE key = 'embed_model'",
+    ),
+)
 ```
 
 No change to `_read_refs`, `_classify`, the retention rule, or

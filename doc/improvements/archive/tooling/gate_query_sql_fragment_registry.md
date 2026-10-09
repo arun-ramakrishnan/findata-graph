@@ -1,9 +1,9 @@
 ---
 title: "gate_query SQL: explicit registry and membership gating for S608 filter fragments"
-status: proposed
+status: executed
 filed: "2026-10-09"
-executed: null
-completed_md: null
+executed: "2026-10-09"
+completed_md: "374"
 area: "helpers/misc/gate_query.py + helpers/misc/review_scan.py"
 ---
 
@@ -50,7 +50,7 @@ def _filter_clause(table: str, key: str) -> str:
 
 ```python
 status_clause = _filter_clause("b", "notfail_notskip") if pass_only else ""
-leg_clause    = _filter_clause("l", "notfail_notskip") if pass_only else ""
+leg_clause = _filter_clause("l", "notfail_notskip") if pass_only else ""
 ```
 
 **Preserve the good pattern.** The `.join(where)` builders (`cmd_artifacts`, `_cluster_payload`) already append only literal fragments with `?` params — they are the canonical safe pattern; leave them and note the precedent in the registry docstring.

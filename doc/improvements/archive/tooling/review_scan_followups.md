@@ -1,9 +1,9 @@
 ---
 title: "Native scan leg follow-ups — rule-scope fallback, statement-span noqa gate, --from/--to ranges"
-status: proposed
+status: executed
 filed: "2026-10-09"
-executed: null
-completed_md: null
+executed: "2026-10-09"
+completed_md: "373"
 area: "helpers/misc/review_scan.py, helpers/misc/review_selection.py, Makefile, tests/, .opencodereview/rule.json"
 ---
 

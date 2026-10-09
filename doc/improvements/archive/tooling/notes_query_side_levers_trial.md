@@ -1,9 +1,9 @@
 ---
 title: "Notes query-side levers before any model swap — bm25 boosts + header/edge enrichment, then granite-vs-gemma hybrids on a derive-seeded bank"
-status: proposed
+status: executed
 filed: "2026-10-08"
-executed: null
-completed_md: null
+executed: "2026-10-08"
+completed_md: "377"
 area: "helpers/misc/note_query + rebuild_note_search + eval banks"
 ---
 

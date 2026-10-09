@@ -1,9 +1,9 @@
 ---
 title: "noqa-inside-SQL-literal: a static_checks family so a suppression can never become query text"
-status: proposed
+status: executed
 filed: "2026-10-09"
-executed: null
-completed_md: null
+executed: "2026-10-09"
+completed_md: "375"
 area: "helpers/validators/static_checks.py + tests/test_static_checks.py + doc/procedures/ocr_review.md"
 ---
 
@@ -78,8 +78,11 @@ reported **76 hits** across `helpers/`, `app.py`, `desktop/` and
 `tests/` — all **false**. For implicitly concatenated literals
 
 ```python
-execute("SELECT ... "  # noqa: S608  # parameterized
-        "WHERE ...", params)
+execute(
+    "SELECT ... "  # noqa: S608  # parameterized
+    "WHERE ...",
+    params,
+)
 ```
 
 the source segment spans from the first quote to the last, so it

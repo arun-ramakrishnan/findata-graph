@@ -149,6 +149,16 @@ class TestReviewSelection:
         assert rs.main(["--from", "4fd3a20f"]) == 2
         assert "go together" in capsys.readouterr().err
 
+    def test_ref_args_half_range_refuses_rather_than_emitting_none(self):
+        """Argparse already refuses a half-range at the CLI, but _ref_args is
+        callable directly — and it used to build ["--from", x, "--to", None],
+        which stringifies to the literal "None" and sails past OCR's
+        both-or-neither validation as an unresolvable git ref.
+
+        mutation: delete the `to_ref is None` guard → no raise, test red."""
+        with pytest.raises(ValueError, match="half a range"):
+            rs._ref_args(1, None, "4fd3a20f", None)
+
     def test_from_to_with_commit_or_stack_refuses(self, capsys):
         # same voice as review_scan's validator — one rule, one message
         for argv in (

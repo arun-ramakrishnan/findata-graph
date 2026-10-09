@@ -1765,8 +1765,7 @@ def test_noqa_inside_single_line_fstring_reports_the_right_line(tmp_path, monkey
         monkeypatch,
         tmp_path,
         "helpers/misc/bad_inline.py",
-        "def rows(con):\n"
-        "    return con.execute(f\"\"\"SELECT a FROM t  # noqa: S608\"\"\", [])\n",
+        'def rows(con):\n    return con.execute(f"""SELECT a FROM t  # noqa: S608""", [])\n',
     )
     fatal, _ = sc.check_noqa_in_sql_literal()
     assert len(fatal) == 1, fatal

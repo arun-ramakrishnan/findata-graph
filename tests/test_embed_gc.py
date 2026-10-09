@@ -275,7 +275,9 @@ def test_convo_stamp_on_a_missing_table_aborts_the_gc(monkeypatch, tmp_path):
     stamp read and _read_refs re-raises `refusing to GC` rather than
     silently yielding None (which would disarm every cohort's insurance)."""
     refs, _store = _seed_convo(
-        monkeypatch, tmp_path, stamp_sql="SELECT value FROM convo_search_info WHERE key = 'embed_model'"
+        monkeypatch,
+        tmp_path,
+        stamp_sql="SELECT value FROM convo_search_info WHERE key = 'embed_model'",
     )
     with pytest.raises(RuntimeError, match="refusing to GC"):
         gce._read_refs(refs)

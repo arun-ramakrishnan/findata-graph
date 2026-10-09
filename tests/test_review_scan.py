@@ -104,11 +104,14 @@ class TestNoqaGate:
         ]
         # the SARIF ruleId is rule-path + rule-name (the doubled tail is real,
         # not a typo) — an unknown rule id must never drop anything
-        assert rs._adjudicated(
-            "python.sqlalchemy.security.sqlalchemy-execute-raw-query.sqlalchemy-execute-raw-query",
-            content,
-            1,
-        ) is True
+        assert (
+            rs._adjudicated(
+                "python.sqlalchemy.security.sqlalchemy-execute-raw-query.sqlalchemy-execute-raw-query",
+                content,
+                1,
+            )
+            is True
+        )
         assert rs._adjudicated("B608", content, 1) is True
 
     def test_neighbouring_statement_noqa_does_not_leak(self):
@@ -146,11 +149,14 @@ class TestNoqaGate:
         ]
         assert rs._statement_span(content, 2) == range(1, 3)
         assert rs._adjudicated("B608", content, 2) is True
-        assert rs._adjudicated(
-            "python.sqlalchemy.security.sqlalchemy-execute-raw-query.sqlalchemy-execute-raw-query",
-            content,
-            2,
-        ) is True
+        assert (
+            rs._adjudicated(
+                "python.sqlalchemy.security.sqlalchemy-execute-raw-query.sqlalchemy-execute-raw-query",
+                content,
+                2,
+            )
+            is True
+        )
 
     def test_multiline_fstring_walk_stops_at_the_literal_close(self):
         """the string walk must not become a new leakage channel: a NEIGHBOURING
@@ -393,7 +399,11 @@ class TestSqlfluffEngineRouting:
                     "filepath": str(tmp_path / "doc_search.sql"),
                     "violations": [
                         {"start_line_no": 3, "code": "PRS", "description": "unparsable UNINDEXED"},
-                        {"start_line_no": 3, "code": "LT12", "description": "files must end with newline"},
+                        {
+                            "start_line_no": 3,
+                            "code": "LT12",
+                            "description": "files must end with newline",
+                        },
                     ],
                 }
             ]
@@ -406,9 +416,7 @@ class TestSqlfluffEngineRouting:
             "USING fts5(title,",
             "          content UNINDEXED);",
         ]
-        monkeypatch.setattr(
-            rs, "_content_at", lambda _ref, _path: content
-        )
+        monkeypatch.setattr(rs, "_content_at", lambda _ref, _path: content)
         changed = {"schema/sqlite/doc_search.sql": {3}}
         found, status = rs._leg_sqlfluff(
             list(changed), changed, "ansi", tree={q: str(tmp_path / Path(q).name) for q in changed}

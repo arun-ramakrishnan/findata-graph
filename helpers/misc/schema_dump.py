@@ -132,7 +132,10 @@ def duckdb_ddl(path: Path) -> str:
     con = duckdb.connect(str(path), read_only=True)
     try:
         blocks: list[str] = []
-        for catalog, name_col in (("duckdb_tables()", "table_name"), ("duckdb_views()", "view_name")):
+        for catalog, name_col in (
+            ("duckdb_tables()", "table_name"),
+            ("duckdb_views()", "view_name"),
+        ):
             rows = con.execute(
                 f"SELECT schema_name, {name_col}, sql FROM {catalog} "  # noqa: S608  # both the catalog and the column are fixed constants
                 "WHERE internal = false AND sql IS NOT NULL ORDER BY schema_name, 2"
@@ -171,6 +174,7 @@ def dump_all(out_dir: Path = SCHEMA_DIR) -> list[Path]:
 def check(out_dir: Path = SCHEMA_DIR) -> list[str]:
     """Drift: (a) tracked file vs fresh render, (b) source DB with no
     tracked file. Returns human-readable drift lines; empty = fresh."""
+
     def disp(p: Path) -> str:
         # relative to the repo when inside it, absolute otherwise —
         # check() must work on a scratch out-dir too (the drift test's)
@@ -228,7 +232,9 @@ def main(argv: list[str] | None = None) -> int:
     for f in written:
         print(f"  {f.relative_to(REPO_ROOT)}")
     drift = check(out_dir)
-    print(f"schema-dump: wrote {len(written)} files; drift check: {'clean' if not drift else 'FAILED'}")
+    print(
+        f"schema-dump: wrote {len(written)} files; drift check: {'clean' if not drift else 'FAILED'}"
+    )
     return 0
 
 

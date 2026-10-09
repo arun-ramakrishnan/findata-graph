@@ -262,6 +262,44 @@ commit, referenced by nothing). Entry numbers point at
   NOQA_MAP + house-config adjudication; rule.json scoping shared with
   the delegation leg; both rosters durable under `outputs/reviews/`;
   golden ranges green — completed.md #371
+- [`notes_query_side_levers_trial.md`](tooling/notes_query_side_levers_trial.md) —
+  notes query-side levers trial — the pre-adoption trial behind the notes
+  flip: bm25 column boosts + edge enrichment on a derive-seeded bank, then
+  granite-vs-gemma hybrid arms. Definitive full-pool verdict
+  `hy_gemma_enriched` 41/75, +11 over shipped, replicated exactly from the
+  quick pool. Enrichment is the lever (20->31); column boosts a measured
+  NULL across three runs; vector-basis enrichment rejected (edges
+  homogenise sections — lexical field only); composition flat above cap
+  900. Adoption landed separately — completed.md #377 (see #369)
+- [`review_scan_followups.md`](tooling/review_scan_followups.md) —
+  review scan follow-ups — `_rule_scope` fail-open fallback (it raised
+  `UnboundLocalError` and killed the leg when `review_selection` is
+  unimportable); the statement-span noqa gate given the tests it shipped
+  without; `--from/--to` on both legs + the `REVIEW_RANGE_ARGS` macro. The
+  finding worth keeping: the paren-only span walk could not reach a noqa
+  on a multi-line f-string, so adjudicated B608 findings surfaced in
+  rosters — bandit cites the string's first line, ruff honours a
+  directive on the closing line — completed.md #373
+- [`gate_query_sql_fragment_registry.md`](tooling/gate_query_sql_fragment_registry.md) —
+  gate_query SQL fragment registry — the two ternary filter clauses route
+  through `_FILTER_CLAUSES` + `_filter_clause(table, key)`, so a fragment
+  can only enter by allowlist; the literal-join and `?`-placeholder sites
+  are the documented canonical pattern. Records the two-anchor noqa
+  placement rule and the three column-alias defects a green linter did
+  not catch — completed.md #374
+- [`noqa_in_sql_literal_lint.md`](tooling/noqa_in_sql_literal_lint.md) —
+  noqa inside a SQL literal — a blocking static_checks family, because a
+  directive inside a SQL string is query text and DuckDB rejects it.
+  Swept first (43 in-literal hits repo-wide, zero in SQL, so blocking
+  with no grandfather list); tokenize-based because source-segment
+  extraction reports 76 false positives on concatenated literals.
+  Carries the PEP 701 vacuous-zero finding — completed.md #375
+- [`convo_embed_gc_stamp.md`](tooling/convo_embed_gc_stamp.md) —
+  convo cohort embed-gc stamp — the only cohort in `DEFAULT_REFS` with
+  no `stamp_sql`, so rollback insurance was disarmed for 77% of the cache
+  by row count; the stamp was in `convo_meta` all along, just never
+  queried. Inert today (single-model granite equals the stamp), armed for
+  the next migration — completed.md #376
 - [`schema_ddl_review_surface.md`](tooling/schema_ddl_review_surface.md) —
   schema DDL review surface — all 14 `memory/` DBs dumped
   deterministically to `schema/<engine>/` (magic-byte classification,

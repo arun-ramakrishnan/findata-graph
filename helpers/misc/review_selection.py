@@ -129,6 +129,13 @@ def _ref_args(
     to_ref: str | None = None,
 ) -> list[str]:
     if from_ref is not None:
+        if to_ref is None:
+            # A landed pair is TWO refs. Sending half one used to emit the
+            # literal string "None" as --to, which sails past OCR's own
+            # both-or-neither validation (both flags ARE present) and dies
+            # later as an unresolvable git ref instead of a clear refusal.
+            msg = "--from requires --to: a landed pair is two refs, and half a range is not a range"
+            raise ValueError(msg)
         # No git call: OCR resolves the refs itself. --from/--to is the ONLY
         # encoding for a landed pair that is not HEAD-relative — --stack is
         # always HEAD~N..HEAD and --commit is a single ref, so a pair like
@@ -235,9 +242,9 @@ def main(argv: list[str] | None = None) -> int:
     if args.commit is not None and args.stack is not None:
         print("specify one of --stack or --commit, not both", file=sys.stderr)
         return 2
-    if (
-        args.from_ref is not None or args.to_ref is not None
-    ) and (args.commit is not None or args.stack is not None):
+    if (args.from_ref is not None or args.to_ref is not None) and (
+        args.commit is not None or args.stack is not None
+    ):
         # Same wording as review_scan's validator — one voice for one rule.
         print("specify one of --stack, --commit or --from/--to", file=sys.stderr)
         return 2
@@ -267,6 +274,22 @@ def main(argv: list[str] | None = None) -> int:
     return rc
 
 
+def _scope_label(args, stack: int, payload: dict) -> str:
+    """Human label for what this selection covers.
+
+    Split out of _emit_selection: the precedence chain (from/to > commit >
+    stack range > HEAD) is a pure function of the flags, and inlining it
+    cost _emit_selection three complexity points it no longer has.
+    """
+    if args.from_ref is not None:
+        return f"{args.from_ref}..{args.to_ref}"
+    if args.commit is not None:
+        return args.commit
+    if stack > 1:
+        return f"HEAD~{stack}..HEAD"
+    return payload.get("commit", "HEAD")
+
+
 def _emit_selection(args, stack: int) -> int:
 
     ocr = shutil.which("ocr")
@@ -276,8 +299,13 @@ def _emit_selection(args, stack: int) -> int:
             file=sys.stderr,
         )
         return 2
+    try:
+        ref_args = _ref_args(stack, args.commit, args.from_ref, args.to_ref)
+    except ValueError as exc:
+        print(str(exc), file=sys.stderr)
+        return 2  # same refusal code review_scan.py uses for a half-range
     proc = subprocess.run(  # noqa: S603  # resolved absolute path, fixed argv, no shell
-        [ocr, "delegate", "preview", *_ref_args(stack, args.commit, args.from_ref, args.to_ref), "--format", "json"],
+        [ocr, "delegate", "preview", *ref_args, "--format", "json"],
         capture_output=True,
         text=True,
         cwd=REPO_ROOT,
@@ -293,14 +321,7 @@ def _emit_selection(args, stack: int) -> int:
 
     reviewable = [f["path"] for f in payload["reviewable_files"]]
     excluded = [f["path"] for f in payload["excluded_files"]]
-    if args.from_ref is not None:
-        scope = f"{args.from_ref}..{args.to_ref}"
-    elif args.commit is not None:
-        scope = args.commit
-    elif stack > 1:
-        scope = f"HEAD~{stack}..HEAD"
-    else:
-        scope = payload.get("commit", "HEAD")
+    scope = _scope_label(args, stack, payload)
     print(
         f"OCR delegation selection for {scope}: "
         f"{payload['reviewable_count']}/{payload['total_files']} reviewable, "

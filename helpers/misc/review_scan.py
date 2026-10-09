@@ -483,7 +483,9 @@ def _leg_sqlfluff(files: list[str], changed: dict[str, set[int]], dialect: str, 
     for rel, abs_p in tree.items():
         groups.setdefault(_sql_engine(rel) or dialect, []).append(abs_p)
     for group_dialect, abs_paths in sorted(groups.items()):
-        proc = _run([str(binary), "lint", "--dialect", group_dialect, "--format", "json", *abs_paths])
+        proc = _run(
+            [str(binary), "lint", "--dialect", group_dialect, "--format", "json", *abs_paths]
+        )
         try:
             payload = json.loads(proc.stdout)
         except json.JSONDecodeError:
@@ -501,7 +503,9 @@ def _leg_sqlfluff(files: list[str], changed: dict[str, set[int]], dialect: str, 
                 if path not in changed or line not in changed[path]:
                     continue
                 rule = v.get("code", "")
-                if rule == "PRS" and _extension_syntax(line, _content_at("HEAD", path) if path in tree else None):
+                if rule == "PRS" and _extension_syntax(
+                    line, _content_at("HEAD", path) if path in tree else None
+                ):
                     # documented skip (schema_ddl_review_surface §4 S5): fts5
                     # UNINDEXED columns and vec0 FLOAT[]/distance_metric are
                     # extension syntax no sqlfluff grammar knows; the DDL is

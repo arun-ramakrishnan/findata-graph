@@ -9796,3 +9796,160 @@ drift); publication-surface review clean. No `doc/templates/` seed —
 the format contract lives in `schema/.sqlfluff` + the emitter
 docstring, pointed at from `doc/design/db_schema.md`. Raw record:
 `doc/improvements/archive/tooling/schema_ddl_review_surface.md`.
+
+## 373. Review scan follow-ups — rule-scope fallback, tested noqa span gate, --from/--to
+**Date**: 2026-10-09 **Status**: EXECUTED
+**Proposal**: `doc/improvements/archive/tooling/review_scan_followups.md`
+
+Three follow-ons to the native scan leg, all slices DONE. The
+`_rule_scope` crash when `review_selection` is unimportable is fixed by
+binding the fail-open fallback before the import (it raised
+`UnboundLocalError` and killed the leg). The statement-span noqa gate,
+which shipped untested, gained teeth. `--from/--to` landed on both legs
+behind a shared `REVIEW_RANGE_ARGS` macro — a landed pair like
+`4fd3a20f..bda590995` had no other encoding (`--stack` is HEAD-relative,
+`--commit` is a single ref).
+
+S6 came out of the `gate_query_sql_fragment_registry` arc and is the
+substantive finding: **the paren-only span walk could not reach a noqa on
+a multi-line f-string**, because bandit cites that string's FIRST line
+(where paren depth is 0) while ruff honours a directive on the line where
+the string ENDS. Every adjudicated `gate_query` B608 finding was
+therefore surfacing in rosters while looking, in the source, exactly like
+an unadjudicated one — which is what the 4fd3a20f..bda590995 scan
+reported. `_statement_span` now also covers the literal body
+(`_string_close_line`), bounded by the existing span cap, with a
+neighbour-leak guard so the wider walk cannot become a new suppression
+channel. Mutation-verified; the eight bandit sites in `gate_query.py`
+are all adjudicated and `review_scan.py STACK=1` surfaces zero B608/S608.
+
+The dead-leg question is resolved and recorded: sqlfluff is ALIVE via
+`schema/` (sibling #372) and shellcheck stays standing by operator
+default. The two vacuous goldens (`4a2dcf7b6`, `2dd8818c8`) are
+annotated in the archived leg's execution record so "goldens green"
+cannot be read as shellcheck/sqlfluff coverage. The house placement rule
+lives in `HOUSE_CHECKLIST` (`review_selection.py`), which is the surface
+`make review-patch` actually prints.
+
+## 374. gate_query SQL fragment registry — allowlisted filter fragments
+**Date**: 2026-10-09 **Status**: EXECUTED
+**Proposal**: `doc/improvements/archive/tooling/gate_query_sql_fragment_registry.md`
+
+§H hardening of the six S608 sites in `gate_query.py`. The two ternary
+filter clauses now route through `_FILTER_CLAUSES` +
+`_filter_clause(table, key)`, so a fragment can only be introduced by
+allowlist and anything else raises `KeyError`; the four literal-join and
+`?`-placeholder sites are unchanged and documented as the canonical
+safe pattern. Five teeth, mutation-verified.
+
+The interesting part was what the placement experiment exposed. bandit
+and ruff anchor S608 on DIFFERENT lines for a multi-line f-string, so no
+single-line placement satisfies both — and the attempt to match bandit's
+anchor put the directive INSIDE the string, where it became SQL text that
+DuckDB rejects (`ParserException` near `"#"`). The directives live after
+the closing quotes; the gate's walk was widened to match (see #373).
+Execution also caught three restore defects the linter stayed green on:
+`r.src_rel`/`r.header_offset`/`r.junit_path` column aliases belong to
+`runs`, not `test_facts`. Verified by diffing against the pre-change file,
+never by trusting the green linter.
+
+## 375. noqa inside a SQL literal — a static_checks family
+**Date**: 2026-10-09 **Status**: EXECUTED
+**Proposal**: `doc/improvements/archive/tooling/noqa_in_sql_literal_lint.md`
+
+Closes the last open item of #373. A `# noqa` inside a SQL string is
+query text, not a suppression — and the failure is silent: ruff
+correctly ignores an inert directive inside a literal (so it re-reports
+S608) while nothing in the QA chain says the STRING is now corrupt.
+
+The house-wide sweep that gated this measured 43 noqa-inside-literal
+occurrences repo-wide and ZERO in SQL: all prose documenting the
+convention, or test fixture data. So the family is blocking with no
+grandfather list. `check_noqa_in_sql_literal` resolves direct arguments
+to `execute`/`executemany`/`executescript` and flags a directive inside
+a STRING token. tokenize is load-bearing: `ast.get_source_segment`
+reported 76 hits, all false, because for implicitly concatenated
+literals it swallows the REAL comment between the parts — the house
+placement for multi-part SQL.
+
+Two findings worth keeping: **PEP 701 would have shipped it vacuous**
+(an f-string is not one STRING token on 3.12+; the literal chunk is
+FSTRING_MIDDLE, and matching STRING alone reported 0 findings on every
+seeded defect — the same shape as the sqlfluff `start_line_no` zero), and
+an off-by-one that every multi-line fixture agreed with by coincidence.
+Four teeth, three mutants RED. Cost held to ~1.7s by a
+necessary-condition prefilter (237/493 files) and by replacing
+`get_source_segment`, which re-splits the whole source per argument.
+
+## 376. convo cohort embed-gc stamp — rollback insurance armed
+**Date**: 2026-10-09 **Status**: EXECUTED
+**Proposal**: `doc/improvements/archive/tooling/convo_embed_gc_stamp.md`
+
+`convo` was the only cohort in `DEFAULT_REFS` written without a
+`stamp_sql`, so the rollback-insurance rule was disarmed for the largest
+cohort in the cache (73,005 rows, 77% by count). The stamp was never
+missing from the database — `rebuild_convo_search` writes it into
+`convo_meta` on every run — the GC simply never queried it, and the table
+name is not the sqlite cohorts' `*_search_info`.
+
+Inert today and provably so: the convo population is single-model
+granite, which equals the stamp, so nothing becomes retained and the
+genuinely dead rows stay collectable. Armed for the next migration.
+Four teeth including a guard that no cohort is left unstamped.
+
+The test caught a wrong claim in its own proposal: a missing table raises
+`duckdb.CatalogException`, which the narrow
+`(sqlite3.Error, OSError, RuntimeError)` guard let escape raw instead of
+as the house `refusing to GC` refusal. `_read_refs` now catches broadly,
+mirroring the text-basis guard beside it.
+
+## 377. Notes query-side levers trial — bm25 boosts, edge enrichment, granite-vs-gemma hybrids
+**Date**: 2026-10-08 (executed) / 2026-10-09 (archived) **Status**: EXECUTED
+**Proposal**: `doc/improvements/archive/tooling/notes_query_side_levers_trial.md`
+
+The pre-adoption trial for the notes surface: bm25 column boosts +
+header/edge enrichment on a 53-question derive-seeded bank, then
+granite-vs-gemma hybrid arms. Ran to a definitive full-pool verdict
+(17,263 sections), with the shape decisions closed by measurement.
+
+Verdict: `hy_gemma_enriched` **41/75**, +11 over the shipped
+configuration (granite hybrid 31/75), and the quick-pool result
+replicated exactly. Both readings agree — narrow (hard-tier-weighted)
+and facet-expanded (per-tier sweep) — so no arbitration was needed.
+The levers and the model **compose**: enriched bm25 alone reached 31,
+gemma vectors alone 36, the composed hybrid 41.
+
+What the trial settled, per §7:
+
+- **Enrichment is the lever** (bm25 20 -> 31). `edge_context` — the
+  company's accepted graph relations — turns relational queries into
+  literal-token hits (supplier 0->5, customer 0->4 on the 53-question
+  bank).
+- **Column boosts are a measured NULL.** Byte-identical weight grids on
+  every tier across three runs; they reorder overlapping candidates but
+  cannot change which rows match. Dropped as a dead lever, and recorded
+  as such rather than quietly omitted.
+- **Vector-basis enrichment REJECTED.** Appending `edge_context` to the
+  EMBED text hurt every arm (hybrid 32 -> 30 on the quick pool):
+  relation boilerplate homogenises sections and dilutes the semantic
+  signal. Edges belong in the LEXICAL field only; the vector leg stays
+  pure prose.
+- **Composition is flat above the cap threshold.** rare-first @ 900 for
+  truncation safety, then stop tuning — the ±1 differences are
+  oracle-tier noise.
+- Generalization is entity-corpus-specific: notes are the only surface
+  where graph edges + header metadata join naturally.
+
+Bank + scores archived under `bench_data/embgemma2/` with provenance.
+
+**Adoption is recorded separately, not here.** The winning shape was
+flipped to production under `notes_gemma_adoption.md`
+(**completed.md #369**): `edge_context` as indexed FTS text, gemma as the
+PRIMARY embedder with the in-process model as failsafe, and the live
+`note_embed_model` stamp now `embeddinggemma-2-q8_512`. This entry
+closes the TRIAL; #369 owns the production change.
+
+Archived 2026-10-09 having been left live after its own conclusion landed —
+the trial's remaining follow-ups were all resolved in §7 (full-pool run
+done, composition closed, vector-basis hypothesis rejected), so nothing
+was pending and the live proposal would have advertised shipped work.
