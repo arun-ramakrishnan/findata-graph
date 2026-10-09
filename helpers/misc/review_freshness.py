@@ -4,7 +4,7 @@
 ocr_review_pipeline's last operator-only gap: nothing recorded *whether the
 patch under review was already reviewed, and whether it changed since*. This
 ledger does for review rounds what coverage_ledger.py does for security
-reviews — a JSON array in gitignored memory/data/ with a content fingerprint
+reviews — a JSON array in gitignored outputs/reviews/ with a content fingerprint
 per row, checked against the live diff.
 
 Fingerprint: sha256[:16] over the range's DIFF TEXT (`git diff HEAD~N..HEAD`),
@@ -38,7 +38,11 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
-LEDGER = REPO_ROOT / "memory" / "data" / "review-freshness.json"
+# Review artifacts share ONE store (review_scan_leg S6 closure): the
+# durable rosters and the freshness ledger that tracks them live together
+# under outputs/reviews/ (gitignored, machine-local — same class as the
+# gate reports in outputs/). Was memory/data/review-freshness.json.
+LEDGER = REPO_ROOT / "outputs" / "reviews" / "review-freshness.json"
 
 
 def _diff_text(stack: int) -> str:

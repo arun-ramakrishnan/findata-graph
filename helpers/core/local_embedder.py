@@ -146,7 +146,7 @@ def _sidecar_vec(text: str) -> list[float]:
         body,
         {"Content-Type": "application/json"},
     )
-    with urllib.request.urlopen(req, timeout=120) as r:
+    with urllib.request.urlopen(req, timeout=120) as r:  # noqa: S310  # loopback, host from env
         vec = json.load(r)["data"][0]["embedding"]
     if len(vec) != DIM:
         raise RuntimeError(

@@ -133,6 +133,21 @@ mojo = [
     "max",
 ]
 
+# Review-tooling scanners — CLI-only, never imported from the codebase.
+# `uv sync --extra review`; uv.lock holds the resolved pins (unpinned
+# specs by house convention — bumps ride the regular lock refresh).
+# Versions as of 2026-10-09: semgrep 1.180.0, bandit 1.9.4,
+# shellcheck-py 0.11.0.1. sqlfluff is the sqllint-equivalent SQL leg
+# (sqllint itself ships only inside the OpenQodex bundle). gitleaks and
+# osv-scanner have no PyPI distribution — those legs stay binaries
+# (gitleaks at ~/.local/bin; osv-scanner's built-in copy is current).
+review = [
+    "semgrep",
+    "bandit",
+    "shellcheck-py",
+    "sqlfluff",
+]
+
 [tool.uv]
 # Non-packaged project: `uv sync` installs dependencies without building the
 # project itself (there is no [build-system]).
@@ -205,12 +220,13 @@ known_first_party = ["helpers", "app", "core", "mojo_regex_battery"]
 # flat_knn) that legitimately imports the dev-group `max` toolchain and
 # numpy directly — measured, not shipped (corpus_embeddings_scaling S2c).
 extend_exclude = ["doc/templates", "Mojo/bench"]
-# The `dev` and `mojo` optional-dependencies groups hold command-line tooling
-# (pytest, hypothesis, ruff, ty, deptry; the mojo + max compiler toolchain)
-# that is never imported from the codebase, so deptry cannot observe it as
-# "used". Marking the groups as dev suppresses the spurious DEP002
+# The `dev`, `mojo` and `review` optional-dependencies groups hold command-line
+# tooling (pytest, hypothesis, ruff, ty, deptry; the mojo + max compiler
+# toolchain; the semgrep/bandit/shellcheck review scanners) that is never
+# imported from the codebase, so deptry cannot observe it as "used".
+# Marking the groups as dev suppresses the spurious DEP002
 # (declared-but-unused) for their packages.
-optional_dependencies_dev_groups = ["dev", "mojo"]
+optional_dependencies_dev_groups = ["dev", "mojo", "review"]
 # gunicorn (prod WSGI server, invoked by nixpacks.toml `cmd = "gunicorn app:app"`)
 # and werkzeug (WSGI/serving, pulled in transitively by Flask) are runtime deps that
 # are not imported in the codebase. They are genuinely used, so silence DEP002 for

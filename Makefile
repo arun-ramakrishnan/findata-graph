@@ -34,7 +34,7 @@ export PATH := $(CURDIR)/.venv/bin:$(PATH)
 export TMPDIR ?= $(shell test -d /mnt/data/tmp && { mkdir -p /mnt/data/tmp/findata; echo /mnt/data/tmp/findata; } || echo /tmp)
 
 
-.PHONY: help qa test live-invariants perf cover fuzz integration snapshot snapshot-check snapshot-restore sync-tags sync-coverage-tags sync-sector-links static-checks license-check tmp-sweep install-dev triage-quotes gate-fresh graph-smoke graph-stats graph-algos graph-rebuild graph-rebuild-bench update-extensions recompute-graph recompute-hyper search-fresh convo-fresh embed-gc search-tui derive-relations derive-co-mentions derive-themes derive-events derive-insights derive-indices quote-coverage derive-themes-rebuild derive-cited-in derive-cited-in-rebuild derive-hyperedges derive-all refresh-indices refresh-vigil refresh-shp frontend frontend-check fold-identifiers format maint maint-full md-lint metrics-rebuild mojo-bench mojo-build mojo-test mojo-format relations-enrich lint types types-tests lint-audit deptry advisory secret-scan cargo-audit script-search-rebuild memory-search-rebuild triage-relations live-invariants stamp-centrality parity review-patch teleocr-server embgemma-server granite-server llamacpp-build llamacpp-health csr csr-check csr-rebuild convo-search-rebuild convo-search-check analytics-parquet analytics-fresh
+.PHONY: help qa test live-invariants perf cover fuzz integration snapshot snapshot-check snapshot-restore sync-tags sync-coverage-tags sync-sector-links static-checks license-check tmp-sweep install-dev triage-quotes gate-fresh graph-smoke graph-stats graph-algos graph-rebuild graph-rebuild-bench update-extensions recompute-graph recompute-hyper search-fresh convo-fresh embed-gc search-tui derive-relations derive-co-mentions derive-themes derive-events derive-insights derive-indices quote-coverage derive-themes-rebuild derive-cited-in derive-cited-in-rebuild derive-hyperedges derive-all refresh-indices refresh-vigil refresh-shp frontend frontend-check fold-identifiers format maint maint-full md-lint metrics-rebuild mojo-bench mojo-build mojo-test mojo-format relations-enrich lint types types-tests lint-audit deptry advisory secret-scan cargo-audit script-search-rebuild memory-search-rebuild triage-relations live-invariants stamp-centrality parity review-patch review-scan teleocr-server embgemma-server granite-server llamacpp-build llamacpp-health csr csr-check csr-rebuild convo-search-rebuild convo-search-check analytics-parquet analytics-fresh
 
 help:           ## Show available targets (alphabetical; entries generated from the ## annotations — keep both in sync)
 > @echo "FinData targets (alphabetical):"
@@ -108,7 +108,8 @@ help:           ## Show available targets (alphabetical; entries generated from 
 > @echo "  refresh-shp              NSE shareholding-pattern RSS -> invested_in edges (APPLY=1 to write; quarterly cadence, weekly poll)"
 > @echo "  refresh-vigil            VIGIL bulk: RPT group/supply + ratings -> edges (APPLY=1 to write; weekly)"
 > @echo "  refresh-xbrl             D20: incremental NSE XBRL sweep, unseen filings only (ARGS=--new for IPOs; APPLY=1 to write)"
-> @echo "  review-patch             OCR delegation selection roster for the stgit stack (advisory; asserts tests/Mojo visibility per rule.json; STACK=N for HEAD~N..HEAD)"
+> @echo "  review-patch             OCR delegation selection roster for the stgit stack (advisory; asserts tests/Mojo visibility per rule.json; STACK=N for HEAD~N..HEAD, COMMIT=<sha> for one commit)"
+> @echo "  review-scan              Native scanner roster over the review diff (advisory; bandit/shellcheck/sqlfluff/semgrep/osv on changed lines; STACK=N, COMMIT=<sha>, OFFLINE=1)"
 > @echo "  script-search-rebuild    Rebuild the script metadata index (script_search sidecar; query via helpers/misc/script_query.py)"
 > @echo "  search-fresh             Check ALL search indexes for staleness — doc/, script metadata, note embeddings, harness memory (every check runs even if one fails; exit 1 on drift; APPLY=1 refreshes them instead; also run by make advisory)"
 > @echo "  search-tui               Full-screen search front door — docs/scripts/notes indexes + ripwire + rg lanes; enter reads markdown via glow"
@@ -591,8 +592,12 @@ lint-audit:     ## Run ruff S/UP/C901 audits (security + modernization + complex
 # assertion (a rule-covered family with diff traffic must be visible — the
 # defect class that shipped the inert CSR lane). --stack N reviews the whole
 # applied stack (HEAD~N..HEAD).
-review-patch:   ## OCR delegation selection roster for the stgit stack (advisory; asserts tests/Mojo visibility per rule.json; STACK=N for HEAD~N..HEAD)
-> .venv/bin/python3 helpers/misc/review_selection.py $(if $(STACK),--stack $(STACK),)
+review-patch:   ## OCR delegation selection roster for the stgit stack (advisory; asserts tests/Mojo visibility per rule.json; STACK=N for HEAD~N..HEAD, COMMIT=<sha> for one commit)
+> .venv/bin/python3 helpers/misc/review_selection.py $(if $(COMMIT),--commit $(COMMIT),$(if $(STACK),--stack $(STACK),))
+> @.venv/bin/python3 helpers/misc/review_scan.py $(if $(COMMIT),--commit $(COMMIT),$(if $(STACK),--stack $(STACK),))
+
+review-scan:    ## Native scanner roster over the review diff (advisory, exit 0 always; bandit/shellcheck/sqlfluff/semgrep/osv on changed lines; STACK=N / COMMIT=<sha> / OFFLINE=1; proposal review_scan_leg)
+> .venv/bin/python3 helpers/misc/review_scan.py $(if $(COMMIT),--commit $(COMMIT),$(if $(STACK),--stack $(STACK),))$(if $(OFFLINE), --offline,)
 
 # markdown_lint_adoption S1: the helper owns node detection (SKIP without
 # Node) + the version pin + digest output; LINT-ONLY — no --fix surface

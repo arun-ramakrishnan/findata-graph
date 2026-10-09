@@ -9747,3 +9747,27 @@ same arc: NaviDC pair decompressed from `.zst`, mmproj f16→Q8_0
 on-demand only (~2.5 GB — D3, never auto-spawned). Raw record:
 `doc/improvements/archive/tooling/granite_sidecar_selector.md`.
 
+## 371. review scan leg — native repo-managed scanners over the review diff
+
+**2026-10-09 — filed, executed and archived the same day** (replaces
+the retired OpenQodex legs; built from the qodex trial's evidence).
+Deterministic advisory diff-scoped runner over the repo's own `review`
+extra (bandit/shellcheck/sqlfluff/semgrep/osv): changed-line filter
+(OpenQodex's deletion rule adopted), NOQA_MAP drops house-adjudicated
+lines (S608/S310/S404/S603/S607 + B101/B108 rows), house per-file
+mirror for tests/**, SKIP-if-missing, exit 0 always. Two real fixes
+the golden ranges forced: head-content materialization (scanners ran
+on the working tree while the gate read head content — every
+adjudication silently missed on drifted trees) and the `_git`/`_run`
+UTF-8 replace hardening. Golden ranges: KNN commit 0 findings,
+shellcheck SC2015-only, sqlfluff clean. Selection scoping shares
+`.opencodereview/rule.json` via `review_selection._families` (one
+authority; osv overrides the lockfile excludes per the trial's CVE
+lesson). Both rosters durable under gitignored `outputs/reviews/`
+(digest-keyed); freshness ledger moved from `memory/data/` to share
+the store; `make review-patch` runs both legs. 29 tests green
+(mutation-pinned, incl. the coordinate contract); ruff/ty/deptry
+clean. Leg-quality verdict recorded in the proposal §11.1: the scan
+is the exhaustive mechanical floor, the delegation review the only
+leg that catches wrong-but-green. Raw record:
+`doc/improvements/archive/tooling/review_scan_leg.md`.

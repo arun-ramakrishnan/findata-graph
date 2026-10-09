@@ -16,11 +16,15 @@ become visible at the point of use. Advisory only — never a `make qa` leg.
 Usage:
     review_selection.py                # top patch (--commit HEAD)
     review_selection.py --stack 3      # whole applied stack (--from HEAD~3 --to HEAD)
+    review_selection.py --commit <sha> # one specific commit (any ref), not the moving top
 """
 
 from __future__ import annotations
 
 import argparse
+import contextlib
+import hashlib
+import io
 import json
 import shutil
 import subprocess
@@ -32,6 +36,7 @@ if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
 RULE_JSON = REPO_ROOT / ".opencodereview" / "rule.json"
+REVIEW_OUT_DIR = REPO_ROOT / "outputs" / "reviews"
 
 # The checked families are HARDCODED, not derived from rule.json: the whole
 # point is to catch rule.json dropping one. Deriving them from the rule made
@@ -112,7 +117,11 @@ def _rule_excluded(path: str, exclude_globs: list[str]) -> bool:
     return any(fnmatch(path, g) or fnmatch(path, g.rstrip("/*") + "/*") for g in exclude_globs)
 
 
-def _ref_args(stack: int) -> list[str]:
+def _ref_args(stack: int, commit: str | None = None) -> list[str]:
+    if commit is not None:
+        # No git call: OCR resolves the ref itself, and a range-ish value
+        # ("HEAD~2") is the caller's intent, not ours to expand.
+        return ["--commit", commit]
     if stack <= 1:
         head = subprocess.run(  # fixed argv, no shell
             [  # noqa: S607  # git from PATH by design
@@ -189,10 +198,36 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument(
         "--stack",
         type=int,
-        default=1,
-        help="number of applied stgit patches to map (1 = top patch; N = HEAD~N..HEAD)",
+        default=None,
+        help="number of applied stgit patches to map (default 1 = top patch; N = HEAD~N..HEAD)",
+    )
+    ap.add_argument(
+        "--commit",
+        help="review exactly one commit (any ref — a SHA, HEAD~2, …) instead of the applied stack",
     )
     args = ap.parse_args(argv)
+    if args.commit is not None and args.stack is not None:
+        print("specify one of --stack or --commit, not both", file=sys.stderr)
+        return 2
+    stack = 1 if args.stack is None else args.stack
+
+    buf = io.StringIO()
+    with contextlib.redirect_stdout(buf):
+        rc = _emit_selection(args, stack)
+    sys.stdout.write(buf.getvalue())
+    if rc == 0:
+        # Durable roster (review_scan_leg S6 closure — same store as the
+        # scan leg): the roster is the deliverable, not stdout ephemera.
+        scope = args.commit if args.commit is not None else f"HEAD~{stack}"
+        digest = hashlib.sha256(scope.encode()).hexdigest()[:8]
+        REVIEW_OUT_DIR.mkdir(parents=True, exist_ok=True)
+        path = REVIEW_OUT_DIR / f"review_patch_{scope.replace('/', '_')}_{digest}.md"
+        path.write_text(f"# review-patch {scope}\n\n{buf.getvalue()}", encoding="utf-8")
+        print(f"roster: {path}")
+    return rc
+
+
+def _emit_selection(args, stack: int) -> int:
 
     ocr = shutil.which("ocr")
     if ocr is None:
@@ -202,7 +237,7 @@ def main(argv: list[str] | None = None) -> int:
         )
         return 2
     proc = subprocess.run(  # noqa: S603  # resolved absolute path, fixed argv, no shell
-        [ocr, "delegate", "preview", *_ref_args(args.stack), "--format", "json"],
+        [ocr, "delegate", "preview", *_ref_args(stack, args.commit), "--format", "json"],
         capture_output=True,
         text=True,
         cwd=REPO_ROOT,
@@ -218,7 +253,12 @@ def main(argv: list[str] | None = None) -> int:
 
     reviewable = [f["path"] for f in payload["reviewable_files"]]
     excluded = [f["path"] for f in payload["excluded_files"]]
-    scope = f"HEAD~{args.stack}..HEAD" if args.stack > 1 else payload.get("commit", "HEAD")
+    if args.commit is not None:
+        scope = args.commit
+    elif stack > 1:
+        scope = f"HEAD~{stack}..HEAD"
+    else:
+        scope = payload.get("commit", "HEAD")
     print(
         f"OCR delegation selection for {scope}: "
         f"{payload['reviewable_count']}/{payload['total_files']} reviewable, "
@@ -241,7 +281,15 @@ def main(argv: list[str] | None = None) -> int:
         )
         return 1
     print("selection-teeth OK: every rule-covered family with diff traffic is visible")
-    _print_freshness(args.stack)
+    if args.commit is not None:
+        # The ledger fingerprints HEAD~N..HEAD only (procedure §1b — landed
+        # ranges cannot be recorded); say so rather than printing a lying row.
+        print(
+            "review-freshness: n/a (--commit mode; the ledger is stack-scoped — "
+            "doc/procedures/ocr_review.md §1b)"
+        )
+    else:
+        _print_freshness(stack)
     print("\nhouse checklist (host-carried; OCR's rules key is inert — verified 1.12.11):")
     for item in HOUSE_CHECKLIST:
         print(f"  * {item}")

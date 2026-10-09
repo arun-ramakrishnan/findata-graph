@@ -132,3 +132,6 @@ snapshots/parquet/duckdb/v_note_embeddings.parquet
 # The trace/analytics loaders used to live here — all four now live in
 # helpers/analytics/ (moved 2026-10-06), so no per-file exceptions remain.
 bench_data/
+
+# retired external scanner (qodex trial output; evidence lives in doc/local/evaluations/)
+#.openqodex/

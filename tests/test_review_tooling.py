@@ -8,7 +8,7 @@ the freshness check depends on (a silent mis-write corrupts the very
 bookkeeping reviews cite), review_selection.py maps the stgit stack to
 reviewable families. Hermetic by construction — the ledger is redirected to
 tmp_path and git/stg are faked, so nothing here touches the real stack or
-`memory/data/review-freshness.json`.
+`outputs/reviews/review-freshness.json`.
 """
 
 from __future__ import annotations
@@ -116,6 +116,20 @@ class TestReviewSelection:
 
     def test_ref_args_stack_n_is_a_range(self):
         assert rs._ref_args(3) == ["--from", "HEAD~3", "--to", "HEAD"]
+
+    def test_ref_args_commit_needs_no_git(self, monkeypatch):
+        def boom(*_a, **_kw):
+            raise AssertionError("git must not run in commit mode")
+
+        monkeypatch.setattr(rs.subprocess, "run", boom)
+        # OCR resolves the ref itself, so range-ish values pass through
+        assert rs._ref_args(1, "e4258377b") == ["--commit", "e4258377b"]
+        assert rs._ref_args(3, "HEAD~2") == ["--commit", "HEAD~2"]
+
+    def test_commit_and_stack_together_refuses(self, capsys):
+        # a silently-ignored flag would review the wrong thing
+        assert rs.main(["--commit", "e4258377b", "--stack", "2"]) == 2
+        assert "one of --stack or --commit" in capsys.readouterr().err
 
     def test_families_cover_every_product_family_with_prefixes(self):
         includes, excludes = rs._families()

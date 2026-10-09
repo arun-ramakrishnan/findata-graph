@@ -256,6 +256,12 @@ commit, referenced by nothing). Entry numbers point at
   vs in-process 2.08/s, 4.4× under 4-way parallelism, S3 verdict
   accept-drift; supersedes #366 (filed + parked DEFERRED, revived
   same-day on the trivial-RSS trigger) — completed.md #370
+- [`review_scan_leg.md`](tooling/review_scan_leg.md) —
+  native scan leg — repo-managed scanners (bandit/shellcheck/sqlfluff/
+  semgrep/osv) over the review range on head-materialized content;
+  NOQA_MAP + house-config adjudication; rule.json scoping shared with
+  the delegation leg; both rosters durable under `outputs/reviews/`;
+  golden ranges green — completed.md #371
 - [`script_search_gemma_adoption.md`](tooling/script_search_gemma_adoption.md) —
   script_search gemma adoption — EmbeddingGemma-2 Q8@512 vector-primary
   for scripts: D3 sidecar client + per-surface selector (granite default

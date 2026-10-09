@@ -65,6 +65,7 @@ the selected wheel.
 | `dev` | pytest, pytest-cov, pytest-xdist, Hypothesis, Ruff, deptry | Preserve each package's MIT/BSD/Apache notices; tooling is not part of the runtime grant |
 | `tui` | Textual, Rich, tree-sitter, tree-sitter-sql | Preserve upstream MIT/BSD notices; runtime extra remains separately governed |
 | `mojo` | Mojo and MAX toolchains | Record the exact compiler/runtime license and exceptions per release; do not infer from the Python project license |
+| `review` | bandit, semgrep, shellcheck-py, sqlfluff | Advisory review-scanner tooling (proposal `review_scan_leg`); each is Apache-2.0 (bandit), LGPL-2.1 (semgrep core, Apache-2.0 for the ruleset), MIT (shellcheck-py wraps GPL-3.0 shellcheck, invoked as a separate process), MIT (sqlfluff). Not part of the runtime grant; invoked as subprocesses from the review leg, never imported by runtime code |
 
 ## Frontend packages
 

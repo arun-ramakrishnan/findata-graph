@@ -48,6 +48,7 @@ Never as a `make qa` leg, and never in place of reading the diff yourself.
 |---|---|
 | one named patch | `--commit "$(stg id <patch>)"` |
 | current top patch | `--commit "$(stg id)"` |
+| one specific commit, any ref | `--commit <sha>` (the leg's `--commit`; `make review-patch COMMIT=<sha>`) |
 | range / whole stack | `--from <base> --to <target>` |
 | uncommitted worktree | no ref — workspace mode (below) |
 
@@ -69,7 +70,9 @@ The rule was widened to `tests/**/*.py`, `helpers/**/*.py`, `app.py` on 2026-09-
 ## 1b. Review freshness — was this diff already reviewed?
 
 `make review-patch` also prints a freshness line; the ledger behind it is
-`memory/data/review-freshness.json` (machine-local, gitignored),
+`outputs/reviews/review-freshness.json` (machine-local, gitignored; same
+store as the durable review rosters — moved there 2026-10-09 when
+`review_scan`/`review-patch` gained `outputs/reviews/` writes),
 driven by `helpers/misc/review_freshness.py`:
 
     $OCR="$OCR" ; .venv/bin/python3 helpers/misc/review_freshness.py --stack N
@@ -100,6 +103,8 @@ review report; a `--from/--to` mode is deferred
 (`../archive/tooling/ocr_rule_census.md` S7).
 
 **Workspace mode is empty on a refreshed stack:** bare `$OCR delegate preview` diffs the working tree, and a refreshed stack has a clean tree. Not a bug — pass a ref.
+
+**`--commit` mode reviews any single ref, and prints no freshness line.** The leg's `--commit` (also `make review-patch COMMIT=<sha>`) resolves inside OCR, so range-ish values (`HEAD~2`) pass through verbatim; it is mutually exclusive with `--stack` (both together is an error, never a silently-ignored flag). The freshness ledger fingerprints `HEAD~N..HEAD` only, so commit mode prints `review-freshness: n/a` rather than a lying row — the landed-range recording gap above still stands.
 
 ## 2. Grounding — brief from the indexes, not from memory
 
