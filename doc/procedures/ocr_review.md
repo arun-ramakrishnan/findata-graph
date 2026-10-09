@@ -67,6 +67,8 @@ The rule was widened to `tests/**/*.py`, `helpers/**/*.py`, `app.py` on 2026-09-
 
 **`make review-patch` runs this check mechanically** (ocr_review_pipeline S3's deterministic remainder): stgit→ref mapping (`--stack N` ⇒ `HEAD~N..HEAD`), the roster print, and the selection-teeth assertion — every rule-covered family with diff traffic must have a selected file, checked against a **hardcoded** product-family list (`tests/`, `Mojo/src/`, `Mojo/tests/`) so a rule.json regression fires instead of self-masking. Mutation-verified 2026-09-29 (drop `tests/` from the rule ⇒ exit 1 naming the family). Advisory only — never a `make qa` leg. The two manual checks above stay as the judgment layer on top.
 
+**`review-patch` is composite since 2026-10-09** (`review_scan_leg` S6): after the selection roster it also runs the native scan leg (`review_scan.py` — bandit/shellcheck/sqlfluff/semgrep/osv on the changed lines) with the same ref arguments, silently (`@`); run `make review-scan` with the same `COMMIT=`/`STACK=N`/`FROM= TO=` for the scan's own visible roster, and `OFFLINE=1` skips the network legs on either target. Roster + scan verdicts land under `outputs/reviews/`.
+
 ## 1b. Review freshness — was this diff already reviewed?
 
 `make review-patch` also prints a freshness line; the ledger behind it is
@@ -105,6 +107,8 @@ review report; a `--from/--to` mode is deferred
 **Workspace mode is empty on a refreshed stack:** bare `$OCR delegate preview` diffs the working tree, and a refreshed stack has a clean tree. Not a bug — pass a ref.
 
 **`--commit` mode reviews any single ref, and prints no freshness line.** The leg's `--commit` (also `make review-patch COMMIT=<sha>`) resolves inside OCR, so range-ish values (`HEAD~2`) pass through verbatim; it is mutually exclusive with `--stack` (both together is an error, never a silently-ignored flag). The freshness ledger fingerprints `HEAD~N..HEAD` only, so commit mode prints `review-freshness: n/a` rather than a lying row — the landed-range recording gap above still stands.
+
+**`--from/--to` mode (2026-10-09, `review_scan_followups`) is the encoding for a landed, non-HEAD-relative pair** — `--stack` is always `HEAD~N..HEAD` and `--commit` is one ref, so a pair like `4fd3a20f..bda590995` is otherwise unencodable. At the make level: `make review-patch FROM=<base> TO=<head>` / `make review-scan FROM=<base> TO=<head>`; `FROM` without `TO` aborts in the Makefile macro (`REVIEW_RANGE_ARGS`) rather than reaching argparse as a dangling half-range, and `FROM`/`TO` outrank `COMMIT`/`STACK` when several are set. Both helpers reject the mixed combinations (exit 2, "specify one of --stack, --commit or --from/--to") and a half range (exit 2, "go together"). Like commit mode it prints `review-freshness: n/a` — the ledger still records `HEAD~N..HEAD` only.
 
 ## 2. Grounding — brief from the indexes, not from memory
 

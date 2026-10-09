@@ -17,7 +17,8 @@
     "doc/reference/**",
     "doc/okf/**",
     "doc/templates/**",
-    "doc/security/**"
+    "doc/security/**",
+    "schema/**/*.sql"
   ],
   "exclude": [
     "static/**/*.bundle.js",

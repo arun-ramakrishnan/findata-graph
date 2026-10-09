@@ -305,6 +305,16 @@ would have written `report.html/.md/.json/.sarif` under
   parser) reads that one tree. Golden #1 `03743294b` → **0 findings,
   bandit + semgrep ran**; #2 `4a2dcf7b6` → shellcheck SC2015 (info)
   only; #3 `2dd8818c8` → sqlfluff clean.
+- **CORRECTION (2026-10-09, `proposals/review_scan_followups.md` S5 —
+  read before citing goldens #2/#3):** #2 and #3 are VACUOUS, not
+  green. `vendor/llamacpp/build.sh` (SC2015) is outside rule.json's
+  `include`, and `snapshots/parquet/_schema.sqlite.sql` is excluded —
+  both legs reported "no matching files", so neither golden exercised
+  shellcheck or sqlfluff. Zero tracked non-vendor `.sh` and zero
+  tracked non-snapshot `.sql` existed at this stamp. sqlfluff gained
+  live targets via `schema/<engine>/` (`schema_ddl_review_surface`,
+  completed.md 372); shellcheck remains target-less by operator
+  default.
 - **Two more hardenings the golden runs forced**: (1) house
   config-adjudication mirror — `pyproject` per-file-ignores
   (`tests/**`: S101/S311/S603) maps to bandit B101/B311/B603, else the

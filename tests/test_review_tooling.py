@@ -131,6 +131,33 @@ class TestReviewSelection:
         assert rs.main(["--commit", "e4258377b", "--stack", "2"]) == 2
         assert "one of --stack or --commit" in capsys.readouterr().err
 
+    def test_ref_args_from_to_is_the_landed_pair_encoding(self, monkeypatch):
+        def boom(*_a, **_kw):
+            raise AssertionError("git must not run in --from/--to mode")
+
+        monkeypatch.setattr(rs.subprocess, "run", boom)
+        # a landed pair is not HEAD-relative: --stack cannot express it
+        assert rs._ref_args(1, None, "4fd3a20f", "bda590995") == [
+            "--from",
+            "4fd3a20f",
+            "--to",
+            "bda590995",
+        ]
+
+    def test_half_range_refuses(self, capsys):
+        # mutation: dropping the pair check silently reviews base..HEAD
+        assert rs.main(["--from", "4fd3a20f"]) == 2
+        assert "go together" in capsys.readouterr().err
+
+    def test_from_to_with_commit_or_stack_refuses(self, capsys):
+        # same voice as review_scan's validator — one rule, one message
+        for argv in (
+            ["--from", "a", "--to", "b", "--commit", "c"],
+            ["--from", "a", "--to", "b", "--stack", "2"],
+        ):
+            assert rs.main(argv) == 2
+            assert "one of --stack, --commit or --from/--to" in capsys.readouterr().err
+
     def test_families_cover_every_product_family_with_prefixes(self):
         includes, excludes = rs._families()
         # hardcoded teeth stay in the union even if rule.json drops them

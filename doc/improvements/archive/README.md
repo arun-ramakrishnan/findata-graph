@@ -262,6 +262,14 @@ commit, referenced by nothing). Entry numbers point at
   NOQA_MAP + house-config adjudication; rule.json scoping shared with
   the delegation leg; both rosters durable under `outputs/reviews/`;
   golden ranges green — completed.md #371
+- [`schema_ddl_review_surface.md`](tooling/schema_ddl_review_surface.md) —
+  schema DDL review surface — all 14 `memory/` DBs dumped
+  deterministically to `schema/<engine>/` (magic-byte classification,
+  shadows excluded, digest header); blocking `make qa` drift gate with
+  fresh-clone SKIP; rule.json additive include; per-engine sqlfluff —
+  and two catches: the golden's vacuous `0 kept` (sqlfluff 4.x emits
+  `start_line_no`) and the 298→9 layout-noise resolution via a
+  `schema/.sqlfluff` format contract — completed.md #372
 - [`script_search_gemma_adoption.md`](tooling/script_search_gemma_adoption.md) —
   script_search gemma adoption — EmbeddingGemma-2 Q8@512 vector-primary
   for scripts: D3 sidecar client + per-surface selector (granite default

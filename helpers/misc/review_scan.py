@@ -433,6 +433,17 @@ def _leg_shellcheck(files: list[str], changed: dict[str, set[int]], head: str, t
     return findings, f"shellcheck: ran ({len(findings)} kept on changed lines)"
 
 
+def _sql_engine(path: str) -> str | None:
+    """sqlfluff dialect for a .sql path — the schema/ engine directory IS
+    the dialect selector (schema_ddl_review_surface §3). Everything else
+    keeps the --dialect default."""
+    if path.startswith("schema/sqlite/"):
+        return "sqlite"
+    if path.startswith("schema/duckdb/"):
+        return "duckdb"
+    return None
+
+
 def _leg_sqlfluff(files: list[str], changed: dict[str, set[int]], dialect: str, tree=None):
     binary = _venv_bin("sqlfluff")
     if binary is None:
@@ -441,29 +452,60 @@ def _leg_sqlfluff(files: list[str], changed: dict[str, set[int]], dialect: str, 
     if not tree:
         return [], "sqlfluff: no matching files"
     rev = {a: r for r, a in tree.items()}
-    proc = _run([str(binary), "lint", "--dialect", dialect, "--format", "json", *tree.values()])
-    try:
-        payload = json.loads(proc.stdout)
-    except json.JSONDecodeError:
-        return [], f"sqlfluff: failed (unparseable output, rc={proc.returncode})"
     findings = []
-    for entry in payload if isinstance(payload, list) else []:
-        path = _rel_of(entry.get("filepath", ""), rev)
-        for v in entry.get("violations", []):
-            line = v.get("line_no")
-            if path not in changed or line not in changed[path]:
-                continue
-            findings.append(
-                Finding(
-                    scanner="sqlfluff",
-                    rule=v.get("code", ""),
-                    severity="low",
-                    path=path,
-                    line=line,
-                    message=v.get("description", ""),
+    # one sqlfluff invocation per engine group: schema/sqlite/** wants the
+    # sqlite dialect, schema/duckdb/** duckdb, the rest the --dialect default
+    groups: dict[str, list[str]] = {}
+    for rel, abs_p in tree.items():
+        groups.setdefault(_sql_engine(rel) or dialect, []).append(abs_p)
+    for group_dialect, abs_paths in sorted(groups.items()):
+        proc = _run([str(binary), "lint", "--dialect", group_dialect, "--format", "json", *abs_paths])
+        try:
+            payload = json.loads(proc.stdout)
+        except json.JSONDecodeError:
+            return [], f"sqlfluff: failed (unparseable output, rc={proc.returncode})"
+        for entry in payload if isinstance(payload, list) else []:
+            path = _rel_of(entry.get("filepath", ""), rev)
+            for v in entry.get("violations", []):
+                # sqlfluff 4.x emits start_line_no; older/other formatters
+                # used line_no. Reading only line_no returned None for every
+                # violation and the changed-lines check silently dropped
+                # them all — the golden run on c77fe5e0f reported "0 kept"
+                # while the raw file had 298. Never trust a clean verdict
+                # without this kind of raw-vs-kept crosscheck.
+                line = v.get("start_line_no") or v.get("line_no")
+                if path not in changed or line not in changed[path]:
+                    continue
+                rule = v.get("code", "")
+                if rule == "PRS" and _extension_syntax(line, _content_at("HEAD", path) if path in tree else None):
+                    # documented skip (schema_ddl_review_surface §4 S5): fts5
+                    # UNINDEXED columns and vec0 FLOAT[]/distance_metric are
+                    # extension syntax no sqlfluff grammar knows; the DDL is
+                    # generated from live catalogs so it cannot carry a noqa
+                    continue
+                findings.append(
+                    Finding(
+                        scanner="sqlfluff",
+                        rule=rule,
+                        severity="low",
+                        path=path,
+                        line=line,
+                        message=v.get("description", ""),
+                    )
                 )
-            )
     return findings, f"sqlfluff: ran ({len(findings)} kept on changed lines)"
+
+
+def _extension_syntax(line_no: int | None, content: list[str] | None) -> bool:
+    """True when the cited line sits inside a `USING fts5(...)`/`USING
+    vec0(...)` clause — measured 2026-10-09: sqlfluff's sqlite grammar
+    rejects UNINDEXED (fts5) and FLOAT[512]/distance_metric (vec0); the
+    DDL is machine-generated so an inline noqa is impossible."""
+    if content is None or line_no is None or line_no > len(content):
+        return False
+    start = max(0, line_no - 4)
+    window = "\n".join(content[start:line_no])
+    return "USING fts5(" in window or "USING vec0(" in window
 
 
 def _leg_semgrep(files: list[str], changed: dict[str, set[int]], head: str, tree=None):
@@ -670,6 +712,13 @@ def _rule_scope(changed: dict[str, set[int]]) -> set[str]:
     authority — `review_selection._families`, imported, never re-derived).
     The osv leg deliberately overrides the lockfile excludes downstream:
     whole-lockfile reporting is the trial's CVE lesson (§3.5)."""
+    # Fallbacks first: if the import fails, the loop below still calls
+    # _rule_excluded — an except branch that only reset the glob lists left
+    # the name unbound and crashed the leg (golden run, 03743294b worktree,
+    # where review_selection.py does not exist yet).
+    include_roots: list[str] = []
+    exclude_globs: list[str] = []
+    _rule_excluded = lambda _p, _globs: False  # noqa: E731
     try:
         from helpers.misc.review_selection import _families, _rule_excluded
 

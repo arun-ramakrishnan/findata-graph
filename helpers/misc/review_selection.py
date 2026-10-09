@@ -17,6 +17,7 @@ Usage:
     review_selection.py                # top patch (--commit HEAD)
     review_selection.py --stack 3      # whole applied stack (--from HEAD~3 --to HEAD)
     review_selection.py --commit <sha> # one specific commit (any ref), not the moving top
+    review_selection.py --from <ref> --to <ref>  # an explicit landed pair — the only encoding for a range that is not HEAD-relative
 """
 
 from __future__ import annotations
@@ -117,7 +118,18 @@ def _rule_excluded(path: str, exclude_globs: list[str]) -> bool:
     return any(fnmatch(path, g) or fnmatch(path, g.rstrip("/*") + "/*") for g in exclude_globs)
 
 
-def _ref_args(stack: int, commit: str | None = None) -> list[str]:
+def _ref_args(
+    stack: int,
+    commit: str | None = None,
+    from_ref: str | None = None,
+    to_ref: str | None = None,
+) -> list[str]:
+    if from_ref is not None:
+        # No git call: OCR resolves the refs itself. --from/--to is the ONLY
+        # encoding for a landed pair that is not HEAD-relative — --stack is
+        # always HEAD~N..HEAD and --commit is a single ref, so a pair like
+        # 4fd3a20f..bda590995 is otherwise unencodable.
+        return ["--from", from_ref, "--to", to_ref]
     if commit is not None:
         # No git call: OCR resolves the ref itself, and a range-ish value
         # ("HEAD~2") is the caller's intent, not ours to expand.
@@ -205,9 +217,28 @@ def main(argv: list[str] | None = None) -> int:
         "--commit",
         help="review exactly one commit (any ref — a SHA, HEAD~2, …) instead of the applied stack",
     )
+    ap.add_argument(
+        "--from",
+        dest="from_ref",
+        help="range base (with --to) — a landed pair, not HEAD-relative",
+    )
+    ap.add_argument(
+        "--to",
+        dest="to_ref",
+        help="range head (with --from)",
+    )
     args = ap.parse_args(argv)
     if args.commit is not None and args.stack is not None:
         print("specify one of --stack or --commit, not both", file=sys.stderr)
+        return 2
+    if (
+        args.from_ref is not None or args.to_ref is not None
+    ) and (args.commit is not None or args.stack is not None):
+        # Same wording as review_scan's validator — one voice for one rule.
+        print("specify one of --stack, --commit or --from/--to", file=sys.stderr)
+        return 2
+    if bool(args.from_ref) != bool(args.to_ref):
+        print("--from and --to go together", file=sys.stderr)
         return 2
     stack = 1 if args.stack is None else args.stack
 
@@ -218,7 +249,12 @@ def main(argv: list[str] | None = None) -> int:
     if rc == 0:
         # Durable roster (review_scan_leg S6 closure — same store as the
         # scan leg): the roster is the deliverable, not stdout ephemera.
-        scope = args.commit if args.commit is not None else f"HEAD~{stack}"
+        if args.commit is not None:
+            scope = args.commit
+        elif args.from_ref is not None:
+            scope = f"{args.from_ref}..{args.to_ref}"
+        else:
+            scope = f"HEAD~{stack}"
         digest = hashlib.sha256(scope.encode()).hexdigest()[:8]
         REVIEW_OUT_DIR.mkdir(parents=True, exist_ok=True)
         path = REVIEW_OUT_DIR / f"review_patch_{scope.replace('/', '_')}_{digest}.md"
@@ -237,7 +273,7 @@ def _emit_selection(args, stack: int) -> int:
         )
         return 2
     proc = subprocess.run(  # noqa: S603  # resolved absolute path, fixed argv, no shell
-        [ocr, "delegate", "preview", *_ref_args(stack, args.commit), "--format", "json"],
+        [ocr, "delegate", "preview", *_ref_args(stack, args.commit, args.from_ref, args.to_ref), "--format", "json"],
         capture_output=True,
         text=True,
         cwd=REPO_ROOT,
@@ -253,7 +289,9 @@ def _emit_selection(args, stack: int) -> int:
 
     reviewable = [f["path"] for f in payload["reviewable_files"]]
     excluded = [f["path"] for f in payload["excluded_files"]]
-    if args.commit is not None:
+    if args.from_ref is not None:
+        scope = f"{args.from_ref}..{args.to_ref}"
+    elif args.commit is not None:
         scope = args.commit
     elif stack > 1:
         scope = f"HEAD~{stack}..HEAD"
@@ -281,7 +319,14 @@ def _emit_selection(args, stack: int) -> int:
         )
         return 1
     print("selection-teeth OK: every rule-covered family with diff traffic is visible")
-    if args.commit is not None:
+    if args.from_ref is not None:
+        # The ledger fingerprints HEAD~N..HEAD only (procedure §1b — landed
+        # ranges cannot be recorded); say so rather than printing a lying row.
+        print(
+            "review-freshness: n/a (--from/--to mode; the ledger is stack-scoped — "
+            "doc/procedures/ocr_review.md §1b)"
+        )
+    elif args.commit is not None:
         # The ledger fingerprints HEAD~N..HEAD only (procedure §1b — landed
         # ranges cannot be recorded); say so rather than printing a lying row.
         print(

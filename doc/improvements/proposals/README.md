@@ -34,6 +34,27 @@ entry number and stale DONE pointers):
 
 ## Current live proposals
 
+**`review_scan_followups`** (filed 2026-10-09) — follow-ons to the
+executed native scan leg: the `_rule_scope` `UnboundLocalError` crash
+when `review_selection` is unimportable (fail-open fallback now bound),
+the statement-span noqa gate that shipped with **no test** (semgrep
+anchors at `conn.execute(`, the house noqa sits on the f-string below —
+three mutation-verified pins incl. the neighbour non-leak), and
+`--from/--to` on both review legs plus a shared `REVIEW_RANGE_ARGS`
+Makefile macro (a landed pair like `4fd3a20f..bda590995` had no other
+encoding). All slices DONE 2026-10-09: the dead-leg finding resolved
+(sqlfluff alive via the schema surface below; shellcheck left standing
+by operator default) and the vacuous-golden correction recorded in the
+archived leg's execution record — archivable next.
+
+_(archived 2026-10-09, filed + executed + archived same day)_:
+`schema_ddl_review_surface` (`../archive/tooling/`, completed.md
+entry 372) — all 14 `memory/` DBs dumped deterministically to
+`schema/<engine>/`; blocking qa drift gate with fresh-clone SKIP;
+additive rule.json include; per-engine sqlfluff; caught the leg's own
+vacuous `0 kept` (sqlfluff 4.x `start_line_no`) and resolved 298→9
+layout noise via a `schema/.sqlfluff` format contract.
+
 **`notes_query_side_levers_trial`** (filed 2026-10-08) — notes query-side
 levers before any model swap: bm25 column boosts (query-side only, zero
 rebuild) + header/edge enrichment (scratch FTS with ticker + accepted-

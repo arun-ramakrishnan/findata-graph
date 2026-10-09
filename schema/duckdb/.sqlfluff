@@ -1,0 +1,6 @@
+[sqlfluff]
+# Manual-run default for the duckdb engine directory; inherits
+# exclude_rules from schema/.sqlfluff. The review_scan leg overrides this
+# via an explicit --dialect (CLI beats config), so this only serves
+# humans running sqlfluff by hand.
+dialect = duckdb

@@ -9771,3 +9771,28 @@ clean. Leg-quality verdict recorded in the proposal §11.1: the scan
 is the exhaustive mechanical floor, the delegation review the only
 leg that catches wrong-but-green. Raw record:
 `doc/improvements/archive/tooling/review_scan_leg.md`.
+
+## 372. schema DDL review surface — all memory/ DBs dumped to tracked schema/<engine>/, blocking drift gate
+
+Follow-on to #371's finding that the sqlfluff leg had no live target
+(zero tracked `.sql` outside excluded `snapshots/`). All 14 `memory/`
+DBs (8 SQLite + 6 DuckDB, classified by magic bytes) now dump
+deterministically to `schema/sqlite/*.sql` + `schema/duckdb/*.sql` via
+`helpers/misc/schema_dump.py` (`make schema-dump` / `schema-fresh`):
+FTS5/vec0 shadows excluded (the CREATE VIRTUAL TABLE recreates them),
+`sqlite_master.rowid` creation order, digest header, xdist scratch
+skipped by name. `tests/test_schema_drift.py` BLOCKS qa on drift
+(operator decision) and skips cleanly on a fresh clone; `rule.json`
+gains an additive `schema/**/*.sql` include. sqlfluff got per-engine
+dialects (`_sql_engine`; the engine directory IS the selector) and two
+real catches: the golden on the schema commit itself reported a
+vacuous `0 kept` — sqlfluff 4.x emits `start_line_no`, the leg read
+`line_no` and silently dropped every finding — and the DDL's ~300
+layout/case findings were generator noise, resolved by a
+`schema/.sqlfluff` format contract (9 kept after: AM04/RF02/RF03 on
+the sources.sql views, the structural signals). 63 tests green,
+mutation-pinned (routing, PRS filter, line-key, stale/orphan/missing
+drift); publication-surface review clean. No `doc/templates/` seed —
+the format contract lives in `schema/.sqlfluff` + the emitter
+docstring, pointed at from `doc/design/db_schema.md`. Raw record:
+`doc/improvements/archive/tooling/schema_ddl_review_surface.md`.

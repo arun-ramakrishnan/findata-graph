@@ -6,6 +6,8 @@ mutations that verify each one are named in the test bodies.
 
 import json
 import subprocess
+import sys
+from pathlib import Path
 
 import helpers.misc.review_scan as rs
 
@@ -91,6 +93,41 @@ class TestNoqaGate:
         assert rs._adjudicated("B608", None, 1) is False
         assert rs._adjudicated("B608", ["one line"], 9) is False
 
+    def test_noqa_below_the_citation_drops(self):
+        """semgrep anchors at `conn.execute(` and the house noqa sits on the
+        f-string argument below (ruff anchors S608 on the string) — the KNN
+        golden range leaked 10 findings until the span existed."""
+        content = [
+            "conn.execute(",
+            '    f"DELETE FROM {VEC_TABLE} WHERE p = ?", (p,)  # noqa: S608  # constant',
+            ")",
+        ]
+        # the SARIF ruleId is rule-path + rule-name (the doubled tail is real,
+        # not a typo) — an unknown rule id must never drop anything
+        assert rs._adjudicated(
+            "python.sqlalchemy.security.sqlalchemy-execute-raw-query.sqlalchemy-execute-raw-query",
+            content,
+            1,
+        ) is True
+        assert rs._adjudicated("B608", content, 1) is True
+
+    def test_neighbouring_statement_noqa_does_not_leak(self):
+        """the drop must stay inside the cited statement: an UNADJUDICATED
+        execute() one line above a noqa-carrying one must survive."""
+        content = [
+            "conn.execute(f'DELETE FROM {T} WHERE p = ?', (p,))",
+            "conn.execute(",
+            '    f"DELETE FROM {T} WHERE p = ?", (p,)  # noqa: S608  # constant',
+            ")",
+        ]
+        assert rs._adjudicated("B608", content, 1) is False
+        assert rs._adjudicated("B608", content, 2) is True
+
+    def test_span_cap_bounds_a_runaway_paren(self):
+        # a stray "(" in a long literal must not widen the walk over the file
+        content = ["conn.execute(" + "("] + [f"line{i}" for i in range(40)]
+        assert len(rs._statement_span(content, 1)) <= rs._NOQA_SPAN_CAP + 1
+
     def test_house_config_adjudication(self):
         """The pyproject per-file-ignores mirror: S101 asserts are the
         contract in tests/ (mutation: drop B101 from HOUSE_PER_FILE_IGNORES
@@ -99,6 +136,14 @@ class TestNoqaGate:
         assert rs._config_adjudicated("B101", "doc/templates/test_module.py") is True
         assert rs._config_adjudicated("B101", "helpers/x.py") is False  # outside the ignore
         assert rs._config_adjudicated("B608", "tests/test_x.py") is False  # un-ignored code
+
+    def test_rule_scope_survives_a_missing_selection_helper(self, monkeypatch):
+        """Golden run 03743294b, in a worktree that predates
+        review_selection.py: the import-failure branch rebound only the glob
+        lists, so the loop's `_rule_excluded(...)` raised UnboundLocalError
+        and the leg died instead of degrading to 'no rule scoping'."""
+        monkeypatch.setitem(sys.modules, "helpers.misc.review_selection", None)
+        assert rs._rule_scope({"a.py": {1}, "docs/b.md": {2}}) == {"a.py", "docs/b.md"}
 
 
 class TestLockfileParsers:
@@ -265,6 +310,80 @@ class TestSkipIfMissing:
         found, status = rs._leg_shellcheck(["x.sh"], {}, "HEAD")
         assert found == []
         assert "unparseable" in status
+
+
+class TestSqlfluffEngineRouting:
+    """schema_ddl_review_surface S5: the engine directory IS the dialect.
+    Mutations: return None from _sql_engine (single default-dialect run
+    misparses duckdb) or drop the PRS filter (6 extension-syntax findings
+    return on every schema change)."""
+
+    def test_engine_directory_selects_dialect(self):
+        assert rs._sql_engine("schema/sqlite/research.sql") == "sqlite"
+        assert rs._sql_engine("schema/duckdb/graph.sql") == "duckdb"
+        assert rs._sql_engine("snapshots/parquet/_schema.sqlite.sql") is None
+        assert rs._sql_engine("misc/other.sql") is None
+
+    def test_extension_syntax_window(self):
+        content = [
+            "CREATE VIRTUAL TABLE doc_search",
+            "USING fts5(title, section_title, file_path UNINDEXED,",
+            "          content UNINDEXED);",
+        ]
+        assert rs._extension_syntax(3, content) is True  # inside the USING clause
+        assert rs._extension_syntax(1, content) is False  # the CREATE line itself
+        assert rs._extension_syntax(2, ["CREATE TABLE t(a INT);"]) is False
+
+    def test_prs_on_extension_syntax_is_skipped_other_rules_kept(self, monkeypatch, tmp_path):
+        calls: list[list[str]] = []
+
+        def fake_run(argv: list[str]):
+            calls.append(argv)
+            payload = [
+                {
+                    "filepath": str(tmp_path / "doc_search.sql"),
+                    "violations": [
+                        {"start_line_no": 3, "code": "PRS", "description": "unparsable UNINDEXED"},
+                        {"start_line_no": 3, "code": "LT12", "description": "files must end with newline"},
+                    ],
+                }
+            ]
+            return _fake_git(json.dumps(payload))
+
+        monkeypatch.setattr(rs, "_venv_bin", lambda name: tmp_path / "sqlfluff")
+        monkeypatch.setattr(rs, "_run", fake_run)
+        content = [
+            "CREATE VIRTUAL TABLE doc_search",
+            "USING fts5(title,",
+            "          content UNINDEXED);",
+        ]
+        monkeypatch.setattr(
+            rs, "_content_at", lambda _ref, _path: content
+        )
+        changed = {"schema/sqlite/doc_search.sql": {3}}
+        found, status = rs._leg_sqlfluff(
+            list(changed), changed, "ansi", tree={q: str(tmp_path / Path(q).name) for q in changed}
+        )
+        assert "ran" in status
+        # PRS on the USING-fts5 line suppressed; the real rule on the same line kept
+        assert [f.rule for f in found] == ["LT12"]
+
+    def test_duckdb_group_gets_duckdb_dialect(self, monkeypatch, tmp_path):
+        argvs: list[list[str]] = []
+
+        def fake_run(argv: list[str]):
+            argvs.append(argv)
+            return _fake_git("[]")
+
+        monkeypatch.setattr(rs, "_venv_bin", lambda name: tmp_path / "sqlfluff")
+        monkeypatch.setattr(rs, "_run", fake_run)
+        changed = {"schema/duckdb/graph.sql": {1}, "schema/sqlite/research.sql": {1}}
+        rs._leg_sqlfluff(
+            list(changed), changed, "ansi", tree={q: str(tmp_path / Path(q).name) for q in changed}
+        )
+        assert len(argvs) == 2
+        dialected = sorted(a[3] for a in argvs if len(a) > 3)
+        assert dialected == ["duckdb", "sqlite"]
 
 
 class TestMainSurface:

@@ -1,0 +1,16 @@
+[sqlfluff]
+# Format contract for the GENERATED schema/ DDL dumps (proposal
+# schema_ddl_review_surface). These files mirror live-catalog output via
+# helpers/misc/schema_dump.py — layout follows the Python DDL source, so
+# style rules only measure the generator, not the schema.
+#
+# Excluded (measured 2026-10-09 on all 13 dumps):
+#   LT01/LT02/LT04/LT05/LT09/LT12/LT14 — layout family: indent, spacing,
+#     line length; the DDL inherits Python-source indentation verbatim
+#   CP03      — mixed keyword/function case (SQLite catalogs vary)
+#   RF04      — keyword identifiers (`key`, `day`, `source`, `rows` are
+#               live column names; renaming them is a data decision,
+#               not lint's)
+#   RF06      — quoted identifiers (DuckDB's duckdb_tables() emits
+#               everything quoted)
+exclude_rules = LT01,LT02,LT04,LT05,LT09,LT12,LT14,CP03,RF04,RF06

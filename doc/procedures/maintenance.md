@@ -122,6 +122,16 @@ bookkeeping.
 - **Verify a backup** → decompress to an alt location, `PRAGMA
   integrity_check`, diff row counts vs live (expect drift only in
   tables written after the backup point).
+- **Anything that touches a `memory/` DB's schema** (rebuild, migrate,
+  `snapshot-restore` to a different vintage) → `make schema-dump` and
+  review the diff, or `make qa` fails: `tests/test_schema_drift.py` is a
+  BLOCKING gate comparing the tracked `schema/<engine>/<db>.sql` DDL
+  surface against the live DBs (proposal `schema_ddl_review_surface`).
+  `schema/` is a review surface — the drift diff IS the deliverable, and
+  after a restore it is expected to regress to the restored vintage
+  (regenerate, don't hand-edit; header carries the source path + digest).
+  Drift report without writing: `make schema-fresh`. Fresh clone (no
+  `memory/` DBs) skips the gate cleanly.
 
 Run history appends to `outputs/maint_report.md` (summary table always;
 failed-step output tails on abort).
