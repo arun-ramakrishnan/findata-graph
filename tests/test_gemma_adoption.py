@@ -19,6 +19,10 @@ from helpers.core import gemma_embedder
 from helpers.core.embed_cache import EMBED_CACHE_TABLE, cached_embed_batch
 from helpers.maintenance import rebuild_script_search as rss
 
+# Captured at import time, before the conftest sidecar pin runs: the real
+# probe for TestLiveSidecar's opt-out fixture.
+_REAL_GEMMA_AVAILABLE = gemma_embedder.available
+
 BANK_PATH = "helpers/misc/script_eval_questions.json"
 
 
@@ -358,6 +362,18 @@ class TestGuardGemmaStamp:
 class TestLiveSidecar:
     """Needs `make embgemma-server` in another shell. Proves the HTTP
     path end to end (dims, determinism, prefix effect)."""
+
+    @pytest.fixture(autouse=True)
+    def _restore_real_probe(self):
+        """Opt out of the conftest sidecar pin: captured at import time,
+        before any fixture replaces gemma_embedder.available. The class
+        skipif still evaluates the REAL probe at collection, so this class
+        only collects when the sidecar is genuinely up."""
+        monkeypatch = pytest.MonkeyPatch()
+        real = _REAL_GEMMA_AVAILABLE
+        monkeypatch.setattr(gemma_embedder, "available", real)
+        yield
+        monkeypatch.undo()
 
     def test_dims_and_determinism(self):
         d1 = gemma_embedder.embed_document("title: t | text: shrimp feed")

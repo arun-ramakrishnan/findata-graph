@@ -125,6 +125,7 @@ def _row(con: duckdb.DuckDBPyConnection, rid: str) -> dict:
         " AND request_id=?",
         [rid],
     ).fetchone()
+    assert vals is not None  # fixture rows always exist; fail loudly otherwise
     return dict(zip(cols, vals))
 
 
@@ -162,17 +163,21 @@ def test_idempotent_rerun_and_window_replace(tmp_path: Path) -> None:
     con, d = _con(tmp_path), _fixture_dir(tmp_path)
     assert agent_traces._parse_rollout(con, None, directory=d) == 3
     assert agent_traces._parse_rollout(con, None, directory=d) == 3  # re-run: same count
-    n = con.execute("SELECT count(*) FROM fact_model_step WHERE source='zcode_rollout'").fetchone()[
-        0
-    ]
+    row = con.execute(
+        "SELECT count(*) FROM fact_model_step WHERE source='zcode_rollout'"
+    ).fetchone()
+    assert row is not None
+    n = row[0]
     assert n == 3  # window-delete + reinsert, no PK duplicates
 
     # Incremental window: only 09-29 reloaded, 09-28 rows untouched.
     assert agent_traces._parse_rollout(con, date(2026, 9, 29), directory=d) == 1
     assert _row(con, "req-0001")["status"] == "completed"  # old row survived
-    n = con.execute("SELECT count(*) FROM fact_model_step WHERE source='zcode_rollout'").fetchone()[
-        0
-    ]
+    row = con.execute(
+        "SELECT count(*) FROM fact_model_step WHERE source='zcode_rollout'"
+    ).fetchone()
+    assert row is not None
+    n = row[0]
     assert n == 3
 
 

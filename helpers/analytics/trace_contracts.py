@@ -23,7 +23,8 @@ import sys
 from dataclasses import dataclass
 from datetime import date, datetime
 from pathlib import Path
-from typing import Any  # noqa: UP035  # typing import kept verbatim from the frozen legacy copy
+from typing import Any, cast  # noqa: UP035  # typing import kept verbatim from the frozen legacy copy
+from typing import ParamSpec, TypeVar
 from collections.abc import Callable
 
 import duckdb
@@ -66,11 +67,23 @@ def _count(key: str, n: int = 1) -> None:
 _REGISTRY: dict[str, Parser] = {}
 
 
-def register_parser(harness: str) -> Callable[[Parser], Parser]:
-    """Register a harness parser under its harness name."""
+_P = ParamSpec("_P")
+_R = TypeVar("_R")
 
-    def decorator(fn: Parser) -> Parser:
-        _REGISTRY[harness] = fn
+
+def register_parser(harness: str) -> Callable[[Callable[_P, _R]], Callable[_P, _R]]:
+    """Register a harness parser under its harness name.
+
+    ParamSpec-preserving: the decorated parser keeps its own signature
+    (parsers take extra kwargs such as ``directory`` beyond the base
+    ``Parser`` shape), so call sites type-check against the real
+    parameters instead of the 2-arg alias.
+    """
+
+    def decorator(fn: Callable[_P, _R]) -> Callable[_P, _R]:
+        # The dispatcher calls every parser as (con, since); the cast
+        # records that contract while the name keeps its full signature.
+        _REGISTRY[harness] = cast(Parser, fn)
         return fn
 
     return decorator

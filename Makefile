@@ -424,7 +424,7 @@ embgemma-server:  ## Start the EmbeddingGemma-2 llama-server (Q8_0 from models/)
 > elif [ -x models/llamacpp/bin/llama-server ]; then bin=models/llamacpp/bin/llama-server; \
 > else echo "unified llama-server not found — make llamacpp-build (vendor/llamacpp, one binary for all legs) or set EMBGEMMA_LLAMA_BIN"; exit 1; fi; \
 > echo "embgemma-server: $$bin (Ctrl-C to stop)"; \
-> $$bin -m models/embeddinggemma-2-Q8_0.gguf --embeddings --pooling mean --host 127.0.0.1 --port 8732 -c 16384 -b 16384 -ub 16384 -t 4
+> $$bin -m models/embeddinggemma-2-Q8_0.gguf --embeddings --pooling mean --host 127.0.0.1 --port 8732 -c 16384 -b 16384 -ub 16384 -np 2 -t 3
 
 
 granite-server:  ## Start the granite-embedding-97m llama-server (Q8_0 from models/) on 127.0.0.1:8733 — Ctrl-C to stop; local_embedder only ever assumes it is running (D3), never spawns it
@@ -432,7 +432,7 @@ granite-server:  ## Start the granite-embedding-97m llama-server (Q8_0 from mode
 > elif [ -x models/llamacpp/bin/llama-server ]; then bin=models/llamacpp/bin/llama-server; \
 > else echo "unified llama-server not found — make llamacpp-build (vendor/llamacpp, one binary for all legs) or set GRANITE_LLAMA_BIN"; exit 1; fi; \
 > echo "granite-server: $$bin (Ctrl-C to stop)"; \
-> $$bin -m models/granite-embedding-97M-multilingual-r2-Q8_0.gguf --embeddings --pooling mean --host 127.0.0.1 --port 8733 -c 16384 -b 16384 -ub 16384 -t 4
+> $$bin -m models/granite-embedding-97M-multilingual-r2-Q8_0.gguf --embeddings --pooling mean --host 127.0.0.1 --port 8733 -c 16384 -b 16384 -ub 16384 -np 2 -t 3
 
 
 teleocr-server:  ## Start the TeleOCR llama-server (Q4_K_M + mmproj q8_0 from models/) on 127.0.0.1:8731 — Ctrl-C to stop; teleocr_engine only ever assumes it is running (D3), never spawns it
@@ -440,7 +440,7 @@ teleocr-server:  ## Start the TeleOCR llama-server (Q4_K_M + mmproj q8_0 from mo
 > elif [ -x models/llamacpp/bin/llama-server ]; then bin=models/llamacpp/bin/llama-server; \
 > else echo "unified llama-server not found — make llamacpp-build (vendor/llamacpp, one binary for all legs) or set TELEOCR_LLAMA_BIN"; exit 1; fi; \
 > echo "teleocr-server: $$bin (Ctrl-C to stop)"; \
-> $$bin -m models/NaviDC-OCR-Q4_K_M.gguf --mmproj models/NaviDC-OCR-mmproj-q8_0.gguf --host 127.0.0.1 --port 8731 -c 8192 -t 4
+> $$bin -m models/NaviDC-OCR-Q4_K_M.gguf --mmproj models/NaviDC-OCR-mmproj-q8_0.gguf --host 127.0.0.1 --port 8731 -c 16384 -np 2 -b 8192 -ub 2048 -t 3
 
 
 embed-gc:       ## Evict dead rows from the shared embed cache (trial/spike leftovers); report-only + exit 1 when dead rows exist, APPLY=1 deletes + VACUUMs

@@ -168,6 +168,12 @@ class _MaintProject:
         # VIRTUAL TABLE IF NOT EXISTS.
         dst.execute("DROP TABLE IF EXISTS note_search")
         dst.execute("DROP TABLE IF EXISTS note_search_meta")
+        # The live backup carries db_meta.note_embed_model (the notes surface
+        # is gemma-stamped in production). Under the conftest sidecar pin the
+        # chain's rebuild resolves the pseudo embedder, and guard_gemma_stamp
+        # would refuse to populate a gemma-stamped index with it — this tmp
+        # surface is never gemma-stamped, so drop the copied stamp.
+        dst.execute("DELETE FROM db_meta WHERE key = 'note_embed_model'")
         dst.execute("DELETE FROM entities WHERE name NOT IN (SELECT name FROM keep)")
         dst.commit()
         dst.execute("VACUUM")

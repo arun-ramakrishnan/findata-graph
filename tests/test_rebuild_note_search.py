@@ -284,6 +284,18 @@ class TestEmbeddingColumn:
             rns.rebuild(seeded_tree, write=True)
         # Explicit escape: the demotion is allowed when the operator opts in.
         monkeypatch.setenv("NOTES_EMBEDDER", "granite")
+        # Hermetic demotion: fake the granite-leg vectors. The REAL embed
+        # path here would either hit the live granite sidecar or — worse —
+        # load the real bge model into the _MODEL singleton (available is
+        # faked True), which then skips the available() gate for every
+        # later test in the process (found via the
+        # test_embed_refuses_when_unavailable order-dependence, 2026-10-10).
+        monkeypatch.setattr(local_embedder, "_sidecar_healthy", lambda: False)
+        monkeypatch.setattr(local_embedder, "embed_document", _fake_384)
+        monkeypatch.setattr(local_embedder, "embed_query", lambda t: _fake_384("Q:" + t))
+        monkeypatch.setattr(
+            local_embedder, "embed_documents", lambda texts: [_fake_384(t) for t in texts]
+        )
         stats = rns.rebuild(seeded_tree, write=True)
         assert stats["embed_model"] != gemma_embedder.MODEL_LABEL
 

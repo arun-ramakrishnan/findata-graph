@@ -167,6 +167,117 @@ assessment §2); Q6 re-quant swap (on-record fallback); torch/multimodal
 (page-image retrieval — separate infra decision); any change to
 query-time fallback semantics.
 
+## 7. Runtime tuning follow-up (2026-10-10)
+
+Three days after cutover the gates slowed: qa pytest 247s → 454–704s,
+integration 132s → 274s, and one perf run went 11/26 benches red. Two
+mechanisms, both server-side, neither a code regression:
+
+1. **Unpinned sidecar probes in hermetic tests.** The gemma-era
+   rebuilders probe `gemma_embedder.available()` first; the test conftest
+   pinned only the old bge embedder, so with the servers up, hermetic
+   tests ran real llama-server inference (maint-chain test 476s in-suite
+   vs 133s standalone). Fixed by pinning gemma/granite probes in
+   `tests/conftest.py` (targeted 132 green, maint chain → 46s).
+2. **CPU oversubscription.** Both embedding servers ran `-t 4` on a
+   4-core box while perf's 4 workers ran: the 22:39 perf run was 1.4–6×
+   slower than the same-day 14:37 run (doc_query 1.22→7.02s,
+   route_graph_stats 4.12→10.57s), same code, same budgets.
+
+### 7.1 Model caps (probed from the GGUFs, 2026-10-10)
+
+| server | arch | `n_ctx_train` | dim | layers | served : client dims |
+|---|---|---|---|---|---|
+| gemma-2 :8732 | gemma-embedding2 | 262,144 | 512 | 24 | 768 served → 512 (client Matryoshka truncate + re-normalise, `gemma_embedder.py:67-73`) |
+| granite-97m-r2 :8733 | modern-bert | 32,768 | 384 | 12 | 384 = 384 |
+| NaviDC-OCR :8731 | qwen2vl | 128,000 | 1024 | 28 | generative |
+
+Note: granite-97m-r2 is **32k ctx, not 8k** (HF model card +
+`modern-bert.context_length = 32768` agree; the 8k figure belongs to
+older granite generations). The R2's 32k is what makes the 8KiB
+trial snippets fittable.
+
+### 7.2 Workload (measured, same day)
+
+| surface | text size | implication |
+|---|---|---|
+| notes (gemma) | avg 1,471 chars; max 2.2M chars (truncates under any flag) | typical request < 1k tokens; long notes to ~8k tokens |
+| convo (granite) | avg 1,353 chars; max 225k chars (truncates under any flag) | typical < 1k; 8KiB snippets ≈ 2.7k tokens |
+| teleocr pages | 150-DPI render ≈ 2–2.5k image tokens + ≤ 2048 gen tokens | one request needs ≥ ~5k slot depth |
+
+Both embed clients send **serial single-text** POSTs
+(`{"input": text}`), and teleocr OCR is serial pages — no client ever
+needs more than 1–2 concurrent slots.
+
+### 7.3 Flags (Makefile:427/435/443, all three restarted + verified)
+
+| server | flags | per-slot depth |
+|---|---|---|
+| :8732 | `-c 16384 -b 16384 -ub 16384 -np 2 -t 3` | 8192 |
+| :8733 | `-c 16384 -b 16384 -ub 16384 -np 2 -t 3` | 8192 |
+| :8731 | `-c 16384 -np 2 -b 8192 -ub 2048 -t 3` | 8192 |
+
+`-t 4 → -t 3` on all three removes the oversubscription (perf back to
+26/26 green at baseline: doc_query 0.81s, route_graph_stats 4.30s).
+`-np 2` doubles per-slot KV depth at identical RAM because the clients
+are serial. Ctx values were deliberately NOT cut: 16k covers long
+notes and 8KiB snippets with margin, KV fits easily (box: 14 GB RAM,
+~6 GB used), and the outliers truncate identically under any flag.
+
+**`-np 2` semantics (correction on record):** it is NOT "two procs × 3
+threads". Upstream README (`tools/server/README.md`): `-t` = "number
+of CPU threads to use during generation" (ONE shared compute pool per
+process), `-np` = "number of server slots", multiplexed by continuous
+batching (default on). So `-np 2 -t 3` = one process, one 3-thread
+pool, 2 request slots of ctx/2 KV each; a 3rd concurrent request
+queues. Per-server CPU footprint ≈ 3 threads, not 6.
+
+**Correctness find during tuning:** teleocr previously ran `-c 8192`
+at 4 slots = 2048/slot — smaller than one request (image + gen
+budget). That overflows the slot, and llama.cpp answers by shifting
+context mid-generation (silent image loss on dense pages). The
+8192/slot above fixes it; `REQUEST_TIMEOUT_S = 1800` stays (dense
+pages measured ~500s in the trial).
+
+### 7.4 Build verdict: no change (Skylake prior work already embodied)
+
+The box is an i5-6500 (AVX2 + FMA + F16C; no AVX-512/VNNI — `lscpu`
+verified). The running binary's own startup line proves the native
+build delivered: `CPU : SSE3 = 1 | SSSE3 = 1 | AVX = 1 | AVX2 = 1 |
+F16C = 1 | FMA = 1 | BMI2 = 1 | REPACK = 1` (plus `n_threads = 3`,
+`n_slots = 2, n_ctx_slot = 8192` live). The applicable Skylake
+doctrine was checked item by item and is already our operating point:
+`GGML_NATIVE=ON` in `vendor/llamacpp/build.sh` (compiles this host's
+AVX2 in); Q8_0 quants = bandwidth- and compute-optimal here per the
+`embed_model_eval.md` CPU float-format note (int8 SIMD dots, F32
+accumulate — never BF16/FP8 on this CPU); CPU-only build per the
+`skylake_igpu_eval.md` verdict (no workload crosses the GPU bar) and
+the `gpu_vs_simd` crossover (17–67 MB ≫ our KB-sized batches).
+`build.sh` intentionally untouched.
+
+### 7.5 Server throughput bench (2026-10-10, same window, 256 real note texts)
+
+New `--sidecar` mode in `helpers/bench/embed_runtime_bench.py` POSTs
+the production shape (serial single-text) at a live leg; pool leg is
+`local_embedder.embed_documents_parallel` on the identical texts:
+
+| path | rate | notes |
+|---|---|---|
+| granite sidecar serial :8733 | **5.42/s** | tuned `-t 3 -np 2` |
+| granite sidecar array (1 POST, 256 inputs) | 5.39/s | batching buys nothing — forwards are sync-bound |
+| granite in-process pool | 5.63/s | statistical tie with the sidecar |
+| gemma sidecar serial :8732 | **1.05/s** | 5× the granite cost (309M/24L vs 97M/12L) — the per-miss price of the gemma stamp |
+
+Read: server flags do not move embedding throughput on this workload —
+the bert forward (~185 ms granite, ~950 ms gemma) is the floor in every
+shape. The `-t 3`/`-np 2` tuning stands, but for coexistence
+(perf 26/26) and slot depth (teleocr overflow), not speed. The
+sidecar's value is isolation (no 431 MB model loads inside gate/test
+processes, no `_MODEL` singleton leaks), not velocity — and the pool
+fallback costs nothing when the sidecar is down. The only lever on
+embed wall-time is avoiding the work (the cache), never speeding it:
+a full 17k-note gemma re-embed ≈ 4.5 h, 85k convo granite ≈ 4.4 h.
+
 ## Appendix — raw measurement log
 
 | Run | Command | Result | Notes |

@@ -22,6 +22,7 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 from pathlib import Path
+from typing import NoReturn
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 API_TYPES = PROJECT_ROOT / "frontend" / "types" / "api.ts"
@@ -250,7 +251,7 @@ def _kind(value: object) -> str:
     return type(value).__name__
 
 
-def _fail(value: object, expected: str, path: str) -> None:
+def _fail(value: object, expected: str, path: str) -> NoReturn:
     got = _kind(value)
     if isinstance(value, str) and len(value) <= 40:
         got = f"string {value!r}"

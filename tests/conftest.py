@@ -456,17 +456,34 @@ def _no_local_embedder():
     teardown unit_client's restore (helpers.graph.query.connect) runs first
     and monkeypatch's snapshot-restore then RE-APPLIES the mock — the leak
     behind the test_integration_graph_rebuild failures (found 2026-08-21).
-    A plain save/restore in this fixture keeps the ordering untouched."""
-    from helpers.core import local_embedder
+    A plain save/restore in this fixture keeps the ordering untouched.
+
+    Extended 2026-10-10 (gate wall-time regression): the gemma/granite
+    sidecar probes are pinned the same way. The gemma-era rebuilders
+    (rebuild_note/script_search resolve_embedder) probe
+    gemma_embedder.available() BEFORE any local-embedder fallback, so with
+    `make embgemma-server`/`granite-server` left running, hermetic tests
+    silently re-embedded their fixtures through REAL llama-server
+    inference — qa pytest leg 247s (2026-10-08, servers down) -> 453-703s
+    (2026-10-09, servers up; one maint-chain test alone 476s in-suite vs
+    133s standalone). Same plain save/restore style; explicit opt-outs
+    (TestLiveSidecar) restore the real probe for their own tests."""
+    from helpers.core import gemma_embedder, local_embedder
 
     orig = local_embedder.available
+    orig_gemma = gemma_embedder.available
+    orig_sidecar = local_embedder._sidecar_healthy
 
-    def _unavailable() -> bool:
+    def _unavailable(*_args: object, **_kwargs: object) -> bool:
         return False
 
     local_embedder.available = _unavailable  # ty: ignore[invalid-assignment]
+    gemma_embedder.available = _unavailable  # ty: ignore[invalid-assignment]
+    local_embedder._sidecar_healthy = _unavailable  # ty: ignore[invalid-assignment]
     yield
     local_embedder.available = orig
+    gemma_embedder.available = orig_gemma
+    local_embedder._sidecar_healthy = orig_sidecar
 
 
 @pytest.fixture(autouse=True)

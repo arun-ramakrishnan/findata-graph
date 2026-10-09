@@ -13,7 +13,7 @@ import sqlite3
 from contextlib import contextmanager
 from pathlib import Path
 from typing import Any
-from collections.abc import Callable, Iterator
+from collections.abc import Callable, Generator
 
 # Derived tables wiped by the copy-production-DB pattern (the 11-table
 # tuple shared verbatim, S608-suppressed at the DELETE site below).
@@ -143,7 +143,7 @@ def flask_test_client(
     *,
     connect_fn: Callable[[], sqlite3.Connection] | None = None,
     track_conns: bool = False,
-) -> Iterator[Any]:
+) -> Generator[Any, None, None]:
     """Yield a Flask test_client with get_db_connection patched to db_path.
 
     Args:

@@ -10,6 +10,7 @@ import json
 import os
 import time
 from pathlib import Path
+from typing import Any
 
 import pytest
 
@@ -154,7 +155,7 @@ class TestMemoryGemmaMigration:
                 "resolve_memory_embedder",
                 lambda: (_rec, gemma_embedder.DIM, gemma_embedder.MODEL_LABEL, True),
             )
-            kw = dict(
+            kw: dict[str, Any] = dict(
                 zcode_projects=tree / "zcode-projects",
                 prime_state=tree / "prime" / "harness" / "harness_state.json",
                 opencode_dir=tree / "opencode",
@@ -186,7 +187,7 @@ class TestMemoryGemmaMigration:
         monkeypatch.setattr(gemma_embedder, "available", lambda port=None: False)
         monkeypatch.delenv("MEMORY_EMBEDDER", raising=False)
 
-        kw = dict(
+        kw: dict[str, Any] = dict(
             zcode_projects=tree / "zcode-projects",
             prime_state=tree / "prime" / "harness" / "harness_state.json",
             opencode_dir=tree / "opencode",

@@ -17,6 +17,13 @@ granite +431 (modern-bert materializes ~4x its 115MB Q8 file), nomic +289.
 Usage:
     python3 helpers/bench/embed_runtime_bench.py <gguf-path> [n_texts]
     python3 helpers/bench/embed_runtime_bench.py --rss <gguf-path>...
+    python3 helpers/bench/embed_runtime_bench.py --sidecar PORT [n_texts]
+Sidecar mode POSTs the same sampled texts serially (one {"input": text}
+per request — the production _sidecar_vec shape) to a running
+llama-server /v1/embeddings and reports texts/s. Raw HTTP only: never
+touches the embed cache or any index. Same-window discipline applies —
+run the shapes under comparison back-to-back with the box otherwise
+idle, exactly like the in-process legs.
 Texts are the first n real note texts from the live note_search index
 (sample-length caveat: short-text samples inflate rates — use n >= 256
 for representative lengths; the 64-text first-notes sample overrated
@@ -72,6 +79,33 @@ def bench_rss(paths: list[str]) -> None:
         loaded = _rss_mb()
         del m
         print(f"{Path(p).name}: +{loaded - base:.0f}MB resident (load + 1 embed)")
+
+
+def bench_sidecar(port: int, n: int) -> None:
+    """Serial per-text POSTs against a live llama-server embedding leg."""
+    import json
+    import time
+    import urllib.request
+
+    texts = _note_texts(n)
+    url = f"http://127.0.0.1:{port}/v1/embeddings"
+
+    def _post(text: str) -> list[float]:
+        req = urllib.request.Request(
+            url,
+            data=json.dumps({"input": text}).encode(),
+            headers={"Content-Type": "application/json"},
+        )
+        with urllib.request.urlopen(req, timeout=300) as r:
+            return json.load(r)["data"][0]["embedding"]
+
+    dims = len(_post(texts[0]))
+    t0 = time.perf_counter()
+    for t in texts[1:]:
+        _post(t)
+    dt = time.perf_counter() - t0
+    done = len(texts) - 1
+    print(f"sidecar :{port} ({dims}d): {done} texts in {dt:.1f}s = {done / dt:.2f}/s", flush=True)
 
 
 def preflight_clean_state(marker: str) -> None:  # noqa: C901  # bench preflight: linear guard chain
@@ -139,6 +173,8 @@ def main() -> None:
     preflight_clean_state("embed_runtime_bench.py")
     if args[0] == "--rss":
         bench_rss(args[1:])
+    elif args[0] == "--sidecar":
+        bench_sidecar(int(args[1]), int(args[2]) if len(args) > 2 else 64)
     else:
         bench_throughput(args[0], int(args[1]) if len(args) > 1 else 64)
 

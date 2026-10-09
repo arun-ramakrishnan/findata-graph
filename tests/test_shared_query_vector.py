@@ -20,8 +20,17 @@ import math
 import pytest
 
 from helpers.core import gemma_embedder
+from helpers.core import local_embedder as _le_mod
 from helpers.maintenance import rebuild_common as rbc
 from helpers.misc import master_query as mq
+
+# Import-time handles on the REAL probes. The conftest hermetic pin
+# disables them for every test; the TestLive* classes below restore them
+# (same pattern as TestLiveSidecar in test_gemma_adoption.py) because
+# they assert live hybrid behaviour through the sidecars by design.
+_REAL_LE_AVAILABLE = _le_mod.available
+_REAL_GEMMA_AVAILABLE = gemma_embedder.available
+_REAL_SIDECAR_HEALTHY = _le_mod._sidecar_healthy
 
 _BACKEND = importlib.util.find_spec("llama_cpp") is not None
 needs_model = pytest.mark.skipif(
@@ -481,6 +490,18 @@ class TestLiveNoLocalLoad:
     @pytest.fixture(autouse=True)
     def _real(self, real_backend):
         return real_backend
+
+    @pytest.fixture(autouse=True)
+    def _restore_real_probes(self):
+        """Opt out of the conftest hermetic pin: this class asserts live
+        hybrid retrieval through the sidecars, so all three probes run
+        for real here (restored after the test)."""
+        mp = pytest.MonkeyPatch()
+        mp.setattr(_le_mod, "available", _REAL_LE_AVAILABLE)
+        mp.setattr(gemma_embedder, "available", _REAL_GEMMA_AVAILABLE)
+        mp.setattr(_le_mod, "_sidecar_healthy", _REAL_SIDECAR_HEALTHY)
+        yield
+        mp.undo()
 
     def test_all_legs_hybrid_without_local_embed(self, monkeypatch):
         from helpers.core import local_embedder as le
