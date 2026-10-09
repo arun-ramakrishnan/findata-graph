@@ -1,6 +1,6 @@
 PRAGMA foreign_keys=OFF;
 
-CREATE VIRTUAL TABLE note_search USING fts5(doc_type, file_path UNINDEXED, title, sector, content, embedding UNINDEXED, section_title, anchor UNINDEXED, tokenize = 'porter unicode61');
+CREATE VIRTUAL TABLE note_search USING fts5(doc_type, file_path UNINDEXED, title, sector, content, embedding UNINDEXED, section_title, anchor UNINDEXED, ticker, edge_context, tokenize = 'porter unicode61');
 
 CREATE TABLE entity_tags (
                     entity_name TEXT NOT NULL,
@@ -232,14 +232,6 @@ CREATE TABLE entity_identifiers (
         UNIQUE (identifier_type, identifier_value)
     );
 
-CREATE TABLE company_embeddings (
-            company_name TEXT PRIMARY KEY,
-            embedding    BLOB NOT NULL,
-            model        TEXT NOT NULL,
-            created_at   DATETIME NOT NULL DEFAULT (datetime('now')),
-            CHECK (length(embedding) = 384 * 4)
-        );
-
 CREATE TABLE nic2008 (
   subclass    CHAR(5) PRIMARY KEY,  -- '01111'
   class       CHAR(4) NOT NULL,     -- '0111' (== ISIC Rev.4 class)
@@ -254,6 +246,14 @@ CREATE TABLE nic2008 (
   scope_note  TEXT,                 -- PDF inclusion/exclusions (class-grain)
   version     TEXT NOT NULL DEFAULT 'NIC-2008'
 );
+
+CREATE TABLE company_embeddings (
+            company_name TEXT PRIMARY KEY,
+            embedding    BLOB NOT NULL,
+            model        TEXT NOT NULL,
+            created_at   DATETIME NOT NULL DEFAULT (datetime('now')),
+            CHECK (length(embedding) = 512 * 4)
+        );
 
 CREATE INDEX idx_entity_tags_tag ON entity_tags(tag);
 

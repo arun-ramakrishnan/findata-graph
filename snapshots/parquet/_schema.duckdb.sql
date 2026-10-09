@@ -46,7 +46,7 @@ CREATE TABLE v_country(id BIGINT, "name" VARCHAR);
 
 CREATE TABLE v_edition(id BIGINT, "name" VARCHAR);
 
-CREATE TABLE v_embeddings(company_name VARCHAR, id BIGINT, embedding FLOAT[384]);
+CREATE TABLE v_embeddings(company_name VARCHAR, id BIGINT, embedding FLOAT[512]);
 
 CREATE TABLE v_index(id BIGINT, "name" VARCHAR);
 
@@ -54,7 +54,7 @@ CREATE TABLE v_institution(id BIGINT, "name" VARCHAR);
 
 CREATE TABLE v_node(id BIGINT, "name" VARCHAR, kind VARCHAR, sector_classification VARCHAR, market_cap VARCHAR, ticker VARCHAR);
 
-CREATE TABLE v_note_embeddings(file_path VARCHAR, doc_type VARCHAR, title VARCHAR, emb FLOAT[384]);
+CREATE TABLE v_note_embeddings(file_path VARCHAR, doc_type VARCHAR, title VARCHAR, emb FLOAT[512]);
 
 CREATE TABLE v_sector(id BIGINT, "name" VARCHAR);
 
