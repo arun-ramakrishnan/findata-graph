@@ -133,7 +133,7 @@ Rules come back grouped by content and annotated with the files each group appli
 | Carrier | What it owns |
 |---|---|
 | house checklist (`helpers/misc/review_selection.py` `HOUSE_CHECKLIST`, printed by `make review-patch`) | the 9 review-time duties: noqa placement, test teeth, fixture reality, `/tmp` ban, `.venv` interpreter, gate dedup, pointer sweep, cross-file consistency, dedup arithmetic |
-| `helpers/validators/static_checks.py` | 26 executable families — dead/misplaced C901 noqa, proposal lifecycle, frontmatter schema contract, sqlite-helper usage, coverage ledger, route skeleton (per-handler review freshness), and more; qa-gated |
+| `helpers/validators/static_checks.py` | 26 executable families — dead/misplaced C901 noqa, proposal lifecycle, frontmatter schema contract, sqlite-helper usage, coverage ledger, route skeleton (per-handler review freshness), noqa-inside-SQL-literal (a suppression directive inside a SQL string is query text), and more; qa-gated. Count = `rg -c '^def check_' helpers/validators/static_checks.py`, re-verified 2026-10-09 (it read 26 from the 2026-09-30 census but had drifted to 25; the noqa-in-SQL-literal family restored it, so re-verify rather than trust the numeral) |
 | ruff configs | gate `select=["E","F"]` (`pyproject.toml`); advisory `lint-audit` `--select S,UP,C901`; `tests/**` per-file-ignores `E402,S101,S311,S603` |
 | `doc/procedures/doc-hygiene.md` | doc-corpus sweeps: broken archive-index links, `.txt` ghosts, live refs to missing `proposals/`, archive→`proposals/` stale pointers (A4) |
 | md-lint tiers | `doc/` + findata Tier-1 defect rules only; Tier-2/3 permanently off over findata (`markdown_lint_adoption.md` §6) |

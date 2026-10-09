@@ -24,7 +24,7 @@ Rules that make drift meaningful (a diff is schema intent, not churn):
 - header comment carries the repo-relative source path and a sha256 of
   the DDL body, so `--check` is a byte compare.
 
-Run via `make schema-dump` (write) / `make schema-fresh` (drift report).
+Run via `make schema-dump` (write) / `make schema-check` (drift report).
 Advisory on its own; the BLOCKING gate is tests/test_schema_drift.py.
 """
 
@@ -37,6 +37,11 @@ import sys
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
+# entry-point bootstrap: this file runs as `python3 helpers/misc/schema_dump.py`,
+# where the repo root is NOT on sys.path (static_checks guards the ordering).
+sys.path.insert(0, str(REPO_ROOT))
+from helpers.core.db import connect  # noqa: E402
+
 MEMORY_DIR = REPO_ROOT / "memory"
 SCHEMA_DIR = REPO_ROOT / "schema"
 
@@ -92,8 +97,12 @@ def _is_shadow(name: str, virtuals: set[str]) -> bool:
 
 def sqlite_ddl(path: Path) -> str:
     """Replayable sqlite DDL: tables (virtual included), indexes, views,
-    triggers — creation order — shadows and internals excluded."""
-    con = sqlite3.connect(f"file:{path}?mode=ro", uri=True)
+    triggers — creation order — shadows and internals excluded.
+
+    Opens through the house connect(read_only=True) — same mode=ro URI the
+    raw open used, so a missing or non-sqlite target fails loudly instead of
+    creating a phantom 0-byte db — without needing a static_checks exemption."""
+    con = connect(path, read_only=True)
     try:
         virtuals = _virtual_table_names(con)
         blocks: list[str] = []
@@ -213,7 +222,7 @@ def main(argv: list[str] | None = None) -> int:
                 print(f"  {line}")
             print("refresh with: make schema-dump")
             return 1
-        print(f"schema fresh: {len(sources)} DBs match their tracked DDL")
+        print(f"schema ok: {len(sources)} DBs match their tracked DDL")
         return 0
     written = dump_all(out_dir)
     for f in written:

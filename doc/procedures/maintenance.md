@@ -130,7 +130,7 @@ bookkeeping.
   `schema/` is a review surface — the drift diff IS the deliverable, and
   after a restore it is expected to regress to the restored vintage
   (regenerate, don't hand-edit; header carries the source path + digest).
-  Drift report without writing: `make schema-fresh`. Fresh clone (no
+  Drift report without writing: `make schema-check`. Fresh clone (no
   `memory/` DBs) skips the gate cleanly.
 
 Run history appends to `outputs/maint_report.md` (summary table always;

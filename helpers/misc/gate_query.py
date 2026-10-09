@@ -182,6 +182,42 @@ CREATE TABLE IF NOT EXISTS parse_state (
 );
 """
 
+# ---------------------------------------------------------------- SQL fragment registry
+
+
+_FILTER_CLAUSE_TABLES = ("b", "l", "r", "a", "tf")
+
+
+_FILTER_CLAUSES: dict[str, str] = {
+    # The only permitted filter fragments in this module are the keys of
+    # _FILTER_CLAUSES. Every WHERE-clause interpolation site either appends
+    # literal fragments to a `where` list (the canonical safe builder —
+    # see cmd_artifacts / _cluster_payload) or routes through this registry.
+    # Values are f-string templates with a single {table} hole so each
+    # fragment is bound to its table alias by construction; the accessor
+    # raises KeyError for anything not explicitly allowlisted, so no new
+    # fragment can be introduced without passing through the allowlist.
+    "notfail_notskip": (
+        " AND {table}.status NOT LIKE '%FAIL%' AND {table}.status NOT LIKE '%SKIP%'"
+    ),
+}
+
+
+def _filter_clause(table: str, key: str) -> str:
+    """Return an allowlisted filter fragment for `table` and `key`.
+
+    Raises KeyError if `table` is not in _FILTER_CLAUSE_TABLES or `key`
+    is not in _FILTER_CLAUSES, so unbounded WHERE-clause construction is
+    caught at the point of introduction rather than at query time.
+    """
+    if table not in _FILTER_CLAUSE_TABLES:
+        msg = f"table {table!r} not allowlisted; allowed: {_FILTER_CLAUSE_TABLES}"
+        raise KeyError(msg)
+    if key not in _FILTER_CLAUSES:
+        msg = f"fragment {key!r} not allowlisted; allowed keys: {list(_FILTER_CLAUSES)}"
+        raise KeyError(msg)
+    return _FILTER_CLAUSES[key].format(table=table)
+
 
 # ---------------------------------------------------------------- helpers
 
@@ -1387,7 +1423,7 @@ def cmd_artifacts(con, args) -> str:  # noqa: C901
                           a.source_rel, a.source_offset
              FROM artifacts a JOIN runs r USING (run_id)
              WHERE {" AND ".join(where)}
-             ORDER BY r.started_at DESC, a.kind, a.target LIMIT ?""",  # noqa: S608
+             ORDER BY r.started_at DESC, a.kind, a.target LIMIT ?""",  # noqa: S608 (where list appends literal column fragments — canonical builder, see _filter_clause)
         [*params, args.last],
     ).fetchall()
     names = [
@@ -1816,7 +1852,7 @@ def _test_history_rows(con, args) -> tuple[list[dict], str]:
                          tf.phase_seconds_json, tf.markers_json, tf.file_line,
                          tf.error_fingerprint, tf.worker
                   FROM test_facts tf JOIN runs r USING (run_id)
-                   WHERE {" AND ".join(where)} ORDER BY {order} LIMIT ?"""  # noqa: S608
+                   WHERE {" AND ".join(where)} ORDER BY {order} LIMIT ?"""  # noqa: S608 (where list appends literal column fragments; order is a literal-join builder — see _filter_clause)
     params.append(args.last)
     names = [
         "run_id",
@@ -1927,7 +1963,7 @@ def _cluster_payload(con, args) -> list[dict]:
                    r.commit_sha, tf.node_id, tf.outcome, tf.err_head, r.src_rel,
                    r.header_offset, r.junit_path
             FROM test_facts tf JOIN runs r USING (run_id)
-             WHERE {" AND ".join(where)} ORDER BY r.started_at, r.run_id, tf.node_id""",  # noqa: S608
+             WHERE {" AND ".join(where)} ORDER BY r.started_at, r.run_id, tf.node_id""",  # noqa: S608 (where list appends literal column fragments — canonical builder, see _filter_clause)
         params,
     ).fetchall():
         record = dict(zip(names, row, strict=True))
@@ -2035,7 +2071,7 @@ def _test_phase_totals(con, run_ids: list[int]) -> dict[str, float]:
     totals = {"total": 0.0, "setup": 0.0, "call": 0.0, "teardown": 0.0}
     for seconds, phase_json in con.execute(
         f"""SELECT seconds, phase_seconds_json FROM test_facts
-            WHERE run_id IN ({placeholders})""",  # noqa: S608
+             WHERE run_id IN ({placeholders})""",  # noqa: S608 (? placeholders only, joined from the `run_ids` param list)
         run_ids,
     ).fetchall():
         if seconds is not None:
@@ -2053,23 +2089,19 @@ def _test_phase_totals(con, run_ids: list[int]) -> dict[str, float]:
 
 def cmd_timing(con, args) -> str:
     pass_only = getattr(args, "pass_only", False)
-    status_clause = (
-        " AND b.status NOT LIKE '%FAIL%' AND b.status NOT LIKE '%SKIP%'" if pass_only else ""
-    )
+    status_clause = _filter_clause("b", "notfail_notskip") if pass_only else ""
     rows = con.execute(
         f"""SELECT r.run_id, r.started_at, b.seconds, b.budget_s, b.status, r.wt
             FROM bench b JOIN runs r USING (run_id)
-            WHERE b.bench = ?{status_clause} ORDER BY r.started_at DESC LIMIT ?""",  # noqa: S608
+            WHERE b.bench = ?{status_clause} ORDER BY r.started_at DESC LIMIT ?""",  # noqa: S608 (status filter clause allowlisted in _FILTER_CLAUSES)
         [args.leg, args.last],
     ).fetchall()
     if not rows:
-        leg_clause = (
-            " AND l.status NOT LIKE '%FAIL%' AND l.status NOT LIKE '%SKIP%'" if pass_only else ""
-        )
+        leg_clause = _filter_clause("l", "notfail_notskip") if pass_only else ""
         rows = con.execute(
             f"""SELECT r.run_id, r.started_at, l.seconds, NULL, l.status, r.wt
                 FROM legs l JOIN runs r USING (run_id)
-                WHERE l.leg = ?{leg_clause} ORDER BY r.started_at DESC LIMIT ?""",  # noqa: S608
+                WHERE l.leg = ?{leg_clause} ORDER BY r.started_at DESC LIMIT ?""",  # noqa: S608 (leg filter clause allowlisted in _FILTER_CLAUSES)
             [args.leg, args.last],
         ).fetchall()
     if not rows:
@@ -2105,7 +2137,7 @@ def cmd_timing(con, args) -> str:
             f"""SELECT r.run_id, r.started_at, tf.node_id, tf.worker, tf.seconds
                 FROM test_facts tf JOIN runs r USING (run_id)
                 WHERE tf.run_id IN ({placeholders})
-                ORDER BY tf.seconds DESC NULLS LAST LIMIT 10""",  # noqa: S608
+                ORDER BY tf.seconds DESC NULLS LAST LIMIT 10""",  # noqa: S608 (? placeholders only, joined from the `run_ids` param list)
             run_ids,
         ).fetchall()
         out.append("  critical-path candidates (serial testcase seconds; not wall time):")

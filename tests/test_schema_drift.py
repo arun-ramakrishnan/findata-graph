@@ -3,7 +3,7 @@
 `schema/<engine>/<db>.sql` is the tracked, reviewable DDL surface dumped
 from the live `memory/` DBs. A stale file is a lie in the review surface,
 so drift FAILS qa (operator decision — blocking, not advisory) instead of
-relying on the advisory `make schema-fresh` report.
+relying on the advisory `make schema-check` report.
 
 SKIP doctrine: `memory/` is gitignored, so a fresh clone has NO live DBs —
 there the gate must skip cleanly, not fail (qa must stay runnable off this

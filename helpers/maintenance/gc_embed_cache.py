@@ -156,7 +156,17 @@ DEFAULT_REFS: tuple[Ref, ...] = (
         _note_text,
         stamp_sql="SELECT value FROM db_meta WHERE key = 'note_embed_model'",
     ),
-    Ref("convo", REPO / "memory/convo_search.duckdb", "SELECT snippet FROM convo_search"),
+    Ref(
+        "convo",
+        REPO / "memory/convo_search.duckdb",
+        "SELECT snippet FROM convo_search",
+        # convo_meta, NOT a *_search_info sibling: rebuild_convo_search writes
+        # the stamp there (and the table name differs from every sqlite cohort,
+        # so a copied stamp_sql would abort the whole GC on a missing table).
+        # Armed for a future convo model swap: foreign-model rows become
+        # rollback insurance instead of silently reading dead.
+        stamp_sql="SELECT value FROM convo_meta WHERE key = 'embed_model'",
+    ),
     Ref(
         "company",
         # the company lane (helpers/graph/embeddings.py): maintained by
@@ -254,7 +264,14 @@ def _read_refs(
                 _read_ref_rows(ref, con, stamps, counts, bucket, _hash)
             finally:
                 con.close()
-        except (sqlite3.Error, OSError, RuntimeError) as exc:
+        except Exception as exc:  # noqa: BLE001  # any driver error must refuse, not yield None
+            # Broad on purpose (convo_embed_gc_stamp S3): the narrow
+            # (sqlite3.Error, OSError, RuntimeError) tuple let a duckdb
+            # CatalogException — e.g. a stamp_sql naming a table that does not
+            # exist — escape raw, so the operator saw a driver message instead
+            # of the house "refusing to GC" one. Same precedent and same
+            # rationale as the text-basis guard in _read_ref_rows: an
+            # unreadable reference must never be read as "no stamp".
             raise RuntimeError(
                 f"reference index unreadable: {ref.label} ({ref.path}): {exc} — refusing to GC"
             ) from exc

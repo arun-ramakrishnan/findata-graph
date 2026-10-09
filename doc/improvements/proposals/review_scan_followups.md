@@ -91,6 +91,60 @@ where that rule gets subtle.
 - `test_span_cap_bounds_a_runaway_paren` — a stray `(` in a literal
   cannot widen the walk over the file. Mutation: drop the cap → red.
 
+#### 2.2a The span did not cover a multi-line f-string (RESOLVED 2026-10-09)
+
+Found while executing `gate_query_sql_fragment_registry.md`. The three
+teeth above pin the span's *paren* behaviour, but the paren walk is not
+the only way a citation line can sit inside a multi-line statement — and
+the case it misses is the one that mattered.
+
+bandit cites the **first** physical line of a multi-line f-string. Paren
+depth there is 0 (the `f"""` opener carries no paren; the `execute(`
+opener is the line *above*), so the walk stopped immediately and never
+reached the house noqa on the string's closing line. `_statement_span`
+therefore returned `{cited_line}`, and every `gate_query` B608 finding
+surfaced **while carrying an S608 noqa in the source** — indistinguishable
+from an unadjudicated finding by reading the roster. That is what the
+`4fd3a20f..bda590995` scan reported (7 bandit + 2 semgrep sites, all
+noqa-justified), and it means the span gate gave false confidence for
+every multi-line SQL string in the repo, not just this one.
+
+Meanwhile ruff honours a directive on the line where the multi-line
+string *ends*. So the two tools anchor on **different lines**, and no
+single-line placement satisfies both: putting `# noqa: S608` on the
+f-string's opening line to match bandit's anchor makes the directive
+**part of the string literal**, so the text reaches the query and DuckDB
+rejects it (`ParserException: syntax error at or near "#"`). There is no
+placement that satisfies both linters without widening the gate.
+
+**Fix:** `_statement_span` also covers the body of a triple-quoted
+literal opened at the cited line (`_string_close_line`), taking
+`max(paren_walk_end, string_close_line)` and bounded by the existing
+`_NOQA_SPAN_CAP`. Both anchors now land inside one span, and the
+directive stays on the closing line where ruff's span ends.
+
+**Teeth (four, all mutation-verified):**
+- `test_multiline_fstring_noqa_on_the_closing_line_is_dropped` — citation
+  on the f-string's first line, noqa on the closing line → dropped, for
+  both bandit and the doubled SARIF rule id. Mutation: make
+  `_string_close_line` return `idx` → red (this is the pre-fix behaviour,
+  and the mutation was run against the real module to confirm).
+- `test_multiline_fstring_walk_stops_at_the_literal_close` — a
+  *neighbouring* statement's S608 noqa must not drop an unadjudicated
+  finding whose f-string closed on the previous line. The wider walk is
+  otherwise a new leakage channel, and false drops are worse than
+  false keeps.
+- `test_span_cap_bounds_an_unterminated_string` — an unterminated literal
+  cannot widen the walk past the cap.
+- `test_single_line_fstring_span_stays_one_line` — the common inline case
+  must not widen; the noqa still has to sit on the cited line itself.
+
+**Verified:** all 8 bandit B608 sites in `gate_query.py` adjudicated
+against the real `review_scan._adjudicated`, `review_scan.py STACK=1`
+surfaces zero B608/S608, and no directive text reaches any query string.
+`doc/improvements/proposals/gate_query_sql_fragment_registry.md` §8
+records the same finding from the SQL side.
+
 ### 2.3 `--from/--to` for both review legs
 
 `review_scan.py` already had `--from/--to`; `review_selection.py` did
@@ -180,11 +234,17 @@ is left standing by operator default — see S4/S5 in §4.
   annotation — goldens `4a2dcf7b6` and `2dd8818c8` produced no
   shellcheck or sqlfluff verdict (empty target sets), so "goldens
   green" must not be read as covering those legs.
+- **S6 — Cover a multi-line f-string in the span. DONE 2026-10-09**
+  (§2.2a), four mutation-verified tests. Surfaced by executing
+  `gate_query_sql_fragment_registry.md`: the paren-only walk returned
+  `{cited_line}` for every bandit citation on a multi-line SQL string, so
+  adjudicated B608 findings were surfacing in rosters. Widened the span to
+  cover the literal body (`_string_close_line`).
 
 ## 5. Acceptance
 
 - `tests/test_review_scan.py` + `tests/test_review_tooling.py`: 56
-  passed, ruff clean.
+  passed, ruff clean (pre-S6 baseline).
 - Mutation-verified: span neutered, span cap dropped, fixed-window
   span, `_rule_excluded` fallback removed — each goes red, restore
   returns to green.
@@ -194,14 +254,53 @@ is left standing by operator default — see S4/S5 in §4.
   left standing, and the archived record carries the vacuous-golden
   annotation. All slices complete — archivable alongside
   `schema_ddl_review_surface`.
+- **S6 adds:** `tests/test_review_scan.py` + `tests/test_gate_query.py`
+  = 82 passed, ruff clean (including `--select S608`). All 8 bandit B608
+  sites in `gate_query.py` adjudicated against the real
+  `review_scan._adjudicated`; `review_scan.py STACK=1` surfaces zero
+  B608/S608. Mutation-verified by disabling `_string_close_line` against
+  the real module (drop reverts to `False`).
+
+## 6a. Follow-up still open (not part of S6)
+
+The S6 fix corrects the span, but the **placement rule is still
+undocumented as a rule** — the reason the defect survived is that
+"where does a noqa go in a multi-line f-string" is tribal knowledge
+split across two linters. The house checklist item is
+"noqa sits on the line the linter reports", which is *wrong* for a
+multi-line f-string (ruff ends the span on the closing line; bandit
+starts it on the opening line).
+
+- **DONE 2026-10-09:** the two-anchor exception is now stated in the house
+  checklist itself (`HOUSE_CHECKLIST` in `helpers/misc/review_selection.py`,
+  printed by `make review-patch`) — "ruff's span ENDS on the closing-quotes
+  line while bandit CITES the opening line: put the directive after the
+  closing quotes, never on the opening line (there it becomes part of the
+  string and reaches the query)". That is the surface every review actually
+  reads; `doc/procedures/ocr_review.md` only *references* the checklist
+  (its table row), so amending the constant was sufficient and avoids
+  duplicating a rule in two places.
+- **Open:** consider a lint that fails on `# noqa` appearing inside a
+  triple-quoted literal. The failure mode is silent and severe (SQL text
+  corruption); a mechanical guard is cheap. Deferred: it needs a
+  house-wide sweep first to confirm no existing code relies on the
+  pattern.
 
 ## 6. Risks
 
 - The span gate drops findings whose noqa is anywhere in the cited
   statement. That is the intended reading of the house rule, but it is
   strictly more permissive than ruff's line-anchored noqa; the paren
-  balance and the span cap bound the exposure, and the neighbour test
-  pins the boundary.
+  balance, the string-literal close walk, and the span cap bound the
+  exposure, and the two neighbour tests pin the boundaries (one for
+  parens, one for string literals).
+- The S6 widening means a finding cited on a multi-line string's opening
+  line is dropped by a noqa anywhere up to that string's close. This is
+  correct for both current anchors, but it is a **behavioural change** to
+  a shared gate: rosters generated before S6 kept findings that
+  post-S6 drops. Any comparison against a pre-S6 roster needs this noted
+  (it does not affect the `4fd3a20f..bda590995` conclusions, whose
+  findings were the unadjudicated kind).
 - `REVIEW_RANGE_ARGS` makes `FROM`/`TO` outrank `COMMIT`/`STACK`
   silently. A caller passing both gets FROM/TO; the helpers' own
   conflict checks cannot fire because the other flags never reach them.

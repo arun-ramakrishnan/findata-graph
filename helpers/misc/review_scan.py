@@ -256,12 +256,36 @@ def _noqa_codes(line: str) -> set[str] | None:
 
 _NOQA_SPAN_CAP = 12  # lines; a runaway paren walk stops rather than scanning the file
 
+_TRIPLE_QUOTES = ('"""', "'''")
+
+
+def _string_close_line(content: list[str], idx: int) -> int:
+    """Last line of the triple-quoted literal that OPENS at ``idx``.
+
+    bandit cites the FIRST physical line of a multi-line f-string while the
+    house noqa sits after the CLOSING quotes (the line ruff's diagnostic span
+    ends on). Paren balance cannot bridge that gap: depth is 0 on the
+    f-string's opening line, so the span would stop there and an adjudicated
+    finding would survive every review run. Covering the literal body is what
+    makes the two tools' anchor lines agree.
+    """
+    quote = next((q for q in _TRIPLE_QUOTES if q in content[idx]), None)
+    if quote is None:
+        return idx
+    seen = content[idx].count(quote)
+    end = idx
+    while seen < 2 and end + 1 < len(content) and (end - idx) < _NOQA_SPAN_CAP:
+        end += 1
+        seen += content[end].count(quote)
+    return end
+
 
 def _statement_span(content: list[str], line: int) -> range:
     """Lines of the statement CITED at `line` (1-based) — the citation line
-    plus any continuation while parentheses stay open.
+    plus any continuation while parentheses stay open, plus the body of a
+    multi-line string literal the citation line opens.
 
-    semgrep anchors sqlalchemy-execute-raw-query at the `conn.execute(`
+    semgrep anchors sqlalchemy-execute-raw-query at the `conn.execute()`
     line while the house noqa sits on the f-string argument below (ruff's
     S608 anchors on the string, so that is where the arcs placed it), so a
     same-line gate alone cannot drop the adjudicated sites. Paren balance
@@ -272,7 +296,7 @@ def _statement_span(content: list[str], line: int) -> range:
     while depth > 0 and end + 1 < len(content) and (end - idx) < _NOQA_SPAN_CAP:
         end += 1
         depth += content[end].count("(") - content[end].count(")")
-    return range(idx, end + 1)
+    return range(idx, max(end, _string_close_line(content, idx)) + 1)
 
 
 def _adjudicated(rule: str, content: list[str] | None, line: int | None) -> bool:

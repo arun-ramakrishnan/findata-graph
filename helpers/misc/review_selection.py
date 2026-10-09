@@ -53,7 +53,11 @@ PRODUCT_FAMILIES = ("Mojo/src/", "Mojo/tests/", "tests/", "desktop/src-tauri/", 
 # house checklist, not just OCR's generic one.
 HOUSE_CHECKLIST = (
     "noqa sits on the line the linter reports the diagnostic "
-    "(ruff: S607 anchors on the argv-list line; S603 fires only on non-literal argv)",
+    "(ruff: S607 anchors on the argv-list line; S603 fires only on non-literal argv) "
+    "— except a multi-line f-string, where ruff's span ENDS on the closing-quotes "
+    "line while bandit CITES the opening line: put the directive after the closing "
+    "quotes, never on the opening line (there it becomes part of the string and "
+    "reaches the query), and the review gate's span walk must cover the literal body",
     "a test's docstring is a claim, not evidence: mutation-check the teeth "
     "(neuter the branch, test goes red, restore)",
     "fixture reality: fixtures must exercise what their comment names "

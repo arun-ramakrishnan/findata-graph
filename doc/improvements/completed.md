@@ -9778,7 +9778,7 @@ Follow-on to #371's finding that the sqlfluff leg had no live target
 (zero tracked `.sql` outside excluded `snapshots/`). All 14 `memory/`
 DBs (8 SQLite + 6 DuckDB, classified by magic bytes) now dump
 deterministically to `schema/sqlite/*.sql` + `schema/duckdb/*.sql` via
-`helpers/misc/schema_dump.py` (`make schema-dump` / `schema-fresh`):
+`helpers/misc/schema_dump.py` (`make schema-dump` / `schema-check`):
 FTS5/vec0 shadows excluded (the CREATE VIRTUAL TABLE recreates them),
 `sqlite_master.rowid` creation order, digest header, xdist scratch
 skipped by name. `tests/test_schema_drift.py` BLOCKS qa on drift

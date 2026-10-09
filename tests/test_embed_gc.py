@@ -8,6 +8,8 @@ flipped to gemma)."""
 
 import sqlite3
 
+import pytest
+
 from helpers.core.embed_cache import CACHE_DDL_BARE, _hash
 from helpers.maintenance import gc_embed_cache as gce
 
@@ -197,3 +199,93 @@ def test_stampless_cohort_keeps_legacy_behavior(monkeypatch, tmp_path):
     # convo snippet text is hashed raw by the default text lambda
     assert out["deleted"] == 1
     assert _rows(store) == [("granite", _hash("live text"))]
+
+
+# --------------------------------------------------------------------------- #
+# convo cohort stamp (convo_embed_gc_stamp S3)                               #
+# --------------------------------------------------------------------------- #
+
+
+def _seed_convo(monkeypatch, tmp_path, *, stamp_sql, foreign=True):
+    """convo-shaped store + index. Cache: one live granite row (the stamp's
+    model), plus one FOREIGN-model row whose fate is the whole point."""
+    store = tmp_path / "embed_store.db"
+    con = sqlite3.connect(store)
+    con.execute(CACHE_DDL_BARE)
+    rows = [(_hash("live snippet"), "granite", b"\x00" * 4, "convo")]
+    if foreign:
+        rows.append((_hash("gemma basis of same text"), "gemma", b"\x00" * 4, "convo"))
+    con.executemany(
+        f"INSERT INTO {gce.CACHE_TABLE} (text_hash, model, embedding, source) VALUES (?,?,?,?)",  # noqa: S608
+        rows,
+    )
+    con.commit()
+    con.close()
+    monkeypatch.setattr(gce, "STORE", store)
+
+    index = tmp_path / "convo_search.duckdb"
+    import duckdb
+
+    dcon = duckdb.connect(str(index))
+    dcon.execute("CREATE TABLE convo_search (snippet VARCHAR)")
+    dcon.execute("CREATE TABLE convo_meta (key VARCHAR, value VARCHAR)")
+    if stamp_sql:
+        dcon.execute("INSERT INTO convo_meta VALUES ('embed_model', 'granite')")
+    dcon.execute("INSERT INTO convo_search VALUES ('live snippet')")
+    dcon.close()
+
+    refs = (
+        gce.Ref(
+            "convo",
+            index,
+            "SELECT snippet FROM convo_search",
+            stamp_sql=stamp_sql,
+        ),
+    )
+    return refs, store
+
+
+def test_convo_stamp_resolves_and_arms_rollback_insurance(monkeypatch, tmp_path):
+    """With a stamp, the foreign-model row is RETAINED (insurance), not dead.
+    The live row stays live. Acceptance: stamp resolves + arms."""
+    refs, store = _seed_convo(
+        monkeypatch, tmp_path, stamp_sql="SELECT value FROM convo_meta WHERE key = 'embed_model'"
+    )
+    live, _counts, stamps = gce._read_refs(refs)
+    assert stamps["convo"] == "granite"
+    out = gce.survey(refs)
+    assert out["retained"] == 1, out
+    assert out["dead"] == 0, out
+    assert len(_rows(store)) == 2  # nothing deleted in report mode
+
+
+def test_convo_without_stamp_keeps_legacy_behaviour(monkeypatch, tmp_path):
+    """The same population with NO stamp: the foreign row is judged on text
+    alone and reads dead. Pins that the change is what arms the insurance."""
+    refs, _store = _seed_convo(monkeypatch, tmp_path, stamp_sql=None)
+    _live, _counts, stamps = gce._read_refs(refs)
+    assert stamps["convo"] is None
+    out = gce.survey(refs)
+    assert out["retained"] == 0, out
+    assert out["dead"] == 1, out
+
+
+def test_convo_stamp_on_a_missing_table_aborts_the_gc(monkeypatch, tmp_path):
+    """convo_meta must be spelled exactly: a wrong table raises inside the
+    stamp read and _read_refs re-raises `refusing to GC` rather than
+    silently yielding None (which would disarm every cohort's insurance)."""
+    refs, _store = _seed_convo(
+        monkeypatch, tmp_path, stamp_sql="SELECT value FROM convo_search_info WHERE key = 'embed_model'"
+    )
+    with pytest.raises(RuntimeError, match="refusing to GC"):
+        gce._read_refs(refs)
+
+
+def test_live_convo_ref_carries_a_stamp_sql():
+    """The production Ref itself, not just a seeded one: convo was the only
+    cohort in DEFAULT_REFS with no stamp_sql."""
+    convo = next(r for r in gce.DEFAULT_REFS if r.label == "convo")
+    assert convo.stamp_sql is not None
+    assert "convo_meta" in convo.stamp_sql
+    unstamped = [r.label for r in gce.DEFAULT_REFS if r.stamp_sql is None]
+    assert unstamped == [], f"cohorts left without rollback insurance: {unstamped}"

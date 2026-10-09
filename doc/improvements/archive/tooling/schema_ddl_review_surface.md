@@ -117,8 +117,11 @@ whole class of problem is a reason to prefer a top-level tree.
   stable choice; header comment names the source DB and a content digest.
   Deterministic output (sorted within a statement, no timestamps beyond
   the source path) so drift means a real schema change.
-- **S2 — `make schema-dump`** (regenerate) and **`make schema-fresh`**
+- **S2 — `make schema-dump`** (regenerate) and **`make schema-check`**
   (report drift, no write) — the latter is what the blocking test calls.
+  *(Renamed from `schema-fresh` on 2026-10-09: the target never wrote, so
+  the `-check` voice matches `csr-check`/`snapshot-check` rather than the
+  APPLY-capable `-fresh` family. Pointers swept repo-wide.)*
 - **S3 — Blocking drift test in `make qa`**: `tests/test_schema_drift.py`
   asserts `schema/**` matches the live DBs. **Fails qa** when a tracked
   file is stale (operator decision: blocking, not advisory). It must
@@ -139,7 +142,7 @@ whole class of problem is a reason to prefer a top-level tree.
 
 ## 5. Acceptance
 
-- `make schema-fresh` exits 0 on a freshly dumped tree; re-running after
+- `make schema-check` exits 0 on a freshly dumped tree; re-running after
   a `CREATE TABLE` on any inventoried DB makes it exit non-zero with the
   DB named.
 - `tests/test_schema_drift.py` goes red on drift (mutation: skip the
@@ -178,7 +181,7 @@ whole class of problem is a reason to prefer a top-level tree.
   `DEFAULT('NSE')` and `CURRENT_TIMESTAMP`; house CHECK-comment context
   came along as review value, not leakage. Found and fixed en route:
   `duckdb_views()` selects `view_name`, not `table_name`.
-- **S2** `make schema-dump` / `schema-fresh` — drift exits 1 (mutation:
+- **S2** `make schema-dump` / `schema-check` — drift exits 1 (mutation:
   appended a comment line to `corpus.sql` → stale, named; `schema-dump`
   restores clean).
 - **S3** `tests/test_schema_drift.py` — 3 tests: blocking match, orphan

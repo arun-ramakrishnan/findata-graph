@@ -1673,3 +1673,101 @@ def test_dbmaintainer_constructions_opt_out_of_sidecar_backups():
                 "backup_sidecars=False — run() would copy the production "
                 "sidecar world into pytest tmp."
             )
+
+
+# --------------------------------------------------------------------------- #
+# noqa inside a SQL literal (noqa_in_sql_literal_lint S3)                     #
+# --------------------------------------------------------------------------- #
+
+
+def test_noqa_inside_sql_literal_rejected(tmp_path, monkeypatch):
+    """The live defect: the directive precedes the closing quotes, so it is
+    interpolated into the SQL. DuckDB rejects it (ParserException near "#"),
+    and ruff cannot see the corruption — only re-reports S608."""
+    _seed_py(
+        monkeypatch,
+        tmp_path,
+        "helpers/misc/bad.py",
+        "def rows(con):\n"
+        "    return con.execute(\n"
+        '        f"""SELECT a, b  # noqa: S608\n'
+        '            FROM t WHERE k = ?""",\n'
+        "        [],\n"
+        "    )\n",
+    )
+    fatal, advisory = sc.check_noqa_in_sql_literal()
+    assert advisory == []
+    assert len(fatal) == 1, fatal
+    assert "bad.py:3" in fatal[0]
+    assert "query text" in fatal[0]
+
+
+def test_noqa_between_concatenated_parts_is_a_real_comment(tmp_path, monkeypatch):
+    """The §2.2 trap: a directive BETWEEN implicitly concatenated parts is a
+    genuine COMMENT token, not literal text. ast.get_source_segment reports
+    it as a hit (76 false positives measured); tokenize must not."""
+    _seed_py(
+        monkeypatch,
+        tmp_path,
+        "helpers/misc/ok_concat.py",
+        "def rows(con):\n"
+        "    return con.execute(\n"
+        '        "SELECT a, b "  # noqa: S608  # parameterized\n'
+        '        "FROM t",\n'
+        "        [],\n"
+        "    )\n",
+    )
+    assert sc.check_noqa_in_sql_literal() == ([], [])
+
+
+def test_noqa_after_closing_quotes_passes(tmp_path, monkeypatch):
+    """The house-correct multi-line placement: ruff's span ends on the line
+    holding the closing quotes, so the directive trails there."""
+    _seed_py(
+        monkeypatch,
+        tmp_path,
+        "helpers/misc/ok_placed.py",
+        "def rows(con):\n"
+        "    return con.execute(\n"
+        '        f"""SELECT a, b\n'
+        '            FROM t WHERE k = ?""",  # noqa: S608  # values ?-bound\n'
+        "        [],\n"
+        "    )\n",
+    )
+    assert sc.check_noqa_in_sql_literal() == ([], [])
+
+
+def test_noqa_in_executemany_fault_and_docstring_is_not_flagged(tmp_path, monkeypatch):
+    """executemany is the same hazard; a module DOCSTRING that merely quotes
+    the convention is prose, never an execute() argument."""
+    _seed_py(
+        monkeypatch,
+        tmp_path,
+        "helpers/misc/ok_many.py",
+        '"""Writes rows; a directive here (`# noqa: S608`) is prose."""\n'
+        "def rows(con, data):\n"
+        "    con.executemany(\n"
+        '        f"""INSERT INTO t VALUES (?  # noqa: S608\n'
+        '        )""",\n'
+        "        data,\n"
+        "    )\n",
+    )
+    fatal, advisory = sc.check_noqa_in_sql_literal()
+    assert advisory == []
+    assert len(fatal) == 1, fatal
+    assert "executemany()" in fatal[0]
+
+
+def test_noqa_inside_single_line_fstring_reports_the_right_line(tmp_path, monkeypatch):
+    """The arg shares the `execute(` line, so the finding must NOT be off by
+    one — pins the rebase onto arg.lineno rather than the call's line."""
+    _seed_py(
+        monkeypatch,
+        tmp_path,
+        "helpers/misc/bad_inline.py",
+        "def rows(con):\n"
+        "    return con.execute(f\"\"\"SELECT a FROM t  # noqa: S608\"\"\", [])\n",
+    )
+    fatal, _ = sc.check_noqa_in_sql_literal()
+    assert len(fatal) == 1, fatal
+    assert "bad_inline.py:2" in fatal[0]

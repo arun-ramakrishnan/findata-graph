@@ -24,11 +24,13 @@ Usage:
 from __future__ import annotations
 
 import ast
+import io
 import os
 import py_compile
 import re
 import subprocess
 import sys
+import tokenize
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
@@ -1629,6 +1631,143 @@ def _target_name(func: ast.expr) -> str | None:
     return None
 
 
+# --- noqa_in_sql_literal_lint: a suppression must never become query text --- #
+
+_SQL_EXEC_METHODS = {"execute", "executemany", "executescript"}
+_NOQA_IN_LITERAL_RE = re.compile(r"#\s*noqa\b")
+# Cheap necessary-condition prefilter (S6: keeps this family off the
+# fast-leg critical path). A finding needs BOTH a directive and a SQL
+# execute call in the file, so either test failing means no parse: 237 of
+# 493 repo files survive, 6.8s -> 1.0s. Sound because the precise check
+# below is a strict subset of the two conditions.
+_SQL_EXEC_CALL_RE = re.compile(r"\.(?:execute|executemany|executescript)\s*\(")
+
+
+def _noqa_inside_string_tokens(source: str) -> list[int]:
+    """Lines (relative to `source`) where `# noqa` sits inside a string literal.
+
+    tokenize is load-bearing, not incidental. A grep cannot tell a literal
+    from a comment, and `ast.get_source_segment` cannot either: for
+    implicitly concatenated literals the segment spans first quote to
+    last, so it swallows the REAL comment sitting between the parts —
+    which is exactly the house placement for a multi-part SQL string
+    (`execute("SELECT … "  # noqa: S608` / `"WHERE …", params)`). tokenize
+    labels that `COMMENT` and only a genuine in-literal directive
+    literal, which is the distinction the whole check rests on.
+
+    PEP 701 (3.12+) means an f-string is NOT one STRING token: the literal
+    chunks arrive as FSTRING_MIDDLE between FSTRING_START/END. Matching
+    STRING alone would report 0 findings on every f-string — a vacuous
+    pass, the exact failure mode this family exists to catch. Hence the
+    FSTRING/TSTRING literal types are included alongside STRING.
+    """
+    literal_types = {tokenize.STRING}
+    for name in ("FSTRING_MIDDLE", "TSTRING_MIDDLE"):
+        ttype = getattr(tokenize, name, None)
+        if ttype is not None:
+            literal_types.add(ttype)
+    hits: list[int] = []
+    try:
+        for tok in tokenize.generate_tokens(io.StringIO(source).readline):
+            if tok.type not in literal_types or not _NOQA_IN_LITERAL_RE.search(tok.string):
+                continue
+            first = tok.start[0]
+            body = tok.string.split("\n")
+            for off in range(1 + body.count("\n")):
+                if _NOQA_IN_LITERAL_RE.search(body[off] if off < len(body) else ""):
+                    hits.append(first + off)
+    except (tokenize.TokenError, IndentationError, SyntaxError):
+        return hits  # malformed segment: the syntax leg owns the report
+    return hits
+
+
+def _node_segment(src_lines: list[bytes], node: ast.AST) -> str | None:
+    """Exact source text of `node`, sliced from pre-split UTF-8 lines.
+
+    Replaces `ast.get_source_segment`, which re-splits the WHOLE source on
+    every call (`_splitlines_no_ff`) — O(n²) across a file's execute calls,
+    and the single largest cost in this family before the fix. col_offset
+    is a UTF-8 *byte* offset, so the slicing is done in bytes rather than
+    str, which keeps non-ASCII SQL text exact instead of merely usually
+    right.
+    """
+    lineno = getattr(node, "lineno", None)
+    end_lineno = getattr(node, "end_lineno", None)
+    if lineno is None or end_lineno is None or end_lineno > len(src_lines):
+        return None
+    col = node.col_offset
+    end_col = node.end_col_offset
+    if end_lineno == lineno:
+        return src_lines[lineno - 1][col:end_col].decode("utf-8", errors="replace")
+    parts = [src_lines[lineno - 1][col:], *src_lines[lineno:end_lineno - 1]]
+    parts.append(src_lines[end_lineno - 1][:end_col])
+    return b"".join(parts).decode("utf-8", errors="replace")
+
+
+def _sql_literal_noqa_findings(py: Path) -> list[str]:
+    """Findings for one file: a suppression directive inside a string passed
+    to a SQL execute call. Split out of the family body for C901 headroom."""
+    try:
+        src = py.read_text(encoding="utf-8", errors="replace")
+    except OSError:
+        return []
+    # Cheap necessary-condition prefilter — see _SQL_EXEC_CALL_RE. A finding
+    # needs BOTH a directive and a SQL execute call in the file.
+    if "noqa" not in src or not _SQL_EXEC_CALL_RE.search(src):
+        return []
+    try:
+        tree = ast.parse(src)
+    except SyntaxError:  # noqa: S110  # syntax leg owns the report
+        return []
+    src_lines = src.encode("utf-8").splitlines(keepends=True)
+    rel = py.relative_to(REPO_ROOT).as_posix()
+    out: list[str] = []
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.Call):
+            continue
+        method = _target_name(node.func)
+        if method not in _SQL_EXEC_METHODS:
+            continue
+        for arg in (*node.args, *(kw.value for kw in node.keywords)):
+            seg = _node_segment(src_lines, arg)
+            if not seg or "# noqa" not in seg:
+                continue
+            for off in _noqa_inside_string_tokens(seg):
+                # `off` is 1-based within the ARG's own text, so it rebases
+                # on the argument's line — not the call's, which differs
+                # whenever the arg is not on the `execute(` line (the
+                # single-line `con.execute(f"""…directive…""")` shape).
+                line = getattr(arg, "lineno", node.lineno) + off - 1
+                out.append(
+                    f"{rel}:{line}: `# noqa` inside a string literal passed to "
+                    f"{method}() — it becomes query text (SQL engines reject it), "
+                    "not a suppression; move it after the closing quotes"
+                )
+    return out
+
+
+def check_noqa_in_sql_literal(scope: set[Path] | None = None) -> tuple[list[str], list[str]]:
+    """noqa_in_sql_literal_lint S2: a `# noqa` inside a SQL string literal is
+    query text, not a suppression.
+
+    Blocking. The defect is silent — ruff correctly ignores an inert
+    directive inside a literal (so it re-reports S608, correctly), but
+    nothing in the QA chain says the STRING is now corrupt. It was live in
+    the gate_query_sql_fragment_registry arc and caught by hand: the text
+    reached DuckDB, which rejects it (`ParserException` near `"#"`).
+
+    Only direct arguments are resolved; `sql = f"…"; con.execute(sql)` is
+    dataflow and out of scope (proposal §3.3).
+    """
+    if scope is None:
+        scope = _DIRTY_PY_SCOPE
+    files = _scoped_py_files(scope) if scope is not None else _walk(REPO_ROOT, ".py")
+    failures: list[str] = []
+    for py in sorted(files, key=str):
+        failures.extend(_sql_literal_noqa_findings(py))
+    return failures, []
+
+
 # --- ontology_governance S0: master-doc roster drift ----------------------- #
 
 ONTOLOGY_DOC = Path("doc/design/ontology.md")
@@ -1785,6 +1924,10 @@ CHECKS = [
     ("Dead C901 noqas", check_dead_c901_noqa),
     # chain_tally_determinism S3: bare -kv[1] sort keys tie in hash order
     ("Bare negated sort keys", check_bare_negated_sort_keys),
+    # S2 of proposal noqa_in_sql_literal_lint: a suppression directive placed
+    # inside a SQL string is query text, not a suppression (blocking — the
+    # tree is clean; the house-wide sweep measured zero SQL hits)
+    ("noqa inside SQL literal", check_noqa_in_sql_literal),
     # security-coverage #247b S3: API-route coverage ledger (advisory-skip
     # when the operator-local ledger is absent)
     ("Coverage ledger", check_coverage_ledger),

@@ -128,6 +128,55 @@ class TestNoqaGate:
         content = ["conn.execute(" + "("] + [f"line{i}" for i in range(40)]
         assert len(rs._statement_span(content, 1)) <= rs._NOQA_SPAN_CAP + 1
 
+    def test_multiline_fstring_noqa_on_the_closing_line_is_dropped(self):
+        """bandit cites the FIRST physical line of a multi-line f-string while
+        ruff's diagnostic span ends on the line holding the closing quotes, so
+        the house noqa lives on that closing line. Paren balance cannot reach
+        it (depth is 0 on the f-string's opening line), so the walk must cover
+        the literal body.
+
+        mutation: drop the _string_close_line walk from _statement_span and
+        every gate_query B608 finding returns to the roster."""
+        content = [
+            "rows = con.execute(",
+            '    f"""SELECT a.run_id, r.gate',
+            '     WHERE {" AND ".join(where)} LIMIT ?""",  # noqa: S608  # literal fragments',
+            "    params,",
+            ")",
+        ]
+        assert rs._statement_span(content, 2) == range(1, 3)
+        assert rs._adjudicated("B608", content, 2) is True
+        assert rs._adjudicated(
+            "python.sqlalchemy.security.sqlalchemy-execute-raw-query.sqlalchemy-execute-raw-query",
+            content,
+            2,
+        ) is True
+
+    def test_multiline_fstring_walk_stops_at_the_literal_close(self):
+        """the string walk must not become a new leakage channel: a NEIGHBOURING
+        statement's S608 noqa must not drop an unadjudicated finding whose
+        f-string closed on the previous line."""
+        content = [
+            '    f"""SELECT a FROM t',
+            '     ORDER BY x"""',
+            "conn.execute(f'DELETE FROM t WHERE p = ?')  # noqa: S608",
+        ]
+        assert rs._statement_span(content, 1) == range(0, 2)
+        assert rs._adjudicated("B608", content, 1) is False
+
+    def test_span_cap_bounds_an_unterminated_string(self):
+        content = ['    f"""never closed'] + [f"body{i}" for i in range(40)]
+        assert len(rs._statement_span(content, 1)) <= rs._NOQA_SPAN_CAP + 1
+
+    def test_single_line_fstring_span_stays_one_line(self):
+        """the common inline case must not widen: the noqa still has to be on
+        the cited line itself."""
+        content = ["conn.execute(f'DELETE FROM {T} WHERE p = ?', (p,))  # noqa: S608"]
+        assert rs._statement_span(content, 1) == range(0, 1)
+        content = ["conn.execute(f'DELETE FROM {T} WHERE p = ?', (p,))"]
+        assert rs._statement_span(content, 1) == range(0, 1)
+        assert rs._adjudicated("B608", content, 1) is False
+
     def test_house_config_adjudication(self):
         """The pyproject per-file-ignores mirror: S101 asserts are the
         contract in tests/ (mutation: drop B101 from HOUSE_PER_FILE_IGNORES

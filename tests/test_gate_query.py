@@ -1069,3 +1069,65 @@ def test_tests_slowest_ranks_descending(corpus):
     secs = [float(line.split("(")[1].rstrip("s)")) for line in out.splitlines()]
     assert secs == [3.25, 1.10, 0.01]
     con.close()
+
+
+def test_filter_clause_registry_has_allowed_keys():
+    # The registry is the sole allowlist for WHERE-clause filter fragments in
+    # this module; the allowed key list is part of the published surface.
+    assert gq._filter_clause is not None
+    assert gq._FILTER_CLAUSES == {
+        "notfail_notskip": (
+            " AND {table}.status NOT LIKE '%FAIL%' AND {table}.status NOT LIKE '%SKIP%'"
+        ),
+    }
+    assert gq._FILTER_CLAUSE_TABLES == ("b", "l", "r", "a", "tf")
+
+
+def test_filter_clause_unknown_key_raises_keyerror():
+    # Mutation test: a fragment key not in the allowlist must fail loudly.
+    with pytest.raises(KeyError):
+        gq._filter_clause("b", "notanallowlistedkey")
+
+
+def test_filter_clause_unknown_table_raises_keyerror():
+    # Mutation test: a table alias not in the allowlist must fail loudly.
+    with pytest.raises(KeyError):
+        gq._filter_clause("x", "notfail_notskip")
+
+
+def test_filter_clause_regression_matches_legacy_clause():
+    # The registry must reproduce exactly the literal clauses the old ternaries
+    # emitted, so the pass_only branch is behaviorally unchanged.
+    ok = gq._filter_clause("b", "notfail_notskip")
+    assert ok == " AND b.status NOT LIKE '%FAIL%' AND b.status NOT LIKE '%SKIP%'"
+    ok_l = gq._filter_clause("l", "notfail_notskip")
+    assert ok_l == " AND l.status NOT LIKE '%FAIL%' AND l.status NOT LIKE '%SKIP%'"
+    assert gq._filter_clause("r", "notfail_notskip") == (
+        " AND r.status NOT LIKE '%FAIL%' AND r.status NOT LIKE '%SKIP%'"
+    )
+
+
+def test_cmd_timing_pass_only_uses_registry_filter(corpus):
+    # Regression / integration: pass_only must keep only non-failing bench rows,
+    # exercising the registry accessor and the two-legged cmd_timing fallback.
+    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    rep = corpus / "perf_report.md"
+    _write(rep, PERF_BLOCK.format(gen=now, start=now, bt="3.00"))
+    _write(
+        rep,
+        PERF_BLOCK.format(gen=now, start=now, bt="4.00").replace("✓ OK", "✗ FAIL"),
+    )
+    con = gq.connect()
+    gq.refresh(con)
+
+    args = SimpleNamespace(leg="graph_l1_betweenness", last=10)
+    out_all = gq.cmd_timing(con, args)
+    assert "3.00s" in out_all and "4.00s" in out_all
+    assert "no history for" not in out_all
+
+    args_pass = SimpleNamespace(leg="graph_l1_betweenness", last=10, pass_only=True)
+    out_pass = gq.cmd_timing(con, args_pass)
+    assert "3.00s" in out_pass
+    assert "4.00s" not in out_pass
+    assert "no history for" not in out_pass
+    con.close()
