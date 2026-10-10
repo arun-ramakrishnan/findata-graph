@@ -426,6 +426,16 @@ class EntityResolver:
         m = mention.strip().rstrip(".,;:")
         if not m:
             return None
+        # 1. Exact case-insensitive — BEFORE any alias tier. First-token
+        # aliases like "adani"→Adani Enterprises / "sbi"→State Bank of
+        # India / "premier"→Premier Explosives otherwise shadow exact
+        # entity names ("Adani Power", "SBI Life Insurance Company",
+        # "Premier Energies" all resolved to the WRONG company; measured
+        # 2026-10-10 first-full-pipeline-run findings, doc/local/
+        # pipeline_run_2026-10-10_findings.md P1). Aliases fill gaps where
+        # the mention is NOT itself a canonical name.
+        if m.lower() in self._by_lower:
+            return self._by_lower[m.lower()]
         # 0a. Alias lookup on the whole mention (IOCL → Indian Oil Corp).
         # Aliased names return in DB-canonical casing (check + return both
         # go through _by_lower), so alias-file entries with drifted casing
@@ -447,9 +457,6 @@ class EntityResolver:
             aliased_first = _lookup_alias(first)
             if aliased_first and aliased_first.lower() in self._by_lower:
                 return self._by_lower[aliased_first.lower()]
-        # 1. Exact case-insensitive.
-        if m.lower() in self._by_lower:
-            return self._by_lower[m.lower()]
         # 2. Suffix-stripped exact.
         stripped = _TRAILING_LEGAL_SUFFIX_RE.sub("", m).strip()
         if stripped.lower() in self._by_lower:
@@ -2498,6 +2505,13 @@ def extract_relations(
         body = _strip_yaml_front_matter(content)
         source_entity = source_entity_override or _resolve_h1_title(body, resolver)
         if source_entity is None:
+            # Keep the tuple shape in sync with the worker contract:
+            # _extract_batch unpacks 3 values (return_groups=True), so the
+            # early exit must honour return_groups too — a bare 2-tuple here
+            # crashed the whole parallel scan on the first unresolvable
+            # company note (measured 2026-10-10: McDonalds.md et al.).
+            if return_groups:
+                return edges_by_type, unresolved, group_to_companies
             return edges_by_type, unresolved
         sections: list[tuple[str, str]] = [(source_entity, body)]
     else:

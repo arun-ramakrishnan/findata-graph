@@ -8,7 +8,7 @@ tags:
 - entity_type/sector
 - sector/nbfc
 created: '2026-07-05'
-last_modified: '2026-07-11'
+last_modified: '2026-10-10'
 generated:
   by: derive_insights.py/v1
   at: '2026-09-07T12:07:47Z'
@@ -22,6 +22,9 @@ sources:
   resource: /findata/The_Chatter/A_Quarter_That_Refuses_To_Behave.md
   title: 'The Chatter: A Quarter That Refuses To Behave'
   last_modified: '2026-08-15'
+- id: TCS_Maruti_PB_Fintech
+  resource: /findata/The_Chatter/TCS_Maruti_PB_Fintech.md
+  title: 'The Chatter: TCS, Maruti Suzuki, PB Fintech (Policybazaar) & More'
 ---
 
 # NBFC
@@ -179,3 +182,18 @@ A cross-edition synthesis of management commentary across diversified NBFCs (Baj
 > — Ravindra Kundu, MD & CEO, Cholamandalam Investment and Finance
 
 *Sources: The Chatter — Reliance, Infosys, VBL & More (Bajaj Finance, Tata Capital, Piramal Finance); The Chatter — Between Headwinds and Tailwinds (Muthoot Finance, Poonawalla Fincorp, Cholamandalam); The Chatter — Tailwinds building, 13 Feb 2026 (Muthoot Finance Q3 FY26); The Chatter — On Record (Shriram Finance); The Chatter — Talking Points (Shriram MUFG, Cholamandalam); The Chatter — Sailing the Tide (Shriram); The Chatter — TCS, ICICI Pru, HDB Financials & More (HDB Financial Services Q4 FY26); The Chatter — Anchor and Ambitions (CreditAccess Grameen); The Chatter — Discovering Hidden Signals (Manappuram); The Chatter — Pressure Points (IIFL Finance, L&T Finance); The Chatter — Titan, Dixon, JSW Steel, Cipla & More (Muthoot Finance); The Chatter — The Blind Spots (Muthoot Microfin, L&T Finance Project Cyclops); The Chatter — Meesho, Marico, Bajaj & More (Mahindra Finance AI); The Chatter — Moves and Motives (Sammaan Capital — co-lending); The Chatter — Management in Motion (Jio Financial Services); Points & Figures — The Shape of Change, 24 Feb 2026 (Muthoot Finance 9M FY26 deck). (Editions spanning Aug 2025 – Q1 FY27, FY2025-26.)*
+
+## The Chatter — TCS, Maruti Suzuki, PB Fintech (Policybazaar) & More
+
+**NBFC earnings divergence is the quarter's headline:** covered NBFCs tracking ~35% YoY PAT growth vs ~12% for banks (Q2); FY26 registered 25%+ NBFC earnings expansion vs banks' 6% — despite both sectors growing credit ~20% YoY. Driver is asset mix: 80%+ of NBFC lending is high-yielding retail (personal loans, consumer durables, MFI, gold) while incremental bank credit skews to lower-yielding corporate/institutional lending.
+
+**Credit rotation: personal loans → gold loans:** personal-loan growth cooled from 25%+ to ~11–12% over two years, with the demand transferring into gold financing — bank gold books +70–80% YoY, select NBFCs +100%. Caveat: growth is price-led (rising gold), not tonnage-led; credit costs are minimal (10–15 bps, fully secured) which is pulling every bank and NBFC into the segment — competition plus moderating gold prices cap the near-term upside.
+
+**Picks across the BFSI stack:** diversified NBFCs — Aditya Birla Capital and Piramal Enterprises (70%+ floating-rate books, positioned for a rising-rate cycle); vehicle finance — Cholamandalam first, then Shriram Finance; housing — PNB Housing Finance and Aadhar Housing Finance; MSME/MFI — Fedbank Financial, Five-Star Business Finance, CreditAccess Grameen. Banks: HDFC Bank, ICICI Bank, Axis (large private); City Union, AU SFB, DCB (mid/regional).
+
+**Risk set:** rising bond yields, policy-rate moves, and new insurance-distribution commission regulation are the named threats to the momentum — Bajaj Finance still tracking 25–30% earnings growth unless one lands.
+
+> "For the current quarter, we project PAT growth around 12% year-on-year for the banking sector, whereas our NBFC coverage universe is tracking at roughly 35% year-on-year PAT growth."
+> — Ajit Kumar, Lead BFSI Research Analyst, JM Financial
+
+*Source: The Chatter — TCS, Maruti Suzuki, PB Fintech (Policybazaar) & More (JM Financial BFSI preview — sector commentary, not company results)*

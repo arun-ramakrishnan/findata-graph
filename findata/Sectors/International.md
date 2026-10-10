@@ -267,7 +267,7 @@ The International sector encompasses:
 - [[Hisense]]
 - [[Holcim]]
 - [[JTEKT]]
-- [[Kering_Beaute|Kering Beaute]]
+- [[Kering_Beaute|Kering Beauté]]
 - [[L_Oreal|L Oreal]]
 - [[Novartis_AG|Novartis AG]]
 - [[Procter_Gamble_Company|Procter & Gamble Company]]

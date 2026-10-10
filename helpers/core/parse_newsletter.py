@@ -761,7 +761,7 @@ def run_graph_analytics():
 # ===========================================================================
 # Stage 2b (--cross-check): semantic guard for the NEW/known extractor gap
 # ===========================================================================
-def cross_check_new(new_names, min_sim=0.55):
+def cross_check_new(new_names, min_sim=0.80):
     """Flag NEW-classified names that look like EXISTING company notes.
 
     The known extractor gap: dry-run classification can miss an existing
@@ -770,6 +770,11 @@ def cross_check_new(new_names, min_sim=0.55):
     (query prefix) and KNN it against the existing company notes in the
     warm graph's ``v_note_embeddings`` (query.notes_like_text). Read-only;
     surfaces close matches for manual confirmation before --apply.
+
+    min_sim 0.80 (calibrated 2026-10-10 on the gemma-512d vector regime,
+    first full pipeline run): true same-company name->note hits measure
+    0.80-0.84 (TCS 0.799, PNB 0.835) while the unrelated band tops out
+    at ~0.77, so the old 0.55 floor flagged every name regardless.
 
     Degrades to a single WARNING line when the local embedder or the
     graph connection is unavailable — never blocks the parse run.

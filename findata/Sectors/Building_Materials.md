@@ -145,7 +145,7 @@ Building Materials is a sub-sector of [[Materials]] that encompasses companies m
 
 ## All Companies (auto)
 
-<!-- Auto-generated from the SQLite source of truth. 39 company note(s) in Building_Materials. Do not edit by hand — re-run `python3 helpers/maintenance/sync_sector_wikilinks.py` to refresh. Curated highlights live in the editorial sections above. -->
+<!-- Auto-generated from the SQLite source of truth. 40 company note(s) in Building_Materials. Do not edit by hand — re-run `python3 helpers/maintenance/sync_sector_wikilinks.py` to refresh. Curated highlights live in the editorial sections above. -->
 
 - [[Akzo_Nobel_India|Akzo Nobel India]]
 - [[Ambuja_Cement|Ambuja Cement]]
@@ -154,6 +154,7 @@ Building Materials is a sub-sector of [[Materials]] that encompasses companies m
 - [[Asian_Paints|Asian Paints]]
 - [[Astral_Pipes|Astral Pipes]]
 - [[Birla_Corporation|Birla Corporation]]
+- [[Century_Plyboards_India|Century Plyboards (India)]]
 - [[Cera_Sanitaryware|Cera Sanitaryware]]
 - [[Dalmia_Bharat|Dalmia Bharat]]
 - [[Global_Surfaces|Global Surfaces]]

@@ -3971,20 +3971,28 @@ def notes_like_text(
     has no note yet, so notes_like_entity cannot resolve it — embed the
     text itself (query prefix; the get_tickers vss_match pattern) and
     KNN over ``v_note_embeddings``. ``embed_fn`` overrides the embedder
-    (tests inject fakes); the default is local_embedder.embed_query
-    when the model is available, else ``None`` is returned so callers
-    treat the check as unavailable. Returns ``list[(file_path, title,
-    sim)]`` or ``None`` when the embedder / vector table is unusable.
+    (tests inject fakes); the default probes the gemma sidecar first,
+    then the granite sidecar, and takes whichever query dims match the
+    note vectors (gemma-era notes are 512d, granite queries 384d — a
+    bare local_embedder default returned None for every gemma-era
+    corpus, silently disabling the check). Returns ``list[(file_path,
+    title, sim)]`` or ``None`` when no usable same-dim embedder exists.
     """
     dim = _note_emb_dims(con)
     if dim == 0:
         return None
     if embed_fn is None:
-        from helpers.core import local_embedder
+        from helpers.core import gemma_embedder, local_embedder
 
-        if not local_embedder.available():
+        for candidate in (gemma_embedder, local_embedder):
+            if not candidate.available():
+                continue
+            vec = candidate.embed_query(text)
+            if vec and len(vec) == dim:
+                embed_fn = candidate.embed_query
+                break
+        if embed_fn is None:
             return None
-        embed_fn = local_embedder.embed_query
     vec = embed_fn(text)
     if not vec or len(vec) != dim:
         return None

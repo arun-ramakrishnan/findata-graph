@@ -33,13 +33,14 @@ Digital-first payments, wallets, neo-brokers, and consumer credit fintechs. Dist
 
 ## All Companies (auto)
 
-<!-- Auto-generated from the SQLite source of truth. 10 company note(s) in Fintech_Payments. Do not edit by hand — re-run `python3 helpers/maintenance/sync_sector_wikilinks.py` to refresh. Curated highlights live in the editorial sections above. -->
+<!-- Auto-generated from the SQLite source of truth. 11 company note(s) in Fintech_Payments. Do not edit by hand — re-run `python3 helpers/maintenance/sync_sector_wikilinks.py` to refresh. Curated highlights live in the editorial sections above. -->
 
 - [[American_Express|American Express]]
 - [[Circle]]
 - [[Coinbase]]
 - [[Fisdom]]
 - [[Groww]]
+- [[Manipal_Payment_And_Identity_Solutions|Manipal Payment And Identity Solutions]]
 - [[Mastercard]]
 - [[One_97_Communications_PayTM|One 97 Communications PayTM]]
 - [[One_Mobikwik_Systems|One Mobikwik Systems]]

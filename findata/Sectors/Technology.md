@@ -107,7 +107,7 @@ The Technology sector in India encompasses software development, IT services, ha
 
 ## All Companies (auto)
 
-<!-- Auto-generated from the SQLite source of truth. 86 company note(s) in Technology. Do not edit by hand — re-run `python3 helpers/maintenance/sync_sector_wikilinks.py` to refresh. Curated highlights live in the editorial sections above. -->
+<!-- Auto-generated from the SQLite source of truth. 87 company note(s) in Technology. Do not edit by hand — re-run `python3 helpers/maintenance/sync_sector_wikilinks.py` to refresh. Curated highlights live in the editorial sections above. -->
 
 - [[Accelya_Holding_World|Accelya Holding World]]
 - [[Accenture|Accenture plc]]
@@ -134,6 +134,7 @@ The Technology sector in India encompasses software development, IT services, ha
 - [[Fintellix]]
 - [[Firstsource_Solutions|Firstsource Solutions]]
 - [[Fractal_Analytics|Fractal Analytics]]
+- [[Fusion_CX|Fusion CX]]
 - [[Genpact]]
 - [[GitLab]]
 - [[Google]]

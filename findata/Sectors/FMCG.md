@@ -129,7 +129,7 @@ FMCG is a sub-sector of [[Consumer_Staples]] within the broader [[Consumer]] sec
 
 ## All Companies (auto)
 
-<!-- Auto-generated from the SQLite source of truth. 82 company note(s) in FMCG. Do not edit by hand — re-run `python3 helpers/maintenance/sync_sector_wikilinks.py` to refresh. Curated highlights live in the editorial sections above. -->
+<!-- Auto-generated from the SQLite source of truth. 83 company note(s) in FMCG. Do not edit by hand — re-run `python3 helpers/maintenance/sync_sector_wikilinks.py` to refresh. Curated highlights live in the editorial sections above. -->
 
 - [[ANSA_McAL|ANSA McAL]]
 - [[AWL_Agri_Business|AWL Agri Business]]
@@ -153,6 +153,7 @@ FMCG is a sub-sector of [[Consumer_Staples]] within the broader [[Consumer]] sec
 - [[Devyani_International|Devyani International]]
 - [[Dodla_Dairy_Limited|Dodla Dairy Limited]]
 - [[Emami]]
+- [[Emami_Agrotech|Emami Agrotech]]
 - [[Flair_Writing_Industries|Flair Writing Industries]]
 - [[Gillette]]
 - [[Godfrey_Phillips_India|Godfrey Phillips India]]

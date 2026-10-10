@@ -17,7 +17,7 @@ tags:
 - risk_investment/growth
 - sector/banking
 created: '2025-11-16'
-last_modified: '2026-09-10'
+last_modified: '2026-10-10'
 generated:
   by: derive_insights.py/v1
   at: '2026-09-07T16:45:46Z'
@@ -35,6 +35,9 @@ sources:
   resource: /findata/Points_And_Figures/Pulse_across_the_pack.md
   title: 'Points & Figures: Pulse across the pack'
   last_modified: '2026-08-15'
+- id: PNB_Central_Bank_Rentomojo
+  resource: /findata/The_Chatter/PNB_Central_Bank_Rentomojo.md
+  title: 'The Chatter: PNB, Central Bank of India, Rentomojo & More'
 ---
 # Punjab National Bank (PNB)
 
@@ -421,3 +424,20 @@ The bank has a significant market presence with government ownership at 70.08%, 
   > "70% repricing has already happened by December '25. And 21% is going to be repriced in the fourth quarter... and 9% still it will get repriced in the first 2 months of first quarter of '26-'27." — Ashok Chandra, MD and CEO
 - **Portfolio reshaping**: Shedding low-yield corporate advances and replacing with higher-yield ones.
   > "There are some low-yielding advances in the corporate book. That also we are selling it and we are replacing it with high-yielding advances. Otherwise, our corporate loan book would have grown more than 11% to 12%." — Ashok Chandra, MD and CEO
+
+## The Chatter — PNB, Central Bank of India, Rentomojo & More
+
+**Six quarters of steady execution, FY guidance intact:** management frames consistent YoY/QoQ improvement across deposits, advances, asset quality and profitability; FY guidance of 7–10% NII growth with steady NIM expansion stands — driven by organic balance-sheet rebalancing, not rate hikes (Q1 NIM +4 bps; NIM 3%+ trajectory maintained).
+
+**$2.7 bn FCNR(B) mobilisation beat the $2.5 bn guide:** ~67% leveraged swaps, deployed to replace high-cost bulk deposits and CDs — lowering cost of deposits and supporting NIM across current and upcoming quarters.
+
+**Rate-cycle positioning is the hidden lever:** ~56% of advances are repo-linked EBLR with next-working-day pass-through, so any repo/benchmark hike lifts asset yields immediately; CD ratio ~75% leaves headroom to fund 3–4 pp of incremental credit growth without aggressive deposit-rate hikes.
+
+**Digital-payments fee rules decoded:** P2P free; P2M under ₹2,000 exempt; small merchants (<₹1 lakh/month turnover) exempt; utilities/essential categories capped at ₹5; large P2M (>₹2,000) at 0.4% capped ₹300. For PNB, ~96% of UPI volume is exempt — only ~4% generates MDR, so revenue impact is modest and collections will be reinvested in cyber-security, system resilience and UPI features (credit lines on UPI, cross-border remittances across 11 partner countries).
+
+**Macro tailwind:** India growing 7%+ (World Bank upgraded to 7.1%) vs global 3.0–3.3% — "bank balance sheets are healthier today than they have been in years," with credit growth, asset quality and profitability all benefiting.
+
+> "Approximately 56% of our total advance portfolio is directly benchmarked to the Repo Rate (EBLR). Under bank policy, any monetary policy rate change is passed through to EBLR-linked borrowers on the very next working day."
+> — Ashok Chandra, Managing Director & Chief Executive Officer
+
+*Source: The Chatter — PNB, Central Bank of India, Rentomojo & More*
