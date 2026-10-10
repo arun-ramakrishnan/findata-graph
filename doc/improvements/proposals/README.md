@@ -34,19 +34,9 @@ entry number and stale DONE pointers):
 
 ## Current live proposals
 
-_(none)_ — as of 2026-10-09 every proposal filed here has been executed
-and archived. The most recent batch (#373-377) went out executed across
-the gate arc:
-
-- `review_scan_followups`, `gate_query_sql_fragment_registry`,
-  `noqa_in_sql_literal_lint`, `convo_embed_gc_stamp` — the review-gate
-  hardening set, in `../archive/tooling/`. The load-bearing finding is
-  #373's span-walk gap: bandit cites a multi-line f-string's FIRST line
-  (paren depth 0) while ruff honours a directive on the line where the
-  string ENDS, so a paren-only walk left every adjudicated `gate_query`
-  B608 finding surfacing in rosters. #375 exists because a directive
-  inside a SQL string is query text DuckDB rejects, and nothing in the QA
-  chain said so.
-- `notes_query_side_levers_trial` — closed and archived having been left
-  live after its own conclusion landed; the production flip it authorised
-  is recorded separately at #369.
+_(none)_ — the resolver/extractor hardening proposal was filed and
+archived the same day (2026-10-10): its four one-line-mechanism defects
+landed in-run as stop-gaps (completed.md #378) and the class-level
+remainder is deferred in the archived copy's §D
+(`../archive/tooling/resolver_extractor_hardening.md`), triggered by the
+next alias-file addition for a name class §S1 covers.

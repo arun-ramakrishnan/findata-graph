@@ -61,12 +61,22 @@ them for you except `maint-full`.
 > python3 helpers/core/parse_newsletter.py findata/The_Chatter/Foo.md --apply                    # execute
 > python3 helpers/core/parse_newsletter.py findata/The_Chatter/Foo.md --apply --with-analytics   # also refresh graph_analytics
 > ```
+>
+> `--cross-check` (Stage 2b) semantically matches each NEW-flagged name
+> against embedded company notes before `--apply` guards the mis-flag-NEW
+> gap. Since 2026-10-10 it actually fires: the query embedder is picked
+> by dimension match against the note vectors (gemma 512d vs granite
+> 384d — a bare granite default silently disabled the whole check), and
+> `min_sim` is calibrated to 0.80 (true name→note 0.80–0.84, unrelated
+> band ≤0.77). It is a guard, not a resolver — sibling-name pairs
+> (e.g. "Emami Agrotech" vs the Emami note) do not surface in its KNN;
+> the lexical fuzzy tier is what catches those.
 
 0. **Convert PDF → markdown** *(PDF inputs only)* — **ask the user for the destination directory first** (there is no safe way to infer it). Then convert the source PDF with `helpers/pdf/pdf_conv_md.py` into a The_Chatter-style `.md` in that directory. The script also emits the note's frontmatter (OKF provenance + namespaced `series/`/`publisher/` tags derived from the destination directory — see [Tags](#tags)) and downloads + embeds the figures as `![[images/<slug>_p{p}_img{N}.jpeg]]` into a sibling `images/` dir, so **no separate image capture is needed for PDF inputs** (see [PDF → Markdown](#pdf--markdown)). Then proceed to Stage 1.
 1. **Capture images** *(existing-markdown inputs only)* — in-place by convention (the source `.md` is rewritten and figures land in its own `images/` dir). No question: the location is the input file's own location. Then download all remote `<img>` crops and rewrite the source `.md` so figures embed inline next to their content (see [Image Capture](#image-capture)). Do this **before** parsing, since the signed URLs expire and the inline embeds are later used to attach figures to company notes. *(Skipped for PDF inputs — already done by Stage 0.)*
 2. **Extract entities** — companies/sectors from document content.
 3. **Get tickers** — the orchestrator uses `get_tickers.search_ticker()` (which delegates to `fuzzy_match.word_overlap_match()` for name matching). **Prefer NSE (`.NS`) over BSE (`.BO`)** — NSE is the canonical Indian listing in this KB; use `.BO` only when a name is BSE-only (e.g. SME-only listings).
-4. **Add each NEW entity** — create SQLite record + markdown file + tags only for companies not already in the DB (see [Adding an Entity](#adding-an-entity)). When lifting insights from a newsletter, also embed the figure(s) that sit under that company's section as `![[images/<slug>_p{p}_img{N}.jpeg]]` so the chart travels with the insight.
+4. **Add each NEW entity** — create SQLite record + markdown file + tags only for companies not already in the DB (see [Adding an Entity](#adding-an-entity)). When lifting insights from a newsletter, also embed the figure(s) that sit under that company's section as `![[images/<slug>_p{p}_img{N}.jpeg]]` so the chart travels with the insight. **Read the `[3] creating N new entities` lines before applying**: a mangled or role/regulator name (measured 2026-10-10: "Regulatory and Development Authority of India" from a heading-wrap split of the IRDAI header) must NOT become a company entity — route the section per the [Quotes catch-all rule](#sector-level-expert-commentary) instead and delete the created triple (entity row + note + 2 membership edges) if `--apply` already ran. Gating this mechanically is proposed in proposed in `../improvements/archive/tooling/resolver_extractor_hardening.md` §S3 (deferred).
 5. **Enhance existing entities** — for every company already in the DB that has a concall/management section in this newsletter, append a per-edition newsletter block to its note (see [Enhancing Existing Entities](#enhancing-existing-entities)). This is the default action when the entity already exists — do not skip it. *Not automated — the orchestrator emits the worklist; an agent lifts the insights.*
 6. **Create relationships** — bidirectional `part_of` / `has_company` between company and sector.
 7. **Validate** — run the two post-processing scripts (see [Validation](#validation)).
@@ -532,6 +542,15 @@ super-sector / newsletter seeds sit alongside it, and
 
 For each entity: extract tags → compute `normalized_name` → resolve `file_path` → insert SQLite row → write markdown file. `normalized_name` must match the filename and `file_path` must resolve.
 
+**Commit trap for ad-hoc agent inserts (2026-10-10).** The house
+insert path `parse_newsletter.create_entity` writes the row AND the
+stub note; the note is plain filesystem (non-transactional by design),
+and the ROW is lost too if the caller never commits — an ad-hoc
+`create_entity(conn, ...)` outside `with conn:` rolls back on process
+exit while the stub file persists, leaving a note with no entity
+(exactly the state `database_integrity_check` fails on). Wrap ad-hoc
+inserts in `with conn:` and re-verify the row before moving on.
+
 > **Legacy snippet (predates 2026-07-28).** `entities.market_cap` no longer exists as a column — it is tag-derived (Bundle C2); membership edges are written to **`graph_edges`**, not a `relations` table (that name is now a backward-compat VIEW over graph_edges); and the dual-MCP tool subsystem shown below was removed. Follow the flow shape; use the house insert paths (`create_entity`, `helpers.core.db.connect`) today.
 
 ```python
@@ -654,7 +673,7 @@ If multiple rows (legacy dupes), pick the one whose `file_path` resolves. If no 
 
 Newsletter editions often carry **interviews / podcasts / op-eds that are not tied to one company** but speak to a whole sector (e.g. a microfinance cycle, a regulatory shift, a commodity supercycle). Capture these on the **sector note**, not on any single company note. Same edition-block shape, but the heading uses the sector name and bullets synthesize the expert's thesis (not one company's numbers).
 
-Detection: a section listed under `## Interviews/Podcasts` (or otherwise lacking a `## <Company> | …` header) whose speaker is a journalist / advisor / regulator / consultant, and whose content ranges across multiple players or industry-wide dynamics.
+Detection: a section listed under `## Interviews/Podcasts` (or otherwise lacking a `## <Company> | …` header) whose speaker is a journalist / advisor / regulator / consultant, and whose content ranges across multiple players or industry-wide dynamics. **Same rule for analyst-voiced COMPANY sections**: a `### <Brokerage> | …` header whose speaker is that brokerage's analyst (title contains "Research Analyst"/"Analyst", not management) and whose content previews other companies' results is sector commentary — measured 2026-10-10: the JM Financial section was JM's BFSI analyst previewing NBFC/bank earnings; the block went to `Sectors/NBFC.md`, nothing was appended to the JM Financial company note. Mechanical detection is proposed in `../improvements/archive/tooling/resolver_extractor_hardening.md` §S6 (deferred).
 
 Routing (in order):
 

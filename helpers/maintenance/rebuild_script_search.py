@@ -1279,6 +1279,60 @@ def _write_incremental(
     return len(to_upsert), len(to_delete)
 
 
+def _resolve_embedder(conn, write: bool, stats: dict, embed_fn=None) -> tuple:
+    """Embedder + dims + model label + gemma flag for a rebuild run
+    (helper keeps rebuild()'s decision count down — C901)."""
+    if embed_fn is not None:
+        return embed_fn, rds._PSEUDO_DIMS, None, False
+    if write:
+        resolved, embed_dims, model_label, gemma_active = resolve_script_embedder()
+        stats["embed_model"] = model_label
+        # Top-level demotion guard (helpers.core.gemma_embedder,
+        # 2026-10-08): a gemma-stamped index is never silently
+        # re-embedded by the fallback model — that un-migrated the
+        # stamp AND purged its cache twice in one day. SCRIPT_
+        # EMBEDDER=granite is the explicit escape.
+        gemma_embedder.guard_gemma_stamp(
+            _script_stored_embed_model(conn),
+            model_label,
+            os.environ.get(SCRIPT_EMBEDDER_ENV),
+        )
+        if model_label != f"dry-run-v{rds._PSEUDO_DIMS}":
+            # NO automatic model-difference purge, on EITHER path
+            # (2026-10-08: a sidecar-down granite fallback purged
+            # the gemma rows — the third purge incident). The
+            # script cohort is multi-model by adoption design; the
+            # non-active model's rows are the rollback path, and
+            # dead-text eviction is `make embed-gc`.
+            resolved = CachedEmbed(resolved, model_label, conn, source="script")
+        return resolved, embed_dims, model_label, gemma_active
+    # --check: verdict is unit content-hash — skip model
+    # resolution + sidecar cache lookups (mirror of the
+    # rebuild_note_search / rebuild_doc_search change).
+    return rds._noop_embed, rds._PSEUDO_DIMS, None, False
+
+
+def _source_staleness(conn, units_meta: dict) -> tuple[dict, dict]:
+    """Freshness verdict: unit-level diff of corpus vs stored meta
+    (hash-exact; every content change flows through some unit's text,
+    including the cross-file inputs of script rows). mtime is only
+    the carry hint, never verdict input — worktree/checkout mtime
+    skew on identical content must not flag drift (2026-08-30)."""
+    stored_meta = _stored_meta(conn)
+    stale_new = sorted(u for u in units_meta if u not in stored_meta)
+    stale_deleted = sorted(u for u in stored_meta if u not in units_meta)
+    stale_changed = sorted(
+        u for u in units_meta if u in stored_meta and stored_meta[u][1] != units_meta[u][1]
+    )
+    stats_part = {
+        "stale_new": stale_new,
+        "stale_changed": stale_changed,
+        "stale_deleted": stale_deleted,
+        "index_stale": bool(stale_new or stale_changed or stale_deleted),
+    }
+    return stats_part, stored_meta
+
+
 def rebuild(
     db_path: Path | None = None,
     write: bool = True,
@@ -1308,36 +1362,9 @@ def rebuild(
         # Resolve the embedder once; internally-resolved embedders get the
         # shared (sha256, model) sidecar cache (Attached as <sidecar>_vec.db —
         # shared text populations with the other indexers are free cache hits).
-        embed_dims = rds._PSEUDO_DIMS
-        model_label: str | None = None
-        gemma_active = False
-        if embed_fn is None:
-            if write:
-                embed_fn, embed_dims, model_label, gemma_active = resolve_script_embedder()
-                stats["embed_model"] = model_label
-                # Top-level demotion guard (helpers.core.gemma_embedder,
-                # 2026-10-08): a gemma-stamped index is never silently
-                # re-embedded by the fallback model — that un-migrated the
-                # stamp AND purged its cache twice in one day. SCRIPT_
-                # EMBEDDER=granite is the explicit escape.
-                gemma_embedder.guard_gemma_stamp(
-                    _script_stored_embed_model(conn),
-                    model_label,
-                    os.environ.get(SCRIPT_EMBEDDER_ENV),
-                )
-                if model_label != f"dry-run-v{rds._PSEUDO_DIMS}":
-                    # NO automatic model-difference purge, on EITHER path
-                    # (2026-10-08: a sidecar-down granite fallback purged
-                    # the gemma rows — the third purge incident). The
-                    # script cohort is multi-model by adoption design; the
-                    # non-active model's rows are the rollback path, and
-                    # dead-text eviction is `make embed-gc`.
-                    embed_fn = CachedEmbed(embed_fn, model_label, conn, source="script")
-            else:
-                # --check: verdict is unit content-hash — skip model
-                # resolution + sidecar cache lookups (mirror of the
-                # rebuild_note_search / rebuild_doc_search change).
-                embed_fn = rds._noop_embed
+        embed_fn, embed_dims, model_label, gemma_active = _resolve_embedder(
+            conn, write, stats, embed_fn
+        )
 
         _collect_started = datetime.now()
         py_units, make_unit, units_meta = _collect_units(

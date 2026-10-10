@@ -12,7 +12,7 @@ last_modified: '2026-10-10'
 generated:
   by: derive_insights.py/v1
   at: '2026-09-07T12:07:47Z'
-stale_after: '2027-02-11'
+stale_after: '2027-04-08'
 sources:
 - id: TCS_Indian_Bank_Amagi
   resource: /findata/The_Chatter/TCS_Indian_Bank_Amagi.md
@@ -25,6 +25,7 @@ sources:
 - id: TCS_Maruti_PB_Fintech
   resource: /findata/The_Chatter/TCS_Maruti_PB_Fintech.md
   title: 'The Chatter: TCS, Maruti Suzuki, PB Fintech (Policybazaar) & More'
+  last_modified: '2026-10-10'
 ---
 
 # NBFC

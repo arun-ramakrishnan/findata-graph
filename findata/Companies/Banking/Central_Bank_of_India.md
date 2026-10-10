@@ -27,6 +27,7 @@ sources:
 - id: PNB_Central_Bank_Rentomojo
   resource: /findata/The_Chatter/PNB_Central_Bank_Rentomojo.md
   title: 'The Chatter: PNB, Central Bank of India, Rentomojo & More'
+  last_modified: '2026-10-10'
 ---
 
 # Central Bank of India

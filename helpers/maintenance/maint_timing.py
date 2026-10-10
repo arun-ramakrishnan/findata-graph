@@ -191,7 +191,8 @@ class RunTimer:
                 max_row = con.execute(
                     "SELECT COALESCE(MAX(maint_run_id), 0) + 1 FROM maint_runs"
                 ).fetchone()
-                assert max_row is not None  # aggregate always returns one row
+                if max_row is None:  # aggregate always returns one row
+                    raise RuntimeError("maint_runs MAX(id) aggregate returned no row")
                 nxt = max_row[0]
                 con.execute(
                     "INSERT INTO maint_runs (maint_run_id, cmd, target, mode,"

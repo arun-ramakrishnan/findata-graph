@@ -21,7 +21,7 @@ last_modified: '2026-10-10'
 generated:
   by: derive_insights.py/v1
   at: '2026-10-10T07:49:18Z'
-stale_after: '2027-02-11'
+stale_after: '2027-04-08'
 sources:
 - id: A_Quarter_That_Refuses_To_Behave
   resource: /findata/The_Chatter/A_Quarter_That_Refuses_To_Behave.md
@@ -54,6 +54,7 @@ sources:
 - id: IRDAI_Bajaj_Auto_SBI
   resource: /findata/The_Chatter/IRDAI_Bajaj_Auto_SBI.md
   title: 'The Chatter: IRDAI Chairman, Bajaj Auto, SBI & More'
+  last_modified: '2026-10-10'
 ---
 # State Bank of India
 

@@ -23,6 +23,7 @@ sources:
 - id: IRDAI_Bajaj_Auto_SBI
   resource: /findata/The_Chatter/IRDAI_Bajaj_Auto_SBI.md
   title: 'The Chatter: IRDAI Chairman, Bajaj Auto, SBI & More'
+  last_modified: '2026-10-10'
 ---
 
 # Emami Agrotech

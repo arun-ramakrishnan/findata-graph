@@ -20,7 +20,7 @@ last_modified: '2026-09-25'
 generated:
   by: derive_insights.py/v1
   at: '2026-10-10T07:49:18Z'
-stale_after: '2027-03-23'
+stale_after: '2027-04-08'
 sources:
 - id: A_Quarter_That_Refuses_To_Behave
   resource: /findata/The_Chatter/A_Quarter_That_Refuses_To_Behave.md
@@ -57,6 +57,7 @@ sources:
 - id: TCS_Maruti_PB_Fintech
   resource: /findata/The_Chatter/TCS_Maruti_PB_Fintech.md
   title: 'The Chatter: TCS, Maruti Suzuki, PB Fintech (Policybazaar) & More'
+  last_modified: '2026-10-10'
 ---
 # Maruti Suzuki India
 

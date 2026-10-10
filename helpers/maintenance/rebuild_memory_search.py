@@ -578,6 +578,53 @@ def _write_incremental(
     return len(to_upsert), len(to_delete)
 
 
+def _resolve_embedder(conn, write: bool, stats: dict, embed_fn=None) -> tuple:
+    """Embedder + dims + model label + gemma flag for a rebuild run
+    (helper keeps rebuild()'s decision count down — C901)."""
+    if embed_fn is not None:
+        return embed_fn, rds._PSEUDO_DIMS, None, False
+    if write:
+        resolved, embed_dims, model_label, gemma_active = resolve_memory_embedder()
+        stats["embed_model"] = model_label
+        # Top-level demotion guard (helpers.core.gemma_embedder):
+        # a gemma-stamped memory index is never silently
+        # re-embedded by the fallback model — that exact accident
+        # un-migrated the script stamp twice. MEMORY_EMBEDDER=
+        # granite is the explicit escape.
+        gemma_embedder.guard_gemma_stamp(
+            _stored_embed_model(conn),
+            model_label,
+            os.environ.get(MEMORY_EMBEDDER_ENV),
+        )
+        if model_label != f"dry-run-v{rds._PSEUDO_DIMS}":
+            # No automatic model-difference purge (2026-10-08): a
+            # prior-model row is rollback insurance, dead-text
+            # eviction is `make embed-gc`.
+            resolved = CachedEmbed(resolved, model_label, conn, source="memory")
+        return resolved, embed_dims, model_label, gemma_active
+    # --check: verdict is source-file content-hash — skip model
+    # resolution + cache (the house --check doctrine).
+    return rds._noop_embed, rds._PSEUDO_DIMS, None, False
+
+
+def _source_staleness(conn, files_meta: dict) -> tuple[dict, dict]:
+    """Freshness verdict: source-file hash diff vs stored meta (mtime is
+    only the carry hint — the shared-index worktree lesson)."""
+    stored_meta = _stored_meta(conn)
+    stale_new = sorted(u for u in files_meta if u not in stored_meta)
+    stale_deleted = sorted(u for u in stored_meta if u not in files_meta)
+    stale_changed = sorted(
+        u for u in files_meta if u in stored_meta and stored_meta[u][1] != files_meta[u][1]
+    )
+    stats_part = {
+        "stale_new": stale_new,
+        "stale_changed": stale_changed,
+        "stale_deleted": stale_deleted,
+        "index_stale": bool(stale_new or stale_changed or stale_deleted),
+    }
+    return stats_part, stored_meta
+
+
 def rebuild(
     db_path: Path | None = None,
     write: bool = True,
@@ -601,32 +648,10 @@ def rebuild(
         conn.execute(MEMORY_SEARCH_DDL)
         conn.execute(MEMORY_SEARCH_META_DDL)
         conn.execute(MEMORY_SEARCH_INFO_DDL)
-        embed_dims = rds._PSEUDO_DIMS
         model_label: str | None = None
-        gemma_active = False
-        if embed_fn is None:
-            if write:
-                embed_fn, embed_dims, model_label, gemma_active = resolve_memory_embedder()
-                stats["embed_model"] = model_label
-                # Top-level demotion guard (helpers.core.gemma_embedder):
-                # a gemma-stamped memory index is never silently
-                # re-embedded by the fallback model — that exact accident
-                # un-migrated the script stamp twice. MEMORY_EMBEDDER=
-                # granite is the explicit escape.
-                gemma_embedder.guard_gemma_stamp(
-                    _stored_embed_model(conn),
-                    model_label,
-                    os.environ.get(MEMORY_EMBEDDER_ENV),
-                )
-                if model_label != f"dry-run-v{rds._PSEUDO_DIMS}":
-                    # No automatic model-difference purge (2026-10-08): a
-                    # prior-model row is rollback insurance, dead-text
-                    # eviction is `make embed-gc`.
-                    embed_fn = CachedEmbed(embed_fn, model_label, conn, source="memory")
-            else:
-                # --check: verdict is source-file content-hash — skip model
-                # resolution + cache (the house --check doctrine).
-                embed_fn = rds._noop_embed
+        embed_fn, embed_dims, model_label, gemma_active = _resolve_embedder(
+            conn, write, stats, embed_fn
+        )
 
         _collect_started = datetime.now()
         units, files_meta = _collect_units(zcode_projects, prime_state, opencode_dir)
@@ -657,18 +682,8 @@ def rebuild(
         stats["by_kind"] = by_kind
         stats["migrated"] = migrated
 
-        # Freshness verdict: source-file hash diff vs stored meta (mtime is
-        # only the carry hint — the shared-index worktree lesson).
-        stored_meta = _stored_meta(conn)
-        stale_new = sorted(u for u in files_meta if u not in stored_meta)
-        stale_deleted = sorted(u for u in stored_meta if u not in files_meta)
-        stale_changed = sorted(
-            u for u in files_meta if u in stored_meta and stored_meta[u][1] != files_meta[u][1]
-        )
-        stats["stale_new"] = stale_new
-        stats["stale_changed"] = stale_changed
-        stats["stale_deleted"] = stale_deleted
-        stats["index_stale"] = bool(stale_new or stale_changed or stale_deleted)
+        stats_part, stored_meta = _source_staleness(conn, files_meta)
+        stats.update(stats_part)
 
         if not write:
             print(

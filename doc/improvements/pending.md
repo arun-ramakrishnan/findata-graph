@@ -466,3 +466,15 @@ Open items below keep their revisit triggers inline; executed work is compressed
   best-of-3, `--full` end-to-end 7.17 → 6.15 s; maint-full keeps
   blocking `static-checks --full` + new advisory `--report` twin.
   350 tests green, deptry clean, pin + `uv lock` landed.
+
+- **resolver/extractor hardening — DEFERRED 2026-10-10**
+  (`archive/tooling/resolver_extractor_hardening.md` §D, completed.md
+  #378): the four in-run stop-gaps (cross-check dims-match + min_sim
+  0.80, extractor tuple crash, alias precedence) are landed and
+  test-pinned; the class-level remainder is deferred — normalization
+  classes (S1), fuzzy tie-break audit (S2), section-head noise gate
+  (S3), stub placeholder (S4), sector precedence (S5), analyst-voiced
+  routing (S6), cross-check integrity transient (S7), listed/ticker
+  enrichment (S8). **REVISIT TRIGGER: the next alias-file addition for
+  a name class §S1 covers, or any wrong-company edge traced to a
+  tie-break.**

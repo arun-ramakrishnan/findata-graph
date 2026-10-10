@@ -143,7 +143,7 @@ def flask_test_client(
     *,
     connect_fn: Callable[[], sqlite3.Connection] | None = None,
     track_conns: bool = False,
-) -> Generator[Any, None, None]:
+) -> Generator[Any]:
     """Yield a Flask test_client with get_db_connection patched to db_path.
 
     Args:

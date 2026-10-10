@@ -20,7 +20,7 @@ last_modified: '2026-10-10'
 generated:
   by: derive_insights.py/v1
   at: '2026-10-10T07:49:18Z'
-stale_after: '2027-02-11'
+stale_after: '2027-04-08'
 sources:
 - id: A_Quarter_That_Refuses_To_Behave
   resource: /findata/The_Chatter/A_Quarter_That_Refuses_To_Behave.md
@@ -41,6 +41,7 @@ sources:
 - id: PNB_Central_Bank_Rentomojo
   resource: /findata/The_Chatter/PNB_Central_Bank_Rentomojo.md
   title: 'The Chatter: PNB, Central Bank of India, Rentomojo & More'
+  last_modified: '2026-10-10'
 ---
 
 # Dodla Dairy Limited

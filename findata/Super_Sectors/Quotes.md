@@ -305,10 +305,11 @@ sources:
 - id: IRDAI_Bajaj_Auto_SBI
   resource: /findata/The_Chatter/IRDAI_Bajaj_Auto_SBI.md
   title: 'The Chatter: IRDAI Chairman, Bajaj Auto, SBI & More'
+  last_modified: '2026-10-10'
 generated:
   by: derive_insights.py/v1
   at: '2026-10-10T07:49:17Z'
-stale_after: '2027-04-01'
+stale_after: '2027-04-08'
 ---
 # Quotes
 

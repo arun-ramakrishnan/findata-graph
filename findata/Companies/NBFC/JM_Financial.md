@@ -26,6 +26,7 @@ sources:
 - id: TCS_Maruti_PB_Fintech
   resource: /findata/The_Chatter/TCS_Maruti_PB_Fintech.md
   title: 'The Chatter: TCS, Maruti Suzuki, PB Fintech (Policybazaar) & More'
+  last_modified: '2026-10-10'
 ---
 # JM Financial
 

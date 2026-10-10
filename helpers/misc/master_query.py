@@ -124,6 +124,20 @@ def _leg_age_hours(leg: str, root: Path | None = None) -> float | None:
         return None
 
 
+def _age_guard_skip(leg: str, age_guard_hours: float | None) -> str | None:
+    """Skip message when the leg's guarded sidecar exceeds the age guard,
+    else None (helper keeps the fan_out decision count down — C901)."""
+    if age_guard_hours is None:
+        return None
+    age = _leg_age_hours(leg)
+    if age is None or age <= age_guard_hours:
+        return None
+    return (
+        f"skipped: index {age:.1f}h old exceeds the {age_guard_hours:g}h "
+        f"age guard (refresh: {_REFRESH_BY_LEG.get(leg, 'make search-fresh APPLY=1')})"
+    )
+
+
 def parse_legs(spec: str) -> list[str]:
     """--legs value -> deduped leg list (caller order preserved).
 
@@ -272,14 +286,9 @@ def fan_out(
     shared_vec = rbc.make_query_vector(query) if mode != "bm25" and query.strip() else None
 
     def _one(leg: str) -> tuple[str, tuple[list, str]]:
-        if age_guard_hours is not None:
-            age = _leg_age_hours(leg)
-            if age is not None and age > age_guard_hours:
-                return leg, (
-                    [],
-                    f"skipped: index {age:.1f}h old exceeds the {age_guard_hours:g}h "
-                    f"age guard (refresh: {_REFRESH_BY_LEG.get(leg, 'make search-fresh APPLY=1')})",
-                )
+        skip = _age_guard_skip(leg, age_guard_hours)
+        if skip is not None:
+            return leg, ([], skip)
         try:
             if leg == "maint":
                 # timing-corpus leg: local backend, not a search_tui lane

@@ -9953,3 +9953,39 @@ Archived 2026-10-09 having been left live after its own conclusion landed —
 the trial's remaining follow-ups were all resolved in §7 (full-pool run
 done, composition closed, vector-basis hypothesis rejected), so nothing
 was pending and the live proposal would have advertised shipped work.
+
+## 378. Entity resolution & relation-extractor hardening — first-full-run findings
+**Date**: 2026-10-10 (executed in-run) / 2026-10-10 (archived) **Status**: DEFERRED (remainder §D)
+**Proposal**: `doc/improvements/archive/tooling/resolver_extractor_hardening.md`
+
+The first full markdown_parse pipeline run since the graph-relationship
+fixes (3 Chatter editions, 2026-10-10) surfaced a class of
+resolver/extractor defects, not isolated bugs. Full evidence inventory:
+`doc/local/pipeline_run_2026-10-10_findings.md`. Four stop-gaps landed
+in-run and are pinned by tests:
+
+- Cross-check was silently inert — granite-384 query vectors vs
+  gemma-512 note vectors returned None for every name; `notes_like_text`
+  now picks the embedder by dimension match (`query.py`), and
+  `min_sim` recalibrated 0.55 → 0.80 (true name→note 0.80–0.84,
+  unrelated band ≤0.77; TCS 0.799, PNB 0.835).
+- Full-corpus `derive-relations` crashed on the first unresolvable
+  company note (2-vs-3 tuple unpack in `_extract_batch`'s early exit) —
+  fixed; the parallel scan exits 0 end-to-end.
+- `EntityResolver.resolve()` alias-precedence flaw — first-token aliases
+  (`adani`/`sbi`/`premier`) shadowed EXACT entity names ("Adani Power" →
+  Adani Enterprises, "Premier Energies" → Premier Explosives); exact
+  now wins, aliases fill gaps (42 resolver/alias tests green).
+- Ten hand-aliases added for the resolvable-now gap notes (Three M
+  Company was fuzzy-misresolving to Three M Paper Boards —
+  wrong-company edge risk).
+
+**Deferred (§D of the archived proposal):** resolution normalization
+classes (apostrophe/diacritic/camelCase — the hand-alias treadmill),
+fuzzy tie-break audit, section-head noise gate (mangled IRDAI regulator
+entity class), stub-template placeholder, sector precedence
+(Fintech_Payments carve-out singulars; header-trust), analyst-voiced
+worklist routing, cross-check/integrity transient (repro documented),
+listed/ticker enrichment. Revisit trigger: the next alias-file addition
+for a name class §S1 covers, or any wrong-company edge traced to a
+tie-break.

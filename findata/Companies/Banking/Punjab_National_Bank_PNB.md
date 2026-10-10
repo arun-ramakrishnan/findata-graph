@@ -21,7 +21,7 @@ last_modified: '2026-10-10'
 generated:
   by: derive_insights.py/v1
   at: '2026-09-07T16:45:46Z'
-stale_after: '2027-02-11'
+stale_after: '2027-04-08'
 sources:
 - id: Tailwinds_building
   resource: /findata/The_Chatter/Tailwinds_building.md
@@ -38,6 +38,7 @@ sources:
 - id: PNB_Central_Bank_Rentomojo
   resource: /findata/The_Chatter/PNB_Central_Bank_Rentomojo.md
   title: 'The Chatter: PNB, Central Bank of India, Rentomojo & More'
+  last_modified: '2026-10-10'
 ---
 # Punjab National Bank (PNB)
 
