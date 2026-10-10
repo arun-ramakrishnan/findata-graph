@@ -187,9 +187,17 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--prime-dir", type=Path, default=PRIME_DIR)
     ap.add_argument("--rollout-dir", type=Path, default=ROLLOUT_DIR)
     args = ap.parse_args(argv)
-    harness = harness_frontiers(args.zcode_db, args.opencode_db, args.prime_dir, args.rollout_dir)
-    store = store_frontiers(args.agent_traces, args.model_usage)
-    rows, drift = check(harness, store)
+    from helpers.maintenance.maint_timing import RunTimer
+
+    timer = RunTimer("analytics_fresh", mode="check")
+    with timer.phase("harness_frontiers"):
+        harness = harness_frontiers(
+            args.zcode_db, args.opencode_db, args.prime_dir, args.rollout_dir
+        )
+    with timer.phase("store_frontiers"):
+        store = store_frontiers(args.agent_traces, args.model_usage)
+    with timer.phase("check"):
+        rows, drift = check(harness, store)
     print(f"{'store':<14}{'source':<10}{'harness':<12}{'store_max':<12}verdict")
     for row in rows:
         print(f"{row[0]:<14}{row[1]:<10}{row[2]:<12}{row[3]:<12}{row[4]}")
@@ -206,9 +214,9 @@ def main(argv: list[str] | None = None) -> int:
             print(f"note: {label} '{source}' is report-only (provider-API authority)")
     if drift:
         print("STALE — run `make analytics-fresh APPLY=1`")
-        return 1
+        return timer.finish(1, "STALE (see rows above)")
     print("✓ analytics stores fresh")
-    return 0
+    return timer.finish(0, f"FRESH rows={len(rows)}")
 
 
 if __name__ == "__main__":

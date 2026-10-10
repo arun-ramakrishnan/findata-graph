@@ -588,9 +588,14 @@ def rebuild(
     opencode_dir: Path | None = None,
 ) -> dict:
     """Rebuild the memory_search FTS index. Returns a stats dict."""
+    from datetime import datetime
+
+    from helpers.maintenance.maint_timing import current as _mt_timer
+
     db_path = Path(db_path) if db_path is not None else MEMORY_DB
     conn = connect_memory_db(db_path)
     stats: dict = {}
+    _mt = _mt_timer()  # None outside a CLI run (tests): all timing below is a no-op
     try:
         migrated = _migrate_schema(conn)
         conn.execute(MEMORY_SEARCH_DDL)
@@ -623,8 +628,18 @@ def rebuild(
                 # resolution + cache (the house --check doctrine).
                 embed_fn = rds._noop_embed
 
+        _collect_started = datetime.now()
         units, files_meta = _collect_units(zcode_projects, prime_state, opencode_dir)
+        if _mt:
+            _mt.record_phase(
+                "collect", _collect_started, datetime.now(), extra=f"units={len(units)}"
+            )
+        _compose_started = datetime.now()
         all_rows = _compose_rows(units, embed_fn, gemma=gemma_active)
+        if _mt:
+            _mt.record_phase(
+                "compose_embed", _compose_started, datetime.now(), extra=f"rows={len(all_rows)}"
+            )
 
         if isinstance(embed_fn, CachedEmbed):
             stats["embed_cache_hits"] = embed_fn.hits
@@ -664,6 +679,7 @@ def rebuild(
             _print_staleness(stats)
             return stats
 
+        _write_started = datetime.now()
         if not incremental:
             stats["mode"] = "full"
             stats["content_changed"] = _write_full(
@@ -671,6 +687,8 @@ def rebuild(
             )
             stats["indexed"] = conn.execute("SELECT COUNT(*) FROM memory_search").fetchone()[0]
             _backup_last_good_index(db_path)
+            if _mt:
+                _mt.record_phase("write", _write_started, datetime.now())
             return stats
 
         stats["mode"] = "incremental"
@@ -678,6 +696,8 @@ def rebuild(
             conn, all_rows, files_meta, stored_meta, model_label, embed_dims
         )
         stats["indexed"] = conn.execute("SELECT COUNT(*) FROM memory_search").fetchone()[0]
+        if _mt:
+            _mt.record_phase("write", _write_started, datetime.now())
         return stats
     finally:
         conn.close()

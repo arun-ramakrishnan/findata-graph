@@ -2949,6 +2949,12 @@ def main() -> None:
         _ensure_load_log_outcome_columns(con)
         _ensure_model_request_error_message(con)
         load_ok = False
+        from helpers.maintenance.maint_timing import RunTimer
+
+        _timer = RunTimer(
+            "agent_traces", mode=f"load:{args.source}" if args.cmd == "load" else args.cmd
+        )
+        _loaded_total = 0
         try:
             if args.cmd == "load":
                 srcs = list(LOADERS) if args.source == "all" else [args.source]
@@ -2956,7 +2962,10 @@ def main() -> None:
                     started = datetime.now(UTC)
                     since = date.today() - timedelta(days=args.days) if not args.full else None
                     try:
+                        _p0 = datetime.now(UTC)
                         n = trace_contracts.load(con, s, since)
+                        _loaded_total += n or 0
+                        _timer.record_phase(f"load:{s}", _p0, datetime.now(UTC), extra=f"rows={n}")
                         detail = "; ".join(_load_log_extra) or f"since={since}"
                         vs = trace_contracts.validation_summary()
                         con.execute(
@@ -3002,6 +3011,8 @@ def main() -> None:
                 report(con, args.range, as_json=args.json, only=args.legs)
         finally:
             con.close()
+    if args.cmd == "load":
+        _timer.finish(0, f"load:{args.source} rows={_loaded_total}")
     if args.cmd == "load" and load_ok:
         _refresh_backup(args.db)
 

@@ -1290,9 +1290,14 @@ def rebuild(
     makefile: Path | None = None,
 ) -> dict:
     """Rebuild the script_search FTS index. Returns a stats dict."""
+    from datetime import datetime
+
+    from helpers.maintenance.maint_timing import current as _mt_timer
+
     db_path = Path(db_path) if db_path is not None else SCRIPT_DB
     conn = connect_script_db(db_path)
     stats: dict = {}
+    _mt = _mt_timer()  # None outside a CLI run (tests): all timing below is a no-op
     try:
         migrated = _migrate_schema(conn)
         conn.execute(SCRIPT_SEARCH_DDL)
@@ -1334,6 +1339,7 @@ def rebuild(
                 # rebuild_note_search / rebuild_doc_search change).
                 embed_fn = rds._noop_embed
 
+        _collect_started = datetime.now()
         py_units, make_unit, units_meta = _collect_units(
             helpers_root,
             tests_root,
@@ -1341,7 +1347,22 @@ def rebuild(
             makefile,
             conn=conn,
         )
+        if _mt:
+            _mt.record_phase(
+                "collect",
+                _collect_started,
+                datetime.now(),
+                extra=f"units={len(units_meta)}",
+            )
+        _compose_started = datetime.now()
         all_rows = _compose_rows(py_units, make_unit, embed_fn, gemma=gemma_active)
+        if _mt:
+            _mt.record_phase(
+                "compose_embed",
+                _compose_started,
+                datetime.now(),
+                extra=f"rows={len(all_rows)}",
+            )
 
         if isinstance(embed_fn, CachedEmbed):
             stats["embed_cache_hits"] = embed_fn.hits
@@ -1380,6 +1401,7 @@ def rebuild(
             _print_staleness(stats)
             return stats
 
+        _write_started = datetime.now()
         if not incremental:
             stats["mode"] = "full"
             stats["content_changed"] = _write_full(
@@ -1387,6 +1409,8 @@ def rebuild(
             )
             stats["indexed"] = conn.execute("SELECT COUNT(*) FROM script_search").fetchone()[0]
             _backup_last_good_index(db_path)
+            if _mt:
+                _mt.record_phase("write", _write_started, datetime.now())
             return stats
 
         # Incremental: rows were recomposed for everyone (cross-file
@@ -1397,6 +1421,8 @@ def rebuild(
             conn, all_rows, units_meta, stored_meta, model_label, embed_dims
         )
         stats["indexed"] = conn.execute("SELECT COUNT(*) FROM script_search").fetchone()[0]
+        if _mt:
+            _mt.record_phase("write", _write_started, datetime.now())
         return stats
     finally:
         conn.close()

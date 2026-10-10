@@ -359,14 +359,28 @@ class _Phases:
 
     def __init__(self) -> None:
         import time
+        from datetime import datetime
 
         self._t0 = time.perf_counter()
+        self._born = datetime.now()
         self.marks: list[tuple[str, float]] = []
+        self._walls: list = []
 
     def mark(self, name: str) -> None:
         import time
+        from datetime import datetime
 
-        self.marks.append((name, time.perf_counter() - self._t0))
+        from helpers.maintenance.maint_timing import current as _active_timer
+
+        at = time.perf_counter() - self._t0
+        now = datetime.now()
+        prev_at = self.marks[-1][1] if self.marks else 0.0
+        prev_wall = self._walls[-1] if self._walls else self._born
+        self.marks.append((name, at))
+        self._walls.append(now)
+        timer = _active_timer()
+        if timer is not None:
+            timer.record_phase(name, prev_wall, now, elapsed_s=round(at - prev_at, 3))
 
     def as_dict(self) -> dict[str, float]:
         out: dict[str, float] = {}

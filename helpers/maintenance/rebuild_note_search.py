@@ -762,8 +762,13 @@ def rebuild(  # noqa: C901
     embed_fn=None,
 ) -> dict:
     """Rebuild the note_search FTS index. Returns a stats dict."""
+    from datetime import datetime
+
+    from helpers.maintenance.maint_timing import current as _mt_timer
+
     conn = connect(db_path)
     stats: dict = {}
+    _mt = _mt_timer()  # None outside a CLI run (tests): all timing below is a no-op
     try:
         migrated = _migrate_schema(conn)
         conn.execute(NOTE_SEARCH_DDL)
@@ -848,6 +853,7 @@ def rebuild(  # noqa: C901
         # the pool never spawns). Injected embed_fn (tests) and the pseudo
         # fallback keep the per-doc path.
         deferred: list[tuple[int, str]] | None = [] if cache is not None else None
+        _walk_started = datetime.now()
         print("[notes] phase: walking findata + collecting rows...", file=sys.stderr, flush=True)
         rows = _collect_rows(
             conn, embed_fn=embed_fn, reuse=reuse, carried=carried, deferred=deferred
@@ -858,6 +864,10 @@ def rebuild(  # noqa: C901
             file=sys.stderr,
             flush=True,
         )
+        if _mt:
+            _mt.record_phase(
+                "walk_collect", _walk_started, datetime.now(), extra=f"rows={len(rows)}"
+            )
         if deferred is None:
             if cache is not None:
                 stats["embed_cache_hits"] = cache.hits
@@ -897,6 +907,7 @@ def rebuild(  # noqa: C901
                 file=sys.stderr,
                 flush=True,
             )
+            _embed_started = datetime.now()
             try:
                 vec_list, cstats = cached_embed_batch(
                     conn,
@@ -921,6 +932,13 @@ def rebuild(  # noqa: C901
                 )
                 stats["embed_cache_hits"] = 0
                 stats["embed_cache_misses"] = len(deferred)
+            if _mt:
+                _mt.record_phase(
+                    "embed_batch",
+                    _embed_started,
+                    datetime.now(),
+                    extra=f"bases={len(texts)}",
+                )
 
         # Per-doc_type counts for the report.
         from collections import Counter
@@ -975,6 +993,7 @@ def rebuild(  # noqa: C901
             _print_staleness(stats)
             return stats
 
+        _write_started = datetime.now()
         if not incremental:
             # maint_full_zero_churn (F2 sibling): capture the pre-rebuild
             # content so the B4 bump below fires only when it actually
@@ -1044,6 +1063,8 @@ def rebuild(  # noqa: C901
                 _stamp_note_model(conn, model_label)
             if content_changed:
                 stats["generation_bumped"] = bump_generation(conn)
+            if _mt:
+                _mt.record_phase("write", _write_started, datetime.now())
             return stats
         else:
             # P2.1 incremental: diff against meta, only touch changed/deleted files
@@ -1133,6 +1154,8 @@ def rebuild(  # noqa: C901
                 if model_label is not None:
                     _stamp_note_model(conn, model_label)
                 stats["generation_bumped"] = bump_generation(conn)
+            if _mt:
+                _mt.record_phase("write", _write_started, datetime.now())
             return stats
     finally:
         conn.close()

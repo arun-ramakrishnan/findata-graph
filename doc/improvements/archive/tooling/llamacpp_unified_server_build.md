@@ -278,6 +278,46 @@ fallback costs nothing when the sidecar is down. The only lever on
 embed wall-time is avoiding the work (the cache), never speeding it:
 a full 17k-note gemma re-embed ≈ 4.5 h, 85k convo granite ≈ 4.4 h.
 
+### 7.6 Maintenance timing corpus (maint_query, same day)
+
+Slowness kept arriving without numbers, so the six maint commands got
+the gates' evidence treatment: `helpers/maintenance/maint_timing.py`
+(RunTimer — run + phase rows with wall start/end/elapsed, writes that
+never break the CLI, records only under `MAINT_TARGET` so unit tests
+stay out of the corpus) persists into `maint_runs`/`maint_phases` in
+`outputs/gate_runs.duckdb`, and `helpers/misc/maint_query.py` mirrors
+the gate_query grammar (`recent`, `timing --cmd X [--phase P]`,
+`failures`, `phases`). Instrumented: all five `run_rebuild_cli`
+surfaces (doc/script/memory/note/convo — walk/collect/compose/embed/
+write phases), harvest lanes, gc survey/evict, snapshot
+create/check/quick/restore, hif export/validate, analytics loaders
+per-source, analytics_fresh. Makefile passes `MAINT_TARGET=<target>`
+(`snapshot-full` does not exist — covered `snapshot`,
+`snapshot-check`, `snapshot-fresh`, `hif-export` instead). First
+finding from the corpus itself: note_search APPLY is
+write-dominated (walk 0.9s / embed 0.9s / write 10.2s) — the FTS
+rewrite, not embedding, is the cost center.
+
+### 7.7 maint leg in master_query + llama_servers.sh (same day)
+
+`maint` is now a first-class `master_query` leg (`--legs maint`,
+included in `--legs all`, N excluded from the default six): it matches
+the query against `maint_runs` (cmd/mode/target/summary) and
+`maint_phases` (phase/extra), scored-OR newest-first, rendered as
+`maint:<id>` hits with phase breakdowns — e.g. `master_query "convo
+embed" --legs maint` surfaces the convo APPLY candidate rows with
+their embed-phase seconds. Self-writing leg, age-guard exempt like
+gates. `helpers/misc/llama_servers.sh {start [--teleocr]|stop|status|
+restart}` owns server lifecycle: canonical flags stay in the Makefile
+targets (the script carries none), teleocr opt-in only (never started
+by default), exact-PID TERM via kernel socket holders (the make/sh
+wrapper cmdline mentions the binary, so cmdline match alone
+false-positives — status anchors on `^models/llamacpp/bin/…`).
+`make llamacpp-health` is KEPT (different mechanism: functional
+identity+dims assertion with exit codes, vs the script's process
+view) but aligned to the teleocr-down default — pair only, teleocr
+via `health.py --ocr`.
+
 ## Appendix — raw measurement log
 
 | Run | Command | Result | Notes |

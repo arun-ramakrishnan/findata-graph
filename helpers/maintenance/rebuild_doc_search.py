@@ -446,9 +446,14 @@ def rebuild(  # noqa: C901
     root: Path | None = None,
 ) -> dict:
     """Rebuild the doc_search FTS index. Returns a stats dict."""
+    from datetime import datetime
+
+    from helpers.maintenance.maint_timing import current as _mt_timer
+
     db_path = Path(db_path) if db_path is not None else DOC_DB
     conn = connect_doc_db(db_path)
     stats: dict = {}
+    _mt = _mt_timer()  # None outside a CLI run (tests): all timing below is a no-op
     try:
         migrated = _migrate_schema(conn)
         conn.execute(DOC_SEARCH_DDL)
@@ -497,6 +502,7 @@ def rebuild(  # noqa: C901
                 if prev is not None:
                     reuse[fp] = rows
 
+        _walk_started = datetime.now()
         rows_by_file: dict[str, list[tuple]] = {}
         hash_by_file: dict[str, str] = {}
         for rel, abs_path in _iter_doc_files(root):
@@ -529,6 +535,13 @@ def rebuild(  # noqa: C901
             rows_by_file[rel] = rows
             hash_by_file[rel] = chash
 
+        if _mt:
+            _mt.record_phase(
+                "walk_chunk_embed",
+                _walk_started,
+                datetime.now(),
+                extra=f"files={len(rows_by_file)}",
+            )
         if isinstance(embed_fn, CachedEmbed):
             stats["embed_cache_hits"] = embed_fn.hits
             stats["embed_cache_misses"] = embed_fn.misses
@@ -580,6 +593,7 @@ def rebuild(  # noqa: C901
             _print_staleness(stats)
             return stats
 
+        _write_started = datetime.now()
         if not incremental:
             from collections import Counter
 
@@ -616,6 +630,8 @@ def rebuild(  # noqa: C901
             stats["content_changed"] = content_changed
             # Last-good-state recovery point (local db-backup/ only).
             _backup_last_good_index(db_path)
+            if _mt:
+                _mt.record_phase("write", _write_started, datetime.now())
             return stats
 
         # Incremental: diff against meta at file granularity. A file is
@@ -658,6 +674,8 @@ def rebuild(  # noqa: C901
         stats["mode"] = "incremental"
         stats["upserts"] = len(to_upsert)
         stats["deletes"] = len(to_delete)
+        if _mt:
+            _mt.record_phase("write", _write_started, datetime.now())
         return stats
     finally:
         conn.close()

@@ -10,10 +10,14 @@ added by granite_sidecar_selector S1).
 :8733 granite — /v1/models identity must contain "granite"; a live embed
                 must return 384 dims (local_embedder.DIM).
 
-Exit 0 only when all legs answer with the expected identity. Usable
-from maint / cron / operator shell; read-only over loopback.
+Exit 0 only when the checked legs answer with the expected identity.
+Usable from maint / cron / operator shell; read-only over loopback.
 
-Usage: python3 vendor/llamacpp/health.py [--port-gemma 8732 --port-ocr 8731 --port-granite 8733]
+Default pair is embgemma + granite (the always-on legs); teleocr is
+opt-in (--ocr) because it is down by default (OCR is on-demand —
+see helpers/misc/llama_servers.sh, which never starts it unsolicited).
+
+Usage: python3 vendor/llamacpp/health.py [--ocr] [--port-gemma 8732 --port-ocr 8731 --port-granite 8733]
 """
 
 from __future__ import annotations
@@ -93,14 +97,22 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--port-gemma", type=int, default=8732)
     ap.add_argument("--port-ocr", type=int, default=8731)
     ap.add_argument("--port-granite", type=int, default=8733)
+    ap.add_argument(
+        "--ocr",
+        action="store_true",
+        help="also check the teleocr leg (down by default; opt in only when OCR was started)",
+    )
     args = ap.parse_args(argv)
 
+    legs = [("embgemma", args.port_gemma, check_gemma)]
+    if args.ocr:
+        legs.append(("teleocr", args.port_ocr, check_ocr))
+    else:
+        print(f"skip  teleocr :{args.port_ocr} (down by default; re-run with --ocr)")
+    legs.append(("granite", args.port_granite, check_granite))
+
     ok = True
-    for name, port, fn in (
-        ("embgemma", args.port_gemma, check_gemma),
-        ("teleocr", args.port_ocr, check_ocr),
-        ("granite", args.port_granite, check_granite),
-    ):
+    for name, port, fn in legs:
         try:
             errs = fn(port)
         except Exception as e:  # noqa: BLE001 — connection refused lands here

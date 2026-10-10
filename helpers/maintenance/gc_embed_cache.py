@@ -372,9 +372,20 @@ def survey(refs=DEFAULT_REFS) -> dict:
 
 def gc(refs=DEFAULT_REFS, apply: bool = False) -> dict:
     """Delete unreferenced ACTIVE-model cache rows (and VACUUM) when apply."""
+    from datetime import datetime
+
+    from helpers.maintenance.maint_timing import current as _mt_timer
+
+    _mt = _mt_timer()  # None outside a CLI run (tests): all timing below is a no-op
+    _survey_started = datetime.now()
     out = survey(refs)
+    if _mt:
+        _mt.record_phase(
+            "survey", _survey_started, datetime.now(), extra=f"rows={out.get('cache_rows', 0)}"
+        )
     if not apply:
         return out
+    _evict_started = datetime.now()
     live, _counts, unverified, extra = _classify(refs)
     stamps = extra["stamps"]
     from helpers.core.db import connect
@@ -407,6 +418,10 @@ def gc(refs=DEFAULT_REFS, apply: bool = False) -> dict:
         con.close()
     out["deleted"] = len(dead_ids)
     out["store_mib_after"] = round(STORE.stat().st_size / 2**20, 1)
+    if _mt:
+        _mt.record_phase(
+            "evict_vacuum", _evict_started, datetime.now(), extra=f"deleted={len(dead_ids)}"
+        )
     return out
 
 
@@ -531,21 +546,31 @@ def main(argv: list[str] | None = None) -> int:
         help="scope --retire-model to one cohort (e.g. script)",
     )
     args = p.parse_args(argv)
-    try:
-        if args.retire_model:
-            out = retire(args.retire_model, args.source, apply=args.apply)
-            print(retire_summary(out), file=sys.stderr)
-            if args.apply:
-                return 0
-            return 1 if out["total"] else 0
-        out = gc(apply=args.apply)
-    except RuntimeError as exc:
-        print(f"embed-gc: {exc}", file=sys.stderr)
-        return 2
+    from helpers.maintenance.maint_timing import RunTimer, active
+
+    if args.retire_model:
+        mode = f"retire:{args.retire_model}" + ("" if args.apply else ":dry-run")
+    else:
+        mode = "apply" if args.apply else "report"
+    timer = RunTimer("gc_embed_cache", mode=mode)
+    with active(timer):
+        try:
+            if args.retire_model:
+                out = retire(args.retire_model, args.source, apply=args.apply)
+                print(retire_summary(out), file=sys.stderr)
+                if args.apply:
+                    return timer.finish(0, retire_summary(out).split("\n")[0][:500])
+                return timer.finish(
+                    1 if out["total"] else 0, retire_summary(out).split("\n")[0][:500]
+                )
+            out = gc(apply=args.apply)
+        except RuntimeError as exc:
+            print(f"embed-gc: {exc}", file=sys.stderr)
+            return timer.finish(2, f"embed-gc: {exc}"[:500])
     print(summary(out), file=sys.stderr)
     if args.apply:
-        return 0
-    return 1 if out["dead"] else 0
+        return timer.finish(0, summary(out).split("\n")[0][:500])
+    return timer.finish(1 if out["dead"] else 0, summary(out).split("\n")[0][:500])
 
 
 if __name__ == "__main__":

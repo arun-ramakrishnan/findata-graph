@@ -19,6 +19,7 @@ Legs (default six, `--legs all` adds the stateless structure tools):
     memory  harness-memory pools zcode/prime/opencode (memory_query core)
     convo   harvested past-session corpus pointers (convo_query backend)
     gates   gate-run reports (the search_tui reports lane)
+    maint   maintenance timing runs (maint_runs/phases: cmd/phase/summary match)
     code    ripwire --for= structure (stateless; --legs all)
     literal rg (stateless; --legs all)
 
@@ -78,11 +79,12 @@ _LEGS: dict[str, str] = {
     "convo": "convo",
     "gates": "reports",
     "reports": "reports",  # alias
+    "maint": "maint",
     "code": "code",
     "literal": "literal",
 }
 DEFAULT_LEGS = ("docs", "notes", "scripts", "memory", "convo", "gates")
-ALL_LEGS = ("docs", "notes", "scripts", "memory", "convo", "gates", "code", "literal")
+ALL_LEGS = ("docs", "notes", "scripts", "memory", "convo", "gates", "maint", "code", "literal")
 
 # Age-guard scope (S2): legs backed by a dedicated sidecar file whose
 # mtime is the index age. notes' file is the SHARED research.db — many
@@ -134,11 +136,97 @@ def parse_legs(spec: str) -> list[str]:
     for n in names:
         if n not in _LEGS:
             raise ValueError(
-                f"unknown leg {n!r} (known: {', '.join(DEFAULT_LEGS)}, code, literal, all)"
+                f"unknown leg {n!r} (known: {', '.join(DEFAULT_LEGS)}, maint, code, literal, all)"
             )
         if n not in legs:
             legs.append(n)
     return legs
+
+
+def _run_maint(query: str, limit: int) -> tuple[list, str]:
+    """The maint leg: match the query against the maintenance timing
+    corpus (maint_runs + maint_phases) and return recent matching runs
+    as Hits. Same-table backend as maint_query, in-process (no
+    subprocess): tokens AND-match across cmd/mode/target/summary/phase,
+    newest first. maint is self-writing — no refresh step exists, so the
+    leg is age-guard exempt like gates."""
+    import duckdb
+
+    db = _REPO_ROOT / "outputs" / "gate_runs.duckdb"
+    con = None
+    try:
+        con = duckdb.connect(str(db), read_only=True)
+    except Exception as exc:
+        return [], f"error: cannot open timing DB ({exc})"
+    try:
+        names = {r[0] for r in con.execute("SHOW TABLES").fetchall()}
+        if {"maint_runs", "maint_phases"} - names:
+            return [], "0 hits (no maint runs recorded yet)"
+        tokens = [t.lower() for t in query.split() if len(t) >= 2]
+        scores: dict = {}
+        for t in tokens:
+            like = f"%{t}%"
+            run_ids = {
+                r[0]
+                for r in con.execute(
+                    "SELECT maint_run_id FROM maint_runs WHERE LOWER(cmd) LIKE ?"
+                    " OR LOWER(mode) LIKE ? OR LOWER(target) LIKE ? OR LOWER(summary) LIKE ?",
+                    [like] * 4,
+                ).fetchall()
+            }
+            phase_ids = {
+                r[0]
+                for r in con.execute(
+                    "SELECT DISTINCT maint_run_id FROM maint_phases"
+                    " WHERE LOWER(phase) LIKE ? OR LOWER(extra) LIKE ?",
+                    [like, like],
+                ).fetchall()
+            }
+            for rid in run_ids | phase_ids:
+                scores[rid] = scores.get(rid, 0) + 1
+        # scored OR: runs matching more tokens first, then newest.
+        ranked = sorted(
+            scores,
+            key=lambda rid: (-scores[rid], -rid),
+        )
+        want = ranked if tokens else None
+        q = "SELECT maint_run_id, cmd, mode, target, started_at, elapsed_s, exit_code, summary FROM maint_runs"
+        if want is not None:
+            if not want:
+                return [], "0 hits"
+            by_id = {
+                r[0]: r
+                for r in con.execute(
+                    f"{q} WHERE maint_run_id IN ({','.join('?' * len(want))})", list(want)
+                ).fetchall()
+            }
+            rows = [by_id[rid] for rid in want if rid in by_id][:limit]
+        else:
+            rows = con.execute(q + " ORDER BY started_at DESC LIMIT ?", [limit]).fetchall()
+        hits = []
+        for i, (rid, cmd, mode, target, started, elapsed, code, summary) in enumerate(rows):
+            phases = con.execute(
+                "SELECT phase, elapsed_s FROM maint_phases WHERE maint_run_id = ? ORDER BY started_at",
+                [rid],
+            ).fetchall()
+            seg = " · ".join(f"{p} {s:.1f}s" for p, s in phases[:6])
+            tgt = f" [{target}]" if target else ""
+            hits.append(
+                Hit(
+                    path=f"maint:{rid}",
+                    line=None,
+                    title=f"{cmd} {mode}{tgt} {elapsed:.1f}s exit {code}",
+                    snippet=f"{seg} — {(summary or '')[:100]}",
+                    score=1.0 / (1 + i),
+                    kind="maint",
+                )
+            )
+        return hits, f"{len(hits)} hits"
+    except Exception as exc:  # noqa: BLE001  # one leg must not fail the fan-out
+        return [], f"error: {type(exc).__name__}: {exc}"
+    finally:
+        if con is not None:
+            con.close()
 
 
 def _leg_priority(leg: str) -> int:
@@ -193,6 +281,11 @@ def fan_out(
                     f"age guard (refresh: {_REFRESH_BY_LEG.get(leg, 'make search-fresh APPLY=1')})",
                 )
         try:
+            if leg == "maint":
+                # timing-corpus leg: local backend, not a search_tui lane
+                # (no shared vector needed — token match, no embedding).
+                hits, status = _run_maint(query, limit)
+                return leg, (hits, status)
             hits, status = runner(_LEGS[leg], query, limit, mode, query_vec=shared_vec)
             return leg, (hits, status)
         except Exception as exc:  # noqa: BLE001  # one leg must not fail the fan-out

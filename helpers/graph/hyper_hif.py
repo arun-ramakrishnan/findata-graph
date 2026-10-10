@@ -218,17 +218,26 @@ def _cli(argv: list[str] | None = None) -> int:
     p.add_argument("--json", default=None, help="also emit the transient JSON skin here")
     p.add_argument("--validate", action="store_true", help="round-trip validator")
     args = p.parse_args(argv)
+    from datetime import datetime
+
+    from helpers.maintenance.maint_timing import RunTimer
+
+    _timer = RunTimer("hyper_hif", mode="validate" if args.validate else "export")
     sources = [s.strip() for s in args.sources.split(",") if s.strip()]
+    _p0 = datetime.now()
     paths = write_hif_parquet(sources, args.out_dir, db_path=args.db_path)
+    _timer.record_phase("export", _p0, datetime.now(), extra=f"sources={len(sources)}")
     for fn, pth in paths.items():
         print(f"wrote {pth} ({pq.read_metadata(pth).num_rows} rows, zstd)")
     if args.json:
         jp = write_hif_json(args.out_dir, args.json)
         print(f"wrote JSON skin {jp} (transient — do not store)")
     if args.validate:
+        _v0 = datetime.now()
         stats = validate_hif_roundtrip(sources, args.out_dir, db_path=args.db_path)
+        _timer.record_phase("validate", _v0, datetime.now())
         print(f"validate OK: {stats}")
-    return 0
+    return _timer.finish(0, f"sources={','.join(sources)}")
 
 
 if __name__ == "__main__":  # pragma: no cover

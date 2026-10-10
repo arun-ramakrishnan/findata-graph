@@ -326,30 +326,39 @@ def run_rebuild_cli(argv: list[str] | None, spec: RebuildCliSpec) -> int:
     """
     args = build_rebuild_parser(spec).parse_args(argv)
 
-    if spec.resolve_db is not None:
-        db_path = spec.resolve_db(args.db)
-        if db_path is None:
-            return 1
-    else:
-        db_path = Path(args.db)
+    from helpers.maintenance.maint_timing import RunTimer, active
 
-    kwargs: dict = dict(write=not args.check, incremental=args.incremental)
-    if spec.swap_help is not None:
-        kwargs["swap"] = args.swap
-    if spec.handle_errors:
-        try:
+    mode = "check" if args.check else ("swap" if getattr(args, "swap", False) else "apply")
+    if getattr(args, "incremental", False) and not args.check:
+        mode += "+incremental"
+    timer = RunTimer(mode=mode)  # cmd defaults to the script stem
+    with active(timer):
+        if spec.resolve_db is not None:
+            db_path = spec.resolve_db(args.db)
+            if db_path is None:
+                return timer.finish(1, "db resolve failed")
+        else:
+            db_path = Path(args.db)
+
+        kwargs: dict = dict(write=not args.check, incremental=args.incremental)
+        if spec.swap_help is not None:
+            kwargs["swap"] = args.swap
+        if spec.handle_errors:
+            try:
+                stats = spec.rebuild_fn(db_path, **kwargs)
+            except Exception as exc:  # pragma: no cover - defensive
+                print(f"ERROR: {exc}", file=sys.stderr)
+                return timer.finish(1, f"ERROR: {exc}"[:500])
+        else:
             stats = spec.rebuild_fn(db_path, **kwargs)
-        except Exception as exc:  # pragma: no cover - defensive
-            print(f"ERROR: {exc}", file=sys.stderr)
-            return 1
-    else:
-        stats = spec.rebuild_fn(db_path, **kwargs)
 
-    print(spec.summary(stats), file=sys.stderr)
-    if not args.check:
-        print_rebuild_report(stats, migrated_msg=spec.migrated_msg)
-        return 0
-    return 1 if stats.get("index_stale") else 0
+        summary_line = spec.summary(stats)
+        print(summary_line, file=sys.stderr)
+        if not args.check:
+            print_rebuild_report(stats, migrated_msg=spec.migrated_msg)
+            return timer.finish(0, summary_line.split("\n")[0][:500])
+        stale = bool(stats.get("index_stale"))
+        return timer.finish(1 if stale else 0, summary_line.split("\n")[0][:500])
 
 
 def run_query_cli(argv: list[str] | None, spec: QueryCliSpec) -> int:

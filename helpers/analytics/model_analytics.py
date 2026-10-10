@@ -1737,6 +1737,11 @@ def main() -> None:
     con = duckdb.connect(str(args.db))
     con.execute(SCHEMA)
     load_ok = False
+    from helpers.maintenance.maint_timing import RunTimer
+
+    _timer = RunTimer(
+        "model_analytics", mode=f"load:{args.source}" if args.cmd == "load" else args.cmd
+    )
     try:
         if args.cmd == "load":
             # The family loaders (prime-rlm, opencode) read zai's rows at
@@ -1747,12 +1752,16 @@ def main() -> None:
             if args.source == "all":
                 api_first = [s for s in srcs if s == "zai"]
                 srcs = api_first + [s for s in srcs if s not in api_first]
+            _loaded_total = 0
             for s in srcs:
                 started = datetime.now(UTC)
                 # incremental: refresh only recent days unless --full
                 since = date.today() - timedelta(days=args.days) if not args.full else None
                 try:
+                    _p0 = datetime.now(UTC)
                     n = LOADERS[s](con, since)
+                    _loaded_total += n or 0
+                    _timer.record_phase(f"load:{s}", _p0, datetime.now(UTC), extra=f"rows={n}")
                     con.execute(
                         "INSERT INTO load_log VALUES (?, ?, ?, 'ok', ?)",
                         [s, started, n, f"since={since}"],
@@ -1778,6 +1787,8 @@ def main() -> None:
             )
     finally:
         con.close()
+    if args.cmd == "load":
+        _timer.finish(0, f"load:{args.source} rows={_loaded_total}")
     if args.cmd == "load" and load_ok:
         _refresh_backup(args.db)
 

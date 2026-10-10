@@ -827,8 +827,18 @@ def _migrate_zcode_models(corpus_root: Path) -> tuple[int, int]:
     return fixed_files, fixed_rows
 
 
-def harvest(check: bool = False, corpus_root: Path = CORPUS_ROOT, db: Path = INDEX_DB) -> dict:
-    """The S1 core: union all sources into the per-session parquet corpus."""
+def harvest(
+    check: bool = False,
+    corpus_root: Path = CORPUS_ROOT,
+    db: Path = INDEX_DB,
+    timer=None,
+) -> dict:
+    """The S1 core: union all sources into the per-session parquet corpus.
+
+    ``timer`` (a maint_timing.RunTimer, optional so tests keep calling
+    with kwargs) receives one phase per lane plus the flush, with
+    wall-clock start/end — the queryable record behind maint_query.
+    """
     t0 = time.perf_counter()
     store = Store(db, read_only=check)
     try:
@@ -850,12 +860,24 @@ def harvest(check: bool = False, corpus_root: Path = CORPUS_ROOT, db: Path = IND
             ("prime-rlm", _harvest_prime),
             ("zcode", _harvest_zcode),
         ):
-            t_lane = time.perf_counter()
-            lanes.append(fn(store, writer))
-            lane_seconds[name] = round(time.perf_counter() - t_lane, 2)
-        t_flush = time.perf_counter()
-        sessions = writer.flush()
-        lane_seconds["flush"] = round(time.perf_counter() - t_flush, 2)
+            if timer is not None:
+                with timer.phase(f"lane:{name}"):
+                    t_lane = time.perf_counter()
+                    lanes.append(fn(store, writer))
+                    lane_seconds[name] = round(time.perf_counter() - t_lane, 2)
+            else:
+                t_lane = time.perf_counter()
+                lanes.append(fn(store, writer))
+                lane_seconds[name] = round(time.perf_counter() - t_lane, 2)
+        if timer is not None:
+            with timer.phase("flush"):
+                t_flush = time.perf_counter()
+                sessions = writer.flush()
+                lane_seconds["flush"] = round(time.perf_counter() - t_flush, 2)
+        else:
+            t_flush = time.perf_counter()
+            sessions = writer.flush()
+            lane_seconds["flush"] = round(time.perf_counter() - t_flush, 2)
         store.commit()
         store.close()
         return {
@@ -892,16 +914,24 @@ def main(argv: list[str] | None = None) -> int:
             file=sys.stderr,
         )
         return 0
-    out = harvest(check=args.check, corpus_root=Path(args.corpus_root), db=Path(args.db))
+    from helpers.maintenance.maint_timing import RunTimer
+
+    timer = RunTimer("harvest_conversations", mode="check" if args.check else "apply")
+    out = harvest(
+        check=args.check,
+        corpus_root=Path(args.corpus_root),
+        db=Path(args.db),
+        timer=timer,
+    )
     if out["check"]:
         if out["index_stale"]:
             print("corpus state: STALE — sources drifted:", file=sys.stderr)
             for d in out["stale_new"][:15]:
                 print(f"  {d}", file=sys.stderr)
             print("refresh: make convo-fresh APPLY=1", file=sys.stderr)
-            return 1
+            return timer.finish(1, f"STALE sources={len(out['stale_new'])}")
         print("corpus state: FRESH", file=sys.stderr)
-        return 0
+        return timer.finish(0, "FRESH")
     print(out["lanes"], file=sys.stderr)
     per_lane = " ".join(f"{k}={v}s" for k, v in out["lane_seconds"].items())
     print(
@@ -910,7 +940,7 @@ def main(argv: list[str] | None = None) -> int:
         file=sys.stderr,
     )
     print(f"  lanes: {per_lane}", file=sys.stderr)
-    return 0
+    return timer.finish(0, f"sessions_written={out['sessions_written']}")
 
 
 if __name__ == "__main__":

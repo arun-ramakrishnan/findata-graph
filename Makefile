@@ -85,7 +85,7 @@ help:           ## Show available targets (alphabetical; entries generated from 
 > @echo "  lint-audit               Run ruff S/UP/C901 audits (security + modernization + complexity) — Bandit/Refurb/Radon equivs"
 > @echo "  live-invariants          Run ONLY the live-marked invariant tests (-m live, xdist -n auto; skip-safe on pristine clone)"
 > @echo "  llamacpp-build           Build the unified llama-server into models/llamacpp/bin (vendor/llamacpp recipe: pinned llama.cpp + qwen2vl patch — one binary serves embgemma :8732 AND teleocr :8731)"
-> @echo "  llamacpp-health          One-shot probe of both server legs: :8732 embgemma (embedding identity + 768d) and :8731 teleocr (model identity); exit 1 when any leg is down"
+> @echo "  llamacpp-health          One-shot probe of the always-on legs: :8732 embgemma (identity + 768d) and :8733 granite (identity + 384d); teleocr :8731 opt-in (health.py --ocr)"
 > @echo "  maint                    Routine maintenance: db_maint + snapshot + graph-rebuild (always-safe)"
 > @echo "  maint-full               Post-ingest re-derivation: PRE_FULL index refresh (sync-tags, note-search) + maint + TIER2_STEPS (sector gates, company-embeddings, doc-search, analytics, insights, events, re-snapshot)"
 > @echo "  md-lint                  Markdown lint via pinned markdownlint-cli2 — doc/ prose base + findata Tier-1 defect rules (qa-gated; needs Node, SKIP without; proposal: markdown_lint_adoption)"
@@ -211,20 +211,20 @@ refresh-chain:  ## D20 phase 3: post-refresh hook chain — exchanges → vigil 
 > $(if $(APPLY),.venv/bin/python3 helpers/maintenance/snapshot_db.py,@echo "dry-run: snapshot export skipped (APPLY=1 writes)")
 
 snapshot:       ## Refresh the versioned DB snapshot (+ HIF rider)
-> python3 helpers/maintenance/snapshot_db.py
+> MAINT_TARGET=snapshot python3 helpers/maintenance/snapshot_db.py
 > $(MAKE) --no-print-directory hif-export
 > @echo "✓ Snapshots refreshed (snapshots/parquet/ [git] + db-backup/*.zst [local] + snapshots/hif/ [git])"
 
 HIF_SOURCES ?= sector,sub_sector,group,jv
 hif-export:    ## Export the hypergraph in HIF (snapshots/hif/; SOURCES=..., OUT=... to override)
-> python3 helpers/graph/hyper_hif.py --sources $(HIF_SOURCES) --out-dir snapshots/hif
+> MAINT_TARGET=hif-export python3 helpers/graph/hyper_hif.py --sources $(HIF_SOURCES) --out-dir snapshots/hif
 > @echo "✓ HIF exported (hif_nodes/edges/incidences .parquet in snapshots/hif/; canonical per architecture.md §10)"
 
 snapshot-check: ## Verify the snapshot round-trips against the live DB
-> python3 helpers/maintenance/snapshot_db.py --check
+> MAINT_TARGET=snapshot-check python3 helpers/maintenance/snapshot_db.py --check
 
 snapshot-fresh: ## Generation-only snapshot freshness (fail fast on drift)
-> python3 helpers/maintenance/snapshot_db.py --quick
+> MAINT_TARGET=snapshot-fresh python3 helpers/maintenance/snapshot_db.py --quick
 
 snapshot-restore: ## Rebuild memory/ DBs from the git-tracked Parquet snapshot (clobbers live DBs)
 > python3 helpers/maintenance/snapshot_db.py --restore --force
@@ -360,7 +360,7 @@ memory-search-rebuild: ## Rebuild the harness-memory index (memory_search sideca
 > @echo "✓ memory_search index rebuilt (memory/memory_search.db; gate: make search-fresh / advisory)"
 
 convo-search-rebuild: ## Rebuild convo_search.duckdb via atomic swap (compacts the duckdb; graph-lane pattern)
-> python3 helpers/maintenance/rebuild_convo_search.py --swap
+> MAINT_TARGET=convo-search-rebuild python3 helpers/maintenance/rebuild_convo_search.py --swap
 > @echo "✓ convo_search rebuilt via atomic swap (memory/convo_search.duckdb)"
 
 convo-search-check: ## Report convo_search.duckdb file size vs payload (advisory; swap-rebuild candidate)
@@ -373,7 +373,7 @@ search-fresh:    ## Check ALL search indexes for staleness — doc/, script meta
 >   for s in rebuild_doc_search rebuild_script_search rebuild_note_search rebuild_memory_search; do \
 >     t0=$$(date +%s%3N); \
 >     echo "--- $$s $$extra"; \
->     python3 helpers/maintenance/$$s.py $$extra || rc=1; \
+>     MAINT_TARGET=search-fresh python3 helpers/maintenance/$$s.py $$extra || rc=1; \
 >     echo "    took $$(( $$(date +%s%3N) - t0 ))ms"; \
 >   done; \
 >   if [ $$rc -eq 0 ]; then echo "✓ all search indexes fresh (doc_search, script_search, note_search, memory_search)"; fi; \
@@ -392,11 +392,11 @@ convo-fresh:      ## Check conversation corpus+index freshness — harness sourc
 >   echo "convo-fresh: $(if $(APPLY),APPLY — harvesting+rebuilding,check) mode"; \
 >   t0=$$(date +%s%3N); \
 >   echo "--- harvest_conversations $(if $(APPLY),,--check)"; \
->   python3 helpers/maintenance/harvest_conversations.py $(if $(APPLY),,--check) || rc=1; \
+>   MAINT_TARGET=convo-fresh python3 helpers/maintenance/harvest_conversations.py $(if $(APPLY),,--check) || rc=1; \
 >   echo "    took $$(( $$(date +%s%3N) - t0 ))ms"; \
 >   t1=$$(date +%s%3N); \
 >   echo "--- rebuild_convo_search $(if $(APPLY),--incremental,--check)"; \
->   python3 helpers/maintenance/rebuild_convo_search.py $(if $(APPLY),--incremental,--check) || rc=1; \
+>   MAINT_TARGET=convo-fresh python3 helpers/maintenance/rebuild_convo_search.py $(if $(APPLY),--incremental,--check) || rc=1; \
 >   echo "    took $$(( $$(date +%s%3N) - t1 ))ms"; \
 >   if [ $$rc -eq 0 ]; then echo "✓ convo corpus+index fresh"; fi; \
 >   exit $$rc
@@ -405,10 +405,10 @@ analytics-fresh:  ## Analytics stores (agent_traces + model_usage) vs harness fr
 > @rc=0; \
 >   echo "analytics-fresh: $(if $(APPLY),APPLY — loading,check) mode"; \
 >   if [ -n "$(APPLY)" ]; then \
->     python3 helpers/analytics/model_analytics.py load all || rc=1; \
->     python3 helpers/analytics/agent_traces.py load all || rc=1; \
+>     MAINT_TARGET=analytics-fresh python3 helpers/analytics/model_analytics.py load all || rc=1; \
+>     MAINT_TARGET=analytics-fresh python3 helpers/analytics/agent_traces.py load all || rc=1; \
 >   fi; \
->   python3 helpers/misc/analytics_fresh.py || rc=1; \
+>   MAINT_TARGET=analytics-fresh python3 helpers/misc/analytics_fresh.py || rc=1; \
 >   if [ $$rc -eq 0 ]; then echo "✓ analytics stores fresh"; fi; \
 >   exit $$rc
 
@@ -416,7 +416,7 @@ analytics-fresh:  ## Analytics stores (agent_traces + model_usage) vs harness fr
 llamacpp-build:  ## Build the unified llama-server into models/llamacpp/bin (vendor/llamacpp recipe: pinned llama.cpp + qwen2vl patch — one binary serves embgemma :8732 AND teleocr :8731)
 > @bash vendor/llamacpp/build.sh
 
-llamacpp-health:  ## One-shot probe of both server legs: :8732 embgemma (embedding identity + 768d) and :8731 teleocr (model identity); exit 1 when any leg is down
+llamacpp-health:  ## One-shot probe of the always-on legs (:8732 embgemma identity + 768d, :8733 granite identity + 384d); teleocr :8731 via health.py --ocr
 > @python3 vendor/llamacpp/health.py
 
 embgemma-server:  ## Start the EmbeddingGemma-2 llama-server (Q8_0 from models/) on 127.0.0.1:8732 — Ctrl-C to stop; gemma_embedder only ever assumes it is running (D3), never spawns it
@@ -445,8 +445,8 @@ teleocr-server:  ## Start the TeleOCR llama-server (Q4_K_M + mmproj q8_0 from mo
 
 embed-gc:       ## Evict dead rows from the shared embed cache (trial/spike leftovers); report-only + exit 1 when dead rows exist, APPLY=1 deletes + VACUUMs
 > @echo "embed-gc: $(if $(APPLY),APPLY — deleting dead cache rows,report) mode"; \
-> if [ -x .venv/bin/python3 ]; then .venv/bin/python3 helpers/maintenance/gc_embed_cache.py $(if $(APPLY),--apply,); \
-> else python3 helpers/maintenance/gc_embed_cache.py $(if $(APPLY),--apply,); fi
+> if [ -x .venv/bin/python3 ]; then MAINT_TARGET=embed-gc .venv/bin/python3 helpers/maintenance/gc_embed_cache.py $(if $(APPLY),--apply,); \
+> else MAINT_TARGET=embed-gc python3 helpers/maintenance/gc_embed_cache.py $(if $(APPLY),--apply,); fi
 
 
 search-tui:      ## Full-screen search front door — docs/scripts/notes/conversations indexes + ripwire + rg lanes; enter reads markdown via glow

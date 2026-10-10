@@ -1747,6 +1747,23 @@ def main(argv: list[str] | None = None) -> int:
     logging.basicConfig(level=log_level, format=LOG_FORMAT)
     logger = logging.getLogger("snapshot_db")
 
+    from datetime import datetime
+
+    from helpers.maintenance.maint_timing import RunTimer
+
+    _mode = (
+        "restore"
+        if args.restore
+        else "check"
+        if args.check
+        else "quick"
+        if args.quick
+        else "parquet_duckdb_only"
+        if args.parquet_duckdb_only
+        else "create"
+    )
+    _timer = RunTimer("snapshot_db", mode=_mode)
+
     root = REPO_ROOT
     db_path = Path(args.db)
     db_path = db_path if db_path.is_absolute() else root / db_path
@@ -1764,9 +1781,18 @@ def main(argv: list[str] | None = None) -> int:
     sources_path = sources_path if sources_path.is_absolute() else root / sources_path
     parquet_sources_dir = parquet_base / "sources"
 
+    def _timed(phase: str, fn, *a, **k):
+        _p0 = datetime.now()
+        try:
+            return fn(*a, **k)
+        finally:
+            _timer.record_phase(phase, _p0, datetime.now())
+
     try:
         if args.restore:
-            return _cmd_restore(
+            rc = _timed(
+                "restore",
+                _cmd_restore,
                 db_path,
                 duckdb_path,
                 parquet_sqlite_dir,
@@ -1778,8 +1804,11 @@ def main(argv: list[str] | None = None) -> int:
                 parquet_sources_dir=parquet_sources_dir,
                 with_sources=args.with_sources,
             )
+            return _timer.finish(rc, f"mode=restore rc={rc}")
         if args.check:
-            return _cmd_check(
+            rc = _timed(
+                "check",
+                _cmd_check,
                 out_path,
                 db_path,
                 duckdb_out,
@@ -1790,15 +1819,25 @@ def main(argv: list[str] | None = None) -> int:
                 sources_path=sources_path,
                 with_sources=args.with_sources,
             )
+            return _timer.finish(rc, f"mode=check rc={rc}")
         if args.quick:
-            return _cmd_quick(parquet_base, db_path, duckdb_path, logger)
+            rc = _timed("quick", _cmd_quick, parquet_base, db_path, duckdb_path, logger)
+            return _timer.finish(rc, f"mode=quick rc={rc}")
         if args.parquet_duckdb_only:
             if not duckdb_path.exists():
                 print(f"ERROR: {duckdb_path} not found", file=sys.stderr)
-                return 1
-            export_parquet_duckdb(duckdb_path, parquet_duckdb_dir, logger)
-            return 0
-        return _cmd_create(
+                return _timer.finish(1, "parquet_duckdb_only: duckdb missing")
+            _timed(
+                "export_duckdb_parquet",
+                export_parquet_duckdb,
+                duckdb_path,
+                parquet_duckdb_dir,
+                logger,
+            )
+            return _timer.finish(0, "mode=parquet_duckdb_only")
+        rc = _timed(
+            "create",
+            _cmd_create,
             db_path,
             out_path,
             duckdb_path,
@@ -1813,9 +1852,10 @@ def main(argv: list[str] | None = None) -> int:
             parquet_sources_dir=parquet_sources_dir,
             with_sources=args.with_sources,
         )
+        return _timer.finish(rc, f"mode=create rc={rc}")
     except Exception as e:  # pragma: no cover
         print(f"ERROR: {e}", file=sys.stderr)
-        return 1
+        return _timer.finish(1, f"ERROR: {e}"[:500])
 
 
 if __name__ == "__main__":
