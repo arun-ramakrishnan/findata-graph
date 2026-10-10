@@ -6,7 +6,7 @@ Renders PDF pages via `pymupdf` and OCRs them through a llama.cpp
 (Q4_K_M + mmproj-f16 vision encoder, both in `models/`). Trial evidence and
 the full write-up live in `doc/local/evaluations/local_pdf_engine_trial.md`
 (§Addendum "TeleOCR (NaviDC-OCR) GGUF trial on CPU") and
-`doc/improvements/proposals/teleocr_pdf_fallback.md`.
+`doc/improvements/archive/pipeline/teleocr_pdf_fallback.md`.
 
 Server contract (D3, assume-running): this engine owns NO process
 supervision. It requires a healthy llama-server on `127.0.0.1:8731`

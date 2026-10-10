@@ -215,8 +215,10 @@ class TestPromoteSidecarsEmission:
             assert len(captured) == 1
             e = captured[0]
             assert isinstance(e, Edge)
-            assert e.source == "Glenmark Pharma Nordic (SE)"
-            assert e.target == "AbbVie"
+            # S5/M3: symmetric types store the SORTED pair (canonical_pair),
+            # so the sidecar's as-written orientation canonicalizes on emit.
+            assert e.source == "AbbVie"
+            assert e.target == "Glenmark Pharma Nordic (SE)"
             assert e.edge_type == "jv_with"
             assert e.source_ref == "promote:sidecar:Glenmark_Pharma_Nordic_(SE)-jv_with-AbbVie.yaml"
             assert e.symmetric is True  # jv_with is symmetric

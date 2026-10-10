@@ -17,6 +17,8 @@ SKIP branch → the gate fails on a machine without memory/ DBs.
 
 from __future__ import annotations
 
+import re
+import sqlite3
 from pathlib import Path
 
 import pytest
@@ -50,6 +52,44 @@ class TestSchemaDrift:
             "`make schema-dump` and commit:\n  " + "\n  ".join(drift)
         )
 
+    def test_fts5_companion_tables_are_tracked(self):
+        """S7/M5 (range review): the shadow matcher is an engine-keyed
+        suffix allowlist — real house companion tables (<virtual>_meta/
+        _info/_mojo_doc/_ts_doc) must appear in the rendered DDL, not be
+        swallowed by the old `<virtual>_anything` prefix match. The drift
+        gate above re-renders the same generator, so only THIS assertion
+        can catch a matcher regression."""
+        expected_by_db = {
+            "script_search": (
+                "script_search_meta",
+                "script_search_info",
+                "script_search_mojo_doc",
+                "script_search_ts_doc",
+            ),
+            "doc_search": ("doc_search_meta", "doc_search_info"),
+            "memory_search": ("memory_search_meta", "memory_search_info"),
+            "research": ("note_search_meta",),
+        }
+        checked = 0
+        for path, engine in sd.source_dbs():
+            if engine != "sqlite" or path.stem not in expected_by_db:
+                continue
+            con = sqlite3.connect(f"file:{path}?mode=ro", uri=True)
+            present = {
+                r[0] for r in con.execute("SELECT name FROM sqlite_master WHERE type='table'")
+            }
+            con.close()
+            text = sd.sqlite_ddl(path)
+            for companion in expected_by_db[path.stem]:
+                if companion not in present:
+                    continue  # not a live table on this machine
+                checked += 1
+                assert re.search(rf"CREATE TABLE {companion}\b", text), (
+                    f"{companion} missing from the rendered DDL of {path} — the"
+                    " shadow matcher is swallowing a real house table again"
+                )
+        assert checked >= 8, f"only {checked} companion tables checked; expected the 9 live ones"
+
 
 class TestCheckOrphans:
     def test_orphan_tracked_file_reported(self, tmp_path):
@@ -61,6 +101,7 @@ class TestCheckOrphans:
         drift = sd.check(tmp_path)
         assert any("ghost.sql" in line and "orphan" in line for line in drift)
 
+    @pytest.mark.usefixtures("_live_dbs_present")
     def test_missing_file_reported(self, tmp_path):
         """Source present, tracked file absent — the 'forgot to dump' class."""
         sources = sd.source_dbs()

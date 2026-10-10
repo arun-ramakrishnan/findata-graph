@@ -7,7 +7,7 @@ responseId-less error record becomes a searchable error row instead of
 being skipped (S2); full-kind requests are preferred for the
 conversation and tail/delta fallbacks are marked partial in meta (S2).
 
-Proposal: doc/improvements/proposals/zcode_conversation_ingest_repair.md.
+Proposal: doc/improvements/archive/tooling/zcode_conversation_ingest_repair.md.
 """
 
 from __future__ import annotations

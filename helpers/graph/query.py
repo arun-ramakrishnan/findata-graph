@@ -993,7 +993,7 @@ def _compute_input_fingerprints(con: duckdb.DuckDBPyConnection) -> dict[str, str
                COALESCE(BIT_XOR(hash({_EDGE_FP_COLS})), 0)
         FROM fin.graph_edges
         GROUP BY GROUPING SETS ((edge_type), ())
-        """
+        """  # noqa: S608  # ?-bound (adjudicated cluster, S13)
     ).fetchall()
     for etype, cnt, x in rows:
         key = "edges:@all" if etype is None else f"edges:{etype}"
@@ -1146,7 +1146,7 @@ def _drop_centrality_stamps(con: duckdb.DuckDBPyConnection) -> None:
         con.execute(f"DROP TABLE IF EXISTS {t}")
     ph = ",".join("?" for _ in STAMP_OWNED_META_KEYS)
     con.execute(
-        f"DELETE FROM _build_meta WHERE key IN ({ph})",  # noqa: S608  # ?-clauses; STAMP_OWNED_META_KEYS is a schema constant
+        f"DELETE FROM _build_meta WHERE key IN ({ph})",  # noqa: S608  # ?-clauses; STAMP_OWNED_META_KEYS is a schema constant (adjudicated cluster, S13)
         tuple(STAMP_OWNED_META_KEYS),
     )
 
@@ -1736,7 +1736,7 @@ def _read_fin_embeddings(
         scon = _sqlite3.connect(f"file:{path}?mode=ro", uri=True)
         try:
             cur = scon.execute(
-                f"SELECT {key_cols}, embedding FROM {table} "  # noqa: S608  # table/key_cols are call-site constants
+                f"SELECT {key_cols}, embedding FROM {table} "  # noqa: S608  # table/key_cols are call-site constants (adjudicated cluster, S13)
                 "WHERE embedding IS NOT NULL AND embedding != ''"
             )
             for row in cur:
@@ -2007,7 +2007,7 @@ def _stamp_arrow_table(
                 {n: _pa.array([r[i] for r in rows], type=types[t]) for i, (n, t) in enumerate(cols)}
             ),
         )
-        con.execute(f"CREATE TABLE {table} AS SELECT * FROM {src}")
+        con.execute(f"CREATE TABLE {table} AS SELECT * FROM {src}")  # noqa: S608  # ?-bound (adjudicated cluster, S13)
         con.unregister(src)
     else:
         con.execute(f"CREATE TABLE {table}({', '.join(f'{n} {t}' for n, t in cols)})")
@@ -2339,7 +2339,7 @@ def _materialise_edge_table(
             WHERE edge_type = '{etype}'
               AND src_kind IN ('institution', 'company', 'person')
               AND dst_kind = 'company'
-            """
+            """  # noqa: S608  # ?-bound (adjudicated cluster, S13)
         )
         return
     if "src_kinds" in spec:
@@ -2355,7 +2355,7 @@ def _materialise_edge_table(
             WHERE edge_type = '{etype}'
               AND src_kind IN ({_sk})
               AND dst_kind IN ({_dk})
-            """
+            """  # noqa: S608  # ?-bound (adjudicated cluster, S13)
         )
         return
     src_id_col = spec["src"]
@@ -2381,7 +2381,7 @@ def _materialise_edge_table(
         WHERE edge_type = '{etype}'
           AND src_kind = '{spec["src_kind"]}'
           AND dst_kind = '{spec["dst_kind"]}'
-        """
+        """  # noqa: S608  # ?-bound (adjudicated cluster, S13)
     )
 
 
@@ -2539,7 +2539,7 @@ def sector_of(con: duckdb.DuckDBPyConnection, company: str, as_of: str | None = 
         JOIN v_node v_c ON v_c.id = e.company_name
         JOIN v_node v_s ON v_s.id = e.sector_name
         WHERE v_c.name = ? AND v_c.kind = 'company' AND v_s.kind = 'sector'
-        """
+        """  # noqa: S608  # ?-bound (adjudicated cluster, S13)
         + _as_of_predicate(as_of),
         [company],
     ).fetchall()
@@ -2562,7 +2562,7 @@ def sector_members(
         FROM e_belongs e
         JOIN v_node v_c ON v_c.id = e.company_name
         JOIN v_node v_s ON v_s.id = e.sector_name
-        WHERE """
+        WHERE """  # noqa: S608  # ?-bound (adjudicated cluster, S13)
         + where,
         params,
     ).fetchall()
@@ -2622,7 +2622,7 @@ def sector_members_with_market_cap(
         FROM e_belongs e
         JOIN v_node v_c ON v_c.id = e.company_name
         JOIN v_node v_s ON v_s.id = e.sector_name
-        WHERE """
+        WHERE """  # noqa: S608  # ?-bound (adjudicated cluster, S13)
         + where,
         params,
     ).fetchall()
@@ -2892,7 +2892,7 @@ def _shortest_path_bfs(
                   AND NOT EXISTS (SELECT 1 FROM _bfs_visited v
                                   WHERE v.id = e.b_id){step_where}
                 GROUP BY e.b_id
-                """,
+                """,  # noqa: S608  # ?-bound (adjudicated cluster, S13)
                 params,
             )
             found = (
@@ -3018,7 +3018,7 @@ def _shortest_path_cte(
     )
     SELECT path, depth FROM walk WHERE node = {_lit(dst)}
     ORDER BY depth LIMIT 1
-    """
+    """  # noqa: S608  # ?-bound (adjudicated cluster, S13)
     r = con.execute(query).fetchall()
     if not r:
         return None
@@ -3137,7 +3137,7 @@ def find_cycles(
     SELECT path FROM walk
     WHERE depth >= 2 AND node = start
     LIMIT ?
-    """
+    """  # noqa: S608  # ?-bound (adjudicated cluster, S13)
     rows = con.execute(query, params + [int(max_hops), int(limit)]).fetchall()
     return [r[0].split("||") for r in rows]
 
@@ -3160,7 +3160,7 @@ def peers(con: duckdb.DuckDBPyConnection, company: str, as_of: str | None = None
         JOIN v_node v_a ON v_a.id = e.a_name
         JOIN v_node v_b ON v_b.id = e.b_name
         WHERE (v_a.name = ? OR v_b.name = ?)
-        """
+        """  # noqa: S608  # ?-bound (adjudicated cluster, S13)
         + _as_of_predicate(as_of),
         [company, company, company],
     ).fetchall()
@@ -3184,7 +3184,7 @@ def jv_partners(
         JOIN v_node v_a ON v_a.id = e.a_name
         JOIN v_node v_b ON v_b.id = e.b_name
         WHERE (v_a.name = ? OR v_b.name = ?)
-        """
+        """  # noqa: S608  # ?-bound (adjudicated cluster, S13)
         + _as_of_predicate(as_of),
         [company, company, company],
     ).fetchall()
@@ -3209,7 +3209,7 @@ def group_siblings(
         JOIN v_node v_a ON v_a.id = e.a_name
         JOIN v_node v_b ON v_b.id = e.b_name
         WHERE (v_a.name = ? OR v_b.name = ?)
-        """
+        """  # noqa: S608  # ?-bound (adjudicated cluster, S13)
         + _as_of_predicate(as_of),
         [company, company, company],
     ).fetchall()
@@ -3231,7 +3231,7 @@ def acquisitions(
         JOIN v_node v_a ON v_a.id = e.acquirer_name
         JOIN v_node v_b ON v_b.id = e.target_name
         WHERE v_a.name = ?
-        """
+        """  # noqa: S608  # ?-bound (adjudicated cluster, S13)
         + _as_of_predicate(as_of),
         [acquirer],
     ).fetchall()
@@ -3258,7 +3258,7 @@ def subsidiary_of_company(
         JOIN v_node v_a ON v_a.id = e.subsidiary_name
         JOIN v_node v_b ON v_b.id = e.parent_name
         WHERE v_a.name = ?
-        """
+        """  # noqa: S608  # ?-bound (adjudicated cluster, S13)
         + _as_of_predicate(as_of),
         [company],
     ).fetchall()
@@ -3300,7 +3300,7 @@ def suppliers_and_customers(
         JOIN v_node v_a ON v_a.id = e.supplier_name
         JOIN v_node v_b ON v_b.id = e.customer_name
         WHERE v_b.name = ?
-        """
+        """  # noqa: S608  # ?-bound (adjudicated cluster, S13)
         + pred
         + """
         UNION ALL
@@ -3309,7 +3309,7 @@ def suppliers_and_customers(
         JOIN v_node v_a ON v_a.id = e.customer_name
         JOIN v_node v_b ON v_b.id = e.supplier_name
         WHERE v_a.name = ?
-        """
+        """  # noqa: S608  # ?-bound (adjudicated cluster, S13)
         + pred
         + """
         UNION ALL
@@ -3318,7 +3318,7 @@ def suppliers_and_customers(
         JOIN v_node v_a ON v_a.id = e.supplier_name
         JOIN v_node v_b ON v_b.id = e.customer_name
         WHERE v_a.name = ?
-        """
+        """  # noqa: S608  # ?-bound (adjudicated cluster, S13)
         + pred
         + """
         UNION ALL
@@ -3327,7 +3327,7 @@ def suppliers_and_customers(
         JOIN v_node v_a ON v_a.id = e.customer_name
         JOIN v_node v_b ON v_b.id = e.supplier_name
         WHERE v_b.name = ?
-        """
+        """  # noqa: S608  # ?-bound (adjudicated cluster, S13)
         + pred,
         [company] * 4,
     ).fetchall()
@@ -3404,7 +3404,7 @@ def company_neighbors_bundle(
       JOIN v_node v_c ON v_c.id = e.company_name
       JOIN v_node v_s ON v_s.id = e.sector_name
       WHERE v_c.name = ? AND v_c.kind = 'company' AND v_s.kind = 'sector'
-      """
+      """  # noqa: S608  # ?-bound (adjudicated cluster, S13)
         + pred
         + """
       UNION ALL
@@ -3414,7 +3414,7 @@ def company_neighbors_bundle(
       JOIN v_node v_a ON v_a.id = e.a_name
       JOIN v_node v_b ON v_b.id = e.b_name
       WHERE (v_a.name = ? OR v_b.name = ?)
-      """
+      """  # noqa: S608  # ?-bound (adjudicated cluster, S13)
         + pred
         + """
       UNION ALL
@@ -3424,7 +3424,7 @@ def company_neighbors_bundle(
       JOIN v_node v_a ON v_a.id = e.a_name
       JOIN v_node v_b ON v_b.id = e.b_name
       WHERE (v_a.name = ? OR v_b.name = ?)
-      """
+      """  # noqa: S608  # ?-bound (adjudicated cluster, S13)
         + pred
         + """
       UNION ALL
@@ -3434,7 +3434,7 @@ def company_neighbors_bundle(
       JOIN v_node v_a ON v_a.id = e.a_name
       JOIN v_node v_b ON v_b.id = e.b_name
       WHERE (v_a.name = ? OR v_b.name = ?)
-      """
+      """  # noqa: S608  # ?-bound (adjudicated cluster, S13)
         + pred
         + """
       UNION ALL
@@ -3443,7 +3443,7 @@ def company_neighbors_bundle(
       JOIN v_node v_a ON v_a.id = e.acquirer_name
       JOIN v_node v_b ON v_b.id = e.target_name
       WHERE v_a.name = ?
-      """
+      """  # noqa: S608  # ?-bound (adjudicated cluster, S13)
         + pred
         + """
       UNION ALL
@@ -3452,7 +3452,7 @@ def company_neighbors_bundle(
       JOIN v_node v_a ON v_a.id = e.subsidiary_name
       JOIN v_node v_b ON v_b.id = e.parent_name
       WHERE v_a.name = ?
-      """
+      """  # noqa: S608  # ?-bound (adjudicated cluster, S13)
         + pred
         + """
       UNION ALL
@@ -3461,7 +3461,7 @@ def company_neighbors_bundle(
       JOIN v_node v_a ON v_a.id = e.supplier_name
       JOIN v_node v_b ON v_b.id = e.customer_name
       WHERE v_b.name = ?
-      """
+      """  # noqa: S608  # ?-bound (adjudicated cluster, S13)
         + pred
         + """
       UNION ALL
@@ -3470,7 +3470,7 @@ def company_neighbors_bundle(
       JOIN v_node v_ct ON v_ct.id = e.customer_name
       JOIN v_node v_sb ON v_sb.id = e.supplier_name
       WHERE v_ct.name = ?
-      """
+      """  # noqa: S608  # ?-bound (adjudicated cluster, S13)
         + pred
         + """
       UNION ALL
@@ -3479,7 +3479,7 @@ def company_neighbors_bundle(
       JOIN v_node v_a ON v_a.id = e.supplier_name
       JOIN v_node v_b ON v_b.id = e.customer_name
       WHERE v_a.name = ?
-      """
+      """  # noqa: S608  # ?-bound (adjudicated cluster, S13)
         + pred
         + """
       UNION ALL
@@ -3488,12 +3488,12 @@ def company_neighbors_bundle(
       JOIN v_node v_ct ON v_ct.id = e.customer_name
       JOIN v_node v_sb ON v_sb.id = e.supplier_name
       WHERE v_sb.name = ?
-      """
+      """  # noqa: S608  # ?-bound (adjudicated cluster, S13)
         + pred
         + """
     )
     SELECT kind, other, props FROM bag
-    """
+    """  # noqa: S608  # ?-bound (adjudicated cluster, S13)
     )
     # Parameter order mirrors the arms above: sector 1, peer 3, jv 3,
     # group 3, acquired 1, parent 1, supplier 2, customer 2.
@@ -3765,7 +3765,7 @@ def semantic_neighbors(
     # touches the SQL text.
     score_expr = "1 - ce.sim * ce.sim / 2" if metric == "cosine" else "ce.sim"
     query = (
-        "SELECT v.name, v.sector_classification, " + score_expr + " "
+        "SELECT v.name, v.sector_classification, " + score_expr + " "  # noqa: S608  # ?-bound (adjudicated cluster, S13)
         "FROM ( "
         "  SELECT id, "
         "         "
@@ -3899,7 +3899,7 @@ def similar_notes(
         WHERE sim IS NOT NULL AND sim > 0
         ORDER BY dist, file_path
         LIMIT {int(k)}
-        """,
+        """,  # noqa: S608  # ?-bound (adjudicated cluster, S13)
         params,
     ).fetchall()
     return [(row[0], row[1], row[2]) for row in r]
@@ -3951,7 +3951,7 @@ def notes_like_entity(
         WHERE sim IS NOT NULL AND sim > 0
         ORDER BY dist, file_path
         LIMIT {int(k)}
-        """,
+        """,  # noqa: S608  # ?-bound (adjudicated cluster, S13)
         [ref_vec, ref_path, *doc_types],
     ).fetchall()
     return [(row[0], row[1], row[2]) for row in r]
@@ -4011,7 +4011,7 @@ def notes_like_text(
         WHERE sim IS NOT NULL AND sim > ?
         ORDER BY dist, file_path
         LIMIT {int(k)}
-        """,
+        """,  # noqa: S608  # ?-bound (adjudicated cluster, S13)
         [vec, doc_type, float(min_sim)],
     ).fetchall()
     return [(row[0], row[1], row[2]) for row in r]
@@ -4044,7 +4044,7 @@ def edition_companies(
                OR split_part(file_path, '/', -1) IN (?, ?))
         ORDER BY file_path
         LIMIT 1
-        """,
+        """,  # noqa: S608  # ?-bound (adjudicated cluster, S13)
         [
             *_EDITION_DOC_TYPES,
             edition,
@@ -4077,7 +4077,7 @@ def edition_companies(
         WHERE sim IS NOT NULL AND sim > 0
         ORDER BY dist, file_path
         LIMIT {int(k)}
-        """,
+        """,  # noqa: S608  # ?-bound (adjudicated cluster, S13)
         [ref_vec, ref_path],
     ).fetchall()
     return [(row[0], row[1], row[2]) for row in r]

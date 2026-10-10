@@ -28,4 +28,4 @@ stale_after: '2027-03-09'
 
 Chinese smartphone manufacturer headquartered in Dongguan (BBK Electronics group). Subject of a forthcoming joint venture (per binding term sheet) with Info Edge for local manufacturing.
 
-*Stub created 2026-07-20 as a graph endpoint for unresolved `extract_relations.py` mentions (item #11 in doc/improvements/pending_improvs.txt). Expand with full company commentary when primary research accumulates.*
+*Stub created 2026-07-20 as a graph endpoint for unresolved `extract_relations.py` mentions (item #11 in doc/improvements/archive/tooling/pending_improvs.md). Expand with full company commentary when primary research accumulates.*

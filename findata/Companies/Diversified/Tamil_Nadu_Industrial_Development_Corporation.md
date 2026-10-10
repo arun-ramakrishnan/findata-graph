@@ -28,4 +28,4 @@ stale_after: '2027-03-09'
 
 Government of Tamil Nadu undertaking (TIDCO), the state-level industrial promotion agency. Joint venture partner of the Tata Group via Titan Company Limited. Promotes large industrial projects.
 
-*Stub created 2026-07-20 as a graph endpoint for unresolved `extract_relations.py` mentions (item #11 in doc/improvements/pending_improvs.txt). Expand with full company commentary when primary research accumulates.*
+*Stub created 2026-07-20 as a graph endpoint for unresolved `extract_relations.py` mentions (item #11 in doc/improvements/archive/tooling/pending_improvs.md). Expand with full company commentary when primary research accumulates.*

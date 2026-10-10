@@ -30,7 +30,7 @@ stale_after: '2027-03-09'
 
 Japanese multinational manufacturer of tractors, agricultural machinery, and heavy equipment headquartered in Osaka (TSE: 6326). Parent of Escorts Kubota Limited following the 2022 rebranding from Escorts Limited.
 
-*Stub created 2026-07-20 as a graph endpoint for unresolved `extract_relations.py` mentions (item #11 in doc/improvements/pending_improvs.txt). Expand with full company commentary when primary research accumulates.*
+*Stub created 2026-07-20 as a graph endpoint for unresolved `extract_relations.py` mentions (item #11 in doc/improvements/archive/tooling/pending_improvs.md). Expand with full company commentary when primary research accumulates.*
 
 <!-- BEGIN auto company profile (enrich_from_yfinance.py) -->
 

@@ -21,7 +21,6 @@ import helpers.misc.review_selection as rs
 import pytest
 
 FP_TEXT = "diff-text-A\n"
-FP = "5ab2f84a6c4d3e91"  # not the real hash — asserted via recomputation below
 
 
 def _proc(stdout="", returncode=0, stderr=""):
@@ -34,6 +33,8 @@ def ledger(tmp_path, monkeypatch):
     path = tmp_path / "ledger.json"
     monkeypatch.setattr(rf, "LEDGER", path)
     monkeypatch.setattr(rf, "_diff_text", lambda stack: FP_TEXT)
+    # stack mode resolves SHAs for the diff-cache key (S11 perf): pin them
+    monkeypatch.setattr(rf, "_rev_sha", lambda ref: f"sha-{ref}")
     calls = []
 
     def fake_run(argv, **_kw):
@@ -66,6 +67,7 @@ class TestReviewFreshness:
     def test_content_change_goes_stale_same_scope(self, ledger, monkeypatch):
         rf.main(["--record"])
         monkeypatch.setattr(rf, "_diff_text", lambda stack: "diff-text-B\n")
+        rf._diff_cache_save({})  # moved HEAD ⇒ new SHAs ⇒ cache miss (in prod, SHAs pin content)
         state, row, scope = rf.status(1)
         assert row is not None
         assert state == "STALE" and scope == "HEAD~1..HEAD" and row["legs"] == ["delegation"]
@@ -241,3 +243,179 @@ class TestPrintFreshness:
         rs._print_freshness(1)  # advisory context — must not raise
         out = capsys.readouterr().out
         assert out == "review-freshness: unavailable (RuntimeError: ledger corrupt)\n"
+
+
+class TestFreshnessRangeMode:
+    """S11 (2026-10-11): landed --from/--to pairs are recordable — the
+    ledger keys the range's diff TEXT, so a re-run of an already-reviewed
+    range reads FRESH and the next scan can start from the last head.
+
+    Mutations: key the row on the SHA instead of the diff text and the
+    STALE case goes red (refreshed SHAs would look fresh); drop the
+    half-range guard and test_half_range_refuses goes red."""
+
+    RANGE_TEXT = "diff --git a/x.py b/x.py\n+range mode body\n"
+
+    @pytest.fixture(autouse=True)
+    def _range_ledger(self, ledger, monkeypatch):
+        # pair-dependent text: different ranges MUST hash differently, or the
+        # fp match would mask the SUBSUMED/UNREVIEWED containment paths
+        monkeypatch.setattr(
+            rf, "_diff_text_refs", lambda base, head: self.RANGE_TEXT + f"{base}..{head}\n"
+        )
+        monkeypatch.setattr(
+            rf,
+            "_rev_sha",
+            # multiple spellings resolve to the SAME commit — that identity is
+            # what the canonical scope label must preserve
+            lambda ref: {
+                "aaa111": "sha-aaa",
+                "aaa111111": "sha-aaa",
+                "bbb222": "sha-bbb",
+                "bbb222222": "sha-bbb",
+                "mid222": "sha-mid",
+                "ccc333": "sha-ccc",
+            }.get(ref, ref),
+        )
+
+    def test_record_then_fresh_roundtrip(self, capsys):
+        rf.main(["--from", "aaa111", "--to", "bbb222", "--record", "--note", "range review"])
+        rf.main(["--from", "aaa111", "--to", "bbb222"])
+        out = capsys.readouterr().out
+        assert "recorded sha-aaa..sha-bbb fp=" in out  # canonical scope from RESOLVED SHAs
+        assert "review-freshness" not in out  # rf.main prints state lines, not the prefix
+        assert "-> FRESH" in out
+
+    def test_content_change_reads_stale(self, capsys, monkeypatch):
+        rf.main(["--from", "aaa111", "--to", "bbb222", "--record"])
+        monkeypatch.setattr(rf, "_diff_text_refs", lambda base, head: self.RANGE_TEXT + "+more\n")
+        rf._diff_cache_save({})  # moved head ⇒ new SHAs ⇒ cache miss
+        rf.main(["--from", "aaa111", "--to", "bbb222"])
+        assert "-> STALE" in capsys.readouterr().out
+
+    def test_recorded_row_carries_null_stack(self, capsys):
+        rf.main(["--from", "aaa111", "--to", "bbb222", "--record"])
+        rows = rf._load()
+        assert rows[-1]["stack"] is None
+        assert rows[-1]["scope"] == "sha-aaa..sha-bbb"
+
+    def test_half_range_refuses(self, capsys):
+        with pytest.raises(SystemExit, match="go together"):
+            rf.main(["--from", "aaa111"])
+
+    def test_print_freshness_range_args(self, capsys):
+        rf.main(["--from", "aaa111", "--to", "bbb222", "--record"])
+        rs._print_freshness(1, range_args=("aaa111", "bbb222"))
+        out = capsys.readouterr().out
+        assert "review-freshness: FRESH" in out
+
+    def test_repeat_range_uses_diff_cache(self, monkeypatch):
+        """S11 perf (2026-10-11): the range diff is ~60s on a big landed
+        range, and identical SHAs provably mean identical diff text
+        (content-addressed) — so the fp is memoized by the resolved SHA
+        pair and a repeat lookup never recomputes. Mutation: remove the
+        cache lookup in _fingerprint_cached and the call-count assert goes
+        red (two computes)."""
+        calls = {"n": 0}
+        real_text = self.RANGE_TEXT
+
+        def counting_text(base, head):
+            calls["n"] += 1
+            return real_text
+
+        monkeypatch.setattr(rf, "_diff_text_refs", counting_text)
+        fp1, scope1 = rf.fingerprint_range("aaa111", "bbb222")
+        fp2, scope2 = rf.fingerprint_range("aaa111", "bbb222")
+        assert fp1 == fp2 and scope1 == scope2 == "sha-aaa..sha-bbb"
+        assert calls["n"] == 1, "second lookup must hit the SHA-pair cache"
+        cache = rf._diff_cache_load()
+        assert cache["sha-aaa:sha-bbb"]["fp"] == fp1
+
+    def test_ranged_row_records_base_and_head_shas(self):
+        rf.main(["--from", "aaa111", "--to", "bbb222", "--record"])
+        row = rf._load()[-1]
+        assert row["base_sha"] == "sha-aaa" and row["head_sha"] == "sha-bbb"
+
+    def test_subset_head_is_subsumed(self, monkeypatch, capsys):
+        """S11b: asking for 4fd..mid when 4fd..head was reviewed reports
+        SUBSUMED (same base, asked head an ancestor of the recorded head) —
+        not a lying UNREVIEWED. Mutation: drop the base_sha equality guard
+        and test_no_subsumption_across_different_base goes red; drop the
+        _is_ancestor call and both SUBSUMED tests go red."""
+        rf.main(["--from", "aaa111", "--to", "bbb222", "--record", "--note", "superset"])
+        monkeypatch.setattr(rf, "_is_ancestor", lambda asked, recorded: True)
+        state, row, scope = rf.status_range("aaa111", "mid222")
+        assert state == "SUBSUMED" and row["note"] == "superset"
+        assert scope == "sha-aaa..sha-mid"
+        rf.main(["--from", "aaa111", "--to", "mid222"])
+        out = capsys.readouterr().out
+        assert "-> SUBSUMED" in out
+        assert "contained in recorded range sha-aaa..sha-bbb" in out
+
+    def test_no_subsumption_when_not_ancestor(self, monkeypatch):
+        rf.main(["--from", "aaa111", "--to", "bbb222", "--record"])
+        monkeypatch.setattr(rf, "_is_ancestor", lambda asked, recorded: False)
+        assert rf.status_range("aaa111", "mid222")[0] == "UNREVIEWED"
+
+    def test_no_subsumption_across_different_base(self, monkeypatch):
+        rf.main(["--from", "aaa111", "--to", "bbb222", "--record"])
+        monkeypatch.setattr(rf, "_is_ancestor", lambda asked, recorded: True)
+        # same recorded head, but the asked base differs — containment over
+        # a different starting point is partial overlap, never SUBSUMED
+        assert rf.status_range("ccc333", "bbb222")[0] == "UNREVIEWED"
+
+    def test_scope_label_is_spelling_invariant(self):
+        """2026-10-11 bug: scope was built from the ARGUMENT spelling, so
+        `4fd3a20f..0805d829` and `4fd3a20f5..0805d829c` labelled the same
+        range differently and --show / STALE grouping missed rows. The
+        label must come from RESOLVED SHAs. Mutation: revert to
+        `f"{base[:12]}..{head[:12]}"` and this goes red."""
+        fp1, scope1 = rf.fingerprint_range("aaa111", "bbb222")
+        fp2, scope2 = rf.fingerprint_range("aaa111111", "bbb222222")  # same SHAs, longer spelling
+        assert scope1 == scope2 == "sha-aaa..sha-bbb"
+        assert fp1 == fp2
+
+    def test_show_finds_rows_under_any_spelling(self, capsys):
+        rf.main(["--from", "aaa111", "--to", "bbb222", "--record"])
+        rf.main(["--from", "aaa111111", "--to", "bbb222222", "--show"])
+        out = capsys.readouterr().out
+        assert "no rows" not in out and '"scope": "sha-aaa..sha-bbb"' in out
+
+    def test_leg_without_record_refuses(self):
+        with pytest.raises(SystemExit, match="--leg only matters with --record"):
+            rf.main(["--from", "aaa111", "--to", "bbb222", "--leg", "delegation"])
+
+    def test_all_lists_every_record_newest_first(self, capsys):
+        """Operator ask 2026-10-11: --show is scope-scoped, so an old record
+        could go unnoticed for weeks. --all is the whole-ledger view.
+        Mutation: drop the reviewed_at sort key and the newest-first assert
+        goes red on this seeded order."""
+        rf._save(
+            [
+                {
+                    "scope": "old..range",
+                    "stack": None,
+                    "fingerprint": "fp-old",
+                    "reviewed_at": "2026-09-30T13:34:20+00:00",
+                    "legs": ["delegation"],
+                    "note": "historic leg",
+                },
+                {
+                    "scope": "sha-new..sha-head",
+                    "stack": None,
+                    "fingerprint": "fp-new",
+                    "reviewed_at": "2026-10-11T02:58:25+00:00",
+                    "legs": ["delegation", "scan"],
+                    "note": "recent leg",
+                },
+            ]
+        )
+        rf.main(["--all"])
+        out = capsys.readouterr().out
+        assert out.index("sha-new..sha-head") < out.index("old..range"), "newest first"
+        assert "2 record(s), newest first" in out
+        assert "recent leg" in out and "historic leg" in out
+
+    def test_all_refuses_recording_mixes(self):
+        with pytest.raises(SystemExit, match="whole-ledger view"):
+            rf.main(["--all", "--record"])

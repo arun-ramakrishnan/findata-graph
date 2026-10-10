@@ -10173,3 +10173,44 @@ that assumes a value; resource lifetimes across `try`/`finally` beyond the
 one `open()`; float equality and division assumptions; concurrency claims.
 Absence of a finding here is not absence of a defect — this remains the
 open surface in the 108 files.
+
+## 382. Range review 4fd3a20f..0805d829c — high/medium remediation slices
+
+The 2026-10-10 delegation+scan review of the 111-commit range (1,293 files;
+7 host lanes + native scan; 46 distinct findings after dedup) executed to
+completion in one arc — all 13 slices landed, low tier dispositioned 7 done
+/ 7 parked with per-row dispositions in the proposal table.
+
+BLOCKING/HIGH: S1 corpus-cache v3 persists `Note.text` (the warm-cache
+`maint --full` path would have wiped `entity_tags` — 7,351 rows armed;
+mutation-checked regression test); S2 relocated the two in-literal S608
+directives to the pinned closing-quotes shape with an executes-clean
+synthetic-db test; S3 fixed the noqa span walk (`1 + body.count` on a
+split list — later-line directives were silently unadjudicated), making
+later-line placement gate-adjudicable.
+
+MECHANISM: S9 selection boundary (rule.json includes `frontend/tests/**` +
+`vendor/llamacpp/health.py`, build.sh DECLARED excluded, `frontend/tests/`
+product family, §1 built-in-exclusion doc — live-accepted on 66d4de699, the
+commit whose frontend test traffic default_path dropped); S10 dirty-gate
+scope = worktree ∪ applied patches (`STATIC_CHECKS_DIRTY_SCOPE=worktree`
+escape); S11 freshness range recording + SUBSUMED + SHA-memoized fp; S13
+scan-leg suppressions (bandit `# nosec` / semgrep `# nosemgrep:` /
+shellcheck disable at the non-noise sites) + the query.py B608 cluster
+sweep (39 sites, closing-line placement — the first attempt annotated the
+opening lines and the span-walk gate caught all 22 mis-placements).
+
+BEHAVIORAL: S4 CSR swap-pattern writes + default-verified load + honest
+`--verify`; S5 symmetric-convention reconciliation (one home in
+`edge_conventions.py`; live-DB repair through house connect: 115 flag
+flips + 6 reversed-pair twins deleted, verified 0/0); S6 person_names
+word-boundary trust matching (1,150 silently misclassified names
+de-classified; stored types were already right); S7 schema_dump
+engine-keyed shadow allowlist (9 companion tables back on the tracked DDL
+surface); S8 probe-test deletion; S12 stale-path sweep (16 sites + the
+38-note findata stub repoint + archival checklist item 7).
+
+Low tier parked with per-row dispositions: L1/L2 duckdb lock discipline
+(next duckdb arc), L3 provider error messages, L5 announce dedupe, L10
+production-writer test design, L13 Paddle-remnant deletion, L16 desktop
+async (own slice + shakedown).

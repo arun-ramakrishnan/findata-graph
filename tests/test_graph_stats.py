@@ -226,3 +226,39 @@ class TestLongestChainsExact:
         d_exact = int(exact[0].split("diameter ")[1].split(" ")[0])
         assert d_exact >= d_capped, "exact diameter is an upper bound of the sample"
         assert d_exact == 59, "a 60-node path has diameter 59 when exact"
+
+
+# --------------------------------------------------------------------------- #
+# L7 (range review): _chain_dist_stats pinning — the chunked histogram is the  #
+# only guard on the sampled/exact stats contract.                              #
+# --------------------------------------------------------------------------- #
+def test_chain_dist_stats_exact_symmetric_halves_ties():
+    """Exact mode (symmetric square): the diagonal drops out, ordered
+    pairs halve to canonical a<b ties at the caller, and the median
+    replicates np.median over the >0 finite values."""
+    import numpy as np
+
+    dist = np.array([[0.0, 1.0, 3.0], [1.0, 0.0, 2.0], [3.0, 2.0, 0.0]])
+    diameter, median, ties, total = stats._chain_dist_stats(dist)
+    assert (diameter, median, ties, total) == (3, 2.0, 2, 6)
+    assert ties // 2 == 1, "the caller halves ordered ties for canonical a<b"
+    vals = dist[np.isfinite(dist) & (dist > 0)]
+    assert median == float(np.median(vals)) and total == int(vals.size)
+
+
+def test_chain_dist_stats_sampled_drops_self_distance_zeros():
+    """Sampled mode (L7): each sampled root contributes a self-distance 0
+    cell — they are NOT pairs and stay excluded from total/median. The
+    legacy materialized pass counted them (total inflated by n_roots);
+    the operator ruled zeros stay dropped (2026-10-11)."""
+    import numpy as np
+
+    # 2 sampled roots (rows 0 and 2 of a 3-node universe) -> zeros at
+    # (0,0) and (1,2)
+    dist = np.array([[0.0, 1.0, 3.0], [2.0, 0.0, 1.0]])
+    diameter, median, ties, total = stats._chain_dist_stats(dist)
+    assert (diameter, median, ties, total) == (3, 1.5, 1, 4)
+    vals = dist[np.isfinite(dist) & (dist > 0)]
+    assert median == float(np.median(vals)) and total == int(vals.size)
+    with_zero = dist[np.isfinite(dist)]
+    assert int(with_zero.size) == total + 2, "the two self-distance cells"

@@ -13,11 +13,23 @@ _TRUST_TOKENS = ("TRUST", "FAMILY OFFICE", "FAMILYOFFICE", "FO")
 _TOKEN_RE = re.compile(r"[A-Z0-9]+", re.IGNORECASE)
 
 
+def _matches_any_token(normalized: str, tokens: tuple[str, ...]) -> bool:
+    """Word-boundary token match (S6/M4, range review) — never substring.
+
+    The old `token in normalized` let the 2-letter family-office token
+    'FO' substring-match FOODS of India, FORTIS Healthcare and INFO EDGE,
+    classifying live companies as trusts so resolve_person matched them
+    against the wrong pool (sole caller:
+    shareholding_sync.apply_candidates).
+    """
+    return any(re.search(rf"\b{re.escape(token)}\b", normalized) for token in tokens)
+
+
 def classify_person_name(name: str) -> str:
     normalized = re.sub(r"[()\[\]{}]", " ", name.upper())
-    if any(token in normalized for token in _HUF_TOKENS):
+    if _matches_any_token(normalized, _HUF_TOKENS):
         return "huf"
-    if any(token in normalized for token in _TRUST_TOKENS):
+    if _matches_any_token(normalized, _TRUST_TOKENS):
         return "trust"
     return "person"
 

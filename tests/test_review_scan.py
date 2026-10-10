@@ -531,7 +531,13 @@ class TestMainSurface:
         assert rs.main(["--from", "HEAD~1"]) == 2
         assert "go together" in capsys.readouterr().err
 
-    def test_all_scanners_skipped_still_exits_zero(self, monkeypatch, capsys):
+    def test_all_scanners_skipped_still_exits_zero(self, monkeypatch, tmp_path, capsys):
+        # Hermeticity (found 2026-10-11: this test wrote a real
+        # outputs/reviews/review_scan_base..head_2921fb802328.md roster on
+        # every run — the digest of the literal "base..head" refs below —
+        # and it kept "reappearing" after cleanups). Redirect like the
+        # json-artifact sibling does.
+        monkeypatch.setattr(rs, "REVIEW_OUT_DIR", tmp_path / "reviews")
         monkeypatch.setattr(
             rs,
             "_git",
@@ -811,5 +817,67 @@ class TestS4RangeRefResolutionAndRosterDurability:
                 ]
             )
         assert exc.value.code == 2
-        assert "ROSTER NOT WRITTEN" in capsys.readouterr().err
-        assert "NO durable artifact" in capsys.readouterr().err or True
+        err = capsys.readouterr().err
+        assert "ROSTER NOT WRITTEN" in err
+        assert "NO durable artifact" in err
+
+
+class TestDeletionCensus:
+    """S9c deletion census (range_4fd3a20f_review_remediation): OCR selection
+    drops deleted files wholesale, so the scan leg must surface them itself.
+
+    Mutations: drop `--diff-filter=D` or the `== "D"` guard in
+    `_deleted_files` and test_parsed_rows goes red (modifications leak in);
+    remove the census block in `_print_report`/`_write_roster` and the
+    rendering tests go red; drop the `deletions=deletions` wiring in
+    `main` and the end-to-end shape changes but the units here stay green —
+    the CLI check in the proposal's acceptance criteria covers that seam.
+    """
+
+    def test_parsed_rows_d_and_only_d(self, monkeypatch):
+        monkeypatch.setattr(
+            rs,
+            "_git",
+            lambda argv: _fake_git(
+                "D\thelpers/pdf/pix2text_markdown.py\n"
+                "M\thelpers/pdf/pdf_conv_md.py\n"
+                "D\ttests/test_pix2text_markdown.py\n"
+            ),
+        )
+        got = rs._deleted_files("aaa", "bbb")
+        assert got == [
+            "helpers/pdf/pix2text_markdown.py",
+            "tests/test_pix2text_markdown.py",
+        ]
+
+    def test_report_prints_census_with_cap(self, capsys):
+        many = [f"d{i}/gone.py" for i in range(25)]
+        rs._print_report([], ["bandit: ran (0 kept on changed lines)"], deletions=many)
+        out = capsys.readouterr().out
+        assert "deletions: 25" in out
+        assert "review by hand" in out
+        assert out.count("  D d") == 20
+        assert "… +5 more" in out
+
+    def test_roster_carries_census_section(self, tmp_path, monkeypatch):
+        monkeypatch.setattr(rs, "REVIEW_OUT_DIR", tmp_path)
+        md = rs._write_roster(
+            "aaa11111",
+            "bbb22222",
+            [],
+            ["bandit: ran (0 kept on changed lines)"],
+            deletions=["helpers/pdf/pix2text_markdown.py"],
+        )
+        text = md.read_text(encoding="utf-8")
+        assert "deletions: 1" in text
+        assert "review by hand" in text
+        assert "  D helpers/pdf/pix2text_markdown.py" in text
+
+    def test_no_deletions_no_census_noise(self, tmp_path, monkeypatch, capsys):
+        monkeypatch.setattr(rs, "REVIEW_OUT_DIR", tmp_path)
+        rs._print_report([], ["bandit: ran (0 kept on changed lines)"], deletions=[])
+        assert "deletions:" not in capsys.readouterr().out
+        md = rs._write_roster(
+            "ccc33333", "ddd44444", [], ["bandit: ran (0 kept on changed lines)"], deletions=[]
+        )
+        assert "deletions:" not in md.read_text(encoding="utf-8")

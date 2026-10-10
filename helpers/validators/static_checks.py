@@ -210,11 +210,25 @@ def get_dirty_py_scope() -> set[Path] | None:
     ``doc/okf`` change says nothing about Python files) — only git
     failure degrades to full. Repo-wide: each leg applies its own root
     filter (helpers/ + app.py for the scans, whole repo for syntax).
+
+    S10 (range review): the scope is the dirty tree UNION the applied
+    stgit patch surface — a defect committed inside an applied patch was
+    permanently invisible on a clean worktree (the B3 noqa-in-literal
+    crash lived in a committed patch while every dirty-gated run came
+    back green). `_stack_files()` already had the surface. Set
+    `STATIC_CHECKS_DIRTY_SCOPE=worktree` to escape the union for a
+    one-off narrow run; a non-stgit checkout (no stack) behaves exactly
+    as before.
     """
     rels = _porcelain_rels()
     if rels is None:
         return None
-    return _scope_from_rels(rels, ".py", None)
+    scope = _scope_from_rels(rels, ".py", None)
+    if os.environ.get("STATIC_CHECKS_DIRTY_SCOPE") != "worktree":
+        stack = _stack_files()
+        if stack:
+            scope = (scope or set()) | {p for p in stack if p.suffix == ".py"}
+    return scope
 
 
 def get_dirty_js_scope() -> set[Path] | None:
@@ -1673,8 +1687,8 @@ def _noqa_inside_string_tokens(source: str) -> list[int]:
                 continue
             first = tok.start[0]
             body = tok.string.split("\n")
-            for off in range(1 + body.count("\n")):
-                if _NOQA_IN_LITERAL_RE.search(body[off] if off < len(body) else ""):
+            for off in range(len(body)):
+                if _NOQA_IN_LITERAL_RE.search(body[off]):
                     hits.append(first + off)
     except tokenize.TokenError, IndentationError, SyntaxError:
         return hits  # malformed segment: the syntax leg owns the report

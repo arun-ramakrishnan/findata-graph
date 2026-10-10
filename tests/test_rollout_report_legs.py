@@ -7,7 +7,7 @@ figures they extend are byte-identical with and without the step table,
 and the S3 invariants hold (token parity on the validation leg;
 aggregate legs byte-identical under a step load).
 
-Proposal: doc/improvements/proposals/zcode_rollout_step_ingest.md (S2+S3).
+Proposal: doc/improvements/archive/tooling/zcode_rollout_step_ingest.md (S2+S3).
 """
 
 from __future__ import annotations
@@ -109,7 +109,7 @@ def test_compaction_and_step_errors(tmp_path: Path) -> None:
 
 
 STEP_TOKEN_COLS = (
-    "(source, request_id, session_id, turn_id, model, status, finish_reason,"  # noqa: S105  # column-list constant, not a credential
+    "(source, request_id, session_id, turn_id, model, status, finish_reason,"  # noqa: S105  # nosec B105  # column-list constant, not a credential
     " input, output, cache_read, total_tokens, messages_kind, error_name, day)"
 )
 LOAD_LOG_ROW = (

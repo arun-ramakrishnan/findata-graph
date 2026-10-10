@@ -646,11 +646,11 @@ def local_latency(
 
     stats: dict[str, dict] = {}
     for day, calls, errs in con.execute(
-        f"""SELECT {DAY},  # noqa: S608  # DAY is the module constant at :624; values are ?-bound via params
+        f"""SELECT {DAY},
                   SUM(json_extract(part.data,'$.type')='tool'),
                   SUM(json_extract(part.data,'$.type')='tool'
                       AND json_extract(part.data,'$.state.status')!='completed')
-           {join}{where} GROUP BY 1""",
+           {join}{where} GROUP BY 1""",  # noqa: S608  # DAY is the module constant at :624; values are ?-bound via params
         params,
     ):
         stats.setdefault(day, {})
@@ -663,12 +663,12 @@ def local_latency(
     # time_to_first_token_ms; OpenCode has no equivalent). Step latency is real.
     buckets: dict[str, list] = {}
     for day, started, finished in con.execute(
-        f"""SELECT {DAY},  # noqa: S608  # DAY is the module constant at :624; values are ?-bound via params
+        f"""SELECT {DAY},
                   MIN(CASE WHEN json_extract(part.data,'$.type')='step-start'
                            THEN part.time_created END),
                   MAX(CASE WHEN json_extract(part.data,'$.type')='step-finish'
                            THEN part.time_updated END)
-           {join}{where} GROUP BY part.message_id, 1""",
+           {join}{where} GROUP BY part.message_id, 1""",  # noqa: S608  # DAY is the module constant at :624; values are ?-bound via params
         params,
     ):
         if started is None or finished is None:

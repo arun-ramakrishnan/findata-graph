@@ -324,12 +324,14 @@ stamp-centrality: ## Re-stamp v_centrality_* tables on the warm cache (lane-serv
 > @echo "✓ Centrality cache stamped (v_centrality_* tables warm; lane-served metrics skipped)"
 
 csr:             ## Build the CSR substrate (memory/csr/; shortest-path fast lane)
+> .venv/bin/python3 helpers/graph/csr.py --db memory/research.db --out memory/csr
 > .venv/bin/python3 helpers/graph/csr.py --db memory/research.db --out memory/csr --verify
 
 csr-check:       ## Check CSR substrate freshness (exit 1 if stale; also run by make advisory)
 > .venv/bin/python3 helpers/graph/csr.py --db memory/research.db --out memory/csr --check
 
 csr-rebuild:     ## Rebuild the CSR substrate regardless of freshness
+> .venv/bin/python3 helpers/graph/csr.py --db memory/research.db --out memory/csr
 > .venv/bin/python3 helpers/graph/csr.py --db memory/research.db --out memory/csr --verify
 
 near-duplicates: ## Report near-duplicate note pairs above cosine 0.9 (rename tripwire; READ-ONLY — triage by hand, remediation is user-held)

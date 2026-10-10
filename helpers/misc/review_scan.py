@@ -38,6 +38,7 @@ import sys
 import tempfile
 import urllib.error
 import urllib.request
+from collections.abc import Sequence
 from dataclasses import asdict, dataclass
 from pathlib import Path
 
@@ -254,6 +255,22 @@ def _content_at(head: str, path: str) -> list[str] | None:
     if proc.returncode != 0:
         return None
     return proc.stdout.splitlines()
+
+
+def _deleted_files(base: str, head: str) -> list[str]:
+    """Paths the range DELETES (git name-status, D rows only).
+
+    OCR selection drops deleted files wholesale (exclude_reason "deleted")
+    and the scanner groups require head-content (`p in tree`), so without
+    this census a removal — a whole feature cut, a retired engine — is
+    invisible to both legs and to the durable roster. The census makes
+    "review the deletions by hand" an explicit host duty
+    (proposal range_4fd3a20f_review_remediation S9c). Runs after the main
+    range diff has already succeeded, so no failure handling: a broken
+    git never reaches here."""
+    proc = _git(["diff", "--name-status", "--diff-filter=D", f"{base}..{head}"])
+    rows = [ln.split("\t", 1) for ln in proc.stdout.splitlines() if "\t" in ln]
+    return [path for status, path in rows if status.strip() == "D" and path]
 
 
 def _materialize_at(head: str, files: list[str]) -> dict[str, str]:
@@ -964,11 +981,27 @@ def _uncovered_legs(statuses: list[str]) -> list[str]:
     return uncovered
 
 
-def _print_report(findings: list[Finding], statuses: list[str]) -> None:
+def _print_deletions(deletions: Sequence[str]) -> None:
+    """The deletion census block (S9c): scanners cannot see deleted
+    content, so the roster lists it for hand review (20-path cap)."""
+    print(
+        f"\ndeletions: {len(deletions)} — scanners cannot see deleted content; review by hand:"
+    )
+    for path in deletions[:20]:
+        print(f"  D {path}")
+    if len(deletions) > 20:
+        print(f"  … +{len(deletions) - 20} more")
+
+
+def _print_report(
+    findings: list[Finding], statuses: list[str], deletions: Sequence[str] = ()
+) -> None:
     """Stdout roster: per-scanner status lines, then one line per finding
     (or the clean bill). Always exit-0 territory — advisory only."""
     for status in statuses:
         print(f"  {status}")
+    if deletions:
+        _print_deletions(deletions)
     uncovered = _uncovered_legs(statuses)
     if findings:
         findings.sort(key=Finding.sort_key)
@@ -992,7 +1025,13 @@ def _print_report(findings: list[Finding], statuses: list[str]) -> None:
             print(f"  {leg}")
 
 
-def _write_roster(base: str, head: str, findings: list[Finding], statuses: list[str]) -> Path:
+def _write_roster(
+    base: str,
+    head: str,
+    findings: list[Finding],
+    statuses: list[str],
+    deletions: Sequence[str] = (),
+) -> Path:
     """Durable roster under outputs/reviews/ (digest-keyed per range).
 
     Review OUTPUT home (operator ruling 2026-10-09: the roster is the
@@ -1003,19 +1042,21 @@ def _write_roster(base: str, head: str, findings: list[Finding], statuses: list[
     digest = hashlib.sha256(f"{base}..{head}".encode()).hexdigest()[:12]
     REVIEW_OUT_DIR.mkdir(parents=True, exist_ok=True)
     md_path = REVIEW_OUT_DIR / f"review_scan_{base[:8]}..{head[:8]}_{digest}.md"
-    md_path.write_text(
-        "\n".join(
-            [
-                f"# review-scan {base}..{head}",
-                "",
-                *(f"  {s}" for s in statuses),
-                "",
-                *(f"  {f.roster_line()}" for f in sorted(findings, key=Finding.sort_key)),
-                "",
-            ]
-        ),
-        encoding="utf-8",
-    )
+    body = [f"# review-scan {base}..{head}", "", *(f"  {s}" for s in statuses)]
+    if deletions:
+        body += [
+            "",
+            f"deletions: {len(deletions)} — OCR cannot select deleted files; review by hand:",
+            *(f"  D {p}" for p in deletions[:20]),
+        ]
+        if len(deletions) > 20:
+            body.append(f"  … +{len(deletions) - 20} more")
+    body += [
+        "",
+        *(f"  {f.roster_line()}" for f in sorted(findings, key=Finding.sort_key)),
+        "",
+    ]
+    md_path.write_text("\n".join(body), encoding="utf-8")
     return md_path
 
 
@@ -1044,6 +1085,16 @@ def main(argv: list[str] | None = None) -> int:
     print(f"native scan {base}..{head}: {len(changed)} changed files")
     if not changed:
         return 0
+    deletions = _deleted_files(base, head)
+    # S11: freshness for the landed pair, keyed on the range's diff text —
+    # a re-run of an already-reviewed range reads FRESH (procedure §1b's
+    # stack-scoped gap, closed 2026-10-11). Context only, never a failure.
+    try:
+        from helpers.misc.review_selection import _print_freshness
+
+        _print_freshness(1, range_args=(base, head))
+    except (Exception, SystemExit) as e:  # noqa: BLE001
+        print(f"review-freshness: unavailable ({type(e).__name__}: {e})")
 
     head_sha = _git(["rev-parse", head]).stdout.strip()
     cur_sha = _git(["rev-parse", "HEAD"]).stdout.strip()
@@ -1082,7 +1133,7 @@ def main(argv: list[str] | None = None) -> int:
         )
         findings, statuses = _run_enabled_legs(legs, enabled, args.offline)
 
-    _print_report(findings, statuses)
+    _print_report(findings, statuses, deletions=deletions)
 
     # The durable roster is the deliverable (operator ruling 2026-10-09), so a
     # failure to write it must NOT pass as a clean run: a caller that only
@@ -1090,7 +1141,7 @@ def main(argv: list[str] | None = None) -> int:
     # Print it prominently and exit non-zero — the findings themselves stay
     # advisory and exit-0, but "I could not record your verdict" is an error.
     try:
-        md_path = _write_roster(base, head, findings, statuses)
+        md_path = _write_roster(base, head, findings, statuses, deletions=deletions)
     except OSError as e:
         print(
             f"\nROSTER NOT WRITTEN ({type(e).__name__}: {e}) — the findings above are "

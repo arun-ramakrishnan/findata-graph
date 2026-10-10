@@ -39,7 +39,7 @@ sources:
 
 American multinational consumer products company headquartered in New York (NYSE: CL). Parent of Colgate-Palmolive (India) Limited. Brands include Colgate, Palmolive, Speed Stick, Softsoap, Hill's.
 
-*Stub created 2026-07-20 as a graph endpoint for unresolved `extract_relations.py` mentions (item #11 in doc/improvements/pending_improvs.txt). Expand with full company commentary when primary research accumulates.*
+*Stub created 2026-07-20 as a graph endpoint for unresolved `extract_relations.py` mentions (item #11 in doc/improvements/archive/tooling/pending_improvs.md). Expand with full company commentary when primary research accumulates.*
 
 <!-- BEGIN auto company profile (enrich_from_yfinance.py) -->
 

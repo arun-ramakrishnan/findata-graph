@@ -58,6 +58,7 @@ wait_healthy() {  # $1=port, $2=deadline seconds
 
 do_status() {
     for spec in "${LEGS_MAIN[@]}" "$LEG_TELEOCR"; do
+        # shellcheck disable=SC2086  # deliberate: split the "target port" spec
         set -- $spec
         local target=$1 port=$2
         local pids
@@ -99,6 +100,7 @@ do_stop() {
 do_start() {  # $@ = list of "target port" specs
     local spec target port held
     for spec in "$@"; do
+        # shellcheck disable=SC2086  # deliberate: split the "target port" spec
         set -- $spec
         target=$1 port=$2
         # Source of truth is the BOUND PORT, not the process table: after

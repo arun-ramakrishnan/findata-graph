@@ -205,7 +205,7 @@ def python_baseline(reps=1):
 
 # ---------------------------------------------------------------------------
 # FULL-port goldens (2026-08-30, proposal
-# doc/improvements/proposals/mojo_db_integrity_port.md): run the ORIGINAL
+# doc/improvements/archive/tooling/mojo_db_integrity_port.md): run the ORIGINAL
 # checker live and flatten every check result into canonical strings the
 # Mojo tool must reproduce exactly (three-way parity: mojo vs python-live
 # vs this canonical form). Data access in the tool is bridge-only; this

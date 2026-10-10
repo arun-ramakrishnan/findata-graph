@@ -338,7 +338,10 @@ def _load_baseline(
     prev = sys.modules.get(canonical)
     sys.modules[canonical] = module
     try:
-        exec(compile(proc.stdout, module.__file__, "exec"), module.__dict__)  # noqa: S102
+        # exec of THIS repo's own module source at a pinned ref (baseline side
+        # of the parity harness) — operator-owned input, not attacker-controlled;
+        # three-tool suppression: ruff S102 + bandit nosec + semgrep nosemgrep (L17).
+        exec(compile(proc.stdout, module.__file__, "exec"), module.__dict__)  # noqa: S102  # nosec B102  # nosemgrep: python.lang.security.audit.exec-detected.exec-detected
     except BaseException:
         # A half-initialized module must not stay registered under the REAL
         # import name — later imports would resolve to it and die confusingly.
@@ -363,7 +366,11 @@ def _load_baseline(
 def _worker(fixture: Fixture, side: str, ref: str) -> int:
     canonical = fixture.relpath.removesuffix(".py").replace("/", ".")
     if side == "live":
-        module = importlib.import_module(canonical)
+        # canonical is derived from the repo-internal fixture relpath — not
+        # attacker-controlled input (L17; bandit has no rule here, semgrep does)
+        module = importlib.import_module(
+            canonical
+        )  # nosemgrep: python.lang.security.audit.non-literal-import.non-literal-import
     else:
         module = _load_baseline(ref, fixture.relpath, canonical)
     sys.stdout.write(fixture.render(module))

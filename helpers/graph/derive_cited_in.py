@@ -61,6 +61,7 @@ if str(_REPO_ROOT) not in sys.path:
 
 from helpers.core.db import connect, utc_now  # noqa: E402
 from helpers.graph import derive_cli as dcli  # noqa: E402  # S6 shared CLI scaffold
+from helpers.graph.edge_conventions import SYMMETRIC_EDGE_TYPES  # noqa: E402  # S5/M3
 from helpers.core.edition_index import (  # noqa: E402
     CHROME_FILES,
     note_title,
@@ -379,7 +380,10 @@ def apply_edges(edges, *, conn=None, dry_run: bool = True) -> int:
     inserted = apply_typed_edges(
         edges,
         edge_type=EDGE_TYPE,
-        symmetric=0,
+        # S5/M3: derived from the one home (edge_conventions) instead of a
+        # bare pin — cited_in is directional, so this evaluates 0 today; if
+        # the shared convention ever changes, this follows it.
+        symmetric=int(EDGE_TYPE in SYMMETRIC_EDGE_TYPES),
         conn=conn,
         dry_run=dry_run,
     )

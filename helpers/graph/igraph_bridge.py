@@ -105,12 +105,15 @@ def _require_igraph():
     try:
         import igraph as ig
     except ImportError as exc:
+        # L8 (range review): the old message sent users to the retired
+        # /tmp/venv_igraph interpreter and claimed igraph must NOT go into
+        # .venv/pyproject -- both long dead: it is a declared dependency
+        # (pyproject.toml) and imports fine in .venv.
         raise ImportError(
-            "python-igraph is not installed in this interpreter. "
-            "Run igraph workloads with /tmp/venv_igraph/bin/python "
-            "(do NOT add igraph to .venv/pyproject yet; venv recreate "
-            "recipe: doc/improvements/proposals/"
-            "hybrid_graph_onager_igraph.md §3)."
+            "python-igraph is not installed in this interpreter. It is a "
+            "declared dependency (pyproject.toml) -- install with "
+            "`make install-dev` (uv sync). Background: doc/improvements/"
+            "archive/graph/hybrid_graph_onager_igraph.md."
         ) from exc
     return ig
 

@@ -243,6 +243,17 @@ commit, referenced by nothing). Entry numbers point at
 
 ## tooling/ — Tooling & performance — MCP eval, doc browser/search, perf review, tech survey
 
+- [`range_4fd3a20f_review_remediation.md`](tooling/range_4fd3a20f_review_remediation.md) —
+  range review 4fd3a20f..0805d829c remediation — all 13 slices executed:
+  S1 corpus-cache v3 (B1 blocker), S2/S3 in-literal noqa relocation +
+  span-walk fix, S4 CSR swap-pattern + honest verify, S5
+  symmetric-convention one-home + live-DB repair, S6 person_names
+  word-boundary trust matching, S7 schema_dump engine-keyed shadow
+  allowlist, S8 probe-test deletion, S9 selection boundary + deletion
+  census, S10 dirty-gate patch-union scope, S11 freshness range
+  recording, S12 stale-path sweep, S13 scan-leg suppressions + the
+  39-site B608 closing-line sweep; low tier 7 done / 7 parked with
+  per-row dispositions — completed.md #382
 - [`notes_gemma_adoption.md`](tooling/notes_gemma_adoption.md) —
   notes gemma adoption — the trial winner's shape live: edge-enriched
   lexical leg (ticker + edge_context, rare-first @ 900) + gemma

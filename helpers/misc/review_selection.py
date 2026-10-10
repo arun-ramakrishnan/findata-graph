@@ -44,7 +44,18 @@ REVIEW_OUT_DIR = REPO_ROOT / "outputs" / "reviews"
 # the mutation self-masking — remove "tests/" from the rule and the check
 # lost the family instead of firing. These are the product-critical roots
 # whose exclusion shipped defects (inert CSR lane; Mojo reviewed by hand).
-PRODUCT_FAMILIES = ("Mojo/src/", "Mojo/tests/", "tests/", "desktop/src-tauri/", "desktop/src-vue/")
+# S9 (range review): frontend/tests/ joins — OCR 1.12.11's built-in
+# default_path class silently dropped frontend/tests/guards.test.ts (a live
+# security test) from BOTH legs; the rule include now admits it and this
+# family keeps the admission honest.
+PRODUCT_FAMILIES = (
+    "Mojo/src/",
+    "Mojo/tests/",
+    "tests/",
+    "frontend/tests/",
+    "desktop/src-tauri/",
+    "desktop/src-vue/",
+)
 
 # Host-carried review conventions (ocr_selection_drift S3). OCR's
 # project-rules channel is inert — the `rules` key, a `rules/` dir file and
@@ -202,17 +213,21 @@ def _selection_teeth(
     return violations
 
 
-def _print_freshness(stack: int) -> None:
+def _print_freshness(stack: int, range_args: tuple[str, str] | None = None) -> None:
     """Review freshness (ocr_review_pipeline gap: was this diff already
     reviewed, and did it change since?). Advisory context only — a stale
-    or unreviewed verdict never fails the run."""
+    or unreviewed verdict never fails the run. `range_args` (S11) keys the
+    LEDGED pair by its landed diff text instead of HEAD~N..HEAD."""
     try:
         from helpers.misc import review_freshness as rf
 
-        state, row, _ = rf.status(stack)
+        state, row, _ = rf.status_range(*range_args) if range_args else rf.status(stack)
         line = f"review-freshness: {state}"
         if row is not None:
-            line += f" (reviewed {row['reviewed_at']} legs={row.get('legs')}"
+            if state == "SUBSUMED":
+                line += f" (contained in {row.get('scope')}, reviewed {row['reviewed_at']}"
+            else:
+                line += f" (reviewed {row['reviewed_at']} legs={row.get('legs')}"
             if row.get("note"):
                 line += f", {row['note']}"
             line += ")"
@@ -350,12 +365,9 @@ def _emit_selection(args, stack: int) -> int:
         return 1
     print("selection-teeth OK: every rule-covered family with diff traffic is visible")
     if args.from_ref is not None:
-        # The ledger fingerprints HEAD~N..HEAD only (procedure §1b — landed
-        # ranges cannot be recorded); say so rather than printing a lying row.
-        print(
-            "review-freshness: n/a (--from/--to mode; the ledger is stack-scoped — "
-            "doc/procedures/ocr_review.md §1b)"
-        )
+        # S11: the ledger fingerprints the LANDED pair's diff text, so a
+        # re-run of an already-reviewed range reads FRESH instead of n/a.
+        _print_freshness(stack, range_args=(args.from_ref, args.to_ref))
     elif args.commit is not None:
         # The ledger fingerprints HEAD~N..HEAD only (procedure §1b — landed
         # ranges cannot be recorded); say so rather than printing a lying row.

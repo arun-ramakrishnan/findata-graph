@@ -27,4 +27,4 @@ stale_after: '2027-03-09'
 
 Vietnamese conglomerate headquartered in Hanoi (HOSE: VIC). Parent of VinFast Auto (EVs), Vinhomes (real estate), Vinmec (healthcare). One of Vietnam's largest privately held conglomerates.
 
-*Stub created 2026-07-20 as a graph endpoint for unresolved `extract_relations.py` mentions (item #11 in doc/improvements/pending_improvs.txt). Expand with full company commentary when primary research accumulates.*
+*Stub created 2026-07-20 as a graph endpoint for unresolved `extract_relations.py` mentions (item #11 in doc/improvements/archive/tooling/pending_improvs.md). Expand with full company commentary when primary research accumulates.*

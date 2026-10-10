@@ -28,4 +28,4 @@ stale_after: '2027-03-09'
 
 German engineering services company. Acquired by Tata Technologies in 2026 for market access to the German automotive R&D ecosystem. Provides vehicle engineering and design services.
 
-*Stub created 2026-07-20 as a graph endpoint for unresolved `extract_relations.py` mentions (item #11 in doc/improvements/pending_improvs.txt). Expand with full company commentary when primary research accumulates.*
+*Stub created 2026-07-20 as a graph endpoint for unresolved `extract_relations.py` mentions (item #11 in doc/improvements/archive/tooling/pending_improvs.md). Expand with full company commentary when primary research accumulates.*

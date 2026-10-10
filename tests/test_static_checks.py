@@ -1702,6 +1702,29 @@ def test_noqa_inside_sql_literal_rejected(tmp_path, monkeypatch):
     assert "query text" in fatal[0]
 
 
+def test_noqa_on_later_line_of_multiline_literal_rejected(tmp_path, monkeypatch):
+    """B2 (range review): the span walk must reach EVERY line of a
+    multi-line literal. The old walk ran "1 + body.count(<newline>)" on the
+    already-split LIST — always 0 — so only line 1 was inspected and a
+    directive seeded on a later line was silently unadjudicated."""
+    _seed_py(
+        monkeypatch,
+        tmp_path,
+        "helpers/misc/bad_later_line.py",
+        "def rows(con):\n"
+        "    return con.execute(\n"
+        '        f"""SELECT a, b\n'
+        "            FROM t  # noqa: S608\n"
+        '            WHERE k = ?""",\n'
+        "        [],\n"
+        "    )\n",
+    )
+    fatal, advisory = sc.check_noqa_in_sql_literal()
+    assert advisory == []
+    assert len(fatal) == 1, fatal
+    assert "bad_later_line.py:4" in fatal[0]
+
+
 def test_noqa_between_concatenated_parts_is_a_real_comment(tmp_path, monkeypatch):
     """The §2.2 trap: a directive BETWEEN implicitly concatenated parts is a
     genuine COMMENT token, not literal text. ast.get_source_segment reports

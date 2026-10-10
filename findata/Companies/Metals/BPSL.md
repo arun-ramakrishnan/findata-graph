@@ -28,4 +28,4 @@ stale_after: '2027-03-09'
 
 Bhushan Power & Steel Limited (BPSL) — Indian integrated steel manufacturer. Acquired by JSW Steel in 2021 through the IBC (Insolvency and Bankruptcy Code) process and successfully turned around. Capacity expanded from 2.75mtpa to 4.5mtpa.
 
-*Stub created 2026-07-20 as a graph endpoint for unresolved `extract_relations.py` mentions (item #11 in doc/improvements/pending_improvs.txt). Expand with full company commentary when primary research accumulates.*
+*Stub created 2026-07-20 as a graph endpoint for unresolved `extract_relations.py` mentions (item #11 in doc/improvements/archive/tooling/pending_improvs.md). Expand with full company commentary when primary research accumulates.*

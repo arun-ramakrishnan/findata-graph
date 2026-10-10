@@ -28,4 +28,4 @@ stale_after: '2027-03-09'
 
 Nuclear Power Corporation of India Limited — government-owned corporation under the Department of Atomic Energy. Joint venture partner of NTPC Limited via ASHVINI (Atomic Energy + NTPC JV).
 
-*Stub created 2026-07-20 as a graph endpoint for unresolved `extract_relations.py` mentions (item #11 in doc/improvements/pending_improvs.txt). Expand with full company commentary when primary research accumulates.*
+*Stub created 2026-07-20 as a graph endpoint for unresolved `extract_relations.py` mentions (item #11 in doc/improvements/archive/tooling/pending_improvs.md). Expand with full company commentary when primary research accumulates.*

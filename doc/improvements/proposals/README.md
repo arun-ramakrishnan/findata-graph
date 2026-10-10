@@ -31,12 +31,21 @@ entry number and stale DONE pointers):
    + the executed date + the completed.md number — the Proposal
    lifecycle static check fails an archived proposal still saying
    `proposed` (corpus_uniformity S3).
+7. Reference-rot sweep: grep by proposal NAME, not by tracked path —
+   proposals are filed untracked, so path-based sweeps never see code
+   references (range review 4fd3a20f, H2; the 2026-10-11 sweep
+   repointed 16 dead sites).
 
 ## Current live proposals
 
-_(none)_ — every proposal filed here is executed and archived. The last
-three batches went out filed + executed + archived in one session
-(2026-10-10):
+_(none)_ — every proposal filed here is executed and archived. The
+range-review remediation (`range_4fd3a20f_review_remediation`, all 13
+slices + low-tier dispositions, completed.md #382) archived 2026-10-11.
+  Evidence in `doc/local/engineering/code_review.md`.
+
+_(none)_ besides the above — every other proposal filed here is executed
+and archived. The last three batches went out filed + executed + archived
+in one session (2026-10-10):
 
 - `checklist_leg_review` (completed.md #381) — the OCR checklist leg against
   the 108 reviewable Python files, swept by checklist group using the

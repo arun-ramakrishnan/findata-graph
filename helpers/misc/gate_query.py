@@ -490,7 +490,10 @@ def _junit_facts(
     if not (lo - timedelta(seconds=120) <= mtime <= hi + timedelta(seconds=300)):
         return None, []
     try:
-        root = ET.parse(junit).getroot()  # noqa: S314
+        # machine-local gate-run junit (operator-generated, not attacker input);
+        # defusedxml not a dep by design — three-tool suppression per the house
+        # noqa doctrine: ruff S314 + bandit nosec + semgrep nosemgrep (L15).
+        root = ET.parse(junit).getroot()  # noqa: S314  # nosec B314  # nosemgrep: python.lang.security.use-defused-xml-parse.use-defused-xml-parse
     except ET.ParseError, OSError:
         return None, []
     metadata = _test_metadata_by_node(junit, run_start, run_gen)
@@ -760,7 +763,9 @@ def _native_artifact_records(base: Path) -> list[dict]:  # noqa: C901
         fail_under = None
         try:
             if filename.endswith(".xml"):
-                root = ET.parse(path).getroot()  # noqa: S314
+                # coverage xml from this repo's own gate runs — same three-tool
+                # suppression as the junit leg above (L15)
+                root = ET.parse(path).getroot()  # noqa: S314  # nosec B314  # nosemgrep: python.lang.security.use-defused-xml-parse.use-defused-xml-parse
                 line_rate = float(root.get("line-rate", "0"))
                 branch_rate = float(root.get("branch-rate", "0"))
                 percent = line_rate * 100

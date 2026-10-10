@@ -9,12 +9,14 @@ that poisons those module names and still imports and calls the vendored
 client. The vendored bodies themselves are proven identical to the legacy
 originals by diff, not by tests (see the proposal Appendix).
 
-Proposal: doc/improvements/proposals/model_analytics_self_contained.md (S3).
+Proposal: doc/improvements/archive/tooling/model_analytics_self_contained.md (S3).
 """
 
 from __future__ import annotations
 
 import ast
+import json
+import sqlite3
 import subprocess
 import sys
 from pathlib import Path
@@ -75,3 +77,53 @@ def test_fresh_clone_simulation() -> None:
     )
     assert proc.returncode == 0, proc.stderr
     assert "fresh-clone ok" in proc.stdout
+
+
+def test_local_latency_executes_synthetic_db(tmp_path):
+    """S2 acceptance (range review B3): local_latency() must EXECUTE clean.
+
+    The S608 directives used to sit INSIDE the f-string SQL literals, so
+    the directive text itself reached sqlite (OperationalError:
+    unrecognized token). Against a synthetic part/message db the query now
+    runs and returns per-day stats; on the bug this test is red.
+    """
+    db = tmp_path / "zcode.sqlite"
+    con = sqlite3.connect(db)
+    con.executescript(
+        "CREATE TABLE message (id TEXT PRIMARY KEY, time_created INTEGER, data TEXT);\n"
+        "CREATE TABLE part (message_id TEXT, time_created INTEGER,"
+        " time_updated INTEGER, data TEXT);\n"
+    )
+    con.execute(
+        "INSERT INTO message VALUES (?, ?, ?)",
+        ("m1", 1700000000000, json.dumps({"providerID": "zai"})),
+    )
+    parts = [
+        ("m1", 1700000000000, None, json.dumps({"type": "text"})),
+        ("m1", 1700000000000, None, json.dumps({"type": "step-start"})),
+        (
+            "m1",
+            1700000002000,
+            1700000002000,
+            json.dumps({"type": "step-finish"}),
+        ),
+        (
+            "m1",
+            1700000003000,
+            None,
+            json.dumps({"type": "tool", "state": {"status": "completed"}}),
+        ),
+    ]
+    con.executemany("INSERT INTO part VALUES (?, ?, ?, ?)", parts)
+    con.commit()
+    con.close()
+
+    from helpers.analytics.model_analytics import local_latency
+
+    stats = local_latency(db, 1699999990000, 1700000090000)
+    assert stats, "local_latency returned no rows for a populated db"
+    (cell,) = stats.values()
+    assert cell["reqs"] == 1
+    assert cell["tool_calls"] == 1
+    assert cell["tool_errs"] == 0
+    assert cell["lat"] == 2.0

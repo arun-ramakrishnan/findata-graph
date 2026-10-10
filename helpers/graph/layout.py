@@ -49,13 +49,15 @@ ENGINE_PARAMS: dict[str, Any] = {
     "slow_down": 2.0,
     "seed": 42,
     # Sampled-anchor repulsion (layout_anchored_lift 2026-09-26): each node
-    # repels against a fixed seeded subset of M anchors instead of all n —
+    # repels against a seeded subset of M anchors instead of all n —
     # O(n*M) per iteration instead of O(n^2). Measured at 22,054 incident
     # nodes: 7.34 s/iter full (73 min/600) -> 0.134 s/iter at M=1024
     # (1.3 min/600); stress-vs-graph-distances parity with the full solve
-    # at 1.6k nodes (7.94M vs 7.90M, same pair set). Anchor set is fixed
-    # for the whole solve (sorted, seeded) — deterministic given the edge
-    # set, which is the sidecar's cross-visit stability contract.
+    # at 1.6k nodes (7.94M vs 7.90M, same pair set). Anchors are RESAMPLED
+    # per iteration (L6, range review: the old "fixed for the whole solve"
+    # comment was stale) — sorted+seeded, so the solve stays deterministic
+    # given the edge set, which is the sidecar's cross-visit stability
+    # contract.
     "anchor_samples": 1024,
 }
 
@@ -97,8 +99,8 @@ def compute_positions_fa2(  # noqa: C901  (fallback chain: cached → components
 ) -> dict[str, list[int]]:
     """Deterministic ForceAtlas2 positions for the whole-graph cloud.
 
-    Vectorized numpy, chunked repulsion against a fixed seeded ANCHOR
-    SUBSET (sampled-anchor FA2 — O(n*M) per iteration; layout_anchored_lift
+    Vectorized numpy, chunked repulsion against a per-iteration resampled
+    seeded ANCHOR SUBSET (sampled-anchor FA2 — O(n*M) per iteration; layout_anchored_lift
     2026-09-26; was full O(n^2), 73 min at 22k nodes, ceiling 8k), multigraph
     edges aggregated into pair weights, node radii from a sqrt-degree curve
     so hubs push neighbours apart (FA2 adjustSizes behaviour). Returns

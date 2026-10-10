@@ -12,6 +12,22 @@ def test_classification_separates_person_huf_and_trust():
     assert classify_person_name("Gandhi Family Trust") == "trust"
 
 
+def test_trust_token_requires_word_boundary():
+    """S6/M4 (range review): the 2-letter 'FO' family-office token used to
+    substring-match, so Foods of India, Fortis Healthcare and INFO EDGE all
+    classified as trusts and resolve_person matched them against the wrong
+    pool. Boundary matching keeps the abbreviation useful where it is real."""
+    assert classify_person_name("Foods of India Ltd") == "person"
+    assert classify_person_name("Fortis Healthcare") == "person"
+    assert classify_person_name("INFO EDGE") == "person"
+    assert classify_person_name("Gandhi Family Office") == "trust"
+    assert classify_person_name("Gandhi FO") == "trust"
+    assert classify_person_name("Gandhi Family Trust") == "trust"
+    # the HUF tokens get the same boundary discipline
+    assert classify_person_name("X HUF") == "huf"
+    assert classify_person_name("Hindu Undivided Family Traders") == "huf"
+
+
 def test_key_is_casefolded_and_token_sorted():
     assert person_name_key("Manoj B Gandhi") == person_name_key("GANDHI MANOJ B")
     assert person_name_key("Manoj B Gandhi") != person_name_key("Manoj Gandhi")

@@ -84,25 +84,46 @@ driven by `helpers/misc/review_freshness.py`:
 - The **fingerprint is the sha256 of the range's diff TEXT**, not the commit
   SHA: stgit refreshes mint new SHAs for identical content, and freshness is
   about content. Same diff after a refresh stays FRESH; any content change
-  goes STALE; no row → UNREVIEWED.
-- **After a review completes, `--record` it** (legs: `delegation` / `managed`,
-  repeatable; `--note` carries the verdict pointer, e.g. the code_review.md
-  section). Upsert by fingerprint — re-reviewing the same diff updates the
-  row instead of duplicating it.
+  goes STALE; no row → UNREVIEWED. A subrange of a recorded range (same
+  base, asked head an ancestor of the recorded head) reports **SUBSUMED**
+  with the containing review — S11b, 2026-10-11; ranged rows carry
+  `base_sha`/`head_sha` and the fp is memoized by resolved SHA pair
+  (`review-freshness.diffcache.json`), so repeat lookups skip the ~60s
+  range diff entirely (measured 61.7s → 0.076s on the 1293-file range).
+- **After a review completes, `--record` it** (legs: `delegation` — the
+  host-agent pass; `managed` — OCR's paid LLM pass, only when one ran;
+  `scan` — the native scanner leg; repeatable. Record ONLY the legs that
+  actually ran — the upsert unions legs across records, so a leg recorded
+  by mistake must be corrected in the row, not re-recorded; `--note`
+  carries the verdict pointer, e.g. the code_review.md section). Upsert
+  by fingerprint — re-reviewing the same diff updates the row instead of
+  duplicating it.
 - Verified 2026-09-29: record ⇒ FRESH; perturbed fingerprint ⇒ STALE ("the
   stack changed since it was reviewed"); empty ledger ⇒ UNREVIEWED.
 
-**Landed ranges cannot be recorded — the tool is stack-scoped (gap,
-measured 2026-09-30).** `review_freshness.py --stack N` fingerprints
-`HEAD~N..HEAD` only; a landed range like `8711c96d..a363d12a` has no
-applied stack, `--stack 0` raises by design, and `--stack 1` would
-fingerprint the wrong diff (e.g. a snapshots-only commit). Three of the
-nine bake-off rounds independently hit this and correctly declined to
-record rather than write a false row. Interim rule: **never `--stack N` a
-landed range** — hand-compute the fingerprint (sha256 of
-`git diff X..Y` text, first 16) and note the verdict pointer in the
-review report; a `--from/--to` mode is deferred
-(`../archive/tooling/ocr_rule_census.md` S7).
+**Landed ranges ARE recordable (S11, 2026-10-11 — the 2026-09-30 gap is
+closed).** `review_freshness.py --from X --to Y` fingerprints the LANDED
+pair's diff text (sha256[:16], `--no-renames` so the hash is a function of
+content, not of local `diff.renames` config), upserts by fingerprint, and
+carries `base_sha`/`head_sha` so a subrange of a recorded superset reports
+**SUBSUMED** instead of a lying UNREVIEWED. The fp is memoized by resolved
+SHA pair (`review-freshness.diffcache.json`) — repeat lookups skip the
+range diff entirely (measured 61.7s → 0.076s on a 1293-file range; the
+diff generation itself is ~60s regardless of `--diff-algorithm`, and
+`git range-diff` is a two-range compare, not a fingerprint). Scope
+labels are CANONICAL — built from resolved SHAs, so any argument
+spelling of the same pair (`4fd3a20f..0805d829` = `4fd3a20f5..0805d829c`)
+reads, shows, and STALE-groups the same row (bug found 2026-10-11 when
+`--show` missed a row recorded under a longer spelling); `--leg`
+without `--record` is refused, not silently ignored. `--show` is
+scope-scoped — **`--all` lists every completion record, newest first**
+(the visibility view: finding the last scanned head for a resume, or
+noticing a range was already reviewed, starts there). The old
+interim rule (hand-compute the fp; never `--stack N` a landed range) is
+RETIRED — `--stack N` a landed range is still wrong, but you no longer
+need to: use `--from/--to`. Commit mode (`--commit`) still prints no
+freshness line; the ledger row for it can be written with the pair
+`<parent>..<commit>` if wanted.
 
 **`convo-fresh` is structurally stale during any live agent session** — not a
 regression, and not a gate leg (neither qa nor advisory runs it). The opencode
@@ -117,9 +138,26 @@ that reports it *outside* a live session is a real finding.
 
 **Workspace mode is empty on a refreshed stack:** bare `$OCR delegate preview` diffs the working tree, and a refreshed stack has a clean tree. Not a bug — pass a ref.
 
-**`--commit` mode reviews any single ref, and prints no freshness line.** The leg's `--commit` (also `make review-patch COMMIT=<sha>`) resolves inside OCR, so range-ish values (`HEAD~2`) pass through verbatim; it is mutually exclusive with `--stack` (both together is an error, never a silently-ignored flag). The freshness ledger fingerprints `HEAD~N..HEAD` only, so commit mode prints `review-freshness: n/a` rather than a lying row — the landed-range recording gap above still stands.
+**`--commit` mode reviews any single ref, and prints no freshness line.** The leg's `--commit` (also `make review-patch COMMIT=<sha>`) resolves inside OCR, so range-ish values (`HEAD~2`) pass through verbatim; it is mutually exclusive with `--stack` (both together is an error, never a silently-ignored flag). The freshness line in this mode is absent rather than lying; to record a commit's verdict, address the ledger with its pair (`--from <parent> --to <commit>`).
 
-**`--from/--to` mode (2026-10-09, `review_scan_followups`) is the encoding for a landed, non-HEAD-relative pair** — `--stack` is always `HEAD~N..HEAD` and `--commit` is one ref, so a pair like `4fd3a20f..bda590995` is otherwise unencodable. At the make level: `make review-patch FROM=<base> TO=<head>` / `make review-scan FROM=<base> TO=<head>`; `FROM` without `TO` aborts in the Makefile macro (`REVIEW_RANGE_ARGS`) rather than reaching argparse as a dangling half-range, and `FROM`/`TO` outrank `COMMIT`/`STACK` when several are set. Both helpers reject the mixed combinations (exit 2, "specify one of --stack, --commit or --from/--to") and a half range (exit 2, "go together"). Like commit mode it prints `review-freshness: n/a` — the ledger still records `HEAD~N..HEAD` only.
+**`--from/--to` mode (2026-10-09, `review_scan_followups`) is the encoding for a landed, non-HEAD-relative pair** — `--stack` is always `HEAD~N..HEAD` and `--commit` is one ref, so a pair like `4fd3a20f..bda590995` is otherwise unencodable. At the make level: `make review-patch FROM=<base> TO=<head>` / `make review-scan FROM=<base> TO=<head>`; `FROM` without `TO` aborts in the Makefile macro (`REVIEW_RANGE_ARGS`) rather than reaching argparse as a dangling half-range, and `FROM`/`TO` outrank `COMMIT`/`STACK` when several are set. Both helpers reject the mixed combinations (exit 2, "specify one of --stack, --commit or --from/--to") and a half range (exit 2, "go together"). Since S11 both helpers PRINT the freshness line in range mode, and the ledger records it.
+
+**Recipes** (full CLI surface in the `review_freshness.py` docstring; the loop-relevant three):
+
+    # resume — X..Y reviewed, HEAD moved: review only the new leg
+    Y=$(git rev-parse --short <last-scanned-head>)   # find it: review_freshness.py --all
+    H=$(git rev-parse --short HEAD)
+    review_freshness.py --from $Y --to $H            # UNREVIEWED = new work; SUBSUMED = inside reviewed history
+    make review-scan FROM=$Y TO=$H
+    review_freshness.py --from $Y --to $H --record --leg scan --note "verdict pointer"
+
+    # close a review (runbook 6c): record ONLY the legs that ran
+    review_freshness.py --from X --to Y --record --leg delegation --leg scan --note "code_review.md §…"
+
+    # visibility: every completion record, newest first (--show is scope-scoped)
+    review_freshness.py --all
+
+Pin resolved SHAs (`git rev-parse --short`) rather than a literal `HEAD` — the fingerprint keys resolved SHAs either way, but the ledger labels then name real commits.
 
 ## 2. Grounding — brief from the indexes, not from memory
 
@@ -139,7 +177,9 @@ Three rules that decide whether the brief works:
 
 Rules come back grouped by content and annotated with the files each group applies to. Honour OCR's own guidance: favour precision over recall, treat security and correctness as blocking, stay silent when context is unclear — a false alarm costs more reviewer trust than a missed minor issue.
 
-**Where the house rules live** (census 2026-09-30, `../archive/tooling/ocr_rule_census.md` — OCR carries none of them; the host is the carrier):
+**Built-in exclusion classes (S9, range review 2026-10-11)** — OCR 1.12.11 silently drops diff traffic through three classes that live in its own code, NOT in `rule.json`: `deleted` (deleted files never roster — the deletion census in `review_scan.py` exists for this), `provider_directory` (first-party `vendor/llamacpp/**`: `health.py` is re-admitted via a `rule.json` include, `build.sh` stays out of scope — DECLARED as an explicit `rule.json` exclude so its invisibility is recorded, not accidental), and `default_path` (extension-gated defaults that dropped `frontend/tests/guards.test.ts`, a live security test — re-admitted via `frontend/tests/**` include + the `frontend/tests/` product family in the selection teeth). **Re-derive duty:** after any OCR upgrade, re-derive the classes from a `delegate preview` payload — `excluded_files` + `exclude_reason` at the bottom of the JSON are where they live, not `rule.json` — and re-check the include list and the `PRODUCT_FAMILIES` teeth against them.
+
+**Where the house rules live** (census 2026-09-30, `../improvements/archive/tooling/ocr_rule_census.md` — OCR carries none of them; the host is the carrier):
 
 | Carrier | What it owns |
 |---|---|
@@ -359,6 +399,32 @@ To persist it instead: `ocr config set providers.z-ai-coding.api_key "$ZKEY"`.
 
 Per §4 and §4b: verify against source, mutate anything about a test, drop what `make qa` already flags, rank severity, say what you dropped. Advisory — the operator accepts.
 
+### 6a. Host fan-out — the lane concurrency factor
+
+When the host review fans out over subagent lanes (multi-area ranges),
+launch **at most 2 lanes concurrently** and stagger the next wave only as
+a slot frees; process finished lanes one at a time. Operator ruling
+2026-10-10, measured on the 111-commit range review: a 7-lane simultaneous
+burst got 4 lanes killed at launch (~1.9 s `Model request failed` — the
+provider refuses bursts of new agent sessions) and one relaunched lane
+still died twice mid-run before its third attempt stuck; every wave of 2
+launched clean. The failures are clean (no garbage output), so a burst
+looks like a fully-staffed run with lanes silently missing — check
+launch notifications before reviewing. Scratch discipline for the same
+run: `${TMPDIR:-/mnt/data/tmp}` explicitly (a launch shell with `TMPDIR`
+unset dropped make logs into `/tmp`).
+
+Scan-leg completion shape (same run): `make review-scan` needs
+**~3–4 min** on a 440-file range (semgrep dominates; user+sys ≈ 5 min of
+CPU) — a foreground invocation through a 2-minute tool timeout dies
+before the roster lands and reads as "failing time and again". Invoke
+detached (setsid + `.exit` marker per AGENTS.md backgrounding) or as the
+silent second half of `make review-patch`, then poll. Completion criterion
+is the per-leg status lines, not exit 0 (always 0): every enabled leg
+must read `ran (…)` / `no matching files` — anything else (`failed`,
+`skipped`) is an uncovered leg and the run is NOT complete.
+`OFFLINE=1` drops semgrep+osv for a quick roster, not a full scan.
+
 ### 6b. Validity sweep (when more than one leg ran)
 
 The §4b checks as commands. Do these **before** ranking severity — a finding that dies here never reaches the report:
@@ -366,7 +432,6 @@ The §4b checks as commands. Do these **before** ranking severity — a finding 
     # 1. dedup + arithmetic: raw − both − false = distinct real
     # 2. execute claims you did not verify:
     .venv/bin/python3 -c "import helpers.validators.static_checks"
-
     # 3. re-verify at HEAD, and record the SHA:
     git rev-parse --short HEAD
 
@@ -379,6 +444,27 @@ The §4b checks as commands. Do these **before** ranking severity — a finding 
 
     # 5. proposal + index line in the same patch
     # 6. evidence → doc/local/engineering/code_review.md
+
+### 6c. Record the completion row (the loop's last mandatory act)
+
+A review that leaves no freshness row did not close — the next session
+re-pays the whole range. Immediately after triage (6b) and BEFORE apply
+(7), record what ran:
+
+    # landed pair (the common case for a completed range):
+    review_freshness.py --from X --to Y --record \
+        --leg delegation --leg scan --note "<verdict pointer: code_review.md §…>"
+
+    # stack mode (reviewing the applied stack):
+    review_freshness.py --stack N --record --leg delegation --note "…"
+
+Legs: `delegation` (host pass), `managed` (OCR's paid LLM pass — only if
+one ran), `scan` (native scanner leg). Record ONLY the legs that actually
+ran; the upsert unions legs, so a wrong leg is corrected in the row, not
+re-recorded. `--note` carries the verdict pointer. Re-running the same
+range afterwards (step 8's re-review) then reads FRESH, and the next leg
+starts at `--from <this head> --to <new head>` (UNREVIEWED = new work,
+SUBSUMED = inside an already-reviewed superset).
 
 ### 7. Apply what was accepted
 

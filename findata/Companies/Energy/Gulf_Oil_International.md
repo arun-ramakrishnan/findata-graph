@@ -28,4 +28,4 @@ stale_after: '2027-03-09'
 
 British lubricants company (part of the Hinduja Group). Parent of Gulf Oil Lubricants India Limited via Gulf Oil International (Mauritius). Distributes Gulf-branded lubricants globally.
 
-*Stub created 2026-07-20 as a graph endpoint for unresolved `extract_relations.py` mentions (item #11 in doc/improvements/pending_improvs.txt). Expand with full company commentary when primary research accumulates.*
+*Stub created 2026-07-20 as a graph endpoint for unresolved `extract_relations.py` mentions (item #11 in doc/improvements/archive/tooling/pending_improvs.md). Expand with full company commentary when primary research accumulates.*

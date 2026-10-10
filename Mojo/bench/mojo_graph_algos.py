@@ -1,7 +1,7 @@
 """Graph-algos + FTS access layer for the Mojo bridge bench.
 
 Phase 1 of the graph-algos port (proposal
-doc/improvements/proposals/mojo_graph_algos_port.md): the ORIGINAL python
+doc/improvements/archive/tooling/mojo_graph_algos_port.md): the ORIGINAL python
 modules are the engine; this fixture is the parity oracle + connection
 holder. The Mojo probe (Mojo/src/bench/graph_algos_probe.mojo) executes
 the SQL cases itself on these connections (repr-checksum parity vs the

@@ -5,7 +5,7 @@ Companion to model_analytics.py (spend accounting). That store answers "what
 did I spend"; this one answers "how do the agents actually behave": latency,
 TTFT, retries, error taxonomy, tool economics, agentic depth, per-turn
 attribution. Design + store decision: doc/local/engineering/capture_traces.md
-§5 (proposal: doc/improvements/proposals/agent_traces_store.md).
+§5 (proposal: doc/improvements/archive/tooling/agent_traces_store.md).
 
 REFRESH MODEL — same contract as model_analytics.py: `load <source>` REPLACES
 that source's rows in the refresh window (delete day >= since + reinsert),
@@ -2086,7 +2086,7 @@ def delegation_rows(con: duckdb.DuckDBPyConnection, spec: str) -> list[dict]:
 
 
 # ------------------------------------------- S1/S2/S3/S4/S6-S9 legs (2026-09-26)
-# Added by doc/improvements/proposals/trace_analyzer_legs.md: report legs over
+# Added by doc/improvements/archive/tooling/trace_analyzer_legs.md: report legs over
 # columns the store already loads. Two honesty rules ride along, both from the
 # proposal's review: never present a partial cost/token total as if it were the
 # whole, and never print a column that is structurally zero as if it were a

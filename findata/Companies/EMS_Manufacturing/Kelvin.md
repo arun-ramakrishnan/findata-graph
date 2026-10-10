@@ -28,7 +28,7 @@ stale_after: '2027-03-07'
 
 Indian HVAC solutions company. Acquired by Fabtech Technologies (now 51.3% owned) to fill a major capability gap, making Fabtech a full-scope cleanroom player.
 
-*Stub created 2026-07-20 as a graph endpoint for unresolved `extract_relations.py` mentions (item #11 in doc/improvements/pending_improvs.txt). Expand with full company commentary when primary research accumulates.*
+*Stub created 2026-07-20 as a graph endpoint for unresolved `extract_relations.py` mentions (item #11 in doc/improvements/archive/tooling/pending_improvs.md). Expand with full company commentary when primary research accumulates.*
 
 <!-- BEGIN auto key figures (derive_insights.py) -->
 

@@ -4,17 +4,11 @@
 - Toy 12n/16e parity vs tests/data/onager_toy_baseline.json (Onager numbers).
 - Full-graph smoke: 1648 nodes / 19261 edges, PR+Louvain+Leiden timing.
 
-Run with the isolated interpreter (igraph lives ONLY there)::
-
-    /tmp/venv_igraph/bin/python -m pytest tests/test_igraph_bridge.py -x -q
-
-(The in-tree command needs pyyaml + hypothesis + python-dotenv + numpy +
-duckdb in that interpreter — conftest/addopts need the first four; duckdb
-is imported at module level by ``helpers/graph/query.py``, which
-``--apply`` persistence reaches through ``algorithms.write_analytics``.
-Full recreate recipe: proposal §3.)
-
-igraph is NOT in .venv/pyproject — the module degrades to a skip there.
+igraph is a DECLARED dependency (pyproject.toml) and these tests run in
+.venv; they skip when the interpreter lacks it (importorskip below).
+(L8, range review 2026-10-11: the retired /tmp/venv_igraph isolation and
+the "not in .venv/pyproject" claims are gone — see
+helpers/graph/igraph_bridge.py::_require_igraph.)
 """
 
 from __future__ import annotations
@@ -26,7 +20,10 @@ from pathlib import Path
 
 import pytest
 
-ig = pytest.importorskip("igraph", reason="igraph only in /tmp/venv_igraph (pilot, not .venv)")
+ig = pytest.importorskip(
+    "igraph",
+    reason="igraph not installed in this interpreter (declared dependency: make install-dev)",
+)
 
 _PROJECT_ROOT = Path(__file__).resolve().parents[1]
 if str(_PROJECT_ROOT) not in sys.path:

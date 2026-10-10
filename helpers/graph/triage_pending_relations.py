@@ -52,6 +52,10 @@ if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
 from helpers.core.fuzzy_match import fuzzy_match  # noqa: E402
+from helpers.graph.edge_conventions import (  # noqa: E402
+    SYMMETRIC_EDGE_TYPES,
+    canonical_pair,
+)
 
 # Monkeypatchable paths (the VAULT_ROOT lesson — tests retarget all of them).
 SIDECAR = _REPO_ROOT / "findata" / "Misc" / "_pending_relations.txt"
@@ -95,15 +99,11 @@ _ACCEPT_EDGE_TYPES = frozenset(
 )
 # Stored canonicalised as ONE row with symmetric=1 (graph_design §4 — the
 # same set extract_relations writes with the flag).
-_SYMMETRIC_ACCEPT_TYPES = frozenset(
-    {
-        "jv_with",
-        "same_group",
-        "competes_with",
-        "co_mentioned_in",
-        "semantic_peer",
-    }
-)
+# S5/M3 (range review): one home — helpers/graph/edge_conventions.py. The
+# extractor's old 8-type set (which claimed directional invested_in /
+# exposed_to / cited_in were symmetric) is retired; the queue-hygiene test
+# pins the alias to the shared constant.
+_SYMMETRIC_ACCEPT_TYPES = SYMMETRIC_EDGE_TYPES
 _ACCEPT_SOURCE_REF = "triage:accept"
 
 # Deterministic noise classifiers (must stay in sync with the extractor's
@@ -783,8 +783,11 @@ def _parse_accept(d: dict, decision: str, entity_names: set[str]) -> dict | None
         properties["score"] = d["score"]
     if d.get("method"):
         properties["method"] = d["method"]
-    # Direction-aware (2026-09-05): symmetric types canonicalise downstream
-    # (no-op there).
+    # Direction-aware (2026-09-05). S5/M3: symmetric types are canonicalised
+    # at the write (canonical_pair in _write_accepted_edges) — the old
+    # "canonicalise downstream (no-op there)" claim was never true: the
+    # writer inserted as-written, which is how reversed-pair duplicates
+    # landed (6 found 2026-10-11).
     symmetric = edge_type in _SYMMETRIC_ACCEPT_TYPES
     return {
         "source": source,
@@ -957,6 +960,14 @@ def _write_accepted_edges(accepts: list[dict]) -> None:
         with conn:
             for a in accepts:
                 props = json.dumps(a["properties"], ensure_ascii=False, sort_keys=True)
+                # S5/M3: symmetric types store the SORTED pair so ('A','B')
+                # and ('B','A') collapse onto the UNIQUE row; directional
+                # types keep the literal direction.
+                src, tgt = (
+                    canonical_pair(a["source"], a["target"])
+                    if a["symmetric"]
+                    else (a["source"], a["target"])
+                )
                 try:
                     cur = conn.execute(
                         """
@@ -966,8 +977,8 @@ def _write_accepted_edges(accepts: list[dict]) -> None:
                         VALUES (?, ?, ?, ?, ?, ?, NULL)
                         """,
                         (
-                            a["source"],
-                            a["target"],
+                            src,
+                            tgt,
                             a["edge_type"],
                             props,
                             _ACCEPT_SOURCE_REF,

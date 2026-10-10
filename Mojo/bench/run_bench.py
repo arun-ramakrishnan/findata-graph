@@ -241,7 +241,7 @@ def _leg_db_integrity() -> tuple[float, bool, str]:
 def _leg_graph_algos() -> tuple[float, bool, str]:
     """The make graph-algos surface from Mojo via the ORIGINAL python
     modules (phase 1 of the graph-algos port — proposal
-    doc/improvements/proposals/mojo_graph_algos_port.md): the Onager
+    doc/improvements/archive/tooling/mojo_graph_algos_port.md): the Onager
     DuckDB community extension (temp-table materialisation + table
     functions incl. seed => 42 louvain), the sqlite ATTACH + vss
     extensions, the repo's full FTS5 surface (note_search / doc_search /

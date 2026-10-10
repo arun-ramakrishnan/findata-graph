@@ -13,6 +13,7 @@ caching, and the `src == dst` contract the SQL path pins.
 from __future__ import annotations
 
 import json
+import os
 import sqlite3
 import sys
 from pathlib import Path
@@ -119,6 +120,87 @@ def test_generation_drift_flips_fresh(csr_db: Path, tmp_path: Path):
 def test_missing_artifacts_degrade_open(tmp_path: Path):
     _m, _off, _nbr, _names, fresh = csr.load(tmp_path / "absent")
     assert fresh is False and _names == []
+
+
+# --------------------------------------------------------------------------- #
+# S4 — substrate hardening: swap writes + default-verified load + honest      #
+# --verify (range review 4fd3a20f, M1+M2)                                     #
+# --------------------------------------------------------------------------- #
+
+
+def test_interrupted_swap_never_serves_torn_state(csr_db: Path, tmp_path: Path, monkeypatch):
+    """M1: artifacts stage to tmp and os.replace with the manifest LAST, so a
+    kill mid-swap leaves new bins + old manifest that the (now default)
+    checksum check detects — torn state is never served as fresh. The db
+    generation is deliberately NOT bumped here so the checksum alone must
+    catch it."""
+    out = tmp_path / "csr"
+    csr.build(csr_db, out)
+    _m, _o, _n, _names, fresh0 = csr.load(out, db_path=csr_db)
+    assert fresh0 is True
+    # change the edge set WITHOUT bumping the generation: the interrupted
+    # rebuild's bins differ from what the old manifest checksums
+    con = sqlite3.connect(str(csr_db))
+    con.execute("INSERT INTO graph_edges VALUES ('e', 'a', 1.0)")
+    con.commit()
+    con.close()
+    real_replace = os.replace
+    calls = {"n": 0}
+
+    def flaky_replace(src, dst):
+        calls["n"] += 1
+        if calls["n"] == 1:
+            return real_replace(src, dst)  # offsets replaced, then "killed"
+        raise RuntimeError("killed mid-swap")
+
+    monkeypatch.setattr(csr.os, "replace", flaky_replace)
+    with pytest.raises(RuntimeError):
+        csr.build(csr_db, out)
+    monkeypatch.undo()
+    manifest, _o2, _n2, _names2, fresh = csr.load(out, db_path=csr_db)
+    assert manifest, "the old manifest must survive a killed swap"
+    assert fresh is False, "new bins + old manifest must fail the checksum"
+    # an honest rebuild heals the substrate
+    csr.build(csr_db, out)
+    _m3, _o3, _n3, _names3, fresh2 = csr.load(out, db_path=csr_db)
+    assert fresh2 is True
+
+
+def test_load_default_verifies_checksum(csr_db: Path, tmp_path: Path):
+    """M1: load() verifies the checksum BY DEFAULT — the serving lane
+    (_cache_lookup) passes no flag, so corrupted bins flip fresh at the
+    first open instead of being served on a passing generation match."""
+    out = tmp_path / "csr"
+    csr.build(csr_db, out)
+    _m, _o, _n, _names, fresh = csr.load(out, db_path=csr_db)
+    assert fresh is True
+    (out / "csr_neighbors.bin").write_bytes(b"\x00\x00\x00\x00" * 2)
+    _m2, _o2, _n2, _names2, fresh2 = csr.load(out, db_path=csr_db)
+    assert fresh2 is False, "corrupted bins must fail the default-verified load"
+
+
+def test_verify_flags_corruption_without_rebuilding(csr_db: Path, tmp_path: Path, capsys):
+    """M2: --verify checks EXISTING state and exits 1 on corruption — the old
+    build-then-load verify rebuilt over the evidence and could never fail."""
+    out = tmp_path / "csr"
+    csr.build(csr_db, out)
+    assert csr.main(["--db", str(csr_db), "--out", str(out), "--verify"]) == 0
+    (out / "csr_neighbors.bin").write_bytes(b"\x01\x02\x03\x04")
+    rc = csr.main(["--db", str(csr_db), "--out", str(out), "--verify"])
+    assert rc == 1
+    assert "FAIL" in capsys.readouterr().out
+
+
+def test_verify_exit_1_on_generation_drift(csr_db: Path, tmp_path: Path):
+    """M2: --verify reports staleness truthfully with exit 1 (the old
+    tautology rebuilt first, so this exited 0 forever)."""
+    out = tmp_path / "csr"
+    csr.build(csr_db, out)
+    con = sqlite3.connect(str(csr_db))
+    con.execute("UPDATE db_meta SET value='43' WHERE key='generation'")
+    con.commit()
+    con.close()
+    assert csr.main(["--db", str(csr_db), "--out", str(out), "--verify"]) == 1
 
 
 # --------------------------------------------------------------------------- #

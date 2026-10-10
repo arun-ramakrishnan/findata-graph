@@ -30,7 +30,7 @@ stale_after: '2027-03-09'
 
 German multinational building materials company headquartered in Heidelberg (XETRA: HEI). Renamed from HeidelbergCement AG in 2023. Parent of HeidelbergCement India Limited via Heidelberg Materials South Asia B.V. World's largest cement maker by market cap.
 
-*Stub created 2026-07-20 as a graph endpoint for unresolved `extract_relations.py` mentions (item #11 in doc/improvements/pending_improvs.txt). Expand with full company commentary when primary research accumulates.*
+*Stub created 2026-07-20 as a graph endpoint for unresolved `extract_relations.py` mentions (item #11 in doc/improvements/archive/tooling/pending_improvs.md). Expand with full company commentary when primary research accumulates.*
 
 <!-- BEGIN auto company profile (enrich_from_yfinance.py) -->
 

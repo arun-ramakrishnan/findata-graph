@@ -19,6 +19,8 @@
     "doc/templates/**",
     "doc/security/**",
     "schema/**/*.sql",
+    "frontend/tests/**",
+    "vendor/llamacpp/health.py",
     "**/*.lock",
     "**/package-lock.json"
   ],
@@ -30,6 +32,7 @@
     ".opencodereview/**",
     "findata/**",
     "doc/local/**",
-    "Mojo/vendor/**"
+    "Mojo/vendor/**",
+    "vendor/llamacpp/build.sh"
   ]
 }

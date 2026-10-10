@@ -382,6 +382,53 @@ def test_py_builder(tmp_path, monkeypatch):
     assert sc.get_dirty_py_scope() is None
 
 
+# --------------------------------------------------------------------------- #
+# S10: dirty tree UNION applied-patch surface (range review)                    #
+# --------------------------------------------------------------------------- #
+def test_py_scope_unions_applied_patch_files(tmp_path, monkeypatch):
+    """A defect committed inside an applied patch but ABSENT from the
+    worktree must be in scope — the whole point of S10 (B3's
+    noqa-in-literal crash was permanently invisible on a clean tree,
+    because every dirty-gated run scoped to the worktree only)."""
+    monkeypatch.setattr(sc, "REPO_ROOT", tmp_path)
+    monkeypatch.setattr(sc.subprocess, "run", lambda *a, **k: _FakeProc(""))
+    monkeypatch.setattr(
+        sc,
+        "_stack_files",
+        lambda: {tmp_path / "helpers" / "committed.py", tmp_path / "doc" / "n.md"},
+    )
+    assert sc.get_dirty_py_scope() == {tmp_path / "helpers" / "committed.py"}
+
+
+def test_py_scope_clean_tree_and_clean_stack_is_empty(tmp_path, monkeypatch):
+    """The accept contract: clean tree + clean stack = empty scope."""
+    monkeypatch.setattr(sc, "REPO_ROOT", tmp_path)
+    monkeypatch.setattr(sc.subprocess, "run", lambda *a, **k: _FakeProc(""))
+    monkeypatch.setattr(sc, "_stack_files", lambda: set())
+    assert sc.get_dirty_py_scope() == set()
+
+
+def test_py_scope_worktree_escape_env(tmp_path, monkeypatch):
+    """STATIC_CHECKS_DIRTY_SCOPE=worktree restores the pre-S10 narrow
+    scope for one-off runs — the union is escapable, not mandatory."""
+    monkeypatch.setattr(sc, "REPO_ROOT", tmp_path)
+    monkeypatch.setattr(sc.subprocess, "run", lambda *a, **k: _FakeProc(""))
+    monkeypatch.setattr(sc, "_stack_files", lambda: {tmp_path / "helpers" / "committed.py"})
+    monkeypatch.setenv("STATIC_CHECKS_DIRTY_SCOPE", "worktree")
+    assert sc.get_dirty_py_scope() == set()
+
+
+def test_py_scope_non_stgit_checkout_unchanged(tmp_path, monkeypatch):
+    """No stack (_stack_files None) → the scope is exactly the old
+    worktree set; plain checkouts and tests behave as before."""
+    monkeypatch.setattr(sc, "REPO_ROOT", tmp_path)
+    (tmp_path / "helpers").mkdir()
+    (tmp_path / "helpers" / "a.py").write_text("x = 1\n", encoding="utf-8")
+    monkeypatch.setattr(sc.subprocess, "run", lambda *a, **k: _FakeProc("M  helpers/a.py\n"))
+    monkeypatch.setattr(sc, "_stack_files", lambda: None)
+    assert sc.get_dirty_py_scope() == _abs_set([tmp_path / "helpers" / "a.py"])
+
+
 def test_syntax_leg_scope(pyvault):
     fatal = sc.check_python_syntax(scope=_abs_set([pyvault["badsyntax"]]))
     assert len(fatal) == 1 and "bad_syntax" in fatal[0]

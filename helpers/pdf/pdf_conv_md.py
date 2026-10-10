@@ -2,7 +2,7 @@
 """Convert a PDF to markdown via the local engine chain.
 
 Runs a linear fallback chain over local engines (no network APIs since the
-Paddle cut, D2 2026-10-06 — see doc/improvements/proposals/teleocr_pdf_fallback.md):
+Paddle cut, D2 2026-10-06 — see doc/improvements/archive/pipeline/teleocr_pdf_fallback.md):
 
     auto (default): pdf_local (pymupdf4llm, born-digital)
                  -> lite OCR (Tesseract, scanned)
@@ -508,7 +508,7 @@ def main(argv: list[str] | None = None) -> int:  # noqa: C901  # engine dispatch
             print(
                 "error: all engines exhausted — pdf_local refused, lite OCR failed, "
                 "teleocr unavailable-or-refused. Is the llama-server up? "
-                "`make teleocr-server` (see doc/improvements/proposals/teleocr_pdf_fallback.md)",
+                "`make teleocr-server` (see doc/improvements/archive/pipeline/teleocr_pdf_fallback.md)",
                 file=sys.stderr,
             )
             return 1

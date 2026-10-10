@@ -6,7 +6,7 @@ Synthetic fixtures only: no real transcript content enters tracked files
 tmp duckdb; the live-store shakedown (`load rollout --full` == parsed
 record count, token parity, idempotent re-run) is AC#1, verified manually.
 
-Proposal: doc/improvements/proposals/zcode_rollout_step_ingest.md (S1).
+Proposal: doc/improvements/archive/tooling/zcode_rollout_step_ingest.md (S1).
 """
 
 from __future__ import annotations

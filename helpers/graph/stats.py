@@ -94,12 +94,16 @@ def _chain_dist_stats(dist: np.ndarray) -> tuple[int, float, int, int]:
     """(diameter, median, ordered ties at diameter, finite count).
 
     Chunked row scan — ordered-pair integer histogram; no triu
-    materialization. The median replicates np.median over the
-    ordered finite distances exactly (mean of the two middle order
-    statistics), so the rendered :.0f output is byte-identical to
-    the old materialized path. Ties are ORDERED; on a symmetric
-    square matrix (exact mode) the caller halves them for canonical
-    (a<b) counting.
+    materialization. EXACT mode replicates the old triu_indices pass
+    byte-for-byte: diagonal zeros and double-counted ordered pairs drop
+    out, and the caller halves ties for canonical (a<b) counting.
+    SAMPLED mode deliberately EXCLUDES self-distance zeros too (L7,
+    range review 2026-10-11, operator ruling): each sampled root
+    contributes a root-to-self 0 cell, and the legacy materialized pass
+    counted those n_roots non-pairs — totals differ from the legacy
+    sampled render by exactly n_roots, deliberately, so "pairs" means
+    distinct-node pairs in both modes. Pinned by
+    tests/test_graph_stats.py::test_chain_dist_stats_*.
     """
     import numpy as np
 

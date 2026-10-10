@@ -31,7 +31,7 @@ Exit codes:
 Usage:
     python3 helpers/misc/trace_quote.py "agent-trace:prime#turn:816642a2"
     python3 helpers/misc/trace_quote.py "agent-trace:opencode#event:evt_0d3c1b043001SjhBk6F5uc1LRl" --json
-    python3 helpers/misc/trace_quote.py "agent-trace:zcode#req:00e1f7fe" --db /tmp/store.duckdb
+    python3 helpers/misc/trace_quote.py "agent-trace:zcode#req:00e1f7fe" --db ${TMPDIR:-/tmp}/store.duckdb
     python3 helpers/misc/trace_quote.py --sweep doc/              # resolve every token under doc/
     python3 helpers/misc/trace_quote.py --sweep doc/ findata/     # scan several trees
 

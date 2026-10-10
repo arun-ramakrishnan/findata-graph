@@ -32,6 +32,7 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import re
 import sqlite3
 import sys
 from pathlib import Path
@@ -81,18 +82,50 @@ def source_dbs() -> list[tuple[Path, str]]:
     return out
 
 
-def _virtual_table_names(con: sqlite3.Connection) -> set[str]:
+def _virtual_modules(con: sqlite3.Connection) -> dict[str, str]:
+    """Virtual table name -> module ('fts5'/'vec0'), lowercased."""
     rows = con.execute(
-        "SELECT name FROM sqlite_master WHERE type='table' AND sql LIKE '%VIRTUAL TABLE%'"
+        "SELECT name, sql FROM sqlite_master WHERE type='table' AND sql LIKE '%VIRTUAL TABLE%'"
     ).fetchall()
-    return {r[0] for r in rows}
+    out: dict[str, str] = {}
+    for name, sql in rows:
+        m = re.search(r"USING\s+(\w+)", sql or "", re.IGNORECASE)
+        out[name] = m.group(1).lower() if m else ""
+    return out
 
 
-def _is_shadow(name: str, virtuals: set[str]) -> bool:
-    """True for fts5/vec0 shadow tables: <virtual>_anything. The CREATE
+# Shadow-table suffixes per virtual-table module. FTS5 creates exactly the
+# five; sqlite-vec vec0 creates chunks/rowids/info plus vector_chunksNN.
+# NOTE the asymmetry the old prefix match got wrong: `_info` is a vec0
+# SHADOW but a REAL house companion table for the FTS5 search DBs
+# (doc_search_info / memory_search_info / script_search_info).
+_SHADOW_SUFFIXES: dict[str, frozenset[str]] = {
+    "fts5": frozenset({"data", "idx", "content", "docsize", "config"}),
+    "vec0": frozenset({"chunks", "rowids", "info"}),
+}
+_VEC0_VECTOR_RE = re.compile(r"vector_chunks\d+")
+
+
+def _is_shadow(name: str, virtual_modules: dict[str, str]) -> bool:
+    """True for fts5/vec0 shadow tables of a virtual table. The CREATE
     VIRTUAL TABLE statement recreates its shadows, so emitting them would
-    make the dump non-replayable."""
-    return any(name.startswith(v + "_") for v in virtuals)
+    make the dump non-replayable.
+
+    S7/M5 (range review): suffix allowlist keyed on the virtual table
+    module -- NOT the old `<virtual>_anything` prefix match, which
+    swallowed real house companion tables (script_search_meta/info/
+    mojo_doc/ts_doc, doc_search_meta/info, memory_search_meta/info,
+    note_search_meta) from the tracked DDL surface; the drift test
+    re-rendered the same generator and could not notice."""
+    for virtual, module in virtual_modules.items():
+        if not name.startswith(virtual + "_"):
+            continue
+        rest = name[len(virtual) + 1 :]
+        if rest in _SHADOW_SUFFIXES.get(module, frozenset()):
+            return True
+        if module == "vec0" and _VEC0_VECTOR_RE.fullmatch(rest):
+            return True
+    return False
 
 
 def sqlite_ddl(path: Path) -> str:
@@ -104,7 +137,7 @@ def sqlite_ddl(path: Path) -> str:
     creating a phantom 0-byte db — without needing a static_checks exemption."""
     con = connect(path, read_only=True)
     try:
-        virtuals = _virtual_table_names(con)
+        virtual_modules = _virtual_modules(con)
         blocks: list[str] = []
         for kind in ("table", "index", "view", "trigger"):
             rows = con.execute(
@@ -115,9 +148,9 @@ def sqlite_ddl(path: Path) -> str:
             for name, sql in rows:
                 if name.startswith("sqlite_"):
                     continue
-                if kind == "table" and _is_shadow(name, virtuals):
+                if kind == "table" and _is_shadow(name, virtual_modules):
                     continue
-                if kind in ("index", "trigger") and _is_shadow(name, virtuals):
+                if kind in ("index", "trigger") and _is_shadow(name, virtual_modules):
                     continue
                 blocks.append(sql.rstrip().rstrip(";") + ";")
         return "\n".join(blocks)

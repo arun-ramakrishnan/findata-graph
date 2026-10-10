@@ -109,6 +109,10 @@ from helpers.graph.triage_pending_relations import (  # noqa: E402
     noise_target,
     row_id,
 )
+from helpers.graph.edge_conventions import (  # noqa: E402
+    SYMMETRIC_EDGE_TYPES,
+    canonical_pair,
+)
 
 # --------------------------------------------------------------------------- #
 # Paths                                                                       #
@@ -271,7 +275,7 @@ _ALIASES: dict[str, str] = {
     # parent is a DIFFERENT entity from the Indian subsidiary — do NOT
     # add an alias that collapses the two (would suppress legitimate
     # `subsidiary_of` edges to a future parent stub). Those parents are
-    # tracked as stub candidates in doc/improvements/pending_improvs.md.
+    # tracked as stub candidates in doc/improvements/archive/tooling/pending_improvs.md.
     "bata": "Bata India",  # "Bata" alone = Indian entity; "Bata (BN) B.V." is a stub candidate
     "ceat": "CEAT",  # single canonical entity
     "diageo": "Diageo plc",  # entity is the global plc itself
@@ -2856,18 +2860,11 @@ def promote_relation_sidecars(conn, dry_run: bool = True) -> tuple[int, int]:
             "cited_in",
         }
     )
-    _SYMMETRIC_TYPES = frozenset(
-        {
-            "competes_with",
-            "jv_with",
-            "same_group",
-            "co_mentioned_in",
-            "semantic_peer",
-            "invested_in",
-            "exposed_to",
-            "cited_in",
-        }
-    )
+    # S5/M3 (range review): one home — helpers/graph/edge_conventions.py.
+    # The old 8-type literal claimed invested_in / exposed_to / cited_in were
+    # symmetric; all 3,136 live rows for those types carry symmetric=0 (the
+    # relations are directional), so the set shrank to the shared five.
+    _SYMMETRIC_TYPES = SYMMETRIC_EDGE_TYPES
 
     with conn:
         for path in yaml_files:
@@ -2902,9 +2899,14 @@ def promote_relation_sidecars(conn, dry_run: bool = True) -> tuple[int, int]:
                 "b2_version": "0.1",
                 "provenance": sidecar.get("provenance", {}),
             }
+            src, tgt = (
+                canonical_pair(source, target)
+                if edge_type in _SYMMETRIC_TYPES
+                else (source, target)
+            )
             edge = Edge(
-                source=source,
-                target=target,
+                source=src,
+                target=tgt,
                 edge_type=edge_type,
                 properties=props,
                 source_ref=f"promote:sidecar:{slug}",

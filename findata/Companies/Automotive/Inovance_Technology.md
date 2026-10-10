@@ -27,4 +27,4 @@ stale_after: '2027-03-09'
 
 Chinese industrial automation company headquartered in Shenzhen (SZSE: 300124). Joint venture partner of Uno Minda Limited for traction systems for EV powertrains.
 
-*Stub created 2026-07-20 as a graph endpoint for unresolved `extract_relations.py` mentions (item #11 in doc/improvements/pending_improvs.txt). Expand with full company commentary when primary research accumulates.*
+*Stub created 2026-07-20 as a graph endpoint for unresolved `extract_relations.py` mentions (item #11 in doc/improvements/archive/tooling/pending_improvs.md). Expand with full company commentary when primary research accumulates.*

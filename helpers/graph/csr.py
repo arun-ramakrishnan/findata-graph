@@ -36,6 +36,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import sys
 import time
 from pathlib import Path
@@ -130,10 +131,29 @@ def build(db_path: str | Path, out_dir: str | Path = DEFAULT_OUT_DIR) -> dict:
     }
     out = Path(out_dir)
     out.mkdir(parents=True, exist_ok=True)
-    (out / "csr_offsets.bin").write_bytes(offsets_bin)
-    (out / "csr_neighbors.bin").write_bytes(neighbors_bin)
-    (out / "csr_names.json").write_text(json.dumps(names, ensure_ascii=False))
-    (out / "csr_manifest.json").write_text(json.dumps(manifest, indent=1) + "\n")
+    # S4/M1 (range review): stage to tmp + os.replace. In-place truncate+write
+    # under a live memmap reader risks SIGBUS, and a kill mid-write left torn
+    # bins that the serving path (which never verified) happily served. The
+    # manifest goes LAST as the commit point: a crash mid-swap leaves new bins
+    # + old manifest, which the now-default checksum in load() detects.
+    stage: list[tuple[Path, Path, bytes]] = [
+        (out / "csr_offsets.bin", out / ".csr_offsets.bin.tmp", offsets_bin),
+        (out / "csr_neighbors.bin", out / ".csr_neighbors.bin.tmp", neighbors_bin),
+        (
+            out / "csr_names.json",
+            out / ".csr_names.json.tmp",
+            json.dumps(names, ensure_ascii=False).encode("utf-8"),
+        ),
+        (
+            out / "csr_manifest.json",
+            out / ".csr_manifest.json.tmp",
+            (json.dumps(manifest, indent=1) + "\n").encode("utf-8"),
+        ),
+    ]
+    for _dest, tpath, payload in stage:
+        tpath.write_bytes(payload)
+    for dest, tpath, _payload in stage:
+        os.replace(tpath, dest)
     return manifest
 
 
@@ -141,13 +161,15 @@ def load(
     out_dir: str | Path = DEFAULT_OUT_DIR,
     *,
     db_path: str | Path | None = None,
-    verify_checksum: bool = False,
+    verify_checksum: bool = True,
 ) -> tuple[dict, np.ndarray, np.ndarray, list[str], bool]:
     """Load the CSR (mmap) + manifest; report freshness.
 
     Returns ``(manifest, offsets, neighbors, names, fresh)``. ``fresh``
     is False when the manifest is missing/corrupt, the checksum fails
-    (only checked when ``verify_checksum``), or the live SQLite
+    (verified BY DEFAULT since range-review S4: the serving lane passes
+    no flag, and a swap interrupted between bin replaces leaves new bins
+    + old manifest that must never read as fresh), or the live SQLite
     generation has drifted past the manifest's — callers fall back to
     the DuckDB path on ``not fresh`` and say so.
     """
@@ -349,13 +371,42 @@ def try_shortest_path(
     return [(names[i], hop) for hop, i in enumerate(path)], True
 
 
+def _verify_existing(args) -> int:
+    """Truthful verification of the artifacts already on disk (range review M2).
+
+    Checksum + live generation of what EXISTS, with the failure mode
+    named; exit 1 on any mismatch. Never builds.
+    """
+    out = Path(args.out)
+    manifest, _off, _nbr, _names, fresh = load(out, db_path=args.db, verify_checksum=True)
+    if not manifest:
+        print(f"verify: FAIL — artifacts missing or corrupt at {out}")
+        return 1
+    digest = hashlib.sha256(
+        (out / "csr_offsets.bin").read_bytes() + (out / "csr_neighbors.bin").read_bytes()
+    ).hexdigest()
+    if digest != manifest.get("checksum"):
+        print("verify: FAIL — checksum mismatch (torn or corrupted bins)")
+        return 1
+    if not fresh:
+        live = _live_generation(args.db)
+        print(f"verify: FAIL — stale (manifest gen={manifest.get('generation')} live gen={live})")
+        return 1
+    print(f"verify: checksum OK, fresh (gen={manifest.get('generation')})")
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     import argparse
 
     ap = argparse.ArgumentParser(description="Build the CSR substrate (vault_scaling B-A)")
     ap.add_argument("--db", default="memory/research.db")
     ap.add_argument("--out", default=str(DEFAULT_OUT_DIR))
-    ap.add_argument("--verify", action="store_true", help="verify checksum after build")
+    ap.add_argument(
+        "--verify",
+        action="store_true",
+        help="verify EXISTING artifacts (checksum + generation); exit 1 on mismatch — never builds",
+    )
     ap.add_argument("--check", action="store_true", help="report freshness; exit 1 if stale")
     args = ap.parse_args(argv)
     if args.check:
@@ -373,6 +424,12 @@ def main(argv: list[str] | None = None) -> int:
             return 1
         print(f"CSR: fresh (gen={live})")
         return 0
+    if args.verify:
+        # S4/M2 (range review): verify EXISTING state — the old
+        # build-then-load was tautological (it verified the artifacts it
+        # had just written and its success message was unconditional,
+        # so the verify leg could never fail).
+        return _verify_existing(args)
     t0 = time.perf_counter()
     manifest = build(args.db, args.out)
     t1 = time.perf_counter()
@@ -381,9 +438,6 @@ def main(argv: list[str] | None = None) -> int:
         f"edges={manifest['edges']:,} generation={manifest['generation']} "
         f"build={t1 - t0:.2f}s -> {args.out}"
     )
-    if args.verify:
-        _m, _off, _nbr, _names, fresh = load(args.out, db_path=args.db, verify_checksum=True)
-        print(f"verify: checksum OK, fresh={fresh}")
     return 0
 
 
