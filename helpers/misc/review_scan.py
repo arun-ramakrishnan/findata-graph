@@ -143,18 +143,60 @@ def _run(argv: list[str]) -> subprocess.CompletedProcess[str]:
     )
 
 
+def _json_object(text: str) -> dict:
+    """Parse a single JSON object out of scanner stdout, discarding any
+    progress decoration before it.
+
+    bandit writes a `rich` progress bar to STDOUT once
+    `len(files_list) > PROGRESS_THRESHOLD (50)` AND its logger is at INFO
+    (bandit/core/manager.py:270). Both conditions hold for any review
+    range with >50 changed .py files, so `json.loads` raised and the leg
+    reported zero findings while looking like a clean pass — the failure
+    mode proposal `review_pass_findings.md` S1 records. Seeking the first
+    `{` rather than trimming a fixed prefix keeps the fix valid whatever
+    the bar renders; if a future bandit ever interleaves output INTO the
+    payload this raises, which S2's coverage accounting then surfaces
+    instead of hiding.
+    """
+    start = text.find("{")
+    if start == -1:
+        raise json.JSONDecodeError("no JSON object in scanner output", text, 0)
+    return json.loads(text[start:])
+
+
 # ------------------------------------------------------------- range and lines
 
 
 def _resolve_range(args: argparse.Namespace) -> tuple[str, str]:
     """(base, head). Same semantics as review_selection.py's --stack mapping
-    (HEAD~N..HEAD); --commit expands to <sha>^..<sha> exactly like OCR's."""
+    (HEAD~N..HEAD); --commit expands to <sha>^..<sha> exactly like OCR's.
+
+    --from/--to are resolved to SHAs here. They must be: the roster filename
+    is digest-keyed as `{base[:8]}..{head[:8]}`, so a symbolic ref like
+    `refs/patches/main/review_pass` (a legitimate --to, and the only way to
+    scan a landed stgit patch) truncates to `refs/pat`, and _write_roster
+    then tries to write into a non-existent subdirectory. That surfaced as
+    a FileNotFoundError traceback AFTER a full, correct-looking stdout
+    roster — and the process still exited 0, so a caller saw success and no
+    durable artifact. Resolving to SHA makes the digest (and the diff
+    base/head) independent of how the ref was spelled.
+    """
     if args.commit is not None:
         return f"{args.commit}^", args.commit
     if args.from_ref is not None:
-        return args.from_ref, args.to_ref
+        base, head = _rev_parse(args.from_ref), _rev_parse(args.to_ref)
+        return base, head
     stack = 1 if args.stack is None else args.stack
     return f"HEAD~{stack}", "HEAD"
+
+
+def _rev_parse(ref: str) -> str:
+    """Full SHA for `ref`, or SystemExit naming the bad ref."""
+    proc = _git(["rev-parse", "--verify", f"{ref}^{{commit}}"])
+    sha = proc.stdout.strip()
+    if proc.returncode != 0 or not sha:
+        raise SystemExit(f"rev-parse {ref} failed: {proc.stderr.strip() or 'not a commit'}")
+    return sha
 
 
 def _changed_lines(base: str, head: str) -> dict[str, set[int]]:
@@ -254,7 +296,20 @@ def _noqa_codes(line: str) -> set[str] | None:
     return {c.strip().upper() for c in codes.split(",")}
 
 
-_NOQA_SPAN_CAP = 12  # lines; a runaway paren walk stops rather than scanning the file
+# Runaway backstop for the two span walks. It is NOT the bound that decides
+# a span: both walks terminate on their own condition — the paren walk when
+# depth returns to 0, the string walk at the closing quote — so this is only
+# reached by input that cannot terminate, i.e. never for real code.
+#
+# Proposal `review_pass_findings.md` S3 records what happened when it WAS
+# the bound. A 12-line cap truncated every statement longer than that: a
+# 16-line SQL literal lost its `# noqa` (on the closing-quote line), AND
+# semgrep's citation — which anchors on the `con.execute(` line, one line
+# ABOVE bandit's f-string anchor, where paren depth is +1 — truncated in the
+# paren walk before it could reach the same directive. The first fix raised
+# only the string walk and left the paren walk capped, so semgrep still
+# reported all three adjudicated sites. Two walks, one bug.
+_SPAN_WALK_CAP = 2000
 
 _TRIPLE_QUOTES = ('"""', "'''")
 
@@ -268,13 +323,19 @@ def _string_close_line(content: list[str], idx: int) -> int:
     f-string's opening line, so the span would stop there and an adjudicated
     finding would survive every review run. Covering the literal body is what
     makes the two tools' anchor lines agree.
+
+    Terminates on the CLOSING QUOTE, not on a line budget. A literal's
+    length is not the reviewer's concern — a 20-line SQL statement with its
+    directive on the closing line is exactly as adjudicated as a 4-line one,
+    and a cap that reads the long case as "too far to see" is a silent
+    under-report, which is the failure S2 exists to stop repeating.
     """
     quote = next((q for q in _TRIPLE_QUOTES if q in content[idx]), None)
     if quote is None:
         return idx
     seen = content[idx].count(quote)
     end = idx
-    while seen < 2 and end + 1 < len(content) and (end - idx) < _NOQA_SPAN_CAP:
+    while seen < 2 and end + 1 < len(content) and (end - idx) < _SPAN_WALK_CAP:
         end += 1
         seen += content[end].count(quote)
     return end
@@ -293,7 +354,7 @@ def _statement_span(content: list[str], line: int) -> range:
     idx = line - 1
     depth = content[idx].count("(") - content[idx].count(")")
     end = idx
-    while depth > 0 and end + 1 < len(content) and (end - idx) < _NOQA_SPAN_CAP:
+    while depth > 0 and end + 1 < len(content) and (end - idx) < _SPAN_WALK_CAP:
         end += 1
         depth += content[end].count("(") - content[end].count(")")
     return range(idx, max(end, _string_close_line(content, idx)) + 1)
@@ -397,7 +458,7 @@ def _leg_bandit(files: list[str], changed: dict[str, set[int]], head: str, tree=
     rev = {a: r for r, a in tree.items()}
     proc = _run([str(binary), "-f", "json", *tree.values()])
     try:
-        payload = json.loads(proc.stdout)
+        payload = _json_object(proc.stdout)
     except json.JSONDecodeError:
         return [], f"bandit: failed (unparseable output, rc={proc.returncode})"
     findings = []
@@ -624,9 +685,81 @@ def _npm_lock_packages(text: str) -> list[tuple[str, str]]:
     return out
 
 
+def _strip_jsonc(text: str) -> str:
+    """Drop JSONC trailing commas, leaving strings byte-identical.
+
+    `bun.lock` is bun's text lockfile: JSONC, and it emits a comma before
+    every closing brace, so `json.loads` refuses it ("Illegal trailing
+    comma", first hit at the first `packages` entry). The commas are
+    outside every string, so the strip is string-aware — a regex would
+    corrupt any value containing `,}` or `,]`, and integrity hashes and
+    registry URLs are exactly the kind of value that carries punctuation.
+    """
+    out: list[str] = []
+    in_string = escaped = False
+    i, n = 0, len(text)
+    while i < n:
+        ch = text[i]
+        if in_string:
+            out.append(ch)
+            if escaped:
+                escaped = False
+            elif ch == "\\":
+                escaped = True
+            elif ch == '"':
+                in_string = False
+            i += 1
+            continue
+        if ch == '"':
+            in_string = True
+            out.append(ch)
+            i += 1
+            continue
+        if ch == ",":
+            j = i + 1
+            while j < n and text[j] in " \t\r\n":
+                j += 1
+            if j < n and text[j] in "}]":
+                i += 1
+                continue
+        out.append(ch)
+        i += 1
+    return "".join(out)
+
+
+def _bun_lock_packages(text: str) -> list[tuple[str, str]]:
+    """Resolved (name, version) pairs from bun's text lockfile.
+
+    `packages` maps a bare package name to a positional array whose head
+    is the `name@version` spec — `["esbuild@0.28.1", "<resolved-url>",
+    {...platform meta...}, "sha512-..."]` — so the resolved version is
+    element 0, never a nested `version` key the npm parser reads. The
+    `workspaces` block carries dependency RANGES (`^3.0.0`), not resolved
+    versions, so it is deliberately not a query source: osv needs a
+    concrete version and a range would silently under-report.
+    """
+    payload = json.loads(_strip_jsonc(text))
+    out = []
+    packages = payload.get("packages")
+    if isinstance(packages, dict):
+        for entry in packages.values():
+            if not isinstance(entry, list) or not entry:
+                continue
+            spec = entry[0]
+            if not isinstance(spec, str) or "@" not in spec:
+                continue
+            name, _, version = spec.rpartition("@")
+            if name and version:
+                out.append((name, version))
+    return out
+
+
 _LOCK_PARSERS = {
     "uv.lock": ("PyPI", _uv_lock_packages),
     "package-lock.json": ("npm", _npm_lock_packages),
+    # bun resolves against the npm registry, so the OSV ecosystem is the
+    # same "npm" — the split that left frontend/bun.lock unscanned.
+    "bun.lock": ("npm", _bun_lock_packages),
 }
 
 
@@ -805,11 +938,38 @@ def _run_enabled_legs(legs, enabled, offline: bool) -> tuple[list[Finding], list
     return findings, statuses
 
 
+def _uncovered_legs(statuses: list[str]) -> list[str]:
+    """Legs that did NOT actually scan the diff, from their status lines.
+
+    `_run_enabled_legs` deliberately demotes a crash to a status line
+    ("a scanner failure is a status line, never a crash"), which is right
+    — but it left the roll-up unable to tell "ran and found nothing" from
+    "never ran". The second printed as `all scanners clean on the changed
+    lines`, so a dead leg was indistinguishable from a green one. Statuses
+    are classified by shape:
+
+      ran …                → covered
+      no matching files …  → covered, but nothing of that type in the diff
+      everything else      → NOT covered (failed, skipped, unavailable)
+    """
+    uncovered = []
+    for status in statuses:
+        leg, _, detail = status.partition(": ")
+        detail = detail.strip()
+        if detail.startswith("ran") or detail.startswith("no matching files"):
+            continue
+        if detail.startswith("no parseable dependencies"):
+            continue
+        uncovered.append(f"{leg} ({detail or 'no status'})")
+    return uncovered
+
+
 def _print_report(findings: list[Finding], statuses: list[str]) -> None:
     """Stdout roster: per-scanner status lines, then one line per finding
     (or the clean bill). Always exit-0 territory — advisory only."""
     for status in statuses:
         print(f"  {status}")
+    uncovered = _uncovered_legs(statuses)
     if findings:
         findings.sort(key=Finding.sort_key)
         print(f"\n{len(findings)} findings:")
@@ -820,8 +980,16 @@ def _print_report(findings: list[Finding], statuses: list[str]) -> None:
             key=lambda f: SEVERITY_ORDER.index(f.severity) if f.severity in SEVERITY_ORDER else 0,
         )
         print(f"\nworst severity: {worst.severity} — operator adjudicates; the leg is advisory")
+    elif uncovered:
+        print("\nNO FINDINGS, BUT NOT A CLEAN BILL — these legs did not scan the diff:")
+        for leg in uncovered:
+            print(f"  {leg}")
     else:
         print("\nall scanners clean on the changed lines")
+    if uncovered and findings:
+        print("legs that did not scan the diff (coverage incomplete):")
+        for leg in uncovered:
+            print(f"  {leg}")
 
 
 def _write_roster(base: str, head: str, findings: list[Finding], statuses: list[str]) -> Path:
@@ -916,7 +1084,20 @@ def main(argv: list[str] | None = None) -> int:
 
     _print_report(findings, statuses)
 
-    md_path = _write_roster(base, head, findings, statuses)
+    # The durable roster is the deliverable (operator ruling 2026-10-09), so a
+    # failure to write it must NOT pass as a clean run: a caller that only
+    # checks the exit code would otherwise believe it has a citable artifact.
+    # Print it prominently and exit non-zero — the findings themselves stay
+    # advisory and exit-0, but "I could not record your verdict" is an error.
+    try:
+        md_path = _write_roster(base, head, findings, statuses)
+    except OSError as e:
+        print(
+            f"\nROSTER NOT WRITTEN ({type(e).__name__}: {e}) — the findings above are "
+            f"stdout-only and there is NO durable artifact for this range.",
+            file=sys.stderr,
+        )
+        raise SystemExit(2) from e
     if args.json:
         digest = hashlib.sha256(f"{base}..{head}".encode()).hexdigest()[:12]
         artifact = REVIEW_OUT_DIR / f"review_scan_{digest}.json"

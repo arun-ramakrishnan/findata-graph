@@ -211,12 +211,13 @@ def _run_maint(query: str, limit: int) -> tuple[list, str]:
             by_id = {
                 r[0]: r
                 for r in con.execute(
-                    f"{q} WHERE maint_run_id IN ({','.join('?' * len(want))})", list(want)
+                    f"{q} WHERE maint_run_id IN ({','.join('?' * len(want))})",
+                    list(want),  # noqa: S608  # interpolates placeholders only; values bound via list(want)
                 ).fetchall()
             }
             rows = [by_id[rid] for rid in want if rid in by_id][:limit]
         else:
-            rows = con.execute(q + " ORDER BY started_at DESC LIMIT ?", [limit]).fetchall()
+            rows = con.execute(q + " ORDER BY started_at DESC LIMIT ?", [limit]).fetchall()  # noqa: S608  # q is the literal SELECT at :207; the limit is ?-bound
         hits = []
         for i, (rid, cmd, mode, target, started, elapsed, code, summary) in enumerate(rows):
             phases = con.execute(

@@ -271,6 +271,35 @@ commit, referenced by nothing). Entry numbers point at
   NULL across three runs; vector-basis enrichment rejected (edges
   homogenise sections — lexical field only); composition flat above cap
   900. Adoption landed separately — completed.md #377 (see #369)
+- [`checklist_leg_review.md`](tooling/checklist_leg_review.md) — host review
+  of the 108 reviewable Python files against the OCR checklist, by checklist
+  group. The off-gate ruff rulesets are the mechanical proxy — a whole
+  checklist's worth of classes the standing gate cannot see. 536 off-gate
+  findings on changed lines → 2 real defects (an unclosed handle in the
+  rollout ingest; a dropped exception cause), both fixed with
+  mutation-verified teeth; 65 adjudicated benign. The judgement-led classes
+  are named as unreviewed, not claimed clean (completed.md #381)
+- [`review_pass_findings.md`](tooling/review_pass_findings.md) — six slices
+  from the `95caed4de..a7972551d` review, all one failure shape: *the tool
+  reports success while having done less than it claims*. Restore the dead
+  bandit leg (>50 `.py` files — bandit's stdout progress bar broke
+  `json.loads`); stop the false green when a leg fails; fix the noqa span
+  walk (12-line cap truncated adjudicated directives; the first fix moved the
+  string walk but left the paren walk capped, so semgrep still reported all
+  three sites); and stop silently losing the durable roster on a symbolic
+  `--to` while exiting 0. Scan over the full arc: 31 findings → 14,
+  semgrep 15 → 0, deps scanned 179 → 244 (completed.md #380)
+- [`lockfile_coverage.md`](tooling/lockfile_coverage.md) — scan both lock
+  files and admit them to the review roster, so a dependency vulnerability is
+  both seen and handed to a reviewer. The repo runs two package managers
+  (frontend/ bun, desktop/src-vue npm) and only the npm lock file had a
+  parser, so the bun side had zero dependency-vuln coverage; and rule.json
+  excluded lock files, so the one osv finding of the arc sat unowned since
+  2026-10-07. osv 179 deps/1 vuln → 244 deps/0 vuln; selection 185 → 187.
+  Two mechanics worth remembering: removing an `exclude` does NOT admit a
+  path (1.12.11 needs the explicit `include` past the extension gate), and
+  bun's text lockfile is JSONC with trailing commas, so it needs a
+  string-aware strip — a regex corrupts integrity hashes (completed.md #379)
 - [`review_scan_followups.md`](tooling/review_scan_followups.md) —
   review scan follow-ups — `_rule_scope` fail-open fallback (it raised
   `UnboundLocalError` and killed the leg when `review_selection` is

@@ -96,7 +96,7 @@ def bench_sidecar(port: int, n: int) -> None:
             data=json.dumps({"input": text}).encode(),
             headers={"Content-Type": "application/json"},
         )
-        with urllib.request.urlopen(req, timeout=300) as r:
+        with urllib.request.urlopen(req, timeout=300) as r:  # noqa: S310  # scheme is the literal http://; only the port interpolates, so file:// is unreachable
             return json.load(r)["data"][0]["embedding"]
 
     dims = len(_post(texts[0]))

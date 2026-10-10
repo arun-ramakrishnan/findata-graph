@@ -57,7 +57,6 @@ wait_healthy() {  # $1=port, $2=deadline seconds
 }
 
 do_status() {
-    local any=0
     for spec in "${LEGS_MAIN[@]}" "$LEG_TELEOCR"; do
         set -- $spec
         local target=$1 port=$2
@@ -69,7 +68,6 @@ do_status() {
         local flags=""
         if [ -n "$pids" ]; then
             flags=$(ps -o args= -p "$(echo "$pids" | head -1)" 2>/dev/null | grep -oE "\-c [0-9]+.*-t [0-9]+" | head -1 || true)
-            any=1
         fi
         printf "%-16s :%-5s pids=[%s] health=%s %s\n" "$target" "$port" "${pids:-none}" "$health" "$flags"
     done

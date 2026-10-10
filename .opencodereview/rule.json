@@ -18,14 +18,14 @@
     "doc/okf/**",
     "doc/templates/**",
     "doc/security/**",
-    "schema/**/*.sql"
+    "schema/**/*.sql",
+    "**/*.lock",
+    "**/package-lock.json"
   ],
   "exclude": [
     "static/**/*.bundle.js",
     "static/**/*.bundle.js.map",
     "node_modules/**",
-    "**/package-lock.json",
-    "**/*.lock",
     "snapshots/**",
     ".opencodereview/**",
     "findata/**",

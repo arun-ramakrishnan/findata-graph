@@ -34,9 +34,20 @@ entry number and stale DONE pointers):
 
 ## Current live proposals
 
-_(none)_ — the resolver/extractor hardening proposal was filed and
-archived the same day (2026-10-10): its four one-line-mechanism defects
-landed in-run as stop-gaps (completed.md #378) and the class-level
-remainder is deferred in the archived copy's §D
-(`../archive/tooling/resolver_extractor_hardening.md`), triggered by the
-next alias-file addition for a name class §S1 covers.
+_(none)_ — every proposal filed here is executed and archived. The last
+three batches went out filed + executed + archived in one session
+(2026-10-10):
+
+- `checklist_leg_review` (completed.md #381) — the OCR checklist leg against
+  the 108 reviewable Python files, swept by checklist group using the
+  off-gate ruff rulesets as the mechanical proxy.
+- `review_pass_findings` (completed.md #380) — six review-pass slices, all
+  one failure shape: **the tool reports success while having done less than
+  it claims**. Worth carrying forward: a `# noqa` can be reachable from one
+  tool's anchor and not another's, so "I annotated it" is not the same as
+  "the finding is adjudicated" — check the span, per tool.
+- `lockfile_coverage` (completed.md #379) — `source-map-js` had been open
+  since 2026-10-07 behind two structural gaps, not a scanner bug. Its
+  non-obvious mechanic — **removing an `exclude` from rule.json does not
+  admit a path**, an explicit `include` is required past 1.12.11's extension
+  allow-list — is recorded in `doc/procedures/ocr_review.md` §1.

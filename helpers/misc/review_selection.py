@@ -57,7 +57,12 @@ HOUSE_CHECKLIST = (
     "— except a multi-line f-string, where ruff's span ENDS on the closing-quotes "
     "line while bandit CITES the opening line: put the directive after the closing "
     "quotes, never on the opening line (there it becomes part of the string and "
-    "reaches the query), and the review gate's span walk must cover the literal body",
+    "reaches the query), and the review gate's span walk must cover the literal body. "
+    "THREE tools anchor on three different lines of that one statement: ruff ends on "
+    "the closing quotes, bandit cites the f-string's first line (paren depth 0), and "
+    "semgrep's execute-raw-query cites the conn.execute( line ABOVE it (depth +1) — so "
+    "'I annotated it' is not 'the finding is adjudicated'; verify the span per tool, "
+    "and give a span-based gate one mutant per walk",
     "a test's docstring is a claim, not evidence: mutation-check the teeth "
     "(neuter the branch, test goes red, restore)",
     "fixture reality: fixtures must exercise what their comment names "

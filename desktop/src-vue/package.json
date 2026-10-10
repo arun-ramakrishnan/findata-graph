@@ -25,5 +25,8 @@
     "typescript": "^5.9.3",
     "vite": "^6.0.0",
     "vue-tsc": "^3.3.11"
+  },
+  "overrides": {
+    "source-map-js": "^1.2.2"
   }
 }

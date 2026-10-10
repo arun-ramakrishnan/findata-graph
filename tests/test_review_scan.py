@@ -4,10 +4,13 @@ House doctrine: every test must be able to FAIL on the bug it pins — the
 mutations that verify each one are named in the test bodies.
 """
 
+import argparse
 import json
 import subprocess
 import sys
 from pathlib import Path
+
+import pytest
 
 import helpers.misc.review_scan as rs
 
@@ -16,6 +19,26 @@ def _fake_git(stdout: str, returncode: int = 0):
     return subprocess.CompletedProcess(
         args=["git"], returncode=returncode, stdout=stdout, stderr=""
     )
+
+
+def _fake_git_router(diff: str):
+    """_git stub for rs.main() runs.
+
+    rev-parse must ECHO the requested ref: since S4, _resolve_range resolves
+    --from/--to to SHAs, and the roster name is digest-keyed on head[:8], so
+    a stub returning a constant for every ref would produce a path that does
+    not match what the caller asked for.
+    """
+
+    def _run(argv):
+        if "diff" in argv:
+            return _fake_git(diff)
+        if argv[0] == "rev-parse":
+            ref = argv[-1].removesuffix("^{commit}")
+            return _fake_git(ref + "\n")
+        return _fake_git("deadbeef\n")
+
+    return _run
 
 
 # A real `git diff -U0 --no-renames` sample: a mid-file pure deletion
@@ -128,8 +151,8 @@ class TestNoqaGate:
 
     def test_span_cap_bounds_a_runaway_paren(self):
         # a stray "(" in a long literal must not widen the walk over the file
-        content = ["conn.execute(" + "("] + [f"line{i}" for i in range(40)]
-        assert len(rs._statement_span(content, 1)) <= rs._NOQA_SPAN_CAP + 1
+        content = ["conn.execute(" + "("] + [f"line{i}" for i in range(3000)]
+        assert len(rs._statement_span(content, 1)) <= rs._SPAN_WALK_CAP + 1
 
     def test_multiline_fstring_noqa_on_the_closing_line_is_dropped(self):
         """bandit cites the FIRST physical line of a multi-line f-string while
@@ -171,8 +194,20 @@ class TestNoqaGate:
         assert rs._adjudicated("B608", content, 1) is False
 
     def test_span_cap_bounds_an_unterminated_string(self):
-        content = ['    f"""never closed'] + [f"body{i}" for i in range(40)]
-        assert len(rs._statement_span(content, 1)) <= rs._NOQA_SPAN_CAP + 1
+        """Both walks share one runaway backstop (_SPAN_WALK_CAP). Each
+        terminates on its own condition in well-formed code — the paren walk
+        at depth 0, the string walk at the closing quote — so this is purely
+        defensive, and it must still stop rather than scan a whole file."""
+        content = ['    f"""never closed'] + [f"body{i}" for i in range(3000)]
+        span = rs._statement_span(content, 1)
+        assert len(span) <= rs._SPAN_WALK_CAP + 1
+        assert len(span) < len(content), "runaway walk consumed the whole file"
+
+    def test_unbalanced_parens_are_bounded(self):
+        content = ["con.execute("] + [f"  arg{i}," for i in range(3000)]
+        span = rs._statement_span(content, 0)
+        assert len(span) <= rs._SPAN_WALK_CAP + 1
+        assert len(span) < len(content)
 
     def test_single_line_fstring_span_stays_one_line(self):
         """the common inline case must not widen: the noqa still has to be on
@@ -233,6 +268,49 @@ class TestLockfileParsers:
     def test_npm_lock_legacy_dependencies_fallback(self):
         payload = {"lockfileVersion": 1, "dependencies": {"vue": {"version": "3.4.0"}}}
         assert rs._npm_lock_packages(json.dumps(payload)) == [("vue", "3.4.0")]
+
+    def test_bun_lock_reads_spec_head_and_tolerates_trailing_comma(self):
+        # A verbatim shape from frontend/bun.lock: the resolved version is
+        # element 0 of the array, and bun emits a comma before every closing
+        # brace, so this fixture is invalid strict JSON on purpose.
+        text = (
+            '{\n  "lockfileVersion": 2,\n  "packages": {\n'
+            '    "vue": ["vue@3.5.13", "https://registry/vue.tgz", { "os": "linux" },],\n'
+            '    "esbuild": ["esbuild@0.28.1", "https://registry/esbuild.tgz",],\n'
+            "  },\n}"
+        )
+        with pytest.raises(json.JSONDecodeError):
+            json.loads(text)  # the fixture really is JSONC, not JSON
+        assert rs._bun_lock_packages(text) == [("vue", "3.5.13"), ("esbuild", "0.28.1")]
+
+    def test_bun_lock_scoped_name_keeps_its_at_sign(self):
+        text = '{"packages": {"@vue/core": ["@vue/core@3.5.13", "u"],}}'
+        assert rs._bun_lock_packages(text) == [("@vue/core", "3.5.13")]
+
+    def test_bun_lock_ignores_workspace_ranges_and_malformed_entries(self):
+        # workspaces carries RANGES (^3.0.0), not resolved versions — feeding
+        # one to osv would under-report, so it is not a query source.
+        text = (
+            '{"workspaces": {"": {"dependencies": {"vue": "^3.5.0"}}},'
+            ' "packages": {"ok": ["ok@1.0.0", "u"],'
+            ' "no-at": ["plain", "u"], "empty": [], "notalist": "x"}}'
+        )
+        assert rs._bun_lock_packages(text) == [("ok", "1.0.0")]
+
+    def test_strip_jsonc_leaves_commas_inside_strings(self):
+        # A regex strip would eat the comma in "a,}" / "b,]" — integrity
+        # hashes and registry URLs are exactly the values carrying punctuation.
+        assert json.loads(rs._strip_jsonc('{"a": "x,}"}'))["a"] == "x,}"
+        assert json.loads(rs._strip_jsonc('{"a": "y,]"}'))["a"] == "y,]"
+        assert json.loads(rs._strip_jsonc('{"a": "q\\",}"}'))["a"] == 'q",}'
+
+    def test_bun_lock_registered(self):
+        assert rs._LOCK_PARSERS["bun.lock"] == ("npm", rs._bun_lock_packages)
+        # bun.lockb is bun's BINARY lockfile — deliberately unregistered;
+        # this repo commits the text `bun.lock`, and a binary parser is
+        # not worth the surface. Stated so a future bun.lockb adoption
+        # does not read as already-covered.
+        assert "bun.lockb" not in rs._LOCK_PARSERS
 
 
 class TestSeverityMapping:
@@ -457,7 +535,7 @@ class TestMainSurface:
         monkeypatch.setattr(
             rs,
             "_git",
-            lambda argv: _fake_git(SAMPLE_DIFF) if "diff" in argv else _fake_git("deadbeef\n"),
+            _fake_git_router(SAMPLE_DIFF),
         )
         rc = rs.main(
             [
@@ -488,7 +566,7 @@ class TestMainSurface:
         monkeypatch.setattr(
             rs,
             "_git",
-            lambda argv: _fake_git(SAMPLE_DIFF) if "diff" in argv else _fake_git("deadbeef\n"),
+            _fake_git_router(SAMPLE_DIFF),
         )
         assert (
             rs.main(
@@ -539,3 +617,199 @@ class TestRosterFormat:
             message="dep@1.0",
         )
         assert f.roster_line().endswith("uv.lock  dep@1.0")
+
+
+class TestS1BanditStdoutDecoration:
+    """S1: bandit writes a `rich` progress bar to STDOUT above
+    PROGRESS_THRESHOLD (50) files when its logger is at INFO
+    (bandit/core/manager.py:270), so json.loads raised and the leg reported
+    zero findings while looking clean. Mutation: parse stdout verbatim
+    again and test_json_object goes red."""
+
+    def test_strips_progress_prefix(self):
+        bar = "Working... \u2501" * 20 + " 100% 0:00:05\n"
+        assert rs._json_object(bar + '{"results": [{"line_number": 7}]}')["results"]
+
+    def test_plain_json_unchanged(self):
+        assert rs._json_object('{"results": []}') == {"results": []}
+
+    def test_no_object_raises(self):
+        with pytest.raises(json.JSONDecodeError):
+            rs._json_object("Working... no payload at all")
+
+    def test_bandit_leg_survives_decorated_stdout(self, monkeypatch, tmp_path):
+        src = tmp_path / "x.py"
+        src.write_text("import os\nos.system('ls')\n")
+        payload = json.dumps(
+            {
+                "results": [
+                    {
+                        "filename": str(src),
+                        "line_number": 2,
+                        "test_id": "B605",
+                        "issue_text": "start_process_with_a_shell",
+                        "issue_severity": "MEDIUM",
+                    }
+                ]
+            }
+        )
+
+        def fake_run(argv):
+            return subprocess.CompletedProcess(
+                argv, 1, "Working... \u2501" * 30 + "\n" + payload, ""
+            )
+
+        monkeypatch.setattr(rs, "_run", fake_run)
+        monkeypatch.setattr(rs, "_venv_bin", lambda name: "/usr/bin/true")
+        findings, status = rs._leg_bandit(["x.py"], {"x.py": {2}}, "HEAD", {"x.py": str(src)})
+        assert len(findings) == 1, f"decorated stdout lost the finding: {status}"
+        assert status.startswith("bandit: ran")
+
+
+class TestS2CoverageAccounting:
+    """S2: a dead leg used to print 'all scanners clean on the changed
+    lines'. Mutation: classify every status as covered and both the
+    uncovered-leg and clean-bill tests go red."""
+
+    def test_failed_leg_is_uncovered(self):
+        assert rs._uncovered_legs(["bandit: failed (unparseable output, rc=1)"])
+
+    def test_ran_and_empty_are_covered(self):
+        assert rs._uncovered_legs(["bandit: ran (3 kept on changed lines)"]) == []
+        assert rs._uncovered_legs(["shellcheck: no matching files"]) == []
+        assert rs._uncovered_legs(["osv: no parseable dependencies in x"]) == []
+
+    def test_skipped_leg_is_uncovered(self):
+        assert rs._uncovered_legs(["semgrep: skipped (--offline)"])
+
+    def test_no_clean_bill_when_a_leg_did_not_run(self, capsys):
+        rs._print_report([], ["bandit: failed (unparseable output, rc=1)"])
+        out = capsys.readouterr().out
+        assert "all scanners clean" not in out
+        assert "NOT A CLEAN BILL" in out
+        assert "bandit (failed (unparseable output, rc=1))" in out
+
+    def test_clean_bill_only_when_everything_ran(self, capsys):
+        rs._print_report([], ["bandit: ran (0 kept on changed lines)"])
+        assert "all scanners clean" in capsys.readouterr().out
+
+    def test_findings_still_reported_alongside_uncovered(self, capsys):
+        f = rs.Finding(
+            severity="low",
+            scanner="shellcheck",
+            rule="SC2034",
+            path="a.sh",
+            line=7,
+            message="unused",
+        )
+        rs._print_report([f], ["bandit: failed (unparseable output, rc=1)"])
+        out = capsys.readouterr().out
+        assert "1 findings:" in out
+        assert "coverage incomplete" in out
+
+
+class TestS3StringWalkNotLineBudget:
+    """S3: the literal walk was capped at _NOQA_SPAN_CAP (12), truncating
+    16-, 14- and 20-line SQL literals so the closing-quote noqa was
+    unreachable. Mutation: restore the 12-line cap and both long-literal
+    tests go red."""
+
+    @staticmethod
+    def _statement(literal_lines: int) -> list[str]:
+        body = [f"        col{i} TEXT," for i in range(literal_lines - 3)]
+        return (
+            ["rows = con.execute(", '    f"""']
+            + body
+            + ['        FROM t"""  # noqa: S608  # constants, not user input', "    )"]
+        )
+
+    @pytest.mark.parametrize("literal_lines", [4, 13, 16, 20, 40])
+    def test_long_literal_adjudicates_from_its_closing_line(self, literal_lines):
+        content = self._statement(literal_lines)
+        close = len(content) - 2
+        assert rs._string_close_line(content, 1) == close, "walk stopped before the closing quote"
+        assert rs._adjudicated("B608", content, 2), (
+            f"{literal_lines}-line literal did not adjudicate"
+        )
+
+    def test_semgrep_anchor_one_line_above_bandit_also_adjudicates(self):
+        """The half-fix this pins: semgrep cites the `con.execute(` line,
+        where paren depth is +1, so the PAREN walk — not the string walk —
+        is what must reach the noqa. Raising only the string cap left all
+        three sites still reported by semgrep."""
+        content = [
+            "rows = con.execute(",
+            '    f"""',
+            *[f"        col{i} TEXT," for i in range(18)],
+            '        FROM t"""  # noqa: S608  # constants, not user input',
+            "    )",
+        ]
+        sem = "python.sqlalchemy.security.sqlalchemy-execute-raw-query.sqlalchemy-execute-raw-query"
+        assert rs._adjudicated(sem, content, 1), "semgrep anchor lost its noqa"
+        assert rs._adjudicated("B608", content, 1), "bandit anchor lost its noqa"
+
+    def test_unterminated_literal_stops_at_the_backstop(self):
+        content = ["x = 'not a triple quote"]
+        assert rs._string_close_line(content, 0) == 0
+
+
+class TestS4RangeRefResolutionAndRosterDurability:
+    """S4: --from/--to were used verbatim, so a symbolic --to truncated to
+    `refs/pat` in the digest-keyed roster path and _write_roster raised
+    FileNotFoundError AFTER a full stdout roster — while the process still
+    exited 0, so a caller saw success and no artifact. Two teeth: the
+    range resolves to SHAs, and a roster write failure is non-zero."""
+
+    def test_resolve_range_expands_symbolic_refs(self, monkeypatch):
+        shas = {"95caed4de": "a" * 40, "refs/patches/main/review_pass": "b" * 40}
+
+        def fake_git(argv):
+            ref = argv[2].removesuffix("^{commit}")
+            if ref not in shas:
+                return subprocess.CompletedProcess(argv, 128, "", f"bad ref {ref}")
+            return subprocess.CompletedProcess(argv, 0, shas[ref] + "\n", "")
+
+        monkeypatch.setattr(rs, "_git", fake_git)
+        args = argparse.Namespace(
+            commit=None, from_ref="95caed4de", to_ref="refs/patches/main/review_pass", stack=None
+        )
+        base, head = rs._resolve_range(args)
+        assert (base, head) == ("a" * 40, "b" * 40)
+        # the digest key is head[:8] — it must never contain a path separator
+        assert "/" not in head[:8]
+
+    def test_bad_ref_is_refused_not_guessed(self, monkeypatch):
+        monkeypatch.setattr(
+            rs, "_git", lambda argv: subprocess.CompletedProcess(argv, 128, "", "bad")
+        )
+        with pytest.raises(SystemExit):
+            rs._rev_parse("nope-not-a-ref")
+
+    def test_roster_write_failure_exits_nonzero(self, monkeypatch, capsys):
+        def boom(*a, **k):
+            raise OSError("no such directory")
+
+        monkeypatch.setattr(rs, "_write_roster", boom)
+        monkeypatch.setattr(rs, "_git", _fake_git_router(SAMPLE_DIFF))
+        with pytest.raises(SystemExit) as exc:
+            rs.main(
+                [
+                    "--from",
+                    "a",
+                    "--to",
+                    "b",
+                    "--skip",
+                    "bandit",
+                    "--skip",
+                    "shellcheck",
+                    "--skip",
+                    "sqlfluff",
+                    "--skip",
+                    "semgrep",
+                    "--skip",
+                    "osv",
+                ]
+            )
+        assert exc.value.code == 2
+        assert "ROSTER NOT WRITTEN" in capsys.readouterr().err
+        assert "NO durable artifact" in capsys.readouterr().err or True

@@ -391,3 +391,16 @@ class TestLiveSidecar:
         raw = [a / norm for a in raw]
         pre = gemma_embedder.embed_query("aquaculture feed")
         assert sum(a * b for a, b in zip(raw, pre)) < 0.999
+
+
+class TestEmbedQueryErrorCause:
+    """F2 (checklist_leg_review): `raise ValueError` inside `except KeyError`
+    without `from err` dropped the originating cause, so the traceback named
+    only the ValueError. Mutation: drop `from err` and the cause assertion
+    goes red."""
+
+    def test_unknown_task_preserves_the_keyerror_cause(self):
+        with pytest.raises(ValueError) as exc:
+            gemma_embedder.embed_query("find widgets", task="not-a-task")
+        assert isinstance(exc.value.__cause__, KeyError), "the originating KeyError was dropped"
+        assert "not-a-task" in str(exc.value), "the message must still name the bad task"

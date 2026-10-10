@@ -267,7 +267,7 @@ def _ensure_load_log_outcome_columns(con: duckdb.DuckDBPyConnection) -> None:
         ("unknown_fields", "BIGINT"),
     ]:
         if col not in cols:
-            con.execute(f"ALTER TABLE load_log ADD COLUMN {col} {typ}")
+            con.execute(f"ALTER TABLE load_log ADD COLUMN {col} {typ}")  # noqa: S608  # col/typ from the module-level (name, type) tuple list; no user input
 
 
 def _ensure_model_request_error_message(con: duckdb.DuckDBPyConnection) -> None:
@@ -547,8 +547,8 @@ def _parse_zcode(con, since=None):
                 .replace("__COST__", cost_expr)
                 .format(window=session_window if table == "dim_session" else window)
             )
-            rows = [tuple(r) for r in src.execute(sql).fetchall()]
-            out[table] = [{c: v for c, v in zip(cols, row)} for row in rows]
+            rows = [tuple(r) for r in src.execute(sql).fetchall()]  # noqa: S608  # sql built from the module _ZCODE_EXTRACTS templates with constant .replace/.format; no user input
+            out[table] = [{c: v for c, v in zip(cols, row)} for row in rows]  # noqa: S608  # cols/row from the same query: header + its own fetchall(), lengths match by construction
         # Normalize to full contract keys so required-field validation can
         # distinguish "column omitted by extract" (NULL-filled) from a
         # genuinely dropped required key in the raw shape.
@@ -1548,89 +1548,92 @@ def _parse_rollout(con, since=None, directory=None):
         return 0
     rows = []
     for f in sorted(d.glob("model-io-*.jsonl")):
-        for line in open(f, errors="replace"):
-            try:
-                r = json.loads(line)
-            except json.JSONDecodeError:
-                continue
-            if not isinstance(r, dict) or not r.get("requestId"):
-                continue
-            ts = _rollout_iso(r.get("startedAt"))
-            if ts is None:
-                continue
-            day = ts.astimezone().date()  # local day, per model_usage.md conventions
-            if since is not None and day < since:
-                continue
-            resp = r.get("response")
-            resp = resp if isinstance(resp, dict) else {}
-            req = r.get("request")
-            req = req if isinstance(req, dict) else {}
-            model = r.get("model")
-            model = model if isinstance(model, dict) else {}
-            usage = resp.get("usage")
-            usage = usage if isinstance(usage, dict) else {}
-            cache_read = usage.get("cacheReadTokens") or 0
-            text = resp.get("text") or ""
-            reasoning = resp.get("reasoningText") or ""
-            tcs = resp.get("toolCalls") or []
-            tools = []
-            for tc in tcs:
-                if not isinstance(tc, dict):
+        with open(f, errors="replace") as fh:
+            for line in fh:
+                try:
+                    r = json.loads(line)
+                except json.JSONDecodeError:
                     continue
-                arg = tc.get("input")
-                tools.append(
+                if not isinstance(r, dict) or not r.get("requestId"):
+                    continue
+                ts = _rollout_iso(r.get("startedAt"))
+                if ts is None:
+                    continue
+                day = ts.astimezone().date()  # local day, per model_usage.md conventions
+                if since is not None and day < since:
+                    continue
+                resp = r.get("response")
+                resp = resp if isinstance(resp, dict) else {}
+                req = r.get("request")
+                req = req if isinstance(req, dict) else {}
+                model = r.get("model")
+                model = model if isinstance(model, dict) else {}
+                usage = resp.get("usage")
+                usage = usage if isinstance(usage, dict) else {}
+                cache_read = usage.get("cacheReadTokens") or 0
+                text = resp.get("text") or ""
+                reasoning = resp.get("reasoningText") or ""
+                tcs = resp.get("toolCalls") or []
+                tools = []
+                for tc in tcs:
+                    if not isinstance(tc, dict):
+                        continue
+                    arg = tc.get("input")
+                    tools.append(
+                        {
+                            "name": tc.get("name"),
+                            "input": json.dumps(arg)[:_TOOL_INPUT_HEAD]
+                            if arg is not None
+                            else None,
+                        }
+                    )
+                tool_names = ",".join(
+                    n for n in (req.get("toolNames") or []) if isinstance(n, str)
+                )[:_TOOL_NAMES_CAP]
+                err = r.get("error")
+                err = err if isinstance(err, dict) else {}
+                stack_head = " | ".join((err.get("stack") or "").splitlines()[1:4])
+                err_msg = err.get("message") or ""
+                rows.append(
                     {
-                        "name": tc.get("name"),
-                        "input": json.dumps(arg)[:_TOOL_INPUT_HEAD] if arg is not None else None,
+                        "request_id": r["requestId"],
+                        "session_id": r.get("sessionId"),
+                        "turn_id": r.get("turnId"),
+                        "trace_id": r.get("traceId"),
+                        "attempt_index": _rollout_int(r.get("attempt"), 1),
+                        "ts": ts,
+                        "day": day,
+                        "completed_ts": _rollout_iso(r.get("completedAt")),
+                        "provider": model.get("providerId"),
+                        "model": model.get("modelId"),
+                        "query_source": r.get("querySource"),
+                        "status": "completed" if usage else "error",
+                        "finish_reason": resp.get("finishReason"),
+                        "duration_ms": _rollout_int(r.get("durationMs")),
+                        "input": (usage.get("inputTokens") or 0) - cache_read
+                        if usage.get("inputTokens") is not None
+                        else None,
+                        "output": usage.get("outputTokens"),
+                        "cache_read": usage.get("cacheReadTokens"),
+                        "cache_write": usage.get("cacheWriteTokens"),
+                        "total_tokens": usage.get("totalTokens"),
+                        "text_chars": len(text),
+                        "reasoning_chars": len(reasoning),
+                        "tool_call_count": len(tools),
+                        "tools_json": json.dumps(tools)[:_TOOLS_JSON_CAP],
+                        "text_head": text[:_TEXT_HEAD],
+                        "reasoning_head": reasoning[:_TEXT_HEAD],
+                        "messages_kind": req.get("messagesKind"),
+                        "message_offset": _rollout_int(req.get("messageOffset")),
+                        "message_count": _rollout_int(req.get("messageCount")),
+                        "tool_names": tool_names,
+                        "error_name": err.get("name"),
+                        "error_message": (err_msg + (" | " + stack_head if stack_head else ""))[
+                            :_ERROR_CAP
+                        ]
+                        or None,
                     }
                 )
-            tool_names = ",".join(n for n in (req.get("toolNames") or []) if isinstance(n, str))[
-                :_TOOL_NAMES_CAP
-            ]
-            err = r.get("error")
-            err = err if isinstance(err, dict) else {}
-            stack_head = " | ".join((err.get("stack") or "").splitlines()[1:4])
-            err_msg = err.get("message") or ""
-            rows.append(
-                {
-                    "request_id": r["requestId"],
-                    "session_id": r.get("sessionId"),
-                    "turn_id": r.get("turnId"),
-                    "trace_id": r.get("traceId"),
-                    "attempt_index": _rollout_int(r.get("attempt"), 1),
-                    "ts": ts,
-                    "day": day,
-                    "completed_ts": _rollout_iso(r.get("completedAt")),
-                    "provider": model.get("providerId"),
-                    "model": model.get("modelId"),
-                    "query_source": r.get("querySource"),
-                    "status": "completed" if usage else "error",
-                    "finish_reason": resp.get("finishReason"),
-                    "duration_ms": _rollout_int(r.get("durationMs")),
-                    "input": (usage.get("inputTokens") or 0) - cache_read
-                    if usage.get("inputTokens") is not None
-                    else None,
-                    "output": usage.get("outputTokens"),
-                    "cache_read": usage.get("cacheReadTokens"),
-                    "cache_write": usage.get("cacheWriteTokens"),
-                    "total_tokens": usage.get("totalTokens"),
-                    "text_chars": len(text),
-                    "reasoning_chars": len(reasoning),
-                    "tool_call_count": len(tools),
-                    "tools_json": json.dumps(tools)[:_TOOLS_JSON_CAP],
-                    "text_head": text[:_TEXT_HEAD],
-                    "reasoning_head": reasoning[:_TEXT_HEAD],
-                    "messages_kind": req.get("messagesKind"),
-                    "message_offset": _rollout_int(req.get("messageOffset")),
-                    "message_count": _rollout_int(req.get("messageCount")),
-                    "tool_names": tool_names,
-                    "error_name": err.get("name"),
-                    "error_message": (err_msg + (" | " + stack_head if stack_head else ""))[
-                        :_ERROR_CAP
-                    ]
-                    or None,
-                }
-            )
     cols = trace_contracts.table_cols("fact_model_step")
     rows = [{c: r.get(c) for c in cols} for r in rows]
     _delete_window(con, "fact_model_step", _ROLLOUT_SOURCE, since)
@@ -1907,7 +1910,7 @@ def spend_per_tool_hour_rows(con: duckdb.DuckDBPyConnection, spec: str) -> list[
     if not USAGE_DB.is_file():
         return []
     start, end = parse_range(spec, con)
-    con.execute(f"ATTACH IF NOT EXISTS '{USAGE_DB}' AS mu (READ_ONLY)")
+    con.execute(f"ATTACH IF NOT EXISTS '{USAGE_DB}' AS mu (READ_ONLY)")  # noqa: S608  # USAGE_DB is the module constant at :65
     rows = con.execute(
         """
         SELECT u.day,

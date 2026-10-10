@@ -646,7 +646,7 @@ def local_latency(
 
     stats: dict[str, dict] = {}
     for day, calls, errs in con.execute(
-        f"""SELECT {DAY},
+        f"""SELECT {DAY},  # noqa: S608  # DAY is the module constant at :624; values are ?-bound via params
                   SUM(json_extract(part.data,'$.type')='tool'),
                   SUM(json_extract(part.data,'$.type')='tool'
                       AND json_extract(part.data,'$.state.status')!='completed')
@@ -663,7 +663,7 @@ def local_latency(
     # time_to_first_token_ms; OpenCode has no equivalent). Step latency is real.
     buckets: dict[str, list] = {}
     for day, started, finished in con.execute(
-        f"""SELECT {DAY},
+        f"""SELECT {DAY},  # noqa: S608  # DAY is the module constant at :624; values are ?-bound via params
                   MIN(CASE WHEN json_extract(part.data,'$.type')='step-start'
                            THEN part.time_created END),
                   MAX(CASE WHEN json_extract(part.data,'$.type')='step-finish'
@@ -922,7 +922,7 @@ def query_rows(
         params.append(f"%{model}%")
     where = "WHERE " + " AND ".join(clauses)
 
-    tot = con.execute(Q_TOTAL.format(where=where), params).fetchone()
+    tot = con.execute(Q_TOTAL.format(where=where), params).fetchone()  # noqa: S608  # named {where} in a module template; values ?-bound via params
     if tot is None:
         raise RuntimeError("usage totals query returned no row")
     totals = {
@@ -957,7 +957,7 @@ def query_rows(
                 r,
             )
         )
-        for r in con.execute(Q_RANGE.format(where=where), params).fetchall()
+        for r in con.execute(Q_RANGE.format(where=where), params).fetchall()  # noqa: S608  # named {where} in a module template; values ?-bound via params
     ]
     return totals, rows
 

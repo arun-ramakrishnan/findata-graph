@@ -9989,3 +9989,187 @@ worklist routing, cross-check/integrity transient (repro documented),
 listed/ticker enrichment. Revisit trigger: the next alias-file addition
 for a name class §S1 covers, or any wrong-company edge traced to a
 tie-break.
+
+## 379. Lockfile coverage — scan bun.lock and admit lock files to review
+**Date**: 2026-10-10 **Status**: EXECUTED
+**Proposal**: `doc/improvements/archive/tooling/lockfile_coverage.md`
+
+The dependency-vuln class `source-map-js@1.2.1` (CVE-2026-93749, CVSS
+8.7, availability-only, fixed 1.2.2) was surfaced by `review-scan` on the
+`95caed4de..a7972551d` review and had been open since 2026-10-07. Three
+structural reasons, none of them a scanner bug:
+
+1. **`_LOCK_PARSERS` covered one manager.** The repo runs two package
+   managers: `frontend/` is bun (`Makefile:553`) with `frontend/bun.lock`,
+   while `desktop/src-vue/` is npm (`desktop/Makefile:10`) with
+   `package-lock.json`. Only the latter had a parser, so the bun side — the
+   direction the operator's own setup leans — carried **no dependency-vuln
+   coverage at all**.
+2. **rule.json excluded lock files**, so the file osv flagged was a file no
+   reviewer was ever handed. The exclusion was silent: nothing marked the
+   advisory as unowned.
+3. **No `overrides`** in `desktop/src-vue/package.json`, so the transitive
+   pin had no local remedy short of waiting on four upstream packages.
+
+WHAT
+
+- `overrides: {"source-map-js": "^1.2.2"}` — manager-agnostic (npm writes
+  it; bun honours npm `overrides`), which is why it is correct across the
+  two-manager split.
+- Lockfile regenerated: source-map-js 1.2.1 → 1.2.2, 0 packages removed;
+  the remaining diff is npm re-resolving the platform-specific
+  `@tailwindcss/oxide-wasm32-wasi` optional tree, not version drift.
+- `_bun_lock_packages` + `_strip_jsonc` in `review_scan.py`, registered as
+  `("npm", …)`. bun's text lockfile is JSONC with trailing commas
+  (`json.loads` refuses it outright), so the stripper is string-aware — a
+  regex would corrupt integrity hashes and registry URLs. The resolved
+  version is element 0 of each positional array (`"name@version"`), and
+  `workspaces` carries RANGES, so it is deliberately not a query source.
+- rule.json: both lock excludes dropped **and** `**/*.lock` +
+  `**/package-lock.json` added to `include`.
+
+The non-obvious part of the last slice: **removing an `exclude` does not
+admit a path.** Selection stayed 185/480 with both lock files still
+`(excluded)`, because under 1.12.11 `include` is the only mechanism that
+admits a path past the extension allow-list and `.lock` is not an admitted
+extension. Same mechanism that admits `doc/**/*.md`, same reason.
+
+TEETH — 5 tests in `TestLockfileParsers`, 2 mutants RED (`rpartition` →
+`partition` breaks scoped names; dropping the `in_string` guard breaks 4).
+
+RESULT — osv `179 deps / 1 vulnerable` → `244 deps / 0 vulnerable`
+(185 npm + 59 bun); selection 185/480 → 187/480 with both lock files
+reviewable and `selection-teeth OK` intact.
+
+One in-flight correction worth keeping: `source-map-js` is reachable from
+**production** deps (`vue → @vue/server-renderer → @vue/compiler-ssr →
+@vue/compiler-dom → @vue/compiler-core`), not build-time-only as first
+assessed. It is absent from the built bundle (0 markers across 255 KB of
+`dist/assets/*.js`), which is why the advisory is availability-only in
+practice — but the installed tree did carry 1.2.1, so the fix is real.
+
+## 380. Review-pass findings — restore the dead bandit leg, stop the false green, fix the noqa span, keep the roster
+**Date**: 2026-10-10 **Status**: EXECUTED
+**Proposal**: `doc/improvements/archive/tooling/review_pass_findings.md`
+
+Six slices over the `95caed4de..a7972551d` review (29 commits, 480 files).
+Four were machinery and shared one failure shape — **the tool reports
+success while having done less than it claims.**
+
+- **S1 — the bandit leg was dead above 50 `.py` files.** bandit 1.9.4 writes
+  a `rich` progress bar to STDOUT when `len(files_list) > PROGRESS_THRESHOLD
+  (50)` AND its logger is at INFO (`bandit/core/manager.py:270`). Both hold
+  for any large range, so `json.loads` raised, the leg returned zero
+  findings, and a 108-file range got **no Python security coverage at all**.
+  A threshold-crossing regression, not an always-broken leg — the earlier
+  `4fd3a20f..bda590995` review reported `bandit: ran (11 kept)` because it
+  sat under the limit, which is why this went unread. Fixed by `_json_object`,
+  which seeks the first `{` rather than trimming a fixed prefix.
+- **S2 — a failed leg was reported as a clean bill.** `_print_report` printed
+  `all scanners clean on the changed lines` whenever `findings` was empty,
+  never consulting `statuses`, so "leg crashed" and "nothing found" rendered
+  identically. `_uncovered_legs` now classifies each status; the clean bill is
+  reachable only when every enabled leg actually scanned.
+- **S3 — `_NOQA_SPAN_CAP = 12` defeated the #373 fix.** bandit cites a
+  multi-line f-string's FIRST line, semgrep cites the `con.execute()` line one
+  above it, and the house `# noqa` sits on the closing-quotes line. 16-, 14-
+  and 20-line literals were truncated by 3, 1 and 7 lines, so adjudicated
+  findings resurfaced. **The first attempt fixed only the string walk** and
+  left the paren walk capped — semgrep still reported all three sites, because
+  its anchor is the line where depth is +1. Both walks now share one runaway
+  backstop and each terminates on its own condition (depth 0 / closing quote);
+  an unterminated literal is a syntax error and never reaches the backstop.
+- **S6 — a symbolic `--to` silently lost the roster.** `--from/--to` were used
+  verbatim, so `--to refs/patches/main/review_pass` truncated to `refs/pat` in
+  the digest-keyed roster path and `_write_roster` raised FileNotFoundError
+  **after** a complete, correct-looking stdout roster — while the process
+  **exited 0**. A caller checking the exit code would record a verdict that
+  was never written; the roster is the leg's whole deliverable (operator
+  ruling 2026-10-09). Now `_rev_parse` resolves refs to SHAs and a write
+  failure exits 2 with an explicit no-artifact message.
+
+Annotation debt, also landed:
+
+- **S4** — twelve S608 sites and one S310 site across the new analytics
+  modules, all structurally safe (constant interpolation, `?`-bound values)
+  and all unadjudicated. Each directive now names WHY its interpolation is
+  constant. Two of the first placements were on the adjacent line rather than
+  the line the tool cites, and did not adjudicate until moved onto the
+  `execute()` call itself — verified individually, all 13.
+- **S5** — `local any=0` / `any=1` in `helpers/misc/llama_servers.sh:72`,
+  assigned and never read.
+
+RESULT — the scan over `95caed4de..refs/patches/main/review_pass`:
+`31 findings → 14`, and every defect-bearing leg went to zero.
+
+| | before | after |
+|---|---|---|
+| bandit | `failed (rc=1)`, 0 findings | `ran (3 kept)` |
+| semgrep | 15 kept | **0 kept** (all adjudicated) |
+| shellcheck | 3 kept | 2 kept (SC2034 gone) |
+| sqlfluff | 9 kept | 9 kept (cosmetic, out of scope) |
+| osv | 179 deps / 1 vuln | 244 deps / **0 vuln** (59 bun.lock newly covered; source-map-js fixed by #379) |
+| total | 32 | **14** |
+
+The 14 remaining are the adjudicated-benign set: 9 sqlfluff style rules on
+`SELECT *` views, 2 `B404` (`import subprocess` in tooling that shells out),
+1 `B105` column-list false positive, 2 `SC2086` intentional word-splitting.
+
+TEETH — 91 tests in `tests/test_review_scan.py`; one mutant per slice,
+including both walks of S3 (cap the paren walk at 12; cap the string walk
+at 12) and both halves of S6. Three pre-existing tests were updated: their
+`_git` stub could not route `rev-parse`/`show` and they asserted on the
+pre-resolution ref spelling; a `_fake_git_router` helper now echoes the
+requested ref. One pre-existing test had pinned `_NOQA_SPAN_CAP` as the
+string-walk bound — it was ratifying the S3 defect.
+
+## 381. OCR checklist leg — host review of the 108 reviewable Python files
+**Date**: 2026-10-10 **Status**: EXECUTED
+**Proposal**: `doc/improvements/archive/tooling/checklist_leg_review.md`
+
+The OCR delegation leg contributes a selection and a checklist, never
+findings — every rule is `source: system`, so the house checklist is the
+only carrier. Reviewing the 108 selected `.py` files against it is the
+host's job, and it had not been done: an earlier pass ran the scanner legs
+and treated their output as the review.
+
+Run **by checklist group** rather than by file, so each sweep is verifiable
+across the range by grep. The mechanical proxy is the off-gate ruff
+rulesets — `B,PL,RET,SIM,PERF,ASYNC,ARG,TRY,C4` plus `E722,S110,S112` —
+none of which the standing gate selects (`E,F` blocking, `S,UP,C901`
+advisory). That gap is the point: a whole checklist's worth of classes is
+invisible to the gate as configured.
+
+**536 off-gate findings on changed lines → 2 real defects**, both fixed:
+
+- **F1 (MEDIUM)** `helpers/analytics/agent_traces.py` — `_parse_rollout`
+  read `for line in open(f, errors="replace")`, an unclosed handle and the
+  only `SIM115` in the range, in the rollout-JSONL ingest path. Now
+  `with open(...) as fh:`. CPython's refcounting had been closing it at
+  loop end, so it was ResourceWarning-class rather than an accumulating
+  leak — but it is a real violation of the checklist's resource-lifetime
+  rule in the path where a dropped handle under load would matter.
+- **F2 (LOW)** `helpers/core/gemma_embedder.py` — `embed_query` raised
+  `ValueError` inside `except KeyError` with no `from err`, dropping the
+  originating cause. Low because the message is self-explanatory, so no
+  debugging information was actually lost.
+
+**65 adjudicated benign**, each verified against source rather than
+assumed: the 37-site `zip(cols, row)` cluster is length-safe by
+construction (header and rows come from the same query); the 6 `B007`
+sites are intentional tuple unpacking; the 8 `PLW2901` are deliberate
+edge-direction swaps. Arithmetic: 536 − 469 house-style/benign − 2 defects.
+
+TEETH — 2 tests added, one per finding, each mutation-verified RED. The F1
+test's warning class was checked for sensitivity before it was trusted
+(CPython emits `ResourceWarning` for the unclosed form, not for `with`), and
+it is scoped by filename because `catch_warnings` is global — without that,
+another test's handle GC'ing inside the block fails this one for someone
+else's leak.
+
+**Not mechanised — stated, not claimed clean** (§2.5 of the proposal):
+module-level mutable globals mutated across calls; `None` reaching code
+that assumes a value; resource lifetimes across `try`/`finally` beyond the
+one `open()`; float equality and division assumptions; concurrency claims.
+Absence of a finding here is not absence of a defect — this remains the
+open surface in the 108 files.

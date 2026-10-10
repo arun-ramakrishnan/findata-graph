@@ -189,3 +189,34 @@ def test_missing_directory_loads_zero(tmp_path: Path) -> None:
 def test_registered_in_loaders() -> None:
     assert "rollout" in agent_traces.LOADERS
     assert trace_contracts.get_parser("rollout") is agent_traces._parse_rollout
+
+
+class TestParseRolloutClosesFileHandles:
+    """F1 (checklist_leg_review): the ingest loop read
+    `for line in open(f, errors="replace")` — an unclosed handle, the only
+    SIM115 in the range. Mutation: revert to the unclosed form and
+    ResourceWarning fires, so this tooth is real, not decorative."""
+
+    def test_no_resource_warning_on_the_skip_path(self, tmp_path):
+        import gc
+        import warnings
+
+        con = duckdb.connect(str(tmp_path / "rollout.duckdb"))
+        con.execute(agent_traces.SCHEMA)
+        # a good record, one with no startedAt (-> continue), one malformed
+        (tmp_path / "model-io-a.jsonl").write_text(
+            '{"requestId":"r1","startedAt":"2026-01-02T03:04:05Z"}\n{"requestId":"r2"}\nnot-json\n'
+        )
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            agent_traces._parse_rollout(con, directory=str(tmp_path))
+            gc.collect()
+        # Scoped to the rollout JSONL by filename: catch_warnings is global,
+        # so an unrelated test's handle that GC's inside this block would
+        # otherwise fail this test for someone else's leak.
+        leaked = [
+            w
+            for w in caught
+            if "ResourceWarning" in type(w.message).__name__ and "model-io-" in str(w.message)
+        ]
+        assert not leaked, f"ingest leaked a file handle: {leaked[0].message}"

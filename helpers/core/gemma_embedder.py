@@ -268,10 +268,10 @@ def embed_query(text: str, *, task: str = "code", port: int | None = None) -> li
     query sites). task= code (script surface) | search (prose)."""
     try:
         prefix = _TASK_PREFIXES[task]
-    except KeyError:
+    except KeyError as err:
         raise ValueError(
             f"unknown gemma query task {task!r} (want one of {sorted(_TASK_PREFIXES)})"
-        )
+        ) from err
     if not text or not text.strip():
         raise ValueError("cannot embed empty text")
     return _embed(prefix + text, port=port)
