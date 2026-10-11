@@ -727,9 +727,10 @@ def load_zai(con, since: date | None = None) -> int:
 
 def load_opencode(con, since: date | None = None) -> int:
     """The whole OpenCode harness under one source name: the live opencode.db
-    plus the timeshift snapshot copies, deduped on message.id (the message
-    table PK) — the live DB only keeps recent sessions and each older
-    snapshot holds date ranges the current file has rotated away. There is no
+    plus the timeshift snapshot copies, deduped on message.id — message and
+    session_message ids share one space, so v1 and v2 passes dedupe through
+    the same `seen` set. The live DB only keeps recent sessions and each
+    older snapshot holds date ranges the current file has rotated away. There is no
     itemized usage API for Zen models, so these local DBs are authoritative.
 
     providerID is mapped to the store's provider names BEFORE aggregating so
@@ -813,7 +814,15 @@ def _drop_api_covered(con, recs: list) -> list:
 def _oc_messages(db: str):
     """Yield one assistant message's usage from an opencode snapshot DB:
     (day, provider, model, message_id, input, cache_read, output, reasoning,
-    cost). OpenCode semantics: input EXCLUDES cache reads."""
+    cost). OpenCode semantics: input EXCLUDES cache reads.
+
+    v2 sessions live in session_message: the row `type` is a column (not in
+    the payload) and the model is a nested `{providerID, id}` envelope.
+    Message ids share one space across both tables, so the caller's `seen`
+    set dedupes dual-grain sessions (only ses_f6c2ab88 today) for free.
+    Pre-v2 backup copies have no session_message table — that pass is
+    skipped, never fatal.
+    """
     con = _ro_connect(db, read_only=True)
     try:
         yield from con.execute(
@@ -827,6 +836,20 @@ def _oc_messages(db: str):
                       COALESCE(json_extract(data,'$.cost'),0)
                FROM message WHERE json_extract(data,'$.role')='assistant'"""
         )
+        try:
+            yield from con.execute(
+                """SELECT date(time_created/1000,'unixepoch','localtime'),
+                          json_extract(data,'$.model.providerID'),
+                          json_extract(data,'$.model.id'), id,
+                          COALESCE(json_extract(data,'$.tokens.input'),0),
+                          COALESCE(json_extract(data,'$.tokens.cache.read'),0),
+                          COALESCE(json_extract(data,'$.tokens.output'),0),
+                          COALESCE(json_extract(data,'$.tokens.reasoning'),0),
+                          COALESCE(json_extract(data,'$.cost'),0)
+                   FROM session_message WHERE type='assistant'"""
+            )
+        except sqlite3.OperationalError:
+            pass
     finally:
         con.close()
 

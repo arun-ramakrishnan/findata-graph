@@ -292,7 +292,10 @@ def _oc_part_rows(cur_parts: Iterator[tuple], msgs: dict[str, tuple], src: str) 
         else:
             meta = {k: v for k, v in d.items() if k not in ("type",)}
         m = msgs.get(mid) or ("", "", "")
-        out.append(_row(pid, mid, sid, _ms(tu or tc), m[0], m[1], m[2], ptype, text, meta, src))
+        out.append(
+            _row(pid, mid, sid, _ms(tu or tc), m[0], m[1], _oc_model_value(m[2]),
+                 ptype, text, meta, src)
+        )
     return out
 
 
@@ -326,6 +329,278 @@ def _harvest_opencode_db(db_path: Path, src: str, hwm: int | None) -> tuple[list
         con.close()
 
 
+# session_message types the v2 lane skips: outcome + routing markers with
+# no searchable text (measured 2026-10-11: idle 20, model-switched 5).
+_V2_SKIP_TYPES = ("idle", "model-switched")
+
+# event part types the v2 message store drops (measured 2026-10-11) — the
+# S2 lane emits exactly these; text/reasoning/tool stay with S1 so the two
+# lanes never double-ingest one block under different ids.
+_V2_DROPPED_TYPES = ("step-start", "step-finish", "patch", "compaction", "file")
+
+_SNAP_COUNT_KEY = "opencode-snap:source-count"
+
+
+def _corpus_max_ts(corpus_root: Path, sid: str) -> int | None:
+    """Max harvested ts (epoch ms) for a session's corpus parquet.
+
+    None when the session was never harvested. Seeds are timestamps, not
+    watermarks: the seed skips exactly what the corpus already holds — no
+    duplicates, and no residual window between the last legacy harvest and
+    the v2 cutover. A deleted parquet falls back to full ingest; re-emitted
+    rows merge newest-wins under stable ids, so the lane self-heals.
+    """
+    f = corpus_root / "opencode" / "conversations" / f"{_safe(sid)}.parquet"
+    if not f.exists():
+        return None
+    vals = [
+        int(v.timestamp() * 1000)
+        for v in pq.read_table(f, columns=["ts"]).column("ts").to_pylist()
+        if v is not None
+    ]
+    return max(vals) if vals else None
+
+
+def _v2_envelope(con) -> dict[str, tuple]:
+    """session_id -> (agent, model) from session_v2; {} when pre-v2 schema."""
+    try:
+        rows = con.execute("SELECT id, agent, model FROM session_v2").fetchall()
+    except sqlite3.OperationalError:
+        return {}
+    out = {}
+    for sid, agent, model in rows:
+        if isinstance(model, str):
+            try:
+                model = json.loads(model)
+            except json.JSONDecodeError:
+                pass
+        out[sid] = (agent or "", _oc_model_value(model))
+    return out
+
+
+def _v2_msg_envelope(con) -> dict[str, tuple]:
+    """message_id -> (role, agent, model): session_message first (v2 rows),
+    message table fallback (v1 rows). Missing tables contribute nothing."""
+    out: dict[str, tuple] = {}
+    try:
+        for mid, data in con.execute("SELECT id, data FROM session_message"):
+            try:
+                d = json.loads(data) or {}
+            except json.JSONDecodeError:
+                continue
+            m = d.get("model") or {}
+            out[mid] = (
+                d.get("type", ""),
+                d.get("agent", ""),
+                _oc_model_value(m),
+            )
+    except sqlite3.OperationalError:
+        pass
+    try:
+        for mid, data in con.execute("SELECT id, data FROM message"):
+            if mid in out:
+                continue
+            try:
+                d = json.loads(data) or {}
+            except json.JSONDecodeError:
+                continue
+            out[mid] = (
+                d.get("role", ""),
+                d.get("agent", ""),
+                _oc_model_value(d.get("model", "")),
+            )
+    except sqlite3.OperationalError:
+        pass
+    return out
+
+
+def _v2_block_rows(mid: str, sid: str, tc, tu, agent: str, model: str,
+                   data: dict, src: str) -> list[dict]:
+    """One corpus row per searchable unit of a session_message row.
+
+    part_id is the message id for message-grain rows (user, compaction,
+    synthetic — one row each) and f"{mid}#{i}" per assistant content block
+    (deterministic: content order is append-only, so re-harvests merge
+    newest-wins instead of duplicating).
+    """
+    rows = []
+    ts = _ms(tu or tc)
+    ctype = data.get("type") or "unknown"
+    if ctype == "user":
+        if data.get("text"):
+            rows.append(_row(mid, mid, sid, ts, "user", agent, model,
+                             "text", data["text"], {}, src))
+    elif ctype == "assistant":
+        for i, b in enumerate(data.get("content") or []):
+            if not isinstance(b, dict):
+                continue
+            pid = f"{mid}#{i}"
+            btype = b.get("type")
+            if btype == "text":
+                rows.append(_row(pid, mid, sid, ts, "assistant", agent, model,
+                                 "text", b.get("text") or "", {}, src))
+            elif btype == "reasoning":
+                rows.append(_row(pid, mid, sid, ts, "assistant", agent, model,
+                                 "reasoning", b.get("text") or "", {}, src))
+            elif btype == "tool":
+                st = b.get("state") or {}
+                texts = [c.get("text") or "" for c in st.get("content") or []
+                         if isinstance(c, dict)]
+                # legacy meta parity minus title: the v2 projection drops
+                # part titles, so there is nothing to carry (measured
+                # 2026-10-11 against the restore run, not assumed).
+                meta = {"status": st.get("status"), "tool": b.get("name"),
+                        "input": str(st.get("input"))[:2000]}
+                rows.append(_row(pid, mid, sid, ts, "assistant", agent, model,
+                                 "tool", " ".join(texts), meta, src))
+            # unknown future block kinds: skip loudly below via census tests,
+            # never silently (new kinds must extend this branch + AC4).
+    elif ctype == "compaction":
+        # The summary lives ONLY here — event compaction parts carry just
+        # {auto, tail_start_id} (measured 2026-10-11). Dropping this row
+        # loses the text with no recovery path.
+        rows.append(_row(mid, mid, sid, ts, "", agent, model, "compaction",
+                         data.get("summary") or "",
+                         {"status": data.get("status"),
+                          "reason": data.get("reason")}, src))
+    elif ctype == "synthetic":
+        # The legacy v1 lane emits synthetic text parts as text — match it.
+        rows.append(_row(mid, mid, sid, ts, "", agent, model, "text",
+                         data.get("text") or "", {}, src))
+    # idle / model-switched: outcome + routing markers, no searchable text.
+    return rows
+
+
+def _harvest_opencode_v2(db_path: Path, src: str, seeds: dict,
+                         corpus_root: Path) -> tuple[list[dict], int]:
+    """S1 lane: session_message -> corpus rows. Returns (rows, new_hwm).
+
+    `seeds` is a memo cache mapping session_id -> epoch-ms seed (None =
+    full ingest); uncached sessions resolve via `_corpus_max_ts`. Rows at
+    or below their session seed are already in the corpus. Missing v2
+    schema (pre-v2 snapshots) yields ([], 0) — a quiet lane, not an
+    unreadable source: raising here would SKIP the source's legacy rows too.
+    """
+    con = connect(db_path, read_only=True)
+    try:
+        try:
+            cur = con.execute(
+                "SELECT id, session_id, time_created, time_updated, type, data "
+                "FROM session_message"
+            )
+        except sqlite3.OperationalError:
+            return [], 0
+        env = _v2_envelope(con)
+
+        def seed_for(sid: str) -> int | None:
+            if sid not in seeds:
+                seeds[sid] = _corpus_max_ts(corpus_root, sid)
+            return seeds[sid]
+
+        rows = []
+        for mid, sid, tc, tu, typ, data in cur:
+            seed = seed_for(sid)
+            if seed is not None and (tu or tc or 0) <= seed:
+                continue
+            try:
+                d = json.loads(data) or {}
+            except json.JSONDecodeError:
+                continue
+            d["type"] = typ  # row type is a column, not in the payload
+            if typ == "assistant":
+                m = d.get("model") or {}
+                agent = d.get("agent") or env.get(sid, ("", ""))[0]
+                model = _oc_model_value(m) or env.get(sid, ("", ""))[1]
+            else:
+                agent, model = env.get(sid, ("", ""))
+            rows.extend(_v2_block_rows(mid, sid, tc, tu, agent, model, d, src))
+        try:
+            new_hwm = con.execute(
+                "SELECT COALESCE(MAX(time_updated), 0) FROM session_message"
+            ).fetchone()[0]
+        except sqlite3.OperationalError:
+            new_hwm = 0
+        return rows, int(new_hwm)
+    finally:
+        con.close()
+
+
+def _harvest_opencode_events(db_path: Path, src: str, seeds: dict,
+                             corpus_root: Path) -> tuple[list[dict], int]:
+    """S2 lane: event part rows of the five types session_message drops.
+
+    Last-write-wins per part id (ORDER BY rowid) — parts arrive 1-8x each
+    (measured 2026-10-11: 50,160 ids over 114,159 rows). Part ids are the
+    stable v1 space, so re-emission merges newest-wins with legacy-lane
+    rows instead of duplicating. Conventions mirror `_oc_part_rows`
+    exactly (patch is text="" + meta{files,hash} — searchable-text parity
+    with the legacy corpus, not the proposal draft's text=files).
+    """
+    con = connect(db_path, read_only=True)
+    try:
+        try:
+            cur = con.execute(
+                "SELECT data FROM event WHERE type='message.part.updated.1' ORDER BY rowid"
+            )
+        except sqlite3.OperationalError:
+            return [], 0
+        latest: dict[str, tuple] = {}
+        for (data,) in cur:
+            try:
+                d = json.loads(data)
+            except json.JSONDecodeError:
+                continue
+            p = d.get("part") or {}
+            if p.get("id"):
+                latest[p["id"]] = (p, d.get("time") or 0)
+        env = _v2_msg_envelope(con)
+
+        def seed_for(sid: str) -> int | None:
+            if sid not in seeds:
+                seeds[sid] = _corpus_max_ts(corpus_root, sid)
+            return seeds[sid]
+
+        rows = []
+        for pid, (p, t) in latest.items():
+            ptype = p.get("type")
+            if ptype not in _V2_DROPPED_TYPES:
+                continue
+            mid, sid = p.get("messageID", ""), p.get("sessionID", "")
+            seed = seed_for(sid)
+            if seed is not None and t <= seed:
+                continue
+            role, agent, model = env.get(mid, ("", "", ""))
+            ts = _ms(t)
+            if ptype == "step-finish":
+                rows.append(_row(pid, mid, sid, ts, role, agent, model, ptype,
+                                 p.get("reason") or "",
+                                 {"tokens": p.get("tokens"), "cost": p.get("cost"),
+                                  "snapshot": p.get("snapshot")}, src))
+            elif ptype == "patch":
+                rows.append(_row(pid, mid, sid, ts, role, agent, model, ptype, "",
+                                 {"files": p.get("files"), "hash": p.get("hash")},
+                                 src))
+            elif ptype == "compaction":
+                rows.append(_row(pid, mid, sid, ts, role, agent, model, ptype,
+                                 p.get("summary") or "",
+                                 {"auto": p.get("auto"),
+                                  "tail_start_id": p.get("tail_start_id")}, src))
+            else:  # step-start, file: legacy else-branch parity
+                rows.append(_row(pid, mid, sid, ts, role, agent, model, ptype, "",
+                                 {k: v for k, v in p.items() if k != "type"},
+                                 src))
+        try:
+            new_hwm = con.execute(
+                "SELECT COALESCE(MAX(json_extract(data,'$.time')),0) FROM event "
+                "WHERE type='message.part.updated.1'"
+            ).fetchone()[0]
+        except sqlite3.OperationalError:
+            new_hwm = 0
+        return rows, int(new_hwm or 0)
+    finally:
+        con.close()
+
+
 def _snapshot_opencode_dbs() -> list[Path]:
     pat = "*/localhost/home/arun/.local/share/opencode/opencode.db"
     return sorted(SNAP_ROOT.glob(pat))
@@ -346,118 +621,73 @@ def _opencode_sources() -> list[tuple[Path, str, bool]]:
 
 def _harvest_opencode(store: Store, writer: SessionWriter) -> str:
     stats, parts_total = [], 0
+    n_snaps = 0
     for path, src, immutable in _opencode_sources():
         key = f"{src}:{hashlib.blake2b(str(path).encode(), digest_size=6).hexdigest()}"
+        if immutable:
+            n_snaps += 1
         hwm_raw = store.watermark(key)
         if immutable and hwm_raw is not None:
             stats.append(f"{src}: quiet")
-            continue
-        hwm = int(hwm_raw) if hwm_raw is not None else None
-        # One unreadable source must not abort the whole lane: a corrupt or
-        # truncated backup image otherwise costs every other snapshot AND the
-        # live db, and surfaces as a bare "disk I/O error" that names no file.
-        # Observed 2026-09-29: timeshift snapshot 2026-09-28_23-23-31 failed
-        # integrity_check ("database disk image is malformed") at message
-        # rowid 29963, while the other 7 sources scanned clean. Skip + name it.
-        # Two corruption modes live here: a bad sqlite image raises
-        # sqlite3.DatabaseError/OSError at open, and a valid image with a
-        # corrupt row raises json.JSONDecodeError or AttributeError (JSON
-        # scalar where a dict is expected) when the message/part `data`
-        # columns are parsed inside _harvest_opencode_db. Catch those EXACT
-        # types — a bare ValueError net would silently skip-and-relabel
-        # unrelated bugs as "unreadable source" (muse-review finding 2,
-        # 2026-09-29: silent data loss wearing a corruption label).
-        try:
-            rows, new_hwm = _harvest_opencode_db(path, src, hwm)
-        except (
-            sqlite3.DatabaseError,
-            OSError,
-            json.JSONDecodeError,
-            AttributeError,
-        ) as exc:
-            stats.append(f"{src}: SKIP unreadable ({type(exc).__name__}: {exc})")
-            continue
-        writer.add("opencode", rows)
-        store.register("opencode", rows)
-        store.set_watermark(key, str(new_hwm))
-        parts_total += len(rows)
-        stats.append(f"{src}: {'full' if hwm is None else 'delta'} {len(rows)} parts")
-    for bdb in sorted(
-        SNAP_ROOT.glob(
-            "*/localhost/home/arun/Research/findata-graph/memory/data/agent_traces.duckdb"
-        )
-    ):
-        key = f"opencode-traces:{_snap_ts(bdb)}"
-        if store.watermark(key) is not None:
-            stats.append("opencode-traces: quiet")
-            continue
-        try:
-            rows = _harvest_traces_duckdb(bdb)
-        except Exception as exc:  # noqa: BLE001 — duckdb raises its own hierarchy
-            stats.append(f"opencode-traces:{_snap_ts(bdb)}: SKIP unreadable ({exc})")
-            continue
-        writer.add("opencode", rows)
-        store.register("opencode", rows)
-        store.set_watermark(key, str(len(rows)))
-        parts_total += len(rows)
-        stats.append(f"opencode-traces: full {len(rows)} parts")
-    return "\n".join(stats) + f"\nopencode total new: {parts_total}"
-
-
-def _harvest_traces_duckdb(db_path: Path) -> list[dict]:
-    """Pre-redaction bus events: message.part.updated.1 parts + roles."""
-    import duckdb
-
-    con = duckdb.connect(str(db_path), read_only=True)
-    try:
-        roles = {}
-        for (ctx,) in con.execute(
-            "SELECT context FROM fact_event WHERE event_name='message.updated.1'"
-        ).fetchall():
-            info = (json.loads(ctx) or {}).get("info") or {}
-            if info.get("id"):
-                roles[info["id"]] = (
-                    info.get("role", ""),
-                    info.get("agent", ""),
-                    info.get("model", ""),
-                )
-        out = []
-        for (ctx,) in con.execute(
-            "SELECT context FROM fact_event WHERE event_name='message.part.updated.1'"
-        ).fetchall():
-            d = json.loads(ctx) or {}
-            p = d.get("part") or {}
-            data = p.get("data") or {}
-            ptype = data.get("type") or "unknown"
-            meta: dict = {}
-            mid, sid = p.get("messageID") or "", p.get("sessionID") or d.get("sessionID") or ""
-            if ptype in ("text", "reasoning"):
-                text = data.get("text") or ""
-            elif ptype == "tool":
-                st = data.get("state") or {}
-                text = st.get("output") or ""
-                meta = {"status": st.get("status")}
-            else:
-                text = ""
-            if not text and ptype not in ("patch", "compaction", "step-finish"):
+        else:
+            hwm = int(hwm_raw) if hwm_raw is not None else None
+            # One unreadable source must not abort the whole lane: a corrupt or
+            # truncated backup image otherwise costs every other snapshot AND the
+            # live db, and surfaces as a bare "disk I/O error" that names no file.
+            # Observed 2026-09-29: timeshift snapshot 2026-09-28_23-23-31 failed
+            # integrity_check ("database disk image is malformed") at message
+            # rowid 29963, while the other 7 sources scanned clean. Skip + name it.
+            # Two corruption modes live here: a bad sqlite image raises
+            # sqlite3.DatabaseError/OSError at open, and a valid image with a
+            # corrupt row raises json.JSONDecodeError or AttributeError (JSON
+            # scalar where a dict is expected) when the message/part `data`
+            # columns are parsed inside _harvest_opencode_db. Catch those EXACT
+            # types — a bare ValueError net would silently skip-and-relabel
+            # unrelated bugs as "unreadable source" (muse-review finding 2,
+            # 2026-09-29: silent data loss wearing a corruption label).
+            try:
+                rows, new_hwm = _harvest_opencode_db(path, src, hwm)
+            except (
+                sqlite3.DatabaseError,
+                OSError,
+                json.JSONDecodeError,
+                AttributeError,
+            ) as exc:
+                stats.append(f"{src}: SKIP unreadable ({type(exc).__name__}: {exc})")
                 continue
-            ts = _ms((p.get("time") or {}).get("updated"))
-            out.append(
-                _row(
-                    p.get("id") or "",
-                    mid,
-                    sid,
-                    ts,
-                    *(roles.get(mid) or ("", "", "")),
-                    ptype,
-                    text,
-                    meta,
-                    "opencode:traces",
-                )
-            )
-        return out
-    finally:
-        con.close()
+            writer.add("opencode", rows)
+            store.register("opencode", rows)
+            store.set_watermark(key, str(new_hwm))
+            parts_total += len(rows)
+            stats.append(f"{src}: {'full' if hwm is None else 'delta'} {len(rows)} parts")
+        # S1/S2 lanes: own watermark keys, per-session corpus seeds. A source
+        # the legacy lane already finished still runs these once (their keys
+        # never existed) — that is the backfill for post-cutover snapshots,
+        # and per-session seeds keep it duplicate-free (see _corpus_max_ts).
+        seeds: dict[str, int | None] = {}
+        for lane, fn in (("v2", _harvest_opencode_v2),
+                         ("evt", _harvest_opencode_events)):
+            lkey = key + ":" + lane
+            if immutable and store.watermark(lkey) is not None:
+                stats.append(f"{src}:{lane}: quiet")
+                continue
+            try:
+                lrows, lnew = fn(path, src, seeds, writer.root)
+            except (
+                sqlite3.DatabaseError,
+                OSError,
+                json.JSONDecodeError,
+                AttributeError,
+            ) as exc:
+                stats.append(f"{src}:{lane}: SKIP unreadable ({type(exc).__name__}: {exc})")
+                continue
+            writer.add("opencode", lrows)
+            store.register("opencode", lrows)
+            store.set_watermark(lkey, str(lnew))
+            parts_total += len(lrows)
+            stats.append(f"{src}:{lane}: {len(lrows)} parts")
+    store.set_watermark(_SNAP_COUNT_KEY, str(n_snaps))
+    return "\n".join(stats) + f"\nopencode total new: {parts_total}"
 
 
 def _prime_text(block: object) -> str:
@@ -563,6 +793,61 @@ def _zc_model(d: dict, resp: dict) -> str:
     if isinstance(mid, str) and mid:
         return mid
     return _zc_model_value(d.get("model"))
+
+
+def _oc_model_value(v: object) -> str:
+    """Model-id string out of any recorded model shape.
+
+    Three vintages, one facet: v1 message/part rows carry a pre-normalized
+    string (occasionally a dict-string, which the legacy lane json-encoded
+    into the corpus and split the facet — measured 2026-10-11: opencode
+    corpus rows carry `{"providerID": ..., "modelID": ...}`); zcode rows
+    carry `{modelId}`; opencode v2 rows carry `{providerID, id, variant}`
+    (no `modelId` key — the bare zcode normalizer returns "" for all of
+    them, which would blank the facet while passing a naive no-brace check).
+    """
+    if isinstance(v, dict):
+        return str(v.get("modelId") or v.get("modelID") or v.get("id") or "")
+    if isinstance(v, str):
+        s = v.strip()
+        if s.startswith("{"):
+            try:
+                d = json.loads(s)
+            except json.JSONDecodeError:
+                return s
+            if isinstance(d, dict):
+                return str(d.get("modelId") or d.get("modelID") or d.get("id") or "")
+        return s
+    return str(v or "")
+
+
+def _migrate_opencode_models(corpus_root: Path) -> tuple[int, int]:
+    """One-shot (opencode v2-lane S1): rewrite existing opencode parquet
+    `model` values from dict-string shapes to plain model-id strings.
+
+    Same argument as `_migrate_zcode_models`: sessions whose source rows
+    rotated away never re-harvest, so this — not the watermark — is what
+    makes the corpus facet-clean. Text is untouched, so the embed cache
+    stays valid. Run once via --migrate-opencode-models, before the first
+    S1 APPLY so old and new rows never split the facet.
+    """
+    fixed_files = fixed_rows = 0
+    for f in sorted((corpus_root / "opencode" / "conversations").glob("*.parquet")):
+        t = pq.read_table(f)
+        models = t.column("model").to_pylist()
+        new = [_oc_model_value(m) for m in models]
+        if new == models:
+            continue
+        pq.write_table(
+            pa.Table.from_pylist(
+                [{**r, "model": m} for r, m in zip(t.to_pylist(), new)], schema=_SCHEMA
+            ),
+            f,
+            compression="zstd",
+        )
+        fixed_rows += sum(1 for a, b in zip(models, new) if a != b)
+        fixed_files += 1
+    return fixed_files, fixed_rows
 
 
 def _zcode_best_and_resps(files: list[Path]) -> tuple[dict | None, bool, dict, dict]:
@@ -755,7 +1040,65 @@ def _harvest_zcode(store: Store, writer: SessionWriter) -> str:
     return "\n".join(stats) + f"\nzcode total new: {total}"
 
 
-def _drift(store: Store) -> list[str]:
+def _lane_uncovered(con, corpus_root: Path, stored_v2: int | None,
+                      stored_evt: int | None) -> dict[str, str]:
+    """Per-lane drift detail for one opencode source: {lane: line}.
+
+    A lane fires when some session holds rows newer than both its corpus
+    seed and the lane's stored watermark — the check-mode mirror of the
+    harvest seeding rule (`_corpus_max_ts`). Missing tables mean the lane
+    is absent (pre-v2 snapshots), never drift. An unreadable source raises
+    to the caller: check mode must fail loudly on corruption, matching the
+    apply path's SKIP only in harvest (where one bad source must not cost
+    the rest).
+    """
+    out: dict[str, str] = {}
+    seeds: dict[str, int | None] = {}
+
+    def seed_for(sid: str) -> int:
+        if sid not in seeds:
+            seeds[sid] = _corpus_max_ts(corpus_root, sid)
+        seed = seeds[sid]
+        return seed if seed is not None else -1
+
+    try:
+        v2max = con.execute(
+            "SELECT session_id, MAX(time_updated) FROM session_message GROUP BY session_id"
+        ).fetchall()
+    except sqlite3.OperationalError:
+        v2max = None
+    if v2max:
+        floor = stored_v2 if stored_v2 is not None else -1
+        new_sessions = [s for s, t in v2max if (t or 0) > max(seed_for(s), floor)]
+        if new_sessions:
+            out["v2"] = f"{len(new_sessions)} sessions ({max(t for _, t in v2max)})"
+    try:
+        evtmax = con.execute(
+            "SELECT json_extract(data,'$.part.sessionID'), MAX(json_extract(data,'$.time')) "
+            "FROM event WHERE type='message.part.updated.1' GROUP BY 1"
+        ).fetchall()
+    except sqlite3.OperationalError:
+        evtmax = None
+    if evtmax:
+        floor = stored_evt if stored_evt is not None else -1
+        new_sessions = [s for s, t in evtmax
+                        if s and (t or 0) > max(seed_for(s), floor)]
+        if new_sessions:
+            out["evt"] = f"{len(new_sessions)} sessions ({max(t for _, t in evtmax if t)})"
+    return out
+
+
+def _wm_int(store: Store, key: str) -> int | None:
+    raw = store.watermark(key)
+    if raw is None:
+        return None
+    try:
+        return int(raw)
+    except ValueError:
+        return None
+
+
+def _drift(store: Store, corpus_root: Path = CORPUS_ROOT) -> list[str]:
     """--check verdict: sources whose current fingerprint differs from the watermark."""
     drift = []
     for path, src, immutable in _opencode_sources():
@@ -763,16 +1106,45 @@ def _drift(store: Store) -> list[str]:
         if immutable:
             if store.watermark(key) is None:
                 drift.append(f"new {src}")
+            # per-lane backfill visibility on already-seen snapshots: the
+            # :v2/:evt keys never existed before the lanes, so their first
+            # check fires here and the next APPLY closes them (see S3).
+            try:
+                con = connect(path, read_only=True)
+            except (sqlite3.DatabaseError, OSError):
+                drift.append(f"unreadable {src}")
+                continue
+            try:
+                detail = _lane_uncovered(con, corpus_root,
+                                         _wm_int(store, key + ":v2"),
+                                         _wm_int(store, key + ":evt"))
+            finally:
+                con.close()
+            for lane, line in detail.items():
+                verb = "new" if store.watermark(key + ":" + lane) is None else "changed"
+                drift.append(f"{verb} {src}:{lane} ({line})")
             continue
         con = connect(path, read_only=True)
         try:
             row = con.execute("SELECT COALESCE(MAX(time_updated), 0) FROM part").fetchone()
             hwm = row[0] if row else 0
+            lane_detail = _lane_uncovered(con, corpus_root,
+                                          _wm_int(store, key + ":v2"),
+                                          _wm_int(store, key + ":evt"))
         finally:
             con.close()
         wm = store.watermark(key)
         if wm is None or int(wm) < int(hwm):
             drift.append(f"changed {src} ({hwm})")
+        for lane, detail in lane_detail.items():
+            drift.append(f"changed {src}:{lane} ({detail})")
+    if not SNAP_ROOT.is_dir():
+        drift.append(f"missing snapshot root {SNAP_ROOT} (snapshot lanes blind)")
+    else:
+        cur_n = len(_snapshot_opencode_dbs())
+        rec = store.watermark(_SNAP_COUNT_KEY)
+        if rec is not None and cur_n < int(rec):
+            drift.append(f"opencode-snap sources shrank {rec}->{cur_n} ({SNAP_ROOT})")
     for f, src in _prime_files():
         key = f"{src}:{hashlib.blake2b(str(f).encode(), digest_size=6).hexdigest()}"
         st = f.stat()
@@ -843,7 +1215,7 @@ def harvest(
     store = Store(db, read_only=check)
     try:
         if check:
-            drift = _drift(store)
+            drift = _drift(store, corpus_root)
             fresh = not drift
             return {
                 "check": True,
@@ -906,11 +1278,24 @@ def main(argv: list[str] | None = None) -> int:
         help="one-shot (zcode_conversation_ingest_repair S1): rewrite existing "
         "zcode parquet model dicts to plain modelId strings; no harvest",
     )
+    p.add_argument(
+        "--migrate-opencode-models",
+        action="store_true",
+        help="one-shot (opencode v2-lane S1): rewrite existing opencode "
+        "parquet model dict-strings to plain model-id strings; no harvest",
+    )
     args = p.parse_args(argv)
     if args.migrate_zcode_models:
         files, rows = _migrate_zcode_models(Path(args.corpus_root))
         print(
             f"migrated {rows} model values across {files} zcode parquet files",
+            file=sys.stderr,
+        )
+        return 0
+    if args.migrate_opencode_models:
+        files, rows = _migrate_opencode_models(Path(args.corpus_root))
+        print(
+            f"migrated {rows} model values across {files} opencode parquet files",
             file=sys.stderr,
         )
         return 0

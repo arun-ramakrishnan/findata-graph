@@ -222,6 +222,8 @@ commit, referenced by nothing). Entry numbers point at
 
 ## pipeline/ — Data pipeline — parsing, PDF conversion hardening, enrichment, corpus audit
 
+- [`opencode_v2_session_message_lane.md`](pipeline/opencode_v2_session_message_lane.md) — Harvest the v2 session_message lane — S1 message lane + S2 event lane (five dropped part types) + S3 per-session seeds/union drift + S4 analytics loaders + S5 snapshot health + S6 dead traces-lane retirement; shared model normalizer + one-shot migration; 7 hermetic tests — completed.md #382b
+
 - [`markdown_parse_procedure_audit.md`](pipeline/markdown_parse_procedure_audit.md) — markdown_parse.md audit — 11 asserted-but-unverified guards, noise-gate claim false, triage key orphaned 8/8 decisions; doc corrections + code slices S0–S8 landed, extractor write-gate eval key DONE — completed.md #340
 
 - [`parse_extraction_gaps.md`](pipeline/parse_extraction_gaps.md) — Parse & Extraction Coverage Gaps — what the markdown pipeline drops

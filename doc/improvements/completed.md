@@ -10214,3 +10214,59 @@ Low tier parked with per-row dispositions: L1/L2 duckdb lock discipline
 (next duckdb arc), L3 provider error messages, L5 announce dedupe, L10
 production-writer test design, L13 Paddle-remnant deletion, L16 desktop
 async (own slice + shakedown).
+
+## 382b. Harvest the v2 session_message lane — restore opencode ingest after the v2 schema migration
+**Date**: 2026-10-11 **Status**: EXECUTED
+**Proposal**: `doc/improvements/archive/pipeline/opencode_v2_session_message_lane.md`
+
+The opencode v2.0.26 upgrade moved sessions into `session_v2` /
+`session_message` and dropped the v1 rows; every opencode read path here
+still read `message`+`part`, so the corpus and both analytics stores went
+blind on migrated sessions while `convo-fresh` reported healthy (the
+watermark came from the same table that went empty). Six slices landed:
+
+- **S1** (`_harvest_opencode_v2`): one corpus row per user text and per
+  assistant content block (`{mid}#{idx}` ids), plus compaction rows
+  (summaries live only there) and synthetic-as-text (legacy parity);
+  idle/model-switched skipped. Shared model normalizer now reads
+  `modelId | modelID | id` (the bare zcode normalizer returned `""` on
+  every v2 shape); `--migrate-opencode-models` rewrote 3,166 dict-string
+  values across 138 parquet files, text untouched.
+- **S2** (`_harvest_opencode_events`): exactly the five dropped part
+  types from folded `message.part.updated.1` events (last-write-wins,
+  stable v1 part ids); patch stays `text=""` + `meta{files,hash}` per
+  legacy parity.
+- **S3**: per-lane watermark keys with per-session corpus seeds (seed =
+  session parquet max-ts, else full ingest) — no duplicates, no residual
+  window; `_drift()` mirrors the rule with per-lane lines.
+- **S4**: `_oc_messages` v2 UNION leg; `agent_traces` assistant/tool
+  passes (`callID` ids, `state.content[]` output) plus v2-restricted
+  event edits/compactions. Sessions and events grains were already
+  v2-aware and are explicitly untouched.
+- **S5**: missing/shrunk snapshot root is a drift line, not silence.
+- **S6**: deleted `_harvest_traces_duckdb` (56 lines) — the pre-redaction
+  premise died upstream at capture time.
+
+Validation: 7 new hermetic tests + 59 neighbours green; ruff/md-lint/
+types/static-checks/deptry green; APPLY ingested 18,123 rows
+(`ses_ed5ea2ac` 0 → 680, all 8 part_types on migrated sessions);
+`analytics-fresh` exit 0 with `--full` backfill (model_usage 10-11 rows,
+186,631 agent_traces rows); restored sessions surface at rank 1–2 in
+`convo_query`. Incidental live-bug fix on the way: two `# noqa` markers
+inside SQL strings in `local_latency` (prime/opencode latency report)
+were query text SQLite rejects — moved after the closing quotes, latency
+leg verified live (11 day-rows).
+
+Pre-existing reds, untouched: `make qa` 9/11 and perf 25/26 on
+snapshot-fresh/snapshot_check (live DB ahead of staged snapshots);
+advisory live-invariants/frontend-check/memory-search/csr-fresh/lint-audit
+(check-only legs, pre-change). AC8's `make qa` green yields to the arc
+discipline (gates.md: full gates once, targeted-only after) — the qa legs
+covering this change (lint, md-lint, types, static-checks, deptry) were
+re-run green individually. `make search-fresh` APPLY + plain check
+converged the doc index post-archival.
+
+Follow-ups, not this arc: continued-session routing (v1 vs v2 table for
+new rows in attached old sessions) is still unmeasured — the first
+continued session decides whether "disjoint by session set" holds; the
+dsh (DeepSeek harness) convo/analytics lane is a separate proposal.

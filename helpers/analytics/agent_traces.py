@@ -47,6 +47,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import sqlite3
 import sys
 from datetime import date, datetime, timedelta, UTC
 from pathlib import Path
@@ -851,6 +852,125 @@ def _parse_opencode(con, since=None):  # noqa: C901  # moved verbatim; split nee
                     d.get("cost"),
                     "harness" if d.get("cost") is not None else None,
                 )
+            # S4 (opencode v2 lane): session_message carries the same grain.
+            # Column `type` (not in the payload) selects assistants; the
+            # model is a nested {providerID, id} envelope. v2 rows win on
+            # mid overlap (same id space — only ses_f6c2ab88 has both, and
+            # the migrated copy is the fresher projection). `mode` is absent
+            # in v2 (NULL, like variant); `finish`/`tokens`/`cost` map 1:1.
+            try:
+                v2rows = src.execute(
+                    """SELECT id, session_id, time_created, time_updated, type,
+                       data FROM session_message"""
+                ).fetchall()
+            except sqlite3.OperationalError:
+                v2rows = []  # pre-v2 backup copies have no v2 schema
+            v2sids = set()
+            for mid, sid, tc, tu, typ, data in v2rows:
+                d = json.loads(data)
+                v2sids.add(sid)
+                if typ != "assistant":
+                    continue
+                if sid in excluded:
+                    continue
+                ts, day = ms_local((d.get("time") or {}).get("created"))
+                if since and day and day < since:
+                    continue
+                m = d.get("model") or {}
+                t = d.get("tokens") or {}
+                cache = t.get("cache") or {}
+                tm = d.get("time") or {}
+                dur = (
+                    tm.get("completed", 0) - tm.get("created", 0)
+                    if tm.get("completed") and tm.get("created")
+                    else None
+                )
+                msgs[mid] = (
+                    mid,
+                    sid,
+                    None,
+                    None,
+                    None,
+                    None,
+                    ts,
+                    day,
+                    m.get("providerID"),
+                    m.get("id"),
+                    None,
+                    d.get("agent"),
+                    None,
+                    None,
+                    None,
+                    "completed" if t else "error",
+                    d.get("finish"),
+                    None,
+                    dur,
+                    t.get("input"),
+                    t.get("output"),
+                    t.get("reasoning"),
+                    cache.get("read"),
+                    cache.get("write"),
+                    None,
+                    None,
+                    None,
+                    None,
+                    "missing_usage" if not t else None,
+                    None,
+                    d.get("cost"),
+                    "harness" if d.get("cost") is not None else None,
+                )
+            # v2 tool calls: block ids are callIDs — stable across snapshots,
+            # unlike v1 part ids, so cross-db dedupe holds. Output text lives
+            # in state.content[] (v2 states have no `output` key). Steps count
+            # tool blocks (the v2 equivalent of step-finish parts); v2
+            # sessions have no v1 part rows, so the part loop below never
+            # double-counts them.
+            for mid, sid, tc, tu, typ, data in v2rows:
+                d = json.loads(data)
+                if typ != "assistant" or sid in excluded:
+                    continue
+                ts, day = ms_local((d.get("time") or {}).get("created"))
+                for b in d.get("content") or []:
+                    if not isinstance(b, dict) or b.get("type") != "tool":
+                        continue
+                    st = b.get("state") or {}
+                    texts = [c.get("text") or "" for c in st.get("content") or []
+                             if isinstance(c, dict)]
+                    out = " ".join(texts)
+                    bt = b.get("time") or {}
+                    bts, bday = ms_local(bt.get("created"))
+                    if since and (bday or day) and (bday or day) < since:
+                        continue
+                    err = st.get("status") == "error"
+                    tools[b.get("id") or mid] = (
+                        b.get("id") or mid,
+                        sid,
+                        mid,
+                        b.get("name"),
+                        bts or ts,
+                        bday or day,
+                        (bt.get("completed", 0) - bt.get("created", 0))
+                        if bt.get("completed") and bt.get("created") else None,
+                        None,
+                        None,
+                        st.get("status"),
+                        len(out) if out else None,
+                        None,
+                        None,
+                        None,
+                        None,
+                        None,
+                        None,
+                        None,
+                        None,
+                        "tool_execution_failed" if err else None,
+                        None,
+                        None,
+                    )
+                    if err:
+                        toerrs[mid] = toerrs.get(mid, 0) + 1
+                    tcount[mid] = tcount.get(mid, 0) + 1
+                    steps[mid] = steps.get(mid, 0) + 1
             for pid, mid, sid, tc, tu, data in src.execute(
                 """SELECT id, message_id, session_id, time_created,
                    time_updated, data FROM part"""
@@ -917,6 +1037,28 @@ def _parse_opencode(con, since=None):  # noqa: C901  # moved verbatim; split nee
                     events[eid] = (None, eid, agg, ts, etype, None, None, _event_noise_head(data))
                 else:
                     events[eid] = (None, eid, agg, ts, etype, None, None, str(data))
+                if etype == "message.part.updated.1":
+                    # S4: v2 sessions have no part rows — their patches and
+                    # compactions survive only here. Restricted to v2sids:
+                    # legacy sessions' edits come from the part loop above,
+                    # and re-deriving them here would double-count.
+                    try:
+                        dd = json.loads(data) if isinstance(data, str) else {}
+                    except ValueError:
+                        dd = {}
+                    p = dd.get("part") or {} if isinstance(dd, dict) else {}
+                    psid = p.get("sessionID") or agg
+                    if psid in v2sids and psid not in excluded:
+                        pts, pday = ms_local(dd.get("time"))
+                        if not (since and pday and pday < since):
+                            if p.get("type") == "patch":
+                                for epath in p.get("files") or []:
+                                    edits[(p.get("hash"), epath)] = (
+                                        psid, pts, pday, p.get("hash"), epath)
+                            elif p.get("type") == "compaction" and psid in sessions:
+                                prev = sessions[psid]
+                                sessions[psid] = (prev[:12] + ((prev[12] or 0) + 1,)
+                                                  + prev[13:])
         finally:
             src.close()
 
