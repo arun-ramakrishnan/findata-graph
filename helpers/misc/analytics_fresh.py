@@ -49,15 +49,18 @@ ZCODE_DB = Path.home() / ".zcode" / "cli" / "db" / "db.sqlite"
 OPENCODE_DB = Path.home() / ".local" / "share" / "opencode" / "opencode.db"
 PRIME_DIR = Path.home() / ".prime" / "agent" / "sessions"
 ROLLOUT_DIR = Path.home() / ".zcode" / "cli" / "rollout"
+DSH_DIR = Path.home() / ".dsh" / "sessions"
 
 # (store label, store path key, table, store source, harness key)
 CHECKS: list[tuple[str, str, str, str, str]] = [
     ("agent_traces", "agent_traces", "fact_model_request", "zcode", "zcode"),
     ("agent_traces", "agent_traces", "fact_model_request", "opencode", "opencode"),
     ("agent_traces", "agent_traces", "fact_model_request", "prime", "prime"),
+    ("agent_traces", "agent_traces", "fact_model_request", "dsh", "dsh"),
     ("agent_traces", "agent_traces", "fact_model_step", "zcode_rollout", "rollout"),
     ("model_usage", "model_usage", "fact_usage", "prime-rlm", "prime"),
     ("model_usage", "model_usage", "fact_usage", "opencode", "opencode"),
+    ("model_usage", "model_usage", "fact_usage", "dsh", "dsh"),
 ]
 
 # Store sources with no local harness mapping: authority lives elsewhere
@@ -74,9 +77,16 @@ def harness_frontiers(  # noqa: C901  # moved verbatim; split needs a parity har
     opencode_db: Path = OPENCODE_DB,
     prime_dir: Path = PRIME_DIR,
     rollout_dir: Path = ROLLOUT_DIR,
+    dsh_dir: Path = DSH_DIR,
 ) -> dict[str, date | None]:
     """Max harness day per harness key; None when the harness is absent."""
-    out: dict[str, date | None] = {"zcode": None, "opencode": None, "prime": None, "rollout": None}
+    out: dict[str, date | None] = {
+        "zcode": None,
+        "opencode": None,
+        "prime": None,
+        "rollout": None,
+        "dsh": None,
+    }
     if zcode_db.is_file():
         con = connect(str(zcode_db), read_only=True)
         try:
@@ -116,6 +126,10 @@ def harness_frontiers(  # noqa: C901  # moved verbatim; split needs a parity har
                     )
                     latest = day if latest is None or day > latest else latest
         out["rollout"] = latest
+    if dsh_dir.is_dir():
+        mtimes = [p.stat().st_mtime for p in dsh_dir.glob("*/*/*.zstd") if p.is_file()]
+        if mtimes:
+            out["dsh"] = datetime.fromtimestamp(max(mtimes), UTC).date()
     return out
 
 
@@ -186,13 +200,14 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--opencode-db", type=Path, default=OPENCODE_DB)
     ap.add_argument("--prime-dir", type=Path, default=PRIME_DIR)
     ap.add_argument("--rollout-dir", type=Path, default=ROLLOUT_DIR)
+    ap.add_argument("--dsh-dir", type=Path, default=DSH_DIR)
     args = ap.parse_args(argv)
     from helpers.maintenance.maint_timing import RunTimer
 
     timer = RunTimer("analytics_fresh", mode="check")
     with timer.phase("harness_frontiers"):
         harness = harness_frontiers(
-            args.zcode_db, args.opencode_db, args.prime_dir, args.rollout_dir
+            args.zcode_db, args.opencode_db, args.prime_dir, args.rollout_dir, args.dsh_dir
         )
     with timer.phase("store_frontiers"):
         store = store_frontiers(args.agent_traces, args.model_usage)

@@ -44,20 +44,29 @@ AST = {
     "agent": "build",
     "model": {"providerID": "opencode", "id": "glm-5.3-flash", "variant": "default"},
     "content": [
-        {"type": "reasoning", "text": "thinking it over",
-         "time": {"created": 2000, "completed": 2001}},
+        {
+            "type": "reasoning",
+            "text": "thinking it over",
+            "time": {"created": 2000, "completed": 2001},
+        },
         {"type": "text", "text": "done deal"},
-        {"type": "tool", "id": "call_1", "name": "bash",
-         "state": {"status": "completed", "input": {"command": "ls"},
-                   "content": [{"type": "text", "text": "out"}],
-                   "metadata": {"exit": 0}},
-         "time": {"created": 2002, "completed": 2003}},
+        {
+            "type": "tool",
+            "id": "call_1",
+            "name": "bash",
+            "state": {
+                "status": "completed",
+                "input": {"command": "ls"},
+                "content": [{"type": "text", "text": "out"}],
+                "metadata": {"exit": 0},
+            },
+            "time": {"created": 2002, "completed": 2003},
+        },
         {"type": "mystery", "text": "future block kind"},
     ],
     "finish": "stop",
     "cost": 0.01,
-    "tokens": {"input": 10, "output": 5, "reasoning": 2,
-               "cache": {"read": 0, "write": 0}},
+    "tokens": {"input": 10, "output": 5, "reasoning": 2, "cache": {"read": 0, "write": 0}},
     "time": {"created": 1999, "completed": 2004},
 }
 
@@ -69,7 +78,7 @@ def _v2_db(path: Path) -> None:
     con.execute(
         "INSERT INTO session_v2 VALUES ('s9', 'p', NULL, NULL, 'slug', '/repo', "
         "NULL, 'Nine', '2.0.26', 0, 'build', "
-        "'{\"providerID\": \"opencode\", \"id\": \"glm-5.3-flash\"}', 1000, 3000)"
+        '\'{"providerID": "opencode", "id": "glm-5.3-flash"}\', 1000, 3000)'
     )
     con.execute(
         "INSERT INTO session_message VALUES ('m-u1', 's9', 'user', 0, 1000, 1000, ?)",
@@ -81,8 +90,7 @@ def _v2_db(path: Path) -> None:
     )
     con.execute(
         "INSERT INTO session_message VALUES ('m-c1', 's9', 'compaction', 2, 2500, 2500, ?)",
-        (json.dumps({"status": "completed", "reason": "manual",
-                     "summary": "the big summary"}),),
+        (json.dumps({"status": "completed", "reason": "manual", "summary": "the big summary"}),),
     )
     con.execute(
         "INSERT INTO session_message VALUES ('m-s1', 's9', 'synthetic', 3, 2600, 2600, ?)",
@@ -94,18 +102,64 @@ def _v2_db(path: Path) -> None:
     )
     # events: one dropped type twice (last wins), one kept type (never
     # emitted by S2), one step-finish with usage for the analytics half.
-    for i, (pid, part, t) in enumerate([
-        ("prt_1", {"id": "prt_1", "sessionID": "s9", "messageID": "m-a1",
-                   "type": "patch", "hash": "h1", "files": ["a.py"]}, 1500),
-        ("prt_1", {"id": "prt_1", "sessionID": "s9", "messageID": "m-a1",
-                   "type": "patch", "hash": "h2", "files": ["a.py", "b.py"]}, 1501),
-        ("prt_2", {"id": "prt_2", "sessionID": "s9", "messageID": "m-a1",
-                   "type": "text", "text": "dup of v2 text"}, 1502),
-        ("prt_3", {"id": "prt_3", "sessionID": "s9", "messageID": "m-a1",
-                   "type": "step-finish", "reason": "stop", "cost": 0.02,
-                   "tokens": {"total": 17, "input": 10, "output": 5, "reasoning": 2,
-                              "cache": {"read": 0, "write": 0}}}, 1503),
-    ]):
+    for i, (pid, part, t) in enumerate(
+        [
+            (
+                "prt_1",
+                {
+                    "id": "prt_1",
+                    "sessionID": "s9",
+                    "messageID": "m-a1",
+                    "type": "patch",
+                    "hash": "h1",
+                    "files": ["a.py"],
+                },
+                1500,
+            ),
+            (
+                "prt_1",
+                {
+                    "id": "prt_1",
+                    "sessionID": "s9",
+                    "messageID": "m-a1",
+                    "type": "patch",
+                    "hash": "h2",
+                    "files": ["a.py", "b.py"],
+                },
+                1501,
+            ),
+            (
+                "prt_2",
+                {
+                    "id": "prt_2",
+                    "sessionID": "s9",
+                    "messageID": "m-a1",
+                    "type": "text",
+                    "text": "dup of v2 text",
+                },
+                1502,
+            ),
+            (
+                "prt_3",
+                {
+                    "id": "prt_3",
+                    "sessionID": "s9",
+                    "messageID": "m-a1",
+                    "type": "step-finish",
+                    "reason": "stop",
+                    "cost": 0.02,
+                    "tokens": {
+                        "total": 17,
+                        "input": 10,
+                        "output": 5,
+                        "reasoning": 2,
+                        "cache": {"read": 0, "write": 0},
+                    },
+                },
+                1503,
+            ),
+        ]
+    ):
         con.execute(
             "INSERT INTO event VALUES (?, 's9', ?, 'message.part.updated.1', ?, ?)",
             (f"e{i}", i, json.dumps({"sessionID": "s9", "part": part}), t),
@@ -122,7 +176,11 @@ def v2_env(tmp_path, monkeypatch):
     monkeypatch.setattr(hc, "_opencode_sources", lambda: [(db, "opencode:live", False)])
     monkeypatch.setattr(hc, "_prime_files", lambda: [])
     monkeypatch.setattr(hc, "_zcode_groups", lambda: {})
+    monkeypatch.setattr(hc, "_dsh_home", lambda: tmp_path / "nodsh")
     monkeypatch.setattr(hc, "SNAP_ROOT", tmp_path / "nosnaps")
+    # Path.home patching isolates the file lanes that resolve home per call
+    # (prime, zcode, dsh) — without it the harvest reads the live box.
+    monkeypatch.setattr(Path, "home", lambda: tmp_path / "home", raising=False)
     return tmp_path, db
 
 
@@ -236,10 +294,22 @@ def test_oc_messages_v2_union(tmp_path):
     con = sqlite3.connect(db)
     con.execute(
         "INSERT INTO message VALUES ('m-old', 's9', 1000, 1000, ?)",
-        (json.dumps({"role": "assistant", "providerID": "openrouter",
-                     "modelID": "or-model", "tokens": {"input": 1, "output": 2,
-                     "reasoning": 0, "cache": {"read": 0, "write": 0}},
-                     "cost": 0.03}),),
+        (
+            json.dumps(
+                {
+                    "role": "assistant",
+                    "providerID": "openrouter",
+                    "modelID": "or-model",
+                    "tokens": {
+                        "input": 1,
+                        "output": 2,
+                        "reasoning": 0,
+                        "cache": {"read": 0, "write": 0},
+                    },
+                    "cost": 0.03,
+                }
+            ),
+        ),
     )
     con.commit()
     con.close()

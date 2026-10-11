@@ -139,12 +139,13 @@ def test_harvest_cold_dedup_and_incremental(convo_env):
     # the corpus carries no harness column — the directory is the namespace
     assert "opencode" in oc_file.relative_to(tmp).parts
     # every lane harvested: opencode deduped to one session, prime + zcode own theirs
+    # (dsh reads the live ~/.dsh — absent here, so no dsh directory lands)
     lanes = {p.relative_to(tmp).parts[1] for p in files}
     assert lanes == {"opencode", "prime-rlm", "zcode"}
 
     # incremental: every lane quiet, zero new parts
     stats2 = hc.harvest(corpus_root=tmp / "corpus", db=db)
-    assert stats2["lanes"].count("total new: 0") == 3
+    assert stats2["lanes"].count("total new: 0") == 4
 
 
 def test_harvest_skips_unreadable_source_and_keeps_the_rest(convo_env, monkeypatch):

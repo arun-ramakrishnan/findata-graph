@@ -10270,3 +10270,50 @@ Follow-ups, not this arc: continued-session routing (v1 vs v2 table for
 new rows in attached old sessions) is still unmeasured — the first
 continued session decides whether "disjoint by session set" holds; the
 dsh (DeepSeek harness) convo/analytics lane is a separate proposal.
+
+## 383. Cover the DeepSeek harness (dsh) in convo + analytics
+**Date**: 2026-10-11 **Status**: EXECUTED
+**Proposal**: `doc/improvements/archive/pipeline/dsh_convo_analytics_lane.md`
+
+A fourth harness live on the box (dsh web running, 3 sessions in zstd
+JSONL event logs) with zero convo/analytics coverage. Landed:
+
+- **S1** (`_harvest_dsh`): v4-preferred session-log lane (v0 fallback
+  only when v4 absent — measured 23 shared keys, v4 re-stamping
+  identical content); user text, per-block assistant text/reasoning,
+  callId-joined tool rows; `{sid}:{seq}[#{i}]` stable ids; `(seq,
+  mtime, size)` watermarks with rotation handling; session-model
+  backfill so the facet stays dense. `uv add zstandard` rode with the
+  first import (dependency-gate ordering).
+- **S2**: `load_dsh` (per-message usage in/out, `local` basis, Zhipu
+  rows drop where the zai API covers) + `_parse_dsh` (request/tool/turn
+  grains via turn/step→message map, shared `_flush_request_grains`
+  extracted from the opencode parser with zero behavior delta).
+  Sessions/events grains intentionally empty (no OTel feed, no paths
+  in workspace/changes) — documented absences.
+- **S3**: dsh CHECKS rows (both stores) + harness frontier on log
+  mtimes; `analytics_fresh` exit 0, dsh fresh everywhere.
+
+Validation: 6 new hermetic tests + full neighbor suites green;
+lint/md-lint/types/static-checks/deptry green; APPLY ingested 754 rows;
+`convo_query --harness dsh` (new 4th CLI choice) surfaces the "model
+name" exchange at rank 1; traces hold 294 requests / 271 tools /
+3 sessions. Live-bug class caught on the way in: `duration_ms` BIGINT
+rejected 270 float tool rows — int-cast, verified clean reload.
+Pre-existing reds untouched (qa snapshot pair, perf snapshot_check,
+advisory check-only legs). OTel/session-query trace half stays gated
+discovery (unconfigured here) for a future proposal.
+
+Addendum (same arc, post-entry): the tripwire tripped mid-arc — the
+operator enabled `session-query-sqlite` (path set, server restarted) and
+mounted `dsh-tool-session-query` (needed the `- insert:` patch form;
+plain `- id:` only patches composed rows — that was the "no such tool"
+root cause). Index schema verified read-only (persisted_docs FTS5:
+text/session_id/seq/type/time/surface + generation cursor) but frozen
+at 6 docs: `_observeStable` aborts the whole reconcile after one retry
+whenever the hot live session grows mid-observation. Implemented S4 as
+an index-coherence drift (`dsh-index:lagging/missing` per session, quiet
+when unconfigured) instead of content duplication — the raw-log lanes
+stay primary. Close-out fixes in the same change: ty None-guard on tool
+ids, zstandard THIRD_PARTY_LICENSES row, fixture hermeticity (dynamic
+`_dsh_home`, explicit dsh dirs), house `connect()` for the index read.

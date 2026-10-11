@@ -716,6 +716,228 @@ def _oc_dbs() -> list[Path]:
     return [*OC_SNAPSHOTS, OC_DB]
 
 
+def _flush_request_grains(
+    con,
+    since,
+    source,
+    msgs,
+    tools,
+    edits,
+    events,
+    sessions,
+    steps,
+    tcount,
+    toerrs,
+    detail_extra,
+):
+    """Shared request/turn/tool/edit/event/session flush for the sqlite-harness
+    parsers (opencode, dsh): per-grain dicts in, validated store rows out.
+    Day-windowed deletes mirror the old opencode load semantics; fact_file_edit
+    is a full replace, fact_event ts-windowed/null. Returns inserted row count.
+    """
+    req_rows = []
+    for mid, r in msgs.items():
+        r = list(r)
+        r[24] = steps.get(mid, 0)  # tool_call_count slot: steps first
+        req_rows.append(tuple(r))
+    turn_rows = []
+    for mid, r in msgs.items():
+        turn_rows.append(
+            (
+                r[1],
+                mid,
+                r[6],
+                r[7],
+                r[18],
+                steps.get(mid, 0),
+                0,
+                tcount.get(mid, 0),
+                toerrs.get(mid, 0),
+                (r[19] or 0) + (r[20] or 0) + (r[22] or 0) if (r[19] or r[20] or r[22]) else None,
+                None,
+                r[15],
+            )
+        )
+
+    def _as_session(row: tuple) -> dict:
+        (
+            session_id,
+            ts_start,
+            day,
+            ts_end,
+            directory,
+            title,
+            model,
+            agent,
+            mode,
+            adds,
+            dels,
+            files,
+            compactions,
+            input,
+            output,
+            reasoning,
+            cache_read,
+            cost_usd,
+            trace_id,
+        ) = row
+        return {
+            "session_id": session_id,
+            "ts_start": ts_start,
+            "day": day,
+            "ts_end": ts_end,
+            "directory": directory,
+            "title": title,
+            "model": model,
+            "agent": agent,
+            "mode": mode,
+            "adds": adds,
+            "dels": dels,
+            "files": files,
+            "compactions": compactions,
+            "input": input,
+            "output": output,
+            "reasoning": reasoning,
+            "cache_read": cache_read,
+            "cost_usd": cost_usd,
+            "trace_id": trace_id,
+        }
+
+    extracted = {
+        "fact_model_request": [
+            {
+                "request_id": r[0],
+                "session_id": r[1],
+                "turn_id": r[2],
+                "trace_id": r[3],
+                "span_id": r[4],
+                "attempt_index": r[5],
+                "ts": r[6],
+                "day": r[7],
+                "provider": r[8],
+                "model": r[9],
+                "variant": r[10],
+                "agent": r[11],
+                "mode": r[12],
+                "task_type": r[13],
+                "query_source": r[14],
+                "status": r[15],
+                "finish_reason": r[16],
+                "ttft_ms": r[17],
+                "duration_ms": r[18],
+                "input": r[19],
+                "output": r[20],
+                "reasoning": r[21],
+                "cache_read": r[22],
+                "cache_write": r[23],
+                "tool_call_count": r[24],
+                "retry_count": r[25],
+                "context_exceeded": r[26],
+                "cancelled": r[27],
+                "error_type": r[28],
+                "error_code": r[29],
+                "cost_usd": r[30],
+                "cost_basis": r[31],
+            }
+            for r in req_rows
+        ],
+        "fact_turn": [
+            {
+                "session_id": r[0],
+                "turn_id": r[1],
+                "ts": r[2],
+                "day": r[3],
+                "duration_ms": r[4],
+                "model_requests": r[5],
+                "model_retries": r[6],
+                "tool_calls": r[7],
+                "tool_errors": r[8],
+                "tokens": r[9],
+                "context_exceeded": r[10],
+                "status": r[11],
+            }
+            for r in turn_rows
+        ],
+        "fact_tool_call": [
+            {
+                "tool_call_id": r[0],
+                "session_id": r[1],
+                "turn_id": r[2],
+                "tool_name": r[3],
+                "ts": r[4],
+                "day": r[5],
+                "duration_ms": r[6],
+                "ttf_output_ms": r[7],
+                "exit_code": r[8],
+                "status": r[9],
+                "output_bytes": r[10],
+                "stdout_bytes": r[11],
+                "stderr_bytes": r[12],
+                "truncated": r[13],
+                "cancelled": r[14],
+                "read_only": r[15],
+                "destructive": r[16],
+                "approval_status": r[17],
+                "retry_count": r[18],
+                "error_type": r[19],
+                "error_code": r[20],
+                "side_effect_scope": r[21],
+            }
+            for r in tools.values()
+        ],
+        "fact_file_edit": [
+            {
+                "session_id": r[0],
+                "ts": r[1],
+                "day": r[2],
+                "snapshot_hash": r[3],
+                "path": r[4],
+            }
+            for r in edits.values()
+        ],
+        "fact_event": [
+            {
+                "trace_id": r[0],
+                "span_id": r[1],
+                "parent_span_id": r[2],
+                "ts": r[3],
+                "event_name": r[4],
+                "duration_ms": r[5],
+                "status": r[6],
+                "context": r[7],
+            }
+            for r in events.values()
+        ],
+        "dim_session": [_as_session(r) for r in sessions.values()],
+    }
+    # Delete the incremental window before re-inserting, mirroring the old
+    # opencode load window semantics: day-windowed for the four main tables
+    # (fact_file_edit is a full replace; fact_event is ts-windowed / null).
+    _delete_window(con, "fact_model_request", source, since)
+    _delete_window(con, "fact_turn", source, since)
+    _delete_window(con, "fact_tool_call", source, since)
+    _delete_window(con, "dim_session", source, since)
+    con.execute("DELETE FROM fact_file_edit WHERE source = ?", [source])
+    con.execute(
+        """DELETE FROM fact_event WHERE source = ?
+                   AND (ts >= ? OR ts IS NULL)""",
+        [source, datetime(since.year, since.month, since.day)] if since else [source, "1970-01-01"],
+    )
+    total = 0
+    for table, rows in extracted.items():
+        rows = trace_contracts.validate_rows(table, rows, source, keep_rejected=True)
+        trace_contracts._insert_all(con, table, rows, source)
+        total += len(rows)
+    _load_log_extra.clear()
+    detail = (
+        f"requests={len(req_rows)} turns={len(turn_rows)} "
+        f"tools={len(tools)} edits={len(edits)} events={len(events)} "
+        f"sessions={len(sessions)} {detail_extra}"
+    )
+    _load_log_extra.append(detail)
+    return total
+
+
 @trace_contracts.register_parser("opencode")
 def _parse_opencode(con, since=None):  # noqa: C901  # moved verbatim; split needs a parity harness (c901 deferred class)
     """Load opencode.db (capture_traces §2.3) into the trace tables; returns
@@ -934,8 +1156,9 @@ def _parse_opencode(con, since=None):  # noqa: C901  # moved verbatim; split nee
                     if not isinstance(b, dict) or b.get("type") != "tool":
                         continue
                     st = b.get("state") or {}
-                    texts = [c.get("text") or "" for c in st.get("content") or []
-                             if isinstance(c, dict)]
+                    texts = [
+                        c.get("text") or "" for c in st.get("content") or [] if isinstance(c, dict)
+                    ]
                     out = " ".join(texts)
                     bt = b.get("time") or {}
                     bts, bday = ms_local(bt.get("created"))
@@ -950,7 +1173,8 @@ def _parse_opencode(con, since=None):  # noqa: C901  # moved verbatim; split nee
                         bts or ts,
                         bday or day,
                         (bt.get("completed", 0) - bt.get("created", 0))
-                        if bt.get("completed") and bt.get("created") else None,
+                        if bt.get("completed") and bt.get("created")
+                        else None,
                         None,
                         None,
                         st.get("status"),
@@ -1054,219 +1278,255 @@ def _parse_opencode(con, since=None):  # noqa: C901  # moved verbatim; split nee
                             if p.get("type") == "patch":
                                 for epath in p.get("files") or []:
                                     edits[(p.get("hash"), epath)] = (
-                                        psid, pts, pday, p.get("hash"), epath)
+                                        psid,
+                                        pts,
+                                        pday,
+                                        p.get("hash"),
+                                        epath,
+                                    )
                             elif p.get("type") == "compaction" and psid in sessions:
                                 prev = sessions[psid]
-                                sessions[psid] = (prev[:12] + ((prev[12] or 0) + 1,)
-                                                  + prev[13:])
+                                sessions[psid] = prev[:12] + ((prev[12] or 0) + 1,) + prev[13:]
         finally:
             src.close()
 
-    req_rows = []
-    for mid, r in msgs.items():
-        r = list(r)
-        r[24] = steps.get(mid, 0)  # tool_call_count slot: steps first
-        req_rows.append(tuple(r))
-    turn_rows = []
-    for mid, r in msgs.items():
-        turn_rows.append(
-            (
-                r[1],
-                mid,
-                r[6],
-                r[7],
-                r[18],
-                steps.get(mid, 0),
-                0,
-                tcount.get(mid, 0),
-                toerrs.get(mid, 0),
-                (r[19] or 0) + (r[20] or 0) + (r[22] or 0) if (r[19] or r[20] or r[22]) else None,
-                None,
-                r[15],
-            )
-        )
-
-    def _as_session(row: tuple) -> dict:
-        (
-            session_id,
-            ts_start,
-            day,
-            ts_end,
-            directory,
-            title,
-            model,
-            agent,
-            mode,
-            adds,
-            dels,
-            files,
-            compactions,
-            input,
-            output,
-            reasoning,
-            cache_read,
-            cost_usd,
-            trace_id,
-        ) = row
-        return {
-            "session_id": session_id,
-            "ts_start": ts_start,
-            "day": day,
-            "ts_end": ts_end,
-            "directory": directory,
-            "title": title,
-            "model": model,
-            "agent": agent,
-            "mode": mode,
-            "adds": adds,
-            "dels": dels,
-            "files": files,
-            "compactions": compactions,
-            "input": input,
-            "output": output,
-            "reasoning": reasoning,
-            "cache_read": cache_read,
-            "cost_usd": cost_usd,
-            "trace_id": trace_id,
-        }
-
-    extracted = {
-        "fact_model_request": [
-            {
-                "request_id": r[0],
-                "session_id": r[1],
-                "turn_id": r[2],
-                "trace_id": r[3],
-                "span_id": r[4],
-                "attempt_index": r[5],
-                "ts": r[6],
-                "day": r[7],
-                "provider": r[8],
-                "model": r[9],
-                "variant": r[10],
-                "agent": r[11],
-                "mode": r[12],
-                "task_type": r[13],
-                "query_source": r[14],
-                "status": r[15],
-                "finish_reason": r[16],
-                "ttft_ms": r[17],
-                "duration_ms": r[18],
-                "input": r[19],
-                "output": r[20],
-                "reasoning": r[21],
-                "cache_read": r[22],
-                "cache_write": r[23],
-                "tool_call_count": r[24],
-                "retry_count": r[25],
-                "context_exceeded": r[26],
-                "cancelled": r[27],
-                "error_type": r[28],
-                "error_code": r[29],
-                "cost_usd": r[30],
-                "cost_basis": r[31],
-            }
-            for r in req_rows
-        ],
-        "fact_turn": [
-            {
-                "session_id": r[0],
-                "turn_id": r[1],
-                "ts": r[2],
-                "day": r[3],
-                "duration_ms": r[4],
-                "model_requests": r[5],
-                "model_retries": r[6],
-                "tool_calls": r[7],
-                "tool_errors": r[8],
-                "tokens": r[9],
-                "context_exceeded": r[10],
-                "status": r[11],
-            }
-            for r in turn_rows
-        ],
-        "fact_tool_call": [
-            {
-                "tool_call_id": r[0],
-                "session_id": r[1],
-                "turn_id": r[2],
-                "tool_name": r[3],
-                "ts": r[4],
-                "day": r[5],
-                "duration_ms": r[6],
-                "ttf_output_ms": r[7],
-                "exit_code": r[8],
-                "status": r[9],
-                "output_bytes": r[10],
-                "stdout_bytes": r[11],
-                "stderr_bytes": r[12],
-                "truncated": r[13],
-                "cancelled": r[14],
-                "read_only": r[15],
-                "destructive": r[16],
-                "approval_status": r[17],
-                "retry_count": r[18],
-                "error_type": r[19],
-                "error_code": r[20],
-                "side_effect_scope": r[21],
-            }
-            for r in tools.values()
-        ],
-        "fact_file_edit": [
-            {
-                "session_id": r[0],
-                "ts": r[1],
-                "day": r[2],
-                "snapshot_hash": r[3],
-                "path": r[4],
-            }
-            for r in edits.values()
-        ],
-        "fact_event": [
-            {
-                "trace_id": r[0],
-                "span_id": r[1],
-                "parent_span_id": r[2],
-                "ts": r[3],
-                "event_name": r[4],
-                "duration_ms": r[5],
-                "status": r[6],
-                "context": r[7],
-            }
-            for r in events.values()
-        ],
-        "dim_session": [_as_session(r) for r in sessions.values()],
-    }
-    # Delete the incremental window before re-inserting, mirroring the old
-    # opencode load window semantics: day-windowed for the four main tables
-    # (fact_file_edit is a full replace; fact_event is ts-windowed / null).
-    _delete_window(con, "fact_model_request", "opencode", since)
-    _delete_window(con, "fact_turn", "opencode", since)
-    _delete_window(con, "fact_tool_call", "opencode", since)
-    _delete_window(con, "dim_session", "opencode", since)
-    con.execute("DELETE FROM fact_file_edit WHERE source = 'opencode'")
-    con.execute(
-        """DELETE FROM fact_event WHERE source = 'opencode'
-                   AND (ts >= ? OR ts IS NULL)""",
-        [datetime(since.year, since.month, since.day)] if since else ["1970-01-01"],
+    return _flush_request_grains(
+        con,
+        since,
+        "opencode",
+        msgs,
+        tools,
+        edits,
+        events,
+        sessions,
+        steps,
+        tcount,
+        toerrs,
+        f"skipped_zai_sessions={skipped_zai} "
+        f"dbs={[Path(d).name for d in _oc_dbs() if Path(d).is_file()]}",
     )
-    total = 0
-    for table, rows in extracted.items():
-        rows = trace_contracts.validate_rows(table, rows, "opencode", keep_rejected=True)
-        trace_contracts._insert_all(con, table, rows, "opencode")
-        total += len(rows)
-    _load_log_extra.clear()
-    detail = (
-        f"requests={len(req_rows)} turns={len(turn_rows)} "
-        f"tools={len(tools)} edits={len(edits)} events={len(events)} "
-        f"sessions={len(sessions)} skipped_zai_sessions={skipped_zai} "
-        f"dbs={[Path(d).name for d in _oc_dbs() if Path(d).is_file()]}"
-    )
-    _load_log_extra.append(detail)
-    return total
 
 
 load_opencode = _parse_opencode
+
+
+@trace_contracts.register_parser("dsh")
+def _parse_dsh(con, since=None):
+    """Load dsh session logs (session-query era: the zstd JSONL event logs;
+    OTel/session-query exporters are unconfigured on this box) into the
+    trace tables; returns inserted row count.
+
+    Grain mapping (measured 2026-10-11): assistant/message -> request
+    (usage input/output; no cache split, no cost — same null posture as
+    missing_usage rows), tool/call+tool/result joined on callId -> tool
+    call (duration from the two append times, error from isError),
+    turn/start+turn/end counted per message for the turn grain via steps.
+    No fact_event rows (no OTel feed) and no fact_file_edit rows
+    (workspace/changes carries no paths) — documented absences, not gaps.
+    Message ids are f"{session}:{seq}" (stable across runs); session ids
+    are session-* uuids, disjoint from ses_/sess_ by construction.
+    """
+    import zstandard
+
+    tz = datetime.now().astimezone().tzinfo
+
+    def ms_local(ms: int | None) -> tuple[datetime | None, date | None]:
+        if not ms:
+            return None, None
+        dt = datetime.fromtimestamp(ms / 1000, tz=tz).replace(tzinfo=None)
+        return dt, dt.date()
+
+    msgs: dict[str, tuple] = {}
+    tools: dict[str, tuple] = {}
+    edits: dict[tuple, tuple] = {}
+    sessions: dict[str, tuple] = {}
+    events: dict[str, tuple] = {}
+    steps: dict[str, int] = {}
+    toerrs: dict[str, int] = {}
+    tcount: dict[str, int] = {}
+
+    home = Path.home() / ".dsh" / "sessions"
+    logs = []
+    if home.is_dir():
+        for sess_dir in sorted(home.glob("*/*/")):
+            v4 = sess_dir / "session.v4.jsonl.zstd"
+            v0 = sess_dir / "session.jsonl.zstd"
+            if v4.is_file():
+                logs.append((v4, sess_dir.name))
+            elif v0.is_file():
+                logs.append((v0, sess_dir.name))
+    for path, sid in logs:
+        try:
+            dctx = zstandard.ZstdDecompressor()
+            with open(path, "rb") as fh:
+                raw = dctx.stream_reader(fh).read()
+            records = [
+                json.loads(line)
+                for line in raw.decode("utf-8", errors="replace").splitlines()
+                if line.strip()
+            ]
+        except (OSError, zstandard.ZstdError, ValueError) as exc:
+            print(f"  dsh: SKIP unreadable ({path.name}: {exc})", file=sys.stderr)
+            continue
+        calls: dict[str, tuple] = {}
+        msg_step: dict[tuple, str] = {}
+        usage_in = usage_out = 0
+        model = prov = title = None
+        ts_start = day_start = ts_end = None
+        for d in records:
+            if not isinstance(d, dict):
+                continue
+            typ = d.get("type")
+            data = d.get("data") or {}
+            ts, day = ms_local(d.get("time"))
+            if ts is not None and (ts_start is None or ts < ts_start):
+                ts_start, day_start = ts, day
+            if ts is not None and (ts_end is None or ts > ts_end):
+                ts_end = ts
+            if since and day and day < since:
+                continue
+            if typ == "session/title" and data.get("title"):
+                title = data["title"]
+            elif typ == "model/selection":
+                prov, model = data.get("provider"), data.get("model")
+            elif typ == "assistant/message":
+                m = data.get("message") or {}
+                srcinfo = m.get("source") or {}
+                u = data.get("usage") or {}
+                mid = f"{sid}:{d.get('seq')}"
+                msg_step[(data.get("turn"), data.get("step"))] = mid
+                usage_in += u.get("inputTokens", 0) or 0
+                usage_out += u.get("outputTokens", 0) or 0
+                if srcinfo.get("model"):
+                    model = srcinfo["model"]
+                if srcinfo.get("provider"):
+                    prov = srcinfo["provider"]
+                msgs[mid] = (
+                    mid,
+                    sid,
+                    None,
+                    None,
+                    None,
+                    None,
+                    ts,
+                    day,
+                    prov,
+                    model,
+                    None,
+                    "dsh",
+                    None,
+                    None,
+                    None,
+                    "completed" if u else "error",
+                    None,
+                    None,
+                    None,
+                    u.get("inputTokens"),
+                    u.get("outputTokens"),
+                    None,
+                    None,
+                    None,
+                    None,
+                    None,
+                    None,
+                    None,
+                    "missing_usage" if not u else None,
+                    None,
+                    None,
+                    None,
+                )
+            elif typ == "tool/call":
+                if data.get("callId"):
+                    calls[data["callId"]] = (d.get("seq"), ts, day, data)
+            elif typ == "tool/result":
+                m = data.get("message") or {}
+                cid = data.get("toolCallId") or (m.get("source") or {}).get("callId")
+                if not isinstance(cid, str):
+                    continue
+                call = calls.pop(cid, None)
+                if call is None:
+                    continue
+                _seq, cts, cday, cdata = call
+                text = " ".join(
+                    b.get("text", "")
+                    for b in (m.get("content") or [])
+                    if isinstance(b, dict) and b.get("type") == "text"
+                )
+                err = bool(data.get("isError"))
+                dur = (
+                    int(d.get("time", 0) - cts.timestamp() * 1000)
+                    if cts and d.get("time")
+                    else None
+                )
+                mid = msg_step.get((data.get("turn"), data.get("step"))) or f"{sid}:{_seq}"
+                tools[cid] = (
+                    cid,
+                    sid,
+                    mid,
+                    cdata.get("name"),
+                    ts,
+                    day,
+                    dur,
+                    None,
+                    None,
+                    "error" if err else "completed",
+                    len(text) if text else None,
+                    None,
+                    None,
+                    None,
+                    None,
+                    None,
+                    None,
+                    None,
+                    None,
+                    "tool_execution_failed" if err else None,
+                    None,
+                    None,
+                )
+                if err:
+                    toerrs[mid] = toerrs.get(mid, 0) + 1
+                tcount[mid] = tcount.get(mid, 0) + 1
+                steps[mid] = steps.get(mid, 0) + 1
+        if since and day_start and day_start < since:
+            continue
+        sessions[sid] = (
+            sid,
+            ts_start,
+            day_start,
+            ts_end,
+            None,
+            title,
+            model,
+            "dsh",
+            None,
+            None,
+            None,
+            None,
+            None,
+            usage_in or None,
+            usage_out or None,
+            None,
+            None,
+            None,
+            None,
+        )
+    return _flush_request_grains(
+        con,
+        since,
+        "dsh",
+        msgs,
+        tools,
+        edits,
+        events,
+        sessions,
+        steps,
+        tcount,
+        toerrs,
+        f"sessions={[s for _, s in logs]}",
+    )
+
+
+load_dsh_traces = _parse_dsh
 
 
 def _refresh_backup(store: Path) -> None:
@@ -3014,7 +3274,7 @@ def report(  # noqa: C901  # moved verbatim; split needs a parity harness (c901 
 
 # ------------------------------------------------------------------ main ----
 
-LOADERS = {name: trace_contracts.load for name in ("zcode", "opencode", "prime", "rollout")}
+LOADERS = {name: trace_contracts.load for name in ("zcode", "opencode", "prime", "rollout", "dsh")}
 
 # Leg names accepted by `report --legs`, in render order. Kept beside the
 # loader registry so `--help` and an unknown-name warning have one source.

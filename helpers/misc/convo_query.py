@@ -33,7 +33,7 @@ if str(_REPO_ROOT) not in sys.path:
 REPO = _REPO_ROOT
 DEFAULT_DB = REPO / "memory/convo_search.duckdb"
 FTS_DB_NAME = "convo_search_fts.db"
-HARNESSES = ["opencode", "prime-rlm", "zcode"]
+HARNESSES = ["opencode", "prime-rlm", "zcode", "dsh"]
 RRF_K = 60
 HEAD = 160
 

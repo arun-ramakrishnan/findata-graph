@@ -66,6 +66,7 @@ from datetime import date, datetime, timedelta, UTC
 from pathlib import Path
 
 import duckdb
+import zstandard
 
 REPO = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO))  # repo root, for helpers.core.db
@@ -779,6 +780,90 @@ def load_opencode(con, since: date | None = None) -> int:
             (source, day, provider, model, reqs, fresh_in, cached, cache_write,
              output, reasoning, tokens, cost_usd, cost_basis, loaded_at)
             VALUES ('opencode', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, now())""",
+            recs,
+        )
+    return len(recs)
+
+
+DSH_SESSIONS = Path.home() / ".dsh" / "sessions"
+
+
+def _dsh_log_records(path: Path):
+    """Decoded v4 (or v0 fallback) session-log records; torn tail skipped."""
+    dctx = zstandard.ZstdDecompressor()
+    with open(path, "rb") as fh:
+        raw = dctx.stream_reader(fh).read()
+    for line in raw.decode("utf-8", errors="replace").splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        try:
+            d = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        if isinstance(d, dict):
+            yield d
+
+
+def _dsh_session_logs():
+    """(log path, session id): v4 preferred, v0 only when v4 is absent."""
+    if not DSH_SESSIONS.is_dir():
+        return
+    for sess_dir in sorted(DSH_SESSIONS.glob("*/*/")):
+        v4 = sess_dir / "session.v4.jsonl.zstd"
+        v0 = sess_dir / "session.jsonl.zstd"
+        if v4.is_file():
+            yield v4, sess_dir.name
+        elif v0.is_file():
+            yield v0, sess_dir.name
+
+
+def load_dsh(con, since: date | None = None) -> int:
+    """The DeepSeek harness under one source name: per-assistant-message
+    usage from the zstd session logs (v4 preferred). Usage carries
+    input/output totals only — no cache split, no cost — so those land as
+    zeros with a `local` basis (same posture as harness-measured rows).
+    Zhipu-provider rows drop wherever the zai API covers the (day, model).
+    """
+    pmap = {"zai-coding-cn": "Zhipu"}
+    agg: dict[tuple, list] = {}
+    for path, _sid in _dsh_session_logs():
+        try:
+            records = list(_dsh_log_records(path))
+        except (OSError, zstandard.ZstdError) as exc:
+            print(f"  dsh: SKIP unreadable ({path.name}: {exc})", file=sys.stderr)
+            continue
+        for d in records:
+            if d.get("type") != "assistant/message":
+                continue
+            data = d.get("data") or {}
+            m = data.get("message") or {}
+            srcinfo = m.get("source") or {}
+            u = data.get("usage") or {}
+            ts = d.get("time")
+            day = datetime.fromtimestamp(ts / 1000, UTC).date() if ts else None
+            if day is None:
+                continue
+            if since and day < since:
+                continue
+            prov = pmap.get(srcinfo.get("provider"), srcinfo.get("provider") or "dsh")
+            model = srcinfo.get("model") or "unknown"
+            a = agg.setdefault((day, prov, model), [0, 0, 0, 0, 0, 0.0])
+            a[0] += 1
+            a[1] += u.get("inputTokens", 0) or 0
+            a[3] += u.get("outputTokens", 0) or 0
+    recs = [
+        (d_, p_, m_, a[0], a[1], 0, 0, a[3], 0, a[1] + a[3], 0.0, "local")
+        for (d_, p_, m_), a in agg.items()
+    ]
+    recs = _drop_api_covered(con, recs)
+    if recs:
+        _delete_window(con, "dsh", since)
+        con.executemany(
+            """INSERT INTO fact_usage
+            (source, day, provider, model, reqs, fresh_in, cached, cache_write,
+             output, reasoning, tokens, cost_usd, cost_basis, loaded_at)
+            VALUES ('dsh', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, now())""",
             recs,
         )
     return len(recs)
@@ -1685,7 +1770,7 @@ def report(  # noqa: C901  # moved verbatim; split needs a parity harness (c901 
 
 # ------------------------------------------------------------------ main ----
 
-LOADERS = {"prime-rlm": load_prime_rlm, "zai": load_zai, "opencode": load_opencode}
+LOADERS = {"prime-rlm": load_prime_rlm, "zai": load_zai, "opencode": load_opencode, "dsh": load_dsh}
 
 
 def _refresh_backup(store: Path) -> None:

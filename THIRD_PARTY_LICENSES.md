@@ -38,6 +38,7 @@ following remain under their own rights or are not relicensed by the project:
 | liteparse | Verify release license | OCR/PDF fallback |
 | TeleOCR GGUF (nandraj/NaviDC-OCR-GGUF) | Apache-2.0 (model weights) | Terminal OCR fallback runtime (models/; llama.cpp box-side, MIT) |
 | sqlite-vec | MIT (verify release) | SQLite vector extension |
+| zstandard | BSD-3-Clause | Zstd decompression (dsh session logs) |
 | jsonschema | MIT | JSON Schema validation |
 | fastjsonschema | MIT | Fast validation path |
 | llama-cpp-python | MIT wrapper; bundled/runtime terms require review | Local GGUF embedder |

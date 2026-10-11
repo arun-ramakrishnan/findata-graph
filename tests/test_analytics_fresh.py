@@ -72,13 +72,14 @@ def _make_usage(path: Path, rows: list[tuple[str, str]]) -> None:
     con.close()
 
 
-def _fixture(tmp_path: Path, hday: str, sday: str) -> tuple[Path, Path, Path, Path, Path, Path]:
+def _fixture(tmp_path: Path, hday: str, sday: str) -> tuple:
     tmp_path.mkdir(parents=True, exist_ok=True)
     yd, md, dd = (int(x) for x in hday.split("-"))
     ys, ms, ds = (int(x) for x in sday.split("-"))
     zcode, opencode = tmp_path / "db.sqlite", tmp_path / "oc.db"
     prime = tmp_path / "prime"
     rollout = tmp_path / "rollout"
+    dsh = tmp_path / "dsh" / "sessions" / "proj" / "session-x"
     traces, usage = tmp_path / "traces.duckdb", tmp_path / "usage.duckdb"
     _make_zcode(zcode, (yd, md, dd))
     _make_opencode(opencode, (yd, md, dd))
@@ -87,16 +88,30 @@ def _fixture(tmp_path: Path, hday: str, sday: str) -> tuple[Path, Path, Path, Pa
     (rollout / "model-io-sess-x.jsonl").write_text(
         json.dumps({"requestId": "r1", "startedAt": f"{hday}T12:00:00.000Z"}) + "\n"
     )
+    dsh.mkdir(parents=True, exist_ok=True)
+    dsh_log = dsh / "session.v4.jsonl.zstd"
+    dsh_log.write_bytes(b"not-a-real-log")
+    ts = datetime(yd, md, dd, 12, tzinfo=UTC).timestamp()
+    os.utime(dsh_log, (ts, ts))
     _make_traces(
-        traces, [("zcode", sday), ("opencode", sday), ("prime", sday), ("zcode_rollout", sday)]
+        traces,
+        [
+            ("zcode", sday),
+            ("opencode", sday),
+            ("prime", sday),
+            ("zcode_rollout", sday),
+            ("dsh", sday),
+        ],
     )
-    _make_usage(usage, [("prime-rlm", sday), ("opencode", sday), ("zai", sday)])
-    return zcode, opencode, prime, rollout, traces, usage
+    _make_usage(usage, [("prime-rlm", sday), ("opencode", sday), ("zai", sday), ("dsh", sday)])
+    return zcode, opencode, prime, rollout, dsh.parent.parent, traces, usage
 
 
 def test_fresh_when_frontiers_match(tmp_path: Path) -> None:
-    zcode, opencode, prime, rollout, traces, usage = _fixture(tmp_path, "2026-09-20", "2026-09-20")
-    harness = af.harness_frontiers(zcode, opencode, prime, rollout)
+    zcode, opencode, prime, rollout, dsh, traces, usage = _fixture(
+        tmp_path, "2026-09-20", "2026-09-20"
+    )
+    harness = af.harness_frontiers(zcode, opencode, prime, rollout, dsh)
     assert harness["prime"] == date(2026, 9, 20)
     assert harness["rollout"] == date(2026, 9, 20)
     rows, drift = af.check(harness, af.store_frontiers(traces, usage))
@@ -105,20 +120,22 @@ def test_fresh_when_frontiers_match(tmp_path: Path) -> None:
 
 
 def test_stale_on_completed_day_gap(tmp_path: Path) -> None:
-    zcode, opencode, prime, rollout, traces, usage = _fixture(tmp_path, "2026-09-20", "2026-09-18")
+    zcode, opencode, prime, rollout, dsh, traces, usage = _fixture(
+        tmp_path, "2026-09-20", "2026-09-18"
+    )
     rows, drift = af.check(
-        af.harness_frontiers(zcode, opencode, prime, rollout),
+        af.harness_frontiers(zcode, opencode, prime, rollout, dsh),
         af.store_frontiers(traces, usage),
     )
     assert drift
-    assert sum(1 for r in rows if r[4] == "STALE") == 6
+    assert sum(1 for r in rows if r[4] == "STALE") == 8  # 6 legacy + dsh x2 stores
 
 
 def test_same_day_lag_is_not_drift(tmp_path: Path) -> None:
     today = date.today().isoformat()
-    zcode, opencode, prime, rollout, traces, usage = _fixture(tmp_path, today, "2020-01-01")
+    zcode, opencode, prime, rollout, dsh, traces, usage = _fixture(tmp_path, today, "2020-01-01")
     rows, drift = af.check(
-        af.harness_frontiers(zcode, opencode, prime, rollout),
+        af.harness_frontiers(zcode, opencode, prime, rollout, dsh),
         af.store_frontiers(traces, usage),
     )
     assert not drift
@@ -126,9 +143,11 @@ def test_same_day_lag_is_not_drift(tmp_path: Path) -> None:
 
 
 def test_missing_harness_is_note_not_drift(tmp_path: Path) -> None:
-    zcode, opencode, prime, rollout, traces, usage = _fixture(tmp_path, "2026-09-20", "2026-09-20")
+    zcode, opencode, prime, rollout, dsh, traces, usage = _fixture(
+        tmp_path, "2026-09-20", "2026-09-20"
+    )
     rows, drift = af.check(
-        af.harness_frontiers(zcode, opencode, prime, tmp_path / "no-rollout"),
+        af.harness_frontiers(zcode, opencode, prime, tmp_path / "no-rollout", dsh),
         af.store_frontiers(traces, usage),
     )
     assert not drift
@@ -136,10 +155,12 @@ def test_missing_harness_is_note_not_drift(tmp_path: Path) -> None:
 
 
 def test_missing_store_is_drift_and_zai_never_verdict(tmp_path: Path) -> None:
-    zcode, opencode, prime, rollout, traces, usage = _fixture(tmp_path, "2026-09-20", "2026-09-20")
+    zcode, opencode, prime, rollout, dsh, traces, usage = _fixture(
+        tmp_path, "2026-09-20", "2026-09-20"
+    )
     missing = tmp_path / "nope.duckdb"
     rows, drift = af.check(
-        af.harness_frontiers(zcode, opencode, prime, rollout),
+        af.harness_frontiers(zcode, opencode, prime, rollout, dsh),
         af.store_frontiers(missing, usage),
     )
     assert drift
@@ -161,10 +182,12 @@ def test_main_exit_codes(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> 
             str(fx[2]),
             "--rollout-dir",
             str(fx[3]),
-            "--agent-traces",
+            "--dsh-dir",
             str(fx[4]),
-            "--model-usage",
+            "--agent-traces",
             str(fx[5]),
+            "--model-usage",
+            str(fx[6]),
         ]
 
     assert af.main(_args(fresh)) == 0

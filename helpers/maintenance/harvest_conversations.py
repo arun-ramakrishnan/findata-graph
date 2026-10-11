@@ -50,6 +50,7 @@ from pathlib import Path
 
 import pyarrow as pa
 import pyarrow.parquet as pq
+import zstandard
 
 REPO = Path(__file__).resolve().parents[2]
 SNAP_ROOT = Path("/mnt/store/timeshift/snapshots")
@@ -293,8 +294,19 @@ def _oc_part_rows(cur_parts: Iterator[tuple], msgs: dict[str, tuple], src: str) 
             meta = {k: v for k, v in d.items() if k not in ("type",)}
         m = msgs.get(mid) or ("", "", "")
         out.append(
-            _row(pid, mid, sid, _ms(tu or tc), m[0], m[1], _oc_model_value(m[2]),
-                 ptype, text, meta, src)
+            _row(
+                pid,
+                mid,
+                sid,
+                _ms(tu or tc),
+                m[0],
+                m[1],
+                _oc_model_value(m[2]),
+                ptype,
+                text,
+                meta,
+                src,
+            )
         )
     return out
 
@@ -414,8 +426,9 @@ def _v2_msg_envelope(con) -> dict[str, tuple]:
     return out
 
 
-def _v2_block_rows(mid: str, sid: str, tc, tu, agent: str, model: str,
-                   data: dict, src: str) -> list[dict]:
+def _v2_block_rows(
+    mid: str, sid: str, tc, tu, agent: str, model: str, data: dict, src: str
+) -> list[dict]:
     """One corpus row per searchable unit of a session_message row.
 
     part_id is the message id for message-grain rows (user, compaction,
@@ -428,8 +441,9 @@ def _v2_block_rows(mid: str, sid: str, tc, tu, agent: str, model: str,
     ctype = data.get("type") or "unknown"
     if ctype == "user":
         if data.get("text"):
-            rows.append(_row(mid, mid, sid, ts, "user", agent, model,
-                             "text", data["text"], {}, src))
+            rows.append(
+                _row(mid, mid, sid, ts, "user", agent, model, "text", data["text"], {}, src)
+            )
     elif ctype == "assistant":
         for i, b in enumerate(data.get("content") or []):
             if not isinstance(b, dict):
@@ -437,42 +451,98 @@ def _v2_block_rows(mid: str, sid: str, tc, tu, agent: str, model: str,
             pid = f"{mid}#{i}"
             btype = b.get("type")
             if btype == "text":
-                rows.append(_row(pid, mid, sid, ts, "assistant", agent, model,
-                                 "text", b.get("text") or "", {}, src))
+                rows.append(
+                    _row(
+                        pid,
+                        mid,
+                        sid,
+                        ts,
+                        "assistant",
+                        agent,
+                        model,
+                        "text",
+                        b.get("text") or "",
+                        {},
+                        src,
+                    )
+                )
             elif btype == "reasoning":
-                rows.append(_row(pid, mid, sid, ts, "assistant", agent, model,
-                                 "reasoning", b.get("text") or "", {}, src))
+                rows.append(
+                    _row(
+                        pid,
+                        mid,
+                        sid,
+                        ts,
+                        "assistant",
+                        agent,
+                        model,
+                        "reasoning",
+                        b.get("text") or "",
+                        {},
+                        src,
+                    )
+                )
             elif btype == "tool":
                 st = b.get("state") or {}
-                texts = [c.get("text") or "" for c in st.get("content") or []
-                         if isinstance(c, dict)]
+                texts = [
+                    c.get("text") or "" for c in st.get("content") or [] if isinstance(c, dict)
+                ]
                 # legacy meta parity minus title: the v2 projection drops
                 # part titles, so there is nothing to carry (measured
                 # 2026-10-11 against the restore run, not assumed).
-                meta = {"status": st.get("status"), "tool": b.get("name"),
-                        "input": str(st.get("input"))[:2000]}
-                rows.append(_row(pid, mid, sid, ts, "assistant", agent, model,
-                                 "tool", " ".join(texts), meta, src))
+                meta = {
+                    "status": st.get("status"),
+                    "tool": b.get("name"),
+                    "input": str(st.get("input"))[:2000],
+                }
+                rows.append(
+                    _row(
+                        pid,
+                        mid,
+                        sid,
+                        ts,
+                        "assistant",
+                        agent,
+                        model,
+                        "tool",
+                        " ".join(texts),
+                        meta,
+                        src,
+                    )
+                )
             # unknown future block kinds: skip loudly below via census tests,
             # never silently (new kinds must extend this branch + AC4).
     elif ctype == "compaction":
         # The summary lives ONLY here — event compaction parts carry just
         # {auto, tail_start_id} (measured 2026-10-11). Dropping this row
         # loses the text with no recovery path.
-        rows.append(_row(mid, mid, sid, ts, "", agent, model, "compaction",
-                         data.get("summary") or "",
-                         {"status": data.get("status"),
-                          "reason": data.get("reason")}, src))
+        rows.append(
+            _row(
+                mid,
+                mid,
+                sid,
+                ts,
+                "",
+                agent,
+                model,
+                "compaction",
+                data.get("summary") or "",
+                {"status": data.get("status"), "reason": data.get("reason")},
+                src,
+            )
+        )
     elif ctype == "synthetic":
         # The legacy v1 lane emits synthetic text parts as text — match it.
-        rows.append(_row(mid, mid, sid, ts, "", agent, model, "text",
-                         data.get("text") or "", {}, src))
+        rows.append(
+            _row(mid, mid, sid, ts, "", agent, model, "text", data.get("text") or "", {}, src)
+        )
     # idle / model-switched: outcome + routing markers, no searchable text.
     return rows
 
 
-def _harvest_opencode_v2(db_path: Path, src: str, seeds: dict,
-                         corpus_root: Path) -> tuple[list[dict], int]:
+def _harvest_opencode_v2(
+    db_path: Path, src: str, seeds: dict, corpus_root: Path
+) -> tuple[list[dict], int]:
     """S1 lane: session_message -> corpus rows. Returns (rows, new_hwm).
 
     `seeds` is a memo cache mapping session_id -> epoch-ms seed (None =
@@ -485,8 +555,7 @@ def _harvest_opencode_v2(db_path: Path, src: str, seeds: dict,
     try:
         try:
             cur = con.execute(
-                "SELECT id, session_id, time_created, time_updated, type, data "
-                "FROM session_message"
+                "SELECT id, session_id, time_created, time_updated, type, data FROM session_message"
             )
         except sqlite3.OperationalError:
             return [], 0
@@ -525,8 +594,9 @@ def _harvest_opencode_v2(db_path: Path, src: str, seeds: dict,
         con.close()
 
 
-def _harvest_opencode_events(db_path: Path, src: str, seeds: dict,
-                             corpus_root: Path) -> tuple[list[dict], int]:
+def _harvest_opencode_events(
+    db_path: Path, src: str, seeds: dict, corpus_root: Path
+) -> tuple[list[dict], int]:
     """S2 lane: event part rows of the five types session_message drops.
 
     Last-write-wins per part id (ORDER BY rowid) — parts arrive 1-8x each
@@ -572,23 +642,73 @@ def _harvest_opencode_events(db_path: Path, src: str, seeds: dict,
             role, agent, model = env.get(mid, ("", "", ""))
             ts = _ms(t)
             if ptype == "step-finish":
-                rows.append(_row(pid, mid, sid, ts, role, agent, model, ptype,
-                                 p.get("reason") or "",
-                                 {"tokens": p.get("tokens"), "cost": p.get("cost"),
-                                  "snapshot": p.get("snapshot")}, src))
+                rows.append(
+                    _row(
+                        pid,
+                        mid,
+                        sid,
+                        ts,
+                        role,
+                        agent,
+                        model,
+                        ptype,
+                        p.get("reason") or "",
+                        {
+                            "tokens": p.get("tokens"),
+                            "cost": p.get("cost"),
+                            "snapshot": p.get("snapshot"),
+                        },
+                        src,
+                    )
+                )
             elif ptype == "patch":
-                rows.append(_row(pid, mid, sid, ts, role, agent, model, ptype, "",
-                                 {"files": p.get("files"), "hash": p.get("hash")},
-                                 src))
+                rows.append(
+                    _row(
+                        pid,
+                        mid,
+                        sid,
+                        ts,
+                        role,
+                        agent,
+                        model,
+                        ptype,
+                        "",
+                        {"files": p.get("files"), "hash": p.get("hash")},
+                        src,
+                    )
+                )
             elif ptype == "compaction":
-                rows.append(_row(pid, mid, sid, ts, role, agent, model, ptype,
-                                 p.get("summary") or "",
-                                 {"auto": p.get("auto"),
-                                  "tail_start_id": p.get("tail_start_id")}, src))
+                rows.append(
+                    _row(
+                        pid,
+                        mid,
+                        sid,
+                        ts,
+                        role,
+                        agent,
+                        model,
+                        ptype,
+                        p.get("summary") or "",
+                        {"auto": p.get("auto"), "tail_start_id": p.get("tail_start_id")},
+                        src,
+                    )
+                )
             else:  # step-start, file: legacy else-branch parity
-                rows.append(_row(pid, mid, sid, ts, role, agent, model, ptype, "",
-                                 {k: v for k, v in p.items() if k != "type"},
-                                 src))
+                rows.append(
+                    _row(
+                        pid,
+                        mid,
+                        sid,
+                        ts,
+                        role,
+                        agent,
+                        model,
+                        ptype,
+                        "",
+                        {k: v for k, v in p.items() if k != "type"},
+                        src,
+                    )
+                )
         try:
             new_hwm = con.execute(
                 "SELECT COALESCE(MAX(json_extract(data,'$.time')),0) FROM event "
@@ -665,8 +785,7 @@ def _harvest_opencode(store: Store, writer: SessionWriter) -> str:
         # never existed) — that is the backfill for post-cutover snapshots,
         # and per-session seeds keep it duplicate-free (see _corpus_max_ts).
         seeds: dict[str, int | None] = {}
-        for lane, fn in (("v2", _harvest_opencode_v2),
-                         ("evt", _harvest_opencode_events)):
+        for lane, fn in (("v2", _harvest_opencode_v2), ("evt", _harvest_opencode_events)):
             lkey = key + ":" + lane
             if immutable and store.watermark(lkey) is not None:
                 stats.append(f"{src}:{lane}: quiet")
@@ -758,6 +877,258 @@ def _harvest_prime(store: Store, writer: SessionWriter) -> str:
         total += len(rows)
         stats.append(f"{src}: {len(rows)} parts")
     return "\n".join(stats) + f"\nprime-rlm total new: {total}"
+
+
+def _dsh_home() -> Path:
+    """Resolved per call (not at import) so Path.home patching in tests
+    isolates the lane — same pattern as the prime/zcode file lanes."""
+    return Path.home() / ".dsh" / "sessions"
+
+
+def _dsh_index_path() -> Path | None:
+    """Location of the session-query derived index, if the backend ever
+    materializes one. The backend needs an explicit `path` config
+    (opt-in per upstream docs); without it there is nothing to read and
+    the S4 lines stay quiet. Resolved per call for test isolation."""
+    candidates = sorted(Path.home().glob(".dsh/**/session-search.db"))
+    return candidates[0] if candidates else None
+
+
+def _dsh_index_lag() -> list[str]:
+    """S4: derived-index coherence. Compares per-session max seq between
+    the session logs (source of truth) and the session-query index.
+    A lagging or missing index is the real operational risk of a derived
+    store — silent staleness wearing a healthy face. Lines close
+    automatically as the indexer catches up; absent index = quiet."""
+    out = []
+    idx = _dsh_index_path()
+    if idx is None:
+        return out
+    try:
+        con = connect(str(idx), read_only=True)
+    except sqlite3.DatabaseError:
+        return out
+    try:
+        try:
+            indexed = {
+                r[0]: r[1]
+                for r in con.execute(
+                    "SELECT session_id, MAX(seq) FROM persisted_docs GROUP BY session_id"
+                ).fetchall()
+            }
+        except sqlite3.OperationalError:
+            return out
+    finally:
+        con.close()
+    for path, sid, _src in _dsh_logs():
+        live_max = -1
+        try:
+            for seq, _ts, _typ, _data in _dsh_read_log(path):
+                if isinstance(seq, int) and seq > live_max:
+                    live_max = seq
+        except OSError, zstandard.ZstdError:
+            continue
+        if sid not in indexed:
+            out.append(f"dsh-index:missing {sid[:13]} (log {live_max})")
+        elif indexed[sid] is not None and live_max > int(indexed[sid]):
+            out.append(f"dsh-index:lagging {sid[:13]} (log {live_max} > index {int(indexed[sid])})")
+    return out
+    return Path.home() / ".dsh" / "sessions"
+
+
+def _dsh_logs() -> list[tuple[Path, str, str]]:
+    """(log path, session id, src). v4 preferred; v0 only when v4 is absent
+    for a session dir — the generations overlap (measured 2026-10-11: 23
+    shared (seq,type) keys, v4 re-stamping identical content by 1-2ms),
+    so reading both would double-ingest under different seqs."""
+    out = []
+    home = _dsh_home()
+    if not home.is_dir():
+        return out
+    for sess_dir in sorted(home.glob("*/*/")):
+        sid = sess_dir.name
+        v4 = sess_dir / "session.v4.jsonl.zstd"
+        v0 = sess_dir / "session.jsonl.zstd"
+        if v4.is_file():
+            out.append((v4, sid, "dsh:live"))
+        elif v0.is_file():
+            out.append((v0, sid, "dsh:live"))
+    return out
+
+
+def _dsh_read_log(path: Path):
+    """Streamed zstd decode -> parsed records (torn trailing line skipped).
+
+    zstandard rides the venv (uv add with this lane's first import —
+    dependency-gate ordering); stream_reader (not one-shot decompress) so
+    a live session's concurrent append never fails the whole file.
+    Yields (seq, time, type, data) per record.
+    """
+    dctx = zstandard.ZstdDecompressor()
+    buf = b""
+    with open(path, "rb") as fh, dctx.stream_reader(fh) as reader:
+        while True:
+            chunk = reader.read(1 << 20)
+            if not chunk:
+                break
+            buf += chunk
+    for line in buf.decode("utf-8", errors="replace").splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        try:
+            d = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        if not isinstance(d, dict):
+            continue
+        yield (d.get("seq"), d.get("time"), d.get("type"), d.get("data") or {})
+
+
+def _dsh_content_text(content: object) -> str:
+    if isinstance(content, list):
+        return " ".join(
+            b.get("text", "") for b in content if isinstance(b, dict) and b.get("type") == "text"
+        )
+    return ""
+
+
+def _harvest_dsh_file(
+    path: Path, sid: str, src: str, after_seq: int | None
+) -> tuple[list[dict], int]:
+    """(rows, max seq seen). part_ids are stable ({sid}:{seq}[#{i}]) — the
+    log is append-only, so re-reads merge newest-wins instead of
+    duplicating. Records at/below after_seq are already harvested.
+    turn/step markers, titles, system prompts and todo/workspace metadata
+    carry no searchable text and are skipped with reason (no legacy dsh
+    corpus exists, so no parity constraint). Rows without a model take
+    the session model (model/selection, last wins) so the facet stays
+    dense — tool and user rows carry no per-row model.
+    """
+    rows = []
+    max_seq = -1
+    sess_model = ""
+    calls: dict[str, tuple] = {}
+    for seq, ts, typ, data in _dsh_read_log(path):
+        if isinstance(seq, int) and seq > max_seq:
+            max_seq = seq
+        if after_seq is not None and isinstance(seq, int) and seq <= after_seq:
+            continue
+        pid = f"{sid}:{seq}"
+        if typ == "model/selection" and data.get("model"):
+            sess_model = data["model"]
+        if typ == "user/message":
+            m = data.get("message", data)
+            text = _dsh_content_text(m.get("content")) if isinstance(m, dict) else ""
+            if text:
+                rows.append(_row(pid, pid, sid, _ms(ts), "user", "", "", "text", text, {}, src))
+        elif typ == "assistant/message":
+            m = data.get("message") or {}
+            srcinfo = m.get("source") or {}
+            model = srcinfo.get("model", "") or ""
+            if model:
+                sess_model = model
+            for i, b in enumerate(m.get("content") or []):
+                if not isinstance(b, dict):
+                    continue
+                if b.get("type") == "text":
+                    rows.append(
+                        _row(
+                            f"{pid}#{i}",
+                            pid,
+                            sid,
+                            _ms(ts),
+                            "assistant",
+                            "dsh",
+                            model,
+                            "text",
+                            b.get("text") or "",
+                            {},
+                            src,
+                        )
+                    )
+                elif b.get("type") == "reasoning":
+                    rows.append(
+                        _row(
+                            f"{pid}#{i}",
+                            pid,
+                            sid,
+                            _ms(ts),
+                            "assistant",
+                            "dsh",
+                            model,
+                            "reasoning",
+                            b.get("text") or "",
+                            {},
+                            src,
+                        )
+                    )
+        elif typ == "tool/call":
+            if data.get("callId"):
+                calls[data["callId"]] = (pid, ts, data)
+        elif typ == "tool/result":
+            m = data.get("message") or {}
+            cid = data.get("toolCallId") or (m.get("source") or {}).get("callId")
+            text = _dsh_content_text(m.get("content"))
+            call = calls.pop(cid, None)
+            if call is not None:
+                cpid, _cts, cdata = call
+                meta = {
+                    "status": "error" if data.get("isError") else "completed",
+                    "tool": cdata.get("name"),
+                    "input": str(cdata.get("arguments"))[:2000],
+                }
+                rows.append(
+                    _row(cpid, cpid, sid, _ms(ts), "assistant", "dsh", "", "tool", text, meta, src)
+                )
+            elif text:
+                rows.append(
+                    _row(
+                        pid,
+                        pid,
+                        sid,
+                        _ms(ts),
+                        "assistant",
+                        "dsh",
+                        "",
+                        "tool",
+                        text,
+                        {"status": "orphan-result"},
+                        src,
+                    )
+                )
+    if sess_model:
+        rows = [r if r["model"] else {**r, "model": sess_model} for r in rows]
+    return rows, max_seq
+
+
+def _harvest_dsh(store: Store, writer: SessionWriter) -> str:
+    stats, total = [], 0
+    for path, sid, src in _dsh_logs():
+        key = f"{src}:{sid}"
+        wm_raw = store.watermark(key)
+        wm = json.loads(wm_raw) if wm_raw else None
+        st = path.stat()
+        cur = [int(st.st_mtime), int(st.st_size)]
+        if wm is not None and wm[1:] == cur:
+            stats.append(f"{src}:{sid[:13]}: quiet")
+            continue
+        # Rotation/truncation (smaller file than recorded): the seq floor
+        # is meaningless — full ingest, stable ids merge newest-wins.
+        after_seq = None if (wm is None or int(st.st_size) < wm[2]) else wm[0]
+        try:
+            rows, max_seq = _harvest_dsh_file(path, sid, src, after_seq)
+        except (OSError, zstandard.ZstdError) as exc:
+            # A live session's concurrent append can tear the tail frame;
+            # name it and keep the other sessions (opencode-lane rule).
+            stats.append(f"{src}:{sid[:13]}: SKIP unreadable ({type(exc).__name__}: {exc})")
+            continue
+        writer.add("dsh", rows)
+        store.register("dsh", rows)
+        store.set_watermark(key, json.dumps([max_seq, *cur]))
+        total += len(rows)
+        stats.append(f"{src}:{sid[:13]}: {len(rows)} parts")
+    return "\n".join(stats) + f"\ndsh total new: {total}"
 
 
 def _zc_content(content: object) -> str:
@@ -1040,8 +1411,9 @@ def _harvest_zcode(store: Store, writer: SessionWriter) -> str:
     return "\n".join(stats) + f"\nzcode total new: {total}"
 
 
-def _lane_uncovered(con, corpus_root: Path, stored_v2: int | None,
-                      stored_evt: int | None) -> dict[str, str]:
+def _lane_uncovered(
+    con, corpus_root: Path, stored_v2: int | None, stored_evt: int | None
+) -> dict[str, str]:
     """Per-lane drift detail for one opencode source: {lane: line}.
 
     A lane fires when some session holds rows newer than both its corpus
@@ -1081,8 +1453,7 @@ def _lane_uncovered(con, corpus_root: Path, stored_v2: int | None,
         evtmax = None
     if evtmax:
         floor = stored_evt if stored_evt is not None else -1
-        new_sessions = [s for s, t in evtmax
-                        if s and (t or 0) > max(seed_for(s), floor)]
+        new_sessions = [s for s, t in evtmax if s and (t or 0) > max(seed_for(s), floor)]
         if new_sessions:
             out["evt"] = f"{len(new_sessions)} sessions ({max(t for _, t in evtmax if t)})"
     return out
@@ -1111,13 +1482,13 @@ def _drift(store: Store, corpus_root: Path = CORPUS_ROOT) -> list[str]:
             # check fires here and the next APPLY closes them (see S3).
             try:
                 con = connect(path, read_only=True)
-            except (sqlite3.DatabaseError, OSError):
+            except sqlite3.DatabaseError, OSError:
                 drift.append(f"unreadable {src}")
                 continue
             try:
-                detail = _lane_uncovered(con, corpus_root,
-                                         _wm_int(store, key + ":v2"),
-                                         _wm_int(store, key + ":evt"))
+                detail = _lane_uncovered(
+                    con, corpus_root, _wm_int(store, key + ":v2"), _wm_int(store, key + ":evt")
+                )
             finally:
                 con.close()
             for lane, line in detail.items():
@@ -1128,9 +1499,9 @@ def _drift(store: Store, corpus_root: Path = CORPUS_ROOT) -> list[str]:
         try:
             row = con.execute("SELECT COALESCE(MAX(time_updated), 0) FROM part").fetchone()
             hwm = row[0] if row else 0
-            lane_detail = _lane_uncovered(con, corpus_root,
-                                          _wm_int(store, key + ":v2"),
-                                          _wm_int(store, key + ":evt"))
+            lane_detail = _lane_uncovered(
+                con, corpus_root, _wm_int(store, key + ":v2"), _wm_int(store, key + ":evt")
+            )
         finally:
             con.close()
         wm = store.watermark(key)
@@ -1145,6 +1516,21 @@ def _drift(store: Store, corpus_root: Path = CORPUS_ROOT) -> list[str]:
         rec = store.watermark(_SNAP_COUNT_KEY)
         if rec is not None and cur_n < int(rec):
             drift.append(f"opencode-snap sources shrank {rec}->{cur_n} ({SNAP_ROOT})")
+    for path, sid, src in _dsh_logs():
+        key = f"{src}:{sid}"
+        wm_raw = store.watermark(key)
+        try:
+            st = path.stat()
+        except OSError:
+            drift.append(f"missing {src}:{sid[:13]} ({path})")
+            continue
+        cur = json.loads(wm_raw) if wm_raw else None
+        if cur is None:
+            drift.append(f"new {src}:{sid[:13]}")
+        elif cur[1:] != [int(st.st_mtime), int(st.st_size)]:
+            drift.append(f"changed {src}:{sid[:13]}")
+    for line in _dsh_index_lag():
+        drift.append(line)
     for f, src in _prime_files():
         key = f"{src}:{hashlib.blake2b(str(f).encode(), digest_size=6).hexdigest()}"
         st = f.stat()
@@ -1231,6 +1617,7 @@ def harvest(
             ("opencode", _harvest_opencode),
             ("prime-rlm", _harvest_prime),
             ("zcode", _harvest_zcode),
+            ("dsh", _harvest_dsh),
         ):
             if timer is not None:
                 with timer.phase(f"lane:{name}"):

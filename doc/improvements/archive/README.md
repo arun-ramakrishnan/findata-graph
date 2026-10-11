@@ -222,6 +222,7 @@ commit, referenced by nothing). Entry numbers point at
 
 ## pipeline/ — Data pipeline — parsing, PDF conversion hardening, enrichment, corpus audit
 
+- [`dsh_convo_analytics_lane.md`](pipeline/dsh_convo_analytics_lane.md) — Cover the DeepSeek harness (dsh) in convo + analytics — S1 zstd-log lane (v4-preferred, stable ids, rotation-safe watermarks) + S2 usage/request/tool loaders + S3 drift/check; trace half gated discovery; 6 hermetic tests — completed.md #383
 - [`opencode_v2_session_message_lane.md`](pipeline/opencode_v2_session_message_lane.md) — Harvest the v2 session_message lane — S1 message lane + S2 event lane (five dropped part types) + S3 per-session seeds/union drift + S4 analytics loaders + S5 snapshot health + S6 dead traces-lane retirement; shared model normalizer + one-shot migration; 7 hermetic tests — completed.md #382b
 
 - [`markdown_parse_procedure_audit.md`](pipeline/markdown_parse_procedure_audit.md) — markdown_parse.md audit — 11 asserted-but-unverified guards, noise-gate claim false, triage key orphaned 8/8 decisions; doc corrections + code slices S0–S8 landed, extractor write-gate eval key DONE — completed.md #340

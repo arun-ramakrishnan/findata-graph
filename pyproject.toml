@@ -104,6 +104,7 @@ dependencies = [
     # per minor, so upgrades are deliberate slice-sized steps (proposal §5).
     # Pulls pydantic + cyclopts + rich (rich already present).
     "prefab-ui==0.20.2",
+    "zstandard>=0.25.0",
 ]
 
 [project.optional-dependencies]
