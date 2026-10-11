@@ -23,6 +23,8 @@ gate their runs would flood the corpus. The human Step table still
 prints in every invocation.
 """
 
+from __future__ import annotations
+
 import contextlib
 import os
 import sys
@@ -65,11 +67,11 @@ def _warn(msg: str) -> None:
 # direct ``current()`` lookup) anywhere underneath. No timer active →
 # ``phase()`` is a pass-through, so tests calling the cores directly
 # behave exactly as before.
-_STACK: list["RunTimer"] = []
+_STACK: list[RunTimer] = []
 
 
 @contextlib.contextmanager
-def active(timer: "RunTimer"):
+def active(timer: RunTimer):
     """Push ``timer`` as the phase sink for nested code."""
     _STACK.append(timer)
     try:
@@ -78,7 +80,7 @@ def active(timer: "RunTimer"):
         _STACK.pop()
 
 
-def current() -> "RunTimer | None":
+def current() -> RunTimer | None:
     """The innermost active timer, or None outside a CLI run."""
     return _STACK[-1] if _STACK else None
 
@@ -116,7 +118,7 @@ class RunTimer:
         self.started = datetime.now()
         self.phases: list[dict] = []
 
-    def __enter__(self) -> "RunTimer":
+    def __enter__(self) -> RunTimer:
         return self
 
     def __exit__(self, exc_type, exc, tb) -> None:
