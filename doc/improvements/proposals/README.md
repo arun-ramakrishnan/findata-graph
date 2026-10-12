@@ -38,14 +38,24 @@ entry number and stale DONE pointers):
 
 ## Current live proposals
 
-- `worktree_fresh_trample_guard` (filed 2026-10-12) — a behind-worktree
-  APPLY regresses the shared notes surface and bumps the shared
-  generation (the "ghost" gate-failure chase, 4× on 2026-10-12; live
-  ping-pong reproduced and caller-tagged). Slices: working-set stamp
-  (S1), refuse backward applies with `--allow-stale` (S2, eval-gated),
-  bump-log-citing snapshot_check (S3), etiquette line (S4), `--sandbox`
-  preview lane for behind-wt validation (S5, deferred). Evidence: live
-  reproduction in the proposal §2.
+_(none)_ — every proposal filed here is executed and archived.
+
+`doc_index_stale_mtime_gate` was filed and executed the same day
+(2026-10-13) and archived immediately after
+(`../archive/tooling/doc_index_stale_mtime_gate.md`, completed.md #387):
+the doc read gate hash-verifies on mtime mismatch (S1, script leg
+homologous — `_units_current`), the incremental apply heals hash-equal
+files' meta mtimes in-place (S2, zero row churn; live-proven 353/353
+converged), memory was already hash-clean and the note leg has no read
+gate (S3 survey).
+
+`worktree_fresh_trample_guard` was filed and executed the same day
+(2026-10-12) and archived immediately after
+(`../archive/tooling/worktree_fresh_trample_guard.md`, completed.md
+#385): working-set stamp (S1), three-valued stale-apply refusal with
+`--allow-stale` + `--sandbox` (S2/S5), bump-log ring with `--check`
+citation (S3), Makefile ARGS passthrough + etiquette (S4); delegation
+findings F1–F9 closed.
 
 `default_incremental_rebuilds` was filed and executed the same
 day (2026-10-12) and archived immediately after
@@ -57,10 +67,6 @@ remediation (`range_4fd3a20f_review_remediation`, all 13
 slices + low-tier dispositions, completed.md #382) archived 2026-10-11.
   Evidence in `doc/local/engineering/code_review.md`.
 
-
-_(none)_ besides the above — every other proposal filed here is executed
-and archived. The last three batches went out filed + executed + archived
-in one session (2026-10-10):
 
 _(previous batch — all executed and archived in one session 2026-10-10)_:
 

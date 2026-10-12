@@ -1535,15 +1535,33 @@ def _scan_ts_units(base: Path) -> set[str]:
     return units
 
 
-def _units_current(meta: dict[str, float], on_disk: set[str], bases: list[Path]) -> bool:
-    """True when every on-disk unit's mtime matches the stored meta."""
+def _units_current(meta: dict[str, tuple[float, str]], on_disk: set[str], bases: list[Path]) -> bool:
+    """True when every on-disk unit matches the stored meta.
+
+    mtime_gate S1 (sibling leg): content decides, mtime is only the fast
+    path — a mtime mismatch is *suspect*, so hash-verify (blake2b-8 of the
+    source bytes, the writer's own identity of record) before judging.
+    Cross-tree --allow-stale applies legitimately carry hash-equal units
+    under the other tree's mtimes; a raw mtime comparison flagged the
+    whole index stale until a full rebuild (2026-10-13 doc-leg incident).
+    Fails closed: unreadable unit ⇒ stale.
+    """
     for rel in on_disk:
         prev = meta.get(rel)
         if prev is None:
             return False
         abs_path = next((b / rel for b in bases if (b / rel).exists()), None)
-        if abs_path is None or abs_path.stat().st_mtime != prev:
+        if abs_path is None:
             return False
+        try:
+            if abs_path.stat().st_mtime == prev[0]:
+                continue  # fast path: mtime match ⇒ unchanged
+            if not prev[1] or hashlib.blake2b(
+                abs_path.read_bytes(), digest_size=8
+            ).hexdigest() != prev[1]:
+                return False  # hash differs (or missing) ⇒ stale
+        except OSError:
+            return False  # unreadable ⇒ stale (fail closed)
     return True
 
 
@@ -1559,7 +1577,10 @@ def script_index_stale(
     mtimes) — the cheap read-path staleness probe (~190 stats). Any error
     counts as stale (safe side)."""
     try:
-        meta = {r[0]: r[1] for r in conn.execute("SELECT unit_path, mtime FROM script_search_meta")}
+        meta = {
+            r[0]: (r[1], r[2])
+            for r in conn.execute("SELECT unit_path, mtime, content_hash FROM script_search_meta")
+        }
     except sqlite3.Error:
         return True
     if not meta:

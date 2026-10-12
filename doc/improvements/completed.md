@@ -10395,3 +10395,53 @@ Uncommitted edits are NOT stale (same HEAD applies); git-less fixtures
 and pre-stamp indexes stay warn-only. Revisit on any post-landing
 unexplained generation MISMATCH or a wrong refusal (tighten, don't
 bypass).
+
+## 387. doc_index_stale mtime gate — reader hash-verifies, writer heals skew
+
+**Date**: 2026-10-13 (filed, executed, archived same day) **Status**: EXECUTED
+**Proposal**: `doc/improvements/archive/tooling/doc_index_stale_mtime_gate.md`
+
+The doc index had two staleness verdicts with opposite policies: the
+writer's freshness verdict is deliberately content-hash-based (2026-08-30
+lesson, mtime only a carry fast path) while the read-path gate
+(`doc_index_stale`, served per `/api/docs/search` request via
+`app.py:1364`) compared raw mtimes with `!=`. A sanctioned cross-tree
+`--allow-stale` apply carries hash-equal files WITHOUT rewriting their
+meta mtimes, so the other tree flagged the whole index phantom-stale on
+every request until a `--full` rebuild — live 2026-10-13: writer
+"✓ fresh" + reader `stale: True`, 281/353 meta rows skewed, every doc
+consumer scan-degraded three times before noon, healing rebuild
+3,201/3,201 embed-cache hits (proving pure meta-mtime rot). Shipped:
+
+- **S1**: `doc_index_stale` hash-verifies on mtime mismatch — mtime match
+  stays the zero-cost fast path, a mismatch demotes to suspect and the
+  file is `_text_hash`-verified against the stored content_hash before
+  judging; fails closed (unreadable/missing hash ⇒ stale). Doc consumers
+  keep their contract; only the false-positive quadrant changed.
+- **S2**: the incremental apply heals hash-equal files' meta mtimes in
+  the same transaction (`stats["mtime_healed"]`) — covering carried files
+  AND zero-row hash-equal skips (empty placeholder files never enter the
+  carried set; the first cut missed them, the test caught it). Meta-only
+  writes: no doc_search rewrite, no stamp/generation touch.
+- **S3 survey**: `memory_index_stale` already hash-based (clean); the
+  note leg has no read gate at all (CLI stats only — nothing to break);
+  the script leg had the identical bug
+  (`rebuild_script_search.py::_units_current`) → same S1 fix with the
+  writer's blake2b-8 identity of record.
+
+Tests: `tests/test_rebuild_doc_search.py` (42 ✓) — the old
+`test_touched_file_stale` encoded the bug and was replaced by
+`test_touched_file_hash_equal_not_stale` (bare touch + the
+meta-carries-other-tree-mtimes shape), plus `test_content_change_stale`
+and `test_writer_heals_skewed_mtimes` (upserts == 0, zero row churn,
+meta == disk post-apply); `tests/test_rebuild_script_search.py` gained
+`test_staleness_touch_hash_equal_not_stale` (60 ✓ across both suites).
+Live proofs on the shared index: S1 — all meta mtimes skewed −12 345.5 s
+with hash-equal content ⇒ stale False (old code: True); S2 — one
+incremental apply converged 353/353 meta rows to disk, zero row churn,
+raw-mtime check passes after. Phantom staleness self-heals on the next
+sanctioned apply; full rebuilds needed to clear it: zero.
+
+Revisit if a staleness surface is added elsewhere: the reader-heal pair
+is now the doctrine — never compare raw mtimes to a hash-written meta
+row without a content fallback (memory leg's comment says it in-source).

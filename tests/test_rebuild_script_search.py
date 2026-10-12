@@ -4,6 +4,9 @@ the script_search sidecar index (script_metadata_search proposal S1).
 Hermetic: tmp mini-tree + sidecar, injected fake embedder.
 """
 
+import os
+import time
+
 import pytest
 
 
@@ -332,6 +335,32 @@ class TestFreshnessAndIncremental:
             # widget_audit lost its tested_by link (cross-file GC).
             widget = _row(conn, "helpers/misc/widget_audit.py")
             assert "tested_by" not in widget[4]
+        finally:
+            conn.close()
+
+    def test_staleness_touch_hash_equal_not_stale(self, tree):
+        """mtime_gate S1 sibling leg: mtime-skewed-but-hash-equal units are
+        fresh — the cross-tree --allow-stale apply residue must not flag
+        the whole index stale (2026-10-13 doc-leg incident shape)."""
+        kw = dict(
+            helpers_root=tree / "helpers",
+            tests_root=tree / "tests",
+            app_py=tree / "app.py",
+            makefile=tree / "Makefile",
+        )
+        _rebuild(tree)
+        future = time.time() + 500
+        for p in tree.rglob("*.py"):
+            os.utime(p, (future, future))
+        os.utime(tree / "Makefile", (future, future))
+        conn = rss.connect_script_db(tree / "script_search.db")
+        try:
+            assert not rss.script_index_stale(conn, **kw)
+            # cross-tree shape proper: meta carries the other tree's
+            # (older) stamps, disk has newer — neither matches.
+            conn.execute("UPDATE script_search_meta SET mtime = mtime - 5000")
+            conn.commit()
+            assert not rss.script_index_stale(conn, **kw)
         finally:
             conn.close()
 

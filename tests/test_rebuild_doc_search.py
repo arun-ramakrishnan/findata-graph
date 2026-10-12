@@ -575,13 +575,38 @@ class TestStaleness:
         finally:
             con.close()
 
-    def test_touched_file_stale(self, seeded_docs, fake_local):
+    def test_touched_file_hash_equal_not_stale(self, seeded_docs, fake_local):
+        """mtime_gate S1: a touch (or a cross-tree --allow-stale apply)
+        skews mtimes on hash-equal content — the reader must hash-verify
+        before judging, not flag stale. The 2026-10-13 live failure: a
+        sanctioned cross-tree apply left every consumer scan-degraded.
+        """
         rds.rebuild(write=True)
         arch = Path(rds.DOC_ROOT) / "design" / "architecture.md"
         future = time.time() + 10
         os.utime(arch, (future, future))
         con = rds.connect_doc_db(seeded_docs)
         try:
+            assert not rds.doc_index_stale(con)
+            # The cross-tree shape proper: meta itself carries the OTHER
+            # tree's mtimes (older), disk has newer — neither matches.
+            skewed = future - 5000
+            con.execute("UPDATE doc_search_meta SET mtime = ?", (skewed,))
+            con.commit()
+            assert not rds.doc_index_stale(con)  # hash-equal ⇒ fresh
+        finally:
+            con.close()
+
+    def test_content_change_stale(self, seeded_docs, fake_local):
+        rds.rebuild(write=True)
+        arch = Path(rds.DOC_ROOT) / "design" / "architecture.md"
+        arch.write_text(
+            _ARCHITECTURE.replace("centrality beta", "centrality gamma"),
+            encoding="utf-8",
+        )
+        con = rds.connect_doc_db(seeded_docs)
+        try:
+            # mtime skew → hash-verify → hash differs ⇒ stale.
             assert rds.doc_index_stale(con)
         finally:
             con.close()
@@ -601,6 +626,42 @@ class TestStaleness:
         con = rds.connect_doc_db(seeded_docs)
         try:
             assert rds.doc_index_stale(con)
+        finally:
+            con.close()
+
+    def test_writer_heals_skewed_mtimes(self, seeded_docs, fake_local):
+        """mtime_gate S2: an incremental apply over hash-equal files whose
+        meta mtimes lag the disk (the cross-tree-apply residue) converges
+        meta to disk — no upserts, no row churn, and the raw-mtime reader
+        check passes afterwards.
+        """
+        rds.rebuild(write=True)
+        con = rds.connect_doc_db(seeded_docs)
+        try:
+            meta_before = dict(con.execute("SELECT file_path, mtime FROM doc_search_meta"))
+            rows_before = con.execute(
+                "SELECT COUNT(*), COALESCE(SUM(length(content)), 0) FROM doc_search"
+            ).fetchone()
+        finally:
+            con.close()
+        # Simulate the residue: disk mtimes moved on, meta still carries the
+        # other tree's (older) stamps. Content untouched.
+        future = time.time() + 100
+        for p in Path(rds.DOC_ROOT).rglob("*"):
+            os.utime(p, (future, future))
+        stats = rds.rebuild(write=True, incremental=True)
+        assert stats["upserts"] == 0
+        assert stats["mtime_healed"] == len(meta_before)
+        con = rds.connect_doc_db(seeded_docs)
+        try:
+            meta_after = dict(con.execute("SELECT file_path, mtime FROM doc_search_meta"))
+            rows_after = con.execute(
+                "SELECT COUNT(*), COALESCE(SUM(length(content)), 0) FROM doc_search"
+            ).fetchone()
+            assert rows_before == rows_after  # zero row churn
+            disk_now = {rel: rds._mtime_of(rds.DOC_ROOT, rel) for rel in meta_after}
+            assert all(meta_after[rel] == m for rel, m in disk_now.items())
+            assert not rds.doc_index_stale(con)
         finally:
             con.close()
 

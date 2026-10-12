@@ -668,6 +668,25 @@ def rebuild(  # noqa: C901
                     "VALUES (?, ?, ?)",
                     (rel, _mtime_of(root, rel), hash_by_file[rel]),
                 )
+            # Mtime heal (mtime_gate S2): hash-equal files whose disk mtime
+            # drifted from the stored row (cross-tree apply, checkout) are
+            # content-identical — the writer just proved that via carry or
+            # hash-equal skip — so converge the meta row instead of leaving
+            # the skew for the reader's mtime fast path to re-flag forever.
+            # Meta-only writes: no doc_search rewrite, no stamp/generation
+            # touch (zero-churn discipline).
+            healed = 0
+            for rel in rows_by_file:
+                if rel in to_upsert:
+                    continue
+                mtime = _mtime_of(root, rel)
+                if mtime is not None and mtime != existing[rel][0]:
+                    conn.execute(
+                        "UPDATE doc_search_meta SET mtime = ? WHERE file_path = ?",
+                        (mtime, rel),
+                    )
+                    healed += 1
+            stats["mtime_healed"] = healed
             if (to_upsert or to_delete) and model_label is not None:
                 _stamp_model(conn, model_label, embed_dims)
         stats["indexed"] = conn.execute("SELECT COUNT(*) FROM doc_search").fetchone()[0]
@@ -753,14 +772,25 @@ def doc_index_ready(conn: sqlite3.Connection) -> bool:
 
 
 def doc_index_stale(conn: sqlite3.Connection, root: Path | None = None) -> bool:
-    """True when doc/ differs from doc_search_meta (file set or mtimes).
+    """True when doc/ differs from doc_search_meta.
 
     The read-path gate for /api/docs/search: a stale index degrades to the
     #107 filesystem scan instead of serving outdated rankings. ~53 stats —
     cheap enough to run per request. Any error counts as stale (safe side).
+
+    Verdict mirrors the writer's freshness doctrine (2026-08-30): content
+    decides, mtime is only the fast path — mtime mismatch means *suspect*,
+    not stale, so hash-verify before judging (mtime_gate S1). Cross-tree
+    applies (--allow-stale) legitimately carry hash-equal files under the
+    other tree's mtimes; a raw mtime comparison flagged them stale
+    forever, degrading every doc consumer to scan until a --full rebuild.
+    Fails closed: unreadable file or missing meta hash ⇒ stale.
     """
     try:
-        meta = {r[0]: r[1] for r in conn.execute("SELECT file_path, mtime FROM doc_search_meta")}
+        meta = {
+            r[0]: (r[1], r[2])
+            for r in conn.execute("SELECT file_path, mtime, content_hash FROM doc_search_meta")
+        }
     except sqlite3.Error:
         return True
     if not meta:
@@ -770,12 +800,14 @@ def doc_index_stale(conn: sqlite3.Connection, root: Path | None = None) -> bool:
         on_disk.add(rel)
         prev = meta.get(rel)
         if prev is None:
-            return True
+            return True  # new file
         try:
-            if abs_path.stat().st_mtime != prev:
-                return True
+            if abs_path.stat().st_mtime == prev[0]:
+                continue  # fast path: mtime match ⇒ unchanged
+            if not prev[1] or _text_hash(abs_path) != prev[1]:
+                return True  # hash differs (or missing) ⇒ stale
         except OSError:
-            return True
+            return True  # unreadable ⇒ stale (fail closed)
     return bool(meta.keys() - on_disk)
 
 
