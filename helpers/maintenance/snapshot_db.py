@@ -109,18 +109,20 @@ DEFAULT_DUCKDB = "memory/graph.duckdb"
 # graph.duckdb drop pass clobbers by that manifest); sources.duckdb is
 # primary external data with its own lifecycle.
 DEFAULT_SOURCES_DUCKDB = "memory/data/sources.duckdb"
-SOURCES_TABLES = frozenset({
-    "exchange_listings",
-    "mca_cin",
-    "index_constituents",
-    # sync-lane products (exchange_sync / related_party_sync /
-    # shareholding_sync) — surfaced 2026-10-12 when the snapshot's
-    # fail-closed verify refused to drop ~370k live rows
-    "credit_ratings",
-    "rpt_transactions",
-    "shp_filings",
-    "shp_holders",
-})
+SOURCES_TABLES = frozenset(
+    {
+        "exchange_listings",
+        "mca_cin",
+        "index_constituents",
+        # sync-lane products (exchange_sync / related_party_sync /
+        # shareholding_sync) — surfaced 2026-10-12 when the snapshot's
+        # fail-closed verify refused to drop ~370k live rows
+        "credit_ratings",
+        "rpt_transactions",
+        "shp_filings",
+        "shp_holders",
+    }
+)
 DEFAULT_DUCKDB_OUT = "db-backup/graph.snapshot.duckdb.zst"
 # Git-tracked, restoreable Parquet snapshot (see module docstring).
 DEFAULT_PARQUET = "snapshots/parquet"
@@ -594,6 +596,13 @@ def _list_sqlite_tables(con: sqlite3.Connection) -> list[str]:
         "AND name NOT LIKE 'sqlite_%' "
         "AND NOT (name LIKE 'note_search%' AND name != 'note_search_content') "
         "AND name NOT LIKE 'entities_fuzzy%' "
+        # S3 (worktree_fresh_trample_guard): db_bump_log is operational
+        # telemetry — a ring that grows on every real content change — so a
+        # git-tracked parquet of it would sit under permanent drift (verify
+        # compares live vs checked-in row counts, and every bump adds a row).
+        # Not content: never exported. The schema DDL still carries the table,
+        # so a restored index has it like any other.
+        "AND name != 'db_bump_log' "
         "AND sql NOT LIKE '%VIRTUAL TABLE%fts5%' "
         "ORDER BY name"
     )
@@ -800,7 +809,23 @@ def _sqlite_table_arrow(con: sqlite3.Connection, table: str) -> pa.Table:
     """
     import pyarrow as pa
 
-    cur = con.execute(f"SELECT * FROM [{table}]")  # noqa: S608  # table from _list_sqlite_tables / SQLITE_PARQUET_TABLES
+    # F4 (worktree_fresh_trample_guard): the S1 apply stamp lives in
+    # db_meta as apply_* rows — extra live rows the verifier already
+    # drops in _sqlite_live_count. If the EXPORT keeps them, the first
+    # `make snapshot` after a stamping apply bakes them into
+    # db_meta.parquet and --check reports a permanent
+    # `Parquet MISMATCH: sqlite/db_meta`. Exclude at export, mirroring
+    # the db_bump_log exclusion in _list_sqlite_tables on the same
+    # argument: operational metadata, not content, and machine/HEAD
+    # specific — a restored copy must not claim a foreign tree's apply.
+    query = f"SELECT * FROM [{table}]"  # noqa: S608  # table from _list_sqlite_tables / SQLITE_PARQUET_TABLES
+    params: tuple = ()
+    if table == "db_meta":
+        from helpers.core.db import APPLY_STAMP_PREFIX
+
+        query += " WHERE key NOT LIKE ?"
+        params = (f"{APPLY_STAMP_PREFIX}%",)
+    cur = con.execute(query, params)
     names = [d[0] for d in cur.description]
     rows = cur.fetchall()
     cols = list(zip(*rows)) if rows else [()] * len(names)
@@ -990,6 +1015,28 @@ def _verify_parquet_duckdb_side(
     return result
 
 
+def _sqlite_live_count(con: sqlite3.Connection, tname: str) -> int:
+    """Live row count for one gated stem; db_meta drops the apply stamp.
+
+    S1 (worktree_fresh_trample_guard): the note index records apply_head /
+    apply_worktree / apply_ts in db_meta, so that table's live count drifts
+    from the snapshot by three on every apply. Those keys are contract-legal
+    drift — the DuckDB side excludes its own stamp-owned keys
+    (STAMP_OWNED_META_KEYS) and fingerprint keys by the same argument — while
+    every other table is compared exactly, so real row loss still fails.
+    """
+    from helpers.core.db import APPLY_STAMP_PREFIX
+
+    if tname == "db_meta":
+        row = con.execute(
+            "SELECT COUNT(*) FROM db_meta WHERE key NOT LIKE ?",  # noqa: S608  # table is a schema constant in this branch (stem gated by _verify_gate_stem)
+            (f"{APPLY_STAMP_PREFIX}%",),
+        ).fetchone()
+    else:
+        row = con.execute(f"SELECT COUNT(*) FROM [{tname}]").fetchone()  # noqa: S608  # stem gated by _verify_gate_stem (regex excludes ']' and quote chars)
+    return int(row[0]) if row is not None else 0
+
+
 def _verify_parquet_sqlite_side(
     parquet_dir: Path, sqlite_path: Path | None, logger: logging.Logger
 ) -> dict:
@@ -1016,9 +1063,7 @@ def _verify_parquet_sqlite_side(
                         result["mismatches"].append(f"sqlite/{tname}: {gate}")
                         continue
                     try:
-                        src_cnt = scon.execute(
-                            f"SELECT COUNT(*) FROM [{tname}]"  # noqa: S608  # stem gated by _verify_gate_stem (regex excludes ']' and quote chars)
-                        ).fetchone()[0]
+                        src_cnt = _sqlite_live_count(scon, tname)
                     except (
                         Exception
                     ) as exc:  # fail closed: a live-side error is a verify result, not a skip
@@ -1059,6 +1104,22 @@ def verify_parquet_snapshot(
         result["match"] = False
         for m in result["mismatches"]:
             logger.warning(f"  Parquet MISMATCH: {m}")
+        # F3 (worktree_fresh_trample_guard): the S3 citation lived on
+        # --quick only, which is generation-only and can never annotate
+        # the generation-MATCHING table MISMATCH class (the 2026-10-12
+        # sources incident was exactly that: fail-closed verify, ~370k
+        # live rows, generations equal). A sqlite-side table MISMATCH
+        # gets the bump-log citation here, in the --check leg, next to
+        # the warning itself. DuckDB/sources sides have no bump log —
+        # their drift is table-level by construction.
+        if sqlite_path is not None and any(m.startswith("sqlite/") for m in result["mismatches"]):
+            logger.warning(
+                _bump_log_citation(
+                    sqlite_path,
+                    _read_sqlite_generation(sqlite_path),
+                    _read_parquet_generation(parquet_dir / "sqlite" / "db_meta.parquet"),
+                )
+            )
     else:
         logger.info(f"Parquet verify: {result['tables_checked']} tables checked, all OK")
     return result
@@ -1355,6 +1416,96 @@ def _read_parquet_generation(parquet_path: Path) -> str | None:
         return None
 
 
+def _read_bump_log(db_path: Path) -> tuple[str, str, str, str] | None:
+    """Newest db_bump_log row (ts, caller, worktree, generation), or None.
+
+    None covers every "no evidence" case alike — a pre-S3 index, a restored
+    snapshot without the table, an unreadable file — so the citation can say
+    so instead of inventing a cause.
+    """
+    try:
+        con = connect(db_path, read_only=True)
+        try:
+            row = con.execute(
+                "SELECT ts, caller, worktree, generation FROM db_bump_log"
+                " ORDER BY rowid DESC LIMIT 1"
+            ).fetchone()
+        finally:
+            con.close()
+    except Exception:  # noqa: BLE001  # absent table / unreadable db -> "no evidence"
+        return None
+    return tuple(row) if row is not None else None
+
+
+def _has_bump_log_table(db_path: Path) -> bool:
+    """Whether db_bump_log exists at all (F3b: restored vs trigger-driven).
+
+    A snapshot restored from a pre-F9 capture replays a schema without the
+    ring, so the table is ABSENT; a live index whose bumps all came from
+    the entities/graph_edges triggers HAS the table (created by the first
+    manual bump's DDL, and carried empty by post-F9 restores) even when no
+    row names the current generation. Absent table vs present-but-silent
+    are different evidence and must not read identically.
+    """
+    try:
+        con = connect(db_path, read_only=True)
+        try:
+            row = con.execute(
+                "SELECT 1 FROM sqlite_master WHERE type='table' AND name='db_bump_log'"
+            ).fetchone()
+        finally:
+            con.close()
+    except Exception:  # noqa: BLE001  # unreadable db -> "no evidence"
+        return False
+    return row is not None
+
+
+def _bump_log_citation(db_path: Path, live: str | None, snap: str | None) -> str:
+    """One line naming what moved the source generation since the snapshot.
+
+    S3 (worktree_fresh_trample_guard): a generation MISMATCH used to read as
+    a ghost — chasing the 2026-10-12 one needed temporary audit triggers to
+    find the writer. The bump log turns it into a named event:
+
+        bump log: source moved +2 since snapshot; last logged bump
+        2026-10-12 17:52:11 by rebuild_note_search.py:1156 (worktree
+        graph_algos, generation 415306)
+
+    Only MANUAL bumps are logged (the entities/graph_edges triggers bump
+    inside SQL and cannot append), so a cited generation that trails the live
+    one is reported as an unlogged gap rather than passed off as the cause.
+    A negative delta (snapshot ahead of live — post-restore) renders with
+    its own sign, never "+-N".
+    """
+    moved = ""
+    try:
+        if live is not None and snap is not None:
+            moved = f"source moved {int(live) - int(snap):+d} since snapshot; "
+    except ValueError:
+        moved = ""
+    row = _read_bump_log(db_path)
+    if row is None:
+        if _has_bump_log_table(db_path):
+            detail = (
+                "bump log present but silent — every bump since S3 went "
+                "unlogged (trigger-driven bumps cannot append)"
+            )
+        else:
+            detail = "no bump log table (restored snapshot or pre-S3 index)"
+        return f"  bump log: {moved}{detail}"
+    ts, caller, worktree, generation = row
+    tail = ""
+    if live is not None and str(generation) != str(live):
+        tail = (
+            f"; generation is {live} now, so later bumps went unlogged "
+            "(trigger-driven bumps cannot append)"
+        )
+    return (
+        f"  bump log: {moved}last logged bump {ts} by {caller} "
+        f"(worktree {worktree or 'main'}, generation {generation}){tail}"
+    )
+
+
 def _cmd_quick(
     parquet_base: Path,
     db_path: Path,
@@ -1387,6 +1538,8 @@ def _cmd_quick(
         logger.info(
             f"{name} generation: live={live} snapshot={snap} -> {'OK' if match else 'MISMATCH'}"
         )
+        if not match and name == "sqlite":
+            logger.warning(_bump_log_citation(db_path, live, snap))
         ok = ok and match
     if not ok:
         logger.error("snapshot generation drift — run make snapshot to re-capture")
@@ -1427,6 +1580,17 @@ def _cmd_check(
             ok = False
             for m in rs["mismatches"]:
                 logger.warning(f"  Parquet MISMATCH: {m}")
+            # F3 (worktree_fresh_trample_guard): the sources side carries
+            # no generation and no bump log (pure data tables — verified
+            # live 2026-10-12: credit_ratings … shp_holders only), so a
+            # sources MISMATCH is table-level drift by construction, never
+            # a bump — the 2026-10-12 incident class (fail-closed verify,
+            # generations equal). Say so next to the warning instead of
+            # leaving another ghost-shaped archaeology.
+            logger.warning(
+                "  sources side has no generation/bump log — drift is table-level; "
+                "re-capture with make snapshot"
+            )
         else:
             logger.info(f"Parquet verify (sources): {rs['tables_checked']} tables checked, all OK")
     return 0 if ok else 1

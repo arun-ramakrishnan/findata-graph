@@ -133,7 +133,10 @@ re-verified without re-deriving it.
 - **Keep the session todo list current** — a stale list misleads.
 - Blocking `make qa` (ruff, md-lint, types, pytest, integrity,
   snapshot…), non-blocking `make advisory`. After editing `doc/**`,
-  `Makefile` or helper docstrings: `make search-fresh` (advisory).
+  `Makefile` or helper docstrings: `make search-fresh` (advisory). In a
+  worktree that is behind the shared index, an APPLY is refused on purpose
+  (`worktree_fresh_trample_guard`) — sync the tree, or re-run with
+  `--allow-stale` and a reason; do not retry. Preview with `--sandbox`.
 - Markdown lint-only: NEVER `markdownlint --fix` on `findata/**`
   (writer-owned vault). `doc/` is remediable.
 - Gate arcs follow `doc/procedures/gates.md`: full gates ONCE per arc

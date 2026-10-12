@@ -310,7 +310,7 @@ def _gate_lane_active() -> str | None:
     try:
         raw = json.loads(_HEARTBEAT.read_text())
         pid = int(raw["pid"])
-    except (OSError, ValueError, KeyError, TypeError):
+    except OSError, ValueError, KeyError, TypeError:
         return None
     try:
         os.kill(pid, 0)
@@ -370,21 +370,14 @@ def run_one(label: str, args: list[str], budget: float) -> tuple[float, str, boo
     return dt, status, ok
 
 
-def main() -> int:
-    # ── run ──
-    from datetime import datetime
+def _run_all_benchmarks() -> tuple[
+    list[tuple[str, float, str, bool, float]], str | None, str | None
+]:
+    """Run every BENCHMARKS leg; returns (results, contended_from, contend_why).
 
-    started = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    refuse = _contention_reason()
-    if refuse is not None:
-        print(f"perf refused — contended box: {refuse}", file=sys.stderr)
-        print(
-            "timings would lie; re-run once the lane clears (exit 3, nothing appended)",
-            file=sys.stderr,
-        )
-        return 3
-
-    t0 = time.perf_counter()
+    Extracted from main() (C901): the mid-run contention probe + the
+    failure-stderr surface live here, the table/report tail stays in main.
+    """
     results: list[tuple[str, float, str, bool, float]] = []
     contended_from: str | None = None
     contend_why: str | None = None
@@ -415,6 +408,25 @@ def main() -> int:
             )
             if r.stderr:
                 print(f"    stderr: {r.stderr.decode()[:200]}", file=sys.stderr)
+    return results, contended_from, contend_why
+
+
+def main() -> int:
+    # ── run ──
+    from datetime import datetime
+
+    started = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    refuse = _contention_reason()
+    if refuse is not None:
+        print(f"perf refused — contended box: {refuse}", file=sys.stderr)
+        print(
+            "timings would lie; re-run once the lane clears (exit 3, nothing appended)",
+            file=sys.stderr,
+        )
+        return 3
+
+    t0 = time.perf_counter()
+    results, contended_from, contend_why = _run_all_benchmarks()
 
     # ── table ──
     lines: list[str] = []
@@ -440,9 +452,7 @@ def main() -> int:
     elapsed = time.perf_counter() - t0
     status_note = None
     if contended_from is not None:
-        status_note = (
-            f"CONTENDED — {contend_why} — rows from {contended_from} on are untrusted"
-        )
+        status_note = f"CONTENDED — {contend_why} — rows from {contended_from} on are untrusted"
         print(f"  ⚠ {status_note}")
     write_report(results, started, elapsed, status_note=status_note)
 

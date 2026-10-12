@@ -2462,12 +2462,16 @@ def _extract_sections(
     newsletter_type: str,
     resolver: EntityResolver,
     source_entity_override: str | None,
-) -> tuple[list[tuple[str, str]], str, dict[str, set[str]]]:
+) -> tuple[list[tuple[str | None, str]], str, dict[str, set[str]]]:
     """Build section list and source_ref based on doc_type.
 
     Returns (sections, source_ref_default, group_to_companies).
+
+    Section source entities may be None (unresolvable heading); the
+    caller skips those (`if source_entity is None: continue`).
     """
     group_to_companies: dict[str, set[str]] = {}
+    sections: list[tuple[str | None, str]] = []
 
     if doc_type == "company":
         source_ref_default = (
@@ -2480,7 +2484,6 @@ def _extract_sections(
         sections = [(source_entity, body)]
     else:
         source_ref_default = f"derive:relations:{newsletter_type}"
-        sections = []
         for heading_name, _hs, body_start, body_end in _split_sections(content):
             resolved = resolver.resolve(heading_name)
             body = content[body_start:body_end]

@@ -16,6 +16,18 @@ globals must stay the live state, not move here byte-for-byte. Specs
 that carry a global-derived value (backup_dir, copier) are constructed
 INSIDE the wrapper at call time for the same reason — a module-level
 spec would snapshot the pre-monkeypatch value at import.
+
+The APPLY guard (`worktree_fresh_trample_guard`, S1/S2/S5, 2026-10-12)
+also lives here, because it is a property of the shared CLI flow rather
+than of any one walker: `memory/` is a symlink, so every worktree shares
+ONE index, and an incremental apply from a tree that is BEHIND the index
+rewrites that shared surface backward and bumps its generation — by
+construction, not by mistake. A spec that names its `stamp_table` gets:
+the tree's HEAD/worktree/ts stamped into the index after every apply
+(S1), a named refusal of a strictly-behind apply plus the `--allow-stale`
+escape (S2), and `--sandbox`, which runs the same apply against a scratch
+copy and discards it (S5). Every check is fail-open: no git, no stamp, or
+an unreadable DB means "cannot tell" and the apply proceeds as before.
 """
 
 from __future__ import annotations
@@ -28,6 +40,8 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 
+from helpers.core.db import APPLY_STAMP_PREFIX
+
 
 @dataclass(frozen=True)
 class RebuildCliSpec:
@@ -37,6 +51,7 @@ class RebuildCliSpec:
     doc/script-vs-note flow switches (``resolve_db`` anchors relative
     --db paths at the repo root; ``handle_errors`` off lets exceptions
     propagate) — one concern, the CLI surface of one rebuild script.
+    ``stamp_table`` opts the index into the shared-store APPLY guard.
     """
 
     description: str
@@ -51,6 +66,10 @@ class RebuildCliSpec:
     resolve_db: Callable[[str], Path | None] | None = None
     handle_errors: bool = True
     swap_help: str | None = None
+    # S1: name of the key/value meta table in THIS index that carries the
+    # working-set stamp (db_meta / doc_search_info / script_search_info /
+    # memory_search_info). None = no stamp, no guard (duckdb convo lane).
+    stamp_table: str | None = None
 
 
 @dataclass(frozen=True)
@@ -86,8 +105,211 @@ class QueryCliSpec:
     search_kwargs: Callable[[argparse.Namespace], dict] | None = None
 
 
+# --------------------------------------------------------------------------- #
+# S1/S2/S5 (worktree_fresh_trample_guard, 2026-10-12): shared-index APPLY guard #
+# Key names are generic because each index owns its own key/value meta table;  #
+# see the module docstring for the full rationale.                             #
+# --------------------------------------------------------------------------- #
+STAMP_HEAD_KEY = APPLY_STAMP_PREFIX + "head"
+STAMP_WORKTREE_KEY = APPLY_STAMP_PREFIX + "worktree"
+STAMP_TS_KEY = APPLY_STAMP_PREFIX + "ts"
+_STAMP_KEYS = (STAMP_HEAD_KEY, STAMP_WORKTREE_KEY, STAMP_TS_KEY)
+
+
+def read_apply_stamp(db_path: Path, table: str) -> dict[str, str]:
+    """The index's last-apply stamp rows, or {} when there is nothing to read.
+
+    An absent file (a spec-driven fixture), an index built before S1, or a
+    read error all mean "no stamp" — and the guard is warn-only on missing
+    evidence, so refusing here would break every pre-S1 index and every
+    git-less fixture instead of protecting them.
+    """
+    from helpers.core.db import connect
+
+    if not db_path.exists():
+        return {}
+    try:
+        conn = connect(db_path, read_only=True)
+    except sqlite3.Error:
+        return {}
+    try:
+        rows = conn.execute(
+            f"SELECT key, value FROM {table} WHERE key IN (?, ?, ?)",  # noqa: S608  # interpolated part is a schema-constant table name from the spec
+            _STAMP_KEYS,
+        ).fetchall()
+    except sqlite3.Error:
+        return {}
+    finally:
+        conn.close()
+    return {row[0]: row[1] for row in rows}
+
+
+def write_apply_stamp(db_path: Path, table: str) -> None:
+    """Record this tree's HEAD + worktree name in the index's meta table.
+
+    Runs after a successful writing apply so the NEXT apply can tell whether
+    it is behind. Best-effort: a failure (read-only fixture, locked sidecar,
+    no git) warns and returns — an apply that already succeeded must not fail
+    on a diagnostic stamp, and an unstamped index only means the next apply
+    arms the guard instead of checking it.
+    """
+    from helpers.core import git_state
+    from helpers.core.db import connect, utc_now
+
+    head = git_state.head_sha()
+    if not head:
+        return
+    try:
+        conn = connect(db_path)
+        try:
+            conn.execute(
+                f"CREATE TABLE IF NOT EXISTS {table} "  # noqa: S608  # schema-constant table name from the spec
+                "(key TEXT PRIMARY KEY, value TEXT NOT NULL)"
+            )
+            conn.executemany(
+                f"INSERT OR REPLACE INTO {table} (key, value) VALUES (?, ?)",  # noqa: S608
+                (
+                    (STAMP_HEAD_KEY, head),
+                    (STAMP_WORKTREE_KEY, git_state.worktree_name()),
+                    (STAMP_TS_KEY, utc_now()),
+                ),
+            )
+            conn.commit()
+        finally:
+            conn.close()
+    except sqlite3.Error as exc:
+        print(
+            f"WARNING: could not record the apply stamp in {db_path.name}: {exc}",
+            file=sys.stderr,
+        )
+
+
+def stale_apply_reason(db_path: Path, spec: RebuildCliSpec) -> str | None:
+    """Named refusal when this tree's HEAD is NOT a forward step over the index.
+
+    Refuse in the two cases that make an incremental delta a rewrite of the
+    shared surface rather than an advance over it:
+
+    - **behind** — the current HEAD is an ANCESTOR of the stamped HEAD, so
+      the delta describes content the index already moved past;
+    - **divergent** — neither HEAD is an ancestor of the other, so the
+      delta is a branch-shaped rewrite. This is the normal shape of a
+      patch-testing worktree carrying its own commits, i.e. the shape the
+      guard most needs to catch (worktree_fresh_trample_guard F8).
+
+    Same-HEAD (dirty edits included — the common fresh-after-edit case),
+    forward (main after a worktree applied), and every "cannot tell" (no
+    git, no stamp, unreadable index, a stamped sha this clone has never
+    seen) proceed: the guard protects the shared surface only when the
+    ordering is a fact it can verify.
+    """
+    if spec.stamp_table is None:
+        return None
+    from helpers.core import git_state
+
+    current = git_state.head_sha()
+    if not current:
+        return None
+    stamp = read_apply_stamp(db_path, spec.stamp_table)
+    stamped = stamp.get(STAMP_HEAD_KEY)
+    if not stamped or stamped == current:
+        return None
+
+    behind = git_state.is_ancestor(current, stamped)
+    if behind is None:
+        return None  # git cannot order the two HEADs -> warn-only
+    if behind:
+        relation = "is BEHIND it"
+        detail = (
+            "An incremental apply from a behind working set rewrites the "
+            "shared index backward and bumps the shared generation for "
+            "content that never changed"
+        )
+        fix = "sync this worktree forward"
+    else:
+        # Not behind: forward is the clean case, anything else is divergent.
+        # `is not False` keeps "cannot tell" warn-only, same as above.
+        if git_state.is_ancestor(stamped, current) is not False:
+            return None
+        relation = "has DIVERGED from it"
+        detail = (
+            "An incremental apply from a diverged working set is not a "
+            "forward step: the delta is a branch-shaped rewrite of the "
+            "shared index, and it bumps the shared generation for content "
+            "that never changed"
+        )
+        fix = "sync or rebase this worktree onto the stamped HEAD"
+
+    who = stamp.get(STAMP_WORKTREE_KEY) or "main"
+    when = stamp.get(STAMP_TS_KEY) or "unknown"
+    here = git_state.worktree_name() or "main"
+    return (
+        f"REFUSED: stale apply — {db_path.name} reflects HEAD {stamped[:12]} "
+        f"(worktree {who}, stamped {when}) and this tree ({here}, "
+        f"{current[:12]}) {relation}. {detail} "
+        "(worktree_fresh_trample_guard); nothing was written.\n"
+        f"  fix: {fix}, or re-run with --allow-stale to apply this working "
+        "set on purpose.\n"
+        "  preview without touching the shared index: add --sandbox."
+    )
+
+
+def _sandbox_copy_db(db_path: Path) -> tuple[Path, Path]:
+    """(scratch DB path, scratch dir) for --sandbox; caller discards the dir.
+
+    SQLite files are copied through the backup API, which reads a consistent
+    snapshot INCLUDING pages still in the -wal (a plain file copy would miss
+    them); anything else (convo_search.duckdb) gets a file copy plus its
+    sidecars. Errors propagate: a sandbox run that silently fell back to the
+    live file is the one outcome --sandbox exists to prevent.
+    """
+    import shutil
+    import tempfile
+
+    work = Path(tempfile.mkdtemp(prefix="rebuild-sandbox-"))
+    dest = work / db_path.name
+    with db_path.open("rb") as fh:
+        sqlite_file = fh.read(16).startswith(b"SQLite format 3")
+    if sqlite_file:
+        from helpers.core.db import connect
+
+        src = connect(db_path, read_only=True)
+        try:
+            # House connect() for the scratch destination too: the backup
+            # API is indifferent to pragmas/row_factory, and this keeps
+            # both sqlite3-connect mirrors (validator + pytest allowlist)
+            # closed with no exemption.
+            dst = connect(str(dest))
+            try:
+                src.backup(dst)
+            finally:
+                dst.close()
+        finally:
+            src.close()
+        return dest, work
+    shutil.copy2(db_path, dest)
+    for suffix in ("-wal", "-shm"):
+        side = db_path.with_name(db_path.name + suffix)
+        if side.exists():
+            shutil.copy2(side, dest.with_name(dest.name + suffix))
+    return dest, work
+
+
+def _sandbox_discard(work: Path | None) -> None:
+    """Remove a --sandbox scratch dir; never raises."""
+    if work is None:
+        return
+    import shutil
+
+    shutil.rmtree(work, ignore_errors=True)
+
+
 def build_rebuild_parser(spec: RebuildCliSpec) -> argparse.ArgumentParser:
     """The --db/--check/--incremental/--full argparse quad shared by all rebuild CLIs.
+
+    Two more flags belong to the shared-store guard and are registered
+    per spec: ``--sandbox`` (always — preview against a scratch copy)
+    and ``--allow-stale`` (only when ``stamp_table`` opts the index in).
 
     Incremental is the default and safe no-op path on unchanged input:
     row-keyed (doc/script/memory) or file-granularity (doc) diffs mean
@@ -96,7 +318,29 @@ def build_rebuild_parser(spec: RebuildCliSpec) -> argparse.ArgumentParser:
     """
     p = argparse.ArgumentParser(description=spec.description)
     p.add_argument("--db", default=spec.default_db, help=spec.db_help)
-    p.add_argument("--check", action="store_true", help=spec.check_help)
+    # --sandbox is the read-only twin of --check: both leave the shared
+    # index alone, one by not writing, one by writing to a throwaway copy.
+    shared = p.add_mutually_exclusive_group()
+    shared.add_argument("--check", action="store_true", help=spec.check_help)
+    shared.add_argument(
+        "--sandbox",
+        action="store_true",
+        help="apply against a scratch COPY of the index and discard it: "
+        "the shared index and its generation stay untouched (shared "
+        "sidecar embed stores and the db-backup last-good copy are still "
+        "written). Preview lane for a worktree that is behind; mutually "
+        "exclusive with --check.",
+    )
+    if spec.stamp_table is not None:
+        p.add_argument(
+            "--allow-stale",
+            action="store_true",
+            help="apply even when this tree's HEAD is not a forward step "
+            "over the index last apply — BEHIND it, or DIVERGED from it — "
+            "rewriting the shared surface on purpose "
+            "(worktree_fresh_trample_guard); the stamp is updated so the "
+            "other tree is not blocked afterwards.",
+        )
     # store_true with default=True: no flag → incremental; --full wins.
     p.add_argument("--incremental", action="store_true", default=True)
     if spec.full_help is not None:
@@ -322,6 +566,40 @@ def backup_last_good_index(db_path: Path, spec: IndexBackupSpec) -> None:
         )
 
 
+class _ApplyAbort(Exception):
+    """Carries the exit code when the S2 guard or --sandbox staging stops a run."""
+
+    def __init__(self, code: int):
+        super().__init__(str(code))
+        self.code = code
+
+
+def _guard_and_stage(
+    args: argparse.Namespace, spec: RebuildCliSpec, db_path: Path, timer
+) -> tuple[Path, Path | None]:
+    """S2 refusal + --sandbox copy. Raises _ApplyAbort(exit code) on either.
+
+    Extracted from run_rebuild_cli (C901): decide BEFORE anything is copied
+    or written. --sandbox is exempt by design — it exists so a behind tree
+    can see exactly the delta the refusal forbids applying, and it cannot
+    reach the shared index.
+    """
+    sandbox = bool(getattr(args, "sandbox", False))
+    if not args.check:
+        reason = stale_apply_reason(db_path, spec)
+        if reason is not None and not sandbox and not getattr(args, "allow_stale", False):
+            print(reason, file=sys.stderr)
+            raise _ApplyAbort(timer.finish(1, reason.split("\n")[0][:500]))
+    sandbox_dir: Path | None = None
+    if sandbox:
+        try:
+            db_path, sandbox_dir = _sandbox_copy_db(db_path)
+        except (OSError, sqlite3.Error) as exc:
+            print(f"ERROR: --sandbox copy of {db_path.name} failed: {exc}", file=sys.stderr)
+            raise _ApplyAbort(timer.finish(1, f"--sandbox copy failed: {exc}"[:500])) from exc
+    return db_path, sandbox_dir
+
+
 def run_rebuild_cli(argv: list[str] | None, spec: RebuildCliSpec) -> int:
     """The shared main() flow: parse → rebuild → report → exit code.
 
@@ -336,6 +614,12 @@ def run_rebuild_cli(argv: list[str] | None, spec: RebuildCliSpec) -> int:
 
     Incremental is the default; ``--full`` reproduces the legacy complete
     rewrite by passing incremental=False through to the rebuild core.
+
+    Shared-store guard (armed only when ``spec.stamp_table`` is set): a
+    NON-FORWARD HEAD (behind or diverged from the stamped HEAD) is refused
+    up front with a named reason and zero writes (``--allow-stale``
+    overrides), and ``--sandbox`` redirects the apply to a throwaway copy
+    so a behind tree can still inspect its delta.
     """
     args = build_rebuild_parser(spec).parse_args(argv)
 
@@ -360,25 +644,41 @@ def run_rebuild_cli(argv: list[str] | None, spec: RebuildCliSpec) -> int:
         else:
             db_path = Path(args.db)
 
-        kwargs: dict = dict(write=not args.check, incremental=incremental)
-        if spec.swap_help is not None:
-            kwargs["swap"] = args.swap
-        if spec.handle_errors:
-            try:
+        sandbox = bool(getattr(args, "sandbox", False))
+        # S2: decide BEFORE anything is copied or written (see
+        # _guard_and_stage); a refusal or a failed --sandbox copy exits
+        # here with zero writes.
+        try:
+            db_path, sandbox_dir = _guard_and_stage(args, spec, db_path, timer)
+        except _ApplyAbort as aborted:
+            return aborted.code
+        try:
+            kwargs: dict = dict(write=not args.check, incremental=incremental)
+            if spec.swap_help is not None:
+                kwargs["swap"] = args.swap
+            if spec.handle_errors:
+                try:
+                    stats = spec.rebuild_fn(db_path, **kwargs)
+                except Exception as exc:  # pragma: no cover - defensive
+                    print(f"ERROR: {exc}", file=sys.stderr)
+                    return timer.finish(1, f"ERROR: {exc}"[:500])
+            else:
                 stats = spec.rebuild_fn(db_path, **kwargs)
-            except Exception as exc:  # pragma: no cover - defensive
-                print(f"ERROR: {exc}", file=sys.stderr)
-                return timer.finish(1, f"ERROR: {exc}"[:500])
-        else:
-            stats = spec.rebuild_fn(db_path, **kwargs)
 
-        summary_line = spec.summary(stats)
-        print(summary_line, file=sys.stderr)
-        if not args.check:
-            print_rebuild_report(stats, migrated_msg=spec.migrated_msg)
-            return timer.finish(0, summary_line.split("\n")[0][:500])
-        stale = bool(stats.get("index_stale"))
-        return timer.finish(1 if stale else 0, summary_line.split("\n")[0][:500])
+            summary_line = spec.summary(stats)
+            print(summary_line, file=sys.stderr)
+            if not args.check:
+                # S1: stamp the LIVE index only, and only after a successful
+                # apply — a sandbox run must not claim the shared index
+                # reflects this (possibly older) working set.
+                if not sandbox and spec.stamp_table is not None:
+                    write_apply_stamp(db_path, spec.stamp_table)
+                print_rebuild_report(stats, migrated_msg=spec.migrated_msg)
+                return timer.finish(0, summary_line.split("\n")[0][:500])
+            stale = bool(stats.get("index_stale"))
+            return timer.finish(1 if stale else 0, summary_line.split("\n")[0][:500])
+        finally:
+            _sandbox_discard(sandbox_dir)
 
 
 def run_query_cli(argv: list[str] | None, spec: QueryCliSpec) -> int:

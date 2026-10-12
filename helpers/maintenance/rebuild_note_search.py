@@ -1208,6 +1208,7 @@ def main(argv: list[str] | None = None) -> int:
             rebuild_fn=rebuild,
             summary=_summary_line,
             migrated_msg="(schema migrated: note_search recreated with embedding column)",
+            stamp_table="db_meta",
             resolve_db=_resolve_db,
             handle_errors=False,
         ),

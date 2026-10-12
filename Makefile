@@ -113,7 +113,7 @@ help:           ## Show available targets (alphabetical; entries generated from 
 > @echo "  schema-check             Check tracked schema/ DDL against the live memory/ DBs (exit 1 on drift; fix: make schema-dump)"
 > @echo "  schema-dump              Regenerate schema/<engine>/<db>.sql from the live memory/ DBs (proposal schema_ddl_review_surface)"
 > @echo "  script-search-rebuild    Rebuild the script metadata index (script_search sidecar; query via helpers/misc/script_query.py)"
-> @echo "  search-fresh             Check ALL search indexes for staleness — doc/, script metadata, note embeddings, harness memory (every check runs even if one fails; exit 1 on drift; APPLY=1 refreshes them instead; also run by make advisory)"
+> @echo "  search-fresh             Check ALL search indexes for staleness — doc/, script metadata, note embeddings, harness memory (every check runs even if one fails; exit 1 on drift; APPLY=1 refreshes them instead; ARGS=\"--allow-stale\"/\"--sandbox\" for the stale-apply guard escape/preview; also run by make advisory)"
 > @echo "  search-tui               Full-screen search front door — docs/scripts/notes indexes + ripwire + rg lanes; enter reads markdown via glow"
 > @echo "  secret-scan              Incremental git-history secret scan (state under .git/secret-scan/)"
 > @echo "  snapshot                 Refresh the versioned DB snapshot"
@@ -368,14 +368,15 @@ convo-search-rebuild: ## Rebuild convo_search.duckdb via atomic swap (compacts t
 convo-search-check: ## Report convo_search.duckdb file size vs payload (advisory; swap-rebuild candidate)
 > @.venv/bin/python3 -c "import duckdb,os;d='memory/convo_search.duckdb';c=duckdb.connect(d,read_only=True);r=c.execute('SELECT COUNT(*) FROM convo_search').fetchone();c.close();size=os.path.getsize(d)/1e6;print(f'  convo_search: {size:.0f} MB, {r[0]:,} rows')"
 
-search-fresh:    ## Check ALL search indexes for staleness — doc/, script metadata, note embeddings, harness memory (every check runs even if one fails; exit 1 on drift; APPLY=1 refreshes them instead; also run by make advisory)
+search-fresh:    ## Check ALL search indexes for staleness — doc/, script metadata, note embeddings, harness memory (every check runs even if one fails; exit 1 on drift; APPLY=1 refreshes them instead; ARGS="--allow-stale"/"--sandbox" reaches the rebuild CLIs for the stale-apply guard escape/preview; also run by make advisory)
 > @rc=0; \
 >   extra="$(if $(APPLY),,--check)"; \
->   echo "search-fresh: $(if $(APPLY),APPLY — refreshing,check) mode"; \
+>   case " $(ARGS) " in *" --sandbox "*|*" --allow-stale "*) extra="";; esac; \
+>   echo "search-fresh: $(if $(APPLY),APPLY — refreshing,$(if $(ARGS),ARGS [$(ARGS)],check)) mode"; \
 >   for s in rebuild_doc_search rebuild_script_search rebuild_note_search rebuild_memory_search; do \
 >     t0=$$(date +%s%3N); \
->     echo "--- $$s $$extra"; \
->     MAINT_TARGET=search-fresh python3 helpers/maintenance/$$s.py $$extra || rc=1; \
+>     echo "--- $$s $$extra $(ARGS)"; \
+>     MAINT_TARGET=search-fresh python3 helpers/maintenance/$$s.py $$extra $(ARGS) || rc=1; \
 >     echo "    took $$(( $$(date +%s%3N) - t0 ))ms"; \
 >   done; \
 >   if [ $$rc -eq 0 ]; then echo "✓ all search indexes fresh (doc_search, script_search, note_search, memory_search)"; fi; \

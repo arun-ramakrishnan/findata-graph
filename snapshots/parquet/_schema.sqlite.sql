@@ -255,6 +255,8 @@ CREATE TABLE company_embeddings (
             CHECK (length(embedding) = 512 * 4)
         );
 
+CREATE TABLE db_bump_log ( ts TEXT NOT NULL, caller TEXT NOT NULL, worktree TEXT NOT NULL, generation INTEGER NOT NULL);
+
 CREATE INDEX idx_entity_tags_tag ON entity_tags(tag);
 
 CREATE INDEX idx_entities_sector_classification ON entities(sector_classification);
@@ -298,18 +300,6 @@ CREATE INDEX idx_emb_company ON company_embeddings(company_name);
 CREATE VIEW relations AS
     SELECT source, target, edge_type AS relation_type
     FROM graph_edges;
-
-CREATE TRIGGER trg_entities_insert_gen AFTER INSERT ON entities BEGIN UPDATE db_meta SET value = CAST(CAST(value AS INTEGER)+1 AS TEXT) WHERE key='generation'; END;
-
-CREATE TRIGGER trg_entities_delete_gen AFTER DELETE ON entities BEGIN UPDATE db_meta SET value = CAST(CAST(value AS INTEGER)+1 AS TEXT) WHERE key='generation'; END;
-
-CREATE TRIGGER trg_entities_update_gen AFTER UPDATE ON entities BEGIN UPDATE db_meta SET value = CAST(CAST(value AS INTEGER)+1 AS TEXT) WHERE key='generation'; END;
-
-CREATE TRIGGER trg_graph_edges_insert_gen AFTER INSERT ON graph_edges BEGIN UPDATE db_meta SET value = CAST(CAST(value AS INTEGER)+1 AS TEXT) WHERE key='generation'; END;
-
-CREATE TRIGGER trg_graph_edges_delete_gen AFTER DELETE ON graph_edges BEGIN UPDATE db_meta SET value = CAST(CAST(value AS INTEGER)+1 AS TEXT) WHERE key='generation'; END;
-
-CREATE TRIGGER trg_graph_edges_update_gen AFTER UPDATE ON graph_edges BEGIN UPDATE db_meta SET value = CAST(CAST(value AS INTEGER)+1 AS TEXT) WHERE key='generation'; END;
 
 CREATE TRIGGER graph_edges_agent_id_registered_insert
 BEFORE INSERT ON "graph_edges"
@@ -410,3 +400,15 @@ WHEN NEW.agent_id IS NOT NULL
 BEGIN
     SELECT RAISE(ABORT, 'agent_id must be NULL or a registered non-empty id');
 END;
+
+CREATE TRIGGER trg_entities_insert_gen AFTER INSERT ON entities BEGIN UPDATE db_meta SET value = CAST(CAST(value AS INTEGER)+1 AS TEXT) WHERE key='generation'; END;
+
+CREATE TRIGGER trg_entities_delete_gen AFTER DELETE ON entities BEGIN UPDATE db_meta SET value = CAST(CAST(value AS INTEGER)+1 AS TEXT) WHERE key='generation'; END;
+
+CREATE TRIGGER trg_entities_update_gen AFTER UPDATE ON entities BEGIN UPDATE db_meta SET value = CAST(CAST(value AS INTEGER)+1 AS TEXT) WHERE key='generation'; END;
+
+CREATE TRIGGER trg_graph_edges_insert_gen AFTER INSERT ON graph_edges BEGIN UPDATE db_meta SET value = CAST(CAST(value AS INTEGER)+1 AS TEXT) WHERE key='generation'; END;
+
+CREATE TRIGGER trg_graph_edges_delete_gen AFTER DELETE ON graph_edges BEGIN UPDATE db_meta SET value = CAST(CAST(value AS INTEGER)+1 AS TEXT) WHERE key='generation'; END;
+
+CREATE TRIGGER trg_graph_edges_update_gen AFTER UPDATE ON graph_edges BEGIN UPDATE db_meta SET value = CAST(CAST(value AS INTEGER)+1 AS TEXT) WHERE key='generation'; END;

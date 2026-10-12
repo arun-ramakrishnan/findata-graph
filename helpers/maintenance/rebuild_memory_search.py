@@ -952,6 +952,7 @@ def main(argv: list[str] | None = None) -> int:
             rebuild_fn=rebuild,
             summary=_summary_line,
             migrated_msg="(schema migrated: memory_search recreated)",
+            stamp_table="memory_search_info",
         ),
     )
 

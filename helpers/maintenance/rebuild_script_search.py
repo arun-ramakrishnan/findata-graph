@@ -1906,6 +1906,7 @@ def main(argv: list[str] | None = None) -> int:
             rebuild_fn=rebuild,
             summary=_summary_line,
             migrated_msg="(schema migrated: script_search recreated)",
+            stamp_table="script_search_info",
         ),
     )
 

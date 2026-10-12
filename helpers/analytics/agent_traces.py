@@ -1311,7 +1311,7 @@ load_opencode = _parse_opencode
 
 
 @trace_contracts.register_parser("dsh")
-def _parse_dsh(con, since=None):
+def _parse_dsh(con, since=None):  # noqa: C901  # moved verbatim; split needs a parity harness (c901 deferred class)
     """Load dsh session logs (session-query era: the zstd JSONL event logs;
     OTel/session-query exporters are unconfigured on this box) into the
     trace tables; returns inserted row count.

@@ -426,6 +426,50 @@ def _v2_msg_envelope(con) -> dict[str, tuple]:
     return out
 
 
+def _assistant_block_row(
+    pid: str, mid: str, sid: str, ts: int, agent: str, model: str, b: dict, src: str
+) -> dict | None:
+    """One corpus row for an assistant content block; None skips it.
+
+    Unknown future block kinds return None — skipped loudly via census
+    tests, never silently (new kinds must extend this branch + AC4).
+    """
+    btype = b.get("type")
+    if btype == "text":
+        return _row(
+            pid, mid, sid, ts, "assistant", agent, model, "text", b.get("text") or "", {}, src
+        )
+    if btype == "reasoning":
+        return _row(
+            pid,
+            mid,
+            sid,
+            ts,
+            "assistant",
+            agent,
+            model,
+            "reasoning",
+            b.get("text") or "",
+            {},
+            src,
+        )
+    if btype == "tool":
+        st = b.get("state") or {}
+        texts = [c.get("text") or "" for c in st.get("content") or [] if isinstance(c, dict)]
+        # legacy meta parity minus title: the v2 projection drops
+        # part titles, so there is nothing to carry (measured
+        # 2026-10-11 against the restore run, not assumed).
+        meta = {
+            "status": st.get("status"),
+            "tool": b.get("name"),
+            "input": str(st.get("input"))[:2000],
+        }
+        return _row(
+            pid, mid, sid, ts, "assistant", agent, model, "tool", " ".join(texts), meta, src
+        )
+    return None
+
+
 def _v2_block_rows(
     mid: str, sid: str, tc, tu, agent: str, model: str, data: dict, src: str
 ) -> list[dict]:
@@ -448,70 +492,9 @@ def _v2_block_rows(
         for i, b in enumerate(data.get("content") or []):
             if not isinstance(b, dict):
                 continue
-            pid = f"{mid}#{i}"
-            btype = b.get("type")
-            if btype == "text":
-                rows.append(
-                    _row(
-                        pid,
-                        mid,
-                        sid,
-                        ts,
-                        "assistant",
-                        agent,
-                        model,
-                        "text",
-                        b.get("text") or "",
-                        {},
-                        src,
-                    )
-                )
-            elif btype == "reasoning":
-                rows.append(
-                    _row(
-                        pid,
-                        mid,
-                        sid,
-                        ts,
-                        "assistant",
-                        agent,
-                        model,
-                        "reasoning",
-                        b.get("text") or "",
-                        {},
-                        src,
-                    )
-                )
-            elif btype == "tool":
-                st = b.get("state") or {}
-                texts = [
-                    c.get("text") or "" for c in st.get("content") or [] if isinstance(c, dict)
-                ]
-                # legacy meta parity minus title: the v2 projection drops
-                # part titles, so there is nothing to carry (measured
-                # 2026-10-11 against the restore run, not assumed).
-                meta = {
-                    "status": st.get("status"),
-                    "tool": b.get("name"),
-                    "input": str(st.get("input"))[:2000],
-                }
-                rows.append(
-                    _row(
-                        pid,
-                        mid,
-                        sid,
-                        ts,
-                        "assistant",
-                        agent,
-                        model,
-                        "tool",
-                        " ".join(texts),
-                        meta,
-                        src,
-                    )
-                )
-            # unknown future block kinds: skip loudly below via census tests,
-            # never silently (new kinds must extend this branch + AC4).
+            row = _assistant_block_row(f"{mid}#{i}", mid, sid, ts, agent, model, b, src)
+            if row is not None:
+                rows.append(row)
     elif ctype == "compaction":
         # The summary lives ONLY here — event compaction parts carry just
         # {auto, tail_start_id} (measured 2026-10-11). Dropping this row
@@ -594,6 +577,46 @@ def _harvest_opencode_v2(
         con.close()
 
 
+def _event_part_row(
+    pid: str, p: dict, t, sid: str, seed: int | None, role: str, agent: str, model: str, src: str
+) -> dict | None:
+    """One event-lane row; None skips (undropped type or at/below seed).
+
+    Conventions mirror `_oc_part_rows` exactly (patch is text="" +
+    meta{files,hash} — searchable-text parity with the legacy corpus,
+    not the proposal draft's text=files).
+    """
+    ptype = p.get("type")
+    if ptype not in _V2_DROPPED_TYPES:
+        return None
+    mid = p.get("messageID", "")
+    if seed is not None and t <= seed:
+        return None
+    ts = _ms(t)
+    if ptype == "step-finish":
+        text, meta = (
+            p.get("reason") or "",
+            {
+                "tokens": p.get("tokens"),
+                "cost": p.get("cost"),
+                "snapshot": p.get("snapshot"),
+            },
+        )
+    elif ptype == "patch":
+        text, meta = "", {"files": p.get("files"), "hash": p.get("hash")}
+    elif ptype == "compaction":
+        text, meta = (
+            p.get("summary") or "",
+            {
+                "auto": p.get("auto"),
+                "tail_start_id": p.get("tail_start_id"),
+            },
+        )
+    else:  # step-start, file: legacy else-branch parity
+        text, meta = "", {k: v for k, v in p.items() if k != "type"}
+    return _row(pid, mid, sid, ts, role, agent, model, ptype, text, meta, src)
+
+
 def _harvest_opencode_events(
     db_path: Path, src: str, seeds: dict, corpus_root: Path
 ) -> tuple[list[dict], int]:
@@ -632,83 +655,11 @@ def _harvest_opencode_events(
 
         rows = []
         for pid, (p, t) in latest.items():
-            ptype = p.get("type")
-            if ptype not in _V2_DROPPED_TYPES:
-                continue
-            mid, sid = p.get("messageID", ""), p.get("sessionID", "")
-            seed = seed_for(sid)
-            if seed is not None and t <= seed:
-                continue
-            role, agent, model = env.get(mid, ("", "", ""))
-            ts = _ms(t)
-            if ptype == "step-finish":
-                rows.append(
-                    _row(
-                        pid,
-                        mid,
-                        sid,
-                        ts,
-                        role,
-                        agent,
-                        model,
-                        ptype,
-                        p.get("reason") or "",
-                        {
-                            "tokens": p.get("tokens"),
-                            "cost": p.get("cost"),
-                            "snapshot": p.get("snapshot"),
-                        },
-                        src,
-                    )
-                )
-            elif ptype == "patch":
-                rows.append(
-                    _row(
-                        pid,
-                        mid,
-                        sid,
-                        ts,
-                        role,
-                        agent,
-                        model,
-                        ptype,
-                        "",
-                        {"files": p.get("files"), "hash": p.get("hash")},
-                        src,
-                    )
-                )
-            elif ptype == "compaction":
-                rows.append(
-                    _row(
-                        pid,
-                        mid,
-                        sid,
-                        ts,
-                        role,
-                        agent,
-                        model,
-                        ptype,
-                        p.get("summary") or "",
-                        {"auto": p.get("auto"), "tail_start_id": p.get("tail_start_id")},
-                        src,
-                    )
-                )
-            else:  # step-start, file: legacy else-branch parity
-                rows.append(
-                    _row(
-                        pid,
-                        mid,
-                        sid,
-                        ts,
-                        role,
-                        agent,
-                        model,
-                        ptype,
-                        "",
-                        {k: v for k, v in p.items() if k != "type"},
-                        src,
-                    )
-                )
+            sid = p.get("sessionID", "")
+            role, agent, model = env.get(p.get("messageID", ""), ("", "", ""))
+            row = _event_part_row(pid, p, t, sid, seed_for(sid), role, agent, model, src)
+            if row is not None:
+                rows.append(row)
         try:
             new_hwm = con.execute(
                 "SELECT COALESCE(MAX(json_extract(data,'$.time')),0) FROM event "
@@ -993,6 +944,112 @@ def _dsh_content_text(content: object) -> str:
     return ""
 
 
+def _dsh_assistant_rows(pid: str, sid: str, ts, m: dict, model: str, src: str) -> list[dict]:
+    """Text/reasoning rows for one assistant message's content blocks."""
+    rows = []
+    for i, b in enumerate(m.get("content") or []):
+        if not isinstance(b, dict):
+            continue
+        if b.get("type") == "text":
+            rows.append(
+                _row(
+                    f"{pid}#{i}",
+                    pid,
+                    sid,
+                    _ms(ts),
+                    "assistant",
+                    "dsh",
+                    model,
+                    "text",
+                    b.get("text") or "",
+                    {},
+                    src,
+                )
+            )
+        elif b.get("type") == "reasoning":
+            rows.append(
+                _row(
+                    f"{pid}#{i}",
+                    pid,
+                    sid,
+                    _ms(ts),
+                    "assistant",
+                    "dsh",
+                    model,
+                    "reasoning",
+                    b.get("text") or "",
+                    {},
+                    src,
+                )
+            )
+    return rows
+
+
+def _dsh_tool_result_row(
+    pid: str, sid: str, ts, data: dict, m: dict, calls: dict, src: str
+) -> dict | None:
+    """Tool-result row: matched call wins, else orphan-result; None when textless."""
+    cid = data.get("toolCallId") or (m.get("source") or {}).get("callId")
+    text = _dsh_content_text(m.get("content"))
+    call = calls.pop(cid, None)
+    if call is not None:
+        cpid, _cts, cdata = call
+        meta = {
+            "status": "error" if data.get("isError") else "completed",
+            "tool": cdata.get("name"),
+            "input": str(cdata.get("arguments"))[:2000],
+        }
+        return _row(cpid, cpid, sid, _ms(ts), "assistant", "dsh", "", "tool", text, meta, src)
+    if text:
+        return _row(
+            pid,
+            pid,
+            sid,
+            _ms(ts),
+            "assistant",
+            "dsh",
+            "",
+            "tool",
+            text,
+            {"status": "orphan-result"},
+            src,
+        )
+    return None
+
+
+def _dsh_record_rows(
+    typ: str, pid: str, sid: str, ts, data: dict, calls: dict, src: str
+) -> tuple[list[dict], str | None]:
+    """(rows for one log record, session-model update or None).
+
+    `calls` is mutated in place (tool/call registers, tool/result pops).
+    Unknown types yield no rows (turn/step markers, titles, system
+    prompts and todo/workspace metadata carry no searchable text).
+    """
+    if typ == "model/selection":
+        return [], data.get("model") or None
+    if typ == "user/message":
+        m = data.get("message", data)
+        text = _dsh_content_text(m.get("content")) if isinstance(m, dict) else ""
+        if text:
+            return [_row(pid, pid, sid, _ms(ts), "user", "", "", "text", text, {}, src)], None
+        return [], None
+    if typ == "assistant/message":
+        m = data.get("message") or {}
+        srcinfo = m.get("source") or {}
+        model = srcinfo.get("model", "") or ""
+        return _dsh_assistant_rows(pid, sid, ts, m, model, src), (model or None)
+    if typ == "tool/call":
+        if data.get("callId"):
+            calls[data["callId"]] = (pid, ts, data)
+        return [], None
+    if typ == "tool/result":
+        m = data.get("message") or {}
+        row = _dsh_tool_result_row(pid, sid, ts, data, m, calls, src)
+        return ([row] if row is not None else []), None
+    return [], None
+
+
 def _harvest_dsh_file(
     path: Path, sid: str, src: str, after_seq: int | None
 ) -> tuple[list[dict], int]:
@@ -1015,88 +1072,10 @@ def _harvest_dsh_file(
         if after_seq is not None and isinstance(seq, int) and seq <= after_seq:
             continue
         pid = f"{sid}:{seq}"
-        if typ == "model/selection" and data.get("model"):
-            sess_model = data["model"]
-        if typ == "user/message":
-            m = data.get("message", data)
-            text = _dsh_content_text(m.get("content")) if isinstance(m, dict) else ""
-            if text:
-                rows.append(_row(pid, pid, sid, _ms(ts), "user", "", "", "text", text, {}, src))
-        elif typ == "assistant/message":
-            m = data.get("message") or {}
-            srcinfo = m.get("source") or {}
-            model = srcinfo.get("model", "") or ""
-            if model:
-                sess_model = model
-            for i, b in enumerate(m.get("content") or []):
-                if not isinstance(b, dict):
-                    continue
-                if b.get("type") == "text":
-                    rows.append(
-                        _row(
-                            f"{pid}#{i}",
-                            pid,
-                            sid,
-                            _ms(ts),
-                            "assistant",
-                            "dsh",
-                            model,
-                            "text",
-                            b.get("text") or "",
-                            {},
-                            src,
-                        )
-                    )
-                elif b.get("type") == "reasoning":
-                    rows.append(
-                        _row(
-                            f"{pid}#{i}",
-                            pid,
-                            sid,
-                            _ms(ts),
-                            "assistant",
-                            "dsh",
-                            model,
-                            "reasoning",
-                            b.get("text") or "",
-                            {},
-                            src,
-                        )
-                    )
-        elif typ == "tool/call":
-            if data.get("callId"):
-                calls[data["callId"]] = (pid, ts, data)
-        elif typ == "tool/result":
-            m = data.get("message") or {}
-            cid = data.get("toolCallId") or (m.get("source") or {}).get("callId")
-            text = _dsh_content_text(m.get("content"))
-            call = calls.pop(cid, None)
-            if call is not None:
-                cpid, _cts, cdata = call
-                meta = {
-                    "status": "error" if data.get("isError") else "completed",
-                    "tool": cdata.get("name"),
-                    "input": str(cdata.get("arguments"))[:2000],
-                }
-                rows.append(
-                    _row(cpid, cpid, sid, _ms(ts), "assistant", "dsh", "", "tool", text, meta, src)
-                )
-            elif text:
-                rows.append(
-                    _row(
-                        pid,
-                        pid,
-                        sid,
-                        _ms(ts),
-                        "assistant",
-                        "dsh",
-                        "",
-                        "tool",
-                        text,
-                        {"status": "orphan-result"},
-                        src,
-                    )
-                )
+        rec_rows, model_update = _dsh_record_rows(typ, pid, sid, ts, data, calls, src)
+        rows.extend(rec_rows)
+        if model_update:
+            sess_model = model_update
     if sess_model:
         rows = [r if r["model"] else {**r, "model": sess_model} for r in rows]
     return rows, max_seq
@@ -1469,66 +1448,86 @@ def _wm_int(store: Store, key: str) -> int | None:
         return None
 
 
-def _drift(store: Store, corpus_root: Path = CORPUS_ROOT) -> list[str]:
-    """--check verdict: sources whose current fingerprint differs from the watermark."""
-    drift = []
-    for path, src, immutable in _opencode_sources():
-        key = f"{src}:{hashlib.blake2b(str(path).encode(), digest_size=6).hexdigest()}"
-        if immutable:
-            if store.watermark(key) is None:
-                drift.append(f"new {src}")
-            # per-lane backfill visibility on already-seen snapshots: the
-            # :v2/:evt keys never existed before the lanes, so their first
-            # check fires here and the next APPLY closes them (see S3).
-            try:
-                con = connect(path, read_only=True)
-            except sqlite3.DatabaseError, OSError:
-                drift.append(f"unreadable {src}")
-                continue
-            try:
-                detail = _lane_uncovered(
-                    con, corpus_root, _wm_int(store, key + ":v2"), _wm_int(store, key + ":evt")
-                )
-            finally:
-                con.close()
-            for lane, line in detail.items():
-                verb = "new" if store.watermark(key + ":" + lane) is None else "changed"
-                drift.append(f"{verb} {src}:{lane} ({line})")
-            continue
-        con = connect(path, read_only=True)
+def _opencode_source_drift(
+    store: Store, corpus_root: Path, path: Path, src: str, immutable: bool
+) -> list[str]:
+    """Drift lines for one opencode source (snapshot or live)."""
+    key = f"{src}:{hashlib.blake2b(str(path).encode(), digest_size=6).hexdigest()}"
+    found = []
+    if immutable:
+        if store.watermark(key) is None:
+            found.append(f"new {src}")
+        # per-lane backfill visibility on already-seen snapshots: the
+        # :v2/:evt keys never existed before the lanes, so their first
+        # check fires here and the next APPLY closes them (see S3).
         try:
-            row = con.execute("SELECT COALESCE(MAX(time_updated), 0) FROM part").fetchone()
-            hwm = row[0] if row else 0
-            lane_detail = _lane_uncovered(
+            con = connect(path, read_only=True)
+        except sqlite3.DatabaseError, OSError:
+            return [f"unreadable {src}"]
+        try:
+            detail = _lane_uncovered(
                 con, corpus_root, _wm_int(store, key + ":v2"), _wm_int(store, key + ":evt")
             )
         finally:
             con.close()
-        wm = store.watermark(key)
-        if wm is None or int(wm) < int(hwm):
-            drift.append(f"changed {src} ({hwm})")
-        for lane, detail in lane_detail.items():
-            drift.append(f"changed {src}:{lane} ({detail})")
+        for lane, line in detail.items():
+            verb = "new" if store.watermark(key + ":" + lane) is None else "changed"
+            found.append(f"{verb} {src}:{lane} ({line})")
+        return found
+    con = connect(path, read_only=True)
+    try:
+        row = con.execute("SELECT COALESCE(MAX(time_updated), 0) FROM part").fetchone()
+        hwm = row[0] if row else 0
+        lane_detail = _lane_uncovered(
+            con, corpus_root, _wm_int(store, key + ":v2"), _wm_int(store, key + ":evt")
+        )
+    finally:
+        con.close()
+    wm = store.watermark(key)
+    if wm is None or int(wm) < int(hwm):
+        found.append(f"changed {src} ({hwm})")
+    for lane, detail in lane_detail.items():
+        found.append(f"changed {src}:{lane} ({detail})")
+    return found
+
+
+def _dsh_log_drift(store: Store, path: Path, sid: str, src: str) -> str | None:
+    """One dsh log's drift line; None when the watermark covers it."""
+    key = f"{src}:{sid}"
+    wm_raw = store.watermark(key)
+    try:
+        st = path.stat()
+    except OSError:
+        return f"missing {src}:{sid[:13]} ({path})"
+    cur = json.loads(wm_raw) if wm_raw else None
+    if cur is None:
+        return f"new {src}:{sid[:13]}"
+    if cur[1:] != [int(st.st_mtime), int(st.st_size)]:
+        return f"changed {src}:{sid[:13]}"
+    return None
+
+
+def _snap_count_drift(store: Store) -> list[str]:
+    """Snapshot-root visibility drift (lane-blind when the root is gone)."""
     if not SNAP_ROOT.is_dir():
-        drift.append(f"missing snapshot root {SNAP_ROOT} (snapshot lanes blind)")
-    else:
-        cur_n = len(_snapshot_opencode_dbs())
-        rec = store.watermark(_SNAP_COUNT_KEY)
-        if rec is not None and cur_n < int(rec):
-            drift.append(f"opencode-snap sources shrank {rec}->{cur_n} ({SNAP_ROOT})")
+        return [f"missing snapshot root {SNAP_ROOT} (snapshot lanes blind)"]
+    cur_n = len(_snapshot_opencode_dbs())
+    rec = store.watermark(_SNAP_COUNT_KEY)
+    if rec is not None and cur_n < int(rec):
+        return [f"opencode-snap sources shrank {rec}->{cur_n} ({SNAP_ROOT})"]
+    return []
+
+
+def _drift(store: Store, corpus_root: Path = CORPUS_ROOT) -> list[str]:
+    """--check verdict: sources whose current fingerprint differs from the watermark."""
+    drift = []
+    for path, src, immutable in _opencode_sources():
+        drift.extend(_opencode_source_drift(store, corpus_root, path, src, immutable))
+    drift.extend(_snap_count_drift(store))
     for path, sid, src in _dsh_logs():
-        key = f"{src}:{sid}"
-        wm_raw = store.watermark(key)
-        try:
-            st = path.stat()
-        except OSError:
-            drift.append(f"missing {src}:{sid[:13]} ({path})")
-            continue
-        cur = json.loads(wm_raw) if wm_raw else None
-        if cur is None:
-            drift.append(f"new {src}:{sid[:13]}")
-        elif cur[1:] != [int(st.st_mtime), int(st.st_size)]:
-            drift.append(f"changed {src}:{sid[:13]}")
+        line = _dsh_log_drift(store, path, sid, src)
+        if line is not None:
+            drift.append(line)
     for line in _dsh_index_lag():
         drift.append(line)
     for f, src in _prime_files():

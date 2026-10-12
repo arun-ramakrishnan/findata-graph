@@ -120,9 +120,9 @@ _HEARTBEAT = OUTPUTS_ROOT / ".gate_active"
 
 def _publish_heartbeat(lane: str, run_id: str) -> None:
     """Announce a running gate lane (see tests/run_perf_benchmarks.py)."""
-    _HEARTBEAT.write_text(
-        json.dumps({"lane": lane, "pid": os.getpid(), "started": run_id})
-    )
+    _HEARTBEAT.write_text(json.dumps({"lane": lane, "pid": os.getpid(), "started": run_id}))
+
+
 # gate_run_search S1: per-gate junitxml for pytest legs — machine-ground
 # per-test outcomes + durations for the outputs/gate_runs.duckdb index
 # (helpers/misc/gate_query.py); xdist merges worker shards into one file.

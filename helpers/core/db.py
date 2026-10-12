@@ -250,6 +250,96 @@ def get_user_version(conn: sqlite3.Connection) -> int | None:
         return None
 
 
+# S3 (worktree_fresh_trample_guard): permanent, trimmed bump log.
+# A generation bump is the writer-side staleness signal every warm DuckDB
+# consumer and the snapshot pair key off, but until now nothing recorded WHO
+# bumped: the 2026-10-12 "ghost generation" chase (four gate failures before
+# noon) needed temporary audit triggers and a caller-tagging wrapper around
+# this function to find the writer. The ring keeps the last BUMP_LOG_RING
+# manual bumps — ts, caller file:line, worktree, post-bump generation — and
+# snapshot_db --check cites the newest entry next to a MISMATCH, so a stale
+# snapshot reads as a named event instead of a mystery.
+#
+# Scope note: the entities/graph_edges triggers bump generation inside SQL
+# (ensure_db_meta) and cannot append here — one bulk ingest would flush the
+# whole ring. A cited entry whose generation trails the live one is exactly
+# that signal (see snapshot_db._bump_log_citation).
+DB_BUMP_LOG_DDL = (
+    "CREATE TABLE IF NOT EXISTS db_bump_log ("
+    " ts TEXT NOT NULL,"
+    " caller TEXT NOT NULL,"
+    " worktree TEXT NOT NULL,"
+    " generation INTEGER NOT NULL"
+    ")"
+)
+
+BUMP_LOG_RING = 100
+
+# S1 (worktree_fresh_trample_guard): key prefix of the per-index apply stamp.
+# The stamp lives in each index's key/value meta table (db_meta for
+# note_search), so its three rows appear as EXTRA ROWS there. That is
+# contract-legal drift for snapshot_db's row-count verify — the DuckDB side
+# already whitelists its own stamp-owned keys (STAMP_OWNED_META_KEYS) and
+# fp:* fingerprints the same way — so the prefix is named here once and read
+# by both the writer (rebuild_common) and the verifier (snapshot_db).
+APPLY_STAMP_PREFIX = "apply_"
+
+
+def _bump_caller() -> str:
+    """`<repo-relative file>:<line>` of the first frame outside this module.
+
+    The bump always originates in a writer module (rebuild_note_search /
+    graph.embeddings); db.py frames are the mechanism, not the cause, so they
+    are skipped. A path outside the repo (a test fixture, an installed copy)
+    is kept absolute rather than faked relative.
+    """
+    import traceback
+
+    here = Path(__file__).resolve()
+    for frame in reversed(traceback.extract_stack()):
+        try:
+            path = Path(frame.filename).resolve()
+        except OSError:
+            path = Path(frame.filename)
+        if path == here:
+            continue
+        try:
+            return f"{path.relative_to(_REPO_ROOT)}:{frame.lineno}"
+        except ValueError:
+            return f"{path}:{frame.lineno}"
+    return "unknown"
+
+
+def _log_bump(conn: sqlite3.Connection, generation: int) -> None:
+    """Append one ring entry and trim. Best-effort, never raises.
+
+    The generation is load-bearing; this log is diagnostic, so a failure
+    (locked db, absent worktree facts, read-only fixture) must not turn a
+    successful bump into an exception.
+    """
+    try:
+        from helpers.core.git_state import worktree_name
+
+        conn.execute(DB_BUMP_LOG_DDL)
+        conn.execute(
+            "INSERT INTO db_bump_log (ts, caller, worktree, generation) VALUES (?, ?, ?, ?)",
+            (
+                datetime.now(UTC).strftime("%Y-%m-%d %H:%M:%S"),
+                _bump_caller(),
+                worktree_name(),
+                int(generation),
+            ),
+        )
+        conn.execute(
+            "DELETE FROM db_bump_log WHERE rowid NOT IN "
+            "(SELECT rowid FROM db_bump_log ORDER BY rowid DESC LIMIT ?)",
+            (BUMP_LOG_RING,),
+        )
+        conn.commit()
+    except Exception:  # noqa: BLE001, S110  # diagnostic ring; the bump already committed
+        pass
+
+
 def bump_generation(conn: sqlite3.Connection, by: int = 1) -> int | None:
     """Manually bump db_meta.generation (writer-side staleness signal).
 
@@ -279,7 +369,10 @@ def bump_generation(conn: sqlite3.Connection, by: int = 1) -> int | None:
     )
     conn.commit()
     row = conn.execute("SELECT value FROM db_meta WHERE key='generation'").fetchone()
-    return int(row[0]) if row else None
+    new_gen = int(row[0]) if row else None
+    if new_gen is not None:
+        _log_bump(conn, new_gen)
+    return new_gen
 
 
 def ensure_db_meta(conn: sqlite3.Connection) -> int:
@@ -297,6 +390,14 @@ def ensure_db_meta(conn: sqlite3.Connection) -> int:
     """
     # table
     conn.execute("CREATE TABLE IF NOT EXISTS db_meta ( key TEXT PRIMARY KEY, value TEXT NOT NULL)")
+    # S3: the bump log is created here (not only on the first manual bump).
+    # Restore carries the EMPTY table (snapshots/parquet/_schema.sqlite.sql
+    # includes its DDL — regenerated 2026-10-12, F9), so a restored index
+    # has the ring before any writer fires. note_search_meta is the
+    # contrast case: the snapshot schema deliberately excludes note_search%
+    # tables, so that one stays writer-created (IF NOT EXISTS in
+    # rebuild_note_search) — pre-existing gap, out of scope here.
+    conn.execute(DB_BUMP_LOG_DDL)
     # seed generation if missing
     row = conn.execute("SELECT value FROM db_meta WHERE key='generation'").fetchone()
     if row is None:

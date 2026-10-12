@@ -10352,3 +10352,46 @@ advisory/maint gate even when nothing changed. Shipped 2026-10-12:
 No-op gates now write only changed rows/files (often nothing). Archived
 same day; found blocking the Proposal lifecycle static check because the
 executed proposal was still sitting in the live directory.
+
+## 385. Worktree fresh trample guard — refuse backward applies, name the bump
+
+**Date**: 2026-10-12 (filed, executed, archived same day) **Status**: EXECUTED
+**Proposal**: `doc/improvements/archive/tooling/worktree_fresh_trample_guard.md`
+
+Every worktree shares one `research.db` (symlinked `memory/`), and the
+AGENTS.md doc-edit rule fires `search-fresh` from whichever tree the
+session lives in. An incremental APPLY diffs (my working set) vs (the
+shared index's fingerprints), so a BEHIND tree's delta is non-empty by
+construction — live-reproduced 2026-10-12: wt apply rewrote
+`doc_search` 3186→3185 rows and bumped generation 415305→415306, main's
+next apply bumped 415307 (two bumps + two rewrites per round-trip,
+hundreds/day expected; downstream snapshot/integrity legs failed four
+"ghost" MISMATCHes before noon). Shipped:
+
+- **S1**: per-index apply stamp (HEAD/worktree/ts) in each meta table;
+  export-side `apply_*` exclusion so the first stamping apply + snapshot
+  cannot permanent-drift `db_meta.parquet` (F4).
+- **S2**: three-valued refusal (behind / same-or-forward / divergent —
+  F8 tightened the ancestor-only first cut; the patch-testing worktree
+  shape is divergent, not behind) with `--allow-stale` escape;
+  `--sandbox` scratch-copy preview (S5); 19 guard tests
+  (`tests/test_stale_apply_guard.py`).
+- **S3**: `db_bump_log` ring (last 100, caller file:line + worktree)
+  cited by `--quick` AND the `--check` table-MISMATCH leg (F3 rewired
+  the quick-only first cut; signed deltas; restored vs trigger-driven
+  distinguished); 8 ring/citation tests (`tests/test_bump_log.py`).
+- **S4/F6**: etiquette line in AGENTS.md; `make search-fresh
+  ARGS="--allow-stale"/"--sandbox"` passthrough (sandbox auto-drops the
+  default `--check`: the flags are mutually exclusive).
+- **F9**: `_schema.sqlite.sql` regenerated with the real exporter
+  (+`db_bump_log`, trigger reorder only; replay-verified); the
+  `ensure_db_meta` comment now states the actual mechanism.
+- Delegation-review closings: F1 `ty` annotation on
+  `_extract_sections`, F2 format footprint, F7 S110-noqa + C901
+  `_guard_and_stage` extraction (remaining 6 lint-audit hits proven
+  pre-existing in untouched files).
+
+Uncommitted edits are NOT stale (same HEAD applies); git-less fixtures
+and pre-stamp indexes stay warn-only. Revisit on any post-landing
+unexplained generation MISMATCH or a wrong refusal (tighten, don't
+bypass).
