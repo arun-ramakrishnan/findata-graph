@@ -14,6 +14,7 @@ tmp_path and git/stg are faked, so nothing here touches the real stack or
 from __future__ import annotations
 
 import json
+from pathlib import Path
 from types import SimpleNamespace
 
 import helpers.misc.review_freshness as rf
@@ -419,3 +420,77 @@ class TestFreshnessRangeMode:
     def test_all_refuses_recording_mixes(self):
         with pytest.raises(SystemExit, match="whole-ledger view"):
             rf.main(["--all", "--record"])
+
+
+class TestScanScratchHardening:
+    """E2/E3 (2026-10-12): a read-only $TMPDIR killed the whole scan
+    leg before any scanner ran, and semgrep's startup settings-save
+    targeted the (read-only) home dir. _scratch must fall back to the
+    machine-local outputs/ tree, and the semgrep leg must pin its home
+    dirs into scratch.
+
+    Mutations: remove the fallback loop (primary only) and
+    test_readonly_tmpdir_falls_back goes red; drop the env merge in
+    _run and test_run_merges_env goes red; drop the scan_env pins
+    and test_semgrep_leg_pins_home_dirs goes red."""
+
+    def test_readonly_tmpdir_falls_back(self, tmp_path, monkeypatch):
+        import helpers.misc.review_scan as rsc
+
+        locked = tmp_path / "locked"
+        locked.mkdir()
+        monkeypatch.setenv("TMPDIR", str(locked))
+        real_mkdir = Path.mkdir
+
+        def refuse_tmpdir(self, *a, **kw):
+            if str(self) == str(locked):
+                raise OSError(30, "Read-only file system")
+            return real_mkdir(self, *a, **kw)
+
+        monkeypatch.setattr(Path, "mkdir", refuse_tmpdir)
+        monkeypatch.setattr(rsc, "REVIEW_OUT_DIR", tmp_path / "reviews")
+        got = rsc._scratch("probe_name")
+        assert str(got).startswith(str(tmp_path / "reviews" / ".tmp-review_scan"))
+        assert got.parent.is_dir()  # fallback tree was created
+
+    def test_writable_tmpdir_still_preferred(self, tmp_path, monkeypatch):
+        import helpers.misc.review_scan as rsc
+
+        primary = tmp_path / "primary"
+        monkeypatch.setenv("TMPDIR", str(primary))
+        got = rsc._scratch("probe_name")
+        assert got == primary / "probe_name"
+
+    def test_run_merges_env(self, monkeypatch):
+        import helpers.misc.review_scan as rsc
+
+        seen = {}
+
+        def fake_run(argv, **kw):
+            seen.update(kw.get("env") or {})
+            return SimpleNamespace(stdout="", returncode=0, stderr="")
+
+        monkeypatch.setattr(rsc.subprocess, "run", fake_run)
+        monkeypatch.setenv("KEEP_ME", "kept")
+        rsc._run(["true"], env={"PINNED": "yes"})
+        assert seen.get("PINNED") == "yes"
+        assert seen.get("KEEP_ME") == "kept"
+
+    def test_semgrep_leg_pins_home_dirs(self, tmp_path, monkeypatch):
+        import helpers.misc.review_scan as rsc
+
+        monkeypatch.setattr(rsc, "_venv_bin", lambda name: Path("/bin/true"))
+        monkeypatch.setattr(rsc, "_scratch", lambda name: tmp_path)
+        captured = {}
+
+        def fake_run(argv, **kw):
+            captured.update(kw.get("env") or {})
+            sarif = Path(argv[argv.index("--output") + 1])
+            sarif.write_text('{"runs": []}')
+            return SimpleNamespace(stdout="", returncode=0, stderr="")
+
+        monkeypatch.setattr(rsc, "_run", fake_run)
+        findings, status = rsc._leg_semgrep(["a.py"], {"a.py": {1}}, "head", {"a.py": "a.py"})
+        assert captured.get("SEMGREP_SETTINGS_FILE", "").startswith(str(tmp_path))
+        assert captured.get("XDG_CACHE_HOME", "").startswith(str(tmp_path))
+        assert findings == [] and status.startswith("semgrep: ran")

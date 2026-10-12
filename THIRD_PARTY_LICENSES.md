@@ -29,6 +29,7 @@ following remain under their own rights or are not relicensed by the project:
 | yfinance | Apache-2.0 | Market-data client |
 | sqlite-spellfix | MIT (verify release) | Native SQLite extension |
 | PyYAML | MIT | Frontmatter/validation |
+| defusedxml | PSF-2.0 | XXE/entity-safe XML parsing (shareholding RSS + XBRL lanes) |
 | DuckDB | MIT | Graph/query engine |
 | PyArrow | Apache-2.0 | Parquet/Arrow I/O |
 | NumPy | BSD-3-Clause | Numeric runtime |

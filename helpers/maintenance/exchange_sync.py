@@ -489,8 +489,10 @@ def fetch_us() -> list[Row]:
             if ln.strip() and not ln.startswith("File Creation Time")
         ]
 
-    with urllib.request.urlopen(  # noqa: S310  # https-only archive/file downloads
-        "ftp://ftp.nasdaqtrader.com/symboldirectory/nasdaqlisted.txt", timeout=120
+    # https SymDir mirror — probe-verified byte-identical to the ftp://
+    # original (sha256 match, 2026-10-11 review of e37eb7db0..c27db5496).
+    with urllib.request.urlopen(
+        "https://www.nasdaqtrader.com/dynamic/SymDir/nasdaqlisted.txt", timeout=120
     ) as r:
         nas = _pipe(r.read())
     for r in nas:
@@ -512,8 +514,8 @@ def fetch_us() -> list[Row]:
                 "ticker": sym,
             }
         )
-    with urllib.request.urlopen(  # noqa: S310  # https-only archive/file downloads
-        "ftp://ftp.nasdaqtrader.com/symboldirectory/otherlisted.txt", timeout=120
+    with urllib.request.urlopen(
+        "https://www.nasdaqtrader.com/dynamic/SymDir/otherlisted.txt", timeout=120
     ) as r:
         oth = _pipe(r.read())
     for r in oth:

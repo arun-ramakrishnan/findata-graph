@@ -132,7 +132,7 @@ def _venv_bin(name: str) -> Path | None:
     return path if path.is_file() and os.access(path, os.X_OK) else None
 
 
-def _run(argv: list[str]) -> subprocess.CompletedProcess[str]:
+def _run(argv: list[str], env: dict[str, str] | None = None) -> subprocess.CompletedProcess[str]:
     return subprocess.run(  # noqa: S603  # resolved absolute path, fixed argv, no shell
         argv,
         cwd=REPO_ROOT,
@@ -141,6 +141,7 @@ def _run(argv: list[str]) -> subprocess.CompletedProcess[str]:
         encoding="utf-8",
         errors="replace",  # ranges may touch non-UTF-8 files; never crash the leg
         check=False,
+        env={**os.environ, **env} if env else None,
     )
 
 
@@ -622,7 +623,21 @@ def _leg_semgrep(files: list[str], changed: dict[str, set[int]], head: str, tree
     if not tree:
         return [], "semgrep: no matching files"
     rev = {a: r for r, a in tree.items()}
-    with tempfile.TemporaryDirectory(prefix="review_scan_") as tmp:
+    # Semgrep writes outside the scan tree at startup (E3): its
+    # settings save targets ~/.semgrep (SEMGREP_SETTINGS_FILE) and
+    # the version check touches the XDG cache. Pin both into a
+    # writable scratch root (_scratch falls back to outputs/ when
+    # $TMPDIR is read-only) so a locked-down home dir degrades the
+    # leg instead of killing it before any rule runs. p/default +
+    # p/security-audit + p/secrets need the registry (network) — the
+    # --offline skip and the osv leg share that requirement.
+    home = _scratch("review_scan_semgrep_home")
+    home.mkdir(parents=True, exist_ok=True)
+    scan_env = {
+        "SEMGREP_SETTINGS_FILE": str(home / "settings.yaml"),
+        "XDG_CACHE_HOME": str(home),
+    }
+    with tempfile.TemporaryDirectory(prefix="review_scan_", dir=str(home)) as tmp:
         report = Path(tmp) / "semgrep.sarif"
         proc = _run(
             [
@@ -640,12 +655,15 @@ def _leg_semgrep(files: list[str], changed: dict[str, set[int]], head: str, tree
                 "--output",
                 str(report),
                 *tree.values(),
-            ]
+            ],
+            env=scan_env,
         )
         try:
             payload = json.loads(report.read_text())
         except OSError, json.JSONDecodeError:
-            return [], f"semgrep: failed (no SARIF at {report}, rc={proc.returncode})"
+            tail = (proc.stderr or "").strip().splitlines()
+            hint = tail[-1][:160] if tail else "no stderr"
+            return [], f"semgrep: failed (no SARIF at {report}, rc={proc.returncode}; {hint})"
     findings = []
     for run in payload.get("runs", []):
         rules = {r["id"]: r for r in run.get("tool", {}).get("driver", {}).get("rules", [])}
@@ -861,9 +879,29 @@ def _leg_osv(lockfiles: list[str], tree: dict[str, str] | None = None) -> tuple[
 
 
 def _scratch(name: str) -> Path:
-    base = Path(os.environ.get("TMPDIR", "/tmp"))  # noqa: S108  # env-driven, never a literal /tmp
-    base.mkdir(parents=True, exist_ok=True)
-    return base / name
+    """Writable scratch root for scan materialization (E2).
+
+    Prefers $TMPDIR (house convention), but falls back to the
+    machine-local ``outputs/reviews/.tmp-review_scan/`` tree when $TMPDIR is
+    missing or read-only (2026-10-12: a harness permission episode
+    made the shared tmp EROFS for a session, killing the whole leg
+    before any scanner ran). The fallback is gitignored via
+    ``outputs/`` and never cited as evidence — same doctrine.
+    """
+    primary = Path(os.environ.get("TMPDIR", "/tmp"))  # noqa: S108  # env-driven, never a literal /tmp
+    for base in (primary, REVIEW_OUT_DIR / ".tmp-review_scan"):
+        try:
+            base.mkdir(parents=True, exist_ok=True)
+            probe = base / f".writable_probe_{os.getpid()}"
+            probe.touch()
+            probe.unlink()
+            return base / name
+        except OSError:
+            continue
+    # Unreachable in practice (the repo itself must be writable to
+    # run anything). Never raise: a scanner failure is a status
+    # line, never a crash.
+    return primary / name
 
 
 def _validate_range_args(args: argparse.Namespace) -> int | None:
@@ -984,9 +1022,7 @@ def _uncovered_legs(statuses: list[str]) -> list[str]:
 def _print_deletions(deletions: Sequence[str]) -> None:
     """The deletion census block (S9c): scanners cannot see deleted
     content, so the roster lists it for hand review (20-path cap)."""
-    print(
-        f"\ndeletions: {len(deletions)} — scanners cannot see deleted content; review by hand:"
-    )
+    print(f"\ndeletions: {len(deletions)} — scanners cannot see deleted content; review by hand:")
     for path in deletions[:20]:
         print(f"  D {path}")
     if len(deletions) > 20:

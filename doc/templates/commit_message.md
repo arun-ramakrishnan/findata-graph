@@ -16,7 +16,8 @@
   `derive render arc`, `OKF v0.2 provenance backfill`, `Triage hygiene`,
   `Code duplication consolidation`.
 - Upstream PR squashes append `(#N)`.
-- 50 chars target, 72 hard cap.
+- 50 chars target, 100 hard cap (amended 2026-10-12 from 72; see
+  doc/procedures/commit-messages.md § Subject grammar).
 
 ## BODY (in this order; drop blocks that do not apply)
 

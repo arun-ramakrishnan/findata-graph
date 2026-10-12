@@ -40,10 +40,10 @@ import sqlite3
 import sys
 import time
 import urllib.request
-import xml.etree.ElementTree as ET
 from datetime import datetime, UTC
 from pathlib import Path
 
+import defusedxml.ElementTree as ET
 import duckdb
 
 REPO = Path(__file__).resolve().parents[2]
@@ -139,9 +139,11 @@ def parse_rss(xml_text: str) -> list[dict]:
     as_on, submission_dt, revision_dt, revised_status}] (scalars are
     cross-checks; the XBRL is the source of truth)."""
     # https-only nsearchives lane (stability register) — same trust
-    # level as the CSV lane's S310 exemption; no DTD/entity expansion
-    # in these feeds and no local file URIs are followed.
-    root = ET.fromstring(xml_text)  # noqa: S314
+    # level as the CSV lane's S310 exemption. Parsed with defusedxml:
+    # DTD/entity expansion is forbidden at the parser (enforced), not
+    # assumed away about the feed content (review b28991d54..c777fa9b1,
+    # operator-accepted 2026-10-11).
+    root = ET.fromstring(xml_text)
     out = []
     for item in root.iter("item"):
         link = (item.findtext("link") or "").strip()
@@ -198,7 +200,7 @@ def parse_shp(xml_bytes: bytes) -> dict:
       feed), pairing with ``<Category>_Context<N>`` for the numerics.
     """
     # https-only nsearchives lane (see parse_rss note)
-    root = ET.fromstring(xml_bytes)  # noqa: S314
+    root = ET.fromstring(xml_bytes)
     ctxs: dict[str, dict] = {}
     for c in root.iter(XBRLI + "context"):
         cid = c.get("id") or ""
@@ -400,7 +402,7 @@ def fetch_bse_html_cached(url: str, *, refetch: bool = False) -> str:
 
 def parse_bse_rss(xml_text: str) -> list[dict]:
     """BSE RSS items → [{company, scrip, url, scalars...}]."""
-    root = ET.fromstring(xml_text)  # noqa: S314  # https-only bseindia lane (see parse_rss note)
+    root = ET.fromstring(xml_text)  # https-only bseindia lane (see parse_rss note)
     out = []
     for item in root.iter("item"):
         link = (item.findtext("link") or "").strip()
@@ -642,7 +644,8 @@ def build_candidates(
         """SELECT h.filing_id, h.category, h.holder_name, h.stake_pct, h.shares,
                   h.voting_pct, h.pledged_shares, f.symbol, f.period_end
            FROM shp_holders h JOIN shp_filings f USING (filing_id)
-           WHERE h.named = 1 AND h.stake_pct >= ?""".replace("?", str(float(min_stake)))
+           WHERE h.named = 1 AND h.stake_pct >= ?""",
+        [float(min_stake)],
     ).fetchall()
     by_filing: dict[str, list] = {}
     for row in holders:

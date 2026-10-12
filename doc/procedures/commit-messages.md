@@ -17,9 +17,25 @@ or `git commit -t <file>` (git). One-time convenience:
 | `db_sync:` / `snapshot:` | mechanical, stack-local data refreshes — bare prefix, no `[Findata]` | `29e34e44`, `d29410a9`, `aa499829` |
 | `(#N)` suffix | upstream PR squash merges | `03cd70e8` (#218), `aed9d84e` (#217) |
 
-Imperative mood; name the mechanism, not the symptom; 50 chars target,
-72 hard cap. An em-dash may carry the payoff: `[Findata] quote capture:
-person/role catch-all tier — chairman/regulator quotes route to Quotes.md`.
+Imperative mood; name the mechanism, not the symptom; **50 chars target,
+100-char cap** (amended 2026-10-12 — the old 72-char hard cap was
+violated by 33 of 49 subjects in the `291e61604..29e34e44e` review range,
+median 84 / max 147; nothing enforced it, so the number described a
+practice the corpus did not follow. Now measured and enforced by review
+rather than aspiration). An em-dash may carry the payoff, and the payoff
+is the one thing worth spending the extra width on: `[Findata] quote
+capture: person/role catch-all tier — chairman/regulator quotes route to
+Quotes.md`.
+
+Two prefix rules the cap amendment does not relax:
+
+- **A mechanical refresh uses the bare prefix, not prose.** `db_sync:` /
+  `snapshot:` are the whole prefix for a data refresh — `b057071c4`
+  (`Refresh of db_sync — …`) is the known deviation, not the model.
+- **A subject is never empty.** A blank subject is a defect whatever the
+  content: `4c613b3a7` is an empty commit (zero diff against its parent)
+  that still occupies a slot in the series with no readable summary. If a
+  commit carries no work, drop it rather than land it unnamed.
 
 ## Body order
 
@@ -38,7 +54,15 @@ person/role catch-all tier — chairman/regulator quotes route to Quotes.md`.
 5. **`Gates:` trailer** — only gates actually run, with counts:
    `Gates: make qa 9/9, make advisory 10/10, make perf 22/22, make
    search-fresh APPLY=1, make static_checks all pass` (`03cd70e8`,
-   `f458fb04`). Data refreshes may omit it.
+   `f458fb04`). Data refreshes may omit it. **The trailer is the
+   machine-readable form and it is the one that counts** — a `Verified:`
+   or prose gate claim is readable to a human but invisible to
+   `gate_query`, which keys off the artifact records rather than the
+   message. Measured 2026-10-12 over `291e61604..29e34e44e`: 3 of 49
+   commits carry a literal `Gates:` trailer (`73e3c8dc`, `03cd70e8`,
+   `ff34ac9e`), while arc patches with real gate evidence spell it as
+   prose (`aed9d84e` `Verified: make qa 9/9 AND make advisory 10/1`).
+   Any commit claiming gates ran should use the trailer form.
 
 ## Binary DB diffs are reviewable text — the textconv pair
 

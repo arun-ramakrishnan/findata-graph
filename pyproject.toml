@@ -105,6 +105,12 @@ dependencies = [
     # Pulls pydantic + cyclopts + rich (rich already present).
     "prefab-ui==0.20.2",
     "zstandard>=0.25.0",
+    # XXE/entity-safe XML parsing for the SHP/VIGIL RSS + XBRL lanes
+    # (helpers/maintenance/shareholding_sync.py). Replaces the stdlib
+    # xml.etree.ElementTree S314 exemptions — parser-level enforcement
+    # instead of a content claim about external feeds (review of
+    # b28991d54..c777fa9b1, operator-accepted 2026-10-11).
+    "defusedxml",
 ]
 
 [project.optional-dependencies]

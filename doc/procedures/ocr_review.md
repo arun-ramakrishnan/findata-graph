@@ -3,7 +3,7 @@
 **Date:** 2026-09-28 · **Proposal:** `doc/improvements/archive/tooling/ocr_review_pipeline.md` (S2)
 **Scope:** `.opencodereview/rule.json`, `ocr delegate preview` / `ocr delegate rule` (bun global install, unpinned), the four repo indexes, and the host-agent review loop. Not the domain triage kit in `review-kit.md` — that one rehouses evidence queues, it does not review diffs.
 
-**Related issue:** [prime-agent#3082](https://github.com/PrimeIntellect-ai/prime-agent/issues/3082) — kernel snapshot/restore silently truncates files: dill-revived `'w'` file handles reopen with `O_TRUNC` at every kernel restart. This zeroed the evidence file `doc/local/engineering/code_review.md` three times during the 2026-09-28 trial. Until it lands upstream, write doc-local notes with `Path(p).write_text(...)` — never a captured `open(..., 'w')` handle.
+**Related issue:** [prime-agent#3082](https://github.com/PrimeIntellect-ai/prime-agent/issues/3082) — kernel snapshot/restore silently truncates files: dill-revived `'w'` file handles reopen with `O_TRUNC` at every kernel restart. This zeroed the then-evidence file `doc/local/engineering/code_review.md` three times during the 2026-09-28 trial (evidence home moved to `outputs/reviews/` on 2026-10-11 — operator ruling: that file is instructions, not evidence). Until it lands upstream, write doc-local notes with `Path(p).write_text(...)` — never a captured `open(..., 'w')` handle.
 
 ## What this loop is
 
@@ -95,7 +95,8 @@ driven by `helpers/misc/review_freshness.py`:
   `scan` — the native scanner leg; repeatable. Record ONLY the legs that
   actually ran — the upsert unions legs across records, so a leg recorded
   by mistake must be corrected in the row, not re-recorded; `--note`
-  carries the verdict pointer, e.g. the code_review.md section). Upsert
+  carries the verdict pointer, e.g. the review-report section under
+  `outputs/reviews/`). Upsert
   by fingerprint — re-reviewing the same diff updates the row instead of
   duplicating it.
 - Verified 2026-09-29: record ⇒ FRESH; perturbed fingerprint ⇒ STALE ("the
@@ -152,7 +153,7 @@ that reports it *outside* a live session is a real finding.
     review_freshness.py --from $Y --to $H --record --leg scan --note "verdict pointer"
 
     # close a review (runbook 6c): record ONLY the legs that ran
-    review_freshness.py --from X --to Y --record --leg delegation --leg scan --note "code_review.md §…"
+    review_freshness.py --from X --to Y --record --leg delegation --leg scan --note "outputs/reviews/review_report_<from>..<to>.md §…"
 
     # visibility: every completion record, newest first (--show is scope-scoped)
     review_freshness.py --all
@@ -222,7 +223,7 @@ A finding set is a hypothesis until it survives these checks. Two legs make it m
 3. **Re-verify at HEAD, not at the reviewed ref.** The tree moves. Walk the finding list with a presence script and drop what later commits already fixed (2026-09-28: the inert `findata-graph-desktop` allowlist, gone via `ff59665c`). Keep the script's output in the evidence file — "15/17 present" is the number the fix arc works from.
 4. **Sweep the vault before calling anything a defect.** `doc_query.py`, `convo_query.py`, `memory_query.py` (standing doctrine — "known class" often lives in the harness pools), an `rg` over `pending.md` and the `status: deferred|rejected` markers, `ripwire . --grep=<symbol>` — then classify each finding: **regression-of-record** (violates what a completed entry landed), **documented scope** (the proposal drew the boundary on purpose), **known class / deferred**, or **novel**. The sweep's job is to find the ones that are none of your business before the operator has to.
 5. **File the proposal before fixing** — house rule for multi-slice work; the index line in `proposals/README.md` rides the same patch, and anything touching rosters/crosswalks/extractor rules carries the eval-gate bullet.
-6. **Persist the triage**, not just the verdict: accounting table, presence-script output, sweep queries with their hits, false-positive list — in `doc/local/engineering/code_review.md` (gitignored evidence home). The false positives matter; they stop the next session re-litigating them.
+6. **Persist the triage**, not just the verdict: accounting table, presence-script output, sweep queries with their hits, false-positive list — in the review report under `outputs/reviews/` (gitignored; naming `review_report_<from>..<to>.md`, beside the rosters and the freshness ledger). The false positives matter; they stop the next session re-litigating them.
 7. **Audit commit/gate claims against the corpus** (bake-off class 7, caught by only 2 of 9 rounds): a commit message's "make qa 11/11" is a hypothesis — re-derive via `gate_query recent --gate qa`, and `git merge-base --is-ancestor <sha> HEAD` any SHA the claim leans on (a gate recorded at a rewritten, non-ancestor SHA backs nothing). The companion proposal record often states it accurately; diff the two.
 8. **Sweep for pointers the diff broke.** Any `git mv`/deletion in range: grep the old path repo-wide (docs *and* code — a docstring in a touched `.py` counts). doc-hygiene's sweeps own the doc corpus (`proposals/` refs, A4 archive pointers); the review-time duty is diff-scoped because fixture strings in tests make a mechanical code sweep false-positive-prone — read the citing line before filing. An armed `pending.md` trigger pointing nowhere is blocking.
 
@@ -273,8 +274,8 @@ filed from the same session), 1,430,594 input (1,370,112 cache-read =
 95.8 %, 60,482 fresh), 26,694 output → $0.56 notional, $0 billed, ~9 min
 wall; the OCR delegation leg itself $0 / 0 tokens / 0.3 s. Delegation reviews are free by design — the
 cost line is the host's, and it is what keeps delegation-vs-managed
-comparisons honest (see the cache-fairness note in
-`doc/local/engineering/code_review.md`).
+comparisons honest (see the review evidence under `outputs/reviews/`;
+pre-2026-10-11 notes remain in `doc/local/engineering/code_review.md`).
 
 ## Known limits
 
@@ -287,9 +288,9 @@ comparisons honest (see the cache-fairness note in
 
 ## Keeping this current
 
-**This procedure is the canonical home for the rules** — model/tooling facts, the triage contract, the selection caveats. Evidence and transcripts belong in `doc/local/engineering/code_review.md` (local, gitignored); decisions belong in `doc/improvements/archive/tooling/ocr_review_pipeline.md`. Do not restate evidence here.
+**This procedure is the canonical home for the rules** — model/tooling facts, the triage contract, the selection caveats. Evidence and transcripts belong in `outputs/reviews/` (local, gitignored; since 2026-10-11 — `doc/local/engineering/code_review.md` is an instruction file, not evidence, per operator ruling); decisions belong in `doc/improvements/archive/tooling/ocr_review_pipeline.md`. Do not restate evidence here.
 
-**Never cite scratch as evidence.** `csr_lane_remediation.md` §2 titles its evidence table "from `/tmp/ocr_delegation.md`" — a throwaway path that will not resolve for the next reader, and that table backs four remediation slices. Either copy the transcript into `code_review.md` and cite that, or inline the findings and cite the commit.
+**Never cite scratch as evidence.** `csr_lane_remediation.md` §2 titles its evidence table "from `/tmp/ocr_delegation.md`" — a throwaway path that will not resolve for the next reader, and that table backs four remediation slices. Either copy the transcript into the review report under `outputs/reviews/` and cite that, or inline the findings and cite the commit.
 
 **A managed pass is a second opinion only if it runs a different model from yours.** Delegation is not an independent check on the host — it *is* the host. Record requested-vs-served model *and* the host model; if they match, the pass costs tokens and buys nothing. The 2026-09-28 pairing that earned its keep: GLM `glm-5.3` spotted a defect, Space Bunny as host proved it by mutation.
 
@@ -443,7 +444,7 @@ The §4b checks as commands. Do these **before** ranking severity — a finding 
     ripwire . --grep="<symbol>" --grep-in=any --legend=compact
 
     # 5. proposal + index line in the same patch
-    # 6. evidence → doc/local/engineering/code_review.md
+    # 6. evidence → outputs/reviews/review_report_<from>..<to>.md
 
 ### 6c. Record the completion row (the loop's last mandatory act)
 
@@ -453,7 +454,7 @@ re-pays the whole range. Immediately after triage (6b) and BEFORE apply
 
     # landed pair (the common case for a completed range):
     review_freshness.py --from X --to Y --record \
-        --leg delegation --leg scan --note "<verdict pointer: code_review.md §…>"
+        --leg delegation --leg scan --note "<verdict pointer: outputs/reviews/<report>.md §…>"
 
     # stack mode (reviewing the applied stack):
     review_freshness.py --stack N --record --leg delegation --note "…"

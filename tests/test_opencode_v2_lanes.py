@@ -8,9 +8,11 @@ lane interaction — not just lane output — is asserted.
 
 from __future__ import annotations
 
+import hashlib
 import json
 import sqlite3
 import sys
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 import pytest
@@ -162,7 +164,7 @@ def _v2_db(path: Path) -> None:
     ):
         con.execute(
             "INSERT INTO event VALUES (?, 's9', ?, 'message.part.updated.1', ?, ?)",
-            (f"e{i}", i, json.dumps({"sessionID": "s9", "part": part}), t),
+            (f"e{i}", i, json.dumps({"sessionID": "s9", "time": t, "part": part}), t),
         )
     con.commit()
     con.close()
@@ -219,6 +221,20 @@ def test_v2_lane_content_model_and_skips(v2_env):
     assert json.loads(rows["prt_1"]["meta"])["hash"] == "h2"
     assert rows["prt_3"]["part_type"] == "step-finish"
     assert "prt_2" not in rows
+    # event rows carry the payload $.time (int epoch-ms) as ts: the fixture
+    # must prove the extraction, not just survival (114,159/114,159 real rows
+    # carry $.time; a regression here also blanks new_hwm and the evt drift
+    # frontier — asserted below and in test_v2_drift_names_lane)
+    assert rows["prt_1"]["ts"] == datetime(1970, 1, 1, tzinfo=UTC) + timedelta(milliseconds=1501)
+    assert rows["prt_3"]["ts"] == datetime(1970, 1, 1, tzinfo=UTC) + timedelta(milliseconds=1503)
+    evt_key = (
+        "opencode:live:" + hashlib.blake2b(str(_db).encode(), digest_size=6).hexdigest() + ":evt"
+    )
+    store = hc.Store(tmp_path / "c.duckdb", read_only=True)
+    try:
+        assert store.watermark(evt_key) == "1503"
+    finally:
+        store.close()
 
 
 def test_v2_rerun_quiet_no_dupes(v2_env):
@@ -247,6 +263,33 @@ def test_v2_drift_names_lane(v2_env):
     assert out["index_stale"]
     assert any(":v2" in d for d in out["stale_new"]), out["stale_new"]
     assert not any(d.startswith("changed opencode:live (") for d in out["stale_new"])
+    # evt frontier: an EVENT-only change fires :evt — evtmax and the stored
+    # watermark floor both ride payload $.time, so this pins the same
+    # extraction the ts assertions above pin, through the drift path
+    con = sqlite3.connect(db)
+    con.execute(
+        "INSERT INTO event VALUES ('e9', 's9', 9, 'message.part.updated.1', ?, 9000)",
+        (
+            json.dumps(
+                {
+                    "sessionID": "s9",
+                    "time": 9000,
+                    "part": {
+                        "id": "prt_9",
+                        "sessionID": "s9",
+                        "messageID": "m-a1",
+                        "type": "patch",
+                        "hash": "h9",
+                        "files": ["c.py"],
+                    },
+                }
+            ),
+        ),
+    )
+    con.commit()
+    con.close()
+    out = hc.harvest(check=True, corpus_root=tmp_path / "corpus", db=tmp_path / "c.duckdb")
+    assert any(":evt" in d for d in out["stale_new"]), out["stale_new"]
 
 
 def test_v2_backfill_seed_skips_harvested(v2_env):
