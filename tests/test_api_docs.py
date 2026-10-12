@@ -17,8 +17,7 @@ derivation, path-traversal guarding, content fetching, and the search
 ranking + snippet shape.
 """
 
-import os
-import time
+import sqlite3
 from types import SimpleNamespace
 
 import pytest
@@ -205,7 +204,12 @@ class TestDocsSearch:
         assert "duckdb" in hit["snippet"].lower()
 
     def test_no_matches_empty_list(self, client):
-        data = client.get("/api/docs/search?q=zzz_never_matches_zzz").get_json()
+        """The lexical leg's no-match contract: gibberish yields an empty
+        page. (Hybrid legitimately serves dense-vector near-neighbors for
+        the same query — the cosine leg has no zero-result notion — so
+        this pins the bm25 path.)"""
+        data = client.get("/api/docs/search?q=zzz_never_matches_zzz&hybrid=0").get_json()
+        assert data["mode"] == "bm25"
         assert data["results"] == []
 
     def test_limit_clamp(self, client):
@@ -220,16 +224,30 @@ class TestDocsSearch:
         assert r.status_code == 400
 
     def test_results_ranked_by_relevance(self, client):
-        """Every hit genuinely contains the query, and the top hit is a real
-        match (snippet carries it). Both modes centre snippets on a match."""
+        """The top hit is a real match centred in its snippet; every served
+        row is a true FTS match of the query (checked against the index —
+        hits may match via title/section or, post-S7, the enrichment
+        columns, which a content-only snippet cannot show)."""
         data = client.get("/api/docs/search?q=sector").get_json()
         assert data["results"]
         top = data["results"][0]
         assert "sector" in top["snippet"].lower()
         assert "<mark>" in top["snippet"]
-        # All hits are genuine matches.
-        for hit in data["results"]:
-            assert "sector" in hit["snippet"].lower()
+        # All hits are genuine matches of the query in the index.
+        from helpers.maintenance import rebuild_doc_search as rds
+
+        expr = rds.fts_match_expr("sector")
+        probe = sqlite3.connect(f"file:{rds.DOC_DB}?mode=ro", uri=True)
+        try:
+            for hit in data["results"]:
+                n = probe.execute(
+                    "SELECT COUNT(*) FROM doc_search "
+                    "WHERE file_path = ? AND doc_search MATCH ?",
+                    (hit["path"], expr),
+                ).fetchone()[0]
+                assert n >= 1, hit["path"]
+        finally:
+            probe.close()
 
 
 # --------------------------------------------------------------------------- #
@@ -319,10 +337,15 @@ class TestDocsSearchModes:
         assert "<mark>" in cache_row["snippet"]
 
     def test_stale_index_falls_back_to_scan(self, tmp_doc_env, fake_local, client):
+        """A genuinely-changed corpus (hash differs) degrades to the scan.
+        A bare mtime touch is NOT stale any more — the #387 mtime-gate fix
+        made content, not mtime, the verdict."""
         tmp_doc_env.rds.rebuild(write=True)
         guide = tmp_doc_env.root / "guide.md"
-        future = time.time() + 10
-        os.utime(guide, (future, future))
+        guide.write_text(
+            guide.read_text(encoding="utf-8") + "\n## Post-Freeze\nnew body\n",
+            encoding="utf-8",
+        )
         data = client.get("/api/docs/search?q=cache").get_json()
         assert data["mode"] == "scan"
         assert data["stale"] is True

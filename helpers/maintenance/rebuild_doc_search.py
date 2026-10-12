@@ -53,6 +53,7 @@ Exit codes: 0 success/fresh, 1 fatal error OR --check detected drift.
 import hashlib
 import re
 import sqlite3
+import os
 import sys
 from collections.abc import Callable
 from pathlib import Path, PurePosixPath
@@ -66,6 +67,7 @@ if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
 from helpers.core.embed_cache import CachedEmbed  # noqa: E402
+from helpers.core import gemma_embedder  # noqa: E402
 from helpers.core.vec_codec import load_vec, pack_f32  # noqa: E402
 from helpers.core.fs_walk import iter_tree_files  # noqa: E402
 from helpers.maintenance import rebuild_common as rbc  # noqa: E402
@@ -93,10 +95,23 @@ DOC_SEARCH_DDL = (
     "anchor UNINDEXED, "  # 3  1-based line number of the section header
     "content, "  # 4  full section body (header line included)
     "embedding UNINDEXED, "  # 5  JSON vector for hybrid ranking; not tokenized
+    "meta, "  # 6  frontmatter title/status/area, no key prefixes (S7)
+    "links, "  # 7  outgoing md links + ref lines, cap 900 (S7)
+    "trail, "  # 8  first h1 (S7)
     "tokenize = 'porter unicode61'"
     ")"
 )
-_DOC_SEARCH_COLUMNS = {"title", "section_title", "file_path", "anchor", "content", "embedding"}
+_DOC_SEARCH_COLUMNS = {
+    "title",
+    "section_title",
+    "file_path",
+    "anchor",
+    "content",
+    "embedding",
+    "meta",
+    "links",
+    "trail",
+}
 
 # Per-file fingerprint for the incremental mode (P2.1 analogue). Docs have no
 # DB-side inputs (unlike note entity docs), so the raw file text IS the change
@@ -122,6 +137,13 @@ DOC_SEARCH_INFO_DDL = (
 # ~512 tokens (~2K chars) anyway; 4K keeps a little headroom for the
 # title/section prefix without paying JSON-serialization weight per row.
 _EMBED_BODY_CAP = 4000
+
+# Doc-leg embedder selector (doc_search_gemma_adoption S1, #363 shape):
+# adoption default resolves the EmbeddingGemma-2 sidecar whenever it is
+# available; DOC_EMBEDDER=granite forces the legacy shared path (the
+# rollback/diagnostic escape — it must never write a gemma-stamped index,
+# guard_gemma_stamp refuses that at the write path).
+DOC_EMBEDDER_ENV = "DOC_EMBEDDER"
 
 _H2 = "## "
 
@@ -232,10 +254,54 @@ def resolve_embedder() -> tuple[Callable[[str], list[float]], int, str]:
     return fn, dims, label
 
 
-def query_embedder() -> tuple[Callable[[str], list[float]], int]:
-    """Query-side counterpart for hybrid search: same availability gate,
-    embed_query semantics (BGE retrieval prefix). Callers enforce the
-    same-model rule via stored_embed_dims()."""
+def resolve_doc_embedder() -> tuple[Callable[[str], list[float]], int, str, bool]:
+    """(embed_fn, dims, model_label, gemma_active) for the doc surface.
+
+    Adoption default (doc_search_gemma_adoption S1): gemma whenever the
+    sidecar/model is available, granite fallback otherwise — for indexes
+    NOT gemma-stamped. A gemma-stamped index REFUSES the fallback at the
+    write path (helpers.core.gemma_embedder.guard_gemma_stamp, 2026-10-08:
+    the silent fallback un-migrated the stamp twice live on the script
+    leg); DOC_EMBEDDER overrides: `granite` forces the legacy shared path
+    (the rollback escape), `gemma` forces gemma.
+    """
+    want = os.environ.get(DOC_EMBEDDER_ENV, "").strip().lower()
+    if want == "granite":
+        fn, dims, label = resolve_embedder()
+        return fn, dims, label, False
+    if gemma_embedder.available():
+        return (
+            gemma_embedder.embed_document,
+            gemma_embedder.DIM,
+            gemma_embedder.MODEL_LABEL,
+            True,
+        )
+    if want == "gemma":
+        print(
+            "WARNING: DOC_EMBEDDER=gemma but the gemma sidecar/model is "
+            "unavailable — falling back to the granite path",
+            file=sys.stderr,
+            flush=True,
+        )
+    fn, dims, label = resolve_embedder()
+    return fn, dims, label, False
+
+
+def query_embedder(model_label: str | None = None) -> tuple[Callable[[str], list[float]], int]:
+    """Query-side counterpart for hybrid search, stamp-aware (#363 shape):
+    the INDEX stamp decides, not the env — the query must live in the
+    index's vector space. The gemma label serves the sidecar with
+    task="search" (the exact prose contract the #386 trial scored);
+    anything else keeps the granite path (legacy default). Callers
+    enforce the same-model rule via stored_embed_model/stored_embed_dims.
+    """
+    if model_label == gemma_embedder.MODEL_LABEL:
+
+        def _gemma_q(text: str) -> list[float]:
+            return gemma_embedder.embed_query(text, task="search")
+
+        return _gemma_q, gemma_embedder.DIM
+
     from helpers.core import local_embedder
 
     if local_embedder.available():
@@ -295,15 +361,73 @@ def _noop_embed(_text: str) -> list[float]:
     return []
 
 
-def _embedding_f32(embed_fn, title: str, section_title: str, content: str) -> bytes | None:
-    """Embed one chunk and serialize to JSON, or None on failure.
+def _doc_basis(title: str, section_title: str, content: str, *, gemma: bool) -> str:
+    """Embed text for one section.
 
-    Text basis mirrors the note_search embed helper: title +
-    section + capped body, so the vector is dominated by the headings for
-    heading-typed queries while still capturing the body.
+    gemma=True: the trial-pinned pure-prose recipe (#386, byte-exact —
+    the form the eval scored; `title: none` when absent, mirroring the
+    script leg's index half). gemma=False: the legacy newline-form
+    prefix (granite era) — kept verbatim so granite rollback rebuilds
+    hit the same cache keys as the rows they replace. The basis is
+    applied at the index site, never inside the embedder module, so
+    cache keys are exactly the embedded text (basis form + cap ride in
+    the sha256; the model label rides beside it in the (hash, model)
+    key).
+    """
+    if gemma:
+        return f"title: {title or 'none'} | text: {section_title}\n{content[:_EMBED_BODY_CAP]}"
+    return f"{title}\n{section_title}\n{content[:_EMBED_BODY_CAP]}"
+
+
+def _file_enrichment(text: str) -> tuple[str, str, str]:
+    """(meta, links, trail) enrichment columns for one file (adoption S7).
+
+    Byte-exact port of the probe's parse_corpus per-file logic
+    (bench_data/embgemma2/scripts/docs_probe_enrich.py — the harness the
+    S7 numbers were measured with). meta = frontmatter title/status/area,
+    no key prefixes; links = outgoing md links (skipping http/mailto/data/
+    anchors/images) + reference lines (**Follows**/completed.md #N/
+    see `doc/), stripped of emphasis, cap 900; trail = first h1.
+    """
+    lines = text.splitlines()
+    fm: dict[str, str] = {}
+    if lines and lines[0].strip() == "---":
+        for line in lines[1:]:
+            if line.strip() == "---":
+                break
+            if ":" in line:
+                k, v = line.split(":", 1)
+                fm[k.strip()] = v.strip().strip('"')
+    trail = next((ln[2:].strip() for ln in lines if ln.startswith("# ")), "")
+    parts: list[str] = []
+    for m in re.finditer(r"\[([^\]]+)\]\(([^)\s]+)\)", text):
+        tgt = m.group(2).strip()
+        if tgt.startswith(("http", "mailto:", "data:", "#")):
+            continue
+        if re.search(r"\.(png|jpg|jpeg|svg|gif)$", tgt, re.I):
+            continue
+        parts.append(f"{m.group(1).strip()} {tgt}")
+    ref_line = re.compile(
+        r"\*\*(Follows|Follow-up|See also|See|References?|Adopted (?:in|by))\*\*"
+        r"|completed\.md #\d+|see `doc/"
+    )
+    for ln in lines:
+        if ref_line.search(ln):
+            parts.append(re.sub(r"[*`]", "", ln).strip())
+    meta = " ".join(fm.get(k, "") for k in ("title", "status", "area")).strip()
+    links = " ".join(parts)[:900]
+    return meta, links, trail
+
+
+def _embedding_f32(
+    embed_fn, title: str, section_title: str, content: str, *, gemma: bool = False
+) -> bytes | None:
+    """Embed one chunk and serialize to f32 bytes, or None on failure.
+
+    Text basis via _doc_basis (gemma selects the trial-pinned recipe).
     """
     try:
-        vec = embed_fn(f"{title}\n{section_title}\n{content[:_EMBED_BODY_CAP]}")
+        vec = embed_fn(_doc_basis(title, section_title, content, gemma=gemma))
     except Exception:  # noqa: S110  # best-effort; missing rows stay searchable
         return None
     if not vec:
@@ -321,7 +445,9 @@ def _text_hash(abs_path: Path) -> str | None:
     return hashlib.blake2b(text.encode("utf-8", errors="replace"), digest_size=8).hexdigest()
 
 
-def _file_rows(abs_path: Path, rel: str, embed_fn) -> tuple[list[tuple], str | None]:
+def _file_rows(
+    abs_path: Path, rel: str, embed_fn, *, gemma: bool = False
+) -> tuple[list[tuple], str | None]:
     """Read one doc file into its FTS row tuples + its raw-text fingerprint.
 
     Returns (rows, content_hash); (rows=[], hash=None) on read error — the
@@ -332,6 +458,7 @@ def _file_rows(abs_path: Path, rel: str, embed_fn) -> tuple[list[tuple], str | N
     except OSError:
         return [], None
     title = _doc_title(text, rel)
+    meta, links, trail = _file_enrichment(text)
     rows = []
     for section_title, anchor, body in _split_sections(text):
         rows.append(
@@ -341,7 +468,10 @@ def _file_rows(abs_path: Path, rel: str, embed_fn) -> tuple[list[tuple], str | N
                 rel,
                 anchor,
                 body,
-                _embedding_f32(embed_fn, title, section_title, body),
+                _embedding_f32(embed_fn, title, section_title, body, gemma=gemma),
+                meta,
+                links,
+                trail,
             )
         )
     # Raw text IS the change key for this corpus (no DB-side inputs).
@@ -466,10 +596,21 @@ def rebuild(  # noqa: C901
         # cached (caching a hash would only bloat the sidecar).
         embed_dims = _PSEUDO_DIMS
         model_label: str | None = None
+        gemma_active = False
         if embed_fn is None:
             if write:
-                embed_fn, embed_dims, model_label = resolve_embedder()
+                embed_fn, embed_dims, model_label, gemma_active = resolve_doc_embedder()
                 stats["embed_model"] = model_label
+                # Top-level demotion guard (helpers.core.gemma_embedder,
+                # 2026-10-08, script-leg incidents): a gemma-stamped index
+                # is never silently re-embedded by the fallback model —
+                # that un-migrates the stamp. DOC_EMBEDDER=granite is the
+                # explicit escape.
+                gemma_embedder.guard_gemma_stamp(
+                    stored_embed_model(conn),
+                    model_label,
+                    os.environ.get(DOC_EMBEDDER_ENV),
+                )
                 if model_label != f"dry-run-v{_PSEUDO_DIMS}":
                     # No automatic model-difference purge (2026-10-08): a
                     # prior-model row is rollback insurance, dead-text
@@ -494,7 +635,8 @@ def rebuild(  # noqa: C901
             reuse = {}
             by_file: dict[str, list[tuple]] = {}
             for r in conn.execute(
-                "SELECT title, section_title, file_path, anchor, content, embedding FROM doc_search"
+                "SELECT title, section_title, file_path, anchor, content, embedding, "
+                "meta, links, trail FROM doc_search"
             ):
                 by_file.setdefault(r[2], []).append(tuple(r))
             for fp, rows in by_file.items():
@@ -529,7 +671,7 @@ def rebuild(  # noqa: C901
                     rows_by_file[rel] = reuse[rel]
                     carried.add(rel)
                     continue
-            rows, chash = _file_rows(abs_path, rel, embed_fn)
+            rows, chash = _file_rows(abs_path, rel, embed_fn, gemma=gemma_active)
             if chash is None:
                 continue
             rows_by_file[rel] = rows
@@ -603,8 +745,8 @@ def rebuild(  # noqa: C901
             stored = [
                 tuple(r)
                 for r in conn.execute(
-                    "SELECT title, section_title, file_path, anchor, content, embedding "
-                    "FROM doc_search"
+                    "SELECT title, section_title, file_path, anchor, content, embedding, "
+                    "meta, links, trail FROM doc_search"
                 )
             ]
             content_changed = Counter(stored) != Counter(all_rows)
@@ -613,8 +755,9 @@ def rebuild(  # noqa: C901
                 if all_rows:
                     conn.executemany(
                         "INSERT INTO doc_search "
-                        "(title, section_title, file_path, anchor, content, embedding) "
-                        "VALUES (?, ?, ?, ?, ?, ?)",
+                        "(title, section_title, file_path, anchor, content, embedding, "
+                        "meta, links, trail) "
+                        "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
                         all_rows,
                     )
                 conn.execute("DELETE FROM doc_search_meta")
@@ -659,8 +802,9 @@ def rebuild(  # noqa: C901
                 if rows_by_file[rel]:
                     conn.executemany(
                         "INSERT INTO doc_search "
-                        "(title, section_title, file_path, anchor, content, embedding) "
-                        "VALUES (?, ?, ?, ?, ?, ?)",
+                        "(title, section_title, file_path, anchor, content, embedding, "
+                        "meta, links, trail) "
+                        "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
                         rows_by_file[rel],
                     )
                 conn.execute(
@@ -844,37 +988,66 @@ def search_docs(  # noqa: C901
     if not expr:
         return {"mode": "bm25", "results": []}
     try:
-        # Column-weighted BM25: title + section_title matches count double
-        # against body matches (pool-independent, unlike a post-hoc boost)
-        # — a file whose TITLE says "completed work log" must not lose its
-        # best chunk to a body-dense competitor (the eval's completed.md
-        # lesson). Weights map to (title, section_title, file_path,
-        # anchor, content, embedding); the UNINDEXED columns take 0.
+        # Column-weighted BM25 (schema-length: the S7 enrichment columns
+        # ride at 1.0, the UNINDEXED handles at 0.0): title +
+        # section_title matches count double against body matches
+        # (pool-independent, unlike a post-hoc boost) — a file whose TITLE
+        # says "completed work log" must not lose its best chunk to a
+        # body-dense competitor (the eval's completed.md lesson). Weights
+        # follow PRAGMA column order; the legacy 6-col schema keeps its
+        # exact historical vector.
+        col_w: dict[str, float] = {
+            "title": 2.0,
+            "section_title": 2.0,
+            "file_path": 0.0,
+            "anchor": 0.0,
+            "content": 1.0,
+            "embedding": 0.0,
+            "meta": 1.0,
+            "links": 1.0,
+            "trail": 1.0,
+        }
+        cols = [r[1] for r in conn.execute("PRAGMA table_info(doc_search)")]
+        weights = ", ".join(str(col_w.get(c, 0.0)) for c in cols)
         page = conn.execute(
             "SELECT rowid, title, section_title, file_path, anchor, embedding, rank, "
-            "snippet(doc_search, 4, '<mark>', '</mark>', ' … ', 16) AS snip "
-            "FROM doc_search WHERE doc_search MATCH ? "
-            "ORDER BY bm25(doc_search, 2.0, 2.0, 0.0, 0.0, 1.0, 0.0) LIMIT ?",
+            f"snippet(doc_search, 4, '<mark>', '</mark>', ' … ', 16) AS snip "
+            f"FROM doc_search WHERE doc_search MATCH ? "
+            f"ORDER BY bm25(doc_search, {weights}) LIMIT ?",
             (expr, limit + offset),
         ).fetchall()
     except sqlite3.Error:
         return {"mode": "bm25", "results": []}
 
     # Cosine leg: whole-table Python scan (no vec0 mirror at this scale —
-    # ~600 rows x 384 dims is sub-millisecond) gated on the stored dims.
-    # hybrid=False (the eval BM25 baseline / the ?hybrid=0 opt-out) skips it.
+    # ~600 rows x 384 dims is sub-millisecond) gated on the stored stamp:
+    # the query must live in the index's vector space (S2, the #367
+    # mirror). A shared QueryVector whose model/dims disagree with the
+    # stamp is dropped (NOTE, reason surfaced) and the leg re-embeds
+    # stamp-locally; an unresolvable space (sidecar down on a gemma
+    # index) degrades to BM25 with the reason on the result. hybrid=False
+    # (the eval BM25 baseline / the ?hybrid=0 opt-out) skips it.
     q_vec: list[float] | None = None
+    note: str | None = None
     if hybrid:
         try:
+            idx_model = stored_embed_model(conn)
             idx_dims = stored_embed_dims(conn)
             if query_vec is not None:
-                q_vec = rbc.check_query_vector(stored_embed_model(conn), idx_dims, query_vec)
+                q_vec = rbc.check_query_vector(idx_model, idx_dims, query_vec)
+                if q_vec is None and query_vec.model != (idx_model or ""):
+                    note = (
+                        f"query-vector stamp mismatch (index "
+                        f"{idx_model or 'unstroked'}/{idx_dims}d, QV "
+                        f"{query_vec.model}/{query_vec.dims}d) — embedding locally"
+                    )
             if q_vec is None:
-                embed_q, _dims = query_embedder()
+                embed_q, _dims = query_embedder(idx_model)
                 candidate = embed_q(q)
                 if idx_dims is not None and idx_dims == len(candidate):
                     q_vec = candidate
         except Exception:  # noqa: S110  # embedder unavailable -> BM25 only
+            note = note or "vector embedder unavailable — bm25-only"
             q_vec = None
 
     cos_rank: dict[int, int] | None = None
@@ -971,7 +1144,10 @@ def search_docs(  # noqa: C901
             "similarity": round(sims[row[0]], 6) if row[0] in sims else None,
         }
         results.append(item)
-    return {"mode": "hybrid" if cos_rank is not None else "bm25", "results": results}
+    out = {"mode": "hybrid" if cos_rank is not None else "bm25", "results": results}
+    if note:
+        out["note"] = note
+    return out
 
 
 def _summary_line(stats: dict) -> str:

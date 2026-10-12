@@ -10396,6 +10396,33 @@ and pre-stamp indexes stay warn-only. Revisit on any post-landing
 unexplained generation MISMATCH or a wrong refusal (tighten, don't
 bypass).
 
+## 386. Doc-search gemma eval — gate cleared, docs leg ruled for gemma
+
+**Date**: 2026-10-13 (filed 2026-10-12, executed + archived next day)
+**Status**: EXECUTED
+**Proposal**: `doc/improvements/archive/tooling/doc_search_gemma_eval.md`
+
+The §4.8 docs-leg negative (2026-10-07) was re-opened as a recipe-bound
+question and answered with a 5-arm scratch trial. D1 floors frozen
+first on the settled corpus (3,207 rows @ HEAD `408c8f90`, bank
+expects corrected same-day): hybrid-granite 16/18 (exact 7/7, variant
+5/6, semantic 4/5), bm25 14/18. D2 full-pool gemma arms on a scratch
+`--db` (live granite stamp untouched throughout): hybrid-gemma 17/18
+MRR 0.716 vs granite 16/18 MRR 0.659 — zero exact-tier regressions;
+the +1 is dsem-05 (granite rank 20 → gemma 4). The free reference arm
+refuted the trial's own premise: §4.8's exact @4000 recipe re-scored
+on today's corpus ties the @8k arm (17/18, MRR 0.708 vs 0.716) — the
+§4.8 negative was corpus drift + stale bank labels, not the recipe;
+basis-cap search is dead (cap stays 4000). vec8k diagnostic posted the
+best MRR of all arms (0.728 solo vs 0.716 fused) — RRF dilutes a
+strong vector leg; hybrid stays the gate shape. Operator ruled
+adoption (thin margin +1, but tail-quality pattern and no exact cost);
+successor: `doc_search_gemma_adoption.md` (proposals, live). Artifacts:
+content-hash-keyed vector snapshots
+(`bench_data/embgemma2/vectors/docs_trial2_gemma8k.npz` +
+`docs_trial2_recipe4k.npz`), floors record, full scorecard
+(`outputs/docs_trial2_results.txt`); trial dbs ephemeral by design.
+
 ## 387. doc_index_stale mtime gate — reader hash-verifies, writer heals skew
 
 **Date**: 2026-10-13 (filed, executed, archived same day) **Status**: EXECUTED
@@ -10445,3 +10472,95 @@ sanctioned apply; full rebuilds needed to clear it: zero.
 Revisit if a staleness surface is added elsewhere: the reader-heal pair
 is now the doctrine — never compare raw mtimes to a hash-written meta
 row without a content fallback (memory leg's comment says it in-source).
+
+## 388. Doc-search gemma adoption — 512-d sidecar cutover, gated live
+
+**Date**: 2026-10-13 (filed, executed, archived same day) **Status**: EXECUTED
+**Proposal**: `doc/improvements/archive/tooling/doc_search_gemma_adoption.md`
+
+Executed the #386 cleared gate: the doc leg moves from granite-hardwired
+384-d to EmbeddingGemma-2 512-d, hybrid serving, on the trial-pinned
+pure-prose basis `title: {t} | text: {section}\n{content[:4000]}` (the
+@8k cap measured +0.008 MRR — dead; cap stays 4000). Shipped:
+
+- **S1**: `resolve_doc_embedder()` (#363 shape — gemma default,
+  `DOC_EMBEDDER=granite` rollback escape, `gemma` force) +
+  `helpers.core.gemma_embedder.guard_gemma_stamp` on the write path (a
+  gemma-stamped index is never silently re-embedded by the fallback —
+  the twice-live 2026-10-08 un-migration shape). `_doc_basis()` pins the
+  recipe byte-exact; the legacy newline basis is preserved verbatim so
+  rollback rebuilds hit the same cache keys. Cache-keying audit
+  (the catastrophe class): keys are `(sha256(basis_text), model)` —
+  basis form and cap ride in the hash, model beside it; both axes
+  pinned by `test_cache_keys_bind_model_and_basis`. **Seed rider**:
+  `bench_data/embgemma2/scripts/docs_seed_cache.py` seeded 3,204 rows
+  from `docs_trial2_recipe4k.npz` (join by content hash, key by basis
+  hash; 400-sample bit-exact roundtrip verified).
+- **S2**: `query_embedder(model_label)` — the INDEX stamp decides
+  (gemma → `embed_query(task="search")`, the trial's prose contract);
+  `search_docs` drops a stamp-mismatched shared QueryVector with a
+  surfaced `note`, re-embeds stamp-locally, and degrades to bm25 with
+  the reason when no space resolves (#367 mirror, contract matrix
+  tested both directions + sidecar-down).
+- **S3**: rollback snapshot FIRST
+  (`bench_data/embgemma2/vectors/docs_pre_gemma_granite.npz` — 3,218
+  granite vectors, content-hash keyed, the last granite record), then
+  the full-pool cutover rebuild: **3,204 cache hits / 14 misses**
+  (exactly the rows drifted since the trial), 3,218/3,218 vectors
+  512-d, zero granite remnants, stamp `embeddinggemma-2-q8_512`/512,
+  `stale: False`. Minutes (seeded), not the 1–1.5 h unseeded figure.
+- **S4 — PASS on the live index**: frozen bank 17/18 recall@5 (exact
+  7/7, variant 5/6, semantic 5/5 — dsem-05 the predicted +1), MRR 0.708
+  vs floor 0.69, bm25 0.594 matching the trial arm for arm
+  (`outputs/docs_post_cutover_gate_2026-10-13.txt`). Consumer smoke:
+  `doc_query` hybrid + `--bm25` ✓, `/api/docs/search` via the Flask
+  test client (all 18 served hybrid) ✓; the TUI docs lane rides the
+  same `search_docs` contract.
+- **S5**: `doc/procedures/search.md` doc-leg setup rewritten
+  (sidecar-first, refusal semantics, escape); assessment Appendix B.1
+  cutover record.
+
+Rollback = revert + restore the granite npz (content-hash keyed) +
+`DOC_EMBEDDER=granite`. Fast-follow S7 (combo field enrichment,
+MRR ≥ 0.72 gate) intentionally unbundled — one change, one gate.
+
+## 389. Doc-search S7 field enrichment — meta/links/trail columns, MRR 0.759
+
+**Date**: 2026-10-13 **Status**: EXECUTED
+**Proposal**: `doc/improvements/archive/tooling/doc_search_gemma_adoption.md` §S7
+(fast-follow of #388, gate pre-declared)
+
+The enrichment probe (#386 trial artifacts) measured combo enrichment at
+MRR 0.741 vs 0.708 base with recall flat — real but small, exactly the
+two rank-1 promotions the rankdiff named (dex-03, dvar-02). Landed:
+
+- **Schema**: `doc_search` grew to 9 FTS columns — `meta` (frontmatter
+  title/status/area, no key prefixes), `links` (outgoing md links
+  skipping http/mailto/data/anchors/images, + `**Follows**`/completed.md
+  #N/see-doc ref lines, cap 900), `trail` (first h1) — all INDEXED,
+  appended after `embedding` (content stays index 4 for snippets).
+  Migration via `_migrate_schema` drop-recreate; re-embed fully
+  cache-served (3,220 hits / 0 misses — the S1 seed rider paying off,
+  minutes not an hour).
+- **Extraction**: `_file_enrichment()` byte-exact from the probe harness
+  (`bench_data/embgemma2/scripts/docs_probe_enrich.py`); incremental
+  carry path re-selects all 9 columns so carried rows stay insertable.
+- **Weights**: bm25 weighting now schema-length — by column name
+  (title/section_title 2.0, content 1.0, enrichment 1.0, UNINDEXED 0.0);
+  a legacy 6-col index keeps its exact historical vector.
+- **Gate (live, PASS)**: recall 17/18 (floor ≥16, exact 7/7, semantic
+  5/5), **MRR hybrid 0.759** (gate ≥ 0.72, pre-S7 0.708, probe 0.741);
+  bm25 recall 0.78 → 0.83, MRR 0.611. dex-03 → rank 1, dvar-02 → rank 2;
+  dvar-04 stays the lone all-mode miss (phrasing, enrichment-immune).
+- **Contract-test updates** (encoding post-hybrid semantics, not
+  regressions): gibberish queries serve dense-vector neighbors by design
+  — the no-match contract pins the bm25 path; served hits may match via
+  enrichment columns a content-only snippet cannot show (row verified
+  against the FTS MATCH instead); stamp-matched QVs serve hybrid with
+  zero embed calls anywhere (per-leg stamp QVs — the search legs are
+  gemma-stamped, memory is gemma-stamped since its own adoption,
+  convo granite); the stale-scan test now writes a real content change
+  (#387 made mtime-only touches fresh).
+
+Revisit: any fourth staleness surface or a new leg adoption folds into
+the existing stamp/mismatch contract tests rather than new policy.

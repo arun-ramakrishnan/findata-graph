@@ -40,6 +40,17 @@ entry number and stale DONE pointers):
 
 _(none)_ — every proposal filed here is executed and archived.
 
+`doc_search_gemma_adoption` was filed and executed the same day
+(2026-10-13) and archived immediately after
+(`../archive/tooling/doc_search_gemma_adoption.md`, completed.md #388):
+the doc leg now embeds EmbeddingGemma-2 512-d on the trial-pinned
+pure-prose @4000 recipe (S1, `DOC_EMBEDDER=granite` escape +
+`guard_gemma_stamp`), the read path is stamp-keyed with surfaced
+degradation notes (S2), and the cutover ran at 3,204/3,218 cache hits
+from the trial seed (S3) with the S4 gate PASS on live (17/18, exact
+7/7, MRR 0.708 — the trial reproduced arm-for-arm). S7 (combo field
+enrichment, MRR ≥ 0.72) is the gated fast-follow.
+
 `doc_index_stale_mtime_gate` was filed and executed the same day
 (2026-10-13) and archived immediately after
 (`../archive/tooling/doc_index_stale_mtime_gate.md`, completed.md #387):
@@ -51,23 +62,25 @@ gate (S3 survey).
 
 `worktree_fresh_trample_guard` was filed and executed the same day
 (2026-10-12) and archived immediately after
-(`../archive/tooling/worktree_fresh_trample_guard.md`, completed.md
-#385): working-set stamp (S1), three-valued stale-apply refusal with
+(`../archive/tooling/worktree_fresh_trample_guard.md`,
+completed.md #385): working-set stamp (S1), three-valued stale-apply refusal with
 `--allow-stale` + `--sandbox` (S2/S5), bump-log ring with `--check`
 citation (S3), Makefile ARGS passthrough + etiquette (S4); delegation
 findings F1–F9 closed.
 
 `default_incremental_rebuilds` was filed and executed the same
 day (2026-10-12) and archived immediately after
-(`../archive/tooling/default_incremental_rebuilds.md`, completed.md
-#384): the search-index CLIs default to incremental rebuilds with
+(`../archive/tooling/default_incremental_rebuilds.md`, completed.md #384):
+the search-index CLIs default to incremental rebuilds with
 `--full` as the opt-out, ~40 MB of no-op gate rewrites avoided. Every
 other proposal filed here is executed and archived. The range-review
 remediation (`range_4fd3a20f_review_remediation`, all 13
 slices + low-tier dispositions, completed.md #382) archived 2026-10-11.
   Evidence in `doc/local/engineering/code_review.md`.
 
-
+_(none)_ — every proposal filed here is executed and archived. The last
+three batches went out filed + executed + archived in one session
+(2026-10-10):
 _(previous batch — all executed and archived in one session 2026-10-10)_:
 
 - `checklist_leg_review` (completed.md #381) — the OCR checklist leg against

@@ -211,7 +211,11 @@ class TestDocsHermetic:
             fell = rds.search_docs(conn, "cache design", limit=5, query_vec=bad)
         finally:
             conn.close()
-        assert fell == own  # fallback to local embed, never silent garbage
+        # Same results (fallback re-embeds locally, never dots mismatched
+        # spaces); the #388 S2 contract surfaces the mismatch as a note.
+        assert fell["mode"] == own["mode"]
+        assert fell["results"] == own["results"]
+        assert "note" in fell
 
     def test_shared_branch_skips_local_load(self, seeded_docs, fake_local, monkeypatch):
         # Own embedder rigged to blow up: a correctly-stamped shared vector
@@ -504,47 +508,76 @@ class TestLiveNoLocalLoad:
         mp.undo()
 
     def test_all_legs_hybrid_without_local_embed(self, monkeypatch):
+        """One shared QV per LEG STAMP (stamps diverged post-cutover: the
+        search legs are gemma-stamped, memory/convo granite), matched to
+        its index — then every fallback embed path (granite local AND the
+        gemma sidecar) booms: a stamp-matched QV must serve hybrid with
+        zero embed calls anywhere."""
+        from helpers.core import gemma_embedder as gem
         from helpers.core import local_embedder as le
-        from helpers.maintenance import rebuild_doc_search as rds
 
-        qv = rbc.make_query_vector(_Q)
-        assert qv is not None and len(qv.vector) == 384
+        def _boom(*_a, **_k):
+            raise RuntimeError("must not embed at call time")
 
-        def _boom(_t: str):
-            raise RuntimeError("must not embed locally")
+        # Build per-leg stamp-matched QVs BEFORE any boom (this is the
+        # only embed work the fan-out is allowed to do).
+        docs_mod, conn = _live_docs()
+        try:
+            m, d = docs_mod.stored_embed_model(conn), docs_mod.stored_embed_dims(conn)
+            embed_q, _ = docs_mod.query_embedder(m)
+            doc_qv = rbc.QueryVector(tuple(embed_q(_Q)), m, d)
+        finally:
+            conn.close()
 
-        monkeypatch.setattr(rds, "query_embedder", lambda: (_boom, 384))
+        rss_mod, conn = _live_scripts()
+        try:
+            m = rss_mod._script_stored_embed_model(conn) or "granite-embedding-97m-r2"
+            embed_q, d = rss_mod.query_embedder(m)
+            script_qv = rbc.QueryVector(tuple(embed_q(_Q)), m, d)
+        finally:
+            conn.close()
+
+        rms_mod, conn = _live_memory()
+        try:
+            m = rms_mod._stored_embed_model(conn)
+            embed_q, d = rms_mod._query_embedder_for(m)
+            mem_qv = rbc.QueryVector(tuple(embed_q(_Q)), m or "granite-embedding-97m-r2", d)
+        finally:
+            conn.close()
+
+        from helpers.misc import convo_query as _cq
+
+        con = _cq.connect(_cq.DEFAULT_DB)
+        try:
+            convo_qv = rbc.make_query_vector(_Q)
+            assert convo_qv is not None
+        finally:
+            con.close()
+
+        # Boom every embed path: local granite + gemma sidecar + both
+        # legs' mismatch-fallback hooks. Stamp-matched QVs need none.
         monkeypatch.setattr(le, "embed_query", _boom)
+        monkeypatch.setattr(gem, "embed_query", _boom)
+        monkeypatch.setattr(docs_mod, "query_embedder", lambda label=None: (_boom, 8))
 
         docs_mod, conn = _live_docs()
         try:
-            out = docs_mod.search_docs(conn, _Q, limit=_LIM, query_vec=qv)
+            out = docs_mod.search_docs(conn, _Q, limit=_LIM, query_vec=doc_qv)
         finally:
             conn.close()
         assert out["mode"] == "hybrid" and out["results"]
 
         rss_mod, conn = _live_scripts()
         try:
-            out = rss_mod.search_scripts(conn, _Q, limit=_LIM, query_vec=qv)
+            out = rss_mod.search_scripts(conn, _Q, limit=_LIM, query_vec=script_qv)
         finally:
             conn.close()
-        # Gemma-stamped live index (script_search_gemma_adoption): the
-        # granite shared vector is stamp-rejected by design, so the leg
-        # falls back to its own (gemma sidecar) embed and the paraphrase
-        # query routes vector-only. Either stamp's healthy mode passes
-        # (rollback-safe); the granite hooks above still prove no granite
-        # load happens on this path. The result PAGE needs the sidecar
-        # (sidecar down = empty vector page by design, never a silent
-        # BM25 substitution), so page content is asserted only when the
-        # sidecar is reachable — the test_gemma_adoption live-class
-        # guard, inline.
         assert out["mode"] in ("hybrid", "vector")
-        if gemma_embedder.available():
-            assert out["results"]
+        assert out["results"]
 
         rms_mod, conn = _live_memory()
         try:
-            out = rms_mod.search_memories(conn, _Q, limit=_LIM, query_vec=qv)
+            out = rms_mod.search_memories(conn, _Q, limit=_LIM, query_vec=mem_qv)
         finally:
             conn.close()
         assert out["mode"] == "hybrid" and out["results"]
@@ -553,11 +586,9 @@ class TestLiveNoLocalLoad:
         # so the live leg is vacuously empty here — the hermetic
         # TestNotesHermetic pins the notes shared branch instead.
 
-        from helpers.misc import convo_query as cq
-
-        con = cq.connect(cq.DEFAULT_DB)
+        con = _cq.connect(_cq.DEFAULT_DB)
         try:
-            out = cq.search(con, _Q, limit=_LIM, query_vec=qv)
+            out = _cq.search(con, _Q, limit=_LIM, query_vec=convo_qv)
         finally:
             con.close()
         assert out["mode"] == "hybrid" and out["results"]

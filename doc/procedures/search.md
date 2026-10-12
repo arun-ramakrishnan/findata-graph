@@ -78,11 +78,18 @@ make search-fresh APPLY=1      # refresh all four instead
 
 ### One-time setup (per machine)
 
-Reuses the same local bge-small model as the notes index (setup in
-`helpers/core/local_embedder.py`; see `embeddings.md` §one-time-setup —
-model file is shared, no second download). Without the model the rebuild
-still succeeds with deterministic 64-dim pseudo-embeddings (WARNING on
-stderr) — BM25 works, the cosine leg is lexical-ish only.
+Embeds via the **EmbeddingGemma-2 sidecar** since the doc-leg gemma
+adoption (2026-10-13, completed.md #388; basis: the trial-pinned
+pure-prose `title: {t} | text: {section}\n{content[:4000]}`, stamped
+`embeddinggemma-2-q8_512`/512d). Setup: `make embgemma-server`
+(`:8732`, `-c 16384 -ub 16384` — the `-ub` floor is mandatory for
+long bases). With the sidecar down the rebuild REFUSES on a
+gemma-stamped index (`guard_gemma_stamp` — no silent model swap);
+`DOC_EMBEDDER=granite` forces the legacy bge-small path explicitly for
+rollback diagnostics (setup in `helpers/core/local_embedder.py`; that
+era's vectors were 384-d newline-prefix based). Without any model the
+rebuild still succeeds with deterministic 64-dim pseudo-embeddings
+(WARNING on stderr) — BM25 works, the cosine leg is lexical-ish only.
 
 ### Build / refresh
 

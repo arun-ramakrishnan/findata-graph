@@ -22,6 +22,7 @@ import pytest
 
 from helpers.core.vec_codec import load_vec  # noqa: E402
 from helpers.core.zstd_io import decompress_file  # noqa: E402
+from helpers.maintenance import rebuild_common as rbc  # noqa: E402
 from helpers.maintenance import rebuild_doc_search as rds  # noqa: E402
 
 pytestmark = [pytest.mark.integration]
@@ -111,6 +112,247 @@ def _conn(db_path):
 
 def _rows(con, query, args=()):
     return [tuple(r) for r in con.execute(query, args)]
+
+
+# --- S7 field enrichment -----------------------------------------------------
+
+
+class TestEnrichment:
+    def test_extraction_meta_links_trail(self):
+        text = (
+            "---\n"
+            "title: Widget Audit\n"
+            "status: executed\n"
+            "area: helpers/misc\n"
+            "extra: ignored\n"
+            "---\n"
+            "# Widget Audit Guide\n"
+            "\n"
+            "Body without the secret token.\n"
+            "\n"
+            "See [the docs](doc/procedures/x.md) and [upstream](https://out.sa) "
+            "and [anchor](#local) and ![pic](x.png).\n"
+            "**Follows**: `doc/improvements/proposals/w.md`\n"
+            "Recorded in completed.md #12.\n"
+        )
+        meta, links, trail = rds._file_enrichment(text)
+        assert meta == "Widget Audit executed helpers/misc"
+        assert trail == "Widget Audit Guide"
+        # real link + ref lines kept; http/anchor/image targets skipped
+        assert "the docs doc/procedures/x.md" in links
+        assert "Follows" in links and "completed.md #12" in links
+        assert "https://out.sa" not in links
+        assert "(#local)" not in links
+        assert "x.png" not in links
+
+    def test_extraction_links_cap_900(self):
+        text = "# T\n" + "\n".join(
+            f"[l{i}](doc/f{i}.md)" for i in range(200)
+        )
+        _meta, links, _trail = rds._file_enrichment(text)
+        assert len(links) == 900
+        assert "l0" in links
+
+    def test_meta_column_is_matchable(self, seeded_docs, fake_local):
+        """A token living ONLY in frontmatter (nowhere in body/title/h1)
+        must find the file through the indexed meta column (S7's point):
+        frontmatter is the ticker-analog findability lever."""
+        (Path(rds.DOC_ROOT) / "design" / "quuxer.md").write_text(
+            "---\n"
+            "title: Zorblaster quadrux pipeline\n"
+            "status: executed\n"
+            "---\n"
+            "# Quuxer Guide\n"
+            "\n"
+            "Ordinary body prose about nothing in particular.\n",
+            encoding="utf-8",
+        )
+        rds.rebuild(write=True)
+        con = rds.connect_doc_db(seeded_docs)
+        try:
+            out = rds.search_docs(con, "quadrux", hybrid=False)
+            paths = [r["path"] for r in out["results"]]
+            assert any("quuxer.md" in p for p in paths)
+        finally:
+            con.close()
+
+    def test_schema_migration_drop_recreate(self, seeded_docs, fake_local):
+        """A pre-S7 6-col index is dropped and recreated with the 9-col
+        schema on the next rebuild (FTS5 can't ALTER ADD); the rebuild
+        repopulates fully and search serves hybrid."""
+        con = rds.connect_doc_db(seeded_docs)
+        try:
+            con.execute(
+                "CREATE VIRTUAL TABLE IF NOT EXISTS doc_search USING fts5("
+                "title, section_title, file_path UNINDEXED, anchor UNINDEXED, "
+                "content, embedding UNINDEXED, tokenize = 'porter unicode61')"
+            )
+            con.execute(
+                "INSERT INTO doc_search (title, section_title, file_path, anchor, "
+                "content, embedding) VALUES ('old', 'old', 'doc/x.md', 1, 'old body', NULL)"
+            )
+            con.commit()
+        finally:
+            con.close()
+        stats = rds.rebuild(write=True)
+        assert stats["mode"] == "full"
+        con = rds.connect_doc_db(seeded_docs)
+        try:
+            cols = [r[1] for r in con.execute("PRAGMA table_info(doc_search)")]
+            assert cols[-3:] == ["meta", "links", "trail"]
+            out = rds.search_docs(con, "cache warmup")
+            assert out["mode"] == "hybrid"
+        finally:
+            con.close()
+
+
+class TestGemmaAdoption:
+    """doc_search_gemma_adoption S1/S2 contract tests."""
+
+    def test_basis_pin_byte_exact(self):
+        """The adoption recipe, byte-exact (#386 pin): pure-prose form,
+        `title: none` when absent, cap 4000."""
+        assert (
+            rds._doc_basis("Arch Guide", "Ingest", "body text", gemma=True)
+            == "title: Arch Guide | text: Ingest\nbody text"
+        )
+        assert (
+            rds._doc_basis("", "S", "x" * 5000, gemma=True)
+            == "title: none | text: S\n" + "x" * 4000
+        )
+        # Legacy granite basis unchanged (rollback cache keys preserved).
+        assert rds._doc_basis("T", "S", "b", gemma=False) == "T\nS\nb"
+
+    def test_cache_keys_bind_model_and_basis(self):
+        """The catastrophe-class audit (S1): a granite vector can never be
+        served under a gemma key. Cache keys are (sha256(basis_text),
+        model) — BOTH axes move the key, so a stamp flip re-embeds."""
+        from helpers.core.embed_cache import _hash
+
+        legacy = rds._doc_basis("T", "S", "body", gemma=False)
+        gemma = rds._doc_basis("T", "S", "body", gemma=True)
+        assert _hash(legacy) != _hash(gemma), "basis form must move the key"
+        # (hash, model) is the PK: same text under two labels = two rows.
+        assert rds.gemma_embedder.MODEL_LABEL != "granite-embedding-97m-r2"
+
+    def test_resolve_selector_escapes(self, monkeypatch):
+        """DOC_EMBEDDER=granite forces the legacy path even with gemma up;
+        DOC_EMBEDDER=gemma forces gemma when available."""
+        from helpers.core import gemma_embedder as gem
+
+        monkeypatch.setattr(gem, "available", lambda: True)
+        monkeypatch.setenv("DOC_EMBEDDER", "granite")
+        fn, dims, label, gemma_active = rds.resolve_doc_embedder()
+        assert gemma_active is False
+        assert label != gem.MODEL_LABEL
+
+        monkeypatch.setenv("DOC_EMBEDDER", "gemma")
+        fn, dims, label, gemma_active = rds.resolve_doc_embedder()
+        assert gemma_active is True
+        assert label == gem.MODEL_LABEL
+        assert dims == gem.DIM
+
+    def test_guard_refuses_fallback_on_gemma_stamp(self, tmp_path):
+        """A gemma-stamped index refuses a fallback-model rebuild write
+        (the 2026-10-08 un-migration incident shape); DOC_EMBEDDER=granite
+        is the explicit escape."""
+        from helpers.core import gemma_embedder as gem
+
+        with pytest.raises(gem.GemmaStampDemotion):
+            gem.guard_gemma_stamp(gem.MODEL_LABEL, "granite-embedding-97m-r2", None)
+        # Explicit escape passes; matched stamp passes.
+        gem.guard_gemma_stamp(gem.MODEL_LABEL, "granite-embedding-97m-r2", "granite")
+        gem.guard_gemma_stamp(gem.MODEL_LABEL, gem.MODEL_LABEL, None)
+
+    def test_gemma_build_stamps_and_bases(self, seeded_docs, monkeypatch):
+        """Full-pool gemma build: stamp lands, embedded texts carry the
+        pinned pure-prose basis (never the legacy newline form)."""
+        from helpers.core import gemma_embedder as gem
+
+        seen_texts: list[str] = []
+
+        def _fake_gemma_doc(text: str) -> list[float]:
+            seen_texts.append(text)
+            return [0.1] * gem.DIM
+
+        monkeypatch.setattr(gem, "available", lambda: True)
+        monkeypatch.setattr(gem, "embed_document", _fake_gemma_doc)
+        monkeypatch.setattr(gem, "embed_query", lambda text, task="search": [0.2] * gem.DIM)
+        monkeypatch.delenv("DOC_EMBEDDER", raising=False)
+        stats = rds.rebuild(write=True)
+        assert stats["embed_model"] == gem.MODEL_LABEL
+        con = rds.connect_doc_db(seeded_docs)
+        try:
+            info = dict(con.execute("SELECT key, value FROM doc_search_info").fetchall())
+            assert info["embed_model"] == gem.MODEL_LABEL
+            assert info["embed_dims"] == str(gem.DIM)
+            assert seen_texts
+            assert all(t.startswith("title: ") for t in seen_texts)
+        finally:
+            con.close()
+
+    def test_read_path_stamp_mismatch_matrix(self, seeded_docs, fake_local, monkeypatch):
+        """S2: mismatched spaces are never dotted. QV/stamp disagreement
+        drops the QV (note surfaced) and the leg re-embeds stamp-locally;
+        a resolvable space serves hybrid, an unresolvable one (sidecar
+        down) degrades to bm25 with the reason."""
+        from helpers.core import gemma_embedder as gem
+
+        rds.rebuild(write=True)  # granite-stamped index (fake_local)
+        con = rds.connect_doc_db(seeded_docs)
+        try:
+            stamp = rds.stored_embed_model(con)
+            # gemma QV (512d) vs granite stamp (8d in the fixture): QV
+            # dropped → local granite embed fits → hybrid + mismatch note.
+            gqv = rbc.QueryVector(
+                vector=tuple([0.3] * gem.DIM), model=gem.MODEL_LABEL, dims=gem.DIM
+            )
+            out = rds.search_docs(con, "cache warmup", query_vec=gqv)
+            assert out["mode"] == "hybrid"
+            assert "note" in out and "mismatch" in out["note"]
+            # Matched-stamp QV serves hybrid with no note.
+            lqv = rbc.QueryVector(
+                vector=tuple(_fake_vec("cache warmup")), model=stamp, dims=8
+            )
+            out2 = rds.search_docs(con, "cache warmup", query_vec=lqv)
+            assert out2["mode"] == "hybrid"
+            assert "note" not in out2
+        finally:
+            con.close()
+
+        # Gemma-stamped index (fake gemma embedder): granite QV dropped,
+        # stamp-aware local gemma embed (512d) fits → hybrid + note.
+        monkeypatch.setattr(gem, "available", lambda: True)
+        monkeypatch.setattr(gem, "embed_document", lambda text: [0.1] * gem.DIM)
+        monkeypatch.setattr(gem, "embed_query", lambda text, task="search": [0.2] * gem.DIM)
+        monkeypatch.setenv("DOC_EMBEDDER", "gemma")
+        try:
+            stats = rds.rebuild(write=True)
+        finally:
+            monkeypatch.delenv("DOC_EMBEDDER", raising=False)
+        assert stats["embed_model"] == gem.MODEL_LABEL
+        con = rds.connect_doc_db(seeded_docs)
+        try:
+            granite_qv = rbc.QueryVector(
+                vector=tuple(_fake_vec("cache warmup")),
+                model="granite-embedding-97m-r2",
+                dims=8,
+            )
+            out3 = rds.search_docs(con, "cache warmup", query_vec=granite_qv)
+            assert out3["mode"] == "hybrid"
+            assert "note" in out3 and "mismatch" in out3["note"]
+
+            # Sidecar down on the gemma index: no resolvable space →
+            # bm25-only with the reason.
+            def _dead_query(text, task="search"):
+                raise ConnectionError("sidecar down")
+
+            monkeypatch.setattr(gem, "embed_query", _dead_query)
+            out4 = rds.search_docs(con, "cache warmup", query_vec=granite_qv)
+            assert out4["mode"] == "bm25"
+            assert "note" in out4
+        finally:
+            con.close()
 
 
 # --- chunking (pure unit) ----------------------------------------------------
