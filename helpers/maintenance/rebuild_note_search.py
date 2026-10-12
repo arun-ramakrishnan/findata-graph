@@ -1204,6 +1204,7 @@ def main(argv: list[str] | None = None) -> int:
             db_help="Path to research.db (default: memory/research.db).",
             check_help="Count indexable docs without writing (for CI / dry-run).",
             incremental_help="Incremental rebuild (only re-index changed/deleted files, P2.1).",
+            full_help="Full rebuild: delete the sidecar and rebuild from scratch.",
             rebuild_fn=rebuild,
             summary=_summary_line,
             migrated_msg="(schema migrated: note_search recreated with embedding column)",

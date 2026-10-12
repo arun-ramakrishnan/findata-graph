@@ -46,6 +46,7 @@ Usage::
 from __future__ import annotations
 
 import fcntl
+import json
 import os
 import re
 import shutil
@@ -110,6 +111,18 @@ def _outputs_root() -> Path:
 
 
 OUTPUTS_ROOT = _outputs_root()
+
+# Live-gate marker for run_perf_benchmarks's contention guard: published at
+# main() start, removed in its finally. pid-liveness on the reader side
+# keeps a crashed lane's stale file from blocking perf forever.
+_HEARTBEAT = OUTPUTS_ROOT / ".gate_active"
+
+
+def _publish_heartbeat(lane: str, run_id: str) -> None:
+    """Announce a running gate lane (see tests/run_perf_benchmarks.py)."""
+    _HEARTBEAT.write_text(
+        json.dumps({"lane": lane, "pid": os.getpid(), "started": run_id})
+    )
 # gate_run_search S1: per-gate junitxml for pytest legs — machine-ground
 # per-test outcomes + durations for the outputs/gate_runs.duckdb index
 # (helpers/misc/gate_query.py); xdist merges worker shards into one file.
@@ -600,26 +613,30 @@ def main(argv: list[str] | None = None) -> int:
     started = started_dt.strftime("%Y-%m-%d %H:%M:%S")
     run_id = started_dt.strftime("%Y%m%dT%H%M%S-%f")
     t0 = time.perf_counter()
-    results = run_gate(GATES[name], jobs)
-    elapsed = time.perf_counter() - t0
-    ended = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    print("\n".join(table_lines(results, started=started, ended=ended, elapsed=elapsed)))
-    artifact_dir = retain_test_artifacts(name, run_id, started_dt)
-    report = OUTPUTS_ROOT / f"{name}_report.md"
-    write_report(
-        report,
-        name,
-        results,
-        jobs,
-        started=started,
-        elapsed=elapsed,
-        artifact_dir=artifact_dir,
-    )
+    _publish_heartbeat(name, run_id)
     try:
-        shown = report.relative_to(REPO_ROOT)
-    except ValueError:  # linked-worktree copy lives in the MAIN repo tree
-        shown = report
-    print(f"appended to {shown}")
+        results = run_gate(GATES[name], jobs)
+        elapsed = time.perf_counter() - t0
+        ended = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        print("\n".join(table_lines(results, started=started, ended=ended, elapsed=elapsed)))
+        artifact_dir = retain_test_artifacts(name, run_id, started_dt)
+        report = OUTPUTS_ROOT / f"{name}_report.md"
+        write_report(
+            report,
+            name,
+            results,
+            jobs,
+            started=started,
+            elapsed=elapsed,
+            artifact_dir=artifact_dir,
+        )
+        try:
+            shown = report.relative_to(REPO_ROOT)
+        except ValueError:  # linked-worktree copy lives in the MAIN repo tree
+            shown = report
+        print(f"appended to {shown}")
+    finally:
+        _HEARTBEAT.unlink(missing_ok=True)
     return 0 if overall_ok(results) else 1
 
 

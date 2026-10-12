@@ -2455,6 +2455,42 @@ def _process_pattern_matches(
             )
 
 
+def _extract_sections(
+    content: str,
+    doc_type: str,
+    edition_title: str,
+    newsletter_type: str,
+    resolver: EntityResolver,
+    source_entity_override: str | None,
+) -> tuple[list[tuple[str, str]], str, dict[str, set[str]]]:
+    """Build section list and source_ref based on doc_type.
+
+    Returns (sections, source_ref_default, group_to_companies).
+    """
+    group_to_companies: dict[str, set[str]] = {}
+
+    if doc_type == "company":
+        source_ref_default = (
+            f"derive:relations:company_note:{source_entity_override or edition_title}"
+        )
+        body = _strip_yaml_front_matter(content)
+        source_entity = source_entity_override or _resolve_h1_title(body, resolver)
+        if source_entity is None:
+            return [], source_ref_default, group_to_companies
+        sections = [(source_entity, body)]
+    else:
+        source_ref_default = f"derive:relations:{newsletter_type}"
+        sections = []
+        for heading_name, _hs, body_start, body_end in _split_sections(content):
+            resolved = resolver.resolve(heading_name)
+            body = content[body_start:body_end]
+            sections.append((resolved, body))
+            if resolved is None:
+                _capture_groups(body, "", None, group_to_companies)
+
+    return sections, source_ref_default, group_to_companies
+
+
 def extract_relations(
     content: str,
     *,
@@ -2500,33 +2536,15 @@ def extract_relations(
     """
     edges_by_type: dict[str, list[Edge]] = {}
     unresolved: list[Unresolved] = []
-    group_to_companies: dict[str, set[str]] = {}
 
-    if doc_type == "company":
-        source_ref_default = (
-            f"derive:relations:company_note:{source_entity_override or edition_title}"
-        )
-        body = _strip_yaml_front_matter(content)
-        source_entity = source_entity_override or _resolve_h1_title(body, resolver)
-        if source_entity is None:
-            # Keep the tuple shape in sync with the worker contract:
-            # _extract_batch unpacks 3 values (return_groups=True), so the
-            # early exit must honour return_groups too — a bare 2-tuple here
-            # crashed the whole parallel scan on the first unresolvable
-            # company note (measured 2026-10-10: McDonalds.md et al.).
-            if return_groups:
-                return edges_by_type, unresolved, group_to_companies
-            return edges_by_type, unresolved
-        sections: list[tuple[str, str]] = [(source_entity, body)]
-    else:
-        source_ref_default = f"derive:relations:{newsletter_type}"
-        sections = []
-        for heading_name, _hs, body_start, body_end in _split_sections(content):
-            resolved = resolver.resolve(heading_name)
-            body = content[body_start:body_end]
-            sections.append((resolved, body))
-            if resolved is None:
-                _capture_groups(body, "", None, group_to_companies)
+    sections, source_ref_default, group_to_companies = _extract_sections(
+        content,
+        doc_type,
+        edition_title,
+        newsletter_type,
+        resolver,
+        source_entity_override,
+    )
 
     for source_entity, body in sections:
         if source_entity is None:

@@ -1,8 +1,16 @@
+CREATE TABLE credit_ratings(record_id VARCHAR, app_id VARCHAR, company_name VARCHAR, isin VARCHAR, equity_isin VARCHAR, nse_symbol VARCHAR, instrument_type VARCHAR, instrument_name VARCHAR, rating_agency VARCHAR, credit_rating VARCHAR, rating_action VARCHAR, date_of_rating VARCHAR, outlook VARCHAR, credit_rating_earlier VARCHAR, rating_action_earlier VARCHAR, outlook_earlier VARCHAR, date_of_rating_earlier VARCHAR, broadcast_datetime VARCHAR, signatory_name VARCHAR, designation VARCHAR, place VARCHAR, verify_status VARCHAR, match_method VARCHAR, listing_status VARCHAR, source_month VARCHAR, xbrl_url VARCHAR, red_flag_reason VARCHAR);
+
 CREATE TABLE exchange_listings(isin VARCHAR, "name" VARCHAR, industry VARCHAR, asset_type VARCHAR, exchange VARCHAR, segment VARCHAR, symbol VARCHAR, kite_tradingsymbol VARCHAR, kite_token BIGINT, tick_size VARCHAR, lot_size VARCHAR, fetched_at DATE);
 
 CREATE TABLE index_constituents(index_name VARCHAR, index_slug VARCHAR, asset_class VARCHAR DEFAULT('equity') NOT NULL, symbol VARCHAR, isin VARCHAR, company_name VARCHAR, industry VARCHAR, series VARCHAR, as_of DATE, fetched_at DATE NOT NULL, PRIMARY KEY(index_name, symbol, as_of));
 
 CREATE TABLE mca_cin(entity_name VARCHAR, cin VARCHAR, mca_name VARCHAR, status VARCHAR, "class" VARCHAR, pba VARCHAR, state VARCHAR, via VARCHAR, query VARCHAR, fetched_at VARCHAR);
+
+CREATE TABLE rpt_transactions(record_id VARCHAR, seq_num VARCHAR, txn_number VARCHAR, symbol VARCHAR, company_name VARCHAR, period_end_date VARCHAR, broadcast_date VARCHAR, audited VARCHAR, filing_type_sub VARCHAR, entity_name VARCHAR, counter_party VARCHAR, relationship VARCHAR, transaction_type VARCHAR, other_details VARCHAR, approved_value VARCHAR, amount_during_period VARCHAR, outstanding_balance VARCHAR, audit_committee_remarks VARCHAR, loan_nature VARCHAR, loan_interest_rate VARCHAR, loan_tenure VARCHAR, loan_secured VARCHAR, loan_purpose VARCHAR, entity_pan VARCHAR, counter_party_pan VARCHAR, "source" VARCHAR, xbrl_url VARCHAR, rel_group VARCHAR, broadcast_date_parsed VARCHAR, period_end_date_parsed VARCHAR);
+
+CREATE TABLE shp_filings(filing_id VARCHAR PRIMARY KEY, symbol VARCHAR, company_name VARCHAR, url VARCHAR, period_start DATE, period_end DATE, submission_dt VARCHAR, revision_dt VARCHAR, revised_status VARCHAR, promoter_pct DOUBLE, public_pct DOUBLE, emptr DOUBLE, fetched_at TIMESTAMP, content_sha VARCHAR, "source" VARCHAR DEFAULT('NSE'));
+
+CREATE TABLE shp_holders(filing_id VARCHAR, ctx VARCHAR, named INTEGER, category VARCHAR, holder_name VARCHAR, holder_pan VARCHAR, shares BIGINT, stake_pct DOUBLE, voting_pct DOUBLE, pledged_shares BIGINT);
 
 CREATE VIEW vw_equity AS SELECT * FROM exchange_listings WHERE (asset_type = 'equity');
 

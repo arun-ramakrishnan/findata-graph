@@ -38,10 +38,25 @@ entry number and stale DONE pointers):
 
 ## Current live proposals
 
-_(none)_ — every proposal filed here is executed and archived. The
-range-review remediation (`range_4fd3a20f_review_remediation`, all 13
+- `worktree_fresh_trample_guard` (filed 2026-10-12) — a behind-worktree
+  APPLY regresses the shared notes surface and bumps the shared
+  generation (the "ghost" gate-failure chase, 4× on 2026-10-12; live
+  ping-pong reproduced and caller-tagged). Slices: working-set stamp
+  (S1), refuse backward applies with `--allow-stale` (S2, eval-gated),
+  bump-log-citing snapshot_check (S3), etiquette line (S4), `--sandbox`
+  preview lane for behind-wt validation (S5, deferred). Evidence: live
+  reproduction in the proposal §2.
+
+`default_incremental_rebuilds` was filed and executed the same
+day (2026-10-12) and archived immediately after
+(`../archive/tooling/default_incremental_rebuilds.md`, completed.md
+#384): the search-index CLIs default to incremental rebuilds with
+`--full` as the opt-out, ~40 MB of no-op gate rewrites avoided. Every
+other proposal filed here is executed and archived. The range-review
+remediation (`range_4fd3a20f_review_remediation`, all 13
 slices + low-tier dispositions, completed.md #382) archived 2026-10-11.
   Evidence in `doc/local/engineering/code_review.md`.
+
 
 _(none)_ besides the above — every other proposal filed here is executed
 and archived. The last three batches went out filed + executed + archived

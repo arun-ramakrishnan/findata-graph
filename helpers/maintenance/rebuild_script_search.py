@@ -1902,6 +1902,7 @@ def main(argv: list[str] | None = None) -> int:
             check_help="Dry-run: count units/rows, report index freshness "
             "(changed/new/deleted), no writes. Exits 1 when stale.",
             incremental_help="Incremental rebuild (row-keyed diff; unchanged rows not rewritten).",
+            full_help="Full rebuild: delete the sidecar and rebuild from scratch.",
             rebuild_fn=rebuild,
             summary=_summary_line,
             migrated_msg="(schema migrated: script_search recreated)",

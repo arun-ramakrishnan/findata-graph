@@ -10317,3 +10317,38 @@ when unconfigured) instead of content duplication — the raw-log lanes
 stay primary. Close-out fixes in the same change: ty None-guard on tool
 ids, zstandard THIRD_PARTY_LICENSES row, fixture hermeticity (dynamic
 `_dsh_home`, explicit dsh dirs), house `connect()` for the index read.
+
+## 384. Default incremental rebuilds for search indexes + graph fast path
+**Date**: 2026-10-12 (executed) / 2026-10-12 (archived) **Status**: EXECUTED
+**Proposal**: `doc/improvements/archive/tooling/default_incremental_rebuilds.md`
+
+Every search-index CLI defaulted to FULL rebuild (DELETE-all + reinsert)
+because `--incremental` was a `store_true` opt-in the Makefile never
+passed — ~40 MB+ of rewrites plus redundant embedding on every
+advisory/maint gate even when nothing changed. Shipped 2026-10-12:
+
+- `build_rebuild_parser()` flips the CLI default to incremental
+  (`--incremental` store_true with `default=True`) and registers `--full`
+  as the explicit opt-out wherever `full_help` is set — doc/script/memory/
+  note search all advertise it. `run_rebuild_cli()` resolves
+  `incremental = not check and not full and incremental`; the mode string
+  reads `apply+incremental`. Library-level `rebuild(..., incremental=False)`
+  defaults are deliberately unchanged, so rebuild cores and direct-call
+  tests keep exercising the full path.
+- **Bug found in verification**: the first resolver read `args.full`
+  unconditionally, but `--full` is registered conditionally —
+  `rebuild_convo_search.py` (no `full_help`) crashed every APPLY run with
+  `AttributeError` — i.e. the documented `make convo-fresh APPLY=1`
+  workflow was broken by the first cut. Fixed with `getattr(args, "full",
+  False)`; `tests/test_rebuild_cli_flags.py` drives the real CLI resolver
+  and fails with the original AttributeError if reverted. convo_search
+  keeps no `--full` on purpose (its atomic swap already rebuilds the whole
+  DuckDB).
+- Graph criterion already satisfied pre-proposal: `rebuild()` defaults
+  `stamp_centrality=False`, so the `_patch_dirty_tables` fast path
+  (warm cache, clean close, patch-capable) already runs by default;
+  full build remains the fallback when preconditions fail.
+
+No-op gates now write only changed rows/files (often nothing). Archived
+same day; found blocking the Proposal lifecycle static check because the
+executed proposal was still sitting in the live directory.

@@ -109,7 +109,18 @@ DEFAULT_DUCKDB = "memory/graph.duckdb"
 # graph.duckdb drop pass clobbers by that manifest); sources.duckdb is
 # primary external data with its own lifecycle.
 DEFAULT_SOURCES_DUCKDB = "memory/data/sources.duckdb"
-SOURCES_TABLES = frozenset({"exchange_listings", "mca_cin", "index_constituents"})
+SOURCES_TABLES = frozenset({
+    "exchange_listings",
+    "mca_cin",
+    "index_constituents",
+    # sync-lane products (exchange_sync / related_party_sync /
+    # shareholding_sync) — surfaced 2026-10-12 when the snapshot's
+    # fail-closed verify refused to drop ~370k live rows
+    "credit_ratings",
+    "rpt_transactions",
+    "shp_filings",
+    "shp_holders",
+})
 DEFAULT_DUCKDB_OUT = "db-backup/graph.snapshot.duckdb.zst"
 # Git-tracked, restoreable Parquet snapshot (see module docstring).
 DEFAULT_PARQUET = "snapshots/parquet"

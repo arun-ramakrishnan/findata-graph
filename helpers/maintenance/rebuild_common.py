@@ -33,7 +33,7 @@ from pathlib import Path
 class RebuildCliSpec:
     """Per-index config for :func:`run_rebuild_cli`.
 
-    The argparse trio strings, the ``rebuild`` core, and the two
+    The argparse quad strings, the ``rebuild`` core, and the two
     doc/script-vs-note flow switches (``resolve_db`` anchors relative
     --db paths at the repo root; ``handle_errors`` off lets exceptions
     propagate) — one concern, the CLI surface of one rebuild script.
@@ -47,6 +47,7 @@ class RebuildCliSpec:
     rebuild_fn: Callable[..., dict]
     summary: Callable[[dict], str]
     migrated_msg: str
+    full_help: str | None = None
     resolve_db: Callable[[str], Path | None] | None = None
     handle_errors: bool = True
     swap_help: str | None = None
@@ -86,11 +87,20 @@ class QueryCliSpec:
 
 
 def build_rebuild_parser(spec: RebuildCliSpec) -> argparse.ArgumentParser:
-    """The --db/--check/--incremental argparse trio shared by all three CLIs."""
+    """The --db/--check/--incremental/--full argparse quad shared by all rebuild CLIs.
+
+    Incremental is the default and safe no-op path on unchanged input:
+    row-keyed (doc/script/memory) or file-granularity (doc) diffs mean
+    unchanged content produces no writes. ``--full`` is the explicit
+    opt-out that reproduces the legacy behavior (complete rewrite).
+    """
     p = argparse.ArgumentParser(description=spec.description)
     p.add_argument("--db", default=spec.default_db, help=spec.db_help)
     p.add_argument("--check", action="store_true", help=spec.check_help)
-    p.add_argument("--incremental", action="store_true", help=spec.incremental_help)
+    # store_true with default=True: no flag → incremental; --full wins.
+    p.add_argument("--incremental", action="store_true", default=True)
+    if spec.full_help is not None:
+        p.add_argument("--full", action="store_true", help=spec.full_help)
     if spec.swap_help is not None:
         p.add_argument("--swap", action="store_true", help=spec.swap_help)
     return p
@@ -323,13 +333,23 @@ def run_rebuild_cli(argv: list[str] | None, spec: RebuildCliSpec) -> int:
     the only realistic failure). The --check staleness verdict itself
     is printed by each module's ``rebuild()`` via its ``_print_staleness``
     delegate — main() only maps ``index_stale`` to the exit code.
+
+    Incremental is the default; ``--full`` reproduces the legacy complete
+    rewrite by passing incremental=False through to the rebuild core.
     """
     args = build_rebuild_parser(spec).parse_args(argv)
 
     from helpers.maintenance.maint_timing import RunTimer, active
 
     mode = "check" if args.check else ("swap" if getattr(args, "swap", False) else "apply")
-    if getattr(args, "incremental", False) and not args.check:
+    # --full wins over --incremental (the default) and maps to incremental=False
+    # for a complete rewrite. --check disables writes and reports freshness.
+    # getattr: --full is only registered when spec.full_help is set (the convo
+    # spec omits it, since its atomic swap rebuilds the whole duckdb anyway).
+    incremental = bool(
+        not args.check and not getattr(args, "full", False) and getattr(args, "incremental", True)
+    )
+    if incremental:
         mode += "+incremental"
     timer = RunTimer(mode=mode)  # cmd defaults to the script stem
     with active(timer):
@@ -340,7 +360,7 @@ def run_rebuild_cli(argv: list[str] | None, spec: RebuildCliSpec) -> int:
         else:
             db_path = Path(args.db)
 
-        kwargs: dict = dict(write=not args.check, incremental=args.incremental)
+        kwargs: dict = dict(write=not args.check, incremental=incremental)
         if spec.swap_help is not None:
             kwargs["swap"] = args.swap
         if spec.handle_errors:

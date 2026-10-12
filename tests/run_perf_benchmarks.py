@@ -8,10 +8,18 @@ prints a formatted table to stdout, then appends the same table to
 Usage::
 
     python3 tests/run_perf_benchmarks.py
+
+Exit codes: ``0`` all benches within budget · ``1`` a bench failed ·
+``3`` CONTENDED — the box was busy (another gate lane active, or CPU
+pressure above ceiling), so timings would lie. A refused run appends
+nothing; a mid-run trip marks the remaining rows untrusted in the
+appended block (see the contention guard below).
 """
 
 from __future__ import annotations
 
+import json
+import os
 import subprocess
 import sys
 import time
@@ -19,6 +27,27 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 REPORT = REPO_ROOT / "outputs" / "perf_report.md"
+
+# ── Contention guard (2026-10-12) ────────────────────────────────────────
+# Perf benches measure wall-clock truth, so a run that overlaps another
+# lane reports CONTENDED instead of FAIL — today's evidence: perf 1456
+# ran 475.9s (vs 75.6s quiet) at 6/26 while qa's pytest (896s) and a
+# convo-fresh check shared the window, and every leg class dragged
+# uniformly 2-4x over budget. Two probes, either one refuses:
+#   - lane heartbeat: run_gate_report.py publishes outputs/.gate_active
+#     (pid + lane) for its whole run — a cross-lane race, stated plainly;
+#   - CPU pressure: /proc/pressure/cpu "some avg10" is the sharpest no-lag
+#     signal of runnable-but-stalled tasks. Calibration on this 4c/4t
+#     i5-6500 (2026-10-12): idle desktop <5%, one background embed stream
+#     + browser 14.7%, pytest -n4 far higher — while our own serial bench
+#     sits at ~0-2%. 10% catches the embed-stream class without tripping
+#     on ourselves. loadavg fallback for PSI-less hosts.
+_HEARTBEAT = REPO_ROOT / "outputs" / ".gate_active"
+_PSI_SOME_CEIL = 10.0  # percent, "some avg10" — start guard (box fresh, no self-load yet)
+_PSI_SUSTAINED_CEIL = 15.0  # percent, "some avg60" — mid-run guard: sustained external
+# load trips; our own multi-thread bench bursts (centrality/betweenness measured
+# ~10.3% avg10 on a quiet run, 2026-10-12) cannot hold a 60s window that high.
+_LOAD_CEIL = 2.0  # 1-minute load, PSI-less fallback
 
 # Each entry: (label, args, budget_seconds).
 #
@@ -253,6 +282,74 @@ BENCHMARKS: list[tuple[str, list[str], float]] = [
 ]
 
 
+def _psi_some(window: str = "avg10") -> float | None:
+    """CPU pressure-stall "some" for ``window`` (avg10/avg60/avg300) in
+    percent; None when PSI is absent."""
+    try:
+        text = Path("/proc/pressure/cpu").read_text()
+    except OSError:
+        return None
+    for ln in text.splitlines():
+        if ln.startswith("some "):
+            for field in ln.split()[1:]:
+                if field.startswith(f"{window}="):
+                    try:
+                        return float(field.split("=", 1)[1])
+                    except ValueError:
+                        return None
+    return None
+
+
+def _gate_lane_active() -> str | None:
+    """Description of a live qa/integration/advisory lane, or None.
+
+    pid-liveness keeps a crashed lane's stale heartbeat from blocking
+    forever; PermissionError still means alive (same user here, but cheap
+    to be correct).
+    """
+    try:
+        raw = json.loads(_HEARTBEAT.read_text())
+        pid = int(raw["pid"])
+    except (OSError, ValueError, KeyError, TypeError):
+        return None
+    try:
+        os.kill(pid, 0)
+    except ProcessLookupError:
+        return None
+    except PermissionError:
+        pass
+    return f"gate lane {raw.get('lane', '?')} active (pid {pid}, started {raw.get('started', '?')})"
+
+
+def _contention_reason(midrun: bool = False) -> str | None:
+    """Why wall-clock timing would lie right now, or None when quiet.
+
+    Start guard (midrun=False): bursty avg10 — the box is fresh, nothing
+    of ours is running yet. Mid-run guard: sustained avg60 only — our own
+    bench bursts legitimately push avg10 past the start ceiling.
+    """
+    lane = _gate_lane_active()
+    if lane is not None:
+        return lane
+    psi = _psi_some("avg10")
+    if psi is not None:
+        if midrun:
+            sustained = _psi_some("avg60") or 0.0
+            if sustained > _PSI_SUSTAINED_CEIL:
+                return (
+                    f"CPU pressure some avg60 {sustained:.1f}% > "
+                    f"{_PSI_SUSTAINED_CEIL:.0f}% ceiling (sustained external load)"
+                )
+            return None
+        if psi > _PSI_SOME_CEIL:
+            return f"CPU pressure some avg10 {psi:.1f}% > {_PSI_SOME_CEIL:.0f}% ceiling"
+        return None
+    load1 = os.getloadavg()[0]
+    if load1 > _LOAD_CEIL:
+        return f"load1 {load1:.2f} > {_LOAD_CEIL} (no PSI on this host)"
+    return None
+
+
 def run_one(label: str, args: list[str], budget: float) -> tuple[float, str, bool]:
     """Run a single benchmark, return (elapsed_seconds, status, passed)."""
     t0 = time.perf_counter()
@@ -278,14 +375,37 @@ def main() -> int:
     from datetime import datetime
 
     started = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    refuse = _contention_reason()
+    if refuse is not None:
+        print(f"perf refused — contended box: {refuse}", file=sys.stderr)
+        print(
+            "timings would lie; re-run once the lane clears (exit 3, nothing appended)",
+            file=sys.stderr,
+        )
+        return 3
+
     t0 = time.perf_counter()
     results: list[tuple[str, float, str, bool, float]] = []
+    contended_from: str | None = None
+    contend_why: str | None = None
     for label, args, budget in BENCHMARKS:
+        if contended_from is None:
+            mid = _contention_reason(midrun=True)
+            if mid is not None:
+                contended_from = label
+                contend_why = mid
+                print(
+                    f"\n  ⚠ contention mid-run: {mid}\n  rows from {label} on are untrusted",
+                    file=sys.stderr,
+                )
         print(f"  running {label:.<30s}", end="", flush=True)
         dt, status, ok = run_one(label, args, budget)
+        if contended_from is not None:
+            status = "CONTENDED"
+            ok = False
         results.append((label, dt, status, ok, budget))
         print(f" {dt:6.2f}s  [{status}]")
-        if not ok:
+        if not ok and contended_from is None:
             # surface stderr on failure for immediate feedback
             r = subprocess.run(  # noqa: S603  # list-form call; shell=False (default); args are constants/controlled paths
                 [sys.executable, *args],
@@ -318,19 +438,32 @@ def main() -> int:
 
     # ── append to report (markdown format) ──
     elapsed = time.perf_counter() - t0
-    write_report(results, started, elapsed)
+    status_note = None
+    if contended_from is not None:
+        status_note = (
+            f"CONTENDED — {contend_why} — rows from {contended_from} on are untrusted"
+        )
+        print(f"  ⚠ {status_note}")
+    write_report(results, started, elapsed, status_note=status_note)
 
+    if contended_from is not None:
+        return 3
     return 0 if all_ok else 1
 
 
 def write_report(
-    results: list[tuple[str, float, str, bool, float]], started: str, elapsed: float
+    results: list[tuple[str, float, str, bool, float]],
+    started: str,
+    elapsed: float,
+    status_note: str | None = None,
 ) -> None:
     """Append one ``#``-delimited run block to outputs/perf_report.md.
 
     Appending (not overwriting) is the cross-report convention: the TUI
     reports panel reads the run chain; pinned by
-    tests/test_run_perf_benchmarks.py.
+    tests/test_report_append_convention.py. ``status_note`` (a contention
+    trip) adds a **Status:** line after the Generated header; the parser
+    ignores lines it doesn't match, so the chain stays readable.
     """
     from datetime import datetime
 
@@ -345,10 +478,17 @@ def write_report(
         f"**Generated:** {ts}  ·  **Started:** {started}  ·  **Ended:** {ended}  ·  "
         f"**Elapsed:** {elapsed:.1f}s  ·  **Python:** {sys.version.split()[0]}"
     )
+    if status_note:
+        md_lines.append("")
+        md_lines.append(f"**Status:** {status_note}")
     md_lines.append("")
     md_lines.append("| Benchmark | Time (s) | Budget | Status |")
     md_lines.append("|---|---|---|---|")
     for label, dt, status, ok, budget in results:
+        # md rows keep the standard ✓/✗ shape — every failure-surface query
+        # keys on the FAIL substring (gate_query _pick_run/_run_digest), and
+        # a contended run must stay VISIBLE there, never silently green.
+        # The **Status:** header line above carries why it's untrusted.
         flag = "✓ OK" if ok else "✗ FAIL"
         md_lines.append(f"| {label} | {dt:.2f} | {budget:.1f}s | {flag} |")
     md_lines.append(f"| **{passed}/{total} passed** | | | |")
