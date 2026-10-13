@@ -537,6 +537,15 @@ commit, referenced by nothing). Entry numbers point at
   at 3,204/3,218 cache hits, S4 live gate reproduced the trial arm-for-arm
   (17/18, exact 7/7, MRR 0.708); the S7 field-enrichment follow-up took MRR to
   0.759 — completed.md #388
+- [`store_wide_reclaim.md`](tooling/store_wide_reclaim.md) —
+  store-wide reclaim — every sqlite/duckdb store under `memory/` +
+  `memory/data/` gets a maint path: the `SIDECAR_*` registry (single
+  decision home) folded into `db_maint.run()` per-store isolated (busy =
+  skipped row, never a crash), per-store `wasted_pct` + P3.6 alert,
+  `make store-sweep` standalone entry importing the same registry with a
+  disk-vs-registry cross-check; deep-audit hardening — sqlite takes no
+  io_lock (WAL + 5 s busy_timeout), exit code fails on real errors only;
+  estate cost when clean ≈0.1 s — completed.md #391
 - [`doc_index_stale_mtime_gate.md`](tooling/doc_index_stale_mtime_gate.md) —
   doc_index_stale mtime gate — the read gate compared raw mtimes with `!=`
   while the writer freshness verdict has been content-hash-based since

@@ -22,7 +22,8 @@ Open items below keep their revisit triggers inline; executed work is compressed
    unruled C901 masks (`_materialise_centrality_cache` at `:1594` booked
    to the next c901 pass by collation S7; `_cli` at `:4055` unruled).
 
-- **production-store copy census — TRIGGER ARMED 2026-09-29**
+- **production-store copy census — TRIGGER ARMED 2026-09-29, FIRED
+  2026-10-13 — re-run owed**
   (`archive/testing/production_db_copy_audit.md`, executed same day): every
   copy/backup site is verdict-tabled there, and the chokepoint is
   gated deny-by-default — `copy_production_db(requestor=...)` +
@@ -35,7 +36,18 @@ Open items below keep their revisit triggers inline; executed work is compressed
   copies sanctioned as small became 307 MiB × 30 per gate run). Store
   sizes at filing: convo_search 820.5, research 307.2, embed_store
   184.6, convo_fts 102.0, corpus 52.6, graph 39.3 + 39.0, doc_search
-  24.7 MiB.
+  24.7 MiB. **Measured 2026-10-13: convo_fts 232.5 (2.28× — FIRED),
+  embed_store 311.7 (1.69× — also past 1.5×), research 313.7,
+  convo_search.duckdb 841, graph 48.0 + 48.5, doc_search 31.8,
+  corpus 27.2 MiB.** Growth drivers: convo_fts/embed_store scale with
+  the harvest+embed lanes (gemma cohort rows), so per-copy cost has
+  roughly doubled for the two biggest sanctioned classes — the census
+  re-run (size per lane, transient per run, backup-lane cost) is the
+  outstanding action. **2026-10-14: dead-page reclamation + a maint
+  path for every store landed** (store_wide_reclaim, completed.md #391 —
+  ≈84 MiB reclaimed across the two passes) — this census re-run stays
+  armed for payload growth: reclaim frees pages, never shrinks payloads
+  (store_wide_reclaim §F5).
 
 - **production-DB copies in tests (§D2) — CLOSED 2026-09-29 (schema class
   migrated; downsampler class adjudicated VALID)**: the schema-only class
@@ -242,6 +254,10 @@ Open items below keep their revisit triggers inline; executed work is compressed
   (`archive/graph/note_knn_distance_ranking.md`) — with the 11× figure
   corrected to ~1.2–1.3× (the trial's 3.7 ms was HNSW-index-routed;
   true brute l2 is 26–27 ms vs cosine 35.5 ms).
+  **Re-checked 2026-10-13 (DuckDB 1.5.6, vss build `b833341` unchanged
+  since 2026-09-29): `CREATE INDEX … USING HNSW (emb cosine)` still
+  raises `Not implemented Error: Index with opclass not supported yet!`
+  — upstream blocker live, no change.**
 
 - **Wrap `onager_ctr_personalized_pagerank`** (deferred N5 item 6). Onager bug:
   personalisation column ignored, restart node hardcoded to `node_id 1`, and it
@@ -254,7 +270,12 @@ Open items below keep their revisit triggers inline; executed work is compressed
   Re-probed 2026-09-22 (same build): both bugs live — pers→node2×100 vs
   pers→node4×100 byte-identical (neither equals plain pagerank, so restart is
   hardcoded to node 1), and any projection without `node_id 1` errors
-  "Personalization node 1 not found". Contract note: named args required,
+  "Personalization node 1 not found". **Re-probed 2026-10-13 on the
+  rebuilt extension (build `ab472a7`, installed 2026-10-05): still live**
+  — pers on node2 vs node4 byte-identical (peak 0.3022 at node 1), and the
+  projection without node 1 raises `Invalid Input Error: Personalized
+  PageRank failed: Invalid argument: Personalization node 1 not found in
+  graph`. Contract note: named args required,
   weight col must be `BIGINT`, pers col `DOUBLE` strictly positive (zeros
   rejected). Wrap path + projection ladder tracked in
   `archive/graph/pagerank_graph_enhancements.md` (S5 watch; proposal
@@ -477,4 +498,6 @@ Open items below keep their revisit triggers inline; executed work is compressed
   routing (S6), cross-check integrity transient (S7), listed/ticker
   enrichment (S8). **REVISIT TRIGGER: the next alias-file addition for
   a name class §S1 covers, or any wrong-company edge traced to a
-  tie-break.**
+  tie-break.** Checked 2026-10-13: newest `findata/Misc/relation_aliases.json`
+  commit is `97daeb90a` (2026-10-10 — the very run that filed the
+  proposal); no later addition, trigger not fired.

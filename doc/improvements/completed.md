@@ -10564,3 +10564,113 @@ two rank-1 promotions the rankdiff named (dex-03, dvar-02). Landed:
 
 Revisit: any fourth staleness surface or a new leg adoption folds into
 the existing stamp/mismatch contract tests rather than new policy.
+
+## 390. Store-census trigger fired, dead-page reclamation, proposal-drift fixes
+
+**Date**: 2026-10-13 **Status**: EXECUTED (maintenance pass, no proposal)
+**Surfaces**: `doc/improvements/pending.md`, four archived proposals,
+`helpers/graph/onager.py` comment, `helpers/maintenance/db_maint.py` +
+`tests/test_db_maint.py` (finding → patch, 2026-10-14)
+
+- **Census trigger FIRED (armed 2026-09-29)**: measured sizes vs filing —
+  `convo_search_fts` 102.0 → 232.5 MiB (**2.28×**), `embed_store` 184.6 →
+  311.7 (1.69×), research 307.2 → 313.7, convo_search.duckdb 820.5 → 841,
+  graph 39.3+39.0 → 48.0+48.5, doc_search 24.7 → 31.8, corpus 52.6 → 27.2.
+  `pending.md` records the firing + sizes; the census re-run (per-lane
+  transient + backup-lane cost) stays the outstanding action.
+- **Dead-page reclamation** (sqlite freelist census, all stores; `io_lock`
+  exclusive per store, pre-VACUUM backups already fresh from tonight's
+  `make maint`): `research.db` 39.1 MiB dead (12.5%) → full VACUUM 3.3 s →
+  0, file 313.7 → 270.3 MiB, `quick_check ok`; `convo_search_fts.db` 25.1
+  (10.8%) → 0, 232.5 → 207.2 (VACUUM 6.2 s); `doc_search.db` 11.8 (37.2%)
+  → 0, 31.8 → 19.9; `memory_search.db` 1.1 (43.3%) → 0, 2.5 → 1.4.
+  **≈81.7 MiB reclaimed.** `embed_store.db` 0.0% dead — its 1.69× growth is
+  real data (gemma cohort rows), no VACUUM needed; `corpus.db` 0%.
+- **ANALYZE primed `sqlite_stat1`** on the four stores that had never had
+  it (`embed_store`, `convo_search_fts`, `doc_search`, `memory_search`);
+  research.db already carried 46 stat1 rows from tonight's maint. All
+  WALs 0 B; `convo_search.duckdb` 841 MiB with WAL 0 B — DuckDB reclaims
+  dead rows at checkpoint, so nothing to do there.
+- **db_maint VACUUM branch patched (2026-10-14)**: the
+  auto_vacuum=INCREMENTAL branch (`db_maint.py:823-833`) ran
+  `incremental_vacuum(5003)` and reclaimed **1** of 5,003 pages — no error,
+  so no VACUUM fallback fires, and the run ends by alerting itself (P3.6:
+  "freelist 12.5% >5% — consider VACUUM"). REINDEX-after-VACUUM is NOT the
+  cause: REINDEX on a post-VACUUM copy of the live DB moves freelist
+  0 → 0 (the docstring's "no-op after VACUUM" holds). **Fix**: new
+  `DBMaintainer.reclaim_freelist()` re-measures the freelist after the
+  incremental pass and pays for a full VACUUM whenever more than
+  `WASTED_PCT` (5.0, now shared with the P3.6 alert) survives; `run()`
+  calls it instead of the old error-only fallback. Six cases pinned in
+  `tests/test_db_maint.py::TestReclaimFreelist` (stubborn-freelist
+  fallback, error fallback, threshold boundary, NONE, empty, happy
+  path) — targeted pytest 41 + static 112 + duckdb 6 green, ruff clean.
+- **Proposal drift fixed** (six dated annotations): store-census entry
+  above; `company_metrics_null_labels.md` premise re-measured (3,119 →
+  **1,166 / 64,227 rows, 303 entities** — no backfill run, work still owed
+  but ~62% smaller) + body `Status: PROPOSED` corrected to DEFERRED to
+  match its frontmatter; Onager PPR re-probe recorded (2026-10-13, build
+  `ab472a7` — personalisation column ignored, node-1 restart hardcode and
+  "Personalization node 1 not found" all still live) + same date in the
+  `onager.py` non-wrap comment; HNSW/vss entry re-checked (vss `b833341`,
+  `opclass not supported` persists); resolver §S1 trigger checked (newest
+  `relation_aliases.json` commit is still `97daeb90a` — not fired);
+  Bundle H in `graph_improvs.md` marked OBSOLETE (duckpgq retired
+  #91/#92).
+
+## 391. Store-wide reclaim — the registered sidecar estate, maintained
+
+**Date**: 2026-10-14 (filed, executed, archived same day) **Status**: EXECUTED
+**Proposal**: `doc/improvements/archive/tooling/store_wide_reclaim.md`
+
+Closed the db_maint coverage gap the 10-14 census exposed (five
+backed-up-but-never-reclaimed sidecars plus seven stores with no maint
+path at all; script_search had sat at 529 freelist pages = 40% of its
+file): `db_maint.run()` now maintains the whole estate. Shipped:
+
+- **Registry**: `SIDECAR_SQLITE` / `SIDECAR_DUCKDB` (path, vacuum) in
+  `helpers/maintenance/db_maint.py` — the single decision home;
+  primaries (research.db, graph.duckdb) stay db_maint's own objects.
+  `convo_search.duckdb` registered checkpoint-only (§5.4: its
+  swap-rebuild rewrites the file; the checkpoint is the
+  belt-and-braces); `graph.xdist-shared.duckdb` registered skip-busy
+  (§5.3).
+- **S3 fold**: `maintain_registered_sidecars()` runs after the
+  primary's backup + reclaim — per sqlite: house `connect()` (NO
+  io_lock: WAL + the 5 s `busy_timeout` bound every conflict — operator
+  ruling; nothing else in the estate flocks sqlite), the #390-patched
+  `reclaim_freelist()`, ANALYZE iff `sqlite_stat1` never primed,
+  `wal_checkpoint(TRUNCATE)`, `quick_check` iff mutated; per duckdb:
+  `io_lock(EX)`, CHECKPOINT [+ VACUUM + CHECKPOINT], skip-busy.
+  Per-store isolated: a busy store is a `skipped` row, never a failed
+  run. `result["sidecars"]` + a `=== SIDECARS ===` report section.
+- **S2**: `make store-sweep` — the standalone/CI entry imports the
+  registry (never re-implements) and cross-checks disk vs registry
+  (#380: an unregistered store is reported for adoption, never silently
+  swept). TIER1 rides via the fold (zero maint.py changes); clean
+  estate cost measured ≈0.1 s (acceptance criterion 5, 10× headroom).
+- **S4**: every sqlite row reports `wasted_pct`; above `WASTED_PCT`
+  (5.0) the P3.6 alert names the store; a non-ok `quick_check` logs an
+  ERROR. DuckDB alerting stays deferred (F4: file size is the wrong
+  waste metric there).
+- **Deep-audit hardening (S2.0)**: the sweep's sqlite path originally
+  crashed on a busy store (`OperationalError: database is locked` —
+  demoed live: one busy store killed main(), later stores unswept) —
+  per-store isolation now on both engines; exit-code contract (busy
+  skips stay 0; `error` rows and non-ok `quick_check` → 1); the
+  `sources.duckdb` writer located via the search surfaces
+  (`helpers/maintenance/index_sync.py` :52; lanes `refresh-indices`/
+  `refresh-vigil`/`refresh-shp`; store born #253) and wrapped in the
+  flock (fresh-check SH, apply EX) — the DuckDB flock estate is now
+  uniform.
+- **Tests**: `tests/test_store_sweep.py` (5: busy-skip, reclaim-to-
+  clean-exit, corrupt-error-row, exit-code contract, registry
+  cross-check) + `TestSidecarEstate` (3: reclaim/absent/
+  checkpoint-only, busy skip, S4 alert) — 163 targeted tests green,
+  B2 guard green with zero allowlist edits, ruff + md-lint clean.
+- **Live**: db_maint 2026-10-14 — 12 sidecars all clean (7× sqlite
+  `skipped` 0.0 s, md_lint 1-pg vacuum `qc:ok`, checkpoint-only + 4×
+  checkpoint+vacuum ≤0.02 s), exit 0.
+
+Revisit: register any future store in `SIDECAR_*` the day it is born;
+DuckDB alerting wakes when a valid waste metric exists (F4).

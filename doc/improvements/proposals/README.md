@@ -38,7 +38,19 @@ entry number and stale DONE pointers):
 
 ## Current live proposals
 
-_(none)_ — every proposal filed here is executed and archived.
+_(none)_ — every proposal filed here is executed and archived. The
+newest: `store_wide_reclaim` was filed and executed the same day
+(2026-10-14) and archived immediately after
+(`../archive/tooling/store_wide_reclaim.md`, completed.md #391): the
+registered sidecar estate (7 sqlite + 5 duckdb) is maintained inside
+`db_maint.run()` — `SIDECAR_*` registry as the single decision home,
+`maintain_registered_sidecars()` per-store isolated (busy = skipped
+row), per-store `wasted_pct` + the P3.6 alert (S4) — and the standalone
+`make store-sweep` imports the same registry with an on-disk cross-check
+(#380). Deep-audit hardening: sqlite takes no io_lock (WAL + 5 s
+busy_timeout bound every conflict), a busy store can never crash the
+sweep, and the exit code fails on real errors only. Estate cost when
+clean: ≈0.1 s.
 
 `doc_search_gemma_adoption` was filed and executed the same day
 (2026-10-13) and archived immediately after

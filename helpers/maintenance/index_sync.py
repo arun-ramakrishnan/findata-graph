@@ -339,29 +339,39 @@ def _cli(argv: list[str] | None = None) -> int:
 
     mode = "apply" if a.apply else "dry-run"
     if a.apply and a.max_age_days > 0 and DB.exists():
-        con = duckdb.connect(str(DB))
-        try:
-            if _table_exists(con):
-                cutoff = date.today().toordinal() - a.max_age_days
-                fresh = {
-                    r[0]
-                    for r in con.execute(
-                        "SELECT index_name FROM index_constituents "
-                        "GROUP BY index_name "
-                        "HAVING MAX(fetched_at) >= CAST(? AS DATE)",
-                        [date.fromordinal(cutoff).isoformat()],
-                    ).fetchall()
-                }
-                batches = [b for b in batches if b.index_name not in fresh]
-        finally:
-            con.close()
+        # SH: a fresh-check read queues behind a long writer instead of
+        # failing on the RW hold (store_wide_reclaim coordination).
+        from helpers.misc.duckdb_lock import io_lock
+
+        with io_lock(DB, exclusive=False):
+            con = duckdb.connect(str(DB))
+            try:
+                if _table_exists(con):
+                    cutoff = date.today().toordinal() - a.max_age_days
+                    fresh = {
+                        r[0]
+                        for r in con.execute(
+                            "SELECT index_name FROM index_constituents "
+                            "GROUP BY index_name "
+                            "HAVING MAX(fetched_at) >= CAST(? AS DATE)",
+                            [date.fromordinal(cutoff).isoformat()],
+                        ).fetchall()
+                    }
+                    batches = [b for b in batches if b.index_name not in fresh]
+            finally:
+                con.close()
 
     if a.apply:
-        con = duckdb.connect(str(DB))
-        try:
-            stats = fold(con, batches, run_date, apply=True)
-        finally:
-            con.close()
+        # EX: the write fences the store-sweep / db_maint checkpoint
+        # windows (store_wide_reclaim coordination; agent_traces pattern).
+        from helpers.misc.duckdb_lock import io_lock
+
+        with io_lock(DB, exclusive=True):
+            con = duckdb.connect(str(DB))
+            try:
+                stats = fold(con, batches, run_date, apply=True)
+            finally:
+                con.close()
     else:
         # Dry-run never opens/creates the store (a fresh clone must not get
         # a side effect from a preview).

@@ -5,7 +5,9 @@ SQLite DB maintenance helper for memory/research.db.
 Performs, in this order:
   1. Snapshot settings + pre-maintenance metrics (size, pages, freelist, stat-staleness, indexes)
   2. BACKUP            (recovery point — BEFORE any mutation)
-  3. VACUUM            (reclaim free pages; rebuilds file + indexes)
+  3. VACUUM            (reclaim free pages; rebuilds file + indexes — PRAGMA
+                        incremental_vacuum first when auto_vacuum=INCREMENTAL,
+                        full VACUUM whenever >5% freelist survives it)
   4. ANALYZE           (refresh sqlite_stat1 planner stats)
   5. REINDEX           (rebuild indexes; no-op after VACUUM but harmless)
   6. Post-maintenance metrics
@@ -51,6 +53,7 @@ import sqlite3
 import subprocess
 import sys
 import tempfile
+import time
 from pathlib import Path
 from typing import Any
 
@@ -91,6 +94,33 @@ if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
 from helpers.core.env import REPO_ROOT  # noqa: E402  (folds _compute_root)
+from helpers.core.db import connect  # noqa: E402
+
+# --- Registered sidecar estate (store_wide_reclaim §2) -----------------------
+# The single owner of "which stores exist and how they are maintained":
+# DBMaintainer.run() folds them after its backup step (S3), and
+# store_sweep.py imports these lists for the standalone/CI entry — never
+# re-implements. Primaries (research.db, graph.duckdb) are NOT here; they
+# are db_maint's own maintained objects.
+SIDECAR_SQLITE: tuple[str, ...] = (
+    "memory/embed_store.db",
+    "memory/convo_search_fts.db",
+    "memory/corpus.db",
+    "memory/doc_search.db",
+    "memory/script_search.db",
+    "memory/memory_search.db",
+    "memory/md_lint_cache.db",
+)
+# (path, vacuum) — convo_search is CHECKPOINT-only: its swap-rebuild
+# rewrites the file wholesale, the checkpoint is the belt-and-braces
+# (§5.4 ruling). xdist-shared is registered skip-busy (§5.3 ruling).
+SIDECAR_DUCKDB: tuple[tuple[str, bool], ...] = (
+    ("memory/convo_search.duckdb", False),
+    ("memory/graph.xdist-shared.duckdb", True),
+    ("memory/data/agent_traces.duckdb", True),
+    ("memory/data/sources.duckdb", True),
+    ("memory/data/model_usage.duckdb", True),
+)
 
 _AGENT_FACT_TABLES: tuple[str, ...] = (
     "graph_edges",
@@ -761,6 +791,70 @@ class DBMaintainer:
             return 0
         return self._duckdb_zstd_backup(src, bp, label="graph.duckdb")
 
+    # Freelist share above which the file counts as wasted — the P3.6 alert
+    # threshold. reclaim_freelist() falls back to a full VACUUM at the same
+    # line so a run acts on its own waste instead of only alerting about it.
+    WASTED_PCT = 5.0
+
+    def reclaim_freelist(
+        self, conn: sqlite3.Connection, auto_vac: int, freelist_before: int
+    ) -> str:
+        """Reclaim free pages; returns the path taken.
+
+        "skipped"            — freelist=0, nothing to do
+        "incremental"        — PRAGMA incremental_vacuum ran and did the job
+                               (auto_vacuum=INCREMENTAL only)
+        "incremental+vacuum" — incremental ran but more than WASTED_PCT of the
+                               file is still freelist → full VACUUM anyway
+        "vacuum"             — full VACUUM (auto_vacuum=NONE, or incremental
+                               raised and fell back)
+
+        2026-10-13 live measurement: ``incremental_vacuum(5003)`` reclaimed ONE
+        page on research.db — no error raised, so the old error-only fallback
+        never fired and the run ended by P3.6-alerting at its own 12.5%
+        freelist. Hence the re-measure: a full VACUUM is 3.3 s on the current
+        270 MB file, cheap enough to always pay when the incremental pass did
+        not do the job.
+        """
+        if auto_vac == 2 and freelist_before > 0:  # 2 == INCREMENTAL
+            self._log(logging.INFO, f"incremental_vacuum({freelist_before} pages)")
+            try:
+                # incremental_vacuum(N) reclaims at most N freelist pages; N=0 means all
+                conn.execute(f"PRAGMA incremental_vacuum({int(freelist_before)})")
+            except sqlite3.Error as e:
+                self._log(
+                    logging.WARNING, f"incremental_vacuum failed ({e}); falling back to VACUUM"
+                )
+                conn.execute("VACUUM")
+                return "vacuum"
+            freelist_left = conn.execute("PRAGMA freelist_count").fetchone()[0]
+            pages = conn.execute("PRAGMA page_count").fetchone()[0]
+            wasted_pct = (freelist_left / pages * 100.0) if pages else 0.0
+            if wasted_pct > self.WASTED_PCT:
+                self._log(
+                    logging.WARNING,
+                    f"incremental_vacuum reclaimed only {freelist_before - freelist_left} of "
+                    f"{freelist_before} pages ({wasted_pct:.1f}% freelist left > "
+                    f"{self.WASTED_PCT:g}%) — full VACUUM",
+                )
+                conn.execute("VACUUM")
+                return "incremental+vacuum"
+            self._log(
+                logging.INFO,
+                f"incremental_vacuum done: reclaimed {freelist_before - freelist_left} of "
+                f"{freelist_before} pages ({wasted_pct:.1f}% left, no full rewrite)",
+            )
+            return "incremental"
+        if freelist_before == 0:
+            self._log(logging.INFO, "VACUUM skipped (freelist=0, no wasted pages)")
+            return "skipped"
+        self._log(
+            logging.INFO,
+            f"VACUUM (freelist={freelist_before} pages, auto_vacuum={_AUTO_VACUUM_MAP.get(auto_vac, auto_vac)})",
+        )
+        conn.execute("VACUUM")
+        return "vacuum"
+
     def run(self) -> dict:  # noqa: C901
         steps = [
             "SNAPSHOT",
@@ -810,36 +904,18 @@ class DBMaintainer:
                 self._backup_convo_corpus()
                 self._backup_memory_sidecars()
 
-            # P2.5: incremental vacuum when auto_vacuum==INCREMENTAL and freelist exists.
-            # Full VACUUM rewrites 31 MB file (~0.6s); incremental_vacuum reclaims only freelist pages (~0.1s).
-            # When auto_vacuum==NONE (current live DB), we still do full VACUUM. The one-time migration
-            # to INCREMENTAL is via --migrate-incremental (PRAGMA auto_vacuum=INCREMENTAL + VACUUM).
+            # P2.5: incremental vacuum when auto_vacuum==INCREMENTAL and freelist
+            # exists; full VACUUM otherwise (the one-time INCREMENTAL migration is
+            # --migrate-incremental). 2026-10-14: reclaim_freelist re-measures after
+            # the incremental pass and pays for a full VACUUM when >5% waste
+            # survives — measured 2026-10-13, incremental_vacuum(5003) moved 1 page.
             auto_vac = None
             try:
                 auto_vac = conn.execute("PRAGMA auto_vacuum").fetchone()[0]
             except Exception:
                 auto_vac = 0
             freelist_before = before.get("freelist", 0) if isinstance(before, dict) else 0
-            if auto_vac == 2 and freelist_before > 0:  # 2 == INCREMENTAL
-                self._log(logging.INFO, f"incremental_vacuum({freelist_before} pages)")
-                try:
-                    # incremental_vacuum(N) reclaims at most N freelist pages; N=0 means all
-                    conn.execute(f"PRAGMA incremental_vacuum({int(freelist_before)})")
-                    self._log(logging.INFO, "incremental_vacuum done (no full rewrite)")
-                except sqlite3.Error as e:
-                    self._log(
-                        logging.WARNING, f"incremental_vacuum failed ({e}); falling back to VACUUM"
-                    )
-                    conn.execute("VACUUM")
-            else:
-                if freelist_before == 0:
-                    self._log(logging.INFO, "VACUUM skipped (freelist=0, no wasted pages)")
-                else:
-                    self._log(
-                        logging.INFO,
-                        f"VACUUM (freelist={freelist_before} pages, auto_vacuum={_AUTO_VACUUM_MAP.get(auto_vac, auto_vac)})",
-                    )
-                    conn.execute("VACUUM")
+            self.reclaim_freelist(conn, auto_vac, freelist_before)
             self._log(logging.INFO, "ANALYZE")
             # P1.1: use PRAGMA optimize when available (faster than ANALYZE on large DBs, SQLite 3.32+)
             try:
@@ -861,10 +937,10 @@ class DBMaintainer:
             for label, m in (("before", before), ("after", after)):
                 wpct = m.get("wasted_pct", 0)
                 wbytes = m.get("wal_bytes", 0)
-                if wpct > 5.0:
+                if wpct > self.WASTED_PCT:
                     self._log(
                         logging.WARNING,
-                        f"P3.6 alert ({label}): freelist {wpct:.1f}% ({m.get('freelist')} pages) >5% — consider VACUUM",
+                        f"P3.6 alert ({label}): freelist {wpct:.1f}% ({m.get('freelist')} pages) >{self.WASTED_PCT:g}% — consider VACUUM",
                     )
                 if wbytes > 67108864:  # 64 MB
                     self._log(
@@ -890,6 +966,12 @@ class DBMaintainer:
         finally:
             conn.close()
 
+        # S3 (store_wide_reclaim): one maint owns the whole estate — the
+        # registered sidecars ride after the primary (its backup + reclaim
+        # ran first). Per-store isolated: a busy store is a skipped row,
+        # never a failed run.
+        sidecar_rows = self.maintain_registered_sidecars()
+
         result = {
             "status": "complete",
             "settings": settings,
@@ -902,6 +984,7 @@ class DBMaintainer:
             "integrity_check": integrity,
             "foreign_key_violations": len(fk_violations),
             "provenance_agent_report": provenance_report,
+            "sidecars": sidecar_rows,
         }
 
         # Optional DuckDB cache maintenance. Runs after SQLite so the
@@ -966,6 +1049,117 @@ class DBMaintainer:
         )
         return result
 
+    def maintain_registered_sidecars(self) -> list[dict]:
+        """S3/S4 (store_wide_reclaim): maintain every registered sidecar.
+
+        Per sqlite store (no io_lock — WAL + the engine's own locking bound
+        every conflict; house ``connect()``): ``reclaim_freelist`` → ANALYZE
+        iff ``sqlite_stat1`` was never primed → ``wal_checkpoint(TRUNCATE)``
+        → ``quick_check`` iff mutated. Per duckdb store: ``io_lock(EX)`` →
+        CHECKPOINT [+ VACUUM per the registry flag] — a foreign RW holder
+        fails the open → skipped. Per-store isolated: a busy store is a
+        ``skipped`` row, never a failed run. Every sqlite row reports
+        ``wasted_pct``; values above ``WASTED_PCT`` raise the P3.6 alert
+        (S4 — DuckDB deferred until a valid waste metric exists, F4).
+        """
+        rows: list[dict] = []
+        for rel in SIDECAR_SQLITE:
+            rows.append(self._maintain_sidecar_sqlite(REPO_ROOT / rel, rel))
+        try:
+            import duckdb
+        except ImportError:
+            self._log(logging.WARNING, "duckdb not installed — duckdb sidecars skipped")
+            return rows
+        from helpers.misc.duckdb_lock import io_lock
+
+        for rel, vacuum in SIDECAR_DUCKDB:
+            p = REPO_ROOT / rel
+            row: dict = {"store": rel, "engine": "duckdb"}
+            if not p.exists():
+                row["action"] = "absent"
+                rows.append(row)
+                continue
+            t0 = time.time()
+            try:
+                with io_lock(p, exclusive=True):
+                    con = duckdb.connect(str(p))
+                    try:
+                        con.execute("CHECKPOINT")
+                        if vacuum:
+                            con.execute("VACUUM")
+                            # Flush VACUUM's rewrite out of the WAL.
+                            con.execute("CHECKPOINT")
+                    finally:
+                        con.close()
+                row["action"] = "checkpoint+vacuum" if vacuum else "checkpoint"
+            except duckdb.IOException as e:  # foreign RW holder -> never force
+                row["action"] = f"skipped ({type(e).__name__})"
+                self._log(logging.WARNING, f"{rel}: {row['action']}")
+            except Exception as e:  # noqa: BLE001  # per-store isolation IS the contract
+                row["action"] = f"error ({type(e).__name__})"
+                self._log(logging.ERROR, f"{rel}: {row['action']}: {e}")
+            row["secs"] = round(time.time() - t0, 2)
+            rows.append(row)
+        return rows
+
+    def _maintain_sidecar_sqlite(self, p: Path, rel: str) -> dict:
+        """One registered sqlite sidecar, isolated (never raises)."""
+        row: dict = {"store": rel, "engine": "sqlite"}
+        if not p.exists():
+            row["action"] = "absent"
+            return row
+        if p.stat().st_size == 0:
+            row["action"] = "skipped (0-byte artifact)"
+            return row
+        t0 = time.time()
+        try:
+            conn = connect(p)
+            try:
+                pages = conn.execute("PRAGMA page_count").fetchone()[0]
+                freelist = conn.execute("PRAGMA freelist_count").fetchone()[0]
+                auto_vac = conn.execute("PRAGMA auto_vacuum").fetchone()[0]
+                row["wasted_pct"] = round(freelist / pages * 100.0, 1) if pages else 0.0
+                mode = self.reclaim_freelist(conn, auto_vac, freelist)
+                if mode != "skipped":
+                    # WAL: VACUUM's rebuild lives in the -wal file; the
+                    # checkpoint makes the on-disk .db the real post-sweep
+                    # size and quick_check pays only on a mutated store.
+                    conn.execute("PRAGMA wal_checkpoint(TRUNCATE)")
+                    row["quick"] = conn.execute("PRAGMA quick_check").fetchone()[0]
+                try:
+                    stat1 = conn.execute("SELECT COUNT(*) FROM sqlite_stat1").fetchone()[0]
+                except sqlite3.Error:
+                    stat1 = -1  # never primed
+                if stat1 <= 0:
+                    conn.execute("ANALYZE")
+                    row["analyzed"] = True
+            finally:
+                conn.close()
+            row["action"] = mode
+            if row.get("quick", "ok") != "ok":
+                self._log(logging.ERROR, f"{rel}: quick_check: {row['quick']}")
+        except Exception as e:  # noqa: BLE001  # per-store isolation IS the contract
+            if isinstance(e, sqlite3.Error) and (
+                "locked" in str(e).lower() or "busy" in str(e).lower()
+            ):
+                # Single-writer contention: the designed degradation, same
+                # shape as the DuckDB skip.
+                row["action"] = "skipped (database is locked)"
+                self._log(logging.WARNING, f"{rel}: {row['action']}")
+            else:
+                row["action"] = f"error ({type(e).__name__})"
+                self._log(logging.ERROR, f"{rel}: {row['action']}: {e}")
+        row["secs"] = round(time.time() - t0, 2)
+        # S4: the P3.6 waste alert generalized to every sqlite store in the
+        # estate — the census value is what accumulated since the last run.
+        if row.get("wasted_pct", 0) > self.WASTED_PCT:
+            self._log(
+                logging.WARNING,
+                f"P3.6 alert ({rel}): freelist {row['wasted_pct']}% "
+                f">{self.WASTED_PCT:g}% — consider VACUUM",
+            )
+        return row
+
 
 def _print_report(r: dict) -> None:  # noqa: C901
     s = r["settings"]
@@ -1000,6 +1194,15 @@ def _print_report(r: dict) -> None:  # noqa: C901
     print(f"\n=== BACKUP ===\n-> {r['backup']['path']} ({_fmt_bytes(r['backup']['size'])})")
 
     print("\n=== MAINTENANCE ===\nVACUUM: ok\nANALYZE: ok\nREINDEX: ok")
+
+    print("\n=== SIDECARS (store_wide_reclaim estate) ===")
+    for row in r.get("sidecars", []):
+        note = f"  wasted {row['wasted_pct']}%" if "wasted_pct" in row else ""
+        quick = f"  quick={row['quick']}" if "quick" in row else ""
+        print(
+            f"{row['store']:36} {row['engine']:6} {row['action']:28}"
+            f"{note}{quick}  {row.get('secs', '?')}s"
+        )
 
     print("\n=== AFTER ===")
     metrics_line("metrics", r["after"])

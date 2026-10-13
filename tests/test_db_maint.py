@@ -1,6 +1,7 @@
 """Unit tests for helpers/maintenance/db_maint.py — pure helpers + DBMaintainer."""
 
 from __future__ import annotations
+import logging
 import sqlite3
 from pathlib import Path
 
@@ -9,6 +10,7 @@ import pytest
 
 from helpers.core.env import REPO_ROOT  # noqa: E402
 from helpers.core.zstd_io import decompress_file  # noqa: E402
+from helpers.maintenance import db_maint  # noqa: E402
 from helpers.maintenance.db_maint import (  # noqa: E402
     _fmt_bytes,
     _pragma_ident,
@@ -341,3 +343,170 @@ class TestBackupVec:
         n = got.execute("SELECT COUNT(*) FROM embed_cache").fetchone()[0]
         got.close()
         assert n == 1
+
+
+# ---------------------------------------------------------------------------
+# DBMaintainer.reclaim_freelist — VACUUM branch (2026-10-14 fix)
+# ---------------------------------------------------------------------------
+# The live failure this pins: 2026-10-13, `incremental_vacuum(5003)` on
+# research.db reclaimed ONE page, raised no error (so the old error-only
+# fallback never fired), and db_maint ended by P3.6-alerting at its own
+# 12.5% freelist. reclaim_freelist() now re-measures after the incremental
+# pass and pays for a full VACUUM whenever >WASTED_PCT survives.
+#
+# A scripted fake connection keeps this deterministic: whether a real
+# freelist survives incremental_vacuum depends on where the free pages sit
+# in the file — sqlite-internal detail the branch must not rely on either.
+
+
+class _FakeResult:
+    def __init__(self, value):
+        self._value = value
+
+    def fetchone(self):
+        # sqlite rows are tuples: the caller does .fetchone()[0]
+        return (self._value,)
+
+
+class FakeConn:
+    """execute() recorder with scripted PRAGMA results.
+
+    script: pragma name (lowercase, no "PRAGMA" prefix) -> list of fetchone()
+            values; the last entry repeats once the list is exhausted.
+    fail:   pragma names that raise sqlite3.OperationalError instead.
+    """
+
+    def __init__(self, script=None, fail=()):
+        self.script = {k: list(v) for k, v in (script or {}).items()}
+        self.fail = set(fail)
+        self.calls: list[str] = []
+
+    def execute(self, sql: str):
+        toks = sql.strip().lower().split()
+        name = toks[1].split("(")[0] if toks and toks[0] == "pragma" else " ".join(toks)
+        if name in self.fail:
+            raise sqlite3.OperationalError(f"simulated {name} failure")
+        self.calls.append(sql.strip())
+        vals = self.script.get(name)
+        if not vals:
+            return _FakeResult(None)
+        return _FakeResult(vals.pop(0) if len(vals) > 1 else vals[0])
+
+
+def _maint(tmp_path):
+    return DBMaintainer(
+        db_path=tmp_path / "test.db",
+        backup_path=tmp_path / "backup.db",
+        backup_sidecars=False,
+    )
+
+
+class TestReclaimFreelist:
+    def test_incremental_reclaims_everything(self, tmp_path):
+        conn = FakeConn({"freelist_count": [0], "page_count": [10000]})
+        mode = _maint(tmp_path).reclaim_freelist(conn, auto_vac=2, freelist_before=100)
+        assert mode == "incremental"
+        assert conn.calls[0] == "PRAGMA incremental_vacuum(100)"
+        assert "VACUUM" not in conn.calls
+
+    def test_stubborn_freelist_falls_back_to_full_vacuum(self, tmp_path):
+        # the 2026-10-13 shape: 5003 pages requested, 1 reclaimed → 12.5% left
+        conn = FakeConn({"freelist_count": [5002], "page_count": [40150]})
+        mode = _maint(tmp_path).reclaim_freelist(conn, auto_vac=2, freelist_before=5003)
+        assert mode == "incremental+vacuum"
+        assert conn.calls[0] == "PRAGMA incremental_vacuum(5003)"
+        assert conn.calls[-1] == "VACUUM"
+
+    def test_waste_at_threshold_keeps_the_incremental_pass(self, tmp_path):
+        # exactly WASTED_PCT is not "more than" — no full rewrite
+        conn = FakeConn({"freelist_count": [500], "page_count": [10000]})
+        mode = _maint(tmp_path).reclaim_freelist(conn, auto_vac=2, freelist_before=500)
+        assert mode == "incremental"
+        assert "VACUUM" not in conn.calls
+
+    def test_incremental_error_falls_back(self, tmp_path):
+        conn = FakeConn(fail={"incremental_vacuum"})
+        mode = _maint(tmp_path).reclaim_freelist(conn, auto_vac=2, freelist_before=42)
+        assert mode == "vacuum"
+        assert conn.calls == ["VACUUM"]
+
+    def test_auto_vacuum_none_runs_full_vacuum(self, tmp_path):
+        conn = FakeConn()
+        mode = _maint(tmp_path).reclaim_freelist(conn, auto_vac=0, freelist_before=200)
+        assert mode == "vacuum"
+        assert conn.calls == ["VACUUM"]
+
+    def test_empty_freelist_skips(self, tmp_path):
+        conn = FakeConn()
+        mode = _maint(tmp_path).reclaim_freelist(conn, auto_vac=2, freelist_before=0)
+        assert mode == "skipped"
+        assert conn.calls == []
+
+
+# ---------------------------------------------------------------------------
+# S3/S4 (store_wide_reclaim): the registered sidecar estate
+# ---------------------------------------------------------------------------
+class TestSidecarEstate:
+    @pytest.fixture
+    def estate(self, tmp_path, monkeypatch):
+        """Retarget the registry at a tmp estate: one dirty sqlite store,
+        one absent sqlite store, one checkpoint-only duckdb store."""
+        (tmp_path / "memory" / "data").mkdir(parents=True)
+        # REPO_ROOT retarget: maintain_registered_sidecars resolves the
+        # registry against it, so the tmp estate IS the estate under test.
+        monkeypatch.setattr(db_maint, "REPO_ROOT", tmp_path)
+        monkeypatch.setattr(db_maint, "SIDECAR_SQLITE", ("memory/side_a.db", "memory/gone.db"))
+        monkeypatch.setattr(db_maint, "SIDECAR_DUCKDB", (("memory/side.duckdb", False),))
+        return tmp_path
+
+    def _maintainer(self, root):
+        return DBMaintainer(
+            db_path=root / "memory" / "primary.db",
+            backup_path=root / "bk" / "primary.db",
+            backup_sidecars=False,
+            logger=logging.getLogger("test_sidecar_estate"),
+        )
+
+    def _seed_dirty(self, p):
+        con = sqlite3.connect(str(p))
+        con.execute("CREATE TABLE t (x TEXT)")
+        con.executemany("INSERT INTO t VALUES (?)", [("pad" * 100,) for _ in range(2000)])
+        con.commit()
+        con.execute("DELETE FROM t")
+        con.commit()
+        con.close()
+
+    def test_sqlite_reclaimed_absent_reported_duckdb_checkpoint_only(self, estate):
+        import duckdb
+
+        self._seed_dirty(estate / "memory" / "side_a.db")
+        con = duckdb.connect(str(estate / "memory" / "side.duckdb"))
+        con.execute("CREATE TABLE t (i INT)")
+        con.close()
+        rows = self._maintainer(estate).maintain_registered_sidecars()
+        by = {r["store"]: r for r in rows}
+        side = by["memory/side_a.db"]
+        assert side["action"] in ("vacuum", "incremental", "incremental+vacuum")
+        assert side["quick"] == "ok"
+        assert side["wasted_pct"] > 5.0  # seeded ~heavy freelist
+        assert by["memory/gone.db"]["action"] == "absent"
+        # §5.4 ruling: checkpoint-only — no vacuum on the swap-rebuilt store
+        assert by["memory/side.duckdb"]["action"] == "checkpoint"
+
+    def test_busy_sidecar_skipped_never_raises(self, estate):
+        self._seed_dirty(estate / "memory" / "side_a.db")
+        holder = sqlite3.connect(str(estate / "memory" / "side_a.db"))
+        holder.execute("BEGIN IMMEDIATE")
+        holder.execute("INSERT INTO t VALUES ('blocker')")
+        try:
+            rows = self._maintainer(estate).maintain_registered_sidecars()
+            assert rows[0]["action"] == "skipped (database is locked)"
+        finally:
+            holder.rollback()
+            holder.close()
+
+    def test_s4_waste_alert_fires_above_threshold(self, estate, caplog):
+        self._seed_dirty(estate / "memory" / "side_a.db")
+        with caplog.at_level(logging.WARNING, logger="test_sidecar_estate"):
+            self._maintainer(estate).maintain_registered_sidecars()
+        assert any("P3.6 alert (memory/side_a.db)" in r.message for r in caplog.records)

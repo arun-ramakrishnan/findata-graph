@@ -20,7 +20,7 @@ guidance-style rows with NULL metric_label and hardened its reader
 label them is a pipeline question — filed here, not fixed there.
 -->
 
-**Date:** 2026-09-28 · **Status:** PROPOSED · **Deferred from:** desktop S3
+**Date:** 2026-09-28 · **Status:** DEFERRED · **Deferred from:** desktop S3
 **Area:** helpers/graph/derive_insights.py (metrics writer), company_metrics table
 
 ## 1. Motivation
@@ -38,6 +38,7 @@ the gap is writer-side provenance, not corruption.
 |---|---|
 | NULL-label rows corpus-wide | 3,119 / 66,895 (4.7%) |
 | Entities affected | 476 distinct |
+| Re-measured 2026-10-13 (drift check) | 1,166 / 64,227 (1.8%), 303 entities — no backfill recorded in completed.md, so writers mostly stopped emitting NULLs; premise is real but ~62% smaller |
 | CEAT sample | 12 rows, e.g. `16%`/`8-10%` percent, no label, no period |
 | Labeled-row shape (control) | `q_revenue`, `value_raw`, `unit`, `period=FY27Q1` — full provenance |
 | Desktop impact today | none — reader hardened S3 (`Option` + fallback) |
@@ -92,6 +93,7 @@ source line carries, any desktop change (already robust).
 |---|---|---|---|
 | 2026-09-28 | NULL-label census over company_metrics | 3,119 / 66,895 rows, 476 entities | guidance ranges, value+unit sound |
 | 2026-09-28 | CEAT probe | 12 NULL-label rows (`16%`, `8-10%`) | desktop S3 finding #1 |
+| 2026-10-13 | NULL-label census (drift re-check) | 1,166 / 64,227 rows, 303 entities (1.8%) | no backfill run; premise still live, smaller |
 
 ---
 **Follows:** doc/improvements/archive/ui/findata_graph_desktop.md (S3 data findings, completed.md #308)

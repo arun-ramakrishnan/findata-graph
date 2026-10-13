@@ -34,7 +34,7 @@ export PATH := $(CURDIR)/.venv/bin:$(PATH)
 export TMPDIR ?= $(shell test -d /mnt/data/tmp && { mkdir -p /mnt/data/tmp/findata; echo /mnt/data/tmp/findata; } || echo /tmp)
 
 
-.PHONY: help qa test live-invariants perf cover fuzz integration snapshot snapshot-check snapshot-restore sync-tags sync-coverage-tags sync-sector-links static-checks license-check tmp-sweep install-dev triage-quotes gate-fresh graph-smoke graph-stats graph-algos graph-rebuild graph-rebuild-bench update-extensions recompute-graph recompute-hyper search-fresh convo-fresh embed-gc search-tui derive-relations derive-co-mentions derive-themes derive-events derive-insights derive-indices quote-coverage derive-themes-rebuild derive-cited-in derive-cited-in-rebuild derive-hyperedges derive-all refresh-indices refresh-vigil refresh-shp frontend frontend-check fold-identifiers format maint maint-full md-lint metrics-rebuild mojo-bench mojo-build mojo-test mojo-format relations-enrich lint types types-tests lint-audit deptry advisory secret-scan cargo-audit script-search-rebuild memory-search-rebuild triage-relations live-invariants stamp-centrality parity review-patch review-scan teleocr-server embgemma-server granite-server llamacpp-build llamacpp-health csr csr-check csr-rebuild convo-search-rebuild convo-search-check analytics-parquet analytics-fresh schema-check schema-dump
+.PHONY: help qa test live-invariants perf cover fuzz integration snapshot snapshot-check snapshot-restore store-sweep sync-tags sync-coverage-tags sync-sector-links static-checks license-check tmp-sweep install-dev triage-quotes gate-fresh graph-smoke graph-stats graph-algos graph-rebuild graph-rebuild-bench update-extensions recompute-graph recompute-hyper search-fresh convo-fresh embed-gc search-tui derive-relations derive-co-mentions derive-themes derive-events derive-insights derive-indices quote-coverage derive-themes-rebuild derive-cited-in derive-cited-in-rebuild derive-hyperedges derive-all refresh-indices refresh-vigil refresh-shp frontend frontend-check fold-identifiers format maint maint-full md-lint metrics-rebuild mojo-bench mojo-build mojo-test mojo-format relations-enrich lint types types-tests lint-audit deptry advisory secret-scan cargo-audit script-search-rebuild memory-search-rebuild triage-relations live-invariants stamp-centrality parity review-patch review-scan teleocr-server embgemma-server granite-server llamacpp-build llamacpp-health csr csr-check csr-rebuild convo-search-rebuild convo-search-check analytics-parquet analytics-fresh schema-check schema-dump
 
 help:           ## Show available targets (alphabetical; entries generated from the ## annotations — keep both in sync)
 > @echo "FinData targets (alphabetical):"
@@ -122,6 +122,7 @@ help:           ## Show available targets (alphabetical; entries generated from 
 > @echo "  snapshot-restore         Rebuild memory/ DBs from the git-tracked Parquet snapshot (clobbers live DBs)"
 > @echo "  stamp-centrality         Re-stamp v_centrality_* tables (explicit lane; lane-served metrics skipped per ROUTING; graph-rebuild drops them; maint runs it after graph-rebuild)"
 > @echo "  static-checks            Fast static checks (syntax, shebangs, YAML, artifacts, merge markers, license metadata)"
+> @echo "  store-sweep              Standalone estate sweep: census + reclaim/checkpoint every registered sidecar (ARGS=--dry-run previews)"
 > @echo "  suggest-relations        Print link-prediction relation suggestions (C2; append with --append)"
 > @echo "  sync-coverage-tags       Converge The Chatter company/<slug> tags from quote coverage"
 > @echo "  sync-sector-links        WRITE the auto company index into sector notes (explicit; maint-full only checks staleness)"
@@ -142,6 +143,9 @@ static-checks:  ## Fast static checks (syntax, shebangs, YAML, artifacts, merge 
 
 license-check:  ## Verify AGPL metadata, root license, and third-party inventory
 > python3 helpers/misc/license_check.py
+
+store-sweep:    ## Standalone estate sweep: census + reclaim/checkpoint every registered sidecar store (ARGS=--dry-run previews)
+> .venv/bin/python3 helpers/maintenance/store_sweep.py $(ARGS)
 
 # c901_complexity_debt S1. NOT part of `make qa`: parity is only meaningful
 # against a ref, so it is a refactor-time check, not a tree-state gate.

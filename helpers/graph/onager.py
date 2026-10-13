@@ -1101,8 +1101,10 @@ def _modularity(
 # column is ignored entirely (any positive values give byte-identical
 # output), the restart node is hardcoded to node_id 1, and it raises
 # "Personalization node 1 not found in graph" on any projection without a
-# node id 1. Verified 2026-08-14 on synthetic graphs; revisit if a later
-# onager build wires the personalization column through.
+# node id 1. Verified 2026-08-14 on synthetic graphs; re-verified
+# 2026-10-13 on the rebuilt extension (build ab472a7, 2026-10-05) — all
+# three behaviours unchanged. Revisit if a later onager build wires the
+# personalization column through.
 # --------------------------------------------------------------------------- #
 def onager_harmonic(
     con: duckdb.DuckDBPyConnection | None = None,
