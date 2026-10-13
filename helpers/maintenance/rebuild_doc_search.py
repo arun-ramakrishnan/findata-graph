@@ -1010,7 +1010,7 @@ def search_docs(  # noqa: C901
         cols = [r[1] for r in conn.execute("PRAGMA table_info(doc_search)")]
         weights = ", ".join(str(col_w.get(c, 0.0)) for c in cols)
         page = conn.execute(
-            "SELECT rowid, title, section_title, file_path, anchor, embedding, rank, "
+            "SELECT rowid, title, section_title, file_path, anchor, embedding, rank, "  # noqa: S608  # {weights} is per-column floats from the col_w table keyed by PRAGMA column order; only the MATCH expression is bound
             f"snippet(doc_search, 4, '<mark>', '</mark>', ' … ', 16) AS snip "
             f"FROM doc_search WHERE doc_search MATCH ? "
             f"ORDER BY bm25(doc_search, {weights}) LIMIT ?",

@@ -427,7 +427,7 @@ def _v2_msg_envelope(con) -> dict[str, tuple]:
 
 
 def _assistant_block_row(
-    pid: str, mid: str, sid: str, ts: int, agent: str, model: str, b: dict, src: str
+    pid: str, mid: str, sid: str, ts: datetime, agent: str, model: str, b: dict, src: str
 ) -> dict | None:
     """One corpus row for an assistant content block; None skips it.
 

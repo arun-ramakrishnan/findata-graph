@@ -1535,7 +1535,9 @@ def _scan_ts_units(base: Path) -> set[str]:
     return units
 
 
-def _units_current(meta: dict[str, tuple[float, str]], on_disk: set[str], bases: list[Path]) -> bool:
+def _units_current(
+    meta: dict[str, tuple[float, str]], on_disk: set[str], bases: list[Path]
+) -> bool:
     """True when every on-disk unit matches the stored meta.
 
     mtime_gate S1 (sibling leg): content decides, mtime is only the fast
@@ -1556,9 +1558,10 @@ def _units_current(meta: dict[str, tuple[float, str]], on_disk: set[str], bases:
         try:
             if abs_path.stat().st_mtime == prev[0]:
                 continue  # fast path: mtime match ⇒ unchanged
-            if not prev[1] or hashlib.blake2b(
-                abs_path.read_bytes(), digest_size=8
-            ).hexdigest() != prev[1]:
+            if (
+                not prev[1]
+                or hashlib.blake2b(abs_path.read_bytes(), digest_size=8).hexdigest() != prev[1]
+            ):
                 return False  # hash differs (or missing) ⇒ stale
         except OSError:
             return False  # unreadable ⇒ stale (fail closed)

@@ -520,6 +520,34 @@ commit, referenced by nothing). Entry numbers point at
 - [`resolver_extractor_hardening.md`](tooling/resolver_extractor_hardening.md) — Entity resolution & relation-extractor hardening — first-full-run findings: cross-check dims-match + min_sim 0.80, extractor 2-vs-3 tuple crash, alias-precedence (exact wins), 10 gap aliases; S1–S8 (normalization classes, tie-break audit, section-head noise gate, stub placeholder, sector precedence, analyst routing, integrity transient, ticker enrichment) deferred §D — completed.md #378
 - [`default_incremental_rebuilds.md`](tooling/default_incremental_rebuilds.md) — Default incremental rebuilds for search indexes + graph fast path — CLI default flip (`--full` opt-out) across doc/script/memory/note search, ~40 MB no-op gate rewrites avoided, convo-fresh APPLY AttributeError caught by pin; graph patch-dirty fast path already default — completed.md #384
 - [`worktree_fresh_trample_guard.md`](tooling/worktree_fresh_trample_guard.md) — Worktree fresh trample guard — a behind-worktree APPLY regresses the shared notes surface and bumps the generation (live ping-pong reproduced 2026-10-12): working-set stamp at apply time (S1), three-valued stale-apply refusal with `--allow-stale` + `--sandbox` preview (S2/S5, 19 guard tests), bump-log ring with `--check`-leg citation (S3, 8 ring/citation tests), Makefile ARGS passthrough + etiquette (S4/F6); delegation-review F1–F9 closed (types annotation, format footprint, export-side stamp exclusion, C901 extraction, schema DDL regen) — completed.md #385
+- [`doc_search_gemma_eval.md`](tooling/doc_search_gemma_eval.md) — Doc-search
+  gemma eval — EmbeddingGemma-2 vs hybrid-granite vs bm25 on the frozen 18-q
+  bank over a drift-clean 3,207-row doc corpus: hybrid-gemma 17/18 recall@5,
+  MRR 0.716 vs hybrid-granite 16/18, MRR 0.659, zero exact-tier regressions;
+  the @8k cap measured +0.008 MRR (noise), so the adopted recipe stays @4000;
+  durable content-hash-keyed vectors, probe outputs and scripts indexed in
+  `doc/local/evaluations/emb_gemma_assessment.md` Appendix B — completed.md #386
+- [`doc_search_gemma_adoption.md`](tooling/doc_search_gemma_adoption.md) —
+  Doc-search gemma adoption — the doc leg moves from granite-hardwired 384-d to
+  EmbeddingGemma-2 512-d, hybrid serving, on the trial-pinned pure-prose basis
+  (title + section title + content[:4000]): S1 build path (embedder selector,
+  `guard_gemma_stamp` on the write path, `DOC_EMBEDDER=granite` rollback
+  escape), S2 stamp-keyed read path with surfaced degradation notes (the #367
+  silent-degradation mirror), S3 cutover seeded from the trial vector snapshot
+  at 3,204/3,218 cache hits, S4 live gate reproduced the trial arm-for-arm
+  (17/18, exact 7/7, MRR 0.708); the S7 field-enrichment follow-up took MRR to
+  0.759 — completed.md #388
+- [`doc_index_stale_mtime_gate.md`](tooling/doc_index_stale_mtime_gate.md) —
+  doc_index_stale mtime gate — the read gate compared raw mtimes with `!=`
+  while the writer freshness verdict has been content-hash-based since
+  2026-08-30, so every sanctioned cross-tree `--allow-stale` apply left the
+  shared index permanently phantom-stale (live 2026-10-13: writer fresh +
+  reader `stale: True`, 281/353 meta rows skewed, doc consumers scan-degraded
+  three times before a `--full` rebuild): S1 reader hash-verifies on mtime
+  mismatch and fails closed with zero write access, S2 writer heals carried
+  mtimes, S3 sibling-leg survey with the script leg shipped alongside —
+  completed.md #387
+
 ## ui/ — Frontend & templates — reader, paper register, findata views
 
 - [`graph_docs_ui_redesign.md`](ui/graph_docs_ui_redesign.md) — Graph docs UI redesign — completed.md #145

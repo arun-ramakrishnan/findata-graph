@@ -321,7 +321,7 @@ def _noqa_codes(line: str) -> set[str] | None:
 #
 # Proposal `review_pass_findings.md` S3 records what happened when it WAS
 # the bound. A 12-line cap truncated every statement longer than that: a
-# 16-line SQL literal lost its `# noqa` (on the closing-quote line), AND
+# 16-line SQL literal lost its noqa directive (on the closing-quote line), AND
 # semgrep's citation — which anchors on the `con.execute(` line, one line
 # ABOVE bandit's f-string anchor, where paren depth is +1 — truncated in the
 # paren walk before it could reach the same directive. The first fix raised

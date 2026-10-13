@@ -145,12 +145,26 @@ class TestScriptQueryCli:
 
     def test_stale_index_still_answers_with_warning(self, fake_local, capsys):
         audit = Path(rss.HELPERS_ROOT) / "misc" / "widget_audit.py"
+        audit.write_text(audit.read_text() + "\n# drifted widget pass\n")
+        rc = script_query.main(["widget audit"])
+        assert rc == 0
+        captured = capsys.readouterr()
+        assert "WARNING" in captured.err
+        assert "widget_audit.py" in captured.out
+
+    def test_mtime_only_skew_is_not_stale(self, fake_local, capsys):
+        """mtime_gate S1 (sibling leg): mtime mismatch is suspect, not stale.
+
+        _units_current hash-verifies before judging, so a pure mtime bump
+        keeps the scripts index serving instead of degrading to scan.
+        """
+        audit = Path(rss.HELPERS_ROOT) / "misc" / "widget_audit.py"
         future = time.time() + 10
         os.utime(audit, (future, future))
         rc = script_query.main(["widget audit"])
         assert rc == 0
         captured = capsys.readouterr()
-        assert "WARNING" in captured.err
+        assert "WARNING" not in captured.err
         assert "widget_audit.py" in captured.out
 
     def test_bm25_flag(self, fake_local, capsys):

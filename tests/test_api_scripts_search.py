@@ -222,13 +222,24 @@ class TestScriptsSearchDegradation:
         assert "rebuild_script_search" in body["rebuild"]
 
     def test_stale_index_still_answers(self, fake_local, seeded, client):
+        app_py = seeded / "app.py"
+        app_py.write_text(app_py.read_text() + "\n# drifted\n")
+        r = client.get("/api/scripts/search?q=widget")
+        assert r.status_code == 200
+        data = r.get_json()
+        assert data["stale"] is True
+        assert data["results"]
+
+    def test_mtime_only_skew_is_not_stale(self, fake_local, seeded, client):
+        """mtime_gate S1 (sibling leg): a pure mtime bump must NOT flip the
+        API stale flag — content decides, mtime is the fast path only."""
         future = time.time() + 10
         app_py = seeded / "app.py"
         os.utime(app_py, (future, future))
         r = client.get("/api/scripts/search?q=widget")
         assert r.status_code == 200
         data = r.get_json()
-        assert data["stale"] is True
+        assert data["stale"] is False
         assert data["results"]
 
     def test_corrupt_sidecar_503_never_500(self, fake_local, seeded, client):

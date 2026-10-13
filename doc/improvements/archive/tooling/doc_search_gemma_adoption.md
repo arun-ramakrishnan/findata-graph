@@ -3,13 +3,13 @@ title: "Move the doc-search leg to EmbeddingGemma-2 — hybrid serving, pure-pro
 status: executed
 filed: "2026-10-13"
 executed: "2026-10-13"
-completed_md: "#388"
+completed_md: "388"
 area: "helpers/maintenance/rebuild_doc_search.py (basis :306, cap :124, embedder+stamp paths), helpers/core/gemma_embedder.py (query side), app.py _docs_index_search :1347, helpers/misc/doc_query.py"
 ---
 
 # Doc-search gemma adoption
 
-**Date:** 2026-10-13 · **Status:** PROPOSED ·
+**Date:** 2026-10-13 · **Status:** EXECUTED 2026-10-13 ·
 **Area:** `helpers/maintenance/rebuild_doc_search.py`,
 `helpers/core/gemma_embedder.py`, `app.py::_docs_index_search`,
 `helpers/misc/doc_query.py`

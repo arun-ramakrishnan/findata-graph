@@ -3,13 +3,13 @@ title: "doc_index_stale read gate flags mtime-skewed-but-content-identical index
 status: executed
 filed: "2026-10-13"
 executed: "2026-10-13"
-completed_md: "#387"
+completed_md: "387"
 area: "helpers/maintenance/rebuild_doc_search.py (doc_index_stale), rebuild_common carry path, app.py _docs_index_search"
 ---
 
 # doc_index_stale read gate: mtime verdict contradicts the writer's content-hash verdict
 
-**Date:** 2026-10-13 · **Status:** PROPOSED ·
+**Date:** 2026-10-13 · **Status:** EXECUTED 2026-10-13 ·
 **Area:** `helpers/maintenance/rebuild_doc_search.py` (`doc_index_stale`),
 the incremental carry path, `app.py::_docs_index_search`
 

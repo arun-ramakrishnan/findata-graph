@@ -241,8 +241,7 @@ class TestDocsSearch:
         try:
             for hit in data["results"]:
                 n = probe.execute(
-                    "SELECT COUNT(*) FROM doc_search "
-                    "WHERE file_path = ? AND doc_search MATCH ?",
+                    "SELECT COUNT(*) FROM doc_search WHERE file_path = ? AND doc_search MATCH ?",
                     (hit["path"], expr),
                 ).fetchone()[0]
                 assert n >= 1, hit["path"]

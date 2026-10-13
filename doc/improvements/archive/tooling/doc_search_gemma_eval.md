@@ -3,7 +3,7 @@ title: "Doc-search gemma eval — does EmbeddingGemma-2 buy recall on the doc co
 status: executed
 filed: "2026-10-12"
 executed: "2026-10-13"
-completed_md: "#386"
+completed_md: "386"
 area: "helpers/misc/doc_query.py, helpers/maintenance/rebuild_doc_search.py, helpers/misc/embed_eval.py, bench_data/embgemma2/banks/embed_eval_questions.json"
 ---
 

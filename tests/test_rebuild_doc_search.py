@@ -146,9 +146,7 @@ class TestEnrichment:
         assert "x.png" not in links
 
     def test_extraction_links_cap_900(self):
-        text = "# T\n" + "\n".join(
-            f"[l{i}](doc/f{i}.md)" for i in range(200)
-        )
+        text = "# T\n" + "\n".join(f"[l{i}](doc/f{i}.md)" for i in range(200))
         _meta, links, _trail = rds._file_enrichment(text)
         assert len(links) == 900
         assert "l0" in links
@@ -311,9 +309,7 @@ class TestGemmaAdoption:
             assert out["mode"] == "hybrid"
             assert "note" in out and "mismatch" in out["note"]
             # Matched-stamp QV serves hybrid with no note.
-            lqv = rbc.QueryVector(
-                vector=tuple(_fake_vec("cache warmup")), model=stamp, dims=8
-            )
+            lqv = rbc.QueryVector(vector=tuple(_fake_vec("cache warmup")), model=stamp, dims=8)
             out2 = rds.search_docs(con, "cache warmup", query_vec=lqv)
             assert out2["mode"] == "hybrid"
             assert "note" not in out2

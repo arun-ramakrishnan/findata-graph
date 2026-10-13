@@ -92,12 +92,28 @@ class TestDocQueryCli:
     def test_stale_index_still_answers_with_warning(self, seeded, fake_local, capsys):
         rds.rebuild(write=True)
         guide = Path(rds.DOC_ROOT) / "guide.md"
+        guide.write_text(guide.read_text() + "\nA new section on cache warming.\n")
+        rc = doc_query.main(["cache"])
+        assert rc == 0
+        captured = capsys.readouterr()
+        assert "WARNING" in captured.err
+        assert "guide.md" in captured.out
+
+    def test_mtime_only_skew_is_not_stale(self, seeded, fake_local, capsys):
+        """mtime_gate S1: content decides, mtime is only the fast path.
+
+        A pure mtime bump is the cross-tree --allow-stale apply shape (the
+        2026-08-30 doctrine the writer already held); doc_index_stale must
+        hash-verify and keep serving, not degrade to a scan warning.
+        """
+        rds.rebuild(write=True)
+        guide = Path(rds.DOC_ROOT) / "guide.md"
         future = time.time() + 10
         os.utime(guide, (future, future))
         rc = doc_query.main(["cache"])
         assert rc == 0
         captured = capsys.readouterr()
-        assert "WARNING" in captured.err
+        assert "WARNING" not in captured.err
         assert "guide.md" in captured.out
 
     def test_bm25_flag(self, seeded, fake_local, capsys):
