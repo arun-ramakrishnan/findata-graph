@@ -855,3 +855,54 @@ def test_noise_target_institution_short_names_exempt():
     assert tpr.noise_target("and")
     assert tpr.noise_target("the")
     assert tpr.noise_target("of")
+
+
+class TestNoiseTargetShortEntities:
+    """Range review H4 — the fragment-length rule discriminated on LENGTH,
+    so it killed real short institutions as surely as mangled captures.
+
+    The prior fix allow-listed three exact names (rbi/sebi/mhp); that left the
+    structural hole open — 10 of 28 real entities still read as noise.
+    """
+
+    def test_real_short_institutions_are_not_noise(self):
+        for t in [
+            "SBI",
+            "ITC",
+            "LIC",
+            "TCS",
+            "UPI",
+            "IPO",
+            "GST",
+            "NSE",
+            "BSE",
+            "FEMA",
+            "ONGC",
+            "GAIL",
+            "NHPC",
+            "LT",
+            "3M",
+            "IRDA",
+            "PFRDA",
+            "VEDL",
+        ]:
+            assert not tpr.noise_target(t), t
+
+    def test_mangled_fragments_are_still_noise(self):
+        # The class the length rule was written for must survive the fix.
+        for t in ["th", "co", "st", "ab", "aa", "te", "or", "of", "in", "x"]:
+            assert tpr.noise_target(t), t
+
+    def test_placeholder_acronyms_stay_noise_by_decision(self):
+        for t in ["ABC", "CDMO", "XYZ", "NA"]:
+            assert tpr.noise_target(t), t
+
+    def test_lowercase_short_tokens_stay_noise(self):
+        # Case IS the discriminator: a lowercase stub is a fragment, even at
+        # the same length as "SBI". Regression guard on the shape rule.
+        for t in ["sbi", "itc", "lic"]:
+            assert tpr.noise_target(t), t
+
+    def test_countries_and_generic_phrases_unchanged(self):
+        for t in ["Japan", "Germany", "US", "Vendor Partners", "Army"]:
+            assert tpr.noise_target(t), t

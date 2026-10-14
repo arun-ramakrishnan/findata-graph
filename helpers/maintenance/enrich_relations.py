@@ -285,11 +285,44 @@ def load_log_mcaps(
     return out
 
 
+def _vault_note_path(
+    file_path: str | None, *, entity: str = "", write: bool = False
+) -> Path | None:
+    """Resolve a DB-sourced ``entities.file_path`` to a path inside the vault.
+
+    ``entities.file_path`` is a plain string in a SQLite column. Joining it to
+    PROJECT_ROOT without a containment check turns any ``../`` in that column
+    into an arbitrary-path read (:292) or WRITE (:2352) — a tampered or
+    mistyped row would rewrite the ``ticker:`` frontmatter of a file outside
+    ``findata/``. Same guard as ``derive_insights._paths_by_entity``
+    (``derive_insights.py:2124-2134``); kept here as a function so the read
+    and write twins cannot drift apart again.
+
+    Returns None (and warns) when the path escapes ``findata/``. Callers must
+    skip their work; a rejected row is never silently rewritten.
+    """
+    if not file_path:
+        return None
+    vault = (PROJECT_ROOT / "findata").resolve()
+    resolved = (PROJECT_ROOT / file_path).resolve()
+    if not resolved.is_relative_to(vault):
+        log.warning(
+            "refusing %s of %r: entities.file_path %r resolves outside findata/ (tampered row?)",
+            "write" if write else "read",
+            entity,
+            file_path,
+        )
+        return None
+    return resolved
+
+
 def bucket_fallback_mcap(file_path: str | None) -> float | None:
     """log10(representative crore) from a note's market_cap bucket tag."""
     if not file_path:
         return None
-    note = PROJECT_ROOT / file_path
+    note = _vault_note_path(file_path, entity="", write=False)
+    if note is None:
+        return None
     if not note.exists():
         return None
     m = _BUCKET_RE.search(note.read_text(encoding="utf-8")[:2000])
@@ -2349,7 +2382,8 @@ def _apply_finnhub_writebacks(
         for o in writebacks:
             conn.execute("UPDATE entities SET ticker = ? WHERE name = ?", (o.new_ticker, o.entity))
             fp = file_path_of.get(o.entity)
-            if fp and _set_frontmatter_ticker(PROJECT_ROOT / fp, o.new_ticker or ""):
+            note_path = _vault_note_path(fp, entity=o.entity, write=True)
+            if note_path is not None and _set_frontmatter_ticker(note_path, o.new_ticker or ""):
                 log.info("frontmatter ticker updated: %s", fp)
             else:
                 log.warning(

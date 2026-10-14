@@ -229,6 +229,15 @@ GATES: dict[str, Gate] = {
             ),
             Step("verify_notes", (_PY, "helpers/validators/verify_notes.py")),
             Step("integrity_check", (_PY, "helpers/misc/database_integrity_check.py")),
+            # mojo-parity: the Mojo integrity_check port diffed against
+            # the Python original over 89 canonical keys. This is the
+            # ONLY drift detector between the two implementations, and
+            # until 2026-10-14 it existed solely inside the mojo-bench
+            # PERF harness — never run as a gate, which is how the Mojo
+            # copy fell 26 days behind a Python checker that moved 8
+            # times. Needs the Mojo toolchain + a build, so it sits on
+            # the shared pool rather than exclusive with pytest.
+            Step("mojo-parity", (_MAKE, "mojo-parity")),
             # snapshot_fresh_gate: generation-only freshness first — drift
             # fails here in ~0.3 s with the exact remediation instead of
             # MISMATCH archaeology 7 s into snapshot_check.

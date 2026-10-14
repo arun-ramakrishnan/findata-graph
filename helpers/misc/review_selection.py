@@ -50,8 +50,10 @@ REVIEW_OUT_DIR = REPO_ROOT / "outputs" / "reviews"
 # family keeps the admission honest.
 PRODUCT_FAMILIES = (
     "Mojo/src/",
+    "Mojo/src/gpu/",
     "Mojo/tests/",
     "tests/",
+    "tests/fixtures/",
     "frontend/tests/",
     "desktop/src-tauri/",
     "desktop/src-vue/",

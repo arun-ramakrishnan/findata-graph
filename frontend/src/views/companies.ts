@@ -345,9 +345,17 @@ export class CompaniesView {
                 }
             </div>
             <div class="card-footer">
-                <a href="/entity/${entity.file_path}" class="btn-primary" target="_blank" rel="noopener noreferrer">
+                ${
+                    // entity.file_path is `string | null`. The href used to
+                    // interpolate it unguarded, so a fileless company
+                    // rendered href="/entity/null" — a dead link. Guarding it
+                    // is also what lets encodeURI() take a plain string.
+                    entity.file_path
+                        ? `<a href="/entity/${encodeURI(entity.file_path)}" class="btn-primary" target="_blank" rel="noopener noreferrer">
                     <i class="fas fa-external-link-alt"></i> View Details
-                </a>
+                </a>`
+                        : ""
+                }
             </div>
         `;
 

@@ -825,6 +825,25 @@ def _sqlite_table_arrow(con: sqlite3.Connection, table: str) -> pa.Table:
 
         query += " WHERE key NOT LIKE ?"
         params = (f"{APPLY_STAMP_PREFIX}%",)
+    # ORDER BY every column (range review L1): the DuckDB export above gained
+    # this in this same range for a stated reason — without it the export
+    # leaks the table's physical row order into the blob, so a rebuild that
+    # left the content set-identical still churns the parquet. The SQLite half
+    # kept the unsorted form, so the two halves of `snapshots/parquet/`
+    # disagreed about whether their output was a pure function of content. A
+    # VACUUM or an indexed UPDATE is enough to reorder a SQLite table.
+    #
+    # SQLite has no `ORDER BY ALL` (that is DuckDB syntax), so the column
+    # list is built from the table's own schema. BLOB columns are excluded:
+    # SQLite cannot order arbitrary blobs reliably, and every snapshot table
+    # is text/numeric/JSON.
+    order_cols = [
+        r[1]
+        for r in con.execute(f"PRAGMA table_info([{table}])").fetchall()  # noqa: S608  # identifiers from the snapshot's own table name
+        if (r[2] or "").upper() != "BLOB"
+    ]
+    if order_cols:
+        query += " ORDER BY " + ", ".join(f"[{c}]" for c in order_cols)
     cur = con.execute(query, params)
     names = [d[0] for d in cur.description]
     rows = cur.fetchall()

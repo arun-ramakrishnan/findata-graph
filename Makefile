@@ -34,7 +34,7 @@ export PATH := $(CURDIR)/.venv/bin:$(PATH)
 export TMPDIR ?= $(shell test -d /mnt/data/tmp && { mkdir -p /mnt/data/tmp/findata; echo /mnt/data/tmp/findata; } || echo /tmp)
 
 
-.PHONY: help qa test live-invariants perf cover fuzz integration snapshot snapshot-check snapshot-restore store-sweep sync-tags sync-coverage-tags sync-sector-links static-checks license-check tmp-sweep install-dev triage-quotes gate-fresh graph-smoke graph-stats graph-algos graph-rebuild graph-rebuild-bench update-extensions recompute-graph recompute-hyper search-fresh convo-fresh embed-gc search-tui derive-relations derive-co-mentions derive-themes derive-events derive-insights derive-indices quote-coverage derive-themes-rebuild derive-cited-in derive-cited-in-rebuild derive-hyperedges derive-all refresh-indices refresh-vigil refresh-shp frontend frontend-check fold-identifiers format maint maint-full md-lint metrics-rebuild mojo-bench mojo-build mojo-test mojo-format relations-enrich lint types types-tests lint-audit deptry advisory secret-scan cargo-audit script-search-rebuild memory-search-rebuild triage-relations live-invariants stamp-centrality parity review-patch review-scan teleocr-server embgemma-server granite-server llamacpp-build llamacpp-health csr csr-check csr-rebuild convo-search-rebuild convo-search-check analytics-parquet analytics-fresh schema-check schema-dump
+.PHONY: help qa test live-invariants perf cover fuzz integration snapshot snapshot-check snapshot-restore sync-tags sync-coverage-tags sync-sector-links static-checks license-check tmp-sweep install-dev triage-quotes gate-fresh graph-smoke graph-stats graph-algos graph-rebuild graph-rebuild-bench update-extensions recompute-graph recompute-hyper search-fresh convo-fresh embed-gc search-tui derive-relations derive-co-mentions derive-themes derive-events derive-insights derive-indices quote-coverage derive-themes-rebuild derive-cited-in derive-cited-in-rebuild derive-hyperedges derive-all refresh-indices refresh-vigil refresh-shp frontend frontend-check fold-identifiers format maint maint-full md-lint metrics-rebuild mojo-bench mojo-parity mojo-build mojo-test mojo-format relations-enrich lint types types-tests lint-audit deptry advisory secret-scan cargo-audit script-search-rebuild memory-search-rebuild triage-relations live-invariants stamp-centrality parity review-patch review-scan teleocr-server embgemma-server granite-server llamacpp-build llamacpp-health csr csr-check csr-rebuild convo-search-rebuild convo-search-check analytics-parquet analytics-fresh schema-check schema-dump
 
 help:           ## Show available targets (alphabetical; entries generated from the ## annotations — keep both in sync)
 > @echo "FinData targets (alphabetical):"
@@ -85,7 +85,7 @@ help:           ## Show available targets (alphabetical; entries generated from 
 > @echo "  lint-audit               Run ruff S/UP/C901 audits (security + modernization + complexity) — Bandit/Refurb/Radon equivs"
 > @echo "  live-invariants          Run ONLY the live-marked invariant tests (-m live, xdist -n auto; skip-safe on pristine clone)"
 > @echo "  llamacpp-build           Build the unified llama-server into models/llamacpp/bin (vendor/llamacpp recipe: pinned llama.cpp + qwen2vl patch — one binary serves embgemma :8732 AND teleocr :8731)"
-> @echo "  llamacpp-health          One-shot probe of the always-on legs: :8732 embgemma (identity + 768d) and :8733 granite (identity + 384d); teleocr :8731 opt-in (health.py --ocr)"
+> @echo "  llamacpp-health          One-shot probe of the always-on legs: :8732 embgemma (identity + 768d) and :8733 granite (identity + 384d); teleocr :8731 opt-in (llamacpp_health.py --ocr)"
 > @echo "  maint                    Routine maintenance: db_maint + snapshot + graph-rebuild (always-safe)"
 > @echo "  maint-full               Post-ingest re-derivation: PRE_FULL index refresh (sync-tags, note-search) + maint + TIER2_STEPS (sector gates, company-embeddings, doc-search, analytics, insights, events, re-snapshot)"
 > @echo "  md-lint                  Markdown lint via pinned markdownlint-cli2 — doc/ prose base + findata Tier-1 defect rules (qa-gated; needs Node, SKIP without; proposal: markdown_lint_adoption)"
@@ -94,6 +94,7 @@ help:           ## Show available targets (alphabetical; entries generated from 
 > @echo "  mojo-bench               Run perf-gated Mojo bench legs (cosine-knn, analyzer, pool-4x, regex-bridge, yaml-corpus, regex-corpus, db-access, db-integrity, graph-algos) — measured-time gate per leg, report: Mojo/bench/bench_report.txt"
 > @echo "  mojo-build               Compile Mojo/ sources to native binaries in Mojo/bin/ (incremental; machinery in Makefile.mojo)"
 > @echo "  mojo-format                 Normalize Mojo/src + Mojo/tests with \`mojo format\` (fix for the tests/test_lint_gates.py format gate)"
+> @echo "  mojo-parity             Golden parity: Mojo integrity_check vs the Python original over 89 canonical keys (qa leg; exits 1 on any mismatch)"
 > @echo "  mojo-test                Run Mojo/tests/*.mojo test suites via mojo run (machinery in Makefile.mojo)"
 > @echo "  near-duplicates          Report near-duplicate note pairs above cosine 0.9 (rename tripwire; READ-ONLY)"
 > @echo "  parity                   Byte-compare registered refactor targets against REF (default HEAD) across pinned hash seeds (warns; STRICT=1 to gate)"
@@ -251,6 +252,9 @@ metrics-rebuild: ## Refresh company financials + notes from yfinance (~1 min, 93
 # stays thin so the main Makefile keeps a single annotated entry point.
 mojo-bench:      ## Run all Mojo bench legs via Mojo/bench/run_bench.py (MOJO_BENCH_SCALE/REPS, MOJO_BENCH_ARGS='--leg NAME')
 > $(MAKE) -f Makefile.mojo mojo-bench
+
+mojo-parity:     ## Golden parity: Mojo integrity_check vs the Python original over 89 canonical keys (qa leg; exits 1 on any mismatch)
+> $(MAKE) -f Makefile.mojo mojo-parity
 
 mojo-build:      ## Compile Mojo/ sources to native binaries in Mojo/bin/ (incremental; machinery in Makefile.mojo)
 > $(MAKE) -f Makefile.mojo mojo-build
@@ -423,8 +427,8 @@ analytics-fresh:  ## Analytics stores (agent_traces + model_usage) vs harness fr
 llamacpp-build:  ## Build the unified llama-server into models/llamacpp/bin (vendor/llamacpp recipe: pinned llama.cpp + qwen2vl patch — one binary serves embgemma :8732 AND teleocr :8731)
 > @bash vendor/llamacpp/build.sh
 
-llamacpp-health:  ## One-shot probe of the always-on legs (:8732 embgemma identity + 768d, :8733 granite identity + 384d); teleocr :8731 via health.py --ocr
-> @python3 vendor/llamacpp/health.py
+llamacpp-health:  ## One-shot probe of the always-on legs (:8732 embgemma identity + 768d, :8733 granite identity + 384d); teleocr :8731 via helpers/misc/llamacpp_health.py --ocr
+> @python3 helpers/misc/llamacpp_health.py
 
 embgemma-server:  ## Start the EmbeddingGemma-2 llama-server (Q8_0 from models/) on 127.0.0.1:8732 — Ctrl-C to stop; gemma_embedder only ever assumes it is running (D3), never spawns it
 > @if [ -n "$$EMBGEMMA_LLAMA_BIN" ]; then bin=$$EMBGEMMA_LLAMA_BIN; \

@@ -17,7 +17,7 @@ import type {
     SemanticResponse,
     SimilarNotesResponse,
 } from "../types/api";
-import { getEl, escapeHtml } from "./core/dom";
+import { getEl, escapeHtml, escapeAttr } from "./core/dom";
 import {
     fetchJson,
     isEntitiesResponse,
@@ -249,7 +249,7 @@ class EntityPage {
                         .filter(Boolean)
                         .join(" · ");
                     const quote = ev.source_quote
-                        ? ` title="${escapeHtml(ev.source_quote).replace(/"/g, "&quot;")}"`
+                        ? ` title="${escapeAttr(ev.source_quote).replace(/"/g, "&quot;")}"`
                         : "";
                     return `
                     <li class="ev-item"${quote}>
@@ -280,8 +280,8 @@ class EntityPage {
                     const href = this.wikilinks?.get(n.name);
                     const inner = `${escapeHtml(n.name.replace(/_/g, " "))} <b>${pct}%</b>`;
                     return href
-                        ? `<a class="peer-chip" href="/entity/${encodeURIComponent(href)}" title="${escapeHtml(n.sector || "")}">${inner}</a>`
-                        : `<span class="peer-chip" title="${escapeHtml(n.sector || "")}">${inner}</span>`;
+                        ? `<a class="peer-chip" href="/entity/${encodeURIComponent(href)}" title="${escapeAttr(n.sector || "")}">${inner}</a>`
+                        : `<span class="peer-chip" title="${escapeAttr(n.sector || "")}">${inner}</span>`;
                 })
                 .join("");
             getEl("rail-peers").style.display = "block";
@@ -303,7 +303,7 @@ class EntityPage {
                     const pct = Math.round(n.similarity * 100);
                     return `
                     <a class="related-row" href="/entity/${encodeURIComponent(n.file_path)}"
-                       title="${escapeHtml(n.file_path)}">
+                       title="${escapeAttr(n.file_path)}">
                         <span class="related-title">${escapeHtml(n.title.replace(/_/g, " "))}</span>
                         <span class="related-sim"><span class="related-bar"><span
                             class="bar-fill" style="width:${pct}%"></span></span>${pct}%</span>

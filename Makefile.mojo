@@ -27,7 +27,7 @@ MOJO_TESTS := $(wildcard $(MOJO_DIR)/tests/*.mojo)
 # from any package (and packages can import each other's modules).
 MOJO_IMPORT_FLAGS := $(foreach d,$(MOJO_PACKAGES),-I $(d)) -I $(MOJO_VENDOR_SRC) -I $(MOJO_VENDOR_L0)
 
-.PHONY: mojo-build mojo-test mojo-bench mojo-format
+.PHONY: mojo-build mojo-test mojo-bench mojo-format mojo-parity
 
 # One-shot formatter (the fix command for the tests/test_lint_gates.py
 # mojo-format gate, which checks a formatted COPY against the tree and never
@@ -46,6 +46,33 @@ mojo-test:
 >   $(MOJO) run $(MOJO_IMPORT_FLAGS) "$$t" || exit 1; \
 > done
 > @echo "✓ Mojo tests passed ($(words $(MOJO_TESTS)) files)"
+
+# Golden-parity differential: the Mojo port vs the Python original.
+# This is the ONLY mechanism that detects drift between
+# integrity_check.mojo and database_integrity_check.py. It used to be
+# reachable only through the `mojo-bench` PERF harness, where it ran
+# whenever an operator happened to run a benchmark and never as a gate —
+# which is how the Mojo copy drifted 26 days out of date behind a
+# Python checker that moved 8 times. Now a qa leg (2026-10-14).
+#
+# PATH must carry .venv/bin: the Mojo/Python bridge resolves libpython
+# from the python3 on PATH, and without the venv it aborts with
+# `symbol not found: Py_Initialize` (the trap _venv_env() in
+# bench/run_bench.py documents).
+#
+# Output is filtered and each line capped at 300 chars: the mismatch
+# values for `fuzzy_duplicates.pairs`, `normalization.duplicates` and
+# `duplicate_tickers.groups` run to tens of KB and would otherwise land
+# verbatim in the gate report. The exit code is the BINARY's, not grep's.
+# (`duplicate_tickers.groups` and `normalization.errors` disagree because
+# Python suppresses duplicate-ticker groups the Mojo copy still counts.)
+MOJO_PARITY_LOG = $${TMPDIR:-/mnt/data/tmp}/mojo_parity.log
+.PHONY: mojo-parity
+mojo-parity: $(MOJO_BIN)/integrity_check
+> @PATH="$(CURDIR)/.venv/bin:$$PATH" MOJO_INTEGRITY_PARITY=1 $(MOJO_BIN)/integrity_check > $(MOJO_PARITY_LOG) 2>&1; rc=$$?; \
+>   grep -E '^(cold spawn|python original|parity:|Entities:|GOLDEN PARITY|EXIT )|mojo=|MISSING in mojo|EXTRA in mojo' $(MOJO_PARITY_LOG) | cut -c1-300 || true; \
+>   if [ $$rc -ne 0 ]; then echo "  full log: $(MOJO_PARITY_LOG)"; fi; \
+>   exit $$rc
 
 # Harness: Mojo/bench/run_bench.py runs every bench leg and appends the
 # table to Mojo/bench/bench_report.txt. Legs: cosine-knn (the 4-way

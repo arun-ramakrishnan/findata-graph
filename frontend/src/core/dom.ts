@@ -26,6 +26,25 @@ export function escapeHtml(text: string): string {
     return div.innerHTML;
 }
 
+/** Attribute-safe escaping for a double-quoted attribute value.
+ *
+ * `escapeHtml` goes through `textContent -> innerHTML`, which escapes
+ * `& < >` but deliberately leaves `"` and `'` alone — correct for element
+ * text, WRONG inside `attr="..."`, where an unescaped quote ends the
+ * attribute early and the rest of the payload becomes live markup. Use
+ * this wherever an interpolated value lands in a quoted attribute.
+ *
+ * Single source of truth: `core/markdown.ts` had a private copy that was
+ * never exported, which is how the quote-safe call sites drifted apart.
+ */
+export function escapeAttr(text: string): string {
+    return text
+        .replace(/&/g, "&amp;")
+        .replace(/"/g, "&quot;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;");
+}
+
 export function truncateText(text: string, maxLength: number): string {
     if (text.length <= maxLength) return text;
     return text.substring(0, maxLength) + "...";

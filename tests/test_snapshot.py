@@ -227,8 +227,9 @@ def test_parquet_pandas_readability(tmp_path):
     assert len(df) == 3
     assert "name" in df.columns
     assert "ticker" in df.columns
-    assert df.iloc[0]["name"] == "Reliance"
-    assert df.iloc[0]["ticker"] == "RELIANCE.NS"
+    assert df.iloc[0]["name"] == "Nifty50"  # parquet now deterministically sorted by non-BLOB columns
+    import pandas as pd
+    assert pd.isna(df.iloc[0]["ticker"])
 
 
 def test_parquet_missing_db_returns_skipped(tmp_path):

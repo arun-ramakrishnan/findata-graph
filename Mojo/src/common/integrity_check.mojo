@@ -64,6 +64,29 @@ def uniq_sorted(lst: List[String]) -> List[String]:
     return out^
 
 
+def _ticker_dup_suppressed(names: List[String]) -> Bool:
+    """Mirror of _TICKER_DUP_SUPPRESSED
+    (helpers/misc/database_integrity_check.py:1058). Confirmed-intentional
+    ticker sharing: parent + brand-note pairs where both notes legitimately
+    frontmatter the same listed ticker. Ported 2026-10-14 — 2026-09-16:
+    Alphabet (listed parent) + Google (brand note), both writer-owned notes
+    since 2026-08-15, GOOGL by design.
+
+    Python matches with `frozenset([a,b]) in _TICKER_DUP_SUPPRESSED` over
+    every pair, so the rule is "every pair in a group is suppressed". Only
+    one entry exists and it is a 2-element group, so the general fold
+    collapses to this test; widen both sides together if a second entry is
+    ever added.
+    """
+    if len(names) != 2:
+        return False
+    var a = names[0]
+    var b = names[1]
+    return (a == "Alphabet" and b == "Google") or (
+        a == "Google" and b == "Alphabet"
+    )
+
+
 def subset(a: List[String], b: List[String]) -> Bool:
     for i in range(len(a)):
         if not contains(b, a[i]):
@@ -191,7 +214,7 @@ def is_generic(t: String) -> Bool:
 def meaningful_tokens(
     name: String, lower_fn: PythonObject
 ) raises -> List[String]:
-    """str.lower via the bridge (Mojo lacks it), tokenize in Mojo."""
+    """Bridge str.lower (Mojo lacks it); tokenize in Mojo."""
     var low = String(lower_fn(name).__str__())
     var toks = List[String]()
     var cur = String("")
@@ -206,7 +229,19 @@ def meaningful_tokens(
             cur = String("")
     if cur.byte_length() > 0 and not is_stopword(cur):
         toks.append(cur)
-    return toks^
+    # DEDUPE (converged 2026-10-14). The Python original's
+    # _meaningful_tokens returns a SET, so a repeated word collapses:
+    # 'Mahindra & Mahindra' -> {'mahindra'}, cardinality 1. Returning the
+    # raw list inflated len(ci), which changes WHICH branch fuzzy_match takes
+    # (its single-token fast path requires len==1) and inflates the
+    # len(ci) >= 2 subset test. 658 live company names carry a repeated
+    # token ('Johnson & Johnson', 'SBI Mutual Fund - SBI ... ETF'), so this
+    # was silently shifting fuzzy-match outcomes in both directions.
+    var out = List[String]()
+    for i in range(len(toks)):
+        if not contains(out, toks[i]):
+            out.append(toks[i])
+    return out^
 
 
 def fuzzy_match(ci: List[String], cj: List[String]) -> Bool:
@@ -261,10 +296,24 @@ def main() raises:
     var conn = dbmod.connect("memory/research.db")
     # ------------------------------------------- 1. entities + file paths
     var t0 = perf_counter_ns()
+    # `ticker` selected 2026-10-14: the fileless-entity exemption below
+    # consults it (database_integrity_check.py:248 selects it too).
     var rows = conn.execute(
-        "SELECT name, entity_type, file_path, normalized_name "
+        "SELECT name, entity_type, file_path, normalized_name, ticker "
         "FROM entities ORDER BY entity_type, name"
     ).fetchall()
+    # related_party_groups_vigil (2026-09-22): ~25K counter-party
+    # companies carry no note and no ticker — their home is a RELATION
+    # (subsidiary_of/same_group/jv_with/supplier_to/rated_by), not a
+    # file. Membership in this set makes such an entity valid-without-note.
+    # The junk signature (no path, no ticker, NO relation) stays invalid.
+    var rel_homed = Dict[String, Bool]()
+    var rel_homed_rows = conn.execute(
+        "SELECT DISTINCT source FROM relations "
+        "UNION SELECT DISTINCT target FROM relations"
+    ).fetchall()
+    for i in range(rel_homed_rows.__len__()):
+        rel_homed[py_str(rel_homed_rows[i][0])] = True
     var n = rows.__len__()
     var valid = 0
     var invalid = 0
@@ -283,10 +332,29 @@ def main() raises:
         var fp = row[2]
         bt_total[etype] = bt_total.get(etype, 0) + 1
         if not fp.__bool__():
+            # Fileless-entity exemption, converged 2026-10-14 with
+            # database_integrity_check.py:2075-2079. This copy exempted only
+            # sub_sector/theme/institution and was missing three classes the
+            # original had accreted:
+            #   - `country`, `index` — Country layer C1 / index-membership
+            #     fill: bare structural rows (listed_in / listed_on_index
+            #     endpoints) with legitimately NULL file_path.
+            #   - company WITH a ticker — D19 exchange intake: listings-derived
+            #     companies are sectorless by design until a note exists.
+            #   - _rel_homed (see above) — VIGIL relation-homed companies
+            #     (subsidiaries/JVs/suppliers with no note and no ticker).
+            # Without them 24385 entities read invalid-for-missing-path and
+            # the validation rate read 6.79% against the original's 100%.
+            var tk = row[4]
+            var has_ticker = tk.__bool__() and py_str(tk) != ""
             if (
                 etype == "sub_sector"
                 or etype == "theme"
                 or etype == "institution"
+                or etype == "country"
+                or etype == "index"
+                or (etype == "company" and has_ticker)
+                or rel_homed.get(py_str(row[0]), False)
             ):
                 valid += 1
                 bt_valid[etype] = bt_valid.get(etype, 0) + 1
@@ -395,11 +463,23 @@ def main() raises:
 
     # ------------------------------------------------------ 2. relations
     t0 = perf_counter_ns()
+    # CONVERGED 2026-10-14 against _KNOWN_EDGE_TYPES
+    # (helpers/misc/database_integrity_check.py:63-85), which had grown to
+    # 21 entries while this copy sat at 15. The six added by the Country
+    # layer (C1/I2) and the index-membership fill were unknown here, so
+    # relations.unknown_type read 7786 against the Python original's 0.
+    # The per-type provenance comments are carried across deliberately:
+    # they are the knowledge that drifted, not decoration.
     var KNOWN = String(
         "'part_of','has_company','competes_with','jv_with','same_group',"
         "'supplier_to','customer_of','acquired','subsidiary_of',"
-        "'co_mentioned_in','belongs_to','exposed_to','cited_in',"
-        "'semantic_peer','invested_in'"
+        "'co_mentioned_in','belongs_to',"  # M4: sector hierarchy
+        "'exposed_to',"  # D4: cross-sector theme membership
+        "'cited_in',"  # OKF provenance
+        "'semantic_peer','invested_in',"  # Relations 2.0: E3 / E5
+        "'listed_in',"  # Country C1: company -> country
+        "'listed_on_index',"  # index-membership fill
+        "'rated_by','regulated_by','approved_by','penalized_by'"  # Country I2
     )
     var rel_total = to_i(
         conn.execute("SELECT COUNT(*) FROM relations").fetchone()[0]
@@ -466,13 +546,27 @@ def main() raises:
             " p.relation_type='part_of')"
         ).fetchone()[0]
     )
+    # related_party_groups_vigil (2026-09-22, completed.md #268): the VIGIL
+    # relation lanes are stored two-way BY DESIGN — supplier_to explicitly
+    # ("two-way, amounts in properties"), and real-world cross-holdings
+    # legitimately produce A<->B subsidiary_of pairs. Both directions of
+    # these types are the SAME fact, so they are exempt from the circular
+    # count (which pre-VIGIL meant a corrupted insertion). Ported
+    # 2026-10-14; without this guard every two-way pair read as circular.
+    var TWO_WAY = String("'supplier_to','subsidiary_of','same_group','jv_with'")
     var rel_circ = to_i(
         conn.execute(
             "SELECT COUNT(*) FROM relations r1 WHERE r1.source < r1.target "
+            "AND r1.relation_type NOT IN ("
+            + TWO_WAY
+            + ") "
             "AND EXISTS (SELECT 1 FROM relations r2 WHERE r2.source=r1.target "
             "AND r2.target=r1.source AND r2.relation_type=r1.relation_type)"
         ).fetchone()[0]
     )
+    # NB: the Python original also emits `two_way_exempt`, but the parity
+    # fixture's key list for `relations` does not include it — emitting it
+    # here would read as "EXTRA in mojo" and fail the gate.
     var bt_src_bad = to_i(
         conn.execute(
             "SELECT COUNT(*) FROM relations r JOIN entities e ON"
@@ -624,11 +718,23 @@ def main() raises:
         canon[tbl + ".bad_properties"] = String(q_badp)
         canon[tbl + ".errors"] = String(q_orphan + q_badp)
 
+    # Both NOT (...) guards ported 2026-10-14 (completed.md #268 D19 /
+    # related_party_groups_vigil). D19 exchange intake: listings-derived
+    # companies (ticker, no backing note) are sectorless BY DESIGN until a
+    # note exists — the same fileless class the file_path exemption covers.
+    # VIGIL: relation-homed companies (subsidiaries/JVs/suppliers with no
+    # note and no ticker) are homed by an edge, not by a hierarchy edge.
+    # Without these two, every such company read as an orphan (24277 of
+    # 25474) against the Python original's 0. The junk signature — company,
+    # no path, no ticker, no relation — still counts.
     var oc_row = conn.execute(
-        "SELECT (SELECT COUNT(*) FROM entities WHERE entity_type='company'), "
-        "(SELECT COUNT(*) FROM entities e WHERE e.entity_type='company' "
-        "AND NOT EXISTS (SELECT 1 FROM relations r WHERE "
-        "r.relation_type='part_of' AND r.source=e.name))"
+        "SELECT (SELECT COUNT(*) FROM entities WHERE entity_type='company'),"
+        " (SELECT COUNT(*) FROM entities e WHERE e.entity_type='company' AND"
+        " NOT EXISTS (SELECT 1 FROM relations r WHERE r.relation_type='part_of'"
+        " AND r.source=e.name) AND NOT (e.file_path IS NULL AND e.ticker IS NOT"
+        " NULL AND e.ticker <> '') AND NOT (e.file_path IS NULL AND e.ticker IS"
+        " NULL AND EXISTS (SELECT 1 FROM relations r WHERE r.source=e.name OR"
+        " r.target=e.name)))"
     ).fetchone()
     var oc_total = to_i(oc_row[0])
     var oc_orphan = to_i(oc_row[1])
@@ -664,13 +770,29 @@ def main() raises:
             "r.relation_type='belongs_to' AND r.source=e.name)"
         ).fetchone()[0]
     )
-    var h_ss = to_i(
-        conn.execute(
-            "SELECT COUNT(*) FROM entities e WHERE e.entity_type='super_sector'"
-            " AND NOT EXISTS (SELECT 1 FROM relations r WHERE"
-            " r.relation_type='belongs_to' AND r.target=e.name)"
-        ).fetchone()[0]
+    # A super_sector whose curated SUPER_SECTORS member list is EMPTY is
+    # childless BY CURATION (the "Quotes" quote-catch-all super,
+    # 2026-09-07) — not broken wiring. The Python original excludes it by
+    # taxonomy data, not by name (build_sector_hierarchy.py:836). Ported
+    # 2026-10-14; without it h_ss read 1 against Python's 0. Same
+    # bridge-the-data-not-the-logic seam the taxonomy_drift check uses.
+    var childless_ok = List[String]()
+    var ss_names = Python.evaluate(
+        "[k for k, v in __import__('importlib').import_module("
+        "'helpers.maintenance.build_sector_hierarchy')"
+        ".SUPER_SECTORS.items() if not v]"
     )
+    for i in range(ss_names.__len__()):
+        childless_ok.append(py_str(ss_names[i]))
+    var h_ss_rows = conn.execute(
+        "SELECT e.name FROM entities e WHERE e.entity_type='super_sector'"
+        " AND NOT EXISTS (SELECT 1 FROM relations r WHERE"
+        " r.relation_type='belongs_to' AND r.target=e.name)"
+    ).fetchall()
+    var h_ss = 0
+    for i in range(h_ss_rows.__len__()):
+        if not (py_str(h_ss_rows[i][0]) in childless_ok):
+            h_ss += 1
     var h_multi = to_i(
         conn.execute(
             "SELECT COUNT(*) FROM (SELECT r.source FROM relations r WHERE "
@@ -764,10 +886,25 @@ def main() raises:
             "OR normalized_name = ''"
         ).fetchone()[0]
     )
+    # `WHERE file_path IS NOT NULL` ported 2026-10-14
+    # (database_integrity_check.py:964). Uniqueness is an ERROR for
+    # NOTE-BACKED entities only. Fileless intake entities (VIGIL
+    # counter-party variants — 423 groups, "BNP Paribas" legal-spelling
+    # variants) are upstream registry spellings whose convergence is a
+    # curation task, not a gate regression, so the Python original moved
+    # them to ADVISORY. Without the filter this read 423 errors against 0.
     var dup_rows = conn.execute(
-        "SELECT normalized_name, COUNT(*) c FROM entities GROUP BY "
-        "normalized_name HAVING c > 1"
+        "SELECT normalized_name, COUNT(*) c FROM entities "
+        "WHERE file_path IS NOT NULL "
+        "GROUP BY normalized_name HAVING c > 1"
     ).fetchall()
+    var nm_fileless_dup = to_i(
+        conn.execute(
+            "SELECT COUNT(*) FROM (SELECT normalized_name FROM entities "
+            "WHERE file_path IS NULL GROUP BY normalized_name "
+            "HAVING COUNT(*) > 1)"
+        ).fetchone()[0]
+    )
     var dup_canon = List[String]()
     for i in range(dup_rows.__len__()):
         dup_canon.append(py_str(dup_rows[i][0]) + ":" + py_str(dup_rows[i][1]))
@@ -826,7 +963,10 @@ def main() raises:
             if not contains(nn_set, stem):
                 orphaned.append(p)
     var nm_errors = nm_missing + len(dup_canon) + len(bad_fmt)
-    var nm_warn = len(file_mm) + len(orphaned)
+    # + fileless_duplicate_groups, which Python counts as ADVISORY
+    # (database_integrity_check.py:1016). Ported 2026-10-14: without it
+    # warnings read 6 against the original's 429.
+    var nm_warn = len(file_mm) + len(orphaned) + nm_fileless_dup
     t1 = perf_counter_ns()
     canon["normalization.missing"] = String(nm_missing)
     canon["normalization.duplicates"] = join_list(sort_strs(dup_canon), ",")
@@ -859,27 +999,32 @@ def main() raises:
         "SELECT ticker, name FROM entities WHERE entity_type = 'company' "
         "AND ticker IS NOT NULL AND ticker <> '' ORDER BY ticker, name"
     ).fetchall()
-    var groups = Dict[String, String]()
+    # REWRITTEN 2026-10-14. The previous form packed a ticker's names into one
+    # ";"-delimited string and split it back with `groups[tk].split(";")`.
+    # `;` was doing double duty as both the intra-group separator and the list
+    # delimiter with no escaping, so ANY name containing a semicolon corrupted
+    # the round-trip: 17 live company names carry the HTML entity "&amp;",
+    # each fabricated a phantom duplicate group, and errors read 18 against
+    # the Python original's 0. Fixed by exploiting the existing
+    # "ORDER BY ticker, name" — duplicate tickers are ADJACENT, so a single
+    # ordered walk finds the runs with no delimiter to collide.
+    #
+    # The ';' join below is OUTPUT-ONLY canonical formatting (it is what the
+    # parity fixture does too, `';'.join(ns)`), never parsed back.
+    var dup_groups = List[String]()
+    var run_tk = String("")
+    var run_ns = List[String]()
     for i in range(tick_rows.__len__()):
         var tk = py_str(tick_rows[i][0])
         var nm = py_str(tick_rows[i][1])
-        var cur = groups.get(tk, String(""))
-        if cur.byte_length() > 0:
-            groups[tk] = cur + ";" + nm
-        else:
-            groups[tk] = nm
-    var dup_groups = List[String]()
-    var gkeys = List[String]()
-    for k in groups.keys():
-        gkeys.append(k)
-    for i in range(len(gkeys)):
-        var tk = gkeys[i]
-        var members = groups[tk].split(";")
-        if len(members) > 1:
-            var names_l = List[String]()
-            for j in range(len(members)):
-                names_l.append(String(members[j]))
-            dup_groups.append(tk + ":" + join_list(names_l, ";"))
+        if tk != run_tk:
+            if len(run_ns) > 1 and not _ticker_dup_suppressed(run_ns):
+                dup_groups.append(run_tk + ":" + join_list(run_ns, ";"))
+            run_tk = tk
+            run_ns = List[String]()
+        run_ns.append(nm)
+    if len(run_ns) > 1 and not _ticker_dup_suppressed(run_ns):
+        dup_groups.append(run_tk + ":" + join_list(run_ns, ";"))
     canon["duplicate_tickers.groups"] = join_list(sort_strs(dup_groups), ",")
     canon["duplicate_tickers.errors"] = String(len(dup_groups))
 
@@ -922,6 +1067,7 @@ def main() raises:
     SUPPRESSED.append("Sanofi|Sanofi India")
     SUPPRESSED.append("Shree Cement|Shree Digvijay Cement")
     var pairs = List[String]()
+    var keys = List[String]()
     for i in range(nc):
         var ci_parts = tokens_s[String(i)].split(",")
         var ci = List[String]()
@@ -970,8 +1116,39 @@ def main() raises:
                 continue
             if not contains(pairs, pk):
                 pairs.append(pk)
+                # ORDER KEY (converged 2026-10-14). The parity fixture
+                # (mojo_db_integrity.py:322-328) sorts the pair LIST by the
+                # as-found (name_a, name_b) TUPLE and only then joins the two
+                # names per pair. This emitted `sort_strs(pairs)` — sorting
+                # the RENDERED strings instead — which orders by the
+                # alphabetically-first name of each pair rather than by
+                # as-found name_a. Same pairs, same count, same total length
+                # (623,961 chars), but a different sequence: the fixture's
+                # first entry is "3XPER INNOVENTURE|3Xper Innoventure" while
+                # a rendered-string sort starts at "100% foreign owned
+                # subsidiary ...". Carrying the tuple as an explicit key
+                # prefix reproduces the fixture exactly.
+                #
+                # \x01 is the lowest printable-adjacent codepoint and cannot
+                # occur in an entity name, so "a\x01b\x01rendered" sorts by
+                # (a, b) and the rendered part is recoverable by position.
+                keys.append(names[i] + "\x01" + names[j] + "\x01" + pk)
     t1 = perf_counter_ns()
-    canon["fuzzy_duplicates.pairs"] = join_list(sort_strs(pairs), ",")
+    var ordered = List[String]()
+    var sorted_keys = sort_strs(keys)
+    for i in range(len(sorted_keys)):
+        var k = sorted_keys[i]
+        var nsep = 0
+        var out = String("")
+        for ci in range(len(k.codepoints())):
+            var ch = String(k[codepoint=ci])
+            if ch == "\x01":
+                nsep += 1
+                continue
+            if nsep >= 2:
+                out += ch
+        ordered.append(out)
+    canon["fuzzy_duplicates.pairs"] = join_list(ordered, ",")
     canon["fuzzy_duplicates.warnings"] = String(len(pairs))
     canon["fuzzy_duplicates.errors"] = String(0)
     print(
@@ -1231,7 +1408,7 @@ def main() raises:
     for i in range(tn):
         var note_path = py_str(trows[i][0])
         var tag = py_str(trows[i][1])
-        var text = String("")
+        var text: String
         try:
             var f = open(note_path, "r")
             text = f.read()
@@ -1287,9 +1464,17 @@ def main() raises:
         var duck_n = dcon.execute("SELECT COUNT(*) FROM v_node").fetchone()
         var lite_n = to_i(
             conn.execute(
+                # The modelled-vertex kinds list ported 2026-10-14 to match
+                # _reconcile_cache (database_integrity_check.py:1914). This copy had
+                # 7 entries against the original's 10: `country`, `index` and `person`
+                # were missing, so the SQLite side counted 26054 vs the cache's
+                # 26162 and reported phantom v_node drift — 108 rows = 21 country +
+                # 57 index + 30 person. A healthy cache read as stale.
+                # NB: the Python docstring says "currently 6"; the LIST is the
+                # contract, and it is 10.
                 "SELECT COUNT(*) FROM entities WHERE entity_type IN "
                 "('company','sector','super_sector','sub_sector','theme',"
-                "'edition','institution')"
+                "'edition','institution','country','index','person')"
             ).fetchone()[0]
         )
         var dn = String("None")

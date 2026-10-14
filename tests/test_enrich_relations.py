@@ -907,7 +907,19 @@ class TestFinnhubPass:
 
     @staticmethod
     def _note(tmp_path, name, ticker_line):
-        note = tmp_path / f"{name.replace(' ', '_')}.md"
+        """Lay the note out INSIDE a fake vault.
+
+        H1: entities.file_path is now resolved through _vault_note_path,
+        which refuses anything escaping ``<PROJECT_ROOT>/findata/``. This
+        fixture previously leaned on pathlib's "an absolute right-hand side
+        wins the join" semantics to stay hermetic — which is exactly the hole
+        the guard closes, so the fixture now models production:
+        ``PROJECT_ROOT`` -> ``findata/`` -> ``note.md``, seeded with the
+        RELATIVE path the DB would really hold.
+        """
+        vault = tmp_path / "findata"
+        vault.mkdir(parents=True, exist_ok=True)
+        note = vault / f"{name.replace(' ', '_')}.md"
         note.write_text(
             f"---\nentity_type: company\n{ticker_line}\nsector: Test\n---\n\nbody\n",
             encoding="utf-8",
@@ -1015,11 +1027,13 @@ class TestFinnhubPass:
         )
         assert rc == 2
 
-    def test_apply_writes_ticker_frontmatter_and_cache(self, db, tmp_path):
+    def test_apply_writes_ticker_frontmatter_and_cache(self, db, tmp_path, monkeypatch):
+        import helpers.maintenance.enrich_relations as er
+
+        monkeypatch.setattr(er, "PROJECT_ROOT", tmp_path)
         note = self._note(tmp_path, "Piramal Enterprises", "ticker: PIEIL.NS")
-        # absolute path: PROJECT_ROOT / <absolute> yields the absolute
-        # path itself (pathlib join semantics), keeping the test hermetic
-        self._seed(db, [("Piramal Enterprises", "PIEIL.NS", str(note))])
+        # relative path, as the DB really holds it (see _note docstring)
+        self._seed(db, [("Piramal Enterprises", "PIEIL.NS", "findata/Piramal_Enterprises.md")])
         rp = tmp_path / "relations_report.md"
         _write_gf_report(rp, issues=(("Piramal Enterprises", "PIEIL.NS"),))
         cache_file = tmp_path / "fetch_cache.json"
@@ -1380,3 +1394,87 @@ def test_enrich_relations_module_has_no_pandas_import():
     import helpers.maintenance.enrich_relations as er
 
     assert "import pandas" not in inspect.getsource(er)
+
+
+# --------------------------------------------------------------------------- #
+# H1 — entities.file_path containment (enrich_relations.py:292 read twin,
+# :2352 write twin). A DB-sourced file_path joined to PROJECT_ROOT without a
+# containment check turns any "../" in that column into an arbitrary read or
+# WRITE. Guard parity with derive_insights._paths_by_entity.
+# --------------------------------------------------------------------------- #
+
+
+class TestVaultNotePathContainment:
+    def test_accepts_a_path_inside_the_vault(self, tmp_path, monkeypatch):
+        import helpers.maintenance.enrich_relations as er
+
+        root = tmp_path / "repo"
+        (root / "findata" / "Companies").mkdir(parents=True)
+        note = root / "findata" / "Companies" / "ACME.md"
+        note.write_text("---\nticker: OLD\n---\n", encoding="utf-8")
+        monkeypatch.setattr(er, "PROJECT_ROOT", root)
+
+        got = er._vault_note_path("findata/Companies/ACME.md", entity="ACME", write=True)
+
+        assert got == note.resolve()
+
+    def test_refuses_parent_traversal_on_the_write_path(self, tmp_path, monkeypatch, caplog):
+        import helpers.maintenance.enrich_relations as er
+
+        root = tmp_path / "repo"
+        (root / "findata" / "Companies").mkdir(parents=True)
+        victim = root / "OUTSIDE.md"
+        victim.write_text("---\nticker: KEEP\n---\n", encoding="utf-8")
+        monkeypatch.setattr(er, "PROJECT_ROOT", root)
+
+        with caplog.at_level("WARNING"):
+            got = er._vault_note_path("../OUTSIDE.md", entity="Evil Corp", write=True)
+
+        assert got is None
+        assert "resolves outside findata/" in caplog.text
+        # the pre-fix behaviour was note_path.write_text(...) on this file
+        assert victim.read_text(encoding="utf-8") == "---\nticker: KEEP\n---\n"
+
+    def test_refuses_a_deep_traversal_that_lands_outside(self, tmp_path, monkeypatch):
+        import helpers.maintenance.enrich_relations as er
+
+        root = tmp_path / "repo"
+        (root / "findata").mkdir(parents=True)
+        monkeypatch.setattr(er, "PROJECT_ROOT", root)
+
+        # starts inside findata/ but climbs out — a prefix check would pass this
+        assert er._vault_note_path("findata/../../etc/passwd", write=True) is None
+
+    def test_refuses_an_absolute_path_outside_the_vault(self, tmp_path, monkeypatch):
+        import helpers.maintenance.enrich_relations as er
+
+        root = tmp_path / "repo"
+        (root / "findata").mkdir(parents=True)
+        monkeypatch.setattr(er, "PROJECT_ROOT", root)
+
+        assert er._vault_note_path("/etc/passwd", write=True) is None
+
+    def test_empty_path_is_none_not_an_error(self):
+        import helpers.maintenance.enrich_relations as er
+
+        assert er._vault_note_path(None, write=True) is None
+        assert er._vault_note_path("", write=True) is None
+
+    def test_write_twin_refuses_before_touching_the_file(self, tmp_path, monkeypatch):
+        """The :2352 call site must pass the RESOLVED path, so a tampered
+        row can never reach _set_frontmatter_ticker."""
+        import helpers.maintenance.enrich_relations as er
+
+        root = tmp_path / "repo"
+        (root / "findata").mkdir(parents=True)
+        monkeypatch.setattr(er, "PROJECT_ROOT", root)
+        called: list[Path] = []
+        monkeypatch.setattr(er, "_set_frontmatter_ticker", lambda p, t: called.append(p) or True)
+
+        # emulate the call site's guard
+        fp = "../escape.md"
+        note_path = er._vault_note_path(fp, entity="X", write=True)
+        if note_path is not None:
+            er._set_frontmatter_ticker(note_path, "NEW")
+
+        assert called == []

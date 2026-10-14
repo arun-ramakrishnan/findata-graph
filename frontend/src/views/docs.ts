@@ -25,7 +25,7 @@ import type {
     EditionCompaniesResponse,
     VaultEntity,
 } from "../../types/api";
-import { getEl, escapeHtml, formatBytes } from "../core/dom";
+import { getEl, escapeHtml, escapeAttr, formatBytes } from "../core/dom";
 import {
     fetchJson,
     isDocContentResponse,
@@ -660,8 +660,8 @@ export class DocsView {
     private relatedRow(n: SimilarNeighbor): string {
         const pct = Math.round(n.similarity * 100);
         return `
-            <button type="button" class="related-row" data-note="${escapeHtml(n.file_path)}"
-                    title="${escapeHtml(n.file_path)}">
+            <button type="button" class="related-row" data-note="${escapeAttr(n.file_path)}"
+                    title="${escapeAttr(n.file_path)}">
                 <span class="related-title">${escapeHtml(n.title)}</span>
                 <span class="related-sim"><span class="related-bar"><span
                     class="bar-fill" style="width:${pct}%"></span></span>${pct}%</span>

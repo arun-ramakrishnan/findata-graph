@@ -14,6 +14,7 @@ tmp_path and git/stg are faked, so nothing here touches the real stack or
 from __future__ import annotations
 
 import json
+import subprocess
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -494,3 +495,71 @@ class TestScanScratchHardening:
         assert captured.get("SEMGREP_SETTINGS_FILE", "").startswith(str(tmp_path))
         assert captured.get("XDG_CACHE_HOME", "").startswith(str(tmp_path))
         assert findings == [] and status.startswith("semgrep: ran")
+
+
+def _git(cwd, *args):
+    return subprocess.run(  # noqa: S603  # fixed argv, no shell
+        ["git", *args],  # noqa: S607  # git from PATH by design
+        cwd=cwd,
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+
+
+class TestLedgerStoreFollowsMainCheckout:
+    """The freshness ledger is ONE store for the repository, so it must not
+    fork when the review runs in a worktree.
+
+    Measured 2026-10-14 on the 1fda0c158..6182cd2c7 review: `--record` from a
+    worktree wrote a private 1-row ledger while the main checkout's 11 rows
+    were untouched, so the canonical ledger still claimed UNREVIEWED and the
+    next session would re-pay the whole 48-commit range. A worktree is a full
+    checkout with its own outputs/, so deriving the store from
+    `Path(__file__).parents[2]` is what caused the split.
+    """
+
+    @pytest.fixture()
+    def repo_with_worktree(self, tmp_path):
+        """A main checkout with a `helpers/` marker and one linked worktree."""
+        main = tmp_path / "main"
+        main.mkdir()
+        _git(main, "init", "-q", "-b", "main")
+        # a FILE under helpers/ — git does not track empty dirs, so an empty
+        # `helpers/` leaves nothing to commit and the fixture dies at commit
+        (main / "helpers").mkdir()
+        (main / "helpers" / "core.py").write_text("# marker\n")
+        _git(main, "add", "-A")
+        _git(main, "-c", "user.email=t@t", "-c", "user.name=t", "commit", "-qm", "base")
+        worktree = tmp_path / "wt"
+        _git(main, "worktree", "add", "-q", worktree)
+        return main, worktree
+
+    def test_worktree_resolves_to_the_main_checkout(self, repo_with_worktree, monkeypatch):
+        main, worktree = repo_with_worktree
+        monkeypatch.setattr(rf, "REPO_ROOT", worktree)
+        assert rf._main_checkout_root() == main.resolve()
+
+    def test_main_checkout_resolves_to_itself(self, repo_with_worktree, monkeypatch):
+        """Not to its PARENT — that is the failure the bare-repo guard could
+        otherwise have turned into a silent climb out of the tree."""
+        main, _worktree = repo_with_worktree
+        monkeypatch.setattr(rf, "REPO_ROOT", main)
+        assert rf._main_checkout_root() == main.resolve()
+
+    def test_bare_repo_falls_back_instead_of_climbing_out(self, tmp_path, monkeypatch):
+        """A bare repo's common dir IS the repo, so `.parent` is not a
+        checkout. Ask git rather than sniffing for HEAD — a non-bare git dir
+        also has HEAD, so that heuristic always tripped the fallback."""
+        bare = tmp_path / "bare.git"
+        _git(tmp_path, "init", "-q", "--bare", str(bare))
+        monkeypatch.setattr(rf, "REPO_ROOT", bare)
+        assert rf._main_checkout_root() == bare
+
+    def test_not_a_repo_falls_back_to_repo_root(self, tmp_path, monkeypatch):
+        """No git dir at all: the module must still import and resolve, to the
+        tree it was invoked from."""
+        plain = tmp_path / "plain"
+        plain.mkdir()
+        monkeypatch.setattr(rf, "REPO_ROOT", plain)
+        assert rf._main_checkout_root() == plain

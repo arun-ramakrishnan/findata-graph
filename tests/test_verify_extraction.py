@@ -209,3 +209,113 @@ def test_fail_on_dropped_content_page(tmp_path):
     m = verify(pdf, tmp_path / "out", "doc")
     assert m["verdict"] == "FAIL"
     assert m["pages"][1]["coverage"] < 0.50
+
+
+# --------------------------------------------------------------------------- #
+# Range review M2 / M3 / L2 / L3 (2026-10-14)
+# --------------------------------------------------------------------------- #
+
+
+class TestSignificantDigits:
+    """L3: NUM_RE matches "1.5", which is 3 CHARACTERS but 2 digits. Counting
+    characters promoted two-digit figures into "significant" missing numbers."""
+
+    def test_ignores_separators_and_decimal_point(self):
+        from helpers.pdf.verify_extraction import _significant_digits
+
+        assert _significant_digits("1.5") == 2
+        assert _significant_digits("1,234") == 4
+        assert _significant_digits("99,999") == 5
+        assert _significant_digits("12") == 2
+        assert _significant_digits("7") == 1
+
+    def test_threshold_now_excludes_two_digit_fractions(self):
+        from helpers.pdf.verify_extraction import (
+            MIN_SIGNIFICANT_NUM_DIGITS,
+            _significant_digits,
+        )
+
+        # "1.5" drops out (2 digits); "1.05" and "999" stay (3+).
+        missing_all = ["1.5", "1.05", "999"]
+        kept = [n for n in missing_all if _significant_digits(n) >= MIN_SIGNIFICANT_NUM_DIGITS]
+        assert kept == ["1.05", "999"]
+        assert "1.5" not in kept
+
+
+class TestFrontmatterStripping:
+    """M2: the frontmatter regex had no re.S, so `.` never matched a newline
+    and multi-line YAML frontmatter was counted as document content."""
+
+    def test_multiline_frontmatter_is_stripped(self):
+        import re
+
+        md = "---\nentity_type: company\nticker: ABC\nsector: X\n---\n\nbody text\n"
+        stripped = re.sub(r"\A---\n.*?\n---\n", "", md, count=1, flags=re.DOTALL)
+        assert "entity_type" not in stripped
+        assert "body text" in stripped
+
+    def test_the_verifier_applies_dotall(self):
+        import inspect
+
+        from helpers.pdf import verify_extraction
+
+        src = inspect.getsource(verify_extraction)
+        assert "re.DOTALL" in src, "frontmatter strip regressed to non-DOTALL"
+
+
+class TestWikilinkContainment:
+    """M3: WIKILINK_RE captured "../../../etc/passwd" and the check then
+    stat'ed a file outside the output directory — a read-only existence
+    oracle. wikilink_status refuses the traversal instead of answering it."""
+
+    def test_traversal_is_refused_even_when_the_target_exists(self, tmp_path):
+        from helpers.pdf.verify_extraction import WIKILINK_RE, wikilink_status
+
+        images = tmp_path / "out" / "images"
+        images.mkdir(parents=True)
+        # the traversal target genuinely exists — the old code stat'd it and
+        # reported "ok", which is the oracle
+        (tmp_path / "outside.md").write_text("secret", encoding="utf-8")
+
+        body = "![[images/../outside.md]]"
+        link = WIKILINK_RE.findall(body)[0]
+        assert link == "../outside.md"
+        assert wikilink_status(images.resolve(), link) == "escape"
+
+    def test_plain_missing_image_is_missing_not_escape(self, tmp_path):
+        from helpers.pdf.verify_extraction import wikilink_status
+
+        images = tmp_path / "out" / "images"
+        images.mkdir(parents=True)
+        assert wikilink_status(images.resolve(), "nope.png") == "missing"
+
+    def test_present_image_is_ok(self, tmp_path):
+        from helpers.pdf.verify_extraction import wikilink_status
+
+        images = tmp_path / "out" / "images"
+        images.mkdir(parents=True)
+        (images / "a.png").write_bytes(b"x")
+        assert wikilink_status(images.resolve(), "a.png") == "ok"
+
+    def test_deep_traversal_is_refused(self, tmp_path):
+        from helpers.pdf.verify_extraction import wikilink_status
+
+        images = tmp_path / "out" / "images"
+        images.mkdir(parents=True)
+        assert wikilink_status(images.resolve(), "../../../etc/passwd") == "escape"
+
+    def test_verify_surfaces_escapes_as_an_explicit_fail(self, tmp_path):
+        (tmp_path / "outside.md").write_text("secret", encoding="utf-8")
+        out = tmp_path / "out"
+        (out / "images").mkdir(parents=True)
+        (out / "doc.md").write_text("![[images/../outside.md]]\n\nbody\n", encoding="utf-8")
+        (out / "doc.json").write_text(json.dumps({"pages": []}), encoding="utf-8")
+        (tmp_path / "doc.pdf").write_bytes(b"%PDF-1.4\n")
+
+        import inspect
+
+        from helpers.pdf import verify_extraction
+
+        src = inspect.getsource(verify_extraction.verify)
+        # the escape class must gate the verdict, not just be tallied
+        assert "escaped_links or" in src

@@ -193,17 +193,58 @@ def noise_target(target: str) -> bool:
     tl = t.lower()
     return (
         not t
-        # Institution/corporate short-names are exempt from the
-        # fragment-length rule ("RBI" is 3 chars): regulator and acronym
-        # company mentions must reach the sidecar, not die silently
-        # (country layer arc I1; corporate add measured 2026-10-04).
-        # Exact-name only — the rest of the fragment class is untouched.
-        or (len(tl) < 4 and tl not in _INSTITUTION_SHORT_NAMES and tl not in _CORPORATE_SHORT_NAMES)
+        # Fragment-length rule. SHAPE, not bare length (range review H4).
+        # The rule exists to drop mangled capture fragments ("th" out of a bad
+        # regex), but a bare `len < 4` also killed every real short Indian
+        # institution/company: measured 10/28 probes still classified as noise
+        # (SBI, ITC, LIC, TCS, UPI, IPO, GST, NSE, BSE, LT). The prior fix
+        # allow-listed three exact names (rbi/sebi/mhp) — a band-aid that left
+        # the structural hole open.
+        #
+        # The discriminator is case: a capitalised acronym is an ENTITY, a
+        # lowercase stub is a FRAGMENT. Captures arrive lowercased from the
+        # same regex that mangles them, so the two never collide. `_norm_target`
+        # does not casefold, so the original casing is still in `t`.
+        or (len(tl) < 4 and not _is_short_entity(t, tl))
         or tl in COUNTRIES
         or bool(_GENERIC_PREFIX.match(tl))
         or bool(_GENERIC_SUFFIX.search(tl))
         or bool(_FRAGMENT_JUNK.search(tl))
     )
+
+
+def _is_short_entity(t: str, tl: str) -> bool:
+    """True when a short (<4 char) mention is a real entity, not a fragment.
+
+    The fragment-length rule in `noise_target` needs to separate two things
+    that are the same length: a mangled capture stub ("th", "co") and a real
+    short institution/company acronym ("SBI", "ITC", "LIC").
+
+    Three ways to clear it, in order of confidence:
+      1. ALL-CAPS of length 2-3 — an acronym. Institutions, exchanges and
+         well-known corporates are written this way by their own house style,
+         and mangled captures are not.
+      2. Exact membership in the institution/corporate allowlists, which
+         exist for mixed-case short names that are not uppercase in the text.
+      3. Digit-only ("3M", a genuine ticker-like company name).
+
+    Deliberately NOT a length exemption: an arbitrary short lowercase token
+    stays noise, which is the class the rule was written for.
+    """
+    if tl in _INSTITUTION_SHORT_NAMES or tl in _CORPORATE_SHORT_NAMES:
+        return True
+    # Placeholder/descriptor acronyms: real-looking shape, no referent. These
+    # stay noise by decision, not by accident of length — the existing
+    # test_countries_generic_fragments pins "ABC" and "CDMO" as noise.
+    if tl in _GENERIC_ACRONYMS:
+        return False
+    core = t.strip()
+    if 2 <= len(core) <= 3 and core.isupper() and any(c.isalpha() for c in core):
+        # acronym: SBI, ITC, LIC, NSE, LT, or a ticker-shaped name like 3M
+        return True
+    if 2 <= len(core) <= 3 and core.isdigit():
+        return True
+    return False
 
 
 # Exact-normalized exemption set for noise_target's length rule. Mirrors
@@ -219,6 +260,11 @@ _INSTITUTION_SHORT_NAMES = frozenset({"rbi", "sebi"})
 # row 56b484c95c). Exact-name only, per the I1 arc's deliberate narrowness;
 # company names do NOT go into INSTITUTION_MENTIONS (wrong lane).
 _CORPORATE_SHORT_NAMES = frozenset({"mhp"})
+
+# Placeholder / category acronyms that LOOK like entities by the shape rule
+# above but name no real organisation. Deliberate, so "ABC" stays noise for a
+# stated reason rather than because it happens to be three characters long.
+_GENERIC_ACRONYMS = frozenset({"abc", "cdmo", "xyz", "etc", "misc", "na"})
 
 
 def _norm_id_part(s: str) -> str:

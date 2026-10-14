@@ -1,11 +1,14 @@
 {
   "include": [
     "tests/**/*.py",
+    "tests/fixtures/**",
     "helpers/**/*.py",
     "app.py",
+    "AGENTS.md",
+    "Makefile.mojo",
     "desktop/**/*.py",
-    "bench_data/**/*.py",
     "Mojo/src/**/*.mojo",
+    "Mojo/src/**/*.cl",
     "Mojo/tests/**/*.mojo",
     "doc/procedures/**",
     "doc/improvements/**",
@@ -20,19 +23,23 @@
     "doc/security/**",
     "schema/**/*.sql",
     "frontend/tests/**",
-    "vendor/llamacpp/health.py",
     "**/*.lock",
     "**/package-lock.json"
   ],
   "exclude": [
     "static/**/*.bundle.js",
     "static/**/*.bundle.js.map",
+    "static/vendor/**",
     "node_modules/**",
     "snapshots/**",
     ".opencodereview/**",
     "findata/**",
     "doc/local/**",
+    "memory/**",
+    "db-backup/**",
+    "backup/**",
     "Mojo/vendor/**",
+    "Mojo/src/gpu/*.spv",
     "vendor/llamacpp/build.sh"
   ]
 }

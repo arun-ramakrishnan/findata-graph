@@ -50,6 +50,14 @@ Rows:
                                # SUBSUMED containment; stack is null for
                                # a landed --from/--to row
 Upsert by fingerprint: a re-review of the same diff updates the row.
+
+ONE store across worktrees: the ledger, its diffcache and its flock all live
+under the MAIN checkout's outputs/reviews/, resolved via
+`git rev-parse --git-common-dir` — never the worktree's. A review run in a
+worktree records into the same rows the main checkout reads, so a worktree
+session cannot leave the canonical ledger claiming UNREVIEWED. Git commands
+still run in the worktree (REPO_ROOT), because the tree under review is the
+one whose HEAD and diff matter.
 Loop context and rules live in doc/procedures/ocr_review.md §1b + runbook
 step 6c; this docstring carries the CLI surface only.
 """
@@ -68,11 +76,69 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
+
+def _main_checkout_root() -> Path:
+    """The MAIN checkout, not the worktree this script was invoked from.
+
+    The ledger is one store for the whole repository, so it must not fork when
+    the review runs in a worktree. `Path(__file__).parents[2]` gets this wrong:
+    a worktree is a full checkout with its own `outputs/`, so every
+    `--record` from a worktree wrote a private ledger and the canonical one
+    kept claiming UNREVIEWED — the next session re-pays the whole range.
+    Measured 2026-10-14 on the 1fda0c158..6182cd2c7 review: a worktree record
+    landed 1 row while the main ledger's 11 rows were untouched, needing a
+    manual merge.
+
+    `git rev-parse --git-common-dir` is the same directory in a main checkout
+    and in every linked worktree (`…/.git/worktrees/<name>` is the PER-worktree
+    dir, which is exactly what we must not follow), so its parent is the main
+    checkout root in both cases. Falls back to REPO_ROOT when git is
+    unavailable, the repo is bare (common dir IS the repo, so `.parent` would
+    be its parent), or the shape is unexpected — a wrong-but-working ledger
+    beats an import-time crash.
+    """
+    try:
+        proc = subprocess.run(  # noqa: S603  # fixed argv, no shell
+            ["git", "rev-parse", "--path-format=absolute", "--git-common-dir"],  # noqa: S607  # git from PATH by design
+            capture_output=True,
+            text=True,
+            cwd=REPO_ROOT,
+            check=False,
+        )
+        common = Path(proc.stdout.strip()) if proc.returncode == 0 else None
+    except OSError:
+        common = None
+    if common is None:
+        return REPO_ROOT
+    root = common.resolve().parent
+    # Bare repo: the common dir IS the repo (HEAD/objects/refs at its top),
+    # so `.parent` is not a checkout. Ask git rather than sniffing for HEAD —
+    # a NON-bare git dir also has HEAD, so that test always fired.
+    try:
+        bare = subprocess.run(  # noqa: S603  # fixed argv, no shell
+            ["git", "--git-dir", str(common), "rev-parse", "--is-bare-repository"],  # noqa: S607  # git from PATH by design
+            capture_output=True,
+            text=True,
+            cwd=REPO_ROOT,
+            check=False,
+        ).stdout.strip()
+    except OSError:
+        bare = "true"
+    if bare == "true" or not (root / "helpers").is_dir():
+        return REPO_ROOT
+    return root
+
+
+# The store root is deliberately NOT REPO_ROOT — see _main_checkout_root.
+LEDGER_ROOT = _main_checkout_root()
+
 # Review artifacts share ONE store (review_scan_leg S6 closure): the
 # durable rosters and the freshness ledger that tracks them live together
 # under outputs/reviews/ (gitignored, machine-local — same class as the
 # gate reports in outputs/). Was memory/data/review-freshness.json.
-LEDGER = REPO_ROOT / "outputs" / "reviews" / "review-freshness.json"
+# Ledger, its diffcache and its flock all derive from this path, so they all
+# follow the main checkout together.
+LEDGER = LEDGER_ROOT / "outputs" / "reviews" / "review-freshness.json"
 
 
 def _rev_sha(ref: str) -> str:

@@ -74,6 +74,14 @@ NOQA_MAP: dict[str, str] = {
     # cover the inline env-driven TMPDIR adjudications (never a literal /tmp).
     "B101": "S101",
     "B108": "S108",
+    # try/except/pass coercions (range review L12): B110 (bandit's
+    # `try_except_pass`) is ruff's S110 by another name. The range scan
+    # surfaced 5 of them, all real adjudications — `except Exception:  # noqa:
+    # S110 / pass` in the `_safe_float` / `_safe_date` coercion helpers, plus
+    # one in the duckdb ATTACH best-effort. Rot note above applies: if an arc
+    # starts adding S110 to a genuinely swallowed error, this mapping is what
+    # hides it — revisit with the band.
+    "B110": "S110",
 }
 
 SEVERITY_ORDER = ("info", "low", "medium", "high", "critical")
@@ -1078,7 +1086,22 @@ def _write_roster(
     digest = hashlib.sha256(f"{base}..{head}".encode()).hexdigest()[:12]
     REVIEW_OUT_DIR.mkdir(parents=True, exist_ok=True)
     md_path = REVIEW_OUT_DIR / f"review_scan_{base[:8]}..{head[:8]}_{digest}.md"
-    body = [f"# review-scan {base}..{head}", "", *(f"  {s}" for s in statuses)]
+    body = [
+        f"# review-scan {base}..{head}",
+        "",
+        # L11: every `file:line` below is resolved against the WORKING TREE
+        # as it stood at scan time, i.e. the checkout at `head` — not at
+        # `base`, and not at whatever the tree has become since. Adjudicate
+        # against `git show <head>:<path>`, not against HEAD: this review
+        # found all 21 anchors failing to resolve at HEAD while every one
+        # resolved at the range end, because the tree had moved on by a
+        # commit. Reading HEAD's copy reads the wrong code.
+        "",
+        f"> Anchors are relative to the tree at `{head}` — not `base`, not current HEAD.",
+        f"> Read with: git show {head}:<path> | sed -n '<line>,+30p'",
+        "",
+        *(f"  {s}" for s in statuses),
+    ]
     if deletions:
         body += [
             "",

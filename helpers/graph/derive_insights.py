@@ -1275,7 +1275,7 @@ def extract_quotes(
             m = _LINE_EMPH_RE.match(ln)
             if m:
                 ln = m.group(1)
-        if "“" in ln or "”" in ln:
+        if any(c in ln for c in _CURLY_QUOTES):
             for curly, ascii_q in _CURLY_QUOTES.items():
                 ln = ln.replace(curly, ascii_q)
         lines[idx] = ln

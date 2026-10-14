@@ -19,6 +19,9 @@
     div.textContent = text;
     return div.innerHTML;
   }
+  function escapeAttr(text) {
+    return text.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  }
 
   // node_modules/valibot/dist/index.mjs
   var store$4;
@@ -719,7 +722,7 @@
   });
   var ScriptSearchResponseSchema = object({
     query: string(),
-    mode: picklist(["hybrid", "bm25"]),
+    mode: picklist(["hybrid", "bm25", "vector"]),
     stale: boolean(),
     results: array(ScriptSearchHitSchema)
   });
@@ -3408,7 +3411,11 @@
 
   // src/core/markdown.ts
   function processRichContent(content) {
-    let processedHtml = DOMPurify.sanitize(marked.parse(content));
+    let processedHtml = processExternalContent(marked.parse(content));
+    processedHtml = DOMPurify.sanitize(processedHtml, {
+      ADD_TAGS: ["iframe"],
+      ADD_ATTR: ["frameborder", "allowfullscreen", "loading"]
+    });
     const headings = [];
     processedHtml = processedHtml.replace(
       /<h([1-6])[^>]*>(.*?)<\/h[1-6]>/gi,
@@ -3465,7 +3472,6 @@
       /<blockquote>([\s\S]*?)<\/blockquote>/gi,
       '<blockquote class="rich-blockquote">$1</blockquote>'
     );
-    processedHtml = processExternalContent(processedHtml);
     return {
       html: processedHtml,
       headings
@@ -3507,8 +3513,8 @@
   }
   function processExternalContent(html) {
     html = html.replace(
-      /https?:\/\/(?:www\.)?youtube\.com\/watch\?v=([a-zA-Z0-9_-]+)/gi,
-      '<div class="video-embed"><iframe src="https://www.youtube.com/embed/$1" frameborder="0" allowfullscreen></iframe></div>'
+      /<p>\s*https?:\/\/(?:www\.)?youtube\.com\/watch\?v=([a-zA-Z0-9_-]+)\s*<\/p>/gi,
+      '<div class="video-embed"><iframe src="https://www.youtube.com/embed/$1" frameborder="0" loading="lazy" allowfullscreen></iframe></div>'
     );
     html = html.replace(/<a href="([^"]+)"([^>]*)>/gi, (match, href, rest) => {
       const isExternal = href.startsWith("http") && !href.includes(window.location.hostname);
@@ -3517,9 +3523,6 @@
       return `<a href="${href}"${rest} class="${externalClass}">${externalIcon}`;
     });
     return html;
-  }
-  function escapeAttr(text) {
-    return text.replace(/&/g, "&amp;").replace(/"/g, "&quot;");
   }
   var lightboxOpener = openLightbox;
   function setLightboxOpener(opener) {
@@ -3704,7 +3707,7 @@
             ev.counterparty ? escapeHtml(ev.counterparty) : "",
             ev.magnitude ? `<span class="ev-mag">${escapeHtml(ev.magnitude)}</span>` : ""
           ].filter(Boolean).join(" \xB7 ");
-          const quote = ev.source_quote ? ` title="${escapeHtml(ev.source_quote).replace(/"/g, "&quot;")}"` : "";
+          const quote = ev.source_quote ? ` title="${escapeAttr(ev.source_quote).replace(/"/g, "&quot;")}"` : "";
           return `
                     <li class="ev-item"${quote}>
                         <span class="ev-date">${escapeHtml(date)}</span>
@@ -3729,7 +3732,7 @@
           const pct = Math.round(n.similarity * 100);
           const href = this.wikilinks?.get(n.name);
           const inner = `${escapeHtml(n.name.replace(/_/g, " "))} <b>${pct}%</b>`;
-          return href ? `<a class="peer-chip" href="/entity/${encodeURIComponent(href)}" title="${escapeHtml(n.sector || "")}">${inner}</a>` : `<span class="peer-chip" title="${escapeHtml(n.sector || "")}">${inner}</span>`;
+          return href ? `<a class="peer-chip" href="/entity/${encodeURIComponent(href)}" title="${escapeAttr(n.sector || "")}">${inner}</a>` : `<span class="peer-chip" title="${escapeAttr(n.sector || "")}">${inner}</span>`;
         }).join("");
         getEl("rail-peers").style.display = "block";
       } catch {
@@ -3747,7 +3750,7 @@
           const pct = Math.round(n.similarity * 100);
           return `
                     <a class="related-row" href="/entity/${encodeURIComponent(n.file_path)}"
-                       title="${escapeHtml(n.file_path)}">
+                       title="${escapeAttr(n.file_path)}">
                         <span class="related-title">${escapeHtml(n.title.replace(/_/g, " "))}</span>
                         <span class="related-sim"><span class="related-bar"><span
                             class="bar-fill" style="width:${pct}%"></span></span>${pct}%</span>

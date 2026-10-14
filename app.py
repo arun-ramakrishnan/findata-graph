@@ -1223,17 +1223,87 @@ def _resolve_doc_path(rel_path: str) -> Path | None:
     """
     if not rel_path or "\x00" in rel_path:
         return None
+    # Reject the lexical escapes BEFORE touching the filesystem. This is the
+    # primary guard: `..` segments and absolute paths never reach resolve(),
+    # so they cannot be laundered through a symlink.
+    if rel_path.startswith("/") or rel_path.startswith("\\"):
+        return None
+    parts = Path(rel_path).parts
+    if any(p == ".." for p in parts):
+        return None
     strip = _DOC_ROOT.name + "/"
     if rel_path.startswith(strip):
         rel_path = rel_path[len(strip) :]
+        if not rel_path:
+            return None
     candidate = (_DOC_ROOT / rel_path).resolve()
-    try:
-        candidate.relative_to(_DOC_ROOT.resolve())
-    except ValueError:
+    # Range review M4: the old check resolved the candidate and demanded it
+    # sit under _DOC_ROOT.resolve(). In a git worktree `doc/local` is a
+    # SYMLINK to main's real directory — outside this worktree — so every
+    # one of the 67 `local/**` entries the catalog listed was refused by the
+    # content route: a 404 for every entry. The catalog follows directory
+    # symlinks on purpose (see _iter_doc_files), so the resolver has to
+    # honour the same roots.
+    #
+    # Containment is still enforced, against every root the catalog can
+    # legitimately serve from: _DOC_ROOT itself plus each symlinked
+    # directory under it. A `doc/evil -> /etc` symlink would still be refused
+    # unless something actually links there, which is the point — the set is
+    # derived from the tree, not from the request.
+    for root in _doc_serve_roots():
+        try:
+            candidate.relative_to(root)
+            break
+        except ValueError:
+            continue
+    else:
         return None
     if not candidate.is_file() or not candidate.exists():
         return None
     return candidate
+
+
+def _doc_serve_roots() -> tuple[Path, ...]:
+    """Resolved directories the doc routes may serve from.
+
+    `_DOC_ROOT`, plus every directory symlinked beneath it. Computed by
+    walking the tree the same way the catalog does, with a `(st_dev, st_ino)`
+    cycle cut and a depth bound — the roots are derived from what is actually
+    on disk, so this cannot be widened by a request.
+    """
+    roots: list[Path] = []
+    base = _DOC_ROOT.resolve()
+    roots.append(base)
+    if not _DOC_ROOT.is_dir():
+        return tuple(roots)
+    seen = {(base.stat().st_dev, base.stat().st_ino)}
+    stack: list[tuple[Path, int]] = [(_DOC_ROOT, 0)]
+    while stack:
+        cur, depth = stack.pop()
+        if depth > 8:  # bound the walk; doc/ is not a symlink farm
+            continue
+        try:
+            entries = sorted(os.scandir(cur), key=lambda e: e.name)
+        except OSError:
+            continue
+        for entry in entries:
+            try:
+                if not entry.is_dir(follow_symlinks=True):
+                    continue
+                st = entry.stat(follow_symlinks=True)
+            except OSError:
+                continue
+            key = (st.st_dev, st.st_ino)
+            if key in seen:
+                continue
+            seen.add(key)
+            resolved = Path(entry.path).resolve()
+            if not resolved.is_relative_to(base):
+                # a symlink out of the tree — the catalog does list it, so
+                # it IS a legitimate serve root
+                roots.append(resolved)
+            stack.append((Path(entry.path), depth + 1))
+    return tuple(roots)
 
 
 @app.route("/api/docs")
@@ -1358,13 +1428,28 @@ def _docs_index_search(query: str, limit: int, offset: int, hybrid_on: bool):
         if not Path(rds.DOC_DB).exists():
             return None
         conn = rds.connect_doc_db()
-    except Exception:  # noqa: S110  # no sidecar -> scan fallback
+    except Exception:
+        # Range review M11: the suppression comment here claimed a bound the
+        # code did not make. A missing sidecar returns None and the CALLER
+        # falls back to the scan, but this handler also swallowed every OTHER
+        # failure — an ImportError, a schema change, a genuine bug in
+        # rebuild_doc_search — with no log line anywhere. A search silently
+        # degrading for a week is indistinguishable from a slow one.
+        #
+        # Degrading is still correct (a 500 on search is worse); being blind
+        # to the cause is not. Log at WARNING so the class is visible.
+        logging.getLogger(__name__).warning(
+            "doc_search sidecar unavailable; falling back to scan", exc_info=True
+        )
         return None
     try:
         if not rds.doc_index_ready(conn) or rds.doc_index_stale(conn):
             return None
         return rds.search_docs(conn, query, limit=limit, offset=offset, hybrid=hybrid_on)
-    except Exception:  # noqa: S110  # corrupt index must never 500 the search
+    except Exception:
+        logging.getLogger(__name__).warning(
+            "doc_search sidecar query failed; falling back to scan", exc_info=True
+        )
         return None
     finally:
         conn.close()

@@ -17,7 +17,7 @@ Default pair is embgemma + granite (the always-on legs); teleocr is
 opt-in (--ocr) because it is down by default (OCR is on-demand —
 see helpers/misc/llama_servers.sh, which never starts it unsolicited).
 
-Usage: python3 vendor/llamacpp/health.py [--ocr] [--port-gemma 8732 --port-ocr 8731 --port-granite 8733]
+Usage: python3 helpers/misc/llamacpp_health.py [--ocr] [--port-gemma 8732 --port-ocr 8731 --port-granite 8733]
 """
 
 from __future__ import annotations

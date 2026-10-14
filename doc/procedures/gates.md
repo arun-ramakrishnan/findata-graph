@@ -26,6 +26,18 @@ Advisory runs last: its informational legs never block. Read results via
 `gate_query` (`gate_query failures`, `gate_query latest --gate <name>`),
 not raw tails.
 
+`make qa` includes a **`mojo-parity`** leg (added 2026-10-14): the Mojo
+`integrity_check` port diffed against the Python
+`database_integrity_check.py` over 89 canonical keys. It is the only
+drift detector between the two implementations, and it is why H10 exists —
+it previously lived only in the `mojo-bench` perf harness, was never a gate,
+and so never ran. Two practical consequences: the leg **needs the Mojo
+toolchain and a build**, so a bare `make qa` on a machine without
+`.venv/bin/mojo` fails there and nowhere else; and on red it prints the
+mismatched keys with the full log path, which is the fastest route to the
+offending site. Its analogue for perf regressions is `make mojo-bench`
+(still a separate, non-blocking surface).
+
 `make integration` is a standing arc leg. Its 551 `-m integration` tests
 also run inside qa's pytest `-m "not live"` (`tests/run_gate_report.py`
 keeps the overlap deliberately); the dedicated leg buys the isolated

@@ -377,3 +377,50 @@ class TestDocsSearchModes:
         # error or a boolean rewrite; quoted, they are just literals.
         r2 = client.get("/api/docs/search?q=cache AND (design OR NOT)")
         assert r2.status_code == 200
+
+
+# --------------------------------------------------------------------------- #
+# Range review M4 — the catalog listed doc/local/** that the content route
+# refused. In a git worktree `doc/local` is a symlink to main's real
+# directory, so `_resolve_doc_path`'s "must sit under _DOC_ROOT.resolve()"
+# check rejected every one of them: 67 catalog entries, 0 served, 67 x 404.
+# --------------------------------------------------------------------------- #
+
+
+class TestDocSymlinkRoots:
+    def test_catalog_and_resolver_agree(self):
+        """The invariant that matters: anything the catalog lists, the
+        content route can actually fetch. Measured on the live tree this was
+        67 listed / 0 resolvable before the fix."""
+        import app
+
+        listed = [rel for rel, _ in app._iter_doc_files()]
+        unresolvable = [r for r in listed if app._resolve_doc_path(r) is None]
+        assert unresolvable == [], (
+            f"{len(unresolvable)} catalog entries 404 on the content route, e.g. {unresolvable[:3]}"
+        )
+
+    def test_traversal_still_blocked(self):
+        import app
+
+        for bad in [
+            "../../etc/passwd",
+            "/etc/passwd",
+            "procedures/../../etc/passwd",
+            "../",
+        ]:
+            assert app._resolve_doc_path(bad) is None, bad
+
+    def test_nul_and_empty_still_blocked(self):
+        import app
+
+        assert app._resolve_doc_path("") is None
+        assert app._resolve_doc_path("a\x00b.md") is None
+
+    def test_serve_roots_include_the_symlinked_doc_local(self):
+        import app
+
+        roots = app._doc_serve_roots()
+        assert roots, "no serve roots"
+        # the real (non-symlink) doc root is always one of them
+        assert app._DOC_ROOT.resolve() in roots

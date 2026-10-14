@@ -5154,6 +5154,9 @@
     div.textContent = text;
     return div.innerHTML;
   }
+  function escapeAttr(text) {
+    return text.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  }
   function truncateText(text, maxLength) {
     if (text.length <= maxLength) return text;
     return text.substring(0, maxLength) + "...";
@@ -5197,7 +5200,11 @@
 
   // src/core/markdown.ts
   function processRichContent(content) {
-    let processedHtml = DOMPurify.sanitize(marked.parse(content));
+    let processedHtml = processExternalContent(marked.parse(content));
+    processedHtml = DOMPurify.sanitize(processedHtml, {
+      ADD_TAGS: ["iframe"],
+      ADD_ATTR: ["frameborder", "allowfullscreen", "loading"]
+    });
     const headings = [];
     processedHtml = processedHtml.replace(
       /<h([1-6])[^>]*>(.*?)<\/h[1-6]>/gi,
@@ -5254,7 +5261,6 @@
       /<blockquote>([\s\S]*?)<\/blockquote>/gi,
       '<blockquote class="rich-blockquote">$1</blockquote>'
     );
-    processedHtml = processExternalContent(processedHtml);
     return {
       html: processedHtml,
       headings
@@ -5296,8 +5302,8 @@
   }
   function processExternalContent(html) {
     html = html.replace(
-      /https?:\/\/(?:www\.)?youtube\.com\/watch\?v=([a-zA-Z0-9_-]+)/gi,
-      '<div class="video-embed"><iframe src="https://www.youtube.com/embed/$1" frameborder="0" allowfullscreen></iframe></div>'
+      /<p>\s*https?:\/\/(?:www\.)?youtube\.com\/watch\?v=([a-zA-Z0-9_-]+)\s*<\/p>/gi,
+      '<div class="video-embed"><iframe src="https://www.youtube.com/embed/$1" frameborder="0" loading="lazy" allowfullscreen></iframe></div>'
     );
     html = html.replace(/<a href="([^"]+)"([^>]*)>/gi, (match, href, rest) => {
       const isExternal = href.startsWith("http") && !href.includes(window.location.hostname);
@@ -5306,9 +5312,6 @@
       return `<a href="${href}"${rest} class="${externalClass}">${externalIcon}`;
     });
     return html;
-  }
-  function escapeAttr(text) {
-    return text.replace(/&/g, "&amp;").replace(/"/g, "&quot;");
   }
   var lightboxOpener = openLightbox;
   function wireRichInteractions(root) {
@@ -6032,7 +6035,7 @@
   });
   var ScriptSearchResponseSchema = object({
     query: string(),
-    mode: picklist(["hybrid", "bm25"]),
+    mode: picklist(["hybrid", "bm25", "vector"]),
     stale: boolean(),
     results: array(ScriptSearchHitSchema)
   });
@@ -6735,9 +6738,13 @@
                 </div>` : ""}
             </div>
             <div class="card-footer">
-                <a href="/entity/${entity.file_path}" class="btn-primary" target="_blank" rel="noopener noreferrer">
+                ${// entity.file_path is `string | null`. The href used to
+      // interpolate it unguarded, so a fileless company
+      // rendered href="/entity/null" — a dead link. Guarding it
+      // is also what lets encodeURI() take a plain string.
+      entity.file_path ? `<a href="/entity/${encodeURI(entity.file_path)}" class="btn-primary" target="_blank" rel="noopener noreferrer">
                     <i class="fas fa-external-link-alt"></i> View Details
-                </a>
+                </a>` : ""}
             </div>
         `;
       return card;
@@ -7724,8 +7731,8 @@
     relatedRow(n) {
       const pct = Math.round(n.similarity * 100);
       return `
-            <button type="button" class="related-row" data-note="${escapeHtml(n.file_path)}"
-                    title="${escapeHtml(n.file_path)}">
+            <button type="button" class="related-row" data-note="${escapeAttr(n.file_path)}"
+                    title="${escapeAttr(n.file_path)}">
                 <span class="related-title">${escapeHtml(n.title)}</span>
                 <span class="related-sim"><span class="related-bar"><span
                     class="bar-fill" style="width:${pct}%"></span></span>${pct}%</span>
@@ -13954,14 +13961,18 @@ void main() {
           isEntitiesResponse
         );
         (dc.entities || []).forEach((e) => {
-          parts.push(`<option value="${e.name}">${e.name}</option>`);
+          parts.push(
+            `<option value="${escapeAttr(e.name)}">${escapeHtml(e.name)}</option>`
+          );
         });
         const ds = await fetchJson(
           "/api/entities?type=sector&limit=500",
           isEntitiesResponse
         );
         (ds.entities || []).forEach((e) => {
-          parts.push(`<option value="${e.name}">${e.name} (sector)</option>`);
+          parts.push(
+            `<option value="${escapeAttr(e.name)}">${escapeHtml(e.name)} (sector)</option>`
+          );
         });
         dl.innerHTML = parts.join("");
       } catch (e) {
@@ -14205,8 +14216,8 @@ void main() {
       const chips = data.relationship_types.map((t) => {
         const off = this.graph?.hiddenEdgeTypes.has(t.edge_type) ? " off" : "";
         return `<button type="button" class="edge-chip${off}"
-                            data-edge-type="${escapeHtml(t.edge_type)}"
-                            title="${escapeHtml(t.semantics)} \u2014 ${t.count} edge${t.count !== 1 ? "s" : ""}. Click to hide/show.">
+                            data-edge-type="${escapeAttr(t.edge_type)}"
+                            title="${escapeAttr(t.semantics)} \u2014 ${t.count} edge${t.count !== 1 ? "s" : ""}. Click to hide/show.">
                         <span class="dot" style="background:${edgeColor(t.edge_type)}"></span>
                         ${escapeHtml(t.edge_type)}
                         <span class="chip-count">${t.count}</span>
@@ -14289,8 +14300,8 @@ void main() {
         const size = 0.85 + ratio * 1.35;
         const off = this.graph?.hiddenEdgeTypes.has(t.edge_type) ? " off" : "";
         return `<button type="button" class="rel-cloud-chip${off}"
-                            data-edge-type="${escapeHtml(t.edge_type)}"
-                            title="${escapeHtml(`${t.semantics} \u2014 ${t.count} edge${t.count !== 1 ? "s" : ""}`)}"
+                            data-edge-type="${escapeAttr(t.edge_type)}"
+                            title="${escapeAttr(`${t.semantics} \u2014 ${t.count} edge${t.count !== 1 ? "s" : ""}`)}"
                             style="font-size:${size.toFixed(2)}rem; color:${edgeColor(t.edge_type)};">
                     ${escapeHtml(t.edge_type)}
                     <span class="rel-cloud-count">${t.count} ${t.symmetric ? "\u2194" : "\u2192"}</span>
@@ -14378,8 +14389,8 @@ void main() {
           (name, i) => `
                 <tr>
                     <td class="idx num">${i + 1}</td>
-                    <td><button type="button" class="rank-entity" data-centre="${escapeHtml(name)}"
-                                title="Centre the Lens on ${escapeHtml(name)}">${escapeHtml(name)}</button></td>
+                    <td><button type="button" class="rank-entity" data-centre="${escapeAttr(name)}"
+                                title="Centre the Lens on ${escapeAttr(name)}">${escapeHtml(name)}</button></td>
                     <td class="num muted">seed ${i + 1} of ${seeds.length}</td>
                 </tr>`
         ).join("");
@@ -14416,10 +14427,10 @@ void main() {
           return `
                 <tr>
                     <td class="idx num">${i + 1}</td>
-                    <td><button type="button" class="rank-entity" data-centre="${escapeHtml(ent.entity)}"
-                                title="Centre the Lens on ${escapeHtml(ent.entity)}">${escapeHtml(ent.entity)}</button></td>
-                    <td>${best ? `<button type="button" class="rank-entity muted-entity" data-centre="${escapeHtml(best.name)}"
-                                title="Centre the Lens on ${escapeHtml(best.name)}">\u2194 ${escapeHtml(best.name)}</button>` : '<span class="muted">\u2014</span>'}</td>
+                    <td><button type="button" class="rank-entity" data-centre="${escapeAttr(ent.entity)}"
+                                title="Centre the Lens on ${escapeAttr(ent.entity)}">${escapeHtml(ent.entity)}</button></td>
+                    <td>${best ? `<button type="button" class="rank-entity muted-entity" data-centre="${escapeAttr(best.name)}"
+                                title="Centre the Lens on ${escapeAttr(best.name)}">\u2194 ${escapeHtml(best.name)}</button>` : '<span class="muted">\u2014</span>'}</td>
                     <td class="num">${this._fmtScore(ent.best_score)}</td>
                 </tr>`;
         }).join("");
@@ -14458,8 +14469,8 @@ void main() {
         (r, i) => `
             <tr>
                 <td class="idx num">${i + 1}</td>
-                <td><button type="button" class="rank-entity" data-centre="${escapeHtml(r.entity)}"
-                            title="Centre the Lens on ${escapeHtml(r.entity)}">${escapeHtml(r.entity)}</button></td>
+                <td><button type="button" class="rank-entity" data-centre="${escapeAttr(r.entity)}"
+                            title="Centre the Lens on ${escapeAttr(r.entity)}">${escapeHtml(r.entity)}</button></td>
                 <td class="num"><span class="score-bar" style="width:${max > 0 ? Math.max(2, Math.round(r.value / max * 46)) : 0}px"></span>
                     ${this._fmtScore(r.value)}</td>
             </tr>`
@@ -14497,8 +14508,8 @@ void main() {
       mount.innerHTML = groups.map((g) => {
         const color = COMMUNITY_PALETTE[g.label % COMMUNITY_PALETTE.length];
         const members = g.members.slice(0, 6).map(
-          (m) => `<button type="button" class="chip-entity" data-centre="${escapeHtml(m)}"
-                         title="Centre the Lens on ${escapeHtml(m)}">${escapeHtml(m)}</button>`
+          (m) => `<button type="button" class="chip-entity" data-centre="${escapeAttr(m)}"
+                         title="Centre the Lens on ${escapeAttr(m)}">${escapeHtml(m)}</button>`
         ).join("");
         const more = g.members.length > 6 ? `<span class="chip-more">+${g.members.length - 6}</span>` : "";
         return `
@@ -14541,8 +14552,8 @@ void main() {
       const max = Math.max(...rows.map((r) => r.score), 1e-4);
       mount.innerHTML = rows.map(
         (r, i) => `
-            <button type="button" class="suggest-row" data-centre="${escapeHtml(r.source)}"
-                    title="${escapeHtml(r.source)} \u2194 ${escapeHtml(r.target)}${r.edition ? ` \xB7 ${escapeHtml(r.edition)}` : ""} \u2014 centre on ${escapeHtml(r.source)}">
+            <button type="button" class="suggest-row" data-centre="${escapeAttr(r.source)}"
+                    title="${escapeAttr(r.source)} \u2194 ${escapeAttr(r.target)}${r.edition ? ` \xB7 ${escapeAttr(r.edition)}` : ""} \u2014 centre on ${escapeAttr(r.source)}">
                 <span class="idx mono">${i + 1}</span>
                 <span class="suggest-pair">${escapeHtml(r.source)} <span class="arrow">\u2194</span> ${escapeHtml(r.target)}</span>
                 <span class="suggest-bar"><span style="width:${(r.score / max * 100).toFixed(1)}%"></span></span>
@@ -14597,7 +14608,7 @@ void main() {
         const { total, parts } = byYear.get(y);
         const segs = parts.map(
           (p) => `<span class="bar-seg" style="width:${(p.count / total * 100).toFixed(2)}%;background:${edgeColor(p.edge_type)}"
-                       title="${escapeHtml(p.edge_type)}: ${p.count}"></span>`
+                       title="${escapeAttr(p.edge_type)}: ${p.count}"></span>`
         ).join("");
         return `
             <div class="year-row">
@@ -14634,7 +14645,7 @@ void main() {
         (b) => `
             <div class="bridge-row">
                 <span class="edge-dot" style="background:${edgeColor(b.edge_type)}"
-                      title="${escapeHtml(b.edge_type)}"></span>
+                      title="${escapeAttr(b.edge_type)}"></span>
                 <span class="bridge-pair">${escapeHtml(b.sector_a)} <span class="arrow">\u2194</span> ${escapeHtml(b.sector_b)}</span>
                 <span class="cnt mono">${b.count}</span>
             </div>`
@@ -14665,8 +14676,8 @@ void main() {
       mount.innerHTML = rows.map(
         (r) => `
             <div class="cm-row">
-                <button type="button" class="rank-entity" data-centre="${escapeHtml(r.entity)}"
-                        title="Centre the Lens on ${escapeHtml(r.entity)}">${escapeHtml(r.entity)}</button>
+                <button type="button" class="rank-entity" data-centre="${escapeAttr(r.entity)}"
+                        title="Centre the Lens on ${escapeAttr(r.entity)}">${escapeHtml(r.entity)}</button>
                 <span class="cm-bar"><span style="width:${(r.co_mentions / max * 100).toFixed(1)}%"></span></span>
                 <span class="cnt mono">${r.co_mentions}</span>
             </div>`
@@ -15077,7 +15088,7 @@ void main() {
         });
         html += `</ul>`;
         if (sectorBundle.file_path) {
-          html += `<a class="btn-primary" href="/entity/${sectorBundle.file_path}">View sector note \u2192</a>`;
+          html += `<a class="btn-primary" href="/entity/${encodeURI(sectorBundle.file_path)}">View sector note \u2192</a>`;
         }
       } else if (nb && isFocal) {
         const companyBundle = nb;
@@ -15094,7 +15105,7 @@ void main() {
         html += `<li><strong>Customers:</strong> ${companyBundle.customers.length || "\u2014"}</li>`;
         html += `</ul>`;
         if (companyBundle.file_path) {
-          html += `<a class="btn-primary" href="/entity/${companyBundle.file_path}">View full note \u2192</a>`;
+          html += `<a class="btn-primary" href="/entity/${encodeURI(companyBundle.file_path)}">View full note \u2192</a>`;
         }
       } else {
         html += `<p class="hint">Click this node (or it's already selected) to re-centre on <em>${escapeHtml(name)}</em>.</p>`;
@@ -15156,7 +15167,7 @@ void main() {
       const items = data.events.map((ev) => {
         const bits = [ev.counterparty, ev.magnitude].filter((x) => Boolean(x)).map((x) => escapeHtml(x)).join(" \xB7 ");
         return `
-            <li class="tl-item"${ev.source_quote ? ` title="${escapeHtml(ev.source_quote)}"` : ""}>
+            <li class="tl-item"${ev.source_quote ? ` title="${escapeAttr(ev.source_quote)}"` : ""}>
                 <span class="tl-date mono">${this._eventDateLabel(ev)}</span>
                 <span class="tl-type">${escapeHtml(ev.event_type)}</span>
                 <span class="tl-body">${bits || "&nbsp;"}</span>
@@ -15211,7 +15222,7 @@ void main() {
       const chain = data.path.map((p) => p.name);
       const hops = data.hops ?? 0;
       const ribbon = chain.map(
-        (n, i) => `<button type="button" class="hop-chip" data-hop-name="${escapeHtml(n)}" title="Centre the Lens on ${escapeHtml(n)}"><span class="hop-idx">${i + 1}</span>${escapeHtml(n)}</button>`
+        (n, i) => `<button type="button" class="hop-chip" data-hop-name="${escapeAttr(n)}" title="Centre the Lens on ${escapeAttr(n)}"><span class="hop-idx">${i + 1}</span>${escapeHtml(n)}</button>`
       ).join(`<span class="hop-arrow">\u2192</span>`);
       result.innerHTML = `
             <div class="path-ribbon">${ribbon}</div>

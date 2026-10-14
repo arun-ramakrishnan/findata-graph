@@ -10,12 +10,12 @@
         "graphology-layout-forceatlas2": "^0.10.1",
         "sigma": "^3.0.3",
         "sugar-high": "^2.4.0",
-        "valibot": "^1.5.0",
       },
       "devDependencies": {
         "esbuild": "0.28.1",
         "prettier": "^3.9.6",
         "typescript": "7.0.2",
+        "valibot": "^1.5.0",
       },
     },
   },

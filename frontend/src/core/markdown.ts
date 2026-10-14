@@ -14,7 +14,7 @@
 import { highlight as sugarHighlight } from "sugar-high";
 import { lang as normalizeLang } from "sugar-high/lang";
 
-import { getEl, escapeHtml } from "./dom";
+import { getEl, escapeHtml, escapeAttr } from "./dom";
 import { showToast } from "./toast";
 
 /** A generated heading captured during markdown processing (for the TOC). */
@@ -31,8 +31,26 @@ export interface ProcessedContent {
 }
 
 export function processRichContent(content: string): ProcessedContent {
-    // Markdown → HTML, sanitized before anything else touches it.
-    let processedHtml = DOMPurify.sanitize(marked.parse(content));
+    // Markdown → HTML.
+    //
+    // ORDERING (range review M6): processExternalContent used to run AFTER
+    // sanitize(), which contradicted the intent stated on the line below
+    // ("sanitized before anything else touches it"). Anything that function
+    // re-injects therefore bypassed the sanitiser entirely — notably the
+    // <iframe> it synthesises for YouTube URLs, which DOMPurify would have
+    // stripped had it run after. It now runs BEFORE sanitize, so the
+    // synthesised markup is itself sanitised, and the narrow ADD_TAGS below
+    // is the only thing letting an iframe through at all.
+    let processedHtml = processExternalContent(marked.parse(content));
+
+    // Sanitise, permitting exactly the one element processExternalContent
+    // builds: an iframe whose src is always the youtube.com/embed/ URL this
+    // module just constructed from a [a-zA-Z0-9_-]+ video id. Nothing in the
+    // input can reach that src — DOMPurify strips iframes from the input.
+    processedHtml = DOMPurify.sanitize(processedHtml, {
+        ADD_TAGS: ["iframe"],
+        ADD_ATTR: ["frameborder", "allowfullscreen", "loading"],
+    });
 
     // Extract headings for TOC.
     const headings: TocHeading[] = [];
@@ -105,8 +123,9 @@ export function processRichContent(content: string): ProcessedContent {
         '<blockquote class="rich-blockquote">$1</blockquote>',
     );
 
-    // Add responsive embeds for external content.
-    processedHtml = processExternalContent(processedHtml);
+    // NOTE: processExternalContent now runs BEFORE DOMPurify.sanitize, at the
+    // top of this function — see the ORDERING note there. Re-running it here
+    // would undo the fix by re-injecting markup after the sanitiser.
 
     return {
         html: processedHtml,
@@ -200,9 +219,16 @@ export function closeLightbox(): void {
 
 function processExternalContent(html: string): string {
     // Process YouTube embeds.
+    //
+    // CONTEXT ANCHORING (range review M6): the old pattern was a bare URL
+    // match, so it fired on a youtube link ANYWHERE — including inside an
+    // href, where replacing the URL with `<div ...><iframe ...></div>`
+    // injected markup into an attribute value. Anchoring to a whole `<p>`
+    // means only a standalone URL is promoted to an embed; an inline link
+    // stays a link.
     html = html.replace(
-        /https?:\/\/(?:www\.)?youtube\.com\/watch\?v=([a-zA-Z0-9_-]+)/gi,
-        '<div class="video-embed"><iframe src="https://www.youtube.com/embed/$1" frameborder="0" allowfullscreen></iframe></div>',
+        /<p>\s*https?:\/\/(?:www\.)?youtube\.com\/watch\?v=([a-zA-Z0-9_-]+)\s*<\/p>/gi,
+        '<div class="video-embed"><iframe src="https://www.youtube.com/embed/$1" frameborder="0" loading="lazy" allowfullscreen></iframe></div>',
     );
 
     // Process general links.
@@ -214,11 +240,6 @@ function processExternalContent(html: string): string {
     });
 
     return html;
-}
-
-/** Attribute-safe escaping (escapeHtml leaves quotes untouched). */
-function escapeAttr(text: string): string {
-    return text.replace(/&/g, "&amp;").replace(/"/g, "&quot;");
 }
 
 /**

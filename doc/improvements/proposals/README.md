@@ -38,9 +38,28 @@ entry number and stale DONE pointers):
 
 ## Current live proposals
 
-_(none)_ — every proposal filed here is executed and archived. The
-newest: `store_wide_reclaim` was filed and executed the same day
-(2026-10-14) and archived immediately after
+- `range_review_1fda0c158_6182cd2c7.md` (2026-10-14) — the 48-commit range
+  review of `1fda0c158..6182cd2c7`: **43 distinct real (9 H / 19 M / 15 L)**
+  from two legs, against a **green `make qa`**. Both HIGH security findings are
+  unescaped `innerHTML`/`href` sinks in the Research Desk redesign — a
+  regression-of-record against completed.md #117 — and the HIGH correctness one
+  is a DB-sourced path reaching a vault **write** with no containment check,
+  which **falsifies** the completeness claim at completed.md:8823 and is still
+  open at HEAD. Nine further HIGHs are one root cause: the Mojo integrity
+  checker dropped every curated exemption from its Python original, and ships
+  with its parity gate documented as GATED and permanently RED. Evidence in
+  `outputs/reviews/`. Touches an extractor rule (`noise_target`) and query-visible
+  edge semantics, so it **carries the eval-gate bullet**. Also closes four
+  review-apparatus defects: OCR 1.12.13's `default_path` class had silently
+  eaten the whole `tests/fixtures/**` spine (L9) while the `tests/` spine stayed
+  green, and `review_freshness.py` forked its ledger per worktree so a
+  worktree `--record` left the canonical ledger claiming `UNREVIEWED` (C).
+  Non-obvious mechanic worth carrying: **removing an `exclude` from rule.json
+  does not admit a path** — `include` is required past the extension allow-list,
+  and `.mojo` is not on that allow-list at all.
+
+`store_wide_reclaim` was filed and executed the same day (2026-10-14)
+and archived immediately after
 (`../archive/tooling/store_wide_reclaim.md`, completed.md #391): the
 registered sidecar estate (7 sqlite + 5 duckdb) is maintained inside
 `db_maint.run()` — `SIDECAR_*` registry as the single decision home,

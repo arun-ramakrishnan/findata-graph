@@ -79,6 +79,32 @@ def _strip_image_markup(text: str) -> str:
     return WIKILINK_RE.sub(" ", t)
 
 
+def _significant_digits(num: str) -> int:
+    r"""Digits in a NUM_RE match, ignoring separators and the decimal point.
+
+    NUM_RE is `\d[\d,]*(?:\.\d+)?`, so a match may carry thousands commas
+    and a fraction. `len()` counted all of them as digits.
+    """
+    return sum(1 for c in num if c.isdigit())
+
+
+def wikilink_status(image_root: Path, link: str) -> str:
+    """Classify one WIKILINK_RE capture against the output image root.
+
+    Returns "ok" | "missing" | "escape".
+
+    "escape" is the containment case (range review M3): the capture is a
+    relative path, so `![[images/../../../etc/passwd]]` yields
+    "../../../etc/passwd" and the naive join escapes the output directory.
+    Stat'ing that path leaks whether an arbitrary file exists, so a traversal
+    is refused outright rather than answered.
+    """
+    resolved = (image_root / link).resolve()
+    if not resolved.is_relative_to(image_root):
+        return "escape"
+    return "ok" if resolved.is_file() else "missing"
+
+
 def canon_words(text: str) -> list[str]:
     """Lowercased alphanumeric word tokens (order-free multiset member)."""
     return re.sub(r"[^0-9a-zA-Z]+", " ", text.lower()).split()
@@ -144,7 +170,12 @@ def verify(
             }
         )
     doc_src = canon_words("\n".join(src_pages))
-    md_body = re.sub(r"\A---\n.*?\n---\n", "", md_text, count=1)
+    # re.DOTALL (range review M2): without it `.` never matches a newline, so
+    # this only ever stripped SINGLE-line frontmatter. Every real note's YAML
+    # is multi-line, so frontmatter keys (entity_type, ticker, sector) were
+    # counted as document content and inflated doc_coverage against
+    # WARN_DOC_BELOW = 0.95 — the check was optimistic exactly when it ran.
+    md_body = re.sub(r"\A---\n.*?\n---\n", "", md_text, count=1, flags=re.DOTALL)
     doc_out = canon_words(md_body)
     doc_coverage = _multiset_coverage(doc_src, doc_out)
 
@@ -173,20 +204,34 @@ def verify(
     src_nums = canon_numbers("\n".join(src_pages))
     out_nums = canon_numbers(md_text)  # md is what downstream consumes
     missing_all = sorted(set(src_nums) - set(out_nums), key=lambda s: (-len(s), s))
-    missing_nums = [n for n in missing_all if len(n) >= MIN_SIGNIFICANT_NUM_DIGITS]
+    # _significant_digits, not len() (range review L3): NUM_RE matches
+    # "1.5", which is 3 CHARACTERS but only 2 digits, so a two-digit figure
+    # was promoted to a "significant" missing number. Count digits and ignore
+    # the thousands separators and the decimal point.
+    missing_nums = [n for n in missing_all if _significant_digits(n) >= MIN_SIGNIFICANT_NUM_DIGITS]
 
-    wikilinks = WIKILINK_RE.findall(md_text)
-    missing_links = sorted({w for w in wikilinks if not (out_dir / "images" / w).is_file()})
+    # Containment (range review M3): WIKILINK_RE captures whatever sits
+    # between the brackets, so a note containing
+    # `![[images/../../../etc/passwd]]` yields the relative path
+    # "../../../etc/passwd" and `(out_dir / "images" / w).is_file()` then
+    # stats a file OUTSIDE the output dir. Read-only (it only stats, never
+    # reads) and no content is exfiltrated, but the answer leaks existence of
+    # an arbitrary path. Resolve and refuse anything that escapes.
+    image_root = (out_dir / "images").resolve()
+    statuses = {w: wikilink_status(image_root, w) for w in WIKILINK_RE.findall(md_text)}
+    escaped_links = sorted(w for w, s in statuses.items() if s == "escape")
+    missing_links = sorted(w for w, s in statuses.items() if s == "missing")
 
     content_pages = [m for m in page_metrics if m["src_words"] >= MIN_PAGE_WORDS]
     bad_pages = [m for m in content_pages if m["coverage"] < fail_below]
     warn_pages = [m for m in content_pages if fail_below <= m["coverage"] < warn_below]
-    if bad_pages or missing_links or doc_coverage < FAIL_DOC_BELOW or md_json_bad:
+    if escaped_links or bad_pages or missing_links or doc_coverage < FAIL_DOC_BELOW or md_json_bad:
         verdict = "FAIL"
     elif (
         warn_pages
         or doc_coverage < WARN_DOC_BELOW
-        or fail_below <= doc_coverage < WARN_DOC_BELOW
+        # (the `fail_below <= doc_coverage < WARN_DOC_BELOW` disjunct that used
+        # to sit here is dead — fully subsumed by the test above it. L2.)
         or missing_nums
     ):
         verdict = "WARN"
@@ -213,6 +258,10 @@ def verify(
         "missing_numbers_count": len(missing_nums),
         "small_number_noise_count": len(missing_all) - len(missing_nums),
         "missing_wikilinks": missing_links,
+        # Escaping wikilinks are reported separately: a missing image is a
+        # content bug, a `![[images/../../...]]` is a traversal attempt and
+        # should be legible as such rather than lost in the missing list.
+        "escaping_wikilinks": escaped_links,
         "md_json_pages": md_json_pages,
         "md_json_mismatch_pages": [m["page"] for m in md_json_bad],
         "top_missing_words": [w for w, _ in missing_words.most_common(15)],
