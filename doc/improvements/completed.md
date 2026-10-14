@@ -1,7 +1,7 @@
 <!-- markdownlint-disable MD041 -- first line is intentionally bold metadata, not a heading -->
 
-**Generated**: 2026-10-14
-**Total completed**: 318 items
+**Generated**: 2026-10-15
+**Total completed**: 319 items
 
 > **Note:** Full implementation details, code references, and rationale are in the `doc/improvements/archive/` subdirectory. This file is a summary view.
 
@@ -86,10 +86,17 @@
 - **G2** — Louvain returns partition only, no modularity score **[DONE — 2026-09-10]** — *louvain returns (labels, modularity), modularity computed in-process — helpers/graph/onager.py.*
 - **G3** — No standalone cycle detection **[DONE]** — *find_cycles (helpers/graph/query.py) on stored-direction e_dir (duckpgq retirement §B).*
 
+- **G4** — co_mentioned_in weight carry-through (derive-time pair counts) **[DONE — 2026-10-15]** — *helpers/graph/derive_co_mentions.py: count + 1 weights (live range 2.0–6.0); backfill_weights idempotent; pagerank_weighted top-10 changes (Infosys 5→10, Grasim 10→6).*
+- **G5** — PPR re-probe on economic projection re-anchors blocker **[DONE — 2026-10-15]** — *no code change; scipy_personalized_pagerank.md §7 updated with 2026-10-14 table + re-anchored (seed-dependent, not universally degenerate) verdict; lane stays DEFERRED.*
+
 ### I — Engine extension opportunities
 
 - **I1** — Louvain runs in NetworkX, not DuckDB **[SKIPPED]**
 - **I2** — Betweenness runs in NetworkX, not DuckDB **[SKIPPED]**
+
+### L — L1 performance lanes
+
+- **L1c** — Leaf-folded exact closeness/harmonic **[DONE — 2026-10-15]** — *helpers/graph/l1_closeness.py: 2-core BFS + analytic forest term. 84% of the graph is forest; the fold is exact on the FULL 1,734-entity contract (closeness maxdiff=0, harmonic 2.5e-11 — after the 2026-10-15 audit fixed phantom-N normalization + sibling-via-root tree BFS, fold doc §8) and 1.61x faster end-to-end jobs=1 (3.41s vs 5.49s; the earlier 5.34x was a phase-vs-phase comparison). Tests: tests/test_l1_closeness.py.*
 
 ### J — Temporal & API surface
 
@@ -10695,3 +10702,42 @@ measured: `user_exclude` beats `include`); db_sync review doctrine in `ocr_revie
 house checklist (scan does NOT skip db_sync ranges — degrades to sqlfluff-on-`_schema`).
 Adjudication left to operator: R1 test-tightening Lows, R2 A.M3/B.F4/B.F5/B.F7/C.F1-residue
 (B.F3 gate-owned). Evidence in `outputs/reviews/` (gitignored).
+
+## 393. SciPy csgraph scale lanes (MST backbone, bipartite matching, conditional assignment, A² kernel)
+
+**Proposal**: `doc/improvements/archive/graph/scipy_csgraph_scale_lanes.md` (filed + executed same day; absorbs scipy_minimum_spanning_tree.md child).
+
+Four lanes unlocked on the scale gate (57,589 edges; all sub-10 ms after 2026-10-15 trials in graph_layer.md):
+
+- **S1**: MST/MSF backbone — 21,474 nodes, 105 components, 21,369 forest edges, total weight 21,649.881. Forest-not-triangle reporting tested.
+- **S2**: Maximum bipartite matching (supplier concentration) — 958/8817 = 10.87% coverage. Hall-violator report with deficient consumer subsets.
+- **S3**: Conditional optimal assignment — full matching impossible on `invested_in` (82/84 max); 6 single-investor targets create Hall collision. Transposed (84×277) same structural wall.
+- **S4**: A² candidate kernel (`B·Bᵀ`) — 347,302 candidate pairs in 5.7 ms. Top pair: Tata Communications / Tata Consultancy Services = 81 shared consumers. Enrichment feed: "these two firms supply the same buyer; are they competitors? partners?"
+
+Non-goals: no routing/dispatch changes, no `write_analytics` rows, `structural_rank`/`reverse_cuthill_mckee` parked, no S4 candidate triage (H1 gate).
+
+**Follows**: `doc/improvements/archive/graph/scipy_graph_bridge.md` §7 (the 25-public accounting, consumer-gate replaced), `doc/local/evaluations/graph_layer.md` (2026-10-15 scale-trial section).
+
+## 394. Range review 1fda0c158..6182cd2c7 — 43 findings (9 H / 19 M / 15 L) + review-apparatus fixes
+
+**Proposal**: `doc/improvements/archive/tooling/range_review_1fda0c158_6182cd2c7.md` (filed + executed same day; absorbs all 48 commits of the September arc).
+
+Range review of `1fda0c158..6182cd2c7`: 48 commits, 534 files, +84 818 / −6 914. Two legs: `delegation` (host, free) + `scan` (`review_scan.py`). No `managed` leg.
+
+**HIGH findings (H1–H10)**: H1 containment fixed in `enrich_relations.py` with `_vault_note_path()` guards + 6 new tests; H2/H3 XSS escaped in `frontend/src/views/graph.ts`; H4 `noise_target` length rule enhanced with shape discrimination; H5–H9 Mojo integrity port dropped curated exemptions (89/89 parity gate installed via `make mojo-parity`); H10 parity differential never a gate (Mojo legs truncate identically).
+
+**MEDIUM findings (M1–M21)**: 19 fixed across slices S1–S6; S3 (parity gate) was done FIRST before any site fix; M20 (`;`-delimiter round-trip) and M21 (list/set tokenizer confusion) surfaced as latent encoding bugs; M8 premise corrected (inverse guard); M9 new frontend escaping test harness; M5 understated blast radius 10×.
+
+**LOW findings (L1–L16)**: 14 fixed; L9 (OCR fixtures) and L10 (.mojo allow-list) and L16 (`vendor/llamacpp/health.py`) closed in this proposal; L11/L12/L13 roster hygiene; L4/L5/L14/L15 PDF and cwd issues.
+
+**Slice outcomes:**
+- **S1**: H1 **Fixed** — guards + 6 tests; fixture re-shaped
+- **S2**: H2, H3, M5, M6, M9 **Fixed** — escapeAttr export, 29 attr sites, new `escaping.test.ts` (9 tests)
+- **S3**: H5–H10, M12–M16, M20, M21, L14, L15 — **Parity gate 89/89 green**
+- **S4**: H4, M10 — H4 fixed, M10 already fixed at HEAD
+- **S5**: M1–M4, M8, M11, L1–L5 — Mixed; some already fixed downstream, fixed here: M2/L2/L3/M3
+- **S6**: L11, L12, L13 **Fixed** — roster header anchors, B110→S110, total_files delta
+
+**Not done / operator decision**: empty `review_fixes` commit message; `make search-fresh` in main checkout.
+
+**Follows**: `doc/improvements/archive/tooling/range_4fd3a20f_review_remediation.md` (completed.md #382, the low-tier remediation from the prior range review).

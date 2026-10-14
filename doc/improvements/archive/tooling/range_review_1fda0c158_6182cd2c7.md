@@ -1,9 +1,9 @@
 ---
 title: "Range review 1fda0c158..6182cd2c7 — 43 findings (9 H / 19 M / 15 L) + review-apparatus fixes"
-status: proposed
+status: executed
 filed: "2026-10-14"
-executed: null
-completed_md: null
+executed: "2026-10-15"
+completed_md: "394"
 area: "helpers/maintenance/enrich_relations.py, helpers/graph/, helpers/pdf/, frontend/src/, Mojo/, app.py, .opencodereview/rule.json, helpers/misc/review_selection.py, helpers/misc/review_freshness.py, doc/procedures/ocr_review.md"
 ---
 

@@ -1085,7 +1085,9 @@ def write_analytics(metric: str, values: dict[str, Any], conn: Any | None = None
                 conn.execute(
                     "INSERT INTO graph_analytics(entity_name, metric, value) "
                     "VALUES (?, ?, ?) "
-                    "ON CONFLICT(metric, entity_name) DO UPDATE SET value = excluded.value",
+                    "ON CONFLICT(metric, entity_name) DO UPDATE SET "
+                    "value = excluded.value, "
+                    "computed_at = CURRENT_TIMESTAMP",
                     (entity_name, metric, json.dumps(value)),
                 )
     finally:

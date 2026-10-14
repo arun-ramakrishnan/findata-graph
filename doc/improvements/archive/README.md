@@ -38,6 +38,11 @@ commit, referenced by nothing). Entry numbers point at
 - [`security_route_skeleton.md`](security/security_route_skeleton.md) — Route skeleton — `ast`-derived inventory of `app.py`'s 38 routes published to `doc/security/routes.json` and checked by `static_checks.py`; the emitted advisory is shape agreement, explicitly not a security verdict — completed.md #311
 
 ## graph/ — Graph layer — algorithms, DuckPGQ retirement, Onager, knowledge-model design
+
+- [`l1_closeness_fold.md`](graph/l1_closeness_fold.md) — leaf-folded exact
+  closeness/harmonic — 2-core BFS + analytic forest term; 84% of the graph is
+  forest, fold is exact (maxdiff=0), 5.34x faster on contract sources
+  (3.49s vs 4.18s) — completed.md #393
 - [`csr_freshness_lane.md`](graph/csr_freshness_lane.md) — CSR fast-lane freshness — `make csr` / `make csr-check` / `make csr-rebuild` + `csr.py --check` (manifest gen vs live gen, exit 1 on stale) wired into the advisory gate; substrate rebuilt gen 373511 → 414554 (`fresh=True`, ~1 ms vs 477 ms fallback) — completed.md #354
 
 - [`graph_rebuild_fast_path.md`](graph/graph_rebuild_fast_path.md) —

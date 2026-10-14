@@ -38,7 +38,12 @@ entry number and stale DONE pointers):
 
 ## Current live proposals
 
-- `range_review_1fda0c158_6182cd2c7.md` (2026-10-14) — the 48-commit range
+- `../archive/graph/scipy_csgraph_scale_lanes.md` (2026-10-15) — MST backbone, supplier
+  bipartite matching, conditional investor assignment, A² candidate kernel.
+  Unlocks four csgraph lanes on the scale gate (57,589 edges; everything
+  sub-10 ms) after the 2026-10-15 trials in graph_layer.md; absorbs the
+  deferred scipy_minimum_spanning_tree.md child.
+- `../archive/tooling/range_review_1fda0c158_6182cd2c7.md` (2026-10-14) — the 48-commit range
   review of `1fda0c158..6182cd2c7`: **43 distinct real (9 H / 19 M / 15 L)**
   from two legs, against a **green `make qa`**. Both HIGH security findings are
   unescaped `innerHTML`/`href` sinks in the Research Desk redesign — a

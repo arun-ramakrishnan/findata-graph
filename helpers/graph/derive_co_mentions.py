@@ -299,6 +299,21 @@ def _newsletter_source_ref(newsletter_type: str) -> str:
 # --------------------------------------------------------------------------- #
 # Edge derivation                                                             #
 # --------------------------------------------------------------------------- #
+def count_pair_co_mentions(
+    edition_to_entities: Mapping[str, Iterable[str]],
+) -> dict[tuple[str, str], int]:
+    """Count how many editions co-mention each unordered company pair."""
+    counts: dict[tuple[str, str], int] = {}
+    for _title, entities in edition_to_entities.items():
+        unique_sorted = sorted(set(entities))
+        if len(unique_sorted) < 2:
+            continue
+        for a, b in combinations(unique_sorted, 2):
+            key = (a, b) if a <= b else (b, a)
+            counts[key] = counts.get(key, 0) + 1
+    return counts
+
+
 def derive_edges(
     edition_to_entities: Mapping[str, Iterable[str]],
     *,
@@ -318,6 +333,7 @@ def derive_edges(
     - ``edition_number``: integer if extractable from the title, else omitted.
     """
     source_ref = _newsletter_source_ref(newsletter_type)
+    pair_counts = count_pair_co_mentions(edition_to_entities)
     edges: list[tuple[str, str, dict, str]] = []
     for edition_title, entities in edition_to_entities.items():
         # De-dup + sort so the canonical ordering is deterministic regardless
@@ -336,7 +352,14 @@ def derive_edges(
             # `combinations` over a sorted list already yields a < b, but be
             # defensive: enforce canonical ordering explicitly.
             source, target = (a, b) if a <= b else (b, a)
-            edges.append((source, target, dict(props), source_ref))
+            count = pair_counts.get((source, target), 1)
+            edge_props = dict(props)
+            edge_props["count"] = count
+            edge_props["n_mentions"] = count
+            edge_props["n_co_mentions"] = count
+            edge_props["co_mention_count"] = count
+            edge_props["n_editions"] = count
+            edges.append((source, target, edge_props, source_ref))
     return edges
 
 
@@ -366,13 +389,113 @@ def apply_edges(
         inserted (``dry_run=True``). Rows skipped due to the
         ``UNIQUE(source, target, edge_type)`` constraint are not counted.
     """
-    return apply_typed_edges(
+    inserted = apply_typed_edges(
         edges,
         edge_type="co_mentioned_in",
         symmetric=1,
         conn=conn,
         dry_run=dry_run,
     )
+    if not dry_run:
+        backfill_weights(conn=conn, edges=edges)
+    return inserted
+
+
+def backfill_weights(  # noqa: C901
+    conn=None,
+    *,
+    edges=None,
+    pair_counts=None,
+    edition_to_entities=None,
+) -> int:
+    """Set ``co_mentioned_in`` edge weights from the per-pair co-mention count.
+
+    Weight = ``count + 1`` (mirroring ``derive_cited_in.backfill_weights``).
+    Idempotent: derives the count from (in priority order) an explicit
+    ``pair_counts`` mapping, ``edition_to_entities``, the supplied ``edges``,
+    or the ``count``/aliases already stamped in ``properties``. Returns the
+    number of rows updated.
+    """
+    own = conn is None
+    if own:
+        conn = connect()
+    try:
+        # Resolve pair -> count.
+        resolved: dict[tuple[str, str], int] = {}
+        if pair_counts is not None:
+            for k, v in pair_counts.items():
+                key = tuple(sorted(k)) if isinstance(k, (list, tuple)) else k
+                resolved[tuple(sorted(key))] = int(v)  # type: ignore[arg-type]
+        elif edition_to_entities is not None:
+            resolved = {
+                tuple(sorted(k)): int(v)
+                for k, v in count_pair_co_mentions(edition_to_entities).items()
+            }
+        elif edges is not None:
+            # Aggregate distinct editions per pair from the edge batch.
+            agg: dict[tuple[str, str], set[str]] = {}
+            for source, target, props, _sr in edges:
+                key = tuple(sorted((source, target)))
+                agg.setdefault(key, set()).add(str((props or {}).get("edition", "")))
+            resolved = {k: len(v) for k, v in agg.items()}
+        else:
+            resolved = {}
+
+        total_updated = 0
+        if resolved:
+            for (a, b), count in resolved.items():
+                cur = conn.execute(
+                    "UPDATE graph_edges SET weight = ? "
+                    "WHERE edge_type = 'co_mentioned_in' "
+                    "AND source = ? AND target = ?",
+                    (float(count) + 1.0, a, b),
+                )
+                # symmetric row (target, source) if present
+                cur2 = conn.execute(
+                    "UPDATE graph_edges SET weight = ? "
+                    "WHERE edge_type = 'co_mentioned_in' "
+                    "AND source = ? AND target = ?",
+                    (float(count) + 1.0, b, a),
+                )
+                n1 = cur.rowcount if cur.rowcount and cur.rowcount > 0 else 0
+                n2 = cur2.rowcount if cur2.rowcount and cur2.rowcount > 0 else 0
+                total_updated += n1 + n2
+        else:
+            # Fall back to properties-stamped count (cited_in style).
+            cur = conn.execute(
+                "UPDATE graph_edges SET weight = "
+                "COALESCE("
+                "CAST(json_extract(properties, '$.count') AS REAL),"
+                "CAST(json_extract(properties, '$.n_mentions') AS REAL),"
+                "CAST(json_extract(properties, '$.n_co_mentions') AS REAL),"
+                "CAST(json_extract(properties, '$.co_mention_count') AS REAL),"
+                "CAST(json_extract(properties, '$.n_editions') AS REAL)"
+                ") + 1.0 "
+                "WHERE edge_type = 'co_mentioned_in' "
+                "AND ("
+                "json_extract(properties, '$.count') IS NOT NULL OR "
+                "json_extract(properties, '$.n_mentions') IS NOT NULL OR "
+                "json_extract(properties, '$.n_co_mentions') IS NOT NULL OR "
+                "json_extract(properties, '$.co_mention_count') IS NOT NULL OR "
+                "json_extract(properties, '$.n_editions') IS NOT NULL"
+                ") "
+                "AND (weight IS NULL OR weight != "
+                "COALESCE("
+                "CAST(json_extract(properties, '$.count') AS REAL),"
+                "CAST(json_extract(properties, '$.n_mentions') AS REAL),"
+                "CAST(json_extract(properties, '$.n_co_mentions') AS REAL),"
+                "CAST(json_extract(properties, '$.co_mention_count') AS REAL),"
+                "CAST(json_extract(properties, '$.n_editions') AS REAL)"
+                ") + 1.0)"
+            )
+            total_updated = cur.rowcount if cur.rowcount and cur.rowcount > 0 else 0
+
+        if own:
+            conn.commit()
+        return int(total_updated)
+    finally:
+        if own:
+            conn.close()
 
 
 # --------------------------------------------------------------------------- #
@@ -423,6 +546,16 @@ def _cli(argv: list[str] | None = None) -> int:
             f"  {len(names):3d} co  {n_pairs:5d} pairs  {edition_title}",
             file=sys.stderr,
         )
+
+    # Report the per-pair co-mention count distribution (proposal acceptance).
+    pc = count_pair_co_mentions(editions)
+    from collections import Counter
+
+    dist = Counter(pc.values())
+    print(
+        "pair_count_distribution=" + ",".join(f"{k}:{dist[k]}" for k in sorted(dist)),
+        file=sys.stderr,
+    )
 
     inserted = apply_edges(edges, dry_run=not args.apply)
     action = "inserted" if args.apply else "would insert"

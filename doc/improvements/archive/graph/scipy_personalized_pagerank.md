@@ -124,11 +124,42 @@ stationary form is `x = αPᵀx + (1−α)v`, i.e. solve `(I − αPᵀ)`. Using
 `(I − αP)` with `P = D⁻¹A` does not normalise (`sum(x) ≈ 127`, not 1) —
 it is the wrong eigenvector orientation.
 
-**Verdict:** stays DEFERRED. Revival requires BOTH a named consumer that
-wants more than the 1-hop ego bundle AND a projection that fixes the
-localization (hub-stripped / per-sector subgraph), not merely a working
-solver. The scipy one-solve itself is cheap (0.22-0.29 s) and correct —
-the blocker is the graph, not the engine.
+### Re-anchor (2026-10-14 probe)
+
+Graph has since grown to 57,589 edges with ~40,000 ownership/supply edges
+(`supplier_to` 16,584, `subsidiary_of` 11,600, `same_group` 9,824). Hub
+contamination (the 2026-09-24 post-seed top-10 of `india` (deg 850), NIFTY
+indices) is **gone** on the live graph — post-seed top-10 are all real
+companies. Full-graph numbers reproduce the recorded values, confirming the
+probe is calibrated; the economic projection (12 non-membership types) is
+where the re-anchoring lands:
+
+| Seed | 2026-09-24 record (hop≥2) | 2026-10-14 (full / economic) |
+|---|---|---|
+| Infosys | 0.184 (ex-index) / 0.137 (company-only) | 0.177 / — (Infosys star-attached; hop≥2 ≈ 0.038) |
+| Wipro | — | 0.138 / — |
+| HDFC Bank | not measured | 0.508 / 0.508 |
+| TCS | not measured | — / 0.196 (economic) |
+| Reliance (post-1-hop top-8) | hub-contaminated | EIH, Castrol India, Grasim, Saregama, Asian Paints, Axis Bank — zero hubs |
+
+**Re-anchored verdict:** the recorded "1-hop ego ranking" characterization
+holds for star-attached IT names (Infosys hop≥2 ≈ 0.038) but not uniformly
+(HDFC Bank hop≥2 = 0.508). The blocker is therefore **seed-dependent,
+not universally degenerate** — narrower than the 2026-09-24 record. Hub
+stripping removes the *contamination* (now gone on the live graph) but the
+*localization* remains seed-dependent.
+
+**Implementation trap re-confirmed (2026-10-14):** the §2 equation
+`(I − αP)⁻¹(1−α)v` is transposed; the correct stationary form is
+`x = αPᵀx + (1−α)v`, i.e. solve `(I − αPᵀ)`. Using `(I − αP)` with
+`P = D⁻¹A` fails to normalise (`sum(x) ≈ 127`).
+
+**Verdict (re-anchored):** stays DEFERRED. Revival requires BOTH a named
+consumer that wants more than the 1-hop ego bundle AND a projection that
+fixes the seed-dependent localization (hub-stripped / per-sector subgraph),
+not merely a working solver. The scipy one-solve itself is cheap
+(0.22-0.29 s) and correct — the blocker is the graph, not the engine.
+The lane stays DEFERRED; no un-deferral, no Onager wrap-path change.
 
 Parent: `doc/improvements/archive/graph/scipy_graph_bridge.md`; spike
 `/tmp/graph_spike.txt`; lane `helpers/graph/scipy_bridge.py`.

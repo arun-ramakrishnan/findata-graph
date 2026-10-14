@@ -336,6 +336,23 @@ class TestWriteAnalyticsUpsert:
         stored = json.loads(rows[0]["value"])
         assert stored == 999.0
 
+    def test_upsert_updates_computed_at(self, synth_db):
+        """The graph_analytics.computed_at stamp tracks the last UPSERT,
+        so the stats staleness check reflects data freshness rather than
+        first-insertion time.
+        """
+        result = {"A": 0.5, "B": 0.3}
+        write_analytics("pagerank", result)
+
+        rows = _read_analytics(synth_db, "pagerank", "A")
+        original_stamp = rows[0]["computed_at"]
+
+        modified = {"A": 0.9, "B": 0.4}
+        write_analytics("pagerank", modified)
+
+        rows = _read_analytics(synth_db, "pagerank", "A")
+        assert rows[0]["computed_at"] >= original_stamp
+
     def test_write_returns_count(self, synth_db):
         """write_analytics returns the number of rows written."""
         result = {"A": 0.5, "B": 0.3}

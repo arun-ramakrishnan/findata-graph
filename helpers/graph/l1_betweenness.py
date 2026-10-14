@@ -82,11 +82,10 @@ def load_projection(db_path: str | Path = DEFAULT_DB_PATH):
         rows = con.execute("SELECT source, target, edge_type FROM graph_edges").fetchall()
     finally:
         con.close()
-    names = sorted({s for s, _, _ in rows} | {t for _, t, _ in rows})
+    kept = [(s, t) for s, t, et in rows if s != t and et not in INDEX_NOISE]
+    names = sorted({s for s, _ in kept} | {t for _, t in kept})
     pos = {n: i for i, n in enumerate(names)}
-    edges = sorted(
-        {tuple(sorted((pos[s], pos[t]))) for s, t, et in rows if s != t and et not in INDEX_NOISE}
-    )
+    edges = sorted({tuple(sorted((pos[s], pos[t]))) for s, t in kept})
     return names, edges
 
 
