@@ -51,7 +51,9 @@ def test_bump_appends_ring_row_with_caller_and_generation(tmp_path):
     assert row is not None
     assert row["generation"] == 101
     assert ".py:" in row["caller"]  # file:line, not "unknown"
-    assert row["ts"].startswith("2026") or "-" in row["ts"]
+    assert (
+        row["ts"].startswith("2026") and len(row["ts"]) == 19
+    )  # "%Y-%m-%d %H:%M:%S" shape, not just any dashed string
 
 
 def test_ring_trims_to_last_100(tmp_path):

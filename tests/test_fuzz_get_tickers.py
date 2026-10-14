@@ -16,7 +16,7 @@ import pytest
 from hypothesis import given, settings, strategies as st, HealthCheck
 
 
-from core.get_tickers import (  # noqa: E402
+from helpers.core.get_tickers import (  # noqa: E402
     _fmt_number,
     _fmt_pct,
     extract_company_name_from_path,

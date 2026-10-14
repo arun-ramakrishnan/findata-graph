@@ -9,7 +9,7 @@ area: "helpers/maintenance/rebuild_note_search.py, rebuild_common.py, helpers/ma
 
 # Worktree fresh trample guard
 
-**Date:** 2026-10-12 · **Status:** PROPOSED ·
+**Date:** 2026-10-12 · **Status:** EXECUTED (completed.md #385) ·
 **Area:** `helpers/maintenance/rebuild_note_search.py`, `rebuild_common.py`,
 `helpers/maintenance/snapshot_db.py`, `helpers/core/db.py`, `AGENTS.md`
 

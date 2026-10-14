@@ -59,7 +59,7 @@ make search-fresh APPLY=1      # refresh all four instead
 
 **Which mode when**
 
-- **After a known edit** — `--incremental` (doc/script; reprocesses only
+- **After a known edit** — plain incremental (default, no flag; reprocesses only
   changed files; script still re-extracts every unit but only *writes*
   row-tuple diffs).
 - **Periodically / after anything unusual** — plain full rebuild: the
@@ -67,7 +67,7 @@ make search-fresh APPLY=1      # refresh all four instead
   table drift). `make maint-full` step 6c runs FULL for doc_search for
   this reason.
 - **Not sure?** `--check` is the arbiter — hash-exact. Loop: `--check` →
-  STALE → `--incremental` → `--check`; if still dirty, full run.
+  STALE → incremental (default run) → `--check`; if still dirty, `--full`.
 - **Model swap** — no special procedure: embed cache is keyed by model
   label; next full rebuild re-embeds and re-stamps the sidecar info
   table. The apply/write path is `embeddings.md`.
@@ -94,8 +94,8 @@ rebuild still succeeds with deterministic 64-dim pseudo-embeddings
 ### Build / refresh
 
 ```bash
-.venv/bin/python3 helpers/maintenance/rebuild_doc_search.py              # full (convergence)
-.venv/bin/python3 helpers/maintenance/rebuild_doc_search.py --incremental
+.venv/bin/python3 helpers/maintenance/rebuild_doc_search.py              # incremental (default; no-op when clean)
+.venv/bin/python3 helpers/maintenance/rebuild_doc_search.py --full       # full (convergence)
 .venv/bin/python3 helpers/maintenance/rebuild_doc_search.py --check
 ```
 

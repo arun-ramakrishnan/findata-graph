@@ -38,7 +38,7 @@ import time
 import pytest
 
 
-from misc.database_integrity_check import DatabaseIntegrityChecker  # noqa: E402
+from helpers.misc.database_integrity_check import DatabaseIntegrityChecker  # noqa: E402
 
 
 # ---------------------------------------------------------------------------
@@ -188,7 +188,9 @@ def test_fuzzy_match_scales_linearly_with_entities():
     inside the loop, as the old check_fuzzy_duplicate_names did) shows
     ~4x. Budget 3x absorbs noise while still catching quadratic scans.
     """
-    from core.fuzzy_match import fuzzy_match  # helpers/ is on sys.path (see imports)
+    from helpers.core.fuzzy_match import (
+        fuzzy_match,
+    )  # canonical helpers.* imports (bare-import shim removed 2026-10-14)
 
     queries = [
         "Tata Consultancy Services",

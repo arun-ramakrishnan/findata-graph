@@ -33,11 +33,11 @@ import time
 from hypothesis import given, settings, strategies as st
 
 
-from core.parse_newsletter import SECTION_RE  # noqa: E402
-from graph.derive_co_mentions import _parse_edition_number  # noqa: E402
-from graph.derive_insights import _BPS_RE, _PCT_RE  # noqa: E402
-from pdf.capture_newsletter_images import IMG_BLOCK_RE  # noqa: E402
-from pdf.pdf_local import BOLD_LINE_RE  # noqa: E402
+from helpers.core.parse_newsletter import SECTION_RE  # noqa: E402
+from helpers.graph.derive_co_mentions import _parse_edition_number  # noqa: E402
+from helpers.graph.derive_insights import _BPS_RE, _PCT_RE  # noqa: E402
+from helpers.pdf.capture_newsletter_images import IMG_BLOCK_RE  # noqa: E402
+from helpers.pdf.pdf_local import BOLD_LINE_RE  # noqa: E402
 
 
 # ---------------------------------------------------------------------------

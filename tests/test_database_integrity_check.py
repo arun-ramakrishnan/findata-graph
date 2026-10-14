@@ -16,15 +16,12 @@ the production `events` DDL and seeds the specific defect under test.
 """
 
 import sqlite3
-import sys
 from contextlib import contextmanager
 from pathlib import Path
 
 import pytest
 
-HELPERS = Path(__file__).resolve().parents[1] / "helpers" / "misc"
-sys.path.insert(0, str(HELPERS))
-from database_integrity_check import DatabaseIntegrityChecker  # noqa: E402
+from helpers.misc.database_integrity_check import DatabaseIntegrityChecker  # noqa: E402
 
 ENTITIES_DDL = (
     "CREATE TABLE entities ("

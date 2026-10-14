@@ -18,8 +18,8 @@ from hypothesis import given, strategies as st
 
 
 # Import the three functions under test.
-from core.parse_newsletter import normalize_name  # noqa: E402
-from pdf.capture_newsletter_images import slugify  # noqa: E402
+from helpers.core.parse_newsletter import normalize_name  # noqa: E402
+from helpers.pdf.capture_newsletter_images import slugify  # noqa: E402
 
 # rename_entity.py imports normalize_name from parse_newsletter too
 # (consolidated during fuzz-fix work), so there's only one implementation

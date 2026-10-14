@@ -67,9 +67,11 @@ class TestSec2BadRequestEscape:
 
     def test_json_path_returns_description_verbatim_but_jsonified(self, client):
         # /api paths return jsonify — JSON escaping is the client's concern.
-        r = client.get("/api/search?q=%3Cscript%3E")  # malformed FTS query -> 400
-        if r.status_code == 400:
-            assert r.is_json
+        # Missing q 400s (a bare <script> query is VALID FTS5 and 200s, so it
+        # cannot pin the error path — assert the 400 trigger, not the payload).
+        r = client.get("/api/search")
+        assert r.status_code == 400  # route contract: missing q 400s, never 200s
+        assert r.is_json
 
 
 class TestSec3SecurityHeaders:

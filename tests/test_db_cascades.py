@@ -18,7 +18,7 @@ from pathlib import Path
 import pytest
 
 
-from core.db import connect  # noqa: E402
+from helpers.core.db import connect  # noqa: E402
 from datetime import UTC
 
 from tests.schema import RELATIONS  # noqa: E402
@@ -349,7 +349,7 @@ def test_rename_entity_docstring_describes_cascade_not_fk_disable():
     trusts a "disables FKs" docstring could remove the CASCADE and break
     graph consistency silently.
     """
-    from maintenance import rename_entity
+    from helpers.maintenance import rename_entity
 
     doc = (rename_entity.__doc__ or "").lower()
     # The mechanism that's actually in use.

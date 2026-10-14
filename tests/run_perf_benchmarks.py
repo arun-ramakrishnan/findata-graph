@@ -42,7 +42,8 @@ REPORT = REPO_ROOT / "outputs" / "perf_report.md"
 #     + browser 14.7%, pytest -n4 far higher — while our own serial bench
 #     sits at ~0-2%. 10% catches the embed-stream class without tripping
 #     on ourselves. loadavg fallback for PSI-less hosts.
-_HEARTBEAT = REPO_ROOT / "outputs" / ".gate_active"
+# (Heartbeat locations resolved by _heartbeat_paths() below — the publisher
+# contract lives in run_gate_report._outputs_root; see review F5.)
 _PSI_SOME_CEIL = 10.0  # percent, "some avg10" — start guard (box fresh, no self-load yet)
 _PSI_SUSTAINED_CEIL = 15.0  # percent, "some avg60" — mid-run guard: sustained external
 # load trips; our own multi-thread bench bursts (centrality/betweenness measured
@@ -300,6 +301,43 @@ def _psi_some(window: str = "avg10") -> float | None:
     return None
 
 
+def _heartbeat_paths() -> list[Path]:
+    """Candidate `.gate_active` locations, publisher path first.
+
+    Mirrors run_gate_report._outputs_root (the publisher contract, which names
+    this probe as its consumer): inside a linked worktree the gate lane
+    publishes under <main>/outputs/wt/<name>/, not the worktree-local outputs/.
+    The local path stays as fallback (a main-checkout lane + a worktree perf
+    run meet there). Review F5: polling only the local path never fires in a
+    worktree, so the lane probe silently never fires and perf runs contended.
+    """
+    local = REPO_ROOT / "outputs" / ".gate_active"
+    try:
+        out = subprocess.run(
+            ["git", "rev-parse", "--absolute-git-dir"],  # noqa: S607  # PATH-resolved git by design (same as stgit/node call sites)
+            capture_output=True,
+            text=True,
+            cwd=REPO_ROOT,
+            timeout=10,
+        ).stdout.strip()
+        common = subprocess.run(
+            ["git", "rev-parse", "--git-common-dir"],  # noqa: S607  # PATH-resolved git by design (same as stgit/node call sites)
+            capture_output=True,
+            text=True,
+            cwd=REPO_ROOT,
+            timeout=10,
+        ).stdout.strip()
+    except OSError, subprocess.SubprocessError:
+        return [local]
+    if not out or not common:
+        return [local]
+    git_p, common_p = Path(out).resolve(), Path(common).resolve()
+    if git_p == common_p:
+        return [local]
+    main_pub = common_p.parent / "outputs" / "wt" / git_p.name / "outputs" / ".gate_active"
+    return [main_pub, local] if main_pub != local else [local]
+
+
 def _gate_lane_active() -> str | None:
     """Description of a live qa/integration/advisory lane, or None.
 
@@ -307,18 +345,20 @@ def _gate_lane_active() -> str | None:
     forever; PermissionError still means alive (same user here, but cheap
     to be correct).
     """
-    try:
-        raw = json.loads(_HEARTBEAT.read_text())
-        pid = int(raw["pid"])
-    except OSError, ValueError, KeyError, TypeError:
-        return None
-    try:
-        os.kill(pid, 0)
-    except ProcessLookupError:
-        return None
-    except PermissionError:
-        pass
-    return f"gate lane {raw.get('lane', '?')} active (pid {pid}, started {raw.get('started', '?')})"
+    for beat in _heartbeat_paths():
+        try:
+            raw = json.loads(beat.read_text())
+            pid = int(raw["pid"])
+        except OSError, ValueError, KeyError, TypeError:
+            continue
+        try:
+            os.kill(pid, 0)
+        except ProcessLookupError:
+            continue
+        except PermissionError:
+            pass
+        return f"gate lane {raw.get('lane', '?')} active (pid {pid}, started {raw.get('started', '?')})"
+    return None
 
 
 def _contention_reason(midrun: bool = False) -> str | None:

@@ -1,7 +1,7 @@
 <!-- markdownlint-disable MD041 -- first line is intentionally bold metadata, not a heading -->
 
-**Generated**: 2026-09-24
-**Total completed**: 187 items
+**Generated**: 2026-10-14
+**Total completed**: 318 items
 
 > **Note:** Full implementation details, code references, and rationale are in the `doc/improvements/archive/` subdirectory. This file is a summary view.
 
@@ -2508,7 +2508,7 @@ stem-leg) held at dry-run for the operator.
 
 **Date**: 2026-08-19. The deferral-revisit item shipped standalone ("take
 # 2 now, one hour, permanent"); the N1/N3 read-side bundle lives in
-`proposals/okf_readside.md`, N4 (C3 temporal) in pending.md. Now archived: `archive/okf/okf_readside.md`.
+`archive/okf/okf_readside.md`, N4 (C3 temporal) in pending.md. Now archived: `archive/okf/okf_readside.md`.
 
 - **Why**: okf_activation F0 made the note STEM the canonical edition key
   "everywhere" — but the capture layer still wrote free-text H1 titles to
@@ -10674,3 +10674,24 @@ file): `db_maint.run()` now maintains the whole estate. Shipped:
 
 Revisit: register any future store in `SIDECAR_*` the day it is born;
 DuckDB alerting wakes when a valid waste metric exists (F4).
+
+## 392. Combined two-range review remediation (R1 39 + R2 72 findings, S1–S6)
+
+**Proposal**: `doc/improvements/archive/tooling/range_review_two_ranges_2026-10-14.md`
+(filed + executed same day; supersedes the single-range 205a2c719 proposal, folded in whole).
+Two ranges, two legs each (`delegation` + `scan`, no `managed`): R1 `205a2c719..a4b3e5f81`
+(8 commits, store-reclaim era, 42 − 0 − 3 FP = 39); R2 `63e04dbde..e06b32798`
+(30 commits, OKF-v0.2 era, 161 − 0 − 89 FP = 72). Zero double-reports either range.
+**Fixes (S1–S6)**: dead `.txt` pointer (`graph_improvs.md`); `store_sweep` absent-store
+`FileNotFoundError` → `absent` row mirroring `db_maint` + mutation-checked regression test
+(red-without-guard proven); stale `# full (convergence)` build label (post-#384 flip);
+two `PROPOSED`-vs-executed body flips; vacuous `if 400:` assert fixed — which exposed the
+test premise as wrong (`<script>` is valid FTS5 and 200s; test now pins missing-`q` → 400);
+dead `proposals/okf_readside.md` pointer. R2 security Highs verified already healed
+(SNAP-1 manifest gate, XSS sanitize-before-augment + `data-lightbox` delegation).
+**Apparatus (same arc)**: `snapshots/parquet/_schema.*.sql` admitted to both legs
+(exclude narrowed to `*.parquet` + exact includes + `PRODUCT_FAMILIES` roots; precedence
+measured: `user_exclude` beats `include`); db_sync review doctrine in `ocr_review.md` +
+house checklist (scan does NOT skip db_sync ranges — degrades to sqlfluff-on-`_schema`).
+Adjudication left to operator: R1 test-tightening Lows, R2 A.M3/B.F4/B.F5/B.F7/C.F1-residue
+(B.F3 gate-owned). Evidence in `outputs/reviews/` (gitignored).

@@ -51,6 +51,16 @@ def test_busy_store_skipped_not_crash(sweep_repo):
         holder.close()
 
 
+def test_absent_store_is_absent_row_not_crash(sweep_repo):
+    """A registered-but-missing store yields an ``absent`` row, never a raise —
+    fresh/partial checkouts legitimately lack generated sidecars (review M1:
+    the pre-fix sweep died here with FileNotFoundError from unguarded stat)."""
+    p = sweep_repo / "memory" / "gone.db"
+    row = ss.run_sqlite(p, dry_run=True, lg=ss._logger())
+    assert row["action"] == "absent"
+    assert ss.exit_code([row]) == 0
+
+
 def test_dirty_store_reclaimed_clean_exit(sweep_repo):
     """The acting path: freelist reclaimed, quick_check ok, exit-code 0."""
     p = sweep_repo / "memory" / "dirty.db"

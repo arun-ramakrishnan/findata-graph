@@ -24,14 +24,17 @@
     "schema/**/*.sql",
     "frontend/tests/**",
     "**/*.lock",
-    "**/package-lock.json"
+    "**/package-lock.json",
+    "snapshots/parquet/_schema.duckdb.sql",
+    "snapshots/parquet/_schema.sources.sql",
+    "snapshots/parquet/_schema.sqlite.sql"
   ],
   "exclude": [
     "static/**/*.bundle.js",
     "static/**/*.bundle.js.map",
     "static/vendor/**",
     "node_modules/**",
-    "snapshots/**",
+    "snapshots/**/*.parquet",
     ".opencodereview/**",
     "findata/**",
     "doc/local/**",

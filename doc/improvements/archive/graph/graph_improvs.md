@@ -129,7 +129,7 @@ G3. No standalone cycle detection [DONE]
 ## BUNDLE H — DuckPGQ capability unlocks (blocked on extension features)
 STATUS: OBSOLETE — superseded by the duckpgq retirement
 (completed.md #91/#92, 2026-08-14;
-`archive/graph/duckpgq_retirement.txt`). The
+`archive/graph/duckpgq_retirement.md`). The
 extension is no longer loaded (`helpers/graph/query.py` Phase E), so the
 "When duckpgq adds X" premise is void: H1's all/k-shortest variant, if
 ever wanted, is a plain recursive-CTE extension (drop `LIMIT 1`), and H2's

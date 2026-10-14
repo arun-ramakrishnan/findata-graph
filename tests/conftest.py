@@ -15,17 +15,17 @@ from pathlib import Path
 
 import pytest
 
-# Make helpers/ importable as top-level modules (validators live under helpers/),
-# and make the repo root importable so `import app as A` works regardless of
-# whether pytest was invoked as `pytest tests/foo.py` (rootdir = tests/) or as
-# `pytest` / `pytest tests/` (rootdir = repo root via pytest.ini's testpaths).
+# Make the repo root importable so `import app as A` and `from helpers...`
+# work regardless of whether pytest was invoked as `pytest tests/foo.py`
+# (rootdir = tests/) or as `pytest` / `pytest tests/` (rootdir = repo root
+# via pytest.ini's testpaths). Canonical import root is `helpers.*` — do NOT
+# re-add a helpers/ insert (legacy bare-import shim, removed 2026-10-14).
 REPO_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO_ROOT))
-sys.path.insert(0, str(REPO_ROOT / "helpers"))
 
-from misc.database_integrity_check import DatabaseIntegrityChecker  # noqa: E402
-from validators.verify_notes import NotesVerifier  # noqa: E402
-from maintenance.migrate_to_graph_edges import ENTITIES_DDL  # noqa: E402
+from helpers.misc.database_integrity_check import DatabaseIntegrityChecker  # noqa: E402
+from helpers.validators.verify_notes import NotesVerifier  # noqa: E402
+from helpers.maintenance.migrate_to_graph_edges import ENTITIES_DDL  # noqa: E402
 
 # --------------------------------------------------------------------------- #
 # Markdown note templates (values chosen to match what each validator checks) #

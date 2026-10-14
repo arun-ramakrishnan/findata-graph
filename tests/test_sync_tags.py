@@ -16,7 +16,7 @@ from pathlib import Path
 import pytest
 
 
-from maintenance.migrate_to_graph_edges import ENTITIES_DDL  # noqa: E402
+from helpers.maintenance.migrate_to_graph_edges import ENTITIES_DDL  # noqa: E402
 from helpers.validators.static_checks import CANONICAL_SECTORS  # noqa: E402
 import helpers.core.sync_tags as sync_tags  # noqa: E402
 

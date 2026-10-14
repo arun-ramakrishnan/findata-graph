@@ -57,6 +57,13 @@ PRODUCT_FAMILIES = (
     "frontend/tests/",
     "desktop/src-tauri/",
     "desktop/src-vue/",
+    # Snapshot schema mirrors (S9 follow-up 2026-10-14): the only reviewable
+    # artifact of data-only commits. Exact paths (no trailing slash) so the
+    # parquet binaries beside them never satisfy the family. Hardcoded here
+    # so dropping one from rule.json fires the teeth instead of self-masking.
+    "snapshots/parquet/_schema.duckdb.sql",
+    "snapshots/parquet/_schema.sources.sql",
+    "snapshots/parquet/_schema.sqlite.sql",
 )
 
 # Host-carried review conventions (ocr_selection_drift S3). OCR's
@@ -101,6 +108,10 @@ HOUSE_CHECKLIST = (
     "committed fixture, snapshot, or bundle embeds must come only from "
     "git-tracked trees — a generator that reads machine-local stores needs an "
     "explicit exclusion whose test asserts the boundary",
+    "db_sync ranges (pure-snapshot data commits): the _schema mirrors are the "
+    "spine — review them line by line; prove the binary remainder "
+    "identical-or-data-new (empty textconv patch), spot-check new payloads via "
+    "textconv/duckdb; data-file health is a gate/test question, never a roster slot",
     "precision over recall; correctness and security are blocking; report the "
     "dedup arithmetic (raw minus both-legs minus false positives)",
 )

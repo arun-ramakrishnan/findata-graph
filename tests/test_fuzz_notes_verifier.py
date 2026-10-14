@@ -26,7 +26,7 @@ import pytest
 from hypothesis import given, settings, strategies as st, HealthCheck
 
 
-from validators.verify_notes import NotesVerifier  # noqa: E402
+from helpers.validators.verify_notes import NotesVerifier  # noqa: E402
 
 
 # ---------------------------------------------------------------------------

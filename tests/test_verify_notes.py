@@ -1,7 +1,6 @@
 # Tests for helpers/validators/verify_notes.py
 """Unit tests for NotesVerifier checks."""
 
-from pathlib import Path
 from helpers.validators.verify_notes import NotesVerifier
 
 
@@ -9,7 +8,9 @@ from helpers.validators.verify_notes import NotesVerifier
 # Helper: create a verifier and return it
 # ---------------------------------------------------------------------------
 def make_verifier():
-    return NotesVerifier(project_root=Path("/tmp"))  # noqa: S108  # test-only throwaway path/fixture
+    return (
+        NotesVerifier()
+    )  # default repo root; tests pass explicit paths, so the root is never walked
 
 
 # ---------------------------------------------------------------------------

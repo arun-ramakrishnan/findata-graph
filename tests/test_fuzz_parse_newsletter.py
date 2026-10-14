@@ -22,8 +22,8 @@ import pytest
 from hypothesis import given, settings, strategies as st, HealthCheck
 
 
-from core.frontmatter import yaml_safe_load  # noqa: E402
-from core.parse_newsletter import (  # noqa: E402
+from helpers.core.frontmatter import yaml_safe_load  # noqa: E402
+from helpers.core.parse_newsletter import (  # noqa: E402
     extract_companies,
     guess_sector_for,
     render_stub,

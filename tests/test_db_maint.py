@@ -208,7 +208,7 @@ class TestPrintReport:
             },
             "stat_staleness_before": {},
             "backup": {
-                "path": "/tmp/backup.db",  # noqa: S108  # test-only throwaway path/fixture
+                "path": "memory/backup.db",  # mock payload, never written
                 "size": 1024 * 1024,
             },
             "after": {
@@ -500,7 +500,8 @@ class TestSidecarEstate:
         holder.execute("INSERT INTO t VALUES ('blocker')")
         try:
             rows = self._maintainer(estate).maintain_registered_sidecars()
-            assert rows[0]["action"] == "skipped (database is locked)"
+            by = {r["store"]: r for r in rows}
+            assert by["memory/side_a.db"]["action"] == "skipped (database is locked)"
         finally:
             holder.rollback()
             holder.close()

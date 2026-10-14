@@ -119,6 +119,9 @@ def sqlite_census(conn, p: Path) -> dict:
 def run_sqlite(p: Path, *, dry_run: bool, lg: logging.Logger) -> dict:
     rel = str(p.relative_to(REPO))
     row: dict = {"store": rel, "engine": "sqlite"}
+    if not p.exists():
+        row["action"] = "absent"
+        return row
     if p.stat().st_size == 0:
         row["action"] = "skipped (0-byte artifact)"
         return row
@@ -195,7 +198,11 @@ def run_sqlite(p: Path, *, dry_run: bool, lg: logging.Logger) -> dict:
 
 def run_duckdb(p: Path, *, dry_run: bool, lg: logging.Logger, vacuum: bool = True) -> dict:
     rel = str(p.relative_to(REPO))
-    row: dict = {"store": rel, "engine": "duckdb", "bytes": p.stat().st_size}
+    row: dict = {"store": rel, "engine": "duckdb", "bytes": 0}
+    if not p.exists():
+        row["action"] = "absent"
+        return row
+    row["bytes"] = p.stat().st_size
     if dry_run:
         row.update(
             action="census-only",

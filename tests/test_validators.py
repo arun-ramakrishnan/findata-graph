@@ -115,7 +115,7 @@ def test_clean_subset_hits_100_percent(fake_vault, tmp_path):
     """A DB with only valid entities must report a 100% validation rate."""
     import sqlite3
 
-    from misc.database_integrity_check import DatabaseIntegrityChecker
+    from helpers.misc.database_integrity_check import DatabaseIntegrityChecker
 
     db_path = tmp_path / "clean.db"
     conn = sqlite3.connect(db_path)

@@ -36,7 +36,7 @@ import pytest
 from hypothesis import HealthCheck, given, settings, strategies as st
 
 
-from graph.extract_relations import (  # noqa: E402
+from helpers.graph.extract_relations import (  # noqa: E402
     PATTERNS,
     EntityResolver,
     _GENERIC_COMPETITOR_TARGETS,

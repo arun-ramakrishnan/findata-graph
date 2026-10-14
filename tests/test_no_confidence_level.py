@@ -12,7 +12,7 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 
-from core.db import connect  # noqa: E402
+from helpers.core.db import connect  # noqa: E402
 
 
 def test_confidence_level_column_dropped():

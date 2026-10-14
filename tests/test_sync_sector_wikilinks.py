@@ -16,7 +16,7 @@ import sqlite3
 import pytest
 
 
-from maintenance.sync_sector_wikilinks import (  # noqa: E402
+from helpers.maintenance.sync_sector_wikilinks import (  # noqa: E402
     _BEGIN,
     _END,
     _render_section,
@@ -173,7 +173,7 @@ def tmp_sector_db(tmp_path):
         encoding="utf-8",
     )
     # Monkeypatch PROJECT_ROOT so _company_title resolves against tmp_path.
-    import maintenance.sync_sector_wikilinks as m
+    import helpers.maintenance.sync_sector_wikilinks as m
 
     orig_root = m.PROJECT_ROOT
     m.PROJECT_ROOT = tmp_path
@@ -228,7 +228,7 @@ def test_main_dry_run_default_writes_only_with_apply(tmp_sector_db, monkeypatch)
     """Guard unification (shared_routines_cli_guards W2): bare main() is a
     dry-run report; writes require --apply. --check keeps its advisory-gate
     contract (dry-run + rc 1 on stale)."""
-    import maintenance.sync_sector_wikilinks as m
+    import helpers.maintenance.sync_sector_wikilinks as m
 
     db_path, sector_file = tmp_sector_db
     monkeypatch.setattr(m, "DB_PATH", db_path)
@@ -272,7 +272,7 @@ def test_sync_sector_link_targets_are_filename_stems(tmp_sector_db):
 # ---------------------------------------------------------------------------
 def test_replace_or_insert_adds_section_with_no_newline_prefix():
     """When text doesn't end with newline, one is added (line 170-173)."""
-    import maintenance.sync_sector_wikilinks as m
+    import helpers.maintenance.sync_sector_wikilinks as m
 
     text = "# Some heading"  # no trailing newline, no Newsletter heading
     section = m._render_section([], "Test")
@@ -283,7 +283,7 @@ def test_replace_or_insert_adds_section_with_no_newline_prefix():
 
 def test_replace_or_insert_adds_section_with_single_newline_prefix():
     """When text ends with single newline, add one more (line 170-171)."""
-    import maintenance.sync_sector_wikilinks as m
+    import helpers.maintenance.sync_sector_wikilinks as m
 
     text = "# Some heading\n"
     section = m._render_section([], "Test")
@@ -294,7 +294,7 @@ def test_replace_or_insert_adds_section_with_single_newline_prefix():
 
 def test_find_insertion_point_no_newsletter_heading():
     """Falls back to end of file when Newsletter heading is absent (line 149)."""
-    import maintenance.sync_sector_wikilinks as m
+    import helpers.maintenance.sync_sector_wikilinks as m
 
     text = "# No newsletter here\n\nSome content"
     idx = m._find_insertion_point(text)
@@ -303,7 +303,7 @@ def test_find_insertion_point_no_newsletter_heading():
 
 def test_find_insertion_point_at_newsletter_heading():
     """Returns offset of Newsletter synthesis heading."""
-    import maintenance.sync_sector_wikilinks as m
+    import helpers.maintenance.sync_sector_wikilinks as m
 
     text = "# Title\n\nIntro\n\n## Newsletter synthesis\n\nStuff"
     idx = m._find_insertion_point(text)
@@ -316,7 +316,7 @@ def test_find_insertion_point_at_newsletter_heading():
 # ---------------------------------------------------------------------------
 def test_company_title_missing_file():
     """Returns stem with spaces when file doesn't exist (line 81)."""
-    import maintenance.sync_sector_wikilinks as m
+    import helpers.maintenance.sync_sector_wikilinks as m
 
     result = m._company_title("findata/Companies/F/Fake_Company.md")
     assert result == "Fake Company"
@@ -324,7 +324,7 @@ def test_company_title_missing_file():
 
 def test_company_title_no_title_in_yaml(tmp_path, monkeypatch):
     """Returns stem when YAML has no title field (line 86)."""
-    import maintenance.sync_sector_wikilinks as m
+    import helpers.maintenance.sync_sector_wikilinks as m
 
     note = tmp_path / "Test_Co.md"
     note.write_text("---\ntype: company\n---\n\n# Body")

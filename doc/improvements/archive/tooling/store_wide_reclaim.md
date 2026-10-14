@@ -9,7 +9,7 @@ area: "helpers/maintenance/db_maint.py, helpers/maintenance/store_sweep.py, Make
 
 # Proposal: Store-wide reclaim
 
-**Filed:** 2026-10-14 · **Status:** PROPOSED
+**Filed:** 2026-10-14 · **Status:** EXECUTED (completed.md #391)
 **Area:** `helpers/maintenance/db_maint.py`, `helpers/maintenance/store_sweep.py`
 (new), `Makefile`
 

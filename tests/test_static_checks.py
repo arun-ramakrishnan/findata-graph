@@ -15,7 +15,7 @@ import pytest
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 
-from validators import static_checks as sc  # noqa: E402
+from helpers.validators import static_checks as sc  # noqa: E402
 
 
 # --------------------------------------------------------------------------- #
@@ -364,7 +364,7 @@ def test_entities_name_nocase_index_constant_is_valid_ddl(tmp_path):
     someone drops the constant or weakens it to a plain (non-NOCASE) index,
     the resolver silently reverts to a full scan.
     """
-    from maintenance.migrate_to_graph_edges import ENTITIES_NAME_NOCASE_INDEX
+    from helpers.maintenance.migrate_to_graph_edges import ENTITIES_NAME_NOCASE_INDEX
 
     db = tmp_path / "c2.db"
     conn = sqlite3.connect(db)
@@ -460,7 +460,7 @@ def test_entities_ddl_constant_creates_table_with_all_columns():
     (market_cap is sourced from the market_cap/* tag; index_membership was
     99.4% empty). Column count went 10 -> 8.
     """
-    from maintenance.migrate_to_graph_edges import ENTITIES_DDL
+    from helpers.maintenance.migrate_to_graph_edges import ENTITIES_DDL
 
     conn = sqlite3.connect(":memory:")
     conn.execute(ENTITIES_DDL)
@@ -484,7 +484,7 @@ def test_entities_ddl_enforces_name_suffix_check():
     suffixes (Ltd, Limited, Ltd., Pvt, Private). This constraint existed only
     in the live .db file before E1; a rebuild would lose it silently.
     """
-    from maintenance.migrate_to_graph_edges import ENTITIES_DDL
+    from helpers.maintenance.migrate_to_graph_edges import ENTITIES_DDL
 
     conn = sqlite3.connect(":memory:")
     conn.execute(ENTITIES_DDL)
@@ -507,7 +507,7 @@ def test_entities_indexes_constants_are_valid_ddl():
     """E1: ENTITIES_INDEXES are valid DDL that create the 4 production indexes
     on a fresh entities table. Previously these indexes had no source DDL.
     """
-    from maintenance.migrate_to_graph_edges import ENTITIES_DDL, ENTITIES_INDEXES
+    from helpers.maintenance.migrate_to_graph_edges import ENTITIES_DDL, ENTITIES_INDEXES
 
     conn = sqlite3.connect(":memory:")
     conn.execute(ENTITIES_DDL)
@@ -533,7 +533,7 @@ def test_entities_file_path_index_constant_is_valid_ddl():
     """Bundle Q1: the idx_entities_file_path index must be present in
     ENTITIES_INDEXES and create cleanly. Without it, /api/entity/<path>
     and derive_co_mentions do a full SCAN of entities on every call."""
-    from maintenance.migrate_to_graph_edges import ENTITIES_DDL, ENTITIES_INDEXES
+    from helpers.maintenance.migrate_to_graph_edges import ENTITIES_DDL, ENTITIES_INDEXES
 
     # The index constant must exist in the list.
     assert any("idx_entities_file_path" in idx for idx in ENTITIES_INDEXES), (
@@ -562,7 +562,7 @@ def test_migrate_creates_entities_with_check(tmp_path):
     import sqlite3
 
     # Patch DB_PATH to a temp file, run migrate, then verify the CHECK.
-    import maintenance.migrate_to_graph_edges as m
+    import helpers.maintenance.migrate_to_graph_edges as m
 
     tmp_db = tmp_path / "fresh.db"
     orig_path = m.DB_PATH
@@ -594,7 +594,7 @@ def test_graph_edges_ddl_has_json_valid_check():
     """E4: GRAPH_EDGES_DDL includes a CHECK(json_valid(properties)) constraint
     so malformed JSON cannot be inserted. Pins the constraint against removal.
     """
-    from maintenance.migrate_to_graph_edges import GRAPH_EDGES_DDL
+    from helpers.maintenance.migrate_to_graph_edges import GRAPH_EDGES_DDL
 
     assert "json_valid(properties)" in GRAPH_EDGES_DDL, (
         "GRAPH_EDGES_DDL lost its json_valid CHECK — malformed JSON could be "
@@ -606,7 +606,7 @@ def test_graph_edges_rejects_malformed_properties():
     """E4: a fresh graph_edges table (from GRAPH_EDGES_DDL) accepts valid JSON
     in the properties column but rejects malformed JSON via the CHECK.
     """
-    from maintenance.migrate_to_graph_edges import ENTITIES_DDL, GRAPH_EDGES_DDL
+    from helpers.maintenance.migrate_to_graph_edges import ENTITIES_DDL, GRAPH_EDGES_DDL
 
     conn = sqlite3.connect(":memory:")
     conn.execute(ENTITIES_DDL)
@@ -639,7 +639,7 @@ def test_graph_edges_indexes_constants_are_valid_ddl():
     is redundant with the UNIQUE(source,target,edge_type) auto-index, which leads with
     `source` — EXPLAIN QUERY PLAN confirms the planner prefers it even when the manual
     index is absent. The count is now 3, not 4."""
-    from maintenance.migrate_to_graph_edges import (
+    from helpers.maintenance.migrate_to_graph_edges import (
         GRAPH_EDGES_DDL,
         GRAPH_EDGES_INDEXES,
         ENTITIES_DDL,

@@ -24,9 +24,9 @@ from pathlib import Path
 import pytest
 
 import helpers.validators.frontmatter_schema as hfs  # the copy the wrappers import
-from validators import data_format_checks as dfc
-from validators import frontmatter_schema as fs
-from validators import static_checks as sc
+from helpers.validators import data_format_checks as dfc
+from helpers.validators import frontmatter_schema as fs
+from helpers.validators import static_checks as sc
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 
@@ -522,7 +522,7 @@ def test_route_inventory_multi_route(tmp_path):
     single read — the read-once refactor shadowed `text` with the first
     segment and IndexError'd on the second route (caught by shakedown,
     not by the suite: no multi-route coverage existed)."""
-    from validators import coverage_ledger as cl
+    from helpers.validators import coverage_ledger as cl
 
     app = tmp_path / "app.py"
     app.write_text(

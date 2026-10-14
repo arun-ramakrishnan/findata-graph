@@ -246,6 +246,15 @@ commit, referenced by nothing). Entry numbers point at
 
 ## tooling/ — Tooling & performance — MCP eval, doc browser/search, perf review, tech survey
 
+- [`range_review_two_ranges_2026-10-14.md`](tooling/range_review_two_ranges_2026-10-14.md) —
+  combined two-range review remediation (`205a2c719..a4b3e5f81`, 39 findings;
+  `63e04dbde..e06b32798`, 72 findings; zero double-reports, all scan mediums
+  false-positive): dead `.txt` pointer, `store_sweep` absent-store crash guard
+  (executed proof + mutation-checked test), stale build label, two status flips,
+  vacuous-assert fix (which exposed a false test premise — `<script>` is valid
+  FTS5), dead `proposals/` pointer; R2 security Highs already healed (SNAP-1,
+  XSS sanitize + delegated listener); `_schema` mirrors admitted to both review
+  legs + db_sync review doctrine — completed.md #392
 - [`range_4fd3a20f_review_remediation.md`](tooling/range_4fd3a20f_review_remediation.md) —
   range review 4fd3a20f..0805d829c remediation — all 13 slices executed:
   S1 corpus-cache v3 (B1 blocker), S2/S3 in-literal noqa relocation +
