@@ -321,9 +321,11 @@ Open items below keep their revisit triggers inline; executed work is compressed
   with a one-model registry (swap needs `model_path` + explicit `dimension` +
   full rebuild — upstream issue #1523); `vlm` key is `api_base`.
 
-- **P2.2 incremental DuckDB materialization — HELD 2026-10-01, trigger
-  criterion retired** (`archive/graph/graph_pending.md`; dead `.txt` path
-  fixed in this edit)
+- **P2.2 incremental DuckDB materialization — RE-EVALUATED 2026-10-15,
+  S1/S2 + rebuild-on-apply shipped; trigger criterion retired**
+  (`archive/graph/graph_pending.md`; `graph_rebuild_fast_path` S1/S2,
+  `helpers/graph/query.py`, `tests/test_graph_rebuild_fast_path.py` 12/12).
+  Remaining (ii)/(iii) are measurement-gated optimization only.
   — row trigger FIRED 2026-09-05 (17,323 graph_edges > 10k) but the deferred
   reason (rebuild cost) is not binding: full rebuild measures 3.0 s against
   vault_scaling's 5 s DuckDB budget. Scale strategy is owned by
@@ -488,16 +490,32 @@ Open items below keep their revisit triggers inline; executed work is compressed
   blocking `static-checks --full` + new advisory `--report` twin.
   350 tests green, deptry clean, pin + `uv lock` landed.
 
-- **resolver/extractor hardening — DEFERRED 2026-10-10**
+- **resolver/extractor hardening — DEFERRED 2026-10-10 → EXECUTED 2026-10-15**
   (`archive/tooling/resolver_extractor_hardening.md` §D, completed.md
   #378): the four in-run stop-gaps (cross-check dims-match + min_sim
-  0.80, extractor tuple crash, alias precedence) are landed and
-  test-pinned; the class-level remainder is deferred — normalization
-  classes (S1), fuzzy tie-break audit (S2), section-head noise gate
-  (S3), stub placeholder (S4), sector precedence (S5), analyst-voiced
-  routing (S6), cross-check integrity transient (S7), listed/ticker
-  enrichment (S8). **REVISIT TRIGGER: the next alias-file addition for
-  a name class §S1 covers, or any wrong-company edge traced to a
-  tie-break.** Checked 2026-10-13: newest `findata/Misc/relation_aliases.json`
-  commit is `97daeb90a` (2026-10-10 — the very run that filed the
-  proposal); no later addition, trigger not fired.
+  0.80, extractor tuple crash, alias precedence) landed first;
+  **S1–S4 executed 2026-10-15** (canonical-fold resolution, tie-break
+  defers, section-head noise gate, stub chatter removal — 4 hand-aliases
+  retired from `relation_aliases.json`) and **S5–S8 executed same day**
+  (`archive/pipeline/resolver_extractor_hardening.md`, completed.md
+  #396: sector precedence, worklist routing, cross-check handle
+  release, listed-contradiction hints). **AUDIT REVISIT (2026-10-15):**
+  S6 + S8 detection rewritten same day (word-boundary name resolution,
+  analyst-marker attribution, company-note headings never route,
+  ticker-less entities surface as manual-check rows; 8 tests).
+  Backfill-script bugs (UPDATE keying, exit code, ruff) fixed same day
+  — see #395. S7's commit() remains a hypothesis, not the identified
+  root cause. Original trigger: the next alias-file addition for a name
+  class §S1 covers, or any wrong-company edge traced to a tie-break.
+  Checked 2026-10-15: alias file SHRANK by 4 net entries (the S1
+  classes now covered structurally).
+- **resolver extractor S9 — analyst-marker calibration — DEFERRED
+  2026-10-15** (`archive/pipeline/resolver_extractor_hardening.md`
+  S9): S6's `_ANALYST_MARKER_RE` is a first cut (8 phrases); uncovered
+  attribution styles ("in a note dated…", "street expects", speaker
+  title lines, channel checks) fail safe — the section stays on the
+  company worklist. **REVISIT TRIGGER: the next real parse run where an
+  analyst-voiced section (JM-Financial shape) fails to route, or a
+  manual spot-check of N editions.** Calibration acceptance: marker
+  additions test-pinned, zero management sections flagged in the repro
+  set.

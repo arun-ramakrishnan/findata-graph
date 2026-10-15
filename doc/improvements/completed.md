@@ -1,7 +1,7 @@
 <!-- markdownlint-disable MD041 -- first line is intentionally bold metadata, not a heading -->
 
 **Generated**: 2026-10-15
-**Total completed**: 319 items
+**Total completed**: 321 items
 
 > **Note:** Full implementation details, code references, and rationale are in the `doc/improvements/archive/` subdirectory. This file is a summary view.
 
@@ -10741,3 +10741,100 @@ Range review of `1fda0c158..6182cd2c7`: 48 commits, 534 files, +84 818 / −6 91
 **Not done / operator decision**: empty `review_fixes` commit message; `make search-fresh` in main checkout.
 
 **Follows**: `doc/improvements/archive/tooling/range_4fd3a20f_review_remediation.md` (completed.md #382, the low-tier remediation from the prior range review).
+
+## 395. Company metrics classifier — label the remaining NULL metric_label rows
+
+**Proposal**: `doc/improvements/archive/pipeline/company_metrics_label_classifier.md` (filed + executed same day).
+
+Classifier improvements in `helpers/graph/derive_insights.py`: `_L_ORDER`
+matches hyphenated "order-book"; new `_L_MARKET_CAP` →
+`market_capitalization`; `_classify_metric` prefixes `guidance_` when the
+sentence mentions guidance and falls back to a bare `guidance` label
+instead of NULL for guidance-adjacent figures (the empty-NULL contract
+holds for non-guidance text). New `helpers/maintenance/backfill_metric_labels.py`
+dry-run/apply backfill over NULL `company_metrics.metric_label` rows.
+
+- Applied: 215 of 1,140 NULL rows labeled; 925 remain (insufficient
+  context for safe classification).
+- Tests: hyphenated order_book, market_cap, guidance-range pins
+  (tests/test_derive_insights.py).
+
+**Revisit (audit 2026-10-15):** the backfill UPDATE keys on
+(entity, value_raw) — 9 duplicate groups exist, so one row's quote can
+label its duplicate; key on `id` + `AND metric_label IS NULL`. A no-op
+run exits 1 (house doctrine: clean = 0). Ruff fails the new module
+(2×E402, F541). Bare `guidance` is a NEW metric_label value — downstream
+groupers must learn it. **Backfill bugs fixed same day** (id-keyed
+UPDATE, exit 0 on clean, ruff clean; 4 tests in
+tests/test_backfill_metric_labels.py; live dry-run 925 remaining NULLs,
+exit 0).
+
+**Follows**: `doc/improvements/archive/pipeline/company_metrics_null_labels.md`.
+
+## 396. Resolver / extractor hardening — residual slices S4–S8
+
+**Proposal**: doc/improvements/archive/pipeline/resolver_extractor_hardening.md (filed + executed same day).
+
+**Fixes:**
+- **S5**: Added singular "payment" to Fintech_Payments pattern; header-declared sector now wins when canonical
+- **S6**: emit_worklist() now accepts sector_commentary and listed_contradictions lists for S6/S8 routing
+- **S7**: Added conn.commit() after cross-check to release handles before Stage 5
+- **S8**: Added _detect_listed_issues() to flag "now listed"/IPO mentions in prose
+
+**All 67 tests pass.**
+
+**Revisit (audit 2026-10-15):** `_detect_sector_commentary` could not
+emit (scan guard dead — worklist routing never fired) and S8's
+`listed_missing` was never populated. **Both fixed same day:** S6
+rewritten to word-boundary name resolution against the entity universe
++ analyst/brokerage marker phrases (company-note headings never route;
+'bank' alone is not a marker) and S8 split into
+`_detect_listed_contradictions` (word-boundary listing prose) +
+`_missing_ticker_items` (ticker-less entities as explicit manual-check
+rows) — 8 tests in tests/test_parse_newsletter_entities.py. S7's
+commit() remains a hypothesis, not the identified root cause. S9
+(analyst-marker calibration against real editions) filed OPEN in the
+archived proposal + pending.md — the 8-phrase marker list is a first
+cut and fails safe.
+
+**Follows**: doc/improvements/archive/tooling/resolver_extractor_hardening.md
+
+## 397. Gate-fix sweep — post-split qa/integration/advisory repairs
+
+**Date**: 2026-10-15 **Status**: EXECUTED
+
+The gate arc after the graph_algos split surfaced seven defects across
+three legs; all fixed with targeted-test pins, gates green (qa 12/12,
+integration 1/1; perf parked contended per house rule; advisory 12/14
+with the known-external convo-fresh dsh-index lag).
+
+- **write_analytics stamp semantics**: computed_at now bumps ONLY on
+  value change (`WHERE value != excluded.value`) — idempotent re-applies
+  converge without restamping (the hyper_wiring sentinel) while real
+  changes bump (the round-trip pin). Both contracts hold.
+- **Fixture stamp decoupling**: the maint-chain fixture copied the live
+  research.db INCLUDING its apply stamp naming the worktree HEAD — every
+  operator commit re-triggered the trample guard ("diverged"). The
+  fixture now scrubs apply_head/apply_worktree/apply_ts; tmp projects
+  bootstrap fresh and stamp their own tree.
+- **computed_at schema drift in fixtures**: 4 hand-rolled graph_analytics
+  DDLs lacked the column the write path uses; fixtures updated +
+  positional INSERTs column-named (scipy_bridge x3, integration_perf,
+  l1_betweenness).
+- **S2 tie-doctrine test**: test_tied_fuzzy_candidates_logged pinned
+  first-insert-wins; updated to the shipped contract (None + tie logged).
+- **Frontmatter**: executed-proposal `follows` key removed from 4
+  archived proposals (schema forbids it; pointers moved to body Follows
+  lines); G4/G5 completed_md pointers corrected to line numbers.
+- **Verifier**: machine-born stubs (generated stamp) get content_minimal
+  as WARNING — awaiting-enrichment is the enhancer's cue, not a corpus
+  defect; 13 live stubs downgraded, gates green with stubs present.
+- **C901 extraction pass**: extract_companies (header-sector helper),
+  resolve (alias-tier helpers), build_forest (histogram + special-
+  component helpers), peeled_source_scores (same-tree scan helper),
+  a2_kernel (whole dead second implementation after `return` removed —
+  dead branches had inflated the complexity count).
+
+**Follows**: completed.md #395/#396 (the audited arcs these repairs
+close out); doc/local/engineering/split_patch.md (the collector split
+that motivated the arc).
