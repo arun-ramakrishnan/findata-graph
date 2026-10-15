@@ -123,6 +123,7 @@ CREATE TABLE graph_analytics (
     metric TEXT NOT NULL,
     entity_name TEXT NOT NULL,
     value TEXT NOT NULL DEFAULT '{}',
+    computed_at DATETIME,
     PRIMARY KEY (metric, entity_name),
     FOREIGN KEY (entity_name) REFERENCES entities(name) ON DELETE CASCADE
 );

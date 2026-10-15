@@ -162,6 +162,12 @@ class _MaintProject:
         # keeping it here would strand FK references after the entity prune
         dst.execute("DELETE FROM hyper_incidences")
         dst.execute("DELETE FROM hyper_edges")
+        # The live apply stamp names the worktree HEAD the shared index was
+        # built from — a tmp project is not that lineage. Scrub it so the
+        # chain's note-search step bootstraps fresh and stamps THIS tree,
+        # instead of the trample guard refusing a "diverged" HEAD (which
+        # made the chain HEAD-coupled and failed on every operator commit).
+        dst.execute("DELETE FROM db_meta WHERE key IN ('apply_head', 'apply_worktree', 'apply_ts')")
         # DROP the FTS index (shadows included — DELETEs leave tombstones
         # that keep the file ~7MB, which dominates the snapshot compress cost);
         # the chain's rebuild-note-search step recreates it via CREATE

@@ -162,7 +162,7 @@ def bstore(tmp_path: Path) -> Path:
         "value VARCHAR, PRIMARY KEY (metric, entity_name))"
     )
     scon.executemany(
-        "INSERT INTO graph_analytics VALUES (?, 'betweenness_centrality', '0.0')",
+        "INSERT INTO graph_analytics (entity_name, metric, value) VALUES (?, 'betweenness_centrality', '0.0')",
         [(n,) for n in _CONTRACT4],
     )
     scon.commit()
@@ -185,7 +185,9 @@ def test_dispatch_betweenness_top_k_preserved(bstore):
 
 def test_dispatch_betweenness_drift_fails_loud(bstore):
     scon = sqlite3.connect(str(bstore))
-    scon.execute("INSERT INTO graph_analytics VALUES ('ghost', 'betweenness_centrality', '0.0')")
+    scon.execute(
+        "INSERT INTO graph_analytics (entity_name, metric, value) VALUES ('ghost', 'betweenness_centrality', '0.0')"
+    )
     scon.commit()
     scon.close()
     with pytest.raises(KeyError, match="ghost"):

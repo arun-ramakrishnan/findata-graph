@@ -675,6 +675,9 @@ class NotesVerifier:
 
         content_after = "\n".join(lines[yaml_end + 1 :])
 
+        meta = yaml_safe_load("\n".join(lines[1:yaml_end])) or {}
+        machine_born = bool(meta.get("generated"))
+
         meaningful_content = re.sub(r"^\s*$", "", content_after, flags=re.MULTILINE).strip()
         if not meaningful_content:
             self.log_issue("content_minimal", file_path, "No meaningful content after YAML")
@@ -704,11 +707,22 @@ class NotesVerifier:
                 meaningful_lines.append(stripped)
 
         if len(meaningful_lines) < 2:
-            self.log_issue(
-                "content_minimal",
-                file_path,
-                f"Minimal meaningful content ({len(meaningful_lines)} meaningful lines)",
-            )
+            if machine_born:
+                # OKF §5.2: machine-generated stubs are minimal BY DESIGN
+                # (S4 removed the chatter filler). Awaiting enrichment is
+                # the enhancer's cue, not a corpus defect — warn, don't
+                # gate-fail.
+                self.log_warning(
+                    "content_minimal",
+                    file_path,
+                    f"Machine stub awaiting enrichment ({len(meaningful_lines)} meaningful lines)",
+                )
+            else:
+                self.log_issue(
+                    "content_minimal",
+                    file_path,
+                    f"Minimal meaningful content ({len(meaningful_lines)} meaningful lines)",
+                )
 
         if not re.search(r"^#", content_after, re.MULTILINE):
             self.log_issue("content_missing_structure", file_path, "Missing main heading")

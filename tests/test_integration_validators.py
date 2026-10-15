@@ -71,14 +71,17 @@ class TestParseNewsletterValidatesClean:
         # Run validator on the company note
         nv = NotesVerifier(project_root=tmp)
         nv.process_directory(tmp / "findata" / "Companies" / "Banking", "company")
-        # Should have 0 issues for this file
+        # The fresh stub IS minimal by design (S4 removed the chatter
+        # block): content_minimal is the expected finding — the enhancer's
+        # cue. Any OTHER issue would be a real defect.
         issues_for_file = [
             issue
             for bucket_issues in nv.issues.values()
             for issue in bucket_issues
             if normalized in str(issue)
         ]
-        assert len(issues_for_file) == 0, f"Unexpected issues: {issues_for_file}"
+        unexpected = [i for i in issues_for_file if "Minimal meaningful content" not in str(i)]
+        assert unexpected == [], f"Unexpected issues: {unexpected}"
 
     def test_multiple_clean_entities_validate(self, p8_env):
         from helpers.core.parse_newsletter import render_stub
@@ -102,9 +105,19 @@ class TestParseNewsletterValidatesClean:
 
         nv = NotesVerifier(project_root=tmp)
         nv.verify_all()
-        # No issues at all
-        total_issues = sum(len(v) for v in nv.issues.values())
-        assert total_issues == 0, f"Expected 0 issues, got {total_issues}"
+        # Fresh stubs ARE minimal by design (S4 removed the chatter block):
+        # the verifier WARNS for machine-born stubs (generated stamp) — the
+        # enhancer's cue, not a corpus defect. Any ERROR issue would be a
+        # real defect.
+        unexpected = [
+            i
+            for bucket in nv.issues.values()
+            for i in bucket
+            if "Minimal meaningful content" not in str(i)
+        ]
+        assert unexpected == [], f"Unexpected issues: {unexpected}"
+        warned = sum(len(v) for v in getattr(nv, "warnings", {}).values())
+        assert warned >= len(entities)  # one awaiting-enrichment cue per stub
 
 
 class TestValidatorCatchesProblems:

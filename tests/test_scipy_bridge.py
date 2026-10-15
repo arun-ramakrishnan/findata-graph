@@ -35,10 +35,10 @@ def store(tmp_path: Path) -> Path:
     scon.executemany("INSERT INTO graph_edges VALUES (?, ?, 1.0)", _EDGES)
     scon.execute(
         "CREATE TABLE graph_analytics (entity_name VARCHAR, metric VARCHAR, "
-        "value VARCHAR, PRIMARY KEY (metric, entity_name))"
+        "value VARCHAR, computed_at DATETIME, PRIMARY KEY (metric, entity_name))"
     )
     scon.executemany(
-        "INSERT INTO graph_analytics VALUES (?, 'closeness_centrality', ?)",
+        "INSERT INTO graph_analytics (entity_name, metric, value) VALUES (?, 'closeness_centrality', ?)",
         [(n, "0.0") for n in _CONTRACT],
     )
     scon.commit()
@@ -220,7 +220,9 @@ def test_dispatch_compute_plumbs_db_path(store):
 
 def test_dispatch_drift_fails_loud(store):
     scon = sqlite3.connect(str(store))
-    scon.execute("INSERT INTO graph_analytics VALUES ('ghost', 'closeness_centrality', '0.0')")
+    scon.execute(
+        "INSERT INTO graph_analytics (entity_name, metric, value) VALUES ('ghost', 'closeness_centrality', '0.0')"
+    )
     scon.commit()
     scon.close()
     with pytest.raises(KeyError, match="ghost"):
@@ -233,9 +235,11 @@ def test_dispatch_empty_projection_fails_loud(tmp_path):
     scon.execute("CREATE TABLE graph_edges (source VARCHAR, target VARCHAR, weight REAL)")
     scon.execute(
         "CREATE TABLE graph_analytics (entity_name VARCHAR, metric VARCHAR, "
-        "value VARCHAR, PRIMARY KEY (metric, entity_name))"
+        "value VARCHAR, computed_at DATETIME, PRIMARY KEY (metric, entity_name))"
     )
-    scon.execute("INSERT INTO graph_analytics VALUES ('a', 'closeness_centrality', '0.0')")
+    scon.execute(
+        "INSERT INTO graph_analytics (entity_name, metric, value) VALUES ('a', 'closeness_centrality', '0.0')"
+    )
     scon.commit()
     scon.close()
     with pytest.raises(ValueError, match="empty"):
@@ -407,10 +411,10 @@ def _exact_store(tmp_path, metric):
     )
     scon.execute(
         "CREATE TABLE graph_analytics (entity_name VARCHAR, metric VARCHAR, "
-        "value VARCHAR, PRIMARY KEY (metric, entity_name))"
+        "value VARCHAR, computed_at DATETIME, PRIMARY KEY (metric, entity_name))"
     )
     scon.executemany(
-        "INSERT INTO graph_analytics VALUES (?, ?, '0.0')",
+        "INSERT INTO graph_analytics (entity_name, metric, value) VALUES (?, ?, '0.0')",
         [(n, metric) for n in ["a", "b", "c", "d"]],
     )
     scon.commit()

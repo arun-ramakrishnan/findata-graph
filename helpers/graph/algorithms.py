@@ -1087,7 +1087,8 @@ def write_analytics(metric: str, values: dict[str, Any], conn: Any | None = None
                     "VALUES (?, ?, ?) "
                     "ON CONFLICT(metric, entity_name) DO UPDATE SET "
                     "value = excluded.value, "
-                    "computed_at = CURRENT_TIMESTAMP",
+                    "computed_at = CURRENT_TIMESTAMP "
+                    "WHERE value != excluded.value",
                     (entity_name, metric, json.dumps(value)),
                 )
     finally:

@@ -427,10 +427,9 @@ def backfill_weights(  # noqa: C901
                 key = tuple(sorted(k)) if isinstance(k, (list, tuple)) else k
                 resolved[tuple(sorted(key))] = int(v)  # type: ignore[arg-type]
         elif edition_to_entities is not None:
-            resolved = {
-                tuple(sorted(k)): int(v)
-                for k, v in count_pair_co_mentions(edition_to_entities).items()
-            }
+            for pair, n in count_pair_co_mentions(edition_to_entities).items():
+                a, b = sorted(pair)
+                resolved[(a, b)] = int(n)
         elif edges is not None:
             # Aggregate distinct editions per pair from the edge batch.
             agg: dict[tuple[str, str], set[str]] = {}

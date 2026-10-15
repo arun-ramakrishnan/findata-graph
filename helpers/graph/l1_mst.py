@@ -47,7 +47,8 @@ def load_projection(db_path=str(DEFAULT_DB_PATH)):
     # collapse parallel edges to min weight
     best: dict[tuple[int, int], float] = {}
     for s, t, _et, w in kept:
-        key = tuple(sorted((pos[s], pos[t])))
+        a, b = sorted((pos[s], pos[t]))
+        key = (a, b)
         if key not in best or w < best[key]:
             best[key] = w
     edges = [(a, b, w) for (a, b), w in best.items()]
