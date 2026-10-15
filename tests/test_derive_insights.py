@@ -1837,6 +1837,21 @@ def test_classify_metric_no_match():
     assert label is None
 
 
+def test_classify_metric_hyphenated_order():
+    label = di._classify_metric("order-book value of 500 crore", "500", 18)
+    assert label == "order_book"
+
+
+def test_classify_metric_market_cap():
+    label = di._classify_metric("market cap of 50000 crore", "50000", 14)
+    assert label == "market_capitalization"
+
+
+def test_classify_metric_guidance_range():
+    label = di._classify_metric("Revenue guidance of 8-10% growth", "8-10%", 17)
+    assert label == "guidance_revenue"
+
+
 # ---------------------------------------------------------------------------
 # _parse_value_num
 # ---------------------------------------------------------------------------

@@ -93,50 +93,6 @@ def a2_kernel(supplier_incidence, top_k=10):
                 )
     results.sort(key=lambda x: x[0], reverse=True)
     return results[:top_k]
-    mat = supplier_incidence["matrix"]  # n × m sparse 0-1
-    # B·Bᵀ = mat @ mat.transpose() gives n×n matrix of shared counts
-    shared = (mat @ mat.transpose()).astype(np.int64)
-    # zero out diagonal (self-shared = degree, not a candidate pair)
-    # convert to dense for diagonal operation; the live graph n is modest
-    shared_dense = shared.toarray()
-    np.fill_diagonal(shared_dense, 0)
-    shared = csr_matrix(shared_dense)
-
-    # Find top-K entries
-    # scipy.sparse argpartition or convert to dense for small n
-    n = shared.shape[0]
-    if n <= 1000:
-        # dense is fine for the live graph size
-        s = shared.toarray()
-    else:
-        # for large matrices, use argsort on flattened
-        # but we need top-K distinct unordered pairs
-        # flatten, get indices, map back to (i,j) pairs
-        idx = np.argpartition(s.ravel(), -top_k * 2)[-top_k * 2 :]
-        # be careful: s.ravel() gives row-major flat index
-        # we'll just take a safe subset and deduplicate
-        candidates = []
-        for f in idx % n:
-            for c in idx // n:
-                if f != c and f < c:
-                    candidates.append((s[f, c], f, c))
-        # sort and take top_k
-        candidates.sort(key=lambda x: x[0], reverse=True)
-        return [
-            (c[0], supplier_incidence["suppliers"][c[1]], supplier_incidence["suppliers"][c[2]])
-            for c in candidates[:top_k]
-        ]
-    # dense case: find all i<j pairs with shared > 0
-    results = []
-    for i in range(n):
-        for j in range(i + 1, n):
-            val = int(s[i, j])
-            if val > 0:
-                results.append(
-                    (val, supplier_incidence["suppliers"][i], supplier_incidence["suppliers"][j])
-                )
-    results.sort(key=lambda x: x[0], reverse=True)
-    return results[:top_k]
 
 
 def _cli(argv=None) -> int:

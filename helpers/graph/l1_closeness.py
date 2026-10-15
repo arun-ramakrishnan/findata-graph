@@ -130,6 +130,46 @@ def peel_two_core(indptr: np.ndarray, indices: np.ndarray, n: int) -> tuple[np.n
 # --------------------------------------------------------------------------- #
 # forest structure (BFS from core)
 # --------------------------------------------------------------------------- #
+def _tree_histograms(
+    root: dict[int, int], depth: dict[int, int], tree_nodes: dict[int, set[int]]
+) -> tuple[dict[int, dict[int, int]], dict[int, int]]:
+    """Per-root depth histograms + depth sums."""
+    tree_depth_hist: dict[int, dict[int, int]] = {}
+    tree_sum_depths: dict[int, int] = {}
+    for r, nodes in tree_nodes.items():
+        hist: dict[int, int] = defaultdict(int)
+        sum_d = 0
+        for v in nodes:
+            hist[depth[v]] += 1
+            sum_d += depth[v]
+        tree_depth_hist[r] = dict(hist)
+        tree_sum_depths[r] = sum_d
+    return tree_depth_hist, tree_sum_depths
+
+
+def _special_components(
+    removed: set[int], adj_sets: dict[int, set[int]], root: dict[int, int]
+) -> list[set[int]]:
+    """Peeled components with no core attachment (never got a root)."""
+    special_components: list[set[int]] = []
+    seen: set[int] = set()
+    for v in removed:
+        if v in root or v in seen:
+            continue
+        comp = {v}
+        q = deque([v])
+        seen.add(v)
+        while q:
+            x = q.popleft()
+            for w in adj_sets[x]:
+                if w in removed and w not in seen and w not in root:
+                    seen.add(w)
+                    comp.add(w)
+                    q.append(w)
+        special_components.append(comp)
+    return special_components
+
+
 def build_forest(
     removed: set[int],
     adj_sets: dict[int, set[int]],
@@ -170,35 +210,8 @@ def build_forest(
         if v in root:
             tree_nodes[root[v]].add(v)
 
-    # Precompute depth histograms per tree
-    tree_depth_hist: dict[int, dict[int, int]] = {}
-    tree_sum_depths: dict[int, int] = {}
-    for r, nodes in tree_nodes.items():
-        hist: dict[int, int] = defaultdict(int)
-        sum_d = 0
-        for v in nodes:
-            hist[depth[v]] += 1
-            sum_d += depth[v]
-        tree_depth_hist[r] = dict(hist)
-        tree_sum_depths[r] = sum_d
-
-    # Find special components (peeled nodes not attached to core)
-    special_components: list[set[int]] = []
-    seen: set[int] = set()
-    for v in removed:
-        if v in root or v in seen:
-            continue
-        comp = {v}
-        q = deque([v])
-        seen.add(v)
-        while q:
-            x = q.popleft()
-            for w in adj_sets[x]:
-                if w in removed and w not in seen and w not in root:
-                    seen.add(w)
-                    comp.add(w)
-                    q.append(w)
-        special_components.append(comp)
+    tree_depth_hist, tree_sum_depths = _tree_histograms(root, depth, tree_nodes)
+    special_components = _special_components(removed, adj_sets, root)
 
     return {
         "parent": parent,
@@ -329,6 +342,38 @@ def core_source_scores(
     return clo, harm
 
 
+def _same_tree_scan(
+    w: int,
+    h: int,
+    tree_set: set[int],
+    adj_sets: dict[int, set[int]],
+) -> tuple[int, float, float]:
+    """BFS from w within its tree (through the root h, excluding w).
+
+    Traversal passes THROUGH the root h (the tree's only core contact):
+    blocking it orphans every sibling/cousin whose tree path routes via
+    h — the 2026-10-15 audit lost 6 nodes at d=2 (3.0 harmonic) on
+    Luxury_Goods that way. h itself is counted by the core leg (delta +
+    0), never here; `visited` covers it as a hub.
+    """
+    n_same = 0
+    sum_d_same = 0.0
+    harm_same = 0.0
+    visited = {w}
+    q: deque[tuple[int, int]] = deque([(w, 0)])
+    while q:
+        x, d = q.popleft()
+        for v in adj_sets[x]:
+            if (v == h or v in tree_set) and v not in visited:
+                visited.add(v)
+                if v != h:
+                    n_same += 1
+                    sum_d_same += d + 1
+                    harm_same += 1.0 / (d + 1)
+                q.append((v, d + 1))
+    return n_same, sum_d_same, harm_same
+
+
 def peeled_source_scores(
     w: int,
     forest: dict,
@@ -342,26 +387,7 @@ def peeled_source_scores(
     tree_set = forest["tree_nodes"][h]
 
     # Same-tree contribution (BFS from w within the tree, excluding w).
-    # Traversal passes THROUGH the root h (the tree's only core
-    # contact): blocking it orphans every sibling/cousin whose tree path
-    # routes via h — the 2026-10-15 audit lost 6 nodes at d=2 (3.0
-    # harmonic) on Luxury_Goods that way. h itself is counted by the
-    # core leg (delta + 0), never here; `visited` covers it as a hub.
-    n_same = 0
-    sum_d_same = 0.0
-    harm_same = 0.0
-    visited = {w}
-    q = deque([(w, 0)])
-    while q:
-        x, d = q.popleft()
-        for v in adj_sets[x]:
-            if (v == h or v in tree_set) and v not in visited:
-                visited.add(v)
-                if v != h:
-                    n_same += 1
-                    sum_d_same += d + 1
-                    harm_same += 1.0 / (d + 1)
-                q.append((v, d + 1))
+    n_same, sum_d_same, harm_same = _same_tree_scan(w, h, tree_set, adj_sets)
 
     # Core contribution: d(w, v) = delta + d(h, v) for all core v reachable from h
     reachable_core = core_dist >= 0

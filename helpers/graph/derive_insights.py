@@ -1336,11 +1336,12 @@ _L_REVENUE = re.compile(r"\brevenue\b|\bturnover\b|\bnet sales\b|\btopline\b|\bt
 _L_PROFIT = re.compile(r"\bprofit\b|\bpat\b|\bnet income\b|\bearnings\b")
 _L_CAPEX = re.compile(r"\bcapex\b|\bcapital expenditure\b|\bspend\b|\bsanctioned\b")
 _L_AUM = re.compile(r"\baum\b|assets under management")
-_L_ORDER = re.compile(r"\border book\b|\border pipeline\b|\bbid pipeline\b")
+_L_ORDER = re.compile(r"\border book\b|\border-book\b|\border pipeline\b|\bbid pipeline\b")
 _L_GROWTH = re.compile(r"\bgrowth\b|\byoy\b|\bcagr\b")
 _L_MKT_SHARE = re.compile(r"\bmarket share\b")
 _L_STAKE = re.compile(r"\bstake\b")
 _L_DEBT = re.compile(r"\bdebt\b|\bborrowings?\b|\bnet debt\b")
+_L_MARKET_CAP = re.compile(r"\bmarket cap\b|\bmarket capitalization\b")
 
 # Period tokens (FY / quarter / month-year) — reuse the derive_events shape.
 _FY_RE = re.compile(r"\b(?:Q[1-4]\s*)?FY\s?\d{2,4}\b|\bQ[1-4]\s*CY\s?\d{2,4}\b", re.I)
@@ -1367,6 +1368,7 @@ _METRIC_LABEL_PATTERNS: list[tuple[re.Pattern, str]] = [
     (_L_ORDER, "order_book"),
     (_L_GROWTH, "growth"),
     (_L_MKT_SHARE, "market_share"),
+    (_L_MARKET_CAP, "market_capitalization"),
     (_L_STAKE, "stake"),
     (_L_DEBT, "debt"),
 ]
@@ -1393,16 +1395,24 @@ def _classify_metric(sentence: str, value_raw: str, figure_pos: int) -> str | No
     23% as ebitda_margin. The verbatim ``source_quote`` is the ground truth;
     ``metric_label`` is a nullable convenience for grouping.
     """
+    low = sentence.lower()
+    is_guidance = "guidance" in low
     # Prefer the preceding window (noun before the number).
     pre_start = max(0, figure_pos - 30)
     pre = sentence[pre_start:figure_pos].lower()
     label = _label_from_window(pre)
     if label:
-        return label
+        return f"guidance_{label}" if is_guidance else label
     # Fall back to a small following window ("X% margin", "X% growth").
     post_end = min(len(sentence), figure_pos + len(value_raw) + 25)
     post = sentence[figure_pos:post_end].lower()
-    return _label_from_window(post)
+    label = _label_from_window(post)
+    if label:
+        return f"guidance_{label}" if is_guidance else label
+    # Guidance-style figures with no identifiable metric noun still get a
+    # recognizable label rather than NULL, while the empty-NULL contract
+    # for genuinely unlabeled rows is preserved for non-guidance text.
+    return "guidance" if is_guidance else None
 
 
 def _parse_value_num(value_raw: str, unit: str | None) -> float | None:

@@ -70,7 +70,7 @@ DUCK = _REPO_ROOT / "memory" / "graph.duckdb"
 LIVE = {
     "rows": 115_030,  # e_all_und
     "degree_directed": 2.61,  # 57,515 edges / 22,054 nodes touching an edge
-    "dims": 384,
+    "dims": 512,
     "notes": 17_237,  # note_search rows -> v_note_embeddings
     "embeddings": 1_186,  # company_embeddings -> v_embeddings
     "hyper_edges": 1_558,
@@ -253,7 +253,7 @@ def _generate(dest: Path, rows: int, *, degree: float, notes: int, dims: int) ->
     emb_n = max(0, int(company_n * LIVE["embeddings"] / 25_469))
     base = [(((_h(i, j) % 2000) - 1000) / 1000.0) for j in range(dims)]
     # company_embeddings: (company_name PK, embedding BLOB, model NOT NULL,
-    # CHECK length(embedding) = 384*4) — so dims is pinned to 384 by the schema.
+    # CHECK length(embedding) = 512*4) — so dims is pinned to 512 by the schema.
     con.executemany(
         "INSERT INTO company_embeddings (company_name, embedding, model) VALUES (?,?,?)",
         ((f"Co_{i:09d}", _f32_blob(base), "synthetic://bench") for i in range(emb_n)),
