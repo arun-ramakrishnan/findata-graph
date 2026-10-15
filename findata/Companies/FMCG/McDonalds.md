@@ -75,6 +75,3 @@ McDonald's — auto-generated stub from newsletter parsing. To be enriched.
 *Source: The Chatter — The Chatter: Between the Numbers*
 
 <!-- END auto chatter block -->
-## The Chatter — <edition title>
-
-*Source: The Chatter — <edition title>*

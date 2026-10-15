@@ -233,9 +233,11 @@ def test_render_stub_tags():
 # ---------------------------------------------------------------------------
 def test_extract_companies_with_pipe():
     content = "## Reliance Industries | Large Cap | Energy\n\nText."
-    results = list(pn.extract_companies(content))
+    sector_dirs = {"Energy", "Technology"}  # simplified test set
+    results = list(pn.extract_companies(content, sector_dirs))
     assert len(results) == 1
     assert "Reliance Industries" in results[0][0]
+    assert results[0][2] == "Energy"  # header_sector
 
 
 def test_extract_companies_no_cap_or_pipe():
@@ -248,14 +250,17 @@ def test_extract_companies_dedup():
     content = (
         "## Reliance Industries | Large Cap | Energy\n\n## Reliance Industries | Mid Cap | Energy\n"
     )
-    results = list(pn.extract_companies(content))
+    sector_dirs = {"Energy", "Technology"}
+    results = list(pn.extract_companies(content, sector_dirs))
     # classify dedups, but extract yields both; check both
     assert len(results) >= 1
+    assert results[0][2] == "Energy"  # header_sector
 
 
 def test_extract_companies_strips_suffix():
     content = "## Tata Motors Ltd | Large Cap | Auto\n\nText."
-    results = list(pn.extract_companies(content))
+    sector_dirs = {"Automotive"}
+    results = list(pn.extract_companies(content, sector_dirs))
     assert results[0][0] == "Tata Motors"
 
 
@@ -288,3 +293,118 @@ def test_render_stub_no_ticker_has_no_geography():
     note = pn.render_stub("Unlisted Co", "Unlisted_Co", "Technology", None, "permalink")
     assert "geography/" not in note
     assert "geography:" not in note
+
+
+class TestSectorCommentary:
+    """S6 (resolver_extractor_hardening #396): analyst-voiced sections
+    spanning >=3 named companies route to the sector note. Audit rewrite:
+    the previous detector could never emit (its scan was gated on a set
+    nothing populated) and counted 'co'-substring word hits."""
+
+    def test_analyst_section_with_three_companies_routes(self):
+        content = (
+            "## BFSI Sector Preview\n"
+            "\n"
+            "Analysts at JM Financial expect private banks to re-rate.\n"
+            "\n"
+            "HDFC Bank trades at 3x book while ICICI Bank and Axis Bank "
+            "defend margins.\n"
+        )
+        names = {"HDFC Bank", "ICICI Bank", "Axis Bank"}
+        out = pn._detect_sector_commentary(content, names)
+        assert len(out) == 1
+        heading, line, companies = out[0]
+        assert "BFSI" in heading
+        assert line == 1
+        assert set(companies) == names
+
+    def test_company_headings_never_route(self):
+        """A pipe-format company note is a company note even when it quotes
+        analysts — only free-form section heads can become commentary."""
+        content = (
+            "## HDFC Bank | Large Cap | BFSI\n"
+            "\n"
+            "Analysts at the brokerage note margin pressure at HDFC Bank, "
+            "ICICI Bank and Axis Bank.\n"
+        )
+        names = {"HDFC Bank", "ICICI Bank", "Axis Bank"}
+        assert pn._detect_sector_commentary(content, names) == []
+
+    def test_bank_word_alone_is_not_an_analyst_marker(self):
+        """'Bank' in prose (HDFC Bank!) never marks a section
+        non-management — only analyst/brokerage/sell-side phrases do."""
+        content = (
+            "## Banking capex round-up\n"
+            "\n"
+            "HDFC Bank, ICICI Bank and Axis Bank all guided capex higher "
+            "for the year.\n"
+        )
+        names = {"HDFC Bank", "ICICI Bank", "Axis Bank"}
+        assert pn._detect_sector_commentary(content, names) == []
+
+    def test_two_companies_below_threshold(self):
+        content = (
+            "## Mid-cap technology\n"
+            "\n"
+            "Analysts see Netweb Technologies and Cyient DLM compounding.\n"
+        )
+        names = {"Netweb Technologies", "Cyient DLM"}
+        assert pn._detect_sector_commentary(content, names) == []
+
+    def test_common_word_never_counts_as_company(self):
+        """The old 'co'-substring counting is gone: prose words never
+        satisfy the >=3 gate."""
+        content = (
+            "## Macro desk\n"
+            "\n"
+            "Analysts expect second-order effects on income, account "
+            "openings and core sector output to compound.\n"
+        )
+        assert pn._detect_sector_commentary(content, {"HDFC Bank"}) == []
+
+
+class TestListedIssues:
+    """S8: listing prose contradicts a stub's listed: false; entities
+    without a ticker surface as explicit manual-check items."""
+
+    def test_listing_prose_flags_the_company(self):
+        content = (
+            "## Netweb Technologies | Small Cap | Technology\n"
+            "\n"
+            "Netweb Technologies recently listed on the exchanges and "
+            "debuted strong.\n"
+        )
+        contradictions = pn._detect_listed_contradictions(content, {"Netweb Technologies"})
+        assert len(contradictions) == 1
+        row = contradictions[0]
+        assert row["company"] == "Netweb Technologies"
+        assert row["line"] == 3
+        assert "recently listed" in row["prose"]
+
+    def test_word_boundary_no_false_positive(self):
+        """'Targeting' must not flag a company named Target (the substring
+        version of this check did)."""
+        content = "## Strategy\n\nThe targeting framework improved.\n"
+        assert pn._detect_listed_contradictions(content, {"Target"}) == []
+
+    def test_missing_ticker_items_surface(self):
+        new_cos = [("Freshco Ltd", 4, "FMCG")]
+        existing_cos = [("Oldco", 9, None)]
+        items = pn._missing_ticker_items(
+            new_cos, existing_cos, stubs={"Oldco"}, tickers={"Freshco Ltd": "FRESH"}
+        )
+        # Oldco: no ticker -> manual check, flagged as stub.
+        # Freshco: has a ticker -> not listed.
+        assert items == [
+            {
+                "name": "Oldco",
+                "is_stub": True,
+                "reason": "no ticker on file — manual lookup before listing claims",
+            }
+        ]
+
+    def test_deprecated_shim_still_returns_pair(self):
+        content = "Netweb Technologies recently listed on the exchanges.\n"
+        contradictions, missing = pn._detect_listed_issues(content, {"Netweb Technologies"})
+        assert len(contradictions) == 1
+        assert missing == []

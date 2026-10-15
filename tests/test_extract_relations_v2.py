@@ -212,12 +212,12 @@ class TestAmbiguityLog:
                 "Great Eastern Energy",
             ]
         )
+        # S2 doctrine (resolver_extractor_hardening): a genuine N-way tie
+        # is not resolved silently — the mention defers to the pending
+        # queue (None) instead of first-insert-wins.
         best = r.resolve("great eastern")
-        # Resolution still returns ONE of the tied candidates (which one
-        # depends on candidate-set iteration order — deterministic within a
-        # process, not across runs).
-        assert best in {"Great Eastern Shipping", "Great Eastern Energy"}
-        # ...but the N-way tie itself is recorded for Tier-C reporting.
+        assert best is None
+        # ...and the N-way tie itself is recorded for Tier-C reporting.
         assert r.ambiguous_log == [
             ("great eastern", ["Great Eastern Energy", "Great Eastern Shipping"]),
         ]

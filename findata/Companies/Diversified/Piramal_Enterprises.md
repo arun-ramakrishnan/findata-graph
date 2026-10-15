@@ -104,6 +104,3 @@ Piramal Enterprises — auto-generated stub from newsletter parsing. To be enric
 *Source: The Chatter — The Chatter: Signals in Silence*
 
 <!-- END auto chatter block -->
-## The Chatter — <edition title>
-
-*Source: The Chatter — <edition title>*

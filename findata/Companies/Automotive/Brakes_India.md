@@ -33,6 +33,3 @@ sources:
 Brakes India — Brakes India is a Chennai-based TVS Group (TSF) automotive manufacturer of braking systems, ferrous castings and precision products for Indian and global OEMs; it is privately held and unlisted.
 Together with sister company Wheels India, it represents the TSF Group in the 50:50 joint venture with Bosch Limited (2026) for electronically-controlled air systems for commercial vehicles.
 
-## The Chatter — <edition title>
-
-*Source: The Chatter — <edition title>*

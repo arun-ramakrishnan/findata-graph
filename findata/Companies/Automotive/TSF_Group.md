@@ -34,6 +34,3 @@ TSF Group is the Chennai-based automotive group (founded by the TVS family) whos
 
 The knowledge graph models the JV counterparty at group level; the representing listed companies (Brakes India, Wheels India) are not yet separate entities.
 
-## The Chatter — <edition title>
-
-*Source: The Chatter — <edition title>*

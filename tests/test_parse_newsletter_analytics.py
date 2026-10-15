@@ -31,7 +31,7 @@ def test_with_analytics_requires_apply(monkeypatch, fake_newsletter):
 
     # Prevent any real capture/validation from running.
     monkeypatch.setattr(pn, "capture_images", lambda *_a, **_k: True)
-    monkeypatch.setattr(pn, "extract_companies", lambda _content: [])
+    monkeypatch.setattr(pn, "extract_companies", lambda _content, _sector_dirs: [])
     monkeypatch.setattr(pn, "classify", lambda _c, _e: ([], [], []))
     monkeypatch.setattr(pn, "get_existing_entity_names", lambda _conn: set())
     monkeypatch.setattr(pn, "get_sector_dirs", lambda: set())
@@ -84,7 +84,7 @@ def test_stage6_skipped_without_with_analytics_flag(monkeypatch, fake_newsletter
         raise AssertionError("run_graph_analytics must not be called")
 
     monkeypatch.setattr(pn, "capture_images", lambda *_a, **_k: True)
-    monkeypatch.setattr(pn, "extract_companies", lambda _content: [])
+    monkeypatch.setattr(pn, "extract_companies", lambda _content, _sector_dirs: [])
     monkeypatch.setattr(pn, "classify", lambda _c, _e: ([], [], []))
     monkeypatch.setattr(pn, "get_existing_entity_names", lambda _conn: set())
     monkeypatch.setattr(pn, "get_sector_dirs", lambda: set())
@@ -110,7 +110,7 @@ def test_stage6_invoked_when_both_flags_set(monkeypatch, fake_newsletter):
         return True
 
     monkeypatch.setattr(pn, "capture_images", lambda *_a, **_k: True)
-    monkeypatch.setattr(pn, "extract_companies", lambda _content: [])
+    monkeypatch.setattr(pn, "extract_companies", lambda _content, _sector_dirs: [])
     monkeypatch.setattr(pn, "classify", lambda _c, _e: ([], [], []))
     monkeypatch.setattr(pn, "get_existing_entity_names", lambda _conn: set())
     monkeypatch.setattr(pn, "get_sector_dirs", lambda: set())

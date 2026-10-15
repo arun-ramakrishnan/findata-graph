@@ -32,6 +32,3 @@ sources:
 ## Company Overview
 Sumitomo Mitsui Banking Corporation — auto-generated stub from newsletter parsing. To be enriched.
 
-## The Chatter — <edition title>
-
-*Source: The Chatter — <edition title>*

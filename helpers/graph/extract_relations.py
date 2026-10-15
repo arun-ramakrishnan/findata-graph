@@ -87,6 +87,7 @@ import json
 import os
 import re
 import sys
+import unicodedata
 from dataclasses import asdict, dataclass, field
 from functools import cache
 from itertools import combinations
@@ -382,13 +383,35 @@ _WS_RUN_RE = re.compile(r"\s+")
 
 
 @cache
+def _canonical_key(name: str) -> str:
+    """Fold apostrophe/diacritic/camelCase variants to a single comparable key.
+
+    S1 of resolver_extractor_hardening.md: \"McDonalds\" ↔ \"McDonald's\",
+    \"Systemes\" ↔ \"Systèmes\", \"NetwebTechnologiesIndia\" ↔
+    \"Netweb Technologies India\" all collapse here so the resolver stops
+    needing hand-aliases for spellings that differ only in these ways.
+    """
+    # De-accent: NFKD then drop combining marks.
+    s = unicodedata.normalize("NFKD", name)
+    s = "".join(ch for ch in s if not unicodedata.combining(ch))
+    # Drop apostrophes so \"McDonald's\" -> \"McDonalds\".
+    s = s.replace("'", "").replace("’", "")
+    # Split camelCase / compound joins before punctuation handling.
+    s = re.sub(r"(?<=[a-z0-9])(?=[A-Z])", " ", s)
+    s = re.sub(r"(?<=[A-Z])(?=[A-Z][a-z])", " ", s)
+    return " ".join(s.split()).casefold()
+
+
+@cache
 def _tokens(name: str) -> frozenset[str]:
     # Memoized: extract_relations dry-run calls _tokens 600k+ times across
     # ~1200 unique strings (entity names + prose mentions). The cache collapses
     # that to ~1200 calls. Returns frozenset (hashable) so callers can use it
     # in set operations and as a dict key.
     return frozenset(
-        t for t in _NON_ALNUM_SPACE_RE.sub(" ", name.lower()).split() if t and t not in _STOPWORDS
+        t
+        for t in _NON_ALNUM_SPACE_RE.sub(" ", _canonical_key(name)).split()
+        if t and t not in _STOPWORDS
     )
 
 
@@ -408,6 +431,11 @@ class EntityResolver:
         # All names + case-folded index for O(1) exact lookup.
         self._names: list[str] = list(names)
         self._by_lower: dict[str, str] = {n.lower(): n for n in self._names}
+        # S1 (resolver_extractor_hardening): canonical-folded index so apostrophe /
+        # diacritic / camelCase variants resolve without hand-aliases.
+        self._by_canonical: dict[str, str] = {}
+        for n in self._names:
+            self._by_canonical.setdefault(_canonical_key(n), n)
         # Pre-tokenized entity names (avoids re-tokenizing in the _fuzzy loop).
         self._name_tokens: list[tuple[str, frozenset]] = [(n, _tokens(n)) for n in self._names]
         # Reverse index: single token → names containing it. Lets _fuzzy find
@@ -423,6 +451,37 @@ class EntityResolver:
         # report lines ("mention X matched N candidates equally well"). Never
         # consulted for resolution — logging only.
         self.ambiguous_log: list[tuple[str, list[str]]] = []
+
+    def _canonical_hit(self, aliased: str | None) -> str | None:
+        """An aliased name lands in DB-canonical casing (check + return
+        both go through _by_lower), so alias-file entries with drifted
+        casing still resolve instead of silently no-oping."""
+        if aliased and aliased.lower() in self._by_lower:
+            return self._by_lower[aliased.lower()]
+        if aliased:
+            a_ck = _canonical_key(aliased)
+            if a_ck in self._by_canonical:
+                return self._by_canonical[a_ck]
+        return None
+
+    def _alias_tiers(self, m: str, ck: str) -> str | None:
+        """Alias tiers 0a/0b: whole-mention alias, then brand-first-token
+        alias — MNC parent mentions in prose often read "<brand>
+        Laboratories" / "<brand> Inc" / "<brand> AG", and the brand token
+        alone maps to the Indian-listed subsidiary (which must exist in
+        the DB). Leading articles and possessives strip first: "the Volvo
+        Group", "Sweden's AB Volvo", "Japan's Kubota Corporation" all
+        resolve via the brand token."""
+        aliased = _lookup_alias(m.lower()) or _lookup_alias(ck)
+        hit = self._canonical_hit(aliased)
+        if hit:
+            return hit
+        stripped_m = _LEADING_ARTICLE_POSS_RE.sub("", m)
+        first = _MENTION_FIRST_TOKEN_RE.split(stripped_m, maxsplit=1)[0].lower()
+        if first and first != m.lower():
+            aliased_first = _lookup_alias(first) or _lookup_alias(_canonical_key(first))
+            return self._canonical_hit(aliased_first)
+        return None
 
     def resolve(self, mention: str) -> str | None:
         if not mention:
@@ -440,41 +499,34 @@ class EntityResolver:
         # the mention is NOT itself a canonical name.
         if m.lower() in self._by_lower:
             return self._by_lower[m.lower()]
-        # 0a. Alias lookup on the whole mention (IOCL → Indian Oil Corp).
-        # Aliased names return in DB-canonical casing (check + return both
-        # go through _by_lower), so alias-file entries with drifted casing
-        # still resolve instead of silently no-oping.
-        aliased = _lookup_alias(m.lower())
-        if aliased and aliased.lower() in self._by_lower:
-            return self._by_lower[aliased.lower()]
-        # 0b. Alias lookup on the first token. MNC parent mentions in prose
-        # often read "<brand> Laboratories" / "<brand> Inc" / "<brand> AG",
-        # and the brand token alone maps to the Indian-listed subsidiary.
-        # The alias must point at an entity that exists in the DB.
-        #
-        # Strip leading articles and possessives first: "the Volvo Group",
-        # "Sweden's AB Volvo", "Japan's Kubota Corporation" should all
-        # resolve via the brand token.
-        stripped_m = _LEADING_ARTICLE_POSS_RE.sub("", m)
-        first = _MENTION_FIRST_TOKEN_RE.split(stripped_m, maxsplit=1)[0].lower()
-        if first and first != m.lower():
-            aliased_first = _lookup_alias(first)
-            if aliased_first and aliased_first.lower() in self._by_lower:
-                return self._by_lower[aliased_first.lower()]
+        # 0a2. Canonical-folded exact (S1): apostrophe/diacritic/camelCase
+        # variants of a real entity name resolve without an alias.
+        ck = _canonical_key(m)
+        if ck in self._by_canonical:
+            return self._by_canonical[ck]
+        # 0a/0b. Alias tiers (whole mention, then brand first token).
+        aliased_hit = self._alias_tiers(m, ck)
+        if aliased_hit:
+            return aliased_hit
         # 2. Suffix-stripped exact.
         stripped = _TRAILING_LEGAL_SUFFIX_RE.sub("", m).strip()
         if stripped.lower() in self._by_lower:
             return self._by_lower[stripped.lower()]
+        sk = _canonical_key(stripped)
+        if sk in self._by_canonical:
+            return self._by_canonical[sk]
         # 3. Fuzzy.
         return self._fuzzy(m)
 
-    def _fuzzy_single_token(self, ct: frozenset[str]) -> str | None:
+    def _fuzzy_single_token(self, mention: str, ct: frozenset[str]) -> str | None:
         """Single distinctive token: look for an entity with that token as
         its ONLY distinctive token (e.g. "BlackRock" -> "BlackRock")."""
         tok = next(iter(ct))
-        for n, et in self._name_tokens:
-            if len(et) == 1 and tok in et:
-                return n
+        matches = [n for n, et in self._name_tokens if len(et) == 1 and tok in et]
+        if len(matches) == 1:
+            return matches[0]
+        if len(matches) > 1:
+            self.ambiguous_log.append((mention, sorted(matches)))
         return None
 
     def _fuzzy_multi_token(self, mention: str, ct: frozenset[str]) -> str | None:
@@ -505,6 +557,9 @@ class EntityResolver:
                         tied.append(n)
         if best is not None and len(tied) > 1:
             self.ambiguous_log.append((mention, sorted(tied)))
+            # S2: a genuine tie is not resolved silently; defer to the pending
+            # queue instead of picking first-insert-wins.
+            return None
         return best
 
     def _fuzzy(self, mention: str) -> str | None:
@@ -512,7 +567,7 @@ class EntityResolver:
         if not ct:
             return None
         if len(ct) == 1:
-            return self._fuzzy_single_token(ct)
+            return self._fuzzy_single_token(mention, ct)
         return self._fuzzy_multi_token(mention, ct)
 
 

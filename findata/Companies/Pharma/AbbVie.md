@@ -28,6 +28,3 @@ sources:
 ## Company Overview
 AbbVie — auto-generated stub from newsletter parsing. To be enriched.
 
-## The Chatter — <edition title>
-
-*Source: The Chatter — <edition title>*

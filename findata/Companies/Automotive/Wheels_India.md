@@ -48,6 +48,3 @@ Its board approved the joint-venture agreement with Bosch Limited in May 2026 (C
 
 _Source: yfinance | Refreshed: 2026-09-15_
 <!-- END auto company profile -->
-## The Chatter — <edition title>
-
-*Source: The Chatter — <edition title>*

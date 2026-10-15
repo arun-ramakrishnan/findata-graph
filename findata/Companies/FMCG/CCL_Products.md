@@ -83,6 +83,3 @@ CCL Products — auto-generated stub from newsletter parsing. To be enriched.
 *Source: The Chatter — The Chatter: Risks, Rewards, and Revelation*
 
 <!-- END auto chatter block -->
-## The Chatter — <edition title>
-
-*Source: The Chatter — <edition title>*

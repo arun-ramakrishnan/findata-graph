@@ -43,6 +43,3 @@ Target — auto-generated stub from newsletter parsing. To be enriched.
 
 _Source: yfinance | Refreshed: 2026-09-15_
 <!-- END auto company profile -->
-## The Chatter — <edition title>
-
-*Source: The Chatter — <edition title>*
