@@ -39,10 +39,15 @@ commit, referenced by nothing). Entry numbers point at
 
 ## graph/ — Graph layer — algorithms, DuckPGQ retirement, Onager, knowledge-model design
 
+- [`scipy_csgraph_scale_lanes.md`](graph/scipy_csgraph_scale_lanes.md) — SciPy csgraph scale lanes — the consumer-gate on the csgraph-25 flipped to a scale gate (57,589 edges, all trials sub-10 ms): MST/MSF supply backbone (21,369 forest edges, 105 components, 2.9 ms), supplier bipartite matching (958/8,817 = 10.87% coverage — the Hall-failure surface as a concentration product), conditional optimal assignment (no full matching on invested_in; 82/84, Hall collision on 6 single-investor targets), A² candidate kernel (347,302 supplier-supplier 2-hop pairs, 5.7 ms, top pair Tata Communications/TCS at 81 shared consumers); structural_rank + reverse_cuthill_mckee parked with trial evidence; absorbs the deferred scipy_minimum_spanning_tree.md child — completed.md #393
+- [`co_mentioned_weights.md`](graph/co_mentioned_weights.md) — co_mentioned_in weight carry-through — derive-time pair counts as edge weights (count+1, the cited_in convention), backfill_weights idempotent; pagerank_weighted top-10 shifted (Infosys 5→10, Grasim 10→6); live range 2.0–6.0 — completed.md §G G4
+- [`ppr_reprobe_economic.md`](graph/ppr_reprobe_economic.md) — PPR re-probe on the economic projection re-anchors the recorded blocker — hub contamination gone on the grown graph, localization is seed-dependent (not universally degenerate); lane stays DEFERRED pending a named consumer; scipy_personalized_pagerank.md §7 updated — completed.md §G G5
 - [`l1_closeness_fold.md`](graph/l1_closeness_fold.md) — leaf-folded exact
   closeness/harmonic — 2-core BFS + analytic forest term; 84% of the graph is
-  forest, fold is exact (maxdiff=0), 5.34x faster on contract sources
-  (3.49s vs 4.18s) — completed.md #393
+  forest; audit 2026-10-15 fixed phantom-N normalization + sibling-via-root
+  tree BFS, then exact on the FULL contract (closeness maxdiff=0, harmonic
+  2.5e-11), 1.61x faster end-to-end jobs=1 (the earlier 5.34x was a
+  phase-vs-phase comparison) — completed.md §L L1c
 - [`csr_freshness_lane.md`](graph/csr_freshness_lane.md) — CSR fast-lane freshness — `make csr` / `make csr-check` / `make csr-rebuild` + `csr.py --check` (manifest gen vs live gen, exit 1 on stale) wired into the advisory gate; substrate rebuilt gen 373511 → 414554 (`fresh=True`, ~1 ms vs 477 ms fallback) — completed.md #354
 
 - [`graph_rebuild_fast_path.md`](graph/graph_rebuild_fast_path.md) —
@@ -227,6 +232,8 @@ commit, referenced by nothing). Entry numbers point at
 
 ## pipeline/ — Data pipeline — parsing, PDF conversion hardening, enrichment, corpus audit
 
+- [`resolver_extractor_hardening.md`](pipeline/resolver_extractor_hardening.md) — residual slices S4–S8 of the hardening arc: S1 canonical-fold resolution (apostrophe/diacritic/camelCase — 4 hand-aliases retired from relation_aliases.json), S2 genuine-tie defers to pending, S3 section-head noise gate, S4 stub chatter block removed + 26 stubs stripped, S5 singular-payment carve-out + header-declared sector precedence, S6/S8 worklist routing + listed-contradiction hints, S7 cross-check handle release — completed.md #396
+- [`company_metrics_label_classifier.md`](pipeline/company_metrics_label_classifier.md) — metrics classifier — hyphenated order-book + market-capitalization patterns, guidance-prefix labeling with a bare-`guidance` fallback (non-guidance NULL contract preserved), backfill_metric_labels.py dry-run/apply; 215 of 1,140 NULL rows labeled, 925 remain — completed.md #395
 - [`dsh_convo_analytics_lane.md`](pipeline/dsh_convo_analytics_lane.md) — Cover the DeepSeek harness (dsh) in convo + analytics — S1 zstd-log lane (v4-preferred, stable ids, rotation-safe watermarks) + S2 usage/request/tool loaders + S3 drift/check; trace half gated discovery; 6 hermetic tests — completed.md #383
 - [`opencode_v2_session_message_lane.md`](pipeline/opencode_v2_session_message_lane.md) — Harvest the v2 session_message lane — S1 message lane + S2 event lane (five dropped part types) + S3 per-session seeds/union drift + S4 analytics loaders + S5 snapshot health + S6 dead traces-lane retirement; shared model normalizer + one-shot migration; 7 hermetic tests — completed.md #382b
 

@@ -4,7 +4,7 @@ status: executed
 filed: "2026-10-14"
 area: "helpers/graph"
 executed: "2026-10-15"
-completed_md: "389"
+completed_md: "90"
 ---
 
 # PPR re-probe on economic projection — re-anchor the recorded blocker

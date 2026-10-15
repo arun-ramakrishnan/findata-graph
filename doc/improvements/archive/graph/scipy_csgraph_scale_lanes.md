@@ -130,7 +130,7 @@ the edge data, not the orientation.
 3. **S3**: toy oracle (two targets sharing one investor → inadmissible,
    reported); live run reproduces 82/84 + names the 6 single-investor
    targets. ✅ **Verified**: full matching impossible (Hall collisions:
-   6125 investors vs 8817 targets; 6 single-investor targets create
+   277 investors vs 84 targets; 6 single-investor targets create
    structural collisions).
 4. **S4**: toy oracle (A·Aᵀ counts vs brute force on a 5-node toy);
    live run reproduces 347,302. ✅ **Verified**: live top pair Tata
