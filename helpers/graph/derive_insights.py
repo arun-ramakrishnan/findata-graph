@@ -1158,7 +1158,14 @@ def _create_quote(
     speaker_name: str | None,
     speaker_title: str | None,
 ) -> Quote:
-    """Create a Quote from extracted components."""
+    """Create a Quote from extracted components. person_name_dedup S6:
+    the speaker name resolves through the person identity home (signed
+    fold → Quotes corpus display) — attribution spellings converge
+    instead of accreting."""
+    if speaker_name:
+        from helpers.core.entity_identity import resolve_speaker
+
+        speaker_name = resolve_speaker(speaker_name)
     return Quote(
         entity=section.canonical_name,
         quote_text=quote_text,

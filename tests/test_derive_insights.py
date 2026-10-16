@@ -3153,3 +3153,29 @@ class TestS4Advisory:
             rc = di._cli(["--no-notes"])
         assert rc == 0, "carrier failure must not break the write"
         assert "S4 advisory skipped" in out.getvalue()
+
+
+class TestSpeakerResolution:
+    """person_name_dedup S6: attribution spellings resolve through the
+    person identity home (signed fold → Quotes corpus display form)."""
+
+    def test_known_speaker_resolves_to_corpus_display(self):
+        from helpers.core.entity_identity import resolve_speaker
+
+        # corpus display form for the Akash Minda speaker key
+        assert resolve_speaker("akash  minda") == "Akash Minda"
+        # unknown name passes through untouched
+        assert resolve_speaker("Zorb Phantomquill") == "Zorb Phantomquill"
+        assert resolve_speaker(None) is None
+
+    def test_extraction_resolves_speaker(self):
+        body = (
+            "## [Concall]\n"
+            "Margin commentary is improving with pricing actions underway.\n"
+            "_\u201cThe pricing actions compensated in the first quarter are visible._\n"
+            "_In the coming quarters, we expect the impact to continue.\u201d_\n"
+            "_\u2014 Akash Minda., Executive Director_\n"
+        )
+        section = di.CompanySection("Flash Electronics", 1, body)
+        quotes = di.extract_quotes(section, "Flash Electronics", "Flash_Electronics")
+        assert quotes and quotes[0].speaker_name == "Akash Minda"

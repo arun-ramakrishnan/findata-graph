@@ -5,6 +5,8 @@ from __future__ import annotations
 
 import re
 from collections.abc import Iterable
+from functools import lru_cache
+from pathlib import Path
 
 from helpers.core.fuzzy_match import word_overlap_match
 
@@ -55,3 +57,49 @@ def dedupe_report(names: Iterable[str]) -> list[list[str]]:
         key = (classify_person_name(name), person_name_key(name))
         groups.setdefault(key, []).append(name)
     return [sorted(group) for group in groups.values() if len(group) > 1]
+
+
+_REPO_ROOT_PERSON = Path(__file__).resolve().parents[2]
+PERSON_PLAN_PATH = _REPO_ROOT_PERSON / "findata" / "Misc" / "_person_merge_plan.jsonl"
+PERSON_LEDGER_PATH = _REPO_ROOT_PERSON / "findata" / "Misc" / "_person_fold_ledger.jsonl"
+
+
+@lru_cache(maxsize=1)
+def person_fold_registry(path=PERSON_PLAN_PATH, ledger_path=PERSON_LEDGER_PATH) -> dict[str, str]:
+    """Folded-variant (by name key) → canonical. Two halves unioned:
+
+    - the append-only LEDGER (durable — ``name_dedup.apply_plan`` extends
+      it, so a signed person fold keeps resolving *forever* even after
+      ``--plan`` regenerates the plan artifact and empties it);
+    - the signed PLAN artifact (the live source before the ledger existed
+      / within a session that has planned but not yet applied).
+
+    The insert-time resolver consults this BEFORE minting a new person
+    entity, so a filing whose holder spelling was folded by a reviewed
+    plan reuses the canonical — the dedup and the resolver cannot drift.
+    Missing both = {}.
+
+    Cached (perf gate, derive_insights leg): resolve_speaker consults
+    this per Quote attribution, and the S6 hot path turned the per-call
+    JSONL re-parse into an O(N²) corpus walk (145 s vs 9 s budget).
+    Artifacts are static within a process; no caller mutates-and-rereads
+    (name_dedup.apply_plan writes the ledger directly)."""
+    import json
+
+    from helpers.core.entity_identity import name_key
+
+    out: dict[str, str] = {}
+    if ledger_path and Path(ledger_path).exists():
+        for line in Path(ledger_path).read_text(encoding="utf-8").splitlines():
+            if not line.strip():
+                continue
+            row = json.loads(line)
+            out[name_key(row["variant"])] = row["canonical"]
+    if path and Path(path).exists():
+        for line in Path(path).read_text(encoding="utf-8").splitlines():
+            if not line.strip():
+                continue
+            row = json.loads(line)
+            for variant in row["variants"]:
+                out[name_key(variant)] = row["canonical"]
+    return out

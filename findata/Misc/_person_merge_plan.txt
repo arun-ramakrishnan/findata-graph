@@ -1,0 +1,21 @@
+# Person-name merge plan (person_name_dedup S1 — DRY-RUN artifact)
+# fold clusters: 3 | never-merge: 2 | company-shaped review: 0 | speakers: 188
+# rule: same legal line + same normalised key folds; cross-line NEVER; company-shaped clusters route back to the company arc
+# S2 applies ONLY on operator sign-off (person_dedup.py --apply --yes)
+
+== Pradeep Kumar Agarwal  [person]
+   Pradeep Kumar Agarwal
+   Pradeep Kumar Agarwal (HUF)  -> fold
+
+== Rajendra Kumar Gupta  [person]
+   Rajendra Kumar Gupta
+   Rajendra Kumar Gupta Huf .  -> fold
+
+== Rohit Kedia  [person]
+   Rohit Kedia
+   Rohit Kedia(Huf)  -> fold
+
+# -- NEVER-MERGE (legal lines differ — identity boundary) --
+   KUMUD BAJAJ TRUST | Kumud Bajaj  (legal lines differ (person, trust) — same base name)
+   NIRAJ BAJAJ TRUST | Niraj Bajaj  (legal lines differ (person, trust) — same base name)
+
