@@ -45,7 +45,11 @@ from helpers.core.db import connect  # noqa: E402  (post-bootstrap: entry point,
 
 DB = REPO / "memory" / "data" / "sources.duckdb"
 WORKLIST = REPO / "memory" / "data" / "ipo_worklist.csv"
-FETCH_SCRATCH = Path(os.environ.get("TMPDIR", "/mnt/data/tmp/opencode")) / "findata-graph" / "exchange_fetch_scratch"
+FETCH_SCRATCH = (
+    Path(os.environ.get("TMPDIR", "/mnt/data/tmp/opencode"))
+    / "findata-graph"
+    / "exchange_fetch_scratch"
+)
 BACKFILL_DATE = "2026-09-15"  # D16 fold date for pre-existing rows
 UA = {"User-Agent": "Mozilla/5.0 research"}
 

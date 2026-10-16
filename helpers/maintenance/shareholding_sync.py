@@ -55,7 +55,9 @@ if str(REPO) not in sys.path:
 SOURCES_DB = REPO / "memory" / "data" / "sources.duckdb"
 RAW_DIR = REPO / "memory" / "data" / "shp_raw"
 WORKLIST = REPO / "memory" / "data" / "shp_worklist.csv"
-FETCH_SCRATCH = Path(os.environ.get("TMPDIR", "/mnt/data/tmp/opencode")) / "findata-graph" / "shp_fetch_scratch"
+FETCH_SCRATCH = (
+    Path(os.environ.get("TMPDIR", "/mnt/data/tmp/opencode")) / "findata-graph" / "shp_fetch_scratch"
+)
 RSS_URL = "https://nsearchives.nseindia.com/content/RSS/Shareholding_Pattern.xml"
 BSE_RSS_URL = "https://www.bseindia.com/Data/XML/ShareholdingPattern_Feed.aspx"
 UA = {"User-Agent": "Mozilla/5.0 research", "Referer": "https://nsearchives.nseindia.com/"}
@@ -694,7 +696,7 @@ def build_candidates(
     return candidates, unresolved
 
 
-def apply_candidates(
+def apply_candidates(  # noqa: C901
     conn: sqlite3.Connection,
     candidates: list[dict],
     norm_to_name: dict[str, str] | None = None,

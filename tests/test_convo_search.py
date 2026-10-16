@@ -742,7 +742,7 @@ def test_query_hybrid_fuse(convo_env, monkeypatch):
         monkeypatch.setattr(
             cq,
             "_cos_hits",
-            lambda c, q, limit, dims, query_vec=None: [(("prime-rlm", "pm1:0"), 0.9)],
+            lambda c, q, limit, dims, query_vec=None, harness=None: [(("prime-rlm", "pm1:0"), 0.9)],
         )
         out = cq.search(con, "hello", limit=3)
         assert out["mode"] == "hybrid"
@@ -837,3 +837,79 @@ def test_rebuild_fts_sync_runs_outside_the_duckdb_window(convo_env, monkeypatch)
     stats = rcs.rebuild(db, write=True)
     assert stats["indexed"] > 0
     assert observed["ro_open_ok"] is True
+
+
+def test_harness_filter_constrains_legs_not_post_fusion(convo_env, monkeypatch):
+    """Narrow-harness starvation (bili lane, live lesson): a generic term
+    with 25 dense opencode matches and 1 sparse prime match must still
+    return the prime row under harness="prime-rlm". Pre-fix the fixed
+    top-20 fusion pool held no prime row to filter down to."""
+    import json as _json
+
+    from helpers.misc import convo_query as cq
+
+    tmp = convo_env
+    _oc_db(
+        tmp / "live/opencode.db",
+        [
+            {
+                "id": f"q{i}",
+                "tu": 3000 + i,
+                "text": "starvationword starvationword starvationword filler",
+            }
+            for i in range(25)
+        ],
+    )
+    prime = tmp / "home/.prime/agent/sessions/abc.jsonl"
+    with open(prime, "a") as fh:
+        fh.write(
+            _json.dumps(
+                {
+                    "type": "message",
+                    "id": "pm9",
+                    "timestamp": 1700000001000,
+                    "message": {
+                        "role": "assistant",
+                        "model": "m",
+                        "content": [
+                            {
+                                "type": "text",
+                                "text": "a long rambling prime note that happens to mention "
+                                "starvationword once near the end after much filler "
+                                "filler filler filler filler filler filler filler",
+                            }
+                        ],
+                    },
+                }
+            )
+            + "\n"
+        )
+    db = tmp / "convo_search.duckdb"
+    hc.harvest(corpus_root=tmp / "corpus", db=db)
+    monkeypatch.setattr(rcs, "REPO", tmp)
+    monkeypatch.setattr(rcs, "CORPUS_DIR_GLOB", "corpus/*/*/*.parquet")
+    monkeypatch.setattr(
+        rcs,
+        "_embed",
+        lambda texts: (
+            [[1.0, 0.0] for _ in texts],
+            {"hits": 0, "misses": len(texts)},
+            2,
+            "test-model",
+        ),
+    )
+    idx = tmp / "idx" / "convo_search.duckdb"
+    rcs.rebuild(idx, write=True)
+    con = cq.connect(idx)
+    try:
+        # Leg level: the filter must constrain the FTS leg itself.
+        leg = cq._fts_hits(con, "starvationword", 20, harness="prime-rlm")
+        assert leg, "FTS leg returned nothing under harness filter"
+        # End to end with an empty cosine leg: fusion sees FTS only, so a
+        # post-fusion filter would have nothing prime to keep.
+        monkeypatch.setattr(cq, "_cos_hits", lambda *a, **k: [])
+        out = cq.search(con, "starvationword", limit=1, harness="prime-rlm")
+        assert out["results"], "narrow-harness hit starved by post-fusion filter"
+        assert all(r["harness"] == "prime-rlm" for r in out["results"])
+    finally:
+        con.close()

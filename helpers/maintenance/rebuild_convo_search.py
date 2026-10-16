@@ -61,6 +61,7 @@ CREATE TABLE IF NOT EXISTS convo_search (
   file_path VARCHAR, row_no BIGINT,
   ts TIMESTAMP, role VARCHAR, agent VARCHAR, model VARCHAR, part_type VARCHAR,
   text_len BIGINT, snippet VARCHAR, embedding FLOAT[],
+  provenance VARCHAR DEFAULT '',
   PRIMARY KEY (harness, part_id)
 )
 """
@@ -80,8 +81,100 @@ def _corpus_files() -> list[Path]:
     return sorted(REPO.glob(CORPUS_DIR_GLOB))
 
 
+def _provenance_migration(db_path: Path) -> bool:
+    """Add `provenance` to an index built before the column existed.
+
+    Returns True when the column was just added, so the caller can force a full
+    rebuild. `CREATE TABLE IF NOT EXISTS` cannot do this — it is a no-op on a
+    table that already exists, which is why the DDL change alone would have left
+    every pre-existing row reading NULL with no error raised anywhere.
+
+    A missing index file needs no migration: it is built from the DDL.
+    """
+    if not db_path.exists():
+        return False
+    try:
+        con = duckdb.connect(str(db_path))
+    except duckdb.Error:
+        return False
+    try:
+        cols = {r[0] for r in con.execute("DESCRIBE convo_search").fetchall()}
+    except duckdb.Error:
+        return False  # table absent: the fresh build gets the column from the DDL
+    finally:
+        con.close()
+    if "provenance" in cols:
+        return False
+    con = duckdb.connect(str(db_path))
+    try:
+        con.execute(
+            "ALTER TABLE convo_search ADD COLUMN IF NOT EXISTS provenance VARCHAR DEFAULT ''"
+        )
+    finally:
+        con.close()
+    return True
+
+
 def _file_hash(f: Path) -> str:
     return hashlib.blake2b(f.read_bytes(), digest_size=8).hexdigest()
+
+
+def _backfill_provenance(db_path: Path, files: list[Path]) -> tuple[int, int]:
+    """Fill `provenance` on existing rows from their parquet's `source`.
+
+    Joined on `(file_path, row_no)`, NOT per-file: 19 of the 271 corpus files
+    carry MIXED provenance (a session harvested live and also covered by a
+    snapshot has both `opencode:live` and `opencode-snap:<ts>` in one file),
+    so a per-file UPDATE either writes a lie or skips the file and leaves its
+    ~2,670 rows empty. `row_no` is the enumerate index over the parquet's rows,
+    which is exactly what `_read_file` stored, so the join is positional and
+    needs no re-embedding.
+
+    Returns (files, rows).
+    """
+    import pyarrow.parquet as pq
+
+    files_touched = 0
+    with io_lock(db_path, exclusive=True):
+        con = connect_with_lock_retry(lambda: duckdb.connect(str(db_path)))
+        try:
+            for f in files:
+                rel = str(f.relative_to(REPO))
+                try:
+                    srcs = pq.read_table(f, columns=["source"]).column("source").to_pylist()
+                except Exception:  # noqa: S112  # unreadable file: --check reports it; index refresh continues
+                    continue
+                if not any(srcs):
+                    continue
+                rows = con.execute(
+                    "SELECT row_no, provenance FROM convo_search WHERE file_path = ?",  # noqa: S608  # constant template; value bound
+                    [rel],
+                ).fetchall()
+                if not rows:
+                    continue
+                by_no = dict(rows)
+                # one UPDATE per distinct source in the file, not per row
+                buckets: dict[str, list[int]] = {}
+                for row_no, src in enumerate(srcs):
+                    if row_no in by_no and src:
+                        buckets.setdefault(src, []).append(row_no)
+                if not buckets:
+                    continue
+                files_touched += 1
+                for src, nos in buckets.items():
+                    ph = ",".join("?" * len(nos))
+                    con.execute(
+                        f"UPDATE convo_search SET provenance = ? "  # noqa: S608  # constant template; only the placeholder count varies
+                        f"WHERE file_path = ? AND row_no IN ({ph})",
+                        [src, rel, *nos],
+                    )
+            total_row = con.execute(
+                "SELECT count(*) FROM convo_search WHERE provenance <> ''"
+            ).fetchone()
+            total = int(total_row[0]) if total_row else 0
+        finally:
+            con.close()
+    return (files_touched, total)
 
 
 def _read_file(f: Path) -> tuple[str, list[dict]]:
@@ -116,6 +209,7 @@ def _read_file(f: Path) -> tuple[str, list[dict]]:
                 "part_type": r.get("part_type") or "text",
                 "text_len": len(text),
                 "snippet": text[:SNIPPET_CAP],
+                "provenance": r.get("source") or "",
             }
         )
     return _file_hash(f), rows
@@ -296,6 +390,7 @@ _STAGE_SCHEMA_FIELDS = (
     ("text_len", "int64"),
     ("snippet", "string"),
     ("embedding", "listf32"),
+    ("provenance", "string"),
 )
 
 
@@ -336,6 +431,11 @@ def _bulk_insert(con: duckdb.DuckDBPyConnection, rows: list[dict], vecs: list[li
             # f32 == the table's FLOAT and the cache's packing, so this is a
             # reinterpretation, not a lossy conversion
             pa.field("embedding", pa.list_(pa.float32())),
+            # corpus `source`: `opencode:live`, `opencode-snap:<ts>`, or
+            # `orphan:<harness>` for a session the harness no longer has. Named
+            # `provenance` here because `source` collides with the parquet
+            # reader's own vocabulary and the index is queried by humans.
+            pa.field("provenance", pa.string()),
         ]
     )
     table = pa.Table.from_pydict(
@@ -637,6 +737,22 @@ def rebuild(
         return _rebuild_check_mode(db_path, files, timer)
     if swap:
         return rebuild_via_swap(db_path, incremental=incremental)
+
+    if _provenance_migration(db_path):
+        # The column was just added, so every EXISTING row reads '' instead of
+        # its corpus source. An incremental run would only re-read changed
+        # files and leave the rest permanently empty — a silent under-fill that
+        # looks exactly like "this session has no provenance".
+        #
+        # Backfill it from the parquet instead of forcing a full rebuild: one
+        # UPDATE per file (the index is keyed by file_path, one parquet per
+        # session) costs seconds, where a full re-embed of ~200k rows is a
+        # 45-minute job that would change nothing but the vector column.
+        n_files, n_rows = _backfill_provenance(db_path, files)
+        print(
+            f"provenance: column added — backfilled {n_rows} row(s) from {n_files} parquet file(s)",
+            file=sys.stderr,
+        )
 
     rows: list[dict] = []
     vecs: list[list[float]] = []

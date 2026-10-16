@@ -38,6 +38,23 @@ entry number and stale DONE pointers):
 
 ## Current live proposals
 
+- bili_convo_lane.md (2026-10-16, amended 2026-10-17) — index BILI T1 compression
+  summaries in convo_search (new `bili` harvest lane, ~68 rows; trial 9/10 vs 4/10
+  ACTIVE-only). Carries the eval-gate bullet (query-visible semantics change).
+  §8 records the measured compaction/fold decision mechanics — two gates,
+  `nudgeGrowthTokens` doing double duty (raising it *suppresses* folds), T2/T3
+  never having fired, manual `compress` arming the automatic trigger, and the
+  finding that ~30× more cache is lost to non-compaction invalidation than to
+  folds. §9 is the `bili_sessions` profile (7.7s → 1.6s, plus `--since`/`--all`).
+  **§10: a reasoning-pair violation is a session killer, not a warning** — all 3
+  violating sessions died within 3–29 min of their last one; it now has a `viol`
+  column and a two-line callout. §11 is retention: deleting a harness session
+  never left our corpus (29 pure orphans, 11,711 searchable rows); new
+  `--keep 30d|6mo|1y` purges and `--resolve-orphans` fixes provenance, via
+  `helpers/core/ranges.py`. §12 indexes that provenance so `--source orphan:`
+  works. **§0 is the traps register — start there:** 21 defects from these
+  amendments, none of which raised an error, each row saying what it silently
+  produced and which test now catches it.
 - `../archive/graph/scipy_csgraph_scale_lanes.md` (2026-10-15) — MST backbone, supplier
   bipartite matching, conditional investor assignment, A² candidate kernel.
   Unlocks four csgraph lanes on the scale gate (57,589 edges; everything

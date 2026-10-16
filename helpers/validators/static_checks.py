@@ -1104,6 +1104,13 @@ def check_sqlite_helper_usage(scope: set[Path] | None = None) -> list[str]:  # n
         # of leaving a phantom 0-byte index behind. (Mirrors the pytest
         # allowlist in tests/test_static_checks.py.)
         "helpers/misc/convo_query.py",
+        # Read-only mode=ro URI opens of the HARNESS's own live store (the
+        # opencode db) to decide which corpus sessions are still live. A
+        # read-write connect() would take a write lock on the very store the
+        # harvester must never disturb, and would create an empty db when the
+        # harness has none. connect() also targets research.db, a different
+        # database. (Mirrors the pytest allowlist in tests/test_static_checks.py.)
+        "helpers/maintenance/harvest_conversations.py",
     )
     failures: list[str] = []
     if scope is not None:

@@ -38,7 +38,11 @@ from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[2]
 DB = REPO / "memory" / "research.db"
-FETCH_SCRATCH = Path(os.environ.get("TMPDIR", "/mnt/data/tmp/opencode")) / "findata-graph" / "xbrl_fetch_scratch"
+FETCH_SCRATCH = (
+    Path(os.environ.get("TMPDIR", "/mnt/data/tmp/opencode"))
+    / "findata-graph"
+    / "xbrl_fetch_scratch"
+)
 if str(REPO) not in sys.path:
     sys.path.insert(0, str(REPO))
 from helpers.core.db import connect  # noqa: E402  (post-bootstrap: entry point, lazy-import convention)
@@ -270,7 +274,7 @@ def fetch_filings(
         return []
 
 
-def main() -> int:
+def main() -> int:  # noqa: C901
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--entity", help="single entity name (else all targets)")
     ap.add_argument("--limit", type=int, help="cap number of entities (smoke tests)")

@@ -66,8 +66,14 @@ log = logging.getLogger("ticker-hygiene")
 
 DB_PATH = PROJECT_ROOT / "memory" / "research.db"
 REPORT_PATH = PROJECT_ROOT / "outputs" / "ticker_hygiene_report.md"
-STAGE_PATH = Path(os.environ.get("TMPDIR", "/mnt/data/tmp/opencode")) / "findata-graph" / "ticker_hygiene_stage.jsonl"
-BSE_CACHE_DIR = Path(os.environ.get("TMPDIR", "/mnt/data/tmp/opencode")) / "findata-graph" / "bse_search_cache"
+STAGE_PATH = (
+    Path(os.environ.get("TMPDIR", "/mnt/data/tmp/opencode"))
+    / "findata-graph"
+    / "ticker_hygiene_stage.jsonl"
+)
+BSE_CACHE_DIR = (
+    Path(os.environ.get("TMPDIR", "/mnt/data/tmp/opencode")) / "findata-graph" / "bse_search_cache"
+)
 
 # Indian Yahoo symbols are alphabetic; a numeric local part on .NS/.BO is
 # always the exchange's own scrip code, never a Yahoo symbol.

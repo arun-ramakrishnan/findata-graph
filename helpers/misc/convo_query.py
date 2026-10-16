@@ -33,6 +33,11 @@ if str(_REPO_ROOT) not in sys.path:
 REPO = _REPO_ROOT
 DEFAULT_DB = REPO / "memory/convo_search.duckdb"
 FTS_DB_NAME = "convo_search_fts.db"
+# Compression summaries are not a peer harness: billion-context is a
+# harness-specific plugin (2026-10-17), so harvest_conversations.py routes
+# its blocks into the OWNING harness's session file (source='bili-index/*')
+# instead of a `bili/` corpus directory. There is no bili directory to
+# filter on, so it is deliberately absent here.
 HARNESSES = ["opencode", "prime-rlm", "zcode", "dsh"]
 RRF_K = 60
 HEAD = 160
@@ -116,19 +121,34 @@ def _stored_model(con: ConvoConnections) -> str | None:
     return row[0] if row else None
 
 
-def _fts_hits(con: ConvoConnections, query: str, limit: int) -> list[tuple[Key, float]]:
+def _fts_hits(
+    con: ConvoConnections, query: str, limit: int, harness: str | None = None
+) -> list[tuple[Key, float]]:
     """Token-quoted FTS5 bm25 (lower-is-better rank → negate to score)."""
     q = " ".join(f'"{w.replace(chr(34), chr(34) * 2)}"' for w in query.split())
-    rows = con.sconn.execute(
-        "SELECT harness, part_id, rank FROM convo_fts WHERE convo_fts MATCH ? "
-        "ORDER BY rank LIMIT ?",
-        (q, limit),
-    ).fetchall()
+    sql = "SELECT harness, part_id, rank FROM convo_fts WHERE convo_fts MATCH ? "
+    params: list = [q]
+    if harness:
+        # Filter in the leg, not after fusion: a post-fusion filter on a
+        # fixed pool starves narrow harnesses on generic terms (bili lane:
+        # "context" has 6839 corpus hits, 10 bili — top-20 fusion holds no
+        # bili rows to filter down to).
+        sql += "AND harness = ? "
+        params.append(harness)
+    sql += "ORDER BY rank LIMIT ?"
+    params.append(limit)
+    rows = con.sconn.execute(sql, params).fetchall()
     return [((harness, pid), -float(rank)) for harness, pid, rank in rows]
 
 
 def _cos_hits(
-    con: ConvoConnections, query: str, limit: int, dims: int, query_vec=None
+    con: ConvoConnections,
+    query: str,
+    limit: int,
+    dims: int,
+    query_vec=None,
+    harness: str | None = None,
+    source: str | None = None,
 ) -> list[tuple[Key, float]]:
     from helpers.core import local_embedder as le
     from helpers.maintenance import rebuild_common as rbc
@@ -148,14 +168,33 @@ def _cos_hits(
     # cast width MUST match the stored vectors (384 for the house embedder,
     # _PSEUDO_DIMS for the degraded path) — a hardcoded 384 breaks pseudo mode.
     cast = f"FLOAT[{int(dims)}]"
-    rows = con.ddb.execute(
+    sql = (
         "SELECT harness, part_id, array_cosine_similarity("  # noqa: S608  # cast width is int(dims) from the stored index; vector + limit are bound
         f"embedding::{cast}, ?::{cast}) s "
         "FROM convo_search WHERE embedding IS NOT NULL "
-        "ORDER BY s DESC LIMIT ?",
-        (list(qv), limit),
-    ).fetchall()
+    )
+    params: list = [list(qv)]
+    if harness:
+        sql += "AND harness = ? "
+        params.append(harness)
+    if source:
+        # Pre-filter in SQL on the leg that CAN: `convo_search` carries
+        # provenance, so this is exact and free. The FTS leg cannot do the same
+        # — `convo_fts` lives in a separate sqlite file with no provenance
+        # column — which is why the search() caller over-fetches that leg.
+        sql += "AND provenance LIKE ? ESCAPE '\\' "
+        params.append(_like_pattern(source))
+    sql += "ORDER BY s DESC LIMIT ?"
+    params.append(limit)
+    rows = con.ddb.execute(sql, params).fetchall()
     return [((harness, pid), float(s)) for harness, pid, s in rows]
+
+
+def _like_pattern(source: str) -> str:
+    """`orphan:` -> `%orphan:%`; `*` -> any non-empty provenance."""
+    if source == "*":
+        return "%"
+    return "%" + source.replace("\\", "\\\\").replace("%", r"\%").replace("_", r"\_") + "%"
 
 
 def _rrf(*ranked: list[tuple[Key, float]]) -> dict[Key, float]:
@@ -173,7 +212,7 @@ def _fetch_rows(con: ConvoConnections, keys: list[Key]) -> dict[Key, dict]:
     params = [v for k in keys for v in k]
     rows = con.ddb.execute(
         "SELECT harness, session_id, part_id, file_path, row_no, ts, role, "  # noqa: S608  # where is a fixed OR-pattern of bound placeholders; all values parameterized
-        "agent, model, part_type, text_len, snippet FROM convo_search "
+        "agent, model, part_type, text_len, snippet, provenance FROM convo_search "
         f"WHERE {where}",
         params,
     ).fetchall()
@@ -190,6 +229,10 @@ def _fetch_rows(con: ConvoConnections, keys: list[Key]) -> dict[Key, dict]:
         "part_type",
         "text_len",
         "snippet",
+        # corpus `source`, indexed as `provenance`: `opencode:live`,
+        # `opencode-snap:<ts>`, or `orphan:<harness>` for a session the harness
+        # dropped. '' on a pre-migration row (see _provenance_migration).
+        "provenance",
     )
     return {(r[0], r[2]): dict(zip(names, r)) for r in rows}
 
@@ -234,6 +277,7 @@ def search(
     harness: str | None = None,
     kinds: list[str] | None = None,
     query_vec=None,
+    source: str | None = None,
 ) -> dict:
     """Hybrid (default) or bm25-only search; returns the result dicts.
 
@@ -246,18 +290,41 @@ def search(
     """
     dims = _stored_dims(con)
     pool = max(limit * 4, 20) * (3 if kinds else 1)
-    fts = _fts_hits(con, query, pool)
+    # The FTS leg lives in a separate sqlite file with no provenance column, so
+    # it cannot pre-filter and has to over-fetch instead. `orphan:` is ~10% of
+    # the corpus (11,711 of 121,007 rows), so a 25x pool still lands ~60
+    # candidates for a 5-hit page; the cosine leg filters in SQL exactly.
+    fts_pool = pool * (25 if source else 1)
+    fts = _fts_hits(con, query, fts_pool, harness)
     if not hybrid or not dims:
         ranked = fts
         mode = "bm25"
     else:
-        cos = _cos_hits(con, query, pool, dims, query_vec)
+        cos = (
+            _cos_hits(con, query, pool, dims, query_vec, harness=harness, source=source)
+            if source
+            else _cos_hits(con, query, pool, dims, query_vec, harness=harness)
+        )
         ranked = sorted(_rrf(fts, cos).items(), key=lambda kv: (-kv[1], kv[0]))
         mode = "hybrid"
     ranked = _apply_prior(con, ranked, kinds)
-    if harness:
+    if harness or source:
+        # Provenance is a post-filter, not a pre-filter: the candidate pool is
+        # over-fetched for `kinds` but a provenance filter would need its own
+        # over-fetch to avoid starving on an uncommon label (e.g. `orphan:`),
+        # so filter after the fact and accept that a narrow label returns fewer
+        # than `limit` on a small corpus.
         by_key = _fetch_rows(con, [k for k, _ in ranked])
-        ranked = [(k, s) for k, s in ranked if by_key.get(k, {}).get("harness") == harness]
+        if harness:
+            ranked = [(k, s) for k, s in ranked if by_key.get(k, {}).get("harness") == harness]
+        if source:
+            want = source == "*"
+
+            def _keep(rec: dict) -> bool:
+                prov = rec.get("provenance") or ""
+                return bool(prov) if want else source in prov
+
+            ranked = [(k, s) for k, s in ranked if _keep(by_key.get(k, {}))]
     top = ranked[:limit]
     by_key = _fetch_rows(con, [k for k, _ in top])
     results = []
@@ -277,6 +344,7 @@ def search(
                 "part_type": r["part_type"],
                 "text_len": r["text_len"],
                 "head": r["snippet"][:HEAD],
+                "provenance": r["provenance"],
                 "pointer": f"{r['file_path']}:{r['row_no']}",
             }
         )
@@ -339,6 +407,11 @@ def render_hits(results: list[dict]) -> None:
             f"{r['ts'][:16]} len={r['text_len']}"
         )
         print(f"    {r['head'].replace(chr(10), ' ')}")
+        # Provenance only when it says something: `opencode:live` is the
+        # uninteresting case, `orphan:` and `opencode-snap:` are not.
+        prov = r.get("provenance") or ""
+        if prov and prov != "opencode:live":
+            print(f"    provenance: {prov}")
         print(f"    {r['pointer']}")
 
 
@@ -357,6 +430,15 @@ def main(argv: list[str] | None = None) -> int:
         "absent/garbled = embed locally as before)",
     )
     p.add_argument("--harness", default=None, choices=HARNESSES, help="filter hits to one harness")
+    p.add_argument(
+        "--source",
+        default=None,
+        metavar="PATTERN",
+        help="keep only hits whose provenance matches PATTERN — 'orphan:' for "
+        "sessions the harness deleted, 'opencode-snap:' for snapshot-backed "
+        "retention, 'opencode:live' for what the harness still has. "
+        "'*' matches any non-empty provenance (i.e. a migrated index).",
+    )
     p.add_argument(
         "--kinds",
         default=None,
@@ -407,6 +489,7 @@ def main(argv: list[str] | None = None) -> int:
             harness=args.harness,
             kinds=kinds,
             query_vec=rbc.parse_query_vector_flag(args.query_vector),
+            source=args.source,
         )
     finally:
         con.close()

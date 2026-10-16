@@ -55,7 +55,9 @@ log = logging.getLogger("enrich")
 
 DB_PATH = PROJECT_ROOT / "memory" / "research.db"
 COMPANIES_DIR = PROJECT_ROOT / "findata" / "Companies"
-FETCH_SCRATCH = Path(os.environ.get("TMPDIR", "/mnt/data/tmp/opencode")) / "findata-graph" / "yf_fetch_scratch"
+FETCH_SCRATCH = (
+    Path(os.environ.get("TMPDIR", "/mnt/data/tmp/opencode")) / "findata-graph" / "yf_fetch_scratch"
+)
 
 SOURCE_REF = "yfinance"
 SOURCE_REF_PREFIX = "yfinance"

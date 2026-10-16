@@ -21,6 +21,9 @@ part_id collision:
   session = final context (tail/delta fallbacks marked partial in
   meta), per-response ``text``/``reasoningText`` keyed by responseId,
   responseId-less error records as searchable ``error`` rows (S2).
+- bili: live billion-context ``sessions/index.db`` compression summaries
+  (ALL blocks regardless of `active`; per-session {block: [hash, active]}
+  fingerprint, quiet on match).
 
 Incremental: per-source watermarks in ``memory/convo_search.duckdb``
 (opencode: max ``time_updated`` per db; files: mtime+size). Immutable
@@ -62,7 +65,8 @@ INDEX_DB = REPO / "memory/convo_search.duckdb"
 # sys.path itself before that import (static check: entry-point sys.path).
 sys.path.insert(0, str(REPO))
 
-from helpers.core.db import connect  # noqa: E402  (bare-script entry point; bootstrap above)
+from helpers.core.db import connect  # noqa: E402
+from helpers.core.ranges import RangeError, cutoff_from  # noqa: E402  (bare-script entry point; bootstrap above)
 
 _SCHEMA = pa.schema(
     [
@@ -242,6 +246,7 @@ class SessionWriter:
     def __init__(self, root: Path) -> None:
         self.root = root
         self.touched: dict[tuple[str, str], dict[str, dict]] = {}
+        self.fresh: set[tuple[str, str]] = set()
 
     def add(self, harness: str, rows: list[dict]) -> None:
         for r in rows:
@@ -256,7 +261,7 @@ class SessionWriter:
             out = self.root / harness / "conversations"
             out.mkdir(parents=True, exist_ok=True)
             f = out / f"{_safe(sid)}.parquet"
-            if f.exists():
+            if f.exists() and (harness, sid) not in self.fresh:
                 for r in pq.read_table(f).to_pylist():
                     buf.setdefault(r["part_id"], r)
             rows = sorted(buf.values(), key=lambda r: (r["ts"], r["part_id"]))
@@ -1110,6 +1115,230 @@ def _harvest_dsh(store: Store, writer: SessionWriter) -> str:
     return "\n".join(stats) + f"\ndsh total new: {total}"
 
 
+def _bili_index_path() -> Path:
+    """Resolved per call (not at import) so Path.home patching in tests
+    isolates the lane — same pattern as the dsh lane."""
+    return Path.home() / ".local" / "share" / "billion-context" / "sessions" / "index.db"
+
+
+# Harnesses whose session files the bili lane owns outright — i.e. no other
+# harvest lane writes them. 'unknown' is the index-without-a-sessions-table
+# case. A namespace that HAS a lane (opencode, prime-rlm, zcode, dsh) is
+# excluded: `fresh` would make flush() overwrite that lane's rows.
+_BILI_OWNED_HARNESSES = {"unknown"}
+
+
+def _bili_root() -> Path:
+    """The billion-context store root that CONTAINS the session index.
+
+    Distinguishes "this machine has no billion-context" (a quiet skip —
+    the lane's designed behaviour) from "billion-context is installed but
+    the index is gone" (storage migration or a shadow-store reset, which
+    silently truncates this lane's history). Review 2026-10-17: under
+    billion-context 0.1.197 `storage.unified=shadow` every session write
+    is double-ingested into `sessions/index.db` and digest-reconciled,
+    making that file a derived artefact whose lifecycle is governed by
+    the proxy's migration, not by us. A reset must not read as healthy.
+    """
+    return _bili_index_path().parent.parent
+
+
+def _bili_index_state() -> str:
+    """'ready' | 'absent' | 'lost' — 'lost' is present-root/missing-index."""
+    idx = _bili_index_path()
+    if idx.exists():
+        return "ready"
+    return "lost" if _bili_root().exists() else "absent"
+
+
+def _bili_absent_note(state: str, idx: Path) -> str:
+    """One line for both the harvest and --check paths.
+
+    'absent' keeps the lane's designed quiet skip (no proxy on this
+    machine). 'lost' is NOT quiet: the proxy is installed, so a missing
+    index is a reset or a storage migration, and reporting it as a skip
+    would silently truncate this lane's history while the gate stayed
+    green.
+    """
+    if state == "absent":
+        return "bili: SKIP missing index.db (no billion-context on this machine)"
+    return (
+        f"bili: LOST index.db — billion-context present at {_bili_root()} but "
+        f"{idx} is gone (shadow-store reset or storage migration); "
+        f"this lane's history is NOT harvested"
+    )
+
+
+def _bili_namespace(con, sid: str) -> str:
+    """The host namespace that owns this session ('opencode', 'dsh', …).
+
+    Bili compression blocks for a `dsh` session were being filed under
+    harness 'bili' with nothing recording the true owner, so dsh- and
+    opencode-hosted summaries were indistinguishable inside the lane.
+
+    billion-context became a harness-specific plugin system (2026-10-17),
+    so a namespace is the harness whose sessions it compressed, not a peer
+    of them. The lane therefore ROUTES: a dsh session's summaries go to
+    harness `dsh`, an opencode session's to `opencode`, joining that lane's
+    rows in the same session file. Rows stay under 'bili' only if the index
+    reports a namespace with no corpus directory.
+
+    Safe because the lanes use disjoint part_id schemes — bili `sid#bid`,
+    opencode/dsh `sid:seq` — and share ONE SessionWriter, so both lanes'
+    rows land in the same per-session file. Routing also retires a real
+    duplicate: every bili session file collided by NAME with the owning
+    lane's own copy, holding the same session twice.
+
+    Degrades to 'unknown' on an index without a sessions table.
+    """
+    try:
+        row = con.execute("SELECT namespace FROM sessions WHERE session_id = ?", [sid]).fetchone()
+    except sqlite3.Error:
+        return "unknown"
+    return (row[0] if row else None) or "unknown"
+
+
+def _bili_fingerprint(con, sid: str) -> dict:
+    """{block_id: [summary_hash, active]} — deactivation is a metadata flip,
+    so `active` rides the fingerprint; a pure active-flip still re-harvests
+    the row (bili_lane proposal S3).
+
+    `v` versions the ROW SHAPE — the part_id scheme — and bumping it forces
+    a clean rewrite so two generations never union (v1->v2: session-scoped
+    part_ids). `ns` rides the fingerprint WITHOUT bumping `v`: the owning
+    namespace changes only a meta field, so its rows must be re-harvested but
+    must MERGE into the namespace's session file, which another lane owns.
+    Bumping `v` for it would mark the session fresh and flush() would write
+    the bili rows alone over that lane's parts (review 2026-10-17).
+    """
+    return {
+        "v": 2,
+        "ns": _bili_namespace(con, sid),
+        "b": {
+            bid: [sh, act]
+            for bid, sh, act in con.execute(
+                "SELECT block_id, summary_hash, active FROM blocks WHERE session_id = ?",
+                [sid],
+            )
+        },
+    }
+
+
+def _harvest_bili(store: Store, writer: SessionWriter) -> str:
+    """BILI compression summaries (bili_convo_lane proposal S1-S3).
+
+    Every block is indexed regardless of `active` — manual compacts
+    deactivate blocks without replacement and the inactive set holds
+    unique topics (trial 4/10 ACTIVE-only vs 9/10 ALL). Missing store is a
+    quiet skip (source absent, not drift), so machines without the proxy
+    stay green.
+    """
+    idx = _bili_index_path()
+    state = _bili_index_state()
+    if state != "ready":
+        return _bili_absent_note(state, idx)
+    stats, total = [], 0
+    con = connect(idx, read_only=True)
+    try:
+        sessions = sorted(r[0] for r in con.execute("SELECT DISTINCT session_id FROM blocks"))
+        for sid in sessions:
+            ns = _bili_namespace(con, sid)
+            key = f"bili:{sid}"
+            cur = _bili_fingerprint(con, sid)
+            wm_raw = store.watermark(key)
+            wm = json.loads(wm_raw) if wm_raw else None
+            if wm is not None and wm == cur:
+                stats.append(f"bili:{sid[:13]}: quiet")
+                continue
+            if wm is None or wm.get("v") != cur["v"]:
+                # Row-shape migration normally forces a clean rewrite so two
+                # generations never union (live lesson: 72 corpus rows indexed
+                # as 57 + 57 stale doublons). That `fresh` mark is ONLY safe
+                # when bili owns the session file outright: `fresh` makes
+                # flush() write the touched buffer ALONE, so on a routed
+                # harness it would erase the owning lane's rows for that same
+                # session. Routed lanes therefore merge unconditionally —
+                # correct because part_ids are keyed `sid#bid` and stable, so
+                # a re-harvest overwrites its own rows in place.
+                if ns in _BILI_OWNED_HARNESSES:
+                    writer.fresh.add((ns, sid))
+            rows = []
+            for bid, payload, created, tier, act in con.execute(
+                "SELECT block_id, payload_json, created_at, tier, active"
+                " FROM blocks WHERE session_id = ?",
+                [sid],
+            ):
+                try:
+                    d = json.loads(payload)
+                except json.JSONDecodeError, TypeError:
+                    continue
+                topic = d.get("topic") or ""
+                text = (topic + "\n" + d.get("summary", "")).strip()
+                if not text:
+                    continue
+                rows.append(
+                    _row(
+                        f"{sid}#{bid}",  # session-scoped: bare block ids
+                        bid,  # collide across sessions on the
+                        sid,  # (harness, part_id) primary key
+                        _ms(created),
+                        "assistant",
+                        "bili",
+                        "",
+                        "compression-summary",
+                        text,
+                        {
+                            "tier": tier,
+                            "active": bool(act),
+                            "topic": topic,
+                            "namespace": ns,
+                            "summary_hash": cur["b"].get(bid, [None])[0],
+                            "created_at": created,
+                        },
+                        f"bili-index/{ns}",
+                    )
+                )
+            writer.add(ns, rows)
+            store.register(ns, rows)
+            store.set_watermark(key, json.dumps(cur, sort_keys=True))
+            total += len(rows)
+            stats.append(f"bili:{sid[:13]} ({ns}): {len(rows)} parts")
+    finally:
+        con.close()
+    return "\n".join(stats) + f"\nbili total new: {total}"
+
+
+def _bili_drift(store: Store) -> list[str]:
+    """--check lines for the bili lane.
+
+    Silent only when billion-context is genuinely absent. A present root
+    with a missing index reports drift (review 2026-10-17): the quiet-skip
+    path used to cover both cases, so a shadow-store reset read as healthy.
+    """
+    idx = _bili_index_path()
+    state = _bili_index_state()
+    if state == "absent":
+        return []
+    if state == "lost":
+        return [_bili_absent_note(state, idx)]
+    drift = []
+    try:
+        con = connect(idx, read_only=True)
+        try:
+            sessions = sorted(r[0] for r in con.execute("SELECT DISTINCT session_id FROM blocks"))
+            for sid in sessions:
+                key = f"bili:{sid}"
+                wm_raw = store.watermark(key)
+                wm = json.loads(wm_raw) if wm_raw else None
+                if wm != _bili_fingerprint(con, sid):
+                    drift.append(f"changed bili:{sid[:13]}")
+        finally:
+            con.close()
+    except sqlite3.DatabaseError as exc:
+        drift.append(f"unreadable bili index ({type(exc).__name__})")
+    return drift
+
+
 def _zc_content(content: object) -> str:
     if isinstance(content, str):
         return content
@@ -1518,6 +1747,108 @@ def _snap_count_drift(store: Store) -> list[str]:
     return []
 
 
+def _coverage(store: Store) -> list[str]:
+    """One quiet-confirmation line per lane for --check mode: drift output
+    alone can't distinguish 'covered and quiet' from 'lane never ran'."""
+    lines = []
+    try:
+        lines.append(f"opencode: {len(_opencode_sources())} sources tracked")
+    except OSError as exc:
+        lines.append(f"opencode: source enumeration failed ({exc})")
+    try:
+        lines.append(f"prime-rlm: {len(_prime_files())} session files tracked")
+    except OSError as exc:
+        lines.append(f"prime-rlm: source enumeration failed ({exc})")
+    try:
+        zc = _zcode_groups()
+        lines.append(
+            f"zcode: {len(zc)} sessions tracked ({sum(len(v) for v in zc.values())} files)"
+        )
+    except OSError as exc:
+        lines.append(f"zcode: source enumeration failed ({exc})")
+    try:
+        lines.append(f"dsh: {len(_dsh_logs())} session logs tracked")
+    except OSError as exc:
+        lines.append(f"dsh: source enumeration failed ({exc})")
+    idx = _bili_index_path()
+    if _bili_index_state() != "ready":
+        lines.append(_bili_absent_note(_bili_index_state(), idx))
+    else:
+        n_ses, n_blocks = 0, 0
+        for key, raw in store._wm.items():
+            if not key.startswith("bili:"):
+                continue
+            try:
+                n_ses += 1
+                n_blocks += len(json.loads(raw).get("b", {}))
+            except ValueError, AttributeError:
+                continue
+        lines.append(f"bili: {n_ses} sessions tracked ({n_blocks} blocks fingerprinted)")
+    return lines
+
+
+def _provenance_drift(corpus_root: Path = CORPUS_ROOT, index_db: Path = INDEX_DB) -> list[str]:
+    """Rows whose `convo_search.provenance` disagrees with the parquet's `source`.
+
+    `provenance` is a COPY taken at read time. An in-place rewrite of `source`
+    — which is what `--resolve-orphans` does, and what any future provenance
+    migration would do — moves no file and no row, so the rebuild's diff sees
+    nothing and the two diverge silently. `--resolve-orphans` now refreshes the
+    index itself, but a convention that only holds while everyone remembers it
+    is not a check. Measured 2026-10-17: 912 rows were wrong after a relabel and
+    `make convo-fresh APPLY=1` did not correct them.
+
+    The join is positional on `(file_path, row_no)`, the same key
+    `_backfill_provenance` uses, because one parquet can carry MIXED
+    provenance. Rows the index does not have are skipped — an unindexed file is
+    `stale_new`'s business, not a provenance disagreement.
+    """
+    import duckdb
+    import pyarrow.parquet as pq
+
+    if not Path(index_db).exists():
+        return []
+    try:
+        con = duckdb.connect(str(index_db), read_only=True)
+    except Exception:
+        return []
+    try:
+        idx = {
+            (r[0], r[1]): r[2]
+            for r in con.execute(
+                "SELECT file_path, row_no, provenance FROM convo_search"
+            ).fetchall()
+        }
+    except Exception:
+        return []
+    finally:
+        con.close()
+
+    out: list[str] = []
+    for f in _all_corpus_files(Path(corpus_root)):
+        try:
+            srcs = pq.read_table(f, columns=["source"]).column("source").to_pylist()
+        except Exception:  # noqa: S112  # unreadable file: --check reports it, a source census must not abort
+            continue
+        # `--corpus-root` may point outside REPO. Falling back to the absolute
+        # path keeps the check working there; letting `relative_to` raise would
+        # skip the file silently, which is how an unchecked drift gets in.
+        try:
+            rel = str(f.resolve().relative_to(REPO))
+        except ValueError:
+            rel = str(f.resolve())
+        buckets: dict[str, int] = {}
+        for row_no, s in enumerate(srcs):
+            got = idx.get((rel, row_no))
+            if got is not None and got != s:
+                buckets[f"{got or '(empty)'} -> {s or '(empty)'}"] = (
+                    buckets.get(f"{got or '(empty)'} -> {s or '(empty)'}", 0) + 1
+                )
+        for change, n in sorted(buckets.items(), key=lambda kv: (-kv[1], kv[0])):
+            out.append(f"{rel}: {n} row(s) {change}")
+    return out
+
+
 def _drift(store: Store, corpus_root: Path = CORPUS_ROOT) -> list[str]:
     """--check verdict: sources whose current fingerprint differs from the watermark."""
     drift = []
@@ -1528,8 +1859,14 @@ def _drift(store: Store, corpus_root: Path = CORPUS_ROOT) -> list[str]:
         line = _dsh_log_drift(store, path, sid, src)
         if line is not None:
             drift.append(line)
-    for line in _dsh_index_lag():
-        drift.append(line)
+    drift.extend(_bili_drift(store))
+    # dsh-index lag lines are NOT corpus drift: they describe the EXTERNAL
+    # dsh session-query index (~/.dsh/**/session-search.db), which no
+    # harvest APPLY can advance. Folding them into the drift list made
+    # `make convo-fresh APPLY=1` permanently STALE (measured 2026-10-17:
+    # 13 missing + 1 lagging sessions kept the flag up across applies).
+    # They surface as an advisory in main()'s check output instead; the
+    # lines close when the dsh indexer next catches up.
     for f, src in _prime_files():
         key = f"{src}:{hashlib.blake2b(str(f).encode(), digest_size=6).hexdigest()}"
         st = f.stat()
@@ -1602,12 +1939,27 @@ def harvest(
         if check:
             drift = _drift(store, corpus_root)
             fresh = not drift
+            deleted, unresolved = _deleted_sessions(corpus_root)
+            prov = _provenance_drift(corpus_root)
             return {
                 "check": True,
                 "index_stale": not fresh,
                 "stale_new": drift,
                 "stale_changed": [],
-                "stale_deleted": [],
+                # Every corpus session the harness no longer has. This was the
+                # vestigial field that hid the leak: declared here since the
+                # v2 cutover, assigned nowhere, and 29 sessions / 16,949 rows
+                # sat behind it until someone counted by hand on 2026-10-17.
+                "stale_deleted": deleted,
+                # The subset still labelled `opencode:live` — the ones
+                # `--resolve-orphans` has not yet relabelled. Those DO gate:
+                # the corpus is claiming provenance it does not have.
+                "stale_deleted_unresolved": unresolved,
+                # Index-vs-corpus `provenance` disagreement. A different axis:
+                # the corpus may be perfectly correct and the index still be
+                # serving labels the parquet no longer carries.
+                "stale_provenance": prov,
+                "coverage": _coverage(store),
                 "elapsed": 0.0,
             }
         writer = SessionWriter(corpus_root)
@@ -1617,6 +1969,7 @@ def harvest(
             ("prime-rlm", _harvest_prime),
             ("zcode", _harvest_zcode),
             ("dsh", _harvest_dsh),
+            ("bili", _harvest_bili),
         ):
             if timer is not None:
                 with timer.phase(f"lane:{name}"):
@@ -1649,7 +2002,314 @@ def harvest(
         store.close()
 
 
-def main(argv: list[str] | None = None) -> int:
+def _deleted_sessions(corpus_root: Path) -> tuple[list[str], list[str]]:
+    """Corpus sessions the harness no longer has, and how many are unresolved.
+
+    Returns `(deleted, unresolved)`. `unresolved` is the subset still labelled
+    `opencode:live` — the corpus claiming provenance it does not have — and is
+    what the gate counts. Already-relabelled `orphan:` sessions are reported
+    but not gated, so `--resolve-orphans` closes the gate once and the corpus
+    stays green afterwards.
+
+    Snapshot-backed sessions are excluded: the snapshot lanes retain them on
+    purpose, so "the harness purged it" is not drift.
+    """
+    deleted: list[str] = []
+    unresolved: list[str] = []
+    root = Path(corpus_root)
+    if not root.is_dir():
+        return (deleted, unresolved)
+    for harness_dir in sorted(p for p in root.iterdir() if p.is_dir()):
+        conv = harness_dir / "conversations"
+        if not conv.is_dir():
+            continue
+        harness = harness_dir.name
+        live = _live_session_ids(harness)
+        if live is None:
+            continue  # no manifest for this harness — see _live_session_ids
+        for f in sorted(conv.glob("*.parquet")):
+            try:
+                t = pq.read_table(f, columns=["session_id", "source"])
+            except Exception:  # noqa: S112  # unreadable file: --check reports it, not this scan
+                continue
+            sids = {v for v in t.column("session_id").to_pylist() if v}
+            srcs = set(t.column("source").to_pylist())
+            if not sids:
+                continue
+            (sid,) = (next(iter(sids)),)
+            if sid in live:
+                continue
+            deleted.append(sid)
+            # Retention and provenance are separate questions. A snapshot keeps
+            # the file; it does NOT make `opencode:live` true. So a session that
+            # still carries a live label is unresolved whether or not a snapshot
+            # backs it — and treating "snapshot-backed" as "clean" hid 21,127
+            # rows across 14 sessions on 2026-10-17.
+            #
+            # Unresolved also means ANY row still claims the harness owns this
+            # session, not "the orphan label is absent". A file can hold both:
+            # `--resolve-orphans` relabels the rows present when it runs, and
+            # rows harvested afterwards re-assert `<harness>:live`.
+            # Checking for the label's PRESENCE let a 3-of-42-row relabel
+            # pass as resolved (3 sessions, 2,926 rows, 2026-10-17).
+            if any(_claims_live_harness(s, harness) for s in srcs):
+                unresolved.append(sid)
+    return (sorted(deleted), sorted(unresolved))
+
+
+def _session_sources(corpus_root: Path) -> dict[str, set[str]]:
+    """`{session_id: {source, ...}}` for every parquet in the corpus."""
+    out: dict[str, set[str]] = {}
+    for harness_dir in sorted(p for p in Path(corpus_root).iterdir() if p.is_dir()):
+        conv = harness_dir / "conversations"
+        if not conv.is_dir():
+            continue
+        for f in sorted(conv.glob("*.parquet")):
+            try:
+                t = pq.read_table(f, columns=["session_id", "source"])
+            except Exception:  # noqa: S112  # unreadable file: reported by --check, not here
+                continue
+            cols = t.to_pydict()
+            for sid, src in zip(cols["session_id"], cols["source"], strict=True):
+                if sid:
+                    out.setdefault(sid, set()).add(src or "")
+    return out
+
+
+def _snapshot_backed(srcs: set[str]) -> bool:
+    """A snapshot lane deliberately retains a session the harness purged."""
+    return any(s.startswith("opencode-snap") or "snap:" in s for s in srcs)
+
+
+def _all_corpus_files(corpus_root: Path) -> list[Path]:
+    out: list[Path] = []
+    if not Path(corpus_root).is_dir():
+        return out
+    for harness_dir in sorted(p for p in Path(corpus_root).iterdir() if p.is_dir()):
+        conv = harness_dir / "conversations"
+        if conv.is_dir():
+            out.extend(sorted(conv.glob("*.parquet")))
+    return out
+
+
+def _refresh_index_provenance(files: list[Path], *, dry_run: bool = False) -> None:
+    """Re-read `source` from these parquets into `convo_search.provenance`.
+
+    `_backfill_provenance` joins on `(file_path, row_no)` — positional, no
+    re-embedding — because a single parquet can carry MIXED provenance (19 of
+    the 271 corpus files do). That makes it exactly right for repairing an
+    in-place relabel, which produces no file-level diff for the rebuild to
+    notice.
+    """
+    if dry_run:
+        return
+    if not files:
+        print("  provenance: nothing to refresh", file=sys.stderr)
+        return
+    from helpers.maintenance.rebuild_convo_search import _backfill_provenance  # noqa: PLC0415
+
+    idx = INDEX_DB
+    if not idx.exists():
+        print(f"  provenance: no index at {idx}; skipped", file=sys.stderr)
+        return
+    nf, nr = _backfill_provenance(idx, files)
+    print(
+        f"  provenance: refreshed {nr} index row(s) across {nf} file(s)",
+        file=sys.stderr,
+    )
+
+
+def _is_snapshot_src(src: str, harness: str) -> bool:
+    """True for a provenance label that records a SNAPSHOT, not a live store.
+
+    Two shapes exist and both must survive a relabel:
+      `opencode-snap:2026-09-19_17-00-05`  (harness-prefixed)
+      `zcode:snap`, `prime-snap:...`        (per-lane naming)
+    Anything else in a session the harness dropped is a live claim, and a live
+    claim about a session the harness dropped is the lie we are fixing.
+    """
+    return src.startswith(f"{harness}-snap") or src.endswith(":snap") or src == "snap"
+
+
+def _claims_live_harness(src: str, harness: str) -> bool:
+    """True when this provenance label asserts the harness still holds the row.
+
+    The inverse of "is this fine", so every accepted shape must be named:
+    snapshot labels (retained and truthful) and the orphan label (already
+    relabelled). Everything else — `opencode:live`, `bili-index/opencode`,
+    `dsh:live` — is a claim about a session the harness has dropped.
+    """
+    if src == f"orphan:{harness}":
+        return False
+    return not _is_snapshot_src(src, harness)
+
+
+def _resolve_orphans(  # noqa: C901
+    corpus_root: Path, *, dry_run: bool, collect: list[Path] | None = None
+) -> tuple[int, int]:
+    """Relabel provenance for sessions the harness no longer has.
+
+    The writer is add/merge-only (`SessionWriter.flush` iterates the sessions a
+    source *reported*), so deleting a session in the harness leaves its parquet
+    behind claiming `opencode:live` — a provenance lie, and one that made 29
+    pure orphans invisible until they were counted by hand on 2026-10-17.
+
+    Retention and provenance are SEPARATE questions, and conflating them is how
+    21,127 rows stayed wrong. A snapshot-backed session is retained (that is
+    what the snapshot lanes are for) — but its rows may ALSO carry
+    `opencode:live`, and that label is still a claim the harness does not
+    honour. So this rewrites per ROW, not per file: every non-snapshot source in
+    a session the harness dropped becomes `orphan:<harness>`, while the
+    snapshot rows keep their provenance and the file keeps its retention.
+
+    The rows stay. Deleting them is `--keep`'s job, and it is a separate
+    decision from "stop claiming the harness owns these".
+    """
+    if not Path(corpus_root).is_dir():
+        print(f"--resolve-orphans: no corpus root {corpus_root}", file=sys.stderr)
+        return (0, 0)
+    changed_files = changed_rows = scanned = 0
+    for harness_dir in sorted(p for p in Path(corpus_root).iterdir() if p.is_dir()):
+        conv = harness_dir / "conversations"
+        if not conv.is_dir():
+            continue
+        harness = harness_dir.name
+        for f in sorted(conv.glob("*.parquet")):
+            try:
+                table = pq.read_table(f)
+            except Exception:  # noqa: S112  # unreadable file: --check reports it, not this pass
+                continue
+            scanned += 1
+            sids = {v for v in table.column("session_id").to_pylist() if v}
+            if not sids:
+                continue
+            # `live` here means "the harness's own storage". Only opencode has
+            # a queryable live-session list (its `session` table); dsh/prime/
+            # zcode are file-enumerated with no equivalent manifest, so they
+            # return None and are skipped rather than guessed at — relabelling
+            # 500 live sessions as orphans is not a recoverable mistake.
+            known_live = _live_session_ids(harness)
+            if known_live is None:
+                continue
+            (sid,) = (next(iter(sids)),)
+            if sid in known_live:
+                continue
+            # Rewrite only the LIVE-ish labels. A snapshot row is the truth
+            # about where this content came from and is kept verbatim.
+            n = sum(
+                1
+                for s in table.column("source").to_pylist()
+                if not s.startswith(f"{harness}-snap")
+                and not s.endswith(":snap")
+                and s != f"orphan:{harness}"
+            )
+            if not n:
+                continue
+            changed_files += 1
+            changed_rows += n
+            if collect is not None:
+                collect.append(f)
+            if dry_run:
+                continue
+            src_col = table.column("source").to_pylist()
+            table = table.set_column(
+                table.schema.get_field_index("source"),
+                "source",
+                pa.array(
+                    [
+                        s if not _claims_live_harness(s, harness) else f"orphan:{harness}"
+                        for s in src_col
+                    ],
+                    type=pa.string(),
+                ),
+            )
+            pq.write_table(table, f, compression="zstd")
+    verb = "would relabel" if dry_run else "relabelled"
+    print(f"{verb} {changed_rows} row(s) across {changed_files} file(s) as orphan", file=sys.stderr)
+    if scanned:
+        print(f"  scanned {scanned} parquet file(s) under {corpus_root}", file=sys.stderr)
+    print("  rows are RETAINED; --keep <range> is what purges them", file=sys.stderr)
+    return (changed_files, changed_rows)
+
+
+_LIVE_SESSION_IDS: dict[str, set[str] | None] = {}
+
+
+def _live_session_ids(harness: str) -> set[str] | None:
+    """Session ids the harness currently holds, or None when it cannot be asked.
+
+    Only `opencode` answers: its state is a SQLite `session` table. The other
+    three lanes are file-enumerated and have no comparable manifest, so they
+    return None and every session is left alone.
+    """
+    if harness not in _LIVE_SESSION_IDS:
+        _LIVE_SESSION_IDS[harness] = _oc_live_ids() if harness == "opencode" else None
+    return _LIVE_SESSION_IDS[harness]
+
+
+def _opencode_live_session_ids() -> set[str]:
+    """Session ids currently in `opencode.db`. Empty when it is not there."""
+    return _live_session_ids("opencode") or set()
+
+
+def _oc_live_ids() -> set[str] | None:
+    import sqlite3
+
+    for cand in sorted(Path.home().glob(".local/share/opencode/opencode.db")) + sorted(
+        (SNAP_ROOT).glob("*/localhost/home/arun/.local/share/opencode/opencode.db")
+    ):
+        try:
+            con = sqlite3.connect(f"file:{cand}?mode=ro", uri=True)
+            try:
+                return {r[0] for r in con.execute("SELECT id FROM session")}
+            finally:
+                con.close()
+        except sqlite3.Error:
+            continue
+    return None
+
+
+def _purge_older_than(corpus_root: Path, keep: str, *, dry_run: bool) -> tuple[int, int]:
+    """Delete corpus parquets whose newest row predates `keep` ago.
+
+    Age is the session's own newest `ts`, not a filesystem mtime: `flush()`
+    rewrites a file on every harvest it touches, so mtime tracks the last
+    APPLY, not the conversation. Purging on mtime would keep dead sessions
+    alive forever and delete live ones the moment the store was restored.
+
+    Returns (files, rows).
+    """
+    cutoff = cutoff_from(keep)
+    files = rows = 0
+    for harness_dir in sorted(p for p in Path(corpus_root).iterdir() if p.is_dir()):
+        conv = harness_dir / "conversations"
+        if not conv.is_dir():
+            continue
+        for f in sorted(conv.glob("*.parquet")):
+            try:
+                newest = pq.read_table(f, columns=["ts"]).column("ts").to_pylist()
+            except Exception:  # noqa: S112  # unreadable file: --check reports it, not this pass
+                continue
+            stamps = [t for t in newest if t is not None]
+            if not stamps or max(stamps) >= cutoff:
+                continue
+            n = len(newest)
+            files += 1
+            rows += n
+            if not dry_run:
+                f.unlink()
+    verb = "would purge" if dry_run else "purged"
+    print(
+        f"{verb} {files} parquet file(s) / {rows} row(s) older than "
+        f"{cutoff:%Y-%m-%d} (keep={keep})",
+        file=sys.stderr,
+    )
+    if files:
+        print("  refresh the index: make convo-fresh APPLY=1", file=sys.stderr)
+    return (files, rows)
+
+
+def main(argv: list[str] | None = None) -> int:  # noqa: C901
     p = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     p.add_argument(
         "--check",
@@ -1665,12 +2325,70 @@ def main(argv: list[str] | None = None) -> int:
         "zcode parquet model dicts to plain modelId strings; no harvest",
     )
     p.add_argument(
+        "--keep",
+        metavar="RANGE",
+        help=(
+            "purge corpus parquet files whose newest row predates RANGE ago "
+            "(30d / 6mo / 1y, or a bare number of days). Combined with "
+            "--dry-run this reports without deleting."
+        ),
+    )
+    p.add_argument(
+        "--resolve-orphans",
+        action="store_true",
+        help=(
+            "relabel sessions the harness no longer has as `orphan:<harness>` "
+            "so provenance stops claiming opencode:live. Rows are retained; "
+            "only --keep purges."
+        ),
+    )
+    p.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="with --keep / --resolve-orphans: report what would change, write nothing",
+    )
+    p.add_argument(
+        "--refresh-index-provenance",
+        action="store_true",
+        help="re-read `source` from every corpus parquet into "
+        "convo_search.provenance; repairs an index left stale by an in-place "
+        "provenance rewrite (--resolve-orphans does this for itself)",
+    )
+    p.add_argument(
         "--migrate-opencode-models",
         action="store_true",
         help="one-shot (opencode v2-lane S1): rewrite existing opencode "
         "parquet model dict-strings to plain model-id strings; no harvest",
     )
     args = p.parse_args(argv)
+    if args.keep or args.resolve_orphans or args.refresh_index_provenance:
+        try:
+            if args.keep:
+                cutoff_from(args.keep)  # fail fast, before anything is touched
+        except RangeError as exc:
+            print(f"--keep: {exc}", file=sys.stderr)
+            return 2
+        if args.resolve_orphans:
+            touched: list[Path] = []
+            _resolve_orphans(Path(args.corpus_root), dry_run=args.dry_run, collect=touched)
+            # The corpus is the source of truth, but `convo_search.provenance`
+            # is a COPY taken at read time. A relabel rewrites `source` in
+            # place — no new file, no moved row — so the rebuild's file-diff
+            # never notices and the index keeps serving the stale label.
+            # Measured 2026-10-17: after relabelling 842 rows, 865 rows of
+            # ses_ec7af063cffew2a8xvEcV142n6 still read `opencode:live` in the
+            # index. Refresh it here, where the change is known, rather than
+            # hoping a later APPLY notices.
+            _refresh_index_provenance(touched, dry_run=args.dry_run)
+        if args.refresh_index_provenance:
+            # Standalone repair: the corpus is already correct but the index is
+            # not (an older relabel, or any other in-place provenance rewrite).
+            _refresh_index_provenance(_all_corpus_files(Path(args.corpus_root)))
+        if args.keep:
+            _purge_older_than(Path(args.corpus_root), args.keep, dry_run=args.dry_run)
+        if not args.dry_run:
+            print("  done; run make convo-fresh APPLY=1 to reindex", file=sys.stderr)
+        return 0
     if args.migrate_zcode_models:
         files, rows = _migrate_zcode_models(Path(args.corpus_root))
         print(
@@ -1695,12 +2413,59 @@ def main(argv: list[str] | None = None) -> int:
         timer=timer,
     )
     if out["check"]:
-        if out["index_stale"]:
-            print("corpus state: STALE — sources drifted:", file=sys.stderr)
-            for d in out["stale_new"][:15]:
-                print(f"  {d}", file=sys.stderr)
-            print("refresh: make convo-fresh APPLY=1", file=sys.stderr)
-            return timer.finish(1, f"STALE sources={len(out['stale_new'])}")
+        for line in out.get("coverage", []):
+            print(f"  {line}", file=sys.stderr)
+        lag = _dsh_index_lag()
+        if lag:
+            print(
+                "  dsh tool index (external session-search.db — advisory, "
+                "closes when the dsh indexer catches up; not corpus drift):",
+                file=sys.stderr,
+            )
+            for line in lag[:15]:
+                print(f"    {line}", file=sys.stderr)
+        deleted = out.get("stale_deleted") or []
+        unresolved = out.get("stale_deleted_unresolved") or []
+        if deleted:
+            print(
+                f"deleted sessions: {len(deleted)} corpus session(s) the harness no "
+                f"longer has ({len(deleted) - len(unresolved)} already relabelled "
+                f"orphan:*)",
+                file=sys.stderr,
+            )
+            for sid in deleted[:10]:
+                mark = "UNRESOLVED" if sid in set(unresolved) else "orphan:*"
+                print(f"  {mark:<11} {sid}", file=sys.stderr)
+        if out["index_stale"] or unresolved or out.get("stale_provenance"):
+            prov = out.get("stale_provenance") or []
+            if prov:
+                print(
+                    f"provenance drift: {len(prov)} file(s) where convo_search "
+                    f"disagrees with the corpus",
+                    file=sys.stderr,
+                )
+                for d in prov[:10]:
+                    print(f"  {d}", file=sys.stderr)
+                print(
+                    "  fix: harvest_conversations.py --refresh-index-provenance",
+                    file=sys.stderr,
+                )
+            if out["index_stale"]:
+                print("corpus state: STALE — sources drifted:", file=sys.stderr)
+                for d in out["stale_new"][:15]:
+                    print(f"  {d}", file=sys.stderr)
+                print("refresh: make convo-fresh APPLY=1", file=sys.stderr)
+            if unresolved:
+                print(
+                    f"  {len(unresolved)} deleted session(s) still labelled "
+                    f"opencode:live — fix: harvest_conversations.py --resolve-orphans",
+                    file=sys.stderr,
+                )
+            return timer.finish(
+                1,
+                f"STALE sources={len(out['stale_new'])} orphans={len(unresolved)} "
+                f"provenance={len(prov)}",
+            )
         print("corpus state: FRESH", file=sys.stderr)
         return timer.finish(0, "FRESH")
     print(out["lanes"], file=sys.stderr)

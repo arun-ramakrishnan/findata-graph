@@ -19,12 +19,12 @@ from collections import Counter
 from dataclasses import dataclass, field, asdict
 from datetime import datetime
 from pathlib import Path
-from typing import Optional
 
 
 # ---------------------------------------------------------------------------
 # Data model
 # ---------------------------------------------------------------------------
+
 
 @dataclass
 class NudgeSample:
@@ -42,6 +42,7 @@ class NudgeSample:
     fired_t1: bool = False
     fired_t2: bool = False
     fired_t3: bool = False
+    fired_esc: bool = False
 
 
 @dataclass
@@ -49,10 +50,10 @@ class FoldEvent:
     ts: str
     session: str
     saved_tok: int
-    shrink_pct: Optional[float] = None
-    blocks: Optional[int] = None
-    anchor_tok: Optional[int] = None
-    post_ctx_tok: Optional[int] = None
+    shrink_pct: float | None = None
+    blocks: int | None = None
+    anchor_tok: int | None = None
+    post_ctx_tok: int | None = None
 
 
 @dataclass
@@ -84,6 +85,7 @@ class Warning:
 @dataclass
 class Epoch:
     """A contiguous run of nudges sharing the same interval."""
+
     interval: int
     nudges: list[NudgeSample]
     folds: list[FoldEvent] = field(default_factory=list)
@@ -109,6 +111,7 @@ class Epoch:
 # Analysis
 # ---------------------------------------------------------------------------
 
+
 def _parse_ts(s: str) -> datetime:
     """Parse a bili log timestamp. Fall back to a very old date on failure."""
     try:
@@ -123,7 +126,7 @@ def _parse_ts(s: str) -> datetime:
 @dataclass
 class Analysis:
     log_path: str
-    report_path: Optional[str] = None
+    report_path: str | None = None
     nudges: list[NudgeSample] = field(default_factory=list)
     folds: list[FoldEvent] = field(default_factory=list)
     usages: list[CacheUsage] = field(default_factory=list)
@@ -146,14 +149,14 @@ class Analysis:
             return 0.0
         return len(self.folds) * 100_000 / growth
 
-    def overall_hit_pct(self) -> Optional[float]:
+    def overall_hit_pct(self) -> float | None:
         total_in = sum(u.input_tok for u in self.usages)
         total_cached = sum(u.cached_tok for u in self.usages)
         if total_in == 0:
             return None
         return 100.0 * total_cached / total_in
 
-    def effective_interval(self) -> Optional[int]:
+    def effective_interval(self) -> int | None:
         for n in reversed(self.nudges):
             if n.interval:
                 return n.interval
@@ -162,7 +165,13 @@ class Analysis:
     def nudge_reason_counts(self) -> Counter:
         c: Counter = Counter()
         for n in self.nudges:
-            if "T1 effective" in n.reason:
+            # Classification is POSITIONAL first, not reason-based: an INJECT-ESC
+            # line carries the same "max compressible ... < threshold" text as an
+            # idle line, so a reason-first chain silently filed 22 escalations
+            # under `below_compressible_threshold` as if nothing had happened.
+            if n.fired_esc:
+                c["fired_esc"] += 1
+            elif "T1 effective" in n.reason:
                 c["fired_t1"] += 1
             elif "blocked" in n.reason and "cadence" in n.reason:
                 c["blocked_cadence"] += 1
@@ -212,7 +221,7 @@ class Analysis:
             idx = next((i for i, ut in enumerate(usage_times) if ut >= ft), None)
             if idx is None:
                 continue
-            for u in self.usages[idx:idx + window]:
+            for u in self.usages[idx : idx + window]:
                 hits.append(u.hit_pct)
         return hits
 
@@ -233,15 +242,8 @@ class Analysis:
             start = _parse_ts(ep.start_ts)
             # end of epoch = start of next epoch (or +infinity for last)
             idx = raw.index(ep)
-            end = (
-                _parse_ts(raw[idx + 1].start_ts)
-                if idx + 1 < len(raw)
-                else datetime.max
-            )
-            ep.folds = [
-                f for f in self.folds
-                if start <= _parse_ts(f.ts) < end
-            ]
+            end = _parse_ts(raw[idx + 1].start_ts) if idx + 1 < len(raw) else datetime.max
+            ep.folds = [f for f in self.folds if start <= _parse_ts(f.ts) < end]
 
         return raw
 
@@ -260,9 +262,17 @@ RE_PREFIX = re.compile(
     r"(?P<body>.*)$"
 )
 
+# The kind token is TWO words — "INJECT T1" or "INJECT-ESC T?" — so it must not
+# be matched with a non-space class: `INJECT[^\s:]*` stops at the space and the
+# whole pattern silently fails to match. "T?" is a real observed value; the
+# escalate path does not report which tier it escalated to (all 22 instances in
+# the retained log sit at 70-75% usage with BOTH gates unmet, so it is a
+# usage-pressure path, not a tier-2 fold).
+_KIND = r"(?:idle|INJECT(?:-ESC)? T(?P<tier>[123?]))"
+
 RE_NUDGE_BODY = re.compile(
-    r"nudge (?:idle|INJECT T(?P<tier>[123])):\s*"
-    r"usage=(?P<usage_pct>[\d.]+)%\s*\((?P<usage_tok>\d+)/(?P<window>\d+)\),\s*"
+    _KIND + r":\s*"
+    r"usage=(?P<usage_pct>[\d.]+)%\s*\((?P<usage_tok>\d+)/(?P<window>[\d.]+)\),\s*"
     r"growth=(?P<growth>-?\d+)/(?P<floor>\d+)\s*"
     r"\(ref=(?P<ref>\d+),\s*interval=(?P<interval>\d+)\),\s*"
     r"pendingT1=(?P<pending>\d+)/(?P<pending_thr>\d+)\s*"
@@ -293,11 +303,69 @@ RE_DEGENERATE_BODY = re.compile(r"\[warn: degenerate-fold\]")
 RE_REASONING_VIOLATION_BODY = re.compile(r"reasoning-pair-violated:")
 
 
-def parse_log(path: Path, session_filter: Optional[str] = None) -> Analysis:
+def log_rotation_family(path: Path) -> list[Path]:
+    """`bili.log` plus every rotated sibling, oldest first.
+
+    billion-context rotates the log on size and the rotated name is an
+    implementation detail (`.old` on this box; `.1`, `.2.gz` are equally
+    plausible), so the family is discovered by GLOB rather than assumed —
+    reading only the current file silently drops every session older than
+    one rotation window (measured 2026-10-17: bili.log held 8 minutes of
+    history, bili.log.old held the previous 4 days, and all 23
+    model-less sessions had their `model=` nudge lines in the rotated
+    file). `.gz` members are decompressed transparently.
+
+    Order is oldest-first by mtime because callers index `[-1]` for the
+    newest record — parsing newest-first would make the OLDEST win.
+    """
+    parent = path.parent
+    if not parent.is_dir():
+        return [path] if path.is_file() else []
+    fam = [p for p in parent.glob(path.name + "*") if p.is_file()]
+    return sorted(fam, key=lambda p: (p.stat().st_mtime, p.name))
+
+
+def _open_log(path: Path):
+    if path.name.endswith(".gz"):
+        import gzip
+
+        return gzip.open(path, "rt", encoding="utf-8", errors="replace")
+    return path.open("r", encoding="utf-8", errors="replace")
+
+
+def parse_logs(paths, session_filter: str | None = None) -> Analysis:
+    """`parse_log` over a rotation family, merged and ordered oldest-first.
+
+    Every list member is re-sorted by timestamp after the union so that
+    `nudges[-1]` is genuinely the newest sample regardless of how the
+    rotation happened to split the session across files.
+    """
+    paths = [Path(p) for p in paths if Path(p).is_file()]
+    if not paths:
+        return Analysis(log_path="")
+    merged = Analysis(log_path=str(paths[-1]))
+    for p in sorted(paths, key=lambda q: (q.stat().st_mtime, q.name)):
+        part = parse_log(p, session_filter=session_filter)
+        merged.nudges.extend(part.nudges)
+        merged.folds.extend(part.folds)
+        merged.usages.extend(part.usages)
+        merged.window_changes.extend(part.window_changes)
+        merged.warnings.extend(part.warnings)
+        merged.intervals_seen.update(part.intervals_seen)
+        merged.reasoning_pair_violations += part.reasoning_pair_violations
+    for series in (merged.nudges, merged.folds, merged.usages, merged.window_changes):
+        series.sort(key=lambda s: s.ts)
+    merged.warnings.sort(key=lambda w: getattr(w, "ts", "") or "")
+    return merged
+
+
+def parse_log(  # noqa: C901
+    path: Path, session_filter: str | None = None
+) -> Analysis:
     a = Analysis(log_path=str(path))
     seen_folds: list[tuple[datetime, int, int]] = []
 
-    with path.open("r", encoding="utf-8", errors="replace") as fh:
+    with _open_log(path) as fh:
         for raw in fh:
             pm = RE_PREFIX.match(raw)
             if not pm:
@@ -311,21 +379,25 @@ def parse_log(path: Path, session_filter: Optional[str] = None) -> Analysis:
             m = RE_NUDGE_BODY.search(body)
             if m:
                 g = m.groupdict()
-                a.nudges.append(NudgeSample(
-                    ts=ts, session=session,
-                    usage_tok=int(g["usage_tok"]),
-                    usage_pct=float(g["usage_pct"]),
-                    growth=int(g["growth"]),
-                    ref=int(g["ref"]),
-                    interval=int(g["interval"]),
-                    pending_t1=int(g["pending"]),
-                    pending_thr=int(g["pending_thr"]),
-                    model=g["model"],
-                    reason=g["reason"],
-                    fired_t1=(g["tier"] == "1"),
-                    fired_t2=(g["tier"] == "2"),
-                    fired_t3=(g["tier"] == "3"),
-                ))
+                a.nudges.append(
+                    NudgeSample(
+                        ts=ts,
+                        session=session,
+                        usage_tok=int(g["usage_tok"]),
+                        usage_pct=float(g["usage_pct"]),
+                        growth=int(g["growth"]),
+                        ref=int(g["ref"]),
+                        interval=int(g["interval"]),
+                        pending_t1=int(g["pending"]),
+                        pending_thr=int(g["pending_thr"]),
+                        model=g["model"],
+                        reason=g["reason"],
+                        fired_t1=(g["tier"] == "1"),
+                        fired_t2=(g["tier"] == "2"),
+                        fired_t3=(g["tier"] == "3"),
+                        fired_esc=(g["tier"] == "?"),
+                    )
+                )
                 a.intervals_seen[g["interval"]] += 1
                 continue
 
@@ -335,14 +407,17 @@ def parse_log(path: Path, session_filter: Optional[str] = None) -> Analysis:
                 saved = int(g["saved"])
                 blocks = int(g["blocks"])
                 seen_folds.append((_parse_ts(ts), saved, blocks))
-                a.folds.append(FoldEvent(
-                    ts=ts, session=session,
-                    saved_tok=saved,
-                    shrink_pct=float(g["shrink"]),
-                    blocks=blocks,
-                    anchor_tok=int(g["anchor"]),
-                    post_ctx_tok=int(g["post"]),
-                ))
+                a.folds.append(
+                    FoldEvent(
+                        ts=ts,
+                        session=session,
+                        saved_tok=saved,
+                        shrink_pct=float(g["shrink"]),
+                        blocks=blocks,
+                        anchor_tok=int(g["anchor"]),
+                        post_ctx_tok=int(g["post"]),
+                    )
+                )
                 continue
 
             m = RE_FOLD_APPLIED_BODY.search(body)
@@ -360,49 +435,65 @@ def parse_log(path: Path, session_filter: Optional[str] = None) -> Analysis:
                 if is_dup:
                     continue
                 seen_folds.append((fold_ts, saved, blocks))
-                a.folds.append(FoldEvent(
-                    ts=ts, session=session,
-                    saved_tok=saved,
-                    blocks=blocks,
-                ))
+                a.folds.append(
+                    FoldEvent(
+                        ts=ts,
+                        session=session,
+                        saved_tok=saved,
+                        blocks=blocks,
+                    )
+                )
                 continue
 
             if RE_DEGENERATE_BODY.search(body):
-                a.warnings.append(Warning(
-                    ts=ts, session=session,
-                    kind="degenerate-fold",
-                    detail=body[:300],
-                ))
+                a.warnings.append(
+                    Warning(
+                        ts=ts,
+                        session=session,
+                        kind="degenerate-fold",
+                        detail=body[:300],
+                    )
+                )
                 continue
 
             m = RE_USAGE_BODY.search(body)
             if m:
                 g = m.groupdict()
-                a.usages.append(CacheUsage(
-                    ts=ts, session=session,
-                    input_tok=int(g["input"]),
-                    cached_tok=int(g["cached"]),
-                    hit_pct=float(g["hit"]),
-                    fold_new=bool(g["fold_new"]),
-                ))
+                a.usages.append(
+                    CacheUsage(
+                        ts=ts,
+                        session=session,
+                        input_tok=int(g["input"]),
+                        cached_tok=int(g["cached"]),
+                        hit_pct=float(g["hit"]),
+                        fold_new=bool(g["fold_new"]),
+                    )
+                )
                 continue
 
             m = RE_WINDOW_BODY.search(body)
             if m:
                 g = m.groupdict()
-                a.window_changes.append(WindowChange(
-                    ts=ts, session=session,
-                    old=g["old"], new=g["new"],
-                ))
+                a.window_changes.append(
+                    WindowChange(
+                        ts=ts,
+                        session=session,
+                        old=g["old"],
+                        new=g["new"],
+                    )
+                )
                 continue
 
             if RE_REASONING_VIOLATION_BODY.search(body):
                 a.reasoning_pair_violations += 1
-                a.warnings.append(Warning(
-                    ts=ts, session=session,
-                    kind="reasoning-pair-violated",
-                    detail=body[:300],
-                ))
+                a.warnings.append(
+                    Warning(
+                        ts=ts,
+                        session=session,
+                        kind="reasoning-pair-violated",
+                        detail=body[:300],
+                    )
+                )
 
     return a
 
@@ -428,9 +519,7 @@ RE_REPORT_FOLD_ECON = re.compile(
     r"(?P<unpaid>\d+) not paid back,\s*(?P<unobs>\d+) unobserved",
     re.S,
 )
-RE_REPORT_HIT_BY_SIZE = re.compile(
-    r"hit% by input size \(median\):\s*(?P<body>[^\n]+)"
-)
+RE_REPORT_HIT_BY_SIZE = re.compile(r"hit% by input size \(median\):\s*(?P<body>[^\n]+)")
 RE_REPORT_INVALIDATION = re.compile(
     r"stable-prefix re-bill by cause.*?:\s*(?P<charged>[\d.]+)(?:K)? tok charged · "
     r"(?P<unattr>[\d.]+)(?:K)? tok unattributed",
@@ -490,11 +579,12 @@ def parse_report(path: Path) -> dict:
 # Reporting
 # ---------------------------------------------------------------------------
 
-def fmt_pct(v: Optional[float]) -> str:
+
+def fmt_pct(v: float | None) -> str:
     return f"{v:.2f}%" if v is not None else "n/a"
 
 
-def print_report(a: Analysis, report: Optional[dict]) -> None:
+def print_report(a: Analysis, report: dict | None) -> None:  # noqa: C901
     sep = "=" * 78
 
     print(sep)
@@ -515,8 +605,7 @@ def print_report(a: Analysis, report: Optional[dict]) -> None:
     print(f"  overall cache hit     : {fmt_pct(overall_hit)}")
     if report and "grand" in report:
         g = report["grand"]
-        print(f"  report grand hit      : {g['hit_pct']:.2f}% "
-              f"({g['cached_M']}M / {g['input_M']}M)")
+        print(f"  report grand hit      : {g['hit_pct']:.2f}% ({g['cached_M']}M / {g['input_M']}M)")
 
     # --- tuning state ----------------------------------------------------
     print("\n[TUNING STATE]")
@@ -535,18 +624,23 @@ def print_report(a: Analysis, report: Optional[dict]) -> None:
     eps = a.epochs()
     if len(eps) > 1:
         print(f"\n[EPOCHS]  ({len(eps)} contiguous interval runs)")
-        print(f"  {'interval':>9}  {'nudges':>7}  {'T1 fired':>8}  "
-              f"{'folds':>6}  {'fold/100K':>10}  window")
+        print(
+            f"  {'interval':>9}  {'nudges':>7}  {'T1 fired':>8}  "
+            f"{'folds':>6}  {'fold/100K':>10}  window"
+        )
         for ep in eps:
             growth = 0
             if len(ep.nudges) >= 2:
                 growth = max(0, ep.nudges[-1].ref - ep.nudges[0].ref)
             fpk = (len(ep.folds) * 100_000 / growth) if growth else 0.0
             window = f"{ep.start_ts[11:19]}→{ep.end_ts[11:19]}"
-            print(f"  {ep.interval:>9}  {ep.nudge_count:>7}  {ep.t1_fired:>8}  "
-                  f"{len(ep.folds):>6}  {fpk:>9.2f}  {window}")
-        print("  → compare the 200000 epoch to the 50000/100000 epochs; "
-              "lower fold/100K is the goal")
+            print(
+                f"  {ep.interval:>9}  {ep.nudge_count:>7}  {ep.t1_fired:>8}  "
+                f"{len(ep.folds):>6}  {fpk:>9.2f}  {window}"
+            )
+        print(
+            "  → compare the 200000 epoch to the 50000/100000 epochs; lower fold/100K is the goal"
+        )
 
     # --- nudge behavior --------------------------------------------------
     print("\n[NUDGE BEHAVIOR]")
@@ -575,9 +669,9 @@ def print_report(a: Analysis, report: Optional[dict]) -> None:
         saved = [f.saved_tok for f in a.folds]
         shrinks = [f.shrink_pct for f in a.folds if f.shrink_pct is not None]
         print(f"  total tokens saved    : {sum(saved):,}")
-        print(f"  median saved / fold   : {sorted(saved)[len(saved)//2]:,}")
+        print(f"  median saved / fold   : {sorted(saved)[len(saved) // 2]:,}")
         if shrinks:
-            print(f"  median shrink %       : {sorted(shrinks)[len(shrinks)//2]:.1f}%")
+            print(f"  median shrink %       : {sorted(shrinks)[len(shrinks) // 2]:.1f}%")
             big = [s for s in shrinks if s >= 80]
             if big:
                 print(f"  folds ≥80% shrink     : {len(big)}  ← cache-busting risk")
@@ -599,7 +693,7 @@ def print_report(a: Analysis, report: Optional[dict]) -> None:
     if pf:
         print("  post-fold hits (first 3 reqs after each fold):")
         print(f"    count : {len(pf)}")
-        print(f"    median: {sorted(pf)[len(pf)//2]:.2f}%")
+        print(f"    median: {sorted(pf)[len(pf) // 2]:.2f}%")
         print(f"    min   : {min(pf):.2f}%")
         if min(pf) < 80:
             print("    → WARNING: a fold caused a severe cache bust (<80%)")
@@ -664,6 +758,11 @@ def print_report(a: Analysis, report: Optional[dict]) -> None:
     if a.nudges:
         print(f"  max pendingT1 seen        : {max(n.pending_t1 for n in a.nudges):,}")
         print(f"  max growth seen           : {max(n.growth for n in a.nudges):,}")
+        esc = sum(1 for n in a.nudges if n.fired_esc)
+        if esc:
+            # The escalate path reports no tier. Counted separately because its
+            # reason text is indistinguishable from an idle line's.
+            print(f"  INJECT-ESC (tier unknown) : {esc}")
 
     # --- mistuning detection ---------------------------------------------
     print("\n[MISTUNING]")
@@ -676,33 +775,45 @@ def print_report(a: Analysis, report: Optional[dict]) -> None:
             last_interval = None
         if last_interval is not None:
             max_pending = max(n.pending_t1 for n in a.nudges)
-            print(f"  max pendingT1 vs last interval: {max_pending:,} / {last_interval:,}"
-                  f"  (never fires if max < interval)")
+            print(
+                f"  max pendingT1 vs last interval: {max_pending:,} / {last_interval:,}"
+                f"  (never fires if max < interval)"
+            )
         if ready_blocked:
-            print(f"  WARNING: {ready_blocked} ready-but-blocked nudge(s) — "
-                  f"growth floor may be too high or cadence too restrictive")
+            print(
+                f"  WARNING: {ready_blocked} ready-but-blocked nudge(s) — "
+                f"growth floor may be too high or cadence too restrictive"
+            )
         if len(models) > 1:
-            print(f"  WARNING: {len(models)} distinct models in one session "
-                  f"— nudge/window behavior is not directly comparable")
+            print(
+                f"  WARNING: {len(models)} distinct models in one session "
+                f"— nudge/window behavior is not directly comparable"
+            )
         if len(a.window_changes) >= 3:
-            print(f"  WARNING: {len(a.window_changes)} window changes "
-                  f"— interval/extent context is volatile")
+            print(
+                f"  WARNING: {len(a.window_changes)} window changes "
+                f"— interval/extent context is volatile"
+            )
         eps = a.epochs()
         if len(eps) > 1:
             # folds that happened under the lowest interval era
             low_interval_epochs = [ep for ep in eps if ep.interval < 150_000]
             low_folds = sum(len(ep.folds) for ep in low_interval_epochs)
             if low_folds:
-                print(f"  WARNING: {low_folds} fold(s) still happened under "
-                      f"interval <150K — config did not fully take effect")
+                print(
+                    f"  WARNING: {low_folds} fold(s) still happened under "
+                    f"interval <150K — config did not fully take effect"
+                )
             # final epoch density
             last_ep = eps[-1]
             if last_ep.nudges and len(last_ep.nudges) >= 2:
                 growth = max(0, last_ep.nudges[-1].ref - last_ep.nudges[0].ref)
                 fpk = (len(last_ep.folds) * 100_000 / growth) if growth else 0.0
                 if fpk > 3:
-                    print(f"  WARNING: final epoch fold density {fpk:.2f}/100K "
-                          f"> 3 — tuning not yet effective")
+                    print(
+                        f"  WARNING: final epoch fold density {fpk:.2f}/100K "
+                        f"> 3 — tuning not yet effective"
+                    )
                 else:
                     print(f"  OK: final epoch fold density {fpk:.2f}/100K ≤ 3")
 
@@ -710,10 +821,11 @@ def print_report(a: Analysis, report: Optional[dict]) -> None:
     print("\n[EFFICIENCY]")
     if a.folds:
         saved = [f.saved_tok for f in a.folds]
-        print(f"  total saved (raw count, may double-count parser duplicates): "
-              f"{sum(saved):,}")
-        print(f"  median / min / max saved  : "
-              f"{sorted(saved)[len(saved)//2]:,} / {min(saved):,} / {max(saved):,}")
+        print(f"  total saved (raw count, may double-count parser duplicates): {sum(saved):,}")
+        print(
+            f"  median / min / max saved  : "
+            f"{sorted(saved)[len(saved) // 2]:,} / {min(saved):,} / {max(saved):,}"
+        )
         # fold recovery: requests until cache hit ≥90% after each fold
         fold_times = sorted(_parse_ts(f.ts) for f in a.folds)
         usage_times = [_parse_ts(u.ts) for u in a.usages]
@@ -723,7 +835,7 @@ def print_report(a: Analysis, report: Optional[dict]) -> None:
             if idx is None:
                 continue
             needed = 0
-            for u in a.usages[idx:idx + 20]:
+            for u in a.usages[idx : idx + 20]:
                 needed += 1
                 if u.hit_pct >= 90:
                     break
@@ -732,17 +844,20 @@ def print_report(a: Analysis, report: Optional[dict]) -> None:
             recovery_counts.append(needed)
         if recovery_counts:
             print(f"  recovery requests to ≥90% hit (per fold): {recovery_counts}")
-            print(f"  median recovery requests   : "
-                  f"{sorted(recovery_counts)[len(recovery_counts)//2]}")
+            print(
+                f"  median recovery requests   : "
+                f"{sorted(recovery_counts)[len(recovery_counts) // 2]}"
+            )
         anchors = [f.anchor_tok for f in a.folds if f.anchor_tok is not None]
         if anchors:
-            print(f"  anchor token growth (first→last): "
-                  f"{anchors[0]:,} → {anchors[-1]:,}")
+            print(f"  anchor token growth (first→last): {anchors[0]:,} → {anchors[-1]:,}")
     if report:
         if "fold_econ" in report:
             fe = report["fold_econ"]
-            print(f"  paid back / not paid back / unobserved: "
-                  f"{fe['paid_back']} / {fe['not_paid_back']} / {fe['unobserved']}")
+            print(
+                f"  paid back / not paid back / unobserved: "
+                f"{fe['paid_back']} / {fe['not_paid_back']} / {fe['unobserved']}"
+            )
             if fe["not_paid_back"] > 0:
                 print(f"  WARNING: {fe['not_paid_back']} fold(s) did not amortize")
         if "miss" in report:
@@ -750,18 +865,15 @@ def print_report(a: Analysis, report: Optional[dict]) -> None:
             repay_ratio = m["compress_repay_K"] / max(m["new_content_K"], 1)
             print(f"  compress re-pay / new content: {repay_ratio:.2f}")
             if repay_ratio >= 1.0:
-                print("  WARNING: folds cost as much as fresh content "
-                      "— replays are too expensive")
+                print("  WARNING: folds cost as much as fresh content — replays are too expensive")
             elif repay_ratio >= 0.5:
                 print("  NOTE: replay ratio ≥0.5 — room to consolidate folds")
         if "grand" in report:
             g = report["grand"]
-            print(f"  overall report hit: {g['hit_pct']:.2f}% "
-                  f"({g['cached_M']}M / {g['input_M']}M)")
+            print(f"  overall report hit: {g['hit_pct']:.2f}% ({g['cached_M']}M / {g['input_M']}M)")
     post = a.post_fold_hits(window=5)
     if post:
-        print(f"  post-fold 5-req median hit: "
-              f"{sorted(post)[len(post)//2]:.2f}%")
+        print(f"  post-fold 5-req median hit: {sorted(post)[len(post) // 2]:.2f}%")
 
     # --- report cross-check ----------------------------------------------
     if report:
@@ -784,8 +896,10 @@ def print_report(a: Analysis, report: Optional[dict]) -> None:
                 print("    → WARNING: multiple folds didn't amortize")
         if "invalidation" in report:
             inv = report["invalidation"]
-            print(f"  stable-prefix re-bill : {inv['charged_K']:.1f}K charged, "
-                  f"{inv['unattributed_K']:.1f}K unattributed")
+            print(
+                f"  stable-prefix re-bill : {inv['charged_K']:.1f}K charged, "
+                f"{inv['unattributed_K']:.1f}K unattributed"
+            )
 
     # --- verdict ---------------------------------------------------------
     print(f"\n{sep}")
@@ -805,10 +919,7 @@ def print_report(a: Analysis, report: Optional[dict]) -> None:
     if len(eps) > 1:
         best = min(
             (ep for ep in eps if ep.nudges and len(ep.nudges) >= 2),
-            key=lambda ep: (
-                len(ep.folds) * 100_000
-                / max(1, ep.nudges[-1].ref - ep.nudges[0].ref)
-            ),
+            key=lambda ep: len(ep.folds) * 100_000 / max(1, ep.nudges[-1].ref - ep.nudges[0].ref),
             default=None,
         )
         if best is not None and best.interval == eff:
@@ -845,7 +956,9 @@ def print_report(a: Analysis, report: Optional[dict]) -> None:
     if a.reasoning_pair_violations:
         verdicts.append(
             f"⚠ {a.reasoning_pair_violations} reasoning-pair violations — "
-            f"strict-echo upstreams may reject"
+            f"strict-echo upstreams REJECT; DeepSeek/zAI recover, others kill the "
+            f"session (measured: every violating session ended within ~30 min of "
+            f"its last one)"
         )
 
     if not verdicts:
@@ -859,25 +972,22 @@ def print_report(a: Analysis, report: Optional[dict]) -> None:
 # CLI
 # ---------------------------------------------------------------------------
 
+
 def main(argv: list[str]) -> int:
-    ap = argparse.ArgumentParser(
-        description="Analyze billion-context logs + ACP cache report."
-    )
+    ap = argparse.ArgumentParser(description="Analyze billion-context logs + ACP cache report.")
     ap.add_argument("log", type=Path, help="path to bili.log")
-    ap.add_argument("report", nargs="?", type=Path,
-                    help="optional ACP cache report (markdown)")
+    ap.add_argument("report", nargs="?", type=Path, help="optional ACP cache report (markdown)")
     ap.add_argument("--session", help="only analyze lines for this session id")
-    ap.add_argument("--json", action="store_true",
-                    help="emit JSON instead of a human report")
+    ap.add_argument("--json", action="store_true", help="emit JSON instead of a human report")
     args = ap.parse_args(argv)
 
     if not args.log.exists():
         print(f"error: log not found: {args.log}", file=sys.stderr)
         return 2
 
-    analysis = parse_log(args.log, session_filter=args.session)
+    analysis = parse_logs(log_rotation_family(args.log), session_filter=args.session)
 
-    report_data: Optional[dict] = None
+    report_data: dict | None = None
     if args.report:
         if not args.report.exists():
             print(f"error: report not found: {args.report}", file=sys.stderr)
@@ -923,8 +1033,7 @@ def main(argv: list[str]) -> int:
             },
             "cache": {
                 "median_hit_by_size": {
-                    k: {"median": v, "n": n}
-                    for k, (v, n) in analysis.median_hit_by_size().items()
+                    k: {"median": v, "n": n} for k, (v, n) in analysis.median_hit_by_size().items()
                 },
                 "post_fold_hits": analysis.post_fold_hits(),
             },
