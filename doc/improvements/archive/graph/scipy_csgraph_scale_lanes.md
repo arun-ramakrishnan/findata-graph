@@ -9,7 +9,7 @@ completed_md: "393"
 
 # SciPy csgraph scale lanes — MST backbone, bipartite matching, assignment, A² candidates
 
-**Date:** 2026-10-15 · **Status:** PROPOSED
+**Date:** 2026-10-15 · **Status:** EXECUTED
 
 ## 1. TL;DR
 
@@ -160,6 +160,74 @@ All four lanes validated end-to-end:
 | **S3 Feasibility** | Full matching impossible | Hall collisions: 6 single-investor targets |
 | **A² Kernel** | Top pair shared consumers | **81** (Tata Comm / TCS) |
 | **Co-mentions** | pair_count_distribution | `1×:2775, 2×:6674, 3×:93, 4×:76, 5×:6`; 8309 rows; weights 2.0–6.0 |
+
+## 9b. Unlock — S3b covering assignment + S4b suggest-relations routing
+(fast-follow, added 2026-10-15; executes the two deferred surfaces above)
+
+Both slices were pre-declared here: S3 behind "a projection with full
+coverage", S4 routing behind the H1 throughput gate. The unlock needs
+no new proposal file — this § declares the design + gates, per the
+gemma-S7 fast-follow precedent.
+
+### S3b — `assign-primary` on the covering projection
+
+- **Covering construction**: column-side maximum matching
+  (`maximum_bipartite_matching(perm_type="column")`); unmatched columns
+  are the Hall violators. Exclude them, re-check, loop (nested
+  deficiencies) with a hard cap. Each exclusion reports the target name
+  and reason — the Hall set is an OUTPUT, not silent surgery.
+- **Lane**: on the covering subset,
+  `min_weight_full_bipartite_matching` on the transposed orientation —
+  every kept target its minimum-stake investor. Output rows:
+  (target, investor, stake); live: 84 targets → covering subset + Hall
+  exclusions from the real graph.
+- **Acceptance**: toy oracle (two targets sharing one investor → exactly
+  one excluded, the rest fully assigned); live run reproduces the trial
+  numbers (82/84 matchable; exclusions named); dry-run prints the
+  projection without writing.
+
+### S4b — A² candidates → suggest-relations (the H1 answer)
+
+The H1 gate demanded a human-triage surface with bounded throughput.
+`findata/Misc/_pending_suggestions.txt` IS that surface (the
+suggest-relations C2 lane, human-reviewed, append-only). Routing:
+
+- `suggest_relations` gains a supplier-peer class fed by `a2_kernel`:
+  top-K pairs (K=50) with **≥3 shared consumers** (below that the pair
+  is noise), each suggestion carrying the shared-consumer count as
+  evidence and both endpoints resolved through the existing company-name
+  filter.
+- Bounded by construction: K + evidence threshold + the surface's own
+  dedup (never duplicates, never re-suggests a typed edge). No
+  auto-derivation — rows land as suggestions for human disposition,
+  which satisfies the gate rather than bypassing it.
+- **Acceptance**: suggestions appear for the live top pair (Tata
+  Communications / TCS, 81 shared consumers); zero suggestions for
+  sub-threshold pairs; idempotent re-run.
+
+### S3b/S4b — executed 2026-10-15
+
+- **S3b live**: 277 investors × 84 targets → **82 assigned, 2
+  excluded** (Mitsubishi Chemical Group, Sodexo — the Hall violators,
+  named by the lane); every kept target its minimum-stake investor.
+  Toy oracle: two targets sharing one investor → exactly one excluded,
+  minimum-stake orientation verified (`tests/test_scipy_matching.py`).
+  `assign-primary --db` CLI; read-only, writes nothing.
+- **S4b live**: `--method supplier_peers` routes A² candidates through
+  the existing C2 filters (evidence ≥3 shared consumers, company-name
+  resolution, typed-edge dedup, K-capped). The trial's top pair (Tata
+  Communications / TCS, 81 shared) is **correctly suppressed** — 2
+  typed edges already connect them. One suggestion surfaced:
+  Cholamandalam Financial Holdings ↔ E.I.D. Parry (India), 23 shared
+  consumers — landed in `findata/Misc/_pending_suggestions.txt`;
+  re-run appended 0 (dedup inert by construction).
+- **Finding (recorded, not fixed here)**: the surfaced pair rides a
+  name-variant ER boundary — the graph stores `E.I.D.PARRY (INDIA)`,
+  `E.I.D.Parry (India)` and `E.I.D. Parry (India)` as distinct nodes,
+  so exact-name dedup cannot see them as one. The human queue is the
+  disposition mechanism for exactly this class; an ER-normalisation
+  pass over graph_edges node names is the follow-up lever (raises
+  every dedup surface at once).
 
 ## 9. Follows
 

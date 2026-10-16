@@ -283,3 +283,61 @@ class TestCoMembershipLane:
         assert {s.source, s.target} == {"Acme", "Beta"}
         assert s.method == "co_membership"
         assert s.edition.startswith("link-prediction/co_membership/")
+
+
+class TestSupplierPeers:
+    """S4b (archived scipy_csgraph_scale_lanes §9b): A² candidates routed
+    into the C2 surface with the ≥3 shared-consumer evidence floor."""
+
+    def test_route_scores_are_shared_counts_and_floor_applies(self, monkeypatch):
+        import duckdb as dd
+
+        con = dd.connect()  # in-memory: only v_company is queried
+        con.execute("CREATE TABLE v_company (name VARCHAR)")
+        con.executemany(
+            "INSERT INTO v_company VALUES (?)",
+            [("TataComm",), ("TCS",), ("SmallCo",)],
+        )
+        raw = [
+            ("TataComm", "TCS", 81.0),  # live top pair shape
+            ("TataComm", "SmallCo", 2.0),  # below the evidence floor
+            ("TCS", "SmallCo", 3.0),  # exactly at the floor — kept
+        ]
+        monkeypatch.setattr(SR, "_supplier_peer_pairs", lambda top: raw)
+        got = SR.suggest_relations(con, method="supplier_peers", top=25)
+        pairs = {(s.source, s.target) for s in got}
+        assert ("TataComm", "TCS") in pairs or ("TCS", "TataComm") in pairs
+        assert all(s.score >= 3.0 for s in got)  # sub-threshold never surfaces
+        top_sug = next(s for s in got if {s.source, s.target} == {"TataComm", "TCS"})
+        assert top_sug.score == 81.0 and top_sug.method == "supplier_peers"
+        assert top_sug.edition.startswith("link-prediction/supplier_peers/")
+        con.close()
+
+    def test_row_contract_carries_method_and_score(self, monkeypatch, tmp_path):
+        s = SR.Suggestion("Tata Communications", "TCS", 81.0, "supplier_peers", "e")
+        row = s.to_row()
+        assert row["edge_type"] == "suggested"
+        assert row["method"] == "supplier_peers"
+        assert row["score"] == 81.0
+        assert row["origin"] == SR.ORIGIN
+
+    def test_supplier_peer_pairs_reads_a2_kernel(self, monkeypatch):
+        from helpers.graph import a2_candidates as a2
+
+        inc = {
+            "suppliers": ["A", "B", "C"],
+            "matrix": __import__("scipy.sparse", fromlist=["csr_matrix"]).csr_matrix(
+                (
+                    __import__("numpy").ones(5),
+                    (
+                        __import__("numpy").array([0, 0, 1, 1, 2]),
+                        __import__("numpy").array([0, 1, 0, 1, 2]),
+                    ),
+                ),
+                shape=(3, 3),
+            ),
+        }
+        monkeypatch.setattr(a2, "load_supplier_incidence", lambda db=object(): inc)
+        got = SR._supplier_peer_pairs(top=5)
+        # A,B share 2 consumers; A/C and B/C share 0 → only the A-B pair
+        assert got == [("A", "B", 2.0)]

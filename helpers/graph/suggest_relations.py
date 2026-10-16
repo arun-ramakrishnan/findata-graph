@@ -198,6 +198,26 @@ def _co_membership_pairs(con: duckdb.DuckDBPyConnection, top: int) -> list[tuple
     return [(a, b, sc) for a, b, sc in rows]
 
 
+SUPPLIER_PEER_MIN_SHARED = 3  # S4b evidence floor (archived lanes §9b)
+
+
+def _supplier_peer_pairs(top: int) -> list[tuple[str, str, float]]:
+    """S4b: A² kernel candidates routed into the C2 triage surface.
+
+    Supplier-peer pairs from the A² kernel (suppliers sharing consumers,
+    ``helpers.graph.a2_candidates``) — the "these two firms supply the
+    same buyer; are they competitors?" feed. Score = shared-consumer
+    count; the caller's min_score floor enforces the ≥3 evidence
+    threshold, the K cap bounds triage throughput (the H1 gate), and the
+    surface's own dedup keeps re-runs inert. Lives behind the human
+    disposition queue — never auto-derived edges.
+    """
+    from helpers.graph import a2_candidates as a2
+
+    inc = a2.load_supplier_incidence()
+    return [(a, b, float(shared)) for shared, a, b in a2.a2_kernel(inc, top_k=top)]
+
+
 def suggest_relations(
     con: duckdb.DuckDBPyConnection | None = None,
     *,
@@ -229,6 +249,12 @@ def suggest_relations(
             # Incidence-native lane (D4): SQL over h_incidence, no Onager
             # pairwise ranking — see _co_membership_pairs.
             raw = _co_membership_pairs(con, top=max(top * 8, top))
+        elif method == "supplier_peers":
+            # S4b lane: A² kernel over supplier_to (reads research.db
+            # directly; the duckdb con is only used for the company
+            # filter above). Evidence floor rides min_score.
+            raw = _supplier_peer_pairs(top=max(top * 8, top))
+            min_score = max(min_score, SUPPLIER_PEER_MIN_SHARED)
         else:
             raw = link_prediction(
                 con,
@@ -298,7 +324,9 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument(
         "--method",
         default="jaccard",
-        help="jaccard | adamic-adar | common-neighbors | pref-attach | resource-alloc",
+        help="jaccard | adamic-adar | common-neighbors | pref-attach | "
+        "resource-alloc | co_membership | supplier_peers (S4b: A² kernel, "
+        "score = shared consumers)",
     )
     p.add_argument(
         "--allow-all-pairs",
