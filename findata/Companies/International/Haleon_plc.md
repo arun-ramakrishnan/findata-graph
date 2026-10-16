@@ -39,8 +39,8 @@ UK-listed consumer healthcare company (Pfizer/GSK spin-off, 2022). Brands includ
 - **Industry**: Drug Manufacturers - Specialty & Generic
 - **Employees**: 24,535
 - **Promoter Holding**: 0.0%
-- **Institutional Holding**: 13.2%
+- **Institutional Holding**: 13.6%
 - **Business Summary**: Haleon plc, together with its subsidiaries, engages in the research, development, manufacture, and sale of various consumer healthcare products in North America, Europe, the Middle East, Africa, Latin America, and the Asia Pacific. The company offers oral health products, such as toothpastes, mou…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->

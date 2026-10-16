@@ -40,12 +40,12 @@ Accenture plc is a global professional services firm specializing in IT consulti
 ## Company Profile (yfinance)
 
 - **Industry**: Information Technology Services
-- **Employees**: 799,000
+- **Employees**: 814,000
 - **Promoter Holding**: 0.0%
-- **Institutional Holding**: 87.2%
+- **Institutional Holding**: 82.6%
 - **Business Summary**: Accenture plc provides strategy and consulting, industry X, song, and technology and operation services in the Americas, Europe, the Middle East, Africa, and the Asia Pacific. It offers systems integration and application management; security; intelligent platform; infrastructure; software engine…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Financial Profile (Yahoo Finance, Jun 2026)
 - Market cap: $76.99 B | Enterprise value: $76.83 B

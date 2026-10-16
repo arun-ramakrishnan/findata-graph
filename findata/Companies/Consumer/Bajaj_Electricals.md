@@ -43,12 +43,12 @@ Bajaj Electricals Limited (NSE/BSE: BAJAJELEC) is a Bajaj Group consumer-electri
 ## Company Profile (yfinance)
 
 - **Industry**: Furnishings, Fixtures & Appliances
-- **Employees**: 1,743
+- **Employees**: 1,500
 - **Promoter Holding**: 63.0%
-- **Institutional Holding**: 22.2%
-- **Business Summary**: Bajaj Electricals Limited engages in the provision of consumer products and lighting solutions in India. It offers fans, such as ceiling, table, tower, and personal fan; home appliances comprising water heater, air cooler, room heater, and irons; kitchen appliances, including mixer grinder, juice…
+- **Institutional Holding**: 21.3%
+- **Business Summary**: Bajaj Electricals Limited provides consumer products and lighting solutions in India. It offers ceiling, table, pedestal, wall, personal, tower, lifestyle, and domestic exhaust fans; ceiling lights, smart products, inverter lights, lamps, battens, decorative lights, accessories, outdoor lights, a…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Demerger of Bajel Projects
 

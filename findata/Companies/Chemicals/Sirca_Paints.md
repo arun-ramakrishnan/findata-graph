@@ -87,11 +87,11 @@ Sirca Paints Limited is a leading manufacturer of paints and coatings, serving v
 
 - **Industry**: Specialty Chemicals
 - **Employees**: 724
-- **Promoter Holding**: 79.8%
-- **Institutional Holding**: 4.9%
+- **Promoter Holding**: 78.0%
+- **Institutional Holding**: 4.1%
 - **Business Summary**: Sirca Paints India Limited manufactures and sells wood coatings and decorative paints in India and internationally. The company offers wood, metal, glass, polyester, metallic, specialty, protective, polyurethane polish (PU), and nitrocellulose (NC) coatings; wall paints; solid color finishes and …
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Financial Performance
 

@@ -67,11 +67,11 @@ Reliance Power Limited is a leading Indian power generation company specializing
 
 - **Industry**: Utilities - Independent Power Producers
 - **Employees**: 1,278
-- **Promoter Holding**: 30.0%
-- **Institutional Holding**: 10.8%
+- **Promoter Holding**: 29.8%
+- **Institutional Holding**: 10.5%
 - **Business Summary**: Reliance Power Limited, together with its subsidiaries, engages in the development, construction, and operation of power plants in India and internationally. Its portfolio of power projects is based on coal, gas, hydro, wind, and solar energy. The company owns and operates Sasan ultra mega power …
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Industry Context: Energy Sector
 

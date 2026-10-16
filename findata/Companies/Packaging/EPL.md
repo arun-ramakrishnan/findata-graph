@@ -51,11 +51,12 @@ EPL Limited, formerly Essel Propack Limited, is a global company specializing in
 ## Company Profile (yfinance)
 
 - **Industry**: Packaging & Containers
-- **Promoter Holding**: 56.3%
-- **Institutional Holding**: 21.6%
-- **Business Summary**: EPL Limited, together with its subsidiaries, manufactures and sells plastic packaging materials in the form of multilayer collapsible tubes, corrugated boxes, and laminates in the Americas, Europe, Africa, the Middle East, South Asia, and the East Asia Pacific. The company provides dispensing sys…
+- **Employees**: 1,411
+- **Promoter Holding**: 29.9%
+- **Institutional Holding**: 24.6%
+- **Business Summary**: EPL Limited, together with its subsidiaries, manufactures and sells plastic packaging materials in the Americas, Europe, Africa, the Middle East, South Asia, and East Asia Pacific. It offers dispensing systems, caps and closures, laminated tubes, laminates, and extruded tubes. The company also pr…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 
 <!-- BEGIN auto key figures (derive_insights.py) -->

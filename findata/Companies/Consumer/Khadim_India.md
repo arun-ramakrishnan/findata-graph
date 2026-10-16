@@ -3,6 +3,7 @@ title: Khadim India
 type: company
 ticker: KHADIM.NS
 sector: Consumer
+industry: Footwear & Accessories
 market_cap: small_cap
 normalized_name: Khadim_India
 permalink: /companies/consumer/khadim_india
@@ -34,6 +35,19 @@ Footwear retailer.
 
 *Stub node — created as a graph endpoint. Expand as additional primary research accumulates.*
 
+
+<!-- BEGIN auto company profile (enrich_from_yfinance.py) -->
+
+## Company Profile (yfinance)
+
+- **Industry**: Footwear & Accessories
+- **Employees**: 496
+- **Promoter Holding**: 62.8%
+- **Institutional Holding**: 1.1%
+- **Business Summary**: Khadim India Limited retails footwear and accessories in India and internationally. The company offers a range of footwear and accessories for men, women, and children including formal, casual, sports, school, sandals and floaters, slippers and flip-flops, flats, and heels; accessories that inclu…
+
+_Source: yfinance | Refreshed: 2026-10-16_
+<!-- END auto company profile -->
 <!-- BEGIN auto chatter block (derive_insights.py) -->
 
 ## The Chatter — The Push and Pull

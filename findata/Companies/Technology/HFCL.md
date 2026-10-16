@@ -42,11 +42,12 @@ HFCL Limited (formerly Himachal Futuristic Communications Limited) is a New Delh
 ## Company Profile (yfinance)
 
 - **Industry**: Communication Equipment
+- **Employees**: 1,820
 - **Promoter Holding**: 34.2%
-- **Institutional Holding**: 18.3%
-- **Business Summary**: HFCL Limited manufactures and sells telecom products in India and internationally. The company offers optical fiber cables, such as underground, aerial, microduct, FTTH, and micromodule cables; telecommunication products, including unlicensed band backhaul radios, Wi-Fi access points, routers, ma…
+- **Institutional Holding**: 19.4%
+- **Business Summary**: HFCL Limited manufactures and sells telecom products in India and internationally. The company offers optical fiber cables, such as underground, aerial, microduct, FTTH, and micromodule cables; access solutions, including Wi-Fi access points, network switches, unlicensed band radios, IO canvas un…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 The Chatter — TCS, Indian Bank, Amagi, CMR Green & More
 

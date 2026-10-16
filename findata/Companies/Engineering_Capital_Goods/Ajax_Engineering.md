@@ -3,7 +3,7 @@ title: Ajax Engineering
 type: company
 ticker: AJAXENGG.NS
 sector: Engineering_Capital_Goods
-industry: Entertainment
+industry: Farm & Heavy Construction Machinery
 market_cap: mid_cap
 normalized_name: Ajax_Engineering
 permalink: /companies/engineering_capital_goods/ajax_engineering
@@ -70,13 +70,13 @@ Ajax Engineering Limited is a leading Indian construction equipment manufacturer
 
 ## Company Profile (yfinance)
 
-- **Industry**: Entertainment
-- **Employees**: 483
-- **Promoter Holding**: 77.2%
-- **Institutional Holding**: 6.0%
-- **Business Summary**: AFC Ajax NV operates a football club in the Netherlands. It also operates a stadium and a youth academy. The company was founded in 1900 and is based in Amsterdam, the Netherlands.
+- **Industry**: Farm & Heavy Construction Machinery
+- **Employees**: 458
+- **Promoter Holding**: 80.0%
+- **Institutional Holding**: 10.1%
+- **Business Summary**: Ajax Engineering Limited manufactures and sells self-loading concrete mixers, concrete batching plants, and concrete pumps in India and internationally. The company also offers transit mixers, stationary concrete pumps, boom pumps, self-propelled boom pumps, 3D concrete printers, and concrete sli…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Industry Context: Engineering & Capital Goods Sector
 

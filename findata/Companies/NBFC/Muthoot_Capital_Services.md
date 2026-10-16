@@ -55,11 +55,12 @@ Muthoot Capital Services Limited is a non-banking financial company primarily fo
 ## Company Profile (yfinance)
 
 - **Industry**: Credit Services
-- **Promoter Holding**: 68.5%
+- **Employees**: 2,531
+- **Promoter Holding**: 69.0%
 - **Institutional Holding**: 2.2%
-- **Business Summary**: Muthoot Capital Services Limited, a non-banking finance company, provides fund and non-fund based financial services in India. The company offers two-wheelers, used car, secured business, used commercial vehicle loans, and loyalty loans; fixed deposits; and subordinated debentures. It serves reta…
+- **Business Summary**: Muthoot Capital Services Limited, a non-banking finance company, provides fund and non-fund-based financial services in India. The company offers two-wheelers, new and used cars, secure business, used commercial vehicle loans, construction equipment loans, and loyalty loans; fixed deposits; and s…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Business Model
 - **Lending products:** Two-wheeler loans, used car loans, commercial vehicle finance

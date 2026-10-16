@@ -41,11 +41,11 @@ Offers entire gamut of advisory services under one roof including investing, tra
 
 - **Industry**: Capital Markets
 - **Employees**: 470
-- **Promoter Holding**: 76.1%
+- **Promoter Holding**: 77.7%
 - **Institutional Holding**: 0.0%
 - **Business Summary**: Emkay Global Financial Services Limited, together with its subsidiaries, provides various financial services in India. It operates through two segments, Advisory and Transactional Services; and Financing and Investment Activities. The company offers stock broking, financing, depository participan…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Sector
 

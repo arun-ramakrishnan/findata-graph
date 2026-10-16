@@ -39,11 +39,12 @@ Garware Technical Fibres is a global manufacturer and supplier of technical text
 ## Company Profile (yfinance)
 
 - **Industry**: Textile Manufacturing
+- **Employees**: 1,097
 - **Promoter Holding**: 59.2%
 - **Institutional Holding**: 13.1%
-- **Business Summary**: Garware Technical Fibres Limited manufactures and sells various technical textile products in India and internationally. It operates through Synthetic Cordage and Fibre and Industrial Products and Projects segments. The company provides smolt and grow out cages, predator cages, mooring and vertic…
+- **Business Summary**: Garware Technical Fibres Limited manufactures and sells various technical textile products in India and internationally. It provides smolt and grow out cages, predator cages, mooring and vertical ropes, and lice shield solutions; bottom and pelagic trawling, purse seine, gill and dol netting, and…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Business Segments
 

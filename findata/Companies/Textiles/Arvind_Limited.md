@@ -48,11 +48,12 @@ Arvind Limited is a small cap company operating in the textiles sector in India.
 ## Company Profile (yfinance)
 
 - **Industry**: Textile Manufacturing
+- **Employees**: 31,041
 - **Promoter Holding**: 40.5%
-- **Institutional Holding**: 30.4%
-- **Business Summary**: Arvind Limited, together with its subsidiaries, manufactures, markets, retails, supplies, and exports textiles in India and internationally. It operates through Textiles, Advanced Material, and Others segments. The company offers denim fabrics, woven and knitted fabrics, and voiles and garments p…
+- **Institutional Holding**: 30.8%
+- **Business Summary**: Arvind Limited, together with its subsidiaries, manufactures, markets, retails, supplies, and exports textiles in India and internationally. The company operates through Textiles, Advanced Material, and Others segments. It offers denim fabrics, woven and knitted fabrics, home linens, and voiles a…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Business Model
 - **Primary Model**: B2B (Business-to-Business)

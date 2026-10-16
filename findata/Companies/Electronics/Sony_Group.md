@@ -3,6 +3,7 @@ title: Sony Group
 type: company
 ticker: SONY
 sector: Electronics
+industry: Consumer Electronics
 market_cap: large_cap
 normalized_name: Sony_Group
 permalink: /companies/electronics/sony_group
@@ -37,6 +38,19 @@ Japanese electronics, entertainment and gaming conglomerate.
 
 *Stub node — created as a graph endpoint. Expand as additional primary research accumulates.*
 
+
+<!-- BEGIN auto company profile (enrich_from_yfinance.py) -->
+
+## Company Profile (yfinance)
+
+- **Industry**: Consumer Electronics
+- **Employees**: 94,900
+- **Promoter Holding**: 0.0%
+- **Institutional Holding**: 8.8%
+- **Business Summary**: Sony Group Corporation develops, designs, produces, manufactures, supplies, and sells electronic equipment, instruments, and devices for consumer, professional, and industrial use in Japan, the United States, Europe, China, the Asia-Pacific, and internationally. The company operates through Game …
+
+_Source: yfinance | Refreshed: 2026-10-16_
+<!-- END auto company profile -->
 <!-- BEGIN auto chatter block (derive_insights.py) -->
 
 ## The Chatter — The Push and Pull

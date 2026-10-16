@@ -41,10 +41,10 @@ Flair Writing Industries Limited, founded in 1976 and based in Mumbai, is a lead
 - **Industry**: Business Equipment & Supplies
 - **Employees**: 7,228
 - **Promoter Holding**: 84.2%
-- **Institutional Holding**: 3.3%
-- **Business Summary**: Flair Writing Industries Limited manufactures and sells writing instruments, stationeries, and other allied products in India and internationally. The company offers ball, fountain, gel, roller, plastic, and metal pens; stationery products, including mechanical pencils, highlighters, correction p…
+- **Institutional Holding**: 3.6%
+- **Business Summary**: Flair Writing Industries Limited manufactures and sells writing instruments, stationeries, and other allied products in India and internationally. The company offers ball, fountain, gel, roller, plastic, and metal pens; mechanical pencils, correction pens, and refills; sketch pens, colour pencils…
 
-_Source: yfinance | Refreshed: 2026-08-11_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Financial Profile (Yahoo Finance, Jun 2026)
 - Market cap: ₹2,795 cr | Enterprise value: ₹2,807 cr

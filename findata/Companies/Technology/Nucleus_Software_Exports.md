@@ -38,11 +38,12 @@ Nucleus Software Exports Limited provides lending and transaction banking produc
 ## Company Profile (yfinance)
 
 - **Industry**: Software - Application
-- **Promoter Holding**: 75.5%
-- **Institutional Holding**: 2.1%
+- **Employees**: 1,954
+- **Promoter Holding**: 73.8%
+- **Institutional Holding**: 2.4%
 - **Business Summary**: Nucleus Software Exports Limited provides lending and transaction banking products to the financial services industry in India, the Far East, South East Asia, Europe, the Middle East, Africa, Australia, and internationally. It offers FinnOne Neo, a next-generation digital lending platform for int…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Key Metrics
 

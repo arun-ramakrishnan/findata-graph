@@ -52,11 +52,12 @@ Goodluck India operates with advanced manufacturing facilities featuring:
 ## Company Profile (yfinance)
 
 - **Industry**: Steel
-- **Promoter Holding**: 56.5%
-- **Institutional Holding**: 3.4%
-- **Business Summary**: Goodluck India Limited manufactures and supplies precision engineering and steel products in India. The company provides electric resistance welded and cold drawn welded tubes, custom forgings, power and telecom towers, solar structures, ERW hot dip galvanized pipes, black pipes, black and GI hol…
+- **Employees**: 3,443
+- **Promoter Holding**: 58.6%
+- **Institutional Holding**: 4.9%
+- **Business Summary**: Goodluck India Limited manufactures and supplies precision engineering and steel products in India and internationally. The company provides electric resistance welded and cold drawn welded tubes, custom forgings, power and telecom towers, solar structures, ERW hot dip galvanized pipes, black pip…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Industry Analysis and Market Position
 

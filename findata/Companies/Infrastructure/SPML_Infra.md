@@ -43,11 +43,12 @@ Extracted from "Points & Figures: Grain in the graphs" (Zerodha) — Edition #19
 ## Company Profile (yfinance)
 
 - **Industry**: Engineering & Construction
-- **Promoter Holding**: 60.7%
+- **Employees**: 260
+- **Promoter Holding**: 60.8%
 - **Institutional Holding**: 3.3%
-- **Business Summary**: SPML Infra Limited operates as an infrastructure development company in India. The company undertakes water supply and bulk water transmission, wastewater and sanitation, and power distribution and rural electrification projects; constructs pumping stations and water reservoir; and offers meterin…
+- **Business Summary**: SPML Infra Limited operates as an infrastructure development company in India. It offers water loss management, water reservoirs and pumping stations, pipeline network design, smart metering system, and water reuse and recycling; battery energy storage systems; metering and billing; effluent, sew…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Key Data Points & Signals (Investor Presentation)
 - **New order wins**: INR 4,324 cr across water supply & irrigation (largely Jal Jeevan Mission + AMRUT 2.0), bundled with 10–20 yr O&M for revenue visibility.

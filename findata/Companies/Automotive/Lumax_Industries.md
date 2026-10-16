@@ -37,10 +37,10 @@ Lumax Industries Limited manufactures and sells automotive lighting systems and 
 - **Industry**: Auto Parts
 - **Employees**: 3,236
 - **Promoter Holding**: 76.1%
-- **Institutional Holding**: 5.9%
-- **Business Summary**: Lumax Industries Limited manufactures and sells automotive components for in India. The company offers automotive lighting systems, including LED light, headlamps, tail lamps, fog lamps, and auxiliary lamps, as well as electronic components. It serves passenger cars, commercial vehicles, four-whe…
+- **Institutional Holding**: 7.6%
+- **Business Summary**: Lumax Industries Limited manufactures and sells automotive components for in India. The company offers automotive lighting systems, including LED light, headlamps, tail lamps, fog lamps, turn indicators, and auxiliary lamps, LED modules, HVAC control panels, as well as electronic components. It s…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Financial Profile (Yahoo Finance, Jun 2026)
 

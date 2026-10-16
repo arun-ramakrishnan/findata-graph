@@ -38,11 +38,11 @@ Alkem Laboratories Limited is a leading Indian pharmaceutical company specializi
 
 - **Industry**: Drug Manufacturers - Specialty & Generic
 - **Employees**: 19,346
-- **Promoter Holding**: 62.4%
-- **Institutional Holding**: 26.9%
+- **Promoter Holding**: 61.4%
+- **Institutional Holding**: 28.1%
 - **Business Summary**: Alkem Laboratories Limited, a pharmaceutical company, engages in the research and development, manufacture, and sale of pharmaceutical and nutraceutical products in India, the United States, and internationally. The company offers biosimilars, active pharmaceutical ingredients, branded and trade …
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Business Segments
 

@@ -45,11 +45,11 @@ Sterlite Technologies Limited (STL) designs and manufactures optical fibres, opt
 
 - **Industry**: Communication Equipment
 - **Employees**: 707
-- **Promoter Holding**: 52.2%
-- **Institutional Holding**: 18.3%
-- **Business Summary**: Sterlite Technologies Limited, together with its subsidiaries, manufactures and sells telecom products in India and internationally. The company designs and manufactures optical fibres, optical fibre and specialty cables, and optical connectivity products. The company also provides multiverse and…
+- **Promoter Holding**: 50.8%
+- **Institutional Holding**: 21.0%
+- **Business Summary**: Sterlite Technologies Limited, together with its subsidiaries, manufactures and sells telecom products in India and internationally. It operates through Optical Networking Business and Digital and Technology Solutions segments. The company designs and manufactures optical fibres, optical fibre ca…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Financial Profile (Yahoo Finance, Jun 2026)
 

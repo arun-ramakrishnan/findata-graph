@@ -44,10 +44,10 @@ Godfrey Phillips India Limited (incorporated 1936, HQ New Delhi) is one of India
 - **Industry**: Tobacco
 - **Employees**: 1,121
 - **Promoter Holding**: 73.5%
-- **Institutional Holding**: 11.7%
-- **Business Summary**: Godfrey Phillips India Limited, together with its subsidiaries, manufactures and trades cigarettes, tobacco products, and related products in India and internationally. It operates through Cigarette, Tobacco and Related Products; and Others segments. The company offers cigarette products under th…
+- **Institutional Holding**: 10.2%
+- **Business Summary**: Godfrey Phillips India Limited, together with its subsidiaries, manufactures and trades cigarettes, tobacco products, and related products in India and internationally. It operates through Cigarette, Tobacco and Related Products; and Others segments. The company provides cigarette products under …
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Product Portfolio / Segments
 

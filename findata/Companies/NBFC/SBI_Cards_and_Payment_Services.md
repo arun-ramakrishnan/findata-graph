@@ -41,10 +41,10 @@ SBI Cards and Payment Services Limited (SBICARD), incorporated in 1998 and headq
 - **Industry**: Credit Services
 - **Employees**: 4,218
 - **Promoter Holding**: 68.6%
-- **Institutional Holding**: 24.9%
+- **Institutional Holding**: 25.0%
 - **Business Summary**: SBI Cards and Payment Services Limited, a non-banking financial company, provides credit cards to individual and corporate customers in India. The company offers corporate, central travel, utility, and corporate purchase and virtual cards. It also acts as a corporate insurance agent for selling i…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Financial Profile (Yahoo Finance, Jun 2026)
 - Market cap: ₹59,437 cr | Enterprise value: ₹1,01,231 cr

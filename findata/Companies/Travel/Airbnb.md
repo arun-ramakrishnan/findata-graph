@@ -46,11 +46,11 @@ Airbnb operates across more than 100,000 cities worldwide, with a strategic focu
 
 - **Industry**: Travel Services
 - **Employees**: 8,200
-- **Promoter Holding**: 1.1%
-- **Institutional Holding**: 88.8%
+- **Promoter Holding**: 1.9%
+- **Institutional Holding**: 89.3%
 - **Business Summary**: Airbnb, Inc., together with its subsidiaries, operates a platform for stays, experiences, and services worldwide. The company's marketplace connects hosts and guests online or through mobile devices to book spaces, experiences, and services. It also offers gift cards. The company was formerly kno…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Key Product Launches and Features
 

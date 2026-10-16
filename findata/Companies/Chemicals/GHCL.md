@@ -40,11 +40,11 @@ Diversified group established in 1983 with operations across chemicals, textiles
 
 - **Industry**: Chemicals
 - **Employees**: 1,037
-- **Promoter Holding**: 37.5%
-- **Institutional Holding**: 21.3%
+- **Promoter Holding**: 36.3%
+- **Institutional Holding**: 22.6%
 - **Business Summary**: GHCL Limited, together with its subsidiaries, manufactures and trades inorganic chemicals in India and internationally. The company offers light soda ash, a basic industrial alkali chemical used in powdered, paste, soap and detergents, pulp and paperand chemical products; dense soda ash for use i…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Key Information
 - **Incorporated**: October 14, 1983

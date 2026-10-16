@@ -43,10 +43,10 @@ Transport Corporation of India (TCI) is a leading integrated logistics and suppl
 - **Industry**: Integrated Freight & Logistics
 - **Employees**: 4,165
 - **Promoter Holding**: 71.3%
-- **Institutional Holding**: 12.9%
+- **Institutional Holding**: 12.7%
 - **Business Summary**: Transport Corporation of India Limited provides end-to-end integrated supply chain and logistics solutions in India. The company operates through Freight Division, Supply Chain Solutions Division, Seaways Division, and Energy Division segments. It offers surface transport solutions, such as full …
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 
 <!-- BEGIN auto key figures (derive_insights.py) -->

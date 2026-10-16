@@ -45,10 +45,10 @@ Lumax Auto Technologies is a small cap company operating in the auto ancillary s
 - **Industry**: Auto Parts
 - **Employees**: 2,853
 - **Promoter Holding**: 57.2%
-- **Institutional Holding**: 19.3%
-- **Business Summary**: Lumax Auto Technologies Limited, together with its subsidiaries, manufactures and sells automotive components in India. The company offers advanced plastics, such as cockpit and consoles, door panels, air intake systems, urea and plastic fuel tanks, headliners, trims, louvers, head lamps, tail la…
+- **Institutional Holding**: 19.4%
+- **Business Summary**: Lumax Auto Technologies Limited, together with its subsidiaries, manufactures and sells automotive components in India. The company offers advanced plastics, such as panels, centre consoles, door panels, headliners and interior trim systems, air intake systems, urea and plastic fuel tanks, headli…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Business Model
 - **Primary Model**: B2B (Business-to-Business)

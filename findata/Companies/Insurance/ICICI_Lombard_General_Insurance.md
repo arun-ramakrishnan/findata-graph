@@ -57,10 +57,10 @@ ICICI Lombard General Insurance Company Limited is one of India's leading privat
 - **Industry**: Insurance - Diversified
 - **Employees**: 15,008
 - **Promoter Holding**: 2.5%
-- **Institutional Holding**: 82.8%
+- **Institutional Holding**: 83.2%
 - **Business Summary**: ICICI Lombard General Insurance Company Limited provides various general insurance products and services in India. The company primarily offers fire, marine, cargo, engineering, aviation, public/product liability, employee group, workmen's compensation, cyber, personal accident, and travel insura…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Business Segments
 - **Motor Insurance**: Two-wheelers, private cars, commercial vehicles

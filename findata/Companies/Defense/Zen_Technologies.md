@@ -43,11 +43,12 @@ Zen Technologies Limited is an Indian defense technology company specializing in
 ## Company Profile (yfinance)
 
 - **Industry**: Aerospace & Defense
+- **Employees**: 421
 - **Promoter Holding**: 49.9%
-- **Institutional Holding**: 10.9%
-- **Business Summary**: Zen Technologies Limited, together with its subsidiaries, engages in the design, development, manufacture, and sale of training simulators in India and internationally. The company provides anti-drone systems; training and simulation live ranges, comprising smart and multi-functional target syste…
+- **Institutional Holding**: 11.6%
+- **Business Summary**: Zen Technologies Limited, together with its subsidiaries, engages in the design, development, manufacture, and sale of training simulators in India and internationally. It provides anti-drone systems; training and simulation live ranges, comprising smart and multi-functional target systems, tank …
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Business Segments
 

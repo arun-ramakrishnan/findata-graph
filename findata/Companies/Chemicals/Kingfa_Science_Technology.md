@@ -35,11 +35,12 @@ Kingfa Science & Technology (India) Limited (formerly Hydro S&S Industries; inco
 ## Company Profile (yfinance)
 
 - **Industry**: Specialty Chemicals
-- **Promoter Holding**: 75.3%
+- **Employees**: 294
+- **Promoter Holding**: 74.9%
 - **Institutional Holding**: 6.7%
-- **Business Summary**: Kingfa Science & Technology (India) Limited manufactures and supplies reinforced polypropylene compounds, thermoplastics elastomers, and personal protective equipment masks and gloves in India. It also offers engineering plastics including ABS, HIPS, PA, PBT, PC and their alloys; biodegradable ni…
+- **Business Summary**: Kingfa Science & Technology (India) Limited manufacturing and supply of high-quality reinforced polypropylene compounds, thermoplastics elastomers, and fiber re-enforced composites in India. It also offers engineering plastics including ABS, HIPS, PA, PBT, PC and their alloys; biodegradable nitri…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Financial Profile (Yahoo Finance, Jun 2026)
 

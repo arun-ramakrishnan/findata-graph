@@ -34,11 +34,12 @@ Ravindra Energy is primarily involved in the solar energy sector, focusing on se
 ## Company Profile (yfinance)
 
 - **Industry**: Solar
+- **Employees**: 135
 - **Promoter Holding**: 69.3%
 - **Institutional Holding**: 4.0%
-- **Business Summary**: Ravindra Energy Limited sells solar pumps and setting up of solar generation power plants in India. The company undertakes various projects relating to solar photo voltaic power pumping systems, rooftop solar, and ground-mount solar power projects at various locations in the state of Karnataka, M…
+- **Business Summary**: Ravindra Energy Limited sells solar pumps and setting up of solar generation power plants in India. The company undertakes various projects relating to solar photo voltaic power pumping systems, rooftop solar, and ground-mount solar power projects. It also generates and sells power. The company w…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Key Insights (Opportunity Between the Lines)
 - Pure-play solar energy company operating across the value chain

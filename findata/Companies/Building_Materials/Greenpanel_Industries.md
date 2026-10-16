@@ -40,11 +40,11 @@ Greenpanel Industries (NSE: GREENPANEL) is India's largest manufacturer of mediu
 
 - **Industry**: Lumber & Wood Production
 - **Employees**: 1,689
-- **Promoter Holding**: 53.3%
-- **Institutional Holding**: 26.5%
+- **Promoter Holding**: 54.4%
+- **Institutional Holding**: 26.9%
 - **Business Summary**: Greenpanel Industries Limited engages in the manufacturing and sale of plywood, medium density fibre board (MDF), and allied products under the Greenpanel brand name in India and internationally. The company provides high-density fibreboard, fire-resistant, pre-laminated, HDWR boards, veneered MD…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## The Chatter — HDFC, Groww, Yes Bank, Havells & More
 

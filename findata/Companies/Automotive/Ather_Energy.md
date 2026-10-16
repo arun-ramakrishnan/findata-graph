@@ -52,11 +52,11 @@ Ather Energy is a leading electric vehicle manufacturer in India, specializing i
 ## Company Profile (yfinance)
 
 - **Industry**: Auto Manufacturers
-- **Promoter Holding**: 55.1%
-- **Institutional Holding**: 24.8%
+- **Promoter Holding**: 50.6%
+- **Institutional Holding**: 25.5%
 - **Business Summary**: Ather Energy Limited, an electric vehicle company, engages in the design, development, and sale of electric two-wheelers, and associated product ecosystem. The company also offers vehicle architecture and chassis; battery packs and battery management system; vehicle control unit; touchscreen dash…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Business Model
 - Electric vehicle manufacturing and sales

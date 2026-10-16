@@ -36,10 +36,10 @@ Jaiprakash Power Ventures Limited (NSE/BSE: JPPOWER) is an Indian power-generati
 - **Industry**: Utilities - Independent Power Producers
 - **Employees**: 1,932
 - **Promoter Holding**: 33.0%
-- **Institutional Holding**: 11.0%
+- **Institutional Holding**: 11.3%
 - **Business Summary**: Jaiprakash Power Ventures Limited engages in the power generation and cement grinding businesses in India. It generates electricity through thermal and hydro energy sources. The company owns and operates a 400 megawatts (MW) Jaypee Vishnuprayag hydro-electric power plant at District Chamoli, Utta…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Adani Power Acquisition
 

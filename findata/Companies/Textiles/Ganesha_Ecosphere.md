@@ -42,11 +42,12 @@ Ganesha Ecosphere Ltd is an Indian company engaged in textiles processing with e
 ## Company Profile (yfinance)
 
 - **Industry**: Textile Manufacturing
+- **Employees**: 2,205
 - **Promoter Holding**: 45.1%
-- **Institutional Holding**: 27.1%
-- **Business Summary**: Ganesha Ecosphere Limited primarily manufactures and sells recycled polyester staple fiber in India. The company offers recycled PET (rPET) fibre comprising solid, hollow, conjugated, flame retardant, short-cut, micro, and trilobal fibers. It also provides yarns; rPET flakes; and rPET chips for b…
+- **Institutional Holding**: 24.9%
+- **Business Summary**: Ganesha Ecosphere Limited manufactures and sells recycled polyester staple fiber in India. The company offers recycled PET (rPET) fibre comprising solid, hollow, conjugated, flame retardant, short-cut, micro, and trilobal fibers. It also provides yarns; rPET flakes; and rPET chips for bottle grad…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Business Profile
 - **Primary Industry:** Textiles Processing

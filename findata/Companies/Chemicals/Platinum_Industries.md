@@ -41,11 +41,12 @@ Platinum Industries Limited is a leading manufacturer of specialty chemicals and
 ## Company Profile (yfinance)
 
 - **Industry**: Specialty Chemicals
+- **Employees**: 155
 - **Promoter Holding**: 73.3%
 - **Institutional Holding**: 3.7%
 - **Business Summary**: Platinum Industries Limited engages in the manufacture and sale of poly vinyl chloride (PVC) stabilizers, chlorinated polyvinyl chloride (CPVC), lubricants, stearates, and speciality chemicals in India and internationally. The company offers lead based and non-lead-based stabilisers; CPVC additiv…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Business Segments
 

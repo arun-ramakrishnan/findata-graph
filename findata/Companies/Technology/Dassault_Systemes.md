@@ -36,10 +36,10 @@ Dassault Systèmes is a French multinational software corporation that develops 
 - **Industry**: Software - Application
 - **Employees**: 25,000
 - **Promoter Holding**: 49.1%
-- **Institutional Holding**: 30.5%
+- **Institutional Holding**: 30.2%
 - **Business Summary**: Dassault Systèmes SE provides software solutions and services worldwide. The company offers 3D modeling applications, such as SOLIDWORKS, CATIA, GEOVIA, and BIOVIA; social and collaborative applications, including 3DEXCITE, CENTRIC PLM, and ENOVIA; and simulation applications comprising SIMULIA, …
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Key Insights (Doubling Down)
 - CEO Pascal Daloz emphasized India's critical role in shaping the global economy, highlighting the country's advantages in innovation and intellectual property.

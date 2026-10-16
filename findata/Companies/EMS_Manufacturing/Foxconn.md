@@ -50,12 +50,12 @@ Foxconn aims to be the most complete AI hardware solutions provider by expanding
 ## Company Profile (yfinance)
 
 - **Industry**: Communication Equipment
-- **Employees**: 217,084
+- **Employees**: 228,442
 - **Promoter Holding**: 83.8%
-- **Institutional Holding**: 4.4%
+- **Institutional Holding**: 4.0%
 - **Business Summary**: Foxconn Industrial Internet Co., Ltd., together with its subsidiaries, provides smart manufacturing and industrial internet services in Mexico, Vietnam, Singapore, Mainland China, and internationally. The company offers communication and mobile network equipment products comprising 5G/4G modules,…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Recent Performance
 

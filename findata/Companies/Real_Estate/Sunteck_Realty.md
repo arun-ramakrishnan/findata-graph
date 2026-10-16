@@ -3,6 +3,7 @@ title: Sunteck Realty
 type: company
 ticker: SUNTECK.NS
 sector: Real_Estate
+industry: Real Estate - Development
 market_cap: small_cap
 normalized_name: Sunteck_Realty
 permalink: /companies/real_estate/sunteck_realty
@@ -34,6 +35,19 @@ Mumbai-based real-estate developer.
 
 *Stub node — created as a graph endpoint. Expand as additional primary research accumulates.*
 
+
+<!-- BEGIN auto company profile (enrich_from_yfinance.py) -->
+
+## Company Profile (yfinance)
+
+- **Industry**: Real Estate - Development
+- **Employees**: 582
+- **Promoter Holding**: 63.0%
+- **Institutional Holding**: 15.2%
+- **Business Summary**: Sunteck Realty Limited, together with its subsidiaries, engages in real estate construction and development in India. The company develops residential, office spaces, commercial and retail, and mixed-use properties under the Signature Island, Signia Isles, Signia Pearl, Sunteck Crescent Park, Sun…
+
+_Source: yfinance | Refreshed: 2026-10-16_
+<!-- END auto company profile -->
 <!-- BEGIN auto chatter block (derive_insights.py) -->
 
 ## The Chatter — Discovering Hidden Signals

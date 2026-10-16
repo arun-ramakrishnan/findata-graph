@@ -54,11 +54,12 @@ Allcargo Logistics Limited is a global leader in LCL consolidation and India's l
 ## Company Profile (yfinance)
 
 - **Industry**: Integrated Freight & Logistics
-- **Promoter Holding**: 45.0%
-- **Institutional Holding**: 4.6%
-- **Business Summary**: Allcargo Logistics Limited provides integrated logistics solutions in India. The company is involved in non-vessel owning common carrier operations related to less than container load (LCL) consolidation, and full container load forwarding activities. It also provides digital logistics solutions;…
+- **Employees**: 2,675
+- **Promoter Holding**: 45.5%
+- **Institutional Holding**: 5.4%
+- **Business Summary**: Allcargo Logistics Limited provides integrated logistics solutions in India. It offers express logistics comprising ground and air express, and retail services; consultive logistics, including warehousing and storage, transportation management, in-plant management, stores and line feed, distribut…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Recent Performance
 

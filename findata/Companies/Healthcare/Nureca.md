@@ -109,11 +109,11 @@ Nureca's focus on home healthcare and wellness products through digital-first B2
 
 - **Industry**: Medical Devices
 - **Employees**: 154
-- **Promoter Holding**: 68.1%
+- **Promoter Holding**: 70.8%
 - **Institutional Holding**: 0.0%
 - **Business Summary**: Nureca Limited provides home healthcare and wellness products in India. The company offers chronic disease products, such as nebulizers, blood pressure monitors, finger pulse oximeters, glucose meters, and thermometers, as well as connected products; orthopedic products, including massagers, pain…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## [Presentation]
 

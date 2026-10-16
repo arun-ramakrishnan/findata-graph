@@ -3,6 +3,7 @@ title: Godrej Industries
 type: company
 ticker: GODREJIND.BO
 sector: Diversified
+industry: Conglomerates
 market_cap: mid_cap
 normalized_name: Godrej_Industries
 permalink: /companies/diversified/godrej_industries
@@ -34,6 +35,19 @@ Godrej-group holding company (chemicals, oils, associate stakes).
 
 *Stub node — created as a graph endpoint. Expand as additional primary research accumulates.*
 
+
+<!-- BEGIN auto company profile (enrich_from_yfinance.py) -->
+
+## Company Profile (yfinance)
+
+- **Industry**: Conglomerates
+- **Employees**: 1,148
+- **Promoter Holding**: 87.2%
+- **Institutional Holding**: 6.7%
+- **Business Summary**: Godrej Industries Limited, together with its subsidiaries, engages in the chemical, agriculture, real estate, vegetable oil, hospitality, and financial and investment businesses in India and internationally. The company produces and sells fatty acids, fatty alcohols, esters and waxes, refined gly…
+
+_Source: yfinance | Refreshed: 2026-10-16_
+<!-- END auto company profile -->
 <!-- BEGIN auto key figures (derive_insights.py) -->
 
 ## Key Figures (auto)

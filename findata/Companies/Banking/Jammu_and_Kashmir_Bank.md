@@ -41,7 +41,7 @@ Jammu & Kashmir Bank Limited is a regional bank serving the Jammu & Kashmir regi
 - **Institutional Holding**: 8.9%
 - **Business Summary**: Jammu and Kashmir Bank Limited provides various banking products and services. The company operates through Treasury Operations, Corporate/Wholesale Banking, Retail Banking, and Other Banking Business segments. It offers savings, current, salary, pension, and NRE and NRO accounts; and term deposi…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Strategic Context
 

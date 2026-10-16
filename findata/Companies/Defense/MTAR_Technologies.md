@@ -47,11 +47,12 @@ MTAR Technologies Limited (founded 1969; HQ Hyderabad, Telangana) is a precision
 ## Company Profile (yfinance)
 
 - **Industry**: Specialty Industrial Machinery
-- **Promoter Holding**: 29.7%
-- **Institutional Holding**: 34.7%
+- **Employees**: 1,321
+- **Promoter Holding**: 29.2%
+- **Institutional Holding**: 33.6%
 - **Business Summary**: MTAR Technologies Limited manufactures and sells high precision, heavy equipment, components, and machines in India and internationally. The company offers space solutions comprising liquid propulsion engines; cryogenic engines, including turbo pumps, booster pumps, gas generators, and injector h…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Financial Profile (Yahoo Finance, Jun 2026)
 - Market cap: ₹24,535 cr | Enterprise value: ₹24,056 cr

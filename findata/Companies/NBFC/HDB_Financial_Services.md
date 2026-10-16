@@ -55,6 +55,19 @@ HDB Financial Services Ltd., a subsidiary of HDFC Bank, is India's 7th largest r
 
 <!-- END auto key figures -->
 
+
+<!-- BEGIN auto company profile (enrich_from_yfinance.py) -->
+
+## Company Profile (yfinance)
+
+- **Industry**: Credit Services
+- **Employees**: 88,162
+- **Promoter Holding**: 74.4%
+- **Institutional Holding**: 11.9%
+- **Business Summary**: HDB Financial Services Limited operates as a non-banking financial company that provides lending and business process outsourcing services in India. The company offers personal loans, salaried personal loans, business loans, micro lending loans, auto loans, two-wheeler loans, relationship persona…
+
+_Source: yfinance | Refreshed: 2026-10-16_
+<!-- END auto company profile -->
 <!-- BEGIN auto chatter block (derive_insights.py) -->
 
 ## The Chatter — TCS ICICI Pru HDB Financials

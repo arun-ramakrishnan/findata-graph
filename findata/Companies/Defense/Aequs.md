@@ -3,6 +3,7 @@ title: Aequs
 type: company
 ticker: AEQUS.NS
 sector: Defense
+industry: Aerospace & Defense
 market_cap: small_cap
 normalized_name: Aequs
 permalink: /companies/defense/aequs
@@ -35,6 +36,19 @@ sources:
 ## Company Overview
 Aequs is an Indian aerospace manufacturing and processing company operating aerospace-focused manufacturing ecosystems (SEZs) in Belagavi, Karnataka. It supplies precision machined parts, aerostructures, and surface treatments to global aerospace OEMs; recently filed for an IPO (unlisted as of the note).
 
+
+<!-- BEGIN auto company profile (enrich_from_yfinance.py) -->
+
+## Company Profile (yfinance)
+
+- **Industry**: Aerospace & Defense
+- **Employees**: 1,766
+- **Promoter Holding**: 73.4%
+- **Institutional Holding**: 13.0%
+- **Business Summary**: Aequs Limited, a contract manufacturing company, engages in the provision of integrated products solutions in India, the United States of America, France, Hong Kong, Sweden, United Kingdom, Germany, and internationally. It operates through Aerospace and Consumer segments. The company operates a f…
+
+_Source: yfinance | Refreshed: 2026-10-16_
+<!-- END auto company profile -->
 ## Management
 - Arvind Melligeri — Executive Chairman & CEO
 - Rajiv Kaul — Co-founder & Managing Director

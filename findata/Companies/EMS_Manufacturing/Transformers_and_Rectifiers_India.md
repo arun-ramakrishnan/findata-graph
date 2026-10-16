@@ -55,11 +55,12 @@ A diversified and high-quality customer base across power, renewables, metals, i
 ## Company Profile (yfinance)
 
 - **Industry**: Electrical Equipment & Parts
+- **Employees**: 629
 - **Promoter Holding**: 64.4%
-- **Institutional Holding**: 7.8%
+- **Institutional Holding**: 6.6%
 - **Business Summary**: Transformers and Rectifiers (India) Limited, together with its subsidiaries, manufactures and sells transformers in India. The company provides power transformers, such as generator transformers, unit and station auxiliary transformers, small and medium power transformers, and trackside transform…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Product Portfolio
 

@@ -34,11 +34,12 @@ Rama Steel Tubes is a leading manufacturer of steel tubes and pipes, providing c
 ## Company Profile (yfinance)
 
 - **Industry**: Steel
-- **Promoter Holding**: 43.0%
+- **Employees**: 100
+- **Promoter Holding**: 38.8%
 - **Institutional Holding**: 0.2%
 - **Business Summary**: Rama Steel Tubes Limited manufactures and sells steel pipes and tubes in India. The company offers mild steel electric resistance welded (ERW) black steel pipes and tubes, galvanized iron (GI) pipes, and specialty pipes. It also provides structural steel products comprising square and rectangular…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Business Segments
 

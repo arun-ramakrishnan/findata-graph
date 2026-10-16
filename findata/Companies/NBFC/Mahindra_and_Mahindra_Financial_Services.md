@@ -36,11 +36,11 @@ Mahindra & Mahindra Financial Services Limited is a leading non-banking financia
 
 - **Industry**: Credit Services
 - **Employees**: 22,637
-- **Promoter Holding**: 53.7%
-- **Institutional Holding**: 36.6%
+- **Promoter Holding**: 53.6%
+- **Institutional Holding**: 37.5%
 - **Business Summary**: Mahindra & Mahindra Financial Services Limited, a non-banking financial company, engages in vehicle financing business in India. The company operates through Financing Activities and Other Reconciling Items segments. It offers financing for new and pre-owned auto, utility vehicles, tractors, pass…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Strategic Context
 

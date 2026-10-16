@@ -59,11 +59,12 @@ Glenmark Pharmaceuticals Limited (incorporated 1977; HQ Mumbai) is an Indian mul
 ## Company Profile (yfinance)
 
 - **Industry**: Drug Manufacturers - Specialty & Generic
+- **Employees**: 16,946
 - **Promoter Holding**: 49.0%
-- **Institutional Holding**: 27.7%
-- **Business Summary**: Glenmark Pharmaceuticals Limited, together with its subsidiaries, develops, manufactures, and sells generics, specialty medicines, and over the counter (OTC) pharmaceutical products in India, North America, Europe, and internationally. The company provides branded, OTC, and generic formulations i…
+- **Institutional Holding**: 27.1%
+- **Business Summary**: Glenmark Pharmaceuticals Limited, together with its subsidiaries, research, develops, manufactures, and sells generics, specialty medicines, and over the counter (OTC) pharmaceutical products in India, North America, Europe, and internationally. The company provides various products in the therap…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Financial Profile (Yahoo Finance, Jun 2026)
 - Market cap: ₹60,797 cr | Enterprise value: ₹60,958 cr

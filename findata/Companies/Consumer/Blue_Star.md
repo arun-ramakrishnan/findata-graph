@@ -102,10 +102,10 @@ Coming to commercial air conditioning systems, the commercial air conditioning b
 - **Industry**: Building Products & Equipment
 - **Employees**: 3,655
 - **Promoter Holding**: 37.0%
-- **Institutional Holding**: 35.2%
+- **Institutional Holding**: 34.7%
 - **Business Summary**: Blue Star Limited provides air conditioning and commercial refrigeration products, air and water purifiers, air coolers, cold storages, and specialty products in India. It operates through three segments: Electro-Mechanical Projects and Commercial Air Conditioning Systems; Unitary Products; and P…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 
 <!-- BEGIN auto key figures (derive_insights.py) -->

@@ -70,10 +70,10 @@ SJVN Limited is a prominent government-owned power generation company specializi
 - **Industry**: Utilities - Renewable
 - **Employees**: 1,572
 - **Promoter Holding**: 81.8%
-- **Institutional Holding**: 5.7%
+- **Institutional Holding**: 5.8%
 - **Business Summary**: SJVN Limited, together with its subsidiaries, engages in the generation and sale of electricity in India and internationally. The company is also involved in thermal power, hydro power, wind power, solar power, and power trading and transmission businesses. The company operates the Nathpa Jhakri …
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Industry Context: Energy Sector
 

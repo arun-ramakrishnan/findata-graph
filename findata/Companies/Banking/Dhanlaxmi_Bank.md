@@ -36,11 +36,12 @@ Dhanlaxmi Bank is a company in the banking sector. More information about this c
 ## Company Profile (yfinance)
 
 - **Industry**: Banks - Regional
-- **Promoter Holding**: 51.2%
-- **Institutional Holding**: 6.0%
-- **Business Summary**: Dhanlaxmi Bank Limited provides various banking and financial services in India. The company operates through Treasury Operations, Corporate/Wholesale Banking, Retail Banking, and Other Banking Business Operations segments. It offers deposit products, such as savings and current accounts, and ter…
+- **Employees**: 1,856
+- **Promoter Holding**: 50.2%
+- **Institutional Holding**: 4.3%
+- **Business Summary**: Dhanlaxmi Bank Limited provides various banking and financial services in India. The company operates through Treasury, Retail Banking, Corporate/Wholesale Banking, and Other Banking Business segments. It offers deposit products, including savings and current accounts, and term deposits; debit an…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Financial Information
 - **Ticker Symbol**: DHANBANK

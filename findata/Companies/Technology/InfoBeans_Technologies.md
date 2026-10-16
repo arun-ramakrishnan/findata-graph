@@ -44,11 +44,11 @@ InfoBeans Technologies Limited, founded in 2000 and headquartered in Indore, des
 
 - **Industry**: Software - Application
 - **Employees**: 1,779
-- **Promoter Holding**: 78.4%
+- **Promoter Holding**: 77.8%
 - **Institutional Holding**: 1.0%
 - **Business Summary**: InfoBeans Technologies Limited designs, builds, and manages digital applications in the United States, Germany, India, the United Arab Emirates, and internationally. The company offers Expona AI 2.0, a context trained AI agent for conversational intelligence; BeanTrail, an AI-driven Salesforce au…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Financial Profile (Yahoo Finance, Jun 2026)
 - Market cap: ₹1,531 cr | Enterprise value: ₹1,278 cr

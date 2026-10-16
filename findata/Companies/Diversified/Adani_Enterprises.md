@@ -52,10 +52,10 @@ Adani Enterprises is a multifaceted company involved in integrated resources man
 - **Industry**: Thermal Coal
 - **Employees**: 10,463
 - **Promoter Holding**: 75.0%
-- **Institutional Holding**: 17.2%
+- **Institutional Holding**: 18.3%
 - **Business Summary**: Adani Enterprises Limited, together with its subsidiaries, operates in the new energy ecosystem, data center, airports, roads, copper and PVC, and other sectors in India and internationally. It operates through the Integrated Resources Management (IRM), Mining Services, Commercial Mining, New Ene…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Key Information
 - **Entity Type**: Company

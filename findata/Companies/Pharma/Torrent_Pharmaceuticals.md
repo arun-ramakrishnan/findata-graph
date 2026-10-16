@@ -62,11 +62,11 @@ Torrent Healthcare is a leading Indian pharmaceutical company engaged in the dev
 
 - **Industry**: Drug Manufacturers - Specialty & Generic
 - **Employees**: 18,258
-- **Promoter Holding**: 63.3%
-- **Institutional Holding**: 14.8%
+- **Promoter Holding**: 63.2%
+- **Institutional Holding**: 19.7%
 - **Business Summary**: Torrent Pharmaceuticals Limited engages in the research, development, manufacturing, marketing, and distribution of branded and generic pharmaceutical formulations in India, the United States, Brazil, Germany, Malta, and internationally. The company offers products in various therapeutic areas, i…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Industry Classification
 - **Sector**: Healthcare

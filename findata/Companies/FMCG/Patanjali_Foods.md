@@ -47,11 +47,12 @@ Patanjali Foods Limited (formerly Ruchi Soya Industries Limited) processes oil s
 ## Company Profile (yfinance)
 
 - **Industry**: Packaged Foods
+- **Employees**: 7,387
 - **Promoter Holding**: 69.5%
-- **Institutional Holding**: 17.1%
-- **Business Summary**: Patanjali Foods Limited engages in the processing of oil seeds and refining crude oil for edible use in India and internationally. The company operates through Edible Oils, Food & FMCG, Home & Personal Care, and Wind Power Generation segments. The company offers crude and refined oil; vanaspati, …
+- **Institutional Holding**: 18.0%
+- **Business Summary**: Patanjali Foods Limited engages in the processing of oil seeds and refining crude oil for edible use in India, Africa, Europe, Australia, and internationally. The company operates through three segments: FMCG; Edible Oils; and Wind Turbine Power Generation. The company offers crude and refined oi…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Financial Profile (Yahoo Finance, Jun 2026)
 - Market cap: ₹44,880 cr | Enterprise value: ₹46,848 cr

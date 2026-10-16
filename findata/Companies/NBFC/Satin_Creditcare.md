@@ -3,6 +3,7 @@ title: Satin Creditcare
 type: company
 ticker: SATIN.NS
 sector: NBFC
+industry: Credit Services
 market_cap: small_cap
 normalized_name: Satin_Creditcare
 permalink: /companies/nbfc/satin_creditcare
@@ -34,6 +35,18 @@ Microfinance and rural-finance NBFC.
 
 *Stub node — created as a graph endpoint. Expand as additional primary research accumulates.*
 
+
+<!-- BEGIN auto company profile (enrich_from_yfinance.py) -->
+
+## Company Profile (yfinance)
+
+- **Industry**: Credit Services
+- **Promoter Holding**: 59.7%
+- **Institutional Holding**: 7.0%
+- **Business Summary**: Satin Creditcare Network Limited, a non-banking finance company, provides micro finance services in India. The company offers microcredit to economically active women in rural, semi-urban, and urban regions; loans for income generating purposes, such as agriculture, transportation, trading, and p…
+
+_Source: yfinance | Refreshed: 2026-10-16_
+<!-- END auto company profile -->
 <!-- BEGIN auto key figures (derive_insights.py) -->
 
 ## Key Figures (auto)

@@ -38,10 +38,10 @@ Mahindra Logistics Limited is a logistics and supply chain management company pr
 - **Industry**: Integrated Freight & Logistics
 - **Employees**: 3,988
 - **Promoter Holding**: 59.8%
-- **Institutional Holding**: 17.6%
+- **Institutional Holding**: 16.7%
 - **Business Summary**: Mahindra Logistics Limited provides integrated logistics solutions in India and internationally. It operates through two segments, Supply Chain Management (SCM) and Enterprise Mobility Services. The company offers logistics solutions and services, including warehousing, transportation, inventory …
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Strategic Context
 

@@ -68,10 +68,10 @@ NVIDIA Corporation is a large cap company operating in the technology sector glo
 - **Industry**: Semiconductors
 - **Employees**: 42,000
 - **Promoter Holding**: 4.0%
-- **Institutional Holding**: 65.8%
+- **Institutional Holding**: 71.4%
 - **Business Summary**: NVIDIA Corporation operates as a data center scale AI infrastructure company in the United States, Taiwan, China, Hong Kong, Europe, and internationally. It operates through Compute & Networking, and Graphics segments. The Compute & Networking segment provides data center accelerated computing an…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Business Model
 - **Primary Model**: B2B (Business-to-Business)

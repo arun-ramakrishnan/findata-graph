@@ -41,5 +41,5 @@ Honda Motor — auto-generated stub from newsletter parsing. To be enriched.
 - **Institutional Holding**: 4.2%
 - **Business Summary**: Honda Motor Co., Ltd. engages in the development, manufacturing, and distribution of motorcycles, automobiles, and power products in Japan, North America, Europe, Asia, and internationally. It operates through four segments: Motorcycle Business, Automobile Business, Financial Services Business, a…
 
-_Source: yfinance | Refreshed: 2026-09-15_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->

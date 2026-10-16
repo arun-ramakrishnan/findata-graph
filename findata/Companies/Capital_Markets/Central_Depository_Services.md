@@ -82,10 +82,10 @@ Admitted 3,593 unlisted companies in quarter
 - **Industry**: Capital Markets
 - **Employees**: 494
 - **Promoter Holding**: 0.0%
-- **Institutional Holding**: 13.9%
+- **Institutional Holding**: 16.1%
 - **Business Summary**: Central Depository Services (India) Limited, together with its subsidiaries, provides depository services in India. It operates through Depository; Data Entry and Storage; and Repository segments. The Depository segment offers various services to investors, such as dematerialisation, rematerialis…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Insurance Repository Business Transcript
 

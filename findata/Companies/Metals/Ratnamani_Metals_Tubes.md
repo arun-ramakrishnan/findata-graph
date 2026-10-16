@@ -35,11 +35,11 @@ Ratnamani Metals & Tubes is a leading manufacturer of specialized steel tubes an
 
 - **Industry**: Steel
 - **Employees**: 3,324
-- **Promoter Holding**: 67.2%
-- **Institutional Holding**: 25.8%
-- **Business Summary**: Ratnamani Metals & Tubes Limited manufactures and sells stainless steel pipes and tubes, and carbon steel pipes in India and internationally. The company's stainless-steel products include seamless heat exchanger tubes, boiler tubes, instrumentation tubes, seamless pipes, heater pipes, seamless i…
+- **Promoter Holding**: 65.5%
+- **Institutional Holding**: 25.6%
+- **Business Summary**: Ratnamani Metals & Tubes Limited engages in the manufacturing of stainless-steel pipes, tubes, and carbon steel pipes in India and internationally. The company offers stainless steel products, such as heat exchanger tubes, instrumentation seamless tubes, and stainless-steel pipes; nickel alloy se…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Key Insights
 - Leading manufacturer of specialty steel tubes and pipes in India

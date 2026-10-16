@@ -49,7 +49,7 @@ Frontier Springs Ltd is a global leader in manufacturing hot wound springs for v
 - **Institutional Holding**: 0.0%
 - **Business Summary**: Frontier Springs Limited engages in the production and sale of L.H.B. springs, hot coiled compression springs, air springs, and forging items in India. Its forging products include anti-roll bar assemblies, screw couplings, draft gear assemblies, hangers, knuckle throwers, top followers, wedge, a…
 
-_Source: yfinance | Refreshed: 2026-09-15_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Industry Context: Metals / Railway Spring Manufacturing
 

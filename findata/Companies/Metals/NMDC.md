@@ -40,11 +40,12 @@ NMDC Limited is India's largest iron ore producer, exploring and producing iron 
 ## Company Profile (yfinance)
 
 - **Industry**: Steel
+- **Employees**: 5,730
 - **Promoter Holding**: 60.8%
-- **Institutional Holding**: 20.4%
-- **Business Summary**: NMDC Limited, together with its subsidiaries, explores for and produces iron ore in India and internationally. It operates through Iron Ore, and All Other Segments (Pellets, Other Minerals & Services). The company also explores for lithium, copper, rock phosphate, limestone, beach sand, coking an…
+- **Institutional Holding**: 20.7%
+- **Business Summary**: NMDC Limited, together with its subsidiaries, explores for and produces iron ore in India and internationally. It operates through Iron Ore, Trading of HR Coil, and All Other Segments (Pellets, Other Mineral, Products, Services & Others). The company also explores for lithium, copper, rock phosph…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Financial Profile (Yahoo Finance, Jun 2026)
 

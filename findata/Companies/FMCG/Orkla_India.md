@@ -57,10 +57,10 @@ Orkla India is a leading food company specializing in spices and convenience foo
 
 - **Industry**: Packaged Foods
 - **Promoter Holding**: 83.3%
-- **Institutional Holding**: 9.9%
-- **Business Summary**: Orkla India Limited operates as a food company, manufactures and sells spices and convenience foods in India and internationally. It offers sambar, chicken, puliogare, rasam, and meat blended spice masala; and chilli, kashmiri chilli, turmeric, coriander, and cumin pure spices. The company also p…
+- **Institutional Holding**: 9.2%
+- **Business Summary**: Orkla India Limited operates as a food company, manufactures and sells spices and convenience foods in India and internationally. It offers instant food mixes, spices, masalas and blended curry powders; ready-to-eat food products, vermicelli, confectionery, beverages, coffee; and rice products, s…
 
-_Source: yfinance | Refreshed: 2026-08-11_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 <!-- BEGIN auto chatter block (derive_insights.py) -->
 

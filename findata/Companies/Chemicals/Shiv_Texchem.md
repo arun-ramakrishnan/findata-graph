@@ -38,11 +38,12 @@ Shiv Texchem Limited, incorporated in 2005 and headquartered in Mumbai, imports 
 ## Company Profile (yfinance)
 
 - **Industry**: Chemicals
+- **Employees**: 50
 - **Promoter Holding**: 75.7%
 - **Institutional Holding**: 3.8%
-- **Business Summary**: Shiv Texchem Limited imports and distributes hydrocarbon-based chemicals in India. Its products include acetyls, alcohol, aromatics, nitriles, monomers, glycols phenolic, ketones, and isocyanates. The company serves various applications, including paints and coatings, printing inks, specialty pol…
+- **Business Summary**: Shiv Texchem Limited imports and distributes hydrocarbon-based chemicals in India. Its products include acetyls, alcohol, aromatics, nitriles, monomers, glycols phenolic, ketones, and isocyanates. It also provides inorganics and allied, aromatics and blended stocks, nithles and isocynates, and in…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Financial Profile (Yahoo Finance, Jun 2026)
 - Market cap: ₹2,850 cr | Enterprise value: ₹7,188 cr

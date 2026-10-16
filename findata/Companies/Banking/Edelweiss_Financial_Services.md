@@ -36,12 +36,12 @@ Edelweiss Financial Services Limited is a leading diversified financial services
 ## Company Profile (yfinance)
 
 - **Industry**: Financial Conglomerates
-- **Employees**: 6,202
-- **Promoter Holding**: 39.0%
-- **Institutional Holding**: 15.7%
-- **Business Summary**: Edelweiss Financial Services Limited provides financial products and services to corporations, institutions, and individuals in India. It offers retail credit products, such as home, small and medium-sized enterprise, and business loans; and investment banking services. The company also provides …
+- **Employees**: 6,000
+- **Promoter Holding**: 37.1%
+- **Institutional Holding**: 15.9%
+- **Business Summary**: Edelweiss Financial Services Limited, an investment company, provides financial products and services to corporations, institutions, and individuals in India. It offers credit products, such as home, small and medium-sized enterprise, and business loans; and investment banking services. The compa…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Key Insights
 

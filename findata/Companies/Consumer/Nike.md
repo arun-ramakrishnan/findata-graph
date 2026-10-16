@@ -3,6 +3,7 @@ title: Nike
 type: company
 ticker: NKE
 sector: Consumer
+industry: Footwear & Accessories
 market_cap: large_cap
 normalized_name: Nike
 permalink: /companies/consumer/nike
@@ -37,6 +38,19 @@ American athletic footwear and apparel company.
 
 *Stub node — created as a graph endpoint. Expand as additional primary research accumulates.*
 
+
+<!-- BEGIN auto company profile (enrich_from_yfinance.py) -->
+
+## Company Profile (yfinance)
+
+- **Industry**: Footwear & Accessories
+- **Employees**: 73,000
+- **Promoter Holding**: 2.0%
+- **Institutional Holding**: 82.7%
+- **Business Summary**: NIKE, Inc., together with its subsidiaries, designs, develops, markets, and sells athletic footwear, apparel, equipment, accessories, and services for men, women, and kids in North America, Europe, the Middle East, Africa, Greater China, the Asia Pacific, and Latin America. The company offers its…
+
+_Source: yfinance | Refreshed: 2026-10-16_
+<!-- END auto company profile -->
 <!-- BEGIN auto key figures (derive_insights.py) -->
 
 ## Key Figures (auto)

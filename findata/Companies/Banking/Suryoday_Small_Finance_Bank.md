@@ -49,11 +49,11 @@ Suryoday Small Finance Bank is a leading small finance bank in India, providing 
 
 - **Industry**: Banks - Regional
 - **Employees**: 8,574
-- **Promoter Holding**: 35.7%
+- **Promoter Holding**: 35.4%
 - **Institutional Holding**: 19.0%
 - **Business Summary**: Suryoday Small Finance Bank Limited provides financial products to micro-entrepreneurs and underserved communities and individuals in India. It operates through Treasury, Retail Banking, Corporate Banking, and Other Banking Operation segments. The company offers savings, salary, current, and spec…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 
 <!-- BEGIN auto chatter block (derive_insights.py) -->

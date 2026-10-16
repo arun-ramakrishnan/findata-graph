@@ -39,6 +39,19 @@ sources:
 
 Talbros Automotive Components is a leading Indian manufacturer of gaskets, heat shields, forgings, and chassis components for multiple vehicle segments, operating through JVs and serving domestic and international OEMs.
 
+
+<!-- BEGIN auto company profile (enrich_from_yfinance.py) -->
+
+## Company Profile (yfinance)
+
+- **Industry**: Auto Parts
+- **Employees**: 618
+- **Promoter Holding**: 60.9%
+- **Institutional Holding**: 0.4%
+- **Business Summary**: Talbros Automotive Components Limited engages in the manufacturing and sells automotive and industrial components in India. The company offers gaskets with electrical control, multi-layer steel, post coated/selective area coated, exhaust and hot, rubber and edge molded, fiber, heat shield gaskets…
+
+_Source: yfinance | Refreshed: 2026-10-16_
+<!-- END auto company profile -->
 <!-- BEGIN auto key figures (derive_insights.py) -->
 
 ## Key Figures (auto)

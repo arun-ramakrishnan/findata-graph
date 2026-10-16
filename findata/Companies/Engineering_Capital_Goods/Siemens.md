@@ -361,10 +361,10 @@ Siemens is a global technology powerhouse that has been driving innovation and e
 - **Industry**: Specialty Industrial Machinery
 - **Employees**: 6,346
 - **Promoter Holding**: 76.9%
-- **Institutional Holding**: 11.1%
+- **Institutional Holding**: 10.8%
 - **Business Summary**: Siemens Limited, a technology company, industry, infrastructure, mobility, and healthcare business in India and internationally. It operates through Smart Infrastructure, Mobility, Digital Industries, and Others segments. The Smart Infrastructure supplies products, systems, solutions, and service…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Key Metrics Dashboard
 - **Market Cap**: Large Cap

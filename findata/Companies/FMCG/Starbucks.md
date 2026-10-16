@@ -3,6 +3,7 @@ title: Starbucks
 type: company
 ticker: SBUX
 sector: FMCG
+industry: Restaurants
 market_cap: large_cap
 normalized_name: Starbucks
 permalink: /companies/fmcg/starbucks
@@ -33,6 +34,19 @@ American global coffeehouse chain.
 
 *Stub node — created as a graph endpoint. Expand as additional primary research accumulates.*
 
+
+<!-- BEGIN auto company profile (enrich_from_yfinance.py) -->
+
+## Company Profile (yfinance)
+
+- **Industry**: Restaurants
+- **Employees**: 381,000
+- **Promoter Holding**: 0.1%
+- **Institutional Holding**: 87.1%
+- **Business Summary**: Starbucks Corporation, together with its subsidiaries, operates as a roaster, marketer, and retailer of coffee internationally. The company operates through three segments: North America, International, and Channel Development. Its stores offer coffee, tea, and other beverages, roasted whole bean…
+
+_Source: yfinance | Refreshed: 2026-10-16_
+<!-- END auto company profile -->
 <!-- BEGIN auto chatter block (derive_insights.py) -->
 
 ## The Chatter — Sailing the Tide

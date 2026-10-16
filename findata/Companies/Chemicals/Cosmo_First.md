@@ -37,11 +37,11 @@ Cosmo First Limited (formerly Cosmo Films) is a manufacturer of specialty films 
 
 - **Industry**: Packaging & Containers
 - **Employees**: 1,568
-- **Promoter Holding**: 47.8%
-- **Institutional Holding**: 1.5%
+- **Promoter Holding**: 46.6%
+- **Institutional Holding**: 2.1%
 - **Business Summary**: Cosmo First Limited engages in the manufacture and sale of bi-axially oriented polypropylene (BOPP) films in India and Internationally. The company provides packaging films; lamination films; label films; and industrial films, such as BOPP, biaxially oriented polyethylene terephthalate, cast poly…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Financial Profile (Yahoo Finance, Jun 2026)
 

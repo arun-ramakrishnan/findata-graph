@@ -65,10 +65,10 @@ Varun Beverages is a significant player in the beverage industry as the second l
 - **Industry**: Beverages - Non-Alcoholic
 - **Employees**: 10,654
 - **Promoter Holding**: 60.6%
-- **Institutional Holding**: 24.9%
+- **Institutional Holding**: 23.1%
 - **Business Summary**: Varun Beverages Limited, together with its subsidiaries, manufactures, bottles, sells, and distributes beverages under the PepsiCo brands in India, Sri Lanka, Nepal, Zambia, Morocco, Zimbabwe, the Democratic Republic of Congo, Mozambique, South Africa, Lesotho, Eswatini, Namibia, and Botswana. Th…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Industry Classification
 - **Sector**: FMCG - Beverages

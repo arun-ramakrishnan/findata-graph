@@ -56,10 +56,10 @@ BASF India Limited, a leading company in chemical sector, offers a wide range pr
 - **Industry**: Specialty Chemicals
 - **Employees**: 1,337
 - **Promoter Holding**: 73.8%
-- **Institutional Holding**: 9.7%
+- **Institutional Holding**: 9.4%
 - **Business Summary**: BASF India Limited provides chemicals, materials, industrial solutions, nutrition and care, and agricultural solutions in India and internationally. The company's Agricultural Solution segment offers crop protection products, such as insecticides, herbicides, fungicides, and plant growth regulato…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Market Position
 

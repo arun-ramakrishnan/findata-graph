@@ -52,11 +52,12 @@ Presence Across APIs, Formulation, Specialty Chemicals, Intermediates Segments
 ## Company Profile (yfinance)
 
 - **Industry**: Drug Manufacturers - Specialty & Generic
+- **Employees**: 1,355
 - **Promoter Holding**: 59.6%
 - **Institutional Holding**: 11.0%
-- **Business Summary**: Aarti Drugs Limited, through its subsidiaries, manufactures and markets active pharmaceutical ingredients (APIs), pharmaceutical intermediates, specialty chemicals, and formulations in India and internationally. The company offers aceclofenac, celecoxib, diclofenac sodium, diclodenac potassium, d…
+- **Business Summary**: Aarti Drugs Limited, through its subsidiaries, engages in the manufacture and marketing of active pharmaceutical ingredients (APIs), pharmaceutical intermediates, specialty chemicals, and formulations in India and internationally. The company offers aceclofenac, celecoxib, diclofenac sodium, dicl…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## API
 Active Healthcare Ingredients (API)

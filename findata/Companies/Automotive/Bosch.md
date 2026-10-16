@@ -63,10 +63,10 @@ Bosch Limited is the Indian subsidiary of Robert Bosch GmbH, a leading global te
 - **Industry**: Auto Parts
 - **Employees**: 37,131
 - **Promoter Holding**: 70.7%
-- **Institutional Holding**: 17.5%
+- **Institutional Holding**: 18.4%
 - **Business Summary**: Bosch Limited engages in the manufacture and trading of automotive products in India. It operates through Automotive Products, Consumer Goods, and Others segments. The company offers products, such as spark and glow plugs; ignition coil; nozzle holder, components, and fuel rail assembly; LAG, SAG…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 
 <!-- BEGIN auto key figures (derive_insights.py) -->

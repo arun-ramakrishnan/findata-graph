@@ -3,7 +3,7 @@ title: Shadowfax Technologies
 type: company
 ticker: SHADOWFAX.NS
 sector: Logistics
-industry: null
+industry: Integrated Freight & Logistics
 market_cap: small_cap
 normalized_name: Shadowfax_Technologies
 file_path: findata/Companies/Logistics/Shadowfax_Technologies.md
@@ -35,6 +35,19 @@ sources:
 
 Shadowfax is a technology-led 3PL providing last-mile delivery for e-commerce, quick commerce, and food delivery via a crowdsourced network, offering same-day delivery and reverse logistics across India.
 
+
+<!-- BEGIN auto company profile (enrich_from_yfinance.py) -->
+
+## Company Profile (yfinance)
+
+- **Industry**: Integrated Freight & Logistics
+- **Employees**: 5,427
+- **Promoter Holding**: 32.2%
+- **Institutional Holding**: 38.3%
+- **Business Summary**: Shadowfax Technologies Limited operates as a technology-led third-party logistics company in India. The company offers express forward parcel delivery; reverse pickup logistics and hand-in-hand exchange; prime delivery; quick commerce; food and on-demand delivery, mobility, and other logistics se…
+
+_Source: yfinance | Refreshed: 2026-10-16_
+<!-- END auto company profile -->
 <!-- BEGIN auto key figures (derive_insights.py) -->
 
 ## Key Figures (auto)

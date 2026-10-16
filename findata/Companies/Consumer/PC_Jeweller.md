@@ -34,11 +34,12 @@ PC Jeweller Limited, incorporated in 2005 and headquartered in New Delhi, manufa
 ## Company Profile (yfinance)
 
 - **Industry**: Luxury Goods
-- **Promoter Holding**: 56.7%
-- **Institutional Holding**: 0.9%
-- **Business Summary**: PC Jeweller Limited manufactures, sells, and trades in gold, diamond, silver articles, precious stone, and gold and diamond studded jewelry in India. It offers rings, earrings, pendants, gold chains, bracelets and bangles, nose pins, necklaces, and mangalsutra, as well as men's jewelry. It sells …
+- **Employees**: 700
+- **Promoter Holding**: 54.2%
+- **Institutional Holding**: 1.2%
+- **Business Summary**: PC Jeweller Limited manufactures, sells, and trades in gold, diamond, silver articles, precious stone, and gold and diamond studded jewellery for men and women in India and internationally. It offers rings, earrings, pendants, chains, bracelets, nose pins, necklaces, and mangalsutra. It sells its…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Financial Profile (Yahoo Finance, Jun 2026)
 - Market cap: ₹83.2B | Enterprise value: ₹77.4B

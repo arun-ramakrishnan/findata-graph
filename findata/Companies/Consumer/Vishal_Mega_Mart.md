@@ -3,7 +3,7 @@ title: Vishal Mega Mart
 type: company
 ticker: VMM.NS
 sector: Consumer
-industry: null
+industry: Department Stores
 market_cap: large_cap
 normalized_name: Vishal_Mega_Mart
 permalink: /companies/consumer/vishal_mega_mart
@@ -40,6 +40,19 @@ sources:
 ## Company Overview
 Vishal Mega Mart Limited, incorporated in 2018 and headquartered in Gurugram, is a value-focused hypermarket chain specialising in fashion (apparel), general merchandise, and fast-moving consumer goods (FMCG) across India. It caters to middle and lower-middle-income consumers in Tier I, II and III cities through a mix of private labels and third-party brands, sold via physical stores, a mobile application and a website. A subsidiary of Samayat Services LLP, it is rapidly building out an omnichannel / quick-commerce platform using its stores as fulfillment hubs.
 
+
+<!-- BEGIN auto company profile (enrich_from_yfinance.py) -->
+
+## Company Profile (yfinance)
+
+- **Industry**: Department Stores
+- **Employees**: 21,913
+- **Promoter Holding**: 40.0%
+- **Institutional Holding**: 48.1%
+- **Business Summary**: Vishal Mega Mart Limited engages in the wholesale, trading, and retail of apparel, fast moving consumer goods, and general merchandise in India. The company offers apparel, including t-shirts, classics, fashion, lingerie, men's formal and casual, kids' wear, women's casual and ethnic, denims, ath…
+
+_Source: yfinance | Refreshed: 2026-10-16_
+<!-- END auto company profile -->
 ## Financial Profile (Yahoo Finance, Jun 2026)
 - Market cap: ₹54,503 cr | Enterprise value: ₹54,563 cr
 - Revenue (TTM): ₹12,906 cr (+22.2% YoY) | EBITDA margin: 14.6%

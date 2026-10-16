@@ -3,6 +3,7 @@ title: Antony Waste Handling Cell
 type: company
 ticker: AWHCL.NS
 sector: Logistics
+industry: Waste Management
 market_cap: small_cap
 normalized_name: Antony_Waste_Handling_Cell
 permalink: /companies/logistics/antony_waste_handling_cell
@@ -34,6 +35,19 @@ Municipal solid-waste management company.
 
 *Stub node — created as a graph endpoint. Expand as additional primary research accumulates.*
 
+
+<!-- BEGIN auto company profile (enrich_from_yfinance.py) -->
+
+## Company Profile (yfinance)
+
+- **Industry**: Waste Management
+- **Employees**: 10,316
+- **Promoter Holding**: 53.0%
+- **Institutional Holding**: 7.5%
+- **Business Summary**: Antony Waste Handling Cell Limited, together with its subsidiaries, engages in the municipal solid waste management business in India. The company offers door-to-door waste collection; smart transportation and fleet management; material recovery and processing facilities; composting and bio-metha…
+
+_Source: yfinance | Refreshed: 2026-10-16_
+<!-- END auto company profile -->
 <!-- BEGIN auto key figures (derive_insights.py) -->
 
 ## Key Figures (auto)

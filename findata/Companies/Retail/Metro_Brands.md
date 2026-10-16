@@ -43,11 +43,12 @@ Metro Brands Limited, founded in 1955 and headquartered in Mumbai, is a leading 
 ## Company Profile (yfinance)
 
 - **Industry**: Apparel Retail
-- **Promoter Holding**: 100.5%
-- **Institutional Holding**: 10.0%
-- **Business Summary**: Metro Brands Limited operates as a footwear specialty retailer in India. The company offers footwear for men, women, unisex, and kids under its own brands, including the Metro, Mochi, Walkway, and daVinchi, as well as third-party brands, such as Crocs, Foot Locker, Clarks, New Era, FILA, FitFlop,…
+- **Employees**: 5,179
+- **Promoter Holding**: 86.1%
+- **Institutional Holding**: 10.2%
+- **Business Summary**: Metro Brands Limited operates as a footwear specialty retailer in India. The company offers footwear for men, women, unisex, and kids under its own brands, including the Metro, Mochi, Walkway, and daVinchi, as well as third-party brands, such as Crocs, Foot Locker, MetroActiv, Clarks, New Era, FI…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Financial Profile (Yahoo Finance, Jun 2026)
 - Market cap: ₹28,108 cr | Enterprise value: ₹29,004 cr

@@ -43,7 +43,7 @@ Aelea Commodities is a nano-cap Indian company operating in the trading sector, 
 - **Institutional Holding**: 0.0%
 - **Business Summary**: Aelea Commodities Limited trades in agri-commodities in India and internationally. It engages in the trading of sugar, wheat flour, rice, and maida products. The company also provides cashews, flavour cashews, cashew sweets, roasted, salted cashew nuts, cashew paste, and other cashew products und…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 
 <!-- BEGIN auto chatter block (derive_insights.py) -->

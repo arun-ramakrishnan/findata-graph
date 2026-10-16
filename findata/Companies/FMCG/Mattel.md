@@ -45,10 +45,10 @@ Mattel Inc is a global toy company and one of the world's largest toy manufactur
 - **Industry**: Leisure
 - **Employees**: 31,000
 - **Promoter Holding**: 1.0%
-- **Institutional Holding**: 107.4%
+- **Institutional Holding**: 108.7%
 - **Business Summary**: Mattel, Inc., a play and family entertainment company, designs, manufactures, markets, and sells toys, games, and other products in North America, Europe, the Middle East, Africa, Latin America, and the Asia Pacific. The company offers dolls and accessories, books, content, and lifestyle products…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Strategic Context
 

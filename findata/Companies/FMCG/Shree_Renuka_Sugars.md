@@ -39,11 +39,12 @@ Shree Renuka Sugars (NSE: RENUKA) is one of India's largest sugar and ethanol pr
 ## Company Profile (yfinance)
 
 - **Industry**: Confectioners
+- **Employees**: 2,144
 - **Promoter Holding**: 62.6%
-- **Institutional Holding**: 8.9%
-- **Business Summary**: Shree Renuka Sugars Limited manufactures and refines sugar in India and internationally. The company operates through Sugar-Milling, Sugar-Refinery, Trading, Co-Generation, Distillery, Engineering, and Other segments. The company offers white/refined sugar under the Madhur Pure & Hygienic Sugar b…
+- **Institutional Holding**: 8.6%
+- **Business Summary**: Shree Renuka Sugars Limited manufactures, refines, and trades in sugar in India and internationally. It operates through Sugar-Milling, Sugar-Refinery, Trading, Co-Generation, Distillery, Engineering, and Other segments. The company offers white refined sugar under the Madhur Pure & Hygienic Suga…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 
 <!-- BEGIN auto chatter block (derive_insights.py) -->

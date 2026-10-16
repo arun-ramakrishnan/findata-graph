@@ -39,11 +39,12 @@ TeamLease Services Limited, incorporated in 2000 and headquartered in Bengaluru,
 ## Company Profile (yfinance)
 
 - **Industry**: Staffing & Employment Services
-- **Promoter Holding**: 36.3%
-- **Institutional Holding**: 54.9%
-- **Business Summary**: TeamLease Services Limited engages in human resource services in India and internationally. The company provides temporary and permanent staffing, consulting, IT infrastructure management, offshore development and testing center, information technology, ITES/BPO/call center/KPO/RPO, and medical t…
+- **Employees**: 2,209
+- **Promoter Holding**: 36.2%
+- **Institutional Holding**: 49.3%
+- **Business Summary**: TeamLease Services Limited engages in the provision of human resource services in India and internationally. The company provides temporary and permanent staffing, consulting, IT infrastructure management, offshore development and testing centre, information technology, ITES/BPO/call center/KPO/R…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Financial Profile (Yahoo Finance, Jun 2026)
 - Market cap: ₹2,431 cr | Enterprise value: ₹2,074 cr

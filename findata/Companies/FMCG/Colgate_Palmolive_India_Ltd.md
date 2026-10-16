@@ -46,10 +46,10 @@ Leading company in India: Colgate Palmolive India
 - **Industry**: Household & Personal Products
 - **Employees**: 2,276
 - **Promoter Holding**: 51.4%
-- **Institutional Holding**: 22.6%
+- **Institutional Holding**: 22.0%
 - **Business Summary**: Colgate-Palmolive (India) Limited manufactures and trades in personal and oral care products in India. The company offers toothpastes, toothpowder, toothbrushes, mouth wash, serum, rinses, whitening products, hand washes, and shower gels under the Colgate and Palmolive brand name. It also offers …
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Key Metrics
 - **Market Capitalization:** Large Cap

@@ -38,11 +38,12 @@ NBCC (India) Limited is a Government of India enterprise (formerly National Buil
 ## Company Profile (yfinance)
 
 - **Industry**: Engineering & Construction
+- **Employees**: 1,150
 - **Promoter Holding**: 61.8%
-- **Institutional Holding**: 15.5%
-- **Business Summary**: NBCC (India) Limited engages in project management consultancy, engineering procurement and construction, and real estate development businesses in India and internationally. It offers services for various civil construction projects, including residential and commercial complexes, re-development…
+- **Institutional Holding**: 14.3%
+- **Business Summary**: NBCC (India) Limited engages in project management consultancy, engineering procurement and construction, and real estate development businesses in India and internationally. The company operates through three segments: PMC; EPC; and Real Estate. It offers services for various civil construction …
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 The Chatter — TCS, Indian Bank, Amagi, CMR Green & More
 

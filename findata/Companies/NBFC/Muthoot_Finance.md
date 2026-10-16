@@ -70,10 +70,10 @@ Muthoot Finance Limited, a non-banking financing company, provides gold loans in
 - **Industry**: Credit Services
 - **Employees**: 31,617
 - **Promoter Holding**: 73.4%
-- **Institutional Holding**: 16.8%
-- **Business Summary**: Muthoot Finance Limited, a non-banking financing company, provides gold loans in India. The company offers various loans, including personal, small and corporate business, SME, and vehicle, as well as loans against property; insurance products, such as health, home, vehicle, life, travel, shop, a…
+- **Institutional Holding**: 16.9%
+- **Business Summary**: Muthoot Finance Limited, a non-banking financing company, provides gold loans in India. The company offers various loans, including personal, small business, home, corporate business, SME, and vehicle loans, as well as loans against property; insurance products, such as health, home, vehicle, lif…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Key Personnel
 - Mr. George Jacob Muthoot: Group Chairman of the Board & Whole-time Director

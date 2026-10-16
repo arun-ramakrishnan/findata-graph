@@ -3,6 +3,7 @@ title: JSW Infrastructure
 type: company
 ticker: JSWINFRA.NS
 sector: Logistics
+industry: Marine Shipping
 market_cap: large_cap
 normalized_name: JSW_Infrastructure
 permalink: /companies/logistics/jsw_infrastructure
@@ -38,6 +39,19 @@ JSW-group ports and logistics company.
 
 *Stub node — created as a graph endpoint. Expand as additional primary research accumulates.*
 
+
+<!-- BEGIN auto company profile (enrich_from_yfinance.py) -->
+
+## Company Profile (yfinance)
+
+- **Industry**: Marine Shipping
+- **Employees**: 1,428
+- **Promoter Holding**: 74.1%
+- **Institutional Holding**: 15.8%
+- **Business Summary**: JSW Infrastructure Limited, an infrastructure development company, operates commercial ports in India and internationally. It operates in two segments, Port Operations and Logistic Operation. The company's activities include developing, operating, and maintaining port services; ports related infr…
+
+_Source: yfinance | Refreshed: 2026-10-16_
+<!-- END auto company profile -->
 <!-- BEGIN auto key figures (derive_insights.py) -->
 
 ## Key Figures (auto)

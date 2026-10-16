@@ -45,11 +45,12 @@ Ceinsys Tech (brand "CS TECH AI") is a specialist in GIS and an engineering serv
 ## Company Profile (yfinance)
 
 - **Industry**: Engineering & Construction
-- **Promoter Holding**: 68.9%
+- **Employees**: 1,033
+- **Promoter Holding**: 68.0%
 - **Institutional Holding**: 0.0%
 - **Business Summary**: Ceinsys Tech Limited provides enterprise geospatial and engineering services in India and internationally. It offers geospatial data services, including GIS mapping, LiDAR, photogrammetry, and satellite imagery; feasibility modeling, predictive analytics and risk estimation, change management, an…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Key Demand Driver — Jal Jeevan Mission 2.0
 

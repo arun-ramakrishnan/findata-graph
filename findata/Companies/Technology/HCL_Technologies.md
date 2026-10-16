@@ -61,10 +61,10 @@ HCL Technologies (HCLTech) is a global information technology services and consu
 
 - **Industry**: Information Technology Services
 - **Promoter Holding**: 62.8%
-- **Institutional Holding**: 28.5%
+- **Institutional Holding**: 28.3%
 - **Business Summary**: HCL Technologies Limited provides IT and business services, engineering, research and development services, software products, and IP-led offerings. It operates through IT and Business Services, Engineering and R&D Services, and HCL Software segments. The company provides application development,…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Strategic Position
 

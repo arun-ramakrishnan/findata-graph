@@ -36,11 +36,12 @@ SAMHI Hotels is a leading hotel ownership and asset management platform in India
 ## Company Profile (yfinance)
 
 - **Industry**: Lodging
-- **Promoter Holding**: 24.1%
-- **Institutional Holding**: 32.6%
+- **Employees**: 2,774
+- **Promoter Holding**: 24.0%
+- **Institutional Holding**: 32.4%
 - **Business Summary**: SAMHI Hotels Limited, a hotel ownership and asset management platform, operates as a hotel development and investment company in India. It operates hotels under the Hyatt Place, Hyatt Regency, Sheraton, Courtyard By Marriott, Renaissance Hotel, Four Points By Sheraton, Fairfield By Marriott, Holi…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Key Insights (Points & Figures #22)
 

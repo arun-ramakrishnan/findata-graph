@@ -76,11 +76,11 @@ Infosys is a global leader in next-generation digital services and consulting, f
 
 - **Industry**: Information Technology Services
 - **Employees**: 328,062
-- **Promoter Holding**: 19.3%
-- **Institutional Holding**: 52.8%
+- **Promoter Holding**: 16.0%
+- **Institutional Holding**: 51.0%
 - **Business Summary**: Infosys Limited provides consulting, technology, outsourcing, and digital services worldwide. The company offers insight services, such as applied and generative AI, sustainability services, and Infosys Topaz, an AI-first set of services, solutions, and platforms; blockchain, Internet of Things, …
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Strategic Position
 

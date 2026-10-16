@@ -3,7 +3,7 @@ title: Excelsoft Technologies
 type: company
 ticker: EXCELSOFT.NS
 sector: Technology
-industry: null
+industry: Software - Application
 market_cap: micro_cap
 normalized_name: Excelsoft_Technologies
 permalink: /companies/technology/excelsoft_technologies
@@ -31,6 +31,18 @@ Excelsoft Technologies provides innovative technology-based solutions in educati
 - **Learning & Student Success**: EasyProctor remote proctoring, OpenPage e-textbooks
 - **AI-Powered Solutions**: AI-led platforms for learning and assessment
 
+
+<!-- BEGIN auto company profile (enrich_from_yfinance.py) -->
+
+## Company Profile (yfinance)
+
+- **Industry**: Software - Application
+- **Promoter Holding**: 63.9%
+- **Institutional Holding**: 1.6%
+- **Business Summary**: Excelsoft Technologies Limited, a software as a service (SaaS) company, designs and develops technology-based solutions in the education and e-learning space. It operates through Assessment and Proctoring Solutions; Educational Technology Services; Learning and Student Success Solutions; and Lear…
+
+_Source: yfinance | Refreshed: 2026-10-16_
+<!-- END auto company profile -->
 ## Market Position
 - **Vertical SaaS Focus**: Specialized in learning and assessment market
 - **Global Presence**: 25+ years experience, 19 countries, 103 clients

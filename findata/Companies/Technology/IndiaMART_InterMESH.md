@@ -3,7 +3,7 @@ title: IndiaMART InterMESH Limited
 type: company
 ticker: INDIAMART.NS
 sector: Technology
-industry: Internet Content & Information
+industry: Internet Retail
 market_cap: large_cap
 normalized_name: IndiaMART_InterMESH
 permalink: /companies/technology/indiamart_intermesh
@@ -40,12 +40,12 @@ IndiaMART InterMESH Limited, incorporated in 1999 and headquartered in Noida, op
 
 ## Company Profile (yfinance)
 
-- **Industry**: Internet Content & Information
-- **Promoter Holding**: 56.0%
-- **Institutional Holding**: 16.4%
-- **Business Summary**: IndiaMART InterMESH Limited operates an online business-to-business marketplace for business products and services in India and internationally. The company's e-marketplace acts as an interactive hub for domestic and international buyers and suppliers. Its platform serves small and medium enterpr…
+- **Industry**: Internet Retail
+- **Promoter Holding**: 58.1%
+- **Institutional Holding**: 12.6%
+- **Business Summary**: IndiaMART InterMESH Limited operates an online business-to-business (B2B) marketplace for business products and services in India and internationally. The company provides an online marketplace that enables listings and discovery of businesses, products, and services; buyer-supplier matchmaking; …
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Financial Profile (Yahoo Finance, Jun 2026)
 

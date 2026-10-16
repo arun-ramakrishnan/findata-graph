@@ -55,11 +55,12 @@ Godavari Biorefineries is a leading manufacturer of ethanol-based chemicals in I
 ## Company Profile (yfinance)
 
 - **Industry**: Chemicals
+- **Employees**: 1,729
 - **Promoter Holding**: 63.3%
-- **Institutional Holding**: 9.2%
-- **Business Summary**: Godavari Biorefineries Limited manufactures and sells sugar in India. It provides distillery, including ethanol, bio-chemicals, and other bio products; and classic and brown sugar, plantation white sugar, and refined sugar. The company also offers perfumery and pharmaceutical grade ethanol, recti…
+- **Institutional Holding**: 8.9%
+- **Business Summary**: Godavari Biorefineries Limited manufactures and sells sugar in India. It provides distillery, ethanol, bio-chemicals, and other bio products; and classic and brown sugar, plantation white sugar, and refined sugar. The company also offers perfumery and pharmaceutical grade ethanol, rectified spiri…
 
-_Source: yfinance | Refreshed: 2026-08-11_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 <!-- BEGIN auto chatter block (derive_insights.py) -->
 

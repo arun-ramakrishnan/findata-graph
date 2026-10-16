@@ -44,11 +44,11 @@ GoPro, Inc. provides cameras, mountable and wearable accessories, and subscripti
 
 - **Industry**: Consumer Electronics
 - **Employees**: 636
-- **Promoter Holding**: 5.0%
-- **Institutional Holding**: 39.8%
+- **Promoter Holding**: 13.6%
+- **Institutional Holding**: 44.3%
 - **Business Summary**: GoPro, Inc. provides cameras, mountable and wearable accessories, and subscription and services in the Americas, Europe, the Middle East, Africa, and the Asia Pacific. It offers cameras under the HERO13 Black, HERO12 Black, LIT HERO, HERO, MAX2, and MAX names; and camera attachments, including th…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Recent Performance
 

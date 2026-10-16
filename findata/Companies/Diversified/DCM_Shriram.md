@@ -71,11 +71,11 @@ DCM Shriram Limited is a prominent Indian conglomerate with a diversified busine
 
 - **Industry**: Confectioners
 - **Employees**: 843
-- **Promoter Holding**: 58.0%
-- **Institutional Holding**: 7.6%
+- **Promoter Holding**: 54.6%
+- **Institutional Holding**: 7.5%
 - **Business Summary**: DCM Shriram Industries Limited engages in the production and sale of sugar, alcohol, and power products in India and Nepal. It offers crystal sugar, breakfast, caster, icing, and bulk sugar; demerara pouches, cubes, and sachets; white sugar sachets and cubes; alcohol products, such as ethanol/anh…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Industry Context: Diversified Sector
 

@@ -52,11 +52,12 @@ Leading company in India: Steel Authority of India Limited SAIL
 ## Company Profile (yfinance)
 
 - **Industry**: Steel
+- **Employees**: 49,752
 - **Promoter Holding**: 65.1%
-- **Institutional Holding**: 20.0%
+- **Institutional Holding**: 17.0%
 - **Business Summary**: Steel Authority of India Limited, a steel-making company, manufactures and sells iron and steel products in India and internationally. The company offers a range of railway products, which include rail, high YS/UTS rail, corrosion-resistant micro-alloyed rail, vanadium alloyed rail, end forged th…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Key Metrics
 - **Market Capitalization:** Large Cap

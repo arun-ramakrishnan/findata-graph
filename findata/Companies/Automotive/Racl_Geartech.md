@@ -287,11 +287,12 @@ RACL Geartech is a leading Indian auto component manufacturer specializing in hi
 ## Company Profile (yfinance)
 
 - **Industry**: Auto Parts
-- **Promoter Holding**: 56.6%
+- **Employees**: 771
+- **Promoter Holding**: 55.5%
 - **Institutional Holding**: 8.5%
 - **Business Summary**: RACL Geartech Limited manufactures and sells automotive components. The company offers pin gear T49; actuator shaft; assy diff, bevel gear FRT; balancer, clutch, output, and input shaft assembly; bearing fixed pin; counter balancer gear and shaft; driven pulley shaft; gear timing drive LH, EGR re…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Key Metrics Dashboard
 - **Market Cap**: Small Cap

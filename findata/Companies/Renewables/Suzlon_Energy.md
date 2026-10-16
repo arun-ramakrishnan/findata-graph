@@ -56,11 +56,11 @@ Suzlon Energy Limited (incorporated 1995, HQ Pune) is India's leading pure-play 
 
 - **Industry**: Specialty Industrial Machinery
 - **Employees**: 8,600
-- **Promoter Holding**: 18.7%
-- **Institutional Holding**: 24.1%
-- **Business Summary**: Suzlon Energy Limited, together with its subsidiaries, manufactures and sells wind turbine generators and related components in India and internationally. It offers products, such as on-shore wind turbine generators with capacities ranging from 2 MW to 6 MW, and classic fleet turbines; and servic…
+- **Promoter Holding**: 17.6%
+- **Institutional Holding**: 23.5%
+- **Business Summary**: Suzlon Energy Limited, together with its subsidiaries, manufactures and sells wind turbine generators and related components in India and internationally. The company operates through the WTG, Foundry & Forging, O&M services, and Others segments. It offers onshore wind turbine generators with cap…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Financial Profile (Yahoo Finance, Jun 2026)
 - Market cap: ₹78,527 cr | Enterprise value: ₹78,762 cr

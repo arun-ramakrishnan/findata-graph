@@ -46,10 +46,10 @@ ESAF Small Finance Bank is a micro cap company operating in the financial servic
 - **Industry**: Banks - Regional
 - **Employees**: 8,797
 - **Promoter Holding**: 73.9%
-- **Institutional Holding**: 3.6%
-- **Business Summary**: ESAF Small Finance Bank provides banking products and services to retail, rural, and corporate customers in India. It operates through Treasury, Wholesale Banking, Retail Banking, and Other Banking segments. The company offers savings, current, and NRI accounts; foreign currency non-resident depo…
+- **Institutional Holding**: 2.8%
+- **Business Summary**: ESAF Small Finance Bank provides banking products and services to rural and semi-urban markets in India. The company operates through four segments: Treasury, Wholesale Banking, Retail Banking, and Other Banking Operations. It offers savings and current accounts; fixed, recurring, green, and FCNR…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Business Model
 - **Primary Model**: B2C (Business-to-Consumer)

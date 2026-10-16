@@ -3,7 +3,7 @@ title: One Mobikwik Systems
 type: company
 ticker: MOBIKWIK.NS
 sector: Fintech_Payments
-industry: null
+industry: Software - Infrastructure
 market_cap: small_cap
 normalized_name: One_Mobikwik_Systems
 permalink: /companies/fintech_payments/one_mobikwik_systems
@@ -37,6 +37,19 @@ sources:
 
 One Mobikwik Systems is a platform business with a two-sided payments network consumers and merchants. It offers prepaid payment instruments, payment gateway services, utility bill payments, online shopping, and financial services like loan products in partnership with financing partners.
 
+
+<!-- BEGIN auto company profile (enrich_from_yfinance.py) -->
+
+## Company Profile (yfinance)
+
+- **Industry**: Software - Infrastructure
+- **Employees**: 789
+- **Promoter Holding**: 42.5%
+- **Institutional Holding**: 7.2%
+- **Business Summary**: One MobiKwik Systems Limited provides digital payments and financial services for consumers and merchants in India and internationally. The company offers payment services for consumers, such as recharge, utility payments, bill payments, merchant payments, and other services through wallet; and o…
+
+_Source: yfinance | Refreshed: 2026-10-16_
+<!-- END auto company profile -->
 ## Key Information
 - **Entity Type**: Company
 - **Normalized Name**: One_Mobikwik_Systems

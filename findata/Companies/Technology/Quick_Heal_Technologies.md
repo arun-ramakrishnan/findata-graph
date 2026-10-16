@@ -36,11 +36,12 @@ Quick Heal Technologies Limited was incorporated in 1995 and is headquartered in
 ## Company Profile (yfinance)
 
 - **Industry**: Software - Application
-- **Promoter Holding**: 74.1%
+- **Employees**: 884
+- **Promoter Holding**: 71.5%
 - **Institutional Holding**: 0.0%
 - **Business Summary**: Quick Heal Technologies Limited engages in the provision of security software products and solutions to consumers, small businesses, government establishments, and corporate houses in India and internationally. It offers antivirus solutions, including total security, internet security, antivirus …
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Financial Profile (Yahoo Finance, Jun 2026)
 

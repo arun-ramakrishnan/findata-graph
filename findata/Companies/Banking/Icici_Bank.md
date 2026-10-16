@@ -72,11 +72,11 @@ ICICI Bank is India's second-largest private sector bank by assets and a leading
 
 - **Industry**: Banks - Regional
 - **Employees**: 124,029
-- **Promoter Holding**: 19.6%
-- **Institutional Holding**: 59.3%
+- **Promoter Holding**: 3.5%
+- **Institutional Holding**: 59.2%
 - **Business Summary**: ICICI Bank Limited, together with its subsidiaries, engages in the provision of various banking and financial services to corporate and retail customers in India and internationally. The company operates through Retail Banking, Wholesale Banking, Treasury, Other Banking, Life Insurance, General I…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Key Metrics
 - **Market Cap**: ~₹8+ lakh crore

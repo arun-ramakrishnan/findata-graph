@@ -72,11 +72,11 @@ Samvardhana Motherson International Limited, formerly known as Motherson Sumi Sy
 ## Company Profile (yfinance)
 
 - **Industry**: Auto Parts
-- **Promoter Holding**: 58.3%
-- **Institutional Holding**: 27.4%
+- **Promoter Holding**: 58.9%
+- **Institutional Holding**: 25.3%
 - **Business Summary**: Samvardhana Motherson International Limited, together with its subsidiaries, manufactures and sells components to automotive original equipment manufacturers in India, Germany, the United States, and internationally. It operates through Wiring Harness, Modules and Polymer Products, Vision Systems…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Business Segments
 

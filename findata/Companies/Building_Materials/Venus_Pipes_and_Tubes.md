@@ -36,11 +36,12 @@ Venus Pipes & Tubes Limited is a specialized industrial pipes and tubes manufact
 ## Company Profile (yfinance)
 
 - **Industry**: Steel
-- **Promoter Holding**: 51.8%
-- **Institutional Holding**: 16.3%
-- **Business Summary**: Venus Pipes and Tubes Limited manufactures and sells stainless-steel pipes and tubes worldwide. The company offers stainless steel high precision and heat exchanger tubes, hydraulic and instrumentation tubes, seamless pipes, welded pipes, and LSAW pipes. It distributes its products through direct…
+- **Employees**: 959
+- **Promoter Holding**: 49.9%
+- **Institutional Holding**: 16.7%
+- **Business Summary**: Venus Pipes and Tubes Limited manufactures and sells stainless-steel pipes and tubes worldwide. The company offers stainless steel high precision and heat exchanger tubes; hydraulic and instrumentation tubes; seamless pipes; welded pipes; condenser tubes; and LSAW pipes, as well as fittings, incl…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Business Operations
 

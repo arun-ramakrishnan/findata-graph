@@ -52,10 +52,10 @@ Happiest Minds Technologies Limited is a digital engineering and platform soluti
 - **Industry**: Information Technology Services
 - **Employees**: 6,500
 - **Promoter Holding**: 46.0%
-- **Institutional Holding**: 8.7%
+- **Institutional Holding**: 8.3%
 - **Business Summary**: Happiest Minds Technologies Limited, together with its subsidiaries, provides information technology (IT) solutions and services in India, the Americas, Australia, Europe, Asia, the Middle East, and Africa. It operates in three segments: Infrastructure Management and Security Services (IMSS); Pro…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Key Business Areas
 - Digital engineering services

@@ -3,6 +3,7 @@ title: Kanpur Plastipack
 type: company
 ticker: KANPRPLA.NS
 sector: Packaging
+industry: Packaging & Containers
 market_cap: small_cap
 normalized_name: Kanpur_Plastipack
 permalink: /companies/packaging/kanpur_plastipack
@@ -34,6 +35,19 @@ Woven polypropylene packaging maker.
 
 *Stub node — created as a graph endpoint. Expand as additional primary research accumulates.*
 
+
+<!-- BEGIN auto company profile (enrich_from_yfinance.py) -->
+
+## Company Profile (yfinance)
+
+- **Industry**: Packaging & Containers
+- **Employees**: 1,491
+- **Promoter Holding**: 81.2%
+- **Institutional Holding**: 0.0%
+- **Business Summary**: Kanpur Plastipack Limited manufactures and trades in industrial packaging solutions in India and internationally. It operates through Plastic Division, Consignmnet Stockiest and Trading; and Solar Power Division segments. The company offers flexible intermediate bulk containers (FIBC) used in che…
+
+_Source: yfinance | Refreshed: 2026-10-16_
+<!-- END auto company profile -->
 <!-- BEGIN auto chatter block (derive_insights.py) -->
 
 ## The Chatter — The Push and Pull

@@ -48,11 +48,12 @@ Lemon Tree Hotels Limited is India's largest hotel chain in the mid-priced secto
 ## Company Profile (yfinance)
 
 - **Industry**: Lodging
-- **Promoter Holding**: 37.3%
-- **Institutional Holding**: 45.5%
-- **Business Summary**: Lemon Tree Hotels Limited, together with its subsidiaries, engages in the hotel business in India. The company also operates hotel chains, owns, leases, operates, franchises hotels. It provides housing rental, digital transformation services. The company operates hotels in India and international…
+- **Employees**: 6,104
+- **Promoter Holding**: 22.3%
+- **Institutional Holding**: 40.0%
+- **Business Summary**: Lemon Tree Hotels Limited, together with its subsidiaries, owns, leases, operates, and franchises hotels in India. It offers accommodation and room, dining, bar, banquet, conference, meeting rooms, spa, fitness center, swimming pool, etc. hotel services. The company also provides housing rental a…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Key Business Updates
 

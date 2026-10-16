@@ -45,11 +45,12 @@ Tatva Chintan Pharma Chem Limited is a leading specialty chemicals manufacturer 
 ## Company Profile (yfinance)
 
 - **Industry**: Specialty Chemicals
+- **Employees**: 793
 - **Promoter Holding**: 74.2%
-- **Institutional Holding**: 5.8%
+- **Institutional Holding**: 5.9%
 - **Business Summary**: Tatva Chintan Pharma Chem Limited engages in the manufacture and sale of specialty chemicals in India, Germany, the United States of America, China, Singapore, and internationally. It offers structure directing agents (SDAs); phase transfer catalysts (PTCs); electrolyte salts for super capacitor …
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Product Portfolio
 

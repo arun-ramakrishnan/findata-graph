@@ -40,11 +40,12 @@ Multi-brand retailer and distributor of smartphones, IT hardware, software, and 
 ## Company Profile (yfinance)
 
 - **Industry**: Specialty Retail
+- **Employees**: 232
 - **Promoter Holding**: 79.2%
 - **Institutional Holding**: 0.0%
-- **Business Summary**: Logica Infoway Limited distributes and retails smartphones, IT hardware, software, and allied accessories and services in India. The company offers laptops, mobile phones, accessories, desktops, monitors, printers, storage devices, laptop bags, wireless products, and peripherals, as well as netwo…
+- **Business Summary**: Logica Infoway Limited distributes and retails smartphones, IT hardware, software, and allied accessories and services in India. The company provides laptops, mobile phones, accessories, desktops, monitors, printers, storage devices, laptop bags, wireless products, and peripherals, as well as net…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Company Details
 

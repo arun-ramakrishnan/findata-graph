@@ -54,11 +54,11 @@ Motilal Oswal Financial Services Limited, founded in **1987** and headquartered 
 
 - **Industry**: Capital Markets
 - **Employees**: 12,459
-- **Promoter Holding**: 52.8%
-- **Institutional Holding**: 28.9%
+- **Promoter Holding**: 52.7%
+- **Institutional Holding**: 29.1%
 - **Business Summary**: Motilal Oswal Financial Services Limited offers financial services in India. It operates through Wealth Management, Capital Markets, Asset and Private Wealth Management, Home Finance, and Treasury Investments segments. The company offers wealth and asset management, private wealth management, and…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Financial Profile (Yahoo Finance, Jun 2026)
 

@@ -46,10 +46,10 @@ SBI Life Insurance Company Limited, incorporated in 2000 and headquartered in Mu
 - **Industry**: Insurance - Life
 - **Employees**: 27,653
 - **Promoter Holding**: 58.8%
-- **Institutional Holding**: 31.0%
+- **Institutional Holding**: 30.8%
 - **Business Summary**: SBI Life Insurance Company Limited operates as a life insurance company in India. The company's life insurance business comprises individual and group life insurance products, including participating, non-participating, pension, group gratuity, group leave encashment, group superannuation, group …
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Financial Profile (Yahoo Finance, Jun 2026)
 

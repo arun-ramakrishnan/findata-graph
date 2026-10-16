@@ -3,6 +3,7 @@ title: Digitide Solutions
 type: company
 ticker: DIGITIDE.NS
 sector: Technology
+industry: Specialty Business Services
 market_cap: small_cap
 normalized_name: Digitide_Solutions
 permalink: /companies/technology/digitide_solutions
@@ -34,6 +35,19 @@ Technology company; details pending verification.
 
 *Stub node — created as a graph endpoint. Expand as additional primary research accumulates.*
 
+
+<!-- BEGIN auto company profile (enrich_from_yfinance.py) -->
+
+## Company Profile (yfinance)
+
+- **Industry**: Specialty Business Services
+- **Employees**: 53,500
+- **Promoter Holding**: 63.7%
+- **Institutional Holding**: 14.7%
+- **Business Summary**: Digitide Solutions Limited engages in business process management services and technology. The company provides tech and AI services, such as AI, data and analytics, cloud migrations, and infrastructure managed services; cybersecurity; data center; digital assurance, engineering, and experience; …
+
+_Source: yfinance | Refreshed: 2026-10-16_
+<!-- END auto company profile -->
 <!-- BEGIN auto chatter block (derive_insights.py) -->
 
 ## The Chatter — Moving Pieces

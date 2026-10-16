@@ -41,11 +41,11 @@ HEG — auto-generated stub from newsletter parsing. To be enriched.
 
 - **Industry**: Electrical Equipment & Parts
 - **Employees**: 1,175
-- **Promoter Holding**: 59.4%
-- **Institutional Holding**: 12.6%
+- **Promoter Holding**: 72.6%
+- **Institutional Holding**: 6.8%
 - **Business Summary**: HEG Advanced Materials Limited engages in the research and development of advanced battery materials, battery solutions. It manufactures custom machined components. The company also operates thermal power plants and a hydroelectric power facility. The company was formerly known as HEG Limited and…
 
-_Source: yfinance | Refreshed: 2026-09-15_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 <!-- BEGIN auto key figures (derive_insights.py) -->
 

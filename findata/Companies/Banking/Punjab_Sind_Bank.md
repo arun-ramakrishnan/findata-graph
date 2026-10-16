@@ -39,7 +39,7 @@ Punjab & Sind Bank is a leading public sector bank in India, providing comprehen
 - **Institutional Holding**: 1.5%
 - **Business Summary**: Punjab & Sind Bank provides various banking and financial products and services in India. It offers deposit products, including saving accounts, current accounts, salary, fixed deposits. The company also provides loans, such as home, auto, education, commercial vehicle, personal, doctor, mortgage…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Key Insights
 

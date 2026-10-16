@@ -48,12 +48,12 @@ Micron Technology Inc is a global leader in memory and storage solutions, provid
 ## Company Profile (yfinance)
 
 - **Industry**: Semiconductors
-- **Employees**: 53,000
-- **Promoter Holding**: 0.3%
-- **Institutional Holding**: 80.6%
-- **Business Summary**: Micron Technology, Inc. designs, develops, manufactures, and sells memory and storage products in the United States, Taiwan, Japan, Mainland China, Hong Kong, Europe, and internationally. It operates through the Cloud Memory Business Unit; Core Data Center Business Unit; Mobile and Client Busines…
+- **Employees**: 61,000
+- **Promoter Holding**: 0.2%
+- **Institutional Holding**: 79.8%
+- **Business Summary**: Micron Technology, Inc. engages in the provision of semiconductor memory and storage products in the United States, Taiwan, Mainland China, other Asia Pacific countries, Japan, Europe, and internationally. It operates through Cloud Memory Business Unit, Core Data Center Business Unit, Mobile and …
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Strategic Context
 

@@ -3,6 +3,7 @@ title: Marriott International
 type: company
 ticker: MAR
 sector: Travel
+industry: Lodging
 market_cap: large_cap
 normalized_name: Marriott_International
 permalink: /companies/travel/marriott_international
@@ -33,6 +34,19 @@ American global hotel group.
 
 *Stub node — created as a graph endpoint. Expand as additional primary research accumulates.*
 
+
+<!-- BEGIN auto company profile (enrich_from_yfinance.py) -->
+
+## Company Profile (yfinance)
+
+- **Industry**: Lodging
+- **Employees**: 414,000
+- **Promoter Holding**: 18.1%
+- **Institutional Holding**: 63.7%
+- **Business Summary**: Marriott International, Inc. engages in the operation, franchising, and licensing of hotel, residential, timeshare, and other lodging properties in the United States, Canada, Europe, the Middle East, Africa, Greater China, the Asia-Pacific, and internationally. The company operates properties und…
+
+_Source: yfinance | Refreshed: 2026-10-16_
+<!-- END auto company profile -->
 <!-- BEGIN auto chatter block (derive_insights.py) -->
 
 ## The Chatter — Decoding Capex Capacity and Consumer Trends

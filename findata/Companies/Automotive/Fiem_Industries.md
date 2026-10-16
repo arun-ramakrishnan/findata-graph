@@ -38,10 +38,10 @@ Fiem Industries is a leading automotive components company specializing in light
 - **Industry**: Auto Parts
 - **Employees**: 2,682
 - **Promoter Holding**: 54.5%
-- **Institutional Holding**: 12.2%
+- **Institutional Holding**: 11.5%
 - **Business Summary**: Fiem Industries Limited, together with its subsidiaries, manufactures and supplies automotive components in India and internationally. It operates in two segments, Automotive and Others. The company offers automotive lighting and signaling equipment, rear-view mirrors, prismatic mirrors, plastic …
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Business Segments
 

@@ -34,11 +34,12 @@ KP Energy Limited is a renewable energy company engaged in wind power generation
 ## Company Profile (yfinance)
 
 - **Industry**: Engineering & Construction
+- **Employees**: 820
 - **Promoter Holding**: 50.7%
 - **Institutional Holding**: 0.1%
-- **Business Summary**: K.P. Energy Limited provides balance of plant solutions for wind energy sector in India. The company offers solutions for wind project and wind-solar hybrid power project development, which comprises site identification and acquisition, site preparation and logistics, erection, power evacuation, …
+- **Business Summary**: K.P. Energy Limited provides balance of plant solutions for renewable energy sector in India. It operates through Infrastructure Development, Sale of Power, and Operation & Maintenance Services segments. The company offers solutions for wind power and wind-solar hybrid power project development, …
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Strategic Context
 

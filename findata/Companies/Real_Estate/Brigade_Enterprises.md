@@ -49,10 +49,10 @@ Brigade Enterprises Limited, founded in 1986 and headquartered in Bengaluru, is 
 - **Industry**: Real Estate - Development
 - **Employees**: 3,408
 - **Promoter Holding**: 46.7%
-- **Institutional Holding**: 36.3%
+- **Institutional Holding**: 37.7%
 - **Business Summary**: Brigade Enterprises Limited engages in the provision of real estate development, leasing, and related services in India. It operates through Real Estate, Hospitality, and Leasing segments. The company develops and sells various residential and commercial, and retail properties. It also manages st…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Financial Profile (Yahoo Finance, Jun 2026)
 - Market cap: ₹17,130 cr | Enterprise value: ₹22,041 cr

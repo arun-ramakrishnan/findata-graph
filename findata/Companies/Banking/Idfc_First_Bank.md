@@ -87,11 +87,12 @@ The bank caters to diverse customer segments with specialized cards - from credi
 ## Company Profile (yfinance)
 
 - **Industry**: Banks - Regional
+- **Employees**: 43,059
 - **Promoter Holding**: 12.9%
-- **Institutional Holding**: 43.4%
+- **Institutional Holding**: 45.5%
 - **Business Summary**: IDFC First Bank Limited provides various banking and financial services in India. It operates through the Treasury, Corporate and Wholesale Banking, Retail Banking, and Other Banking Business segments. The company offers treasury and forex solutions, including correspondent banking, FX, cross-bor…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Market Position
 IDFC First Bank has established itself as a leader in digital payments, particularly in the FASTag ecosystem, while rapidly expanding its credit card business across multiple customer segments.

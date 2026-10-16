@@ -45,7 +45,7 @@ Sundram Fasteners Limited is a leading manufacturer of high-precision fasteners 
 - **Institutional Holding**: 29.4%
 - **Business Summary**: Sundram Fasteners Limited manufactures and sells components for the automotive, infrastructure, wind energy, aerospace, defense, farm equipment, industrial, aviation, and other sectors in India, China, the Americas, and internationally. The company's products include high tensile fasteners, such …
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Business Segments
 

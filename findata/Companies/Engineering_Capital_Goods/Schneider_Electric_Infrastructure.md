@@ -38,6 +38,19 @@ sources:
 
 Schneider Electric Infrastructure is a company focused on electricity distribution infrastructure, including the design, manufacturing, and servicing of equipment like transformers, switchgear, and automation systems. It offers solutions for power distribution, grid automation, and energy management across industries and sectors such as buildings, data centers, and infrastructure.
 
+
+<!-- BEGIN auto company profile (enrich_from_yfinance.py) -->
+
+## Company Profile (yfinance)
+
+- **Industry**: Electrical Equipment & Parts
+- **Employees**: 1,447
+- **Promoter Holding**: 76.9%
+- **Institutional Holding**: 6.4%
+- **Business Summary**: Schneider Electric Infrastructure Limited designs, manufactures, builds, and services products and systems for electricity distribution in India and internationally. The company offers air-insulated switchgear, e-house and switchyard solutions, vacuum circuit breakers and protection relays, ring …
+
+_Source: yfinance | Refreshed: 2026-10-16_
+<!-- END auto company profile -->
 <!-- BEGIN auto key figures (derive_insights.py) -->
 
 ## Key Figures (auto)

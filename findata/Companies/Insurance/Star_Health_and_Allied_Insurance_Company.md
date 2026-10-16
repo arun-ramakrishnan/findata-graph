@@ -36,11 +36,11 @@ Star Health and Allied Insurance Company Limited was incorporated in 2005 and is
 
 - **Industry**: Insurance - Life
 - **Employees**: 18,566
-- **Promoter Holding**: 64.1%
-- **Institutional Holding**: 24.1%
-- **Business Summary**: Star Health and Allied Insurance Company Limited provides health insurance products in India. It offers retail health insurance products for individuals, families, children, senior citizens, and persons with pre-existing medical conditions; group health insurance products for employer/employee an…
+- **Promoter Holding**: 62.2%
+- **Institutional Holding**: 24.3%
+- **Business Summary**: Star Health and Allied Insurance Company Limited provides health insurance products in India. It offers retail health insurance products for individuals and families; group health insurance products for employer/employee and non-employer/employee groups, including small-to-medium enterprises; and…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Financial Profile (Yahoo Finance, Jun 2026)
 

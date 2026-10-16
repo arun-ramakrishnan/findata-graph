@@ -49,11 +49,12 @@ Arman Financial Services Limited (ASFL) provides affordable financing for person
 ## Company Profile (yfinance)
 
 - **Industry**: Credit Services
-- **Promoter Holding**: 30.8%
-- **Institutional Holding**: 11.2%
-- **Business Summary**: Arman Financial Services Limited, together with its subsidiary, operates as a non-banking finance company in India. The company offers micro, small, and medium enterprise loans; two wheeler loans; and micro finance loans as well as individual business loans and loan against property. The company …
+- **Employees**: 1,753
+- **Promoter Holding**: 30.7%
+- **Institutional Holding**: 11.4%
+- **Business Summary**: Arman Financial Services Limited, together with its subsidiary, operates as a non-banking finance company in India. The company offers micro, small, and medium enterprise loans; two wheeler financing for motorcycles, mopeds, scooterettes, and scooters; and micro finance loans, as well as individu…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 
 <!-- BEGIN auto chatter block (derive_insights.py) -->

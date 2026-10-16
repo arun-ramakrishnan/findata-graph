@@ -71,11 +71,12 @@ KEI Industries Limited manufactures, markets, and sells wires and cables in Indi
 ## Company Profile (yfinance)
 
 - **Industry**: Electrical Equipment & Parts
+- **Employees**: 2,197
 - **Promoter Holding**: 36.0%
-- **Institutional Holding**: 42.7%
-- **Business Summary**: KEI Industries Limited manufactures, markets, and sells wires and cables in India and internationally. It operates in three segments: Cable & Wires; Engineering, Procurement and Construction; and Stainless Steel Wire. The company offers extra-high voltage, high tension, and low-tension power cabl…
+- **Institutional Holding**: 44.0%
+- **Business Summary**: KEI Industries Limited manufactures, markets, and sells wires and cables in India and internationally. It operates in three segments: Cable & Wires; Engineering, Procurement and Construction; Stainless Steel Wire; and Other. The company offers extra high voltage cables, high voltage cables, low v…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Business Segments
 - **Cable & Wires**: Manufacturing and marketing of various types of cables and wires including power cables, control and instrumentation cables, specialty cables, solar cables, fire-resistant cables, EV charging cables, and house wires

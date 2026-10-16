@@ -57,11 +57,12 @@ Samsung Electronics (KRX: 005930; HQ Suwon, South Korea) is a global technology 
 ## Company Profile (yfinance)
 
 - **Industry**: Consumer Electronics
+- **Employees**: 128,242
 - **Promoter Holding**: 9.7%
-- **Institutional Holding**: 47.0%
+- **Institutional Holding**: 46.5%
 - **Business Summary**: Samsung Electronics Co., Ltd. engages in the consumer electronics, information technology and mobile communications, and device solutions businesses worldwide. The company operates through four divisions: Device eXperience (DX), Device Solutions (DS), SDC, and Harman. The company offers smartphon…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 
 <!-- BEGIN auto chatter block (derive_insights.py) -->

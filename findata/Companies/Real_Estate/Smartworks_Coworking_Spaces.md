@@ -115,11 +115,12 @@ Smartworks' focus on flexible workspace solutions aligns with the commercial rea
 ## Company Profile (yfinance)
 
 - **Industry**: Real Estate Services
-- **Promoter Holding**: 79.9%
-- **Institutional Holding**: 3.0%
-- **Business Summary**: Smartworks Coworking Spaces Limited owns, operates, and leases co-working spaces in India. The company operates and maintains serviced office spaces, meeting and training rooms, virtual offices, and other ancillary services. It also provides maintenance and house-keeping services to commercial pr…
+- **Employees**: 1,013
+- **Promoter Holding**: 79.8%
+- **Institutional Holding**: 4.0%
+- **Business Summary**: Smartworks Coworking Spaces Limited owns, operates, and leases co-working spaces in India. The company operates and maintains serviced office spaces, meeting and training rooms, virtual offices, and other ancillary services. It also provides maintenance and house-keeping services to commercial an…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## [Presentation]
 

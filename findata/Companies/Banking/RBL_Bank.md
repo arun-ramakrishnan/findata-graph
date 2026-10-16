@@ -35,12 +35,12 @@ RBL Bank is one of India's fastest-growing private sector banks, providing compr
 ## Company Profile (yfinance)
 
 - **Industry**: Banks - Regional
-- **Employees**: 26,595
-- **Promoter Holding**: 2.7%
-- **Institutional Holding**: 52.8%
-- **Business Summary**: RBL Bank Limited operates as a scheduled commercial bank in India. It operates through Corporate/Wholesale Banking, Retail Banking, Treasury, and Other Banking Operations segments. The company offers savings, salary, current, special institutions, and seafarer accounts; safe deposit lockers; fixe…
+- **Employees**: 22,857
+- **Promoter Holding**: 59.9%
+- **Institutional Holding**: 17.1%
+- **Business Summary**: RBL Bank Limited operates as a scheduled commercial bank in India. It operates through Corporate/Wholesale Banking; Retail Banking; Treasury; and Other Banking Operations segments. The company offers savings, salary, current, special institutions, and seafarer accounts; safe deposit lockers; fixe…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Key Insights
 

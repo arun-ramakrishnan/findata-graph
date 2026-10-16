@@ -47,11 +47,12 @@ PG Electroplast (PGEL) is a diversified Electronic Manufacturing Services (EMS) 
 ## Company Profile (yfinance)
 
 - **Industry**: Electronic Components
+- **Employees**: 2,202
 - **Promoter Holding**: 45.1%
-- **Institutional Holding**: 25.9%
-- **Business Summary**: PG Electroplast Limited provides electronic manufacturing services for original equipment manufacturers in India and internationally. The company manufactures and/or assembles various consumer electronic components and finished products, such as kitchen appliances, air conditioners sub-assemblies…
+- **Institutional Holding**: 27.8%
+- **Business Summary**: PG Electroplast Limited engages in the provision of electronic manufacturing services in India and internationally. It manufactures and/or assembles various consumer electronic components and finished products, such as kitchen appliances, air conditioners sub-assemblies, air cooler, washing machi…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 
 <!-- BEGIN auto key figures (derive_insights.py) -->

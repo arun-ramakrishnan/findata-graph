@@ -50,11 +50,12 @@ The sector is driven by digital transformation, global demand, and AI revolution
 ## Company Profile (yfinance)
 
 - **Industry**: Computer Hardware
-- **Promoter Holding**: 68.0%
-- **Institutional Holding**: 11.0%
+- **Employees**: 569
+- **Promoter Holding**: 64.2%
+- **Institutional Holding**: 11.4%
 - **Business Summary**: Netweb Technologies India Limited designs, manufactures, and sells high-end computing solutions in India. The company offers supercomputing systems; private cloud and hyperconverged infrastructure, including private cloud, hybrid cloud, cloud tools, and cloud native storage; artificial intelligen…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Competitive Landscape
 

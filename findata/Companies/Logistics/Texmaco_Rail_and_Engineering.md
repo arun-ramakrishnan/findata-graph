@@ -43,11 +43,12 @@ Texmaco Rail and Engineering is a company in the construction and engineering se
 ## Company Profile (yfinance)
 
 - **Industry**: Railroads
+- **Employees**: 1,879
 - **Promoter Holding**: 48.5%
-- **Institutional Holding**: 9.0%
-- **Business Summary**: Texmaco Rail & Engineering Limited manufactures, sells, and provides services for rail and rail related products in India and internationally. It operates through three segments: Heavy Engineering, Steel Foundry, and Rail EPC. The company offers freight cars, such as railway freight cars, loco co…
+- **Institutional Holding**: 9.1%
+- **Business Summary**: Texmaco Rail & Engineering Limited manufactures, sells, and provides services for rail and rail related products in India. It operates through four segments: Freight Car Division, Infra Rail & Green Energy, Infra Electrical, and Real Estate. The company offers freight cars, such as railway freigh…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Industry Classification
 - **Sector**: Transportation, Construction, Engineering

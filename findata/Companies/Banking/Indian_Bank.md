@@ -60,11 +60,11 @@ The sector is driven by financialization, digital payments, and market developme
 
 - **Industry**: Banks - Regional
 - **Employees**: 40,161
-- **Promoter Holding**: 76.4%
-- **Institutional Holding**: 16.9%
+- **Promoter Holding**: 76.5%
+- **Institutional Holding**: 17.2%
 - **Business Summary**: Indian Bank provides various banking products and services. It offers deposit products, including savings bank and current accounts, term deposits, and non-resident Indian (NRI) accounts. The company also provides agriculture, MSME, corporate, online, home, mortgage, vehicle, personal, educationa…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Competitive Landscape
 

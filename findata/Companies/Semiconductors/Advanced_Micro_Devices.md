@@ -68,10 +68,10 @@ Advanced Micro Devices, Inc. (AMD) is a global semiconductor company headquarter
 - **Industry**: Semiconductors
 - **Employees**: 31,000
 - **Promoter Holding**: 0.4%
-- **Institutional Holding**: 72.2%
+- **Institutional Holding**: 75.4%
 - **Business Summary**: Advanced Micro Devices, Inc. operates as a semiconductor company internationally. It operates in three segments: Data Center, Client and Gaming, and Embedded. The company offers artificial intelligence (AI) accelerators, microprocessors, and graphics processing units (GPUs) as standalone devices …
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Market Position & Financial Performance
 - **Market Cap:** $380.2 billion

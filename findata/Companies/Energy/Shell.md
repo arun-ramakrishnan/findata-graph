@@ -3,6 +3,7 @@ title: Shell
 type: company
 ticker: SHEL
 sector: Energy
+industry: Oil & Gas Integrated
 market_cap: large_cap
 normalized_name: Shell
 permalink: /companies/energy/shell
@@ -33,6 +34,19 @@ British-Dutch integrated energy major.
 
 *Stub node — created as a graph endpoint. Expand as additional primary research accumulates.*
 
+
+<!-- BEGIN auto company profile (enrich_from_yfinance.py) -->
+
+## Company Profile (yfinance)
+
+- **Industry**: Oil & Gas Integrated
+- **Employees**: 84,000
+- **Promoter Holding**: 0.0%
+- **Institutional Holding**: 13.4%
+- **Business Summary**: Shell plc operates as an energy and petrochemical company in Europe, Asia, Oceania, Africa, the United States, and other parts of the Americas. It operates through the following segments: Integrated Gas, Upstream, Marketing, Chemicals and Products, and Renewables and Energy Solutions. The company…
+
+_Source: yfinance | Refreshed: 2026-10-16_
+<!-- END auto company profile -->
 <!-- BEGIN auto chatter block (derive_insights.py) -->
 
 ## The Chatter — Sailing the Tide

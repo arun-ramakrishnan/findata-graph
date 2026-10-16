@@ -3,7 +3,7 @@ title: Linc Pen & Plastics
 type: company
 ticker: LINC.NS
 sector: Consumer
-industry: null
+industry: Business Equipment & Supplies
 market_cap: small_cap
 normalized_name: Linc_Pen_and_Plastics
 permalink: /companies/consumer/linc_pen_and_plastics
@@ -33,6 +33,19 @@ sources:
 ## Company Overview
 Linc Pen & Plastics Limited is a leading manufacturer of writing instruments, stationery products, and plastic products. The company produces pens, pencils, highlighters, and various stationery items under the Linc brand.
 
+
+<!-- BEGIN auto company profile (enrich_from_yfinance.py) -->
+
+## Company Profile (yfinance)
+
+- **Industry**: Business Equipment & Supplies
+- **Employees**: 1,078
+- **Promoter Holding**: 80.7%
+- **Institutional Holding**: 0.1%
+- **Business Summary**: Linc Limited manufactures and sells writing instruments and stationeries in India and internationally. The company offers adhesive products, such as glue sticks, index tabs, invisible tapes, liquid glue, and sticky notes; calculators; desk supplies comprising office consumables and products, pape…
+
+_Source: yfinance | Refreshed: 2026-10-16_
+<!-- END auto company profile -->
 <!-- BEGIN auto key figures (derive_insights.py) -->
 
 ## Key Figures (auto)

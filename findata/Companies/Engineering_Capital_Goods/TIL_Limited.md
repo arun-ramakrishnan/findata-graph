@@ -42,11 +42,11 @@ TIL Limited is a construction and material handling equipment manufacturer, now 
 
 - **Industry**: Farm & Heavy Construction Machinery
 - **Employees**: 355
-- **Promoter Holding**: 80.9%
-- **Institutional Holding**: 0.0%
+- **Promoter Holding**: 71.5%
+- **Institutional Holding**: 1.7%
 - **Business Summary**: TIL Limited, together with its subsidiary, TIL Overseas PTE Limited, provides materials handling solutions in India and internationally. It offers material handling, lifting, port, and road construction equipment; rough terrain empty containers reach stackers, truck, pick and carry, and articulat…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Strategic Developments from Plotlines Analysis
 

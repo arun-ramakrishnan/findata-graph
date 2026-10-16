@@ -54,11 +54,11 @@ GAIL (India) Limited is India's largest state-owned natural-gas processing, tran
 
 - **Industry**: Utilities - Regulated Gas
 - **Employees**: 5,356
-- **Promoter Holding**: 63.7%
-- **Institutional Holding**: 27.9%
+- **Promoter Holding**: 59.0%
+- **Institutional Holding**: 26.8%
 - **Business Summary**: GAIL (India) Limited operates as a natural gas processing and distribution company in India and internationally. It operates through Transmission Services, Natural Gas Marketing, Petrochemicals, LPG and Other Liquid Hydrocarbons, and Other segments. The company is involved in the transmission and…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Business Segments
 

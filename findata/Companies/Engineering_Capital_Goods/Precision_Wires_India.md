@@ -37,10 +37,10 @@ Precision Wires India Limited manufactures insulated enamelled winding wires and
 - **Industry**: Electrical Equipment & Parts
 - **Employees**: 801
 - **Promoter Holding**: 65.0%
-- **Institutional Holding**: 0.6%
+- **Institutional Holding**: 0.8%
 - **Business Summary**: Precision Wires India Limited manufactures and sells insulated enamelled winding wires and other insulated electric conductors in India and internationally. The company offers enamelled round and rectangular winding wires, continuously transposed conductors, paper/mica/nomex insulated copper cond…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Financial Profile (Yahoo Finance, Jun 2026)
 

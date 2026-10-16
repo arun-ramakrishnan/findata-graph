@@ -51,11 +51,11 @@ South Indian Bank is one of India's oldest private sector banks, established in 
 
 - **Industry**: Banks - Regional
 - **Employees**: 8,998
-- **Promoter Holding**: 4.9%
-- **Institutional Holding**: 29.5%
+- **Promoter Holding**: 4.3%
+- **Institutional Holding**: 29.8%
 - **Business Summary**: The South Indian Bank Limited provides various banking products and services in India. It operates through Treasury, Corporate/Wholesale Banking, Retail Banking, and Other Banking Operations segments. The company offers savings, institutional banking, non-resident external, non-resident ordinary,…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 
 <!-- BEGIN auto chatter block (derive_insights.py) -->

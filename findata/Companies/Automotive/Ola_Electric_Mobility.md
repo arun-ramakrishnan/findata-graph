@@ -47,11 +47,12 @@ Ola Electric Mobility Limited (incorporated 2017, HQ Bengaluru) develops, manufa
 ## Company Profile (yfinance)
 
 - **Industry**: Auto Manufacturers
-- **Promoter Holding**: 39.3%
-- **Institutional Holding**: 24.0%
-- **Business Summary**: Ola Electric Mobility Limited develops, manufactures, and sells electric vehicles in India. It operates through the Automotive and Cell segments. The company provides electric scooters; and electric vehicle components, such as battery packs, motors and vehicle frames, and cells. It also offers ch…
+- **Employees**: 6,139
+- **Promoter Holding**: 16.0%
+- **Institutional Holding**: 24.7%
+- **Business Summary**: Ola Electric Mobility Limited develops, manufactures, and sells electric vehicles in India. It operates through the Automotive and Cell segments. The company provides electric scooters; and electric vehicle components, such as battery packs, motors and vehicle frames, and cells. It also operates …
 
-_Source: yfinance | Refreshed: 2026-08-11_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Financial Profile (Yahoo Finance, Jun 2026)
 - Market cap: ₹18,470 cr | Enterprise value: ₹21,096 cr

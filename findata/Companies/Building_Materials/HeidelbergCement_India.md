@@ -39,11 +39,12 @@ HeidelbergCement India Limited (incorporated 1958; HQ Gurugram) is a subsidiary 
 ## Company Profile (yfinance)
 
 - **Industry**: Building Materials
+- **Employees**: 958
 - **Promoter Holding**: 71.2%
-- **Institutional Holding**: 14.6%
-- **Business Summary**: HeidelbergCement India Limited manufactures and sells cement in India and internationally. The company offers Portland pozzolana cement under the mycem, mycem Primo, mycem Power, and mycem Power Shield brands. It also manufactures and sells clinkers; and sells scrap materials. In addition, the co…
+- **Institutional Holding**: 14.4%
+- **Business Summary**: HeidelbergCement India Limited manufactures and sells cement in India. The company offers Portland pozzolana cement under the mycem, mycem Primo, mycem Power, and mycem Power Shield brand names. It also manufactures and sells clinkers; and sells scrap products. In addition, the company provides m…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Financial Profile (Yahoo Finance, Jun 2026)
 - Market cap: ₹3,511 cr | Enterprise value: ₹3,098 cr

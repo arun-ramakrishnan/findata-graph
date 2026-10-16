@@ -3,7 +3,7 @@ title: Future Retail
 type: company
 ticker: FRETAIL.NS
 sector: Retail
-industry: null
+industry: Department Stores
 market_cap: large_cap
 normalized_name: Future_Retail
 permalink: /companies/retail/future_retail
@@ -31,6 +31,19 @@ stale_after: '2027-03-09'
 
 Future Retail is a leading Indian retail company operating hypermarkets, supermarkets, and convenience stores across the country. The company is part of Future Group and focuses on organized retail sector with multi-format retail operations serving millions of customers across India.
 
+
+<!-- BEGIN auto company profile (enrich_from_yfinance.py) -->
+
+## Company Profile (yfinance)
+
+- **Industry**: Department Stores
+- **Employees**: 21,839
+- **Promoter Holding**: 0.0%
+- **Institutional Holding**: 0.0%
+- **Business Summary**: Future Retail Limited engages in retailing fashion, household, food, and consumer products in India. The company operates hypermarkets under the Big Bazaar and Big Bazaar GEN NXT brands; supermarkets under the HyperCity and foodworld brands; neighborhood food and grocery stores under the Easyday …
+
+_Source: yfinance | Refreshed: 2026-10-16_
+<!-- END auto company profile -->
 ## Business Segments
 
 ### Hypermarkets & Supermarkets

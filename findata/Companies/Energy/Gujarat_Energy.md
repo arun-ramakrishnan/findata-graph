@@ -44,10 +44,10 @@ Gujarat Energy Limited (formerly Gujarat Gas Limited), incorporated in 2012 and 
 - **Industry**: Utilities - Regulated Gas
 - **Employees**: 964
 - **Promoter Holding**: 54.5%
-- **Institutional Holding**: 25.4%
+- **Institutional Holding**: 22.5%
 - **Business Summary**: Gujarat Energy Limited engages in the distribution of natural gas in India. It operates a network of approximately 42,600 kilometers of natural gas pipeline and 828 compressed natural gas (CNG) stations. The company supplies piped natural gas to approximately 22.6 lakh households, approximately 1…
 
-_Source: yfinance | Refreshed: 2026-09-15_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Financial Profile (Yahoo Finance, Jun 2026)
 

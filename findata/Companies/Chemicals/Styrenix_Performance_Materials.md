@@ -3,6 +3,7 @@ title: Styrenix Performance Materials
 type: company
 ticker: STYRENIX.NS
 sector: Chemicals
+industry: Chemicals
 market_cap: small_cap
 normalized_name: Styrenix_Performance_Materials
 permalink: /companies/chemicals/styrenix_performance_materials
@@ -34,6 +35,19 @@ Styrenics and specialty polymers manufacturer.
 
 *Stub node — created as a graph endpoint. Expand as additional primary research accumulates.*
 
+
+<!-- BEGIN auto company profile (enrich_from_yfinance.py) -->
+
+## Company Profile (yfinance)
+
+- **Industry**: Chemicals
+- **Employees**: 440
+- **Promoter Holding**: 48.9%
+- **Institutional Holding**: 16.0%
+- **Business Summary**: Styrenix Performance Materials Limited engages in the manufacture, trading, and sale of engineering thermoplastics in India. It offers ABS for injection moulding and extrusion use in various applications, such as automobile interiors and exteriors, household appliances, office equipment, and elec…
+
+_Source: yfinance | Refreshed: 2026-10-16_
+<!-- END auto company profile -->
 <!-- BEGIN auto chatter block (derive_insights.py) -->
 
 ## The Chatter — The Push and Pull

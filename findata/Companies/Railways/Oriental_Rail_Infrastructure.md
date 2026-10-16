@@ -33,11 +33,12 @@ Oriental Rail Infrastructure Limited, incorporated in 1991 (formerly Oriental Ve
 ## Company Profile (yfinance)
 
 - **Industry**: Railroads
+- **Employees**: 198
 - **Promoter Holding**: 69.9%
 - **Institutional Holding**: 0.0%
-- **Business Summary**: Oriental Rail Infrastructure Limited manufactures, buys, and sells various recron, seat and berth, and compreg board products in India. The company offers compreg wood sheets used in electrical insulation which include rings, blocks, segments, etc.; silicon foam blocks and shuttering plates used …
+- **Business Summary**: Oriental Rail Infrastructure Limited manufactures, buys, and sells various recron, seats and berths, and compreg board products in India and internationally. The company also provides compreg wood sheets used in electrical insulation, which include rings, blocks, and segments, etc.; silicon foam …
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Financial Profile (Yahoo Finance, Jun 2026)
 - Market cap: ₹8,768 cr | Enterprise value: ₹11,113 cr

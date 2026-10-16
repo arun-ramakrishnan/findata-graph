@@ -33,12 +33,12 @@ Xiaomi Corporation is a global consumer electronics and smart manufacturing comp
 ## Company Profile (yfinance)
 
 - **Industry**: Consumer Electronics
-- **Employees**: 55,994
-- **Promoter Holding**: 20.4%
-- **Institutional Holding**: 27.2%
+- **Employees**: 52,876
+- **Promoter Holding**: 20.5%
+- **Institutional Holding**: 27.0%
 - **Business Summary**: Xiaomi Corporation, an investment holding company, engages in the development and sales of smartphones in Mainland China and internationally. It operates through Smartphones, IoT and Lifestyle Products, Internet Services, and smart electric vehicles segments. The company also offers internet of t…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Key Insights (Between_the_Numbers)
 - Plans to officially enter the European EV market by 2027, adapting its China-developed business model overseas; solving brand awareness for Xiaomi EVs abroad is viewed as critical.

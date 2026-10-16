@@ -169,7 +169,7 @@ Component manufacturing, tires, batteries, forgings, gears, and specialized part
 
 ## All Companies (auto)
 
-<!-- Auto-generated from the SQLite source of truth. 98 company note(s) in Automotive. Do not edit by hand — re-run `python3 helpers/maintenance/sync_sector_wikilinks.py` to refresh. Curated highlights live in the editorial sections above. -->
+<!-- Auto-generated from the SQLite source of truth. 99 company note(s) in Automotive. Do not edit by hand — re-run `python3 helpers/maintenance/sync_sector_wikilinks.py` to refresh. Curated highlights live in the editorial sections above. -->
 
 - [[Amara_Raja_Energy_and_Mobility|Amara Raja Energy and Mobility]]
 - [[Apollo_Tyres|Apollo Tyres]]
@@ -178,6 +178,7 @@ Component manufacturing, tires, batteries, forgings, gears, and specialized part
 - [[Autoline_Industries_Ltd|Autoline Industries Limited]]
 - [[Automotive_Axles|Automotive Axles]]
 - [[BMW]]
+- [[BYD]]
 - [[Bajaj_Auto|Bajaj Auto]]
 - [[Balkrishna_Industries_Limited|Balkrishna Industries Limited]]
 - [[Banco_Products_India|Banco Products (India)]]

@@ -56,11 +56,12 @@ Solarium Green Energy offers comprehensive Turnkey Solar Solutions for various p
 ## Company Profile (yfinance)
 
 - **Industry**: Solar
+- **Employees**: 415
 - **Promoter Holding**: 73.6%
 - **Institutional Holding**: 0.0%
-- **Business Summary**: Solarium Green Energy Limited operates as an integrated solar company in India. It offers turnkey engineering, procurement, and construction EPC solutions across residential, commercial, and government sectors. The company was founded in 2015 and is headquartered in Ahmedabad, India.
+- **Business Summary**: Solarium Green Energy Limited provides integrated solar solutions in India. The company operates through Residential Rooftop Solar; Engineering, Procurement and Construction; and Solar Manufacturing segments. It offers design, engineering, procurement, testing, installation, commissioning and lon…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Recent Performance
 

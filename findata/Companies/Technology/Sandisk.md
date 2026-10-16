@@ -3,6 +3,7 @@ title: Sandisk
 type: company
 ticker: SNDK
 sector: Technology
+industry: Computer Hardware
 market_cap: mid_cap
 normalized_name: Sandisk
 permalink: /companies/technology/sandisk
@@ -33,6 +34,19 @@ American flash-memory and storage company (Western Digital spin-off).
 
 *Stub node — created as a graph endpoint. Expand as additional primary research accumulates.*
 
+
+<!-- BEGIN auto company profile (enrich_from_yfinance.py) -->
+
+## Company Profile (yfinance)
+
+- **Industry**: Computer Hardware
+- **Employees**: 11,100
+- **Promoter Holding**: 1.1%
+- **Institutional Holding**: 81.9%
+- **Business Summary**: Sandisk Corporation develops, manufactures, and sells data storage devices and solutions using NAND flash technology in the Americas, Europe, the Middle East, Africa, Asia, and internationally. The company provides solid state drives for desktop and notebook PCs, gaming consoles, and set top boxe…
+
+_Source: yfinance | Refreshed: 2026-10-16_
+<!-- END auto company profile -->
 <!-- BEGIN auto chatter block (derive_insights.py) -->
 
 ## The Chatter — The Blind Spots

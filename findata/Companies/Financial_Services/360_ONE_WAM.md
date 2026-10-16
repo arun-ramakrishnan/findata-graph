@@ -42,11 +42,12 @@ sources:
 ## Company Profile (yfinance)
 
 - **Industry**: Asset Management
-- **Promoter Holding**: 16.7%
-- **Institutional Holding**: 64.4%
-- **Business Summary**: 360 One Wam Limited, together with its subsidiaries, engages in the provision of wealth and asset management services primarily in India. It operates through Wealth Management and Asset Management segments. The Wealth Management segment distributes financial products; advisory, broking and resear…
+- **Employees**: 1,780
+- **Promoter Holding**: 14.7%
+- **Institutional Holding**: 66.8%
+- **Business Summary**: 360 One Wam Limited, together with its subsidiaries, provides wealth and asset management services in India. It operates through the Wealth Management and Asset Management segments. The Wealth Management segment engages in the distribution of financial products, advisory, broking and research, di…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 
 <!-- BEGIN auto key figures (derive_insights.py) -->

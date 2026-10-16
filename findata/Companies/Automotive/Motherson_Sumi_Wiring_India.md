@@ -49,10 +49,10 @@ Motherson Sumi Wiring India Limited (MSWIL), headquartered in Noida, is a leadin
 - **Industry**: Auto Parts
 - **Employees**: 6,463
 - **Promoter Holding**: 61.7%
-- **Institutional Holding**: 21.0%
+- **Institutional Holding**: 21.3%
 - **Business Summary**: Motherson Sumi Wiring India Limited engages in the manufacture and sale of components to automotive original equipment manufacturers in India and internationally. The company provides wiring harness solutions to original equipment manufacturers; and manufactures, assembles, delivers integrated el…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Financial Profile (Yahoo Finance, Jun 2026)
 - Market cap: ₹27,362 cr | Enterprise value: ₹25,473 cr

@@ -57,10 +57,10 @@ CRISIL Limited, an analytical company, provides ratings, research, and risk and 
 - **Industry**: Financial Data & Stock Exchanges
 - **Employees**: 5,081
 - **Promoter Holding**: 71.9%
-- **Institutional Holding**: 15.6%
+- **Institutional Holding**: 15.3%
 - **Business Summary**: CRISIL Limited, an analytical company, provides ratings, research, and risk and policy consulting services in India, Europe, North America, and internationally. It operates through two segment, Rating Services; and Research, Analytics and Solutions. The company offers credit ratings for corporate…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Market Position
 - Leading credit rating agency in India

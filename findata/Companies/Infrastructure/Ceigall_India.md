@@ -3,6 +3,7 @@ title: Ceigall India
 type: company
 ticker: CEIGALL.NS
 sector: Infrastructure
+industry: Engineering & Construction
 market_cap: small_cap
 normalized_name: Ceigall_India
 permalink: /companies/infrastructure/ceigall_india
@@ -34,6 +35,18 @@ Infrastructure EPC company.
 
 *Stub node — created as a graph endpoint. Expand as additional primary research accumulates.*
 
+
+<!-- BEGIN auto company profile (enrich_from_yfinance.py) -->
+
+## Company Profile (yfinance)
+
+- **Industry**: Engineering & Construction
+- **Promoter Holding**: 84.5%
+- **Institutional Holding**: 4.7%
+- **Business Summary**: Ceigall India Limited, an infrastructure construction company, engages in the engineering, procurement, and construction businesses in India. The company undertakes specialized structural works, including elevated roads, flyovers, bridges, railway overbridges, tunnels, highways, expressways, and …
+
+_Source: yfinance | Refreshed: 2026-10-16_
+<!-- END auto company profile -->
 <!-- BEGIN auto key figures (derive_insights.py) -->
 
 ## Key Figures (auto)

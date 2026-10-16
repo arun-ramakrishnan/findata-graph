@@ -56,6 +56,19 @@ SRF Limited is a diversified industrial conglomerate and a global leader in the 
 
 <!-- END auto key figures -->
 
+
+<!-- BEGIN auto company profile (enrich_from_yfinance.py) -->
+
+## Company Profile (yfinance)
+
+- **Industry**: Conglomerates
+- **Employees**: 7,686
+- **Promoter Holding**: 52.4%
+- **Institutional Holding**: 29.5%
+- **Business Summary**: SRF Limited manufactures, purchases, and sells technical textiles, chemicals, packaging films, and other polymers. It operates through Technical Textiles Business, Chemicals Business, Performance Films and Foil Business, and Others segments. The company offers polyester and nylon tyre cord, belti…
+
+_Source: yfinance | Refreshed: 2026-10-16_
+<!-- END auto company profile -->
 <!-- BEGIN auto chatter block (derive_insights.py) -->
 
 ## The Chatter — Havells Ambuja Cipla

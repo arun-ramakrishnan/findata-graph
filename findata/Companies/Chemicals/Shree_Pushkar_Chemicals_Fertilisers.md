@@ -40,11 +40,12 @@ Shree Pushkar Chemicals & Fertilisers is a company in the chemicals sector. More
 ## Company Profile (yfinance)
 
 - **Industry**: Specialty Chemicals
+- **Employees**: 723
 - **Promoter Holding**: 70.7%
 - **Institutional Holding**: 0.0%
-- **Business Summary**: Shree Pushkar Chemicals & Fertilisers Limited, together with its subsidiaries, manufactures and trades in chemicals, dyes and dyes intermediate, cattle feeds, fertilizers, and soil conditioners in India. The company offers reactive dyes under the DYECOL name; dye intermediates, including H acid, …
+- **Business Summary**: Shree Pushkar Chemicals & Fertilisers Limited, together with its subsidiaries, manufactures and trades in chemicals, dyes and dyes intermediate, cattle feeds, fertilizers, and soil conditioners for farmers and multinationals in India. The company offers reactive dyes under the DYECOL name; dye in…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Financial Information
 - **Ticker Symbol**: SHREEPUSHK

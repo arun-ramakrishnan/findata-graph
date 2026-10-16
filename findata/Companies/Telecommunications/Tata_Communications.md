@@ -37,6 +37,19 @@ sources:
 ## Company Overview
 Tata Communications (NSE: TATACOMM) is a global digital infrastructure provider offering connectivity, cloud, security, and collaboration services. It serves enterprises worldwide through its subsea cable network, media distribution, and digital platforms.
 
+
+<!-- BEGIN auto company profile (enrich_from_yfinance.py) -->
+
+## Company Profile (yfinance)
+
+- **Industry**: Telecom Services
+- **Employees**: 6,046
+- **Promoter Holding**: 60.5%
+- **Institutional Holding**: 25.1%
+- **Business Summary**: Tata Communications Limited operates as a communications technology company worldwide. It offers voice and data transmission services, internet connectivity services, and other value-added services, such as unified conferencing and collaboration services, managed hosting, mobile global roaming an…
+
+_Source: yfinance | Refreshed: 2026-10-16_
+<!-- END auto company profile -->
 <!-- BEGIN auto key figures (derive_insights.py) -->
 
 ## Key Figures (auto)

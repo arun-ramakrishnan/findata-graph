@@ -56,11 +56,12 @@ Ahmedabad-based end-to-end IT services company (founded 1997) offering cloud, AI
 ## Company Profile (yfinance)
 
 - **Industry**: Information Technology Services
-- **Promoter Holding**: 66.9%
+- **Employees**: 1,083
+- **Promoter Holding**: 66.1%
 - **Institutional Holding**: 0.0%
-- **Business Summary**: Dev Information Technology Limited provides information technology enabled services in India, Europe, and internationally. The company offers cloud services, including cloud advisory, cloud application modernization, managed cloud, enterprise devOps, and backup and recovery services; and managed …
+- **Business Summary**: Dev Information Technology Limited provides information technology enabled services in India, Europe, and internationally. The company offers AI agent development, generative AI solutions, enterprise AI and automation, and AI governance services; cloud advisory and strategy, application moderniza…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## The Chatter — TCS IFB Gulf Oil
 

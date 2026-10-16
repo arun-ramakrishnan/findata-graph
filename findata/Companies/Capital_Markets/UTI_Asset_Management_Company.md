@@ -35,10 +35,10 @@ UTI Asset Management Company is one of India's leading asset management companie
 - **Industry**: Asset Management
 - **Employees**: 1,248
 - **Promoter Holding**: 34.7%
-- **Institutional Holding**: 51.9%
+- **Institutional Holding**: 52.1%
 - **Business Summary**: UTI Asset Management Company (P) Ltd. is a privately owned investment manager. It manages mutual funds for its clients. The firm invests in money market, fixed income, and public equity markets of India. It employs in-house research while making its investments. UTI Asset Management Company (P) L…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Industry Classification
 - **Sector**: Financial Services - Asset Management

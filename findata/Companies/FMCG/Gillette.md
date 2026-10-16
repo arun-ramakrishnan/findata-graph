@@ -47,11 +47,12 @@ Gillette is a global brand, owned by Procter & Gamble (P&G), famous for its safe
 ## Company Profile (yfinance)
 
 - **Industry**: Household & Personal Products
+- **Employees**: 480
 - **Promoter Holding**: 77.9%
-- **Institutional Holding**: 10.9%
-- **Business Summary**: Gillette India Limited engages in the manufacture and sale of grooming and oral care products in India and internationally. It offers shaving system and cartridges, blades, toiletries, razors, and other components. The company also offers toothbrushes and oral care products. In addition, the comp…
+- **Institutional Holding**: 10.6%
+- **Business Summary**: Gillette India Limited engages in the manufacture and sale of grooming and oral care products in India and internationally. The company operates through grooming, and oral care segment. It offers shaving system and cartridges, blades, toiletries, razors, and other components. The company also off…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Key Business Areas
 - Safety razors and blades

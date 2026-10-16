@@ -50,10 +50,10 @@ Shilchar Technologies is an Indian electronics manufacturing company engaged in 
 - **Industry**: Electrical Equipment & Parts
 - **Employees**: 172
 - **Promoter Holding**: 73.4%
-- **Institutional Holding**: 0.2%
+- **Institutional Holding**: 0.3%
 - **Business Summary**: Shilchar Technologies Limited engages in the manufacture and sale of transformers and parts in India and internationally. It provides power and distribution transformers, furnace transformers, linear transformers, telecom transformers, standard line transformers, R- core transformers, high freque…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 
 <!-- BEGIN auto chatter block (derive_insights.py) -->

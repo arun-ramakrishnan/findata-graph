@@ -82,11 +82,11 @@ Titan Company Limited, India's leading lifestyle conglomerate, is a Tata Group c
 
 - **Industry**: Luxury Goods
 - **Employees**: 9,352
-- **Promoter Holding**: 58.7%
-- **Institutional Holding**: 22.3%
+- **Promoter Holding**: 58.8%
+- **Institutional Holding**: 21.9%
 - **Business Summary**: Titan Company Limited, together with its subsidiaries, manufactures and sells watches, jewelry, eyewear, fragrances, women's bags, and other accessories and products in India and internationally. The company operates through four segments: Watches and Wearables, Jewellery, Eyecare, and Others. Th…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Financial Highlights
 

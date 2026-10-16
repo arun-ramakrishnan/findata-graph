@@ -45,10 +45,10 @@ Extracted from "Points & Figures: Grain in the graphs" (Zerodha) — Edition #19
 - **Industry**: Specialty Industrial Machinery
 - **Employees**: 736
 - **Promoter Holding**: 54.0%
-- **Institutional Holding**: 6.5%
+- **Institutional Holding**: 5.2%
 - **Business Summary**: Shakti Pumps (India) Limited, together with its subsidiaries, manufactures and sells pumping solutions in India and internationally. It offers submersible, solar, vertical multistage centrifugal, monoblock end suction, pressure booster, waste water, open well, positive displacement submersible, s…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Key Data Points & Signals (Investor Presentation)
 - **Solar pumps cut DISCOM T&D losses**: losses fell from 16.9% (FY21) to 14.5% (FY24); rising billing rates (agriculture INR 4.1/kWh, commercial INR 8.8/kWh in FY24); solar pumps reduce capex, subsidies, and energy wastage for DISCOMs.

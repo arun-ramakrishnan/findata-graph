@@ -38,8 +38,8 @@ PepsiCo — auto-generated stub from newsletter parsing. To be enriched.
 - **Industry**: Beverages - Non-Alcoholic
 - **Employees**: 306,000
 - **Promoter Holding**: 0.2%
-- **Institutional Holding**: 81.5%
+- **Institutional Holding**: 81.6%
 - **Business Summary**: PepsiCo, Inc. engages in the manufacture, marketing, distribution, and sale of various beverages and convenient foods worldwide. The company operates through six segments: PepsiCo Foods North America; PepsiCo Beverages North America; International Beverages Franchise; Europe, Middle East and Afri…
 
-_Source: yfinance | Refreshed: 2026-09-15_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->

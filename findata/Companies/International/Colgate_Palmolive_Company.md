@@ -48,10 +48,10 @@ American multinational consumer products company headquartered in New York (NYSE
 - **Industry**: Household & Personal Products
 - **Employees**: 33,600
 - **Promoter Holding**: 0.1%
-- **Institutional Holding**: 87.7%
+- **Institutional Holding**: 86.3%
 - **Business Summary**: Colgate-Palmolive Company, together with its subsidiaries, manufactures and sells consumer products in the United States and internationally. It operates through two segments: Oral, Personal and Home Care; and Pet Nutrition. The Oral, Personal and Home Care segment offers toothpaste, toothbrushes…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 
 <!-- BEGIN auto key figures (derive_insights.py) -->

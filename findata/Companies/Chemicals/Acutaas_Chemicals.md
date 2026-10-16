@@ -39,11 +39,12 @@ Acutaas Chemicals Limited (formerly Ami Organics Limited) is a specialty chemica
 ## Company Profile (yfinance)
 
 - **Industry**: Specialty Chemicals
+- **Employees**: 1,007
 - **Promoter Holding**: 38.3%
-- **Institutional Holding**: 28.4%
-- **Business Summary**: Acutaas Chemicals Limited engages in the research and development, manufacture, and sale of pharmaceutical intermediates in India and internationally. The company offers pharma intermediates for use in regulated and generic active pharmaceutical ingredients for anti-retroviral, anti-inflammatory,…
+- **Institutional Holding**: 28.2%
+- **Business Summary**: Acutaas Chemicals Limited engages in the research and development, manufacture, and sale of pharmaceutical intermediates in India and internationally. The company offers pharma intermediates for use in regulated and generic active pharmaceutical ingredients, as well as new chemical entities. It a…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 
 <!-- BEGIN auto chatter block (derive_insights.py) -->

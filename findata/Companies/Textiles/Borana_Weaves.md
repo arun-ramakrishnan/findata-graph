@@ -3,7 +3,7 @@ title: Borana Weaves
 type: company
 ticker: BORANA.NS
 sector: Textiles
-industry: null
+industry: Textile Manufacturing
 market_cap: micro_cap
 normalized_name: Borana_Weaves
 file_path: findata/Companies/Textiles/Borana_Weaves.md
@@ -82,6 +82,19 @@ Borana Weaves, a textile manufacturer in Surat, specializes in producing unbleac
 - **Applications**: Interior decoration and window treatments
 - **Market**: Growing home decor market
 
+
+<!-- BEGIN auto company profile (enrich_from_yfinance.py) -->
+
+## Company Profile (yfinance)
+
+- **Industry**: Textile Manufacturing
+- **Employees**: 812
+- **Promoter Holding**: 73.4%
+- **Institutional Holding**: 0.0%
+- **Business Summary**: Borana Weaves Limited engages in the manufacture and sale of textiles in India. The company offers synthetic grey fabrics; yarn; microfilament woven fabrics; and greige polyester woven fabrics for apparel and garments, home textiles, and tent fabrics applications. Borana Weaves Limited was incorp…
+
+_Source: yfinance | Refreshed: 2026-10-16_
+<!-- END auto company profile -->
 <!-- BEGIN auto key figures (derive_insights.py) -->
 
 ## Key Figures (auto)

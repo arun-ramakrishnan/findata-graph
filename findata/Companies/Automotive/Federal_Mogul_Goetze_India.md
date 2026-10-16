@@ -36,11 +36,12 @@ Federal-Mogul Goetze (India) is a leading automotive component manufacturer spec
 ## Company Profile (yfinance)
 
 - **Industry**: Auto Parts
+- **Employees**: 2,711
 - **Promoter Holding**: 78.0%
 - **Institutional Holding**: 0.3%
-- **Business Summary**: Federal-Mogul Goetze (India) Limited manufactures, supply, and distributes automotive components for two/three/four-wheeler automobiles in India and internationally. It provides pistons, piston rings, and wet and dry cylinder liners for a range of applications, including bi-wheelers, passenger ca…
+- **Business Summary**: Federal-Mogul Goetze (India) Limited manufactures, supplies, and distributes automotive components for automobiles in India and internationally. It provides pistons, piston rings, and wet and dry cylinder liners for a range of applications, including bi-wheelers, passenger cars, SUVs, tractors, l…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Business Segments
 

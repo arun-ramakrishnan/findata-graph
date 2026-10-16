@@ -54,10 +54,10 @@ Hindustan Aeronautics Limited (HAL) is India's premier aerospace and defense com
 - **Industry**: Aerospace & Defense
 - **Employees**: 35,566
 - **Promoter Holding**: 71.6%
-- **Institutional Holding**: 15.7%
+- **Institutional Holding**: 16.4%
 - **Business Summary**: Hindustan Aeronautics Limited engages in the design, development, manufacture, repair, overhaul, upgrade, and servicing of aircraft, helicopters, aero-engines, avionics, accessories, and aerospace structures in India and internationally. It serves national and international defense customers, as …
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Business Segments
 

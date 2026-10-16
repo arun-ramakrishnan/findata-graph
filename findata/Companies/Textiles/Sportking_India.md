@@ -7,6 +7,7 @@ tags:
 - sector/textiles
 normalized_name: Sportking_India
 sector: Textiles
+industry: Textile Manufacturing
 market_cap: null
 permalink: /companies/textiles/sportking_india
 created: '2026-09-14'
@@ -31,6 +32,19 @@ sources:
 ## Company Overview
 Sportking India — auto-generated stub from newsletter parsing. To be enriched.
 
+
+<!-- BEGIN auto company profile (enrich_from_yfinance.py) -->
+
+## Company Profile (yfinance)
+
+- **Industry**: Textile Manufacturing
+- **Employees**: 5,979
+- **Promoter Holding**: 79.5%
+- **Institutional Holding**: 0.0%
+- **Business Summary**: Sportking India Limited manufactures, purchases, and sells textile yarns in India and internationally. It offers cotton, polyester/cotton blended, fancy, dyed, grey, and acrylic and acrylic/polyester blended yarns, as well as knitted fabrics. The company also engages in the yarns and fibers dyein…
+
+_Source: yfinance | Refreshed: 2026-10-16_
+<!-- END auto company profile -->
 <!-- BEGIN auto chatter block (derive_insights.py) -->
 
 ## The Chatter — Risks Rewards and Revelations

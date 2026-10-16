@@ -3,6 +3,7 @@ title: Sarveshwar Foods
 type: company
 ticker: SARVESHWAR.NS
 sector: Agriculture
+industry: Packaged Foods
 market_cap: small_cap
 normalized_name: Sarveshwar_Foods
 permalink: /companies/agriculture/sarveshwar_foods
@@ -34,6 +35,19 @@ Basmati rice and organic foods company.
 
 *Stub node — created as a graph endpoint. Expand as additional primary research accumulates.*
 
+
+<!-- BEGIN auto company profile (enrich_from_yfinance.py) -->
+
+## Company Profile (yfinance)
+
+- **Industry**: Packaged Foods
+- **Employees**: 32
+- **Promoter Holding**: 42.1%
+- **Institutional Holding**: 0.0%
+- **Business Summary**: Sarveshwar Foods Limited processes, manufactures, markets, and distributes basmati and non-basmati rice in India and internationally. The company provides basmati brown rice, white raw rice, steam rice, silky raw rice, white parboiled rice, and golden parboiled rice; and non-basmati rice, includi…
+
+_Source: yfinance | Refreshed: 2026-10-16_
+<!-- END auto company profile -->
 <!-- BEGIN auto chatter block (derive_insights.py) -->
 
 ## The Chatter — Underneath the Noise

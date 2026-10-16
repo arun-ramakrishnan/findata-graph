@@ -51,11 +51,12 @@ Extracted from "The Chatter: Tailwinds building" (Zerodha) — Edition #46, 13 F
 ## Company Profile (yfinance)
 
 - **Industry**: Software - Application
-- **Promoter Holding**: 31.0%
-- **Institutional Holding**: 49.9%
-- **Business Summary**: BlackBuck Limited provides digital platform for truck operators in India. The company provides tracking; digital marketplace for loads; fuel cards; and technology led vehicle finance platform, as well as financing for the purchase of used vehicles. It also offers digital platforms to digitally ma…
+- **Employees**: 1,613
+- **Promoter Holding**: 32.4%
+- **Institutional Holding**: 41.6%
+- **Business Summary**: BlackBuck Limited, together with its subsidiaries, provides payments, telematics, loads marketplace, and vehicle financing services in India. It operates in two segments, Truck Operator Services and Lending Business. The company offers digital solutions, including BlackBuck FASTag, GPS, Loads, Fu…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Key Signals (Q3 FY26)
 - Maintaining consistent profitability while investing in new verticals (Superloads, vehicle finance).

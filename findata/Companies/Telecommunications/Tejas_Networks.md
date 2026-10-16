@@ -48,11 +48,11 @@ Tejas Networks Limited is an Indian telecommunications equipment company special
 
 - **Industry**: Communication Equipment
 - **Employees**: 2,229
-- **Promoter Holding**: 1.9%
-- **Institutional Holding**: 61.1%
+- **Promoter Holding**: 1.6%
+- **Institutional Holding**: 60.7%
 - **Business Summary**: Tejas Networks Limited provides telecom and data networking-related products and services in India and internationally. It offers radio access networks, fiber broadband access, satcom solutions, optical aggregation, switching and routing, direct-to-mobile broadcast solutions, metro core and backb…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Business Segments
 

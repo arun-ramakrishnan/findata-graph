@@ -43,12 +43,12 @@ Extracted from "The Chatter: Tailwinds building" (Zerodha) — Edition #46, 13 F
 ## Company Profile (yfinance)
 
 - **Industry**: Engineering & Construction
-- **Employees**: 1,234
-- **Promoter Holding**: 28.3%
-- **Institutional Holding**: 18.4%
+- **Employees**: 2,000
+- **Promoter Holding**: 27.0%
+- **Institutional Holding**: 18.3%
 - **Business Summary**: VA Tech Wabag Limited, together with its subsidiaries, engages in the design, supply, installation, construction, operation, and maintenance of drinking water, waste and industrial water treatment, and desalination plants in India and internationally. The company offers drinking water treatment, …
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Key Signals (Q3 FY26)
 - Soft oil prices not expected to slow Middle East pipeline: water treatment is a necessity, and projects are multilateral/sovereign/LC-backed (payment security).

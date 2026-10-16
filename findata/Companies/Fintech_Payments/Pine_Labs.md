@@ -3,7 +3,7 @@ title: Pine Labs
 type: company
 ticker: PINELABS.NS
 sector: Fintech_Payments
-industry: null
+industry: Software - Infrastructure
 market_cap: small_cap
 normalized_name: Pine_Labs
 permalink: /companies/fintech_payments/pine_labs
@@ -36,6 +36,19 @@ sources:
 ## Business Overview
 Pine Labs is a technology company specializing in digital commerce solutions, offering digital payment infrastructure and transaction platforms for merchants, enterprises, and financial institutions. It operates in India, Malaysia, UAE, Singapore, Australia, the U.S., and Africa, helping businesses transition to digital payments. Its offerings include Digital Infrastructure and Transaction Platform as well as Issuing and Acquiring Platform.
 
+
+<!-- BEGIN auto company profile (enrich_from_yfinance.py) -->
+
+## Company Profile (yfinance)
+
+- **Industry**: Software - Infrastructure
+- **Employees**: 5,007
+- **Promoter Holding**: 27.2%
+- **Institutional Holding**: 61.8%
+- **Business Summary**: Pine Labs Limited, a technology company, provides digital payments and issuing solutions for merchants, consumer brands and enterprises, and financial institutions in India and internationally. It operates through Digital Infrastructure and Transaction Platform, and Issuing and Acquiring Platform…
+
+_Source: yfinance | Refreshed: 2026-10-16_
+<!-- END auto company profile -->
 ## Key Highlights from Recent Quarter
 - Pine Labs has been successfully implementing programmable currency concepts through its stored value and prepaid card constructs for years, offering targeted solutions ahead of the stable coin and CBDC discussions
 - What programmable currency means is a currency that can be used for very specific purposes, and Pine Labs has been using the same concept through their stored value constructs and prepaid card constructs

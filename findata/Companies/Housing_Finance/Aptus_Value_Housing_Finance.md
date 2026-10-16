@@ -260,10 +260,10 @@ Aptus Value Housing Finance India Limited is a housing finance company focused o
 - **Industry**: Mortgage Finance
 - **Employees**: 3,807
 - **Promoter Holding**: 26.6%
-- **Institutional Holding**: 49.3%
+- **Institutional Holding**: 49.7%
 - **Business Summary**: Aptus Value Housing Finance India Limited, together with its subsidiary, Aptus Finance India Private Limited, provides housing finance solutions against immovable properties in India. The company offers home and quasi-home loans for the purchase, construction, renovation, and extension of houses;…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Key Metrics Dashboard
 - **AUM (Assets Under Management)**: Consistent growth trajectory

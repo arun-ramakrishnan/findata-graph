@@ -41,6 +41,19 @@ sources:
 
 A part of the TVS Group, TVS Supply Chain Solutions provides integrated supply chain and logistics solutions globally. Its services include warehousing, transportation, freight forwarding, inventory planning, and technology-driven supply chain optimization.
 
+
+<!-- BEGIN auto company profile (enrich_from_yfinance.py) -->
+
+## Company Profile (yfinance)
+
+- **Industry**: Integrated Freight & Logistics
+- **Employees**: 16,601
+- **Promoter Holding**: 66.0%
+- **Institutional Holding**: 13.5%
+- **Business Summary**: TVS Supply Chain Solutions Limited provides integrated supply chain solutions in India. The company operates in two segments, Integrated Supply Chain Solutions (ISCS) and Global Forwarding Solutions (GFS). The ISCS segment engages in sourcing and procurement, integrated transportation, logistics …
+
+_Source: yfinance | Refreshed: 2026-10-16_
+<!-- END auto company profile -->
 <!-- BEGIN auto key figures (derive_insights.py) -->
 
 ## Key Figures (auto)

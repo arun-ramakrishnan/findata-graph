@@ -44,11 +44,11 @@ Usha Martin Limited, established in 1960, is a global leader in wire rope manufa
 
 - **Industry**: Steel
 - **Employees**: 2,234
-- **Promoter Holding**: 27.1%
-- **Institutional Holding**: 27.2%
+- **Promoter Holding**: 40.2%
+- **Institutional Holding**: 28.8%
 - **Business Summary**: Usha Martin Limited, together with its subsidiaries, manufactures and sells steel wires, strands, wire ropes, wire drawing and allied machine, cord, and related accessories in India and internationally. The company offers wire ropes, including crane, mining, elevator, oil and offshore, fishing, g…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Industry Classification
 - **Sector**: Metals & Engineering

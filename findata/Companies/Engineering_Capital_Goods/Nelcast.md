@@ -45,7 +45,7 @@ sources:
 - **Institutional Holding**: 0.0%
 - **Business Summary**: Nelcast Limited manufactures and sells ductile and grey iron castings in India and internationally. The company offers commercial components, such as bearing cap, rear differential carrier, differential case in plain and flanged, forward differential carrier, wheel hub, brake disc rotor, cast axl…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Company Description
 Nelcast Limited is a leading producer of Ductile & Grey Iron Castings in India with an installed capacity of 160,000 Metric Tons/Year. The Company caters to a marquee clientele of Original Equipment Manufacturers (OEMs) and Tier-1 customers in Commercial Vehicle, Tractor, Off-Highway Equipment, Railway & Passenger Vehicle segments. Besides a strong position in the domestic market, Nelcast has a rapidly growing presence spread across North America, Europe and Southeast Asia.

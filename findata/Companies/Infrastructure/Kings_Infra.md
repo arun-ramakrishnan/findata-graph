@@ -35,11 +35,12 @@ Kings Infra is an aquaculture company specializing in shrimp farming and seafood
 ## Company Profile (yfinance)
 
 - **Industry**: Farm Products
-- **Promoter Holding**: 75.0%
+- **Employees**: 21
+- **Promoter Holding**: 72.9%
 - **Institutional Holding**: 0.0%
-- **Business Summary**: Kings Infra Ventures Limited operates as an aquaculture company in India and internationally. It operates through Infrastructure and Aquaculture segments. The company engages in aquaculture and shrimp contract farming; seafood processing; trading in marine products; aquaculture consultancy; retai…
+- **Business Summary**: Kings Infra Ventures Limited operates as an aquaculture company in India and internationally. It operates through Infrastructure and Aquaculture segments. The company engages in aquaculture and contract farming; seafood processing and exports; trading in marine products; aquaculture consultancy; …
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Strategic Developments from Plotlines Analysis
 

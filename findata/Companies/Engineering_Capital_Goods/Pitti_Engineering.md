@@ -44,11 +44,12 @@ Extracted from "The Chatter: Tailwinds building" (Zerodha) — Edition #46, 13 F
 ## Company Profile (yfinance)
 
 - **Industry**: Metal Fabrication
+- **Employees**: 1,982
 - **Promoter Holding**: 58.3%
-- **Institutional Holding**: 18.4%
-- **Business Summary**: Pitti Engineering Limited manufactures and sells iron and steel engineering products in India and internationally. The company manufactures electrical steel laminations, stator and motor cores, sub-assemblies for motor and generator cores, pole assemblies, die-cast rotors, high precision press to…
+- **Institutional Holding**: 18.3%
+- **Business Summary**: Pitti Engineering Limited manufactures and sells iron and steel engineering products in India and internationally. The company offers electrical steel laminations, stator and rotor cores, sub-assemblies for motor and generator cores, pole assemblies, die-cast rotors, high precision press tools, a…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Key Signals (Q3 FY26)
 - Using export-receivable factoring to reduce working-capital intensity despite ~0.5pp higher cost (net positive balance-sheet impact).

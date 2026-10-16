@@ -34,11 +34,12 @@ Gujarat Mineral Development Corporation (GMDC) is a state-owned mining company i
 ## Company Profile (yfinance)
 
 - **Industry**: Thermal Coal
-- **Promoter Holding**: 74.1%
-- **Institutional Holding**: 2.7%
+- **Employees**: 679
+- **Promoter Holding**: 74.0%
+- **Institutional Holding**: 2.4%
 - **Business Summary**: Gujarat Mineral Development Corporation Limited engages in mining and mineral processing business in India. The company operates through two segments, Mining and Power. It explores for lignite, bauxite, fluorspar, manganese, silica sand, limestone, bentonite, and ball clay. The company's products…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Key Business Areas
 - Mineral mining and development

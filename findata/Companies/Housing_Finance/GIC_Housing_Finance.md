@@ -35,11 +35,11 @@ GIC Housing Finance Limited (incorporated 1989, formerly GIC Grih Vitta Limited)
 
 - **Industry**: Mortgage Finance
 - **Employees**: 515
-- **Promoter Holding**: 6.9%
+- **Promoter Holding**: 5.9%
 - **Institutional Holding**: 45.9%
 - **Business Summary**: GIC Housing Finance Limited provides housing finance services for salaried and self-employed individuals in India. The company offers long-term finance to individuals, cooperative societies, associations of persons, companies, and corporations for the purchase of plots, houses, flats, and apartme…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Key Insights
 - Specialized housing finance focus with a 30+ year track record and diversified loan products (individual housing, repair/renovation, home extension, balance transfer, loans against property).

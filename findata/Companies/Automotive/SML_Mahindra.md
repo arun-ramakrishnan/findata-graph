@@ -3,6 +3,7 @@ title: SML Mahindra
 type: company
 ticker: SMLMAH.NS
 sector: Automotive
+industry: Auto Manufacturers
 market_cap: small_cap
 normalized_name: SML_Mahindra
 permalink: /companies/automotive/sml_mahindra
@@ -35,6 +36,19 @@ sources:
 ## Company Overview
 SML Mahindra (formerly SML Isuzu) is an Indian commercial-vehicle manufacturer producing trucks and buses for cargo and passenger transport. On 1 August 2025 the Mahindra Group completed the acquisition of a **58.96% controlling stake** in SML Isuzu, reconstituted the board and leadership, and rebranded the entity as SML Mahindra. The company is now being integrated into Mahindra's CV portfolio, leveraging shared R&D, sourcing, and distribution.
 
+
+<!-- BEGIN auto company profile (enrich_from_yfinance.py) -->
+
+## Company Profile (yfinance)
+
+- **Industry**: Auto Manufacturers
+- **Employees**: 1,063
+- **Promoter Holding**: 72.8%
+- **Institutional Holding**: 2.1%
+- **Business Summary**: SML Mahindra Limited manufactures and sells commercial vehicles and related parts in India and internationally. Its products include trucks, buses, and special application vehicles. The company serves fleet owners, educational institutions, offices, transporters, Government agencies, and other do…
+
+_Source: yfinance | Refreshed: 2026-10-16_
+<!-- END auto company profile -->
 <!-- BEGIN auto key figures (derive_insights.py) -->
 
 ## Key Figures (auto)

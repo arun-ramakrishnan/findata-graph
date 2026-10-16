@@ -3,7 +3,7 @@ title: Swan Defence and Heavy Industries
 type: company
 ticker: SWANDEF.NS
 sector: Defense
-industry: null
+industry: Aerospace & Defense
 market_cap: small_cap
 normalized_name: Swan_Defence_and_Heavy_Industries
 file_path: findata/Companies/Defense/Swan_Defence_and_Heavy_Industries.md
@@ -41,6 +41,19 @@ Swan Defence and Heavy Industries designs and manufactures ships primarily for t
 - **Group:** Swan Group (Merchant family)
 - **Chairman & MD:** Nikhil V. Merchant | **CEO:** Rear Admiral Vipin Kumar Saxena (Retd.)
 
+
+<!-- BEGIN auto company profile (enrich_from_yfinance.py) -->
+
+## Company Profile (yfinance)
+
+- **Industry**: Aerospace & Defense
+- **Employees**: 260
+- **Promoter Holding**: 90.9%
+- **Institutional Holding**: 1.7%
+- **Business Summary**: Swan Defence and Heavy Industries Limited engages in the construction of vessels, repairs, and refits of ships and rigs and heavy engineering in India and internationally. The company builds vessels for building large commercial; cargo and niche and specialized vessels; and defence vessels. It al…
+
+_Source: yfinance | Refreshed: 2026-10-16_
+<!-- END auto company profile -->
 ## Financial Profile (Yahoo Finance, Jun 2026)
 
 - Market cap: ~₹1,17,429 cr | TTM revenue: ~₹282 cr

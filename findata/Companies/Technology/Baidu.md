@@ -54,10 +54,10 @@ Baidu (NASDAQ: BIDU) is a leading Chinese technology company — the dominant se
 - **Industry**: Internet Content & Information
 - **Employees**: 33,500
 - **Promoter Holding**: 2.9%
-- **Institutional Holding**: 21.4%
+- **Institutional Holding**: 23.3%
 - **Business Summary**: Baidu, Inc. provides internet content, value-added telecommunication-based, internet map, and online audio and video services in the People's Republic of China. It operates in two segments, Baidu General Business and iQIYI. The Baidu General Business segment offers products and services for mobil…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 
 <!-- BEGIN auto chatter block (derive_insights.py) -->

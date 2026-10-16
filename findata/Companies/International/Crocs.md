@@ -38,10 +38,10 @@ Crocs, Inc. is a global footwear company that designs, develops, markets, and di
 - **Industry**: Footwear & Accessories
 - **Employees**: 8,010
 - **Promoter Holding**: 3.1%
-- **Institutional Holding**: 107.5%
+- **Institutional Holding**: 103.3%
 - **Business Summary**: Crocs, Inc. together with its subsidiaries, designs, develops, manufactures, markets, distributes, and sells casual lifestyle footwear and accessories for men, women, and kids under the Crocs and HEYDUDE Brands in the United States and internationally. The company offers various footwear products…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 
 <!-- BEGIN auto chatter block (derive_insights.py) -->

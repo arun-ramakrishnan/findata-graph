@@ -39,11 +39,12 @@ Worth Peripherals manufactures and sells corrugated boxes and their accessories 
 ## Company Profile (yfinance)
 
 - **Industry**: Packaging & Containers
+- **Employees**: 146
 - **Promoter Holding**: 73.2%
 - **Institutional Holding**: 1.3%
-- **Business Summary**: Worth Peripherals Limited manufactures and sells corrugated boxes and sheets in India. The company provides regular slotted containers; die cut corrugated boxes/trays; multi-color corrugated boxes; and Z sleeve and I/honeycomb partitions. It serves companies operating in the FMCG, textile, electr…
+- **Business Summary**: Worth Peripherals Limited manufactures and sells corrugated boxes in India. The company provides regular slotted containers; die cut corrugated boxes/trays; multi-color corrugated boxes; and Z sleeve and I/honeycomb partitions. It serves companies operating in the FMCG, textile, electronics, and …
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 
 <!-- BEGIN auto key figures (derive_insights.py) -->

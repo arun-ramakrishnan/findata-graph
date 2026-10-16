@@ -49,10 +49,10 @@ Oberoi Realty Limited (incorporated 1998, HQ Mumbai) is a premium real estate de
 - **Industry**: Real Estate - Development
 - **Employees**: 1,536
 - **Promoter Holding**: 67.7%
-- **Institutional Holding**: 24.1%
+- **Institutional Holding**: 24.2%
 - **Business Summary**: Oberoi Realty Limited, together with its subsidiaries, engages in real estate development business in India. The company operates through the Real Estate and the Hospitality segment. It develops and sells residential, commercial, retail, hospitality, and social infrastructure projects. The compan…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Financial Profile (Yahoo Finance, Jun 2026)
 - Market cap: ₹63,601 cr | Enterprise value: ₹63,280 cr

@@ -41,10 +41,10 @@ Supply-chain asset pooling company — 14M+ assets (pallets, containers, materia
 - **Industry**: Integrated Freight & Logistics
 - **Employees**: 419
 - **Promoter Holding**: 60.8%
-- **Institutional Holding**: 10.2%
+- **Institutional Holding**: 11.4%
 - **Business Summary**: LEAP India Limited provides supply chain asset pooling and management services, including pallet and asset rental, transportation, storage management, distribution, and warehousing solutions. The company offers asset pooling solutions for supply chains, such as the rental and management of pallet…
 
-_Source: yfinance | Refreshed: 2026-09-15_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 <!-- BEGIN auto key figures (derive_insights.py) -->
 

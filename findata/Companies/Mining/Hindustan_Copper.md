@@ -34,11 +34,12 @@ Hindustan Copper Limited (HCL; incorporated 1967; HQ Kolkata) is India's only ve
 ## Company Profile (yfinance)
 
 - **Industry**: Copper
-- **Promoter Holding**: 66.1%
-- **Institutional Holding**: 7.4%
-- **Business Summary**: Hindustan Copper Limited engages in the exploration, exploitation, and mining of copper and copper ores in India. It offers continuous cast copper rods, copper cathodes, copper concentrates, copper sulfate, sulphuric acid, reverts, anode slime, and nickel cathodes. The company's flagship project …
+- **Employees**: 1,154
+- **Promoter Holding**: 60.1%
+- **Institutional Holding**: 8.6%
+- **Business Summary**: Hindustan Copper Limited engages in the exploration, exploitation, mining, and processing of copper ore metal-in-concentrates in India. The company offers continuous cast copper rods, copper cathodes, copper concentrates, copper sulphates, sulphuric acid, reverts, anode slimes, and nickel cathode…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Financial Profile (Yahoo Finance, Jun 2026)
 - Market cap: ₹47,520 cr | Enterprise value: ₹47,914 cr

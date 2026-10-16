@@ -46,6 +46,19 @@ Dhruv Consultancy Services — small-cap civil engineering consultancy (roads, h
 
 <!-- END auto key figures -->
 
+
+<!-- BEGIN auto company profile (enrich_from_yfinance.py) -->
+
+## Company Profile (yfinance)
+
+- **Industry**: Engineering & Construction
+- **Employees**: 294
+- **Promoter Holding**: 61.7%
+- **Institutional Holding**: 0.0%
+- **Business Summary**: Dhruv Consultancy Services Limited, an infrastructure consultancy company, provides design, engineering, procurement, construction, and integrated project management services for highways, bridges, tunnels, architectural, environmental engineering, and ports in India. The company engages in the p…
+
+_Source: yfinance | Refreshed: 2026-10-16_
+<!-- END auto company profile -->
 <!-- BEGIN auto chatter block (derive_insights.py) -->
 
 ## The Chatter — Infosys Adani Tata Motors

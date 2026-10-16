@@ -10,7 +10,7 @@ tags:
 - risk_investment/high_growth
 normalized_name: Apollo_Micro_Systems
 sector: Defense
-industry: null
+industry: Aerospace & Defense
 market_cap: small_cap
 geography: india
 ticker: APOLLO.NS
@@ -49,6 +49,19 @@ Apollo Micro Systems Limited is an engineering company that specialises in desig
 - **(other)**: 20%
 
 <!-- END auto key figures -->
+
+<!-- BEGIN auto company profile (enrich_from_yfinance.py) -->
+
+## Company Profile (yfinance)
+
+- **Industry**: Aerospace & Defense
+- **Employees**: 434
+- **Promoter Holding**: 55.3%
+- **Institutional Holding**: 1.9%
+- **Business Summary**: Apollo Micro Systems Limited designs, develops, and assembles electronic and electromechanical solutions in India. The company offers actuation systems, AI engines, avionics, avionic bus products, automated test equipment, communication systems, composite systems, ground support equipment, naviga…
+
+_Source: yfinance | Refreshed: 2026-10-16_
+<!-- END auto company profile -->
 ## The Chatter — SBI Delhivery Titan
 
 **Revenue guidance 40-45% growth from FY27:** Both standalone and consolidated; separate FY28 guidance to be given at year-end.

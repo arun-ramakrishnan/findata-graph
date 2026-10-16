@@ -42,5 +42,5 @@ Japanese automaker (TSE: 7269). Parent of Maruti Suzuki India Limited, India's l
 - **Institutional Holding**: 0.2%
 - **Business Summary**: Suzuki Motor Corporation engages in the manufacture and sale of automobiles, motorcycles, outboard motors, electric wheelchairs, and other products in Japan and internationally. The company offers mini passenger cars and commercial vehicles, compact passenger cars and automobile engines, foundry …
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->

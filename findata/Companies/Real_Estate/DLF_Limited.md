@@ -54,10 +54,10 @@ DLF Limited is one of India's largest real estate developers, engaged in residen
 - **Industry**: Real Estate - Development
 - **Employees**: 4,310
 - **Promoter Holding**: 74.1%
-- **Institutional Holding**: 14.2%
+- **Institutional Holding**: 14.6%
 - **Business Summary**: DLF Limited, together with its subsidiaries, engages in the business of colonization and real estate development in India. The company is involved in the real estate development activities, including identification and acquisition of land, planning, execution, construction, and marketing of proje…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## [Concall]
 

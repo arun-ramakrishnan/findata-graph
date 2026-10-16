@@ -96,11 +96,12 @@ Nuvoco's position as largest cement company in East India and fifth largest nati
 ## Company Profile (yfinance)
 
 - **Industry**: Building Materials
+- **Employees**: 4,188
 - **Promoter Holding**: 72.0%
-- **Institutional Holding**: 26.8%
+- **Institutional Holding**: 19.6%
 - **Business Summary**: Nuvoco Vistas Corporation Limited manufactures and sale of cement and building materials products in India. It operates through Cement, and RMX and Other divisions. The company offers ordinary Portland, Portland slag, Portland pozzolana, and Portland composite cement products under the Concreto U…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## [Presentation]
 

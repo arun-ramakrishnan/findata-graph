@@ -36,11 +36,11 @@ Welspun India is part of the Welspun Group, which appears in existing notes as W
 
 - **Industry**: Textile Manufacturing
 - **Employees**: 35,000
-- **Promoter Holding**: 69.9%
-- **Institutional Holding**: 14.9%
-- **Business Summary**: Welspun Living Limited manufactures and sells home textile products in India and internationally. It operates through two segments, Home Textiles and Flooring. The company offers bedding solutions, including utility and fashion bedding, and bed sheet products; and spunlace, needle punch, and wet …
+- **Promoter Holding**: 69.0%
+- **Institutional Holding**: 15.0%
+- **Business Summary**: Welspun Living Limited manufactures and sells home textile products in India and internationally. It operates through two segments, Home Textiles and Flooring. The company offers bath solutions, such as towels, bathrobes, and bath rugs; bed linen, duvet covers, pillows, pillowcases, top-of-bed pr…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Related Information from Existing Notes
 

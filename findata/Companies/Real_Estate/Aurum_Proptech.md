@@ -48,11 +48,12 @@ Aurum PropTech Limited engages in the business of software development for real 
 ## Company Profile (yfinance)
 
 - **Industry**: Real Estate Services
-- **Promoter Holding**: 60.2%
-- **Institutional Holding**: 3.9%
+- **Employees**: 55
+- **Promoter Holding**: 47.9%
+- **Institutional Holding**: 3.2%
 - **Business Summary**: Aurum PropTech Limited engages in the business of software development for real estate and other services in India. It operates through Rental, Distribution, Capital, and Others segments. The company provides HelloWorld, a co-living platform for students and young professionals; Nestaway, a home …
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Key Metrics & Financials (INR)
 - **Market Cap:** ₹11.70B

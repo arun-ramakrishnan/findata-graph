@@ -39,11 +39,12 @@ Ion Exchange (India) Limited, incorporated in 1964 and headquartered in Mumbai, 
 ## Company Profile (yfinance)
 
 - **Industry**: Pollution & Treatment Controls
-- **Promoter Holding**: 44.3%
-- **Institutional Holding**: 20.4%
+- **Employees**: 2,975
+- **Promoter Holding**: 44.0%
+- **Institutional Holding**: 20.2%
 - **Business Summary**: Ion Exchange (India) Limited, together with its subsidiaries, provides water and environmental management solutions in India and internationally. It operates through Engineering, Chemicals, and Consumer Products segments. The company offers raw water, process, post, and drinking water treatment; …
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Financial Profile (Yahoo Finance, Jun 2026)
 - Market cap: ₹4,901 cr | Enterprise value: ₹4,891 cr

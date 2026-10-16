@@ -3,7 +3,7 @@ title: Emmvee Photovoltaic
 type: company
 ticker: EMMVEE.NS
 sector: Renewables
-industry: null
+industry: Solar
 market_cap: small_cap
 normalized_name: Emmvee_Photovoltaic
 file_path: findata/Companies/Engineering_Capital_Goods/Emmvee_Photovoltaic.md
@@ -132,6 +132,18 @@ The **Power Renewable sector** in India focuses on clean energy generation throu
 
 Emmvee's position as India's second largest integrated solar PV module and cell maker, with diversified customer base and ALMM listing, aligns with sector's growth in solar capacity additions and government targets.
 
+
+<!-- BEGIN auto company profile (enrich_from_yfinance.py) -->
+
+## Company Profile (yfinance)
+
+- **Industry**: Solar
+- **Promoter Holding**: 80.0%
+- **Institutional Holding**: 7.4%
+- **Business Summary**: Emmvee Photovoltaic Power Limited manufactures and sales solar cells, photovoltaic modules, and photovoltaic systems across India and Europe. Its products include TopCon Photovoltaic Module and TopCon Photovoltaic cells. It also executes grid and off-grid photovoltaic power projects on a turnkey …
+
+_Source: yfinance | Refreshed: 2026-10-16_
+<!-- END auto company profile -->
 ## [Presentation]
 
 <!-- BEGIN auto key figures (derive_insights.py) -->

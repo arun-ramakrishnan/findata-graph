@@ -45,11 +45,11 @@ LTTS is a global leader in engineering and technology consulting, offering trans
 
 - **Industry**: Information Technology Services
 - **Employees**: 21,039
-- **Promoter Holding**: 73.6%
-- **Institutional Holding**: 13.6%
+- **Promoter Holding**: 73.5%
+- **Institutional Holding**: 13.3%
 - **Business Summary**: L&T Technology Services Limited operates as an engineering research and development services company in India, North America, Europe, and other international markets. The company operates through three segments: Mobility, Sustainability, and Tech. It provides digital engineering and consulting se…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Key Business Updates
 

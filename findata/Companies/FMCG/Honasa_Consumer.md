@@ -51,11 +51,12 @@ Extracted from "The Chatter: Tailwinds building" (Zerodha) — Edition #46, 13 F
 ## Company Profile (yfinance)
 
 - **Industry**: Household & Personal Products
+- **Employees**: 936
 - **Promoter Holding**: 38.7%
-- **Institutional Holding**: 46.7%
-- **Business Summary**: Honasa Consumer Limited operates as a digital beauty and personal care company in India and internationally. The company provides body and baby care, skin and hair care, color cosmetics, other related personal care under Mamaearth, The Derma Co., Aqualogica, Ayuga, Staze and Dr. Sheth's brands. I…
+- **Institutional Holding**: 43.1%
+- **Business Summary**: Honasa Consumer Limited operates as a digital beauty and personal care company in India and internationally. The company provides baby care, skin and hair care, color cosmetics, other related personal care products, as well as beauty salon and hair styling services. It sells in products under the…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Key Signals (Q3 FY26)
 - Men's skincare identified as an inflection point beyond traditional shaving.

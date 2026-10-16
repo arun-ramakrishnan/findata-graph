@@ -73,7 +73,7 @@ The Media & Entertainment sector encompasses cinema exhibition, film production,
 
 ## All Companies (auto)
 
-<!-- Auto-generated from the SQLite source of truth. 23 company note(s) in Media_Entertainment. Do not edit by hand — re-run `python3 helpers/maintenance/sync_sector_wikilinks.py` to refresh. Curated highlights live in the editorial sections above. -->
+<!-- Auto-generated from the SQLite source of truth. 24 company note(s) in Media_Entertainment. Do not edit by hand — re-run `python3 helpers/maintenance/sync_sector_wikilinks.py` to refresh. Curated highlights live in the editorial sections above. -->
 
 - [[Amagi_Media_Labs|Amagi Media Labs]]
 - [[Balaji_Telefilms|Balaji Telefilms]]
@@ -95,6 +95,7 @@ The Media & Entertainment sector encompasses cinema exhibition, film production,
 - [[Saregama_India|Saregama India]]
 - [[Signpost_India|Signpost India]]
 - [[Spotify]]
+- [[TV_Vision|TV Vision]]
 - [[Tips_Music|Tips Music]]
 - [[Warner_Bros_Discovery|Warner Bros. Discovery]]
 - [[Zee_Entertainment_Enterprises|Zee Entertainment Enterprises]]

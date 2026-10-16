@@ -170,7 +170,7 @@ Punjab National Bank is one of India's leading public sector banks, providing a 
 - **Institutional Holding**: 18.1%
 - **Business Summary**: Punjab National Bank provides various banking and financial products and services in India and internationally. It operates through Treasury, Corporate/Wholesale Banking, Retail Banking, and Other Banking Operations segments. The company offers personal banking products and services, including sa…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Observations
 - One of India's oldest banks, established in 1894 with 130+ years of legacy

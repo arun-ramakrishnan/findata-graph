@@ -39,11 +39,12 @@ JBM Auto Limited (incorporated 1996; HQ Gurugram, Haryana) is an automotive comp
 ## Company Profile (yfinance)
 
 - **Industry**: Auto Parts
+- **Employees**: 2,988
 - **Promoter Holding**: 83.0%
-- **Institutional Holding**: 1.5%
+- **Institutional Holding**: 1.6%
 - **Business Summary**: JBM Auto Limited engages in the manufacture and sale sheet metal components, tools, dies and moulds, and buses in India and internationally. It operates through three segments: Sheet Metal Components, Assemblies & Sub-assemblies (Component Division); Tool, Dies & Moulds (Tool Room Division); and …
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Financial Profile (Yahoo Finance, Jun 2026)
 - Market cap: ₹16,391 cr | Enterprise value: ₹25,400 cr

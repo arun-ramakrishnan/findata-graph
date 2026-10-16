@@ -34,11 +34,12 @@ RateGain Travel Technologies is a leading travel technology company providing da
 ## Company Profile (yfinance)
 
 - **Industry**: Software - Application
+- **Employees**: 713
 - **Promoter Holding**: 53.8%
-- **Institutional Holding**: 23.8%
-- **Business Summary**: RateGain Travel Technologies Limited, a software as a service (SaaS) company, provides solutions for hospitality and travel industries in India, North America, the Asia-Pacific, Europe, and internationally. It offers data as a service, such as competitive rate intelligence for hotels, airlines, O…
+- **Institutional Holding**: 22.5%
+- **Business Summary**: RateGain Travel Technologies Limited, a software as a service (SaaS) company, provides solutions for hospitality and travel industries in India, North America, the Asia-Pacific, Europe, and internationally. The company operates through three segment Data-as-a-Service (DaaS), Distribution, and Mar…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Business Segments
 

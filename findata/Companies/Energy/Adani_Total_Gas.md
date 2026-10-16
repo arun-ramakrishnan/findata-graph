@@ -40,10 +40,10 @@ Adani Total Gas Limited (ATGL), founded in 2004 and headquartered in Ahmedabad, 
 - **Industry**: Utilities - Regulated Gas
 - **Employees**: 528
 - **Promoter Holding**: 79.8%
-- **Institutional Holding**: 7.3%
+- **Institutional Holding**: 7.4%
 - **Business Summary**: Adani Total Gas Limited engages in the city gas distribution (CGD) business in India. It supplies piped natural gas and compressed natural gas to the domestic, commercial, industrial, and transportation sectors. The company also provides biogas, biofuel, biomass, LCNG, HCNG, EV, and hydrogen. In …
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Financial Profile (Yahoo Finance, Jun 2026)
 - Market cap: ₹79,296 cr | Enterprise value: ₹81,472 cr

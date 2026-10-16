@@ -45,10 +45,10 @@ Laurus Labs Limited (incorporated 2005; HQ Hyderabad) is a global pharmaceutical
 - **Industry**: Drug Manufacturers - Specialty & Generic
 - **Employees**: 7,059
 - **Promoter Holding**: 32.0%
-- **Institutional Holding**: 29.6%
+- **Institutional Holding**: 33.8%
 - **Business Summary**: Laurus Labs Limited, together with its subsidiaries, manufactures and sells medicines and active pharmaceutical ingredients (APIs) in India and internationally. The company offers Generics APIs and solid oral drug products for intermediates for anti-retroviral (ARV), anti-diabetic, cardiovascular…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Financial Profile (Yahoo Finance, Jun 2026)
 - Market cap: ₹78,336 cr | Enterprise value: ₹81,042 cr

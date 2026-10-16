@@ -3,6 +3,7 @@ title: Symphony
 type: company
 ticker: SYMPHONY.NS
 sector: Consumer
+industry: Furnishings, Fixtures & Appliances
 market_cap: mid_cap
 normalized_name: Symphony
 permalink: /companies/consumer/symphony
@@ -38,6 +39,19 @@ Air-cooler manufacturer.
 
 *Stub node — created as a graph endpoint. Expand as additional primary research accumulates.*
 
+
+<!-- BEGIN auto company profile (enrich_from_yfinance.py) -->
+
+## Company Profile (yfinance)
+
+- **Industry**: Furnishings, Fixtures & Appliances
+- **Employees**: 479
+- **Promoter Holding**: 75.8%
+- **Institutional Holding**: 8.8%
+- **Business Summary**: Symphony Limited, together with its subsidiaries, manufactures and trades in air coolers and other appliances under the Symphony brand for residential, commercial, and industrial customers in India and internationally. The company offers household coolers, such as desert, room, personal, and spot…
+
+_Source: yfinance | Refreshed: 2026-10-16_
+<!-- END auto company profile -->
 <!-- BEGIN auto chatter block (derive_insights.py) -->
 
 ## The Chatter — Embracing the Unknown

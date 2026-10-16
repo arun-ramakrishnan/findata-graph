@@ -39,11 +39,11 @@ Rishabh Instruments is a vertically integrated manufacturer of electrical automa
 
 - **Industry**: Scientific & Technical Instruments
 - **Employees**: 563
-- **Promoter Holding**: 73.9%
-- **Institutional Holding**: 11.6%
+- **Promoter Holding**: 72.9%
+- **Institutional Holding**: 9.5%
 - **Business Summary**: Rishabh Instruments Limited engages in the design, development, and manufacturing of global energy efficiency solutions in electrical automation, measurement, and industrial technology in Asia, Europe, and internationally. The company offers electrical automation devices, including transducers, i…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 The Chatter — TCS, Indian Bank, Amagi, CMR Green & More
 

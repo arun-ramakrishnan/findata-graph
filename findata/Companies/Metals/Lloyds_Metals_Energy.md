@@ -46,9 +46,9 @@ Lloyds Metals & Energy (NSE: LLOYDSME) is an integrated iron-ore mining, pellet,
 - **Employees**: 4,194
 - **Promoter Holding**: 77.7%
 - **Institutional Holding**: 3.2%
-- **Business Summary**: Lloyds Metals and Energy Limited manufactures and sells sponge iron and iron ore in India. The company operates through four segments: Mining, Steel and related value added products, Mine Developer and Operator (MDO), and Others. It offers wire rods, round and TMT bars, as well as flat steel prod…
+- **Business Summary**: Lloyds Metals and Energy Limited manufactures and sells sponge iron and iron ore in India and the Isle of Man. The company operates through four segments: Mining, Steel and related value added products, Mine Developer and Operator (MDO), and Others. It offers wire rods, round and TMT bars, as wel…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 
 <!-- BEGIN auto chatter block (derive_insights.py) -->

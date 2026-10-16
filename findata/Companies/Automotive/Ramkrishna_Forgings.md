@@ -42,11 +42,11 @@ Ramkrishna Forgings Limited manufactures forged components for automobiles, rail
 
 - **Industry**: Metal Fabrication
 - **Employees**: 3,180
-- **Promoter Holding**: 57.4%
-- **Institutional Holding**: 21.0%
-- **Business Summary**: Ramkrishna Forgings Limited engages in the manufacture and sale of forged components for automobiles, railway wagons and coaches, and engineering parts in India and internationally. It operates in two segments, Forging Components and Others. The company's products portfolio includes beam, knuckle…
+- **Promoter Holding**: 58.1%
+- **Institutional Holding**: 16.0%
+- **Business Summary**: Ramkrishna Forgings Limited engages in the manufacture and sale of forged components for automobiles, railway wagons and coaches, and engineering parts in India and internationally. The company's products portfolio includes beam, knuckle, steering arm, tie-rod-arm, sector shaft, front hub, cranks…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Financial Profile (Yahoo Finance, Jun 2026)
 

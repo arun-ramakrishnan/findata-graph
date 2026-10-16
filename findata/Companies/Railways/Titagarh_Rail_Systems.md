@@ -63,11 +63,12 @@ Titagarh Wagons Limited is a public limited company incorporated and domiciled i
 ## Company Profile (yfinance)
 
 - **Industry**: Railroads
+- **Employees**: 1,052
 - **Promoter Holding**: 40.6%
-- **Institutional Holding**: 19.0%
-- **Business Summary**: Titagarh Rail Systems Limited engages in the manufacture and sale of freight and passenger rail systems in India and internationally. The company offers forged wheel set, loco shells, couplers, draft gears, cast bogies, and cast manganese steel crossing products; automobile-carrying, flat, hopper…
+- **Institutional Holding**: 20.7%
+- **Business Summary**: Titagarh Rail Systems Limited manufactures and sells freight and passenger rail systems in India and internationally. The company offers forged wheel set, cast bogies, couplers, draft gear, loco shells, and cast manganese steel crossing products; flat, hopper, tank, box, automobile-carrying, cove…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Recent Performance
 

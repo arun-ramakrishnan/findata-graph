@@ -52,11 +52,11 @@ Restaurant Brands Asia Limited is a leading operator of quick service restaurant
 
 - **Industry**: Restaurants
 - **Employees**: 10,620
-- **Promoter Holding**: 48.4%
-- **Institutional Holding**: 32.4%
+- **Promoter Holding**: 48.3%
+- **Institutional Holding**: 31.5%
 - **Business Summary**: Restaurant Brands Asia Limited, together with its subsidiaries, operates quick service restaurant chains in India and Indonesia. It develops, establishes, operates, and franchises restaurants under the Burger King brand in India, as well as Burger King and POPEYES brands in Indonesia. The company…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Business Segments
 

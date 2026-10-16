@@ -39,8 +39,8 @@ Canadian financial services company headquartered in Toronto (TSX: SLF, NYSE: SL
 - **Industry**: Insurance - Diversified
 - **Employees**: 32,151
 - **Promoter Holding**: 0.1%
-- **Institutional Holding**: 56.2%
+- **Institutional Holding**: 55.4%
 - **Business Summary**: Sun Life Financial Inc., a financial services company, provides asset management, wealth, insurance and health solutions to individual and institutional customers in Canada, the United States, the United Kingdom, Ireland, Hong Kong, the Philippines, Japan, Indonesia, India, China, Australia, Sing…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->

@@ -36,10 +36,10 @@ Ipca Laboratories Limited, incorporated in 1949 and headquartered in Mumbai, is 
 - **Industry**: Drug Manufacturers - Specialty & Generic
 - **Employees**: 17,210
 - **Promoter Holding**: 45.1%
-- **Institutional Holding**: 45.2%
+- **Institutional Holding**: 45.5%
 - **Business Summary**: Ipca Laboratories Limited, an integrated pharmaceutical company, manufactures and markets formulations and active pharmaceutical ingredients (APIs) for various therapeutic segments in India. The company offers APIs in anti-hypertensive, anti-malarial, diuretic, DMARD, and anthelmintic therapeutic…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Financial Profile (Yahoo Finance, Jun 2026)
 - Market cap: ₹410.6B | Enterprise value: ₹422.0B

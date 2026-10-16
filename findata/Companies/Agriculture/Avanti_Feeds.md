@@ -62,10 +62,10 @@ Avanti Feeds Limited is one of India's leading aquaculture feed manufacturers, s
 - **Industry**: Packaged Foods
 - **Employees**: 1,406
 - **Promoter Holding**: 70.9%
-- **Institutional Holding**: 10.5%
+- **Institutional Holding**: 10.6%
 - **Business Summary**: Avanti Feeds Limited, together with its subsidiaries, manufactures and sells shrimp feeds in India, the United States, and internationally. The company operates through three segments: Shrimp Feed, Shrimp Hatchery, and Power Generation. It manufactures and markets shrimp feeds for aqua culture to…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Business Model
 - Manufacturing and distribution of aquaculture feeds

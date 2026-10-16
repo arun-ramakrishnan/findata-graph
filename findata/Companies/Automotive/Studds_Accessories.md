@@ -3,7 +3,7 @@ title: Studds Accessories
 type: company
 ticker: STUDDS.NS
 sector: Automotive
-industry: null
+industry: Auto Parts
 market_cap: small_cap
 normalized_name: Studds_Accessories
 permalink: /companies/automotive/studds_accessories
@@ -68,6 +68,19 @@ The INR1,000 crore revenue target by FY30 represents a conservative yet achievab
 
 &gt; “I think if you look at the CAGR until 2030 on a INR1,000 crores plus kind of a guidance ...
 
+
+<!-- BEGIN auto company profile (enrich_from_yfinance.py) -->
+
+## Company Profile (yfinance)
+
+- **Industry**: Auto Parts
+- **Employees**: 1,040
+- **Promoter Holding**: 63.4%
+- **Institutional Holding**: 8.0%
+- **Business Summary**: Studds Accessories Limited engages in the designing, manufacturing, marketing, and sale of helmets and riding accessories in India and internationally. The company offers full face, flip up face, open face, and off road helmet; arm sleeves, balaclava, cable lock, riding jackets, and motorcycle si…
+
+_Source: yfinance | Refreshed: 2026-10-16_
+<!-- END auto company profile -->
 ## Key Information
 - **Entity Type**: Company
 - **Normalized Name**: Studds_Accessories

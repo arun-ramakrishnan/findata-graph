@@ -52,11 +52,12 @@ Jyoti CNC operates with state-of-the-art manufacturing facilities featuring:
 ## Company Profile (yfinance)
 
 - **Industry**: Specialty Industrial Machinery
-- **Promoter Holding**: 67.7%
-- **Institutional Holding**: 16.9%
-- **Business Summary**: Jyoti CNC Automation Limited manufactures and sells metal cutting computer numerical control (CNC) machines in India, rest of Asia, Europe, the Middle East, North America, South America, and Africa. Its product portfolio includes CNC turning centers, CNC turn mill centers, CNC vertical machining …
+- **Employees**: 2,701
+- **Promoter Holding**: 67.3%
+- **Institutional Holding**: 14.3%
+- **Business Summary**: Jyoti CNC Automation Limited engages in the manufacture and sale of metal cutting computer numerical control machines in India, rest of Asia, Europe, the Middle East, North America, South America, and Africa. The company's product portfolio includes CNC turning centers, CNC turn mill centers, CNC…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Industry Analysis and Market Position
 

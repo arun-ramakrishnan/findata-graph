@@ -39,11 +39,12 @@ Extracted from "Points & Figures: Grain in the graphs" (Zerodha) — Edition #19
 ## Company Profile (yfinance)
 
 - **Industry**: Aluminum
+- **Employees**: 565
 - **Promoter Holding**: 0.0%
 - **Institutional Holding**: 0.0%
-- **Business Summary**: MMP Industries Limited engages in the manufacture, sale, distribution, and trade of aluminium products in India. The company operates in four segments: Aluminium Powders and Pastes, Aluminium Conductors, Aluminium Foils, and Others. It offers pyro, flake, and atomized aluminum powders for use in …
+- **Business Summary**: MMP Industries Limited engages in the manufacture, sale, distribution, and trade of aluminium products in India. It operates in four segments: Aluminium Powders and Pastes, Aluminium Conductors, Aluminium Foils, Insulators, and Others. The company offers pyro, flake, and atomized aluminum powders…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Key Data Points & Signals (Investor Presentation)
 - **Segment demand triggers**: explosives, AAC blocks, pesticides, foil conductors/cables, composite insulators — driven by infra push, affordable housing, renewable energy, anti-dumping measures, power-transmission investments.

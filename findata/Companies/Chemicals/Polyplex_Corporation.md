@@ -58,11 +58,12 @@ Thin BOPET film demand is expected to remain resilient, accounting for 80% of gl
 ## Company Profile (yfinance)
 
 - **Industry**: Specialty Chemicals
-- **Promoter Holding**: 56.4%
-- **Institutional Holding**: 5.6%
+- **Employees**: 1,022
+- **Promoter Holding**: 56.5%
+- **Institutional Holding**: 5.8%
 - **Business Summary**: Polyplex Corporation Limited engages in the manufacture and sale of polymeric films in India, other Asian countries, Europe, the Americas, and internationally. It offers Sarafil base films, including biaxially-oriented polyester (BOPET) films for use in packaging, electrical, and industrial appli…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Thin BOPET Industry Outlook
 

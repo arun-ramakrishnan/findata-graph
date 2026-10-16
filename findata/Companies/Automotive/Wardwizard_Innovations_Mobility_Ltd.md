@@ -3,7 +3,7 @@ title: Wardwizard Innovations & Mobility Limited
 type: company
 ticker: WARDINMOBI.NS
 sector: Automotive
-industry: null
+industry: Auto Manufacturers
 market_cap: micro_cap
 normalized_name: Wardwizard_Innovations_Mobility_Ltd
 permalink: /companies/automotive/wardwizard_innovations_mobility_ltd
@@ -34,6 +34,18 @@ stale_after: '2027-03-09'
 
 Wardwizard Innovations & Mobility Limited is an Indian company that manufactures electric vehicles (EVs), including electric two-wheelers and e-rickshaws, under brands like Joy e-bike. The company operates in the fast-growing electric mobility segment, focusing on affordable and sustainable transportation solutions.
 
+
+<!-- BEGIN auto company profile (enrich_from_yfinance.py) -->
+
+## Company Profile (yfinance)
+
+- **Industry**: Auto Manufacturers
+- **Promoter Holding**: 31.3%
+- **Institutional Holding**: 0.0%
+- **Business Summary**: Wardwizard Innovations & Mobility Limited, together with its subsidiary, Wardwizard Global PTE Ltd, manufactures and sells electrical vehicles, spare parts, and other related services in India, Uganda, and Nepal. The company operates through Sales of Electric Vehicles, its Components & Related Se…
+
+_Source: yfinance | Refreshed: 2026-10-16_
+<!-- END auto company profile -->
 ## Business Segments
 
 ### Electric Two-Wheelers

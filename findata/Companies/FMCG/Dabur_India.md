@@ -51,10 +51,10 @@ Dabur India Limited, founded in 1884 and headquartered in Ghaziabad, India, oper
 - **Industry**: Household & Personal Products
 - **Employees**: 4,768
 - **Promoter Holding**: 67.7%
-- **Institutional Holding**: 22.1%
+- **Institutional Holding**: 22.3%
 - **Business Summary**: Dabur India Limited operates as a fast moving consumer goods company worldwide. It operates through Consumer Care Business, Foods Business, Retail Business, and Other segments. The company provides health supplements under the Dabur Chyawanprash, Dabur Honey, and Dabur Glucose brand name; digesti…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Business Operations
 The company operates in the FMCG sector with a focus on health and personal care products. Key business characteristics include:

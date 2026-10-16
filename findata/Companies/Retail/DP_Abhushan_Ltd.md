@@ -36,11 +36,12 @@ India's domestic jewellery market is on a strong growth trajectory, expected to 
 ## Company Profile (yfinance)
 
 - **Industry**: Luxury Goods
+- **Employees**: 847
 - **Promoter Holding**: 81.0%
-- **Institutional Holding**: 0.1%
-- **Business Summary**: D. P. Abhushan Limited engages in the manufacturing, sale, and trading of gold, diamond, platinum, silver jewellery, and other precious metals in India. It also offers solitaire jewellery products; and corporate gifting products, such as gold coins, silver coins and notes, electroform idols, and …
+- **Institutional Holding**: 0.2%
+- **Business Summary**: D. P. Abhushan Limited manufactures, sells, and trades gold, diamond, platinum, silver jewellery, and other precious metals in India. It also offers bars; gold and silver coins. The company was founded in 1940 and is based in Ratlam, India.
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Market Segments
 

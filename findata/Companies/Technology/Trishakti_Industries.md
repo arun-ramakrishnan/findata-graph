@@ -100,11 +100,12 @@ Trishakti's focus on heavy equipment for renewable energy aligns with the sector
 ## Company Profile (yfinance)
 
 - **Industry**: Oil & Gas Equipment & Services
-- **Promoter Holding**: 70.2%
+- **Employees**: 350
+- **Promoter Holding**: 69.9%
 - **Institutional Holding**: 0.0%
-- **Business Summary**: Trishakti Industries Limited engages in heavy equipment hiring, and commission and consultancy business in India. The company provides rental and leasing of heavy earth-moving equipment. It also offers crawler cranes; truck mounted and all terrain cranes; piling rigs, such as versatile pile insta…
+- **Business Summary**: Trishakti Industries Limited engages in heavy equipment hiring, and commission and consultancy business in India. It offers rental and leasing of heavy earth-moving equipment. The company also provides crawler cranes; truck mounted and all terrain cranes; piling rigs, such as versatile pile insta…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## [Presentation]
 

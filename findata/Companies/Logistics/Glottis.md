@@ -3,7 +3,7 @@ title: Glottis
 type: company
 ticker: GLOTTIS.NS
 sector: Logistics
-industry: null
+industry: Integrated Freight & Logistics
 market_cap: micro_cap
 normalized_name: Glottis
 permalink: /companies/logistics/glottis
@@ -37,6 +37,19 @@ sources:
 ## Company Overview
 Glottis provides end-to-end logistics solutions with multimodal capabilities including ocean, air, and road freight forwarding, warehousing, cargo handling, 3PL services, and custom clearance.
 
+
+<!-- BEGIN auto company profile (enrich_from_yfinance.py) -->
+
+## Company Profile (yfinance)
+
+- **Industry**: Integrated Freight & Logistics
+- **Employees**: 191
+- **Promoter Holding**: 74.2%
+- **Institutional Holding**: 0.0%
+- **Business Summary**: Glottis Limited operates as a freight forwarding company in India. The company offers airport delivery and door-to-door delivery, express and priority cargo, freight consolidation, scheduled and charter flights, import and export customs clearance, end-to-end tracking, temperature-controlled air …
+
+_Source: yfinance | Refreshed: 2026-10-16_
+<!-- END auto company profile -->
 <!-- BEGIN auto key figures (derive_insights.py) -->
 
 ## Key Figures (auto)

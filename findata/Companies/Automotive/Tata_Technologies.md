@@ -58,11 +58,11 @@ Tata Technologies Limited is a global engineering services company providing pro
 
 - **Industry**: Information Technology Services
 - **Employees**: 11,529
-- **Promoter Holding**: 60.2%
-- **Institutional Holding**: 7.6%
+- **Promoter Holding**: 60.1%
+- **Institutional Holding**: 7.9%
 - **Business Summary**: Tata Technologies Limited provides product engineering and digital services in India, the United Kingdom, North America, rest of Europe, and internationally. The company offers software-defined vehicles, end to end electric vehicle engineering, and turnkey full vehicle development, end to end eng…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 
 <!-- BEGIN auto chatter block (derive_insights.py) -->

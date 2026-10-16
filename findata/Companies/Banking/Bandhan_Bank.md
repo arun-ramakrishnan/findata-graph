@@ -46,11 +46,11 @@ Bandhan Bank Limited was founded in **2001** as an NBFC-MFI and converted into a
 
 - **Industry**: Banks - Regional
 - **Employees**: 74,500
-- **Promoter Holding**: 42.7%
-- **Institutional Holding**: 37.5%
-- **Business Summary**: Bandhan Bank Limited provides banking and financial services for personal and business customers in India. The company operates through Treasury, Retail Banking, Corporate/Wholesale Banking, and Other Banking Business segments. It accepts term, fixed, and recurring deposits; and offers savings an…
+- **Promoter Holding**: 37.6%
+- **Institutional Holding**: 39.7%
+- **Business Summary**: Bandhan Bank Limited provides banking and financial services for personal and business customers in India. The company operates through Treasury, Retail Banking, Corporate/Wholesale Banking, and Other Banking Business segments. It accepts term, fixed, and recurring deposits; and offers savings, s…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Financial Profile (Yahoo Finance, Jun 2026)
 

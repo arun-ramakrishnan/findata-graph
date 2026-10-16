@@ -36,10 +36,10 @@ Karur Vysya Bank Limited is a private sector bank headquartered in Karur, Tamil 
 - **Industry**: Banks - Regional
 - **Employees**: 9,845
 - **Promoter Holding**: 0.5%
-- **Institutional Holding**: 41.7%
+- **Institutional Holding**: 42.4%
 - **Business Summary**: The Karur Vysya Bank Limited provides various banking and financial services for personal and corporate customers in India. The company operates through Treasury, Corporate and Wholesale Banking, Retail Banking, and Other Banking Operations segments. The Treasury segment offers investments in Cen…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Strategic Context
 

@@ -41,10 +41,10 @@ The Coca-Cola Company is a global total beverage company that manufactures, mark
 - **Industry**: Beverages - Non-Alcoholic
 - **Employees**: 65,900
 - **Promoter Holding**: 9.9%
-- **Institutional Holding**: 68.3%
+- **Institutional Holding**: 68.2%
 - **Business Summary**: The Coca-Cola Company, a beverage company, manufactures and sells various nonalcoholic beverages in the United States and internationally. The company provides Trademark Coca-Cola, sparkling soft drinks and flavors; water, sports, coffee, and tea; juice, value-added dairy, and plant-based beverag…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Industry Classification
 - **Sector**: Consumer Cyclical - Beverages

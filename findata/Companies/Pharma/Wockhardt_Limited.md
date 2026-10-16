@@ -57,10 +57,10 @@ Wockhardt Limited is a global pharmaceutical and biotechnology organisation, pro
 - **Industry**: Drug Manufacturers - Specialty & Generic
 - **Employees**: 2,564
 - **Promoter Holding**: 51.0%
-- **Institutional Holding**: 14.5%
+- **Institutional Holding**: 13.1%
 - **Business Summary**: Wockhardt Limited, together with its subsidiaries, operates as a pharmaceutical and biotech company, in India, the United States, Europe, and internationally. It manufactures and trades pharmaceuticals, medicinal chemical, and botanical products, as well as chemicals and chemical products. The co…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 
 <!-- BEGIN auto key figures (derive_insights.py) -->

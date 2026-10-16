@@ -34,11 +34,11 @@ Niva Bupa Health Insurance is a leading standalone health insurer in India, spec
 ## Company Profile (yfinance)
 
 - **Industry**: Insurance - Life
-- **Promoter Holding**: 76.9%
+- **Promoter Holding**: 75.1%
 - **Institutional Holding**: 15.9%
-- **Business Summary**: Niva Bupa Health Insurance Company Limited provides health insurance products in India. It offers health insurance plans, such as individual, family, NRIs, senior citizens, personal accident, critical illness, and maternity insurance; travel insurance, including international and studying abroad …
+- **Business Summary**: Niva Bupa Health Insurance Company Limited provides health insurance products in India. It offers health insurance plans, such as individual, family, NRIs, senior citizens, personal accident, critical illness, disease-specific, hospital cash, and maternity insurance; travel insurance plans, inclu…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Key Financial Information
 - **Market Cap**: Small Cap

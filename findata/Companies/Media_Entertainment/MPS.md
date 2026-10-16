@@ -66,11 +66,12 @@ MPS Limited is a digital learning platform company providing educational content
 ## Company Profile (yfinance)
 
 - **Industry**: Publishing
-- **Promoter Holding**: 73.5%
+- **Employees**: 2,965
+- **Promoter Holding**: 73.4%
 - **Institutional Holding**: 1.9%
 - **Business Summary**: MPS Limited provides platforms and services for content creation, full-service production, and distribution to the publishers, learning companies, corporate institutions, libraries, and content aggregators in India, Europe, the United States, and internationally. It operates through three segment…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Strategic Context
 

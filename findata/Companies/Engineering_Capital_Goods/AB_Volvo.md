@@ -42,5 +42,5 @@ Swedish multinational manufacturer of trucks, buses, construction equipment head
 - **Institutional Holding**: 0.0%
 - **Business Summary**: AB Volvo (publ), together with its subsidiaries, manufactures and sells trucks, buses, construction equipment, and marine and industrial engines in Europe, North America, South America, Asia, Africa, and Oceania. The company operates through Industrial Operations - Trucks, Industrial Operations -…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->

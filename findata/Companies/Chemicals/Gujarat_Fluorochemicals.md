@@ -43,11 +43,12 @@ Gujarat Fluorochemicals Limited (incorporated 1987; HQ Noida) is a leading manuf
 ## Company Profile (yfinance)
 
 - **Industry**: Specialty Chemicals
+- **Employees**: 3,142
 - **Promoter Holding**: 66.4%
-- **Institutional Holding**: 14.4%
+- **Institutional Holding**: 15.6%
 - **Business Summary**: Gujarat Fluorochemicals Limited engages in the manufacture and trading of refrigerant gases, fluorochemicals, fluoropolymers, battery chemicals, wind energy, and renewable energy solutions in India, Europe, the United States, and internationally. It provides caustic soda, carbon tetrachloride, ch…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Financial Profile (Yahoo Finance, Jun 2026)
 - Market cap: ₹42,943 cr | Enterprise value: ₹45,875 cr

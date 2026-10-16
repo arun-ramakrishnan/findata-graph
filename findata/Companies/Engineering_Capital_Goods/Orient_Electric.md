@@ -37,10 +37,10 @@ Orient Electric Limited manufactures and sells electrical consumer durables, lig
 - **Industry**: Furnishings, Fixtures & Appliances
 - **Employees**: 1,204
 - **Promoter Holding**: 46.2%
-- **Institutional Holding**: 34.7%
+- **Institutional Holding**: 33.8%
 - **Business Summary**: Orient Electric Limited manufactures, purchases, and sells lifestyle electrical products in India and internationally. It operates in two segments, Electrical Consumer Durables, and Lighting and Switchgear. The company offers table, stand, wall, lifestyle, exhaust, personal, and silent fans; ceil…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Financial Profile (Yahoo Finance, Jun 2026)
 

@@ -42,12 +42,12 @@ Hinduja Global Solutions is part of the Hinduja Group, one of India's largest di
 ## Company Profile (yfinance)
 
 - **Industry**: Specialty Business Services
-- **Employees**: 17,110
-- **Promoter Holding**: 78.8%
-- **Institutional Holding**: 2.3%
-- **Business Summary**: Hinduja Global Solutions Limited provides business process management services in the United States, Canada, the United Kingdom, Europe, India, Philippines, and internationally. It provides voice and non-voice based services, such as contact center solutions and back office transaction processing…
+- **Employees**: 16,710
+- **Promoter Holding**: 76.2%
+- **Institutional Holding**: 4.1%
+- **Business Summary**: Hinduja Global Solutions Limited engages in technology, AI, and business services in the United States, Canada, the United Kingdom, Europe, India, and internationally. The company operates through Business Process Management and Digital, Media, and Communications segments. It provides voice and n…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Strategic Context
 

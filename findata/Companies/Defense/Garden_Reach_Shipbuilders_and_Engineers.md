@@ -44,11 +44,12 @@ Garden Reach Shipbuilders & Engineers Ltd is a premier shipbuilding company in I
 ## Company Profile (yfinance)
 
 - **Industry**: Aerospace & Defense
+- **Employees**: 1,463
 - **Promoter Holding**: 74.5%
-- **Institutional Holding**: 3.8%
+- **Institutional Holding**: 3.9%
 - **Business Summary**: Garden Reach Shipbuilders & Engineers Limited engages in the design and construction of war ships in India. The company offers frigates, anti-submarine warfare corvette, missile corvette, landing ship tank, landing craft utility, survey vessel, fleet replenishment tanker, fast patrol vessel, offs…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Business Operations
 

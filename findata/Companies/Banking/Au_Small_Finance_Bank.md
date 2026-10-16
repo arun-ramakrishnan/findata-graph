@@ -55,11 +55,12 @@ The bank serves individuals, senior citizens, SMEs, NRIs, professionals, governm
 ## Company Profile (yfinance)
 
 - **Industry**: Banks - Regional
-- **Promoter Holding**: 31.3%
-- **Institutional Holding**: 49.6%
-- **Business Summary**: AU Small Finance Bank Limited offers various banking and financial services in India. The company operates through Treasury, Retail Banking, Wholesale Banking, and Other Banking Operations segments. It provides saving, salary, term, current, escrow, trade, fixed deposit overdraft, nodal and RERA,…
+- **Employees**: 59,207
+- **Promoter Holding**: 31.4%
+- **Institutional Holding**: 49.4%
+- **Business Summary**: AU Small Finance Bank Limited provides various banking and financial services in India. The company operates through Treasury, Retail Banking, Wholesale Banking, and Other Banking Operations segments. It offers savings, NRI, corporate salary, senior citizen, women and family, minor, current, prem…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Financial Profile (Yahoo Finance, Jun 2026)
 

@@ -38,9 +38,9 @@ Orient Bell Limited manufactures, trades in, and sells ceramic, wall, and floor 
 - **Employees**: 781
 - **Promoter Holding**: 71.2%
 - **Institutional Holding**: 4.7%
-- **Business Summary**: Orient Bell Limited manufactures, trades in, and sells ceramic, wall, and floor tiles in India and internationally. It sells its products through channel partners in residential and commercial spaces. Orient Bell Limited was incorporated in 1977 and is headquartered in New Delhi, India.
+- **Business Summary**: Orient Bell Limited manufactures, trades in, and sells ceramic, wall, and floor tiles in India and internationally. The company also offers bathroom, kitchen, room, marble, vitrified, flexi, and subway tiles. It sells its products through channel partners. The company was incorporated in 1977 and…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Key Personnel
 - Mr. Mahendra Kumar Daga: Executive Chairman

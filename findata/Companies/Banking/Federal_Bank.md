@@ -45,11 +45,11 @@ The Federal Bank Limited, established in 1931 and headquartered in Aluva, Kerala
 
 - **Industry**: Banks - Regional
 - **Employees**: 16,941
-- **Promoter Holding**: 9.7%
-- **Institutional Holding**: 59.7%
+- **Promoter Holding**: 10.9%
+- **Institutional Holding**: 60.6%
 - **Business Summary**: The Federal Bank Limited provides various banking and financial services in India. It operates through four segments: Treasury, Corporate/Wholesale Banking, Retail Banking, and Other Banking Operations segments. The company offers savings, current, salary, GBD super 51, RFC domestic, RFC, EEFC, a…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Financial Profile (Yahoo Finance, Jun 2026)
 - Market cap: ₹79,930 cr | Enterprise value: ₹87,528 cr

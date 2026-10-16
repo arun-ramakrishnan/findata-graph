@@ -65,10 +65,10 @@ Havells India Limited (founded 1958; HQ Noida, Uttar Pradesh) is a leading fast-
 - **Industry**: Electrical Equipment & Parts
 - **Employees**: 7,598
 - **Promoter Holding**: 63.5%
-- **Institutional Holding**: 24.1%
+- **Institutional Holding**: 23.4%
 - **Business Summary**: Havells India Limited, a fast-moving electrical and electronic durables company, manufactures, trades in, and sells various consumer electrical and electronic products in India and internationally. The company operates through six segments: Switchgears, Cables, Lighting and Fixtures, Electrical C…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Financial Profile (Yahoo Finance, Jun 2026)
 - Market cap: ₹73,910 cr | Enterprise value: ₹72,342 cr

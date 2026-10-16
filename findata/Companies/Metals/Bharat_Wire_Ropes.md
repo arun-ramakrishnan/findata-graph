@@ -41,11 +41,12 @@ Bharat Wire Ropes Limited is a leading manufacturer of wire ropes and steel prod
 ## Company Profile (yfinance)
 
 - **Industry**: Steel
-- **Promoter Holding**: 46.5%
-- **Institutional Holding**: 21.4%
-- **Business Summary**: Bharat Wire Ropes Limited manufactures and sells steel wire ropes in India. It offers wire ropes; slings, including mechanically spliced slings, hand spliced slings, and socketed slings; galvanized steel wire strands, such as earth wires, stay wires, and structural strands; and galvanized and ung…
+- **Employees**: 568
+- **Promoter Holding**: 51.8%
+- **Institutional Holding**: 19.2%
+- **Business Summary**: Bharat Wire Ropes Limited manufactures and sells steel wire ropes in India. It offers wire ropes; slings, including mechanically spliced slings, hand spliced slings, mechanically spliced, and socketed slings; galvanized steel wire strands, such as earth wires, stay wires, and structural strands; …
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Business Segments
 

@@ -35,11 +35,12 @@ DCW Limited is a leading Indian chemical company specializing in dyes, pigments,
 ## Company Profile (yfinance)
 
 - **Industry**: Chemicals
-- **Promoter Holding**: 52.6%
-- **Institutional Holding**: 6.7%
+- **Employees**: 1,536
+- **Promoter Holding**: 50.5%
+- **Institutional Holding**: 3.7%
 - **Business Summary**: DCW Limited engages in the manufacture and sale of heavy chemical products in India. The company offers specialty chemicals, including chlorinated poly vinyl chloride, synthetic iron oxide pigment, and synthetic rutile; intermediate chemicals comprising sodium bicarbonate, hydrochloric acid, liqu…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Key Insights
 

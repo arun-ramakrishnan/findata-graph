@@ -49,10 +49,10 @@ Campus Activewear Limited ("Campus"), established in 2005 and headquartered in G
 - **Industry**: Footwear & Accessories
 - **Employees**: 980
 - **Promoter Holding**: 72.1%
-- **Institutional Holding**: 18.3%
+- **Institutional Holding**: 17.7%
 - **Business Summary**: Campus Activewear Limited engages in the design, manufacture, marketing, and distribution of sports and athleisure footwear, apparels, and backpacks for men, women, and children in India and internationally. It offers general-purpose sports shoes for fitness, exercising, walking, and light sports…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Financial Profile (Yahoo Finance, Jun 2026)
 - Market cap: ₹7,270 cr | Enterprise value: ₹7,242 cr

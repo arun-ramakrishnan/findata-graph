@@ -38,8 +38,8 @@ Target — auto-generated stub from newsletter parsing. To be enriched.
 - **Industry**: Discount Stores
 - **Employees**: 400,000
 - **Promoter Holding**: 0.3%
-- **Institutional Holding**: 89.0%
+- **Institutional Holding**: 89.1%
 - **Business Summary**: Target Corporation operates as a general merchandise retailer in the United States. It offers apparel for women, men, young adults, kids, toddlers, and babies, as well as jewelry, accessories, and shoes; and beauty products, such as skin and bath care, cosmetics, hair care, oral care, deodorant, …
 
-_Source: yfinance | Refreshed: 2026-09-15_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->

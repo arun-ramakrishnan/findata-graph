@@ -3,6 +3,7 @@ title: Welspun Enterprises
 type: company
 ticker: WELENT.NS
 sector: Infrastructure
+industry: Engineering & Construction
 market_cap: mid_cap
 normalized_name: Welspun_Enterprises
 permalink: /companies/infrastructure/welspun_enterprises
@@ -34,6 +35,19 @@ Welspun-group infrastructure company (roads, water).
 
 *Stub node — created as a graph endpoint. Expand as additional primary research accumulates.*
 
+
+<!-- BEGIN auto company profile (enrich_from_yfinance.py) -->
+
+## Company Profile (yfinance)
+
+- **Industry**: Engineering & Construction
+- **Employees**: 40,000
+- **Promoter Holding**: 64.7%
+- **Institutional Holding**: 10.5%
+- **Business Summary**: Welspun Enterprises Limited engages in the engineering, procurement, and construction of infrastructure development projects in India. The company develops and operates infrastructure for road transport, water, tunneling, and rehabilitation; hybrid annuity model and build; operate and transfer; a…
+
+_Source: yfinance | Refreshed: 2026-10-16_
+<!-- END auto company profile -->
 <!-- BEGIN auto key figures (derive_insights.py) -->
 
 ## Key Figures (auto)

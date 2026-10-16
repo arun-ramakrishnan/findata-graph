@@ -43,11 +43,12 @@ Ethos Limited, founded in 2003 and headquartered in Gurugram, is India's luxury 
 ## Company Profile (yfinance)
 
 - **Industry**: Luxury Goods
+- **Employees**: 1,069
 - **Promoter Holding**: 52.9%
-- **Institutional Holding**: 31.0%
-- **Business Summary**: Ethos Limited operates a chain of luxury watch boutiques in India. The company offers luxury and premium watches; pre-owned watches; jewellery and jewellery boxes; watch straps, stands, and winders; clocks; collector boxes; and luggage products. It also provides product repair and services, inclu…
+- **Institutional Holding**: 33.8%
+- **Business Summary**: Ethos Limited operates a chain of luxury watch boutiques in India. The company offers luxury and premium watches; pre-owned watches; jewellery and jewellery boxes; watch straps, stands, and winders; clocks and their spare parts; collector boxes; handbags and luggage products. It also provides pro…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Financial Profile (Yahoo Finance, Jun 2026)
 - Market cap: ₹65.2B | Enterprise value: ₹63.0B

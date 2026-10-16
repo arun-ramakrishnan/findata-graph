@@ -55,11 +55,11 @@ Cloudflare (NYSE: NET) is a global cloud-services and cybersecurity company prov
 
 - **Industry**: Software - Infrastructure
 - **Employees**: 5,156
-- **Promoter Holding**: 0.7%
-- **Institutional Holding**: 89.8%
+- **Promoter Holding**: 0.6%
+- **Institutional Holding**: 90.2%
 - **Business Summary**: Cloudflare, Inc. operates as a cloud services provider that delivers a range of services to businesses worldwide. The company provides a cloud-based security solution to secure a range of combination of platforms, including public and private cloud, on-premises, software-as-a-service applications…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Management
 - Matthew Prince — Chief Executive Officer

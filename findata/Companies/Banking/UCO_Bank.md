@@ -39,7 +39,7 @@ UCO Bank is a major Indian public sector bank headquartered in Kolkata, West Ben
 - **Institutional Holding**: 2.6%
 - **Business Summary**: UCO Bank provides various banking and financial services in India and internationally. The company's deposit products include current accounts, saving accounts, fixed deposits, recurring deposits, accounts in foreign currency, and fee collection accounts. It also offers agri, home, education, gol…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Industry Classification
 - **Sector**: Financial Services - Banking

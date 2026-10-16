@@ -3,6 +3,7 @@ title: Bayer
 type: company
 ticker: BAYN.DE
 sector: Chemicals
+industry: Drug Manufacturers - General
 market_cap: large_cap
 normalized_name: Bayer
 permalink: /companies/chemicals/bayer
@@ -33,6 +34,19 @@ German life-sciences company; pharmaceuticals and crop science.
 
 *Stub node — created as a graph endpoint. Expand as additional primary research accumulates.*
 
+
+<!-- BEGIN auto company profile (enrich_from_yfinance.py) -->
+
+## Company Profile (yfinance)
+
+- **Industry**: Drug Manufacturers - General
+- **Employees**: 87,830
+- **Promoter Holding**: 0.0%
+- **Institutional Holding**: 61.9%
+- **Business Summary**: Bayer Aktiengesellschaft operates as a life science company in Europe, the Middle East, Africa, Germany, Switzerland, North America, the United States, the Asia Pacific, China, Latin America, and Brazil. It operates through Pharmaceuticals, Consumer Health, and Crop Science segments. The Pharmace…
+
+_Source: yfinance | Refreshed: 2026-10-16_
+<!-- END auto company profile -->
 <!-- BEGIN auto chatter block (derive_insights.py) -->
 
 ## The Chatter — Discovering Hidden Signals

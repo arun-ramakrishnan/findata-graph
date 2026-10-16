@@ -175,11 +175,12 @@ Coal India Limited (CIL) is the largest coal mining company in the world, operat
 ## Company Profile (yfinance)
 
 - **Industry**: Thermal Coal
+- **Employees**: 212,066
 - **Promoter Holding**: 61.1%
-- **Institutional Holding**: 26.0%
+- **Institutional Holding**: 26.9%
 - **Business Summary**: Coal India Limited, together with its subsidiaries, produces and sells coal and coal products in India. The company offers coking coal for steel making and metallurgical industries, as well as for hard coke manufacturing; semi coking coal for blend-able coal in steel making, merchant coke manufac…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Key Investment Highlights
 

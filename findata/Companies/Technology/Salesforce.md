@@ -42,10 +42,10 @@ Salesforce is a global cloud-based software company specializing in Customer Rel
 - **Industry**: Software - Application
 - **Employees**: 83,334
 - **Promoter Holding**: 3.0%
-- **Institutional Holding**: 92.3%
+- **Institutional Holding**: 87.3%
 - **Business Summary**: Salesforce, Inc. provides customer relationship management technology services that connect companies and customers together in the United States, Europe, and the Asia Pacific. The company offers Agentforce, which enables customers to build, deploy, and manage enterprise-grade, autonomous AI agen…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 
 <!-- BEGIN auto chatter block (derive_insights.py) -->

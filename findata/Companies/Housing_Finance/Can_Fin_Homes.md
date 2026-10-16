@@ -53,10 +53,10 @@ Can Fin Homes Limited is a Bengaluru-based housing finance company founded in 19
 - **Industry**: Mortgage Finance
 - **Employees**: 1,356
 - **Promoter Holding**: 38.7%
-- **Institutional Holding**: 30.8%
+- **Institutional Holding**: 30.0%
 - **Business Summary**: Can Fin Homes Limited provides housing finance services primarily to first-time homebuyers and professionals in India. The company's products portfolio comprises housing loans, such as individual housing, commercial housing, composite housing, Composite housing loans. Layout loan, Flat under Cons…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Financial Profile (Yahoo Finance, Jun 2026)
 - Market cap: ₹11,800 cr | Enterprise value: ₹49,578 cr

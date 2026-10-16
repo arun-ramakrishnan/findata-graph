@@ -39,7 +39,7 @@ Anant Raj Limited, established in 1969, is a renowned infrastructure development
 - **Institutional Holding**: 10.9%
 - **Business Summary**: Anant Raj Limited is primarily engaged in the real estate and infrastructure development business in India and Singapore. It develops and constructs residential townships, group housings, commercial developments, information and technology parks, malls, office complexes, affordable housings, data…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Key Insights (Opportunity Between The Lines)
 

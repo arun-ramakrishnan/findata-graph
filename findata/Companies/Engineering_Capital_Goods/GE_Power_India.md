@@ -50,11 +50,11 @@ GE Power India Ltd. provides solutions for power generation, focusing on service
 ## Company Profile (yfinance)
 
 - **Industry**: Engineering & Construction
-- **Promoter Holding**: 71.1%
+- **Promoter Holding**: 70.1%
 - **Institutional Holding**: 0.1%
-- **Business Summary**: GE Power India Limited engages in the engineering, procurement, manufacturing, construction, maintenance, and servicing of power plants and power equipment in India and internationally. The company offers boilers, mills, air quality control systems, hydro and gas power systems, and automation and…
+- **Business Summary**: GE Power India Limited engages in the engineering, procurement, manufacturing, construction, maintenance, and servicing of power plants and power equipment in India and internationally. The company offers steam power services. It also provides automation and control; boilers; mills; and air quali…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Industry Context: Engineering & Capital Goods Sector
 

@@ -34,11 +34,12 @@ Karnataka Bank Limited is a private sector bank operating in Karnataka and other
 ## Company Profile (yfinance)
 
 - **Industry**: Banks - Regional
+- **Employees**: 9,037
 - **Promoter Holding**: 5.6%
-- **Institutional Holding**: 19.8%
-- **Business Summary**: The Karnataka Bank Limited provides various banking and financial services in India. It operates through four segments: Treasury operations, Corporate/Wholesale Banking, Retail Banking, and Other Banking Operations. The Corporate/Wholesale Banking segment provides various fund and non-fund-based …
+- **Institutional Holding**: 21.0%
+- **Business Summary**: The Karnataka Bank Limited provides various banking and financial services in India. It operates through four segments: Treasury operations, Corporate/Wholesale Banking, Retail Banking, and Other Banking Operations. The company provides various fund and non-fund-based products, including term loa…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Strategic Context
 

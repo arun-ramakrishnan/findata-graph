@@ -46,10 +46,10 @@ Allcargo Global — auto-generated stub from newsletter parsing. To be enriched.
 - **Industry**: Integrated Freight & Logistics
 - **Employees**: 4,500
 - **Promoter Holding**: 65.3%
-- **Institutional Holding**: 7.8%
+- **Institutional Holding**: 7.1%
 - **Business Summary**: Allcargo Global Limited operates as a logistics company in India and internationally. The company engages in non-vessel operating common carriers in less-than-container load logistics; and operation of the ECU360, an end-to-end LCL digital platform. It also provides end-to-end multimodal logistic…
 
-_Source: yfinance | Refreshed: 2026-09-15_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 <!-- BEGIN auto key figures (derive_insights.py) -->
 

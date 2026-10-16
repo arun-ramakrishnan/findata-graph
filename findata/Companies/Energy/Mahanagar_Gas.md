@@ -49,10 +49,10 @@ Mahanagar Gas Limited (MGL) is a prominent Indian city gas distribution (CGD) co
 - **Industry**: Utilities - Regulated Gas
 - **Employees**: 729
 - **Promoter Holding**: 42.5%
-- **Institutional Holding**: 31.3%
+- **Institutional Holding**: 34.8%
 - **Business Summary**: Mahanagar Gas Limited operates as a natural gas distribution company in India. The company supplies piped natural gas (PNG) to domestic households, domestic households, and commercial establishments and industries used for cooking and water heating, as well as by hospitals, nursing homes, hotels,…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Core Business
 

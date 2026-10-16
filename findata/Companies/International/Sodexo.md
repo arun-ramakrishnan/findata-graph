@@ -50,10 +50,10 @@ Sodexo S.A. is a French multinational corporation and global leader in food serv
 - **Industry**: Specialty Business Services
 - **Employees**: 314,292
 - **Promoter Holding**: 45.5%
-- **Institutional Holding**: 41.5%
+- **Institutional Holding**: 41.6%
 - **Business Summary**: Sodexo S.A. provides food services and facilities management services in North America, Europe, and internationally. It offers food services, including retail services, food delivery, and meal and food vouchers, as well as digital food ordering services; and facility management services, such as …
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 The Chatter — Global Chatter: Micron, SpaceX, Palantir & More
 

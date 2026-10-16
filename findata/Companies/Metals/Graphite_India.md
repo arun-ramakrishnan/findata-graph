@@ -55,10 +55,10 @@ Graphite India operates with advanced manufacturing facilities featuring:
 - **Industry**: Electrical Equipment & Parts
 - **Employees**: 1,669
 - **Promoter Holding**: 66.0%
-- **Institutional Holding**: 13.1%
+- **Institutional Holding**: 14.0%
 - **Business Summary**: Graphite India Limited manufactures and sells graphite electrodes, and carbon and graphite specialty products in India and internationally. The company operates through Graphite and Carbon, Steel, and Others segments. It offers a range of graphite electrodes with various diameter and power for AC…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Industry Analysis and Market Position
 

@@ -43,11 +43,12 @@ Thermax offers a wide range of products and solutions for industrial heating, co
 ## Company Profile (yfinance)
 
 - **Industry**: Conglomerates
+- **Employees**: 3,962
 - **Promoter Holding**: 73.7%
-- **Institutional Holding**: 20.7%
-- **Business Summary**: Thermax Limited provides energy, environmental, and chemical solutions in India and internationally. It operates in Industrial Products, Industrial Infra, Green Solutions, and Chemical segments. The Industrial Products segment offers manufacturing, installation, sales and services related to boil…
+- **Institutional Holding**: 18.9%
+- **Business Summary**: Thermax Limited, together with its subsidiaries, provides energy and environment solutions in India and internationally. The company is involved in the manufacturing, installation, sales, and services related to boilers and heating equipment, absorption chiller/heat pumps, air pollution control e…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Key Information
 - **Entity Type**: Company

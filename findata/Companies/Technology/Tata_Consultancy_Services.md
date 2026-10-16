@@ -86,10 +86,10 @@ Tata Consultancy Services (TCS) is a global IT services company with deep indust
 - **Industry**: Information Technology Services
 - **Employees**: 584,519
 - **Promoter Holding**: 71.8%
-- **Institutional Holding**: 17.4%
+- **Institutional Holding**: 17.6%
 - **Business Summary**: Tata Consultancy Services Limited provides information technology (IT) and IT enabled services. It offers TCS ADD, a suite of AI powered life sciences platforms; TCS BaNCS, a financial services platform; TCS BFSI Platforms, a cloud-native, subscription-based as-a-service digital ecosystem for ins…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Strategic Position
 

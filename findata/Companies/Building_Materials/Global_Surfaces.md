@@ -37,11 +37,12 @@ Global Surfaces Limited specializes in processing natural stones like granite, m
 ## Company Profile (yfinance)
 
 - **Industry**: Building Materials
-- **Promoter Holding**: 77.3%
+- **Employees**: 174
+- **Promoter Holding**: 78.1%
 - **Institutional Holding**: 0.0%
-- **Business Summary**: Global Surfaces Limited engages in the mining, production, and export of natural stones and engineered quartz in the United States, the United Arab Emirates, and India. It offers natural stones, such as granites, marbles, soft quartzites, and phylites and soapstones; and engineered quartz product…
+- **Business Summary**: Global Surfaces Limited engages in the mining, production, and export of natural stones and engineered quartz in the United States, the United Arab Emirates, and India. It offers granite, marbles, as well as soft quartzites in slab and countertop forms; and engineered quartz products, including s…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Market Position
 - **Natural Stone Market**: Global market at USD 40.4 billion (2024), projected to reach USD 54.9 billion by 2033 (3.5% CAGR)

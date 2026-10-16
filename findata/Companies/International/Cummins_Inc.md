@@ -39,8 +39,8 @@ American multinational corporation headquartered in Columbus, Indiana (NYSE: CMI
 - **Industry**: Specialty Industrial Machinery
 - **Employees**: 67,400
 - **Promoter Holding**: 0.2%
-- **Institutional Holding**: 87.8%
+- **Institutional Holding**: 87.7%
 - **Business Summary**: Cummins Inc. offers various power solutions worldwide. The company operates through five segments: Engine, Distribution, Components, Power Systems, and Accelera. It offers diesel and natural gas-powered engines; and drivetrain systems, including axles, drivelines, brakes, and suspension systems; …
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->

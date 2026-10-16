@@ -48,11 +48,12 @@ sources:
 ## Company Profile (yfinance)
 
 - **Industry**: Specialty Chemicals
+- **Employees**: 1,188
 - **Promoter Holding**: 53.8%
-- **Institutional Holding**: 27.9%
-- **Business Summary**: Indigo Paints Limited manufactures and sells decorative paints in India and internationally. The company offers interior and exterior emulsions, enamels, putties and primers, and sleek wood coatings, as well as other products, including leakproof emulsions; aluminium paints, stone and tiles paint…
+- **Institutional Holding**: 27.8%
+- **Business Summary**: Indigo Paints Limited manufactures and sells decorative paints in India and internationally. The company offers interior and exterior emulsions, enamels, putties and primers, and sleek wood coatings, as well as waterproofing solutions and construction chemicals; aluminium paints, stone and tiles …
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Financial Performance (Q2FY26)
 - Revenue: INR 3,121mn (YoY +4.2%, QoQ +1.0%)

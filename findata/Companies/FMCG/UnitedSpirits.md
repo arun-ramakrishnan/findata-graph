@@ -68,10 +68,10 @@ The sector is driven by population growth, urbanization, and premium demand, whi
 - **Industry**: Beverages - Wineries & Distilleries
 - **Employees**: 2,224
 - **Promoter Holding**: 59.5%
-- **Institutional Holding**: 25.2%
+- **Institutional Holding**: 24.9%
 - **Business Summary**: United Spirits Limited, together with its subsidiaries, manufactures, sells, and distributes alcoholic beverages and other allied spirits in India and internationally. The company offers alcoholic beverages, such as Scotch whisky, Indian made foreign liquor whisky, malts, tequila, brandy, rum, vo…
 
-_Source: yfinance | Refreshed: 2026-08-11_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Competitive Landscape
 

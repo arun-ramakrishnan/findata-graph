@@ -62,11 +62,11 @@ Voltas is India's leading air conditioning company and a major provider of elect
 
 - **Industry**: Furnishings, Fixtures & Appliances
 - **Employees**: 1,964
-- **Promoter Holding**: 36.7%
-- **Institutional Holding**: 43.3%
+- **Promoter Holding**: 36.9%
+- **Institutional Holding**: 40.5%
 - **Business Summary**: Voltas Limited operates as air conditioning and engineering solutions in India, the Middle East, Africa, and internationally. The company operates through three segments: Unitary Cooling Products; Electro - Mechanical Projects and Services; and Engineering Products and Services. The company manuf…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Product Portfolio
 

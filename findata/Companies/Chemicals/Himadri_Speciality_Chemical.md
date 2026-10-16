@@ -89,10 +89,10 @@ Himadri's strategic positioning in carbon materials and specialty chemicals alig
 
 - **Industry**: Specialty Chemicals
 - **Employees**: 1,161
-- **Promoter Holding**: 59.9%
-- **Institutional Holding**: 6.4%
+- **Promoter Holding**: 57.4%
+- **Institutional Holding**: 5.9%
 - **Business Summary**: Himadri Speciality Chemical Limited manufactures and sells carbon materials and chemicals in India and internationally. The company operates through Carbon Materials and Chemicals and Power segments. It offers anode materials, LFP cathodes, and recycling materials. The company also provides SDS, …
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## [Presentation]

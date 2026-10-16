@@ -50,11 +50,11 @@ Kirloskar Pneumatic Company (KPCL) is a leading manufacturer of Air Compressor P
 
 - **Industry**: Specialty Industrial Machinery
 - **Employees**: 926
-- **Promoter Holding**: 45.9%
-- **Institutional Holding**: 29.7%
+- **Promoter Holding**: 44.6%
+- **Institutional Holding**: 30.5%
 - **Business Summary**: Kirloskar Pneumatic Company Limited, together with its subsdiary, engages manufacture and sale of compression and transmission products in India. It operates through Compression Systems and Other non-reportable segments. The company offers reciprocating refrigeration compressors, screw refrigerat…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Strategic Initiatives
 

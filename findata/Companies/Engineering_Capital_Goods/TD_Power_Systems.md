@@ -53,11 +53,11 @@ TD Power Systems Limited, together with its subsidiaries, manufactures and sells
 
 - **Industry**: Specialty Industrial Machinery
 - **Employees**: 970
-- **Promoter Holding**: 27.5%
-- **Institutional Holding**: 37.8%
+- **Promoter Holding**: 26.6%
+- **Institutional Holding**: 37.4%
 - **Business Summary**: TD Power Systems Limited, together with its subsidiaries, manufactures and sells AC generators and electric motors in India and internationally. The company offers steam turbine, gas turbine, hydro turbine, gas engine, and diesel engine generators; and induction, traction, and synchronous motors;…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Key Metrics & Financials (INR)
 - **Market Cap:** ₹122.55B

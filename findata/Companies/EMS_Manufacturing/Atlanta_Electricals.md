@@ -3,7 +3,7 @@ title: Atlanta Electricals
 type: company
 ticker: ATLANTAELE.NS
 sector: EMS_Manufacturing
-industry: null
+industry: Electrical Equipment & Parts
 market_cap: small_cap
 normalized_name: Atlanta_Electricals
 file_path: findata/Companies/Engineering_Capital_Goods/Atlanta_Electricals.md
@@ -121,6 +121,19 @@ The **Engineering & Capital Goods sector** in India encompasses industrial equip
 
 Atlanta's focus on specialty transformers for renewable energy integration, green hydrogen, and EV charging infrastructure aligns with sector's investment themes in clean energy equipment and specialized engineering.
 
+
+<!-- BEGIN auto company profile (enrich_from_yfinance.py) -->
+
+## Company Profile (yfinance)
+
+- **Industry**: Electrical Equipment & Parts
+- **Employees**: 505
+- **Promoter Holding**: 87.3%
+- **Institutional Holding**: 5.2%
+- **Business Summary**: Atlanta Electricals Limited engages in the manufacture and sale of transformers to institutional and corporate customers in India. Its products include power, auto, inverter duty, generator, furnace, and transformers. It also provides after-sales support services. The company serves transmission,…
+
+_Source: yfinance | Refreshed: 2026-10-16_
+<!-- END auto company profile -->
 ## [Presentation]
 
 <!-- BEGIN auto key figures (derive_insights.py) -->

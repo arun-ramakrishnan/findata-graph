@@ -61,7 +61,7 @@ Life Insurance Corporation of India is the largest insurance company in India, o
 - **Institutional Holding**: 1.3%
 - **Business Summary**: Life Insurance Corporation of India provides life insurance products in India, Fiji, Mauritius, and the United Kingdom. It offers insurance plans, including endowment, whole life, term insurance plans, money back, and term assurance plans, as well as riders comprising accidental death and disabil…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Strategic Context
 

@@ -47,7 +47,7 @@ KVS Castings manufactures a wide variety of castings, including cast iron, SG ir
 - **Institutional Holding**: 0.0%
 - **Business Summary**: KVS Castings Limited engages in the manufacturing and selling of cast iron and ductile iron castings in India. It offers suspension brackets, brake drums, gear box housings, pump body products, and oil filters. The company also provides TMT bars and structural steel products; construction steel p…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Industry Context
 India's foundry market is currently valued at USD 25.57 billion and expected to grow to USD 42.61 billion by 2030 - that's a 10.57% CAGR.

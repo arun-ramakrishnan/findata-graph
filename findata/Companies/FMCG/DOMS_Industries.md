@@ -262,11 +262,12 @@ DOMS Industries, formerly Writefine Products, is a leading Indian manufacturer o
 ## Company Profile (yfinance)
 
 - **Industry**: Business Equipment & Supplies
-- **Promoter Holding**: 70.4%
-- **Institutional Holding**: 28.7%
-- **Business Summary**: DOMS Industries Limited engages in the design, development, manufacturing, and sale of stationery and art material products under the DOMS brand name in India and internationally. It offers pencils, erasers, sharpeners, mathematical instruments, chalk and chalk holders, writing boards, crayons, o…
+- **Employees**: 13,500
+- **Promoter Holding**: 63.4%
+- **Institutional Holding**: 29.2%
+- **Business Summary**: DOMS Industries Limited designs, develops, manufactures, and sells stationery and art material products under the DOMS brand name in India and internationally. It offers pens and writing instruments; pencils and accessories; paper stationary; mathematical drawing instruments; markers and highligh…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Key Metrics
 

@@ -41,10 +41,10 @@ Mazagon Dock Shipbuilders Limited, founded in 1774 and headquartered in Mumbai, 
 - **Industry**: Aerospace & Defense
 - **Employees**: 2,782
 - **Promoter Holding**: 81.2%
-- **Institutional Holding**: 5.9%
-- **Business Summary**: Mazagon Dock Shipbuilders Limited engages in the building and repairing of ships, submarines, vessels, and related engineering products in India and internationally. The company operates in two segments, Shipbuilding, and Submarine and Heavy Engineering. The company offers naval platforms, such a…
+- **Institutional Holding**: 6.2%
+- **Business Summary**: Mazagon Dock Shipbuilders Limited engages in the building and repairing of ships, submarines, vessels, and related engineering products in India and internationally. The company operates in two segments, Shipbuilding, and Submarine and Heavy Engineering. The company offers cargo ships, passenger …
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Financial Profile (Yahoo Finance, Jun 2026)
 - Market cap: ₹99,736 cr | Enterprise value: ₹87,316 cr

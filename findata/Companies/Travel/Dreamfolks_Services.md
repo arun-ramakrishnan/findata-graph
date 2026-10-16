@@ -53,11 +53,12 @@ Dreamfolks Services (NSE: DREAMFOLKS.NS; HQ Gurugram; incorporated 2008) is Indi
 ## Company Profile (yfinance)
 
 - **Industry**: Airports & Air Services
+- **Employees**: 115
 - **Promoter Holding**: 65.7%
 - **Institutional Holding**: 0.0%
-- **Business Summary**: Dreamfolks Services Limited provides airport service in India. The company provides lounge access, meet and assist, airport transfers, food and beverages, door-step baggage, and spa and wellness services. Dreamfolks Services Limited was incorporated in 2008 and is based in Gurugram, India.
+- **Business Summary**: Dreamfolks Services Limited provides benefit management services through technology platforms that tailor airport and lifestyle service offerings in India. It provides airport and railway lounge access, meet and assist, golf access, spa, visa assistance and transit hotels, private club membership…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Management
 - Liberatha Kallat — Chairperson & Managing Director

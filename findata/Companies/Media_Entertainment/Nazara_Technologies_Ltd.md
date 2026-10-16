@@ -38,11 +38,12 @@ Nazara Technologies Limited is a technology company focused on gaming and digita
 ## Company Profile (yfinance)
 
 - **Industry**: Electronic Gaming & Multimedia
-- **Promoter Holding**: 34.4%
-- **Institutional Holding**: 29.6%
-- **Business Summary**: Nazara Technologies Limited operates a gaming and sports media platform in India, Africa, the Middle East, the Asia Pacific, the United States, and internationally. It operates through gaming and other segments. The company offers subscription, download of games, and support services. It also pro…
+- **Employees**: 76
+- **Promoter Holding**: 33.1%
+- **Institutional Holding**: 26.8%
+- **Business Summary**: Nazara Technologies Limited operates a gaming and sports media platform in India, Africa, the Middle East, the Asia Pacific, the United States, and internationally. It operates through Gaming, eSports, and Ad tech segments. The company offers subscriptions, download of games, and support services…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Business Overview
 

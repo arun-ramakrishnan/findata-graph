@@ -40,10 +40,10 @@ Hindustan Petroleum Corporation Limited (HPCL), founded in 1910 and headquartere
 - **Industry**: Oil & Gas Refining & Marketing
 - **Employees**: 8,256
 - **Promoter Holding**: 55.0%
-- **Institutional Holding**: 26.8%
+- **Institutional Holding**: 28.2%
 - **Business Summary**: Hindustan Petroleum Corporation Limited, together with its subsidiaries, engages in the refining and marketing of petroleum products in India and internationally. It operates through Downstream Petroleum and All Other segments. The company offers light distillates, including liquefied petroleum g…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Financial Profile (Yahoo Finance, Jun 2026)
 - Market cap: ₹87,027 cr | Enterprise value: ₹13,97,816 cr

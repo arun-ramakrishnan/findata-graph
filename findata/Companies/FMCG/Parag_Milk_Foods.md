@@ -3,6 +3,7 @@ title: Parag Milk Foods
 type: company
 ticker: PARAGMILK.NS
 sector: FMCG
+industry: Packaged Foods
 market_cap: small_cap
 normalized_name: Parag_Milk_Foods
 permalink: /companies/fmcg/parag_milk_foods
@@ -34,6 +35,19 @@ Dairy company (Gowardhan, Go).
 
 *Stub node — created as a graph endpoint. Expand as additional primary research accumulates.*
 
+
+<!-- BEGIN auto company profile (enrich_from_yfinance.py) -->
+
+## Company Profile (yfinance)
+
+- **Industry**: Packaged Foods
+- **Employees**: 2,073
+- **Promoter Holding**: 54.7%
+- **Institutional Holding**: 2.4%
+- **Business Summary**: Parag Milk Foods Limited processes, manufactures, and sells milk and milk products in India and internationally. The company offers ghee, milk, paneer, sweets, curd, butter, dairy whitener, milk powder, and gulab jamun mix products. It also offers flavoured cheese wedges, spreads, slices, and ang…
+
+_Source: yfinance | Refreshed: 2026-10-16_
+<!-- END auto company profile -->
 <!-- BEGIN auto key figures (derive_insights.py) -->
 
 ## Key Figures (auto)

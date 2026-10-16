@@ -47,11 +47,11 @@ Neogen Chemicals Limited is a leading manufacturer of specialty chemicals and br
 
 - **Industry**: Specialty Chemicals
 - **Employees**: 680
-- **Promoter Holding**: 55.1%
-- **Institutional Holding**: 20.1%
+- **Promoter Holding**: 50.3%
+- **Institutional Holding**: 18.6%
 - **Business Summary**: Neogen Chemicals Limited engages in the manufacture and sale of specialty chemicals in India. It offers organo bromine compounds, such as alkyl bromide compounds, dibromoalkane compounds, bromo chloro alkanes, bromine derivatives of organoacids, bromoacid ester compounds, aromatic bromine derivat…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Business Segments
 

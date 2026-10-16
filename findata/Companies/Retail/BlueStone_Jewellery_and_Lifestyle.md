@@ -3,7 +3,7 @@ title: BlueStone Jewellery and Lifestyle
 type: company
 ticker: BLUESTONE.NS
 sector: Retail
-industry: null
+industry: Luxury Goods
 market_cap: small_cap
 normalized_name: BlueStone_Jewellery_and_Lifestyle
 permalink: /companies/retail/bluestone_jewellery_and_lifestyle
@@ -40,6 +40,19 @@ sources:
 ## Company Overview
 BlueStone is a leading omni-channel jewellery brand in India with stores across multiple cities. It offers diverse collections and serves customers aged mid-twenties to mid-forties through both online and offline channels, backed by strong technology, design, and nationwide presence.
 
+
+<!-- BEGIN auto company profile (enrich_from_yfinance.py) -->
+
+## Company Profile (yfinance)
+
+- **Industry**: Luxury Goods
+- **Employees**: 2,576
+- **Promoter Holding**: 46.9%
+- **Institutional Holding**: 34.8%
+- **Business Summary**: BlueStone Jewellery and Lifestyle Limited designs, manufactures, and sells fine jewelry products under the BlueStone brand in India. The company offers rings, earrings, necklaces, pendants, solitaires, bangles, bracelets, kadas, studs, cufflinks, nazariyas, mangalsutras, nose pins, nose rings, no…
+
+_Source: yfinance | Refreshed: 2026-10-16_
+<!-- END auto company profile -->
 <!-- BEGIN auto key figures (derive_insights.py) -->
 
 ## Key Figures (auto)

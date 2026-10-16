@@ -3,6 +3,7 @@ title: Delta Air Lines
 type: company
 ticker: DAL
 sector: Aviation
+industry: Airlines
 market_cap: large_cap
 normalized_name: Delta_Air_Lines
 permalink: /companies/aviation/delta_air_lines
@@ -37,6 +38,19 @@ American airline.
 
 *Stub node — created as a graph endpoint. Expand as additional primary research accumulates.*
 
+
+<!-- BEGIN auto company profile (enrich_from_yfinance.py) -->
+
+## Company Profile (yfinance)
+
+- **Industry**: Airlines
+- **Employees**: 100,000
+- **Promoter Holding**: 9.2%
+- **Institutional Holding**: 80.7%
+- **Business Summary**: Delta Air Lines, Inc. provides scheduled air transportation for passengers and cargo in the United States and internationally. The company operates through two segments, Airline and Refinery. Its domestic network centered on core hubs in Atlanta, Detroit, Minneapolis-St. Paul, and Salt Lake City,…
+
+_Source: yfinance | Refreshed: 2026-10-16_
+<!-- END auto company profile -->
 <!-- BEGIN auto key figures (derive_insights.py) -->
 
 ## Key Figures (auto)

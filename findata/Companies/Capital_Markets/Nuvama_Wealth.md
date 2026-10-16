@@ -45,11 +45,12 @@ Nuvama Wealth Management Limited engages in wealth management, asset management,
 ## Company Profile (yfinance)
 
 - **Industry**: Asset Management
-- **Promoter Holding**: 58.5%
-- **Institutional Holding**: 18.4%
-- **Business Summary**: Nuvama Wealth Management Limited engages in wealth management, asset management, and capital markets businesses in India and internationally. The company offers wealth management business, which includes the distribution of financial products, investment advisory, lending against securities and s…
+- **Employees**: 3,435
+- **Promoter Holding**: 57.1%
+- **Institutional Holding**: 18.2%
+- **Business Summary**: Nuvama Wealth Management Limited engages in wealth management, asset management and services, and capital markets businesses in India and internationally. It operates through wealth management, asset management, and capital markets segments. The company offers financial products, investment advis…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Key Personnel
 - Mr. Ashish Kehair: MD, CEO & Director

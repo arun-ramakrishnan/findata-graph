@@ -40,11 +40,12 @@ Tega Industries is a global engineering and capital goods company operating thro
 ## Company Profile (yfinance)
 
 - **Industry**: Specialty Industrial Machinery
+- **Employees**: 655
 - **Promoter Holding**: 67.4%
-- **Institutional Holding**: 18.3%
+- **Institutional Holding**: 18.5%
 - **Business Summary**: Tega Industries Limited designs, manufactures, and installs process equipment and accessories for the mineral processing, mining, and material handling industries. It offers a range of grinding mill liners, such as DynaPrime, DynaSteel, DynaPulp, and DynaWear. The company also offers conveyor com…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 
 <!-- BEGIN auto chatter block (derive_insights.py) -->

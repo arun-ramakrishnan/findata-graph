@@ -51,11 +51,12 @@ Godawari Power & Ispat (GPIL) operates across the full steel value chain — fro
 ## Company Profile (yfinance)
 
 - **Industry**: Steel
-- **Promoter Holding**: 63.4%
-- **Institutional Holding**: 6.2%
-- **Business Summary**: Godawari Power & Ispat Limited, together with its subsidiaries, engages in the mining of iron ores in India. It manufactures and sells iron ore pellets, sponge iron, steel billets, MS rounds, wire rods, HB wires, and ferro alloys with generation of electricity, as well as silico manganese. The co…
+- **Employees**: 3,751
+- **Promoter Holding**: 63.3%
+- **Institutional Holding**: 6.8%
+- **Business Summary**: Godawari Power & Ispat Limited, together with its subsidiaries, engages in the mining of iron ores in India. It manufactures and sells iron ore pellets, sponge iron, steel billets, MS rounds, wire rods, HB wires, and ferro alloys with generation of electricity, as well as ferro and silico mangane…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 
 <!-- BEGIN auto chatter block (derive_insights.py) -->

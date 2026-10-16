@@ -44,11 +44,11 @@ Thyrocare Technologies Ltd. is India's first fully automated diagnostic laborato
 
 - **Industry**: Diagnostics & Research
 - **Employees**: 1,906
-- **Promoter Holding**: 61.1%
-- **Institutional Holding**: 21.9%
+- **Promoter Holding**: 51.2%
+- **Institutional Holding**: 22.0%
 - **Business Summary**: Thyrocare Technologies Limited provides diagnostic testing services to patients, laboratories, and hospitals in India. It operates through three segments: Diagnostic Testing Services, Imaging Services, and Others. The Diagnostic Testing Services segment engages in the selling of consumables used …
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Industry Classification
 - **Sector**: Healthcare & Diagnostics

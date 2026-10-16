@@ -48,7 +48,7 @@ Gensol Engineering Ltd is an infrastructure company specializing in turnkey engi
 - **Institutional Holding**: 0.0%
 - **Business Summary**: Gensol Engineering Limited engages in the provision of renewable energy solutions in India, the Middle East, and internationally. It operates through EPC, Lease, EV Manufacturing, and Others segments. The company offers architecture, engineering, and technical testing and consultancy activities. …
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Key Business Areas
 - Renewable energy projects

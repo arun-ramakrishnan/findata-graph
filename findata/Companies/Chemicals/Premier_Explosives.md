@@ -41,6 +41,19 @@ sources:
 ## Company Overview
 Premier Explosives is a major Indian manufacturer of high-energy materials specializing in industrial explosives and defense products like propellants and countermeasures. It holds a unique position as the only Indian company qualified to manufacture countermeasures and serves as a key exporter of rocket motors.
 
+
+<!-- BEGIN auto company profile (enrich_from_yfinance.py) -->
+
+## Company Profile (yfinance)
+
+- **Industry**: Specialty Chemicals
+- **Employees**: 844
+- **Promoter Holding**: 48.5%
+- **Institutional Holding**: 11.2%
+- **Business Summary**: Premier Explosives Limited manufactures and sells high energy materials and allied products in India and internationally. The company provides bulk and packaged explosives, detonators, detonating fuses, solid propellants, pyrogen igniters and initiators, pyro devices, warheads, ammunition, chaffs…
+
+_Source: yfinance | Refreshed: 2026-10-16_
+<!-- END auto company profile -->
 <!-- BEGIN auto key figures (derive_insights.py) -->
 
 ## Key Figures (auto)

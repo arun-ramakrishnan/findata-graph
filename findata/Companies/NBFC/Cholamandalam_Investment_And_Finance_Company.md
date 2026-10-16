@@ -45,11 +45,11 @@ sources:
 
 - **Industry**: Credit Services
 - **Employees**: 51,320
-- **Promoter Holding**: 49.2%
-- **Institutional Holding**: 39.3%
+- **Promoter Holding**: 51.9%
+- **Institutional Holding**: 32.7%
 - **Business Summary**: Cholamandalam Investment and Finance Company Limited, operates as a non-banking finance company in India. The company operates through Vehicle Finance, Loan Against Property, Home Loans, and Other Loans segments. It offers loans for commercial vehicles, passenger vehicle, two- and three- wheelers…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Business Segments
 

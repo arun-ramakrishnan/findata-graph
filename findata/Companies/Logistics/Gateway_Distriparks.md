@@ -34,11 +34,12 @@ Gateway Distriparks Limited (GDL), incorporated in 2005 and headquartered in New
 ## Company Profile (yfinance)
 
 - **Industry**: Integrated Freight & Logistics
+- **Employees**: 509
 - **Promoter Holding**: 33.9%
-- **Institutional Holding**: 35.3%
-- **Business Summary**: Gateway Distriparks Limited, together with its subsidiaries, provides integrated inter-modal logistics services in India. It offers general and bonded warehousing, rail and road transportation, and container handling services, as well as other value-added services, such as palletization and sheet…
+- **Institutional Holding**: 33.3%
+- **Business Summary**: Gateway Distriparks Limited, together with its subsidiaries, provides integrated inter-modal logistics services in India. The company offers general and bonded warehousing, rail and road transportation, first- and last-mile connectivity, and container handling services, as well as other value-add…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Financial Profile (Yahoo Finance, Jun 2026)
 - Market cap: ₹2,930 cr | Enterprise value: ₹3,852 cr

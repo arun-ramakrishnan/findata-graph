@@ -60,7 +60,7 @@ Precision Camshafts Limited (PCL), incorporated in 1992 and based in Pune with m
 - **Institutional Holding**: 0.1%
 - **Business Summary**: Precision Camshafts Limited, together with its subsidiaries, engages in the manufacture and sale of castings and machined camshafts for the auto industry in India, Asia, Europe, and internationally. The company offers chilled cast iron, ductile iron, hybrid, and assembled camshafts; fuel injector…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Financial Profile (Yahoo Finance, Jun 2026)
 - Market cap: ₹1,432 cr | Enterprise value: ₹1,232 cr

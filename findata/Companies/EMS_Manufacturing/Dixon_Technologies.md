@@ -57,6 +57,19 @@ sources:
 ## Company Overview
 Dixon Technologies (India) Limited is a leading Indian electronics manufacturing services (EMS) company that designs and manufactures mobile phones, consumer electronics, home appliances, lighting products, wearables, refrigerators, and telecom/IT hardware for leading global and domestic brands. The company provides end-to-end OEM solutions including global sourcing, manufacturing, quality testing, packaging, and logistics, positioning itself as a comprehensive partner in electronics innovation.
 
+
+<!-- BEGIN auto company profile (enrich_from_yfinance.py) -->
+
+## Company Profile (yfinance)
+
+- **Industry**: Consumer Electronics
+- **Employees**: 1,319
+- **Promoter Holding**: 40.1%
+- **Institutional Holding**: 35.3%
+- **Business Summary**: Dixon Technologies (India) Limited, together with its subsidiaries, engages in the manufacture and sale of electronic goods in India and internationally. The company offers display solutions, such as LED TVs, interactive flat panels, digital signages, and monitors; and lightning solutions, includ…
+
+_Source: yfinance | Refreshed: 2026-10-16_
+<!-- END auto company profile -->
 <!-- BEGIN auto key figures (derive_insights.py) -->
 
 ## Key Figures (auto)

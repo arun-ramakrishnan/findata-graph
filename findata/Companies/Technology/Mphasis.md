@@ -58,11 +58,11 @@ Mphasis Limited was incorporated in 1992 and is headquartered in Bengaluru. The 
 
 - **Industry**: Information Technology Services
 - **Employees**: 23,452
-- **Promoter Holding**: 31.2%
-- **Institutional Holding**: 56.6%
+- **Promoter Holding**: 31.1%
+- **Institutional Holding**: 56.1%
 - **Business Summary**: Mphasis Limited, together with its subsidiaries, operates as an information technology solutions provider that specializes in cloud and cognitive services in the United States, India, Europe, the Middle East, Africa, and internationally. The company operates through Banking and Financial Services…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Financial Profile (Yahoo Finance, Jun 2026)
 

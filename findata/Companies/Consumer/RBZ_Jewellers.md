@@ -39,11 +39,12 @@ RBZ Jewellers Limited is a leading organized manufacturer of gold jewellery in I
 ## Company Profile (yfinance)
 
 - **Industry**: Luxury Goods
+- **Employees**: 315
 - **Promoter Holding**: 78.7%
 - **Institutional Holding**: 0.0%
-- **Business Summary**: RBZ Jewellers Limited manufactures and trades in jewelries and other accessories in India. The company offers haaram, bridal choker, and round necklace on a wholesale and retail network basis. It also process and supply antique gold jewellery on job work basis to national retailers. In addition, …
+- **Business Summary**: RBZ Jewellers Limited manufactures and trades in jewelries and other accessories in India. The company offers haaram, bridal choker, round necklace, and occasional and daily wear on a wholesale and retail network basis. It also process and supply antique gold jewellery on job work basis to nation…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 
 <!-- BEGIN auto chatter block (derive_insights.py) -->

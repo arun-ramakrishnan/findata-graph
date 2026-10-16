@@ -39,10 +39,10 @@ Apollo Tyres is a leading global tyre manufacturer with a dominant presence in I
 - **Industry**: Auto Parts
 - **Employees**: 17,118
 - **Promoter Holding**: 49.7%
-- **Institutional Holding**: 33.2%
+- **Institutional Holding**: 34.4%
 - **Business Summary**: Apollo Tyres Limited manufactures and sells automotive tires, tubes, and flaps in India and internationally. It offers tires for commercial and passenger vehicles, two-wheelers, trucks and buses, off-highway vehicles, light trucks, earthmovers, and bicycles, as well as for agricultural, farm, and…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Financial Profile (Yahoo Finance, Jun 2026)
 - Market cap: ₹27,239 cr | Enterprise value: ₹29,886 cr

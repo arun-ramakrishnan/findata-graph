@@ -57,11 +57,11 @@ Hero MotoCorp is the world's largest manufacturer of motorcycles and scooters, h
 
 - **Industry**: Auto Manufacturers
 - **Employees**: 9,177
-- **Promoter Holding**: 37.4%
-- **Institutional Holding**: 37.8%
+- **Promoter Holding**: 37.2%
+- **Institutional Holding**: 36.9%
 - **Business Summary**: Hero MotoCorp Limited primarily engages in the manufacture and sale of motorised two wheelers, spare parts and related services in India, Germany, Asia, Central and Latin America, Africa, and the Middle East. The company offers motorcycles and scooters, as well as electric scooters. It provides e…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Financial Profile (Yahoo Finance, Jun 2026)
 - Market cap: ₹98,219 cr | Enterprise value: ₹85,955 cr

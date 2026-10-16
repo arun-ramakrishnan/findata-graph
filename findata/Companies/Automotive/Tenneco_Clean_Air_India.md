@@ -3,7 +3,7 @@ title: Tenneco Clean Air India
 type: company
 ticker: TENNIND.NS
 sector: Automotive
-industry: null
+industry: Auto Parts
 market_cap: small_cap
 normalized_name: Tenneco_Clean_Air_India
 permalink: /companies/automotive/tenneco_clean_air_india
@@ -59,6 +59,19 @@ Tenneco Clean Air India Ltd. (TCAIL), part of U.S.-based Tenneco Group, designs 
 
 <!-- END auto key figures -->
 
+
+<!-- BEGIN auto company profile (enrich_from_yfinance.py) -->
+
+## Company Profile (yfinance)
+
+- **Industry**: Auto Parts
+- **Employees**: 614
+- **Promoter Holding**: 58.1%
+- **Institutional Holding**: 26.0%
+- **Business Summary**: Tenneco Clean Air India Limited operates as a manufacturer and supplier of clean air and powertrain solutions. The company operates in two segments, clean air and powertrain solutions; and advanced ride technologies. The company designs, manufactures, and sells exhaust aftertreatment systems, suc…
+
+_Source: yfinance | Refreshed: 2026-10-16_
+<!-- END auto company profile -->
 <!-- BEGIN auto chatter block (derive_insights.py) -->
 
 ## The Chatter — Playing the Long Game

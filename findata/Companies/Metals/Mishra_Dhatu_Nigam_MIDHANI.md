@@ -38,11 +38,12 @@ Mishra Dhatu Nigam (MIDHANI) is a Government of India enterprise under the Minis
 ## Company Profile (yfinance)
 
 - **Industry**: Steel
+- **Employees**: 760
 - **Promoter Holding**: 74.0%
-- **Institutional Holding**: 7.6%
-- **Business Summary**: Mishra Dhatu Nigam Limited manufactures and sells super alloys, titanium, special purpose steel, and other special metals in India and internationally. The company provides special steels, including martensitic, special, austenitic, and precipitation hardening steels for use in aerospace, power g…
+- **Institutional Holding**: 7.8%
+- **Business Summary**: Mishra Dhatu Nigam Limited manufactures and sells super alloys, titanium, special purpose steel, and other special metals in India and internationally. The company provides high value speciality steels, including ultra-high strength steel, armour grade plates, precipitation hardening steel, and f…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 
 <!-- BEGIN auto chatter block (derive_insights.py) -->

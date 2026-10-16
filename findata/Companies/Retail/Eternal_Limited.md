@@ -48,11 +48,11 @@ Eternal Limited, formerly known as Zomato, operates a B2C technology platform of
 
 - **Industry**: Internet Retail
 - **Employees**: 21,995
-- **Promoter Holding**: 23.4%
-- **Institutional Holding**: 51.8%
-- **Business Summary**: Eternal Limited, together with its subsidiaries, provides e-commerce platform services to restaurant partners, quick commerce merchants, delivery partners, theatres, sports facilities, and event organizers in India and internationally. The company operates through India Food Ordering and Delivery…
+- **Promoter Holding**: 21.8%
+- **Institutional Holding**: 50.3%
+- **Business Summary**: Eternal Limited, together with its subsidiaries, provides e-commerce platform services to restaurant partners, quick commerce merchants, delivery partners, theatres, sports facilities, event organizers, and users in India and internationally. The company operates through India Food Ordering and D…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Business Segments
 - Food Marketplace (Core Food Delivery)

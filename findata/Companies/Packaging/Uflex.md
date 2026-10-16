@@ -58,11 +58,12 @@ Uflex Limited is an Indian packaging company engaged in the manufacturing of fle
 ## Company Profile (yfinance)
 
 - **Industry**: Packaging & Containers
+- **Employees**: 7,772
 - **Promoter Holding**: 82.1%
 - **Institutional Holding**: 1.4%
 - **Business Summary**: Uflex Limited manufactures and sells flexible packaging materials and solutions in Indiaand internationally. It operates through Flexible Packaging Activities, Engineering Activities, and Others segments. The company offers bi-axially oriented polyethylene terephthalate films; bi-axially oriented…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Market Position
 

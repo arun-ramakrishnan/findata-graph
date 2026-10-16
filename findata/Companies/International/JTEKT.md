@@ -42,5 +42,5 @@ Japanese automotive parts manufacturer (TSE: 6473) headquartered in Kariya. Prod
 - **Institutional Holding**: 0.0%
 - **Business Summary**: JTEKT Corporation manufactures and sells steering systems, driveline components, bearings, machine tools, electronic control devices, and home accessory equipment in Japan, the United States, the rest of North America, Europe, the rest of Asia, Oceania, China, and internationally. It operates thr…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->

@@ -41,6 +41,19 @@ sources:
 ## Company Overview
 Aarti Pharmalabs (NSE: AARTIPHARM) is a pharmaceutical company focused on contract research and manufacturing services (CRAMS), active pharmaceutical ingredients (APIs), and specialty intermediates. Part of the Aarti Industries group.
 
+
+<!-- BEGIN auto company profile (enrich_from_yfinance.py) -->
+
+## Company Profile (yfinance)
+
+- **Industry**: Drug Manufacturers - Specialty & Generic
+- **Employees**: 2,421
+- **Promoter Holding**: 44.0%
+- **Institutional Holding**: 12.5%
+- **Business Summary**: Aarti Pharmalabs Limited, together with its subsidiaries, manufactures and sells active pharmaceutical ingredients, pharmaceutical intermediates, and xanthine derivatives in India and internationally. The company offers active pharmaceutical ingredients for various therapeutic areas, such as card…
+
+_Source: yfinance | Refreshed: 2026-10-16_
+<!-- END auto company profile -->
 <!-- BEGIN auto key figures (derive_insights.py) -->
 
 ## Key Figures (auto)

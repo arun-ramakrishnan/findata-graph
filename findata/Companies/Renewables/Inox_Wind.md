@@ -44,11 +44,12 @@ Inox Wind manufactures and sells Wind Turbine Generators (WTGs). The company als
 ## Company Profile (yfinance)
 
 - **Industry**: Specialty Industrial Machinery
-- **Promoter Holding**: 83.6%
-- **Institutional Holding**: 21.7%
-- **Business Summary**: Inox Wind Limited engages in the manufacture and sale of wind turbine generators and components for independent power producers, utilities, public sector undertakings, businesses, and private investors in India. It provides wind turbine generator components, including nacelles, hubs, rotor blade,…
+- **Employees**: 1,309
+- **Promoter Holding**: 47.2%
+- **Institutional Holding**: 21.0%
+- **Business Summary**: Inox Wind Limited engages in the manufacture and sale of wind turbine generators and components for independent power producers, utilities, public sector undertakings, businesses, and private investors in India. It provides rotor, generator, braking system, gear box, and towers. The company also …
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 
 <!-- BEGIN auto chatter block (derive_insights.py) -->

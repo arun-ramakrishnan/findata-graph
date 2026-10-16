@@ -62,10 +62,10 @@ Unilever PLC (NYSE: UL; HQ London) is a global consumer-packaged-goods company s
 - **Industry**: Household & Personal Products
 - **Employees**: 93,731
 - **Promoter Holding**: 0.0%
-- **Institutional Holding**: 11.7%
+- **Institutional Holding**: 12.3%
 - **Business Summary**: Unilever PLC operates as a fast-moving consumer goods company in the Asia Pacific, Africa, the Americas, and Europe. It operates through four segments: Beauty & Wellbeing, Personal Care, Home Care, and Foods. The Beauty & Wellbeing segment offers hair care, such as shampoo, conditioner, and styli…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 
 <!-- BEGIN auto chatter block (derive_insights.py) -->

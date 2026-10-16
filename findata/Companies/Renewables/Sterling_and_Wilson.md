@@ -48,11 +48,11 @@ Sterling and Wilson Renewable Energy Limited provides renewable engineering, pro
 
 - **Industry**: Solar
 - **Employees**: 1,208
-- **Promoter Holding**: 46.8%
-- **Institutional Holding**: 5.8%
+- **Promoter Holding**: 46.7%
+- **Institutional Holding**: 8.3%
 - **Business Summary**: Sterling and Wilson Renewable Energy Limited provides renewable engineering, procurement, and construction (EPC) services in India, Europe, the Middle East, North Africa, rest of Africa, the United States, Latin America, and Australia. It operates through two segments, EPC Business; and Operation…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Key Metrics & Financials (INR)
 - **Market Cap:** ₹54.92B

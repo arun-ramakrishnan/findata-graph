@@ -34,11 +34,11 @@ V-Guard Industries Limited is a leading Indian electrical equipment company that
 
 - **Industry**: Electrical Equipment & Parts
 - **Employees**: 3,219
-- **Promoter Holding**: 55.7%
-- **Institutional Holding**: 34.9%
+- **Promoter Holding**: 55.4%
+- **Institutional Holding**: 30.8%
 - **Business Summary**: V-Guard Industries Limited manufactures and sells electrical and electronic products in India and internationally. It operates through four segments: Electronics, Electrical, Consumer Durables and Sunflame. The Electronics segment offers voltage stabilizers; and inverter, digital DUPS, inverter b…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Industry Classification
 - **Sector**: Electrical Equipment & Engineering

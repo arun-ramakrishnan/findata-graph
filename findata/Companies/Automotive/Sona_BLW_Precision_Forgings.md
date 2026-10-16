@@ -75,10 +75,10 @@ Sona Comstar is a leading global mobility technology company specializing in des
 - **Industry**: Auto Parts
 - **Employees**: 2,221
 - **Promoter Holding**: 27.9%
-- **Institutional Holding**: 59.4%
+- **Institutional Holding**: 69.6%
 - **Business Summary**: Sona BLW Precision Forgings Limited, together with its subsidiaries, designs, manufactures, and supplies systems and components for the automotive industry in India and internationally. The company offers mobility products comprising electronically and limited locking differentials, integrated mo…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Strategic Adaptation to Supply Chain Disruptions
 

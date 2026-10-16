@@ -43,11 +43,12 @@ HPL Electric & Power Limited is a leading electrical equipment manufacturer in I
 ## Company Profile (yfinance)
 
 - **Industry**: Electrical Equipment & Parts
+- **Employees**: 1,438
 - **Promoter Holding**: 72.7%
 - **Institutional Holding**: 0.2%
-- **Business Summary**: HPL Electric & Power Limited manufactures and sells electric equipment under the HPL brand in India. It offers digital panel and energy, multi-function, load managers, demand controllers, power quality, projection, dual source energy, HTCT, and keypad based prepaid energy meters; power factor con…
+- **Business Summary**: HPL Electric & Power Limited manufactures and sells electric equipment under the HPL brand in India and internationally. The company operates through two segments: Metering, Systems & Services and Consumer, Industrial & Services. It offers digital panel and energy, multi-function, load managers, …
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Business Operations
 

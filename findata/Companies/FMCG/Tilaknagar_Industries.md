@@ -61,11 +61,12 @@ Tilaknagar Industries (NSE: TI; HQ Mumbai; incorporated 1933) is an Indian-made 
 ## Company Profile (yfinance)
 
 - **Industry**: Beverages - Wineries & Distilleries
-- **Promoter Holding**: 39.0%
-- **Institutional Holding**: 23.5%
-- **Business Summary**: Tilaknagar Industries Ltd. engages in the manufacture and sale of Indian made foreign liquor and its related products in India. The company offers brandy under the Mansion House and Courier Napoleon brands; rum under the Madiraa brand; whisky under the Mansion House and Senate Royale brands; and …
+- **Employees**: 789
+- **Promoter Holding**: 38.9%
+- **Institutional Holding**: 23.6%
+- **Business Summary**: Tilaknagar Industries Ltd. engages in the manufacture and sale of Indian made foreign liquor and its related products in India. The company offers brandy under the Mansion House, Monarch Legacy, and Courier Napoleon brands; rum under the Madiraa brand; whisky under the Mansion House, Imperial Blu…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Management
 - Amit Dahanukar — Chairman & Managing Director

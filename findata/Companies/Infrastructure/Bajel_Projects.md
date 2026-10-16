@@ -45,10 +45,10 @@ Bajel Projects (NSE: BAJEL), a Bajaj Group company demerged from Bajaj Electrica
 - **Industry**: Utilities - Regulated Electric
 - **Employees**: 895
 - **Promoter Holding**: 62.8%
-- **Institutional Holding**: 9.3%
+- **Institutional Holding**: 9.2%
 - **Business Summary**: Bajel Projects Limited engages in the engineering, procurement, and construction (EPC) for power transmission and distribution projects in India and internationally. The company offers turnkey solutions, including engineering, designing, testing, manufacturing, executing, and commissioning of EHV…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Management
 - Rajesh Ganesh — Managing Director & CEO

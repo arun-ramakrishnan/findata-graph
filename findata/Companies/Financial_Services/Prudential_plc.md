@@ -39,8 +39,8 @@ British multinational insurance company headquartered in London (LSE: PRU, NYSE:
 - **Industry**: Insurance - Life
 - **Employees**: 15,338
 - **Promoter Holding**: 0.0%
-- **Institutional Holding**: 2.9%
+- **Institutional Holding**: 3.0%
 - **Business Summary**: Prudential plc, through its subsidiaries, provides life and health insurance, and asset management solutions to individuals in Asia and Africa. It offers savings and investments products; and wealth, health, and protection products. The company was founded in 1848 and is headquartered in Central,…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->

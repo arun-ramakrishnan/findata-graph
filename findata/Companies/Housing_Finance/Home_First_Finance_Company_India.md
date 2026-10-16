@@ -43,10 +43,10 @@ Home First Finance Company India Limited is a housing finance company focused on
 - **Industry**: Mortgage Finance
 - **Employees**: 1,855
 - **Promoter Holding**: 9.3%
-- **Institutional Holding**: 66.0%
+- **Institutional Holding**: 67.1%
 - **Business Summary**: Home First Finance Company India Limited operates as a housing finance company in India. The company offers home, self-construction, renovation, mortgage, shop, and resale, as well as top-up loans. It also provides insurance loan products and loans through mobile applications. The company serves …
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Strategic Context
 

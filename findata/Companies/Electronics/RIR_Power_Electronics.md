@@ -3,6 +3,7 @@ title: RIR Power Electronics
 type: company
 ticker: RIR.BO
 sector: Electronics
+industry: Semiconductors
 market_cap: small_cap
 normalized_name: RIR_Power_Electronics
 permalink: /companies/electronics/rir_power_electronics
@@ -34,6 +35,18 @@ Power-electronics equipment maker; details pending verification.
 
 *Stub node — created as a graph endpoint. Expand as additional primary research accumulates.*
 
+
+<!-- BEGIN auto company profile (enrich_from_yfinance.py) -->
+
+## Company Profile (yfinance)
+
+- **Industry**: Semiconductors
+- **Promoter Holding**: 68.7%
+- **Institutional Holding**: 0.0%
+- **Business Summary**: Rir Power Electronics Limited engages in the manufacture and sale of power semiconductor devices and high-power equipment in India. It offers semiconductor devices, including phase control and inverter grade thyristors, and standard and fast recovery diodes; power modules, such as high voltage mo…
+
+_Source: yfinance | Refreshed: 2026-10-16_
+<!-- END auto company profile -->
 <!-- BEGIN auto chatter block (derive_insights.py) -->
 
 ## The Chatter — Underneath the Noise

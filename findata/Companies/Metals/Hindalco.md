@@ -168,11 +168,11 @@ Hindalco Industries is a leading company in aluminium and copper industries in I
 
 - **Industry**: Aluminum
 - **Employees**: 85,107
-- **Promoter Holding**: 37.4%
-- **Institutional Holding**: 38.4%
+- **Promoter Holding**: 37.6%
+- **Institutional Holding**: 40.4%
 - **Business Summary**: Hindalco Industries Limited, together with its subsidiaries, manufactures and distributes aluminum and copper products in India and internationally. It operates through four segments: Novelis, Aluminium Upstream, Aluminium Downstream, and Copper. The company offers primary aluminum, such as ingot…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Key Investment Highlights
 

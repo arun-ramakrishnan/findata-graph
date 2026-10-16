@@ -39,11 +39,12 @@ Jana Small Finance Bank Limited is a small finance bank providing banking servic
 ## Company Profile (yfinance)
 
 - **Industry**: Banks - Regional
-- **Promoter Holding**: 50.2%
-- **Institutional Holding**: 15.9%
+- **Employees**: 26,246
+- **Promoter Holding**: 47.4%
+- **Institutional Holding**: 16.8%
 - **Business Summary**: Jana Small Finance Bank Limited provides banking and financial services to individuals and enterprises in India. It operates through Treasury, Corporate/Wholesale Banking, Retail Banking, and Other Banking Operations segments. The company offers current and savings accounts; fixed, recurring, and…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Strategic Context
 

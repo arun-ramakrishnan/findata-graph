@@ -51,10 +51,10 @@ Union Bank of India is a statutory body offering diverse financial solutions, in
 - **Industry**: Banks - Regional
 - **Employees**: 73,885
 - **Promoter Holding**: 74.8%
-- **Institutional Holding**: 15.0%
+- **Institutional Holding**: 15.1%
 - **Business Summary**: Union Bank of India provides banking products and services in India. It operates in four segments: Treasury Operations, Retail Banking Operations, Corporate and Wholesale Banking, and Other Banking Operations. The company provides its products and services to individuals, commercial enterprises, …
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Key Business Updates
 

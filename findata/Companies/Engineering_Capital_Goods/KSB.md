@@ -3,7 +3,7 @@ title: KSB
 type: company
 ticker: KSB.NS
 sector: Engineering_Capital_Goods
-industry: null
+industry: Specialty Industrial Machinery
 market_cap: mid_cap
 normalized_name: KSB
 permalink: /companies/engineering_capital_goods/ksb
@@ -41,6 +41,19 @@ sources:
 ## Company Overview
 KSB Limited is a leading manufacturer of industrial pumps, valves, and systems. The company provides pumping solutions for various industries including water, power, oil & gas, and chemical processing.
 
+
+<!-- BEGIN auto company profile (enrich_from_yfinance.py) -->
+
+## Company Profile (yfinance)
+
+- **Industry**: Specialty Industrial Machinery
+- **Employees**: 2,194
+- **Promoter Holding**: 70.0%
+- **Institutional Holding**: 13.9%
+- **Business Summary**: KSB Limited manufactures and sells power-driven pumps and industrial valves in India and internationally. It operates through Pumps and Valves segments. The Pumps segment manufactures and trades in industrial, submersible, and effluent treatment pumps, etc.; and provides related spares and servic…
+
+_Source: yfinance | Refreshed: 2026-10-16_
+<!-- END auto company profile -->
 <!-- BEGIN auto key figures (derive_insights.py) -->
 
 ## Key Figures (auto)

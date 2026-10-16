@@ -41,10 +41,10 @@ National Aluminium Company Limited (NALCO), incorporated in 1981 and headquarter
 - **Industry**: Aluminum
 - **Employees**: 4,864
 - **Promoter Holding**: 51.3%
-- **Institutional Holding**: 20.6%
+- **Institutional Holding**: 22.0%
 - **Business Summary**: National Aluminium Company Limited engages in the manufacture and sale of alumina and aluminum products in India and internationally. The company operates through Chemical and Aluminum segments. It offers aluminum metal products, such as ingots, alloy ingots, T-ingots, sows, billets, and wire rod…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Financial Profile (Yahoo Finance, Jun 2026)
 - Market cap: ₹61,004 cr | Enterprise value: ₹55,363 cr

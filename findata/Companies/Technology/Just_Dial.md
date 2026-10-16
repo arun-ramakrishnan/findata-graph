@@ -44,11 +44,12 @@ Its product suite includes **JD App** (business discovery with ratings, location
 ## Company Profile (yfinance)
 
 - **Industry**: Internet Content & Information
-- **Promoter Holding**: 74.1%
-- **Institutional Holding**: 11.6%
-- **Business Summary**: Just Dial Limited engages in the search engine business in India. The company offers local search, search related, and software services through various platforms, including internet, mobile internet, over the telephone, and text. The company provides JD app, a one-stop solution offering business…
+- **Employees**: 13,070
+- **Promoter Holding**: 73.9%
+- **Institutional Holding**: 12.7%
+- **Business Summary**: Just Dial Limited engages in the search engine business in India. The company offers local search, search related, and software services through various platforms, including internet, mobile internet, over the telephone, and text. The company provides Ask Anything for multilingual and voice searc…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Financial Profile (Yahoo Finance, Jun 2026)
 

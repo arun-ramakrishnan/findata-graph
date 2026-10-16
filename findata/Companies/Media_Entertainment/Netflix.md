@@ -3,6 +3,7 @@ title: Netflix
 type: company
 ticker: NFLX
 sector: Media_Entertainment
+industry: Entertainment
 market_cap: large_cap
 normalized_name: Netflix
 permalink: /companies/media_entertainment/netflix
@@ -41,6 +42,19 @@ American streaming entertainment company.
 
 *Stub node — created as a graph endpoint. Expand as additional primary research accumulates.*
 
+
+<!-- BEGIN auto company profile (enrich_from_yfinance.py) -->
+
+## Company Profile (yfinance)
+
+- **Industry**: Entertainment
+- **Employees**: 16,000
+- **Promoter Holding**: 0.6%
+- **Institutional Holding**: 84.0%
+- **Business Summary**: Netflix, Inc. provides entertainment services worldwide. The company offers television (TV) series, documentaries, feature films, games, and live programming across various genres and languages. It also provides members the ability to receive streaming content through a host of internet-connected…
+
+_Source: yfinance | Refreshed: 2026-10-16_
+<!-- END auto company profile -->
 <!-- BEGIN auto chatter block (derive_insights.py) -->
 
 ## The Chatter — The Known Unknowns

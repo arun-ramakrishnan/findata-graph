@@ -74,6 +74,19 @@ Details the company's long-term strategy to mitigate geopolitical and supply-cha
 "On a medium and a long-term basis, we are working on HRE-free, ferrite-based magne magnet-free, and we are also looking at alternate countries and definitely we will, we ar also working partnering with some of them in India. [So this is going to be a... you know, have to, we have to build forward a more resilient, uh, company and a country on magne
 - K.N. Radhakrishnan, Director \\& CEO
 
+
+<!-- BEGIN auto company profile (enrich_from_yfinance.py) -->
+
+## Company Profile (yfinance)
+
+- **Industry**: Auto Manufacturers
+- **Employees**: 6,850
+- **Promoter Holding**: 52.3%
+- **Institutional Holding**: 30.9%
+- **Business Summary**: TVS Motor Company Limited, together with its subsidiaries, engages in the manufacture and sale of automotive vehicles and components, spare parts, and accessories in India and internationally. The company operates through Automotive Vehicles & Parts and Related Investments; and Investment Held in…
+
+_Source: yfinance | Refreshed: 2026-10-16_
+<!-- END auto company profile -->
 <!-- BEGIN auto key figures (derive_insights.py) -->
 
 ## Key Figures (auto)

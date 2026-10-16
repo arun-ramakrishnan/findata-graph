@@ -36,10 +36,10 @@ Concord Biotech Limited, incorporated in 1984 and headquartered in Ahmedabad, is
 - **Industry**: Biotechnology
 - **Employees**: 1,624
 - **Promoter Holding**: 72.5%
-- **Institutional Holding**: 12.8%
+- **Institutional Holding**: 14.9%
 - **Business Summary**: Concord Biotech Limited, a, biopharma company, engages in the research and development, manufacture, and sale of pharmaceutical products in India and internationally. It operates through Active Pharmaceutical Ingredients (APIs) and Formulations segments. The company provides fermentation based ac…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Financial Profile (Yahoo Finance, Jun 2026)
 - Market cap: ₹134.5B | Enterprise value: ₹131.3B

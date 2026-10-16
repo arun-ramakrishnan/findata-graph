@@ -3,7 +3,7 @@ title: Greenlam Industries
 type: company
 ticker: GREENLAM.NS
 sector: Building_Materials
-industry: Furnishings, Fixtures & Appliances
+industry: Lumber & Wood Production
 market_cap: small_cap
 normalized_name: Greenlam_Industries
 permalink: /companies/building_materials/greenlam_industries
@@ -46,13 +46,13 @@ Greenlam Industries is engaged in manufacturing laminates. Its products include 
 
 ## Company Profile (yfinance)
 
-- **Industry**: Furnishings, Fixtures & Appliances
+- **Industry**: Lumber & Wood Production
 - **Employees**: 3,480
 - **Promoter Holding**: 80.8%
 - **Institutional Holding**: 8.5%
 - **Business Summary**: Greenlam Industries Limited, together with its subsidiaries, manufactures and sells laminates, plywoods, and allied products in India and internationally. It offers decorative and compact laminates, exterior and interior clads, restroom cubicles and locker solutions, chipboards, decorative veneer…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Recent Performance
 - **Brownfield Expansion**: 2 million sheets capacity addition in Andhra Pradesh

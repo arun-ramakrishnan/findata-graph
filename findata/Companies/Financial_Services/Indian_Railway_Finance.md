@@ -62,10 +62,10 @@ Indian Railway Finance Corporation Limited (IRFC) is a government-owned company 
 - **Industry**: Credit Services
 - **Employees**: 59
 - **Promoter Holding**: 82.9%
-- **Institutional Holding**: 4.8%
-- **Business Summary**: Indian Railway Finance Corporation Limited engages in leasing of rolling stock and railway infrastructure assets in India. The company also engages in lending business; and borrowing funds from commercial markets, financial markets to finance the acquisition/creation of assets that are leased out…
+- **Institutional Holding**: 4.9%
+- **Business Summary**: Indian Railway Finance Corporation Limited engages in leasing of rolling stock and railway infrastructure assets in India. The company also engages in lending business to other entities under the Ministry of Railways; and borrowing funds from commercial markets, financial markets to finance the a…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Strategic Context
 

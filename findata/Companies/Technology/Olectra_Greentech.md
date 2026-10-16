@@ -60,11 +60,12 @@ Olectra Greentech Limited (formerly Goldstone Infratech) is a leading Indian man
 ## Company Profile (yfinance)
 
 - **Industry**: Farm & Heavy Construction Machinery
+- **Employees**: 331
 - **Promoter Holding**: 50.3%
 - **Institutional Holding**: 5.2%
-- **Business Summary**: Olectra Greentech Limited manufactures and sells electric buses and trucks in India. It operates in two segments, Composite Polymer Insulators and E-Vehicle. The company offers electric tippers. It also provides 1200KV, 330-420KV, 220-245KV, 110-132KV, 52-77KV, 33-36KV, 22-28KV, and 10-15KV compo…
+- **Business Summary**: Olectra Greentech Limited manufactures and sells electric buses and trucks in India. It operates in two segments, Energy Division and Mobility Division. The company offers electric tippers. It also provides 1200KV, 330-420KV, 220-245KV, 110-132KV, 52-77KV, 33-36KV, 22-28KV, and 10-15KV composite …
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 
 <!-- BEGIN auto chatter block (derive_insights.py) -->

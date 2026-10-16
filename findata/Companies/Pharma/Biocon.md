@@ -75,10 +75,10 @@ Biocon is a global biopharmaceutical company focused on making complex therapies
 - **Industry**: Biotechnology
 - **Employees**: 16,447
 - **Promoter Holding**: 48.1%
-- **Institutional Holding**: 26.3%
+- **Institutional Holding**: 31.6%
 - **Business Summary**: Biocon Limited, together with its subsidiaries, manufactures biotechnology products and offers research services in India, the United States, Ireland, rest of the European Union, and internationally. It operates through Generics; Biosimilars; and Contract Research, Development and Manufacturing O…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Market Position
 

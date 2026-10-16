@@ -8,6 +8,7 @@ tags:
 - geography/india
 normalized_name: McDonalds
 sector: FMCG
+industry: Restaurants
 market_cap: null
 permalink: /companies/fmcg/mcdonalds
 created: '2026-08-27'
@@ -35,6 +36,19 @@ sources:
 ## Company Overview
 McDonald's — auto-generated stub from newsletter parsing. To be enriched.
 
+
+<!-- BEGIN auto company profile (enrich_from_yfinance.py) -->
+
+## Company Profile (yfinance)
+
+- **Industry**: Restaurants
+- **Employees**: 150,000
+- **Promoter Holding**: 0.3%
+- **Institutional Holding**: 76.4%
+- **Business Summary**: McDonald's Corporation owns, operates, and franchises restaurants under the McDonald's brand in the United States and internationally. It offers food and beverages, including hamburgers and cheeseburgers, various chicken sandwiches, fries, shakes, frozen desserts, sundaes, soft serve cones, cooki…
+
+_Source: yfinance | Refreshed: 2026-10-16_
+<!-- END auto company profile -->
 <!-- BEGIN auto chatter block (derive_insights.py) -->
 
 ## The Chatter — Between the Numbers

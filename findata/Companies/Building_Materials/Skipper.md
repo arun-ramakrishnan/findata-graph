@@ -34,11 +34,12 @@ Skipper Ltd. is involved in the manufacturing of power transmission and distribu
 ## Company Profile (yfinance)
 
 - **Industry**: Engineering & Construction
-- **Promoter Holding**: 66.7%
-- **Institutional Holding**: 5.1%
+- **Employees**: 4,962
+- **Promoter Holding**: 65.8%
+- **Institutional Holding**: 8.6%
 - **Business Summary**: Skipper Limited manufactures and sells transmission and distribution structures, telecom towers, and fasteners in India. The company operates through three segments: Engineering Products, Infrastructure Projects, and Polymer Products. The Engineering Products segment offers power transmission tow…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Key Insights (Patterns Beneath the Surface)
 - Manufacturer of power transmission and distribution (T&D) structures

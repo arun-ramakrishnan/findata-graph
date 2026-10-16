@@ -43,11 +43,12 @@ Indraprastha Gas Limited is a leading city gas distribution company in India, pr
 ## Company Profile (yfinance)
 
 - **Industry**: Utilities - Regulated Gas
+- **Employees**: 709
 - **Promoter Holding**: 50.0%
-- **Institutional Holding**: 42.0%
+- **Institutional Holding**: 32.7%
 - **Business Summary**: Indraprastha Gas Limited distributes and sells natural gas in India. It supplies compressed natural gas (CNG) to the transport sector; and piped natural gas to domestic, industrial, and commercial sectors. The company operates CNG stations, as well as steel pipeline and MDPE networks. It serves h…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Strategic Context
 

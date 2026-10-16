@@ -37,6 +37,19 @@ sources:
 
 RITES (Rail India Technical and Economic Service) is a government-owned mid-cap engineering consultancy company providing comprehensive transportation infrastructure and project management services. The company specializes in railway, metro rail, road/highway, and port infrastructure planning, design, supervision, and technical consulting, with a strong domestic presence and growing international operations.
 
+
+<!-- BEGIN auto company profile (enrich_from_yfinance.py) -->
+
+## Company Profile (yfinance)
+
+- **Industry**: Engineering & Construction
+- **Employees**: 1,765
+- **Promoter Holding**: 72.2%
+- **Institutional Holding**: 10.4%
+- **Business Summary**: RITES Limited, together with its subsidiaries, operates as an engineering consultancy company in the field of railways, highways, airports, ports, ropeways, urban transport, and inland waterways. The company operates through five segments: Consultancy Services; Leasing of Railway Rolling Stock & …
+
+_Source: yfinance | Refreshed: 2026-10-16_
+<!-- END auto company profile -->
 <!-- BEGIN auto key figures (derive_insights.py) -->
 
 ## Key Figures (auto)

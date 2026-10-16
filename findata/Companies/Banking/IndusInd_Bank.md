@@ -40,10 +40,10 @@ IndusInd Bank is a private sector bank with focus on vehicle finance and consume
 - **Industry**: Banks - Regional
 - **Employees**: 46,778
 - **Promoter Holding**: 16.3%
-- **Institutional Holding**: 54.2%
+- **Institutional Holding**: 54.1%
 - **Business Summary**: IndusInd Bank Limited provides various banking products and financial services to individuals, corporations, government entities, and public sector undertakings in India. It operates in four segments: Treasury, Corporate/Wholesale Banking, Retail Banking, and Other Banking Operations. The company…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Strategic Position
 

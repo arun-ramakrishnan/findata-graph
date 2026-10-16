@@ -39,7 +39,7 @@ Future Lifestyle Fashions Limited, incorporated in 2012 and headquartered in Mum
 - **Institutional Holding**: 3.2%
 - **Business Summary**: Future Lifestyle Fashions Limited operates as an integrated fashion company in India. The company retails fashion products through departmental and neighborhood stores. Its stores offer men's formals, casuals, youth wear, women's western wear, women's ethnic, sportswear, denim wear, infant wear, …
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Financial Profile (Yahoo Finance, Jun 2026)
 - Market cap: ₹280M (nano_cap, distressed) | Enterprise value: ₹16.9B

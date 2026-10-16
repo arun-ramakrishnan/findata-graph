@@ -50,11 +50,12 @@ Jindal Stainless Limited (JSL) is a major stainless steel conglomerate in India 
 ## Company Profile (yfinance)
 
 - **Industry**: Steel
+- **Employees**: 6,838
 - **Promoter Holding**: 64.7%
-- **Institutional Holding**: 16.1%
-- **Business Summary**: Jindal Stainless Limited manufactures and sells stainless-steel flat products in India and internationally. The company provides ferro alloys, stainless steel slabs and blooms, hot rolled coils, plates and sheets, and cold rolled coils and sheets, as well as razor-blade steel, precision strips, a…
+- **Institutional Holding**: 16.7%
+- **Business Summary**: Jindal Stainless Limited manufactures and sells stainless-steel flat products in India and internationally. The company offers ferro alloys, stainless steel slabs and blooms, hot rolled coils, plates and sheets, and cold rolled coils and sheets; specialty products, including razor-blade steel, co…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Market Update
 

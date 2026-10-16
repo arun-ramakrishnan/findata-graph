@@ -40,7 +40,7 @@ Swaraj Engines Limited manufactures diesel engines and engine components, hi-tec
 - **Institutional Holding**: 9.6%
 - **Business Summary**: Swaraj Engines Limited manufactures and sells diesel engines and its engine components, hi-tech engine, and spare parts for tractors in India. The company was incorporated in 1985 and is based in Mohali, India. Swaraj Engines Limited is a subsidiary of Mahindra & Mahindra Limited.
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Financial Profile (Yahoo Finance, Jun 2026)
 

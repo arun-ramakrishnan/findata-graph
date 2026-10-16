@@ -48,11 +48,11 @@ ABB India Limited is a technology company that operates with four business areas
 
 - **Industry**: Specialty Industrial Machinery
 - **Employees**: 3,859
-- **Promoter Holding**: 75.3%
-- **Institutional Holding**: 13.4%
+- **Promoter Holding**: 76.3%
+- **Institutional Holding**: 12.7%
 - **Business Summary**: ABB India Limited develops and sells products and system solutions to utilities, industries, channel partners, and original equipment manufacturers in India and internationally. It operates through Motion, Robotics and Discrete Automation, Electrification, and Process Automation segments. The Mot…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Business Segments
 - Electrification

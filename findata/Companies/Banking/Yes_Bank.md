@@ -58,10 +58,10 @@ Yes Bank Limited is a full-service private-sector bank (incorporated 2003, HQ Mu
 - **Industry**: Banks - Regional
 - **Employees**: 29,577
 - **Promoter Holding**: 44.2%
-- **Institutional Holding**: 18.4%
-- **Business Summary**: Yes Bank Limited engages in the provision of various banking and financial products and services in India. It operates through Treasury, Corporate Banking /Wholesale Banking, Retail Banking, and Other Banking Operations segments. The company provides current, savings, and salary accounts; fixed a…
+- **Institutional Holding**: 18.1%
+- **Business Summary**: Yes Bank Limited engages in the provision of various banking and financial products and services in India. It operates through Treasury, Corporate Banking /Wholesale Banking, Retail Banking, and Other Banking Operations segments. The company offers savings, salary, and current accounts; deposits;…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Financial Profile (Yahoo Finance, Jun 2026)
 - Market cap: ₹78,059 cr | Enterprise value: ~₹78,059 cr (no separate EV field; ~market cap)

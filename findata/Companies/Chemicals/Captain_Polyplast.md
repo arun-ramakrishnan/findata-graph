@@ -43,11 +43,12 @@ Captain Polyplast Limited (CPL) is a leading manufacturer, exporter, and trading
 ## Company Profile (yfinance)
 
 - **Industry**: Farm & Heavy Construction Machinery
+- **Employees**: 511
 - **Promoter Holding**: 70.3%
 - **Institutional Holding**: 0.0%
-- **Business Summary**: Captain Polyplast Limited manufactures, sells, exports, and trades in micro irrigation systems and allied products in India. The company also engaged on the DCA cum CS basis of Indian Oil Corporation Ltd. for Polymer Business. The company provides irrigation equipment, such as drip irrigation sys…
+- **Business Summary**: Captain Polyplast Limited manufactures, sells, exports, and trades in micro irrigation systems and allied products in India. The company provides irrigation equipment, such as drip irrigation systems, drippers and laterals, and sprinklers; irrigation accessories comprising compression fittings, c…
 
-_Source: yfinance | Refreshed: 2026-08-11_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Industry Context: Chemicals / Agri-Irrigation Equipment
 

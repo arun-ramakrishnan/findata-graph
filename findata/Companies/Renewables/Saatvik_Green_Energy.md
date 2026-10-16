@@ -72,11 +72,12 @@ Saatvik Green Energy Limited is a leading Indian renewable energy company specia
 ## Company Profile (yfinance)
 
 - **Industry**: Solar
+- **Employees**: 722
 - **Promoter Holding**: 84.8%
-- **Institutional Holding**: 10.5%
-- **Business Summary**: Saatvik Green Energy Limited manufactures and sells solar photovoltaic modules in India and internationally. Its solar energy products include monocrystalline passive emitter and rear cell modules and N-TopCon solar modules for various applications comprising residential, commercial, and utility …
+- **Institutional Holding**: 10.8%
+- **Business Summary**: Saatvik Green Energy Limited manufactures and sells solar photovoltaic modules in India and internationally. The company offers mono PERC and N-topcon modules; inverters; SuryaConnect Solar Kit, a pre-engineered turnkey solar kit; transformers; and solar cell technology products. It also provides…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Industry Context: Energy Sector
 

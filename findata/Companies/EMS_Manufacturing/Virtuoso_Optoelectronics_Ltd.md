@@ -45,11 +45,12 @@ Wholly-owned subsidiary that provides plastic and EF components.
 ## Company Profile (yfinance)
 
 - **Industry**: Consumer Electronics
-- **Promoter Holding**: 60.6%
-- **Institutional Holding**: 7.7%
-- **Business Summary**: Virtuoso Optoelectronics Limited engages in the manufacturing, sale, and marketing of white goods in India. It offers split air conditioners; LED lighting; water dispensers; commercial freezers; washing machines; compressors; and EMS-circuit boards through online platforms. The company also provi…
+- **Employees**: 386
+- **Promoter Holding**: 57.0%
+- **Institutional Holding**: 13.6%
+- **Business Summary**: Virtuoso Optoelectronics Limited engages in the manufacturing, selling and marketing of white goods in India. The company offers indoor units (IDUs), outdoor units (ODUs), and complete air conditioning systems; LED lighting products; table top dispensers, floor standing water dispensers, floor st…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Business Mix
 

@@ -38,11 +38,12 @@ Shri Gang Industries & Allied Products Limited, incorporated in 1989 (formerly S
 ## Company Profile (yfinance)
 
 - **Industry**: Beverages - Wineries & Distilleries
-- **Promoter Holding**: 78.4%
+- **Employees**: 214
+- **Promoter Holding**: 76.9%
 - **Institutional Holding**: 0.0%
 - **Business Summary**: Shri Gang Industries & Allied Products Limited engages in the manufacture and sale of vanaspati, refined oils, and bakery shortening in India. The company operates in two segments, Liquor Operations and Edible Oil Operations. It offers extra neutral alcohol, country liquor, and Indian made foreig…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Financial Profile (Yahoo Finance, Jun 2026)
 - Market cap: ₹1,443 cr (micro cap) | Enterprise value: ₹1,870 cr

@@ -49,11 +49,12 @@ AGI Infra (BSE: AGIIL) is a small-cap real-estate developer focused on premium r
 ## Company Profile (yfinance)
 
 - **Industry**: Real Estate - Development
+- **Employees**: 394
 - **Promoter Holding**: 83.1%
 - **Institutional Holding**: 0.2%
-- **Business Summary**: Agi Infra Limited, together with its subsidiary, engages in the real estate and construction businesses in India. It primarily constructs and develops commercial building and residential housing projects in Punjab. The company also operates cold storage facilities that provide storing, trading, d…
+- **Business Summary**: Agi Infra Limited, together with its subsidiary, engages in the real estate and construction businesses in India. The company primarily constructs and develops commercial building and residential housing projects. It also operates cold storage facilities that provide storing, trading, dealing, an…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 
 <!-- BEGIN auto chatter block (derive_insights.py) -->

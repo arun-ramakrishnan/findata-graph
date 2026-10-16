@@ -53,11 +53,12 @@ Ester Industries Limited is a leading manufacturer of specialty chemicals and po
 ## Company Profile (yfinance)
 
 - **Industry**: Specialty Chemicals
-- **Promoter Holding**: 76.8%
+- **Employees**: 446
+- **Promoter Holding**: 76.4%
 - **Institutional Holding**: 0.0%
-- **Business Summary**: Ester Industries Limited engages in the manufacture and sale of polyester films in India and internationally. The company operates through three segments: Polyester Films (BOPET), Specialty Polymers, and R  PET. The company offers polyester films comprising special chemical coated, metalized hig…
+- **Business Summary**: Ester Industries Limited engages in the manufacture and sale of polyester films in India and internationally. It operates through Polyester chips and films; and Specialty Polymers segments. The company offers polyester films, including lidding and sealable films, barrier films, PCR and sustainabl…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Business Segments
 

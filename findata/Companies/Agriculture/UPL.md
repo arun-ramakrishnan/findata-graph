@@ -59,11 +59,11 @@ UPL Limited is a leading global agrochemicals and agro-solutions company headqua
 
 - **Industry**: Agricultural Inputs
 - **Employees**: 12,399
-- **Promoter Holding**: 33.8%
-- **Institutional Holding**: 43.3%
+- **Promoter Holding**: 33.7%
+- **Institutional Holding**: 42.2%
 - **Business Summary**: UPL Limited, together with its subsidiaries, manufactures and sells pesticides, insecticides, and micronutrients in India, Brazil, the United States, the United Kingdom, and internationally. It operates through Crop protection, Seeds & Post-Harvest solutions, and Non-Agro segments. The company of…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Industry Classification
 - **Sector**: Agriculture - Agrochemicals & Crop Protection

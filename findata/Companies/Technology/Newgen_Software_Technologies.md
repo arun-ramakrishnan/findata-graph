@@ -38,10 +38,10 @@ Newgen Software Technologies is an Indian IT company specializing in business pr
 - **Industry**: Software - Infrastructure
 - **Employees**: 3,788
 - **Promoter Holding**: 63.4%
-- **Institutional Holding**: 8.3%
+- **Institutional Holding**: 8.7%
 - **Business Summary**: Newgen Software Technologies Limited, a software company, engages in the business of software product development in India, Europe, the Middle East, Africa, the Asia Pacific, Australia, and the United States. It designs and delivers software solutions, including workflow automation, document mana…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Business Segments
 

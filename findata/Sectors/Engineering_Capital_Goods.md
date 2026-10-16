@@ -180,7 +180,7 @@ The Engineering & Capital Goods sector in India encompasses industrial equipment
 
 ## All Companies (auto)
 
-<!-- Auto-generated from the SQLite source of truth. 82 company note(s) in Engineering_Capital_Goods. Do not edit by hand — re-run `python3 helpers/maintenance/sync_sector_wikilinks.py` to refresh. Curated highlights live in the editorial sections above. -->
+<!-- Auto-generated from the SQLite source of truth. 85 company note(s) in Engineering_Capital_Goods. Do not edit by hand — re-run `python3 helpers/maintenance/sync_sector_wikilinks.py` to refresh. Curated highlights live in the editorial sections above. -->
 
 - [[AB_Volvo|AB Volvo]]
 - [[ABB_India|ABB India]]
@@ -204,6 +204,7 @@ The Engineering & Capital Goods sector in India encompasses industrial equipment
 - [[Forbes_Enviro_Solutions|Forbes Enviro Solutions]]
 - [[GE_Power_India|GE Power India]]
 - [[Gala_Precision_Engineering|Gala Precision Engineering]]
+- [[Gandhi_Special_Tubes|Gandhi Special Tubes]]
 - [[General_Electric_Company_GE|General Electric Company GE]]
 - [[Genus_Power_Infrastructures|Genus Power Infrastructures]]
 - [[Goodluck_India]]
@@ -211,6 +212,7 @@ The Engineering & Capital Goods sector in India encompasses industrial equipment
 - [[HPL_Electric_and_Power|HPL Electric & Power]]
 - [[Havells_India|Havells India]]
 - [[Hind_Rectifiers|Hind Rectifiers]]
+- [[Hitachi_Energy|Hitachi Energy]]
 - [[Hitachi_Energy_India|Hitachi Energy India]]
 - [[Hy_Tech_Engineers|Hy-Tech Engineers]]
 - [[Hyosung]]
@@ -264,6 +266,7 @@ The Engineering & Capital Goods sector in India encompasses industrial equipment
 - [[Tube_Investments_of_India|Tube Investments of India]]
 - [[V_Guard_Industries|V-Guard Industries]]
 - [[Vidya_Wires|Vidya Wires]]
+- [[Vishnu_Prakash_R_Punglia|Vishnu Prakash R Punglia]]
 
 <!-- END auto company index -->
 

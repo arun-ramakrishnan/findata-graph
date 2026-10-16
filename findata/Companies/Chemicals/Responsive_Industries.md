@@ -42,10 +42,10 @@ Leading manufacturer of PVC Products serving as undisputed standard for PVC prod
 - **Industry**: Specialty Chemicals
 - **Employees**: 377
 - **Promoter Holding**: 87.6%
-- **Institutional Holding**: 6.5%
-- **Business Summary**: Responsive Industries Limited manufactures and sells polyvinyl chloride (PVC) based products in India. The company provides vinyl flooring, synthetic leather/ropes, and luxury vinyl tile, including LVT-SPC and waterproofing membranes. It also offers plastic, non-metallic mineral, rubber products,…
+- **Institutional Holding**: 5.5%
+- **Business Summary**: Responsive Industries Limited manufactures and sells polyvinyl chloride (PVC) based products in India and internationally. The company provides vinyl flooring, synthetic leather/ropes, and luxury vinyl tile, including LVT-SPC and waterproofing membranes. It also offers plastic, non-metallic miner…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Company Details
 

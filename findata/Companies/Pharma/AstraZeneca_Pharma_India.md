@@ -37,12 +37,12 @@ AstraZeneca Pharma India operates across critical therapeutic areas including ca
 ## Company Profile (yfinance)
 
 - **Industry**: Drug Manufacturers - Specialty & Generic
-- **Employees**: 760
-- **Promoter Holding**: 81.6%
-- **Institutional Holding**: 7.8%
-- **Business Summary**: AstraZeneca Pharma India Limited, a biopharmaceutical company, manufactures, markets, and trades in pharmaceutical products in India and internationally. It provides medicines for cardiovascular, renal, metabolic, and immunological conditions; oncology medicines under the TAGRISSO, Lynparza, ENHE…
+- **Employees**: 600
+- **Promoter Holding**: 81.5%
+- **Institutional Holding**: 9.2%
+- **Business Summary**: AstraZeneca Pharma India Limited, a biopharmaceutical company, manufactures, markets, and trades in pharmaceutical products in India and internationally. It provides medicines for cancers, including pancreatic cancer, certain blood cancers, and cancers within breast, lung, ovary, and prostate; ra…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Financial Profile (Yahoo Finance, Jun 2026)
 

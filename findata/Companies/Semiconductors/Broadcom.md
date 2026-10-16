@@ -103,10 +103,10 @@ Source: The Chatter Edition #41 (Zerodha)
 - **Industry**: Semiconductors
 - **Employees**: 33,000
 - **Promoter Holding**: 1.9%
-- **Institutional Holding**: 79.9%
+- **Institutional Holding**: 79.7%
 - **Business Summary**: Broadcom Inc. designs, develops, and supplies various semiconductor devices and infrastructure software solutions internationally. The company operates in two segments: Semiconductor Solutions and Infrastructure Software. The company offers networking connectivity, such as custom silicon solution…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 
 <!-- BEGIN auto key figures (derive_insights.py) -->

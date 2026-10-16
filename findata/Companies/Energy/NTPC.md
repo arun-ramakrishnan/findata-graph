@@ -66,10 +66,10 @@ NTPC Limited operates as an integrated power company in India. It operates throu
 - **Industry**: Utilities - Regulated Electric
 - **Employees**: 16,785
 - **Promoter Holding**: 54.0%
-- **Institutional Holding**: 38.3%
+- **Institutional Holding**: 34.9%
 - **Business Summary**: NTPC Limited operates as an integrated power company in India and Mauritius. It operates through two segments: Generation and Others. The company generates power from fossil fuels, hydro, solar, wind, nuclear, and renewable energy sources. It also engages in the coal mining and energy trading bus…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Key Metrics & Financials (INR)
 - **Market Cap:** ₹3,201.84B

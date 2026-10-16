@@ -44,11 +44,11 @@ Godrej Consumer Products (NSE: GODREJCP) is a Godrej Group FMCG company with a p
 
 - **Industry**: Household & Personal Products
 - **Employees**: 3,337
-- **Promoter Holding**: 65.2%
-- **Institutional Holding**: 22.0%
+- **Promoter Holding**: 64.2%
+- **Institutional Holding**: 23.3%
 - **Business Summary**: Godrej Consumer Products Limited, a fast-moving consumer goods company, manufactures and sells personal care and home care products in India, Africa, Indonesia, the Middle East, the United States, and internationally. The company offers household insecticides, home hygiene, and air and fabric car…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 
 <!-- BEGIN auto chatter block (derive_insights.py) -->

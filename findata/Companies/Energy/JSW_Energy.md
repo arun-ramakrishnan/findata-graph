@@ -46,11 +46,11 @@ JSW Energy Limited, incorporated in 1994 and headquartered in Mumbai, is a leadi
 ## Company Profile (yfinance)
 
 - **Industry**: Utilities - Independent Power Producers
-- **Promoter Holding**: 66.6%
-- **Institutional Holding**: 21.0%
+- **Promoter Holding**: 66.7%
+- **Institutional Holding**: 21.8%
 - **Business Summary**: JSW Energy Limited generates and sells power in India. It has a power generation capacity of 10,875 MW, which includes 5,658MW of thermal, 1,391 MW of hydro, 1,671 of Wind, and 680 MW of solar. The company has operations in the States of Karnataka, Punjab, Maharashtra, Tamil Nadu, Himachal Prades…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Financial Profile (Yahoo Finance, Jun 2026)
 - Market cap: ₹1,05,032 cr | Enterprise value: ₹1,72,510 cr

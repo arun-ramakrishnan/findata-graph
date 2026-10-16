@@ -49,11 +49,11 @@ ISO 9001:2015 certified company specializing in manufacturing and processing of 
 
 - **Industry**: Agricultural Inputs
 - **Employees**: 12
-- **Promoter Holding**: 63.6%
+- **Promoter Holding**: 58.5%
 - **Institutional Holding**: 0.0%
 - **Business Summary**: Narmada Agrobase Limited manufactures and sells cotton seeds and cattle feeds in India. The company offers cotton seed meal, bleached cotton linters, gwar korma, maize meal, multi grain meal, maize oil cakes, cotton seed oil cakes, cotton linters, poultry feeds, mesh and pellet cattle feed, compo…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Company Details
 

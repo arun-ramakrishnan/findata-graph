@@ -3,7 +3,7 @@ title: Credo Brands Marketing
 type: company
 ticker: MUFTI.NS
 sector: Retail
-industry: null
+industry: Apparel Retail
 market_cap: small_cap
 normalized_name: Credo_Brands_Marketing
 permalink: /companies/retail/credo_brands_marketing
@@ -33,6 +33,19 @@ sources:
 ## Company Overview
 Credo Brands Marketing Limited, incorporated in 1998 and headquartered in Mumbai, manufactures and markets men's casualwear under the "Mufti" brand in India. The company offers athleisure, shirts, jeans, polos, t-shirts, sweatshirts, sweaters, outerwear, blazers, chinos, and trousers, selling through multi-brand and exclusive brand outlets, large format stores, and online channels.
 
+
+<!-- BEGIN auto company profile (enrich_from_yfinance.py) -->
+
+## Company Profile (yfinance)
+
+- **Industry**: Apparel Retail
+- **Employees**: 245
+- **Promoter Holding**: 66.5%
+- **Institutional Holding**: 0.0%
+- **Business Summary**: Credo Brands Marketing Limited engages in the retail of men's casual wear under the MUFTI brand in India. The company offers athleisure merchandise, shirts, jeans, cargos, polos, t-shirts, sweatshirts, sweaters, outerwear, blazers, chinos, and trousers, as well as authentic, relaxed, and urban ca…
+
+_Source: yfinance | Refreshed: 2026-10-16_
+<!-- END auto company profile -->
 ## Financial Profile (Yahoo Finance, Jun 2026)
 - Market cap: ₹572 cr | Enterprise value: ₹752 cr
 - Revenue (TTM): ₹592 cr (YoY growth: 5.9%)

@@ -73,11 +73,12 @@ Oil India Limited (OIL) is a prominent Indian Exploration & Production (E&P) com
 ## Company Profile (yfinance)
 
 - **Industry**: Oil & Gas Integrated
+- **Employees**: 6,593
 - **Promoter Holding**: 67.7%
-- **Institutional Holding**: 22.7%
-- **Business Summary**: Oil India Limited engages in the exploration, development, and production of crude oil and natural gas in India. It operates through Crude Oil, Natural Gas, Liquefied Petroleum Gas (LPG), Pipeline Transportation, Renewable Energy, and Others segments. The company owns and operates automated crude…
+- **Institutional Holding**: 21.1%
+- **Business Summary**: Oil India Limited engages in the exploration, development, and production of crude oil and natural gas in India. It operates through Crude Oil, Natural Gas, LPG, Pipeline Transportation, Renewable Energy, and Others segments. The company owns and operates crude oil trunk pipeline comprising an ar…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Industry Context: Energy Sector
 

@@ -51,6 +51,19 @@ sources:
 
 Aditya Birla Fashion and Retail Limited (ABFRL) is one of India's largest fashion retail companies, formed by consolidating the Aditya Birla Group's Madura Fashion division with Pantaloons Fashion and Retail. With 4,600+ stores, ABFRL owns brands like Louis Philippe, Van Heusen, Allen Solly, and Peter England, and partners with global brands including Ralph Lauren and Ted Baker.
 
+
+<!-- BEGIN auto company profile (enrich_from_yfinance.py) -->
+
+## Company Profile (yfinance)
+
+- **Industry**: Apparel Manufacturing
+- **Employees**: 14,725
+- **Promoter Holding**: 53.7%
+- **Institutional Holding**: 12.7%
+- **Business Summary**: Aditya Birla Fashion and Retail Limited manufactures, distributes, and retails fashion apparel and accessories in India and internationally. It operates through Pantaloons and Ethnic & Others segments. The company offers shirts, trousers, denims, t-shirts, dresses, suits and blazers, casuals, cer…
+
+_Source: yfinance | Refreshed: 2026-10-16_
+<!-- END auto company profile -->
 <!-- BEGIN auto key figures (derive_insights.py) -->
 
 ## Key Figures (auto)

@@ -41,10 +41,10 @@ Pfizer Limited (India), incorporated in 1950 and headquartered in Mumbai, is Pfi
 - **Industry**: Drug Manufacturers - General
 - **Employees**: 1,244
 - **Promoter Holding**: 67.0%
-- **Institutional Holding**: 17.1%
+- **Institutional Holding**: 16.2%
 - **Business Summary**: Pfizer Limited engages in manufacturing, marketing, trading, and distribution of pharmaceutical products in India and internationally. It offers therapy area and products, such as vaccines, injectables and anti-infectives, inflammation and immunology, and internal medicine for cardiovascular care…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Financial Profile (Yahoo Finance, Jun 2026)
 - Market cap: ₹204B | Enterprise value: ₹176B

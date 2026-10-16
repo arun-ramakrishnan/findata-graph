@@ -3,6 +3,7 @@ title: Spotify
 type: company
 ticker: SPOT
 sector: Media_Entertainment
+industry: Internet Content & Information
 market_cap: large_cap
 normalized_name: Spotify
 permalink: /companies/media_entertainment/spotify
@@ -37,6 +38,19 @@ Swedish audio-streaming company.
 
 *Stub node — created as a graph endpoint. Expand as additional primary research accumulates.*
 
+
+<!-- BEGIN auto company profile (enrich_from_yfinance.py) -->
+
+## Company Profile (yfinance)
+
+- **Industry**: Internet Content & Information
+- **Employees**: 7,000
+- **Promoter Holding**: 23.5%
+- **Institutional Holding**: 68.8%
+- **Business Summary**: Spotify Technology S.A., together with its subsidiaries, provides audio streaming subscription services worldwide. It operates in two segments, Premium and Ad-Supported. The Premium segment offers online and offline streaming access to its catalog of music and podcasts, including video, lossless …
+
+_Source: yfinance | Refreshed: 2026-10-16_
+<!-- END auto company profile -->
 <!-- BEGIN auto chatter block (derive_insights.py) -->
 
 ## The Chatter — The Known Unknowns

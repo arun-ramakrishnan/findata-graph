@@ -60,10 +60,10 @@ Cummins India Limited (incorporated 1962; HQ Pune, Maharashtra) is a subsidiary 
 - **Industry**: Specialty Industrial Machinery
 - **Employees**: 3,088
 - **Promoter Holding**: 51.3%
-- **Institutional Holding**: 28.1%
+- **Institutional Holding**: 30.4%
 - **Business Summary**: Cummins India Limited engages in the design, manufacture, distribution, and service of engines, generator sets, and related technologies in India, Nepal, and Bhutan. The company operates through two segments, Engines and Lubes. It provides accelera, G-drive, fire pump drive, hydrogen, and natural…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Financial Profile (Yahoo Finance, Jun 2026)
 - Market cap: ₹156,396 cr | Enterprise value: ₹150,108 cr

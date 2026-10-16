@@ -54,10 +54,10 @@ CIE Automotive India is a diversified global auto-component manufacturer special
 - **Industry**: Auto Parts
 - **Employees**: 4,204
 - **Promoter Holding**: 66.4%
-- **Institutional Holding**: 22.7%
+- **Institutional Holding**: 23.8%
 - **Business Summary**: CIE Automotive India Limited produces and sells automotive components to original equipment manufacturers and other customers in India, Europe, and internationally. It offers forgings, such as crankshafts, CV joints, knuckles, diff Casw, and spindles; gears, including gears and shafts, e-drive co…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Industry Context: Engineering & Capital Goods / Auto Components
 

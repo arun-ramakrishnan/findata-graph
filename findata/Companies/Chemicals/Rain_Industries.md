@@ -46,11 +46,11 @@ Rain Industries Limited is a global manufacturer of critical raw materials for v
 
 - **Industry**: Specialty Chemicals
 - **Employees**: 2,323
-- **Promoter Holding**: 47.9%
+- **Promoter Holding**: 46.8%
 - **Institutional Holding**: 7.4%
 - **Business Summary**: Rain Industries Limited, together with its subsidiaries, manufactures and sells carbon, advanced materials, and cement products in India and internationally. The company operates through three segments: Carbon, Advanced Materials, and Cement. It offers calcined petroleum coke, coal tar pitch, gre…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## [Transcript]
 

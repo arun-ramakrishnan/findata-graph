@@ -45,12 +45,12 @@ Muthoot Microfin, a part of Muthoot Pappachan Group, is a leading microfinance i
 ## Company Profile (yfinance)
 
 - **Industry**: Credit Services
-- **Employees**: 11,018
+- **Employees**: 15,639
 - **Promoter Holding**: 73.4%
-- **Institutional Holding**: 7.8%
+- **Institutional Holding**: 7.9%
 - **Business Summary**: Muthoot Microfin Limited, a non-deposit taking non-banking financial company, provides micro loans to women entrepreneurs in rural regions of India. The company offers income generating, Pragathi, Suvidha, and individual loans; education, mobile phones, solar lighting product, and household appli…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## [Transcript]
 

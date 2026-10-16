@@ -37,10 +37,10 @@ The Supreme Industries Limited is India's largest plastics processor, manufactur
 - **Industry**: Building Products & Equipment
 - **Employees**: 6,081
 - **Promoter Holding**: 51.7%
-- **Institutional Holding**: 32.1%
+- **Institutional Holding**: 29.5%
 - **Business Summary**: The Supreme Industries Limited manufactures and sells plastic products in India. The company offers plastic piping systems, including uPVC pipes, injection-molded PVC and handmade fittings; polypropylene random co-polymer pipe systems; HDPE and CPVC pipe systems; inspection chambers; manholes; ba…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Financial Profile (Yahoo Finance, Jun 2026)
 

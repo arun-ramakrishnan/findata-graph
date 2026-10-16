@@ -55,11 +55,11 @@ TCI Express Limited offers transport, storage, warehousing, and support services
 
 - **Industry**: Integrated Freight & Logistics
 - **Employees**: 2,441
-- **Promoter Holding**: 72.1%
-- **Institutional Holding**: 9.1%
+- **Promoter Holding**: 74.9%
+- **Institutional Holding**: 9.3%
 - **Business Summary**: TCI Express Limited provides express delivery solutions in India and internationally. It provides surface express; domestic and international air express; e-commerce express; C2C express; rail express; and cold chain express services. The company serves pharmaceuticals and cold chain, defense and…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Business Segments
 

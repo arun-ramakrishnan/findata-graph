@@ -3,6 +3,7 @@ title: Apple
 type: company
 ticker: AAPL
 sector: Technology
+industry: Consumer Electronics
 market_cap: large_cap
 normalized_name: Apple
 permalink: /companies/technology/apple
@@ -37,6 +38,19 @@ American consumer-electronics and services company (iPhone, Mac, services).
 
 *Stub node — created as a graph endpoint. Expand as additional primary research accumulates.*
 
+
+<!-- BEGIN auto company profile (enrich_from_yfinance.py) -->
+
+## Company Profile (yfinance)
+
+- **Industry**: Consumer Electronics
+- **Employees**: 150,000
+- **Promoter Holding**: 1.6%
+- **Institutional Holding**: 66.3%
+- **Business Summary**: Apple Inc. designs, manufactures, and markets smartphones, personal computers, tablets, wearables, and accessories worldwide. The company offers iPhone, a line of smartphones; Mac, a line of personal computers; iPad, a line of multi-purpose tablets; and wearables, home, and accessories comprising…
+
+_Source: yfinance | Refreshed: 2026-10-16_
+<!-- END auto company profile -->
 <!-- BEGIN auto chatter block (derive_insights.py) -->
 
 ## The Chatter — Storm clouds and sunny skies

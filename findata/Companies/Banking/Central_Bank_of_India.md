@@ -46,7 +46,7 @@ Central Bank of India is a company in the banking sector. More information about
 - **Institutional Holding**: 9.5%
 - **Business Summary**: Central Bank of India operates as a commercial bank in India. The company offers deposit products, which include savings and current accounts, time deposits, recurring deposit schemes, and small saving scheme; and loans, including housing, vehicle, property, personal, pensioner, education, and ag…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Financial Information
 - **Ticker Symbol**: CENTRALBK

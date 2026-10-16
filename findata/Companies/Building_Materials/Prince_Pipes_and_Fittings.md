@@ -42,11 +42,12 @@ Prince Pipes and Fittings is a mid-cap Indian manufacturer of plastic pipes and 
 ## Company Profile (yfinance)
 
 - **Industry**: Building Products & Equipment
-- **Promoter Holding**: 60.6%
-- **Institutional Holding**: 20.6%
-- **Business Summary**: Prince Pipes and Fittings Limited manufactures and sells piping solutions in India. The company offers the FLOWGUARD PLUS chlorinated polyvinyl chloride (CPVC) hot and cold potable water plumbing systems, EASYFIT unplasticized polyvinyl chloride (UPVC) plumbing systems, and EASYFIT RE reclaim pip…
+- **Employees**: 2,234
+- **Promoter Holding**: 58.9%
+- **Institutional Holding**: 20.5%
+- **Business Summary**: Prince Pipes and Fittings Limited manufactures and sells piping solutions in India. The company offers the SMARTFIT PLUS chlorinated polyvinyl chloride (CPVC) hot and cold potable water plumbing systems, EASYFIT unplasticized polyvinyl chloride (UPVC) plumbing systems, and EASYFIT RE reclaim pipi…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 
 <!-- BEGIN auto chatter block (derive_insights.py) -->

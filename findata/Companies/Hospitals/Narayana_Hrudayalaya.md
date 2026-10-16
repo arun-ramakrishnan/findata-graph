@@ -57,10 +57,10 @@ Narayana Hrudayalaya Limited is a leading healthcare provider in India, renowned
 - **Industry**: Medical Care Facilities
 - **Employees**: 11,234
 - **Promoter Holding**: 67.2%
-- **Institutional Holding**: 13.0%
+- **Institutional Holding**: 12.9%
 - **Business Summary**: Narayana Hrudayalaya Limited provides medical and healthcare services in India, the United Kingdom, and the Cayman Islands. It operates through the Medical and Healthcare Related Services; and Others segments. The company offers oncology, anesthesiology, audiology, blood bank, breast oncology, on…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Business Model
 

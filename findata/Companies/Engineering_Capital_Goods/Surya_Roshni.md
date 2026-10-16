@@ -40,7 +40,7 @@ Surya Roshni Limited manufactures steel pipes and strips, plus lighting and cons
 - **Institutional Holding**: 2.7%
 - **Business Summary**: Surya Roshni Limited manufactures and sells steel pipes and strips, and lighting and consumer durables in India. The company offers GI pipes for agriculture and irrigation, casing and tubing, water transportation/plumbing and pipelines, green houses, firefighting, street light poles, and solar pa…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Financial Profile (Yahoo Finance, Jun 2026)
 

@@ -56,11 +56,11 @@ Kotak Mahindra Bank is a leading private sector bank in India, known for its str
 
 - **Industry**: Banks - Regional
 - **Employees**: 112,000
-- **Promoter Holding**: 30.5%
-- **Institutional Holding**: 47.3%
+- **Promoter Holding**: 28.4%
+- **Institutional Holding**: 47.5%
 - **Business Summary**: Kotak Mahindra Bank Limited provides a range of banking and financial services to corporate and individual customers in India. It operates through Corporate/Wholesale Banking; Retail Banking; Treasury, BMU and Corporate Centre; Vehicle Financing; Other Lending Activities; Broking; Advisory and Tr…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Key Metrics
 - **Market Cap**: ~₹4+ lakh crore

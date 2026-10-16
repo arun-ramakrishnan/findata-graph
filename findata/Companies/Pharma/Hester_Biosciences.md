@@ -3,6 +3,7 @@ title: Hester Biosciences
 type: company
 ticker: HESTERBIO.NS
 sector: Pharma
+industry: Drug Manufacturers - Specialty & Generic
 market_cap: small_cap
 normalized_name: Hester_Biosciences
 permalink: /companies/pharma/hester_biosciences
@@ -34,6 +35,19 @@ Animal-vaccines and animal-health company.
 
 *Stub node — created as a graph endpoint. Expand as additional primary research accumulates.*
 
+
+<!-- BEGIN auto company profile (enrich_from_yfinance.py) -->
+
+## Company Profile (yfinance)
+
+- **Industry**: Drug Manufacturers - Specialty & Generic
+- **Employees**: 483
+- **Promoter Holding**: 68.8%
+- **Institutional Holding**: 0.2%
+- **Business Summary**: Hester Biosciences Limited manufactures and trades in veterinary vaccines and health products in India and internationally. It operates through two segments, Poultry Healthcare and Animal Healthcare. The company provides poultry vaccines for newcastle disease, infectious bronchitis, infectious bu…
+
+_Source: yfinance | Refreshed: 2026-10-16_
+<!-- END auto company profile -->
 <!-- BEGIN auto chatter block (derive_insights.py) -->
 
 ## The Chatter — Embracing the Unknown

@@ -3,7 +3,7 @@ title: Dachepalli Publishers
 type: company
 ticker: DACHEPALLI.BO
 sector: Media_Entertainment
-industry: null
+industry: Publishing
 market_cap: micro_cap
 normalized_name: Dachepalli_Publishers
 file_path: findata/Companies/Media_Entertainment/Dachepalli_Publishers.md
@@ -37,6 +37,18 @@ Dachepalli Publishers Ltd. (founded 1908) is an educational publishing house spe
 ## Source
 Extracted from "Points & Figures: Grain in the graphs" (Zerodha) — Edition #19, 17 Feb 2026.
 
+
+<!-- BEGIN auto company profile (enrich_from_yfinance.py) -->
+
+## Company Profile (yfinance)
+
+- **Industry**: Publishing
+- **Promoter Holding**: 85.1%
+- **Institutional Holding**: 0.0%
+- **Business Summary**: Dachepalli Publishers Limited, content-based educational publishing house that publishes K-12 segment textbooks for CBSE, ICSE, and State Board curriculums. It also provides schools with curriculum-aligned digital resources. It distributes its books under Apple Book Company, Orange Leaf Publisher…
+
+_Source: yfinance | Refreshed: 2026-10-16_
+<!-- END auto company profile -->
 ## Key Data Points & Signals (Investor Presentation)
 - **Revenue geography (FY25)**: Telangana 33%, Andhra Pradesh 20%, Karnataka 15%, Tamil Nadu 10%; diversifying vs FY24/FY23 with rising contributions from Maharashtra, Kerala, MP, Chhattisgarh, North East.
 - **Revenue growth**: INR 6,389.9 lakh FY25 (vs INR 5,086.1 lakh FY24; INR 4,519.5 lakh FY23).

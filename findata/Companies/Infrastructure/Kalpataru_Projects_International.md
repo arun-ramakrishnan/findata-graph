@@ -35,10 +35,10 @@ Kalpataru Projects International Limited is a leading engineering, procurement, 
 - **Industry**: Engineering & Construction
 - **Employees**: 11,188
 - **Promoter Holding**: 33.7%
-- **Institutional Holding**: 48.4%
+- **Institutional Holding**: 48.9%
 - **Business Summary**: Kalpataru Projects International Limited provides engineering, procurement, and construction (EPC) services for power transmission and distribution, buildings and factories, water supply and irrigation, railways, oil and gas, and urban infrastructure sectors in India and internationally. The comp…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Strategic Context
 

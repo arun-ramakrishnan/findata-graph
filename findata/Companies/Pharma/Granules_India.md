@@ -35,11 +35,11 @@ Granules India Limited is a pharmaceutical company engaged in the manufacturing 
 
 - **Industry**: Drug Manufacturers - Specialty & Generic
 - **Employees**: 4,306
-- **Promoter Holding**: 39.3%
-- **Institutional Holding**: 19.9%
+- **Promoter Holding**: 39.6%
+- **Institutional Holding**: 24.7%
 - **Business Summary**: Granules India Limited manufactures and sells active pharmaceutical ingredients (APIs), pharmaceutical formulation intermediates (PFIs), finished dosages (FDs), and peptides CDMO in India and internationally. It offers paracetamol, metformin, guaifenesin, ibuprofen, and methocarbamol, as well as …
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Business Segments
 

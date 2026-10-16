@@ -50,6 +50,19 @@ sources:
 
 Canara Bank is a major Indian public sector bank (large-cap) with an extensive branch network across India and a particularly strong presence in South India. The bank provides comprehensive banking and financial services—including personal, business, agricultural, and government banking—to retail, corporate, and government customers, alongside its housing finance subsidiary Can Fin Homes.
 
+
+<!-- BEGIN auto company profile (enrich_from_yfinance.py) -->
+
+## Company Profile (yfinance)
+
+- **Industry**: Banks - Regional
+- **Employees**: 81,827
+- **Promoter Holding**: 64.3%
+- **Institutional Holding**: 17.8%
+- **Business Summary**: Canara Bank provides various banking products and services in India and internationally. The company offers deposits and accounts, such as savings accounts, current accounts, recurring deposits, and term deposits; unclaimed deposits; loan products, including home, vehicle, education, personal, mo…
+
+_Source: yfinance | Refreshed: 2026-10-16_
+<!-- END auto company profile -->
 <!-- BEGIN auto key figures (derive_insights.py) -->
 
 ## Key Figures (auto)

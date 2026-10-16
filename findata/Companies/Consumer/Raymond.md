@@ -39,8 +39,8 @@ Indian heritage conglomerate (legally Raymond Limited; incorporated 1925, HQ Mum
 - **Industry**: Specialty Industrial Machinery
 - **Employees**: 42
 - **Promoter Holding**: 51.2%
-- **Institutional Holding**: 6.2%
+- **Institutional Holding**: 8.2%
 - **Business Summary**: Raymond Limited engages in the engineering businesses in India. It operates through Precision technology and auto component; Aerospace and defence; and Others segments. The company also engages non-scheduled airline operations. In addition, it manufactures and distributes steel files, cutting too…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->

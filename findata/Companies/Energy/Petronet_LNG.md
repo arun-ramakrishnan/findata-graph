@@ -50,11 +50,12 @@ Petronet LNG specializes in the import, storage, and regasification of Liquefied
 ## Company Profile (yfinance)
 
 - **Industry**: Oil & Gas Refining & Marketing
-- **Promoter Holding**: 50.0%
-- **Institutional Holding**: 29.5%
-- **Business Summary**: Petronet LNG Limited engages in the import, storage, regasification, and supply of liquefied natural gas (LNG) in India. It owns and operates an LNG import and regasification terminal with name plate capacity of 17.5 MMTPA located in Dahej, Gujarat; and an LNG terminal with name plate capacity of…
+- **Employees**: 604
+- **Promoter Holding**: 50.2%
+- **Institutional Holding**: 27.2%
+- **Business Summary**: Petronet LNG Limited engages in the import, storage, regasification, and supply of liquefied natural gas (LNG) in India. It owns and operates an LNG import and regasification terminal with name plate capacity of 22.5 MMTPA located in Dahej, Gujarat; and an LNG terminal with name plate capacity of…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Industry Context: Energy Sector
 

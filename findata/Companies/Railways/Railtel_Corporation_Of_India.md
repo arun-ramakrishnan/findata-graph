@@ -49,10 +49,10 @@ RailTel Corporation of India is a major neutral telecom infrastructure provider 
 - **Industry**: Telecom Services
 - **Employees**: 595
 - **Promoter Holding**: 72.8%
-- **Institutional Holding**: 2.9%
+- **Institutional Holding**: 3.0%
 - **Business Summary**: RailTel Corporation of India Limited provides broadband telecom and multimedia network services in India, Jamaica, and Trinidad and Tobago. It operates through Telecom Services and Project Work Services segments. The company offers telecom services, such as managed data services, leased lines, vi…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Financial Profile (Yahoo Finance, Jun 2026)
 

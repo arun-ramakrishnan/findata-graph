@@ -44,11 +44,11 @@ Aditya Birla Real Estate (NSE: ABREL; formerly Century Textiles and Industries, 
 
 - **Industry**: Real Estate Services
 - **Employees**: 2,761
-- **Promoter Holding**: 55.3%
-- **Institutional Holding**: 22.0%
+- **Promoter Holding**: 54.2%
+- **Institutional Holding**: 21.4%
 - **Business Summary**: Aditya Birla Real Estate Limited develops, leases, and invests in real estate properties and primarily in India. The company operates through Real Estate and Other segments. The company offers viscose filament and tyre yarn related products. It also develops commercial and residential projects; a…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Management
 - K. T. Jitendran — MD & CEO, Birla Estate

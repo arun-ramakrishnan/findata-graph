@@ -37,11 +37,12 @@ Blue Dart Express is India's leading express logistics and courier company, prov
 ## Company Profile (yfinance)
 
 - **Industry**: Integrated Freight & Logistics
+- **Employees**: 13,251
 - **Promoter Holding**: 76.2%
-- **Institutional Holding**: 16.7%
-- **Business Summary**: Blue Dart Express Limited provides courier and express services in India. It provides day-definite and time-definite delivery schedules across air and ground network under the Domestic Priority, Dart Apex, Dart Surfaceline, and Dart Plus names; and door-to-door ground distribution service under t…
+- **Institutional Holding**: 16.6%
+- **Business Summary**: Blue Dart Express Limited provides courier and express services in India. Its domestic express portfolio includes time-definite delivery services, such as Domestic Priority 1030 and Domestic Priority 1200, and day-definite delivery solutions, including DP-Dox, DP Parcel, Air Express Package, Surf…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Business Segments
 

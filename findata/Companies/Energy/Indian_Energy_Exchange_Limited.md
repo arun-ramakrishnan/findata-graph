@@ -56,11 +56,12 @@ The company offers Day-Ahead Market, a physical electricity trading market which
 ## Company Profile (yfinance)
 
 - **Industry**: Capital Markets
+- **Employees**: 179
 - **Promoter Holding**: 13.4%
-- **Institutional Holding**: 34.1%
+- **Institutional Holding**: 33.9%
 - **Business Summary**: Indian Energy Exchange Limited provides automated trading platform for physical delivery of electricity, renewable energy, and certificates. The company offers Day-Ahead Market, a physical electricity trading market which allows market participants to buy and sell electricity for the next day; Te…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Business Operations
 The company provides multiple trading platforms and services across the energy sector:

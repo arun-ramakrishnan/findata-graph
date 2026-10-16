@@ -43,11 +43,12 @@ Ircon International Limited is a government-owned engineering and construction c
 ## Company Profile (yfinance)
 
 - **Industry**: Engineering & Construction
+- **Employees**: 793
 - **Promoter Holding**: 65.2%
-- **Institutional Holding**: 3.3%
-- **Business Summary**: Ircon International Limited, together with its subsidiaries, engages in the provision of construction services. It undertakes construction of new railway lines; rehabilitation/conversion of existing lines, station buildings and facilities, and bridges; construction of railway bridges, tunnels, an…
+- **Institutional Holding**: 3.4%
+- **Business Summary**: Ircon International Limited, together with its subsidiaries, engages in providing engineering and construction services. It undertakes construction of new railway lines; rehabilitation/conversion of existing lines, station buildings and facilities, and bridges; construction of railway bridges, tu…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Strategic Context
 

@@ -56,10 +56,10 @@ Sun Pharmaceutical Industries Limited, founded in 1983 and headquartered in Mumb
 - **Industry**: Drug Manufacturers - Specialty & Generic
 - **Employees**: 47,000
 - **Promoter Holding**: 55.6%
-- **Institutional Holding**: 31.0%
+- **Institutional Holding**: 29.8%
 - **Business Summary**: Sun Pharmaceutical Industries Limited, a generic pharmaceutical company, develops, manufactures, and markets branded and generic formulations, and active pharmaceutical ingredients (APIs) in India, the United States, and internationally. The company offers formulations in various therapeutic area…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Financial Profile (Yahoo Finance, Jun 2026)
 - Market cap: ₹4,46,636 cr | Enterprise value: ₹4,19,807 cr

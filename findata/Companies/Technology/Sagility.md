@@ -55,10 +55,10 @@ Sagility is a pure-play, healthcare-focused business process management (BPM) / 
 - **Industry**: Health Information Services
 - **Employees**: 47,307
 - **Promoter Holding**: 50.9%
-- **Institutional Holding**: 20.5%
+- **Institutional Holding**: 23.5%
 - **Business Summary**: Sagility Limited engages in the rendering voice and non-voice business process management and back-office transaction processing services in India, Jamaica, the Philippines, the United States, and Colombia. The company offers claims and membership managed services, such as digital mailroom, produ…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Financial Profile (Yahoo Finance, Jun 2026)
 

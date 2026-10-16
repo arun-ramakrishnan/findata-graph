@@ -55,11 +55,12 @@ Cochin Shipyard Limited (CSL), founded in 1969 and headquartered in Kochi, Keral
 ## Company Profile (yfinance)
 
 - **Industry**: Aerospace & Defense
+- **Employees**: 2,131
 - **Promoter Holding**: 63.3%
-- **Institutional Holding**: 7.4%
-- **Business Summary**: Cochin Shipyard Limited, together with its subsidiaries, engages in the building and repair of ships and offshore structures in India and internationally. It operates through two segments, Shipbuilding and Ship Repair. The company offers shipbuilding products, including aircraft carriers, missile…
+- **Institutional Holding**: 10.8%
+- **Business Summary**: Cochin Shipyard Limited, together with its subsidiaries, engages in the building and repair of ships and offshore structures in India and internationally. The company operates through two segments, Shipbuilding and Ship Repair. It offers shipbuilding products, including aircraft carriers, missile…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Financial Profile (Yahoo Finance, Jun 2026)
 - Market cap: ₹38,368 cr | Enterprise value: ₹38,387 cr

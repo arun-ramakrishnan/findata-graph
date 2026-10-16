@@ -51,6 +51,19 @@ Everest Kanto Cylinder (EKC) manufactures industrial gas cylinders (oxygen, hydr
 
 <!-- END auto key figures -->
 
+
+<!-- BEGIN auto company profile (enrich_from_yfinance.py) -->
+
+## Company Profile (yfinance)
+
+- **Industry**: Specialty Industrial Machinery
+- **Employees**: 833
+- **Promoter Holding**: 67.6%
+- **Institutional Holding**: 0.2%
+- **Business Summary**: Everest Kanto Cylinder Limited, together with its subsidiaries, engages in the manufacture and sale of high-pressure seamless gas cylinders and other cylinders in India, the United Arab Emirates, the United States, Hungary, and internationally. The company offers compressed natural gas (CNG) stee…
+
+_Source: yfinance | Refreshed: 2026-10-16_
+<!-- END auto company profile -->
 <!-- BEGIN auto chatter block (derive_insights.py) -->
 
 ## The Chatter — Underneath the Noise

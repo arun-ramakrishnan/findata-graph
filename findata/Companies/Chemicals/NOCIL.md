@@ -35,6 +35,19 @@ sources:
 
 NOCIL is India's largest manufacturer of rubber chemicals, supplying critical additives to the global tire and automotive industries, with plants in Navi Mumbai and Dahej and a dominant domestic share.
 
+
+<!-- BEGIN auto company profile (enrich_from_yfinance.py) -->
+
+## Company Profile (yfinance)
+
+- **Industry**: Specialty Chemicals
+- **Employees**: 769
+- **Promoter Holding**: 41.9%
+- **Institutional Holding**: 10.0%
+- **Business Summary**: NOCIL Limited engages in the manufacture and sale of rubber chemicals for tire, automotive, rubber goods, and industrial sectors in India and internationally. It provides rubber chemicals, including pilflex, pilnox, pilcure, and pilgard, as well as anti-degradants/anti-oxidants accelerators. The …
+
+_Source: yfinance | Refreshed: 2026-10-16_
+<!-- END auto company profile -->
 <!-- BEGIN auto key figures (derive_insights.py) -->
 
 ## Key Figures (auto)

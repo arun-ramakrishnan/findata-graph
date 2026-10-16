@@ -35,12 +35,12 @@ Accelya Solutions India Limited, founded in 1976 and headquartered in Mumbai, is
 ## Company Profile (yfinance)
 
 - **Industry**: Information Technology Services
-- **Employees**: 2,500
+- **Employees**: 1,244
 - **Promoter Holding**: 75.1%
 - **Institutional Holding**: 0.1%
-- **Business Summary**: Accelya Solutions India Limited engages in the provision of software solutions to the airline, cargo, and travel industries in the Asia Pacific, the Middle East, Africa, the Americas, and Europe. The company provides airline industry solutions, such as billing and settlement processing (BSP) plat…
+- **Business Summary**: Accelya Solutions India Limited engages in the provision of software solutions to the airline, cargo, and travel industries in the Asia Pacific, the Middle East, Africa, the Americas, and Europe. The company provides retailing solutions, including FLX ONE, FLX One Offer Management, and FLX One de…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Financial Profile (Yahoo Finance, Jun 2026)
 

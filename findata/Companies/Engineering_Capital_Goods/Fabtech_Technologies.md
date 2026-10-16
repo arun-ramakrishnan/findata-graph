@@ -3,7 +3,7 @@ title: Fabtech Technologies
 type: company
 ticker: FABTECH.NS
 sector: Engineering_Capital_Goods
-industry: null
+industry: Health Information Services
 market_cap: mid_cap
 normalized_name: Fabtech_Technologies
 permalink: /companies/engineering_capital_goods/fabtech_technologies
@@ -40,6 +40,19 @@ sources:
 ## Company Overview
 Fabtech Technologies Cleanrooms specializes in manufacturing pre-engineered modular panels and doors for constructing high-quality cleanroom environments, providing design-to-validation solutions primarily to the pharmaceutical, healthcare, and biotech sectors.
 
+
+<!-- BEGIN auto company profile (enrich_from_yfinance.py) -->
+
+## Company Profile (yfinance)
+
+- **Industry**: Health Information Services
+- **Employees**: 186
+- **Promoter Holding**: 72.0%
+- **Institutional Holding**: 1.2%
+- **Business Summary**: Fabtech Technologies Limited operates as a biopharma engineering company that provides aseptic manufacturing facilities internationally. The company offers designing, engineering, procurement, installation, and testing of pharmaceutical equipment. It serves pharmaceuticals, biotech, and healthcar…
+
+_Source: yfinance | Refreshed: 2026-10-16_
+<!-- END auto company profile -->
 <!-- BEGIN auto key figures (derive_insights.py) -->
 
 ## Key Figures (auto)

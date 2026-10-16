@@ -3,6 +3,7 @@ title: Tesla
 type: company
 ticker: TSLA
 sector: Automotive
+industry: Auto Manufacturers
 market_cap: large_cap
 normalized_name: Tesla
 permalink: /companies/automotive/tesla
@@ -33,6 +34,19 @@ American electric-vehicle and energy company.
 
 *Stub node — created as a graph endpoint. Expand as additional primary research accumulates.*
 
+
+<!-- BEGIN auto company profile (enrich_from_yfinance.py) -->
+
+## Company Profile (yfinance)
+
+- **Industry**: Auto Manufacturers
+- **Employees**: 134,785
+- **Promoter Holding**: 17.8%
+- **Institutional Holding**: 43.7%
+- **Business Summary**: Tesla, Inc. designs, develops, manufactures, leases, and sells electric vehicles, and energy generation and storage systems in the United States, China, and internationally. The company operates in two segments, Automotive; and Energy Generation and Storage. The company offers electric vehicles, …
+
+_Source: yfinance | Refreshed: 2026-10-16_
+<!-- END auto company profile -->
 <!-- BEGIN auto chatter block (derive_insights.py) -->
 
 ## The Chatter — Making It Work

@@ -85,6 +85,19 @@ And this dropped significantly for the category if you go to Tier 2, Tier 3 town
 
 <!-- END auto key figures -->
 
+
+<!-- BEGIN auto company profile (enrich_from_yfinance.py) -->
+
+## Company Profile (yfinance)
+
+- **Industry**: Beverages - Brewers
+- **Employees**: 2,964
+- **Promoter Holding**: 72.8%
+- **Institutional Holding**: 20.7%
+- **Business Summary**: United Breweries Limited engages in manufacture, purchase, and sale of beer and non-alcoholic beverages in India and internationally. The company provides beer products under the Heineken Original, Heineken Silver, Kingfisher Premium, Kingfisher Strong, Kingfisher Ultra, Kingfisher Ultra Max, Kin…
+
+_Source: yfinance | Refreshed: 2026-10-16_
+<!-- END auto company profile -->
 <!-- BEGIN auto chatter block (derive_insights.py) -->
 
 ## The Chatter — Pressure Points

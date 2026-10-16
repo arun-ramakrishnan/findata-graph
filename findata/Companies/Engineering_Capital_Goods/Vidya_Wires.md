@@ -3,7 +3,7 @@ title: Vidya Wires
 type: company
 ticker: VIDYAWIRES.NS
 sector: Engineering_Capital_Goods
-industry: null
+industry: Electrical Equipment & Parts
 market_cap: micro_cap
 normalized_name: Vidya_Wires
 file_path: findata/Companies/Engineering_Capital_Goods/Vidya_Wires.md
@@ -50,6 +50,19 @@ Vidya Wires Ltd. manufactures copper and aluminium winding wires, strips and con
 - **market_share**: 11%
 
 <!-- END auto key figures -->
+
+<!-- BEGIN auto company profile (enrich_from_yfinance.py) -->
+
+## Company Profile (yfinance)
+
+- **Industry**: Electrical Equipment & Parts
+- **Employees**: 154
+- **Promoter Holding**: 72.8%
+- **Institutional Holding**: 2.4%
+- **Business Summary**: Vidya Wires Limited manufactures and sells winding and conductivity products in India. It offers enameled copper and aluminium winding wires, enameled copper and aluminium rectangular strips, enameled copper rectangular wires, fibre glass covered copper/aluminium conductors, paper insulated coppe…
+
+_Source: yfinance | Refreshed: 2026-10-16_
+<!-- END auto company profile -->
 <!-- BEGIN auto chatter block (derive_insights.py) -->
 
 ## The Chatter — Talking Points

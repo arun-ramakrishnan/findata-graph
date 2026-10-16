@@ -40,11 +40,11 @@ Laxmi Organic Industries Limited is a specialty chemicals company engaged in the
 
 - **Industry**: Specialty Chemicals
 - **Employees**: 1,141
-- **Promoter Holding**: 69.3%
+- **Promoter Holding**: 69.2%
 - **Institutional Holding**: 3.7%
 - **Business Summary**: Laxmi Organic Industries Limited, together with its subsidiaries, manufactures and trades acetyl intermediates and specialty chemicals in India and internationally. The company offers essential products, such as ethyl acetate, acetaldehyde, acetic anhydride, n-propyl acetate, n-butyl acetate, and…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Strategic Context
 

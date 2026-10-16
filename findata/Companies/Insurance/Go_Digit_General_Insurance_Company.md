@@ -60,10 +60,10 @@ Go Digit General Insurance Limited is a digital-first general insurance provider
 - **Industry**: Insurance - Property & Casualty
 - **Employees**: 4,589
 - **Promoter Holding**: 74.5%
-- **Institutional Holding**: 16.2%
+- **Institutional Holding**: 16.9%
 - **Business Summary**: Go Digit General Insurance Limited provides various insurance products and services in India. It offers car, bike, and commercial vehicle insurance; health and property insurance; fire, marine cargo and hull, travel, miscellaneous, and business insurance; and workmen's compensation, public/produc…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Management
 

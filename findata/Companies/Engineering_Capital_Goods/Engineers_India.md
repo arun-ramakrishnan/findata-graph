@@ -48,11 +48,12 @@ Engineers India Limited (EIL) is engaged in the construction and maintenance of 
 ## Company Profile (yfinance)
 
 - **Industry**: Engineering & Construction
+- **Employees**: 2,747
 - **Promoter Holding**: 51.4%
-- **Institutional Holding**: 18.3%
+- **Institutional Holding**: 18.7%
 - **Business Summary**: Engineers India Limited, an engineering consultancy company, provides design, engineering, procurement, construction, and integrated project management services for oil, gas, fertilizers, steel, railways, power, infrastructure, and petrochemical industries worldwide. The company operates through …
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Industry Context: Engineering & Capital Goods Sector
 

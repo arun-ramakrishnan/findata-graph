@@ -45,10 +45,10 @@ Tata Chemicals Limited, founded in 1927 and headquartered in Mumbai, India, is a
 - **Industry**: Chemicals
 - **Employees**: 4,437
 - **Promoter Holding**: 38.7%
-- **Institutional Holding**: 26.7%
+- **Institutional Holding**: 26.6%
 - **Business Summary**: Tata Chemicals Limited, together with its subsidiaries, manufactures, markets, sells, and distributes basic chemistry and specialty products in India, Asia, Africa, Europe, the United Kingdom, the Americas, and internationally. It operates through two segments, Basic Chemistry Products and Specia…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Financial Profile (Yahoo Finance, Jun 2026)
 - Market cap: ₹19,010 cr | Enterprise value: ₹26,389 cr

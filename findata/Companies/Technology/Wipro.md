@@ -53,10 +53,10 @@ Wipro Limited is a prominent technology services and consulting company speciali
 - **Industry**: Information Technology Services
 - **Employees**: 240,000
 - **Promoter Holding**: 72.7%
-- **Institutional Holding**: 14.8%
+- **Institutional Holding**: 10.8%
 - **Business Summary**: Wipro Limited operates as an information technology (IT), consulting, and business process services company worldwide. It operates through IT Services and IT Products segments. The IT Services segment offers AI-powered IT and IT-enabled services, including digital strategy advisory, customer-cent…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Detailed Information from Existing Notes
 

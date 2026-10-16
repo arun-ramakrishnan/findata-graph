@@ -35,10 +35,10 @@ Merck KGaA is a German multinational science and technology company with signifi
 - **Industry**: Drug Manufacturers - General
 - **Employees**: 73,000
 - **Promoter Holding**: 0.1%
-- **Institutional Holding**: 82.5%
+- **Institutional Holding**: 83.0%
 - **Business Summary**: Merck & Co., Inc. operates as a healthcare company worldwide. It offers human health pharmaceutical for various areas under the Keytruda, Keytruda Qlex, Welireg, Gardasil, ProQuad, M-M-R II, Varivax, Vaxneuvance, Capvaxive, RotaTeq, Pneumovax 23, Bridion, Prevymis, Dificid, Zerbaxa, Winrevair, Ad…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Strategic Context
 

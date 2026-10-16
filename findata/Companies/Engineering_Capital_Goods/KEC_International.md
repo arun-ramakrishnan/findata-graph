@@ -44,10 +44,10 @@ KEC International Limited engages in the engineering, procurement, and construct
 - **Industry**: Engineering & Construction
 - **Employees**: 7,878
 - **Promoter Holding**: 4.6%
-- **Institutional Holding**: 75.4%
+- **Institutional Holding**: 73.3%
 - **Business Summary**: KEC International Limited engages in the engineering, procurement, and construction (EPC) business. It designs, manufactures, supplies, and erects transmission lines on turnkey basis; executes gas insulated transmission lines; undertakes EPC projects of high voltage electrical switching and distr…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Business Segments
 - **Transmission & Distribution**: Engineering, procurement, and construction of transmission lines and substations

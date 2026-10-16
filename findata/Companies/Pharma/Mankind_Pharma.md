@@ -51,10 +51,10 @@ Mankind Pharma Limited is a pharmaceutical company engaged in the development, m
 - **Industry**: Drug Manufacturers - Specialty & Generic
 - **Employees**: 20,451
 - **Promoter Holding**: 75.4%
-- **Institutional Holding**: 19.7%
+- **Institutional Holding**: 18.5%
 - **Business Summary**: Mankind Pharma Limited develops, manufactures, and markets pharmaceutical formulations and consumer healthcare products in India and internationally. The company develops pharmaceuticals for acute and chronic therapeutics in the areas of anti-infective, cardiovascular, gastrointestinal, gynaecolo…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 
 <!-- BEGIN auto key figures (derive_insights.py) -->

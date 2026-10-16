@@ -39,7 +39,7 @@ Sagarsoft (India) is an IT services company providing software development, cons
 - **Institutional Holding**: 0.0%
 - **Business Summary**: Sagarsoft (India) Limited provides software development and related IT consultancy services in India and internationally. The company offers application engineering services, including application development, support and maintenance, and DAIS application transformation services; cloud services c…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Business Segments
 

@@ -39,11 +39,11 @@ Westlife Development Limited, through its subsidiary Hardcastle Restaurants Pvt.
 
 - **Industry**: Restaurants
 - **Employees**: 10,473
-- **Promoter Holding**: 62.8%
-- **Institutional Holding**: 30.8%
+- **Promoter Holding**: 63.6%
+- **Institutional Holding**: 31.5%
 - **Business Summary**: Westlife Foodworld Limited, through its subsidiary, Hardcastle Restaurants Private Limited, owns and operates a chain of McDonald's restaurants in Western and Southern India. The company operates through various restaurants, such as freestanding, food court, in-store, and mall stores. It also off…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Business Segments
 

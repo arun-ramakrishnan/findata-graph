@@ -39,8 +39,8 @@ French multinational energy company headquartered in Paris (EPA: TTE, NYSE: TTE)
 - **Industry**: Oil & Gas Integrated
 - **Employees**: 94,847
 - **Promoter Holding**: 8.9%
-- **Institutional Holding**: 57.1%
-- **Business Summary**: TotalEnergies SE, an integrated energy company, produces and markets oil and biofuels, natural gas, biogas and low-carbon hydrogen, renewables, and electricity in France, the United States, Europe, Brazil, India, and internationally. Its Exploration & Production segment engages in the activities …
+- **Institutional Holding**: 54.3%
+- **Business Summary**: TotalEnergies SE, an integrated energy company, produces and markets oil and biofuels, natural gas, biogas and low-carbon hydrogen, renewables, and electricity in France, the United States, Europe, Africa, and internationally. It operates through Exploration & Production, Integrated LNG, Integrat…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->

@@ -57,6 +57,19 @@ Redington — mid-cap IT distribution & services (Apple, HP, Lenovo, Cisco distr
 
 <!-- END auto key figures -->
 
+
+<!-- BEGIN auto company profile (enrich_from_yfinance.py) -->
+
+## Company Profile (yfinance)
+
+- **Industry**: Information Technology Services
+- **Employees**: 13,457
+- **Promoter Holding**: 26.0%
+- **Institutional Holding**: 38.4%
+- **Business Summary**: Redington Limited distributes information technology, mobility, and other technology products in India, the Middle East, Turkey, Africa, and South Asian countries. It provides AI and automation, software applications, security, digital printing, data and analytics, infrastructure, 3D printing, ne…
+
+_Source: yfinance | Refreshed: 2026-10-16_
+<!-- END auto company profile -->
 <!-- BEGIN auto chatter block (derive_insights.py) -->
 
 ## The Chatter — Reliance Vedanta Gillette

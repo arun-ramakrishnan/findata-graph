@@ -60,10 +60,10 @@ Indian Hotels Company Limited (IHCL) is India's premier hospitality company oper
 - **Industry**: Lodging
 - **Employees**: 27,757
 - **Promoter Holding**: 39.3%
-- **Institutional Holding**: 35.6%
+- **Institutional Holding**: 36.6%
 - **Business Summary**: The Indian Hotels Company Limited, together with its subsidiaries, owns, operates, and manages hotels, palaces and resorts in India and internationally. It operates through two segments: Hotel Services and Air and Institutional Catering. The company operates hotels under the Taj, Claridges Collec…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Strategic Context
 

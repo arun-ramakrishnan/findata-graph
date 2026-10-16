@@ -96,10 +96,10 @@ Timex Group India — watches & accessories brand (small cap). Imported premium 
 - **Industry**: Luxury Goods
 - **Employees**: 303
 - **Promoter Holding**: 54.4%
-- **Institutional Holding**: 1.5%
+- **Institutional Holding**: 2.2%
 - **Business Summary**: Timex Group India Limited engages in designing, manufacturing, and trading of watches in India and internationally. It offers wrist watches for men, women, and children under the Timex, Guess, Gc, Versace, Salvatore Ferragamo, Nautica, Ted Baker, Furla, Adidas Originals, Philipp Plein, Plein Spor…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## The Chatter — Bajaj, Mahindra, Persistent, Indian Hotels & More
 

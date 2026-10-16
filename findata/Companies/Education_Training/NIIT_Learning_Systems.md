@@ -3,6 +3,7 @@ title: NIIT Learning Systems
 type: company
 ticker: NIITMTS.NS
 sector: Education_Training
+industry: Education & Training Services
 market_cap: mid_cap
 normalized_name: NIIT_Learning_Systems
 permalink: /companies/education_training/niit_learning_systems
@@ -34,6 +35,19 @@ Corporate learning and talent-development company (NIIT demerger).
 
 *Stub node — created as a graph endpoint. Expand as additional primary research accumulates.*
 
+
+<!-- BEGIN auto company profile (enrich_from_yfinance.py) -->
+
+## Company Profile (yfinance)
+
+- **Industry**: Education & Training Services
+- **Employees**: 2,546
+- **Promoter Holding**: 47.2%
+- **Institutional Holding**: 22.7%
+- **Business Summary**: NIIT Learning Systems Limited provides managed training services in India, the United States, Europe, and internationally. Its managed training services include custom content and curriculum design, learning administration and delivery, strategic sourcing, learning technology, and learning and de…
+
+_Source: yfinance | Refreshed: 2026-10-16_
+<!-- END auto company profile -->
 <!-- BEGIN auto chatter block (derive_insights.py) -->
 
 ## The Chatter — Moving Pieces

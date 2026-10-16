@@ -48,11 +48,11 @@ Coromandel International Limited (incorporated 1961; HQ Chennai) is a leading ag
 
 - **Industry**: Agricultural Inputs
 - **Employees**: 6,299
-- **Promoter Holding**: 59.5%
-- **Institutional Holding**: 23.9%
+- **Promoter Holding**: 59.6%
+- **Institutional Holding**: 25.6%
 - **Business Summary**: Coromandel International Limited provides agriculture solutions in India and internationally. The company operates through the Nutrient and Other Allied Business, and Crop Protection segments. It offers crop nutrition products, including fertilizers, specialty nutrients, organic, and nano product…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Financial Profile (Yahoo Finance, Jun 2026)
 - Market cap: ₹58,911 cr | Enterprise value: ₹58,177 cr

@@ -41,10 +41,10 @@ stale_after: '2027-03-09'
 - **Industry**: Drug Manufacturers - Specialty & Generic
 - **Employees**: 6,000
 - **Promoter Holding**: 60.9%
-- **Institutional Holding**: 19.6%
+- **Institutional Holding**: 17.7%
 - **Business Summary**: Indoco Remedies Limited manufactures and markets formulations and active pharmaceutical ingredients in India and internationally. It offers products for gastrointestinal, anti-infectives, respiratory, stomatological, vitamins/minerals/nutrients, urological, ophthal/ontological, dermatology, pain/…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Financial Performance (Q2FY26)
 - Revenue: INR 4,847mn (YoY +12.0%, QoQ +10.7%)

@@ -39,8 +39,8 @@ Japanese multinational manufacturer of tractors, agricultural machinery, and hea
 - **Industry**: Farm & Heavy Construction Machinery
 - **Employees**: 52,503
 - **Promoter Holding**: 0.0%
-- **Institutional Holding**: 0.0%
+- **Institutional Holding**: 0.1%
 - **Business Summary**: Kubota Corporation engages in the manufacture and sale of agricultural and construction machinery in Japan, North America, Europe, Asia, and internationally. The company offers tractors, power tillers, combine harvesters, rice transplanters, turf equipment, utility vehicles, other agricultural ma…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->

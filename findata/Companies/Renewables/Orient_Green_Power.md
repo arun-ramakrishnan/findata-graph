@@ -3,6 +3,7 @@ title: Orient Green Power
 type: company
 ticker: GREENPOWER.NS
 sector: Renewables
+industry: Utilities - Independent Power Producers
 market_cap: small_cap
 normalized_name: Orient_Green_Power
 permalink: /companies/renewables/orient_green_power
@@ -34,6 +35,19 @@ Renewable-energy producer.
 
 *Stub node — created as a graph endpoint. Expand as additional primary research accumulates.*
 
+
+<!-- BEGIN auto company profile (enrich_from_yfinance.py) -->
+
+## Company Profile (yfinance)
+
+- **Industry**: Utilities - Independent Power Producers
+- **Employees**: 140
+- **Promoter Holding**: 28.0%
+- **Institutional Holding**: 1.7%
+- **Business Summary**: Orient Green Power Company Limited, an independent power producer of renewable power, engages in the generation and sale of wind energy in India and Croatia. As of March 31, 2026, it had an aggregate installed capacity of 396 megawatt. The company was incorporated in 2006 and is headquartered in …
+
+_Source: yfinance | Refreshed: 2026-10-16_
+<!-- END auto company profile -->
 <!-- BEGIN auto chatter block (derive_insights.py) -->
 
 ## The Chatter — The Push and Pull

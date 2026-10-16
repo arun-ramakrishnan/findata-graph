@@ -46,10 +46,10 @@ Ujjivan Small Finance Bank is a mass-market retail bank in India focused on fina
 - **Industry**: Banks - Regional
 - **Employees**: 26,555
 - **Promoter Holding**: 0.0%
-- **Institutional Holding**: 36.3%
+- **Institutional Holding**: 41.3%
 - **Business Summary**: Ujjivan Small Finance Bank Limited provides various banking and financial services in India. The company operates through Treasury, Retail Banking, and Corporate/Wholesale Banking segments. It provides current, savings, salary, TACS savings and current, and NRI accounts; and fixed, recurring, TAS…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 
 <!-- BEGIN auto key figures (derive_insights.py) -->

@@ -36,11 +36,12 @@ Shivalik Bimetal Controls Limited is a process and product engineering company m
 ## Company Profile (yfinance)
 
 - **Industry**: Metal Fabrication
-- **Promoter Holding**: 39.6%
-- **Institutional Holding**: 15.3%
+- **Employees**: 780
+- **Promoter Holding**: 40.6%
+- **Institutional Holding**: 8.7%
 - **Business Summary**: Shivalik Bimetal Controls Limited operates as a process and product engineering company in India, the United States, Europe, and internationally. The company manufactures thermostatic bimetals, parts/strips, SMDS/shunt resistors, reflow solder/pre solder products, strips, precision stainless stee…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Financial Profile (Yahoo Finance, Jun 2026)
 

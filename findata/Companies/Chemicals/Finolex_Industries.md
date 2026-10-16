@@ -47,11 +47,12 @@ Finolex Industries Limited (founded 1956; HQ Pune) is a backward-integrated manu
 ## Company Profile (yfinance)
 
 - **Industry**: Building Products & Equipment
+- **Employees**: 1,325
 - **Promoter Holding**: 59.3%
-- **Institutional Holding**: 16.8%
-- **Business Summary**: Finolex Industries Limited manufactures and sells polyvinyl chloride (PVC) pipes and fittings, and PVC resins in India. It operates in two segments, PVC Resin and PVC Pipes and Fittings. The company offers agriculture pipes and fittings; column pipes; casing pipes; and solvent cement and lubrican…
+- **Institutional Holding**: 15.6%
+- **Business Summary**: Finolex Industries Limited manufactures and sells polyvinyl chloride (PVC) pipes and fittings, and PVC resins in India. The company operates in two segments, PVC Resin and PVC Pipes and Fittings. It offers agriculture pipes and fittings; column pipes; casing pipes; and solvent cement and lubrican…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Financial Profile (Yahoo Finance, Jun 2026)
 - Market cap: ₹10,898 cr | Enterprise value: ₹9,295 cr

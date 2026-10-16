@@ -51,11 +51,12 @@ Note: Source: Markets and Markets report (As of 2023)
 ## Company Profile (yfinance)
 
 - **Industry**: Auto Parts
+- **Employees**: 908
 - **Promoter Holding**: 68.8%
-- **Institutional Holding**: 16.3%
+- **Institutional Holding**: 16.1%
 - **Business Summary**: Carraro India Limited manufactures and sells automotive equipment, parts, and components in India and internationally. The company offers mechanical transmissions, clutches, hydraulic lifts and planetary drives, and axles for agricultural tractors; and construction equipment, including components…
 
-_Source: yfinance | Refreshed: 2026-08-11_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Group's 1st Industrial Hub Outside of Italy
 

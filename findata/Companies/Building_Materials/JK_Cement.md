@@ -40,10 +40,10 @@ J.K. Cement Limited, founded in 1975 and headquartered in Kanpur, manufactures a
 - **Industry**: Building Materials
 - **Employees**: 4,952
 - **Promoter Holding**: 54.3%
-- **Institutional Holding**: 39.0%
+- **Institutional Holding**: 34.3%
 - **Business Summary**: J.K. Cement Limited manufactures and sells cement and its related products in India and internationally. The company offers grey cement products; JKMaxx paints, including interior and exterior emulsions, distemper, enamel, and primers; wall putty; and white cement. It also provides tile adhesives…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Financial Profile (Yahoo Finance, Jun 2026)
 - Market cap: ₹42,922 cr | Enterprise value: ₹48,831 cr

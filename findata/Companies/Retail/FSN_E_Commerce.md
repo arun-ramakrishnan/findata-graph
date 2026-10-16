@@ -58,10 +58,10 @@ FSN E-Commerce Ventures Ltd. is the Indian parent company of Nykaa, a major cons
 - **Industry**: Internet Retail
 - **Employees**: 2,028
 - **Promoter Holding**: 56.1%
-- **Institutional Holding**: 32.5%
+- **Institutional Holding**: 32.4%
 - **Business Summary**: FSN E-Commerce Ventures Limited, through its subsidiaries, manufactures, sells, and distributes beauty and lifestyle products in India and internationally. It operates through three segments: Beauty, Fashion, and Others. The company offers makeup for face, eyes, lips, and nails, as well as makeup…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Business Segments
 

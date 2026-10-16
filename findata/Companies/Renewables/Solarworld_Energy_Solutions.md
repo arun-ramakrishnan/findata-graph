@@ -3,7 +3,7 @@ title: Solarworld Energy
 type: company
 ticker: SOLARWORLD.NS
 sector: Renewables
-industry: null
+industry: Solar
 market_cap: large_cap
 normalized_name: Solarworld_Energy_Solutions
 permalink: /companies/renewables/solarworld_energy_solutions
@@ -38,6 +38,19 @@ Solarworld Energy Solutions Limited provides solar energy solutions in India. Th
 - **Clients**: Public sector undertakings, commercial & industrial clients
 - **Project Experience**: 253.67 MW AC/336.17 MW DC completed, 765 MW AC/994 MW DC ongoing
 
+
+<!-- BEGIN auto company profile (enrich_from_yfinance.py) -->
+
+## Company Profile (yfinance)
+
+- **Industry**: Solar
+- **Employees**: 397
+- **Promoter Holding**: 78.1%
+- **Institutional Holding**: 8.6%
+- **Business Summary**: Solarworld Energy Solutions Limited engages in the design, engineering, procurement, construction, operation, and maintenance of solar power generating system and battery energy projects in India. It operates through Engineering, procurement, and construction contracts; and Manufacturing segments…
+
+_Source: yfinance | Refreshed: 2026-10-16_
+<!-- END auto company profile -->
 ## Industry Context
 
 ### India's Solar Growth Story

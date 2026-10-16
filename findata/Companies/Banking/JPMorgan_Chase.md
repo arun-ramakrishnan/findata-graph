@@ -3,6 +3,7 @@ title: JPMorgan Chase
 type: company
 ticker: JPM
 sector: Banking
+industry: Banks - Diversified
 market_cap: large_cap
 normalized_name: JPMorgan_Chase
 permalink: /companies/banking/jpmorgan_chase
@@ -37,6 +38,19 @@ American universal bank and financial-services group.
 
 *Stub node — created as a graph endpoint. Expand as additional primary research accumulates.*
 
+
+<!-- BEGIN auto company profile (enrich_from_yfinance.py) -->
+
+## Company Profile (yfinance)
+
+- **Industry**: Banks - Diversified
+- **Employees**: 322,964
+- **Promoter Holding**: 0.4%
+- **Institutional Holding**: 75.6%
+- **Business Summary**: JPMorgan Chase & Co. operates as a bank and financial holding company in the United States, rest of North America, Europe, the Middle East, Africa, the Asia Pacific, Latin America, and the Caribbean. It operates in three segments: Consumer & Community Banking, Commercial & Investment Bank, and As…
+
+_Source: yfinance | Refreshed: 2026-10-16_
+<!-- END auto company profile -->
 <!-- BEGIN auto chatter block (derive_insights.py) -->
 
 ## The Chatter — Decoding Capex Capacity and Consumer Trends

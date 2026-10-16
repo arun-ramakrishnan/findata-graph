@@ -62,6 +62,19 @@ sources:
 
 State Bank of India (SBI) is India's largest public sector bank, established in 1806 as the Bank of Calcutta and renamed as State Bank of India in 1955. A government-owned entity with over 200 years of banking heritage, SBI operates 24,000+ branches and 59,000+ ATMs across India, providing retail banking, corporate banking, treasury operations, and international banking across 14 countries.
 
+
+<!-- BEGIN auto company profile (enrich_from_yfinance.py) -->
+
+## Company Profile (yfinance)
+
+- **Industry**: Banks - Regional
+- **Employees**: 245,131
+- **Promoter Holding**: 57.2%
+- **Institutional Holding**: 29.2%
+- **Business Summary**: State Bank of India provides banking products and services in India and internationally. The company operates through the Treasury, Corporate/Wholesale Banking, Retail Banking, and Other Banking Business segments. It offers personal banking products and services, including current, savings, salar…
+
+_Source: yfinance | Refreshed: 2026-10-16_
+<!-- END auto company profile -->
 <!-- BEGIN auto key figures (derive_insights.py) -->
 
 ## Key Figures (auto)

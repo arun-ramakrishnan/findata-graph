@@ -35,11 +35,12 @@ Go Fashion (India) Limited is an Indian women's fashion company focused on casua
 ## Company Profile (yfinance)
 
 - **Industry**: Apparel Retail
-- **Promoter Holding**: 59.0%
-- **Institutional Holding**: 32.0%
-- **Business Summary**: Go Fashion (India) Limited engages in designing, developing, sourcing, marketing, and retailing of women's and girl's bottom-wear products under the Go Colors brand in India. Its bottom-wear products include churidars, leggings, harem pants, patialas, palazzos, salwars, culottes, pants, trousers,…
+- **Employees**: 4,771
+- **Promoter Holding**: 58.0%
+- **Institutional Holding**: 28.6%
+- **Business Summary**: Go Fashion (India) Limited engages in designing, developing, sourcing, marketing, and retailing of women's and girl's bottom-wear products under the Go Colors brand in India. It offers ankle length leggings, palazzos, wide pants, kurti pants, skirts and skorts, joggers, cargos, super stretch jegg…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Business Segments
 

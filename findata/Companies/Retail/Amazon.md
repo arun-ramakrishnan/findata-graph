@@ -56,10 +56,10 @@ Amazon (NASDAQ: AMZN) is a global technology and e-commerce conglomerate spannin
 - **Industry**: Internet Retail
 - **Employees**: 1,595,000
 - **Promoter Holding**: 8.9%
-- **Institutional Holding**: 68.1%
+- **Institutional Holding**: 68.7%
 - **Business Summary**: Amazon.com, Inc. engages in the retail sale of consumer products, advertising, and subscriptions service through online and physical stores in North America and internationally. The company operates through three segments: North America, International, and Amazon Web Services (AWS). It also manuf…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 
 <!-- BEGIN auto chatter block (derive_insights.py) -->

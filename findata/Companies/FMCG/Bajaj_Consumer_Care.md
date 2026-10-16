@@ -43,11 +43,12 @@ Bajaj Consumer Care Limited, a part of the Bajaj Group, is a leading player in t
 ## Company Profile (yfinance)
 
 - **Industry**: Household & Personal Products
+- **Employees**: 476
 - **Promoter Holding**: 44.0%
-- **Institutional Holding**: 24.2%
-- **Business Summary**: Bajaj Consumer Care Limited manufactures, markets, distributes, and sells hair care, cosmetics, toiletries, and other personal care products in India and internationally. The company offers hair oil and serum, shampoo, body lotion, and soap under the Bajaj Almond Drops brand name; and castor, coc…
+- **Institutional Holding**: 22.6%
+- **Business Summary**: Bajaj Consumer Care Limited manufactures, markets, and distributes hair care, cosmetics, toiletries, and other personal care products in India and internationally. The company offers hair oil and serum, shampoo, body lotion, and soap under the Bajaj Almond Drops brand name; and castor, coconut, v…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Key Information
 - **Entity Type**: Company

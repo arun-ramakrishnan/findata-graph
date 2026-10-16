@@ -42,11 +42,12 @@ KDDL Limited is a technology company engaged in providing IT solutions and servi
 ## Company Profile (yfinance)
 
 - **Industry**: Luxury Goods
-- **Promoter Holding**: 60.3%
+- **Employees**: 1,511
+- **Promoter Holding**: 58.3%
 - **Institutional Holding**: 5.8%
 - **Business Summary**: KDDL Limited, together with its subsidiaries, engages in the manufacturing and sale of watch dials and hands, precision engineering components, and press tools. It operates through Precision and Watch Components; Watch, Accessories and Other Luxury Items and Related Services; and Other segments. …
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Strategic Context
 

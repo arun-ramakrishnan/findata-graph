@@ -52,11 +52,12 @@ PVR INOX Limited, formerly known as PVR Limited, is a leading player in the movi
 ## Company Profile (yfinance)
 
 - **Industry**: Entertainment
-- **Promoter Holding**: 27.6%
-- **Institutional Holding**: 45.8%
+- **Employees**: 4,331
+- **Promoter Holding**: 29.4%
+- **Institutional Holding**: 41.1%
 - **Business Summary**: PVR INOX Limited, a theatrical exhibition company, engages in the exhibition, distribution, and production of movies in India and Sri Lanka. The company is involved in sale of movie tickets; in cinema advertisements/product displays; sale of food and beverages; and restaurant business. It also ma…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Strategic Position
 

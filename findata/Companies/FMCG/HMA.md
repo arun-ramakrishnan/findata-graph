@@ -38,11 +38,12 @@ HMA is a meat products and poultry company engaged in meat export operations, sp
 ## Company Profile (yfinance)
 
 - **Industry**: Packaged Foods
-- **Promoter Holding**: 78.9%
+- **Employees**: 338
+- **Promoter Holding**: 79.0%
 - **Institutional Holding**: 0.0%
-- **Business Summary**: HMA Agro Industries Limited manufactures and exports frozen buffalo meat and related products in India, Vietnam, Indonesia, Hong Kong, Malaysia, Egypt, and internationally. The company offers frozen and chilled meat, as well as fish and rice. It also provides fruits and vegetables; animal nutriti…
+- **Business Summary**: HMA Agro Industries Limited manufactures and exports frozen buffalo meat and related products. It offers frozen fish seafood, rice, pet food, by-product, and leather, as well as fruits and vegetables. The company offers products under the Black Gold, Kamil, Fresh Gold, and HMA Green Gold brands. …
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Business Segments
 

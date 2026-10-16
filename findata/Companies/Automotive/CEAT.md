@@ -54,11 +54,11 @@ CEAT Limited, founded in 1924 as CEAT Tyres of India and renamed in 1990, is hea
 
 - **Industry**: Auto Parts
 - **Employees**: 10,222
-- **Promoter Holding**: 48.5%
-- **Institutional Holding**: 33.4%
+- **Promoter Holding**: 48.7%
+- **Institutional Holding**: 33.5%
 - **Business Summary**: CEAT Limited manufactures automotive tyres, tubes, and flaps in India and internationally. The company offers a range of tyres for rubber tires and tubes for scooters, bikes, two and three wheelers, cars, buses, LCVs, trucks, and tractors, as well as agricultural and industrial radial tyres. It a…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Financial Profile (Yahoo Finance, Jun 2026)
 

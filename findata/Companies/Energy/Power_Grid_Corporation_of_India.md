@@ -67,10 +67,10 @@ Power Grid Corporation of India Limited, an electric power transmission utility,
 - **Industry**: Utilities - Regulated Electric
 - **Employees**: 9,745
 - **Promoter Holding**: 52.9%
-- **Institutional Holding**: 36.3%
-- **Business Summary**: Power Grid Corporation of India Limited, an electric power transmission utility, engages in the power transmission business in India and internationally. It operates in three segments: Transmission Services, Telecom Services, and Consultancy Services. As of 31 March 2025, the company owned and op…
+- **Institutional Holding**: 36.2%
+- **Business Summary**: Power Grid Corporation of India Limited, an electric power transmission utility, engages in the power transmission business in India and internationally. It operates in three segments: Transmission Services, Telecom Services, and Consultancy Services. As of 31 March 2026, the company owned and op…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Financial Profile (Yahoo Finance, Jun 2026)
 - Market cap: ₹2,64,602 cr | Enterprise value: ₹4,06,515 cr

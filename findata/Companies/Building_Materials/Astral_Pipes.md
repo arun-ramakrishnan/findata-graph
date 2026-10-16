@@ -61,11 +61,11 @@ Astral Pipes, part of Astral Limited, is a leading manufacturer of plastic pipes
 
 - **Industry**: Building Products & Equipment
 - **Employees**: 4,899
-- **Promoter Holding**: 85.8%
-- **Institutional Holding**: 28.5%
+- **Promoter Holding**: 54.3%
+- **Institutional Holding**: 28.7%
 - **Business Summary**: Astral Limited engages in the manufacture and marketing of pipes and fittings, water tanks, and adhesives and sealants in India and internationally. The company operates in two segments, Plumbing, and Paints and Adhesives. It offers plumbing pipes and fittings, sewerage and drainage pipes and fit…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 
 <!-- BEGIN auto chatter block (derive_insights.py) -->

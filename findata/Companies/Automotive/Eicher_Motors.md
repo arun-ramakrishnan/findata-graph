@@ -58,6 +58,19 @@ sources:
 
 Eicher Motors Limited is a leading Indian automotive company operating through two main business segments: Royal Enfield (premium motorcycles) and VE Commercial Vehicles (VECV), a joint venture with the Volvo Group. The company has established itself as a leader in the premium motorcycle segment and the commercial vehicles market.
 
+
+<!-- BEGIN auto company profile (enrich_from_yfinance.py) -->
+
+## Company Profile (yfinance)
+
+- **Industry**: Auto Manufacturers
+- **Employees**: 5,302
+- **Promoter Holding**: 51.3%
+- **Institutional Holding**: 26.0%
+- **Business Summary**: Eicher Motors Limited, an automobile company, engages in the manufacture and sale of motorcycles and commercial vehicles in India and internationally. The company designs, develops, manufactures, assembles, and sells two-wheelers, as well as related parts and accessories; motorcycle accessories; …
+
+_Source: yfinance | Refreshed: 2026-10-16_
+<!-- END auto company profile -->
 <!-- BEGIN auto key figures (derive_insights.py) -->
 
 ## Key Figures (auto)

@@ -62,11 +62,12 @@ Genus Power Infrastructures Limited is a leading Indian company specializing in 
 ## Company Profile (yfinance)
 
 - **Industry**: Electrical Equipment & Parts
-- **Promoter Holding**: 61.7%
-- **Institutional Holding**: 5.3%
+- **Employees**: 2,242
+- **Promoter Holding**: 61.6%
+- **Institutional Holding**: 7.3%
 - **Business Summary**: Genus Power Infrastructures Limited, together with its subsidiaries, provides smart metering solutions in India and internationally. The company offers various electricity meters, including residential, commercial, and industrial meters; prepayment and smart meters; distribution transformer meter…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Industry Context: Energy Sector
 

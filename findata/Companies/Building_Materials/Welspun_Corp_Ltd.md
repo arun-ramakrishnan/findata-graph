@@ -92,7 +92,7 @@ Welspun Corp Limited is a leading welded line pipe manufacturing company offerin
 - **Institutional Holding**: 28.6%
 - **Business Summary**: Welspun Corp Limited, together with its subsidiaries, manufactures, trades in, distributes, and sells steel pipes, tubes, bars, coils, and plates in India, the United States, and internationally. It operates through Steel Products and Others segments. The company offers carbon steel line pipes co…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 
 <!-- BEGIN auto key figures (derive_insights.py) -->

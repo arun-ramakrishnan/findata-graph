@@ -61,11 +61,11 @@ Larsen & Toubro Limited engages in engineering, procurement, and construction pr
 
 - **Industry**: Engineering & Construction
 - **Employees**: 55,662
-- **Promoter Holding**: 18.1%
-- **Institutional Holding**: 52.9%
+- **Promoter Holding**: 14.8%
+- **Institutional Holding**: 52.5%
 - **Business Summary**: Larsen & Toubro Limited engages in engineering, procurement, and construction projects (EPC) in India and internationally. The company operates through four segments: Infrastructure Projects, Energy Projects, Hi-Tech Manufacturing, and Others. The Infrastructure Projects segment is involved in th…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Key Personnel
 - Mr. Sekharipuram Narayanan Subrahmanyan - MD & Chairman

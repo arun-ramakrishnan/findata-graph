@@ -39,11 +39,12 @@ PTC India Limited is a prominent player in India's power trading sector, establi
 ## Company Profile (yfinance)
 
 - **Industry**: Utilities - Independent Power Producers
+- **Employees**: 109
 - **Promoter Holding**: 21.7%
-- **Institutional Holding**: 25.8%
-- **Business Summary**: PTC India Limited, together with its subsidiaries, engages in the trading and generating of power in India, Nepal, Bhutan, and Bangladesh. The company operates in two segments, Power and Financing Business. It engages in long term, medium term, and short-term power trading activities; and cross b…
+- **Institutional Holding**: 25.1%
+- **Business Summary**: PTC India Limited, together with its subsidiaries, engages in the trading and generating power in India, Nepal, Bhutan, and Bangladesh. The company operates through two segments, Power and Financing Business. It engages in long term, medium term, and short-term power trading activities; and cross…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 
 <!-- BEGIN auto chatter block (derive_insights.py) -->

@@ -50,6 +50,19 @@ sources:
 
 Vodafone Idea (Vi) is an Indian telecommunications company formed through a partnership between the Aditya Birla Group and Vodafone Group, providing voice and data services across 2G, 3G, 4G, and 5G platforms. The company serves individual consumers and businesses with mobile services, digital solutions, IoT, and entertainment content under the "Vi" brand.
 
+
+<!-- BEGIN auto company profile (enrich_from_yfinance.py) -->
+
+## Company Profile (yfinance)
+
+- **Industry**: Telecom Services
+- **Employees**: 9,500
+- **Promoter Holding**: 74.6%
+- **Institutional Holding**: 10.0%
+- **Business Summary**: Vodafone Idea Limited, together with its subsidiaries, provides telecommunication services to individuals, communities, and businesses in India. The company offers voice services, such as 4G VoLTE and Voice over WIFI calling; broadband data services on 4G and/or 5G technology; and content and dig…
+
+_Source: yfinance | Refreshed: 2026-10-16_
+<!-- END auto company profile -->
 <!-- BEGIN auto key figures (derive_insights.py) -->
 
 ## Key Figures (auto)

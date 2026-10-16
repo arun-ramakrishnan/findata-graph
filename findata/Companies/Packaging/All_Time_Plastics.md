@@ -3,7 +3,7 @@ title: All Time Plastics
 type: company
 ticker: ALLTIME.NS
 sector: Packaging
-industry: null
+industry: Household & Personal Products
 market_cap: small_cap
 normalized_name: All_Time_Plastics
 permalink: /companies/packaging/all_time_plastics
@@ -34,6 +34,19 @@ sources:
 
 All Time Plastics specializes in manufacturing plastic consumerware products for everyday household needs and offers white-label manufacturing services to its customers. The company operates in the chemicals/plastics sector as a small-cap entity.
 
+
+<!-- BEGIN auto company profile (enrich_from_yfinance.py) -->
+
+## Company Profile (yfinance)
+
+- **Industry**: Household & Personal Products
+- **Employees**: 769
+- **Promoter Holding**: 70.1%
+- **Institutional Holding**: 9.2%
+- **Business Summary**: All Time Plastics Limited manufactures and sells plastic molded articles under the alltime brand name in India. The company offers chopping boards, strainers, mixing bowls, colander, measuring jugs, measuring cups and spoons, kitchen tools, spatula and spreader sets, orange squeezers; crisper con…
+
+_Source: yfinance | Refreshed: 2026-10-16_
+<!-- END auto company profile -->
 <!-- BEGIN auto chatter block (derive_insights.py) -->
 
 ## The Chatter — Moves and Motives

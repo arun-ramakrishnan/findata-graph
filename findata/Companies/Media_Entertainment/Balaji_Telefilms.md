@@ -51,11 +51,12 @@ Balaji Telefilms Limited is a leading content production house in Asia and the M
 ## Company Profile (yfinance)
 
 - **Industry**: Entertainment
+- **Employees**: 105
 - **Promoter Holding**: 72.7%
 - **Institutional Holding**: 8.1%
-- **Business Summary**: Balaji Telefilms Limited, together with its subsidiaries, engages in the television content business in India and internationally. The company operates through the Commissioned Programmes, Films, and Digital segments. It is also involved in the production of films, reality shows, and events; even…
+- **Business Summary**: Balaji Telefilms Limited, together with its subsidiaries, engages in the television content business in India and internationally. The company operates through the Commissioned Programmes, Films, and Digital segments. Its Commissioned Programmes segment provides television serials to channels and…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Industry Context: Media & Entertainment
 

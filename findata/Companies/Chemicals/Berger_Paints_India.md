@@ -67,10 +67,10 @@ Berger Paints India Limited is a leading Indian paint and coatings company, esta
 - **Industry**: Specialty Chemicals
 - **Employees**: 5,105
 - **Promoter Holding**: 75.6%
-- **Institutional Holding**: 15.6%
+- **Institutional Holding**: 15.7%
 - **Business Summary**: Berger Paints India Limited manufactures and sells paints in India and internationally. The company offers interior wall coatings, including designer finishes, interior emulsions, and ceiling paints; exterior wall coatings comprising exterior emulsions and textures, and roof and floor coatings; p…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Market Position & Financial Performance
 - **Market Cap:** ₹63,430 crores

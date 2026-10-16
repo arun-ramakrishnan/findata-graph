@@ -43,11 +43,11 @@ Zydus Wellness Limited, founded in 1988 (formerly Carnation Nutra Analogue Foods
 
 - **Industry**: Packaged Foods
 - **Employees**: 1,685
-- **Promoter Holding**: 69.8%
-- **Institutional Holding**: 20.9%
+- **Promoter Holding**: 69.9%
+- **Institutional Holding**: 21.3%
 - **Business Summary**: Zydus Wellness Limited engages in the development, production, marketing, and distribution of health and wellness products in Asia, the Middle East, Africa, the Oceania, Europe, and North America. It provides glucose powder under the Glucon-D brand; sugar substitute products under the Sugar Free …
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Financial Profile (Yahoo Finance, Jun 2026)
 - Market cap: ₹16,703 cr | Enterprise value: ₹19,577 cr

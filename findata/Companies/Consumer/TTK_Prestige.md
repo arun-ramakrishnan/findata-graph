@@ -40,6 +40,19 @@ sources:
 
 TTK Prestige Limited is part of the TTK Group. Over the past six decades it has emerged as India's largest kitchen-appliances company, catering to homemakers across the country. The company is primarily engaged in kitchen and home appliances — pressure cookers, cookware, kitchen electrical appliances, gas stoves and home appliances.
 
+
+<!-- BEGIN auto company profile (enrich_from_yfinance.py) -->
+
+## Company Profile (yfinance)
+
+- **Industry**: Furnishings, Fixtures & Appliances
+- **Employees**: 1,476
+- **Promoter Holding**: 70.9%
+- **Institutional Holding**: 19.8%
+- **Business Summary**: TTK Prestige Limited, together with its subsidiaries, manufactures and sells kitchen and home appliances under the Prestige and Judge brands in India and internationally. The company offers pressure cookers; cookware; cooking appliances, such as gas stoves, induction/infrared cooktops, rice cooke…
+
+_Source: yfinance | Refreshed: 2026-10-16_
+<!-- END auto company profile -->
 <!-- BEGIN auto key figures (derive_insights.py) -->
 
 ## Key Figures (auto)

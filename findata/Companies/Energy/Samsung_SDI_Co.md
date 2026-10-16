@@ -212,11 +212,12 @@ Samsung SDI Co., Ltd. is a leading South Korean technology company specializing 
 ## Company Profile (yfinance)
 
 - **Industry**: Electrical Equipment & Parts
-- **Promoter Holding**: 23.0%
-- **Institutional Holding**: 33.7%
+- **Employees**: 12,498
+- **Promoter Holding**: 22.4%
+- **Institutional Holding**: 32.5%
 - **Business Summary**: Samsung SDI Co., Ltd. manufactures and sells batteries in South Korea, Europe, China, North America, Southeast Asia, and internationally. The company operates through Energy Solutions and Electronic Materials segments. It offers small-sized lithium ion batteries used in laptops, tablets, mobile p…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Key Investment Highlights
 

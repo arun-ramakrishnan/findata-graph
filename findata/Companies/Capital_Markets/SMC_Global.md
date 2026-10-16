@@ -37,10 +37,10 @@ SMC Global is a financial services company engaged in securities broking, invest
 - **Industry**: Capital Markets
 - **Employees**: 2,778
 - **Promoter Holding**: 71.7%
-- **Institutional Holding**: 0.3%
+- **Institutional Holding**: 0.2%
 - **Business Summary**: SMC Global Securities Limited, together with its subsidiaries, engages in the provision of various financial services in India and internationally. It operates through three segments: Broking, Distribution, and Trading; Insurance Broking Services; and Financing Services. The Broking, Distribution…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Industry Context
 

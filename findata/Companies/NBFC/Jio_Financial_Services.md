@@ -43,6 +43,19 @@ sources:
 
 Jio Financial Services is a diversified financial services provider offering digital-first solutions across lending, payments, insurance, and asset management, leveraging the massive Reliance ecosystem to serve retail and merchant segments across India.
 
+
+<!-- BEGIN auto company profile (enrich_from_yfinance.py) -->
+
+## Company Profile (yfinance)
+
+- **Industry**: Asset Management
+- **Employees**: 2,000
+- **Promoter Holding**: 50.2%
+- **Institutional Holding**: 19.5%
+- **Business Summary**: Jio Financial Services Limited, through its subsidiaries, engages in the business of investing and financing, insurance broking, payment bank and payment aggregator, and payment gateway services in India. The company provides loans, savings accounts, recharges, fixed deposits, digital insurance, …
+
+_Source: yfinance | Refreshed: 2026-10-16_
+<!-- END auto company profile -->
 <!-- BEGIN auto key figures (derive_insights.py) -->
 
 ## Key Figures (auto)

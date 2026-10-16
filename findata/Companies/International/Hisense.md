@@ -7,6 +7,7 @@ tags:
 - business_model/b2c
 normalized_name: Hisense
 sector: International
+industry: Furnishings, Fixtures & Appliances
 ticker: 0921.HK
 market_cap: null
 created: '2026-08-13'
@@ -24,6 +25,19 @@ Hisense is a Chinese multinational white goods and electronics manufacturer, amo
 
 In India, Hisense partners with ODM/OEM manufacturers including EPACK Durable for air conditioners and washing machines. Under this partnership, EPACK Durable supplied ~60,000 ACs (₹120 crore revenue) in H1 of calendar 2026, with a five-year cumulative revenue target of ₹8,000 crore across ACs, washing machines, and other appliances.
 
+
+<!-- BEGIN auto company profile (enrich_from_yfinance.py) -->
+
+## Company Profile (yfinance)
+
+- **Industry**: Furnishings, Fixtures & Appliances
+- **Employees**: 37,759
+- **Promoter Holding**: 38.5%
+- **Institutional Holding**: 10.0%
+- **Business Summary**: Hisense Home Appliances Group Co., Ltd., together with its subsidiaries, engages in the research, development, manufacture, marketing, and servicing of home appliances in the People's Republic of China and internationally. It operates through Air Conditioning Unit, Ice Cleaning Equipment, and Oth…
+
+_Source: yfinance | Refreshed: 2026-10-16_
+<!-- END auto company profile -->
 <!-- BEGIN auto key figures (derive_insights.py) -->
 
 ## Key Figures (auto)

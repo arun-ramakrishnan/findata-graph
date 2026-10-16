@@ -35,6 +35,19 @@ sources:
 
 Juniper Hotels is a major luxury hotel developer and owner in India operating large-format assets under the Hyatt brand, focused on high-yield properties in gateway cities and emerging premium destinations.
 
+
+<!-- BEGIN auto company profile (enrich_from_yfinance.py) -->
+
+## Company Profile (yfinance)
+
+- **Industry**: Lodging
+- **Employees**: 2,079
+- **Promoter Holding**: 77.5%
+- **Institutional Holding**: 15.2%
+- **Business Summary**: Juniper Hotels Limited provides hotel services in India. The company develops, manages, and operates hotels and serviced apartments under the Grand Hyatt Mumbai Hotel and Residences, Andaz Delhi, Hyatt Delhi Residences, Hyatt Regency Ahmedabad, Hyatt Regency Lucknow, Hyatt Raipur, and Hyatt Place…
+
+_Source: yfinance | Refreshed: 2026-10-16_
+<!-- END auto company profile -->
 <!-- BEGIN auto key figures (derive_insights.py) -->
 
 ## Key Figures (auto)

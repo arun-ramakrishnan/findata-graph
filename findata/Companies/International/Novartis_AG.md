@@ -39,8 +39,8 @@ Swiss multinational pharmaceutical company headquartered in Basel (SIX: NOVN, NY
 - **Industry**: Drug Manufacturers - General
 - **Employees**: 75,267
 - **Promoter Holding**: 0.0%
-- **Institutional Holding**: 7.7%
+- **Institutional Holding**: 7.3%
 - **Business Summary**: Novartis AG researches, develops, manufactures, distributes, markets, and sells pharmaceutical medicines in Switzerland and internationally. The company offers Entresto, an angiotensin receptorneprilysin inhibitor to treat symptomatic chronic heart failure with reduced ejection fraction (HFrEF); …
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->

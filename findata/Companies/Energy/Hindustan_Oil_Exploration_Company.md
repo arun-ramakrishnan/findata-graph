@@ -3,6 +3,7 @@ title: Hindustan Oil Exploration Company
 type: company
 ticker: HINDOILEXP.NS
 sector: Energy
+industry: Oil & Gas E&P
 market_cap: small_cap
 normalized_name: Hindustan_Oil_Exploration_Company
 permalink: /companies/energy/hindustan_oil_exploration_company
@@ -34,6 +35,19 @@ Upstream oil and gas exploration company.
 
 *Stub node — created as a graph endpoint. Expand as additional primary research accumulates.*
 
+
+<!-- BEGIN auto company profile (enrich_from_yfinance.py) -->
+
+## Company Profile (yfinance)
+
+- **Industry**: Oil & Gas E&P
+- **Employees**: 117
+- **Promoter Holding**: 41.9%
+- **Institutional Holding**: 1.1%
+- **Business Summary**: Hindustan Oil Exploration Company Limited, together with its subsidiaries, engages in the exploration, development, and production of onshore and offshore crude oil and natural gas in India. The company also provides oil field equipment and services. Hindustan Oil Exploration Company Limited was …
+
+_Source: yfinance | Refreshed: 2026-10-16_
+<!-- END auto company profile -->
 <!-- BEGIN auto chatter block (derive_insights.py) -->
 
 ## The Chatter — The Push and Pull

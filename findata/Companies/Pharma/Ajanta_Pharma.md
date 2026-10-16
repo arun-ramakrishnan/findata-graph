@@ -42,11 +42,12 @@ Ajanta Pharma is a leading Indian pharmaceutical company specializing in pharmac
 ## Company Profile (yfinance)
 
 - **Industry**: Drug Manufacturers - Specialty & Generic
-- **Promoter Holding**: 63.6%
-- **Institutional Holding**: 24.6%
+- **Employees**: 10,421
+- **Promoter Holding**: 54.3%
+- **Institutional Holding**: 24.4%
 - **Business Summary**: Ajanta Pharma Limited, together with its subsidiaries, a pharmaceutical formulation company engages in the development, manufacture, and marketing of specialty pharmaceutical finished dosages. The company offers chronic and acute therapies; branded generic products; and a range of dosage forms, i…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Business Segments
 

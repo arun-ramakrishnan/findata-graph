@@ -39,10 +39,10 @@ Somany Ceramics is a leading Indian tiles and sanitaryware company specializing 
 - **Industry**: Building Products & Equipment
 - **Employees**: 2,001
 - **Promoter Holding**: 59.3%
-- **Institutional Holding**: 18.8%
+- **Institutional Holding**: 19.7%
 - **Business Summary**: Somany Ceramics Limited manufactures and trades in decor solutions in India. It offers ceramic wall and floor, polished vitrified, and glazed vitrified tiles;sanitaryware, such as toilets, basins, cisterns, and urinals; bath fittings, including faucets, showers, bath accessories, and health fauce…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Business Segments
 

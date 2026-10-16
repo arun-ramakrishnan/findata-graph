@@ -40,11 +40,12 @@ Pritika Auto Industries Limited (incorporated 1980; formerly Shivkrupa Machineri
 ## Company Profile (yfinance)
 
 - **Industry**: Specialty Industrial Machinery
-- **Promoter Holding**: 64.5%
+- **Employees**: 792
+- **Promoter Holding**: 64.2%
 - **Institutional Holding**: 0.0%
-- **Business Summary**: Pritika Auto Industries Limited manufactures and sells tractor and automobile components in India. The company offers axle housings, wheel housings, hydraulic lift housings, end covers, plate differential carriers, brake housings, Oil Sumps, Engine Covers, cylinder blocks, and crank cases. It als…
+- **Business Summary**: Pritika Auto Industries Limited manufactures and sells tractor and automobile components in India. The company offers axle housing, wheel housing, hydraulic lift housing, end cover, plate differential carrier, brake housing, cylinder blocks, crank cases, and others. It also exports machine castin…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Financial Profile (Yahoo Finance, Jun 2026)
 - Market cap: ₹286 cr | Enterprise value: ₹508 cr

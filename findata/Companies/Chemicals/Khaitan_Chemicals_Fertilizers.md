@@ -40,7 +40,7 @@ Khaitan Chemicals & Fertilizers Limited is an established Indian manufacturer sp
 - **Institutional Holding**: 0.0%
 - **Business Summary**: Khaitan Chemicals and Fertilizers Limited manufactures and sells single super phosphate (SSP), sulphuric acid, and other chemicals in India. The company operates through Fertilizer, and Chemicals & Specialty Chemicals segments. It also provides plain, zincated, and boronated SSP fertilizers in po…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Business Segments
 

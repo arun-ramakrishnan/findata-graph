@@ -3,6 +3,7 @@ title: Bansal Wire Industries
 type: company
 ticker: BANSALWIRE.BO
 sector: Metals
+industry: Steel
 market_cap: small_cap
 normalized_name: Bansal_Wire_Industries
 permalink: /companies/metals/bansal_wire_industries
@@ -34,6 +35,19 @@ Steel-wire manufacturer.
 
 *Stub node — created as a graph endpoint. Expand as additional primary research accumulates.*
 
+
+<!-- BEGIN auto company profile (enrich_from_yfinance.py) -->
+
+## Company Profile (yfinance)
+
+- **Industry**: Steel
+- **Employees**: 3,099
+- **Promoter Holding**: 78.4%
+- **Institutional Holding**: 15.4%
+- **Business Summary**: Bansal Wire Industries Limited manufactures and sells steel wires worldwide. The company offers cold heading, spring, welding, rope, fine, scrubber, and heat resisting wires, as well as wires for kitchen ware and utensils; low carbon steel wires, such as cable armouring, electro galvanized, and b…
+
+_Source: yfinance | Refreshed: 2026-10-16_
+<!-- END auto company profile -->
 <!-- BEGIN auto chatter block (derive_insights.py) -->
 
 ## The Chatter — In the Middle of Things

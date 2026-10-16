@@ -3,6 +3,7 @@ title: Energy Infrastructure Trust
 type: company
 ticker: ENERGYINF.BO
 sector: Energy
+industry: Oil & Gas Midstream
 market_cap: micro_cap
 normalized_name: Energy_Infrastructure_Trust
 file_path: findata/Companies/Energy/Energy_Infrastructure_Trust.md
@@ -39,6 +40,18 @@ Energy Infrastructure Trust (EIT) is an Infrastructure Investment Trust (InvIT) 
 - **Acquired:** March 2019 (from Reliance Group)
 - **First pure gas-transmission company in India** (pipeline built 2008)
 
+
+<!-- BEGIN auto company profile (enrich_from_yfinance.py) -->
+
+## Company Profile (yfinance)
+
+- **Industry**: Oil & Gas Midstream
+- **Promoter Holding**: 0.0%
+- **Institutional Holding**: 0.0%
+- **Business Summary**: Energy Infrastructure Trust, an infrastructure investment trust, engages in the transportation of natural gas through pipeline in India. The company owns and operates a natural gas pipeline with a length of approximately 1,485 kilometers across India, as well as compressor stations and pipeline o…
+
+_Source: yfinance | Refreshed: 2026-10-16_
+<!-- END auto company profile -->
 ## Asset & Cash-Flow Profile
 
 - **Pipeline Usage Agreement (PUA):** 20-year agreement with Reliance Industries till 2039 — strong downside protection and predictable cash flows.

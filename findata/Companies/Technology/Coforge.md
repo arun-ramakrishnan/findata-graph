@@ -79,11 +79,11 @@ The sector is driven by digital transformation, global demand, and AI revolution
 
 - **Industry**: Information Technology Services
 - **Employees**: 26,932
-- **Promoter Holding**: 21.8%
-- **Institutional Holding**: 54.0%
-- **Business Summary**: Coforge Limited provides information technology (IT) and IT-enabled services in India, the Americas, Europe, the Middle East and Africa, India, and the Asia Pacific. The company offers Artificial intelligence services and platforms; and AI (artificial intelligence) and ML (machine learning) servi…
+- **Promoter Holding**: 21.3%
+- **Institutional Holding**: 59.6%
+- **Business Summary**: Coforge Limited provides information technology (IT) and IT-enabled services in India, the Americas, Europe, the Middle East and Africa, Latin America, and the Asia Pacific. The company offers Artificial intelligence services and platforms; and AI (artificial intelligence) and ML (machine learnin…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Competitive Landscape
 

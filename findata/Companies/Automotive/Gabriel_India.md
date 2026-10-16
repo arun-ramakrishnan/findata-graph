@@ -49,11 +49,11 @@ Gabriel India Ltd is a producer and supplier of high quality Ride Control Produc
 
 - **Industry**: Auto Parts
 - **Employees**: 3,294
-- **Promoter Holding**: 64.3%
-- **Institutional Holding**: 15.7%
+- **Promoter Holding**: 67.0%
+- **Institutional Holding**: 15.3%
 - **Business Summary**: Gabriel India Limited manufactures and sells of ride control products to the automotive industry in India, the Netherlands, and internationally. The company offers canister shock absorbers, telescopic front forks, inverted front forks, mono shox, floating piston shock absorbers, semi-active front…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Recent Performance
 

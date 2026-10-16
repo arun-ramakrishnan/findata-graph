@@ -39,11 +39,12 @@ Sanathan Textiles Limited, incorporated in 2005 and headquartered in Mumbai, Ind
 ## Company Profile (yfinance)
 
 - **Industry**: Textile Manufacturing
+- **Employees**: 1,843
 - **Promoter Holding**: 78.6%
-- **Institutional Holding**: 12.4%
+- **Institutional Holding**: 12.8%
 - **Business Summary**: Sanathan Textiles Limited, together with its subsidiaries, manufactures and sells yarn in India and internationally. The company offers polyester filament yarn products, such as partially oriented, draw textured, air-textured, fully drawn, twisted, recycled, and melange; cotton yarn products, inc…
 
-_Source: yfinance | Refreshed: 2026-08-11_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Financial Profile (Yahoo Finance, Jun 2026)
 - Market cap: ₹3,755 cr | Enterprise value: ₹5,122 cr

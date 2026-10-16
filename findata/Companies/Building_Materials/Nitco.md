@@ -35,11 +35,12 @@ NITCO Limited engages in the tiles and marble business in India and internationa
 ## Company Profile (yfinance)
 
 - **Industry**: Building Products & Equipment
-- **Promoter Holding**: 20.8%
+- **Employees**: 518
+- **Promoter Holding**: 23.4%
 - **Institutional Holding**: 47.3%
-- **Business Summary**: NITCO Limited engages in the tiles and marble business in India and internationally. It operates in two segments, Tiles and Related Products; and Real Estate. The company offers vitrified tiles, such as glazed, DCH, heavy and SST; wooden tiles, including wall, floor, ceramic and vitrified; cerami…
+- **Business Summary**: NITCO Limited engages in the tiles and marble business in India and internationally. It operates in two segments, Tiles and Related Products; and Real Estate. The company provides vitrified tiles, such as glazed, DCH, heavy duty and SST; wooden tiles, including wall, floor, ceramic and vitrified;…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Key Personnel
 - Mr. Vivek Prannath Talwar: Chairman & MD

@@ -35,11 +35,12 @@ Hariom Pipe Industries Limited manufactures iron and steel products including mi
 ## Company Profile (yfinance)
 
 - **Industry**: Steel
-- **Promoter Holding**: 59.8%
-- **Institutional Holding**: 9.6%
-- **Business Summary**: Hariom Pipe Industries Limited manufactures and sells iron and steel products in India. It offers mild steel pipes, tubes, and billets; hot and cold rolled square, rectangular, and circular pipes and tubes; hot dipped galvanized pipes; pre galvanized pipes; and cold rolled full hard, pre galvaniz…
+- **Employees**: 792
+- **Promoter Holding**: 58.7%
+- **Institutional Holding**: 9.7%
+- **Business Summary**: Hariom Pipe Industries Limited manufactures and sells iron and steel products in India. It offers mild steel pipes, tubes, and billets; hot and cold rolled square, rectangular, and circular pipes and tubes; hot dipped galvanized pipes; pre galvanized pipes; and cold rolled full hard, galvanized, …
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Financial Profile (Yahoo Finance, Jun 2026)
 

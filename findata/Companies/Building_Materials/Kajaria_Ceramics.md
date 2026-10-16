@@ -55,11 +55,12 @@ Kajaria Ceramics Limited is India's largest ceramic tile manufacturer, producing
 ## Company Profile (yfinance)
 
 - **Industry**: Building Products & Equipment
-- **Promoter Holding**: 48.8%
-- **Institutional Holding**: 32.5%
+- **Employees**: 4,356
+- **Promoter Holding**: 62.7%
+- **Institutional Holding**: 30.4%
 - **Business Summary**: Kajaria Ceramics Limited manufactures, sells, and distributes ceramic and vitrified wall and floor tiles under the Kajaria, GresBond, and Eternity brands in India and internationally. The company operates through Tiles and Others segments. It offers ceramic wall and floor tiles, polished vitrifie…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Strategic Context
 

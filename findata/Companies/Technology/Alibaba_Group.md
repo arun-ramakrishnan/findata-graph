@@ -39,12 +39,12 @@ Alibaba Group is a massive Chinese technology conglomerate operating as a global
 ## Company Profile (yfinance)
 
 - **Industry**: Internet Retail
-- **Employees**: 131,462
+- **Employees**: 132,165
 - **Promoter Holding**: 1.8%
-- **Institutional Holding**: 11.2%
+- **Institutional Holding**: 10.2%
 - **Business Summary**: Alibaba Group Holding Limited, through its subsidiaries, provides technology infrastructure and marketing reach to help merchants, brands, retailers, and other businesses in the People's Republic of China and internationally. It operates through the Alibaba China E-Commerce Group, Alibaba Interna…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Business Segments
 

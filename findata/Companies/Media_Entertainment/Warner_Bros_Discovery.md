@@ -41,5 +41,5 @@ Warner Bros. Discovery — auto-generated stub from newsletter parsing. To be en
 - **Institutional Holding**: 79.2%
 - **Business Summary**: Warner Bros. Discovery, Inc. operates as a media and entertainment company worldwide. It operates through three segments: Streaming, Studios, and Global Linear Networks. The Streaming segment offers streaming services, such as HBO Max and discovery+, and premium pay-TV services, including HBO and…
 
-_Source: yfinance | Refreshed: 2026-09-15_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->

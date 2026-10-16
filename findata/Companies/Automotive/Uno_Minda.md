@@ -65,10 +65,10 @@ Uno Minda Limited (formerly Minda Industries Limited) is a leading global manufa
 - **Industry**: Auto Parts
 - **Employees**: 14,608
 - **Promoter Holding**: 68.5%
-- **Institutional Holding**: 19.9%
+- **Institutional Holding**: 20.2%
 - **Business Summary**: Uno Minda Limited, together with its subsidiaries, manufactures and supplies auto components and systems in India and internationally. It provides alloy wheels, automotive switches, horns, infotainment systems, speakers, socket assemblies, fuel hoses, sensors, actuators, controllers, telematics a…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Corporate Evolution
 - **Former Name**: Minda Industries Limited

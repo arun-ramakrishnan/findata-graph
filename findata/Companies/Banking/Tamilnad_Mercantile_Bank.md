@@ -40,7 +40,7 @@ Tamilnad Mercantile Bank is a private sector banking institution based in Tamil 
 - **Institutional Holding**: 4.1%
 - **Business Summary**: Tamilnad Mercantile Bank Limited provides banking and financial products and services in India. It operates through the Treasury, Corporate and Wholesale Banking, Retail Banking, and Other Banking Operations segments. The company offers savings, fixed, recurring, term deposit, and current account…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Business Description
 - **Banking Services:** Comprehensive banking and financial services

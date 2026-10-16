@@ -34,11 +34,11 @@ Zensar Technologies Limited is a leading Indian IT services and technology solut
 
 - **Industry**: Information Technology Services
 - **Employees**: 10,066
-- **Promoter Holding**: 50.2%
-- **Institutional Holding**: 26.4%
+- **Promoter Holding**: 50.1%
+- **Institutional Holding**: 25.5%
 - **Business Summary**: Zensar Technologies Limited, a digital solutions and technology services company, provides technology consulting and system integration services in India, the Americas, Europe, Africa, and internationally. It operates through Digital and Application Services, and Cloud Infrastructure Services seg…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Business Segments
 

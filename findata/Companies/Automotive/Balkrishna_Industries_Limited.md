@@ -65,6 +65,19 @@ US tariff cost-sharing arrangements demonstrate pricing power and strong custom 
 
 *Consolidation completed: 2025-11-10 19:21:15*
 
+
+<!-- BEGIN auto company profile (enrich_from_yfinance.py) -->
+
+## Company Profile (yfinance)
+
+- **Industry**: Auto Parts
+- **Employees**: 4,170
+- **Promoter Holding**: 58.5%
+- **Institutional Holding**: 31.1%
+- **Business Summary**: Balkrishna Industries Limited manufactures and sells tires under the BKT brand in India, Europe, North America, and internationally. The company provides manufacturing and selling of off-highway tires (OHT) for use in various applications, such as agriculture, construction, earthmoving, mining an…
+
+_Source: yfinance | Refreshed: 2026-10-16_
+<!-- END auto company profile -->
 <!-- BEGIN auto key figures (derive_insights.py) -->
 
 ## Key Figures (auto)

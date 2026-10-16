@@ -42,10 +42,10 @@ Virgin Galactic Holdings, Inc. is an aerospace and space travel company that des
 - **Industry**: Aerospace & Defense
 - **Employees**: 694
 - **Promoter Holding**: 0.4%
-- **Institutional Holding**: 34.1%
+- **Institutional Holding**: 36.4%
 - **Business Summary**: Virgin Galactic Holdings, Inc., an aerospace and space travel company, focuses on the development, manufacture, and operation of spaceships and related technologies. It engages in the design and development, manufacturing, ground and flight testing, spaceflight operation, and post-flight maintena…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 
 <!-- BEGIN auto chatter block (derive_insights.py) -->

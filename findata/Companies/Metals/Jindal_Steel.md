@@ -52,10 +52,10 @@ Jindal Steel & Power Limited is a leading steel producer in India engaged in ste
 - **Industry**: Steel
 - **Employees**: 5,796
 - **Promoter Holding**: 63.9%
-- **Institutional Holding**: 21.7%
+- **Institutional Holding**: 23.2%
 - **Business Summary**: Jindal Steel Limited manufactures steel in India and internationally. It offers TMT rebars under the Jindal Panther brand; structural sections, rails, wire rods, round bars, and cut and bend rebars; and flat products, such as hot rolled coils, cast rounds, cold rolled and coated products, plates …
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 
 <!-- BEGIN auto key figures (derive_insights.py) -->

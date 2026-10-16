@@ -3,6 +3,7 @@ title: Thomas Cook (India)
 type: company
 ticker: THOMASCOOK.NS
 sector: Travel
+industry: Travel Services
 market_cap: small_cap
 normalized_name: Thomas_Cook_India
 permalink: /companies/travel/thomas_cook_india
@@ -38,6 +39,19 @@ Travel-services company (Fairfax-controlled).
 
 *Stub node — created as a graph endpoint. Expand as additional primary research accumulates.*
 
+
+<!-- BEGIN auto company profile (enrich_from_yfinance.py) -->
+
+## Company Profile (yfinance)
+
+- **Industry**: Travel Services
+- **Employees**: 10,000
+- **Promoter Holding**: 65.7%
+- **Institutional Holding**: 11.3%
+- **Business Summary**: Thomas Cook (India) Limited offers integrated travel services in India and internationally. It operates through Financial Services, Travel and Related Services, Leisure Hospitality and Resorts Business, and Digiphoto Imaging Services segments. The Financial Services segment engages in wholesale, …
+
+_Source: yfinance | Refreshed: 2026-10-16_
+<!-- END auto company profile -->
 <!-- BEGIN auto key figures (derive_insights.py) -->
 
 ## Key Figures (auto)

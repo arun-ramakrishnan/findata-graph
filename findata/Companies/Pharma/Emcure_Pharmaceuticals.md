@@ -3,7 +3,7 @@ title: Emcure Pharmaceuticals
 type: company
 ticker: EMCURE.NS
 sector: Pharma
-industry: null
+industry: Drug Manufacturers - Specialty & Generic
 market_cap: small_cap
 normalized_name: Emcure_Pharmaceuticals
 permalink: /companies/pharma/emcure_pharmaceuticals
@@ -42,6 +42,19 @@ sources:
 
 Emcure Pharmaceuticals is a prominent Indian pharmaceutical company specializing in the development, manufacturing, and global marketing of a wide range of pharmaceutical products across various therapeutic areas. The company operates through a B2B model, serving domestic and international markets with high-quality pharmaceutical products.
 
+
+<!-- BEGIN auto company profile (enrich_from_yfinance.py) -->
+
+## Company Profile (yfinance)
+
+- **Industry**: Drug Manufacturers - Specialty & Generic
+- **Employees**: 6,914
+- **Promoter Holding**: 77.8%
+- **Institutional Holding**: 9.6%
+- **Business Summary**: Emcure Pharmaceuticals Limited provide quality and affordable healthcare solutions worldwide. It offers products in various therapeutic areas, such gynaecology, cardiovascular, blood-related, pain and analgesics, oncology/anti-neoplastics, anti-infectives, vitamins, minerals and nutrients, respir…
+
+_Source: yfinance | Refreshed: 2026-10-16_
+<!-- END auto company profile -->
 ## Business Segments
 
 ### Therapeutic Areas

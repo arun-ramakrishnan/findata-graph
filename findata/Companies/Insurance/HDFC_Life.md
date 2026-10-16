@@ -48,12 +48,12 @@ HDFC Life Insurance Company Ltd. is a leading Indian life insurance company that
 ## Company Profile (yfinance)
 
 - **Industry**: Insurance - Life
-- **Employees**: 38,291
-- **Promoter Holding**: 55.6%
-- **Institutional Holding**: 27.4%
+- **Employees**: 38,921
+- **Promoter Holding**: 57.4%
+- **Institutional Holding**: 29.4%
 - **Business Summary**: HDFC Life Insurance Company Limited engages in the provision of individual and group insurance solutions in India. It offers insurance and investment products, such as protection, pension, savings, investment, annuity, and health, as well as term, investment, life insurance, and NRI plans. The co…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Strategic Position
 

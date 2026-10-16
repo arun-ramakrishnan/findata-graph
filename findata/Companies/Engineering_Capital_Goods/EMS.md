@@ -49,11 +49,12 @@ EMS Limited is an Indian engineering and infrastructure company specializing in 
 ## Company Profile (yfinance)
 
 - **Industry**: Engineering & Construction
+- **Employees**: 624
 - **Promoter Holding**: 69.7%
 - **Institutional Holding**: 0.3%
 - **Business Summary**: EMS Limited constructs, designs, and installs water, wastewater, and domestic waste treatment facilities in India. It provides electrical transmission and distribution, road and allied works, operation and maintenance of water and wastewater treatment plants, and water supply scheme projects for …
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 
 <!-- BEGIN auto chatter block (derive_insights.py) -->

@@ -52,11 +52,11 @@ Shriram Finance specializes in financing, offering a range of financial products
 
 - **Industry**: Credit Services
 - **Employees**: 78,902
-- **Promoter Holding**: 22.1%
+- **Promoter Holding**: 22.2%
 - **Institutional Holding**: 59.4%
 - **Business Summary**: Shriram Finance Limited, a non-banking finance company, provides financing services in India. It offers fixed and recurring deposits; commercial vehicle loans for commercial goods vehicles, passenger commercial vehicles, tractors and farm equipment, and construction equipment; two-wheeler, gold, …
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 Key Insights
 

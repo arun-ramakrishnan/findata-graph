@@ -79,10 +79,10 @@ REC Limited (formerly Rural Electrification Corporation) is a leading infrastruc
 - **Industry**: Credit Services
 - **Employees**: 590
 - **Promoter Holding**: 52.6%
-- **Institutional Holding**: 24.2%
+- **Institutional Holding**: 23.2%
 - **Business Summary**: REC Limited, together with its subsidiaries, engages in the provision of financing services for power generation, transmission, distribution, infrastructure, and logistics projects in India. The company primarily offers long, medium, and short-terms loans; debt refinancing, equity financing, fina…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 
 <!-- BEGIN auto key figures (derive_insights.py) -->

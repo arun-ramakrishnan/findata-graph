@@ -53,10 +53,10 @@ Elecon Engineering Company Ltd (founded 1951; HQ Vallabh Vidya Nagar, Gujarat) i
 - **Industry**: Specialty Industrial Machinery
 - **Employees**: 2,452
 - **Promoter Holding**: 63.2%
-- **Institutional Holding**: 10.7%
+- **Institutional Holding**: 11.5%
 - **Business Summary**: Elecon Engineering Company Limited manufactures and sells industrial gears and material handling equipment in India and internationally. The company operates in two segments, Material Handling Equipment and Transmission Equipment. It offers helical and bevel helical, planetary, worm, wind turbine…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Financial Profile (Yahoo Finance, Jun 2026)
 - Market cap: ₹11,718 cr | Enterprise value: ₹11,345 cr

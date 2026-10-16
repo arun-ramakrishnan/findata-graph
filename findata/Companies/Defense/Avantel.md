@@ -36,11 +36,11 @@ Avantel Limited (incorporated 1990, Hyderabad) manufactures wireless communicati
 
 - **Industry**: Communication Equipment
 - **Employees**: 453
-- **Promoter Holding**: 45.2%
-- **Institutional Holding**: 0.5%
+- **Promoter Holding**: 44.2%
+- **Institutional Holding**: 0.4%
 - **Business Summary**: Avantel Limited engages in the manufacturing of wireless communications products in India. The company offers software defined radios; satellite communication equipment; HF communication equipment; radar systems; network management systems and application software; and embedded systems and digita…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Financial Profile (Yahoo Finance, Jun 2026)
 

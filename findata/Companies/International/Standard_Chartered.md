@@ -38,9 +38,9 @@ British multinational bank headquartered in London (LSE: STAN, HKEX: 2888). Focu
 
 - **Industry**: Banks - Diversified
 - **Employees**: 81,673
-- **Promoter Holding**: 1.2%
-- **Institutional Holding**: 73.1%
+- **Promoter Holding**: 0.3%
+- **Institutional Holding**: 73.3%
 - **Business Summary**: Standard Chartered PLC, together with its subsidiaries, provides various banking products and services in Asia, Africa, the Middle East, Europe, and the Americas. The company operates in three segments: Corporate & Investment Banking, Wealth & Retail Banking, and Ventures. It offers retail produc…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->

@@ -38,9 +38,9 @@ Anglo-Swedish multinational pharmaceutical company headquartered in Cambridge, U
 
 - **Industry**: Drug Manufacturers - General
 - **Employees**: 96,100
-- **Promoter Holding**: 0.0%
-- **Institutional Holding**: 64.6%
+- **Promoter Holding**: 0.1%
+- **Institutional Holding**: 65.1%
 - **Business Summary**: AstraZeneca PLC, a biopharmaceutical company, focuses on the discovery, development, manufacture, and commercialization of prescription medicines. The company offers Imjudo, Datroway, Iressa, Tagrisso, Imfinzi, Lynparza, Calquence, Enhertu, Orpathys, Truqap, Zoladex, Faslodex, Crestor, Andexxa, O…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->

@@ -3,6 +3,7 @@ title: Xerox
 type: company
 ticker: XRX
 sector: Technology
+industry: Business Equipment & Supplies
 market_cap: mid_cap
 normalized_name: Xerox
 permalink: /companies/technology/xerox
@@ -33,6 +34,19 @@ American document-management and print technology company.
 
 *Stub node — created as a graph endpoint. Expand as additional primary research accumulates.*
 
+
+<!-- BEGIN auto company profile (enrich_from_yfinance.py) -->
+
+## Company Profile (yfinance)
+
+- **Industry**: Business Equipment & Supplies
+- **Employees**: 23,000
+- **Promoter Holding**: 16.6%
+- **Institutional Holding**: 73.3%
+- **Business Summary**: Xerox Holdings Corporation, together with its subsidiaries, operates as a workplace technology company that integrates hardware, services, and software for enterprises in North America, Latin America, Europe, the Middle East, Africa, India, and internationally. It operates in two segments, Print …
+
+_Source: yfinance | Refreshed: 2026-10-16_
+<!-- END auto company profile -->
 <!-- BEGIN auto chatter block (derive_insights.py) -->
 
 ## The Chatter — Pressure Points

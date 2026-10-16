@@ -44,6 +44,19 @@ sources:
 ## Company Overview
 Solar Industries is a manufacturer of industrial and defense explosives, supplying products such as bulk explosives, detonators, and propellants for sectors including mining, infrastructure, and defense.
 
+
+<!-- BEGIN auto company profile (enrich_from_yfinance.py) -->
+
+## Company Profile (yfinance)
+
+- **Industry**: Specialty Chemicals
+- **Employees**: 2,351
+- **Promoter Holding**: 43.9%
+- **Institutional Holding**: 45.4%
+- **Business Summary**: Solar Industries India Limited, together with its subsidiaries, manufactures and sells industrial explosives, explosive initiating devices, and high energy materials for mining and defense applications in India and internationally. The company offers industrial explosives comprising bulk, package…
+
+_Source: yfinance | Refreshed: 2026-10-16_
+<!-- END auto company profile -->
 <!-- BEGIN auto key figures (derive_insights.py) -->
 
 ## Key Figures (auto)

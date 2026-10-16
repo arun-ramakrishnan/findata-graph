@@ -44,9 +44,9 @@ Kriti Industries (India) Limited manufactures and sells piping products and solu
 - **Employees**: 498
 - **Promoter Holding**: 79.0%
 - **Institutional Holding**: 0.0%
-- **Business Summary**: Kriti Industries (India) Limited manufactures and sells piping products and solutions, and accessories in India and internationally. It offers RPVC pipes and fittings, casing pipes, PE coils, sprinkler systems, submersible pipes, suction and garden pipes, SWR and drainage pipe and fittings, CPVC …
+- **Business Summary**: Kriti Industries (India) Limited manufactures and sells piping products and solutions, and accessories in India. It offers RPVC pipes and fittings, elastomeric, HDPE, column, casing, suction, spray pipe, and solvent cement; in-line drip, on-line drip, and sprinkler irrigation system; CPVC and UPV…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Key Metrics & Financials (INR)
 - **Market Cap:** ₹5.11B

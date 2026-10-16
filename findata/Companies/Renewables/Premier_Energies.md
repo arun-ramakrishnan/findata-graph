@@ -3,6 +3,7 @@ title: Premier Energies
 type: company
 ticker: PREMIERENE.NS
 sector: Renewables
+industry: Solar
 market_cap: large_cap
 normalized_name: Premier_Energies
 permalink: /companies/renewables/premier_energies
@@ -46,6 +47,20 @@ Solar cell and module manufacturer.
 
 *Stub node — created as a graph endpoint. Expand as additional primary research accumulates.*
 
+
+<!-- BEGIN auto company profile (enrich_from_yfinance.py) -->
+
+## Company Profile (yfinance)
+
+- **Industry**: Solar
+- **Employees**: 2,636
+- **Promoter Holding**: 67.4%
+- **Institutional Holding**: 20.0%
+- **Business Summary**: Premier Energies Limited, together with its subsidiaries, manufactures, sells, and trades in solar cells and modules in India and internationally. The company offers P-type mono PERC and
+N-type TOPCon photovoltaic cells, including M10R 10BB mono PERC solar cells, G12R 16BB n-type bifacial solar c…
+
+_Source: yfinance | Refreshed: 2026-10-16_
+<!-- END auto company profile -->
 <!-- BEGIN auto key figures (derive_insights.py) -->
 
 ## Key Figures (auto)

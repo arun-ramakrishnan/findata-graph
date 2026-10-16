@@ -37,11 +37,11 @@ Automotive Axles Limited is a leading manufacturer of automotive components spec
 
 - **Industry**: Auto Parts
 - **Employees**: 901
-- **Promoter Holding**: 71.3%
-- **Institutional Holding**: 15.8%
+- **Promoter Holding**: 71.0%
+- **Institutional Holding**: 15.9%
 - **Business Summary**: Automotive Axles Limited manufactures and sells automotive components in India. It offers drive axles, non-drive axles, defense axles, front steer axles, off-highway axles, drum and disc brakes, and suspension related products. The company primarily serves trucks and buses manufacturers, original…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Business Segments
 

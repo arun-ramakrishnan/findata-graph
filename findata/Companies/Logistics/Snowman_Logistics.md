@@ -36,11 +36,12 @@ Snowman Logistics is a leading cold chain logistics company providing temperatur
 ## Company Profile (yfinance)
 
 - **Industry**: Integrated Freight & Logistics
+- **Employees**: 532
 - **Promoter Holding**: 54.2%
 - **Institutional Holding**: 0.1%
-- **Business Summary**: Snowman Logistics Limited provides temperature-controlled warehousing and distribution services in India. It operates through Warehousing Services, Transportation Services, and Trading and Distribution segments. The company offers warehousing solutions and services, including ambient, chilled, fr…
+- **Business Summary**: Snowman Logistics Limited provides temperature-controlled warehousing and distribution services in India. The company operates through three segments: Warehousing Services, Transportation Services, and Trading and Distribution. It offers warehousing solutions and services, including ambient, chil…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Key Insights
 - Specialized cold chain logistics player with refrigerated warehousing, cold chain transportation, and temperature management services.

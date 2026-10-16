@@ -93,10 +93,10 @@ Clarifies position on signing PPAs; dismisses concerns of significant delays.
 - **Industry**: Utilities - Renewable
 - **Employees**: 976
 - **Promoter Holding**: 82.3%
-- **Institutional Holding**: 16.6%
+- **Institutional Holding**: 11.0%
 - **Business Summary**: Adani Green Energy Limited generates and supplies renewable energy to central and state government entities and government backed corporations in India. The company develops, builds, owns, operates, and maintains power plants through renewable sources, such as solar, wind, and hybrid. It operates…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 
 <!-- BEGIN auto chatter block (derive_insights.py) -->

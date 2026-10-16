@@ -44,10 +44,10 @@ Figma, Inc. is a San Francisco-based design and prototyping software company fou
 - **Industry**: Software - Application
 - **Employees**: 1,886
 - **Promoter Holding**: 1.6%
-- **Institutional Holding**: 85.5%
+- **Institutional Holding**: 89.0%
 - **Business Summary**: Figma, Inc. develops and sells a collaborative, browser-based platform for designing, prototyping, building digital experiences, and subscriptions for access to its platform. The company offers Figma Design, a collaborative design tool for teams that explore ideas and gather feedback, build reali…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Business Model & Products
 ### Core Platform

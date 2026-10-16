@@ -53,11 +53,11 @@ Data Patterns (India) Limited is a defense electronics company specializing in r
 
 - **Industry**: Aerospace & Defense
 - **Employees**: 1,371
-- **Promoter Holding**: 53.2%
-- **Institutional Holding**: 18.2%
+- **Promoter Holding**: 52.2%
+- **Institutional Holding**: 19.7%
 - **Business Summary**: Data Patterns (India) Limited provides defense and aerospace electronics solutions in India. It offers COTS boards, ATE and test systems, RF and microwave products, electronic warfare products, cockpit and rugged displays, radar and radar subsystems, identify friend and Foe products, avionic syst…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Business Segments
 - Radar Systems (Precision Approach Radar)

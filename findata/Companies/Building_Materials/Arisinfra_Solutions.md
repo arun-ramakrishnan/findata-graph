@@ -3,6 +3,7 @@ title: Arisinfra Solutions
 type: company
 ticker: ARIS.BO
 sector: Building_Materials
+industry: Engineering & Construction
 market_cap: small_cap
 normalized_name: Arisinfra_Solutions
 permalink: /companies/building_materials/arisinfra_solutions
@@ -34,6 +35,19 @@ Construction-materials procurement platform.
 
 *Stub node — created as a graph endpoint. Expand as additional primary research accumulates.*
 
+
+<!-- BEGIN auto company profile (enrich_from_yfinance.py) -->
+
+## Company Profile (yfinance)
+
+- **Industry**: Engineering & Construction
+- **Employees**: 284
+- **Promoter Holding**: 69.9%
+- **Institutional Holding**: 0.0%
+- **Business Summary**: Arisinfra Solutions Limited, together with its subsidiaries, engages in the trading, procuring, supplying, and distributing of raw materials for the creation of infrastructure, buildings, and construction in India. Its product portfolio includes aggregates, ready-mix concrete, walling, constructi…
+
+_Source: yfinance | Refreshed: 2026-10-16_
+<!-- END auto company profile -->
 <!-- BEGIN auto chatter block (derive_insights.py) -->
 
 ## The Chatter — In the Middle of Things

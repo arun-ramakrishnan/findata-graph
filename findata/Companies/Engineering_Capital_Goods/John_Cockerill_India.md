@@ -57,8 +57,9 @@ John Cockerill India designs, engineers, manufactures, and installs components f
 - **Institutional Holding**: 0.0%
 - **Business Summary**: John Cockerill India Limited engages in design, engineering, manufacturing, and installation of components of cold rolling mill complexes, processing lines, and chemical and thermal treatment in India, the United States, Bangladesh, Mexico, Belgium, Spain, and internationally. It also provides co…
 
-_Source: yfinance | Refreshed: 2026-08-10_
-<!-- END auto company profile --><!-- BEGIN auto chatter block (derive_insights.py) -->
+_Source: yfinance | Refreshed: 2026-10-16_
+<!-- END auto company profile -->
+<!-- BEGIN auto chatter block (derive_insights.py) -->
 
 ## The Chatter — Threads in the data
 

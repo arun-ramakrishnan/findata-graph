@@ -44,10 +44,10 @@ American multinational consumer goods corporation headquartered in Cincinnati, O
 - **Industry**: Household & Personal Products
 - **Employees**: 104,000
 - **Promoter Holding**: 0.1%
-- **Institutional Holding**: 72.1%
+- **Institutional Holding**: 71.8%
 - **Business Summary**: The Procter & Gamble Company provides branded consumer packaged goods worldwide. It operates through five segments: Beauty; Grooming; Health Care; Fabric & Home Care; and Baby, Feminine & Family Care. The company offers conditioners, shampoos, styling aids, and treatments under the Head & Shoulde…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 
 <!-- BEGIN auto key figures (derive_insights.py) -->

@@ -41,10 +41,10 @@ General Motors is an automotive company that designs, manufactures, and markets 
 - **Industry**: Auto Manufacturers
 - **Employees**: 156,000
 - **Promoter Holding**: 0.2%
-- **Institutional Holding**: 91.1%
+- **Institutional Holding**: 90.2%
 - **Business Summary**: General Motors Company designs, builds, and sells trucks, crossovers, cars, and automobile parts worldwide. It operates through GM North America, GM International, and GM Financial segments. The company markets its vehicles primarily under the Buick, Cadillac, Chevrolet, GMC, Baojun, and Wuling b…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Key Business Areas
 - Automotive design, manufacturing, and marketing

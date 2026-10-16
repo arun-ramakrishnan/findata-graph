@@ -2,8 +2,12 @@
 type: newsletter
 title: 'The Chatter: IRDAI Chairman, Bajaj Auto, SBI & More'
 tags:
-- series/the_chatter
+- company/bajaj_auto
+- company/century_plyboards_india
+- company/emami_agrotech
+- company/state_bank_of_india
 - publisher/zerodha
+- series/the_chatter
 generated:
   by: pdf_conv_md.py/pymupdf4llm-1.28.2
   at: '2026-10-10T07:24:22Z'
@@ -13,6 +17,7 @@ sources:
   title: 'The Chatter: IRDAI Chairman, Bajaj Auto, SBI & More'
   author: process:pdf_conv_md
   last_modified: '2026-10-06'
+---
 ---
 
 10/6/26, 1:42 PM The Chatter: IRDAI Chairman, Bajaj Auto, SBI & More

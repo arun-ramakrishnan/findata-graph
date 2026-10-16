@@ -43,11 +43,12 @@ Websol Energy System Limited, an Indian company established in 1990 and located 
 ## Company Profile (yfinance)
 
 - **Industry**: Solar
-- **Promoter Holding**: 32.6%
-- **Institutional Holding**: 3.0%
-- **Business Summary**: Websol Energy System Limited manufactures and sells solar photovoltaic (PV) cells and modules in India. The company was formerly known as Websol Energy Systems Ltd. and changed its name to Websol Energy System Limited in October 2011. The company was incorporated in 1990 and is based in Falta, In…
+- **Employees**: 655
+- **Promoter Holding**: 7.5%
+- **Institutional Holding**: 3.1%
+- **Business Summary**: Websol Energy System Limited manufactures and sells solar photovoltaic (PV) cells and modules in India and internationally. It serves solar module manufacturers. The company was formerly known as Websol Energy Systems Ltd. and changed its name to Websol Energy System Limited in October 2011. The …
 
-_Source: yfinance | Refreshed: 2026-08-11_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Manufacturing Milestones
 Three decades of capacity expansion with major upgrades in:

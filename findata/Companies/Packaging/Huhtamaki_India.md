@@ -41,7 +41,7 @@ Huhtamaki India Limited (formerly Huhtamaki PPL) is a flexible packaging manufac
 - **Institutional Holding**: 0.7%
 - **Business Summary**: Huhtamaki India Limited engages in the manufacture and sale of packaging materials in India. The company offers packaging solutions for beverages; dry and wet culinary packaging solutions; home and personal care packaging, such as beauty, cleaning and laundry, and family care; and pet food packag…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Financial Profile (Yahoo Finance, Jun 2026)
 

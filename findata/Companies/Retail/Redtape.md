@@ -45,11 +45,12 @@ Redtape (NSE: REDTAPE) is an Indian footwear and apparel brand, originally the i
 - **Industry**: Footwear & Accessories
 - **Employees**: 660
 - **Promoter Holding**: 72.2%
-- **Institutional Holding**: 13.3%
-- **Business Summary**: REDTAPE Limited manufactures and sells footwear and clothing for men, women, and kids in India and internationally. It offers footwear, such as boots, casual and formal shoes, sandals/slippers, sliders/flip flops, and sports shoes; topwear, including jackets, shirts, sweaters, sweat shirts/hoodie…
+- **Institutional Holding**: 14.1%
+- **Business Summary**: REDTAPE Limited engages in the retail sale of footwear, garments, accessories and allied products in India and internationally. It provides footwear, such as boots, casual and formal shoes, sandals, sliders/flip flops, and sports shoes; topwear, including jackets, shirts, sweaters, sweat shirts/h…
 
-_Source: yfinance | Refreshed: 2026-08-10_
-<!-- END auto company profile --><!-- BEGIN auto chatter block (derive_insights.py) -->
+_Source: yfinance | Refreshed: 2026-10-16_
+<!-- END auto company profile -->
+<!-- BEGIN auto chatter block (derive_insights.py) -->
 
 ## The Chatter — ONGC Divis LG
 

@@ -3,6 +3,7 @@ title: Birla Corporation
 type: company
 ticker: BIRLACORPN.NS
 sector: Building_Materials
+industry: Building Materials
 market_cap: mid_cap
 normalized_name: Birla_Corporation
 permalink: /companies/building_materials/birla_corporation
@@ -34,6 +35,19 @@ MP-Birla-group cement company.
 
 *Stub node — created as a graph endpoint. Expand as additional primary research accumulates.*
 
+
+<!-- BEGIN auto company profile (enrich_from_yfinance.py) -->
+
+## Company Profile (yfinance)
+
+- **Industry**: Building Materials
+- **Employees**: 6,900
+- **Promoter Holding**: 64.3%
+- **Institutional Holding**: 20.6%
+- **Business Summary**: Birla Corporation Limited manufactures and sells cement and clinker in India and internationally. It operates through three segments: Cement, Jute, and Others. The company offers ordinary Portland, Portland Pozzolana, and Portland slag cement under the MP Birla Cement Perfect Plus, MP Birla Cemen…
+
+_Source: yfinance | Refreshed: 2026-10-16_
+<!-- END auto company profile -->
 <!-- BEGIN auto chatter block (derive_insights.py) -->
 
 ## The Chatter — Discovering Hidden Signals

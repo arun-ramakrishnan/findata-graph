@@ -42,11 +42,11 @@ Novavax, Inc., a biotechnology company, engages in the discovering, developing, 
 
 - **Industry**: Biotechnology
 - **Employees**: 749
-- **Promoter Holding**: 5.1%
-- **Institutional Holding**: 71.7%
+- **Promoter Holding**: 5.0%
+- **Institutional Holding**: 67.5%
 - **Business Summary**: Novavax, Inc., a biotechnology company, engages in the discovery, development, and commercialization of vaccines to prevent serious infectious diseases in the United States, Europe, and internationally. The company commercializes Nuvaxovid, a COVID-19 vaccine; and R21 Matrix-M adjuvant malaria va…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Key Metrics & Financials
 - **Market Cap:** $1.15B

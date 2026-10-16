@@ -153,11 +153,12 @@ CESC operates in the Utilities sector, which encompasses essential services incl
 ## Company Profile (yfinance)
 
 - **Industry**: Utilities - Regulated Electric
+- **Employees**: 5,289
 - **Promoter Holding**: 6.3%
-- **Institutional Holding**: 76.5%
+- **Institutional Holding**: 77.2%
 - **Business Summary**: CESC Limited, an integrated electrical utility company, engages in the generation and distribution of electricity in India. It owns and operates two thermal power plants, including Budge Budge generating station with a generating capacity of 750 megawatts and Southern generating stations with a g…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Risk Factors
 

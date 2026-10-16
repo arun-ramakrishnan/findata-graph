@@ -38,7 +38,7 @@ India Nippon Electricals Limited (INEL), incorporated in 1984 and headquartered 
 - **Institutional Holding**: 0.2%
 - **Business Summary**: India Nippon Electricals Limited manufactures and sells electronic ignition systems for the automotive industry in India and internationally. The company offers AC Generator/ Flywheel Magneto, Regulator and Rectifier, Integral Unit, and Ignition Coil; Controllers, such as Integrated Starter Gener…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Financial Profile (Yahoo Finance, Jun 2026)
 - Market cap: ₹21,626 cr | Enterprise value: N/A (EV not reported)

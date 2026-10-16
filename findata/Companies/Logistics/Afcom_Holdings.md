@@ -3,7 +3,7 @@ title: Afcom Holdings
 type: company
 ticker: AFCOM.BO
 sector: Logistics
-industry: null
+industry: Airlines
 market_cap: small_cap
 normalized_name: Afcom_Holdings
 file_path: findata/Companies/Logistics/Afcom_Holdings.md
@@ -35,6 +35,19 @@ sources:
 
 Afcom Holdings specializes in operating cargo flights to ASEAN countries with a focus on Singapore, offering airport-to-airport cargo transportation and supply chain solutions to a wide range of customers.
 
+
+<!-- BEGIN auto company profile (enrich_from_yfinance.py) -->
+
+## Company Profile (yfinance)
+
+- **Industry**: Airlines
+- **Employees**: 115
+- **Promoter Holding**: 46.8%
+- **Institutional Holding**: 5.3%
+- **Business Summary**: Afcom Holdings Limited provides air freight transportation services in ASEAN Countries. The company provides cargo solutions and products, including general cargo, flying fresh, flying pharma, flying priority, fly courier, project cargo, dangerous goods, and high-value cargo. It also owns, organi…
+
+_Source: yfinance | Refreshed: 2026-10-16_
+<!-- END auto company profile -->
 <!-- BEGIN auto key figures (derive_insights.py) -->
 
 ## Key Figures (auto)

@@ -3,7 +3,7 @@ title: Bharat Forge
 type: company
 ticker: BHARATFORG.NS
 sector: Automotive
-industry: Auto Parts
+industry: Metal Fabrication
 market_cap: mid_cap
 normalized_name: Bharat_Forge
 permalink: /companies/automotive/bharat_forge
@@ -60,13 +60,13 @@ Bharat Forge Limited is a global leader in metal forming, catering to sectors li
 
 ## Company Profile (yfinance)
 
-- **Industry**: Auto Parts
+- **Industry**: Metal Fabrication
 - **Employees**: 3,954
-- **Promoter Holding**: 47.7%
-- **Institutional Holding**: 37.3%
+- **Promoter Holding**: 47.0%
+- **Institutional Holding**: 37.5%
 - **Business Summary**: Bharat Forge Limited engages in the manufacture and sale of forged and machined components in India and internationally. It operates through three segments: Forgings, Defence, and Others. The company offers automotive components comprising crankshafts, connecting rods, emission/after treatment, a…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Strategic Initiatives
 

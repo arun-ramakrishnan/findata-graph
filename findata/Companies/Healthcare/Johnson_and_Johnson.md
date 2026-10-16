@@ -3,6 +3,7 @@ title: Johnson & Johnson
 type: company
 ticker: JNJ
 sector: Healthcare
+industry: Drug Manufacturers - General
 market_cap: large_cap
 normalized_name: Johnson_and_Johnson
 permalink: /companies/healthcare/johnson_and_johnson
@@ -33,6 +34,19 @@ American healthcare and pharmaceutical company.
 
 *Stub node — created as a graph endpoint. Expand as additional primary research accumulates.*
 
+
+<!-- BEGIN auto company profile (enrich_from_yfinance.py) -->
+
+## Company Profile (yfinance)
+
+- **Industry**: Drug Manufacturers - General
+- **Employees**: 138,200
+- **Promoter Holding**: 0.1%
+- **Institutional Holding**: 76.7%
+- **Business Summary**: Johnson & Johnson, together with its subsidiaries, engages in the research and development, manufacture, and sale of a range of products in the healthcare field worldwide. It operates in two segments, Innovative Medicine and MedTech. The Innovative Medicine segment offers products for various the…
+
+_Source: yfinance | Refreshed: 2026-10-16_
+<!-- END auto company profile -->
 <!-- BEGIN auto chatter block (derive_insights.py) -->
 
 ## The Chatter — The Chatter: Tariffs \& Tailwinds.

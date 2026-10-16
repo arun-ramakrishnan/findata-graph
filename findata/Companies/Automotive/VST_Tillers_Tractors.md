@@ -39,11 +39,12 @@ VST Tillers Tractors Limited was established in 1967 by the VST Group of compani
 ## Company Profile (yfinance)
 
 - **Industry**: Farm & Heavy Construction Machinery
-- **Promoter Holding**: 75.8%
-- **Institutional Holding**: 19.4%
-- **Business Summary**: V.S.T. Tillers Tractors Limited manufactures and trades agricultural machinery in India and internationally. The company offers power tillers, power weeders, power reapers, brush cutters, and tractors; spare parts, lubricants, diesel engines, and electric pumps; crankshafts, camshafts, and connec…
+- **Employees**: 825
+- **Promoter Holding**: 58.8%
+- **Institutional Holding**: 19.6%
+- **Business Summary**: V.S.T. Tillers Tractors Limited manufactures and trades agricultural machinery in India and internationally. The company offers power tillers, power weeders, power reapers, brush cutters, and tractors; spare parts, lubricants and consumables, diesel engines, and electric water pumps; crankshafts,…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 The Chatter — Q4FY26 (Havells, Ambuja, Cipla & More)
 

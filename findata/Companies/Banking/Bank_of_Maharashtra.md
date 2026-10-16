@@ -48,10 +48,10 @@ Bank of Maharashtra provides various banking products and services in India. The
 - **Industry**: Banks - Regional
 - **Employees**: 15,596
 - **Promoter Holding**: 73.6%
-- **Institutional Holding**: 16.7%
+- **Institutional Holding**: 17.3%
 - **Business Summary**: Bank of Maharashtra provides various banking products and services in India. It operates through Treasury, Corporate/Wholesale Banking, Retail Banking, and Other Banking Operations segments. The company accepts savings, current, term, and recurring deposits, as well as provides capital gain accou…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Key Personnel
 - Mr. Nidhu Saxena: CEO, MD & Director

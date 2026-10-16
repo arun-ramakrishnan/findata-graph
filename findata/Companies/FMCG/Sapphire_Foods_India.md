@@ -80,10 +80,10 @@ Sapphire Foods India Limited is India's largest YUM Brands franchisee and a lead
 - **Industry**: Restaurants
 - **Employees**: 13,817
 - **Promoter Holding**: 26.1%
-- **Institutional Holding**: 73.3%
+- **Institutional Holding**: 67.8%
 - **Business Summary**: Sapphire Foods India Limited owns and operates restaurants. The company engages in the franchisee business of KFC, Pizza Hut, and Taco Bell restaurants in India, Sri Lanka, and Maldives. Sapphire Foods India Limited was incorporated in 2009 and is based in Mumbai, India.
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Industry Position & Market Insights
 

@@ -41,10 +41,10 @@ V-Mart Retail Limited, incorporated in 2002 and headquartered in Gurugram, opera
 - **Industry**: Department Stores
 - **Employees**: 11,691
 - **Promoter Holding**: 51.9%
-- **Institutional Holding**: 36.1%
+- **Institutional Holding**: 35.4%
 - **Business Summary**: V-Mart Retail Limited operates a chain of retail departmental stores in India. The company offers casual, formal, ethnic, sports, inner, and night wear for men, women, and kids. It also provides accessories and non-apparel products, such as beauty and fashion accessories, footwear, home needs, ba…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Financial Profile (Yahoo Finance, Jun 2026)
 - Market cap: ₹60.6B | Enterprise value: ₹68.1B

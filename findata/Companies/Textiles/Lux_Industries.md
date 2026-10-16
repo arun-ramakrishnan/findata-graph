@@ -34,11 +34,12 @@ Lux Industries Limited, founded in 1957 (formerly Biswanath Hosiery Mills, renam
 ## Company Profile (yfinance)
 
 - **Industry**: Apparel Manufacturing
+- **Employees**: 4,856
 - **Promoter Holding**: 75.9%
 - **Institutional Holding**: 5.4%
-- **Business Summary**: Lux Industries Limited engages in the manufacture and sale of knitwear in India. The company offers vests, briefs, boxers, drawers and trunks, T-shirts, hoodies and sweatshirts, polo and tees, shorts, tracks, capri, tops and bottoms, summer and winter wear, leggings, track pants, racer backs, cam…
+- **Business Summary**: Lux Industries Limited engages in the manufacture and sale of knitwear for men, women, and kids in India and internationally. The company offers vests, briefs, boxers, drawers and trunks, T-shirts, Bloomers, hoodies and sweatshirts, polo and tees, shorts, tracks, capri, tops and bottoms, summer a…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Financial Profile (Yahoo Finance, Jun 2026)
 - Market cap: ₹36.7B | Enterprise value: ₹40.7B

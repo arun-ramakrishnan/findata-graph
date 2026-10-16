@@ -67,11 +67,12 @@ Sarda Energy & Minerals Limited is a diversified Indian company specializing in 
 ## Company Profile (yfinance)
 
 - **Industry**: Steel
+- **Employees**: 1,942
 - **Promoter Holding**: 74.8%
-- **Institutional Holding**: 3.9%
+- **Institutional Holding**: 2.9%
 - **Business Summary**: Sarda Energy & Minerals Limited produces and sells steel products in India and internationally. The company product portfolio includes pellets, sponge iron, steel billets and wire rods, ferro alloys, eco-bricks, and HB wires. It is also involved in coal and iron ore mining, as well as operation o…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Industry Context: Energy & Materials Sectors
 

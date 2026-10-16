@@ -39,11 +39,11 @@ Manorama Industries Limited is an industrial company engaged in the manufacturin
 ## Company Profile (yfinance)
 
 - **Industry**: Packaged Foods
-- **Promoter Holding**: 68.6%
-- **Institutional Holding**: 3.4%
+- **Promoter Holding**: 67.4%
+- **Institutional Holding**: 3.6%
 - **Business Summary**: Manorama Industries Limited manufactures, processes, and supplies specialty fats and butters from tree-borne, and plant-based seeds worldwide. The company offers shea butter and fat, sal butter, sal fat, shea oil, sal oil, sal stearine, shea stearine, mango butter and fat, mango oil, mango steari…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Strategic Context
 

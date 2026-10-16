@@ -44,11 +44,11 @@ Arvind Fashions Limited, incorporated in 2016 and headquartered in Bengaluru, is
 
 - **Industry**: Apparel Retail
 - **Employees**: 1,092
-- **Promoter Holding**: 37.9%
-- **Institutional Holding**: 31.3%
+- **Promoter Holding**: 37.3%
+- **Institutional Holding**: 29.5%
 - **Business Summary**: Arvind Fashions Limited engages in the wholesale and retail trading of ready-made garments and accessories in India and internationally. The company offers a portfolio of owned and licensed international brands, such as US Polo, Arrow, Tommy Hilfiger, Flying Machine, Calvin Klein, and others. It …
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Financial Profile (Yahoo Finance, Jun 2026)
 - Market cap: ₹62.7B | Enterprise value: ₹77.7B

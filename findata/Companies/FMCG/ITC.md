@@ -37,6 +37,19 @@ sources:
 ## Company Overview
 ITC is a diversified conglomerate operating in FMCG, Paperboards, Agri Business, and IT sectors. It is a leading FMCG marketer in India, dominant in the Paperboard and Packaging industry, and known for empowering farmers through its Agri Business.
 
+
+<!-- BEGIN auto company profile (enrich_from_yfinance.py) -->
+
+## Company Profile (yfinance)
+
+- **Industry**: Tobacco
+- **Employees**: 22,493
+- **Promoter Holding**: 29.5%
+- **Institutional Holding**: 52.2%
+- **Business Summary**: ITC Limited engages in the fast-moving consumer goods, paperboards, paper and packaging, and agri businesses in India and internationally. The company offers cigarettes and cigars; foods, including staples, spices, biscuits, confectionery and gums, snacks, noodles and pasta, beverages, dairy prod…
+
+_Source: yfinance | Refreshed: 2026-10-16_
+<!-- END auto company profile -->
 <!-- BEGIN auto key figures (derive_insights.py) -->
 
 ## Key Figures (auto)

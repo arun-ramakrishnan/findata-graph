@@ -3,6 +3,7 @@ title: Shopify
 type: company
 ticker: SHOP
 sector: Technology
+industry: Software - Application
 market_cap: large_cap
 normalized_name: Shopify
 permalink: /companies/technology/shopify
@@ -33,6 +34,19 @@ Canadian e-commerce platform company.
 
 *Stub node — created as a graph endpoint. Expand as additional primary research accumulates.*
 
+
+<!-- BEGIN auto company profile (enrich_from_yfinance.py) -->
+
+## Company Profile (yfinance)
+
+- **Industry**: Software - Application
+- **Employees**: 7,600
+- **Promoter Holding**: 0.2%
+- **Institutional Holding**: 73.3%
+- **Business Summary**: Shopify Inc., a commerce technology company, provides tools to start, scale, market, and run a business of various sizes in Canada, the United States, Europe, the Middle East, Africa, the Asia Pacific, and Latin America. The Company offers Shopify platform that enables merchants to manage product…
+
+_Source: yfinance | Refreshed: 2026-10-16_
+<!-- END auto company profile -->
 <!-- BEGIN auto chatter block (derive_insights.py) -->
 
 ## The Chatter — Embracing the Unknown

@@ -60,11 +60,11 @@ Pearl Global Industries (NSE: PGIL) is a garment/apparel manufacturer with manuf
 
 - **Industry**: Apparel Manufacturing
 - **Employees**: 10,256
-- **Promoter Holding**: 61.5%
-- **Institutional Holding**: 23.7%
+- **Promoter Holding**: 60.3%
+- **Institutional Holding**: 24.8%
 - **Business Summary**: Pearl Global Industries Limited, together with its subsidiaries, manufactures and sells readymade garments in India and internationally. The company offers knits, wovens, denim, outerwear, sleepwear and lounge, childrenswear, woven and knit garments, womenswear, menswear, activewear, and athleisu…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## The Chatter — HDFC, Groww, Yes Bank, Havells & More
 

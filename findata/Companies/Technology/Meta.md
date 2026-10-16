@@ -3,6 +3,7 @@ title: Meta
 type: company
 ticker: META
 sector: Technology
+industry: Internet Content & Information
 market_cap: large_cap
 normalized_name: Meta
 permalink: /companies/technology/meta
@@ -37,6 +38,19 @@ American technology company; Facebook, Instagram and WhatsApp.
 
 *Stub node — created as a graph endpoint. Expand as additional primary research accumulates.*
 
+
+<!-- BEGIN auto company profile (enrich_from_yfinance.py) -->
+
+## Company Profile (yfinance)
+
+- **Industry**: Internet Content & Information
+- **Employees**: 75,472
+- **Promoter Holding**: 0.1%
+- **Institutional Holding**: 79.0%
+- **Business Summary**: Meta Platforms, Inc. engages in the development of products that enable people to connect and share with friends and family through mobile devices, personal computers, virtual reality (VR) headsets, and AI glasses in the United States, Canada, Europe, Asia-Pacific, and internationally. It operate…
+
+_Source: yfinance | Refreshed: 2026-10-16_
+<!-- END auto company profile -->
 <!-- BEGIN auto chatter block (derive_insights.py) -->
 
 ## The Chatter — The Known Unknowns

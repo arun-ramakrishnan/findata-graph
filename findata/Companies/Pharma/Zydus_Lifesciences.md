@@ -169,10 +169,10 @@ Zydus Lifesciences Limited is a leading Indian pharmaceutical and healthcare com
 - **Industry**: Drug Manufacturers - Specialty & Generic
 - **Employees**: 29,980
 - **Promoter Holding**: 75.2%
-- **Institutional Holding**: 15.4%
+- **Institutional Holding**: 16.2%
 - **Business Summary**: Zydus Lifesciences Limited engages in the research, development, production, marketing, distribution, and sale of pharmaceutical products in India, the United States, Europe, and internationally. It operates through three segments: Pharmaceuticals, Consumer Products, and Medical Technologies. The…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Key Investment Highlights
 

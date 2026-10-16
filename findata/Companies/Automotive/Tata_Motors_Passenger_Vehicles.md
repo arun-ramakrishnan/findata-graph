@@ -3,7 +3,7 @@ title: Tata Motors Passenger Vehicles Limited
 type: company
 ticker: TMPV.NS
 sector: Automotive
-industry: null
+industry: Auto Manufacturers
 market_cap: large_cap
 normalized_name: Tata_Motors_Passenger_Vehicles
 permalink: /companies/automotive/tata_motors_passenger_vehicles
@@ -63,6 +63,19 @@ sources:
 
 Tata Motors Passenger Vehicles (TMPV) is the entity that manages Tata's domestic passenger vehicle and electric vehicle (EV) businesses. Created after a demerger from its commercial vehicles business, this entity also includes the operations of Jaguar Land Rover (JLR). The split created two separate, publicly listed companies to allow each to focus on its own strategy and market.
 
+
+<!-- BEGIN auto company profile (enrich_from_yfinance.py) -->
+
+## Company Profile (yfinance)
+
+- **Industry**: Auto Manufacturers
+- **Employees**: 60,332
+- **Promoter Holding**: 44.1%
+- **Institutional Holding**: 25.5%
+- **Business Summary**: Tata Motors Passenger Vehicles Limited designs, develops, manufactures, and sells various automotive vehicles. The company offers passenger and electric vehicles, as well as related spare parts and accessories. It also manufactures engines for industrial applications. In addition, the company pro…
+
+_Source: yfinance | Refreshed: 2026-10-16_
+<!-- END auto company profile -->
 ## Business Segments
 
 ### Domestic Passenger Vehicles

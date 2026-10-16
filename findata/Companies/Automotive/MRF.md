@@ -35,11 +35,11 @@ MRF Limited is the largest tyre manufacturer in India, producing a comprehensive
 
 - **Industry**: Auto Parts
 - **Employees**: 16,283
-- **Promoter Holding**: 49.0%
-- **Institutional Holding**: 17.7%
+- **Promoter Holding**: 47.9%
+- **Institutional Holding**: 18.7%
 - **Business Summary**: MRF Limited, together with its subsidiaries, engages in the manufacture and sale of rubber products in India and internationally. The company provides tires for passenger cars, two wheelers, farms, trucks, OTR, SCV, LCV, pick up, three-wheeler, MCV, ICV, tubes, and flap products; tread rubber pro…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Strategic Context
 

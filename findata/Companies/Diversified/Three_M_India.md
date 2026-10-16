@@ -56,10 +56,10 @@ sources:
 - **Industry**: Conglomerates
 - **Employees**: 1,273
 - **Promoter Holding**: 76.5%
-- **Institutional Holding**: 9.5%
+- **Institutional Holding**: 9.6%
 - **Business Summary**: 3M India Limited manufactures and trades in various products in India and internationally. It operates in four segments: Safety & Industrial; Transportation & Electronics; Health Care; and Consumer. The company offers vinyl, polyester, foil, and specialty industrial tapes and adhesives, such as m…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Financial Profile (Yahoo Finance, Jun 2026)
 

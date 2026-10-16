@@ -43,11 +43,11 @@ Raymond Realty (NSE: RAYMONDREL; formerly Raymond Lifestyle, renamed Jan 2024; H
 
 - **Industry**: Real Estate - Development
 - **Employees**: 529
-- **Promoter Holding**: 55.1%
-- **Institutional Holding**: 4.9%
+- **Promoter Holding**: 55.3%
+- **Institutional Holding**: 2.3%
 - **Business Summary**: Raymond Realty Limited, through its subsidiaries, engages in the development and sale of housing projects in India. Its projects include residential and commercial properties. The company was formerly known as Raymond Lifestyle Limited and changed its name to Raymond Realty Limited in January 202…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 
 <!-- BEGIN auto key figures (derive_insights.py) -->

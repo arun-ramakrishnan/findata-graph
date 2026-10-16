@@ -3,7 +3,7 @@ title: KSH International
 type: company
 ticker: KSHINTL.NS
 sector: Engineering_Capital_Goods
-industry: null
+industry: Electrical Equipment & Parts
 market_cap: small_cap
 normalized_name: Ksh_International
 file_path: findata/Companies/Engineering_Capital_Goods/Ksh_International.md
@@ -200,6 +200,19 @@ India's largest exporter of magnet winding wires with ~75% revenue from high-val
 - **Working Capital**: Monitor receivables and inventory turnover
 - **Revenue Growth**: Track quarterly revenue growth vs market trends
 
+
+<!-- BEGIN auto company profile (enrich_from_yfinance.py) -->
+
+## Company Profile (yfinance)
+
+- **Industry**: Electrical Equipment & Parts
+- **Employees**: 226
+- **Promoter Holding**: 74.6%
+- **Institutional Holding**: 12.2%
+- **Business Summary**: KSH International Limited manufactures magnet winding wires in India. The company offers round enamelled, paper insulated rectangular, rectangular enamelled, and wrapped rectangular copper/aluminum magnet winding wires, as well as transposed conductors and bunched paper insulated copper magnet wi…
+
+_Source: yfinance | Refreshed: 2026-10-16_
+<!-- END auto company profile -->
 ## References & Links
 
 - **Company Website**: https://www.kshinternational.com

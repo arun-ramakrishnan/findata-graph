@@ -45,10 +45,10 @@ Embassy Office Parks REIT is India's first publicly listed Real Estate Investmen
 
 - **Industry**: REIT - Office
 - **Promoter Holding**: 0.0%
-- **Institutional Holding**: 52.7%
+- **Institutional Holding**: 55.8%
 - **Business Summary**: Embassy Office Parks REIT owns, operates, and invests in real estate and related assets in India. It operates through Commercial Offices, Hospitality, and Other segments. Its property portfolio comprises office parks and office buildings. The company also provides facility and room rental, mainte…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 
 <!-- BEGIN auto chatter block (derive_insights.py) -->

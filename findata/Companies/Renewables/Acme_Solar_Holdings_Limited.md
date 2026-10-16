@@ -34,11 +34,12 @@ ACME Solar Holdings is a leading renewable energy company in India, specializing
 ## Company Profile (yfinance)
 
 - **Industry**: Utilities - Renewable
+- **Employees**: 947
 - **Promoter Holding**: 71.7%
-- **Institutional Holding**: 20.1%
-- **Business Summary**: ACME Solar Holdings Limited, a solar independent power producing company, engages in developing, building, owning, operating, and maintaining utility scale grid connected solar power projects in India. The company owns and operates solar energy projects with installed capacity of 2540 MW; and dev…
+- **Institutional Holding**: 20.2%
+- **Business Summary**: ACME Solar Holdings Limited, a solar independent power producing company, engages in the develops, constructs, owns, operates, and maintains grid-connected renewable energy projects in India. The company owns and operates solar and wind energy projects with a total installed capacity of 2,982 MW;…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Key Financial Information
 - **Market Cap**: Small Cap

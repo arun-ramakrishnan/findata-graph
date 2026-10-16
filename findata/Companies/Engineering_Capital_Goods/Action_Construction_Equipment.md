@@ -7,6 +7,7 @@ tags:
 - sector/engineering_capital_goods
 normalized_name: Action_Construction_Equipment
 sector: Engineering_Capital_Goods
+industry: Farm & Heavy Construction Machinery
 market_cap: null
 permalink: /companies/engineering_capital_goods/action_construction_equipment
 created: '2026-09-14'
@@ -25,5 +26,18 @@ sources:
 # Action Construction Equipment
 
 ## Company Overview
+<!-- BEGIN auto company profile (enrich_from_yfinance.py) -->
+
+## Company Profile (yfinance)
+
+- **Industry**: Farm & Heavy Construction Machinery
+- **Employees**: 1,500
+- **Promoter Holding**: 66.8%
+- **Institutional Holding**: 7.9%
+- **Business Summary**: Action Construction Equipment Limited manufactures and sells material handling and construction equipment primarily in India and internationally. The company operates through two segments: Crane, Material Handling and Construction equipment, and Agri Equipment. It also offers mobile cranes, truck…
+
+_Source: yfinance | Refreshed: 2026-10-16_
+<!-- END auto company profile -->
+
 Action Construction Equipment — auto-generated stub from newsletter parsing. To be enriched.
 

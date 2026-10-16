@@ -3,6 +3,7 @@ title: Aarti Industries
 type: company
 ticker: AARTIIND.NS
 sector: Chemicals
+industry: Specialty Chemicals
 market_cap: mid_cap
 normalized_name: Aarti_Industries
 permalink: /companies/chemicals/aarti_industries
@@ -34,6 +35,19 @@ Specialty chemicals manufacturer.
 
 *Stub node — created as a graph endpoint. Expand as additional primary research accumulates.*
 
+
+<!-- BEGIN auto company profile (enrich_from_yfinance.py) -->
+
+## Company Profile (yfinance)
+
+- **Industry**: Specialty Chemicals
+- **Employees**: 5,824
+- **Promoter Holding**: 42.1%
+- **Institutional Holding**: 23.8%
+- **Business Summary**: Aarti Industries Limited engages in the manufacturing and dealing in specialty chemicals and intermediates in India and internationally. The company offers chemistry products, such as alkylation, ammonolysis, balz schiemann, bromination, chlorination, condensation, denitrochlorination, diazotizat…
+
+_Source: yfinance | Refreshed: 2026-10-16_
+<!-- END auto company profile -->
 <!-- BEGIN auto chatter block (derive_insights.py) -->
 
 ## The Chatter — Embracing the Unknown

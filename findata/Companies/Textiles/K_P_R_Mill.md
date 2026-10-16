@@ -37,10 +37,10 @@ K.P.R. Mill Limited is a vertically integrated apparel manufacturing company bas
 - **Industry**: Textile Manufacturing
 - **Employees**: 20,308
 - **Promoter Holding**: 67.5%
-- **Institutional Holding**: 22.8%
+- **Institutional Holding**: 22.7%
 - **Business Summary**: K.P.R. Mill Limited operates as an integrated apparel manufacturing company in India and internationally. It operates through three segments: Textile, Sugar, and Others. The company offers textile products, such as compact, cotton combed, carded, polyester cotton, viscose, grindel yarn, red label…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Financial Profile (Yahoo Finance, Jun 2026)
 

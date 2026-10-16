@@ -116,10 +116,10 @@ Hindustan Zinc's position as the world's largest integrated zinc producer and to
 - **Industry**: Other Industrial Metals & Mining
 - **Employees**: 3,303
 - **Promoter Holding**: 88.6%
-- **Institutional Holding**: 5.2%
+- **Institutional Holding**: 5.6%
 - **Business Summary**: Hindustan Zinc Limited explores for, extracts, and processes minerals in India, rest of Asia, and internationally. The company operates through two segments, Zinc, Lead, Silver & Others; and Wind Energy. The company produces refined zinc and lead, precious metals, and silver; sulphuric acid; rock…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## [Presentation]
 

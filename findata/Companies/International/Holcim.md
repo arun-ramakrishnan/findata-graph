@@ -42,5 +42,5 @@ Swiss multinational building materials company headquartered in Zug (SIX: HOLN).
 - **Institutional Holding**: 0.0%
 - **Business Summary**: Holcim AG, together with its subsidiaries, provides building materials and solutions in Europe, Latin America, and Asia, Middle East, and Africa. It provides foundation, flooring, walling and roofing products, including cement, clinker, and other cementitious materials; ready-mix concrete; aggreg…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->

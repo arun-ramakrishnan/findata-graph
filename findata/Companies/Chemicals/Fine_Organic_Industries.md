@@ -3,6 +3,7 @@ title: Fine Organic Industries
 type: company
 ticker: FINEORG.BO
 sector: Chemicals
+industry: Specialty Chemicals
 market_cap: mid_cap
 normalized_name: Fine_Organic_Industries
 permalink: /companies/chemicals/fine_organic_industries
@@ -34,6 +35,19 @@ Oleochemicals and specialty additives maker.
 
 *Stub node — created as a graph endpoint. Expand as additional primary research accumulates.*
 
+
+<!-- BEGIN auto company profile (enrich_from_yfinance.py) -->
+
+## Company Profile (yfinance)
+
+- **Industry**: Specialty Chemicals
+- **Employees**: 938
+- **Promoter Holding**: 76.0%
+- **Institutional Holding**: 14.2%
+- **Business Summary**: Fine Organic Industries Limited engages in manufacture, processing, supply, distribution, dealing, import, and export of oleochemical-based additives in India and internationally. The company offers food ingredient, such as emulsifiers, antifungal agents, bakery products, starch complexity agents…
+
+_Source: yfinance | Refreshed: 2026-10-16_
+<!-- END auto company profile -->
 <!-- BEGIN auto chatter block (derive_insights.py) -->
 
 ## The Chatter — Discovering Hidden Signals

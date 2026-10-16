@@ -35,11 +35,12 @@ Force Motors Limited is an integrated automobile company designing, developing, 
 ## Company Profile (yfinance)
 
 - **Industry**: Auto Manufacturers
+- **Employees**: 4,832
 - **Promoter Holding**: 63.2%
-- **Institutional Holding**: 5.4%
+- **Institutional Holding**: 6.2%
 - **Business Summary**: Force Motors Limited, an integrated automobile company, designs, develops, manufactures, and sells a range of automotive components, aggregates, and vehicles in India. The company provides passenger vehicles, ambulances, school buses, and delivery van; small commercial, light commercial, multi ut…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Financial Profile (Yahoo Finance, Jun 2026)
 

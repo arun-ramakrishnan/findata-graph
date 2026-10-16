@@ -3,6 +3,7 @@ title: AWL Agri Business
 type: company
 ticker: AWL.NS
 sector: FMCG
+industry: Packaged Foods
 market_cap: large_cap
 normalized_name: AWL_Agri_Business
 permalink: /companies/fmcg/awl_agri_business
@@ -34,6 +35,19 @@ Edible-oils company (formerly Adani Wilmar).
 
 *Stub node — created as a graph endpoint. Expand as additional primary research accumulates.*
 
+
+<!-- BEGIN auto company profile (enrich_from_yfinance.py) -->
+
+## Company Profile (yfinance)
+
+- **Industry**: Packaged Foods
+- **Employees**: 2,881
+- **Promoter Holding**: 69.2%
+- **Institutional Holding**: 15.1%
+- **Business Summary**: AWL Agri Business Limited, a fast-moving consumer goods food company, provides kitchen commodities in India and internationally. It operates through Edible Oils, Food & FMCG, and Industry Essentials segments. The company offers soyabean, palm, sunflower, rice bran, mustard, groundnut, cottonseed,…
+
+_Source: yfinance | Refreshed: 2026-10-16_
+<!-- END auto company profile -->
 <!-- BEGIN auto chatter block (derive_insights.py) -->
 
 ## The Chatter — In the Middle of Things

@@ -56,11 +56,12 @@ Container Corporation of India Limited (CONCOR) is a Navratna Central Public Sec
 ## Company Profile (yfinance)
 
 - **Industry**: Railroads
-- **Promoter Holding**: 57.9%
-- **Institutional Holding**: 41.7%
+- **Employees**: 1,238
+- **Promoter Holding**: 57.4%
+- **Institutional Holding**: 42.3%
 - **Business Summary**: Container Corporation of India Limited engages in handling, transportation, and warehousing activities in India. The company provides inland transport by rail for containers; manages ports and air cargo complexes; develops multimodal logistics support for containerization and trade; and operates …
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 
 <!-- BEGIN auto chatter block (derive_insights.py) -->

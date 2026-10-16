@@ -36,11 +36,11 @@ Largest franchisee of Yum Brands in India, operating KFC, Pizza Hut, and Costa C
 
 - **Industry**: Restaurants
 - **Employees**: 15,955
-- **Promoter Holding**: 64.2%
-- **Institutional Holding**: 20.2%
+- **Promoter Holding**: 65.4%
+- **Institutional Holding**: 18.4%
 - **Business Summary**: Devyani International Limited develops, manages, and operates quick service restaurants and food courts in India, Nepal, Nigeria, Thailand, and internationally. It operates outlets under the KFC, Pizza Hut, Costa Coffee, Vaango and other brands. The company serves retail consumers for quick servi…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Company Details
 

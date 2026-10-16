@@ -56,10 +56,10 @@ Exide Industries is India's leading battery manufacturing company and a pioneer 
 - **Industry**: Auto Parts
 - **Employees**: 5,143
 - **Promoter Holding**: 50.9%
-- **Institutional Holding**: 22.9%
+- **Institutional Holding**: 23.3%
 - **Business Summary**: Exide Industries Limited designs, manufactures, markets, and sells lead acid batteries and accumulators in India and internationally. It offers automotive, infrastructural, genset, solar, inverter, institutional uninterrupted power supply (UPS), and submarine batteries, as well as home UPS system…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Business Model
 

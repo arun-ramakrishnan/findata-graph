@@ -44,11 +44,11 @@ Oracle Financial Services Software Limited, together with its subsidiaries, prov
 
 - **Industry**: Software - Infrastructure
 - **Employees**: 8,347
-- **Promoter Holding**: 72.5%
-- **Institutional Holding**: 13.2%
+- **Promoter Holding**: 72.4%
+- **Institutional Holding**: 13.4%
 - **Business Summary**: Oracle Financial Services Software Limited, together with its subsidiaries, provides information technology (IT) solutions to the financial services industry worldwide. It operates in two segments, Product Licenses and Related Activities; and IT Solutions and Consulting Services. The company offe…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Key Metrics & Financials (INR)
 - **Market Cap:** ₹728.43B

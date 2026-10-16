@@ -48,11 +48,12 @@ Murudeshwar Ceramics Ltd. is a leading manufacturer and exporter of ceramic and 
 ## Company Profile (yfinance)
 
 - **Industry**: Building Products & Equipment
+- **Employees**: 321
 - **Promoter Holding**: 75.8%
 - **Institutional Holding**: 0.0%
 - **Business Summary**: Murudeshwar Ceramics Ltd. manufactures and trades in ceramic and vitrified floor and wall tiles in India, the Americas, Europe, and internationally. The company offers wall tiles, such as bathroom, kitchen, and outdoor tiles; digital wall tiles; and floor tiles, including glazed and polished glaz…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Industry Context: Building Materials Sector
 

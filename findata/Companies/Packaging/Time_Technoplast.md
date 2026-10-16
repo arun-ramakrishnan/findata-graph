@@ -36,11 +36,12 @@ Time Technoplast Limited (incorporated 1989; headquartered in Mumbai) manufactur
 ## Company Profile (yfinance)
 
 - **Industry**: Packaging & Containers
+- **Employees**: 3,363
 - **Promoter Holding**: 48.6%
-- **Institutional Holding**: 20.2%
-- **Business Summary**: Time Technoplast Limited manufactures and sells polymer products in India. It operates in two segments, Polymer and Composite. The company offers industrial packaging products under TECHPACK brand, including drums; containers; pails; PET sheets; jerry cans used in chemicals, FMCG, and other indus…
+- **Institutional Holding**: 20.4%
+- **Business Summary**: Time Technoplast Limited manufactures and sells composite and polymer products in India. It operates thorugh two segments, Polymer and Composite. The company offers industrial packaging products, including drums, containers, jerry cans, pails, and PET sheets under TECHPACK brand; infrastructure s…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Financial Profile (Yahoo Finance, Jun 2026)
 

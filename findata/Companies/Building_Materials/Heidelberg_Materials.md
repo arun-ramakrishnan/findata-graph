@@ -39,8 +39,8 @@ German multinational building materials company headquartered in Heidelberg (XET
 - **Industry**: Building Materials
 - **Employees**: 50,603
 - **Promoter Holding**: 28.4%
-- **Institutional Holding**: 46.7%
+- **Institutional Holding**: 47.6%
 - **Business Summary**: Heidelberg Materials AG, together with its subsidiaries, produces and distributes cement, aggregates, ready-mixed concrete, and asphalt worldwide. The company provides cement products; natural stone aggregates, including sand and gravel; crushed aggregates comprising stone chippings and crushed s…
 
-_Source: yfinance | Refreshed: 2026-08-11_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->

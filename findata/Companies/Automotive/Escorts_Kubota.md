@@ -47,11 +47,11 @@ Escorts Kubota Limited, incorporated in 1944 and headquartered in Faridabad, is 
 
 - **Industry**: Farm & Heavy Construction Machinery
 - **Employees**: 4,323
-- **Promoter Holding**: 76.1%
-- **Institutional Holding**: 12.8%
+- **Promoter Holding**: 74.5%
+- **Institutional Holding**: 13.8%
 - **Business Summary**: Escorts Kubota Limited manufactures and sells agricultural and construction equipment in India and internationally. The company offers rotavators, straw reapers, super seeders, MB ploughs, orchard sprayers, paddy harvesters, seed drills, and rice transplanters; filters, pumps, engine assemblies, …
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Financial Profile (Yahoo Finance, Jun 2026)
 - Market cap: ₹32,425 cr | Enterprise value: ₹25,663 cr

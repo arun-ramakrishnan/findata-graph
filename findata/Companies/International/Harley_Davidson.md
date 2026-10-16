@@ -47,10 +47,10 @@ Harley-Davidson, Inc. (NYSE: HOG) manufactures and sells motorcycles in the Unit
 - **Industry**: Recreational Vehicles
 - **Employees**: 5,500
 - **Promoter Holding**: 1.2%
-- **Institutional Holding**: 109.4%
+- **Institutional Holding**: 112.1%
 - **Business Summary**: Harley-Davidson, Inc. manufactures and sells motorcycles in the United States and internationally. The company operates in three segments: Harley-Davidson Motor Company, LiveWire, and Harley-Davidson Financial Services. The Harley-Davidson Motor Company segment designs, manufactures, and sells mo…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Business Overview
 

@@ -44,11 +44,12 @@ Aavas Financiers Limited, formerly known as Au Housing Finance Limited, is a reg
 ## Company Profile (yfinance)
 
 - **Industry**: Mortgage Finance
+- **Employees**: 7,649
 - **Promoter Holding**: 50.8%
-- **Institutional Holding**: 30.7%
-- **Business Summary**: Aavas Financiers Limited provides housing finance services to low- and middle-income customers in semi-urban and rural areas in India. The company offers home loans for flats, houses, and bungalows; home construction loans for self-construction of residential houses; resale property purchase loan…
+- **Institutional Holding**: 30.8%
+- **Business Summary**: Aavas Financiers Limited provides housing finance services to low- and middle-income customers in semi-urban and rural areas in India. The company offers home loans for flats, houses, and bungalows; home construction loans for residential houses; resale property purchase loans, and home improveme…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Business Profile
 - **Primary Industry**: Housing Finance

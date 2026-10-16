@@ -62,12 +62,14 @@ BEML is an Indian public-sector engineering company historically known as a defe
 ## Company Profile (yfinance)
 
 - **Industry**: Conglomerates
+- **Employees**: 4,151
 - **Promoter Holding**: 54.2%
-- **Institutional Holding**: 21.9%
+- **Institutional Holding**: 22.4%
 - **Business Summary**: BEML Limited provides products and services to the mining and construction, rail and metro, power, and defense and aerospace sectors in India. The company offers high mobility vehicles, combat mobility vehicles, 1500 horsepower engines, aggregates for combat vehicles, aircraft towing tractors, ai…
 
-_Source: yfinance | Refreshed: 2026-08-10_
-<!-- END auto company profile --><!-- BEGIN auto chatter block (derive_insights.py) -->
+_Source: yfinance | Refreshed: 2026-10-16_
+<!-- END auto company profile -->
+<!-- BEGIN auto chatter block (derive_insights.py) -->
 
 ## The Chatter — Reliance Vedanta Gillette
 

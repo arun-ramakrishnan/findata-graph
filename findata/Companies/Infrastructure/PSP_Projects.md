@@ -40,11 +40,12 @@ PSP Projects Limited, a construction company, provides construction and related 
 ## Company Profile (yfinance)
 
 - **Industry**: Engineering & Construction
+- **Employees**: 2,383
 - **Promoter Holding**: 71.1%
-- **Institutional Holding**: 2.8%
+- **Institutional Holding**: 3.0%
 - **Business Summary**: PSP Projects Limited, a construction company, provides construction and allied services for industrial, institutional, commercial, residential, hospitality, hospital, and landmark government projects in India. It constructs industrial buildings for pharmaceutical plants, food processing units, en…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Key Personnel
 - Ms. Pooja Prahaladbhai Patel: Chief Executive Officer

@@ -294,11 +294,11 @@ Cyient is a global technology company specializing in digital transformation, en
 
 - **Industry**: Conglomerates
 - **Employees**: 12,049
-- **Promoter Holding**: 24.9%
-- **Institutional Holding**: 49.8%
+- **Promoter Holding**: 25.3%
+- **Institutional Holding**: 52.2%
 - **Business Summary**: Cyient Limited provides geospatial, engineering design, manufacturing, networks and operations, data transformation, and analytic services in North America, Europe, Middle East, and the Asia Pacific. The company operates through three segments: Digital, Engineering & Technology; Design Led Manufa…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Key Metrics Dashboard
 - **Market Cap**: Large Cap

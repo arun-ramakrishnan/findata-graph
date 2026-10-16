@@ -49,11 +49,12 @@ PhysicsWallah Ltd. is an Indian edtech company offering affordable online and of
 ## Company Profile (yfinance)
 
 - **Industry**: Education & Training Services
-- **Promoter Holding**: 72.5%
-- **Institutional Holding**: 21.2%
-- **Business Summary**: Physicswallah Limited offers test preparation courses and study materials. The company's test preparation courses, including joint entrance exam, national eligibility cum entrance test, and foundation; other-test preparation courses for other competitive entrance examinations for undergraduate an…
+- **Employees**: 16,289
+- **Promoter Holding**: 71.1%
+- **Institutional Holding**: 21.9%
+- **Business Summary**: Physicswallah Limited offers online and offline coaching and study material for test preparation of various competitive exams in India. It offers various courses for competitive exams, including IIT JEE, NEET, ESE, GATE, AE/JE, Olympiad, UPSC, and state PSC; government exams, such as judiciary, S…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Strategic Initiatives
 

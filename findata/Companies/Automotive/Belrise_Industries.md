@@ -3,7 +3,7 @@ title: Belrise Industries
 type: company
 ticker: BELRISE.NS
 sector: Automotive
-industry: null
+industry: Auto Parts
 market_cap: large_cap
 normalized_name: Belrise_Industries
 permalink: /companies/automotive/belrise_industries
@@ -41,6 +41,19 @@ sources:
 ## Company Overview
 Belrise Industries Limited (formerly Badve Engineering), founded in 1988 and headquartered in Pune, is an Indian automotive component manufacturer specializing in sheet metal, casting, polymer, suspension, and mirror systems for two-wheelers, three-wheelers, four-wheelers (passenger and commercial), and agricultural vehicles. The company also caters to white goods, trades in metals and lithium-ion batteries, and has expanded into defence and aerospace, serving both ICE and electric vehicle segments.
 
+
+<!-- BEGIN auto company profile (enrich_from_yfinance.py) -->
+
+## Company Profile (yfinance)
+
+- **Industry**: Auto Parts
+- **Employees**: 2,003
+- **Promoter Holding**: 62.2%
+- **Institutional Holding**: 17.4%
+- **Business Summary**: Belrise Industries Limited, together with its subsidiaries, manufactures and sells automotive parts and components of two-wheeler, three-wheeler and four-wheeler passenger and commercial vehicles in India. The company offers shock absorber springs, rear and front shock absorbers, plastic and seat…
+
+_Source: yfinance | Refreshed: 2026-10-16_
+<!-- END auto company profile -->
 ## Financial Profile (Yahoo Finance, Jun 2026)
 - Market cap: ₹21,861 cr | Enterprise value: ₹21,499 cr
 - Revenue (TTM): ₹9,509 cr (YoY growth: 12.1%)

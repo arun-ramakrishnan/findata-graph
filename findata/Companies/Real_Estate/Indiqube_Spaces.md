@@ -3,7 +3,7 @@ title: Indiqube Spaces
 type: company
 ticker: INDIQUBE.NS
 sector: Real_Estate
-industry: null
+industry: Real Estate Services
 market_cap: small_cap
 normalized_name: Indiqube_Spaces
 permalink: /companies/real_estate/indiqube_spaces
@@ -30,6 +30,19 @@ sources:
 ## Company Overview
 Indiqube Spaces is a managed workplace solutions company that provides corporate offices ranging from large headquarters to small branch locations for enterprises. The company offers comprehensive workplace services including interior design, amenities, and technology-driven solutions to enhance the office experience.
 
+
+<!-- BEGIN auto company profile (enrich_from_yfinance.py) -->
+
+## Company Profile (yfinance)
+
+- **Industry**: Real Estate Services
+- **Employees**: 764
+- **Promoter Holding**: 79.3%
+- **Institutional Holding**: 13.8%
+- **Business Summary**: IndiQube Spaces Limited engages in the business of leasing of network of shared workspaces of fully or partly equipped premises and other related activities. The company also provides IndiQube Grow offers smart workplaces; DesignQube, a personalized workplace; IndiQare, an all-in-one solution tha…
+
+_Source: yfinance | Refreshed: 2026-10-16_
+<!-- END auto company profile -->
 ## Key Strategic Insights (from Between_the_Numbers.md)
 
 ### Market Expansion Strategy

@@ -44,10 +44,10 @@ Heritage Foods is a small-cap company in the FMCG sector focused on dairy produc
 - **Industry**: Packaged Foods
 - **Employees**: 3,317
 - **Promoter Holding**: 54.2%
-- **Institutional Holding**: 8.8%
+- **Institutional Holding**: 8.5%
 - **Business Summary**: Heritage Foods Limited procures and processes milk and milk products in India. The company operates through Dairy, Renewable Energy, and Feed segments. It offers milk, curd, butter milk, lassi, ice cream, frozen desserts, milkshakes, paneer, ghee, butter, cheese, fresh cream, cold coffee, cooking…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Business Focus
 

@@ -35,11 +35,12 @@ Paras Defence and Space Technologies Limited (formerly Paras Flowform Engineerin
 ## Company Profile (yfinance)
 
 - **Industry**: Aerospace & Defense
+- **Employees**: 617
 - **Promoter Holding**: 56.1%
-- **Institutional Holding**: 6.7%
+- **Institutional Holding**: 7.6%
 - **Business Summary**: Paras Defence and Space Technologies Limited designs, develops, manufactures, and tests defense and space engineering products and solutions in India and internationally. The company offers rugged networking and communication, rugged display and computing, and rugged command and control systems; …
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Financial Profile (Yahoo Finance, Jun 2026)
 

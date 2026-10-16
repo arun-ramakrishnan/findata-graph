@@ -53,10 +53,10 @@ RR Kabel is a leading Indian manufacturer of electrical cables and wires—power
 - **Industry**: Electrical Equipment & Parts
 - **Employees**: 4,040
 - **Promoter Holding**: 70.0%
-- **Institutional Holding**: 18.8%
+- **Institutional Holding**: 17.8%
 - **Business Summary**: R R Kabel Limited manufactures and sells wires and cables, and fast-moving electrical goods under the RR Signature brand name in India and internationally. It offers house wires, industrial wires, low and medium voltage power cables, solar, and special cables. The company also provides fans, ligh…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 
 <!-- BEGIN auto chatter block (derive_insights.py) -->

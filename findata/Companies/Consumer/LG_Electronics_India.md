@@ -3,7 +3,7 @@ title: LG Electronics India
 type: company
 ticker: LGEINDIA.NS
 sector: Consumer
-industry: null
+industry: Consumer Electronics
 market_cap: large_cap
 normalized_name: LG_Electronics_India
 file_path: findata/Companies/Consumer/LG_Electronics_India.md
@@ -43,6 +43,19 @@ sources:
 
 LG Electronics India is a leading manufacturer of home appliances and consumer electronics with dominant market shares in refrigerators, washing machines, and TVs, expanding manufacturing in India for domestic and export markets.
 
+
+<!-- BEGIN auto company profile (enrich_from_yfinance.py) -->
+
+## Company Profile (yfinance)
+
+- **Industry**: Consumer Electronics
+- **Employees**: 3,835
+- **Promoter Holding**: 85.0%
+- **Institutional Holding**: 7.5%
+- **Business Summary**: LG Electronics India Limited manufactures and sells home appliances and consumer electronics in India, rest of Asia, Africa, Europe, the Middle East, South-Central America, and internationally. It operates in two segments, Home Appliances and Air Solution, and Home Entertainment. The Home Applian…
+
+_Source: yfinance | Refreshed: 2026-10-16_
+<!-- END auto company profile -->
 <!-- BEGIN auto key figures (derive_insights.py) -->
 
 ## Key Figures (auto)

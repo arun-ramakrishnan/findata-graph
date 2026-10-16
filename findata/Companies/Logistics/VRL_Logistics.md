@@ -51,10 +51,10 @@ VRL Logistics Limited is a leading logistics and transportation company in India
 - **Industry**: Trucking
 - **Employees**: 21,511
 - **Promoter Holding**: 60.2%
-- **Institutional Holding**: 25.8%
+- **Institutional Holding**: 23.1%
 - **Business Summary**: VRL Logistics Limited operates as a logistics and transport company in India. The company offers services, such as truckload and full truck load, door-to door FTL service, door collection and door delivery; and provides courier services for time sensitive documents and packages. It also provides …
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Industry Classification
 - **Sector**: Logistics & Transportation

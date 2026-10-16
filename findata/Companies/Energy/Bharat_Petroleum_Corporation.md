@@ -49,10 +49,10 @@ Bharat Petroleum Corporation Limited (BPCL; incorporated 1952; HQ Mumbai) is a l
 - **Industry**: Oil & Gas Refining & Marketing
 - **Employees**: 8,945
 - **Promoter Holding**: 56.7%
-- **Institutional Holding**: 28.6%
+- **Institutional Holding**: 28.8%
 - **Business Summary**: Bharat Petroleum Corporation Limited engages in refining crude oil and marketing petroleum products in India and internationally. It operates through two segments, Downstream Petroleum; and Exploration and Production of Hydrocarbons. The company operates fuel stations that sell motor spirits, hig…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Financial Profile (Yahoo Finance, Jun 2026)
 - Market cap: ₹1,32,343 cr | Enterprise value: ₹1,69,185 cr

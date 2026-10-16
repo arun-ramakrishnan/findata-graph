@@ -42,11 +42,12 @@ Astra Microwave Products Limited (AMPL) is a specialized Indian company focusing
 ## Company Profile (yfinance)
 
 - **Industry**: Communication Equipment
-- **Promoter Holding**: 30.6%
-- **Institutional Holding**: 22.9%
+- **Employees**: 1,684
+- **Promoter Holding**: 30.2%
+- **Institutional Holding**: 23.1%
 - **Business Summary**: Astra Microwave Products Limited designs, develops, manufactures, and sells sub-systems for radio frequency and microwave systems used in defense, space, meteorology, civil, and telecommunication applications in India. It offers radar electronics, including active antenna array units, transmit re…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Business Segments
 

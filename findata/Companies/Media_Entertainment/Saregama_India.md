@@ -42,11 +42,12 @@ Saregama India Limited, a part of RP Sanjiv Goenka Group, is India's oldest musi
 ## Company Profile (yfinance)
 
 - **Industry**: Entertainment
+- **Employees**: 279
 - **Promoter Holding**: 64.7%
-- **Institutional Holding**: 11.7%
+- **Institutional Holding**: 10.9%
 - **Business Summary**: Saregama India Limited operates as an entertainment company in India and internationally. It operates in four segments: Music, Artist Management, Video, and Events. The Music segment engages in the manufacture and sale of music storage device through Carvaan, Music Card, Vinyl records, etc., as w…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 Key Insights from The Chatter (Edition #40)
 

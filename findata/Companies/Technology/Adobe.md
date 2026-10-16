@@ -48,10 +48,10 @@ Adobe Inc. (NASDAQ: ADBE) is a global software company headquartered in San Jose
 - **Industry**: Software - Application
 - **Employees**: 31,360
 - **Promoter Holding**: 0.2%
-- **Institutional Holding**: 88.8%
+- **Institutional Holding**: 89.1%
 - **Business Summary**: Adobe Inc. operates as a technology company worldwide. The Digital Media segment offers products and services that enable individuals, teams, and enterprises to create, publish, and promote content. This segment serves photographers, video editors, graphic and experience designers, game developer…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 
 <!-- BEGIN auto key figures (derive_insights.py) -->

@@ -43,11 +43,11 @@ Walmart Inc is the world's largest retailer by revenue, operating a multinationa
 
 - **Industry**: Discount Stores
 - **Employees**: 2,100,000
-- **Promoter Holding**: 44.8%
-- **Institutional Holding**: 38.4%
+- **Promoter Holding**: 44.2%
+- **Institutional Holding**: 38.2%
 - **Business Summary**: Walmart Inc. engages in the operation of retail and wholesale stores and clubs, ecommerce websites, and mobile applications worldwide. The company operates through three segments: Walmart U.S., Walmart International, and Sam's Club U.S. It operates supercenters, supermarkets, warehouse clubs, cas…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Business Segments
 

@@ -45,10 +45,10 @@ Apollo Pipes Limited, a key company of SUDESH GROUP, manufactures a wide range o
 - **Industry**: Building Products & Equipment
 - **Employees**: 719
 - **Promoter Holding**: 69.2%
-- **Institutional Holding**: 8.6%
+- **Institutional Holding**: 5.1%
 - **Business Summary**: Apollo Pipes Limited manufactures and trades in polyvinyl chloride (PVC) pipes and fittings in India. The company offers cPVC, uPVC, and PPR-C plumbing systems; uPVC pressure pipes and fittings, and garden pipes; HDPE PLB duct pipes and MDPE and HDPE gas piping system; SWR drainage system, underg…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Industry Context
 India's PVC pipes and fittings market is expected to grow at 15% CAGR between FY24 and FY27, with domestic plastic pipes industry currently sized at around ₹350 billion.

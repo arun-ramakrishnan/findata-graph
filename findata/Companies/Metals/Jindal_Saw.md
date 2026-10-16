@@ -3,6 +3,7 @@ title: Jindal Saw
 type: company
 ticker: JINDALSAW.NS
 sector: Metals
+industry: Steel
 market_cap: mid_cap
 normalized_name: Jindal_Saw
 permalink: /companies/metals/jindal_saw
@@ -34,6 +35,19 @@ Pipes and tubes manufacturer (Jindal group).
 
 *Stub node — created as a graph endpoint. Expand as additional primary research accumulates.*
 
+
+<!-- BEGIN auto company profile (enrich_from_yfinance.py) -->
+
+## Company Profile (yfinance)
+
+- **Industry**: Steel
+- **Employees**: 7,565
+- **Promoter Holding**: 63.6%
+- **Institutional Holding**: 16.2%
+- **Business Summary**: Jindal Saw Limited engages in the manufacture and supply of iron and steel pipes, and pellets in India and internationally. The company offers SAW pipes, such as double jointing, connector casings, hot pulled induction bends, monel sheating and anodes installation, post weld heat treatment, eddy …
+
+_Source: yfinance | Refreshed: 2026-10-16_
+<!-- END auto company profile -->
 <!-- BEGIN auto chatter block (derive_insights.py) -->
 
 ## The Chatter — The Mood in the Room

@@ -40,11 +40,12 @@ Le Travenues Technology, incorporated in 2006 in New Delhi, operates the online 
 ## Company Profile (yfinance)
 
 - **Industry**: Travel Services
+- **Employees**: 624
 - **Promoter Holding**: 27.6%
-- **Institutional Holding**: 49.4%
+- **Institutional Holding**: 53.8%
 - **Business Summary**: Le Travenues Technology Limited operates online travel agency (OTA) platforms in India. Its OTA platforms allow travelers to book train tickets, flight tickets, bus tickets, hotels and cabs; provide travel utility tools and services, including PNR status updates, flight status updates, LIVE bus t…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Key Financial Information
 - **Market Cap**: Small Cap

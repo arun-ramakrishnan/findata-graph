@@ -40,12 +40,12 @@ Heineken Holding's business is primarily in overseeing and managing the brewing 
 ## Company Profile (yfinance)
 
 - **Industry**: Beverages - Brewers
-- **Employees**: 87,870
+- **Employees**: 85,000
 - **Promoter Holding**: 0.0%
 - **Institutional Holding**: 0.0%
 - **Business Summary**: Heineken Holding N.V., together with its subsidiaries, engages in brewing and selling beer and cider in the Netherlands, Europe, the Americas, Africa & Middle East, Asia Pacific and internationally. The company's portfolio consists of approximately 340 international, regional, local, and specialt…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Key Strategic Context (from Scaling_Through_Slowdowns.md)
 

@@ -55,10 +55,10 @@ Bharat Electronics Limited (BEL) is a Navratna PSU under India's Ministry of Def
 - **Industry**: Aerospace & Defense
 - **Employees**: 9,420
 - **Promoter Holding**: 53.4%
-- **Institutional Holding**: 28.9%
+- **Institutional Holding**: 28.6%
 - **Business Summary**: Bharat Electronics Limited designs, manufactures, and supplies electronic equipment and systems for the defense and civilian markets in India. The company's defense products include defense communication products, land-based radars, naval systems, electronic warfare systems, avionics, electro opt…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Financial Profile (Yahoo Finance, Jun 2026)
 - Market cap: ₹2,98,604 cr | Enterprise value: ₹2,89,167 cr

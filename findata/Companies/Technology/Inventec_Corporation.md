@@ -37,9 +37,9 @@ Taiwanese Original Design Manufacturer (ODM) headquartered in Taipei (TWSE: 2356
 ## Company Profile (yfinance)
 
 - **Industry**: Computer Hardware
-- **Promoter Holding**: 36.6%
-- **Institutional Holding**: 23.9%
+- **Promoter Holding**: 28.5%
+- **Institutional Holding**: 24.9%
 - **Business Summary**: Inventec Corporation, together with its subsidiaries, develops, manufacture, processes, and trades in computers and related products in Taiwan, the United States, Japan, Hong Kong, Macau, Mainland China, and internationally. The company operates through Core Department and Other Department segmen…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->

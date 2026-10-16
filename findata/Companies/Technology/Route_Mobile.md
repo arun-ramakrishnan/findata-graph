@@ -42,11 +42,12 @@ Route Mobile Ltd is an Indian technology company providing IT services and softw
 ## Company Profile (yfinance)
 
 - **Industry**: Telecom Services
+- **Employees**: 497
 - **Promoter Holding**: 74.9%
-- **Institutional Holding**: 4.4%
-- **Business Summary**: Route Mobile Limited provides cloud-communication platform solutions to enterprises, over-the-top service providers, and mobile network operators in India and internationally. The company offers messaging, voice, e-mail, short message service (SMS) filtering, analytics, and monetization solutions…
+- **Institutional Holding**: 4.2%
+- **Business Summary**: Route Mobile Limited provides cloud-communication platform solutions to enterprises, over-the-top service providers, and mobile network operators in India and internationally. The company offers messaging, voice, e-mail, enhanced business messaging, identity and verification, bespoke solutions, a…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Business Profile
 - **Primary Industry:** IT Services & Consulting

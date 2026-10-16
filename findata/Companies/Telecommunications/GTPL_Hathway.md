@@ -39,11 +39,12 @@ GTPL Hathway is a leading regional Multiple System Operator (MSO) in India, prov
 ## Company Profile (yfinance)
 
 - **Industry**: Entertainment
+- **Employees**: 631
 - **Promoter Holding**: 78.2%
 - **Institutional Holding**: 6.3%
-- **Business Summary**: GTPL Hathway Limited, together with its subsidiaries, provides digital cable television and broadband services in India. It operates in three segments: Cable Television, Internet Service, and Other. The company engages in the distribution of television channels through digital cable distribution …
+- **Business Summary**: GTPL Hathway Limited, together with its subsidiaries, provides digital cable television and broadband services in India. It operates through three segments: Cable Television, Internet Service, and Other. The company engages in the distribution of television channels through digital cable distribu…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 
 <!-- BEGIN auto chatter block (derive_insights.py) -->

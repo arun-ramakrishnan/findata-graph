@@ -33,11 +33,12 @@ Royal Orchid Hotels Limited operates hotels, resorts, long-stay suites, and inns
 ## Company Profile (yfinance)
 
 - **Industry**: Lodging
+- **Employees**: 8,600
 - **Promoter Holding**: 69.0%
 - **Institutional Holding**: 4.4%
 - **Business Summary**: Royal Orchid Hotels Limited, together with its subsidiaries, operates and manages hotels and resorts for business and leisure travelers in India and Tanzania. The company operates 5-star and 4-star hotels and resorts under the Regenta, Hotel Royal Orchid, Royal Orchid Suits, Regenta Central, Rege…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Key Insights (Between the Numbers)
 - Operates a portfolio spanning hotels, resorts, long-stay suites, and inns.

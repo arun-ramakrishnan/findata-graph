@@ -35,11 +35,12 @@ Jamna Auto Industries Limited (JAI) is India's largest manufacturer of leaf spri
 ## Company Profile (yfinance)
 
 - **Industry**: Auto Parts
-- **Promoter Holding**: 53.1%
-- **Institutional Holding**: 6.4%
-- **Business Summary**: Jamna Auto Industries Limited engages in the manufacture, distribution, and trading of parabolic and tapered leaf springs, lift axles, air suspension, stabilizer bars, bushes, and allied products under the JAI brand in India and internationally. It offers parabolic and conventional leaf springs f…
+- **Employees**: 1,107
+- **Promoter Holding**: 48.1%
+- **Institutional Holding**: 8.3%
+- **Business Summary**: Jamna Auto Industries Limited engages in manufacturing and selling of tapered leaf, parabolic springs, and lift axles in India and internationally. It offers parabolic and conventional leaf springs for commercial vehicles. The company also provides spring allied components, including U bolts, bol…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Financial Profile (Yahoo Finance, Jun 2026)
 

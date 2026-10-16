@@ -53,10 +53,10 @@ Housing and Urban Development Corporation Limited (HUDCO), incorporated in 1970 
 - **Industry**: Credit Services
 - **Employees**: 585
 - **Promoter Holding**: 75.0%
-- **Institutional Holding**: 10.6%
-- **Business Summary**: Housing and Urban Development Corporation Limited provides loans and financing for housing and urban development projects in India. The company offers term loans for state government agencies and their parastatals, such as development authorities, housing boards, urban local bodies, water supply,…
+- **Institutional Holding**: 10.1%
+- **Business Summary**: Housing and Urban Development Corporation Limited provides financing and credit for housing and infrastructure development projects in India. The company offers housing finance loans for social housing, residential real estate, and HUDCO Niwas; urban infrastructure finance loans for water supply,…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Financial Profile (Yahoo Finance, Jun 2026)
 - Market cap: ₹41,694 cr | Enterprise value: ₹1,81,155 cr

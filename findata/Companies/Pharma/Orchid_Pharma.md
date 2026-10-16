@@ -37,11 +37,12 @@ Orchid Pharma — auto-generated stub from newsletter parsing. To be enriched.
 ## Company Profile (yfinance)
 
 - **Industry**: Drug Manufacturers - Specialty & Generic
-- **Promoter Holding**: 59.2%
-- **Institutional Holding**: 17.2%
+- **Employees**: 1,169
+- **Promoter Holding**: 133.6%
+- **Institutional Holding**: 17.0%
 - **Business Summary**: Orchid Pharma Limited, a pharmaceutical company, engages in the development, manufacture, and marketing of active pharmaceutical ingredients, bulk actives, finished dosage formulations, and nutraceuticals in India. Its active pharmaceutical ingredients product portfolio includes oral cephalospori…
 
-_Source: yfinance | Refreshed: 2026-09-15_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 <!-- BEGIN auto key figures (derive_insights.py) -->
 

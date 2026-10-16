@@ -35,11 +35,12 @@ KIOCL Limited (formerly Kudremukh Iron Ore Company) engages in iron ore mining, 
 ## Company Profile (yfinance)
 
 - **Industry**: Steel
+- **Employees**: 474
 - **Promoter Holding**: 99.0%
 - **Institutional Holding**: 0.0%
-- **Business Summary**: KIOCL Limited engages in the iron ore mining, beneficiation, and production of pellets in India and internationally. The company operates through two segments, Pellet and Pig Iron. It produces and sells iron ore pellets, pig iron, and iron ore fines. The company also provides operation and mainte…
+- **Business Summary**: KIOCL Limited engages in the iron ore mining, beneficiation, and production of pellets in India. The company operates through two segments, Pellet and Pig Iron. It produces and sells iron ore pellets, pig iron, and iron ore fines. The company also provides operation and maintenance services, as w…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Financial Profile (Yahoo Finance, Jun 2026)
 

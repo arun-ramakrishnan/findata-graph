@@ -3,7 +3,7 @@ title: Oswal Pumps
 type: company
 ticker: OSWALPUMPS.NS
 sector: Renewables
-industry: null
+industry: Electrical Equipment & Parts
 market_cap: small_cap
 normalized_name: Oswal_Pumps
 file_path: findata/Companies/Engineering_Capital_Goods/Oswal_Pumps.md
@@ -35,6 +35,19 @@ sources:
 
 Oswal Pumps manufactures solar-powered and grid-connected submersible and monoblock pumps, electric motors (induction and submersible), and solar modules under the 'Oswal' brand.
 
+
+<!-- BEGIN auto company profile (enrich_from_yfinance.py) -->
+
+## Company Profile (yfinance)
+
+- **Industry**: Electrical Equipment & Parts
+- **Employees**: 1,805
+- **Promoter Holding**: 75.7%
+- **Institutional Holding**: 4.0%
+- **Business Summary**: Oswal Pumps Limited manufactures and sells solar pumps in India and internationally. The company offers solar-powered and grid-connected submersible and monoblock pumps, electric motors, accessories, pump control, control panel, and solar modules under the Oswal brand. It also offers sewage pumps…
+
+_Source: yfinance | Refreshed: 2026-10-16_
+<!-- END auto company profile -->
 <!-- BEGIN auto chatter block (derive_insights.py) -->
 
 ## The Chatter — Half a century in

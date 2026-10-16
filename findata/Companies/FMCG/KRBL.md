@@ -55,11 +55,12 @@ KRBL Limited is a leading Indian Basmati rice exporter and producer, best known 
 ## Company Profile (yfinance)
 
 - **Industry**: Packaged Foods
+- **Employees**: 3,085
 - **Promoter Holding**: 72.7%
 - **Institutional Holding**: 4.7%
 - **Business Summary**: KRBL Limited manufactures and markets rice products in India and internationally. The company operates through Agri and Energy segments. The Agri segment offers agricultural commodities, such as rice, furfural, seed, bran, bran oil, etc. The Energy segment generates power from wind turbine, and h…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Industry Context: FMCG Sector
 

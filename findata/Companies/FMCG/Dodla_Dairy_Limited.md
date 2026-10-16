@@ -56,10 +56,10 @@ Dodla Dairy Limited is an integrated dairy company based in south India, with op
 - **Industry**: Food Distribution
 - **Employees**: 3,159
 - **Promoter Holding**: 63.9%
-- **Institutional Holding**: 27.7%
+- **Institutional Holding**: 27.6%
 - **Business Summary**: Dodla Dairy Limited, together with its subsidiaries, engages in the production and sale of milk and value-added dairy products in India and internationally. The company offers flavoured, toned, standardized, full cream, ultrahigh temperature processed (UHT)-toned, UHT cow, and UHT-double toned mi…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 
 <!-- BEGIN auto key figures (derive_insights.py) -->

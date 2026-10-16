@@ -57,11 +57,11 @@ Marico is a company in the miscellaneous sector. More information about this com
 
 - **Industry**: Household & Personal Products
 - **Employees**: 1,983
-- **Promoter Holding**: 59.0%
-- **Institutional Holding**: 25.0%
+- **Promoter Holding**: 58.9%
+- **Institutional Holding**: 25.7%
 - **Business Summary**: Marico Limited, together with its subsidiaries, manufactures and sells branded consumer products in India, Bangladesh, Vietnam, and internationally. It offers coconut oils, refined edible oils, hair oils, anti-lice treatments, fabric care, functional and other processed food, hair creams and gels…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Financial Information
 - **Ticker Symbol**: MARICO

@@ -38,11 +38,12 @@ Dhanuka Agritech Limited operates as an agro-chemical company in India. The comp
 ## Company Profile (yfinance)
 
 - **Industry**: Agricultural Inputs
-- **Promoter Holding**: 70.9%
-- **Institutional Holding**: 19.8%
-- **Business Summary**: Dhanuka Agritech Limited operates as an agro-chemical company in India. The company offers herbicides, insecticides, fungicides, and plant growth regulators in various forms, such as liquid, dust, powder, and granules. It also provides biological portfolio to control insects and protects from dis…
+- **Employees**: 1,106
+- **Promoter Holding**: 70.2%
+- **Institutional Holding**: 19.7%
+- **Business Summary**: Dhanuka Agritech Limited operates as an agro-chemical company in India. The company offers herbicides, insecticides, fungicides, and plant growth regulators in various forms, such as liquid, dust, powder, and granules. It also provides biological and efficacy enhancers. Dhanuka Agritech Limited w…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Financial Information
 - **Market Cap**: ₹58.80 billion (INR)

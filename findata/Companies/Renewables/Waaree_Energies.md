@@ -60,11 +60,12 @@ Waaree Energies is a leading solar energy company specializing in solar module m
 ## Company Profile (yfinance)
 
 - **Industry**: Solar
+- **Employees**: 2,110
 - **Promoter Holding**: 68.2%
-- **Institutional Holding**: 8.6%
-- **Business Summary**: Waaree Energies Limited manufactures and exports solar photovoltaic modules for residential, commercial, industrial, and institutional projects. It operates through three segments: Solar Photovoltaic Module Manufacturing, EPC and O&M Solutions, and the Independent Power Producer. The company offe…
+- **Institutional Holding**: 9.2%
+- **Business Summary**: Waaree Energies Limited manufactures and trades in solar photovoltaic modules in India and internationally. It operates through Solar Photovoltaic Modules; Generation of Power; and Engineering, Procurement and Construction Contract segments. The company offers PV modules, such as HJT, N Type, mon…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Recent Updates (The Chatter - Known Unknowns Edition #32)
 

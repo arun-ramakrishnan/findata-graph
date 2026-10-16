@@ -52,11 +52,12 @@ sources:
 ## Company Profile (yfinance)
 
 - **Industry**: Capital Markets
+- **Employees**: 609
 - **Promoter Holding**: 71.2%
 - **Institutional Holding**: 12.4%
-- **Business Summary**: 5paisa Capital Limited provides a platform for trading in National Stock Exchange of India Limited, BSE Ltd, and MCX in India. The company offers financial services, including depository services; distributes mutual funds, bonds, and debentures; and equity and mutual fund research, and investment…
+- **Business Summary**: 5paisa Capital Limited provides an online technology platform for trading in National Stock Exchange of India Limited, BSE Ltd, and MCX in India. The company offers financial services, including depository services; distributes mutual funds, bonds, and debentures; and equity and mutual fund resea…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 
 <!-- BEGIN auto chatter block (derive_insights.py) -->

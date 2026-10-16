@@ -41,11 +41,11 @@ Cello World Limited is a leading manufacturer of housewares and lifestyle produc
 
 - **Industry**: Furnishings, Fixtures & Appliances
 - **Employees**: 469
-- **Promoter Holding**: 75.0%
-- **Institutional Holding**: 24.6%
+- **Promoter Holding**: 73.5%
+- **Institutional Holding**: 15.8%
 - **Business Summary**: Cello World Limited manufactures and sells consumer houseware and glassware products in India and internationally. The company offers vacuum-insulated steel products, including flasks, bottles, sports bottles, kids' bottles, mugs, tiffin's, soup and food jars, serving pots, and beverage dispenser…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Business Model
 - Manufacturing and distribution of housewares

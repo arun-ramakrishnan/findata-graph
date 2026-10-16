@@ -49,10 +49,10 @@ Cera designs, manufactures, and sells sanitaryware products (including toilets, 
 - **Industry**: Building Products & Equipment
 - **Employees**: 2,502
 - **Promoter Holding**: 57.0%
-- **Institutional Holding**: 25.3%
+- **Institutional Holding**: 26.3%
 - **Business Summary**: Cera Sanitaryware Limited manufactures, sells, and trades in building material products in India. The company offers sanitaryware, including toilets, wash basins, cisterns, seat covers, and fittings; faucets, showers, health faucets, allied products, and bath accessories; urinals; special needs b…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Financial Profile (Yahoo Finance, Jun 2026)
 

@@ -3,6 +3,7 @@ title: Mercedes-Benz Group
 type: company
 ticker: MBG.DE
 sector: Automotive
+industry: Auto Manufacturers
 market_cap: large_cap
 normalized_name: Mercedes_Benz_Group
 permalink: /companies/automotive/mercedes_benz_group
@@ -33,6 +34,19 @@ German premium automobile and commercial-vehicle group.
 
 *Stub node — created as a graph endpoint. Expand as additional primary research accumulates.*
 
+
+<!-- BEGIN auto company profile (enrich_from_yfinance.py) -->
+
+## Company Profile (yfinance)
+
+- **Industry**: Auto Manufacturers
+- **Employees**: 152,528
+- **Promoter Holding**: 20.1%
+- **Institutional Holding**: 38.3%
+- **Business Summary**: Mercedes-Benz Group AG operates as an automotive company in Europe, Germany, North America, the United States, Asia, China, and internationally. It operates through Mercedes-Benz Cars, Mercedes-Benz Vans, and Mercedes-Benz Financial Services segments. The company develops, manufactures, and sells…
+
+_Source: yfinance | Refreshed: 2026-10-16_
+<!-- END auto company profile -->
 <!-- BEGIN auto chatter block (derive_insights.py) -->
 
 ## The Chatter — Decoding the Dialogue

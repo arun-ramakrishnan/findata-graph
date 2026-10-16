@@ -3,6 +3,7 @@ title: Apcotex Industries
 type: company
 ticker: APCOTEXIND.BO
 sector: Chemicals
+industry: Specialty Chemicals
 market_cap: small_cap
 normalized_name: Apcotex_Industries
 permalink: /companies/chemicals/apcotex_industries
@@ -34,6 +35,19 @@ Latex and rubber-polymers maker.
 
 *Stub node — created as a graph endpoint. Expand as additional primary research accumulates.*
 
+
+<!-- BEGIN auto company profile (enrich_from_yfinance.py) -->
+
+## Company Profile (yfinance)
+
+- **Industry**: Specialty Chemicals
+- **Employees**: 572
+- **Promoter Holding**: 61.4%
+- **Institutional Holding**: 2.1%
+- **Business Summary**: Apcotex Industries Limited produces and sells synthetic emulsion polymers in India and internationally. The company offers synthetic latexes, such as carboxylated styrene butadiene, styrene acrylic, vinyl pyridine, XNB and XSB latexes, and nitrile latexes; and synthetic rubber, including nitrile …
+
+_Source: yfinance | Refreshed: 2026-10-16_
+<!-- END auto company profile -->
 <!-- BEGIN auto chatter block (derive_insights.py) -->
 
 ## The Chatter — Embracing the Unknown

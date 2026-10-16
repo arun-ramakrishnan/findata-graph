@@ -60,10 +60,10 @@ Elgi Equipments Limited is a global leader in manufacturing innovative and techn
 - **Industry**: Specialty Industrial Machinery
 - **Employees**: 1,432
 - **Promoter Holding**: 45.0%
-- **Institutional Holding**: 18.7%
+- **Institutional Holding**: 20.3%
 - **Business Summary**: Elgi Equipments Limited manufactures and sells air compressors and related parts in India, Europe, Australia, the United States, and internationally. It operates through two segments, Air Compressors and Automotive Equipments. The company offers oil lubricated screw and piston air compressors, oi…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Industry Context: Engineering & Capital Goods Sector
 

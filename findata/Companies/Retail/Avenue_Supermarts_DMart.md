@@ -37,10 +37,10 @@ Avenue Supermarts Limited operates DMart, one of India's most successful retail 
 - **Industry**: Discount Stores
 - **Employees**: 20,994
 - **Promoter Holding**: 78.9%
-- **Institutional Holding**: 13.1%
+- **Institutional Holding**: 13.7%
 - **Business Summary**: Avenue Supermarts Limited engages in the business of organized retail and operation of supermarkets under the D-Mart brand name in India. The company offers food products, such as groceries, staples, processed food products, dairy, frozen products, beverages and confectionery products, and fruits…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Business Model
 - Hypermarket and supermarket retail operations

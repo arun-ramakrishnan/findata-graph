@@ -49,12 +49,12 @@ Tube Investments of India Limited (TII) is a key player in India's manufacturing
 ## Company Profile (yfinance)
 
 - **Industry**: Conglomerates
-- **Employees**: 3,219
-- **Promoter Holding**: 44.0%
-- **Institutional Holding**: 33.5%
-- **Business Summary**: Tube Investments of India Limited, together with its subsidiaries, engages in the manufacture and sale of precision engineered and metal formed products to automotive, railway, construction, agriculture, etc. in India. It operates through eight segments: Engineering, Metal Formed Products, Mobili…
+- **Employees**: 3,153
+- **Promoter Holding**: 43.9%
+- **Institutional Holding**: 38.9%
+- **Business Summary**: Tube Investments of India Limited, together with its subsidiaries, engages in the manufacture and sale of engineering, mobility, and metal formed products in India and internationally. It operates through nine segments: Engineering, Metal Formed Products, Mobility, Gear and Gear Products, Power S…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Market Position
 

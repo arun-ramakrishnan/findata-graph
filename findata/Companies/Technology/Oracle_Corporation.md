@@ -56,11 +56,11 @@ Oracle Corporation is a global tech giant focused on cloud computing, enterprise
 
 - **Industry**: Software - Infrastructure
 - **Employees**: 141,000
-- **Promoter Holding**: 40.5%
-- **Institutional Holding**: 44.2%
+- **Promoter Holding**: 38.4%
+- **Institutional Holding**: 43.4%
 - **Business Summary**: Oracle Corporation offers products and services that build, run and support enterprise information technology frameworks worldwide. Its Oracle cloud software as a service offering includes various cloud software applications, including Oracle Fusion cloud enterprise resource planning ERP, Oracle …
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Recent Performance
 - **Cloud Growth**: Rapid capacity expansion (400 MW delivered)

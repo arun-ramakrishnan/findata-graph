@@ -277,11 +277,11 @@ Found in: From_Visual_Noise_to_Narrative.md, Decoding_Capex_Capacity_and_Consume
 
 - **Industry**: Building Materials
 - **Employees**: 28,259
-- **Promoter Holding**: 48.7%
-- **Institutional Holding**: 24.5%
+- **Promoter Holding**: 48.8%
+- **Institutional Holding**: 22.4%
 - **Business Summary**: Grasim Industries Limited, together with its subsidiaries, primarily produces cellulosic fibres, diversified chemicals, fashion yarns, and fabrics in india and internationally. The company operates through Cellulosic Fibres, Chemicals, Building Materials, Financial Services, and Others segments. …
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 
 <!-- BEGIN auto key figures (derive_insights.py) -->

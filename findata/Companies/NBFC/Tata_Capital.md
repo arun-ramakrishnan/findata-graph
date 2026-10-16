@@ -62,10 +62,10 @@ Tata Capital Ltd, the flagship financial arm of the Tata Group, is a leading div
 - **Industry**: Credit Services
 - **Employees**: 17,286
 - **Promoter Holding**: 86.0%
-- **Institutional Holding**: 4.7%
+- **Institutional Holding**: 4.9%
 - **Business Summary**: Tata Capital Limited, through its subsidiaries, provides various financial services to retail, SME, corporate, and institutional customers in India, Singapore, and the United Kingdom. The company operates through three segments: Financing Activity, Investment Activity, and Others. It offers loans…
 
-_Source: yfinance | Refreshed: 2026-08-11_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Market Position
 - Amongst largest diversified NBFCs in India

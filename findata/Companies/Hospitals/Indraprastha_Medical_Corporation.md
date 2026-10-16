@@ -34,11 +34,12 @@ Indraprastha Medical Corporation Limited operates hospitals and provides healthc
 ## Company Profile (yfinance)
 
 - **Industry**: Medical Care Facilities
+- **Employees**: 3,000
 - **Promoter Holding**: 55.3%
-- **Institutional Holding**: 0.6%
-- **Business Summary**: Indraprastha Medical Corporation Limited provides hospital services in India. The company offers services primarily in the areas of sugar, genomic medicine, elder care, anesthesiology, bariatric and metabolic surgery, bone marrow transplant, dental and cosmetic clinic, dermatology, dietetics and …
+- **Institutional Holding**: 1.7%
+- **Business Summary**: Indraprastha Medical Corporation Limited provides hospital services in India. The company offers services primarily in the areas of genomic medicine, internal medicine, elder care, anesthesiology, bariatric and metabolic surgery, bone marrow transplant, dental and cosmetic clinic, dermatology, di…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Strategic Context
 

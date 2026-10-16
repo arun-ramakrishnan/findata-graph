@@ -48,6 +48,19 @@ Pajson Agro India Ltd. processes raw cashew nuts into kernels and dry-fruit prod
 
 <!-- END auto key figures -->
 
+
+<!-- BEGIN auto company profile (enrich_from_yfinance.py) -->
+
+## Company Profile (yfinance)
+
+- **Industry**: Packaged Foods
+- **Employees**: 473
+- **Promoter Holding**: 83.3%
+- **Institutional Holding**: 0.0%
+- **Business Summary**: Pajson Agro India Limited engages in the manufacturing and trading of cashew kernels and other dry fruit in India. It offers almond and pistachios kernels, mewa, raw cashew nuts, cashew husk, borma cashew kernels, and cashew nut shells, as well as other products. The company was incorporated in 2…
+
+_Source: yfinance | Refreshed: 2026-10-16_
+<!-- END auto company profile -->
 <!-- BEGIN auto chatter block (derive_insights.py) -->
 
 ## The Chatter — Havells Ambuja Cipla

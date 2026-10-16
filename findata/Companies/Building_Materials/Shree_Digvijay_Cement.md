@@ -52,11 +52,12 @@ Shree Digvijay Cement Company is one of India's pioneer cement manufacturers, ha
 ## Company Profile (yfinance)
 
 - **Industry**: Building Materials
-- **Promoter Holding**: 65.6%
-- **Institutional Holding**: 4.5%
-- **Business Summary**: Shree Digvijay Cement Company Limited, together with its subsidiary, engages in the manufacture and sale of cement in India. It offers ordinary Portland cement, Portland Pozzolana cement, sulphate resistance Portland cement, oil well cement, and other special cements under the KAMAL CEMENT and CE…
+- **Employees**: 211
+- **Promoter Holding**: 65.5%
+- **Institutional Holding**: 0.0%
+- **Business Summary**: Shree Digvijay Cement Company Limited, together with its subsidiary, engages in the manufacture and sale of cement in India. It offers ordinary Portland cement, Portland Pozzolana cement, sulphate resistance Portland cement, oil well cement, and PPC, OPC, SRPC cements under the KAMAL CEMENT and C…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Product Portfolio
 

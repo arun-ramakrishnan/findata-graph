@@ -42,7 +42,7 @@ Khazanchi Jewellers — auto-generated stub from newsletter parsing. To be enric
 - **Institutional Holding**: 0.0%
 - **Business Summary**: Khazanchi Jewellers Limited engages in the wholesale and retail of jewelry products in India. The company offers a range of gold, silver, diamond, precious stone, and temple jewelry; bridal, contemporary, and occasion-based collections; and designer pieces, bullion products, and coins. It sells i…
 
-_Source: yfinance | Refreshed: 2026-09-15_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 <!-- BEGIN auto key figures (derive_insights.py) -->
 

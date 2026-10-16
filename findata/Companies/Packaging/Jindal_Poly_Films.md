@@ -37,11 +37,11 @@ Jindal Poly Films Limited manufactures BOPET and BOPP films in India and interna
 
 - **Industry**: Packaging & Containers
 - **Employees**: 346
-- **Promoter Holding**: 80.0%
+- **Promoter Holding**: 77.6%
 - **Institutional Holding**: 9.9%
-- **Business Summary**: Jindal Poly Films Limited, together with its subsidiaries, manufactures and sells biaxially oriented polyethylene terephthalate (BOPET) films, and BOPP films in India and internationally. The company operates through Packaging Films; Nonwoven Fabrics; and Others  Coated Products segments. The co…
+- **Business Summary**: Jindal Poly Films Limited, together with its subsidiaries, manufactures and sells biaxially oriented polyethylene terephthalate (BOPET) and biaxially oriented polypropylene (BOPP) films in India and internationally. It operates through Packaging Films, Nonwoven Fabrics, and Others  Coated Produc…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Financial Profile (Yahoo Finance, Jun 2026) — DECLINING
 

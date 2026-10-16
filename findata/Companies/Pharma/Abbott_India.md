@@ -35,10 +35,10 @@ Abbott India Limited is the Indian subsidiary of Abbott Laboratories, a global h
 - **Industry**: Drug Manufacturers - Specialty & Generic
 - **Employees**: 3,679
 - **Promoter Holding**: 75.5%
-- **Institutional Holding**: 7.6%
+- **Institutional Holding**: 6.9%
 - **Business Summary**: Abbott India Limited, together with its subsidiaries, operates as a pharmaceutical company in India. The company offers pharmaceutical products for gastroenterology, women's health, metabolic, hypothyroidism, central nervous system, vaccines, and multispecialty, including insomnia, vertigo, vitam…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Business Segments
 

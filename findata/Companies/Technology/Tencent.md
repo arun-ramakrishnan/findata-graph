@@ -3,6 +3,7 @@ title: Tencent
 type: company
 ticker: 0700.HK
 sector: Technology
+industry: Internet Content & Information
 market_cap: large_cap
 normalized_name: Tencent
 permalink: /companies/technology/tencent
@@ -33,6 +34,19 @@ Chinese internet and gaming conglomerate.
 
 *Stub node — created as a graph endpoint. Expand as additional primary research accumulates.*
 
+
+<!-- BEGIN auto company profile (enrich_from_yfinance.py) -->
+
+## Company Profile (yfinance)
+
+- **Industry**: Internet Content & Information
+- **Employees**: 115,927
+- **Promoter Holding**: 31.7%
+- **Institutional Holding**: 25.0%
+- **Business Summary**: Tencent Holdings Limited, an investment holding company, provides value-added services, marketing services, fintech, and business services in Mainland China and internationally. The company's consumers business includes communications and social services, such as instant messaging and social netw…
+
+_Source: yfinance | Refreshed: 2026-10-16_
+<!-- END auto company profile -->
 <!-- BEGIN auto chatter block (derive_insights.py) -->
 
 ## The Chatter — Signals in Silence

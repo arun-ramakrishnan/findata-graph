@@ -3,7 +3,7 @@ title: CMR Green Technologies
 type: company
 ticker: CMRGREEN.NS
 sector: Metals
-industry: null
+industry: Aluminum
 market_cap: small_cap
 normalized_name: CMR_Green_Technologies
 permalink: /companies/metals/cmr_green_technologies
@@ -51,6 +51,19 @@ One of India's leading recycled aluminium manufacturers serving automotive and i
 
 <!-- END auto key figures -->
 
+
+<!-- BEGIN auto company profile (enrich_from_yfinance.py) -->
+
+## Company Profile (yfinance)
+
+- **Industry**: Aluminum
+- **Employees**: 373
+- **Promoter Holding**: 85.0%
+- **Institutional Holding**: 6.9%
+- **Business Summary**: CMR Green Technologies Limited manufactures and sells aluminum and zinc die-casting alloys in India and internationally. It offers recycled aluminium alloy ingots, zinc alloy ingots, liquid and ingot aluminium alloy, aluminium billets, and stainless steel recycling, as well as segregated furnace …
+
+_Source: yfinance | Refreshed: 2026-10-16_
+<!-- END auto company profile -->
 <!-- BEGIN auto chatter block (derive_insights.py) -->
 
 ## The Chatter — TCS Indian Bank Amagi

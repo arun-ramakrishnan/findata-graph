@@ -3,6 +3,7 @@ title: Awfis Space Solutions
 type: company
 ticker: AWFIS.NS
 sector: Real_Estate
+industry: Rental & Leasing Services
 market_cap: small_cap
 normalized_name: Awfis_Space_Solutions
 permalink: /companies/real_estate/awfis_space_solutions
@@ -34,6 +35,19 @@ Flexible workspace provider.
 
 *Stub node — created as a graph endpoint. Expand as additional primary research accumulates.*
 
+
+<!-- BEGIN auto company profile (enrich_from_yfinance.py) -->
+
+## Company Profile (yfinance)
+
+- **Industry**: Rental & Leasing Services
+- **Employees**: 731
+- **Promoter Holding**: 26.7%
+- **Institutional Holding**: 50.0%
+- **Business Summary**: Awfis Space Solutions Limited provides flexible workspace solutions in India. The company operates through the Co-Working Space on Rent and Allied Services, Construction and Fit-Out Projects, and Other Services segments. It provides co-working solutions under the Awfis and Awfis Gold brand names,…
+
+_Source: yfinance | Refreshed: 2026-10-16_
+<!-- END auto company profile -->
 <!-- BEGIN auto chatter block (derive_insights.py) -->
 
 ## The Chatter — Decoding the Dialogue

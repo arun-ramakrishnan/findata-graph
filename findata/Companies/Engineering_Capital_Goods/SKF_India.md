@@ -45,10 +45,10 @@ SKF India Limited, headquartered in Pune and part of the global SKF Group (found
 - **Industry**: Tools & Accessories
 - **Employees**: 970
 - **Promoter Holding**: 53.2%
-- **Institutional Holding**: 28.3%
+- **Institutional Holding**: 27.5%
 - **Business Summary**: SKF India Limited engages in the manufacturing, trading, and servicing bearings, seals, and motion technologies in India and internationally. The company offers Bearings, such as rolling bearings, mounted bearings and housings, precision bearings, slewing bearings, plain bearings, magnetic bearin…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Financial Profile (Yahoo Finance, Jun 2026)
 - Market cap: ₹8,197 cr | Enterprise value: ₹7,902 cr

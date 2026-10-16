@@ -35,11 +35,12 @@ Man Industries (India) Limited manufactures submerged arc-welded pipes and steel
 ## Company Profile (yfinance)
 
 - **Industry**: Steel
+- **Employees**: 825
 - **Promoter Holding**: 57.3%
-- **Institutional Holding**: 0.7%
-- **Business Summary**: Man Industries (India) Limited manufactures, processes, sells, and trades in submerged arc-welded pipes and steel products in India. The company offers longitudinal submerged arc-welded (LSAW) and helically submerged arc-welded (HSAW) line pipes, external coatings and internal linings, electro re…
+- **Institutional Holding**: 0.9%
+- **Business Summary**: Man Industries (India) Limited manufactures, processes, sells, and trades in submerged arc-welded steel pipes and products in India and internationally. The company offers longitudinal submerged arc-welded (LSAW), helically submerged arc-welded (HSAW) line pipes, external coatings and internal li…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Financial Profile (Yahoo Finance, Jun 2026)
 

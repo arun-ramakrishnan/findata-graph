@@ -37,10 +37,10 @@ PNB Housing Finance Limited is an Indian housing finance company incorporated in
 - **Industry**: Mortgage Finance
 - **Employees**: 2,355
 - **Promoter Holding**: 28.0%
-- **Institutional Holding**: 58.4%
-- **Business Summary**: PNB Housing Finance Limited operates as a housing finance company in India. It provides loans to individuals and corporate bodies for purchase, construction, repair, and up-gradation of houses/flats/commercial properties, etc.; residential plot loans and loans for NRIs; loan against property, lea…
+- **Institutional Holding**: 54.9%
+- **Business Summary**: PNB Housing Finance Limited operates as a housing finance company in India. It offers loans to individuals and corporate bodies for purchase, construction, repair, and upgradation of houses; loans for commercial space, and loans against property, as well as for purchase of residential plots; and …
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Financial Profile (Yahoo Finance, Jun 2026)
 

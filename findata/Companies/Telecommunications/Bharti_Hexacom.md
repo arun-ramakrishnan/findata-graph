@@ -45,10 +45,10 @@ Bharti Hexacom Limited (incorporated 1995; HQ New Delhi/Jaipur; formerly Hexacom
 - **Industry**: Telecom Services
 - **Employees**: 546
 - **Promoter Holding**: 86.5%
-- **Institutional Holding**: 11.0%
-- **Business Summary**: Bharti Hexacom Limited provides mobile services, fixed-line telephone, and broadband services to end consumers under the Airtel brand in India. It operates through Mobile Services and Home and Office Services segments. The Mobile Services segment provides voice and data telecom services through w…
+- **Institutional Holding**: 11.1%
+- **Business Summary**: Bharti Hexacom Limited provides mobile services, fixed-line telephone, and broadband services to end consumers under the Airtel brand in India and internationally. It operates through Mobile Services; and Homes, Office and Other Services segments. The Mobile Services segment provides voice and da…
 
-_Source: yfinance | Refreshed: 2026-08-11_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Financial Profile (Yahoo Finance, Jun 2026)
 - Market cap: ₹73,850 cr | Enterprise value: ₹78,885 cr

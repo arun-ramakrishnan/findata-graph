@@ -3,7 +3,7 @@ title: Jinkushal Industries
 type: company
 ticker: JKIPL.BO
 sector: Engineering_Capital_Goods
-industry: Farm & Heavy Construction Machinery
+industry: Industrial Distribution
 market_cap: micro_cap
 normalized_name: Jinkushal_Industries
 permalink: /companies/engineering_capital_goods/jinkushal_industries
@@ -34,13 +34,13 @@ Jinkushal Industries Limited is an export trading company supplying construction
 
 ## Company Profile (yfinance)
 
-- **Industry**: Farm & Heavy Construction Machinery
+- **Industry**: Industrial Distribution
 - **Employees**: 133
-- **Promoter Holding**: 77.9%
-- **Institutional Holding**: 1.1%
-- **Business Summary**: Jinkushal Industries Limited operates as a trading and distributors company. The company was founded in 1972 and is headquartered in Raipur, India.
+- **Promoter Holding**: 82.6%
+- **Institutional Holding**: 0.0%
+- **Business Summary**: Jinkushal Industries Limited provides solutions for companies in the construction and mining equipment sector. It offers a diversified portfolio of equipment, including backhoe loaders, cranes, dozers, wheel loaders, crushers, pavers, generator sets, piling rigs, rollers, motor graders, telehandl…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Key Insights (Points & Figures — Patterns Beneath the Surface)
 

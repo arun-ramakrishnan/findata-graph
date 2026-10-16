@@ -40,10 +40,10 @@ Mrs. Bectors Food Specialities Limited, founded in 1978 and based in Gurugram, i
 
 - **Industry**: Packaged Foods
 - **Promoter Holding**: 50.3%
-- **Institutional Holding**: 33.6%
-- **Business Summary**: Mrs. Bectors Food Specialities Limited manufactures and distributes various food products in India. The company provides biscuits, including cookies, creams, crackers, digestives, and glucose under the Mrs. Bector's Cremica brand. It also offers bakery products that includes breads, buns, kulchas…
+- **Institutional Holding**: 31.5%
+- **Business Summary**: Mrs. Bectors Food Specialities Limited manufactures and distributes various food products in India and internationally. The company provides biscuits, including cookies, creams, crackers, digestives, and glucose under the Mrs. Bector's Cremica brand. It also offers bakery products that includes b…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Financial Profile (Yahoo Finance, Jun 2026)
 - Market cap: ₹5,608 cr | Enterprise value: ₹5,792 cr

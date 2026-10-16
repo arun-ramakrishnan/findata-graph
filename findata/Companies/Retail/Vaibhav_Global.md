@@ -39,11 +39,11 @@ Vaibhav Global Ltd is an Indian retailer specializing in jewelry and lifestyle p
 
 - **Industry**: Luxury Goods
 - **Employees**: 1,106
-- **Promoter Holding**: 59.3%
-- **Institutional Holding**: 15.3%
+- **Promoter Holding**: 59.2%
+- **Institutional Holding**: 15.2%
 - **Business Summary**: Vaibhav Global Limited, together with its subsidiaries, manufactures and sells fashion jewelry and lifestyle products in India, the United States of America, Canada, the United Kingdom, Germany, the rest of Europe, and internationally. The company offers fashion jewelry; gemstones; and lifestyle …
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Business Profile
 - **Primary Industry:** Retail

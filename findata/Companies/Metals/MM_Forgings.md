@@ -43,10 +43,10 @@ M M Forgings Limited (formerly The Madras Motors Ltd) manufactures and sells ste
 - **Industry**: Metal Fabrication
 - **Employees**: 2,327
 - **Promoter Holding**: 60.9%
-- **Institutional Holding**: 7.7%
+- **Institutional Holding**: 8.6%
 - **Business Summary**: M M Forgings Limited, together with its subsidiaries, manufactures and sells steel forgings in India. It offers sprocket, flange housing, connecting rod, connecting rod integral, rail forging, hub, knuckle, front axle beam, universal joint cross, steering and pivot arm, planetary wheel carrier, u…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Financial Profile (Yahoo Finance, Jun 2026)
 

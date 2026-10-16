@@ -50,10 +50,10 @@ Manappuram Finance Limited, founded in **1949** (formerly Manappuram General Fin
 - **Industry**: Credit Services
 - **Employees**: 23,984
 - **Promoter Holding**: 31.9%
-- **Institutional Holding**: 35.8%
+- **Institutional Holding**: 40.5%
 - **Business Summary**: Manappuram Finance Limited, a gold loan non-banking financial company, provides fund-based and fee-based financial services in India. It operates through Gold Loan and Others, and Microfinance segments. The company offers loans, such as gold loans, gold loans at your doorstep, online gold loans, …
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Financial Profile (Yahoo Finance, Jun 2026)
 

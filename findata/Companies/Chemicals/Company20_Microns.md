@@ -55,7 +55,7 @@ sources:
 - **Institutional Holding**: 0.0%
 - **Business Summary**: 20 Microns Limited manufactures and markets micronized industrial minerals and specialty chemicals primarily in India and internationally. It offers industrial minerals, including ball clay, barytes, bentonite, bleaching earth, calcined kaolin, calcium carbonate, diatomaceous earth, dolomite, fel…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Business Segments
 

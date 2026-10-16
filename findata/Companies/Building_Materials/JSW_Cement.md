@@ -3,7 +3,7 @@ title: JSW Cement Limited
 type: company
 ticker: JSWCEMENT.NS
 sector: Building_Materials
-industry: null
+industry: Building Materials
 market_cap: small_cap
 normalized_name: JSW_Cement
 permalink: /companies/building_materials/jsw_cement
@@ -43,6 +43,19 @@ sources:
 
 JSW Cement Limited is a leading manufacturer of cement and construction materials, serving the building materials industry with high-quality cement products. The company operates in the building materials sector, providing critical construction materials for infrastructure, residential, and commercial projects.
 
+
+<!-- BEGIN auto company profile (enrich_from_yfinance.py) -->
+
+## Company Profile (yfinance)
+
+- **Industry**: Building Materials
+- **Employees**: 1,848
+- **Promoter Holding**: 76.1%
+- **Institutional Holding**: 18.6%
+- **Business Summary**: JSW Cement Limited manufactures and sells cement under the JSW Cement brand in India. The company offers Portland slag, ordinary Portland, composite, and Portland pozzolana cement products. It also provides construction chemicals comprising precision steel grouts, mortars, and waterproofing compo…
+
+_Source: yfinance | Refreshed: 2026-10-16_
+<!-- END auto company profile -->
 ## Business Segments
 
 ### Cement Manufacturing

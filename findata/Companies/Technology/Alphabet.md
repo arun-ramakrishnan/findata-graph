@@ -71,11 +71,11 @@ Alphabet (NASDAQ: GOOGL) is the parent of Google, spanning Google Services (Sear
 
 - **Industry**: Internet Content & Information
 - **Employees**: 198,933
-- **Promoter Holding**: 1.2%
-- **Institutional Holding**: 80.7%
+- **Promoter Holding**: 1.6%
+- **Institutional Holding**: 81.0%
 - **Business Summary**: Alphabet Inc. offers various products and platforms in the United States, Europe, the Middle East, Africa, the Asia-Pacific, Canada, and Latin America. It operates through Google Services, Google Cloud, and Other Bets segments. The Google Services segment provides products and services, including…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Management
 - Anat Ashkenazi — SVP & CFO, Alphabet and Google

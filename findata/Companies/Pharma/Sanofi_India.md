@@ -49,10 +49,10 @@ Sanofi India Limited, incorporated in 1956 (formerly Aventis Pharma, renamed May
 - **Industry**: Drug Manufacturers - General
 - **Employees**: 1,097
 - **Promoter Holding**: 60.6%
-- **Institutional Holding**: 24.3%
+- **Institutional Holding**: 22.9%
 - **Business Summary**: Sanofi India Limited manufactures and trades in drugs and pharmaceutical products in India, Singapore and internationally. The company offers pharmaceutical products in various therapeutic areas, such as diabetes, cardiology, anti-infectives, and central nervous system under the Lantus, Toujeo, S…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Financial Profile (Yahoo Finance, Jun 2026)
 - Market cap: ₹77.3B | Enterprise value: ₹75.8B

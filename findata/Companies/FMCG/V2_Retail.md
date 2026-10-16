@@ -75,6 +75,19 @@ priority for us. Even when that omnichannel business gets mature, it would not c
 
 - Akash Agarwal, Director and CEO
 
+
+<!-- BEGIN auto company profile (enrich_from_yfinance.py) -->
+
+## Company Profile (yfinance)
+
+- **Industry**: Apparel Retail
+- **Employees**: 10,561
+- **Promoter Holding**: 54.1%
+- **Institutional Holding**: 10.9%
+- **Business Summary**: V2 Retail Limited, together with its subsidiary, V2 Smart Manufacturing Private Limited, engages in the retail trade of garments, textiles, and accessories in India. It is involved in the retail sale of ready-made garments, hosiery goods, and other articles of clothing and clothing accessories un…
+
+_Source: yfinance | Refreshed: 2026-10-16_
+<!-- END auto company profile -->
 <!-- BEGIN auto key figures (derive_insights.py) -->
 
 ## Key Figures (auto)

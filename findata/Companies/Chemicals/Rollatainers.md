@@ -35,11 +35,11 @@ Rollatainers Limited (incorporated 1968; headquartered in Rewari) is a shell-lik
 ## Company Profile (yfinance)
 
 - **Industry**: Real Estate Services
-- **Promoter Holding**: 57.6%
+- **Promoter Holding**: 56.2%
 - **Institutional Holding**: 0.0%
-- **Business Summary**: Rollatainers Limited, an integrated packaging company, provides packaging solutions in India. It provides lined cartons; and manufactures and installs packaging machines. Rollatainers Limited was incorporated in 1968 and is headquartered in Rewari, India.
+- **Business Summary**: Rollatainers Limited, a packaging company, provides packaging solutions in India. It also provides lined cartons; and manufactures and installs packaging machines. The company was incorporated in 1968 and is headquartered in Rewari, India.
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Financial Profile (Yahoo Finance, Jun 2026) — DISTRESSED / SHELL
 

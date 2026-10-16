@@ -3,6 +3,7 @@ title: Freightos
 type: company
 ticker: CRGO
 sector: Logistics
+industry: Software - Application
 market_cap: small_cap
 normalized_name: Freightos
 permalink: /companies/logistics/freightos
@@ -33,6 +34,19 @@ Digital freight-booking marketplace.
 
 *Stub node — created as a graph endpoint. Expand as additional primary research accumulates.*
 
+
+<!-- BEGIN auto company profile (enrich_from_yfinance.py) -->
+
+## Company Profile (yfinance)
+
+- **Industry**: Software - Application
+- **Employees**: 382
+- **Promoter Holding**: 31.6%
+- **Institutional Holding**: 26.4%
+- **Business Summary**: Freightos Limited operates a vendor-neutral booking and payment platform for international freight in Spain, Europe, Hong Kong, the United States, and internationally. It offers WebCargo, a platform for connecting carriers and forwarders; and Freightos.com platform for connecting service provider…
+
+_Source: yfinance | Refreshed: 2026-10-16_
+<!-- END auto company profile -->
 <!-- BEGIN auto chatter block (derive_insights.py) -->
 
 ## The Chatter — Decoding the Dialogue

@@ -47,11 +47,11 @@ Prestige Estates Projects Limited, incorporated in 1986 and headquartered in Ben
 
 - **Industry**: Real Estate - Diversified
 - **Employees**: 11,092
-- **Promoter Holding**: 63.2%
-- **Institutional Holding**: 30.8%
+- **Promoter Holding**: 64.3%
+- **Institutional Holding**: 29.0%
 - **Business Summary**: Prestige Estates Projects Limited, together with its subsidiaries, engages in the real estate development and related activities in India. It develops residential projects, such as apartments, villas, integrated townships, and plotted developments. The company is also involved in the development …
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Financial Profile (Yahoo Finance, Jun 2026)
 - Market cap: ₹67,107 cr | Enterprise value: ₹81,747 cr

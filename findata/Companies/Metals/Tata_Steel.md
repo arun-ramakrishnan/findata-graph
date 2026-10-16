@@ -73,11 +73,11 @@ Tata Steel is a globally diversified steel producer with integrated operations f
 
 - **Industry**: Steel
 - **Employees**: 112,262
-- **Promoter Holding**: 35.5%
-- **Institutional Holding**: 33.4%
+- **Promoter Holding**: 35.4%
+- **Institutional Holding**: 34.9%
 - **Business Summary**: Tata Steel Limited engages in the manufacture and distribution of steel products in India and internationally. It offers reinforcement bars (rebars) and wire rods, cut-and-bend reinforcement bars, welded wire mesh, prefabricated cages (pre-cages), steel couplers and carpet reinforcement; hot-roll…
 
-_Source: yfinance | Refreshed: 2026-08-11_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 
 <!-- BEGIN auto chatter block (derive_insights.py) -->

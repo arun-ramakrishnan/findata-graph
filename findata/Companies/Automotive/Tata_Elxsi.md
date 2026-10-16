@@ -57,6 +57,19 @@ sources:
 ## Overview
 Tata Elxsi Limited, founded in 1989, is a global leader in providing design and technology services in industries like Automotive, Broadcast, Communications, and Healthcare.
 
+
+<!-- BEGIN auto company profile (enrich_from_yfinance.py) -->
+
+## Company Profile (yfinance)
+
+- **Industry**: Software - Application
+- **Employees**: 11,046
+- **Promoter Holding**: 44.8%
+- **Institutional Holding**: 14.8%
+- **Business Summary**: Tata Elxsi Limited provides product design and engineering, systems integration, and support services in India, the United States, Europe, and Internationally. The company operates through two segments, Systems Integration and Support, and Software Development and Services. It offers iCX, a SaaS-…
+
+_Source: yfinance | Refreshed: 2026-10-16_
+<!-- END auto company profile -->
 <!-- BEGIN auto key figures (derive_insights.py) -->
 
 ## Key Figures (auto)

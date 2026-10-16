@@ -3,6 +3,7 @@ title: Hugo Boss
 type: company
 ticker: BOSS.DE
 sector: Textiles
+industry: Apparel Manufacturing
 market_cap: mid_cap
 normalized_name: Hugo_Boss
 permalink: /companies/textiles/hugo_boss
@@ -33,6 +34,19 @@ German premium fashion house.
 
 *Stub node — created as a graph endpoint. Expand as additional primary research accumulates.*
 
+
+<!-- BEGIN auto company profile (enrich_from_yfinance.py) -->
+
+## Company Profile (yfinance)
+
+- **Industry**: Apparel Manufacturing
+- **Employees**: 16,809
+- **Promoter Holding**: 65.2%
+- **Institutional Holding**: 26.6%
+- **Business Summary**: Hugo Boss AG, together with its subsidiaries, provides apparel, shoes, and accessories for men and women worldwide. It offers licensed products, such as fragrances, eyewear, and watches. The company also provides sportswear for tennis and padel, gym and running, ski, golf, equestrian, and swimmin…
+
+_Source: yfinance | Refreshed: 2026-10-16_
+<!-- END auto company profile -->
 <!-- BEGIN auto chatter block (derive_insights.py) -->
 
 ## The Chatter — Signals in Silence

@@ -49,10 +49,10 @@ Hindware Home Innovation is a consumer durables company focused on home and kitc
 - **Industry**: Furnishings, Fixtures & Appliances
 - **Employees**: 260
 - **Promoter Holding**: 56.6%
-- **Institutional Holding**: 7.4%
+- **Institutional Holding**: 7.2%
 - **Business Summary**: Hindware Home Innovation Limited engages in the manufacturing, selling and trading of building products and consumer products in India. The company offers kitchen appliances comprising chimneys, built-in hobs, dishwashers, cooktops, built-in ovens, cooking range, water purifiers, and sinks; air c…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Strategic Context
 

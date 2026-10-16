@@ -46,11 +46,11 @@ Borosil Renewables is a Small Cap company operating in the Building Materials se
 
 - **Industry**: Solar
 - **Employees**: 785
-- **Promoter Holding**: 60.0%
-- **Institutional Holding**: 4.2%
+- **Promoter Holding**: 57.8%
+- **Institutional Holding**: 4.3%
 - **Business Summary**: Borosil Renewables Limited engages in the manufacture and sale of flat glass products in India and internationally. It provides low iron textured solar glass for various applications in photovoltaic (PV) panels, flat plate collectors, and greenhouses. It also offers 2 MM fully tempered solar glas…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Business Operations
 

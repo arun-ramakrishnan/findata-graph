@@ -45,11 +45,12 @@ Vijaya Diagnostic Centre is a leading diagnostic service provider offering compr
 ## Company Profile (yfinance)
 
 - **Industry**: Diagnostics & Research
+- **Employees**: 2,507
 - **Promoter Holding**: 53.5%
-- **Institutional Holding**: 38.7%
-- **Business Summary**: Vijaya Diagnostic Centre Limited provides diagnostic services for patients in India. The company offers laboratory services, including clinical pathology, microbiology, haematology, serology, histopathology, cytogenetics, biochemistry, molecular diagnostics, CT scan, magnetic resonance imaging (M…
+- **Institutional Holding**: 39.4%
+- **Business Summary**: Vijaya Diagnostic Centre Limited provides diagnostic services for patients in India. The company offers laboratory services, including clinical pathology, microbiology, haematology, serology, histopathology, cytogenetics, biochemistry, and molecular diagnostics; radiology services, such as CT sca…
 
-_Source: yfinance | Refreshed: 2026-08-11_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Business Model
 - **Primary Model**: B2B (Business-to-Business) and B2C (Business-to-Consumer)

@@ -3,6 +3,7 @@ title: DBS Group
 type: company
 ticker: D05.SI
 sector: Banking
+industry: Banks - Regional
 market_cap: large_cap
 normalized_name: DBS_Group
 permalink: /companies/banking/dbs_group
@@ -33,6 +34,19 @@ Singapore banking group.
 
 *Stub node — created as a graph endpoint. Expand as additional primary research accumulates.*
 
+
+<!-- BEGIN auto company profile (enrich_from_yfinance.py) -->
+
+## Company Profile (yfinance)
+
+- **Industry**: Banks - Regional
+- **Employees**: 39,892
+- **Promoter Holding**: 0.6%
+- **Institutional Holding**: 54.6%
+- **Business Summary**: DBS Group Holdings Ltd provides commercial banking and financial services in Singapore, Hong Kong, rest of Greater China, South and Southeast Asia, and internationally. It operates through Personal Banking; Institutional Banking; and Global Financial Markets segments. The Personal Banking segment…
+
+_Source: yfinance | Refreshed: 2026-10-16_
+<!-- END auto company profile -->
 <!-- BEGIN auto chatter block (derive_insights.py) -->
 
 ## The Chatter — The Push and Pull

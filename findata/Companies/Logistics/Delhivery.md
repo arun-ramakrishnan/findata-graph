@@ -65,11 +65,12 @@ Delhivery is a logistics company that provides delivery, supply chain management
 ## Company Profile (yfinance)
 
 - **Industry**: Integrated Freight & Logistics
-- **Promoter Holding**: 22.5%
-- **Institutional Holding**: 55.8%
+- **Employees**: 27,932
+- **Promoter Holding**: 16.7%
+- **Institutional Holding**: 57.1%
 - **Business Summary**: Delhivery Limited provides supply chain solutions in India. It offers express parcel services; part truckload services; supply chain services that provide integrated warehousing and transportation services; point-to-point and multi-point full-truckload services; and cross-border services comprisi…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 
 <!-- BEGIN auto chatter block (derive_insights.py) -->

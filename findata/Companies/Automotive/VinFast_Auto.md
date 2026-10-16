@@ -53,9 +53,9 @@ VinFast Auto is a global automotive manufacturer specializing in electric vehicl
 - **Employees**: 29,878
 - **Promoter Holding**: 97.9%
 - **Institutional Holding**: 0.2%
-- **Business Summary**: VinFast Auto Ltd. engages in the design and manufacture of electric vehicles (EV), e-scooters, and e-buses in Vietnam, Canada, and the United States. The company operates through three segments: namely Car, E-scooters and Ebus. It offers the design, development, manufacturing and sales of e-scoot…
+- **Business Summary**: VinFast Auto Ltd. engages in the design and manufacture of electric vehicles (EV), e-scooters, and e-buses in Vietnam, Canada, India, and the United States. The company operates through three segments: namely Car, E-scooters and Ebus. It offers the design, development, manufacturing and sales of …
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Business Segments
 

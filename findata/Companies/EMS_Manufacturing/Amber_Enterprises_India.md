@@ -107,11 +107,12 @@ Amber Enterprises India — mid-cap consumer durables contract manufacturer (RAC
 ## Company Profile (yfinance)
 
 - **Industry**: Furnishings, Fixtures & Appliances
+- **Employees**: 1,960
 - **Promoter Holding**: 39.2%
-- **Institutional Holding**: 39.8%
-- **Business Summary**: Amber Enterprises India Limited provides room air conditioner solutions in India. It designs and manufactures a range of room air conditioners (RACs), including window air conditioners, indoor units, and outdoor units of split air conditioners; and inverter RACs. The company also offers functiona…
+- **Institutional Holding**: 42.4%
+- **Business Summary**: Amber Enterprises India Limited engages in the room air conditioners (RAC) industry in India. It offers complete built units and various components for consumer durable goods; room air conditioners, such as split AC, outdoor unit, window AC, and top-throw window AC; and commercial air conditioner…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## The Chatter — Infosys, Adani, Tata Motors, Canara & More
 

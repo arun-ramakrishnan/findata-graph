@@ -46,11 +46,12 @@ sources:
 ## Company Profile (yfinance)
 
 - **Industry**: Engineering & Construction
+- **Employees**: 9,964
 - **Promoter Holding**: 58.4%
-- **Institutional Holding**: 23.2%
+- **Institutional Holding**: 25.0%
 - **Business Summary**: Power Mech Projects Limited, together with its subsidiaries, provides services in power and infrastructure sectors in India and internationally. The company engages in the erection, testing, and commissioning of boilers, turbines, and generators; balance of plant (BOP), civil works and operation …
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 
 Power Mech Projects Limited is an engineering and construction company specializing in power, infrastructure, and industrial projects.

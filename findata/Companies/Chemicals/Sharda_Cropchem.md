@@ -40,11 +40,11 @@ Sharda Cropchem Limited, founded in 1987 and headquartered in Mumbai, India, is 
 
 - **Industry**: Agricultural Inputs
 - **Employees**: 500
-- **Promoter Holding**: 75.9%
-- **Institutional Holding**: 10.2%
-- **Business Summary**: Sharda Cropchem Limited, a crop protection chemical company, provides various formulations and generic active ingredients worldwide. It offers agrochemical products, including insecticides, fungicides, herbicides, veterinary drugs, plant growth regulators, fumigants, regulators, rodenticides, met…
+- **Promoter Holding**: 74.8%
+- **Institutional Holding**: 10.1%
+- **Business Summary**: Sharda Cropchem Limited, a crop protection chemical company, engages in the provision of various formulations and generic active ingredients worldwide. The company operates through Agrochemicals and Non- Agrochemicals segments. It offers agrochemical products, including insecticides, fungicides, …
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Financial Profile (Yahoo Finance, Jun 2026)
 - Market cap: ₹7,908 cr | Enterprise value: ₹7,327 cr

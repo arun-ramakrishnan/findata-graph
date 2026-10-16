@@ -37,11 +37,11 @@ Syngene International Limited is a leading contract research and manufacturing o
 
 - **Industry**: Diagnostics & Research
 - **Employees**: 6,692
-- **Promoter Holding**: 52.9%
-- **Institutional Holding**: 36.4%
+- **Promoter Holding**: 52.8%
+- **Institutional Holding**: 38.9%
 - **Business Summary**: Syngene International Limited, a contract research and manufacturing company, provides drug discovery and development services in India, the United States of America, Europe, and internationally. The company provides discovery chemistry services, such as synthetic and medicinal chemistry, library…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Business Segments
 

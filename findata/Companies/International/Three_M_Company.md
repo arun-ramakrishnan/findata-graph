@@ -40,8 +40,8 @@ American multinational conglomerate headquartered in St. Paul, Minnesota (NYSE: 
 - **Industry**: Conglomerates
 - **Employees**: 60,500
 - **Promoter Holding**: 0.1%
-- **Institutional Holding**: 79.0%
+- **Institutional Holding**: 76.7%
 - **Business Summary**: 3M Company provides diversified technology services in the America, the Asia Pacific, Europe, the Middle East, Africa, and internationally. It operates through three segments: Safety and Industrial, Transportation and Electronics, and Consumer. The Safety and Industrial segment provides industria…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->

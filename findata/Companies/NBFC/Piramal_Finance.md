@@ -3,7 +3,7 @@ title: Piramal Finance
 type: company
 ticker: PIRAMALFIN.NS
 sector: NBFC
-industry: null
+industry: Credit Services
 market_cap: mid_cap
 normalized_name: Piramal_Finance
 permalink: /companies/nbfc/piramal_finance
@@ -45,6 +45,19 @@ sources:
 ## Company Overview
 Piramal Finance Limited is a diversified non-banking financial company (NBFC) and a wholly-owned subsidiary of Piramal Enterprises Limited. It offers retail and wholesale lending solutions across home loans, loans against property, MSME finance, used vehicle finance, construction finance, and emerging products such as gold loans. The company is focused on expanding its retail lending franchise, improving asset quality, and delivering profitable growth while maintaining a prudent approach to risk and capital allocation. Piramal Finance filed for an IPO in 2026 (listed on NSE/BSE under PIRAMALFIN).
 
+
+<!-- BEGIN auto company profile (enrich_from_yfinance.py) -->
+
+## Company Profile (yfinance)
+
+- **Industry**: Credit Services
+- **Employees**: 16,684
+- **Promoter Holding**: 46.6%
+- **Institutional Holding**: 25.8%
+- **Business Summary**: Piramal Finance Limited, a housing finance company, provides financing solutions to corporate and private customers in India. It offers housing loans, such as home, construction, and home renovation and extension loan; business loans, which include working capital loan, loan against property and …
+
+_Source: yfinance | Refreshed: 2026-10-16_
+<!-- END auto company profile -->
 <!-- BEGIN auto key figures (derive_insights.py) -->
 
 ## Key Figures (auto)

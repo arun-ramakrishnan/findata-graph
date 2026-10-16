@@ -50,6 +50,19 @@ RMC Switchgears — small-cap manufacturer of transformers, switchgears and EPC 
 
 <!-- END auto key figures -->
 
+
+<!-- BEGIN auto company profile (enrich_from_yfinance.py) -->
+
+## Company Profile (yfinance)
+
+- **Industry**: Electrical Equipment & Parts
+- **Employees**: 281
+- **Promoter Holding**: 60.8%
+- **Institutional Holding**: 0.0%
+- **Business Summary**: RMC Switchgears Limited engages in the switchgear engineering business in India. The company also manufactures smart-meter enclosures, feeder pillars, distribution and junction boxes, fibre-reinforced plastic safety products, V-cross arms, gratings, cable trays, transformer fencing, electrical pa…
+
+_Source: yfinance | Refreshed: 2026-10-16_
+<!-- END auto company profile -->
 <!-- BEGIN auto chatter block (derive_insights.py) -->
 
 ## The Chatter — Reliance Vedanta Gillette

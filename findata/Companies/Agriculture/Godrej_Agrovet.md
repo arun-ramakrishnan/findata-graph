@@ -7,6 +7,7 @@ tags:
 - sector/agriculture
 normalized_name: Godrej_Agrovet
 sector: Agriculture
+industry: Packaged Foods
 market_cap: null
 permalink: /companies/agriculture/godrej_agrovet
 created: '2026-09-14'
@@ -31,6 +32,19 @@ sources:
 ## Company Overview
 Godrej Agrovet — auto-generated stub from newsletter parsing. To be enriched.
 
+
+<!-- BEGIN auto company profile (enrich_from_yfinance.py) -->
+
+## Company Profile (yfinance)
+
+- **Industry**: Packaged Foods
+- **Employees**: 2,774
+- **Promoter Holding**: 72.7%
+- **Institutional Holding**: 10.1%
+- **Business Summary**: Godrej Agrovet Limited, an agri-business company, provides products and services that enhance crop and livestock yields in India and internationally. The company operates through Animal Feed, Vegetable Oil, Crop Protection, Dairy, Poultry and Processed Food, and Other segments. It offers animal f…
+
+_Source: yfinance | Refreshed: 2026-10-16_
+<!-- END auto company profile -->
 <!-- BEGIN auto chatter block (derive_insights.py) -->
 
 ## The Chatter — Risks Rewards and Revelations

@@ -64,7 +64,7 @@ Mahindra EPC Irrigation Limited was incorporated in 1981 having its registered o
 - **Institutional Holding**: 0.0%
 - **Business Summary**: Mahindra EPC Irrigation Limited manufactures, sells, and markets micro irrigation systems in India and Uganda. The company's drip irrigation products include online drip irrigation products, such as drippers and plain irrigation lateral products; and inline drip irrigation products comprising non…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Market Opportunity
 

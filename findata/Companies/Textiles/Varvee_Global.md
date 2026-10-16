@@ -3,7 +3,7 @@ title: Varvee Global
 type: company
 ticker: VGL.NS
 sector: Textiles
-industry: null
+industry: Textile Manufacturing
 market_cap: micro_cap
 normalized_name: Varvee_Global
 permalink: /companies/textiles/varvee_global
@@ -232,6 +232,19 @@ Varvee Global Limited (formerly Aarvee Denims & Exports), is a global player in 
 - **Margin Enhancement**: Margin enhancement through value-added fabrics
 - **Export Growth**: Growth in export markets and international presence
 
+
+<!-- BEGIN auto company profile (enrich_from_yfinance.py) -->
+
+## Company Profile (yfinance)
+
+- **Industry**: Textile Manufacturing
+- **Employees**: 85
+- **Promoter Holding**: 70.2%
+- **Institutional Holding**: 0.0%
+- **Business Summary**: Varvee Global Limited engages in the manufacture and sale of fabrics in India and internationally. The company offers poplin, oxford, twill, dobby, chambray, and satin weaves, as well as other denims. It also offers non denim, suiting, canvas, and shirting fabrics, as well as cotton yarns and fib…
+
+_Source: yfinance | Refreshed: 2026-10-16_
+<!-- END auto company profile -->
 ## Key Investment Highlights
 
 - **Global Player**: Global player in textile industry with strong presence

@@ -3,7 +3,7 @@ title: Earkart Limited
 type: company
 ticker: EARKART.BO
 sector: Diagnostics
-industry: null
+industry: Medical Devices
 market_cap: micro_cap
 normalized_name: Earkart
 permalink: /companies/diagnostics/earkart
@@ -46,6 +46,19 @@ Earkart Limited is a health-tech company in India focused on making hearing care
 - **Educational Kits**: Specialized educational materials for disabled individuals
 - **Rehabilitation Products**: Supporting rehabilitation and independent living
 
+
+<!-- BEGIN auto company profile (enrich_from_yfinance.py) -->
+
+## Company Profile (yfinance)
+
+- **Industry**: Medical Devices
+- **Employees**: 58
+- **Promoter Holding**: 86.9%
+- **Institutional Holding**: 3.0%
+- **Business Summary**: Earkart Limited manufactures and distributes modern hearing aids and related accessories in India and internationally. The company offers adjustable foldable walkers; Multi Sensory Inclusive Educational (MSIED) Kit designed for educational purpose for mentally retarded children; Teaching Learning…
+
+_Source: yfinance | Refreshed: 2026-10-16_
+<!-- END auto company profile -->
 ## Market Position
 
 ### Industry Context

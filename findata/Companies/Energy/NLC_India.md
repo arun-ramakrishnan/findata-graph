@@ -44,10 +44,10 @@ NLC India Limited engages in the mining and power generation business in India. 
 
 - **Industry**: Utilities - Regulated Electric
 - **Promoter Holding**: 72.5%
-- **Institutional Holding**: 15.6%
-- **Business Summary**: NLC India Limited engages in the mining and power generation business in India. The company mines for lignite and coal; and generates power through lignite and coal, as well as through thermal, solar, and wind power plants. It also operates open cast lignite mines with a mining capacity of 28.0 m…
+- **Institutional Holding**: 14.6%
+- **Business Summary**: NLC India Limited engages in the mining and power generation business in India. It operates through three segments: Mining, PowerThermal, and Power  Renewab. The company mines for lignite and coal; and generates power through lignite and coal, as well as through thermal, solar, and wind power p…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Key Metrics & Financials (INR)
 - **Market Cap:** ₹359.76B

@@ -64,11 +64,11 @@ Source: The Chatter Edition #41 (Zerodha)
 
 - **Industry**: Footwear & Accessories
 - **Employees**: 6,800
-- **Promoter Holding**: 15.7%
-- **Institutional Holding**: 98.3%
+- **Promoter Holding**: 17.4%
+- **Institutional Holding**: 105.2%
 - **Business Summary**: Birkenstock Holding plc engages in the manufacture and sale of footwear products in the Americas, Europe, the Middle East, Africa, and the Asia Pacific. It offers footbed-based products, including sandals and closed-toe shoes; and skincare products and accessories. The company sells its products …
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 
 <!-- BEGIN auto key figures (derive_insights.py) -->

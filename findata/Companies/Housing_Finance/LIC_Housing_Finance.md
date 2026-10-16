@@ -37,10 +37,10 @@ LIC Housing Finance Limited, incorporated in **1989** and headquartered in **Mum
 - **Industry**: Mortgage Finance
 - **Employees**: 2,384
 - **Promoter Holding**: 2.3%
-- **Institutional Holding**: 75.0%
+- **Institutional Holding**: 74.1%
 - **Business Summary**: LIC Housing Finance Limited, a housing finance company, provides loans for the purchase, construction, repair, and renovation of houses/buildings in India. The company offers public, green, and corporate deposits; home loans to residents and non-residents Indians, as well as to pensioners; plot l…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Financial Profile (Yahoo Finance, Jun 2026)
 

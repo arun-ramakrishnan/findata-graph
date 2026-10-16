@@ -36,10 +36,10 @@ JTEKT India Limited engages in the manufacture and sale of steering systems and 
 - **Industry**: Auto Parts
 - **Employees**: 1,646
 - **Promoter Holding**: 76.5%
-- **Institutional Holding**: 10.7%
+- **Institutional Holding**: 10.6%
 - **Business Summary**: JTEKT India Limited engages in the manufacture and sale of steering systems and auto components for the passenger car and utility vehicle manufacturers in the automobile sector in India. It offers steering systems, including column and gear; driveline, such as driveshaft and HUB unit; bearing sol…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Business Segments
 - **Steering Systems**: Column and gear systems for automotive applications

@@ -3,7 +3,7 @@ title: Bajaj Housing Finance
 type: company
 ticker: BAJAJHFL.NS
 sector: Housing_Finance
-industry: null
+industry: Mortgage Finance
 market_cap: large_cap
 normalized_name: Bajaj_Housing_Finance
 permalink: /companies/housing_finance/bajaj_housing_finance
@@ -41,6 +41,18 @@ Bajaj Housing Finance (BHFL) is a leading non-deposit-taking housing finance com
 - **Target Segment**: Individuals and corporates looking to buy, build, or renovate properties
 - **Parent Company**: Bajaj Finance Ltd. - leading Indian NBFC
 
+
+<!-- BEGIN auto company profile (enrich_from_yfinance.py) -->
+
+## Company Profile (yfinance)
+
+- **Industry**: Mortgage Finance
+- **Promoter Holding**: 86.7%
+- **Institutional Holding**: 1.1%
+- **Business Summary**: Bajaj Housing Finance Limited provides housing finance services in India. It offers finance to individuals and corporate entities for the purchase and renovation of homes or commercial spaces. The company also provides loans against property for business or personal needs, as well as working capi…
+
+_Source: yfinance | Refreshed: 2026-10-16_
+<!-- END auto company profile -->
 ## Market Performance
 Home loan market share remains dominated by public and private sector banks (~75%), while HFCs have seen gradual moderation. Despite this shift, Bajaj Housing Finance has steadily expanded its share from 1.0% to 1.6% during FY23-25.
 

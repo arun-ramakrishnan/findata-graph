@@ -86,10 +86,10 @@ Page Industries Limited brought the renowned innerwear brand 'Jockey' to India. 
 - **Industry**: Apparel Manufacturing
 - **Employees**: 21,244
 - **Promoter Holding**: 46.4%
-- **Institutional Holding**: 42.7%
-- **Business Summary**: Page Industries Limited manufactures, markets, and distributes textile garments and clothing accessories for men, women, and kids in India and internationally. The company offers vests, briefs, boxer briefs, trunks, inner boxers, tank tops, t-shirts, polos, oversized T-shirts, knit shirts, henley…
+- **Institutional Holding**: 44.5%
+- **Business Summary**: Page Industries Limited manufactures, markets, and distributes textile garments and clothing accessories for men, women, and kids in India and internationally. It offers vests, briefs, boxer briefs, trunks, inner boxers, tank tops, t-shirts, polos, oversized T-shirts, knit shirts, henleys, sweats…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Product Portfolio and GST Impact
 

@@ -39,11 +39,12 @@ APL Apollo Tubes is a leading manufacturer of steel tubes and pipes, serving div
 ## Company Profile (yfinance)
 
 - **Industry**: Steel
+- **Employees**: 3,131
 - **Promoter Holding**: 36.9%
-- **Institutional Holding**: 50.2%
-- **Business Summary**: APL Apollo Tubes Limited manufactures and sells structural steel tubes in India. The company offers structural tubes for construction, automotive, machinery, furniture, etc. applications; galvanized iron products for industrial and agricultural applications; tricoat pipes, designer pipes, and doo…
+- **Institutional Holding**: 44.2%
+- **Business Summary**: APL Apollo Tubes Limited manufactures and sells structural steel tubes and related value added products in India and internationally. The company offers circular hollow sections, square hollow sections, rectangular hollow sections, and GP Pipes for residential housing, commercial buildings, and i…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Business Description
 - **Steel Tubes**: Manufacturing of hollow structural sections and steel tubes

@@ -57,11 +57,12 @@ The sector is driven by government initiatives, growing demand for technical tex
 ## Company Profile (yfinance)
 
 - **Industry**: Textile Manufacturing
+- **Employees**: 24,097
 - **Promoter Holding**: 65.5%
-- **Institutional Holding**: 16.3%
-- **Business Summary**: Vardhman Textiles Limited, together with its subsidiaries, manufactures, purchases, and sells textiles and fibres in India and internationally. The company provides specialized greige and dyed yarns in cotton, polyester, acrylic, viscose, specialized fibers, and various blends; fabrics, such as p…
+- **Institutional Holding**: 16.0%
+- **Business Summary**: Vardhman Textiles Limited, together with its subsidiaries, manufactures and sells cotton and synthetic yarn, woven fabrics, and garments in India and internationally. It operates through Textiles and Fibre segments. The company offers greige and dyed yarns in cotton, polyester, acrylic, and vario…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Competitive Landscape
 

@@ -3,6 +3,7 @@ title: Monika Alcobev
 type: company
 ticker: MONIKA.BO
 sector: FMCG
+industry: Beverages - Wineries & Distilleries
 market_cap: micro_cap
 normalized_name: Monika_Alcobev
 permalink: /companies/fmcg/monika_alcobev
@@ -39,6 +40,19 @@ Monika Alcobev is a prominent player in the imported liquor sector, focusing on 
 - **Wines & Liqueurs:** Imported wine and liqueur portfolio
 - **Travel Retail:** Duty-free distribution across Indian Subcontinent
 
+
+<!-- BEGIN auto company profile (enrich_from_yfinance.py) -->
+
+## Company Profile (yfinance)
+
+- **Industry**: Beverages - Wineries & Distilleries
+- **Employees**: 222
+- **Promoter Holding**: 84.0%
+- **Institutional Holding**: 0.0%
+- **Business Summary**: Monika Alcobev Limited engages in importing, sales, distribution, and marketing for spirits, wines, and liqueurs in India and Internationally. The company offers brandy and cognac, gin, rum, tequila, mezcal, soju, pisco, vodka, whiskey, wine, bitters and liqueur. Monika Alcobev Limited was founde…
+
+_Source: yfinance | Refreshed: 2026-10-16_
+<!-- END auto company profile -->
 ## Industry Context: FMCG / Premium AlcoBev
 
 Monika Alcobev operates within the [[FMCG]] sector, in the premium imported alco-bev niche:

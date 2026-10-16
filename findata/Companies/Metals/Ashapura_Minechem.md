@@ -56,11 +56,12 @@ Ashapura Minechem Limited is a leading multi-mineral solutions provider with a g
 ## Company Profile (yfinance)
 
 - **Industry**: Other Industrial Metals & Mining
-- **Promoter Holding**: 46.3%
-- **Institutional Holding**: 16.9%
-- **Business Summary**: Ashapura Minechem Limited is involved in the mining, manufacturing, and trading of various minerals and its derivative products in India and internationally. The company provides bauxite, bentonite, kaolin, silica sand, limestone, and gypsum for aluminium, foundry, cosmetics, metal ore, pelletiza…
+- **Employees**: 1,574
+- **Promoter Holding**: 49.8%
+- **Institutional Holding**: 17.6%
+- **Business Summary**: Ashapura Minechem Limited is involved in the mining, manufacturing, and trading of various minerals and its derivative products in India and internationally. The company offers processed bentonite products for foundry, iron ore pelletising, civil engineering, pet litter, environmental containment…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Recent Performance Highlights
 

@@ -53,11 +53,12 @@ Signpost India is an out-of-home (OOH) advertising and digital-media company, pr
 ## Company Profile (yfinance)
 
 - **Industry**: Advertising Agencies
+- **Employees**: 485
 - **Promoter Holding**: 74.2%
 - **Institutional Holding**: 0.0%
-- **Business Summary**: Signpost India Limited, together with its subsidiaries, provides advertising services in India.  Its portfolio of media assets comprises street DOOH billboards; digital bus queue shelters; hybrid mobility solutions, such as e-bikes; traffic surveillance booths; street accessible libraries; skywal…
+- **Business Summary**: Signpost India Limited, together with its subsidiaries, provides advertising services in India. Its portfolio of media assets comprises street digital out-of-home (DOOH) billboards; digital bus queue shelters; hybrid mobility solutions, such as e-bikes; traffic surveillance booths; street accessi…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Management
 - Shripad Ashtekar — Managing Director

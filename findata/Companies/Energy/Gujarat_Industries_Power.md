@@ -34,11 +34,12 @@ Gujarat Industries Power Company Limited (GIPCL) is a leading power generation c
 ## Company Profile (yfinance)
 
 - **Industry**: Utilities - Regulated Electric
+- **Employees**: 600
 - **Promoter Holding**: 65.4%
-- **Institutional Holding**: 4.9%
-- **Business Summary**: Gujarat Industries Power Company Limited engages in the generation, transmission, and distribution of electricity to power purchasing companies in India. The company generates power through gas, lignite, wind, and solar power plants with combined installed capacity of 1184.4 MW. The company was i…
+- **Institutional Holding**: 5.0%
+- **Business Summary**: Gujarat Industries Power Company Limited engages in the generation, transmission, and distribution of electricity to power purchasing companies in India. The company generates power through gas, lignite, wind, and solar power plants with combined installed capacity of 1859.40 MW, as well as engag…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Business Description
 - **Power Generation**: Thermal power generation with focus on efficient operations

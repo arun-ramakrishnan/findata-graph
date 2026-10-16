@@ -69,11 +69,12 @@ GMR Airports, a global infrastructure conglomerate, specializes in designing, bu
 ## Company Profile (yfinance)
 
 - **Industry**: Airports & Air Services
-- **Promoter Holding**: 71.4%
-- **Institutional Holding**: 16.1%
+- **Employees**: 12,287
+- **Promoter Holding**: 69.8%
+- **Institutional Holding**: 15.8%
 - **Business Summary**: GMR Airports Limited development, maintenance, and operation of airports in India. It is also involved in operation of international airports on build, own, operate, and transfer basis. In addition, the company engages in construction business, including engineering, procurement, and construction…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Recent Performance
 

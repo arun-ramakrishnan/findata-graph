@@ -3,6 +3,7 @@ title: Wonderla Holidays
 type: company
 ticker: WONDERLA.NS
 sector: Travel
+industry: Leisure
 market_cap: small_cap
 normalized_name: Wonderla_Holidays
 permalink: /companies/travel/wonderla_holidays
@@ -34,6 +35,19 @@ Amusement-parks operator.
 
 *Stub node — created as a graph endpoint. Expand as additional primary research accumulates.*
 
+
+<!-- BEGIN auto company profile (enrich_from_yfinance.py) -->
+
+## Company Profile (yfinance)
+
+- **Industry**: Leisure
+- **Employees**: 871
+- **Promoter Holding**: 64.1%
+- **Institutional Holding**: 11.3%
+- **Business Summary**: Wonderla Holidays Limited engages in the amusement park and resort business in India. The company operates through Amusement Parks and Resort, and Others segments. It operates amusement parks, rides, restaurants, banquet halls, food courts, and lounge bars. The company also provides hotel accommo…
+
+_Source: yfinance | Refreshed: 2026-10-16_
+<!-- END auto company profile -->
 <!-- BEGIN auto chatter block (derive_insights.py) -->
 
 ## The Chatter — Embracing the Unknown

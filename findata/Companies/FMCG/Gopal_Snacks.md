@@ -43,11 +43,12 @@ Gopal Snacks Limited, founded in 1999 and headquartered in Rajkot, is a manufact
 ## Company Profile (yfinance)
 
 - **Industry**: Packaged Foods
+- **Employees**: 3,514
 - **Promoter Holding**: 81.4%
-- **Institutional Holding**: 5.3%
-- **Business Summary**: Gopal Snacks Limited engages in the manufacture and market namkeen, gathiya, papad, and western snacks in India and internationally. It offers a range of products, including snack pellets, wafers, extruded snacks, papad, besan, spices, chikki, noodles, rusk, soan papdi, washing bar, and flour, as…
+- **Institutional Holding**: 5.2%
+- **Business Summary**: Gopal Snacks Limited engages in the manufacturing and marketing of namkeen, gathiya, papad, and western snacks in India and internationally. It offers snack pellets, wafers, beverages, papad, spices, extruded snacks, popcorn, edible oil, wafer biscuits and rolls, papad, besan, nachos, spices, chi…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Financial Profile (Yahoo Finance, Jun 2026)
 - Market cap: ₹3,491 cr | Enterprise value: ₹3,670 cr

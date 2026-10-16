@@ -39,11 +39,11 @@ Chambal Fertilisers and Chemicals Limited, incorporated in 1985 and headquartere
 
 - **Industry**: Agricultural Inputs
 - **Employees**: 1,201
-- **Promoter Holding**: 63.0%
-- **Institutional Holding**: 12.0%
-- **Business Summary**: Chambal Fertilisers and Chemicals Limited, together with its subsidiaries, produces and sells fertilizers primarily in India. The company operates through Own Manufactured Fertilisers; Complex Fertilisers; Crop Protection Chemicals and Speciality Nutrients; and Others segments. It offers urea; an…
+- **Promoter Holding**: 63.3%
+- **Institutional Holding**: 12.7%
+- **Business Summary**: Chambal Fertilisers and Chemicals Limited, together with its subsidiaries, produces and sells fertilizers primarily in India. The company operates through Own Manufactured Fertilisers; Complex Fertilisers; Crop Protection Chemicals and Speciality Nutrients and Seeds; and Others segments. It offer…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Financial Profile (Yahoo Finance, Jun 2026)
 - Market cap: ₹18,796 cr | Enterprise value: ₹18,757 cr

@@ -3,6 +3,7 @@ title: Ferrari
 type: company
 ticker: RACE
 sector: Automotive
+industry: Auto Manufacturers
 market_cap: large_cap
 normalized_name: Ferrari
 permalink: /companies/automotive/ferrari
@@ -33,6 +34,19 @@ Italian luxury sports-car manufacturer.
 
 *Stub node — created as a graph endpoint. Expand as additional primary research accumulates.*
 
+
+<!-- BEGIN auto company profile (enrich_from_yfinance.py) -->
+
+## Company Profile (yfinance)
+
+- **Industry**: Auto Manufacturers
+- **Employees**: 5,743
+- **Promoter Holding**: 32.3%
+- **Institutional Holding**: 46.0%
+- **Business Summary**: Ferrari N.V., through its subsidiaries, engages in design, engineering, production, and sale of luxury performance sports cars worldwide. It offers sports, track, one-off, and road cars, as well as supercars. The company also provides spare parts and engines, as well as after sales, repair, maint…
+
+_Source: yfinance | Refreshed: 2026-10-16_
+<!-- END auto company profile -->
 <!-- BEGIN auto chatter block (derive_insights.py) -->
 
 ## The Chatter — Embracing the Unknown

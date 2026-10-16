@@ -38,11 +38,12 @@ Extracted from "Points & Figures: Grain in the graphs" (Zerodha) — Edition #19
 ## Company Profile (yfinance)
 
 - **Industry**: Railroads
+- **Employees**: 344
 - **Promoter Holding**: 73.5%
 - **Institutional Holding**: 1.8%
 - **Business Summary**: Quadrant Future Tek Limited, a research-oriented company, develops and sells train control and signaling systems in India. The company offers train control systems, such as train collision avoidance and electronic interlocking systems; and interconnect products, including electrical connectors an…
 
-_Source: yfinance | Refreshed: 2026-08-11_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Key Data Points & Signals (Investor Presentation)
 - **KAVACH / signalling tailwinds**: FY26-27 rail safety allocation ~INR 1.2 lakh cr; ~INR 7,500 cr for Signalling & Telecom; 15,512 km already KAVACH-equipped; full-network coverage targeted in 6–8 years; new semi-high-speed fleet needs KAVACH 4.0.

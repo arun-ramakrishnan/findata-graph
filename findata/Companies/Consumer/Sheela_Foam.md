@@ -45,10 +45,10 @@ Sheela Foam Limited, incorporated in 1971 and headquartered in Noida, is India's
 - **Industry**: Furnishings, Fixtures & Appliances
 - **Employees**: 3,300
 - **Promoter Holding**: 65.4%
-- **Institutional Holding**: 21.6%
+- **Institutional Holding**: 18.3%
 - **Business Summary**: Sheela Foam Limited engages in the manufacture and sale of polyurethane foams and mattresses in India and internationally. The company provides technical foams, such as automotive, reticulated, sound absorption, visco-elastic, resilience, stable, silentech and ultraviolet stable foams, as well as…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Financial Profile (Yahoo Finance, Jun 2026)
 - Market cap: ₹7,924 cr | Enterprise value: ₹8,770 cr

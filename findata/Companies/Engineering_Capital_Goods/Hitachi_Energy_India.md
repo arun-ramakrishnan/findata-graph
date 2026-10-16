@@ -59,10 +59,10 @@ Hitachi Energy India is part of the Hitachi Energy global group, focusing on pow
 - **Industry**: Electrical Equipment & Parts
 - **Employees**: 2,777
 - **Promoter Holding**: 71.5%
-- **Institutional Holding**: 9.9%
+- **Institutional Holding**: 10.1%
 - **Business Summary**: Hitachi Energy India Limited offers products, projects, and services for electricity transmission and related activities in India and internationally. The company is involved in engineering, integration, installation, commissioning, and support of project and services, and design, manufacturing, …
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Strategic Context
 

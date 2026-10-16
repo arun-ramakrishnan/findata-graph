@@ -47,11 +47,12 @@ Power Finance Corporation Limited, a non-banking finance company, provides finan
 ## Company Profile (yfinance)
 
 - **Industry**: Credit Services
+- **Employees**: 552
 - **Promoter Holding**: 56.0%
-- **Institutional Holding**: 25.7%
+- **Institutional Holding**: 24.9%
 - **Business Summary**: Power Finance Corporation Limited, a non-banking finance company, provides financial products and related advisory services to the power, logistics, and infrastructure sectors in India. The company offers fund-based financial policies and products, such as project-specific funding; a revamped dis…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Key Metrics & Financials (INR)
 - **Market Cap:** ₹1,240.84B

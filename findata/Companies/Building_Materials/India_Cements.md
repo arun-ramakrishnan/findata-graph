@@ -44,10 +44,10 @@ India Cements Limited is a leading cement manufacturer in India, producing and m
 - **Industry**: Building Materials
 - **Employees**: 1,420
 - **Promoter Holding**: 75.2%
-- **Institutional Holding**: 14.0%
+- **Institutional Holding**: 11.2%
 - **Business Summary**: The India Cements Limited manufactures and sells cement and cement-related products in India. The company offers grey and white cement, ready mix concrete, and clinkers. It also engages in the generation of power from windmills and thermal power plants; and provision of freight services, includin…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Key Strategic Partnership (from The_Known_Unknowns.md)
 

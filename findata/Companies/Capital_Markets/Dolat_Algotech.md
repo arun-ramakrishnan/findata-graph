@@ -35,11 +35,12 @@ Dolat Algotech Limited (incorporated 1983, formerly Dolat Investments Limited, r
 ## Company Profile (yfinance)
 
 - **Industry**: Capital Markets
+- **Employees**: 137
 - **Promoter Holding**: 30.8%
 - **Institutional Holding**: 0.0%
-- **Business Summary**: Dolat Algotech Limited trades in shares, securities, commodities, derivatives, and other financial products in India. The company was formerly known as Dolat Investments Limited and changed its name to Dolat Algotech Limited in November 2021. Dolat Algotech Limited was incorporated in 1983 and is…
+- **Business Summary**: Dolat Algotech Limited engages in the proprietary trading of shares, securities, commodities, derivatives, and other financial products in India. The company was formerly known as Dolat Investments Limited and changed its name to Dolat Algotech Limited in November 2021. Dolat Algotech Limited was…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Key Insights
 - High profitability: 41.11% profit margin and 100% gross margin (trading business), with trailing P/E of 7.67 suggesting potential undervaluation.

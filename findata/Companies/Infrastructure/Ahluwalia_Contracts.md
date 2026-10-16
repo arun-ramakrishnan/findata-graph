@@ -3,6 +3,7 @@ title: Ahluwalia Contracts
 type: company
 ticker: AHLUCONT.NS
 sector: Infrastructure
+industry: Engineering & Construction
 market_cap: small_cap
 normalized_name: Ahluwalia_Contracts
 permalink: /companies/infrastructure/ahluwalia_contracts
@@ -34,6 +35,19 @@ Construction contractor.
 
 *Stub node — created as a graph endpoint. Expand as additional primary research accumulates.*
 
+
+<!-- BEGIN auto company profile (enrich_from_yfinance.py) -->
+
+## Company Profile (yfinance)
+
+- **Industry**: Engineering & Construction
+- **Employees**: 3,978
+- **Promoter Holding**: 55.4%
+- **Institutional Holding**: 33.6%
+- **Business Summary**: Ahluwalia Contracts (India) Limited, together with its subsidiaries, operates as an engineering, procurement, and construction company in India and internationally. The company operates through Construction Contract, Lease Rental, and Others segments. Its portfolio includes residential and commer…
+
+_Source: yfinance | Refreshed: 2026-10-16_
+<!-- END auto company profile -->
 <!-- BEGIN auto chatter block (derive_insights.py) -->
 
 ## The Chatter — Underneath the Noise

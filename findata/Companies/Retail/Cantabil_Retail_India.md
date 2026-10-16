@@ -3,6 +3,7 @@ title: Cantabil Retail India
 type: company
 ticker: CANTABIL.NS
 sector: Retail
+industry: Apparel Manufacturing
 market_cap: small_cap
 normalized_name: Cantabil_Retail_India
 permalink: /companies/retail/cantabil_retail_india
@@ -34,6 +35,19 @@ Apparel retailer.
 
 *Stub node — created as a graph endpoint. Expand as additional primary research accumulates.*
 
+
+<!-- BEGIN auto company profile (enrich_from_yfinance.py) -->
+
+## Company Profile (yfinance)
+
+- **Industry**: Apparel Manufacturing
+- **Employees**: 3,692
+- **Promoter Holding**: 74.5%
+- **Institutional Holding**: 3.7%
+- **Business Summary**: Cantabil Retail India Limited engages in designing, manufacturing, branding, and retailing of apparel and apparel accessories in India. The company offers formal-wear, party-wear, wedding wear and casuals clothing for men, women, girls, boys, footwear, accessories, active wear and innerwear for m…
+
+_Source: yfinance | Refreshed: 2026-10-16_
+<!-- END auto company profile -->
 <!-- BEGIN auto chatter block (derive_insights.py) -->
 
 ## The Chatter — Echoes from the Boardroom

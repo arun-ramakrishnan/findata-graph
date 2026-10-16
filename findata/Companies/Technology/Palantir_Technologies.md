@@ -50,10 +50,10 @@ Palantir Technologies is a specialized software company that develops advanced d
 - **Industry**: Software - Infrastructure
 - **Employees**: 4,401
 - **Promoter Holding**: 3.5%
-- **Institutional Holding**: 62.4%
+- **Institutional Holding**: 64.7%
 - **Business Summary**: Palantir Technologies Inc. builds and deploys software platforms for the intelligence community to assist in counterterrorism investigations and operations in the United States, the United Kingdom, and internationally. It provides Palantir Gotham integrates with other platforms for defense offeri…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 The Chatter — Global Chatter: Micron, SpaceX, Palantir & More
 

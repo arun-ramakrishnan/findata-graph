@@ -3,7 +3,7 @@ title: CORONA Remedies
 type: company
 ticker: CORONA.NS
 sector: Pharma
-industry: null
+industry: Drug Manufacturers - General
 market_cap: small_cap
 normalized_name: Corona_Remedies
 permalink: /companies/pharma/corona_remedies
@@ -34,6 +34,19 @@ sources:
 
 CORONA Remedies Ltd. develops, manufactures, and markets prescription and OTC medicines across therapeutic areas including cardiology, diabetology, gastroenterology, dermatology, respiratory care, neurology, pain management, and nutraceuticals. Has delivered 1.82× faster growth than IPM average, jumping from rank 37th to 29th over three years. Has scaled brands from Abbott, GSK/Glaxo, Sanofi, and Bayer Zydus.
 
+
+<!-- BEGIN auto company profile (enrich_from_yfinance.py) -->
+
+## Company Profile (yfinance)
+
+- **Industry**: Drug Manufacturers - General
+- **Employees**: 5,153
+- **Promoter Holding**: 77.6%
+- **Institutional Holding**: 19.7%
+- **Business Summary**: CORONA Remedies Limited, a pharmaceutical formulation company, develops, manufactures, and markets pharmaceutical products. It provides products in women's healthcare, cardio-diabeto, pain management, urology, thyroid management, respiratory, nutraceuticals, gastroenterology, and other therapeuti…
+
+_Source: yfinance | Refreshed: 2026-10-16_
+<!-- END auto company profile -->
 ## Company Details
 
 - **Incorporated**: 2004

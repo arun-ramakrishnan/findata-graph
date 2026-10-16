@@ -48,11 +48,12 @@ Yash Highvoltage is a micro-cap company operating in the Engineering & Capital G
 ## Company Profile (yfinance)
 
 - **Industry**: Electrical Equipment & Parts
-- **Promoter Holding**: 67.7%
-- **Institutional Holding**: 0.8%
+- **Employees**: 208
+- **Promoter Holding**: 64.3%
+- **Institutional Holding**: 3.5%
 - **Business Summary**: Yash Highvoltage Ltd. manufactures and sells high voltage and high current transformer bushings in India and internationally. It also offers transformer bushings, including oil-impregnated paper (OIP) condenser bushings, resin-impregnated paper (RIP) and resin-impregnated synthetic (RIS) condense…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 
 <!-- BEGIN auto chatter block (derive_insights.py) -->

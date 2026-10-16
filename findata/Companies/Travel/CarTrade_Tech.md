@@ -39,11 +39,12 @@ CarTrade Tech Limited, incorporated in 2000 and headquartered in Navi Mumbai, op
 ## Company Profile (yfinance)
 
 - **Industry**: Auto & Truck Dealerships
+- **Employees**: 1,152
 - **Promoter Holding**: 6.4%
-- **Institutional Holding**: 61.6%
-- **Business Summary**: CarTrade Tech Limited operates a multi-channel online automotive platform in India and internationally. The company provides services, including buying, selling, marketing, valuation, and financing of new and pre-owned vehicles. It also offers new car original equipment manufacturers (OEM) soluti…
+- **Institutional Holding**: 63.2%
+- **Business Summary**: CarTrade Tech Limited operates digital automotive marketplaces and related technology platforms in India and internationally. It operates through three segments: Consumer, Remarketing, and Classifieds. The company provides services, including buying, selling, marketing, valuation, and financing o…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Financial Profile (Yahoo Finance, Jun 2026)
 - Market cap: ₹12,939 cr | Enterprise value: ₹11,685 cr

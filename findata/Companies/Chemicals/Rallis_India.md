@@ -52,11 +52,11 @@ Rallis India Limited, a subsidiary of Tata Chemicals Limited and part of the Tat
 
 - **Industry**: Agricultural Inputs
 - **Employees**: 1,540
-- **Promoter Holding**: 56.7%
-- **Institutional Holding**: 15.9%
+- **Promoter Holding**: 56.2%
+- **Institutional Holding**: 10.4%
 - **Business Summary**: Rallis India Limited manufactures and markets agri input products in India and internationally. It offers crop protection products, including insecticides, herbicides, fungicides, and bio pesticide; organic and micronutrient fertilizers, and plant growth nutrients; seeds, such as maize, watermelo…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Financial Profile (Yahoo Finance, Jun 2026)
 - Market cap: ₹4,425 cr | Enterprise value: ₹3,996 cr

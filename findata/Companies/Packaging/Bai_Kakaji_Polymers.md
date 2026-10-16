@@ -3,7 +3,7 @@ title: Bai-Kakaji Polymers
 type: company
 ticker: BAIKAKAJI.BO
 sector: Packaging
-industry: null
+industry: Packaging & Containers
 market_cap: micro_cap
 normalized_name: Bai_Kakaji_Polymers
 file_path: findata/Companies/Packaging/Bai_Kakaji_Polymers.md
@@ -46,6 +46,19 @@ Bai-Kakaji specializes in manufacturing:
 
 The company delivers consistent quality and low-rejection packaging solutions for water, carbonated beverages, juices, and dairy products across India.
 
+
+<!-- BEGIN auto company profile (enrich_from_yfinance.py) -->
+
+## Company Profile (yfinance)
+
+- **Industry**: Packaging & Containers
+- **Employees**: 409
+- **Promoter Holding**: 82.5%
+- **Institutional Holding**: 0.0%
+- **Business Summary**: Bai-Kakaji Polymers Limited manufactures and supplies packaging solutions for the beverage and food industry in India. The company's products include PET (Polyethylene Terephthalate) Preforms, injection-molded components for manufacturing plastic bottles and containers; plastic caps and closures;…
+
+_Source: yfinance | Refreshed: 2026-10-16_
+<!-- END auto company profile -->
 ## Market Opportunity
 
 ### Consolidated Market Opportunity (2025-2035)

@@ -2,8 +2,11 @@
 type: newsletter
 title: 'The Chatter: PNB, Central Bank of India, Rentomojo & More'
 tags:
-- series/the_chatter
+- company/central_bank_of_india
+- company/dodla_dairy_limited
+- company/rentomojo
 - publisher/zerodha
+- series/the_chatter
 generated:
   by: pdf_conv_md.py/pymupdf4llm-1.28.2
   at: '2026-10-10T07:24:19Z'
@@ -13,6 +16,7 @@ sources:
   title: 'The Chatter: PNB, Central Bank of India, Rentomojo & More'
   author: process:pdf_conv_md
   last_modified: '2026-10-08'
+---
 ---
 
 10/8/26, 7:26 AM The Chatter: PNB, Central Bank of India, Rentomojo & More

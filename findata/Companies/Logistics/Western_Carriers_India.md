@@ -3,6 +3,7 @@ title: Western Carriers (India)
 type: company
 ticker: WCIL.NS
 sector: Logistics
+industry: Integrated Freight & Logistics
 market_cap: small_cap
 normalized_name: Western_Carriers_India
 permalink: /companies/logistics/western_carriers_india
@@ -34,6 +35,19 @@ Multimodal logistics company.
 
 *Stub node — created as a graph endpoint. Expand as additional primary research accumulates.*
 
+
+<!-- BEGIN auto company profile (enrich_from_yfinance.py) -->
+
+## Company Profile (yfinance)
+
+- **Industry**: Integrated Freight & Logistics
+- **Employees**: 1,447
+- **Promoter Holding**: 73.3%
+- **Institutional Holding**: 4.8%
+- **Business Summary**: Western Carriers (India) Limited provides logistics and allied services in India. The company provides single window logistics, multi-modal transportation, rail, road, cargo handling, custom house agency, and ocean and air freight services, as well as labelling, product packaging, customs clearan…
+
+_Source: yfinance | Refreshed: 2026-10-16_
+<!-- END auto company profile -->
 <!-- BEGIN auto chatter block (derive_insights.py) -->
 
 ## The Chatter — Underneath the Noise

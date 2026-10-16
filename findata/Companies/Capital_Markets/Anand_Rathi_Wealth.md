@@ -59,11 +59,11 @@ It also operates **Omni Financial Advisor**, a technology platform for mutual fu
 
 - **Industry**: Asset Management
 - **Employees**: 1,256
-- **Promoter Holding**: 29.6%
+- **Promoter Holding**: 27.0%
 - **Institutional Holding**: 31.0%
 - **Business Summary**: Anand Rathi Wealth Limited engages in the distribution and sale of financial products in India. The company offers wealth solutions. It also operates Omni Financial Advisor, a technology platform for mutual fund distributors and independent financial advisors, which include client reporting, busi…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Financial Profile (Yahoo Finance, Jun 2026)
 

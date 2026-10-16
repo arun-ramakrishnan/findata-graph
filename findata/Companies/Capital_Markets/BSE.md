@@ -56,10 +56,10 @@ BSE Limited, founded in 1875 as the Bombay Stock Exchange and renamed in July 20
 - **Industry**: Financial Data & Stock Exchanges
 - **Employees**: 850
 - **Promoter Holding**: 0.0%
-- **Institutional Holding**: 23.7%
-- **Business Summary**: BSE Limited, together with its subsidiaries, provides a platform for trading in equities, currencies, capital-raising, debt instruments, derivatives, mutual funds, and other securities in India and internationally. It offers securities, data dissemination, index, repository, and depository servic…
+- **Institutional Holding**: 27.8%
+- **Business Summary**: BSE Limited, together with its subsidiaries, provides a platform for the listing and trading of equity, debt instruments, currencies, commodities, derivatives, mutual funds, and small and medium enterprise securities in India and internationally. The company provides clearing and settlement, IT s…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Financial Profile (Yahoo Finance, Jun 2026)
 

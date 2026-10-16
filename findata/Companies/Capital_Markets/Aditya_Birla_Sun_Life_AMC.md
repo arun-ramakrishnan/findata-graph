@@ -36,10 +36,10 @@ Aditya Birla Sun Life Asset Management Company is a leading asset management fir
 - **Industry**: Asset Management
 - **Employees**: 1,501
 - **Promoter Holding**: 44.8%
-- **Institutional Holding**: 44.2%
+- **Institutional Holding**: 45.2%
 - **Business Summary**: Aditya Birla Sun Life AMC Limited is privately owned investment manager. The firm provides its services to individuals including high net worth individuals and institutional clients. It manages separate equity and fixed income portfolios. The firm also manages launches and manages equity and fixe…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Business Segments
 

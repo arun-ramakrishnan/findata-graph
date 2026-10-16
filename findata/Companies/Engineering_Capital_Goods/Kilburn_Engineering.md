@@ -3,6 +3,7 @@ title: Kilburn Engineering
 type: company
 ticker: KLBRENG-B.BO
 sector: Engineering_Capital_Goods
+industry: Specialty Industrial Machinery
 market_cap: small_cap
 normalized_name: Kilburn_Engineering
 permalink: /companies/engineering_capital_goods/kilburn_engineering
@@ -34,6 +35,19 @@ Drying and separation equipment maker.
 
 *Stub node — created as a graph endpoint. Expand as additional primary research accumulates.*
 
+
+<!-- BEGIN auto company profile (enrich_from_yfinance.py) -->
+
+## Company Profile (yfinance)
+
+- **Industry**: Specialty Industrial Machinery
+- **Employees**: 327
+- **Promoter Holding**: 63.1%
+- **Institutional Holding**: 6.1%
+- **Business Summary**: Kilburn Engineering Limited designs, manufactures, supplies, installs, and commissions customized process equipment for various applications in India and internationally. The company offers industrial drying systems, including rotary, flash, spray, band, tea, paddy, sugar, coconut, conveyorized, …
+
+_Source: yfinance | Refreshed: 2026-10-16_
+<!-- END auto company profile -->
 <!-- BEGIN auto chatter block (derive_insights.py) -->
 
 ## The Chatter — The Push and Pull

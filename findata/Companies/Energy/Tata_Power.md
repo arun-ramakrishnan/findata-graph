@@ -70,11 +70,11 @@ Celebrating record-breaking performance in the rooftop solar business, which cro
 
 - **Industry**: Utilities - Independent Power Producers
 - **Employees**: 22,501
-- **Promoter Holding**: 47.2%
-- **Institutional Holding**: 22.6%
+- **Promoter Holding**: 48.7%
+- **Institutional Holding**: 20.3%
 - **Business Summary**: The Tata Power Company Limited engages in the generation, transmission, distribution, and trading of electricity in India and internationally. It operates through four segments: Thermal & Hydro, Transmission & Distribution, Renewables, and Others. The company generates power from hydroelectric an…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Strategic Investments and Operations
 

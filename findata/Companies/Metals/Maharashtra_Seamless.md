@@ -34,11 +34,12 @@ Maharashtra Seamless Limited is a steel pipe and tube manufacturing company enga
 ## Company Profile (yfinance)
 
 - **Industry**: Steel
+- **Employees**: 2,639
 - **Promoter Holding**: 72.1%
-- **Institutional Holding**: 7.3%
+- **Institutional Holding**: 7.0%
 - **Business Summary**: Maharashtra Seamless Limited engages in the manufacture and sale of seamless steel pipes and tubes in India. The company operates through three segments: Steel Pipes & Tubes, Power  Electricity, and RIG. It offers mild steel and galvanized pipes; API line pipes; oil country tubular goods (OCTG) …
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Strategic Context
 

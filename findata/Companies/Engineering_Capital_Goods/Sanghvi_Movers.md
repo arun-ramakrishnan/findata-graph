@@ -35,10 +35,10 @@ Sanghvi Movers Limited (SML), incorporated in 1989 and headquartered in Pune, is
 - **Industry**: Rental & Leasing Services
 - **Employees**: 441
 - **Promoter Holding**: 57.9%
-- **Institutional Holding**: 1.4%
+- **Institutional Holding**: 1.5%
 - **Business Summary**: Sanghvi Movers Limited, together with its subsidiaries, operates as a crane rental company in India. It operates through Crane Hiring and Ancillary Services; Wind EPC; and Project EPC segment. The Crane Hiring and Other Ancillary Services segment includes crane rental services, including mobiliza…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Financial Profile (Yahoo Finance, Jun 2026)
 - Market cap: ₹3,564 cr | Enterprise value: ₹4,015 cr

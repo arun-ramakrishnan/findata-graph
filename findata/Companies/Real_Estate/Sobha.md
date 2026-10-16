@@ -56,10 +56,10 @@ The sector is driven by urbanization, infrastructure development, and housing de
 - **Industry**: Real Estate - Development
 - **Employees**: 4,451
 - **Promoter Holding**: 58.5%
-- **Institutional Holding**: 28.8%
+- **Institutional Holding**: 27.3%
 - **Business Summary**: Sobha Limited engages in the construction, development, sale, management, and operation of residential and commercial real estate under the Sobha brand primarily in India. It operates through the Real Estate, and Contractual and Manufacturing segments. The Real Estate segment comprises developmen…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Competitive Landscape
 

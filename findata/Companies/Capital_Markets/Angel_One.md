@@ -55,10 +55,10 @@ Clients are served primarily through digital platforms — the **Angel One Super
 - **Industry**: Capital Markets
 - **Employees**: 2,934
 - **Promoter Holding**: 49.0%
-- **Institutional Holding**: 25.4%
+- **Institutional Holding**: 23.6%
 - **Business Summary**: Angel One Limited provides broking and advisory services, margin funding, and financial products to its clients in India and internationally. The company provides equity, commodities, derivatives, and currency derivative products. It also manages client's securities in the electronic form; facili…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Financial Profile (Yahoo Finance, Jun 2026)
 

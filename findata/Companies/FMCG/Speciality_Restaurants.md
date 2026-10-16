@@ -38,12 +38,12 @@ SRL operates specialty restaurants in Fine Dining and Casual Dining. It has vari
 ## Company Profile (yfinance)
 
 - **Industry**: Restaurants
-- **Employees**: 2,433
-- **Promoter Holding**: 70.4%
-- **Institutional Holding**: 0.0%
-- **Business Summary**: Speciality Restaurants Limited owns and operates restaurant outlets and sweet shops in India and internationally. The company operates its restaurants under the Mainland China, Oh! Calcutta, Asia Kitchen by Mainland China, Sigree, Sigree Global Grill, Bohoba, KIX, Jungle Safari, Hoppipola, Gong -…
+- **Employees**: 2,590
+- **Promoter Holding**: 75.2%
+- **Institutional Holding**: 0.5%
+- **Business Summary**: Speciality Restaurants Limited owns and operates restaurant outlets and sweet shops in India and internationally. The company operates its restaurants under the Mainland China, Oh! Calcutta, Asia Kitchen by Mainland China, Sigree, Sigree Global Grill, Bohoba, KIX, Jungle Safari, Hoppipola, Gong, …
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Key Insights
 

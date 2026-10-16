@@ -42,9 +42,9 @@ Its board approved the joint-venture agreement with Bosch Limited in May 2026 (C
 
 - **Industry**: Auto Parts
 - **Employees**: 2,735
-- **Promoter Holding**: 53.8%
-- **Institutional Holding**: 6.2%
+- **Promoter Holding**: 55.2%
+- **Institutional Holding**: 2.3%
 - **Business Summary**: Wheels India Limited, together with its subsidiary, manufactures and sells automotive and industrial components in India and internationally. The company provides steel, cast aluminum, forged aluminum, and wire wheel for use in passenger and light cargo vehicles, trucks, trailers, buses, agricult…
 
-_Source: yfinance | Refreshed: 2026-09-15_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->

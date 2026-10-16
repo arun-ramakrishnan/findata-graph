@@ -3,6 +3,7 @@ title: Anheuser-Busch Inbev
 type: company
 ticker: BUD
 sector: FMCG
+industry: Beverages - Brewers
 market_cap: large_cap
 normalized_name: Anheuser_Busch_Inbev
 permalink: /companies/fmcg/anheuser_busch_inbev
@@ -33,6 +34,19 @@ Belgian-headquartered global brewer.
 
 *Stub node — created as a graph endpoint. Expand as additional primary research accumulates.*
 
+
+<!-- BEGIN auto company profile (enrich_from_yfinance.py) -->
+
+## Company Profile (yfinance)
+
+- **Industry**: Beverages - Brewers
+- **Employees**: 137,000
+- **Promoter Holding**: 0.0%
+- **Institutional Holding**: 5.6%
+- **Business Summary**: Anheuser-Busch InBev SA/NV produces and sells beer in North America, Middle Americas, South America, Europe, the Middle East, Africa, and the Asia Pacific. It operates through North America, Middle Americas, South America, EMEA, Asia Pacific, and Global Export and Holding Companies segments. The …
+
+_Source: yfinance | Refreshed: 2026-10-16_
+<!-- END auto company profile -->
 <!-- BEGIN auto chatter block (derive_insights.py) -->
 
 ## The Chatter — Embracing the Unknown

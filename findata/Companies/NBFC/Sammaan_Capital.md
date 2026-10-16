@@ -40,11 +40,12 @@ Sammaan Capital is a mid-cap Indian financial services company engaged in provid
 ## Company Profile (yfinance)
 
 - **Industry**: Mortgage Finance
-- **Promoter Holding**: 6.6%
-- **Institutional Holding**: 15.7%
-- **Business Summary**: Sammaan Capital Limited, together with its subsidiaries, operates as a non-banking financial company in India. It is involved in the business of providing finance, as well as undertakes lending and finance to persons, co-operative society, association of persons, body of individuals, companies, i…
+- **Employees**: 4,363
+- **Promoter Holding**: 35.7%
+- **Institutional Holding**: 11.2%
+- **Business Summary**: Sammaan Capital Limited, together with its subsidiaries, operates as a non-banking financial company in India. The company is involved in the business of providing finance, as well as undertakes lending and finance to persons, co-operative society, association of persons, body of individuals, com…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 
 <!-- BEGIN auto chatter block (derive_insights.py) -->

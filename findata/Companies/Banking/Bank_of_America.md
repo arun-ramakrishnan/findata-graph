@@ -3,6 +3,7 @@ title: Bank of America
 type: company
 ticker: BAC
 sector: Banking
+industry: Banks - Diversified
 market_cap: large_cap
 normalized_name: Bank_of_America
 permalink: /companies/banking/bank_of_america
@@ -33,6 +34,19 @@ American universal bank.
 
 *Stub node — created as a graph endpoint. Expand as additional primary research accumulates.*
 
+
+<!-- BEGIN auto company profile (enrich_from_yfinance.py) -->
+
+## Company Profile (yfinance)
+
+- **Industry**: Banks - Diversified
+- **Employees**: 213,000
+- **Promoter Holding**: 7.0%
+- **Institutional Holding**: 71.2%
+- **Business Summary**: Bank of America Corporation, through its subsidiaries, provides various financial products and services for individual consumers, small and middle-market businesses, institutional investors, large corporations, and governments worldwide. It operates through four segments: Consumer Banking, Global…
+
+_Source: yfinance | Refreshed: 2026-10-16_
+<!-- END auto company profile -->
 <!-- BEGIN auto key figures (derive_insights.py) -->
 
 ## Key Figures (auto)

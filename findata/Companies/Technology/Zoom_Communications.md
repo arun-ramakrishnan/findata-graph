@@ -45,10 +45,10 @@ Zoom Communications (NASDAQ: ZM; formerly Zoom Video Communications) provides th
 - **Industry**: Software - Application
 - **Employees**: 7,438
 - **Promoter Holding**: 0.2%
-- **Institutional Holding**: 77.9%
+- **Institutional Holding**: 79.0%
 - **Business Summary**: Zoom Communications, Inc. provides an Artificial Intelligence-first open work platform for human connection in the Americas, the Asia Pacific, Europe, the Middle East, and Africa. The company offers Zoom Meetings that offers HD video, voice, chat, and content sharing through mobile devices, deskt…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 
 <!-- BEGIN auto chatter block (derive_insights.py) -->

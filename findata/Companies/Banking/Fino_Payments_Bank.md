@@ -49,11 +49,12 @@ Fino Payments Bank operates a high-volume, digital-first financial services plat
 ## Company Profile (yfinance)
 
 - **Industry**: Banks - Regional
-- **Promoter Holding**: 77.5%
-- **Institutional Holding**: 0.1%
-- **Business Summary**: Fino Payments Bank Limited provides financial solutions and services in India. It operates in four segments: Treasury, Corporate Banking/Wholesale Banking, Retail Banking, and Other Banking Operations. The company offers savings, current, and salary accounts; personal, home and property, gold, an…
+- **Employees**: 732
+- **Promoter Holding**: 77.6%
+- **Institutional Holding**: 0.0%
+- **Business Summary**: Fino Payments Bank Limited provides financial solutions and services in India. The company offers savings, current, and salary accounts; personal, home and property, gold, and referral loans; debit and prepaid cards; and life, health, general, motor, and shopkeeper insurance products, as well as …
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Key Insights (Points & Figures #21 - Roots in the Results)
 - Digital throughput reaching majority, enabling scale without proportional physical overhead.

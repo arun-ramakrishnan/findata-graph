@@ -38,11 +38,11 @@ CSB Bank Limited is a leading private sector bank in India, providing comprehens
 
 - **Industry**: Banks - Regional
 - **Employees**: 8,184
-- **Promoter Holding**: 55.5%
-- **Institutional Holding**: 15.8%
+- **Promoter Holding**: 52.4%
+- **Institutional Holding**: 18.3%
 - **Business Summary**: CSB Bank Limited provides banking and financial services for small and mid-sized enterprises, large corporates and conglomerates, and domestic and non-resident individuals in India. It operates through Treasury, Corporate/Wholesale Banking, Retail Banking, and Other Banking Operations segments. T…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Key Insights
 

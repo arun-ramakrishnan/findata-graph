@@ -33,10 +33,10 @@ Indo Count Industries Limited, incorporated in 1988 and headquartered in Mumbai,
 - **Industry**: Textile Manufacturing
 - **Employees**: 3,599
 - **Promoter Holding**: 61.6%
-- **Institutional Holding**: 7.1%
-- **Business Summary**: Indo Count Industries Limited manufactures and sells home textile products in India and internationally. The company offers bed sheets; fashion bedding products, such as matching and complementary sheets, comforters, duvet covers, quilts, pillows, shams, and skirts; utility bedding products compr…
+- **Institutional Holding**: 13.7%
+- **Business Summary**: Indo Count Industries Limited manufactures and sells home textile products in India and internationally. The company offers bed sheets; utility bedding products, including mattress pads, down alt comforters, filled pillows, and protectors; bedding products, such as flat sheets, printed bed sheets…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Financial Profile (Yahoo Finance, Jun 2026)
 - Market cap: ₹84.5B | Enterprise value: ₹95.7B

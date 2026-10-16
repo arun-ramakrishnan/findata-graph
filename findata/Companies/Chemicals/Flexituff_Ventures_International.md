@@ -35,11 +35,12 @@ Flexituff Ventures International Limited is a distressed small-cap manufacturer 
 ## Company Profile (yfinance)
 
 - **Industry**: Textile Manufacturing
+- **Employees**: 31
 - **Promoter Holding**: 67.3%
 - **Institutional Holding**: 2.2%
 - **Business Summary**: Flexituff Ventures International Limited engages in the manufacture and sale of technical textiles in India, the United States, Singapore, and internationally. It offers flexible intermediate bulk containers (FIBCs), including four loop bags, single/two loop bags, builder bags/tunnel lift bags, c…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Financial Profile (Yahoo Finance, Jun 2026) — DISTRESSED
 

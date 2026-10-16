@@ -54,6 +54,19 @@ Pidilite is India's leading manufacturer of adhesives and sealants, dominated by
 
 <!-- END auto key figures -->
 
+
+<!-- BEGIN auto company profile (enrich_from_yfinance.py) -->
+
+## Company Profile (yfinance)
+
+- **Industry**: Specialty Chemicals
+- **Employees**: 8,835
+- **Promoter Holding**: 69.3%
+- **Institutional Holding**: 16.1%
+- **Business Summary**: Pidilite Industries Limited, together with its subsidiaries, engages in the consumer and industrial specialty chemicals business in India and internationally. It operates through the Consumer & Bazaar, and Business to Business segments. The Consumer & Bazaar segment offers adhesives, sealants, ar…
+
+_Source: yfinance | Refreshed: 2026-10-16_
+<!-- END auto company profile -->
 <!-- BEGIN auto chatter block (derive_insights.py) -->
 
 ## The Chatter — Signals in Silence

@@ -58,12 +58,12 @@ InterGlobe Aviation Limited (IndiGo), incorporated in 2004 and headquartered in 
 ## Company Profile (yfinance)
 
 - **Industry**: Airlines
-- **Employees**: 41,049
+- **Employees**: 41,907
 - **Promoter Holding**: 41.6%
-- **Institutional Holding**: 44.3%
+- **Institutional Holding**: 43.9%
 - **Business Summary**: InterGlobe Aviation Limited, together with its subsidiaries, provides air transportation services under the IndiGo brand in India and internationally. The company offers pre-flight and post-flight ground handling operations; passenger and cargo services; and related allied services, such as in-fl…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Financial Profile (Yahoo Finance, Jun 2026)
 - Market cap: ₹2,11,192 cr | Enterprise value: ₹1,86,831 cr

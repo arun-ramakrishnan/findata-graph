@@ -144,10 +144,10 @@ GlaxoSmithKline Healthcare Limited is the Indian subsidiary of GlaxoSmithKline p
 - **Industry**: Drug Manufacturers - General
 - **Employees**: 3,103
 - **Promoter Holding**: 75.6%
-- **Institutional Holding**: 8.9%
+- **Institutional Holding**: 9.8%
 - **Business Summary**: GlaxoSmithKline Pharmaceuticals Limited manufactures, distributes, and trades in pharmaceuticals in India and internationally. The company offers adult and pediatric vaccines, such as Shingrix, Havrix, Fluarix Tetra, Varilrix, Infanrix Hexa, Boostrix, Synflorix, Menveo, and Priorix. It also provi…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Key Investment Highlights
 

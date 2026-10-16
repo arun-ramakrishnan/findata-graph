@@ -52,10 +52,10 @@ Torrent Power is a prominent Indian power generation and distribution company op
 - **Industry**: Utilities - Independent Power Producers
 - **Employees**: 8,173
 - **Promoter Holding**: 62.3%
-- **Institutional Holding**: 27.2%
+- **Institutional Holding**: 26.7%
 - **Business Summary**: Torrent Power Limited, together with its subsidiaries, engages in the generation, renewables, and transmission and distribution of electricity in India. The company owns thermal power plants with a generation capacity of 6,092 megawatts; renewable with a generation capacity of 5,952 megawatts pea…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Industry Classification
 - **Sector**: Energy - Power Generation & Distribution

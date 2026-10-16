@@ -44,11 +44,11 @@ Intel Corporation is a global leader in semiconductor technology and computing i
 
 - **Industry**: Semiconductors
 - **Employees**: 85,100
-- **Promoter Holding**: 14.7%
-- **Institutional Holding**: 63.4%
+- **Promoter Holding**: 14.0%
+- **Institutional Holding**: 62.6%
 - **Business Summary**: Intel Corporation designs, develops, manufactures, markets, sells, and services computing and related end products and services in the United States, Ireland, Israel, and internationally. It operates through three segments: CCG, DCAI, and Intel Foundry. The company offers client computing group p…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Strategic Context (from Known_Unknowns.md)
 

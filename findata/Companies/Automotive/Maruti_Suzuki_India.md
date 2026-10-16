@@ -70,11 +70,12 @@ Maruti Suzuki India Limited, incorporated in 1981 (formerly Maruti Udyog Limited
 ## Company Profile (yfinance)
 
 - **Industry**: Auto Manufacturers
+- **Employees**: 25,831
 - **Promoter Holding**: 61.6%
-- **Institutional Holding**: 31.0%
-- **Business Summary**: Maruti Suzuki India Limited manufactures, purchases, and sells motor vehicles, components, and spare parts in India. The company offers passenger vehicles, utility vehicles, and multi-purpose vehicles. It is also involved in the facilitation of pre-owned car sales, fleet management, and car finan…
+- **Institutional Holding**: 25.8%
+- **Business Summary**: Maruti Suzuki India Limited manufactures and sells motor vehicles, parts, and accessories in India. The company offers passenger and commercial vehicles, including hatchbacks, sedans, SUVs, MPVs, and vans, as well as light commercial vehicles. It is also involved in the facilitation of pre-owned …
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Financial Profile (Yahoo Finance, Jun 2026)
 - Market cap: ₹43,23,978 cr | Enterprise value: ₹41,49,010 cr

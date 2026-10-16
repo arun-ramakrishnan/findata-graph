@@ -46,10 +46,10 @@ NHPC Limited, together with its subsidiaries, engages in the generation, sale, a
 - **Industry**: Utilities - Renewable
 - **Employees**: 4,634
 - **Promoter Holding**: 62.5%
-- **Institutional Holding**: 21.6%
+- **Institutional Holding**: 21.9%
 - **Business Summary**: NHPC Limited, together with its subsidiaries, engages in the generation, sale, and trading of electricity through hydro, wind, and solar power stations in India and Nepal. It also owns and operates power stations. In addition, the company offers consultancy, project execution, and maintenance ser…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Key Metrics & Financials (INR)
 - **Market Cap:** ₹827.13B

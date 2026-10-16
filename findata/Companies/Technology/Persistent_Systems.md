@@ -52,11 +52,11 @@ Persistent Systems is a global digital engineering and enterprise modernization 
 ## Company Profile (yfinance)
 
 - **Industry**: Information Technology Services
-- **Promoter Holding**: 33.2%
-- **Institutional Holding**: 42.6%
+- **Promoter Holding**: 33.1%
+- **Institutional Holding**: 44.2%
 - **Business Summary**: Persistent Systems Limited provides software products, services, and technology solutions in India, North America, and internationally. It operates through Banking, Financial Services and Insurance (BFSI); Healthcare & Life Sciences; and Technology Companies and Emerging Verticals segments. The c…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Financial Profile (Yahoo Finance, Jun 2026)
 - Market cap: ₹75,717 cr | Enterprise value: ₹74,088 cr

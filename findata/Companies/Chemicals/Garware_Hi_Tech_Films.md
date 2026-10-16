@@ -47,11 +47,12 @@ Garware Hi-Tech Films is a small cap company operating in the chemicals sector i
 ## Company Profile (yfinance)
 
 - **Industry**: Specialty Chemicals
-- **Promoter Holding**: 60.1%
-- **Institutional Holding**: 10.6%
+- **Employees**: 1,036
+- **Promoter Holding**: 62.5%
+- **Institutional Holding**: 10.0%
 - **Business Summary**: Garware Hi-Tech Films Limited manufactures and sells polyester films in India, the United States, and internationally. The company offers paint protection and sun control films. It also offers defendo-dual reflective, spectrally selective, deco vista, safety, designer, privacy, reflective, IR rej…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Business Model
 - **Primary Model**: B2B (Business-to-Business)

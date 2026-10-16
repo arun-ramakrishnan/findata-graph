@@ -3,7 +3,7 @@ title: Knowledge Marine and Engineering Works
 type: company
 ticker: KMEW.NS
 sector: Travel
-industry: null
+industry: Marine Shipping
 market_cap: small_cap
 normalized_name: Knowledge_Marine_and_Engineering_Works
 permalink: /companies/travel/knowledge_marine_and_engineering_works
@@ -45,6 +45,19 @@ Knowledge Marine & Engineering Works Ltd. is a dredging and marine engineering c
 - **Chartering:** Long-term chartering of green tugs and port ancillary craft
 - **Port Ancillary Craft:** Fleet of vessels deployed across 12 major Indian ports
 
+
+<!-- BEGIN auto company profile (enrich_from_yfinance.py) -->
+
+## Company Profile (yfinance)
+
+- **Industry**: Marine Shipping
+- **Employees**: 479
+- **Promoter Holding**: 65.7%
+- **Institutional Holding**: 2.9%
+- **Business Summary**: Knowledge Marine & Engineering Works Limited owns and operates marine crafts in India. The company operates through three segments: Dredging, Owning, and Operating Marine and Port Ancillary Crafts; Ship Building and Repair and Maintenance of Marine Crafts; and Marine Infrastructure. It also provi…
+
+_Source: yfinance | Refreshed: 2026-10-16_
+<!-- END auto company profile -->
 ## Industry Context: Engineering & Capital Goods Sector
 
 Knowledge Marine operates within the [[Engineering_Capital_Goods]] sector, specifically in dredging and marine engineering:

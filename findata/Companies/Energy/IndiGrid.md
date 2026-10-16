@@ -3,6 +3,7 @@ title: IndiGrid
 type: company
 ticker: INDIGRID.BO
 sector: Energy
+industry: Utilities - Regulated Electric
 market_cap: mid_cap
 normalized_name: IndiGrid
 permalink: /companies/energy/indigrid
@@ -34,6 +35,18 @@ Power-transmission infrastructure investment trust (InvIT).
 
 *Stub node — created as a graph endpoint. Expand as additional primary research accumulates.*
 
+
+<!-- BEGIN auto company profile (enrich_from_yfinance.py) -->
+
+## Company Profile (yfinance)
+
+- **Industry**: Utilities - Regulated Electric
+- **Promoter Holding**: 0.0%
+- **Institutional Holding**: 13.2%
+- **Business Summary**: Indigrid Infrastructure Trust operates as an infrastructure investment trust that owns, operates, and manages power transmission, renewable generation, and energy storage assets in India. The company's asset portfolio consists of 41 power projects that includes 55 transmission lines with 9,698 ci…
+
+_Source: yfinance | Refreshed: 2026-10-16_
+<!-- END auto company profile -->
 <!-- BEGIN auto key figures (derive_insights.py) -->
 
 ## Key Figures (auto)

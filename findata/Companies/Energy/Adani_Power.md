@@ -62,10 +62,10 @@ Adani Power Limited is one of India's largest private thermal power generation c
 - **Industry**: Utilities - Independent Power Producers
 - **Employees**: 3,967
 - **Promoter Holding**: 71.7%
-- **Institutional Holding**: 18.8%
+- **Institutional Holding**: 19.1%
 - **Business Summary**: Adani Power Limited engages in the generation, transmission, and sale of electricity under long term power purchase agreements (PPAs), supplemental PPAs, medium and short term PPAs, and on merchant basis in India. The company generates electricity through thermal energy sources through various po…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Business Model
 - Thermal power generation using coal

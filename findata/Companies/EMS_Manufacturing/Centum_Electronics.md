@@ -77,10 +77,10 @@ Outlines a multi-pronged, risk-managed strategy for capitalizing on the burgeoni
 - **Industry**: Electronic Components
 - **Employees**: 1,513
 - **Promoter Holding**: 49.9%
-- **Institutional Holding**: 18.9%
-- **Business Summary**: Centum Electronics Limited designs, manufactures, exports, and sells electronic products in India, the United Kingdom, Canada, France, Belgium, Europe, North America, and internationally. The company offers embedded computers and power converters, test tools, LRU and data recorders, and satellite…
+- **Institutional Holding**: 20.5%
+- **Business Summary**: Centum Electronics Limited designs, manufactures, and exports electronic products In Europe, Middle East, Asia, and North America. It engages in design, development, production, and manufacturing of energy management controllers, electrical AC and DC converters, embedded computers, test means, di…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 
 <!-- BEGIN auto chatter block (derive_insights.py) -->

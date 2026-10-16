@@ -89,8 +89,9 @@ This sector encompasses various sub-sectors including manufacturing, distributio
 
 ## All Companies (auto)
 
-<!-- Auto-generated from the SQLite source of truth. 5 company note(s) in Electronics. Do not edit by hand — re-run `python3 helpers/maintenance/sync_sector_wikilinks.py` to refresh. Curated highlights live in the editorial sections above. -->
+<!-- Auto-generated from the SQLite source of truth. 6 company note(s) in Electronics. Do not edit by hand — re-run `python3 helpers/maintenance/sync_sector_wikilinks.py` to refresh. Curated highlights live in the editorial sections above. -->
 
+- [[HKC]]
 - [[RIR_Power_Electronics|RIR Power Electronics]]
 - [[Samsung_Electronics|Samsung Electronics]]
 - [[Signify_NV|Signify NV]]

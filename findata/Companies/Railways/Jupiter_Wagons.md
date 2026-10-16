@@ -39,11 +39,12 @@ Jupiter Wagons Limited (incorporated 1979; HQ Kolkata, West Bengal) manufactures
 ## Company Profile (yfinance)
 
 - **Industry**: Railroads
+- **Employees**: 1,072
 - **Promoter Holding**: 72.4%
 - **Institutional Holding**: 6.5%
-- **Business Summary**: Jupiter Wagons Limited manufactures and sells railway wagons, wagon components, and railway transportation equipment in India and internationally. It offers open, covered, flat, hopper, container, and special purpose wagons; and wagon accessories, such as alloy steel cast bogies, high tensile cen…
+- **Business Summary**: Jupiter Wagons Limited manufactures and sells railway wagons, wagon components, and railway transportation equipment in India and internationally. It provides open, covered, flat, hopper, container, and special purpose wagons; and wagon accessories, such as alloy steel cast bogies, high tensile c…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Financial Profile (Yahoo Finance, Jun 2026)
 - Market cap: ₹11,238 cr | Enterprise value: ₹11,867 cr

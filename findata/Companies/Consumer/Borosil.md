@@ -43,10 +43,10 @@ Borosil — auto-generated stub from newsletter parsing. To be enriched.
 - **Industry**: Furnishings, Fixtures & Appliances
 - **Employees**: 699
 - **Promoter Holding**: 67.9%
-- **Institutional Holding**: 3.6%
+- **Institutional Holding**: 3.7%
 - **Business Summary**: Borosil Limited manufactures, sells, and trades in consumer ware products in India. The company offers laboratory glassware, including beakers, bottles, burettes, cones, condensers, cylinders, dessiciators, dishes, distilling apparatus, flasks, funnels, funnels, filtration assembly, volumetric fl…
 
-_Source: yfinance | Refreshed: 2026-09-15_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 <!-- BEGIN auto key figures (derive_insights.py) -->
 

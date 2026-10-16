@@ -35,11 +35,11 @@ Trent Limited is a leading retail company and a part of the Tata Group, operatin
 
 - **Industry**: Apparel Retail
 - **Employees**: 31,226
-- **Promoter Holding**: 43.4%
-- **Institutional Holding**: 31.7%
+- **Promoter Holding**: 41.9%
+- **Institutional Holding**: 30.4%
 - **Business Summary**: Trent Limited engages in the retailing and trading of apparels, footwear, accessories, food, grocery, and non-food products in India. The company provides apparel, footwear, and accessories for men, women, and children, as well as furnishings, decor, and a range of home accessories under the West…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Industry Classification
 - **Sector**: Retail - Department Stores & Lifestyle

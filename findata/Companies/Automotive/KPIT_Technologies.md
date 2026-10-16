@@ -3,7 +3,7 @@ title: KPIT Technologies
 type: company
 ticker: KPITTECH.NS
 sector: Automotive
-industry: Software - Infrastructure
+industry: Software - Application
 market_cap: large_cap
 normalized_name: KPIT_Technologies
 permalink: /companies/automotive/kpit_technologies
@@ -34,13 +34,13 @@ KPIT Technologies Limited was founded in 1990 in Pune (formerly KPIT Engineering
 
 ## Company Profile (yfinance)
 
-- **Industry**: Software - Infrastructure
+- **Industry**: Software - Application
 - **Employees**: 12,520
-- **Promoter Holding**: 45.3%
-- **Institutional Holding**: 26.5%
+- **Promoter Holding**: 44.3%
+- **Institutional Holding**: 29.2%
 - **Business Summary**: KPIT Technologies Limited provides embedded software, artificial intelligence, and digital solutions for the automobile and mobility sector in the Americas, the United Kingdom, rest of Europe, and internationally. The company offers autonomous driving and advanced driver assistance system solutio…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Financial Profile (Yahoo Finance, Jun 2026)
 

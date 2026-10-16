@@ -45,10 +45,10 @@ IFB Industries Limited is an engineering company focused on home appliances and 
 - **Industry**: Furnishings, Fixtures & Appliances
 - **Employees**: 2,397
 - **Promoter Holding**: 77.9%
-- **Institutional Holding**: 5.3%
+- **Institutional Holding**: 5.2%
 - **Business Summary**: IFB Industries Limited, together with its subsidiaries, manufactures and trades in home appliances in India and internationally. It operates through the Engineering, Home Appliances, Motor, and Steel segments. Its products include laundry solution, such as front and top load washing machine, wash…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 
 <!-- BEGIN auto key figures (derive_insights.py) -->

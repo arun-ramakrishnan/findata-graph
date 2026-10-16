@@ -40,11 +40,12 @@ Krsnaa Diagnostics Limited is a diagnostic services company providing laboratory
 ## Company Profile (yfinance)
 
 - **Industry**: Diagnostics & Research
+- **Employees**: 3,296
 - **Promoter Holding**: 45.7%
 - **Institutional Holding**: 13.5%
-- **Business Summary**: Krsnaa Diagnostics Limited provides diagnostic services in India. It offers a range radiology services, including computed tomography scans, magnetic resonance imaging, X-rays, and ultrasound and advanced imaging; pathology services, such as laboratory, and home collection and preventive health; …
+- **Business Summary**: Krsnaa Diagnostics Limited provides diagnostic services in India. It offers mammography, stress tests, dual-energy X-ray absorptiometry scans, bone mineral density tests, computed tomography scans, and magnetic resonance imaging services, as well as tele-radiology and tele-pathology services. The…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Business Model
 - **Primary Model**: B2C (Business-to-Consumer)

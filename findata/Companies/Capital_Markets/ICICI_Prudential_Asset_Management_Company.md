@@ -52,10 +52,10 @@ ICICI Prudential Asset Management Company Limited is one of India's leading asse
 - **Industry**: Asset Management
 - **Employees**: 3,585
 - **Promoter Holding**: 34.6%
-- **Institutional Holding**: 59.7%
+- **Institutional Holding**: 60.5%
 - **Business Summary**: ICICI Prudential Asset Management Company Limited, an asset management company, provides a range of investment solutions. The company manages mutual and alternative funds; and offers portfolio management and advisory services to offshore clients. It provides savings and investment products across…
 
-_Source: yfinance | Refreshed: 2026-09-15_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 <!-- BEGIN auto key figures (derive_insights.py) -->
 

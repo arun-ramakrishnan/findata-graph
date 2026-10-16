@@ -43,10 +43,10 @@ Max Healthcare Institute Limited is one of India's leading private healthcare pr
 
 - **Industry**: Medical Care Facilities
 - **Promoter Holding**: 28.2%
-- **Institutional Holding**: 60.8%
+- **Institutional Holding**: 59.5%
 - **Business Summary**: Max Healthcare Institute Limited provides medical and healthcare services in India. It offers services in various specialties, including cardiac sciences, orthopedics, oncology, renal sciences, neurosciences, minimal access and general surgery, pulmonology, obstetrics, bone marrow transplant, bar…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Business Segments
 

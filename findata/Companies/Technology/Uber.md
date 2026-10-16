@@ -3,6 +3,7 @@ title: Uber
 type: company
 ticker: UBER
 sector: Technology
+industry: Software - Application
 market_cap: large_cap
 normalized_name: Uber
 permalink: /companies/technology/uber
@@ -33,6 +34,19 @@ American ride-hailing and delivery platform.
 
 *Stub node — created as a graph endpoint. Expand as additional primary research accumulates.*
 
+
+<!-- BEGIN auto company profile (enrich_from_yfinance.py) -->
+
+## Company Profile (yfinance)
+
+- **Industry**: Software - Application
+- **Employees**: 36,600
+- **Promoter Holding**: 0.2%
+- **Institutional Holding**: 85.2%
+- **Business Summary**: Uber Technologies, Inc. develops and operates proprietary technology applications in the United States, Canada, Latin America, Europe, the Middle East, Africa, and the Asia Pacific. The company operates through three segments: Mobility, Delivery, and Freight. The Mobility segment connects consume…
+
+_Source: yfinance | Refreshed: 2026-10-16_
+<!-- END auto company profile -->
 <!-- BEGIN auto key figures (derive_insights.py) -->
 
 ## Key Figures (auto)

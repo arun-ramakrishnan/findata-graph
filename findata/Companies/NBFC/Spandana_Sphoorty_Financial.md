@@ -44,11 +44,11 @@ Spandana Sphoorty Financial Limited is a leading Indian microfinance institution
 
 - **Industry**: Credit Services
 - **Employees**: 9,405
-- **Promoter Holding**: 73.8%
-- **Institutional Holding**: 11.9%
+- **Promoter Holding**: 47.5%
+- **Institutional Holding**: 6.1%
 - **Business Summary**: Spandana Sphoorty Financial Limited engages in the microfinance business in India. The company provides joint liability group based microfinance for women entrepreneurs; loans against the property; and individual loans. It serves low-income customers in semi-urban and rural areas. Spandana Sphoor…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 
 <!-- BEGIN auto key figures (derive_insights.py) -->

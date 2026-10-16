@@ -3,6 +3,7 @@ title: Ellenbarrie Industrial Gases
 type: company
 ticker: ELLEN.NS
 sector: Chemicals
+industry: Chemicals
 market_cap: large_cap
 normalized_name: Ellenbarrie_Industrial_Gases
 permalink: /companies/chemicals/ellenbarrie_industrial_gases
@@ -26,6 +27,18 @@ stale_after: '2026-08-15'
 
 Ellenbarrie Industrial Gases specializes in manufacturing and supplying industrial gases for various industries. They provide project engineering services, turnkey solutions for medical gas pipeline systems, and supply medical equipment to healthcare facilities.
 
+
+<!-- BEGIN auto company profile (enrich_from_yfinance.py) -->
+
+## Company Profile (yfinance)
+
+- **Industry**: Chemicals
+- **Promoter Holding**: 77.8%
+- **Institutional Holding**: 11.9%
+- **Business Summary**: Ellenbarrie Industrial Gases Limited manufactures industrial and medical gases in India. It offers industrial gases, such as oxygen, nitrogen, argon, carbon dioxide, helium, acetylene, hydrogen, nitrous oxide, synthetic air, and special gases; and medical gases, including medical oxygen, medical …
+
+_Source: yfinance | Refreshed: 2026-10-16_
+<!-- END auto company profile -->
 ## Key Information
 - **Entity Type**: Company
 - **Normalized Name**: Ellenbarrie_Industrial_Gases

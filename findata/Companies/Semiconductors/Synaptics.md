@@ -38,9 +38,9 @@ Synaptics — auto-generated stub from newsletter parsing. To be enriched.
 
 - **Industry**: Semiconductors
 - **Employees**: 1,700
-- **Promoter Holding**: 1.2%
-- **Institutional Holding**: 108.2%
+- **Promoter Holding**: 0.8%
+- **Institutional Holding**: 106.4%
 - **Business Summary**: Synaptics Incorporated develops, markets, and sells semiconductor products worldwide. The company provides edge AI processors, wireless connectivity, touch controllers, biometrics, voice, audio, and multimedia products for physical AI and robotics, edge AI, smart home, industrial and automotive, …
 
-_Source: yfinance | Refreshed: 2026-09-15_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->

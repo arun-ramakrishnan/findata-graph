@@ -41,11 +41,12 @@ India's insurance market is massively under-penetrated. At just 2.8% for life an
 ## Company Profile (yfinance)
 
 - **Industry**: Insurance - Reinsurance
-- **Promoter Holding**: 82.4%
-- **Institutional Holding**: 15.0%
-- **Business Summary**: General Insurance Corporation of India provides reinsurance services in India and internationally. It offers property, energy, marine, engineering, liability, spares, health, agriculture/weather, motor and workmen compensation, aviation, life, marine hull, cargo and offshore energy, and miscellan…
+- **Employees**: 418
+- **Promoter Holding**: 77.4%
+- **Institutional Holding**: 17.1%
+- **Business Summary**: General Insurance Corporation of India engages in the provision of reinsurance services in India and internationally. It provides property, energy, marine, engineering, liability, spares, health, agriculture/weather, motor and workmen compensation, aviation, life, marine hull, cargo and offshore …
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Industry Growth
 

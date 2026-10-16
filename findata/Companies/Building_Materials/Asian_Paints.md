@@ -59,10 +59,10 @@ Asian Paints Limited is India's largest paint company and a leading decorative p
 - **Industry**: Specialty Chemicals
 - **Employees**: 11,162
 - **Promoter Holding**: 52.9%
-- **Institutional Holding**: 26.7%
+- **Institutional Holding**: 27.3%
 - **Business Summary**: Asian Paints Limited, together with its subsidiaries, engages in the manufacture, distribution, and sale of paints, coatings, and products related to home decoration and bath fittings, kitchen, and wardrobe in India, Asia, the Middle East, Africa, and the South Pacific region. The company offers …
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Key Metrics
 - **Market Cap**: ~₹2.5+ trillion

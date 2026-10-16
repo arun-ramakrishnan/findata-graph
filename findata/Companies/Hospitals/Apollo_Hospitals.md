@@ -61,6 +61,19 @@ sources:
 
 Apollo Hospitals Enterprise Limited is India's largest integrated healthcare provider, established in 1983 by Prathap C Reddy. It operates a network of hospitals, pharmacies, and diagnostic centers offering comprehensive medical services ranging from primary care to advanced tertiary treatments across Asia.
 
+
+<!-- BEGIN auto company profile (enrich_from_yfinance.py) -->
+
+## Company Profile (yfinance)
+
+- **Industry**: Medical Care Facilities
+- **Employees**: 44,008
+- **Promoter Holding**: 28.4%
+- **Institutional Holding**: 51.1%
+- **Business Summary**: Apollo Hospitals Enterprise Limited, together with its subsidiaries, provides healthcare services in India. It operates through Healthcare Services, Retail Health & Diagnostics, Digital Health & Pharmacy Distribution, and Others segments. The company's healthcare facilities comprise primary, seco…
+
+_Source: yfinance | Refreshed: 2026-10-16_
+<!-- END auto company profile -->
 <!-- BEGIN auto key figures (derive_insights.py) -->
 
 ## Key Figures (auto)

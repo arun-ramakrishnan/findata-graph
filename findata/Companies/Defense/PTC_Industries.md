@@ -36,11 +36,12 @@ PTC Industries Limited manufactures and sells high-precision metal castings in I
 ## Company Profile (yfinance)
 
 - **Industry**: Metal Fabrication
-- **Promoter Holding**: 66.9%
-- **Institutional Holding**: 8.9%
-- **Business Summary**: PTC Industries Limited manufactures and sells high-precision metal castings in India and internationally. The company offers various materials, including alloy steel, stainless steel, duplex and super duplex, nickel-based alloys, cobalt-based alloys, and nickel aluminum bronze, as well as creep a…
+- **Employees**: 575
+- **Promoter Holding**: 63.2%
+- **Institutional Holding**: 8.7%
+- **Business Summary**: PTC Industries Limited manufactures and sells high-precision metal castings in India and internationally. The company offers torque tubes, airframe structural components, engine mounts, turbine frames, engine liners, swirlers, and injectors for aircraft structures and propulsion systems; turbine …
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Financial Profile (Yahoo Finance, Jun 2026)
 

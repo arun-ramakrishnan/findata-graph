@@ -41,11 +41,11 @@ Indegene offers digital-led commercialization services to biopharmaceutical, eme
 
 - **Industry**: Health Information Services
 - **Employees**: 4,687
-- **Promoter Holding**: 55.7%
-- **Institutional Holding**: 20.7%
+- **Promoter Holding**: 55.5%
+- **Institutional Holding**: 26.8%
 - **Business Summary**: Indegene Limited operates as a digital-first life sciences commercialization company in India, the United States, Europe, North America, and internationally. It operates through Enterprise Medical Solutions, Enterprise Commercial Solutions, and Other segments. The company provides AI-embedded com…
 
-_Source: yfinance | Refreshed: 2026-08-11_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Strategic Position
 

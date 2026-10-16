@@ -45,11 +45,12 @@ Hyundai Motor India, a subsidiary of Hyundai Motor Company, specializes in manuf
 ## Company Profile (yfinance)
 
 - **Industry**: Auto Manufacturers
-- **Promoter Holding**: 30.7%
-- **Institutional Holding**: 19.0%
-- **Business Summary**: Hyundai Motor Company, together with its subsidiaries, manufactures and distributes motor vehicles and parts. The company operates through Vehicle, Finance, and Others segments. It offers cars under the ELANTRA, SONATA, AZERA, i30, ACCENT, i20, and i10 names; eco vehicles under the IONIQ 9, NEXO,…
+- **Employees**: 6,262
+- **Promoter Holding**: 82.5%
+- **Institutional Holding**: 13.2%
+- **Business Summary**: Hyundai Motor India Limited engages in the manufacture and sale of passenger vehicles and parts in India and internationally. The company offers passenger vehicle models across sedans, hatchbacks, sports-utility vehicles (SUVs) and electric vehicles (EVs). The company provides motor vehicles, eng…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 
 <!-- BEGIN auto key figures (derive_insights.py) -->

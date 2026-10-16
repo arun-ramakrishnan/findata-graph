@@ -60,11 +60,12 @@ JTL Infra Limited (now JTL Industries Limited), an India-based company, speciali
 ## Company Profile (yfinance)
 
 - **Industry**: Steel
-- **Promoter Holding**: 58.6%
+- **Employees**: 906
+- **Promoter Holding**: 56.2%
 - **Institutional Holding**: 0.3%
-- **Business Summary**: JTL Industries Limited manufactures and sells iron and steel products in India and internationally. It offers DFT Structural Steel Pipes, galvanized steel tubes and pipes, solar module mounting structures, hollow steel section, solar mounting structures, steel tubular poles, and metal crash barri…
+- **Business Summary**: JTL Industries Limited manufactures and sells iron and steel products in India and internationally. It offers DFT structural steel pipes, galvanized steel tubes and pipes, solar module mounting structures, hollow steel section, solar mounting structures, steel tubular poles, and metal crash barri…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Market Analysis
 

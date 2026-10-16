@@ -40,11 +40,11 @@ GNA Axles Limited is a specialized manufacturer of automotive axles and componen
 
 - **Industry**: Auto Parts
 - **Employees**: 1,702
-- **Promoter Holding**: 64.8%
-- **Institutional Holding**: 11.4%
+- **Promoter Holding**: 58.6%
+- **Institutional Holding**: 14.0%
 - **Business Summary**: G N A Axles Limited manufactures automotive transmission components for original equipment manufacturers in North America, Europe, South America, Australia, and Asia. The company offers rear axle shafts, spindles, and drive shafts, as well as non-flanged shafts. Its products are used in commercia…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Business Segments
 

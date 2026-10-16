@@ -40,7 +40,7 @@ Indian Overseas Bank is a public sector bank in India providing comprehensive ba
 - **Institutional Holding**: 4.3%
 - **Business Summary**: Indian Overseas Bank provides various banking products and services in India and internationally. It operates through Treasury Operations, Corporate/Wholesale Banking Operations, Retail Operations, and Other Banking Operations segments. The company accepts various deposits, such as demand, saving…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Strategic Context
 

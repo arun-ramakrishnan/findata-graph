@@ -35,11 +35,11 @@ Firstsource Solutions Limited is a leading player in the Business Process Manage
 
 - **Industry**: Information Technology Services
 - **Employees**: 36,875
-- **Promoter Holding**: 55.2%
-- **Institutional Holding**: 30.7%
+- **Promoter Holding**: 54.9%
+- **Institutional Holding**: 30.9%
 - **Business Summary**: Firstsource Solutions Limited provides technology-enabled business process services in Asia, the United Kingdom, the United States, and internationally. The company operates through four segments: Healthcare; Banking and Financial Services; Communications, Media and Technology; and Diverse Indust…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Key Insights (From Visual Noise to Narrative)
 

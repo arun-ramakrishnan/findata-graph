@@ -61,6 +61,19 @@ sources:
 ## Company Overview
 Bajaj Auto is a leading Indian multinational automotive company and one of the world's largest manufacturers of two and three-wheelers. It has a significant export presence across 70+ countries with brands like Pulsar, Chetak, and KTM.
 
+
+<!-- BEGIN auto company profile (enrich_from_yfinance.py) -->
+
+## Company Profile (yfinance)
+
+- **Industry**: Auto Manufacturers
+- **Employees**: 5,231
+- **Promoter Holding**: 61.0%
+- **Institutional Holding**: 16.6%
+- **Business Summary**: Bajaj Auto Limited, together with its subsidiaries, engages in the development, manufacture, and distribution of automobiles in India and internationally. The company offers motorcycles, bikes, commercial vehicles, electric two-wheelers, and three-wheeler, as well as related parts and accessories…
+
+_Source: yfinance | Refreshed: 2026-10-16_
+<!-- END auto company profile -->
 <!-- BEGIN auto key figures (derive_insights.py) -->
 
 ## Key Figures (auto)

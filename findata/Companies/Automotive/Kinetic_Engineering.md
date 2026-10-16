@@ -1,12 +1,12 @@
 ---
-title: Kinetic Engg
+title: Kinetic Engineering
 type: company
 ticker: 500240.BO
 sector: Automotive
 industry: null
 market_cap: micro_cap
-normalized_name: Kinetic_Engg
-permalink: /companies/automotive/kinetic_engg
+normalized_name: Kinetic_Engineering
+permalink: /companies/automotive/kinetic_engineering
 geography: india
 tags:
 - entity_type/company
@@ -16,7 +16,7 @@ tags:
 - business_model/b2c
 - risk_investment/medium_risk
 created: '2025-12-10'
-last_modified: '2026-09-10'
+last_modified: 2026-10-16
 generated:
   by: derive_insights.py/v1
   at: '2026-09-07T12:07:48Z'
@@ -26,6 +26,7 @@ sources:
   resource: /findata/Points_And_Figures/Clarity_Beneath_the_Complexity.md
   title: 'Points \& Figures: Clarity Beneath the Complexity'
   last_modified: '2026-08-15'
+file_path: findata/Companies/Automotive/Kinetic_Engineering.md
 ---
 
 # Kinetic Engineering

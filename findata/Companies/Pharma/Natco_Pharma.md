@@ -37,11 +37,12 @@ The company also provides agro chemicals and biological pest management solution
 ## Company Profile (yfinance)
 
 - **Industry**: Drug Manufacturers - Specialty & Generic
-- **Promoter Holding**: 51.0%
-- **Institutional Holding**: 12.5%
-- **Business Summary**: NATCO Pharma Limited, a pharmaceutical company, engages in the research and development, manufacturing, and marketing of finished dosage formulations, active pharmaceutical ingredients (APIs), and intermediates in India, the United States, and internationally. The company offers formulations in v…
+- **Employees**: 4,433
+- **Promoter Holding**: 50.9%
+- **Institutional Holding**: 13.0%
+- **Business Summary**: NATCO Pharma Limited, a pharmaceutical company, engages in the research and development, manufacturing, and marketing of finished dosage formulations, active pharmaceutical ingredients (APIs), and intermediates in India, the United States, and internationally. It operates through two segments: Ph…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Financial Profile (Yahoo Finance, Jun 2026)
 

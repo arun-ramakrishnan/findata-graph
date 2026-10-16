@@ -39,11 +39,12 @@ Pace Digitek delivers innovative telecom power systems, optic fiber laying, and 
 ## Company Profile (yfinance)
 
 - **Industry**: Communication Equipment
+- **Employees**: 1,537
 - **Promoter Holding**: 71.1%
-- **Institutional Holding**: 4.1%
-- **Business Summary**: Pace Digitek Limited operates as a service providers in power management, optic fiber laying, and energy management solutions in India, Myanmar, and Africa. It operates through three segments: Telecom, Energy, and Others. The company offers power management, such as Switch Mode Power Supply, Hybr…
+- **Institutional Holding**: 3.8%
+- **Business Summary**: Pace Digitek Limited operates as a service providers in power management, optic fiber laying, and energy management solutions in India and internationally. It operates through three segments: Telecom, Energy, and Others. The company offers telecom power solutions include power management solution…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 
 <!-- BEGIN auto chatter block (derive_insights.py) -->

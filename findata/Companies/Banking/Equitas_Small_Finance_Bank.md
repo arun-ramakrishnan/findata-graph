@@ -40,11 +40,12 @@ Equitas Small Finance Bank is a small-cap bank in India, providing a range of ba
 ## Company Profile (yfinance)
 
 - **Industry**: Banks - Regional
-- **Promoter Holding**: 12.1%
-- **Institutional Holding**: 53.1%
-- **Business Summary**: Equitas Small Finance Bank Limited provides various banking products and services to individuals and corporates, and micro, small, and medium enterprises in India. It operates through Treasury, Corporate/Wholesale Banking, Retail Banking, and Other Banking Operations segments. The company offers …
+- **Employees**: 28,058
+- **Promoter Holding**: 12.2%
+- **Institutional Holding**: 55.3%
+- **Business Summary**: Equitas Small Finance Bank Limited provides various banking products and services to individuals and corporates, and micro, small, and medium enterprises in India. The company operates through Treasury, Corporate/Wholesale Banking, Retail Banking, and Other Banking Operations segments. It provide…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Industry Context
 

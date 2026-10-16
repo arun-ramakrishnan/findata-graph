@@ -38,9 +38,9 @@ Dutch multinational lighting corporation headquartered in Eindhoven (AMS: LIGHT)
 
 - **Industry**: Electrical Equipment & Parts
 - **Employees**: 25,866
-- **Promoter Holding**: 6.6%
-- **Institutional Holding**: 96.3%
+- **Promoter Holding**: 6.3%
+- **Institutional Holding**: 92.6%
 - **Business Summary**: Signify N.V. provides lighting products, systems, and services in Europe, the Americas, and internationally. It operates through Professional, Consumer, OEM, and Conventional segments. The company offers LED products and connected lighting systems and services, including functional LED luminaires…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->

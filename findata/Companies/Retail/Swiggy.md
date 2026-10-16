@@ -3,7 +3,7 @@ title: Swiggy
 type: company
 ticker: SWIGGY.NS
 sector: Retail
-industry: null
+industry: Internet Retail
 market_cap: mid_cap
 normalized_name: Swiggy
 permalink: /companies/retail/swiggy
@@ -51,6 +51,19 @@ The company has built two of India's largest consumer internet categories:
 
 Swiggy has expanded through strategic acquisitions like Dineout and by launching innovations like Bolt (10-minute food delivery), co-branded credit cards, and gifting solutions, all powered by a modular tech stack that enables fast, low-cost experimentation.
 
+
+<!-- BEGIN auto company profile (enrich_from_yfinance.py) -->
+
+## Company Profile (yfinance)
+
+- **Industry**: Internet Retail
+- **Employees**: 5,321
+- **Promoter Holding**: 39.8%
+- **Institutional Holding**: 39.9%
+- **Business Summary**: Swiggy Limited, together with its subsidiary, operates a convenience platform for accessing food and everyday essentials in India. It operates through Food Delivery, Out of Home Consumption, Quick-Commerce, Supply Chain and Distribution, and Platform Innovations segments. The company operates Swi…
+
+_Source: yfinance | Refreshed: 2026-10-16_
+<!-- END auto company profile -->
 <!-- BEGIN auto key figures (derive_insights.py) -->
 
 ## Key Figures (auto)

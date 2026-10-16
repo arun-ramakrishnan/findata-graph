@@ -45,11 +45,11 @@ The company operates an omnichannel model spanning patient service centers, a mo
 
 - **Industry**: Diagnostics & Research
 - **Employees**: 4,484
-- **Promoter Holding**: 48.9%
-- **Institutional Holding**: 44.9%
+- **Promoter Holding**: 47.8%
+- **Institutional Holding**: 44.3%
 - **Business Summary**: Metropolis Healthcare Limited, together with its subsidiaries, provides pathology and related healthcare services in India and internationally. The company offers routine and specialised pathology tests; advanced diagnostics, including genetic, molecular, and cytogenetic testing; preventive healt…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Financial Profile (Yahoo Finance, Jun 2026)
 

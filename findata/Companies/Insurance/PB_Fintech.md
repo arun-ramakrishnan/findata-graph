@@ -59,11 +59,12 @@ PB Fintech Limited operates an online marketplace for insurance and lending prod
 ## Company Profile (yfinance)
 
 - **Industry**: Insurance Brokers
-- **Promoter Holding**: 25.0%
-- **Institutional Holding**: 55.6%
-- **Business Summary**: PB Fintech Limited operates an online marketplace for insurance and lending products in India and the United Arab Emirates. It operates through two segments, Insurance Services and Other Services. The company offers Policybazaar that enables consumers to compare, evaluate, and apply for insurance…
+- **Employees**: 28,014
+- **Promoter Holding**: 22.2%
+- **Institutional Holding**: 60.2%
+- **Business Summary**: PB Fintech Limited operates an online marketplace for insurance and lending products in India and the United Arab Emirates. It operates through two segments, Insurance Broker Services and Other Services. The company provides Policybazaar that enables consumers to compare, evaluate, and apply for …
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Key Metrics
 

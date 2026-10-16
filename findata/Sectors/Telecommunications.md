@@ -101,13 +101,14 @@ The telecommunications sector encompasses companies engaged in providing telecom
 
 ## All Companies (auto)
 
-<!-- Auto-generated from the SQLite source of truth. 11 company note(s) in Telecommunications. Do not edit by hand — re-run `python3 helpers/maintenance/sync_sector_wikilinks.py` to refresh. Curated highlights live in the editorial sections above. -->
+<!-- Auto-generated from the SQLite source of truth. 12 company note(s) in Telecommunications. Do not edit by hand — re-run `python3 helpers/maintenance/sync_sector_wikilinks.py` to refresh. Curated highlights live in the editorial sections above. -->
 
 - [[Bharti_Airtel|Bharti Airtel]]
 - [[Bharti_Hexacom|Bharti Hexacom]]
 - [[Frog_Innovations|Frog Innovations]]
 - [[GTPL_Hathway|GTPL Hathway]]
 - [[Info_Edge|Info Edge Limited]]
+- [[NEC]]
 - [[Sterlite_Technologies|Sterlite Technologies]]
 - [[Tanla_Platforms|Tanla Platforms]]
 - [[Tata_Communications|Tata Communications]]

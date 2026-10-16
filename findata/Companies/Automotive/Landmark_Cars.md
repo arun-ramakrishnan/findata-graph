@@ -34,11 +34,12 @@ Landmark Cars Limited, founded in 1998 and headquartered in Mumbai, is an automo
 ## Company Profile (yfinance)
 
 - **Industry**: Auto & Truck Dealerships
-- **Promoter Holding**: 55.2%
-- **Institutional Holding**: 20.1%
-- **Business Summary**: Landmark Cars Limited engages in the automotive retail business in India. It provides dealership services for Honda, Mercedes-Benz, Renault, Jeep, Volkswagen, Ashok Leyland, BYD, MG Motors, Mahindra & Mahindra, Citroen, and Kia. It also offers car accessories. The company also provides after-sale…
+- **Employees**: 5,120
+- **Promoter Holding**: 53.5%
+- **Institutional Holding**: 19.8%
+- **Business Summary**: Landmark Cars Limited engages in the automotive retail business in India. It provides dealership services for Mercedes-Benz, BYD, MG Motor, Mahindra & Mahindra, Kia, Honda, Renault, Volkswagen, Jeep, Citroën and Ashok Leyland. The company also sells new and pre-owned passenger vehicles; provides …
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Financial Profile (Yahoo Finance, Jun 2026)
 - Market cap: ₹17.9B | Enterprise value: ₹28.0B

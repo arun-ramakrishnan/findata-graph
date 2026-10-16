@@ -3,7 +3,7 @@ title: Allied Blenders and Distillers
 type: company
 ticker: ABDL.BO
 sector: FMCG
-industry: null
+industry: Beverages - Wineries & Distilleries
 market_cap: large_cap
 normalized_name: Allied_Blenders_and_Distillers
 permalink: /companies/fmcg/allied_blenders_and_distillers
@@ -41,6 +41,19 @@ sources:
 ## Company Overview
 Allied Blenders and Distillers is a company in the miscellaneous sector. More information about this company will be added here.
 
+
+<!-- BEGIN auto company profile (enrich_from_yfinance.py) -->
+
+## Company Profile (yfinance)
+
+- **Industry**: Beverages - Wineries & Distilleries
+- **Employees**: 929
+- **Promoter Holding**: 79.0%
+- **Institutional Holding**: 6.2%
+- **Business Summary**: Allied Blenders and Distillers Limited produces and sells alcoholic beverages in India and internationally. The company offers whisky, brandy, rum, vodka, and gin under the Arthaus, Officer's Choice, Sterling Reserve Blend 7, ICONiQ Winter, X&O Barrel, Srishti, Officer's Choice Blue, Sterling Res…
+
+_Source: yfinance | Refreshed: 2026-10-16_
+<!-- END auto company profile -->
 ## Financial Information
 - **Ticker Symbol**: ABF
 - **Market Cap**: Large Cap

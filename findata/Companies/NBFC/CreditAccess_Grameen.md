@@ -41,10 +41,10 @@ CreditAccess Grameen Limited is a leading microfinance institution in India, pro
 - **Industry**: Credit Services
 - **Employees**: 21,941
 - **Promoter Holding**: 66.1%
-- **Institutional Holding**: 20.8%
+- **Institutional Holding**: 20.6%
 - **Business Summary**: CreditAccess Grameen Limited, a non-banking financial company, provides micro finance services for women from poor and low-income households in India. The company offers microcredit loans for income generation, home improvement, emergency, family welfare, and Grameen Unnati, as well as Grameen Su…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 
 <!-- BEGIN auto chatter block (derive_insights.py) -->

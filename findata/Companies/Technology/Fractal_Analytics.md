@@ -57,11 +57,12 @@ Fractal Analytics is a leading advanced analytics and AI provider serving Fortun
 ## Company Profile (yfinance)
 
 - **Industry**: Software - Infrastructure
-- **Promoter Holding**: 64.5%
-- **Institutional Holding**: 10.7%
-- **Business Summary**: Fractal Analytics Limited provides artificial intelligence and analytics solutions to automate business workflows, extract insights from data, and optimize enterprise operations. The company delivers engineering solutions at scale, including services to optimize retail and supply chains and impro…
+- **Employees**: 5,868
+- **Promoter Holding**: 63.8%
+- **Institutional Holding**: 10.6%
+- **Business Summary**: Fractal Analytics Limited provides artificial intelligence (AI) and analytics solutions to automate business workflows, extract insights from data, and optimize enterprise operations. The company offers agentic products for enterprises, including Cogentiq platform, Cogentiq CX, Cogentiq E-commerc…
 
-_Source: yfinance | Refreshed: 2026-08-11_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 <!-- BEGIN auto chatter block (derive_insights.py) -->
 

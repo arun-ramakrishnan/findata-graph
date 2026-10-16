@@ -3,6 +3,7 @@ title: Bikaji Foods International
 type: company
 ticker: BIKAJI.NS
 sector: FMCG
+industry: Packaged Foods
 market_cap: mid_cap
 normalized_name: Bikaji_Foods_International
 permalink: /companies/fmcg/bikaji_foods_international
@@ -42,6 +43,19 @@ Packaged snacks and sweets maker.
 
 *Stub node — created as a graph endpoint. Expand as additional primary research accumulates.*
 
+
+<!-- BEGIN auto company profile (enrich_from_yfinance.py) -->
+
+## Company Profile (yfinance)
+
+- **Industry**: Packaged Foods
+- **Employees**: 3,040
+- **Promoter Holding**: 73.9%
+- **Institutional Holding**: 19.5%
+- **Business Summary**: Bikaji Foods International Limited, together with its subsidiaries, manufactures, purchases, and sells snack food products in India and internationally. It offers sweets, pellets, bhujia, namkeen, papad, chips, and other snacks, as well as frozen food products, gift packs, mathris, and cookies un…
+
+_Source: yfinance | Refreshed: 2026-10-16_
+<!-- END auto company profile -->
 <!-- BEGIN auto key figures (derive_insights.py) -->
 
 ## Key Figures (auto)

@@ -3,7 +3,7 @@ title: Gala Precision Engineering
 type: company
 ticker: GALAPREC.BO
 sector: Engineering_Capital_Goods
-industry: null
+industry: Specialty Industrial Machinery
 market_cap: small_cap
 normalized_name: Gala_Precision_Engineering
 permalink: /companies/engineering_capital_goods/gala_precision_engineering
@@ -32,6 +32,18 @@ sources:
 ## Company Overview
 Gala Precision Engineering Limited, founded in 1989 and based in Thane, manufactures high-quality technical springs and high-tensile fasteners for the renewable energy, mobility, and industrial sectors in India and internationally. The product portfolio spans disc springs, spring packs, coil springs, spiral springs, strip springs, and a broad range of special fasteners (threaded rods, studs, foundation anchor bolts, hex/flange/allen/cup bolts, hex/flange nuts, gallock/grip lock wedge lock washers). It serves renewable energy, agricultural/construction/mining equipment, electrical & automation, fastener distributors, infrastructure, railways, and automotive end markets.
 
+
+<!-- BEGIN auto company profile (enrich_from_yfinance.py) -->
+
+## Company Profile (yfinance)
+
+- **Industry**: Specialty Industrial Machinery
+- **Promoter Holding**: 72.1%
+- **Institutional Holding**: 2.8%
+- **Business Summary**: Gala Precision Engineering Limited manufactures and sells precision components in India and internationally. The company offers technical springs that include disc springs, spring packs, coil springs, spiral springs, and strip springs and high tensile fasteners, such as threaded rods, studs, foun…
+
+_Source: yfinance | Refreshed: 2026-10-16_
+<!-- END auto company profile -->
 ## Financial Profile (Yahoo Finance, Jun 2026)
 - Market cap: ₹1,398 cr | Enterprise value: ₹1,415 cr
 - Revenue (TTM): ₹314 cr (+25.6% YoY) | EBITDA margin: 18.1%

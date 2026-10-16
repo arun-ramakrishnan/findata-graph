@@ -68,10 +68,10 @@ Amara Raja Batteries Limited is a technology leader and one of the largest manuf
 - **Industry**: Electrical Equipment & Parts
 - **Employees**: 10,763
 - **Promoter Holding**: 33.3%
-- **Institutional Holding**: 30.1%
+- **Institutional Holding**: 28.7%
 - **Business Summary**: Amara Raja Energy & Mobility Limited, together with its subsidiaries, manufactures and sells lead-acid storage batteries for industrial and automotive applications in India and internationally. It operates in two segments, Lead Acid Batteries and Allied Products; and New Energy Business. The comp…
 
-_Source: yfinance | Refreshed: 2026-08-11_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Business Segments
 

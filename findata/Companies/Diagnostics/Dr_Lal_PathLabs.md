@@ -54,11 +54,11 @@ Dr. Lal PathLabs Limited is a leading diagnostic laboratory network in India, pr
 
 - **Industry**: Diagnostics & Research
 - **Employees**: 5,206
-- **Promoter Holding**: 54.8%
-- **Institutional Holding**: 32.1%
+- **Promoter Holding**: 54.7%
+- **Institutional Holding**: 32.2%
 - **Business Summary**: Dr. Lal PathLabs Limited operates laboratories for carrying out pathological investigations in India and internationally. The company provides pathological investigations of various branches of bio-chemistry, hematology, histopathology, microbiology, electrophoresis, immuno-chemistry, immunology,…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Company Profile
 - **Founded**: 1949

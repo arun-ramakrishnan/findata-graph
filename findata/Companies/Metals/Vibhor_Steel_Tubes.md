@@ -35,11 +35,12 @@ Renowned manufacturer and exporter of Mild Steel/Carbon Steel ERW Black and Galv
 ## Company Profile (yfinance)
 
 - **Industry**: Steel
-- **Promoter Holding**: 74.7%
+- **Employees**: 803
+- **Promoter Holding**: 75.0%
 - **Institutional Holding**: 0.0%
-- **Business Summary**: Vibhor Steel Tubes Limited engages in the manufacture and sale of steel pipes and tubes in India. It offers mild steel/carbon electric resistance welded black and galvanized pipes, hollow section tubes and steel pipes, primer painted pipes, crash barriers, and cold rolled steel strips/coils. The …
+- **Business Summary**: Vibhor Steel Tubes Limited engages in the production and distribution of steel pipes and tubes for the heavy engineering sectors in India and internationally. The company offers electric resistance welded black pipes for water transport, oil, gas, and other nontoxic applications; hot-dipped galva…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Company Details
 

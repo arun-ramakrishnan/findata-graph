@@ -49,11 +49,12 @@ Multi Commodity Exchange of India Limited, a commodity derivatives exchange, pro
 ## Company Profile (yfinance)
 
 - **Industry**: Financial Data & Stock Exchanges
+- **Employees**: 436
 - **Promoter Holding**: 19.5%
-- **Institutional Holding**: 51.1%
-- **Business Summary**: Multi Commodity Exchange of India Limited, a commodity derivatives exchange, provides a platform to facilitate online trading of commodity derivatives in India. It offers iCOMDEX, a real-time commodity futures price indices; and trades in bullion, base metals, energy, and agricultural commodities…
+- **Institutional Holding**: 52.6%
+- **Business Summary**: Multi Commodity Exchange of India Limited, a commodity derivatives exchange, provides a platform to facilitate online trading of commodity derivatives in India. The company offers iCOMDEX, a real-time commodity futures price indices; and trades in bullion, base metals, energy, and agricultural co…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Key Personnel
 - Ms. Praveena Rai: MD, CEO & Director

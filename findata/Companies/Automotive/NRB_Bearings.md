@@ -36,11 +36,11 @@ NRB Bearings Limited (incorporated 1965; headquartered in Mumbai) manufactures b
 
 - **Industry**: Auto Parts
 - **Employees**: 1,240
-- **Promoter Holding**: 46.1%
-- **Institutional Holding**: 24.8%
+- **Promoter Holding**: 45.3%
+- **Institutional Holding**: 25.7%
 - **Business Summary**: NRB Bearings Limited, together with its subsidiaries, manufactures, markets, and trades in bearing products in India and internationally. It offers drawn cup needle, cylindrical roller, drawn cup cylindrical roller, full-complement needle, special ball, thrust, tapered and spherical roller, and r…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Financial Profile (Yahoo Finance, Jun 2026)
 

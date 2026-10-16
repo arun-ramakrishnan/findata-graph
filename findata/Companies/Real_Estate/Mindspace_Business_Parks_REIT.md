@@ -64,10 +64,10 @@ Mindspace Business Parks REIT (BSE: MINDSPACE) is a leading Indian commercial re
 
 - **Industry**: REIT - Office
 - **Promoter Holding**: 0.0%
-- **Institutional Holding**: 15.5%
-- **Business Summary**: Mindspace Business Parks REIT, sponsored by K Raheja Corp group, was listed on the Indian bourses in August 2020. The REIT owns quality office assets located in four key office markets of India, namely the Mumbai Region, Pune, Hyderabad, and Chennai, and has one of the largest Grade-A office port…
+- **Institutional Holding**: 14.7%
+- **Business Summary**: Mindspace Business Parks REIT, sponsored by K Raheja Corp group, listed on the Indian bourses in August 2020. The REIT owns quality office assets located in four key office markets of India, namely Mumbai Region, Pune, Hyderabad, and Chennai, and is one of the largest Grade-A office portfolios gl…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Management
 - Ramesh Nair — CEO & Managing Director

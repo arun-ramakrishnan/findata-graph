@@ -37,11 +37,11 @@ India accounts for about 5% of global paper production and is fastest-growing pa
 
 - **Industry**: Paper & Paper Products
 - **Employees**: 1,399
-- **Promoter Holding**: 74.9%
+- **Promoter Holding**: 72.6%
 - **Institutional Holding**: 0.0%
-- **Business Summary**: Kuantum Papers Limited produces, markets, and sells agro and wood-based paper products in India. It offers maplitho, copier paper, and customized grades for textbooks, notebooks, and educational stationery; writing and printing paper products; creamwove; and specialty products, such as thermal pa…
+- **Business Summary**: Kuantum Papers Limited manufactures and sells agro- and wood-based writing and printing, copier, and specialty paper products in India and internationally. The company also provides maplitho and creamwove paper; and value-added specialty products, such as thermal, bond, azurelaid, parchment, cart…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Market Segments
 

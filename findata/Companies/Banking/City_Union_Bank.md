@@ -38,11 +38,11 @@ City Union Bank is a leading private sector bank in India, offering comprehensiv
 
 - **Industry**: Banks - Regional
 - **Employees**: 8,894
-- **Promoter Holding**: 9.0%
-- **Institutional Holding**: 55.3%
-- **Business Summary**: City Union Bank Limited provides various banking products and services in India. It operates in four segments: Treasury, Corporate/Wholesale Banking, Retail Banking, and Other Banking Operations. The company offers savings, current, staff salary, and resident foreign currency accounts; fixed, rec…
+- **Promoter Holding**: 8.0%
+- **Institutional Holding**: 52.1%
+- **Business Summary**: City Union Bank Limited provides various banking products and services in India. It operates through four segments: Treasury, Corporate/Wholesale Banking, Retail Banking, and Other Banking Operations. The company offers savings, current, staff salary, and resident foreign currency accounts; fixed…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Key Insights
 

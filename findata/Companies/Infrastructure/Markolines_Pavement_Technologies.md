@@ -38,11 +38,12 @@ Markolines Traffic Controls Limited is a leader in providing innovative and tech
 ## Company Profile (yfinance)
 
 - **Industry**: Infrastructure Operations
-- **Promoter Holding**: 66.3%
+- **Employees**: 279
+- **Promoter Holding**: 69.0%
 - **Institutional Holding**: 0.0%
-- **Business Summary**: Markolines Pavement Technologies Limited provides highway operations and maintenance services in India. The company operates through Highway Maintenance Services; and Specialized Construction Services segments. It offers consultancy services; and major maintenance services involving bituminous co…
+- **Business Summary**: Markolines Pavement Technologies Limited provides highway operations and maintenance services in India. The company offers highway maintenance services, including bituminous, rigid pavement, and preventative maintenance services; specialized maintenance services comprising microsurfacing and cold…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Sector Classification
 - **Primary Sector**: Engineering_Capital_Goods

@@ -82,12 +82,12 @@ The target to double After Dark's volumes to nearly 4 million cases in a single 
 ## Company Profile (yfinance)
 
 - **Industry**: Beverages - Wineries & Distilleries
-- **Employees**: 1,494
-- **Promoter Holding**: 44.2%
-- **Institutional Holding**: 29.6%
-- **Business Summary**: Radico Khaitan Limited engages in the manufacture and trading of Indian made foreign liquor (IMFL) and country liquor in India, the United States, and internationally. It provides IMFL products in various categories of whisky, brandy, rum, gin, vodka, and liqueurs. The company also provides bottl…
+- **Employees**: 1,543
+- **Promoter Holding**: 43.0%
+- **Institutional Holding**: 32.9%
+- **Business Summary**: Radico Khaitan Limited engages in the manufacture and trading of Indian made foreign liquor (IMFL), country liquor, and other alcoholic products in India, Ghana, Nigeria, Sudan, the United Arab Emirates, and internationally. The company provides IMFL products in various categories of whisky, vodk…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Points & Figures — Edition #19 (17 Feb 2026): Grain in the graphs
 

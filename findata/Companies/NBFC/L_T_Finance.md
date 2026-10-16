@@ -118,11 +118,11 @@ On Project Cyclops performance during high-volume festive season
 
 - **Industry**: Credit Services
 - **Employees**: 41,301
-- **Promoter Holding**: 66.0%
-- **Institutional Holding**: 17.8%
+- **Promoter Holding**: 65.9%
+- **Institutional Holding**: 18.1%
 - **Business Summary**: L&T Finance Limited, a non-banking financial company, provides various financial products and services in India. It offers housing loans; personal loans for medical emergencies, home renovation, wedding, vacation, education, and debt consolidation; two-wheeler loans; business loans, such as SME, …
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 
 <!-- BEGIN auto key figures (derive_insights.py) -->

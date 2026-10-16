@@ -43,10 +43,10 @@ Endurance Technologies is a leading automotive components company specializing i
 - **Industry**: Auto Parts
 - **Employees**: 4,586
 - **Promoter Holding**: 75.0%
-- **Institutional Holding**: 19.9%
+- **Institutional Holding**: 19.3%
 - **Business Summary**: Endurance Technologies Limited manufactures and sells automotive components for original equipment manufacturers (OEM) in India and internationally. The company offers aluminium die casting products, such as high-pressure, low-pressure, and gravity die castings, as well as swing arms, EV mission …
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Business Segments
 

@@ -48,11 +48,11 @@ PI Industries Limited is a leading agricultural sciences company founded in 1946
 
 - **Industry**: Agricultural Inputs
 - **Employees**: 3,715
-- **Promoter Holding**: 46.5%
-- **Institutional Holding**: 41.7%
+- **Promoter Holding**: 46.2%
+- **Institutional Holding**: 40.1%
 - **Business Summary**: PI Industries Limited, together with its subsidiaries, manufactures and distributes of agricultural chemicals in India, rest of Asia, North America, Europe, and internationally. It operates through Agro Chemicals and Pharma segments. The company offers agrochemicals, including insecticides, fungi…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Financial Profile (Yahoo Finance, Jun 2026)
 - Market cap: ₹40,731 cr | Enterprise value: ₹38,493 cr

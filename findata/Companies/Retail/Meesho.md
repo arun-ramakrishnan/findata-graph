@@ -3,6 +3,7 @@ title: Meesho
 type: company
 ticker: MEESHO.NS
 sector: Retail
+industry: Internet Retail
 market_cap: mid_cap
 normalized_name: Meesho
 permalink: /companies/retail/meesho
@@ -39,6 +40,19 @@ sources:
 ## Company Overview
 Meesho (Fashnear Technologies — filed for IPO; HQ Bengaluru) is a leading Indian e-commerce marketplace focused on value/low-ticket-size commerce for tier-2+ consumers, with a strong ~90%+ of its order book from third-tier-and-below cities. Operates a low-commission, asset-light model with logistics and payments bundled via providers.
 
+
+<!-- BEGIN auto company profile (enrich_from_yfinance.py) -->
+
+## Company Profile (yfinance)
+
+- **Industry**: Internet Retail
+- **Employees**: 2,078
+- **Promoter Holding**: 39.2%
+- **Institutional Holding**: 43.6%
+- **Business Summary**: Meesho Limited operates an e-commerce marketplace in India. It operates in two segments, Marketplace and New Initiatives. The company operates Meesho, an online platform that connects consumers, sellers, logistics partners, and content creators; displays ads; and provides logistics services compr…
+
+_Source: yfinance | Refreshed: 2026-10-16_
+<!-- END auto company profile -->
 <!-- BEGIN auto key figures (derive_insights.py) -->
 
 ## Key Figures (auto)

@@ -3,7 +3,7 @@ title: Epack Prefab Technologies
 type: company
 ticker: EPACKPEB.NS
 sector: Metals
-industry: null
+industry: Engineering & Construction
 market_cap: small_cap
 normalized_name: Epack_Prefab_Technologies
 file_path: findata/Companies/Metals/Epack_Prefab_Technologies.md
@@ -71,6 +71,19 @@ Epack Prefab Technologies, established in 1999, operates in two key segments: Pr
 - **Sustained Momentum**: Consistent outperformance of industry growth
 - **Diversified Portfolio**: Wide product mix across PEB, EPS, and packaging
 
+
+<!-- BEGIN auto company profile (enrich_from_yfinance.py) -->
+
+## Company Profile (yfinance)
+
+- **Industry**: Engineering & Construction
+- **Employees**: 2,671
+- **Promoter Holding**: 75.2%
+- **Institutional Holding**: 2.5%
+- **Business Summary**: EPack Prefab Technologies Limited engages in manufacturing Pre-engineered and Prefabricated Building Solutions and EPS (Expanded Polystyrene) Packaging. Pre-engineered and Prefabricated Building Solutions engages in the designing, manufacturing, installation, and erection of pre-engineered steel …
+
+_Source: yfinance | Refreshed: 2026-10-16_
+<!-- END auto company profile -->
 <!-- BEGIN auto key figures (derive_insights.py) -->
 
 ## Key Figures (auto)

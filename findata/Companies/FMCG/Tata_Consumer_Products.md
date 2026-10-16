@@ -72,10 +72,10 @@ Tata Consumer Products (NSE: TATACONSUMER) is the Tata Group's FMCG arm spanning
 - **Industry**: Packaged Foods
 - **Employees**: 11,233
 - **Promoter Holding**: 34.4%
-- **Institutional Holding**: 33.6%
+- **Institutional Holding**: 34.7%
 - **Business Summary**: Tata Consumer Products Limited, together with its subsidiaries, manufactures, distributes, and trades in food products in India, the United States, the United Kingdom, and internationally. It operates through Branded Business and Non Branded Business segments. The company provides tea, coffee, wa…
 
-_Source: yfinance | Refreshed: 2026-08-11_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 
 <!-- BEGIN auto chatter block (derive_insights.py) -->

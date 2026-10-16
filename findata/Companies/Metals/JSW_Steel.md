@@ -81,11 +81,11 @@ India's steel sector saw strong growth in Q2 FY26, with crude steel production u
 
 - **Industry**: Steel
 - **Employees**: 16,083
-- **Promoter Holding**: 64.6%
-- **Institutional Holding**: 17.9%
+- **Promoter Holding**: 63.6%
+- **Institutional Holding**: 17.3%
 - **Business Summary**: JSW Steel Limited manufactures and sells iron and steel products in India and internationally. The company offers hot and cold rolled steel products, colour coated sheets, galvanized and galvalume steel, electrical steel, steel doors, zinc-magnesium-aluminium products, aluminium-zinc roofing prod…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## [Presentation]
 India's prefab building industry is being fueled by a mix of structural demand an policy tailwinds. Rising housing and infrastructure needs, rapid solar capacity expansion, and lower labor costs are driving adoption of prefab solutions. Government initiatives like increasing steel consumption per capita and scheme like PMAY-G are creating demand for affordable, quick-to-deploy structures, wh eco-friendly goals are pushing the shift toward reduced waste and emissions. Th sunrise sectors stand out: logistics and cold storage, expected to attract $₹ 460-50 \mathrm{C}$ billion in investments by FY29E; data centers, with capacity set to grow at $30 \%$ CAGR to 2,000-2,300 MW by FY27P; and energy and healthcare, where renewabl

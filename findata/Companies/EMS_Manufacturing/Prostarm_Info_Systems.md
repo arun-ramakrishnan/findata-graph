@@ -43,11 +43,12 @@ Extracted from "Points & Figures: Grain in the graphs" (Zerodha) — Edition #19
 ## Company Profile (yfinance)
 
 - **Industry**: Electrical Equipment & Parts
+- **Employees**: 470
 - **Promoter Holding**: 72.8%
 - **Institutional Holding**: 0.0%
 - **Business Summary**: Prostarm Info Systems Limited engages in the designing, manufacturing, assembling, sale, service and supply of energy storage equipment and power conditioning equipment in India and internationally. It provides uninterrupted power supply (UPS) systems, including line interactive UPS, APFC online …
 
-_Source: yfinance | Refreshed: 2026-08-11_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Key Data Points & Signals (Investor Presentation)
 - **BESS market**: India's Battery Energy Storage System market set to scale from ~0.2 GW to 66 GW by 2032; investment potential INR 5,000 bn; valued USD 7.8 bn (2024) → USD 32 bn (2030) at ~27% CAGR (2025–30).

@@ -48,11 +48,11 @@ Extracted from "Points & Figures: Grain in the graphs" (Zerodha) — Edition #19
 
 - **Industry**: Software - Application
 - **Employees**: 6,044
-- **Promoter Holding**: 14.4%
-- **Institutional Holding**: 61.1%
+- **Promoter Holding**: 14.5%
+- **Institutional Holding**: 65.1%
 - **Business Summary**: KFin Technologies Limited operates as a corporate registrar and transfer agency in India, the United States, Canada, and internationally. The company offers digital onboarding & KYC services, registrar and transfer agency, investor service centres, distributor services, investor and distributor e…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Key Data Points & Signals (Investor Presentation)
 - **India mutual-fund AUM**: grew 18.1% YoY to INR 81 trillion; equity assets +17.8% to INR 46.7 trillion.

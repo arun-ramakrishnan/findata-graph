@@ -3,6 +3,7 @@ title: SG Finserve
 type: company
 ticker: SGFIN.NS
 sector: NBFC
+industry: Capital Markets
 market_cap: small_cap
 normalized_name: SG_Finserve
 permalink: /companies/nbfc/sg_finserve
@@ -38,6 +39,19 @@ Financial-services company; details pending verification.
 
 *Stub node — created as a graph endpoint. Expand as additional primary research accumulates.*
 
+
+<!-- BEGIN auto company profile (enrich_from_yfinance.py) -->
+
+## Company Profile (yfinance)
+
+- **Industry**: Capital Markets
+- **Employees**: 76
+- **Promoter Holding**: 72.2%
+- **Institutional Holding**: 1.7%
+- **Business Summary**: SG Finserve Limited operates as a non-banking financial company in India. It offers dealer financing, retailer financing, logistics and transporter financing, and tailor-made term lending solutions, as well as vendor supplier financing for corporates. The company was formerly known as Moongipa Se…
+
+_Source: yfinance | Refreshed: 2026-10-16_
+<!-- END auto company profile -->
 <!-- BEGIN auto key figures (derive_insights.py) -->
 
 ## Key Figures (auto)

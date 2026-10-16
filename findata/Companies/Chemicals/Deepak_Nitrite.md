@@ -56,11 +56,11 @@ Deepak Nitrite Limited is a rapidly growing Indian company known for manufacturi
 
 - **Industry**: Chemicals
 - **Employees**: 1,447
-- **Promoter Holding**: 49.8%
-- **Institutional Holding**: 25.4%
+- **Promoter Holding**: 49.9%
+- **Institutional Holding**: 26.7%
 - **Business Summary**: Deepak Nitrite Limited manufactures, trades, and sells chemical intermediates in India and internationally. It operates through Advanced Intermediates and Phenolics segments. The company offers sodium nitrite, sodium nitrate, nitro toluidines, fuel additives, nitrosylsulfuric acid, xylidines, oxi…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Recent Performance
 - **Q2 FY26 Revenue**: INR 1,922 crore (5% sequential increase)

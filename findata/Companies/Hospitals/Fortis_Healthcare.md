@@ -63,10 +63,10 @@ Fortis Healthcare Limited is one of India's leading private healthcare providers
 - **Industry**: Medical Care Facilities
 - **Employees**: 14,649
 - **Promoter Holding**: 35.2%
-- **Institutional Holding**: 47.9%
+- **Institutional Holding**: 51.4%
 - **Business Summary**: Fortis Healthcare Limited operates as a healthcare delivery service provider in India. The company services in the areas of cardiac science, nephrology, diabetology/endocrinology, foetal medicine, infectious diseases, mental health and behavioral science, oncology, orthopedics, physiotherapy and …
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 
 <!-- BEGIN auto chatter block (derive_insights.py) -->

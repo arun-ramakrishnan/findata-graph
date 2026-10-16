@@ -45,11 +45,12 @@ KPI Green Energy is a renewable energy company focused on developing and operati
 ## Company Profile (yfinance)
 
 - **Industry**: Utilities - Renewable
-- **Promoter Holding**: 54.9%
-- **Institutional Holding**: 5.3%
-- **Business Summary**: KPI Green Energy Limited operates as an independent power producer that focuses on the development, construction, ownership, operation, and maintenance of renewable energy projects under Solarism brand name in India. The company operates through the Sale of Power & Plant and Sale of Plots segment…
+- **Employees**: 710
+- **Promoter Holding**: 54.7%
+- **Institutional Holding**: 5.0%
+- **Business Summary**: KPI Green Energy Limited operates as an independent power producer that focuses on the development, construction, ownership, operation, and maintenance of renewable energy projects under the Solarism brand name in India. The company operates through the Sale of Power & Plant and Sale of Plots seg…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 
 <!-- BEGIN auto key figures (derive_insights.py) -->

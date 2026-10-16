@@ -49,10 +49,10 @@ LTIMindtree Limited is a global technology consulting and digital solutions comp
 - **Industry**: Information Technology Services
 - **Employees**: 87,886
 - **Promoter Holding**: 68.6%
-- **Institutional Holding**: 18.9%
+- **Institutional Holding**: 18.6%
 - **Business Summary**: LTM Limited engages in technology consulting and digital solutions company, provides information technology services and solutions in India, North America, Europe, and internationally. It operates through Banking, Financial Services & Insurance; Technology, Media & Communications; Manufacturing &…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 
 <!-- BEGIN auto key figures (derive_insights.py) -->

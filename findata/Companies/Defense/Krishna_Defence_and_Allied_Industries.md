@@ -3,7 +3,7 @@ title: Krishna Defence and Allied Industries
 type: company
 ticker: KRISHNADEF.NS
 sector: Defense
-industry: null
+industry: Specialty Industrial Machinery
 market_cap: small_cap
 normalized_name: Krishna_Defence_and_Allied_Industries
 permalink: /companies/defense/krishna_defence_and_allied_industries
@@ -37,6 +37,17 @@ sources:
 ## Company Overview
 Krishna Defence and Allied Industries Limited (founded 1996; HQ Mumbai) designs and manufactures equipment for defence & security, dairy, and kitchen verticals, serving the Indian Armed Forces and allied institutions. Its defence offerings include shipbuilding steel sections, armoured-vehicle profiles, ballast bricks, composite doors, and homeland-security equipment, complemented by a large dairy/kitchen equipment portfolio that supports India's milk value chain and midday-meal programs.
 
+
+<!-- BEGIN auto company profile (enrich_from_yfinance.py) -->
+
+## Company Profile (yfinance)
+
+- **Industry**: Specialty Industrial Machinery
+- **Employees**: 189
+- **Business Summary**: Krishna Defence and Allied Industries Limited engages in the designing, developing, and manufacturing range of equipment for defence, security, dairy, and kitchen verticals in India. The company offers ship building steel sections, welding wire, ballast bricks, composite doors, and special profil…
+
+_Source: yfinance | Refreshed: 2026-10-16_
+<!-- END auto company profile -->
 ## Financial Profile (Yahoo Finance, Jun 2026)
 - Market cap: ₹1,793 cr | Enterprise value: ₹1,966 cr
 - Revenue (TTM): ₹245 cr (YoY growth: +42.2%)

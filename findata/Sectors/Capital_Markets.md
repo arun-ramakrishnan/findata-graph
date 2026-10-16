@@ -37,7 +37,7 @@ Market infrastructure and intermediaries — exchanges, depositories, clearing c
 
 ## All Companies (auto)
 
-<!-- Auto-generated from the SQLite source of truth. 28 company note(s) in Capital_Markets. Do not edit by hand — re-run `python3 helpers/maintenance/sync_sector_wikilinks.py` to refresh. Curated highlights live in the editorial sections above. -->
+<!-- Auto-generated from the SQLite source of truth. 30 company note(s) in Capital_Markets. Do not edit by hand — re-run `python3 helpers/maintenance/sync_sector_wikilinks.py` to refresh. Curated highlights live in the editorial sections above. -->
 
 - [[5paisa_Capital|5paisa Capital]]
 - [[Aditya_Birla_Sun_Life_AMC|Aditya Birla Sun Life AMC]]
@@ -62,8 +62,10 @@ Market infrastructure and intermediaries — exchanges, depositories, clearing c
 - [[NSE]]
 - [[NSE_Clearing|NSE Clearing]]
 - [[Nippon_Life_AMC|Nippon Life AMC]]
+- [[Nippon_Life_India_AIF_Management|Nippon Life India AIF Management]]
 - [[Nuvama_Wealth|Nuvama Wealth]]
 - [[SMC_Global|SMC Global]]
+- [[UBS]]
 - [[UTI_Asset_Management_Company|UTI Asset Management Company]]
 - [[Upstox]]
 - [[Yes_Securities|YES SECURITIES IDFC First Bank]]

@@ -39,10 +39,10 @@ KRN Heat Exchanger — auto-generated stub from newsletter parsing. To be enrich
 - **Industry**: Electronic Components
 - **Employees**: 574
 - **Promoter Holding**: 68.5%
-- **Institutional Holding**: 7.8%
-- **Business Summary**: KRN Heat Exchanger and Refrigeration Limited manufactures and sells heat exchangers, evaporators, and condensers to original equipment manufacturers in the heat, ventilation, air conditioning, and refrigeration industries. It offers condenser coils, evaporator units and coils, header/copper parts…
+- **Institutional Holding**: 8.2%
+- **Business Summary**: KRN Heat Exchanger and Refrigeration Limited manufactures and sells heating ventilation and air conditioning (HVAC) parts and accessories in India and internationally. It offers condenser, chilled water, evaporator, floating type, fluid and steam, heating, sea water, and Ss coils; charge air, com…
 
-_Source: yfinance | Refreshed: 2026-09-15_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 <!-- BEGIN auto key figures (derive_insights.py) -->
 

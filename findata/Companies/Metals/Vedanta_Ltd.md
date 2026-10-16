@@ -57,11 +57,11 @@ Vedanta Ltd is a leading natural resources conglomerate with operations in zinc,
 
 - **Industry**: Other Industrial Metals & Mining
 - **Employees**: 16,090
-- **Promoter Holding**: 58.5%
-- **Institutional Holding**: 17.9%
+- **Promoter Holding**: 57.1%
+- **Institutional Holding**: 18.2%
 - **Business Summary**: Vedanta Limited, a diversified natural resources company, explores, extracts, and processes minerals, and oil and gas in India, Europe, China, the United States, Mexico, and internationally. The company explores, produces, and sells oil and gas, zinc, lead, silver, copper, aluminum, iron ores, an…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Recent Highlights
 

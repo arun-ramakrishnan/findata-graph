@@ -40,11 +40,12 @@ Suprajit Engineering Limited manufactures automotive cables, halogen lamps, spee
 ## Company Profile (yfinance)
 
 - **Industry**: Auto Parts
+- **Employees**: 1,833
 - **Promoter Holding**: 50.6%
-- **Institutional Holding**: 21.5%
-- **Business Summary**: Suprajit Engineering Limited manufactures and sells automotive cables, halogen lamps, speedometers, and other automotive components in India, the United States, and internationally. The company provides control cables, halogen and LED bulbs, electro-mechanical actuators, TFT clusters, friction pr…
+- **Institutional Holding**: 22.0%
+- **Business Summary**: Suprajit Engineering Limited manufactures and sells automotive cables, halogen lamps, speedometers, and other automotive components in India, the United States, and internationally. The company's product, include braking system, control cables, display cluster and telematics, friction products, g…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Financial Profile (Yahoo Finance, Jun 2026)
 

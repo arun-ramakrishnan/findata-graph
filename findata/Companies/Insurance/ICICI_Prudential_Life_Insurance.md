@@ -64,10 +64,10 @@ ICICI Prudential Life Insurance Company Limited is a leading life insurance comp
 - **Industry**: Insurance - Life
 - **Employees**: 18,963
 - **Promoter Holding**: 23.6%
-- **Institutional Holding**: 69.9%
-- **Business Summary**: ICICI Prudential Life Insurance Company Limited provides life insurance, annuity, pension, and health insurance products to individuals and groups in India. The company offers term, savings, unit linked, guaranteed return, child education, and retirement insurance plans; and pension fund manageme…
+- **Institutional Holding**: 70.4%
+- **Business Summary**: ICICI Life Insurance Limited provides life insurance, annuity, pension, and health insurance products to individuals and groups in India. The company offers term, savings, unit linked, guaranteed return, child education, and retirement insurance plans; and pension fund management services. It dis…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Strategic Context (from Tariffs & Tailwinds.md)
 

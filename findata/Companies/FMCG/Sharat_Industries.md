@@ -40,11 +40,12 @@ Engaged in aquaculture with products including processed prawn, quality hatched 
 ## Company Profile (yfinance)
 
 - **Industry**: Farm Products
-- **Promoter Holding**: 60.8%
+- **Employees**: 148
+- **Promoter Holding**: 59.6%
 - **Institutional Holding**: 0.0%
 - **Business Summary**: Sharat Industries Limited engages in shrimp aquaculture activities in India. The company offers raw and cooked white shrimps, cultured marine worms, and vannamei seedlings. It is also involved in the manufacture and sale of shrimp feeds under the VANNASTAR and AQUAASTAR brand names; and frozen sh…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Company Details
 

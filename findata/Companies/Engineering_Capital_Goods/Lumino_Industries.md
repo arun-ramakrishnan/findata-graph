@@ -40,12 +40,12 @@ Lumino Industries is an integrated Kolkata-based manufacturer and EPC services p
 ## Company Profile (yfinance)
 
 - **Industry**: Electrical Equipment & Parts
-- **Employees**: 850
-- **Promoter Holding**: 0.0%
-- **Institutional Holding**: 4.4%
+- **Employees**: 911
+- **Promoter Holding**: 72.0%
+- **Institutional Holding**: 5.7%
 - **Business Summary**: Lumino Industries Limited manufactures and sells conductors, power cables, electrical wires, and other products and components for power distribution and transmission industries in India and internationally. It offers aluminium conductors; LV XLPE/PVC insulated power, LV XLPE/PVC insulated contro…
 
-_Source: yfinance | Refreshed: 2026-09-15_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 <!-- BEGIN auto key figures (derive_insights.py) -->
 

@@ -42,11 +42,11 @@ IIFL Finance Limited, incorporated in **1995** (formerly IIFL Holdings, renamed 
 
 - **Industry**: Credit Services
 - **Employees**: 16,341
-- **Promoter Holding**: 49.7%
-- **Institutional Holding**: 16.8%
+- **Promoter Holding**: 46.9%
+- **Institutional Holding**: 20.4%
 - **Business Summary**: IIFL Finance Limited, a non-banking financial company, provides financial services in India and internationally. The company offers mortgage and gold loans; business loans, including business loans for manufacturers, women, and e-commerce; loans to micro, small, and medium enterprises; loans agai…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Financial Profile (Yahoo Finance, Jun 2026)
 

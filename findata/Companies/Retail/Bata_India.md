@@ -49,10 +49,10 @@ Bata India Limited, incorporated in 1931 and headquartered in Gurugram, is one o
 - **Industry**: Footwear & Accessories
 - **Employees**: 3,602
 - **Promoter Holding**: 50.5%
-- **Institutional Holding**: 30.3%
+- **Institutional Holding**: 30.7%
 - **Business Summary**: Bata India Limited manufactures, sells, and trades in footwear and accessories through its retail and wholesale network in India and internationally. It offers men's footwear, including casual shoes, slippers and flipflops, as well as ethnic, formal, loafers, sandals, sneakers, sports, and outdoo…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Financial Profile (Yahoo Finance, Jun 2026)
 - Market cap: ₹9,191 cr | Enterprise value: ₹10,142 cr

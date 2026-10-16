@@ -44,11 +44,11 @@ MedPlus Health Services Limited, founded in 2006 and headquartered in Hyderabad,
 
 - **Industry**: Pharmaceutical Retailers
 - **Employees**: 28,872
-- **Promoter Holding**: 42.7%
-- **Institutional Holding**: 38.5%
+- **Promoter Holding**: 32.3%
+- **Institutional Holding**: 39.1%
 - **Business Summary**: MedPlus Health Services Limited engages in the retail trading of medicines and general items in India. It manufactures and trades in pharmaceutical and wellness items, such as prescription medicines, over-the-counter drugs, vitamins, vitamins, medical devices, and diagnostic test kits; and fast-m…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Financial Profile (Yahoo Finance, Jun 2026)
 - Market cap: ₹10,027 cr | Enterprise value: ₹10,918 cr

@@ -37,10 +37,10 @@ Tanla Platforms is a technology company specializing in digital platforms and co
 - **Industry**: Software - Application
 - **Employees**: 1,043
 - **Promoter Holding**: 55.6%
-- **Institutional Holding**: 5.2%
+- **Institutional Holding**: 5.6%
 - **Business Summary**: Tanla Platforms Limited, together with its subsidiaries, provides cloud communication platforms as a service solution to enterprises in India and internationally. The company operates Wisely Platform, an API-led intelligent platform-of-platforms, which serves as a unified hub for digital interact…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Business Description
 - **Digital Platforms:** Technology platforms and digital solutions

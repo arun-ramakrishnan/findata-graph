@@ -3,7 +3,7 @@ title: Aadhar Housing Finance
 type: company
 ticker: AADHARHFC.NS
 sector: Housing_Finance
-industry: null
+industry: Mortgage Finance
 market_cap: small_cap
 normalized_name: Aadhar_Housing_Finance
 permalink: /companies/housing_finance/aadhar_housing_finance
@@ -48,6 +48,19 @@ Aadhar Housing Finance is a leading player in low-income housing finance in Indi
 - **Market Cap**: Small Cap
 - **Mission**: "Housing for All" - Making home ownership accessible
 
+
+<!-- BEGIN auto company profile (enrich_from_yfinance.py) -->
+
+## Company Profile (yfinance)
+
+- **Industry**: Mortgage Finance
+- **Employees**: 5,430
+- **Promoter Holding**: 74.6%
+- **Institutional Holding**: 11.7%
+- **Business Summary**: Aadhar Housing Finance Limited, a housing finance company, engages in the housing finance business in India. The company offers loans for residential property; plot purchase and construction; home improvement and extension loans; commercial property construction and acquisition; and loans against…
+
+_Source: yfinance | Refreshed: 2026-10-16_
+<!-- END auto company profile -->
 ## Business Model
 
 ### Affordable Housing Focus

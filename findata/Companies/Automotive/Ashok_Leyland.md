@@ -49,6 +49,19 @@ sources:
 
 Ashok Leyland is the flagship company of the Hinduja Group, specializing in manufacturing commercial vehicles, components, and diesel engines for industrial, genset, and marine applications. It is the second-largest manufacturer of commercial vehicles in India, the third-largest manufacturer of buses in the world, and the tenth-largest manufacturer of lorries. Its foundry division produces automotive parts like cylinder blocks, heads, and tractor housings.
 
+
+<!-- BEGIN auto company profile (enrich_from_yfinance.py) -->
+
+## Company Profile (yfinance)
+
+- **Industry**: Farm & Heavy Construction Machinery
+- **Employees**: 9,891
+- **Promoter Holding**: 36.4%
+- **Institutional Holding**: 31.4%
+- **Business Summary**: Ashok Leyland Limited, together with its subsidiaries, manufactures and sells commercial vehicles in India. It operates in Commercial Vehicle and Financial Service segments. The company offers ICV trucks, haulage vehicles, tractors, and tippers; buses; light commercial vehicle goods carriers and …
+
+_Source: yfinance | Refreshed: 2026-10-16_
+<!-- END auto company profile -->
 <!-- BEGIN auto key figures (derive_insights.py) -->
 
 ## Key Figures (auto)

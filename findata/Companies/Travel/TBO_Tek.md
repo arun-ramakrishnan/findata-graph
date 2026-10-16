@@ -44,11 +44,11 @@ TBO Tek Limited (incorporated 2006, HQ Gurugram) operates a global B2B travel-di
 
 - **Industry**: Travel Services
 - **Employees**: 1,511
-- **Promoter Holding**: 67.8%
-- **Institutional Holding**: 23.6%
-- **Business Summary**: TBO Tek Limited operates travel distribution platforms in India and internationally. It offers an online technology platform which provides its customers access to book global travel inventory through travel suppliers like airlines, hotels, car rentals, transfers, cruises, insurance, rail service…
+- **Promoter Holding**: 67.7%
+- **Institutional Holding**: 28.7%
+- **Business Summary**: TBO Tek Limited operates travel distribution platforms in India and internationally. It offers an online technology platform which provides its customers with access to book global travel inventory through travel suppliers, such as airlines, hotels, car rentals, transfers, cruises, insurance, rai…
 
-_Source: yfinance | Refreshed: 2026-08-11_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Financial Profile (Yahoo Finance, Jun 2026)
 - Market cap: ₹15,599 cr | Enterprise value: ₹14,610 cr

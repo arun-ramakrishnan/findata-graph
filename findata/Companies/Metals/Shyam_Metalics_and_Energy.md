@@ -38,10 +38,10 @@ Shyam Metalics and Energy is a diversified company operating in metals and energ
 - **Industry**: Steel
 - **Employees**: 10,264
 - **Promoter Holding**: 76.0%
-- **Institutional Holding**: 13.6%
+- **Institutional Holding**: 14.7%
 - **Business Summary**: Shyam Metalics and Energy Limited, a metal-producing company, produces and sells long steel products, ferro alloys, and aluminium and stainless steel in India and internationally. The company offers carbon steel products, such as pellet, sponge and pig iron, billet, TMT bar, structural bar, struc…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Business Segments
 

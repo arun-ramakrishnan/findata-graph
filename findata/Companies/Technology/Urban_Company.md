@@ -50,11 +50,11 @@ Urban Company Limited operates an online services marketplace that helps consume
 
 - **Industry**: Software - Application
 - **Employees**: 2,111
-- **Promoter Holding**: 35.0%
-- **Institutional Holding**: 51.2%
+- **Promoter Holding**: 32.6%
+- **Institutional Holding**: 50.0%
 - **Business Summary**: Urban Company Limited operates an online services marketplace that provides various home and beauty services and solutions in India, the Kingdom of Saudi Arabia, Singapore, and the United Arab Emirates. It operates through four segments: India consumer services; Native; International; and InstaHe…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Key Metrics
 

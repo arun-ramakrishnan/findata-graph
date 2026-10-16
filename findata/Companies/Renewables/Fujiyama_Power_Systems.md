@@ -3,7 +3,7 @@ title: Fujiyama Power Systems
 type: company
 ticker: UTLSOLAR.NS
 sector: Renewables
-industry: null
+industry: Solar
 market_cap: small_cap
 normalized_name: Fujiyama_Power_Systems
 permalink: /companies/renewables/fujiyama_power_systems
@@ -47,6 +47,19 @@ Fujiyama Power Systems specializes in designing, supplying, and installing rooft
 - Customer investments driven by unreliable grid problems, not government subsidies
 - Focus on solving real energy access issues rather than subsidy-driven sales
 
+
+<!-- BEGIN auto company profile (enrich_from_yfinance.py) -->
+
+## Company Profile (yfinance)
+
+- **Industry**: Solar
+- **Employees**: 2,278
+- **Promoter Holding**: 87.9%
+- **Institutional Holding**: 3.2%
+- **Business Summary**: Fujiyama Power Systems Limited manufactures and sells roof-top solar products and solutions under the UTL Solar and Fujiyama Solar brands in India and internationally. It offers solar power generation systems, such as solar panels, hybrid solar inverter, off and on- grid inverter, online solar po…
+
+_Source: yfinance | Refreshed: 2026-10-16_
+<!-- END auto company profile -->
 ## Recent Performance
 
 ### Margin Improvement

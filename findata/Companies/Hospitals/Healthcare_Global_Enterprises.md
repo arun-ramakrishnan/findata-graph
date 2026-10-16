@@ -33,11 +33,12 @@ Healthcare Global Enterprises (HCG) is a leading cancer care network in India, p
 ## Company Profile (yfinance)
 
 - **Industry**: Medical Care Facilities
+- **Employees**: 6,761
 - **Promoter Holding**: 70.6%
-- **Institutional Holding**: 17.4%
+- **Institutional Holding**: 20.5%
 - **Business Summary**: HealthCare Global Enterprises Limited provides medical and healthcare services in India and internationally. The company offers cancer diagnostics services, including genomics and molecular diagnostics, digital PET, preventive oncology, physical examination, laboratory tests, home health services…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Strategic Context
 

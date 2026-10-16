@@ -140,11 +140,12 @@ Tips Music's position in music rights and film production, combined with India's
 ## Company Profile (yfinance)
 
 - **Industry**: Entertainment
-- **Promoter Holding**: 65.6%
-- **Institutional Holding**: 8.1%
-- **Business Summary**: Tips Music Limited engages in the acquisition and exploitation of music rights in India and internationally. The company involved in the creation and acquisition of audiovisual music content and monetisation of the content library digitally. It also provides live events and concerts services. The…
+- **Employees**: 69
+- **Promoter Holding**: 65.7%
+- **Institutional Holding**: 7.1%
+- **Business Summary**: Tips Music Limited engages in the acquisition and exploitation of music rights in India and internationally. The company involved in the production and acquisition of audiovisual music content and monetisation of the content library digitally. It also provides live events and concerts services. T…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## [Presentation]
 

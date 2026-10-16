@@ -64,10 +64,10 @@ Dollar Industries is a leading manufacturer of branded innerwear and outerwear, 
 - **Industry**: Apparel Manufacturing
 - **Employees**: 2,244
 - **Promoter Holding**: 73.7%
-- **Institutional Holding**: 2.8%
+- **Institutional Holding**: 2.1%
 - **Business Summary**: Dollar Industries Limited manufactures and sells hosiery products in knitted inner wears, casual wears, and thermal wears in India and internationally. The company offers vests, briefs, trunks, gym vests, socks, tank tops, crew necks, polos, henley, bermudas, capri, track pants, and joggers for m…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Revenue Composition
 

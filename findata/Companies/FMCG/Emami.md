@@ -3,6 +3,7 @@ title: Emami
 type: company
 ticker: EMAMILTD.NS
 sector: FMCG
+industry: Household & Personal Products
 market_cap: mid_cap
 normalized_name: Emami
 permalink: /companies/fmcg/emami
@@ -34,6 +35,19 @@ Indian FMCG company; personal care and healthcare brands.
 
 *Stub node — created as a graph endpoint. Expand as additional primary research accumulates.*
 
+
+<!-- BEGIN auto company profile (enrich_from_yfinance.py) -->
+
+## Company Profile (yfinance)
+
+- **Industry**: Household & Personal Products
+- **Employees**: 3,097
+- **Promoter Holding**: 59.4%
+- **Institutional Holding**: 28.6%
+- **Business Summary**: Emami Limited, together with its subsidiaries, manufactures and markets personal and healthcare products in India and internationally. The company offers antiseptic creams, body lotions, soaps, aloe vera gels, petroleum jellies, prickly heat powders, and all-season creams under the BoroPlus brand…
+
+_Source: yfinance | Refreshed: 2026-10-16_
+<!-- END auto company profile -->
 <!-- BEGIN auto chatter block (derive_insights.py) -->
 
 ## The Chatter — Making It Work

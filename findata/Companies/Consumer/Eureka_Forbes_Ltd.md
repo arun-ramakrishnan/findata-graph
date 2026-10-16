@@ -49,10 +49,10 @@ Eureka Forbes Limited, founded in 1982 and headquartered in Mumbai, is a consume
 - **Industry**: Furnishings, Fixtures & Appliances
 - **Employees**: 2,661
 - **Promoter Holding**: 65.3%
-- **Institutional Holding**: 12.3%
+- **Institutional Holding**: 12.2%
 - **Business Summary**: Eureka Forbes Limited engages in manufacturing, trading, renting, selling, and servicing of vacuum cleaners, water filter cum purifiers, air purifiers electronic air cleaning systems, and related products in India and internationally. The company also offers water softeners and water solutions. I…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Financial Profile (Yahoo Finance, Jun 2026)
 - Market cap: ₹8,868 cr | Enterprise value: ₹8,562 cr

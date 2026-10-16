@@ -70,11 +70,12 @@ Finolex operates with a strong focus on quality and innovation:
 ## Company Profile (yfinance)
 
 - **Industry**: Electrical Equipment & Parts
-- **Promoter Holding**: 58.7%
-- **Institutional Holding**: 20.9%
+- **Employees**: 1,610
+- **Promoter Holding**: 58.6%
+- **Institutional Holding**: 22.0%
 - **Business Summary**: Finolex Cables Limited engages in the manufacture and sale of electrical and communication cables, and other electrical appliances in India and internationally. The company operates through Electrical Cables, Communication Cables, Copper Rods, and Others segments. It offers PVC, flame retardant l…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Industry Analysis and Market Position
 

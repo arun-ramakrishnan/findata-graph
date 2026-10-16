@@ -42,11 +42,12 @@ Anupam Rasayan India Limited is a leading company in India specializing in custo
 ## Company Profile (yfinance)
 
 - **Industry**: Specialty Chemicals
-- **Promoter Holding**: 83.9%
-- **Institutional Holding**: 0.7%
-- **Business Summary**: Anupam Rasayan India Ltd engages in the custom synthesis and manufacturing of specialty chemicals in India, Europe, Japan, Singapore, China, North America, and internationally. It operates through two segments: Life Science related Specialty Chemicals and Other Specialty Chemicals. The company of…
+- **Employees**: 2,501
+- **Promoter Holding**: 83.8%
+- **Institutional Holding**: 1.0%
+- **Business Summary**: Anupam Rasayan India Ltd engages in the custom synthesis and manufacturing of specialty chemicals in India, Europe, Japan, Singapore, China, North America, and internationally. It operates through two segments, Life Science related Specialty Chemicals and Performance Material. The company offers …
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 Key Insights from The Chatter (Edition #40)
 

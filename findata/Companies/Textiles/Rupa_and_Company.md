@@ -42,11 +42,12 @@ Rupa & Company Ltd is a prominent Indian knitwear brand offering innerwear, casu
 ## Company Profile (yfinance)
 
 - **Industry**: Apparel Manufacturing
+- **Employees**: 842
 - **Promoter Holding**: 73.3%
-- **Institutional Holding**: 3.8%
-- **Business Summary**: Rupa & Company Limited, together with its subsidiaries, manufactures, markets, sells, and distributes hosiery products in knitted undergarments, casual wears, and thermal wears for men, women, and kids in India and internationally. The company offers innerwear, outerwear, lingerie, and fashion we…
+- **Institutional Holding**: 3.5%
+- **Business Summary**: Rupa & Company Limited, together with its subsidiaries, manufactures, markets, sells, and distributes hosiery products in knitted undergarments, casual wears, and thermal wears for men, women, and kids in India and internationally. The company offers athleisure products, including loungers, jogge…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Business Operations
 

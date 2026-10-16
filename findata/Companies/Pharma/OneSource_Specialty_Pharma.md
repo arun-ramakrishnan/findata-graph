@@ -41,11 +41,12 @@ OneSource Specialty Pharma is India's first specialty pharma pure-play Contract 
 ## Company Profile (yfinance)
 
 - **Industry**: Biotechnology
-- **Promoter Holding**: 38.0%
-- **Institutional Holding**: 33.4%
-- **Business Summary**: OneSource Specialty Pharma Limited, a biopharmaceutical company, engages in the research, development, manufacture, and commercialization of biological drug products in various injectable formats in India, Ireland, the United States, and internationally. The company provides end-to-end contract d…
+- **Employees**: 1,674
+- **Promoter Holding**: 35.5%
+- **Institutional Holding**: 33.3%
+- **Business Summary**: OneSource Specialty Pharma Limited, a biopharmaceutical company, engages in the research, development, manufacture, and commercialization of biological drug products in various injectable formats in India, Singapore, the United States, Spain, and internationally. The company provides end-to-end c…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 [Transcript]
 

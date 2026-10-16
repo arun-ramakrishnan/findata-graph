@@ -35,10 +35,10 @@ Pokarna is an Indian specialty steel and alloy manufacturing company engaged in 
 
 - **Industry**: Building Products & Equipment
 - **Promoter Holding**: 64.8%
-- **Institutional Holding**: 12.9%
+- **Institutional Holding**: 11.7%
 - **Business Summary**: Pokarna Limited, together with its subsidiaries, engages in the quarrying, manufacturing, processing, and selling of granites in India, China, the United States, and internationally. It operates through the Granite and Quartz Surfaces segments. The company offers granite raw blocks, processed sla…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Key Insights
 - Indian manufacturer of high-grade specialty steel products and alloy components

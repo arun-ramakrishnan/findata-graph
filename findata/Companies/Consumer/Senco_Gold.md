@@ -60,11 +60,12 @@ Senco Gold Limited is a leading pan-India jewellery retail player with over 50 y
 ## Company Profile (yfinance)
 
 - **Industry**: Luxury Goods
+- **Employees**: 3,309
 - **Promoter Holding**: 64.5%
-- **Institutional Holding**: 15.3%
-- **Business Summary**: Senco Gold Limited engages in the manufacture and trading of jewelry and articles made of gold, silver, platinum, and other precious and semi-precious stones in India. It also manufactures diamond jewelry. In addition, the company provides costume jewelry, gold and silver coins, and silver kitche…
+- **Institutional Holding**: 14.7%
+- **Business Summary**: Senco Gold Limited engages in the manufacture and trading of jewelry and articles made of gold, silver, platinum, and other precious and semi-precious stones in India and internationally. It also manufactures diamond jewelry. In addition, the company provides a range of bracelets, cuff-links, cha…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 
 <!-- BEGIN auto chatter block (derive_insights.py) -->

@@ -39,7 +39,7 @@ Trident Limited, founded in 1990 (formerly Abhishek Industries, renamed 2011) an
 - **Institutional Holding**: 2.5%
 - **Business Summary**: Trident Limited manufactures, trades, and sells textiles, Yarn, paper, chemicals, and energy in India, the United States, and internationally. The company operates through four segments: Yarn, Towel, Bedsheets, Paper and Chemicals. The company offers cotton combed, open-end, air jet, organic cott…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Financial Profile (Yahoo Finance, Jun 2026)
 - Market cap: ₹134.8B | Enterprise value: ₹148.5B

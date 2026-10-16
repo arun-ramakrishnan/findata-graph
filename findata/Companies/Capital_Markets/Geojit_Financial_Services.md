@@ -45,11 +45,11 @@ Geojit Financial Services Limited, founded in 1987 and headquartered in Kochi, i
 
 - **Industry**: Capital Markets
 - **Employees**: 3,768
-- **Promoter Holding**: 53.6%
+- **Promoter Holding**: 53.5%
 - **Institutional Holding**: 11.4%
 - **Business Summary**: Geojit Financial Services Limited, an investment services company, provides broking and financial services in India, Oman, Kuwait, the United Arab Emirates, and Saudi Arabia. The company offers equity, Mutual fund, portfolio management, Alternate Investment Fund, Currency Futures Trading, Initial…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Financial Profile (Yahoo Finance, Jun 2026)
 - Market cap: ₹2,212 cr | Enterprise value: ₹1,493 cr

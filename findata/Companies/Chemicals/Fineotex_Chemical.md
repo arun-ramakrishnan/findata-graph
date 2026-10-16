@@ -39,11 +39,12 @@ Fineotex Chemical Limited (founded 1979; HQ Mumbai) manufactures specialty chemi
 ## Company Profile (yfinance)
 
 - **Industry**: Specialty Chemicals
-- **Promoter Holding**: 67.2%
-- **Institutional Holding**: 1.6%
-- **Business Summary**: Fineotex Chemical Limited manufactures and sells textile chemicals, auxiliaries, and specialty chemicals in India and United States. The company provides textile chemicals for pre-treatment, dyeing, printing, and finishing processes, as well as enzymes; water treatment chemicals; and oilfield che…
+- **Employees**: 214
+- **Promoter Holding**: 65.6%
+- **Institutional Holding**: 2.2%
+- **Business Summary**: Fineotex Chemical Limited manufactures and sells textile chemicals, auxiliaries, and specialty chemicals in India, Malaysia, and the United States. The company provides textile chemicals for pre-treatment, dyeing, printing, and finishing processes, as well as enzymes; water treatment chemicals; a…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Financial Profile (Yahoo Finance, Jun 2026)
 - Market cap: ₹4,763 cr | Enterprise value: ₹3,560 cr

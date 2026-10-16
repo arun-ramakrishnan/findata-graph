@@ -3,7 +3,7 @@ title: WeWork India Management
 type: company
 ticker: WEWORK.NS
 sector: Real_Estate
-industry: null
+industry: Real Estate Services
 market_cap: mid_cap
 normalized_name: WeWork_India_Management
 permalink: /companies/real_estate/wework_india_management
@@ -45,6 +45,19 @@ sources:
 ## Company Overview
 WeWork India is the country's largest branded flexible workspace provider, offering managed office solutions and digital services across major business hubs. The company focuses on serving global capability centres (GCCs) and large enterprises through a high-occupancy physical network and an integrated services platform. Listed on NSE/BSE in 2026 (WEWORK).
 
+
+<!-- BEGIN auto company profile (enrich_from_yfinance.py) -->
+
+## Company Profile (yfinance)
+
+- **Industry**: Real Estate Services
+- **Employees**: 999
+- **Promoter Holding**: 63.4%
+- **Institutional Holding**: 26.1%
+- **Business Summary**: WeWork India Management Limited, together with its subsidiaries, engages in the rental and operation of office buildings and coworking spaces in India. The company offers office spaces, including private and managed offices; coworking spaces; and value-added services such as fit-out customization…
+
+_Source: yfinance | Refreshed: 2026-10-16_
+<!-- END auto company profile -->
 <!-- BEGIN auto key figures (derive_insights.py) -->
 
 ## Key Figures (auto)

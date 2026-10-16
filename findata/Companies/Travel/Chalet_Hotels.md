@@ -48,11 +48,12 @@ Chalet Hotels Limited, a part of K Raheja Corp group, is a prominent player in h
 ## Company Profile (yfinance)
 
 - **Industry**: Lodging
+- **Employees**: 3,032
 - **Promoter Holding**: 67.4%
-- **Institutional Holding**: 25.2%
-- **Business Summary**: Chalet Hotels Limited owns, develops, manages, and operates hotels and resorts in India. It also operates in rental and annuity, and real estate development business. The company's portfolio comprises hotels, service apartments, and commercial properties. In addition, it engages in construction a…
+- **Institutional Holding**: 27.6%
+- **Business Summary**: Chalet Hotels Limited owns, develops, manages, and operates hotels and resorts in India. It also operates in rental and annuity, and real estate development business. The company's portfolio comprises hotels and commercial spaces. In addition, it engages in construction and development of residen…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Business Segments
 

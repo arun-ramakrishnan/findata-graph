@@ -3,6 +3,7 @@ title: Zee Entertainment Enterprises
 type: company
 ticker: ZEEL.NS
 sector: Media_Entertainment
+industry: Broadcasting
 market_cap: mid_cap
 normalized_name: Zee_Entertainment_Enterprises
 permalink: /companies/media_entertainment/zee_entertainment_enterprises
@@ -34,6 +35,19 @@ Indian media and entertainment company.
 
 *Stub node — created as a graph endpoint. Expand as additional primary research accumulates.*
 
+
+<!-- BEGIN auto company profile (enrich_from_yfinance.py) -->
+
+## Company Profile (yfinance)
+
+- **Industry**: Broadcasting
+- **Employees**: 2,159
+- **Promoter Holding**: 5.0%
+- **Institutional Holding**: 14.8%
+- **Business Summary**: Zee Entertainment Enterprises Limited, together with its subsidiaries, engages in broadcasting satellite television channels and digital media in India and internationally. The company broadcasts Hindi general entertainment channels, such as Zee TV, Zee TV HD, &tv, &tv HD, and BIG Magic; Hindi mo…
+
+_Source: yfinance | Refreshed: 2026-10-16_
+<!-- END auto company profile -->
 <!-- BEGIN auto chatter block (derive_insights.py) -->
 
 ## The Chatter — Embracing the Unknown

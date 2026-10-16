@@ -44,11 +44,12 @@ Manufactures and trades in woolen, cotton, and cotton-blended garments for men, 
 ## Company Profile (yfinance)
 
 - **Industry**: Apparel Manufacturing
+- **Employees**: 2,360
 - **Promoter Holding**: 74.5%
 - **Institutional Holding**: 2.3%
-- **Business Summary**: Monte Carlo Fashions Limited manufactures and trades in woolen, cotton, cotton-blended, knitted, and woven garments for men, women, and kids in India and internationally. The company offers shirts, T-shirts, linen shirts, denims, trousers, jeans, suits, jackets, coats, mufflers, mink blankets, be…
+- **Business Summary**: Monte Carlo Fashions Limited manufactures and trades in woolen, cotton, cotton-blended, knitted, and woven garments for men, women, and kids in India and internationally. The company offers sweaters, sweatshirts, jackets, coats, T-shirts, shirts, jeans, trousers, suits, thermals, mufflers, mink b…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Company Details
 

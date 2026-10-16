@@ -47,10 +47,10 @@ Max Financial Services Limited is an investment company focused on the financial
 - **Industry**: Insurance - Life
 - **Employees**: 10
 - **Promoter Holding**: 2.1%
-- **Institutional Holding**: 82.5%
+- **Institutional Holding**: 79.4%
 - **Business Summary**: Max Financial Services Limited, through its subsidiary, engages in life insurance business in India. It operates through Business Investments and Others, and Life Insurance segments. The company offers participating and nonparticipating and linked products covering life insurance and pension and …
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 
 <!-- BEGIN auto key figures (derive_insights.py) -->

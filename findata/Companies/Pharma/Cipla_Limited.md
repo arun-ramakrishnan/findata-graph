@@ -71,10 +71,10 @@ Cipla Limited is one of India's leading pharmaceutical companies with a global p
 - **Industry**: Drug Manufacturers - Specialty & Generic
 - **Employees**: 31,369
 - **Promoter Holding**: 31.1%
-- **Institutional Holding**: 44.1%
+- **Institutional Holding**: 44.8%
 - **Business Summary**: Cipla Limited, together with its subsidiaries, manufactures, develops, sells, and distributes pharmaceutical products in India, the United States, South Africa, and internationally. It offers generic and branded generic medicines, vaccines, active pharmaceutical ingredients, and formulations for …
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Recent Updates (The Chatter - Inflection Watch Edition #12)
 

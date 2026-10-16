@@ -35,11 +35,12 @@ Subros Limited is India's largest manufacturer of thermal products for automotiv
 ## Company Profile (yfinance)
 
 - **Industry**: Auto Parts
+- **Employees**: 4,394
 - **Promoter Holding**: 74.6%
 - **Institutional Holding**: 11.4%
-- **Business Summary**: Subros Limited engages in the manufacture and sale of thermal products for automotive applications in India. The company offers compressors; automotive condensers; heating, ventilating, and air conditioning systems, such as heaters, evaporators, and blower units; tubes and hoses; bus AC; driver c…
+- **Business Summary**: Subros Limited engages in the manufacture and sale of thermal products for automotive applications in India and internationally. The company offers compressors, HVAC, radiators, condensers, evaporators, heaters, tubes and hoses, bus and rail AC kit, transport and commercial cooling solutions. The…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Financial Profile (Yahoo Finance, Jun 2026)
 

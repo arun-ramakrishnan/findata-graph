@@ -3,6 +3,7 @@ title: Coinbase
 type: company
 ticker: COIN
 sector: Fintech_Payments
+industry: Financial Data & Stock Exchanges
 market_cap: large_cap
 normalized_name: Coinbase
 permalink: /companies/fintech_payments/coinbase
@@ -33,6 +34,19 @@ American crypto-asset exchange and infrastructure company.
 
 *Stub node — created as a graph endpoint. Expand as additional primary research accumulates.*
 
+
+<!-- BEGIN auto company profile (enrich_from_yfinance.py) -->
+
+## Company Profile (yfinance)
+
+- **Industry**: Financial Data & Stock Exchanges
+- **Employees**: 4,951
+- **Promoter Holding**: 1.3%
+- **Institutional Holding**: 68.6%
+- **Business Summary**: Coinbase Global, Inc. operates platform for crypto assets in the United States and internationally. It provides the primary financial account in the crypto economy for consumers; a brokerage platform with a pool of liquidity across the crypto marketplace for institutions; and a suite of products …
+
+_Source: yfinance | Refreshed: 2026-10-16_
+<!-- END auto company profile -->
 <!-- BEGIN auto chatter block (derive_insights.py) -->
 
 ## The Chatter — Embracing the Unknown

@@ -63,11 +63,12 @@ Mandatory compliance across industries:
 ## Company Profile (yfinance)
 
 - **Industry**: Specialty Industrial Machinery
+- **Employees**: 122
 - **Promoter Holding**: 81.3%
 - **Institutional Holding**: 0.0%
 - **Business Summary**: Aztec Fluids & Machinery Limited manufactures and sells printers in India. The company offers continuous inkjet, thermal transfer overprint, drop on demand, and laser printers. It is also involved in trading of inks, as well as provides makeup and wash. In addition, the company offers turnkey sol…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Growth Catalysts
 

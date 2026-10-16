@@ -40,7 +40,7 @@ Rajratan Global Wire Limited manufactures tyre bead wires in India and Thailand.
 - **Institutional Holding**: 7.8%
 - **Business Summary**: Rajratan Global Wire Limited engages in manufacturing and sale of tyre bead wires in India, Thailand, the United States, and internationally. It also offers high carbon steel wires that are used in construction, engineering, and automobile industries. The company was incorporated in 1988 and is b…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Financial Profile (Yahoo Finance, Jun 2026)
 

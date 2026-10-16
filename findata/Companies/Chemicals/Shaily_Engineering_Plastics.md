@@ -35,11 +35,12 @@ Shaily Engineering Plastics Limited (incorporated 1980; headquartered in Vadodar
 ## Company Profile (yfinance)
 
 - **Industry**: Specialty Chemicals
-- **Promoter Holding**: 50.3%
-- **Institutional Holding**: 29.8%
+- **Employees**: 796
+- **Promoter Holding**: 46.6%
+- **Institutional Holding**: 35.8%
 - **Business Summary**: Shaily Engineering Plastics Limited engages in the manufacture and sale of precision injection moulded plastic components/products in India. The company offers specialty devices, platform devices, inhalers, sprays and pumps, intricate insulin injector pens, auto-injectors, and specialty packaging…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Financial Profile (Yahoo Finance, Jun 2026) — HIGH-GROWTH PREMIUM
 

@@ -52,7 +52,7 @@ Shoppers Stop Limited, founded in 1991 and headquartered in Mumbai, is a leading
 - **Institutional Holding**: 26.3%
 - **Business Summary**: Shoppers Stop Limited engages in the retailing of household and consumer products through departmental stores under the Shoppers Stop brand in India. The company offers women's Indian wear for weddings, festivals, and occasions under the Kashish brand; festive and ceremonial ethnic wear for men u…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Financial Profile (Yahoo Finance, Jun 2026)
 - Market cap: ₹39.2B | Enterprise value: ₹72.7B

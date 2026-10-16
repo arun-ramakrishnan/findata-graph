@@ -69,6 +69,19 @@ verified:
 
 Reliance Industries Limited (RIL) is India's largest private sector company, a diversified multinational conglomerate headquartered in Mumbai with operations spanning energy, petrochemicals, natural gas, retail, telecommunications (Jio), and mass media. The company leads in managing a fully integrated Oil-to-Chemicals portfolio and has expanded aggressively into digital services, renewable energy, and consumer goods.
 
+
+<!-- BEGIN auto company profile (enrich_from_yfinance.py) -->
+
+## Company Profile (yfinance)
+
+- **Industry**: Oil & Gas Refining & Marketing
+- **Employees**: 419,911
+- **Promoter Holding**: 51.8%
+- **Institutional Holding**: 28.2%
+- **Business Summary**: Reliance Industries Limited engages in hydrocarbon exploration and production, petroleum refining and marketing, petrochemicals, advanced materials and composites, renewable, financial services, retail, and digital services worldwide. It operates through the Oil to Chemicals, Oil and Gas, Retail,…
+
+_Source: yfinance | Refreshed: 2026-10-16_
+<!-- END auto company profile -->
 <!-- BEGIN auto key figures (derive_insights.py) -->
 
 ## Key Figures (auto)

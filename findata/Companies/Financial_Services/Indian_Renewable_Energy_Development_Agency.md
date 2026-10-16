@@ -45,7 +45,7 @@ Indian Renewable Energy Development Agency Limited, a non-banking financial comp
 - **Institutional Holding**: 4.3%
 - **Business Summary**: Indian Renewable Energy Development Agency Limited, a non-banking financial company, provides financial products and services in the renewable energy and energy efficiency sectors in India. The company promotes, develops, and extends financial assistance for setting up projects relating to new an…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Key Metrics & Financials (INR)
 - **Market Cap:** ₹423.21B

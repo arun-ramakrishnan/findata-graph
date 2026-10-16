@@ -49,11 +49,11 @@ JD Cables Limited, established in 2015, manufactures and supplies ISO certified 
 ## Company Profile (yfinance)
 
 - **Industry**: Electrical Equipment & Parts
-- **Promoter Holding**: 72.7%
+- **Promoter Holding**: 70.0%
 - **Institutional Holding**: 0.0%
-- **Business Summary**: JD Cables Limited manufactures cables and conductors. The company's products include power cables, control cables, aerial bunched cables, and single-core service wire, as well as aluminum conductors, such as all aluminum conductor, all aluminum alloy conductor, aluminum conductor steel reinforced…
+- **Business Summary**: JD Cables Limited manufactures and sells wires, cables, and conductors in India. The company offers LT AB cables, LT XLPE power cables, LT PVC power and control cables, bare and insulated copper conductors, AAC conductors, AAAC conductors, and ACSR conductors, as well as AB cables, power cables, …
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Recent Performance
 

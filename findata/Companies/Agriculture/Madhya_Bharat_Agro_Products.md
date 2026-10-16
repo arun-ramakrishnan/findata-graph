@@ -41,10 +41,10 @@ Madhya Bharat Agro Products Limited (MBAPL), incorporated in 1997 and based in B
 - **Industry**: Agricultural Inputs
 - **Employees**: 396
 - **Promoter Holding**: 0.0%
-- **Institutional Holding**: 0.1%
+- **Institutional Holding**: 0.2%
 - **Business Summary**: Madhya Bharat Agro Products Limited manufactures and sells phosphatic fertilizers and industrial chemicals in India. The company offers single super phosphate (SSP); nitrogen, phosphate, and potassium (NPK) and di-ammonium phosphate (DAP) complex fertilizers; beneficiated rock phosphate; secondar…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Financial Profile (Yahoo Finance, Jun 2026)
 - Market cap: ₹5,053 cr | Enterprise value: ₹5,878 cr

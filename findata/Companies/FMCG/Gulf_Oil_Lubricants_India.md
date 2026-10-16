@@ -51,11 +51,12 @@ Gulf Oil Lubricants India Limited (founded 1901; HQ Mumbai) is a leading manufac
 ## Company Profile (yfinance)
 
 - **Industry**: Specialty Chemicals
+- **Employees**: 638
 - **Promoter Holding**: 68.7%
-- **Institutional Holding**: 11.2%
-- **Business Summary**: Gulf Oil Lubricants India Limited manufactures, markets, and trades lubricating oils, greases, and other derivatives for use in the automobile and industrial sectors in India. The company offers automotive lubricants, such as engine oils, driveline fluids, brake fluids and radiator coolants, gear…
+- **Institutional Holding**: 8.8%
+- **Business Summary**: Gulf Oil Lubricants India Limited manufactures, markets, and trades automotive and non-automotive lubricants, and synergy products for use in the automobile and industrial sectors in India and internationally. The company offers automotive lubricants, such as engine oils, driveline fluids, brake …
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Financial Profile (Yahoo Finance, Jun 2026)
 - Market cap: ₹5,375 cr | Enterprise value: ₹4,709 cr

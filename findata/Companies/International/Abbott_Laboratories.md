@@ -39,8 +39,8 @@ American multinational medical devices and healthcare company headquartered in A
 - **Industry**: Medical Devices
 - **Employees**: 122,000
 - **Promoter Holding**: 0.5%
-- **Institutional Holding**: 83.3%
+- **Institutional Holding**: 81.8%
 - **Business Summary**: Abbott Laboratories, together with its subsidiaries, discovers, develops, manufactures, and sells health care products worldwide. It operates in four segments: Established Pharmaceutical Products, Diagnostic Products, Nutritional Products, and Medical Devices. The company offers generic pharmaceu…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->

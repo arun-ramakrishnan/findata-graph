@@ -47,11 +47,12 @@ Vedant Fashions Limited is a textile and fashion company specializing in the des
 ## Company Profile (yfinance)
 
 - **Industry**: Apparel Manufacturing
+- **Employees**: 684
 - **Promoter Holding**: 74.9%
-- **Institutional Holding**: 15.4%
-- **Business Summary**: Vedant Fashions Limited manufactures, trades, and sells wedding and celebration wear in India Nepal, the United States, Canada, the United Arab Emirates, the United Kingdom, and internationally. The company offers kurta sets, indo-western, sherwani sets, jackets, accessories, jodhpuris suits, and…
+- **Institutional Holding**: 18.6%
+- **Business Summary**: Vedant Fashions Limited engages in the manufacture, trading, and sale of wedding and celebration wear in India, Nepal, the United States, Canada, the United Arab Emirates, the United Kingdom, and internationally. The company offers kurta sets, indo-western, sherwani sets, jackets, accessories, jo…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Industry Classification
 - **Sector**: Textiles & Apparel

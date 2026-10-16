@@ -38,11 +38,12 @@ Extracted from "Points & Figures: Grain in the graphs" (Zerodha) — Edition #19
 ## Company Profile (yfinance)
 
 - **Industry**: Apparel Retail
-- **Promoter Holding**: 56.3%
+- **Employees**: 263
+- **Promoter Holding**: 56.4%
 - **Institutional Holding**: 4.1%
-- **Business Summary**: Indian Terrain Fashions Limited engages in the retail of branded apparel in India. The company offers shirts, t-shirts, sweaters, jackets, denims, sweatshirts, shorts, trousers, jeans, and joggers. The company provides its products for men under the Indian Terrain brand name, as well as for boys …
+- **Business Summary**: Indian Terrain Fashions Limited engages in the retail of branded apparel through retail stores in India. It offers shirts, T-shirts, trousers, jeans, and shorts. The company also provides its products for men under the Indian Terrain brand name. It sells its products through various channels, inc…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Key Data Points & Signals (Investor Presentation)
 - **Pan-India footprint**: higher concentration of exclusive stores in South and West India; South leads both LFO (Large Format Outlet) and MBO (Multi-Brand Outlet) formats, followed by North and West; East has smaller presence.

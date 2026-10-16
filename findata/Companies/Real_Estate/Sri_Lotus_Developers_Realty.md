@@ -3,7 +3,7 @@ title: Sri Lotus Developers Realty
 type: company
 ticker: LOTUSDEV.BO
 sector: Real_Estate
-industry: null
+industry: Engineering & Construction
 market_cap: mid_cap
 normalized_name: Sri_Lotus_Developers_Realty
 permalink: /companies/real_estate/sri_lotus_developers_realty
@@ -34,6 +34,19 @@ sources:
 
 Sri Lotus Developers & Realty is a real estate development company engaged in residential and commercial property development projects. The company operates through a B2B model, focusing on residential and commercial real estate development with emphasis on quality construction and project delivery. Sri Lotus Developers operates primarily in regional markets with focus on sustainable and quality real estate development.
 
+
+<!-- BEGIN auto company profile (enrich_from_yfinance.py) -->
+
+## Company Profile (yfinance)
+
+- **Industry**: Engineering & Construction
+- **Employees**: 77
+- **Promoter Holding**: 81.9%
+- **Institutional Holding**: 1.0%
+- **Business Summary**: Sri Lotus Developers and Realty Limited develops residential and commercial projects in India. Its portfolio covers luxury and ultra-luxury residential and commercial properties, including retail spaces, commercial offices, and residences. The company was formerly known as AKP Holdings Limited an…
+
+_Source: yfinance | Refreshed: 2026-10-16_
+<!-- END auto company profile -->
 ## Business Segments
 
 ### Residential Projects

@@ -67,11 +67,11 @@ Polycab India Limited, founded in 1964 and headquartered in Mumbai, is India's l
 ## Company Profile (yfinance)
 
 - **Industry**: Electrical Equipment & Parts
-- **Promoter Holding**: 64.7%
-- **Institutional Holding**: 15.4%
+- **Promoter Holding**: 64.4%
+- **Institutional Holding**: 17.1%
 - **Business Summary**: Polycab India Limited manufactures and sells wires and cables under the POLYCAB brand in India and internationally. The company operates through three segments: Wires and Cables; Fast Moving Electrical Goods (FMEG); and Engineering, Procurement and Construction (EPC). The Wires and Cables segment…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Financial Profile (Yahoo Finance, Jun 2026)
 - Market cap: ₹1,43,516 cr | Enterprise value: ₹1,42,433 cr

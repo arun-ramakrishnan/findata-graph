@@ -36,12 +36,12 @@ Costco is a leading global membership-based retailer (founded 1983) operating wa
 ## Company Profile (yfinance)
 
 - **Industry**: Discount Stores
-- **Employees**: 341,000
-- **Promoter Holding**: 0.2%
-- **Institutional Holding**: 74.0%
-- **Business Summary**: Costco Wholesale Corporation, together with its subsidiaries, engages in the operation of membership warehouses in the United States, Puerto Rico, Canada, Mexico, Japan, the United Kingdom, Korea, Australia, Taiwan, China, Spain, France, Iceland, New Zealand, and Sweden. It offers merchandise, in…
+- **Employees**: 355,000
+- **Promoter Holding**: 0.1%
+- **Institutional Holding**: 74.5%
+- **Business Summary**: Costco Wholesale Corporation, together with its subsidiaries, engages in the operation of membership warehouses in the United States, Puerto Rico, Canada, Mexico, Japan, the United Kingdom, Korea, Australia, Taiwan, China, Spain, France, Sweden, Iceland, and New Zealand. It offers merchandise, in…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Key Insights (The Chatter #50)
 

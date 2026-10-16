@@ -63,11 +63,11 @@ Axis Bank is India's third-largest private sector bank by assets. The bank offer
 
 - **Industry**: Banks - Regional
 - **Employees**: 101,337
-- **Promoter Holding**: 2.8%
-- **Institutional Holding**: 70.4%
+- **Promoter Holding**: 3.3%
+- **Institutional Holding**: 70.5%
 - **Business Summary**: Axis Bank Limited provides various financial products and services in India and internationally. The company operates through four segments: Treasury, Retail Banking, Corporate/Wholesale Banking, and Other Banking Business. It provides fixed, recurring, and safe deposits; and saving, salary, curr…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Key Metrics
 - **Market Cap**: ~₹3+ lakh crore

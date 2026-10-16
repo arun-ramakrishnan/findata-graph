@@ -41,7 +41,7 @@ TCPL Packaging Limited manufactures and sells paperboard-based and flexible pack
 - **Institutional Holding**: 12.0%
 - **Business Summary**: TCPL Packaging Limited manufactures and sells paperboard-based packaging, flexible packaging, rigid boxes, and gravure printing cylinders in India. The company offers folding cartons, printed blanks and outers, litho-laminated cartons, shaped cartons, metallized paperboard cartons, coated food pa…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Financial Profile (Yahoo Finance, Jun 2026)
 

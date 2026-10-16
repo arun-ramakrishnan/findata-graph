@@ -54,11 +54,12 @@ Quality Power Electrical Equipments is a small cap company operating in the engi
 ## Company Profile (yfinance)
 
 - **Industry**: Electrical Equipment & Parts
+- **Employees**: 249
 - **Promoter Holding**: 75.5%
-- **Institutional Holding**: 5.1%
-- **Business Summary**: Quality Power Electrical Equipments Limited provides power products and solutions for power generation, transmission, distribution, and automation sectors in India and internationally. Its power products include reactors, line traps, transformers, instrument transformers, line tuners, metal enclo…
+- **Institutional Holding**: 5.4%
+- **Business Summary**: Quality Power Electrical Equipments Limited provides power products and solutions for power generation, transmission, distribution, and automation sectors in India and internationally. It offers metal enclosed capacitor banks; reactors, including series, shunt, FACTS/HVDC, and iron core reactors;…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Business Model
 - **Primary Model**: B2B (Business-to-Business)

@@ -37,10 +37,10 @@ Strides Pharma Science Limited (incorporated 1990; formerly Strides Shasun, rena
 - **Industry**: Drug Manufacturers - Specialty & Generic
 - **Employees**: 3,535
 - **Promoter Holding**: 30.8%
-- **Institutional Holding**: 29.1%
+- **Institutional Holding**: 28.3%
 - **Business Summary**: Strides Pharma Science Limited, a pharmaceutical company, engages in the development, manufacturing, and marketing of pharmaceutical products in North America, Australia, Africa, Europe, India, the rest of Asia, and internationally. The company offers generic finished dosage formulations in a ran…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Financial Profile (Yahoo Finance, Jun 2026)
 

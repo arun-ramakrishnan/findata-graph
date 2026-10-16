@@ -36,10 +36,10 @@ Praj Industries Limited, incorporated in 1985 and headquartered in Pune, is a gl
 - **Industry**: Engineering & Construction
 - **Employees**: 1,629
 - **Promoter Holding**: 34.4%
-- **Institutional Holding**: 25.0%
+- **Institutional Holding**: 27.2%
 - **Business Summary**: Praj Industries Limited operates in the field of bio-based technologies and engineering in India and internationally. It offers solutions for the ethanol industry, including multi-feed multi-product plants, modernization of existing plants, and renewable fuels comprising BioCNG, iso-butanol, etc.…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Financial Profile (Yahoo Finance, Jun 2026)
 - Market cap: ₹6,409 cr | Enterprise value: ₹5,964 cr

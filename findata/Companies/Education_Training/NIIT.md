@@ -35,11 +35,12 @@ NIIT Limited engages in providing learning and knowledge solutions to individual
 ## Company Profile (yfinance)
 
 - **Industry**: Education & Training Services
-- **Promoter Holding**: 48.8%
-- **Institutional Holding**: 15.2%
-- **Business Summary**: NIIT Limited engages in providing learning and knowledge solutions to individuals, enterprises, and various institutions internationally. The company offers a variety of training programs, certifications, and solutions for career seekers and working professionals. The company also offers a progra…
+- **Employees**: 912
+- **Promoter Holding**: 49.8%
+- **Institutional Holding**: 15.3%
+- **Business Summary**: NIIT Limited engages in providing learning and knowledge solutions to individuals, enterprises, and various institutions in India and internationally. The company offers a variety of training programs, certifications, and solutions for career seekers and working professionals. The company also of…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Key Personnel
 - Mr. Rajendra Singh Pawar: Co-Founder & Executive Chairman

@@ -52,11 +52,12 @@ The opportunity lies in co-production, IP ownership, and scaling content and IPs
 ## Company Profile (yfinance)
 
 - **Industry**: Entertainment
-- **Promoter Holding**: 55.9%
+- **Employees**: 10
+- **Promoter Holding**: 54.7%
 - **Institutional Holding**: 0.0%
-- **Business Summary**: Bodhi Tree Multimedia Limited engages in the production of content for television (TV), films, and digital platforms in India. It produces content across various languages, such as Hindi, Tamil, Marathi, Gujarati, and Bengali on TV and over the top platforms. The company was incorporated in 2013 …
+- **Business Summary**: Bodhi Tree Multimedia Limited engages in the production of content for television (TV), films, and digital platforms in India. It produces content across various languages, such as Hindi, Tamil, Marathi, Gujarati, and Bengali on TV and over the top OTT platforms; and compresses all genres such as…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## YouTube as Platform
 

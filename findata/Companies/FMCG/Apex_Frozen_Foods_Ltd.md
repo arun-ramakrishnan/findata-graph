@@ -57,12 +57,12 @@ Frozen shrimp has become backbone of India's seafood export story. Over the past
 ## Company Profile (yfinance)
 
 - **Industry**: Farm Products
-- **Employees**: 3,168
+- **Employees**: 2,068
 - **Promoter Holding**: 76.8%
 - **Institutional Holding**: 0.0%
 - **Business Summary**: Apex Frozen Foods Limited engages in the farming, processing, production, and sale of shrimps in India. It provides ready-to-cook whiteleg and black tiger shrimps, which include head on and whole, headless and shell-on, easy peel, peeled, and cooked peeled & deveined-tail-on, cooked in shell, dus…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Export Markets
 

@@ -34,11 +34,12 @@ Pennar Industries Limited, founded in 1975 and headquartered in Hyderabad, is an
 ## Company Profile (yfinance)
 
 - **Industry**: Specialty Industrial Machinery
+- **Employees**: 2,838
 - **Promoter Holding**: 42.5%
-- **Institutional Holding**: 6.9%
-- **Business Summary**: Pennar Industries Limited operates as an engineering company in India and internationally. It operates in two segments: Diversified Engineering, and Custom Designed Building Solutions & Auxiliaries. The company offers engineered components, including automotive and white goods components, hydraul…
+- **Institutional Holding**: 7.0%
+- **Business Summary**: Pennar Industries Limited operates as an engineering company in India and internationally. The company offers pre-engineered buildings; process heat and industrial power boilers; and precision tubes, such as electric resistance welding, CWE/DOM/CEW, bicycle frame, steel, engineering, boiler, heat…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Financial Profile (Yahoo Finance, Jun 2026)
 - Market cap: ₹2,190 cr | Enterprise value: ₹3,072 cr

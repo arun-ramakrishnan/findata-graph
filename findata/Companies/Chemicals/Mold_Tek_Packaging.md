@@ -46,11 +46,12 @@ Mold-Tek Packaging is a Small Cap company operating in the Chemicals and Packagi
 ## Company Profile (yfinance)
 
 - **Industry**: Packaging & Containers
+- **Employees**: 972
 - **Promoter Holding**: 39.2%
-- **Institutional Holding**: 29.0%
-- **Business Summary**: Mold-Tek Packaging Limited engages in the manufacture and sale of plastic packaging containers in India. It offers sanitizer, tablet, and food containers; dispensing pumps; and lubricant and paint pails packaging products. It also exports its products. The company was formerly known as Moldtek Pl…
+- **Institutional Holding**: 24.7%
+- **Business Summary**: Mold-Tek Packaging Limited engages in the manufacture and sale of plastic packaging containers in India. It offers sanitizer and food containers; dispensing pumps; and lubricant and paint pails packaging products. It also exports its products. The company was formerly known as Moldtek Plastics Li…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Business Operations
 

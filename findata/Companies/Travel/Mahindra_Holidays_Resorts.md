@@ -55,10 +55,10 @@ Mahindra Holidays & Resorts India (NSE: MHRIL) operates Club Mahindra — India'
 - **Industry**: Resorts & Casinos
 - **Employees**: 5,684
 - **Promoter Holding**: 67.9%
-- **Institutional Holding**: 13.3%
+- **Institutional Holding**: 13.0%
 - **Business Summary**: Mahindra Holidays & Resorts India Limited operates in the leisure hospitality sector in India, Finland, Sweden, Spain, Dubai, Thailand, and Malaysia. It provides vacation ownership and other accommodation-related services. The company was incorporated in 1996 and is based in Mumbai, India. Mahind…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Management
 - Manoj Bhat — Managing Director & CEO

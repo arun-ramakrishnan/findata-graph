@@ -41,10 +41,10 @@ Krispy Kreme is an international doughnut and coffee chain company that has expa
 - **Industry**: Grocery Stores
 - **Employees**: 17,000
 - **Promoter Holding**: 45.5%
-- **Institutional Holding**: 43.5%
+- **Institutional Holding**: 47.7%
 - **Business Summary**: Krispy Kreme, Inc., together with its subsidiaries, produces doughnuts in the United States, the United Kingdom, Ireland, Australia, New Zealand, Mexico, Canada, Japan, and internationally. It operates in three segments: U.S., International, and Market Development. The company offers doughnut exp…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Strategic Context
 

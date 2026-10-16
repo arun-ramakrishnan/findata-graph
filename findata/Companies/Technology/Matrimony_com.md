@@ -47,11 +47,11 @@ Matrimony.com Limited is India's leading online matrimonial services company pro
 
 - **Industry**: Internet Content & Information
 - **Employees**: 2,581
-- **Promoter Holding**: 80.4%
-- **Institutional Holding**: 3.0%
+- **Promoter Holding**: 81.2%
+- **Institutional Holding**: 0.3%
 - **Business Summary**: Matrimony.com Limited, a consumer internet company, provides online matchmaking services on internet and mobile platforms in India and internationally. It operates through two segments: Matchmaking Services and Marriage Services. The company offers online matchmaking services, including EliteMatr…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Strategic Context
 

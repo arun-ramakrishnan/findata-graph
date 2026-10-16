@@ -42,9 +42,9 @@ The New India Assurance Company is India's largest non-life insurer with a signi
 - **Employees**: 10,403
 - **Promoter Holding**: 85.4%
 - **Institutional Holding**: 10.8%
-- **Business Summary**: The New India Assurance Company Limited, together with its subsidiaries, operates as a general insurance company in India and internationally. The company provides credit, engineering, aviation, property, personal accident, liability, marine cargo, marine hull, fire, travel, motor, health, employ…
+- **Business Summary**: The New India Assurance Company Limited, together with its subsidiaries, engages in the general insurance industry in India and internationally. The company offers motor, health, travel, rural, credit, engineering, aviation, personal accident, liability, marine hull, fire, marine cargo, and misce…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 The Chatter (Reliance, PayTM, Nykaa & More)
 

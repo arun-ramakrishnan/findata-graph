@@ -45,11 +45,12 @@ Kellton Tech Solutions Limited is a technology services company providing digita
 ## Company Profile (yfinance)
 
 - **Industry**: Software - Application
-- **Promoter Holding**: 37.7%
+- **Employees**: 1,184
+- **Promoter Holding**: 35.8%
 - **Institutional Holding**: 0.7%
-- **Business Summary**: Kellton Tech Solutions Limited engages in the provision of digital transformation, ERP, and other IT services in APAC, Europe, the United States, and internationally. It provides digital business services, including artificial intelligence and machine learning, digital experience, product enginee…
+- **Business Summary**: Kellton Tech Solutions Limited engages in the provision of digital transformation, ERP, and other IT services in APAC, Europe, the United States, and internationally. The company offers AI services, including AI development, generative AI, agentic AI & automation traditional AI, AI engineering & …
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 
 <!-- BEGIN auto key figures (derive_insights.py) -->

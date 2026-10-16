@@ -47,10 +47,10 @@ Hexaware Technologies Limited is a global digital and technology services compan
 - **Industry**: Information Technology Services
 - **Employees**: 34,506
 - **Promoter Holding**: 75.2%
-- **Institutional Holding**: 18.4%
+- **Institutional Holding**: 19.1%
 - **Business Summary**: Hexaware Technologies Limited provides information technology consulting, software development, and business process services worldwide. The company operates through Travel and Transportation, Financial Services, Banking, Healthcare and Insurance, Hi-Tech Professional Services, and Manufacturing …
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 The Chatter — RBI Tata Steel
 

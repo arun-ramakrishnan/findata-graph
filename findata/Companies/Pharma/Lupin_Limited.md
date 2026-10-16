@@ -75,10 +75,10 @@ Lupin Limited is India's 12th largest generic pharmaceutical company globally an
 - **Industry**: Drug Manufacturers - Specialty & Generic
 - **Employees**: 26,021
 - **Promoter Holding**: 47.0%
-- **Institutional Holding**: 34.7%
+- **Institutional Holding**: 35.0%
 - **Business Summary**: Lupin Limited, together with its subsidiaries, operates as a pharmaceutical company in India, the United States, and internationally. The company operates in two segments: Pharmaceuticals and Others. It produces, develops, and markets various branded and generic formulations, biotechnology produc…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Recent Updates (The Chatter - Inflection Watch Edition #12)
 

@@ -37,11 +37,11 @@ Rane Holdings Limited is the holding company of the Rane Group, a 1929-founded a
 
 - **Industry**: Auto Parts
 - **Employees**: 130
-- **Promoter Holding**: 59.4%
-- **Institutional Holding**: 3.4%
-- **Business Summary**: Rane Holdings Limited, together with its subsidiaries, manufactures and markets automotive components for the transportation industry in India and internationally. The company offers steering and suspension systems comprising manual steering gears, steering linkages, suspension components, and hy…
+- **Promoter Holding**: 57.2%
+- **Institutional Holding**: 2.4%
+- **Business Summary**: Rane Holdings Limited, together with its subsidiaries, engages in the manufacturing and marketing of automotive components for the transportation industry in India and internationally. It manufactures steering and suspension systems, brake components, engine components, occupant safety systems, a…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Financial Profile (Yahoo Finance, Jun 2026)
 

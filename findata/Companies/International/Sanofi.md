@@ -39,8 +39,8 @@ French multinational pharmaceutical company headquartered in Paris (formerly San
 - **Industry**: Drug Manufacturers - General
 - **Employees**: 74,846
 - **Promoter Holding**: 0.0%
-- **Institutional Holding**: 8.7%
+- **Institutional Holding**: 8.0%
 - **Business Summary**: Sanofi engages in the research, development, manufacture, and marketing of therapeutic solutions. It provides immunology and inflammation, rare diseases neurology, oncology, and other vaccines. It also offers poliomyelitis, pertussis, and haemophilus influenzae type b (Hib) pediatric vaccines; re…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->

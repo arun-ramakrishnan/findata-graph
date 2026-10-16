@@ -37,11 +37,11 @@ Jain Irrigation Systems Limited (JISL) is a diversified agri-business conglomera
 
 - **Industry**: Conglomerates
 - **Employees**: 9,090
-- **Promoter Holding**: 43.8%
-- **Institutional Holding**: 0.8%
+- **Promoter Holding**: 42.7%
+- **Institutional Holding**: 0.9%
 - **Business Summary**: Jain Irrigation Systems Limited manufactures and sells precision-irrigation systems in India, Europe, North America, and internationally. The company operates through Hi-Tech Agri Input Products; Plastic Division; and Agro Processing Division segments. It provides drip irrigation; micro and mini …
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Financial Profile (Yahoo Finance, Jun 2026) — HIGHLY LEVERAGED
 

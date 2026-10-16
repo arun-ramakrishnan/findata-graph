@@ -64,11 +64,12 @@ Indian Oil Corporation Limited (IOCL) is primarily involved in refining, pipelin
 ## Company Profile (yfinance)
 
 - **Industry**: Oil & Gas Refining & Marketing
+- **Employees**: 29,650
 - **Promoter Holding**: 73.4%
-- **Institutional Holding**: 12.5%
-- **Business Summary**: Indian Oil Corporation Limited, together with its subsidiaries, engages in the oil, gas, petrochemicals, and alternative energy source businesses in India and internationally. It operates through Sale of Petroleum Products, Sale of Petrochemicals, Sale of Gas, and Other segments. The company is i…
+- **Institutional Holding**: 14.3%
+- **Business Summary**: Indian Oil Corporation Limited, together with its subsidiaries, engages in the oil, gas, petrochemicals, and alternative energy source businesses in India and internationally. It operates through Sale of Petroleum Products; Sale of Petrochemicals; Sale of Gas; and Other segments. The company is i…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Key Strategic Insights (from Between_the_Numbers.md)
 

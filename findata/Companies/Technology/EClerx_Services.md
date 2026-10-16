@@ -35,11 +35,12 @@ eClerx Services Limited was incorporated in 2000 and is headquartered in Mumbai.
 ## Company Profile (yfinance)
 
 - **Industry**: Information Technology Services
-- **Promoter Holding**: 58.0%
-- **Institutional Holding**: 32.4%
-- **Business Summary**: eClerx Services Limited provides business process management, change management, data-driven insights, and advanced analytics services in India, the United States, the United Kingdom, Europe, and the Asia Pacific. It offers omnichannel customer support services, customer care journey mapping and …
+- **Employees**: 12,641
+- **Promoter Holding**: 58.2%
+- **Institutional Holding**: 32.7%
+- **Business Summary**: eClerx Services Limited provides business process management, change management, data-driven insights, and advanced analytics services in North America, the United Kingdom, rest of Europe, and the Asia Pacific. It offers omnichannel customer support, customer journey mapping, quality monitoring, …
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Financial Profile (Yahoo Finance, Jun 2026)
 

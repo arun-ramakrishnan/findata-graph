@@ -50,10 +50,10 @@ Bajaj Finserv Ltd. (incorporated 2007, headquartered in Pune) is a diversified f
 - **Industry**: Financial Conglomerates
 - **Employees**: 113,732
 - **Promoter Holding**: 63.9%
-- **Institutional Holding**: 15.1%
+- **Institutional Holding**: 14.9%
 - **Business Summary**: Bajaj Finserv Ltd., through its subsidiaries, provides financial services in India. The company operates through Life Insurance, General Insurance, Windmill, Retail Financing, and Investments and Others segments. It offers personal, home, business, gold, loan for doctors and lawyers; loan against…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Financial Profile (Yahoo Finance, Jun 2026)
 - Market cap: ₹2,82,073 cr | Enterprise value: ₹6,91,094 cr

@@ -34,12 +34,12 @@ Repco Home Finance is a housing finance company providing home loans and mortgag
 ## Company Profile (yfinance)
 
 - **Industry**: Mortgage Finance
-- **Employees**: 1,256
+- **Employees**: 1,384
 - **Promoter Holding**: 37.1%
-- **Institutional Holding**: 30.8%
-- **Business Summary**: Repco Home Finance Limited operates as a housing finance company in India. The company offers dream home, composite, fifty plus, NRI housing, plot, Repco privilege, green and easy home, advantage, and home 25 loans. It also offers repair, renovation, extension, and multipurpose loans, including h…
+- **Institutional Holding**: 34.4%
+- **Business Summary**: Repco Home Finance Limited operates as a non-banking financial and housing finance company in India. It offers housing finance to purchase, construction, repairs, and renovations. The company was incorporated in 2000 and is headquartered in Chennai, India.
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Industry Context
 

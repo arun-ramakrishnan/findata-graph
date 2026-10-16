@@ -37,9 +37,10 @@ British multinational alcoholic beverages company headquartered in London. Owns 
 ## Company Profile (yfinance)
 
 - **Industry**: Beverages - Wineries & Distilleries
-- **Promoter Holding**: 0.0%
-- **Institutional Holding**: 9.7%
-- **Business Summary**: Diageo plc, together with its subsidiaries, engages in the production, marketing, and distribution of alcoholic beverages in North America, Europe, the Asia Pacific, Latin America and Caribbean, and Africa. It offers beer, scotch, gin, vodka, rum, liqueur, raki, wine, Irish and Canadian whisky, U…
+- **Employees**: 27,972
+- **Promoter Holding**: 0.1%
+- **Institutional Holding**: 10.0%
+- **Business Summary**: Diageo plc, together with its subsidiaries, engages in the production, marketing, and distribution of alcoholic beverages in North America, Europe, the Asia Pacific, Latin America and Caribbean, and Africa. It offers beer, scotch, gin, vodka, rum, liqueur, raki, wine, cachaça, tequila, brandy, an…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->

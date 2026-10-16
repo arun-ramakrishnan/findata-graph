@@ -38,11 +38,12 @@ ICRA Limited, formerly known as Investment Information and Credit Rating Agency 
 ## Company Profile (yfinance)
 
 - **Industry**: Financial Data & Stock Exchanges
+- **Employees**: 1,111
 - **Promoter Holding**: 59.6%
-- **Institutional Holding**: 25.1%
-- **Business Summary**: ICRA Limited operates as an independent and professional investment information, and credit rating agency in India and internationally. The company operates through Ratings and Ancillary Services; and Research and Analytics segments. It offers research, and industry and economic research; data ma…
+- **Institutional Holding**: 19.3%
+- **Business Summary**: ICRA Limited operates as an independent and professional investment information, and credit rating agency in India and internationally. It offers data and knowledge process operations, digital transformation, data application development, financial intelligence, ESG analytics, and model developme…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Key Highlights from Recent Quarter
 - The acquisition of Fintellix expands ICRA's risk technology and RegTech capabilities, reinforcing its position in risk and investment analytics

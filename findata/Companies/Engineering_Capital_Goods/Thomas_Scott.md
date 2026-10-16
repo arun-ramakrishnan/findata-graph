@@ -43,11 +43,12 @@ Thomas Scott (India) Ltd. is an Indian company that has successfully transformed
 ## Company Profile (yfinance)
 
 - **Industry**: Textile Manufacturing
-- **Promoter Holding**: 68.4%
+- **Employees**: 1,825
+- **Promoter Holding**: 67.6%
 - **Institutional Holding**: 0.0%
-- **Business Summary**: Thomas Scott (India) Limited manufactures and trades in textile and textile related products in India. The company offers men's formal and casual wear, as well as semi-formal wear, such as business casual shirts. It sells its products under the Hammersmith, Bang & Scott, Italian Gold, and Thomas …
+- **Business Summary**: Thomas Scott (India) Limited manufactures and trades in textile and textile related products in India. The company offers formal and casual wear, as well as semiformal wear, such as casual business shirts, jackets, ethnic wear, trousers, and other related products. It sells its products under the…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Industry Classification
 - **Sector**: Retail - Textiles & Apparel

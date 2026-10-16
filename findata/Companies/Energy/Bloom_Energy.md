@@ -35,11 +35,11 @@ Bloom Energy Corporation (NYSE: BE) is a US-based clean-energy company headquart
 
 - **Industry**: Electrical Equipment & Parts
 - **Employees**: 2,214
-- **Promoter Holding**: 5.6%
-- **Institutional Holding**: 84.8%
+- **Promoter Holding**: 5.5%
+- **Institutional Holding**: 86.4%
 - **Business Summary**: Bloom Energy Corporation designs, manufactures, sells, and installs solid oxide fuel cell systems for on-site power generation in the United States and internationally. It offers Bloom Energy Server, an energy server platform to convert fuel, such as natural gas, biogas, hydrogen, or a blend of t…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## India Supply Chain Link
 

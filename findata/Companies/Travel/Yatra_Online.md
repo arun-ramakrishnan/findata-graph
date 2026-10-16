@@ -36,6 +36,19 @@ sources:
 ## Company Overview
 Yatra Online Pvt. Ltd. is an online travel company providing information, pricing, availability, and booking facilities for air travel, hotels, buses, car rentals, and trains across India and internationally. The platform serves both business and leisure travelers through online, call center, and mobile channels.
 
+
+<!-- BEGIN auto company profile (enrich_from_yfinance.py) -->
+
+## Company Profile (yfinance)
+
+- **Industry**: Travel Services
+- **Employees**: 1,233
+- **Promoter Holding**: 63.9%
+- **Institutional Holding**: 13.9%
+- **Business Summary**: Yatra Online Limited provides reservation and booking services, and customized solutions related to transport, travel, tours, and tourism in India and internationally. It is involved in air travel, hotel and package, cabs and ground transportation, rail and bus, corporate travel management, perso…
+
+_Source: yfinance | Refreshed: 2026-10-16_
+<!-- END auto company profile -->
 <!-- BEGIN auto key figures (derive_insights.py) -->
 
 ## Key Figures (auto)

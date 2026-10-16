@@ -68,11 +68,12 @@ Deep Industries Limited (DIL) is a leading Indian energy services company specia
 ## Company Profile (yfinance)
 
 - **Industry**: Oil & Gas E&P
+- **Employees**: 838
 - **Promoter Holding**: 67.2%
-- **Institutional Holding**: 1.5%
-- **Business Summary**: Deep Industries Limited provides oil and gas field and related support services in India. The company offers gas compression, drilling and workover rigs, natural gas dehydration, conditioning, processing, integrated project management services, and rental and chartered hire of equipment and servi…
+- **Institutional Holding**: 1.6%
+- **Business Summary**: Deep Industries Limited provides oil and gas field services in India. The company offers gas compression; drilling and workover rigs; natural gas dehydration; integrated project management services, including surface hole drilling, air drilling, cementing, geophysical logging and wire line servic…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Industry Context: Energy Sector
 

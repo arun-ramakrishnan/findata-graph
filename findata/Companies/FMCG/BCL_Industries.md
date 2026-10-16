@@ -49,9 +49,9 @@ BCLIL is one of the largest agro-processing manufacturing companies in India wit
 - **Industry**: Beverages - Wineries & Distilleries
 - **Promoter Holding**: 60.4%
 - **Institutional Holding**: 0.2%
-- **Business Summary**: BCL Industries Limited, an agro-processing and manufacturing company, engages in the edible oil, rice milling, grain-based distillery, and real estate businesses in India. The company operates through three segments: Oil & Vanaspati, Distillery, and Real Estate. It provides oil and vanaspati ghee…
+- **Business Summary**: BCL Industries Limited, an agro-processing and manufacturing company, engages in the edible oil, rice milling, grain-based distillery, and real estate businesses in India. It provides grain-based ethanol production, extra neutral alcohol, country liquor, and biofuels. The company also constructs …
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Business Segments
 

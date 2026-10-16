@@ -99,11 +99,11 @@ UltraTech Cement, part of the Aditya Birla Group, is a leading manufacturer of g
 
 - **Industry**: Building Materials
 - **Employees**: 28,399
-- **Promoter Holding**: 61.9%
-- **Institutional Holding**: 22.3%
+- **Promoter Holding**: 62.0%
+- **Institutional Holding**: 22.7%
 - **Business Summary**: UltraTech Cement Limited, together with its subsidiaries, engages in the manufacturing, marketing, and distribution of building materials in India and internationally. It offers grey cement, including ordinary Portland, composite, and weather plus, as well as Portland pozzolana, pozzolana super, …
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 
 <!-- BEGIN auto key figures (derive_insights.py) -->

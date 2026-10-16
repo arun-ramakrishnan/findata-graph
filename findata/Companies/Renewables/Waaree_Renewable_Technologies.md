@@ -147,11 +147,12 @@ Waaree Renewable's comprehensive renewable energy ecosystem spanning PV modules,
 ## Company Profile (yfinance)
 
 - **Industry**: Engineering & Construction
+- **Employees**: 399
 - **Promoter Holding**: 75.3%
 - **Institutional Holding**: 1.1%
-- **Business Summary**: Waaree Renewable Technologies Limited engages in the generation of power through renewable energy sources in India. The company offers ground mounted solar; capex model; resco opex; rooftop solar; floating solar; and operations and maintenance solutions. It also provides engineering, procurement,…
+- **Business Summary**: Waaree Renewable Technologies Limited primarily engages in the engineering, procurement, and construction (EPC) contracts business in India. It offers ground-mounted, solar rooftop, floating solar, energy storage, green hydrogen, and asset management EPC solutions; and generates power through ren…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## [Presentation]
 

@@ -3,6 +3,7 @@ title: Siemens Energy
 type: company
 ticker: ENR.DE
 sector: Energy
+industry: Specialty Industrial Machinery
 market_cap: large_cap
 normalized_name: Siemens_Energy
 permalink: /companies/energy/siemens_energy
@@ -33,6 +34,19 @@ German energy-technology company (generation, grids).
 
 *Stub node — created as a graph endpoint. Expand as additional primary research accumulates.*
 
+
+<!-- BEGIN auto company profile (enrich_from_yfinance.py) -->
+
+## Company Profile (yfinance)
+
+- **Industry**: Specialty Industrial Machinery
+- **Employees**: 106,000
+- **Promoter Holding**: 12.2%
+- **Institutional Holding**: 57.9%
+- **Business Summary**: Siemens Energy AG operates as an energy technology company worldwide. It operates through Gas Services, Grid Technologies, Transformation of Industry, and Siemens Gamesa segments. The company provides gas and steam turbines, generators, and heat pumps, as well as performance enhancement, maintena…
+
+_Source: yfinance | Refreshed: 2026-10-16_
+<!-- END auto company profile -->
 <!-- BEGIN auto key figures (derive_insights.py) -->
 
 ## Key Figures (auto)

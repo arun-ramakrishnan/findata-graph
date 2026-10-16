@@ -3,6 +3,7 @@ title: Dilip Buildcon
 type: company
 ticker: DBL.BO
 sector: Infrastructure
+industry: Engineering & Construction
 market_cap: mid_cap
 normalized_name: Dilip_Buildcon
 permalink: /companies/infrastructure/dilip_buildcon
@@ -34,6 +35,19 @@ Road and infrastructure EPC contractor.
 
 *Stub node — created as a graph endpoint. Expand as additional primary research accumulates.*
 
+
+<!-- BEGIN auto company profile (enrich_from_yfinance.py) -->
+
+## Company Profile (yfinance)
+
+- **Industry**: Engineering & Construction
+- **Employees**: 21,221
+- **Promoter Holding**: 76.2%
+- **Institutional Holding**: 6.3%
+- **Business Summary**: Dilip Buildcon Limited, together its subsidiaries, engages in the development of infrastructure facilities on engineering, procurement, and construction (EPC) basis in India. The company operates through Engineering, Procurement and Construction (EPC) Projects & Road Infrastructure Maintenance, a…
+
+_Source: yfinance | Refreshed: 2026-10-16_
+<!-- END auto company profile -->
 <!-- BEGIN auto chatter block (derive_insights.py) -->
 
 ## The Chatter — Embracing the Unknown

@@ -3,6 +3,7 @@ title: Anand Rathi Share and Stock Brokers
 type: company
 ticker: ARSSBL.NS
 sector: Capital_Markets
+industry: Financial Conglomerates
 market_cap: mid_cap
 normalized_name: Anand_Rathi_Share_and_Stock_Brokers
 permalink: /companies/capital_markets/anand_rathi_share_and_stock_brokers
@@ -50,6 +51,19 @@ Anand Rathi Share & Stock Brokers Ltd. is a full-service financial services firm
 - **(other)**: 3%
 
 <!-- END auto key figures -->
+
+<!-- BEGIN auto company profile (enrich_from_yfinance.py) -->
+
+## Company Profile (yfinance)
+
+- **Industry**: Financial Conglomerates
+- **Employees**: 2,214
+- **Promoter Holding**: 0.1%
+- **Institutional Holding**: 72.0%
+- **Business Summary**: Anand Rathi Share and Stock Brokers Limited provides stock brokerage services in India and internationally. The company offers equities, derivatives, alternative investment funds, IPOs, mutual funds, portfolio management services, investment basket, margin trading facility, NRI investing, commodi…
+
+_Source: yfinance | Refreshed: 2026-10-16_
+<!-- END auto company profile -->
 <!-- BEGIN auto chatter block (derive_insights.py) -->
 
 ## The Chatter — TCS ICICI Pru HDB Financials

@@ -54,11 +54,11 @@ Mitsubishi Chemical Group Corporation (TSE: 4188; HQ Chiyoda, Japan) is a global
 
 - **Industry**: Specialty Chemicals
 - **Employees**: 56,678
-- **Promoter Holding**: 0.3%
-- **Institutional Holding**: 61.1%
+- **Promoter Holding**: 0.2%
+- **Institutional Holding**: 55.3%
 - **Business Summary**: Mitsubishi Chemical Group Corporation engages in the manufacture and sale of performance products, industrial materials, and other products. It operates through four segments: Specialty Materials, MMA & Derivatives, Basic Materials & Polymers, and Industrial Gases. The company offers chemical pro…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Management
 - Manabu Chikumoto — President & CEO

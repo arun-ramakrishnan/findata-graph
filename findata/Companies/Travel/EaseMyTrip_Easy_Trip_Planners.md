@@ -37,11 +37,12 @@ EaseMyTrip (Easy Trip Planners) is an Indian online travel company providing com
 ## Company Profile (yfinance)
 
 - **Industry**: Travel Services
-- **Promoter Holding**: 55.2%
+- **Employees**: 1,714
+- **Promoter Holding**: 55.1%
 - **Institutional Holding**: 2.1%
-- **Business Summary**: Easy Trip Planners Limited, together with its subsidiaries, operates as an online travel agency in India, the Philippines, Singapore, Thailand, the United Arab Emirates, the United Kingdom, New Zealand, Brazil, the Middle East, and the United States. It provides reservation and booking services r…
+- **Business Summary**: Easy Trip Planners Limited, together with its subsidiaries, operates as an online travel agency in India, the Philippines, Singapore, Thailand, the United Arab Emirates, the United Kingdom, Saudi Arabia, New Zealand, Brazil, and the United States. It operates through Air Ticketing; Hotels Package…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Core Services
 

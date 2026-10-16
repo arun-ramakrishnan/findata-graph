@@ -37,10 +37,10 @@ Crompton Greaves Consumer Electricals manufactures and markets consumer electric
 - **Industry**: Furnishings, Fixtures & Appliances
 - **Employees**: 2,211
 - **Promoter Holding**: 0.0%
-- **Institutional Holding**: 80.2%
+- **Institutional Holding**: 77.5%
 - **Business Summary**: Crompton Greaves Consumer Electricals Limited manufactures and markets consumer electrical products in India. It operates in two segments, Electrical Consumer Durables and Lighting Products. The company offers fans, such as ceiling, table, wall-mounted, pedestal, ventilating, kitchen tower, exhau…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Financial Profile (Yahoo Finance, Jun 2026)
 

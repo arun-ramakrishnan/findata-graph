@@ -3,7 +3,7 @@ title: Jain Resource Recycling
 type: company
 ticker: JAINREC.NS
 sector: Consumer
-industry: null
+industry: Other Industrial Metals & Mining
 market_cap: small_cap
 normalized_name: Jain_Resource_Recycling
 permalink: /companies/consumer/jain_resource_recycling
@@ -33,6 +33,19 @@ sources:
 
 Jain Resource Recycling and its subsidiaries specialize in recycling non-ferrous metal scrap and producing lead, copper, and aluminium alloys. The company operates through a B2B model, focusing on sustainable metal recycling and production of high-quality metal products. Its lead ingots are London Metal Exchange-registered, ensuring international quality standards. Jain Resource Recycling also trades non-ferrous metals and commodities, positioning itself as a key player in the metal recycling and base metals industry.
 
+
+<!-- BEGIN auto company profile (enrich_from_yfinance.py) -->
+
+## Company Profile (yfinance)
+
+- **Industry**: Other Industrial Metals & Mining
+- **Employees**: 1,793
+- **Promoter Holding**: 80.6%
+- **Institutional Holding**: 6.4%
+- **Business Summary**: Jain Resource Recycling Limited engages in the recycling scraps of non-ferrous metals, and non-metallic materials in India and internationally. The company offers lead and lead alloy ingots, copper and copper alloys and ingots, and aluminum and aluminum alloys. It also engages in the non-ferrous …
+
+_Source: yfinance | Refreshed: 2026-10-16_
+<!-- END auto company profile -->
 ## Business Segments
 
 ### Metal Recycling

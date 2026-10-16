@@ -71,11 +71,11 @@ Computer Age Management Services Limited (CAMS) is a leading Indian technology c
 
 - **Industry**: Information Technology Services
 - **Employees**: 8,410
-- **Promoter Holding**: 3.4%
-- **Institutional Holding**: 58.0%
+- **Promoter Holding**: 3.1%
+- **Institutional Holding**: 58.2%
 - **Business Summary**: Computer Age Management Services Limited provides registrar and transfer agency services, including data processing and related activities, to financial institutions in India. It provides MFCentral, a platform for mutual fund investors to digitally view their portfolios as well as manage and tran…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Industry Context: IT Services Sector
 

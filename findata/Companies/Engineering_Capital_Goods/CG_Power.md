@@ -66,10 +66,10 @@ CG Power is executing an ambitious capacity expansion plan to capitalize on Indi
 
 - **Industry**: Electrical Equipment & Parts
 - **Promoter Holding**: 60.0%
-- **Institutional Holding**: 20.1%
+- **Institutional Holding**: 19.7%
 - **Business Summary**: CG Power and Industrial Solutions Limited, together with its subsidiaries, provides various solutions in India and internationally. It operates through the Power Systems, Industrial Systems, Semiconductors, and Others segments. The company offers power and distribution transformers; switchgears, …
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Industry Analysis and Market Position
 

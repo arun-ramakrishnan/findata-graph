@@ -38,9 +38,9 @@ Israeli-American lidar technology company headquartered in Rosh HaAyin (NASDAQ: 
 
 - **Industry**: Auto Parts
 - **Employees**: 372
-- **Promoter Holding**: 1.5%
-- **Institutional Holding**: 13.1%
+- **Promoter Holding**: 1.7%
+- **Institutional Holding**: 11.5%
 - **Business Summary**: Innoviz Technologies Ltd. engages in the provision of automotive-grade LiDAR and perception solutions worldwide. Its sensors and complementary software suite are designed to deliver exceptional range, resolution, and reliability, providing accurate 3D sensing even in harsh weather conditions. The…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->

@@ -32,12 +32,12 @@ stale_after: '2027-03-09'
 ## Company Profile (yfinance)
 
 - **Industry**: Asset Management
-- **Employees**: 26,200
+- **Employees**: 24,900
 - **Promoter Holding**: 1.9%
-- **Institutional Holding**: 84.5%
+- **Institutional Holding**: 84.6%
 - **Business Summary**: BlackRock, Inc. is a publicly owned investment manager. The firm primarily provides its services to institutional, intermediary, and individual investors including corporate, public, union, and industry pension plans, insurance companies, third-party mutual funds, endowments, public institutions,…
 
-_Source: yfinance | Refreshed: 2026-09-15_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 
 

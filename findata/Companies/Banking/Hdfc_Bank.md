@@ -60,10 +60,10 @@ HDFC Bank is India's largest private sector bank, formed by the landmark HDFC Li
 - **Industry**: Banks - Regional
 - **Employees**: 212,958
 - **Promoter Holding**: 0.2%
-- **Institutional Holding**: 61.1%
+- **Institutional Holding**: 61.0%
 - **Business Summary**: HDFC Bank Limited provides banking and financial products and services to individuals and businesses in India, Bahrain, Hong Kong, Singapore, and Dubai. The company operates through Treasury, Retail Banking, Wholesale Banking, Other Banking Business, Insurance Business, and Other segments. It off…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Financial Profile (Yahoo Finance, Jun 2026)
 - Market cap: ₹12,25,937 cr | Enterprise value: ₹15,24,761 cr

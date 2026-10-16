@@ -45,6 +45,19 @@ sources:
 
 Bharti Airtel Limited is India's leading telecommunications company, providing mobile, broadband, and digital services across India and Africa. With over 500 million customers globally, Airtel operates across mobile services, enterprise solutions, digital TV, payments, and data centers, and is the second-largest mobile operator in Africa. Its retail portfolio includes high-speed 4G/5G mobile, Wi-Fi, digital entertainment, video streaming, and financial services.
 
+
+<!-- BEGIN auto company profile (enrich_from_yfinance.py) -->
+
+## Company Profile (yfinance)
+
+- **Industry**: Telecom Services
+- **Employees**: 28,743
+- **Promoter Holding**: 53.1%
+- **Institutional Holding**: 35.7%
+- **Business Summary**: Bharti Airtel Limited operates as a telecommunications company in India and internationally. It operates through the Mobile Services India, Mobile Services Africa, Mobile Services South Asia, Airtel Business, Passive Tower Infrastructure Services, Homes Services, Digital TV Services, and Others s…
+
+_Source: yfinance | Refreshed: 2026-10-16_
+<!-- END auto company profile -->
 <!-- BEGIN auto key figures (derive_insights.py) -->
 
 ## Key Figures (auto)

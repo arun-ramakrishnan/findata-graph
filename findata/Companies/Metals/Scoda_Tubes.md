@@ -3,6 +3,7 @@ title: Scoda Tubes
 type: company
 ticker: SCODATUBES.NS
 sector: Metals
+industry: Steel
 market_cap: small_cap
 normalized_name: Scoda_Tubes
 permalink: /companies/metals/scoda_tubes
@@ -34,6 +35,19 @@ Stainless-steel tube maker.
 
 *Stub node — created as a graph endpoint. Expand as additional primary research accumulates.*
 
+
+<!-- BEGIN auto company profile (enrich_from_yfinance.py) -->
+
+## Company Profile (yfinance)
+
+- **Industry**: Steel
+- **Employees**: 161
+- **Promoter Holding**: 67.8%
+- **Institutional Holding**: 11.0%
+- **Business Summary**: Scoda Tubes Limited manufactures and sells stainless steel pipes and tubes in India and internationally. The company provides stainless steel and welded pipes, tubes, u tubes, carbon steel tubes, brazed double walled stainless steel pipes and tubes, and brazed double walled copper coated tubes an…
+
+_Source: yfinance | Refreshed: 2026-10-16_
+<!-- END auto company profile -->
 <!-- BEGIN auto key figures (derive_insights.py) -->
 
 ## Key Figures (auto)

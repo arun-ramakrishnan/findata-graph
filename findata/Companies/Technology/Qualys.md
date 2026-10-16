@@ -35,11 +35,11 @@ Qualys is a global leader in cloud-based security and compliance solutions, prov
 
 - **Industry**: Software - Infrastructure
 - **Employees**: 2,718
-- **Promoter Holding**: 0.5%
-- **Institutional Holding**: 111.3%
+- **Promoter Holding**: 0.4%
+- **Institutional Holding**: 110.3%
 - **Business Summary**: Qualys, Inc. provides cloud-based platform delivering information technology (IT), security, and compliance solutions in the United States and internationally. The company provides Qualys Cloud Apps, which include cybersecurity asset management; enterprise TruRisk management; vulnerability manage…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Key Insights
 - Global leader in cloud-based cybersecurity and compliance solutions

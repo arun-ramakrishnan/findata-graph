@@ -72,10 +72,10 @@ Hindustan Unilever Limited (HUL) is India's leading consumer goods company, oper
 - **Industry**: Household & Personal Products
 - **Employees**: 17,477
 - **Promoter Holding**: 62.3%
-- **Institutional Holding**: 20.9%
+- **Institutional Holding**: 20.8%
 - **Business Summary**: Hindustan Unilever Limited, a fast-moving consumer goods company, manufactures and sells food, home care, and personal care products in India and internationally. It operates through Home Care, Beauty & Wellbeing, Personal Care, Foods, and Others segments. The company offers detergent bars, deter…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 
 <!-- BEGIN auto key figures (derive_insights.py) -->

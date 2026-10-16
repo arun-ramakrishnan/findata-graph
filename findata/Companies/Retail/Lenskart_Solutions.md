@@ -298,11 +298,11 @@ Lenskart Solutions is a technology-driven eyewear company that designs, manufact
 
 - **Industry**: Medical Instruments & Supplies
 - **Employees**: 19,201
-- **Promoter Holding**: 45.0%
-- **Institutional Holding**: 33.1%
+- **Promoter Holding**: 38.6%
+- **Institutional Holding**: 40.5%
 - **Business Summary**: Lenskart Solutions Limited, a technology-driven eyewear company, engages in designing, manufacturing, branding, and retailing of eyewear products in India, Japan, Southeast Asia, the Middle East, and internationally. Its products include prescription eyeglasses, sunglasses, goggles, screen glasse…
 
-_Source: yfinance | Refreshed: 2026-08-11_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Key Metrics Dashboard
 - **Market Cap**: Mid Cap

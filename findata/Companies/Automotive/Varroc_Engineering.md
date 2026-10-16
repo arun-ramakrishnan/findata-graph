@@ -36,10 +36,10 @@ Varroc Engineering Limited is a leading automotive component manufacturer specia
 - **Industry**: Auto Parts
 - **Employees**: 5,372
 - **Promoter Holding**: 75.0%
-- **Institutional Holding**: 12.8%
+- **Institutional Holding**: 12.2%
 - **Business Summary**: Varroc Engineering Limited provides aftermarket automotive components and solutions in India, the Asia Pacific, Europe, North America, and internationally. It operates through Automotive and Others segments. The company offers internal combustion engine parts; electrical vehicle products, such as…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Industry Classification
 - **Sector**: Automotive Components

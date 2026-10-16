@@ -112,11 +112,11 @@ company's portfolio since 2005-2006 and is now being scaled up with renewed focu
 
 - **Industry**: Household & Personal Products
 - **Employees**: 2,970
-- **Promoter Holding**: 69.1%
+- **Promoter Holding**: 70.8%
 - **Institutional Holding**: 15.2%
 - **Business Summary**: Jyothy Labs Limited, together with its subsidiaries, manufactures and markets fabric care, dishwashing, personal care, and household insecticides products in India and internationally. It operates through Dishwashing, Fabric Care, Household Insecticides, Personal Care, and Others segments. The Di…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## The Chatter — Infosys, Adani, Tata Motors, Canara & More
 

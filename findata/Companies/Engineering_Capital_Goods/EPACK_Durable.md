@@ -60,11 +60,12 @@ EPACK Durable Ltd. is an OEM/ODM manufacturer of consumer durables, best known a
 ## Company Profile (yfinance)
 
 - **Industry**: Furnishings, Fixtures & Appliances
+- **Employees**: 995
 - **Promoter Holding**: 52.5%
 - **Institutional Holding**: 5.1%
-- **Business Summary**: EPACK Durable Limited manufactures original design of room air conditioners in India. The company provides window air conditioners, window inverter air conditioners, indoor units, and outdoor units; small domestic appliances, including induction cooktops, mixer-grinders, air fryers, nutri blender…
+- **Business Summary**: EPACK Durable Limited manufactures original design of room air conditioners in India. The company provides window air conditioners, window inverter air conditioners, indoor units, and outdoor units; small domestic appliances, including induction cooktops, mixer-grinders, air fryers, vacuum cleane…
 
-_Source: yfinance | Refreshed: 2026-08-15_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## The Chatter — Bosch Amara Zydus
 

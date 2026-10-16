@@ -3,6 +3,7 @@ title: LT Foods
 type: company
 ticker: LTFOODS.NS
 sector: FMCG
+industry: Packaged Foods
 market_cap: mid_cap
 normalized_name: LT_Foods
 permalink: /companies/fmcg/lt_foods
@@ -38,6 +39,19 @@ Packaged rice and foods company (Daawat).
 
 *Stub node — created as a graph endpoint. Expand as additional primary research accumulates.*
 
+
+<!-- BEGIN auto company profile (enrich_from_yfinance.py) -->
+
+## Company Profile (yfinance)
+
+- **Industry**: Packaged Foods
+- **Employees**: 1,327
+- **Promoter Holding**: 61.6%
+- **Institutional Holding**: 16.0%
+- **Business Summary**: LT Foods Limited, a fast-moving consumer goods company, engages in the specialty rice and rice-based food business in India, the United States, Europe, the Middle East, and internationally. It provides basmati and other specialty rice; organic food and ingredients; and ready to eat and ready-to-c…
+
+_Source: yfinance | Refreshed: 2026-10-16_
+<!-- END auto company profile -->
 <!-- BEGIN auto key figures (derive_insights.py) -->
 
 ## Key Figures (auto)

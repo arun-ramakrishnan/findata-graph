@@ -38,9 +38,9 @@ Bharat Gears Limited (incorporated 1971; headquartered in Mumbai) manufactures a
 - **Employees**: 1,107
 - **Promoter Holding**: 56.5%
 - **Institutional Holding**: 1.2%
-- **Business Summary**: Bharat Gears Limited manufactures and supplies automotive gear in India, the United States, Mexico, Spain, and internationally. The company offers gear products, such as ring gears, pinions, transmission gears, shafts, differential gears, and bevel gears; automotive components, including automoti…
+- **Business Summary**: Bharat Gears Limited manufactures and supplies automotive gear in India, the United States, Mexico, Spain, and internationally. The company provides gear products, such as ring gears, pinions, transmission gears, shafts, differential gears, and bevel gears; automotive components, including automo…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Financial Profile (Yahoo Finance, Jun 2026)
 

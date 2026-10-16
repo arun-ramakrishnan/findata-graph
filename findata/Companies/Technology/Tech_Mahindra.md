@@ -128,11 +128,11 @@ Tech Mahindra's strong AI-led deal momentum and diversified vertical mix positio
 
 - **Industry**: Information Technology Services
 - **Employees**: 146,760
-- **Promoter Holding**: 37.0%
+- **Promoter Holding**: 37.1%
 - **Institutional Holding**: 44.1%
 - **Business Summary**: Tech Mahindra Limited provides information technology services and solutions in India, the Americas, Europe, and internationally. The company offers TechM AppGinieZ, a software development lifecycle acceleration platform; Swifter.io, a software engineering platform; ADMSNXT Reforge, an applicatio…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## [Presentation]
 

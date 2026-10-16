@@ -63,12 +63,12 @@ Jubilant Foodworks Limited is India's largest food service company and the maste
 ## Company Profile (yfinance)
 
 - **Industry**: Restaurants
-- **Employees**: 25,780
+- **Employees**: 11,504
 - **Promoter Holding**: 40.7%
-- **Institutional Holding**: 43.8%
-- **Business Summary**: Jubilant FoodWorks Limited, together with its subsidiaries, engages in food service business in India, Turkey, Bangladesh, Sri Lanka, Azerbaijan, Nepal, and Georgia. The company operates quick service restaurants under the Domino's, Dunkin', Popeyes, Hong's Kitchen, and COFFY brands. It also enga…
+- **Institutional Holding**: 44.9%
+- **Business Summary**: Jubilant FoodWorks Limited, together with its subsidiaries, engages in food service business in India, Turkey, Bangladesh, Sri Lanka, Azerbaijan, and Georgia. The company operates quick service restaurants under the Domino's, Dunkin', Popeyes, Hong's Kitchen, and COFFY brands. It also engages in …
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 
 <!-- BEGIN auto key figures (derive_insights.py) -->

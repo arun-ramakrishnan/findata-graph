@@ -2,8 +2,13 @@
 type: newsletter
 title: 'The Chatter: TCS, Maruti Suzuki, PB Fintech (Policybazaar) & More'
 tags:
-- series/the_chatter
+- company/fusion_cx
+- company/jm_financial
+- company/maruti_suzuki_india
+- company/pb_fintech
+- company/tata_consultancy_services
 - publisher/zerodha
+- series/the_chatter
 generated:
   by: pdf_conv_md.py/pymupdf4llm-1.28.2
   at: '2026-10-10T07:24:16Z'
@@ -13,6 +18,7 @@ sources:
   title: 'The Chatter: TCS, Maruti Suzuki, PB Fintech (Policybazaar) & More'
   author: process:pdf_conv_md
   last_modified: '2026-10-09'
+---
 ---
 
 10/9/26, 8:21 PM The Chatter: TCS, Maruti Suzuki, PB Fintech (Policybazaar) & More

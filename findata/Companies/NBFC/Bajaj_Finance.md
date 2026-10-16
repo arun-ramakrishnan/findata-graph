@@ -58,10 +58,10 @@ Bajaj Finance is a leading NBFC (Non-Banking Financial Company) in India, offeri
 - **Industry**: Credit Services
 - **Employees**: 71,613
 - **Promoter Holding**: 56.5%
-- **Institutional Holding**: 27.0%
+- **Institutional Holding**: 28.0%
 - **Business Summary**: Bajaj Finance Limited operates as a deposit-taking non-banking financial company in India. The company offers financing for various products, such as consumer electronics, furniture, digital products, lifestyle products, lifecare services, e-commerce purchases, retail spends, and two and three-wh…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Business Operations
 

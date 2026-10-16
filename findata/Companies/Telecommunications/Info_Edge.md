@@ -62,12 +62,12 @@ Info Edge (India) Limited operates as an online classifieds company in the areas
 ## Company Profile (yfinance)
 
 - **Industry**: Internet Content & Information
-- **Employees**: 5,878
-- **Promoter Holding**: 47.4%
-- **Institutional Holding**: 39.4%
+- **Employees**: 5,961
+- **Promoter Holding**: 47.1%
+- **Institutional Holding**: 36.4%
 - **Business Summary**: Info Edge (India) Limited operates as an online classifieds company in the areas of recruitment, matrimony, real estate, and education and related services in India and internationally. It operates through Recruitment Solutions, 99acres for Real Estate, and Other segments. The company provides re…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Key Personnel
 - Mr. Hitesh Oberoi: Co-Promoter, MD, CEO & Director

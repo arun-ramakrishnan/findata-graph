@@ -103,10 +103,10 @@ An open business impact AI platform that delivers secure, decision-grade intelli
 - **Industry**: Software - Application
 - **Employees**: 6,876
 - **Promoter Holding**: 43.5%
-- **Institutional Holding**: 14.6%
+- **Institutional Holding**: 14.8%
 - **Business Summary**: Intellect Design Arena Limited engages in the development, marketing, and sale of integrated banking software systems in India and internationally. It is also involved in supporting the implementation of the systems; and provides help desk support services to users of intellect software systems. …
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Market Position
 

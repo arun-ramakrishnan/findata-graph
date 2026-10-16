@@ -35,6 +35,19 @@ sources:
 
 Kansai Nerolac Paints (KNPL) is a leading Indian paint company offering decorative and industrial coating solutions, with product lines catering to both segments and aligning with changing customer needs.
 
+
+<!-- BEGIN auto company profile (enrich_from_yfinance.py) -->
+
+## Company Profile (yfinance)
+
+- **Industry**: Specialty Chemicals
+- **Employees**: 3,804
+- **Promoter Holding**: 74.9%
+- **Institutional Holding**: 10.5%
+- **Business Summary**: Kansai Nerolac Paints Limited engages in the manufacture and supply paints, varnishes, enamels, and lacquers in India. It provides interior and exterior wall paints, wood coatings, metal enamel paints, and ancillary paints, as well as adhesives and waterproofing products; interior textures; gener…
+
+_Source: yfinance | Refreshed: 2026-10-16_
+<!-- END auto company profile -->
 <!-- BEGIN auto key figures (derive_insights.py) -->
 
 ## Key Figures (auto)

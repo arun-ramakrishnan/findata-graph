@@ -42,6 +42,19 @@ sources:
 
 Aurobindo Pharma Limited is a leading Indian pharmaceutical company focused on generic formulations, active pharmaceutical ingredients (APIs), and biosimilars. The company operates across regulated markets including the US, Europe, and emerging markets, with a strong presence in injectables and specialty products.
 
+
+<!-- BEGIN auto company profile (enrich_from_yfinance.py) -->
+
+## Company Profile (yfinance)
+
+- **Industry**: Drug Manufacturers - Specialty & Generic
+- **Employees**: 29,209
+- **Promoter Holding**: 54.8%
+- **Institutional Holding**: 29.2%
+- **Business Summary**: Aurobindo Pharma Limited, a pharmaceutical company, develops, manufactures, and commercializes generic pharmaceuticals in India, the United States, Europe, and internationally. The company manufactures a range of finished formulation products in various forms, such as oral solids, liquids, inject…
+
+_Source: yfinance | Refreshed: 2026-10-16_
+<!-- END auto company profile -->
 <!-- BEGIN auto key figures (derive_insights.py) -->
 
 ## Key Figures (auto)

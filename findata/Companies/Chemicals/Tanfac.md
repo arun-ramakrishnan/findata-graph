@@ -37,9 +37,10 @@ Chennai-based fluorine chemicals manufacturer (BSE: TANFACIND). Products include
 ## Company Profile (yfinance)
 
 - **Industry**: Specialty Chemicals
-- **Promoter Holding**: 70.7%
-- **Institutional Holding**: 1.9%
-- **Business Summary**: Tanfac Industries Limited produces and sells fluorine chemicals in India. The company provides anhydrous and dilute hydrofluoric and sulphuric acid, oleum, aluminium and potassium fluoride, potassium bifluoride, boron trifluoride complexes, calcium sulphate, isobutyl acetophenone, acetic, peracet…
+- **Employees**: 191
+- **Promoter Holding**: 69.3%
+- **Institutional Holding**: 1.6%
+- **Business Summary**: Tanfac Industries Limited manufactures and sells fluorine chemicals in India. The company provides anhydrous hydrofluoric acid, dilute hydrofluoric acid (DHF), solar-grade DHF, potassium fluoride, potassium bifluoride, boron trifluoride complexes, aluminium fluoride, sulphuric acid and oleum, sod…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->

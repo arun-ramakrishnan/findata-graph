@@ -41,10 +41,10 @@ JM Financial Limited is a leading diversified financial services company in Indi
 - **Industry**: Capital Markets
 - **Employees**: 5,250
 - **Promoter Holding**: 24.6%
-- **Institutional Holding**: 48.8%
+- **Institutional Holding**: 50.1%
 - **Business Summary**: JM Financial Limited, together with its subsidiaries, provides various integrated and diversified financial services to corporations, financial institutions, government organizations, high net-worth individuals, and retail customers in India and internationally. It operates through Corporate Advi…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Business Segments
 

@@ -38,11 +38,12 @@ Entertainment Network (India) Ltd is one of the leading entertainment and media 
 ## Company Profile (yfinance)
 
 - **Industry**: Broadcasting
+- **Employees**: 789
 - **Promoter Holding**: 74.3%
 - **Institutional Holding**: 8.1%
-- **Business Summary**: Entertainment Network (India) Limited, together with its subsidiary, operates FM radio broadcasting stations in India and internationally. The company operates radio stations under the Mirchi, Radio Mirchi, Mirchi 95, Mirchi Plus, Mirchi Love, and Kool FM brand names. It also operates Gaana, a mu…
+- **Business Summary**: Entertainment Network (India) Limited, together with its subsidiary, operates FM radio broadcasting stations in India and internationally. The company operates radio channels, including radio mirchi, mirchi 95, mirchi love, and kool fm. It also operates Gaana, a music streaming platform that prov…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Business Segments
 - Radio Broadcasting

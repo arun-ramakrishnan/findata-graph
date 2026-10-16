@@ -59,11 +59,12 @@ Dalmia Bharat Limited is a prominent cement company in India known for its innov
 ## Company Profile (yfinance)
 
 - **Industry**: Confectioners
+- **Employees**: 2,232
 - **Promoter Holding**: 83.4%
 - **Institutional Holding**: 0.3%
 - **Business Summary**: Dalmia Bharat Sugar and Industries Limited engages in the sugar business in India and internationally. It operates through Sugar, Distillery, and Others segments. The company offers refined sugar and double sulphitation sugars; alcohol-based hand sanitizers; and sulphur free white crystal sugar a…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 
 <!-- BEGIN auto key figures (derive_insights.py) -->

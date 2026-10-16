@@ -36,11 +36,12 @@ DSM Fresh Foods is an online brand specializing in fresh meat and ready-to-cook/
 ## Company Profile (yfinance)
 
 - **Industry**: Food Distribution
+- **Employees**: 72
 - **Promoter Holding**: 52.0%
 - **Institutional Holding**: 0.0%
-- **Business Summary**: DSM Fresh Foods Limited operates as a meat and ready-to-cook/eat non-vegetarian and frozen vegetarian snacks products retailer in India. Its products include chicken, mutton, and sea food products. The company sells its products through online under the Zappfresh brand. DSM Fresh Foods Limited wa…
+- **Business Summary**: DSM Fresh Foods Limited manufactures and sells fresh and processed meat products, seafood, and value-added food items in India. The company's product categories include fresh chicken, mutton, fish and seafood, pre-marinated ready-to-cook selections, heat-and-eat snacks, kebabs, cold cuts, and a r…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Key Insights (Points & Figures #22)
 

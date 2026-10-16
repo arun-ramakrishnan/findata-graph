@@ -3,6 +3,7 @@ title: Godrej Properties
 type: company
 ticker: GODREJPROP.NS
 sector: Real_Estate
+industry: Real Estate - Development
 market_cap: mid_cap
 normalized_name: Godrej_Properties
 permalink: /companies/real_estate/godrej_properties
@@ -38,6 +39,19 @@ Godrej-group real-estate developer.
 
 *Stub node — created as a graph endpoint. Expand as additional primary research accumulates.*
 
+
+<!-- BEGIN auto company profile (enrich_from_yfinance.py) -->
+
+## Company Profile (yfinance)
+
+- **Industry**: Real Estate - Development
+- **Employees**: 5,124
+- **Promoter Holding**: 57.6%
+- **Institutional Holding**: 24.3%
+- **Business Summary**: Godrej Properties Limited, together with its subsidiaries, engages primarily in the business of real estate construction, development, hospitality, and other related activities in India. It develops residential and commercial projects. Godrej Properties Limited was incorporated in 1985 and is hea…
+
+_Source: yfinance | Refreshed: 2026-10-16_
+<!-- END auto company profile -->
 <!-- BEGIN auto chatter block (derive_insights.py) -->
 
 ## The Chatter — Risks Rewards and Revelations

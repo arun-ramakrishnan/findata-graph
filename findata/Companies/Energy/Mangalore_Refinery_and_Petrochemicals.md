@@ -40,10 +40,10 @@ Mangalore Refinery and Petrochemicals Limited (MRPL) is a subsidiary of Oil and 
 - **Industry**: Oil & Gas Refining & Marketing
 - **Employees**: 2,450
 - **Promoter Holding**: 90.0%
-- **Institutional Holding**: 1.3%
-- **Business Summary**: Mangalore Refinery and Petrochemicals Limited engages in the manufacture and sale of refined petroleum products in India. The company produces and sells bitumen, Xylol, high speed diesel, xylol, pet coke, sulphur, and motor gasoline, as well as polypropylene and other products. It also sells petr…
+- **Institutional Holding**: 2.1%
+- **Business Summary**: Mangalore Refinery and Petrochemicals Limited engages in refining of crude oil in India and internationally. The company offers bitumen, high speed diesel, MS, Xylol, PetCoke, Sulphur, paraxylene, benzene, heavy aromatics, paraffinic raffinate, reformate, toluene, mineral turpentine oil, and othe…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Strategic Context
 

@@ -46,11 +46,11 @@ Onward Technologies Limited operates as a software and technology services outso
 
 - **Industry**: Information Technology Services
 - **Employees**: 2,359
-- **Promoter Holding**: 61.9%
+- **Promoter Holding**: 62.0%
 - **Institutional Holding**: 1.5%
 - **Business Summary**: Onward Technologies Limited operates as a software and technology services outsourcing company India, the United States, Europe, Canada, and the United Kingdom, and internationally. The company offers digital and engineering research and development services for original equipment manufacturers (…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Key Metrics
 

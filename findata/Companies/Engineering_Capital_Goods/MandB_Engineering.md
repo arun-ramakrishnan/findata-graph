@@ -3,6 +3,7 @@ title: M&B Engineering
 type: company
 ticker: MBEL.NS
 sector: Engineering_Capital_Goods
+industry: Engineering & Construction
 market_cap: small_cap
 normalized_name: MandB_Engineering
 permalink: /companies/engineering_capital_goods/mandb_engineering
@@ -34,6 +35,19 @@ Engineering and fabrication company; details pending verification.
 
 *Stub node — created as a graph endpoint. Expand as additional primary research accumulates.*
 
+
+<!-- BEGIN auto company profile (enrich_from_yfinance.py) -->
+
+## Company Profile (yfinance)
+
+- **Industry**: Engineering & Construction
+- **Employees**: 1,631
+- **Promoter Holding**: 70.7%
+- **Institutional Holding**: 7.3%
+- **Business Summary**: M & B Engineering Limited, an engineering company, engages in the design, manufacturing, and installation of pre-engineered metal buildings, self-supported steel roofing, and complex steel components. The company manufactures structural steel components for projects, including construction of bri…
+
+_Source: yfinance | Refreshed: 2026-10-16_
+<!-- END auto company profile -->
 <!-- BEGIN auto chatter block (derive_insights.py) -->
 
 ## The Chatter — Underneath the Noise

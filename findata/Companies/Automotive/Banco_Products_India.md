@@ -35,11 +35,12 @@ Banco Products (India) Limited manufactures heat exchangers/cooling systems and 
 ## Company Profile (yfinance)
 
 - **Industry**: Auto Parts
+- **Employees**: 722
 - **Promoter Holding**: 70.0%
-- **Institutional Holding**: 1.3%
+- **Institutional Holding**: 1.2%
 - **Business Summary**: Banco Products (India) Limited, together with its subsidiaries, engages in the manufacture and sale of heat exchangers/cooling systems in India and internationally. The company offers engine cooling systems, such as radiators, charge air coolers, oil coolers, transmission and hydraulic type, cond…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Financial Profile (Yahoo Finance, Jun 2026)
 

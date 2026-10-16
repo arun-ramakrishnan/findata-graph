@@ -43,11 +43,11 @@ Leading DevSecOps platform providing comprehensive software development lifecycl
 
 - **Industry**: Software - Infrastructure
 - **Employees**: 2,580
-- **Promoter Holding**: 3.5%
-- **Institutional Holding**: 84.9%
+- **Promoter Holding**: 2.2%
+- **Institutional Holding**: 90.6%
 - **Business Summary**: GitLab Inc., together with its subsidiaries, develops software for the software development lifecycle in the United States, Europe, and the Asia Pacific. The company provides GitLab, an intelligent orchestration platform for DevSecOps, which is a single application offering the entire software de…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Key Information
 - **Company Name**: GitLab Inc.

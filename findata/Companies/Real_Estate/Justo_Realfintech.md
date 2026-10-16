@@ -3,7 +3,7 @@ title: Justo Realfintech
 type: company
 ticker: JUSTO.BO
 sector: Real_Estate
-industry: null
+industry: Real Estate Services
 market_cap: micro_cap
 normalized_name: Justo_Realfintech
 file_path: findata/Companies/Real_Estate/Justo_Realfintech.md
@@ -30,6 +30,19 @@ stale_after: '2026-12-21'
 
 Justo Realfintech is a technology-driven real estate service provider that partners with developers to strategize and execute marketing, sales, digital solutions, home loans, and CRM for real estate projects, focused on Western India.
 
+
+<!-- BEGIN auto company profile (enrich_from_yfinance.py) -->
+
+## Company Profile (yfinance)
+
+- **Industry**: Real Estate Services
+- **Employees**: 289
+- **Promoter Holding**: 50.2%
+- **Institutional Holding**: 6.8%
+- **Business Summary**: Justo Realfintech Limited provides real estate services in India. The company offers technology-focused strategy, marketing, sales, and real estate services in the design and development of customized delivery models. Justo Realfintech Limited was incorporated in 2019 and is headquartered in Mumb…
+
+_Source: yfinance | Refreshed: 2026-10-16_
+<!-- END auto company profile -->
 ## Key Insights (Points & Figures #22)
 
 - Operates two revenue models: Direct (gross % of sales incl. CP fees) and Net (net % with developers paying CPs directly); developers bear marketing costs in both

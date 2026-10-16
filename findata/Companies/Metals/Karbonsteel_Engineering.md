@@ -60,9 +60,9 @@ The company serves diverse sectors:
 - **Industry**: Metal Fabrication
 - **Promoter Holding**: 74.1%
 - **Institutional Holding**: 1.8%
-- **Business Summary**: Karbonsteel Engineering Limited engages in the design, manufacture, fabrication, and assembly of heavy and precision steel structures in India. The company provides structural engineering and fabrication solutions in various sectors, including steel plants, railway bridges, oil and gas plants, re…
+- **Business Summary**: Karbonsteel Engineering Limited engages in the design, manufacture, fabrication, and assembly of heavy and precision steel structures for industrial and infrastructure sectors in India. The company provides structural engineering and fabrication solutions in various sectors, including steel plant…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Market Dynamics
 

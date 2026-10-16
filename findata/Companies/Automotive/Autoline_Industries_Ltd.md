@@ -39,11 +39,12 @@ Autoline Industries Limited specializes in the manufacturing of sheet metal comp
 ## Company Profile (yfinance)
 
 - **Industry**: Auto Parts
+- **Employees**: 1,047
 - **Promoter Holding**: 53.8%
 - **Institutional Holding**: 0.0%
-- **Business Summary**: Autoline Industries Limited manufactures and sells sheet metal stampings, welded assemblies, and molds for the automotive industries in India. The company offers small mechanical assemblies, including pedal boxes, parking brakes, door hinges, cab stay and cab tilt assemblies, and battery brackets…
+- **Business Summary**: Autoline Industries Limited manufactures and sells sheet metal stampings, welded assemblies, and molds for the automotive industries in India and internationally. The company offers small mechanical assemblies, including pedal boxes, parking brakes, door hinges, cab stay and cab tilt assemblies, …
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Product Portfolio
 

@@ -48,11 +48,11 @@ Raymond Lifestyle, formerly known as Raymond Consumer Care, is a leading Fashion
 
 - **Industry**: Apparel Manufacturing
 - **Employees**: 15,258
-- **Promoter Holding**: 64.0%
-- **Institutional Holding**: 7.6%
+- **Promoter Holding**: 65.2%
+- **Institutional Holding**: 7.4%
 - **Business Summary**: Raymond Lifestyle Limited manufactures and sells branded apparel in India. The company offers branded apparel under the Raymond, Park Avenue, ColorPlus, Parx, and Ethnix by Raymond brands; suiting fabric under Raymond Fine Fabrics brand; cotton and linen shirting, and bottom-weight textiles; and …
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 Key Insights
 

@@ -46,11 +46,12 @@ It operates through three segments: **Cash Management Services**, **Managed Serv
 ## Company Profile (yfinance)
 
 - **Industry**: Specialty Business Services
+- **Employees**: 9,671
 - **Promoter Holding**: 7.7%
-- **Institutional Holding**: 50.3%
-- **Business Summary**: CMS Info Systems Limited, together with its subsidiaries, provides cash management and managed services in India. It operates in three segments: Cash Management Services, Managed Services, and Cards. The company offers cash management services comprising ATM cash management services, such as cash…
+- **Institutional Holding**: 46.4%
+- **Business Summary**: CMS Info Systems Limited, together with its subsidiaries, provides cash management and managed services in India. It operates in three segments: Cash Management Services, Managed Services, and Card. The Cash Management Services segment offers ATM cash management services, retail cash management s…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Financial Profile (Yahoo Finance, Jun 2026)
 

@@ -46,10 +46,10 @@ Shree Cement Limited manufactures and sells cement and clinker in India and inte
 - **Industry**: Building Materials
 - **Employees**: 7,157
 - **Promoter Holding**: 72.8%
-- **Institutional Holding**: 21.3%
+- **Institutional Holding**: 20.3%
 - **Business Summary**: Shree Cement Limited engages in the manufacture and sale of cement and clinker in India and internationally. The company provides ordinary Portland, Portland pozzolana, Portland slag, and composite cements. It also produces ready mix concrete, as well as aerated autoclaved concrete blocks, a ligh…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Financial Profile (Yahoo Finance, Jun 2026)
 

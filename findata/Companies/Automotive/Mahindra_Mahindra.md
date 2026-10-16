@@ -90,6 +90,19 @@ Mahindra Mahindra Limited (M&M) is a prominent Indian automobile manufacturing c
 
 <!-- END auto key figures -->
 
+
+<!-- BEGIN auto company profile (enrich_from_yfinance.py) -->
+
+## Company Profile (yfinance)
+
+- **Industry**: Auto Manufacturers
+- **Employees**: 26,765
+- **Promoter Holding**: 25.2%
+- **Institutional Holding**: 53.4%
+- **Business Summary**: Mahindra & Mahindra Limited provides mobility products and farm solutions in India and internationally. It operates through Automotive; Farm Equipment; Auto Investments; Farm Investments; and Investments in Industrial Businesses and Consumer Services segments. The Automotive segment provides auto…
+
+_Source: yfinance | Refreshed: 2026-10-16_
+<!-- END auto company profile -->
 <!-- BEGIN auto chatter block (derive_insights.py) -->
 
 ## The Chatter — Decoding the Dialogue

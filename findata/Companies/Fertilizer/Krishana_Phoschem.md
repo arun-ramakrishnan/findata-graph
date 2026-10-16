@@ -75,10 +75,10 @@ India's nutrient use is skewed to nitrogen – driving a structural push toward 
 - **Industry**: Agricultural Inputs
 - **Employees**: 370
 - **Promoter Holding**: 0.0%
-- **Institutional Holding**: 0.0%
+- **Institutional Holding**: 0.1%
 - **Business Summary**: Krishana Phoschem Limited engages in the manufacturing, Distribution, sales, and marketing of fertilizers and chemicals under the Annadata and Bharat brands in India. It provides single super phosphate (SSP), benefited rock phosphate, di-ammonium phosphate (DAP) / nitrogen, phosphorus, and potass…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Strategic Positioning
 

@@ -58,10 +58,10 @@ Britannia Industries Limited is one of India's leading food products companies w
 - **Industry**: Packaged Foods
 - **Employees**: 5,682
 - **Promoter Holding**: 51.2%
-- **Institutional Holding**: 25.2%
+- **Institutional Holding**: 24.9%
 - **Business Summary**: Britannia Industries Limited engages in manufacturing, trading, and sale of various food products in India and internationally. The company offers biscuits under the Good Day, Marie Gold, NutriChoice, Milk Bikis, Tiger, 50-50, Jim Jam, Britannia Bourbon, Little Hearts, Treat, Pure Magic, Nice Tim…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Business Model
 - Manufacturing and distribution of bakery products

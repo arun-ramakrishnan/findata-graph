@@ -46,11 +46,12 @@ Kalyan Jewellers India Limited, founded in 1993 and headquartered in Thrissur, i
 ## Company Profile (yfinance)
 
 - **Industry**: Luxury Goods
+- **Employees**: 14,668
 - **Promoter Holding**: 62.9%
-- **Institutional Holding**: 22.5%
-- **Business Summary**: Kalyan Jewellers India Limited, together with its subsidiaries, engages in the manufacture and retail of various gold and precious stone studded jewelry products. It offers gold, diamond, silver, platinum, gemstone, and white and rose gold jewelries, including wedding, staple regional, aspiration…
+- **Institutional Holding**: 20.8%
+- **Business Summary**: Kalyan Jewellers India Limited, together with its subsidiaries, engages in the manufacture and retail of various gold and precious stone studded jewelry products in India, the Middle East, the United states of America, and United Kingdom, and internationally. It offers gold, diamond, silver, plat…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Financial Profile (Yahoo Finance, Jun 2026)
 - Market cap: ₹38,857 cr | Enterprise value: ₹44,226 cr

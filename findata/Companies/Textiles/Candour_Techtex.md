@@ -48,11 +48,12 @@ Growth is anchored in rising demand for blackout coatings, expanding laminatic c
 ## Company Profile (yfinance)
 
 - **Industry**: Specialty Industrial Machinery
-- **Promoter Holding**: 51.1%
+- **Employees**: 10
+- **Promoter Holding**: 50.4%
 - **Institutional Holding**: 0.0%
 - **Business Summary**: Candour Techtex Limited engages in the manufacture and trading of textiles, plastics, and other items in India. The company operates through the Textile, Plastic, Trading, and Technical Textiles segments. It offers MediTech products, including contact lenses, baby diapers, sanitary napkins, surgi…
 
-_Source: yfinance | Refreshed: 2026-08-11_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Key Growth Drivers Ahead
 

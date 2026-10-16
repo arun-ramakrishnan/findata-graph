@@ -38,11 +38,11 @@ Max Estates Ltd is an Indian real estate company engaged in property development
 
 - **Industry**: Real Estate - Development
 - **Employees**: 309
-- **Promoter Holding**: 70.1%
-- **Institutional Holding**: 9.8%
+- **Promoter Holding**: 70.0%
+- **Institutional Holding**: 10.0%
 - **Business Summary**: Max Estates Limited engages in Construction and development of residential and commercial properties. The company also offers investment, facility management, managed office, and shared services. In addition, it engages in the real estate development, letting, and sub-letting; leasing, and sellin…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Business Profile
 - **Primary Industry:** Real Estate

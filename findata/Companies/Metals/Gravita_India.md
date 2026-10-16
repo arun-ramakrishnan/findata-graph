@@ -80,11 +80,12 @@ Gravita India Ltd. is a major global recycling company specializing in environme
 ## Company Profile (yfinance)
 
 - **Industry**: Metal Fabrication
-- **Promoter Holding**: 58.1%
-- **Institutional Holding**: 10.1%
-- **Business Summary**: Gravita India Limited manufactures and recycles lead metal, lead products, aluminium alloys, and plastic granules in India, the United Arab Emirates, South Korea, and internationally. It operates through Lead Processing, Aluminium Processing, Turn-Key Solutions, and Plastic Manufacturing segments…
+- **Employees**: 3,500
+- **Promoter Holding**: 59.4%
+- **Institutional Holding**: 10.8%
+- **Business Summary**: Gravita India Limited manufactures and recycles lead metal, lead products, aluminium alloys, and plastic granules in India and internationally. It operates through Lead Processing, Aluminium Processing, Turn-Key Solutions, Plastic Manufacturing, and Copper Alloys and Strips Processing segments. T…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Market Strategy
 

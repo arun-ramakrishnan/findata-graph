@@ -37,11 +37,12 @@ India is fifth-largest consumer of plastics globally, but its PET production cap
 ## Company Profile (yfinance)
 
 - **Industry**: Packaging & Containers
-- **Promoter Holding**: 67.1%
+- **Employees**: 66
+- **Promoter Holding**: 66.9%
 - **Institutional Holding**: 0.0%
 - **Business Summary**: Swashthik Plascon Limited imports, exports, manufactures, deals, sells, and buys various kinds of plastic raw materials, products, and related machinery in India. The company offers PET, HDPE, LDPE, granules, plastic polymers, polystyrene, PVC, nylon synthetic rubber, packaging products, plastic …
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Market Growth
 

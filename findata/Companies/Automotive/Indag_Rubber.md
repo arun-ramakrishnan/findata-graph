@@ -35,11 +35,11 @@ Indag Rubber pioneered cold retreading technology in India. The company offers a
 
 - **Industry**: Auto Parts
 - **Employees**: 275
-- **Promoter Holding**: 81.7%
+- **Promoter Holding**: 80.6%
 - **Institutional Holding**: 0.0%
 - **Business Summary**: Indag Rubber Limited manufactures and sells precured tread rubber and allied products in India and internationally. It operates through the Precured Tread Rubber and Allied Products/Services; and the Electronics Including Green Energy Storage segments. The company offers precured tread, full skir…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Key Insights (Points & Figures #21 - Roots in the Results)
 - Tyre retreading industry significantly underpenetrated but poised for strong growth.

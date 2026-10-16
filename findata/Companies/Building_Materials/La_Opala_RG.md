@@ -38,11 +38,11 @@ The company sells its products through a network of distributors and retailers a
 
 - **Industry**: Furnishings, Fixtures & Appliances
 - **Employees**: 727
-- **Promoter Holding**: 66.7%
-- **Institutional Holding**: 19.7%
-- **Business Summary**: La Opala RG Limited manufactures, markets, and sells glass and glassware products in India and internationally. Its opal glass tableware products include plates, bowls, dinner sets, cup and saucer sets, coffee mugs and cups, tea and soup sets, dessert sets, etc.; and crystalware products consists…
+- **Promoter Holding**: 67.0%
+- **Institutional Holding**: 18.1%
+- **Business Summary**: La Opala RG Limited manufactures, markets, and sells glass and glassware products in India and internationally. Its opal glass tableware products include plates, bowls, dinner sets, cup and saucer sets, coffee mugs and cups, tea and soup sets, dessert sets, etc., as well as crystalware, such as b…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Financial Profile (Yahoo Finance, Jun 2026)
 

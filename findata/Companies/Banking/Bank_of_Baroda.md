@@ -46,6 +46,19 @@ sources:
 
 Bank of Baroda (BoB) is a leading Indian public sector banking and financial services company headquartered in Vadodara, Gujarat. Founded by Maharaja Sayajirao Gaekwad in July 1908, the bank has grown into a major international banking institution serving personal, corporate, international, and NRI customers.
 
+
+<!-- BEGIN auto company profile (enrich_from_yfinance.py) -->
+
+## Company Profile (yfinance)
+
+- **Industry**: Banks - Regional
+- **Employees**: 76,693
+- **Promoter Holding**: 66.5%
+- **Institutional Holding**: 20.5%
+- **Business Summary**: Bank of Baroda Limited provides various banking products and services to individuals, government departments, and corporate customers in India and internationally. It operates through Treasury, Wholesale Banking, Retail Banking, and Other Banking Operations segments. The company offers savings, s…
+
+_Source: yfinance | Refreshed: 2026-10-16_
+<!-- END auto company profile -->
 <!-- BEGIN auto key figures (derive_insights.py) -->
 
 ## Key Figures (auto)

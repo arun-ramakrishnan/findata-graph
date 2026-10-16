@@ -43,11 +43,11 @@ APAR Industries Limited engages in the electrical and metallurgical engineering 
 ## Company Profile (yfinance)
 
 - **Industry**: Electrical Equipment & Parts
-- **Promoter Holding**: 58.0%
-- **Institutional Holding**: 28.3%
+- **Promoter Holding**: 55.7%
+- **Institutional Holding**: 28.8%
 - **Business Summary**: APAR Industries Limited engages in the electrical and metallurgical engineering business in India and internationally. It operates through Conductor, Transformer & Specialties Oils, Power/Telecom Cables, and Others segments. The company offers transformer oils, including naphthenic and iso--paraf…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Key Metrics & Financials (INR)
 - **Market Cap:** ₹370.77B

@@ -56,10 +56,10 @@ Schaeffler India is a leading manufacturer of high-precision automotive componen
 - **Industry**: Auto Parts
 - **Employees**: 3,120
 - **Promoter Holding**: 74.3%
-- **Institutional Holding**: 17.9%
+- **Institutional Holding**: 18.5%
 - **Business Summary**: Schaeffler India Limited engages in the development, manufacture, and distribution of high-precision roller and ball bearings, and related components in India and internationally. The company operates in two segments, Mobility Components and Related Solutions; and Others. It offers ball, plain, a…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Business Description
 - **Automotive Components:** Manufacturing of precision automotive components and systems

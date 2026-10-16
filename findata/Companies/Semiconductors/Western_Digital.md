@@ -41,11 +41,12 @@ Western Digital Corporation (NASDAQ: WDC) develops, manufactures, and sells data
 ## Company Profile (yfinance)
 
 - **Industry**: Computer Hardware
-- **Promoter Holding**: 0.6%
-- **Institutional Holding**: 99.4%
-- **Business Summary**: Western Digital Corporation develops, manufactures, and sells data storage devices and solutions based on hard disk drive (HDD) technology in the United States, Asia, Europe, the Middle East, and Africa. The company offers internal HDDs, data center drives, data center platforms, external drives,…
+- **Employees**: 40,000
+- **Promoter Holding**: 0.3%
+- **Institutional Holding**: 88.9%
+- **Business Summary**: Western Digital Corporation engages in the development, manufacture, and sale of data storage devices and solutions based on hard disk drive (HDD) technology in the United States, Asia, Europe, the Middle East, and Africa. The company offers internal HDDs, data center drives, data center platform…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Business Overview
 

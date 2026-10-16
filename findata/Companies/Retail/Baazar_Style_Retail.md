@@ -40,11 +40,12 @@ Baazar Style Retail Limited is an Indian public company specializing in retailin
 ## Company Profile (yfinance)
 
 - **Industry**: Apparel Retail
-- **Promoter Holding**: 62.7%
-- **Institutional Holding**: 6.9%
+- **Employees**: 4,132
+- **Promoter Holding**: 63.9%
+- **Institutional Holding**: 3.9%
 - **Business Summary**: Baazar Style Retail Limited engages in the retail of various apparel and non-apparel consumer products in India. It offers topwear, ethnic wear, bottomwear, and nightwear for women, and for boys and girls; shirts, t-shirts, trousers, sportswear, winter wear, and accessories for men; footwear, bag…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Business Segments
 

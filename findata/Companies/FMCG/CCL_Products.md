@@ -7,6 +7,7 @@ tags:
 - sector/fmcg
 normalized_name: CCL_Products
 sector: FMCG
+industry: Packaged Foods
 market_cap: null
 permalink: /companies/fmcg/ccl_products
 created: '2026-09-14'
@@ -31,6 +32,19 @@ sources:
 ## Company Overview
 CCL Products — auto-generated stub from newsletter parsing. To be enriched.
 
+
+<!-- BEGIN auto company profile (enrich_from_yfinance.py) -->
+
+## Company Profile (yfinance)
+
+- **Industry**: Packaged Foods
+- **Employees**: 1,336
+- **Promoter Holding**: 49.1%
+- **Institutional Holding**: 26.4%
+- **Business Summary**: CCL Products (India) Limited engages in the production, trading, and distribution of coffee and related products in India. The company offers filter, premix, instant, and flavored coffee, including spray dried coffee powder and agglomerated coffee, freeze dried coffee, freeze concentrated liquid …
+
+_Source: yfinance | Refreshed: 2026-10-16_
+<!-- END auto company profile -->
 <!-- BEGIN auto chatter block (derive_insights.py) -->
 
 ## The Chatter — Risks Rewards and Revelations

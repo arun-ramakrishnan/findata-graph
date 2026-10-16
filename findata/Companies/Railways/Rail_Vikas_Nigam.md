@@ -49,10 +49,10 @@ Rail Vikas Nigam Limited, incorporated in 2003 and headquartered in New Delhi, I
 - **Industry**: Engineering & Construction
 - **Employees**: 250
 - **Promoter Holding**: 72.8%
-- **Institutional Holding**: 8.6%
+- **Institutional Holding**: 8.2%
 - **Business Summary**: Rail Vikas Nigam Limited, together with its subsidiaries, engages in rail infrastructure works in India and internationally. The company undertakes rail project development and implementation, as well as provides financial resources mobilization services. It also executes various railway projects…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Business Operations
 The company operates across multiple segments of rail infrastructure development:

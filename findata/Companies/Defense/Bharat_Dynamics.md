@@ -71,11 +71,12 @@ Bharat Dynamics Limited (BDL) is a premier Indian defense public sector undertak
 ## Company Profile (yfinance)
 
 - **Industry**: Aerospace & Defense
+- **Employees**: 2,101
 - **Promoter Holding**: 74.9%
-- **Institutional Holding**: 11.6%
-- **Business Summary**: Bharat Dynamics Limited manufactures and sells guided missiles, underwater weapons, air-borne products, and allied defense equipment in India. It offers light and heavy-weight torpedoes, unified launcher, fagot launcher adapted to Milan equipment, Konkurs launcher test equipment, Akash and Astra …
+- **Institutional Holding**: 10.9%
+- **Business Summary**: Bharat Dynamics Limited manufactures and sells guided missiles, underwater weapons, air-borne products, and allied defense equipment in India. The company offers light weight torpedoes, Varunastra or heavy-weight torpedoes, medium-range surface-to-air missile, dishani, quick reaction surface-to-a…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Industry Context: Defense Sector
 

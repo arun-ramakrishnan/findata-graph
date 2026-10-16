@@ -102,10 +102,10 @@ Sundaram Finance is a leading financial services company providing vehicle finan
 - **Industry**: Credit Services
 - **Employees**: 5,344
 - **Promoter Holding**: 0.0%
-- **Institutional Holding**: 15.6%
+- **Institutional Holding**: 16.7%
 - **Business Summary**: Sundaram Finance Limited, together with its subsidiaries, operates as a non-banking finance company in India. The company accepts fixed, cumulative, and NRI deposits. The company also offers finance for new and used cars, new and used commercial vehicles, and new and used construction equipment; …
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Financial Performance Indicators
 - **Symbol:** SHRIRAMFIN.NS

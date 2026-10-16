@@ -38,11 +38,12 @@ The company has a well-diversified client base across real estate developers, co
 ## Company Profile (yfinance)
 
 - **Industry**: Building Products & Equipment
+- **Employees**: 143
 - **Promoter Holding**: 81.0%
 - **Institutional Holding**: 0.0%
-- **Business Summary**: Bigbloc Construction Limited, together with its subsidiaries, engages in the manufacturing, sales, and marketing of aerated autoclave concrete blocks in India. The company offers AAC wall panels, block jointing mortar, tile adhesives and gypsum plaster, and other construction chemicals. It market…
+- **Business Summary**: Bigbloc Construction Limited, together with its subsidiaries, engages in manufacturing, sales, and marketing of aerated autoclave concrete blocks in India. The company offers AAC wall panels, block jointing mortar, tile adhesives and gypsum plaster, and other construction chemicals. It markets it…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## AAC Industry Scenario: India and Global
 

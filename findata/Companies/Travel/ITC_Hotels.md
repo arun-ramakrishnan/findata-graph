@@ -36,10 +36,10 @@ ITC Hotels is part of ITC Limited, one of India's leading conglomerates. The com
 - **Industry**: Resorts & Casinos
 - **Employees**: 3,038
 - **Promoter Holding**: 46.4%
-- **Institutional Holding**: 32.2%
+- **Institutional Holding**: 31.5%
 - **Business Summary**: ITC Hotels Limited owns, operates, and manages hotels and resorts in India and internationally. The company operates under the ITC Hotels, Mementos, Storii, EPIQ Collection, Welcomhotel, Fortune Hotels, and WelcomHeritage brands. It also owns and operates golf club under the Classic Golf & Countr…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Strategic Context
 

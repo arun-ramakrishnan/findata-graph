@@ -3,7 +3,7 @@ title: Amagi Media Labs
 type: company
 ticker: AMAGI.NS
 sector: Media_Entertainment
-industry: null
+industry: Software - Application
 market_cap: small_cap
 normalized_name: Amagi_Media_Labs
 file_path: findata/Companies/Media_Entertainment/Amagi_Media_Labs.md
@@ -43,6 +43,19 @@ sources:
 
 Amagi Media Labs is a global leader in cloud-based software for media and entertainment, providing a "glass-to-glass" platform spanning content production to distribution, with focus on cloud modernization, streaming unification, and ad monetization.
 
+
+<!-- BEGIN auto company profile (enrich_from_yfinance.py) -->
+
+## Company Profile (yfinance)
+
+- **Industry**: Software - Application
+- **Employees**: 977
+- **Promoter Holding**: 25.3%
+- **Institutional Holding**: 70.4%
+- **Business Summary**: Amagi Media Labs Limited operates as a software-as-a-service company that connects media companies to their audiences through cloud-native technology in India, the United States, Europe, the Asia Pacific, and the Middle East. The company offers Cloud Modernization products, such as Amagi STUDIO, …
+
+_Source: yfinance | Refreshed: 2026-10-16_
+<!-- END auto company profile -->
 <!-- BEGIN auto key figures (derive_insights.py) -->
 
 ## Key Figures (auto)

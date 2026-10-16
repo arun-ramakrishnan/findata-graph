@@ -61,10 +61,10 @@ The sector is driven by infrastructure spending, manufacturing growth, and techn
 - **Industry**: Aerospace & Defense
 - **Employees**: 913
 - **Promoter Holding**: 52.1%
-- **Institutional Holding**: 27.7%
+- **Institutional Holding**: 25.6%
 - **Business Summary**: Cyient DLM Limited provides electronic manufacturing solutions in India, NAM, rest of the Asia-Pacific, Europe, the Middle East, and Africa. It offers integrated, electronics, mechanical, and additive manufacturing, as well as value-added services. The company also engages in the machining of com…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Competitive Landscape
 

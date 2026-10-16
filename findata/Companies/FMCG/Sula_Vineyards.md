@@ -41,10 +41,10 @@ Sula Vineyards Limited is the largest wine producer and seller in India, dominat
 - **Industry**: Beverages - Wineries & Distilleries
 - **Employees**: 713
 - **Promoter Holding**: 28.4%
-- **Institutional Holding**: 16.4%
+- **Institutional Holding**: 16.5%
 - **Business Summary**: Sula Vineyards Limited manufactures, purchases, and sells wine and other alcoholic beverages in India and internationally. It offers white, red, rosé, and sparkling wines; and spirits under the RASA, The Source, Dindori, SULA CLASSICS, and York brands. The company also owns and operates wine tour…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Key Information
 - **Entity Type**: Company

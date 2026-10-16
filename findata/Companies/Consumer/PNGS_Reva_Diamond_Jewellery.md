@@ -3,7 +3,7 @@ title: PNGS Reva Diamond Jewellery
 type: company
 ticker: PNGSREVA.BO
 sector: Consumer
-industry: null
+industry: Luxury Goods
 market_cap: small_cap
 normalized_name: PNGS_Reva_Diamond_Jewellery
 permalink: /companies/consumer/pngs_reva_diamond_jewellery
@@ -37,6 +37,19 @@ sources:
 ## Company Overview
 PNGS Reva Diamond Jewellery (BSE: PNGSREVA) is a small-cap diamond and jewellery retailer. Operates in the luxury-goods/jewellery retail segment.
 
+
+<!-- BEGIN auto company profile (enrich_from_yfinance.py) -->
+
+## Company Profile (yfinance)
+
+- **Industry**: Luxury Goods
+- **Employees**: 101
+- **Promoter Holding**: 75.3%
+- **Institutional Holding**: 4.4%
+- **Business Summary**: PNGS Reva Diamond Jewellery Limited engages in the retail of jewellery with diamond and precious and semi-precious stones. It offers rings, earrings, bracelets, sets, necklaces, mangalsutras, bangles, chains, and semi-precious jewellery. The company also engages in the trading of diamond jeweller…
+
+_Source: yfinance | Refreshed: 2026-10-16_
+<!-- END auto company profile -->
 <!-- BEGIN auto key figures (derive_insights.py) -->
 
 ## Key Figures (auto)

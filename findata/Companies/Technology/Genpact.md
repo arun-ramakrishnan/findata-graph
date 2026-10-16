@@ -3,6 +3,7 @@ title: Genpact
 type: company
 ticker: G
 sector: Technology
+industry: Information Technology Services
 market_cap: large_cap
 normalized_name: Genpact
 permalink: /companies/technology/genpact
@@ -33,6 +34,19 @@ Global professional-services and business-process company.
 
 *Stub node — created as a graph endpoint. Expand as additional primary research accumulates.*
 
+
+<!-- BEGIN auto company profile (enrich_from_yfinance.py) -->
+
+## Company Profile (yfinance)
+
+- **Industry**: Information Technology Services
+- **Employees**: 141,000
+- **Promoter Holding**: 0.6%
+- **Institutional Holding**: 112.3%
+- **Business Summary**: Genpact Limited, an agentic and advanced technology solutions company, provides digital transformation, business process management, technology, data, analytics, and artificial intelligence (AI) services to enterprises in India, the rest of Asia, North and Latin America, and Europe. Its Financial…
+
+_Source: yfinance | Refreshed: 2026-10-16_
+<!-- END auto company profile -->
 <!-- BEGIN auto chatter block (derive_insights.py) -->
 
 ## The Chatter — Short-Term Pain Long-Term Gain

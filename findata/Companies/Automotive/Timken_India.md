@@ -45,10 +45,10 @@ Timken India Limited is a leading manufacturer of engineered bearings and mechan
 - **Industry**: Tools & Accessories
 - **Employees**: 1,241
 - **Promoter Holding**: 52.4%
-- **Institutional Holding**: 33.5%
+- **Institutional Holding**: 30.5%
 - **Business Summary**: Timken India Limited manufactures, sells, and distributes tapered and other roller bearings, components, accessories, and mechanical power transmission products in India, the United States, and internationally. The company offers engineered bearing products, such as mounted, roller, energy effici…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Industry Classification
 - **Sector**: Engineering & Capital Goods

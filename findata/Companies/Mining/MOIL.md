@@ -46,11 +46,12 @@ MOIL Limited, founded in 1896 (formerly Manganese Ore India Limited, renamed 201
 ## Company Profile (yfinance)
 
 - **Industry**: Other Industrial Metals & Mining
+- **Employees**: 5,020
 - **Promoter Holding**: 64.7%
-- **Institutional Holding**: 7.9%
-- **Business Summary**: MOIL Limited engages in the exploration, development, and marketing of various grades of manganese ores in India and Internationally. It operates through three segments: Mining, Manufacturing, and Power Generation. The company manufactures and sells various grades of manganese ores, such as high-…
+- **Institutional Holding**: 6.6%
+- **Business Summary**: MOIL Limited engages in the exploration, exploitation, and marketing of various grades of manganese ores in India and Internationally. It operates through three segments: Mining, Manufacturing, and Power Generation. The company manufactures and sells various grades of manganese ores, such as high…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Financial Profile (Yahoo Finance, Jun 2026)
 - Market cap: ₹5,687 cr | Enterprise value: ₹4,963 cr

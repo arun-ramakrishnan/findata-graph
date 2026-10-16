@@ -43,11 +43,12 @@ Tribhovandas Bhimji Zaveri Limited (TBZ) is one of India's oldest jewellery hous
 ## Company Profile (yfinance)
 
 - **Industry**: Luxury Goods
+- **Employees**: 1,136
 - **Promoter Holding**: 75.2%
 - **Institutional Holding**: 0.0%
-- **Business Summary**: Tribhovandas Bhimji Zaveri Limited designs, manufactures, retails, and sells jewelry primarily in India. The company offers bangles, pendants, rings, necklaces, bracelets, earrings, coins, gold bars, and mangalsutras. It also provides products in a various style, such as gold, diamond studded, pr…
+- **Business Summary**: Tribhovandas Bhimji Zaveri Limited designs, manufactures, retails, and sells jewelry in India. The company offers bangles, pendants, rings, necklaces, bracelets, earrings, coins, and mangalsutras. It also provides products in a various style, such as gold, diamond studded, precious and semi-preci…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 ## Store Network
 

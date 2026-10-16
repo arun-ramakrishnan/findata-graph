@@ -3,6 +3,7 @@ title: Novo Nordisk
 type: company
 ticker: NVO
 sector: Pharma
+industry: Drug Manufacturers - General
 market_cap: large_cap
 normalized_name: Novo_Nordisk
 permalink: /companies/pharma/novo_nordisk
@@ -33,6 +34,19 @@ Danish pharmaceutical company focused on diabetes and obesity care.
 
 *Stub node — created as a graph endpoint. Expand as additional primary research accumulates.*
 
+
+<!-- BEGIN auto company profile (enrich_from_yfinance.py) -->
+
+## Company Profile (yfinance)
+
+- **Industry**: Drug Manufacturers - General
+- **Employees**: 66,700
+- **Promoter Holding**: 0.0%
+- **Institutional Holding**: 9.9%
+- **Business Summary**: Novo Nordisk A/S, together with its subsidiaries, engages in the research and development, manufacture, and distribution of pharmaceutical products. It operates through two segments, Obesity and Diabetes Care, and Rare Disease. The Obesity and Diabetes care segment provides products for diabetes,…
+
+_Source: yfinance | Refreshed: 2026-10-16_
+<!-- END auto company profile -->
 <!-- BEGIN auto chatter block (derive_insights.py) -->
 
 ## The Chatter — Embracing the Unknown

@@ -3,6 +3,7 @@ title: Netgear
 type: company
 ticker: NTGR
 sector: Technology
+industry: Communication Equipment
 market_cap: mid_cap
 normalized_name: Netgear
 permalink: /companies/technology/netgear
@@ -33,6 +34,19 @@ American networking-hardware company.
 
 *Stub node — created as a graph endpoint. Expand as additional primary research accumulates.*
 
+
+<!-- BEGIN auto company profile (enrich_from_yfinance.py) -->
+
+## Company Profile (yfinance)
+
+- **Industry**: Communication Equipment
+- **Employees**: 784
+- **Promoter Holding**: 4.0%
+- **Institutional Holding**: 98.1%
+- **Business Summary**: NETGEAR, Inc. provides networking technologies for businesses, homes, and service providers in the Americas, Europe, the Middle East, Africa, and the Asia Pacific. The company operates in two segments, Enterprise and Consumer. It offers Wi-Fi routers and home Wi-Fi mesh systems, Wi-Fi hotspots, b…
+
+_Source: yfinance | Refreshed: 2026-10-16_
+<!-- END auto company profile -->
 <!-- BEGIN auto chatter block (derive_insights.py) -->
 
 ## The Chatter — Sailing the Tide

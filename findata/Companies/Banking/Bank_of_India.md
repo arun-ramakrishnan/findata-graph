@@ -40,6 +40,19 @@ sources:
 
 Bank of India is a leading public sector bank established in 1906 with over 115 years of banking legacy. Headquartered in Mumbai, Maharashtra, the government-owned bank operates an extensive network of branches and ATMs across India with international presence in select countries. It provides comprehensive banking services including retail banking, corporate banking, treasury operations, international banking, and agricultural banking, with a focus on digital transformation and asset quality improvement.
 
+
+<!-- BEGIN auto company profile (enrich_from_yfinance.py) -->
+
+## Company Profile (yfinance)
+
+- **Industry**: Banks - Regional
+- **Employees**: 51,010
+- **Promoter Holding**: 73.4%
+- **Institutional Holding**: 15.0%
+- **Business Summary**: Bank of India provides various banking products and services in India and internationally. It operates through Treasury; Wholesale Banking; and Retail Banking segments. The company accepts various deposit products, such as savings, salary, current, term, and rera account deposits. It also provide…
+
+_Source: yfinance | Refreshed: 2026-10-16_
+<!-- END auto company profile -->
 <!-- BEGIN auto key figures (derive_insights.py) -->
 
 ## Key Figures (auto)

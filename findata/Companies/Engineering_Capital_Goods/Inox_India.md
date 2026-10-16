@@ -41,11 +41,11 @@ Inox India — auto-generated stub from newsletter parsing. To be enriched.
 
 - **Industry**: Specialty Industrial Machinery
 - **Employees**: 752
-- **Promoter Holding**: 75.0%
-- **Institutional Holding**: 10.2%
+- **Promoter Holding**: 74.9%
+- **Institutional Holding**: 9.4%
 - **Business Summary**: INOX India Limited manufactures and supplies cryogenic liquid storage and transport tanks for gas companies and engineering, procurement, and construction (EPC) companies in India and internationally. The company offers industrial gas equipment comprising storage and transport tanks, microbulk un…
 
-_Source: yfinance | Refreshed: 2026-08-10_
+_Source: yfinance | Refreshed: 2026-10-16_
 <!-- END auto company profile -->
 
 <!-- BEGIN auto key figures (derive_insights.py) -->
