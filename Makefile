@@ -34,7 +34,7 @@ export PATH := $(CURDIR)/.venv/bin:$(PATH)
 export TMPDIR ?= $(shell test -d /mnt/data/tmp && { mkdir -p /mnt/data/tmp/findata; echo /mnt/data/tmp/findata; } || echo /tmp)
 
 
-.PHONY: help qa test live-invariants perf cover fuzz integration snapshot snapshot-check snapshot-restore sync-tags sync-coverage-tags sync-sector-links static-checks license-check tmp-sweep install-dev triage-quotes gate-fresh graph-smoke graph-stats graph-algos graph-rebuild graph-rebuild-bench update-extensions recompute-graph recompute-hyper search-fresh convo-fresh embed-gc search-tui derive-relations derive-co-mentions derive-themes derive-events derive-insights derive-indices quote-coverage derive-themes-rebuild derive-cited-in derive-cited-in-rebuild derive-hyperedges derive-all refresh-indices refresh-vigil refresh-shp frontend frontend-check fold-identifiers format maint maint-full md-lint metrics-rebuild mojo-bench mojo-parity mojo-build mojo-test mojo-format relations-enrich lint types types-tests lint-audit deptry advisory secret-scan cargo-audit script-search-rebuild memory-search-rebuild triage-relations live-invariants stamp-centrality parity review-patch review-scan teleocr-server embgemma-server granite-server llamacpp-build llamacpp-health csr csr-check csr-rebuild convo-search-rebuild convo-search-check analytics-parquet analytics-fresh schema-check schema-dump
+.PHONY: help qa test live-invariants perf cover fuzz integration snapshot snapshot-check snapshot-restore sync-tags sync-coverage-tags sync-sector-links static-checks license-check tmp-sweep install-dev triage-quotes gate-fresh graph-smoke graph-stats graph-algos graph-rebuild graph-rebuild-bench update-extensions recompute-graph recompute-hyper search-fresh convo-fresh embed-gc search-tui derive-relations derive-co-mentions dup-census person-census derive-themes derive-events derive-insights derive-indices quote-coverage derive-themes-rebuild derive-cited-in derive-cited-in-rebuild derive-hyperedges derive-all refresh-indices refresh-vigil refresh-shp frontend frontend-check fold-identifiers format maint maint-full md-lint metrics-rebuild mojo-bench mojo-parity mojo-build mojo-test mojo-format relations-enrich lint types types-tests lint-audit deptry advisory secret-scan cargo-audit script-search-rebuild memory-search-rebuild triage-relations teleocr-server embgemma-server granite-server llamacpp-build llamacpp-health csr csr-check csr-rebuild convo-search-rebuild convo-search-check analytics-parquet analytics-fresh schema-check schema-dump
 
 help:           ## Show available targets (alphabetical; entries generated from the ## annotations — keep both in sync)
 > @echo "FinData targets (alphabetical):"
@@ -63,6 +63,7 @@ help:           ## Show available targets (alphabetical; entries generated from 
 > @echo "  derive-relations         Extract jv_with/acquired/subsidiary_of/same_group/supplier_to/customer_of edges from newsletter prose"
 > @echo "  derive-themes            Derive exposed_to (company -> theme) edges from company-note prose"
 > @echo "  derive-themes-rebuild    derive-themes + graph-rebuild — the paired run themes require (writes edges, then rebuilds the DuckDB cache to match)"
+> @echo "  dup-census               Entity-name dup census (entity_name_dedup): --check gate vs baseline, --plan writes the merge plan"
 > @echo "  embed-gc                 Evict dead embed-cache rows (trial/spike leftovers) — report-only, exit 1 when dead rows exist; APPLY=1 deletes+VACUUMs"
 > @echo "  embgemma-server          Start the EmbeddingGemma-2 llama-server (Q8_0 from models/) on 127.0.0.1:8732 — Ctrl-C to stop; gemma_embedder only ever assumes it is running (D3), never spawns it"
 > @echo "  fold-identifiers         Fold exchange ISIN/CIK values into the entity identifier registry"
@@ -99,11 +100,13 @@ help:           ## Show available targets (alphabetical; entries generated from 
 > @echo "  near-duplicates          Report near-duplicate note pairs above cosine 0.9 (rename tripwire; READ-ONLY)"
 > @echo "  parity                   Byte-compare registered refactor targets against REF (default HEAD) across pinned hash seeds (warns; STRICT=1 to gate)"
 > @echo "  perf                     Run wall-clock perf benchmarks, print timing table, and append to outputs/perf_report.md"
+> @echo "  person-census            Person-name dup census (person_name_dedup): --check gate vs baseline, --plan writes the merge plan"
 > @echo "  qa                       Run lint + markdown lint + types + deptry + static + pytest + notes + integrity + snapshot in PARALLEL (default 4 jobs; override: make qa -j N; run-all — failures reported at the end; appends outputs/qa_report.md)"
 > @echo "  quote-coverage           S0 quote capture coverage audit (advisory, read-only; per-note 95% tripwire + watchlist + salvage measurement)"
 > @echo "  recompute-graph          Recompute all graph analytics and persist to graph_analytics"
 > @echo "  recompute-hyper          Recompute HGX hyper metrics (hy-MMSBM communities + ho/s centralities)"
-> @echo "  refresh-chain            D20 phase 3: exchanges → enrich → CIN → XBRL --new → snapshot (APPLY=1 to write)"
+> @echo "  refresh-chain            D20 phase 3 parallel — fetch lanes in parallel, apply sequentially (APPLY=1 to write)"
+> @echo "  refresh-chain-ser        D20 phase 3 sequential — exchanges → vigil → shp → enrich → CIN web → XBRL --new → snapshot (APPLY=1 to write)"
 > @echo "  refresh-exchanges        D19: sync exchange masters + detect new listings (lanes as args; APPLY=1 to write)"
 > @echo "  refresh-indices          Sync NSE index constituents into sources.duckdb (Wave 1 broad-based + sectoral; APPLY=1 to write)"
 > @echo "  refresh-shp              NSE shareholding-pattern RSS -> invested_in edges (APPLY=1 to write; quarterly cadence, weekly poll)"
@@ -206,13 +209,30 @@ refresh-shp:  ## NSE shareholding-pattern RSS lane -> sources.duckdb + invested_
 > .venv/bin/python3 helpers/maintenance/shareholding_sync.py --rss --bse-rss $(if $(APPLY),--apply)
 > @echo "✓ shareholding filings synced (dry-run unless APPLY=1)"
 
-refresh-chain:  ## D20 phase 3: post-refresh hook chain — exchanges → vigil → shp → enrich → CIN web → XBRL --new → snapshot (APPLY=1 to write; all lanes incremental/idempotent)
+refresh-chain-ser:  ## D20 phase 3: post-refresh hook chain — exchanges → vigil → shp → enrich → CIN web → XBRL --new → snapshot (APPLY=1 to write; all lanes incremental/idempotent)
 > .venv/bin/python3 helpers/maintenance/exchange_sync.py $(if $(APPLY),--apply)
 > .venv/bin/python3 helpers/maintenance/related_party_sync.py --download --ratings-download $(if $(APPLY),--apply)
 > .venv/bin/python3 helpers/maintenance/shareholding_sync.py --rss --bse-rss $(if $(APPLY),--apply)
 > .venv/bin/python3 helpers/maintenance/enrich_from_yfinance.py $(if $(APPLY),--apply)
 > .venv/bin/python3 helpers/maintenance/mca_cin_resolve.py ingest-web --no-revalidate $(if $(APPLY),--apply)
 > .venv/bin/python3 helpers/maintenance/ingest_nse_xbrl.py --new $(if $(APPLY),--apply)
+> $(if $(APPLY),.venv/bin/python3 helpers/maintenance/snapshot_db.py,@echo "dry-run: snapshot export skipped (APPLY=1 writes)")
+
+refresh-chain:  ## D20 phase 3 parallel — fetch lanes in parallel, apply sequentially (APPLY=1 to write)
+> .venv/bin/python3 helpers/maintenance/related_party_sync.py --download --ratings-download &
+> .venv/bin/python3 helpers/maintenance/shareholding_sync.py --rss --bse-rss --fetch-only &
+> .venv/bin/python3 helpers/maintenance/enrich_from_yfinance.py --fetch-only &
+> .venv/bin/python3 helpers/maintenance/ingest_nse_xbrl.py --new --fetch-only &
+> .venv/bin/python3 helpers/maintenance/exchange_sync.py --fetch-only &
+> .venv/bin/python3 helpers/maintenance/ticker_hygiene.py --fetch-only &
+> wait
+> .venv/bin/python3 helpers/maintenance/exchange_sync.py --apply-only $(if $(APPLY),--apply)
+> .venv/bin/python3 helpers/maintenance/related_party_sync.py --apply $(if $(APPLY),--apply)
+> .venv/bin/python3 helpers/maintenance/shareholding_sync.py --apply-only $(if $(APPLY),--apply)
+> .venv/bin/python3 helpers/maintenance/ticker_hygiene.py --apply-only $(if $(APPLY),--apply)
+> .venv/bin/python3 helpers/maintenance/enrich_from_yfinance.py --apply-only $(if $(APPLY),--apply)
+> .venv/bin/python3 helpers/maintenance/mca_cin_resolve.py ingest-web --no-revalidate $(if $(APPLY),--apply)
+> .venv/bin/python3 helpers/maintenance/ingest_nse_xbrl.py --new --apply-only $(if $(APPLY),--apply)
 > $(if $(APPLY),.venv/bin/python3 helpers/maintenance/snapshot_db.py,@echo "dry-run: snapshot export skipped (APPLY=1 writes)")
 
 snapshot:       ## Refresh the versioned DB snapshot (+ HIF rider)
@@ -454,6 +474,10 @@ teleocr-server:  ## Start the TeleOCR llama-server (Q4_K_M + mmproj q8_0 from mo
 > $$bin -m models/NaviDC-OCR-Q4_K_M.gguf --mmproj models/NaviDC-OCR-mmproj-q8_0.gguf --host 127.0.0.1 --port 8731 -c 16384 -np 2 -b 8192 -ub 2048 -t 3
 
 
+person-census: ## Person-name dup census: --check gate vs baseline / --plan merge plan (person_name_dedup)
+> .venv/bin/python3 helpers/graph/person_dedup.py $(or $(ARGS),--check)
+> @echo "✓ person-census done"
+
 embed-gc:       ## Evict dead rows from the shared embed cache (trial/spike leftovers); report-only + exit 1 when dead rows exist, APPLY=1 deletes + VACUUMs
 > @echo "embed-gc: $(if $(APPLY),APPLY — deleting dead cache rows,report) mode"; \
 > if [ -x .venv/bin/python3 ]; then MAINT_TARGET=embed-gc .venv/bin/python3 helpers/maintenance/gc_embed_cache.py $(if $(APPLY),--apply,); \
@@ -476,6 +500,10 @@ recompute-hyper: ## Recompute HGX hyper metrics (hy-MMSBM communities + ho/s cen
 derive-co-mentions: ## Derive co_mentioned_in edges from newsletter enhancement blocks
 > python3 helpers/graph/derive_co_mentions.py --newsletter The_Chatter --apply
 > @echo "✓ co_mentioned_in edges refreshed"
+
+dup-census: ## Entity-name dup census: --check gate vs baseline / --plan merge plan (entity_name_dedup)
+> .venv/bin/python3 helpers/graph/name_dedup.py $(or $(ARGS),--check)
+> @echo "✓ dup-census done"
 
 derive-relations: ## Extract jv_with/acquired/subsidiary_of/same_group/supplier_to/customer_of edges from newsletter prose
 > python3 helpers/graph/extract_relations.py findata/The_Chatter findata/Points_And_Figures findata/The_PlotLines --apply

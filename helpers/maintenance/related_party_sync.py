@@ -42,6 +42,9 @@ BULK_URL = "https://api.tigzig.com/vigil/v1/download/rpt_transactions?format=csv
 UA = {"User-Agent": "Mozilla/5.0 research", "Referer": "https://vigil.tigzig.com/"}
 SOURCE_REF_PREFIX = "vigil:rpt"
 
+# entity_name_dedup S3: the plan artifact doubles as the fold registry.
+_NAME_DEDUP_PLAN = Path(__file__).resolve().parents[2] / "findata" / "Misc" / "_name_merge_plan.txt"
+
 from helpers.maintenance.shareholding_sync import (  # noqa: E402  (post-bootstrap)
     _normalize,
     _resolve_companies,
@@ -203,6 +206,16 @@ END
 
 _GARBAGE = re.compile(r"^\d+$|^\d+\s+[A-Z]|PO BOX|\bAVE\b|\bSTREET\b|\bROAD\b")
 
+# Employee-benefit instruments vetoed as counter-parties (see
+# _clean_counterparty). 'pension'/'superannuation' carry a negative
+# lookahead so PFRDA-licensed pension fund MANAGEMENT companies survive.
+_BENEFIT_SCHEME_RE = re.compile(
+    r"\bgratuity\b|\bprovident\b"
+    r"|superannuation(?!\s*(?:fund\s*)?management)"
+    r"|pension(?!\s*(?:fund\s*)?management)",
+    re.I,
+)
+
 
 def _safe_display(name: str) -> str | None:
     """clean_name + CHECK-safe repair; None = unusable display.
@@ -210,10 +223,13 @@ def _safe_display(name: str) -> str | None:
     Filings text arrives mangled ('Privated limited', 'Solutionspvt' —
     glued, no word boundary) and survives clean_name; the entities CHECK
     is a substring LIKE, so any residue is rejected by INSERT OR IGNORE
-    and would blow up the edge FK. Scrub everywhere, not just suffixes."""
+    and would blow up the edge FK. Scrub everywhere, not just suffixes.
+    entity_name_dedup S3: trailing footnote markers ('**' bold/table
+    residue) are stripped first — a marker variant can never be born."""
     from helpers.maintenance.exchange_sync import clean_name  # noqa: PLC0415
+    from helpers.core.entity_identity import FOOTNOTE_RE  # noqa: PLC0415
 
-    d = clean_name(name)
+    d = clean_name(FOOTNOTE_RE.sub("", (name or "").strip()))
     if not d:
         return None
     if _CHECK_BAD.search(d):
@@ -231,10 +247,25 @@ _PAREN = re.compile(r"\s*\((?:formerly|formerly known as|now known as)[^)]*\)\s*
 
 def _clean_counterparty(name: str) -> str | None:
     """Identity form of a counter-party name: parentheticals stripped,
-    garbage rejected. None = unusable."""
+    garbage rejected. None = unusable.
+
+    2026-10-16 operator exclusion (#400 flag): employee-BENEFIT
+    instruments — gratuity/provident funds, superannuation and pension
+    schemes/trusts — are never counter-parties. Ind AS 24 makes them
+    related parties, so filings surface them constantly, but the relation
+    vocabulary has no type for 'company administers its benefit trust':
+    same_group/subsidiary_of/supplier_to are all wrong classes. Pension
+    FUND MANAGEMENT companies (ABSL/HDFC/Tata/Axis — operating PFRDA
+    licensees) are exempt via negative lookahead. Deliberately
+    over-inclusive in the safe direction: a mis-vetoed operating company
+    loses only its vigil edges, while one leaked instrument grouped
+    'MedPlus Employees group gratuity assurance scheme' into a corporate
+    group."""
     n = _PAREN.sub(" ", (name or "").strip())
     n = re.sub(r"\s{2,}", " ", n).strip(" \"',")
     if not 3 <= len(n) <= 90 or _GARBAGE.search(n.upper()):
+        return None
+    if _BENEFIT_SCHEME_RE.search(n):
         return None
     return n
 
@@ -293,6 +324,27 @@ def build_pairs(con: duckdb.DuckDBPyConnection) -> list[dict]:
     return out
 
 
+def _fold_map() -> dict[str, str]:
+    """Folded-variant → canonical map from the S1 plan artifact (the
+    registry IS the artifact: entity_name_dedup §S2). Delegates to the
+    one home (helpers.core.entity_identity.fold_registry) with THIS
+    module's plan path kept as the monkeypatch seam for tests."""
+    from helpers.core import entity_identity as ei
+
+    return ei.fold_registry(_NAME_DEDUP_PLAN)
+
+
+def _census_names(conn: sqlite3.Connection) -> dict[str, str]:
+    """Census-key → entity name over the entities registry. Delegates to
+    helpers.core.entity_identity.registry_index (the one home): case,
+    punctuation, footnote-marker, apostrophe and compound-join variants
+    of an existing entity resolve to it instead of minting a duplicate
+    (entity_name_dedup S3 resolve-before-insert)."""
+    from helpers.core import entity_identity as ei
+
+    return ei.registry_index(conn)
+
+
 def apply_pairs(  # noqa: C901  # the filer/counter/edge-class resolution ladder
     conn: sqlite3.Connection,
     pairs: list[dict],
@@ -310,6 +362,11 @@ def apply_pairs(  # noqa: C901  # the filer/counter/edge-class resolution ladder
     """
 
     existing = {r[0] for r in conn.execute("SELECT name FROM entities").fetchall()}
+    # entity_name_dedup S3 resolve-before-insert: a counter whose census
+    # key matches an existing entity (or a plan-folded variant) reuses
+    # that name — no duplicate entity is minted for a spelling variant.
+    census_map = _census_names(conn)
+    fold = _fold_map()
     edges: list[dict] = []
     new_entities: dict[str, str] = {}
     unresolved_filers: set[str] = set()
@@ -320,6 +377,13 @@ def apply_pairs(  # noqa: C901  # the filer/counter/edge-class resolution ladder
             continue
         cp_norm = _normalize(p["counter"])
         cp_ent = norm_to_name.get(cp_norm.upper())
+        if cp_ent is None:
+            from helpers.core.entity_identity import FOOTNOTE_RE, name_key  # noqa: PLC0415
+
+            ck = name_key(FOOTNOTE_RE.sub("", p["counter"].strip()))
+            hit = fold.get(ck) or census_map.get(ck)
+            if hit and hit != filer:
+                cp_ent = hit
         if cp_ent is None:
             display = _safe_display(p["counter"])
             if display and display not in existing and display not in new_entities:
@@ -496,6 +560,8 @@ def apply_supply_pairs(
     lost. Cross-ref pairs are never touched here."""
     from helpers.maintenance.shareholding_sync import _normalize  # noqa: PLC0415
 
+    census_map = _census_names(conn)
+    fold = _fold_map()
     edges = []
     n_cross = 0
     for p in pairs:
@@ -503,6 +569,13 @@ def apply_supply_pairs(
         if filer is None:
             continue
         cp_ent = norm_to_name.get(_normalize(p["counter"]).upper())
+        if cp_ent is None:
+            from helpers.core.entity_identity import FOOTNOTE_RE, name_key  # noqa: PLC0415
+
+            ck = name_key(FOOTNOTE_RE.sub("", p["counter"].strip()))
+            hit = fold.get(ck) or census_map.get(ck)
+            if hit and hit != filer:
+                cp_ent = hit
         if cp_ent is None or cp_ent == filer:
             continue
         props = json.dumps(
@@ -837,6 +910,20 @@ def main(argv: list[str] | None = None) -> int:  # noqa: C901  # pass-per-flag C
     }
     mode = "APPLY" if args.apply else "dry-run"
     from collections import Counter
+
+    # Bound before the branches: n_unres is only assigned inside the
+    # args.group arm (apply_pairs returns it), but the unresolved-filers
+    # worklist tail below is UNCONDITIONAL. Running a single pass —
+    # `--supply-chain` or `--ratings` without `--group`, which is the
+    # DEFAULT dry-run mode — left the name unbound and raised
+    # UnboundLocalError: cannot access local variable 'n_unres' at the tail.
+    # Pre-existing (present across c71c27fd0/8711c96d8/ef487cb4a), not
+    # introduced by this arc. With --apply it was worse than a traceback:
+    # edges were already written, and the crash at the tail skipped the
+    # `if args.apply: duckdb_rebuild()` below, leaving the DuckDB cache
+    # silently stale. Zero is the honest default — the group pass reports a
+    # real count, the other passes have no unresolved-filer notion.
+    n_unres = 0
 
     if args.group or args.supply_chain:
         # Vigil symmetric-emission S2: clean existing same-ref artifacts

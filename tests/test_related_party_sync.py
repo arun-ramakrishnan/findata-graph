@@ -72,6 +72,28 @@ class TestCounterpartyHygiene:
         ok = rps._clean_counterparty("ABC Ltd (formerly known as XYZ Ltd)")
         assert ok is not None and "formerly" not in ok.lower()
 
+    def test_benefit_instruments_rejected(self):
+        # 2026-10-16 exclusion (#400 flag): Ind AS 24 related-party
+        # benefit trusts never become counter-parties — the relation
+        # vocabulary has no class for 'company administers its trust'.
+        assert rps._clean_counterparty("MedPlus Employees group gratuity assurance scheme") is None
+        assert rps._clean_counterparty("Century Rayon Employees' Provident Fund Trust No.1") is None
+        assert (
+            rps._clean_counterparty("Kotak Mahindra Capital Company Superannuation Scheme") is None
+        )
+        assert rps._clean_counterparty("UltraTech Provident Fund") is None
+
+    def test_pension_fund_managers_survive(self):
+        # PFRDA-licensed operating companies, not instruments — the
+        # negative lookahead keeps their (true) subsidiary_of edges.
+        for name in (
+            "Aditya Birla Sun Life Pension Fund Management",
+            "HDFC Pension Management Company",
+            "Axis Pension Fund Management",
+            "Tata Pension Management Fund",
+        ):
+            assert rps._clean_counterparty(name) is not None, name
+
 
 @pytest.fixture()
 def lane(tmp_path: Path):
@@ -557,3 +579,93 @@ class TestSymmetricEmissionPrecision:
             sql_cls = next((p["cls"] for p in rps.build_pairs(con)), None)
             py_cls = rps.classify_relationship(rel, grp)
             assert sql_cls == py_cls == want, (rel, sql_cls, py_cls, want)
+
+
+class TestNameDedupS3:
+    """entity_name_dedup S3: resolve-before-insert at the vigil boundary."""
+
+    def test_footnote_markers_stripped_from_display(self):
+        assert rps._safe_display("Sundaram Auto Components**") == "Sundaram Auto Components"
+        assert rps._safe_display("Acme Industries *") == "Acme Industries"
+
+    def test_census_key_hit_reuses_entity(self, lane, monkeypatch):
+        con, conn = lane
+        # existing entity 'E.I.D. Parry (India)'; feed ships the glued form
+        conn.execute(
+            "INSERT INTO entities VALUES ('E.I.D. Parry (India)', 'company', 'EID_Parry_India', NULL)"
+        )
+        conn.commit()
+        _seed_rpt(
+            con,
+            [
+                (
+                    "TVSMOTOR",
+                    "TVS Motor Company Limited",
+                    "E.I.D.PARRY (INDIA)",
+                    "Fellow Subsidiary",
+                    "Group Companies",
+                    "Sale of goods or services",
+                    "100",
+                    "31-MAR-2026",
+                    "2026-03-31",
+                    "https://x/9.xml",
+                )
+            ],
+        )
+        monkeypatch.setattr(rps, "_fold_map", dict)  # no plan artifact in play
+        pairs = rps.build_pairs(con)
+        n_ent, _n, written, _u, _c = rps.apply_pairs(
+            conn, pairs, {"TVSMOTOR": "TVS Motor Company"}, {}, dry_run=False
+        )
+        assert n_ent == 0  # NO duplicate entity minted
+        edge = conn.execute(
+            "SELECT source, target FROM graph_edges WHERE edge_type='same_group'"
+        ).fetchone()
+        assert set(edge) == {"TVS Motor Company", "E.I.D. Parry (India)"}
+        assert written == 1
+
+    def test_fold_map_wins_when_registry_misses(self, lane, monkeypatch):
+        con, conn = lane
+        conn.execute("INSERT INTO entities VALUES ('Parry Agro', 'company', 'Parry_Agro', NULL)")
+        conn.commit()
+        # plan artifact carries the variant fold (S1 registry-is-the-artifact)
+        plan = tmp_plan(
+            "== Parry Agro  (key: parry agro; edge rows 3)\n   Parry Agro Industries Ltd  -> fold\n"
+        )
+        monkeypatch.setattr(rps, "_NAME_DEDUP_PLAN", plan)
+        _seed_rpt(
+            con,
+            [
+                (
+                    "TVSMOTOR",
+                    "TVS Motor Company Limited",
+                    "Parry Agro Industries Ltd",
+                    "Fellow Subsidiary",
+                    "Group Companies",
+                    "Sale of goods or services",
+                    "100",
+                    "31-MAR-2026",
+                    "2026-03-31",
+                    "https://x/9.xml",
+                )
+            ],
+        )
+        pairs = rps.build_pairs(con)
+        n_ent, _n, _w, _u, _c = rps.apply_pairs(
+            conn, pairs, {"TVSMOTOR": "TVS Motor Company"}, {}, dry_run=False
+        )
+        assert n_ent == 0
+        edge = conn.execute(
+            "SELECT source, target FROM graph_edges WHERE edge_type='same_group'"
+        ).fetchone()
+        assert "Parry Agro" in set(edge)
+
+
+def tmp_plan(text: str):
+    import tempfile
+    from pathlib import Path
+
+    f = tempfile.NamedTemporaryFile("w", suffix=".txt", delete=False)
+    f.write(text)
+    f.close()
+    return Path(f.name)

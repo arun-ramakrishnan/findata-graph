@@ -238,6 +238,40 @@ class TestStoreAndDerive:
         assert kinds["Manohar Lal Punglia"] == "person"
         assert "TSF INVESTMENTS LIMITED" not in kinds  # no duplicate shell entity
 
+    def test_apply_skips_unreconciled_company_holder(self, lane):
+        """#400 SHP incident: a company-kind holder whose normalized key
+        dropped out of norm_to_name (post-merge variant form — the
+        canonical row survives, the variant key does not) must SKIP, not
+        crash the graph_edges FK with a ghost source, and not mint a
+        noise shell entity."""
+        src, conn = lane
+        url = "https://nsearchives.nseindia.com/corporate/xbrl/SHP_1_22092026032615_WEB.xml"
+        ss.store_filing(src, url, ss.parse_shp(fixture_xbrl()), ss.parse_rss(RSS_TEXT)[0])
+        companies = ss._resolve_companies(src, conn)
+        norm_to_name = {
+            (r[0] or "").upper(): r[1]
+            for r in conn.execute("SELECT normalized_name, name FROM entities").fetchall()
+        }
+        cands, _ = ss.build_candidates(src, companies, set(norm_to_name), min_stake=0.1)
+        ghost = dict(next(c for c in cands if c["holder_kind"] == "company"))
+        ghost["holder"] = "GHOST HOLDINGS LIMITED"
+        ghost["holder_norm"] = "GHOST HOLDINGS LIMITED"
+        cands.append(ghost)
+        n_ent, n_fresh, _ = ss.apply_candidates(conn, cands, norm_to_name, dry_run=True)
+        assert (n_ent, n_fresh) == (1, 2)  # ghost not counted as fresh
+        n_ent, n_fresh, written = ss.apply_candidates(conn, cands, norm_to_name, dry_run=False)
+        assert written == 2  # the two real candidates only
+        assert (
+            conn.execute("SELECT COUNT(*) FROM graph_edges WHERE source LIKE 'GHOST%'").fetchone()[
+                0
+            ]
+            == 0
+        )
+        assert (
+            conn.execute("SELECT COUNT(*) FROM entities WHERE name LIKE 'GHOST%'").fetchone()[0]
+            == 0
+        )
+
     def test_supersede_sets_valid_to(self, lane):
         src, conn = lane
         url1 = "https://nsearchives.nseindia.com/corporate/xbrl/SHP_1_01092026000000_WEB.xml"

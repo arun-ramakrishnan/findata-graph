@@ -247,7 +247,20 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
     if args.stage == "ingest-web":
-        cands = json.loads(Path(args.candidates).read_text())
+        cand_path = Path(args.candidates)
+        if not cand_path.exists():
+            # The candidates file is a product of the manual REPL `web`
+            # phase (kernel-only websearch, no CLI) — on a fresh $TMPDIR
+            # it legitimately does not exist. #401 close-out: the refresh
+            # chain crashed here (FileNotFoundError mid-chain). Skip
+            # cleanly — same grace as the SHP lane's BSE 403 — the phase
+            # lands when its REPL producer runs.
+            print(
+                f"[cin-resolve] no candidates file at {cand_path} "
+                "(the REPL `web` phase has not run) — nothing to ingest"
+            )
+            return 0
+        cands = json.loads(cand_path.read_text())
         rows = validate_web_candidates(cands, _gov_key(), revalidate=not args.no_revalidate)
         n = append_manual(rows, apply=args.apply)
         print(

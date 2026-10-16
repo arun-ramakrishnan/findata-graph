@@ -23,6 +23,7 @@ from __future__ import annotations
 import argparse
 import csv
 import json
+import os
 import re
 import sqlite3
 import sys
@@ -44,6 +45,7 @@ from helpers.core.db import connect  # noqa: E402  (post-bootstrap: entry point,
 
 DB = REPO / "memory" / "data" / "sources.duckdb"
 WORKLIST = REPO / "memory" / "data" / "ipo_worklist.csv"
+FETCH_SCRATCH = Path(os.environ.get("TMPDIR", "/mnt/data/tmp/opencode")) / "findata-graph" / "exchange_fetch_scratch"
 BACKFILL_DATE = "2026-09-15"  # D16 fold date for pre-existing rows
 UA = {"User-Agent": "Mozilla/5.0 research"}
 
@@ -746,7 +748,7 @@ def write_worklist(new_rows: list[Row], gone: list[Row], seeded: list[tuple[str,
         w.writerows(fresh + kept)
 
 
-def main() -> None:  # noqa: C901  # arg-dispatch main (flag-per-lane CLI)
+def main() -> int:  # noqa: C901  # arg-dispatch main (flag-per-lane CLI; exit codes: 0 ok, 2 usage)
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument(
         "lanes",
@@ -756,6 +758,16 @@ def main() -> None:  # noqa: C901  # arg-dispatch main (flag-per-lane CLI)
     )
     ap.add_argument(
         "--apply", action="store_true", help="write store + seed stubs (default: dry-run)"
+    )
+    ap.add_argument(
+        "--fetch-only",
+        action="store_true",
+        help="fetch exchange masters, stage rows to scratch JSON (no store writes); pairs with --apply-only",
+    )
+    ap.add_argument(
+        "--apply-only",
+        action="store_true",
+        help="apply staged exchange rows (no fetch); pairs with --fetch-only",
     )
     ap.add_argument(
         "--tmx-file", type=Path, action="append", default=[], help="TMX xlsx path (tmx lane)"
@@ -774,41 +786,77 @@ def main() -> None:  # noqa: C901  # arg-dispatch main (flag-per-lane CLI)
         help="refetch even when a lane is fresh (bypass incremental default)",
     )
     args = ap.parse_args()
+
+    if args.fetch_only and args.apply_only:
+        print("[exchange_sync] --fetch-only and --apply-only are mutually exclusive")
+        return 2
+
+    FETCH_SCRATCH.mkdir(parents=True, exist_ok=True)
+
     lanes = args.lanes or sorted(LANES)
     run_date = time.strftime("%Y-%m-%d")
-    # fetch phase: NO db connection held (a slow lane must never lock out
-    # readers — operator directive 2026-09-16); fold connects briefly.
+
+    # --------------------------------------------------------------- #
+    # Fetch phase — network-bound, no store writes                    #
+    # --------------------------------------------------------------- #
+    staged_by_lane: dict[str, list[Row]] = {}
+
+    if not args.apply_only:
+        for lane in lanes:
+            if lane not in ("tmx", "krx") and not args.force:
+                max_age = (
+                    args.max_age_days
+                    if args.max_age_days is not None
+                    else LANE_MAX_AGE_DAYS.get(lane, DEFAULT_MAX_AGE_DAYS)
+                )
+                con = _connect()
+                try:
+                    fresh = lane_fresh(con, lane, max_age)
+                finally:
+                    con.close()
+                if fresh:
+                    print(
+                        f"[{lane}] skipped (fetched within {max_age}d — incremental default, --force refetches)",
+                        flush=True,
+                    )
+                    continue
+            try:
+                if lane == "tmx":
+                    rows = ingest_tmx(args.tmx_file) if args.tmx_file else []
+                elif lane == "krx":
+                    rows = ingest_krx(args.krx_file) if args.krx_file else []
+                else:
+                    rows = LANES[lane]()
+            except OSError as e:
+                print(f"[{lane}] FETCH-FAILED: {str(e)[:80]}", flush=True)
+                rows = []
+            staged_by_lane[lane] = rows
+            if args.fetch_only:
+                scratch = FETCH_SCRATCH / f"{lane}.json"
+                scratch.write_text(json.dumps(rows))
+                print(f"[{lane}] staged={len(rows)} rows -> {scratch}", flush=True)
+
+    if args.fetch_only:
+        print(f"[FETCH-ONLY] staged {len(staged_by_lane)} lanes -> {FETCH_SCRATCH}")
+        return 0
+
+    # --------------------------------------------------------------- #
+    # Apply phase — store writes (sources.duckdb)                     #
+    # --------------------------------------------------------------- #
     all_new: list[Row] = []
     all_gone: list[Row] = []
     seeded: list[tuple[str, str]] = []
+
     for lane in lanes:
-        if lane not in ("tmx", "krx") and not args.force:
-            max_age = (
-                args.max_age_days
-                if args.max_age_days is not None
-                else LANE_MAX_AGE_DAYS.get(lane, DEFAULT_MAX_AGE_DAYS)
-            )
-            con = _connect()
-            try:
-                fresh = lane_fresh(con, lane, max_age)
-            finally:
-                con.close()
-            if fresh:
-                print(
-                    f"[{lane}] skipped (fetched within {max_age}d — incremental default, --force refetches)",
-                    flush=True,
-                )
-                continue
-        try:
-            if lane == "tmx":
-                rows = ingest_tmx(args.tmx_file) if args.tmx_file else []
-            elif lane == "krx":
-                rows = ingest_krx(args.krx_file) if args.krx_file else []
+        if args.apply_only:
+            scratch = FETCH_SCRATCH / f"{lane}.json"
+            if scratch.is_file():
+                rows = json.loads(scratch.read_text())
             else:
-                rows = LANES[lane]()
-        except OSError as e:
-            print(f"[{lane}] FETCH-FAILED: {str(e)[:80]}", flush=True)
-            rows = []
+                rows = []
+        else:
+            rows = staged_by_lane.get(lane, [])
+
         con = _connect()
         try:
             new, gone = fold(con, rows, run_date, args.apply)
@@ -822,7 +870,8 @@ def main() -> None:  # noqa: C901  # arg-dispatch main (flag-per-lane CLI)
         con.close()
         all_new += new
         all_gone += gone
-        print(f"[{lane}] fetched={len(rows)} new={len(new)} gone={len(gone)}")
+        print(f"[{lane}] applied={len(rows)} new={len(new)} gone={len(gone)}")
+
     if args.apply and not args.no_seed:
         seeded = seed_stubs(all_new, apply=True)
         print(f"stubs seeded: {len(seeded)}")
@@ -835,6 +884,7 @@ def main() -> None:  # noqa: C901  # arg-dispatch main (flag-per-lane CLI)
     write_worklist(all_new, all_gone, seeded)
     if seeded:
         print("hooks: mca_cin_resolve.py ogd (Indian stubs) | enrich_from_yfinance (labels)")
+    return 0
 
 
 if __name__ == "__main__":

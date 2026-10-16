@@ -27,10 +27,12 @@ from __future__ import annotations
 import argparse
 import json
 import logging
+import os
 import re
 import sqlite3
 import sys
 import time
+import unicodedata
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timedelta, UTC
 from pathlib import Path
@@ -53,6 +55,7 @@ log = logging.getLogger("enrich")
 
 DB_PATH = PROJECT_ROOT / "memory" / "research.db"
 COMPANIES_DIR = PROJECT_ROOT / "findata" / "Companies"
+FETCH_SCRATCH = Path(os.environ.get("TMPDIR", "/mnt/data/tmp/opencode")) / "findata-graph" / "yf_fetch_scratch"
 
 SOURCE_REF = "yfinance"
 SOURCE_REF_PREFIX = "yfinance"
@@ -223,11 +226,32 @@ ALIASES_PATH = Path(__file__).resolve().parent / "yf_name_aliases.json"
 
 
 def _name_tokens(name: str) -> set[str]:
-    """Significant name tokens: lowercase, corporate/filler suffixes stripped."""
+    """Significant name tokens: lowercase, accents folded, corporate/filler
+    suffixes stripped, light plural folding (``textiles`` -> ``textile``).
+
+    Accents and plurals are folded because live Yahoo longNames differ from
+    note names exactly there (``Shangar Décor`` vs ``Shangar Decor``,
+    ``Lambodhara Textiles`` vs ``Lambodhara Textile``, ``Sai Parenteral's``
+    vs ``Sai Parenterals``) — the old exact-token rule produced identity-guard
+    false negatives on real scrips (S1 hygiene pass, 2026-10-16). The fold is
+    applied on BOTH sides of the subset test, so it only widens matching
+    symmetrically; different words still never match.
+    """
     low = name.lower().replace("&", " and ")
+    low = "".join(ch for ch in unicodedata.normalize("NFKD", low) if not unicodedata.combining(ch))
     return {
-        tok for tok in re.split(r"[^a-z0-9]+", low) if len(tok) > 1 and tok not in _CORP_SUFFIXES
+        _fold_plural(tok)
+        for tok in re.split(r"[^a-z0-9]+", low)
+        if len(tok) > 1 and tok not in _CORP_SUFFIXES
     }
+
+
+def _fold_plural(tok: str) -> str:
+    """Light plural fold — consistent across both sides, so ``textiles`` and
+    ``textile`` meet at ``textile`` while distinct stems stay distinct."""
+    if len(tok) > 3 and tok.endswith("s") and not tok.endswith("ss"):
+        return tok[:-1]
+    return tok
 
 
 def load_aliases(path: Path | None = None) -> dict[str, list[str]]:
@@ -596,6 +620,16 @@ def main(argv: list[str] | None = None) -> int:  # noqa: C901
         help="Write fetched metrics/industries to DB and notes (default: dry-run report)",
     )
     parser.add_argument(
+        "--fetch-only",
+        action="store_true",
+        help="fetch yfinance .info, stage to scratch JSON (no store writes); pairs with --apply-only",
+    )
+    parser.add_argument(
+        "--apply-only",
+        action="store_true",
+        help="apply staged yfinance results (no fetch); pairs with --fetch-only",
+    )
+    parser.add_argument(
         "--workers", type=int, default=2, help="ThreadPool parallelism (default: 8)"
     )
     parser.add_argument(
@@ -608,6 +642,12 @@ def main(argv: list[str] | None = None) -> int:  # noqa: C901
         help="Skip companies refreshed within N days (default: 0 = all)",
     )
     args = parser.parse_args(argv)
+
+    if args.fetch_only and args.apply_only:
+        print("[enrich] --fetch-only and --apply-only are mutually exclusive")
+        return 2
+
+    FETCH_SCRATCH.mkdir(parents=True, exist_ok=True)
 
     conn = connect(DB_PATH)
 
@@ -678,43 +718,57 @@ def main(argv: list[str] | None = None) -> int:  # noqa: C901
         args.apply,
     )
 
-    # Fetch in parallel
+    # --------------------------------------------------------------- #
+    # Fetch phase — network-bound, no research.db writes              #
+    # --------------------------------------------------------------- #
     results: list[tuple[str, str, str, dict]] = []  # (name, ticker, file_path, info)
     t0 = time.perf_counter()
 
-    def _fetch_task(name_ticker_path):
-        name, ticker, file_path = name_ticker_path
-        info = fetch_company(ticker)
-        return name, ticker, file_path, info
+    if args.apply_only:
+        # Read staged results from scratch (no fetch)
+        staged_files = sorted(FETCH_SCRATCH.glob("*.json"))
+        for sf in staged_files:
+            try:
+                data = json.loads(sf.read_text())
+                results.append((data["name"], data["ticker"], data.get("file_path"), data["info"]))
+            except Exception as exc:  # noqa: BLE001
+                log.warning("[enrich] failed to read staged %s: %s", sf.name, exc)
+        log.info("loaded %d staged results from %s", len(results), FETCH_SCRATCH)
+    else:
+        # Fetch in parallel
+        def _fetch_task(name_ticker_path):
+            name, ticker, file_path = name_ticker_path
+            info = fetch_company(ticker)
+            return name, ticker, file_path, info
 
-    failures: list[tuple[str, str, str]] = []  # (name, ticker, file_path)
-    mismatches: list[tuple[str, str, str]] = []  # (name, ticker, yf name) — identity guard
-    aliases = load_aliases()
-    with ThreadPoolExecutor(max_workers=args.workers) as pool:
-        futures = {pool.submit(_fetch_task, todo_item): todo_item for todo_item in todo}
-        completed = 0
-        for f in as_completed(futures):
-            name, ticker, file_path, info = f.result()
-            completed += 1
-            if info is None:
-                failures.append((name, ticker, file_path))
-                continue
-            if not identity_ok(name, info, aliases):
-                yf_name = info.get("longName") or info.get("shortName") or "?"
-                mismatches.append((name, ticker, yf_name))
-                continue
-            results.append((name, ticker, file_path, info))
-            if completed % 100 == 0:
-                log.info("  fetched %d/%d...", completed, len(todo))
+        failures: list[tuple[str, str, str]] = []  # (name, ticker, file_path)
+        mismatches: list[tuple[str, str, str]] = []  # (name, ticker, yf name)
+        aliases = load_aliases()
+        with ThreadPoolExecutor(max_workers=args.workers) as pool:
+            futures = {pool.submit(_fetch_task, todo_item): todo_item for todo_item in todo}
+            completed = 0
+            for f in as_completed(futures):
+                name, ticker, file_path, info = f.result()
+                completed += 1
+                if info is None:
+                    failures.append((name, ticker, file_path))
+                    continue
+                if not identity_ok(name, info, aliases):
+                    yf_name = info.get("longName") or info.get("shortName") or "?"
+                    mismatches.append((name, ticker, yf_name))
+                    continue
+                results.append((name, ticker, file_path, info))
+                if completed % 100 == 0:
+                    log.info("  fetched %d/%d...", completed, len(todo))
 
-    fetch_time = time.perf_counter() - t0
-    log.info(
-        "fetched %d/%d companies in %.1fs (%d failed)",
-        len(results),
-        len(todo),
-        fetch_time,
-        len(failures),
-    )
+        fetch_time = time.perf_counter() - t0
+        log.info(
+            "fetched %d/%d companies in %.1fs (%d failed)",
+            len(results),
+            len(todo),
+            fetch_time,
+            len(failures),
+        )
 
     if failures:
         log.info(
@@ -727,6 +781,20 @@ def main(argv: list[str] | None = None) -> int:  # noqa: C901
             len(mismatches),
             ", ".join(f"{n}({t}) -> {y})" for n, t, y in mismatches),
         )
+
+    if args.fetch_only:
+        # Stage results to scratch JSON (one file per company, no store writes)
+        staged = 0
+        for name, ticker, file_path, info in results:
+            safe = ticker.replace(".", "_").replace("/", "_")
+            scratch = FETCH_SCRATCH / f"{safe}.json"
+            scratch.write_text(
+                json.dumps({"name": name, "ticker": ticker, "file_path": file_path, "info": info})
+            )
+            staged += 1
+        print(f"[FETCH-ONLY] staged={staged} results -> {FETCH_SCRATCH}")
+        conn.close()
+        return 0
 
     if not args.apply:
         # Display sample results

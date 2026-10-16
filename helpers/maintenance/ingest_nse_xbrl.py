@@ -29,6 +29,7 @@ from __future__ import annotations
 import argparse
 import datetime as dt
 import json
+import os
 import re
 import sqlite3
 import sys
@@ -37,6 +38,7 @@ from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[2]
 DB = REPO / "memory" / "research.db"
+FETCH_SCRATCH = Path(os.environ.get("TMPDIR", "/mnt/data/tmp/opencode")) / "findata-graph" / "xbrl_fetch_scratch"
 if str(REPO) not in sys.path:
     sys.path.insert(0, str(REPO))
 from helpers.core.db import connect  # noqa: E402  (post-bootstrap: entry point, lazy-import convention)
@@ -268,7 +270,7 @@ def fetch_filings(
         return []
 
 
-def main() -> None:
+def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--entity", help="single entity name (else all targets)")
     ap.add_argument("--limit", type=int, help="cap number of entities (smoke tests)")
@@ -285,7 +287,23 @@ def main() -> None:
         help="re-download filings already stored (default: incremental skip)",
     )
     ap.add_argument("--apply", action="store_true", help="write rows (default: dry-run)")
+    ap.add_argument(
+        "--fetch-only",
+        action="store_true",
+        help="fetch XBRL filings, stage rows to scratch JSON (no store writes); pairs with --apply-only",
+    )
+    ap.add_argument(
+        "--apply-only",
+        action="store_true",
+        help="apply staged XBRL rows (no fetch); pairs with --fetch-only",
+    )
     args = ap.parse_args()
+
+    if args.fetch_only and args.apply_only:
+        print("[nse-xbrl] --fetch-only and --apply-only are mutually exclusive")
+        return 2
+
+    FETCH_SCRATCH.mkdir(parents=True, exist_ok=True)
 
     conn = connect(DB)
     if args.entity:
@@ -316,30 +334,76 @@ def main() -> None:
     conn.close()
     print(f"targets: {len(tgts)}", flush=True)
 
-    total_rows = written = entities_hit = 0
-    for i, (name, ticker) in enumerate(tgts, 1):
-        symbol = ticker[:-3]  # strip .NS — main-listing scope
-        filings = fetch_filings(
-            symbol, name, args.max_filings, known_refs=known_refs, full=args.full
-        )
-        rows: list[dict] = []
-        for f in filings:
-            rows += filing_to_rows(f, name)
-        total_rows += len(rows)
-        if rows:
-            entities_hit += 1
-        if args.apply and rows:
+    # --------------------------------------------------------------- #
+    # Fetch phase — network-bound, no research.db writes              #
+    # --------------------------------------------------------------- #
+    staged_results: list[tuple[str, list[dict]]] = []  # (entity, rows)
+
+    if args.apply_only:
+        # Read staged results from scratch (no fetch)
+        for sf in sorted(FETCH_SCRATCH.glob("*.json")):
+            try:
+                data = json.loads(sf.read_text())
+                staged_results.append((data["entity"], data["rows"]))
+            except Exception as exc:  # noqa: BLE001
+                print(f"[nse-xbrl] failed to read staged {sf.name}: {exc}", file=sys.stderr)
+        print(f"loaded {len(staged_results)} staged results from {FETCH_SCRATCH}", flush=True)
+    else:
+        total_rows = 0
+        entities_hit = 0
+        for i, (name, ticker) in enumerate(tgts, 1):
+            symbol = ticker[:-3]  # strip .NS — main-listing scope
+            filings = fetch_filings(
+                symbol, name, args.max_filings, known_refs=known_refs, full=args.full
+            )
+            rows: list[dict] = []
+            for f in filings:
+                rows += filing_to_rows(f, name)
+            total_rows += len(rows)
+            if rows:
+                entities_hit += 1
+            if args.fetch_only:
+                safe = name.replace(" ", "_").replace("/", "_")
+                scratch = FETCH_SCRATCH / f"{safe}.json"
+                scratch.write_text(json.dumps({"entity": name, "rows": rows}))
+                if i % 10 == 0:
+                    print(f"{i}/{len(tgts)} rows={total_rows} staged", flush=True)
+            elif args.apply and rows:
+                conn = connect(DB)
+                written = apply_rows(conn, rows)
+                conn.close()
+                if i % 10 == 0:
+                    print(f"{i}/{len(tgts)} rows={total_rows} written={written}", flush=True)
+            time.sleep(1.0)  # polite pacing (cookie-authed client)
+
+        if args.fetch_only:
+            n_staged = len(list(FETCH_SCRATCH.glob("*.json")))
+            print(
+                f"[FETCH-ONLY] staged={n_staged} entities -> {FETCH_SCRATCH} "
+                f"rows={total_rows} entities_with_filings={entities_hit}",
+                flush=True,
+            )
+            return 0
+
+    # --------------------------------------------------------------- #
+    # Apply phase — store writes (research.db)                        #
+    # --------------------------------------------------------------- #
+    total_rows = sum(len(rows) for _, rows in staged_results)
+    entities_hit = sum(1 for _, rows in staged_results if rows)
+    written = 0
+    if args.apply:
+        for name, rows in staged_results:
+            if not rows:
+                continue
             conn = connect(DB)
             written += apply_rows(conn, rows)
             conn.close()
-        if i % 10 == 0:
-            print(f"{i}/{len(tgts)} rows={total_rows} written={written}", flush=True)
-        time.sleep(1.0)  # polite pacing (cookie-authed client)
     mode = "APPLY" if args.apply else "DRY-RUN"
     print(
         f"{mode}: entities={len(tgts)} with_filings={entities_hit}"
         f" rows={total_rows} written={written}"
     )
+    return 0
 
 
 if __name__ == "__main__":

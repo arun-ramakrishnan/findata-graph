@@ -35,10 +35,12 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import os
 import re
 import sqlite3
 import sys
 import time
+import urllib.error
 import urllib.request
 from datetime import datetime, UTC
 from pathlib import Path
@@ -53,6 +55,7 @@ if str(REPO) not in sys.path:
 SOURCES_DB = REPO / "memory" / "data" / "sources.duckdb"
 RAW_DIR = REPO / "memory" / "data" / "shp_raw"
 WORKLIST = REPO / "memory" / "data" / "shp_worklist.csv"
+FETCH_SCRATCH = Path(os.environ.get("TMPDIR", "/mnt/data/tmp/opencode")) / "findata-graph" / "shp_fetch_scratch"
 RSS_URL = "https://nsearchives.nseindia.com/content/RSS/Shareholding_Pattern.xml"
 BSE_RSS_URL = "https://www.bseindia.com/Data/XML/ShareholdingPattern_Feed.aspx"
 UA = {"User-Agent": "Mozilla/5.0 research", "Referer": "https://nsearchives.nseindia.com/"}
@@ -710,7 +713,11 @@ def apply_candidates(
     the parity numbers without touching the store.
     """
     norm_to_name = norm_to_name or {}
-    from helpers.core.person_names import classify_person_name, resolve_person
+    from helpers.core.person_names import (
+        classify_person_name,
+        person_fold_registry,
+        resolve_person,
+    )
 
     existing_entities = {r[0] for r in conn.execute("SELECT name FROM entities").fetchall()}
     existing_people = [
@@ -718,11 +725,21 @@ def apply_candidates(
         for r in conn.execute("SELECT name FROM entities WHERE entity_type='person'")
     ]
     resolved_people = {}
+    person_folds = person_fold_registry()
     for c in candidates:
         if c["holder_kind"] == "person":
             match, _score = resolve_person(c["holder"], existing_people)
             if match:
                 resolved_people[c["holder_norm"]] = match
+                continue
+            # entity_name_dedup/person arc: a spelling folded by the
+            # signed person plan resolves to its canonical — the dedup
+            # and this resolver cannot drift (one artifact, one map).
+            from helpers.core.entity_identity import name_key  # noqa: PLC0415
+
+            hit = person_folds.get(name_key(c["holder"]))
+            if hit:
+                resolved_people[c["holder_norm"]] = hit
     existing_edges = {
         (r[0], r[1])
         for r in conn.execute(
@@ -737,16 +754,36 @@ def apply_candidates(
         and c["holder_norm"] not in resolved_people
     }
     # canonical entity name when reconciled, display name when new
-    resolved_source = {
-        c["holder_norm"]: resolved_people.get(
-            c["holder_norm"], norm_to_name.get(c["holder_norm"], c["holder"])
+    resolved_source: dict[str, str] = {}
+    skipped: list[str] = []
+    for c in candidates:
+        hit = resolved_people.get(c["holder_norm"]) or norm_to_name.get(c["holder_norm"])
+        if hit is None:
+            # Raw display form only when it IS a registry row — or will be
+            # within this same transaction (new_entities mints non-company
+            # holders before the edge inserts). #400 SHP incident: a
+            # post-merge variant key drops out of norm_to_name while the
+            # canonical row survives — the old unconditional raw fallback
+            # built a ghost source and died on the graph_edges FK
+            # mid-chain. Anything neither registered nor mint-destined
+            # skips + reports; no ghost, no noise mint.
+            if c["holder"] in existing_entities or c["holder_norm"] in new_entities:
+                hit = c["holder"]
+            else:
+                skipped.append(c["holder"])
+                continue
+        resolved_source[c["holder_norm"]] = hit
+    if skipped:
+        print(
+            f"shareholding_sync: skipped {len(skipped)} unreconciled holder(s) "
+            f"(variant forms with no registry row — not minted): "
+            f"{sorted(set(skipped))[:5]}"
         )
-        for c in candidates
-    }
     fresh = sum(
         1
         for c in candidates
-        if (resolved_source[c["holder_norm"]], c["target"]) not in existing_edges
+        if c["holder_norm"] in resolved_source
+        and (resolved_source[c["holder_norm"]], c["target"]) not in existing_edges
     )
     if dry_run:
         return len(new_entities), fresh, fresh
@@ -760,6 +797,8 @@ def apply_candidates(
                 (name, kind, norm),
             )
         for c in candidates:
+            if c["holder_norm"] not in resolved_source:
+                continue  # unreconciled variant form — skipped above
             src_name = resolved_source[c["holder_norm"]]
             props = {
                 "category": c["category"],
@@ -877,6 +916,16 @@ def main(argv: list[str] | None = None) -> int:  # noqa: C901
     ap.add_argument("--max", type=int, default=0, help="cap filings per run (0 = no cap)")
     ap.add_argument("--apply", action="store_true", help="write edges (default: dry-run)")
     ap.add_argument(
+        "--fetch-only",
+        action="store_true",
+        help="fetch + parse filings, stage to scratch (no store writes); pairs with --apply-only",
+    )
+    ap.add_argument(
+        "--apply-only",
+        action="store_true",
+        help="apply staged filings (no fetch); pairs with --fetch-only",
+    )
+    ap.add_argument(
         "--min-stake", type=float, default=0.1, help="named-holder stake %% floor (default 0.1)"
     )
     ap.add_argument(
@@ -888,56 +937,155 @@ def main(argv: list[str] | None = None) -> int:  # noqa: C901
     ap.add_argument("--sleep", type=float, default=1.0, help="seconds between archive fetches")
     args = ap.parse_args(argv)
 
+    FETCH_SCRATCH.mkdir(parents=True, exist_ok=True)
+
+    if args.fetch_only and args.apply_only:
+        print("[shp] --fetch-only and --apply-only are mutually exclusive")
+        return 2
+
+    # ------------------------------------------------------------------ #
+    # Fetch phase — network-bound, no research.db / sources.duckdb writes #
+    # ------------------------------------------------------------------ #
+    if not args.apply_only:
+        src = duckdb.connect(str(SOURCES_DB))
+        ensure_sources_schema(src)
+
+        ingested = 0
+        if args.rss:
+            items = parse_rss(_get_text(RSS_URL))
+            known = {r[0] for r in src.execute("SELECT filing_id FROM shp_filings").fetchall()}
+            for item in items:
+                fid = _filing_id(item["url"])
+                if fid in known:
+                    continue
+                if args.max and ingested >= args.max:
+                    break
+                try:
+                    data = fetch_xbrl_cached(item["url"])
+                except (urllib.error.URLError, OSError) as exc:
+                    # one dead filing URL must not kill the lane — #401
+                    print(f"[shp] FETCH-FAILED: {exc} — skipping {item['url']}")
+                    continue
+                parsed = parse_shp(data)
+                if args.fetch_only:
+                    scratch = FETCH_SCRATCH / f"{fid}.json"
+                    scratch.write_text(
+                        json.dumps(
+                            {
+                                "fid": fid,
+                                "url": item["url"],
+                                "parsed": parsed,
+                                "rss": item,
+                                "source": "nse",
+                            }
+                        )
+                    )
+                    ingested += 1
+                    print(
+                        f"staged {fid} symbol={parsed['symbol']} named={len(parsed['named'])} total_pct={parsed['category_total_pct']}"
+                    )
+                else:
+                    store_filing(src, item["url"], parsed, item)
+                    ingested += 1
+                    print(
+                        f"ingested {fid} symbol={parsed['symbol']} named={len(parsed['named'])} total_pct={parsed['category_total_pct']}"
+                    )
+                time.sleep(args.sleep)
+
+        if args.xml:
+            p = Path(args.xml)
+            data = p.read_bytes() if p.is_file() else fetch_xbrl_cached(args.xml)
+            parsed = parse_shp(data)
+            if args.fetch_only:
+                fid = _filing_id(args.xml)
+                scratch = FETCH_SCRATCH / f"{fid}.json"
+                scratch.write_text(
+                    json.dumps(
+                        {
+                            "fid": fid,
+                            "url": args.xml,
+                            "parsed": parsed,
+                            "rss": None,
+                            "source": "nse",
+                        }
+                    )
+                )
+                ingested += 1
+                print(f"staged {fid} symbol={parsed['symbol']} named={len(parsed['named'])}")
+            else:
+                store_filing(src, args.xml, parsed, None)
+                ingested += 1
+                print(
+                    f"ingested {_filing_id(args.xml)} symbol={parsed['symbol']} named={len(parsed['named'])}"
+                )
+
+        if args.bse_rss:
+            bse_items = parse_bse_rss(_get_text(BSE_RSS_URL))
+            known = {r[0] for r in src.execute("SELECT filing_id FROM shp_filings").fetchall()}
+            for item in bse_items:
+                fid = _filing_id_bse(item["url"])
+                if fid in known:
+                    continue
+                if args.max and ingested >= args.max:
+                    break
+                page = fetch_bse_html_cached(item["url"])
+                parsed = parse_shp_html(page)
+                if args.fetch_only:
+                    scratch = FETCH_SCRATCH / f"{fid}.json"
+                    scratch.write_text(
+                        json.dumps(
+                            {
+                                "fid": fid,
+                                "url": item["url"],
+                                "parsed": parsed,
+                                "rss": item,
+                                "source": "bse",
+                            }
+                        )
+                    )
+                    ingested += 1
+                    print(
+                        f"staged {fid} symbol={parsed['symbol']} named={len(parsed['named'])} "
+                        f"total_pct={parsed['category_total_pct']}"
+                    )
+                else:
+                    store_bse_filing(src, item["url"], parsed, item)
+                    ingested += 1
+                    print(
+                        f"ingested {fid} symbol={parsed['symbol']} named={len(parsed['named'])} "
+                        f"total_pct={parsed['category_total_pct']}"
+                    )
+                time.sleep(args.sleep)
+
+        src.close()
+
+    if args.fetch_only:
+        n_staged = len(list(FETCH_SCRATCH.glob("*.json")))
+        print(f"[FETCH-ONLY] staged={n_staged} filings -> {FETCH_SCRATCH}")
+        return 0
+
+    # --------------------------------------------------------------- #
+    # Apply phase — store writes (sources.duckdb + research.db)       #
+    # --------------------------------------------------------------- #
     src = duckdb.connect(str(SOURCES_DB))
     ensure_sources_schema(src)
     from helpers.core.db import connect as sqlite_connect, DEFAULT_DB_PATH
 
-    ingested = 0
-    if args.rss:
-        items = parse_rss(_get_text(RSS_URL))
-        known = {r[0] for r in src.execute("SELECT filing_id FROM shp_filings").fetchall()}
-        for item in items:
-            fid = _filing_id(item["url"])
-            if fid in known:
-                continue
-            if args.max and ingested >= args.max:
-                break
-            data = fetch_xbrl_cached(item["url"])
-            parsed = parse_shp(data)
-            store_filing(src, item["url"], parsed, item)
-            ingested += 1
-            print(
-                f"ingested {fid} symbol={parsed['symbol']} named={len(parsed['named'])} total_pct={parsed['category_total_pct']}"
+    if args.apply_only:
+        for scratch in sorted(FETCH_SCRATCH.glob("*.json")):
+            data = json.loads(scratch.read_text())
+            fid, url, parsed, rss, source = (
+                data["fid"],
+                data["url"],
+                data["parsed"],
+                data.get("rss"),
+                data.get("source", "nse"),
             )
-            time.sleep(args.sleep)
-    if args.xml:
-        p = Path(args.xml)
-        data = p.read_bytes() if p.is_file() else fetch_xbrl_cached(args.xml)
-        parsed = parse_shp(data)
-        store_filing(src, args.xml, parsed, None)
-        ingested += 1
-        print(
-            f"ingested {_filing_id(args.xml)} symbol={parsed['symbol']} named={len(parsed['named'])}"
-        )
-
-    if args.bse_rss:
-        bse_items = parse_bse_rss(_get_text(BSE_RSS_URL))
-        known = {r[0] for r in src.execute("SELECT filing_id FROM shp_filings").fetchall()}
-        for item in bse_items:
-            fid = _filing_id_bse(item["url"])
-            if fid in known:
-                continue
-            if args.max and ingested >= args.max:
-                break
-            page = fetch_bse_html_cached(item["url"])
-            parsed = parse_shp_html(page)
-            store_bse_filing(src, item["url"], parsed, item)
-            ingested += 1
-            print(
-                f"ingested {fid} symbol={parsed['symbol']} named={len(parsed['named'])} "
-                f"total_pct={parsed['category_total_pct']}"
-            )
-            time.sleep(args.sleep)
+            if source == "bse":
+                store_bse_filing(src, url, parsed, rss)
+            else:
+                store_filing(src, url, parsed, rss)
+            print(f"applied {fid} from scratch")
 
     conn = sqlite_connect(DEFAULT_DB_PATH)
     companies = _resolve_companies(src, conn)
@@ -990,6 +1138,8 @@ def main(argv: list[str] | None = None) -> int:  # noqa: C901
 
         duckdb_rebuild()
         print("duckdb property graph rebuilt")
+    src.close()
+    conn.close()
     return 0
 
 

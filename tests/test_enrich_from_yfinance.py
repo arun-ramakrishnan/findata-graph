@@ -374,6 +374,28 @@ def test_identity_ok_short_exchange_spelling_passes():
     assert identity_ok("Power Grid Corporation of India", {"shortName": "Power Grid Corp"})
 
 
+def test_name_tokens_folds_accents_and_plurals():
+    # S1 hygiene pass: live Yahoo longNames differ from note names exactly here
+    assert _name_tokens("Shangar Decor") == _name_tokens("Shangar Décor Limited")
+    assert _name_tokens("Lambodhara Textile") == _name_tokens("Lambodhara Textiles Limited")
+
+
+def test_identity_ok_accent_apostrophe_plural_passes():
+    assert identity_ok("Sai Parenterals", {"longName": "Sai Parenteral's Limited"})
+    assert identity_ok("Shangar Decor", {"longName": "Shangar Décor Limited"})
+    assert identity_ok("Lambodhara Textile", {"longName": "Lambodhara Textiles Limited"})
+    assert identity_ok("Venkys (India)", {"longName": "Venky's (India) Limited"})
+
+
+def test_identity_ok_still_blocks_different_stems():
+    # plural folding widens matching symmetrically — distinct stems never meet
+    assert not identity_ok("Felix Industries", {"longName": "Felix Gold Limited"})
+    assert not identity_ok(
+        "IND Renewable Energy",
+        {"longName": "Indian Renewable Energy Development Agency Limited"},
+    )
+
+
 def test_identity_ok_blocks_wrong_entity():
     # FELIX.NS resolved to the Australian explorer — the proven Gold poisoning
     assert not identity_ok("Felix Industries", {"longName": "Felix Gold Limited"})

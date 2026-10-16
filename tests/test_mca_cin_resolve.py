@@ -112,3 +112,20 @@ class TestPick:
             )
             is None
         )
+
+
+class TestIngestWebGuard:
+    def test_missing_candidates_file_is_clean_noop(self, capsys):
+        """#401 close-out: the candidates file is a product of the manual
+        REPL `web` phase — absent on a fresh $TMPDIR. ingest-web must skip
+        cleanly (rc 0, no traceback), not crash the refresh chain."""
+        rc = m.main(
+            [
+                "ingest-web",
+                "--candidates",
+                str(REPO / "memory" / "data" / "_no_such_cin_web_candidates.json"),
+                "--no-revalidate",
+            ]
+        )
+        assert rc == 0
+        assert "nothing to ingest" in capsys.readouterr().out
