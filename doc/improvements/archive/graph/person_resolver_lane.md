@@ -176,4 +176,16 @@ repeat filings is met.
 | 2026-09-25 | shp_filings | 9 filings; 1 symbol ≥2 | memory/data/sources.duckdb |
 | 2026-09-25 | shp_holders categories | 60+ spellings / 333 rows | incl. artifact rows |
 | 2026-09-25 | person-class holders | 51 rows | broad ILIKE filter |
+
+## 6. Follow-up arc (2026-10-15)
+
+The entity-name dedup arc (`doc/improvements/archive/graph/entity_name_dedup.md`,
+S1) isolated **28 person-shaped collision clusters** in `graph_edges`
+and excludes them from the company merge by filter. The person-name
+dedup + speaker-attribution continuation — identity registry with the
+legal-person-line model (individual/HUF/trust), Quotes speaker corpus
+(188 names), evidence-gated initial expansion, HUF boundary never
+merging — is filed as its own proposal:
+**`doc/improvements/archive/graph/person_name_dedup.md`**. This lane's
+insert-time resolver is S3's ingestion hook for that arc.
 | 2026-09-25 | event type enum | frozenset, 4 members | static_checks.py:643 |
