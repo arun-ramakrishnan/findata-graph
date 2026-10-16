@@ -1,0 +1,6 @@
+# Entity-name merge plan (entity_name_dedup S1 — DRY-RUN artifact)
+# clusters: 0 | names: 20644 | footnote names: 12 | edge rows touched: 0
+# canonical rule: listed-entity > degree > lex; footnote `**` variants never win
+# S2 applies ONLY on operator sign-off of this file (name_dedup.py --apply --yes)
+# machine form: _name_merge_plan.jsonl (verbatim names; regenerate together)
+
