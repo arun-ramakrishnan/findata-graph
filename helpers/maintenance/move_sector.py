@@ -92,7 +92,9 @@ def update_yaml_sector_tag(yaml_text: str, old_sector: str, new_sector: str) -> 
 
 
 def update_yaml_permalink(yaml_text: str, new_sector: str, normalized_name: str) -> str:
-    new_permalink = f"companies/{new_sector.lower()}/{normalized_name.lower()}"
+    # leading slash: verify_notes' frontmatter schema gates permalinks on
+    # the `/companies/...` site form (rename_entity had the same bug)
+    new_permalink = f"/companies/{new_sector.lower()}/{normalized_name.lower()}"
     pattern = re.compile(r"^(\s*permalink\s*:\s*).*$", re.MULTILINE)
     if pattern.search(yaml_text):
         return pattern.sub(rf"\g<1>{new_permalink}", yaml_text, count=1)

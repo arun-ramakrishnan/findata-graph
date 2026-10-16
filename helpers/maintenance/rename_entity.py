@@ -98,7 +98,10 @@ def main(argv: list[str] | None = None) -> int:  # noqa: C901
         if sector_override:
             sector = sector_override
 
-        new_file_path = f"findata/Companies/{sector}/{new_normalized}.md"
+        # D14 stubs are fileless (file_path NULL) — keep them fileless instead
+        # of fabricating findata/Companies/None/<name>.md (and crashing on
+        # PROJECT_ROOT / None in the markdown block below).
+        new_file_path = f"findata/Companies/{sector}/{new_normalized}.md" if file_path else None
 
         print(f"Renaming: {old_name} → {new_name}")
         print(f"  normalized_name: {old_norm} → {new_normalized}")
@@ -131,30 +134,35 @@ def main(argv: list[str] | None = None) -> int:  # noqa: C901
                 (new_name, new_normalized, new_file_path, sector, utc_now(), old_name),
             )
 
-        # 2. Move + update markdown
-        src = PROJECT_ROOT / file_path
-        dst = PROJECT_ROOT / new_file_path
-        if src.exists():
-            dst.parent.mkdir(parents=True, exist_ok=True)
-            text = src.read_text(encoding="utf-8")
-            opener, yaml, rest = split_fm(text)
-            if opener:
-                yaml = replace_field(yaml, "normalized_name", new_normalized)
-                yaml = replace_field(yaml, "file_path", new_file_path)
-                yaml = replace_field(
-                    yaml, "permalink", f"companies/{sector.lower()}/{new_normalized.lower()}"
-                )
-                yaml = replace_field(yaml, "title", new_name)
-                yaml = replace_field(yaml, "sector", sector)
-                if ticker_override:
-                    yaml = replace_field(yaml, "ticker", ticker_override)
-                yaml = replace_field(yaml, "last_modified", TODAY)
-                text = opener + yaml + rest
-            src.rename(dst)
-            dst.write_text(text, encoding="utf-8")
-            print("  ✓ file moved + YAML updated")
+        # 2. Move + update markdown (note-backed entities only — fileless
+        #    D14 stubs keep file_path NULL, nothing to move or re-YAML)
+        if file_path:
+            assert new_file_path is not None  # file_path set ⇒ new_file_path set (line 104)
+            src = PROJECT_ROOT / file_path
+            dst = PROJECT_ROOT / new_file_path
+            if src.exists():
+                dst.parent.mkdir(parents=True, exist_ok=True)
+                text = src.read_text(encoding="utf-8")
+                opener, yaml, rest = split_fm(text)
+                if opener:
+                    yaml = replace_field(yaml, "normalized_name", new_normalized)
+                    yaml = replace_field(yaml, "file_path", new_file_path)
+                    yaml = replace_field(
+                        yaml, "permalink", f"/companies/{sector.lower()}/{new_normalized.lower()}"
+                    )
+                    yaml = replace_field(yaml, "title", new_name)
+                    yaml = replace_field(yaml, "sector", sector)
+                    if ticker_override:
+                        yaml = replace_field(yaml, "ticker", ticker_override)
+                    yaml = replace_field(yaml, "last_modified", TODAY)
+                    text = opener + yaml + rest
+                src.rename(dst)
+                dst.write_text(text, encoding="utf-8")
+                print("  ✓ file moved + YAML updated")
+            else:
+                print(f"  ⚠ source file missing: {src}", file=sys.stderr)
         else:
-            print(f"  ⚠ source file missing: {src}", file=sys.stderr)
+            print("  ⚠ fileless entity (D14 stub) — no markdown to move")
 
         conn.commit()
         # Integrity check: with cascades on, this should be clean.

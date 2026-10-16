@@ -80,13 +80,14 @@ def test_update_sector_tag_no_existing():
 def test_update_permalink():
     yaml = "---\npermalink: companies/old/Company_X\n---"
     result = update_yaml_permalink(yaml, "NewSector", "Company_X")
-    assert "companies/newsector/company_x" in result
+    # leading slash is the site form verify_notes' schema gate requires
+    assert "/companies/newsector/company_x" in result
 
 
 def test_update_permalink_add_absent():
     yaml = "---\ntitle: Foo\n---"
     result = update_yaml_permalink(yaml, "NewSector", "Company_X")
-    assert "companies/newsector/company_x" in result
+    assert "/companies/newsector/company_x" in result
 
 
 # ---------------------------------------------------------------------------
