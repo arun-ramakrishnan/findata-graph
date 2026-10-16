@@ -87,7 +87,6 @@ import json
 import os
 import re
 import sys
-import unicodedata
 from dataclasses import asdict, dataclass, field
 from functools import cache
 from itertools import combinations
@@ -101,6 +100,7 @@ if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
 from helpers.core.db import connect, utc_now  # noqa: E402
+from helpers.core.entity_identity import name_key as _name_key  # noqa: E402
 from helpers.core.frontmatter import (  # noqa: E402  # after the sys.path bootstrap above
     strip_frontmatter as _strip_yaml_front_matter,
     _FM_RE as _YAML_FRONT_MATTER_RE,
@@ -390,16 +390,13 @@ def _canonical_key(name: str) -> str:
     \"Systemes\" ↔ \"Systèmes\", \"NetwebTechnologiesIndia\" ↔
     \"Netweb Technologies India\" all collapse here so the resolver stops
     needing hand-aliases for spellings that differ only in these ways.
+
+    entity_identity_home (2026-10-15): this IS
+    ``helpers.core.entity_identity.name_key`` now — one fold for every
+    name surface (resolver, dedup census, vigil sync, person shapes).
+    The wrapper keeps the resolver-local cache (600k+ calls per dry-run).
     """
-    # De-accent: NFKD then drop combining marks.
-    s = unicodedata.normalize("NFKD", name)
-    s = "".join(ch for ch in s if not unicodedata.combining(ch))
-    # Drop apostrophes so \"McDonald's\" -> \"McDonalds\".
-    s = s.replace("'", "").replace("’", "")
-    # Split camelCase / compound joins before punctuation handling.
-    s = re.sub(r"(?<=[a-z0-9])(?=[A-Z])", " ", s)
-    s = re.sub(r"(?<=[A-Z])(?=[A-Z][a-z])", " ", s)
-    return " ".join(s.split()).casefold()
+    return _name_key(name)
 
 
 @cache
