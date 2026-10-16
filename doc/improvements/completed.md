@@ -10718,6 +10718,8 @@ Non-goals: no routing/dispatch changes, no `write_analytics` rows, `structural_r
 
 **Follows**: `doc/improvements/archive/graph/scipy_graph_bridge.md` §7 (the 25-public accounting, consumer-gate replaced), `doc/local/evaluations/graph_layer.md` (2026-10-15 scale-trial section).
 
+**Unlock (2026-10-15, §9b fast-follow of the same proposal)**: S3b covering assignment — 277×84 `invested_in` → **82 assigned / 2 Hall violators excluded (Mitsubishi Chemical Group, Sodexo)**, every kept target its minimum-stake investor (`assign-primary` CLI, read-only; toy oracle in tests). S4b A²→triage routing — `--method supplier_peers` rides the C2 suggestion surface (evidence ≥3 shared consumers, K-capped, deduped); live: Tata/TCS (81 shared) correctly suppressed by existing typed edges, 1 suggestion landed (Cholamandalam FH ↔ E.I.D. Parry, 23 shared) and re-run is inert. Recorded finding: the surfaced pair rides a name-variant ER boundary (`E.I.D.PARRY (INDIA)` vs `E.I.D. Parry (India)` as distinct nodes) — ER normalisation over graph_edges names is the follow-up lever.
+
 ## 394. Range review 1fda0c158..6182cd2c7 — 43 findings (9 H / 19 M / 15 L) + review-apparatus fixes
 
 **Proposal**: `doc/improvements/archive/tooling/range_review_1fda0c158_6182cd2c7.md` (filed + executed same day; absorbs all 48 commits of the September arc).
@@ -10838,3 +10840,345 @@ with the known-external convo-fresh dsh-index lag).
 **Follows**: completed.md #395/#396 (the audited arcs these repairs
 close out); doc/local/engineering/split_patch.md (the collector split
 that motivated the arc).
+
+## 398. Entity-name dedup — one canonical name per entity (companies)
+
+**Proposal**: `doc/improvements/archive/graph/entity_name_dedup.md` (filed + executed 2026-10-15/16; S2 applied on operator go 2026-10-16)
+
+The graph's node names carried 1,575 collision clusters (7.1% of
+22,067 names; 11.2% of edge rows) — case, punctuation, footnote-`**`
+and glued-compound variants of the same real-world entity, minted
+mostly by the vigil bulk sync's weak `normalized_name` lookups.
+Discovered when the S4b supplier-peer lane surfaced a TRUE relation
+(Cholamandalam FH ↔ E.I.D. Parry, operator-confirmed) only through a
+three-way name variant.
+
+- **S1**: `helpers/graph/name_dedup.py` — census + reviewable merge
+  plan (`_name_merge_plan.txt` + `.jsonl` machine form) + person
+  filter (honorifics/initial-runs/holder-phrases/Quotes-speaker
+  corpus; listed entities exempt — 28 person clusters route to the
+  person arc, never merged here).
+- **S2** (2026-10-16, backup taken at
+  `snapshots/pre_name_merge_research_20261016_081440.db` and **removed**
+  after the merge verified clean — 26,162 entities / 65,898 edges,
+  `PRAGMA quick_check: ok`; the restore path is `make snapshot-restore`
+  from the git-tracked `snapshots/parquet/`, and the working set was already
+  committed before deletion):
+  1,656 variants folded — 257 rows re-pointed, 1,809 cross-spelling
+  duplicates/self-loops consolidated (UNIQUE + CHECK constraints
+  handled in-apply, unit-pinned first); registry rows folded too
+  (26,162 → 24,506); duckdb cache rebuilt (e_supplier 16,584 →
+  16,485 = sqlite exact); zero loss (`65,898 − 1,809 = 64,089`).
+  Post-merge census: **0 mergeable clusters** (22,067 → 20,403
+  names). 8 entity names contained raw newlines — plan gained a
+  verbatim JSONL machine form.
+- **S3**: resolve-before-insert at the vigil boundary (`_safe_display`
+  footnote strip; census-key + fold-map lookup before minting) — a
+  re-run of the same source cannot re-create variants.
+- **S4**: standing gate — `make dup-census` vs baseline **0**
+  (`_name_dedup_baseline.txt`); any future cluster is a writer
+  regression, failing the check.
+
+**Companion**: `doc/improvements/archive/graph/entity_identity_home.md` —
+the five drifted normalisers consolidated into
+`helpers/core/entity_identity.py` (`name_key` superset fold;
+tier model: exact-key identity vs fuzzy_match scoring; registries as
+the only lookup structures); resolver hot path re-pointed same day.
+Person names: `doc/improvements/archive/graph/person_name_dedup.md`
+(identity registry, legal-person lines, HUF boundary).
+
+Revisit: transposition pairs (23) stay report-only; person clusters
+(28) ride the person arc; `A S Packers`-class companies misfiltered
+as person-shaped are visible in the plan's excluded section and can be
+re-merged by hand on evidence.
+
+## 399. Person-name dedup — legal-line identity, 24 fold clusters, HUF boundary held
+
+**Proposal**: `doc/improvements/archive/graph/person_name_dedup.md` (filed 2026-10-15, executed 2026-10-16 on operator plan approval)
+
+The person analog of #398. The identity model is the load-bearing
+difference: **legal lines (individual / HUF / trust) are part of
+identity** — an HUF never merges into the individual, the #293
+founding hazard made structural.
+
+- **S1**: `helpers/graph/person_dedup.py` — census/plan/check over the
+  person populations (28 graph person clusters, 30 SHP stubs, 188
+  Quotes speakers). Clusters keyed by (legal line, base key — line
+  tokens stripped); cross-line base collisions land in a NEVER-MERGE
+  section; company-shaped members (marker vocabulary) route to review.
+- **S2** (operator approved `_person_merge_plan.txt`): **25 variants
+  folded across 24 clusters** — 21 person-line + 3 HUF-line (within
+  the HUF line: allowed; the line is the identity); 25 colliding rows
+  consolidated, 25 registry rows folded (0 retained-referenced), zero
+  loss (64,090 → 64,065); duckdb cache rebuilt. Post-merge: 0 fold
+  clusters; `Deepak Agarwal` (individual) and `Deepak Agarwal HUF`
+  both survive — only the `(HUF)` spelling folded. Person clusters
+  carry no `invested_in` edges (verified pre-apply) — the operator's
+  parallel scipy S3 per-sector trials were untouched.
+- **S3**: `person_names.person_fold_registry()` — the signed person
+  plan consulted by `shareholding_sync.apply_candidates` before
+  minting; resolver and dedup share one artifact, cannot drift.
+  Speaker attribution (S6): `entity_identity.resolve_speaker` wired
+  into `derive_insights._create_quote` same day — attribution
+  spellings converge on corpus display forms.
+- **S4**: `make person-census` gate; baseline = 4 (the company-shaped
+  review clusters — they clear on hand-merge into the company arc).
+
+**Revisit**: the 4 company-shaped clusters were re-merged 2026-10-16
+(operator ruling: they are unlisted subsidiaries — company markers now
+VETO the person shape, and both baselines sit at 0); person entity
+re-typing (folded rows were registry-typed `company`) rides the
+resolver arc.
+
+## 405. Entity rename pass — first pass executed (41 renames); tiered evidence loop proven
+
+- First pass (operator go, 2026-10-16): 47 `tier3_rename` candidates from the `ticker_hygiene` stage → **41 renamed** through `rename_entity` (store-convention names per the entities CHECK — corporate suffix stripped; `Kinetic Engg → Kinetic Engineering`…), 2 no-ops (exchange name == store name after suffix strip), 3 routed to the alias lane (1-char token mutations — `Chemkart`, `Raunaq lnternational`, `RNIT Al` — fix via `yf_name_aliases.json`, never a rename), 1 collision rejected by the UNIQUE constraint (`Grand Foundry` → Tikona Communication already exists = wrong-symbol match, not a rename).
+- `rename_entity.py` fixed for fileless D14 stubs: `file_path` NULL preserved (no fabricated `findata/Companies/None/x.md`, no `Path / None` crash); 12 existing tests green.
+- Post-rename tier run converged the renamed rows' tickers (`applied=40`); scrip tail 481 → **380** (115 dead + 258 no-kite + 5 review rows); dup/person-census 0. Queue: `findata/Misc/_rename_queue_20261016.json`; evidence in `outputs/ticker_hygiene_report.md`.
+- Residual (documented, not blocking): `--rename-report` CLI mode (queue was driver-generated) and tier-3b GF / 3c finnhub fallbacks remain future hardening; the evidence → queue → rename → re-tier loop itself is proven end-to-end.
+
+## 404. D14 stub convergence S1 — scrip-code ticker repair executed; S2/S3 deferred
+
+- `helpers/maintenance/ticker_hygiene.py` (new, 30 tests): 4,159 numeric-scrip `.BO/.NS` tickers → **3,678 verified Yahoo symbols (88.4%)** — tier-1 `get_tickers.search_ticker` + `enrich_from_yfinance.identity_ok`; tier-2 BSE PeerSmartSearch fallback (403-blocked from this network, same as the exchange_sync BSE lane); tier-3 direct-symbol probe from local `kite_tradingsymbol` (sources.duckdb). Guarded `UPDATE … WHERE name AND old-ticker`, `skipped_moved=0`; resumable JSONL stage + `## ticker_issues`/`## renames` report shape.
+- Guard hardening: `enrich_from_yfinance._name_tokens` NFKD accent fold + plural fold on both sides of the subset test — +45 recovered false refusals (Sai Parenterals, Shangar Décor, Venky's…).
+- Chain wiring: `ticker_hygiene --fetch-only` in refresh-chain phase A; `--apply-only` in phase B before `enrich_from_yfinance --apply-only` — scrip stubs become fetchable before the metrics lane reads `entities.ticker`.
+- Residual 481 tail = renames (entity-rename-pass evidence, proposal follows) + search-absent names, itemised in `outputs/ticker_hygiene_report.md`; dup/person-census 0 after applies.
+
+## 403. Refresh chain, parallel — fetch/apply split so independent sources overlap
+
+**Date**: 2026-10-16
+**Status**: COMPLETE
+**Proposal**: `doc/improvements/archive/pipeline/refresh_chain_parallel.md`
+(filed + executed same day; split seven refresh-chain lanes into per-lane
+`--fetch-only` stages writing scratch JSON under `$TMPDIR/findata-graph/`
+(no store writes), parallel phase A (`& ... wait`), sequential store applies
+under per-store lock, per-item failure containment)
+
+**Code**:
+- `helpers/maintenance/shareholding_sync.py` — `--fetch-only` stages parsed
+  NSE/BSE filings; `--apply-only` reads staged JSON, writes sources.duckdb
+  + research.db. Mutual exclusivity enforced (rc=2).
+- `helpers/maintenance/enrich_from_yfinance.py` — `--fetch-only` parallel
+  yfinance .info fetch stages to scratch; `--apply-only` writes metrics +
+  note updates. Identity guard preserved.
+- `helpers/maintenance/ingest_nse_xbrl.py` — `--fetch-only` per-entity XBRL
+  fetch+parse stages rows; `--apply-only` applies via `apply_rows()`.
+- `helpers/maintenance/exchange_sync.py` — `--fetch-only` per-lane fetch
+  stages rows; `--apply-only` folds into sources.duckdb.
+- `Makefile` — `refresh-chain` is now the default (parallel): phase A runs all five fetch stages in parallel, phase B applies sequentially (exchange → vigil → shp → enrich → CIN → XBRL → snapshot). Dry-run by default; `APPLY=1` writes. The original sequential chain is `refresh-chain-ser`.
+
+**Acceptance**: cold-run wall-clock ≈ slowest single fetch, not their sum;
+outcome parity with sequential `refresh-chain-ser` (identical store rows);
+zero `database is locked` / DuckDB lock failures (applies sequential);
+single-record grace (404/URLError/OSError logged + skipped, lane continues).
+
+**Tests**: per-lane fetch-stage unit tests + integration test (phase A into
+tmp scratch, phase B into tmp store pair) — deferred to a follow-up slice
+(proposal §2 Acceptance lists them; implementation landed the CLI split,
+tests follow).
+
+## 402. Fold ledger durability — an append-only record for signed name folds
+
+**Date**: 2026-10-16
+**Status**: COMPLETE
+**Proposal**: `doc/improvements/archive/graph/fold_ledger_durability.md`
+(filed + executed same day; found while answering the operator's
+git-tracking question about the `findata/Misc` dedup artefacts)
+
+**Defect**: `entity_identity.fold_registry()` promised a signed fold
+"keeps routing old spellings to the canonical forever", but read only
+the S1 **merge-plan artifact** — which `name_dedup.write_plan`
+REGENERATES. After a merge the census is empty, so the next `--plan`
+wrote a header-only file (`clusters: 0 | edge rows touched: 0`) and the
+registry collapsed to `{}` exactly when it started to matter. Live
+evidence: `fold_registry entries: 0` against `registry_index entries:
+24,832`, post-82-cluster merge.
+
+**Code**: `helpers/graph/name_dedup.py` — `LEDGER_PATH`;
+`ledger_path_for(plan_path)` (stem → `_name_fold_ledger.jsonl` /
+`_person_fold_ledger.jsonl`, so the two arcs never share a ledger);
+`_append_ledger(folded, ledger_path)` (one verbatim
+`{"variant","canonical","folded_at"}` row per fold, idempotent, returns
+rows appended); `apply_plan(..., ledger_path=None)` appends after the
+DB write and reports `fold_ledger_appended` + `fold_ledger`.
+`helpers/core/entity_identity.py` — `DEFAULT_LEDGER_PATH`,
+`_ledger_folds()`, `fold_registry(plan_path, ledger_path)` = ledger ∪
+plan. `helpers/core/person_names.py` — `PERSON_LEDGER_PATH`,
+`person_fold_registry(path, ledger_path)` = ledger ∪ plan.
+
+**Artifact**: `findata/Misc/_name_fold_ledger.jsonl` +
+`_person_fold_ledger.jsonl` — append-only pipeline state that must
+survive a fresh clone (same class as the two baselines, the plan
+artifacts `fold_registry` reads at runtime, and `relation_aliases.json`,
+which carries an explicit `.gitignore` exception for this reason).
+
+**Neutrality** (so no eval gate): `person_fold_registry()` 3 entries
+before → 3 after; company `fold_registry()` 0 → 0. No roster, crosswalk,
+hierarchy or extractor rule moved — the ledger only makes the map
+durable.
+
+**Residual gap**: the 82 company folds applied before the ledger are not
+backfillable — `git show f2319c5f4|a8af1a917|HEAD:findata/Misc/_name_merge_plan.txt`
+all yield `grep -c '^== '` = 0, so the 82-cluster plan lived only in the
+working tree between `--plan` and `--apply` and was never committed.
+Acceptable because every fold cluster is same-`name_key` by construction
+(`cluster_names()` groups by `normalise()` → `entity_identity.name_key`,
+`name_dedup.py:105-111`, `:57-61`), so `registry_index` resolves those
+variants anyway. The person arc WAS backfillable and was seeded (3 rows:
+`Pradeep Kumar Agarwal (HUF)`→`Pradeep Kumar Agarwal`,
+`Rajendra Kumar Gupta Huf .`→`Rajendra Kumar Gupta`,
+`Rohit Kedia(Huf)`→`Rohit Kedia`).
+
+**Tests** (`tests/test_name_dedup.py` → adds
+`test_apply_extends_ledger_and_survives_replan`): asserts
+`fold_ledger_appended == variants_folded > 0`, that the ledger alone
+still resolves after `write_plan` empties the plan (`-> fold` absent),
+and that a re-apply against the regenerated plan appends nothing.
+Targeted `pytest tests/test_name_dedup.py tests/test_person_dedup.py` →
+13 passed; `ruff check` + `ruff format --check` clean. Cleared a
+pre-existing unused local (F841) in the same test file.
+
+## 401. S3 unlock — per-sector cuts for assign-primary
+
+**Date**: 2026-10-16
+**Status**: COMPLETE
+**Proposal**: `doc/improvements/archive/graph/s3_sector_unlock.md`
+(filed + executed same day — this session took the arc over after the
+parallel session completed the data-side trials: all 84 targets
+classified via Yahoo Finance lookup + parent-entity inheritance,
+84/84 assigning across per-sector cuts)
+
+**Code** (`helpers/graph/scipy_matching.py`):
+`load_target_sectors()` — target → `sector_classification`, classified
+only (unclassified targets skip the cut and are reported, §1);
+`s3_assign_primary_sector()` — partition targets by sector, build each
+sector's sub-incidence (targets-in-S × investors-with-edge-into-S,
+stake-weighted COALESCE(weight,1.0)), run `s3_assign_primary` unchanged
+inside each cut, union across cuts (a target lives in exactly one cut;
+an investor at most once per cut, may serve several); CLI
+`assign-primary-sector` (`--db`, `--max-exclusions`, `--format
+text|json`) — read-only, no write path, JSON `sort_keys`-stable.
+
+**Tests** (`tests/test_scipy_matching.py` → 10): `test_s3_sector_toy` —
+the §2 oracle per cut, plus the cross-sector investor assigned in BOTH
+cuts at min stake (per-cut matching property), plus unclassified-skip
+reporting; `test_s3_sector_live` — coverage parity (assigned ==
+classified), zero exclusions, run-twice determinism, byte-stable JSON,
+skipped when the live DB is absent.
+
+**Live** (`memory/research.db`): per-sector cuts **84/84 assigned,
+0 excluded, 0 unclassified across 20 sectors**; the raw uncut
+`assign-primary` reproduces the contrast — 82/84 with `Mitsubishi
+Chemical Group` and `Sodexo` as the named Hall violators. Matches the
+proposal's trial table exactly.
+
+**Incidents caught by the acceptance run**: (1) a shebang regression
+this session had introduced in `helpers/core/entity_identity.py`
+(missing `#!/usr/bin/env python3` — static-checks "Helper shebangs"
+leg) — fixed; (2) mid-close-out, the refresh chain's SHP lane crashed
+on a `graph_edges` FK (`shareholding_sync.py`): `apply_candidates`'
+resolution ladder fell back to the raw filing display form when
+`norm_to_name` missed — post-merge variant keys drop out of the map
+while the canonical row survives, so the edge source was a ghost. Fix:
+the raw fallback applies only when the raw form IS a registry row or
+the holder is mint-destined in the same transaction; anything else
+skips + reports (`test_apply_skips_unreconciled_company_holder` pins
+it; SHP suite 17 green); (3) the chain's CIN lane
+(`mca_cin_resolve ingest-web`) crashed on a missing
+`cin_web_candidates.json` — the file is a product of the manual REPL
+`web` phase (kernel-only websearch, no CLI) and legitimately does not
+exist on a fresh `$TMPDIR`. Fix: `ingest-web` skips cleanly (rc 0,
+`test_missing_candidates_file_is_clean_noop` pins it; suite 14 green)
+— the phase lands when its REPL producer runs.
+
+**Deferred** (documented, not built): a `primary_investment` edge type
+stays a future option — large caps have many investors and no natural
+"primary"; per-sector cuts ship the readout lane.
+
+## 400. Relations-queue triage — suggestions + prose at zero; 5-entity stub batch
+
+**Date**: 2026-10-16
+**Status**: COMPLETE
+**Proposal**: follow-through to #398/#399 (S4b supplier-peer lane output)
+
+**Suggestions (25)**: all `link-prediction/supplier_peers` rows
+dispositioned via `triage_pending_relations --apply-decisions` — 24
+`accept:same_group` (Tata ×20 incl. 8 `Tata sons` holding-company pairs,
+Adani ×4; the graph's own `same_group` convention decided semantics —
+every queue entity already carried group edges to its siblings) + 1
+`accept:semantic_peer` (JSW Infrastructure↔Jindal Steel: Sajjan vs
+Naveen Jindal camps post-2005 split, NO group bridge anywhere in the
+graph, so `same_group` would break convention; shared-consumer score 12
+= supply-chain adjacency). All written `source_ref='triage:accept'`;
+suggestions file emptied.
+
+**Prose (9)**: 1 `alias:DWS` ("European giant DWS Group"); 3 accepts
+that INSERT-OR-IGNORE no-opped on already-promoted edges (L'Oréal
+`acquired` Kering Beaute; HeidelbergCement India `subsidiary_of`
+Heidelberg Materials — canonical 2023 name; TVS Supply Chain Solutions
+`jv_with` Sankyu Corporation); 1 mangle decoded — "Caring Beauty" is
+OCR garble of **Kering Beauté** (Creed + Balenciaga/Bottega Veneta
+license context); 5 stubs parked for creation.
+
+**Stub batch (operator go)**: BYD (Automotive), Hitachi Energy
+(Engineering_Capital_Goods — ABB_India precedent), NEC
+(Telecommunications), UBS (Capital_Markets), HKC (Electronics) — 5
+vault notes (`findata/Companies/<Sector>/`, `triage_stub_batch/v1`
+provenance) + 5 registry rows + 15 edges (`triage:stub`: 5 main —
+Olectra jv_with BYD, Laxmi Organic supplier_to Hitachi Energy, Tejas
+jv_with NEC, 360 ONE WAM jv_with UBS, Dixon jv_with HKC — plus
+part_of/has_company sector pairs, the #73 pattern). Aliases now teach
+the mangles: `caring beauty`→Kering Beaute, `heidelberg cement
+group`→Heidelberg Materials (recurring old-form parent), `european
+giant dws group`→DWS.
+
+**Incident — script-mode import regression (fixed)**: the identity-home
+re-point left `from helpers.core.entity_identity import name_key` ABOVE
+the sys.path bootstrap in `helpers/graph/extract_relations.py:90` —
+script mode died with `ModuleNotFoundError` (masked since by pytest's
+rootdir path). Import moved below the bootstrap; 73/73
+extract/apply tests green.
+
+**Incident — whole-vault extract scope**: the triage chain's
+`extract_relations.py findata --apply` sweeps `findata/Misc/` triage
+artifacts (self-referential captures — the report quoting rows quoting
+notes) and Companies notes outside the canonical three-newsletter-dir
+scope. It wrote 2 junk `cross_note` same_group edges grouping a
+MedPlus **employee gratuity scheme** into the TVS group — deleted.
+Canonical extraction scope remains the Makefile's The_Chatter +
+Points_And_Figures + The_PlotLines.
+
+**Flag (not mine to delete)**: `MedPlus Employees group gratuity
+assurance scheme same_group Medplus Health Services`
+(`vigil:rpt:MEDPLUS`, 2026-09-22) — a benefit trust grouped with a
+company by the vigil lane; needs a vigil-side exclusion ruling.
+
+**Flag resolution — same day, operator go.** The MEDPLUS row was not a
+one-off: the vigil lane had minted **119 wrong-class edges** over
+benefit instruments (65 same_group, 32 subsidiary_of, 19 supplier_to,
+3 jv_with — including `Aditya Birla Capital subsidiary_of Century
+Rayon Employees' Provident Fund Trust No.1`). Ind AS 24 makes
+gratuity/provident/superannuation/pension trusts related parties, so
+filings surface them constantly — but the relation vocabulary has no
+class for "company administers its benefit trust". Fix: a
+`_BENEFIT_SCHEME_RE` veto in `related_party_sync._clean_counterparty`
+(the choke point all three apply-paths share) — instruments can never
+become counter-parties again, so refreshes cannot recreate the pairs
+(no prune-side change needed). The veto is shaped: negative lookaheads
+keep the 9 PFRDA-licensed pension fund MANAGEMENT companies (ABSL,
+HDFC, Tata, Axis — real operating subsidiaries whose `subsidiary_of`
+edges are true); 51 pension-edge survivors verified. Deliberately
+over-inclusive in the safe direction (a mis-veto costs only vigil
+edges; a leak pollutes corporate groups). Backfill: all 119 deleted;
+no other writer carries wrong-class instrument edges. Unit-pinned
+(`test_benefit_instruments_rejected`,
+`test_pension_fund_managers_survive`; suite 19 green). The 91
+instrument entities stay in the registry — real legal instruments,
+harmless rows; re-typing/pruning rides the resolver arc.
+
+**State**: entities 24,473, edges 64,100 (live counts post-batch; the
+day's merges, triage accepts, stub edges, and junk deletions all
+landed through `connect()` transactions with the duckdb cache rebuilt
+after each graph write). Sidecar at 12 standing prose rows (recurring
+unresolved noise: list-chunks, self-mentions — normal triage
+population).

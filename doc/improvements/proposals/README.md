@@ -114,10 +114,10 @@ remediation (`range_4fd3a20f_review_remediation`, all 13
 slices + low-tier dispositions, completed.md #382) archived 2026-10-11.
   Evidence in `doc/local/engineering/code_review.md`.
 
-_(none)_ — every proposal filed here is executed and archived. The last
+*(none)* — every proposal filed here is executed and archived. The last
 three batches went out filed + executed + archived in one session
 (2026-10-10):
-_(previous batch — all executed and archived in one session 2026-10-10)_:
+*(previous batch — all executed and archived in one session 2026-10-10)*:
 
 - `checklist_leg_review` (completed.md #381) — the OCR checklist leg against
   the 108 reviewable Python files, swept by checklist group using the

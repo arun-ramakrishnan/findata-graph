@@ -107,7 +107,7 @@ class TestPlan:
             "snapshot duckdb parquet mirror (post-rebuild)",
         ]
 
-    def test_tier2_has_eleven_steps(self):
+    def test_tier2_has_nineteen_steps(self):
         # sync-tags + rebuild-note-search moved to PRE_FULL (2026-08-29):
         # their output must land inside the db_maint recovery backup.
         # derive-hyperedges joined 2026-09-14 (hyper incidence store arc):
@@ -122,7 +122,12 @@ class TestPlan:
         # frontmatter --report twin joined the same day
         # (fastjsonschema_split_track): strict-engine full detail as
         # warnings, never blocking.
-        assert len(maint.TIER2_STEPS) == 17
+        # Plus the 2026-10-16 centrality_rebuild_contract pair:
+        # "graph-rebuild (re-stamp after company_embeddings bump)" and
+        # "stamp-centrality (re-stamp v_centrality_* after the rebuild)",
+        # inserted after rebuild-doc-search so recompute-graph never opens a
+        # stale cache (GraphCacheStaleError, advisory graph-algos leg).
+        assert len(maint.TIER2_STEPS) == 19
 
     def test_tier2_steps_order(self):
         # Post-ingest re-derivation: the sector --check gates first
@@ -149,6 +154,8 @@ class TestPlan:
             "sector-hierarchy --check (gate: taxonomy + super-sector notes fresh)",
             "company-embeddings --maint (cached refresh of company_embeddings)",
             "rebuild-doc-search (refresh doc/ FTS+embeddings sidecar index)",
+            "graph-rebuild (re-stamp after company_embeddings bump)",
+            "stamp-centrality (re-stamp v_centrality_* after the rebuild)",
             "recompute-graph (refresh analytics in graph_analytics)",
             "derive-insights (capture concall quotes + magnitudes into DB; --no-notes)",
             "sync-coverage-tags (converge edition company tags from quote coverage)",

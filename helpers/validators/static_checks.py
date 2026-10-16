@@ -1076,6 +1076,14 @@ def check_sqlite_helper_usage(scope: set[Path] | None = None) -> list[str]:  # n
         # throwaway sandbox copies — diagnostics that must never take the
         # writer path (FK enforcement irrelevant, no production writes).
         "helpers/bench/",
+        # bench_data/ is gitignored machine-local scratch (.gitignore:134
+        # "machine-local, NOT for git"). Its A/B drivers open throwaway
+        # copies and mode=ro URI reads of the sidecars, same as
+        # helpers/bench/ above. It is not repo content, so it must not
+        # gate: the unit-test twin (tests/test_static_checks.py
+        # ::test_no_sqlite3_connect_outside_allowlist) already scopes itself
+        # to helpers/ + app.py and never sees these.
+        "bench_data/",
         # One-shot embedding codec migration (embedding_blob_migration S4):
         # per-surface transactions + VACUUM on production files; connect()
         # targets research.db only and cannot reach the doc/script/vec stores.

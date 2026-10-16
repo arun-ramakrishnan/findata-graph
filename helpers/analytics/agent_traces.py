@@ -1622,7 +1622,7 @@ def _parse_prime(con, since=None):  # noqa: C901  # moved verbatim; split needs 
                 day = ts.date() if ts else None
                 parent_ts = ts_by_id.get(r.get("parentId"))
                 dur = (
-                    (ts - parent_ts).total_seconds() * 1000
+                    int((ts - parent_ts).total_seconds() * 1000)
                     if ts and parent_ts and ts >= parent_ts
                     else None
                 )
@@ -1702,7 +1702,9 @@ def _parse_prime(con, since=None):  # noqa: C901  # moved verbatim; split needs 
             if since and (day is None or day < since):
                 continue
             dur = (
-                (pu["last"] - pu["ts"]).total_seconds() * 1000 if pu["last"] and pu["ts"] else None
+                int((pu["last"] - pu["ts"]).total_seconds() * 1000)
+                if pu["last"] and pu["ts"]
+                else None
             )
             turn_rows.append(
                 (

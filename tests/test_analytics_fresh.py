@@ -192,3 +192,45 @@ def test_main_exit_codes(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> 
     assert af.main(_args(fresh)) == 0
     capsys.readouterr()
     assert af.main(_args(stale)) == 1
+
+
+def test_zai_covered_gap_is_not_drift(tmp_path: Path) -> None:
+    """The prime-rlm loader DROPS Zhipu rows where the authoritative zai
+    API has the (day, model) — a prime frontier newer than the prime-rlm
+    store is not drift when every gap day is zai-covered (#397-era fix:
+    the check used to fail on every APPLY forever)."""
+    harness = {
+        "zcode": date(2026, 9, 18),
+        "opencode": date(2026, 9, 18),
+        "prime": date(2026, 9, 20),
+        "rollout": None,
+        "dsh": None,
+    }
+    store = {
+        ("agent_traces", "zcode"): date(2026, 9, 18),
+        ("agent_traces", "opencode"): date(2026, 9, 18),
+        # the request-level store has every day (no Zhipu drop) — only the
+        # usage aggregate lags, which is exactly the real-world shape
+        ("agent_traces", "prime"): date(2026, 9, 20),
+        ("agent_traces", "dsh"): None,
+        ("agent_traces", "zcode_rollout"): date(2026, 9, 18),
+        ("model_usage", "prime-rlm"): date(2026, 9, 18),
+        ("model_usage", "opencode"): date(2026, 9, 18),
+        ("model_usage", "dsh"): None,
+    }
+    # gap days 09-19 AND 09-20 (the frontier day itself — its Zhipu rows
+    # are exactly what the loader dropped) are zai-covered -> exempt
+    rows, drift = af.check(
+        harness,
+        store,
+        today=date(2026, 9, 21),
+        api_covered=frozenset({date(2026, 9, 19), date(2026, 9, 20)}),
+    )
+    prime_row = next(r for r in rows if r[:2] == ("model_usage", "prime-rlm"))
+    assert prime_row[4] == "fresh (zai-covered)"
+    assert not drift
+
+    # same gap UNCOVERED -> still STALE (a real drift)
+    rows2, drift2 = af.check(harness, store, today=date(2026, 9, 21), api_covered=frozenset())
+    assert drift2
+    assert next(r for r in rows2 if r[:2] == ("model_usage", "prime-rlm"))[4] == "STALE"

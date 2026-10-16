@@ -323,9 +323,7 @@ TIER2_STEPS: list[tuple[str, list[str]]] = [
     # company_embeddings refresh (2026-08-21, company_embeddings_maint
     # proposal): cached populate + GC of deleted companies — both this and
     # rebuild-note-search refresh derived indexes over note text, and notes
-    # are not rewritten later in the stack. SQLite-only (company_embeddings
-    # table; no entities/graph_edges writes -> no paired graph rebuild),
-    # so maint-full-eligible per the placement invariant. Best-effort by
+    # are not rewritten later in the stack. Best-effort by
     # contract: --maint exits 0 with a WARNING when the local embedder is
     # unavailable or the table isn't bge-populated — maint never
     # auto-upgrades company embeddings (the upgrade is the user-held apply,
@@ -333,6 +331,20 @@ TIER2_STEPS: list[tuple[str, list[str]]] = [
     # hashes only (Q3 sidecar cache). v_embeddings.parquet drift after a
     # run that changed vectors is handled by the existing snapshot regen
     # flow (step 10 re-snapshots; DuckDB materialises on connect()).
+    #
+    # CORRECTION 2026-10-16 — this step DID need a paired graph rebuild, and
+    # the old comment said the opposite ("SQLite-only … no entities/
+    # graph_edges writes -> no paired graph rebuild"), which is what let the
+    # ordering bug survive. The reasoning was per-table; the staleness signal
+    # is not. company_embeddings is invisible to the entities/graph_edges
+    # generation triggers (helpers/core/db.py:428-436), so this writer bumps
+    # db_meta.generation BY HAND (helpers/graph/embeddings.py:395) whenever a
+    # row changed or GC removed rows — and _build_meta carries an
+    # fp:embeddings fingerprint, so the DuckDB projection really did change.
+    # Because that bump lands AFTER TIER1's graph-rebuild, recompute-graph's
+    # read_only open raised GraphCacheStaleError. The paired
+    # graph-rebuild + stamp-centrality now sit immediately before
+    # recompute-graph below; keep them adjacent to their first consumer.
     (
         "company-embeddings --maint (cached refresh of company_embeddings)",
         [sys.executable, "helpers/graph/embeddings.py", "--maint"],
@@ -350,6 +362,41 @@ TIER2_STEPS: list[tuple[str, list[str]]] = [
     (
         "rebuild-doc-search (refresh doc/ FTS+embeddings sidecar index)",
         [sys.executable, "helpers/maintenance/rebuild_doc_search.py"],
+    ),
+    # Paired graph rebuild before the cache's first analytics consumer.
+    # company-embeddings --maint (above) bumps db_meta.generation BY HAND
+    # (helpers/graph/embeddings.py:395 — company_embeddings is invisible to
+    # the entities/graph_edges generation triggers, and _build_meta carries
+    # an fp:embeddings fingerprint, so the projection really did change).
+    # That bump lands AFTER this pass's step-12 graph-rebuild, so
+    # recompute-graph's read_only=True open hit a stale cache and raised
+    # GraphCacheStaleError (helpers/graph/query.py:514) — 2026-10-16.
+    # The bump is correct; only the ORDER was wrong. Re-stamping here costs
+    # the ~2s the embeddings docstring already budgets, and keeps the
+    # documented step-2 restore-point position (snapshot -> graph-rebuild ->
+    # parquet mirror) intact — relocating step 12 into TIER2 would make that
+    # parquet mirror snapshot a pre-embeddings cache.
+    # NOT `rebuild=True` at the consumer: GraphCacheStaleError is a
+    # deliberate contract (query.py:453-462) — a read-only open must not
+    # silently rebuild, that serialised every RO caller behind a full build
+    # on the build.lock (graph_rebuild_fast_path S2). algorithms.py also
+    # backs standalone `make recompute-graph`, which should keep failing
+    # loudly with the named remedy. Same paired-rebuild idiom as
+    # graph-rebuild-h below (D4), for the same reason.
+    (
+        "graph-rebuild (re-stamp after company_embeddings bump)",
+        [sys.executable, "helpers/graph/query.py", "rebuild"],
+    ),
+    # Its mandatory partner: query.py rebuild DROPS v_centrality_* and does
+    # not re-stamp them ("destructive op: ... v_centrality_* dropped, not
+    # re-stamped"). algorithms.py only READS those tables
+    # (_cached_central_scores) and never creates them, so without this the
+    # recipe would leave the centrality cache empty and every metric would
+    # recompute from cold on the next consumer. Same rebuild->stamp pairing
+    # as TIER1 steps graph-rebuild/stamp-centrality (:291/:293).
+    (
+        "stamp-centrality (re-stamp v_centrality_* after the rebuild)",
+        [sys.executable, "helpers/graph/query.py", "stamp-centrality"],
     ),
     (
         "recompute-graph (refresh analytics in graph_analytics)",

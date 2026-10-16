@@ -32,7 +32,7 @@ from __future__ import annotations
 import argparse
 import json
 import sys
-from datetime import UTC, date, datetime
+from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
 
 import duckdb
@@ -172,8 +172,17 @@ def check(
     harness: dict[str, date | None],
     store: dict[tuple[str, str], date | None],
     today: date | None = None,
+    api_covered: frozenset[date] | None = None,
 ) -> tuple[list[tuple[str, str, str, str, str]], bool]:
-    """Return (rows, drift). Row = (store, source, harness_day, store_day, verdict)."""
+    """Return (rows, drift). Row = (store, source, harness_day, store_day, verdict).
+
+    api_covered: days the authoritative provider API (zai) already has in
+    the store. The prime-rlm loader DROPS Zhipu rows where that API has
+    the (day, model) (_drop_api_covered) — so a prime harness frontier
+    newer than the prime-rlm store is not drift when every gap day is
+    API-covered: the store is as fresh as its authority allows. Without
+    this exemption the check fails on every APPLY forever (the loader
+    correctly skips, the checker correctly flags)."""
     today = today or date.today()
     rows: list[tuple[str, str, str, str, str]] = []
     drift = False
@@ -185,7 +194,16 @@ def check(
         elif sday is None:
             verdict, drift = "STALE", True
         elif hday > sday and hday < today:
-            verdict, drift = "STALE", True
+            gap_days = [sday + timedelta(days=i) for i in range(1, (hday - sday).days + 1)]
+            if (
+                (label, source) == ("model_usage", "prime-rlm")
+                and api_covered is not None
+                and gap_days
+                and all(d in api_covered for d in gap_days)
+            ):
+                verdict = "fresh (zai-covered)"
+            else:
+                verdict, drift = "STALE", True
         else:
             verdict = "fresh"
         rows.append((label, source, str(hday), str(sday), verdict))
@@ -211,8 +229,22 @@ def main(argv: list[str] | None = None) -> int:
         )
     with timer.phase("store_frontiers"):
         store = store_frontiers(args.agent_traces, args.model_usage)
+    api_covered: frozenset[date] | None = None
+    if args.model_usage.is_file():
+        import duckdb
+
+        con = duckdb.connect(str(args.model_usage), read_only=True)
+        try:
+            api_covered = frozenset(
+                d
+                for (d,) in con.execute(
+                    "SELECT DISTINCT day FROM fact_usage WHERE source = 'zai'"
+                ).fetchall()
+            )
+        finally:
+            con.close()
     with timer.phase("check"):
-        rows, drift = check(harness, store)
+        rows, drift = check(harness, store, api_covered=api_covered)
     print(f"{'store':<14}{'source':<10}{'harness':<12}{'store_max':<12}verdict")
     for row in rows:
         print(f"{row[0]:<14}{row[1]:<10}{row[2]:<12}{row[3]:<12}{row[4]}")
