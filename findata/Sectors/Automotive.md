@@ -219,7 +219,7 @@ Component manufacturing, tires, batteries, forgings, gears, and specialized part
 - [[Jaya_Hind_Industries|Jaya Hind Industries]]
 - [[Jinnaite_Machinery|Jinnaite Machinery]]
 - [[KPIT_Technologies|KPIT Technologies]]
-- [[Kinetic_Engg|Kinetic Engg]]
+- [[Kinetic_Engineering|Kinetic Engineering]]
 - [[Kokusan_Denki|Kokusan Denki]]
 - [[Landmark_Cars|Landmark Cars]]
 - [[Lucas_Indian_Service|Lucas Indian Service]]

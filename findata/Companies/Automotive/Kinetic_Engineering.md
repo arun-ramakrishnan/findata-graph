@@ -16,7 +16,7 @@ tags:
 - business_model/b2c
 - risk_investment/medium_risk
 created: '2025-12-10'
-last_modified: 2026-10-16
+last_modified: '2026-10-16'
 generated:
   by: derive_insights.py/v1
   at: '2026-09-07T12:07:48Z'
