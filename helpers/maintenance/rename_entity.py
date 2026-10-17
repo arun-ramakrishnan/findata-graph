@@ -137,7 +137,7 @@ def main(argv: list[str] | None = None) -> int:  # noqa: C901
         # 2. Move + update markdown (note-backed entities only — fileless
         #    D14 stubs keep file_path NULL, nothing to move or re-YAML)
         if file_path:
-            assert new_file_path is not None  # file_path set ⇒ new_file_path set (line 104)
+            assert new_file_path is not None  # noqa: S101  # file_path set ⇒ new_file_path set (line 104)
             src = PROJECT_ROOT / file_path
             dst = PROJECT_ROOT / new_file_path
             if src.exists():

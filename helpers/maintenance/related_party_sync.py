@@ -541,7 +541,7 @@ def build_supply_pairs(con: duckdb.DuckDBPyConnection) -> list[dict]:
     return out
 
 
-def apply_supply_pairs(
+def apply_supply_pairs(  # noqa: C901
     conn: sqlite3.Connection,
     pairs: list[dict],
     companies: dict[str, str],
@@ -710,6 +710,7 @@ def prune_symmetric_artifacts(
     counts = {
         "subsidiary_cycles_dropped": 0,
         "supplier_crossperiod_dropped": 0,
+        "same_group_cycles_dropped": 0,
         "entity_dup_flagged": 0,
         "unresolved_symbol_skipped": 0,
     }
@@ -721,9 +722,9 @@ def prune_symmetric_artifacts(
         JOIN graph_edges e2
           ON e1.source = e2.target AND e1.target = e2.source
          AND e1.edge_type = e2.edge_type
-        WHERE e1.edge_type IN ('supplier_to', 'subsidiary_of')
+        WHERE e1.edge_type IN ('supplier_to', 'subsidiary_of', 'same_group')
           AND e1.source < e1.target
-          AND e1.source_ref = e2.source_ref
+          AND (e1.source_ref = e2.source_ref OR e1.edge_type = 'same_group')
         """
     ).fetchall()
     deletions: list[tuple[str, str, str, str]] = []  # (source, target, edge_type, ref)
@@ -742,6 +743,12 @@ def prune_symmetric_artifacts(
             loser = (a, b) if loser_is_e1 else (b, a)
             deletions.append((*loser, etype, ref))
             counts["subsidiary_cycles_dropped"] += 1
+        elif etype == "same_group":
+            # Symmetric-declared, single-row-per-pair (alphabetical) contract:
+            # a doubled row (both A->B and B->A) is the G3 bug class. Keep the
+            # alphabetical (a < b) row, drop the reversed one.
+            deletions.append((b, a, etype, ref))
+            counts["same_group_cycles_dropped"] += 1
         else:  # supplier_to
             symbol = ref.rsplit(":", 1)[-1]
             filer = companies.get(symbol)
@@ -762,11 +769,18 @@ def prune_symmetric_artifacts(
     if deletions and not dry_run:
         with conn:
             for s, t, et, ref in deletions:
-                conn.execute(
-                    "DELETE FROM graph_edges WHERE source = ? AND target = ? "
-                    "AND edge_type = ? AND source_ref = ?",
-                    (s, t, et, ref),
-                )
+                if ref is None:
+                    conn.execute(
+                        "DELETE FROM graph_edges WHERE source = ? AND target = ? "
+                        "AND edge_type = ?",
+                        (s, t, et),
+                    )
+                else:
+                    conn.execute(
+                        "DELETE FROM graph_edges WHERE source = ? AND target = ? "
+                        "AND edge_type = ? AND source_ref = ?",
+                        (s, t, et, ref),
+                    )
     return counts
 
 

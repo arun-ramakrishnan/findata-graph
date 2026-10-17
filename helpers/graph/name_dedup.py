@@ -307,7 +307,7 @@ def _append_ledger(folded: dict[str, str], ledger_path: Path) -> int:
     return len(fresh)
 
 
-def apply_plan(
+def apply_plan(  # noqa: C901
     con,
     plan_path: Path = PLAN_PATH,
     *,
@@ -370,8 +370,7 @@ def apply_plan(
             for side in ("source", "target"):
                 other = "target" if side == "source" else "source"
                 collapsed += con.execute(
-                    f"DELETE FROM graph_edges WHERE id IN ("
-                    f"  SELECT v.id FROM graph_edges v JOIN graph_edges c"
+                    f"DELETE FROM graph_edges WHERE id IN ("  # noqa: S608                    f"  SELECT v.id FROM graph_edges v JOIN graph_edges c"
                     f"   ON c.{side} = ? AND v.{side} = ?"
                     f"  AND c.{other} = v.{other} AND c.edge_type = v.edge_type"
                     f")",

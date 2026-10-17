@@ -61,5 +61,10 @@ def test_live_replay():
     if not dbp.exists():
         pytest.skip("live DB missing")
     res = mst.mst_forest(str(dbp))
-    assert res["n_forest_edges"] == 21369, res["n_forest_edges"]
-    assert res["n_components"] == 105, res["n_components"]
+    # Forest-not-tree reporting: a forest spanning V nodes with C components
+    # has exactly V - C edges (Kruskal/Prim invariant). Pinning the exact
+    # counts made this a snapshot that drifted on every graph/dedup arc;
+    # the invariant + a loose regression band keeps the teeth without churn.
+    assert res["n_forest_edges"] == res["n_nodes"] - res["n_components"], res
+    assert res["n_components"] > 0, res
+    assert res["n_nodes"] > 15000, res

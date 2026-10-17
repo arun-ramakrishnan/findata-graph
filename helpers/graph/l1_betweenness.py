@@ -337,7 +337,8 @@ def brandes_core(
         chunks,
         jobs,
     )
-    return tuple(np.sum(p, axis=0) for p in zip(*parts))  # type: ignore[return-value]
+    u, tu, kk = (np.sum(p, axis=0) for p in zip(*parts))
+    return u, tu, kk
 
 
 # --------------------------------------------------------------------------- #

@@ -85,7 +85,7 @@ def _merge_line(name: str) -> str:
     return "person" if line == "huf" else line
 
 
-def person_census(con) -> dict:
+def person_census(con) -> dict:  # noqa: C901
     """Cluster the graph's person populations by (legal line, base key).
 
     - ``folds``: same line, same base, >1 spelling — safe within-line

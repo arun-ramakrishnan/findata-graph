@@ -336,7 +336,7 @@ def s3_assign_primary_sector(
     }
 
 
-def _cli(argv=None) -> int:
+def _cli(argv=None) -> int:  # noqa: C901
     p = argparse.ArgumentParser(description="S2/S3 supplier matching & feasibility")
     sub = p.add_subparsers(dest="command")
 
