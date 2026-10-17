@@ -378,11 +378,14 @@ def print_rebuild_report(stats: dict, *, migrated_msg: str) -> None:
     if emb is not None:
         print(f"embedded {emb} rows", file=sys.stderr)
         if "embed_cache_hits" in stats:
-            print(
+            line = (
                 f"embed cache: {stats['embed_cache_hits']} hits, "
-                f"{stats['embed_cache_misses']} misses",
-                file=sys.stderr,
+                f"{stats['embed_cache_misses']} misses"
             )
+            state = stats.get("embed_cache_state")
+            if state and not state.startswith("on"):
+                line += f" [{state}]"
+            print(line, file=sys.stderr)
     if stats.get("index_stale"):
         print(
             f"index was STALE before this rebuild: "

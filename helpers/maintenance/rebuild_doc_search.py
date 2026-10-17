@@ -446,21 +446,47 @@ def _text_hash(abs_path: Path) -> str | None:
 
 
 def _file_rows(
-    abs_path: Path, rel: str, embed_fn, *, gemma: bool = False
-) -> tuple[list[tuple], str | None]:
+    abs_path: Path,
+    rel: str,
+    embed_fn,
+    *,
+    gemma: bool = False,
+    prev_rows: list[tuple] | None = None,
+) -> tuple[list[tuple], str | None, int]:
     """Read one doc file into its FTS row tuples + its raw-text fingerprint.
 
-    Returns (rows, content_hash); (rows=[], hash=None) on read error — the
-    caller treats unreadable files as absent (mirrors rebuild_note_search).
+    Returns (rows, content_hash, sections_carried); (rows=[], hash=None, 0)
+    on read error — the caller treats unreadable files as absent (mirrors
+    rebuild_note_search).
+
+    ``prev_rows`` (S2, doc_leg_embed_cache_persistence): the file's stored
+    rows from the previous generation. Sections whose ``_doc_basis`` is
+    byte-identical reuse the stored embedding bytes verbatim, skipping the
+    embed call, while title/anchor/meta/links/trail are rebuilt fresh —
+    anchors are line numbers, so a shifted section must not reuse its old
+    ROW, only its old VECTOR. Callers must pass prev_rows only when the
+    embedding model is unchanged: the basis is model-agnostic, the stored
+    vectors are not.
     """
     try:
         text = abs_path.read_text(encoding="utf-8", errors="replace")
     except OSError:
-        return [], None
+        return [], None, 0
     title = _doc_title(text, rel)
     meta, links, trail = _file_enrichment(text)
+    carry: dict[str, bytes] = {}
+    if prev_rows:
+        for pr in prev_rows:
+            if pr[5]:
+                carry[_doc_basis(pr[0], pr[1], pr[4], gemma=gemma)] = pr[5]
     rows = []
+    carried = 0
     for section_title, anchor, body in _split_sections(text):
+        emb = carry.get(_doc_basis(title, section_title, body, gemma=gemma))
+        if emb is not None:
+            carried += 1
+        else:
+            emb = _embedding_f32(embed_fn, title, section_title, body, gemma=gemma)
         rows.append(
             (
                 title,
@@ -468,7 +494,7 @@ def _file_rows(
                 rel,
                 anchor,
                 body,
-                _embedding_f32(embed_fn, title, section_title, body, gemma=gemma),
+                emb,
                 meta,
                 links,
                 trail,
@@ -476,7 +502,7 @@ def _file_rows(
         )
     # Raw text IS the change key for this corpus (no DB-side inputs).
     chash = hashlib.blake2b(text.encode("utf-8", errors="replace"), digest_size=8).hexdigest()
-    return rows, chash
+    return rows, chash, carried
 
 
 def _stamp_model(conn: sqlite3.Connection, model_label: str, dims: int) -> None:
@@ -647,6 +673,11 @@ def rebuild(  # noqa: C901
         _walk_started = datetime.now()
         rows_by_file: dict[str, list[tuple]] = {}
         hash_by_file: dict[str, str] = {}
+        # S2 gate: stored embeddings may only be carried when the model is
+        # unchanged — _doc_basis is model-agnostic, the stored vectors are
+        # not (a stamp-flipped rollback rebuild must re-embed everything).
+        model_stable = bool(model_label) and model_label == stored_embed_model(conn)
+        sections_carried = 0
         for rel, abs_path in _iter_doc_files(root):
             if reuse is not None and rel in reuse:
                 try:
@@ -671,9 +702,16 @@ def rebuild(  # noqa: C901
                     rows_by_file[rel] = reuse[rel]
                     carried.add(rel)
                     continue
-            rows, chash = _file_rows(abs_path, rel, embed_fn, gemma=gemma_active)
+            rows, chash, carried_n = _file_rows(
+                abs_path,
+                rel,
+                embed_fn,
+                gemma=gemma_active,
+                prev_rows=reuse.get(rel) if (reuse and model_stable) else None,
+            )
             if chash is None:
                 continue
+            sections_carried += carried_n
             rows_by_file[rel] = rows
             hash_by_file[rel] = chash
 
@@ -687,6 +725,7 @@ def rebuild(  # noqa: C901
         if isinstance(embed_fn, CachedEmbed):
             stats["embed_cache_hits"] = embed_fn.hits
             stats["embed_cache_misses"] = embed_fn.misses
+            stats["embed_cache_state"] = embed_fn.status_line()
             if embed_fn.dirty:
                 # Commit cache rows NOW (the --check pre-warm lesson): the
                 # cache is content-addressed, so committing early is safe
@@ -696,6 +735,7 @@ def rebuild(  # noqa: C901
         all_rows = [r for rows in rows_by_file.values() for r in rows]
         stats["total_files"] = len(rows_by_file)
         stats["total_rows"] = len(all_rows)
+        stats["sections_carried"] = sections_carried
         stats["embedded"] = sum(1 for r in all_rows if r[5])
         stats["migrated"] = migrated
 
@@ -1151,10 +1191,12 @@ def search_docs(  # noqa: C901
 
 
 def _summary_line(stats: dict) -> str:
+    carried = stats.get("sections_carried", 0)
+    carry = f"; {carried} section embeddings carried" if carried else ""
     return (
         f"doc_search: {stats.get('total_files', 0)} files / "
         f"{stats.get('total_rows', 0)} section rows "
-        f"({stats.get('embed_model', 'n/a')})"
+        f"({stats.get('embed_model', 'n/a')}{carry})"
     )
 
 

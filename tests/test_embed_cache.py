@@ -269,3 +269,94 @@ class TestNoIndexerAutoPurges:
                 if "purge_foreign=True" in line or "purge_foreign=not" in line:
                     offenders.append(f"{rel}:{i}")
         assert offenders == []
+
+
+class TestCachedEmbedDegradation:
+    """S1 (doc_leg_embed_cache_persistence, 2026-10-17): a busy embed_store
+    at construction used to silently degrade a WHOLE pass to uncached
+    (377 doc embeds computed that night, zero stored, nothing reported).
+    The wrapper must degrade loudly, count store failures, and recover
+    lazily instead of staying dead for the pass."""
+
+    def test_init_failure_degrades_loudly(self, tmp_path, capsys, monkeypatch):
+        import helpers.core.vec_search as VS
+
+        from helpers.core.embed_cache import CachedEmbed
+
+        def boom(conn):
+            raise sqlite3.Error("no sidecar for you")
+
+        monkeypatch.setattr(VS, "_attach_vec_db", boom)
+        ce = CachedEmbed(lambda t: [0.0, 1.0], "m1", _conn(tmp_path), source="doc")
+        assert ce._ok is False
+        line = ce.status_line()
+        assert line.startswith("OFF")
+        assert "no sidecar for you" in line
+        err = capsys.readouterr().err
+        assert "[embed-cache] attach failed" in err
+        assert "UNCACHED" in err
+
+    def test_calls_still_succeed_uncached(self, tmp_path, monkeypatch):
+        import helpers.core.vec_search as VS
+
+        from helpers.core.embed_cache import CachedEmbed
+
+        def boom(conn):
+            raise sqlite3.Error("still no sidecar")
+
+        monkeypatch.setattr(VS, "_attach_vec_db", boom)
+        calls: list[str] = []
+        ce = CachedEmbed(
+            lambda t: calls.append(t) or [0.0, 1.0],
+            "m1",
+            _conn(tmp_path),
+            source="doc",
+        )
+        assert ce("aa") == [0.0, 1.0]
+        assert calls == ["aa"]  # embedded, just uncached
+        assert ce.misses == 1 and ce.dirty == 0
+
+    def test_lazy_reinit_recovers_mid_pass(self, tmp_path, capsys, monkeypatch):
+        import helpers.core.vec_search as VS
+
+        import helpers.core.embed_cache as EC
+        from helpers.core.embed_cache import CachedEmbed
+
+        attempts = {"n": 0}
+        real_attach = VS._attach_vec_db
+
+        def flaky(conn):
+            attempts["n"] += 1
+            if attempts["n"] == 1:
+                raise sqlite3.Error("locked (constructor)")
+            real_attach(conn)
+
+        monkeypatch.setattr(VS, "_attach_vec_db", flaky)
+        monkeypatch.setattr(EC, "_REINIT_EVERY", 2)
+        ce = CachedEmbed(lambda t: [0.0, 1.0], "m1", _conn(tmp_path), source="doc")
+        assert ce._ok is False  # constructor hit the busy window
+        assert ce("aa") == [0.0, 1.0]  # first miss triggers the lazy retry
+        assert ce._ok is True
+        assert ce.dirty == 1  # recovered mid-pass: this embed IS cached
+        assert "recovered after 0 uncached miss" in capsys.readouterr().err
+        assert ce.status_line().startswith("on")
+
+    def test_store_failure_counted_and_surfaced(self, tmp_path, capsys):
+        from helpers.core.embed_cache import CachedEmbed
+
+        conn = _conn(tmp_path)
+        ce = CachedEmbed(lambda t: [0.0, 1.0], "m1", conn, source="doc")
+        conn.execute("DROP TABLE vecdb.embed_cache")
+        conn.commit()
+        assert ce("aa") == [0.0, 1.0]  # vector still returned
+        assert ce._store_errors == 1
+        assert "1 store failures" in ce.status_line()
+        err = capsys.readouterr().err
+        assert "[embed-cache] cache store failed" in err
+
+    def test_healthy_status_is_quiet(self, tmp_path):
+        from helpers.core.embed_cache import CachedEmbed
+
+        ce = CachedEmbed(lambda t: [0.0, 1.0], "m1", _conn(tmp_path), source="doc")
+        ce("aa")
+        assert ce.status_line() == "on (hits=0, misses=1, cached=1)"

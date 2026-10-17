@@ -1,9 +1,51 @@
 <!-- markdownlint-disable MD041 -- first line is intentionally bold metadata, not a heading -->
 
-**Generated**: 2026-10-15
-**Total completed**: 321 items
+**Generated**: 2026-10-17
+**Total completed**: 323 items
 
 > **Note:** Full implementation details, code references, and rationale are in the `doc/improvements/archive/` subdirectory. This file is a summary view.
+
+---
+
+## 410. Doc-leg embed cache — persist + surface writes, per-section carry
+
+**Date**: 2026-10-18
+**Status**: COMPLETE
+**Proposal**: `doc/improvements/archive/tooling/doc_leg_embed_cache_persistence.md`
+(filed 2026-10-17, executed 2026-10-18; S1+S2)
+
+- S1 `helpers/core/embed_cache.py::CachedEmbed`: attach failure no longer
+  silently uncaches a pass — stderr warning, per-row store-failure counter,
+  `status_line()` surfaced via `rebuild_common.py` (`[OFF — …]` appended to
+  the summary line), and the attach lazily re-inits every 128 misses. Root
+  cause 2026-10-17: a concurrent embed_store writer busy at init degraded
+  377 doc embeds to uncached with zero signal.
+- S2 `rebuild_doc_search.py::_file_rows(prev_rows=…)`: per-section carry —
+  byte-identical `_doc_basis` reuses stored embedding bytes (rows rebuild
+  fresh; anchors are line numbers), gated on
+  `model_label == stored_embed_model(conn)` so a stamp-flipped rollback
+  rebuild re-embeds everything. `sections_carried` in stats + summary.
+- Tests: `tests/test_embed_cache.py::TestCachedEmbedDegradation` (5) +
+  `tests/test_doc_section_carry.py` (5); 62 pass incl. the gemma_adoption
+  rebuild harness; ruff + static-checks green. First lazy-reinit cut didn't
+  assign `self._ok` — caught by its own test before landing.
+
+## 407. Index git history — SHA-set reconciled commit/diff search (git leg)
+
+New `helpers/misc/git_query.py` CLI + `helpers/maintenance/rebuild_git_search.py`
+rebuilder. SQLite sidecar under `memory/` (gitignored). Federated front door
+(`master_query.py`) now fans out over seven legs. S1–S5 + gemma adoption
+executed same day: deep-body chunk vectors, two fusion fixes, bank 24/24
+top-3. Measured: 414 commits, 740 KB WHY/WHAT messages, patch text 165.6 MB
+→ 74.5 MB after noise-exclude. Carries the >7 min textconv trap and the
+no-cursor tombstone-on-dropout reconciliation.
+
+## 406. Index BILI compression summaries in convo_search (bili lane)
+
+New `bili` harvest lane in `helpers/maintenance/harvest_conversations.py` +
+`rebuild_convo_search.py`. ~68 rows from BILI T1 compression summaries.
+Trial 9/10 vs 4/10 ACTIVE-only. Carries the eval-gate bullet (query-visible
+semantics change). 21 silent-defect traps documented in §0.
 
 ---
 
@@ -10929,6 +10971,47 @@ founding hazard made structural.
 VETO the person shape, and both baselines sit at 0); person entity
 re-typing (folded rows were registry-typed `company`) rides the
 resolver arc.
+
+## 409. PPR re-probe on economic projection — re-anchor the recorded blocker
+
+**Date**: 2026-10-15
+**Status**: COMPLETE
+**Proposal**: `doc/improvements/archive/graph/ppr_reprobe_economic.md`
+(filed 2026-10-14, executed 2026-10-15; no code change — measurement
+update; also recorded as gates §G G5)
+
+- Re-probe 2026-10-14 (scratch-isolated, research.db read-only) on the
+  grown graph (57,589 edges; supplier_to 16,584, subsidiary_of 11,600,
+  same_group 9,824): hub contamination gone (post-seed top-10 all real
+  companies); full-graph seeds reproduce the 2026-09-24 record (Infosys
+  0.422/0.402/0.177, Wipro 0.450/0.412/0.138) — probe calibrated.
+- Economic projection (`onager.ECONOMIC_EDGE_TYPES`, 12 non-membership
+  types): Reliance post-1-hop top-8 all real companies; hop≥2 mass is
+  seed-dependent (Infosys ≈0.038 star-attached vs HDFC Bank 0.508) —
+  re-anchored verdict "seed-dependent, not universally degenerate"; lane
+  stays DEFERRED (named consumer still required); no Onager wrap-path
+  change.
+- `scipy_personalized_pagerank.md` §7 updated: re-anchor section, per-seed
+  table, re-anchored verdict, transposed-equation trap re-confirmed.
+
+## 408. co_mentioned_in weight carry-through — derive-time pair counts
+
+**Date**: 2026-10-15
+**Status**: COMPLETE
+**Proposal**: `doc/improvements/archive/graph/co_mentioned_weights.md`
+(filed 2026-10-14, executed 2026-10-15; executes the S2 slice deferred in
+pagerank_graph_enhancements §6; also recorded as gates §G G4)
+
+- `helpers/graph/derive_co_mentions.py::backfill_weights()` — weight =
+  count + 1 (mirrors `derive_cited_in` n_quotes + 1), idempotent, invoked
+  from the derive path; `pagerank_weighted` top-10 shifted (Infosys 5→10,
+  Grasim 10→6); unweighted `pagerank` untouched.
+- Live store: 9,638 `co_mentioned_in` edges, weights 1.0–6.0 (14 count-0
+  stamps at 1.0; 2026-10-17 re-verification — G4 recorded 2.0–6.0 at
+  execution time). `UNIQUE(source, target, edge_type)` cross-edition
+  collapse accepted as for `cited_in`.
+- Tests: `tests/test_derive_co_mentions.py` (weight = count + 1; idempotent
+  re-run converges).
 
 ## 405. Entity rename pass — first pass executed (41 renames); tiered evidence loop proven
 

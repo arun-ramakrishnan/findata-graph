@@ -1,9 +1,9 @@
 ---
 title: "Index git history — SHA-set reconciled commit/diff search (git leg)"
-status: proposed
+status: executed
 filed: "2026-10-17"
-executed: null
-completed_md: null
+executed: "2026-10-17"
+completed_md: "407"
 area: "helpers/maintenance, helpers/misc, master_query git leg"
 ---
 

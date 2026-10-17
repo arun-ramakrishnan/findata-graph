@@ -38,38 +38,29 @@ entry number and stale DONE pointers):
 
 ## Current live proposals
 
-- git_history_search.md (2026-10-17) — index git history as a seventh
-  federated leg: SHA-set reconciled commit+diff sidecar over main only
-  (operator scope ruling same day — no worktrees/branches/patch refs).
-  S1–S5 + gemma adoption executed same day: deep-body chunk vectors,
-  two fusion fixes (synthetic-extra positions, rare-literal routing),
-  bank 24/24 top-3 (gemma live, tripwire helpers/bench/git_eval_bank.py),
-  embed-gc git cohort registered (was "unverified").
-  Measured: 414 commits, 740 KB of WHY/WHAT messages (median 1.6 KB),
-  patch text 165.6 MB → 74.5 MB after the measured noise-exclude list
-  (venv/ is tracked — 37.3 MB; static/ built assets 53.8 MB). Carries
-  the >7 min textconv trap (parquet textconv makes `git log -p` unusable
-  — extraction pins --no-textconv) and the no-cursor tombstone-on-dropout
-  reconciliation that survives stgit rewrites. Slices: S1 rebuilder core,
-  S2 hybrid CLI, S3 master_query + search-fresh wiring, S4 pre-registered
-  acceptance bank → embedder verdict.
-- bili_convo_lane.md (2026-10-16, amended 2026-10-17) — index BILI T1 compression
-  summaries in convo_search (new `bili` harvest lane, ~68 rows; trial 9/10 vs 4/10
-  ACTIVE-only). Carries the eval-gate bullet (query-visible semantics change).
-  §8 records the measured compaction/fold decision mechanics — two gates,
-  `nudgeGrowthTokens` doing double duty (raising it *suppresses* folds), T2/T3
-  never having fired, manual `compress` arming the automatic trigger, and the
-  finding that ~30× more cache is lost to non-compaction invalidation than to
-  folds. §9 is the `bili_sessions` profile (7.7s → 1.6s, plus `--since`/`--all`).
-  **§10: a reasoning-pair violation is a session killer, not a warning** — all 3
-  violating sessions died within 3–29 min of their last one; it now has a `viol`
-  column and a two-line callout. §11 is retention: deleting a harness session
-  never left our corpus (29 pure orphans, 11,711 searchable rows); new
-  `--keep 30d|6mo|1y` purges and `--resolve-orphans` fixes provenance, via
-  `helpers/core/ranges.py`. §12 indexes that provenance so `--source orphan:`
-  works. **§0 is the traps register — start there:** 21 defects from these
-  amendments, none of which raised an error, each row saying what it silently
-  produced and which test now catches it.
+_(none)_ — every proposal filed here is executed and archived.
+- `../archive/tooling/doc_leg_embed_cache_persistence.md` (2026-10-18) —
+  doc-leg embed cache: S1 loud degradation + lazy attach re-init (a busy
+  store had silently uncached 377 doc embeds); S2 per-section carry (a
+  30-line completed.md edit re-embeds ~2 sections, not ~400).
+  completed.md #410.
+- `../archive/git/git_history_search.md` (2026-10-17) — index git history as
+  a seventh federated leg: SHA-set reconciled commit+diff sidecar over main
+  only; S1–S5 + gemma adoption same day (deep-body chunk vectors, two fusion
+  fixes, bank 24/24 top-3); carries the >7 min textconv trap. completed.md #407.
+- `../archive/convo_search/bili_convo_lane.md` (2026-10-17) — index BILI
+  compression summaries in convo_search (~68 rows from BILI T1); trial
+  9/10 vs 4/10 ACTIVE-only; carries the eval-gate bullet; 21 silent-defect
+  traps documented. completed.md #406.
+- `../archive/graph/co_mentioned_weights.md` (2026-10-15) — co_mentioned_in
+  weight carry-through: derive-time pair counts as edge weights (count+1,
+  the cited_in convention; backfill idempotent); pagerank_weighted top-10
+  shifted (Infosys 5→10, Grasim 10→6). completed.md #408 / §G G4.
+- `../archive/graph/ppr_reprobe_economic.md` (2026-10-15) — PPR re-probe on
+  the economic projection: hub contamination gone on the grown graph,
+  localization seed-dependent (not universally degenerate);
+  scipy_personalized_pagerank.md §7 re-anchored; lane stays DEFERRED.
+  completed.md #409 / §G G5.
 - `../archive/graph/scipy_csgraph_scale_lanes.md` (2026-10-15) — MST backbone, supplier
   bipartite matching, conditional investor assignment, A² candidate kernel.
   Unlocks four csgraph lanes on the scale gate (57,589 edges; everything
@@ -146,10 +137,10 @@ remediation (`range_4fd3a20f_review_remediation`, all 13
 slices + low-tier dispositions, completed.md #382) archived 2026-10-11.
   Evidence in `doc/local/engineering/code_review.md`.
 
-*(none)* — every proposal filed here is executed and archived. The last
+_(none)_ — every proposal filed here is executed and archived. The last
 three batches went out filed + executed + archived in one session
 (2026-10-10):
-*(previous batch — all executed and archived in one session 2026-10-10)*:
+_(previous batch — all executed and archived in one session 2026-10-10)_:
 
 - `checklist_leg_review` (completed.md #381) — the OCR checklist leg against
   the 108 reviewable Python files, swept by checklist group using the

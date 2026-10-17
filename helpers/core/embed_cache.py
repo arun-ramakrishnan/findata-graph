@@ -59,6 +59,14 @@ def _progress(msg: str) -> None:
     print(msg, file=sys.stderr, flush=True)
 
 
+# Lazy re-init cadence for a CachedEmbed whose attach failed at construction
+# (doc_leg_embed_cache_persistence S1, 2026-10-17): retry the attach every N
+# misses instead of staying dead for a whole pass — a busy embed_store at
+# init (a concurrent rebuild's writer) used to cost the ENTIRE pass its
+# cache silently (377 doc embeds computed, zero stored, no signal).
+_REINIT_EVERY = 128
+
+
 # Qualified name inside the attached ``vecdb`` schema used at runtime.
 EMBED_CACHE_TABLE = "vecdb.embed_cache"
 # Bare (unqualified) names for tooling that opens the store file directly
@@ -120,7 +128,13 @@ class CachedEmbed:
     Counts hits/misses/dirty for the stats report. ``source`` stamps the
     pooled-cache cohort ('note'/'doc'/'script'/'company') — analytics only,
     never a lookup key. Best-effort: if the store can't be attached the
-    wrapper degrades to the raw embed_fn.
+    wrapper degrades to the raw embed_fn — but the degradation is LOUD
+    (stderr warning + ``status_line()`` in the rebuild summary) and
+    self-heals: the attach is retried every ``_REINIT_EVERY`` misses, so a
+    store that was busy only at construction time recovers mid-pass
+    (doc_leg_embed_cache_persistence S1, 2026-10-17: a full doc pass
+    embedded 377 sections uncached because a concurrent writer held the
+    store at init, and nothing reported it).
     """
 
     def __init__(
@@ -138,7 +152,16 @@ class CachedEmbed:
         self.hits = 0
         self.misses = 0
         self.dirty = 0
+        self._store_errors = 0
+        self._miss_total = 0
+        self._attach_error: str | None = None
         self._ok = self._try_init()
+        if not self._ok:
+            _progress(
+                f"[embed-cache] attach failed ({self._attach_error}) — "
+                f"{_tag(self._source, self._model)} embedding UNCACHED; "
+                f"retrying every {_REINIT_EVERY} misses"
+            )
         if purge_foreign and self._ok:
             gone = purge_foreign_models(self._conn, model_label, self._source)
             if gone:
@@ -155,14 +178,78 @@ class CachedEmbed:
 
             _attach_vec_db(self._conn)
             self._conn.execute(EMBED_CACHE_DDL)
+            self._attach_error = None
             return True
-        except Exception:  # noqa: S110  # no sidecar -> embed uncached
+        except Exception as exc:  # recorded, surfaced via status_line()
+            self._attach_error = f"{type(exc).__name__}: {exc}"
             return False
 
-    def __call__(self, text: str) -> list[float]:
-        h = None
+    def status_line(self) -> str:
+        """One-line cache state for rebuild summaries (S1 surfacing)."""
+        if not self._ok:
+            return f"OFF — attach failed: {self._attach_error}"
+        extra = f", {self._store_errors} store failures" if self._store_errors else ""
+        return f"on (hits={self.hits}, misses={self.misses}, cached={self.dirty}{extra})"
+
+    def _maybe_reinit(self) -> None:
+        # Rate-limited lazy re-init (S1): a store that was busy only at
+        # construction no longer sentences the whole pass to uncached
+        # embedding. The modulo gate (miss #0, #128, ...) keeps a
+        # persistently-dead store from retry-spamming.
+        if self._ok or self._miss_total % _REINIT_EVERY != 0:
+            return
+        self._ok = self._try_init()
         if self._ok:
-            h = _hash(text)
+            _progress(
+                f"{_tag(self._source, self._model)} cache attach "
+                f"recovered after {self._miss_total} uncached miss(es)"
+            )
+
+    def _tick_miss_progress(self) -> None:
+        # Live progress every 128 misses (the "long jobs read as stuck"
+        # lesson, 2026-09-05): stderr + flush survive block-buffered log
+        # redirection; hits are cheap so only miss-misses tick the meter.
+        if self._miss_total % 128 != 0:
+            return
+        t0 = getattr(self, "_t0", None)
+        if t0 is None:
+            self._t0 = time.perf_counter()
+        else:
+            rate = self._miss_total / (time.perf_counter() - t0)
+            _progress(
+                f"{_tag(self._source, self._model)} miss #{self._miss_total} ({rate:.1f}/s)"
+            )
+
+    def _store_vec(self, h: str | None, vec: list[float]) -> None:
+        # Store is best-effort: the vector is already computed, so a cache
+        # write must never lose it or kill the pass. Commit per row (WAL =
+        # tiny writer windows, the house pattern): a long rebuild that dies
+        # mid-pass — OOM kill, sidecar crash — otherwise loses the WHOLE
+        # pass's embeds with its end-of-run commit (2026-10-07: 550 gemma
+        # embeds, ~17 min, evaporated when the sidecar was SIGKILLed).
+        if not (self._ok and h is not None):
+            return
+        try:
+            self._conn.execute(
+                f"INSERT OR REPLACE INTO {EMBED_CACHE_TABLE} "  # noqa: S608  # constant table name
+                "(text_hash, model, embedding, source) VALUES (?, ?, ?, ?)",
+                (h, self._model, pack_f32(vec), self._source),
+            )
+            self._conn.commit()
+            self.dirty += 1
+        except Exception as exc:  # vector still returned; count + surface
+            self._store_errors += 1
+            if self._store_errors == 1:
+                _progress(
+                    f"[embed-cache] cache store failed "
+                    f"({type(exc).__name__}: {exc}) — continuing "
+                    f"uncached; per-row retries continue"
+                )
+
+    def __call__(self, text: str) -> list[float]:
+        self._maybe_reinit()
+        h = _hash(text) if self._ok else None
+        if h is not None:
             try:
                 row = self._conn.execute(
                     f"SELECT embedding FROM {EMBED_CACHE_TABLE} "  # noqa: S608  # constant table name
@@ -176,37 +263,11 @@ class CachedEmbed:
                         return vec
             except Exception:  # noqa: S110  # cache read fails -> embed
                 pass
-        # Live progress every 128 misses (the "long jobs read as stuck"
-        # lesson, 2026-09-05): stderr + flush survive block-buffered log
-        # redirection; hits are cheap so only miss-misses tick the meter.
-        self._miss_total = getattr(self, "_miss_total", 0) + 1
-        if self._miss_total % 128 == 0:
-            t0 = getattr(self, "_t0", None)
-            if t0 is None:
-                self._t0 = time.perf_counter()
-            else:
-                rate = self._miss_total / (time.perf_counter() - t0)
-                _progress(
-                    f"{_tag(self._source, self._model)} miss #{self._miss_total} ({rate:.1f}/s)"
-                )
+        self._miss_total += 1
+        self._tick_miss_progress()
         vec = self._fn(text)
         self.misses += 1
-        if self._ok and h is not None:
-            try:
-                self._conn.execute(
-                    f"INSERT OR REPLACE INTO {EMBED_CACHE_TABLE} "  # noqa: S608  # constant table name
-                    "(text_hash, model, embedding, source) VALUES (?, ?, ?, ?)",
-                    (h, self._model, pack_f32(vec), self._source),
-                )
-                # Commit per row (WAL = tiny writer windows, the house
-                # pattern): a long rebuild that dies mid-pass — OOM kill,
-                # sidecar crash — otherwise loses the WHOLE pass's embeds
-                # with its end-of-run commit (2026-10-07: 550 gemma embeds,
-                # ~17 min, evaporated when the sidecar was SIGKILLed).
-                self._conn.commit()
-                self.dirty += 1
-            except Exception:  # noqa: S110  # cache write fails -> fine
-                pass
+        self._store_vec(h, vec)
         return vec
 
 

@@ -1,9 +1,9 @@
 ---
 title: "Index BILI compression summaries in convo_search (bili lane)"
-status: proposed
+status: executed
 filed: "2026-10-16"
-executed: null
-completed_md: null
+executed: "2026-10-17"
+completed_md: "406"
 area: "convo_search harvest + rebuild"
 ---
 

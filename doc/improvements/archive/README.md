@@ -6,6 +6,22 @@ the security review lives privately under doc/local (untracked);
 commit, referenced by nothing). Entry numbers point at
 `../completed.md`. Live items live in `../pending.md`.
 
+## convo_search/ — Conversation search harvest + rebuild
+
+- [`bili_convo_lane.md`](convo_search/bili_convo_lane.md) — index BILI
+  compression summaries in convo_search (new `bili` harvest lane, ~68 rows;
+  trial 9/10 vs 4/10 ACTIVE-only). Carries the eval-gate bullet
+  (query-visible semantics change). 21 silent-defect traps documented in §0 —
+  completed.md #406
+
+## git/ — Git history search
+
+- [`git_history_search.md`](git/git_history_search.md) — index git history as
+  a seventh federated leg: SHA-set reconciled commit+diff sidecar over main
+  only. S1–S5 + gemma adoption executed same day: deep-body chunk vectors,
+  two fusion fixes, bank 24/24 top-3. Measured: 414 commits, 740 KB WHY/WHAT
+  messages, patch text 165.6 MB → 74.5 MB after noise-exclude — completed.md #407
+
 ## security/ — Security arcs over the API + ingestion surface
 
 - [`near_duplicate_guard_invariant.md`](security/near_duplicate_guard_invariant.md) —
@@ -266,6 +282,13 @@ commit, referenced by nothing). Entry numbers point at
 
 ## tooling/ — Tooling & performance — MCP eval, doc browser/search, perf review, tech survey
 
+- [`doc_leg_embed_cache_persistence.md`](tooling/doc_leg_embed_cache_persistence.md) —
+  doc-leg embed cache: S1 persist + surface writes (CachedEmbed attach
+  failures loud + lazy re-init every 128 misses; summary `[OFF — …]`
+  marker) after a concurrent writer silently uncached 377 doc embeds;
+  S2 per-section carry (byte-identical `_doc_basis` reuses stored vectors,
+  rows/anchors rebuilt fresh, model-stability gated) — a 30-line
+  completed.md edit re-embeds ~2 sections, not ~400 — completed.md #410
 - [`range_review_two_ranges_2026-10-14.md`](tooling/range_review_two_ranges_2026-10-14.md) —
   combined two-range review remediation (`205a2c719..a4b3e5f81`, 39 findings;
   `63e04dbde..e06b32798`, 72 findings; zero double-reports, all scan mediums
