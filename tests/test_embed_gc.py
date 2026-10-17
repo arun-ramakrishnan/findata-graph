@@ -291,3 +291,27 @@ def test_live_convo_ref_carries_a_stamp_sql():
     assert "convo_meta" in convo.stamp_sql
     unstamped = [r.label for r in gce.DEFAULT_REFS if r.stamp_sql is None]
     assert unstamped == [], f"cohorts left without rollback insurance: {unstamped}"
+
+
+def test_git_recipes_match_builder_basis(monkeypatch):
+    """The git cohort's text recipes must hash EXACTLY what the rebuild
+    hashed — they compose through the builder's own helpers, so this
+    pins the wiring (a drifted recipe would mark every live git row
+    dead)."""
+    import helpers.maintenance.gc_embed_cache as gc
+    from helpers.core.gemma_embedder import MODEL_LABEL
+    from helpers.maintenance import rebuild_git_search as rgs
+
+    msg = "subj line\n\nWHY\n\n" + "x" * 900 + "\n\nMECHANISM\n\ntail text\n"
+    monkeypatch.setattr(gc, "_GIT_MSGS", {"deadbeef": msg})
+    assert gc._git_text(("deadbeef", -1)) == rgs._embed_basis(msg)
+    assert gc._git_text(("deadbeef", 0)) == rgs._body_chunks(msg)[0]
+    assert gc._git_text_gemma(("deadbeef", -1)) == rgs._head_embed_text(
+        MODEL_LABEL, "subj line", msg
+    )
+    assert gc._git_text_gemma(("deadbeef", 0)) == rgs._chunk_embed_text(
+        MODEL_LABEL, "subj line", rgs._body_chunks(msg)[0]
+    )
+    # unknown sha / out-of-range chunk read as empty (never a live hash)
+    assert gc._git_text(("missing", -1)) == ""
+    assert gc._git_text_gemma(("deadbeef", 99)) == ""

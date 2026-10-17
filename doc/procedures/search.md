@@ -25,8 +25,9 @@ the write side; this one owns freshness and query.
 | `script_search` FTS5 + embeddings, hybrid RRF | `memory/script_search.db` (gitignored sidecar) | `helpers/**`, `tests/**`, `app.py`, Makefile | `script_query.py` |
 | `note_search` FTS5 (+ vec0 mirror in research.db) | inside `memory/research.db` | `findata/**` markdowns | `GET /api/search?hybrid=true`, TUI notes lane |
 | `memory_search` FTS5 + embeddings, hybrid RRF | `memory/memory_search.db` (gitignored sidecar) | harness memory pools: zcode (`~/.zcode/cli/memories/`), prime-rlm (`harness_state.json`), opencode (`.opencode/memory/*.logfmt`) | `memory_query.py` (`--kind zcode\|prime\|opencode`), TUI memory lane |
+| `git_search` FTS5 + embeddings, hybrid RRF | `memory/git_search.db` (gitignored sidecar) | git history: every commit on `main` of the PRIMARY checkout — message (vector leg) + noise-excluded diff text (lexical leg) | `git_query.py` (`--since`, `--path`) |
 | Embed cache `(sha256(text), model) -> vector` | pooled `memory/embed_store.db` (schema `vecdb`) | shared by all indexers | automatic |
-| `master_query` (client only — builds no index) | fans out over all six corpus legs, grouped results | — | `master_query.py`, `--legs`/`--flat`/`--json` |
+| `master_query` (client only — builds no index) | fans out over all seven corpus legs, grouped results | — | `master_query.py`, `--legs`/`--flat`/`--json` |
 | TUI (consumer only — builds no index) | reads the four `search-fresh` sidecars + `ripwire` + `rg` | — | `make search-tui` |
 
 Sidecars are deliberately NOT in `research.db`: `doc/local/` is private
@@ -38,7 +39,7 @@ Sidecars are derived state — delete and rebuild.
 
 ## Shared `--check` contract
 
-All four rebuilders share one drift-gate contract (`make search-fresh`
+All five rebuilders share one drift-gate contract (`make search-fresh`
 runs them sequentially; the advisory gate runs the checks in parallel):
 
 | Rebuilder | Index | `--check` exit 1 on |
@@ -47,14 +48,15 @@ runs them sequentially; the advisory gate runs the checks in parallel):
 | `rebuild_script_search.py` | `script_search` | same |
 | `rebuild_note_search.py` | `note_search` | FRESH/STALE drift report (#164, 2026-08-26) |
 | `rebuild_memory_search.py` | `memory_search` | harness-pool source-file content-hash drift |
+| `rebuild_git_search.py` | `git_search` | reachable-SHA-set diff (new/dropped/changed shas; fp covers exclude-list/cap retunes) |
 
 `--check` writes no index rows (it may warm the embed cache) and exits 1
 on drift with the exact refresh command in the output — house gate
 doctrine, CI-able as-is.
 
 ```bash
-make search-fresh              # check all four (every check runs even if one fails)
-make search-fresh APPLY=1      # refresh all four instead
+make search-fresh              # check all five (every check runs even if one fails)
+make search-fresh APPLY=1      # refresh all five instead
 ```
 
 **Which mode when**
@@ -258,6 +260,63 @@ a plugin upgrade that changes the record shape is the watch item.
 .venv/bin/python3 helpers/misc/memory_query.py "stg refresh scope"
 .venv/bin/python3 helpers/misc/memory_query.py "witr duckdb" --kind prime
 .venv/bin/python3 helpers/misc/memory_query.py "operator contract" --json
+```
+
+---
+
+## git_search — the git-history index
+
+### What it answers
+
+"WHEN did this land, WHY, and what moved with it" over the commit corpus
+(docs hold conclusions, convo holds the in-flight path, this holds the
+landed record). One FTS5 row per commit on `main`: the message is the
+vector leg, touched paths + noise-excluded diff text are the lexical leg
+(fusion doctrine: identifiers are bm25's home turf; vector-basis
+enrichment is rejected). Proposal:
+`doc/improvements/proposals/git_history_search.md`.
+
+### Scope contract (operator ruling 2026-10-17)
+
+`main` of the PRIMARY checkout only — no worktrees, no branches, no stgit
+patch refs. The rebuilder resolves the common git dir and REFUSES from a
+linked worktree. Reconciliation is SHA-set based (no cursor): amend/fold/
+rebase rewrites surface as old-sha tombstones + new-sha inserts, so the
+index stays exact under stgit and only genuinely new SHAs ever embed.
+Extraction pins `--no-textconv` — the parquet textconv driver made a
+plain `git log -p` exceed 7 minutes (proposal §2); never loosen this.
+
+### Build / refresh
+
+```bash
+.venv/bin/python3 helpers/maintenance/rebuild_git_search.py              # incremental (default)
+.venv/bin/python3 helpers/maintenance/rebuild_git_search.py --check      # SHA-set verdict, no writes
+.venv/bin/python3 helpers/maintenance/rebuild_git_search.py --full       # complete rewrite
+make git-fresh                                                           # same via make (check | APPLY=1)
+```
+
+Rides `make search-fresh` like the other four. The embedder is GEMMA
+via the shared llama-server (operator 2026-10-17 evening, S5 bank in
+hand: the sectioned gemma arm led 20/24 vs 18/24 top-1 with the edge
+entirely in the deep-body tier; the box's standing rule is every
+surface uses the served models). `GIT_EMBEDDER=auto|gemma|granite`
+selects the lane; a model change on an existing index REFUSES (cutover
+and un-migration both go through delete-the-sidecar + rebuild), and a
+gemma-stamped index refuses fallback-model rebuilds when the sidecar is
+down (`guard_gemma_stamp` doctrine — the 2026-10-08 un-migration). The
+vector leg covers the message head PLUS deep-body chunks past the
+400-char head basis (`git_search_body`; a commit scores
+max(head, best-chunk)); bank tripwire:
+`.venv/bin/python3 helpers/bench/git_eval_bank.py` (floor top-3 ≥
+22/24).
+
+### Query
+
+```bash
+.venv/bin/python3 helpers/misc/git_query.py "bili namespace routing"
+.venv/bin/python3 helpers/misc/git_query.py "_bili_namespace" --path harvest
+.venv/bin/python3 helpers/misc/git_query.py "gate fixes" --since 30d
+.venv/bin/python3 helpers/misc/git_query.py "textconv" --bm25 --json
 ```
 
 ---

@@ -293,7 +293,15 @@ def run_for_sid(sid: str) -> dict:
     containing = sid_log_index().get(sid) or sid_log_index().get(sid.split("|", 1)[0], [])
     if not containing and LIVE_LOG.is_file():
         containing = log_rotation_family(LIVE_LOG)
-    log_path = max(containing, key=lambda p: p.stat().st_size) if containing else None
+    # Pick the log whose rotation family is the widest (covers the most
+    # rotated siblings). `bili.log.old` (11 MB) is larger than `bili.log`
+    # (6.8 MB) but its glob `bili.log.old*` misses `bili.log`, silently
+    # dropping every session whose data lives mostly in the current file.
+    log_path = (
+        max(containing, key=lambda p: (len(log_rotation_family(p)), p.stat().st_size))
+        if containing
+        else None
+    )
 
     switches = (
         st.get("modelSwitches", 0)

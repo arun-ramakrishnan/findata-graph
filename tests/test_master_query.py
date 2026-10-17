@@ -67,8 +67,8 @@ def fake_lanes(monkeypatch):
 
 
 class TestParseLegs:
-    def test_default_six(self):
-        assert mq.parse_legs("docs,notes,scripts,memory,convo,gates") == list(mq.DEFAULT_LEGS)
+    def test_default_seven(self):
+        assert mq.parse_legs("docs,notes,scripts,memory,convo,git,gates") == list(mq.DEFAULT_LEGS)
 
     def test_all_expands_incl_stateless(self):
         legs = mq.parse_legs("all")

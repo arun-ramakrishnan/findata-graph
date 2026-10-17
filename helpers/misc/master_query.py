@@ -77,14 +77,26 @@ _LEGS: dict[str, str] = {
     "scripts": "scripts",
     "memory": "memory",
     "convo": "convo",
+    "git": "git",
     "gates": "reports",
     "reports": "reports",  # alias
     "maint": "maint",
     "code": "code",
     "literal": "literal",
 }
-DEFAULT_LEGS = ("docs", "notes", "scripts", "memory", "convo", "gates")
-ALL_LEGS = ("docs", "notes", "scripts", "memory", "convo", "gates", "maint", "code", "literal")
+DEFAULT_LEGS = ("docs", "notes", "scripts", "memory", "convo", "git", "gates")
+ALL_LEGS = (
+    "docs",
+    "notes",
+    "scripts",
+    "memory",
+    "convo",
+    "git",
+    "gates",
+    "maint",
+    "code",
+    "literal",
+)
 
 # Age-guard scope (S2): legs backed by a dedicated sidecar file whose
 # mtime is the index age. notes' file is the SHARED research.db — many
@@ -97,6 +109,7 @@ _SIDECAR_BY_LEG: dict[str, str] = {
     "notes": "memory/research.db",
     "memory": "memory/memory_search.db",
     "convo": "memory/convo_search.duckdb",
+    "git": "memory/git_search.db",
 }
 _REFRESH_BY_LEG: dict[str, str] = {
     "docs": "make search-fresh APPLY=1",
@@ -104,6 +117,7 @@ _REFRESH_BY_LEG: dict[str, str] = {
     "notes": "make search-fresh APPLY=1",
     "memory": "make search-fresh APPLY=1",
     "convo": "make convo-fresh APPLY=1",
+    "git": "make search-fresh APPLY=1",
 }
 DEFAULT_AGE_GUARD_HOURS = 24.0
 

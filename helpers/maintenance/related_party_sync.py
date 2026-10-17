@@ -771,8 +771,7 @@ def prune_symmetric_artifacts(
             for s, t, et, ref in deletions:
                 if ref is None:
                     conn.execute(
-                        "DELETE FROM graph_edges WHERE source = ? AND target = ? "
-                        "AND edge_type = ?",
+                        "DELETE FROM graph_edges WHERE source = ? AND target = ? AND edge_type = ?",
                         (s, t, et),
                     )
                 else:

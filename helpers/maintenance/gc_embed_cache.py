@@ -120,6 +120,63 @@ def _script_text_gemma(row: tuple) -> str:
     return _gemma_basis(row[0] or "", row[1] or "", row[2] or "")
 
 
+# --- git cohort (git_search leg, 2026-10-17) -------------------------------- #
+# Two tables, one recipe pair: heads live in git_search (chunk_idx = -1),
+# body chunks in git_search_body. The stored texts are NOT in the DB —
+# the basis is derived from the immutable git message, so the recipe
+# walks git once (memoized) and rebuilds the exact embed text via the
+# BUILDER's own helpers (drift between recipe and builder here would
+# mark every live git row dead — the coverage gate catches it, but the
+# reuse makes the class impossible instead of merely detected).
+
+_GIT_MSGS: dict[str, str] | None = None
+
+
+def _git_msgs() -> dict[str, str]:
+    global _GIT_MSGS
+    if _GIT_MSGS is None:
+        from helpers.maintenance.rebuild_git_search import _messages, primary_repo_root
+
+        _GIT_MSGS = {sha: body for sha, (_adate, body) in _messages(primary_repo_root()).items()}
+    return _GIT_MSGS
+
+
+def _git_text(row: tuple) -> str:
+    """Granite-era git basis: raw head (message[:cap]) / raw chunk."""
+    from helpers.maintenance.rebuild_git_search import _body_chunks, _embed_basis
+
+    sha, idx = row[0], row[1]
+    msg = _git_msgs().get(sha or "", "")
+    if not msg:
+        return ""
+    if idx is None or idx < 0:
+        return _embed_basis(msg)
+    chunks = _body_chunks(msg)
+    return chunks[idx] if 0 <= idx < len(chunks) else ""
+
+
+def _git_text_gemma(row: tuple) -> str:
+    """Gemma git basis (title/subject prefix contract) — composed through
+    the builder's _head_embed_text/_chunk_embed_text so the recipe and
+    the rebuild can never hash different texts."""
+    from helpers.core.gemma_embedder import MODEL_LABEL
+    from helpers.maintenance.rebuild_git_search import (
+        _body_chunks,
+        _chunk_embed_text,
+        _head_embed_text,
+    )
+
+    sha, idx = row[0], row[1]
+    msg = _git_msgs().get(sha or "", "")
+    if not msg:
+        return ""
+    subject = msg.split("\n", 1)[0]
+    if idx is None or idx < 0:
+        return _head_embed_text(MODEL_LABEL, subject, msg)
+    chunks = _body_chunks(msg)
+    return _chunk_embed_text(MODEL_LABEL, subject, chunks[idx]) if 0 <= idx < len(chunks) else ""
+
+
 from helpers.core.gemma_embedder import MODEL_LABEL as _GEMMA_MODEL_LABEL  # noqa: E402
 
 
@@ -177,6 +234,17 @@ DEFAULT_REFS: tuple[Ref, ...] = (
         text_db=_company_text_db,
         stamp_sql="SELECT model FROM company_embeddings LIMIT 1",
         text_db_by_model={_GEMMA_MODEL_LABEL: _company_text_gemma_db},
+    ),
+    Ref(
+        "git",
+        # the git-history leg (rebuild_git_search): heads + body chunks in
+        # one UNION (heads marked chunk_idx = -1); text recipes above
+        REPO / "memory/git_search.db",
+        "SELECT sha, -1 AS chunk_idx FROM git_search "
+        "UNION ALL SELECT sha, chunk_idx FROM git_search_body",
+        _git_text,
+        stamp_sql="SELECT value FROM git_search_info WHERE key = 'embed_model'",
+        text_by_model={_GEMMA_MODEL_LABEL: _git_text_gemma},
     ),
 )
 

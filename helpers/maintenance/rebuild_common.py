@@ -70,6 +70,12 @@ class RebuildCliSpec:
     # working-set stamp (db_meta / doc_search_info / script_search_info /
     # memory_search_info). None = no stamp, no guard (duckdb convo lane).
     stamp_table: str | None = None
+    # Register --allow-stale WITHOUT arming the guard: for indexes that
+    # opt out of the guard entirely (git: a history index's corpus IS the
+    # reachable set — rebuild_git_search stamp_table=None) but still ride
+    # the search-fresh loop, which forwards ARGS verbatim to every
+    # rebuilder. The flag is accepted and ignored; --help says so.
+    allow_stale_noop: bool = False
 
 
 @dataclass(frozen=True)
@@ -340,6 +346,16 @@ def build_rebuild_parser(spec: RebuildCliSpec) -> argparse.ArgumentParser:
             "rewriting the shared surface on purpose "
             "(worktree_fresh_trample_guard); the stamp is updated so the "
             "other tree is not blocked afterwards.",
+        )
+    elif spec.allow_stale_noop:
+        p.add_argument(
+            "--allow-stale",
+            action="store_true",
+            help="accepted and IGNORED: this index opts out of the "
+            "shared-store guard (a history index's corpus is the reachable "
+            "set of main for any HEAD), so there is no staleness to "
+            "allow — the flag exists so the search-fresh loop can pass "
+            "ARGS uniformly to every rebuilder.",
         )
     # store_true with default=True: no flag → incremental; --full wins.
     p.add_argument("--incremental", action="store_true", default=True)

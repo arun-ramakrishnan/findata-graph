@@ -1,6 +1,6 @@
 # Instructions for LLM/agent sessions
 
-Query, don't scan — six indexes cover this repo, and one federated
+Query, don't scan — seven indexes cover this repo, and one federated
 front door fans out over all of them; grep and wholesale reads are the
 fallback. TUI lanes are a usability shell over the CLIs below, never
 the only way in.
@@ -9,10 +9,11 @@ the only way in.
 
 | intent | tool | index |
 |---|---|---|
-| **anything, once** (federated grouped results) | `helpers/misc/master_query.py` | all six |
+| **anything, once** (federated grouped results) | `helpers/misc/master_query.py` | all seven |
 | design/decision/history in `doc/` | `helpers/misc/doc_query.py` | `doc_search.db` |
 | scripts/tests/make/Mojo | `helpers/misc/script_query.py` | `script_search.db` |
 | **past agent sessions** (opencode+prime-rlm+zcode) | `helpers/misc/convo_query.py` | `convo_search.duckdb` + `_fts.db` |
+| **git history** (landed WHY + diffs, `main` only) | `helpers/misc/git_query.py` | `git_search.db` |
 | vault notes (`findata/**`) | `helpers/misc/note_query.py` | `research.db` (`note_search`) |
 | **harness memory** (zcode pool + prime global + opencode) | `helpers/misc/memory_query.py` | `memory_search.db` |
 | gate-run reports | `helpers/misc/gate_query.py` | `outputs/*_report.md` |
@@ -22,9 +23,12 @@ the only way in.
 
 One rule the table hides: **harness conversations are not in `doc/`.**
 Docs hold conclusions; `convo_search` holds the path to them — dead
-ends, discarded options, why a live default is what it is.
+ends, discarded options, why a live default is what it is. Commits hold
+what LANDED: `git_search` answers when/why/what-moved (`--since`,
+`--path`); main-checkout-only and `--no-textconv` extraction are
+doctrine.
 
-## The six query CLIs
+## The seven query CLIs
 
 ```bash
 Q=".venv/bin/python3 helpers/misc"
@@ -33,6 +37,7 @@ $Q/doc_query.py "why did we not adopt langgraph" --limit 5   # doc/ incl doc/loc
 $Q/note_query.py "promoter holding" --limit 5              # findata/** vault
 $Q/script_query.py "<task>" --kind script|test|make|mojo   # before grepping
 $Q/convo_query.py "hypergraph scaling ceiling" --limit 5   # past sessions
+$Q/git_query.py "bili namespace routing" --since 30d       # when/why it landed + diff motion
 $Q/memory_query.py "stg refresh scope" --kind zcode|prime|opencode  # harness memory pools
 ```
 

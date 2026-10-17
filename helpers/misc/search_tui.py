@@ -574,6 +574,45 @@ def _run_convo(q: str, limit: int, mode: str = "hybrid", query_vec=None) -> tupl
     return hits, f"{len(hits)} hits · convo_search {mode}"
 
 
+def parse_git_json(raw: str, limit: int) -> list[Hit]:
+    """Normalize ``git_query.py --json`` output into hits.
+
+    git hits are POINTERS into history, not text files: ``path`` is the
+    ``git:<sha>`` pointer, ``section`` carries the commit date."""
+    try:
+        data = json.loads(raw)
+    except json.JSONDecodeError:
+        return []
+    hits = []
+    for r in (data.get("results") or [])[:limit]:
+        hits.append(
+            Hit(
+                path=f"git:{r.get('sha', '')}",
+                line=None,
+                title=r.get("subject", ""),
+                section=r.get("date", ""),
+                snippet=_strip_marks(r.get("snippet", "")),
+                score=r.get("score"),
+                lane="git",
+                kind="commit",
+            )
+        )
+    return hits
+
+
+def _run_git(q: str, limit: int, mode: str = "hybrid", query_vec=None) -> tuple[list[Hit], str]:
+    argv = [sys.executable, "helpers/misc/git_query.py", q, "--limit", str(limit)]
+    if mode == "bm25":
+        argv.append("--bm25")
+    argv.extend(_query_vector_arg(query_vec))
+    argv.append("--json")
+    raw = _run(argv)
+    if not raw.strip():
+        return [], "git_search index missing/stale — rebuild_git_search.py"
+    hits = parse_git_json(raw, limit)
+    return hits, f"{len(hits)} hits · git_search {mode}"
+
+
 _LaneRunner = Callable[..., tuple[list[Hit], str]]
 
 _LANE_RUNNERS: dict[str, _LaneRunner] = {
@@ -582,6 +621,7 @@ _LANE_RUNNERS: dict[str, _LaneRunner] = {
     "notes": _run_notes,
     "memory": _run_memory,
     "convo": _run_convo,
+    "git": _run_git,
     "code": _run_code,
     "literal": _run_literal,
     # reports adapters live below (beside the other parse_*); resolve late.
@@ -631,6 +671,7 @@ INDEXES: tuple[tuple[str, str, str], ...] = (
     ("scripts", "memory/script_search.db", "helpers/maintenance/rebuild_script_search.py"),
     ("notes", "memory/research.db", "helpers/maintenance/rebuild_note_search.py"),
     ("memory", "memory/memory_search.db", "helpers/maintenance/rebuild_memory_search.py"),
+    ("git", "memory/git_search.db", "helpers/maintenance/rebuild_git_search.py"),
 )
 
 # ---------------------------------------------------------------------------
@@ -1925,6 +1966,7 @@ def index_ages(root: Path) -> str:
         ("notes", "memory/research.db"),
         ("memory", "memory/memory_search.db"),
         ("convo", "memory/convo_search.duckdb"),
+        ("git", "memory/git_search.db"),
     ):
         f = root / rel
         if f.exists():

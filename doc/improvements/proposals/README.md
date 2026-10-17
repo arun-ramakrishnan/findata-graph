@@ -38,6 +38,21 @@ entry number and stale DONE pointers):
 
 ## Current live proposals
 
+- git_history_search.md (2026-10-17) — index git history as a seventh
+  federated leg: SHA-set reconciled commit+diff sidecar over main only
+  (operator scope ruling same day — no worktrees/branches/patch refs).
+  S1–S5 + gemma adoption executed same day: deep-body chunk vectors,
+  two fusion fixes (synthetic-extra positions, rare-literal routing),
+  bank 24/24 top-3 (gemma live, tripwire helpers/bench/git_eval_bank.py),
+  embed-gc git cohort registered (was "unverified").
+  Measured: 414 commits, 740 KB of WHY/WHAT messages (median 1.6 KB),
+  patch text 165.6 MB → 74.5 MB after the measured noise-exclude list
+  (venv/ is tracked — 37.3 MB; static/ built assets 53.8 MB). Carries
+  the >7 min textconv trap (parquet textconv makes `git log -p` unusable
+  — extraction pins --no-textconv) and the no-cursor tombstone-on-dropout
+  reconciliation that survives stgit rewrites. Slices: S1 rebuilder core,
+  S2 hybrid CLI, S3 master_query + search-fresh wiring, S4 pre-registered
+  acceptance bank → embedder verdict.
 - bili_convo_lane.md (2026-10-16, amended 2026-10-17) — index BILI T1 compression
   summaries in convo_search (new `bili` harvest lane, ~68 rows; trial 9/10 vs 4/10
   ACTIVE-only). Carries the eval-gate bullet (query-visible semantics change).
