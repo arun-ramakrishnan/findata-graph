@@ -325,6 +325,13 @@ GATES: dict[str, Gate] = {
             Step("graph-algos", (_MAKE, "graph-algos")),
             Step("analytics", (_MAKE, "analytics")),
             Step("suggest-relations", (_MAKE, "suggest-relations")),
+            # T1 tripwire (graph_scaling.md §T1 watch): doctrine promised an
+            # e_all_und row watcher for years — wired 2026-10-18. SKIPs
+            # (exit 0) on missing/locked DB; FIREs (exit 1) at 1M rows.
+            Step(
+                "graph-scale-watch",
+                (_PY, "helpers/validators/graph_scale_watch.py", "--check"),
+            ),
             Step("doc-search-check", (_PY, "helpers/maintenance/rebuild_doc_search.py", "--check")),
             Step(
                 "script-search-check",
