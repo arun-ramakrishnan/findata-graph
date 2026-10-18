@@ -7,6 +7,30 @@
 
 ---
 
+## 411. Gate arc 2026-10-18 — qa/integration/advisory/perf close-out
+
+**Date**: 2026-10-18
+**Status**: COMPLETE
+**Scope**: pure-code arc over the embed-fix work (`embed_fix`), perf LAST
+per operator ruling; timing failures parked, non-timing fixed + validated
+targeted.
+
+- Gates: qa 12/12 (run 1654), integration 1/1 (1661, 753 passed),
+  advisory 8/14 (1662; 4 reds resolved, 2 expected-drift trailer notes),
+  perf 25/26 (1663) — all timing legs within budget (pagerank 1.0/3.0 s,
+  betweenness 3.76/8.0, bfs 7.79/12.0).
+- Fixes: `make schema-dump` (+11 views to `schema/duckdb/graph.sql`,
+  test_schema_drift 4/4); graph-cache stale error cleared by the advisory
+  live-invariants inline rebuild; csr manifest re-stamped
+  (`make csr-rebuild`, verify OK); snapshot re-captured content-identical
+  (v_node 24709/24709, edges 259147/259147) + `make stamp-centrality`
+  after the mid-arc rebuild dropped `v_centrality_*`; lint-audit 10 → 5
+  (embed_cache C901 refactor + 4 mechanical; C901 ×3 + S608 ×2 parked
+  for operator review).
+- Close-out per `doc/procedures/gates.md` Phase 3: green-first, export,
+  distribute (embed_cache → `embed_fix`; rest → top `gate_fixes`
+  collector), golden diff empty, template messages via `stg edit -f`.
+
 ## 410. Doc-leg embed cache — persist + surface writes, per-section carry
 
 **Date**: 2026-10-18

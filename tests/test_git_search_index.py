@@ -6,6 +6,7 @@ path without needing the real model either.
 """
 
 import os
+import shutil
 import subprocess
 
 import pytest
@@ -42,7 +43,7 @@ def repo(tmp_path):
 
     def git(*args: str, check: bool = True) -> str:
         proc = subprocess.run(  # noqa: S603 — fixed argv, no shell
-            ["git", "-C", str(root), *args],
+            [shutil.which("git"), "-C", str(root), *args],
             capture_output=True,
             text=True,
             check=check,
@@ -633,7 +634,7 @@ def test_rare_literal_threshold_is_rarity_not_blanket(repo, tmp_path):
     """Terms matching MORE than _RARE_LITERAL_ROWS rows do not route — the
     router is rarity-driven, never a blanket lexical default."""
     for i in range(rgs._RARE_LITERAL_ROWS + 1):
-        repo.commit({"s%d.txt" % i: "s\n"}, f"shared lane {i}\n\nsharedprobe token throughout\n")
+        repo.commit({f"s{i}.txt": "s\n"}, f"shared lane {i}\n\nsharedprobe token throughout\n")
     db = tmp_path / "git_search.db"
     rgs.rebuild(db, git_root=repo.root)
     conn = rgs.connect_git_db(db)

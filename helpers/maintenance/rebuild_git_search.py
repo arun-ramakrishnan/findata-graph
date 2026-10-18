@@ -59,10 +59,11 @@ from __future__ import annotations
 import hashlib
 import os
 import re
+import shutil
 import sqlite3
 import subprocess
 import sys
-from datetime import datetime, timezone
+from datetime import datetime, UTC
 from pathlib import Path
 
 # Repo root: helpers/maintenance/rebuild_git_search.py -> parents[2]. Must be
@@ -220,8 +221,9 @@ def connect_git_db(db_path: Path | str | None = None) -> sqlite3.Connection:
 
 def _git(root: Path, *args: str) -> str:
     """One read-only git invocation against `root`; stdout as text."""
+    git = shutil.which("git")
     proc = subprocess.run(  # noqa: S603 — fixed argv, no shell
-        ["git", "-C", str(root), "--no-pager", *args],
+        [git, "-C", str(root), "--no-pager", *args],
         capture_output=True,
         text=True,
         check=True,
@@ -360,7 +362,7 @@ def hashlib_blake2b(text: str) -> str:
 
 
 def _iso_date(adate: int) -> str:
-    return datetime.fromtimestamp(adate, tz=timezone.utc).date().isoformat()
+    return datetime.fromtimestamp(adate, tz=UTC).date().isoformat()
 
 
 # --------------------------------------------------------------------------- #

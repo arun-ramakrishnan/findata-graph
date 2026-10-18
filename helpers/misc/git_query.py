@@ -25,7 +25,7 @@ Exit codes: 0 answered (possibly empty), 1 index missing, 2 usage error.
 import argparse
 import re
 import sys
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta, UTC
 from pathlib import Path
 
 # Repo root: helpers/misc/git_query.py -> parents[2]. Must be on sys.path
@@ -61,7 +61,7 @@ def _since_cutoff(raw: str) -> str:
         amount, unit = parse_range(raw)
     except RangeError as exc:
         raise argparse.ArgumentTypeError(str(exc)) from exc
-    cutoff = datetime.now(timezone.utc) - timedelta(seconds=amount * _UNIT_SECONDS[unit])
+    cutoff = datetime.now(UTC) - timedelta(seconds=amount * _UNIT_SECONDS[unit])
     return cutoff.date().isoformat()
 
 
