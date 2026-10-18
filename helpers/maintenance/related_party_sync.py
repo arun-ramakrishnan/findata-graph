@@ -733,39 +733,33 @@ def prune_symmetric_artifacts(
             counts["entity_dup_flagged"] += 1
             print(f"  [dup-flag] {etype} {a} <-> {b} (normalized-name collision; resolver lane)")
             continue
+        loser = None
         if etype == "subsidiary_of":
-            j1, j2 = json.loads(p1 or "{}"), json.loads(p2 or "{}")
-            c1 = classify_relationship(j1.get("relationship"))
-            c2 = classify_relationship(j2.get("relationship"))
-            if {c1, c2} != {"sub_fwd", "sub_rev"}:
-                continue  # not the S1 cycle shape; leave untouched
-            loser_is_e1 = c1 == "sub_rev"
-            loser = (a, b) if loser_is_e1 else (b, a)
-            deletions.append((*loser, etype, ref))
-            counts["subsidiary_cycles_dropped"] += 1
+            loser = _subsidiary_cycle_loser(p1, p2, a, b)
+            if loser:
+                counts["subsidiary_cycles_dropped"] += 1
         elif etype == "same_group":
             # Symmetric-declared, single-row-per-pair (alphabetical) contract:
             # a doubled row (both A->B and B->A) is the G3 bug class. Keep the
             # alphabetical (a < b) row, drop the reversed one.
-            deletions.append((b, a, etype, ref))
+            loser = (b, a)
             counts["same_group_cycles_dropped"] += 1
         else:  # supplier_to
-            symbol = ref.rsplit(":", 1)[-1]
-            filer = companies.get(symbol)
-            if filer is None or filer not in (a, b):
-                counts["unresolved_symbol_skipped"] += 1
-                continue
-            counter_ent: str = b if a == filer else a
-            ev = _supply_direction_evidence(src, symbol, (norms.get(counter_ent) or "").upper())
-            if not ev["sale_periods"] or not ev["buy_periods"]:
-                continue
-            if ev["sale_periods"] & ev["buy_periods"]:
-                continue  # both directions evidenced in a shared period — legit
-            sale_wins = (ev["sale_max"] or 0.0) >= (ev["buy_max"] or 0.0)
-            loser_src: str = counter_ent if sale_wins else filer
-            loser_dst: str = filer if sale_wins else counter_ent
-            deletions.append((loser_src, loser_dst, etype, ref))
-            counts["supplier_crossperiod_dropped"] += 1
+            loser = _supplier_crossperiod_loser(src, ref, a, b, norms, companies, counts)
+            if loser:
+                counts["supplier_crossperiod_dropped"] += 1
+        if loser:
+            deletions.append((*loser, etype, ref))
+    _apply_deletions(conn, deletions, dry_run=dry_run)
+    return counts
+
+
+def _apply_deletions(
+    conn: sqlite3.Connection, deletions: list[tuple[str, str, str, str]], *, dry_run: bool
+) -> None:
+    """Delete the losers, ref-scoped when a source_ref exists. Split out
+    of `prune_symmetric_artifacts` for C901; row-for-row the previous
+    inline tail."""
     if deletions and not dry_run:
         with conn:
             for s, t, et, ref in deletions:
@@ -780,7 +774,50 @@ def prune_symmetric_artifacts(
                         "AND edge_type = ? AND source_ref = ?",
                         (s, t, et, ref),
                     )
-    return counts
+
+
+def _subsidiary_cycle_loser(
+    p1: str | None, p2: str | None, a: str, b: str
+) -> tuple[str, str] | None:
+    """The S1 cycle shape: both directions share one filer ref and
+    classify sub_fwd + sub_rev — the sub_rev edge is the filing-noise
+    side and loses. None = not that shape (leave untouched)."""
+    j1, j2 = json.loads(p1 or "{}"), json.loads(p2 or "{}")
+    c1 = classify_relationship(j1.get("relationship"))
+    c2 = classify_relationship(j2.get("relationship"))
+    if {c1, c2} != {"sub_fwd", "sub_rev"}:
+        return None
+    return (a, b) if c1 == "sub_rev" else (b, a)
+
+
+def _supplier_crossperiod_loser(
+    src: duckdb.DuckDBPyConnection,
+    ref: str,
+    a: str,
+    b: str,
+    norms: dict[str, str],
+    companies: dict[str, str],
+    counts: dict,
+) -> tuple[str, str] | None:
+    """Cross-period supplier_to mutual: keep the larger-amount direction
+    (tie: the sale direction). None = keep both (disjoint-period
+    evidence not established, or an unresolved filer symbol — the latter
+    counted as unresolved_symbol_skipped). ref is non-null here by the
+    mutual SQL: the branch requires e1.source_ref = e2.source_ref, and
+    NULL refs never compare equal."""
+    symbol = ref.rsplit(":", 1)[-1]
+    filer = companies.get(symbol)
+    if filer is None or filer not in (a, b):
+        counts["unresolved_symbol_skipped"] += 1
+        return None
+    counter_ent: str = b if a == filer else a
+    ev = _supply_direction_evidence(src, symbol, (norms.get(counter_ent) or "").upper())
+    if not ev["sale_periods"] or not ev["buy_periods"]:
+        return None
+    if ev["sale_periods"] & ev["buy_periods"]:
+        return None  # both directions evidenced in a shared period — legit
+    sale_wins = (ev["sale_max"] or 0.0) >= (ev["buy_max"] or 0.0)
+    return (counter_ent, filer) if sale_wins else (filer, counter_ent)
 
 
 def build_rating_pairs(con: duckdb.DuckDBPyConnection) -> list[dict]:

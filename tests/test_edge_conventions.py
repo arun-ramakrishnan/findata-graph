@@ -132,7 +132,7 @@ def test_triage_write_canonicalizes_symmetric_accepts(tmp_path: Path):
     con.commit()
     con.close()
     orig = tri.EDGE_DB_PATH
-    tri.EDGE_DB_PATH = str(db)
+    tri.EDGE_DB_PATH = db
     try:
         tri._write_accepted_edges(
             [

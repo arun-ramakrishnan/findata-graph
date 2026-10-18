@@ -127,3 +127,84 @@ def test_model_value_shapes() -> None:
     assert hc._zc_model_value('{"broken"') == '{"broken"'  # unparsable: kept verbatim
     assert hc._zc_model_value(None) == ""
     assert hc._zc_model_value({"noModelId": 1}) == ""
+
+
+# --- S7 (convo_reasoning_capture): response.toolCalls -> searchable tool rows
+
+
+def test_tool_calls_become_searchable_tool_rows(tmp_path: Path) -> None:
+    rec = _rec(
+        response={
+            "finishReason": "tool-calls",
+            "text": "running it",
+            "reasoningText": "need the patch list first",
+            "responseId": "resp-1",
+            "modelId": "GLM-5.3-Flash",
+            "toolCalls": [
+                {
+                    "id": "call_abc123",
+                    "name": "Bash",
+                    "input": {"command": "stg series -id", "description": "list patches"},
+                },
+                {"id": "call_def456", "name": "Read", "input": {"path": "Makefile"}},
+            ],
+        },
+    )
+    files = _write_dir(tmp_path, [rec])
+    rows = hc._harvest_zcode_file(files, "s1", "live")
+    tools = [r for r in rows if r["part_type"] == "tool"]
+    assert len(tools) == 2
+    assert tools[0]["part_id"] == "zc:s1:tool:resp-1:0"
+    assert tools[1]["part_id"] == "zc:s1:tool:resp-1:1"
+    assert json.loads(tools[0]["text"]) == {
+        "command": "stg series -id",
+        "description": "list patches",
+    }
+    assert json.loads(tools[0]["meta"]) == {"tool": "Bash", "call_id": "call_abc123"}
+    assert tools[0]["model"] == "GLM-5.3-Flash"
+    assert tools[0]["role"] == "assistant"
+    # the other response rows still exist alongside
+    kinds = {r["part_type"] for r in rows}
+    assert {"text", "reasoning", "tool"} <= kinds
+
+
+def test_tool_call_part_ids_stable_across_rereads(tmp_path: Path) -> None:
+    """Forced re-read must emit identical part_ids — the writer merges on
+    them, so a --force-lane zcode backfill cannot duplicate tool rows."""
+    rec = _rec(
+        response={
+            "text": "ok",
+            "responseId": "resp-9",
+            "modelId": "GLM-5.3-Flash",
+            "toolCalls": [{"id": "call_x", "name": "Bash", "input": {"command": "ls"}}],
+        },
+    )
+    files = _write_dir(tmp_path, [rec])
+    first = hc._harvest_zcode_file(files, "s1", "live")
+    second = hc._harvest_zcode_file(files, "s1", "live")
+    assert [r["part_id"] for r in first] == [r["part_id"] for r in second]
+    assert len(first) == len(second)
+
+
+def test_tool_calls_without_input_keep_row_with_empty_object_text(tmp_path: Path) -> None:
+    rec = _rec(
+        response={
+            "text": "t",
+            "responseId": "resp-2",
+            "modelId": "GLM-5.3-Flash",
+            "toolCalls": [{"id": "call_z", "name": "TodoWrite"}],
+        },
+    )
+    files = _write_dir(tmp_path, [rec])
+    rows = hc._harvest_zcode_file(files, "s1", "live")
+    tools = [r for r in rows if r["part_type"] == "tool"]
+    assert len(tools) == 1
+    assert tools[0]["text"] == "{}"
+    assert json.loads(tools[0]["meta"]) == {"tool": "TodoWrite", "call_id": "call_z"}
+
+
+def test_no_tool_calls_yields_no_tool_rows(tmp_path: Path) -> None:
+    rec = _rec()
+    files = _write_dir(tmp_path, [rec])
+    rows = hc._harvest_zcode_file(files, "s1", "live")
+    assert not [r for r in rows if r["part_type"] == "tool"]

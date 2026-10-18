@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import json
 import sqlite3
+from collections.abc import Iterator
 from pathlib import Path
 
 import pytest
@@ -19,7 +20,7 @@ from helpers.core import entity_identity as ei
 
 
 @pytest.fixture()
-def con(tmp_path: Path) -> sqlite3.Connection:
+def con(tmp_path: Path) -> Iterator[sqlite3.Connection]:
     conn = sqlite3.connect(tmp_path / "g.db")
     conn.execute(
         "CREATE TABLE entities ("

@@ -77,7 +77,7 @@ def test_log_bump_never_raises():
         def execute(self, *a, **k):
             raise sqlite3.OperationalError("locked")
 
-    _log_bump(_Broken(), 1)  # must not raise
+    _log_bump(_Broken(), 1)  # ty: ignore[invalid-argument-type] — deliberate duck-typed broken conn
 
 
 # --------------------------------------------------------------------------- #

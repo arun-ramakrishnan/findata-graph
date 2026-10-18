@@ -51,8 +51,10 @@ def main(argv: list[str] | None = None) -> int:
     try:
         con = duckdb.connect(str(db), read_only=True)
         try:
-            rows = con.execute("SELECT COUNT(*) FROM e_all_und").fetchone()[0]
-            directed = con.execute("SELECT COUNT(*) FROM e_dir").fetchone()[0]
+            row = con.execute("SELECT COUNT(*) FROM e_all_und").fetchone()
+            rows = int(row[0]) if row is not None else 0
+            row = con.execute("SELECT COUNT(*) FROM e_dir").fetchone()
+            directed = int(row[0]) if row is not None else 0
         finally:
             con.close()
     except duckdb.CatalogException:

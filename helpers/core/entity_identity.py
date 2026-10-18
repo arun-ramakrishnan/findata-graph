@@ -162,7 +162,7 @@ def speaker_display(path: Path = QUOTES_PATH) -> dict[str, str]:
     return out
 
 
-def resolve_speaker(name: str) -> str:
+def resolve_speaker(name: str | None) -> str | None:
     """Canonical speaker name for a Quotes attribution (person arc S6):
     signed person-plan fold → Quotes corpus display form → as-written.
     Purely additive — an unknown name passes through untouched. The

@@ -370,7 +370,7 @@ def apply_plan(  # noqa: C901
             for side in ("source", "target"):
                 other = "target" if side == "source" else "source"
                 collapsed += con.execute(
-                    "DELETE FROM graph_edges WHERE id IN ("
+                    "DELETE FROM graph_edges WHERE id IN ("  # noqa: S608  # column names from the closed ("source", "target") literal tuple; values parameterized
                     "  SELECT v.id FROM graph_edges v JOIN graph_edges c"
                     f"   ON c.{side} = ? AND v.{side} = ?"
                     f"  AND c.{other} = v.{other} AND c.edge_type = v.edge_type"

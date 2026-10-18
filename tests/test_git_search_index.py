@@ -42,8 +42,11 @@ def repo(tmp_path):
     root.mkdir()
 
     def git(*args: str, check: bool = True) -> str:
+        git_bin = shutil.which("git")
+        if git_bin is None:
+            raise RuntimeError("git executable not found on PATH")
         proc = subprocess.run(  # noqa: S603 — fixed argv, no shell
-            [shutil.which("git"), "-C", str(root), *args],
+            [git_bin, "-C", str(root), *args],
             capture_output=True,
             text=True,
             check=check,
@@ -657,7 +660,10 @@ def test_extra_never_displaces_lexical_top():
     row_page = (11, "page-sha", "d", "s", "f", "c", b"", 0.0, "snip")
     row_extra = (12, "extra-sha", "d", "s", "f", "c", b"", 0.0, "snip")
     hits = rgs._fuse_scores(
-        [(0, row_page, "snip", False), (99, row_extra, "snip", True)],
+        [  # ty: ignore[invalid-argument-type] — unit test feeds plain tuples, not sqlite3.Row
+            (0, row_page, "snip", False),
+            (99, row_extra, "snip", True),
+        ],
         {12: 0, 11: 5},  # extra owns cosine rank 1; page row ranks 6th
     )
     by_sha = {row[1]: score for score, row, _snip in hits}

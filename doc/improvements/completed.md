@@ -7,6 +7,34 @@
 
 ---
 
+## 412. Convo corpus — reasoning + tool capture across harness lanes
+
+**Date**: 2026-10-18
+**Status**: COMPLETE
+**Proposal**: `doc/improvements/archive/convo_search/convo_reasoning_capture.md`
+(filed + executed 2026-10-18; S1–S7)
+
+- 7-trap audit of silent capture loss: prime `thinking` blocks read via
+  `.text` (0 reasoning/tool rows for the lane), `part_type` hardcoded
+  `"text"`, opencode `modelID`-vs-`model` facet blanking (77.4% of rows),
+  encrypted reasoning reading as empty text (9,657 rows), watermarks
+  making parser fixes unrecoverable, content living in snapshots not the
+  live dir.
+- S1 prime block kinds (`_prime_block`), S2 `_oc_msg_model` across both
+  opencode vintages, S3 encrypted-reasoning marker (ciphertext never
+  copied), S4 `--force-lane` recovery. Post-fix prime lane: 3,541
+  reasoning / 9,421,800 chars + 7,919 tool / 7,242,683 chars (both were 0).
+- S7 zcode `toolCalls` slice (`zc:<sid>:tool:<rid>:<i>`, 0 → 2,664 rows);
+  two close-out defects fixed: opencode `--force-lane` bypassed the
+  quiet-skip but not the `hwm` filter (forced pass was a no-op — now full
+  re-read, 184,919 parts merged, 135 files rewritten, encrypted markers
+  0 → 1,801) and in-place model migrations never reached the index
+  (`_backfill_models` + `--refresh-index-models`; dict-string model rows
+  8,208 → 0).
+- Index 136,076 → 139,039 rows. S6(a) measured: 55,211 blank-model
+  assistant rows are permanent (sources lack the field); S6(b)
+  `unrecorded` relabel stays open.
+
 ## 411. Gate arc 2026-10-18 — qa/integration/advisory/perf close-out
 
 **Date**: 2026-10-18

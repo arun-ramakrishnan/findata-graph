@@ -300,6 +300,7 @@ class TestGemmaAdoption:
         con = rds.connect_doc_db(seeded_docs)
         try:
             stamp = rds.stored_embed_model(con)
+            assert stamp is not None  # fixture index is granite-stamped
             # gemma QV (512d) vs granite stamp (8d in the fixture): QV
             # dropped → local granite embed fits → hybrid + mismatch note.
             gqv = rbc.QueryVector(

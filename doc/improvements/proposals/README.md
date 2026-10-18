@@ -38,6 +38,13 @@ entry number and stale DONE pointers):
 
 ## Current live proposals
 
+_(none)_
+
+Historical (executed + archived; newest first):
+
+- `../archive/convo_search/convo_reasoning_capture.md` (2026-10-18) —
+  reasoning + tool capture across harness lanes — completed.md #412
+
 _(none)_ — every proposal filed here is executed and archived.
 - `../archive/tooling/doc_leg_embed_cache_persistence.md` (2026-10-18) —
   doc-leg embed cache: S1 loud degradation + lazy attach re-init (a busy

@@ -177,6 +177,61 @@ def _backfill_provenance(db_path: Path, files: list[Path]) -> tuple[int, int]:
     return (files_touched, total)
 
 
+def _backfill_models(db_path: Path, files: list[Path]) -> tuple[int, int]:
+    """Fill `model` on existing rows from their parquet's `model`.
+
+    Sibling of `_backfill_provenance` for the same in-place-repair blind
+    spot: the model migrations (`--migrate-zcode-models` /
+    `--migrate-opencode-models`) rewrite corpus parquets with text and
+    part_ids untouched, so no incremental rebuild ever notices a changed
+    facet — the corpus said one thing, the index another (measured
+    2026-10-18: corpus 0 dict-string model rows, index 5,327). Same
+    positional `(file_path, row_no)` join, no re-embedding; only rows
+    whose index value differs are written, so the count is honest.
+
+    Returns (files, rows).
+    """
+    import pyarrow.parquet as pq
+
+    files_touched = 0
+    rows_touched = 0
+    with io_lock(db_path, exclusive=True):
+        con = connect_with_lock_retry(lambda: duckdb.connect(str(db_path)))
+        try:
+            for f in files:
+                rel = str(f.relative_to(REPO))
+                try:
+                    models = pq.read_table(f, columns=["model"]).column("model").to_pylist()
+                except Exception:  # noqa: S112  # unreadable file: --check reports it; index refresh continues
+                    continue
+                rows = con.execute(
+                    "SELECT row_no, model FROM convo_search WHERE file_path = ?",
+                    [rel],
+                ).fetchall()
+                if not rows:
+                    continue
+                by_no = dict(rows)
+                # one UPDATE per distinct model value in the file, not per row
+                buckets: dict[str, list[int]] = {}
+                for row_no, m in enumerate(models):
+                    if row_no in by_no and m and by_no[row_no] != m:
+                        buckets.setdefault(m, []).append(row_no)
+                if not buckets:
+                    continue
+                files_touched += 1
+                for m, nos in buckets.items():
+                    ph = ",".join("?" * len(nos))
+                    con.execute(
+                        f"UPDATE convo_search SET model = ? "  # noqa: S608  # constant template; only the placeholder count varies
+                        f"WHERE file_path = ? AND row_no IN ({ph})",
+                        [m, rel, *nos],
+                    )
+                    rows_touched += len(nos)
+        finally:
+            con.close()
+    return (files_touched, rows_touched)
+
+
 def _read_file(f: Path) -> tuple[str, list[dict]]:
     """One parquet file → (blake2b, index rows); non-text parts dropped."""
     import pyarrow.parquet as pq

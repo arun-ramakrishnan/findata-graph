@@ -8,6 +8,13 @@ commit, referenced by nothing). Entry numbers point at
 
 ## convo_search/ — Conversation search harvest + rebuild
 
+- [`convo_reasoning_capture.md`](convo_search/convo_reasoning_capture.md) —
+  capture reasoning + tool blocks across harness lanes: prime
+  `thinking`/`toolCall` blocks (0 → 3,541 reasoning / 7,919 tool rows),
+  opencode `modelID` facet + encrypted-reasoning marker (1,801 marked),
+  zcode `toolCalls` slice (0 → 2,664 tool rows), `--force-lane` recovery
+  (full re-read fix), `--refresh-index-models` backfill; 7-trap audit —
+  completed.md #412
 - [`bili_convo_lane.md`](convo_search/bili_convo_lane.md) — index BILI
   compression summaries in convo_search (new `bili` harvest lane, ~68 rows;
   trial 9/10 vs 4/10 ACTIVE-only). Carries the eval-gate bullet

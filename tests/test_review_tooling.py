@@ -347,7 +347,7 @@ class TestFreshnessRangeMode:
         rf.main(["--from", "aaa111", "--to", "bbb222", "--record", "--note", "superset"])
         monkeypatch.setattr(rf, "_is_ancestor", lambda asked, recorded: True)
         state, row, scope = rf.status_range("aaa111", "mid222")
-        assert state == "SUBSUMED" and row["note"] == "superset"
+        assert state == "SUBSUMED" and row is not None and row["note"] == "superset"
         assert scope == "sha-aaa..sha-mid"
         rf.main(["--from", "aaa111", "--to", "mid222"])
         out = capsys.readouterr().out

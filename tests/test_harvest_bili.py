@@ -203,10 +203,14 @@ def test_bili_records_the_owning_namespace(tmp_path, monkeypatch):
     # routed to the OWNING harness, not to a bili-only directory
     assert set(writer.touched) == {("dsh", "ses_d")}
     row = writer.touched[("dsh", "ses_d")]["ses_d#b1"]
-    assert json.loads(row["meta"])["namespace"] == "dsh"
+    meta = row["meta"]
+    assert meta is not None
+    assert json.loads(meta)["namespace"] == "dsh"
     assert row["source"] == "bili-index/dsh"
     # namespace rides the fingerprint, so a re-owned session re-harvests
-    assert json.loads(store.watermark("bili:ses_d"))["ns"] == "dsh"
+    wm = store.watermark("bili:ses_d")
+    assert wm is not None
+    assert json.loads(wm)["ns"] == "dsh"
     store.close()
 
 

@@ -222,6 +222,8 @@ def connect_git_db(db_path: Path | str | None = None) -> sqlite3.Connection:
 def _git(root: Path, *args: str) -> str:
     """One read-only git invocation against `root`; stdout as text."""
     git = shutil.which("git")
+    if git is None:  # narrows list[str] — ty's run overload rejects Sequence[str | None]
+        raise RuntimeError("git executable not found on PATH")
     proc = subprocess.run(  # noqa: S603 — fixed argv, no shell
         [git, "-C", str(root), "--no-pager", *args],
         capture_output=True,
@@ -554,42 +556,7 @@ def rebuild(
         stats["stale_body_basis"] = body_stale
         stats["index_stale"] = bool(touched or dropped or body_stale)
         if not write:
-            import sys as _sys
-
-            from helpers.maintenance import rebuild_common as rbc
-
-            has_drift = bool(stats["stale_new"] or stats["stale_changed"] or stats["stale_deleted"])
-            if has_drift:
-                rbc.print_staleness(
-                    stats,
-                    count_key="total_units",
-                    unit="commits",
-                    refresh_cmd="python3 helpers/maintenance/rebuild_git_search.py",
-                )
-                if body_stale:
-                    print(
-                        "  + body-chunk basis missing/bumped — apply re-chunks the corpus",
-                        file=_sys.stderr,
-                    )
-            elif body_stale:
-                print(
-                    f"index state: STALE — body-chunk basis (all {stats['total_units']} "
-                    "commits need re-chunking; heads unchanged)",
-                    file=_sys.stderr,
-                )
-                print(
-                    "refresh: python3 helpers/maintenance/rebuild_git_search.py",
-                    file=_sys.stderr,
-                )
-            else:
-                rbc.print_staleness(
-                    stats,
-                    count_key="total_units",
-                    unit="commits",
-                    refresh_cmd="python3 helpers/maintenance/rebuild_git_search.py",
-                )
-            stats["indexed"] = 0
-            stats["total_rows"] = conn.execute("SELECT COUNT(*) FROM git_search").fetchone()[0]
+            _check_verdict(conn, stats, body_stale)
             return stats
 
         # Embed targets: the touched rows, or the WHOLE corpus when the
@@ -613,138 +580,35 @@ def rebuild(
         ]
 
         # Extract diffs + embed only what needs it (embedding is not
-        # free — the whole point of reconciliation). The embedder
-        # resolves BEFORE the texts compose: the basis is per-model
-        # (gemma's prefix contract), so label must be known first.
+        # free — the whole point of reconciliation).
         diffs = _diffs_for(root, touched)
-        embed_missing, dims, label, _ = resolve_git_embedder()
-        prev_model = _stored_embed_model(conn)
-        # Demotion guard for the gemma-adopted state: the follow-availability
-        # selector must never silently populate the fallback model over a
-        # gemma stamp (the 2026-10-08 un-migration class). GIT_EMBEDDER=
-        # granite is the explicit un-migration path.
-        from helpers.core import gemma_embedder as _gemma
+        label, vec_by_sha, chunk_vec_map = _embed_pass(
+            conn,
+            root,
+            messages,
+            reachable,
+            stats,
+            embed_shas,
+            chunk_shas,
+            chunk_plan,
+            basis_stale,
+            body_stale,
+            incremental,
+        )
 
-        _gemma.guard_gemma_stamp(prev_model, label, escape=os.environ.get(GIT_EMBEDDER_ENV))
-        if (embed_shas or chunk_plan) and prev_model is not None and prev_model != label:
-            raise RuntimeError(
-                f"git_search is stamped {prev_model} but the resolved embedder "
-                f"is {label} — refusing to mix vector spaces. Adoption cutover: "
-                "delete the sidecar (derived state) and rebuild to re-stamp; "
-                "un-migration: GIT_EMBEDDER=granite "
-                "(guard_gemma_stamp doctrine; the 2026-10-08 silent un-migration)."
-            )
-        texts = [
-            _head_embed_text(label, messages[s][1].split("\n", 1)[0], messages[s][1])
-            for s in embed_shas
-        ]
-
-        vec_by_sha: dict[str, list[float]] = {}
-        chunk_vecs: list[list[float]] = []
-        if embed_shas or chunk_plan:
-            from helpers.core.embed_cache import cached_embed_batch
-
-            if embed_shas:
-                vecs, emb_stats = cached_embed_batch(
-                    conn, texts, label, embed_missing, source=SOURCE_COHORT
-                )
-                vec_by_sha = dict(zip(embed_shas, vecs))
-                stats["embedded"] = emb_stats["unique_misses"]
-                stats["embed_cache_hits"] = emb_stats["hits"]
-                stats["embed_cache_misses"] = emb_stats["misses"]
-            if chunk_plan:
-                chunk_vecs, body_stats = cached_embed_batch(
-                    conn,
-                    [
-                        _chunk_embed_text(label, messages[s][1].split("\n", 1)[0], t)
-                        for s, _i, t in chunk_plan
-                    ],
-                    label,
-                    embed_missing,
-                    source=SOURCE_COHORT,
-                )
-                stats["embedded_body"] = body_stats["unique_misses"]
-                stats["body_cache_hits"] = body_stats["hits"]
-                stats["body_chunks"] = len(chunk_plan)
-            conn.execute(
-                "INSERT OR REPLACE INTO git_search_info (key, value) VALUES ('embed_model', ?)",
-                (label,),
-            )
-            conn.execute(
-                "INSERT OR REPLACE INTO git_search_info (key, value) VALUES ('embed_dims', ?)",
-                (str(dims),),
-            )
-
-        # The basis stamps must describe the table's CONTENT (the model
-        # stamp's own rule): stamp only when this pass covered every
-        # reachable row. A partial pass under a moved basis would
-        # otherwise brand v1 vectors as v2 and the upgrade would never
-        # fire again (hit live: a partial apply stamped v2 over 414
-        # full-basis rows). Deliberately OUTSIDE the pending-embed block:
-        # a basis bump over a corpus whose texts all cache-hit (or that
-        # yields no chunks at all) still owes the stamp its upgrade.
-        if embed_shas and (basis_stale or not incremental or set(embed_shas) >= reachable):
-            conn.execute(
-                "INSERT OR REPLACE INTO git_search_info (key, value) VALUES ('embed_basis', ?)",
-                (str(EMBED_BASIS_VERSION),),
-            )
-        # Stamp on TARGET coverage, not on chunk texts existing: a
-        # corpus of short messages yields zero chunks and is still
-        # fully covered (zero chunks IS their chunk set) — gating on
-        # chunk_plan would leave such an index permanently "stale".
-        if body_stale or not incremental or set(chunk_shas) >= reachable:
-            conn.execute(
-                "INSERT OR REPLACE INTO git_search_info (key, value) VALUES ('body_basis', ?)",
-                (str(BODY_BASIS_VERSION),),
-            )
-
-        for sha in dropped:
-            conn.execute("DELETE FROM git_search WHERE sha = ?", (sha,))
-            conn.execute("DELETE FROM git_search_meta WHERE sha = ?", (sha,))
-            conn.execute("DELETE FROM git_search_body WHERE sha = ?", (sha,))
-        for sha in touched:
-            adate, body = messages[sha]
-            subject = body.split("\n", 1)[0]
-            fblock = _files_block(numstats.get(sha, []))
-            content = f"{body}\n{fblock}\n{diffs.get(sha, '')}"
-            conn.execute("DELETE FROM git_search WHERE sha = ?", (sha,))
-            conn.execute(
-                f"INSERT INTO git_search ({_ROW_COLS}) VALUES (?, ?, ?, ?, ?, ?)",  # noqa: S608  # constant column list
-                (sha, _iso_date(adate), subject, fblock, content, pack_f32(vec_by_sha[sha])),
-            )
-            conn.execute(
-                "INSERT OR REPLACE INTO git_search_meta (sha, adate, fp) VALUES (?, ?, ?)",
-                (sha, float(adate), _fp(body, fblock)),
-            )
-            conn.execute("DELETE FROM git_search_body WHERE sha = ?", (sha,))
-        # Basis-only re-embed: rows whose extraction did not change but
-        # whose vector text did.
-        for sha in embed_shas:
-            if sha in touched:
-                continue
-            conn.execute(
-                "UPDATE git_search SET embedding = ? WHERE sha = ?",
-                (pack_f32(vec_by_sha[sha]), sha),
-            )
-        # Body chunks: full rewrite per target sha (touched rows deleted
-        # above; body-stale passes overwrite in place via the same DELETE).
-        chunk_vec_map = {(s, i): v for (s, i, _t), v in zip(chunk_plan, chunk_vecs, strict=True)}
-        for sha in chunk_shas:
-            rows = [
-                (
-                    sha,
-                    i,
-                    pack_f32(chunk_vec_map[(sha, i)]),
-                    hashlib_blake2b(f"v{BODY_BASIS_VERSION}|cap{BODY_CHUNK_CAP}\n{t}"),
-                )
-                for i, t in enumerate(_body_chunks(messages[sha][1]))
-            ]
-            conn.execute("DELETE FROM git_search_body WHERE sha = ?", (sha,))
-            conn.executemany(
-                "INSERT INTO git_search_body (sha, chunk_idx, embedding, chunk_fp) "
-                "VALUES (?, ?, ?, ?)",
-                rows,
-            )
+        _write_rows(
+            conn,
+            messages,
+            numstats,
+            diffs,
+            dropped,
+            touched,
+            embed_shas,
+            chunk_shas,
+            chunk_plan,
+            vec_by_sha,
+            chunk_vec_map,
+        )
         conn.commit()
         stats["indexed"] = len(touched)
         stats["total_rows"] = conn.execute("SELECT COUNT(*) FROM git_search").fetchone()[0]
@@ -752,6 +616,219 @@ def rebuild(
         return stats
     finally:
         conn.close()
+
+
+def _check_verdict(conn: sqlite3.Connection, stats: dict, body_stale: bool) -> None:
+    """The `write=False` (--check) verdict: print staleness, close stats.
+
+    Split out of `rebuild` for C901; semantics are the 2026-10-18 shape:
+    drift prints via the shared printer (plus a body-basis note when
+    heads drift too), a body-basis bump ALONE prints its own
+    heads-unchanged line, and the clean case still prints the zero-drift
+    verdict (the shared CLI maps --check here and must always say why)."""
+    import sys as _sys
+
+    from helpers.maintenance import rebuild_common as rbc
+
+    has_drift = bool(stats["stale_new"] or stats["stale_changed"] or stats["stale_deleted"])
+    if has_drift:
+        rbc.print_staleness(
+            stats,
+            count_key="total_units",
+            unit="commits",
+            refresh_cmd="python3 helpers/maintenance/rebuild_git_search.py",
+        )
+        if body_stale:
+            print(
+                "  + body-chunk basis missing/bumped — apply re-chunks the corpus",
+                file=_sys.stderr,
+            )
+    elif body_stale:
+        print(
+            f"index state: STALE — body-chunk basis (all {stats['total_units']} "
+            "commits need re-chunking; heads unchanged)",
+            file=_sys.stderr,
+        )
+        print(
+            "refresh: python3 helpers/maintenance/rebuild_git_search.py",
+            file=_sys.stderr,
+        )
+    else:
+        rbc.print_staleness(
+            stats,
+            count_key="total_units",
+            unit="commits",
+            refresh_cmd="python3 helpers/maintenance/rebuild_git_search.py",
+        )
+    stats["indexed"] = 0
+    stats["total_rows"] = conn.execute("SELECT COUNT(*) FROM git_search").fetchone()[0]
+
+
+def _embed_pass(
+    conn: sqlite3.Connection,
+    root: Path,
+    messages: dict,
+    reachable: set,
+    stats: dict,
+    embed_shas: list,
+    chunk_shas: list,
+    chunk_plan: list,
+    basis_stale: bool,
+    body_stale: bool,
+    incremental: bool,
+) -> tuple[str, dict, dict]:
+    """Resolve the embedder, run the head/chunk batches, stamp the bases.
+
+    Split out of `rebuild` for C901. Returns (label, vec_by_sha,
+    chunk_vec_map). The demotion guard and the mixed-vector-space refusal
+    keep their exact wording — they are doctrine, not diagnostics."""
+    # The embedder resolves BEFORE the texts compose: the basis is
+    # per-model (gemma's prefix contract), so label must be known first.
+    embed_missing, dims, label, _ = resolve_git_embedder()
+    prev_model = _stored_embed_model(conn)
+    # Demotion guard for the gemma-adopted state: the follow-availability
+    # selector must never silently populate the fallback model over a
+    # gemma stamp (the 2026-10-08 un-migration class). GIT_EMBEDDER=
+    # granite is the explicit un-migration path.
+    from helpers.core import gemma_embedder as _gemma
+
+    _gemma.guard_gemma_stamp(prev_model, label, escape=os.environ.get(GIT_EMBEDDER_ENV))
+    if (embed_shas or chunk_plan) and prev_model is not None and prev_model != label:
+        raise RuntimeError(
+            f"git_search is stamped {prev_model} but the resolved embedder "
+            f"is {label} — refusing to mix vector spaces. Adoption cutover: "
+            "delete the sidecar (derived state) and rebuild to re-stamp; "
+            "un-migration: GIT_EMBEDDER=granite "
+            "(guard_gemma_stamp doctrine; the 2026-10-08 silent un-migration)."
+        )
+    texts = [
+        _head_embed_text(label, messages[s][1].split("\n", 1)[0], messages[s][1])
+        for s in embed_shas
+    ]
+
+    vec_by_sha: dict[str, list[float]] = {}
+    chunk_vecs: list[list[float]] = []
+    if embed_shas or chunk_plan:
+        from helpers.core.embed_cache import cached_embed_batch
+
+        if embed_shas:
+            vecs, emb_stats = cached_embed_batch(
+                conn, texts, label, embed_missing, source=SOURCE_COHORT
+            )
+            vec_by_sha = dict(zip(embed_shas, vecs))
+            stats["embedded"] = emb_stats["unique_misses"]
+            stats["embed_cache_hits"] = emb_stats["hits"]
+            stats["embed_cache_misses"] = emb_stats["misses"]
+        if chunk_plan:
+            chunk_vecs, body_stats = cached_embed_batch(
+                conn,
+                [
+                    _chunk_embed_text(label, messages[s][1].split("\n", 1)[0], t)
+                    for s, _i, t in chunk_plan
+                ],
+                label,
+                embed_missing,
+                source=SOURCE_COHORT,
+            )
+            stats["embedded_body"] = body_stats["unique_misses"]
+            stats["body_cache_hits"] = body_stats["hits"]
+            stats["body_chunks"] = len(chunk_plan)
+        conn.execute(
+            "INSERT OR REPLACE INTO git_search_info (key, value) VALUES ('embed_model', ?)",
+            (label,),
+        )
+        conn.execute(
+            "INSERT OR REPLACE INTO git_search_info (key, value) VALUES ('embed_dims', ?)",
+            (str(dims),),
+        )
+
+    # The basis stamps must describe the table's CONTENT (the model
+    # stamp's own rule): stamp only when this pass covered every
+    # reachable row. A partial pass under a moved basis would otherwise
+    # brand v1 vectors as v2 and the upgrade would never fire again (hit
+    # live: a partial apply stamped v2 over 414 full-basis rows).
+    # Deliberately OUTSIDE the pending-embed block: a basis bump over a
+    # corpus whose texts all cache-hit (or that yields no chunks at all)
+    # still owes the stamp its upgrade.
+    if embed_shas and (basis_stale or not incremental or set(embed_shas) >= reachable):
+        conn.execute(
+            "INSERT OR REPLACE INTO git_search_info (key, value) VALUES ('embed_basis', ?)",
+            (str(EMBED_BASIS_VERSION),),
+        )
+    # Stamp on TARGET coverage, not on chunk texts existing: a corpus of
+    # short messages yields zero chunks and is still fully covered (zero
+    # chunks IS their chunk set) — gating on chunk_plan would leave such
+    # an index permanently "stale".
+    if body_stale or not incremental or set(chunk_shas) >= reachable:
+        conn.execute(
+            "INSERT OR REPLACE INTO git_search_info (key, value) VALUES ('body_basis', ?)",
+            (str(BODY_BASIS_VERSION),),
+        )
+    chunk_vec_map = {(s, i): v for (s, i, _t), v in zip(chunk_plan, chunk_vecs, strict=True)}
+    return label, vec_by_sha, chunk_vec_map
+
+
+def _write_rows(
+    conn: sqlite3.Connection,
+    messages: dict,
+    numstats: dict,
+    diffs: dict,
+    dropped: list,
+    touched: list,
+    embed_shas: list,
+    chunk_shas: list,
+    chunk_plan: list,
+    vec_by_sha: dict,
+    chunk_vec_map: dict,
+) -> None:
+    """The write pass: drop, upsert touched rows, basis-only re-embeds,
+    body-chunk rewrite. Split out of `rebuild` for C901; row-for-row the
+    previous inline tail."""
+    for sha in dropped:
+        conn.execute("DELETE FROM git_search WHERE sha = ?", (sha,))
+        conn.execute("DELETE FROM git_search_meta WHERE sha = ?", (sha,))
+        conn.execute("DELETE FROM git_search_body WHERE sha = ?", (sha,))
+    for sha in touched:
+        adate, body = messages[sha]
+        subject = body.split("\n", 1)[0]
+        fblock = _files_block(numstats.get(sha, []))
+        content = f"{body}\n{fblock}\n{diffs.get(sha, '')}"
+        conn.execute("DELETE FROM git_search WHERE sha = ?", (sha,))
+        conn.execute(
+            f"INSERT INTO git_search ({_ROW_COLS}) VALUES (?, ?, ?, ?, ?, ?)",  # noqa: S608  # constant column list
+            (sha, _iso_date(adate), subject, fblock, content, pack_f32(vec_by_sha[sha])),
+        )
+        conn.execute(
+            "INSERT OR REPLACE INTO git_search_meta (sha, adate, fp) VALUES (?, ?, ?)",
+            (sha, float(adate), _fp(body, fblock)),
+        )
+        conn.execute("DELETE FROM git_search_body WHERE sha = ?", (sha,))
+    # Basis-only re-embed: rows whose extraction did not change but whose
+    # vector text did.
+    for sha in embed_shas:
+        if sha in touched:
+            continue
+        conn.execute(
+            "UPDATE git_search SET embedding = ? WHERE sha = ?",
+            (pack_f32(vec_by_sha[sha]), sha),
+        )
+    # Body chunks: full rewrite per target sha (touched rows deleted
+    # above; body-stale passes overwrite in place via the same DELETE).
+    for sha in chunk_shas:
+        rows = [
+            (
+                sha,
+                i,
+                pack_f32(chunk_vec_map[(sha, i)]),
+                hashlib_blake2b(f"v{BODY_BASIS_VERSION}|cap{BODY_CHUNK_CAP}\n{t}"),
+            )
+            for i, t in enumerate(_body_chunks(messages[sha][1]))
+        ]
+        conn.execute("DELETE FROM git_search_body WHERE sha = ?", (sha,))
+        conn.executemany(
+            "INSERT INTO git_search_body (sha, chunk_idx, embedding, chunk_fp) VALUES (?, ?, ?, ?)",
+            rows,
+        )
 
 
 # --------------------------------------------------------------------------- #
@@ -791,15 +868,11 @@ def git_index_stale(conn: sqlite3.Connection, *, root: Path | None = None) -> bo
     return meta != reachable
 
 
-def _cosine_leg(
-    conn: sqlite3.Connection, q: str, query_vec: object = None
-) -> tuple[list[tuple[int, float]], dict[int, float], set[int]]:
-    """Cosine ranking over head + body-chunk vectors: a row's score is
-    max(head cos, best-chunk cos) — the S5 deep-body rule. Returns
-    (scored [(rowid, sim)] sorted desc, sims map, rowids whose best sim
-    came from a BODY chunk). ([], {}, set()) when the embedder is
-    unavailable or the stored dims mismatch — the BM25 leg then carries
-    the ranking."""
+def _cosine_query_vector(conn: sqlite3.Connection, q: str, query_vec: object) -> list[float] | None:
+    """Resolve the query vector for the cosine leg: a caller-supplied
+    QueryVector when usable, else a fresh embed through the stored model's
+    contract. None = unavailable or dims mismatch (the BM25 leg then
+    carries the ranking). Split out of `_cosine_leg` for C901."""
     from helpers.maintenance import rebuild_common as rbc
 
     try:
@@ -821,13 +894,27 @@ def _cosine_leg(
                 embed_q = local_embedder.embed_query
             candidate = embed_q(q)
             if idx_dims is not None and idx_dims != len(candidate):
-                return [], {}, set()
+                return None
             q_vec = candidate
+        return q_vec
     except Exception:  # noqa: BLE001  # embedder unavailable -> BM25 only
+        return None
+
+
+def _cosine_leg(
+    conn: sqlite3.Connection, q: str, query_vec: object = None
+) -> tuple[list[tuple[int, float]], dict[int, float], set[int]]:
+    """Cosine ranking over head + body-chunk vectors: a row's score is
+    max(head cos, best-chunk cos) — the S5 deep-body rule. Returns
+    (scored [(rowid, sim)] sorted desc, sims map, rowids whose best sim
+    came from a BODY chunk). ([], {}, set()) when the embedder is
+    unavailable or the stored dims mismatch — the BM25 leg then carries
+    the ranking."""
+    q_vec = _cosine_query_vector(conn, q, query_vec)
+    if q_vec is None:
         return [], {}, set()
     sims: dict[int, float] = {}
     from_body: set[int] = set()
-    scored: list[tuple[int, float]] = []
     norm_q = sum(x * x for x in q_vec) ** 0.5 or 1.0
 
     def _consider(rid: int, vec: list[float], body: bool) -> None:
@@ -1044,9 +1131,9 @@ def search_commits(
     where, params = _where_and_params(since, path)
     try:
         page = conn.execute(
-            "SELECT rowid, sha, adate, subject, files, embedding, rank, "
+            "SELECT rowid, sha, adate, subject, files, embedding, rank, "  # noqa: S608  # where is parameterized clauses only
             "snippet(git_search, 4, '<mark>', '</mark>', ' … ', 16) AS snip "
-            f"FROM git_search WHERE git_search MATCH ?{where} "  # noqa: S608  # where is parameterized clauses only
+            f"FROM git_search WHERE git_search MATCH ?{where} "
             "ORDER BY bm25(git_search) LIMIT ?",
             [expr, *params, limit + offset],
         ).fetchall()

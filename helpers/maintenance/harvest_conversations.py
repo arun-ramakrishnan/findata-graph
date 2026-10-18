@@ -20,7 +20,9 @@ part_id collision:
   zcode_conversation_ingest_repair), fullest ``full``-kind request per
   session = final context (tail/delta fallbacks marked partial in
   meta), per-response ``text``/``reasoningText`` keyed by responseId,
-  responseId-less error records as searchable ``error`` rows (S2).
+  per-response ``toolCalls`` as searchable ``tool`` rows (S7,
+  convo_reasoning_capture), responseId-less error records as
+  searchable ``error`` rows (S2).
 - bili: live billion-context ``sessions/index.db`` compression summaries
   (ALL blocks regardless of `active`; per-session {block: [hash, active]}
   fingerprint, quiet on match).
@@ -270,6 +272,41 @@ class SessionWriter:
         return written
 
 
+def _oc_msg_model(d: dict) -> object:
+    """Model value of an opencode `message` row, across schema vintages.
+
+    Assistant rows in every store surveyed carry `modelID` and NOT `model`
+    (measured 2026-10-18: 24,155 of 24,155 assistant rows across the two
+    newest snapshots) — so reading `model` alone blanked the facet for the
+    whole v2 era: 129,430 of 167,274 opencode corpus rows carry `model=''`.
+    The older store wrote `model`, a nested dict on a user message, hence
+    the pass-through for `_oc_model_value` rather than a `str()` here.
+    """
+    if not isinstance(d, dict):
+        return ""
+    return d.get("modelID") or d.get("model") or ""
+
+
+def _oc_reasoning_meta(d: dict) -> dict:
+    """Why a reasoning row can carry no text — the provider's own marker.
+
+    Newer opencode stores OpenAI-Responses *encrypted* reasoning with an
+    empty `text` (`metadata.openai.reasoningEncryptedContent` + `itemId`;
+    measured 2026-10-18: 71 of the 76 empty reasoning parts in the live
+    store). Unrecorded, such a row is indistinguishable from a harvest
+    defect — the corpus held 9,657 empty reasoning rows with not one
+    carrying the marker. Records the fact and the size, never the ciphertext.
+    """
+    meta = d.get("metadata")
+    oai = meta.get("openai") if isinstance(meta, dict) else None
+    if not isinstance(oai, dict):
+        return {}
+    enc = oai.get("reasoningEncryptedContent")
+    if not enc:
+        return {}
+    return {"encrypted": True, "enc_bytes": len(enc), "item_id": oai.get("itemId")}
+
+
 def _oc_part_rows(cur_parts: Iterator[tuple], msgs: dict[str, tuple], src: str) -> list[dict]:
     out = []
     for pid, mid, sid, tc, tu, data in cur_parts:
@@ -278,6 +315,8 @@ def _oc_part_rows(cur_parts: Iterator[tuple], msgs: dict[str, tuple], src: str) 
         text, meta = "", {}
         if ptype in ("text", "reasoning"):
             text = d.get("text") or ""
+            if ptype == "reasoning":
+                meta = _oc_reasoning_meta(d)
         elif ptype == "tool":
             st = d.get("state") or {}
             text = st.get("output") or ""
@@ -323,7 +362,7 @@ def _harvest_opencode_db(db_path: Path, src: str, hwm: int | None) -> tuple[list
             r[0]: (
                 (json.loads(r[1]) or {}).get("role", ""),
                 (json.loads(r[1]) or {}).get("agent", ""),
-                (json.loads(r[1]) or {}).get("model", ""),
+                _oc_msg_model(json.loads(r[1]) or {}),
             )
             for r in con.execute("SELECT id, data FROM message")
         }
@@ -424,7 +463,7 @@ def _v2_msg_envelope(con) -> dict[str, tuple]:
             out[mid] = (
                 d.get("role", ""),
                 d.get("agent", ""),
-                _oc_model_value(d.get("model", "")),
+                _oc_model_value(_oc_msg_model(d)),
             )
     except sqlite3.OperationalError:
         pass
@@ -695,7 +734,7 @@ def _opencode_sources() -> list[tuple[Path, str, bool]]:
     return dbs
 
 
-def _harvest_opencode(store: Store, writer: SessionWriter) -> str:
+def _harvest_opencode(store: Store, writer: SessionWriter, *, force: bool = False) -> str:
     stats, parts_total = [], 0
     n_snaps = 0
     for path, src, immutable in _opencode_sources():
@@ -703,10 +742,16 @@ def _harvest_opencode(store: Store, writer: SessionWriter) -> str:
         if immutable:
             n_snaps += 1
         hwm_raw = store.watermark(key)
-        if immutable and hwm_raw is not None:
+        if immutable and hwm_raw is not None and not force:
             stats.append(f"{src}: quiet")
         else:
-            hwm = int(hwm_raw) if hwm_raw is not None else None
+            # force means FULL re-read: the per-source hwm filter would
+            # re-scan the db yet re-emit nothing already harvested — a
+            # parser fix stays unrecoverable (measured 2026-10-18: a
+            # forced opencode pass with the filter intact rewrote 1 file,
+            # live traffic only; part_ids are stable, so a full re-read
+            # merges, never duplicates).
+            hwm = None if force else (int(hwm_raw) if hwm_raw is not None else None)
             # One unreadable source must not abort the whole lane: a corrupt or
             # truncated backup image otherwise costs every other snapshot AND the
             # live db, and surfaces as a bare "disk I/O error" that names no file.
@@ -743,7 +788,7 @@ def _harvest_opencode(store: Store, writer: SessionWriter) -> str:
         seeds: dict[str, int | None] = {}
         for lane, fn in (("v2", _harvest_opencode_v2), ("evt", _harvest_opencode_events)):
             lkey = key + ":" + lane
-            if immutable and store.watermark(lkey) is not None:
+            if immutable and store.watermark(lkey) is not None and not force:
                 stats.append(f"{src}:{lane}: quiet")
                 continue
             try:
@@ -765,10 +810,41 @@ def _harvest_opencode(store: Store, writer: SessionWriter) -> str:
     return "\n".join(stats) + f"\nopencode total new: {parts_total}"
 
 
-def _prime_text(block: object) -> str:
-    if isinstance(block, dict):
-        return block.get("text") or ""
-    return str(block or "")
+# prime content-block kinds → corpus part_type. A `thinking` block keeps its
+# reasoning under `thinking` (Anthropic shape, plus `thinkingSignature` and
+# `redacted`), NOT `text` — reading `text` alone dropped 100% of prime's
+# reasoning and every tool call (measured 2026-10-18: snapshots hold 4,425
+# thinking blocks / 10,535,564 chars and 9,272 toolCall blocks, while the
+# corpus held 0 reasoning and 0 tool rows for prime-rlm — 39% of the lane's
+# conversation content was absent from the archive and searchable nowhere).
+_PRIME_THINKING = ("thinking", "redacted_thinking")
+
+
+def _prime_block(blk: object) -> tuple[str, str, dict]:
+    """(text, part_type, meta) for one prime content block; "" text skips it."""
+    if not isinstance(blk, dict):
+        return str(blk or ""), "text", {}
+    btype = blk.get("type") or "text"
+    if btype in _PRIME_THINKING:
+        meta = {
+            "block_type": btype,
+            "signature": blk.get("thinkingSignature"),
+            "redacted": bool(blk.get("redacted")) or None,
+        }
+        return (
+            blk.get("thinking") or blk.get("text") or "",
+            "reasoning",
+            {k: v for k, v in meta.items() if v is not None},
+        )
+    if btype == "toolCall":
+        args = blk.get("arguments")
+        meta = {"block_type": btype, "tool": blk.get("name"), "call_id": blk.get("id")}
+        return (
+            args if isinstance(args, str) else json.dumps(args or {}),
+            "tool",
+            {k: v for k, v in meta.items() if v is not None},
+        )
+    return blk.get("text") or "", "text", {"block_type": btype}
 
 
 def _harvest_prime_file(f: Path, src: str) -> list[dict]:
@@ -784,7 +860,7 @@ def _harvest_prime_file(f: Path, src: str) -> list[dict]:
         sid = m.get("sessionID") or d.get("sessionID") or f.stem
         ts = _ms(d.get("timestamp"))
         for i, blk in enumerate(m.get("content") or []):
-            text = _prime_text(blk)
+            text, ptype, meta = _prime_block(blk)
             if not text:
                 continue
             rows.append(
@@ -796,9 +872,9 @@ def _harvest_prime_file(f: Path, src: str) -> list[dict]:
                     m.get("role", ""),
                     m.get("agent", ""),
                     m.get("model", ""),
-                    "text",
+                    ptype,
                     text,
-                    {"block_type": blk.get("type") if isinstance(blk, dict) else None},
+                    meta,
                     src,
                 )
             )
@@ -815,7 +891,10 @@ def _prime_files() -> list[tuple[Path, str]]:
     return out
 
 
-def _harvest_prime(store: Store, writer: SessionWriter) -> str:
+def _harvest_prime(store: Store, writer: SessionWriter, *, force: bool = False) -> str:
+    """`force` ignores the per-file watermark (a parser change must re-read a
+    source the watermark declares done; see `--force-lane`). A re-read emits
+    the same part_ids, so it merges instead of duplicating."""
     stats, total = [], 0
     for f, src in _prime_files():
         key = f"{src}:{hashlib.blake2b(str(f).encode(), digest_size=6).hexdigest()}"
@@ -823,7 +902,7 @@ def _harvest_prime(store: Store, writer: SessionWriter) -> str:
         wm = json.loads(wm_raw) if wm_raw else None
         st = f.stat()
         cur = [int(st.st_mtime), st.st_size]
-        if wm == cur:
+        if wm == cur and not force:
             stats.append(f"{src}: quiet")
             continue
         rows = _harvest_prime_file(f, src)
@@ -1086,7 +1165,7 @@ def _harvest_dsh_file(
     return rows, max_seq
 
 
-def _harvest_dsh(store: Store, writer: SessionWriter) -> str:
+def _harvest_dsh(store: Store, writer: SessionWriter, *, force: bool = False) -> str:
     stats, total = [], 0
     for path, sid, src in _dsh_logs():
         key = f"{src}:{sid}"
@@ -1094,12 +1173,12 @@ def _harvest_dsh(store: Store, writer: SessionWriter) -> str:
         wm = json.loads(wm_raw) if wm_raw else None
         st = path.stat()
         cur = [int(st.st_mtime), int(st.st_size)]
-        if wm is not None and wm[1:] == cur:
+        if wm is not None and wm[1:] == cur and not force:
             stats.append(f"{src}:{sid[:13]}: quiet")
             continue
         # Rotation/truncation (smaller file than recorded): the seq floor
         # is meaningless — full ingest, stable ids merge newest-wins.
-        after_seq = None if (wm is None or int(st.st_size) < wm[2]) else wm[0]
+        after_seq = None if (force or wm is None or int(st.st_size) < wm[2]) else wm[0]
         try:
             rows, max_seq = _harvest_dsh_file(path, sid, src, after_seq)
         except (OSError, zstandard.ZstdError) as exc:
@@ -1224,7 +1303,7 @@ def _bili_fingerprint(con, sid: str) -> dict:
     }
 
 
-def _harvest_bili(store: Store, writer: SessionWriter) -> str:
+def _harvest_bili(store: Store, writer: SessionWriter, *, force: bool = False) -> str:
     """BILI compression summaries (bili_convo_lane proposal S1-S3).
 
     Every block is indexed regardless of `active` — manual compacts
@@ -1247,7 +1326,7 @@ def _harvest_bili(store: Store, writer: SessionWriter) -> str:
             cur = _bili_fingerprint(con, sid)
             wm_raw = store.watermark(key)
             wm = json.loads(wm_raw) if wm_raw else None
-            if wm is not None and wm == cur:
+            if wm is not None and wm == cur and not force:
                 stats.append(f"bili:{sid[:13]}: quiet")
                 continue
             if wm is None or wm.get("v") != cur["v"]:
@@ -1461,6 +1540,7 @@ def _zcode_best_and_resps(files: list[Path]) -> tuple[dict | None, bool, dict, d
                     r.get("text") or "",
                     r.get("reasoningText") or "",
                     _zc_model(d, r),
+                    r.get("toolCalls") or [],
                 )
             elif d.get("error"):
                 e = d["error"] or {}
@@ -1512,12 +1592,19 @@ def _zcode_req_rows(best: dict, sid: str, src_tag: str, partial: bool) -> list[d
 
 
 def _zcode_resp_rows(resps: dict, errs: dict, sid: str, src_tag: str) -> list[dict]:
-    """Build response, reasoning, and error rows from collected attempts.
+    """Build response, reasoning, tool, and error rows from collected attempts.
 
     S2: error attempts (no responseId) become searchable `error` rows
-    keyed by synthetic `zc:<sid>:err:<requestId>` part ids."""
+    keyed by synthetic `zc:<sid>:err:<requestId>` part ids. S7
+    (convo_reasoning_capture): each `response.toolCalls` entry becomes a
+    searchable `tool` row — `zc:<sid>:tool:<rid>:<i>` — text is the
+    serialised `input` (the command/arguments are the searchable content),
+    meta keeps the tool name + call id (prime's `_prime_block` convention),
+    so a forced re-read merges on stable part ids instead of duplicating.
+    Measured 2026-10-18: 87 of 102 live rollout records carry toolCalls
+    while the corpus held 0 zcode tool rows."""
     rows = []
-    for rid, (started, text, reasoning, model) in resps.items():
+    for rid, (started, text, reasoning, model, tool_calls) in resps.items():
         ts = _iso_ms(started)
         if text:
             rows.append(
@@ -1548,6 +1635,27 @@ def _zcode_resp_rows(resps: dict, errs: dict, sid: str, src_tag: str) -> list[di
                     "reasoning",
                     reasoning,
                     {},
+                    f"zcode:{src_tag}",
+                )
+            )
+        for i, call in enumerate(tool_calls):
+            if not isinstance(call, dict):
+                continue
+            inp = call.get("input")
+            call_text = inp if isinstance(inp, str) else json.dumps(inp or {})
+            meta = {"tool": call.get("name"), "call_id": call.get("id")}
+            rows.append(
+                _row(
+                    f"zc:{sid}:tool:{rid}:{i}",
+                    rid,
+                    sid,
+                    ts,
+                    "assistant",
+                    "zcode",
+                    model,
+                    "tool",
+                    call_text,
+                    {k: v for k, v in meta.items() if v is not None},
                     f"zcode:{src_tag}",
                 )
             )
@@ -1590,7 +1698,7 @@ def _iso_ms(v: str | None) -> datetime:
         return datetime(1970, 1, 1, tzinfo=UTC)
 
 
-def _harvest_zcode(store: Store, writer: SessionWriter) -> str:
+def _harvest_zcode(store: Store, writer: SessionWriter, *, force: bool = False) -> str:
     by_sid: dict[str, list[Path]] = {}
     srcs: dict[str, str] = {}
     for base, tag in ((SNAP_ROOT, "snap"), (Path.home(), "live")):
@@ -1607,7 +1715,7 @@ def _harvest_zcode(store: Store, writer: SessionWriter) -> str:
     for sid, files in sorted(by_sid.items()):
         key = f"zcode:{sid}"
         cur = json.dumps([[int(f.stat().st_mtime), f.stat().st_size] for f in files])
-        if store.watermark(key) == cur:
+        if store.watermark(key) == cur and not force:
             stats.append(f"zcode:{sid}: quiet")
             continue
         rows = _harvest_zcode_file(files, sid, srcs[sid])
@@ -1926,12 +2034,17 @@ def harvest(
     corpus_root: Path = CORPUS_ROOT,
     db: Path = INDEX_DB,
     timer=None,
+    force_lane: str | None = None,
 ) -> dict:
     """The S1 core: union all sources into the per-session parquet corpus.
 
     ``timer`` (a maint_timing.RunTimer, optional so tests keep calling
     with kwargs) receives one phase per lane plus the flush, with
     wall-clock start/end — the queryable record behind maint_query.
+
+    ``force_lane`` re-reads one lane even where its watermark says the
+    source is already harvested (a parser change — e.g. prime's dropped
+    thinking/toolCall blocks — recovers nothing without it).
     """
     t0 = time.perf_counter()
     store = Store(db, read_only=check)
@@ -1974,11 +2087,11 @@ def harvest(
             if timer is not None:
                 with timer.phase(f"lane:{name}"):
                     t_lane = time.perf_counter()
-                    lanes.append(fn(store, writer))
+                    lanes.append(fn(store, writer, force=force_lane == name))
                     lane_seconds[name] = round(time.perf_counter() - t_lane, 2)
             else:
                 t_lane = time.perf_counter()
-                lanes.append(fn(store, writer))
+                lanes.append(fn(store, writer, force=force_lane == name))
                 lane_seconds[name] = round(time.perf_counter() - t_lane, 2)
         if timer is not None:
             with timer.phase("flush"):
@@ -2115,6 +2228,30 @@ def _refresh_index_provenance(files: list[Path], *, dry_run: bool = False) -> No
     nf, nr = _backfill_provenance(idx, files)
     print(
         f"  provenance: refreshed {nr} index row(s) across {nf} file(s)",
+        file=sys.stderr,
+    )
+
+
+def _refresh_index_models(files: list[Path]) -> None:
+    """Re-read `model` from these parquets into `convo_search.model`.
+
+    Sibling of `_refresh_index_provenance`: the in-place model migrations
+    rewrite corpus parquets with text and part_ids untouched, which no
+    incremental rebuild notices (`_backfill_models` joins positionally on
+    `(file_path, row_no)` — no re-embedding, embed cache stays valid).
+    """
+    if not files:
+        print("  models: nothing to refresh", file=sys.stderr)
+        return
+    idx = INDEX_DB
+    if not idx.exists():
+        print(f"  models: no index at {idx}; skipped", file=sys.stderr)
+        return
+    from helpers.maintenance.rebuild_convo_search import _backfill_models  # noqa: PLC0415
+
+    nf, nr = _backfill_models(idx, files)
+    print(
+        f"  models: refreshed {nr} index row(s) across {nf} file(s)",
         file=sys.stderr,
     )
 
@@ -2355,13 +2492,36 @@ def main(argv: list[str] | None = None) -> int:  # noqa: C901
         "provenance rewrite (--resolve-orphans does this for itself)",
     )
     p.add_argument(
+        "--refresh-index-models",
+        action="store_true",
+        help="re-read `model` from every corpus parquet into "
+        "convo_search.model; repairs an index left stale by an in-place "
+        "model migration (positional join, no re-embed; the migrate "
+        "flags do this for themselves)",
+    )
+    p.add_argument(
         "--migrate-opencode-models",
         action="store_true",
         help="one-shot (opencode v2-lane S1): rewrite existing opencode "
         "parquet model dict-strings to plain model-id strings; no harvest",
     )
+    p.add_argument(
+        "--force-lane",
+        metavar="LANE",
+        choices=["opencode", "prime-rlm", "zcode", "dsh", "bili"],
+        help="re-read one lane even where its per-source watermark says the "
+        "source is done. A parser change recovers nothing from an "
+        "already-harvested source without this (part_ids are stable, so a "
+        "forced re-read merges rather than duplicating). Runs the full "
+        "harvest; only the named lane ignores its watermark.",
+    )
     args = p.parse_args(argv)
-    if args.keep or args.resolve_orphans or args.refresh_index_provenance:
+    if (
+        args.keep
+        or args.resolve_orphans
+        or args.refresh_index_provenance
+        or args.refresh_index_models
+    ):
         try:
             if args.keep:
                 cutoff_from(args.keep)  # fail fast, before anything is touched
@@ -2384,6 +2544,11 @@ def main(argv: list[str] | None = None) -> int:  # noqa: C901
             # Standalone repair: the corpus is already correct but the index is
             # not (an older relabel, or any other in-place provenance rewrite).
             _refresh_index_provenance(_all_corpus_files(Path(args.corpus_root)))
+        if args.refresh_index_models:
+            # Standalone repair: same in-place blind spot, model column — the
+            # migrations rewrite corpus parquets (text untouched) and no
+            # incremental rebuild notices a changed facet.
+            _refresh_index_models(_all_corpus_files(Path(args.corpus_root)))
         if args.keep:
             _purge_older_than(Path(args.corpus_root), args.keep, dry_run=args.dry_run)
         if not args.dry_run:
@@ -2395,6 +2560,12 @@ def main(argv: list[str] | None = None) -> int:  # noqa: C901
             f"migrated {rows} model values across {files} zcode parquet files",
             file=sys.stderr,
         )
+        # Fix-forward: the rewrite is in-place (text/part_ids untouched), so
+        # no incremental rebuild would notice — refresh the index now.
+        if files:
+            _refresh_index_models(
+                sorted((Path(args.corpus_root) / "zcode" / "conversations").glob("*.parquet"))
+            )
         return 0
     if args.migrate_opencode_models:
         files, rows = _migrate_opencode_models(Path(args.corpus_root))
@@ -2402,6 +2573,10 @@ def main(argv: list[str] | None = None) -> int:  # noqa: C901
             f"migrated {rows} model values across {files} opencode parquet files",
             file=sys.stderr,
         )
+        if files:
+            _refresh_index_models(
+                sorted((Path(args.corpus_root) / "opencode" / "conversations").glob("*.parquet"))
+            )
         return 0
     from helpers.maintenance.maint_timing import RunTimer
 
@@ -2411,6 +2586,7 @@ def main(argv: list[str] | None = None) -> int:  # noqa: C901
         corpus_root=Path(args.corpus_root),
         db=Path(args.db),
         timer=timer,
+        force_lane=args.force_lane,
     )
     if out["check"]:
         for line in out.get("coverage", []):

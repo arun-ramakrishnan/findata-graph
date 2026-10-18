@@ -25,26 +25,24 @@ def _mk_db(tmp_path: Path, doubled: int, directed: int | None = None) -> Path:
     db = tmp_path / "graph.duckdb"
     con = duckdb.connect(str(db))
     con.execute("CREATE TABLE e_all_und (a INTEGER, b INTEGER)")
-    con.execute(
-        "INSERT INTO e_all_und SELECT i, i + 1 FROM range(?) t(i)", [doubled]
-    )
+    con.execute("INSERT INTO e_all_und SELECT i, i + 1 FROM range(?) t(i)", [doubled])
     if directed is not None:
         con.execute("CREATE TABLE e_dir (a INTEGER, b INTEGER)")
-        con.execute(
-            "INSERT INTO e_dir SELECT i, i + 1 FROM range(?) t(i)", [directed]
-        )
+        con.execute("INSERT INTO e_dir SELECT i, i + 1 FROM range(?) t(i)", [directed])
     con.close()
     return db
 
 
-def _run(tmp_path: Path, db: Path, monkeypatch: pytest.MonkeyPatch, warn: int, fire: int) -> tuple[int, str]:
+def _run(tmp_path: Path, db: Path, monkeypatch: pytest.MonkeyPatch, warn: int, fire: int) -> int:
     monkeypatch.setattr(graph_scale_watch, "WARN_ROWS", warn)
     monkeypatch.setattr(graph_scale_watch, "T1_ROWS", fire)
     rc = graph_scale_watch.main(["--check", "--db", str(db)])
     return rc  # caller asserts on return; output asserted separately
 
 
-def test_ok_below_warn(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
+def test_ok_below_warn(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
     db = _mk_db(tmp_path, doubled=100, directed=50)
     rc = _run(tmp_path, db, monkeypatch, warn=500, fire=1000)
     out = capsys.readouterr().out
@@ -54,7 +52,9 @@ def test_ok_below_warn(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: 
     assert "0.10 of T1" in out
 
 
-def test_warn_at_half_of_t1(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
+def test_warn_at_half_of_t1(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
     db = _mk_db(tmp_path, doubled=600, directed=300)
     rc = _run(tmp_path, db, monkeypatch, warn=500, fire=1000)
     out = capsys.readouterr().out
@@ -63,7 +63,9 @@ def test_warn_at_half_of_t1(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, cap
     assert "record the growth" in out
 
 
-def test_fire_at_t1_exits_nonzero(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
+def test_fire_at_t1_exits_nonzero(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
     db = _mk_db(tmp_path, doubled=1000, directed=500)
     rc = _run(tmp_path, db, monkeypatch, warn=500, fire=1000)
     out = capsys.readouterr().out
@@ -72,14 +74,18 @@ def test_fire_at_t1_exits_nonzero(tmp_path: Path, monkeypatch: pytest.MonkeyPatc
     assert "Phase B" in out
 
 
-def test_skip_when_db_missing(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
+def test_skip_when_db_missing(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
     rc = _run(tmp_path, tmp_path / "absent.duckdb", monkeypatch, warn=500, fire=1000)
     out = capsys.readouterr().out
     assert rc == 0
     assert "SKIP" in out
 
 
-def test_skip_when_e_all_und_absent(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
+def test_skip_when_e_all_und_absent(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
     db = tmp_path / "graph.duckdb"
     con = duckdb.connect(str(db))
     con.execute("CREATE TABLE other (a INTEGER)")

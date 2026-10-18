@@ -11,6 +11,7 @@ routed back to the company arc).
 from __future__ import annotations
 
 import sqlite3
+from collections.abc import Iterator
 from pathlib import Path
 
 import pytest
@@ -20,7 +21,7 @@ from helpers.graph import person_dedup as pd
 
 
 @pytest.fixture()
-def con(tmp_path: Path) -> sqlite3.Connection:
+def con(tmp_path: Path) -> Iterator[sqlite3.Connection]:
     conn = sqlite3.connect(tmp_path / "g.db")
     conn.execute(
         "CREATE TABLE entities ("

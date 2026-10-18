@@ -216,9 +216,7 @@ class CachedEmbed:
             self._t0 = time.perf_counter()
         else:
             rate = self._miss_total / (time.perf_counter() - t0)
-            _progress(
-                f"{_tag(self._source, self._model)} miss #{self._miss_total} ({rate:.1f}/s)"
-            )
+            _progress(f"{_tag(self._source, self._model)} miss #{self._miss_total} ({rate:.1f}/s)")
 
     def _store_vec(self, h: str | None, vec: list[float]) -> None:
         # Store is best-effort: the vector is already computed, so a cache
