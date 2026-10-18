@@ -7,12 +7,58 @@
 
 ---
 
+## 414. Bili watcher suite — live tuning observability for the billion-context proxy
+
+**Date**: 2026-10-18
+**Status**: COMPLETE
+**Proposal**: `doc/improvements/archive/tooling/bili_watchers_observability.md`
+(filed + executed same day, patch `bili_analytics`)
+
+- S1 `helpers/analytics/bili_tunewatch.py` — one-pass scan of the log family;
+  per-session eras (interval / pendingT1 / growth floor / nudges / fires /
+  folds), every fold with REAL context drop computed from `[acp-usage] input=`
+  lines instead of the proxy's `[acp-compress-obs]` shrink% (which
+  double-counts folded ranges — measured 4% observed vs 28.5% real on one
+  fold; 81.7% real vs 31.0% observed on another), per-session quota burn
+  (cached×RATE + uncached), last-N usage rows.
+- S2 `bili_monitor.py` — continuous watcher, baseline-vs-delta: first scan
+  counts existing events and never re-logs them; only new folds/T1 fires
+  after monitor start reach `events.log`. Snapshots + burn time series
+  (`snapshots.jsonl`, `burn.tsv`), `HEARTBEAT` per poll, `monitor.exit` +
+  `monitor done ... folds=N t1fires=N` summary on expiry. State dir
+  `$BILI_WATCH_DIR` (default under TMPDIR) — repo stays clean.
+- S3 `bili_watch_event.py` — one-shot "block until next fold/T1 for SID",
+  tails the live log from its end, `SID [either|t1|fold] [max_wait_s]`.
+- S4 `bili_thresh_replay.py` — replays every `nudge idle:` evaluation across
+  7 T1 thresholds (`[floor] [T1 T2 ...]`, floor default 67,500 = 0.45×150k):
+  fire needs BOTH pendingT1 ≥ T and growth ≥ floor; reports fire counts +
+  pending distribution per threshold. Smoke: 3,043 evaluations / 10 sessions.
+- S5 `bili_status.sh` / `bili_stop_monitor.sh` — human status + safe stop
+  (`pgrep -x python3` + argv filter — never `pkill -f`, which matches the
+  calling shell's argv; TERM with KILL fallback, verified caller survives).
+- `bili_logpath.py` — log discovery: `/proc` walk for the running proxy's
+  cwd → state-root fallbacks; `BILI_LOG`/`BILI_LOG_OLD` override; replaces
+  the hardcoded `/home/arun/.local/state/...` path.
+- Post-landing fix (§6 of the proposal): **watch_event's 45 s follow-on tail
+  ran unconditionally** — the docstring scopes it to "on the event", but the
+  code entered the collection loop after a timeout too, so a no-event
+  `max_wait=3` run took ~48 s. Gated on `hits`
+  (`helpers/analytics/bili_watch_event.py:76-86`); no-event latency ~10 s
+  (residual = the scan loop's `sleep(10)` poll overshoot).
+- Acceptance smoke (all read-only, repo stayed clean): tunewatch report on
+  `ses_ec7af063cffew2a8xvEcV142n6` (eras/folds/burn/usage, exit 0);
+  `bili_monitor.py 5 2 3` exit 0 with all four state files + clean summary;
+  stop script TERM → monitor exit 143, no caller damage; watch_event no-event
+  path post-fix `elapsed=10s hits=0`; `ruff check` clean.
+- No eval-gate bullet — no retrieval/verdict surface touched (observability
+  tooling only).
+
 ## 413. Triage noise-gate observability — reason codes, histogram, tripwire
 
 **Date**: 2026-10-18
 **Status**: COMPLETE
 **Proposal**: `doc/improvements/archive/graph/triage_noise_gate_observability.md`
-(filed + executed same day, commit `3d8ce3c43`)
+(filed + executed same day, patch `triage_noise`)
 
 - S1: `triage_pending_relations.py` `_noise_reason()` — six reason codes
   (`empty` / `short_fragment` / `country` / `generic_prefix` /

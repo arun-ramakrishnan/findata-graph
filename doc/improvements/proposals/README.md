@@ -42,6 +42,15 @@ _(none)_
 
 Historical (executed + archived; newest first):
 
+- `../archive/tooling/bili_watchers_observability.md` (2026-10-18) —
+  bili watcher suite: live tuning observability for the billion-context
+  proxy — `bili_tunewatch.py` (real context drop from `[acp-usage]` lines;
+  the proxy's own compress-obs shrink% understates badly, measured 4% vs
+  28.5%), `bili_monitor.py` (continuous baseline-vs-delta),
+  `bili_watch_event.py` (block until next fold/T1), `bili_thresh_replay.py`
+  (3,043 evals / 10 sessions across 7 T1 thresholds), `bili_status.sh` /
+  `bili_stop_monitor.sh`, `/proc` log discovery. Post-landing fix: the
+  watch_event 45 s follow-on tail ran even with no event. completed.md #414.
 - `../archive/graph/triage_noise_gate_observability.md` (2026-10-18) —
   triage noise-gate observability: S1 reason codes, S2 histogram +
   extractor-side aggregate, S3 `--noise-tripwire`; post-landing fix for the
@@ -50,8 +59,6 @@ Historical (executed + archived; newest first):
   77.6%). completed.md #413.
 - `../archive/convo_search/convo_reasoning_capture.md` (2026-10-18) —
   reasoning + tool capture across harness lanes — completed.md #412
-
-_(none)_ — every proposal filed here is executed and archived.
 - `../archive/tooling/doc_leg_embed_cache_persistence.md` (2026-10-18) —
   doc-leg embed cache: S1 loud degradation + lazy attach re-init (a busy
   store had silently uncached 377 doc embeds); S2 per-section carry (a

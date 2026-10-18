@@ -298,6 +298,20 @@ commit, referenced by nothing). Entry numbers point at
 
 ## tooling/ — Tooling & performance — MCP eval, doc browser/search, perf review, tech survey
 
+- [`bili_watchers_observability.md`](tooling/bili_watchers_observability.md) —
+  bili watcher suite — live tuning observability for the billion-context
+  proxy: `bili_tunewatch.py` (one-pass scan; per-session eras, every fold
+  with REAL context drop from `[acp-usage]` lines — the proxy's own
+  compress-obs shrink% understates badly, measured 4% vs 28.5% — and quota
+  burn), `bili_monitor.py` (continuous baseline-vs-delta; events.log,
+  snapshots, burn series, heartbeat, `monitor.exit`), `bili_watch_event.py`
+  (block until next fold/T1), `bili_thresh_replay.py` (replay every nudge
+  evaluation across T1 thresholds — 3,043 evals / 10 sessions; the direct
+  instrument for the `nudgeGrowthTokens` decision), `bili_status.sh` /
+  `bili_stop_monitor.sh` (process-NAME match, never `pkill -f`);
+  `bili_logpath.py` `/proc` cwd discovery. Post-landing fix: watch_event's
+  45 s follow-on tail ran even with no event (48 s no-event latency) —
+  gated on `hits`. All tools read-only — completed.md #414
 - [`doc_leg_embed_cache_persistence.md`](tooling/doc_leg_embed_cache_persistence.md) —
   doc-leg embed cache: S1 persist + surface writes (CachedEmbed attach
   failures loud + lazy re-init every 128 misses; summary `[OFF — …]`
