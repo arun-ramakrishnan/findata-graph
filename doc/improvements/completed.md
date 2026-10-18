@@ -7,6 +7,49 @@
 
 ---
 
+## 413. Triage noise-gate observability — reason codes, histogram, tripwire
+
+**Date**: 2026-10-18
+**Status**: COMPLETE
+**Proposal**: `doc/improvements/archive/graph/triage_noise_gate_observability.md`
+(filed + executed same day, commit `3d8ce3c43`)
+
+- S1: `triage_pending_relations.py` `_noise_reason()` — six reason codes
+  (`empty` / `short_fragment` / `country` / `generic_prefix` /
+  `generic_suffix` / `fragment_junk`) behind an unchanged
+  `noise_target -> bool` (one-line delegation); `_bucket` surfaces the code
+  instead of the flattened `"country/generic/fragment"`.
+- S2: report-side reason histogram under `## discard (N)` (sums exactly to
+  the bucket total, pinned by test); extractor-side `sidecar_skipped=N (...)`
+  aggregate line per run — now unconditional (loud on zero-discard too).
+- S3: `extract_relations --noise-tripwire PCT` — stderr warn when
+  `noise_gate / (noise_gate + queued)` crosses PCT; unset = silent; never
+  changes a verdict.
+- Post-landing fix (§9.1 of the proposal): **the tripwire was blind in
+  parallel mode** — `_SKIP_STATS` is a module-global; `ProcessPoolExecutor`
+  workers (≥20 files) each mutated their own copy and discarded it on exit,
+  and the reduce loop unpacked a 7-tuple with no skip-stats field. Measured
+  on `findata/Companies` (1207 files): `sidecar_skipped=0 ()` before, then
+  after `_extract_batch` returns `(results, skip_stats)` and the reduce loop
+  merges per-worker counters — `sidecar_skipped=79 (noise_gate=45 ...)`,
+  tripwire fires at 77.6% (45/58) vs the 40% threshold. Serial path writes
+  straight into the module-global and is deliberately not re-merged
+  (double-count).
+- Side findings closed: G3→G5 relabel (`_merge_noise_file` docstring +
+  two comments — freed G3 for `parse_extraction_gaps`' acquisition
+  magnitudes; G4 taken, G5 next free slot); dead duplicate
+  `order = [...]` at `:616` removed (`:682` is the one the loop consumes).
+- Known limitation (documented, not fixed): the extractor-side line prints
+  `sidecar_skipped=0 ()` on essentially every live run because the noise
+  gate is populated by the triage tool's `_merge_noise_file` sidecar, not
+  by live extraction — the `write_report` histogram is where the signal
+  lives.
+- Tests: 61 pass (`tests/test_triage_pending_relations.py`,
+  `tests/test_integration_extract_relations_cli.py`), including the new
+  reason-code pins (`ABC`/`CDMO` stay noise, `SBI`/`ITC`/`LIC`/`3M` stay
+  entities) and the tripwire tripped/below/unset trio. Eval-gate bullet
+  deliberately absent — no verdict change (rationale in proposal §Eval-gate).
+
 ## 412. Convo corpus — reasoning + tool capture across harness lanes
 
 **Date**: 2026-10-18

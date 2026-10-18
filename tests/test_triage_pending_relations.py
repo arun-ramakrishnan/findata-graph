@@ -72,6 +72,137 @@ class TestNoiseTarget:
         ]:
             assert not tpr.noise_target(t), t
 
+    def test_reason_codes_one_positive_per_rule(self):
+        """S1: every reason code has at least one reachable target, and the
+        histogram that surfaces under `discard` therefore can never be a
+        silent count of zero."""
+        positives = {
+            "empty": "",
+            "short_fragment": "th",  # mangled capture stub, not an entity
+            "country": "Oman",
+            "generic_prefix": "contractors",
+            "generic_suffix": "firms",
+            "fragment_junk": "the deal now",
+        }
+        for reason, target in positives.items():
+            assert tpr.noise_target(target), f"{target!r} should be noise"
+            assert tpr._noise_reason(target) == reason, (
+                f"{target!r}: expected reason {reason!r}, got {tpr._noise_reason(target)!r}"
+            )
+
+    def test_noise_reason_none_for_entities(self):
+        """Entities are not noise — _noise_reason must agree with the bool."""
+        # H4 substance: real short institutions are entities, NOT noise.
+        for t in ["SBI", "ITC", "LIC", "3M", "RBI", "SEBI", "MHP"]:
+            assert not tpr.noise_target(t), f"{t!r}: H4 substance — real short entity"
+            assert tpr._noise_reason(t) is None
+        # Oman is a country — intended noise.
+        assert tpr.noise_target("Oman")
+        assert tpr._noise_reason("Oman") == "country"
+        # And HKC Display / a long name: not noise, no reason.
+        assert not tpr.noise_target("HKC Display")
+        assert tpr._noise_reason("HKC Display") is None
+        # The non-exemption set stays noise:
+        for t in ["abc", "cdmo", "xyz", "etc", "na"]:
+            assert tpr.noise_target(t), f"{t!r}: placeholder acronym is noise"
+            assert tpr._noise_reason(t) is not None
+
+
+class TestReportHistogram:
+    """S2 acceptance criterion 3: the discard reason histogram sums exactly
+    to the :648 bucket total."""
+
+    def test_discard_histogram_sums_to_bucket_total(self, paths, monkeypatch, capsys):
+        sidecar = paths
+        rows = [
+            _row("supplier_to", "Graphite India", "Oman"),  # country
+            _row("jv_with", "Acme Corp", "th"),  # short_fragment
+            _row("supplier_to", "Graphite India", "contractors"),  # generic_prefix
+            _row("jv_with", "Acme Corp", "firms"),  # generic_suffix
+            _row("supplier_to", "Graphite India", "Japan"),  # country
+        ]
+        sidecar.write_text("\n".join(rows) + "\n", encoding="utf-8")
+        assert tpr.main([]) == 0
+        report = tpr.REPORT.read_text(encoding="utf-8")
+
+        # The discard bucket header: "## discard (5)"
+        import re
+
+        m = re.search(r"## discard \((\d+)\)", report)
+        assert m, f"no discard bucket header in:\n{report}"
+        bucket_total = int(m.group(1))
+
+        # Every reason row under it — scope to the discard section only so
+        # the summary bucket table at the top is not double-counted.
+        m2 = re.search(r"## discard \(\d+\)\n(.*?)(?=\n## |\Z)", report, re.S)
+        assert m2, f"no discard section in:\n{report}"
+        discard_section = m2.group(1)
+        reason_rows = re.findall(r"\| (\w+) \| (\d+) \|", discard_section)
+        reason_total = sum(int(n) for _, n in reason_rows)
+        assert reason_total == bucket_total, (
+            f"histogram {reason_total} != bucket total {bucket_total}"
+        )
+
+    def test_extractor_side_prints_aggregate_line_every_run(self, monkeypatch, capsys):
+        """S2 acceptance criterion 4: one aggregate extractor-side line per
+        run, loud on a zero-discard run too (never silent)."""
+        xr.reset_skip_stats()
+        import io
+        import contextlib
+
+        buf = io.StringIO()
+        with contextlib.redirect_stdout(buf):
+            assert xr._should_skip_unresolved("Oman", "supplier_to", "Acme") is True
+            assert xr._should_skip_unresolved("th", "jv_with", "Acme") is True
+            assert xr._should_skip_unresolved("SBI", "supplier_to", "Acme") is False
+
+        class _M:
+            def start(self):
+                return 0
+
+            def end(self):
+                return 1
+
+        xr._queue_unresolved(
+            [],
+            edge_type="supplier_to",
+            source_entity="Acme",
+            target_mention="Oman",
+            body="q",
+            m=_M(),
+            edition_title="ed",
+            direction="forward",
+        )
+        xr._queue_unresolved(
+            [],
+            edge_type="jv_with",
+            source_entity="Acme",
+            target_mention="th",
+            body="q",
+            m=_M(),
+            edition_title="ed",
+            direction="forward",
+        )
+        xr._queue_unresolved(
+            [],
+            edge_type="supplier_to",
+            source_entity="Acme",
+            target_mention="SBI",
+            body="q",
+            m=_M(),
+            edition_title="ed",
+            direction="forward",
+        )
+        detail = xr.skip_stats()
+        assert detail == {
+            "noise_gate": 2,
+            "noise_gate:country": 1,
+            "noise_gate:short_fragment": 1,
+            # SBI is an entity (not noise), but its fake match object spans the
+            # sentence boundary, so sentence-integrity rejects it separately.
+            "mention_spans_sentences": 1,
+        }, f"unexpected skip stats: {detail}"
+
 
 class TestBuildTriage:
     def test_split_dedupe_and_buckets(self):

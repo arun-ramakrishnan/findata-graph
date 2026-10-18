@@ -141,3 +141,57 @@ class TestExtractRelationsCli:
         n = conn.execute("SELECT COUNT(*) FROM graph_edges WHERE source = target").fetchone()[0]
         conn.close()
         assert n == 0
+
+    # Controlled text: relation patterns fire on every mention,
+    # but only some pass the noise gate.
+    #   - "Reliance acquired Oman"     -> country -> discard (noise_gate:country)
+    #   - "Reliance acquired XYZ"       -> fragment   -> discard (noise_gate:short_fragment)
+    #   - "Reliance partnered SBI"     -> entity -> queues (SBI not in DB, unresolved)
+    #   - "Reliance acquired Globex"   -> unresolved -> queues
+    # 2 discards / 4 new rows = 50% discard share
+    _TRIPWIRE_TEXT = """\
+# The Chatter: Tripwire Edition
+
+## Reliance Industries | Large Cap | Energy
+
+Reliance acquired Oman in a landmark deal.
+
+It also acquired XYZ in a small deal.
+
+Reliance acquired SBI for beauty retail.
+
+Reliance acquired Globex, a small regional player.
+"""
+
+    def test_noise_tripwire_tripped(self, xr_project, monkeypatch):
+        """S3: --noise-tripwire warns on stderr when discard share crosses."""
+        (xr_project.vault / "The_Chatter" / "TC_Alpha.md").write_text(
+            self._TRIPWIRE_TEXT, encoding="utf-8"
+        )
+        xr_project.sidecar.write_text("", encoding="utf-8")
+        xr.reset_skip_stats()
+        rc, err = xr_project.run(monkeypatch, "--apply", "--noise-tripwire", "40")
+        assert rc == 0
+        assert "!!! NOISE-TRIPWIRE tripped" in err
+        assert "discard share 50.0%" in err
+        # 2 noise_gate rows + 2 unresolved rows (SBI, Globex) = 4 new rows
+        assert "noise_gate=2" in err
+        assert "noise_gate:country=1" in err
+        assert "noise_gate:short_fragment=1" in err
+
+    def test_noise_tripwire_below_threshold_silent(self, xr_project, monkeypatch):
+        """Above the threshold it trips; below it — nothing."""
+        (xr_project.vault / "The_Chatter" / "TC_Alpha.md").write_text(
+            self._TRIPWIRE_TEXT, encoding="utf-8"
+        )
+        xr_project.sidecar.write_text("", encoding="utf-8")
+        xr.reset_skip_stats()
+        rc, err = xr_project.run(monkeypatch, "--apply", "--noise-tripwire", "60")
+        assert rc == 0
+        assert "NOISE-TRIPWIRE" not in err
+
+    def test_noise_tripwire_unset_silent(self, xr_project, monkeypatch):
+        """Unset = silent: no tripwire line at all on a normal run."""
+        (xr_project.vault / "The_Chatter" / "TC_Alpha.md").write_text(
+            self._TRIPWIRE_TEXT, encoding="utf-8"
+        )

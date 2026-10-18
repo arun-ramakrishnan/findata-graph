@@ -62,6 +62,15 @@ commit, referenced by nothing). Entry numbers point at
 
 ## graph/ — Graph layer — algorithms, DuckPGQ retirement, Onager, knowledge-model design
 
+- [`triage_noise_gate_observability.md`](graph/triage_noise_gate_observability.md) —
+  triage noise-gate observability — classify and count silent discards:
+  `_noise_reason()` six-code split behind an unchanged `noise_target` bool,
+  report-side discard histogram (sums to bucket total), unconditional
+  `sidecar_skipped` aggregate, `--noise-tripwire PCT`; post-landing fix for
+  the tripwire reading zero on every parallel run (worker `_SKIP_STATS`
+  discarded on process exit; 1207-file run 0 → 79 counted, tripwire fires
+  77.6% vs 40% threshold); G3→G5 relabel, dead `order` duplicate removed —
+  completed.md #413
 - [`scipy_csgraph_scale_lanes.md`](graph/scipy_csgraph_scale_lanes.md) — SciPy csgraph scale lanes — the consumer-gate on the csgraph-25 flipped to a scale gate (57,589 edges, all trials sub-10 ms): MST/MSF supply backbone (21,369 forest edges, 105 components, 2.9 ms), supplier bipartite matching (958/8,817 = 10.87% coverage — the Hall-failure surface as a concentration product), conditional optimal assignment (no full matching on invested_in; 82/84, Hall collision on 6 single-investor targets), A² candidate kernel (347,302 supplier-supplier 2-hop pairs, 5.7 ms, top pair Tata Communications/TCS at 81 shared consumers); structural_rank + reverse_cuthill_mckee parked with trial evidence; absorbs the deferred scipy_minimum_spanning_tree.md child — completed.md #393
 - [`s3_sector_unlock.md`](graph/s3_sector_unlock.md) — S3 unlock via per-sector cuts — partition `invested_in` by target `sector_classification`, run assign-primary within each cut, union (live 84/84 assigned, 0 exclusions, 20 sectors; raw contrast 82/84 with 2 named Hall violators); `assign-primary-sector` CLI, read-only; same-day benefit-scheme counter-party veto in the vigil lane — completed.md #401
 - [`co_mentioned_weights.md`](graph/co_mentioned_weights.md) — co_mentioned_in weight carry-through — derive-time pair counts as edge weights (count+1, the cited_in convention), backfill_weights idempotent; pagerank_weighted top-10 shifted (Infosys 5→10, Grasim 10→6); live range 2.0–6.0 — completed.md §G G4

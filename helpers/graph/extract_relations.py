@@ -108,6 +108,7 @@ from helpers.core.frontmatter import (  # noqa: E402  # after the sys.path boots
 )
 from helpers.graph.triage_pending_relations import (  # noqa: E402
     noise_target,
+    _noise_reason,
     row_id,
 )
 from helpers.graph.edge_conventions import (  # noqa: E402
@@ -2340,6 +2341,9 @@ def _queue_unresolved(
     clean, original = truncate_mention(target_mention)
     if _should_skip_unresolved(clean, edge_type, source_entity):
         _SKIP_STATS["noise_gate"] = _SKIP_STATS.get("noise_gate", 0) + 1
+        detail = _noise_reason(clean)
+        if detail:
+            _SKIP_STATS[f"noise_gate:{detail}"] = _SKIP_STATS.get(f"noise_gate:{detail}", 0) + 1
         return
     reason = _sentence_integrity_reject(body, m, clean, list_shaped=list_shaped)
     if reason:
@@ -3099,16 +3103,19 @@ _PARALLEL_THRESHOLD = 20
 def _extract_batch(
     file_paths: list[str],
     entity_names: list[str],
-) -> list[
-    tuple[
-        str,
-        str,
-        list[Edge],
-        list[Unresolved],
-        dict[str, int],
-        list[tuple[str, list[str]]],
-        dict[str, set[str]],
-    ]
+) -> tuple[
+    list[
+        tuple[
+            str,
+            str,
+            list[Edge],
+            list[Unresolved],
+            dict[str, int],
+            list[tuple[str, list[str]]],
+            dict[str, set[str]],
+        ]
+    ],
+    dict[str, int],
 ]:
     """Process a batch of newsletter files in a worker process.
 
@@ -3118,6 +3125,12 @@ def _extract_batch(
     ambiguities) where ``ambiguities`` lists (mention, tied_candidates)
     pairs whose fuzzy resolution had equally-scored candidates (Tier-C
     audit lines — resolution itself is unaffected).
+
+    Also returns the write-time skip counters accumulated while processing
+    this batch. In the parallel path each worker runs in a child process and
+    mutates its own copy of the module-global _SKIP_STATS, which is discarded
+    when the worker exits -- the caller merges these back so the tripwire and
+    the `sidecar_skipped` summary line are not silently zero on real corpora.
 
     Must be module-level so ProcessPoolExecutor can pickle it.
     """
@@ -3155,7 +3168,7 @@ def _extract_batch(
         results.append(
             (str(nl_path), doc_type, all_edges, unresolved, type_counts, ambiguities, group_map)
         )
-    return results
+    return results, skip_stats()
 
 
 def _extract_batch_arg(args: tuple[list[str], list[str]]):
@@ -3306,6 +3319,18 @@ def _cli(argv: list[str] | None = None) -> int:  # noqa: C901
             "then diff with helpers/misc/relation_diff_audit.py)."
         ),
     )
+    p.add_argument(
+        "--noise-tripwire",
+        metavar="PCT",
+        type=float,
+        default=None,
+        help=(
+            "Warn (stderr) when the noise-gate discard share of new rows "
+            "crosses PCT percent. Discard share = noise_gate_rows / "
+            "(noise_gate_rows + queued_rows). Unset = silent. Operator-gated "
+            "— the threshold is your call; the counter is the deliverable."
+        ),
+    )
     args = p.parse_args(argv)
 
     # Expand the mix of files / dirs / globs into a flat sorted list of .md
@@ -3368,6 +3393,7 @@ def _cli(argv: list[str] | None = None) -> int:  # noqa: C901
         try:
             with ProcessPoolExecutor(max_workers=workers) as ex:
                 batch_results = list(ex.map(_worker_arg, chunks))
+                ran_in_parent = False
         except BrokenProcessPool:
             # Fallback to serial processing if child processes crash
             # (e.g., under memory pressure or OOM killer).
@@ -3375,13 +3401,31 @@ def _cli(argv: list[str] | None = None) -> int:  # noqa: C901
 
             print("WARNING: ProcessPoolExecutor crashed, falling back to serial", file=_sys.stderr)
             batch_results = [_extract_batch(chunk[0], chunk[1]) for chunk in chunks]
-        # Flatten worker results into per-file tuples, preserving order.
+            # This fallback runs _extract_batch IN THE PARENT: the increments
+            # are already live in the module-global _SKIP_STATS (same as the
+            # serial path below), and each returned skip_stats() copy is
+            # CUMULATIVE. Merging them again would re-add every earlier
+            # chunk's snapshot per chunk (compounding: chunk 1 ends up
+            # counted ~n+1 times), silently inflating the tripwire and the
+            # sidecar_skipped line on exactly the degraded runs where those
+            # numbers matter.
+            ran_in_parent = True
+        # Flatten worker results into per-file tuples, preserving order, and
+        # merge each worker's write-time skip counters back into the parent.
+        # Without this the tripwire and `sidecar_skipped` summary are silently
+        # zero on any corpus large enough to take the parallel path: each
+        # worker mutates its own copy of _SKIP_STATS and discards it on exit.
         file_results = []
-        for batch in batch_results:
-            file_results.extend(batch)
+        for _res, _skips in batch_results:
+            if not ran_in_parent:
+                for k, v in _skips.items():
+                    _SKIP_STATS[k] = _SKIP_STATS.get(k, 0) + v
+            file_results.extend(_res)
     else:
         # Serial path: process files directly (small inputs / tests).
-        file_results = _extract_batch([str(p) for p in nl_paths], names)
+        # _extract_batch writes straight into the module-global _SKIP_STATS,
+        # so the counters are already live here -- merging would double-count.
+        file_results, _skips = _extract_batch([str(p) for p in nl_paths], names)
 
     # Reduce phase: apply edges + report (serial, in the parent).
     # Perf (2026-08-26): load the dry-run existing-edge set ONCE here and
@@ -3557,9 +3601,18 @@ def _cli(argv: list[str] | None = None) -> int:  # noqa: C901
         print(f"      ambiguous_resolves={total_ambiguous}", file=sys.stderr)
     # S5: every write-time skip is a report line, counted by reason.
     skips = skip_stats()
-    if skips:
-        detail = " ".join(f"{k}={v}" for k, v in sorted(skips.items()))
-        print(f"      sidecar_skipped={sum(skips.values())} ({detail})", file=sys.stderr)
+    detail = " ".join(f"{k}={v}" for k, v in sorted(skips.items()))
+    print(f"      sidecar_skipped={sum(skips.values())} ({detail})", file=sys.stderr)
+    noise_gate = skips.get("noise_gate", 0)
+    new_rows = noise_gate + total_unresolved
+    if new_rows and args.noise_tripwire is not None:
+        share = 100.0 * noise_gate / new_rows
+        if share > args.noise_tripwire:
+            print(
+                f"!!! NOISE-TRIPWIRE tripped: discard share {share:.1f}% "
+                f"({noise_gate}/{new_rows}) exceeds threshold {args.noise_tripwire:.1f}%",
+                file=sys.stderr,
+            )
     for et in sorted(per_type_totals):
         print(f"  {per_type_totals[et]:4d}  {et}", file=sys.stderr)
 

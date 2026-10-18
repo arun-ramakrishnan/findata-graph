@@ -61,7 +61,7 @@ from helpers.graph.edge_conventions import (  # noqa: E402
 SIDECAR = _REPO_ROOT / "findata" / "Misc" / "_pending_relations.txt"
 SUGGESTIONS = _REPO_ROOT / "findata" / "Misc" / "_pending_suggestions.txt"
 ALIAS_FILE = _REPO_ROOT / "findata" / "Misc" / "relation_aliases.json"
-# G3: runtime-loaded discard gate. (edge_type, source, target_mention)
+# G5: runtime-loaded discard gate. (edge_type, source, target_mention)
 # triples the operator has explicitly rejected — consulted by
 # extract_relations at write time so plain discards do NOT re-enter
 # the sidecar on the next full-corpus extract (the #169 / #217
@@ -184,33 +184,67 @@ _GENERIC_SUFFIX = re.compile(
 )
 
 
+#: Ordered so a report reads most-specific-first. The tuple is the contract:
+#: adding a reason here is additive, and `_noise_reason` stays exhaustive.
+NOISE_REASONS: tuple[str, ...] = (
+    "empty",
+    "short_fragment",
+    "country",
+    "generic_prefix",
+    "generic_suffix",
+    "fragment_junk",
+)
+
+
+def _noise_reason(target: str) -> str | None:
+    """Which rule classified `target` as noise, or None when it is an entity.
+
+    Split out of `noise_target` so the verdict stays ONE function while the
+    REASON becomes observable. Before this, all six causes rendered as the
+    single literal `"country/generic/fragment"` in `_bucket` and as nothing at
+    all in the extractor's write-time gate, so a rising discard rate could not
+    be attributed: mangled regex stubs (working as designed) and short real
+    institutions (a silent regression) were indistinguishable.
+
+    Order matters and matches the original disjunction exactly — a target that
+    trips several rules is attributed to the FIRST, so the histogram partitions
+    the same set the boolean always did. No verdict changes.
+    """
+    t = _norm_target(target)
+    tl = t.lower()
+    if not t:
+        return "empty"
+    # Fragment-length rule. SHAPE, not bare length (range review H4).
+    # The rule exists to drop mangled capture fragments ("th" out of a bad
+    # regex), but a bare `len < 4` also killed every real short Indian
+    # institution/company: measured 10/28 probes still classified as noise
+    # (SBI, ITC, LIC, TCS, UPI, IPO, GST, NSE, BSE, LT). The prior fix
+    # allow-listed three exact names (rbi/sebi/mhp) — a band-aid that left
+    # the structural hole open.
+    #
+    # The discriminator is case: a capitalised acronym is an ENTITY, a
+    # lowercase stub is a FRAGMENT. Captures arrive lowercased from the
+    # same regex that mangles them, so the two never collide. `_norm_target`
+    # does not casefold, so the original casing is still in `t`.
+    if len(tl) < 4 and not _is_short_entity(t, tl):
+        return "short_fragment"
+    if tl in COUNTRIES:
+        return "country"
+    if _GENERIC_PREFIX.match(tl):
+        return "generic_prefix"
+    if _GENERIC_SUFFIX.search(tl):
+        return "generic_suffix"
+    if _FRAGMENT_JUNK.search(tl):
+        return "fragment_junk"
+    return None
+
+
 def noise_target(target: str) -> bool:
     """True for deterministic non-entity targets (countries, generic
     phrases/descriptors, mangled capture fragments). CANONICAL classifier —
     extract_relations imports this for its write-time gate so such rows
     never reach the sidecar in the first place."""
-    t = _norm_target(target)
-    tl = t.lower()
-    return (
-        not t
-        # Fragment-length rule. SHAPE, not bare length (range review H4).
-        # The rule exists to drop mangled capture fragments ("th" out of a bad
-        # regex), but a bare `len < 4` also killed every real short Indian
-        # institution/company: measured 10/28 probes still classified as noise
-        # (SBI, ITC, LIC, TCS, UPI, IPO, GST, NSE, BSE, LT). The prior fix
-        # allow-listed three exact names (rbi/sebi/mhp) — a band-aid that left
-        # the structural hole open.
-        #
-        # The discriminator is case: a capitalised acronym is an ENTITY, a
-        # lowercase stub is a FRAGMENT. Captures arrive lowercased from the
-        # same regex that mangles them, so the two never collide. `_norm_target`
-        # does not casefold, so the original casing is still in `t`.
-        or (len(tl) < 4 and not _is_short_entity(t, tl))
-        or tl in COUNTRIES
-        or bool(_GENERIC_PREFIX.match(tl))
-        or bool(_GENERIC_SUFFIX.search(tl))
-        or bool(_FRAGMENT_JUNK.search(tl))
-    )
+    return _noise_reason(target) is not None
 
 
 def _is_short_entity(t: str, tl: str) -> bool:
@@ -365,7 +399,11 @@ def _bucket(edge_type: str, target: str, names: set[str]) -> tuple[str, str, boo
     t = _norm_target(target)
     tl = t.lower()
     if noise_target(t):
-        return "discard", "country/generic/fragment", False
+        # The reason, not the flattened literal: the bucket total already says
+        # HOW MANY, this says WHICH rule, which is the only thing that
+        # distinguishes "fragments, working as designed" from "a short
+        # institution is being eaten", and they used to be the same string.
+        return "discard", _noise_reason(t) or "unknown", False
     # S6 interaction: after predicate truncation the mention can be an EXACT
     # existing entity name ("Sankyu Corporation involving" -> "Sankyu
     # Corporation"). The stub branch below would then read as "create a new
@@ -575,7 +613,6 @@ def write_report(triage: dict, names: set[str]) -> None:  # noqa: C901
     if wo_count:
         lines.append(f"| _word-overlap alias (confirm before accepting)_ | {wo_count} |")
     lines.append("")
-    order = ["discard", "alias_candidate", "stub_candidate", "manual", "bad_source"]
     # Advisory LLM pre-annotations (helpers/graph/triage_preannotate.py),
     # keyed by row triple. Lazy import: preannotate imports this module.
     try:
@@ -641,12 +678,28 @@ def write_report(triage: dict, names: set[str]) -> None:  # noqa: C901
             out.append(f"  - _2-carrier: {'AGREE' if agree else 'DISAGREE'}")
         return out
 
+    order = ["discard", "alias_candidate", "stub_candidate", "manual", "bad_source"]
+
     for b in order:
         rows = [r for r in triage["prose"] if r["bucket"] == b]
         if not rows:
             continue
         lines.append(f"## {b} ({len(rows)})")
         lines.append("")
+        if b == "discard":
+            from collections import Counter as _Counter
+
+            # No `if r.get("detail")` filter: a detail-less discard row must
+            # still COUNT (as "unknown") or the table sums below the bucket
+            # total, breaking the invariant the test pins. Unreachable today
+            # (_bucket always sets a reason), but the guard would convert
+            # that impossible state into a subtler wrong-total failure.
+            reasons = _Counter(r.get("detail") or "unknown" for r in rows)
+            lines.append("| reason | rows |")
+            lines.append("|---|---|")
+            for reason, n in reasons.most_common():
+                lines.append(f"| {reason} | {n} |")
+            lines.append("")
         for r in rows:
             lines.append(
                 f"- `{r['id']}` **{r['edge_type']}** {r['source']} -> "
@@ -907,7 +960,7 @@ def _apply_write(plan: dict) -> None:
     # both populations exit through the same decisions workflow.
     _drop_decided_suggestions(plan["applied_keys"])
 
-    # 5. G3: persist discard decisions as the runtime noise gate so plain
+    # 5. G5: persist discard decisions as the runtime noise gate so plain
     # discards do NOT re-enter the sidecar on the next full-corpus
     # extract (the #169 / #217 re-entry lesson: 10 discarded noise rows
     # came straight back). Aliases / stubs / accepts are handled by their
@@ -963,7 +1016,7 @@ def _drop_decided_suggestions(applied_keys: set) -> None:
 
 
 def _merge_noise_file(plan: dict) -> None:
-    """G3: persist `discard` decisions into the runtime noise gate.
+    """Persist `discard` decisions into the runtime noise gate.
 
     extract_relations consults this at write time, so plain discards do
     NOT re-enter the sidecar on the next full-corpus extract. Aliases /

@@ -42,6 +42,12 @@ _(none)_
 
 Historical (executed + archived; newest first):
 
+- `../archive/graph/triage_noise_gate_observability.md` (2026-10-18) —
+  triage noise-gate observability: S1 reason codes, S2 histogram +
+  extractor-side aggregate, S3 `--noise-tripwire`; post-landing fix for the
+  tripwire being blind in parallel mode (worker `_SKIP_STATS` discarded on
+  exit — 1207-file run went `sidecar_skipped=0` → `=79`, tripwire fires at
+  77.6%). completed.md #413.
 - `../archive/convo_search/convo_reasoning_capture.md` (2026-10-18) —
   reasoning + tool capture across harness lanes — completed.md #412
 
