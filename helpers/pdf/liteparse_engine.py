@@ -37,6 +37,8 @@ from pathlib import Path
 
 import pymupdf
 
+from helpers.pdf.render_limits import checked_open
+
 try:
     LITE_VERSION = version("liteparse")
 except PackageNotFoundError:
@@ -86,7 +88,7 @@ def _extract_images_sidecar(pdf_path: Path, img_dir: Path) -> list[dict[str, str
     images that passed `MIN_IMAGE_PX`/`MIN_IMAGE_BYTES`.
     """
     img_dir.mkdir(parents=True, exist_ok=True)
-    doc = pymupdf.open(str(pdf_path))
+    doc = checked_open(pdf_path)
     per_page: list[dict[str, str]] = []
     counter = 0
     for page_idx, page in enumerate(doc):  # ty: ignore[invalid-argument-type]  # pymupdf stubs lack __iter__

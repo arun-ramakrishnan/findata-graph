@@ -1,0 +1,108 @@
+{
+  "schema": "security-findings.v1",
+  "findings": [
+    {
+      "scope": "extractors",
+      "surface": "capture_newsletter_images.fetch",
+      "attack_class": "availability",
+      "verdict": "confirmed",
+      "fingerprint": "helpers/pdf/capture_newsletter_images.py:104:unbounded-read",
+      "title": "Image fetch reads the whole body before any size check",
+      "description": "fetch() calls r.read() with no byte cap and only checks the magic bytes afterwards, so a large or slow https response is fully buffered.",
+      "trace": [
+        {
+          "kind": "entrypoint",
+          "file": "helpers/pdf/capture_newsletter_images.py",
+          "line": 94,
+          "scope": "fetch()",
+          "description": "the URL comes from regex-extracted OCR markdown (https-only allowlisted)"
+        },
+        {
+          "kind": "sink",
+          "file": "helpers/pdf/capture_newsletter_images.py",
+          "line": 104,
+          "scope": "urlopen body",
+          "description": "data = r.read() buffers the entire response"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "helpers/pdf/capture_newsletter_images.py",
+          "line": 104,
+          "description": "data = r.read() has no max_bytes argument"
+        },
+        {
+          "file": "helpers/pdf/capture_newsletter_images.py",
+          "line": 105,
+          "description": "the magic check runs after the body is already in memory"
+        }
+      ],
+      "verification": {
+        "by": "fresh-context verifier",
+        "at": "2026-10-20",
+        "verdict": "reproduced",
+        "method": "source-only reading of fetch() (:94-117) plus a runtime probe with a simulated HTTPS transport (urlopen patched to a 64 MiB non-magic BytesIO; no network)",
+        "command": ".venv/bin/python3 /mnt/data/tmp/opencode/verify_unbounded_read.py",
+        "observed": "fetch returned: bad magic (67108864 bytes) — the full 64 MiB body was buffered before the magic-byte gate; dest written: False; peak RSS 154804 KB for a 64 MiB send (growth proportional to body size)",
+        "notes": "Transport simulated at urlopen; the size behaviour is transport-independent because read() takes no limit argument. A 30 s urlopen timeout and the https-only scheme gate bound throughput, not read size."
+      },
+      "root_cause": "fetch() reads the http response with r.read() and NO byte argument before the magic-byte test — the entire response body is buffered in memory, and the module consults no Content-Length and no read ceiling anywhere (its only size logic was the local-file gate at :83, which checks fetched NOTHING).",
+      "intended_behavior": "the response read is bounded to a fixed ceiling; a body larger than the ceiling is never fully buffered (read(), the http read, is capped at MAX_IMAGE_BYTES plus one probe byte), is reported skipped, and is never written to disk.",
+      "conditions": [
+        {
+          "kind": "environmental_dependency",
+          "description": "image URLs point at an external https CDN (ufileos) whose response sizes the repo does not control; URLs are regex-extracted from OCR markdown."
+        },
+        {
+          "kind": "system_configuration",
+          "description": "fetches run concurrently (ThreadPoolExecutor, --workers default 8), so several oversized buffers could grow at once."
+        }
+      ],
+      "execution": {
+        "attacker_perspective": "a newsletter markdown row pointing at a large https resource (or an attacker-influenced one, since URLs are regex-extracted from OCR markdown) makes the capture read the whole body into memory before any validation; --workers N rows run concurrently and amplify it.",
+        "observed_result": "with a simulated https transport (urlopen patched to a 64 MiB non-magic BytesIO; no network): 'fetch returned: bad magic (67108864 bytes)' — the full 64 MiB body was buffered BEFORE the magic-byte gate; dest written: False; /usr/bin/time -v peak RSS 154804 KB for the 64 MiB send (growth proportional to body size). Pre-remediation.",
+        "payloads": [
+          "a non-magic 64 MiB https response body (no JPEG/PNG header)"
+        ],
+        "instructions": [
+          "at ref 8e338436 (pre-remediation) read helpers/pdf/capture_newsletter_images.py:94-117 — r.read() has no byte argument",
+          "run the probe: PYTHONPATH=. .venv/bin/python3 /mnt/data/tmp/opencode/verify_unbounded_read.py (urlopen patched; transport simulated; no network)"
+        ]
+      },
+      "remediation": {
+        "strategy": "cap the http read at a fixed ceiling: r.read(MAX_IMAGE_BYTES + 1) — at most one probe byte past the ceiling; a larger body is reported skipped and never buffered further or written. The 30 s urlopen timeout and the https-only scheme gate (SEC-6) already bound throughput; the ceiling bounds memory.",
+        "code_changes": [
+          {
+            "file_name": "helpers/pdf/capture_newsletter_images.py",
+            "description": "MAX_IMAGE_BYTES (64 MiB) read ceiling in fetch(); oversized bodies return 'skipped oversized body (> N bytes)' and are never written"
+          },
+          {
+            "file_name": "tests/test_capture_newsletter_images.py",
+            "description": "regression: oversized body skipped + never written; exactly-at-ceiling magic body still writes; ceiling does not downgrade small bodies"
+          }
+        ],
+        "status": "applied 2026-10-20 — tree left dirty for the operator (house rule: no agent commits)"
+      },
+      "severity": {
+        "likelihood": {
+          "score": "low",
+          "reason": "requires an oversized https resource linked from a newsletter's OCR markdown; the channel is the newsletter CDN convention and the exposure is incidental, not attacker-targeted."
+        },
+        "impact": {
+          "score": "medium",
+          "reason": "demonstrated: memory consumption grows with the attacker-chosen body size (64 MiB fully buffered; peak RSS 154804 KB, growth proportional); a sufficiently large body exhausts capture-worker memory and kills the run — full OOM not demonstrated in the probe."
+        },
+        "overall_severity": "low",
+        "overall_severity_reason": "bounded below the demonstrated impact (R1): the mechanism is confirmed end-to-end, but the channel is indirect and the probe demonstrated proportional buffered growth, not a crash."
+      },
+      "confidence": {
+        "score": "high",
+        "reason": "runtime probe observed the buffered byte count directly (67108864 bytes returned by read()); the size behaviour is transport-independent because read() accepts a limit argument by contract."
+      }
+    }
+  ],
+  "run": "2026-09-19-extractors-1",
+  "scope": [
+    "extractors"
+  ]
+}

@@ -223,6 +223,11 @@ What the checks cannot catch is the defect class this loop exists for: every `cs
 | Medium | report with surrounding context, or drop it — say which |
 | Low | discard unless it carries real value |
 
+**Anti-inflation rules** (binding on every severity call):
+
+1. **Severity ≤ demonstrated impact.** Overall severity cannot exceed the impact actually demonstrated. A claim whose only evidence is "the code reads it this way" cannot be High; unproven exploitability caps it at Medium.
+2. **No severity on an unvalidated record.** "I could not reproduce it" is not Low — it is unknown. An unvalidated finding carries no severity field at all; it is graded only after validation (§4b.2).
+
 Report findings; do not act on them unilaterally. The operator accepts, rejects or defers.
 
 ## 4b. Validity — prove the finding set before it becomes work

@@ -7,6 +7,59 @@
 
 ---
 
+## 423. Cloudflare security-audit-skill adoption — the lane becomes machinery, then catches two real bugs
+
+**Date**: 2026-10-20 (filed) → 2026-10-21 (executed)
+**Status**: COMPLETE
+**Proposal**: `doc/improvements/archive/security/cloudflare_audit_adoption.md`
+(upstream `cloudflare/security-audit-skill` @ `c1c8a8c1`, MIT; A1–A10
+mapping, adopted/excluded tables, decision log Q1–Q4).
+
+- **What was adopted (A1–A7, A9 + envelope)** — status enum + per-scope
+  class accounting with mandatory exclusion reasons (A1/A2), `blocked` +
+  `unresolved` coverage postures (A3), per-run findings files
+  `doc/security/findings/<run-id>.json` with machine verdicts
+  `confirmed`/`needs_validation`/`rejected` (A4), the two anti-inflation
+  rules R1 (overall ≤ demonstrated impact) and R2 (no severity on
+  unvalidated) (A5), the blind-verifier flow `brief` → independent
+  reproduction → `--record` merge that cannot inflate a verdict (A6),
+  the coverage critic `GAP/EXCLUDED/STALE/ORPHANED/UNBACKED` +
+  `verdict: COMPLETE|INCOMPLETE` (A7), and the prior-coverage `plan`
+  brief (A9). A8 (coverage-statement rule) excluded by design; upstream
+  .cjs validators, wave machinery, sandbox promotion and full-audit mode
+  not adopted.
+- **What it turned into beyond the port** — the ledger work queue
+  follows the graph's triage idiom (`coverage_ledger.py queue` emits a
+  reason-coded JSONL whose histogram sums to the queue length;
+  `apply` closes it from a decisions journal with
+  `cover`/`exclude`/`defer`/`bad_pair` and — for re-reviews — `amend`,
+  refusing any pair the queue no longer names); a DECLARED taxonomy
+  `doc/security/class-taxonomy.json` (declared ∪ observed demand, so a
+  class fires before its first row) with the new `parser-input` token;
+  scope inventories for all seven families
+  (`helpers/validators/security_scopes.py`, sync drift check, the
+  hand-enumerated caveat as a non-blocking `caveats` split); Make targets
+  `security-audit/critic/queue/apply/verify/scopes`.
+- **The lane caught two real bugs end-to-end** — (1) image-fetch
+  unbounded read (`capture_newsletter_images.fetch`): verifier probe
+  buffered a 64 MiB non-magic body pre-gate → fixed with
+  `MAX_IMAGE_BYTES` cap + 4 regression tests → ledger REMEDIATED; (2)
+  render amplification (MuPDF page raster, no page/byte/dimension cap,
+  606× measured from an 819-byte PDF → ~509 MB RSS): fixed with
+  `helpers/pdf/render_limits.py` `checked_open` (`MAX_PAGES 200` /
+  `MAX_PAGE_PTS 4000`, defaults ≫ the 0.8 MB / 28-page Reports corpus)
+  wired into all 4 `pymupdf.open` sites + `pdf_conv_md
+  --max-pages/--max-page-dims` override + terminal refusal; finding
+  promoted to `confirmed` (strict-valid, severity low ≤ impact medium)
+  and the ledger row amended to REMEDIATED.
+- **Tests/gates** — `test_security_findings.py` 58, `test_coverage_ledger.py`
+  60, `test_render_limits.py` 7, `test_capture_newsletter_images.py` 4;
+  all seven scopes `critic` COMPLETE (0 uncovered/stale/orphaned/unbacked,
+  the hand-enumerated caveat printed); ruff + md-lint clean; sync drift
+  check clean.
+
+---
+
 ## 422. `tui_perf_sparkline` — the report screen becomes a regression detector, off data it already had
 
 **Date**: 2026-10-19

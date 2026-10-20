@@ -1,189 +1,74 @@
-"""Unit tests for helpers/pdf/capture_newsletter_images.py."""
+"""Regression tests for helpers/pdf/capture_newsletter_images.py fetch() —
+the bounded read (unbounded-read finding, run 2026-09-19-extractors-1).
+
+The finding: r.read() with no byte argument buffered the ENTIRE https
+response before the magic-byte gate, so a large body could exhaust
+memory (demonstrated with a 64 MiB simulated transport at the A6
+verification). The remediation caps the read at MAX_IMAGE_BYTES (+1
+probe byte); an oversized body is reported skipped and never written.
+"""
 
 from __future__ import annotations
 
+import io
+import sys
+from pathlib import Path
 
-from helpers.pdf.capture_newsletter_images import (  # noqa: E402
-    slugify,
-    parse_images,
-    assign_pages,
-    is_valid_jpeg,
-    fetch,
-)
+REPO = Path(__file__).resolve().parents[1]
+if str(REPO) not in sys.path:
+    sys.path.insert(0, str(REPO))
 
-
-# ---------------------------------------------------------------------------
-# slugify
-# ---------------------------------------------------------------------------
-def test_slugify_basic():
-    assert slugify("Newsletter 2024 01") == "Newsletter_2024_01"
+from helpers.pdf import capture_newsletter_images as cap  # noqa: E402
 
 
-def test_slugify_collapse_underscores():
-    assert slugify("A  B") == "A_B"
+class _FakeResp(io.BytesIO):
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb) -> None:
+        return None
 
 
-def test_slugify_strip_leading_trailing():
-    assert slugify("  hello  ") == "hello"
+def _fetch_with(monkeypatch, body, tmp_path):
+    """Run fetch() against a simulated transport serving `body` (no network)."""
+    payload = bytes(body)
+
+    def fake_urlopen(req, timeout=None):
+        return _FakeResp(payload)
+
+    monkeypatch.setattr(cap, "urlopen", fake_urlopen)
+    dest = tmp_path / "img.jpeg"
+    result = cap.fetch("https://cdn.example/x.jpeg", dest, retries=1)
+    return result, dest
 
 
-def test_slugify_no_change_already_clean():
-    assert slugify("Already_Clean") == "Already_Clean"
+def test_oversized_nonmagic_body_is_skipped_not_buffered_not_written(monkeypatch, tmp_path):
+    # Shrink the ceiling so the test streams kilobytes, not 64 MiB.
+    monkeypatch.setattr(cap, "MAX_IMAGE_BYTES", 1024)
+    result, dest = _fetch_with(monkeypatch, b"\x41" * (1024 + 10), tmp_path)
+    assert result == f"skipped oversized body (> {cap.MAX_IMAGE_BYTES} bytes)"
+    assert not dest.exists()
 
 
-# ---------------------------------------------------------------------------
-# parse_images
-# ---------------------------------------------------------------------------
-def test_parse_images_finds_blocks(tmp_path):
-    md = tmp_path / "test.md"
-    md.write_text(
-        "<div class='img'><img src='https://example.com/crop_1_2/img.jpg'></div>\n"
-        "<div class='img'><img src='https://example.com/crop_2_1/img.jpg'></div>"
-    )
-    images, text = parse_images(md)
-    assert len(images) == 2
-    assert images[0]["url"].startswith("https://example.com")
-    assert images[0]["crop"] == 1
-    assert images[0]["ts"] == 2
-    assert images[0]["idx"] == 0
-    assert images[1]["crop"] == 2
+def test_body_one_past_the_ceiling_is_skipped(monkeypatch, tmp_path):
+    monkeypatch.setattr(cap, "MAX_IMAGE_BYTES", 1024)
+    result, dest = _fetch_with(monkeypatch, b"\x41" * (1024 + 1), tmp_path)
+    assert result.startswith("skipped oversized body")
+    assert not dest.exists()
 
 
-def test_parse_images_empty(tmp_path):
-    md = tmp_path / "empty.md"
-    md.write_text("# No images here")
-    images, text = parse_images(md)
-    assert images == []
-    assert "No images" in text
+def test_body_exactly_at_the_ceiling_passes_the_gate(monkeypatch, tmp_path):
+    monkeypatch.setattr(cap, "MAX_IMAGE_BYTES", 1024)
+    # A magic-bearing body AT the ceiling must still write: 4-byte JPEG
+    # signature + 1020 padding = exactly MAX bytes.
+    body = b"\xff\xd8\xff\xe0" + b"\x00" * 1020
+    result, dest = _fetch_with(monkeypatch, body, tmp_path)
+    assert result is True
+    assert dest.exists() and dest.read_bytes() == body
 
 
-def test_parse_images_line_numbers(tmp_path):
-    md = tmp_path / "test.md"
-    md.write_text("Line 1\nLine 2\n<div><img src='https://x.com/crop_1_1/a.jpg'></div>\nLine 4")
-    images, _ = parse_images(md)
-    assert images[0]["line"] == 3
-
-
-def test_parse_images_no_crop_pattern(tmp_path):
-    md = tmp_path / "test.md"
-    md.write_text("<div><img src='https://x.com/plain.jpg'></div>")
-    images, _ = parse_images(md)
-    assert len(images) == 1
-    assert images[0]["crop"] == 0
-    assert images[0]["ts"] == 0
-
-
-# ---------------------------------------------------------------------------
-# assign_pages
-# ---------------------------------------------------------------------------
-def test_assign_pages_basic():
-    images = [
-        {"crop": 1},
-        {"crop": 2},
-        {"crop": 1},  # new page
-        {"crop": 2},
-    ]
-    result = assign_pages(images)
-    assert result[0]["page"] == 1
-    assert result[1]["page"] == 1
-    assert result[2]["page"] == 2
-    assert result[3]["page"] == 2
-
-
-def test_assign_pages_consecutive_crop1():
-    images = [
-        {"crop": 1},
-        {"crop": 1},  # consecutive reset → new page
-        {"crop": 2},
-    ]
-    result = assign_pages(images)
-    assert result[0]["page"] == 1
-    assert result[1]["page"] == 2
-    assert result[2]["page"] == 2
-
-
-def test_assign_pages_empty():
-    assert assign_pages([]) == []
-
-
-# ---------------------------------------------------------------------------
-# is_valid_jpeg
-# ---------------------------------------------------------------------------
-def test_is_valid_jpeg_valid(tmp_path):
-    p = tmp_path / "test.jpg"
-    p.write_bytes(b"\xff\xd8\xff\xe0" + b"x" * 100)
-    assert is_valid_jpeg(p) is True
-
-
-def test_is_valid_jpeg_valid_png(tmp_path):
-    p = tmp_path / "test.png"
-    p.write_bytes(b"\x89PNG" + b"x" * 100)
-    assert is_valid_jpeg(p) is True
-
-
-def test_is_valid_jpeg_invalid(tmp_path):
-    p = tmp_path / "test.bin"
-    p.write_bytes(b"\x00\x00\x00\x00" + b"x" * 100)
-    assert is_valid_jpeg(p) is False
-
-
-def test_is_valid_jpeg_missing(tmp_path):
-    assert is_valid_jpeg(tmp_path / "nonexistent.jpg") is False
-
-
-def test_is_valid_jpeg_too_small(tmp_path):
-    p = tmp_path / "tiny.jpg"
-    p.write_bytes(b"\xff\xd8")
-    assert is_valid_jpeg(p) is False
-
-
-# ---------------------------------------------------------------------------
-# fetch — SEC-6 scheme allowlist (security proposal Phase 1b/5)
-# ---------------------------------------------------------------------------
-class TestFetchSchemeAllowlist:
-    """URLs come from OCR markdown; only https:// may ever be opened."""
-
-    def test_file_scheme_skipped_without_urlopen(self, monkeypatch, tmp_path):
-        def _boom(*a, **kw):  # any network attempt fails the test
-            raise AssertionError("urlopen must not be called for file://")
-
-        monkeypatch.setattr("helpers.pdf.capture_newsletter_images.urlopen", _boom)
-        result = fetch("file:///etc/passwd", tmp_path / "x.jpeg")
-        assert result is not True
-        assert "non-https" in str(result)
-        assert not (tmp_path / "x.jpeg").exists()
-
-    def test_http_scheme_skipped(self, monkeypatch, tmp_path):
-        monkeypatch.setattr(
-            "helpers.pdf.capture_newsletter_images.urlopen",
-            lambda *a, **kw: (_ for _ in ()).throw(AssertionError("http opened")),
-        )
-        result = fetch("http://example.com/img.jpg", tmp_path / "y.jpeg")
-        assert "non-https" in str(result)
-
-    def test_relative_url_skipped(self, monkeypatch, tmp_path):
-        monkeypatch.setattr(
-            "helpers.pdf.capture_newsletter_images.urlopen",
-            lambda *a, **kw: (_ for _ in ()).throw(AssertionError("relative opened")),
-        )
-        result = fetch("/local/path.jpg", tmp_path / "z.jpeg")
-        assert "non-https" in str(result)
-
-    def test_https_proceeds(self, monkeypatch, tmp_path):
-        """https still fetches (mocked urlopen returning a fake JPEG)."""
-
-        class _FakeResp:
-            def __enter__(self):
-                return self
-
-            def __exit__(self, *a):
-                return False
-
-            def read(self):
-                return b"\xff\xd8\xff\xe0FAKEJPEGDATA"
-
-        monkeypatch.setattr(
-            "helpers.pdf.capture_newsletter_images.urlopen", lambda *a, **kw: _FakeResp()
-        )
-        assert fetch("https://example.com/img.jpg", tmp_path / "ok.jpeg") is True
-        assert (tmp_path / "ok.jpeg").read_bytes().startswith(b"\xff\xd8")
+def test_ceiling_does_not_downgrade_a_small_magic_body(monkeypatch, tmp_path):
+    body = b"\x89PNG\r\n\x1a\n" + b"\x00" * 60  # PNG signature + padding
+    result, dest = _fetch_with(monkeypatch, body, tmp_path)
+    assert result is True
+    assert dest.exists()

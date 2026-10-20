@@ -47,6 +47,8 @@ from pathlib import Path
 
 import pymupdf
 
+from helpers.pdf.render_limits import checked_open
+
 ENGINE_LABEL = "teleocr-navidc-q4_k_m"
 TELEOCR_HOST = "127.0.0.1"
 TELEOCR_PORT = int(os.environ.get("TELEOCR_PORT", "8731"))
@@ -345,7 +347,7 @@ def unwrap_latex(text: str) -> str:
 
 def render_pages(pdf_path: Path, *, dpi: int = DPI) -> list[bytes]:
     """Render each PDF page to PNG bytes at `dpi` (trial setting)."""
-    doc = pymupdf.open(str(pdf_path))
+    doc = checked_open(pdf_path)
     try:
         mat = pymupdf.Matrix(dpi / 72, dpi / 72)
         return [page.get_pixmap(matrix=mat).tobytes("png") for page in doc]

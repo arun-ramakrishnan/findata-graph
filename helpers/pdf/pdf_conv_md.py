@@ -60,6 +60,7 @@ from urllib.parse import urlparse
 if __package__ in (None, ""):
     sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 from helpers.pdf.common import slugify  # noqa: E402
+from helpers.pdf.render_limits import RenderLimitExceeded, render_limits  # noqa: E402  # noqa: F401
 from helpers.pdf.pdf_local import (  # noqa: E402
     ENGINE_LABEL as LOCAL_ENGINE_LABEL,
     LocalRefusalError,
@@ -378,7 +379,25 @@ def main(argv: list[str] | None = None) -> int:  # noqa: C901  # engine dispatch
         "(default off since 2026-08-26: ~3x faster without "
         "it and better word coverage on the Reports corpus)",
     )
+    ap.add_argument(
+        "--max-pages",
+        type=int,
+        default=None,
+        help="render cap: refuse PDFs over this page count "
+        "(parser-input sweep; default 200 from render_limits)",
+    )
+    ap.add_argument(
+        "--max-page-dims",
+        type=int,
+        default=None,
+        help="render cap: refuse pages over this many points per dimension "
+        "(A4 is 595x842pt; default 4000 from render_limits)",
+    )
     args = ap.parse_args(argv)
+    if args.max_pages is not None:
+        render_limits.MAX_PAGES = args.max_pages  # ty: ignore[unresolved-attribute]  # module self-ref alias
+    if args.max_page_dims is not None:
+        render_limits.MAX_PAGE_PTS = args.max_page_dims  # ty: ignore[unresolved-attribute]  # module self-ref alias
 
     pdf_path = Path(args.source_pdf)
     if not pdf_path.is_file():
@@ -518,6 +537,17 @@ def main(argv: list[str] | None = None) -> int:  # noqa: C901  # engine dispatch
             pages, pdf_path, engine_label, stem, out_dir=Path(args.output_dir)
         )
         write_outputs(pages, Path(args.output_dir), stem, not args.no_images, fm)
+    except RenderLimitExceeded as e:
+        # Terminal for every engine: a document over the render caps is
+        # over them for pdf_local, lite and teleocr alike — no fallback.
+        print(f"error: render cap refused: {e}", file=sys.stderr)
+        print(
+            "  (parser-input sweep: raise --max-pages / --max-page-dims only for "
+            "a document you have reviewed; the defaults bound MuPDF's "
+            "uncompressed page-surface amplification)",
+            file=sys.stderr,
+        )
+        return 2
     finally:
         if tmpdir is not None:
             tmpdir.cleanup()

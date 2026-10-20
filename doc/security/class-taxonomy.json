@@ -1,0 +1,43 @@
+{
+ "schema": "security-class-taxonomy.v1",
+ "reviewed": "2026-10-20",
+ "source": "doc/procedures/security-scan.md §5 sweep table — the machine-checkable subset: a class is listed for a scope only if it can apply to that scope's surfaces",
+ "note": "Declared applicability, not coverage: listing a class here DEMANDS rows for it (critic/queue/check merge this with the classes observed in ledger rows), it does not assert any surface was reviewed. Fields on rows still live in the ledger (doc/security/coverage-ledger.json).",
+ "scopes": {
+  "app": [
+   "injection",
+   "availability",
+   "web-protocol/auth",
+   "concurrency"
+  ],
+  "extractors": [
+   "availability",
+   "parser-input"
+  ],
+  "graph": [
+   "injection"
+  ],
+  "harness": [
+   "injection"
+  ],
+  "desktop": [
+   "injection"
+  ],
+  "frontend": [
+   "injection"
+  ],
+  "data": [
+   "injection"
+  ]
+ },
+ "classes": {
+  "injection": "SQL/command/template/XSS injection into route handlers or query arguments",
+  "availability": "resource exhaustion / denial of service: unbounded reads, quadratic joins, no corpus ceiling",
+  "web-protocol/auth": "authentication and authorization gaps on mutating or data-exposing endpoints",
+  "concurrency": "race conditions / TOCTOU / last-byte synchronization on shared singletons",
+  "parser-input": "ingestion of attacker-controlled formats through vendored parsers (PDF, EPUB, GGUF); unbounded reads before magic-byte validation"
+ },
+ "note_scopes": [
+  "data: no demand declared; at-rest review operator-local by design (procedure scan-scope note)"
+ ]
+}

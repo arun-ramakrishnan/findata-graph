@@ -1,0 +1,162 @@
+{
+ "schema": "security-findings.v1",
+ "findings": [
+  {
+   "scope": "app",
+   "surface": "/api/graph/near-duplicates",
+   "attack_class": "availability",
+   "verdict": "confirmed",
+   "fingerprint": "app.py:2526:quadratic-join",
+   "title": "Near-duplicate self-join is quadratic and unauthenticated (remediated 2026-09-19)",
+   "description": "The pairwise self-join over every note path ran for tens of seconds on the live corpus for a single unauthenticated GET.",
+   "root_cause": "an O(n^2) mean-vector comparison executed per request with no corpus ceiling and no memo",
+   "intended_behavior": "a read endpoint should bound the work it can be asked to do",
+   "trace": [
+    {
+     "kind": "entrypoint",
+     "file": "app.py",
+     "line": 2526,
+     "scope": "route registration",
+     "description": "@app.route(\"/api/graph/near-duplicates\") with no auth"
+    },
+    {
+     "kind": "propagation",
+     "file": "app.py",
+     "line": 420,
+     "scope": "memo wrapper",
+     "description": "_cached_near_duplicates() guards the join"
+    },
+    {
+     "kind": "sink",
+     "file": "app.py",
+     "line": 207,
+     "scope": "corpus ceiling",
+     "description": "_NEAR_DUP_MAX_PATHS = 10_000 refuses rather than stalls"
+    }
+   ],
+   "evidence": [
+    {
+     "file": "app.py",
+     "line": 191,
+     "description": "the AVAIL-1 comment records 52.8 s over 9,282 company docs (43 M pairs)"
+    },
+    {
+     "file": "app.py",
+     "line": 199,
+     "description": "_NEAR_DUP_CACHE_MAX = 64 bounds the memo so min_sim cannot trade CPU for RAM"
+    }
+   ],
+   "conditions": [
+    {
+     "kind": "data_state",
+     "description": "requires a corpus large enough for the quadratic term to matter"
+    }
+   ],
+   "execution": {
+    "attacker_perspective": "an unauthenticated client issuing repeated GETs",
+    "payloads": [
+     "curl 'http://127.0.0.1:5000/api/graph/near-duplicates?min_sim=0.1&limit=200'"
+    ],
+    "instructions": [
+     "repeat the request to defeat any cache"
+    ],
+    "observed_result": "52.8 s per uncached call over 9,282 docs before the fix; 1.65 s at 1,186 paths after the GEMM rewrite"
+   },
+   "remediation": {
+    "strategy": "memoize on the cache generation (LRU 64) + refuse above 10,000 distinct paths with 503"
+   },
+   "severity": {
+    "likelihood": {
+     "score": "medium",
+     "reason": "trivial to trigger, but the corpus must be large"
+    },
+    "impact": {
+     "score": "medium",
+     "reason": "one request parks a worker for tens of seconds"
+    },
+    "overall_severity": "medium"
+   },
+   "confidence": {
+    "score": "high",
+    "reason": "the pre-fix timing is recorded in the code comment and the regression tests"
+   }
+  },
+  {
+   "scope": "app",
+   "surface": "/api/graph/refresh",
+   "attack_class": "web-protocol/auth",
+   "verdict": "confirmed",
+   "fingerprint": "app.py:3611:no-auth",
+   "title": "Unauthenticated mutating POST rebuilds the graph cache",
+   "description": "POST /api/graph/refresh rebuilds the DuckDB cache and resets the shared connection with no authentication or CSRF check.",
+   "root_cause": "the route is registered with no auth decorator and no in-handler credential check",
+   "intended_behavior": "a mutating admin endpoint should require an operator credential",
+   "trace": [
+    {
+     "kind": "entrypoint",
+     "file": "app.py",
+     "line": 3611,
+     "scope": "route registration",
+     "description": "@app.route(\"/api/graph/refresh\", methods=[\"POST\"]) with no auth decorator"
+    },
+    {
+     "kind": "sink",
+     "file": "app.py",
+     "line": 3638,
+     "scope": "handler body",
+     "description": "_reset_graph_connection() then rebuild() run for any caller"
+    }
+   ],
+   "evidence": [
+    {
+     "file": "app.py",
+     "line": 3611,
+     "description": "the decorator list is empty: no login_required, no token check"
+    },
+    {
+     "file": "app.py",
+     "line": 3638,
+     "description": "the handler calls _reset_graph_connection() unconditionally"
+    }
+   ],
+   "conditions": [
+    {
+     "kind": "system_configuration",
+     "description": "deploy-gated: the app is not publicly exposed; Phase 4 endpoints are dormant"
+    }
+   ],
+   "execution": {
+    "attacker_perspective": "any host that can reach the Flask listener",
+    "payloads": [
+     "curl -X POST http://127.0.0.1:5000/api/graph/refresh"
+    ],
+    "instructions": [
+     "send the POST with no headers or cookies"
+    ],
+    "observed_result": "HTTP 200 and a rebuild log line, with no credential presented"
+   },
+   "remediation": {
+    "strategy": "require an operator token (or bind the route to localhost-only) before Phase 4 enables it"
+   },
+   "severity": {
+    "likelihood": {
+     "score": "high",
+     "reason": "no credential is checked on any path"
+    },
+    "impact": {
+     "score": "low",
+     "reason": "a rebuild is idempotent and the endpoint is deploy-gated"
+    },
+    "overall_severity": "low"
+   },
+   "confidence": {
+    "score": "high",
+    "reason": "the decorator and the handler body were both read"
+   }
+  }
+ ],
+ "run": "2026-09-19-app-1",
+ "scope": [
+  "app"
+ ]
+}

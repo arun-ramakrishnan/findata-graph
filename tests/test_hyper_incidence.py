@@ -847,17 +847,13 @@ class TestEventFamilyConvergence:
         stats = dh.prune_stale_event_edges(c, wanted, dry_run=True)
         assert stats == {"stored": 3, "kept": 1, "dropped": 2}
         assert (
-            c.execute("SELECT COUNT(*) FROM hyper_edges WHERE edge_type='event'").fetchone()[0]
-            == 3
+            c.execute("SELECT COUNT(*) FROM hyper_edges WHERE edge_type='event'").fetchone()[0] == 3
         )
 
     def test_apply_drops_stale_and_subthreshold(self, conn):
         c = self._seed(conn)
         dh.prune_stale_event_edges(c, {"acquisition:1"}, dry_run=False)
-        labels = {
-            r[0]
-            for r in c.execute("SELECT label FROM hyper_edges WHERE edge_type='event'")
-        }
+        labels = {r[0] for r in c.execute("SELECT label FROM hyper_edges WHERE edge_type='event'")}
         assert labels == {"acquisition:1"}  # jv:99 (dead event) AND guidance:2 (<2 members) gone
         # incidence cascade took the memberships with the edges
         assert (
@@ -869,9 +865,7 @@ class TestEventFamilyConvergence:
         )
         # non-event families keep the additive posture: singleton survives
         assert (
-            c.execute(
-                "SELECT COUNT(*) FROM hyper_edges WHERE edge_type='industry'"
-            ).fetchone()[0]
+            c.execute("SELECT COUNT(*) FROM hyper_edges WHERE edge_type='industry'").fetchone()[0]
             == 1
         )
 

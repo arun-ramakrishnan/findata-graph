@@ -36,7 +36,8 @@ from pathlib import Path
 if __package__ in (None, ""):
     sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
-import pymupdf  # noqa: E402
+
+from helpers.pdf.render_limits import checked_open  # noqa: E402
 
 # Per-page coverage thresholds, tuned on the 7-PDF Reports corpus
 # (doc/local/trials/local_pdf_engine_trial.md): deliberate drops (footer ads,
@@ -135,7 +136,7 @@ def _sha256(path: Path) -> str:
 
 
 def _source_pages(pdf_path: Path) -> list[str]:
-    doc = pymupdf.open(str(pdf_path))
+    doc = checked_open(pdf_path)
     try:
         return [page.get_text() for page in doc]
     finally:

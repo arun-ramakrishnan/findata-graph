@@ -130,6 +130,12 @@ help:           ## Show available targets (alphabetical; entries generated from 
 > @echo "  search-fresh             Check ALL search indexes for staleness — doc/, script metadata, note embeddings, harness memory (every check runs even if one fails; exit 1 on drift; APPLY=1 refreshes them instead; ARGS=\"--allow-stale\"/\"--sandbox\" for the stale-apply guard escape/preview; also run by make advisory)"
 > @echo "  search-tui               Full-screen search front door — docs/scripts/notes indexes + ripwire + rg lanes; enter reads markdown via glow"
 > @echo "  secret-scan              Incremental git-history secret scan (state under .git/secret-scan/)"
+> @echo "  security-apply           Apply gap decisions to the ledger (DECISIONS=<jsonl>, dry-run unless WRITE=1): cover needs verdict+reviewed, exclude/defer need a reason"
+> @echo "  security-audit           Security audit lane for one surface family: prior-coverage plan → run findings check → scoped close-out gate (SCOPE=app|extractors|..., RUN=<id> defaults to <today>-<scope>-1, STRICT=1 makes unaccounted classes errors)"
+> @echo "  security-critic          Coverage critic: uncovered (surface, class) pairs, stale fingerprints, declared exclusions, and confirmed findings the ledger does not back (SCOPE=..., RUN=<id> to cross-check a run's findings, JSON=1, STRICT=1 to fail on an INCOMPLETE verdict)"
+> @echo "  security-queue           Regenerate the gap work queue (triage idiom): JSONL of (surface, class) pairs with no ledger row and no exclusion (SCOPE=..., OUT=<path> defaults to doc/local/security/coverage_queue.jsonl)"
+> @echo "  security-scopes          Print the scope-family security inventories (SCOPE=graph|harness|desktop|frontend|data|extractors); sync checks the inventory areas against the ledger's surface names"
+> @echo "  security-verify          Verifier role (A6): emit a blind brief for ONE candidate (FP=<fingerprint>, RUN=<id>), or merge a verifier result with RECORD=<file> OUT=<file> (the input findings file is never overwritten)"
 > @echo "  snapshot                 Refresh the versioned DB snapshot"
 > @echo "  snapshot-check           Verify the snapshot round-trips against the live DB"
 > @echo "  snapshot-fresh           Generation-only snapshot freshness (fail fast on drift; fix: make snapshot)"
@@ -346,6 +352,8 @@ tier-nudge:     ## Manual billion-context tier-ladder nudge (read-only): SESSION
 tier-watch:     ## Watch the billion-context tier ladder live (read-only): prints why each rung is or is not ready (bars, pools, ordering, growth floor); WATCH_ARGS="--once" for a single sample
 > .venv/bin/python3 helpers/analytics/bili_tier_watch.py $(WATCH_ARGS)
 
+tier-watch-auto:    ## Auto-write compress() packets for INJECT T2/T3 (auto-fire); PACKET=<path> defaults to /mnt/data/tmp/opencode/t2_packet.jsonl; WATCH_ARGS for extra flags
+> PACKET="$${PACKET:-/mnt/data/tmp/opencode/t2_packet.jsonl}"; .venv/bin/python3 helpers/analytics/bili_tier_watch.py $(WATCH_ARGS) --inject-packet "$$PACKET"
 bili-status:    ## Proxy status report (read-only): effective bars, injections, folds, burn, cache
 > bash helpers/analytics/bili_status.sh
 
@@ -711,6 +719,39 @@ review-patch:   ## OCR delegation selection roster + native scan over the review
 
 review-scan:    ## Native scanner roster over the review diff (advisory, exit 0 always; bandit/shellcheck/sqlfluff/semgrep/osv on changed lines; STACK=N / COMMIT=<sha> / FROM=<base> TO=<head> / OFFLINE=1; proposal review_scan_leg)
 > .venv/bin/python3 helpers/misc/review_scan.py $(REVIEW_RANGE_ARGS)$(if $(OFFLINE), --offline,)
+
+# security_audit_adoption (A2/A9): the audit lane runs per surface family, not
+# per diff — the plan is the work order, the findings file is the run's output,
+# the scoped check is the close-out gate.
+SCOPE ?= app
+
+security-audit: ## Security audit lane for one surface family: prior-coverage plan → run findings check → scoped close-out gate (SCOPE=app|extractors|..., RUN=<id> defaults to <today>-<scope>-1, STRICT=1 makes unaccounted classes errors)
+> .venv/bin/python3 helpers/validators/coverage_ledger.py plan --scope $(SCOPE)
+> @f="doc/security/findings/$(or $(RUN),$(shell date +%Y-%m-%d)-$(SCOPE)-1).json"; \
+>   if [ -f "$$f" ]; then .venv/bin/python3 helpers/validators/security_findings.py "$$f" || exit 1; \
+>   else echo "security-audit: no findings file yet — $$f"; fi
+> .venv/bin/python3 helpers/validators/coverage_ledger.py check --scope $(SCOPE)$(if $(STRICT), --strict,)
+
+security-critic: ## Coverage critic: uncovered (surface, class) pairs, stale fingerprints, declared exclusions, and confirmed findings the ledger does not back (SCOPE=..., RUN=<id> to cross-check a run's findings, JSON=1, STRICT=1 to fail on an INCOMPLETE verdict)
+> .venv/bin/python3 helpers/validators/coverage_ledger.py critic --scope $(SCOPE)$(if $(RUN), --findings doc/security/findings/$(RUN).json,)$(if $(JSON), --json,)$(if $(STRICT), --strict,)
+
+security-queue: ## Regenerate the gap work queue (triage idiom): JSONL of (surface, class) pairs with no ledger row and no exclusion, reason-coded (SCOPE=..., OUT=<path> defaults to doc/local/security/coverage_queue.jsonl)
+> .venv/bin/python3 helpers/validators/coverage_ledger.py queue --scope $(SCOPE)$(if $(OUT), --out $(OUT),)
+
+security-apply: ## Apply gap decisions to the ledger (DECISIONS=<jsonl>, dry-run unless WRITE=1): cover needs verdict+reviewed, exclude/defer need a reason, bad_pair is echoed and never applied
+> .venv/bin/python3 helpers/validators/coverage_ledger.py apply$(if $(DECISIONS), --decisions $(DECISIONS))$(if $(WRITE), --write)$(if $(SCOPE), --scope $(SCOPE),)
+
+security-scopes: ## Print the scope-family security inventories (SCOPE=graph|harness|desktop|frontend|data|extractors); sync checks the inventory areas against the ledger's surface names
+> .venv/bin/python3 helpers/validators/security_scopes.py $(if $(SYNC), sync, inventory)$(if $(SCOPE), --scope $(SCOPE),)
+
+security-verify: ## Verifier role (A6): emit a blind brief for ONE candidate (FP=<fingerprint>, RUN=<id>), or merge a verifier result with RECORD=<file> OUT=<file> (the input findings file is never overwritten)
+> @test -n "$(FP)" || { echo "security-verify: needs FP=<fingerprint> (see security-critic / the findings file)"; exit 2; }
+> @f="doc/security/findings/$(or $(RUN),$(shell date +%Y-%m-%d)-$(SCOPE)-1).json"; \
+>   if [ -n "$(RECORD)" ]; then \
+>     .venv/bin/python3 helpers/validators/security_findings.py brief "$$f" --fingerprint "$(FP)" --record "$(RECORD)" --out "$(or $(OUT),$${f%.json}.merged.json)"; \
+>   else \
+>     .venv/bin/python3 helpers/validators/security_findings.py brief "$$f" --fingerprint "$(FP)"$(if $(JSON), --json,); \
+>   fi
 
 schema-dump:    ## Regenerate schema/<engine>/<db>.sql from the live memory/ DBs (proposal schema_ddl_review_surface)
 > .venv/bin/python3 helpers/misc/schema_dump.py

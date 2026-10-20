@@ -379,3 +379,174 @@ class TestSessionLiveness:
         from helpers.analytics.bili_analytics import session_is_live
 
         assert session_is_live(a) is False
+
+
+# ---------------------------------------------------------------------------
+# Fold trigger attribution (m00120 fix): a fold's `trigger` comes from the
+# nearest INJECT nudge at or before the fold's ts, inside FOLD_TRIGGER_WINDOW_S.
+# The compress tool is the actuator in every path, so the log alone cannot say
+# "who asked for this fold" — the nudge-line kind token is the only trigger
+# flag, and the join is what makes the fold columns honest.
+# ---------------------------------------------------------------------------
+
+_NUDGE_BODY = (
+    "usage=37.0% (291536/792576), growth=232772/90000 "
+    "(ref=58764, interval=200000), pendingT1=199877/200000 "
+    'model=space-bunny-free, reason="max compressible 199877 < '
+    'threshold 200000; growth 232772 < floor 90000"'
+)
+
+
+def _mk_nudge(sid: str, kind: str, ts: str) -> str:
+    return f"2026-10-18T{ts} [info] [sess={sid}] [v=0.1.197] [{sid}] nudge {kind}: {_NUDGE_BODY}"
+
+
+def _mk_fold(sid: str, ts: str) -> str:
+    return (
+        f"2026-10-18T{ts} [info] [sess={sid}] [v=0.1.197] [{sid}] "
+        "[acp-compress-obs] shrink 12.5% (~4096/32768 tok) "
+        "blocks=4 anchor≈291536 tok postCtx≈500000"
+    )
+
+
+class TestFoldTriggerAttribution:
+    def _parse(self, tmp_path: Path, lines: list[str]) -> ba.Analysis:
+        p = tmp_path / "bili.log"
+        p.write_text("\n".join(lines) + "\n")
+        return ba.parse_logs([p])
+
+    def test_fold_after_inject_t2_credits_t2(self, tmp_path: Path):
+        a = self._parse(
+            tmp_path,
+            [
+                _mk_nudge("s1", "idle", "07:59:00.000Z"),
+                _mk_nudge("s1", "INJECT T2", "08:00:00.000Z"),
+                _mk_fold("s1", "08:00:29.000Z"),
+            ],
+        )
+        assert [f.trigger for f in a.folds] == ["T2"]
+
+    def test_fold_after_esc_credits_esc(self, tmp_path: Path):
+        a = self._parse(
+            tmp_path,
+            [
+                _mk_nudge("s1", "INJECT-ESC T?", "08:00:00.000Z"),
+                _mk_fold("s1", "08:00:27.000Z"),
+            ],
+        )
+        assert [f.trigger for f in a.folds] == ["esc"]
+
+    def test_fold_with_only_idle_nudges_is_agent(self, tmp_path: Path):
+        a = self._parse(
+            tmp_path,
+            [
+                _mk_nudge("s1", "idle", "07:59:00.000Z"),
+                _mk_nudge("s1", "idle", "07:59:30.000Z"),
+                _mk_fold("s1", "08:00:10.000Z"),
+            ],
+        )
+        assert [f.trigger for f in a.folds] == ["agent"]
+
+    def test_stale_inject_beyond_window_is_agent(self, tmp_path: Path):
+        a = self._parse(
+            tmp_path,
+            [
+                _mk_nudge("s1", "INJECT T1", "08:00:00.000Z"),
+                _mk_nudge("s1", "idle", "08:05:00.000Z"),
+                _mk_fold("s1", "08:20:00.000Z"),
+            ],
+        )
+        assert [f.trigger for f in a.folds] == ["agent"]
+
+    def test_idle_nudges_between_inject_and_fold_do_not_break_the_join(self, tmp_path: Path):
+        a = self._parse(
+            tmp_path,
+            [
+                _mk_nudge("s1", "INJECT T3", "08:00:00.000Z"),
+                _mk_nudge("s1", "idle", "08:01:00.000Z"),
+                _mk_nudge("s1", "idle", "08:02:00.000Z"),
+                _mk_fold("s1", "08:08:00.000Z"),
+            ],
+        )
+        assert [f.trigger for f in a.folds] == ["T3"]
+
+    def test_fold_before_any_inject_is_agent(self, tmp_path: Path):
+        a = self._parse(
+            tmp_path,
+            [
+                _mk_fold("s1", "07:00:00.000Z"),
+                _mk_nudge("s1", "INJECT T1", "08:00:00.000Z"),
+            ],
+        )
+        assert [f.trigger for f in a.folds] == ["agent"]
+
+    def test_per_fold_triggers_are_independent(self, tmp_path: Path):
+        a = self._parse(
+            tmp_path,
+            [
+                _mk_nudge("s1", "INJECT T1", "08:00:00.000Z"),
+                _mk_fold("s1", "08:00:30.000Z"),
+                _mk_fold("s1", "08:30:00.000Z"),  # stale by then
+                _mk_nudge("s1", "INJECT T2", "08:31:00.000Z"),
+                _mk_fold("s1", "08:31:40.000Z"),
+            ],
+        )
+        assert [f.trigger for f in a.folds] == ["T1", "agent", "T2"]
+
+    def test_fold_trigger_counts_helper(self, tmp_path: Path):
+        a = self._parse(
+            tmp_path,
+            [
+                _mk_nudge("s1", "INJECT-ESC T?", "08:00:00.000Z"),
+                _mk_fold("s1", "08:00:27.000Z"),
+                _mk_fold("s1", "08:02:00.000Z"),
+                _mk_fold("s1", "08:30:00.000Z"),  # beyond the 10-min window
+                _mk_fold("s1", "08:40:00.000Z"),
+            ],
+        )
+        counts = ba.fold_trigger_counts(a.folds)
+        assert counts == {"esc": 2, "agent": 2}
+
+    def test_attribution_is_idempotent(self, tmp_path: Path):
+        a = self._parse(
+            tmp_path,
+            [
+                _mk_nudge("s1", "INJECT T2", "08:00:00.000Z"),
+                _mk_fold("s1", "08:00:29.000Z"),
+            ],
+        )
+        first = [f.trigger for f in a.folds]
+        ba.attribute_fold_triggers(a)
+        assert [f.trigger for f in a.folds] == first == ["T2"]
+
+    def test_fold_inherits_nearest_nudge_window(self, tmp_path: Path):
+        # _NUDGE_BODY's usage denominator is (291536/792576), so every
+        # synthetic nudge carries window=792576.0 and the fold joins to it.
+        a = self._parse(
+            tmp_path,
+            [
+                _mk_nudge("s1", "idle", "07:59:00.000Z"),
+                _mk_fold("s1", "08:00:00.000Z"),
+            ],
+        )
+        assert [f.window for f in a.folds] == [792576.0]
+
+    def test_fold_with_no_nudges_has_unknown_window(self, tmp_path: Path):
+        a = self._parse(tmp_path, [_mk_fold("s1", "08:00:00.000Z")])
+        assert [f.window for f in a.folds] == [None]
+
+    def test_sessions_dont_lend_each_other_triggers_or_windows(self, tmp_path: Path):
+        # s1 has no nudges at all; s2's INJECT T2 sits between in ts order.
+        # Without per-session grouping, s1's fold would borrow s2's trigger.
+        a = self._parse(
+            tmp_path,
+            [
+                _mk_fold("s1", "08:00:00.000Z"),
+                _mk_nudge("s2", "INJECT T2", "08:00:10.000Z"),
+                _mk_fold("s2", "08:00:40.000Z"),
+            ],
+        )
+        by_session = {f.session: f.trigger for f in a.folds}
+        assert by_session == {"s1": "agent", "s2": "T2"}
+        win_by_session = {f.session: f.window for f in a.folds}
+        assert win_by_session == {"s1": None, "s2": 792576.0}

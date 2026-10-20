@@ -54,6 +54,12 @@ IMG_BLOCK_RE = re.compile(
 )
 CROP_RE = re.compile(r"crop_(\d+)_(\d+)")
 
+# Read ceiling for image responses (remediation of the unbounded-read
+# finding, run 2026-09-19-extractors-1): fetch() buffers at most
+# MAX_IMAGE_BYTES (+ one probe byte) of any response, so a hostile or
+# misconfigured CDN body cannot exhaust memory before the magic gate.
+MAX_IMAGE_BYTES = 64 * 1024 * 1024
+
 
 def parse_images(md_path: Path):
     """Return list of dicts: {idx(0-based), line, url, crop, ts} in document order."""
@@ -103,7 +109,11 @@ def fetch(url: str, dest: Path, retries: int = 3):
         try:
             req = Request(url, headers={"User-Agent": UA})  # noqa: S310  # https-only scheme enforced above
             with urlopen(req, timeout=30) as r:  # noqa: S310  # https-only scheme enforced above
-                data = r.read()
+                # Bounded read: at most one byte past the ceiling, so an
+                # oversized body is DETECTED without being buffered whole.
+                data = r.read(MAX_IMAGE_BYTES + 1)
+            if len(data) > MAX_IMAGE_BYTES:
+                return f"skipped oversized body (> {MAX_IMAGE_BYTES} bytes)"
             if data and (data[:2] == b"\xff\xd8" or data[:4] == b"\x89PNG"):
                 dest.write_bytes(data)
                 return True

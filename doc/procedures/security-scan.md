@@ -105,6 +105,40 @@ candidate into an observed result:
   linear; only randomized search (Hypothesis, targeted alphabets, a few
   thousand examples) settled it.
 
+### 4b. The verifier (one candidate, fresh context, blind)
+
+A candidate read by the context that formed it is read by the context that
+cannot tell a real claim from a well-argued one. So every candidate that
+would enter the record as `confirmed` is handed to a **fresh context** whose
+only job is to reproduce it or disprove it:
+
+```bash
+# 1. the blind packet — the claim and its anchors, never the finder's reasoning
+.venv/bin/python3 helpers/validators/security_findings.py brief <findings> --fingerprint <fp>
+
+# 2. the verifier returns ONE record: reproduced | disproved | inconclusive
+# 3. merge it into a NEW file (the input is never overwritten)
+.venv/bin/python3 helpers/validators/security_findings.py brief <findings> \
+    --fingerprint <fp> --record <verifier-result.json> --out <merged.json>
+```
+
+- **Blind by construction.** The packet is built from an allowlist: the
+  claim (`title`), `surface`, `attack_class`, the evidence anchors and the
+  entrypoint anchor. The mechanism — `root_cause`, the propagation trace,
+  `execution`, `remediation`, `severity` — is withheld, because that is the
+  thing under test. Never paste the finding, the report or this section's
+  reasoning into the verifier's context.
+- **The merge cannot inflate.** `disproved` → `rejected`, the claim kept in
+  `claimed_root_cause`. `reproduced` → `confirmed` only when the record
+  already carries the confirmed shape; otherwise it stays
+  `needs_validation` and names the fields still missing, because a verifier
+  proves reproduction and does not invent severity or remediation.
+  `inconclusive` → `needs_validation` with the blocker recorded. The merged
+  document is re-validated before it is written, and a failure writes
+  nothing.
+- **One candidate per verifier.** A batch invites anchoring across claims and
+  turns "which of these is real" into a ranking exercise.
+
 ### 5. Attack-class sweep (the class-by-class model)
 
 Route-by-route audit finds injection. It does **not** find
@@ -223,21 +257,30 @@ the finding.
 - **Run the coverage validator** — the completeness gate:
 
   ```bash
-  .venv/bin/python3 helpers/validators/coverage_ledger.py check
+  .venv/bin/python3 helpers/validators/coverage_ledger.py check --scope app
   ```
 
   It fails if any `app.py` route has no row in
-  `doc/local/security/coverage-ledger.json` (a new route shipped
-  unreviewed), if a reviewed handler changed since its review
-  (`--strict`), or if a row names a route that no longer exists. Seed new
-  rows by hand after a review — the `seed` mode recomputes fingerprints
-  only and never invents coverage. This is what makes the record
-  cumulative instead of a snapshot.
+  `doc/security/coverage-ledger.json` (a new route shipped unreviewed), if a
+  reviewed handler changed since its review (`--strict`), or if a row names
+  a route that no longer exists. Seed new rows by hand after a review — the
+  `seed` mode recomputes fingerprints only and never invents coverage. This
+  is what makes the record cumulative instead of a snapshot.
+- **Plan before, critic after.** `plan --scope <family>` prints the prior
+  brief (what is already covered, what is stale, the work queue);
+  `critic --scope <family>` emits the `(surface, attack_class)` pairs with
+  no row and no exclusion, the drifted fingerprints and the declared
+  exclusions, and exits non-zero under `--strict` only when the scope is
+  actually closed. The ledger tracks classification and verdict tokens; the
+  posture prose stays in the gitignored detail file.
 
 ## Pointers
 
-- Record + findings: `doc/local/security/security_evaluation.md`
-- Coverage gate: `helpers/validators/coverage_ledger.py` + ledger JSON
+- Record + findings: `doc/local/security/security_evaluation.md` (posture
+  prose, gitignored) and `doc/security/findings/<run-id>.json` (per-run
+  events, tracked)
+- Coverage gate: `helpers/validators/coverage_ledger.py` +
+  `doc/security/coverage-ledger.json` (state, tracked)
 - Current fix proposals: `doc/improvements/proposals/` (checklist +
   reference-rot sweeps: `doc/improvements/proposals/README.md`,
   `doc/procedures/doc-hygiene.md`)

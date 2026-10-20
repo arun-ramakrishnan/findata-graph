@@ -1,0 +1,136 @@
+{
+  "schema": "security-findings.v1",
+  "findings": [
+    {
+      "scope": "extractors",
+      "surface": "pdf parse (pymupdf.open sites, helpers/pdf/*)",
+      "attack_class": "parser-input",
+      "verdict": "confirmed",
+      "fingerprint": "helpers/pdf/pdf_conv_md.py:unbounded-render",
+      "title": "Unbounded raster amplification in PDF ingestion: MuPDF renders the full page surface with no page-count, byte-size or page-dimension cap",
+      "description": "The render path materializes page rasters proportional to page dimensions inside the vendored MuPDF before any repo-side gate; a measured 819-byte hostile PDF (6000x6000pt MediaBox) produced ~509 MB RSS growth (606x amplification). Remediated by render caps at open.",
+      "root_cause": "teleocr_engine.render_pages, liteparse_engine._extract_images_sidecar, pdf_local.convert and verify_extraction._source_pages each opened the document with pymupdf.open and handed it straight to rendering/text extraction; MuPDF allocates width x height x 4 bytes per page at render time, and helpers/pdf/ carried no page-count, input-size or page-dimension cap (only post-decode MINIMUM filters: MIN_IMAGE_PX 150, MIN_IMAGE_BYTES 8192, MIN_CHARS_PER_PAGE 100).",
+      "intended_behavior": "Refuse a document at open, before any page surface is allocated, when it exceeds a page-count cap or a per-page-dimension cap; defaults loud and far above the tracked Reports corpus (200 pages, 4000pt per dimension vs 0.8 MB / 28 A4 pages), overridable per run with --max-pages / --max-page-dims for a document the operator has reviewed.",
+      "trace": [
+        {
+          "kind": "entrypoint",
+          "file": "helpers/pdf/pdf_conv_md.py",
+          "line": 317,
+          "scope": "pdf_conv_md CLI source_pdf",
+          "description": "operator-supplied (and via the SEC-6 capture domain, semi-attacker-controlled newsletter imagery) PDF enters the conversion chain"
+        },
+        {
+          "kind": "propagation",
+          "file": "helpers/pdf/teleocr_engine.py",
+          "line": 348,
+          "scope": "render_pages()",
+          "description": "pre-fix: [page.get_pixmap(matrix).tobytes('png') for page in doc] materializes every page's PNG in one eager list, no cap"
+        },
+        {
+          "kind": "sink",
+          "file": "helpers/pdf/teleocr_engine.py",
+          "line": 350,
+          "scope": "MuPDF pixmap render",
+          "description": "the vendored parser allocates the uncompressed page surface (width x height x 4 bytes) inside pymupdf, where no Python-side guard can run"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "doc/security/findings/2026-10-21-extractors-2.json",
+          "line": 1,
+          "description": "pre-fix probe: 819-byte PDF, 2000x2000pt -> 77x amplification; 4000x4000pt -> 275x; 6000x6000pt -> 496 KB pixmap, RSS +509 MB, render 3.47 s (606x), linear in page dimensions"
+        },
+        {
+          "file": "helpers/pdf/render_limits.py",
+          "line": 1,
+          "description": "post-fix: the same hostile document is refused by checked_open in 0.6 ms with ~460 KB RSS growth, before any page surface is allocated; A4 28-page fixture passes the defaults unchanged"
+        },
+        {
+          "file": "tests/test_render_limits.py",
+          "line": 1,
+          "description": "7 regression tests: dimension cap, count cap, A4 corpus shape passes, teleocr refuses pre-render, CLI flag overrides, flags wired in pdf_conv_md"
+        }
+      ],
+      "conditions": [
+        {
+          "kind": "environmental_dependency",
+          "description": "input PDFs are operator-supplied (Reports/*.pdf) or semi-attacker-controlled via newsletter-embedded imagery captured through the SEC-6 https+magic-byte domain"
+        },
+        {
+          "kind": "system_configuration",
+          "description": "pre-fix there was no --max-pages / --max-page-dims cap configured anywhere on the conversion chain"
+        }
+      ],
+      "execution": {
+        "attacker_perspective": "a tiny hostile PDF (819 bytes) forces the ingestion pipeline to allocate half a gigabyte of raster memory per document, with amplification growing linearly in page dimensions and unbounded relative to input size — a memory-exhaustion lever on the operator's machine reachable through captured newsletter imagery",
+        "observed_result": "pre-fix: 819 B input, 6000x6000pt MediaBox -> 496 KB pixmap, render 3.47 s, RSS +509 MB (606x); post-fix: RenderLimitExceeded('page 1 is 6000x6000pt, over the 4000pt-per-dimension cap') raised in 0.6 ms with 460 KB RSS growth, no render, through teleocr_engine.render_pages",
+        "payloads": [
+          "819-byte PDF with a 6000x6000pt MediaBox and one inserted text run (fitz new_page(width=6000, height=6000))"
+        ],
+        "instructions": [
+          "generate the hostile PDF with fitz (new_page(width=6000, height=6000), one inserted text run)",
+          "call helpers.pdf.teleocr_engine.render_pages on it and observe RenderLimitExceeded before any get_pixmap call",
+          "rerun pdf_conv_md with --max-page-dims 8000 to see the cap move for a reviewed document"
+        ]
+      },
+      "remediation": {
+        "strategy": "render caps at open via one choke point: helpers.pdf.render_limits.checked_open validates page count (MAX_PAGES 200) and per-page dimensions (MAX_PAGE_PTS 4000) before anything renders, closes the document on refusal, and reads the caps as module attributes at call time so the pdf_conv_md CLI flags (--max-pages, --max-page-dims) override them for a reviewed one-off; a refusal is terminal for every engine (no fallback churn) and exits 2 with the flag hint",
+        "code_changes": [
+          {
+            "file_name": "helpers/pdf/render_limits.py",
+            "description": "new: RenderLimitExceeded + checked_open (page-count and per-page-dimension caps, close-on-refusal, call-time cap reads)"
+          },
+          {
+            "file_name": "helpers/pdf/teleocr_engine.py",
+            "description": "render_pages opens via checked_open (was pymupdf.open)"
+          },
+          {
+            "file_name": "helpers/pdf/liteparse_engine.py",
+            "description": "_extract_images_sidecar opens via checked_open"
+          },
+          {
+            "file_name": "helpers/pdf/pdf_local.py",
+            "description": "convert() checked_open then pymupdf4llm.to_markdown(doc) in try/finally doc.close() (to_markdown accepts an open Document)"
+          },
+          {
+            "file_name": "helpers/pdf/verify_extraction.py",
+            "description": "_source_pages opens via checked_open"
+          },
+          {
+            "file_name": "helpers/pdf/pdf_conv_md.py",
+            "description": "--max-pages/--max-page-dims flags write render_limits.MAX_PAGES/MAX_PAGE_PTS after parse_args; RenderLimitExceeded caught once around the engine chain (stderr hint + exit 2)"
+          }
+        ]
+      },
+      "severity": {
+        "likelihood": {
+          "score": "low",
+          "reason": "inputs are operator-supplied Reports or captured newsletter imagery behind the SEC-6 https+magic-byte gate; no unauthenticated network path opens a PDF"
+        },
+        "impact": {
+          "score": "medium",
+          "reason": "measured 606x memory amplification (509 MB from 819 bytes) on the operator machine; exhaustion, not persistence or exfiltration"
+        },
+        "overall_severity": "low",
+        "overall_severity_reason": "R1: demonstrated impact is medium (memory exhaustion) but reach is gated through operator-supplied/SEC-6-captured inputs, so overall is bounded at low"
+      },
+      "confidence": {
+        "score": "high",
+        "reason": "amplification measured on the real render path (three MediaBox sizes, linear scaling confirmed) and the fix demonstrated by the same probe refusing pre-render in 0.6 ms"
+      }
+    }
+  ],
+  "run": "2026-10-21-extractors-2",
+  "scope": [
+    "extractors"
+  ],
+  "verification": {
+    "by": "fresh-context verifier + fix pass",
+    "at": "2026-10-21",
+    "verdict": "reproduced",
+    "method": "synthetic hostile PDFs through the real render path (fitz-generated MediaBox probes), then the same probe post-fix against checked_open and teleocr_engine.render_pages; no network",
+    "command": ".venv/bin/python3 /mnt/data/tmp/opencode/render_amp_probe.py; .venv/bin/python3 -m pytest tests/test_render_limits.py -q",
+    "observed": "pre-fix 606x amplification (RSS +509 MB); post-fix RenderLimitExceeded in 0.6 ms / 460 KB; 11 tests green across render_limits + capture suites",
+    "notes": "Transport-independent: the allocation is inside vendored MuPDF at render time; the cap operates on document metadata (page count, rect dims) at open, before allocation."
+  }
+}

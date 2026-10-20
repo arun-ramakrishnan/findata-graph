@@ -43,6 +43,8 @@ from pathlib import Path
 import pymupdf
 import pymupdf4llm
 
+from helpers.pdf.render_limits import checked_open
+
 # Decoration filter (proposal Q3, accepted 2026-08-25).
 MIN_IMAGE_PX = 150
 MIN_IMAGE_BYTES = 8192
@@ -307,13 +309,17 @@ def convert(pdf_path: Path, img_dir: Path, *, layout: bool = False) -> list[dict
     _assert_text_layer(pdf_path)
     img_dir.mkdir(parents=True, exist_ok=True)
     pymupdf4llm.use_layout(layout)
-    chunks = pymupdf4llm.to_markdown(
-        str(pdf_path),
-        page_chunks=True,
-        write_images=True,
-        image_path=str(img_dir),
-        image_format=".jpeg",
-    )
+    doc = checked_open(pdf_path)
+    try:
+        chunks = pymupdf4llm.to_markdown(
+            doc,
+            page_chunks=True,
+            write_images=True,
+            image_path=str(img_dir),
+            image_format=".jpeg",
+        )
+    finally:
+        doc.close()
     pages: list[dict] = []
     title: str | None = None
     img_counter = 0

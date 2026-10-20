@@ -1,0 +1,72 @@
+{
+  "schema": "security-findings.v1",
+  "run": "2026-10-21-extractors-2",
+  "scope": ["extractors"],
+  "ledger": "doc/security/coverage-ledger.json",
+  "findings": [
+    {
+      "verdict": "needs_validation",
+      "fingerprint": "helpers/pdf/pdf_conv_md.py:unbounded-render",
+      "title": "Unbounded raster amplification in PDF ingestion: MuPDF renders the full page surface with no page-count, byte-size or page-dimension cap",
+      "description": "The PDF ingestion path opens operator- or third-party-supplied PDFs and renders pages to rasters proportional to page dimensions before any repo-side size gate, so a sub-kilobyte hostile PDF can force hundreds of megabytes of allocation. Measured: an 819-byte PDF with a 6000x6000pt MediaBox drove a 496 KB pixmap and ~509 MB RSS growth (606x amplification); 275x at 4000pt, 77x at 2000pt.",
+      "claimed_root_cause": "pdf_conv_md opens the source PDF and the engine chain (pdf_local born-digital, liteparse OCR, teleocr scanned render) materializes page rasters via page.get_pixmap(matrix) with no MAX_PAGES, MAX_INPUT_BYTES or MAX_PAGE_PTS cap anywhere in helpers/pdf/; the only size checks (MIN_IMAGE_PX 150, MIN_IMAGE_BYTES 8192) are minimums applied after decode",
+      "trace": [
+        {
+          "kind": "entrypoint",
+          "file": "helpers/pdf/pdf_conv_md.py",
+          "line": 317,
+          "scope": "write_outputs / CLI source_pdf",
+          "description": "the CLI takes the source PDF path and drives the engine chain; no input-size or page-count gate before parse"
+        },
+        {
+          "kind": "propagation",
+          "file": "helpers/pdf/teleocr_engine.py",
+          "line": 348,
+          "scope": "render_pages (scanned-PDF path)",
+          "description": "returns [page.get_pixmap(matrix).tobytes('png') for page in doc] — every page's raster materialized in one list, unbounded in page count x dimensions"
+        },
+        {
+          "kind": "sink",
+          "file": "helpers/pdf/teleocr_engine.py",
+          "line": 348,
+          "scope": "MuPDF pixmap render",
+          "description": "MuPDF renders the uncompressed page surface (width x height x 4 bytes) inside the vendored parser, before any repo-side gate"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "helpers/pdf/teleocr_engine.py",
+          "line": 348,
+          "description": "render_pages has no page-count or dimension guard; the pixmap list is built eagerly"
+        },
+        {
+          "file": "helpers/pdf/liteparse_engine.py",
+          "line": 92,
+          "description": "pymupdf.open + Pixmap(doc, xref) decode with only post-decode minimum-size checks (MIN_IMAGE_BYTES 8192)"
+        },
+        {
+          "file": "helpers/pdf/pdf_local.py",
+          "line": 256,
+          "description": "_image_ok checks MIN_IMAGE_PX 150 / MIN_IMAGE_BYTES 8192 on the already-decoded pixmap — minimums, not ceilings"
+        }
+      ],
+      "conditions": [
+        {
+          "kind": "environmental_dependency",
+          "value": "third-party-origin newsletter/report PDFs (the SEC-6 capture domain) are semi-attacker-controlled: a hostile PDF reaching Reports/ or the OCR corpus reaches the parser"
+        },
+        {
+          "kind": "system_configuration",
+          "value": "no input cap configured: pdf_conv_md exposes no --max-pages/--max-page-dims flag; nothing in helpers/pdf/ caps input size, page count or page dimensions before render"
+        }
+      ],
+      "blockers": [
+        "end-to-end measurement through the pdf_conv_md CLI on the Reports corpus not yet run: the amplification was demonstrated on the render path directly (synthetic hostile PDF), not through the full CLI with the operator's corpus",
+        "the remediation decision (input cap defaults) is an operator call: the tracked Reports corpus tops out at 0.8 MB / 28 pages, so a cap must not break the real workload"
+      ],
+      "validation_plan": {
+        "local": "run pdf_conv_md end-to-end on a synthetic hostile PDF (819 B, 6000x6000pt MediaBox) through each engine path (pdf_local / liteparse / teleocr) and measure peak RSS; then decide --max-pages / --max-page-dim defaults against the 28-page, 0.8 MB Reports maximum and re-measure"
+      }
+    }
+  ]
+}

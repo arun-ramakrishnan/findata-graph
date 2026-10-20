@@ -1,0 +1,53 @@
+{
+ "schema": "security-findings.v1",
+ "findings": [
+  {
+   "scope": "extractors",
+   "surface": "capture_newsletter_images.fetch",
+   "attack_class": "availability",
+   "verdict": "needs_validation",
+   "fingerprint": "helpers/pdf/capture_newsletter_images.py:104:unbounded-read",
+   "title": "Image fetch reads the whole body before any size check",
+   "description": "fetch() calls r.read() with no byte cap and only checks the magic bytes afterwards, so a large or slow https response is fully buffered.",
+   "claimed_root_cause": "no Content-Length check and no streaming read with a ceiling before the magic-byte test",
+   "trace": [
+    {
+     "kind": "entrypoint",
+     "file": "helpers/pdf/capture_newsletter_images.py",
+     "line": 94,
+     "scope": "fetch()",
+     "description": "the URL comes from regex-extracted OCR markdown (https-only allowlisted)"
+    },
+    {
+     "kind": "sink",
+     "file": "helpers/pdf/capture_newsletter_images.py",
+     "line": 104,
+     "scope": "urlopen body",
+     "description": "data = r.read() buffers the entire response"
+    }
+   ],
+   "evidence": [
+    {
+     "file": "helpers/pdf/capture_newsletter_images.py",
+     "line": 104,
+     "description": "data = r.read() has no max_bytes argument"
+    },
+    {
+     "file": "helpers/pdf/capture_newsletter_images.py",
+     "line": 105,
+     "description": "the magic check runs after the body is already in memory"
+    }
+   ],
+   "blockers": [
+    "no reproduction: the newsletter CDN was not observed serving a body large enough to exhaust memory"
+   ],
+   "validation_plan": {
+    "local": "serve a 2 GB file over https from a local listener and point one OCR markdown row at it, then watch RSS during capture"
+   }
+  }
+ ],
+ "run": "2026-09-19-extractors-1",
+ "scope": [
+  "extractors"
+ ]
+}
