@@ -185,6 +185,30 @@ def _make_move_test_db(tmp_path, sector="Healthcare"):
             UNIQUE(source, target, edge_type)
         )
     """)
+    # part_of/has_company retirement (2026-10-19): sector membership is
+    # canonical in the incidence store; move_entity maintains it there.
+    conn.execute("""
+        CREATE TABLE hyper_edges (
+            id INTEGER PRIMARY KEY,
+            edge_type TEXT NOT NULL,
+            label TEXT NOT NULL,
+            weight REAL NOT NULL DEFAULT 1.0,
+            valid_from DATE, valid_to DATE,
+            source_ref TEXT NOT NULL,
+            properties TEXT NOT NULL DEFAULT '{}',
+            created_at DATETIME,
+            UNIQUE(edge_type, label)
+        )
+    """)
+    conn.execute("""
+        CREATE TABLE hyper_incidences (
+            edge_id INTEGER NOT NULL,
+            entity_name TEXT NOT NULL,
+            weight REAL, direction TEXT, role TEXT,
+            valid_from DATE, valid_to DATE,
+            PRIMARY KEY (edge_id, entity_name)
+        )
+    """)
     # Create the markdown file
     sector_dir = tmp_path / "findata" / "Companies" / sector
     sector_dir.mkdir(parents=True)
@@ -210,8 +234,16 @@ def _make_move_test_db(tmp_path, sector="Healthcare"):
         "'findata/Companies/" + sector + "/Test_Co.md', '2025-01-01', 'Test_Co', ?, NULL)",
         (sector,),
     )
-    conn.execute("INSERT INTO graph_edges VALUES ('Test Co', ?, 'part_of', 'test')", (sector,))
-    conn.execute("INSERT INTO graph_edges VALUES (?, 'Test Co', 'has_company', 'test')", (sector,))
+    conn.execute(
+        "INSERT INTO hyper_edges (edge_type, label, source_ref) VALUES ('sector', ?, 'test')",
+        (sector,),
+    )
+    edge_id = conn.execute(
+        "SELECT id FROM hyper_edges WHERE edge_type='sector' AND label=?", (sector,)
+    ).fetchone()[0]
+    conn.execute(
+        "INSERT INTO hyper_incidences (edge_id, entity_name) VALUES (?, 'Test Co')", (edge_id,)
+    )
     conn.commit()
     conn.close()
     return db_path
@@ -309,18 +341,19 @@ class TestMoveEntity:
         db_path = _make_move_test_db(tmp_path, "Healthcare")
         conn = _sqlite3.connect(str(db_path))
         ms_mod.move_entity(conn, "Test Co", "Consumer", dry_run=False)
-        # Old edges should be gone
-        old = conn.execute(
-            "SELECT COUNT(*) FROM graph_edges WHERE target='Healthcare' OR source='Healthcare'"
-        ).fetchone()[0]
-        assert old == 0
-        # New edges should exist
-        new_part_of = conn.execute(
-            "SELECT COUNT(*) FROM graph_edges WHERE source='Test Co' AND target='Consumer' AND edge_type='part_of'"
-        ).fetchone()[0]
-        assert new_part_of == 1
-        new_has = conn.execute(
-            "SELECT COUNT(*) FROM graph_edges WHERE source='Consumer' AND target='Test Co' AND edge_type='has_company'"
-        ).fetchone()[0]
-        assert new_has == 1
+        # Canonical (2026-10-19): membership lives in the incidence store —
+        # no part_of/has_company dyads are written to graph_edges at all.
+        assert (
+            conn.execute(
+                "SELECT COUNT(*) FROM graph_edges WHERE edge_type IN ('part_of','has_company')"
+            ).fetchone()[0]
+            == 0
+        )
+        # Old membership gone, new membership present.
+        memberships = conn.execute(
+            "SELECT he.label FROM hyper_incidences hi "
+            "JOIN hyper_edges he ON he.id = hi.edge_id "
+            "WHERE hi.entity_name='Test Co' AND he.edge_type='sector' ORDER BY he.label"
+        ).fetchall()
+        assert [r[0] for r in memberships] == ["Consumer"]
         conn.close()

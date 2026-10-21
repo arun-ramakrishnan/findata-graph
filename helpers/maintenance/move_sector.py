@@ -42,6 +42,10 @@ COMPANIES_DIR = PROJECT_ROOT / "findata" / "Companies"
 from helpers.validators.static_checks import CANONICAL_SECTORS  # noqa: E402
 from helpers.core.db import utc_now  # noqa: E402  (Bundle T1: UTC last_updated)
 from helpers.core.frontmatter import split_frontmatter as split_front_matter  # noqa: E402
+from helpers.graph.sector_membership import (  # noqa: E402  (canonical membership)
+    put_sector_membership,
+    remove_sector_membership,
+)
 
 TODAY = date.today().isoformat()  # date-only, for markdown YAML last_modified
 
@@ -200,29 +204,15 @@ def move_entity(
     )
     ok("DB entities row updated (sector_classification, file_path)")
 
-    # Edges: drop old part_of/has_company, add new bidirectional pair.
-    # NB: writes to graph_edges (since the Phase-1 migration the
-    # `relations` name is a read-only VIEW over graph_edges).
-    cur.execute(
-        "DELETE FROM graph_edges WHERE source = ? AND target = ? AND edge_type = 'part_of'",
-        (name, old_sector),
-    )
-    cur.execute(
-        "DELETE FROM graph_edges WHERE source = ? AND target = ? AND edge_type = 'has_company'",
-        (old_sector, name),
-    )
-    # Insert new pair only if not already present
-    cur.execute(
-        "INSERT OR IGNORE INTO graph_edges (source, target, edge_type, source_ref) "
-        "VALUES (?, ?, 'part_of', 'move_sector')",
-        (name, new_sector),
-    )
-    cur.execute(
-        "INSERT OR IGNORE INTO graph_edges (source, target, edge_type, source_ref) "
-        "VALUES (?, ?, 'has_company', 'move_sector')",
-        (new_sector, name),
-    )
-    ok(f"graph_edges updated: {old_sector}↔{name} → {new_sector}↔{name}")
+    # Membership: move the incidence between sector hyperedges.
+    # part_of/has_company retirement (2026-10-19): the incidence store is
+    # canonical — the old dyad pair in graph_edges is gone (query.py
+    # projects it back out for every reader). Other sectors' memberships
+    # are untouched, so a dual-sector company keeps them (the dyad model
+    # could not express that).
+    remove_sector_membership(conn, name, old_sector)
+    put_sector_membership(conn, name, new_sector, source_ref="move_sector")
+    ok(f"sector membership updated: {old_sector}→{name} replaced by {new_sector}→{name}")
 
     # 2. Move the file LAST, only after the DB writes succeeded. A failure
     #    above aborts before the filesystem is touched.

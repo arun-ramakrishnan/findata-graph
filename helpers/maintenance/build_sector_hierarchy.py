@@ -2,7 +2,9 @@
 """Build the 3-level sector hierarchy: super-sector -> sector -> sub-category.
 
 The graph historically modelled sectors as a flat peer set (42 ``sector``
-entities, each linked to its companies via ``part_of``/``has_company``).
+entities, each linked to its companies via ``part_of``/``has_company`` —
+since the 2026-10-19 retirement that membership is canonical in the sector
+hyperedges, and the dyad pair is projected from them on read).
 There was no sector-to-sector structure: ``/api/sectors`` returned a flat
 list, and the DuckDB graph could not answer "show me all financial stocks"
 or "what sub-categories exist within Metals?".
@@ -18,11 +20,11 @@ This script introduces two new entity types and a dedicated edge type:
     authored sub-categories and stay at super-sector -> sector.
   - ``belongs_to``    — the hierarchy edge (sector -> super_sector,
     sub_sector -> sector). A NEW edge type, deliberately NOT overloading
-    ``part_of``: ``part_of`` is purely company -> sector, and the DuckDB
-    ``EDGE_REGISTRY`` / integrity checker both assume that. Overloading it
-    would silently drop the new edges from the property graph and trip the
-    ``po_src_bad`` / ``po_tgt_bad`` integrity checks. ``belongs_to`` keeps
-    the two relationships cleanly separated.
+    ``part_of``: the sector-membership lane is purely company -> sector,
+    and the DuckDB ``EDGE_REGISTRY`` / integrity checker both assume that.
+    Overloading it would silently drop the new edges from the property
+    graph and trip the sector-membership endpoint checks. ``belongs_to``
+    keeps the two relationships cleanly separated.
 
 The taxonomy is CURATED (encoded below as data), not extracted — there is
 no reliable super-sector signal anywhere in the corpus (0 YAML fields, 0
