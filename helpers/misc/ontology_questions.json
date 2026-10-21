@@ -1,6 +1,6 @@
 {
-  "version": 3,
-  "_note": "ontology_governance S2 frozen question set v2 \u2014 DOC-DRIVEN roster derived 2026-09-17 from the live store via ontology_eval_gate.answer_question; coverage map and derivation procedure in doc/procedures/ontology-gate.md. After each ACCEPTED ontology-affecting change, rebaseline explicitly via ontology_eval_gate.py --rebaseline 'completed.md #NNN (change)'. Answers are sorted row-sets; subtree and concept_mappings_for are active-only. | v3 pins added at nic2008_seed_table S2 (subtree x2: nic2008 section J + division 62; the +1 industry->nic2008 crosswalk pin lands with S3 promote); expected computed via answer_question from the gated candidate per doc/procedures/ontology-gate.md roster-extension flow. | xwalk pins re-synced to all active labels post sitting 20260919 (85 labels, incl. narrowMatch stacks).",
+  "version": 4,
+  "_note": "ontology_governance S2 frozen question set v2 — DOC-DRIVEN roster derived 2026-09-17 from the live store via ontology_eval_gate.answer_question; coverage map and derivation procedure in doc/procedures/ontology-gate.md. After each ACCEPTED ontology-affecting change, rebaseline explicitly via ontology_eval_gate.py --rebaseline 'completed.md #NNN (change)'. Answers are sorted row-sets; subtree and concept_mappings_for are active-only. | v3 pins added at nic2008_seed_table S2 (subtree x2: nic2008 section J + division 62; the +1 industry->nic2008 crosswalk pin lands with S3 promote); expected computed via answer_question from the gated candidate per doc/procedures/ontology-gate.md roster-extension flow. | xwalk pins re-synced to all active labels post sitting 20260919 (85 labels, incl. narrowMatch stacks). v4 (merger_demerger_hyperedges S4, 2026-10-21): + shape hyperedge_labels; hyper-merger-families / hyper-demerger-families pin the (currently empty) n-ary M&A families — a first landed fact REQUIRES --expect-improve on those ids.",
   "questions": [
     {
       "id": "subtree-super-sector-communication-services",
@@ -4161,6 +4161,22 @@
         "nic2008:35101:narrowMatch",
         "nic2008:35105:narrowMatch"
       ]
+    },
+    {
+      "id": "hyper-merger-families",
+      "shape": "hyperedge_labels",
+      "params": {
+        "edge_type": "merger"
+      },
+      "expected": []
+    },
+    {
+      "id": "hyper-demerger-families",
+      "shape": "hyperedge_labels",
+      "params": {
+        "edge_type": "demerger"
+      },
+      "expected": []
     }
   ],
   "rebaselined": {

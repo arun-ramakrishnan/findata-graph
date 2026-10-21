@@ -171,6 +171,19 @@ def _answer_hyperedge_members(conn: sqlite3.Connection, params: dict) -> list[st
     )
 
 
+def _answer_hyperedge_labels(conn: sqlite3.Connection, params: dict) -> list[str]:
+    """The sorted distinct label set of one hyperedge family — pins a whole
+    n-ary family in one question (a new merger fact changes the answer, so
+    an undeclared write is caught without pinning speculative labels)."""
+    edge_type = params.get("edge_type")
+    if not edge_type:
+        raise GateError("hyperedge_labels question needs params.edge_type")
+    return sorted(
+        row[0]
+        for row in conn.execute("SELECT label FROM hyper_edges WHERE edge_type=?", (edge_type,))
+    )
+
+
 def _answer_concept_mappings_for(conn: sqlite3.Connection, params: dict) -> list[str]:
     scheme, concept = params.get("source_scheme"), params.get("source_concept")
     if not scheme or not concept:
@@ -218,6 +231,7 @@ _SHAPES = {
     "entities_of_type": _answer_entities_of_type,
     "edge_neighbors": _answer_edge_neighbors,
     "hyperedge_members": _answer_hyperedge_members,
+    "hyperedge_labels": _answer_hyperedge_labels,
     "concept_mappings_for": _answer_concept_mappings_for,
     "provenance_agents_for": _answer_provenance_agents,
 }

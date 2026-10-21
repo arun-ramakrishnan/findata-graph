@@ -61,7 +61,16 @@ mirror), `graph_edges` (19,325 rows, 19 registered edge types — 18
 populated; `part_of`/`has_company` retired 2026-10-19, was 21/20), `events` (436),
 `quotes` (8,272), `company_metrics` (4,412), `graph_analytics` (23,837 rows;
 written only by `make recompute-graph`), `hyper_edges` +
-`hyper_incidences` (the star incidence store), `provenance_agents`
+`hyper_incidences` (the star incidence store; ten families live on
+2026-10-21 — `event`/`edition`/`industry`/`sub_sector`/`sector`/
+`org_membership`/`country`/`theme`/`group`/`jv` — plus two n-ary
+corporate-structure families added 2026-10-21: `merger` (A+B → survivor
+C, roles `constituent`/`resultant`) and `demerger` (parent → spun-off
+child, roles `parent`/`resultant`), written only by
+`helpers/graph/derive_merger_hyperedges.py` from accepted triage
+decisions; the family vocabulary is code-side
+`helpers/graph/hyperedge_types.py` because `hyper_edges.edge_type`
+carries no DDL CHECK), `provenance_agents`
 (the S1 agent registry). No `market_cap`/`index_membership`
 columns — tag-only. Counts live 2026-09-14.
 

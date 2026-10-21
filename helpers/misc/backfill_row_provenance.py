@@ -115,6 +115,10 @@ AGENT_SEED: dict[str, tuple[str, str | None]] = {
         "derive_event_participants (person_ontology_spine S4)",
         "helpers/graph/derive_event_participants.py",
     ),
+    "derive_merger_hyperedges": (
+        "derive_merger_hyperedges (merger_demerger_hyperedges S2)",
+        "helpers/graph/derive_merger_hyperedges.py",
+    ),
     "extract_relations": ("extract_relations", "helpers/graph/extract_relations.py"),
     "build_sector_hierarchy": ("build_sector_hierarchy", "helpers/graph/build_sector_hierarchy.py"),
     "enrich_relations": (

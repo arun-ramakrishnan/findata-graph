@@ -357,7 +357,15 @@ after the sector-retirement projection, S8/S11/S17/S21 and the
 types (`event` 1,252, `edition` 222, `industry` 119, `sub_sector` 110,
 `sector` 42 — CANONICAL for membership since the part_of/has_company
 retirement, `org_membership` 34 — person_ontology_spine S3,
-`country` 21, `theme` 12, `group` 9, `jv` 6).
+`country` 21, `theme` 12, `group` 9, `jv` 6). The FAMILY UNIVERSE is
+code-enforced, not schema-enforced: `hyper_edges.edge_type` carries no
+CHECK, so a family exists because it is registered in
+`helpers/graph/hyperedge_types.py` — 12 families (the 10 live above plus
+`merger` and `demerger`, which materialise only from accepted triage
+decisions via `make derive-merger-hyperedges`; see
+`doc/improvements/archive/graph/merger_demerger_hyperedges.md`). The roster is
+gated in `doc/design/ontology.md` §2.5 and the integrity gate fails on an
+unknown family or a bad `role`.
 D7 (2026-09-15): an authored `subsector:` note field is CANONICAL per
 company — exclusive precedence over the alias-derived union; unknown
 values are worklisted, never fatal; `sync_tags` mirrors it as
@@ -366,7 +374,7 @@ values are worklisted, never fatal; `sync_tags` mirrors it as
 | Column | Type | Notes |
 |---|---|---|
 | `id` | INTEGER PK | |
-| `edge_type` | TEXT | `sector` \| `theme` \| `country` \| `group` \| `edition` \| `industry` \| `event` \| `jv` \| `sub_sector` \| `org_membership` |
+| `edge_type` | TEXT | registered family — `sector` \| `theme` \| `country` \| `group` \| `edition` \| `industry` \| `event` \| `jv` \| `sub_sector` \| `org_membership` \| `merger` \| `demerger` (registry: `helpers/graph/hyperedge_types.py`) |
 | `label` | TEXT | the hyperedge's own name (category, edition title, group, venture, `event_type:id`, company for `org_membership`) |
 | `weight` | REAL | default 1.0; per-hyperedge weight |
 | `valid_from` / `valid_to` | DATE | temporal window (HIF-compatible) |
@@ -380,7 +388,10 @@ Written by the per-family lanes: `helpers/graph/derive_hyperedges.py`
 (`make derive-hyperedges`; maint-full TIER2) for the derived families,
 `helpers/graph/sector_membership.py` for canonical `sector`,
 `helpers/graph/derive_org_membership.py` (`make derive-org-membership`)
-for `org_membership`. Columns are HIF-lossless — the JSON interchange
+for `org_membership`, `helpers/graph/derive_merger_hyperedges.py`
+(`make derive-merger-hyperedges`) for `merger`/`demerger` — that lane owns
+its two families and converges (a family row disappears when the journal no
+longer holds the fact). Columns are HIF-lossless — the JSON interchange
 schema maps 1:1 onto the pair (memo §9.4).
 
 ## `hyper_incidences` — hypergraph membership rows
@@ -399,7 +410,7 @@ directed-hypergraph parity and is still NULL (no directed source yet);
 | `entity_name` | TEXT | PK part; FK → `entities(name)` cascade |
 | `weight` | REAL | per-incidence intensity (HIF granularity 2); NULL = unweighted |
 | `direction` | TEXT | `head` \| `tail` \| NULL (undirected); CHECK-enforced |
-| `role` | TEXT | participant role: event facets (S4) `acquirer`/`target` (acquisition), `partner` (jv); `org_membership` members carry `promoter`/`holder` (S3); NULL = unlabeled — unmapped types never confabulate |
+| `role` | TEXT | participant role: event facets (S4) `acquirer`/`target` (acquisition), `partner` (jv); `org_membership` members carry `promoter`/`holder` (S3); `merger` members carry `constituent`/`resultant`, `demerger` carries `parent`/`resultant` (per-family vocabulary, gated by the integrity gate); NULL = unlabeled — unmapped types never confabulate |
 | `valid_from` / `valid_to` | DATE | participant-level validity window (S4); NULL = unbounded |
 
 **S4 event facets (live 2026-09-14):** 220 role-tagged incidences (41

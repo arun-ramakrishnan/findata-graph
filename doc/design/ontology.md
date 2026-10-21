@@ -138,17 +138,39 @@ entry 233). Roles/validity facets on incidences per entry 234 S4.
 <!-- roster: hyperedge_types -->
 
 - country
+- demerger
 - edition
 - event
 - group
 - industry
 - jv
+- merger
 - org_membership
 - sector
 - sub_sector
 - theme
 
 <!-- /roster -->
+
+`merger` / `demerger` (merger_demerger_hyperedges S1, 2026-10-21): the
+n-ary corporate-structure families. A merger is A + B (+ …) → survivor C,
+where the SURVIVOR is a member of the fact — the dyadic shape the corpus
+carried before ("A merged with B", extracted as a reverse `acquired`
+edge) cannot hold the entity that exists after the merger. A demerger
+(parent → spun-off child) is not a dyad at all. Both live in the
+incidence store: one `hyper_edges` row per fact
+(`UNIQUE(edge_type, label)`) plus one `hyper_incidences` row per member,
+carrying the family role — `constituent` / `resultant` for `merger`,
+`parent` / `resultant` for `demerger`. Roles are per-family and are NOT
+part of the `event_roles` roster above (same discipline as
+`org_membership`'s promoter/holder): the vocabulary is code-side
+(`helpers/graph/hyperedge_types.py`), gated against this roster by
+`static_checks` and against the live rows by the integrity gate
+(`check_hyperedge_types`). `hyper_edges.edge_type` carries no DDL CHECK —
+a new family is a registry entry, not a migration — and the facts are
+written only by `helpers/graph/derive_merger_hyperedges.py` from the
+triage decisions journal (a fact exists only after a human accepted it).
+The dyadic graph is untouched: no `graph_edges` row is written here.
 
 `org_membership` (person_ontology_spine S3, 2026-10-19): the
 ORG-Membership convention view over the SHP lane — label = company,

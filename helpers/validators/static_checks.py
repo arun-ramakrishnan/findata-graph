@@ -1841,11 +1841,16 @@ def roster_registry_sources() -> dict[str, set[str]]:
         MATCH_TYPE_VALUES,
         SOURCE_TIER_VALUES,
     )
+    from helpers.graph.hyperedge_types import HYPEREDGE_TYPES
     from helpers.misc.database_integrity_check import _KNOWN_EDGE_TYPES
 
     return {
         "edge_types": set(_KNOWN_EDGE_TYPES),
         "canonical_event_types": set(CANONICAL_EVENT_TYPES),
+        # merger_demerger_hyperedges S1: the hyperedge families the
+        # incidence store may carry (hyper_edges.edge_type has NO DDL
+        # CHECK — the vocabulary is code-side and doc-gated here).
+        "hyperedge_types": set(HYPEREDGE_TYPES),
         # ontology_governance #244c: DDL CHECK enums join the gated rosters
         "match_type_values": set(MATCH_TYPE_VALUES),
         "identifier_type_values": set(IDENTIFIER_TYPE_VALUES),

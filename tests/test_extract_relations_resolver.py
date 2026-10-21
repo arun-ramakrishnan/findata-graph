@@ -297,36 +297,36 @@ class TestPatterns:
                 matched = True
         assert matched
 
-    # --- H1 new verb patterns (direct-regex layer) --- #
+    # --- H1 n-ary M&A patterns (direct-regex layer) --- #
     def test_demerged_from_pattern_matches(self):
         test = "The entity demerged from Samvardhana Motherson in 2021."
-        acq_pats = [(p, et, s, d) for p, et, s, d in PATTERNS if et == "acquired"]
+        dem_pats = [(p, et, s, d) for p, et, s, d in PATTERNS if et == "demerger"]
         matched = False
-        for pat, _et, _s, d in acq_pats:
+        for pat, _et, _s, d in dem_pats:
             m = pat.search(test)
             if m and "Samvardhana" in m.group(1) and d == "reverse":
                 matched = True
-        assert matched, "no acquired/reverse pattern matched 'demerged from'"
+        assert matched, "no demerger/reverse pattern matched 'demerged from'"
 
     def test_merged_with_pattern_matches(self):
         test = "Devyani International merged with Sapphire Foods last year."
-        acq_pats = [(p, et, s, d) for p, et, s, d in PATTERNS if et == "acquired"]
+        mer_pats = [(p, et, s, d) for p, et, s, d in PATTERNS if et == "merger"]
         matched = False
-        for pat, _et, _s, d in acq_pats:
+        for pat, _et, _s, d in mer_pats:
             m = pat.search(test)
-            if m and "Sapphire" in m.group(1) and d == "reverse":
+            if m and "Sapphire" in m.group(1) and d == "forward":
                 matched = True
-        assert matched, "no acquired/reverse pattern matched 'merged with'"
+        assert matched, "no merger/forward pattern matched 'merged with'"
 
     def test_formed_through_merger_pattern_matches(self):
         test = "LTM was formed through the merger of Larsen and Toubro in 2022."
-        acq_pats = [(p, et, s, d) for p, et, s, d in PATTERNS if et == "acquired"]
+        mer_pats = [(p, et, s, d) for p, et, s, d in PATTERNS if et == "merger"]
         matched = False
-        for pat, _et, _s, d in acq_pats:
+        for pat, _et, _s, d in mer_pats:
             m = pat.search(test)
-            if m and "Larsen" in m.group(1) and d == "reverse":
+            if m and "Larsen" in m.group(1) and d == "resultant":
                 matched = True
-        assert matched, "no acquired/reverse pattern matched 'formed through merger'"
+        assert matched, "no merger/resultant pattern matched 'formed through merger'"
 
     def test_listed_subsidiary_reverse_pattern_matches(self):
         test = "Its Indian listed subsidiary is Hindustan Unilever."

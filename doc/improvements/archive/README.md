@@ -62,6 +62,17 @@ commit, referenced by nothing). Entry numbers point at
 
 ## graph/ — Graph layer — algorithms, DuckPGQ retirement, Onager, knowledge-model design
 
+- [`merger_demerger_hyperedges.md`](graph/merger_demerger_hyperedges.md) —
+  merger/demerger n-ary hyperedges — ternary M&A facts stop masquerading as
+  `acquired` dyads: `hyperedge_types.py` registry (12 families, per-family
+  role vocabulary, integrity-gated), `derive_merger_hyperedges.py` (dry-run
+  default, converges, never mints entities), extractor routes `merged with` /
+  `demerged from` / `formed through the merger of` to the review sidecar
+  (never a dyad edge), triage `a[/merger|/demerger[/NAME]]` verbs journal
+  structured members, eval gate `hyperedge_labels` shape + 2 question ids;
+  first live sitting landed 5 hyperedges (LTM, Clix/LVB, Devyani/Sapphire,
+  Bajel, Motherson Sumi Wiring) with 0 dyad rows; two apply-time bugs fixed
+  with regression tests — completed.md #426
 - [`triage_noise_gate_observability.md`](graph/triage_noise_gate_observability.md) —
   triage noise-gate observability — classify and count silent discards:
   `_noise_reason()` six-code split behind an unchanged `noise_target` bool,

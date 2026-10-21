@@ -243,7 +243,6 @@ def review(  # noqa: C901 — keypress parsing + kit wiring, split would scatter
     packets_out: Path | None = None,
     limit: int | None = None,
     dry_run: bool = False,
-    preannotate: bool = False,
     input_fn=input,
     print_fn=print,
 ) -> dict:
@@ -279,6 +278,8 @@ def review(  # noqa: C901 — keypress parsing + kit wiring, split would scatter
     entries = build_entries(surface)
     if limit:
         entries = entries[:limit]
+    if packets_out is not None and entries:
+        write_packets(entries, _MENU_SPEC, packets_out)
 
     root = (journal_dir or CHECKLIST_JOURNAL_ROOT) / f"{surface}_checklist_review"
     journal_path = root / "journal.jsonl"
@@ -286,14 +287,8 @@ def review(  # noqa: C901 — keypress parsing + kit wiring, split would scatter
     journal_path.parent.mkdir(parents=True, exist_ok=True)
     decisions_path.parent.mkdir(parents=True, exist_ok=True)
 
-    _menu_rec: dict[str, str | None] = {"key": None}
     if menu:
-        reader = make_menu_input(
-            _MENU_SPEC,
-            print_fn=print_fn,
-            input_fn=input_fn,
-            recommended=lambda: _menu_rec["key"],
-        )
+        reader = make_menu_input(_MENU_SPEC, print_fn=print_fn, input_fn=input_fn)
     elif prompt:
 if answers_path is None:  # pragma: no cover - guarded by the ValueError above
             raise ValueError("--prompt requires --answers")
@@ -301,44 +296,12 @@ if answers_path is None:  # pragma: no cover - guarded by the ValueError above
     else:
         reader = input_fn
 
-    from helpers.core.decisions_preannotate import load_id_annotations, render_carrier_for
-
-    if preannotate:
-        try:
-            from helpers.core.decisions_preannotate import annotate_surface, checklist_specs
-
-            _, annotated, _ = annotate_surface(checklist_specs()[surface])
-            if annotated:
-                print_fn(f"(auto-pre-annotated {annotated} new checklist rows)")
-        except Exception as exc:  # non-fatal — the sitting is the human gate
-            print_fn(f"(auto-pre-annotation unavailable: {exc})")
-
-    c_map = load_id_annotations(root / "mercury_annotations.jsonl")
-
-    def _recommend(e: dict) -> str | None:
-        """Carrier-recommended choice key: ``y`` on admit, ``n|why`` on
-        keep-out, ``None`` without a rubric verdict."""
-        a = c_map.get(e["label"])
-        if not a or a.get("p_rubric") is None:
-            return None
-        try:
-            p = float(a["p_rubric"])
-        except (TypeError, ValueError):
-            return None
-        return "y" if p > 0.5 else "n|why"
-
-    if packets_out is not None and entries:
-        write_packets(entries, _MENU_SPEC, packets_out, recommend=_recommend)
-
     def render(idx: int, total: int, e: dict) -> None:
         print_fn(f"[{idx}/{total}] {e['label']}")
         for line in e["evidence"]:
             print_fn(f"     {line['description']}")
-        render_carrier_for(e["label"], c_map=c_map, print_fn=print_fn)
 
     def ask(e: dict, note) -> dict:
-        if menu:
-            _menu_rec["key"] = _recommend(e)
         while True:
             ans = reader("  y / n|why / p / ? / q / x: ").strip()
             ans, _, free_note = ans.partition("|")
@@ -444,12 +407,6 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help="journal preview-* non-terminal actions; parks nothing",
     )
-    ap.add_argument(
-        "--no-preannotate",
-        action="store_true",
-        help="do NOT auto-run decisions-preannotate for this checklist surface "
-        "(default: run it first, idempotent per key)",
-    )
     parsed = ap.parse_args(argv)
 
     review(
@@ -462,7 +419,6 @@ def main(argv: list[str] | None = None) -> int:
         packets_out=parsed.packets_out,
         limit=parsed.limit,
         dry_run=parsed.dry_run,
-        preannotate=not parsed.no_preannotate,
     )
     return 0
 

@@ -7,6 +7,67 @@
 
 ---
 
+## 426. Merger/demerger n-ary hyperedges — ternary M&A facts stop masquerading as `acquired` dyads
+
+**Date**: 2026-10-21 (filed) → 2026-10-21 (executed)
+**Status**: COMPLETE
+**Proposal**: `doc/improvements/archive/graph/merger_demerger_hyperedges.md`
+**Patch**: `merger_semantics`
+
+- **S1 — vocabulary** — `helpers/graph/hyperedge_types.py` holds the
+  registry (`HYPEREDGE_TYPES` = 12 families, `MERGER_HYPEREDGE_TYPES`,
+  `MERGER_ROLE_BY_TYPE` = merger `constituent`/`resultant`, demerger
+  `parent`/`resultant`, `roles_for()`). The roster gate
+  (`roster_registry_sources()` + `check_ontology_doc_rosters`) now reads
+  it, and `check_hyperedge_types` joins the integrity gate so an unknown
+  family or a role outside its family's vocabulary fails the run.
+- **S2 — derive lane** — `helpers/graph/derive_merger_hyperedges.py`
+  (dry-run default, converges, never mints entities) reads
+  `findata/Misc/_pending_triage_decisions.jsonl`, requires every member
+  to exist in `entities`, and drops conflicting same-label facts both
+  ways. `make derive-merger-hyperedges APPLY=1` writes; `AGENT_SEED`
+  provenance registered in `backfill_row_provenance.py`.
+- **S3 — triage mapping** — `helpers/graph/extract_relations.py` splits
+  the old combined reverse-`acquired` M&A block into `demerged from X` →
+  `demerger`/`reverse`, `merged with X` → `merger`/`forward`, and
+  `formed through the merger of X` → `merger`/`resultant` (section
+  company = survivor). `_dispatch_match` diverts these to the review
+  sidecar, so an n-ary fact can never become a dyad `Edge`.
+  `triage_pending_relations.py` gains `_parse_nary_accept`, the
+  `"mergers"` plan bucket, and `a[/merger|/demerger[/NAME]]` sitting
+  verbs; the journal carries `constituents`/`resultant` or
+  `parent`/`child`, and the follow-up chain prints the derive command.
+- **S4 — eval gate** — new `hyperedge_labels` shape in
+  `helpers/misc/ontology_eval_gate.py`; `ontology_questions.json` v4 with
+  `hyper-merger-families` + `hyper-demerger-families` (expected `[]`),
+  164→166 questions. Parent-vs-candidate run on live DB copies: **ACCEPT
+  — 166 questions, 0 reason(s)**. A later accepted fact declares
+  `--expect-improve` on those ids.
+- **First live facts** — a six-row sitting produced **5 hyperedges in
+  `memory/research.db`**: merger `LTM` (LTM:resultant, Larsen & Toubro
+  Infotech + Mindtree:constituent), `merger: Clix Capital + Lakshmi Vilas
+  Bank`, `merger: Devyani International + Sapphire Foods India`, demerger
+  `Bajel Projects`, demerger `Motherson Sumi Wiring India`. Zero dyadic
+  `merged_with`/`demerged_from` rows were written.
+- **Bugs caught by the live apply** (both regression-tested) — (1) the
+  apply re-derived members from the raw triple and lost the sitting's
+  mention→entity resolution (`Sapphire Foods` vs `Sapphire Foods India`);
+  journaled structured fields are now authoritative. (2) the `resultant`
+  direction treated the verb's name as the resultant, making Mindtree
+  both constituent and resultant of its own merger
+  (`UNIQUE constraint failed: hyper_incidences.edge_id,
+  hyper_incidences.entity_name`); the section company is now the
+  survivor and the named entity joins the constituents.
+- **Verification** — `check_hyperedge_types`:
+  `{'total': 1713, 'unknown_type': 0, 'bad_role': 0, 'errors': 0}`;
+  dry-run idempotent (facts=5, new_edges=0); `graph-rebuild` + `snapshot`
+  ✓; 485 targeted tests pass (38 merger tests); ruff + ty clean;
+  static_checks ✓; md-lint clean.
+- **Eval gate** — run in S4 as above: **ACCEPT, zero regressions**, two
+  new declared question ids at `[]`. Query-visible semantics changed
+  (new hyperedge families + extractor routing), so the gate was
+  mandatory and it was run before the live write.
+
 ## 425. Automated carrier pre-annotation with recommended hints — the review pipeline stops asking "do I run the leg first?"
 
 **Date**: 2026-10-21 (filed) → 2026-10-21 (executed)

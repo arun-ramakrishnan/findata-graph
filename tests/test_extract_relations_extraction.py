@@ -267,9 +267,10 @@ class TestH1NewVerbPatterns:
             ]
         )
 
-    def test_demerged_from_produces_reverse_acquired(self, resolver):
-        # "demerged from X" → X is the source (continuing parent entity),
-        # section company is the target (the spun-off entity).
+    def test_demerged_from_produces_nary_demerger_row(self, resolver):
+        # "X demerged from Y" is an n-ary fact: it queues for the triage
+        # sitting (mention = parent, section company = child) and never
+        # becomes a dyad edge — the derive lane materialises the hyperedge.
         content = (
             "## Motherson Sumi Wiring India | Mid Cap | Auto Components\n\n"
             "Motherson Sumi Wiring India Demerged from Samvardhana Motherson "
@@ -281,14 +282,16 @@ class TestH1NewVerbPatterns:
             newsletter_type="The_Chatter",
             resolver=resolver,
         )
-        assert "acquired" in by_type
-        edge = by_type["acquired"][0]
-        assert edge.source == "Samvardhana Motherson"
-        assert edge.target == "Motherson Sumi Wiring India"
-        assert unresolved == []
+        assert by_type == {}
+        assert len(unresolved) == 1
+        row = unresolved[0]
+        assert row.edge_type == "demerger"
+        assert row.direction == "reverse"
+        assert row.source == "Motherson Sumi Wiring India"
+        assert "Samvardhana Motherson" in row.target_mention
 
-    def test_merged_with_produces_reverse_acquired(self, resolver):
-        # "merged with X" → X becomes the source.
+    def test_merged_with_produces_nary_merger_row(self, resolver):
+        # "merged with X" → n-ary merger row (mention = other constituent).
         content = (
             "## Devyani International | Mid Cap | Consumer\n\n"
             "Devyani International merged with Sapphire Foods, creating one of "
@@ -300,33 +303,40 @@ class TestH1NewVerbPatterns:
             newsletter_type="The_Chatter",
             resolver=resolver,
         )
-        assert "acquired" in by_type
-        edge = by_type["acquired"][0]
-        assert edge.source == "Sapphire Foods"
-        assert edge.target == "Devyani International"
-        assert unresolved == []
+        assert by_type == {}
+        assert len(unresolved) == 1
+        row = unresolved[0]
+        assert row.edge_type == "merger"
+        assert row.direction == "forward"
+        assert row.source == "Devyani International"
+        assert "Sapphire Foods" in row.target_mention
 
-    def test_formed_through_merger_produces_reverse_acquired(self, resolver):
-        # "formed through the merger of X and Y" → captures X as the source.
-        # Uses '&' inside the constituent name — the realistic form (the LTM
-        # note: "merger of Larsen & Toubro Infotech and Mindtree"). 'and' is a
-        # terminator stopword, so a name written "Larsen and Toubro and Y"
-        # would truncate at the first 'and'; the real corpus uses '&'.
+    def test_formed_through_merger_produces_resultant_direction_row(self, resolver):
+        # "formed through the merger of X and Y" → the section company IS the
+        # survivor, so the row carries direction "resultant" and the sitting
+        # asks for the OTHER constituent. Uses '&' inside the constituent
+        # name — the realistic form (the LTM note: "merger of Larsen & Toubro
+        # Infotech and Mindtree"). 'and' is a terminator stopword, so a name
+        # written "Larsen and Toubro and Y" would truncate at the first
+        # 'and'; the real corpus uses '&'.
         content = (
             "## LTM | Large Cap | Technology\n\n"
             "LTM is a global technology company formed through the merger of "
             "Larsen & Toubro Infotech and Mindtree in 2022.\n"
         )
-        by_type, _ = extract_relations(
+        by_type, unresolved = extract_relations(
             content,
             edition_title="Test",
             newsletter_type="The_Chatter",
             resolver=resolver,
         )
-        assert "acquired" in by_type
-        edge = by_type["acquired"][0]
-        assert edge.source == "Larsen and Toubro"
-        assert edge.target == "LTM"
+        assert by_type == {}
+        assert len(unresolved) == 1
+        row = unresolved[0]
+        assert row.edge_type == "merger"
+        assert row.direction == "resultant"
+        assert row.source == "LTM"
+        assert "Larsen & Toubro Infotech" in row.target_mention
 
     def test_listed_subsidiary_is_X_produces_reverse_subsidiary_of(self, resolver):
         # "listed subsidiary is X" / "its Indian subsidiary is X" → section
@@ -385,8 +395,9 @@ class TestH1NewVerbPatterns:
             resolver=resolver,
         )
         assert "acquired" not in by_type
+        assert "merger" not in by_type
         assert len(unresolved) == 1
-        assert unresolved[0].edge_type == "acquired"
+        assert unresolved[0].edge_type == "merger"
         assert "Acme" in unresolved[0].target_mention
 
 
@@ -1100,16 +1111,14 @@ class TestReverseAcquiredPredecessorBinding:
         assert "acquired" not in by_type
         assert unresolved == []
 
-    def test_demerged_and_merged_keep_legacy_reverse_shape(self, resolver):
-        """Scope guard (extract_target_binding.md: "do not parallel-edit the
-        other reverse patterns"): `demerged from` / `merged with` have no
-        acquired-object reading, so the rewrite must not fire on them. A
-        cross-company mention keeps the legacy reverse endpoints (the
-        post-`from`/`with` party as the continuing entity) instead of minting
-        (section, acquired, <pre-verb object>)."""
-        for prose in (
-            "SteelCo demerged from ParentCo last quarter.\n",
-            "SteelCo merged with ParentCo in April.\n",
+    def test_demerged_and_merged_never_become_dyad_edges(self, resolver):
+        """Scope guard (merger_demerger_hyperedges S3): `demerged from` /
+        `merged with` are n-ary facts — they queue for the triage sitting and
+        never enter the dyad edge set, so the acquired-predecessor rewrite
+        has nothing to leak into and no legacy reverse pair is minted."""
+        for prose, row_type in (
+            ("SteelCo demerged from ParentCo last quarter.\n", "demerger"),
+            ("SteelCo merged with ParentCo in April.\n", "merger"),
         ):
             content = "## Tata Consultancy Services | Large Cap | IT Services\n\n" + prose
             by_type, unresolved = extract_relations(
@@ -1118,10 +1127,9 @@ class TestReverseAcquiredPredecessorBinding:
                 newsletter_type="The_Chatter",
                 resolver=resolver,
             )
-            pairs = {(e.source, e.target) for es in by_type.values() for e in es}
-            assert ("ParentCo", "Tata Consultancy Services") in pairs, (
-                f"legacy reverse shape lost for: {prose!r}"
-            )
-            assert not any("SteelCo" in p for p in pairs), (
-                f"rewrite leaked into the non-acquired reverse pattern: {prose!r}"
-            )
+            assert by_type == {}, f"n-ary row became a dyad edge for: {prose!r}"
+            assert len(unresolved) == 1, f"row not queued for triage: {prose!r}"
+            row = unresolved[0]
+            assert row.edge_type == row_type
+            assert row.source == "Tata Consultancy Services"
+            assert "ParentCo" in row.target_mention

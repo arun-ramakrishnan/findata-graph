@@ -34,7 +34,7 @@ export PATH := $(CURDIR)/.venv/bin:$(PATH)
 export TMPDIR ?= $(shell test -d /mnt/data/tmp && { mkdir -p /mnt/data/tmp/findata; echo /mnt/data/tmp/findata; } || echo /tmp)
 
 
-.PHONY: help qa test live-invariants perf cover fuzz integration snapshot snapshot-check snapshot-restore sync-tags sync-coverage-tags sync-sector-links static-checks license-check tmp-sweep install-dev triage-quotes gate-fresh graph-smoke graph-stats graph-algos graph-rebuild graph-rebuild-bench update-extensions recompute-graph recompute-hyper search-fresh convo-fresh embed-gc search-tui tier-nudge tier-watch derive-relations derive-co-mentions derive-org-membership derive-event-participants dup-census person-census derive-themes derive-events derive-insights derive-indices quote-coverage derive-themes-rebuild derive-cited-in derive-cited-in-rebuild derive-hyperedges derive-all refresh-indices refresh-vigil refresh-shp frontend frontend-check fold-identifiers format maint maint-full md-lint metrics-rebuild mojo-bench mojo-parity mojo-build mojo-test mojo-format relations-enrich lint types types-tests lint-audit deptry advisory secret-scan cargo-audit script-search-rebuild memory-search-rebuild triage-relations teleocr-server embgemma-server granite-server llamacpp-build llamacpp-health csr csr-check csr-rebuild convo-search-rebuild convo-search-check analytics-parquet analytics-fresh schema-check schema-dump bili-status bili-monitor bili-stop-monitor bili-report bili-snap bili-watch-event bili-thresh-replay
+.PHONY: help qa test live-invariants perf cover fuzz integration snapshot snapshot-check snapshot-restore sync-tags sync-coverage-tags sync-sector-links static-checks license-check tmp-sweep install-dev triage-quotes gate-fresh graph-smoke graph-stats graph-algos graph-rebuild graph-rebuild-bench update-extensions recompute-graph recompute-hyper search-fresh convo-fresh embed-gc search-tui tier-nudge tier-watch derive-relations derive-co-mentions derive-org-membership derive-event-participants derive-merger-hyperedges dup-census person-census derive-themes derive-events derive-insights derive-indices quote-coverage derive-themes-rebuild derive-cited-in derive-cited-in-rebuild derive-hyperedges derive-all refresh-indices refresh-vigil refresh-shp frontend frontend-check fold-identifiers format maint maint-full md-lint metrics-rebuild mojo-bench mojo-parity mojo-build mojo-test mojo-format relations-enrich lint types types-tests lint-audit deptry advisory secret-scan cargo-audit script-search-rebuild memory-search-rebuild triage-relations teleocr-server embgemma-server granite-server llamacpp-build llamacpp-health csr csr-check csr-rebuild convo-search-rebuild convo-search-check analytics-parquet analytics-fresh schema-check schema-dump bili-status bili-monitor bili-stop-monitor bili-report bili-snap bili-watch-event bili-thresh-replay
 
 help:           ## Show available targets (alphabetical; entries generated from the ## annotations — keep both in sync)
 > @echo "FinData targets (alphabetical):"
@@ -57,6 +57,7 @@ help:           ## Show available targets (alphabetical; entries generated from 
 > @echo "  csr                      Build the CSR substrate (memory/csr/; shortest-path fast lane)"
 > @echo "  csr-check                Check CSR substrate freshness (exit 1 if stale; also run by make advisory)"
 > @echo "  csr-rebuild              Rebuild the CSR substrate regardless of freshness"
+> @echo "  decisions-preannotate    Pre-annotate review surfaces with carrier verdicts (advisory; SURFACE=all|relations|quotes|coverage|findings|ocr|markdown-parse)"
 > @echo "  deptry                   Run deptry dependency-health scan (unused/undeclared/transitive deps)"
 > @echo "  derive-all               READ-ONLY preview of every derive-* step (dry-runs; nothing written, sidecar suppressed)"
 > @echo "  derive-cited-in          Derive cited_in (note -> edition) edges from OKF sources[] frontmatter (okf_activation P)"
@@ -68,6 +69,7 @@ help:           ## Show available targets (alphabetical; entries generated from 
 > @echo "  derive-hyperedges        Regroup membership dyads into hyper_edges/hyper_incidences (star incidence store)"
 > @echo "  derive-indices           Derive index entities + listed_on_index edges from NSE constituents (Wave 1; pair with graph-rebuild)"
 > @echo "  derive-insights          DRY-RUN stale-only preview of quotes/company_metrics + auto '## The Chatter' blocks (writes nothing; apply yourself — see comment above)"
+> @echo "  derive-merger-hyperedges Derive merger/demerger hyperedges from the triage decisions journal (merger_demerger_hyperedges S2); APPLY=1 writes"
 > @echo "  derive-org-membership    Derive org_membership hyperedges from person-to-company invested_in (person_ontology_spine S3); APPLY=1 writes"
 > @echo "  derive-relations         Extract jv_with/acquired/subsidiary_of/same_group/supplier_to/customer_of edges from newsletter prose"
 > @echo "  derive-themes            Derive exposed_to (company -> theme) edges from company-note prose"
@@ -554,6 +556,10 @@ derive-org-membership: ## Derive org_membership hyperedges from person→company
 derive-event-participants: ## Materialise the event_participants n-ary store (person_ontology_spine S4): dry-run default, APPLY=1 writes
 > .venv/bin/python3 helpers/graph/derive_event_participants.py $(if $(APPLY),--apply,)
 > @echo "✓ derive-event-participants done"
+
+derive-merger-hyperedges: ## Derive merger/demerger hyperedges from the triage decisions journal (merger_demerger_hyperedges S2): dry-run default, APPLY=1 writes
+> .venv/bin/python3 helpers/graph/derive_merger_hyperedges.py $(if $(APPLY),--apply,)
+> @echo "✓ derive-merger-hyperedges done"
 
 embed-gc:       ## Evict dead rows from the shared embed cache (trial/spike leftovers); report-only + exit 1 when dead rows exist, APPLY=1 deletes + VACUUMs
 > @echo "embed-gc: $(if $(APPLY),APPLY — deleting dead cache rows,report) mode"; \

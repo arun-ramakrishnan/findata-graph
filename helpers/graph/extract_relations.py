@@ -115,6 +115,7 @@ from helpers.graph.edge_conventions import (  # noqa: E402
     SYMMETRIC_EDGE_TYPES,
     canonical_pair,
 )
+from helpers.graph.hyperedge_types import MERGER_HYPEREDGE_TYPES  # noqa: E402
 
 # --------------------------------------------------------------------------- #
 # Paths                                                                       #
@@ -774,17 +775,18 @@ PATTERNS: list[tuple[re.Pattern, str, bool, str]] = [
         False,
         "forward",
     ),
-    # H1 (2026-07-28): additional `acquired` REVERSE forms for corporate
-    # actions that the forward "acquired X" / reverse "acquired by X" patterns
-    # don't cover. All map to `acquired` (the graph conflates M&A events under
-    # this type) with direction='reverse' so the named counterpart becomes the
-    # source (the acquirer / continuing entity) and the section's company is
-    # the target. Measured yield on the live corpus: ~3 new edges, all high-
-    # precision (the verbs are unambiguous M&A language).
-    #   - "demerged from X"      (section company was spun off FROM X)
-    #   - "merged with X"        (section company merged INTO X)
-    #   - "formed through the merger of X and Y"  (section company IS the
-    #     merged entity; captures the first named constituent as source)
+    # H1 (2026-07-28, reworked 2026-10-21): M&A verb patterns. The original
+    # set folded every M&A form into reverse `acquired` (the graph conflated
+    # M&A events under that type); the merger/demerger proposal (S3) splits
+    # them onto the n-ary incidence families so reviewer routing can keep the
+    # survivor/constituent structure instead of guessing a dyad:
+    #   - "demerged from X"  -> demerger / reverse   (section company = child;
+    #     X = the parent it was spun off from)
+    #   - "merged with X"    -> merger / forward     (section company + X =
+    #     the two constituents; survivor decided at review)
+    #   - "formed through the merger of X" -> merger / resultant  (section
+    #     company IS the survivor; X = constituent-1, reviewer names
+    #     constituent-2 via the a/merger/<NAME> verb)
     (
         re.compile(
             r"\bdemerged?\s+from\s+"
@@ -792,21 +794,31 @@ PATTERNS: list[tuple[re.Pattern, str, bool, str]] = [
             r"(?=\s*(?:[,.;:()\n/\"']|\s+(?:in|for|last|this|which|that|is|has|will)\s|$))",
             re.IGNORECASE,
         ),
-        "acquired",
+        "demerger",
         False,
         "reverse",
     ),
     (
         re.compile(
-            r"\b(?:merged?\s+with"
-            r"|formed\s+through\s+(?:the\s+)?merger\s+(?:of|with))\s+"
+            r"\bmerged?\s+with\s+"
             r"((?-i:[A-Z])[A-Za-z0-9&.\-\s]{1,60}?)"
             r"(?=\s*(?:[,.;:()\n/\"']|\s+(?:in|for|last|this|which|that|is|has|will|and)\s|$))",
             re.IGNORECASE,
         ),
-        "acquired",
+        "merger",
         False,
-        "reverse",
+        "forward",
+    ),
+    (
+        re.compile(
+            r"\bformed\s+through\s+(?:the\s+)?merger\s+(?:of|with)\s+"
+            r"((?-i:[A-Z])[A-Za-z0-9&.\-\s]{1,60}?)"
+            r"(?=\s*(?:[,.;:()\n/\"']|\s+(?:in|for|last|this|which|that|is|has|will|and)\s|$))",
+            re.IGNORECASE,
+        ),
+        "merger",
+        False,
+        "resultant",
     ),
     # --- subsidiary_of (asymmetric, source subsidiary, target parent) ---
     (
@@ -2422,6 +2434,22 @@ def _process_match(
             list_shaped=True,
         )
         return
+    if edge_type in MERGER_HYPEREDGE_TYPES:
+        # n-ary M&A facts are incidence-store material, not dyad edges: even
+        # a resolvable mention queues for the triage sitting, where the
+        # reviewer names the other constituent(s) and the derive lane
+        # materialises the hyperedge (merger_demerger_hyperedges S3).
+        _queue_unresolved(
+            unresolved,
+            edge_type=edge_type,
+            source_entity=source_entity,
+            target_mention=target_mention,
+            body=body,
+            m=m,
+            edition_title=edition_title,
+            direction=direction,
+        )
+        return
     target_entity = _resolve_target(target_mention, edge_type, resolver)
     if target_entity is None:
         _queue_unresolved(
@@ -2476,9 +2504,10 @@ def _process_pattern_matches(
             ):
                 # "**MHP acquired from Porsche:**" — the post-by|from party is
                 # the prior owner; the acquired object precedes the verb.
-                # `acquired`-anchored matches only: the other reverse
-                # `acquired` patterns (demerged from / merged with) have no
-                # acquired-object reading and keep the legacy reverse shape
+                # `acquired`-anchored matches only: the merger/demerger
+                # patterns (demerged from / merged with / formed through the
+                # merger of) route to their own n-ary families and never hit
+                # this rewrite.
                 # (extract_target_binding.md, "do not parallel-edit").
                 pred_obj = _reverse_acquired_predecessor(body, m)
                 if pred_obj and pred_obj.lower() != (source_entity or "").lower():

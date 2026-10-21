@@ -128,6 +128,7 @@ _CHECKS: tuple[Check, ...] = (
     Check("entity_tags", "check_entity_tags", "error", "Entity Tags"),
     Check("note_tags", "check_note_tags", "error", "Note Tags (source trees)"),
     Check("events", "check_events", "error", "Events"),
+    Check("hyperedge_types", "check_hyperedge_types", "error", "Hyperedge Types"),
     Check("quotes", "check_quotes", "error", "Quotes"),
     Check("company_metrics", "check_company_metrics", "error", "Company Metrics"),
     Check("orphan_companies", "check_orphan_companies", "error", "Orphan Companies"),
@@ -632,6 +633,59 @@ class DatabaseIntegrityChecker:
             "unknown_type": unknown_type,
             "orphaned": orphaned,
             "bad_properties": bad_properties,
+            "errors": errors,
+        }
+
+    def check_hyperedge_types(self) -> dict:
+        """Hyperedge family vocabulary + merger-family roles (S1 gate).
+
+        ``hyper_edges.edge_type`` carries NO DDL CHECK — the vocabulary is
+        code-side (``helpers/graph/hyperedge_types.py``) and doc-gated by
+        the ontology roster check.  Two ERROR-level conditions here:
+          - unknown family (a row whose edge_type is outside the registry
+            — the live store may not invent families the code does not know)
+          - bad role (a merger/demerger incidence whose role is outside
+            the family vocabulary, or missing)
+
+        Tolerates a DB with no hyper_edges / hyper_incidences table yet
+        (fresh / pre-incidence restore), returning zeros.
+        """
+        from helpers.graph.hyperedge_types import HYPEREDGE_TYPES, MERGER_ROLE_BY_TYPE
+
+        conn = self.get_connection()
+        cur = conn.cursor()
+        if (
+            cur.execute(
+                "SELECT 1 FROM sqlite_master WHERE name='hyper_edges' AND type='table'"
+            ).fetchone()
+            is None
+        ):
+            return {"total": 0, "unknown_type": 0, "bad_role": 0, "errors": 0}
+        total = cur.execute("SELECT COUNT(*) FROM hyper_edges").fetchone()[0]
+        type_list = ",".join(f"'{t}'" for t in sorted(HYPEREDGE_TYPES))
+        unknown_type = cur.execute(
+            f"SELECT COUNT(*) FROM hyper_edges WHERE edge_type NOT IN ({type_list})"  # noqa: S608  # parameterized; interpolated parts are `?`-clauses / schema-constant identifiers
+        ).fetchone()[0]
+        bad_role = 0
+        if (
+            cur.execute(
+                "SELECT 1 FROM sqlite_master WHERE name='hyper_incidences' AND type='table'"
+            ).fetchone()
+            is not None
+        ):
+            for etype, roles in MERGER_ROLE_BY_TYPE.items():
+                role_list = ",".join(f"'{r}'" for r in roles)
+                bad_role += cur.execute(
+                    "SELECT COUNT(*) FROM hyper_incidences hi "
+                    "JOIN hyper_edges he ON he.id = hi.edge_id "
+                    f"WHERE he.edge_type = '{etype}' "  # noqa: S608  # family is a code constant
+                    f"AND (hi.role IS NULL OR hi.role NOT IN ({role_list}))"  # noqa: S608  # roles are code constants
+                ).fetchone()[0]
+        errors = unknown_type + bad_role
+        return {
+            "total": total,
+            "unknown_type": unknown_type,
+            "bad_role": bad_role,
             "errors": errors,
         }
 

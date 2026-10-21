@@ -577,6 +577,7 @@ class TestReviewSitting:
                 "prompt": False,
                 "answers_path": None,
                 "packets_out": None,
+                "preannotate": True,
             }
         ]
         calls.clear()
@@ -604,6 +605,7 @@ class TestReviewSitting:
                 "prompt": True,
                 "answers_path": Path("/tmp/a.txt"),
                 "packets_out": Path("/tmp/p.jsonl"),
+                "preannotate": True,
             }
         ]
         assert tpr.main(["--review"]) == 0 and calls[-1] == {
@@ -615,6 +617,7 @@ class TestReviewSitting:
             "prompt": False,
             "answers_path": None,
             "packets_out": None,
+            "preannotate": True,
         }
 
     def test_menu_prompt_flags_plumbing(self, paths, tmp_path) -> None:

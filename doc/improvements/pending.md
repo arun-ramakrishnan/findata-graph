@@ -3,6 +3,16 @@
 Full annotated triage map with live-verified trigger status.
 Open items below keep their revisit triggers inline; executed work is compressed to records.
 
+- **Merger/demerger n-ary hyperedges — EXECUTED 2026-10-21**
+  (archive/graph/merger_demerger_hyperedges.md; completed.md #426):
+  S1 `hyperedge_types.py` registry (12 families, per-family roles,
+  integrity-gated) → S2 `derive_merger_hyperedges.py` derive lane →
+  S3 extractor routing + `a[/merger|/demerger[/NAME]]` triage verbs →
+  S4 `hyperedge_labels` eval shape (2 question ids, ACCEPT 166/0) →
+  S5 docs. First live sitting landed 5 hyperedges with zero dyad rows;
+  two apply-time bugs fixed with regression tests. Gates deferred to the
+  operator's next full run.
+
 - **Prompt-driven review menu — EXECUTED 2026-10-21** (archive/tooling/
   review_menu_prompt_driven.md; completed.md #424): S1–S6 landed —
   `review_menu.py` backends over the `review_kit` spine, relations/quotes/

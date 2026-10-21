@@ -38,11 +38,12 @@ entry number and stale DONE pointers):
 
 ## Current live proposals
 
-None — the 2026-10-21 review-preannotate batch is fully discharged; the next
-filing starts a new list.
+_(none)_ — the 2026-10-21 merger/demerger batch is fully discharged; the
+next filing starts a new list.
 
 Executed from this batch (archived — see `../archive/README.md` for the
-detail bullets): `../archive/tooling/review_preannotate_hints.md` (#425),
+detail bullets): `../archive/graph/merger_demerger_hyperedges.md` (#426),
+`../archive/tooling/review_preannotate_hints.md` (#425),
 `../archive/tooling/review_menu_prompt_driven.md` (#424),
 `../archive/tooling/tui_perf_sparkline.md` (#422),
 `../archive/database/person_ontology_spine.md` (#419),

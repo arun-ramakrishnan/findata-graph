@@ -56,6 +56,7 @@ from helpers.graph.edge_conventions import (  # noqa: E402
     SYMMETRIC_EDGE_TYPES,
     canonical_pair,
 )
+from helpers.graph.hyperedge_types import MERGER_HYPEREDGE_TYPES  # noqa: E402
 
 # Monkeypatchable paths (the VAULT_ROOT lesson — tests retarget all of them).
 SIDECAR = _REPO_ROOT / "findata" / "Misc" / "_pending_relations.txt"
@@ -798,6 +799,7 @@ def _validate_decisions(rows: list[dict], entity_names: set[str]) -> dict | None
         "applied_keys": set(),
         "stubs": [],
         "accepts": [],
+        "mergers": [],
         "discard": 0,
         "skip": 0,
         "rows": rows,  # raw decision dicts — _merge_noise_file reads them
@@ -820,6 +822,17 @@ def _validate_decisions(rows: list[dict], entity_names: set[str]) -> dict | None
                 )
                 return None
             plan["aliases"][_norm_target(d["target_mention"]).lower()] = target
+        elif (decision.startswith("accept:") or decision == "accept") and d[
+            "edge_type"
+        ] in MERGER_HYPEREDGE_TYPES:
+            # n-ary M&A facts route to the hyperedge incidence store, not the
+            # dyad graph_edges write (merger_demerger_hyperedges S3): the
+            # structured member fields ride on the decision row and
+            # derive_merger_hyperedges materialises them.
+            parsed = _parse_nary_accept(d, decision, entity_names)
+            if parsed is None:
+                return None
+            plan["mergers"].append(parsed)
         elif decision.startswith("accept:"):
             parsed = _parse_accept(d, decision, entity_names)
             if parsed is None:
@@ -895,6 +908,101 @@ def _parse_accept(d: dict, decision: str, entity_names: set[str]) -> dict | None
         "symmetric": symmetric,
         "properties": properties,
     }
+
+
+def _parse_nary_accept(d: dict, decision: str, entity_names: set[str]) -> dict | None:
+    """Validate one accept decision on a merger/demerger row into a fact
+    spec for derive_merger_hyperedges (merger_demerger_hyperedges S3).
+
+    Verb grammar: `accept` | `accept:<merger|demerger>[:<Name>]`. A verb
+    naming a dyad edge type on an n-ary row is a CONTRADICTION (the n-ary
+    fact routes to the incidence store, not graph_edges). Structured member
+    fields ride on the decision row:
+
+    - merger, forward/reverse: constituents = [source, target_mention] (the
+      two named parties; unordered), optional resultant = the verb's Name.
+    - merger, resultant: the section company IS the survivor — resultant =
+      source, and the verb's Name is REQUIRED (the other constituent).
+    - demerger: the mention is ALWAYS the parent (the verb phrase is
+      "demerged from <parent>") and the section company the child; the
+      verb's Name may override the child's display name.
+
+    Journaled structured fields (`constituents` / `parent` / `child`) are
+    AUTHORITATIVE when present: the sitting already resolved mentions to
+    entity display names, and apply time must not re-derive from the raw
+    mention ("Sapphire Foods" ≠ entity "Sapphire Foods India"). The triple
+    derivation is the fallback for bare journal rows.
+    """
+    verb = decision[len("accept:") :] if decision.startswith("accept:") else ""
+    parts = [p.strip() for p in verb.split(":")] if verb else []
+    verb_family = parts[0] if parts and parts[0] else None
+    verb_name = parts[1] if len(parts) > 1 and parts[1] else None
+    family = d["edge_type"]
+    if verb_family is not None and verb_family != family:
+        print(
+            f"ERROR: n-ary row (edge_type {family!r}) routed to the hyperedge "
+            f"incidence store — {decision!r} names a different family. Use the "
+            f"{family} verb, or discard the row (row {d['id']})",
+            file=sys.stderr,
+        )
+        return None
+
+    source = d["source"]
+    mention = _norm_target(d["target_mention"])
+    fact: dict = {"id": d["id"], "edge_type": family}
+
+    if family == "merger":
+        resolved = [n for n in d.get("constituents") or [] if n]
+        if d.get("direction") == "resultant":
+            fact["resultant"] = source
+            if resolved:
+                constituents = resolved
+            else:
+                if not verb_name:
+                    print(
+                        f"ERROR: resultant-direction merger row needs the OTHER "
+                        f"constituent — accept:merger:<Name> (row {d['id']})",
+                        file=sys.stderr,
+                    )
+                    return None
+                constituents = [mention, verb_name]
+        else:
+            constituents = resolved or [source, mention]
+            if verb_name:
+                fact["resultant"] = verb_name
+        # dedupe, order-preserving; a merger of a thing with itself is noise.
+        seen: list[str] = []
+        for name in constituents:
+            if name and name not in seen:
+                seen.append(name)
+        if len(seen) < 2:
+            print(
+                f"ERROR: merger needs two distinct constituents, got {seen} "
+                f"(row {d['id']}) — discard it, or fix the mention",
+                file=sys.stderr,
+            )
+            return None
+        fact["constituents"] = seen
+        members = [(name, "constituent") for name in seen]
+        if fact.get("resultant"):
+            members.append((fact["resultant"], "resultant"))
+    else:  # demerger
+        fact["parent"] = d.get("parent") or mention
+        fact["child"] = d.get("child") or verb_name or source
+        members = [(fact["parent"], "parent"), (fact["child"], "resultant")]
+
+    # Every member must resolve to an existing entity — the incidence store
+    # has an FK on entities(name) and the derive lane mints nothing.
+    for name, _role in members:
+        if name not in entity_names:
+            print(
+                f"ERROR: {family} member {name!r} is not an existing entity "
+                f"(row {d['id']}) — stub it first, or name an existing one",
+                file=sys.stderr,
+            )
+            return None
+    fact["members"] = members
+    return fact
 
 
 def _apply_write(plan: dict) -> None:
@@ -1144,22 +1252,24 @@ def apply_decisions(decisions_path: Path, write: bool, entity_names: set[str]) -
         f"decisions: {len(rows)} rows "
         f"(discard={plan['discard']} skip={plan['skip']} "
         f"alias={len(plan['aliases'])} stub={len(plan['stubs'])} "
-        f"accept={len(plan['accepts'])})"
+        f"accept={len(plan['accepts'])} merger={len(plan['mergers'])})"
     )
 
     if not write:
         print("(dry-run: no files written)")
     else:
         _apply_write(plan)
-    _print_followups(bool(plan["stubs"]))
+    _print_followups(bool(plan["stubs"]), has_mergers=bool(plan["mergers"]))
     return 0
 
 
-def _print_followups(has_stubs: bool) -> None:
+def _print_followups(has_stubs: bool, has_mergers: bool = False) -> None:
     print("\nfollow-up chain:")
     print("  python3 helpers/graph/extract_relations.py findata --apply")
     if has_stubs:
         print("  (after stub creation) python3 helpers/maintenance/sync_sector_wikilinks.py")
+    if has_mergers:
+        print("  make derive-merger-hyperedges APPLY=1   # n-ary M&A facts -> incidence store")
     print("  make graph-rebuild")
     print("  make snapshot   # or the maint-full wrap-up")
 
@@ -1316,9 +1426,7 @@ def review(  # noqa: C901 — keypress parsing + kit wiring, split would scatter
         try:
             from helpers.core.decisions_preannotate import annotate_surface, make_surface_specs
 
-            _, annotated, _ = annotate_surface(
-                make_surface_specs()["relations"], limit=limit or 0
-            )
+            _, annotated, _ = annotate_surface(make_surface_specs()["relations"], limit=limit or 0)
             if annotated:
                 print_fn(f"(auto-pre-annotated {annotated} new relations rows)")
         except Exception as exc:  # non-fatal — the sitting is the human gate
@@ -1383,6 +1491,15 @@ def review(  # noqa: C901 — keypress parsing + kit wiring, split would scatter
         flags = []
         if e.get("word_overlap"):
             flags.append("word-overlap alias — confirm")
+        if e.get("edge_type") in MERGER_HYPEREDGE_TYPES:
+            # n-ary M&A fact: routing + structure hint per direction.
+            flags.append("n-ary M&A fact — routes to the hyperedge incidence store")
+            if e["edge_type"] == "merger" and e.get("direction") == "resultant":
+                flags.append(
+                    "section company is the SURVIVOR — name the OTHER constituent: a/merger/<NAME>"
+                )
+            elif e["edge_type"] == "demerger":
+                flags.append("mention is the parent; the section company is the child")
         if e.get("direction") == "reverse":
             flags.append("captured reversed: mention is the edge source")
         if flags:
@@ -1418,7 +1535,7 @@ def review(  # noqa: C901 — keypress parsing + kit wiring, split would scatter
             return None
         try:
             p = float(m["p_rubric"])
-        except (TypeError, ValueError):
+        except TypeError, ValueError:
             return None
         return "a[/EDGE_TYPE[/TARGET]]" if p > 0.5 else "d"
 
@@ -1521,6 +1638,24 @@ def review(  # noqa: C901 — keypress parsing + kit wiring, split would scatter
 
     def ask(e: dict, note) -> dict:  # noqa: C901
         rid = e["id"]
+        nary = e.get("edge_type") in MERGER_HYPEREDGE_TYPES
+
+        def _resolve_name(query: str, hint: str) -> str | None:
+            """Resolve an operator-named member via the entity lookup
+            (exact -> substring/acronym; single candidate auto-matches)."""
+            resolved, cands = _entity_lookup(query, names)
+            if resolved is None and len(cands) == 1:
+                resolved = cands[0]
+                print_fn(f"  matched: {resolved}")
+            if resolved is None and cands:
+                print_fn("  candidates:")
+                for i, c in enumerate(cands, 1):
+                    print_fn(f"    {i}) {c}")
+                pick = input_fn(f"  pick 1-8 / or {hint} again: ").strip()
+                if pick.isdigit() and 1 <= int(pick) <= len(cands):
+                    resolved = cands[int(pick) - 1]
+            return resolved
+
         if menu:
             _menu_rec["key"] = _recommend(e)
         _noted = {"done": False}
@@ -1581,6 +1716,91 @@ def review(  # noqa: C901 — keypress parsing + kit wiring, split would scatter
                 parts = ans.split("/")[1:] if ans.startswith("a/") else ans[1:].split()
                 edge_type = parts[0].strip() if parts and parts[0].strip() else e["edge_type"]
                 target = parts[1].strip() if len(parts) > 1 else None
+                if nary:
+                    # n-ary M&A fact (merger_demerger_hyperedges S3): no TYPE
+                    # override — the family is fixed by the row; the verb's
+                    # Name slot carries the survivor/other-constituent/child.
+                    if edge_type != e["edge_type"]:
+                        print_fn(
+                            f"  {edge_type!r} is a dyad edge type — this row is an "
+                            f"n-ary {e['edge_type']} fact and routes to the incidence "
+                            "store. Use plain a (or a/" + e["edge_type"] + "/NAME), or d."
+                        )
+                        note({"id": rid, "action": "bad-accept", "edge_type": edge_type})
+                        continue
+                    mention = _norm_target(e["target_mention"])
+                    # Members must land as exact entity names (the apply-time
+                    # validator enforces it) — resolve the mention-derived
+                    # member through the same lookup the verb name gets;
+                    # exact matches short-circuit, mangled mentions get the
+                    # numbered pick.
+                    if mention not in names:
+                        resolved = _resolve_name(mention, f"{edge_type} member")
+                        if resolved is None:
+                            print_fn(
+                                f"  no entity matches the mention {mention!r} — "
+                                f"al/st it in a dyad sitting first, or discard"
+                            )
+                            note({"id": rid, "action": "bad-accept", "member": mention})
+                            continue
+                        mention = resolved
+                    structured: dict = {}
+                    verb_name = None
+                    if target is not None:
+                        verb_name = _resolve_name(target, f"a/{edge_type}/NAME")
+                        if verb_name is None:
+                            print_fn(
+                                f"  no entity matches {target!r} — full name via "
+                                f"a/{edge_type}/NAME, or stub"
+                            )
+                            note({"id": rid, "action": "bad-accept", "target": target})
+                            continue
+                        if verb_name not in names:
+                            print_fn(
+                                f"  {verb_name!r} is not an existing entity — a/{edge_type}/NAME, or stub"
+                            )
+                            note({"id": rid, "action": "bad-accept", "target": verb_name})
+                            continue
+                    if edge_type == "merger":
+                        if e.get("direction") == "resultant":
+                            if verb_name is None:
+                                print_fn(
+                                    "  section company is the SURVIVOR — name the OTHER"
+                                    " constituent: a/merger/<NAME>"
+                                )
+                                note({"id": rid, "action": "bad-accept", "need": "constituent"})
+                                continue
+                            structured = {
+                                "constituents": [mention, verb_name],
+                                "resultant": e["source"],
+                            }
+                        else:
+                            structured = {"constituents": [e["source"], mention]}
+                            if verb_name is not None:
+                                structured["resultant"] = verb_name
+                        if len({*structured["constituents"]}) < 2:
+                            print_fn(
+                                "  a merger needs two distinct constituents — discard it, "
+                                "or fix the mention"
+                            )
+                            note({"id": rid, "action": "bad-accept", "need": "constituents"})
+                            continue
+                    else:  # demerger — the mention is ALWAYS the parent
+                        structured = {"parent": mention, "child": verb_name or e["source"]}
+                    file_decision = f"accept:{edge_type}" + (
+                        f":{verb_name}" if verb_name is not None else ""
+                    )
+                    d = {
+                        "id": rid,
+                        "action": "approve",
+                        "file_decision": file_decision,
+                        "note": free_note,
+                        "structured": structured,
+                    }
+                    for k in _REVIEW_FILE_FIELDS:
+                        d[k] = e.get(k, False if k == "word_overlap" else "")
+                    _note_ab_once()
+                    return d
                 if edge_type not in _ACCEPT_EDGE_TYPES or edge_type == "suggested":
                     print_fn(
                         f"  {edge_type!r} is not an accept edge type — try again"
@@ -1640,6 +1860,7 @@ def review(  # noqa: C901 — keypress parsing + kit wiring, split would scatter
     def apply_batch(specs: list[str], decisions: list[dict]) -> tuple[list[str], list[str]]:
         rows = [
             {k: d.get(k, False if k == "word_overlap" else "") for k in _REVIEW_FILE_FIELDS}
+            | d.get("structured", {})  # n-ary merger/demerger member fields
             | {"decision": d["file_decision"], "note": d.get("note", "")}
             for d in decisions
             if d.get("action") == "approve"
