@@ -52,11 +52,32 @@ Default location: `outputs/<queue>/journal.jsonl`.
 | NIC promotion (`seed_nic2008.review`) | `1/2/3` ranked pick, `c CODE:mt` override, `s`, `?`, `q`, `x` | `seed_concepts.promote` + operator-override upsert |
 | relations triage (`triage_pending_relations --review`, S2) | `a[/TYPE[/TARGET]]` accept, `d` reject->noise, `al NAME` alias, `st` stub, `p` park; any verb may carry `\| free note` | sitting only APPENDS decision rows to the decisions file; `--apply-decisions` (unchanged) stays the apply step |
 | quotes triage (`triage_pending_quotes --review`, S3) | `1/2/3` pick suggestion, `al NAME` alias, `st` stub, `sc CIN` stub+cin (parse-validated at ask), `d`, `p`; VSS hints render from a prior report, never recomputed | same append-only contract; `--apply-decisions` (unchanged) merges aliases, marks worklist entries decided |
+| coverage ledger review (`coverage_ledger.py review`) | `c VERDICT` cover · `e STATUS\|note` exclude · `d\|note` defer · `b` bad_pair · `p` park; any verb may carry `\| free note` | appends decision rows to `doc/local/security/coverage_decisions.jsonl` (the same shape `apply` consumes); apply stays `coverage_ledger.py apply [--write]` |
+| findings triage (`security_findings.py triage`) | `k` keep · `r\|reason` reject · `a` confirm (only when all confirmed fields present; else re-prompt) · `p` park | transitions a copied findings set, validates it via `check_findings`, writes only with `--out` (input never overwritten implicitly) |
+| checklist walkers (`review_checklist.py <surface>`) | `y` done · `n\|why` needs-attention (note required) · `p` park · `?` · `q/x` | appends `{surface, item_id, decision, note}` rows to `outputs/<surface>_checklist_review/decisions.jsonl` (advisory; never a gate leg) |
 
 The relations sitting keys parking on the stable `_row_id`; noise-merged
 discards additionally stay suppressed across producer cycles via the
 existing noise gate (id-drift guard). Journal:
 `outputs/relations_review/journal.jsonl`, item field `id`.
+
+## Menu and prompt modes (S2-S4)
+
+Every sitting above accepts two input backends beyond raw keypresses;
+both reuse the same `ReviewSession` spine, so the batch-confirm write
+gate and journaling are unchanged.
+
+- `--menu` — render each item as a numbered menu; the queue's verb
+  legend becomes the choices (`?` re-renders evidence, `q`/`x`
+  quit/abort).
+- `--prompt` — read one answer per item from `--answers <file>` in walk
+  order (a final `y`/`n` line answers the batch confirm);
+  `--packets-out <jsonl>` additionally writes the per-item prompt
+  packets (schema `review_menu/v1`) for agent-driven flow.
+
+`--menu` and `--prompt` are mutually exclusive. The backends live in
+`helpers/core/review_menu.py`; the checklist walkers (OCR,
+markdown-parse) in `helpers/core/review_checklist.py`.
 
 ## Export-side parking (S4 — queues with no in-tool apply lane)
 
@@ -109,6 +130,9 @@ python3 helpers/misc/worklist_park.py --list
 | NIC | `1/2/3` ranked pick · `c CODE[:matchType]` override · `s` park · `?` · `q` · `x` |
 | relations | `a[/TYPE[/TARGET]]` (override target DB-resolves: `a//kec`) · `d` discard→noise · `al NAME` · `st` stub · `p` park; any verb + `\| free note` |
 | quotes | `1/2/3` suggestion pick · `al NAME` · `st` · `sc CIN` (parsed at keypress) · `d` · `p` |
+| coverage | `c VERDICT` cover · `e STATUS\|note` exclude · `d\|note` defer · `b` bad_pair · `p` park · `?` · `q/x` |
+| findings | `k` keep · `r\|reason` reject · `a` confirm · `p` park · `?` · `q/x` |
+| checklist (ocr / markdown-parse) | `y` done · `n\|why` needs attention · `p` park · `?` · `q/x` |
 | parking | `--id NAME...` (repeatable), `--list` to inspect |
 
 ### Evidence guardrails (why the screens show what they show)
@@ -147,6 +171,9 @@ re-run `quote_coverage_audit.py` to refill it.)
 | relations journal / decisions | `outputs/relations_review/journal.jsonl` / `findata/Misc/_pending_triage_decisions.jsonl` |
 | quotes journal / decisions | `outputs/quotes_review/journal.jsonl` / `findata/Misc/quote_triage_decisions.jsonl` |
 | parking journals | `outputs/worklist_parking/<queue>/journal.jsonl` |
+| coverage journal / decisions | `outputs/coverage_review/journal.jsonl` / `doc/local/security/coverage_decisions.jsonl` |
+| findings journal / merged findings | `outputs/findings_review/journal.jsonl` / written only via `--out` |
+| checklist journals / decisions | `outputs/<surface>_checklist_review/journal.jsonl` / `.../decisions.jsonl` |
 | worklists (writer-owned, committed by operator) | `findata/Misc/{quote_entity_worklist,country_worklist,subsector_worklist,counterparty_worklist}.json` |
 
 ## Adding a queue (S2-S4 pattern)

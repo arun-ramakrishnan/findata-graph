@@ -132,6 +132,7 @@ DEFAULT_LEDGER = REPO / "doc/security/coverage-ledger.json"
 # ledger and the decisions journal are the durable records.
 DEFAULT_QUEUE = REPO / "doc" / "local" / "security" / "coverage_queue.jsonl"
 DEFAULT_DECISIONS = REPO / "doc" / "local" / "security" / "coverage_decisions.jsonl"
+REVIEW_JOURNAL_DIR = REPO / "outputs" / "coverage_review"
 
 # What a decision may close a queue row AS. `bad_pair` is the escape
 # hatch for a pair that should not exist (the surface is mis-named or
@@ -1227,6 +1228,253 @@ def apply(  # noqa: C901
     return 0
 
 
+def review(  # noqa: C901 — keypress parsing + kit wiring, split would scatter state
+    app_path: Path,
+    ledger_path: Path,
+    *,
+    scope: str | None = None,
+    taxonomy: Path | None = None,
+    decisions: Path = DEFAULT_DECISIONS,
+    journal_dir: Path | None = None,
+    menu: bool = False,
+    prompt: bool = False,
+    answers_path: Path | None = None,
+    packets_out: Path | None = None,
+    input_fn=input,
+    print_fn=print,
+) -> dict:
+    """Interactive sitting over the coverage work queue (review-kit S3).
+    Returns the ReviewSession outcome (dict); callers on the CLI convert it
+    to an exit code.
+
+    One keypress per queue row — the sitting only PRODUCES decision rows;
+    the confirm gate appends them to the decisions journal, and ``apply``
+    stays the existing separate step (unchanged validator; the journal is
+    no longer hand-edited):
+
+      c VERDICT         cover — record the verdict (e.g. ``c confirmed``)
+      e STATUS|note     exclude — status ∈ {not_applicable, out_of_scope},
+                        must carry a note saying why the class was not
+                        reviewed on this surface
+      d|note            defer — must carry a note
+      b                 bad_pair — a false gap; echoed, never applied
+      p                 park — never re-asked (journal read-back)
+      ?                 re-render evidence
+      q / x             quit-and-review / abort the walk
+
+    Any verb may carry ``| free note`` — it lands in the row's note field.
+    Parking keys on the stable pair ``surface/attack_class``; pairs with a
+    row already in the decisions journal are excluded from the walk.
+
+    ``menu=True`` renders each item as a numbered menu (same verbs);
+    ``prompt=True`` reads one answer per item from ``answers_path``
+    (walk order; a final ``y``/``n`` line answers the batch confirm) and
+    ``packets_out`` writes the prompt packets (JSONL) for the agent
+    flow. ``menu``/``prompt`` are mutually exclusive.
+    """
+    from helpers.core.review_kit import (
+        Journal,
+        ReviewSession,
+        assemble_entries,
+        latest_action_by,
+    )
+    from helpers.core.review_menu import (
+        Choice,
+        MenuSpec,
+        make_menu_input,
+        make_scripted_input,
+        write_packets,
+    )
+
+    _MENU_SPEC = MenuSpec(
+        name="coverage",
+        prompt="Review the coverage gap and decide:",
+        choices=(
+            Choice("c VERDICT", "cover — record the verdict (e.g. c confirmed)"),
+            Choice(
+                "e STATUS|note",
+                "exclude — status in {not_applicable, out_of_scope}, with note",
+            ),
+            Choice("d|note", "defer — must carry a note"),
+            Choice("b", "bad_pair — a false gap (echoed, never applied)"),
+            Choice("p", "park — never re-asked (reopen via --skipped)"),
+            Choice("?", "legend + evidence"),
+            Choice("q/x", "quit-and-review / abort walk"),
+        ),
+    )
+    if menu and prompt:
+        raise ValueError("--menu and --prompt are mutually exclusive")
+    if prompt and answers_path is None:
+        raise ValueError("--prompt requires --answers <file>")
+    reader = input_fn
+    if menu:
+        reader = make_menu_input(_MENU_SPEC, print_fn=print_fn, input_fn=input_fn)
+    elif prompt:
+        assert answers_path is not None  # guarded by the ValueError above
+        answers = answers_path.read_text(encoding="utf-8").splitlines()
+        reader = make_scripted_input(answers, _MENU_SPEC)
+    input_fn = reader  # ask() closures and the confirm gate read through the backend
+
+    journal_path = (journal_dir or REVIEW_JOURNAL_DIR) / "journal.jsonl"
+    records = _gap_records(app_path, ledger_path, scope=scope, taxonomy=taxonomy)
+    decided_pairs: set[tuple[str, str]] = set()
+    if decisions.exists():
+        for d in _read_decisions(decisions):
+            decided_pairs.add((str(d.get("surface")), str(d.get("attack_class"))))
+    parked_ids = latest_action_by(journal_path, key_field="id")
+
+    def _pair_label(r: dict) -> str:
+        return f"{r['surface']}/{r['attack_class']}"
+
+    def _entry(r: dict) -> dict:
+        e = dict(r)
+        e["label"] = _pair_label(r)  # kit item key == stable pair
+        return e
+
+    open_rows = [r for r in records if (r["surface"], r["attack_class"]) not in decided_pairs]
+    wl = {
+        "suggested": [_entry(r) for r in open_rows if _pair_label(r) not in parked_ids],
+        "promoted": [],
+        "skipped": [_entry(r) for r in open_rows if _pair_label(r) in parked_ids],
+        "no_signal": [],
+    }
+    entries = assemble_entries(
+        wl,
+        labels_filter=None,
+        redecide=False,
+        skipped=False,
+        sort_key=lambda e: (e["label"],),
+        limit=None,
+    )
+    if packets_out is not None and entries:
+        write_packets(entries, _MENU_SPEC, packets_out)
+
+    legend = [
+        "  keys: c VERDICT  cover (e.g. c confirmed)    e STATUS|note  exclude",
+        "        d|note  defer    b  bad_pair    p  park — reopen via --skipped",
+        "        ?   this legend + evidence    q/x  quit-and-review / abort walk",
+        "        any verb may carry '| free note' — lands in the row's note field",
+    ]
+    if entries:
+        print_fn("\n".join(legend))
+
+    def _evidence(e: dict) -> None:
+        print_fn(f"     reason: {e.get('reason')}")
+        if e.get("methods"):
+            print_fn(f"     methods: {e['methods']}")
+        if e.get("exemplar_note"):
+            print_fn(f"     exemplar: {e['exemplar_note']}")
+        if e.get("siblings"):
+            print_fn(f"     siblings: {e['siblings']}")
+
+    def render(idx: int, total: int, e: dict) -> None:
+        print_fn(f"[{idx}/{total}] `{e['label']}`")
+        _evidence(e)
+
+    def ask(e: dict, note) -> dict:
+        rid = e["label"]
+        while True:
+            ans = input_fn("  c VERDICT / e STATUS|note / d|note / b / p / ? / q / x: ").strip()
+            ans, _, free_note = ans.partition("|")
+            ans, free_note = ans.strip(), free_note.strip()
+            if ans in {"p", "q", "x"}:
+                return {"id": rid, "action": {"p": "skip", "q": "quit", "x": "abort"}[ans]}
+            if ans == "?":
+                print_fn("\n".join(legend))
+                _evidence(e)
+                continue
+            file_decision = None
+            verdict = ""
+            status = ""
+            if ans == "b":
+                file_decision = "bad_pair"
+            elif ans == "d":
+                if not free_note:
+                    print_fn("  defer needs a note — d|why")
+                    continue
+                file_decision = "defer"
+            elif ans.startswith("e"):
+                rest = ans[1:].strip()
+                status, _, inline_note = rest.partition("|")
+                status = status.strip()
+                note = free_note or inline_note
+                if status not in EXCLUDED_STATUSES:
+                    print_fn(f"  exclude status must be one of {EXCLUDED_STATUSES} — try again")
+                    continue
+                if not note:
+                    print_fn("  exclude needs a note — e STATUS|why")
+                    continue
+                file_decision = f"exclude:{status}"
+                verdict = ""
+            elif ans.startswith("c"):
+                verdict = ans[1:].strip()
+                if not verdict:
+                    print_fn("  cover needs a verdict — c confirmed / c clean / …")
+                    continue
+                file_decision = "cover"
+            else:
+                print_fn("  ? (c VERDICT / e STATUS|note / d|note / b / p / ? / q / x)")
+                continue
+            d = {
+                "id": rid,
+                "action": "approve",
+                "file_decision": file_decision,
+                "note": free_note,
+                "_status": status,
+                "_verdict": verdict,
+            }
+            for k in ("surface", "attack_class"):
+                d[k] = e.get(k, "")
+            return d
+
+    def spec_of(d: dict, e: dict) -> str:
+        return f"{d['surface']} @ {d['attack_class']} — {d['file_decision']}"
+
+    decisions_path = decisions
+
+    def apply_batch(specs: list[str], batch: list[dict]) -> tuple[list[str], list[str]]:
+        rows = []
+        for d in batch:
+            if d.get("action") != "approve":
+                continue
+            row = {
+                "surface": d["surface"],
+                "attack_class": d["attack_class"],
+                "decision": d["file_decision"].split(":", 1)[0],
+            }
+            if row["decision"] == "cover":
+                row["verdict"] = d["_verdict"]
+                row["reviewed"] = date.today().isoformat()
+            elif row["decision"] == "exclude":
+                row["status"] = d["file_decision"].split(":", 1)[1]
+                row["note"] = d.get("note", "")
+            elif row["decision"] == "defer":
+                row["note"] = d.get("note", "")
+            rows.append(row)
+        decisions_path.parent.mkdir(parents=True, exist_ok=True)
+        with decisions_path.open("a", encoding="utf-8") as f:
+            for r in rows:
+                f.write(json.dumps(r, ensure_ascii=False) + "\n")
+        return (
+            [f"{len(rows)} decision row(s) appended -> {decisions_path.name}"],
+            ["next: coverage_ledger.py apply [--write]"],
+        )
+
+    return ReviewSession(
+        entries=entries,
+        journal=Journal(journal_path),
+        render=render,
+        ask=ask,
+        spec_of=spec_of,
+        apply_batch=apply_batch,
+        batch_header="batch to append to the decisions journal:",
+        apply_noun="decision row(s)",
+        input_fn=reader,
+        print_fn=print_fn,
+        apply_flag=True,
+    ).run()
+
+
 def seed(app_path: Path, ledger_path: Path) -> int:
     """Recompute fingerprints for existing rows and write them back.
 
@@ -1250,7 +1498,7 @@ def seed(app_path: Path, ledger_path: Path) -> int:
 
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__)
-    ap.add_argument("mode", choices=["check", "critic", "queue", "apply", "plan", "seed"])
+    ap.add_argument("mode", choices=["check", "critic", "queue", "apply", "review", "plan", "seed"])
     ap.add_argument("--app", type=Path, default=DEFAULT_APP)
     ap.add_argument("--ledger", type=Path, default=DEFAULT_LEDGER)
     ap.add_argument(
@@ -1286,6 +1534,22 @@ def main(argv: list[str] | None = None) -> int:
         type=float,
         help="critic: warn on stderr when the exclusion share crosses this percent",
     )
+    ap.add_argument(
+        "--menu", action="store_true", help="review: render each row as a numbered menu"
+    )
+    ap.add_argument(
+        "--prompt", action="store_true", help="review: read answers from --answers (walk order)"
+    )
+    ap.add_argument(
+        "--answers",
+        type=Path,
+        help="review: answers file (one verb per row + final y/n confirms the batch)",
+    )
+    ap.add_argument(
+        "--packets-out",
+        type=Path,
+        help="review: write the prompt packets (JSONL) for the agent flow",
+    )
     a = ap.parse_args(argv)
     if a.mode == "check":
         return check(a.app, a.ledger, strict=a.strict, scope=a.scope)
@@ -1303,6 +1567,18 @@ def main(argv: list[str] | None = None) -> int:
         return queue(a.app, a.ledger, scope=a.scope, out=a.out)
     if a.mode == "apply":
         return apply(a.app, a.ledger, a.decisions, write=a.write, scope=a.scope)
+    if a.mode == "review":
+        outcome = review(
+            a.app,
+            a.ledger,
+            scope=a.scope,
+            decisions=a.decisions,
+            menu=a.menu,
+            prompt=a.prompt,
+            answers_path=a.answers,
+            packets_out=a.packets_out,
+        )
+        return 0 if isinstance(outcome, dict) else outcome
     if a.mode == "plan":
         return plan(a.app, a.ledger, recent=a.recent, scope=a.scope)
     return seed(a.app, a.ledger)

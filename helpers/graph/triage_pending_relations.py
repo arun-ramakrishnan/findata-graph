@@ -1222,6 +1222,10 @@ def review(  # noqa: C901 — keypress parsing + kit wiring, split would scatter
     journal_dir: Path | None = None,
     redecide: bool = False,
     skipped: bool = False,
+    menu: bool = False,
+    prompt: bool = False,
+    answers_path: Path | None = None,
+    packets_out: Path | None = None,
 ) -> dict:
     """Interactive sitting over the open prose queue (review-kit S2).
 
@@ -1242,8 +1246,47 @@ def review(  # noqa: C901 — keypress parsing + kit wiring, split would scatter
     Any verb may carry ``| free note`` — it lands in the row's note field.
     Parking keys on the stable row id (``_row_id``); already-decided rows
     (decisions file read-back) are excluded unless ``--redecide``.
+
+    ``menu=True`` renders each item as a numbered menu (same verbs);
+    ``prompt=True`` reads one answer per item from ``answers_path``
+    (walk order; a final ``y``/``n`` line answers the batch confirm) and
+    ``packets_out`` writes the prompt packets (JSONL) for the agent
+    flow. ``menu``/``prompt`` are mutually exclusive.
     """
     from helpers.core.review_kit import Journal, ReviewSession, assemble_entries, latest_action_by
+    from helpers.core.review_menu import (
+        Choice,
+        MenuSpec,
+        make_menu_input,
+        make_scripted_input,
+        write_packets,
+    )
+
+    _MENU_SPEC = MenuSpec(
+        name="relations",
+        prompt="Review the relation row and decide:",
+        choices=(
+            Choice("a[/EDGE_TYPE[/TARGET]]", "accept (edge type + target overrideable)"),
+            Choice("d", "reject — noise gate (discard)"),
+            Choice("al NAME", "alias the mention to an existing entity NAME"),
+            Choice("st", "stub (entity via follow-up chain)"),
+            Choice("p", "park — never re-asked (reopen via --skipped)"),
+            Choice("?", "legend + evidence"),
+            Choice("q/x", "quit-and-review / abort walk"),
+        ),
+    )
+    if menu and prompt:
+        raise ValueError("--menu and --prompt are mutually exclusive")
+    if prompt and answers_path is None:
+        raise ValueError("--prompt requires --answers <file>")
+    reader = input_fn
+    if menu:
+        reader = make_menu_input(_MENU_SPEC, print_fn=print_fn, input_fn=input_fn)
+    elif prompt:
+        assert answers_path is not None  # guarded by the ValueError above
+        answers = answers_path.read_text(encoding="utf-8").splitlines()
+        reader = make_scripted_input(answers, _MENU_SPEC)
+    input_fn = reader  # ask() closures and the confirm gate read through the backend
 
     names = load_entity_names()
     journal_path = (journal_dir or REVIEW_JOURNAL_DIR) / "journal.jsonl"
@@ -1304,6 +1347,8 @@ def review(  # noqa: C901 — keypress parsing + kit wiring, split would scatter
         sort_key=lambda e: (_bucket_rank.get(e.get("bucket", ""), 9), e["label"]),
         limit=limit,
     )
+    if packets_out is not None and entries:
+        write_packets(entries, _MENU_SPEC, packets_out)
 
     legend = [
         "  keys: a[/TYPE[/TARGET]]  accept (row's edge type + target by default;",
@@ -1581,7 +1626,7 @@ def review(  # noqa: C901 — keypress parsing + kit wiring, split would scatter
         apply_batch=apply_batch,
         batch_header="batch to append to the decisions file:",
         apply_noun="decision row(s)",
-        input_fn=input_fn,
+        input_fn=reader,
         print_fn=print_fn,
         apply_flag=apply,
     ).run()
@@ -1728,6 +1773,18 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument(
         "--dry-run", action="store_true", help="review: journal + print the batch, write nothing"
     )
+    p.add_argument(
+        "--menu", action="store_true", help="review: numbered menu input instead of raw keypresses"
+    )
+    p.add_argument(
+        "--prompt",
+        action="store_true",
+        help="review: read one answer per item from --answers (walk order; final y/n line answers the batch confirm)",
+    )
+    p.add_argument("--answers", default=None, help="prompt: answers file (one verb per line)")
+    p.add_argument(
+        "--packets-out", default=None, help="prompt: also write the prompt-packets JSONL here"
+    )
     args = p.parse_args(argv)
 
     if args.clear:
@@ -1749,6 +1806,10 @@ def main(argv: list[str] | None = None) -> int:
             redecide=args.redecide,
             skipped=args.skipped,
             apply=not args.dry_run,
+            menu=args.menu,
+            prompt=args.prompt,
+            answers_path=Path(args.answers) if args.answers else None,
+            packets_out=Path(args.packets_out) if args.packets_out else None,
         )
         return 0
     if args.apply_decisions:

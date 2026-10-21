@@ -3,6 +3,14 @@
 Full annotated triage map with live-verified trigger status.
 Open items below keep their revisit triggers inline; executed work is compressed to records.
 
+- **Prompt-driven review menu — EXECUTED 2026-10-21** (archive/tooling/
+  review_menu_prompt_driven.md; completed.md #424): S1–S6 landed —
+  `review_menu.py` backends over the `review_kit` spine, relations/quotes/
+  NIC adoption, `coverage_ledger.review` + `security_findings.triage`,
+  OCR + markdown-parse checklist walkers; AC#1 journal equivalence;
+  eval-gate not triggered (no query-visible semantics change). Demoed
+  live on the relations queue (dry-run, 3 real rows).
+
 - **C901 D1 splits — four named functions scheduled (operator ruling
   2026-09-30)** (`archive/graph/c901_complexity_debt.md` §4.1 "no new
   suppression" vs the lint-audit arc's four new masks):

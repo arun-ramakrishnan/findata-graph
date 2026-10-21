@@ -7,6 +7,45 @@
 
 ---
 
+## 424. Prompt-driven review menu — one crisp-choice surface for every human-in-the-loop queue
+
+**Date**: 2026-10-21 (filed) → 2026-10-21 (executed)
+**Status**: COMPLETE
+**Proposal**: `doc/improvements/archive/tooling/review_menu_prompt_driven.md`
+
+- **S1 — `helpers/core/review_menu.py` core** — deterministic packet
+  renderer (schema `review_menu/v1`, sha256 hashable), menu + scripted
+  input backends (`make_menu_input`/`make_scripted_input`), CLI
+  `packet`/`parse` modes; reuses the `ReviewSession` spine so the batch
+  confirm stays the only write gate. 19→23 tests.
+- **S2 — relations/quotes/NIC adoption** — each queue's `review()` gained
+  `--menu`/`--prompt`/`--answers`/`--packets-out`; the verb legends
+  became the menu choices; confirm prompts pass through raw so `y/N`
+  still works. 181 targeted tests.
+- **S3 — `coverage_ledger.py review` + `security_findings.py triage`**
+  — the coverage gap queue and the findings walk become sittings
+  (`c VERDICT`/`e STATUS|note`/`d|note`/`b`/`p`; `k`/`r|reason`/
+  `a`/`p`); findings transitions are validated via `check_findings`
+  and written only with `--out`. Caught: the `x`-as-exclude verb
+  collided with the `q/x` abort and was renamed `e`; journal-dir
+  isolation was added after a test polluting the repo journal.
+- **S4 — `helpers/core/review_checklist.py` walkers** — OCR (12 items)
+  and markdown-parse (16 items) checklists rendered as sittings with
+  per-surface post-batch hints (verify gates; `review_freshness
+  --record`). Gotchas fixed: journal parent-dir creation, the
+  run-as-script `sys.path` bootstrap, the shebang check.
+- **S5 — docs** — menu/prompt section in
+  `doc/procedures/review-kit.md`; menu-mode mentions in
+  security-scan/ocr_review/markdown_parse; pending.md entry updated.
+- **Demo (2026-10-21)** — drove the live relations triage queue
+  (`triage_pending_relations.py --review --dry-run --prompt`) for three
+  real rows: stub, discard-with-note, park; dry-run journaled
+  `preview-*` non-terminal lines and left `_pending_relations.txt` +
+  `_pending_triage_decisions.jsonl` byte-identical.
+- **AC#1** — keypress vs `--prompt` produce identical decisions
+  journals (validated on the fixed fixture); AC#2 packet
+  idempotence holds (sha256 of same item+spec is byte-stable).
+
 ## 423. Cloudflare security-audit-skill adoption — the lane becomes machinery, then catches two real bugs
 
 **Date**: 2026-10-20 (filed) → 2026-10-21 (executed)

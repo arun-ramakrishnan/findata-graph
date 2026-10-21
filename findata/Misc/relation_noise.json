@@ -21,8 +21,18 @@
   ],
   [
     "acquired",
+    "LTM",
+    "larsen & toubro infotech"
+  ],
+  [
+    "acquired",
     "Max Healthcare Institute",
     "units"
+  ],
+  [
+    "acquired",
+    "Motherson Sumi Wiring India",
+    "samvardhana motherson"
   ],
   [
     "competes_with",
@@ -33,6 +43,11 @@
     "jv_with",
     "Globus Spirits",
     "limited and ansa mcal limited-carib premium strong beer"
+  ],
+  [
+    "jv_with",
+    "ICICI Prudential Asset Management Company",
+    "icici bank and prudential corporation"
   ],
   [
     "jv_with",

@@ -273,6 +273,17 @@ the finding.
   exclusions, and exits non-zero under `--strict` only when the scope is
   actually closed. The ledger tracks classification and verdict tokens; the
   posture prose stays in the gitignored detail file.
+- **Drive the queue as a sitting** — `coverage_ledger.py review` walks the
+  gap records (same selection as `queue`) with keypress menus or
+  scripted prompts: `c VERDICT` cover, `e STATUS|note` exclude, `d|note`
+  defer, `b` bad_pair, `p` park. Verdicts append to
+  `doc/local/security/coverage_decisions.jsonl` and are applied by the
+  unchanged `apply` command. `security_findings.py triage` walks findings
+  (`needs_validation` by default; `--all` covers every verdict) with
+  `k` keep / `r|reason` reject / `a` confirm (only when all confirmed
+  fields are present); transitions are validated via `check_findings`
+  and written only with `--out`. Both accept `--menu`/`--prompt`/
+  `--answers`/`--packets-out` per the review-kit menu modes.
 
 ## Pointers
 

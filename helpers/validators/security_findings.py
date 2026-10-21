@@ -829,6 +829,269 @@ def record_verification(findings_path: Path, result_path: Path, *, out: Path) ->
     return 0
 
 
+def triage(  # noqa: C901 — keypress parsing + kit wiring, split would scatter state
+    findings_path: Path,
+    *,
+    out: Path | None = None,
+    all_: bool = False,
+    journal_dir: Path | None = None,
+    menu: bool = False,
+    prompt: bool = False,
+    answers_path: Path | None = None,
+    packets_out: Path | None = None,
+    input_fn=input,
+    print_fn=print,
+) -> dict | int:
+    """Interactive verdict sitting over a findings document (review-kit S3).
+    Returns the ReviewSession outcome (dict) or 1 on a fatal read error;
+    callers on the CLI convert the dict to an exit code.
+
+    One keypress per finding — the sitting only PRODUCES transitions; the
+    confirm gate applies them to a copy of the document, validated with
+    the staged write used by ``record_verification`` and written to
+    ``--out`` (the input is never overwritten implicitly).
+
+      k        keep — no transition (needs_validation stays)
+      r|reason reject — the finding becomes ``rejected`` with the reason
+               (blockers / validation_plan are dropped; a reason is
+               required)
+      a        confirm — promotes to ``confirmed`` but only when the
+               record already carries the full confirmed shape (severity,
+               execution, remediation, confidence, conditions, …); a
+               verifier result is the normal path for that
+      p        park — never re-asked (journal read-back)
+      ?        re-render evidence
+      q / x    quit-and-review / abort the walk
+
+    The default walk covers ``needs_validation`` findings; ``--all``
+    includes every verdict. ``menu=True`` renders a numbered menu;
+    ``prompt=True`` reads one answer per finding from ``answers_path``
+    (walk order; a final ``y``/``n`` line answers the batch confirm);
+    ``packets_out`` writes the prompt packets (JSONL) for the agent flow.
+    ``menu``/``prompt`` are mutually exclusive.
+    """
+    from helpers.core.review_kit import (
+        Journal,
+        ReviewSession,
+        assemble_entries,
+        latest_action_by,
+    )
+    from helpers.core.review_menu import (
+        Choice,
+        MenuSpec,
+        make_menu_input,
+        make_scripted_input,
+        write_packets,
+    )
+
+    _MENU_SPEC = MenuSpec(
+        name="findings",
+        prompt="Review the finding and decide:",
+        choices=(
+            Choice("k", "keep — no transition"),
+            Choice("r", "reject — must carry |reason"),
+            Choice("a", "confirm — promoted only when the record is already complete"),
+            Choice("p", "park — never re-asked (reopen via --skipped)"),
+            Choice("?", "legend + evidence"),
+            Choice("q/x", "quit-and-review / abort walk"),
+        ),
+    )
+    if menu and prompt:
+        raise ValueError("--menu and --prompt are mutually exclusive")
+    if prompt and answers_path is None:
+        raise ValueError("--prompt requires --answers <file>")
+    reader = input_fn
+    if menu:
+        reader = make_menu_input(_MENU_SPEC, print_fn=print_fn, input_fn=input_fn)
+    elif prompt:
+        assert answers_path is not None  # guarded by the ValueError above
+        answers = answers_path.read_text(encoding="utf-8").splitlines()
+        reader = make_scripted_input(answers, _MENU_SPEC)
+    input_fn = reader  # ask() closures and the confirm gate read through the backend
+
+    journal_path = (journal_dir or REPO / "outputs" / "findings_review") / "journal.jsonl"
+    try:
+        data = json.loads(findings_path.read_text())
+    except (FileNotFoundError, json.JSONDecodeError) as exc:
+        print_fn(f"FAIL: cannot read findings: {exc}")
+        return 1
+    findings, envelope = _unwrap(data, findings_path)
+    if findings is None:
+        return 1
+
+    def _missing_confirmed_fields(f: dict) -> list[str]:
+        return [field for field in REQUIRED_FIELDS["confirmed"] if field not in f]
+
+    parked_ids = latest_action_by(journal_path, key_field="id")
+
+    def _entry(f: dict) -> dict:
+        e = dict(f)
+        e["label"] = f.get("fingerprint", "")
+        return e
+
+    open_rows = [
+        f
+        for f in findings
+        if isinstance(f, dict)
+        and (all_ or f.get("verdict") == "needs_validation")
+        and f.get("fingerprint") not in parked_ids
+    ]
+    wl = {
+        "suggested": [_entry(f) for f in open_rows],
+        "promoted": [],
+        "skipped": [
+            _entry(f)
+            for f in findings
+            if isinstance(f, dict) and f.get("fingerprint") in parked_ids
+        ],
+        "no_signal": [],
+    }
+    entries = assemble_entries(
+        wl,
+        labels_filter=None,
+        redecide=False,
+        skipped=False,
+        sort_key=lambda e: (e["label"],),
+        limit=None,
+    )
+    if packets_out is not None and entries:
+        write_packets(entries, _MENU_SPEC, packets_out)
+
+    legend = [
+        "  keys: k  keep    r  reject (must carry |reason)    a  confirm (complete records only)",
+        "        p  park — reopen via --skipped    ?  this legend + evidence    q/x  quit/abort",
+    ]
+    if entries:
+        print_fn("\n".join(legend))
+
+    def _evidence(f: dict) -> None:
+        print_fn(f"     verdict: {f.get('verdict')}")
+        if f.get("surface"):
+            print_fn(f"     surface: {f['surface']} attack_class: {f.get('attack_class')}")
+        if f.get("title"):
+            print_fn(f"     title: {f['title']}")
+        if f.get("claimed_root_cause"):
+            print_fn(f"     claimed root cause: {f['claimed_root_cause']}")
+        if f.get("reason"):
+            print_fn(f"     reason: {f['reason']}")
+        if f.get("blockers"):
+            print_fn(f"     blockers: {f['blockers']}")
+        if f.get("verification"):
+            print_fn(f"     verification: {f['verification']}")
+
+    def render(idx: int, total: int, e: dict) -> None:
+        print_fn(f"[{idx}/{total}] `{e['label']}`")
+        _evidence(e)
+
+    def ask(e: dict, note) -> dict:
+        rid = e["label"]
+        while True:
+            ans = input_fn("  k / r|reason / a / p / ? / q / x: ").strip()
+            ans, _, free_note = ans.partition("|")
+            ans, free_note = ans.strip(), free_note.strip()
+            if ans in {"p", "q", "x"}:
+                return {"id": rid, "action": {"p": "skip", "q": "quit", "x": "abort"}[ans]}
+            if ans == "?":
+                print_fn("\n".join(legend))
+                _evidence(e)
+                continue
+            if ans == "k":
+                return {"id": rid, "action": "skip"}
+            if ans == "r":
+                if not has_visible_prose(free_note):
+                    print_fn("  reject needs a visible reason — r|why")
+                    continue
+                return {
+                    "id": rid,
+                    "action": "approve",
+                    "file_decision": "rejected",
+                    "note": free_note,
+                }
+            if ans == "a":
+                missing = _missing_confirmed_fields(e)
+                if missing:
+                    print_fn(
+                        "  confirm requires the full confirmed shape — missing: "
+                        + ", ".join(missing)
+                        + " (a verifier result is the normal promotion path)"
+                    )
+                    continue
+                return {
+                    "id": rid,
+                    "action": "approve",
+                    "file_decision": "confirmed",
+                    "note": "",
+                }
+            print_fn("  ? (k / r|reason / a / p / ? / q / x)")
+            continue
+
+    def spec_of(d: dict, e: dict) -> str:
+        return f"{d['id']} -> {d['file_decision']}"
+
+    def apply_batch(specs: list[str], decisions: list[dict]) -> tuple[list[str], list[str]]:
+        transitions = [d for d in decisions if d.get("action") == "approve"]
+        if not transitions:
+            return (["no transitions"], [])
+        if out is None:
+            return (
+                [],
+                [
+                    "triage: transitions made but no --out given — the input is never "
+                    "overwritten implicitly; re-run with --out PATH to write the merged document"
+                ],
+            )
+        mutable = [dict(f) for f in findings]
+        by_fp = {f.get("fingerprint"): i for i, f in enumerate(mutable)}
+        applied = 0
+        for d in transitions:
+            pos = by_fp.get(d["id"])
+            if pos is None:
+                continue
+            f = mutable[pos]
+            if d["file_decision"] == "rejected":
+                f["verdict"] = "rejected"
+                f["claimed_root_cause"] = (
+                    f.get("claimed_root_cause") or f.get("root_cause") or f.get("title")
+                )
+                f["reason"] = d["note"]
+                for field in FORBIDDEN_FIELDS["rejected"]:
+                    f.pop(field, None)
+            else:
+                f["verdict"] = "confirmed"
+                for field in FORBIDDEN_FIELDS["confirmed"]:
+                    f.pop(field, None)
+            applied += 1
+        mutable.sort(key=lambda item: item.get("fingerprint") or "")
+        document = mutable if envelope is None else {**envelope, "findings": mutable}
+        staged = out.with_name(out.name + ".staged")
+        try:
+            staged.write_text(json.dumps(document, indent=2) + "\n")
+            if check_findings(staged) != 0:
+                print_fn(f"FAIL: the merged document does not validate; {out} was not written")
+                return ([], ["triage: validation failed — nothing written"])
+            staged.replace(out)
+        finally:
+            staged.unlink(missing_ok=True)
+        return (
+            [f"applied {applied} transition(s) -> {out}"],
+            ["next: security_findings.py check — the merged document should be clean"],
+        )
+
+    return ReviewSession(
+        entries=entries,
+        journal=Journal(journal_path),
+        render=render,
+        ask=ask,
+        spec_of=spec_of,
+        apply_batch=apply_batch,
+        batch_header="batch to apply to the findings document:",
+        apply_noun="transition(s)",
+        input_fn=reader,
+        print_fn=print_fn,
+        apply_flag=True,
+    ).run()
+
+
 def _main_brief(argv: list[str]) -> int:
     ap = argparse.ArgumentParser(
         prog="security_findings.py brief",
@@ -858,10 +1121,48 @@ def _main_brief(argv: list[str]) -> int:
     )
 
 
+def _main_triage(argv: list[str]) -> int:
+    ap = argparse.ArgumentParser(
+        prog="security_findings.py triage",
+        description="Interactive verdict sitting over a findings document (review-kit S3).",
+    )
+    ap.add_argument("findings", nargs="?", type=Path, default=DEFAULT_FINDINGS)
+    ap.add_argument(
+        "--out", type=Path, help="where to write the merged document (required to apply)"
+    )
+    ap.add_argument(
+        "--all",
+        dest="all_",
+        action="store_true",
+        help="walk every verdict, not just needs_validation",
+    )
+    ap.add_argument("--menu", action="store_true", help="render each finding as a numbered menu")
+    ap.add_argument(
+        "--prompt", action="store_true", help="read answers from --answers (walk order)"
+    )
+    ap.add_argument("--answers", type=Path, help="answers file (one verb per finding + final y/n)")
+    ap.add_argument(
+        "--packets-out", type=Path, help="write the prompt packets (JSONL) for the agent flow"
+    )
+    parsed = ap.parse_args(argv)
+    outcome = triage(
+        parsed.findings,
+        out=parsed.out,
+        all_=parsed.all_,
+        menu=parsed.menu,
+        prompt=parsed.prompt,
+        answers_path=parsed.answers,
+        packets_out=parsed.packets_out,
+    )
+    return 0 if isinstance(outcome, dict) else outcome
+
+
 def main(argv: list[str] | None = None) -> int:
     args = list(sys.argv[1:] if argv is None else argv)
     if args and args[0] == "brief":
         return _main_brief(args[1:])
+    if args and args[0] == "triage":
+        return _main_triage(args[1:])
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("findings", nargs="?", type=Path, default=DEFAULT_FINDINGS)
     ap.add_argument("--strict", action="store_true", help="reserved; warnings become errors")

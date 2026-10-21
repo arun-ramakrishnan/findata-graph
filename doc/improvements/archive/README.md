@@ -326,6 +326,13 @@ commit, referenced by nothing). Entry numbers point at
 
 ## tooling/ — Tooling & performance — MCP eval, doc browser/search, perf review, tech survey
 
+- [`review_menu_prompt_driven.md`](tooling/review_menu_prompt_driven.md) —
+  prompt-driven review menu — one crisp-choice surface for every
+  human-in-the-loop queue: `review_menu.py` input backends over the
+  `review_kit` spine (S1), relations/quotes/NIC adoption (S2),
+  `coverage_ledger.review` + `security_findings.triage` (S3), OCR +
+  markdown-parse checklist walkers (S4), docs (S5); demoed live on the
+  relations queue; AC#1 journal equivalence — completed.md #424
 - [`tui_perf_sparkline.md`](tooling/tui_perf_sparkline.md) —
   search TUI perf-trend sparkline — the report screen becomes a
   regression detector off data it already had: `_parse_seconds` +

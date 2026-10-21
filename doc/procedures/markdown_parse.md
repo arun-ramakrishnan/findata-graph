@@ -862,6 +862,13 @@ def validate_bidirectional_sync():
 - [ ] `database_integrity_check.py` exits 0 (≥95%)
 - [ ] `frontmatter_schema` exits 0 (no rogue keys, no `"N/A"`/wrong-typed values, ISO dates, underscore permalinks)
 
+The checklist can be walked as a sitting — `review_checklist.py markdown-parse`
+renders these 16 items as a menu or scripted prompt
+(`--menu`/`--prompt`), recording verdicts to
+`outputs/markdown-parse_checklist_review/decisions.jsonl` (advisory —
+never a gate). It tracks the checklist; the commands above still run
+and their exit 0 still gates.
+
 ### Search examples
 
 ```sql

@@ -1073,6 +1073,10 @@ def review(  # noqa: C901  # thin config over helpers.core.review_kit (S1 rehome
     journal_dir: pathlib.Path | None = None,
     redecide: bool = False,
     skipped: bool = False,
+    menu: bool = False,
+    prompt: bool = False,
+    answers_path: pathlib.Path | None = None,
+    packets_out: pathlib.Path | None = None,
 ) -> dict:
     """Interactive promotion review (S3 operator lane — no hand-edited JSON).
 
@@ -1093,8 +1097,48 @@ def review(  # noqa: C901  # thin config over helpers.core.review_kit (S1 rehome
     ``outputs/nic_review/journal.jsonl`` for audit; the journal is
     written by the tool, never read back (replays are new sittings).
     The loop/journal/confirm spine lives in ``helpers.core.review_kit``.
+
+    ``menu=True`` renders each item as a numbered menu (same verbs);
+    ``prompt=True`` reads one answer per item from ``answers_path``
+    (walk order; a final ``y``/``n`` line answers the batch confirm) and
+    ``packets_out`` writes the prompt packets (JSONL) for the agent
+    flow. ``menu``/``prompt`` are mutually exclusive.
     """
     from helpers.core.review_kit import Journal, ReviewSession, assemble_entries
+    from helpers.core.review_menu import (
+        Choice,
+        MenuSpec,
+        make_menu_input,
+        make_scripted_input,
+        write_packets,
+    )
+
+    _MENU_SPEC = MenuSpec(
+        name="nic2008",
+        prompt="Review the industry label and decide:",
+        choices=(
+            Choice("1", "approve suggestion 1"),
+            Choice("2", "approve suggestion 2"),
+            Choice("3", "approve suggestion 3"),
+            Choice("c CODE[:matchType]", "approve a custom subclass code (validated)"),
+            Choice("s", "skip this label (needs-better-labels pool)"),
+            Choice("?", "full evidence (all CIN codes + member names)"),
+            Choice("q", "quit — review the batch, apply what was approved"),
+            Choice("x", "abort — apply nothing"),
+        ),
+    )
+    if menu and prompt:
+        raise ValueError("--menu and --prompt are mutually exclusive")
+    if prompt and answers_path is None:
+        raise ValueError("--prompt requires --answers <file>")
+    reader = input_fn
+    if menu:
+        reader = make_menu_input(_MENU_SPEC, print_fn=print_fn, input_fn=input_fn)
+    elif prompt:
+        assert answers_path is not None  # guarded by the ValueError above
+        answers = answers_path.read_text(encoding="utf-8").splitlines()
+        reader = make_scripted_input(answers, _MENU_SPEC)
+    input_fn = reader  # ask() closures and the confirm gate read through the backend
 
     seed = json.loads(SEED_PATH.read_text(encoding="utf-8"))
     desc_by_code = {r["code"]: r["description"] for r in seed["subclasses"]}
@@ -1314,6 +1358,8 @@ def review(  # noqa: C901  # thin config over helpers.core.review_kit (S1 rehome
         ),
         limit=limit,
     )
+    if packets_out is not None and entries:
+        write_packets(entries, _MENU_SPEC, packets_out)
     return ReviewSession(
         entries=entries,
         journal=Journal(journal_path),
@@ -1322,7 +1368,7 @@ def review(  # noqa: C901  # thin config over helpers.core.review_kit (S1 rehome
         spec_of=spec_of,
         apply_batch=apply_batch,
         post_approve=post_approve,
-        input_fn=input_fn,
+        input_fn=reader,
         print_fn=print_fn,
         apply_flag=apply,
     ).run()
@@ -1452,6 +1498,26 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help="walk skip-parked labels only (the needs-better-labels pool)",
     )
+    p_rev.add_argument(
+        "--menu", action="store_true", help="review: numbered menu input instead of raw keypresses"
+    )
+    p_rev.add_argument(
+        "--prompt",
+        action="store_true",
+        help="review: read one answer per item from --answers (walk order; final y/n line answers the batch confirm)",
+    )
+    p_rev.add_argument(
+        "--answers",
+        type=pathlib.Path,
+        default=None,
+        help="prompt: answers file (one verb per line)",
+    )
+    p_rev.add_argument(
+        "--packets-out",
+        type=pathlib.Path,
+        default=None,
+        help="prompt: also write the prompt-packets JSONL here",
+    )
     args = parser.parse_args(argv)
     if args.mode == "build":
         build(args.pdf, args.out)
@@ -1512,6 +1578,10 @@ def main(argv: list[str] | None = None) -> int:
                 apply=not args.dry_run,
                 redecide=args.redecide,
                 skipped=args.skipped,
+                menu=args.menu,
+                prompt=args.prompt,
+                answers_path=args.answers,
+                packets_out=args.packets_out,
             )
         finally:
             conn.close()

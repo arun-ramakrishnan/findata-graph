@@ -1252,3 +1252,111 @@ def test_amend_demands_an_existing_row_and_a_real_date(app2, tmp_path):
     assert json.loads(path.read_text()) == [
         _row(surface="/api/mut", attack_class="injection")
     ]  # the refused journal wrote nothing
+
+
+# ---------------------------------------------------------------------------
+# review — the interactive sitting over the coverage queue (S3)
+# ---------------------------------------------------------------------------
+
+
+def _empty_ledger(tmp_path):
+    path = tmp_path / "ledger.json"
+    path.write_text("[]")
+    return path
+
+
+def _tap(tape):
+    def _read(_prompt=None):
+        return tape.pop(0) if tape else "q"
+
+    return _read
+
+
+def test_review_menu_mode_sitting(app, tmp_path):
+    ledger = _empty_ledger(tmp_path)
+    decisions = tmp_path / "decisions.jsonl"
+    tape = ["c confirmed"] * 8 + ["y"]
+    outcome = cl.review(
+        app,
+        ledger,
+        decisions=decisions,
+        journal_dir=tmp_path / "j",
+        input_fn=_tap(tape),
+    )
+    assert isinstance(outcome, dict)
+    lines = decisions.read_text().splitlines()
+    assert len(lines) == 8
+    for line in lines:
+        row = json.loads(line)
+        assert row["decision"] == "cover"
+        assert row["verdict"] == "confirmed"
+        assert row["surface"] in {"/api/thing", "/api/other"}
+    # the journal is accepted by the real apply (dry-run, no --write)
+    assert cl.apply(app, ledger, decisions) == 0
+
+
+def test_review_prompt_mode_packets(app, tmp_path):
+    ledger = _empty_ledger(tmp_path)
+    decisions = tmp_path / "decisions.jsonl"
+    answers = tmp_path / "answers.txt"
+    answers.write_text("\n".join(["c clean"] * 8 + ["y"]) + "\n")
+    packets = tmp_path / "packets.jsonl"
+    outcome = cl.review(
+        app,
+        ledger,
+        decisions=decisions,
+        journal_dir=tmp_path / "j",
+        prompt=True,
+        answers_path=answers,
+        packets_out=packets,
+    )
+    assert isinstance(outcome, dict)
+    lines = packets.read_text().splitlines()
+    assert len(lines) == 8
+    first = json.loads(lines[0])
+    assert first["schema"] == "review_menu/v1"
+    assert first["surface"] == "coverage"
+    assert first["item_id"].rsplit("/", 1)[0] in {"/api/thing", "/api/other"}
+    assert (
+        decisions.read_text().splitlines()
+        and json.loads(decisions.read_text().splitlines()[0])["decision"] == "cover"
+    )
+
+
+def test_review_retries_bad_forms(app, tmp_path):
+    ledger = _empty_ledger(tmp_path)
+    decisions = tmp_path / "decisions.jsonl"
+    tape = [
+        "d",  # defer without note -> retry
+        "d|parked pending release",  # valid defer
+        "e",  # exclude without status -> retry
+        "e not_applicable|GET-only surface",
+        "c",  # cover without verdict -> retry
+        "c clean",
+        *(["c clean"] * 5),  # remaining 5 rows
+        "y",
+    ]
+    outcome = cl.review(
+        app,
+        ledger,
+        decisions=decisions,
+        journal_dir=tmp_path / "j",
+        input_fn=_tap(tape),
+    )
+    assert isinstance(outcome, dict)
+    rows = [json.loads(line) for line in decisions.read_text().splitlines()]
+    assert len(rows) == 8
+    kinds = {r["decision"] for r in rows}
+    assert kinds == {"cover", "defer", "exclude"}
+    defer = next(r for r in rows if r["decision"] == "defer")
+    assert defer["note"] == "parked pending release"
+    exclude = next(r for r in rows if r["decision"] == "exclude")
+    assert exclude["status"] == "not_applicable"
+
+
+def test_review_flags_mutually_exclusive(app, tmp_path):
+    ledger = _empty_ledger(tmp_path)
+    with pytest.raises(ValueError):
+        cl.review(app, ledger, menu=True, prompt=True, answers_path=tmp_path / "x.txt")
+    with pytest.raises(ValueError):
+        cl.review(app, ledger, prompt=True)

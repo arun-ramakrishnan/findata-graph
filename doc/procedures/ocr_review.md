@@ -217,6 +217,14 @@ The host agent then reviews the diff against that checklist:
 
 What the checks cannot catch is the defect class this loop exists for: every `csr_lane_fixes` finding was semantic while all four checks stayed green — a docstring promising a "top-k heap" the code did not use, a warning contradicting its default, a fast path that never fired, a parity claim that did not hold.
 
+**The host loop can be walked as a checklist sitting** — `review_checklist.py ocr`
+renders the 12-item runbook (ref → selection → freshness → rules → brief →
+review → validity → verdicts → apply → record → report) as a menu or
+scripted prompt (`--menu`/`--prompt`), recording verdicts to
+`outputs/ocr_checklist_review/decisions.jsonl` (advisory — never a gate).
+It is a tracking surface, not a substitute for the judgment steps below:
+the severity and validity rules still bind on the host.
+
 | Severity | Action |
 |---|---|
 | Critical / High | always report; correctness and security are blocking |

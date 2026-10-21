@@ -573,6 +573,37 @@ class TestReviewSitting:
                 "redecide": True,
                 "skipped": True,
                 "apply": False,
+                "menu": False,
+                "prompt": False,
+                "answers_path": None,
+                "packets_out": None,
+            }
+        ]
+        calls.clear()
+        assert (
+            tpr.main(
+                [
+                    "--review",
+                    "--menu",
+                    "--prompt",
+                    "--answers",
+                    "/tmp/a.txt",
+                    "--packets-out",
+                    "/tmp/p.jsonl",
+                ]
+            )
+            == 0
+        )
+        assert calls == [
+            {
+                "limit": None,
+                "redecide": False,
+                "skipped": False,
+                "apply": True,
+                "menu": True,
+                "prompt": True,
+                "answers_path": Path("/tmp/a.txt"),
+                "packets_out": Path("/tmp/p.jsonl"),
             }
         ]
         assert tpr.main(["--review"]) == 0 and calls[-1] == {
@@ -580,7 +611,54 @@ class TestReviewSitting:
             "redecide": False,
             "skipped": False,
             "apply": True,
+            "menu": False,
+            "prompt": False,
+            "answers_path": None,
+            "packets_out": None,
         }
+
+    def test_menu_prompt_flags_plumbing(self, paths, tmp_path) -> None:
+        # no open rows -> empty walk; packets written before any input
+        self._sidecar(paths, [])
+        answers = tmp_path / "answers.txt"
+        packets = tmp_path / "packets.jsonl"
+        answers.write_text("")
+        rep, out = self._review(
+            [], paths, menu=False, prompt=True, answers_path=answers, packets_out=packets
+        )
+        assert rep["approved"] == 0
+        assert not packets.exists() or packets.stat().st_size == 0
+        # conflicting modes are rejected before any input is consumed
+        self._sidecar(paths, [("supplier_to", "Acme Corp", "Dixon Technologies", "q")])
+        with pytest.raises(ValueError):
+            self._review(["a"], paths, menu=True, prompt=True, answers_path=answers)
+
+    def test_review_menu_mode_sitting(self, paths) -> None:
+        """Menu backend drives a real sitting: same verbs, same write gate."""
+        self._sidecar(paths, [("supplier_to", "Acme Corp", "Dixon Technologies", "q")])
+        tape = iter(["a", "y"])
+        out: list[str] = []
+        rep = tpr.review(
+            input_fn=lambda _p: next(tape),
+            print_fn=out.append,
+            journal_dir=paths.parent,
+            menu=True,
+        )
+        assert rep["approved"] == 1
+        rows = self._file_rows()
+        assert len(rows) == 1 and rows[0]["decision"] == "accept:supplier_to"
+        assert any("1) a[/EDGE_TYPE[/TARGET]]" in line for line in out)
+
+    def test_review_menu_mode_quit_writes_nothing(self, paths) -> None:
+        self._sidecar(paths, [("supplier_to", "Acme Corp", "Dixon Technologies", "q")])
+        tape = iter(["q"])
+        rep = tpr.review(
+            input_fn=lambda _p: next(tape),
+            print_fn=lambda _s: None,
+            journal_dir=paths.parent,
+            menu=True,
+        )
+        assert rep["approved"] == 0 and not tpr.DECISIONS.exists()
 
     def test_accept_target_db_lookup(self, paths):
         # a//QUERY keeps the row's edge type, resolves the target via DB
