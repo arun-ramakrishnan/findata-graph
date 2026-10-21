@@ -7,6 +7,114 @@
 
 ---
 
+## 428. Quack Slice B — wire-routed stores: one server per store, convo_search + graph live
+
+**Date**: 2026-10-22
+**Status**: COMPLETE (waves 1-2; later waves gated on contention)
+
+Integration phase of `doc/improvements/archive/database/duckdb_20_quack.md` (#428)
+(read that for the full narrative + numbers). Serves the shared
+`memory/` DuckDB stores over the quack wire so many OS processes stop
+fighting the 2.0 single-writer file lock.
+
+**Topology (protocol-forced, then proven):** `quack_serve` exposes
+ONLY its primary database over the wire and the client attach alias
+is a local label — one-server-many-stores silently routes every
+client to the primary (caught live: an "as convo_search" attach
+returned graph's 129,708 edges). So: ONE SERVER PER STORE,
+`QUACK_PORT_BASE+i` (9494, 9495, …); discovery
+`memory/.quack.json` = `{alias: {uri, token, pid, path, started_at}}`
+maintained by fcntl-locked read-modify-write; routing by resolved
+path, zero cross-talk verified.
+
+**Shadow-bind defect (found + fixed):** `quack_serve` binds with
+`SO_REUSEPORT`, so a second server successfully shadow-binds the same
+port and the kernel load-balances connections between different
+tokens — the ~50% `Authentication failed` smoke flake. Guard:
+kernel-truth `ss -ltnp` pre-flight in the child (refuses to start,
+exit 2 names the holder) + explicit port in every served uri (the
+bare `quack:localhost` form is portless). Post-fix smoke PASS ×3.
+
+**Landed:** `helpers/core/duckdb_shared.py` (`connect_shared` wire
+attach / file fallback ladder, `assert_not_served` split-brain guard,
+`sql_lit`, `wait_healthy`, locked discovery RMW);
+`helpers/misc/quack_server_child.py` / `quack_servers.sh` /
+`quack_health.py` + Makefile `quack-start/-stop/-status/-restart/-health`;
+`helpers/graph/query.py` + `derive_indices.py` RO sites routed;
+`duckdb_lock.open_read_only` (repo-wide RO funnel) wire-routes when
+served; `harvest_conversations` Store writes over the wire (executemany
+lanes converted to `sql_lit` literals — prepared params don't cross
+the wire); 4 `assert_not_served` guards in `rebuild_convo_search`
+(swap + migrations).
+
+**Proof (2026-10-22):** harvest APPLY over the wire rc=0; swap rebuild
+refused loudly while served; stop → file-mode atomic swap 597 s rc=0;
+restart → fresh index (154,681 rows, +1,573) read over the wire with
+correct per-store routing. Concurrency demo: 2 cross-process wire
+readers + 1 wire writer, 0 errors, p50 38.3 ms/txn; file RO while
+served still lock-blocked as expected. Serving policy: `convo_search`
++ `graph` resident (~100 MB RSS per child); `research`/`sources` stay
+file until contention shows; external-writer stores file forever.
+
+**Parked (operator + external):** onager stays parked (no 2.0.0
+build, completed.md #427); wave 3 (`embed_store`) and
+`research`/`sources` serving gated on demonstrated multi-process
+contention — `connect_shared` makes them byte-identical opt-ins.
+
+## 427. DuckDB 2.0 migration — `register()` drain discipline, re-stamp, storage posture
+
+**Date**: 2026-10-21
+**Status**: COMPLETE
+
+Upstream: DuckDB 2.0.0 LTS "Cinnamon Teal" (2026-10-21), venv upgraded;
+full changeset <https://github.com/duckdb/duckdb/releases/tag/v2.0.0>.
+Executed same-day under operator direction; follow-on work lives in the
+`duckdb_20_*` proposal family (`doc/improvements/proposals/`).
+
+**The one breaking change that bit:** 2.0 rejects `register()` (and
+catalog-mutating ops) when the connection's latest `execute()` result
+was not fully exhausted — `fetchone()` no longer clears the pending
+result (1.x auto-aborted on the next `execute()`). Micro-test
+established: `execute`→`register` raises `ResourceInUseException`;
+`fetchall` or a fresh `con.execute("SELECT 1").fetchall()` drains the
+slot. First failure: `graph-rebuild` at
+`helpers/graph/query.py:1886` (`_materialise_embeddings`).
+
+Fix idiom `duckdb2-drain` (`con.execute("SELECT 1").fetchall()` before
+`register()`), applied at every duckdb register site:
+`helpers/graph/query.py:1886/:2009/:2081`,
+`helpers/analytics/trace_contracts.py:435`,
+`helpers/analytics/agent_traces.py:526`,
+`helpers/misc/gate_query.py:1129`,
+`helpers/maintenance/rebuild_convo_search.py:499`.
+
+Landed state: `make graph-rebuild` ✓ (`_build_meta.duckdb_version`
+`v2.0.0`); `make snapshot` ✓; `schema/duckdb/graph.sql` re-dumped —
+diff vs 1.5.6 is exactly the 10 onager-served tables absent
+(`v_centrality_*` ×9 + `v_graph_structure`), `tests/test_schema_drift.py`
+4/4; targeted suites 79 passed (gate-query, convo-search,
+trace-contracts, agent-traces).
+
+**Parked (external):** `INSTALL onager` under 2.0.0 → HTTP 404 (no
+`v2.0.0/linux_amd64` build; GH releases stop v0.1.0-alpha.2) —
+`stamp-centrality`, the centrality smoke, perf centrality legs, and
+`v_centrality_*` consumers blocked until upstream ships. Fallback if
+upstream lags: re-pin 1.5.6 (LTS 2027-03; precedent
+`doc/improvements/archive/tooling/duckdb_pin_reconciliation.md`).
+
+**Storage posture:** existing DBs keep the ≤1.5 storage version under
+2.0 writes (pin fallback valid **until the first conversion**); new
+2.0 files get storage v69, unreadable by 1.x — before any conversion,
+verify every consumer venv ≥ 2.0 (conversion recipe in
+`duckdb_20_sqlite_reentry.md`). Breaking-change sweep vs the official
+migration page: clean (no `->` lambdas, no div-by-zero surfaces, no
+`COLLATE`, S3 N/A, removed settings unused). `memory/research.duckdb`
+is referenced by NO repo code — derived artifact, left untouched.
+Quack re-pilot under 2.0.0 PASSED its gates (numbers in
+`doc/local/evaluations/duckdb_vector_search_assessment.md` §"Quack
+re-pilot — DuckDB 2.0.0"); integration proceeds as
+`duckdb_20_quack.md`.
+
 ## 426. Merger/demerger n-ary hyperedges — ternary M&A facts stop masquerading as `acquired` dyads
 
 **Date**: 2026-10-21 (filed) → 2026-10-21 (executed)

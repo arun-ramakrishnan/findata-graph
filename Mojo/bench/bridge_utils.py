@@ -57,7 +57,13 @@ def connect_sqlite_ro(
 
 
 def connect_duckdb_ro(db_path: pathlib.Path | str | None = None):
-    """Read-only DuckDB connect for the graph cache."""
-    import duckdb
+    """Read-only DuckDB connect for the graph cache.
 
-    return duckdb.connect(str(db_path or GRAPH_DUCKDB), read_only=True)
+    Routes through the Slice B funnel: wire attach when the store is
+    served by the resident quack server, file open (io_lock + S1 retry
+    ladder) otherwise — a served store excludes every file-mode open.
+    The Mojo side is engine-agnostic; it only sees a live connection.
+    """
+    from helpers.misc.duckdb_lock import open_read_only
+
+    return open_read_only(db_path or GRAPH_DUCKDB)

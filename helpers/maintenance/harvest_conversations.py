@@ -68,6 +68,7 @@ INDEX_DB = REPO / "memory/convo_search.duckdb"
 sys.path.insert(0, str(REPO))
 
 from helpers.core.db import connect  # noqa: E402
+from helpers.core import duckdb_shared  # noqa: E402  (bare-script entry point; bootstrap above)
 from helpers.core.ranges import RangeError, cutoff_from  # noqa: E402  (bare-script entry point; bootstrap above)
 
 _SCHEMA = pa.schema(
@@ -171,7 +172,12 @@ class Store:
             # harvest releases via process death (kernel-managed flock).
             self._io_lock_fh = open(str(db) + ".io.lock", "w")
             fcntl.flock(self._io_lock_fh.fileno(), fcntl.LOCK_EX)
-            self.con = duckdb.connect(str(db))
+            # Wire-capable writer: when the store is served, connect_shared
+            # attaches over the quack wire and the server serializes this
+            # writer against readers (Slice B wave 2). Unserved it is the
+            # plain file connect below — the LOCK_EX flock above stays the
+            # file-mode coordination.
+            self.con = duckdb_shared.connect_shared(str(db), read_only=False)
             self.con.execute(
                 "CREATE TABLE IF NOT EXISTS harvest_meta ("
                 "source VARCHAR PRIMARY KEY, watermark VARCHAR, updated_ts TIMESTAMP)"
@@ -221,14 +227,21 @@ class Store:
         if con is None:  # pragma: no cover - read_only is the only None path
             raise RuntimeError("no open Store connection")
         if self._pending_wm:
-            con.executemany(
-                "INSERT OR REPLACE INTO harvest_meta VALUES (?, ?, now())", self._pending_wm
-            )
+            # Literal SQL, one statement per row: prepared parameters do
+            # not cross the quack wire (§2.6), and file mode takes the
+            # literals identically — one audited path for both modes.
+            # Batches are small (pending watermarks), so the loop cost
+            # is noise.
+            for key, value in self._pending_wm:
+                con.execute(
+                    "INSERT OR REPLACE INTO harvest_meta VALUES ("  # noqa: S608  — key/value via ds.sql_lit, wire-safe claiming path
+                    f"{duckdb_shared.sql_lit(key)}, {duckdb_shared.sql_lit(value)}, now())"
+                )
             self._pending_wm.clear()
         if self._pending_parts:
-            con.executemany(
-                "INSERT OR REPLACE INTO part_index VALUES (?, ?, ?)", self._pending_parts
-            )
+            for row in self._pending_parts:
+                lits = ", ".join(duckdb_shared.sql_lit(v) for v in row)
+                con.execute(f"INSERT OR REPLACE INTO part_index VALUES ({lits})")  # noqa: S608  — tuple lits via ds.sql_lit
             self._pending_parts.clear()
 
     def close(self) -> None:
@@ -1911,13 +1924,14 @@ def _provenance_drift(corpus_root: Path = CORPUS_ROOT, index_db: Path = INDEX_DB
     provenance. Rows the index does not have are skipped — an unindexed file is
     `stale_new`'s business, not a provenance disagreement.
     """
-    import duckdb
     import pyarrow.parquet as pq
+
+    from helpers.misc.duckdb_lock import open_read_only
 
     if not Path(index_db).exists():
         return []
     try:
-        con = duckdb.connect(str(index_db), read_only=True)
+        con = open_read_only(index_db)  # wire-routes when the store is served
     except Exception:
         return []
     try:
@@ -2370,6 +2384,8 @@ def _resolve_orphans(  # noqa: C901
 
 
 _LIVE_SESSION_IDS: dict[str, set[str] | None] = {}
+_LIVE_SESSION_PROBE: dict[str, float] = {}
+_LIVE_PROBE_TTL_S = 30.0
 
 
 def _live_session_ids(harness: str) -> set[str] | None:
@@ -2378,10 +2394,30 @@ def _live_session_ids(harness: str) -> set[str] | None:
     Only `opencode` answers: its state is a SQLite `session` table. The other
     three lanes are file-enumerated and have no comparable manifest, so they
     return None and every session is left alone.
+
+    A positive answer is cached for the process (one query, not one per
+    corpus file). A FAILED probe is cached only briefly — a transient lock
+    (the live store is busy) must not silence the orphan lane for the rest
+    of the run: the lane would report "relabelled 0 row(s)" and every
+    dropped session would stay labelled `opencode:live` until the next
+    process. Measured 2026-10-22: a poisoned negative cache made the
+    --resolve-orphans gate fail for every later caller in that process.
     """
-    if harness not in _LIVE_SESSION_IDS:
-        _LIVE_SESSION_IDS[harness] = _oc_live_ids() if harness == "opencode" else None
-    return _LIVE_SESSION_IDS[harness]
+    if harness in _LIVE_SESSION_IDS:
+        return _LIVE_SESSION_IDS[harness]
+    if harness == "opencode":
+        ids = _oc_live_ids()
+        if ids is not None:
+            _LIVE_SESSION_IDS[harness] = ids
+            return ids
+        now = time.monotonic()
+        last = _LIVE_SESSION_PROBE.get(harness)
+        if last is not None and now - last < _LIVE_PROBE_TTL_S:
+            return None  # recently failed — do not re-probe per corpus file
+        _LIVE_SESSION_PROBE[harness] = now
+        return None
+    _LIVE_SESSION_IDS[harness] = None
+    return None
 
 
 def _opencode_live_session_ids() -> set[str]:

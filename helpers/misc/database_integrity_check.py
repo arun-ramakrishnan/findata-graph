@@ -676,10 +676,10 @@ class DatabaseIntegrityChecker:
             for etype, roles in MERGER_ROLE_BY_TYPE.items():
                 role_list = ",".join(f"'{r}'" for r in roles)
                 bad_role += cur.execute(
-                    "SELECT COUNT(*) FROM hyper_incidences hi "
+                    "SELECT COUNT(*) FROM hyper_incidences hi "  # noqa: S608  — etype/roles are code constants
                     "JOIN hyper_edges he ON he.id = hi.edge_id "
-                    f"WHERE he.edge_type = '{etype}' "  # noqa: S608  # family is a code constant
-                    f"AND (hi.role IS NULL OR hi.role NOT IN ({role_list}))"  # noqa: S608  # roles are code constants
+                    f"WHERE he.edge_type = '{etype}' "
+                    f"AND (hi.role IS NULL OR hi.role NOT IN ({role_list}))"
                 ).fetchone()[0]
         errors = unknown_type + bad_role
         return {
@@ -1910,19 +1910,20 @@ class DatabaseIntegrityChecker:
         if not duckdb_path.exists():
             return {"skipped": True, "reason": "cache file absent", "errors": 0, "warnings": 1}
 
-        try:
-            import duckdb  # lazy — not a hard dep of the checker
-        except ImportError:
+        from importlib.util import find_spec
+
+        if find_spec("duckdb") is None:
             return {"skipped": True, "reason": "duckdb not installed", "errors": 0, "warnings": 1}
 
         try:
-            from helpers.misc.duckdb_lock import connect_with_lock_retry
+            from helpers.misc.duckdb_lock import open_read_only
 
-            # S2 (duckdb_transient_lock_retry): retry a transient lock
-            # conflict across the ladder first — only a conflict that
-            # outlives it (or any other failure) falls through to the
-            # "cache unreadable" drift ERROR below.
-            con = connect_with_lock_retry(lambda: duckdb.connect(str(duckdb_path), read_only=True))
+            # Slice B funnel: wire-routes when the store is served (the
+            # resident quack server holds the live inode; its reader path
+            # is the wire attach, and a raw file-mode open then collides
+            # with the server's lock — "cache unreadable" was really
+            # "unroutable"). Unserved: the shared-lock + retry ladder.
+            con = open_read_only(duckdb_path)
         except Exception as e:
             # Corrupted / unreadable cache — treat as a drift ERROR (the
             # app would also fail to read it). Fresh-rebuild fixes it.

@@ -1318,7 +1318,8 @@ def review(  # noqa: C901 — keypress parsing + kit wiring, split would scatter
             recommended=lambda: _menu_rec["key"],
         )
     elif prompt:
-        assert answers_path is not None  # guarded by the ValueError above
+        if answers_path is None:  # unreachable — the ValueError above guards prompt w/o answers
+            raise ValueError("--prompt requires --answers <file>")
         answers = answers_path.read_text(encoding="utf-8").splitlines()
         reader = make_scripted_input(answers, _MENU_SPEC)
     input_fn = reader  # ask() closures and the confirm gate read through the backend
@@ -1409,6 +1410,48 @@ def review(  # noqa: C901 — keypress parsing + kit wiring, split would scatter
         print_fn(f"[{idx}/{total}] `{e['label']}`")
         _evidence(e)
 
+    def _parse_exclude(ans: str, free_note: str) -> dict | None:
+        """Parse 'e STATUS|note'. None = bad status or missing note."""
+        rest = ans[1:].strip()
+        status, _, inline_note = rest.partition("|")
+        status = status.strip()
+        if status not in EXCLUDED_STATUSES:
+            print_fn(f"  exclude status must be one of {EXCLUDED_STATUSES} — try again")
+            return None
+        note = free_note or inline_note
+        if not note:
+            print_fn("  exclude needs a note — e STATUS|why")
+            return None
+        return {"file_decision": f"exclude:{status}", "status": status, "verdict": ""}
+
+    def _ask_verdict(ans: str, free_note: str) -> dict | None:
+        """Parse one interactive answer. Returns a verdict dict, or
+        {"keep_looking": True} to re-prompt, or None for an invalid
+        answer (caller prints the legend)."""
+        if ans in {"p", "q", "x"}:
+            return {"action": {"p": "skip", "q": "quit", "x": "abort"}[ans]}
+        if ans == "?":
+            return {"help": True}
+        if ans == "b":
+            return {"file_decision": "bad_pair", "status": "", "verdict": ""}
+        if ans == "d":
+            if not free_note:
+                print_fn("  defer needs a note — d|why")
+                return {"keep_looking": True}
+            return {"file_decision": "defer", "status": "", "verdict": ""}
+        if ans.startswith("e"):
+            got = _parse_exclude(ans, free_note)
+            if got is None:
+                return {"keep_looking": True}
+            return got
+        if ans.startswith("c"):
+            verdict = ans[1:].strip()
+            if not verdict:
+                print_fn("  cover needs a verdict — c confirmed / c clean / …")
+                return {"keep_looking": True}
+            return {"file_decision": "cover", "status": "", "verdict": verdict}
+        return None
+
     def ask(e: dict, note) -> dict:
         rid = e["label"]
         if menu:
@@ -1417,51 +1460,25 @@ def review(  # noqa: C901 — keypress parsing + kit wiring, split would scatter
             ans = input_fn("  c VERDICT / e STATUS|note / d|note / b / p / ? / q / x: ").strip()
             ans, _, free_note = ans.partition("|")
             ans, free_note = ans.strip(), free_note.strip()
-            if ans in {"p", "q", "x"}:
-                return {"id": rid, "action": {"p": "skip", "q": "quit", "x": "abort"}[ans]}
-            if ans == "?":
+            verdict = _ask_verdict(ans, free_note)
+            if verdict is None:
+                print_fn("  ? (c VERDICT / e STATUS|note / b / p / ? / q / x)")
+                continue
+            if verdict.get("keep_looking"):
+                continue
+            if verdict.get("help"):
                 print_fn("\n".join(legend))
                 _evidence(e)
                 continue
-            file_decision = None
-            verdict = ""
-            status = ""
-            if ans == "b":
-                file_decision = "bad_pair"
-            elif ans == "d":
-                if not free_note:
-                    print_fn("  defer needs a note — d|why")
-                    continue
-                file_decision = "defer"
-            elif ans.startswith("e"):
-                rest = ans[1:].strip()
-                status, _, inline_note = rest.partition("|")
-                status = status.strip()
-                note = free_note or inline_note
-                if status not in EXCLUDED_STATUSES:
-                    print_fn(f"  exclude status must be one of {EXCLUDED_STATUSES} — try again")
-                    continue
-                if not note:
-                    print_fn("  exclude needs a note — e STATUS|why")
-                    continue
-                file_decision = f"exclude:{status}"
-                verdict = ""
-            elif ans.startswith("c"):
-                verdict = ans[1:].strip()
-                if not verdict:
-                    print_fn("  cover needs a verdict — c confirmed / c clean / …")
-                    continue
-                file_decision = "cover"
-            else:
-                print_fn("  ? (c VERDICT / e STATUS|note / d|note / b / p / ? / q / x)")
-                continue
+            if "action" in verdict:
+                return {"id": rid, "action": verdict["action"]}
             d = {
                 "id": rid,
                 "action": "approve",
-                "file_decision": file_decision,
+                "file_decision": verdict["file_decision"],
                 "note": free_note,
-                "_status": status,
-                "_verdict": verdict,
+                "_status": verdict["status"],
+                "_verdict": verdict["verdict"],
             }
             for k in ("surface", "attack_class"):
                 d[k] = e.get(k, "")

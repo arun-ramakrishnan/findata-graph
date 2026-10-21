@@ -104,6 +104,10 @@ def write_hif_parquet(
     meta = _footer_meta(sources, network_type)
     paths = {}
     for fn, tbl in ((NODES_FN, nodes), (EDGES_FN, edges), (INCIDENCES_FN, incs)):
+        if (
+            tbl is None
+        ):  # to_arrow_table on an empty result still yields a table; None = query failed
+            raise RuntimeError(f"{fn}: arrow table materialisation returned None")
         p = out / fn
         pq.write_table(tbl.replace_schema_metadata(meta), p, compression="zstd")
         paths[fn] = p

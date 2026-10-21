@@ -16,6 +16,7 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 duckdb = pytest.importorskip("duckdb")
 
 from helpers.graph import context_pack as CP  # noqa: E402
+from helpers.graph import query  # noqa: E402
 
 DDL = """
 CREATE TABLE v_node(id BIGINT, name VARCHAR, kind VARCHAR,
@@ -203,7 +204,10 @@ class TestLiveGraph:
             pytest.skip("live graph.duckdb not present")
 
     def test_live_pack_for_mm(self):
-        con = duckdb.connect(str(self.LIVE), read_only=True)
+        # Shared reader contract: routes over the quack wire when the store
+        # is served (a local read-only open is refused by the server's
+        # read-write lock) and keeps the file path when it is not.
+        con = query.connect_read_only(self.LIVE)
         try:
             pack = CP.build_context_pack(con, "Mahindra & Mahindra", budget=15)
         finally:

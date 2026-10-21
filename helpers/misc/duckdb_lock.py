@@ -135,11 +135,18 @@ def open_read_only(db_path: Path | str):
     """The S3 reader entry: queue on ``<db>.io.lock`` (``LOCK_SH``), then
     open DuckDB read-only with the S1 ladder as belt-and-braces for
     holders that never took the flock (a ``db_maint`` backup, a manual
-    CLI). The flock releases the moment the open succeeds — DuckDB's own
+    CLI). When the store is served by the resident quack server the
+    queue is skipped entirely — the server does not participate in the
+    flock, so the read attaches over the wire instead (Slice B). The
+    flock releases the moment the open succeeds — DuckDB's own
     lock protects the connection from then on. DuckDB is imported lazily
     so this module stays dependency-light for classification-only users.
     """
     import duckdb
 
+    from helpers.core import duckdb_shared as ds
+
+    if ds.is_served(db_path):
+        return ds.connect_shared(str(db_path), read_only=True)
     with io_lock(db_path, exclusive=False):
         return connect_with_lock_retry(lambda: duckdb.connect(str(db_path), read_only=True))

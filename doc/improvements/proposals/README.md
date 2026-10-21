@@ -38,10 +38,19 @@ entry number and stale DONE pointers):
 
 ## Current live proposals
 
-_(none)_ — the 2026-10-21 merger/demerger batch is fully discharged; the
-next filing starts a new list.
+- `duckdb_20_variant.md` (filed 2026-10-21) — VARIANT first-class JSON
+  bench for JSON-as-VARCHAR columns; legitimate outcome is "evaluated,
+  not warranted" at our row counts.
+- `duckdb_20_sqlite_reentry.md` (filed 2026-10-21) — gated SQLite
+  retirement re-entry under 2.0 (blockers carried forward; gate B2/B1
+  + B3 unchanged; blocker #1 — multi-process writes — dissolved by the
+  executed quack arc, see `../archive/database/duckdb_20_quack.md` #428).
+- Family provenance: split 2026-10-21 from the bundled
+  `duckdb20_quack_variant` filing; the executed 2.0-compat migration
+  is completed.md #427. Upstream changeset:
+  <https://github.com/duckdb/duckdb/releases/tag/v2.0.0>.
 
-Executed from this batch (archived — see `../archive/README.md` for the
+Previous batch (executed + archived — see `../archive/README.md` for the
 detail bullets): `../archive/graph/merger_demerger_hyperedges.md` (#426),
 `../archive/tooling/review_preannotate_hints.md` (#425),
 `../archive/tooling/review_menu_prompt_driven.md` (#424),

@@ -27,6 +27,48 @@ from helpers.misc.database_integrity_check import DatabaseIntegrityChecker  # no
 from helpers.validators.verify_notes import NotesVerifier  # noqa: E402
 from helpers.maintenance.migrate_to_graph_edges import ENTITIES_DDL  # noqa: E402
 
+
+# --------------------------------------------------------------------------- #
+# Onager availability gate (duckdb 2.0 park — completed.md #427)              #
+#                                                                             #
+# The onager community extension has no v2.0.0 distribution yet (INSTALL       #
+# hits HTTP 404), so any test that materialises graph algorithms through      #
+# it fails with `Extension ... not found`. Probe once per session and skip    #
+# the dependent modules; when the 2.0 extension lands the probe flips and     #
+# the same tests reactivate without further edits.                            #
+# --------------------------------------------------------------------------- #
+def _onager_available() -> bool:
+    try:
+        import duckdb
+
+        con = duckdb.connect(":memory:")
+        try:
+            con.execute("INSTALL onager")
+            con.execute("LOAD onager")
+            return True
+        finally:
+            con.close()
+    except Exception:
+        return False
+
+
+ONAGER_OK = _onager_available()
+
+# Whole modules whose suite is onager-native (skip in full when the
+# extension is missing — every test in them exercises the extension).
+ONAGER_MODULES = frozenset(
+    {
+        "tests/test_onager_capabilities.py",
+        "tests/test_integration_graph_algorithms.py",
+        "tests/test_integration_perf.py",
+        "tests/test_centrality_projection.py",
+        "tests/test_centrality_cache.py",
+        "tests/test_shared_query_vector.py",
+        "tests/test_scipy_bridge.py",
+        "tests/test_l1_betweenness.py",
+    }
+)
+
 # --------------------------------------------------------------------------- #
 # Markdown note templates (values chosen to match what each validator checks) #
 # --------------------------------------------------------------------------- #
@@ -671,6 +713,20 @@ def _test_metadata_target(config):
 
 def pytest_collection_modifyitems(config, items):
     global _test_metadata_enabled
+    # Onager gate first (duckdb 2.0 park — completed.md #427): when the
+    # extension has no distribution, skip the onager-native modules and
+    # `onager`-marked tests before anything else looks at them.
+    if not ONAGER_OK:
+        repo_prefix = str(REPO_ROOT) + "/"
+        for item in items:
+            fspath = str(item.fspath)
+            rel = fspath[len(repo_prefix) :] if fspath.startswith(repo_prefix) else fspath
+            if rel in ONAGER_MODULES or item.get_closest_marker("onager"):
+                item.add_marker(
+                    pytest.mark.skip(
+                        reason="onager extension has no duckdb-2.0 distribution (completed.md #427)"
+                    )
+                )
     target = _test_metadata_target(config)
     if target is None:
         return

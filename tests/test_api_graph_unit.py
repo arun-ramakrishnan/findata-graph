@@ -107,6 +107,7 @@ class TestGraphStats:
         assert data["staleness"]["most_recent_entity_update"] == "2026-06-02"
         assert data["staleness"]["most_recent_analytics_compute"] == "2026-06-01 12:00:00"
 
+    @pytest.mark.onager  # structure block needs the onager LOAD (2.0 park, #427)
     def test_stats_structure_block_values(self, unit_client):
         """Phase 2: Onager structural metrics over the seeded graph.
 

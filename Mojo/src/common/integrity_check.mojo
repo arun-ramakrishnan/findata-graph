@@ -1428,10 +1428,13 @@ def main() raises:
         cc_skipped = 1
         cc_reason = String("cache file absent")
     else:
-        var dcon = Python.evaluate(
-            "__import__('duckdb').connect('memory/graph.duckdb', "
-            "read_only=True)"
-        )
+        # Route the cache attach through the same Slice B funnel that
+        # every other ro consumer uses (wire attach when the store is
+        # served by the resident quack server; io_lock + retry ladder
+        # otherwise). A raw duckdb.connect collides with the server's
+        # live lock and fail the parity run spuriously.
+        var dlock = Python.import_module("helpers.misc.duckdb_lock")
+        var dcon = dlock.open_read_only("memory/graph.duckdb")
         var gq = Python.import_module("helpers.graph.query")
         cc_expected = py_str(gq._SCHEMA_VERSION)
         var svr = dcon.execute(

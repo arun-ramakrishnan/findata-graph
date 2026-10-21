@@ -40,7 +40,9 @@ def _graph_rows() -> int | None:
     db = REPO_ROOT / "memory" / "graph.duckdb"
     if not db.exists():
         return None
-    con = duckdb.connect(str(db), read_only=True)
+    from helpers.misc.duckdb_lock import open_read_only
+
+    con = open_read_only(db)  # wire-routes when the store is served (Slice B)
     try:
         _row = con.execute("SELECT COUNT(*) FROM e_all_und").fetchone()
         return _row[0] if _row else 0

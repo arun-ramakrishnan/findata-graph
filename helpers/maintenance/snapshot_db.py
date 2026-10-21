@@ -244,16 +244,19 @@ def create_duckdb_snapshot(duckdb_path: Path, out_path: Path, logger: logging.Lo
 
     out_path.parent.mkdir(parents=True, exist_ok=True)
 
-    import duckdb
-
     checkpointed = True
     try:
-        con = duckdb.connect(str(duckdb_path), read_only=True)
+        from helpers.misc.duckdb_lock import open_read_only
+
+        # Slice B funnel: when the store is served the CHECKPOINT lands
+        # over the wire attach (a file-mode open would collide with the
+        # server's lock); unserved it is the io_lock + S1 ladder path.
+        con = open_read_only(str(duckdb_path))
         try:
             con.execute("CHECKPOINT;")
         finally:
             con.close()
-    except duckdb.Error as e:
+    except Exception as e:
         # read-only CHECKPOINT may be rejected on some DuckDB versions;
         # fall back to a plain file copy (the WAL sidecar carries the
         # pending changes if any).
@@ -266,7 +269,6 @@ def create_duckdb_snapshot(duckdb_path: Path, out_path: Path, logger: logging.Lo
 
     raw = duckdb_path.stat().st_size
     compress_file(duckdb_path, out_path)
-
     gz = out_path.stat().st_size
     logger.info(f"DuckDB snapshot: {out_path} ({gz:,} bytes compressed, {raw:,} bytes source)")
     # P2.4: also snapshot WAL sidecar if it exists (un-CHECKPOINTed tail).
@@ -367,16 +369,20 @@ def verify_duckdb_snapshot(  # noqa: C901
         graph_perf_l1_bfs_scale): the centrality stamp's extra key is
         contract-legal drift on either side, not staleness."""
         counts: dict[str, int] = {}
+        # Literal keys, not prepared params: when ``con`` is a wire attach
+        # (Slice B) prepared parameters do not cross the wire, and the
+        # failure would silently omit the table and flag a false mismatch.
+        from helpers.core import duckdb_shared as _ds
+
         for t in materialised_tables:
             try:
                 if t == "_build_meta" and STAMP_OWNED_META_KEYS:
-                    ph = ", ".join("?" for _ in STAMP_OWNED_META_KEYS)
+                    lit = ", ".join(_ds.sql_lit(k) for k in STAMP_OWNED_META_KEYS)
                     _row = con.execute(
-                        f"SELECT COUNT(*) FROM _build_meta WHERE key NOT IN ({ph}) AND key NOT LIKE 'fp:%'",  # noqa: S608  # parameterized; schema-constant (fp:* = graph_rebuild_fast_path S1 input fingerprints — per-rebuild drift is contract-legal, same class as the stamp keys)
-                        tuple(STAMP_OWNED_META_KEYS),
+                        f"SELECT COUNT(*) FROM _build_meta WHERE key NOT IN ({lit}) AND key NOT LIKE 'fp:%'",  # noqa: S608  # literal keys are schema-constants; fp:* = graph_rebuild_fast_path S1 fingerprint drift (contract-legal)
                     ).fetchone()
                 else:
-                    _row = con.execute(f"SELECT COUNT(*) FROM {t}").fetchone()  # noqa: S608  # parameterized; interpolated parts are `?`-clauses / schema-constant identifiers
+                    _row = con.execute(f"SELECT COUNT(*) FROM {t}").fetchone()  # noqa: S608  # parameterized; interpolated parts are schema-constant identifiers
                 counts[t] = _row[0] if _row is not None else 0
             except duckdb.Error:
                 # Table absent or schema-mismatched — leave it out so the
@@ -458,7 +464,11 @@ def verify_duckdb_snapshot(  # noqa: C901
         # reference and its pg is always rebuilt by connect() at query time,
         # so there's nothing to verify about its pg constructibility.
         try:
-            sconn = duckdb.connect(str(source_duckdb), read_only=True)
+            # Slice B funnel: the source may be the LIVE served store —
+            # a file-mode open would collide with the server's lock.
+            from helpers.misc.duckdb_lock import open_read_only as _oro
+
+            sconn = _oro(str(source_duckdb))
             try:
                 src_counts = _count_tables(sconn)
                 try:
@@ -702,8 +712,6 @@ def export_parquet_duckdb(
         logger.info(f"DuckDB file not found, skipping Parquet export: {duckdb_path}")
         return {"skipped": True}
 
-    import duckdb
-
     out_dir.mkdir(parents=True, exist_ok=True)
     # Lazy import: keeps the module import light and avoids any import
     # cycle during test collection.
@@ -713,7 +721,11 @@ def export_parquet_duckdb(
         manifest = MATERIALISED_TABLES
 
     # Single read-only connection; COPY on base tables needs no extensions.
-    con = duckdb.connect(str(duckdb_path), read_only=True)
+    # open_read_only funnel (Slice B): wire attach when served, io_lock
+    # + retry ladder otherwise — a served store excludes file-mode opens.
+    from helpers.misc.duckdb_lock import open_read_only
+
+    con = open_read_only(str(duckdb_path))
     try:
         tables = _list_duckdb_tables(con)
         # Filter to only data tables (skip internal/system tables; the
@@ -955,14 +967,17 @@ def _verify_duckdb_counts(con, tname: str, pf: Path, stamp_meta: bool) -> tuple[
 
     path_sql = str(pf).replace("'", "''")
     if stamp_meta:
-        ph = ", ".join("?" for _ in STAMP_OWNED_META_KEYS)
+        # Literal keys, not prepared params: prepared parameters do not
+        # cross the wire when ``con`` is a Slice B wire attach, and the
+        # InvalidInput would fail closed as a false mismatch.
+        from helpers.core import duckdb_shared as _ds
+
+        lit = ", ".join(_ds.sql_lit(k) for k in STAMP_OWNED_META_KEYS)
         src = con.execute(
-            f"SELECT COUNT(*) FROM _build_meta WHERE key NOT IN ({ph}) AND key NOT LIKE 'fp:%'",  # noqa: S608  # stem gated by _verify_gate_stem; fragment is ?-clauses (fp:* = graph_rebuild_fast_path S1 fingerprints, per-rebuild contract-legal drift)
-            tuple(STAMP_OWNED_META_KEYS),
+            f"SELECT COUNT(*) FROM _build_meta WHERE key NOT IN ({lit}) AND key NOT LIKE 'fp:%'",  # noqa: S608  # literal keys are schema-constants; fp:* = graph_rebuild_fast_path S1 fingerprints (per-rebuild contract-legal drift)
         ).fetchone()
         snap = con.execute(
-            f"SELECT COUNT(*) FROM '{path_sql}' WHERE key NOT IN ({ph}) AND key NOT LIKE 'fp:%'",  # noqa: S608  # path quote-doubled; stem gated (S1); fp:* excluded (graph_rebuild_fast_path S1)
-            tuple(STAMP_OWNED_META_KEYS),
+            f"SELECT COUNT(*) FROM '{path_sql}' WHERE key NOT IN ({lit}) AND key NOT LIKE 'fp:%'",  # noqa: S608  # path quote-doubled; stem gated (S1); fp:* excluded (graph_rebuild_fast_path S1)
         ).fetchone()
     else:
         src = con.execute(
@@ -988,11 +1003,13 @@ def _verify_parquet_duckdb_side(
     if duckdb_path and duckdb_path.exists():
         duckdb_pq_dir = parquet_dir / subdir
         if duckdb_pq_dir.exists():
-            import duckdb
-
             from helpers.graph.query import EPHEMERAL_TABLES, STAMP_OWNED_META_KEYS
 
-            con = duckdb.connect(str(duckdb_path), read_only=True)
+            # Slice B funnel: wire attach when served (a file-mode open
+            # against a served store collides with the server lock).
+            from helpers.misc.duckdb_lock import open_read_only
+
+            con = open_read_only(str(duckdb_path))
             try:
                 live_tables = frozenset(
                     r[0]
@@ -1403,11 +1420,15 @@ def _read_sqlite_generation(db_path: Path) -> str | None:
 
 
 def _read_duckdb_generation(duckdb_path: Path) -> str | None:
-    """Live DuckDB generation from _build_meta (None when unreadable)."""
-    try:
-        import duckdb
+    """Live DuckDB generation from _build_meta (None when unreadable).
 
-        con = duckdb.connect(str(duckdb_path), read_only=True)
+    Routes through the Slice B funnel: a resident quack server holding
+    the store excludes every file-mode open, so the raw connect returned
+    None and snapshot-fresh reported a phantom MISMATCH (run 1757)."""
+    try:
+        from helpers.misc.duckdb_lock import open_read_only
+
+        con = open_read_only(duckdb_path)
         try:
             row = con.execute("SELECT value FROM _build_meta WHERE key='generation'").fetchone()
         finally:

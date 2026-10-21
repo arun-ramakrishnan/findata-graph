@@ -1126,6 +1126,7 @@ def _insert_rows_batch(con, table: str, columns: str | None, rows: list[tuple]) 
     if not rows:
         return
     tbl = pa.Table.from_pydict({f"c{i}": list(col) for i, col in enumerate(zip(*rows))})
+    con.execute("SELECT 1").fetchall()  # duckdb2-drain: pending result blocks register()
     con.register("_gq_batch", tbl)
     try:
         collist = f" ({columns})" if columns else ""

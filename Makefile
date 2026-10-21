@@ -34,7 +34,7 @@ export PATH := $(CURDIR)/.venv/bin:$(PATH)
 export TMPDIR ?= $(shell test -d /mnt/data/tmp && { mkdir -p /mnt/data/tmp/findata; echo /mnt/data/tmp/findata; } || echo /tmp)
 
 
-.PHONY: help qa test live-invariants perf cover fuzz integration snapshot snapshot-check snapshot-restore sync-tags sync-coverage-tags sync-sector-links static-checks license-check tmp-sweep install-dev triage-quotes gate-fresh graph-smoke graph-stats graph-algos graph-rebuild graph-rebuild-bench update-extensions recompute-graph recompute-hyper search-fresh convo-fresh embed-gc search-tui tier-nudge tier-watch derive-relations derive-co-mentions derive-org-membership derive-event-participants derive-merger-hyperedges dup-census person-census derive-themes derive-events derive-insights derive-indices quote-coverage derive-themes-rebuild derive-cited-in derive-cited-in-rebuild derive-hyperedges derive-all refresh-indices refresh-vigil refresh-shp frontend frontend-check fold-identifiers format maint maint-full md-lint metrics-rebuild mojo-bench mojo-parity mojo-build mojo-test mojo-format relations-enrich lint types types-tests lint-audit deptry advisory secret-scan cargo-audit script-search-rebuild memory-search-rebuild triage-relations teleocr-server embgemma-server granite-server llamacpp-build llamacpp-health csr csr-check csr-rebuild convo-search-rebuild convo-search-check analytics-parquet analytics-fresh schema-check schema-dump bili-status bili-monitor bili-stop-monitor bili-report bili-snap bili-watch-event bili-thresh-replay
+.PHONY: help qa test live-invariants perf cover fuzz integration snapshot snapshot-check snapshot-restore sync-tags sync-coverage-tags sync-sector-links static-checks license-check tmp-sweep install-dev triage-quotes gate-fresh graph-smoke graph-stats graph-algos graph-rebuild graph-rebuild-bench update-extensions recompute-graph recompute-hyper search-fresh convo-fresh embed-gc search-tui tier-nudge tier-watch derive-relations derive-co-mentions derive-org-membership derive-event-participants derive-merger-hyperedges dup-census person-census derive-themes derive-events derive-insights derive-indices quote-coverage derive-themes-rebuild derive-cited-in derive-cited-in-rebuild derive-hyperedges derive-all refresh-indices refresh-vigil refresh-shp frontend frontend-check fold-identifiers format maint maint-full md-lint metrics-rebuild mojo-bench mojo-parity mojo-build mojo-test mojo-format relations-enrich lint types types-tests lint-audit deptry advisory secret-scan cargo-audit script-search-rebuild memory-search-rebuild triage-relations teleocr-server embgemma-server granite-server llamacpp-build llamacpp-health quack-start quack-stop quack-status quack-restart quack-health csr csr-check csr-rebuild convo-search-rebuild convo-search-check analytics-parquet analytics-fresh schema-check schema-dump bili-status bili-monitor bili-stop-monitor bili-report bili-snap bili-watch-event bili-thresh-replay
 
 help:           ## Show available targets (alphabetical; entries generated from the ## annotations — keep both in sync)
 > @echo "FinData targets (alphabetical):"
@@ -114,6 +114,11 @@ help:           ## Show available targets (alphabetical; entries generated from 
 > @echo "  perf                     Run wall-clock perf benchmarks, print timing table, and append to outputs/perf_report.md"
 > @echo "  person-census            Person-name dup census (person_name_dedup): --check gate vs baseline, --plan writes the merge plan"
 > @echo "  qa                       Run lint + markdown lint + types + deptry + static + pytest + notes + integrity + schema-check + snapshot in PARALLEL (default 4 jobs; override: make qa -j N; run-all — failures reported at the end; appends outputs/qa_report.md)"
+> @echo "  quack-health             One-shot wire probe of every resident quack server: SELECT 1 + duckdb_tables resolution per store"
+> @echo "  quack-restart            Restart the resident quack servers (same store set unless QUACK_DBS given)"
+> @echo "  quack-start              Start resident quack servers, ONE PER STORE — default memory/graph.duckdb, or QUACK_DBS=\"memory/graph.duckdb memory/convo_search.duckdb\"; ports QUACK_PORT_BASE+i; file-mode writes to served stores are refused (split-brain guard)"
+> @echo "  quack-status             Resident quack servers status: live pids + per-store wire probe"
+> @echo "  quack-stop               Stop all resident quack servers (exact-PID TERM→KILL each, discovery + stop files removed)"
 > @echo "  quote-coverage           S0 quote capture coverage audit (advisory, read-only; per-note 95% tripwire + watchlist + salvage measurement)"
 > @echo "  recompute-graph          Recompute all graph analytics and persist to graph_analytics"
 > @echo "  recompute-hyper          Recompute HGX hyper metrics (hy-MMSBM communities + ho/s centralities)"
@@ -535,6 +540,22 @@ teleocr-server:  ## Start the TeleOCR llama-server (Q4_K_M + mmproj q8_0 from mo
 > else echo "unified llama-server not found — make llamacpp-build (vendor/llamacpp, one binary for all legs) or set TELEOCR_LLAMA_BIN"; exit 1; fi; \
 > echo "teleocr-server: $$bin (Ctrl-C to stop)"; \
 > $$bin -m models/NaviDC-OCR-Q4_K_M.gguf --mmproj models/NaviDC-OCR-mmproj-q8_0.gguf --host 127.0.0.1 --port 8731 -c 16384 -np 2 -b 8192 -ub 2048 -t 3
+
+
+quack-start:  ## Start resident quack servers, ONE PER STORE (wire serves only a server's primary db) — default memory/graph.duckdb, or QUACK_DBS="memory/graph.duckdb memory/convo_search.duckdb"; ports QUACK_PORT_BASE+i; file-mode writes to served stores are refused (split-brain guard)
+> @bash helpers/misc/quack_servers.sh start $(if $(QUACK_DBS),$(QUACK_DBS),)
+
+quack-stop:  ## Stop all resident quack servers (exact-PID TERM→KILL each, discovery + stop files removed)
+> @bash helpers/misc/quack_servers.sh stop
+
+quack-status:  ## Resident quack servers status: live pids + per-store wire probe
+> @bash helpers/misc/quack_servers.sh status
+
+quack-restart:  ## Restart the resident quack servers (same store set unless QUACK_DBS given)
+> @bash helpers/misc/quack_servers.sh restart $(if $(QUACK_DBS),$(QUACK_DBS),)
+
+quack-health:  ## One-shot wire probe of every resident quack server: SELECT 1 + duckdb_tables resolution per store
+> @python3 helpers/misc/quack_health.py
 
 
 person-census: ## Person-name dup census: --check gate vs baseline / --plan merge plan (person_name_dedup)

@@ -159,10 +159,15 @@ def sqlite_ddl(path: Path) -> str:
 
 
 def duckdb_ddl(path: Path) -> str:
-    """Replayable duckdb DDL: tables then views, name order."""
-    import duckdb
+    """Replayable duckdb DDL: tables then views, name order.
 
-    con = duckdb.connect(str(path), read_only=True)
+    Opens through the Slice B funnel — a resident quack server holding
+    the store excludes every file-mode open (schema-check leg, run 1757).
+    Wire and file connections expose the same catalog, so the rendered
+    DDL is identical either way."""
+    from helpers.misc.duckdb_lock import open_read_only
+
+    con = open_read_only(path)
     try:
         blocks: list[str] = []
         for catalog, name_col in (

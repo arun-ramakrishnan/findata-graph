@@ -40,6 +40,7 @@ if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
 from helpers.core.db import DEFAULT_DB_PATH, connect, utc_now  # noqa: E402
+from helpers.core import duckdb_shared as ds  # noqa: E402
 from helpers.graph import derive_cli as dcli  # noqa: E402  # S6 shared CLI scaffold
 from helpers.graph._edge_writer import apply_typed_edges  # noqa: E402
 
@@ -85,7 +86,7 @@ def load_constituents(db: Path = SOURCES_DB) -> list[dict]:
     """
     if not db.exists():
         return []
-    con = duckdb.connect(str(db), read_only=True)
+    con = ds.connect_shared(str(db), read_only=True)
     try:
         present = con.execute(
             "SELECT 1 FROM information_schema.tables WHERE table_name = 'index_constituents'"

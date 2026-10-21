@@ -557,7 +557,7 @@ class TestReviewSitting:
         assert not tpr.DECISIONS.exists()
         assert Path(rep["journal"]).exists()
 
-    def test_cli_review_flag_wiring(self, paths, monkeypatch, capsys):
+    def test_cli_review_flag_wiring(self, paths, tmp_path, monkeypatch, capsys):
         self._sidecar(paths, [("supplier_to", "Acme Corp", "Dixon Technologies", "q")])
         calls = []
 
@@ -581,6 +581,8 @@ class TestReviewSitting:
             }
         ]
         calls.clear()
+        answers_file = tmp_path / "answers.txt"
+        packets_file = tmp_path / "packets.jsonl"
         assert (
             tpr.main(
                 [
@@ -588,9 +590,9 @@ class TestReviewSitting:
                     "--menu",
                     "--prompt",
                     "--answers",
-                    "/tmp/a.txt",
+                    str(answers_file),
                     "--packets-out",
-                    "/tmp/p.jsonl",
+                    str(packets_file),
                 ]
             )
             == 0
@@ -603,8 +605,8 @@ class TestReviewSitting:
                 "apply": True,
                 "menu": True,
                 "prompt": True,
-                "answers_path": Path("/tmp/a.txt"),
-                "packets_out": Path("/tmp/p.jsonl"),
+                "answers_path": answers_file,
+                "packets_out": packets_file,
                 "preannotate": True,
             }
         ]

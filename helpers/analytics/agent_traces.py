@@ -523,6 +523,7 @@ def _register(con: duckdb.DuckDBPyConnection, name: str, rows: list[tuple], n_co
         cols = list(zip(*rows))
     else:  # keep the view shape so an empty window still inserts nothing
         cols = [[] for _ in range(n_cols)]
+    con.execute("SELECT 1").fetchall()  # duckdb2-drain: pending result blocks register()
     con.register(name, pa.table({f"c{i}": list(col) for i, col in enumerate(cols)}))
 
 

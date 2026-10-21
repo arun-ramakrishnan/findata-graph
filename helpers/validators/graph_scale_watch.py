@@ -100,7 +100,13 @@ def main(argv: list[str] | None = None) -> int:
         print(f"graph-scale-watch: SKIP — {db} not found")
         return 0
     try:
-        con = duckdb.connect(str(db), read_only=True)
+        # The quack-served graph store is file-mode unreadable (duckdb 2.0
+        # refuses a second reader while the server holds the write lock), so
+        # route through the read-only funnel: wire attach when served,
+        # flock + file open otherwise.
+        from helpers.misc.duckdb_lock import open_read_only
+
+        con = open_read_only(db)
         try:
             row = con.execute("SELECT COUNT(*) FROM e_all_und").fetchone()
             rows = int(row[0]) if row is not None else 0

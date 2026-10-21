@@ -69,6 +69,7 @@ from helpers.graph.onager import (  # noqa: E402  (sys.path set above)
     onager_pagerank,
 )
 from helpers.misc.duckdb_lock import connect_with_lock_retry, io_lock  # noqa: E402
+from helpers.core import duckdb_shared as ds  # noqa: E402
 
 if TYPE_CHECKING:
     import numpy as np
@@ -441,7 +442,11 @@ def connect_read_only(
     transient lock conflict (racing a foreign writer) is retried across the
     bounded ladder first (duckdb_transient_lock_retry S2).
     """
-    con = connect_with_lock_retry(lambda: duckdb.connect(str(duckdb_path), read_only=True))
+    # Served store → read over the wire: the quack server holds a read-write
+    # lock on the file, so a local read-only open is refused (duckdb 2.0).
+    # connect_shared routes to the wire when the store is served and keeps
+    # the byte-identical file path when it is not.
+    con = connect_with_lock_retry(lambda: ds.connect_shared(str(duckdb_path), read_only=True))
     _prep_graph_connection(con)
     if attach_db is not None:
         _attach_sqlite(con, Path(attach_db))
@@ -495,7 +500,7 @@ def _open_read_only_connection(duckdb_path: Path, db_path: Path) -> duckdb.DuckD
     """Open a read-only connection to a warm cache (transient-lock retry
     per duckdb_transient_lock_retry S2 — the ladder covers a short
     foreign holder; the stamp's io_lock window covers the long one)."""
-    con = connect_with_lock_retry(lambda: duckdb.connect(str(duckdb_path), read_only=True))
+    con = connect_with_lock_retry(lambda: ds.connect_shared(str(duckdb_path), read_only=True))
     _prep_graph_connection(con)
     _attach_sqlite(con, db_path)
     return con
@@ -521,7 +526,7 @@ def _stale_not_cold(duckdb_path: Path, db_path: Path | None) -> bool:
     the union of the three drift checks _is_warm runs.
     """
     try:
-        con = connect_with_lock_retry(lambda: duckdb.connect(str(duckdb_path), read_only=True))
+        con = connect_with_lock_retry(lambda: ds.connect_shared(str(duckdb_path), read_only=True))
         try:
             r = con.execute("SELECT value FROM _build_meta WHERE key='schema_version'").fetchone()
             if r is None or r[0] != _SCHEMA_VERSION:
@@ -582,6 +587,19 @@ def _build_graph_connection(
             )
             if read_only and not needs_build:
                 return _open_read_only_connection(duckdb_path, db_path)
+            if ds.is_served(duckdb_path):
+                # Served store: a file-mode read-write open is impossible
+                # (the server holds duckdb 2.0's read-write lock) and a
+                # file-mode build would split-brain the store, so the
+                # server serializes the writer instead. A build against a
+                # served store is refused outright — rebuild with the
+                # server stopped.
+                if needs_build:
+                    ds.assert_not_served(duckdb_path)
+                con = ds.connect_shared(duckdb_path, read_only=False)
+                _prep_graph_connection(con)
+                _attach_sqlite(con, db_path)
+                return con
             con = duckdb.connect(str(duckdb_path))
             _prep_graph_connection(con)
             _attach_sqlite(con, db_path)
@@ -794,7 +812,7 @@ def _is_warm(duckdb_path: Path, db_path: Path | None = None) -> bool:
         # Retry, not fail: a transient conflict here must not masquerade
         # as a cold cache (a spurious False sends the build path at the
         # file while a foreign writer holds it) — S2.
-        con = connect_with_lock_retry(lambda: duckdb.connect(str(duckdb_path), read_only=True))
+        con = connect_with_lock_retry(lambda: ds.connect_shared(str(duckdb_path), read_only=True))
         try:
             r = con.execute("SELECT value FROM _build_meta WHERE key='schema_version'").fetchone()
             if r is None or r[0] != _SCHEMA_VERSION:
@@ -1196,7 +1214,7 @@ def _patch_capable(duckdb_path: Path) -> bool:
     stability is per version.
     """
     try:
-        con = connect_with_lock_retry(lambda: duckdb.connect(str(duckdb_path), read_only=True))
+        con = connect_with_lock_retry(lambda: ds.connect_shared(str(duckdb_path), read_only=True))
         try:
             r = con.execute("SELECT value FROM _build_meta WHERE key='schema_version'").fetchone()
             if r is None or r[0] != _SCHEMA_VERSION:
@@ -1409,7 +1427,11 @@ _SWAP_TMP_SEQ = itertools.count()
 
 
 def _rebuild_via_swap(
-    db_path: Path | str = DB_PATH, *, fresh: bool, stamp_centrality: bool = False
+    db_path: Path | str = DB_PATH,
+    *,
+    fresh: bool,
+    stamp_centrality: bool = False,
+    duckdb_path: Path | str | None = None,
 ) -> None:
     """Build the cache into a temp sibling, then atomically swap it in.
 
@@ -1431,7 +1453,8 @@ def _rebuild_via_swap(
     """
     import os
 
-    duckdb_path = _resolve_duckdb_path(Path(db_path))
+    duckdb_path = Path(duckdb_path) if duckdb_path else _resolve_duckdb_path(Path(db_path))
+    ds.assert_not_served(duckdb_path)  # os.replace would swap the inode under a live server
     tmp = duckdb_path.with_name(
         f"{duckdb_path.name}.rebuild-{os.getpid()}-{next(_SWAP_TMP_SEQ)}.tmp"
     )
@@ -1512,7 +1535,12 @@ def _announce_destructive_op(
     )
 
 
-def rebuild(db_path: Path | str = DB_PATH, *, stamp_centrality: bool = False) -> None:
+def rebuild(
+    db_path: Path | str = DB_PATH,
+    *,
+    stamp_centrality: bool = False,
+    duckdb_path: Path | str | None = None,
+) -> None:
     """Rebuild materialised tables (drop + recreate + redeclare).
 
     Use after any SQLite-side change to ``entities`` or ``graph_edges``
@@ -1534,17 +1562,24 @@ def rebuild(db_path: Path | str = DB_PATH, *, stamp_centrality: bool = False) ->
     """
     _announce_destructive_op(
         "rebuild materialised tables",
-        db_path,
+        duckdb_path if duckdb_path else _resolve_duckdb_path(Path(db_path)),
         "drops + recreates e_*/v_* tables; v_centrality_* dropped, not re-stamped",
         "~2-3 s data-only",
         "re-derivable (SQLite source of truth untouched); re-stamp for centrality",
     )
     # Drop stale cached results so the next query re-reads post-rebuild.
     clear_graph_cache()
-    _rebuild_via_swap(db_path, fresh=False, stamp_centrality=stamp_centrality)
+    _rebuild_via_swap(
+        db_path, fresh=False, stamp_centrality=stamp_centrality, duckdb_path=duckdb_path
+    )
 
 
-def fresh_rebuild(db_path: Path | str = DB_PATH, *, stamp_centrality: bool = False) -> None:
+def fresh_rebuild(
+    db_path: Path | str = DB_PATH,
+    *,
+    stamp_centrality: bool = False,
+    duckdb_path: Path | str | None = None,
+) -> None:
     """Drop the ``.duckdb`` file entirely and rebuild from scratch.
 
     Use after DuckDB/Onager version bumps, materialisation-schema
@@ -1554,13 +1589,15 @@ def fresh_rebuild(db_path: Path | str = DB_PATH, *, stamp_centrality: bool = Fal
     """
     _announce_destructive_op(
         "fresh rebuild (delete + recreate the .duckdb file)",
-        db_path,
+        duckdb_path if duckdb_path else _resolve_duckdb_path(Path(db_path)),
         "live cache file replaced; v_centrality_* dropped, not re-stamped",
         "~2-3 s data-only",
         "re-derivable (SQLite source of truth untouched); re-stamp for centrality",
     )
     clear_graph_cache()
-    _rebuild_via_swap(db_path, fresh=True, stamp_centrality=stamp_centrality)
+    _rebuild_via_swap(
+        db_path, fresh=True, stamp_centrality=stamp_centrality, duckdb_path=duckdb_path
+    )
 
 
 def stamp_centrality_cache(
@@ -1881,6 +1918,9 @@ def _materialise_embeddings(con: duckdb.DuckDBPyConnection) -> None:
         # and projected via a registered arrow table (zero-copy f32).
         _rows, _dims = _read_fin_embeddings(con, "company_embeddings", "company_name")
         if _rows:
+            # duckdb 2.0: register() rejects a connection whose pending result
+            # was not fully exhausted (fetchone no longer clears it — 1.x did).
+            con.execute("SELECT 1").fetchall()  # duckdb2-drain
             con.register("_co_emb_src", _arrow_embedding_table(_rows, _dims, ["company_name"]))
             con.execute(
                 """
@@ -2003,6 +2043,7 @@ def _materialise_note_embeddings(con: duckdb.DuckDBPyConnection) -> int:
         rows, dims = _read_fin_embeddings(con, "note_search", "file_path, doc_type, title")
 
     if rows:
+        con.execute("SELECT 1").fetchall()  # duckdb2-drain: pending result blocks register()
         con.register(
             "_note_emb_src",
             _arrow_embedding_table(rows, dims, ["file_path", "doc_type", "title"]),
@@ -2074,6 +2115,7 @@ def _stamp_arrow_table(
     con.execute(f"DROP TABLE IF EXISTS {table}")
     if rows:
         src = f"{table}_src"
+        con.execute("SELECT 1").fetchall()  # duckdb2-drain: pending result blocks register()
         con.register(
             src,
             _pa.table(
@@ -4778,6 +4820,16 @@ def _cli(argv: list[str] | None = None) -> int:
         action="store_true",
         help="Also re-stamp v_centrality_* tables (lane-served metrics skipped; default: drop them; use stamp-centrality later instead)",
     )
+    sp.add_argument(
+        "--duckdb",
+        default=None,
+        help=(
+            "Target the .duckdb cache file explicitly (default: the live graph.duckdb). "
+            "The build is a SWAP (os.replace of the target inode) — refused while the "
+            "store is served by the quack server, and destructive to the live cache; "
+            "point it at a scratch file for a hermetic rebuild."
+        ),
+    )
     sp = sub.add_parser(
         "fresh",
         help="Drop the .duckdb file and rebuild from scratch (use after version bumps or corruption)",
@@ -4786,6 +4838,11 @@ def _cli(argv: list[str] | None = None) -> int:
         "--stamp-centrality",
         action="store_true",
         help="Also re-stamp v_centrality_* tables (lane-served metrics skipped)",
+    )
+    sp.add_argument(
+        "--duckdb",
+        default=None,
+        help="Target the .duckdb cache file explicitly (default: the live graph.duckdb)",
     )
     sub.add_parser(
         "stamp-centrality",
@@ -4822,22 +4879,24 @@ def _cli_admin_cmd(args: argparse.Namespace) -> int | None:
     of these (the caller falls through to the query arms)."""
     # rebuild / fresh / update-extensions don't need a query connection.
     if args.cmd == "rebuild":
-        rebuild(stamp_centrality=args.stamp_centrality)
+        rebuild(stamp_centrality=args.stamp_centrality, duckdb_path=args.duckdb)
         note = (
             " (+ centrality stamp)"
             if args.stamp_centrality
             else " (data-only; v_centrality_* dropped)"
         )
-        print(f"✓ DuckDB graph rebuilt ({DUCKDB_PATH}){note}", file=sys.stderr)
+        target = args.duckdb or DUCKDB_PATH
+        print(f"✓ DuckDB graph rebuilt ({target}){note}", file=sys.stderr)
         return 0
     if args.cmd == "fresh":
-        fresh_rebuild(stamp_centrality=args.stamp_centrality)
+        fresh_rebuild(stamp_centrality=args.stamp_centrality, duckdb_path=args.duckdb)
         note = (
             " (+ centrality stamp)"
             if args.stamp_centrality
             else " (data-only; v_centrality_* dropped)"
         )
-        print(f"✓ DuckDB graph rebuilt from scratch ({DUCKDB_PATH}){note}", file=sys.stderr)
+        target = args.duckdb or DUCKDB_PATH
+        print(f"✓ DuckDB graph rebuilt from scratch ({target}){note}", file=sys.stderr)
         return 0
     if args.cmd == "stamp-centrality":
         stamp_centrality_cache()

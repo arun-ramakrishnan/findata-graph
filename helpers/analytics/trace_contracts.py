@@ -432,6 +432,7 @@ def _insert_all(
             vals = [None for _ in vals]
         data[f"c{i}"] = vals
     view = f"{table}_batch"
+    con.execute("SELECT 1").fetchall()  # duckdb2-drain: pending result blocks register()
     con.register(view, pa.table(data))
     selects = []
     for j, col in enumerate(cols):

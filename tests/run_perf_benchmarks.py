@@ -20,13 +20,40 @@ from __future__ import annotations
 
 import json
 import os
+import shutil
 import subprocess
 import sys
+import tempfile
 import time
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 REPORT = REPO_ROOT / "outputs" / "perf_report.md"
+
+# ── Scratch expansion (2026-10-22, quack arc) ───────────────────────────
+# A bench leg may name "{scratch}" in its argv: it expands to a FRESH
+# temp dir per invocation (under $TMPDIR), removed when the run ends.
+# The graph_rebuild leg uses it because the rebuild is a SWAP build
+# (os.replace of the target inode): refused while the store is served by
+# the quack server, and destructive to the live cache. A scratch target
+# keeps the same code path while leaving the live store alone.
+_SCRATCH_DIRS: list[Path] = []
+
+
+def _expand_scratch(args: list[str]) -> list[str]:
+    """Replace the {scratch} placeholder with a fresh temp dir."""
+    if not any("{scratch}" in a for a in args):
+        return args
+    scratch = Path(tempfile.mkdtemp(prefix="perf-scratch-"))
+    _SCRATCH_DIRS.append(scratch)
+    return [a.replace("{scratch}", str(scratch)) for a in args]
+
+
+def _cleanup_scratch() -> None:
+    for d in _SCRATCH_DIRS:
+        shutil.rmtree(d, ignore_errors=True)
+    _SCRATCH_DIRS.clear()
+
 
 # ── Contention guard (2026-10-12) ────────────────────────────────────────
 # Perf benches measure wall-clock truth, so a run that overlaps another
@@ -190,7 +217,15 @@ BENCHMARKS: list[tuple[str, list[str], float]] = [
     # budget stays as a regression ceiling, not the expectation.
     # 5.0 since 2026-09-23 (S5): measured 2.5-2.7s; the old 8.0 was a
     # post-redistribution regression ceiling, tightened to a real signal.
-    ("graph_rebuild", ["helpers/graph/query.py", "rebuild"], 5.0),
+    # quack arc (2026-10-22): the rebuild is a SWAP build (os.replace of the
+    # target inode) — refused while the store is served by the quack server
+    # (assert_not_served) and destructive to the live cache. {scratch} = a
+    # fresh temp dir per invocation: same code path, no live mutation.
+    (
+        "graph_rebuild",
+        ["helpers/graph/query.py", "rebuild", "--duckdb", "{scratch}/graph_rebuild.duckdb"],
+        5.0,
+    ),
     # test_gap_closure S3: the only legs that drive the FLASK REQUEST PATH.
     # Every other entry invokes a helper script directly, so the gate could
     # not see the AVAIL-1 class (a 53 s unauthenticated GET). Best-of-3 per
@@ -394,7 +429,7 @@ def run_one(label: str, args: list[str], budget: float) -> tuple[float, str, boo
     """Run a single benchmark, return (elapsed_seconds, status, passed)."""
     t0 = time.perf_counter()
     r = subprocess.run(  # noqa: S603  # list-form call; shell=False (default); args are constants/controlled paths
-        [sys.executable, *args],
+        [sys.executable, *_expand_scratch(args)],
         capture_output=True,
         stdin=subprocess.DEVNULL,
         cwd=REPO_ROOT,
@@ -441,7 +476,7 @@ def _run_all_benchmarks() -> tuple[
         if not ok and contended_from is None:
             # surface stderr on failure for immediate feedback
             r = subprocess.run(  # noqa: S603  # list-form call; shell=False (default); args are constants/controlled paths
-                [sys.executable, *args],
+                [sys.executable, *_expand_scratch(args)],
                 capture_output=True,
                 stdin=subprocess.DEVNULL,
                 cwd=REPO_ROOT,
@@ -497,7 +532,9 @@ def main() -> int:
     write_report(results, started, elapsed, status_note=status_note)
 
     if contended_from is not None:
+        _cleanup_scratch()
         return 3
+    _cleanup_scratch()
     return 0 if all_ok else 1
 
 

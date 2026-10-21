@@ -327,6 +327,10 @@ class TestIndexProvenanceIsRefreshed:
     def test_resolve_orphans_refreshes_index_provenance(self, tmp_path, monkeypatch):
         root = tmp_path / "corpus"
         _write(root, "opencode", "ses_gone", source="opencode:live")
+        # Hermetic: the live-session manifest is the harness's own state, not
+        # the fixture's. Without this the test reads the real opencode.db —
+        # and a locked/missing live store silently disables the orphan lane.
+        monkeypatch.setattr(hc, "_live_session_ids", lambda harness: {"ses_live"})
         seen: list[list] = []
         monkeypatch.setattr(
             hc,
@@ -341,6 +345,7 @@ class TestIndexProvenanceIsRefreshed:
     def test_dry_run_does_not_refresh(self, tmp_path, monkeypatch):
         root = tmp_path / "corpus"
         _write(root, "opencode", "ses_gone", source="opencode:live")
+        monkeypatch.setattr(hc, "_live_session_ids", lambda harness: {"ses_live"})
         seen: list[tuple] = []
         monkeypatch.setattr(
             hc,

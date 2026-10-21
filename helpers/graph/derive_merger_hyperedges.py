@@ -175,6 +175,34 @@ def _members_from_row(row: dict, verb_target: str | None) -> tuple[list[tuple[st
     return [], ""
 
 
+def _build_properties(
+    row_id: str, edge_type: str, members: list[tuple[str, str]], row: dict
+) -> dict:
+    """Build the properties dict for a merger/demerger fact."""
+    props: dict = {"decision_id": row_id}
+    quote = str(row.get("source_quote") or row.get("quote") or "").strip()
+    if quote:
+        props["source_quote"] = quote
+    note = str(row.get("note") or "").strip()
+    if note:
+        props["note"] = note
+    if edge_type == MERGER_TYPE:
+        props["constituents"] = [n for n, role in members if role == "constituent"]
+        resultant = [n for n, role in members if role == "resultant"]
+        if resultant:
+            props["resultant"] = resultant[0]
+    else:
+        parent = [n for n, role in members if role == "parent"]
+        child = [n for n, role in members if role == "resultant"]
+        if parent:
+            props["parent"] = parent[0]
+        if child:
+            props["child"] = child[0]
+    props["n_members"] = len(members)
+    props["members"] = [{"name": n, "role": r} for n, r in members]
+    return props
+
+
 def collect(conn, decisions_path: str | Path = DECISIONS_PATH) -> dict:
     """Journal → merger/demerger facts, plus the skip reasons.
 
@@ -204,27 +232,7 @@ def collect(conn, decisions_path: str | Path = DECISIONS_PATH) -> dict:
         if missing:
             unresolved.append({"id": row_id, "edge_type": edge_type, "names": missing})
             continue
-        props: dict = {"decision_id": row_id}
-        quote = str(row.get("source_quote") or row.get("quote") or "").strip()
-        if quote:
-            props["source_quote"] = quote
-        note = str(row.get("note") or "").strip()
-        if note:
-            props["note"] = note
-        if edge_type == MERGER_TYPE:
-            props["constituents"] = [n for n, role in members if role == "constituent"]
-            resultant = [n for n, role in members if role == "resultant"]
-            if resultant:
-                props["resultant"] = resultant[0]
-        else:
-            parent = [n for n, role in members if role == "parent"]
-            child = [n for n, role in members if role == "resultant"]
-            if parent:
-                props["parent"] = parent[0]
-            if child:
-                props["child"] = child[0]
-        props["n_members"] = len(members)
-        props["members"] = [{"name": n, "role": r} for n, r in members]
+        props = _build_properties(row_id, edge_type, members, row)
         facts.append(
             {
                 "edge_type": edge_type,

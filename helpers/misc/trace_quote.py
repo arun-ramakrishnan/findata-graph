@@ -85,7 +85,13 @@ def _row_to_dict(
     if rel is None:
         return None
     cols = [c[0] for c in rel.description]
-    row = rel.fetchone()
+    if isinstance(rel, duckdb.DuckDBPyConnection):
+        row = rel.fetchone()
+    else:
+        # DuckDBPyRelation: no fetchone in the stubs; limit(1)+fetchall is
+        # runtime-equivalent for this helper's single-row contract.
+        rows = rel.limit(1).fetchall()
+        row = rows[0] if rows else None
     if row is None:
         return None
     return dict(zip(cols, row))

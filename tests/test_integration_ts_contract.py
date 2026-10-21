@@ -726,6 +726,7 @@ class TestGraphAnalyticsContract:
         _assert_contract(data, "GraphPositionsResponse")
         assert data["node_count"] >= 0
 
+    @pytest.mark.onager  # structure block needs the onager LOAD (2.0 park, #427)
     def test_suggestions_match_suggestionsresponse(self, unit_client):
         r = unit_client.get("/api/graph/suggestions")
         assert r.status_code == 200

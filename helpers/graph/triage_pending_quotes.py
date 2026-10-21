@@ -360,7 +360,8 @@ def review(  # noqa: C901 — keypress parsing + kit wiring, split would scatter
             recommended=lambda: _menu_rec["key"],
         )
     elif prompt:
-        assert answers_path is not None  # guarded by the ValueError above
+        if answers_path is None:  # unreachable — the ValueError above guards prompt w/o answers
+            raise ValueError("--prompt requires --answers <file>")
         answers = answers_path.read_text(encoding="utf-8").splitlines()
         reader = make_scripted_input(answers, _MENU_SPEC)
     input_fn = reader  # ask() closures and the confirm gate read through the backend

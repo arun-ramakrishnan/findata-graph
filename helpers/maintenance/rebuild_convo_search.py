@@ -22,6 +22,7 @@ first pass — the content-addressed cache absorbs unchanged snippets);
 
 from __future__ import annotations
 
+import contextlib
 import hashlib
 import os
 import sqlite3
@@ -37,6 +38,7 @@ if str(_REPO_ROOT) not in sys.path:
 
 import duckdb  # noqa: E402  # after the sys.path shim (bare-script convention)
 
+from helpers.core import duckdb_shared as ds  # noqa: E402  (bare-script entry point; bootstrap above)
 from helpers.misc.duckdb_lock import connect_with_lock_retry, io_lock, open_read_only  # noqa: E402
 
 REPO = _REPO_ROOT
@@ -77,6 +79,57 @@ def fts_db_for(db_path: Path) -> Path:
     return db_path.parent / FTS_DB_NAME
 
 
+HARVEST_META_DDL = (
+    "CREATE TABLE IF NOT EXISTS harvest_meta ("
+    "source VARCHAR PRIMARY KEY, watermark VARCHAR, updated_ts TIMESTAMP)"
+)
+PART_INDEX_DDL = (
+    "CREATE TABLE IF NOT EXISTS part_index ("
+    "harness VARCHAR, part_id VARCHAR, session_id VARCHAR, "
+    "PRIMARY KEY (harness, part_id))"
+)
+
+
+def _carry_harvest_state(new_con: duckdb.DuckDBPyConnection, old_path: Path) -> None:
+    """Mirror harvest_meta + part_index into the fresh swap store.
+
+    The swap builds only the index tables; without this, every swap
+    silently dropped the harvest watermarks and the next harvest re-read
+    the whole corpus (full re-ingest, re-embedding ~139k rows), and the
+    schema dump drifted until the next write-harvest re-created the
+    tables. Best-effort: when the old store is unreadable (partial file,
+    version skew) the state is skipped with a warning — a missing
+    watermark degrades to a slower harvest, never to a wrong one.
+
+    Wire-safe: the old store may be read via the Slice B funnel (a
+    resident server holds it rw, excluding file-mode opens) even though
+    the swap itself refuses to run served."""
+    new_con.execute(HARVEST_META_DDL)
+    new_con.execute(PART_INDEX_DDL)
+    if not old_path.exists():
+        return
+    try:
+        from helpers.misc.duckdb_lock import open_read_only
+
+        old = open_read_only(old_path)
+        try:
+            wm = old.execute("SELECT source, watermark, updated_ts FROM harvest_meta").fetchall()
+            parts = old.execute("SELECT harness, part_id, session_id FROM part_index").fetchall()
+        finally:
+            old.close()
+    except Exception as exc:  # noqa: BLE001 — degraded carry is not fatal
+        print(
+            f"  [swap] harvest state not carried ({type(exc).__name__}: {exc}); "
+            "next harvest re-reads sources"
+        )
+        return
+    if wm:
+        new_con.executemany("INSERT OR REPLACE INTO harvest_meta VALUES (?, ?, ?)", wm)
+    if parts:
+        new_con.executemany("INSERT OR REPLACE INTO part_index VALUES (?, ?, ?)", parts)
+    print(f"  [swap] carried harvest state: {len(wm)} watermark(s), {len(parts)} part(s)")
+
+
 def _corpus_files() -> list[Path]:
     return sorted(REPO.glob(CORPUS_DIR_GLOB))
 
@@ -91,6 +144,7 @@ def _provenance_migration(db_path: Path) -> bool:
 
     A missing index file needs no migration: it is built from the DDL.
     """
+    ds.assert_not_served(db_path)  # in-place DDL write: forbidden against a served store
     if not db_path.exists():
         return False
     try:
@@ -134,10 +188,16 @@ def _backfill_provenance(db_path: Path, files: list[Path]) -> tuple[int, int]:
     """
     import pyarrow.parquet as pq
 
-    files_touched = 0
-    with io_lock(db_path, exclusive=True):
-        con = connect_with_lock_retry(lambda: duckdb.connect(str(db_path)))
+    # Wire-routed write (Slice B wave 2): when the store is served this
+    # UPDATE flows over the quack wire and the server serializes it;
+    # unserved it is the plain file connect. The swap guard does not
+    # apply — this is an in-place relabel, not an os.replace.
+    with (
+        io_lock(db_path, exclusive=True) if not ds.is_served(db_path) else contextlib.nullcontext()
+    ):
+        con = ds.connect_shared(str(db_path), read_only=False)
         try:
+            files_touched = 0
             for f in files:
                 rel = str(f.relative_to(REPO))
                 try:
@@ -146,9 +206,12 @@ def _backfill_provenance(db_path: Path, files: list[Path]) -> tuple[int, int]:
                     continue
                 if not any(srcs):
                     continue
+                # Wire clients cannot bind parameters (Slice B learning):
+                # emit literals for both modes — sql_lit renders identically
+                # for the file connect.
+                rel_lit = ds.sql_lit(rel)
                 rows = con.execute(
-                    "SELECT row_no, provenance FROM convo_search WHERE file_path = ?",  # noqa: S608  # constant template; value bound
-                    [rel],
+                    f"SELECT row_no, provenance FROM convo_search WHERE file_path = {rel_lit}"  # noqa: S608  — rel_lit via ds.sql_lit
                 ).fetchall()
                 if not rows:
                     continue
@@ -162,11 +225,10 @@ def _backfill_provenance(db_path: Path, files: list[Path]) -> tuple[int, int]:
                     continue
                 files_touched += 1
                 for src, nos in buckets.items():
-                    ph = ",".join("?" * len(nos))
+                    ph = ",".join(str(int(n)) for n in nos)
                     con.execute(
-                        f"UPDATE convo_search SET provenance = ? "  # noqa: S608  # constant template; only the placeholder count varies
-                        f"WHERE file_path = ? AND row_no IN ({ph})",
-                        [src, rel, *nos],
+                        f"UPDATE convo_search SET provenance = {ds.sql_lit(src)} "  # noqa: S608  — src/rel_lit via ds.sql_lit, row_no int-cast
+                        f"WHERE file_path = {rel_lit} AND row_no IN ({ph})"
                     )
             total_row = con.execute(
                 "SELECT count(*) FROM convo_search WHERE provenance <> ''"
@@ -496,6 +558,7 @@ def _bulk_insert(con: duckdb.DuckDBPyConnection, rows: list[dict], vecs: list[li
     table = pa.Table.from_pydict(
         {name: cols[name] for name, _ in _STAGE_SCHEMA_FIELDS}, schema=schema
     )
+    con.execute("SELECT 1").fetchall()  # duckdb2-drain: pending result blocks register()
     con.register(_STAGE, table)
     try:
         con.execute(
@@ -679,6 +742,7 @@ def rebuild_via_swap(db_path: Path, incremental: bool = False) -> dict:
     leaves the fresh DuckDB live with a stale FTS — the next ``--check``
     catches it and a re-run redoes the sync.
     """
+    ds.assert_not_served(db_path)  # os.replace would swap the inode under a live server
     db_path = Path(db_path)
     db_path.parent.mkdir(parents=True, exist_ok=True)
     global _FTS_DB_PATH
@@ -714,6 +778,7 @@ def rebuild_via_swap(db_path: Path, incremental: bool = False) -> dict:
                 [(f"file:{rel}", h) for rel, h in current.items()]
                 + [("embed_model", model_label), ("embed_dims", str(dims))],
             )
+            _carry_harvest_state(con, db_path)
         finally:
             con.close()
         timer.mark("duckdb_write")
@@ -781,6 +846,8 @@ def rebuild(
        failure ordering preserved: a failed FTS leaves meta stale and
        the next run redoes).
     """
+    if write:
+        ds.assert_not_served(db_path)  # in-place write windows: forbidden against a served store
     db_path = Path(db_path)
     db_path.parent.mkdir(parents=True, exist_ok=True)
     global _FTS_DB_PATH

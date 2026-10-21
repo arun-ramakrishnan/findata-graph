@@ -139,7 +139,7 @@ def _relations_existing(path: Path) -> dict[str, dict]:
     exact form, so load_tuple_annotations and load_id_annotations agree."""
     out = load_id_annotations(path)  # key field matches producer output
     for k, v in load_tuple_annotations(path).items():
-        out["{0[0]}:{0[1]}:{0[2]}".format(k)] = v
+        out[f"{k[0]}:{k[1]}:{k[2]}"] = v
     return out
 
 

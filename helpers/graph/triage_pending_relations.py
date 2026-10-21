@@ -791,6 +791,74 @@ def _read_decisions(path: Path) -> list[dict]:
     return rows
 
 
+def _handle_nary_accept(d: dict, decision: str, entity_names: set[str], plan: dict) -> bool:
+    """Route an n-ary M&A accept decision into plan["mergers"].
+
+    Returns False on invalid input (error already printed by
+    _parse_nary_accept)."""
+    parsed = _parse_nary_accept(d, decision, entity_names)
+    if parsed is None:
+        return False
+    plan["mergers"].append(parsed)
+    return True
+
+
+def _is_nary_accept(decision: str, d: dict) -> bool:
+    """True when `decision` is an accept for an n-ary merger/hyperedge type."""
+    return (decision.startswith("accept:") or decision == "accept") and d[
+        "edge_type"
+    ] in MERGER_HYPEREDGE_TYPES
+
+
+def _handle_alias(decision, d, entity_names, plan) -> bool:
+    """Validate one `alias:<target>` decision into plan["aliases"].
+
+    Returns False on invalid input (error already printed)."""
+    target = decision[len("alias:") :].strip()
+    if target not in entity_names:
+        print(
+            f"ERROR: alias target {target!r} is not an existing entity (row {d['id']})",
+            file=sys.stderr,
+        )
+        return False
+    plan["aliases"][_norm_target(d["target_mention"]).lower()] = target
+    return True
+
+
+def _handle_dyad_accept(d, decision, entity_names, plan) -> bool:
+    """Validate one `accept:<edge_type>` decision into plan["accepts"].
+
+    Returns False on invalid input (error already printed by _parse_accept)."""
+    parsed = _parse_accept(d, decision, entity_names)
+    if parsed is None:
+        return False
+    plan["accepts"].append(parsed)
+    return True
+
+
+def _apply_decision(d: dict, key: tuple, entity_names: set[str], plan: dict) -> bool:
+    """Apply one decision row to `plan`. Returns False on invalid input
+    (error already printed)."""
+    decision = str(d["decision"]).strip()
+    if decision == "discard":
+        plan["discard"] += 1
+        return True
+    if decision == "skip":
+        plan["skip"] += 1
+        return True
+    if decision == "stub":
+        plan["stubs"].append(d)
+        return True
+    if decision.startswith("alias:"):
+        return _handle_alias(decision, d, entity_names, plan)
+    if _is_nary_accept(decision, d):
+        return _handle_nary_accept(d, decision, entity_names, plan)
+    if decision.startswith("accept:"):
+        return _handle_dyad_accept(d, decision, entity_names, plan)
+    print(f"ERROR: unknown decision {decision!r} (row {d['id']})", file=sys.stderr)
+    return False
+
+
 def _validate_decisions(rows: list[dict], entity_names: set[str]) -> dict | None:
     """Parse + validate annotated decisions into an action plan, or None
     (with the error already printed) on any invalid decision."""
@@ -806,40 +874,7 @@ def _validate_decisions(rows: list[dict], entity_names: set[str]) -> dict | None
     }
     for d in rows:
         key = (d["edge_type"], d["source"], d["target_mention"])
-        decision = str(d["decision"]).strip()
-        if decision == "discard":
-            plan["discard"] += 1
-        elif decision == "skip":
-            plan["skip"] += 1
-        elif decision == "stub":
-            plan["stubs"].append(d)
-        elif decision.startswith("alias:"):
-            target = decision[len("alias:") :].strip()
-            if target not in entity_names:
-                print(
-                    f"ERROR: alias target {target!r} is not an existing entity (row {d['id']})",
-                    file=sys.stderr,
-                )
-                return None
-            plan["aliases"][_norm_target(d["target_mention"]).lower()] = target
-        elif (decision.startswith("accept:") or decision == "accept") and d[
-            "edge_type"
-        ] in MERGER_HYPEREDGE_TYPES:
-            # n-ary M&A facts route to the hyperedge incidence store, not the
-            # dyad graph_edges write (merger_demerger_hyperedges S3): the
-            # structured member fields ride on the decision row and
-            # derive_merger_hyperedges materialises them.
-            parsed = _parse_nary_accept(d, decision, entity_names)
-            if parsed is None:
-                return None
-            plan["mergers"].append(parsed)
-        elif decision.startswith("accept:"):
-            parsed = _parse_accept(d, decision, entity_names)
-            if parsed is None:
-                return None
-            plan["accepts"].append(parsed)
-        else:
-            print(f"ERROR: unknown decision {decision!r} (row {d['id']})", file=sys.stderr)
+        if not _apply_decision(d, key, entity_names, plan):
             return None
         plan["applied_keys"].add(key)
     return plan
@@ -910,6 +945,61 @@ def _parse_accept(d: dict, decision: str, entity_names: set[str]) -> dict | None
     }
 
 
+def _parse_verb_parts(decision: str) -> tuple[str | None, str | None]:
+    """Split `accept` / `accept:<family>[:<name>]` into (family, name)."""
+    verb = decision[len("accept:") :] if decision.startswith("accept:") else ""
+    parts = [p.strip() for p in verb.split(":")] if verb else []
+    verb_family = parts[0] if parts and parts[0] else None
+    verb_name = parts[1] if len(parts) > 1 and parts[1] else None
+    return verb_family, verb_name
+
+
+def _merger_constituents(
+    d: dict, source: str, mention: str, verb_name: str | None
+) -> tuple[list[str], str | None] | None:
+    """Return (constituents, resultant) for a merger row, or None on invalid
+    input (error printed). Resultant is `source` for direction=resultant
+    rows, else the verb name (or None). Dedupes, order-preserving; a merger
+    of a thing with itself is noise."""
+    resolved = [n for n in d.get("constituents") or [] if n]
+    if d.get("direction") == "resultant":
+        if resolved:
+            constituents = resolved
+        else:
+            if not verb_name:
+                print(
+                    f"ERROR: resultant-direction merger row needs the OTHER "
+                    f"constituent — accept:merger:<Name> (row {d['id']})",
+                    file=sys.stderr,
+                )
+                return None
+            constituents = [mention, verb_name]
+    else:
+        constituents = resolved or [source, mention]
+    # dedupe, order-preserving; a merger of a thing with itself is noise.
+    seen: list[str] = []
+    for name in constituents:
+        if name and name not in seen:
+            seen.append(name)
+    if len(seen) < 2:
+        print(
+            f"ERROR: merger needs two distinct constituents, got {seen} "
+            f"(row {d['id']}) — discard it, or fix the mention",
+            file=sys.stderr,
+        )
+        return None
+    return seen, (source if d.get("direction") == "resultant" else verb_name)
+
+
+def _parse_nary_demergent(d: dict, mention: str, verb_name: str | None) -> dict:
+    """Build a demerger fact spec (mention is always the parent)."""
+    fact = {"id": d["id"], "edge_type": d["edge_type"]}
+    fact["parent"] = d.get("parent") or mention
+    fact["child"] = d.get("child") or verb_name or d["source"]
+    fact["members"] = [(fact["parent"], "parent"), (fact["child"], "resultant")]
+    return fact
+
+
 def _parse_nary_accept(d: dict, decision: str, entity_names: set[str]) -> dict | None:
     """Validate one accept decision on a merger/demerger row into a fact
     spec for derive_merger_hyperedges (merger_demerger_hyperedges S3).
@@ -933,10 +1023,7 @@ def _parse_nary_accept(d: dict, decision: str, entity_names: set[str]) -> dict |
     mention ("Sapphire Foods" ≠ entity "Sapphire Foods India"). The triple
     derivation is the fallback for bare journal rows.
     """
-    verb = decision[len("accept:") :] if decision.startswith("accept:") else ""
-    parts = [p.strip() for p in verb.split(":")] if verb else []
-    verb_family = parts[0] if parts and parts[0] else None
-    verb_name = parts[1] if len(parts) > 1 and parts[1] else None
+    verb_family, verb_name = _parse_verb_parts(decision)
     family = d["edge_type"]
     if verb_family is not None and verb_family != family:
         print(
@@ -952,44 +1039,18 @@ def _parse_nary_accept(d: dict, decision: str, entity_names: set[str]) -> dict |
     fact: dict = {"id": d["id"], "edge_type": family}
 
     if family == "merger":
-        resolved = [n for n in d.get("constituents") or [] if n]
-        if d.get("direction") == "resultant":
-            fact["resultant"] = source
-            if resolved:
-                constituents = resolved
-            else:
-                if not verb_name:
-                    print(
-                        f"ERROR: resultant-direction merger row needs the OTHER "
-                        f"constituent — accept:merger:<Name> (row {d['id']})",
-                        file=sys.stderr,
-                    )
-                    return None
-                constituents = [mention, verb_name]
-        else:
-            constituents = resolved or [source, mention]
-            if verb_name:
-                fact["resultant"] = verb_name
-        # dedupe, order-preserving; a merger of a thing with itself is noise.
-        seen: list[str] = []
-        for name in constituents:
-            if name and name not in seen:
-                seen.append(name)
-        if len(seen) < 2:
-            print(
-                f"ERROR: merger needs two distinct constituents, got {seen} "
-                f"(row {d['id']}) — discard it, or fix the mention",
-                file=sys.stderr,
-            )
+        resolved = _merger_constituents(d, source, mention, verb_name)
+        if resolved is None:
             return None
-        fact["constituents"] = seen
-        members = [(name, "constituent") for name in seen]
-        if fact.get("resultant"):
-            members.append((fact["resultant"], "resultant"))
+        constituents, verb_resultant = resolved
+        fact["constituents"] = constituents
+        members = [(name, "constituent") for name in constituents]
+        if verb_resultant:
+            fact["resultant"] = verb_resultant
+            members.append((verb_resultant, "resultant"))
     else:  # demerger
-        fact["parent"] = d.get("parent") or mention
-        fact["child"] = d.get("child") or verb_name or source
-        members = [(fact["parent"], "parent"), (fact["child"], "resultant")]
+        fact = _parse_nary_demergent(d, mention, verb_name)
+        members = fact["members"]
 
     # Every member must resolve to an existing entity — the incidence store
     # has an FK on entities(name) and the derive lane mints nothing.
@@ -1400,7 +1461,8 @@ def review(  # noqa: C901 — keypress parsing + kit wiring, split would scatter
             recommended=lambda: _menu_rec["key"],
         )
     elif prompt:
-        assert answers_path is not None  # guarded by the ValueError above
+        if answers_path is None:  # unreachable — the ValueError above guards prompt w/o answers
+            raise ValueError("--prompt requires --answers <file>")
         answers = answers_path.read_text(encoding="utf-8").splitlines()
         reader = make_scripted_input(answers, _MENU_SPEC)
     input_fn = reader  # ask() closures and the confirm gate read through the backend
@@ -1487,10 +1549,8 @@ def review(  # noqa: C901 — keypress parsing + kit wiring, split would scatter
     if entries:
         print_fn("\n".join(legend))
 
-    def _evidence(e: dict) -> None:
+    def _nary_evidence_flags(e: dict) -> list[str]:
         flags = []
-        if e.get("word_overlap"):
-            flags.append("word-overlap alias — confirm")
         if e.get("edge_type") in MERGER_HYPEREDGE_TYPES:
             # n-ary M&A fact: routing + structure hint per direction.
             flags.append("n-ary M&A fact — routes to the hyperedge incidence store")
@@ -1500,6 +1560,13 @@ def review(  # noqa: C901 — keypress parsing + kit wiring, split would scatter
                 )
             elif e["edge_type"] == "demerger":
                 flags.append("mention is the parent; the section company is the child")
+        return flags
+
+    def _evidence(e: dict) -> None:
+        flags = []
+        if e.get("word_overlap"):
+            flags.append("word-overlap alias — confirm")
+        flags.extend(_nary_evidence_flags(e))
         if e.get("direction") == "reverse":
             flags.append("captured reversed: mention is the edge source")
         if flags:
