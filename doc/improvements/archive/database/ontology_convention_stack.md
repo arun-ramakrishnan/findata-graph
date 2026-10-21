@@ -179,6 +179,15 @@ is per-citation, never wholesale copying.
   (load-bearing across ~10 test files; gated on sector-hyperedge
   absorption per assessment §8-R3). S2/S4 make the gate CHEAPER, never
   trigger it.
+  [2026-10-19 annotation: GATE LIFTED AND EXECUTED — completed.md #418.
+  The §8-R3 precondition was met on measured evidence: 1,207/1,207
+  `part_of` sources and 1,207/1,207 `has_company` targets already sat in
+  a sector hyperedge, zero asymmetry in either direction. Sector
+  hyperedges are now CANONICAL; the 2,414 dyad rows were deleted in one
+  transaction and `helpers/graph/query.py` projects both directions back
+  out, so `e_belongs`/`e_has`, onager, igraph, the walk substrate,
+  snapshots and the API are unchanged. Test files touched: 20 (the ~10
+  estimate was low).]
 - **NIC-2008 vintage** (2008 codes; CINs pre-2008 carry NIC-98/2004) —
   parser treats legacy codes as WARNING with vintage label; next-NIC /
   ISIC-5 watchpoint recorded, placeholder crosswalk column reserved.
@@ -199,14 +208,26 @@ is per-citation, never wholesale copying.
 - No person type — the D6 deferral stands; `quotes.speaker_*` remains
   the catch-all. ORG Membership/Post/Role activate only when that gate
   lifts (MCA DIN keys them when it does).
+  [2026-10-19 annotation: SUPERSEDED by person_ontology_spine — S2
+  retired the quote-speaker half of D6 (`speaker_identity` map + mint:
+  277 → 1,250 persons, 5,743/6,269 quotes resolve); S3 activated ORG
+  Membership on the SHP lane (`org_membership` family, 34 companies /
+  287 members); DIN/Directorship remains blocked (MCA 403).]
 - No `part_of`/`has_company` retirement, no event_participants table,
   no confidence columns, no `source_ref` rename.
+  [2026-10-19 annotation: the `part_of`/`has_company` item is superseded
+  by the executed retirement (#418); `event_participants` is superseded
+  by person_ontology_spine S4 (v16, 2,610 rows, roles from
+  `EVENT_ROLE_BY_TYPE`); the rest stand.]
 - No citation of GDM/OXL (verified non-standards).
 
 ## 7. Deferred / future-facing
 
 - `part_of`/`has_company` retirement — behind the §8-R3 gate (hyperedge
   absorption + full test-file enumeration first).
+  [2026-10-19 annotation: EXECUTED — completed.md #418; see §5 annotation
+  for the absorption evidence and the projection contract. This deferral
+  line is closed; retained for provenance.]
 - Wikidata QID crosswalks as an embedding side-input constraining
   `semantic_peer` — after S2 lands.
 - GLEIF Level-2 relationship records as an advisory checker
@@ -214,8 +235,16 @@ is per-citation, never wholesale copying.
   consumer of S3 identifiers.
 - NIC seed-table builder (MoSPI PDF → `nic2008`) as its own slice once
   S2's scheme machinery is proven on the existing rosters.
+  [2026-10-18 annotation: EXECUTED 2026-09-18/19 as completed.md #246 —
+  1,301 subclasses in `nic2008`, 2,067 concepts, review tool live.
+  This deferral line is closed; retained for provenance.]
 - Person/DIN lane (ORG Membership activation) — separate proposal when
   D6 lifts.
+  [2026-10-19 annotation: ACTIVATED for the investor side —
+  person_ontology_spine S3 wrote the `org_membership` hyperedge family
+  (34 companies / 287 role-typed members, `promoter`/`holder`) from the
+  SHP lane's person→company `invested_in`; the DIN/directorship half
+  stays blocked (MCA bulk 403). See the executed spine proposal.]
 
 ## 8. Execution Results
 

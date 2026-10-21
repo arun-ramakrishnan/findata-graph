@@ -254,6 +254,9 @@ targeted checks, full gates once at arc end).
   snapshot store, no MCP/tool layer (§2 reject table).
 - No `part_of`/`has_company` retirement (still behind the #234 §8-R3
   gate).
+  [2026-10-19 annotation: EXECUTED as completed.md #418 once the gate's
+  absorption evidence landed; the dyad pair is projected on read from the
+  canonical sector hyperedges. This non-goal is closed.]
 - No NIC-2008 seed table and no industry-code filling in this arc —
   S1 only prepares the promotion path they will use.
 - No LLM-judge implementation (slot reserved in the report schema).
@@ -271,6 +274,8 @@ targeted checks, full gates once at arc end).
   constants for match_type/identifier_type/source_tier.
 - **NIC-2008 seed table** (standing #234 deferral) — first real
   consumer of S1's candidate/promotion flow.
+  [2026-10-18 annotation: EXECUTED as completed.md #246 (2026-09-18/19)
+  — deferral closed; line retained for provenance.]
 
 ## Appendix — raw measurement log
 

@@ -37,7 +37,7 @@ a shared constant exports cleanly (deferred, ontology_governance §7).
 ### 2.1 Edge types — dyadic relation vocabulary (gated)
 
 Registry: `_KNOWN_EDGE_TYPES`
-(`helpers/misc/database_integrity_check.py`) — the 20-type vocabulary,
+(`helpers/misc/database_integrity_check.py`) — the 19-type vocabulary,
 check-gated against this doc. (`EDGE_REGISTRY` in
 `helpers/graph/query.py` is the DuckDB-materialized SUBSET, not the
 vocabulary.) Endpoint conventions and per-type semantics:
@@ -45,8 +45,6 @@ vocabulary.) Endpoint conventions and per-type semantics:
 
 <!-- roster: edge_types -->
 
-- part_of
-- has_company
 - competes_with
 - jv_with
 - same_group
@@ -69,9 +67,16 @@ vocabulary.) Endpoint conventions and per-type semantics:
 
 <!-- /roster -->
 
-Legacy exception: `part_of`/`has_company` keep the two-row
-bidirectional pair (retirement gated on sector-hyperedge absorption,
-entry 234 §8-R3). Endpoint conventions and per-type semantics:
+**Retired (2026-10-19): `part_of`/`has_company`.** The §8-R3 gate
+(entry 234; hyperedge absorption) is CLOSED — measured 2026-10-18, all
+1,207 `part_of` sources and all 1,207 `has_company` targets sat inside a
+sector hyperedge, with zero asymmetry. Sector membership is now CANONICAL
+in `hyper_edges`/`hyper_incidences` (the `sector` family) and the dyad
+pair is **projected on read**, never stored: `helpers/graph/query.py`
+rebuilds both directions into `e_belongs`/`e_has` and the walk substrate,
+so the label stays valid downstream (`_EDGE_SEMANTICS`, the frontend
+palette, `analytics._MEMBERSHIP_TYPES`) while no `graph_edges` row carries
+it. Endpoint conventions and per-type semantics:
 `doc/design/db_schema.md` §graph_edges, `doc/design/graph_design.md` §4.
 
 ### 2.2 Symmetric edge types — one row, `source LE target` (documented)
@@ -105,15 +110,22 @@ the D8 transcripts lane).
 
 ### 2.4 Event participant roles (documented)
 
-Registry: `_EVENT_ROLES` (`helpers/graph/derive_hyperedges.py`) —
-acquisition → acquirer/target, jv → partner/partner. Unmapped event
-types leave incidences unlabeled (never confabulated). The role
-vocabulary:
+Registry: `EVENT_ROLE_BY_TYPE`
+(`helpers/graph/derive_event_participants.py`, imported by
+`helpers/graph/derive_hyperedges.py` for facets) — acquisition →
+acquirer/target, jv → partner/partner, guidance → issuer (counterparty
+carries no row), management_change → subject (counterparty carries no
+row). Unmapped event types carry NO participant rows (never
+confabulated). Since the `event_participants` store (v16, S4), these
+roles live as `event_participants.role` rows written by
+`make derive-event-participants`; the role vocabulary:
 
 <!-- roster: event_roles -->
 
 - acquirer
+- issuer
 - partner
+- subject
 - target
 
 <!-- /roster -->
@@ -131,17 +143,41 @@ entry 233). Roles/validity facets on incidences per entry 234 S4.
 - group
 - industry
 - jv
+- org_membership
 - sector
 - sub_sector
 - theme
 
 <!-- /roster -->
 
+`org_membership` (person_ontology_spine S3, 2026-10-19): the
+ORG-Membership convention view over the SHP lane — label = company,
+members = person holders, `hyper_incidences.role` ∈ {`promoter`,
+`holder`} with `weight` = stake percent and `valid_from` = filing
+period. Written only by `helpers/graph/derive_org_membership.py` from
+the person→company `invested_in` dyads (which stay: they are the
+economic edge and the ingest-side truth); 34 companies / 287 members at
+activation. Membership roles are NOT part of the `event_roles` roster
+above — different vocabulary, different lane.
+
 ### 2.6 Entity types (documented)
 
-No `person` type — the D6 deferral stands; `quotes.speaker_*` is the
-catch-all. ORG Membership/Post/Role activate only when that gate lifts
-(MCA DIN keys them when it does).
+`person` exists as an entity type (opened by the SHP-holder lane #267
+and `person_resolver_lane.md`, executed 2026-09-25 — the hierarchy
+ledger's D6 row): 277 person entities live (2026-10-18), 287
+`invested_in` edges. The quote-speaker half of D6 is RETIRED
+(`person_ontology_spine` S2, 2026-10-19): speakers are resolved at
+SPEAKER level through the `speaker_identity` map (1,419 aliases; 985
+linked to persons after the operator-sanctioned `--mint` minted 973 new
+person entities — 277 → 1,250 — resolving 5,743 of 6,269
+speaker-bearing quotes; `v_quote_speaker` resolves every quote with
+zero per-row writes), so `quotes.speaker_*` stays verbatim string data
+while identity is answered by the map. Unmatched strings stay
+strings and are counted, never fuzzy-merged (NEVER-MERGE ledger: an HUF
+never merges into an individual, #293). ORG Membership/Post/Role stay
+keyed on the DIN lane (MCA bulk 403; no appointments source).
+Spine proposal filing the full resolution:
+`../improvements/proposals/person_ontology_spine.md` (2026-10-18).
 
 <!-- roster: entity_types -->
 

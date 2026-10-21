@@ -1,0 +1,4240 @@
+# Speaker resolution plan (person_ontology_spine S1 — REPORT-ONLY)
+# strings: 1419 | clusters: 1410 | multi-spelling: 9 | quotes: 6269
+# already a person entity: 3 | NO person entity: 1407
+# rule: identity policy is inherited from person_dedup (HUF folds into its
+# Karta; legal lines never merge; company-shaped spellings route to the
+# company arc). S2 links quotes ONLY after operator review of this file.
+
+K. Krithivasan  [person]  quotes=46  == NO entity (S2 candidate)
+   titles: CEO & MD
+
+Karan Shah  [person]  quotes=41  == NO entity (S2 candidate)
+   titles: Whole-Time Director, Business Development
+
+Jensen Huang  [person]  quotes=38  == NO entity (S2 candidate)
+   titles: President & CEO
+
+Atul Daga  [person]  quotes=36  == NO entity (S2 candidate)
+   titles: CFO, UltraTech Cement
+
+Rakesh Sharma  [person]  quotes=34  == NO entity (S2 candidate)
+   titles: Joint Managing Director
+
+Ashok Chandra  [person]  quotes=31  == NO entity (S2 candidate)
+   titles: MD and CEO
+
+B Thiagarajan  [person]  quotes=30  == NO entity (S2 candidate)
+   titles: Managing Director
+   B. Thiagarajan  -> fold
+
+Anil Gupta  [person]  quotes=27  == NO entity (S2 candidate)
+   titles: Chairman & Managing Director, KEI Industries
+
+Anil Rai Gupta  [person]  quotes=27  == NO entity (S2 candidate)
+   titles: Chairman and Managing Director
+
+Manoj Jain  [person]  quotes=27  == NO entity (S2 candidate)
+   titles: Chairman and Managing Director
+
+C. Vijayakumar  [person]  quotes=25  == NO entity (S2 candidate)
+   titles: CEO & Managing Director
+
+Manoj Raghavan  [person]  quotes=25  == NO entity (S2 candidate)
+   titles: Managing Director & CEO
+
+Matthew Prince  [person]  quotes=25  == NO entity (S2 candidate)
+   titles: Chief Executive Officer
+
+Rahul Bharti  [person]  quotes=25  == NO entity (S2 candidate)
+   titles: Chief Investor Relations Officer
+
+C. S. Setty  [person]  quotes=24  == NO entity (S2 candidate)
+   titles: Chairman
+   C S Setty  -> fold
+
+Julie T. Sweet  [person]  quotes=24  == NO entity (S2 candidate)
+   titles: CEO & Chairman
+
+Salil Parekh  [person]  quotes=24  == NO entity (S2 candidate)
+   titles: CEO & Managing Director
+
+Suvankar Sen  [person]  quotes=24  == NO entity (S2 candidate)
+   titles: Managing Director & CEO, Senco Gold & Diamonds
+
+Dr. Kiran S. Divi  [person]  quotes=23  == NO entity (S2 candidate)
+   titles: Whole-Time Director and Chief Executive Officer
+
+Vijay Shekhar Sharma  [person]  quotes=23  == NO entity (S2 candidate)
+   titles: Founder & CEO
+
+Vivek Gupta  [person]  quotes=23  == NO entity (S2 candidate)
+   titles: Chairman & Managing Director, Oswal Pumps
+
+Arvind Chandrasekharan  [person]  quotes=22  == NO entity (S2 candidate)
+   titles: Whole-Time Director & CEO
+
+Himanshu Kapania  [person]  quotes=22  == NO entity (S2 candidate)
+   titles: Managing Director
+
+Rohit Jain  [person]  quotes=22  == NO entity (S2 candidate)
+   titles: Deputy Governor, Reserve Bank of India
+
+Sanjiv Puri  [person]  quotes=21  == NO entity (S2 candidate)
+   titles: Chairman & Managing Director, ITC
+
+Saugata Gupta  [person]  quotes=21  == NO entity (S2 candidate)
+   titles: MD & CEO
+
+T. V. Chowdary  [person]  quotes=21  == NO entity (S2 candidate)
+   titles: Managing Director
+
+B. Govindarajan  [person]  quotes=20  == NO entity (S2 candidate)
+   titles: Managing Director-Eicher Motors Limited & Chief Executive Officer-Royal Enfield
+
+Rajiv Sabharwal  [person]  quotes=20  == NO entity (S2 candidate)
+   titles: Managing Director and Chief Executive Officer
+
+Yashish Dahiya  [person]  quotes=20  == NO entity (S2 candidate)
+   titles: Chairman and Group CEO
+
+C. Ramachandra Rao  [person]  quotes=19  == NO entity (S2 candidate)
+   titles: Joint Managing Director
+   C Ramachandra Rao  -> fold
+
+Company Management  [person]  quotes=19  == NO entity (S2 candidate)
+   titles: Executive Team
+
+Shenu Agarwal  [person]  quotes=19  == NO entity (S2 candidate)
+   titles: Managing Director and CEO
+
+Shveta Arya  [person]  quotes=19  == NO entity (S2 candidate)
+   titles: Managing Director
+
+Suresh Iyer  [person]  quotes=19  == NO entity (S2 candidate)
+   titles: Managing Director and CEO
+
+Amin Nasser  [person]  quotes=18  == NO entity (S2 candidate)
+   titles: President and Chief Executive Officer
+
+George Alexander Muthoot  [person]  quotes=18  == NO entity (S2 candidate)
+   titles: Managing Director
+
+Maulik Mehta  [person]  quotes=18  == NO entity (S2 candidate)
+   titles: Executive Director &amp; CEO
+
+Mohit Malhotra  [person]  quotes=18  == NO entity (S2 candidate)
+   titles: Chief Executive Officer
+
+Priya Nair  [person]  quotes=18  == NO entity (S2 candidate)
+   titles: CEO & Managing Director
+
+Amit Syngle  [person]  quotes=17  == NO entity (S2 candidate)
+   titles: Managing Director & CEO
+
+Anchit Nayar  [person]  quotes=17  == NO entity (S2 candidate)
+   titles: Executive Director and CEO, Beauty
+
+Ankit Agarwal  [person]  quotes=17  == NO entity (S2 candidate)
+   titles: Whole-Time Director & CEO
+
+Arnab Banerjee  [person]  quotes=17  == NO entity (S2 candidate)
+   titles: Chief Executive Officer
+
+Dylan Field  [person]  quotes=17  == NO entity (S2 candidate)
+   titles: Chief Executive Officer
+
+Gaurav Negi  [person]  quotes=17  == NO entity (S2 candidate)
+   titles: Chief Financial Officer
+
+Samir Seksaria  [person]  quotes=17  == NO entity (S2 candidate)
+   titles: Chief Financial Officer
+
+Sundar Pichai  [person]  quotes=17  == NO entity (S2 candidate)
+   titles: CEO, Alphabet and Google
+
+Sunil Bohra  [person]  quotes=17  == NO entity (S2 candidate)
+   titles: Group Chief Financial Officer
+
+Alex Karp  [person]  quotes=16  == NO entity (S2 candidate)
+   titles: CEO, Palantir
+
+Anshuman Thakur  [person]  quotes=16  == NO entity (S2 candidate)
+   titles: Head of Strategy, Jio Platforms
+
+Chowdary Karuturi  [person]  quotes=16  == NO entity (S2 candidate)
+   titles: Managing Director & CFO
+
+Jaejune Kim  [person]  quotes=16  == NO entity (S2 candidate)
+   titles: EVP of Memory Business
+
+P. Ramakrishnan  [person]  quotes=16  == NO entity (S2 candidate)
+   titles: Chief Financial Officer
+
+Sahil Barua  [person]  quotes=16  == NO entity (S2 candidate)
+   titles: MD \& Chief Executive Officer
+
+Shri Tuhin Kanta Pandey  [person]  quotes=16  == NO entity (S2 candidate)
+   titles: Chairman, SEBI
+
+Sudipta Roy  [person]  quotes=16  == NO entity (S2 candidate)
+   titles: Managing Director \& CEO
+
+Sunil Mathur  [person]  quotes=16  == NO entity (S2 candidate)
+   titles: Managing Director & CEO
+
+Amit Paithankar  [person]  quotes=15  == NO entity (S2 candidate)
+   titles: Chief Executive Officer
+
+Andy Jassy  [person]  quotes=15  == NO entity (S2 candidate)
+   titles: Chief Executive Officer
+
+Bhavish Aggarwal  [person]  quotes=15  == NO entity (S2 candidate)
+   titles: Chairman and MD
+
+Fernando Fernandez  [person]  quotes=15  == NO entity (S2 candidate)
+   titles: Chief Executive Officer
+
+Gaurav Singh Kushwaha  [person]  quotes=15  == NO entity (S2 candidate)
+   titles: CEO, BlueStone
+
+Gautam Adani  [person]  quotes=15  == NO entity (S2 candidate)
+   titles: Chairman
+
+Jayesh Sanghrajka  [person]  quotes=15  == NO entity (S2 candidate)
+   titles: Chief Financial Officer
+
+Sameer Nigam  [person]  quotes=15  == NO entity (S2 candidate)
+   titles: Founder & CEO, PhonePe
+
+Umesh Chowdhary  [person]  quotes=15  == NO entity (S2 candidate)
+   titles: Vice Chairman and Managing Director
+
+Y. Delli Babu  [person]  quotes=15  == NO entity (S2 candidate)
+   titles: Chief Financial Officer
+
+Amit Kalyani  [person]  quotes=14  == NO entity (S2 candidate)
+   titles: Vice Chairman and Joint Managing Director
+
+Dinesh Taluja  [person]  quotes=14  == NO entity (S2 candidate)
+   titles: CFO & Head of Corporate Development, Reliance Retail
+
+Feroze Azeez  [person]  quotes=14  == NO entity (S2 candidate)
+   titles: Joint CEO
+
+Guruprasad Mudlapur  [person]  quotes=14  == NO entity (S2 candidate)
+   titles: Managing Director and Chief Technology Officer
+
+Jaikumar Srinivasan  [person]  quotes=14  == NO entity (S2 candidate)
+   titles: Director (Finance)
+
+Jairam Varadaraj  [person]  quotes=14  == NO entity (S2 candidate)
+   titles: Managing Director
+
+K. P. Mahadevaswamy  [person]  quotes=14  == NO entity (S2 candidate)
+   titles: Chairman & Managing Director
+
+Navneet Munot  [person]  quotes=14  == NO entity (S2 candidate)
+   titles: Managing Director and Chief Executive Officer
+
+Pravin Chaudhari  [person]  quotes=14  == NO entity (S2 candidate)
+   titles: CEO
+
+Puneet Chhatwal  [person]  quotes=14  == NO entity (S2 candidate)
+   titles: Managing Director & CEO
+
+Ramesh Ramachandran  [person]  quotes=14  == NO entity (S2 candidate)
+   titles: Managing Director
+
+Aarti Subramanian  [person]  quotes=13  == NO entity (S2 candidate)
+   titles: COO
+
+Atul Lall  [person]  quotes=13  == NO entity (S2 candidate)
+   titles: Managing Director \& Vice Chairman
+
+Brajesh Kumar Singh  [person]  quotes=13  == NO entity (S2 candidate)
+   titles: MD & CEO
+
+Irfan Razack  [person]  quotes=13  == NO entity (S2 candidate)
+   titles: Chairman \& Managing Director
+
+Naveen Pandey  [person]  quotes=13  == NO entity (S2 candidate)
+   titles: Managing Director
+
+Rajesh Kumar Naidu Yabaji  [person]  quotes=13  == NO entity (S2 candidate)
+   titles: Chairman, Managing Director and CEO
+
+Ravi Jaipuria  [person]  quotes=13  == NO entity (S2 candidate)
+   titles: Chairperson
+
+Sameer Khetarpal  [person]  quotes=13  == NO entity (S2 candidate)
+   titles: Chief Executive Officer And Managing Director
+
+Sanjay Malhotra  [person]  quotes=13  == NO entity (S2 candidate)
+   titles: Governor, Reserve Bank of India
+
+Amit Agarwal  [person]  quotes=12  == NO entity (S2 candidate)
+   titles: Investor Relations
+
+Antony Cherukara  [person]  quotes=12  == NO entity (S2 candidate)
+   titles: CEO
+
+Ashish Bharat Ram  [person]  quotes=12  == NO entity (S2 candidate)
+   titles: Chairman and Managing Director
+
+Avik Roy  [person]  quotes=12  == NO entity (S2 candidate)
+   titles: Managing Director and Chief Executive Officer
+
+Binod Kumar  [person]  quotes=12  == NO entity (S2 candidate)
+   titles: Managing Director and Chief Executive Officer
+
+Cochin Shipyard Management  [person]  quotes=12  == NO entity (S2 candidate)
+
+Erez Israeli  [person]  quotes=12  == NO entity (S2 candidate)
+   titles: CEO
+
+Nandan Nilekani  [person]  quotes=12  == NO entity (S2 candidate)
+   titles: Chairman
+
+Prabha Narasimhan  [person]  quotes=12  == NO entity (S2 candidate)
+   titles: MD & CEO
+
+Puneet Khurana  [person]  quotes=12  == NO entity (S2 candidate)
+   titles: Managing Director
+
+R. Srikrishna  [person]  quotes=12  == NO entity (S2 candidate)
+   titles: CEO
+
+Ravi Jakhar  [person]  quotes=12  == NO entity (S2 candidate)
+   titles: Group Director
+
+Richard Molyneux  [person]  quotes=12  == NO entity (S2 candidate)
+   titles: CFO, Jaguar Land Rover
+
+Sanjay Kumar Jain  [person]  quotes=12  == NO entity (S2 candidate)
+   titles: Chairman and Managing Director
+
+Shantanu Roy  [person]  quotes=12  == NO entity (S2 candidate)
+   titles: Chairman & Managing Director
+
+Sudhanshu Vats  [person]  quotes=12  == NO entity (S2 candidate)
+   titles: Managing Director
+
+Sumit Sadana  [person]  quotes=12  == NO entity (S2 candidate)
+   titles: Chief Business Officer
+
+Tarun Mehta  [person]  quotes=12  == NO entity (S2 candidate)
+   titles: Co-founder and CEO
+
+V. Srikanth  [person]  quotes=12  == NO entity (S2 candidate)
+   titles: CFO, Reliance Industries Limited
+
+V. Vaidyanathan  [person]  quotes=12  == NO entity (S2 candidate)
+   titles: MD & CEO | Managing Director and Chief Executive Officer
+   V Vaidyanathan  -> fold
+
+Vipul Mathur  [person]  quotes=12  == NO entity (S2 candidate)
+   titles: MD & CEO
+
+Akash Agarwal  [person]  quotes=11  == NO entity (S2 candidate)
+   titles: Director and CEO
+
+Amrit Singh  [person]  quotes=11  == NO entity (S2 candidate)
+   titles: Director and Chief Financial Officer
+
+Ashish Khanna  [person]  quotes=11  == NO entity (S2 candidate)
+   titles: CEO
+
+Gopal Balachandran  [person]  quotes=11  == NO entity (S2 candidate)
+   titles: Chief Financial Officer
+
+Gopal Vittal  [person]  quotes=11  == NO entity (S2 candidate)
+   titles: Vice Chairman \& Managing Director
+
+Habil Khorakiwala  [person]  quotes=11  == NO entity (S2 candidate)
+   titles: Founder and Chairman
+
+Hitesh Oberoi  [person]  quotes=11  == NO entity (S2 candidate)
+   titles: Co-Promoter & Managing Director
+
+Ishan Bansal  [person]  quotes=11  == NO entity (S2 candidate)
+   titles: Co-Founder and CFO
+
+K.N. Radhakrishnan  [person]  quotes=11  == NO entity (S2 candidate)
+   titles: Director \& CEO
+
+Mahesh Viswanathan  [person]  quotes=11  == NO entity (S2 candidate)
+   titles: Deputy CEO and CFO
+
+Piyush Garodia  [person]  quotes=11  == NO entity (S2 candidate)
+   titles: Managing Director
+
+Rishi Anand  [person]  quotes=11  == NO entity (S2 candidate)
+   titles: MD & CEO
+
+Sandeep Kalra  [person]  quotes=11  == NO entity (S2 candidate)
+   titles: Executive Director and Chief Executive Officer
+
+Suneeta Reddy  [person]  quotes=11  == NO entity (S2 candidate)
+   titles: Managing Director
+
+Sunita Reddy  [person]  quotes=11  == NO entity (S2 candidate)
+   titles: Managing Director
+
+Vikas Kumar  [person]  quotes=11  == NO entity (S2 candidate)
+   titles: Chief Financial Officer
+
+Warren Harris  [person]  quotes=11  == NO entity (S2 candidate)
+   titles: CEO
+
+Abhishek Bansal  [person]  quotes=10  == NO entity (S2 candidate)
+   titles: Managing Director and Chief Executive Officer
+
+Achal Bakeri  [person]  quotes=10  == NO entity (S2 candidate)
+   titles: Chairman & Managing Director, Symphony
+
+Ajoy Chawla  [person]  quotes=10  == NO entity (S2 candidate)
+   titles: Managing Director
+
+Akshat Kishore  [person]  quotes=10  == NO entity (S2 candidate)
+   titles: Chief Executive Officer
+
+Amit Mahajan  [person]  quotes=10  == NO entity (S2 candidate)
+   titles: Director
+
+Ayush Jain  [person]  quotes=10  == NO entity (S2 candidate)
+   titles: Promoter, Chairman, and Managing Director
+
+Dr. Anish Shah  [person]  quotes=10  == NO entity (S2 candidate)
+   titles: Group CEO and MD, Mahindra & Mahindra
+
+Dr. Gyanendra Shukla  [person]  quotes=10  == NO entity (S2 candidate)
+   titles: Managing Director & CEO
+
+Dr. Praveer Sinha  [person]  quotes=10  == NO entity (S2 candidate)
+   titles: CEO
+
+Gunjan Shah  [person]  quotes=10  == NO entity (S2 candidate)
+   titles: MD \& CEO
+
+Jagadish Nangineni  [person]  quotes=10  == NO entity (S2 candidate)
+   titles: Managing Director
+
+Manabu Chikumoto  [person]  quotes=10  == NO entity (S2 candidate)
+   titles: President & CEO
+
+Manoj Kumar Dubey  [person]  quotes=10  == NO entity (S2 candidate)
+   titles: Chairman and Managing Director & Chief Executive Officer
+
+Mohan Agarwal  [person]  quotes=10  == NO entity (S2 candidate)
+   titles: Chairman and Managing Director
+
+Mohit Joshi  [person]  quotes=10  == NO entity (S2 candidate)
+   titles: CEO \& MD
+
+Peyush Bansal  [person]  quotes=10  == NO entity (S2 candidate)
+   titles: Co-Founder and Chief Executive Officer
+
+RS Rajagopal Sastry  [person]  quotes=10  == NO entity (S2 candidate)
+   titles: Group CFO
+
+Rajeev Jain  [person]  quotes=10  == NO entity (S2 candidate)
+   titles: Managing Director
+
+Satyanarayan Goel  [person]  quotes=10  == NO entity (S2 candidate)
+   titles: Chairman and Managing Director
+
+Shashank Jagani  [person]  quotes=10  == NO entity (S2 candidate)
+   titles: Head of Strategy and Investor Relations
+
+Sudhir Singh  [person]  quotes=10  == NO entity (S2 candidate)
+   titles: CEO
+
+Sundararaman Ramamurthy  [person]  quotes=10  == NO entity (S2 candidate)
+   titles: MD and CEO, BSE Limited
+
+Suresh Kumar Singh  [person]  quotes=10  == NO entity (S2 candidate)
+   titles: Whole-Time Director
+
+Suresh P. Manglani  [person]  quotes=10  == NO entity (S2 candidate)
+   titles: Executive Director and CEO
+
+Varun Alagh  [person]  quotes=10  == NO entity (S2 candidate)
+   titles: Co-founder, Chairman and Chief Executive Officer
+
+Vinod Bahety  [person]  quotes=10  == NO entity (S2 candidate)
+   titles: Chief Executive Officer
+
+Abhiraj Singh Bhal  [person]  quotes=9  == NO entity (S2 candidate)
+   titles: Co-Founder \& CEO
+
+Ajay Kumar Saraogi  [person]  quotes=9  == NO entity (S2 candidate)
+   titles: Deputy Managing Director and Chief Financial Officer
+
+Anurag Mantri  [person]  quotes=9  == NO entity (S2 candidate)
+   titles: Executive Director & Global CFO
+
+Ashok Atluri  [person]  quotes=9  == entity: ASHOK ATLURI
+   titles: Chairman and Managing Director
+
+Ashok Sonthalia  [person]  quotes=9  == NO entity (S2 candidate)
+   titles: Chief Financial Officer
+
+Bharanidharan Pandyan  [person]  quotes=9  == NO entity (S2 candidate)
+   titles: Joint Managing Director
+
+Dhiren Salian  [person]  quotes=9  == NO entity (S2 candidate)
+   titles: CFO
+
+Dinesh Kumar Musalekar  [person]  quotes=9  == NO entity (S2 candidate)
+   titles: Managing Director
+
+Dinesh Thapar  [person]  quotes=9  == NO entity (S2 candidate)
+   titles: CFO
+
+Dou Shen  [person]  quotes=9  == NO entity (S2 candidate)
+   titles: EVP in charge of Baidu AI Cloud Group (ACG)
+
+Francois David Martino  [person]  quotes=9  == NO entity (S2 candidate)
+   titles: Chairman
+
+Gautam Manohar  [person]  quotes=9  == NO entity (S2 candidate)
+   titles: CEO
+
+Harsha Kadam  [person]  quotes=9  == NO entity (S2 candidate)
+   titles: Managing Director and Chief Executive Officer
+
+Hisashi Takeuchi  [person]  quotes=9  == NO entity (S2 candidate)
+   titles: Managing Director & CEO
+
+Karan Virwani  [person]  quotes=9  == NO entity (S2 candidate)
+   titles: MD and CEO
+
+Kavindra Mishra  [person]  quotes=9  == NO entity (S2 candidate)
+   titles: Managing Director and CEO
+
+Manish Nuwal  [person]  quotes=9  == NO entity (S2 candidate)
+   titles: MD & CEO
+
+Minoru Kida  [person]  quotes=9  == NO entity (S2 candidate)
+   titles: CFO
+
+Nilima Prasad Divi  [person]  quotes=9  == NO entity (S2 candidate)
+   titles: Whole-Time Director (Commercial)
+
+Pallab Banerjee  [person]  quotes=9  == NO entity (S2 candidate)
+   titles: Managing Director
+
+Phanindranath Kakarla  [person]  quotes=9  == NO entity (S2 candidate)
+   titles: MD & CEO, Arcil
+
+Rakshit Hargave  [person]  quotes=9  == NO entity (S2 candidate)
+   titles: Chief Executive Officer and Managing Director
+
+Riju Jhunjhunwala  [person]  quotes=9  == NO entity (S2 candidate)
+   titles: Vice Chairman
+
+Robin Li  [person]  quotes=9  == NO entity (S2 candidate)
+   titles: Co-founder & CEO
+
+Sahil Goyal  [person]  quotes=9  == NO entity (S2 candidate)
+   titles: MD & CEO
+
+Sanjay Kulshrestha  [person]  quotes=9  == NO entity (S2 candidate)
+   titles: CMD
+
+Sanjay Sharma  [person]  quotes=9  == NO entity (S2 candidate)
+   titles: Managing Director and CEO
+
+Sanjay Swarup  [person]  quotes=9  == NO entity (S2 candidate)
+   titles: Chairman & Managing Director
+
+Saurabh Mashruwala  [person]  quotes=9  == NO entity (S2 candidate)
+   titles: Executive Director and CFO
+
+Shri Sanjay Malhotra  [person]  quotes=9  == NO entity (S2 candidate)
+   titles: Governor
+
+Shri Shirish Chandra Murmu  [person]  quotes=9  == NO entity (S2 candidate)
+   titles: Deputy Governor, Reserve Bank of India
+
+Sridhar Mantha  [person]  quotes=9  == NO entity (S2 candidate)
+   titles: CEO - Generative AI Business Services (GBS)
+
+Srikanth Velamakanni  [person]  quotes=9  == NO entity (S2 candidate)
+   titles: Co-Founder and Group CEO
+
+Abhijit Roy  [person]  quotes=8  == NO entity (S2 candidate)
+   titles: Managing Director and CEO
+
+Ajay Bijli  [person]  quotes=8  == NO entity (S2 candidate)
+   titles: MD
+
+Amit Moda  [person]  quotes=8  == NO entity (S2 candidate)
+   titles: Whole-time Director and CEO
+
+Anindya Banerjee  [person]  quotes=8  == NO entity (S2 candidate)
+   titles: CFO
+
+Arun Narayan  [person]  quotes=8  == NO entity (S2 candidate)
+   titles: CEO, Jewellery Division
+
+Aseem Joshi  [person]  quotes=8  == NO entity (S2 candidate)
+   titles: Managing Director
+
+Ashish Bhandari  [person]  quotes=8  == NO entity (S2 candidate)
+   titles: Managing Director & CEO, Thermax
+
+Ashok Tyagi  [person]  quotes=8  == NO entity (S2 candidate)
+   titles: Managing Director
+
+Baba Kalyani  [person]  quotes=8  == NO entity (S2 candidate)
+   titles: Chairman & Managing Director, Bharat Forge
+
+Brad Setser  [person]  quotes=8  == NO entity (S2 candidate)
+   titles: Senior Fellow, Council on Foreign Relations
+
+C. Vijay Kumar  [person]  quotes=8  == NO entity (S2 candidate)
+   titles: CEO and MD | CEO and Managing Director
+   C Vijay Kumar  -> fold
+
+Chiranjeev Singh Saluja  [person]  quotes=8  == NO entity (S2 candidate)
+   titles: Managing Director
+
+Chirayu Upadhyaya  [person]  quotes=8  == NO entity (S2 candidate)
+   titles: Head of Investor Relations
+
+Dhruv Shringi  [person]  quotes=8  == NO entity (S2 candidate)
+   titles: CEO
+
+Dilip Shanghvi  [person]  quotes=8  == NO entity (S2 candidate)
+   titles: Chairman
+
+Dinesh Chandra Agarwal  [person]  quotes=8  == NO entity (S2 candidate)
+   titles: Chief Executive Officer
+
+Falguni Nayar  [person]  quotes=8  == NO entity (S2 candidate)
+   titles: Executive Chairperson, MD and CEO
+
+Gaurav Seth  [person]  quotes=8  == NO entity (S2 candidate)
+   titles: CEO
+
+Geetansh Bamania  [person]  quotes=8  == NO entity (S2 candidate)
+   titles: Chairperson, MD & CEO
+
+Gwynne Shotwell  [person]  quotes=8  == NO entity (S2 candidate)
+   titles: President & COO, SpaceX
+
+Keshav Bhajanka  [person]  quotes=8  == NO entity (S2 candidate)
+   titles: Executive Director
+
+Mahendra Nahata  [person]  quotes=8  == NO entity (S2 candidate)
+   titles: Chairman & Managing Director
+
+Management Team  [person]  quotes=8  == NO entity (S2 candidate)
+   titles: Company Spokesperson
+
+Manoj Verma  [person]  quotes=8  == NO entity (S2 candidate)
+   titles: Chief Operating Officer
+
+Mukesh Ambani  [person]  quotes=8  == NO entity (S2 candidate)
+   titles: Chairman & Managing Director, Reliance Industries
+
+N Venu  [person]  quotes=8  == NO entity (S2 candidate)
+   titles: Managing Director \& CEO
+
+Niranjan Chintam  [person]  quotes=8  == NO entity (S2 candidate)
+   titles: Chairman and Whole-time Director
+
+Parvat Srinivas Reddy  [person]  quotes=8  == NO entity (S2 candidate)
+   titles: MD
+
+Puneet Bhatla  [person]  quotes=8  == NO entity (S2 candidate)
+   titles: Managing Director
+
+Raamdeo Agrawal  [person]  quotes=8  == NO entity (S2 candidate)
+   titles: Chairman and Co-founder
+
+Rahul Himalian  [person]  quotes=8  == NO entity (S2 candidate)
+   titles: Chairman and Managing Director
+
+Rama Mohan Rao Amara  [person]  quotes=8  == NO entity (S2 candidate)
+   titles: Managing Director
+
+SBI Management Team  [person]  quotes=8  == NO entity (S2 candidate)
+   titles: Management Representative
+
+Sameer Kashyap  [person]  quotes=8  == NO entity (S2 candidate)
+   titles: President & Chief Financial Officer
+
+Sandeep Batra  [person]  quotes=8  == NO entity (S2 candidate)
+   titles: Executive Director
+
+Sashidhar Jagdishan  [person]  quotes=8  == NO entity (S2 candidate)
+   titles: Managing Director and Chief Executive Officer
+
+Saurabh Chawla  [person]  quotes=8  == NO entity (S2 candidate)
+   titles: Executive Director, Finance and Strategy
+
+Saurabh Gupta  [person]  quotes=8  == NO entity (S2 candidate)
+   titles: Group CFO
+
+Shalibhadra Shah  [person]  quotes=8  == NO entity (S2 candidate)
+   titles: Group CFO
+
+Shalinee Mandhana  [person]  quotes=8  == NO entity (S2 candidate)
+   titles: Joint CFO
+
+Shri Hardeep Singh Ahluwalia  [person]  quotes=8  == NO entity (S2 candidate)
+   titles: MD & CEO
+
+Srinivas Phatak  [person]  quotes=8  == NO entity (S2 candidate)
+   titles: CFO
+
+Srinivasan Vaidyanathan  [person]  quotes=8  == NO entity (S2 candidate)
+   titles: CFO
+
+Subramanian Sarma  [person]  quotes=8  == NO entity (S2 candidate)
+   titles: Deputy Managing Director and President
+
+Sudhakar Desai  [person]  quotes=8  == NO entity (S2 candidate)
+   titles: CEO
+
+Sundeep Sikka  [person]  quotes=8  == NO entity (S2 candidate)
+   titles: Executive Director & CEO
+
+T. V. Narendran  [person]  quotes=8  == NO entity (S2 candidate)
+   titles: CEO \& MD
+
+TCS Management  [person]  quotes=8  == NO entity (S2 candidate)
+   titles: Senior Leadership Team
+
+Vivek Anand  [person]  quotes=8  == NO entity (S2 candidate)
+   titles: Chief Financial Officer
+
+Achin Gupta  [person]  quotes=7  == NO entity (S2 candidate)
+   titles: MD and Global CEO
+
+Akash Ambani  [person]  quotes=7  == NO entity (S2 candidate)
+   titles: Managing Director, Jio Platforms
+
+Alok Gupta  [person]  quotes=7  == NO entity (S2 candidate)
+   titles: MD
+
+Amitava Mukherjee  [person]  quotes=7  == NO entity (S2 candidate)
+   titles: Chairman and Managing Director
+
+Anand Kumar  [person]  quotes=7  == NO entity (S2 candidate)
+   titles: Head of Investor Relations
+
+Angie Park  [person]  quotes=7  == NO entity (S2 candidate)
+   titles: Chief Financial Officer
+
+Anil Agarwal  [person]  quotes=7  == NO entity (S2 candidate)
+   titles: Founder & Chairman, Vedanta Group
+
+Ankit Gupta  [person]  quotes=7  == NO entity (S2 candidate)
+   titles: President - Marketing
+
+Choudary Karuturi  [person]  quotes=7  == NO entity (S2 candidate)
+   titles: Managing Director and CFO
+
+Deepak Joshi  [person]  quotes=7  == NO entity (S2 candidate)
+   titles: Director, Sales and Marketing
+
+Ekta Soni  [person]  quotes=7  == NO entity (S2 candidate)
+   titles: AVP - Investor Relations
+
+Ganesh Narayanan  [person]  quotes=7  == NO entity (S2 candidate)
+   titles: Managing Director and Chief Executive Officer
+
+Girish Agarwal  [person]  quotes=7  == NO entity (S2 candidate)
+   titles: Non-Executive Director
+
+Gurmeet Chahal  [person]  quotes=7  == NO entity (S2 candidate)
+   titles: CEO \& Executive Director
+
+Jaimin Kailash Gupta  [person]  quotes=7  == NO entity (S2 candidate)
+   titles: Chairman &amp; Managing Director
+
+Jairam Sridharan  [person]  quotes=7  == NO entity (S2 candidate)
+   titles: Managing Director
+
+Jayant Davar  [person]  quotes=7  == NO entity (S2 candidate)
+   titles: Chairman & CEO, Sandhar Technologies
+
+Jayaram Sridharan  [person]  quotes=7  == NO entity (S2 candidate)
+   titles: MD and CEO
+
+Joseph Anantharaju  [person]  quotes=7  == NO entity (S2 candidate)
+   titles: Co-Chairman & CEO
+
+K V Sridhar  [person]  quotes=7  == NO entity (S2 candidate)
+   titles: Chief Financial Officer
+
+Nalinikanth Gollagunta  [person]  quotes=7  == NO entity (S2 candidate)
+   titles: CEO, Automotive Division
+
+Nikhil Kumar  [person]  quotes=7  == NO entity (S2 candidate)
+   titles: Managing Director
+
+Nitin Rakesh  [person]  quotes=7  == NO entity (S2 candidate)
+   titles: CEO
+
+Pandurang Dandawate  [person]  quotes=7  == NO entity (S2 candidate)
+   titles: Chairman
+
+Pankaj Mittal  [person]  quotes=7  == NO entity (S2 candidate)
+   titles: Whole-Time Director and President
+
+Pankaj Munjal  [person]  quotes=7  == NO entity (S2 candidate)
+   titles: Chairman
+
+Peter Elbers  [person]  quotes=7  == NO entity (S2 candidate)
+   titles: CEO
+
+Philipp Schindler  [person]  quotes=7  == NO entity (S2 candidate)
+   titles: SVP and CBO, Google
+
+Pirojsha Adi Godrej  [person]  quotes=7  == NO entity (S2 candidate)
+   titles: Executive Chairman
+
+Pramod Gupta  [person]  quotes=7  == NO entity (S2 candidate)
+   titles: Chief Financial Officer
+
+Praveen Oswal  [person]  quotes=7  == NO entity (S2 candidate)
+   titles: Managing Director
+
+Prof. Rohit Chandra  [person]  quotes=7  == NO entity (S2 candidate)
+   titles: Assistant Professor, School of Public Policy, IIT Delhi
+
+Puneet Dalmia  [person]  quotes=7  == NO entity (S2 candidate)
+   titles: Managing Director and CEO
+
+Rajeev Samant  [person]  quotes=7  == NO entity (S2 candidate)
+   titles: Founder and Chief Executive Officer
+
+Rajneesh Karnatak  [person]  quotes=7  == NO entity (S2 candidate)
+   titles: MD and CEO
+
+Rakesh Kumar Jain  [person]  quotes=7  == NO entity (S2 candidate)
+   titles: Director of Finance
+
+Ramesh Gopalan  [person]  quotes=7  == NO entity (S2 candidate)
+   titles: Group CEO and Managing Director
+
+Ramesh Kalyanaraman  [person]  quotes=7  == NO entity (S2 candidate)
+   titles: Executive Director
+
+Ramesh Kunhikannan  [person]  quotes=7  == NO entity (S2 candidate)
+   titles: Executive Vice Chairman
+
+Ritesh Tiwari  [person]  quotes=7  == NO entity (S2 candidate)
+   titles: CFO
+
+Samir Somaiya  [person]  quotes=7  == NO entity (S2 candidate)
+   titles: Chairman and Managing Director
+
+Sham Arora  [person]  quotes=7  == NO entity (S2 candidate)
+   titles: CTO, Tech Mahindra
+
+Srinivas Tuttagunta  [person]  quotes=7  == NO entity (S2 candidate)
+   titles: COO - Refining & Marketing
+
+Sudhanshu Jain  [person]  quotes=7  == NO entity (S2 candidate)
+   titles: CFO
+
+Tamal Bandyopadhyay  [person]  quotes=7  == NO entity (S2 candidate)
+   titles: Senior Advisor, Jana Small Finance Bank
+
+Ted Sarandos  [person]  quotes=7  == NO entity (S2 candidate)
+   titles: CEO
+
+V. S. Hariharan  [person]  quotes=7  == NO entity (S2 candidate)
+   titles: Managing Director and Group CEO
+
+Vibha Padalkar  [person]  quotes=7  == NO entity (S2 candidate)
+   titles: MD \& CEO
+
+Vidya Srinivasan  [person]  quotes=7  == NO entity (S2 candidate)
+   titles: Chief Financial Officer
+
+Vikas Chadha  [person]  quotes=7  == NO entity (S2 candidate)
+   titles: CEO
+
+Vinay Rathi  [person]  quotes=7  == NO entity (S2 candidate)
+   titles: Director
+
+Vinay Sanghi  [person]  quotes=7  == NO entity (S2 candidate)
+   titles: Chairman and Managing Director
+
+Vineet Agarwal  [person]  quotes=7  == NO entity (S2 candidate)
+   titles: MD
+
+Zohra Khan  [person]  quotes=7  == NO entity (S2 candidate)
+   titles: Founder & CEO, IPEC
+
+Ajay Kapoor  [person]  quotes=6  == NO entity (S2 candidate)
+   titles: Group CEO
+
+Ajesh Pillai  [person]  quotes=6  == NO entity (S2 candidate)
+   titles: Chief Financial Officer
+
+Ajit Kumar  [person]  quotes=6  == NO entity (S2 candidate)
+   titles: Lead BFSI Research Analyst
+
+Akash Ohri  [person]  quotes=6  == NO entity (S2 candidate)
+   titles: Managing Director & Chief Business Officer
+
+Akshaya Moondra  [person]  quotes=6  == NO entity (S2 candidate)
+   titles: CEO
+
+Amit Dahanukar  [person]  quotes=6  == NO entity (S2 candidate)
+   titles: CMD
+
+Amit Jhingran  [person]  quotes=6  == NO entity (S2 candidate)
+   titles: Managing Director and CEO
+
+Amitabh Chaudhry  [person]  quotes=6  == NO entity (S2 candidate)
+   titles: MD \& CEO
+
+Anant Ambani  [person]  quotes=6  == NO entity (S2 candidate)
+   titles: Executive Director, Reliance Industries
+
+Anil V Parab  [person]  quotes=6  == NO entity (S2 candidate)
+   titles: Whole-time Director & Sr Executive VP.
+
+Arun Misra  [person]  quotes=6  == NO entity (S2 candidate)
+   titles: CEO
+
+Arvind Krishna  [person]  quotes=6  == NO entity (S2 candidate)
+   titles: Chairman & CEO, IBM
+
+Colette Kress  [person]  quotes=6  == NO entity (S2 candidate)
+   titles: Executive Vice President and CFO
+
+Deepak Chaudhary  [person]  quotes=6  == NO entity (S2 candidate)
+   titles: VP Finance & Investor Relations
+
+Devendra Goel  [person]  quotes=6  == NO entity (S2 candidate)
+   titles: Managing Director
+
+Dr. R.K. Tyagi  [person]  quotes=6  == NO entity (S2 candidate)
+   titles: Chairman and Managing Director
+
+Dr. Satyanarayana Chava  [person]  quotes=6  == NO entity (S2 candidate)
+   titles: Founder & CEO
+
+Elliott Hill  [person]  quotes=6  == NO entity (S2 candidate)
+   titles: CEO
+
+Gaurav Jain  [person]  quotes=6  == NO entity (S2 candidate)
+   titles: CFO
+
+Girish Wagh  [person]  quotes=6  == NO entity (S2 candidate)
+   titles: Managing Director & CEO, Tata Motors Limited.
+
+Gursharan Singh  [person]  quotes=6  == NO entity (S2 candidate)
+   titles: Chairman & Managing Director
+
+Hitesh Sethia  [person]  quotes=6  == NO entity (S2 candidate)
+   titles: Managing Director and Chief Executive Officer
+
+J.P. Chalasani  [person]  quotes=6  == NO entity (S2 candidate)
+   titles: Group Chief Executive Officer
+
+Jayant Acharya  [person]  quotes=6  == NO entity (S2 candidate)
+   titles: CEO
+
+Jitendra Srivastava  [person]  quotes=6  == NO entity (S2 candidate)
+   titles: IAS - Chairman and Managing Director
+
+Jose Jacob  [person]  quotes=6  == NO entity (S2 candidate)
+   titles: Chairman and Managing Director
+
+K. Srinivasan  [person]  quotes=6  == NO entity (S2 candidate)
+   titles: Managing Director
+
+Kamal Khushlani  [person]  quotes=6  == NO entity (S2 candidate)
+   titles: Chairman \& MD
+
+Karan Suri  [person]  quotes=6  == NO entity (S2 candidate)
+   titles: Senior Vice President - New Energy, Reliance Industries Limited
+
+Mayank Singhal  [person]  quotes=6  == NO entity (S2 candidate)
+   titles: Executive Vice Chairperson and Managing Director
+
+Mr. Rohit Misra  [person]  quotes=6  == NO entity (S2 candidate)
+   titles: MD and CEO
+
+Ms. Nilima Prasad Divi  [person]  quotes=6  == NO entity (S2 candidate)
+   titles: Whole-Time Director (Commercial)
+
+Murugavel Janakiraman  [person]  quotes=6  == NO entity (S2 candidate)
+   titles: MD \& CEO
+
+Nilesh Maru  [person]  quotes=6  == NO entity (S2 candidate)
+   titles: Chief Financial Officer
+
+Pankaj Dhanuka  [person]  quotes=6  == NO entity (S2 candidate)
+   titles: Chairman, Managing Director & CEO
+
+Partho Banerjee  [person]  quotes=6  == NO entity (S2 candidate)
+   titles: Senior Executive Officer, Marketing & Sales
+
+Pranav Saboo  [person]  quotes=6  == NO entity (S2 candidate)
+   titles: MD and CEO
+
+Prashant Kumar  [person]  quotes=6  == NO entity (S2 candidate)
+   titles: Managing Director and Chief Executive Officer
+
+Praveer Melwani  [person]  quotes=6  == NO entity (S2 candidate)
+   titles: Chief Financial Officer
+
+R G Chandramogan  [person]  quotes=6  == NO entity (S2 candidate)
+   titles: Chairman
+
+R K Tyagi  [person]  quotes=6  == NO entity (S2 candidate)
+   titles: Chairman | Chairman \& Managing Director
+   R.K. Tyagi  -> fold
+
+Rahul Agrawal  [person]  quotes=6  == NO entity (S2 candidate)
+   titles: CEO
+
+Rahul Mithal  [person]  quotes=6  == NO entity (S2 candidate)
+   titles: Chairman and Managing Director
+
+Rajat Khaturia  [person]  quotes=6  == NO entity (S2 candidate)
+   titles: CEO
+
+Rajesh Jejurikar  [person]  quotes=6  == NO entity (S2 candidate)
+   titles: Executive Director and CEO, Auto and Farm Sector
+
+Rajiv Rajgopal  [person]  quotes=6  == NO entity (S2 candidate)
+   titles: Chairman and Managing Director
+
+Ramesh Nair  [person]  quotes=6  == NO entity (S2 candidate)
+   titles: CEO and MD
+
+Ramkumar Senthilvel  [person]  quotes=6  == NO entity (S2 candidate)
+   titles: Managing Director
+
+Rashesh Gogri  [person]  quotes=6  == NO entity (S2 candidate)
+   titles: Chairman
+
+Ruchir Agrawal  [person]  quotes=6  == NO entity (S2 candidate)
+   titles: Director of Finance
+
+S.N. Subrahmanyan Sharma  [person]  quotes=6  == NO entity (S2 candidate)
+   titles: Deputy Managing Director & President
+
+Sammir Dattani  [person]  quotes=6  == NO entity (S2 candidate)
+   titles: ED
+
+Sanjay Agarwal  [person]  quotes=6  == NO entity (S2 candidate)
+   titles: MD & CEO
+
+Sanjay Chitkara  [person]  quotes=6  == NO entity (S2 candidate)
+   titles: Co-Chief Sales & Marketing Officer
+
+Sanjay Sethi  [person]  quotes=6  == NO entity (S2 candidate)
+   titles: CEO
+
+Sanjeev Asthana  [person]  quotes=6  == NO entity (S2 candidate)
+   titles: Chief Executive Officer
+
+Sarbvir Singh  [person]  quotes=6  == NO entity (S2 candidate)
+   titles: Joint Group CEO
+
+Satyen Mamtora  [person]  quotes=6  == NO entity (S2 candidate)
+   titles: Managing Director and CEO
+
+Saurabh Gadgil  [person]  quotes=6  == NO entity (S2 candidate)
+   titles: Chairman and Managing Director
+
+Shri Aneesh Pandey  [person]  quotes=6  == NO entity (S2 candidate)
+   titles: MD and CEO
+
+Sivaramakrishnan Ganapathi  [person]  quotes=6  == NO entity (S2 candidate)
+   titles: Vice Chairman and Managing Director
+
+Sunil Nalavadi  [person]  quotes=6  == NO entity (S2 candidate)
+   titles: CFO
+
+Tarun Garg  [person]  quotes=6  == NO entity (S2 candidate)
+   titles: Managing Director and CEO
+
+Umesh G. Revankar  [person]  quotes=6  == NO entity (S2 candidate)
+   titles: Executive Vice Chairman
+
+Vandana Gurnani  [person]  quotes=6  == NO entity (S2 candidate)
+   titles: Secretary Of Labour Ministry
+
+Varun Berry  [person]  quotes=6  == NO entity (S2 candidate)
+   titles: CEO and MD
+
+Vedant Modi  [person]  quotes=6  == NO entity (S2 candidate)
+   titles: Chief Revenue Officer
+
+Vikas Oberoi  [person]  quotes=6  == NO entity (S2 candidate)
+   titles: Chairman and Managing Director
+
+Vinay M. Tonse  [person]  quotes=6  == NO entity (S2 candidate)
+   titles: Managing Director and Chief Executive Officer
+
+Vinod Sahay  [person]  quotes=6  == NO entity (S2 candidate)
+   titles: Executive Chairman, SML Mahindra
+
+Yashpal Sharma  [person]  quotes=6  == NO entity (S2 candidate)
+   titles: CMD
+
+A. Krishnan  [person]  quotes=5  == NO entity (S2 candidate)
+   titles: Group CFO
+
+Abhay Soi  [person]  quotes=5  == NO entity (S2 candidate)
+   titles: Chairman and Managing Director.
+
+Abhishek Khaitan  [person]  quotes=5  == NO entity (S2 candidate)
+   titles: Managing Director
+
+Akshant Goyal  [person]  quotes=5  == NO entity (S2 candidate)
+   titles: CFO
+
+Akshay Pitti  [person]  quotes=5  == NO entity (S2 candidate)
+   titles: Managing Director and Chief Executive Officer
+
+Alexander Gerding  [person]  quotes=5  == NO entity (S2 candidate)
+   titles: Managing Director
+
+Amar Kaul  [person]  quotes=5  == NO entity (S2 candidate)
+   titles: MD \& CEO
+
+Ameera Shah  [person]  quotes=5  == NO entity (S2 candidate)
+   titles: Chairperson \& Whole-Time Director
+
+Amitesh Jha  [person]  quotes=5  == NO entity (S2 candidate)
+   titles: CEO, Instamart
+
+Anil Kumar Mittal  [person]  quotes=5  == NO entity (S2 candidate)
+   titles: Chairperson and Managing Director
+
+Anuj Jain  [person]  quotes=5  == NO entity (S2 candidate)
+   titles: Director - Finance
+
+Anurag Gahlot  [person]  quotes=5  == NO entity (S2 candidate)
+   titles: COO, Motherson Sumi Wiring
+
+Aparna Iyer  [person]  quotes=5  == NO entity (S2 candidate)
+   titles: CFO
+
+Arnab Roy  [person]  quotes=5  == NO entity (S2 candidate)
+   titles: COO \& MD
+
+Arun Kumar Singh  [person]  quotes=5  == NO entity (S2 candidate)
+   titles: Chairman \& CEO
+
+Arvind Kapil  [person]  quotes=5  == NO entity (S2 candidate)
+   titles: Managing Director and Chief Executive Officer
+
+Ashok Vaswani  [person]  quotes=5  == NO entity (S2 candidate)
+   titles: MD \& CEO
+
+Ashwani Kumar Arora  [person]  quotes=5  == NO entity (S2 candidate)
+   titles: MD \& CEO
+
+Asif Malbari  [person]  quotes=5  == NO entity (S2 candidate)
+   titles: CFO, Godrej Consumer Products Ltd.
+
+Atim Kabra  [person]  quotes=5  == NO entity (S2 candidate)
+   titles: Executive Director \& Director-Strategy
+
+Atul Jaggi  [person]  quotes=5  == NO entity (S2 candidate)
+   titles: Managing Director
+
+Atul Jain  [person]  quotes=5  == NO entity (S2 candidate)
+   titles: Managing Director
+
+Brijendra Pratap Singh  [person]  quotes=5  == NO entity (S2 candidate)
+   titles: Chairman-cum-Managing Director
+
+Chayo Pandey  [person]  quotes=5  == NO entity (S2 candidate)
+   titles: Head - IR
+
+Chetan Seth  [person]  quotes=5  == NO entity (S2 candidate)
+   titles: Asia-Pacific Equity Strategist, Nomura Holdings
+
+Deepak Chhabra  [person]  quotes=5  == NO entity (S2 candidate)
+   titles: Managing Director
+
+Dhiresh Bansal  [person]  quotes=5  == NO entity (S2 candidate)
+   titles: Chief Financial Officer
+
+Feroz Azeez  [person]  quotes=5  == NO entity (S2 candidate)
+   titles: Joint CEO
+
+Gaurav Kumar  [person]  quotes=5  == NO entity (S2 candidate)
+   titles: Chief Financial Officer
+
+George Muthoot  [person]  quotes=5  == NO entity (S2 candidate)
+   titles: Managing Director
+
+Gerard Sweeney  [person]  quotes=5  == NO entity (S2 candidate)
+   titles: President of RAIN Carbon Inc
+
+Girija Subramanian  [person]  quotes=5  == NO entity (S2 candidate)
+   titles: Chairman cum Managing Director
+
+Gunender Kapoor  [person]  quotes=5  == NO entity (S2 candidate)
+   titles: MD and CEO
+
+Gunender Kapur  [person]  quotes=5  == NO entity (S2 candidate)
+   titles: MD and CEO
+
+Hari Velloor  [person]  quotes=5  == NO entity (S2 candidate)
+   titles: Executive Vice President - Credit
+
+Harmohan Sahni  [person]  quotes=5  == NO entity (S2 candidate)
+   titles: MD and CEO
+
+Harsh Jain  [person]  quotes=5  == NO entity (S2 candidate)
+   titles: Co-founder and COO
+
+Himanshu Jindal  [person]  quotes=5  == NO entity (S2 candidate)
+   titles: Chief Financial Officer.
+
+Jagan Reddy Nellore  [person]  quotes=5  == NO entity (S2 candidate)
+   titles: Managing Director
+
+Jasbir Singh  [person]  quotes=5  == NO entity (S2 candidate)
+   titles: Executive Chairman and CEO
+
+Kalpesh Gopti  [person]  quotes=5  == NO entity (S2 candidate)
+   titles: Chairman & MD, Greenleaf Envirotech
+
+Keyur Shah  [person]  quotes=5  == NO entity (S2 candidate)
+   titles: Chairman and Managing Director
+
+M. Anandan  [person]  quotes=5  == NO entity (S2 candidate)
+   titles: Executive Chairman
+
+Manan Shah  [person]  quotes=5  == NO entity (S2 candidate)
+   titles: Promoters Group
+
+Michael Colglazier  [person]  quotes=5  == NO entity (S2 candidate)
+   titles: CEO
+
+Milesh Gandhi  [person]  quotes=5  == NO entity (S2 candidate)
+   titles: Whole Time Director
+
+Mr. Abdul Basith Shaikh  [person]  quotes=5  == NO entity (S2 candidate)
+   titles: Vice President
+
+Mr. Oberoi  [person]  quotes=5  == NO entity (S2 candidate)
+   titles: Chairman and Managing Director
+
+Neeraj Sharma  [person]  quotes=5  == NO entity (S2 candidate)
+   titles: CEO \& MD
+
+Nidhu Saxena  [person]  quotes=5  == NO entity (S2 candidate)
+   titles: Managing Director and CEO
+
+Niranjan Gupta  [person]  quotes=5  == NO entity (S2 candidate)
+   titles: CFO
+
+O. P. Sinha  [person]  quotes=5  == NO entity (S2 candidate)
+   titles: Director (Exploration)
+
+Parminder Chopra  [person]  quotes=5  == NO entity (S2 candidate)
+   titles: CMD
+
+Patanjali G. Keswani  [person]  quotes=5  == NO entity (S2 candidate)
+   titles: CMD
+
+Patanjali Keswani  [person]  quotes=5  == NO entity (S2 candidate)
+   titles: CMD
+
+Pavitra Shankar  [person]  quotes=5  == NO entity (S2 candidate)
+   titles: Managing Director
+
+Pieter Elbers  [person]  quotes=5  == NO entity (S2 candidate)
+   titles: CEO
+
+Piyush Bansal  [person]  quotes=5  == NO entity (S2 candidate)
+   titles: Co-founder and Chief Executive Officer
+
+Piyush Pankaj  [person]  quotes=5  == NO entity (S2 candidate)
+   titles: CSO
+
+Prabh Mehar Singh  [person]  quotes=5  == NO entity (S2 candidate)
+   titles: Chief Operating Officer
+
+Pranav Bansal  [person]  quotes=5  == NO entity (S2 candidate)
+   titles: CEO \& MD
+
+Praveena Rai  [person]  quotes=5  == NO entity (S2 candidate)
+   titles: MD \& CEO
+
+Praveer Sinha  [person]  quotes=5  == NO entity (S2 candidate)
+   titles: CEO & Managing Director
+
+Pravina Rai  [person]  quotes=5  == NO entity (S2 candidate)
+   titles: MD & CEO
+
+Rahul Shah  [person]  quotes=5  == NO entity (S2 candidate)
+   titles: Chief Financial Officer
+
+Rajeev Kale  [person]  quotes=5  == NO entity (S2 candidate)
+   titles: President
+
+Rajesh Agrawal  [person]  quotes=5  == NO entity (S2 candidate)
+   titles: Joint Managing Director
+
+Rajesh Bhatia  [person]  quotes=5  == NO entity (S2 candidate)
+   titles: Group President \& Chief Financial Officer
+
+Rajesh Gupta  [person]  quotes=5  == NO entity (S2 candidate)
+   titles: MD, Lloyds Metals & Energy Ltd.
+
+Rajiv Poddar  [person]  quotes=5  == NO entity (S2 candidate)
+   titles: Joint Managing Director
+
+Rakesh Rawal  [person]  quotes=5  == NO entity (S2 candidate)
+   titles: CEO
+
+Ramesh Ganesan  [person]  quotes=5  == NO entity (S2 candidate)
+   titles: Managing Director & Chief Executive Officer
+
+Ramnath Krishnan  [person]  quotes=5  == NO entity (S2 candidate)
+   titles: Managing Director and Group Chief Executive Officer
+
+Ravi Chawla  [person]  quotes=5  == NO entity (S2 candidate)
+   titles: MD & CEO, Gulf Oil Lubricants India Limited
+
+Rituraj Sharma  [person]  quotes=5  == NO entity (S2 candidate)
+   titles: Chief Executive Officer
+
+Rupkishore Guthran  [person]  quotes=5  == NO entity (S2 candidate)
+   titles: Whole Time Director
+
+Sadaf Sayeed  [person]  quotes=5  == NO entity (S2 candidate)
+   titles: Chief Executive Officer
+
+Samarth Patel  [person]  quotes=5  == NO entity (S2 candidate)
+   titles: Chairman \& Executive Director
+
+Sanjeev Mantri  [person]  quotes=5  == NO entity (S2 candidate)
+   titles: MD and CEO
+
+Sanjeev Sharma  [person]  quotes=5  == NO entity (S2 candidate)
+   titles: Managing Director
+
+Santosh Kumar Yadav  [person]  quotes=5  == NO entity (S2 candidate)
+   titles: Chairman & Managing Director
+
+Saurabh Mittal  [person]  quotes=5  == NO entity (S2 candidate)
+   titles: Managing Director and Chief Executive Officer
+
+Shankho Banerjee  [person]  quotes=5  == NO entity (S2 candidate)
+   titles: CEO
+
+Sharad Mahendra  [person]  quotes=5  == NO entity (S2 candidate)
+   titles: CEO
+
+Shekhar Swarup  [person]  quotes=5  == NO entity (S2 candidate)
+   titles: Joint Managing Director
+
+Sheshadri Srinivas  [person]  quotes=5  == NO entity (S2 candidate)
+   titles: CEO and Executive Director
+
+Shreehas Tambe  [person]  quotes=5  == NO entity (S2 candidate)
+   titles: CEO & MD
+
+Sriram Khattar  [person]  quotes=5  == NO entity (S2 candidate)
+   titles: Vice Chairman & Managing Director, Rental Business
+
+Sukchae Kang  [person]  quotes=5  == NO entity (S2 candidate)
+   titles: EVP and Head of Sales and Marketing Office for Foundry
+
+Sumedh Badve  [person]  quotes=5  == NO entity (S2 candidate)
+   titles: Promoter
+
+Tony Capuano  [person]  quotes=5  == NO entity (S2 candidate)
+   titles: CEO
+
+Umesh Revankar  [person]  quotes=5  == NO entity (S2 candidate)
+   titles: Executive Vice-Chairman
+
+V. Rajmohan  [person]  quotes=5  == NO entity (S2 candidate)
+   titles: Chairman and Managing Director
+
+V.R.K. Gupta  [person]  quotes=5  == NO entity (S2 candidate)
+   titles: Director Finance
+
+Varadarajan Krishnaram  [person]  quotes=5  == NO entity (S2 candidate)
+   titles: Chief Executive Officer
+
+Varghese Alukkas  [person]  quotes=5  == NO entity (S2 candidate)
+   titles: MD, Jos Alukkas
+
+Venu Gopal Peruru  [person]  quotes=5  == NO entity (S2 candidate)
+   titles: Chairman and Managing Director
+
+Vidit Aatrey  [person]  quotes=5  == NO entity (S2 candidate)
+   titles: Chairman, Managing Director and Chief Executive Officer
+
+Vinay Rustagi  [person]  quotes=5  == NO entity (S2 candidate)
+   titles: Chief Business Officer
+
+Vivek Songaonkar  [person]  quotes=5  == NO entity (S2 candidate)
+   titles: Director of Finance
+
+Aashay Shah  [person]  quotes=4  == NO entity (S2 candidate)
+   titles: Executive Director
+
+Abhishek Lodha  [person]  quotes=4  == NO entity (S2 candidate)
+   titles: Managing Director \& CEO
+
+Amit Chaturvedi  [person]  quotes=4  == NO entity (S2 candidate)
+   titles: President - Petrochemicals, Reliance Industries Limited
+
+Anil Satwani  [person]  quotes=4  == NO entity (S2 candidate)
+   titles: Chairman & MD
+
+Arvind Verma  [person]  quotes=4  == NO entity (S2 candidate)
+   titles: Whole Time Director
+
+Ashok Bhandari  [person]  quotes=4  == NO entity (S2 candidate)
+   titles: Senior Advisor
+
+Ashok Panda  [person]  quotes=4  == NO entity (S2 candidate)
+   titles: Director of Finance
+
+Ashutosh Dhawan  [person]  quotes=4  == NO entity (S2 candidate)
+   titles: Global Chief Financial Officer
+
+Ashutosh Varma  [person]  quotes=4  == NO entity (S2 candidate)
+   titles: Chief Business Officer - India BU
+
+Atil Parikh  [person]  quotes=4  == NO entity (S2 candidate)
+   titles: CEO
+
+BVK Reddy  [person]  quotes=4  == NO entity (S2 candidate)
+   titles: CEO
+
+Baskar Subramanian  [person]  quotes=4  == NO entity (S2 candidate)
+   titles: Managing Director and CEO
+
+Bhaskar Babu Ramchandran  [person]  quotes=4  == NO entity (S2 candidate)
+   titles: MD and CEO
+
+Bill Staples  [person]  quotes=4  == NO entity (S2 candidate)
+   titles: CEO
+
+Chandan Verma  [person]  quotes=4  == NO entity (S2 candidate)
+   titles: Chief Financial Officer
+
+Chetan Shah  [person]  quotes=4  == NO entity (S2 candidate)
+   titles: Promoter Director
+
+Chintan Shah  [person]  quotes=4  == NO entity (S2 candidate)
+   titles: Managing Director
+
+Chirag Parekh  [person]  quotes=4  == NO entity (S2 candidate)
+   titles: Promoter \& MD
+
+Chuck Robbins  [person]  quotes=4  == NO entity (S2 candidate)
+   titles: CEO
+
+Deepak Acharya  [person]  quotes=4  == NO entity (S2 candidate)
+   titles: CEO
+
+Devendra Agarwal  [person]  quotes=4  == NO entity (S2 candidate)
+   titles: Executive Director - Commercial
+
+Dinesh Khara  [person]  quotes=4  == NO entity (S2 candidate)
+   titles: Chairman
+
+Dodla Sunil Reddy  [person]  quotes=4  == NO entity (S2 candidate)
+   titles: Managing Director
+
+Dr. Ashutosh Raghuvanshi  [person]  quotes=4  == NO entity (S2 candidate)
+   titles: MD & CEO
+
+Dr. Debadatta Chand  [person]  quotes=4  == NO entity (S2 candidate)
+   titles: Managing Director & CEO
+
+Dr. Habil Khorakiwala  [person]  quotes=4  == NO entity (S2 candidate)
+   titles: Founder & Chairman, Wockhardt Limited
+
+Gandhar Tonga  [person]  quotes=4  == NO entity (S2 candidate)
+   titles: CFO
+
+Gandharv Tongia  [person]  quotes=4  == NO entity (S2 candidate)
+   titles: Executive Director and CFO
+
+Ganesh Lakshmi Narayanan  [person]  quotes=4  == NO entity (S2 candidate)
+   titles: MD and CEO designate
+
+Gaurav Gupta  [person]  quotes=4  == NO entity (S2 candidate)
+   titles: Vice President - Strategy
+
+Glenn Saldanha  [person]  quotes=4  == NO entity (S2 candidate)
+   titles: CMD
+
+Glenn Saldhana  [person]  quotes=4  == NO entity (S2 candidate)
+   titles: CMD
+
+Gyanendra Shukla  [person]  quotes=4  == NO entity (S2 candidate)
+   titles: MD \& CEO
+
+Harit Zaveri  [person]  quotes=4  == NO entity (S2 candidate)
+   titles: Joint MD \& CFO
+
+Harsh Mehta  [person]  quotes=4  == NO entity (S2 candidate)
+   titles: MD
+
+Hemant Kadel  [person]  quotes=4  == NO entity (S2 candidate)
+   titles: Chief Financial Officer
+
+Jagdish Bajaj  [person]  quotes=4  == NO entity (S2 candidate)
+   titles: CFO
+
+Jaimin Shah  [person]  quotes=4  == NO entity (S2 candidate)
+   titles: Managing Director & CEO, Dev Information Technology
+
+Jaykumar Shah  [person]  quotes=4  == NO entity (S2 candidate)
+   titles: Chief Financial Officer
+
+John David Rainey  [person]  quotes=4  == NO entity (S2 candidate)
+   titles: CFO, Walmart
+
+John Furner  [person]  quotes=4  == NO entity (S2 candidate)
+   titles: CEO, Walmart
+
+K.K. Chatiwal  [person]  quotes=4  == NO entity (S2 candidate)
+   titles: Managing Director
+
+Kalyan Kumar  [person]  quotes=4  == NO entity (S2 candidate)
+   titles: MD & CEO
+
+Kamesh Goyal  [person]  quotes=4  == NO entity (S2 candidate)
+   titles: Chairman
+
+Kanishka Chaudhary  [person]  quotes=4  == NO entity (S2 candidate)
+   titles: Chief Financial Officer
+
+Karan Bhagat  [person]  quotes=4  == NO entity (S2 candidate)
+   titles: MD and CEO
+
+Karanjit Singh  [person]  quotes=4  == NO entity (S2 candidate)
+   titles: Chief Executive Officer, India
+
+Keki Mistry  [person]  quotes=4  == NO entity (S2 candidate)
+   titles: Interim Chairman
+
+Kirti Ganorkar  [person]  quotes=4  == NO entity (S2 candidate)
+   titles: Managing Director
+
+Liberatha Kallat  [person]  quotes=4  == NO entity (S2 candidate)
+   titles: Chairperson and Managing Director
+
+Madhur Deora  [person]  quotes=4  == NO entity (S2 candidate)
+   titles: President and Group CFO
+
+Mahendra Kumar Kabra  [person]  quotes=4  == NO entity (S2 candidate)
+   titles: Managing Director
+
+Manish Dhanuka  [person]  quotes=4  == NO entity (S2 candidate)
+   titles: Managing Director
+
+Manoj Kumar Jhawar  [person]  quotes=4  == NO entity (S2 candidate)
+
+Mayank Pareek  [person]  quotes=4  == NO entity (S2 candidate)
+   titles: Managing Director
+
+Mayank Pravinchandra Shah  [person]  quotes=4  == NO entity (S2 candidate)
+   titles: Vice President, Parle Products.
+
+Mr. Gursharan Singh  [person]  quotes=4  == NO entity (S2 candidate)
+   titles: Chairman &amp; Managing Director
+
+Mr. Rajesh Jejurikar  [person]  quotes=4  == NO entity (S2 candidate)
+   titles: ED and CEO of Auto and Farm business
+
+Munish Awasti  [person]  quotes=4  == NO entity (S2 candidate)
+   titles: Chairman \& MD
+
+Naveen Jindal  [person]  quotes=4  == NO entity (S2 candidate)
+   titles: Chairman, Jindal Steel
+
+Nishit Dave  [person]  quotes=4  == NO entity (S2 candidate)
+   titles: Head of IR
+
+P. Balaji  [person]  quotes=4  == NO entity (S2 candidate)
+   titles: Managing Director
+
+Patanjali P. Keswani  [person]  quotes=4  == NO entity (S2 candidate)
+   titles: Executive Chairman
+
+Praveen Someshwar  [person]  quotes=4  == NO entity (S2 candidate)
+   titles: MD \& CEO
+
+Praveer Kumar Srivastava  [person]  quotes=4  == NO entity (S2 candidate)
+   titles: Managing Director
+
+Puneet Sharma  [person]  quotes=4  == NO entity (S2 candidate)
+   titles: CFO
+
+Puneet Yadu Dalmia  [person]  quotes=4  == NO entity (S2 candidate)
+   titles: MD
+
+Punit Chhatwal  [person]  quotes=4  == NO entity (S2 candidate)
+   titles: MD \& CEO
+
+Raj Gandhi  [person]  quotes=4  == NO entity (S2 candidate)
+   titles: President and Whole-Time Director
+
+Rajesh Ganesh  [person]  quotes=4  == NO entity (S2 candidate)
+   titles: Managing Director and CEO
+
+Rajnish Sarna  [person]  quotes=4  == NO entity (S2 candidate)
+   titles: Joint Managing Director
+
+Ramandeep Singh Sahni  [person]  quotes=4  == NO entity (S2 candidate)
+   titles: CFO, Bajaj Finserv Ltd.
+
+S.B. Khyalia  [person]  quotes=4  == NO entity (S2 candidate)
+   titles: Chief Executive Officer
+   S. B. Khyalia  -> fold
+
+Sandeep Joseph Abraham  [person]  quotes=4  == NO entity (S2 candidate)
+   titles: MD & CEO, Home Appliances Division, IFB Industries
+
+Sandeep Kumar Gupta  [person]  quotes=4  == NO entity (S2 candidate)
+   titles: Chairman
+
+Sanjay Dwivedi  [person]  quotes=4  == NO entity (S2 candidate)
+   titles: Group CEO \& CFO
+
+Sanjay Jindal  [person]  quotes=4  == NO entity (S2 candidate)
+   titles: Director, Finance
+
+Sanjay Metpalli  [person]  quotes=4  == NO entity (S2 candidate)
+   titles: Chief Financial Officer
+
+Sanjeev Kumar Bijli  [person]  quotes=4  == NO entity (S2 candidate)
+   titles: Executive Director
+
+Sashi Jagdishan  [person]  quotes=4  == NO entity (S2 candidate)
+   titles: CEO
+
+Sashidhar Jagdhishan  [person]  quotes=4  == NO entity (S2 candidate)
+   titles: MD \& CEO
+
+Satish Pai  [person]  quotes=4  == NO entity (S2 candidate)
+   titles: Managing Director
+
+Shripad Ashtekar  [person]  quotes=4  == NO entity (S2 candidate)
+   titles: Managing Director
+
+Siddharth Bhushan Khurana  [person]  quotes=4  == NO entity (S2 candidate)
+   titles: Managing Director
+
+Sidharth Khurana  [person]  quotes=4  == NO entity (S2 candidate)
+   titles: Managing Director
+
+Soon-Cheol Park  [person]  quotes=4  == NO entity (S2 candidate)
+   titles: EVP, Head of Corporate Management Operations, and CFO
+
+Soonjoo Seo  [person]  quotes=4  == NO entity (S2 candidate)
+   titles: Investor Relations Officer
+
+Soumen Ray  [person]  quotes=4  == NO entity (S2 candidate)
+   titles: Group Chief Financial Officer
+
+Srini Pali  [person]  quotes=4  == NO entity (S2 candidate)
+   titles: Chief Executive Officer and Managing Director
+
+Subrahmanian Sharma  [person]  quotes=4  == NO entity (S2 candidate)
+   titles: Deputy Managing Director and President
+
+Sudhir Kumar  [person]  quotes=4  == NO entity (S2 candidate)
+   titles: Director (Finance) and Chief Financial Officer
+
+Sukhdev Singh Khinda  [person]  quotes=4  == NO entity (S2 candidate)
+   titles: Managing Director
+
+Sumit Madan  [person]  quotes=4  == NO entity (S2 candidate)
+   titles: Managing Director and CEO
+
+Tarun Jaitly  [person]  quotes=4  == NO entity (S2 candidate)
+   titles: Chief Financial Officer
+
+Tim Cook  [person]  quotes=4  == NO entity (S2 candidate)
+   titles: CEO
+
+Umang Vohra  [person]  quotes=4  == NO entity (S2 candidate)
+   titles: Managing Director and Global CEO
+
+V.S. Anand  [person]  quotes=4  == NO entity (S2 candidate)
+   titles: Managing Director
+
+Ved Prakash Goel  [person]  quotes=4  == NO entity (S2 candidate)
+   titles: Group CFO and CEO of International Business
+
+Venkatesh Korla  [person]  quotes=4  == NO entity (S2 candidate)
+   titles: Global CEO, HGS
+
+Venkatesh Natarajan  [person]  quotes=4  == NO entity (S2 candidate)
+   titles: Managing Director and CEO
+
+Vijay K Thadani  [person]  quotes=4  == NO entity (S2 candidate)
+   titles: Vice Chairman \& MD
+
+Vikas Kothari  [person]  quotes=4  == NO entity (S2 candidate)
+   titles: CFO
+
+Vikas Sinha  [person]  quotes=4  == NO entity (S2 candidate)
+   titles: Senior Vice President Strategy
+
+Vikramaditya Gourineni  [person]  quotes=4  == NO entity (S2 candidate)
+   titles: Executive Director - New Energy Business
+
+Vimal Kejriwal  [person]  quotes=4  == NO entity (S2 candidate)
+   titles: MD \& CEO
+
+Vinod Kumar  [person]  quotes=4  == NO entity (S2 candidate)
+   titles: MD and CEO
+
+Vishal Gupta  [person]  quotes=4  == NO entity (S2 candidate)
+   titles: Managing Director
+
+Vishal Sharma  [person]  quotes=4  == NO entity (S2 candidate)
+   titles: CEO - Chemicals
+
+Vivek Mathur  [person]  quotes=4  == NO entity (S2 candidate)
+   titles: CFO
+
+Young Liu  [person]  quotes=4  == NO entity (S2 candidate)
+   titles: Chairman and CEO
+
+A. Fujimura  [person]  quotes=3  == NO entity (S2 candidate)
+   titles: Director, Managing Executive Officer \& CFO
+
+A. Nikhilesh  [person]  quotes=3  == NO entity (S2 candidate)
+   titles: Executive Director
+
+Aakash Ohri  [person]  quotes=3  == NO entity (S2 candidate)
+   titles: Chief Business Officer and Joint Managing Director
+
+Aalok Patel  [person]  quotes=3  == NO entity (S2 candidate)
+   titles: Joint MD
+
+Abhijit Kishore  [person]  quotes=3  == NO entity (S2 candidate)
+   titles: Chief Executive Officer
+
+Alakh Pandey  [person]  quotes=3  == NO entity (S2 candidate)
+   titles: Chief Executive Officer and Whole Time Director
+
+Aloke Bajpai  [person]  quotes=3  == NO entity (S2 candidate)
+   titles: CEO \& MD
+
+Alpesh Porwal  [person]  quotes=3  == NO entity (S2 candidate)
+   titles: CFO
+
+Ameya Deshpande  [person]  quotes=3  == NO entity (S2 candidate)
+   titles: Strategy Officer
+
+Amit Palta  [person]  quotes=3  == NO entity (S2 candidate)
+   titles: Head of Products \& Distribution
+
+Amit Shetty  [person]  quotes=3  == NO entity (S2 candidate)
+   titles: CEO, Embassy REIT
+
+Amit Singhal  [person]  quotes=3  == NO entity (S2 candidate)
+   titles: MD & CEO
+
+Ander Arenaza Alvarez  [person]  quotes=3  == NO entity (S2 candidate)
+   titles: Chief Executive Officer
+
+Angshu Mallick  [person]  quotes=3  == NO entity (S2 candidate)
+   titles: MD \& CEO
+
+Anil Raghavan  [person]  quotes=3  == NO entity (S2 candidate)
+   titles: Chief Executive Officer
+
+Ankit Garg  [person]  quotes=3  == NO entity (S2 candidate)
+   titles: Chairman and Managing Director
+
+Anmol Jain  [person]  quotes=3  == NO entity (S2 candidate)
+   titles: Managing Director
+
+Anoop Bagchi  [person]  quotes=3  == NO entity (S2 candidate)
+   titles: MD and CEO
+
+Anuj Talwar  [person]  quotes=3  == NO entity (S2 candidate)
+   titles: Managing Director
+
+Anup Saha  [person]  quotes=3  == NO entity (S2 candidate)
+   titles: Managing Director, Bajaj Finance
+
+Arun Kumar Sharma  [person]  quotes=3  == NO entity (S2 candidate)
+   titles: President - Finance and Accounts & CFO
+
+Arun Saraf  [person]  quotes=3  == NO entity (S2 candidate)
+   titles: Chairman and Managing Director
+
+Arvind Melligeri  [person]  quotes=3  == NO entity (S2 candidate)
+   titles: Executive Chairman and CEO
+
+Atul Chaturvedi  [person]  quotes=3  == NO entity (S2 candidate)
+   titles: Executive Chairman
+
+Avinash Sethi  [person]  quotes=3  == NO entity (S2 candidate)
+   titles: Co-Founder
+
+Ayush Gupta  [person]  quotes=3  == NO entity (S2 candidate)
+   titles: Head of the India Business
+
+B. Govind Rajan  [person]  quotes=3  == NO entity (S2 candidate)
+   titles: MD Eicher Motors and CEO Royal Enfield
+
+B. Sharat Chandra  [person]  quotes=3  == NO entity (S2 candidate)
+   titles: CFO, Olectra
+
+BP Nandrakumar  [person]  quotes=3  == NO entity (S2 candidate)
+   titles: MD \& CEO
+
+Balram Yadav  [person]  quotes=3  == NO entity (S2 candidate)
+   titles: MD
+
+Bhaskar Swaminathan  [person]  quotes=3  == NO entity (S2 candidate)
+   titles: Chief Financial Officer
+
+Bikram Nag  [person]  quotes=3  == NO entity (S2 candidate)
+   titles: Chairman
+
+Brian Chesky  [person]  quotes=3  == NO entity (S2 candidate)
+   titles: CEO
+
+Carol Furtado  [person]  quotes=3  == NO entity (S2 candidate)
+   titles: Executive Director
+
+Chirag Nagda  [person]  quotes=3  == NO entity (S2 candidate)
+   titles: Executive Director
+
+Chittaranjan Raju  [person]  quotes=3  == NO entity (S2 candidate)
+   titles: CFO
+
+Chri Karuturi  [person]  quotes=3  == NO entity (S2 candidate)
+   titles: Managing Director
+
+D.K. Sunil  [person]  quotes=3  == NO entity (S2 candidate)
+   titles: Chairman and Managing Director
+
+DK Sunil  [person]  quotes=3  == NO entity (S2 candidate)
+   titles: Chairman \& Managing Director
+
+Debadatta Chand  [person]  quotes=3  == NO entity (S2 candidate)
+   titles: MD \& CEO
+
+Deepak Bansal  [person]  quotes=3  == NO entity (S2 candidate)
+   titles: Full Time Director
+
+Dinesh Thakkar  [person]  quotes=3  == NO entity (S2 candidate)
+   titles: Chairman \& CEO
+
+Dongmyung Seo  [person]  quotes=3  == NO entity (S2 candidate)
+   titles: Whole Time Director \& Chief Financial Officer (CFO)
+
+Dr. Balaji Gopalan  [person]  quotes=3  == NO entity (S2 candidate)
+   titles: Managing Director
+
+Dr. Bir Kapoor  [person]  quotes=3  == NO entity (S2 candidate)
+   titles: Deputy Managing Director \& CEO
+
+Dr. S.V.S. Narayana Murty  [person]  quotes=3  == NO entity (S2 candidate)
+   titles: Chairman \& Managing Director
+
+EC Prasad  [person]  quotes=3  == NO entity (S2 candidate)
+   titles: CFO
+
+Eddie Wu  [person]  quotes=3  == NO entity (S2 candidate)
+   titles: Chairman
+
+Elon Musk  [person]  quotes=3  == NO entity (S2 candidate)
+   titles: CEO
+
+Eric Yuan  [person]  quotes=3  == NO entity (S2 candidate)
+   titles: CEO, Zoom
+
+Gaurav Rathod  [person]  quotes=3  == NO entity (S2 candidate)
+   titles: Joint Managing Director
+
+Gaurav Sharma  [person]  quotes=3  == NO entity (S2 candidate)
+   titles: CFO
+
+Gautam Badalia  [person]  quotes=3  == NO entity (S2 candidate)
+   titles: CEO
+
+Glenn Hauenstein  [person]  quotes=3  == NO entity (S2 candidate)
+   titles: President
+
+Gourav Munjal  [person]  quotes=3  == NO entity (S2 candidate)
+   titles: CFO
+
+Gurdeep Singh  [person]  quotes=3  == NO entity (S2 candidate)
+   titles: Chairman \& Managing Director, NTPC
+
+Gyanendra Kumar Sharma  [person]  quotes=3  == NO entity (S2 candidate)
+   titles: Group General Manager and President, Marketing
+
+Harimohan Gupta  [person]  quotes=3  == NO entity (S2 candidate)
+   titles: CMD
+
+Harsh Baweja  [person]  quotes=3  == NO entity (S2 candidate)
+   titles: Director Finance
+
+Harshavardhan Chitale  [person]  quotes=3  == NO entity (S2 candidate)
+   titles: Chief Executive Officer
+
+Hemant Jalan  [person]  quotes=3  == NO entity (S2 candidate)
+   titles: Chairman \& MD
+
+Hemant Mohonkar  [person]  quotes=3  == NO entity (S2 candidate)
+   titles: Chairman & Managing Director
+
+Hozefa Jawadwala  [person]  quotes=3  == NO entity (S2 candidate)
+   titles: Chairman and Managing Director \& CEO
+
+Isha Ambani  [person]  quotes=3  == NO entity (S2 candidate)
+   titles: Executive Director, Reliance Retail Ventures
+
+Jaideep Dhok  [person]  quotes=3  == NO entity (S2 candidate)
+   titles: Chief Operating Officer
+
+Jairam Sampath  [person]  quotes=3  == NO entity (S2 candidate)
+   titles: Whole-Time Director And Chief Financial Officer
+
+Jamie Dimon  [person]  quotes=3  == NO entity (S2 candidate)
+   titles: CEO
+
+Jayant Dhobley  [person]  quotes=3  == NO entity (S2 candidate)
+   titles: Business Head, Chemicals Cellulosic Fashion Yarn And Insulators Business
+
+Jaybajrang Mani  [person]  quotes=3  == NO entity (S2 candidate)
+   titles: Managing Director
+
+John Jacobs  [person]  quotes=3  == NO entity (S2 candidate)
+   titles: President and CEO
+
+Jyotiraditya Scindia  [person]  quotes=3  == NO entity (S2 candidate)
+   titles: Telecom Minister
+
+K Manikandan  [person]  quotes=3  == NO entity (S2 candidate)
+   titles: Managing Director
+
+K. Ajith Kumar Rai  [person]  quotes=3  == NO entity (S2 candidate)
+   titles: Chairman \& Executive Director, Suprajit Engineering Ltd
+
+K. Girish Kini  [person]  quotes=3  == NO entity (S2 candidate)
+   titles: CEO & Executive Director
+
+Kamlesh Shah  [person]  quotes=3  == NO entity (S2 candidate)
+   titles: Group CFO
+
+Kanishka Sethia  [person]  quotes=3  == NO entity (S2 candidate)
+   titles: CEO
+
+Karin Gilges  [person]  quotes=3  == NO entity (S2 candidate)
+   titles: Chief Financial Officer
+
+Koushik Chatterjee  [person]  quotes=3  == NO entity (S2 candidate)
+   titles: ED & CFO
+
+Krishna Sai Kumar Addepalli  [person]  quotes=3  == NO entity (S2 candidate)
+   titles: Whole-time Director, Operations
+
+Kumar Taurani  [person]  quotes=3  == NO entity (S2 candidate)
+   titles: Chairman and Managing Director
+
+Lalit Keshre  [person]  quotes=3  == NO entity (S2 candidate)
+   titles: Co-Founder and CEO
+
+Lalith Singhvi  [person]  quotes=3  == NO entity (S2 candidate)
+   titles: Director \& CFO
+
+Larry Ellison  [person]  quotes=3  == NO entity (S2 candidate)
+   titles: CTO
+
+Lin Tao  [person]  quotes=3  == NO entity (S2 candidate)
+   titles: CFO
+
+M Sambasiva Rao  [person]  quotes=3  == NO entity (S2 candidate)
+   titles: Director
+
+M. R. Jyothy  [person]  quotes=3  == NO entity (S2 candidate)
+   titles: Chairperson and Managing Director
+
+Madame Thuy Lê  [person]  quotes=3  == NO entity (S2 candidate)
+   titles: Chairwoman of the Board
+
+Mahesh Babu  [person]  quotes=3  == NO entity (S2 candidate)
+   titles: Managing Director
+
+Management Ather Energy  [person]  quotes=3  == NO entity (S2 candidate)
+
+Mark Zuckerberg  [person]  quotes=3  == NO entity (S2 candidate)
+   titles: CEO
+
+Michael Leiters  [person]  quotes=3  == NO entity (S2 candidate)
+   titles: CEO, Porsche (Partner Management)
+
+Mithun Chand  [person]  quotes=3  == NO entity (S2 candidate)
+   titles: Executive Director
+
+Mohan Goenka  [person]  quotes=3  == NO entity (S2 candidate)
+   titles: Director \& Chairperson
+
+Mr. Bakshi  [person]  quotes=3  == NO entity (S2 candidate)
+   titles: Executive
+
+Mr. Hiranand Savlani  [person]  quotes=3  == NO entity (S2 candidate)
+   titles: CFO
+
+Mr. Kairav Engineer  [person]  quotes=3  == NO entity (S2 candidate)
+   titles: Executive Director
+
+Mr. Ketan Kulkarni  [person]  quotes=3  == NO entity (S2 candidate)
+   titles: Managing Director and Chief Executive Officer
+
+Mr. Shankar Banerjee  [person]  quotes=3  == NO entity (S2 candidate)
+   titles: CEO
+
+Mr. Sinya  [person]  quotes=3  == NO entity (S2 candidate)
+   titles: Chairman, Managing Director, and CEO
+
+Ms. Bushra Khan  [person]  quotes=3  == NO entity (S2 candidate)
+   titles: Non-Executive Director
+
+Mukesh Shah  [person]  quotes=3  == NO entity (S2 candidate)
+   titles: Chairman
+
+Mukti Lal  [person]  quotes=3  == NO entity (S2 candidate)
+   titles: ED \& CFO
+
+Mukund Vasudevan  [person]  quotes=3  == NO entity (S2 candidate)
+   titles: Managing Director
+
+Murali Mohan Raju  [person]  quotes=3  == NO entity (S2 candidate)
+   titles: CFO
+
+N Chandrasekaran  [person]  quotes=3  == NO entity (S2 candidate)
+   titles: Chairman
+
+Naozad Sirwalla  [person]  quotes=3  == NO entity (S2 candidate)
+   titles: Chief Financial Officer
+
+Neer Kumar  [person]  quotes=3  == NO entity (S2 candidate)
+   titles: Group CEO and Whole Director
+
+Neeraj Jain  [person]  quotes=3  == NO entity (S2 candidate)
+   titles: Joint Managing Director
+
+Neeraj Kanwar  [person]  quotes=3  == NO entity (S2 candidate)
+   titles: Managing Director and Vice Chairman
+
+Nicholas Woodman  [person]  quotes=3  == NO entity (S2 candidate)
+   titles: CEO
+
+Nikhil Aggarwal  [person]  quotes=3  == NO entity (S2 candidate)
+   titles: CEO
+
+Nimesh Shah  [person]  quotes=3  == NO entity (S2 candidate)
+   titles: MD and CEO
+
+Nishant Arya  [person]  quotes=3  == NO entity (S2 candidate)
+   titles: VC \& MD
+
+Nitin Pai  [person]  quotes=3  == NO entity (S2 candidate)
+   titles: Chief Marketing \& Chief Strategy Officer
+
+Nitish Mattersing  [person]  quotes=3  == NO entity (S2 candidate)
+   titles: CEO and JMD
+
+Paramjit Singh Gill  [person]  quotes=3  == NO entity (S2 candidate)
+   titles: Chief Executive Officer, Consumer Division
+
+Partha Pratim Sengupta  [person]  quotes=3  == NO entity (S2 candidate)
+   titles: MD & CEO.
+
+Punit Goenka  [person]  quotes=3  == NO entity (S2 candidate)
+   titles: CEO
+
+Punit Lalbhai  [person]  quotes=3  == NO entity (S2 candidate)
+   titles: Vice Chairman
+
+R.S. Jalan  [person]  quotes=3  == NO entity (S2 candidate)
+   titles: MD, GHCL
+
+Rahul Bhatia  [person]  quotes=3  == NO entity (S2 candidate)
+   titles: Managing Director
+
+Rahul Bothra  [person]  quotes=3  == NO entity (S2 candidate)
+   titles: CFO
+
+Rahul Dhanuka  [person]  quotes=3  == NO entity (S2 candidate)
+   titles: Managing Director
+
+Rahul Jain  [person]  quotes=3  == NO entity (S2 candidate)
+   titles: Group Chief Financial Officer
+
+Rajesh Hegde  [person]  quotes=3  == NO entity (S2 candidate)
+   titles: Managing Director
+
+Rajesh Patel  [person]  quotes=3  == NO entity (S2 candidate)
+   titles: Chief Financial Officer
+
+Rajiv Goel  [person]  quotes=3  == NO entity (S2 candidate)
+   titles: Executive Director
+
+Rajiv Jain  [person]  quotes=3  == NO entity (S2 candidate)
+   titles: Vice Chairman and Managing Director
+
+Rakesh Tumane  [person]  quotes=3  == NO entity (S2 candidate)
+   titles: Director, Finance
+
+Ramon Laguarta  [person]  quotes=3  == NO entity (S2 candidate)
+   titles: CEO
+
+Ramprakash V. Bubna  [person]  quotes=3  == NO entity (S2 candidate)
+   titles: Chairman \& MD
+
+Rishab Oswal  [person]  quotes=3  == NO entity (S2 candidate)
+   titles: Executive Director
+
+Rishabh Jain  [person]  quotes=3  == NO entity (S2 candidate)
+   titles: CFO
+
+Ritesh Patel  [person]  quotes=3  == NO entity (S2 candidate)
+   titles: Managing Director and Founder
+
+Ritwik Bhattacharjee  [person]  quotes=3  == NO entity (S2 candidate)
+   titles: CEO
+
+Robbie Singh  [person]  quotes=3  == NO entity (S2 candidate)
+   titles: CFO
+
+Rohit Deepak Jalan  [person]  quotes=3  == NO entity (S2 candidate)
+   titles: Whole Time Director
+
+S. Sankarasubramanian  [person]  quotes=3  == NO entity (S2 candidate)
+   titles: Managing Director and CEO
+
+Saleem Ahmad  [person]  quotes=3  == NO entity (S2 candidate)
+   titles: Chairman and Managing Director
+
+Sandeep Modi  [person]  quotes=3  == NO entity (S2 candidate)
+   titles: Chief Financial Officer
+
+Sanjay Bothra  [person]  quotes=3  == NO entity (S2 candidate)
+   titles: Chief Financial Officer
+
+Sanjay Gupta  [person]  quotes=3  == NO entity (S2 candidate)
+   titles: Executive Director International Business
+
+Sanjay Koul  [person]  quotes=3  == NO entity (S2 candidate)
+   titles: Chairman and Managing Director
+
+Sanjay Lodha  [person]  quotes=3  == NO entity (S2 candidate)
+   titles: Chairman and Managing Director
+
+Sanjeev Bikhchandani  [person]  quotes=3  == NO entity (S2 candidate)
+   titles: Founder & Vice Chairman
+
+Sankarasubramanian S.  [person]  quotes=3  == NO entity (S2 candidate)
+   titles: MD and CEO
+
+Satya Nadella  [person]  quotes=3  == NO entity (S2 candidate)
+   titles: CEO
+
+Saugata Chatterjee  [person]  quotes=3  == NO entity (S2 candidate)
+   titles: Chief Business Officer
+
+Saurav Mitra  [person]  quotes=3  == NO entity (S2 candidate)
+   titles: Director, Finance & Chief Financial Officer
+
+Shailesh Rathi  [person]  quotes=3  == NO entity (S2 candidate)
+   titles: Managing Director
+
+Shashwat Sharma  [person]  quotes=3  == NO entity (S2 candidate)
+   titles: Managing Director & CEO (Airtel India)
+
+Shiru Agarwal  [person]  quotes=3  == NO entity (S2 candidate)
+   titles: MD \& CEO
+
+Shobhit Uppal  [person]  quotes=3  == NO entity (S2 candidate)
+   titles: Deputy Managing Director
+
+Shreyans Surana  [person]  quotes=3  == entity: Shreyans Surana
+   titles: MD
+
+Shri S.K. Majumdar  [person]  quotes=3  == NO entity (S2 candidate)
+   titles: Executive Director
+
+Shrinand Parshikar  [person]  quotes=3  == NO entity (S2 candidate)
+   titles: Chairman & Managing Director
+
+Siddharth Mittal  [person]  quotes=3  == NO entity (S2 candidate)
+   titles: CEO \& MD, Biocon
+
+Sonal Shrivastava  [person]  quotes=3  == NO entity (S2 candidate)
+   titles: Chief Financial Officer
+
+Srinivas Pallia  [person]  quotes=3  == NO entity (S2 candidate)
+   titles: CEO
+
+Sudhir Menon  [person]  quotes=3  == NO entity (S2 candidate)
+   titles: Executive Director Finance and CFO
+
+Sujit Kumar Mahato  [person]  quotes=3  == NO entity (S2 candidate)
+   titles: Chief Financial Officer
+
+Sundararaman R  [person]  quotes=3  == NO entity (S2 candidate)
+   titles: MD and CEO
+
+Suresh Babu  [person]  quotes=3  == NO entity (S2 candidate)
+   titles: Diabetes Head
+
+Suresh Narayanan  [person]  quotes=3  == NO entity (S2 candidate)
+   titles: Chairman and Managing Director
+
+Suresh Sethi  [person]  quotes=3  == NO entity (S2 candidate)
+   titles: MD \& CEO
+
+Tarun Chugh  [person]  quotes=3  == NO entity (S2 candidate)
+   titles: MD \& CEO, BALIC
+
+Tejas Mehta  [person]  quotes=3  == NO entity (S2 candidate)
+   titles: Chairman and Managing Director
+
+Vani Venkatesh  [person]  quotes=3  == NO entity (S2 candidate)
+   titles: Chief Business Officer
+
+Venu Lambo  [person]  quotes=3  == NO entity (S2 candidate)
+   titles: Chief Executive Officer and Managing Director
+
+Venu Lambu  [person]  quotes=3  == NO entity (S2 candidate)
+   titles: CEO \& MD
+
+Vijay Jain  [person]  quotes=3  == NO entity (S2 candidate)
+   titles: CFO
+
+Vikram Mehra  [person]  quotes=3  == NO entity (S2 candidate)
+   titles: Managing Director
+
+Vinita Gupta  [person]  quotes=3  == NO entity (S2 candidate)
+   titles: CEO
+
+Vinod Baheti  [person]  quotes=3  == NO entity (S2 candidate)
+   titles: CEO
+
+Vipin Kataria  [person]  quotes=3  == NO entity (S2 candidate)
+   titles: Chief Commercial Officer, Sales and Replenishment
+
+Vivek Kumar  [person]  quotes=3  == NO entity (S2 candidate)
+   titles: CFO
+
+Vynsley Fernandes  [person]  quotes=3  == NO entity (S2 candidate)
+   titles: Whole Time Director, HGS & CEO, NXTDIGITAL Media Busi
+
+Wael Sawan  [person]  quotes=3  == NO entity (S2 candidate)
+   titles: CEO
+
+Y.S. Chakravarti  [person]  quotes=3  == NO entity (S2 candidate)
+   titles: MD \& CEO
+
+Abhay Kumar Behuria  [person]  quotes=2  == NO entity (S2 candidate)
+   titles: Director (Finance)
+
+Abhijeet Dabas  [person]  quotes=2  == NO entity (S2 candidate)
+   titles: Executive VP - Nykaafashion.com
+
+Abhishek Kapoor  [person]  quotes=2  == NO entity (S2 candidate)
+   titles: Chief Financial Officer
+
+Abhishek Sharma  [person]  quotes=2  == NO entity (S2 candidate)
+   titles: Chief Executive - SME Finance
+
+Abhyuday Jindal  [person]  quotes=2  == NO entity (S2 candidate)
+   titles: Managing Director
+
+Aditya Bhasin  [person]  quotes=2  == NO entity (S2 candidate)
+   titles: Head Investor Relations
+
+Aditya Sarogi  [person]  quotes=2  == NO entity (S2 candidate)
+   titles: Group CFO
+
+Adwaita Nayar  [person]  quotes=2  == NO entity (S2 candidate)
+   titles: Executive Director and CEO, Nykaa Fashion
+
+Akash Minda  [person]  quotes=2  == NO entity (S2 candidate)
+   titles: Executive Director
+
+Akshali Shah  [person]  quotes=2  == NO entity (S2 candidate)
+   titles: Executive Director
+
+Albert Bourla  [person]  quotes=2  == NO entity (S2 candidate)
+   titles: CEO
+
+Amit Chadha  [person]  quotes=2  == NO entity (S2 candidate)
+   titles: CEO \& MD
+
+Amit Kumar  [person]  quotes=2  == NO entity (S2 candidate)
+   titles: Group CEO \& ED
+
+Amrish Rao  [person]  quotes=2  == NO entity (S2 candidate)
+   titles: CEO
+
+Amritanshu Khaitan  [person]  quotes=2  == NO entity (S2 candidate)
+   titles: Director
+
+Anand Sultania  [person]  quotes=2  == NO entity (S2 candidate)
+   titles: Chief Financial Officer
+
+Anand Vora  [person]  quotes=2  == NO entity (S2 candidate)
+   titles: Global CFO
+
+Anat Ashkenazi  [person]  quotes=2  == NO entity (S2 candidate)
+   titles: SVP and CFO, Alphabet and Google
+
+Anil Chanana  [person]  quotes=2  == NO entity (S2 candidate)
+   titles: Independent Director & Chairperson of the Audit Committee
+
+Anil Kumar Agarwal  [person]  quotes=2  == NO entity (S2 candidate)
+   titles: Chief Financial Officer
+
+Anmol Singh Jaggi  [person]  quotes=2  == NO entity (S2 candidate)
+   titles: Chairman and Managing Director
+
+Anoj Talwar  [person]  quotes=2  == NO entity (S2 candidate)
+   titles: Joint Managing Director
+
+Anuj Singh  [person]  quotes=2  == NO entity (S2 candidate)
+   titles: CEO \& MD
+
+Anurag Bhatnagar  [person]  quotes=2  == NO entity (S2 candidate)
+   titles: Managing Director \& CEO
+
+Anush Raghavan  [person]  quotes=2  == NO entity (S2 candidate)
+   titles: President - Cash Management
+
+Anvar Jay Varadaraj  [person]  quotes=2  == NO entity (S2 candidate)
+   titles: Executive Director
+
+Ashish Adukia  [person]  quotes=2  == NO entity (S2 candidate)
+   titles: Global CFO
+
+Ashish Dixit  [person]  quotes=2  == NO entity (S2 candidate)
+   titles: Managing Director
+
+Ashish Kehair  [person]  quotes=2  == NO entity (S2 candidate)
+   titles: MD \& CEO
+
+Ashish Saraf  [person]  quotes=2  == NO entity (S2 candidate)
+   titles: CFO
+
+Ashok Kumar Tyagi  [person]  quotes=2  == NO entity (S2 candidate)
+   titles: Managing Director
+
+Ashok Paun  [person]  quotes=2  == NO entity (S2 candidate)
+   titles: CMD
+
+Ashutosh Goyal  [person]  quotes=2  == NO entity (S2 candidate)
+   titles: CFO, Reliance Consumer Products
+
+Ashwini Kumar Tewari  [person]  quotes=2  == NO entity (S2 candidate)
+   titles: Managing Director, Corporate Banking & Subsidiaries
+
+Atul Khanna  [person]  quotes=2  == NO entity (S2 candidate)
+   titles: Chief Accounting Officer
+
+Atul Lal  [person]  quotes=2  == NO entity (S2 candidate)
+   titles: MD \& VC
+
+B. Santhi Latha  [person]  quotes=2  == NO entity (S2 candidate)
+   titles: Chief Financial Officer, Avanti Feeds Limited
+
+B.V.K. Reddy  [person]  quotes=2  == NO entity (S2 candidate)
+   titles: CEO
+   B. V. K. Reddy  -> fold
+
+BK Kalra  [person]  quotes=2  == NO entity (S2 candidate)
+   titles: CEO
+
+Badal Bagri  [person]  quotes=2  == NO entity (S2 candidate)
+   titles: Group CFO
+
+Benedetto Vigna  [person]  quotes=2  == NO entity (S2 candidate)
+   titles: CEO
+
+Brian Armstrong  [person]  quotes=2  == NO entity (S2 candidate)
+   titles: CEO
+
+Brian Olsavsky  [person]  quotes=2  == NO entity (S2 candidate)
+   titles: Chief Financial Officer
+
+Brigadier Dr. Arvind Lal  [person]  quotes=2  == NO entity (S2 candidate)
+   titles: Executive Chairman
+
+C VIjakumar  [person]  quotes=2  == NO entity (S2 candidate)
+   titles: CEO
+
+CFO Sil Malawi  [person]  quotes=2  == NO entity (S2 candidate)
+
+CJ George  [person]  quotes=2  == NO entity (S2 candidate)
+   titles: Chairman \& MD
+
+Chiranjeev Saluja  [person]  quotes=2  == NO entity (S2 candidate)
+   titles: Managing Director
+
+D. Muthukumaran  [person]  quotes=2  == NO entity (S2 candidate)
+   titles: CFO
+
+D. V. S. Satyanarayana  [person]  quotes=2  == NO entity (S2 candidate)
+   titles: CFO, Avanti Frozen Foods
+
+Dan Jenkee  [person]  quotes=2  == NO entity (S2 candidate)
+   titles: CFO
+
+Daniel Grieder  [person]  quotes=2  == NO entity (S2 candidate)
+   titles: CEO
+
+Dara Khosrowshahi  [person]  quotes=2  == NO entity (S2 candidate)
+   titles: CEO
+
+David Zaslav  [person]  quotes=2  == NO entity (S2 candidate)
+   titles: CEO
+
+Deepak Arora  [person]  quotes=2  == NO entity (S2 candidate)
+   titles: Managing Director
+
+Deepak Dalwadi  [person]  quotes=2  == NO entity (S2 candidate)
+   titles: Head - Gear Division
+
+Dev Ahuja  [person]  quotes=2  == NO entity (S2 candidate)
+   titles: Chief Financial Officer
+
+Dhaval Gupta  [person]  quotes=2  == NO entity (S2 candidate)
+   titles: Managing Director
+
+Dilip Bantia  [person]  quotes=2  == NO entity (S2 candidate)
+   titles: CFO
+
+Dilip Jha  [person]  quotes=2  == NO entity (S2 candidate)
+   titles: Chief Financial Officer
+
+Dipen Chauhan  [person]  quotes=2  == NO entity (S2 candidate)
+   titles: Head of Industrial Marketing and Business Development
+
+Dr. Khalid Khan  [person]  quotes=2  == NO entity (S2 candidate)
+   titles: Managing Director and Chief Executive Officer
+
+Dr. Sharvil Patel  [person]  quotes=2  == NO entity (S2 candidate)
+   titles: Managing Director
+
+GRK Babu  [person]  quotes=2  == NO entity (S2 candidate)
+   titles: Senior Management
+
+Ganesh Lakshminarayanan  [person]  quotes=2  == NO entity (S2 candidate)
+   titles: MD & CEO
+
+Ganesh Nayak  [person]  quotes=2  == NO entity (S2 candidate)
+   titles: Director
+
+Gaurav Bhatnagar  [person]  quotes=2  == NO entity (S2 candidate)
+   titles: Co-Founder and Joint MD
+
+Gaurav Kalani  [person]  quotes=2  == NO entity (S2 candidate)
+   titles: Chief Financial Officer
+
+Gautam Dutta  [person]  quotes=2  == NO entity (S2 candidate)
+   titles: CEO - Revenue \& Ops
+
+Gautam Malhotra  [person]  quotes=2  == NO entity (S2 candidate)
+   titles: CEO
+
+Gautam Seth  [person]  quotes=2  == NO entity (S2 candidate)
+   titles: Joint Managing Director \& CFO
+
+Ghanshyam Rawat  [person]  quotes=2  == NO entity (S2 candidate)
+   titles: Chief Financial Officer
+
+Girish Budhiraja  [person]  quotes=2  == NO entity (S2 candidate)
+   titles: Chief Sales and Marketing Officer
+
+Gopal Agrawal  [person]  quotes=2  == NO entity (S2 candidate)
+   titles: Chief Executive Officer
+
+H.K. Kansal  [person]  quotes=2  == NO entity (S2 candidate)
+   titles: Consultant - Engineering Operations, EMS Limited
+
+HP Singh  [person]  quotes=2  == NO entity (S2 candidate)
+   titles: Chairman and MD
+
+Haijian He  [person]  quotes=2  == NO entity (S2 candidate)
+   titles: CFO
+
+Hakeem Ujjainwala  [person]  quotes=2  == NO entity (S2 candidate)
+   titles: Chief Financial Officer
+
+Hari Nair  [person]  quotes=2  == NO entity (S2 candidate)
+   titles: Chief Executive Officer
+
+Harsh Dhanuka  [person]  quotes=2  == NO entity (S2 candidate)
+   titles: Executive Director
+
+Himanshu Garg  [person]  quotes=2  == NO entity (S2 candidate)
+   titles: CFO
+
+Hiranand Savlani  [person]  quotes=2  == NO entity (S2 candidate)
+   titles: Chief Financial Officer
+
+Hiroki Totoki  [person]  quotes=2  == NO entity (S2 candidate)
+   titles: CEO
+
+Indranil Sen  [person]  quotes=2  == NO entity (S2 candidate)
+   titles: Chief Financial Officer
+
+Ishaan Bector  [person]  quotes=2  == NO entity (S2 candidate)
+   titles: Whole-time Director
+
+J. Lakshmana Rao  [person]  quotes=2  == NO entity (S2 candidate)
+   titles: Chairman and Managing Director
+
+J.K. Handa  [person]  quotes=2  == NO entity (S2 candidate)
+   titles: CFO
+
+JD Seth  [person]  quotes=2  == NO entity (S2 candidate)
+   titles: Managing Director
+
+JP Chalasani  [person]  quotes=2  == NO entity (S2 candidate)
+   titles: Group CEO
+
+Jagan Nellore  [person]  quotes=2  == NO entity (S2 candidate)
+   titles: Managing Director
+
+Jagdish Mehta  [person]  quotes=2  == NO entity (S2 candidate)
+   titles: Whole-time Director of Generation
+
+Jalaj Gupta  [person]  quotes=2  == NO entity (S2 candidate)
+   titles: Managing Director, TI Clean Mobility
+
+Jeremy Barnum  [person]  quotes=2  == NO entity (S2 candidate)
+   titles: CFO
+
+Jitender Jain  [person]  quotes=2  == NO entity (S2 candidate)
+   titles: Chief Financial Officer
+
+K. Paul Thomas  [person]  quotes=2  == NO entity (S2 candidate)
+   titles: Managing Director and Chief Executive Officer
+
+K. T. Jitendran  [person]  quotes=2  == NO entity (S2 candidate)
+   titles: MD and CEO, Birla Estate
+
+KVS Manian  [person]  quotes=2  == NO entity (S2 candidate)
+   titles: MD \& CEO
+
+Kamal Khetan  [person]  quotes=2  == NO entity (S2 candidate)
+   titles: Chairman and MD
+
+Kausalya Nandakumar  [person]  quotes=2  == NO entity (S2 candidate)
+   titles: Chief Business Officer - EMBU
+
+Kavinder Singh  [person]  quotes=2  == NO entity (S2 candidate)
+   titles: Joint Managing Director
+
+Kelly Ortberg  [person]  quotes=2  == NO entity (S2 candidate)
+   titles: CEO
+
+Madame Tui  [person]  quotes=2  == NO entity (S2 candidate)
+   titles: Chairwoman
+
+Madhukar Gangadi  [person]  quotes=2  == NO entity (S2 candidate)
+   titles: CEO \& MD
+
+Mahender Chhabra  [person]  quotes=2  == NO entity (S2 candidate)
+   titles: CFO
+
+Mangesh Sathe  [person]  quotes=2  == NO entity (S2 candidate)
+   titles: Chief Strategy Officer
+
+Manish Gattani  [person]  quotes=2  == NO entity (S2 candidate)
+   titles: CFO
+
+Manish Gupta  [person]  quotes=2  == NO entity (S2 candidate)
+   titles: Chairman \& CEO
+
+Manmohan Sharma  [person]  quotes=2  == NO entity (S2 candidate)
+   titles: CFO
+
+Mark Benioff  [person]  quotes=2  == NO entity (S2 candidate)
+   titles: CEO
+
+Mathews Markose  [person]  quotes=2  == NO entity (S2 candidate)
+   titles: CEO
+
+Mausam Kumar  [person]  quotes=2  == NO entity (S2 candidate)
+   titles: Postdoctoral Researcher at Princeton University
+
+Mehul Mohanka  [person]  quotes=2  == NO entity (S2 candidate)
+   titles: Managing Director and Group CEO, Tega Industries
+
+Michelle Chang  [person]  quotes=2  == NO entity (S2 candidate)
+   titles: CFO, Zoom
+
+Milind Lakkad  [person]  quotes=2  == NO entity (S2 candidate)
+   titles: CHRO
+
+Miranda Getsai  [person]  quotes=2  == NO entity (S2 candidate)
+   titles: CFO
+
+Mohit Khattar  [person]  quotes=2  == NO entity (S2 candidate)
+   titles: CEO
+
+Mr. Bajaj  [person]  quotes=2  == NO entity (S2 candidate)
+   titles: Senior President and Director Commercial, and CFO
+
+Mr. Dinkesh Roy  [person]  quotes=2  == NO entity (S2 candidate)
+   titles: Managing Director and CEO, JSW Infrastructure
+
+Mr. Narendran  [person]  quotes=2  == NO entity (S2 candidate)
+   titles: CEO and Managing Director
+
+Mr. Niraj  [person]  quotes=2  == NO entity (S2 candidate)
+   titles: CEO
+
+Mridul Dhanuka  [person]  quotes=2  == NO entity (S2 candidate)
+   titles: Whole-Time Director
+
+Mrinalini Srinivasan  [person]  quotes=2  == NO entity (S2 candidate)
+   titles: Chief Financial Officer
+
+Ms. Srividya Srinivasan  [person]  quotes=2  == NO entity (S2 candidate)
+   titles: Chief Financial Officer
+
+Mukesh Ahuja  [person]  quotes=2  == NO entity (S2 candidate)
+   titles: Managing Director
+
+Narendranath J. Baliga  [person]  quotes=2  == NO entity (S2 candidate)
+   titles: Chief Financial Officer \& Whole-time Director
+
+Narsiman Raghunathan  [person]  quotes=2  == NO entity (S2 candidate)
+   titles: Chief Financial Officer
+
+Naveen Agarwal  [person]  quotes=2  == NO entity (S2 candidate)
+   titles: Chief Financial Officer
+
+Navin Agarwal  [person]  quotes=2  == NO entity (S2 candidate)
+   titles: Group MD
+
+Navin Juneja  [person]  quotes=2  == NO entity (S2 candidate)
+   titles: Director and Group Chief Financial Officer
+
+Nicolas Hieronimus  [person]  quotes=2  == NO entity (S2 candidate)
+   titles: CEO
+
+Nikhil Chopra  [person]  quotes=2  == NO entity (S2 candidate)
+   titles: CEO and Whole Time Director
+
+Nitin Aher  [person]  quotes=2  == NO entity (S2 candidate)
+   titles: Whole-Time Director and Promoter
+
+ORS Company Presentation  [person]  quotes=2  == NO entity (S2 candidate)
+   titles: R\&D section
+
+P R Seshadri  [person]  quotes=2  == NO entity (S2 candidate)
+   titles: MD \& CEO
+
+P. R. Hari  [person]  quotes=2  == NO entity (S2 candidate)
+   titles: CMD
+
+P. Srinivasan  [person]  quotes=2  == NO entity (S2 candidate)
+   titles: Chief Financial Officer
+
+P.K. Kheruka  [person]  quotes=2  == NO entity (S2 candidate)
+   titles: Executive Chairman
+
+PB Balaji  [person]  quotes=2  == NO entity (S2 candidate)
+   titles: Group CFO
+
+Pankaj Mital  [person]  quotes=2  == NO entity (S2 candidate)
+   titles: COO
+
+Pankaj Ostwal  [person]  quotes=2  == entity: Pankaj Ostwal
+   titles: Promoter and Director
+
+Parag Chheda  [person]  quotes=2  == NO entity (S2 candidate)
+   titles: Joint Managing Director
+
+Pawan Agarwal  [person]  quotes=2  == NO entity (S2 candidate)
+   titles: Chief Financial Officer
+
+Pawan Kumar Garg  [person]  quotes=2  == NO entity (S2 candidate)
+   titles: Chairman and Joint Managing Director
+
+Pen Vasudevan  [person]  quotes=2  == NO entity (S2 candidate)
+   titles: MD \& CEO
+
+Philip Navertil  [person]  quotes=2  == NO entity (S2 candidate)
+   titles: CEO
+
+Pirojsha Godrej  [person]  quotes=2  == NO entity (S2 candidate)
+   titles: Executive Chairperson
+
+Pradeep Jain  [person]  quotes=2  == NO entity (S2 candidate)
+   titles: Executive Director \& CFO
+
+Prakash Agarwal  [person]  quotes=2  == NO entity (S2 candidate)
+   titles: President
+
+Pratik Pota  [person]  quotes=2  == NO entity (S2 candidate)
+   titles: Managing Director \& Chief Executive Officer
+
+Prayasvin B. Patel  [person]  quotes=2  == NO entity (S2 candidate)
+   titles: Chairman \& Managing Director
+
+Pulkit Agrawal  [person]  quotes=2  == NO entity (S2 candidate)
+   titles: Chief Financial Officer
+
+R. Jeevanandam  [person]  quotes=2  == NO entity (S2 candidate)
+   titles: MD
+
+R. K. Dalmia  [person]  quotes=2  == NO entity (S2 candidate)
+   titles: MD, Aditya Birla Real Estate Ltd.
+
+R. Shankar Raman  [person]  quotes=2  == NO entity (S2 candidate)
+   titles: CFO
+
+R.P. Batra  [person]  quotes=2  == NO entity (S2 candidate)
+   titles: Executive Director
+
+Rahul Guha  [person]  quotes=2  == NO entity (S2 candidate)
+   titles: MD \& CEO
+
+Rahul Patel  [person]  quotes=2  == NO entity (S2 candidate)
+   titles: CEO
+
+Rajan Venkatesh  [person]  quotes=2  == NO entity (S2 candidate)
+
+Rajeev Jhawar  [person]  quotes=2  == NO entity (S2 candidate)
+   titles: Managing Director
+
+Rajeev Juneja  [person]  quotes=2  == NO entity (S2 candidate)
+   titles: Chairman \& Managing Director
+
+Rajeev Varman  [person]  quotes=2  == NO entity (S2 candidate)
+   titles: Group CEO
+
+Rajendra Gandhi  [person]  quotes=2  == NO entity (S2 candidate)
+   titles: Managing Director
+
+Rajesh Arora  [person]  quotes=2  == NO entity (S2 candidate)
+   titles: Head of Non-Aero Business
+
+Rajesh Viswanathan  [person]  quotes=2  == NO entity (S2 candidate)
+   titles: CFO
+
+Rajiv Kaul  [person]  quotes=2  == NO entity (S2 candidate)
+   titles: Co-founder and Managing Director
+
+Rajneet Kohli  [person]  quotes=2  == NO entity (S2 candidate)
+   titles: Head of Foods & Beverages
+
+Ramesh Kumar Dua  [person]  quotes=2  == NO entity (S2 candidate)
+   titles: Chairman \& MD
+
+Rashmi Singh  [person]  quotes=2  == NO entity (S2 candidate)
+   titles: Director Commercial
+
+Ravi Viswanathan  [person]  quotes=2  == NO entity (S2 candidate)
+   titles: Managing Director
+
+Ravindra Kundu  [person]  quotes=2  == NO entity (S2 candidate)
+   titles: MD \& CEO
+
+Richard Aschoff  [person]  quotes=2  == NO entity (S2 candidate)
+   titles: CEO North America
+
+Rishi Das  [person]  quotes=2  == NO entity (S2 candidate)
+   titles: CEO
+
+Rohit Anand  [person]  quotes=2  == NO entity (S2 candidate)
+   titles: Chief Financial Officer
+
+Rohit Gupta  [person]  quotes=2  == NO entity (S2 candidate)
+   titles: Chairman
+
+Roopam Narayan  [person]  quotes=2  == NO entity (S2 candidate)
+   titles: Executive Vice President, Solutions & Practice
+
+S. Rangarajan  [person]  quotes=2  == NO entity (S2 candidate)
+   titles: Chairman and Managing Director
+
+S. Sreenivasan  [person]  quotes=2  == NO entity (S2 candidate)
+   titles: President
+
+S.N. Subrahmanyan  [person]  quotes=2  == NO entity (S2 candidate)
+   titles: Chairman & Managing Director
+
+Sachin Joshi  [person]  quotes=2  == NO entity (S2 candidate)
+   titles: CFO, L\&T Finance
+
+Sachinder Bhinder  [person]  quotes=2  == NO entity (S2 candidate)
+   titles: MD \& CEO
+
+Salila Pande  [person]  quotes=2  == NO entity (S2 candidate)
+   titles: Managing Director and Chief Executive Officer
+
+Sandeep Bakhshi  [person]  quotes=2  == NO entity (S2 candidate)
+   titles: MD \& CEO
+
+Sandeep Engineer  [person]  quotes=2  == NO entity (S2 candidate)
+   titles: Chairman and Managing Director
+
+Sandeep Jain  [person]  quotes=2  == NO entity (S2 candidate)
+   titles: CEO and CFO
+
+Sandeep Komaravelly  [person]  quotes=2  == NO entity (S2 candidate)
+   titles: Chief Executive Officer, Birla Pivot
+
+Sanjay Banka  [person]  quotes=2  == NO entity (S2 candidate)
+   titles: Group Chief Financial Officer
+
+Sanjay Mehrotra  [person]  quotes=2  == NO entity (S2 candidate)
+   titles: CEO
+
+Sanjay Wadhwa  [person]  quotes=2  == NO entity (S2 candidate)
+   titles: CFO
+
+Sanjog Mhatre  [person]  quotes=2  == NO entity (S2 candidate)
+   titles: Chief Business Officer
+
+Santhi Latha  [person]  quotes=2  == NO entity (S2 candidate)
+   titles: GM (Finance \& Accounts)
+
+Sarang Bhand  [person]  quotes=2  == NO entity (S2 candidate)
+   titles: Managing Director
+
+Satya Prakash Mishra  [person]  quotes=2  == NO entity (S2 candidate)
+   titles: Head, Investor Relations
+
+Saurabh Goyal  [person]  quotes=2  == NO entity (S2 candidate)
+   titles: CFO
+
+Seong Cho  [person]  quotes=2  == NO entity (S2 candidate)
+   titles: EVP and Head of Strategic Marketing Office for Mobile Experience
+
+Shailesh Chandra  [person]  quotes=2  == NO entity (S2 candidate)
+   titles: MD & CEO, Tata Motors Passenger Vehicles Limited
+
+Shaji Baby John  [person]  quotes=2  == NO entity (S2 candidate)
+   titles: CMD
+
+Shankha Banerjee  [person]  quotes=2  == NO entity (S2 candidate)
+   titles: Chief Executive Officer
+
+Sharat Chandra  [person]  quotes=2  == NO entity (S2 candidate)
+   titles: Chief Financial Officer
+
+Shashank Agarwal  [person]  quotes=2  == NO entity (S2 candidate)
+   titles: Deputy MD
+
+Shashank Velaya  [person]  quotes=2  == NO entity (S2 candidate)
+   titles: Management
+
+Shashank Yagnik  [person]  quotes=2  == NO entity (S2 candidate)
+   titles: Head of Strategy and Investor Relations
+
+Shreevar Kheruka  [person]  quotes=2  == NO entity (S2 candidate)
+   titles: MD \& CEO
+
+Shrikda Patil  [person]  quotes=2  == NO entity (S2 candidate)
+   titles: CFO
+
+Shweta Arya  [person]  quotes=2  == NO entity (S2 candidate)
+   titles: MD
+
+Siddhartha Gupta  [person]  quotes=2  == NO entity (S2 candidate)
+   titles: Chief Executive Officer
+
+Simal Kanuga  [person]  quotes=2  == NO entity (S2 candidate)
+   titles: Chief Investor Relations Officer
+
+Srikanth Lakshminarayanan  [person]  quotes=2  == NO entity (S2 candidate)
+   titles: Senior Vice President, Healthcare Practice
+
+Srini Pallia  [person]  quotes=2  == NO entity (S2 candidate)
+   titles: CEO
+
+Sriram Iyer  [person]  quotes=2  == NO entity (S2 candidate)
+   titles: CEO - Apollo Health \& Lifestyle
+
+Suberna Batacharya  [person]  quotes=2  == NO entity (S2 candidate)
+   titles: Chief Financial Officer
+
+Sudipta Mukherjee  [person]  quotes=2  == NO entity (S2 candidate)
+   titles: Managing Director
+
+Sujatha Rathetti  [person]  quotes=2  == NO entity (S2 candidate)
+   titles: Head - Corporate Finance
+
+Suman Hegde  [person]  quotes=2  == NO entity (S2 candidate)
+   titles: Chief Financial Officer
+
+Suman Narayan  [person]  quotes=2  == NO entity (S2 candidate)
+   titles: Chief Executive Officer, Cyient Semiconductors
+
+Sumit Bakhani  [person]  quotes=2  == NO entity (S2 candidate)
+   titles: Chief Executive Officer
+
+Sumit Dhingra  [person]  quotes=2  == NO entity (S2 candidate)
+   titles: CFO
+
+Sunil Bora  [person]  quotes=2  == NO entity (S2 candidate)
+   titles: Group CFO
+
+Sunil Reddy Dodla  [person]  quotes=2  == NO entity (S2 candidate)
+   titles: Managing Director
+
+Sunu Mathew  [person]  quotes=2  == NO entity (S2 candidate)
+   titles: Chairman, MD and CEO
+
+Surujit Pal  [person]  quotes=2  == NO entity (S2 candidate)
+   titles: Vice President & Head of Investor Relations
+
+Susan Healey  [person]  quotes=2  == NO entity (S2 candidate)
+   titles: CFO
+
+Susan Li  [person]  quotes=2  == NO entity (S2 candidate)
+   titles: CFO
+
+Swajitha Rapeti  [person]  quotes=2  == NO entity (S2 candidate)
+   titles: Head, Corporate Finance
+
+T Krishnakumar  [person]  quotes=2  == NO entity (S2 candidate)
+   titles: Director, Reliance Consumer Products
+
+T. Shivaraman  [person]  quotes=2  == NO entity (S2 candidate)
+   titles: MD \& CEO
+
+T. Srinivasa Rao  [person]  quotes=2  == NO entity (S2 candidate)
+   titles: Chief Financial Officer
+
+T.K. Sridhar  [person]  quotes=2  == NO entity (S2 candidate)
+   titles: CFO
+
+TV Narendran  [person]  quotes=2  == NO entity (S2 candidate)
+
+V Kumar  [person]  quotes=2  == NO entity (S2 candidate)
+   titles: Managing Director
+   V. Kumar  -> fold
+
+V. C. Sehgal  [person]  quotes=2  == NO entity (S2 candidate)
+   titles: Chairman
+
+Varun Goel  [person]  quotes=2  == NO entity (S2 candidate)
+   titles: Senior Fund Manager, Mirae Asset Investment.
+
+Vidyashankar Krishnan  [person]  quotes=2  == NO entity (S2 candidate)
+   titles: Chairman & MD
+
+Vijay Kumar Singh  [person]  quotes=2  == NO entity (S2 candidate)
+   titles: Director
+
+Vijay NP  [person]  quotes=2  == NO entity (S2 candidate)
+   titles: Chief Financial Officer
+
+Vikas Gupta  [person]  quotes=2  == NO entity (S2 candidate)
+   titles: Managing Director Operations
+
+Viren Shetty  [person]  quotes=2  == NO entity (S2 candidate)
+   titles: Vice Chairman
+
+Vivek Lohia  [person]  quotes=2  == NO entity (S2 candidate)
+   titles: Managing Director
+
+Vivek Midha  [person]  quotes=2  == NO entity (S2 candidate)
+   titles: Chief General Manager, Marketing and Business Development
+
+Vivek Sharma  [person]  quotes=2  == NO entity (S2 candidate)
+   titles: Interim Chairperson
+
+Vivek Vikram Singh  [person]  quotes=2  == NO entity (S2 candidate)
+   titles: MD and Group CEO
+
+Y. Saboo  [person]  quotes=2  == NO entity (S2 candidate)
+   titles: Chairman \& MD
+
+Yash Sharma  [person]  quotes=2  == NO entity (S2 candidate)
+   titles: Director
+
+Yesh Nadkarni  [person]  quotes=2  == NO entity (S2 candidate)
+   titles: CEO - Wholesale Lending
+
+Zvi Schreiber  [person]  quotes=2  == NO entity (S2 candidate)
+   titles: CEO
+
+A. Venkata Sanjeev  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: Executive Director
+
+Aamer Bijli  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: Lead Specialist Innovation, Film Marketing, PVR Inox
+
+Aarti Subramanyan  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: Executive Director, President and Chief Operating Officer
+
+Abhay Gandhi  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: CEO - North America
+
+Abhishek Agrawal  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: Executive Director
+
+Abhishek Kayan  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: Deputy Chief Financial Officer
+
+Abhishek Pareek  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: Group Head - Finance
+
+Aditya Jaybajrang Mani  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: Whole-Time Director
+
+Agam Maurya  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: Product Manager
+
+Ajay Patodia  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: Chief Financial Officer
+
+Ajay Pratap Singh  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: CEO, Absolute Sports
+
+Ajay Singh  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: CFO
+
+Albinder Dhinsa  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: CEO (BlinkIt)
+
+Alicia Haas  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: CFO
+
+Alok Aggarwal  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: CEO
+
+Alok Shanghvi  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: Chief Operating Officer
+
+Amar Sinha  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: COO
+
+Amish Mehta  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: Managing Director \& CEO
+
+Amit Majumdar  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: Management - AMC
+
+Amit Mishra  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: Head, Railway Business
+
+Amitabh Chaudhary  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: MD & CEO
+
+Amreesh Rau  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: Chief Executive Officer
+
+Amrish Kenge  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: Group CEO
+
+Amy Hood  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: CFO
+
+Anand Agarwal  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: CFO
+
+Anand Desai  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: Managing Director
+
+Anand Kripalu  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: MD \& Global CEO
+
+Anand Pandit  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: MD, Sri Lotus Developers \& Realty Limited
+
+Anand Piramal  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: Executive Chairman
+
+Andrew Reese  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: CEO
+
+Anil Choudhary  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: Whole-time Director \& Head of Manufacturing
+
+Ankit Jain  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: CSO
+
+Ankit Kumar Singhal  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: Chief Financial Officer
+
+Ankush Jain  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: Chief Financial Officer
+
+Annapurna Venkataraman  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: Group Chief Financial Officer
+
+Anoop Bector  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: MD
+
+Anubhav Gupta  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: CSO
+
+Anujendra Jain  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: Director Finance
+
+Arati Subramanian  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: Executive Director, President and Chief Operating Officer
+
+Aravind Viswanathan  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: CFO
+
+Arun Chittilappilly  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: Managing Director
+
+Arun Mukundan  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: Managing Director and CEO
+
+Ashish Damani  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: Chief Financial Officer
+
+Ashish Desai  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: Chief Financial Officer
+
+Ashish Dikshit  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: MD \& CEO
+
+Ashish Kumar Dash  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: Segment Head-Energy, Utilities, Resources & Services
+
+Ashish Singhal  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: CFO
+
+Ashok Jain  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: CFO \& Ekta Soni, AVP - Investor Relations
+
+Ashu Shinghal  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: Managing Director
+
+Ashutosh Sharma  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: India Business Head
+
+Ashwani Gupta  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: CEO
+
+Ashwath Bhat  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: Chief Financial Officer
+
+B Santhilatha  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: GM Finance and Accounts
+
+Balaji N  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: Executive Director, Technology \& Operations
+
+Balakrishna DR  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: Head of Global Services
+
+Beth Boucher  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: Independent Director & NRC Chair
+
+Bharath Narayanan  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: Executive Vice President, Global BFSI and Europe Geography Head
+
+Bhuvanesh Tharashankar  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: President & Group CFO
+
+Bindu Aal  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: CFOs
+
+Bipin Preet Singh  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: CEO
+
+Brian Cornell  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: CEO
+
+Brian Moynihan  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: CEORetail
+
+Brian Murray  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: CFO
+
+Brian Nickel  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: CEO
+
+Brijesh Kumar Agrawal  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: Whole-Time Director
+
+C.P. Gireesh  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: Chief Financial Officer
+
+CJ Prober  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: CEO
+
+Camshafts Limited  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: and we see a clear difference between the outlook within our differe
+
+Car Loans  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: as these product sub-segments currently do not generate attractive risk-adjust returns."
+
+Chander K. Baljee  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: Chairman \& Managing Director
+
+Chenade Gorman  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: CFO
+
+Chirag Patel  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: Joint MD
+
+Choudhury Karuturi  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: MD & CFO
+
+Chris Kempczinski  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: President and CEO
+
+Christian Buch  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: President and CEO
+
+Clay McGouyrk  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: CEO
+
+Damodar Bhattar  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: Director Finance and CFO
+
+Darren Harper  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: CFO
+
+Dave Bergman  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: CFO
+
+David Denton  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: CFO
+
+David Wadhwani  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: President, Digital Media
+
+David Zindner  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: CFO
+
+Debashis Singh  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: Chief Information Officer
+
+Derek Chang  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: CEO
+
+Devang Mody  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: MD \& CEO, Bajaj Finserv Health
+
+Dhiman Gupta  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: VP Finance, TMPVL and TPEML
+
+Dhiren Gala  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: Assistant General Manager (Strategy \& Investor Relations)
+
+Dilip Kadambi  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: IHH Group CFO
+
+Dinesh Gandhi  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: Executive Director
+
+Dinesh Rao  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: Chief Delivery Officer
+
+Divij Taneja  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: CEO Adani Logistics
+
+Doug Ahrens  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: CFO
+
+Dr. Alok Das  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: Group CEO
+
+Dr. Ashoke Panda  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: Director of Finance
+
+Dr. Debarag Banerjee  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: Chief AI \& Data Officer
+
+Dr. Emmanuel Rupert  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: Chief Executive Officer \& Managing Director
+
+Dr. Harshad Mehta  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: Chairman and Director
+
+Dr. K. Ratnam  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: Whole-time Director & CEO
+
+Dr. Lisa Su  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: Chair \& CEO
+
+Dr. Madhu Sasidhar  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: President and CEO, Hospitals Division
+
+Dr. Satakarni Makkapati  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: CEO Biosimilars
+
+EA Sundaram  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: Long-term Investor
+
+EVP Kim Ik-soo  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: Electronic Materials Strategic Marketing
+
+EVP Park Jong-seon  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: Strategic Marketing
+
+Ellie Murr  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: CFO
+
+Elliot Hill  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: CEO
+
+Enrique Lores  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: CEO
+
+Eric Duwet  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: CFO
+
+Eric Mansion  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: General Manager Pharma - SEA \& I and Non-Executive Director
+
+Eva Scherer  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: CFO
+
+Exchange. Therefore  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: for the next couple of years, we could easily beat inflation with pri
+
+G. Ramesh  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: MD \& CEO
+
+Gagan Banga  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: Vice Chairman, MD \& CEO
+
+Gangadi Madhukar Reddy  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: Chief Executive Officer and Managing Director
+
+Gaurav Bawa  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: CEO, Bawa Jewellers.
+
+Gaurav Kapoor  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: MD \& CEO, Vishal Mega Mart
+
+Gaurav Khandelwal  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: Chief Financial Officer
+
+Gaurav Pandey  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: MD and CEO
+
+Gaurav Rekhi  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: Head Corporate Development \& IR
+
+Gopal Agarwal  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: CFO
+
+Gregory K. Peters  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: Co-CEO, President \& Director
+
+Gulzeb Ahmed  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: CFO
+
+Gunnar Wiedenfels  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: CFO
+
+HDFC Bank  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: ICICI Bank, and Axis B
+
+Hardevi Vazirani  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: Director Finance and Chief Financial Officer
+
+Harjeet Kohli  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: Group Director
+
+Harley Finkelstein  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: President of Shopify
+
+Harsh Kumar Bhanwala  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: Head of Nomination & Remuneration Committee
+
+Harsh Shah  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: MD
+
+Harsha Vardhana Gourineni  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: Executive Director - Automotive and Industrial
+
+Harshil Sanghavi  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: Lead Investor Relations
+
+Hawk Tan  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: President and CEO
+
+Hemant Buch  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: Executive Director Marketing, Bancassurance and Alternate Channel
+
+In FY26  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: we generated close to 173 crores of operating cash flow, broadly covering our 8
+
+Indrajit Chaudhuri  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: CFO
+
+Indrajit Mookerjee  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: Executive Director and Vice Chairman
+
+Jacob Jacob  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: CFO
+
+Jagish J  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: Head of Assets
+
+James Mitchell  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: CSO
+
+James Quincy  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: CEO
+
+Jan Kleine Lasthues  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: COO, ECU Worldwide
+
+Jay Malave  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: CFO
+
+Jayant Manmadkar  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: CFO
+
+Jayanta Chatterjee  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: Managing Director and Chief Executive Officer - ICRA Analytic Limited
+
+Jayanto Patnaik  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: Engineering Division, IFB Industries
+
+Jayashree Samar  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: Head of Finance
+
+Jinesh Shah  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: Chief Executive - Urban Secured Assets \& Third-Party Products
+
+Jitin Diwan  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: Chief Financial Officer
+
+Joaquin Duato  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: CEO
+
+John Spate  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: Director
+
+Jonathan Root  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: Chief Financial Officer
+
+Jonathan Ruth  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: CFO and President of Commercial
+
+Jose V J  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: Chairman & Managing Director, Cochin Shipyard
+
+Josh Charlesworth  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: CEO
+
+K S Hariharan  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: Head of Investor Relations
+
+K. Akhileswaran  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: Group CFO
+
+K. U. Shah  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: CFO, Birla Estate
+
+K.S. Ramakrishnan  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: Managing Director \& CEO, DEI
+
+Kaizad Bharucha  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: Deputy Managing Director
+
+Kalyan Pola  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: Principal Partner Development Manager, AWS
+
+Kamal Gianchandani  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: Chief Business Planning & Strategy
+
+Kamal Pal Hoda  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: Executive Director \& CEO
+
+Kapil Grover  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: CMO
+
+Karen Park  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: CFO
+
+Karthik Yathindra  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: Chief Executive Officer
+
+Kartik Muchandani  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: Head of Finance -Home Appliance
+
+Karunakar Reddy Baddem  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: Managing Director
+
+Kashinath Hariharan  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: Managing Director and Chief Executive Officer of Jio Paymen Solutions Limited
+
+Kath McLay  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: CEO Walmart International
+
+Kathy Smith  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: CFO
+
+Kaushal Parikh  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: CFO
+
+Kavinda Mishra  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: MD \& CEO, Shoppers Stop
+
+Kedar Upadhye  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: CFO Biocon Biologics
+
+Ketan Mody  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: Executive Director, Reliance Consumer Products Limited
+
+Kevan Parekh  [person]  quotes=1  == NO entity (S2 candidate)
+
+Kevin Plank  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: CEO
+
+Kevin Vaz  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: CEO - Entertainment, JioStar
+
+Khwahish Paun  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: Director
+
+Kiran Mazumdar Shaw  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: Executive Chairperson
+
+Kishore Saraogi  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: Managing Director & COO
+
+Krishna Bodanapu  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: Executive Vice Chairman \& Managing Director
+
+Krithika Srivats  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: Senior Vice President, Clinical Practice
+
+Kumar Subbiah  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: CFO
+
+Kunal Khanna  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: President, Operations
+
+L. Shivakumar  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: EVP, Business Development and Chief Business Officer
+
+Lakshman Rao  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: Chairman \& MD
+
+Lan Nguyen Whitten  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: CFO
+
+Latesh Shetty  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: CEO - Insurance Repository
+
+Lip Boutan  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: CEO
+
+Lu Weibing  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: President
+
+M. Shyamprasad Kamath  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: Managing Director \& CEO
+
+M.M. Abdulla  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: Director, Prod. & Plng.
+
+M.V. Murali Krishna  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: Executive Director
+
+Maddisetty Venugopal Rao. CMD  [person]  quotes=1  == NO entity (S2 candidate)
+
+Madivanan Balakrishnan  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: CEO, Apollo HealthCo
+
+Mahendra Anantula  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: Group President of Operations, Business Development, and Diversification
+
+Mahesh Bhave  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: Chief Financial Officer
+
+Mahesh Iyer  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: Managing Director \& CEO
+
+Mahesh Kumar Nutalapati  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: Global CFO, HGS
+
+Manish Bhatia  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: EVP, Global Operations
+
+Manish Kumar Gupta  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: Chief Executive - Urban Unsecured Assets, Payments \& Partnerships
+
+Manoj Chayani  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: CFO
+
+Manu Talwar  [person]  quotes=1  == NO entity (S2 candidate)
+
+Mark Murphy  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: Chief Financial Officer
+
+Martin Lau  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: President
+
+Mary Barra  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: CEO
+
+Masayoshi Son  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: Chairman \& CEO of SoftBank Group Corp.
+
+Mayank Botika  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: Head Strategy, Finance & Treasury
+
+Michael Fideki  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: COO \& CEO-elect
+
+Michel Doukeris  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: CEO
+
+Mike Bole  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: President
+
+Mike DaSilva  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: EVP International Operations
+
+Mike Frank  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: CEO
+
+Mitesh Dave  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: Group Chief Executive Officer
+
+Mohit Rathod  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: Whole Time Director
+
+Morten Wierod  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: CEO of ABB
+
+Mr. Ajay Giri  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: Chief Financial Officer
+
+Mr. Amitabh Jain  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: Chief Operating Officer of Star Health
+
+Mr. Arun  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: Founder and Non-Executive Chairperson
+
+Mr. Ashok Rai  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: Director, Sales & Business Development
+
+Mr. Bel  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: CEO/Senior Management
+
+Mr. Jitender Jain  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: Chief Financial Officer
+
+Mr. Lal Singh  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: Executive Director
+
+Mr. Neville Noronha  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: CEO \& MD
+
+Mr. Sandeep Bakhshi  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: Managing Director \& CEO
+
+Mr. Sandeep Engineer  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: Chairman and Managing Director
+
+Mr. V. Kumar  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: Managing Director
+
+Mr. Vivek Prakash Goyal  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: Group CFO and CEO International Business
+
+Mr. Vyaki Gupta  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: Director of Finance, Bharat Petroleum
+
+Mukundan Menon  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: Managing Director
+
+Murtaza Khorakiwala  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: Managing Director
+
+N. S. Raghavan  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: CEO, Eyecare Division
+
+Narayan Saraf  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: CFO
+
+Naveen Malik  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: CEO \& CFO
+
+Nikhil Nanda  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: COO (Tractor Business)
+
+Nikhil Sohoni  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: Group Chief Financial Officer
+
+Niranjan Banodkar  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: Chief Financial Officer
+
+Nirmal Jain  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: Founder, IIFL Finance
+
+Nirupam Sahay  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: CEO, Bath and Consumer Appliances
+
+Nitesh Bhandari  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: CFO
+
+Nitin Kumar  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: ED Corporate Finance & Treasury
+
+Nitin Trikha  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: Head - IFM \& Food Services
+
+Nrupesh Shah  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: Executive Director
+
+Nutan Gaba Patwari  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: CFO
+
+Omang Goyal  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: Global MD \& CEO
+
+On Early GST Demand Signals  [person]  quotes=1  == NO entity (S2 candidate)
+
+Oommen Mammen  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: CFO
+
+Pascal Daloz  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: CEO, Dassault Systèmes
+
+Paul Roeder  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: CFO
+
+Pawan Agrawal  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: CFO
+
+Pawan Daga  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: Chief Financial Officer
+
+Phil Fernandez  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: Treasurer
+
+Pier Malwani  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: CFO
+
+Power Ventures Limited  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: which has a 400-megawatt hydropower project and two therma
+
+Prabhakar Atla  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: President and Chief Financial Officer
+
+Pradeep Gupta  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: Chairman and Managing Director
+
+Prapul Sridhar  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: CFO
+
+Prashant Gupta  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: Chief Financial Officer
+
+Praveen Kumar KJ  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: Chief Financial Officer
+
+Priya Gandhi  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: Executive Director
+
+Punit Makharia  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: Chairman and MD
+
+R. Doraiswamy  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: CEO
+
+R. Venkatesh  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: Chief Operating Officer, East and South Regions
+
+Rachid Ayari  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: Whole-Time Director and Chief Financial Officer
+
+Rafiq Malik  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: Chairman
+
+Ragini Advani  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: Director Finance
+
+Rahul Arora  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: Chairman \& CEO
+
+Rahul Ganu  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: CFO
+
+Rahul Gautam  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: Executive Chairman
+
+Raj Kumar Jain  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: Head of Business Development \& Ashish Khanna, CEO
+
+Rajan Pental  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: Executive Director
+
+Rajeev Gupta  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: CFO
+
+Rajesh Jain  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: CFO
+
+Rajesh Mehta  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: Chairman & JMD
+
+Rajiv Gandhi  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: CEO and Managing Director
+
+Rajiv Juneja  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: Vice Chairman \& MD
+
+Rajnish Kumar  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: Group CO-CEO
+
+Raju Dodti  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: Chief Operating Officer
+
+Rakesh Bhatia  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: CFO
+
+Rakesh Chahar  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: Director
+
+Ram Moan Rao Amara  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: MD for international banking, global markets, and technolog.
+
+Ram Mohan Rao Amara  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: Managing Director, Retail Business & Operations
+
+Ram Sundararajan  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: Chief People Officer
+
+Ramandeep Gil  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: CFO
+
+Ramesh Kannan  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: Managing Director
+
+Ramesh Ponnuswami  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: Executive President, Operations and EBS
+
+Ramesh Swaminathan  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: CFO
+
+Ramya Mohan  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: Chief Financial Officer, Cyient Semiconductors
+
+Ranjan Jindal  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: CFO
+
+Ranjit Lala  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: Managing Director
+
+Raphael Duvier  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: CFO
+
+Rashid Harjari  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: CFO
+
+Rashmi Mohanty  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: Chief Financial Officer
+
+Ravi Shankar  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: Head, Asset Management \& CFO
+
+Regan Raithatha  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: CFO
+
+Rishi Nathani  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: Chief Business Officer
+
+Ritesh Dua  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: EVP Finance
+
+Robert Kelly Ortberg  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: President, Chief Executive Officer \& Director
+
+Rohan Suryaini  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: Head of Strategy and Planning
+
+Rohit Bajaj  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: Joint Managing Director
+
+Rohit Kapoor  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: CEO, Food Marketplace
+
+Romit Dugar  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: CFO
+
+Rupesh Kasavkar  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: Chairman and the Managing Director
+
+S. Natkarni  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: CEO, Wholesale Lending
+
+S. Subramanian  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: CFO
+
+S. Sunder  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: Joint Managing Director
+
+S.V. Krishnan  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: Director - Finance
+
+SC Jain  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: Chairman and Managing Director
+
+Safra Catz  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: CEO
+
+Sandeep Churana  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: CFO
+
+Sandeep Dave  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: Company Secretary and Head of Corporate Communications
+
+Sandeep Garg  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: MD
+
+Sandeep Kumaravelli  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: CEO, Birla Pivot
+
+Sandeep Sonawane  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: Chief Business Officer
+
+Sandip Ghose  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: MD and CEO
+
+Sang-Jik Lee  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: EVP and Head of Sales Marketing Team of DA
+
+Sangeeta Tanwani  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: CEO, Pantaloons and OWND!
+
+Sanjay Bajaj  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: Head of Investor Relations
+
+Sanjay Barman Roy  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: President - E\&P
+
+Sanjay Bhagat  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: Head of Aftermarket
+
+Sanjay Chhabra  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: Executive Director
+
+Sanjay Dhangar  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: Managing Director
+
+Sanjay Purohit  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: CEO
+
+Sanjay Vinayak Mudaliar  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: ED
+
+Sanjeev Gupta  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: CFO of Apollo HealthCo
+
+Sanjeev Kumar Biji  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: Executive Director
+
+Sanjiv Agarwal  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: CEO, Inox Wind
+
+Sanjiv Kapur  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: Whole-Time Director & CFO
+
+Sanjiv Keshri  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: CFO
+
+Santosh Agarwal  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: CEO, Paisabazaar
+
+Sasidhar Vavilala  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: EVP
+
+Satish H.C. Chief Delivery Officer  [person]  quotes=1  == NO entity (S2 candidate)
+
+Satish HC  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: Chief Delivery Officer
+
+Satish Mehta  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: Group CEO
+
+Satyanarayana Raju K.  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: MD \& CEO
+
+Saurabh Dwivedi  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: Corporate Vice President, Finance and Strategy
+
+Saurabh Goel  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: Chief Financial Officer
+
+Savitha Balachandran  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: CFO
+
+Scott Lewis  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: CFO
+
+Shailesh Chaturvedi  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: Managing Director \& CEO
+
+Shailesh Kumar  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: CEO - India Cluster
+
+Shantanu Narayen  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: CEO
+
+Sharad Kumar Khaitan  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: CFO
+
+Shashank Yagnick  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: Head Strategy
+
+Sheetal Arora  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: Chief Executive Officer and Whole-time Director
+
+Shekhar Sood  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: Chief Financial Officer
+
+Shiv Walia  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: Chief Financial Officer
+
+Shriram Iyer  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: Chief Credit and Analytics Officer
+
+Shubhabrata Saha  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: MD
+
+Shwetank Singh  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: Executive Director
+
+Siddhart Muhanty  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: CEO and MD
+
+Siddharth Sethi  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: CEO
+
+Sivaramaraju Vegesna  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: Vice President (Operations)
+
+Sorab Agarwal  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: Executive Director
+
+Spencer Adam Neumann  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: Chief Financial Officer
+
+Srikanth Subramanian  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: Management - Wealth
+
+Srinivas Reddy  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: MD
+
+Sriram Ramakrishnan  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: President - Battery and Energy Systems
+
+Stefano Domenicali  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: CEO of F1
+
+Steve Bratspies  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: CEO
+
+Steve Fisher  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: President and Chief Executive Officer
+
+Subodh Rai  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: Managing Director, Crisil Ratings Limited
+
+Sudeep Konummul  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: CHRO
+
+Sudeep Kunnath  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: Chief Human Resources Officer
+
+Suhas Prabhu  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: CFO
+
+Sukamal Banerjee  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: CEO
+
+Sunil Kumar Chaturvedi  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: CMD
+
+Sunil Parekh  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: CEO
+
+Suprita Reddy  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: Managing Director \& Chief Executive Officer
+
+Surendran Chemmenkotil  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: Managing Director
+
+Suresh Maher  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: Senior Vice President of Legal and Company Secretary
+
+Sushant Dalmia  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: Chief Financial Officer
+
+Swayam Saurabh  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: CFO
+
+T.S. Kalyanaraman Ramesh  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: Executive Director, Kalyan Jewellers
+
+Tamil Nadu. In Karnataka  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: over the last 2-3 days, they have already provided informatio
+
+Tanmay Kumar  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: CFO
+
+Tapan Singhel  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: MD and CEO, Bajaj General Insurance
+
+Tarun Khulbe  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: CEO
+
+Terrun Lal  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: Chief Executive Officer
+
+Terrun Lol  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: CEO
+
+Thomas Seifert  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: Chief Financial Officer
+
+Tillman Rocke  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: CFO
+
+Udari Singh  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: Managing Director \& CEO
+
+Udipt Agarwal  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: Managing Director
+
+Umang Khurana  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: Head, Investor Relations & Chief Risk Officer
+
+Upasana Taku  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: CFO
+
+V. Muralidharan  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: CEO Europe Formulations
+
+V. V. B. S. Sarma  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: CFO
+
+V.S. Ganesh  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: Managing Director
+
+V.S. Kasbekar  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: Acting Chief Executive Officer
+
+V.S. Mani  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: Executive Director and Global CFO
+
+Vandana Suri  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: Executive Director
+
+Varun Jaipuria  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: Executive Vice Chairman and Whole-Time Director
+
+Varun Saraf  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: Chief Executive Officer
+
+Venkatesh Vijayaraghavan  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: Managing Director & CEO
+
+Venkatraman V  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: CFO
+
+Venu Madhav  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: Executive President, Product Excellence and Innovation
+
+Vikas Marwah  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: Chief Executive Officer
+
+Vikas Singla  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: CFO
+
+Vikram Kasbekar  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: CEO
+
+Vikram Lalvani  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: Managing Director \& CEO, Sterling Holiday Resorts
+
+Vikramadithya Gourineni  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: Executive Director - New Energy Business
+
+Vincent Clark  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: CEO of Maersk
+
+Vineet Agrawal  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: Group CFO
+
+Vinit Teredesai  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: Executive Director and Chief Financial Officer
+
+Vinod Aggarwal  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: MD and CEO of VECV
+
+Vipul Chandra  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: Chief Financial Officer and Whole-time Director
+
+Vivek Agnihotri  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: Chief Financial Officer
+
+Vivek Goyal  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: CFO
+
+Vivek Pabari  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: Chief Financial Officer
+
+Vivek Tripathi  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: Executive Director and Chief Credit Officer
+
+Walter Mertl  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: CFO
+
+Wolfgang Wrumnig  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: Executive Director & CFO
+
+Yatish Mehrishi  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: CEO
+
+Yogesh Bansal  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: Chief Financial Officer
+
+Yogesh Dua  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: Chief Executive Officer and Joint Managing Director
+
+Yogesh Sareen  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: Senior Director and Chief Financial Officer
+
+Yoken Zites  [person]  quotes=1  == NO entity (S2 candidate)
+   titles: Chief Executive Officer
+
+# -- company-shaped: attribution is a company, not a person --
+   Camshafts Limited
+   Management Ather Energy
+   Power Ventures Limited
+
