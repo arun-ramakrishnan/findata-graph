@@ -11,45 +11,28 @@
 # Never `pkill -f` (see bili_stop_monitor.sh for why).
 #
 # The log path is DISCOVERED, not hardcoded: billion-context is an npm module,
-# so its cwd (and thus bili.log) lives wherever it was started from. We walk
-# /proc for the running proxy and read its cwd; BILI_LOG overrides, then the
-# known state roots. This is the same logic as helpers/analytics/bili_logpath.py.
+# so its cwd (and thus bili.log) lives wherever it was started from.
+# helpers/analytics/bili_logpath.py owns that discovery (env override -> /proc
+# cwd walk -> known roots, newest-mtime wins) and THIS SCRIPT USES IT, rather
+# than keeping a shell twin: the twin globbed /proc in LEXICAL pid order
+# (999 sorts before 1000), so the two readers could disagree about which log
+# was live. One implementation, one answer.
 set -uo pipefail
 
 T="${BILI_WATCH_DIR:-${TMPDIR:-/tmp}/bili_watch}"
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../" && pwd)"
+PY="${REPO_ROOT}/.venv/bin/python3"
+[ -x "$PY" ] || PY=python3
+BILI_CONFIG="${BILI_CONFIG:-$HOME/.config/billion-context/billion-context.json}"
 
-# Discover the live bili.log: env override, then /proc, then known roots.
-# Newest-mtime wins when several proxies are up (matches bili_logpath.py);
-# plain glob order is LEXICAL in pid -- 999 sorts before 1000 -- so a silent
-# first-match could watch a stale proxy while the live one folds unseen.
-L="${BILI_LOG:-}"
+# Discover the live bili.log + its rotated sibling through the one owner.
+paths="$("$PY" -c 'import sys; sys.path.insert(0, sys.argv[1]); from helpers.analytics.bili_logpath import discover_all; l, o = discover_all(); print(l); print(o)' "$REPO_ROOT" 2>/dev/null || true)"
+L="$(printf '%s\n' "$paths" | sed -n 1p)"
+OLD="$(printf '%s\n' "$paths" | sed -n 2p)"
 if [ -z "$L" ]; then
-    cands=()
-    for p in /proc/[0-9]*/cwd/bili.log; do
-        [ -f "$p" ] && cands+=("$p")
-    done
-    if [ "${#cands[@]}" -gt 1 ]; then
-        echo "bili_status: ${#cands[@]} running proxies -- using the newest log:" >&2
-        printf '  %s\n' "${cands[@]}" >&2
-        L="${cands[0]}"
-        for p in "${cands[@]}"; do
-            [ "$p" -nt "$L" ] && L="$p"
-        done
-    elif [ "${#cands[@]}" -eq 1 ]; then
-        L="${cands[0]}"
-    fi
+    L="${BILI_LOG:-$HOME/.local/state/billion-context/bili.log}"
+    OLD="${BILI_LOG_OLD:-$L.old}"
 fi
-if [ -z "$L" ]; then
-    for root in "$HOME/.local/state/billion-context" \
-        "$(cd "$(dirname "${BASH_SOURCE[0]}")/../../" && pwd)/bench_data/billion-context"; do
-        if [ -f "$root/bili.log" ]; then
-            L="$root/bili.log"
-            break
-        fi
-    done
-fi
-L="${L:-$HOME/.local/state/billion-context/bili.log}"
-OLD=$L.old
 
 echo "=== watchers"
 pid=$(pgrep -x python3 -a | awk '/bili_monitor\.py/ {print $1}' | tr '\n' ' ')
@@ -63,7 +46,11 @@ if [ -f "$T/monitor.exit" ] && [ "$T/monitor.exit" -nt "$T/HEARTBEAT" ]; then
 fi
 
 echo
-echo "=== effective policy (last seen in log)"
+echo "=== effective ladder bars (from the config the proxy reads live)"
+"$PY" -c 'import sys; from pathlib import Path; sys.path.insert(0, sys.argv[1]); from helpers.analytics.bili_tier_nudge import Bars; b = Bars.from_file(Path(sys.argv[2])); s = b.source or {}; print("bar1 (T1)   : %d  [%s]" % (b.t1, s.get("t1", "?"))); print("bar2 (T2)   : %d  [%s]" % (b.t2, s.get("t2", "?"))); print("bar3 (T3)   : %d  [%s]" % (b.t3, s.get("t3", "?"))); print("growth floor: %d  [%s]" % (b.growth_floor, s.get("growthFloor", "?"))); print("nudgeGrowth : %d  [%s]" % (b.nudge_growth, s.get("nudgeGrowthTokens", "?")))' "$REPO_ROOT" "$BILI_CONFIG" 2>/dev/null || echo "  (config unreadable: $BILI_CONFIG)"
+echo "--- last seen in the log. NOTE: the log prints nudgeGrowthTokens as the"
+echo "    'interval' and as the 'pendingT1' denominator -- it does NOT print"
+echo "    tierNudgeTokens.t1, so those two lines are not the T1 bar."
 printf 'interval    : %s\n' "$(grep -hoE 'interval=[0-9]+' "$L" | tail -1)"
 printf 'pendingT1   : %s\n' "$(grep -hoE 'pendingT1=[0-9]+/[0-9]+' "$L" | tail -1)"
 printf 'growth      : %s\n' "$(grep -hoE 'growth=-?[0-9]+/[0-9]+' "$L" | tail -1)"
@@ -86,3 +73,9 @@ done
 echo
 echo "=== events.log tail"
 tail -5 "$T/events.log" 2>/dev/null
+
+# A status REPORT never fails the caller: the exit code used to be whatever the
+# last pipeline returned (tail's rc=1 when the watch dir has no events.log
+# yet), which made `make bili-status` look like a failure. Findings are lines
+# in the report, not the exit status.
+exit 0

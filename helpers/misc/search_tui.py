@@ -60,7 +60,7 @@ import sqlite3
 import subprocess
 import sys
 import time
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 
 from dataclasses import dataclass, replace as dc_replace
 from pathlib import Path, PurePosixPath
@@ -687,6 +687,7 @@ class RunStep:
     label: str
     seconds: float | None
     status: str  # "✓ OK" | "✗ FAIL" | "⌀ SKIP"
+    budget: float | None = None  # seconds; perf tables carry a Budget column
 
 
 @dataclass(frozen=True)
@@ -829,6 +830,29 @@ def parse_perf_report(path: Path) -> list[RunBlock]:
     return blocks
 
 
+def _parse_seconds(text: str) -> float | None:
+    """Seconds from a perf-table cell: ``0.77``, ``2.0s``, ``150ms``, ``—``.
+
+    The Time column is bare seconds while the Budget column carries a unit
+    suffix — both shapes appear in the append-only corpus (the writer's
+    spelling changed over time), so one parser serves both.
+    """
+    s = text.strip()
+    if not s or s in ("—", "-", "n/a"):
+        return None
+    if s.endswith("ms"):
+        try:
+            return float(s[:-2]) / 1000.0
+        except ValueError:
+            return None
+    if s.endswith("s"):
+        s = s[:-1].strip()
+    try:
+        return float(s)
+    except ValueError:
+        return None
+
+
 def _build_perf_block(gate: str, lines: list[str]) -> RunBlock:
     timestamp = ""
     elapsed: float | None = None
@@ -844,20 +868,114 @@ def _build_perf_block(gate: str, lines: list[str]) -> RunBlock:
         if m:
             label = m.group(1).strip()
             secs_s = m.group(2).strip()
+            budget_s = m.group(3).strip()
             status = m.group(4).strip()
             if label in ("Benchmark", "---", "|", "Time (s)", "Budget", "Status", "passed"):
                 continue
-            seconds: float | None = None
-            if secs_s and secs_s != "—":
-                try:
-                    seconds = float(secs_s)
-                except ValueError:
-                    pass
+            seconds = _parse_seconds(secs_s)
             if seconds is None:
                 continue
-            steps.append(RunStep(label, seconds, status))
+            steps.append(RunStep(label, seconds, status, _parse_seconds(budget_s)))
     summary = f"{len(steps)} benchmarks" if steps else "0 benchmarks"
     return RunBlock(f"perf:{gate}", timestamp, None, tuple(steps), summary, elapsed)
+
+
+#: Block glyphs for the ASCII sparkline. Ordered low→high; every glyph is
+#: one cell wide in a monospace terminal (the TUI's rendering assumption).
+_SPARK_GLYPHS = "▁▂▃▄▅▆▇█"
+_SPARK_PLACEHOLDER = "·"  # one run, no trend to draw yet
+
+
+def sparkline_text(values: Sequence[float], *, width: int | None = None) -> str:
+    """Block-glyph sparkline for a ratio series (oldest→newest).
+
+    This is the string form of the perf trend — it rides a tree row, so it
+    renders wherever the ``Sparkline`` widget cannot (the proposal's
+    documented fallback). Min-max scaled; a flat series draws a mid line
+    because "no variance yet" is a fact worth showing, not an empty cell.
+    ``width`` decimates the tail-most ``width`` samples when the series is
+    longer than the row can afford.
+    """
+    vals = [v for v in values if v is not None]
+    if not vals:
+        return ""
+    if width is not None and width > 0:
+        vals = vals[-width:]
+    if len(vals) == 1:
+        return _SPARK_PLACEHOLDER
+    lo, hi = min(vals), max(vals)
+    if hi <= lo:
+        mid = _SPARK_GLYPHS[len(_SPARK_GLYPHS) // 2]
+        return mid * len(vals)
+    span = hi - lo
+    last = len(_SPARK_GLYPHS) - 1
+    return "".join(_SPARK_GLYPHS[round((v - lo) / span * last)] for v in vals)
+
+
+def perf_ratio_history(
+    blocks: Sequence[RunBlock], *, last_n: int = 10
+) -> list[tuple[str, list[float]]]:
+    """Per-benchmark ``time/budget`` ratio series across the last N runs.
+
+    Returns ``(label, ratios)`` ordered worst-latest-ratio first, so the
+    benchmark closest to blowing its budget sits at the top. Ratios are in
+    run order, oldest→newest. A benchmark absent from a run contributes
+    nothing to that position — no interpolation, because a gap is a missing
+    measurement, not a flat one. Benchmarks without a Budget cell are
+    skipped: a ratio needs both halves.
+    """
+    runs = list(blocks)[-last_n:] if last_n > 0 else list(blocks)
+    series: dict[str, list[float]] = {}
+    for block in runs:
+        for step in block.steps:
+            if step.seconds is None or not step.budget:
+                continue
+            series.setdefault(step.label, []).append(step.seconds / step.budget)
+    rows = [(label, ratios) for label, ratios in series.items() if ratios]
+    rows.sort(key=lambda item: (-item[1][-1], item[0]))
+    return rows
+
+
+def perf_sparkline_rows(
+    blocks: Sequence[RunBlock], *, last_n: int = 10
+) -> list[tuple[str, str, float]]:
+    """``(label, spark_text, latest_ratio)`` — the perf lane's trend column.
+
+    One entry per benchmark with a budget, worst-first. The text is the
+    glyph series (placeholder for a single run) and the float is the value a
+    caller right-aligns beside it.
+    """
+    return [
+        (label, sparkline_text(ratios), ratios[-1])
+        for label, ratios in perf_ratio_history(blocks, last_n=last_n)
+    ]
+
+
+#: The gate writer's run summary carries the authoritative score line
+#: ("10/10 passed", "8/9 passed  ·  gate FAIL").
+_GATE_PASS_RE = re.compile(r"(\d+)\s*/\s*(\d+)\s+passed")
+
+
+def gate_pass_rates(blocks: Sequence[RunBlock]) -> list[float | None]:
+    """Pass fraction per gate run, oldest→newest; ``None`` where unmeasurable.
+
+    The run's own ``N/M passed`` summary is authoritative — the writer
+    counts only the steps it scores, so recomputing from step statuses would
+    disagree with the report the row shows. A block with no score line (a
+    crashed writer's partial block) falls back to counting ``OK`` step
+    statuses, and an empty block stays ``None`` rather than counting as 0%.
+    """
+    out: list[float | None] = []
+    for block in blocks:
+        m = _GATE_PASS_RE.search(block.summary or "")
+        if m and int(m.group(2)):
+            out.append(int(m.group(1)) / int(m.group(2)))
+        elif block.steps:
+            ok = sum(1 for s in block.steps if "OK" in s.status.upper())
+            out.append(ok / len(block.steps))
+        else:
+            out.append(None)
+    return out
 
 
 def parse_integrity_report(path: Path) -> list[CheckRow]:

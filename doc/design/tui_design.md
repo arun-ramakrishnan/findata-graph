@@ -69,6 +69,18 @@ per file (latest verdict). Unknown `x:` prefixes degrade to plain text.
 Row `line` values are 1-based file offsets so preview + enter jump into
 the report file.
 
+Trend column (arc 7, `tui_perf_sparkline`): the report screen renders
+history, not only the latest run. Each gate run row carries its pass
+fraction plus a block-glyph series over the runs up to it, and the perf
+rows carry `time/budget` per benchmark. Both series come from the SAME
+parsed `RunBlock`s the tree already reads — the append-only reports are
+retained artifacts, so the screen makes no live gate call. The
+`#rep-spark` strip mounts one Textual `Sparkline` per benchmark
+(worst-latest-ratio first, top 6) when a perf report is in scope, and the
+glyph caption rides the row regardless, so a widget-less install still
+shows the trend. A single-sample series draws `·`: "one measurement" is a
+fact worth showing, not an empty cell.
+
 ## 4. Report format contract
 
 All run reports consolidate under `outputs/` (gitignored, like
@@ -170,11 +182,17 @@ fallback). `t` cycles, `T` opens the picker.
   `doc/local/evaluations/tui_db_assessment.md`, preserved trial inputs
   in `bench_data/dbtui/`).
 
+- `tui_perf_sparkline` (2026-10-19) — perf `time/budget` + gate pass-rate
+  trend column on the report screen (`Sparkline` strip + glyph caption);
+  the trend reads the retained append-only reports, no live gate call.
+  Closes the "Historical trend chart" deferral in
+  `doc/improvements/archive/tooling/search_tui_enhancements.md` §5.
+
 ## 10. Future
 
 - Lane-appropriate empty queries beyond reports, multi-lane fan-out
-  (`*:`), make-target execution from script-lane rows, perf trend
-  sparklines, yank-all paths, inline tail expansion.
+  (`*:`), make-target execution from script-lane rows, yank-all paths,
+  inline tail expansion. (Perf/gate trend sparklines shipped — §3.)
 - DbScreen follow-ups: multi-line SQL input, cell yank (`y` per cell),
   snapshot-at-open if a held-`ro` complaint ever appears (current
   posture is per-query connections, so no lock is held), harlequin

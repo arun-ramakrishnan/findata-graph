@@ -33,6 +33,7 @@ from helpers.misc.search_tui import (
     ripwire_argv,
     run_lane,
     RunStep,
+    RunBlock,
     parse_gate_report,
     parse_perf_report,
     parse_integrity_report,
@@ -40,6 +41,11 @@ from helpers.misc.search_tui import (
     parse_report_summary,
     parse_verify_runs,
     report_where_label,
+    _parse_seconds,
+    gate_pass_rates,
+    perf_ratio_history,
+    perf_sparkline_rows,
+    sparkline_text,
     db_run,
     db_complete,
     db_completions,
@@ -852,7 +858,7 @@ def test_parse_perf_report() -> None:
         assert b.timestamp == "2026-09-11 15:12:55"
         assert b.elapsed is None  # pre-timing header: no Elapsed field
         assert len(b.steps) == 2
-        assert b.steps[0] == RunStep("integrity_check", 0.37, "\u2713 OK")
+        assert b.steps[0] == RunStep("integrity_check", 0.37, "\u2713 OK", 2.0)
         assert "2 benchmarks" in b.summary
     finally:
         path.unlink()
@@ -917,6 +923,270 @@ def test_parse_perf_report_timed_header() -> None:
         assert b.elapsed == 35.4
     finally:
         path.unlink()
+
+
+# --------------------------------------------------------------------------- #
+# Perf trend sparkline (arc 7 / tui_perf_sparkline)                            #
+# --------------------------------------------------------------------------- #
+_PERF_TREND_FIXTURE = (
+    "# make perf \u2014 benchmark report\n"
+    "\n"
+    "**Generated:** 2026-10-18 10:00:00  \u00b7  **Python:** 3.14.4\n"
+    "\n"
+    "| Benchmark | Time (s) | Budget | Status |\n"
+    "|---|---|---|---|\n"
+    "| graph_betweenness | 3.00 | 4.0s | \u2713 OK |\n"
+    "| graph_eigenvector | 2.40 | 2.0s | \u2717 FAIL |\n"
+    "| un_budgeted | 0.11 | \u2014 | \u2713 OK |\n"
+    "\n"
+    "# make perf \u2014 benchmark report\n"
+    "\n"
+    "**Generated:** 2026-10-19 10:00:00  \u00b7  **Python:** 3.14.4\n"
+    "\n"
+    "| Benchmark | Time (s) | Budget | Status |\n"
+    "|---|---|---|---|\n"
+    "| graph_betweenness | 3.60 | 4.0s | \u2713 OK |\n"
+    "| graph_eigenvector | 2.60 | 2.0s | \u2717 FAIL |\n"
+)
+
+
+def _perf_trend_blocks() -> list:
+    import tempfile
+
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False, encoding="utf-8") as f:
+        f.write(_PERF_TREND_FIXTURE)
+        path = Path(f.name)
+    try:
+        return parse_perf_report(path)
+    finally:
+        path.unlink()
+
+
+def test_parse_budget_units() -> None:
+    """The Budget column spells seconds three ways in the corpus."""
+    assert _parse_seconds("2.0s") == 2.0
+    assert _parse_seconds("150ms") == 0.15
+    assert _parse_seconds("0.77") == 0.77
+    assert _parse_seconds("\u2014") is None
+    assert _parse_seconds("n/a") is None
+    assert _parse_seconds("") is None
+
+
+def test_perf_ratio_history_worst_first_and_skips_unbudgeted() -> None:
+    history = perf_ratio_history(_perf_trend_blocks())
+    assert [label for label, _ in history] == ["graph_eigenvector", "graph_betweenness"]
+    # oldest -> newest, and no interpolation: the un-budgeted benchmark is out
+    assert history[0][1] == [1.2, 1.3]
+    assert history[1][1] == [0.75, 0.9]
+
+
+def test_perf_ratio_history_last_n_bounds_the_window() -> None:
+    """last_n counts RUNS, not samples: the newest run only."""
+    history = perf_ratio_history(_perf_trend_blocks(), last_n=1)
+    assert history[0][1] == [1.3]
+    assert history[1][1] == [0.9]
+
+
+def test_sparkline_text_shapes() -> None:
+    assert sparkline_text([]) == ""
+    # a single run has no trend to draw — placeholder, never empty
+    assert sparkline_text([1.3]) == "\u00b7"
+    # flat series: a mid line, not a blank cell
+    assert sparkline_text([0.5, 0.5, 0.5]) == "\u2585\u2585\u2585"
+    # rising series: low glyph first, high glyph last
+    rising = sparkline_text([0.1, 0.5, 1.0])
+    assert rising[0] == "\u2581" and rising[-1] == "\u2588"
+    assert len(rising) == 3
+
+
+def test_sparkline_text_decimates_the_tail() -> None:
+    series = [0.1, 0.2, 0.3, 0.9]
+    assert len(sparkline_text(series, width=2)) == 2
+    # the tail is what a regression detector cares about
+    assert sparkline_text(series, width=2)[-1] == "\u2588"
+
+
+def test_perf_sparkline_rows_carries_latest_ratio() -> None:
+    rows = perf_sparkline_rows(_perf_trend_blocks())
+    assert rows[0][0] == "graph_eigenvector"
+    assert rows[0][2] == 1.3
+    assert rows[0][1] != ""  # glyph series always present
+
+
+_GATE_TREND_FIXTURE = (
+    "# make qa \u2014 gate report\n"
+    "\n"
+    "**Generated:** 2026-10-18 10:00:00  \u00b7  **Elapsed:** 60.0s  \u00b7  **Python:** 3.14.4\n"
+    "\n"
+    "| Step | Time (s) | Status |\n"
+    "|---|---|---|\n"
+    "| lint | 0.06 | \u2713 OK |\n"
+    "| **10/10 passed** | | |\n"
+    "\n"
+    "# make qa \u2014 gate report\n"
+    "\n"
+    "**Generated:** 2026-10-19 10:00:00  \u00b7  **Elapsed:** 61.0s  \u00b7  **Python:** 3.14.4\n"
+    "\n"
+    "| Step | Time (s) | Status |\n"
+    "|---|---|---|\n"
+    "| lint | 0.06 | \u2713 OK |\n"
+    "| pytest | 9.00 | \u2717 FAIL |\n"
+    "| **8/9 passed** | | |\n"
+)
+
+
+def _gate_trend_blocks() -> list:
+    import tempfile
+
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False, encoding="utf-8") as f:
+        f.write(_GATE_TREND_FIXTURE)
+        path = Path(f.name)
+    try:
+        return parse_gate_report(path)
+    finally:
+        path.unlink()
+
+
+def test_gate_pass_rates_read_the_summary_line() -> None:
+    """The run's own score line wins over a step recount."""
+    rates = gate_pass_rates(_gate_trend_blocks())
+    assert rates[0] == 1.0
+    assert rates[1] is not None  # the fixture's score line makes every run measurable
+    assert round(rates[1], 4) == round(8 / 9, 4)
+
+
+def test_gate_pass_rates_fall_back_to_ok_steps() -> None:
+    """A block with no score line (crashed writer) counts OK statuses."""
+    block = RunBlock(
+        "qa",
+        "2026-10-19 11:00:00",
+        None,
+        (RunStep("lint", 0.1, "\u2713 OK"), RunStep("types", 0.2, "\u2717 FAIL")),
+        "no score line here",
+    )
+    assert gate_pass_rates([block]) == [0.5]
+
+
+def test_gate_pass_rates_empty_block_is_none_not_zero() -> None:
+    """An unmeasurable run is missing, never a 0% — a 0 would read as a real
+    regression in the sparkline."""
+    assert gate_pass_rates([RunBlock("qa", "", None, (), "", None)]) == [None]
+
+
+def test_gate_run_rows_carry_pass_rate_trend(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """S2: each gate run row shows its pass fraction plus the glyph series
+    up to that run (single-run history renders the placeholder)."""
+    pytest.importorskip("textual")
+    import asyncio
+
+    import helpers.misc.search_tui as tui
+    import helpers.misc.search_tui_app as appmod
+    from textual.widgets import Tree
+
+    out = tmp_path / "outputs"
+    out.mkdir()
+    (out / "qa_report.md").write_text(_GATE_TREND_FIXTURE, encoding="utf-8")
+    monkeypatch.setattr(tui, "REPO_ROOT", tmp_path)
+    monkeypatch.setattr(appmod, "REPO_ROOT", tmp_path)
+
+    app = appmod.SearchApp("", "reports", 10)
+
+    async def drive() -> list[str]:
+        async with app.run_test(size=(120, 40)) as pilot:
+            await pilot.pause(0.2)
+            app.push_screen(appmod.ReportScreen(rel="outputs/qa_report.md"))
+            await pilot.pause(0.4)
+            mon = app.screen
+            assert isinstance(mon, appmod.ReportScreen)
+            tree = mon.query_one("#rep-tree", Tree)
+            return [str(c.label) for c in tree.root.children]
+
+    labels = asyncio.run(drive())
+    assert len(labels) == 2, labels
+    # rows list most-recent-first: newest = 89% + two samples; oldest = 100%
+    # with one sample, which renders the placeholder rather than nothing
+    assert "89%" in labels[0], labels[0]
+    assert any(g in labels[0] for g in "\u2581\u2582\u2583\u2584\u2585\u2586\u2587\u2588"), labels[
+        0
+    ]
+    assert "100%" in labels[1] and "\u00b7" in labels[1], labels[1]
+
+
+def test_perf_sparkline_renders_from_retained_artifacts_only(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The strip is built from the append-only report file — zero live calls.
+
+    Asserts the widget path (Sparkline per benchmark) AND that the row
+    caption carries the glyph fallback, so a widget-less install still shows
+    the trend.
+    """
+    pytest.importorskip("textual")
+    import asyncio
+
+    import helpers.misc.search_tui as tui
+    import helpers.misc.search_tui_app as appmod
+    from textual.widgets import Sparkline
+
+    out = tmp_path / "outputs"
+    out.mkdir()
+    (out / "perf_report.md").write_text(_PERF_TREND_FIXTURE, encoding="utf-8")
+    monkeypatch.setattr(tui, "REPO_ROOT", tmp_path)
+    monkeypatch.setattr(appmod, "REPO_ROOT", tmp_path)
+
+    app = appmod.SearchApp("", "reports", 10)
+
+    async def drive() -> tuple[bool, list[str], list[str]]:
+        async with app.run_test(size=(120, 40)) as pilot:
+            await pilot.pause(0.2)
+            app.push_screen(appmod.ReportScreen(rel="outputs/perf_report.md"))
+            await pilot.pause(0.4)
+            mon = app.screen
+            assert isinstance(mon, appmod.ReportScreen)
+            strip = mon.query_one("#rep-spark", appmod.Vertical)
+            shown = strip.display
+            sparks = [str(s.data) for s in mon.query(Sparkline)]
+            caps = [str(s.content) for s in mon.query(".spark-cap")]
+            return shown, sparks, caps
+
+    shown, sparks, caps = asyncio.run(drive())
+    assert shown, "perf report in scope must reveal the trend strip"
+    assert len(sparks) == 2, sparks  # one Sparkline per budgeted benchmark
+    assert "graph_eigenvector" in caps[0] and "1.30\u00d7" in caps[0]
+    # glyph fallback rides the caption (widget-less installs still see it)
+    assert any(g in caps[0] for g in "\u2581\u2582\u2583\u2584\u2585\u2586\u2587\u2588\u00b7")
+
+
+def test_perf_trend_strip_hidden_without_perf(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A non-perf screen must not leave an empty strip occupying the modal."""
+    pytest.importorskip("textual")
+    import asyncio
+
+    import helpers.misc.search_tui as tui
+    import helpers.misc.search_tui_app as appmod
+
+    out = tmp_path / "outputs"
+    out.mkdir()
+    (out / "qa_report.md").write_text(_GATE_TIMED_FIXTURE, encoding="utf-8")
+    monkeypatch.setattr(tui, "REPO_ROOT", tmp_path)
+    monkeypatch.setattr(appmod, "REPO_ROOT", tmp_path)
+
+    app = appmod.SearchApp("", "reports", 10)
+
+    async def drive() -> bool:
+        async with app.run_test(size=(120, 40)) as pilot:
+            await pilot.pause(0.2)
+            app.push_screen(appmod.ReportScreen(rel="outputs/qa_report.md"))
+            await pilot.pause(0.4)
+            mon = app.screen
+            assert isinstance(mon, appmod.ReportScreen)
+            return mon.query_one("#rep-spark", appmod.Vertical).display
+
+    assert asyncio.run(drive()) is False
 
 
 def test_parse_integrity_report() -> None:

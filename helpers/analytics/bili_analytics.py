@@ -12,6 +12,7 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import bisect
 import json
 import re
 import sys
@@ -39,10 +40,28 @@ class NudgeSample:
     pending_thr: int
     model: str
     reason: str
+    # Resolved context window carried by every nudge line's usage denominator
+    # (it can be fractional: 83558.25), so a fold can be joined to the window
+    # it ran under via the nearest preceding nudge. None when unknown.
+    window: float | None = None
     fired_t1: bool = False
     fired_t2: bool = False
     fired_t3: bool = False
     fired_esc: bool = False
+    # The tiers that QUALIFY at this evaluation, with the compressible mass
+    # each one is carrying: `{"T1": 113124, "T2": 25803}`. Sourced from the
+    # nudge's own `ready:` hint, which the plugin builds as
+    #   eligible.filter(t => pending >= tierThresholds[t]).map(t => `T${t} ${pending}`)
+    # so a tier is present ONLY while it is over its bar. T1's mass is also
+    # always available as `pending_t1`; T2/T3 have no other source.
+    tier_pending: dict[str, int] = field(default_factory=dict)
+    # Which tier the cadence gate held back, e.g. "blocked: T2 (cadence)".
+    blocked_tier: str = ""
+    # True when this line is the plugin's IDLE branch (its reason always opens
+    # with "max compressible"). Only that branch carries the `ready:` hint, and
+    # the hint lists EVERY eligible tier that is over its bar — so on an idle
+    # line, a tier ABSENT from the hint is provably under its bar.
+    tier_idle: bool = False
 
 
 @dataclass
@@ -54,6 +73,17 @@ class FoldEvent:
     blocks: int | None = None
     anchor_tok: int | None = None
     post_ctx_tok: int | None = None
+    # What triggered it, from the nearest INJECT nudge at or before the fold's
+    # ts: "T1"/"T2"/"T3" (tier ladder), "esc" (usage-pressure escalation), or
+    # "agent" (the model folded with nothing asking). Every fold surfaces in
+    # the log as `tool compress executed via plugin` — the tool is the actuator
+    # in every path — so "agent" cannot be read off the fold line alone; set
+    # by `attribute_fold_triggers`.
+    trigger: str = "?"
+    # Resolved context window at fold time, from the nearest preceding nudge
+    # of the same session (`window=` in its usage denominator). Few folds are
+    # formed under a mid-session change, so the join key is nearest-in-time.
+    window: float | None = None
 
 
 @dataclass
@@ -162,6 +192,85 @@ class Analysis:
                 return n.interval
         return None
 
+    # --- tier ladder ----------------------------------------------------
+    #
+    # The three numbers the compress ladder is tuned against:
+    #   * FIRES    — how many times the tier actually injected a nudge
+    #   * PENDING  — the compressible mass it is carrying (the thing the bar
+    #                is compared against)
+    #   * BAR      — the threshold the tier was measured against
+    #
+    # T1 is fully observable in the log. T2/T3 are observable only while they
+    # are OVER their bar (the plugin lists a tier in `ready:` only when it
+    # qualifies), so "T2 never appears" is itself a finding: it never cleared
+    # the bar. See `tier_bars` for how the missing bars are derived.
+
+    def tier_fires(self) -> dict[str, int]:
+        out = {"T1": 0, "T2": 0, "T3": 0}
+        for n in self.nudges:
+            if n.fired_t1:
+                out["T1"] += 1
+            elif n.fired_t2:
+                out["T2"] += 1
+            elif n.fired_t3:
+                out["T3"] += 1
+        return out
+
+    def tier_pending(self) -> dict[str, int]:
+        """The LAST observed compressible mass per tier.
+
+        T1 comes from `pendingT1=`, present on every nudge line. T2/T3 come
+        from the `ready:` hint, which lists a tier only while it is over its
+        bar — so a tier absent from the result never cleared its bar.
+
+        A tier that WAS over its bar and then dropped back under it must not
+        keep reporting the old number. The plugin's idle branch always opens
+        its reason with "max compressible" and its `ready:` hint is a COMPLETE
+        list of the over-bar tiers, so on such a line any tier the hint does
+        NOT mention is provably back under its bar and is reset to 0. Lines
+        that fired a tier carry a different reason and cannot be used to
+        complete the list, so they never reset anything.
+        """
+        out: dict[str, int] = {}
+        for n in self.nudges:
+            out["T1"] = n.pending_t1
+            for k, v in n.tier_pending.items():
+                if k != "T1":
+                    out[k] = v
+            if n.tier_idle:
+                for k in ("T2", "T3"):
+                    out.setdefault(k, 0)
+                    if k not in n.tier_pending:
+                        out[k] = 0
+        return out
+
+    def tier_bars(self) -> dict[str, int]:
+        """The bar each tier was measured against, as observed.
+
+        T1's bar is in the log (`pendingT1=N/thr`). T2/T3's are not, so they
+        are derived the way the plugin derives them:
+            tier2Threshold = round(nudgeGrowthTokens * tier2GrowthMultiplier)
+        with `nudgeGrowthTokens` being the RESOLVED value — which is exactly
+        the T1 bar the log reports. An explicit `tierNudgeTokens.t2` overrides
+        it; that comes from the config, not the log.
+        """
+        out: dict[str, int] = {}
+        if self.nudges:
+            out["T1"] = self.nudges[-1].pending_thr
+        t1 = out.get("T1")
+        if t1:
+            out.setdefault("T2", round(t1 * 1.5))
+            out.setdefault("T3", round(t1 * 1.5))
+        return out
+
+    def tier_blocked_counts(self) -> dict[str, int]:
+        """How often the cadence gate held a tier back."""
+        c: Counter = Counter()
+        for n in self.nudges:
+            if n.blocked_tier:
+                c[n.blocked_tier] += 1
+        return dict(c)
+
     def nudge_reason_counts(self) -> Counter:
         c: Counter = Counter()
         for n in self.nudges:
@@ -262,6 +371,10 @@ RE_PREFIX = re.compile(
     r"(?P<body>.*)$"
 )
 
+# The plugin's per-connection TCP lifecycle tag. Present on ~98% of the
+# log's lines; see the skip in `parse_log`.
+_CONN_TAG = "[conn#"
+
 # The kind token is TWO words — "INJECT T1" or "INJECT-ESC T?" — so it must not
 # be matched with a non-space class: `INJECT[^\s:]*` stops at the space and the
 # whole pattern silently fails to match. "T?" is a real observed value; the
@@ -301,6 +414,32 @@ RE_WINDOW_BODY = re.compile(
 
 RE_DEGENERATE_BODY = re.compile(r"\[warn: degenerate-fold\]")
 RE_REASONING_VIOLATION_BODY = re.compile(r"reasoning-pair-violated:")
+
+# The `ready:` hint inside the nudge's reason string, and the cadence gate's
+# `blocked: TX (cadence)` marker. Both are the only place the log exposes the
+# per-tier pending mass, and the per-tier block that the cadence gate is
+# holding back — which tier is stuck is the question when a tier "never fires".
+RE_TIER_READY = re.compile(r"ready:\s*((?:T[123]\s+[\d,]+[,\s]*)+)")
+RE_TIER_PENDING_PAIR = re.compile(r"T([123])\s+([\d,]+)")
+RE_TIER_BLOCKED = re.compile(r"blocked:\s*T([123?])\b")
+
+
+def tier_ready(reason: str) -> dict[str, int]:
+    """The qualifying tiers and their compressible mass, from `ready:`.
+
+    Empty when the tier list is empty — an evaluation where nothing qualified
+    carries no `ready:` clause at all.
+    """
+    m = RE_TIER_READY.search(reason)
+    if not m:
+        return {}
+    return {f"T{t}": int(v.replace(",", "")) for t, v in RE_TIER_PENDING_PAIR.findall(m.group(1))}
+
+
+def tier_blocked(reason: str) -> str:
+    """The tier the cadence gate held back ("1", "2", "3" or "?"), else ""."""
+    m = RE_TIER_BLOCKED.search(reason)
+    return m.group(1) if m else ""
 
 
 def log_rotation_family(path: Path) -> list[Path]:
@@ -356,6 +495,7 @@ def parse_logs(paths, session_filter: str | None = None) -> Analysis:
     for series in (merged.nudges, merged.folds, merged.usages, merged.window_changes):
         series.sort(key=lambda s: s.ts)
     merged.warnings.sort(key=lambda w: getattr(w, "ts", "") or "")
+    attribute_fold_triggers(merged)
     return merged
 
 
@@ -367,6 +507,15 @@ def parse_log(  # noqa: C901
 
     with _open_log(path) as fh:
         for raw in fh:
+            # The plugin logs three TCP-lifecycle lines per connection
+            # (`post-response close` / `linger complete` / `closed`), and 89%
+            # of its connections serve a single request, so they are ~98% of
+            # the log by volume. They carry no nudge/fold/usage/window
+            # information — but `RE_PREFIX` DOES match them (with `sess2`
+            # capturing the `conn#NNNN` tag), which would run every body
+            # regex over each one. Skip them on the raw line.
+            if _CONN_TAG in raw:
+                continue
             pm = RE_PREFIX.match(raw)
             if not pm:
                 continue
@@ -392,10 +541,14 @@ def parse_log(  # noqa: C901
                         pending_thr=int(g["pending_thr"]),
                         model=g["model"],
                         reason=g["reason"],
+                        window=float(g["window"]),
                         fired_t1=(g["tier"] == "1"),
                         fired_t2=(g["tier"] == "2"),
                         fired_t3=(g["tier"] == "3"),
                         fired_esc=(g["tier"] == "?"),
+                        tier_pending=tier_ready(g["reason"]),
+                        blocked_tier=tier_blocked(g["reason"]),
+                        tier_idle=("max compressible" in g["reason"]),
                     )
                 )
                 a.intervals_seen[g["interval"]] += 1
@@ -498,6 +651,92 @@ def parse_log(  # noqa: C901
     return a
 
 
+#: How long after an INJECT nudge its fold can still be attributed to it.
+#: Measured pairs: INJECT-ESC → fold in 27s (08:18:33 → 08:19:00) and
+#: INJECT T2 → fold in 99s (08:47:21 → 08:49:00) on ses_ec7af063. Ten minutes
+#: is generous headroom without reaching into an unrelated era's injections;
+#: past it the model folded with nothing asking, which is the `agent` trigger.
+FOLD_TRIGGER_WINDOW_S = 600.0
+
+
+def _nudge_trigger(n: NudgeSample) -> str | None:
+    """The INJECT kind's trigger label, or None for an idle nudge."""
+    if n.fired_t1:
+        return "T1"
+    if n.fired_t2:
+        return "T2"
+    if n.fired_t3:
+        return "T3"
+    if n.fired_esc:
+        return "esc"
+    return None
+
+
+def attribute_fold_triggers(a: Analysis) -> None:
+    """Set every fold's `trigger` (and `window`) from its session's nudges.
+
+    The nudge line's kind token (`idle` / `INJECT T1` / `INJECT T2` /
+    `INJECT T3` / `INJECT-ESC T?`) is the only trigger flag the log carries,
+    so attribution is a per-session join, not a new parse: for each fold, take
+    the injection nudges (any fired_* flag) of the SAME session at or before
+    its ts, keep the newest, and accept it when it sits within
+    `FOLD_TRIGGER_WINDOW_S`; idle stretches in between are skipped — the model
+    may answer an injection several nudge evaluations late. With either no
+    preceding injection or only a stale one, the fold was the agent's own
+    idea (`agent`). Fold `window` is the same session's nearest preceding
+    nudge window. Sessions are grouped, never mixed: interleaved sessions in
+    one rotation family must not lend each other triggers. Idempotent:
+    recomputed from scratch on every call.
+    """
+    nudges_by_sid: dict[str, list[NudgeSample]] = {}
+    for n in sorted(a.nudges, key=lambda x: x.ts):
+        nudges_by_sid.setdefault(n.session, []).append(n)
+    for f in a.folds:
+        f.trigger = "agent"
+        f.window = None
+        nudges = nudges_by_sid.get(f.session)
+        if not nudges:
+            continue
+        n_ts = [n.ts for n in nudges]
+        i = bisect.bisect_right(n_ts, f.ts)
+        if i:
+            f.window = nudges[i - 1].window
+            inj = [n for n in nudges[:i] if _nudge_trigger(n)]
+            if inj:
+                n = inj[-1]
+                if (_parse_ts(f.ts) - _parse_ts(n.ts)).total_seconds() <= FOLD_TRIGGER_WINDOW_S:
+                    trig = _nudge_trigger(n)
+                    if trig is not None:
+                        f.trigger = trig
+
+
+#: Trigger labels that map to the interval ladder (every other label — `esc`,
+#: `agent` — is a different pressure and must not be counted as a ladder fold).
+LADDER_TRIGGERS = ("T1", "T2", "T3")
+
+#: Window buckets for the [FOLDS] cross-tab. Small-window sessions are
+#: carried by the relative esc path while large ones ride the absolute
+#: ladder; the split was measured on the 2026-10-18 tuning arc.
+WINDOW_BUCKETS = ("<100k", "100-300k", "300-600k", ">=600k", "unknown")
+
+
+def _window_bucket(w: float | None) -> str:
+    if w is None:
+        return "unknown"
+    if w < 100_000:
+        return "<100k"
+    if w < 300_000:
+        return "100-300k"
+    if w < 600_000:
+        return "300-600k"
+    return ">=600k"
+
+
+def fold_trigger_counts(folds: list[FoldEvent]) -> Counter:
+    """Trigger histogram over folds: {"T1": n, "T2": n, "esc": n, "agent": n}."""
+    return Counter(f.trigger for f in folds)
+
+
 # ---------------------------------------------------------------------------
 # Cache report parsing
 # ---------------------------------------------------------------------------
@@ -584,6 +823,91 @@ def fmt_pct(v: float | None) -> str:
     return f"{v:.2f}%" if v is not None else "n/a"
 
 
+def _viol_gap_minutes(a) -> float | None:
+    """Minutes from the LAST reasoning-pair violation to the last log line.
+
+    None when there is no evidence either way (no violation, or no log line
+    after the last one) — so callers can say "unknown" instead of guessing.
+    """
+    viols = [w.ts for w in a.warnings if w.kind == "reasoning-pair-violated"]
+    if not viols:
+        return None
+    stamps = [s.ts for s in (*a.nudges, *a.usages) if s.ts > max(viols)]
+    if not stamps:
+        return None
+    try:
+        end = datetime.strptime(max(stamps), "%Y-%m-%dT%H:%M:%S.%fZ")
+        last = datetime.strptime(max(viols), "%Y-%m-%dT%H:%M:%S.%fZ")
+    except ValueError:
+        return None
+    return (end - last).total_seconds() / 60
+
+
+# The raw log stamps look like `2026-10-19T13:15:10. 380Z` — Go puts a space
+# after the dot — so the sub-second part is unreadable by strptime. One second
+# of resolution is plenty for a liveness check.
+_RAW_TS = re.compile(r"^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2})")
+
+
+def log_last_timestamp(a) -> datetime | None:
+    """The newest timestamp anywhere in the log family — the proxy's own clock.
+
+    Reads only the TAIL of the newest file: the family can be 10 MB and this
+    runs per report.
+    """
+    paths = log_rotation_family(Path(a.log_path))
+    if not paths:
+        return None
+    try:
+        with paths[-1].open("rb") as fh:
+            fh.seek(0, 2)
+            size = fh.tell()
+            fh.seek(max(0, size - 65536))
+            tail = fh.read().decode("utf-8", "replace")
+    except OSError:
+        return None
+    for line in reversed(tail.splitlines()):
+        m = _RAW_TS.match(line)
+        if m:
+            try:
+                return datetime.strptime(m.group(1), "%Y-%m-%dT%H:%M:%S")
+            except ValueError:
+                continue
+    return None
+
+
+def session_last_timestamp(a) -> datetime | None:
+    """The session's own last log line."""
+    parsed = []
+    for s in (*a.nudges, *a.usages, *a.warnings):
+        try:
+            parsed.append(datetime.strptime(s.ts, "%Y-%m-%dT%H:%M:%S.%fZ"))
+        except ValueError, TypeError:
+            continue
+    return max(parsed) if parsed else None
+
+
+def session_is_live(a, *, window_minutes: float = 3.0) -> bool:
+    """Is this session still the newest thing in the log?
+
+    A violation at the very end of a LIVE session is indistinguishable from a
+    terminal one by the gap alone: the session's own last line IS the
+    violation, so "time from the last violation to the session's end" is a
+    couple of minutes and the verdict reads "terminal".
+
+    Measured 2026-10-19: `bili_sessions --detail ses_ec7af063cffew2a8xvEcV142n6`
+    printed "Terminal: this session did not survive its violation" for a
+    session that was still running and answering. The gap measures how far the
+    session got, not whether it DIED; only the log's own clock can tell the
+    two apart, because the proxy keeps logging other sessions either way.
+    """
+    last_sess = session_last_timestamp(a)
+    last_log = log_last_timestamp(a)
+    if last_sess is None or last_log is None:
+        return False
+    return (last_log - last_sess).total_seconds() <= window_minutes * 60
+
+
 def print_report(a: Analysis, report: dict | None) -> None:  # noqa: C901
     sep = "=" * 78
 
@@ -648,12 +972,37 @@ def print_report(a: Analysis, report: dict | None) -> None:  # noqa: C901
     rc = a.nudge_reason_counts()
     for k, v in rc.most_common():
         print(f"    {k:<34}: {v}")
-    fired = sum(1 for n in a.nudges if n.fired_t1)
-    print(f"  T1 nudge fired        : {fired}")
+    fired_t1 = sum(1 for n in a.nudges if n.fired_t1)
+    fired_esc = sum(1 for n in a.nudges if n.fired_esc)
+    print(f"  T1 nudge fired        : {fired_t1}")
+    if fired_esc:
+        print(f"  ESC nudge fired       : {fired_esc}  (tier unknown — escalation path)")
 
     # --- folds -----------------------------------------------------------
     print("\n[FOLDS]")
     print(f"  total folds           : {len(a.folds)}")
+    attribute_fold_triggers(a)
+    trig = fold_trigger_counts(a.folds)
+    if trig:
+        ladder = trig.get("T1", 0) + trig.get("T2", 0) + trig.get("T3", 0)
+        print(
+            f"  ladder-driven (T1/T2/T3): {ladder}"
+            f"  (T1 {trig.get('T1', 0)} / T2 {trig.get('T2', 0)} / T3 {trig.get('T3', 0)})"
+        )
+        if trig.get("esc"):
+            print(f"  esc-driven (usage pressure): {trig['esc']}")
+        print(f"  agent-initiated       : {trig.get('agent', 0)}")
+        # Window × trigger cross-tab: small-window sessions are carried by the
+        # relative esc path while large ones ride the absolute ladder; make
+        # the regime split visible here (measured on the 2026-10-18 arc).
+        grid: Counter = Counter()
+        for f in a.folds:
+            grp = "ladder" if f.trigger in LADDER_TRIGGERS else f.trigger
+            grid[(_window_bucket(f.window), grp)] += 1
+        print("  folds by window bucket:")
+        print("           " + "".join(f"{b:>10s}" for b in WINDOW_BUCKETS))
+        for grp in ("ladder", "esc", "agent"):
+            print(f"  {grp:8s} " + "".join(f"{grid[(b, grp)]:>10d}" for b in WINDOW_BUCKETS))
     growth = a.total_growth_tokens()
     if growth:
         print(f"  net token growth      : {growth:,}")
@@ -796,26 +1145,33 @@ def print_report(a: Analysis, report: dict | None) -> None:  # noqa: C901
             )
         eps = a.epochs()
         if len(eps) > 1:
-            # folds that happened under the lowest interval era
+            # Density warnings are about the interval ladder, so only
+            # ladder-driven folds measure it: an `esc` fold is usage-pressure
+            # and an `agent` fold is unprompted — neither is a symptom of a
+            # too-low nudgeGrowthTokens.
+            def _ladder_folds(ep: Epoch) -> int:
+                return sum(1 for f in ep.folds if f.trigger in LADDER_TRIGGERS)
+
             low_interval_epochs = [ep for ep in eps if ep.interval < 150_000]
-            low_folds = sum(len(ep.folds) for ep in low_interval_epochs)
+            low_folds = sum(_ladder_folds(ep) for ep in low_interval_epochs)
             if low_folds:
                 print(
-                    f"  WARNING: {low_folds} fold(s) still happened under "
-                    f"interval <150K — config did not fully take effect"
+                    f"  WARNING: {low_folds} ladder-driven fold(s) still happened "
+                    f"under interval <150K (esc/agent folds excluded) — "
+                    f"config did not fully take effect"
                 )
             # final epoch density
             last_ep = eps[-1]
             if last_ep.nudges and len(last_ep.nudges) >= 2:
                 growth = max(0, last_ep.nudges[-1].ref - last_ep.nudges[0].ref)
-                fpk = (len(last_ep.folds) * 100_000 / growth) if growth else 0.0
+                fpk = (_ladder_folds(last_ep) * 100_000 / growth) if growth else 0.0
                 if fpk > 3:
                     print(
-                        f"  WARNING: final epoch fold density {fpk:.2f}/100K "
+                        f"  WARNING: final epoch ladder-fold density {fpk:.2f}/100K "
                         f"> 3 — tuning not yet effective"
                     )
                 else:
-                    print(f"  OK: final epoch fold density {fpk:.2f}/100K ≤ 3")
+                    print(f"  OK: final epoch ladder-fold density {fpk:.2f}/100K ≤ 3")
 
     # --- efficiency -------------------------------------------------------
     print("\n[EFFICIENCY]")
@@ -954,11 +1310,15 @@ def print_report(a: Analysis, report: dict | None) -> None:  # noqa: C901
         verdicts.append(f"• post-fold cache hits min {min(pf):.0f}% — mild dip")
 
     if a.reasoning_pair_violations:
+        # The headline stays a count. The measured gap and the Terminal /
+        # RECOVERED verdict live in `bili_sessions.py --detail <session>`,
+        # which is where the per-session evidence belongs — printing them here
+        # duplicated the number and, worse, asserted "terminal" for a session
+        # that was still running (see `session_is_live`).
         verdicts.append(
             f"⚠ {a.reasoning_pair_violations} reasoning-pair violations — "
             f"strict-echo upstreams REJECT; DeepSeek/zAI recover, others kill the "
-            f"session (measured: every violating session ended within ~30 min of "
-            f"its last one)"
+            f"session (measured outcome: bili_sessions.py --detail <session>)"
         )
 
     if not verdicts:

@@ -66,9 +66,15 @@ RE_HDR = re.compile(
 # gate-predicted `fires` inferred from nudge evaluations. Two shapes:
 #   nudge INJECT T1:      ... reason="T1 effective P >= PT, ..."        (gate path)
 #   nudge INJECT T1:      ... reason="OVER-LIMIT T1: max effective pending P, usage U%"  (usage path)
+#   nudge INJECT T2/T3:   ... reason="OVER-LIMIT T2 distill: max pending P (T1 effective .., T2 ..)"  (tier path)
 #   nudge INJECT-ESC T?:  ... reason="max compressible P < threshold PT..." (tier unknown)
+# T2/T3 are the TIER ladder: T2 re-distills the T1 summary blocks, T3 condenses
+# the T2 ones. T2 has fired exactly once in the whole retained log family
+# (2026-10-18T04:40:23, OVER-LIMIT path) -- and this regex only knew T1, so
+# that one line was silently dropped, invisible to every watcher built here.
+# Whatever the tier config ends up being, the watcher must be able to see it.
 RE_T1 = re.compile(
-    r"nudge INJECT(?P<tier> T1|-ESC T\?): usage=(?P<usage>\d+)% \((?P<input>\d+)/(?P<win>\d+)\), "
+    r"nudge INJECT\s?(?P<tier>T[123]|-ESC T\?): usage=(?P<usage>\d+)% \((?P<input>\d+)/(?P<win>\d+)\), "
     r"growth=(?P<g>-?\d+)/(?P<f>\d+) \(ref=(?P<ref>\d+), interval=(?P<iv>\d+)\), "
     r"pendingT1=(?P<p>\d+)/(?P<pt>\d+) model=(?P<model>[^,]+), reason=\"(?P<reason>[^\"]*)\""
 )
@@ -105,7 +111,10 @@ def scan() -> dict:  # noqa: C901 - one linear pass over the log family
                     if t:
                         d = t.groupdict()
                         d["ts"] = ts
-                        d["kind"] = "ESC" if "ESC" in d["tier"] else "T1"
+                        # kind is the TIER: "T1"/"T2"/"T3" or "ESC" (tier
+                        # unknown, emergency path). `tier` keeps the raw token.
+                        d["tier"] = d["tier"].strip()
+                        d["kind"] = "ESC" if "-ESC" in d["tier"] else d["tier"]
                         d["over_limit"] = "OVER-LIMIT" in d["reason"]
                         for k in ("usage", "input", "win", "g", "f", "ref", "iv", "p", "pt"):
                             d[k] = int(d[k])
@@ -193,13 +202,22 @@ def scan() -> dict:  # noqa: C901 - one linear pass over the log family
                 if f["real_pre"] and f["real_post"]
                 else None
             )
+        inj = injections.get(sid, [])
+        # Real injections broken down by tier. T2/T3 are the tier ladder
+        # (re-distill T1 summaries / condense T2 summaries); a T2/T3 count of
+        # zero in a session with many active blocks is the signal that the tier
+        # gate is not armed.
+        tier_fires: dict = defaultdict(int)
+        for e in inj:
+            tier_fires[e["kind"]] += 1
         out[sid] = {
             "run_ts": datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
             "log": LOG,
             "rate": RATE,
             "eras": eras,
             "folds": fl,
-            "t1_fires": injections.get(sid, []),
+            "t1_fires": inj,
+            "tier_fires": dict(tier_fires),
             "usage_n": len(u),
             "burn_total": round(sum(b for _, b in burn)),
             "burn_mean": round(sum(b for _, b in burn) / len(burn)) if burn else 0,
@@ -253,6 +271,9 @@ def cmd_report(argv: list[str]) -> int:
             f"total={row['burn_total']:>12,}  mean/req={row['burn_mean']:>9,}  "
             f"mean last10={row['burn_last10']:>9,}  (n={row['usage_n']})"
         )
+        tf = row.get("tier_fires") or {}
+        tier_txt = "  ".join(f"{k}={tf[k]}" for k in ("T1", "T2", "T3", "ESC") if k in tf)
+        print(f"    REAL INJECTIONS (tier ladder): {tier_txt or 'none'}")
         for e in row["eras"]:
             print(
                 f"    era interval={e['interval']:<7} thr={e['pending_thr']:<7} "

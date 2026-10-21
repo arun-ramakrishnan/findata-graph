@@ -220,6 +220,9 @@ Identified during evaluation; can be added after S1–S2:
    tail inline (saves the jump-to-file round trip for short tails).
 5. **Perf trend sparkline** — per-benchmark `time/budget` ratio across runs
    rendered as a sparkline column turns the lane into a regression detector.
+   **SHIPPED 2026-10-19** (`tui_perf_sparkline`, `completed.md` #422): the
+   report screen's `#rep-spark` strip + per-row ratio caption; gate rows
+   additionally carry a pass-rate series.
 6. **Empty-query semantics per lane** — today empty query → "empty query".
    Make empty query show lane-appropriate recents (reports: overview;
    code: recent symbols from evlog; docs: index stats).
@@ -285,6 +288,10 @@ Identified during evaluation; can be added after S1–S2:
 
 - Persistent theme CSS variables — CSS swapped wholesale per theme; per-token CSS customisation needs a CSS template engine.
 - Historical trend chart — gate/perf reports are append-only; per-gate pass-rate or timing time-series is a future chart widget (needs `textual` chart or ASCII sparkline).
+  **DONE 2026-10-19** (`tui_perf_sparkline`): perf `time/budget` and gate
+  pass-rate series now render on the report screen as a `Sparkline` strip
+  plus a block-glyph caption, sourced from the retained append-only
+  reports. See `doc/design/tui_design.md` §3.
 - Embedding-based note severity scoring — notes flagged by integrity checks could get a severity badge in the docs lane; gated on the severity-lane abstraction (S2).
 
 ## 6. Execution Results

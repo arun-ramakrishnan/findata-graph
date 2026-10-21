@@ -36,6 +36,7 @@ from textual.binding import ActiveBinding, Binding
 from textual.containers import Horizontal, Vertical
 from textual.coordinate import Coordinate
 from textual.screen import ModalScreen
+from textual.widget import Widget
 from textual.widgets import (
     DataTable,
     Footer,
@@ -70,6 +71,8 @@ from helpers.misc.search_tui import (
     db_preview_sql,
     db_run,
     db_schema,
+    gate_pass_rates,
+    sparkline_text,
     load_db_history,
     index_ages,
     index_check_argv,
@@ -409,6 +412,8 @@ class ThemeScreen(ModalScreen[None]):
 
 
 _REP_RUNS_PER_REPORT = 5  # comprehensive view bounds the table
+_SPARK_RUNS = 10  # runs per benchmark in the perf trend series
+_SPARK_ROWS = 6  # benchmark rows the strip can show without crowding
 
 _SEV_STYLE = {
     "ERROR": "bold red",
@@ -459,6 +464,9 @@ class ReportScreen(ModalScreen[None]):
             with Horizontal(id="rep-body"):
                 yield Tree("reports", id="rep-tree")
                 yield RichLog(id="rep-detail", markup=True, wrap=True, max_lines=4000, min_width=1)
+            # Perf trend strip (arc 7): one Sparkline row per benchmark,
+            # mounted only when a perf report is in scope.
+            yield Vertical(id="rep-spark")
             yield Static(
                 "enter expands/drills · r reruns report · i indexes · esc close", id="rep-keys"
             )
@@ -496,8 +504,49 @@ class ReportScreen(ModalScreen[None]):
                 self._fill_checks(disp, rel, p)
             else:
                 self._fill_issues(disp, rel, p)
+        self._fill_sparkline(files)
         self._render_tree()
         self._detail(f"{len(self._rows)} rows · enter expands/drills · r reruns")
+
+    def _fill_sparkline(self, files: list[tuple[str, str, str]]) -> None:
+        """Perf trend column (arc 7): ``time/budget`` across runs, worst first.
+
+        Data comes from the SAME parsed RunBlocks the tree reads — the
+        append-only perf reports are retained artifacts, so this makes zero
+        live-gate calls (the proposal's acceptance). The glyph caption rides
+        the row in every case; the ``Sparkline`` widget renders on top of it
+        where the widget imports, and its absence degrades to the caption
+        alone rather than an empty strip.
+        """
+        from helpers.misc import search_tui as _tui
+
+        strip = self.query_one("#rep-spark", Vertical)
+        blocks = []
+        for _name, rel, kind in files:
+            if kind == "perf":
+                blocks.extend(parse_perf_report(REPO_ROOT / rel))
+        history = _tui.perf_ratio_history(blocks, last_n=_SPARK_RUNS)
+        if not history:
+            strip.display = False
+            return
+        strip.display = True
+        strip.border_title = "perf trend — time/budget per run (worst first)"
+        children: list[Widget] = []
+        for label, ratios in history[:_SPARK_ROWS]:
+            caption = f"{label}  {ratios[-1]:.2f}×  {_tui.sparkline_text(ratios)}"
+            try:
+                from textual.widgets import Sparkline
+
+                children.append(
+                    Horizontal(
+                        Static(caption, classes="spark-cap"),
+                        Sparkline(ratios, id=None),
+                        classes="spark-row",
+                    )
+                )
+            except Exception:  # noqa: BLE001 — widget unavailable: caption only
+                children.append(Static(caption, classes="spark-cap"))
+        strip.mount(*children)
 
     def _sev_styles(self) -> dict[str, str]:
         """C3: severity colors resolve from the ACTIVE Textual theme's
@@ -548,10 +597,22 @@ class ReportScreen(ModalScreen[None]):
 
     def _fill_runs(self, name: str, rel: str, kind: str, p: Path) -> None:
         parse = parse_gate_report if kind == "gate" else parse_perf_report
-        for b in list(reversed(parse(p)))[:_REP_RUNS_PER_REPORT]:
+        all_blocks = parse(p)
+        # S2 (arc 7): the gate lane is a pass-rate detector — each run row
+        # carries its own pass fraction plus the glyph series up to that run,
+        # so a slide shows up where the run is listed, not only in the file.
+        rates = gate_pass_rates(all_blocks) if kind == "gate" else []
+        for idx in reversed(range(max(0, len(all_blocks) - _REP_RUNS_PER_REPORT), len(all_blocks))):
+            b = all_blocks[idx]
             took = f" · {b.elapsed:.0f}s" if b.elapsed is not None else ""
+            trend = ""
+            if kind == "gate" and rates[idx] is not None:
+                trend = (
+                    f" · {rates[idx]:.0%} "
+                    f"{sparkline_text([r for r in rates[: idx + 1] if r is not None], width=_SPARK_RUNS)}"
+                )
             self._add(
-                f"── {name} · {b.timestamp or 'unknown'}{took} ──",
+                f"── {name} · {b.timestamp or 'unknown'}{took}{trend} ──",
                 "RUN",
                 b.summary,
                 kind="run",
@@ -561,8 +622,13 @@ class ReportScreen(ModalScreen[None]):
             )
             for s in b.steps:
                 secs = "" if s.seconds is None else f"{s.seconds:.2f}s · "
+                # Budget ratio on the row itself: the trend strip shows the
+                # SHAPE across runs, this shows the value for THIS run.
+                ratio = (
+                    f"{s.seconds / s.budget:.2f}× · " if s.seconds is not None and s.budget else ""
+                )
                 self._add(
-                    f"{s.label} · {secs}{s.status}",
+                    f"{s.label} · {secs}{ratio}{s.status}",
                     s.status,
                     b.summary,
                     kind="step",
@@ -1183,6 +1249,9 @@ class SearchApp(App[None]):
     #rep-box { border: round $accent; background: $surface; width: 118; height: 30; }    #rep-body { height: 1fr; }
     #rep-tree { width: 7fr; }
     #rep-detail { width: 5fr; }
+    #rep-spark { height: auto; max-height: 8; display: none; }
+    #rep-spark .spark-row { height: 1; }
+    #rep-spark .spark-cap { width: 56; height: 1; color: $text-muted; }
     #rep-keys { color: $text-muted; }
     DbScreen { align: center middle; }
     #db-box { border: round $accent; background: $surface; width: 1fr; height: 1fr; margin: 1 2; }

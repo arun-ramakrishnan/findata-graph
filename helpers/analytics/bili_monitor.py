@@ -55,9 +55,19 @@ def now() -> str:
 
 
 def main(argv: list[str]) -> int:  # noqa: C901 - one linear pass per tick
-    duration = int(argv[0]) if argv else 43200
-    poll = int(argv[1]) if len(argv) > 1 else 60
-    snap = int(argv[2]) if len(argv) > 2 else 300
+    if any(a in ("-h", "--help") for a in argv):
+        print(__doc__ or "")
+        return 0
+    try:
+        duration = int(argv[0]) if argv else 43200
+        poll = int(argv[1]) if len(argv) > 1 else 60
+        snap = int(argv[2]) if len(argv) > 2 else 300
+    except ValueError as exc:
+        # A stray flag used to die with a bare ValueError traceback; a watcher
+        # that cannot be interrogated is a watcher nobody interrogates.
+        print(f"bili_monitor: {exc}", file=sys.stderr)
+        print("usage: bili_monitor.py [duration_s] [poll_s] [snap_s]", file=sys.stderr)
+        return 2
     tw = load_tunewatch()
 
     seen_folds: set[tuple[str, str]] = set()
@@ -67,6 +77,7 @@ def main(argv: list[str]) -> int:  # noqa: C901 - one linear pass per tick
     t0 = time.time()
     last_snap = 0.0
     n_fold = n_inject = n_overlimit = n_esc = n_gatepred = n_degen = 0
+    n_tier = 0  # T2/T3 injections (the tier ladder) -- counted apart from T1
     base_counts: dict[str, list[int]] = {}
     wrote_base = False
     with open(EVENTS, "a") as ev, open(SNAPS, "a") as sn, open(BURN, "a") as bu:
@@ -135,18 +146,22 @@ def main(argv: list[str]) -> int:  # noqa: C901 - one linear pass per tick
                         c[1] += 1 if e["over_limit"] else 0
                         c[2] += 1 if e["kind"] == "ESC" else 0
                         continue
-                    if e["kind"] == "ESC":
+                    tier = e.get("kind", "T1")
+                    if tier == "ESC":
                         n_esc += 1
                     else:
                         n_inject += 1
                         n_overlimit += 1 if e["over_limit"] else 0
+                        # T2/T3 re-distill/condense the tier blocks; they are
+                        # NOT raw-message folds, so they are counted apart --
+                        # folding them into n_inject would misreport the T1 rate.
+                        if tier in ("T2", "T3"):
+                            n_tier += 1
                     path = (
-                        "ESC?"
-                        if e["kind"] == "ESC"
-                        else ("OVER-LIMIT" if e["over_limit"] else "GATE")
+                        "ESC?" if tier == "ESC" else ("OVER-LIMIT" if e["over_limit"] else "GATE")
                     )
                     ev.write(
-                        f"{now()} T1-FIRE[{path}] {sid} {e['ts']} usage={e['usage']}% "
+                        f"{now()} {tier}-FIRE[{path}] {sid} {e['ts']} usage={e['usage']}% "
                         f"({e['input']:,}/{e['win']:,}) growth={e['g']:,}/{e['f']:,} "
                         f"pendingT1={e['p']:,}/{e['pt']:,} interval={e['iv']:,} model={e['model']} "
                         f'reason="{e["reason"]}"\n'
@@ -218,18 +233,20 @@ def main(argv: list[str]) -> int:  # noqa: C901 - one linear pass per tick
                 bu.flush()
             with open(HEART, "w") as hb:
                 hb.write(
-                    f"{now()} events={n_fold} folds (degens={n_degen}), T1-fires={n_inject + n_esc} "
-                    f"({n_inject} gate/over-limit, {n_esc} ESC-unknown), "
+                    f"{now()} events={n_fold} folds (degens={n_degen}), "
+                    f"tier-fires={n_inject + n_esc} (T1={n_inject - n_tier}, "
+                    f"tier23={n_tier}, {n_esc} ESC-unknown), "
                     f"{n_gatepred} gate-predicted; uptime={int(time.time() - t0)}s\n"
                 )
             time.sleep(poll)
     with open(EXIT, "w") as fh:
         fh.write(
             f"done {now()} folds={n_fold} degens={n_degen} t1fires={n_inject} "
-            f"over_limit={n_overlimit} esc={n_esc} elapsed={int(time.time() - t0)}s\n"
+            f"tier23={n_tier} over_limit={n_overlimit} esc={n_esc} elapsed={int(time.time() - t0)}s\n"
         )
     print(
-        f"monitor done {now()} folds={n_fold} t1fires={n_inject} over_limit={n_overlimit} esc={n_esc}"
+        f"monitor done {now()} folds={n_fold} t1fires={n_inject} tier23={n_tier} "
+        f"over_limit={n_overlimit} esc={n_esc}"
     )
     return 0
 

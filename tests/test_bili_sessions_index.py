@@ -19,6 +19,7 @@ import pytest
 from helpers.analytics import bili_sessions as bs
 from helpers.analytics.bili_analytics import (
     Analysis,
+    _viol_gap_minutes,
     log_rotation_family,
     parse_logs,
 )
@@ -250,7 +251,7 @@ class TestReasoningPairViolationsAreLoud:
         bs.print_violations(rows, None)
         out = capsys.readouterr().out
         assert "3 session(s)" not in out, "sub-session must not be counted twice"
-        assert "2 session(s) at terminal risk" in out
+        assert "2 session(s) flagged" in out
         assert "*13 ses_p" in out and "*1 ses_q" in out
         assert "ses_p|sub" not in out, "the sub-session row is collapsed away"
         # The mechanism lives in --detail; the table view only points at it.
@@ -438,3 +439,241 @@ class TestLastSeenWindow:
         monkeypatch.setattr(bs, "run_for_sid", lambda sid: rows[0])
         bs.main(["--all"])
         assert "ses_old" in capsys.readouterr().out
+
+
+class TestContextNowIsNotContextTokens:
+    """`ctxNow` read `contextTokens`, which is not the context size.
+
+    Measured 2026-10-19 across 13 live sessions: `contextTokens` matched the
+    real prompt size in 1 of 13, off by wildly varying factors elsewhere
+    (734,357 vs 201,084; 378,583 vs 142,033; 129,666 vs 389,079). The log's
+    last `input_tok` is the ground truth and is always present when a log
+    bucket exists, so it wins; `lastInputTokens` is the dashboard tiebreaker.
+    """
+
+    DASH = {
+        "contextTokens": 734_357,
+        "lastInputTokens": 201_084,
+        "contextWindow": 868_928,
+        "inputTokens": 41_810_744,
+        "cachedTokens": 40_746_048,
+        "requests": 319,
+        "lastModel": None,
+        "lastSeen": "2026-10-19T08:11:07.350Z",
+    }
+
+    def test_dashboard_only_row_uses_lastInputTokens(self, monkeypatch):
+        monkeypatch.setattr(bs, "dashboard_detail", lambda s: dict(self.DASH))
+        monkeypatch.setattr(bs, "dashboard_stats_map", lambda: {"ses_x": dict(self.DASH)})
+        monkeypatch.setattr(bs, "find_report", lambda s: None)
+        monkeypatch.setattr(bs, "_session_analysis", lambda p, s: None)
+        row = bs.run_for_sid("ses_x")
+        assert row["context_now"] == 201_084, "must not be the 734_357 decoy"
+        assert row["dashboard_context_tokens"] == 734_357, "kept, but not rendered"
+        assert row["context_now_src"] == "dashboard"
+        assert row["context_window"] == 868_928
+
+    def test_log_wins_and_says_so(self, tmp_path, monkeypatch):
+        log = tmp_path / "bili.log"
+        log.write_text(
+            "2026-10-19T04:00:00.000Z [info] [sess=ses_x] [v=0.1.197] [ses_x] "
+            "[acp-usage] input=150000 cached=149000 (cache hit 99.0%)\n",
+            encoding="utf-8",
+        )
+        a = parse_logs([log], session_filter="ses_x")
+        monkeypatch.setattr(bs, "dashboard_detail", lambda s: dict(self.DASH))
+        monkeypatch.setattr(bs, "dashboard_stats_map", lambda: {"ses_x": dict(self.DASH)})
+        monkeypatch.setattr(bs, "find_report", lambda s: None)
+        monkeypatch.setattr(bs, "_session_analysis", lambda p, s: a)
+        monkeypatch.setattr(bs, "file_logs_for_sid", lambda s: [log])
+        row = bs.run_for_sid("ses_x")
+        assert row["context_now"] == 150_000, "the log is the ground truth"
+        assert row["context_now_src"] == "log"
+
+
+class TestDisagreementsAreNamed:
+    """The row merges a dashboard snapshot with a log parse and used to prefer
+    one silently. Measured 2026-10-19 on ses_eb005c4d7: requests 319 (dash) vs
+    432 (log), lastModel None (dash), lastSeen 08:11 vs 13:41."""
+
+    def _a(self, *, n_usages=3, model="glm-5.3-flash"):
+        from helpers.analytics.bili_analytics import CacheUsage, NudgeSample
+
+        return Analysis(
+            log_path="bili.log",
+            usages=[
+                CacheUsage(
+                    ts=f"2026-10-19T04:00:0{i}.000Z",
+                    session="ses_x",
+                    input_tok=1000,
+                    cached_tok=900,
+                    hit_pct=0.9,
+                    fold_new=False,
+                )
+                for i in range(n_usages)
+            ],
+            nudges=[
+                NudgeSample(
+                    ts="2026-10-19T04:00:00.000Z",
+                    session="ses_x",
+                    usage_tok=1000,
+                    usage_pct=1.0,
+                    growth=1,
+                    ref=0,
+                    interval=200000,
+                    pending_t1=1,
+                    pending_thr=200000,
+                    model=model,
+                    reason="r",
+                )
+            ]
+            if model
+            else [],
+        )
+
+    def test_a_count_mismatch_is_reported(self):
+        out = bs._disagreements(
+            {"requests": 319, "lastModel": "glm-5.3-flash"}, self._a(n_usages=432)
+        )
+        assert len(out) == 1, out
+        assert "requests" in out[0] and "319" in out[0] and "432" in out[0]
+
+    def test_identical_counts_agree(self):
+        row = {"requests": 3, "lastModel": "glm-5.3-flash"}
+        assert bs._disagreements(row, self._a(n_usages=3)) == []
+
+    def test_a_key_the_payload_never_had_is_not_a_disagreement(self):
+        """No dashboard claim is held, so there is nothing to contradict."""
+        assert bs._disagreements({}, self._a(n_usages=432)) == []
+
+    def test_a_dashboard_absent_is_not_agreement(self):
+        out = bs._disagreements(
+            {"requests": 3, "lastModel": None}, self._a(n_usages=3, model="glm")
+        )
+        assert any("lastModel" in d and "absent" in d for d in out), (
+            "a None dashboard value is missing evidence, not agreement"
+        )
+
+    def test_build_row_attaches_the_list(self, monkeypatch):
+        dash = {"requests": 2, "lastModel": "glm-5.3-flash"}
+        monkeypatch.setattr(bs, "dashboard_detail", lambda s: dash)
+        monkeypatch.setattr(bs, "dashboard_stats_map", lambda: {"ses_x": dash})
+        monkeypatch.setattr(bs, "find_report", lambda s: None)
+        monkeypatch.setattr(bs, "_session_analysis", lambda p, s: self._a(n_usages=7))
+        row = bs.run_for_sid("ses_x")
+        assert any("requests" in d for d in row["_disagreements"])
+
+
+class TestViolationClaimFollowsTheData:
+    """The output asserted "every violating session ended within ~30 min" and
+    then printed this session's own gap — 3.8 h — as its counterexample."""
+
+    def _a(self, gap_minutes):
+        from datetime import datetime, timedelta
+
+        from helpers.analytics.bili_analytics import CacheUsage, Warning
+
+        base = datetime(2026, 10, 19, 4, 0, 0)
+        fmt = "%Y-%m-%dT%H:%M:%S.%fZ"
+        return Analysis(
+            log_path="bili.log",
+            usages=[
+                CacheUsage(
+                    ts=(base + timedelta(minutes=gap_minutes)).strftime(fmt),
+                    session="s",
+                    input_tok=1,
+                    cached_tok=0,
+                    hit_pct=0.0,
+                    fold_new=False,
+                )
+            ],
+            warnings=[
+                Warning(
+                    ts=base.strftime(fmt),
+                    session="s",
+                    kind="reasoning-pair-violated",
+                    detail="d",
+                )
+            ],
+        )
+
+    def test_short_gap_is_under_the_terminal_threshold(self):
+        v = _viol_gap_minutes(self._a(25))
+        assert v is not None and v < 60
+
+    def test_long_gap_is_not(self):
+        v = _viol_gap_minutes(self._a(228))
+        assert v is not None and v > 60
+
+    def test_a_log_line_before_the_violation_is_not_evidence(self):
+        from datetime import datetime
+
+        from helpers.analytics.bili_analytics import CacheUsage, Warning
+
+        fmt = "%Y-%m-%dT%H:%M:%S.%fZ"
+        a = Analysis(
+            log_path="bili.log",
+            usages=[
+                CacheUsage(
+                    ts=datetime(2026, 10, 19, 3, 0).strftime(fmt),
+                    session="s",
+                    input_tok=1,
+                    cached_tok=0,
+                    hit_pct=0.0,
+                    fold_new=False,
+                )
+            ],
+            warnings=[
+                Warning(
+                    ts=datetime(2026, 10, 19, 4, 0).strftime(fmt),
+                    session="s",
+                    kind="reasoning-pair-violated",
+                    detail="d",
+                )
+            ],
+        )
+        assert _viol_gap_minutes(a) is None
+
+    def test_no_violation_is_none_not_zero(self):
+        assert _viol_gap_minutes(Analysis(log_path="bili.log")) is None
+
+
+class TestOutcomeLinesFollowTheGap:
+    """The detail view asserted "already unwound" two lines below the measured
+    gap it contradicted (3.8 h under a "dies within ~30 min" warning)."""
+
+    def test_short_gap_is_terminal(self):
+        lines = bs._viol_outcome_lines("25 min")
+        assert lines[0].startswith("Terminal: this session stopped within an hour")
+        # The old wording asserted death as a fact. The gap measures how far
+        # the session got; the log's own clock decides whether it DIED.
+        assert "did not survive" not in " ".join(lines)
+
+    def test_live_session_is_not_called_terminal(self):
+        """A live session's last line IS the violation, so its gap is tiny —
+        but it has not died. Measured 2026-10-19 on
+        ses_ec7af063cffew2a8xvEcV142n6, which was mis-called terminal while
+        still answering."""
+        lines = " ".join(bs._viol_outcome_lines("3 min", live=True))
+        assert "STILL RUNNING" in lines
+        assert "Terminal" not in lines
+        assert "RECOVERED" not in lines
+
+    def test_live_beats_every_gap(self):
+        for gap in ("25 min", "4.1 h", "unknown (no log line)", "n/a"):
+            assert "STILL RUNNING" in " ".join(bs._viol_outcome_lines(gap, live=True))
+
+    def test_long_gap_is_recovered(self):
+        lines = " ".join(bs._viol_outcome_lines("4.1 h"))
+        assert "RECOVERED" in lines and "does not hold here" in lines
+
+    def test_unparsable_gap_is_unknown_not_a_guess(self):
+        assert "UNKNOWN" in bs._viol_outcome_lines("unknown (no log line)")[0]
+
+    def test_na_gap_is_unknown(self):
+        assert "UNKNOWN" in bs._viol_outcome_lines("n/a")[0]
+
+    def test_no_branch_claims_unwound_without_a_measurement(self):
+        for gap in ("25 min", "4.1 h", "unknown (no log line)", "n/a"):
+            joined = " ".join(bs._viol_outcome_lines(gap))
+            assert "already unwound" not in joined

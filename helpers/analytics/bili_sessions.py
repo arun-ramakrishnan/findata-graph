@@ -18,7 +18,9 @@ import subprocess
 import sys
 import urllib.request
 from collections import Counter
+from collections.abc import Callable, Mapping
 from datetime import datetime, UTC
+from typing import Any
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
@@ -34,7 +36,9 @@ from helpers.analytics.bili_analytics import (  # noqa: E402
     Analysis,
     log_rotation_family,
     parse_logs,
+    fold_trigger_counts,
     parse_report,
+    session_is_live,
 )
 
 RE_SES = re.compile(r"ses_[A-Za-z0-9]+")
@@ -112,6 +116,74 @@ def _fetch_detail(sid: str) -> dict:
         except Exception:  # noqa: S112  # best-effort; an absent/unreachable proxy must not break the table
             continue
     return best or {}
+
+
+@functools.lru_cache(maxsize=1)
+def _compress_config() -> dict:
+    """The proxy's view of the compress settings, or {}.
+
+    `GET /__bili/config` exposes the config file's `compress` block. It is the
+    ONLY source for `tierNudgeTokens` — the log states T1's bar (it is the
+    `pendingT1=N/thr` denominator) but never T2's or T3's. Best-effort: an
+    absent or unreachable proxy must not break the table.
+    """
+    for base in _dashboard_urls():
+        try:
+            with urllib.request.urlopen(f"{base}/config", timeout=2) as r:  # noqa: S310
+                return json.load(r).get("compress", {}) or {}
+        except Exception:  # noqa: S112  # best-effort; an absent proxy must not break the table
+            continue
+    return {}
+
+
+def _tier_bar_override(cfg: dict, tier: str) -> int | None:
+    """An explicit `tierNudgeTokens.tN` bar from the config, if set."""
+    t = (cfg.get("tierNudgeTokens") or {}) if isinstance(cfg, dict) else {}
+    for key in (tier.lower(), tier.upper()):
+        v = t.get(key)
+        if v:
+            try:
+                return int(v)
+            except TypeError, ValueError:
+                return None
+    return None
+
+
+def _with_tier_overrides(bars: dict[str, int], cfg: dict) -> dict[str, int]:
+    """The config wins for ALL THREE tiers.
+
+    The plugin's own rule:
+
+        tierThresholds = {1: tierGrowthTokens?.t1 ?? nudgeGrowthTokens,
+                          2: tierGrowthTokens?.t2 ?? round(nudgeGrowthTokens*1.5),
+                          3: tierGrowthTokens?.t3 ?? round(nudgeGrowthTokens*1.5)}
+
+    Two consequences the log alone cannot show:
+
+    * The DERIVATION BASE is `nudgeGrowthTokens`, NOT T1's bar.  Once
+      `tierNudgeTokens.t1` is set the two diverge, and deriving T2/T3 from
+      T1's bar would give the wrong (too high) defaults.
+    * The log's `pendingT1=N/thr` denominator is `nudgeGrowthTokens`, not T1's
+      bar — so the log can never state T1's bar once T1 is decoupled.  The
+      config is the only source for it.
+
+    An absent or unreachable proxy leaves the log-derived bars alone.
+    """
+    out = dict(bars)
+    base = cfg.get("nudgeGrowthTokens") if isinstance(cfg, dict) else None
+    if base:
+        try:
+            base = int(base)
+        except TypeError, ValueError:
+            base = None
+    if base:
+        out["T2"] = round(base * 1.5)
+        out["T3"] = round(base * 1.5)
+    for tier in ("T1", "T2", "T3"):
+        v = _tier_bar_override(cfg, tier)
+        if v:
+            out[tier] = v
+    return out
 
 
 @functools.lru_cache(maxsize=1)
@@ -317,7 +389,15 @@ def run_for_sid(sid: str) -> dict:
         "protocol": d.get("protocol") or st.get("protocol", ""),
         "upstream": d.get("upstreamOrigin") or st.get("upstreamOrigin") or st.get("upstream", ""),
         "requests": d.get("requests", st.get("requests", 0)),
-        "context_now": d.get("contextTokens", st.get("contextTokens", 0)),
+        # NOT `contextTokens`. Measured 2026-10-19 against the log on 13
+        # sessions: `contextTokens` agreed with the real prompt size in 1 of 13
+        # and was off by wildly varying factors elsewhere (378,583 vs 142,033;
+        # 129,666 vs 389,079; 734,357 vs 201,084). `lastInputTokens` matched the
+        # log EXACTLY on the one session where both were available. Whatever
+        # `contextTokens` counts, it is not the context window occupancy.
+        # Kept under its own key for reference; never rendered as ctxNow.
+        "dashboard_context_tokens": d.get("contextTokens", st.get("contextTokens", 0)),
+        "context_now": d.get("lastInputTokens", st.get("lastInputTokens", 0)),
         "cum_input": d.get("inputTokens", st.get("inputTokens", 0)),
         "cached_input": d.get("cachedTokens", st.get("cachedTokens", 0)),
         "saved": d.get("tokensSaved", st.get("tokensSaved", 0)),
@@ -329,6 +409,7 @@ def run_for_sid(sid: str) -> dict:
         "comp_repay": d.get("compRepay", 0),
         "ttl_repay": d.get("ttlRepay", 0),
         "last_seen": d.get("lastSeen", st.get("lastSeen", "")),
+        "context_now_src": "dashboard",
         "model": d.get("lastModel") or st.get("lastModel", ""),
         # Defaults here so a dashboard-only row still has the key: the column
         # and the banner both read it, and --json consumers must see a stable
@@ -336,6 +417,12 @@ def run_for_sid(sid: str) -> dict:
         "reason_pair_violations": 0,
         "_viol_gap": None,
         "_viol_details": [],
+        # The compress ladder, per tier. Defaults so a dashboard-only row keeps
+        # a stable shape for --json consumers.
+        "tier_fires": {"T1": 0, "T2": 0, "T3": 0},
+        "tier_pending": {},
+        "tier_bars": {},
+        "tier_blocked": {},
         "log": str(log_path) if log_path else None,
         "report": str(report) if report else None,
         "source": "dashboard",
@@ -358,22 +445,57 @@ def run_for_sid(sid: str) -> dict:
                 "log_hit_pct": a.overall_hit_pct(),
                 "hit_pct": row.get("hit_pct") or a.overall_hit_pct(),
                 "folds": len(a.folds),
+                # Fold attribution per nudge kind (T1/T2/T3/esc/agent) —
+                # which nudge asked for the fold, not the compress tool the
+                # agent answered with. Same tags as `tier_fires`.
+                "fold_triggers": dict(fold_trigger_counts(a.folds)),
                 "folds_per_100k": a.folds_per_100k(),
                 "intervals": dict(a.intervals_seen),
                 "nudges": len(a.nudges),
                 "t1_fired": sum(1 for n in a.nudges if n.fired_t1),
+                "esc_fires": sum(1 for n in a.nudges if n.fired_esc),
+                # The three ladder numbers, per tier: how many times the tier
+                # fired, the compressible mass it is carrying, and the bar it
+                # is measured against. T2/T3's bars are derived from the
+                # resolved T1 bar unless the config sets them explicitly.
+                "tier_fires": a.tier_fires(),
+                "tier_pending": a.tier_pending(),
+                "tier_bars": _with_tier_overrides(a.tier_bars(), _compress_config()),
+                "tier_blocked": a.tier_blocked_counts(),
+                # Ordering tests from the tier ladder: T2 needs t2_pen > t1_eff
+                # (ord2), T3 needs t3_pen > t2_pen and t3_pen > t1_eff (ord3).
+                # `tier_rung` is the tier that would fire next, STRANDED when a
+                # pool is over its bar but blocked, else '-'. Mirrors
+                # helpers/analytics/bili_tier_watch.py's ord2/ord3 flags.
+                "tier_ord2": _tier_ord2(a.tier_pending()),
+                "tier_ord3": _tier_ord3(a.tier_pending()),
+                "tier_rung": _tier_rung(
+                    a.tier_pending(), _with_tier_overrides(a.tier_bars(), _compress_config())
+                ),
                 "warnings": sorted(set(w.kind for w in a.warnings)),
                 "reason_pair_violations": a.reasoning_pair_violations,
                 "degenerate_folds": sum(1 for w in a.warnings if w.kind == "degenerate-fold"),
                 "effective_interval": a.effective_interval(),
                 "cum_input": row.get("cum_input") or sum(u.input_tok for u in a.usages),
                 "cached_input": row.get("cached_input") or sum(u.cached_tok for u in a.usages),
-                "context_now": row.get("context_now")
-                or (last_nudge.usage_tok if last_nudge else 0),
+                # The LAST request's prompt size is the context as of now.
+                # `input_tok` is the full prompt (cached + new), which is what
+                # the window limit applies to. Preferred over the dashboard
+                # because the log is the ground truth and, unlike
+                # `lastInputTokens`, needs no extra fetch.
+                "context_now": a.usages[-1].input_tok if a.usages else 0,
+                "context_now_src": ("log" if a.usages else row.get("context_now_src", "")),
                 "model": row.get("model")
                 or (last_nudge.model if last_nudge else row.get("model", "")),
                 "saved": row.get("saved") or sum(f.saved_tok for f in a.folds),
                 "source": ("log+dashboard" if row.get("source") == "dashboard" else "log"),
+                # Where the two stores DISAGREE. The row is a merge of a
+                # dashboard snapshot and a log parse with no marker saying
+                # which number came from where — measured 2026-10-19 on
+                # ses_eb005c4d7: requests 319 (dashboard) vs 432 (log),
+                # lastModel None (dashboard), lastSeen 08:11 vs 13:41. A
+                # silent preference is not provenance, so name the fields.
+                "_disagreements": _disagreements({**st, **d}, a),
                 # Raw proxy lines and the observed last-violation -> session-end
                 # gap. Not columns: too long for the table, and the gap is only
                 # meaningful once someone has decided to look.
@@ -381,17 +503,102 @@ def run_for_sid(sid: str) -> dict:
                     w.detail for w in a.warnings if w.kind == "reasoning-pair-violated"
                 ],
                 "_viol_gap": _viol_gap(a),
+                # Is the session still the newest thing in the log? A short
+                # gap is NOT a short life — see `session_is_live`.
+                "_viol_live": session_is_live(a),
             }
         )
     return row
 
 
+#: Fields the log can independently verify. Dashboard-only fields (saved,
+#: hit_pct, blocks) have no log twin, so they can never disagree and are not
+#: listed — absence of a pair is not evidence of agreement.
+_COMPARABLE: tuple[tuple[str, Callable[[Any], object]], ...] = (
+    # row key, dashboard key, log value (callable over the Analysis)
+    ("requests", lambda a: len(a.usages)),
+    ("lastModel", lambda a: a.nudges[-1].model if a.nudges else ""),
+)
+
+
+def _disagreements(dash: dict, a) -> list[str]:
+    """Fields where the dashboard snapshot and the log parse disagree.
+
+    Three states, kept distinct on purpose:
+      * key absent from the payload — no dashboard claim is held, say nothing
+      * key present but falsy — the dashboard CLAIMED emptiness (`lastModel:
+        None` against a session with 437 nudges); report as absent, never as
+        agreement
+      * both present and different — report both values
+
+    Read from the RAW payload, never the merged row: `row["model"]` is already
+    the log fallback when the dashboard is silent, so comparing it to the log is
+    circular and always agrees.
+    """
+    out: list[str] = []
+    for key, log_fn in _COMPARABLE:
+        if key not in dash:
+            continue
+        dash_val = dash.get(key)
+        log_val = log_fn(a)
+        if not dash_val and not log_val:
+            continue
+        if not dash_val:
+            out.append(f"{key}: dashboard absent, log={log_val or '-'}")
+        elif dash_val != log_val:
+            out.append(f"{key}: dashboard={dash_val!r} log={log_val!r}")
+    return out
+
+
+def _viol_gap_minutes_label(gap: str) -> float | None:
+    """Parse `_viol_gap`'s "25 min" / "4.1 h" back into minutes, or None."""
+    try:
+        return float(str(gap).split()[0]) * (60 if "h" in str(gap) else 1)
+    except ValueError, IndexError:
+        return None
+
+
+def _viol_outcome_lines(gap: str, live: bool = False) -> list[str]:
+    """What the measured gap licenses us to say about THIS session.
+
+    "already unwound" used to be asserted unconditionally, two lines below the
+    measured gap it contradicted — on 2026-10-19 ses_eb005c4d7 printed 3.8 h
+    under a warning that every violating session dies within ~30 min. The claim
+    now follows the measurement.
+
+    `live` short-circuits all of it: a session whose last log line is still
+    the newest thing in the log has not ended, so "terminal" is a statement
+    about a future that has not happened. Measured 2026-10-19 on
+    ses_ec7af063cffew2a8xvEcV142n6, which was mis-called terminal while
+    still answering.
+    """
+    if live:
+        return [
+            "Session is STILL RUNNING (its last log line is the newest in the",
+            "log), so the outcome is not known yet.",
+        ]
+    mins = _viol_gap_minutes_label(gap)
+    if mins is None:
+        return ["Outcome UNKNOWN (no log line after the last violation)."]
+    if mins < 60:
+        return [
+            "Terminal: this session stopped within an hour of its violation,",
+            "and the log kept running afterwards.",
+        ]
+    return [
+        "RECOVERED: the session outlived its violation, so the",
+        "'violations always kill the session' rule does not hold here.",
+    ]
+
+
 def _viol_gap(a) -> str:
     """How long the session kept going after its LAST reasoning-pair violation.
 
-    This is the number that reclassified the warning as a terminal event: all 3
-    violating sessions in the retained log ended within 3-29 minutes of their
-    final violation and never resumed.
+    Measured across the retained log the gap is bimodal, not one-directional:
+    3 / 10 / 29 min for three sessions that died, then 3.8 h for ses_eb005c4d7
+    on 2026-10-19 (upstream https://api.z.ai, one of the two providers that
+    recover). So this number, not a fixed rule, decides whether a violation
+    was terminal for THIS session.
     """
     viols = [w.ts for w in a.warnings if w.kind == "reasoning-pair-violated"]
     if not viols:
@@ -497,7 +704,7 @@ def main(argv: list[str]) -> int:  # noqa: C901
         if not log:
             print("no log available for that session", file=sys.stderr)
             return 2
-        cmd = [sys.executable, str(HERE / "bili_analytics.py"), log]
+        cmd = [sys.executable, str(HERE / "bili_analytics.py"), log, "--session", row["session"]]
         if report:
             cmd.append(report)
         print("[SESSION]")
@@ -510,9 +717,41 @@ def main(argv: list[str]) -> int:  # noqa: C901
             print(f"  {label:<16}: {row.get(key) or '-'}")
         print(f"  {'requests':<16}: {row.get('requests', 0)}")
         print(
+            f"  {'context now':<16}: {row.get('context_now', 0):,} "
+            f"(from {row.get('context_now_src') or 'unknown'}; "
+            f"dashboard's `contextTokens` was "
+            f"{row.get('dashboard_context_tokens', 0):,} — a different quantity)"
+        )
+        print(
             f"  {'nudges/folds':<16}: {row.get('nudges', 0)} / {row.get('folds', 0)}"
             f"  (degenerate {row.get('degenerate_folds', 0)}, blocks {row.get('blocks', 0)})"
         )
+        # The compress ladder, per tier. The three numbers a tier is tuned by:
+        # how many times it fired, the compressible mass it is carrying, and
+        # the bar that mass is measured against.
+        fires = row.get("tier_fires") or {}
+        pend = row.get("tier_pending") or {}
+        blocked = row.get("tier_blocked") or {}
+        print("  [TIERS]")
+        for tier in ("T1", "T2", "T3"):
+            p = pend.get(tier)
+            bl = blocked.get(tier[-1], 0)
+            bits = [
+                f"fires {fires.get(tier, 0):>3}",
+                f"pending {p:>9,}" if p is not None else "pending        -",
+            ]
+            if bl:
+                bits.append(f"(cadence-blocked {bl}x)")
+            print(f"    {tier}  " + "   ".join(bits))
+        print(
+            "    "
+            + f"ord2={'Y' if row.get('tier_ord2') else 'N'} ord3={'Y' if row.get('tier_ord3') else 'N'} "
+            + f"rung={row.get('tier_rung')}"
+        )
+        if row.get("_disagreements"):
+            print("  dashboard/log disagree on:")
+            for d in row["_disagreements"]:
+                print(f"    - {d}")
         # General, not model-gated: DeepSeek and zAI were hit too. The recovery
         # difference is real but it makes the check weaker, not stronger — a
         # violation is worth surfacing whichever model produced it.
@@ -524,9 +763,15 @@ def main(argv: list[str]) -> int:  # noqa: C901
             print("     mixed with messages that carry one. Strict-echo upstreams")
             print("     reject the request. DeepSeek and zAI recover; the rest")
             print("     crash the session.")
-            print(f"     Measured: this session ended {row.get('_viol_gap', '?')} after its")
-            print("     last violation. Treat a non-zero count as a warning that the")
-            print("     session is already unwound.")
+            gap = row.get("_viol_gap") or "?"
+            live = bool(row.get("_viol_live"))
+            if live:
+                print("     Measured: no log line after its last violation —")
+                print("     the session is still the newest thing in the log.")
+            else:
+                print(f"     Measured: this session ran {gap} past its last violation.")
+            for line in _viol_outcome_lines(gap, live):
+                print(f"     {line}")
             print("     proxy log lines:")
             for w in (row.get("_viol_details") or [])[:5]:
                 print(f"       {w}")
@@ -594,16 +839,34 @@ _COLUMNS: tuple[tuple[str, str, str, int, bool], ...] = (
     ("folds", "folds", ">", 6, False),
     ("degenerate_folds", "degen", ">", 6, False),
     ("blocks", "blocks", ">", 7, False),
+    ("esc_fires", "esc", ">", 5, False),
+    # The compress ladder, per tier: `<fires>f/<pending>` — how many times the
+    # tier injected a nudge, and the compressible mass it is carrying. The
+    # pending is the number compared against THAT TIER'S BAR, so a tier that
+    # never cleared its bar shows `-`: T1's mass is on every nudge line, but
+    # T2/T3 appear in the log's `ready:` hint only while they qualify. Three
+    # columns because the ladder is the thing being tuned and a single
+    # `T1/T2/T3` blob cannot be read column-wise.
+    ("tier_t1", "t1", "<", 9, False),
+    ("tier_t2", "t2", "<", 9, False),
+    ("tier_t3", "t3", "<", 9, False),
     # `*N` when the session has recorded reasoning-pair violations, blank when
-    # none. Deliberately at the far right and unsqueezeable so a dying session
-    # is impossible to miss: measured 2026-10-17, all 3 violating sessions in
-    # the retained log ended within 3-29 minutes of their LAST violation and
-    # never came back — a terminal event, not a warning. `*` pops against a
-    # column of numbers; the count says whether it is one blip or a trend.
+    # none. At the far right and unsqueezeable so a flagged session is
+    # impossible to miss — `*` pops against a column of numbers, and the count
+    # says whether it is one blip or a trend. The marker is NOT a death
+    # sentence: of 4 violating sessions measured, 3 died within 3-29 min and one
+    # (ses_eb005c4d7, z.ai) ran 3.8 h past its violation. `--detail` prints the
+    # session's own measured gap.
     ("reason_pair_violations", "viol", ">", 6, False),
 )
 _LAST_SEEN = ("lastSeen", "<", 19, False)
 _MIN_AVAIL, _MAX_AVAIL = 96, 200
+#: Floors for the SHRINKABLE columns. The fitter's default floor is the
+#: header length, which lets `model` shrink to 5 chars — "deep…" — and the lane
+#: becomes unidentifiable. The tier columns added 17 chars of fixed width, so
+#: without a floor the squeeze lands on the one column that names the lane.
+#: A lane is worth 14 chars of model name; the rest of the table is numbers.
+_MIN_WIDTH = {"model": 14, "client": 7}
 
 
 def sep_line() -> str:
@@ -624,11 +887,70 @@ _COUNTERS = frozenset({"requests", "context_now", "cum_input", "saved", "switche
 _FIRST_TOKEN_ONLY = frozenset({"client"})
 
 
+def _compact_tokens(v: int | None) -> str:
+    """A token count in the fewest characters that still reads as a number."""
+    if v is None:
+        return "-"
+    if v >= 10000:
+        return f"{v // 1000}k"
+    return str(v)
+
+
+def _tier_cell(row: dict, tier: str) -> str:
+    """`f{fires}` for one tier of the compress ladder — how many times the
+    tier's nudge fired. Pending/bar detail lives under `[TIERS]` in --detail."""
+    fires = (row.get("tier_fires") or {}).get(tier, 0)
+    return f"{fires}f"
+
+
+def _tier_ord2(pend: Mapping[str, int | None]) -> bool:
+    """ord2 = t2_pen > t1_eff: T2's ordering test must clear before T2 can fire."""
+    t1e = pend.get("T1")
+    t2p = pend.get("T2")
+    return bool(t1e is not None and t2p is not None and t2p > t1e)
+
+
+def _tier_ord3(pend: Mapping[str, int | None]) -> bool:
+    """ord3 = t3_pen > t2_pen and t3_pen > t1_eff: T3's ordering test."""
+    t1e = pend.get("T1")
+    t2p = pend.get("T2")
+    t3p = pend.get("T3")
+    return bool(t1e is not None and t2p is not None and t3p is not None and t3p > t2p and t3p > t1e)
+
+
+def _tier_rung(pend: Mapping[str, int | None], bars: dict[str, int]) -> str:
+    """Which tier would fire next: T1/T2/T3 if armed, STRANDED if a pool is
+    over its bar but blocked by ordering/cadence, else '-'."""
+    t1e = pend.get("T1")
+    t2p = pend.get("T2")
+    t3p = pend.get("T3")
+    b1 = bars.get("T1")
+    b2 = bars.get("T2")
+    b3 = bars.get("T3")
+    t1_armed = t1e is not None and b1 is not None and t1e >= b1
+    if t1_armed:
+        return "T1"
+    t2_armed = t2p is not None and b2 is not None and t2p >= b2 and _tier_ord2(pend)
+    if t2_armed:
+        return "T2"
+    t3_armed = t3p is not None and b3 is not None and t3p >= b3 and _tier_ord3(pend)
+    if t3_armed:
+        return "T3"
+    over_bar = (
+        (t1e is not None and b1 is not None and t1e >= b1)
+        or (t2p is not None and b2 is not None and t2p >= b2)
+        or (t3p is not None and b3 is not None and t3p >= b3)
+    )
+    return "STRANDED" if over_bar else "-"
+
+
 def _natural(row: dict, key: str) -> str:
     """The cell's text. hit_pct keeps one decimal — the store may hand back
     int 97, and str() of that loses the decimal the column always showed."""
     if key == "hit_pct":
         return f"{(row.get('hit_pct') or 0):.1f}"
+    if key in ("tier_t1", "tier_t2", "tier_t3"):
+        return _tier_cell(row, key[-2:].upper())
     if key == "reason_pair_violations":
         n = row.get(key) or 0
         return f"*{n}" if n else ""
@@ -652,7 +974,9 @@ def _fit_widths(rows: list[dict], avail: int) -> list[int]:
         longest = max([len(hdr), *(len(_natural(r, key)) for r in rows)])
         widths.append(min(longest, cap))
     widths.append(_LAST_SEEN[2])
-    floor = [len(h) for _k, h, _a, _c, _s in _COLUMNS] + [len(_LAST_SEEN[0])]
+    floor = [max(len(h), _MIN_WIDTH.get(k, 0)) for k, h, _a, _c, _s in _COLUMNS] + [
+        len(_LAST_SEEN[0])
+    ]
     flex = [i for i, spec in enumerate(_COLUMNS) if spec[4]]
     gap = 2 * (len(widths) - 1)
     while sum(widths) + gap > avail:
@@ -707,18 +1031,23 @@ def print_table(rows: list[dict]) -> None:
     print("  ".join(header).rstrip())
     for r in rows:
         print("  ".join(_row_cells(r, widths)).rstrip())
+    print(
+        "tier cells: <fires>f/<pending tokens>  — pending is the compressible "
+        "mass vs that tier's bar; '-' means the tier is carrying nothing"
+    )
 
 
 def print_violations(rows: list[dict], args, stream=None) -> None:
     """ONE line above the table. The `viol` column is the indicator; the essay
     lives in `--detail <session>`.
 
-    A reasoning-pair violation is terminal, not a warning: measured 2026-10-17,
-    all 3 violating sessions ended within 3-29 minutes of their LAST violation
-    and never resumed. That is why it is visible here at all — but the count is
-    enough to act on, and the default view stays readable when the answer is
-    usually `-`. Ask for `--detail` when you want the mechanism, the raw proxy
-    line, and this session's own measured end-gap.
+    A reasoning-pair violation is worth surfacing at the top of the default
+    view: strict-echo upstreams reject the request, and 3 of 4 violating
+    sessions measured ended within 3-29 minutes of their last violation. It is
+    NOT a guaranteed kill — the 4th (ses_eb005c4d7, z.ai) ran 3.8 h past it —
+    so the count is what belongs here and `--detail` carries the session's own
+    measured gap. Keeping it to one line is what makes the default view
+    readable when the answer is usually `-`.
     """
     hit = [r for r in rows if r.get("reason_pair_violations")]
     if not hit:
@@ -734,7 +1063,7 @@ def print_violations(rows: list[dict], args, stream=None) -> None:
         f"*{r['reason_pair_violations']} {r.get('session', '')}" for r in seen.values()
     )
     print(
-        f"!! reasoning-pair violation — {len(seen)} session(s) at terminal risk: {marks}"
+        f"!! reasoning-pair violation — {len(seen)} session(s) flagged: {marks}"
         f"\n   bili_sessions.py --detail <session>",
         file=out,
     )

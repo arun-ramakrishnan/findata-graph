@@ -132,6 +132,57 @@ def _sample(m):
     )
 
 
+class TestConnLifecycleLinesAreSkipped:
+    """The plugin's per-connection TCP lines are ~98% of the log.
+
+    `RE_PREFIX` matches them (the `conn#NNNN` tag lands in `sess2`), so
+    without an explicit skip every body regex runs over each one — and a
+    conn line whose body happens to look like a nudge would be counted.
+    """
+
+    CONN = (
+        "2026-10-19T15:57:56.668Z [info] [v=0.1.202] [conn#25159] "
+        "tcp post-response close: lingering for peer close signal "
+        "(budget 5000ms)"
+    )
+    CONN_DEBUG = (
+        "2026-10-19T15:57:56.670Z [debug] [v=0.1.202] [conn#25159] "
+        "tcp closed reason=server-end age=2ms reqs=1"
+    )
+
+    def test_conn_lines_produce_no_session_and_no_nudge(self, tmp_path: Path):
+        log = tmp_path / "bili.log"
+        log.write_text("\n".join([self.CONN, self.CONN_DEBUG]) + "\n")
+        a = ba.parse_log(log)
+        assert a.nudges == []
+        assert a.folds == []
+        assert a.usages == []
+        assert a.warnings == []
+        assert a.reasoning_pair_violations == 0
+
+    def test_a_conn_line_wearing_a_nudge_body_is_not_counted(self, tmp_path: Path):
+        # The decisive case: without the skip, `RE_PREFIX` matches and the
+        # nudge regex fires on the body, inflating the nudge count.
+        forged = (
+            "2026-10-19T15:57:56.668Z [info] [v=0.1.202] [conn#25159] "
+            "nudge INJECT T1: usage=37.0% (291536/792576), "
+            "growth=232772/90000 (ref=58764, interval=200000), "
+            "pendingT1=199877/200000 model=space-bunny-free, "
+            'reason="max compressible 199877 < threshold 200000"'
+        )
+        log = tmp_path / "bili.log"
+        log.write_text(forged + "\n")
+        assert ba.parse_log(log).nudges == []
+
+    def test_real_nudges_still_parse_alongside_conn_lines(self, tmp_path: Path):
+        log = tmp_path / "bili.log"
+        log.write_text("\n".join([self.CONN, _line("s1", "INJECT T1"), self.CONN_DEBUG]) + "\n")
+        a = ba.parse_log(log)
+        assert len(a.nudges) == 1
+        assert a.nudges[0].session == "s1"
+        assert a.nudges[0].fired_t1
+
+
 class TestRotationFamilyCoverage:
     def _write(self, d: Path, name: str, lines: list[str]) -> Path:
         p = d / name
@@ -209,3 +260,122 @@ class TestDetailCliReadsTheRotationFamily:
         # proves nothing. What proves it: the CLI saw BOTH files' samples.
         assert ba.parse_logs(ba.log_rotation_family(tmp_path / "bili.log")).nudges.__len__() == 2
         assert "nudge samples" in out or out.strip(), "detail should print a report"
+
+
+class TestVerdictCarriesNoGap:
+    """`print_report`'s verdict used to hardcode "(measured: every violating
+    session ended within ~30 min)" and then print this session's own gap as the
+    counterexample. It now carries NEITHER: the verdict is a count, and the
+    measured gap + the Terminal/RECOVERED verdict live in
+    `bili_sessions.py --detail <session>`. Printing the gap in both places
+    duplicated the number and, on 2026-10-19, asserted "terminal" for a
+    session that was still running."""
+
+    def _a(self, later_line: bool):
+        from datetime import datetime
+
+        from helpers.analytics.bili_analytics import Analysis, CacheUsage, Warning
+
+        fmt = "%Y-%m-%dT%H:%M:%S.%fZ"
+        viol = datetime(2026, 10, 19, 4, 0, 0)
+        usages = [
+            CacheUsage(
+                ts=(viol if later_line else viol.replace(hour=3)).strftime(fmt),
+                session="s",
+                input_tok=1000,
+                cached_tok=900,
+                hit_pct=0.9,
+                fold_new=False,
+            )
+        ]
+        return Analysis(
+            log_path="bili.log",
+            reasoning_pair_violations=1,  # a field, not derived from `warnings`
+            usages=usages,
+            warnings=[
+                Warning(
+                    ts=viol.strftime(fmt),
+                    session="s",
+                    kind="reasoning-pair-violated",
+                    detail="d",
+                )
+            ],
+        )
+
+    def test_verdict_states_the_count_and_points_at_detail(self, capsys):
+        from helpers.analytics.bili_analytics import print_report
+
+        print_report(self._a(later_line=False), {})
+        out = capsys.readouterr().out
+        assert "1 reasoning-pair violations" in out, out[-800:]
+        assert "bili_sessions.py --detail <session>" in out, out[-800:]
+
+    def test_verdict_carries_no_gap_number(self, capsys):
+        """A 4-hour gap is the session's own measurement — it belongs in the
+        detail report. The headline must not restate it."""
+        from datetime import datetime, timedelta
+
+        from helpers.analytics.bili_analytics import print_report
+
+        a = self._a(later_line=True)
+        a.usages[0].ts = (
+            datetime.strptime(a.usages[0].ts, "%Y-%m-%dT%H:%M:%S.%fZ") + timedelta(hours=4)
+        ).strftime("%Y-%m-%dT%H:%M:%S.%fZ")
+        print_report(a, {})
+        out = capsys.readouterr().out
+        for leak in ("RECOVERED", "terminal", "min after", "h past"):
+            assert leak not in out, f"{leak!r} leaked into the headline: {out[-800:]}"
+
+
+class TestSessionLiveness:
+    """`session_is_live` is what stops a running session being called terminal.
+
+    The gap between the last violation and the session's last log line is tiny
+    for a LIVE session (its last line IS the violation), so the gap alone
+    cannot tell "died" from "still going". The log's own clock can: the proxy
+    keeps logging other sessions either way."""
+
+    def _analysis(self, log_path, session_ts):
+        from helpers.analytics.bili_analytics import Analysis, CacheUsage
+
+        return Analysis(
+            log_path=str(log_path),
+            usages=[
+                CacheUsage(
+                    ts=session_ts,
+                    session="s",
+                    input_tok=10,
+                    cached_tok=9,
+                    hit_pct=0.9,
+                    fold_new=False,
+                )
+            ],
+        )
+
+    def test_live_when_the_session_is_the_newest_thing_in_the_log(self, tmp_path):
+        log = tmp_path / "bili.log"
+        log.write_text(
+            "2026-10-19T13:15:10. 380Z [info] other session\n"
+            "2026-10-19T13:15:09. 120Z [info] this session\n"
+        )
+        a = self._analysis(log, "2026-10-19T13:15:09.120000Z")
+        from helpers.analytics.bili_analytics import session_is_live
+
+        assert session_is_live(a) is True
+
+    def test_not_live_when_the_log_kept_running_afterwards(self, tmp_path):
+        log = tmp_path / "bili.log"
+        log.write_text(
+            "2026-10-19T13:15:09. 120Z [info] this session\n"
+            "2026-10-19T13:40:00. 000Z [info] another session\n"
+        )
+        a = self._analysis(log, "2026-10-19T13:15:09.120000Z")
+        from helpers.analytics.bili_analytics import session_is_live
+
+        assert session_is_live(a) is False
+
+    def test_no_log_means_not_live_rather_than_a_crash(self, tmp_path):
+        a = self._analysis(tmp_path / "absent.log", "2026-10-19T13:15:09.120000Z")
+        from helpers.analytics.bili_analytics import session_is_live
+
+        assert session_is_live(a) is False

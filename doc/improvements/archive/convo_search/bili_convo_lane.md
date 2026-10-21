@@ -323,6 +323,11 @@ where it fires "about when you want".
 Today (2026-10-17) the only action was the T1 above. If you are reading a
 dashboard and see no T2/T3, that is the expected state, not a misconfiguration.
 
+> **Superseded by §14** (measured 2026-10-19): T2 is not permanently dark —
+> it fired 5 times in the live log. The counts above are correct for
+> 2026-10-13 → 10-17, but the *reason* T2 was dark is not "it never fires".
+> Read §14 before concluding anything from "no T2 in the dashboard".
+
 Two non-tier paths exist and are easy to mistake for tier-2/3 activity:
 
 - **`EMERGENCY T1`** — `reason="EMERGENCY T1: max effective pending N, usage N%"`.
@@ -876,6 +881,685 @@ migration, a per-file backfill, unescaped LIKE, dropping `provenance` from
 **`convo_query.search()` only passes `source=` to `_cos_hits` when a source
 filter is active** — see §0.1 for the full compatibility note and the reason
 the call is not simply widened.
+
+## 13. Sizing the compress ladder for large windows (2026-10-19)
+
+### 13.1 The knob is a compressible-mass threshold, not a context cap
+
+`compress.nudgeGrowthTokens` is compared against the **compressible mass** —
+the sum of the tokens in the ranges the plugin currently recommends folding —
+not against the context size. A fire needs BOTH gates:
+
+- compressible mass `>= T`
+- growth since the last fold `>= floor`, where
+  `floor = max(minGrowthFloor (2e4), minGrowthRatio (0.45) x T)`
+
+so raising `T` raises BOTH bars. The threshold and the growth target are the
+same number in the log (`threshold == interval` always).
+
+`T` is **adaptive**, not a constant. The shipped defaults are
+`growthFloor 5e4 / growthCap 5e4 / growthRatio 0.05`, and
+`resolveAdaptiveGrowth = min(growthCap, max(growthFloor, round(modelContextLimit x growthRatio)))`
+clamps the adaptive term away — the effective value is **always 50,000**.
+Writing `nudgeGrowthTokens: 100000` FORCED `floor = cap = 100000`; deleting
+the key is what unlocked the 50,000 default.
+
+**A config edit needs a PROXY RESTART.** The resolved config is built at
+startup. `GET /__bili/config` re-reads the file live (its `raw` field shows
+the edit within seconds), so the API can prove the edit landed while the
+running behaviour is unchanged. `POST /__bili/config/reload` reloads routes
+and accounts, not compress. **The log is the only truth.**
+
+### 13.2 The measured fire curve — 125K and above is a trap
+
+`helpers/analytics/bili_thresh_replay.py [floor] [T1 ...]` replays every
+`nudge idle:` evaluation in the log family under candidate thresholds. **Its
+first positional argument is the FLOOR (0.45 x T), not the threshold** — a
+mis-invocation silently produces a wrong curve.
+
+Measured 2026-10-19 over 4,916 evaluations across 14 sessions:
+
+| T | floor | fires | median compressible at fire | sessions touched |
+|---|---|---|---|---|
+| 50,000 | 22,500 | 2,375 | 95,116 | 10 |
+| 75,000 | 33,750 | 1,644 | 118,347 | 10 |
+| 100,000 | 45,000 | 1,109 | 140,388 | 8 |
+| 125,000 | 56,250 | 750 | 150,084 | 6 |
+| 150,000 | 67,500 | 375 | 166,497 | 6 |
+| 200,000 | 90,000 | 4 | 200,636 | 3 |
+| 250,000 and up | — | 0 | — | 0 |
+
+The compressible mass over the same 3,221 evaluations: p50 41,119 / p75 83,424
+/ p90 122,323 / p95 144,150 / p99 170,352 / max 343,668.
+
+**`T = 200,000` is four fires in 4,916 evaluations — "never fold" in
+practice — and `T >= 250,000` is structurally unreachable.** The context then
+grows to the window wall and the only remaining mechanism is `EMERGENCY T1`,
+which fires on usage alone and dumps the raw backlog. So the instinct to
+"go back to 125K or higher" is right about the direction and wrong about the
+size: 200K+ disables the ladder.
+
+### 13.3 Sizing `T` for a window `W`
+
+The economics: **each fold costs a full re-send of the surviving context**,
+because the prefix changes. Measured 2026-10-19, a marginal fold saved 3,400
+tokens and cost 56,364 to re-send — **net -52,964**. Over a session with
+total growth `G`, `N ~ G/T` folds cost about `G^2/(2T) + G x C0/T` (where `C0`
+is the irreducible context), and **both terms fall as `T` rises**. So `T`
+should be as large as the window allows.
+
+But the fold must be a REAL fold. Measured in the same log family: healthy
+folds shrank 49.9% (100,823 saved) and 55.6% (79,372); the 13:00 fold shrank
+9.1% (13,167 saved); 44 folds in the family, **17 (39%) land within 10
+minutes of another**, and 6 save under 10,000 tokens. The recurring shape is
+a marginal fold and then the real one 33 seconds later.
+
+The sizing rule that follows:
+
+```text
+T = min( 0.5 x (W - C0),  p99 of the observed compressible mass )
+```
+
+- `W = 250,000`, `C0 ~ 40,000` -> `T ~ 100,000`
+- `W = 1,000,000`, `C0 ~ 70,000` -> `T ~ 450,000`, **capped by the observed
+  p99 (170,352)**, because a threshold the mass never reaches is the same as
+  no threshold
+
+Verify with the replay tool, not by feel.
+
+### 13.4 The ladder is the cheap lever, not a bigger `T`
+
+T1 removes raw ranges. T2 **merges the tier-1 blocks' summaries** and does not
+delete raw messages, so it is materially cheaper per unit of context
+recovered. Measured `t2Pen` = 25,803 (29 active tier-1 blocks) and later
+28,266.
+
+The gates: T2 needs `t2Pen >= tierThresholds[2]` **and** `t2Pen > t1Eff`,
+where `tierThresholds[2] = tierGrowthTokens?.t2 ?? round(nudgeGrowthTokens x
+1.5)`. `tier2Trigger` is HARDCODED at `1e3` with **no config path** (only
+`compress.tiers` and `tierNudgeTokens` are settable).
+
+Two consequences:
+
+- With `T = 200,000` the default T2 bar becomes 300,000 — unreachable. T2's
+  bar has to be set explicitly through `tierNudgeTokens.t2`, and it must be
+  LOWER than T1's, or the ladder can never cross over.
+- The crossover only happens **after a T1 fold drains the raw backlog**.
+  Measured: `t1Eff` 113,124 -> 4,035 across the 13:14:47 fold, and the ready
+  hint switched to `ready: T2 28266` — T1 no longer qualified, T2 was the
+  eligible tier.
+
+`compress.tiers` is a **BOOLEAN** (`s3.tiers` becomes `tiers.enabled`), so
+`"tiers": true` is the only valid spelling and is documentary only — it
+defaults to true.
+
+The compress gate REFUSES a call that cannot pay:
+`compress REFUSED m04987-m08036 — no net shrink (net delta=-1573 tok across 1
+touched block(s)); state left uncommitted, prefix cache untouched` (reason
+`gate:no-net-shrink`). Re-compressing an already-compressed range cannot
+pay, so a marginal fold is not merely wasteful — it is refused.
+
+### 13.5 A live session was called terminal
+
+The gap between the last reasoning-pair violation and the session's last log
+line is TINY for a live session — its last line IS the violation — so the gap
+alone cannot tell "died" from "still going". Measured 2026-10-19:
+`bili_sessions --detail ses_ec7af063cffew2a8xvEcV142n6` printed
+"Terminal: this session did not survive its violation" for a session that was
+still running and answering.
+
+`session_is_live(a, *, window_minutes=3.0)` now compares the session's last
+stamp with the newest stamp ANYWHERE in the log family — the proxy's own
+clock, which keeps ticking either way. The raw log stamps are
+`2026-10-19T13:15:10. 380Z` (Go puts a space after the dot), so the
+sub-second part is unreadable by `strptime`; one second of resolution is
+enough.
+
+The gap now lives **only** in `--detail`. The headline verdict is a COUNT
+plus a pointer to `bili_sessions.py --detail <session>`, and the table's
+`viol` column is `*N`. 71 tests green; three mutations caught (`live` forced
+to `False`, the `live` branch disabled, and the gap re-added to the verdict).
+
+## 14. The ladder's three rungs, measured (2026-10-19)
+
+§13.4 established the ladder's *shape*. This section establishes *where each
+rung actually blocks*, measured over 3,294 nudge evaluations in the live log
+(`/home/arun/.local/state/billion-context/bili.log`), and corrects §8.7.
+
+### 14.1 The decision, in full
+
+`decideNudge` in the bundle
+(`~/.cache/opencode/npm/billion-context@latest/*/node_modules/billion-context/dist/index.js`,
+v0.1.202) is the whole contract:
+
+```js
+const nudgeGrowthTokens = resolveAdaptiveGrowth(limit, config.nudge);   // = min(growthCap, max(growthFloor, round(limit*growthRatio)))
+const tier2Threshold  = Math.round(nudgeGrowthTokens * (config.nudge.tier2GrowthMultiplier ?? 1.5));
+const tierThresholds  = {1: config.nudge.tierGrowthTokens?.t1 ?? nudgeGrowthTokens,
+                         2: config.nudge.tierGrowthTokens?.t2 ?? tier2Threshold,
+                         3: config.nudge.tierGrowthTokens?.t3 ?? tier2Threshold};
+const t1Eff = tiers[1].pending;   // fresh compressible mass  (recommendedRanges, filtered by minCompressRange)
+const t2Pen = tiers[2].pending;   // total mass of ACTIVE TIER-1 BLOCKS
+const t3Pen = tiers[3].pending;   // total mass of ACTIVE TIER-2 BLOCKS
+```
+
+`pendingByTier` is the whole story of the ladder: **T1 compresses fresh
+content, T2 distills the tier-1 blocks, T3 condenses the tier-2 blocks.** The
+rungs are strictly sequential — you cannot skip one.
+
+The firing conditions, in evaluation order:
+
+| rung | fires when | extra conditions |
+|---|---|---|
+| T1 | `t1Eff >= tierThresholds[1]` | `growthReady` |
+| T2 | `t2Pen >= tierThresholds[2]` **&& `t2Pen > t1Eff`** | `growthReady`, `cadenceMet` |
+| T3 | `t3Pen >= tierThresholds[3]` **&& `t3Pen > t2Pen` && `t3Pen > t1Eff`** | `growthReady`, `cadenceMet` |
+
+`growthReady = growthSinceReference >= growthFloor` gates the **whole ladder**
+(it is the outer `else if`), where
+`growthFloor = max(nudge.minGrowthFloor=2e4, nudge.minGrowthRatio=0.45 x nudgeGrowthTokens)`.
+
+`cadenceMet` is per tier: `tokenCount - state.nudge.lastShownByTier[t] >= growthFloor`.
+
+### 14.2 Where each rung actually blocked
+
+Measured over the live log (3,294 evaluations, 46 folds):
+
+- **fired histogram**: T1 26, T2 5, T3 **0**.
+- **`ready:` hint present**: T2 on 100 lines, **T3 on 0 lines**. T3 was never
+  even *eligible* — there are no tier-2 blocks yet.
+- On the 100 T2-eligible lines, T2's **bar was met 100/100** (`t2Pen` 28,266
+  → 31,670 against a bar of 5,000), and T1 did **not** short-circuit
+  (`t1Eff >= tierThresholds[1]` was false 100/100, because the bar was 50,000
+  and `t1Eff` was 43,220 → 49,501).
+- **89/100 were blocked by the growth gate** (`growth < growthFloor`).
+- The remaining **11 passed the growth gate and still did not fire T2**,
+  because in **11/11** `t2Pen (28,266–31,670) <= t1Eff (43,220–49,501)` —
+  T2's ordering condition `t2Pen > t1Eff` failed.
+
+So T2 was blocked by *two different* gates on *two different* populations, and
+neither was T2's threshold.
+
+### 14.3 The band that stranded it
+
+`pendingT1` on the log line is the decision's own `t1Eff` — verified 13/13 on
+the growth-path T1 fires (`reason="T1 effective 167709 >= 150000"` against
+`pendingT1=167709/150000`). So the 43,220–49,501 band is the real quantity.
+
+That band sits **between** T1's bar (50,000) and `t2Pen` (28,266–31,670):
+
+- T1 cannot fire: `t1Eff` is below its bar.
+- T2 cannot fire: `t2Pen` is below `t1Eff`.
+
+**Nothing can move.** The fix is to move T1's bar *below* the band, so T1
+folds the fresh mass away: a T1 fold removes the fresh ranges (`t1Eff` → ~0)
+and adds the mass to the tier-1 pool (`t2Pen` ↑). **T1 firing is what
+manufactures T2's precondition.** T2 is not a competitor of T1; it is T1's
+consequence.
+
+### 14.4 The lever that was not obvious: `tierNudgeTokens.t1` is a *separate* knob
+
+The config file's `compress.nudgeGrowthTokens` sets **both** `nudge.growthFloor`
+and `nudge.growthCap`:
+
+```js
+if (s3.nudgeGrowthTokens !== undefined && s3.nudgeGrowthTokens > 0) {
+  nudge.growthFloor = s3.nudgeGrowthTokens;
+  nudge.growthCap   = s3.nudgeGrowthTokens;
+}
+```
+
+so the resolved T1 bar and the growth floor are welded together (floor =
+`max(2e4, 0.45 x bar)`). But `compress.tierNudgeTokens.t1` maps to
+`nudge.tierGrowthTokens.t1`, which only feeds `tierThresholds[1]` — **it does
+not touch the growth floor**. That is the surgical knob: lower T1's bar
+without also tightening the fold cadence.
+
+Config surface, measured against the loader (`compress.*` → effective config):
+
+| file key | maps to | effect |
+|---|---|---|
+| `nudgeGrowthTokens` | `nudge.growthFloor` + `nudge.growthCap` | T1 bar **and** growth floor (welded) |
+| `tierNudgeTokens.t1` | `nudge.tierGrowthTokens.t1` | T1 bar only |
+| `tierNudgeTokens.t2` / `.t3` | `nudge.tierGrowthTokens.t2` / `.t3` | T2 / T3 bars |
+| `tiers` (boolean) | `tiers.enabled` | master switch, defaults true |
+| `tiers.tier2Trigger` / `.tier3Trigger` | — | **not settable**; hardcoded 1e3 / 2e3 |
+
+The count-based path (`t2CountReady` / `t3CountReady`) would bypass the
+ordering condition entirely, but its thresholds are hardcoded at 1,000 and
+2,000 blocks — 46 folds cannot reach them, and there is no config key. **The
+token path is the only lever, so the ordering condition is unavoidable.**
+
+### 14.5 The display that makes the ladder legible
+
+`bili_sessions.py` now carries the three numbers per tier:
+
+- **table columns** `t1` / `t2` / `t3`, each `<fires>f/<pending>`
+  (e.g. `9f/18k`, `4f/35k`, `0f/-`). `-` means the tier never cleared its
+  bar — T2/T3 appear in the log's `ready:` hint only while they qualify.
+- **`--detail` `[TIERS]` block**: fires, pending, bar, and cadence-block count
+  per tier. T2's and T3's bars are not in the log, so they are derived the
+  way the plugin derives them (`round(nudgeGrowthTokens x 1.5)`), with the
+  config's explicit `tierNudgeTokens` overriding the derivation.
+- The model's column got a **14-char floor** (`_MIN_WIDTH`): the three tier
+  columns are fixed width, and without a floor the squeeze landed on `model`,
+  which turned "deepseek-v4.1-flash-free" into "deep…" and made the lane
+  unidentifiable.
+
+`helpers/analytics/bili_analytics.py` gained `tier_ready()`,
+`tier_blocked()`, and `Analysis.tier_fires() / .tier_pending() / .tier_bars()
+/ .tier_blocked_counts()`; 22 tests in `tests/test_bili_tier_ladder.py`.
+
+### 14.6 What a T1 fold does to the tier-1 pool (and why T2's window is narrow)
+
+The bar change (`nudgeGrowthTokens` 50000 -> 30000) was applied and hot-reloaded
+(`POST /__bili/config/reload`, no restart). The log proves it took effect within
+seconds — `interval=50000` on 37 of the last 40 nudge lines, then `interval=30000`
+on the next 3, and **T1 fired at 14:13:58** (`pendingT1=31490/30000, reason="T1
+effective 31490 >= 30000"`), folding 31,490 tokens at `foldPoint=m09200`.
+
+But the same run also exposed the mechanic §14.3 only half described:
+
+| Time | Event | t1Eff | t2Pen |
+|---|---|---|---|
+| 13:17:14 | idle, `ready: T2 28266` | 12,481 | 28,266 |
+| 13:18:34 | **T2 fired** — 29 tier-1 blocks (28,266 tok) | 24,594 | 28,266 |
+| 13:19:44 | idle, `ready: T2 28266, blocked: T2 (cadence)` | 26,593 | 28,266 |
+| 13:23:49 | idle, `ready: T2 28266` (cadence released) | 46,057 | 28,266 |
+| 14:13:58 | **T1 fired**, folded 31,490 tok | 31,490 | 28,266 |
+| 14:14:20 | idle, `max compressible 4906 < threshold 5000` | 0 | **4,906** |
+
+Three things follow, and they are the real story of this lane:
+
+1. **The T2 nudge fired and was never acted on.** The plugin's nudge is a
+   REQUEST; nothing happens until the agent calls `compress` on the tier's
+   target blocks. Between 13:19 and 13:24 the T2 pool sat over its bar with
+   `blocked: T2 (cadence)` clearing, and the pool stayed at 28,266 the whole
+   time. **T2 is not a config problem; it is a "did the agent act?" problem.**
+2. **T1's fold CONSUMES the tier-1 pool.** A T1 fold's recommended ranges
+   cover the active block spans, so the 29 tier-1 blocks were absorbed into
+   one new tier-1 block worth 4,906 tokens — just under T2's 5,000 bar. The
+   pool did not grow into the tier-2 rung; it was swept up by T1.
+3. **A lower T1 bar makes T2's window SHORTER.** More T1 fires means more
+   sweeps of the tier-1 pool, and each sweep is a chance to miss T2's
+   ordering condition. T2 wants a *higher* T1 bar than T1 does.
+
+So the ordering condition `t2Pen > t1Eff` is not a formality to be relaxed —
+it is the window. T2 fires only while the tier-1 pool is bigger than the
+fresh compressible mass, i.e. only in the interval after enough tier-1 blocks
+have accumulated and before the next T1 fold sweeps them.
+
+**T3's pool is not empty — the log could not show it (see 14.9).** T3 condenses
+*tier-2* blocks; the tier-2 pool measures **4,060** tokens across 7 active
+blocks, which is simply under the 5,000 bar, so `ready: T3` never appeared.
+It appeared for the first time in the corpus at 15:47:53Z, right after
+`tierNudgeTokens.t3` was dropped to 3,000 (14.11). T3 is blocked by its
+ORDERING rule (`t3Pen > t2Pen`), not by an empty pool.
+
+### 14.7 The `ready:` hint is a COMPLETE list — and that fixes the display
+
+The plugin builds the hint as
+`eligible.filter(t => pending >= tierThresholds[t]).map(t => \`T${t} ${pending}\`)`,
+so it names **every** eligible tier that is over its bar, and names **none**
+that is under it. Two consequences:
+
+- The idle reason "max compressible N < threshold N" compares the LARGEST
+  pending against `min(tierThresholds[1..3])` — which is 5,000, T2's bar, not
+  T1's 30,000. The number in that message is about the whole ladder.
+- A tier that was over its bar and then fell back under it must not keep
+  reporting the old mass. `Analysis.tier_pending()` now RESETS the tiers an
+  idle line does not mention. The idle branch is identified by its reason
+  opening with "max compressible"; a line that fired a tier carries a
+  different reason and its hint is not a complete list, so it never resets.
+
+Before the fix the display showed `4f/35k` for T2 — a mass from 13:18 that
+had been swept away an hour earlier. After it, the same session reads
+`12f/24k  4f/-  0f/-`, and the `[TIERS]` block reads
+`T2 fires 4 pending 0 bar 5,000`.
+
+**Where the three bars come from.** All three now come from the live
+`GET /__bili/config` (`helpers/analytics/bili_sessions.py:_compress_config`,
+`_with_tier_overrides`), because the log can no longer be trusted for them:
+
+- the log's `pendingT1=N/thr` denominator is `nudgeGrowthTokens`, NOT T1's bar
+  — once `tierNudgeTokens.t1` is set they diverge and the log understates the
+  bar (it printed `pendingT1=27461/30000` while T1's real bar was 50,000);
+- T2's and T3's bars are never in the log at all;
+- T2/T3's *derived* default is `round(nudgeGrowthTokens * 1.5)`, so the
+  derivation base is `nudgeGrowthTokens` and NOT T1's (decoupled) bar.
+
+With the config applied, the same session reads
+`T1 fires 12 pending 38,141 bar 50,000 / T2 fires 4 pending 7,790 bar 5,000 /
+T3 fires 0 pending 4,063 bar 3,000` — and the table row `12f/38k  4f/7790
+0f/4063` shows T3 sitting over its bar for the first time.
+
+### 14.8 The config, as it now stands
+
+```json
+"compress": {
+  "nudgeGrowthTokens": 30000,
+  "tierNudgeTokens": { "t2": 5000, "t3": 5000 },
+  "promptPack": "lean",
+  "absorb": { "enabled": false, "mediaOnly": false }
+}
+```
+
+- **T1 = 30,000** — the one lever that moves. Verified firing.
+- **T2 = 5,000** — already non-binding: the bar was met on 100 of 100
+  eligible lines. Lowering it buys nothing. The blockers are the ordering
+  condition, the cadence gate, and the agent not acting.
+- **T3 = 5,000** — sits just ABOVE the measured tier-2 pool of 4,060, so it
+  can never clear. Drop it to ~3,000 (see 14.9: the pool exists, the bar is
+  above it). T3 still needs `t3Pen > t2Pen`, so it stays dark until the
+  tier-1 pool shrinks below the tier-2 pool.
+- `tierNudgeTokens.t1` is the DECOUPLED T1 bar — use it to raise T1 alone
+  (away from the growth floor) if folds get too chatty, without touching
+  `nudgeGrowthTokens` (which sets BOTH the T1 bar and the growth floor).
+
+### 14.9 Sizing the three bars: the pools have a ceiling
+
+`/mnt/data/tmp/opencode/tier_ladder_replay.py` replays the ladder over every
+nudge evaluation in the log (3,415 evaluations, `bili.log` + `bili.log.old`),
+re-running the plugin's own rule: growth gate, per-tier cadence gate, and the
+`T1 -> T2 -> T3` selection order. Two facts decide the sizing, and both are
+direct observations, not model output:
+
+**T2's pool has a ceiling of 35,476.** 115 lines reveal the tier-1 pool
+exactly (the `ready:` hint names it); every other line's hint omits it, which
+proves it was under the plugin's 5,000 bar. The largest pool ever recorded is
+35,476. So:
+
+| T2 bar | evaluations that clear it |
+|---|---|
+| 5,000 (live) | 115 |
+| 25,000 | 104 |
+| 35,476 | 28 |
+| 50,000 | **0** |
+| 75,000 | **0** |
+
+**T3's pool is NOT empty — it is 4,060, and the log hid it.** This is the one
+place where reading the log alone gives the wrong answer. The `ready:` hint
+names only tiers that are OVER their bar, so a pool sitting under the 5,000 bar
+is *unnameable* in the log; "no line reveals a tier-2 pool" is an artifact of
+the hint, not evidence that the pool is empty. The plugin's own block store
+says otherwise:
+
+```text
+sqlite3 -readonly /home/arun/.local/share/billion-context/sessions/index.db
+  table blocks(block_id, tier, active, payload_json, ...)
+  payload_json.summary  -> the block's summary text
+```
+
+`pendingByTier` in the plugin sums `countTokens(block.summary)` over ACTIVE
+blocks of tier N. For `ses_ec7af063cffew2a8xvEcV142n6` (58 blocks, 15 active)
+that is:
+
+| pool | blocks | tokens |
+|---|---|---|
+| tier-1 summaries -> `t2Pen` (what T2 condenses) | b51-b58, 8 active | **6,398** |
+| tier-2 summaries -> `t3Pen` (what T3 condenses) | b44-b50, 7 active | **4,060** |
+| tier-3 summaries -> `t4Pen` | none active | 0 |
+
+The estimate `round(len(summary)/4)` reproduces the plugin's own numbers
+(704/878/902/955/427/1038/536/958 against `acp_status`'s
+704/878/903/956/427/1.0k/536/958; sum 6,398 against the log's `ready: T2 6400`).
+
+So T3's bar of 5,000 sits *just above* its 4,060 pool. T3 is blocked, but by
+its **ordering** condition, not by an empty pool: the rule is
+`t3Pen >= bar3 && t3Pen > t2Pen && t3Pen > t1Eff`, and today
+`4,060 > 6,398` is false. T3 becomes selectable once the tier-1 pool falls
+below 4,060 — a T1 sweep or a T2 distillation does that. The corollary is the
+sizing rule: **T3's bar must sit BELOW the tier-2 pool, not above it**, so
+~3,000, never 75,000.
+
+**T1's bar is a frequency knob, and it is the only live one.** The number of
+evaluations that clear each bar:
+
+| T1 bar | T1-eligible evaluations | growth floor it implies |
+|---|---|---|
+| 20,000 | 2,358 | 20,000 |
+| 30,000 (live) | 1,974 | 20,000 |
+| 40,000 | 1,679 | 20,000 |
+| 50,000 | 1,426 | 22,500 |
+| 75,000 | 964 | 33,750 |
+
+Note the last column: `nudgeGrowthTokens` sets the T1 bar **and** the growth
+floor (`floor = max(minGrowthFloor 20,000, minGrowthRatio 0.45 x
+nudgeGrowthTokens)`). Setting it to 50,000 re-arms the 22,500 floor that
+blocked 89 of 100 T2-eligible lines in the original measurement (max growth
+ever seen on those lines: 22,262). `tierNudgeTokens.t1` raises the T1 bar
+ALONE and leaves the floor at 20,000.
+
+The trade-off, stated plainly: T2's window is `t1Eff < t2Pen`, and with
+`t2Pen` capped around 35,000 a LOWER T1 bar keeps more of that window open,
+while a higher T1 bar lets the tier-1 pool accumulate further before it is
+swept. The two pull in opposite directions, and the ceiling decides it: the
+pool cannot get far enough above `t1Eff` for a high T1 bar to pay off.
+
+**T2's bar is not the constraint.** It was met on 115 of 115 revealing lines.
+Its blockers are the ordering condition, the cadence gate, and the agent not
+acting. Raising it to 75,000 does not "make T2 wait for more" — it makes T2
+impossible, and it pushes 622 evaluations from "routed somewhere" to "routed
+nowhere" in the replay.
+
+### 14.10 Sizing the bars: the measured answer
+
+Asked: *"I want to try T1:50K, T3:75k, T2:75k. Will that work?"*
+
+**No — the two 75k bars are dead, and T1:50k is the wrong way to set 50k.**
+
+| rung | proposed | verdict | measured reason |
+|---|---|---|---|
+| T1 | 50,000 | works, but via a different key | 1,426 of 3,415 evaluations clear it (vs 1,974 at 30,000) — a ~28% slower fold clock. But `nudgeGrowthTokens: 50000` re-arms the 22,500 growth floor (`floor = max(20,000, 0.45 x 50,000)`), and that floor is exactly what killed 89 of 100 T2-eligible lines (max growth ever seen on them: 22,262). Set 50,000 as `tierNudgeTokens.t1` instead and the floor stays 20,000. |
+| T2 | 75,000 | **never fires** | the tier-1 pool's ceiling is 35,476 and it is 6,398 right now. 0 of 3,415 evaluations ever reached 50,000, let alone 75,000. |
+| T3 | 75,000 | **never fires** | the tier-2 pool is 4,060 and has never been higher. 75,000 is ~18x its ceiling. |
+
+The 75,000 figure appears to come from the *derived* default — `tier2Threshold =
+round(nudgeGrowthTokens x tier2GrowthMultiplier 1.5)`, i.e. 50,000 x 1.5 = 75,000
+— which is what a T2/T3 bar would be if `tierNudgeTokens` were left unset. It
+is a derived placeholder for a tier that has a few thousand tokens, not a
+target. The pools are what they are: **T2 condenses 6,398 tokens, T3 condenses
+4,060.** Bars above those are bars that never clear.
+
+**Recommended:**
+
+```json
+"compress": {
+  "nudgeGrowthTokens": 30000,
+  "tierNudgeTokens": { "t1": 50000, "t2": 5000, "t3": 3000 },
+  "promptPack": "lean",
+  "absorb": { "enabled": false, "mediaOnly": false }
+}
+```
+
+- `nudgeGrowthTokens: 30000` — keeps the growth floor at 20,000
+  (`max(20,000, 0.45 x 30,000)`), which is what T2 needs: 89 of 100 T2-eligible
+  lines were killed by the floor, not by any tier bar.
+- `tierNudgeTokens.t1: 50000` — the DECOUPLED T1 bar (`tierThresholds[1] =
+  tierGrowthTokens?.t1 ?? nudgeGrowthTokens`). It raises T1's threshold without
+  touching the growth floor, so T1 fires ~28% less often while T2's gate
+  stays loose. If folds feel too chatty instead, put the 50,000 in
+  `nudgeGrowthTokens` and accept the 22,500 floor.
+- `tierNudgeTokens.t2: 5000` — unchanged and already non-binding. The bar was
+  met on 100 of 100 eligible lines; it is the ORDERING condition
+  (`t2Pen > t1Eff`) and the agent not acting that block T2.
+- `tierNudgeTokens.t3: 3000` — below the measured 4,060 tier-2 pool, so T3 is
+  bar-eligible today. It still needs `t3Pen > t2Pen` (4,060 > 6,398 is false),
+  so it waits for the tier-1 pool to shrink.
+
+**What config cannot fix.** The T2 nudge at 13:18:34 was correct
+(`T2 distill ready: 29 tier-1 blocks (28266 tokens) >= 5000 and > T1 effective
+24594`) and nothing happened, because the nudge is a REQUEST. The agent has to
+call `compress()` on the tier's target blocks. The target set is readable —
+`payload_json.startRef`/`endRef` on the active tier-1 blocks — so the agent
+can act on the nudge instead of waiting for the pool to fall over the bar.
+
+### 14.11 Applied: 2026-10-19 15:47Z
+
+```json
+"compress": {
+  "nudgeGrowthTokens": 30000,
+  "tierNudgeTokens": { "t1": 50000, "t2": 5000, "t3": 3000 },
+  "promptPack": "lean",
+  "absorb": { "enabled": false, "mediaOnly": false }
+}
+```
+
+`POST /__bili/config/reload` -> `{"ok":true,"count":0,"routes":[]}` HTTP 200; the
+proxy PID did not change (hot reload, no restart). Backup:
+`billion-context.json.bak-20261019T154748Z`.
+
+**T3 was named in a `ready:` hint for the first time in the corpus.** The hint
+lists every eligible tier over its bar, so "T3 never appears" was a fact about
+the 5,000 bar, not about the pool:
+
+| corpus | two-tier hints seen | T3 present |
+|---|---|---|
+| `bili.log.old` (whole earlier session, 177 hint lines) | `ready: T1 113124, T2 25803` x4 | **0** |
+| `bili.log` before the reload | `ready: T2 6400` / `ready: T2 7790` | **0** |
+| `bili.log` after the reload (15:47:53Z on) | `ready: T2 7790, T3 4063` | **7** |
+
+The highest tier the plugin had ever named was T2. With `t3: 3000` the bar
+drops under the 4,060 tier-2 pool and T3 is bar-eligible immediately. T3 still
+waits on its ORDERING rule (`t3Pen > t2Pen` -> 4,063 > 7,787 is false) and
+`> t1Eff`, so the next T1 fold — which collapses the tier-1 pool into one
+block — is what unblocks it.
+
+**A caveat in the log's own display.** The `nudge` line prints
+`pendingT1=N/interval`, where `interval` is `nudgeGrowthTokens`, NOT T1's bar.
+With `tierNudgeTokens.t1` set they diverge, and the line understates the bar:
+
+```text
+nudge idle: ... growth=35658/20000 (ref=43170, interval=30000),
+  pendingT1=27461/30000 ... reason="max compressible 27461, growth 35658,
+  ready: T2 7790, T3 4063"
+```
+
+T1's real bar is 50,000 — 27,461 is nowhere near it. Read T1's bar from
+`tierThresholds`, never from the log's `interval`.
+
+### 14.12 The ladder ran all three rungs (2026-10-19 15:56-15:58Z)
+
+The bars were the easy part. The hard part was that no tier had ever fired
+past T1 in this corpus, and the reason was mechanical, not statistical.
+
+**`outputTier` and the consumption rule** (shipped bundle, v0.1.202):
+
+```js
+outputTier = isBlockBoundary ? min(3, targetTier + 1) : 1
+targetTier = resolveTargetTier(state, nestedBlockIds, isBlockBoundary)
+  // not a block boundary -> 1
+  // else -> the MIN tier among the nested blocks
+consumedBlockIds = nestedBlockIds.filter(b => b.active && b.tier === targetTier)
+```
+
+Three consequences, all of which the execution confirmed:
+
+| fold shape | endpoint | consumes | emits | observed |
+|---|---|---|---|---|
+| message boundary | `mNNNNN` | active **tier-1** blocks in range | a **tier-1** block | `t2Pen` 7,790 -> 11,162 (the pool GREW) |
+| block boundary | `bNN` | active **tier-1** blocks in range | a **tier-2** block | `t2Pen` -> 559, `t3Pen` 4,060 -> 5,428 |
+| block boundary | `bNN` | active **tier-2** blocks in range | a **tier-3** block | `t2Pen` -> 0, `t3Pen` -> 0, `t4Pen` 2,938 |
+
+So a message-boundary fold spanning tier-1 blocks does not promote them — it
+**sweeps** them, because the replacement is another tier-1 block. Promotion
+requires a block-boundary endpoint (`bNN`, resolved by
+`BLOCK_REF_PATTERN = /^b(\d{1,}/`).
+
+**The trap that cost one extra fold.** `resolveTargetTier` takes the **min**
+tier among the nested blocks. A tier-1 block left over from an earlier fold
+therefore forces `targetTier = 1` and silently demotes the whole fold to
+another tier-1 block — no error, no warning, just no progress. Block b64
+(the early-session arc) sat *before* the distill range and so was never
+nested by the T2 fold; it had to be promoted on its own (a block-boundary
+fold of `b64` alone) before the T3 condense would take the tier-2 blocks.
+
+**The execution** (session `ses_ec7af063cffew2a8xvEcV142n6`):
+
+| # | shape | range | effect |
+|---|---|---|---|
+| 1 | message | `m00659`-`m08963`, `m09718`-`m09770` (chosen DISJOINT from the tier-1 blocks) | `t1Eff` 50,176 -> 0; `t2Pen` 7,790 -> 11,162; `t3Pen` 4,060 untouched |
+| 2 | block | `b51`-`b65` | one tier-2 block b66; `t2Pen` -> 559 |
+| 3 | block | `b64`-`b64` | b64 promoted to tier-2 (b67) — clears the min-tier trap |
+| 4 | block | `b44`-`b67` | **first tier-3 block** b68 (5 tier-2 blocks consumed) |
+| 5 | block | `b47`-`b66` | 4 tier-2 blocks the range had not covered -> tier-3 block b69 |
+
+End state: **2 active blocks, both tier-3**; `t2Pen = 0`, `t3Pen = 0`,
+`t4Pen = 2,938`.
+
+**T3 is the terminal rung, by construction.** The plugin maintains a tier-4
+pool (`t4Pen` = the tier-3 blocks' summaries) and **no tier-4 bar exists**, so
+the ladder ends at T3. Worse, a T3 condense drains the tier-2 pool to zero —
+so T2 and T3 can never fire again until a fresh T1 fold re-seeds tier-1
+blocks. The ladder is a strictly sequential chain, and it must be *re-primed
+from the bottom* on every cycle:
+
+```text
+T1 fold  ->  t1Eff collapses, t2Pen grows
+T2 distill -> tier-1 blocks become one tier-2 block, t2Pen collapses
+T3 condense -> tier-2 blocks become one tier-3 block, t3Pen collapses
+(no tier 4)
+```
+
+**Two more gotchas, both observed here.** The compress gate refuses a fold
+that does not shrink, and it says so only in the log:
+`compress REFUSED <range> — no net shrink (net delta=-1573 tok across 1
+touched block(s)); state left uncommitted, prefix cache untouched`. A manual
+fold that does not shrink is self-defeating: it manufactures pending-T1 mass
+that then trips T1 on its own. And a visible tool-call inside a folded range
+is **withdrawn** to keep its turn intact (`Withdrawn N message(s) from
+compression range to keep M turn(s) intact`) — which is why a folded range
+can end up covering more than it listed, and why the block's
+`effectiveMessageIds` is larger than the range you asked for.
+
+### 14.13 Choosing T1's bar: 50,000 vs 40,000 vs 30,000
+
+The compressible mass (`t1Eff`) is not bounded by anything close to 50,000.
+Sampling every `pendingT1=` value in the corpus (`bili.log` + `bili.log.old`,
+3,579 samples) gives the distribution that decides the bar:
+
+| statistic | value |
+|---|---|
+| max | **343,668** |
+| p99 | 167,709 |
+| p90 | 117,618 |
+| p50 | 37,404 |
+| samples over bar 30,000 | 2,017 (56.4%) |
+| samples over bar 40,000 | 1,700 (47.5%) |
+| samples over bar 50,000 | 1,433 (**40.0%**) |
+| samples in the 40,000-50,000 band | 267 (7.5%) |
+| max value observed *under* 50,000 | 49,959 |
+
+So `t1Eff` clears 50,000 in 40% of observations and reaches 343,668 at
+maximum — **T1's bar is never the binding constraint in a live session.** The
+only thing a higher bar "loses" is a session that ENDS holding <50,000 of
+compressible mass, and at session end there is nothing left to save. A lower
+bar therefore buys no coverage; it buys frequency.
+
+Frequency is the cost, not the benefit. The marginal-fold evidence is the
+mirror image of this table: as the bar came down (200,000 -> 150,000 ->
+100,000 -> 75,000), the median saved-per-fold collapsed 151,541 -> 39,454,
+39% of folds landed within 10 minutes of another, 6 of 44 saved under 10,000
+tokens, and one fold was net **-52,964** (saved 3,400, cost 56,364).
+
+The burst-splitting arithmetic is the same fact seen from the other side. A
+100,000-token burst folds as:
+
+| bar | folds | marginal tail |
+|---|---|---|
+| 30,000 | 30k + 30k + 30k + 10k | yes — the 10k tail sits in the 20,000 growth-floor zone |
+| 40,000 | 40k + 40k + 20k | yes — the 20k tail is exactly the growth floor |
+| 50,000 | 50k + 50k | none |
+
+**Decision: `tierNudgeTokens.t1 = 50000`.** `t2: 5000` and `t3: 3000` stand
+(t2's bar must sit under the tier-2 pool, whose observed ceiling is 35,476
+and whose measured peak was 11,162; t3's must sit under the tier-3 pool,
+observed at 4,060-5,428).
+
+Residual risk and its one-line fix: a compressible mass that plateaus
+between 43,220 and 49,959 would not trigger T1 — the corpus's single
+near-miss. If that ever bites, delete `tierNudgeTokens.t1` and T1's bar
+falls back to `nudgeGrowthTokens` (30,000). No re-measurement needed.
 
 ## Appendix — raw measurement log
 
