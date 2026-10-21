@@ -1,6 +1,6 @@
 CREATE TABLE e_acquired(acquirer_name BIGINT, target_name BIGINT, weight DOUBLE, properties VARCHAR, source_ref VARCHAR, valid_from DATE, valid_to DATE, "year" VARCHAR);
 
-CREATE TABLE e_all_und(a_id BIGINT, b_id BIGINT, edge_type VARCHAR, valid_from DATE, valid_to DATE);
+CREATE TABLE e_all_und(a_id BIGINT, b_id BIGINT, edge_type VARCHAR, valid_from DATE, valid_to DATE, properties VARCHAR);
 
 CREATE TABLE e_belongs(company_name BIGINT, sector_name BIGINT, weight DOUBLE, properties VARCHAR, source_ref VARCHAR, valid_from DATE, valid_to DATE);
 
@@ -14,7 +14,7 @@ CREATE TABLE e_competes(a_name BIGINT, b_name BIGINT, weight DOUBLE, properties 
 
 CREATE TABLE e_customer(customer_name BIGINT, supplier_name BIGINT, weight DOUBLE, properties VARCHAR, source_ref VARCHAR, valid_from DATE, valid_to DATE);
 
-CREATE TABLE e_dir(a_id BIGINT, b_id BIGINT, edge_type VARCHAR, valid_from DATE, valid_to DATE);
+CREATE TABLE e_dir(a_id BIGINT, b_id BIGINT, edge_type VARCHAR, valid_from DATE, valid_to DATE, properties VARCHAR);
 
 CREATE TABLE e_exposed_to(company_id BIGINT, theme_id BIGINT, weight DOUBLE, properties VARCHAR, source_ref VARCHAR, valid_from DATE, valid_to DATE);
 
@@ -39,20 +39,6 @@ CREATE TABLE e_supplier(supplier_name BIGINT, customer_name BIGINT, weight DOUBL
 CREATE TABLE h_edge(id BIGINT, edge_type VARCHAR, "label" VARCHAR, weight DOUBLE, valid_from DATE, valid_to DATE, source_ref VARCHAR);
 
 CREATE TABLE h_incidence(edge_id BIGINT, entity_name VARCHAR, weight DOUBLE, direction VARCHAR, "role" VARCHAR, valid_from DATE, valid_to DATE);
-
-CREATE TABLE v_centrality_degree("name" VARCHAR, score DOUBLE);
-
-CREATE TABLE v_centrality_eigenvector("name" VARCHAR, score DOUBLE);
-
-CREATE TABLE v_centrality_katz("name" VARCHAR, score DOUBLE);
-
-CREATE TABLE v_centrality_laplacian("name" VARCHAR, score DOUBLE);
-
-CREATE TABLE v_centrality_local_reaching("name" VARCHAR, score DOUBLE);
-
-CREATE TABLE v_centrality_louvain("name" VARCHAR, community_id BIGINT);
-
-CREATE TABLE v_centrality_voterank("name" VARCHAR, score DOUBLE);
 
 CREATE TABLE v_company(id BIGINT, "name" VARCHAR, sector_classification VARCHAR, market_cap VARCHAR, ticker VARCHAR);
 
