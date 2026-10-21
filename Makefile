@@ -99,7 +99,7 @@ help:           ## Show available targets (alphabetical; entries generated from 
 > @echo "  live-invariants          Run ONLY the live-marked invariant tests (-m live, xdist -n auto; skip-safe on pristine clone)"
 > @echo "  llamacpp-build           Build the unified llama-server into models/llamacpp/bin (vendor/llamacpp recipe: pinned llama.cpp + qwen2vl patch — one binary serves embgemma :8732 AND teleocr :8731)"
 > @echo "  llamacpp-health          One-shot probe of the always-on legs: :8732 embgemma (identity + 768d) and :8733 granite (identity + 384d); teleocr :8731 opt-in (llamacpp_health.py --ocr)"
-> @echo "  maint                    Routine maintenance: db_maint + snapshot + graph-rebuild (always-safe)"
+> @echo "  maint                    Routine maintenance: db_maint + snapshot + graph-rebuild + stamp-centrality + csr-rebuild (always-safe)"
 > @echo "  maint-full               Post-ingest re-derivation: PRE_FULL index refresh (sync-tags, note-search) + maint + TIER2_STEPS (sector gates, company-embeddings, doc-search, analytics, insights, events, re-snapshot)"
 > @echo "  md-lint                  Markdown lint via pinned markdownlint-cli2 — doc/ prose base + findata Tier-1 defect rules (qa-gated; needs Node, SKIP without; proposal: markdown_lint_adoption)"
 > @echo "  memory-search-rebuild    Rebuild the harness-memory index (memory_search sidecar; query via helpers/misc/memory_query.py)"
@@ -113,7 +113,7 @@ help:           ## Show available targets (alphabetical; entries generated from 
 > @echo "  parity                   Byte-compare registered refactor targets against REF (default HEAD) across pinned hash seeds (warns; STRICT=1 to gate)"
 > @echo "  perf                     Run wall-clock perf benchmarks, print timing table, and append to outputs/perf_report.md"
 > @echo "  person-census            Person-name dup census (person_name_dedup): --check gate vs baseline, --plan writes the merge plan"
-> @echo "  qa                       Run lint + markdown lint + types + deptry + static + pytest + notes + integrity + snapshot in PARALLEL (default 4 jobs; override: make qa -j N; run-all — failures reported at the end; appends outputs/qa_report.md)"
+> @echo "  qa                       Run lint + markdown lint + types + deptry + static + pytest + notes + integrity + schema-check + snapshot in PARALLEL (default 4 jobs; override: make qa -j N; run-all — failures reported at the end; appends outputs/qa_report.md)"
 > @echo "  quote-coverage           S0 quote capture coverage audit (advisory, read-only; per-note 95% tripwire + watchlist + salvage measurement)"
 > @echo "  recompute-graph          Recompute all graph analytics and persist to graph_analytics"
 > @echo "  recompute-hyper          Recompute HGX hyper metrics (hy-MMSBM communities + ho/s centralities)"
@@ -184,7 +184,7 @@ parity:         ## Byte-compare registered refactor targets against REF (default
 tmp-sweep:      ## Reap this repo's temp-dir residue (scratch DBs, stale bench dirs, TUI log) — 24h age guard, dry-run by default; APPLY=1 removes (proposal: tmpdir_sanitization)
 > python3 helpers/maintenance/tmp_sweep.py $(if $(APPLY),--apply,)
 
-qa:             ## Run lint + markdown lint + types + deptry + static + pytest + notes + integrity + snapshot in PARALLEL (default 4 jobs; override: make qa -j N; run-all — failures reported at the end; appends outputs/qa_report.md)
+qa:             ## Run lint + markdown lint + types + deptry + static + pytest + notes + integrity + schema-check + snapshot in PARALLEL (default 4 jobs; override: make qa -j N; run-all — failures reported at the end; appends outputs/qa_report.md)
 > python3 tests/run_gate_report.py qa
 > @echo "✓ QA passed (lint + types + deptry + static + pytest + notes + integrity + snapshot; appended to outputs/qa_report.md)"
 
@@ -278,7 +278,7 @@ snapshot-restore: ## Rebuild memory/ DBs from the git-tracked Parquet snapshot (
 > python3 helpers/maintenance/snapshot_db.py --restore --force
 > @echo "✓ Live DBs rebuilt from snapshots/parquet/"
 
-maint:          ## Routine maintenance: db_maint + snapshot + graph-rebuild + stamp-centrality (always-safe)
+maint:          ## Routine maintenance: db_maint + snapshot + graph-rebuild + stamp-centrality + csr-rebuild (always-safe)
 > python3 helpers/maintenance/maint.py
 > @echo "✓ Routine maintenance complete"
 
@@ -778,6 +778,6 @@ md-lint:        ## Markdown lint via pinned markdownlint-cli2 — doc/ prose bas
 deptry:         ## Run deptry dependency-health scan (unused/undeclared/transitive deps)
 > deptry .
 
-advisory:       ## Run advisory (non-gating) checks in PARALLEL (default 4 jobs; override: make advisory -j N): ty on tests, live invariants, frontend, graph algos, analytics, suggestions, doc/script/note/memory-search freshness checks, lint-audit (appends outputs/advisory_report.md)
+advisory:       ## Run advisory (non-gating) checks in PARALLEL (default 4 jobs; override: make advisory -j N): ty on tests, live invariants, frontend, graph algos, analytics, suggestions, doc/script/note/memory-search freshness checks, lint-audit, secret-scan, cargo-audit, mojo-test, fuzz, license-check (appends outputs/advisory_report.md)
 > python3 tests/run_gate_report.py advisory
 > @echo "✓ Advisory checks complete (appended to outputs/advisory_report.md; these do NOT block \`make qa\`)"

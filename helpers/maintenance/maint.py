@@ -293,6 +293,22 @@ TIER1_STEPS: list[tuple[str, list[str]]] = [
         "stamp-centrality (re-stamp v_centrality_* tables)",
         [sys.executable, "helpers/graph/query.py", "stamp-centrality"],
     ),
+    # CSR substrate refresh: the manifest carries the source generation, so
+    # any DB write orphans it (advisory's csr-fresh-check fails). Reads
+    # memory/research.db only — independent of the DuckDB cache — but sits
+    # after the graph steps to group derived-state rebuilds. Wired 2026-10-21
+    # after the arc found the manifest 4 generations stale mid-gate.
+    (
+        "csr-rebuild (refresh CSR substrate)",
+        [
+            sys.executable,
+            "helpers/graph/csr.py",
+            "--db",
+            "memory/research.db",
+            "--out",
+            "memory/csr",
+        ],
+    ),
     # graph-rebuild refreshes memory/graph.duckdb AFTER step 2 exported the
     # duckdb parquet mirror — without this tail step the mirror runs one
     # rebuild stale and snapshot_db.py --check fails after any graph
@@ -501,6 +517,21 @@ TIER2_STEPS: list[tuple[str, list[str]]] = [
         "snapshot (re-snapshot to include recomputed analytics + events)",
         [sys.executable, "helpers/maintenance/snapshot_db.py"],
     ),
+    # CSR refresh rides the very tail: the manifest carries the source
+    # generation, and the re-snapshot above bumps it — a mid-run CSR build
+    # (TIER1's csr-rebuild is FULL_SKIPped) would end the run stale again.
+    # Wired 2026-10-21 with the TIER1 step (gate-arc expansion).
+    (
+        "csr-rebuild (refresh CSR substrate after the tail snapshot)",
+        [
+            sys.executable,
+            "helpers/graph/csr.py",
+            "--db",
+            "memory/research.db",
+            "--out",
+            "memory/csr",
+        ],
+    ),
 ]
 # NOTE: sync-sector-links used to WRITE here (regenerating the auto company
 # index in sector notes). Since 2026-08-19 maint-full only CHECKS it; the
@@ -526,6 +557,11 @@ TIER1_FULL_SKIP: frozenset[str] = frozenset(
         # predates the scipy_routing_dispatch lane skips). The stamp
         # re-warms on the next plain maint / stamp-centrality run.
         "stamp-centrality (re-stamp v_centrality_* tables)",
+        # csr-rebuild joins too: the TIER2 tail re-snapshots (bumping the
+        # source generation the CSR manifest records) and then rebuilds the
+        # substrate itself as the new final step — a mid-run build would be
+        # overwritten stale by definition.
+        "csr-rebuild (refresh CSR substrate)",
     }
 )
 

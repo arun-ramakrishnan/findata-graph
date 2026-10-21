@@ -206,7 +206,7 @@ def _findings_rows() -> list[dict]:
     path = _FINDINGS_PATH or DEFAULT_FINDINGS
     try:
         data = json.loads(path.read_text())
-    except (FileNotFoundError, ValueError):
+    except FileNotFoundError, ValueError:
         return []
     findings, _ = _unwrap(data, path)
     if findings is None:
@@ -260,9 +260,7 @@ def make_surface_specs() -> dict[str, SurfaceSpec]:
             RELATIONS_OUT,
             load_existing=_relations_existing,
         ),
-        "quotes": SurfaceSpec(
-            "quotes", _quotes_rows, _quotes_key, _quotes_state, QUOTES_OUT
-        ),
+        "quotes": SurfaceSpec("quotes", _quotes_rows, _quotes_key, _quotes_state, QUOTES_OUT),
         "coverage": SurfaceSpec(
             "coverage", _coverage_rows, _coverage_key, _coverage_state, COVERAGE_OUT
         ),
@@ -303,7 +301,7 @@ def carrier_verdict(a: dict) -> str | None:
         return None
     try:
         p = float(pr)
-    except (TypeError, ValueError):
+    except TypeError, ValueError:
         return None
     return "admit" if p > 0.5 else "keep-out"
 
@@ -319,7 +317,7 @@ def render_carrier_for(
 
     Used by every review loop so the second opinion renders uniformly:
     ``ab mercury: fact p=0.41 / admission p=0.32 -> keep-out``. Missing
-    annotation -> no output (silent). """
+    annotation -> no output (silent)."""
 
     a = c_map.get(key) if isinstance(c_map, dict) else None
     if not a:
@@ -390,7 +388,9 @@ def annotate_surface(
             }
             f.write(json.dumps(row, ensure_ascii=False) + "\n")
             annotated += 1
-            print(f"  [{annotated}/{len(todo)}] {key} p_fact={p1:.2f} p_rubric={p2:.2f}", flush=True)
+            print(
+                f"  [{annotated}/{len(todo)}] {key} p_fact={p1:.2f} p_rubric={p2:.2f}", flush=True
+            )
     return len(todo), annotated, out_path
 
 

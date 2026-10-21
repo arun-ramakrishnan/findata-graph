@@ -12,10 +12,18 @@ Set by the operator 2026-10-02 ("our gates run arc is very problematic").
 1. `make search-fresh APPLY=1` + `make convo-fresh APPLY=1` — the ONLY APPLY
    this arc; never re-APPLY mid-arc. Check-mode reds on these advisory legs
    afterwards are expected noise, not failures — say so in the trailer.
-2. Quiet-box check before any timing runs: sibling sessions, desktop load
+2. `make maint` — regenerate derived state (snapshot, DuckDB graph cache,
+   centrality stamps, CSR substrate) so the baseline gates compare fresh
+   state, not last arc's. Data-writing arcs (anything that touched
+   `memory/research.db`) MUST run it; a pure-code arc that closed green may
+   skip. Wired 2026-10-21 after the arc paid for its absence: qa
+   snapshot-fresh + snapshot_check, four graph perf legs and
+   csr-fresh-check all failed on stale derived state one maint run would
+   have refreshed.
+3. Quiet-box check before any timing runs: sibling sessions, desktop load
    (`witr`, load average). A loaded box inflates every leg uniformly —
    report the confound, don't record the numbers.
-3. `stg series -id` — read the stack; know which patches are yours
+4. `stg series -id` — read the stack; know which patches are yours
    (commit-messages.md § Inspecting stack state).
 
 ## Phase 1 — baseline (once, on the user's go)
@@ -37,6 +45,16 @@ toolchain and a build**, so a bare `make qa` on a machine without
 mismatched keys with the full log path, which is the fastest route to the
 offending site. Its analogue for perf regressions is `make mojo-bench`
 (still a separate, non-blocking surface).
+
+qa also runs a **`schema-check`** leg — tracked `schema/` DDL vs the live
+`memory/` DBs, exit 1 on drift, fix is `make schema-dump` — and advisory
+runs five security/compliance legs: `secret-scan` (incremental git-history
+scan), `cargo-audit` (SKIPs without the binary), `mojo-test` (same
+toolchain caveat as mojo-parity), `fuzz` (Hypothesis suites, deterministic
+seed; contends with the pytest-scale legs, so advisory wall time grows),
+`license-check` (AGPL + third-party inventory). All wired 2026-10-21;
+`analytics-fresh` was deliberately left out — it reads external harness
+state and carries the same chronic-red risk class as convo-fresh.
 
 `make integration` is a standing arc leg. Its 551 `-m integration` tests
 also run inside qa's pytest `-m "not live"` (`tests/run_gate_report.py`

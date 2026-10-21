@@ -229,6 +229,12 @@ GATES: dict[str, Gate] = {
             ),
             Step("verify_notes", (_PY, "helpers/validators/verify_notes.py")),
             Step("integrity_check", (_PY, "helpers/misc/database_integrity_check.py")),
+            # schema drift gate: tracked schema/ DDL vs the live memory/ DBs.
+            # Surfaces drift in ~2 s with the exact remediation (make
+            # schema-dump) instead of burying it inside the pytest leg
+            # (tests/test_schema_drift.py) with no fix hint. Wired 2026-10-21
+            # after the feature_evals arc paid for its absence.
+            Step("schema-check", (_MAKE, "schema-check")),
             # mojo-parity: the Mojo integrity_check port diffed against
             # the Python original over 89 canonical keys. This is the
             # ONLY drift detector between the two implementations, and
@@ -347,6 +353,19 @@ GATES: dict[str, Gate] = {
             Step("convo-fresh-check", (_MAKE, "convo-fresh")),
             Step("csr-fresh-check", (_MAKE, "csr-check")),
             Step("lint-audit", (_RUFF, "check", "--select", "S,UP,C901", ".")),
+            # Security + compliance legs (2026-10-21 gate-arc expansion).
+            # secret-scan is incremental (state under .git/secret-scan/) so
+            # cheap after the first run; cargo-audit SKIPs without the
+            # binary (same safe-skip pattern as md-lint without Node);
+            # mojo-test carries the same toolchain caveat as mojo-parity;
+            # fuzz runs the Hypothesis suites (deterministic seed, -n auto —
+            # contends with the pytest-scale legs, expect advisory wall time
+            # to grow); license-check verifies AGPL + third-party metadata.
+            Step("secret-scan", (_MAKE, "secret-scan")),
+            Step("cargo-audit", (_MAKE, "cargo-audit")),
+            Step("mojo-test", (_MAKE, "mojo-test")),
+            Step("fuzz", (_MAKE, "fuzz")),
+            Step("license-check", (_MAKE, "license-check")),
         ),
     ),
 }

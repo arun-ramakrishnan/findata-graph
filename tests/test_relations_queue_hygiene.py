@@ -821,9 +821,7 @@ class TestS5SecondOpinionSitting:
             calls.append(spec.name)
             return (0, 0, tmp_path / "_pending_annotations_mercury.jsonl")
 
-        monkeypatch.setattr(
-            "helpers.core.decisions_preannotate.annotate_surface", fake_annotate
-        )
+        monkeypatch.setattr("helpers.core.decisions_preannotate.annotate_surface", fake_annotate)
         tpr.review(
             input_fn=lambda _: "d",
             print_fn=lambda *_: None,
@@ -864,7 +862,10 @@ class TestS5SecondOpinionSitting:
         text = "\n".join(out)
         # mercury admits -> the accept verb is starred, not discard
         assert "★ recommended" in text
-        assert "a[/EDGE_TYPE[/TARGET]] — accept (edge type + target overrideable) ★ recommended" in text
+        assert (
+            "a[/EDGE_TYPE[/TARGET]] — accept (edge type + target overrideable) ★ recommended"
+            in text
+        )
 
 
 class TestS7QuestionPinning:

@@ -413,9 +413,7 @@ def review(  # noqa: C901 — keypress parsing + kit wiring, split would scatter
         try:
             from helpers.core.decisions_preannotate import annotate_surface, make_surface_specs
 
-            _, annotated, _ = annotate_surface(
-                make_surface_specs()["quotes"], limit=limit or 0
-            )
+            _, annotated, _ = annotate_surface(make_surface_specs()["quotes"], limit=limit or 0)
             if annotated:
                 print_fn(f"(auto-pre-annotated {annotated} new quote rows)")
         except Exception as exc:  # non-fatal — the sitting is the human gate
@@ -431,7 +429,7 @@ def review(  # noqa: C901 — keypress parsing + kit wiring, split would scatter
             return None
         try:
             p = float(a["p_rubric"])
-        except (TypeError, ValueError):
+        except TypeError, ValueError:
             return None
         if p > 0.5:
             return "1" if e.get("suggestions") else None

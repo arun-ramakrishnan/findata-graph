@@ -950,7 +950,7 @@ def triage(  # noqa: C901 — keypress parsing + kit wiring, split would scatter
             return None
         try:
             p = float(a["p_rubric"])
-        except (TypeError, ValueError):
+        except TypeError, ValueError:
             return None
         return "a" if p > 0.5 else "r"
 

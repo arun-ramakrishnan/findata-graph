@@ -290,7 +290,7 @@ def review(  # noqa: C901 — keypress parsing + kit wiring, split would scatter
     if menu:
         reader = make_menu_input(_MENU_SPEC, print_fn=print_fn, input_fn=input_fn)
     elif prompt:
-if answers_path is None:  # pragma: no cover - guarded by the ValueError above
+        if answers_path is None:  # pragma: no cover - guarded by the ValueError above
             raise ValueError("--prompt requires --answers")
         reader = make_scripted_input(answers_path.read_text().splitlines(), _MENU_SPEC)
     else:

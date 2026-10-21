@@ -178,7 +178,9 @@ def write_packets(
             recommended_key = recommend(entry) if recommend is not None else None
             handle.write(
                 packet_json(
-                    build_packet(entry, spec, prompt_text=prompt_text, recommended_key=recommended_key)
+                    build_packet(
+                        entry, spec, prompt_text=prompt_text, recommended_key=recommended_key
+                    )
                 )
                 + "\n"
             )

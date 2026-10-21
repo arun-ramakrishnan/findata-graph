@@ -209,7 +209,9 @@ class TestRecommendedHint:
         def _rec(entry: dict) -> str | None:
             return "d" if entry["label"] == "sha256:abcd1234" else None
 
-        n = write_packets([ENTRY, {**ENTRY, "label": "sha256:eeff"}], QUOTES_SPEC, out, recommend=_rec)
+        n = write_packets(
+            [ENTRY, {**ENTRY, "label": "sha256:eeff"}], QUOTES_SPEC, out, recommend=_rec
+        )
         assert n == 2
         packets = load_packets(out)
         assert packets[0]["recommended"] == "d"

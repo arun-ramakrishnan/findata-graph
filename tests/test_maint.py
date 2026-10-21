@@ -81,7 +81,9 @@ class TestPlan:
         # 5 before that: centrality_rebuild_contract (2026-09-23) made
         # stamp-centrality explicit — graph-rebuild is data-only and drops
         # the v_centrality_* tables.
-        assert len(maint.TIER1_STEPS) == 7
+        # 8 since the 2026-10-21 gate-arc expansion: csr-rebuild joins so
+        # `make maint` refreshes every derived state the gates check.
+        assert len(maint.TIER1_STEPS) == 8
 
     def test_tier1_steps_order(self):
         # The order is load-bearing:
@@ -104,10 +106,11 @@ class TestPlan:
             "snapshot (refresh versioned snapshots)",
             "graph-rebuild (refresh DuckDB cache)",
             "stamp-centrality (re-stamp v_centrality_* tables)",
+            "csr-rebuild (refresh CSR substrate)",
             "snapshot duckdb parquet mirror (post-rebuild)",
         ]
 
-    def test_tier2_has_nineteen_steps(self):
+    def test_tier2_has_twenty_steps(self):
         # sync-tags + rebuild-note-search moved to PRE_FULL (2026-08-29):
         # their output must land inside the db_maint recovery backup.
         # derive-hyperedges joined 2026-09-14 (hyper incidence store arc):
@@ -127,7 +130,10 @@ class TestPlan:
         # "stamp-centrality (re-stamp v_centrality_* after the rebuild)",
         # inserted after rebuild-doc-search so recompute-graph never opens a
         # stale cache (GraphCacheStaleError, advisory graph-algos leg).
-        assert len(maint.TIER2_STEPS) == 19
+        # csr-rebuild joined 2026-10-21 (gate-arc expansion) as the new
+        # FINAL step: the tail re-snapshot bumps the generation the CSR
+        # manifest records, so the substrate must build after it.
+        assert len(maint.TIER2_STEPS) == 20
 
     def test_tier2_steps_order(self):
         # Post-ingest re-derivation: the sector --check gates first
@@ -147,7 +153,9 @@ class TestPlan:
         # --full revalidates the whole corpus (dirty-gating backstop),
         # frontmatter --report prints the strict-engine full detail as
         # warnings without blocking,
-        # and re-snapshot captures the full post-ingest state.
+        # and re-snapshot captures the full post-ingest state, then
+        # csr-rebuild rebuilds the CSR substrate against the tail
+        # snapshot's generation (gate-arc expansion, 2026-10-21).
         labels = [label for label, _ in maint.TIER2_STEPS]
         assert labels == [
             "sync-sector-links --check (gate: sector-note company indexes fresh)",
@@ -169,6 +177,7 @@ class TestPlan:
             "static-checks --full (full-corpus validation backstop)",
             "frontmatter full-report (jsonschema advisory, never blocks)",
             "snapshot (re-snapshot to include recomputed analytics + events)",
+            "csr-rebuild (refresh CSR substrate after the tail snapshot)",
         ]
 
     def test_derive_insights_precedes_derive_events(self):
@@ -215,7 +224,8 @@ class TestPlan:
         # maint only.
         skipped = [s for s in maint.TIER1_STEPS if s[0] not in maint.TIER1_FULL_SKIP]
         full = maint.PRE_FULL_STEPS + skipped + maint.TIER2_STEPS
-        assert len(maint.TIER1_FULL_SKIP) == 3
+        assert len(maint.TIER1_FULL_SKIP) == 4
+        assert "csr-rebuild (refresh CSR substrate)" in maint.TIER1_FULL_SKIP
         assert "snapshot (refresh versioned snapshots)" in maint.TIER1_FULL_SKIP
         assert "snapshot duckdb parquet mirror (post-rebuild)" in maint.TIER1_FULL_SKIP
         assert len(full) == len(maint.PRE_FULL_STEPS) + len(skipped) + len(maint.TIER2_STEPS)

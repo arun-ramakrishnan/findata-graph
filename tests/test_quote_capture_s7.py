@@ -237,7 +237,19 @@ class TestReviewSitting:
         calls = []
         monkeypatch.setattr(tpq, "review", lambda **kw: calls.append(kw) or {"approved": 0})
         assert tpq.main(["--review", "--limit", "2", "--dry-run"]) == 0
-        assert calls == [{"limit": 2, "redecide": False, "skipped": False, "apply": False}]
+        assert calls == [
+            {
+                "limit": 2,
+                "redecide": False,
+                "skipped": False,
+                "apply": False,
+                "menu": False,
+                "prompt": False,
+                "answers_path": None,
+                "packets_out": None,
+                "preannotate": True,
+            }
+        ]
 
     def test_alias_db_lookup_acronym_and_pick(self, tmp_path, monkeypatch):
         # fixture entities: Exide Industries / Premier Energies
