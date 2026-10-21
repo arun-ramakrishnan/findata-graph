@@ -447,7 +447,7 @@ class TestS6SurfaceKeyRegistry:
     def test_relations_surface_is_registered(self):
         assert tj.surface_key_registered("relations_triage_queue")
         key = tj.require_surface_key("relations_triage_queue")
-        assert key == "doc/local/evaluations/jev_pilot/dataset/eval3/items.json"
+        assert key == "bench_data/jev_pilot/dataset/eval3/items.json"
 
     def test_unregistered_surface_raises(self):
         with pytest.raises(KeyError, match="no key, no show"):

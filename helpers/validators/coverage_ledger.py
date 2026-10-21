@@ -133,6 +133,7 @@ DEFAULT_LEDGER = REPO / "doc/security/coverage-ledger.json"
 DEFAULT_QUEUE = REPO / "doc" / "local" / "security" / "coverage_queue.jsonl"
 DEFAULT_DECISIONS = REPO / "doc" / "local" / "security" / "coverage_decisions.jsonl"
 REVIEW_JOURNAL_DIR = REPO / "outputs" / "coverage_review"
+COVERAGE_ANNOTATIONS = REVIEW_JOURNAL_DIR / "mercury_annotations.jsonl"
 
 # What a decision may close a queue row AS. `bad_pair` is the escape
 # hatch for a pair that should not exist (the surface is mis-named or
@@ -1240,6 +1241,7 @@ def review(  # noqa: C901 — keypress parsing + kit wiring, split would scatter
     prompt: bool = False,
     answers_path: Path | None = None,
     packets_out: Path | None = None,
+    preannotate: bool = False,
     input_fn=input,
     print_fn=print,
 ) -> dict:
@@ -1308,7 +1310,13 @@ def review(  # noqa: C901 — keypress parsing + kit wiring, split would scatter
         raise ValueError("--prompt requires --answers <file>")
     reader = input_fn
     if menu:
-        reader = make_menu_input(_MENU_SPEC, print_fn=print_fn, input_fn=input_fn)
+        _menu_rec: dict[str, str | None] = {"key": None}
+        reader = make_menu_input(
+            _MENU_SPEC,
+            print_fn=print_fn,
+            input_fn=input_fn,
+            recommended=lambda: _menu_rec["key"],
+        )
     elif prompt:
         assert answers_path is not None  # guarded by the ValueError above
         answers = answers_path.read_text(encoding="utf-8").splitlines()
@@ -1349,6 +1357,35 @@ def review(  # noqa: C901 — keypress parsing + kit wiring, split would scatter
     if packets_out is not None and entries:
         write_packets(entries, _MENU_SPEC, packets_out)
 
+    from helpers.core.decisions_preannotate import load_id_annotations, render_carrier_for
+
+    if preannotate:
+        try:
+            from helpers.core.decisions_preannotate import annotate_surface, make_surface_specs
+
+            _, annotated, _ = annotate_surface(make_surface_specs()["coverage"])
+            if annotated:
+                print_fn(f"(auto-pre-annotated {annotated} new coverage rows)")
+        except Exception as exc:  # non-fatal — the sitting is the human gate
+            print_fn(f"(auto-pre-annotation unavailable: {exc})")
+
+    c_map = load_id_annotations(COVERAGE_ANNOTATIONS)
+
+    def _recommend(e: dict) -> str | None:
+        """Carrier-recommended choice key: ``c VERDICT`` (cover) on admit,
+        ``e STATUS|note`` on keep-out, ``None`` without a rubric verdict."""
+        a = c_map.get(e["label"])
+        if not a or a.get("p_rubric") is None:
+            return None
+        try:
+            p = float(a["p_rubric"])
+        except (TypeError, ValueError):
+            return None
+        return "c VERDICT" if p > 0.5 else "e STATUS|note"
+
+    if packets_out is not None and entries:
+        write_packets(entries, _MENU_SPEC, packets_out, recommend=_recommend)
+
     legend = [
         "  keys: c VERDICT  cover (e.g. c confirmed)    e STATUS|note  exclude",
         "        d|note  defer    b  bad_pair    p  park — reopen via --skipped",
@@ -1366,6 +1403,7 @@ def review(  # noqa: C901 — keypress parsing + kit wiring, split would scatter
             print_fn(f"     exemplar: {e['exemplar_note']}")
         if e.get("siblings"):
             print_fn(f"     siblings: {e['siblings']}")
+        render_carrier_for(e["label"], c_map=c_map, print_fn=print_fn)
 
     def render(idx: int, total: int, e: dict) -> None:
         print_fn(f"[{idx}/{total}] `{e['label']}`")
@@ -1373,6 +1411,8 @@ def review(  # noqa: C901 — keypress parsing + kit wiring, split would scatter
 
     def ask(e: dict, note) -> dict:
         rid = e["label"]
+        if menu:
+            _menu_rec["key"] = _recommend(e)
         while True:
             ans = input_fn("  c VERDICT / e STATUS|note / d|note / b / p / ? / q / x: ").strip()
             ans, _, free_note = ans.partition("|")
@@ -1550,6 +1590,12 @@ def main(argv: list[str] | None = None) -> int:
         type=Path,
         help="review: write the prompt packets (JSONL) for the agent flow",
     )
+    ap.add_argument(
+        "--no-preannotate",
+        action="store_true",
+        help="review: do NOT auto-run decisions-preannotate for the coverage surface "
+        "(default: run it first, idempotent per key)",
+    )
     a = ap.parse_args(argv)
     if a.mode == "check":
         return check(a.app, a.ledger, strict=a.strict, scope=a.scope)
@@ -1577,6 +1623,7 @@ def main(argv: list[str] | None = None) -> int:
             prompt=a.prompt,
             answers_path=a.answers,
             packets_out=a.packets_out,
+            preannotate=not a.no_preannotate,
         )
         return 0 if isinstance(outcome, dict) else outcome
     if a.mode == "plan":

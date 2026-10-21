@@ -38,11 +38,12 @@ entry number and stale DONE pointers):
 
 ## Current live proposals
 
-None — the 2026-10-21 review-menu batch is fully discharged; the next
+None — the 2026-10-21 review-preannotate batch is fully discharged; the next
 filing starts a new list.
 
 Executed from this batch (archived — see `../archive/README.md` for the
-detail bullets): `../archive/tooling/review_menu_prompt_driven.md` (#424),
+detail bullets): `../archive/tooling/review_preannotate_hints.md` (#425),
+`../archive/tooling/review_menu_prompt_driven.md` (#424),
 `../archive/tooling/tui_perf_sparkline.md` (#422),
 `../archive/database/person_ontology_spine.md` (#419),
 `../archive/graph/hyperedge_density_dq.md` (#420),

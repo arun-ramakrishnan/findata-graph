@@ -801,6 +801,71 @@ class TestS5SecondOpinionSitting:
         assert pairs[0]["ab"]["p_rubric"]["glm"] is None  # journal keeps the None
         assert pairs[0]["gap_admission"] is None  # no fabricated lean, no gap
 
+    def test_preannotate_runs_producer_before_sitting(self, paths, tmp_path, monkeypatch):
+        """S1 (review_preannotate_hints.md): review() auto-runs the carrier
+        producer for the surface unless --no-preannotate. Idempotent per key;
+        non-fatal on carrier failure."""
+        paths.write_text(
+            _json_row("acquired", "Tata Consultancy Services", "Porsche") + "\n",
+            encoding="utf-8",
+        )
+        self._carrier_files(
+            tmp_path,
+            monkeypatch,
+            glm={"id": self.GLM_ID, "p_fact": 0.9, "p_rubric": 0.05, "escalated": False},
+            mercury={"id": self.GLM_ID, "p_fact": 0.07, "p_rubric": 0.01, "escalated": False},
+        )
+        calls: list[str] = []
+
+        def fake_annotate(spec, **kw):
+            calls.append(spec.name)
+            return (0, 0, tmp_path / "_pending_annotations_mercury.jsonl")
+
+        monkeypatch.setattr(
+            "helpers.core.decisions_preannotate.annotate_surface", fake_annotate
+        )
+        tpr.review(
+            input_fn=lambda _: "d",
+            print_fn=lambda *_: None,
+            apply=False,
+            preannotate=True,
+        )
+        assert calls == ["relations"]
+
+        calls.clear()
+        tpr.review(
+            input_fn=lambda _: "d",
+            print_fn=lambda *_: None,
+            apply=False,
+            preannotate=False,
+        )
+        assert calls == []  # --no-preannotate restores today's behavior
+
+    def test_recommend_maps_verdict_to_verb(self, paths, tmp_path, monkeypatch):
+        """S2: the carrier verdict picks the recommended menu verb (admit ->
+        accept, keep-out -> discard); not present without a rubric p."""
+        paths.write_text(
+            _json_row("acquired", "Tata Consultancy Services", "Porsche") + "\n",
+            encoding="utf-8",
+        )
+        self._carrier_files(
+            tmp_path,
+            monkeypatch,
+            glm={"id": self.GLM_ID, "p_fact": 0.9, "p_rubric": 0.05, "escalated": False},
+            mercury={"id": self.GLM_ID, "p_fact": 0.07, "p_rubric": 0.9, "escalated": False},
+        )
+        out: list[str] = []
+        tpr.review(
+            input_fn=lambda _: "d",
+            print_fn=out.append,
+            apply=False,
+            menu=True,
+        )
+        text = "\n".join(out)
+        # mercury admits -> the accept verb is starred, not discard
+        assert "★ recommended" in text
+        assert "a[/EDGE_TYPE[/TARGET]] — accept (edge type + target overrideable) ★ recommended" in text
+
 
 class TestS7QuestionPinning:
     """S7: the typed question text IS the regression surface. These exact

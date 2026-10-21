@@ -11,6 +11,15 @@ Open items below keep their revisit triggers inline; executed work is compressed
   eval-gate not triggered (no query-visible semantics change). Demoed
   live on the relations queue (dry-run, 3 real rows).
 
+- **Automated carrier pre-annotation + recommended hints — EXECUTED 2026-10-21**
+  (archive/tooling/review_preannotate_hints.md; completed.md #425):
+  S1 auto-run `annotate_surface` per surface on every review sitting
+  (default-on `--preannotate`, idempotent, non-fatal), S2 `★ recommended`
+  menu/packet hints via `carrier_verdict` → per-surface verb mappers;
+  captures the decisions-preannotate/menu/carrier work as S0; eval-gate
+  not triggered (no query-visible semantics change). Gates (qa +
+  integration + perf + advisory) deferred to the operator's go.
+
 - **C901 D1 splits — four named functions scheduled (operator ruling
   2026-09-30)** (`archive/graph/c901_complexity_debt.md` §4.1 "no new
   suppression" vs the lint-audit arc's four new masks):

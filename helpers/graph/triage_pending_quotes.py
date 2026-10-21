@@ -41,6 +41,7 @@ ALIASES = _REPO_ROOT / "findata" / "Misc" / "quote_aliases.json"
 DECISIONS = _REPO_ROOT / "findata" / "Misc" / "quote_triage_decisions.jsonl"
 REPORT = _REPO_ROOT / "findata" / "Misc" / "quote_triage_report.md"
 REVIEW_JOURNAL_DIR = _REPO_ROOT / "outputs" / "quotes_review"
+MERCURY_ANNOTATIONS = _REPO_ROOT / "findata" / "Misc" / "_quote_annotations_mercury.jsonl"
 
 # Mangled-canonical signature: converter artifacts neither the exact nor the
 # qualifier tiers can fix — trailing `I` / `]` / `,` / `;`, stray `_`, a
@@ -291,6 +292,7 @@ def review(  # noqa: C901 — keypress parsing + kit wiring, split would scatter
     prompt: bool = False,
     answers_path: Path | None = None,
     packets_out: Path | None = None,
+    preannotate: bool = False,
 ) -> dict:
     """Interactive sitting over the open quote canonicals (review-kit S3).
 
@@ -350,7 +352,13 @@ def review(  # noqa: C901 — keypress parsing + kit wiring, split would scatter
         raise ValueError("--prompt requires --answers <file>")
     reader = input_fn
     if menu:
-        reader = make_menu_input(_MENU_SPEC, print_fn=print_fn, input_fn=input_fn)
+        _menu_rec: dict[str, str | None] = {"key": None}
+        reader = make_menu_input(
+            _MENU_SPEC,
+            print_fn=print_fn,
+            input_fn=input_fn,
+            recommended=lambda: _menu_rec["key"],
+        )
     elif prompt:
         assert answers_path is not None  # guarded by the ValueError above
         answers = answers_path.read_text(encoding="utf-8").splitlines()
@@ -394,12 +402,43 @@ def review(  # noqa: C901 — keypress parsing + kit wiring, split would scatter
         sort_key=lambda e: (_bucket_rank.get(e.get("bucket", ""), 9), e["label"]),
         limit=limit,
     )
-    if packets_out is not None and entries:
-        write_packets(entries, _MENU_SPEC, packets_out)
 
     conn = connect()
     entities = {r[0].lower(): r[0] for r in conn.execute("SELECT name FROM entities").fetchall()}
     conn.close()
+
+    from helpers.core.decisions_preannotate import load_id_annotations, render_carrier_for
+
+    if preannotate:
+        try:
+            from helpers.core.decisions_preannotate import annotate_surface, make_surface_specs
+
+            _, annotated, _ = annotate_surface(
+                make_surface_specs()["quotes"], limit=limit or 0
+            )
+            if annotated:
+                print_fn(f"(auto-pre-annotated {annotated} new quote rows)")
+        except Exception as exc:  # non-fatal — the sitting is the human gate
+            print_fn(f"(auto-pre-annotation unavailable: {exc})")
+
+    c_map = load_id_annotations(MERCURY_ANNOTATIONS)
+
+    def _recommend(e: dict) -> str | None:
+        """Carrier-recommended choice key: ``1`` (top suggestion) on admit
+        (when suggestions exist), ``d`` on keep-out, ``None`` otherwise."""
+        a = c_map.get(e["id"])
+        if not a or a.get("p_rubric") is None:
+            return None
+        try:
+            p = float(a["p_rubric"])
+        except (TypeError, ValueError):
+            return None
+        if p > 0.5:
+            return "1" if e.get("suggestions") else None
+        return "d"
+
+    if packets_out is not None and entries:
+        write_packets(entries, _MENU_SPEC, packets_out, recommend=_recommend)
 
     legend = [
         "  keys: 1-3 alias to suggestion n (* = suggestion is an existing entity)",
@@ -420,6 +459,7 @@ def review(  # noqa: C901 — keypress parsing + kit wiring, split would scatter
             print_fn(f"     note: {note}")
         if e.get("vss_hint"):
             print_fn(f"     vss: {e['vss_hint']}")
+        render_carrier_for(e["id"], c_map=c_map, print_fn=print_fn)
 
     def render(idx: int, total: int, e: dict) -> None:
         print_fn(f"[{idx}/{total}] `{e['id']}` {e['canonical']}  ({e.get('bucket', '?')})")
@@ -427,6 +467,8 @@ def review(  # noqa: C901 — keypress parsing + kit wiring, split would scatter
 
     def ask(e: dict, note) -> dict:  # noqa: C901
         rid = e["id"]
+        if menu:
+            _menu_rec["key"] = _recommend(e)
         sugg = e.get("suggestions", [])
         while True:
             ans = input_fn("  alias 1-3 / al NAME / st / sc CIN / d / p / ? / q / x: ").strip()
@@ -573,6 +615,12 @@ def main(argv=None) -> int:
         default=None,
         help="prompt: also write the prompt-packets JSONL here",
     )
+    ap.add_argument(
+        "--no-preannotate",
+        action="store_true",
+        help="review: do NOT auto-run decisions-preannotate for the quotes surface "
+        "(default: run it first, idempotent per key)",
+    )
     args = ap.parse_args(argv)
     if args.review:
         review(
@@ -584,6 +632,7 @@ def main(argv=None) -> int:
             prompt=args.prompt,
             answers_path=args.answers,
             packets_out=args.packets_out,
+            preannotate=not args.no_preannotate,
         )
         return 0
     return cmd_apply() if args.apply_decisions else cmd_report()

@@ -187,3 +187,45 @@ class TestBackends:
         ask = make_scripted_input(["d", "y"], QUOTES_SPEC)
         assert ask() == "d"
         assert ask("apply 1 decision row(s)? y/N: ") == "y"
+
+
+class TestRecommendedHint:
+    """S2 of review_preannotate_hints.md — carrier verdict marks a choice."""
+
+    def test_packet_carries_recommended(self) -> None:
+        p = build_packet(ENTRY, QUOTES_SPEC, recommended_key="d")
+        assert p["recommended"] == "d"
+        p_none = build_packet(ENTRY, QUOTES_SPEC)
+        assert "recommended" not in p_none
+
+    def test_render_marks_recommended(self) -> None:
+        text = render_packet(build_packet(ENTRY, QUOTES_SPEC, recommended_key="d"))
+        assert "7) d — discard — never asked again ★ recommended" in text
+        assert "★ recommended" in text
+
+    def test_write_packets_recommend_callable(self, tmp_path) -> None:
+        out = tmp_path / "packets.jsonl"
+
+        def _rec(entry: dict) -> str | None:
+            return "d" if entry["label"] == "sha256:abcd1234" else None
+
+        n = write_packets([ENTRY, {**ENTRY, "label": "sha256:eeff"}], QUOTES_SPEC, out, recommend=_rec)
+        assert n == 2
+        packets = load_packets(out)
+        assert packets[0]["recommended"] == "d"
+        assert "recommended" not in packets[1]
+
+    def test_menu_input_marks_recommended(self) -> None:
+        out = io.StringIO()
+        rec = {"key": "d"}
+        ask = make_menu_input(
+            QUOTES_SPEC, print_fn=out.write, input_fn=lambda _p: "7", recommended=lambda: rec["key"]
+        )
+        assert ask() == "d"
+        assert "★ recommended" in out.getvalue()
+
+    def test_menu_input_no_recommend_plain(self) -> None:
+        out = io.StringIO()
+        ask = make_menu_input(QUOTES_SPEC, print_fn=out.write, input_fn=lambda _p: "7")
+        assert ask() == "d"
+        assert "★ recommended" not in out.getvalue()

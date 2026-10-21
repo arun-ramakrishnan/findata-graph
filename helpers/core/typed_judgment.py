@@ -110,7 +110,7 @@ CHAT_SCHEMA = (
 # that ships the question; the key is re-run whenever the question text
 # changes (S7 pinning).
 SURFACE_EVAL_KEYS: dict[str, str] = {
-    "relations_triage_queue": "doc/local/evaluations/jev_pilot/dataset/eval3/items.json",
+    "relations_triage_queue": "bench_data/jev_pilot/dataset/eval3/items.json",
 }
 
 

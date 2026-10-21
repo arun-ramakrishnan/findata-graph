@@ -71,13 +71,19 @@ class MenuSpec:
 PACKET_SCHEMA = "review_menu/v1"
 
 
-def build_packet(entry: dict, spec: MenuSpec, *, prompt_text: str | None = None) -> dict:
+def build_packet(
+    entry: dict,
+    spec: MenuSpec,
+    *,
+    prompt_text: str | None = None,
+    recommended_key: str | None = None,
+) -> dict:
     """Deterministic packet for one item. Same entry + spec -> byte-identical
     JSON (sort_keys + fixed separators). ``evidence`` is the queue's full
     card; the renderer decides how much is shown."""
 
     item_id = entry.get("label") or entry.get("id") or "<no-id>"
-    return {
+    packet = {
         "schema": PACKET_SCHEMA,
         "surface": spec.name,
         "item_id": str(item_id),
@@ -85,6 +91,9 @@ def build_packet(entry: dict, spec: MenuSpec, *, prompt_text: str | None = None)
         "choices": [{"key": c.key, "label": c.label, "hint": c.hint} for c in spec.choices],
         "prompt": prompt_text if prompt_text is not None else spec.prompt,
     }
+    if recommended_key is not None:
+        packet["recommended"] = recommended_key
+    return packet
 
 
 def packet_json(packet: dict) -> str:
@@ -137,9 +146,11 @@ def render_packet(packet: dict, *, max_evidence: int = 24) -> str:
     lines.append("")
     lines.append(packet["prompt"])
     lines.append("")
+    recommended = packet.get("recommended")
     for i, c in enumerate(packet["choices"], 1):
         hint = f" — {c['hint']}" if c["hint"] else ""
-        lines.append(f"  {i}) {c['key']} — {c['label']}{hint}")
+        mark = " ★ recommended" if recommended is not None and c["key"] == recommended else ""
+        lines.append(f"  {i}) {c['key']} — {c['label']}{hint}{mark}")
     lines.append("  ?) show full evidence again")
     lines.append("  q) quit")
     return "\n".join(lines)
@@ -151,6 +162,7 @@ def write_packets(
     out: TextIO | pathlib.Path,
     *,
     prompt_text: str | None = None,
+    recommend: Callable[[dict], str | None] | None = None,
 ) -> int:
     """Write one JSON line per item (stable, sorted). Returns packet count."""
 
@@ -163,7 +175,13 @@ def write_packets(
     n = 0
     try:
         for entry in entries:
-            handle.write(packet_json(build_packet(entry, spec, prompt_text=prompt_text)) + "\n")
+            recommended_key = recommend(entry) if recommend is not None else None
+            handle.write(
+                packet_json(
+                    build_packet(entry, spec, prompt_text=prompt_text, recommended_key=recommended_key)
+                )
+                + "\n"
+            )
             n += 1
     finally:
         if close:
@@ -252,6 +270,7 @@ def make_menu_input(
     *,
     print_fn: Callable[[str], object] = print,
     input_fn: Callable[[str], str] = input,
+    recommended: Callable[[], str | None] | None = None,
 ) -> Callable[..., str]:
     """Interactive numbered-menu input function — a drop-in for the
     queues' ``input_fn`` (and ``ReviewSession.input_fn``).
@@ -265,11 +284,12 @@ def make_menu_input(
     def _ask(_prompt: str = "") -> str:
         if _prompt.startswith("apply "):
             return input_fn(_prompt)
-        print_fn(render_choices(spec))
+        rec = recommended() if recommended is not None else None
+        print_fn(render_choices(spec, recommended=rec))
         while True:
             raw = input_fn("> ").strip()
             if raw in ("?", "help"):
-                print_fn(render_choices(spec))
+                print_fn(render_choices(spec, recommended=rec))
                 continue
             if raw in ("q", "x", "quit", "abort"):
                 return raw
@@ -317,11 +337,12 @@ def make_scripted_input(
     return _ask
 
 
-def render_choices(spec: MenuSpec) -> str:
+def render_choices(spec: MenuSpec, *, recommended: str | None = None) -> str:
     lines = [spec.prompt, ""]
     for i, c in enumerate(spec.choices, 1):
         hint = f" — {c.hint}" if c.hint else ""
-        lines.append(f"  {i}) {c.key} — {c.label}{hint}")
+        mark = " ★ recommended" if recommended is not None and c.key == recommended else ""
+        lines.append(f"  {i}) {c.key} — {c.label}{hint}{mark}")
     lines.append("  ?) help   q) quit")
     return "\n".join(lines)
 

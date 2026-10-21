@@ -839,6 +839,7 @@ def triage(  # noqa: C901 — keypress parsing + kit wiring, split would scatter
     prompt: bool = False,
     answers_path: Path | None = None,
     packets_out: Path | None = None,
+    preannotate: bool = False,
     input_fn=input,
     print_fn=print,
 ) -> dict | int:
@@ -902,7 +903,13 @@ def triage(  # noqa: C901 — keypress parsing + kit wiring, split would scatter
         raise ValueError("--prompt requires --answers <file>")
     reader = input_fn
     if menu:
-        reader = make_menu_input(_MENU_SPEC, print_fn=print_fn, input_fn=input_fn)
+        _menu_rec: dict[str, str | None] = {"key": None}
+        reader = make_menu_input(
+            _MENU_SPEC,
+            print_fn=print_fn,
+            input_fn=input_fn,
+            recommended=lambda: _menu_rec["key"],
+        )
     elif prompt:
         assert answers_path is not None  # guarded by the ValueError above
         answers = answers_path.read_text(encoding="utf-8").splitlines()
@@ -918,6 +925,34 @@ def triage(  # noqa: C901 — keypress parsing + kit wiring, split would scatter
     findings, envelope = _unwrap(data, findings_path)
     if findings is None:
         return 1
+
+    from helpers.core.decisions_preannotate import load_id_annotations, render_carrier_for
+
+    if preannotate:
+        try:
+            from helpers.core.decisions_preannotate import annotate_surface, make_surface_specs
+
+            _, annotated, _ = annotate_surface(make_surface_specs()["findings"])
+            if annotated:
+                print_fn(f"(auto-pre-annotated {annotated} new finding rows)")
+        except Exception as exc:  # non-fatal — the sitting is the human gate
+            print_fn(f"(auto-pre-annotation unavailable: {exc})")
+
+    c_map = load_id_annotations(
+        (journal_dir or REPO / "outputs" / "findings_review") / "mercury_annotations.jsonl"
+    )
+
+    def _recommend(f: dict) -> str | None:
+        """Carrier-recommended choice key: ``a`` (confirm) on admit, ``r``
+        (reject) on keep-out, ``None`` without a rubric verdict."""
+        a = c_map.get(f.get("fingerprint", ""))
+        if not a or a.get("p_rubric") is None:
+            return None
+        try:
+            p = float(a["p_rubric"])
+        except (TypeError, ValueError):
+            return None
+        return "a" if p > 0.5 else "r"
 
     def _missing_confirmed_fields(f: dict) -> list[str]:
         return [field for field in REQUIRED_FIELDS["confirmed"] if field not in f]
@@ -955,7 +990,7 @@ def triage(  # noqa: C901 — keypress parsing + kit wiring, split would scatter
         limit=None,
     )
     if packets_out is not None and entries:
-        write_packets(entries, _MENU_SPEC, packets_out)
+        write_packets(entries, _MENU_SPEC, packets_out, recommend=_recommend)
 
     legend = [
         "  keys: k  keep    r  reject (must carry |reason)    a  confirm (complete records only)",
@@ -978,6 +1013,7 @@ def triage(  # noqa: C901 — keypress parsing + kit wiring, split would scatter
             print_fn(f"     blockers: {f['blockers']}")
         if f.get("verification"):
             print_fn(f"     verification: {f['verification']}")
+        render_carrier_for(f.get("fingerprint", ""), c_map=c_map, print_fn=print_fn)
 
     def render(idx: int, total: int, e: dict) -> None:
         print_fn(f"[{idx}/{total}] `{e['label']}`")
@@ -985,6 +1021,8 @@ def triage(  # noqa: C901 — keypress parsing + kit wiring, split would scatter
 
     def ask(e: dict, note) -> dict:
         rid = e["label"]
+        if menu:
+            _menu_rec["key"] = _recommend(e)
         while True:
             ans = input_fn("  k / r|reason / a / p / ? / q / x: ").strip()
             ans, _, free_note = ans.partition("|")
@@ -1144,6 +1182,12 @@ def _main_triage(argv: list[str]) -> int:
     ap.add_argument(
         "--packets-out", type=Path, help="write the prompt packets (JSONL) for the agent flow"
     )
+    ap.add_argument(
+        "--no-preannotate",
+        action="store_true",
+        help="do NOT auto-run decisions-preannotate for the findings surface "
+        "(default: run it first, idempotent per key)",
+    )
     parsed = ap.parse_args(argv)
     outcome = triage(
         parsed.findings,
@@ -1153,6 +1197,7 @@ def _main_triage(argv: list[str]) -> int:
         prompt=parsed.prompt,
         answers_path=parsed.answers,
         packets_out=parsed.packets_out,
+        preannotate=not parsed.no_preannotate,
     )
     return 0 if isinstance(outcome, dict) else outcome
 

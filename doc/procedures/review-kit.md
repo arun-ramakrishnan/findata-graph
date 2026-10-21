@@ -79,6 +79,35 @@ gate and journaling are unchanged.
 `helpers/core/review_menu.py`; the checklist walkers (OCR,
 markdown-parse) in `helpers/core/review_checklist.py`.
 
+### Carrier pre-annotation (`decisions-preannotate`)
+
+Every sitting surfaces an optional carrier second opinion beside the
+evidence: if a mercury-decide (System One) pre-annotation exists for the
+row, the loop prints `ab mercury: fact p=… / admission p=… -> …`
+(advisory only — the human stays the sole write gate).
+
+The shared producer is `helpers/core/decisions_preannotate.py`; it walks
+the live candidates of any surface and writes advisory JSONL verdicts:
+
+```bash
+python3 helpers/core/decisions_preannotate.py --surface all
+python3 helpers/core/decisions_preannotate.py --surface findings --findings doc/local/security/<run>.json
+```
+
+- Surfaces: `relations`, `quotes`, `coverage`, `findings`, `ocr`,
+  `markdown-parse`. Relations keys are the `edge_type:source:target`
+  triple; other surfaces key by their stable row id (quotes sha256
+  canonical, coverage `surface/attack_class`, findings fingerprint,
+  checklist item id).
+- Output defaults: `_pending_annotations_mercury.jsonl` (relations),
+  `_quote_annotations_mercury.jsonl`, and `outputs/<surface>_review/
+  mercury_annotations.jsonl`. Idempotent — already-annotated keys are
+  skipped on re-run (`--limit N` for a smoke pass).
+- The review loops (`triage_pending_relations.py`,
+  `triage_pending_quotes.py`, `coverage_ledger.review`,
+  `security_findings.triage`, `review_checklist.review`) load the file
+  when present and render it via `render_carrier_for`.
+
 ## Export-side parking (S4 — queues with no in-tool apply lane)
 
 `country_worklist`, `subsector_worklist`, `counterparty_worklist` are

@@ -486,7 +486,7 @@ def build_triage(lines: list[str], names: set[str]) -> dict:
 # S7 (system_one_typed_judgment_framework.md): the typed question text IS the
 # regression surface. These two strings are the relations surface's pinned
 # questions — any change invalidates the surface's eval key
-# (doc/local/evaluations/jev_pilot/dataset/eval3/items.json, registered in
+# (bench_data/jev_pilot/dataset/eval3/items.json, registered in
 # typed_judgment.SURFACE_EVAL_KEYS) and must re-run it before carrier
 # verdicts are shown again. tests/test_relations_queue_hygiene.py pins them.
 Q1_FACTUAL_QUESTION = "Is this claimed relation real in the world?"
@@ -1226,6 +1226,7 @@ def review(  # noqa: C901 — keypress parsing + kit wiring, split would scatter
     prompt: bool = False,
     answers_path: Path | None = None,
     packets_out: Path | None = None,
+    preannotate: bool = False,
 ) -> dict:
     """Interactive sitting over the open prose queue (review-kit S2).
 
@@ -1281,7 +1282,13 @@ def review(  # noqa: C901 — keypress parsing + kit wiring, split would scatter
         raise ValueError("--prompt requires --answers <file>")
     reader = input_fn
     if menu:
-        reader = make_menu_input(_MENU_SPEC, print_fn=print_fn, input_fn=input_fn)
+        _menu_rec: dict[str, str | None] = {"key": None}
+        reader = make_menu_input(
+            _MENU_SPEC,
+            print_fn=print_fn,
+            input_fn=input_fn,
+            recommended=lambda: _menu_rec["key"],
+        )
     elif prompt:
         assert answers_path is not None  # guarded by the ValueError above
         answers = answers_path.read_text(encoding="utf-8").splitlines()
@@ -1304,6 +1311,18 @@ def review(  # noqa: C901 — keypress parsing + kit wiring, split would scatter
 
     # S5 second-opinion maps (read-side; absent files never block a sitting).
     from helpers.graph.triage_preannotate import load_annotations
+
+    if preannotate:
+        try:
+            from helpers.core.decisions_preannotate import annotate_surface, make_surface_specs
+
+            _, annotated, _ = annotate_surface(
+                make_surface_specs()["relations"], limit=limit or 0
+            )
+            if annotated:
+                print_fn(f"(auto-pre-annotated {annotated} new relations rows)")
+        except Exception as exc:  # non-fatal — the sitting is the human gate
+            print_fn(f"(auto-pre-annotation unavailable: {exc})")
 
     try:
         ab_map = load_annotations(ANNOTATIONS)
@@ -1347,8 +1366,6 @@ def review(  # noqa: C901 — keypress parsing + kit wiring, split would scatter
         sort_key=lambda e: (_bucket_rank.get(e.get("bucket", ""), 9), e["label"]),
         limit=limit,
     )
-    if packets_out is not None and entries:
-        write_packets(entries, _MENU_SPEC, packets_out)
 
     legend = [
         "  keys: a[/TYPE[/TARGET]]  accept (row's edge type + target by default;",
@@ -1391,6 +1408,22 @@ def review(  # noqa: C901 — keypress parsing + kit wiring, split would scatter
     def _pair(e: dict) -> tuple[dict | None, dict | None]:
         key = (e["edge_type"], e["source"], e["target_mention"])
         return ab_map.get(key), mercury_map.get(key)
+
+    def _recommend(e: dict) -> str | None:
+        """Carrier-recommended choice key (None when the mercury row carries
+        no rubric verdict). ``a[/EDGE_TYPE[/TARGET]]`` on admit, ``d`` on
+        keep-out — the menu marks the choice; the human still decides."""
+        m = mercury_map.get((e["edge_type"], e["source"], e["target_mention"]))
+        if not m or m.get("p_rubric") is None:
+            return None
+        try:
+            p = float(m["p_rubric"])
+        except (TypeError, ValueError):
+            return None
+        return "a[/EDGE_TYPE[/TARGET]]" if p > 0.5 else "d"
+
+    if packets_out is not None and entries:
+        write_packets(entries, _MENU_SPEC, packets_out, recommend=_recommend)
 
     def _ab_block(e: dict) -> None:
         a, m = _pair(e)
@@ -1488,6 +1521,8 @@ def review(  # noqa: C901 — keypress parsing + kit wiring, split would scatter
 
     def ask(e: dict, note) -> dict:  # noqa: C901
         rid = e["id"]
+        if menu:
+            _menu_rec["key"] = _recommend(e)
         _noted = {"done": False}
 
         def _note_ab_once() -> None:
@@ -1785,6 +1820,12 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument(
         "--packets-out", default=None, help="prompt: also write the prompt-packets JSONL here"
     )
+    p.add_argument(
+        "--no-preannotate",
+        action="store_true",
+        help="review: do NOT auto-run decisions-preannotate for the relations surface "
+        "(default: run it first, idempotent per key)",
+    )
     args = p.parse_args(argv)
 
     if args.clear:
@@ -1810,6 +1851,7 @@ def main(argv: list[str] | None = None) -> int:
             prompt=args.prompt,
             answers_path=Path(args.answers) if args.answers else None,
             packets_out=Path(args.packets_out) if args.packets_out else None,
+            preannotate=not args.no_preannotate,
         )
         return 0
     if args.apply_decisions:

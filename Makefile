@@ -386,6 +386,10 @@ triage-quotes: ## Triage the quote entity worklist: report + bucketed decisions 
 > python3 helpers/graph/triage_pending_quotes.py
 > @echo "✓ quote triage report + decisions file written (annotate decisions, then --apply-decisions)"
 
+decisions-preannotate: ## Pre-annotate review surfaces with carrier verdicts (advisory; SURFACE=all|relations|quotes|coverage|findings|ocr|markdown-parse, FINDINGS=<path>)
+> python3 helpers/core/decisions_preannotate.py --surface $(SURFACE) $(if $(FINDINGS),--findings $(FINDINGS))
+> @echo "✓ decisions-preannotate: advisory verdicts written (human review gate unchanged)"
+
 graph-algos:    ## Smoke test the Onager algorithm layer (all 14 metrics, no writes)
 > python3 helpers/graph/algorithms.py --all --no-apply
 > @echo "✓ Onager graph-algorithm layer smoke test passed (all metrics, nothing written)"

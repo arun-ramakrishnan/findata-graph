@@ -7,6 +7,33 @@
 
 ---
 
+## 425. Automated carrier pre-annotation with recommended hints — the review pipeline stops asking "do I run the leg first?"
+
+**Date**: 2026-10-21 (filed) → 2026-10-21 (executed)
+**Status**: COMPLETE
+**Proposal**: `doc/improvements/archive/tooling/review_preannotate_hints.md`
+
+- **S1 — automatic leg** — every review entrypoint (`relations`/`quotes`/
+  `coverage`/`findings`/`checklist` review or `triage()`) gained a
+  default-on `--preannotate` that runs `annotate_surface(spec)` for its
+  surface before assembling entries. Idempotent per key; `--limit`
+  propagates; carrier failures are non-fatal (degrade to the no-hints
+  behavior). `--no-preannotate` restores today's behavior byte-for-byte.
+- **S2 — recommended hint** — `build_packet` emits `"recommended"` key;
+  `render_packet`/`render_choices` mark the choice with `★ recommended`.
+  Verdict→verb mappers per surface (admit/keep-out via the shared
+  `carrier_verdict`): relations `a[/EDGE_TYPE[/TARGET]]`/`d`, quotes
+  `1`/`d`, coverage `c VERDICT`/`e STATUS|note`, findings `a`/`r`,
+  checklist `y`/`n|why`. The hint line stays; the ★ marks the choice.
+- **AC#1** — `--menu` and `--prompt` sittings run `annotate_surface`
+  automatically (idempotent second run: zero new API calls on re-run).
+- **AC#2** — a kept-out carrier verdict renders `★ recommended` next to
+  the discard/exclude/reject verb; an admit marks accept/keep/confirm.
+- **AC#3** — `--no-preannotate` restores today's behavior.
+- **AC#4** — carrier failure never blocks a sitting.
+- **AC#5** — no query-visible semantics change → no eval gate required;
+  static_checks + md-lint clean; 281 targeted tests pass.
+
 ## 424. Prompt-driven review menu — one crisp-choice surface for every human-in-the-loop queue
 
 **Date**: 2026-10-21 (filed) → 2026-10-21 (executed)

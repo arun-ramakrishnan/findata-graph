@@ -326,6 +326,13 @@ commit, referenced by nothing). Entry numbers point at
 
 ## tooling/ — Tooling & performance — MCP eval, doc browser/search, perf review, tech survey
 
+- [`review_preannotate_hints.md`](tooling/review_preannotate_hints.md) —
+  automated carrier pre-annotation with recommended hints — every review
+  sitting auto-runs `annotate_surface` for its surface (S1; default-on
+  `--preannotate`, idempotent per key, non-fatal) and marks the carrier-
+  recommended verb with `★ recommended` in the menu/packet (S2;
+  `carrier_verdict` → per-surface mapper). Captures the already-landed
+  decisions-preannotate/menu/carrier work as S0 — completed.md #425
 - [`review_menu_prompt_driven.md`](tooling/review_menu_prompt_driven.md) —
   prompt-driven review menu — one crisp-choice surface for every
   human-in-the-loop queue: `review_menu.py` input backends over the
