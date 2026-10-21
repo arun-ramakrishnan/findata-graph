@@ -71,7 +71,6 @@ from helpers.maintenance import rebuild_doc_search as rds  # noqa: E402
 # by realpath); PRIME_STATE the global harness store; OPENCODE_MEM the
 # repo-local logfmt dir (same through the worktree's .opencode symlink).
 MEMORY_DB = _REPO_ROOT / "memory" / "memory_search.db"
-BACKUP_DIR = _REPO_ROOT / "db-backup"
 ZCODE_PROJECTS = Path.home() / ".zcode" / "cli" / "memories" / "projects"
 PRIME_STATE = Path.home() / ".prime" / "agent" / "harness" / "harness_state.json"
 OPENCODE_MEM = _REPO_ROOT / ".opencode" / "memory"
@@ -473,21 +472,6 @@ def _stamp_model(conn: sqlite3.Connection, model_label: str, dims: int) -> None:
     )
 
 
-def _backup_last_good_index(db_path: Path) -> None:
-    """Last-good-state recovery copy into gitignored db-backup/ after a
-    successful FULL rewrite (same semantics as rebuild_script_search;
-    best-effort, empty-index guarded via rebuild_common)."""
-    rbc.backup_last_good_index(
-        db_path,
-        rbc.IndexBackupSpec(
-            backup_dir=BACKUP_DIR,
-            table="memory_search",
-            dest_name="memory_search_backup.db",
-            copier=rds._backup_file,
-        ),
-    )
-
-
 def _stored_meta(conn: sqlite3.Connection) -> dict[str, tuple[float, str]]:
     return {
         r[0]: (r[1], r[2])
@@ -701,7 +685,6 @@ def rebuild(
                 conn, all_rows, files_meta, model_label, embed_dims
             )
             stats["indexed"] = conn.execute("SELECT COUNT(*) FROM memory_search").fetchone()[0]
-            _backup_last_good_index(db_path)
             if _mt:
                 _mt.record_phase("write", _write_started, datetime.now())
             return stats

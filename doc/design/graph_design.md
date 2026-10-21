@@ -19,8 +19,9 @@ the chain changes (see
 The knowledge graph stores 1,685 entities in SQLite (`memory/research.db`) —
 1,179 companies, 207 institutions, 114 editions, 100 sub_sectors, 42 sectors,
 21 countries, 12 themes, 10 super_sectors (2026-09-14) —
-connected by 19,325 edges across 20 registered semantic edge types (§4;
-19 populated — `penalized_by` registered with zero rows). At ~1.7k nodes /
+connected by 19,325 edges across 19 registered semantic edge types (§4;
+18 populated — `penalized_by` registered with zero rows, and the
+`part_of`/`has_company` pair retired 2026-10-19). At ~1.7k nodes /
 ~19k edges a server-grade graph DB is overkill; DuckDB gives in-process graph
 SQL + analytics attached read-only to the existing SQLite — zero new infra.
 
@@ -100,8 +101,10 @@ CREATE VIEW relations AS                -- backward-compat (READ-ONLY!)
     SELECT source, target, edge_type AS relation_type FROM graph_edges;
 ```
 
-Edge types (extensible; TEXT column). Live counts 2026-09-14 (20 registered
-types, 19 populated, 19,325 rows; previous snapshot 2026-08-19 said 12):
+Edge types (extensible; TEXT column). Live counts 2026-09-14 (19 registered
+types, 18 populated — the 2026-10-19 retirement removed `part_of`/
+`has_company` from the roster and its 2,414 rows from the store); row
+counts below are the 2026-09-14 snapshot except the retired pair:
 
 | edge_type | Direction / semantics | sym | rows |
 |---|---|---|---|
@@ -109,7 +112,7 @@ types, 19 populated, 19,325 rows; previous snapshot 2026-08-19 said 12):
 | `competes_with` | company ↔ company | 1* | 3576 |
 | `cited_in` | company/sector → edition (OKF provenance; okf_activation P) | 0 | 1913 |
 | `co_mentioned_in` | company ↔ company (newsletter co-mention, derived) | 1 | 1329 |
-| `part_of` / `has_company` | company ↔ sector (legacy two-row pair) | – | 1179 each |
+| ~~`part_of` / `has_company`~~ | company ↔ sector — **RETIRED as stored rows 2026-10-19**; canonical in the sector hyperedges and projected on read into `e_belongs`/`e_has` | – | 0 (projected: 1208 each) |
 | `listed_in` | company → country (geography lane, derived) | 0 | 930 |
 | `invested_in` | investor (institution/company) → company | 0 | 715 |
 | `exposed_to` | company → theme (cross-sector) | 0 | 359 |
@@ -152,8 +155,10 @@ expand hops through it. Standalone target `make derive-cited-in-rebuild`
 (writes entities+edges, then rebuilds this DuckDB cache).
 
 **Symmetric convention:** one row per pair in canonical alphabetical order
-(`source LE target`). Legacy `part_of`/`has_company` keep the two-row
-bidirectional pattern for backward compat. `belongs_to`/`exposed_to` are
+(`source LE target`). `part_of`/`has_company` are gone as stored rows
+(2026-10-19 retirement — sector membership is canonical in the hyperedges
+and BOTH directions are projected on read, so the two-row pattern died
+with the dyads). `belongs_to`/`exposed_to` are
 materialised via dedicated CTASs outside `EDGE_REGISTRY` (mixed endpoint
 kinds). `listed_on_index` was never built (`index_membership` column dropped
 2026-07-28; re-ingest from YAML if ever wanted) — distinct from the live
@@ -340,9 +345,10 @@ JSON 404s scoped to `/api/`; ETag from `_build_meta`. UI: Graph tab in
 | recompute | read | run algos, write back to SQLite | *is* the refresh |
 | `make qa` | none | cache-consistency ERROR-if-stale | advisory staleness |
 
-Materialisation write-ups (add entity → INSERT + part_of/has_company + note
-file; rename → UPDATE, cascades, mv note + YAML; delete → DELETE, cascades,
-rm note) are mechanical; see git history for worked examples.
+Materialisation write-ups (add entity → INSERT + sector membership in the
+incidence store + note file; rename → UPDATE, cascades, mv note + YAML;
+delete → DELETE, cascades, rm note) are mechanical; see git history for
+worked examples.
 
 ## 8. Disk Cache (`memory/graph.duckdb`)
 
@@ -427,7 +433,7 @@ rm note) are mechanical; see git history for worked examples.
 | D3 | `relations` → `graph_edges` (+ view alias) | single source of truth, backward compat |
 | D4 | symmetric edges: one canonical row | halves undirected edge count |
 | D5 | analytics: manual refresh + advisory qa gate | no hidden cost in hot paths |
-| D6 | part_of/has_company keep two-row pattern | validator/parser compat |
+| D6 | part_of/has_company keep two-row pattern | **SUPERSEDED 2026-10-19**: both retired as stored rows; the pair is projected on read from the canonical sector hyperedges (see §4) |
 | D7 | disk-cached DuckDB; CLI per-invocation, app long-lived | 3.5× warm connects |
 | D8 | duckdb UNPINNED (was ==1.5.4 for duckpgq) | duckpgq gone; onager tracks releases |
 | D9 | retire duckpgq; Onager for ALL algorithms (2026-08-14) | duckpgq had no 1.5.5 build |

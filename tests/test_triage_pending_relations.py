@@ -169,7 +169,7 @@ class TestReportHistogram:
             source_entity="Acme",
             target_mention="Oman",
             body="q",
-            m=_M(),
+            m=_M(),  # ty: ignore[invalid-argument-type]  # structural Match fake
             edition_title="ed",
             direction="forward",
         )
@@ -179,7 +179,7 @@ class TestReportHistogram:
             source_entity="Acme",
             target_mention="th",
             body="q",
-            m=_M(),
+            m=_M(),  # ty: ignore[invalid-argument-type]  # structural Match fake
             edition_title="ed",
             direction="forward",
         )
@@ -189,7 +189,7 @@ class TestReportHistogram:
             source_entity="Acme",
             target_mention="SBI",
             body="q",
-            m=_M(),
+            m=_M(),  # ty: ignore[invalid-argument-type]  # structural Match fake
             edition_title="ed",
             direction="forward",
         )

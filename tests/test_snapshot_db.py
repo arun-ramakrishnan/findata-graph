@@ -370,47 +370,6 @@ def test_run_snapshot_backs_up_vec_sidecar(tmp_path):
     assert vec_zst.exists() and vec_zst.stat().st_size > 0
 
 
-def test_run_snapshot_backs_up_shared_embed_store(tmp_path):
-    """Without a legacy sibling the consolidated EMBED_DB_PATH store is
-    zstd-compressed as <stem>.snapshot.db.zst."""
-    from helpers.core import vec_search as VS
-    from helpers.maintenance.snapshot_db import _cmd_create
-
-    src_db = tmp_path / "src.db"
-    _make_test_db(src_db)
-    out = tmp_path / "snap" / "snapshot.db.zst"
-
-    store_dir = tmp_path / "memory"
-    store_dir.mkdir(exist_ok=True)  # conftest autouse created it
-    store = store_dir / "embed_store.db"
-    sconn = sqlite3.connect(str(store))
-    sconn.execute("CREATE TABLE embed_cache (k TEXT PRIMARY KEY)")
-    sconn.execute("INSERT INTO embed_cache VALUES ('x')")
-    sconn.commit()
-    sconn.close()
-
-    saved = VS.EMBED_DB_PATH
-    VS.EMBED_DB_PATH = store
-    try:
-        rc = _cmd_create(
-            src_db,
-            out,
-            None,
-            None,
-            None,
-            None,
-            None,
-            fmt="binary",
-            with_duckdb=False,
-            logger=_log,
-        )
-    finally:
-        VS.EMBED_DB_PATH = saved
-    assert rc == 0
-    store_zst = tmp_path / "snap" / "embed_store.snapshot.db.zst"
-    assert store_zst.exists() and store_zst.stat().st_size > 0
-
-
 def test_run_snapshot_reuses_embed_store_zst_when_unchanged(tmp_path):
     """D3 (maint_full_single_snapshot.md): an unchanged embed store skips the
     ~36 MB recompress — second run reuses the .zst byte-for-byte; a write

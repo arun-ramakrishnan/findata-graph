@@ -142,6 +142,20 @@ commit, referenced by nothing). Entry numbers point at
 - [`duckdb_concurrency_model_correction.md`](graph/duckdb_concurrency_model_correction.md) — DuckDB concurrency model correction — the `connect()` docstring's "readers never contend with a writer" clause measured false on duckdb 1.5.6 (an RW holder excludes EVERY opener); five-row matrix inline, both conflict directions pinned by cross-process negative tests with A/B controls, and the 37-coordinated / 24-uncoordinated read-only caller audit recorded — completed.md #314
 - [`graph_analytics_staleness_comparison.md`](graph/graph_analytics_staleness_comparison.md) — graph_analytics staleness as timestamps — the stats freshness banner's raw string compare across the utc_now/ISO-T shape split decided at index 10 on same-date ties (fresh reported STALE); now `MAX(julianday(col))` both sides in `_staleness_verdict()` with an INDETERMINATE guard; 129 legacy ISO rows left in place; same-day collision test mutation-checked — completed.md #316
 - [`hgx_first_scaling.md`](graph/hgx_first_scaling.md) — HGX-first scaling — h_edge/h_incidence cache (schema 15, TIER2 12), incidence-native stats section + co-membership suggestions + hyper API, S3 longest_chains cap 3000 (stride-sampled lower bounds) — D4 absorbed, igraph retired per D16 — completed.md #241
+- [`longest_chains_cap_policy.md`](graph/longest_chains_cap_policy.md) — the
+  silent exact→sampled crossover recorded (universe 20,044 vs the
+  accepted-at-1,722 cap); cap raised 3000 → 6000 on a live measurement
+  (36.1 s / 2.9 GB sampled) via `stats.CHAIN_CAP`; cap-crossing tripwire
+  in graph_scale_watch (SAMPLED advisory, exit 0) so no future crossover
+  is silent — completed.md #417
+- [`graph_analytics_contract.md`](graph/graph_analytics_contract.md) — the
+  served-universe contract table (schema v14): breaks the loop where the
+  routed centralities derived their served universe from the
+  `graph_analytics` rows they write (frozen 1,732-name top-N union, 8.6%
+  of the 20,044-node universe); seeded 1,732 × 3 metrics with FK cascade
+  + order pinning, legacy self-read fallback for unseeded/restored
+  stores, L1B inline copy collapsed onto the shared reader —
+  byte-identical parity verified live; S2 grow path open — completed.md #416
 
 - [`graph_algos.md`](graph/graph_algos.md) — Proposal: Expand graph-algorithm coverage via Onager — link prediction, graph metrics, and additional centralities — completed.md #94, #95, #96
 - [`graph_improvs.md`](graph/graph_improvs.md) — Graph Algorithm Improvements — coverage gaps & DuckDB extension surface
@@ -210,6 +224,10 @@ commit, referenced by nothing). Entry numbers point at
 
 - [`nic2008_seed_table.md`](database/nic2008_seed_table.md) — NIC-2008 vocabulary as a versioned canonical table (1,301 subclasses) + own concept scheme (2,067 concepts), journaled operator review tool (sittings, batch confirm, match-type stacking, skip-parking), 85/117 labels coded onto 101 active crosswalk lanes, 163 gate pins — completed.md #246
 - [`ontology_governance.md`](database/ontology_governance.md) — Ontology governance front door — master ontology doc (doc/design/ontology.md, marker rosters, D-O1..O6, zero-counts rule) + qa-gated roster-drift check, concept lifecycle (status candidate|active|superseded, supersede-not-delete converger, --promote/--promote-map, subtree active-only, schema v12), deterministic ontology change gate (8 answer shapes, 79-question doc-driven frozen set at helpers/misc/ontology_questions.json, explicit stamped --rebaseline; EvoOntology design-reference borrow) — completed.md #244
+- [`partof_hascompany_retirement.md`](database/partof_hascompany_retirement.md) — `part_of`/`has_company` retirement — sector hyperedges made CANONICAL once the §8-R3 absorption gate measured complete (1,207/1,207 both directions, zero asymmetry); 2,414 dyad rows deleted in one transaction behind a refusal gate, single write path (`sector_membership.py`), read projection rebuilds both directions into `e_belongs`/`e_has` + walk substrate + Onager source so every dyadic consumer is unchanged, and one surplus incidence (`Kuantum Papers` → `Packaging`) proves dual membership is a gain not a discrepancy — completed.md #418
+- [`person_ontology_spine.md`](database/person_ontology_spine.md) — Person ontology spine — D6 drift resolved: `speaker_census.py` (report-only) + `speaker_identity` resolution at speaker level (973 persons minted on operator order, 277 → 1,250; 5,743/6,269 quotes = 91.6% resolve), `org_membership` hyperedge family from `invested_in` dyads (287 members, role/weight carried), `event_participants` n-ary store (schema v16, role registry per event type; event hyperedges build from it at k≥2) — completed.md #419
+- [`hyperedge_density_dq.md`](graph/hyperedge_density_dq.md) — Hyperedge density data-quality — per-family singleton verdicts (event k=1 = derive noise → `prune_stale_event_edges()` convergence, 119 dropped; industry/country/org_membership/edition singletons = valid membership facts → KEEP), event family now 1,133 edges ALL k=2 zero singletons (store: 1,708 edges / 10,134 incidences / mean 5.93 / 28.0% k≥3), D10 gate restated per-family in pending.md with reopen triggers (edition/theme/sector prediction-grade now; event/jv wait on participant data) — completed.md #420
+- [`parquet_export_wrapper.md`](graph/parquet_export_wrapper.md) — Parquet export wrapper (P3.3) — the 2026-08-08 dangling deferral BUILT, not re-filed: `query.py:export_query(sql, path, *, con=None)` runs `COPY (<sql>) TO '<path>' (FORMAT PARQUET)` over a self-opened read-only cache connection (relative paths resolve under `outputs/`, quote-escaped literal, no WAL on the source cache — asserted), round-trip parity + read-only discipline tests, live smoke off the production cache — completed.md #421
 - [`ontology_convention_stack.md`](database/ontology_convention_stack.md) — Ontology convention stack — SKOS/ORG/PROV-O as pure table conventions (no RDF/SHACL/OWL): S1 provenance_agents + source_tier (100% row coverage), S2 concept schemes/concepts/crosswalks (11/403/68), S3 CIN parser + entity_identifiers registry + /api/resolve, S4 hyper_incidences roles/validity + derive_hyperedges --roles (220 role-tagged live), S5 cited glossary; SQLite v7→v11, maint-full 15→17 steps — completed.md #234
 - [`duckdb_improvs.md`](database/duckdb_improvs.md) — DuckDB Improvements — core features, SQL, & extension surface — completed.md #72
 - [`sql_query_improvements.md`](database/sql_query_improvements.md) — SQL QUERY IMPROVEMENTS — FinData Knowledge Graph — completed.md #73
@@ -259,6 +277,16 @@ commit, referenced by nothing). Entry numbers point at
   `SANCTIONED_REQUESTORS` registry; backup lane measured, options recorded;
   census revisit trigger armed — completed.md #318
 
+- [`store_census_rerun.md`](testing/store_census_rerun.md) — the armed
+  revisit trigger fired and the re-run landed: embed_store 2.08× /
+  convo_fts 2.51×, transient 7 MB (the 2026-09-29 mechanisms held),
+  backup lane 1.96×; `size_watch` standing advisory in store_sweep.py
+  (warn 1.5× / ACT 2×); operator ruling — convo FTS backup retired
+  (−79 MiB/run, minutes-class re-index), embed-store backup SANCTIONED
+  as downtime-window insurance after it had been stripped as "derived"
+  and restored on correction (the recorded lesson: backups are sized
+  against disruption time, not storage) — completed.md #415
+
 - [`test_data_items.md`](testing/test_data_items.md) — Proposal: normalize test result data for historical debugging — immutable JUnit/manifest retention, 15-field test facts, xdist-safe worker metadata, and rebuildable artifact ingestion — completed.md #285
 - [`test_gap_closure.md`](testing/test_gap_closure.md) — Test-gap closure from a full-suite branch-coverage run — date rot (already fixed by operator), availability hot-route budgets, first perf legs to drive the Flask request path, worker + BrokenProcessPool fallback tests, fuzz guard for the last quadratic regex — completed.md #256
 - [`integration_plan.md`](testing/integration_plan.md) — INTEGRATION TEST PLAN — FinData Knowledge Graph
@@ -298,6 +326,15 @@ commit, referenced by nothing). Entry numbers point at
 
 ## tooling/ — Tooling & performance — MCP eval, doc browser/search, perf review, tech survey
 
+- [`tui_perf_sparkline.md`](tooling/tui_perf_sparkline.md) —
+  search TUI perf-trend sparkline — the report screen becomes a
+  regression detector off data it already had: `_parse_seconds` +
+  `sparkline_text` + `perf_ratio_history` (per-benchmark `time/budget`
+  across runs) and `gate_pass_rates` (run score line, else `✓ OK` count,
+  `None` never `0.0`); `#rep-spark` mounts Textual `Sparkline` rows with
+  the glyph caption as the always-on fallback; zero live-gate calls;
+  75 → 87 tests; live 26 benchmarks (worst `route_graph_stats` 1.05×)
+  and 120 qa runs — completed.md #422
 - [`bili_watchers_observability.md`](tooling/bili_watchers_observability.md) —
   bili watcher suite — live tuning observability for the billion-context
   proxy: `bili_tunewatch.py` (one-pass scan; per-session eras, every fold

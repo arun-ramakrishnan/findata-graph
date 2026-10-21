@@ -470,8 +470,13 @@ def main() raises:
     # relations.unknown_type read 7786 against the Python original's 0.
     # The per-type provenance comments are carried across deliberately:
     # they are the knowledge that drifted, not decoration.
+    # part_of/has_company RETIRED 2026-10-19 (partof_hascompany_retirement):
+    # the dyad pair moved to the canonical sector-hyperedge incidence store,
+    # so they are no longer stored edge types and leave the allowlist. A
+    # stray row now reads as unknown_type — the same signal the Python
+    # original's roster change produces.
     var KNOWN = String(
-        "'part_of','has_company','competes_with','jv_with','same_group',"
+        "'competes_with','jv_with','same_group',"
         "'supplier_to','customer_of','acquired','subsidiary_of',"
         "'co_mentioned_in','belongs_to',"  # M4: sector hierarchy
         "'exposed_to',"  # D4: cross-sector theme membership
@@ -503,47 +508,26 @@ def main() raises:
             "(SELECT name FROM entities)"
         ).fetchone()[0]
     )
-    var po_src_bad = to_i(
+    # part_of/has_company retirement (2026-10-19): sector membership is
+    # canonical in the sector hyperedges, so the old symmetric-pair checks
+    # (po_src_bad/po_tgt_bad/hc_*/po_no_hc/hc_no_po) are replaced by an
+    # endpoint-type check on the incidence store — strictly stronger, since
+    # a single incidence row cannot disagree with its own reverse. Mirrors
+    # helpers/misc/database_integrity_check.py::check_relations exactly (the
+    # parity gate compares these keys one-for-one).
+    var sec_inc_bad = to_i(
         conn.execute(
-            "SELECT COUNT(*) FROM relations r JOIN entities e ON"
-            " r.source=e.name WHERE r.relation_type='part_of' AND"
-            " e.entity_type!='company'"
+            "SELECT COUNT(*) FROM hyper_incidences hi"
+            " JOIN hyper_edges he ON he.id = hi.edge_id"
+            " JOIN entities e ON e.name = hi.entity_name"
+            " WHERE he.edge_type = 'sector' AND e.entity_type != 'company'"
         ).fetchone()[0]
     )
-    var po_tgt_bad = to_i(
+    var sec_hdr_bad = to_i(
         conn.execute(
-            "SELECT COUNT(*) FROM relations r JOIN entities e ON"
-            " r.target=e.name WHERE r.relation_type='part_of' AND"
-            " e.entity_type!='sector'"
-        ).fetchone()[0]
-    )
-    var hc_src_bad = to_i(
-        conn.execute(
-            "SELECT COUNT(*) FROM relations r JOIN entities e ON"
-            " r.source=e.name WHERE r.relation_type='has_company' AND"
-            " e.entity_type!='sector'"
-        ).fetchone()[0]
-    )
-    var hc_tgt_bad = to_i(
-        conn.execute(
-            "SELECT COUNT(*) FROM relations r JOIN entities e ON"
-            " r.target=e.name WHERE r.relation_type='has_company' AND"
-            " e.entity_type!='company'"
-        ).fetchone()[0]
-    )
-    var po_no_hc = to_i(
-        conn.execute(
-            "SELECT COUNT(*) FROM relations p WHERE p.relation_type='part_of' "
-            "AND NOT EXISTS (SELECT 1 FROM relations h WHERE h.source=p.target "
-            "AND h.target=p.source AND h.relation_type='has_company')"
-        ).fetchone()[0]
-    )
-    var hc_no_po = to_i(
-        conn.execute(
-            "SELECT COUNT(*) FROM relations h WHERE"
-            " h.relation_type='has_company' AND NOT EXISTS (SELECT 1 FROM"
-            " relations p WHERE p.source=h.target AND p.target=h.source AND"
-            " p.relation_type='part_of')"
+            "SELECT COUNT(*) FROM hyper_edges he"
+            " JOIN entities e ON e.name = he.label"
+            " WHERE he.edge_type = 'sector' AND e.entity_type != 'sector'"
         ).fetchone()[0]
     )
     # related_party_groups_vigil (2026-09-22, completed.md #268): the VIGIL
@@ -596,32 +580,23 @@ def main() raises:
         ).fetchone()[0]
     )
     var rel_tm = (
-        po_src_bad
-        + po_tgt_bad
-        + hc_src_bad
-        + hc_tgt_bad
+        sec_inc_bad
+        + sec_hdr_bad
         + bt_src_bad
         + bt_tgt_bad
         + et_src_bad
         + et_tgt_bad
     )
-    var rel_err = (
-        rel_unknown
-        + rel_loops
-        + rel_orphan
-        + rel_tm
-        + po_no_hc
-        + hc_no_po
-        + rel_circ
-    )
+    var rel_err = rel_unknown + rel_loops + rel_orphan + rel_tm + rel_circ
     t1 = perf_counter_ns()
     canon["relations.total"] = String(rel_total)
     canon["relations.unknown_type"] = String(rel_unknown)
     canon["relations.self_loops"] = String(rel_loops)
     canon["relations.orphaned"] = String(rel_orphan)
     canon["relations.type_mismatch"] = String(rel_tm)
-    canon["relations.part_of_without_has_company"] = String(po_no_hc)
-    canon["relations.has_company_without_part_of"] = String(hc_no_po)
+    canon["relations.sector_membership_endpoint_bad"] = String(
+        sec_inc_bad + sec_hdr_bad
+    )
     canon["relations.belongs_to_endpoint_bad"] = String(bt_src_bad + bt_tgt_bad)
     canon["relations.exposed_to_endpoint_bad"] = String(et_src_bad + et_tgt_bad)
     canon["relations.circular"] = String(rel_circ)
@@ -727,11 +702,18 @@ def main() raises:
     # Without these two, every such company read as an orphan (24277 of
     # 25474) against the Python original's 0. The junk signature — company,
     # no path, no ticker, no relation — still counts.
+    # part_of/has_company retirement (2026-10-19): membership is canonical in
+    # the sector hyperedges, so the orphan predicate reads the incidence
+    # store — the part_of dyad no longer exists to read. Mirrors
+    # check_orphan_companies() in the Python original (the parity gate
+    # compares these keys one-for-one).
     var oc_row = conn.execute(
         "SELECT (SELECT COUNT(*) FROM entities WHERE entity_type='company'),"
         " (SELECT COUNT(*) FROM entities e WHERE e.entity_type='company' AND"
-        " NOT EXISTS (SELECT 1 FROM relations r WHERE r.relation_type='part_of'"
-        " AND r.source=e.name) AND NOT (e.file_path IS NULL AND e.ticker IS NOT"
+        " NOT EXISTS (SELECT 1 FROM hyper_incidences hi JOIN hyper_edges he"
+        " ON he.id = hi.edge_id WHERE he.edge_type='sector'"
+        " AND hi.entity_name = e.name)"
+        " AND NOT (e.file_path IS NULL AND e.ticker IS NOT"
         " NULL AND e.ticker <> '') AND NOT (e.file_path IS NULL AND e.ticker IS"
         " NULL AND EXISTS (SELECT 1 FROM relations r WHERE r.source=e.name OR"
         " r.target=e.name)))"
@@ -1510,6 +1492,19 @@ def main() raises:
                         + "'"
                     ).fetchone()[0]
                 )
+            # part_of/has_company retirement (2026-10-19): e_belongs/e_has are
+            # PROJECTED from the canonical sector hyperedges, so their row
+            # count tracks incidences, not graph_edges (which now holds zero
+            # dyad rows). Mirrors _expected_projected_count() in the Python
+            # original — without this the pair read as 1208-vs-0 drift.
+            if tbl == "e_belongs" or tbl == "e_has":
+                scnt = to_i(
+                    conn.execute(
+                        "SELECT COUNT(*) FROM hyper_incidences hi JOIN"
+                        " hyper_edges he ON he.id = hi.edge_id WHERE"
+                        " he.edge_type='sector'"
+                    ).fetchone()[0]
+                )
             var ds = String("None")
             if dcnt.__bool__():
                 ds = py_str(dcnt[0])
@@ -1617,10 +1612,8 @@ def main() raises:
         + String(rel_orphan)
         + " type_mismatch="
         + String(rel_tm)
-        + " part_of_without_has_company="
-        + String(po_no_hc)
-        + " has_company_without_part_of="
-        + String(hc_no_po)
+        + " sector_membership_endpoint_bad="
+        + String(sec_inc_bad + sec_hdr_bad)
         + " circular="
         + String(rel_circ)
         + " -> errors="

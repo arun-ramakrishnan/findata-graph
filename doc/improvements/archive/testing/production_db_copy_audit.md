@@ -270,8 +270,40 @@ the operator per the non-goals.
       1:1 lockstep so an unsanctioned site can't land silently. The
       sanctions-decay lesson, enforced: new copy sites get re-audited
       at the moment they appear.
-- [ ] `make qa` clean (parked with the session's gates; run once on the
+- [x] `make qa` clean (parked with the session's gates; run once on the
       operator's go, then archive)
+      [2026-10-19: SATISFIED — 12/12 legs PASS, 4,720 passed
+      (outputs/qa_report.md); baseline-hygiene arc before the census
+      re-run landed on this go.]
+
+## Addendum — 2026-10-19 census re-run (completed.md #415)
+
+The revisit trigger fired twice over (2026-10-13 armed-pass; live
+2026-10-19). Verdicts against this table:
+
+| store | filing | 2026-10-19 live | ratio | verdict |
+|---|---|---|---|---|
+| embed_store | 184.6 | 384 | **2.08×** | SANCTIONED — the backup is downtime-window insurance (rescued multiple 2-5 h cache-blowout incidents); growth is the insurance premium, operator ruling |
+| convo_search_fts | 102.0 | 257 | **2.51×** | its per-run BACKUP RETIRED from the db_maint lane — derived lookup index, zero unique content, minutes-class re-index from the corpus tar (−79 MiB/run); the store itself stays live |
+| convo_search | 820.5 | 880 | 1.07× | holds |
+| research | 307.2 | 318 | 1.04× | holds |
+| corpus | 52.6 | 54 | 1.03× | holds |
+| graph (+xdist-shared) | 39.3+39.0 | 53+48 | 1.35× | holds |
+| doc_search | 24.7 | 29 | 1.17× | holds |
+
+Per-run transient re-measured: **7 MB** pytest-of — the S2/S3
+mechanisms above are structural and size-insensitive; the doubling
+never reached the suite. Both fired stores are dense payload (freelist
+0.0%), so reclaim has nothing to offer. Backup lane total 1,465 MiB =
+1.96× of the post-S4 figure — the embed-store share is the sanctioned
+premium.
+
+Standing watch landed: `size_watch()` in
+`helpers/maintenance/store_sweep.py` (warn 1.5× / ACT 2.0× vs this
+table's filing column, advisory-only, primaries excluded) — the next
+decay self-reports at every sweep. Proposal of record:
+`archive/testing/store_census_rerun.md` §7 (the full ruling story,
+including the embed-store reversal).
 
 ## Follows
 

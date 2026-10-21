@@ -107,13 +107,6 @@ def _write_pools(tree):
     (oc / "deletions.logfmt").write_text(_OPENCODE_DELETIONS)
 
 
-@pytest.fixture(autouse=True)
-def _isolated_backup(tmp_path, monkeypatch):
-    """Full-rebuild tests must never write the REAL db-backup/ (the
-    un-redirected module BACKUP_DIR lesson from test_rebuild_script_search)."""
-    monkeypatch.setattr(rms, "BACKUP_DIR", tmp_path / "db-backup")
-
-
 @pytest.fixture
 def tree(tmp_path, monkeypatch):
     """Mini three-pool layout; ALL module constants retargeted (the
@@ -234,10 +227,6 @@ class TestBuild:
         assert stats["by_kind"] == {"zcode": 2, "prime": 2, "opencode": 3}
         assert stats["total_rows"] == 7
 
-    def test_full_backup_written(self, tree):
-        _rebuild(tree)
-        assert (tree / "db-backup" / "memory_search_backup.db.zst").exists()
-
     def test_zcode_frontmatter_folded_description(self, tree):
         _rebuild(tree)
         conn = rms.connect_memory_db(tree / "memory_search.db")
@@ -314,7 +303,6 @@ class TestFreshnessAndIncremental:
     def test_check_fresh_then_drift_exit_code(self, tree, monkeypatch, capsys):
         # main() reads the module constants — retarget ALL of them (the
         # VAULT_ROOT lesson) or --check would default to the live pools.
-        monkeypatch.setattr(rms, "BACKUP_DIR", tree / "db-backup")
         _rebuild(tree)
         assert rms.main(["--check"]) == 0
         capsys.readouterr()
@@ -335,7 +323,6 @@ class TestFreshnessAndIncremental:
         """Worktree/checkout regression (2026-08-30): mtime skew on
         identical content must stay FRESH — the content hash is the
         identity of record; mtime is only a carry hint."""
-        monkeypatch.setattr(rms, "BACKUP_DIR", tree / "db-backup")
         _rebuild(tree)
         capsys.readouterr()
         future = time.time() + 1000

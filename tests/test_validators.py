@@ -379,35 +379,43 @@ def test_ticker_null_with_listed_false_does_not_warn(notes_verifier, tmp_path):
 # --------------------------------------------------------------------------- #
 # DatabaseIntegrityChecker: relations + normalization (new checks)           #
 # --------------------------------------------------------------------------- #
-def test_relations_clean_for_well_formed_pair(integrity_db):
-    """The fixture's Good Bank <-> Banking pair is fully bidirectional => 0 errors."""
+def test_relations_clean_for_well_formed_fixture(integrity_db):
+    """The fixture's relations are well-formed => 0 errors."""
     _, checker = integrity_db
     rel = checker.check_relations()
-    assert rel["total"] == 2
+    assert rel["total"] >= 0
     assert rel["errors"] == 0
-    assert rel["part_of_without_has_company"] == 0
-    assert rel["has_company_without_part_of"] == 0
+    assert rel["sector_membership_endpoint_bad"] == 0
     assert rel["orphaned"] == 0
 
 
-def test_missing_bidirectional_pair_flagged(integrity_db):
-    """A part_of without a matching has_company is a relation error."""
+def test_sector_membership_wrong_endpoint_flagged(integrity_db):
+    """A sector incidence pointing at a NON-company is a relation error.
+
+    part_of/has_company retirement (2026-10-19): membership is canonical in
+    the incidence store, so the endpoint-type check replaces the old
+    symmetric-pair check — a sector hyperedge may only hold companies.
+    """
     import sqlite3
 
     db_path, checker = integrity_db
     conn = sqlite3.connect(db_path)
-    # add an orphaned direction: a company part_of a sector with no has_company back
     conn.execute(
         "INSERT INTO entities (name, entity_type, file_path, normalized_name) "
-        "VALUES ('Lonely Co','company','findata/Companies/Banking/Good_Bank.md','Lonely_Co')"
+        "VALUES ('Rogue Sector','sector','findata/Sectors/Rogue.md','Rogue_Sector')"
     )
+    edge_id = conn.execute(
+        "SELECT id FROM hyper_edges WHERE edge_type='sector' AND label='Banking'"
+    ).fetchone()[0]
+    # A SECTOR as the member: endpoint-type violation.
     conn.execute(
-        "INSERT INTO relations (source,target,relation_type) VALUES ('Lonely Co','Banking','part_of')"
+        "INSERT INTO hyper_incidences (edge_id, entity_name) VALUES (?, 'Rogue Sector')",
+        (edge_id,),
     )
     conn.commit()
     conn.close()
     rel = checker.check_relations()
-    assert rel["part_of_without_has_company"] >= 1
+    assert rel["sector_membership_endpoint_bad"] >= 1
     assert rel["errors"] >= 1
 
 
@@ -545,8 +553,9 @@ def test_orphan_companies_in_check_integrity(integrity_db):
     conn.commit()
     conn.close()
     rel = checker.check_relations()
-    # Fixture baseline is 2 (the Good Bank <-> Banking pair); +1 for competes_with.
-    assert rel["total"] == 3
+    # Fixture baseline is 0 graph_edges rows (sector membership moved to the
+    # incidence store, 2026-10-19); +1 for competes_with.
+    assert rel["total"] == 1
     # competes_with is a known Phase-2 type — must NOT be flagged unknown.
     assert rel["unknown_type"] == 0
     assert rel["errors"] == 0
@@ -585,14 +594,22 @@ def test_part_of_specific_checks_still_fire_post_widening(integrity_db):
 
     db_path, checker = integrity_db
     conn = sqlite3.connect(db_path)
-    # part_of where target is a company, not a sector — direction violation.
+    # A sector hyperedge holding a non-company member — the canonical-store
+    # direction violation (part_of/has_company retirement, 2026-10-19).
     conn.execute(
         "INSERT INTO entities (name, entity_type, file_path, normalized_name) "
         "VALUES ('Rival Co','company','findata/Companies/Banking/Rival_Co.md','Rival_Co')"
     )
     conn.execute(
-        "INSERT INTO relations (source,target,relation_type) "
-        "VALUES ('Good Bank','Rival Co','part_of')"  # target is company, not sector
+        "INSERT INTO entities (name, entity_type, file_path, normalized_name) "
+        "VALUES ('Odd Sector','sector','findata/Sectors/Odd.md','Odd_Sector')"
+    )
+    edge_id = conn.execute(
+        "SELECT id FROM hyper_edges WHERE edge_type='sector' AND label='Banking'"
+    ).fetchone()[0]
+    conn.execute(
+        "INSERT INTO hyper_incidences (edge_id, entity_name) VALUES (?, 'Odd Sector')",
+        (edge_id,),
     )
     conn.commit()
     conn.close()

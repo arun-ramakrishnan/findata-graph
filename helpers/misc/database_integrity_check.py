@@ -55,14 +55,27 @@ def _sibling_worktree_roots(base_path: Path) -> list[Path]:
 from helpers.validators.static_checks import CANONICAL_EVENT_TYPES  # noqa: E402
 from helpers.core.frontmatter import extract_tags as _note_yaml_tags  # noqa: E402
 
+# Edge types whose rows are PROJECTED into the DuckDB cache from the
+# canonical sector hyperedges instead of read from graph_edges
+# (part_of/has_company retirement, 2026-10-19). Cache reconciliation
+# compares e_belongs/e_has against the incidence store, not against a
+# graph_edges count that is now structurally zero.
+_PROJECTED_MEMBERSHIP_TYPES: tuple[str, ...] = ("part_of", "has_company")
+
 # Canonical edge-type allowlist. Must match EDGE_REGISTRY keys in
-# helpers/graph/query.py. The relations view (now unfiltered — see
-# migrate_to_graph_edges.py RELATIONS_VIEW_DDL) exposes all edge types,
-# so check_relations() validates graph_edges.edge_type against this set.
-# Keep in sync if a new edge type is registered.
+# helpers/graph/query.py MINUS the projected pair above — the registry also
+# carries projection entries, so the two are not equal any more (the
+# ontology-doc roster gate compares against THIS tuple, which is the
+# vocabulary of STORED types).
+# The relations view (now unfiltered — see migrate_to_graph_edges.py
+# RELATIONS_VIEW_DDL) exposes all edge types, so check_relations() validates
+# graph_edges.edge_type against this set. Keep in sync if a new edge type is
+# registered.
 _KNOWN_EDGE_TYPES: tuple[str, ...] = (
-    "part_of",
-    "has_company",
+    # part_of/has_company RETIRED 2026-10-19 (partof_hascompany_retirement):
+    # the dyad pair moved to the canonical sector-hyperedge incidence store.
+    # The DuckDB cache still projects e_belongs/e_has from it, so the pair
+    # remains a valid cache label — but it is no longer a stored edge type.
     "competes_with",
     "jv_with",
     "same_group",
@@ -351,10 +364,13 @@ class DatabaseIntegrityChecker:
         """
         Integrity of the relations table.
 
-        Relation model (doc/design/db_schema.md): part_of = company->sector,
-        has_company = sector->company. Every part_of must have a matching
-        has_company and vice versa. All ERROR-level here; the live graph is
-        pristine, so any nonzero value is a real regression.
+        Relation model (doc/design/db_schema.md). part_of/has_company
+        retirement (2026-10-19): sector membership is canonical in the
+        sector hyperedges, so the pair's symmetric-integrity checks are
+        replaced by an endpoint-type check on the incidence store (a
+        single row cannot disagree with its own reverse). All ERROR-level
+        here; the live graph is pristine, so any nonzero value is a real
+        regression.
         """
         conn = self.get_connection()
         cur = conn.cursor()
@@ -373,8 +389,7 @@ class DatabaseIntegrityChecker:
                 "self_loops": 0,
                 "orphaned": 0,
                 "type_mismatch": 0,
-                "part_of_without_has_company": 0,
-                "has_company_without_part_of": 0,
+                "sector_membership_endpoint_bad": 0,
                 "circular": 0,
                 "errors": 0,
             }
@@ -397,31 +412,30 @@ class DatabaseIntegrityChecker:
             " OR r.target NOT IN (SELECT name FROM entities)"
         )
 
-        po_src_bad = one(
-            "SELECT COUNT(*) FROM relations r JOIN entities e ON r.source=e.name "
-            "WHERE r.relation_type='part_of' AND e.entity_type!='company'"
-        )
-        po_tgt_bad = one(
-            "SELECT COUNT(*) FROM relations r JOIN entities e ON r.target=e.name "
-            "WHERE r.relation_type='part_of' AND e.entity_type!='sector'"
-        )
-        hc_src_bad = one(
-            "SELECT COUNT(*) FROM relations r JOIN entities e ON r.source=e.name "
-            "WHERE r.relation_type='has_company' AND e.entity_type!='sector'"
-        )
-        hc_tgt_bad = one(
-            "SELECT COUNT(*) FROM relations r JOIN entities e ON r.target=e.name "
-            "WHERE r.relation_type='has_company' AND e.entity_type!='company'"
-        )
-
-        po_no_hc = one(
-            "SELECT COUNT(*) FROM relations p WHERE p.relation_type='part_of' AND NOT EXISTS "
-            "(SELECT 1 FROM relations h WHERE h.source=p.target AND h.target=p.source AND h.relation_type='has_company')"
-        )
-        hc_no_po = one(
-            "SELECT COUNT(*) FROM relations h WHERE h.relation_type='has_company' AND NOT EXISTS "
-            "(SELECT 1 FROM relations p WHERE p.source=h.target AND p.target=h.source AND p.relation_type='part_of')"
-        )
+        # part_of/has_company retirement (2026-10-19): membership is
+        # CANONICAL in the sector hyperedges. The old symmetric-pair checks
+        # (po_src_bad/po_tgt_bad/hc_*/po_no_hc/hc_no_po) are gone with the
+        # dyads; their replacement is the endpoint-type check below, which
+        # is strictly stronger (a single incidence row cannot disagree with
+        # its own reverse). A stray part_of/has_company row in graph_edges
+        # now surfaces as unknown_type (removed from the roster).
+        sec_inc_bad = 0
+        if (
+            cur.execute(
+                "SELECT 1 FROM sqlite_master WHERE name='hyper_incidences' AND type='table'"
+            ).fetchone()
+            is not None
+        ):
+            sec_inc_bad = one(
+                "SELECT COUNT(*) FROM hyper_incidences hi "
+                "JOIN hyper_edges he ON he.id = hi.edge_id "
+                "JOIN entities e ON e.name = hi.entity_name "
+                "WHERE he.edge_type = 'sector' AND e.entity_type != 'company'"
+            )
+            sec_inc_bad += one(
+                "SELECT COUNT(*) FROM hyper_edges he JOIN entities e ON e.name = he.label "
+                "WHERE he.edge_type = 'sector' AND e.entity_type != 'sector'"
+            )
 
         # related_party_groups_vigil (2026-09-22, completed.md #268): the
         # VIGIL relation lanes are stored two-way by design — supplier_to
@@ -482,12 +496,7 @@ class DatabaseIntegrityChecker:
             unknown_type
             + self_loops
             + orphaned
-            + po_src_bad
-            + po_tgt_bad
-            + hc_src_bad
-            + hc_tgt_bad
-            + po_no_hc
-            + hc_no_po
+            + sec_inc_bad
             + circular
             + bt_src_bad
             + bt_tgt_bad
@@ -499,18 +508,8 @@ class DatabaseIntegrityChecker:
             "unknown_type": unknown_type,
             "self_loops": self_loops,
             "orphaned": orphaned,
-            "type_mismatch": (
-                po_src_bad
-                + po_tgt_bad
-                + hc_src_bad
-                + hc_tgt_bad
-                + bt_src_bad
-                + bt_tgt_bad
-                + et_src_bad
-                + et_tgt_bad
-            ),
-            "part_of_without_has_company": po_no_hc,
-            "has_company_without_part_of": hc_no_po,
+            "type_mismatch": (sec_inc_bad + bt_src_bad + bt_tgt_bad + et_src_bad + et_tgt_bad),
+            "sector_membership_endpoint_bad": sec_inc_bad,
             "belongs_to_endpoint_bad": bt_src_bad + bt_tgt_bad,
             "exposed_to_endpoint_bad": et_src_bad + et_tgt_bad,
             "circular": circular,
@@ -701,17 +700,16 @@ class DatabaseIntegrityChecker:
         }
 
     def check_orphan_companies(self) -> dict:
-        """Companies with no ``part_of`` edge — not attached to any sector
+        """Companies with no sector membership — not attached to any sector
         (Bundle R2).
 
         Mirrors the ``/api/graph/stats`` hygiene counter (app.py): a company
-        ``e`` is orphaned iff no edge has ``edge_type='part_of' AND
-        source=e.name``. Queried via the ``relations`` view (which exposes
-        ``edge_type AS relation_type`` over ``graph_edges`` in production)
-        so this method works uniformly with the production view and with
-        test fixtures that materialise ``relations`` as a table — the same
-        pattern ``check_relations`` uses. The predicate is identical to the
-        API's; only the access path differs.
+        ``e`` is orphaned iff it has no sector membership. part_of/has_company
+        retirement (2026-10-19): membership is canonical in the sector
+        hyperedges, so the predicate reads
+        ``hyper_incidences``/``hyper_edges`` — the ``part_of`` dyad no
+        longer exists to read. Falls back to the ``relations`` predicate
+        only when the incidence store is absent (a pre-retirement restore).
 
         A nonzero value means a company slipped through
         parse_newsletter without a sector assignment, or a ``part_of`` edge
@@ -740,12 +738,25 @@ class DatabaseIntegrityChecker:
         # the same fileless class the file_path exemption covers. They are
         # excluded from the orphan count; the junk signature (no ticker, no
         # path) still counts.
+        has_incidence_store = (
+            cur.execute(
+                "SELECT 1 FROM sqlite_master WHERE name='hyper_incidences' AND type='table'"
+            ).fetchone()
+            is not None
+        )
+        membership_predicate = (
+            "EXISTS (SELECT 1 FROM hyper_incidences hi "
+            "JOIN hyper_edges he ON he.id = hi.edge_id "
+            "WHERE he.edge_type='sector' AND hi.entity_name = e.name)"
+            if has_incidence_store
+            else "EXISTS (SELECT 1 FROM relations r "
+            "WHERE r.relation_type='part_of' AND r.source=e.name)"
+        )
         row = cur.execute(
-            "SELECT "
+            "SELECT "  # noqa: S608  # membership_predicate is a module-constant branch, not user input
             "(SELECT COUNT(*) FROM entities WHERE entity_type='company') AS total, "
-            "(SELECT COUNT(*) FROM entities e WHERE e.entity_type='company' AND NOT EXISTS "
-            "(SELECT 1 FROM relations r "
-            "WHERE r.relation_type='part_of' AND r.source=e.name) "
+            "(SELECT COUNT(*) FROM entities e WHERE e.entity_type='company' AND NOT "
+            f"{membership_predicate} "
             "AND NOT (e.file_path IS NULL AND e.ticker IS NOT NULL AND e.ticker <> '') "
             "AND NOT (e.file_path IS NULL AND e.ticker IS NULL AND EXISTS "
             "(SELECT 1 FROM relations r WHERE r.source=e.name OR r.target=e.name))) "
@@ -1874,6 +1885,33 @@ class DatabaseIntegrityChecker:
         finally:
             con.close()
 
+    def _expected_projected_count(self, etype: str) -> int:
+        """SQLite-side expectation for a PROJECTED edge table.
+
+        ``e_belongs``/``e_has`` are built from the canonical sector
+        hyperedges (part_of/has_company retirement, 2026-10-19), so their
+        row count tracks incidences, not ``graph_edges``. Both projected
+        directions have exactly one row per incidence.
+
+        Falls back to the legacy ``graph_edges`` count when the incidence
+        store is absent (a pre-retirement restore, where the dyads are the
+        only source and the cache is still built from them).
+        """
+        conn = self.get_connection()
+        if (
+            conn.execute(
+                "SELECT 1 FROM sqlite_master WHERE name='hyper_incidences' AND type='table'"
+            ).fetchone()
+            is None
+        ):
+            return conn.execute(
+                "SELECT COUNT(*) FROM graph_edges WHERE edge_type=?", (etype,)
+            ).fetchone()[0]
+        return conn.execute(
+            "SELECT COUNT(*) FROM hyper_incidences hi "
+            "JOIN hyper_edges he ON he.id = hi.edge_id WHERE he.edge_type='sector'"
+        ).fetchone()[0]
+
     def _reconcile_cache(self, duck_con) -> dict:  # noqa: C901
         """Compare the open DuckDB connection against SQLite. Factored out
         of check_cache_consistency for testability (a test can pass a fake
@@ -1938,11 +1976,15 @@ class DatabaseIntegrityChecker:
             except Exception:
                 dn = None
             sn = (
-                self.get_connection()
-                .execute("SELECT COUNT(*) FROM graph_edges WHERE edge_type=?", (etype,))
-                .fetchone()[0]
-                if ge_present
-                else 0
+                self._expected_projected_count(etype)
+                if etype in _PROJECTED_MEMBERSHIP_TYPES
+                else (
+                    self.get_connection()
+                    .execute("SELECT COUNT(*) FROM graph_edges WHERE edge_type=?", (etype,))
+                    .fetchone()[0]
+                    if ge_present
+                    else 0
+                )
             )
             if dn is None or dn != sn:
                 mismatches.append(
@@ -2196,8 +2238,7 @@ class DatabaseIntegrityChecker:
             f"total={rel['total']} unknown_type={rel['unknown_type']} "
             f"self_loops={rel['self_loops']} orphaned={rel['orphaned']} "
             f"type_mismatch={rel['type_mismatch']} "
-            f"part_of_without_has_company={rel['part_of_without_has_company']} "
-            f"has_company_without_part_of={rel['has_company_without_part_of']} "
+            f"sector_membership_endpoint_bad={rel['sector_membership_endpoint_bad']} "
             f"circular={rel['circular']} -> errors={rel['errors']}"
         )
         lines.append("")
@@ -2461,10 +2502,8 @@ class DatabaseIntegrityChecker:
         print(f"   Orphaned (source/target not an entity): {rel.get('orphaned', 0)}")
         print(f"   Type/direction mismatches: {rel.get('type_mismatch', 0)}")
         print(
-            f"   part_of WITHOUT matching has_company: {rel.get('part_of_without_has_company', 0)}"
-        )
-        print(
-            f"   has_company WITHOUT matching part_of: {rel.get('has_company_without_part_of', 0)}"
+            f"   Sector membership endpoint-type bad: "
+            f"{rel.get('sector_membership_endpoint_bad', 0)}"
         )
         print(f"   Circular (same-type A<->B): {rel.get('circular', 0)}")
         print(

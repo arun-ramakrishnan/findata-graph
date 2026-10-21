@@ -75,6 +75,30 @@ def _build_db(db_path: Path) -> sqlite3.Connection:
             computed_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
             PRIMARY KEY (metric, entity_name)
         );
+        -- part_of/has_company retirement (2026-10-19): sector membership is
+        -- written to the canonical incidence store, not graph_edges.
+        CREATE TABLE hyper_edges (
+            id          INTEGER PRIMARY KEY,
+            edge_type   TEXT NOT NULL,
+            label       TEXT NOT NULL,
+            weight      REAL NOT NULL DEFAULT 1.0,
+            valid_from  DATE,
+            valid_to    DATE,
+            source_ref  TEXT NOT NULL,
+            properties  TEXT NOT NULL DEFAULT '{}',
+            created_at  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            UNIQUE(edge_type, label)
+        );
+        CREATE TABLE hyper_incidences (
+            edge_id     INTEGER NOT NULL,
+            entity_name TEXT NOT NULL,
+            weight      REAL,
+            direction   TEXT,
+            role        TEXT,
+            valid_from  DATE,
+            valid_to    DATE,
+            PRIMARY KEY (edge_id, entity_name)
+        );
     """)
     conn.commit()
     return conn
@@ -368,55 +392,58 @@ class TestNoteFilesCreated:
 # --------------------------------------------------------------------------- #
 
 
-class TestGraphEdges:
-    """Verify bidirectional part_of / has_company edges are created."""
+class TestSectorMembership:
+    """Sector membership is CANONICAL in the incidence store (2026-10-19).
 
-    def test_part_of_edge_exists(self, synth_project, monkeypatch):
+    part_of/has_company were retired as graph_edges rows; the pair a reader
+    sees is projected back out of ``hyper_edges``/``hyper_incidences`` by
+    ``helpers/graph/query.py``. These assertions therefore check the store,
+    not the dyads — and deliberately assert NO dyads are written.
+    """
+
+    def _memberships(self, conn, name: str) -> list[str]:
+        return [
+            r[0]
+            for r in conn.execute(
+                "SELECT he.label FROM hyper_incidences hi "
+                "JOIN hyper_edges he ON he.id = hi.edge_id "
+                "WHERE hi.entity_name=? AND he.edge_type='sector'",
+                (name,),
+            ).fetchall()
+        ]
+
+    def test_sector_membership_exists(self, synth_project, monkeypatch):
         _run_apply(synth_project, monkeypatch)
         conn = _open_db(synth_project)
         try:
-            edges = conn.execute(
-                "SELECT * FROM graph_edges WHERE source=? AND edge_type='part_of'",
-                ("Acme Banking Corp",),
-            ).fetchall()
-            assert len(edges) == 1
-            assert edges[0]["target"] == "Banking"
+            assert self._memberships(conn, "Acme Banking Corp") == ["Banking"]
+            assert (
+                conn.execute(
+                    "SELECT COUNT(*) FROM graph_edges WHERE edge_type IN ('part_of','has_company')"
+                ).fetchone()[0]
+                == 0
+            )
         finally:
             conn.close()
 
-    def test_has_company_edge_exists(self, synth_project, monkeypatch):
-        _run_apply(synth_project, monkeypatch)
-        conn = _open_db(synth_project)
-        try:
-            edges = conn.execute(
-                "SELECT * FROM graph_edges WHERE target=? AND edge_type='has_company'",
-                ("Acme Banking Corp",),
-            ).fetchall()
-            assert len(edges) == 1
-            assert edges[0]["source"] == "Banking"
-        finally:
-            conn.close()
-
-    def test_all_new_companies_get_edges(self, synth_project, monkeypatch):
+    def test_all_new_companies_get_membership(self, synth_project, monkeypatch):
         _run_apply(synth_project, monkeypatch)
         conn = _open_db(synth_project)
         try:
             for name in ("Acme Banking Corp", "Zeta Technologies", "Epsilon Energy"):
-                n = conn.execute(
-                    "SELECT COUNT(*) FROM graph_edges WHERE source=? AND edge_type='part_of'",
-                    (name,),
-                ).fetchone()[0]
-                assert n == 1, f"{name} missing part_of edge"
+                assert len(self._memberships(conn, name)) == 1, f"{name} missing membership"
         finally:
             conn.close()
 
-    def test_edge_source_ref(self, synth_project, monkeypatch):
-        """Edges should be tagged source_ref='parse_newsletter'."""
+    def test_membership_source_ref(self, synth_project, monkeypatch):
+        """The sector hyperedge carries source_ref='parse_newsletter'."""
         _run_apply(synth_project, monkeypatch)
         conn = _open_db(synth_project)
         try:
             ref = conn.execute(
-                "SELECT source_ref FROM graph_edges WHERE source=? AND edge_type='part_of'",
+                "SELECT he.source_ref FROM hyper_edges he "
+                "JOIN hyper_incidences hi ON hi.edge_id = he.id "
+                "WHERE hi.entity_name=? AND he.edge_type='sector'",
                 ("Acme Banking Corp",),
             ).fetchone()[0]
             assert ref == "parse_newsletter"

@@ -68,6 +68,7 @@ if str(PROJECT_ROOT) not in sys.path:
 from helpers.core.countries import classify_ticker  # noqa: E402  (country layer C2 seeding)
 from helpers.core.db import utc_now  # noqa: E402  (Bundle T1: UTC last_updated)
 from helpers.core.frontmatter import bump_generated  # noqa: E402  (OKF §5.2 stamp)
+from helpers.graph.sector_membership import put_sector_membership  # noqa: E402  (canonical membership)
 
 # Shared ticker resolution and entity matching (unified with get_tickers.py)
 from helpers.core.get_tickers import search_ticker
@@ -673,21 +674,13 @@ def create_entity(conn, name, sector, ticker, apply, sector_entities=None):
         )
         inserted = cur.rowcount > 0
         if inserted:
-            # Bidirectional membership edges if the sector entity exists.
-            # NB: writes to graph_edges (since the Phase-1 migration the
-            # `relations` name is a read-only VIEW over graph_edges).
+            # Sector membership if the sector entity exists. Since the
+            # part_of/has_company retirement (2026-10-19) the incidence
+            # store is canonical — one write path, and the pair that
+            # graph_edges used to carry is projected back out of it.
             se = sector_entities if sector_entities is not None else get_sector_entities(conn)
             if sector in se:
-                conn.execute(
-                    "INSERT OR IGNORE INTO graph_edges"
-                    " (source, target, edge_type, source_ref) VALUES (?,?,?,?)",
-                    (name, sector, "part_of", "parse_newsletter"),
-                )
-                conn.execute(
-                    "INSERT OR IGNORE INTO graph_edges"
-                    " (source, target, edge_type, source_ref) VALUES (?,?,?,?)",
-                    (sector, name, "has_company", "parse_newsletter"),
-                )
+                put_sector_membership(conn, name, sector, source_ref="parse_newsletter")
         # Write stub note only if absent (never clobber).
         if not abs_path.exists():
             abs_path.parent.mkdir(parents=True, exist_ok=True)

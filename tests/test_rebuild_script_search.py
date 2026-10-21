@@ -70,15 +70,6 @@ def _fake_embed(text: str) -> list[float]:
     return [x / n for x in v]
 
 
-@pytest.fixture(autouse=True)
-def _isolated_backup(tmp_path, monkeypatch):
-    """Full-rebuild tests here used to write their 6-row fixture build into
-    the REAL db-backup/ (script_search_backup.db) — the un-redirected module
-    BACKUP_DIR leaked the fixture index over the last-good backup for the
-    module's entire history. Isolate every test in this module."""
-    monkeypatch.setattr(rss, "BACKUP_DIR", tmp_path / "db-backup")
-
-
 @pytest.fixture
 def tree(tmp_path):
     """Mini repo: two helpers + app.py + one test + Makefile, under tmp."""
@@ -196,12 +187,6 @@ class TestBuild:
         finally:
             conn.close()
 
-    def test_full_backup_written(self, tree, monkeypatch):
-        backup = tree / "db-backup"
-        monkeypatch.setattr(rss, "BACKUP_DIR", backup)
-        _rebuild(tree)
-        assert (backup / "script_search_backup.db.zst").exists()
-
 
 class TestMakefileParser:
     def test_parse_skips_assignments_and_pseudo_targets(self):
@@ -241,7 +226,6 @@ class TestFreshnessAndIncremental:
         monkeypatch.setattr(rss, "TESTS_ROOT", tree / "tests")
         monkeypatch.setattr(rss, "APP_PY", tree / "app.py")
         monkeypatch.setattr(rss, "MAKEFILE", tree / "Makefile")
-        monkeypatch.setattr(rss, "BACKUP_DIR", tree / "db-backup")
         _rebuild(tree)
         assert rss.main(["--check"]) == 0
         capsys.readouterr()
@@ -263,7 +247,6 @@ class TestFreshnessAndIncremental:
         monkeypatch.setattr(rss, "TESTS_ROOT", tree / "tests")
         monkeypatch.setattr(rss, "APP_PY", tree / "app.py")
         monkeypatch.setattr(rss, "MAKEFILE", tree / "Makefile")
-        monkeypatch.setattr(rss, "BACKUP_DIR", tree / "db-backup")
         _rebuild(tree)
         capsys.readouterr()
         future = _time.time() + 1000

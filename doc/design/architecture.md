@@ -57,8 +57,8 @@ Summary: 10 user tables + the FTS5 `note_search` + the `relations` VIEW —
 `entities` (1,685 rows; 8 entity kinds: company 1179 / institution 207 /
 edition 114 / sub_sector 100 / sector 42 / country 21 / theme 12 /
 super_sector 10; PK `name`), `entity_tags` (note-tag
-mirror), `graph_edges` (19,325 rows, 20 registered edge types — 19
-populated), `events` (436),
+mirror), `graph_edges` (19,325 rows, 19 registered edge types — 18
+populated; `part_of`/`has_company` retired 2026-10-19, was 21/20), `events` (436),
 `quotes` (8,272), `company_metrics` (4,412), `graph_analytics` (23,837 rows;
 written only by `make recompute-graph`), `hyper_edges` +
 `hyper_incidences` (the star incidence store), `provenance_agents`

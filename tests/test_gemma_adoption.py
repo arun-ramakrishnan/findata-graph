@@ -281,7 +281,6 @@ class TestCacheNoPurge:
                 return [1.0] * 512
 
         monkeypatch.setattr(rss, "CachedEmbed", _Rec)
-        monkeypatch.setattr(rss, "BACKUP_DIR", tmp_path / "db-backup")
         rss.rebuild(
             tmp_path / "s.db",
             helpers_root=tmp_path / "helpers",
@@ -303,7 +302,6 @@ class TestCacheNoPurge:
             rss, "_script_stored_embed_model", lambda conn: gemma_embedder.MODEL_LABEL
         )
         monkeypatch.setattr(rss, "CachedEmbed", _RecordingEmbed)
-        monkeypatch.setattr(rss, "BACKUP_DIR", tmp_path / "db-backup")
         (tmp_path / "helpers" / "misc").mkdir(parents=True)
         (tmp_path / "helpers" / "misc" / "w.py").write_text('"""Do widgets."""\n')
         (tmp_path / "tests").mkdir()

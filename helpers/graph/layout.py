@@ -39,6 +39,8 @@ import numpy as np
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 POSITIONS_PATH = _REPO_ROOT / "memory" / "graph_layout.json"
 
+from helpers.graph.edge_projection import edge_rows  # noqa: E402
+
 # Mirror of the S0 harness params (graph_measure.mjs lane 1) so the server
 # engine and the measured browser FA2 stay comparable.
 ENGINE = "fa2-anchored-numpy"
@@ -75,9 +77,15 @@ def edge_set_hash(conn: Any) -> tuple[str, list[str], list[tuple[str, str, str]]
     The cloud endpoint derives nodes from edge endpoints (incident nodes
     only), so the hash covers the same triples + incident ids — a filter or
     entity-text edit cannot move it, only edge/topology changes can.
+
+    part_of/has_company retirement (2026-10-19): the cloud endpoint now
+    projects the retired pair out of the canonical sector hyperedges, so
+    this hash must read the same projected set — otherwise the sidecar
+    would look fresh against a graph that no longer matches the canvas
+    (and sector membership would stop influencing the layout).
     """
-    rows = conn.execute("SELECT source, target, edge_type FROM graph_edges").fetchall()
-    edges = sorted((r[0], r[1], r[2]) for r in rows)
+    rows = edge_rows(conn)
+    edges = sorted((s, t, et) for s, t, et, _w in rows)
     incident = sorted({name for e in edges for name in (e[0], e[1])})
     h = hashlib.sha256()
     h.update("\x1e".join(incident).encode())

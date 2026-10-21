@@ -227,12 +227,17 @@ def _ref_sector_members(db, sector):
     try:
         rows = con.execute(
             """
+            -- part_of/has_company retirement (2026-10-19): membership is
+            -- canonical in the sector hyperedges; the dyad no longer exists
+            -- to read. The DuckDB side projects it back out of this store.
             SELECT e.name AS company,
                    CASE WHEN t.tag IS NULL THEN NULL
                         ELSE substr(MIN(t.tag), length('market_cap/')+1) END AS mcap
             FROM entities e
-            JOIN graph_edges g
-              ON g.source = e.name AND g.edge_type='part_of' AND g.target=?
+            JOIN hyper_incidences hi
+              ON hi.entity_name = e.name
+            JOIN hyper_edges he
+              ON he.id = hi.edge_id AND he.edge_type='sector' AND he.label=?
             LEFT JOIN entity_tags t
               ON t.entity_name = e.name AND t.tag LIKE 'market_cap/%'
             GROUP BY e.name ORDER BY e.name

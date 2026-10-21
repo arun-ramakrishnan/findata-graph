@@ -52,6 +52,50 @@ import duckdb
 _EDGE_TABLE = "fin.graph_edges"
 
 
+def _edge_source_sql(con: duckdb.DuckDBPyConnection) -> str:
+    """SQL source for the edge projection — dyads UNION the projected
+    sector-membership pair.
+
+    part_of/has_company retirement (2026-10-19): the pair has no
+    ``fin.graph_edges`` rows any more; membership is canonical in the
+    hyperedges. Onager materialises straight from ``fin.graph_edges``, so
+    without this union every ``edge_types=['part_of','has_company']`` call
+    (pagerank/wcc over ``BelongsTo``) silently sees an EMPTY graph — which
+    is exactly how `tests/test_graph.py::TestPhase3NativeAlgorithms`
+    caught it (pagerank over BelongsTo returned 0 rows against 1,208
+    projected memberships).
+
+    Returns the plain table when the incidence store is absent (a
+    pre-retirement restore, where the dyads are still the source).
+    """
+    # hyper_incidences lives in the attached SQLite DB. DuckDB does not
+    # expose the attachment's sqlite_master reliably, so probe the table
+    # itself and treat a catalog miss as "no store" (pre-retirement restore).
+    try:
+        con.execute("SELECT COUNT(*) FROM fin.hyper_incidences").fetchone()
+        has_store = 1
+    except duckdb.Error:
+        has_store = 0
+    if not has_store:
+        return _EDGE_TABLE
+    return """
+        (SELECT source, target, edge_type, weight, valid_from, valid_to
+         FROM fin.graph_edges
+         UNION ALL
+         SELECT hi.entity_name, he.label, 'part_of',
+                COALESCE(hi.weight, he.weight), hi.valid_from, hi.valid_to
+         FROM fin.hyper_incidences hi
+         JOIN fin.hyper_edges he ON he.id = hi.edge_id
+         WHERE he.edge_type = 'sector'
+         UNION ALL
+         SELECT he.label, hi.entity_name, 'has_company',
+                COALESCE(hi.weight, he.weight), hi.valid_from, hi.valid_to
+         FROM fin.hyper_incidences hi
+         JOIN fin.hyper_edges he ON he.id = hi.edge_id
+         WHERE he.edge_type = 'sector')
+    """
+
+
 # --------------------------------------------------------------------------- #
 # Connection handling
 # --------------------------------------------------------------------------- #
@@ -148,14 +192,15 @@ def _materialize_from_db(
     # pandas (~0.5s fixed cost) on the first parameterized execute. See
     # _where_inline above.
     where = _where_inline(edge_types, as_of)
+    edge_src = _edge_source_sql(con)
     con.execute(
         f"""
         CREATE OR REPLACE TEMP TABLE _onager_int AS
         SELECT name, (row_number() OVER (ORDER BY name) - 1)::BIGINT AS nid
         FROM (
-            SELECT source AS name FROM {_EDGE_TABLE}{where}
+            SELECT source AS name FROM {edge_src}{where}
             UNION
-            SELECT target AS name FROM {_EDGE_TABLE}{where}
+            SELECT target AS name FROM {edge_src}{where}
         );
         """,  # noqa: S608
     )
@@ -168,7 +213,7 @@ def _materialize_from_db(
         CREATE OR REPLACE TEMP TABLE _onager_e AS
         SELECT s.nid AS src, t.nid AS dst,
                COALESCE(TRY_CAST(e.weight AS DOUBLE), 1.0) AS weight
-        FROM {_EDGE_TABLE} e
+        FROM {edge_src} e
         JOIN _onager_int s ON s.name = e.source
         JOIN _onager_int t ON t.name = e.target{where}
         ORDER BY src, dst;

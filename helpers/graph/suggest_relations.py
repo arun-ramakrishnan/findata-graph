@@ -53,6 +53,7 @@ import duckdb  # noqa: E402  # after sys.path bootstrap
 
 from helpers.graph.algorithms import link_prediction  # noqa: E402
 from helpers.graph import query as _graph_query  # noqa: E402
+from helpers.graph.edge_projection import edge_rows  # noqa: E402
 
 DEFAULT_DUCKDB = _REPO_ROOT / "memory" / "graph.duckdb"
 ORIGIN = "link_prediction"
@@ -94,17 +95,22 @@ def _company_names(con: duckdb.DuckDBPyConnection) -> set[str]:
 
 
 def existing_edge_pairs(conn: sqlite3.Connection | None = None) -> set[frozenset[str]]:
-    """All (source, target) name pairs already in ``graph_edges``.
+    """All (source, target) name pairs already in the graph.
 
     Uses the house connection helper (static-checked rule); pass an open
     sqlite3 connection for tests.
+
+    part_of/has_company retirement (2026-10-19): reads through
+    ``edge_projection`` so a company's sector membership still counts as
+    an existing pair — otherwise link prediction would start proposing
+    ``competes_with`` edges between a company and its own sector, a pair
+    the graph already knows about.
     """
     if conn is None:
         from helpers.core.db import connect
 
         conn = connect()  # house helper (static-checked rule)
-    rows = conn.execute("SELECT source, target FROM graph_edges").fetchall()
-    return {frozenset((s, t)) for s, t in rows}
+    return {frozenset((s, t)) for s, t, _et, _w in edge_rows(conn)}
 
 
 def prior_suggestion_pairs(path: Path = SIDECAR_PATH) -> set[frozenset[str]]:

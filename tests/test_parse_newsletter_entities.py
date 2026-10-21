@@ -38,6 +38,26 @@ def _schema_sql():
         source_ref TEXT NOT NULL,
         UNIQUE(source, target, edge_type)
     );
+    -- part_of/has_company retirement (2026-10-19): membership is written
+    -- to the canonical incidence store.
+    CREATE TABLE hyper_edges(
+        id INTEGER PRIMARY KEY,
+        edge_type TEXT NOT NULL,
+        label TEXT NOT NULL,
+        weight REAL NOT NULL DEFAULT 1.0,
+        valid_from DATE, valid_to DATE,
+        source_ref TEXT NOT NULL,
+        properties TEXT NOT NULL DEFAULT '{}',
+        created_at DATETIME,
+        UNIQUE(edge_type, label)
+    );
+    CREATE TABLE hyper_incidences(
+        edge_id INTEGER NOT NULL,
+        entity_name TEXT NOT NULL,
+        weight REAL, direction TEXT, role TEXT,
+        valid_from DATE, valid_to DATE,
+        PRIMARY KEY (edge_id, entity_name)
+    );
     """
 
 
@@ -64,17 +84,21 @@ class TestCreateEntityIdempotent:
             # Exactly one entity row.
             n = conn.execute("SELECT COUNT(*) FROM entities WHERE name='Acme Corp'").fetchone()[0]
             assert n == 1
-            # Exactly one part_of / one has_company edge (idempotent via
-            # UNIQUE + INSERT OR IGNORE on graph_edges too).
-            n_part = conn.execute(
-                "SELECT COUNT(*) FROM graph_edges WHERE source='Acme Corp' AND edge_type='part_of'"
+            # Exactly one sector membership (canonical incidence store since
+            # the 2026-10-19 retirement; idempotent via the incidence PK).
+            n_mem = conn.execute(
+                "SELECT COUNT(*) FROM hyper_incidences hi "
+                "JOIN hyper_edges he ON he.id = hi.edge_id "
+                "WHERE hi.entity_name='Acme Corp' AND he.edge_type='sector' "
+                "AND he.label='Tech'"
             ).fetchone()[0]
-            n_has = conn.execute(
-                "SELECT COUNT(*) FROM graph_edges WHERE target='Acme Corp' "
-                "AND edge_type='has_company'"
-            ).fetchone()[0]
-            assert n_part == 1
-            assert n_has == 1
+            assert n_mem == 1
+            assert (
+                conn.execute(
+                    "SELECT COUNT(*) FROM graph_edges WHERE edge_type IN ('part_of','has_company')"
+                ).fetchone()[0]
+                == 0
+            )
         finally:
             conn.close()
 

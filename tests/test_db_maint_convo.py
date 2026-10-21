@@ -53,7 +53,12 @@ def _make_index(tmp_path: Path) -> tuple[Path, Path]:
     return idx, fts
 
 
-def test_backup_convo_search_writes_both_zst(tmp_path, monkeypatch):
+def test_backup_convo_search_writes_primary_not_fts_sidecar(tmp_path, monkeypatch):
+    """2026-10-19 census re-run (production_db_copy_audit addendum):
+    the convo_search PRIMARY stays backed up (vectors included — the
+    2h10m cold re-embed insurance); the FTS5 sidecar is retired from
+    the lane (derived lookup index, zero unique content, minutes-class
+    re-index) — its zst must NOT be written."""
     from helpers.maintenance import db_maint
 
     monkeypatch.setattr(rcs, "REPO", tmp_path)
@@ -64,7 +69,7 @@ def test_backup_convo_search_writes_both_zst(tmp_path, monkeypatch):
     assert total > 0
     out = tmp_path / "db-backup"
     assert (out / "convo_search_backup.duckdb.zst").exists()
-    assert (out / "convo_search_fts_backup.db.zst").exists()
+    assert not (out / "convo_search_fts_backup.db.zst").exists()
 
     # the duckdb copy must be a real, openable database
     restored = tmp_path / "restored.duckdb"
@@ -75,11 +80,6 @@ def test_backup_convo_search_writes_both_zst(tmp_path, monkeypatch):
         .fetchall()
     )
     assert rows == [("opencode", "p1")]
-
-    # the sidecar copy must carry the FTS content
-    fts_copy = tmp_path / "restored_fts.db"
-    decompress_file(out / "convo_search_fts_backup.db.zst", fts_copy)
-    assert sqlite3.connect(fts_copy).execute("SELECT COUNT(*) FROM convo_fts").fetchone()[0] == 1
     assert db_maint.DBMaintainer is DBMaintainer
 
 

@@ -66,13 +66,20 @@ DEFAULT_DB_PATH = _REPO_ROOT / "memory" / "research.db"
 # adds the lifecycle status column on concepts/concept_mappings
 # (ontology_governance S1); 13 adds the nic2008 vocabulary table
 # (nic2008_seed_table S1, canonical-only like concepts — no DuckDB cache
-# bump); new edge types are data, not schema.
+# bump); 14 adds the graph_analytics_contract served-universe table
+# (graph_analytics_contract S1, canonical-only — no DuckDB cache bump);
+# 15 adds speaker_identity + v_quote_speaker — the quote-speaker resolution
+# map (person_ontology_spine S2, canonical-only; the map resolves the
+# existing corpus with zero per-quote writes); 16 adds event_participants —
+# the n-ary event participant store (person_ontology_spine S4, fed by
+# derive_event_participants; the event hyperedge family reads it);
+# new edge types are data, not schema.
 # helpers/graph/query.py::_SCHEMA_VERSION versions a DIFFERENT surface — the
 # disposable DuckDB cache layout — and bumps on cache-only changes as well
 # (note vectors, lane tables). A SQLite schema change implies a cache bump,
 # not the reverse: do NOT keep the two in sync.
-EXPECTED_USER_VERSION = 13
-EXPECTED_SCHEMA_VERSION = "13"
+EXPECTED_USER_VERSION = 16
+EXPECTED_SCHEMA_VERSION = "16"
 
 
 def utc_now() -> str:

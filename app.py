@@ -83,6 +83,38 @@ def get_db_connection():
     return connect()
 
 
+def _sqlite_edge_union_sql(conn) -> str:
+    """SQL subquery: stored ``graph_edges`` UNION the projected sector pair.
+
+    part_of/has_company retirement (2026-10-19): those two types have no
+    ``graph_edges`` rows any more — sector membership is CANONICAL in
+    ``hyper_edges``/``hyper_incidences`` and DuckDB readers get the pair
+    projected by ``helpers/graph/query.py``. The SQLite-only routes (this
+    module's cloud/stats/positions surfaces) read the raw store, so they
+    must project it themselves or the sector edges vanish from the canvas.
+
+    When the incidence store is absent (a pre-retirement restore, or a
+    minimal fixture that never built it), the probe below returns the plain
+    dyad read — the surface degrades instead of erroring.
+    """
+    has_store = conn.execute(
+        "SELECT 1 FROM sqlite_master WHERE name='hyper_incidences' AND type='table'"
+    ).fetchone()
+    if has_store is None:
+        return "SELECT source, target, edge_type FROM graph_edges"
+    return """
+        SELECT source, target, edge_type FROM graph_edges
+        UNION ALL
+        SELECT hi.entity_name, he.label, 'part_of'
+        FROM hyper_incidences hi JOIN hyper_edges he ON he.id = hi.edge_id
+        WHERE he.edge_type = 'sector'
+        UNION ALL
+        SELECT he.label, hi.entity_name, 'has_company'
+        FROM hyper_incidences hi JOIN hyper_edges he ON he.id = hi.edge_id
+        WHERE he.edge_type = 'sector'
+    """
+
+
 def _super_sector_hierarchy() -> list[dict]:
     """Build the super-sector -> child-sectors hierarchy (Bundle M4).
 
@@ -2767,8 +2799,12 @@ def api_graph_stats():
                 "SELECT entity_type, COUNT(*) FROM entities GROUP BY entity_type"
             ).fetchall()
         )
+        # part_of/has_company retirement (2026-10-19): count the PROJECTED set,
+        # not the raw store, so the header total matches what the canvas and
+        # every other dyadic reader sees.
         edge_rows = conn.execute(
-            "SELECT edge_type, COUNT(*) FROM graph_edges GROUP BY edge_type ORDER BY COUNT(*) DESC"
+            f"SELECT edge_type, COUNT(*) FROM ({_sqlite_edge_union_sql(conn)}) "  # noqa: S608
+            "GROUP BY edge_type ORDER BY COUNT(*) DESC"
         ).fetchall()
         edges_by_type = {row["edge_type"]: row[1] for row in edge_rows}
         total_edges = sum(edges_by_type.values())
@@ -2783,8 +2819,21 @@ def api_graph_stats():
         # Named CTEs share table scans (companies, edges, tags) and add a
         # conflicting_market_cap counter that didn't exist before (companies
         # with >1 distinct market_cap tag — the latent A1/A2 trigger).
+        #
+        # part_of/has_company retirement (2026-10-19): membership is canonical
+        # in the sector hyperedges. _hyper_present() keeps a pre-retirement
+        # restore (or a minimal fixture) on the old dyad predicate instead of
+        # erroring on a missing table.
+        membership_probe = (
+            "SELECT 1 FROM hyper_incidences hi "
+            "JOIN hyper_edges he ON he.id = hi.edge_id "
+            "WHERE he.edge_type = 'sector' AND hi.entity_name = entities.name"
+            if _hyper_present(conn)
+            else "SELECT 1 FROM graph_edges ge WHERE ge.edge_type = 'part_of' "
+            "AND ge.source = entities.name"
+        )
         row = conn.execute(
-            """
+            f"""
             WITH
             mc_conflicts AS (
                 SELECT COUNT(*) AS n FROM (
@@ -2809,8 +2858,7 @@ def api_graph_stats():
                 SELECT
                     SUM(CASE WHEN (ticker IS NULL OR ticker = '') THEN 1 ELSE 0 END) AS no_ticker,
                     SUM(CASE WHEN NOT EXISTS (
-                                SELECT 1 FROM graph_edges ge
-                                WHERE ge.edge_type = 'part_of' AND ge.source = entities.name)
+                                {membership_probe})
                             THEN 1 ELSE 0 END) AS orphan_companies
                 FROM entities
                 WHERE entity_type = 'company'
@@ -2834,7 +2882,7 @@ def api_graph_stats():
                 (SELECT MAX(last_updated) FROM entities) AS most_recent_entity,
                 (SELECT MAX(computed_at) FROM graph_analytics) AS most_recent_analytics
             FROM company_issues ci, edge_issues ei, mc_conflicts mc
-            """
+            """  # noqa: S608  # constant CTE; membership_probe is a fixed literal pair
         ).fetchone()
         orphan_companies = row["orphan_companies"]
         no_ticker = row["no_ticker"]
@@ -2924,13 +2972,16 @@ _EDGE_SEMANTICS: dict[str, dict[str, object]] = {
         "symmetric": True,
         "semantics": "Newsletter co-mention (derived)",
     },
+    # part_of/has_company retirement (2026-10-19): both remain served — the
+    # DuckDB cache projects them from the canonical sector hyperedges — but
+    # no longer exist as stored graph_edges rows.
     "part_of": {
         "symmetric": False,
-        "semantics": "Company → sector (legacy pair)",
+        "semantics": "Company → sector (projected from the sector hyperedge)",
     },
     "has_company": {
         "symmetric": False,
-        "semantics": "Sector → company (legacy pair)",
+        "semantics": "Sector → company (projected from the sector hyperedge)",
     },
     "exposed_to": {
         "symmetric": False,
@@ -3146,18 +3197,27 @@ def api_graph_cloud():
     edge_type = request.args.get("edge_type", "").strip() or None
     conn = get_db_connection()
     try:
+        # part_of/has_company retirement (2026-10-19): the pair has no
+        # graph_edges rows any more — membership is canonical in the sector
+        # hyperedges and PROJECTED here, so the cloud keeps rendering the
+        # sector edges every consumer expects (option B's contract: dyadic
+        # readers see the pair, the store does not).
+        edge_src = _sqlite_edge_union_sql(conn)
         if edge_type:
             edge_rows = conn.execute(
-                "SELECT source, target, edge_type FROM graph_edges WHERE edge_type = ?",
+                f"SELECT source, target, edge_type FROM ({edge_src}) WHERE edge_type = ?",  # noqa: S608  # constant union, bound type
                 (edge_type,),
             ).fetchall()
         else:
-            edge_rows = conn.execute("SELECT source, target, edge_type FROM graph_edges").fetchall()
+            edge_rows = conn.execute(
+                f"SELECT source, target, edge_type FROM ({edge_src})"  # noqa: S608
+            ).fetchall()
         entity_rows = conn.execute("SELECT name, entity_type FROM entities").fetchall()
         # Relationship-type counts (full edge set — the summary card always
         # shows the whole corpus, even when the canvas is filtered).
         count_rows = conn.execute(
-            "SELECT edge_type, COUNT(*) AS n FROM graph_edges GROUP BY edge_type ORDER BY n DESC"
+            f"SELECT edge_type, COUNT(*) AS n FROM ({edge_src}) "  # noqa: S608
+            "GROUP BY edge_type ORDER BY n DESC"
         ).fetchall()
     finally:
         conn.close()

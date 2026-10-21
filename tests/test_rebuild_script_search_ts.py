@@ -110,7 +110,7 @@ def env(tmp_path, monkeypatch):
     monkeypatch.setattr(rss, "APP_PY", tree / "app.py")
     monkeypatch.setattr(rss, "MAKEFILE", tree / "Makefile")
     monkeypatch.setattr(rss, "SCRIPT_DB", tree / "script_search.db")
-    monkeypatch.setattr(rss, "BACKUP_DIR", tree / "db-backup")
+    # BACKUP_DIR retired in arc-1b (self-backing index backups): nothing to patch.
     return {"tree": tree, "calls": calls}
 
 

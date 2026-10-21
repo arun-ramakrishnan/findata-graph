@@ -63,11 +63,12 @@ This file tracks intentional deferrals — not TODO debt.
 - Effort: 0.5d
 - Status: DEFERRED — no spill observed (tag intersection uses TEMP B-TREE but <1ms).
 
-## P3.3 — Parquet export wrapper (deferred)
-- Current: docs mention COPY (GRAPH_TABLE…) TO … PARQUET, no helper.
-- Plan: helpers/graph/query.py:export_query(sql, path) wrapper for notebook use.
-- Effort: 0.5d
-- Status: DEFERRED — no notebook demand yet.
+## P3.3 — Parquet export wrapper (SHIPPED 2026-10-19, completed.md #421)
+- Shipped: `helpers/graph/query.py:export_query(sql, path, *, con=None)` — read-only
+  cache connection + `COPY (<sql>) TO '<path>' (FORMAT PARQUET)`; relative paths
+  resolve under `outputs/`, quote-escaped path literal, no WAL on the source cache.
+- Evidence + decision: `archive/graph/parquet_export_wrapper.md` (BUILD chosen over
+  CLOSE on operator call; 5 tests incl. round-trip parity + read-only discipline).
 
 ## Notes
 - P3.5 PRAGMA optimize already shipped in db_maint P2.5.

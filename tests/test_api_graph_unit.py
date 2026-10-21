@@ -16,7 +16,7 @@ import pytest
 
 import app as A  # noqa: F401 — monkeypatched by unit_client
 from tests.conftest import (  # noqa: E402
-    _UNIT_EDGES,
+    _UNIT_ALL_EDGES,
 )
 from tests.conftest import seeded_graph_sqlite_db as _seeded_sqlite_db
 
@@ -44,11 +44,14 @@ class TestGraphStats:
         assert data["entities"]["by_type"]["company"] == 4
         assert data["entities"]["by_type"]["sector"] == 2
         # edges sub-shape: total + by_type mapping.
-        assert data["edges"]["total"] == len(_UNIT_EDGES)
+        # 2026-10-19: sector membership has no graph_edges rows any more —
+        # the endpoint projects the pair back out of the incidence store, so
+        # the reader-facing total is stored dyads + projected membership.
+        assert data["edges"]["total"] == len(_UNIT_ALL_EDGES)
         # 4 part_of (HDFC, ICICI, Infosys, No Ticker Co → their sectors),
-        # 1 has_company (Banking → HDFC), 1 competes_with, 1 subsidiary_of.
+        # 4 has_company (the symmetric other direction).
         assert data["edges"]["by_type"]["part_of"] == 4
-        assert data["edges"]["by_type"]["has_company"] == 1
+        assert data["edges"]["by_type"]["has_company"] == 4
         assert data["edges"]["by_type"]["competes_with"] == 1
         assert data["edges"]["by_type"]["subsidiary_of"] == 1
         # hygiene counters — the seeded DB has 1 company with no ticker and
@@ -1003,8 +1006,8 @@ class TestGraphCloud:
         assert r.status_code == 200
         data = r.get_json()
         assert set(data) == {"nodes", "edges", "relationship_types", "total_nodes", "total_edges"}
-        # Seed: 6 entities, 7 edges (all entity pairs covered).
-        assert data["total_edges"] == len(_UNIT_EDGES)
+        # Seed: 6 entities; stored dyads + the projected sector pair.
+        assert data["total_edges"] == len(_UNIT_ALL_EDGES)
         # Every edge endpoint is present as a node; no duplicates.
         node_ids = [n["id"] for n in data["nodes"]]
         assert len(node_ids) == len(set(node_ids))
@@ -1024,13 +1027,13 @@ class TestGraphCloud:
     def test_cloud_edges_match_seed(self, unit_client):
         data = unit_client.get("/api/graph/cloud").get_json()
         edge_tuples = {(e["source"], e["target"], e["edge_type"]) for e in data["edges"]}
-        assert edge_tuples == {(s, t, et) for s, t, et, _ in _UNIT_EDGES}
+        assert edge_tuples == {(s, t, et) for s, t, et, _ in _UNIT_ALL_EDGES}
 
     def test_cloud_relationship_types_summary(self, unit_client):
         data = unit_client.get("/api/graph/cloud").get_json()
         types = {t["edge_type"]: t for t in data["relationship_types"]}
-        # Ordered by count desc: part_of (4), then 1 each.
-        assert data["relationship_types"][0]["edge_type"] == "part_of"
+        # Ordered by count desc: part_of/has_company (4 each), then 1 each.
+        assert data["relationship_types"][0]["edge_type"] in ("part_of", "has_company")
         assert types["part_of"]["count"] == 4
         assert types["part_of"]["symmetric"] is False
         assert types["part_of"]["semantics"]  # non-empty human description
@@ -1051,8 +1054,10 @@ class TestGraphCloud:
         assert data["total_edges"] == 0
         assert data["nodes"] == []
         assert data["edges"] == []
-        # Summary card still reflects the whole corpus.
-        assert {t["edge_type"] for t in data["relationship_types"]} == {e[2] for e in _UNIT_EDGES}
+        # Summary card still reflects the whole corpus (incl. the projected pair).
+        assert {t["edge_type"] for t in data["relationship_types"]} == {
+            e[2] for e in _UNIT_ALL_EDGES
+        }
 
     def test_cloud_unknown_entity_type_defaults_to_unknown(self, unit_client):
         """Nodes with no entities row still render (colour = 'unknown')."""

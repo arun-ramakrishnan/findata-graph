@@ -133,9 +133,38 @@ CREATE TABLE graph_edges(
 );
 """
 
+# part_of/has_company retirement (2026-10-19): sector membership is
+# CANONICAL in the incidence store, so every fixture whose code path can
+# write or read membership needs these two tables. Kept in the shared
+# module so the ~20 files that re-declare edge schemas stop drifting.
+HYPER_STORE = """
+CREATE TABLE hyper_edges (
+    id          INTEGER PRIMARY KEY,
+    edge_type   TEXT NOT NULL,
+    label       TEXT NOT NULL,
+    weight      REAL NOT NULL DEFAULT 1.0,
+    valid_from  DATE,
+    valid_to    DATE,
+    source_ref  TEXT NOT NULL,
+    properties  TEXT NOT NULL DEFAULT '{}',
+    created_at  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(edge_type, label)
+);
+CREATE TABLE hyper_incidences (
+    edge_id     INTEGER NOT NULL,
+    entity_name TEXT NOT NULL,
+    weight      REAL,
+    direction   TEXT,
+    role        TEXT,
+    valid_from  DATE,
+    valid_to    DATE,
+    PRIMARY KEY (edge_id, entity_name)
+);
+"""
+
 VARIANTS: dict[str, list[str]] = {
-    "minimal": [ENTITIES_MINIMAL, EDGES_MINIMAL],
-    "full": [ENTITIES_8COL, EDGES_12COL, ENTITY_TAGS, GRAPH_ANALYTICS, EVENTS],
+    "minimal": [ENTITIES_MINIMAL, EDGES_MINIMAL, HYPER_STORE],
+    "full": [ENTITIES_8COL, EDGES_12COL, ENTITY_TAGS, GRAPH_ANALYTICS, EVENTS, HYPER_STORE],
     "search": [
         ENTITIES_8COL,
         EDGES_12COL,
@@ -143,6 +172,7 @@ VARIANTS: dict[str, list[str]] = {
         GRAPH_ANALYTICS,
         EVENTS,
         NOTE_SEARCH_FTS,
+        HYPER_STORE,
     ],
 }
 

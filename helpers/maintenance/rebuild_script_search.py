@@ -95,7 +95,6 @@ TESTS_ROOT = _REPO_ROOT / "tests"
 APP_PY = _REPO_ROOT / "app.py"
 MAKEFILE = _REPO_ROOT / "Makefile"
 SCRIPT_DB = _REPO_ROOT / "memory" / "script_search.db"
-BACKUP_DIR = _REPO_ROOT / "db-backup"
 # Mojo footprint (mojo_doc_script_search proposal): every src/test module is
 # one 'mojo' row, composed from `mojo doc` JSON (cached content-addressed in
 # the sidecar — ~3.5 s/file compiler cost must not ride every rebuild) plus
@@ -1073,29 +1072,6 @@ def _stamp_model(conn: sqlite3.Connection, model_label: str, dims: int) -> None:
     )
 
 
-def _backup_last_good_index(db_path: Path) -> None:
-    """Last-good-state recovery copy into gitignored db-backup/ after a
-    successful FULL rewrite (same semantics as rebuild_doc_search; the
-    single-file copier is imported, not forked). Best-effort. Index only:
-    the embed cache rides in the shared embed store, backed up centrally
-    (see rebuild_doc_search._backup_last_good_index).
-
-    Completeness guard: never back up an EMPTY index (a freshly-migrated
-    or truncated build must not displace the last-good archive). The real
-    historical leak was test-fixture rebuilds writing this backup via the
-    un-redirected module BACKUP_DIR — fixed at the source with an autouse
-    BACKUP_DIR isolation fixture in test_rebuild_script_search."""
-    rbc.backup_last_good_index(
-        db_path,
-        rbc.IndexBackupSpec(
-            backup_dir=BACKUP_DIR,
-            table="script_search",
-            dest_name="script_search_backup.db",
-            copier=rds._backup_file,
-        ),
-    )
-
-
 def _migrate_schema(conn: sqlite3.Connection) -> bool:
     """Drop a stale script_search so the new DDL applies (FTS5 can't ALTER
     TABLE ADD COLUMN; the rebuild repopulates anyway). True if dropped."""
@@ -1435,7 +1411,6 @@ def rebuild(
                 conn, all_rows, units_meta, model_label, embed_dims
             )
             stats["indexed"] = conn.execute("SELECT COUNT(*) FROM script_search").fetchone()[0]
-            _backup_last_good_index(db_path)
             if _mt:
                 _mt.record_phase("write", _write_started, datetime.now())
             return stats

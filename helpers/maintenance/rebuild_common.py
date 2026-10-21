@@ -10,12 +10,9 @@ code_duplication_consolidation, 2026-09-08; per-index config bundled
 into spec dataclasses, cli_param_bundling_doc_anchor_repair, 2026-09-09).
 
 Delegation contract: the per-script wrappers keep their module-level
-globals (``BACKUP_DIR``, ``_pseudo_warned``) and pass them through —
+globals (``_pseudo_warned``) and pass them through —
 tests reset those attributes per module (monkeypatch.setattr), so the
-globals must stay the live state, not move here byte-for-byte. Specs
-that carry a global-derived value (backup_dir, copier) are constructed
-INSIDE the wrapper at call time for the same reason — a module-level
-spec would snapshot the pre-monkeypatch value at import.
+globals must stay the live state, not move here byte-for-byte.
 
 The APPLY guard (`worktree_fresh_trample_guard`, S1/S2/S5, 2026-10-12)
 also lives here, because it is a property of the shared CLI flow rather
@@ -76,16 +73,6 @@ class RebuildCliSpec:
     # the search-fresh loop, which forwards ARGS verbatim to every
     # rebuilder. The flag is accepted and ignored; --help says so.
     allow_stale_noop: bool = False
-
-
-@dataclass(frozen=True)
-class IndexBackupSpec:
-    """Per-index backup identity for :func:`backup_last_good_index`."""
-
-    backup_dir: str | Path
-    table: str
-    dest_name: str
-    copier: Callable[[Path, Path], bool]
 
 
 @dataclass(frozen=True)
@@ -535,54 +522,6 @@ def parse_query_vector_flag(raw: str | None) -> QueryVector | None:
         print("WARNING: --query-vector dims mismatch payload, embedding locally", file=sys.stderr)
         return None
     return qv
-
-
-def backup_last_good_index(db_path: Path, spec: IndexBackupSpec) -> None:
-    """Last-good recovery copy of an INDEX DB into db-backup/.
-
-    Runs AFTER a successful FULL rewrite (last-good-state semantics: a
-    failed rebuild rolls back and the previous run's backup survives).
-    Best-effort with WARNINGs — a failed backup must not fail the
-    rebuild. Completeness guard: never displace the last-good archive
-    with an EMPTY index.
-    """
-    import sqlite3
-
-    from helpers.core.db import connect
-
-    dest = Path(spec.backup_dir) / spec.dest_name
-    try:
-        conn = connect(db_path, read_only=True)
-        try:
-            rows = conn.execute(f"SELECT COUNT(*) FROM {spec.table}").fetchone()[0]  # noqa: S608  # interpolated part is a schema-constant identifier (doc_search / script_search) — the spec's table is a code constant, never input
-        finally:
-            conn.close()
-    except sqlite3.Error:
-        rows = 0
-    if not rows:
-        print(
-            f"WARNING: {db_path.name} empty ({rows} rows) — last-good "
-            "backup skipped (recovery point kept; rebuild continues)",
-            file=sys.stderr,
-        )
-        return
-    try:
-        Path(spec.backup_dir).mkdir(parents=True, exist_ok=True)
-    except OSError:
-        print(
-            f"WARNING: cannot create backup dir {spec.backup_dir} "
-            "(recovery point skipped; rebuild continues)",
-            file=sys.stderr,
-        )
-        return
-    if not db_path.exists():
-        return
-    if not spec.copier(db_path, dest):
-        print(
-            f"WARNING: could not back up {db_path.name} to {dest} "
-            "(recovery point skipped; rebuild continues)",
-            file=sys.stderr,
-        )
 
 
 class _ApplyAbort(Exception):

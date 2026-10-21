@@ -42,9 +42,10 @@ def conn(tmp_path) -> sqlite3.Connection:
 
     - acquisition 1: mapped role pair + numeric magnitude + date
     - jv 2: symmetric partner roles, no magnitude
-    - guidance 3: counterparty present but UNMAPPED type (roles stay NULL)
+    - guidance 3: entity-side issuer role (counterparty stays unlabeled)
     - acquisition 4 + 5: identical (type, pair, date) — a duplicate group
     - jv 6: counterparty TEXT unresolved (no matching entity)
+    - dividend 7: UNMAPPED type (participants stay unlabeled)
     """
     c = sqlite3.connect(tmp_path / "roles.db")
     c.execute("PRAGMA foreign_keys = ON")
@@ -78,6 +79,7 @@ def conn(tmp_path) -> sqlite3.Connection:
             (4, "Gamma", "acquisition", "2026-03-01", None, "day", None, "Delta", "Delta"),
             (5, "Delta", "acquisition", "2026-03-01", None, "day", None, "Gamma", "Gamma"),
             (6, "Beta", "jv", None, None, None, None, "Ghost Co", None),
+            (7, "Beta", "dividend", "2026-03-05", None, "day", None, "Gamma", "Gamma"),
         ],
     )
     c.commit()
@@ -151,8 +153,11 @@ class TestCollectEventFacets:
         assert f["roles"][("acquisition:1", "Beta")] == "target"
         assert f["roles"][("jv:2", "Gamma")] == "partner"
         assert f["roles"][("jv:2", "Delta")] == "partner"
+        # guidance maps entity-first: issuer on the entity, counterparty unlabeled
+        assert f["roles"][("guidance:3", "Alpha")] == "issuer"
+        assert not any(k == ("guidance:3", "Beta") for k in f["roles"])
         # unmapped type: NO role entries (participants stay unlabeled)
-        assert not any(k[0] == "guidance:3" for k in f["roles"])
+        assert not any(k[0] == "dividend:7" for k in f["roles"])
         assert f["valid_from"]["acquisition:1"] == "2026-01-15"
         assert f["props"]["acquisition:1"] == {
             "period": "Q4FY26",
@@ -185,8 +190,16 @@ class TestApplyWithRoles:
         assert _role_of(conn, "acquisition:1", "Alpha") == "acquirer"
         assert _role_of(conn, "acquisition:1", "Beta") == "target"
         assert _role_of(conn, "jv:2", "Gamma") == "partner"
-        # unmapped type: participants recorded with NULL roles
-        assert _role_of(conn, "guidance:3", "Alpha") is None
+        # guidance: entity-side role lands, counterparty stays NULL
+        assert _role_of(conn, "guidance:3", "Alpha") == "issuer"
+        assert _role_of(conn, "guidance:3", "Beta") is None
+        # unmapped type: no event hyperedge on the legacy (no-store) path
+        assert (
+            conn.execute(
+                "SELECT COUNT(*) FROM hyper_edges WHERE edge_type='event' AND label='dividend:7'"
+            ).fetchone()[0]
+            == 0
+        )
         stats = self._run(conn)
         assert stats["event"] == (0, 0)  # idempotent re-run
 
@@ -220,15 +233,16 @@ class TestApplyWithRoles:
 
     def test_stale_role_converges_to_null_for_untagged(self, conn):
         self._run(conn)
-        # a guidance participant carrying a stale role from a pre-S4 world
+        # a member with NO facet entry (guidance counterparty) carrying a
+        # stale role from a pre-S4 world converges back to NULL
         conn.execute(
-            "UPDATE hyper_incidences SET role='subject' WHERE entity_name='Alpha' "
+            "UPDATE hyper_incidences SET role='subject' WHERE entity_name='Beta' "
             "AND edge_id = (SELECT id FROM hyper_edges WHERE edge_type='event' "
             "AND label='guidance:3')"
         )
         conn.commit()
         self._run(conn)
-        assert _role_of(conn, "guidance:3", "Alpha") is None
+        assert _role_of(conn, "guidance:3", "Beta") is None
 
     def test_no_facets_leaves_roles_untouched(self, conn):
         self._run(conn)
@@ -249,13 +263,13 @@ class TestApplyWithRoles:
 class TestReconcileEvents:
     def test_full_report_shape(self, conn):
         rec = dh.reconcile_events(conn)
-        assert rec["observations"] == 5  # resolved-counterparty events only
+        assert rec["observations"] == 6  # resolved-counterparty events only
         assert rec["unresolved"] == 1
         assert rec["unresolved_names"] == ["Ghost Co"]
         # acquisition 4+5: same type/pair/date across two rows -> 1 group
         assert rec["duplicate_groups"] == 1
         assert any("acquisition" in d and "×2" in d for d in rec["duplicate_rows"])
-        assert rec["untagged"] == {"guidance": 1}
+        assert rec["untagged"] == {"dividend": 1}
         assert rec["conflicts"] == []
 
     def test_conflict_detected(self, conn):
@@ -307,7 +321,9 @@ class TestSnapshotRoundTrip:
         assert got[("acquisition:1", "Alpha")] == "acquirer"
         assert got[("acquisition:1", "Beta")] == "target"
         assert got[("jv:2", "Gamma")] == "partner"
-        assert got[("guidance:3", "Alpha")] is None
+        assert got[("guidance:3", "Alpha")] == "issuer"
+        # unmapped type never became a hyperedge on this path
+        assert ("dividend:7", "Beta") not in got
         # the validity window column rides along too
         vf = (
             sqlite3.connect(restored)

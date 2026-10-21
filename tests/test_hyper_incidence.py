@@ -79,9 +79,8 @@ def conn(tmp_path) -> sqlite3.Connection:
         "INSERT INTO graph_edges (source, target, edge_type, properties, source_ref) "
         "VALUES (?, ?, ?, ?, 'test')",
         [
-            ("Alpha", "Automotive", "part_of", "{}"),
-            ("Beta", "Automotive", "part_of", "{}"),
-            ("Gamma", "Automotive", "part_of", "{}"),
+            # NB: no part_of dyads — sector membership is CANONICAL in the
+            # incidence store since the 2026-10-19 retirement (seeded below).
             ("Alpha", "EV_Transition", "exposed_to", "{}"),
             ("Beta", "EV_Transition", "exposed_to", "{}"),
             ("Gamma", "India", "listed_in", "{}"),
@@ -108,6 +107,16 @@ def conn(tmp_path) -> sqlite3.Connection:
             ("Automotive", "sector noise", "Ed 1"),
         ],
     )
+    # Canonical sector membership (part_of/has_company retirement, 2026-10-19):
+    # the store IS the source of truth, so the fixture seeds it directly.
+    cur = c.execute(
+        "INSERT INTO hyper_edges (edge_type, label, source_ref) "
+        "VALUES ('sector', 'Automotive', 'sector_membership')"
+    )
+    c.executemany(
+        "INSERT INTO hyper_incidences (edge_id, entity_name) VALUES (?, ?)",
+        [(cur.lastrowid, n) for n in ("Alpha", "Beta", "Gamma")],
+    )
     c.commit()
     return c
 
@@ -121,10 +130,7 @@ class TestSchema:
         assert {"hyper_edges", "hyper_incidences"} <= names
 
     def test_unique_edge_type_label(self, conn):
-        conn.execute(
-            "INSERT INTO hyper_edges (edge_type, label, source_ref) "
-            "VALUES ('sector', 'Automotive', 't')"
-        )
+        # 'Automotive' is already seeded as the canonical sector hyperedge.
         with pytest.raises(sqlite3.IntegrityError):
             conn.execute(
                 "INSERT INTO hyper_edges (edge_type, label, source_ref) "
@@ -134,7 +140,7 @@ class TestSchema:
     def test_incidence_cascade_on_hyperedge_delete(self, conn):
         cur = conn.execute(
             "INSERT INTO hyper_edges (edge_type, label, source_ref) "
-            "VALUES ('sector', 'Automotive', 't')"
+            "VALUES ('sector', 'Cascade Probe', 't')"
         )
         he_id = cur.lastrowid
         conn.execute(
@@ -180,7 +186,10 @@ class TestSchema:
 class TestBackfill:
     def test_star_regroup(self, conn):
         hyper, weights = dh.collect_hyperedges(conn)
-        assert hyper["sector"] == {"Automotive": {"Alpha", "Beta", "Gamma"}}
+        # part_of/has_company retirement (2026-10-19): the sector family is
+        # CANONICAL — derived from nothing, so the regroup pass must not
+        # emit it (a derive from the retired dyads would freeze the store).
+        assert "sector" not in hyper
         assert hyper["theme"] == {"EV_Transition": {"Alpha", "Beta"}}
         assert hyper["country"] == {"India": {"Gamma"}}
 
@@ -201,14 +210,16 @@ class TestBackfill:
     def test_dry_run_writes_nothing_then_apply_idempotent(self, conn):
         hyper, weights = dh.collect_hyperedges(conn)
         stats = dh.apply_hyperedges(hyper, weights, conn=conn, dry_run=True)
-        # 6 hyperedges would be new (sector+theme+country+group+2 editions).
-        assert sum(e for e, _ in stats.values()) == 6
-        # memberships: 3 + 2 + 1 + 2 + 3 + 1
-        assert sum(i for _, i in stats.values()) == 12
-        assert conn.execute("SELECT COUNT(*) FROM hyper_edges").fetchone()[0] == 0
+        # 5 hyperedges would be new (theme+country+group+2 editions) — the
+        # sector family is canonical since the 2026-10-19 retirement.
+        assert sum(e for e, _ in stats.values()) == 5
+        # memberships: 2 + 1 + 2 + 3 + 1
+        assert sum(i for _, i in stats.values()) == 9
+        # 1 = the fixture's canonical sector hyperedge (not derive's to write)
+        assert conn.execute("SELECT COUNT(*) FROM hyper_edges").fetchone()[0] == 1
 
         stats1 = dh.apply_hyperedges(hyper, weights, conn=conn, dry_run=False)
-        assert sum(e for e, _ in stats1.values()) == 6
+        assert sum(e for e, _ in stats1.values()) == 5
         assert conn.execute("SELECT COUNT(*) FROM hyper_incidences").fetchone()[0] == 12
         # S8: quote-count weights land on the incidence rows.
         w = conn.execute(
@@ -228,7 +239,9 @@ class TestBackfill:
         refs = dict(
             conn.execute("SELECT edge_type || ':' || label, source_ref FROM hyper_edges").fetchall()
         )
-        assert refs["sector:Automotive"] == "derive:hyperedges:part_of"
+        # sector carries ITS OWN provenance — canonical, never derive's
+        # (2026-10-19 retirement).
+        assert refs["sector:Automotive"] == "sector_membership"
         assert refs["edition:Ed 1"] == "derive:hyperedges:co_mentioned_in+quotes"
 
     def test_load_incidence_labels_prefixed(self, conn, tmp_path):
@@ -781,6 +794,92 @@ class TestCounterpartyResolution:
     def test_no_events_table_degrades(self, conn):
         n_ok, n_bad, names = dh.resolve_counterparties(conn, dry_run=True)
         assert (n_ok, n_bad, names) == (0, 0, [])
+
+
+# --------------------------------------------------------------------------- #
+# S1 density verdict: event-family convergence prune                          #
+# --------------------------------------------------------------------------- #
+class TestEventFamilyConvergence:
+    @staticmethod
+    def _seed(conn):
+        from helpers.graph.derive_event_participants import EVENT_PARTICIPANTS_DDL
+
+        conn.execute(EVENTS_DDL)
+        conn.execute(EVENT_PARTICIPANTS_DDL)
+        conn.executemany(
+            "INSERT INTO events (id, entity, event_type, counterparty, source_ref) "
+            "VALUES (?, ?, ?, ?, 't')",
+            [
+                (1, "Alpha", "acquisition", "Beta"),
+                (2, "Gamma", "guidance", None),  # 1 participant only
+            ],
+        )
+        conn.executemany(
+            "INSERT INTO hyper_edges (edge_type, label, source_ref) VALUES ('event', ?, 't')",
+            [
+                ("acquisition:1",),  # live, produced by collect
+                ("jv:99",),  # event row GONE — additive-apply leftover
+                ("guidance:2",),  # event alive but <2 participants — sub-threshold
+            ],
+        )
+        conn.execute(
+            "INSERT INTO hyper_edges (edge_type, label, source_ref) "
+            "VALUES ('industry', 'Lone Industry', 't')"  # valid singleton: must survive
+        )
+        for label, members in (
+            ("acquisition:1", ["Alpha", "Beta"]),
+            ("jv:99", ["Alpha", "Gamma"]),
+            ("guidance:2", ["Gamma"]),
+        ):
+            eid = conn.execute(
+                "SELECT id FROM hyper_edges WHERE edge_type='event' AND label=?", (label,)
+            ).fetchone()[0]
+            conn.executemany(
+                "INSERT INTO hyper_incidences (edge_id, entity_name) VALUES (?, ?)",
+                [(eid, m) for m in members],
+            )
+        conn.commit()
+        return conn
+
+    def test_dry_run_reports_without_writing(self, conn):
+        c = self._seed(conn)
+        wanted = {"acquisition:1"}  # what collect now produces
+        stats = dh.prune_stale_event_edges(c, wanted, dry_run=True)
+        assert stats == {"stored": 3, "kept": 1, "dropped": 2}
+        assert (
+            c.execute("SELECT COUNT(*) FROM hyper_edges WHERE edge_type='event'").fetchone()[0]
+            == 3
+        )
+
+    def test_apply_drops_stale_and_subthreshold(self, conn):
+        c = self._seed(conn)
+        dh.prune_stale_event_edges(c, {"acquisition:1"}, dry_run=False)
+        labels = {
+            r[0]
+            for r in c.execute("SELECT label FROM hyper_edges WHERE edge_type='event'")
+        }
+        assert labels == {"acquisition:1"}  # jv:99 (dead event) AND guidance:2 (<2 members) gone
+        # incidence cascade took the memberships with the edges
+        assert (
+            c.execute(
+                "SELECT COUNT(*) FROM hyper_incidences hi JOIN hyper_edges he "
+                "ON he.id = hi.edge_id WHERE he.edge_type = 'event'"
+            ).fetchone()[0]
+            == 2
+        )
+        # non-event families keep the additive posture: singleton survives
+        assert (
+            c.execute(
+                "SELECT COUNT(*) FROM hyper_edges WHERE edge_type='industry'"
+            ).fetchone()[0]
+            == 1
+        )
+
+    def test_idempotent_second_run(self, conn):
+        c = self._seed(conn)
+        dh.prune_stale_event_edges(c, {"acquisition:1"}, dry_run=False)
+        stats = dh.prune_stale_event_edges(c, {"acquisition:1"}, dry_run=False)
+        assert stats["dropped"] == 0
 
 
 # --------------------------------------------------------------------------- #

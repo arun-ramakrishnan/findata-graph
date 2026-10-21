@@ -17,8 +17,10 @@ import pytest
 duckdb = pytest.importorskip("duckdb")
 
 from tests.conftest import (  # noqa: E402
+    _UNIT_ALL_EDGES,
     _UNIT_EDGES,
     _UNIT_ENTITIES,
+    _UNIT_PROJECTED,
     _UNIT_SCHEMA,
     _UNIT_TAGS,
 )
@@ -289,6 +291,11 @@ class TestSingleScanParity:
             seed_by_type: dict[str, list[tuple[str, str, str]]] = {}
             for src, tgt, et, ref in _UNIT_EDGES:
                 seed_by_type.setdefault(et, []).append((src, tgt, ref))
+            # part_of/has_company retirement (2026-10-19): the pair is
+            # projected out of the canonical sector hyperedges, not seeded as
+            # dyads — the oracle must expect the projected set instead.
+            for src, tgt, et, ref in _UNIT_PROJECTED:
+                seed_by_type.setdefault(et, []).append((src, tgt, ref))
             for et, spec in q.EDGE_REGISTRY.items():
                 rows = dcon.execute(
                     f"SELECT * FROM {spec['table']}"  # noqa: S608  # rides the EDGE_REGISTRY constant
@@ -299,7 +306,7 @@ class TestSingleScanParity:
                 ]
                 assert sorted(rows) == sorted(expected), et
             n_all = dcon.execute("SELECT COUNT(*) FROM e_all_und").fetchone()[0]
-            assert n_all == 2 * len(_UNIT_EDGES)
+            assert n_all == 2 * len(_UNIT_ALL_EDGES)
         finally:
             dcon.close()
 

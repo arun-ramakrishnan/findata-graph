@@ -163,7 +163,7 @@ def seeded_docs(tmp_path, monkeypatch):
     (doc_root / "guide.md").write_text(_GUIDE, encoding="utf-8")
     monkeypatch.setattr(rds, "DOC_ROOT", doc_root)
     monkeypatch.setattr(rds, "DOC_DB", tmp_path / "doc_search.db")
-    monkeypatch.setattr(rds, "BACKUP_DIR", tmp_path / "db-backup")
+    # BACKUP_DIR retired in arc-1b (self-backing index backups): nothing to patch.
     return rds
 
 

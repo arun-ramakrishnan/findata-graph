@@ -1111,6 +1111,14 @@ def check_sqlite_helper_usage(scope: set[Path] | None = None) -> list[str]:  # n
         # harness has none. connect() also targets research.db, a different
         # database. (Mirrors the pytest allowlist in tests/test_static_checks.py.)
         "helpers/maintenance/harvest_conversations.py",
+        # Read-only mode=ro URI open of the HARNESS's own live store (the
+        # billion-context plugin's index.db, which holds the compressed block
+        # store) to read the tier pools. A read-write connect() would take a
+        # write lock on the very store the tool must never disturb, and would
+        # create an empty db when the store is missing. connect() also targets
+        # research.db, a different database. (Mirrors the pytest allowlist in
+        # tests/test_static_checks.py.)
+        "helpers/analytics/bili_tier_nudge.py",
     )
     failures: list[str] = []
     if scope is not None:
@@ -1823,9 +1831,9 @@ def roster_registry_sources() -> dict[str, set[str]]:
 
     Local imports: database_integrity_check imports CANONICAL_EVENT_TYPES
     from this module (module-level import would be circular), and its own
-    imports are light. Edge vocabulary truth is _KNOWN_EDGE_TYPES (21) —
-    query.py's EDGE_REGISTRY is the DuckDB-materialized SUBSET, not the
-    vocabulary.
+    imports are light. Edge vocabulary truth is _KNOWN_EDGE_TYPES (19 after
+    the 2026-10-19 part_of/has_company retirement; was 21) — query.py's
+    EDGE_REGISTRY is the DuckDB-materialized SUBSET, not the vocabulary.
     """
     from helpers.core.vocab import (
         CONCEPT_STATUS_VALUES,

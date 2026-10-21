@@ -244,6 +244,14 @@ def _lit(value: str | int) -> str:
 # Tables that are empty at session time are silently skipped in the property
 # graph declaration (duckpgq v1.1 rejects empty edge tables with a CSR error).
 EDGE_REGISTRY: dict[str, dict[str, str]] = {
+    # part_of/has_company retirement (2026-10-19): NEITHER type is a stored
+    # graph_edges row any more — sector membership is canonical in the
+    # hyperedges. They stay REGISTERED here because this dict drives the
+    # DuckDB projection: _materialise_sector_membership() writes the rows
+    # into _edge_resolved and _materialise_edge_table() builds e_belongs /
+    # e_has from it, which is exactly what keeps every dyadic consumer
+    # (onager, igraph, walk substrate, snapshots, API, frontend) unchanged.
+    # Removing these entries would delete the projection, not the dyads.
     "part_of": {
         "table": "e_belongs",
         "src": "company_name",
@@ -438,6 +446,49 @@ def connect_read_only(
     if attach_db is not None:
         _attach_sqlite(con, Path(attach_db))
     return con
+
+
+def export_query(
+    sql: str,
+    path: Path | str,
+    *,
+    con: duckdb.DuckDBPyConnection | None = None,
+) -> Path:
+    """Export a SQL query's result to Parquet (P3.3, the notebook utility).
+
+    ``COPY (<sql>) TO '<path>' (FORMAT PARQUET, COMPRESSION ZSTD)`` over a
+    READ-ONLY cache connection: a COPY TO an external file writes the
+    filesystem, never the database, so the live cache stays untouched
+    (no WAL, no stamp churn). Compression is zstd — the house parquet
+    setting (`data_format_checks`) — so an export is never a bigger file
+    than the store it came from. When *con* is omitted, the warm cache is opened read-only
+    with the SQLite store attached as ``fin`` — the same surface
+    :func:`connect_read_only` gives pure-reader CLIs, and the same
+    discipline its callers already follow.
+
+    Relative paths resolve under ``outputs/`` (the house scratch root for
+    derived artifacts); absolute paths are taken as-is. This is NOT an
+    ETL surface — pipeline writers keep their own snapshot lanes
+    (hgx_first_scaling S1 writes ``snapshots/parquet/`` directly).
+
+    Returns the resolved output path.
+    """
+    out = Path(path)
+    if not out.is_absolute():
+        out = PROJECT_ROOT / "outputs" / out
+    out.parent.mkdir(parents=True, exist_ok=True)
+
+    own_con = con is None
+    if own_con:
+        con = connect_read_only(DUCKDB_PATH, attach_db=DB_PATH)
+    try:
+        # Single-quote escape for the literal path in the COPY statement.
+        lit = str(out).replace("'", "''")
+        con.execute(f"COPY ({sql}) TO '{lit}' (FORMAT PARQUET, COMPRESSION ZSTD)")  # noqa: S608
+    finally:
+        if own_con:
+            con.close()
+    return out
 
 
 def _open_read_only_connection(duckdb_path: Path, db_path: Path) -> duckdb.DuckDBPyConnection:
@@ -998,6 +1049,28 @@ def _compute_input_fingerprints(con: duckdb.DuckDBPyConnection) -> dict[str, str
     for etype, cnt, x in rows:
         key = "edges:@all" if etype is None else f"edges:{etype}"
         fps[key] = f"{int(cnt)}:{int(x)}"
+    # part_of/has_company retirement S3: sector membership is projected
+    # from the incidence store, so it must dirty the two registry units
+    # (and the @all substrate) from ITS source — a hyper-store change
+    # leaves graph_edges untouched, and the CTAS above would otherwise
+    # see a frozen (now always-empty) count.
+    try:
+        sec = con.execute(
+            """
+            SELECT COUNT(*), COALESCE(BIT_XOR(hash(he.id, hi.entity_name,
+                   he.label, hi.weight, he.valid_from, he.valid_to)), 0)
+            FROM fin.hyper_edges he
+            JOIN fin.hyper_incidences hi ON hi.edge_id = he.id
+            WHERE he.edge_type = 'sector'
+            """
+        ).fetchone()
+        assert sec is not None  # noqa: S101  # ty narrowing; COUNT aggregate always returns one row
+        sec_fp = f"sector:{int(sec[0])}:{int(sec[1])}"
+        fps["edges:part_of"] = sec_fp
+        fps["edges:has_company"] = sec_fp
+        fps["edges:@all"] = f"{fps.get('edges:@all', '0:0')}|{sec_fp}"
+    except duckdb.Error:
+        pass  # no hyper store: the two units stay empty-derived as before
     # vertices: v_node reads entities (filtered kinds) plus the market_cap
     # tag slice of entity_tags (the correlated subselect in the CTAS).
     ent = con.execute(
@@ -2279,6 +2352,64 @@ _MIXED_EDGE_TABLES: dict[str, dict[str, str]] = {
 }
 
 
+def _materialise_sector_membership(con: duckdb.DuckDBPyConnection) -> None:
+    """Resolve sector membership from the CANONICAL hyper store (part_of/has_company retirement).
+
+    Sector membership used to be stored twice: as the bidirectional
+    ``part_of``/``has_company`` dyad pair in ``graph_edges`` AND as sector
+    hyperedges in the incidence store — with the hyperedges *derived from
+    the dyads*, which made the incidence store strictly less expressive
+    than the membership it copied (Kuantum Papers: two sector hyperedges,
+    one ``part_of`` row). S2 of the retirement made the incidence store
+    canonical and deleted the 2,414 dyad rows.
+
+    This CTAS is the compatibility projection: ``_sector_resolved`` carries
+    the same shape as an ``_edge_resolved`` slice (ids + payload), built
+    from ``fin.hyper_incidences`` joined to sector hyperedges. registry
+    CTAS for ``part_of``/``has_company`` and the walk substrate read it, so
+    every e_belongs/e_has consumer (query.py helpers, onager, igraph,
+    snapshot manifest, API) keeps working with ZERO changes — the tables
+    still exist under the same names, labels and column shapes.
+
+    Absent store (pristine clone, synthetic benchmark fixture) → empty
+    table, no error: the never-block posture of the HGX lanes.
+
+    Idempotent (``CREATE OR REPLACE``): the edge pass and the walk
+    substrate both call it, whichever runs first materialises it.
+    """
+    try:
+        con.execute(
+            """
+            CREATE OR REPLACE TEMP TABLE _sector_resolved AS
+            SELECT c.id AS company_id, s.id AS sector_id,
+                   he.id AS edge_id,
+                   COALESCE(hi.weight, 1.0) AS weight,
+                   he.source_ref, he.valid_from, he.valid_to
+            FROM fin.hyper_edges he
+            JOIN fin.hyper_incidences hi ON hi.edge_id = he.id
+            JOIN v_node c ON c.name = hi.entity_name AND c.kind = 'company'
+            JOIN v_node s ON s.name = he.label AND s.kind = 'sector'
+            WHERE he.edge_type = 'sector'
+            """
+        )
+    except duckdb.Error:
+        # no hyper store attached (pristine clone / synthetic fixture):
+        # an empty projection keeps every downstream CTAS shape valid.
+        con.execute(
+            """
+            CREATE OR REPLACE TEMP TABLE _sector_resolved AS
+            SELECT CAST(NULL AS BIGINT) AS company_id,
+                   CAST(NULL AS BIGINT) AS sector_id,
+                   CAST(NULL AS BIGINT) AS edge_id,
+                   CAST(NULL AS DOUBLE) AS weight,
+                   CAST(NULL AS VARCHAR) AS source_ref,
+                   CAST(NULL AS DATE) AS valid_from,
+                   CAST(NULL AS DATE) AS valid_to
+            WHERE false
+            """
+        )
+
+
 def _resolve_edges(con: duckdb.DuckDBPyConnection) -> None:
     """graph_rebuild_fast_path S3: resolve every staged edge ONCE.
 
@@ -2291,6 +2422,12 @@ def _resolve_edges(con: duckdb.DuckDBPyConnection) -> None:
     kind filters preserve the old projection-table JOIN semantics exactly:
     ``src_kind = 'company'`` selects precisely the rows the ``v_company``
     JOIN bound.
+
+    part_of/has_company retirement S3: sector membership has no
+    ``graph_edges`` rows any more, so its rows are APPENDED to
+    ``_edge_resolved`` from the canonical incidence projection
+    (:func:`_materialise_sector_membership`) in both stored directions —
+    every downstream consumer sees the same shape it always did.
     """
     con.execute(
         """
@@ -2302,6 +2439,23 @@ def _resolve_edges(con: duckdb.DuckDBPyConnection) -> None:
         FROM _stg_edges ge
         JOIN v_node src ON src.name = ge.source
         JOIN v_node dst ON dst.name = ge.target
+        """
+    )
+    _materialise_sector_membership(con)
+    con.execute(
+        """
+        INSERT INTO _edge_resolved
+        SELECT company_id, sector_id, 'company', 'sector',
+               'part_of', weight, '{}', source_ref, valid_from, valid_to
+        FROM _sector_resolved
+        """
+    )
+    con.execute(
+        """
+        INSERT INTO _edge_resolved
+        SELECT sector_id, company_id, 'sector', 'company',
+               'has_company', weight, '{}', source_ref, valid_from, valid_to
+        FROM _sector_resolved
         """
     )
 
@@ -2444,10 +2598,17 @@ def _materialise_walk_substrate(con: duckdb.DuckDBPyConnection) -> None:
     a direct caller must run ``_stage_edges(con)`` first — the
     production path gets that via ``_materialise_edges``.
 
+    part_of/has_company retirement S3: sector membership lives ONLY in the
+    incidence store now, so the substrate appends the derived
+    ``part_of``/``has_company`` rows (both stored directions) from
+    :func:`_materialise_sector_membership` — walks keep crossing sector
+    boundaries exactly as they did when the dyads existed.
+
     Split out of _materialise_edges so tests with a hand-built minimal
     v_node(id, name) can mount the SAME substrate the production build
     produces — single source for the CTAS shapes.
     """
+    _materialise_sector_membership(con)
     con.execute(
         """
         CREATE TABLE e_dir AS
@@ -2456,6 +2617,12 @@ def _materialise_walk_substrate(con: duckdb.DuckDBPyConnection) -> None:
         FROM _stg_edges ge
         JOIN v_node src ON src.name = ge.source
         JOIN v_node dst ON dst.name = ge.target
+        UNION ALL
+        SELECT company_id, sector_id, 'part_of', valid_from, valid_to
+        FROM _sector_resolved
+        UNION ALL
+        SELECT sector_id, company_id, 'has_company', valid_from, valid_to
+        FROM _sector_resolved
         """
     )
     con.execute(
@@ -2942,6 +3109,41 @@ def _bfs_reconstruct(
     return [(name, hop) for hop, name in enumerate(seq)]
 
 
+def _walk_edges_sql(con: duckdb.DuckDBPyConnection) -> str:
+    """``SELECT source, target, edge_type, valid_from, valid_to`` over the
+    attached SQLite DB, honouring the sector-membership projection.
+
+    part_of/has_company retirement (2026-10-19): those two types have no
+    ``fin.graph_edges`` rows any more — membership is canonical in the
+    hyperedges. Anything that walks the RAW SQLite edge table (this test
+    oracle, and any future raw consumer) therefore has to union the
+    projected pair back in, or it silently walks a graph missing every
+    sector hop. ``e_dir``/``e_all_und`` already do this via
+    ``_materialise_walk_substrate``; this is the same contract expressed
+    as inline SQL.
+
+    Returns SQL for a subquery with the columns the callers JOIN on. When
+    the incidence store is absent (a pre-retirement restore) the union
+    contributes nothing and the query is the plain dyad read.
+    """
+    return """
+        SELECT source, target, edge_type, valid_from, valid_to
+        FROM fin.graph_edges
+        UNION ALL
+        SELECT hi.entity_name, he.label, 'part_of',
+               hi.valid_from, hi.valid_to
+        FROM fin.hyper_incidences hi
+        JOIN fin.hyper_edges he ON he.id = hi.edge_id
+        WHERE he.edge_type = 'sector'
+        UNION ALL
+        SELECT he.label, hi.entity_name, 'has_company',
+               hi.valid_from, hi.valid_to
+        FROM fin.hyper_incidences hi
+        JOIN fin.hyper_edges he ON he.id = hi.edge_id
+        WHERE he.edge_type = 'sector'
+    """
+
+
 def _shortest_path_cte(
     con: duckdb.DuckDBPyConnection,
     src: str,
@@ -3003,7 +3205,7 @@ def _shortest_path_cte(
             w.path || '||' ||
               CASE WHEN ge.source = w.node THEN ge.target ELSE ge.source END
         FROM walk w
-        JOIN fin.graph_edges ge
+        JOIN ({_walk_edges_sql(con)}) ge
           ON (ge.source = w.node OR ge.target = w.node){edge_type_clause}{temporal_clause}
         WHERE w.depth < {int(max_hops)}
           -- Cycle guard (Bundle F1): token-exact membership test, NOT a

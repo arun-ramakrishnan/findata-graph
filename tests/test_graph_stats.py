@@ -61,10 +61,12 @@ def test_print_stats_contains_required_sections(stats_render):
 
 def test_print_stats_reports_real_edge_counts(stats_render):
     _, out = stats_render
-    # Live graph has co_mentioned_in (1329) and part_of (843) edges — sanity check.
+    # part_of/has_company retirement (2026-10-19): the pair is no longer a
+    # STORED edge type — it is projected from the canonical sector
+    # hyperedges, so the breakdown carries membership as its own line.
     assert "co_mentioned_in" in out
-    assert "part_of" in out
-    assert "has_company" in out
+    assert "sector membership" in out
+    assert "part_of/has_company are derived, not stored" in out
 
 
 def test_print_stats_reports_zero_self_loops(stats_render):

@@ -44,7 +44,10 @@ Usage::
     python3 helpers/maintenance/store_sweep.py --dry-run  # read-only census
 
 Scratch-census numbers of record live in the proposal; this tool is the
-repeatable runner behind it.
+repeatable runner behind it. ``size_watch`` extends the census with an
+advisory growth line per store against the 2026-09-29 filing baseline
+(warn at 1.5×, ACT at 2× — the production_db_copy_audit doubling
+trigger); advisory never moves the exit code.
 """
 
 from __future__ import annotations
@@ -249,6 +252,62 @@ def _fmt(n: int | None) -> str:
     return f"{n / MB:7.1f}M" if n is not None else "      -"
 
 
+# Census-of-record baseline (production_db_copy_audit.md verdict table,
+# measured 2026-09-29 under the gate; MiB). size_watch compares the live
+# sweep against it: a sanction is sized against the data of its day and
+# decays silently otherwise (the keep_all lesson — 307 MiB × 30 per run).
+# Sidecar estate only: the primaries (research.db / graph.duckdb) are
+# db_maint's own maintained objects and never appear as sweep rows
+# (single-owner rule), so they take no entry here. Advisory only, never
+# the exit code (S3 of the 2026-10-19 census re-run).
+_FILING_MB: dict[str, float] = {
+    "memory/graph.xdist-shared.duckdb": 39.0,
+    "memory/convo_search.duckdb": 820.5,
+    "memory/embed_store.db": 184.6,
+    "memory/convo_search_fts.db": 102.0,
+    "memory/corpus.db": 52.6,
+    "memory/doc_search.db": 24.7,
+}
+
+WARN_RATIO = 1.5  # growth notable — next census re-run should look here
+ACT_RATIO = 2.0  # the pending.md doubling trigger — census re-run owed
+
+
+def size_watch(rows: list[dict]) -> list[str]:
+    """Advisory growth lines vs the 2026-09-29 filing baseline.
+
+    warn at WARN_RATIO, ACT at ACT_RATIO (the doubling trigger in
+    pending.md: a store at 2× its filing size means the census re-run is
+    owed — measured 2026-10-19: embed_store 2.08×, convo_search_fts
+    2.52×, which is what landed this watch). Stores with no baseline
+    (new since filing) get one baseline-prompt line so the next census
+    can record them; quiet stores print nothing. Pure function of the
+    sweep rows; callers must not couple it to the exit code.
+    """
+    out: list[str] = []
+    for r in rows:
+        base = _FILING_MB.get(r["store"])
+        live = r.get("after_bytes", r.get("bytes"))
+        if base is None:
+            if live:
+                out.append(
+                    f"size-watch {r['store']}: no filing baseline "
+                    f"({live / MB:.1f}M) — record one at the next census"
+                )
+            continue
+        if not live:
+            continue
+        ratio = (live / MB) / base
+        if ratio >= ACT_RATIO:
+            out.append(f"size-watch {r['store']}: {ratio:.2f}x filing (ACT — census re-run owed)")
+        elif ratio >= WARN_RATIO:
+            out.append(
+                f"size-watch {r['store']}: {ratio:.2f}x filing "
+                f"(warn — approaching the doubling trigger)"
+            )
+    return out
+
+
 def exit_code(rows: list[dict]) -> int:
     """0 unless a store genuinely failed.
 
@@ -341,6 +400,8 @@ def main() -> int:
             + (f" {r['secs']}s" if "secs" in r else "")
         )
     print(f"\nreclaimed: {_fmt(total).strip()} across {len(rows)} stores")
+    for line in size_watch(rows):
+        print(line)
     return exit_code(rows)
 
 

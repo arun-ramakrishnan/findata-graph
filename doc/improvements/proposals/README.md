@@ -38,7 +38,14 @@ entry number and stale DONE pointers):
 
 ## Current live proposals
 
-_(none)_
+None — the 2026-10-18 deferral-register batch is fully discharged; the
+next filing starts a new list.
+
+Executed from this batch (archived — see `../archive/README.md` for the
+detail bullets): `../archive/tooling/tui_perf_sparkline.md` (#422),
+`../archive/database/person_ontology_spine.md` (#419),
+`../archive/graph/hyperedge_density_dq.md` (#420),
+`../archive/graph/parquet_export_wrapper.md` (#421, BUILD path).
 
 Historical (executed + archived; newest first):
 

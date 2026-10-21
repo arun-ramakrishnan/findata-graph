@@ -46,6 +46,15 @@ if str(_PROJECT_ROOT) not in sys.path:
 from helpers.core.db import connect  # noqa: E402
 from helpers.misc.database_integrity_check import DatabaseIntegrityChecker  # noqa: E402
 
+#: S3 hard cap (hgx_first_scaling): above this many edge-touched nodes the
+#: longest-chains diagnostic switches from exact all-pairs to a stride
+#: sample of roots. Raised 3000 → 6000 by longest_chains_cap_policy
+#: (2026-10-19) with the sampled cost MEASURED at the live 20,044-node
+#: universe: 36.1 s wall / 2.9 GB process peak — off-gate, sub-dominant
+#: per the S3 doctrine. Single source of truth: graph_scale_watch imports
+#: this constant so the tripwire and the diagnostic cannot drift.
+CHAIN_CAP = 6000
+
 
 def _hr(label: str, char: str = "=") -> str:
     return f"\n{char * 60}\n{label}\n{char * 60}"
@@ -69,6 +78,9 @@ def _bar(n: int, total: int, width: int = 30) -> str:
 #: Membership/provenance star families excluded from the ACTIVITY view —
 #: taxonomy/country/theme hubs collapse distances without carrying
 #: economic signal (same exclusion family as analytics._MEMBERSHIP_TYPES).
+#: part_of/has_company stay listed although the dyads are retired
+#: (2026-10-19): the projection still emits both labels into e_dir/e_all_und,
+#: so their exclusion here is what keeps sector hops out of chain rankings.
 _CHAINS_EXCLUDE = ("part_of", "has_company", "belongs_to", "cited_in", "listed_in", "exposed_to")
 #: Index membership is forbidden in BOTH views (2026-09-20, operator
 #: sign-off): listed_on_index stars are not relationships — they collapsed
@@ -235,7 +247,7 @@ def _chain_path(pred, row: int, a: int, b: int) -> list[int]:
 
 
 def longest_chains(
-    conn, top_k: int = 5, *, max_exact: int = 3000, exact: bool = False
+    conn, top_k: int = 5, *, max_exact: int = CHAIN_CAP, exact: bool = False
 ) -> list[str]:
     """Render the longest-chains section lines (pure function of ``conn``).
 
@@ -253,6 +265,16 @@ def longest_chains(
     of roots (O(sample*n) memory, not O(n^2)); sampled lines are labeled
     and distances read as lower bounds. Below the cap: exact, unchanged.
     Component counts stay exact either way (O(n+m)).
+
+    Cap history: accepted 2026-09-16 while the diagnostic still ran exact
+    ("universe 1,722 < 3,000"). The exact→sampled crossover went live
+    UNRECORDED as the universe grew — caught 2026-10-18 at n=20,044
+    (SAMPLED 3000/20044). longest_chains_cap_policy then raised the cap
+    3000 → 6000 with the sampled cost measured: 36.1 s wall / 2.9 GB
+    process peak at 6,000 roots on the live graph (2026-10-19; the
+    analytic arrays alone are ~1.4 GB at that sample). graph_scale_watch
+    now carries the cap-crossing tripwire so no future crossover is
+    silent.
 
     ``exact=True`` (scipy_exact_universe S2, opt-in — never the gate
     path) lifts the sample to ALL roots: distances become exact, the
@@ -540,14 +562,17 @@ def _print_data_hygiene(n_companies: int) -> None:
     print(_hr("Data hygiene", "-"))
     conn = connect()
     try:
+        # part_of/has_company retirement (2026-10-19): sector membership is
+        # canonical in the incidence store — a company is orphaned when it
+        # has no sector hyperedge membership.
         n_orphan_companies = conn.execute(
             """
             SELECT COUNT(*) FROM entities e
             WHERE e.entity_type='company'
               AND NOT EXISTS (
-                SELECT 1 FROM graph_edges ge
-                WHERE ge.edge_type='part_of'
-                  AND (ge.source = e.name OR ge.target = e.name)
+                SELECT 1 FROM hyper_incidences hi
+                JOIN hyper_edges he ON he.id = hi.edge_id
+                WHERE he.edge_type='sector' AND hi.entity_name = e.name
               )
             """
         ).fetchone()[0]
@@ -679,6 +704,24 @@ def print_stats(exact_chains: bool = False) -> int:
     max_n = max(xec.values(), default=1)
     for etype, n in xec.items():
         print(f"  {etype:20} {_bar(n, max_n)}")
+    # part_of/has_company retirement (2026-10-19): membership is canonical in
+    # the incidence store, so it leaves the dyad breakdown but must not leave
+    # the report — shown as its own line, projected as the pair a reader knows.
+    _mconn = connect()
+    try:
+        n_membership = _mconn.execute(
+            "SELECT COUNT(*) FROM hyper_incidences hi "
+            "JOIN hyper_edges he ON he.id = hi.edge_id WHERE he.edge_type='sector'"
+        ).fetchone()[0]
+    except Exception:  # noqa: BLE001  # advisory; pre-retirement DBs
+        n_membership = 0
+    finally:
+        _mconn.close()
+    if n_membership:
+        print(
+            f"  {'sector membership':20} {_bar(n_membership, max_n)}"
+            "  (hyper_incidences; part_of/has_company are derived, not stored)"
+        )
 
     _print_structure_metrics()
 

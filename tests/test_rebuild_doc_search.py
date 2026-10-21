@@ -21,7 +21,6 @@ import pytest
 # Make the helpers importable (tests run from repo root; this mirrors conftest).
 
 from helpers.core.vec_codec import load_vec  # noqa: E402
-from helpers.core.zstd_io import decompress_file  # noqa: E402
 from helpers.maintenance import rebuild_common as rbc  # noqa: E402
 from helpers.maintenance import rebuild_doc_search as rds  # noqa: E402
 
@@ -67,10 +66,8 @@ def seeded_docs(tmp_path, monkeypatch):
     (doc_root / "schema.json").write_text("{}\n", encoding="utf-8")
 
     db_path = tmp_path / "doc_search.db"
-    backup_dir = tmp_path / "db-backup"
     monkeypatch.setattr(rds, "DOC_ROOT", doc_root)
     monkeypatch.setattr(rds, "DOC_DB", db_path)
-    monkeypatch.setattr(rds, "BACKUP_DIR", backup_dir)
     return db_path
 
 
@@ -565,48 +562,10 @@ class TestRebuild:
         assert stats["stale_changed"] == ["doc/design/architecture.md"]
 
 
-# --- db-backup recovery point -------------------------------------------------
+# --- incremental upserts ------------------------------------------------------
 
 
-class TestLastGoodIndexBackup:
-    def _backup(self):
-        return Path(rds.BACKUP_DIR) / "doc_search_backup.db.zst"
-
-    def test_full_rebuild_writes_backup(self, seeded_docs, fake_local):
-        rds.rebuild(write=True)
-        backup = self._backup()
-        assert backup.exists()
-        plain = Path(rds.BACKUP_DIR) / "doc_search_backup_roundtrip.db"
-        decompress_file(backup, plain)
-        con = _conn(plain)
-        try:
-            assert con.execute("SELECT COUNT(*) FROM doc_search").fetchone()[0] == 6
-        finally:
-            con.close()
-
-    def test_check_and_incremental_skip_backup(self, seeded_docs, fake_local):
-        rds.rebuild(write=True)
-        backup = self._backup()
-        stamp = backup.stat().st_mtime
-        time.sleep(0.01)
-        rds.rebuild(write=False)  # --check
-        rds.rebuild(write=True, incremental=True)
-        assert backup.stat().st_mtime == stamp  # untouched by both
-
-    def test_backup_restorable(self, seeded_docs, fake_local):
-        rds.rebuild(write=True)
-        backup = self._backup()
-        seeded_docs.unlink()  # catastrophe: the index db is lost
-        decompress_file(backup, seeded_docs)
-        con = rds.connect_doc_db(seeded_docs)
-        try:
-            assert rds.doc_index_ready(con)
-            assert not rds.doc_index_stale(con)
-            out = rds.search_docs(con, "cache warmup")
-            assert out["results"]
-        finally:
-            con.close()
-
+class TestIncrementalUpserts:
     def test_incremental_upserts_only_changed(self, seeded_docs):
         rds.rebuild(write=True)
         secret = Path(rds.DOC_ROOT) / "local" / "secret.md"

@@ -60,6 +60,7 @@ DEFAULT_DB_PATH = _PROJECT_ROOT / "memory" / "research.db"
 
 from helpers.core.forkmap import fork_map  # noqa: E402  # needs the shim above
 from helpers.core.db import connect  # noqa: E402  # needs the shim above
+from helpers.graph.edge_projection import edge_rows  # noqa: E402  # needs the shim above
 
 BETWEENNESS_METRIC = "betweenness_centrality"
 
@@ -76,10 +77,23 @@ INDEX_NOISE = frozenset({"listed_on_index"})
 
 
 def load_projection(db_path: str | Path = DEFAULT_DB_PATH):
-    """Sorted endpoint names + deduped undirected edge pairs (dense ids)."""
+    """Sorted endpoint names + deduped undirected edge pairs (dense ids).
+
+    part_of/has_company retirement (2026-10-19): the pair has no
+    ``graph_edges`` rows, so reading the raw store drops every
+    sector-only company out of the projection — which breaks the
+    contract pre-flight (a company whose ONLY incident was its sector
+    membership vanishes from the fold, raising ``KeyError: contract
+    names missing from the fold projection``). The union below projects
+    the pair back out of the canonical sector hyperedges, exactly as
+    ``helpers/graph/query.py`` does for the DuckDB lane. A pre-retirement
+    restore has no incidence store and degrades to the plain dyad read.
+    """
     con = connect(str(db_path), read_only=True, row_factory=None)
     try:
-        rows = con.execute("SELECT source, target, edge_type FROM graph_edges").fetchall()
+        # edge_projection: the retired part_of/has_company pair is projected
+        # back out of the canonical sector hyperedges (2026-10-19).
+        rows = [(s, t, et) for s, t, et, _w in edge_rows(con)]
     finally:
         con.close()
     kept = [(s, t) for s, t, et in rows if s != t and et not in INDEX_NOISE]

@@ -70,7 +70,7 @@ VEC_SCHEMA = "vecdb"
 # per-index ``<main>_vec.db`` sidecars — the note_search vec0 mirror here and
 # the pooled content-hash cache (embed_cache.py). Re-targetable module
 # attribute: tests MUST redirect it (conftest autouse does globally) the way
-# they retarget DOC_DB/BACKUP_DIR; production defaults to the repo store.
+# they retarget DOC_DB; production defaults to the repo store.
 # In-memory mains bypass it entirely (anonymous in-memory attach).
 EMBED_DB_PATH = _REPO_ROOT / "memory" / "embed_store.db"
 

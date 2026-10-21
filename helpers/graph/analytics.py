@@ -50,6 +50,10 @@ REPORTS = ("summary", "edge-growth", "sector-growth", "top-entities", "coverage"
 # every activity signal; analytics exclude them unless noted. cited_in is
 # provenance (okf_activation P) — same treatment, and its roundup-edition
 # hub (360/1,005 edges) would dominate every degree-based view.
+#: part_of/has_company remain listed after the 2026-10-19 retirement even
+#: though no graph_edges row carries them: they stay in the set so the
+#: exclusion reads the same on an OLD parquet snapshot (exported before the
+#: migration) as on a new one. Excluding an absent type is a no-op, not a bug.
 _MEMBERSHIP_TYPES = ("part_of", "has_company", "belongs_to", "cited_in")
 
 

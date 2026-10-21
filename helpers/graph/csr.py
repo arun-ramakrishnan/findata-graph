@@ -51,6 +51,7 @@ if str(_PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(_PROJECT_ROOT))
 
 from helpers.core.db import connect  # noqa: E402  # needs the shim above
+from helpers.graph.edge_projection import pairs  # noqa: E402  # needs the shim above
 
 # Module-side substrate cache, keyed on (out_dir, live SQLite generation).
 # The lane used to re-parse csr_names.json and rebuild the 22k-entry
@@ -77,9 +78,10 @@ def clear_cache() -> None:
 def _read_edges(db_path: str | Path) -> list[tuple[str, str]]:
     con = connect(db_path, read_only=True, row_factory=None)
     try:
-        return [
-            (r[0], r[1]) for r in con.execute("SELECT source, target FROM graph_edges").fetchall()
-        ]
+        # edge_projection: the retired part_of/has_company pair is projected
+        # back out of the canonical sector hyperedges (2026-10-19), so the
+        # CSR substrate keeps sector hops (and sector-only companies).
+        return pairs(con)
     finally:
         con.close()
 

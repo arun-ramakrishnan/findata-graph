@@ -158,6 +158,16 @@ output. Dyadic ops stay Onager-side and capped.
 - **D10 prediction/motifs/dynamics** — still density-gated (group
   8/k=3.8, jv 6/k=2.0); S2b co-membership suggestions are the cheap
   precursor, not the prediction lane.
+  [2026-10-19 annotation (hyperedge_density_dq): the gate is restated
+  as a per-family density table — live 2026-10-19 the two watched
+  families measure group 9/k=3.33 and jv 6/k=2.00 (group density
+  FELL), while the real higher-order lanes are edition 221/222,
+  theme 12/12, sector 41/42, industry 85/119, sub_sector 79/110 and
+  the NEW org_membership 29/34 (k up to 32). The event family — the
+  largest — measures 1,133 edges, ALL k=2 (was 1,252 with 106
+  singletons of stale labels; the S1 convergence prune owns the
+  family). Full table + reopen triggers recorded in
+  `doc/improvements/pending.md` "HGX D10"; s-walk caveat below stands.]
 - **S2c additional hyper API surface** — consumer-driven.
 - **Weighted/hyper link prediction proper** — needs an HGX-native
   predictor or a D15-class engine decision; not this arc.

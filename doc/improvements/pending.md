@@ -23,7 +23,7 @@ Open items below keep their revisit triggers inline; executed work is compressed
    to the next c901 pass by collation S7; `_cli` at `:4055` unruled).
 
 - **production-store copy census — TRIGGER ARMED 2026-09-29, FIRED
-  2026-10-13 — re-run owed**
+  2026-10-13 — RE-RUN DONE 2026-10-19 (completed.md #415)**
   (`archive/testing/production_db_copy_audit.md`, executed same day): every
   copy/backup site is verdict-tabled there, and the chokepoint is
   gated deny-by-default — `copy_production_db(requestor=...)` +
@@ -47,7 +47,15 @@ Open items below keep their revisit triggers inline; executed work is compressed
   path for every store landed** (store_wide_reclaim, completed.md #391 —
   ≈84 MiB reclaimed across the two passes) — this census re-run stays
   armed for payload growth: reclaim frees pages, never shrinks payloads
-  (store_wide_reclaim §F5).
+  (store_wide_reclaim §F5). **2026-10-19 re-run verdicts:** embed_store
+  2.08× SANCTIONED (downtime-window insurance — it rescued multiple
+  2-5 h cache-blowouts; size was never the factor, operator ruling),
+  convo_search_fts 2.51× → its per-run backup RETIRED from the db_maint
+  lane (−79 MiB/run; derived lookup index, minutes-class re-index),
+  transient 7 MB (the 2026-09-29 mechanisms held), backup lane 1.96×.
+  Standing watch: `size_watch` in store_sweep.py (warn 1.5× / ACT 2×,
+  advisory-only) — trigger RE-ARMED on the same rule against the
+  2026-10-19 live sizes.
 
 - **production-DB copies in tests (§D2) — CLOSED 2026-09-29 (schema class
   migrated; downsampler class adjudicated VALID)**: the schema-only class
@@ -214,7 +222,46 @@ Open items below keep their revisit triggers inline; executed work is compressed
   #241: h_edge/h_incidence cache + SQL consumers + hyper API —
   remaining trigger: hyper-native link prediction, unstarted). D10
   stays gated on incidence density (measured 2026-09-15: group 8/k=3.8,
-  jv 6/k=2.0; hyper_edges 533 live). D11 residue: RESOLVED 2026-09-19
+  jv 6/k=2.0; hyper_edges 533 live).
+  [2026-10-19 RESTATEMENT (hyperedge_density_dq): the two-family gate
+  (group/jv) watched two of the LEAST-dense families while edition/
+  industry/sub_sector/sector/theme carried the real higher-order mass —
+  and the event family (the largest) was structurally capped at k=2
+  until `event_participants` (v16) landed. The gate is now the
+  per-family density TABLE below, re-measured live after the S1
+  event-family convergence (stale/sub-threshold event labels pruned,
+  1,252 → 1,133). D10 reopens PER-FAMILY, never globally:
+
+    | family | edges | k=1 | k=2 | k≥3 |
+    |---|---|---|---|---|
+    | event | 1,133 | 0 | 1,133 | **0** |
+    | edition | 222 | 1 | 0 | 221 |
+    | industry | 119 | 22 | 12 | 85 |
+    | sub_sector | 110 | 17 | 12 | 79 |
+    | sector | 42 | 0 | 1 | 41 |
+    | org_membership | 34 | 4 | 1 | 29 |
+    | country | 21 | 11 | 3 | 7 |
+    | theme | 12 | 0 | 0 | 12 |
+    | group | 9 | 0 | 5 | 4 |
+    | jv | 6 | 0 | 6 | 0 |
+    | **total** | **1,708** | **55** | **1,173** | **478** (28.0%) |
+
+  mean density 5.93. One-query re-measure:
+  `SELECT edge_type, COUNT(*) edges, SUM(k=1) k1, SUM(k=2) k2,
+  SUM(k>=3) kge3 FROM (SELECT he.id, he.edge_type, COUNT(hi.entity_name)
+  k FROM hyper_edges he LEFT JOIN hyper_incidences hi ON
+  hi.edge_id=he.id GROUP BY he.id) GROUP BY edge_type;`
+  Reopen triggers, per family: edition/industry/sub_sector/sector/theme
+  are prediction-grade NOW (k≥3 ≥ 60% of family edges) — the blocker
+  for D10 is the engine decision (hgx-native predictor vs D15-class),
+  not density. event/jv reopen when participant data arrives (speakers
+  cannot join events upstream — measured 0/1,477); group re-measures on
+  every same_group derive. Register note: the old "edge-touched n ~10×
+  above 1,722" condition was the longest_chains S3 cap baseline
+  (`archive/graph/longest_chains_cap_policy.md`), NOT a D10 density
+  condition — two gates had been merged in the scratch register;
+  density is the only D10 gate.]
+  D11 residue: RESOLVED 2026-09-19
   by the subsector authoring pass (completed.md #258,
   `archive/graph/subsector_authoring_pass.md`) — 16 buckets → 8
   cleared by SUB_SECTOR_ALIASES additions (incl. the Gaming leaf) +

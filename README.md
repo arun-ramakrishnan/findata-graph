@@ -9,7 +9,7 @@ JSON API / explorer UI on top.
 | | |
 |---|---|
 | **Entities** | 1,685 — 1,179 companies · 207 institutions · 114 editions · 42 sectors · 100 sub-sectors · 10 super-sectors · 12 themes · 21 countries |
-| **Edges** | 19,325 across 20 registered semantic types — 19 populated (`part_of`, `competes_with`, `jv_with`, `co_mentioned_in`, `acquired`, `semantic_peer`, `invested_in`, `listed_in`, …) |
+| **Edges** | 19,325 across 19 registered semantic types — 18 populated (`competes_with`, `jv_with`, `co_mentioned_in`, `acquired`, `semantic_peer`, `invested_in`, `listed_in`, …). `part_of`/`has_company` retired 2026-10-19: sector membership is canonical in the hyperedges and projected on read |
 | **Derived data** | 436 events · 8,272 executive quotes · 4,412 financial metrics · 18 persisted graph-metric kinds · 469 hyperedges / 5,659 incidences |
 | **Notes** | 16,521 searchable note docs (9,247 company · 3,900 chatter · 2,087 points-and-figures · …), full-text + vector searchable |
 | **Tests** | 3,094 across 158 modules — unit / integration / fuzz / perf / live gates |

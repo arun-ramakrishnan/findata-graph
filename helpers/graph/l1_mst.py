@@ -27,6 +27,7 @@ if str(_REPO_ROOT) not in sys.path:
 DEFAULT_DB_PATH = _REPO_ROOT / "memory" / "research.db"
 
 from helpers.core.db import connect  # noqa: E402
+from helpers.graph.edge_projection import edge_rows  # noqa: E402
 
 INDEX_NOISE = frozenset({"listed_on_index"})
 
@@ -36,9 +37,10 @@ def load_projection(db_path=str(DEFAULT_DB_PATH)):
     parallel edges collapsed to min weight, self-loops dropped, ex-index."""
     con = connect(str(db_path), read_only=True, row_factory=None)
     try:
-        rows = con.execute(
-            "SELECT source, target, edge_type, COALESCE(weight, 1.0) FROM graph_edges"
-        ).fetchall()
+        # edge_projection: the retired part_of/has_company pair is projected
+        # back out of the canonical sector hyperedges (2026-10-19). Without
+        # it an MST could not connect a sector-only company at all.
+        rows = edge_rows(con)
     finally:
         con.close()
     kept = [(s, t, et, float(w)) for s, t, et, w in rows if s != t and et not in INDEX_NOISE]

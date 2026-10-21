@@ -34,7 +34,7 @@ export PATH := $(CURDIR)/.venv/bin:$(PATH)
 export TMPDIR ?= $(shell test -d /mnt/data/tmp && { mkdir -p /mnt/data/tmp/findata; echo /mnt/data/tmp/findata; } || echo /tmp)
 
 
-.PHONY: help qa test live-invariants perf cover fuzz integration snapshot snapshot-check snapshot-restore sync-tags sync-coverage-tags sync-sector-links static-checks license-check tmp-sweep install-dev triage-quotes gate-fresh graph-smoke graph-stats graph-algos graph-rebuild graph-rebuild-bench update-extensions recompute-graph recompute-hyper search-fresh convo-fresh embed-gc search-tui derive-relations derive-co-mentions dup-census person-census derive-themes derive-events derive-insights derive-indices quote-coverage derive-themes-rebuild derive-cited-in derive-cited-in-rebuild derive-hyperedges derive-all refresh-indices refresh-vigil refresh-shp frontend frontend-check fold-identifiers format maint maint-full md-lint metrics-rebuild mojo-bench mojo-parity mojo-build mojo-test mojo-format relations-enrich lint types types-tests lint-audit deptry advisory secret-scan cargo-audit script-search-rebuild memory-search-rebuild triage-relations teleocr-server embgemma-server granite-server llamacpp-build llamacpp-health csr csr-check csr-rebuild convo-search-rebuild convo-search-check analytics-parquet analytics-fresh schema-check schema-dump
+.PHONY: help qa test live-invariants perf cover fuzz integration snapshot snapshot-check snapshot-restore sync-tags sync-coverage-tags sync-sector-links static-checks license-check tmp-sweep install-dev triage-quotes gate-fresh graph-smoke graph-stats graph-algos graph-rebuild graph-rebuild-bench update-extensions recompute-graph recompute-hyper search-fresh convo-fresh embed-gc search-tui tier-nudge tier-watch derive-relations derive-co-mentions derive-org-membership derive-event-participants dup-census person-census derive-themes derive-events derive-insights derive-indices quote-coverage derive-themes-rebuild derive-cited-in derive-cited-in-rebuild derive-hyperedges derive-all refresh-indices refresh-vigil refresh-shp frontend frontend-check fold-identifiers format maint maint-full md-lint metrics-rebuild mojo-bench mojo-parity mojo-build mojo-test mojo-format relations-enrich lint types types-tests lint-audit deptry advisory secret-scan cargo-audit script-search-rebuild memory-search-rebuild triage-relations teleocr-server embgemma-server granite-server llamacpp-build llamacpp-health csr csr-check csr-rebuild convo-search-rebuild convo-search-check analytics-parquet analytics-fresh schema-check schema-dump bili-status bili-monitor bili-stop-monitor bili-report bili-snap bili-watch-event bili-thresh-replay
 
 help:           ## Show available targets (alphabetical; entries generated from the ## annotations — keep both in sync)
 > @echo "FinData targets (alphabetical):"
@@ -42,6 +42,13 @@ help:           ## Show available targets (alphabetical; entries generated from 
 > @echo "  analytics                Read-only analytics over the git-tracked Parquet snapshot (A3; arg = report name)"
 > @echo "  analytics-fresh          Analytics stores (agent_traces + model_usage) vs harness frontiers — read-only drift report, exit 1 when a completed day is missing; APPLY=1 runs incremental load all on both loaders"
 > @echo "  analytics-parquet        Ad-hoc read-only SQL over the Parquet snapshot (--list/--stats/--query; tables are <side>__<name>)"
+> @echo "  bili-monitor             Background proxy monitor (read-only): DURATION_S=43200 POLL_S=60 SNAP_S=300"
+> @echo "  bili-report             Proxy economics report from the watcher state dir (read-only): REPORT_ARGS=\"<session ids>\""
+> @echo "  bili-snap               Snapshot the proxy state now (read-only): SNAP_ARGS=\"<session ids>\""
+> @echo "  bili-status             Proxy status report (read-only): effective bars, injections, folds, burn, cache"
+> @echo "  bili-stop-monitor       Stop the background proxy monitor (never \`pkill -f\` -- it kills the caller)"
+> @echo "  bili-thresh-replay      Replay the tier fire curve offline (read-only): REPLAY_ARGS=\"<floor> <thresholds...>\""
+> @echo "  bili-watch-event        Block until the next T1 fire or fold for a session (read-only): EVENT_ARGS=\"<session> [either|t1|fold] [max_wait_s]\""
 > @echo "  cargo-audit              RustSec scan of desktop/src-tauri/Cargo.lock (advisory; SKIPs without cargo-audit)"
 > @echo "  convo-fresh              Check conversation corpus+index freshness — harvest sources vs parquet corpus vs pointer index (exit 1 on drift; APPLY=1 harvests+rebuilds; also run by make advisory)"
 > @echo "  convo-search-check        Report convo_search.duckdb file size vs payload (advisory; swap-rebuild candidate)"
@@ -56,10 +63,12 @@ help:           ## Show available targets (alphabetical; entries generated from 
 > @echo "  derive-cited-in-rebuild  derive-cited-in + graph-rebuild — the paired run cited_in requires (writes entities+edges, then rebuilds the DuckDB cache to match)"
 > @echo "  derive-co-mentions       Derive co_mentioned_in edges from newsletter enhancement blocks"
 > @echo "  derive-countries          Derive listed_in (company -> country) edges from exchange tickers (country layer C1)"
+> @echo "  derive-event-participants Materialise the event_participants n-ary store (person_ontology_spine S4): dry-run default, APPLY=1 writes"
 > @echo "  derive-events            Promote relation edges + extract guidance/management events into the events timeline table"
 > @echo "  derive-hyperedges        Regroup membership dyads into hyper_edges/hyper_incidences (star incidence store)"
 > @echo "  derive-indices           Derive index entities + listed_on_index edges from NSE constituents (Wave 1; pair with graph-rebuild)"
 > @echo "  derive-insights          DRY-RUN stale-only preview of quotes/company_metrics + auto '## The Chatter' blocks (writes nothing; apply yourself — see comment above)"
+> @echo "  derive-org-membership    Derive org_membership hyperedges from person-to-company invested_in (person_ontology_spine S3); APPLY=1 writes"
 > @echo "  derive-relations         Extract jv_with/acquired/subsidiary_of/same_group/supplier_to/customer_of edges from newsletter prose"
 > @echo "  derive-themes            Derive exposed_to (company -> theme) edges from company-note prose"
 > @echo "  derive-themes-rebuild    derive-themes + graph-rebuild — the paired run themes require (writes edges, then rebuilds the DuckDB cache to match)"
@@ -125,6 +134,8 @@ help:           ## Show available targets (alphabetical; entries generated from 
 > @echo "  snapshot-check           Verify the snapshot round-trips against the live DB"
 > @echo "  snapshot-fresh           Generation-only snapshot freshness (fail fast on drift; fix: make snapshot)"
 > @echo "  snapshot-restore         Rebuild memory/ DBs from the git-tracked Parquet snapshot (clobbers live DBs)"
+> @echo "  speaker-census           Quote-speaker census (person_ontology_spine S1): --check gate vs baseline, --plan writes the resolution plan"
+> @echo "  speaker-resolve          Quote-speaker resolution map (person_ontology_spine S2): dry-run default; APPLY=1 writes the map, MINT=1 also mints persons"
 > @echo "  stamp-centrality         Re-stamp v_centrality_* tables (explicit lane; lane-served metrics skipped per ROUTING; graph-rebuild drops them; maint runs it after graph-rebuild)"
 > @echo "  static-checks            Fast static checks (syntax, shebangs, YAML, artifacts, merge markers, license metadata)"
 > @echo "  store-sweep              Standalone estate sweep: census + reclaim/checkpoint every registered sidecar (ARGS=--dry-run previews)"
@@ -134,6 +145,9 @@ help:           ## Show available targets (alphabetical; entries generated from 
 > @echo "  sync-tags                Rebuild entity_tags from note YAML (mirrors entity_type/sector/market_cap/subsector)"
 > @echo "  teleocr-server           Start the TeleOCR llama-server (Q4_K_M + mmproj from models/) on 127.0.0.1:8731 — Ctrl-C to stop; teleocr_engine only ever assumes it is running (D3), never spawns it"
 > @echo "  test                     pytest unit tests only (no live DB, no slow benchmarks)"
+> @echo "  tier-nudge               Manual billion-context tier-ladder nudge (read-only): SESSION_ARGS=\"--session <id> --nudge\" prints the state, the nudge text and the exact compress(...) call"
+> @echo "  tier-watch               Watch the billion-context tier ladder live (read-only): prints why each rung is or is not ready (bars, pools, ordering, growth floor); --once for a single sample"
+> @echo "  tier-watch-auto          Auto-write compress() packets for INJECT T2/T3 (auto-fire); PACKET=<path> defaults to /mnt/data/tmp/opencode/t2_packet.jsonl; WATCH_ARGS for extra flags"
 > @echo "  tmp-sweep                Reap this repo's temp-dir residue (scratch DBs, stale bench dirs, TUI log) — 24h age guard, dry-run by default; APPLY=1 removes (proposal: tmpdir_sanitization)"
 > @echo "  triage-quotes            Triage the quote entity worklist: report + bucketed decisions file (triage_pending_quotes)"
 > @echo "  triage-relations         Triage the _pending_relations queue: report + bucketed decisions file (pending_relations_triage)"
@@ -326,6 +340,33 @@ analytics:       ## Read-only analytics over the git-tracked Parquet snapshot (A
 analytics-parquet: ## Ad-hoc read-only SQL over the Parquet snapshot (tables are <side>__<name>; --list/--stats/--query)
 > .venv/bin/python3 helpers/maintenance/analytics/cli.py --stats
 
+tier-nudge:     ## Manual billion-context tier-ladder nudge (read-only): SESSION_ARGS="--session <id> --nudge" prints the state, the nudge text and the exact compress(...) call
+> .venv/bin/python3 helpers/analytics/bili_tier_nudge.py $(SESSION_ARGS)
+
+tier-watch:     ## Watch the billion-context tier ladder live (read-only): prints why each rung is or is not ready (bars, pools, ordering, growth floor); WATCH_ARGS="--once" for a single sample
+> .venv/bin/python3 helpers/analytics/bili_tier_watch.py $(WATCH_ARGS)
+
+bili-status:    ## Proxy status report (read-only): effective bars, injections, folds, burn, cache
+> bash helpers/analytics/bili_status.sh
+
+bili-monitor:   ## Background proxy monitor (read-only): DURATION_S=43200 POLL_S=60 SNAP_S=300
+> .venv/bin/python3 helpers/analytics/bili_monitor.py $(DURATION_S) $(POLL_S) $(SNAP_S)
+
+bili-stop-monitor: ## Stop the background proxy monitor (never `pkill -f` -- it kills the caller)
+> bash helpers/analytics/bili_stop_monitor.sh
+
+bili-report:    ## Proxy economics report from the watcher state dir (read-only): REPORT_ARGS="<session ids>"
+> .venv/bin/python3 helpers/analytics/bili_tunewatch.py report $(REPORT_ARGS)
+
+bili-snap:      ## Snapshot the proxy state now (read-only): SNAP_ARGS="<session ids>"
+> .venv/bin/python3 helpers/analytics/bili_tunewatch.py snap $(SNAP_ARGS)
+
+bili-watch-event: ## Block until the next T1 fire or fold for a session (read-only): EVENT_ARGS="<session> [either|t1|fold] [max_wait_s]"
+> .venv/bin/python3 helpers/analytics/bili_watch_event.py $(EVENT_ARGS)
+
+bili-thresh-replay: ## Replay the tier fire curve offline (read-only): REPLAY_ARGS="<floor> <thresholds...>"
+> .venv/bin/python3 helpers/analytics/bili_thresh_replay.py $(REPLAY_ARGS)
+
 suggest-relations: ## Print link-prediction relation suggestions (C2; append with --append)
 > python3 helpers/graph/suggest_relations.py
 
@@ -485,6 +526,22 @@ teleocr-server:  ## Start the TeleOCR llama-server (Q4_K_M + mmproj q8_0 from mo
 person-census: ## Person-name dup census: --check gate vs baseline / --plan merge plan (person_name_dedup)
 > .venv/bin/python3 helpers/graph/person_dedup.py $(or $(ARGS),--check)
 > @echo "✓ person-census done"
+
+speaker-census: ## Quote-speaker census: --check gate vs baseline / --plan resolution plan (person_ontology_spine S1)
+> .venv/bin/python3 helpers/graph/speaker_census.py $(or $(ARGS),--census)
+> @echo "✓ speaker-census done"
+
+speaker-resolve: ## Quote-speaker resolution map (person_ontology_spine S2): dry-run default / APPLY=1 writes the map / MINT=1 mints persons
+> .venv/bin/python3 helpers/graph/speaker_resolution.py $(if $(APPLY),--apply,) $(if $(MINT),--mint,) $(or $(ARGS),)
+> @echo "✓ speaker-resolve done"
+
+derive-org-membership: ## Derive org_membership hyperedges from person→company invested_in (person_ontology_spine S3): dry-run default, APPLY=1 writes
+> .venv/bin/python3 helpers/graph/derive_org_membership.py $(if $(APPLY),--apply,)
+> @echo "✓ derive-org-membership done"
+
+derive-event-participants: ## Materialise the event_participants n-ary store (person_ontology_spine S4): dry-run default, APPLY=1 writes
+> .venv/bin/python3 helpers/graph/derive_event_participants.py $(if $(APPLY),--apply,)
+> @echo "✓ derive-event-participants done"
 
 embed-gc:       ## Evict dead rows from the shared embed cache (trial/spike leftovers); report-only + exit 1 when dead rows exist, APPLY=1 deletes + VACUUMs
 > @echo "embed-gc: $(if $(APPLY),APPLY — deleting dead cache rows,report) mode"; \

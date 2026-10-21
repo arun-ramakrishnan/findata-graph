@@ -10,7 +10,11 @@ cross_sector_bridges, edges_by_year, sector_members_with_market_cap):
   * acquired / jv_with edges (with valid_from) drive cross_sector_bridges
     (one cross-sector, one same-sector that must be excluded) and
     edges_by_year (by-year buckets).
-  * part_of edges give sector membership for sector_members_with_market_cap.
+  * sector hyperedge incidences give membership for
+    sector_members_with_market_cap. Since the part_of/has_company retirement
+    (2026-10-19) membership is CANONICAL in hyper_edges/hyper_incidences and
+    the part_of/has_company pair is projected on read by
+    helpers/graph/query.py — so the fixture seeds the store, not the dyads.
 
 Schema mirrors tests/conftest._UNIT_SCHEMA (unit-test shaped; no FK cascade).
 """
@@ -47,6 +51,24 @@ CREATE TABLE graph_edges (
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     UNIQUE(source, target, edge_type),
     CHECK (source != target)
+);
+CREATE TABLE hyper_edges (
+    id INTEGER PRIMARY KEY,
+    edge_type TEXT NOT NULL,
+    label TEXT NOT NULL,
+    weight REAL NOT NULL DEFAULT 1.0,
+    valid_from DATE, valid_to DATE,
+    source_ref TEXT NOT NULL,
+    properties TEXT NOT NULL DEFAULT '{}',
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(edge_type, label)
+);
+CREATE TABLE hyper_incidences (
+    edge_id INTEGER NOT NULL,
+    entity_name TEXT NOT NULL,
+    weight REAL, direction TEXT, role TEXT,
+    valid_from DATE, valid_to DATE,
+    PRIMARY KEY (edge_id, entity_name)
 );
 """
 
@@ -86,14 +108,8 @@ def build_seed_db(path: Path) -> Path:
 
     # (source, target, edge_type, source_ref, valid_from)
     edges = [
-        # sector membership (part_of -> BelongsTo label in DuckDB)
-        ("HDFC Bank", "Banking", "part_of", "seed", None),
-        ("ICICI Bank", "Banking", "part_of", "seed", None),
-        ("Infosys", "Technology", "part_of", "seed", None),
-        ("No Ticker Co", "Technology", "part_of", "seed", None),
-        ("Cap Conflict Co", "Technology", "part_of", "seed", None),
-        ("Banking", "HDFC Bank", "has_company", "seed", None),
-        ("Banking", "ICICI Bank", "has_company", "seed", None),
+        # NB: no part_of/has_company rows — sector membership is canonical in
+        # the incidence store (2026-10-19 retirement), seeded just below.
         # co-mention ranking: Infosys(4) > HDFC(3) > ICICI(2)
         ("Infosys", "HDFC Bank", "co_mentioned_in", "seed", None),
         ("Infosys", "ICICI Bank", "co_mentioned_in", "seed", None),
@@ -113,6 +129,23 @@ def build_seed_db(path: Path) -> Path:
         "INSERT INTO graph_edges (source, target, edge_type, source_ref, valid_from) "
         "VALUES (?,?,?,?,?)",
         edges,
+    )
+    # Sector membership — the canonical store (2026-10-19 retirement). One
+    # hyperedge per sector, one incidence per member; query.py projects both
+    # directions into e_belongs/e_has.
+    con.executemany(
+        "INSERT INTO hyper_edges (id, edge_type, label, source_ref) VALUES (?,?,?,?)",
+        [(1, "sector", "Banking", "seed"), (2, "sector", "Technology", "seed")],
+    )
+    con.executemany(
+        "INSERT INTO hyper_incidences (edge_id, entity_name) VALUES (?,?)",
+        [
+            (1, "HDFC Bank"),
+            (1, "ICICI Bank"),
+            (2, "Infosys"),
+            (2, "No Ticker Co"),
+            (2, "Cap Conflict Co"),
+        ],
     )
     con.commit()
     con.close()

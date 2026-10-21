@@ -104,7 +104,10 @@ dependencies = [
     # per minor, so upgrades are deliberate slice-sized steps (proposal §5).
     # Pulls pydantic + cyclopts + rich (rich already present).
     "prefab-ui==0.20.2",
-    "zstandard>=0.25.0",
+    # Bare, matching the repo's unpinned convention: uv.lock carries the
+    # exact 0.25.0 resolution; the dependency-pinning advisory flags range
+    # operators in [project].dependencies.
+    "zstandard",
     # XXE/entity-safe XML parsing for the SHP/VIGIL RSS + XBRL lanes
     # (helpers/maintenance/shareholding_sync.py). Replaces the stdlib
     # xml.etree.ElementTree S314 exemptions — parser-level enforcement

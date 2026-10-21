@@ -448,9 +448,11 @@ TIER2_STEPS: list[tuple[str, list[str]]] = [
         [sys.executable, "helpers/graph/derive_events.py", "--corpus", "--apply"],
     ),
     # hypergraph incidence backfill (hypergraph_incidence_hyx, 2026-09-13):
-    # regroups the membership dyads (part_of/exposed_to/listed_in/same_group/
-    # co_mentioned_in) into hyper_edges/hyper_incidences AFTER every upstream
-    # edge producer has run. Idempotent (UNIQUE keys) — a warm no-change cycle
+    # regroups the membership dyads (exposed_to/listed_in/same_group/
+    # co_mentioned_in — sector is CANONICAL since the part_of/has_company
+    # retirement, 2026-10-19, and is not derived) into
+    # hyper_edges/hyper_incidences AFTER every upstream edge producer has run.
+    # Idempotent (UNIQUE keys) — a warm no-change cycle
     # inserts 0 rows. SQLite-only write — but since D4 (hgx_first_scaling,
     # 2026-09-16) the DuckDB cache MATERIALIZES the star store (h_edge/
     # h_incidence), so the paired graph-rebuild-h step right below refreshes

@@ -77,6 +77,12 @@ ROUTING: dict[str, str] = {
 
 #: Edge types known in the live DB (informational; load_projection accepts
 #: any list and None = full projection).
+#:
+#: part_of/has_company are ABSENT by design (2026-10-19 retirement): this
+#: list describes what ``load_projection`` can read from ``graph_edges``,
+#: and membership is no longer stored there. Callers that need sector
+#: adjacency read the DuckDB cache's ``e_belongs``/``e_has`` instead — the
+#: projection helpers/graph/query.py builds from the canonical hyperedges.
 KNOWN_EDGE_TYPES = [
     "acquired",
     "approved_by",
@@ -86,11 +92,9 @@ KNOWN_EDGE_TYPES = [
     "competes_with",
     "customer_of",
     "exposed_to",
-    "has_company",
     "invested_in",
     "jv_with",
     "listed_in",
-    "part_of",
     "rated_by",
     "regulated_by",
     "same_group",

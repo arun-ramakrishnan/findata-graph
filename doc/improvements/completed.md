@@ -1,11 +1,328 @@
 <!-- markdownlint-disable MD041 -- first line is intentionally bold metadata, not a heading -->
 
 **Generated**: 2026-10-17
-**Total completed**: 323 items
+**Total completed**: 324 items
 
 > **Note:** Full implementation details, code references, and rationale are in the `doc/improvements/archive/` subdirectory. This file is a summary view.
 
 ---
+
+## 422. `tui_perf_sparkline` — the report screen becomes a regression detector, off data it already had
+
+**Date**: 2026-10-19
+**Status**: COMPLETE
+**Proposal**: `doc/improvements/archive/tooling/tui_perf_sparkline.md`
+(filed 2026-10-18, executed 2026-10-19 — the last arc before the full
+gate run; TUI work was parked to the end by the operator).
+
+- **Why it was ever blocked, and why not now** — the historic-trend item
+  was deferred on a *dependency*: "needs `textual` chart or ASCII
+  sparkline" (`search_tui_enhancements.md` §5). Installed `textual`
+  8.2.8 ships `Sparkline`, and the fallback makes the widget optional
+  rather than load-bearing, so the blocker is gone in both directions.
+- **S1 perf trend** — `helpers/misc/search_tui.py` grows
+  `_parse_seconds` (handles `2.0s`, `150ms`, bare seconds; `n/a` → None),
+  `sparkline_text(values, *, width=None)` (8 block glyphs, `·` for a
+  single sample), `perf_ratio_history(blocks, last_n=…)` and
+  `perf_sparkline_rows`. The screen mounts one `Sparkline` per benchmark
+  in a `#rep-spark` strip (worst-latest first, top 6) and puts the same
+  series as a caption on the row — a widget-less install still sees the
+  trend.
+- **S2 gate trend** — `gate_pass_rates(blocks)` prefers the run's own
+  score line (`10/10 passed`) and falls back to counting `✓ OK` steps,
+  returning `None` rather than `0.0` for an unmeasurable run: a 0 in a
+  sparkline reads as a catastrophic regression. Each gate run row carries
+  `pass-percent · glyph-series-up-to-that-run`.
+- **Zero new I/O** — both series are computed from the SAME parsed
+  `RunBlock`s the tree already reads out of the append-only reports, so
+  the screen still makes no live gate call (the proposal's acceptance).
+- **Tests** — `tests/test_search_tui.py` 75 → **87 passed**: budget
+  parsing, glyph scaling, single-sample placeholder, empty-history,
+  worst-first ordering, score-line preference vs step fallback vs `None`,
+  plus a live-widget test driving `SearchApp` + `ReportScreen` over a
+  synthetic two-run gate report (asserts both rows render their pass
+  percent and that a two-sample series carries a real glyph).
+- **Live smoke (production reports, no mocks)** — 26 benchmarks carry
+  ratios; `route_graph_stats` is the one genuine overrun
+  (1.05× at its worst, latest 0.74×), `static_checks` 0.41–0.74,
+  `shortest_path_bfs` 0.62–0.75; `outputs/qa_report.md` holds **120
+  runs**, latest 1.0 / 0.75 / 0.83 — the series is dense enough to be a
+  detector, not decoration.
+- **Docs** — `doc/design/tui_design.md` §3 gains the trend-column
+  contract (incl. why a single sample draws `·`), §9 the history bullet,
+  §10 loses the now-shipped item; `search_tui_enhancements.md` §2.6 item
+  5 is marked SHIPPED and the §5 deferral is closed rather than deleted
+  (the deferral's own words remain the record of why it waited).
+
+---
+
+## 421. Parquet export wrapper (P3.3) — the 2026-08-08 dangling deferral built, not merely re-filed
+
+**Date**: 2026-10-19
+**Status**: COMPLETE
+**Proposal**: `doc/improvements/archive/graph/parquet_export_wrapper.md`
+(filed 2026-10-18, executed 2026-10-19; BUILD chosen over CLOSE on the
+operator's call).
+
+- **Landed `export_query(sql, path, *, con=None)`** in
+  `helpers/graph/query.py` — `COPY (<sql>) TO '<path>' (FORMAT PARQUET)`
+  over a self-opened read-only cache connection
+  (`connect_read_only(DUCKDB_PATH, attach_db=DB_PATH)`, so `fin.`
+  queries work), or a caller-supplied connection. Relative paths resolve
+  under `outputs/`; absolute paths honoured; parent dirs created; the
+  path literal is single-quote escaped.
+- **Read-only discipline asserted, not assumed** — a COPY TO an external
+  file writes the filesystem, never the database: the source cache stays
+  byte-identical and no WAL appears.
+- **Tests** — `tests/test_export_query.py` (5): round-trip row parity vs
+  the SQL, read-only/no-WAL discipline, relative-path resolution,
+  absolute path, quote-escaped filename.
+- **Live smoke** — grouped edge-type export off the production cache:
+  `supplier_to` 16,721 / `subsidiary_of` 10,752 / `co_mentioned_in`
+  9,638 / `same_group` 8,920 / `listed_on_index` 6,615; no retired
+  `part_of`/`has_company` at the export surface (arc-4 retirement holds).
+- **Register closed** — `graph_pending.md` P3.3 entry replaced with a
+  SHIPPED pointer; the P-number stops being a dangling deferral. No new
+  dependency, no ETL surface (pipeline writers keep their snapshot
+  lanes).
+
+---
+
+## 420. `hyperedge_density_dq` — the singleton audit, the event-family convergence prune, and the D10 gate restated per-family
+
+**Date**: 2026-10-19
+**Status**: COMPLETE
+**Proposal**: `doc/improvements/archive/graph/hyperedge_density_dq.md`
+
+- **S1 audit + prune (applied live)** — the 157 pre-arc singletons get a
+  per-family verdict, not a blanket rule: `event` k=1 (106) is derive
+  noise (115 labels pointed at deleted events; 4 more sub-threshold) →
+  new `prune_stale_event_edges()` converges the event family to
+  `event_participants`-derived truth on every derive (dry-run default;
+  119 dropped of 1,252); industry/sub_sector/country/org_membership/
+  edition singletons are valid one-member membership facts → KEEP.
+  Post-prune live store: 1,708 hyperedges / 10,134 incidences / mean
+  5.93; k≥3 = 478 (28.0%); event family = 1,133 edges ALL k=2, zero
+  singletons. `TestEventFamilyConvergence` pins dry-run/apply/
+  idempotence.
+- **S2** — `event_participants` (schema v16) landed by the companion
+  arc (`person_ontology_spine`, completed.md #419); event hyperedges
+  build from the store with role roles (acquirer/target/partner/
+  issuer/subject).
+- **S3 restatement** — the two-family D10 gate (group 8/k=3.8, jv
+  6/k=2.0 — the two LEAST-dense families) is replaced in pending.md by
+  the per-family density table with the post-prune numbers inline and
+  reopen triggers per family: edition/theme/sector (plus
+  industry/sub_sector/org_membership at 75–85% k≥3) are
+  prediction-grade NOW — the D10 blocker is the engine decision, not
+  density; event/jv reopen when participant data arrives (speaker→event
+  joins measured 0/1,477). `hgx_first_scaling.md` §5 annotated; a
+  one-query re-measure is recorded beside the table.
+- **S4 register hygiene** — the register's "edge-touched n ~10× above
+  1,722" D10 condition was a merge error with the longest_chains S3 cap
+  baseline; correction recorded in the restatement (features.txt is
+  operator-owned scratch, deliberately untouched).
+
+---
+
+## 419. `person_ontology_spine` — 973 persons resolved from 1,419 speaker aliases; org membership and event participation as first-class stores
+
+**Date**: 2026-10-19
+**Status**: COMPLETE
+**Proposal**: `doc/improvements/archive/database/person_ontology_spine.md`
+
+- **S1 census (report-only)** — `helpers/graph/speaker_census.py` +
+  `make speaker-census`: 1,419 speaker string clusters (9 multi-form),
+  6,269 quotes matched to clusters, 3 company-shaped strings flagged
+  (never-merge list seeded). PLAN_PATH written for the resolution plan.
+- **S2 resolution (schema v15)** — `speaker_identity(alias_name PK →
+  canonical_name, person_name FK)` + `v_quote_speaker` view;
+  `helpers/graph/speaker_resolution.py` maps first, mints on operator
+  order (`--min-quotes 2`): **973 persons minted (277 → 1,250),
+  985 aliases linked, 5,743/6,269 quotes (91.6%) resolve to a person
+  identity**. Speaker-level (not per-quote) so the decision is stored
+  once, not 8,687×.
+- **S3 org membership** — `helpers/graph/derive_org_membership.py`:
+  287 person→company `invested_in` dyads → `org_membership` hyperedge
+  family (role promoter/holder, weight = stake); lane owns its family;
+  dyads stay.
+- **S4 event participation (schema v16)** —
+  `event_participants(event_id, participant, role)` + role registry
+  (`EVENT_ROLE_BY_TYPE`); live 2,610 rows (partner 2,152 / issuer 337 /
+  acquirer 59 / target 59 / subject 3); event hyperedges build from the
+  store at k≥2 with a parity-filtered fallback; lane owns its table.
+- **S5 docs** — ontology.md §2.4/§2.6 (person story + event roles),
+  db_schema.md event_participants section, convention-stack §6
+  non-goals annotated SUPERSEDED. Known dead end recorded: speaker→event
+  joins measure 0/1,477 upstream — k≥3 events wait on participant data,
+  not SQL.
+- Eval gate (`ontology_eval_gate.py --candidate`, undeclared-ACCEPT
+  81/81) parked for the arc-end full-gate run.
+
+---
+
+## 418. `part_of`/`has_company` retirement — the dyads deleted, membership made canonical, every dyadic reader unchanged
+
+**Date**: 2026-10-19
+**Status**: COMPLETE
+**Proposal**: `doc/improvements/archive/database/partof_hascompany_retirement.md`
+(filed 2026-10-18, executed 2026-10-19).
+
+The §8-R3 gate had held the legacy bidirectional pair behind "hyperedge
+absorption + full test-file enumeration first". The absorption half
+measured COMPLETE on the live store: **1,207 / 1,207** `part_of` sources
+and **1,207 / 1,207** `has_company` targets already sat inside a sector
+hyperedge, with **zero** asymmetry in either direction. One surplus
+incidence decided the design: `Kuantum Papers` carries BOTH `Agriculture`
+and `Packaging` sector hyperedges while its single `part_of` row could
+name only `Agriculture` — a single-valued dyad cannot express dual
+membership, the incidence store can. Option B chosen: sector hyperedges
+become CANONICAL, the pair is projected on read.
+
+**Landed**: `helpers/graph/sector_membership.py` (the ONE write path —
+`put_sector_membership` / `remove_sector_membership` /
+`sector_membership_rows`, `properties.n_members` kept honest);
+`parse_newsletter` and `move_sector` migrated to it; `sector` removed
+from `derive_hyperedges._STAR_SOURCES` so derivation cannot resurrect
+what it no longer owns. Read side: `query._materialise_sector_membership`
+builds TEMP `_sector_resolved` from the store, `_resolve_edges` appends
+both directions, `_materialise_walk_substrate` unions them into `e_dir`,
+fingerprints stamp `edges:part_of`/`edges:has_company` from the hyper
+store, `_walk_edges_sql` serves the CTE oracle, and
+`onager._edge_source_sql` serves the Onager lane. Migration:
+`helpers/maintenance/retire_sector_dyads.py` (dry-run default, `--apply`
+in one transaction, **REFUSES** if any `part_of` row lacks an incidence)
+— live: `deleted 2414 dyad row(s)`, `0 part_of/has_company rows remain;
+incidences untouched`. Integrity: roster 21 → 19 (20 → 18 populated), the five
+symmetric-pair probes replaced by `sector_membership_endpoint_bad`,
+`check_orphan_companies` reads the incidence store with a `relations`
+fallback, and the stats breakdown shows membership as its own line.
+
+**Verification**: post-migration projection `e_belongs` = `e_has` =
+**1,208** (was 1,207 dyads each — the dual-membership gain is now
+visible), `sector_of('Kuantum Papers')` returns both sectors; Onager over
+`BelongsTo` pagerank/WCC 1,207 rows each; `make mojo-parity` **88/88
+keys**, GOLDEN PARITY OK; `tests/test_sector_membership_projection.py`
+(11 new tests: write path, idempotence, dual membership, projection both
+directions, walk substrate, empty store, ordering stability, migration
+refusal gate); 20 test files swept (`tests/schema.py` gained shared
+`HYPER_STORE` DDL); `tests/test_graph.py` 83/83; ruff clean.
+
+## 417. Longest-chains cap policy — the silent crossover recorded, the cap raised on a measurement, the tripwire landed
+
+**Date**: 2026-10-19
+**Status**: COMPLETE
+**Proposal**: `doc/improvements/archive/graph/longest_chains_cap_policy.md`
+(filed 2026-10-18, executed 2026-10-19).
+
+The S3 hard cap on `longest_chains` (`max_exact=3000`) was accepted
+while the diagnostic still ran exact ("universe 1,722 < 3,000"); the
+universe has since grown 11.6× to 20,044 edge-touched nodes and the
+crossover to stride-sampled lower-bound mode went live UNRECORDED —
+caught only by the 2026-10-18 census. The stale register had also
+mis-cited the 1,722 baseline as a D10 reopen condition (it is the cap
+note).
+
+**Landed**: `stats.CHAIN_CAP = 6000` (single source of truth — the
+watcher imports it, `max_exact` defaults to it); the raise measured
+before landing per the proposal's acceptance: **36.1 s wall / 2.9 GB
+process peak** at 6,000 roots on the live graph (projection ~36 s held;
+diameter stays 12, ties 167 → 311 pairs, still labeled lower bounds);
+`graph_scale_watch` gains the chains-cap tripwire (edge-touched count
+from the SQLite store, `exact` / `SAMPLED` / `SKIP` lines, advisory
+exit 0 — live: `SAMPLED — n=20,044 > cap 6,000 (3.3x)`); crossover
+history recorded in the `longest_chains` docstring. S2(c) scheduled
+exact refresh not taken — the `exact=True` on-demand path plus the
+watcher pointer covers the intent.
+
+**Verification**: 11/11 watcher tests (5 new: SAMPLED/exact lines,
+index-only-entity exclusion, SKIP path, constant-drift pin);
+hyper-incidence suite green (explicit `max_exact` pins unaffected);
+ruff clean; live watcher validated.
+
+## 416. Graph analytics contract S1 — the served-universe loop broken, byte-identical
+
+**Date**: 2026-10-19
+**Status**: COMPLETE
+**Proposal**: `doc/improvements/archive/graph/graph_analytics_contract.md`
+(filed 2026-10-18, executed 2026-10-19; S2/S3/S4 remain open as future
+slices).
+
+The routed centralities (closeness, harmonic, betweenness) derived their
+served universe FROM the table they write to — `scipy_bridge.contract_sources`
+ran `SELECT DISTINCT entity_name FROM graph_analytics WHERE metric = ?`
+(`algorithms.py` carried an inline copy in the L1B lane) — freezing the
+contract at an accumulated 1,732-name top-N union (2026-07-27 →
+2026-10-16), 8.6% of the live 20,044-node universe, growable only by
+luck.
+
+**Landed**: `graph_analytics_contract` table (metric-first PK, FK to
+`entities` ON DELETE/UPDATE CASCADE — the delete/rename self-healing
+moved into the contract table itself), seeded by
+`helpers/maintenance/seed_analytics_contract.py` (dry-run default,
+idempotent `--apply`, `seq` = legacy query order — order is part of the
+contract); `contract_sources` reads the table and falls back to the
+legacy self-read when absent/empty (restore-safe); the L1B inline copy
+collapsed onto the shared reader; schema **v13 → v14**
+(`EXPECTED_USER_VERSION`/`EXPECTED_SCHEMA_VERSION`, canonical-only — no
+DuckDB cache bump, v13 precedent).
+
+**Live apply**: 1,732 × 3 metrics = 5,196 contract rows; **byte-identical
+parity verified on the production store** (served list == legacy
+DISTINCT, order included, all three metrics). `doc/design/db_schema.md`
+gains the §`graph_analytics_contract` section.
+
+**Verification**: 8/8 new contract tests (`tests/test_graph_analytics_contract.py`);
+regression net green — 66/66 `test_integration_graph_algorithms`,
+71/71 scipy_bridge + centrality_cache + graph_stats; ruff clean.
+
+## 415. Production-store census re-run — the doubling verdict, the embed-store ruling, and a standing growth watch
+
+**Date**: 2026-10-19
+**Status**: COMPLETE
+**Proposal**: `doc/improvements/archive/testing/store_census_rerun.md`
+(filed 2026-10-18, executed in the same arc). The 2026-09-29 copy
+audit's revisit trigger — "re-run the census when any production store
+roughly doubles" — measured FIRED on 2026-10-13 and confirmed live:
+embed_store **2.08×** and convo_search_fts **2.51×** their filing
+sizes; every other store ≤1.35×. Three findings: (1) the in-suite copy
+machinery held — per-run transient **7 MB** pytest-of, the S2/S3
+mechanisms (shared template `mode=ro`, reflink clones, pruned
+fixtures) are structural and size-insensitive; (2) the fired growth is
+dense payload — embed_cache 139,833 rows against 17,493 indexed notes,
+harvest-lane rows, freelist 0.0% on both fired stores, so reclaim has
+nothing to offer; (3) the decayed class is the backup lane at
+1,465 MiB = 1.96× of the post-S4 figure.
+
+**Landed**: `size_watch()` + `_FILING_MB` baseline in
+`helpers/maintenance/store_sweep.py` — advisory growth lines vs the
+filing census (warn 1.5× / ACT 2.0×), no-baseline stores get one
+prompt line, primaries excluded (db_maint-owned), advisory never moves
+the exit code; 2 targeted tests
+(`test_size_watch_ratio_contract`,
+`test_size_watch_primaries_absent`); live dry-run validated (ACT fired
+on both stores). Operator ruling on the fired stores: the
+convo_search **FTS sidecar backup RETIRED** from the db_maint lane —
+derived lookup index, zero unique content, minutes-class mechanical
+re-index from the corpus tar (convo_search_swap_rebuild #355);
+`test_backup_convo_search_writes_primary_not_fts_sidecar` pins the
+primary-only lane. The **embed_store backup was initially stripped as
+"derived" and RESTORED the same arc on operator correction**: it is
+downtime-window insurance that rescued multiple 2-5 h cache-blowout
+incidents — size was never the design factor, and its 2.08× growth is
+explicitly sanctioned. 68/68 targeted green (db_maint + convo +
+snapshot suites); qa 12/12 PASS at arc open (baseline-hygiene leg).
+
+**Arc-1b addendum (same day)**: the WHY queries (git/convo/doc) resolved
+both census flags — graph_backup is recorded pre-mutation VACUUM-corruption
+insurance (`db_maint.py` docstring), model_usage is coverage-thesis +
+purge-prone sources (`model_usage.md:116-130`), both KEEP. Operator
+ruled agent_traces KEEP. Executed the rest: the three self-backing
+search-index backups retired (`rebuild_common.backup_last_good_index` +
+`IndexBackupSpec` + per-module `BACKUP_DIR` removed; 8 test files
+swept of the monkeypatch isolation, 187/187 targeted green) and the
+dead FTS artifact deleted — db-backup/ 18 → 14 tenants, ~98 M reclaimed.
+Verdicts in the proposal's §8/§9 addenda.
 
 ## 414. Bili watcher suite — live tuning observability for the billion-context proxy
 

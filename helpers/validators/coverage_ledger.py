@@ -25,9 +25,19 @@ Contract:
   consistency — a ledger row naming a route that no longer exists in
     app.py is ORPHANED (exit 1): the route was removed or renamed and the
     ledger must be corrected.
+  validity — every row carries a `status` from the machine-checkable enum
+    {planned, not_applicable, out_of_scope, in_progress, covered, candidate,
+    blocked, deferred}. Rows with status `blocked` or `candidate` must also
+    carry `blocked_reason` (why review cannot proceed) and `unresolved`
+    (the exact open fact). Rows with status `not_applicable` or
+    `out_of_scope` record an attack class deliberately NOT reviewed on
+    that surface — this is how completeness stays honest: a surface is
+    "covered" only when every attack class is either `covered`/`candidate`
+    or explicitly `not_applicable`/`out_of_scope`.
 
 Row shape (one row per surface x attack class):
-  {surface, kind, attack_class, reviewed, method, verdict, fingerprint}
+  {surface, kind, attack_class, reviewed, method, verdict, fingerprint,
+   status, blocked_reason, unresolved}
 
 `kind` is "route" (completeness- and consistency-checked against app.py),
 "ingestion" (operator-triggered, not HTTP-reachable), or "shared"
@@ -48,6 +58,20 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parents[2]
 DEFAULT_APP = REPO / "app.py"
 DEFAULT_LEDGER = REPO / "doc/local/security/coverage-ledger.json"
+
+# Machine-checkable status enum (mirrors cloudflare/security-audit-skill's
+# STATUSES). `verdict` remains as free-text for backward compatibility;
+# `status` is the field `check()` validates.
+STATUS_ENUM = (
+    "planned",
+    "not_applicable",
+    "out_of_scope",
+    "in_progress",
+    "covered",
+    "candidate",
+    "blocked",
+    "deferred",
+)
 
 
 def route_inventory(app_path: Path) -> dict[str, dict]:
@@ -117,6 +141,27 @@ def check(app_path: Path, ledger_path: Path, *, strict: bool) -> int:  # noqa: C
     errors: list[str] = []
     warns: list[str] = []
 
+    # 0. validity: status enum + required fields per status
+    for r in rows:
+        status = r.get("status")
+        if status is not None and status not in STATUS_ENUM:
+            errors.append(
+                f"INVALID STATUS {r.get('surface')} / {r.get('attack_class')} — "
+                f"status={status!r} not in {STATUS_ENUM}; "
+                f"row lacks review coverage classification"
+            )
+        if status in ("blocked", "candidate"):
+            if not r.get("blocked_reason"):
+                errors.append(
+                    f"MISSING blocked_reason {r.get('surface')} / {r.get('attack_class')} — "
+                    f"status={status} requires blocked_reason"
+                )
+            if not r.get("unresolved"):
+                errors.append(
+                    f"MISSING unresolved {r.get('surface')} / {r.get('attack_class')} — "
+                    f"status={status} requires unresolved (the exact open fact)"
+                )
+
     # 1. completeness: every route has >=1 row
     for path in sorted(routes):
         if path not in by_surface:
@@ -126,7 +171,29 @@ def check(app_path: Path, ledger_path: Path, *, strict: bool) -> int:  # noqa: C
                 f"review it or seed a row"
             )
 
-    # 2. freshness: fingerprints match the reviewed handler source
+    # 2. per-surface attack-class accounting: list classes with no row at all
+    #    (unaccounted = neither reviewed nor deliberately excluded).
+    known_classes: set[str] = {r.get("attack_class") for r in rows if r.get("attack_class")}
+    for surface in sorted(set(routes) | set(by_surface)):
+        live = routes.get(surface)
+        rs = by_surface.get(surface, [])
+        reviewed_classes = {
+            r.get("attack_class")
+            for r in rs
+            if r.get("attack_class") and r.get("status") not in ("not_applicable", "out_of_scope")
+        }
+        for cls in sorted(known_classes):
+            if cls not in reviewed_classes and not any(
+                r.get("attack_class") == cls
+                and r.get("status") in ("not_applicable", "out_of_scope")
+                for r in rs
+            ):
+                warns.append(
+                    f"UNREVIEWED CLASS {surface} / {cls} — no ledger row at all; "
+                    f"review it or add a not_applicable/out_of_scope row"
+                )
+
+    # 2b. freshness: fingerprints match the reviewed handler source
     for surface, rs in sorted(by_surface.items()):
         live = routes.get(surface)
         for r in rs:

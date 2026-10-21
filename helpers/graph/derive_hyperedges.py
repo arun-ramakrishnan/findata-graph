@@ -5,21 +5,29 @@ edges (hypergraph_incidence_hyx, S2 — Phase 0 backfill).
 WHY THIS EXISTS
 ---------------
 The graph layer is strictly pairwise (``graph_edges``: two FK columns), so
-every set-valued fact is stored as a materialised star of dyads: a sector IS
-its member companies as 1,165 ``part_of`` rows, an edition IS its co-mentioned
-set as C(n,2) ``co_mentioned_in`` pairs. That destroys the set identity —
-"which entity-sets recur across editions" is unanswerable from the dyads
-(``doc/local/evaluations/hyper_graph_assessment.md`` §6.1). The incidence
-tables store the star expansion losslessly; dyadic projections stay what they
-are (nothing existing is rewritten).
+every set-valued fact is stored as a materialised star of dyads: an edition IS
+its co-mentioned set as C(n,2) ``co_mentioned_in`` pairs. That destroys the set
+identity — "which entity-sets recur across editions" is unanswerable from the
+dyads (``doc/local/evaluations/hyper_graph_assessment.md`` §6.1). The
+incidence tables store the star expansion losslessly; dyadic projections stay
+what they are (nothing existing is rewritten).
 
-Five SQL regroupings of existing dyads (no note re-scan) plus one frontmatter
+**The ``sector`` family is the exception and the destination.** It USED to be
+regrouped from ``part_of`` here, which made the incidence store a copy of a
+copy: a single-valued dyad cannot express dual sector membership (Kuantum
+Papers holds Agriculture AND Packaging as hyperedges, one ``part_of`` row), so
+the derive silently flattened the richer representation. part_of/has_company
+retirement (2026-10-19) deleted the dyads and made the sector hyperedges
+CANONICAL: sector has no upstream source, is skipped by the regroup pass, and
+``helpers/graph/query.py`` projects the pair back out
+(``_materialise_sector_membership``) for every dyadic reader.
+
+Four SQL regroupings of existing dyads (no note re-scan) plus one frontmatter
 read (S5):
 
   ================  ==================  =======================================
   hyper edge_type   upstream source     grouping key
   ================  ==================  =======================================
-  sector            part_of             target (the sector)
   theme             exposed_to          target (the theme)
   country           listed_in           target (the country)
   group             same_group          properties -> '$.group' (both endpoints
@@ -30,6 +38,8 @@ read (S5):
                                         enrich_from_yfinance (816 non-null /
                                         117 labels live; capture-ledger #1)
   ================  ==================  =======================================
+
+``sector`` is deliberately absent: see the canonical-store note above.
 
 Idempotent via ``UNIQUE(edge_type, label)`` + ``PRIMARY KEY(edge_id,
 entity_name)`` — re-running inserts only what changed. No ``--stale-only``
@@ -88,7 +98,11 @@ COMPANIES_DIR = _REPO_ROOT / "findata" / "Companies"
 #   mode "symmetric"— label = a JSON property key of the dyad, members = BOTH
 #                     endpoints (peer dyads: same_group, co_mentioned_in).
 _STAR_SOURCES: list[tuple[str, str]] = [
-    ("sector", "part_of"),
+    # part_of/has_company retirement (2026-10-19): the sector family is
+    # CANONICAL here (the dyad pair that used to feed it is retired), so
+    # sector is derived from nothing and skipped by the regroup pass —
+    # deleting it from this list is what makes the store the source of
+    # truth rather than a copy of one.
     ("theme", "exposed_to"),
     ("country", "listed_in"),
 ]
@@ -547,14 +561,12 @@ def resolve_counterparties(conn, *, dry_run: bool = True) -> tuple[int, int, lis
 # --------------------------------------------------------------------------- #
 # S4: n-ary event facets (role / valid_from / valid_to on incidences)         #
 # --------------------------------------------------------------------------- #
-# Role vocabulary: (entity role, counterparty role) per event_type. ONLY the
-# two types that carry counterparties live (acquisition 41, jv 69 — measured
-# 2026-09-14); an unmapped type resolves to (None, None) — participants stay
-# unlabeled rather than confabulated, and the reconciliation report names it.
-_EVENT_ROLES: dict[str, tuple[str | None, str | None]] = {
-    "acquisition": ("acquirer", "target"),
-    "jv": ("partner", "partner"),
-}
+# Role vocabulary is OWNED by derive_event_participants (the store that
+# materialises it, person_ontology_spine S4) — imported, not re-declared,
+# so the facets and the store can never disagree. An unmapped type
+# resolves to (None, None) — participants stay unlabeled rather than
+# confabulated, and the reconciliation report names it.
+from helpers.graph.derive_event_participants import EVENT_ROLE_BY_TYPE as _EVENT_ROLES  # noqa: E402
 
 _INCIDENCE_FACETS: tuple[tuple[str, str], ...] = (
     ("role", "TEXT"),
@@ -1024,7 +1036,7 @@ def _write_subsector_worklist(
     return wl
 
 
-def collect_hyperedges(
+def collect_hyperedges(  # noqa: C901
     conn, companies_dir: Path | None = None
 ) -> tuple[dict[str, dict[str, set[str]]], dict[tuple[str, str, str], float]]:
     """Regroup the source dyads into ``{edge_type: {label: set(members)}}``.
@@ -1089,18 +1101,46 @@ def collect_hyperedges(
     except sqlite3.OperationalError:
         pass  # no quotes table (fresh/test DBs) — unweighted edition sets
 
-    # S9: event hyperedges — one PER EVENT ROW (participants = entity +
-    # resolved counterparty). NOT grouped by (event_type, date, source_ref):
-    # measured 2026-09-13, 'derive:events:edge-promotion' + NULL date lumps
-    # 60 unrelated JVs together — provenance is not a happening key. Label
-    # carries the event id for traceability; properties carry the readable
-    # pair. Requires counterparty_entity (migrate 2e) — fresh DBs skip.
+    # S9: event hyperedges — one PER EVENT ROW (participants from the
+    # event_participants store, person_ontology_spine S4). NOT grouped by
+    # (event_type, date, source_ref): measured 2026-09-13, 'derive:events:
+    # edge-promotion' + NULL date lumps 60 unrelated JVs together —
+    # provenance is not a happening key. Label carries the event id for
+    # traceability; properties carry the readable pair. Reads the
+    # participant store when present (so any writer that adds a
+    # participant row grows the hyperedge — k≥3 arrives with data, not
+    # with this query), and falls back to the events-table pair when the
+    # store is absent (pre-v16 restores / fresh test DBs). Requires
+    # counterparty_entity (migrate 2e) — fresh DBs skip.
     try:
-        for eid, etype, ent, cp_ent in conn.execute(
-            "SELECT id, event_type, entity, counterparty_entity FROM events "
-            "WHERE counterparty_entity IS NOT NULL"
-        ):
-            out.setdefault("event", {})[f"{etype}:{eid}"] = {ent, cp_ent}
+        has_store = (
+            conn.execute(
+                "SELECT 1 FROM sqlite_master WHERE name='event_participants' AND type='table'"
+            ).fetchone()
+            is not None
+        )
+        ph = ", ".join("?" for _ in _EVENT_ROLES)
+        if has_store:
+            for eid, label in conn.execute(
+                "SELECT id, event_type || ':' || id FROM events ORDER BY id"
+            ):
+                members = {
+                    r[0]
+                    for r in conn.execute(
+                        "SELECT DISTINCT participant FROM event_participants WHERE event_id = ?",
+                        (eid,),
+                    )
+                }
+                if len(members) >= 2:
+                    out.setdefault("event", {})[label] = members
+        else:
+            _mapped = tuple(_EVENT_ROLES)
+            for eid, etype, ent, cp_ent in conn.execute(
+                "SELECT id, event_type, entity, counterparty_entity FROM events "  # noqa: S608  # ph is ? placeholders for a typed tuple
+                f"WHERE counterparty_entity IS NOT NULL AND event_type IN ({ph})",
+                _mapped,
+            ):
+                out.setdefault("event", {})[f"{etype}:{eid}"] = {ent, cp_ent}
     except sqlite3.OperationalError:
         pass  # events table absent (fresh test DBs)
 
@@ -1122,6 +1162,40 @@ def collect_hyperedges(
     )
 
     return out, weights
+
+
+def prune_stale_event_edges(
+    conn, wanted_labels: set[str], *, dry_run: bool = True
+) -> dict[str, int]:
+    """S1 density verdict (hyperedge_density_dq): the ``event`` family is
+    OWNED — it converges to the collect output.
+
+    Event labels embed their event id, so a label the collector no
+    longer produces is provably noise: either its event row was deleted
+    (measured live 2026-10-19: 115 such hyperedges — 102 k=1, 13 k=2 —
+    left behind by the additive apply) or the event now carries <2
+    participants (4 leftover singletons; the store path emits k≥2
+    only). Both classes are stale signal, not membership facts: unlike
+    industry/country singletons (a genuine one-member category), a
+    one-participant event carries NO co-membership. Delete by label;
+    the incidence FK cascade takes the memberships. Every other family
+    keeps the additive posture (their singletons are valid membership).
+    """
+    stored = {
+        label
+        for (label,) in conn.execute("SELECT label FROM hyper_edges WHERE edge_type = 'event'")
+    }
+    stale = sorted(stored - wanted_labels)
+    stats = {"stored": len(stored), "kept": len(stored & wanted_labels), "dropped": len(stale)}
+    if dry_run or not stale:
+        return stats
+    qmarks = ",".join("?" * len(stale))
+    with conn:
+        conn.execute(
+            f"DELETE FROM hyper_edges WHERE edge_type = 'event' AND label IN ({qmarks})",  # noqa: S608  # ?-placeholders only, values parameterized
+            stale,
+        )
+    return stats
 
 
 def apply_hyperedges(  # noqa: C901 — per-edge_type DDL + dry-run/apply branches mirror the store schema
@@ -1381,6 +1455,22 @@ def _cli(argv: list[str] | None = None) -> int:  # noqa: C901  # arg-dispatch CL
                     print(f"{hyper_type}\t{label}\t{len(members)} members")
 
         stats = apply_hyperedges(hyper, weights, conn=conn, dry_run=not args.apply, facets=facets)
+        # S1 density verdict: the event family converges to the collect
+        # output (stale labels + sub-threshold singletons drop).
+        wanted_events = set(hyper.get("event", {}))
+        if (
+            wanted_events
+            or conn.execute(
+                "SELECT 1 FROM hyper_edges WHERE edge_type = 'event' LIMIT 1"
+            ).fetchone()
+        ):
+            prune = prune_stale_event_edges(conn, wanted_events, dry_run=not args.apply)
+            if prune["dropped"]:
+                mode_p = "would drop" if not args.apply else "dropped"
+                print(
+                    f"S1 event-family convergence: {mode_p} {prune['dropped']} stale "
+                    f"hyperedge(s) of {prune['stored']} stored ({prune['kept']} kept)"
+                )
         print(
             f"{'source':<10} {'new_edges':>10} {'new_incidences':>15}"
             + (f"  ({len(weights)} weighted)" if weights else "")

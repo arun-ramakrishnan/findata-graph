@@ -157,7 +157,25 @@ class _MaintProject:
             "DELETE FROM entity_identifiers WHERE entity_name NOT IN (SELECT name FROM keep)"
         )
         dst.execute("DELETE FROM graph_analytics")  # recomputed by the chain
+        # graph_analytics_contract (arc 2, schema v14) FK-cascades to entities.
+        # The prune below runs with FK enforcement OFF (sqlite3 default), so a
+        # stranded contract row is invisible until foreign_key_check — which
+        # db_maint runs as a gate (measured: 3,006 violations). Prune it here.
+        dst.execute(
+            "DELETE FROM graph_analytics_contract WHERE entity_name NOT IN (SELECT name FROM keep)"
+        )
         dst.execute("DELETE FROM events")  # recomputed by the chain
+        # event_participants (schema v16) FK-cascades to events(id); with the
+        # events prune above it would strand every row (measured: 5,008 FK
+        # violations in foreign_key_check — db_maint gates on it). The chain
+        # does not re-derive the store; an absent table is the clean state.
+        dst.execute("DELETE FROM event_participants")
+        # speaker_identity (schema v15) person_name REFERENCES entities(name)
+        # ON DELETE SET NULL — but the prune runs with FK enforcement OFF,
+        # so pruned person entities strand the alias rows instead. Chain
+        # steps treat the table as optional (derive_hyperedges has_store
+        # path); delete it here too.
+        dst.execute("DELETE FROM speaker_identity")
         # hyper store is recomputed by the chain's derive-hyperedges step;
         # keeping it here would strand FK references after the entity prune
         dst.execute("DELETE FROM hyper_incidences")
@@ -363,7 +381,6 @@ def _shim_doc_search(p, mp, args):
     # is otherwise hermetic; the local embedder is pinned off by conftest
     # (pseudo path), so this stays green on machines without the model.
     mp.setattr(rds, "DOC_DB", p.root / "doc_search.db")
-    mp.setattr(rds, "BACKUP_DIR", p.root / "db-backup")
     return _rc(rds.main(["--db", str(p.root / "doc_search.db")]))
 
 

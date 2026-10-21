@@ -13,11 +13,11 @@ import sqlite3
 
 import pytest
 
-from tests.schema import EDGES_12COL, ENTITIES_8COL, ENTITY_TAGS  # noqa: E402
+from tests.schema import EDGES_12COL, ENTITIES_8COL, ENTITY_TAGS, HYPER_STORE  # noqa: E402
 
 pytestmark = [pytest.mark.integration]
 
-_SCHEMA = "".join([ENTITIES_8COL, ENTITY_TAGS, EDGES_12COL])
+_SCHEMA = "".join([ENTITIES_8COL, ENTITY_TAGS, EDGES_12COL, HYPER_STORE])
 
 
 @pytest.fixture
@@ -221,13 +221,20 @@ class TestParseNewsletterDbConsistency:
         # Note file on disk
         assert (tmp / file_path).exists()
 
-        # Bidirectional edges
-        edges = conn.execute(
-            "SELECT edge_type FROM graph_edges WHERE source='HDFC Bank' OR target='HDFC Bank'"
+        # Sector membership is canonical in the incidence store (2026-10-19
+        # part_of/has_company retirement); no dyads are written.
+        members = conn.execute(
+            "SELECT he.label FROM hyper_incidences hi "
+            "JOIN hyper_edges he ON he.id = hi.edge_id "
+            "WHERE hi.entity_name='HDFC Bank' AND he.edge_type='sector'"
         ).fetchall()
-        edge_types = [e["edge_type"] for e in edges]
-        assert "part_of" in edge_types
-        assert "has_company" in edge_types
+        assert [m["label"] for m in members] == ["Banking"]
+        assert (
+            conn.execute(
+                "SELECT COUNT(*) AS n FROM graph_edges WHERE edge_type IN ('part_of','has_company')"
+            ).fetchone()["n"]
+            == 0
+        )
 
     def test_create_entity_idempotent(self, p8_env):
         from helpers.core.parse_newsletter import create_entity, get_sector_entities

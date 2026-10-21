@@ -28,7 +28,12 @@ bodies, the private-content class the git snapshot excludes, so db-backup
 is its only copy — added 2026-09-04) and ``db-backup/graph_backup.duckdb.zst`` (DuckDB cache). These
 are deliberately kept distinct from ``snapshot_db.py``'s
 ``db-backup/research.snapshot.db.zst`` and ``db-backup/graph.snapshot.duckdb.zst``
-(which are POST-mutation, gzipped, and git-tracked). Distinct purposes:
+(which are POST-mutation, gzipped, and git-tracked). 2026-10-19 census
+re-run (production_db_copy_audit addendum): the convo_search FTS sidecar
+was RETIRED from this lane — a derived lookup index, zero unique content,
+rebuild is a mechanical re-index. The embed-store twin STAYS: it is the
+downtime-window insurance that rescued multiple cache-blowout incidents
+(2-5 h re-embed each), operator reaffirmed 2026-10-19. Distinct purposes:
   - ``research_backup.db.zst`` / ``graph_backup.duckdb.zst``
                                  : recovery if VACUUM corrupts (rare but
                                    possible; overwritten each run, not
@@ -475,7 +480,14 @@ class DBMaintainer:
         (pre-migration clones and tests that seed one); otherwise the
         shared EMBED_DB_PATH store is backed up as ``embed_store_backup.db``
         beside this run's backup. Same WAL-consistent sqlite online-backup
-        as _backup; absent state just skips."""
+        as _backup; absent state just skips.
+
+        2026-10-19 census re-run: a proposal to retire this twin was
+        REJECTED by the operator — this backup is the downtime-window
+        insurance that rescued multiple embed-cache blowout incidents
+        (2-5 h of re-embed work each). Size is not the factor; the
+        disruption window is. Growth past its filing size is sanctioned
+        (production_db_copy_audit addendum)."""
         vec_src = self.db_path.with_name(self.db_path.name + "_vec.db")
         if vec_src.exists():
             src, dst = (
@@ -579,19 +591,20 @@ class DBMaintainer:
             tmp_path.unlink(missing_ok=True)
 
     def _backup_convo_search(self) -> int:
-        """Recovery copies of the convo_search index pair.
+        """Recovery copy of the convo_search primary (vectors included).
 
         ``memory/convo_search.duckdb`` (pointers + snippets + vectors)
-        and its FTS5 sidecar ``memory/convo_search_fts.db`` are both
-        rebuildable from the corpus — but the rebuild is not free: a cold
-        run embeds 50k+ texts and the pool lane took 2h10m on 2026-09-27.
-        A restored corpus + a restored embed_store already avoids the
-        re-embed, so these copies are the second line of defence against
-        losing the derived pair outright (operator decision: 2h+ runs are
-        worth a backup). Skipped silently while a rebuild holds the lock.
+        stays backed up: the embed-store twin (same lane, downtime-window
+        insurance — see _backup_embed_store) plus this copy together
+        avoid the 2h10m cold re-embed pool lane (2026-09-27). The FTS5
+        sidecar ``memory/convo_search_fts.db`` was RETIRED from this
+        lane 2026-10-19 (production_db_copy_audit addendum, operator
+        ruling): a derived lookup index with zero unique content —
+        rebuild is a mechanical re-index from the corpus tar,
+        minutes-class (convo_search_swap_rebuild, completed.md #355).
+        Skipped silently while a rebuild holds the lock.
         """
         from helpers.maintenance.rebuild_convo_search import (
-            FTS_DB_NAME,
             REPO,
         )
 
@@ -599,13 +612,6 @@ class DBMaintainer:
         total = self._duckdb_zstd_backup(
             idx, self.backup_path.parent / "convo_search_backup.duckdb", label="convo_search index"
         )
-        fts = idx.parent / FTS_DB_NAME
-        if fts.exists() and fts.stat().st_size:
-            total += self._sqlite_zstd_backup(
-                fts,
-                self.backup_path.parent / "convo_search_fts_backup.db",
-                label="convo_search FTS sidecar",
-            )
         return total
 
     def _backup_convo_corpus(self) -> int:

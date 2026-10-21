@@ -176,6 +176,26 @@ def _create_schema(conn: sqlite3.Connection) -> None:
             FOREIGN KEY (entity_name) REFERENCES entities(name)
                 ON DELETE CASCADE ON UPDATE CASCADE
         );
+        -- part_of/has_company retirement (2026-10-19): the canonical sector
+        -- membership store the relations checks now validate.
+        CREATE TABLE hyper_edges (  -- noqa: E501
+            id INTEGER PRIMARY KEY,
+            edge_type TEXT NOT NULL,
+            label TEXT NOT NULL,
+            weight REAL NOT NULL DEFAULT 1.0,
+            valid_from DATE, valid_to DATE,
+            source_ref TEXT NOT NULL,
+            properties TEXT NOT NULL DEFAULT '{}',
+            created_at DATETIME,
+            UNIQUE(edge_type, label)
+        );
+        CREATE TABLE hyper_incidences (
+            edge_id INTEGER NOT NULL,
+            entity_name TEXT NOT NULL,
+            weight REAL, direction TEXT, role TEXT,
+            valid_from DATE, valid_to DATE,
+            PRIMARY KEY (edge_id, entity_name)
+        );
         """
     )
 
@@ -220,14 +240,12 @@ def integrity_db(fake_vault):
             ("Banking", "sector", "findata/Sectors/Banking.md", "Banking"),
         ],
     )
-    # A clean bidirectional pair: Good Bank <-> Banking.
-    conn.executemany(
-        "INSERT INTO relations (source, target, relation_type) VALUES (?, ?, ?)",
-        [
-            ("Good Bank", "Banking", "part_of"),
-            ("Banking", "Good Bank", "has_company"),
-        ],
+    # A clean sector membership (canonical incidence store, 2026-10-19).
+    conn.execute(
+        "INSERT INTO hyper_edges (id, edge_type, label, source_ref) "
+        "VALUES (1, 'sector', 'Banking', 'seed')"
     )
+    conn.execute("INSERT INTO hyper_incidences (edge_id, entity_name) VALUES (1, 'Good Bank')")
     conn.commit()
     conn.close()
 
@@ -323,15 +341,34 @@ _UNIT_TAGS = [
 ]
 
 # (source, target, edge_type, source_ref)
+#
+# NB: no part_of/has_company rows — sector membership is CANONICAL in the
+# incidence store since the 2026-10-19 retirement, and the pair is projected
+# on read by helpers/graph/query.py (see _UNIT_MEMBERSHIP below). Seeding the
+# dyads here would both duplicate the projection and resurrect a retired type.
 _UNIT_EDGES = [
-    ("HDFC Bank", "Banking", "part_of", "seed"),
-    ("Banking", "HDFC Bank", "has_company", "seed"),
-    ("ICICI Bank", "Banking", "part_of", "seed"),
-    ("Infosys", "Technology", "part_of", "seed"),
-    ("No Ticker Co", "Technology", "part_of", "seed"),
     ("HDFC Bank", "ICICI Bank", "competes_with", "seed"),
     ("ICICI Bank", "Infosys", "subsidiary_of", "seed"),
 ]
+
+# (sector, member) — the canonical sector-membership store for the unit seed.
+_UNIT_MEMBERSHIP = [
+    ("Banking", "HDFC Bank"),
+    ("Banking", "ICICI Bank"),
+    ("Technology", "Infosys"),
+    ("Technology", "No Ticker Co"),
+]
+
+# The pair as READERS see it: query.py projects both directions out of the
+# store, so the API/property-graph surface reports these tuples even though
+# no graph_edges row carries them (symmetric by construction — the retired
+# dyad pair could be asymmetric, a single incidence cannot).
+_UNIT_PROJECTED = [(member, sector, "part_of", "seed") for sector, member in _UNIT_MEMBERSHIP] + [
+    (sector, member, "has_company", "seed") for sector, member in _UNIT_MEMBERSHIP
+]
+
+# What a reader-facing assertion should count: stored dyads + the projection.
+_UNIT_ALL_EDGES = _UNIT_EDGES + _UNIT_PROJECTED
 
 
 @contextmanager

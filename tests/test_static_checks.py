@@ -268,6 +268,13 @@ _SQLITE3_CONNECT_ALLOWLIST = {
     # very store the harvester must never disturb, and would create an empty
     # db if the harness has none.
     "helpers/maintenance/harvest_conversations.py",
+    # Read-only mode=ro URI open of the HARNESS's own live store (the
+    # billion-context plugin's index.db, which holds the compressed block
+    # store) to read the tier pools. A read-write connect() would take a
+    # write lock on the very store the tool must never disturb, and would
+    # create an empty db when the store is missing. connect() also targets
+    # research.db, a different database.
+    "helpers/analytics/bili_tier_nudge.py",
     # Read-only mode=ro URI open of a SIDECAR file (the convo FTS5 sidecar).
     # connect() would open it read-write and CREATE an empty db when the
     # sidecar is missing — mode=ro must fail loudly instead of leaving a

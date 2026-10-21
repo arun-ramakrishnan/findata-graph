@@ -76,10 +76,6 @@ from helpers.maintenance import rebuild_common as rbc  # noqa: E402
 # constants silently point tests at the live vault — tests MUST retarget both).
 DOC_ROOT = _REPO_ROOT / "doc"
 DOC_DB = _REPO_ROOT / "memory" / "doc_search.db"
-# Local-only recovery point (gitignored db-backup/ — NEVER the git-tracked
-# snapshots/parquet export: the sidecar carries doc/local/ plaintext and
-# must stay structurally un-publishable). Monkeypatchable for tests.
-BACKUP_DIR = _REPO_ROOT / "db-backup"
 
 DOC_EXTS = {".md", ".txt"}
 
@@ -514,72 +510,6 @@ def _stamp_model(conn: sqlite3.Connection, model_label: str, dims: int) -> None:
     )
 
 
-def _backup_file(src: Path, dest: Path) -> bool:
-    """One-file sidecar copy via the sqlite3 backup API (WAL-safe; handles
-    FTS5 shadow tables the way snapshot_db.py does), stored zstd-compressed
-    as ``<dest>.zst`` (snapshot_parallel_and_compressed_backups.md D2 —
-    the plain copy exists only as a temp staging file). Returns success.
-
-    Connections come from the house helper with FK/WAL off — this is a
-    byte-transfer, not a working session, and the staging copy stays
-    plain-journal (no -wal sidecar next to the backup). Manual restore:
-    ``zstd -dc db-backup/doc_search_backup.db.zst > doc_search.db``."""
-    import tempfile
-    from pathlib import Path as _Path
-
-    from helpers.core.db import connect as _db_connect
-    from helpers.core.zstd_io import compress_file, zst_path
-
-    zst_dest = zst_path(dest)
-    try:
-        with tempfile.NamedTemporaryFile(suffix=".db", dir=dest.parent, delete=False) as tf:
-            tmp = _Path(tf.name)
-        try:
-            src_conn = _db_connect(src, enable_fk=False, wal=False)
-            dest_conn = _db_connect(tmp, enable_fk=False, wal=False)
-            try:
-                src_conn.backup(dest_conn)
-            finally:
-                src_conn.close()
-                dest_conn.close()
-            if zst_dest.exists():
-                zst_dest.unlink()
-            compress_file(tmp, zst_dest)
-            return True
-        finally:
-            tmp.unlink(missing_ok=True)
-    except sqlite3.Error:
-        return False
-
-
-def _backup_last_good_index(db_path: Path) -> None:
-    """Last-good recovery copy of the INDEX into db-backup/.
-
-    Runs AFTER a successful FULL rewrite (last-good-state semantics: a
-    failed rebuild rolls back and the previous run's backup survives; the
-    first rebuild's backup is the first good index, not the empty
-    pre-state). Not run for --check / --incremental. Best-effort with a
-    WARNING — a failed backup must not fail the rebuild. db-backup/ is
-    gitignored local scratch, matching the research_backup.db pattern of
-    db_maint — the git-tracked parquet snapshot deliberately does NOT
-    cover this DB (doc/local/ plaintext locality).
-
-    The embed cache used to ride along as a paired ``<index>_vec.db`` twin;
-    since the embed_store consolidation it lives in the shared store and is
-    covered centrally instead (db_maint._backup_embed_store + the snapshot
-    gzip stream) — never here.
-    """
-    rbc.backup_last_good_index(
-        db_path,
-        rbc.IndexBackupSpec(
-            backup_dir=BACKUP_DIR,
-            table="doc_search",
-            dest_name="doc_search_backup.db",
-            copier=_backup_file,
-        ),
-    )
-
-
 def _migrate_schema(conn: sqlite3.Connection) -> bool:
     """Drop a stale doc_search so the new DDL applies (FTS5 can't ALTER TABLE
     ADD COLUMN; the full rebuild repopulates anyway). True if dropped."""
@@ -811,8 +741,6 @@ def rebuild(  # noqa: C901
             stats["indexed"] = conn.execute("SELECT COUNT(*) FROM doc_search").fetchone()[0]
             stats["mode"] = "full"
             stats["content_changed"] = content_changed
-            # Last-good-state recovery point (local db-backup/ only).
-            _backup_last_good_index(db_path)
             if _mt:
                 _mt.record_phase("write", _write_started, datetime.now())
             return stats

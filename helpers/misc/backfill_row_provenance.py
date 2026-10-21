@@ -68,6 +68,8 @@ PREFIX_AGENTS: tuple[tuple[str, str, str], ...] = (
     ("derive:themes", "derive_themes", "derive"),
     ("derive:cited_in", "derive_cited_in", "derive"),
     ("derive:countries", "derive_countries", "derive"),
+    ("derive:org_membership", "derive_org_membership", "derive"),
+    ("derive:event_participants", "derive_event_participants", "derive"),
     ("derive:relations", "extract_relations", "derive"),
     ("derive:sector_hierarchy", "build_sector_hierarchy", "derive"),
     ("embeddings", "enrich_relations", "derive"),
@@ -105,6 +107,14 @@ AGENT_SEED: dict[str, tuple[str, str | None]] = {
     "derive_themes": ("derive_themes", "helpers/graph/derive_themes.py"),
     "derive_cited_in": ("derive_cited_in", "helpers/graph/derive_cited_in.py"),
     "derive_countries": ("derive_countries", "helpers/graph/derive_countries.py"),
+    "derive_org_membership": (
+        "derive_org_membership (person_ontology_spine S3)",
+        "helpers/graph/derive_org_membership.py",
+    ),
+    "derive_event_participants": (
+        "derive_event_participants (person_ontology_spine S4)",
+        "helpers/graph/derive_event_participants.py",
+    ),
     "extract_relations": ("extract_relations", "helpers/graph/extract_relations.py"),
     "build_sector_hierarchy": ("build_sector_hierarchy", "helpers/graph/build_sector_hierarchy.py"),
     "enrich_relations": (

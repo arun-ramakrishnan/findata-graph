@@ -89,19 +89,29 @@ query: JOIN two tag aliases for tag intersection.
 
 ## `graph_edges` — canonical edge store
 
-Directed links; supersedes the `relations` table. 19,325 rows across 20
-registered edge types — 19 populated; `penalized_by` is registered with
+Directed links; supersedes the `relations` table. 62,433 rows across 19
+registered edge types — 18 populated; `penalized_by` is registered with
 zero rows (counts + symmetric convention: `graph_design.md` §4,
-refreshed 2026-09-14).
-Producers: `parse_newsletter`/`markdown_parse` (membership pair),
+refreshed 2026-10-19).
+Producers: `parse_newsletter`/`markdown_parse` (sector membership → the
+canonical `hyper_edges` store, NOT this table),
 `extract_relations.py` (company↔company from prose),
 `derive_{co_mentions,themes}.py`, `build_sector_hierarchy.py`.
+
+**`part_of`/`has_company` are RETIRED as stored types (2026-10-19).**
+Sector membership is canonical in `hyper_edges`/`hyper_incidences` (the
+`sector` family, 42 edges / 1,208 incidences) and the pair is projected
+on read by `helpers/graph/query.py::_materialise_sector_membership` into
+the DuckDB cache (`e_belongs`, `e_has`, and both directions in the walk
+substrate). The labels remain valid downstream; no row here carries them,
+so a stray insert reads as `unknown_type`. Retirement evidence and the
+absorption gate: `doc/improvements/archive/database/partof_hascompany_retirement.md`.
 
 | Column | Type | Notes |
 |---|---|---|
 | `id` | INTEGER PK | autoincrement |
 | `source` / `target` | TEXT | FK → `entities(name)` cascade |
-| `edge_type` | TEXT | 20 registered values (19 populated; `penalized_by` zero rows), `graph_design.md` §4 |
+| `edge_type` | TEXT | 19 registered values (18 populated; `penalized_by` zero rows), `graph_design.md` §4 |
 | `weight` | REAL | default 1.0 |
 | `properties` | TEXT | JSON; `CHECK (json_valid(...))` |
 | `valid_from` / `valid_to` | DATE | temporal window; NULL valid_from = always-valid, NULL valid_to = current |
@@ -145,13 +155,57 @@ One row per derived/manual company event. Populated by
 
 **Indexes:** entity_type, date, type.
 
+## `event_participants` — resolved event membership (v16, S4)
+
+The n-ary join every event consumer should read instead of re-pairing
+`entity`+`counterparty_entity`. Written ONLY by
+`helpers/graph/derive_event_participants.py`
+(`make derive-event-participants`), which OWNS the table: per-event
+delete+replace inside one transaction, so re-runs converge and removed
+events converge away. Roles come from that module's
+`EVENT_ROLE_BY_TYPE` — the single source of truth also imported by
+`derive_hyperedges` for incidence facets:
+
+| `event_type` | `(entity, counterparty)` roles |
+|---|---|
+| `acquisition` | `acquirer`, `target` |
+| `jv` | `partner`, `partner` |
+| `guidance` | `issuer` (counterparty carries no row) |
+| `management_change` | `subject` (counterparty carries no row) |
+
+Unknown event types carry NO rows — never confabulate a role.
+
+| Column | Type | Notes |
+|---|---|---|
+| `event_id` | INTEGER | FK → `events(id)` ON DELETE/UPDATE CASCADE, part of PK |
+| `participant` | TEXT | FK → `entities(name)` ON DELETE/UPDATE CASCADE, part of PK |
+| `role` | TEXT | `acquirer` \| `target` \| `partner` \| `issuer` \| `subject`, part of PK |
+| `source_ref` | TEXT | `derive:event_participants` |
+| `created_at` | DATETIME | |
+
+**Indexes:** PK `(event_id, participant, role)` (idempotent re-apply);
+`idx_event_participants_participant` (reverse lookups).
+
+Landing (2026-10-19, completed.md arc-5 S4): 1,477 events → 2,610 rows
+(`partner` 2,152, `issuer` 337, `acquirer`/`target` 59 each,
+`subject` 3). Consumers: `derive_hyperedges` builds the `event`
+hyperedge family from `SELECT DISTINCT participant` per event when the
+store exists (k≥3 arrives with data — any writer adding a participant
+row grows the hyperedge), falling back to the `events` pair query only
+on pre-v16 restores. A speaker→event join was measured and REJECTED:
+`events.as_of_edition` holds free-text section titles vs `quotes`
+edition stems (0/1,477 join), `source_quote` exact-matches 0 quote
+rows, 40-char substring rescue 14/461 — 3%, not a mechanism.
+
 ## `quotes` — concall quote capture
 
 Verbatim executive quotes from `## [Concall]` blocks, extracted by
 `helpers/graph/derive_insights.py --apply` (`make derive-insights` is the
 dry-run preview) as
-paraphrase → quote → `— Name, Title` units. Speakers are string
-attributes, NOT entities (D6 deferral).
+paraphrase → quote → `— Name, Title` units. Speakers are stored as
+STRINGS; the D6 deferral was retired by `person_ontology_spine` S2, which
+resolves them to persons through the `speaker_identity` map below rather
+than by rewriting these rows (see that section).
 
 | Column | Type | Notes |
 |---|---|---|
@@ -168,6 +222,47 @@ attributes, NOT entities (D6 deferral).
 
 **UNIQUE(entity, quote_text, as_of_edition)**. Indexes: `(entity,
 as_of_edition)` (timeline query), speaker.
+
+## `speaker_identity` — quote-speaker resolution map (v15)
+
+`person_ontology_spine` S2. One row per DISTINCT `quotes.speaker_name`
+string, mapping the attribution spelling onto the canonical speaker and —
+where a person entity exists — onto that entity. Resolution lives in the
+map, not on `quotes`, because the decision is many-to-one at SPEAKER
+level: a column would duplicate it across 8,687 quote rows and would go
+stale for every future quote.
+
+Written by `helpers/graph/speaker_resolution.py` (`make speaker-resolve`;
+dry-run default, `--apply` writes the map, `--mint` additionally mints
+person entities, `--report` prints coverage).
+
+| Column | Type | Notes |
+|---|---|---|
+| `alias_name` | TEXT PK | the raw `speaker_name` string, verbatim |
+| `canonical_name` | TEXT | the chosen display spelling for that speaker |
+| `person_name` | TEXT | FK → `entities(name)` ON DELETE SET NULL ON UPDATE CASCADE; NULL when no person entity holds the identity |
+| `source_ref` | TEXT | `speaker_resolution:S2` |
+| `created_at` | DATETIME | |
+
+Index: `idx_speaker_identity_person` on `person_name`.
+
+`v_quote_speaker` joins `quotes` to this map on
+`alias_name = quotes.speaker_name`, exposing `quote_id`, `quoted_entity`,
+`alias_name`, `speaker_title`, `canonical_name`, `person_name`. It is a
+LEFT JOIN, so unresolved strings stay readable as strings — the "unmatched
+speakers stay unmatched and are counted" half of the S2 contract.
+
+Live (2026-10-19, map + operator-sanctioned `--mint`): **1,419
+aliases**, **985 linked to a person entity**, **973 persons minted**
+(person entities 277 → 1,250, all pathless like the SHP-lane persons) —
+**5,743 of 6,269** speaker-bearing quote rows resolve (91.6%); the
+unlinked remainder is singletons under the `--min-quotes 2` threshold
+plus the reported refusals: ~20 canonical names already taken by an
+entity of another type (misclassified companies — e.g. Anmol Jain,
+Deepak Joshi exist as `company`) and 3 company-shaped attributions
+(`Camshafts Limited`, `Management Ather Energy`, `Power Ventures
+Limited`). Refusals are reported, never force-merged (NEVER-MERGE
+ledger: HUF never merges into an individual, #293).
 
 ## `company_metrics` — financial magnitude capture
 
@@ -222,38 +317,71 @@ refresh policy:
 `/api/graph/metrics/<metric>` does a prefix SEARCH with free ORDER BY.
 No query filters by entity_name alone.
 
+## `graph_analytics_contract` — the served-universe contract (S1, v14)
+
+Created by `helpers/maintenance/seed_analytics_contract.py` (schema v14,
+canonical-only like concepts — no DuckDB cache bump). Breaks the
+self-referential loop where the routed centralities' served universe was
+derived from `graph_analytics` itself (`SELECT DISTINCT entity_name …
+WHERE metric = ?`) — a frozen 1,732-name top-N accumulation (8.6% of the
+20,044-node universe at seed time). Seeded 2026-10-19: 1,732 names × 3
+served metrics (closeness/harmonic/betweenness), `seq` = legacy query
+order — order is part of the contract (`scipy_bridge.source_positions`).
+Readers: `scipy_bridge.contract_sources` (the single contract reader —
+the L1B lane's inline copy collapsed onto it); absent-or-empty table →
+legacy self-read fallback, so fresh/pre-v14-restored stores serve
+unchanged. `graph_analytics` rows are pure cache from here; growth
+happens only via the seed/grow path (S2 top-N-by-degree — future slice),
+never as a capped run's side effect.
+
+| Column | Type | Notes |
+|---|---|---|
+| `metric` | TEXT | served metrics only (3 live) |
+| `entity_name` | TEXT | FK cascade — the delete/rename self-healing moved here |
+| `seq` | INTEGER | seed-time order, the serving order |
+| `origin` | TEXT | `seed` (S2 `grow` lands later) |
+| `seeded_at` | DATETIME | |
+
+**PRIMARY KEY (metric, entity_name)** — metric-first, matching the
+reader's only access pattern.
+
 ## `hyper_edges` — hypergraph incidence layer (star store)
 
 Set-valued facts as first-class rows (hypergraph_incidence_hyx proposal,
 2026-09-13; source memo `doc/local/evaluations/hyper_graph_assessment.md`).
 A category IS a hyperedge here (its members via `hyper_incidences`) instead
 of a materialised star of dyads — star expansion is storage truth, the
-`graph_edges` clique projections stay derive-time views. Live (2026-09-14,
-after S5/S8–S11 + S17/S21): 469 hyperedges / 5,659 incidences over 9 edge types
-(`sector` 42, `theme` 12, `country` 21, `group` 8, `edition` 109 — the S8
-quotes union, weighted — `industry` 117, `event` 110, `jv` 6, `sub_sector` 55
-— S11's curated + S17's grown industry→canonical map, the first
-company→sub_sector linkage in the store. D7 (2026-09-15): an authored
-`subsector:` note field is CANONICAL per company — exclusive precedence
-over the alias-derived union; unknown values are worklisted, never fatal;
-`sync_tags` mirrors it as `subsector/<slug>` in `entity_tags`).
+`graph_edges` clique projections stay derive-time views. Live (2026-10-19,
+after the sector-retirement projection, S8/S11/S17/S21 and the
+`org_membership` family): 1,827 hyperedges / 10,266 incidences over 10
+types (`event` 1,252, `edition` 222, `industry` 119, `sub_sector` 110,
+`sector` 42 — CANONICAL for membership since the part_of/has_company
+retirement, `org_membership` 34 — person_ontology_spine S3,
+`country` 21, `theme` 12, `group` 9, `jv` 6).
+D7 (2026-09-15): an authored `subsector:` note field is CANONICAL per
+company — exclusive precedence over the alias-derived union; unknown
+values are worklisted, never fatal; `sync_tags` mirrors it as
+`subsector/<slug>` in `entity_tags`.
 
 | Column | Type | Notes |
 |---|---|---|
 | `id` | INTEGER PK | |
-| `edge_type` | TEXT | `sector` \| `theme` \| `country` \| `group` \| `edition` \| `industry` \| `event` \| `jv` \| `sub_sector` |
-| `label` | TEXT | the hyperedge's own name (category, edition title, group, venture, `event_type:id`) |
+| `edge_type` | TEXT | `sector` \| `theme` \| `country` \| `group` \| `edition` \| `industry` \| `event` \| `jv` \| `sub_sector` \| `org_membership` |
+| `label` | TEXT | the hyperedge's own name (category, edition title, group, venture, `event_type:id`, company for `org_membership`) |
 | `weight` | REAL | default 1.0; per-hyperedge weight |
 | `valid_from` / `valid_to` | DATE | temporal window (HIF-compatible) |
-| `source_ref` | TEXT | provenance: `derive:hyperedges:<upstream>` (edition: `co_mentioned_in+quotes`) |
-| `agent_id` / `source_tier` | TEXT | row provenance (S1), converged from `source_ref` prefixes |
+| `source_ref` | TEXT | provenance: `derive:hyperedges:<upstream>` (edition: `co_mentioned_in+quotes`; `org_membership`: `derive:org_membership`; canonical `sector`: `sector_membership`) |
+| `agent_id` / `source_tier` | TEXT | row provenance (S1), stamped by the writer and converged from `source_ref` prefixes on restore |
 | `properties` | TEXT | JSON; `CHECK (json_valid(...))`; carries `n_members`, `upstream_types`; event hyperedges add the S4 facet keys below |
 | `created_at` | DATETIME | |
 
 **Constraints:** `UNIQUE(edge_type, label)` (backfill idempotency key).
-Written ONLY by `helpers/graph/derive_hyperedges.py` (`make
-derive-hyperedges`; maint-full TIER2). Columns are HIF-lossless — the JSON
-interchange schema maps 1:1 onto the pair (memo §9.4).
+Written by the per-family lanes: `helpers/graph/derive_hyperedges.py`
+(`make derive-hyperedges`; maint-full TIER2) for the derived families,
+`helpers/graph/sector_membership.py` for canonical `sector`,
+`helpers/graph/derive_org_membership.py` (`make derive-org-membership`)
+for `org_membership`. Columns are HIF-lossless — the JSON interchange
+schema maps 1:1 onto the pair (memo §9.4).
 
 ## `hyper_incidences` — hypergraph membership rows
 
@@ -271,7 +399,7 @@ directed-hypergraph parity and is still NULL (no directed source yet);
 | `entity_name` | TEXT | PK part; FK → `entities(name)` cascade |
 | `weight` | REAL | per-incidence intensity (HIF granularity 2); NULL = unweighted |
 | `direction` | TEXT | `head` \| `tail` \| NULL (undirected); CHECK-enforced |
-| `role` | TEXT | participant role (S4): `acquirer`/`target` (acquisition), `partner` (jv); NULL = unlabeled — unmapped types never confabulate |
+| `role` | TEXT | participant role: event facets (S4) `acquirer`/`target` (acquisition), `partner` (jv); `org_membership` members carry `promoter`/`holder` (S3); NULL = unlabeled — unmapped types never confabulate |
 | `valid_from` / `valid_to` | DATE | participant-level validity window (S4); NULL = unbounded |
 
 **S4 event facets (live 2026-09-14):** 220 role-tagged incidences (41
@@ -396,12 +524,12 @@ counts toward the exit code, WARNING is advisory.
 
 | Check | Sev | Catches |
 |---|---|---|
-| `check_relations` | error | unknown edge type, self-loops, orphaned endpoints, part_of↔has_company direction/symmetry, belongs_to/exposed_to endpoint-kind mismatches |
+| `check_relations` | error | unknown edge type, self-loops, orphaned endpoints, sector-hyperedge endpoint kinds (member must be a company, label must be a sector), belongs_to/exposed_to endpoint-kind mismatches |
 | `check_entity_tags` | error | orphaned tag rows (rename-without-cascade) |
 | `check_events` | error | unknown event_type, orphaned entity, bad JSON |
 | `check_quotes` | error | orphaned quote rows (FK-off rename/delete), malformed `properties` JSON; tolerates a DB without the table yet |
 | `check_company_metrics` | error | same shape for `company_metrics`: orphaned entity, malformed `properties` JSON |
-| `check_orphan_companies` | error | companies with no `part_of` sector edge |
+| `check_orphan_companies` | error | companies with no sector hyperedge membership (falls back to `part_of` only when the incidence store is absent) |
 | `check_hierarchy` | error | taxonomy completeness/structure: orphans, multi-parents, cycles, drift vs `build_sector_hierarchy.py` |
 | `check_market_cap_conflicts` | error | >1 `market_cap/*` tag (DuckDB MIN(tag) picks silently; `dedupe_market_cap_tags.py`) |
 | `check_cache_consistency` | error | DuckDB↔SQLite drift: `_build_meta.schema_version` + per-table counts; SKIPS (advisory) if cache absent |

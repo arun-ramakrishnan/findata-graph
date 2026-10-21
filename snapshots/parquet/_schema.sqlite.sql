@@ -257,6 +257,36 @@ CREATE TABLE company_embeddings (
 
 CREATE TABLE db_bump_log ( ts TEXT NOT NULL, caller TEXT NOT NULL, worktree TEXT NOT NULL, generation INTEGER NOT NULL);
 
+CREATE TABLE graph_analytics_contract (
+    metric      TEXT NOT NULL,
+    entity_name TEXT NOT NULL
+                  REFERENCES entities(name) ON DELETE CASCADE ON UPDATE CASCADE,
+    seq         INTEGER NOT NULL,
+    origin      TEXT NOT NULL DEFAULT 'seed',
+    seeded_at   DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (metric, entity_name)
+);
+
+CREATE TABLE speaker_identity (
+    alias_name     TEXT PRIMARY KEY NOT NULL,
+    canonical_name TEXT NOT NULL,
+    person_name    TEXT REFERENCES entities(name)
+                     ON DELETE SET NULL ON UPDATE CASCADE,
+    source_ref     TEXT NOT NULL,
+    created_at     DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE event_participants (
+    event_id    INTEGER NOT NULL
+                  REFERENCES events(id) ON DELETE CASCADE ON UPDATE CASCADE,
+    participant TEXT    NOT NULL
+                  REFERENCES entities(name) ON DELETE CASCADE ON UPDATE CASCADE,
+    role        TEXT    NOT NULL,
+    source_ref  TEXT    NOT NULL,
+    created_at  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (event_id, participant, role)
+);
+
 CREATE INDEX idx_entity_tags_tag ON entity_tags(tag);
 
 CREATE INDEX idx_entities_sector_classification ON entities(sector_classification);
@@ -297,9 +327,23 @@ CREATE INDEX hi_entity_idx ON hyper_incidences(entity_name);
 
 CREATE INDEX idx_emb_company ON company_embeddings(company_name);
 
+CREATE INDEX idx_speaker_identity_person ON speaker_identity(person_name);
+
+CREATE INDEX idx_event_participants_participant ON event_participants(participant);
+
 CREATE VIEW relations AS
     SELECT source, target, edge_type AS relation_type
     FROM graph_edges;
+
+CREATE VIEW v_quote_speaker AS
+SELECT q.id            AS quote_id,
+       q.entity        AS quoted_entity,
+       q.speaker_name  AS alias_name,
+       q.speaker_title AS speaker_title,
+       si.canonical_name,
+       si.person_name
+FROM quotes q
+LEFT JOIN speaker_identity si ON si.alias_name = q.speaker_name;
 
 CREATE TRIGGER graph_edges_agent_id_registered_insert
 BEFORE INSERT ON "graph_edges"
