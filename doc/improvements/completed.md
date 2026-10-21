@@ -12028,3 +12028,27 @@ landed through `connect()` transactions with the duckdb cache rebuilt
 after each graph write). Sidecar at 12 standing prose rows (recurring
 unresolved noise: list-chunks, self-mentions — normal triage
 population).
+
+## 429. D10 — hyper-native link prediction + the HGX unlock shelf
+
+**Date**: 2026-10-22
+**Status**: COMPLETE (S1 lane + S2 eval bank + S3 truth pass; UI/API promotion stays D15-gated)
+
+Integration of `doc/improvements/archive/graph/hyper_link_prediction_d10.md`
+(read that for the full narrative). First-party lane over HypergraphX 1.8.0
+primitives (HGX ships no prediction module), star-native only, no clique
+projection.
+
+**Landed:**
+- `helpers/graph/hyper_predict.py` — three score lanes (jaccard,
+  s-walk connectance at s∈{2,3}, stationary-π via RW_stationary_state),
+  per prediction-grade family (edition/theme/sector/industry/sub_sector/
+  org_membership); report-first; `--apply` (D13 opt-in) persists per-node
+  candidate lists under the `hyper_link_prediction` metric; `event`/`jv`/
+  `country` stay opt-in.
+- `helpers/bench/hyper_predict_bank.py` — temporal split + retrospective
+  holdout, recall@k per family/lane, one-command re-measure.
+- `doc/improvements/pending.md` — HGX D10 entry annotated as landed
+  (S1); unlock shelf (motifs, multi-order Laplacian, s-walk paths, RW
+  density, community lanes 2-4, reducibility) recorded with reopen
+  triggers, not executed this arc.

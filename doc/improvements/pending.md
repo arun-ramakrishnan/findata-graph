@@ -248,6 +248,12 @@ Open items below keep their revisit triggers inline; executed work is compressed
 - **HGX D10 prediction/motifs lanes** (D4 EXECUTED as hgx_first_scaling
   #241: h_edge/h_incidence cache + SQL consumers + hyper API —
   remaining trigger: hyper-native link prediction, unstarted). D10
+  **LANDED 2026-10-22 (S1):** `helpers/graph/hyper_predict.py` — three
+  score lanes (jaccard, s-walk s∈{2,3}, stationary-π via
+  RW_stationary_state), star-native only (no clique projection), per
+  prediction-grade family (edition/theme/sector/industry/sub_sector/
+  org_membership), report-first, `--apply` (D13 opt-in) writes the
+  `hyper_link_prediction` metric. `event`/`jv`/`country` stay opt-in.
   stays gated on incidence density (measured 2026-09-15: group 8/k=3.8,
   jv 6/k=2.0; hyper_edges 533 live).
   [2026-10-19 RESTATEMENT (hyperedge_density_dq): the two-family gate

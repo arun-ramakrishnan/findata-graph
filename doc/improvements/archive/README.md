@@ -62,6 +62,16 @@ commit, referenced by nothing). Entry numbers point at
 
 ## graph/ — Graph layer — algorithms, DuckPGQ retirement, Onager, knowledge-model design
 
+- [`hyper_link_prediction_d10.md`](graph/hyper_link_prediction_d10.md) —
+  D10 hyper-native link prediction + the HGX unlock shelf: three
+  star-native score lanes (jaccard, s-walk connectance s∈{2,3},
+  stationary-π via RW_stationary_state) over prediction-grade families in
+  `helpers/graph/hyper_predict.py`; eval bank (temporal split + holdout
+  recall@k) in `helpers/bench/hyper_predict_bank.py`; event/jv/country
+  stay opt-in; UI/API promotion D15-gated; unlock shelf (motifs,
+  multi-order Laplacian, s-walk paths, RW density, community lanes,
+  reducibility) recorded in pending.md with reopen triggers —
+  completed.md #429
 - [`merger_demerger_hyperedges.md`](graph/merger_demerger_hyperedges.md) —
   merger/demerger n-ary hyperedges — ternary M&A facts stop masquerading as
   `acquired` dyads: `hyperedge_types.py` registry (12 families, per-family

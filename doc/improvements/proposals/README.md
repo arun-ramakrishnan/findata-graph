@@ -49,7 +49,6 @@ entry number and stale DONE pointers):
   `duckdb20_quack_variant` filing; the executed 2.0-compat migration
   is completed.md #427. Upstream changeset:
   <https://github.com/duckdb/duckdb/releases/tag/v2.0.0>.
-
 Previous batch (executed + archived — see `../archive/README.md` for the
 detail bullets): `../archive/graph/merger_demerger_hyperedges.md` (#426),
 `../archive/tooling/review_preannotate_hints.md` (#425),
