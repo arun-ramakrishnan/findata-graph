@@ -10,6 +10,7 @@ tags:
 - company/bandhan_bank
 - company/hindustan_zinc
 - company/infosys
+- company/mahindra_holidays_resorts
 - company/mindspace_business_parks_reit
 - company/motherson_sumi_wiring_india
 - company/piramal_finance
@@ -19,6 +20,7 @@ tags:
 - company/varun_beverages
 - publisher/zerodha
 - series/the_chatter
+---
 ---
 ---
 <div align="center">

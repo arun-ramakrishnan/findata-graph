@@ -27,12 +27,14 @@ tags:
 - company/one_mobikwik_systems
 - company/power_grid_corporation_of_india
 - company/prince_pipes_and_fittings
+- company/rupa_and_company
 - company/solar_industries
 - company/teamlease_services
 - company/vrl_logistics
 - company/zen_technologies
 - publisher/zerodha
 - series/the_chatter
+---
 ---
 ---
 # The Chatter: Contours of Change 

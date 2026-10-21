@@ -17,6 +17,7 @@ tags:
 - company/garden_reach_shipbuilders_and_engineers
 - company/glenmark_pharmaceuticals
 - company/harley_davidson
+- company/hatsun_agro_products
 - company/inox_wind
 - company/irctc
 - company/mandb_engineering
@@ -27,6 +28,7 @@ tags:
 - company/western_carriers_india
 - publisher/zerodha
 - series/the_chatter
+---
 ---
 ---
 # The Chatter: Underneath the Noise 
