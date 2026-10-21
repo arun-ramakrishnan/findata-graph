@@ -10,9 +10,10 @@ top-100 overlap 91/100 — digit-identical to the license-dead igraph
 route, because it is the same unweighted BFS over the same endpoint set.
 
 Build discipline mirrors the retired igraph bridge (commit 720e38ff):
-SQLite ``graph_edges`` is the sole source of truth; entity names sorted
-for deterministic dense ids; unweighted (weights present on the edges,
-unused by this lane).
+SQLite ``graph_edges`` plus the sector-membership projection (see
+``_edge_rows``) is the source of truth; entity names sorted for
+deterministic dense ids; unweighted (weights present on the edges, unused
+by this lane).
 
 Sources: the company contract — ``research.db.graph_analytics`` DISTINCT
 entity_name WHERE metric='closeness_centrality' (1,734 names, in query
@@ -80,6 +81,7 @@ if str(_PROJECT_ROOT) not in sys.path:
 
 from helpers.core.db import connect  # noqa: E402  # needs the shim above
 from helpers.core.forkmap import fork_map  # noqa: E402  # needs the shim above
+from helpers.graph.edge_projection import edge_rows as _edge_rows  # noqa: E402
 
 DEFAULT_DB_PATH = _PROJECT_ROOT / "memory" / "research.db"
 CLOSINESS_METRIC = "closeness_centrality"
@@ -140,10 +142,15 @@ def load_projection(
     Weights ride the edges but this lane is unweighted by design
     (``unweighted=True`` matches Onager's unweighted centralities).
     Returns ``(A, names)`` — ``names[i]`` is the entity for CSR row i.
+
+    Reads through :func:`_edge_rows`, so the retired part_of/has_company
+    pair still contributes its projected edges (2026-10-19).
     """
     con = connect(db_path, read_only=True, row_factory=None)
     try:
-        rows = con.execute("SELECT source, target FROM graph_edges").fetchall()
+        # edge_projection: projects the retired part_of/has_company pair back
+        # out of the canonical sector hyperedges (2026-10-19).
+        rows = [(s, t) for s, t, _et, _w in _edge_rows(con)]
     finally:
         con.close()
     names = sorted({s for s, _ in rows} | {t for _, t in rows})
@@ -163,9 +170,32 @@ def contract_sources(
     *,
     metric: str = CLOSINESS_METRIC,
 ) -> list[str]:
-    """The persisted company contract, in query order (row i <-> contract[i])."""
+    """The persisted served-universe contract, in contract order (row i <-> contract[i]).
+
+    graph_analytics_contract S1: reads the ``graph_analytics_contract``
+    table (``ORDER BY seq`` — seed-time order; order is part of the
+    contract, see :func:`source_positions`) when that table has rows for
+    the metric. Table absent or empty for the metric → the LEGACY
+    self-read (``SELECT DISTINCT entity_name FROM graph_analytics``), so
+    fresh and pre-v14-restored stores keep serving unchanged. After
+    seeding, the definition no longer equals this function's own output:
+    the metric rows are pure cache, and growth happens only via
+    ``seed_analytics_contract`` (S2 grow path), never as a side effect of
+    a capped top-N run.
+    """
+    import sqlite3
+
     con = connect(db_path, read_only=True, row_factory=None)
     try:
+        try:
+            rows = con.execute(
+                "SELECT entity_name FROM graph_analytics_contract WHERE metric = ? ORDER BY seq",
+                (metric,),
+            ).fetchall()
+        except sqlite3.OperationalError:  # table absent: fresh / pre-v14 restore
+            rows = []
+        if rows:
+            return [r[0] for r in rows]
         return [
             r[0]
             for r in con.execute(
@@ -463,7 +493,9 @@ def load_centrality_projection(
     """
     con = connect(db_path, read_only=True, row_factory=None)
     try:
-        rows = con.execute("SELECT source, target, edge_type FROM graph_edges").fetchall()
+        # _edge_rows projects the retired part_of/has_company pair back out
+        # of the canonical sector hyperedges (2026-10-19).
+        rows = [(s, t, et) for s, t, et, _w in _edge_rows(con)]
     finally:
         con.close()
     kept = [(s, t) for s, t, et in rows if s != t and et != "listed_on_index"]
@@ -584,7 +616,10 @@ def load_capacity_projection(
     """
     con = connect(db_path, read_only=True, row_factory=None)
     try:
-        rows = con.execute("SELECT source, target, weight FROM graph_edges").fetchall()
+        # _edge_rows projects the retired part_of/has_company pair back out
+        # of the canonical sector hyperedges (2026-10-19), so a
+        # sector-only company stays reachable for maxflow too.
+        rows = [(s, t, w) for s, t, _et, w in _edge_rows(con)]
     finally:
         con.close()
     names = sorted({s for s, _, _ in rows} | {t for _, t, _ in rows})

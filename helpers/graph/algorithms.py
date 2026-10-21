@@ -603,12 +603,29 @@ def _centrality_edge_types(con: Any) -> list[str] | None:
     """DB-backed centrality projection: all edge types except the
     index-membership exclusion (graph_centrality_index_noise). Falls
     back to ``None`` (all edges) when ``fin`` is unreadable — the
-    exclusion is a semantics refinement, never a hard failure."""
+    exclusion is a semantics refinement, never a hard failure.
+
+    part_of/has_company retirement (2026-10-19): the pair no longer has
+    ``fin.graph_edges`` rows, so a bare DISTINCT would silently drop
+    sector membership from the projection — the lane would then disagree
+    with the SQLite readers, which project the pair back out of the
+    canonical hyperedges (measured: Katz parity fell 0.9999 -> 0.9949).
+    The projected labels are therefore added whenever the incidence
+    store exists; ``onager._edge_source_sql`` is what supplies the rows.
+    """
     try:
         rows = con.execute("SELECT DISTINCT edge_type FROM fin.graph_edges").fetchall()
     except Exception:  # noqa: S110  # best-effort: unreadable fin -> all edges
         return None
     types = [r[0] for r in rows if r[0] not in EDGE_TYPES_EXCLUDED_FROM_CENTRALITY]
+    try:
+        con.execute("SELECT COUNT(*) FROM fin.hyper_incidences").fetchone()
+    except Exception:  # noqa: S110  # pre-retirement restore: no store, no pair
+        pass
+    else:
+        for projected in ("part_of", "has_company"):
+            if projected not in types:
+                types.append(projected)
     return types or None
 
 
@@ -831,17 +848,12 @@ def _run_l1b_lane(db_path: str | Path | None = None) -> dict[str, float]:
             "l1b fold lane: empty projection; refusing to persist zeros "
             "(an empty write would poison the contract-shaped tables)"
         )
-    scon = connect(str(db), read_only=True, row_factory=None)
-    try:
-        contract = [
-            r[0]
-            for r in scon.execute(
-                "SELECT DISTINCT entity_name FROM graph_analytics WHERE metric = ?",
-                (_l1b.BETWEENNESS_METRIC,),
-            ).fetchall()
-        ]
-    finally:
-        scon.close()
+    # graph_analytics_contract S1: the shared reader (contract table with
+    # legacy fallback) — the inline DISTINCT copy is gone so the two lanes
+    # cannot drift apart again.
+    from helpers.graph import scipy_bridge as _sb
+
+    contract = _sb.contract_sources(db, metric=_l1b.BETWEENNESS_METRIC)
     if not contract:
         raise ValueError(
             "l1b fold lane: empty company contract; refusing to compute "
