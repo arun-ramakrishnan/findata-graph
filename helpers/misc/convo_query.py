@@ -234,7 +234,17 @@ def _fetch_rows(con: ConvoConnections, keys: list[Key]) -> dict[Key, dict]:
         # dropped. '' on a pre-migration row (see _provenance_migration).
         "provenance",
     )
-    return {(r[0], r[2]): dict(zip(names, r)) for r in rows}
+    result = {}
+    for r in rows:
+        rec = dict(zip(names, r))
+        # S6(b) convention: an absent model is recorded as 'unrecorded' so it
+        # is never mistaken for a missing model column. Blank rows are permanent
+        # (their source parquets carry no model field) — see
+        # doc/improvements/archive/convo_search/convo_reasoning_capture.md §3.6.
+        if not (rec.get("model") or "").strip():
+            rec["model"] = "unrecorded"
+        result[(rec["harness"], rec["part_id"])] = rec
+    return result
 
 
 def _kinds_of(con: ConvoConnections, keys: list[Key]) -> dict[Key, tuple[str, str]]:
@@ -343,6 +353,7 @@ def search(
                 "role": r["role"],
                 "part_type": r["part_type"],
                 "text_len": r["text_len"],
+                "model": r.get("model") or "unrecorded",
                 "head": r["snippet"][:HEAD],
                 "provenance": r["provenance"],
                 "pointer": f"{r['file_path']}:{r['row_no']}",
@@ -404,7 +415,7 @@ def render_hits(results: list[dict]) -> None:
         print(
             f"{r['rank']:>2}. [{r['score']:.3f} {r['mode']}] "
             f"{r['harness']}/{r['part_type']}/{r['role'] or '-'} "
-            f"{r['ts'][:16]} len={r['text_len']}"
+            f"{r['ts'][:16]} len={r['text_len']} model={r.get('model') or 'unrecorded'}"
         )
         print(f"    {r['head'].replace(chr(10), ' ')}")
         # Provenance only when it says something: `opencode:live` is the

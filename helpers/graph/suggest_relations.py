@@ -52,6 +52,7 @@ if str(_REPO_ROOT) not in sys.path:
 import duckdb  # noqa: E402  # after sys.path bootstrap
 
 from helpers.graph.algorithms import link_prediction  # noqa: E402
+from helpers.graph.graph_fallbacks import OnagerUnavailable  # noqa: E402
 from helpers.graph import query as _graph_query  # noqa: E402
 from helpers.graph.edge_projection import edge_rows  # noqa: E402
 
@@ -367,14 +368,21 @@ def main(argv: list[str] | None = None) -> int:
         print(f"error: {DEFAULT_DUCKDB} not found (run make graph-rebuild first)", file=sys.stderr)
         return 2
     edge_types = args.edge_types.split(",") if args.edge_types else None
-    suggestions = suggest_relations(
-        method=args.method,
-        edge_types=edge_types,
-        top=args.top,
-        min_score=args.min_score,
-        companies_only=not args.all_kinds,
-        allow_all_pairs=args.allow_all_pairs,
-    )
+    try:
+        suggestions = suggest_relations(
+            method=args.method,
+            edge_types=edge_types,
+            top=args.top,
+            min_score=args.min_score,
+            companies_only=not args.all_kinds,
+            allow_all_pairs=args.allow_all_pairs,
+        )
+    except OnagerUnavailable as exc:
+        # The onager extension has no duckdb-2.0 distribution
+        # (completed.md #427) — skip the lane loudly rather than
+        # dying with a traceback (the advisory leg behind this CLI).
+        print(f"suggest-relations: SKIP — {exc}; see completed.md #427", file=sys.stderr)
+        return 0
     if args.append:
         n = append_suggestions(suggestions, path=args.out)
         print(

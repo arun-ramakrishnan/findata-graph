@@ -63,7 +63,7 @@ logger = logging.getLogger(__name__)
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
-from helpers.graph.onager import (  # noqa: E402  (sys.path set above)
+from helpers.graph.graph_fallbacks import (  # noqa: E402  (sys.path set above)
     onager_clustering,
     onager_components,
     onager_pagerank,
@@ -2276,7 +2276,7 @@ def _materialise_centrality_cache(
         local_reaching_centrality,
     )
     from helpers.graph import scipy_bridge as _sb
-    from helpers.graph.onager import with_onager_connection
+    from helpers.graph.graph_fallbacks import with_onager_connection
 
     lane_served = {m for m, o in _sb.ROUTING.items() if o in ("SCIPY", "L1B_FOLD")}
     score_metrics: list[tuple[str, Callable[..., dict[str, float]]]] = [

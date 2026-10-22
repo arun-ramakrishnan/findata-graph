@@ -359,6 +359,7 @@ def test_eigenvector_nonconvergence_raises_loud(monkeypatch):
         sb.spectral_radius(_star_csr(4))
 
 
+@pytest.mark.onager  # pins onager's own "Convergence failed" raise (completed.md #427)
 def test_eigenvector_onager_failure_case():
     # P100 slow-mixing path: Onager's fixed 100-iteration loop raises,
     # ARPACK converges (acceptance item 3).

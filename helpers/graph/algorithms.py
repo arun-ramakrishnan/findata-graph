@@ -98,8 +98,11 @@ def duckdb_connect(*args: Any, **kwargs: Any) -> Any:
     return _graph_query.connect(*args, **kwargs)
 
 
-# Onager-backed metrics (replaces the NetworkX bridge):
-from helpers.graph.onager import (  # noqa: E402
+# Onager-backed metrics with in-tree fallbacks (onager has no duckdb-2.0
+# build — completed.md #427): graph_fallbacks exports the same signatures
+# and dispatches onager → igraph/scipy/SQL per call, so no lane aborts.
+from helpers.graph.graph_fallbacks import (  # noqa: E402
+    OnagerUnavailable,
     onager_betweenness,
     onager_clustering,
     onager_closeness,
@@ -116,6 +119,8 @@ from helpers.graph.onager import (  # noqa: E402
     onager_louvain,
     onager_pagerank,
     with_onager_connection,
+)
+from helpers.graph.onager import (  # noqa: E402
     DEFAULT_PREDICTION_EDGE_TYPES,
     PREF_ATTACH_STORE_CAP,
 )
@@ -1533,6 +1538,16 @@ def _cli(argv: list[str] | None = None) -> int:  # noqa: C901
                         f"applied {len(pending_writes)} metric(s), {total} rows to graph_analytics",
                         file=sys.stderr,
                     )
+    except OnagerUnavailable as exc:
+        # The onager extension has no duckdb-2.0 distribution
+        # (completed.md #427). Skip the lane loudly instead of dying
+        # with a traceback — the advisory legs behind this CLI stay
+        # green and the gap stays visible.
+        print(
+            f"[algorithms] SKIP — {exc}; see completed.md #427",
+            file=sys.stderr,
+        )
+        return 0
     finally:
         duck_con.close()
         if fork_pool is not None:

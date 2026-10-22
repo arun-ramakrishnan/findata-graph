@@ -191,6 +191,54 @@ _TAIL_LINES = 60  # lines appended to the report per failed step
 _CAPTURE_LINES = 400  # rolling in-memory cap while streaming
 
 
+def _graph_store_served() -> bool:
+    """True when memory/graph.duckdb is attached to the local quack
+    server. Lazy import + blanket except: a broken duckdb_shared must
+    never take the maint chain down."""
+    try:
+        from helpers.core.duckdb_shared import is_served
+
+        return is_served(PROJECT_ROOT / "memory" / "graph.duckdb")
+    except Exception:  # pragma: no cover — defensive
+        return False
+
+
+# TIER1 steps that are file-lane only: they end in _rebuild_via_swap
+# (fresh build + os.replace) and a quack-served store refuses them by
+# design (split-brain guard, query.py assert_not_served). Stamp-centrality
+# looked wire-capable but its CLI is fresh=True + restamp — a swap too.
+_FILE_LANE_STEPS = ("graph-rebuild", "stamp-centrality")
+
+
+def _served_file_lane_skip(label: str, logger: logging.Logger) -> _StepResult | None:
+    """Skip result for file-lane steps while the graph store is quack-served.
+
+    The rebuild lane is file-lane only (fresh build + ``os.replace`` swap) and
+    refuses a quack-served store by design (split-brain guard). Skipping with
+    the remediation beats aborting the whole chain (2026-10-22).
+    """
+    if label.split(" (")[0] not in _FILE_LANE_STEPS or not _graph_store_served():
+        return None
+    logger.warning(
+        "skipping %s — memory/graph.duckdb is served by the quack "
+        "server; stop it (`make quack-stop`) for the offline rebuild",
+        label,
+    )
+    return _StepResult(label, 0, 0.0, ["skipped: quack-served store"])
+
+
+def _failed_advisory_step(label: str, result: _StepResult, logger: logging.Logger) -> bool:
+    """True for a failed advisory step — warn and let the chain continue.
+
+    Losing a fresh convo index is recoverable (rebuild from the corpus);
+    losing the backup is not, so only advisory steps tolerate failure.
+    """
+    if result.rc == 0 or label not in _ADVISORY_STEPS:
+        return False
+    logger.warning("advisory step failed, continuing: %s (rc=%d)", label, result.rc)
+    return True
+
+
 # (label, command). Each step is a list suitable for subprocess.run.
 # Commands use repo-root-relative paths so the cwd is explicit.
 #
@@ -679,6 +727,29 @@ def _write_report(
             f.write("\n".join(r.tail[-_TAIL_LINES:]) + "\n\n")
 
 
+def _prewarm_corpus(args, logger) -> None:
+    """S1b: pre-warm the Corpus cache once (0.02s vs 0.37s walk)."""
+    if not (args.full and _HAS_CORPUS and Corpus is not None):
+        return
+    try:
+        assert Corpus is not None  # noqa: S101  # ty narrow
+        # workers=1 is faster for 1243 small files on this box (see perf_skills §15)
+        Corpus.load("findata", workers=1, use_cache=True)
+    except Exception as e:
+        logger.debug("corpus pre-warm failed: %s", e)
+
+
+def _select_steps(args) -> list:
+    """Steps for this run: PRE_FULL + TIER1 (minus skips) + TIER2, or TIER1."""
+    if args.full:
+        return (
+            list(PRE_FULL_STEPS)
+            + [s for s in TIER1_STEPS if s[0] not in TIER1_FULL_SKIP]
+            + list(TIER2_STEPS)
+        )
+    return list(TIER1_STEPS)
+
+
 def main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     p.add_argument(
@@ -704,22 +775,8 @@ def main(argv: list[str] | None = None) -> int:
     started = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     t0 = time.perf_counter()
 
-    # S1b: pre-warm Corpus cache once so PRE_FULL/TIER2 --corpus steps hit corpus.db (0.02s vs 0.37s walk)
-    if args.full and _HAS_CORPUS and Corpus is not None:
-        try:
-            assert Corpus is not None  # noqa: S101  # ty narrow
-            # workers=1 is faster for 1243 small files on this box (see perf_skills §15)
-            Corpus.load("findata", workers=1, use_cache=True)
-        except Exception as e:
-            logger.debug("corpus pre-warm failed: %s", e)
-    if args.full:
-        steps = (
-            list(PRE_FULL_STEPS)
-            + [s for s in TIER1_STEPS if s[0] not in TIER1_FULL_SKIP]
-            + list(TIER2_STEPS)
-        )
-    else:
-        steps = list(TIER1_STEPS)
+    _prewarm_corpus(args, logger)
+    steps = _select_steps(args)
 
     logger.info(
         "Maintenance plan (%d steps%s):",
@@ -732,15 +789,15 @@ def main(argv: list[str] | None = None) -> int:
     failures = 0
     results: list[_StepResult] = []
     for label, cmd in steps:
+        skipped = _served_file_lane_skip(label, logger)
+        if skipped is not None:
+            results.append(skipped)
+            continue
         result = _run_step(label, cmd, args.dry_run, logger)
         results.append(result)
+        if _failed_advisory_step(label, result, logger):
+            continue
         if result.rc != 0:
-            if label in _ADVISORY_STEPS:
-                # Advisory step: record and continue. Losing a fresh convo
-                # index is recoverable (rebuild from the corpus); losing the
-                # backup is not.
-                logger.warning("advisory step failed, continuing: %s (rc=%d)", label, result.rc)
-                continue
             failures += 1
             # Stop on first failure — later steps may depend on earlier
             # ones (e.g. snapshot must reflect a vacuumed DB; graph-rebuild

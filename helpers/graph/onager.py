@@ -99,6 +99,27 @@ def _edge_source_sql(con: duckdb.DuckDBPyConnection) -> str:
 # --------------------------------------------------------------------------- #
 # Connection handling
 # --------------------------------------------------------------------------- #
+class OnagerUnavailable(RuntimeError):
+    """The onager extension is not installed for this DuckDB build.
+
+    duckdb 2.0 has no onager distribution yet (completed.md #427), so
+    ``LOAD onager`` fails with ``IO Error: Extension ... not found``.
+    Callers that can degrade gracefully (the graph-algos and
+    suggest-relations CLIs, the advisory legs behind them) catch this
+    and skip the onager lane instead of dying with a traceback.
+    """
+
+
+def _load_onager(con: duckdb.DuckDBPyConnection) -> None:
+    """LOAD onager, translating a missing extension into the typed
+    ``OnagerUnavailable`` signal (the raw duckdb.IOException is an
+    implementation detail of the distribution gap)."""
+    try:
+        con.execute("LOAD onager;")
+    except duckdb.Error as exc:
+        raise OnagerUnavailable(f"onager extension unavailable: {exc}") from exc
+
+
 def _prepare(con: duckdb.DuckDBPyConnection | None) -> tuple[duckdb.DuckDBPyConnection, bool]:
     """Return ``(con, owns)``.
 
@@ -113,9 +134,9 @@ def _prepare(con: duckdb.DuckDBPyConnection | None) -> tuple[duckdb.DuckDBPyConn
     if con is None:
         con = duckdb.connect()
         con.execute("LOAD sqlite;")
-        con.execute("LOAD onager;")
+        _load_onager(con)
         return con, True
-    con.execute("LOAD onager;")
+    _load_onager(con)
     return con, False
 
 

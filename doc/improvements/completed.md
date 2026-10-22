@@ -102,6 +102,23 @@ trace-contracts, agent-traces).
 upstream lags: re-pin 1.5.6 (LTS 2027-03; precedent
 `doc/improvements/archive/tooling/duckdb_pin_reconciliation.md`).
 
+**Parked → resolved by fallback lanes (2026-10-22):** the park above no
+longer gates anything. `helpers/graph/graph_fallbacks.py` exports the
+onager module's 16 functions with the same signatures and resolves
+per call: onager when loadable, else igraph 1.0.0 → scipy/numpy → pure
+SQL/Python (laplacian, local_reaching, voterank, pref-attach). All 13
+`_METRIC_DISPATCH` families, `suggest_relations`, `query.pagerank` /
+`pagerank_weighted` and the centrality stamping loop now run without the
+extension — no whole-CLI abort, no per-lane skip. Semantics are pinned to
+networkx 3.7 (the engine onager replaced) in
+`tests/test_graph_fallbacks.py` (42 tests: hand vectors, parity, weight
+sensitivity, link prediction, dispatch fallback); the onager probe is
+cached per process and flips off the first time the extension reports
+missing, so a box that has onager still prefers it.
+`onager_available()` (not a try/except at import) is the single probe.
+Note: `onager.py`'s harmonic docstring vector for P5 (centre 3.5) is a
+typo — its own formula and networkx both give 3.0.
+
 **Storage posture:** existing DBs keep the ≤1.5 storage version under
 2.0 writes (pin fallback valid **until the first conversion**); new
 2.0 files get storage v69, unreadable by 1.x — before any conversion,

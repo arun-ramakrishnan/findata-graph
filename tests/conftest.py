@@ -56,16 +56,16 @@ ONAGER_OK = _onager_available()
 
 # Whole modules whose suite is onager-native (skip in full when the
 # extension is missing — every test in them exercises the extension).
+# Fallback-validated modules (onager fallbacks via helpers/graph/
+# graph_fallbacks.py serve the same signatures; fallbacks are the default
+# engine now — see helpers/graph/graph_fallbacks.py and completed.md #427):
+# tests/test_onager_capabilities.py (58 fail without the extension) and
+# tests/test_centrality_projection.py (fixture-level direct onager use)
+# stay; the rest were proven green on the fallbacks under ONAGER_GATE=off.
 ONAGER_MODULES = frozenset(
     {
         "tests/test_onager_capabilities.py",
-        "tests/test_integration_graph_algorithms.py",
-        "tests/test_integration_perf.py",
         "tests/test_centrality_projection.py",
-        "tests/test_centrality_cache.py",
-        "tests/test_shared_query_vector.py",
-        "tests/test_scipy_bridge.py",
-        "tests/test_l1_betweenness.py",
     }
 )
 
@@ -715,8 +715,11 @@ def pytest_collection_modifyitems(config, items):
     global _test_metadata_enabled
     # Onager gate first (duckdb 2.0 park — completed.md #427): when the
     # extension has no distribution, skip the onager-native modules and
-    # `onager`-marked tests before anything else looks at them.
-    if not ONAGER_OK:
+    # `onager`-marked tests before anything else looks at them. The
+    # fallback lanes (helpers/graph/graph_fallbacks.py) serve every
+    # consumer surface, so only extension-native suites stay gated;
+    # ONAGER_GATE=off re-enables the rest to prove the fallbacks answer.
+    if not ONAGER_OK and os.environ.get("ONAGER_GATE", "").lower() not in {"off", "0", "false"}:
         repo_prefix = str(REPO_ROOT) + "/"
         for item in items:
             fspath = str(item.fspath)

@@ -43,6 +43,7 @@ from helpers.graph import derive_insights as di  # noqa: E402
 from helpers.graph import embeddings as emb  # noqa: E402
 from helpers.graph import query  # noqa: E402
 from helpers.graph.query import DB_PATH  # noqa: E402
+from helpers.graph import csr  # noqa: E402
 from helpers.graph import derive_cited_in as dci  # noqa: E402
 from helpers.graph import derive_hyperedges as dh_mod  # noqa: E402
 from helpers.graph import hyper_arrow as har  # noqa: E402
@@ -402,6 +403,14 @@ def _shim_algorithms(p, mp, args):
     return _rc(alg._cli(list(args)))
 
 
+def _shim_csr(p, mp, args):
+    # maint.py registers csr-rebuild with repo-relative --db/--out constants
+    # (memory/research.db, memory/csr) — repoint both at the tmp project so
+    # the hermetic chain never reads or writes the live substrate.
+    flags = [a for a in args if a in ("--verify", "--check")]
+    return _rc(csr.main(["--db", str(p.db), "--out", str(p.root / "csr"), *flags]))
+
+
 def _shim_derive_insights(p, mp, args):
     mp.setattr(di, "PROJECT_ROOT", p.root)
     mp.setattr(di, "connect", lambda *a, **k: db_connect(str(p.db)))
@@ -506,6 +515,7 @@ _SHIMS = {
     "helpers/maintenance/db_maint.py": _shim_db_maint,
     "helpers/maintenance/snapshot_db.py": _shim_snapshot,
     "helpers/graph/query.py": _shim_graph_rebuild,
+    "helpers/graph/csr.py": _shim_csr,
     "helpers/core/sync_tags.py": _shim_sync_tags,
     "helpers/maintenance/sync_coverage_tags.py": _shim_sync_coverage_tags,
     "helpers/maintenance/sync_sector_wikilinks.py": _shim_sector_links,
@@ -580,10 +590,37 @@ def _scripts(record) -> list[str]:
 
 class TestMaintChain:
     def test_tier1_executes_all_steps_green(self, project, monkeypatch):
+        # The served-skip must not fire in the hermetic chain: the
+        # dispatcher shims query.py, and the live quack server (if any) is
+        # not this project's store.
+        monkeypatch.setattr(maint, "_graph_store_served", lambda: False)
         record = _make_dispatcher(project, monkeypatch, [])
         assert maint.main([]) == 0
         assert _scripts(record) == [cmd[1] for _, cmd in maint.TIER1_STEPS]
 
+    def test_graph_rebuild_skipped_when_served(self, project, monkeypatch):
+        """A quack-served graph.duckdb makes the file-lane steps (rebuild,
+        stamp-centrality — both end in _rebuild_via_swap) refuse by design
+        (split-brain guard); maint must skip them with a warning instead
+        of aborting the chain (2026-10-22)."""
+        monkeypatch.setattr(maint, "_graph_store_served", lambda: True)
+        record = _make_dispatcher(project, monkeypatch, [])
+        assert maint.main([]) == 0
+        executed = _scripts(record)
+        assert all(entry[1] != ("rebuild",) for entry in record), (
+            "rebuild ran despite the served skip"
+        )
+        assert all(entry[1] != ("stamp-centrality",) for entry in record), (
+            "stamp-centrality ran despite the served skip"
+        )
+        # Everything except the file-lane steps still runs, in order.
+        skipped = {label.split(" (")[0] for label in maint._FILE_LANE_STEPS}
+        expected = [
+            cmd[1] for label, cmd in maint.TIER1_STEPS if label.split(" (")[0] not in skipped
+        ]
+        assert executed == expected
+
+    @pytest.mark.onager
     def test_full_chain_order_and_idempotence(self, project, monkeypatch):
         """--full runs PRE_FULL + TIER1 then TIER2 in order (derive-insights
         strictly before derive-events; the TIER1 snapshot is elided — one

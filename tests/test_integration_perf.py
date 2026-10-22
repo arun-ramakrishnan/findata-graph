@@ -493,7 +493,12 @@ class TestMultiMetricConsistency:
 # 6. End-to-end: compute on the seeded synth_db graph -> persist -> verify
 # --------------------------------------------------------------------------- #
 def _duckdb_over(db_path):
-    """Open a DuckDB connection with onager loaded, attached to db_path as fin."""
+    """Open a DuckDB connection attached to db_path as fin.
+
+    No onager install/load: the extension has no duckdb-2.0 distribution
+    (completed.md #427), and helpers/graph/graph_fallbacks.py serves every
+    centrality family from ``fin.graph_edges`` directly.
+    """
     import duckdb as _dd
 
     c = _dd.connect()
@@ -503,11 +508,6 @@ def _duckdb_over(db_path):
         pass
     c.execute("LOAD sqlite;")
     c.execute(f"ATTACH '{db_path}' AS fin (TYPE sqlite, READ_ONLY);")
-    try:
-        c.execute("INSTALL onager FROM community;")
-    except Exception:  # noqa: S110
-        pass
-    c.execute("LOAD onager;")
     return c
 
 

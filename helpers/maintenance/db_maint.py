@@ -1033,6 +1033,21 @@ class DBMaintainer:
         # of racing the RW hold.
         from helpers.misc.duckdb_lock import io_lock as _io_lock
 
+        from helpers.core.duckdb_shared import is_served as _is_served
+
+        if _is_served(self.duckdb_path):
+            # Quack-served store: the server child holds the 2.0 rw file
+            # lock and does its own checkpointing; a file-mode rw connect
+            # here raises IOException and would abort the whole maint
+            # run (2026-10-22). Skip gracefully instead.
+            self._log(
+                logging.WARNING,
+                f"{self.duckdb_path} is served by the quack server — "
+                "CHECKPOINT/VACUUM skipped (stop it with `make quack-stop` "
+                "for offline maintenance)",
+            )
+            result.update(status="ok", checkpoint="skipped (served)")
+            return result
         with _io_lock(self.duckdb_path, exclusive=True):
             con = duckdb.connect(str(self.duckdb_path))
             try:

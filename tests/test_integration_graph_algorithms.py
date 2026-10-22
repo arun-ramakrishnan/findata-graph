@@ -170,10 +170,12 @@ def synth_db(tmp_path, monkeypatch):
 
     monkeypatch.setattr(algos, "connect", _mock_connect)
 
-    # Monkeypatch algorithms.duckdb_connect (DuckDB, used by the Onager-backed
-    # metrics) so compute() runs the Onager algorithms over THIS synthetic
-    # graph rather than the real research.db. Onager reads `fin.graph_edges`,
-    # so we attach the test DB as `fin` and load the onager extension.
+    # Monkeypatch algorithms.duckdb_connect (DuckDB, used by the graph
+    # metrics) so compute() runs the algorithms over THIS synthetic graph
+    # rather than the real research.db. The metric lanes read
+    # `fin.graph_edges`, so we attach the test DB as `fin`; the onager
+    # extension is optional (helpers/graph/graph_fallbacks.py serves every
+    # family when it is absent — completed.md #427).
     import duckdb as _duckdb
 
     def _mock_duckdb_connect(*args, **kwargs):
@@ -184,11 +186,6 @@ def synth_db(tmp_path, monkeypatch):
             pass
         con.execute("LOAD sqlite;")
         con.execute(f"ATTACH '{db_path}' AS fin (TYPE sqlite, READ_ONLY);")
-        try:
-            con.execute("INSTALL onager FROM community;")
-        except Exception:  # noqa: S110  # best-effort
-            pass
-        con.execute("LOAD onager;")
         return con
 
     monkeypatch.setattr(algos, "duckdb_connect", _mock_duckdb_connect)
@@ -1037,6 +1034,7 @@ class TestFormatValue:
 # graph_db_optimization: Phase 2 revisit (parallel all-pairs trio) and
 # Phase 3 (with_onager_connection single-invocation batching)
 # --------------------------------------------------------------------------- #
+@pytest.mark.onager  # onager-internal batching/signature contract (completed.md #427)
 class TestGraphDbOptimization:
     """Phase 3 of the graph_db_optimization proposal (2026-09-10).
 
@@ -1053,6 +1051,7 @@ class TestGraphDbOptimization:
         projection re-materialises; after the block, calls materialise
         afresh (no state outlives the invocation)."""
         import helpers.graph.onager as ong
+        import helpers.graph.graph_fallbacks as fb
 
         calls = {"n": 0}
         real = ong._materialize_from_db
@@ -1064,34 +1063,34 @@ class TestGraphDbOptimization:
         monkeypatch.setattr(ong, "_materialize_from_db", counting)
         con = algos.duckdb_connect(read_only=True)
         try:
-            with ong.with_onager_connection(con):
-                ong.onager_degree(con)
-                ong.onager_degree(con)
-                ong.onager_closeness(con)
+            with fb.with_onager_connection(con):
+                fb.onager_degree(con)
+                fb.onager_degree(con)
+                fb.onager_closeness(con)
             assert calls["n"] == 1  # 3 same-projection computes, 1 rebuild
 
             calls["n"] = 0
-            with ong.with_onager_connection(con):
-                ong.onager_degree(con)
-                ong.onager_degree(con, edge_types=["competes_with"])
-                ong.onager_degree(con, edge_types=["competes_with"])
+            with fb.with_onager_connection(con):
+                fb.onager_degree(con)
+                fb.onager_degree(con, edge_types=["competes_with"])
+                fb.onager_degree(con, edge_types=["competes_with"])
             assert calls["n"] == 2  # projection change re-materialises
 
             calls["n"] = 0
-            ong.onager_degree(con)
+            fb.onager_degree(con)
             assert calls["n"] == 1  # outside a block: fresh as before
         finally:
             con.close()
 
     def test_with_onager_connection_results_identical(self, synth_db):
         """Batched and unbatched computes agree."""
-        import helpers.graph.onager as ong
+        import helpers.graph.graph_fallbacks as fb
 
         con = algos.duckdb_connect(read_only=True)
         try:
-            plain = ong.onager_degree(con)
-            with ong.with_onager_connection(con):
-                batched = ong.onager_degree(con)
+            plain = fb.onager_degree(con)
+            with fb.with_onager_connection(con):
+                batched = fb.onager_degree(con)
             assert batched == plain
         finally:
             con.close()
@@ -1100,12 +1099,12 @@ class TestGraphDbOptimization:
         """The signature table is dropped on block exit: a later standalone
         compute on the same connection re-materialises (checked via the
         temp table's absence)."""
-        import helpers.graph.onager as ong
+        import helpers.graph.graph_fallbacks as fb
 
         con = algos.duckdb_connect(read_only=True)
         try:
-            with ong.with_onager_connection(con):
-                ong.onager_degree(con)
+            with fb.with_onager_connection(con):
+                fb.onager_degree(con)
                 leaked = con.execute(
                     "SELECT count(*) FROM information_schema.tables "
                     "WHERE table_name = '_onager_sig'"
