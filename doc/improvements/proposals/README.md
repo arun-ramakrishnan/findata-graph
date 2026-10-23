@@ -24,7 +24,7 @@ entry number and stale DONE pointers):
 3. `../pending.md`: grep the topic; close/annotate deferred items the
    work completes.
 4. `../archive/README.md`: add the topic-index line with the completed.md
-   number; reset the live-proposal pointer below to `_(none)_`.
+   number; reset the live-proposal pointer below to `*(none)*`.
 5. `make search-fresh APPLY=1`, then plain `make search-fresh` (rc=0)
    to converge the doc index.
 6. Flip the frontmatter block in the same change: `status: executed`
@@ -38,13 +38,16 @@ entry number and stale DONE pointers):
 
 ## Current live proposals
 
-- `duckdb_20_variant.md` (filed 2026-10-21) — VARIANT first-class JSON
-  bench for JSON-as-VARCHAR columns; legitimate outcome is "evaluated,
-  not warranted" at our row counts.
-- `duckdb_20_sqlite_reentry.md` (filed 2026-10-21) — gated SQLite
-  retirement re-entry under 2.0 (blockers carried forward; gate B2/B1
-  + B3 unchanged; blocker #1 — multi-process writes — dissolved by the
-  executed quack arc, see `../archive/database/duckdb_20_quack.md` #428).
+- *(VARIANT, filed 2026-10-21 — resolved DEFERRED 2026-10-22: measured
+  not warranted at our row counts; merged into the engine assessment at
+  `../archive/database/duckdb_vector_search_assessment.md` #430.)*
+- *(SQLITE RE-ENTRY, filed 2026-10-21 — resolved DEFERRED 2026-10-23:
+  gate evidence produced (B2 map PASS, B1 sized ≈17–24 focused days) and
+  the port judged not worth it at today's scale; full map + sizing +
+  reopen triggers at `../archive/database/duckdb_20_sqlite_reentry.md`
+  #431.)*
+- *(none — no live proposals remain; both duckdb_20 siblings are
+  archived deferred.)*
 - Family provenance: split 2026-10-21 from the bundled
   `duckdb20_quack_variant` filing; the executed 2.0-compat migration
   is completed.md #427. Upstream changeset:
@@ -175,10 +178,10 @@ remediation (`range_4fd3a20f_review_remediation`, all 13
 slices + low-tier dispositions, completed.md #382) archived 2026-10-11.
   Evidence in `doc/local/engineering/code_review.md`.
 
-_(none)_ — every proposal filed here is executed and archived. The last
+*(none)* — every proposal filed here is executed and archived. The last
 three batches went out filed + executed + archived in one session
 (2026-10-10):
-_(previous batch — all executed and archived in one session 2026-10-10)_:
+*(previous batch — all executed and archived in one session 2026-10-10)*:
 
 - `checklist_leg_review` (completed.md #381) — the OCR checklist leg against
   the 108 reviewable Python files, swept by checklist group using the

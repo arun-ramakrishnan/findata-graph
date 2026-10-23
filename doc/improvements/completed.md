@@ -128,7 +128,7 @@ migration page: clean (no `->` lambdas, no div-by-zero surfaces, no
 `COLLATE`, S3 N/A, removed settings unused). `memory/research.duckdb`
 is referenced by NO repo code — derived artifact, left untouched.
 Quack re-pilot under 2.0.0 PASSED its gates (numbers in
-`doc/local/evaluations/duckdb_vector_search_assessment.md` §"Quack
+`doc/improvements/archive/database/duckdb_vector_search_assessment.md` §"Quack
 re-pilot — DuckDB 2.0.0"); integration proceeds as
 `duckdb_20_quack.md`.
 
@@ -12052,3 +12052,69 @@ projection.
   (S1); unlock shelf (motifs, multi-order Laplacian, s-walk paths, RW
   density, community lanes 2-4, reducibility) recorded with reopen
   triggers, not executed this arc.
+
+## 430. DuckDB search/VARIANT assessment — deferred (measured, not warranted)
+
+**Date**: 2026-10-22
+**Status**: DEFERRED (evaluated; no migration)
+
+Merged + resolved the `duckdb_20_variant` proposal (filed 2026-10-21, archived
+here) into the engine assessment, now at
+`doc/improvements/archive/database/duckdb_vector_search_assessment.md`
+(read that for the full narrative + tables). Engine split unchanged:
+SQLite (FTS5 + sqlite-vec) owns search; DuckDB owns set-SQL analytics.
+The 2.0 Quack re-pilot that unblocked the process-model objection is
+completed.md #428.
+
+**VARIANT re-check (2.0.0, 50k `atr.fact_event.context` rows):**
+path extraction 28.0 → 21.8 ms (1.28× faster), but storage 1.71× larger
+(5,517,312 → 9,449,472 B at 20k rows), Parquet bytes unchanged
+(1,216,240 vs 1,216,834), Parquet read 40.1 → 250.0 ms (6.2× slower).
+The 1.5.4 `json_extract_string` incompatibility that sank BUNDLE N/N1 is
+gone on 2.0 (all four access forms run), so compatibility is no longer
+the blocker — storage and Parquet read are. Post-L2 the addressable
+surface is ~2 reads of 3,507 edges, so no column clears the ≥2× bar.
+
+**Reopen:** a read-heavy large VARIANT-shaped column, or a release that
+closes the storage/Parquet-read gaps.
+
+## 431. SQLite re-entry preflight — B2 map PASS, B1 sized; port DEFERRED
+
+**Date:** 2026-10-23 · **Status:** DEFERRED (gate evidence produced; no
+merge) · **Proposal:**
+`doc/improvements/archive/database/duckdb_20_sqlite_reentry.md`
+(filed 2026-10-21; this entry closes it as deferred).
+
+Produced the remaining re-entry gate evidence for Alternate A
+(research.db → DuckDB) and deferred the port on the operator's
+judgement:
+
+- **B2 static contention map — PASS.** Single-writer-per-store is
+  livable on every research.db lane: writers already serialize today
+  (WAL + `busy_timeout=5000` in `helpers/core/db.py`; the documented
+  overlap is `parse_newsletter` spawning `sync_tags`); `app.py` has
+  zero write statements; triage lanes journal to
+  `findata/Misc/*_decisions.jsonl` instead of holding DB transactions.
+  The map forced one correction: `note_search` (FTS5, 17,497 rows)
+  lives INSIDE research.db and B3 is verified-permanent, so the
+  "search sidecars never read research.db" premise is false — the
+  carve-out (split into its own sidecar / fold into `doc_search.db`)
+  is phase 1 of any port.
+- **B1 port sizing — ≈17–24 focused days across ~120 files, 6 phases**
+  (note_search carve-out 1.5–2 d → db.py engine swap 3–5 d → 20
+  CASCADE/SET-NULL FK edges to ordered rewrites 3–4 d → maintenance/
+  integrity redesign (VACUUM/ANALYZE/REINDEX → CHECKPOINT;
+  `foreign_key_check` ×6 → first-party orphan scans) 3–4 d → consumer
+  sweep 4–6 d → storage-version cutover 2–3 d). Census: 105 modules
+  import `helpers.core.db` (old record said 44), 391 `connect()` sites
+  outside db.py, 62 files with writes, 114 PRAGMA sites (≈60 delete
+  outright — an ops win; ~10 real work). Fold-or-stay: corpus.db STAY,
+  embed_store.db STAY, note_search SPLIT.
+- **Decision:** measured cost > win at today's scale → DEFERRED, not
+  scheduled. `db.py` and research.db untouched. Reopen triggers
+  recorded in the proposal §4 (research.db contention in practice;
+  DuckDB shipping CASCADE + integrity checks; Alternate B opening; a
+  lane needing cross-store joins the hybrid attach cannot express).
+
+Full map, lane table, phase plan, PRAGMA census and win ledger:
+`doc/improvements/archive/database/duckdb_20_sqlite_reentry.md` §3.

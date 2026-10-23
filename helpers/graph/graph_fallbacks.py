@@ -795,47 +795,71 @@ def _lp_shared(
     hub_degree_cap: int | None,
     top: int | None,
 ) -> list[tuple[Any, Any, float]]:
-    """Shared-neighbour methods (jaccard / common / adamic-adar / ralloc)."""
-    shared: dict[tuple[int, int], int] = {}
-    weights: dict[tuple[int, int], float] = {}
-    for hub, neighbours in enumerate(adj):
-        if hub_degree_cap is not None and len(neighbours) > hub_degree_cap:
-            continue
-        weight = _lp_hub_weight(method, len(neighbours))
-        ordered = sorted(neighbours)
-        for idx_a, a in enumerate(ordered):
-            for b in ordered[idx_a + 1 :]:
-                key = _pair_key(a, b)
-                shared[key] = shared.get(key, 0) + 1
-                weights[key] = weights.get(key, 0.0) + weight
+    """Shared-neighbour methods (jaccard / common / adamic-adar / ralloc).
 
-    results: list[tuple[Any, Any, float]] = []
-    for key, count in shared.items():
-        if key in existing or key[0] == key[1]:
-            continue
-        score = _lp_score(method, count, weights[key], degrees, key)
-        if score > 0:
-            results.append((labels[key[0]], labels[key[1]], float(score)))
-    results.sort(key=lambda row: (-row[2], row[0], row[1]))
-    if top is not None:
-        results = results[:top]
-    return results
-
-
-def _lp_hub_weight(method: str, degree: int) -> float:
+    Same contract as the pair-loop version it replaced: each unordered
+    pair is counted (and weight-accumulated) once per shared neighbour
+    whose degree passes the hub cap, existing edges and non-positive
+    scores are dropped, results order by (score DESC, label). Sparse
+    form: with A the symmetric 0/1 adjacency, D the 0/1 hub-mask
+    diagonal and W the per-hub weight diagonal (1/log deg adamic-adar,
+    1/deg resource-alloc), ``(A @ D @ A)[a, b]`` is the capped shared-
+    neighbour count and ``(A @ W @ A)[a, b]`` the weight sum — identical
+    pair universe, C-speed instead of the Python pair loop.
+    """
+    n = len(labels)
+    if n < 2:
+        return []
+    deg = np.asarray(degrees, dtype=np.int64)
+    hub_mask = np.ones(n, dtype=np.float64)
+    if hub_degree_cap is not None:
+        hub_mask[deg > hub_degree_cap] = 0.0
     if method == "adamic-adar":
-        return 1.0 / math.log(degree) if degree > 1 else 0.0
-    if method == "resource-alloc":
-        return 1.0 / degree if degree else 0.0
-    return 1.0
+        wgt = np.where(deg > 1, hub_mask / np.log(np.maximum(deg, 2)), 0.0)
+    elif method == "resource-alloc":
+        wgt = np.where(deg > 0, hub_mask / np.maximum(deg, 1), 0.0)
+    else:
+        wgt = hub_mask
 
+    src = np.repeat(np.arange(n, dtype=np.int32), [len(s) for s in adj])
+    dst = np.fromiter((b for s in adj for b in s), dtype=np.int32, count=len(src))
+    a_mat = scipy.sparse.csr_matrix((np.ones(len(src), dtype=np.float64), (src, dst)), shape=(n, n))
+    # ONE complex matmul so count/weight stay positionally aligned: the
+    # real part accumulates the capped shared-neighbour count, the
+    # imaginary part the per-hub weights (0 where every shared hub is
+    # weightless, e.g. degree-1 adamic-adar). Two separate COOs would
+    # not align — scipy's matmul emits explicit zeros and the entry
+    # lists differ (observed 660 vs 662).
+    diag = scipy.sparse.diags(hub_mask + 1j * wgt)
+    prod = (a_mat @ diag @ a_mat).tocoo()
 
-def _lp_score(
-    method: str, count: int, weight: float, degrees: list[int], key: tuple[int, int]
-) -> float:
+    c_r, c_c = prod.row.astype(np.int64), prod.col.astype(np.int64)
+    keep = c_r < c_c
+    tri = scipy.sparse.triu(a_mat, k=1).tocsr()
+    is_edge = np.asarray(tri[c_r[keep], c_c[keep]]).ravel().astype(bool)
+    keep[keep] = ~is_edge
+
+    cnt = prod.data.real[keep]
+    w = prod.data.imag[keep]
+    da, db = deg[c_r[keep]], deg[c_c[keep]]
     if method == "jaccard":
-        union = degrees[key[0]] + degrees[key[1]] - count
-        return count / union if union else 0.0
-    if method == "common-neighbors":
-        return float(count)
-    return weight
+        union = da + db - cnt
+        scores = np.divide(cnt, union, out=np.zeros_like(cnt), where=union > 0)
+    elif method == "common-neighbors":
+        scores = cnt
+    else:
+        scores = w
+
+    live = scores > 0
+    r, c, s = c_r[keep][live], c_c[keep][live], scores[live]
+    if method in ("adamic-adar", "resource-alloc"):
+        # scipy's matmul accumulation order differs from the sequential
+        # hub loop it replaced — ULP-level drift only, but callers pin
+        # scores; same quantisation as onager_eigenvector.
+        s = np.round(s, 12)
+    order = sorted(range(n), key=labels.__getitem__)  # label rank == label order
+    rank = np.empty(n, dtype=np.int64)
+    for pos, idx in enumerate(order):
+        rank[idx] = pos
+    by_rank = np.lexsort((rank[c], rank[r], -s))[:top]
+    return [(labels[r[i]], labels[c[i]], float(s[i])) for i in by_rank]

@@ -1239,3 +1239,74 @@ class TestFindCycles:
             assert find_cycles(dcon, max_hops=4) == []
         finally:
             dcon.close()
+
+    def test_walk_substrate_carries_properties(self, tmp_path):
+        """The walk substrates keep the staged fin.graph_edges properties
+        payload (2026-10-23: previously dropped, so JSON-key probes had to
+        know which per-type table owned a key — n_quotes only exists on
+        e_cited_in). Pins: properties flows to e_dir and BOTH e_all_und
+        directions, derived part_of/has_company rows carry NULL (no source
+        edge), and json_extract_string works directly on the aggregate."""
+        import duckdb as _ddb
+
+        sqlite_path = tmp_path / "props.db"
+        scon = sqlite3.connect(str(sqlite_path))
+        scon.executescript("""
+            CREATE TABLE entities (name TEXT PRIMARY KEY, entity_type TEXT);
+            CREATE TABLE graph_edges (
+                source TEXT NOT NULL, target TEXT NOT NULL, edge_type TEXT NOT NULL,
+                weight REAL NOT NULL DEFAULT 1.0, properties TEXT NOT NULL DEFAULT '{}',
+                source_ref TEXT NOT NULL DEFAULT 'test',
+                valid_from DATE, valid_to DATE,
+                CHECK (source != target)
+            );
+            INSERT INTO entities VALUES
+                ('Alpha', 'company'), ('Beta', 'company'),
+                ('Automotive', 'sector'), ('Daily Edition', 'edition');
+            INSERT INTO graph_edges (source, target, edge_type, properties) VALUES
+                ('Alpha', 'Daily Edition', 'cited_in', '{"n_quotes": 5}'),
+                ('Alpha', 'Beta', 'competes_with', '{}');
+        """)
+        scon.commit()
+        scon.close()
+
+        dcon = _ddb.connect()
+        dcon.execute("INSTALL sqlite; LOAD sqlite;")
+        dcon.execute(f"ATTACH '{sqlite_path}' AS fin (TYPE sqlite, READ_ONLY);")
+        from helpers.graph.query import _materialise_walk_substrate, _stage_edges
+
+        dcon.execute(
+            "CREATE TABLE v_node AS "
+            "SELECT row_number() OVER () AS id, name, entity_type AS kind "
+            "FROM fin.entities"
+        )
+        _stage_edges(dcon)
+        _materialise_walk_substrate(dcon)
+        try:
+            quoted = dcon.execute(
+                "SELECT a_id, b_id FROM e_all_und "
+                "WHERE json_extract_string(properties, '$.n_quotes') IS NOT NULL "
+                "ORDER BY a_id, b_id"
+            ).fetchall()
+            # The cited_in edge appears in BOTH directions of the aggregate.
+            assert len(quoted) == 2, quoted
+            nq = dcon.execute(
+                "SELECT CAST(json_extract_string(properties, '$.n_quotes') AS BIGINT) "
+                "FROM e_all_und WHERE json_extract_string(properties, '$.n_quotes') "
+                "IS NOT NULL LIMIT 1"
+            ).fetchone()[0]
+            assert nq == 5
+            # Empty-object payload survives verbatim; competes_with doubled.
+            assert (
+                dcon.execute("SELECT COUNT(*) FROM e_all_und WHERE properties = '{}'").fetchone()[0]
+                == 2
+            )
+            # No source edge → NULL payload on the substrate.
+            assert (
+                dcon.execute("SELECT COUNT(*) FROM e_all_und WHERE properties IS NULL").fetchone()[
+                    0
+                ]
+                == 0
+            )
+        finally:
+            dcon.close()

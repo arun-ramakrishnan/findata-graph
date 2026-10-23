@@ -523,3 +523,63 @@ preference), N3 documented, N5 ADOPTED (vss scalar-function integration), N6 not
 so a bump doesn't silently leave a dead workaround in place. None block
 the current pipeline — the graph layer passes full QA and serves the live
 1073-entity / 3507-edge graph with sub-50ms queries.
+
+## BUNDLE P — DuckDB 2.0 core-extension landscape + fts recheck
+
+STATUS: recorded 2026-10-23 (post-upgrade, duckdb 2.0.0 live). Sources:
+<https://duckdb.org/docs/2.0/core_extensions/overview> (the 2.0 core
+extension list) diffed against the 1.5 pages for the fts extension; our
+sqlite-fts blocker list in
+`doc/improvements/archive/database/duckdb_20_sqlite_reentry.md` §2.2 and the
+engine-split record
+`doc/improvements/archive/database/duckdb_vector_search_assessment.md`.
+
+### P1. The 2.0 core-extension list (33 extensions)
+
+Maintainer/support tiers are new in the 2.0 docs: **Primary** = community
+support policy (httpfs, icu, json, parquet); **Secondary** = best-effort
+but shipped with releases (everything else DuckDB-team-maintained).
+Third-party: lance, motherduck, sirius (GPU execution, "coming soon"),
+ui, vortex.
+
+Our-relevant entries: **fts** (Secondary) and **vss** (Secondary) — the
+two engines behind the N5 decision and the Alternate B engine split;
+**sqlite** (Secondary, aliases sqlite_scanner/sqlite3) — our readonly
+SOURCES attach; **quack** (Secondary) — now a core extension, the wire
+protocol the resident server uses (#428); **json** (Primary) — the F4
+JSON-extraction family; **postgres/mysql/odbc** — unused today; **spatial,
+excel, delta, ducklake, iceberg, unity_catalog, encodings, legacy_parser,
+tpch/tpcds, autocomplete, avro, aws, azure, httpfs** — unused; deltas vs
+1.5: **jemalloc dropped** from the core list (moved to internals docs),
+**sirius added** (third-party placeholder), the rest carried over.
+
+### P2. fts recheck — did 2.0 fix what blocked the sqlite-fts move?
+
+Diffed the 1.5 and 2.0 fts doc pages line by line. The extension is
+UNCHANGED except one parameter:
+
+- `create_fts_index` gained `incremental = 0` — trigger-based index
+  maintenance after inserts/deletes (requires the doc-id column to be
+  `NOT NULL` or `PRIMARY KEY`). In 1.5 the index was static and the docs
+  said so ("workaround: recreate the index to refresh").
+- `match_bm25` is BYTE-IDENTICAL between 1.5 and 2.0:
+  `match_bm25(input_id, query_string, fields := NULL, k := 1.2,
+  b := 0.75, conjunctive := 0)`. Correction to our earlier record: the
+  "fixed params" note in the consolidation assessment overstated it —
+  `k`/`b` and `conjunctive` (AND semantics) were already exposed in 1.5;
+  2.0 changes neither signature nor defaults.
+
+Against our B3 blockers (16,479-row eval, lexical recall@5 0.85 vs FTS5's
+0.93): **no snippet/highlight functions** (the app.py display-parity gap),
+**no phrase syntax** (the "Coal India" adjacency failure), and **no
+per-field bm25 weighting** (`fields :=` selects fields, it does not
+weight them) — all three UNRESOLVED in 2.0. None of the tuning that might
+have closed the recall gap changed. Verdict: **Alternate B stands** —
+FTS5 stays the SQLite lexical engine, vectors live on DuckDB
+(brute-force parity proven, completed.md #427); the 2.0 re-pilot table in
+the vector-search assessment is unaffected. `incremental = 1` is a
+convenience we do not need while lexical stays SQLite; it would matter
+only if N2 (FTS typeahead) ever reopened on DuckDB. N2 stays deferred.
+Re-entry gate untouched: `duckdb_20_sqlite_reentry.md` remains gated on
+B1/B2/B3, and B2.2 is now verified against the 2.0 docs rather than the
+1.5-era record.

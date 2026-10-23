@@ -2636,6 +2636,15 @@ def _materialise_walk_substrate(con: duckdb.DuckDBPyConnection) -> None:
     other e_* table; edges with a dangling endpoint (name not in
     entities) drop here, which FK constraints already forbid.
 
+    properties rides along on both substrates (the staged
+    ``fin.graph_edges`` payload, verbatim; ``NULL`` on the derived
+    part_of/has_company rows, which have no source edge) so JSON-key
+    filters work directly on the adjacency — previously the payload was
+    dropped here and probes had to know which per-type table owned a
+    key (e.g. ``n_quotes`` only exists on ``e_cited_in``). Row-level
+    semantics: the aggregate doubles every edge in both directions, so
+    a keyed row appears twice, once per direction.
+
     Reads ``_stg_edges`` (the staged local copy of fin.graph_edges), so
     a direct caller must run ``_stage_edges(con)`` first — the
     production path gets that via ``_materialise_edges``.
@@ -2655,24 +2664,28 @@ def _materialise_walk_substrate(con: duckdb.DuckDBPyConnection) -> None:
         """
         CREATE TABLE e_dir AS
         SELECT src.id AS a_id, dst.id AS b_id,
-               ge.edge_type, ge.valid_from, ge.valid_to
+               ge.edge_type, ge.valid_from, ge.valid_to, ge.properties
         FROM _stg_edges ge
         JOIN v_node src ON src.name = ge.source
         JOIN v_node dst ON dst.name = ge.target
         UNION ALL
-        SELECT company_id, sector_id, 'part_of', valid_from, valid_to
+        SELECT company_id, sector_id, 'part_of', valid_from, valid_to,
+               NULL::VARCHAR AS properties
         FROM _sector_resolved
         UNION ALL
-        SELECT sector_id, company_id, 'has_company', valid_from, valid_to
+        SELECT sector_id, company_id, 'has_company', valid_from, valid_to,
+               NULL::VARCHAR AS properties
         FROM _sector_resolved
         """
     )
     con.execute(
         """
         CREATE TABLE e_all_und AS
-        SELECT a_id, b_id, edge_type, valid_from, valid_to FROM e_dir
+        SELECT a_id, b_id, edge_type, valid_from, valid_to, properties
+        FROM e_dir
         UNION ALL
-        SELECT b_id, a_id, edge_type, valid_from, valid_to FROM e_dir
+        SELECT b_id, a_id, edge_type, valid_from, valid_to, properties
+        FROM e_dir
         """
     )
 

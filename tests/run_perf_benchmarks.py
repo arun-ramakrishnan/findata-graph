@@ -94,9 +94,9 @@ _LOAD_CEIL = 2.0  # 1-minute load, PSI-less fallback
 #                                                Brandes (3,385 x 40k);
 #                                                peeled leaves are O(1)
 #                                                closed-form each
-#   graph_link_prediction    2.5-2.7 s   4.0     O(E x avg_deg) 2-hop join
-#                                                (633k slots); hub cap 512
-#                                                bounds the star term
+#   graph_link_prediction    6.1 s (fb) 8.0     fallback-lane sparse matmul
+#                                                (sub-second) + boot/wire
+#                                                fetch; was 2.5-2.7 s onager
 #   derive_insights          4.8-7.5 s   9.0     scan/render wall (corpus
 #                                                growth); +2 s operator
 #                                                boost 09-26
@@ -106,6 +106,10 @@ _LOAD_CEIL = 2.0  # 1-minute load, PSI-less fallback
 #   snapshot_check           4.6 s       6.0     O(tables) verify; grew with
 #                                                S4's per-table zst
 #                                                roundtrip (58 tables)
+#   route_graph_stats         3.3-5.5 s   7.5     end-to-end Flask boot +
+#                                                graph build + 4 routes;
+#                                                per-route 0.5 s bars live
+#                                                inside bench_routes.py
 #   integrity_check          4.4-4.7 s   10.0    O(entities+relations)
 #                                                (operator-approved headroom)
 #   shortest_path_bfs        8.1-10.2 s  12.0    inner per-route asserts are
@@ -193,10 +197,12 @@ BENCHMARKS: list[tuple[str, list[str], float]] = [
     # Onager all-pairs extension (~485M pairs, 57-62s) to a SQL 2-hop
     # candidate join over the materialised projection — exact for the
     # shared-neighbour methods (score > 0 <=> shared neighbour), hub-side
-    # degree cap 512 + per-lo top-K early exit. 61s -> 0.65s in-process,
-    # 2.7s end-to-end process (boot-dominated); top-10 bit-identical vs the
-    # unpruned run. Budget 4.0 = measured + ~50% boot-noise headroom;
-    # re-tighten in S5's table pass.
+    # degree cap 512 + per-lo top-K early exit. Onager era: 2.5-2.7s
+    # end-to-end. Since the 2.0 fallback lanes (completed.md #427) the LP
+    # is a single sparse matmul (sub-second) but the lane is boot+wire
+    # fetch dominated: 6.15s end-to-end (39.8s pre-vectorisation).
+    # Budget 8.0 = measured + ~30% headroom for the fallback path; the
+    # onager 4.0 shape returns if the extension ever ports to 2.0.
     (
         "graph_link_prediction",
         [
@@ -208,7 +214,7 @@ BENCHMARKS: list[tuple[str, list[str], float]] = [
             "jaccard",
             "--no-apply",
         ],
-        4.0,
+        8.0,
     ),
     # Back to ~3.0s since centrality_rebuild_contract (2026-09-22): the
     # rebuild is data-only again — the ten v_centrality_* tables are
@@ -232,11 +238,14 @@ BENCHMARKS: list[tuple[str, list[str], float]] = [
     # route with a warm-up call; budgets are steady-state x ~10 (see the
     # script for the measured baselines).
     # Budget is the END-TO-END process cost (interpreter + Flask app +
-    # graph-layer build + 4 routes), measured 3.3 s stable 2026-09-20.
+    # graph-layer build + 4 routes), measured 3.3 s stable 2026-09-20;
+    # 7.5 s since 2026-10-23 (operator call): quack-wire fetch of the
+    # 130k-edge projection + fallback-lane boot put the observed outer
+    # cost at 5.5 s (perf 1801), still far under the onager-era legs.
     # The route-level budgets that catch the AVAIL-1 class live INSIDE the
     # script (best-of-3 per route against a 0.5 s bar), so this outer
     # budget only guards the harness itself.
-    ("route_graph_stats", ["tests/bench_routes.py"], 5.0),
+    ("route_graph_stats", ["tests/bench_routes.py"], 7.5),
     # sql_capability_unlocks B2 gate: BFS shortest_path steady-state
     # (<100ms on the default request AND the unreachable-dst full
     # component traversal, asserted inside the script).
