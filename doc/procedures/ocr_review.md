@@ -5,6 +5,17 @@
 
 **Related issue:** [prime-agent#3082](https://github.com/PrimeIntellect-ai/prime-agent/issues/3082) — kernel snapshot/restore silently truncates files: dill-revived `'w'` file handles reopen with `O_TRUNC` at every kernel restart. This zeroed the then-evidence file `doc/local/engineering/code_review.md` three times during the 2026-09-28 trial (evidence home moved to `outputs/reviews/` on 2026-10-11 — operator ruling: that file is instructions, not evidence). Until it lands upstream, write doc-local notes with `Path(p).write_text(...)` — never a captured `open(..., 'w')` handle.
 
+## ALWAYS-RUN RULE (violated twice — stop repeating it)
+
+**The review legs are executed, not assumed.** Before making ANY capture-lane attribution claim in a sitting, comparison, or report — "captured by the delegation leg", "the scan leg found Y" — the agent must either:
+
+1. have **executed** that leg in the *same sitting* (`make review-patch FROM=<base> TO=<head>`, or `$OCR delegate preview --commit <sha>` + `review-scan` separately); **or**
+2. label every statement as coming from a **pre-existing artifact by id**, with its provenance (operator-run vs agent-run) and its freshness state (`review-freshness: FRESH | STALE | UNREVIEWED`) from `outputs/reviews/review-freshness.json`.
+
+Never write "we ran" for a leg the agent only read. `review-patch` is **prep** — it produces the selection roster, the checklist, and the scan findings, and leaves adjudication to the host sitting; reading its output is not running it, and the host sitting itself is still review, not execution. If unsure which legs ran, check `git log -- outputs/reviews/` and the report headers BEFORE claiming anything. When in doubt, re-run — the legs are free in offline/delegation mode and minutes-class.
+
+This exact mistake recurred on the 2026-10-22 review of range `7b122d915..e3147ef3c`: two operator-run artifacts on disk (delegation `af9e523b`, scan `b7cf42856115`) were presented as a verified delegation-vs-scan comparison with capture-lane attribution, without either leg being executed in the sitting; the operator called it out and the range had to be re-run (`make review-patch FROM=7b122d915 TO=e3147ef3c`) to ground the comparison. Note also: an `OFFLINE=1` re-run **skips semgrep and osv** ("legs that did not scan the diff") — an offline roster is a PARTIAL scan; say so in any attribution, and keep the fuller online roster's medium findings accounted for. And because the roster filename is a deterministic content fingerprint of the RANGE, a re-run with different flags **overwrites the previous roster in place** (the 2026-10-22 offline rerun replaced the online roster, dropping its semgrep section from disk) — copy the old roster aside first if the two coverages must be compared.
+
 ## What this loop is
 
 OCR contributes two deterministic things — **which files are reviewable** and **a checklist of things to look for**. The host agent contributes judgment. Delegation mode calls no LLM, so it is free and needs no key. Output is advisory: never a `make qa` leg, never fails a build.
@@ -230,11 +241,13 @@ the severity and validity rules still bind on the host.
 | Critical / High | always report; correctness and security are blocking |
 | Medium | report with surrounding context, or drop it — say which |
 | Low | discard unless it carries real value |
+| cosmetic (mechanical) | never ranks; collapse to a count + file list, never drop |
 
 **Anti-inflation rules** (binding on every severity call):
 
 1. **Severity ≤ demonstrated impact.** Overall severity cannot exceed the impact actually demonstrated. A claim whose only evidence is "the code reads it this way" cannot be High; unproven exploitability caps it at Medium.
 2. **No severity on an unvalidated record.** "I could not reproduce it" is not Low — it is unknown. An unvalidated finding carries no severity field at all; it is graded only after validation (§4b.2).
+3. **Mechanical cosmetics never rank.** Formatting rules (sqlfluff LT01/LT02/LT05/RF04/RF06, shellcheck 2013-class) are hygiene, not semantics — they are recorded as `cosmetic` below Low, never assigned Medium/High, and never take a verdict slot. Generated SQL (`schema/duckdb/*.sql`, `snapshots/parquet/_schema.*`) collapses identically by rule/path in the repeat ledger; every entry stays listed in the roster, never silent.
 
 Report findings; do not act on them unilaterally. The operator accepts, rejects or defers.
 

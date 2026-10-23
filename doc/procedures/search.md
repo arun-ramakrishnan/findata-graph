@@ -274,7 +274,7 @@ landed record). One FTS5 row per commit on `main`: the message is the
 vector leg, touched paths + noise-excluded diff text are the lexical leg
 (fusion doctrine: identifiers are bm25's home turf; vector-basis
 enrichment is rejected). Proposal:
-`doc/improvements/proposals/git_history_search.md`.
+`doc/improvements/archive/git/git_history_search.md`.
 
 ### Scope contract (operator ruling 2026-10-17)
 

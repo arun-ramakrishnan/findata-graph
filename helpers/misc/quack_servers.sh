@@ -104,7 +104,7 @@ for e in (disc.values() if isinstance(disc, dict) else []):
     [ "${#todo[@]}" -eq 0 ] && { echo "quack-server: all requested stores already served"; return 0; }
     # Rotate the previous log: restarts never destroy failure evidence.
     if [ -f "$LOG" ]; then mv -f "$LOG" "$LOG.prev"; fi
-    local i=0 db_args
+    local i=0
     for db in "${todo[@]}"; do
         local port=$((PORT_BASE + i))
         i=$((i + 1))

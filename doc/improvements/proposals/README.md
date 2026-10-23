@@ -38,16 +38,8 @@ entry number and stale DONE pointers):
 
 ## Current live proposals
 
-- *(VARIANT, filed 2026-10-21 — resolved DEFERRED 2026-10-22: measured
-  not warranted at our row counts; merged into the engine assessment at
-  `../archive/database/duckdb_vector_search_assessment.md` #430.)*
-- *(SQLITE RE-ENTRY, filed 2026-10-21 — resolved DEFERRED 2026-10-23:
-  gate evidence produced (B2 map PASS, B1 sized ≈17–24 focused days) and
-  the port judged not worth it at today's scale; full map + sizing +
-  reopen triggers at `../archive/database/duckdb_20_sqlite_reentry.md`
-  #431.)*
-- *(none — no live proposals remain; both duckdb_20 siblings are
-  archived deferred.)*
+- *(no live proposals — the 2026-10-21 review-lanes batch is fully discharged; pending.md shows the remainder.)*
+
 - Family provenance: split 2026-10-21 from the bundled
   `duckdb20_quack_variant` filing; the executed 2.0-compat migration
   is completed.md #427. Upstream changeset:
@@ -59,7 +51,8 @@ detail bullets): `../archive/graph/merger_demerger_hyperedges.md` (#426),
 `../archive/tooling/tui_perf_sparkline.md` (#422),
 `../archive/database/person_ontology_spine.md` (#419),
 `../archive/graph/hyperedge_density_dq.md` (#420),
-`../archive/graph/parquet_export_wrapper.md` (#421, BUILD path).
+`../archive/graph/parquet_export_wrapper.md` (#421, BUILD path),
+`../archive/tooling/ocr_review_lanes_7b122d915_e3147ef3c.md` (#432).
 
 Historical (executed + archived; newest first):
 

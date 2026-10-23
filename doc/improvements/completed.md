@@ -12118,3 +12118,32 @@ judgement:
 
 Full map, lane table, phase plan, PRAGMA census and win ledger:
 `doc/improvements/archive/database/duckdb_20_sqlite_reentry.md` §3.
+
+## 432. Review lanes — separate semantic findings from mechanical lint, with a cosmetic floor (executed 2026-10-22)
+
+**Status:** EXECUTED — `doc/improvements/archive/tooling/ocr_review_lanes_7b122d915_e3147ef3c.md`
+
+**What landed:**
+- S1 procedure (§4 severity table gains `cosmetic (mechanical)` row below Low + anti-inflation rule 3 "Mechanical cosmetics never rank") — `doc/procedures/ocr_review.md`
+- S2 `review_scan.py` lane labels (fail-loud default `hygiene`; `cosmetic` lane never ranks; collapse to count + file list) — `helpers/misc/review_scan.py`
+- S3 roster grouping by lane with collapsed sections — `helpers/misc/review_scan.py` (collapsed lines `indent`-preserved so ranked parsers still match only `^(critical|high|medium|low)`)
+- S4 freshness record — `repeat_ledger.json` keyed by line-free fingerprint `(scanner, rule, path, message)`; never collapses severity ≥ medium; `--keep-collapsed` escape hatch prints everything individually
+
+**Measured on range `7b122d915..e3147ef3c`:** 113 scan findings → 21 ranked (1 medium `shellcheck:2034`, 20 low hygiene) + 92 collapsed (cosmetic 92, generated 92). All 113 inside the delegation selection — precision problem, not coverage. No query-visible semantics change → eval-gate bullet not triggered.
+
+**Verification:** md-lint clean; static_checks ✓ (3 advisory); ruff check/format clean; ty check clean; 81/81 tests in tests/test_review_scan.py. Gates deferred to operator's go.
+
+## 433. L1c closeness/harmonic leaf fold — 2-core BFS + analytic forest term (backref repair)
+
+**Date**: 2026-10-15 (executed) · 2026-10-24 (entry backfilled)
+**Status**: COMPLETE (entry backfilled during the 7b122d915..e3147ef3c delegation review — the
+archived proposal `doc/improvements/archive/graph/l1_closeness_fold.md` carried a phantom
+`completed_md: "8823"` with no matching numbered entry; sibling lanes #408/#409 record their
+execution as numbered entries, so this entry completes that convention)
+
+- `helpers/graph/l1_closeness.py` — 2-core BFS + analytic forest term; 84% of the graph is
+  forest; the fold is exact on the FULL 1,734-entity contract (closeness maxdiff=0,
+  harmonic 2.5e-11 — after the 2026-10-15 audit fixed phantom-N normalization +
+  sibling-via-root tree BFS, fold doc §8) and 1.61× faster end-to-end jobs=1 (3.41 s vs
+  5.49 s; the earlier 5.34× was a phase-vs-phase comparison). Tests:
+  `tests/test_l1_closeness.py`.

@@ -34,7 +34,7 @@ export PATH := $(CURDIR)/.venv/bin:$(PATH)
 export TMPDIR ?= $(shell test -d /mnt/data/tmp && { mkdir -p /mnt/data/tmp/findata; echo /mnt/data/tmp/findata; } || echo /tmp)
 
 
-.PHONY: help qa test live-invariants perf cover fuzz integration snapshot snapshot-check snapshot-restore sync-tags sync-coverage-tags sync-sector-links static-checks license-check tmp-sweep install-dev triage-quotes gate-fresh graph-smoke graph-stats graph-algos graph-rebuild graph-rebuild-bench update-extensions recompute-graph recompute-hyper search-fresh convo-fresh embed-gc search-tui tier-nudge tier-watch derive-relations derive-co-mentions derive-org-membership derive-event-participants derive-merger-hyperedges dup-census person-census derive-themes derive-events derive-insights derive-indices quote-coverage derive-themes-rebuild derive-cited-in derive-cited-in-rebuild derive-hyperedges derive-all refresh-indices refresh-vigil refresh-shp frontend frontend-check fold-identifiers format maint maint-full md-lint metrics-rebuild mojo-bench mojo-parity mojo-build mojo-test mojo-format relations-enrich lint types types-tests lint-audit deptry advisory secret-scan cargo-audit script-search-rebuild memory-search-rebuild triage-relations teleocr-server embgemma-server granite-server llamacpp-build llamacpp-health quack-start quack-stop quack-status quack-restart quack-health csr csr-check csr-rebuild convo-search-rebuild convo-search-check analytics-parquet analytics-fresh schema-check schema-dump bili-status bili-monitor bili-stop-monitor bili-report bili-snap bili-watch-event bili-thresh-replay
+.PHONY: help qa test live-invariants perf cover fuzz integration snapshot snapshot-check snapshot-restore sync-tags sync-coverage-tags sync-sector-links static-checks license-check tmp-sweep install-dev triage-quotes gate-fresh graph-smoke graph-stats graph-algos graph-rebuild graph-rebuild-bench update-extensions recompute-graph recompute-hyper search-fresh convo-fresh embed-gc search-tui tier-nudge tier-watch derive-relations derive-co-mentions derive-org-membership derive-event-participants derive-merger-hyperedges dup-census person-census derive-themes derive-events derive-insights derive-indices quote-coverage derive-themes-rebuild derive-cited-in derive-cited-in-rebuild derive-hyperedges derive-all refresh-indices refresh-vigil refresh-shp frontend frontend-check fold-identifiers format maint maint-full md-lint metrics-rebuild mojo-bench mojo-parity mojo-build mojo-test mojo-format relations-enrich lint types types-tests lint-audit deptry advisory ocr-version-check secret-scan cargo-audit script-search-rebuild memory-search-rebuild triage-relations teleocr-server embgemma-server granite-server llamacpp-build llamacpp-health quack-start quack-stop quack-status quack-restart quack-health csr csr-check csr-rebuild convo-search-rebuild convo-search-check analytics-parquet analytics-fresh schema-check schema-dump bili-status bili-monitor bili-stop-monitor bili-report bili-snap bili-watch-event bili-thresh-replay
 
 help:           ## Show available targets (alphabetical; entries generated from the ## annotations — keep both in sync)
 > @echo "FinData targets (alphabetical):"
@@ -110,6 +110,7 @@ help:           ## Show available targets (alphabetical; entries generated from 
 > @echo "  mojo-parity             Golden parity: Mojo integrity_check vs the Python original over 89 canonical keys (qa leg; exits 1 on any mismatch)"
 > @echo "  mojo-test                Run Mojo/tests/*.mojo test suites via mojo run (machinery in Makefile.mojo)"
 > @echo "  near-duplicates          Report near-duplicate note pairs above cosine 0.9 (rename tripwire; READ-ONLY)"
+> @echo "  ocr-version-check        Assert the OCR binary matches the pinned version (helpers/misc/ocr_pin.py; advisory)"
 > @echo "  parity                   Byte-compare registered refactor targets against REF (default HEAD) across pinned hash seeds (warns; STRICT=1 to gate)"
 > @echo "  perf                     Run wall-clock perf benchmarks, print timing table, and append to outputs/perf_report.md"
 > @echo "  person-census            Person-name dup census (person_name_dedup): --check gate vs baseline, --plan writes the merge plan"
@@ -206,6 +207,15 @@ live-invariants: ## Run ONLY the live-marked invariant tests (-m live, xdist -n 
 perf:           ## Run wall-clock perf benchmarks, print timing table, and append to outputs/perf_report.md
 > python3 tests/run_perf_benchmarks.py
 > @echo "✓ performance benchmarks passed (see table above; appended to outputs/perf_report.md)"
+
+# The OCR binary is a global unpinned install and the package ships no
+# changelog, so an upgrade changes the review loop silently. The pin is the
+# version the roster's assumptions were checked against (delegate JSON shape,
+# text|json only, inert rules key) — bump it deliberately, re-reading
+# `ocr delegate preview --help` and doc/procedures/ocr_review.md in the same
+# patch.
+ocr-version-check: ## Assert the OCR binary matches the pinned version (helpers/misc/ocr_pin.py; advisory)
+> @.venv/bin/python3 helpers/misc/ocr_pin.py
 
 cover:          ## Run all tests with coverage over helpers/ (branch + missing-line report)
 > pytest --cov=helpers --cov-branch --cov-report=term-missing --cov-report=html

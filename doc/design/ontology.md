@@ -199,7 +199,7 @@ strings and are counted, never fuzzy-merged (NEVER-MERGE ledger: an HUF
 never merges into an individual, #293). ORG Membership/Post/Role stay
 keyed on the DIN lane (MCA bulk 403; no appointments source).
 Spine proposal filing the full resolution:
-`../improvements/proposals/person_ontology_spine.md` (2026-10-18).
+`../improvements/archive/database/person_ontology_spine.md` (2026-10-18).
 
 <!-- roster: entity_types -->
 

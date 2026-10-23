@@ -881,3 +881,84 @@ class TestDeletionCensus:
             "ccc33333", "ddd44444", [], ["bandit: ran (0 kept on changed lines)"], deletions=[]
         )
         assert "deletions:" not in md.read_text(encoding="utf-8")
+
+
+class TestRepetitionGuard:
+    """Ten rosters (2026-10-22) showed ~49% of findings on generated SQL and 70
+    fingerprints repeating; the guard collapses that noise without dropping it.
+
+    Mutation checks: deleting the GENERATED_PREFIXES test makes
+    test_generated_paths_collapse fail; deleting the `seen` branch makes
+    test_repeat_collapses_but_carries_count fail; ranking a medium makes
+    test_medium_never_collapses fail.
+    """
+
+    def _f(self, scanner="sqlfluff", rule="LT01", severity="low", path="a.py", line=1):
+        return rs.Finding(scanner, rule, severity, path, line, "msg")
+
+    def test_generated_prefixes(self):
+        assert rs._generated("schema/duckdb/research.sql")
+        assert rs._generated("snapshots/parquet/_schema.duckdb.sql")
+        assert rs._generated("schema/sqlite/research.sql")
+        assert not rs._generated("helpers/graph/query.py")
+
+    def test_cosmetic_rules(self):
+        assert rs._cosmetic(self._f(rule="LT05"))
+        assert not rs._cosmetic(self._f(scanner="bandit", rule="B608"))
+
+    def test_fingerprint_ignores_line_number(self):
+        assert rs._fingerprint(self._f(line=10)) == rs._fingerprint(self._f(line=910))
+
+    def test_generated_paths_collapse(self):
+        ranked, collapsed, _ = rs._partition([self._f(path="schema/duckdb/graph.sql")], {})
+        assert not ranked and len(collapsed) == 1
+
+    def test_repeat_annotates_but_never_collapses(self):
+        f = self._f(path="helpers/x.py", scanner="bandit", rule="B404")
+        fp = rs._fingerprint(f)
+        ledger = {fp: {"count": 2, "first": "a..b", "last": "b..c"}}
+        ranked, collapsed, repeats = rs._partition([f], ledger)
+        assert ranked == [f] and not collapsed
+        assert repeats[fp] == 2
+        assert "(repeat ×2)" in f.roster_line(2)
+
+    def test_medium_never_collapses(self):
+        f = self._f(severity="medium", path="schema/duckdb/graph.sql")
+        fp = rs._fingerprint(f)
+        ranked, collapsed, _ = rs._partition([f], {fp: {"count": 9}})
+        assert ranked == [f] and not collapsed
+
+    def test_collapsed_lines_are_never_silent(self):
+        f = self._f(path="schema/duckdb/graph.sql")
+        lines = rs._collapsed_lines([f], {}, indent="    ")
+        text = "\n".join(lines)
+        assert "not ranked" in text and "generated" in text and "ledger" in text
+
+    def test_ledger_increments_and_keeps_first(self, tmp_path, monkeypatch):
+        ledger_path = tmp_path / "repeat_ledger.json"
+        monkeypatch.setattr(rs, "REPEAT_LEDGER", ledger_path)
+        ledger: dict[str, dict] = {}
+        f = self._f(path="helpers/x.py")
+        rs._update_ledger(ledger, [f], "aaaa1111", "bbbb2222")
+        rs._update_ledger(ledger, [f], "cccc3333", "dddd4444")
+        entry = ledger[rs._fingerprint(f)]
+        assert entry["count"] == 2
+        assert entry["first"] == "aaaa1111..bbbb2222"
+        assert entry["last"] == "cccc3333..dddd4444"
+        rs._save_ledger(ledger)
+        assert rs._load_ledger()[rs._fingerprint(f)]["count"] == 2
+
+    def test_corrupt_ledger_tolerated(self, tmp_path, monkeypatch):
+        bad = tmp_path / "repeat_ledger.json"
+        bad.write_text("not json", encoding="utf-8")
+        monkeypatch.setattr(rs, "REPEAT_LEDGER", bad)
+        assert rs._load_ledger() == {}
+
+    def test_fingerprint_stable_for_numeric_rule_text(self):
+        # shellcheck codes are bare numbers; the leg normalises them to text
+        # before constructing the Finding, and the fingerprint stays stable.
+        f = rs.Finding("shellcheck", "2034", "medium", "helpers/x.sh", 7, "unused var")
+        assert len(rs._fingerprint(f)) == 16
+        assert rs._fingerprint(f) == rs._fingerprint(
+            rs.Finding("shellcheck", "2034", "low", "helpers/x.sh", 99, "unused var")
+        )

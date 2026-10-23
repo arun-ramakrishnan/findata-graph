@@ -39,6 +39,8 @@ if str(REPO_ROOT) not in sys.path:
 RULE_JSON = REPO_ROOT / ".opencodereview" / "rule.json"
 REVIEW_OUT_DIR = REPO_ROOT / "outputs" / "reviews"
 
+from helpers.misc import ocr_pin  # noqa: E402  # after the repo-root bootstrap above
+
 # The checked families are HARDCODED, not derived from rule.json: the whole
 # point is to catch rule.json dropping one. Deriving them from the rule made
 # the mutation self-masking — remove "tests/" from the rule and the check
@@ -323,20 +325,15 @@ def _scope_label(args, stack: int, payload: dict) -> str:
     return payload.get("commit", "HEAD")
 
 
-def _emit_selection(args, stack: int) -> int:
-
+def _ocr_preview(ref_args: tuple) -> dict | None:
+    """Run the OCR delegate preview for the resolved ref args; None on refusal."""
     ocr = shutil.which("ocr")
     if ocr is None:
         print(
             "ocr not on PATH (bun global); see doc/procedures/ocr_review.md Invocation",
             file=sys.stderr,
         )
-        return 2
-    try:
-        ref_args = _ref_args(stack, args.commit, args.from_ref, args.to_ref)
-    except ValueError as exc:
-        print(str(exc), file=sys.stderr)
-        return 2  # same refusal code review_scan.py uses for a half-range
+        return None
     proc = subprocess.run(  # noqa: S603  # resolved absolute path, fixed argv, no shell
         [ocr, "delegate", "preview", *ref_args, "--format", "json"],
         capture_output=True,
@@ -346,11 +343,26 @@ def _emit_selection(args, stack: int) -> int:
     )
     if proc.returncode != 0:
         print(f"ocr delegate preview failed: {proc.stderr.strip()}", file=sys.stderr)
-        return 2
+        return None
     # `[ocr] …` progress lines interleave with the JSON on stdout (procedure
     # §"(-o, not >)": strip them before parsing — never skip the strip).
     clean = "\n".join(ln for ln in proc.stdout.splitlines() if not ln.startswith("[ocr]"))
-    payload = json.loads(clean)
+    try:
+        return json.loads(clean)
+    except json.JSONDecodeError as exc:
+        print(f"ocr delegate preview: unparseable JSON: {exc}", file=sys.stderr)
+        return None
+
+
+def _emit_selection(args, stack: int) -> int:
+    try:
+        ref_args = _ref_args(stack, args.commit, args.from_ref, args.to_ref)
+    except ValueError as exc:
+        print(str(exc), file=sys.stderr)
+        return 2  # same refusal code review_scan.py uses for a half-range
+    payload = _ocr_preview(ref_args)
+    if payload is None:
+        return 2
 
     reviewable = [f["path"] for f in payload["reviewable_files"]]
     excluded = [f["path"] for f in payload["excluded_files"]]
@@ -360,6 +372,14 @@ def _emit_selection(args, stack: int) -> int:
         f"{payload['reviewable_count']}/{payload['total_files']} reviewable, "
         f"{payload['total_insertions']}+/−{payload['total_deletions']}"
     )
+    # The binary is a global, unpinned install with no changelog: state the
+    # version this roster's assumptions were checked against (helpers/misc/
+    # ocr_pin.py) so an upgrade is visible at the point of use, not after a
+    # review produced by a tool the procedure no longer describes.
+    pin_ok, pin_line = ocr_pin.status()
+    print(pin_line)
+    if not pin_ok:
+        print(f"  pin: helpers/misc/ocr_pin.py (pinned v{ocr_pin.PINNED})", file=sys.stderr)
     for path in reviewable:
         print(f"  + {path}")
     for path in excluded:

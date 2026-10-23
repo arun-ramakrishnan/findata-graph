@@ -76,8 +76,8 @@ NOQA_MAP: dict[str, str] = {
     "B108": "S108",
     # try/except/pass coercions (range review L12): B110 (bandit's
     # `try_except_pass`) is ruff's S110 by another name. The range scan
-    # surfaced 5 of them, all real adjudications — `except Exception:  # noqa:
-    # S110 / pass` in the `_safe_float` / `_safe_date` coercion helpers, plus
+    # surfaced 5 of them, all real adjudications — `except Exception:  (noqa
+    # S110) / pass` in the `_safe_float` / `_safe_date` coercion helpers, plus
     # one in the duckdb ATTACH best-effort. Rot note above applies: if an arc
     # starts adding S110 to a genuinely swallowed error, this mapping is what
     # hides it — revisit with the band.
@@ -110,10 +110,163 @@ class Finding:
             self.rule,
         )
 
-    def roster_line(self) -> str:
+    def roster_line(self, repeat: int = 0) -> str:
         where = f"{self.path}:{self.line}" if self.line else self.path
         first = self.message.splitlines()[0] if self.message else ""
-        return f"{self.severity:<8} {self.scanner}:{self.rule}  {where}  {first}"
+        suffix = f"  (repeat ×{repeat})" if repeat else ""
+        return f"{self.severity:<8} {self.scanner}:{self.rule}  {where}  {first}{suffix}"
+
+
+# ---------------------------------------------------------------- repetition
+
+# Measured 2026-10-22 over ten rosters (331 findings): roughly half of every
+# roster sits on machine-GENERATED SQL that schema-dump/snapshot rewrite on
+# each data arc — sqlfluff's LT01/LT05/RF06/RF04 on `schema/duckdb/*.sql` and
+# `snapshots/parquet/_schema.*.sql` — and a second class repeats because the
+# same hand-written file is touched in most arcs (bandit B608 on the sql_lit
+# pattern in `helpers/graph/query.py`: 46 hits over ten rosters). Re-presenting
+# those as fresh findings each sitting is noise: nobody can act on formatting
+# inside a generated dump, and a third identical copy of a known-pattern hit
+# does not raise the risk. They are COLLAPSED — counted with a file list,
+# never dropped — and a fingerprint seen before carries `repeat ×N` from the
+# ledger. Medium and above always ranks: a medium on a generated file is the
+# one case where the generator itself is wrong.
+GENERATED_PREFIXES = (
+    "schema/duckdb/",
+    "schema/sqlite/",
+    "snapshots/parquet/_schema.",
+)
+COSMETIC_RULES = frozenset(
+    {
+        ("sqlfluff", "LT01"),  # layout: spacing
+        ("sqlfluff", "LT02"),  # layout: indentation
+        ("sqlfluff", "LT05"),  # layout: long lines
+        ("sqlfluff", "RF04"),  # references: keywords as identifiers
+        ("sqlfluff", "RF06"),  # references: quoted literals
+    }
+)
+REPEAT_LEDGER = REVIEW_OUT_DIR / "repeat_ledger.json"
+COLLAPSE_CAP = 12
+
+
+def _generated(path: str) -> bool:
+    """True for a path a tool writes wholesale (never hand-edited).
+
+    Prefix-based rather than glob-based: a file under `schema/duckdb/` IS a
+    dump by construction, so the classification cannot drift with the shell.
+    """
+    return path.startswith(GENERATED_PREFIXES)
+
+
+def _cosmetic(f: Finding) -> bool:
+    return (f.scanner, f.rule) in COSMETIC_RULES
+
+
+def _fingerprint(f: Finding) -> str:
+    """Line-free identity: a moved line is the same finding.
+
+    The line number is deliberately excluded — a generated file shifts every
+    line on each rewrite, and a hand-written hit that moved ten lines down is
+    not a new finding. The message is included so two distinct messages on
+    one path stay distinct.
+    """
+    # shellcheck's rule is a bare number (`2034`), everything else a name —
+    # str() first so the key is textual for every scanner.
+    raw = "\x1f".join((str(f.scanner), str(f.rule), str(f.path), (f.message or "").strip()))
+    return hashlib.sha256(raw.encode("utf-8")).hexdigest()[:16]
+
+
+def _load_ledger() -> dict[str, dict]:
+    try:
+        data = json.loads(REPEAT_LEDGER.read_text(encoding="utf-8"))
+    except OSError, ValueError:
+        return {}
+    return data if isinstance(data, dict) else {}
+
+
+def _save_ledger(ledger: dict[str, dict]) -> None:
+    try:
+        REPEAT_LEDGER.parent.mkdir(parents=True, exist_ok=True)
+        REPEAT_LEDGER.write_text(
+            json.dumps(ledger, indent=1, sort_keys=True) + "\n", encoding="utf-8"
+        )
+    except OSError:
+        # The roster is the deliverable; a ledger write failure costs the next
+        # sitting its repeat annotation and nothing else.
+        return
+
+
+def _update_ledger(ledger: dict[str, dict], findings: list[Finding], base: str, head: str) -> None:
+    scope = f"{base[:8]}..{head[:8]}"
+    for f in findings:
+        fp = _fingerprint(f)
+        entry = ledger.get(fp)
+        if entry is None:
+            entry = {
+                "count": 0,
+                "first": scope,
+                "last": scope,
+                "scanner": f.scanner,
+                "rule": f.rule,
+                "path": f.path,
+            }
+            ledger[fp] = entry
+        entry["count"] = int(entry.get("count", 0)) + 1
+        entry["last"] = scope
+
+
+def _partition(
+    findings: list[Finding], ledger: dict[str, dict]
+) -> tuple[list[Finding], list[Finding], dict[str, int]]:
+    """Split ranked from collapsed, and report each ranked finding's repeat count.
+
+    Collapsed = cosmetic OR generated (and severity < medium).
+    Ranked = everything else (hand-written code findings, medium+ findings).
+    Repeats = dict of ranked findings that were previously seen (for annotation).
+    """
+    ranked: list[Finding] = []
+    collapsed: list[Finding] = []
+    repeats: dict[str, int] = {}
+    for f in findings:
+        fp = _fingerprint(f)
+        seen = int(ledger.get(fp, {}).get("count", 0))
+        hard = f.severity in SEVERITY_ORDER and SEVERITY_ORDER.index(
+            f.severity
+        ) >= SEVERITY_ORDER.index("medium")
+        if not hard and (_cosmetic(f) or _generated(f.path)):
+            collapsed.append(f)
+        else:
+            ranked.append(f)
+            if seen:
+                repeats[fp] = seen
+    return ranked, collapsed, repeats
+
+
+def _collapsed_lines(
+    collapsed: list[Finding], repeats: dict[str, int], indent: str = "    "
+) -> list[str]:
+    """Counts + a capped file list. Never silent: the header names every reason."""
+    if not collapsed:
+        return []
+    by_reason = {"cosmetic": 0, "generated": 0}
+    for f in collapsed:
+        if _cosmetic(f):
+            by_reason["cosmetic"] += 1
+        if _generated(f.path):
+            by_reason["generated"] += 1
+    reasons = ", ".join(f"{name} {count}" for name, count in by_reason.items() if count)
+    lines = [
+        f"\ncollapsed: {len(collapsed)} finding(s) not ranked ({reasons})",
+        f"{indent}ledger: {REPEAT_LEDGER.relative_to(REPO_ROOT)} — collapse is by rule/path/repeat, never silent",
+    ]
+    counts: dict[str, int] = {}
+    for f in collapsed:
+        counts[f"{f.scanner}:{f.rule}"] = counts.get(f"{f.scanner}:{f.rule}", 0) + 1
+    for key, count in sorted(counts.items(), key=lambda kv: (-kv[1], kv[0]))[:COLLAPSE_CAP]:
+        lines.append(f"{indent}{count:4}  {key}")
+    if len(counts) > COLLAPSE_CAP:
+        lines.append(f"{indent}    … +{len(counts) - COLLAPSE_CAP} more rule(s)")
+    return lines
 
 
 # ---------------------------------------------------------------- git plumbing
@@ -534,7 +687,7 @@ def _leg_shellcheck(files: list[str], changed: dict[str, set[int]], head: str, t
         findings.append(
             Finding(
                 scanner="shellcheck",
-                rule=c.get("code", ""),
+                rule=str(c.get("code", "")),  # shellcheck codes are bare numbers
                 severity=_shellcheck_severity(c.get("level", "")),
                 path=path,
                 line=line,
@@ -1038,7 +1191,11 @@ def _print_deletions(deletions: Sequence[str]) -> None:
 
 
 def _print_report(
-    findings: list[Finding], statuses: list[str], deletions: Sequence[str] = ()
+    findings: list[Finding],
+    statuses: list[str],
+    deletions: Sequence[str] = (),
+    ledger: dict[str, dict] | None = None,
+    keep_collapsed: bool = False,
 ) -> None:
     """Stdout roster: per-scanner status lines, then one line per finding
     (or the clean bill). Always exit-0 territory — advisory only."""
@@ -1047,11 +1204,16 @@ def _print_report(
     if deletions:
         _print_deletions(deletions)
     uncovered = _uncovered_legs(statuses)
+    ranked, collapsed, repeats = (
+        (findings, [], {}) if keep_collapsed else _partition(findings, ledger or {})
+    )
     if findings:
-        findings.sort(key=Finding.sort_key)
+        ranked.sort(key=Finding.sort_key)
         print(f"\n{len(findings)} findings:")
-        for f in findings:
-            print(f"  {f.roster_line()}")
+        for f in ranked:
+            print(f"  {f.roster_line(repeats.get(_fingerprint(f), 0))}")
+        for line in _collapsed_lines(collapsed, repeats, indent="    "):
+            print(line)
         worst = max(
             findings,
             key=lambda f: SEVERITY_ORDER.index(f.severity) if f.severity in SEVERITY_ORDER else 0,
@@ -1075,6 +1237,8 @@ def _write_roster(
     findings: list[Finding],
     statuses: list[str],
     deletions: Sequence[str] = (),
+    ledger: dict[str, dict] | None = None,
+    keep_collapsed: bool = False,
 ) -> Path:
     """Durable roster under outputs/reviews/ (digest-keyed per range).
 
@@ -1110,9 +1274,16 @@ def _write_roster(
         ]
         if len(deletions) > 20:
             body.append(f"  … +{len(deletions) - 20} more")
+    ranked, collapsed, repeats = (
+        (findings, [], {}) if keep_collapsed else _partition(findings, ledger or {})
+    )
     body += [
         "",
-        *(f"  {f.roster_line()}" for f in sorted(findings, key=Finding.sort_key)),
+        *(
+            f"  {f.roster_line(repeats.get(_fingerprint(f), 0))}"
+            for f in sorted(ranked, key=Finding.sort_key)
+        ),
+        *_collapsed_lines(collapsed, repeats, indent="    "),
         "",
     ]
     md_path.write_text("\n".join(body), encoding="utf-8")
@@ -1134,6 +1305,11 @@ def main(argv: list[str] | None = None) -> int:
     )
     ap.add_argument("--dialect", default="ansi", help="sqlfluff SQL dialect (default ansi)")
     ap.add_argument("--json", action="store_true", help="write the findings artifact under $TMPDIR")
+    ap.add_argument(
+        "--keep-collapsed",
+        action="store_true",
+        help="print every finding individually (cosmetic/generated/repeat rows are collapsed by default)",
+    )
     args = ap.parse_args(argv)
 
     if (rc := _validate_range_args(args)) is not None:
@@ -1192,7 +1368,14 @@ def main(argv: list[str] | None = None) -> int:
         )
         findings, statuses = _run_enabled_legs(legs, enabled, args.offline)
 
-    _print_report(findings, statuses, deletions=deletions)
+    ledger = _load_ledger()
+    _print_report(
+        findings,
+        statuses,
+        deletions=deletions,
+        ledger=ledger,
+        keep_collapsed=args.keep_collapsed,
+    )
 
     # The durable roster is the deliverable (operator ruling 2026-10-09), so a
     # failure to write it must NOT pass as a clean run: a caller that only
@@ -1200,7 +1383,15 @@ def main(argv: list[str] | None = None) -> int:
     # Print it prominently and exit non-zero — the findings themselves stay
     # advisory and exit-0, but "I could not record your verdict" is an error.
     try:
-        md_path = _write_roster(base, head, findings, statuses, deletions=deletions)
+        md_path = _write_roster(
+            base,
+            head,
+            findings,
+            statuses,
+            deletions=deletions,
+            ledger=ledger,
+            keep_collapsed=args.keep_collapsed,
+        )
     except OSError as e:
         print(
             f"\nROSTER NOT WRITTEN ({type(e).__name__}: {e}) — the findings above are "
@@ -1208,6 +1399,12 @@ def main(argv: list[str] | None = None) -> int:
             file=sys.stderr,
         )
         raise SystemExit(2) from e
+
+    # History is recorded only after the roster landed: a ledger entry for a
+    # sitting whose artifact was never written would tell the NEXT sitting that
+    # a finding "repeated" when the operator never saw the first copy.
+    _update_ledger(ledger, findings, base, head)
+    _save_ledger(ledger)
     if args.json:
         digest = hashlib.sha256(f"{base}..{head}".encode()).hexdigest()[:12]
         artifact = REVIEW_OUT_DIR / f"review_scan_{digest}.json"

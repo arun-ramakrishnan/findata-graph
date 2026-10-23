@@ -3,7 +3,7 @@ title: "Leaf-folded exact closeness/harmonic — 2-core BFS + analytic forest te
 status: executed
 filed: "2026-10-14"
 executed: "2026-10-15"
-completed_md: "8823"
+completed_md: "433"
 area: "helpers/graph"
 ---
 

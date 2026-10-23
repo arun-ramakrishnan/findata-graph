@@ -31,6 +31,14 @@ commit, referenced by nothing). Entry numbers point at
 
 ## security/ — Security arcs over the API + ingestion surface
 
+- [`cloudflare_audit_adoption.md`](security/cloudflare_audit_adoption.md) —
+  per-surface attack-class coverage ledger (status enum, `blocked`/`unresolved`
+  postures, exclusion reasons), triage-idiom queue/apply, Make targets
+  `security-audit/critic/queue/apply/verify/scopes`, verdicts
+  `confirmed`/`needs_validation`/`rejected` + anti-inflation R1/R2 + blind
+  verifier; caught two real bugs in adoption (image-fetch unbounded read
+  64 MiB → `MAX_IMAGE_BYTES`; render amplification 606×/~509 MB →
+  `render_limits` checked_open) — completed.md #423
 - [`near_duplicate_guard_invariant.md`](security/near_duplicate_guard_invariant.md) —
   near-duplicate guard invariant — the docstring's "min_sim is API-floored at 0.9,
   so the wide case is latent" corrected to the true derivation (`4 × limit ≤ 2000`
@@ -364,6 +372,15 @@ commit, referenced by nothing). Entry numbers point at
   `coverage_ledger.review` + `security_findings.triage` (S3), OCR +
   markdown-parse checklist walkers (S4), docs (S5); demoed live on the
   relations queue; AC#1 journal equivalence — completed.md #424
+- [`ocr_review_lanes_7b122d915_e3147ef3c.md`](tooling/ocr_review_lanes_7b122d915_e3147ef3c.md) —
+  review lanes: separate Lane A semantic findings (OCR delegation) from
+  Lane B mechanical scan findings, with sqlfluff formatting rules down-ranked
+  into a `cosmetic` lane below Low and a floor that keeps every finding listed
+  (collapsed counts + file list); `ocr_review.md` §4 severity table gains the
+  `cosmetic` row + anti-inflation rule 3; `review_scan.py` lane labels +
+  `repeat_ledger.json` repeat history keyed by line-free fingerprint; measured
+  on `7b122d915..e3147ef3c`: 113 scan findings → 21 ranked + 92 collapsed —
+  completed.md #432
 - [`tui_perf_sparkline.md`](tooling/tui_perf_sparkline.md) —
   search TUI perf-trend sparkline — the report screen becomes a
   regression detector off data it already had: `_parse_seconds` +
@@ -394,6 +411,11 @@ commit, referenced by nothing). Entry numbers point at
   S2 per-section carry (byte-identical `_doc_basis` reuses stored vectors,
   rows/anchors rebuilt fresh, model-stability gated) — a 30-line
   completed.md edit re-embeds ~2 sections, not ~400 — completed.md #410
+- [`range_review_1fda0c158_6182cd2c7.md`](tooling/range_review_1fda0c158_6182cd2c7.md) —
+  range review `1fda0c158..6182cd2c7` — 43 findings (9 H / 19 M / 15 L) +
+  review-apparatus fixes (selection-teeth proof, exclusion roster,
+  `_schema` mirrors); absorbs all 48 commits of the September arc —
+  completed.md #394
 - [`range_review_two_ranges_2026-10-14.md`](tooling/range_review_two_ranges_2026-10-14.md) —
   combined two-range review remediation (`205a2c719..a4b3e5f81`, 39 findings;
   `63e04dbde..e06b32798`, 72 findings; zero double-reports, all scan mediums

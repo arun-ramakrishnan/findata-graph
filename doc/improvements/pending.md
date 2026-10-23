@@ -3,6 +3,16 @@
 Full annotated triage map with live-verified trigger status.
 Open items below keep their revisit triggers inline; executed work is compressed to records.
 
+- **Review lanes (semantic vs mechanical + cosmetic floor) — EXECUTED 2026-10-22**
+  (archive/tooling/ocr_review_lanes_7b122d915_e3147ef3c.md; completed.md #432):
+  S1 procedure §4 lanes (`cosmetic` row below Low + anti-inflation rule 3)
+  → S2 `review_scan.py` lane labels (`cosmetic` never ranks; collapse to count
+  + file list) → S3 roster grouping → S4 freshness record with lane counts
+  (`repeat_ledger.json`, line-free fingerprint keyed by rule/path/repeat).
+  Measured on `7b122d915..e3147ef3c`: 113 findings → 21 ranked + 92 collapsed.
+  No query-visible semantics change → eval-gate not triggered. Gates deferred
+  to the operator's next full run.
+
 - **Merger/demerger n-ary hyperedges — EXECUTED 2026-10-21**
   (archive/graph/merger_demerger_hyperedges.md; completed.md #426):
   S1 `hyperedge_types.py` registry (12 families, per-family roles,
