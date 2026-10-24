@@ -17,6 +17,29 @@ TYPES_TESTS_FMT ?= full
 GATE_JOBS ?= 4
 QA_JOBS ?= 1
 
+# jemalloc adoption (2026-10-24; archive/tooling/jemalloc_adoption.md):
+# `JEMALLOC=1 make <target>` preloads the system libjemalloc5 for the whole
+# recipe tree — DuckDB 2.0 no longer bundles an allocator (2.0.0 wheel has
+# zero jemalloc symbols), so embedded + quack-served chains run on glibc
+# malloc without this. A/B (2026-10-24): time-neutral on search-fresh +
+# snapshot legs; peak RSS neutral ONLY with tight decay (the 30s-decay
+# preset inflated short-leg peak RSS +7-11% — decay never fires inside a
+# 15s process, so dirty pages are retained). Residents (llama-server
+# targets below) get it unconditionally: the fragmentation-ratchet thesis
+# only bites on day-scale processes. Override either ?= to retune.
+JEMALLOC ?=
+JEMALLOC_LIB ?= /usr/lib/x86_64-linux-gnu/libjemalloc.so.2
+JEMALLOC_CONF ?= background_thread:true,dirty_decay_ms:0,muzzy_decay_ms:0
+ifneq ($(JEMALLOC),)
+export LD_PRELOAD := $(JEMALLOC_LIB)$(if $(LD_PRELOAD),:$(LD_PRELOAD))
+export MALLOC_CONF := $(JEMALLOC_CONF)
+endif
+# Unconditional prefix for the resident server launches — llama-server
+# targets exec the binary directly; quack-start propagates it through
+# quack_servers.sh to every resident duckdb server (env var form, not
+# export: recipes must stay opt-out-able per-invocation).
+JEMALLOC_ENV = LD_PRELOAD=$(JEMALLOC_LIB) MALLOC_CONF=$(JEMALLOC_CONF)
+
 # Prefer the project venv if present (so `python3` / `pytest` resolve to
 # .venv/bin without needing `source .venv/bin/activate` in the parent shell).
 # PREPEND .venv/bin so it takes precedence over the system python3 (which
@@ -537,7 +560,7 @@ embgemma-server:  ## Start the EmbeddingGemma-2 llama-server (Q8_0 from models/)
 > elif [ -x models/llamacpp/bin/llama-server ]; then bin=models/llamacpp/bin/llama-server; \
 > else echo "unified llama-server not found — make llamacpp-build (vendor/llamacpp, one binary for all legs) or set EMBGEMMA_LLAMA_BIN"; exit 1; fi; \
 > echo "embgemma-server: $$bin (Ctrl-C to stop)"; \
-> $$bin -m models/embeddinggemma-2-Q8_0.gguf --embeddings --pooling mean --host 127.0.0.1 --port 8732 -c 16384 -b 16384 -ub 16384 -np 2 -t 3
+> $(JEMALLOC_ENV) $$bin -m models/embeddinggemma-2-Q8_0.gguf --embeddings --pooling mean --host 127.0.0.1 --port 8732 -c 16384 -b 16384 -ub 16384 -np 2 -t 3
 
 
 granite-server:  ## Start the granite-embedding-97m llama-server (Q8_0 from models/) on 127.0.0.1:8733 — Ctrl-C to stop; local_embedder only ever assumes it is running (D3), never spawns it
@@ -545,7 +568,7 @@ granite-server:  ## Start the granite-embedding-97m llama-server (Q8_0 from mode
 > elif [ -x models/llamacpp/bin/llama-server ]; then bin=models/llamacpp/bin/llama-server; \
 > else echo "unified llama-server not found — make llamacpp-build (vendor/llamacpp, one binary for all legs) or set GRANITE_LLAMA_BIN"; exit 1; fi; \
 > echo "granite-server: $$bin (Ctrl-C to stop)"; \
-> $$bin -m models/granite-embedding-97M-multilingual-r2-Q8_0.gguf --embeddings --pooling mean --host 127.0.0.1 --port 8733 -c 16384 -b 16384 -ub 16384 -np 2 -t 3
+> $(JEMALLOC_ENV) $$bin -m models/granite-embedding-97M-multilingual-r2-Q8_0.gguf --embeddings --pooling mean --host 127.0.0.1 --port 8733 -c 16384 -b 16384 -ub 16384 -np 2 -t 3
 
 
 teleocr-server:  ## Start the TeleOCR llama-server (Q4_K_M + mmproj q8_0 from models/) on 127.0.0.1:8731 — Ctrl-C to stop; teleocr_engine only ever assumes it is running (D3), never spawns it
@@ -553,11 +576,11 @@ teleocr-server:  ## Start the TeleOCR llama-server (Q4_K_M + mmproj q8_0 from mo
 > elif [ -x models/llamacpp/bin/llama-server ]; then bin=models/llamacpp/bin/llama-server; \
 > else echo "unified llama-server not found — make llamacpp-build (vendor/llamacpp, one binary for all legs) or set TELEOCR_LLAMA_BIN"; exit 1; fi; \
 > echo "teleocr-server: $$bin (Ctrl-C to stop)"; \
-> $$bin -m models/NaviDC-OCR-Q4_K_M.gguf --mmproj models/NaviDC-OCR-mmproj-q8_0.gguf --host 127.0.0.1 --port 8731 -c 16384 -np 2 -b 8192 -ub 2048 -t 3
+> $(JEMALLOC_ENV) $$bin -m models/NaviDC-OCR-Q4_K_M.gguf --mmproj models/NaviDC-OCR-mmproj-q8_0.gguf --host 127.0.0.1 --port 8731 -c 16384 -np 2 -b 8192 -ub 2048 -t 3
 
 
 quack-start:  ## Start resident quack servers, ONE PER STORE (wire serves only a server's primary db) — default memory/graph.duckdb, or QUACK_DBS="memory/graph.duckdb memory/convo_search.duckdb"; ports QUACK_PORT_BASE+i; file-mode writes to served stores are refused (split-brain guard)
-> @bash helpers/misc/quack_servers.sh start $(if $(QUACK_DBS),$(QUACK_DBS),)
+> @$(JEMALLOC_ENV) bash helpers/misc/quack_servers.sh start $(if $(QUACK_DBS),$(QUACK_DBS),)
 
 quack-stop:  ## Stop all resident quack servers (exact-PID TERM→KILL each, discovery + stop files removed)
 > @bash helpers/misc/quack_servers.sh stop
@@ -566,7 +589,7 @@ quack-status:  ## Resident quack servers status: live pids + per-store wire prob
 > @bash helpers/misc/quack_servers.sh status
 
 quack-restart:  ## Restart the resident quack servers (same store set unless QUACK_DBS given)
-> @bash helpers/misc/quack_servers.sh restart $(if $(QUACK_DBS),$(QUACK_DBS),)
+> @$(JEMALLOC_ENV) bash helpers/misc/quack_servers.sh restart $(if $(QUACK_DBS),$(QUACK_DBS),)
 
 quack-health:  ## One-shot wire probe of every resident quack server: SELECT 1 + duckdb_tables resolution per store
 > @python3 helpers/misc/quack_health.py

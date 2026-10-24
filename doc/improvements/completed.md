@@ -12211,3 +12211,74 @@ and is corrected in the archived doc). snapshot-check byte-stable; suites:
 integration snapshot cycle + centrality cache 20, snapshot-select 66 green.
 File-mode pool + wire-serial guard is the landing shape; the same pooling
 recipe now exists for any future file-mode export lane.
+
+## 436. jemalloc adoption — preload for resident servers + opt-in for batch chains
+
+**Date**: 2026-10-24
+**Status**: COMPLETE
+**Proposal**: `doc/improvements/archive/tooling/jemalloc_adoption.md`
+
+The DuckDB 2.0 cutover silently dropped the bundled allocator (2.0.0 wheel
+has zero jemalloc symbols — probed), so all repo DuckDB chains run on glibc
+malloc; jemalloc 5.3.0 was already system-installed. Landed in the Makefile:
+`JEMALLOC=1 make <target>` opt-in block exporting LD_PRELOAD + MALLOC_CONF
+over the recipe tree, and an unconditional `$(JEMALLOC_ENV)` prefix on the
+three resident llama-server launches + quack-start (env propagates through
+quack_servers.sh's plain exec — verified). A/B (back-to-back, time -v):
+time-neutral on search-fresh + snapshot legs; peak RSS parity ONLY with
+tight decay — the 30s-decay preset inflated short-leg peak RSS +7–11%
+(decay window never fires inside a 15s process), so the shipped conf is
+`dirty_decay_ms:0`. Config law recorded: batch chains tight decay,
+residents may loosen via `JEMALLOC_CONF ?=` override. Timing rows parked
+(parallel-session compression on the box mid-run); the fragmentation-ratchet
+benefit on day-scale residents is deliberately unclaimed until the next
+sidecar restart gives the live trial. Smoke: `JEMALLOC=1 make tmp-sweep`
+green under preload; make -n expansion verified.
+
+## 437. Mojo 1.2 toolchain adoption census — pattern matching, numpy N-D bridge, compile speedups
+
+**2026-10-24 — filed + parked DEFERRED same day** (executed date records
+the deferral decision per the lifecycle check; archived to
+`doc/improvements/archive/tooling/mojo_12_adoptions.md`). Census, not an
+execution slice: the 1.0→1.1→1.2 trail was already absorbed (1.1 by the
+2026-09-20 re-migration, 1.2 silently by the 2026-10-23 venv sync, proven
+by the same-day qa/advisory Mojo legs); zero removed-API spellings in
+tracked sources; the standing negatives re-verified (`mojo test` CLI,
+`mojo format --check`, `parallelize`/channels all still absent). Item 1
+(pattern matching) UPGRADED to proven-on-toolchain with scratch-probe
+evidence + four new-code traps recorded (fn removed even for fresh code;
+`collections` module import gone — Optional is prelude; `Array[Int]()`
+has no default constructor; destructuring-assignment binding observed
+broken while the match-pattern form works). Dispositions: pattern
+matching = use-in-new-code; numpy N-D bridge = hold (aligned_array
+pattern proven); jemalloc compile speedup = realized passively;
+`Atomic[T]` = opportunistic; stability marks/string perf = no action.
+Kept as the new-code guidance document — no execution work remains.
+
+## 438. Graph read-path consolidation — C-series reads onto hyper-backed DuckDB projections
+
+**Date**: 2026-10-24
+**Status**: COMPLETE
+**Proposal**: `doc/improvements/archive/graph/graph_read_path_consolidation.md`
+
+The three C-series read paths (co_mention_top, cross_sector_bridges,
+edges_by_year) still read raw graph_edges — query results missed the
+hyper-store sector membership from #418 — and the DuckDB 2.0 cutover broke
+`_resolve_edges` outright: BOTH prior forms (CTAS + INSERT appends; single
+multi-arm UNION CTAS) throw NotImplementedException on multiple streaming
+scans (duckdb_shared.py:363), so all three wrappers returned nothing.
+Landed in helpers/graph/query.py: _resolve_edges re-cut into three fully
+materialised statements; _c_series_duck_conn shim (sqlite -> sibling
+.duckdb, warm production default preserved); edges_by_year slices
+CAST(valid_from AS VARCHAR) for 2.0 DATE typing; cross_sector_bridges
+sector resolution switched single-valued v_node.sector_classification ->
+hyper-backed _sector_resolved — dual membership query-visible (Kuantum
+Papers -> Agriculture AND Packaging), per-pair same-sector exclusion,
+deterministic tie-break. Tests: per-edge-type row pins pin the 1.5.6 CSPE
+wrong-results class ({co_mentioned_in 9, acquired 3, jv_with 1, part_of 7,
+has_company 7}); dual-membership fixture test; api_graph_unit endpoints
+seeded for the INNER-join. Evidence: ontology_eval_gate ACCEPT 166
+questions / 0 reasons, store sha256 identical (read-path purity); make qa
+13/13; make integration 1/1 (751 tests); perf parked (contended-box guard
+refused x2, operator ruling); fuzz regex-scaling leg parked timing.
+

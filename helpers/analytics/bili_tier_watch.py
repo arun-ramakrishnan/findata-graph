@@ -98,15 +98,32 @@ RE_TS = re.compile(r"^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2})")
 # yielded an empty session id and were discarded — the watcher reported
 # folds=0 while the log plainly contained them. The bare form must be
 # anchored to the `ses_` prefix so it cannot swallow `[info]`/`[plugin]`.
-RE_SESS = re.compile(r"\[sess=([A-Za-z0-9_]+)\]|\[(ses_[A-Za-z0-9_]+)\]")
+RE_SESS = re.compile(r"\[sess=([A-Za-z0-9_-]+)\]|\[(ses_[A-Za-z0-9_-]+)\]")
 
 
 def line_session(line: str) -> str:
-    """The session id carried by a log line, or '' when it carries none."""
+    """The session id carried by a log line, or '' when it carries none.
+
+    Normalize: strip the optional 'session-' prefix so that both
+    [sess=session-<uuid>] and [sess=<uuid>] produce the same id.
+    """
     m = RE_SESS.search(line)
     if not m:
         return ""
-    return m.group(1) or m.group(2) or ""
+    sid = m.group(1) or m.group(2) or ""
+    # Strip leading "session-" prefix for normalization
+    if sid.startswith("session-"):
+        sid = sid[len("session-"):]
+    return sid
+
+
+def _norm_session(sid: str | None) -> str:
+    """Normalize a session id: strip the optional 'session-' prefix."""
+    if not sid:
+        return ""
+    if sid.startswith("session-"):
+        return sid[len("session-"):]
+    return sid
 
 
 def fmt(n: int) -> str:
@@ -443,7 +460,7 @@ def build_sample(
     session: str | None = None,
 ) -> Sample:
     """One heartbeat for one session, from the live state + the block store."""
-    sid = session or watch.current_session
+    sid = _norm_session(session) if session else _norm_session(watch.current_session)
     verdict = watch.verdicts.get(sid)
     state = btn.load_session_state(db, sid) if sid else btn.SessionState(session_id="")
     limit = watch.windows.get(sid, 0)
@@ -530,7 +547,7 @@ def main(argv: list[str] | None = None) -> int:  # noqa: C901
         return 1
 
     tail = Tail(log_path, old_path, args.seed_bytes)
-    watch = Watch(session=args.session or "", db=args.db)
+    watch = Watch(session=_norm_session(args.session) or "", db=args.db)
     watch.inject_packet_path = args.inject_packet
     watch.consume(tail.seed())
     bars = btn.Bars.from_file(args.config)
@@ -548,7 +565,7 @@ def main(argv: list[str] | None = None) -> int:  # noqa: C901
         # live, so a cached bar would report thresholds the plugin stopped
         # using.
         bars_now = btn.Bars.from_file(args.config)
-        sample = build_sample(watch, bars_now, args.db, args.session)
+        sample = build_sample(watch, bars_now, args.db, _norm_session(args.session))
         if args.json:
             print(json.dumps(sample.as_dict(), indent=2), flush=True)
         else:

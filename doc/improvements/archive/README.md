@@ -256,6 +256,7 @@ commit, referenced by nothing). Entry numbers point at
 - [`note_knn_distance_ranking.md`](graph/note_knn_distance_ranking.md) — Proposal: note-KNN distance ranking — cosine→l2 swap at all six `query.py` KNN sites after the HNSW trial (unit-norm invariant, scores returned as cosine via `1 − d²/2`); per-path section semantics (`_note_ref_vector` renormalized-mean reference), near-duplicate 43M→0.7M pairs, 11× claim corrected to ~1.2–1.3×; HNSW declined (recall 35–57%, +75% disk) — completed.md #266
 - [`pagerank_graph_enhancements.md`](graph/pagerank_graph_enhancements.md) — Proposal: PageRank graph enhancements — S1 economic projection (ECONOMIC_EDGE_TYPES, query.pagerank default; 0/10 top-10 overlap vs membership view), S2 weight carry-through re-scoped to onager's native weight consumption (weighted switch; distinct pagerank_weighted metric; cited_in n_quotes+1 backfill), S3 temporal backfill (listed_on_index valid_from 6,615/6,615 + as-of filter) — completed.md #270
 - [`centrality_rebuild_contract.md`](graph/centrality_rebuild_contract.md) — Proposal: Centrality rebuild contract — rebuild data-only (369.9s → 3.19s; 99.5% was the BFS-family stamp), ten v_centrality_* dropped at rebuild with readers falling back to live compute; explicit stamp lane stamp_centrality_cache() / make stamp-centrality / maint step 3b (5m59s at scale, warm reads 0.017s); stamp-vs-rebuild swap race found and guarded (inode check + retry) — completed.md #271
+- [`graph_read_path_consolidation.md`](graph/graph_read_path_consolidation.md) — Proposal: Graph read-path consolidation — the three C-series read paths (co_mention_top / cross_sector_bridges / edges_by_year) moved off raw `graph_edges` onto hyper-backed DuckDB session projections; _resolve_edges re-cut for DuckDB 2.0 (both INSERT and multi-arm UNION CTAS forms throw on streaming scans); cross_sector_bridges resolves sectors hyper-backed so dual membership is query-visible (Kuantum Papers → Agriculture AND Packaging); per-edge-type CSPE row pins + dual-membership fixture; eval gate ACCEPT 166q/0 reasons, store sha256 unchanged — completed.md #438
 
 ## database/ — Databases — DuckDB/SQLite engine and SQL query improvements
 - [`duckdb_20_sqlite_reentry.md`](database/duckdb_20_sqlite_reentry.md) — SQLite retirement re-entry, gated — gate evidence produced then port deferred: B2 contention map PASS (single-writer livable on every research.db lane; writers already serialize via WAL + `busy_timeout=5000`; carve-out: `note_search` FTS5 lives inside research.db and must split first), B1 sized ≈17–24 focused days / ~120 files / 6 phases (census: 105 modules import `helpers.core.db`, 391 connect sites, 62 writer files, 114 PRAGMA sites, 20 CASCADE/SET-NULL FK edges); measured cost > win at today's scale; reopen triggers in §4 — completed.md #431
@@ -373,6 +374,18 @@ commit, referenced by nothing). Entry numbers point at
   4.7→0.85 s); three duckdb 2.0 traps recorded (cursor USE non-inheritance,
   concurrent cursor() refusal, wire-pool result-stream breakage → wire-served
   stores stay serial via is_served guard) — completed.md #435
+- [`jemalloc_adoption.md`](tooling/jemalloc_adoption.md) — jemalloc preload:
+  duckdb 2.0 dropped its bundled allocator (zero jemalloc symbols, probed);
+  `JEMALLOC=1 make <target>` opt-in block + unconditional env prefix on the
+  three resident llama-server launches + quack-start; A/B time-neutral,
+  peak-RSS parity requires tight decay (30s-decay preset inflated short-leg
+  RSS +7–11%) — config law shipped as `dirty_decay_ms:0`; resident-benefit
+  thesis deferred to the next sidecar restart live trial — completed.md #436
+- [`mojo_12_adoptions.md`](tooling/mojo_12_adoptions.md) — Mojo 1.2 toolchain
+  adoption census (DEFERRED, kept as new-code guidance): 1.0→1.1→1.2 trail
+  absorbed, negatives re-verified (no `mojo test`/`format --check`/
+  `parallelize`), pattern matching PROVEN with probe evidence + 4 new-code
+  traps; retro-ports ruled not worthwhile — completed.md #437
 
 - [`review_preannotate_hints.md`](tooling/review_preannotate_hints.md) —
   automated carrier pre-annotation with recommended hints — every review

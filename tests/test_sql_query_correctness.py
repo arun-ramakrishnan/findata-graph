@@ -154,12 +154,20 @@ def test_co_mention_top_matches_reference(tmp_path):
 
 
 def _ref_cross_sector_bridges(db):
+    """Independent raw-SQL reference for the S2b semantics: membership from
+    the CANONICAL hyper store (hyper_edges/hyper_incidences), one bridge
+    group per (edge, src sector, dst sector) cross-pair; same-sector pairs
+    excluded. Deliberately NOT the wrapper's DuckDB projection path.
+    """
     con = _conn(db)
     try:
-        ents = {
-            r["name"]: r["sector_classification"]
-            for r in con.execute("SELECT name, sector_classification FROM entities")
-        }
+        members = {}
+        for comp, sec in con.execute(
+            "SELECT hi.entity_name, he.label FROM hyper_incidences hi "
+            "JOIN hyper_edges he ON he.id = hi.edge_id "
+            "WHERE he.edge_type = 'sector'"
+        ):
+            members.setdefault(comp, set()).add(sec)
         edges = con.execute(
             "SELECT edge_type, source, target FROM graph_edges "
             "WHERE edge_type IN ('jv_with','acquired')"
@@ -168,15 +176,16 @@ def _ref_cross_sector_bridges(db):
         con.close()
     counts = {}
     for e in edges:
-        sa = ents.get(e["source"])
-        sb = ents.get(e["target"])
-        if sa and sb and sa != sb:
-            counts[(e["edge_type"], sa, sb)] = counts.get((e["edge_type"], sa, sb), 0) + 1
+        for sa in sorted(members.get(e["source"], ())):
+            for sb in sorted(members.get(e["target"], ())):
+                if sa != sb:
+                    k = (e["edge_type"], sa, sb)
+                    counts[k] = counts.get(k, 0) + 1
     out = [
         {"edge_type": k[0], "sector_a": k[1], "sector_b": k[2], "count": v}
         for k, v in counts.items()
     ]
-    out.sort(key=lambda d: (-d["count"], d["edge_type"]))
+    out.sort(key=lambda d: (-d["count"], d["edge_type"], d["sector_a"], d["sector_b"]))
     return out
 
 
@@ -187,10 +196,37 @@ def test_cross_sector_bridges_matches_reference(tmp_path):
         got = cross_sector_bridges(con)
     finally:
         con.close()
-    assert got == _ref_cross_sector_bridges(db)
+    assert sorted(
+        got, key=lambda d: (-d["count"], d["edge_type"], d["sector_a"], d["sector_b"])
+    ) == _ref_cross_sector_bridges(db)
     # The same-sector acquired (HDFC->ICICI, both Banking) must be excluded.
     assert all(b["sector_a"] != b["sector_b"] for b in got)
     assert {"acquired", "jv_with"} == {b["edge_type"] for b in got}
+
+
+def test_cross_sector_bridges_dual_membership(tmp_path):
+    """graph_read_path_consolidation S2b acceptance: the dual-member
+    company surfaces in TWO sector-bridge groups.
+
+    Kuantum Papers carries legacy sector_classification='Agriculture' but
+    canonical membership in Agriculture AND Packaging; the wrapper reads
+    the hyper-backed projection, so its acquired edge to Infosys
+    (Technology) must yield BOTH Agriculture->Technology and
+    Packaging->Technology — the pre-S2b single-valued path returned only
+    the first.
+    """
+    db = build_seed_db(tmp_path / "seed.db")
+    con = _conn(db)
+    try:
+        got = cross_sector_bridges(con)
+    finally:
+        con.close()
+    kuantum = [g for g in got if g["sector_a"] == "Agriculture" or g["sector_a"] == "Packaging"]
+    assert {(g["sector_a"], g["sector_b"]) for g in kuantum} == {
+        ("Agriculture", "Technology"),
+        ("Packaging", "Technology"),
+    }
+    assert all(g["edge_type"] == "acquired" and g["count"] == 1 for g in kuantum)
 
 
 def _ref_edges_by_year(db):
@@ -219,7 +255,85 @@ def test_edges_by_year_matches_reference(tmp_path):
     finally:
         con.close()
     assert got == _ref_edges_by_year(db)
-    assert [g["year"] for g in got] == ["2020", "2021", "2022"]
+    assert [g["year"] for g in got] == ["2020", "2021", "2022", "2023"]
+
+
+def test_c_series_per_edge_type_row_pins(tmp_path):
+    """graph_read_path_consolidation S2a: exact per-edge-type row pins.
+
+    DuckDB 1.5.6 had a CSPE wrong-results bug where UNION-ALL arms
+    sharing a join subtree returned silently wrong counts; 2.0 rejects
+    the combined form outright (S1'). A differential test alone can pass
+    on a wrong-but-consistent pair, so the amendment demands the frozen
+    fixture counts be pinned literally — every union arm of
+    _edge_resolved included.
+    """
+    from helpers.graph.query import (
+        _c_series_duck_conn,
+        _resolve_edges,
+        _stage_edges,
+    )
+
+    db = build_seed_db(tmp_path / "seed.db")
+    scon = _conn(db)
+    try:
+        # Wrapper-level pins (frozen fixture numbers).
+        assert co_mention_top(10, scon) == [
+            {"entity": "Infosys", "co_mentions": 4},
+            {"entity": "HDFC Bank", "co_mentions": 3},
+            {"entity": "ICICI Bank", "co_mentions": 2},
+        ]
+        assert sorted(
+            cross_sector_bridges(scon),
+            key=lambda d: (d["edge_type"], d["sector_a"]),
+        ) == [
+            {
+                "edge_type": "acquired",
+                "sector_a": "Agriculture",
+                "sector_b": "Technology",
+                "count": 1,
+            },
+            {"edge_type": "acquired", "sector_a": "Banking", "sector_b": "Technology", "count": 1},
+            {
+                "edge_type": "acquired",
+                "sector_a": "Packaging",
+                "sector_b": "Technology",
+                "count": 1,
+            },
+            {"edge_type": "jv_with", "sector_a": "Banking", "sector_b": "Technology", "count": 1},
+        ]
+        assert edges_by_year(scon) == [
+            {"year": "2020", "edge_type": "jv_with", "count": 1},
+            {"year": "2021", "edge_type": "acquired", "count": 1},
+            {"year": "2022", "edge_type": "acquired", "count": 1},
+            {"year": "2023", "edge_type": "acquired", "count": 1},
+        ]
+
+        # Union-arm pins: every _edge_resolved edge type, exact counts.
+        # Seed = 9 co_mentioned_in + 3 acquired + 1 jv_with graph_edges rows,
+        # + 7 sector incidences projected BOTH ways (part_of + has_company;
+        # Kuantum Papers carries two).
+        dcon, owned = _c_series_duck_conn(scon)
+        try:
+            _stage_edges(dcon)
+            _resolve_edges(dcon)
+            got = dict(
+                dcon.execute(
+                    "SELECT edge_type, COUNT(*) FROM _edge_resolved GROUP BY edge_type"
+                ).fetchall()
+            )
+        finally:
+            if owned:
+                dcon.close()
+        assert got == {
+            "co_mentioned_in": 9,
+            "acquired": 3,
+            "jv_with": 1,
+            "part_of": 7,
+            "has_company": 7,
+        }
+    finally:
+        scon.close()
 
 
 def _ref_sector_members(db, sector):

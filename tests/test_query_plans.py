@@ -212,12 +212,14 @@ class TestGraphEdgesQueryPlans:
             con.close()
 
     def test_cross_sector_bridges_uses_index(self, tmp_db):
-        """C3 guard: cross_sector_bridges() filters graph_edges to
-        edge_type IN ('jv_with','acquired') then joins entities twice (source,
-        target). The edge_type filter must use ge_type_idx and both entity
-        joins must hit the entities PK — no full SCAN. This is the Slice-B plan
-        tripwire (test_cross_sector_bridges_plan_uses_indexes) that the empty
-        tests/test_sql_perf_guards.py husk was meant to hold; it lives here now.
+        """C3 guard (sqlite-side, LEGACY Slice-B shape): since
+        graph_read_path_consolidation S2b the wrapper resolves sectors from
+        the hyper-backed DuckDB projection (_sector_resolved), so this no
+        longer exercises cross_sector_bridges() directly. Retained as the
+        plan tripwire for the equivalent sqlite-side join shape — edge_type
+        filter must use ge_type_idx and both entity joins must hit the
+        entities PK — no full SCAN (the empty tests/test_sql_perf_guards.py
+        husk this was meant to fill).
         """
         con = _ro(tmp_db)
         try:

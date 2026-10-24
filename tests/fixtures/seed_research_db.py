@@ -93,6 +93,19 @@ def build_seed_db(path: Path) -> Path:
         ("Cap Conflict Co", "company", "findata/Companies/X/Cap_Conflict.md", "Technology", None),
         ("Banking", "sector", "findata/Sectors/Banking.md", None, None),
         ("Technology", "sector", "findata/Sectors/Technology.md", None, None),
+        ("Agriculture", "sector", "findata/Sectors/Agriculture.md", None, None),
+        ("Packaging", "sector", "findata/Sectors/Packaging.md", None, None),
+        # Dual-member company (graph_read_path_consolidation S2b): the legacy
+        # single-valued sector_classification sees only Agriculture; the
+        # canonical hyper store (below) carries Agriculture AND Packaging —
+        # exactly the expressiveness gap that motivated the retirement.
+        (
+            "Kuantum Papers",
+            "company",
+            "findata/Companies/Materials/Kuantum_Papers.md",
+            "Agriculture",
+            None,
+        ),
     ]
     con.executemany("INSERT INTO entities VALUES (?,?,?,?,?)", entities)
     tags = [
@@ -124,6 +137,9 @@ def build_seed_db(path: Path) -> Path:
         ("HDFC Bank", "Infosys", "acquired", "seed", "2021-03-15"),
         ("HDFC Bank", "ICICI Bank", "acquired", "seed", "2022-07-01"),
         ("ICICI Bank", "Infosys", "jv_with", "seed", "2020-11-20"),
+        # S2b dual-membership edge: Kuantum (Agriculture+Packaging) -> Infosys
+        # (Technology) must yield TWO bridge groups post-S2b.
+        ("Kuantum Papers", "Infosys", "acquired", "seed", "2023-02-10"),
     ]
     con.executemany(
         "INSERT INTO graph_edges (source, target, edge_type, source_ref, valid_from) "
@@ -135,7 +151,12 @@ def build_seed_db(path: Path) -> Path:
     # directions into e_belongs/e_has.
     con.executemany(
         "INSERT INTO hyper_edges (id, edge_type, label, source_ref) VALUES (?,?,?,?)",
-        [(1, "sector", "Banking", "seed"), (2, "sector", "Technology", "seed")],
+        [
+            (1, "sector", "Banking", "seed"),
+            (2, "sector", "Technology", "seed"),
+            (3, "sector", "Agriculture", "seed"),
+            (4, "sector", "Packaging", "seed"),
+        ],
     )
     con.executemany(
         "INSERT INTO hyper_incidences (edge_id, entity_name) VALUES (?,?)",
@@ -145,6 +166,9 @@ def build_seed_db(path: Path) -> Path:
             (2, "Infosys"),
             (2, "No Ticker Co"),
             (2, "Cap Conflict Co"),
+            # Kuantum Papers: dual membership — BOTH sector hyperedges.
+            (3, "Kuantum Papers"),
+            (4, "Kuantum Papers"),
         ],
     )
     con.commit()

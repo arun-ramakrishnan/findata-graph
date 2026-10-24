@@ -219,10 +219,25 @@ class TestCoMentions:
         assert data["ranked"] == []
 
     def test_returns_ranked_with_counts(self, tmp_path):
-        """Inject co_mentioned_in edges and verify ranking."""
+        """Inject co_mentioned_in edges and verify ranking.
+
+        graph_read_path_consolidation S1' resolves edge endpoints against
+        v_node (INNER join), so every endpoint the edges reference must be
+        seeded — production editions ARE entities (entity_type='edition').
+        The pre-resolution fixture only inserted the edges and relied on the
+        raw graph_edges read tolerating unresolved endpoints.
+        """
         with _seeded_sqlite_db(tmp_path) as client:
             db_path = tmp_path / "unit_graph.db"
             conn = sqlite3.connect(str(db_path))
+            conn.executemany(
+                "INSERT INTO entities (name, entity_type, file_path) VALUES (?,?,?)",
+                [
+                    ("Edition1", "edition", "findata/Editions/Edition1.md"),
+                    ("Edition2", "edition", "findata/Editions/Edition2.md"),
+                    ("Edition3", "edition", "findata/Editions/Edition3.md"),
+                ],
+            )
             conn.executemany(
                 "INSERT INTO graph_edges (source, target, edge_type, source_ref) VALUES (?,?,?,?)",
                 [
@@ -243,6 +258,12 @@ class TestCoMentions:
         with _seeded_sqlite_db(tmp_path) as client:
             db_path = tmp_path / "unit_graph.db"
             conn = sqlite3.connect(str(db_path))
+            # S1' endpoint resolution: seed every endpoint (companies + edition).
+            conn.executemany(
+                "INSERT INTO entities (name, entity_type, file_path) VALUES (?,?,?)",
+                [(f"Co{i}", "company", f"findata/Companies/X/Co{i}.md") for i in range(10)]
+                + [("Edition1", "edition", "findata/Editions/Edition1.md")],
+            )
             for i in range(10):
                 conn.execute(
                     "INSERT INTO graph_edges (source, target, edge_type, source_ref) "

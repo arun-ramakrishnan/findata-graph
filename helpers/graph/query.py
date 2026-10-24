@@ -2480,14 +2480,24 @@ def _resolve_edges(con: duckdb.DuckDBPyConnection) -> None:
     JOIN bound.
 
     part_of/has_company retirement S3: sector membership has no
-    ``graph_edges`` rows any more, so its rows are APPENDED to
+    ``graph_edges`` rows any more, so its rows are merged into
     ``_edge_resolved`` from the canonical incidence projection
     (:func:`_materialise_sector_membership`) in both stored directions —
     every downstream consumer sees the same shape it always did.
+
+    DuckDB 2.0 restriction ("Multiple streaming scans or streaming scans +
+    CTAS / insert in the same query"): neither the original CTAS + INSERT
+    appends NOR a single multi-arm UNION-ALL CTAS survive it (both measured
+    live on duckdb 2.0.0 — the union form trips the same error). The
+    proposal amendment's fallback applies — fully materialised
+    intermediates, one statement each: ``_sector_resolved`` first, then
+    the staged-edge base, then ``_edge_resolved`` as a UNION-ALL over
+    those TEMP tables only.
     """
+    _materialise_sector_membership(con)
     con.execute(
         """
-        CREATE OR REPLACE TEMP TABLE _edge_resolved AS
+        CREATE OR REPLACE TEMP TABLE _edge_resolved_base AS
         SELECT src.id AS src_id, dst.id AS dst_id,
                src.kind AS src_kind, dst.kind AS dst_kind,
                ge.edge_type, ge.weight, ge.properties, ge.source_ref,
@@ -2497,18 +2507,15 @@ def _resolve_edges(con: duckdb.DuckDBPyConnection) -> None:
         JOIN v_node dst ON dst.name = ge.target
         """
     )
-    _materialise_sector_membership(con)
     con.execute(
         """
-        INSERT INTO _edge_resolved
+        CREATE OR REPLACE TEMP TABLE _edge_resolved AS
+        SELECT * FROM _edge_resolved_base
+        UNION ALL
         SELECT company_id, sector_id, 'company', 'sector',
                'part_of', weight, '{}', source_ref, valid_from, valid_to
         FROM _sector_resolved
-        """
-    )
-    con.execute(
-        """
-        INSERT INTO _edge_resolved
+        UNION ALL
         SELECT sector_id, company_id, 'sector', 'company',
                'has_company', weight, '{}', source_ref, valid_from, valid_to
         FROM _sector_resolved
@@ -3816,130 +3823,159 @@ def company_neighbors_bundle(
 # --------------------------------------------------------------------------- #
 
 
+def _c_series_duck_conn(conn) -> tuple[duckdb.DuckDBPyConnection, bool]:
+    """Shared connection resolution for the C-series read-path wrappers.
+
+    Returns ``(con, owned)``; *owned* marks a connection this helper
+    opened — the caller closes it in its ``finally``. A passed-through
+    DuckDB connection is never closed here (the owner's session
+    projections must stay visible).
+
+    graph_read_path_consolidation S2a: the wrappers previously ignored
+    *conn* entirely and always opened the warm default cache, so test
+    fixtures seeding a scratch SQLite store were silently queried against
+    production data. Resolution order:
+
+    - DuckDB connection → passthrough, owned=False.
+    - sqlite3.Connection → resolve its file via ``PRAGMA database_list``;
+      a NON-default store gets a fresh sibling ``<db>.duckdb`` build
+      (fixture isolation). The production store (``DB_PATH``) falls
+      through to the warm default — app.py may pass its long-lived
+      production conn and a fresh rebuild there would be destructive.
+    - None → warm default cache, read-write (TEMP + _resolve_edges need it).
+    """
+    import sqlite3
+
+    from helpers.graph.query import connect as duck_connect
+
+    if isinstance(conn, duckdb.DuckDBPyConnection):
+        return conn, False
+    if isinstance(conn, sqlite3.Connection):
+        row = conn.execute("PRAGMA database_list").fetchone()
+        db_path = Path(row[2]) if row else None
+        if db_path is not None and Path(db_path) != DB_PATH:
+            return (
+                duck_connect(db_path=db_path, fresh=True, read_only=False),
+                True,
+            )
+    return duck_connect(read_only=False), True
+
+
 def co_mention_top(n: int = 20, conn=None) -> list[dict]:
     """C1: Top entities by co-mention frequency.
 
-    ``co_mentioned_in`` is the richest unconsumed signal (1329 edges today).
-    Each edge means the company appeared alongside others in the same
-    newsletter edition. More co-mentions = more central to the newsletter
-    narrative. Returns the top-N entities with their co-mention counts.
-
-    If *conn* is given, uses it (caller owns the lifecycle); otherwise opens
-    a fresh ``connect()`` and closes it. Pure SQLite — no DuckDB/duckpgq needed.
+    Approach A (self-contained): opens its own DuckDB con, runs
+    _stage_edges / _resolve_edges, reads _edge_resolved. Keeps the
+    sqlite3 conn contract unchanged. B (e_* materialised tables)
+    deferred as longer-term. See doc/improvements/proposals/
+    graph_read_path_consolidation.md.
     """
-    if conn is not None:
-        rows = conn.execute(
-            """
-            SELECT source AS entity, COUNT(*) AS co_mentions
-            FROM graph_edges
-            WHERE edge_type = 'co_mentioned_in'
-            GROUP BY source
-            ORDER BY co_mentions DESC
-            LIMIT ?
-            """,
-            (n,),
-        ).fetchall()
-        return [{"entity": r["entity"], "co_mentions": r["co_mentions"]} for r in rows]
-    from helpers.core.db import connect
+    # Approach A: open DuckDB, build session projections, read _edge_resolved.
+    # conn contract (S2a): sqlite3 conn → sibling .duckdb fixture; DuckDB
+    # conn → passthrough; None → warm default. B (e_* materialised) deferred.
+    from helpers.graph.query import _stage_edges, _resolve_edges
 
-    conn = connect()
+    con, owned = _c_series_duck_conn(conn)
     try:
-        rows = conn.execute(
+        _stage_edges(con)
+        _resolve_edges(con)
+        rows = con.execute(
             """
-            SELECT source AS entity, COUNT(*) AS co_mentions
-            FROM graph_edges
+            SELECT v_src.name AS entity, COUNT(*) AS co_mentions
+            FROM _edge_resolved
+            JOIN v_node v_src ON v_src.id = src_id
             WHERE edge_type = 'co_mentioned_in'
-            GROUP BY source
+            GROUP BY src_id, v_src.name
             ORDER BY co_mentions DESC
             LIMIT ?
-            """,
+        """,
             (n,),
         ).fetchall()
-        return [{"entity": r["entity"], "co_mentions": r["co_mentions"]} for r in rows]
+        return [{"entity": r[0], "co_mentions": r[1]} for r in rows]
     finally:
-        conn.close()
+        if owned:
+            con.close()
 
 
 def cross_sector_bridges(conn=None) -> list[dict]:
-    """C3: Cross-sector bridges — where capital flows between sectors.
+    """C3: Cross-sector bridges — approach A session projections with
+    hyper-backed sector resolution (graph_read_path_consolidation S2b).
 
-    Counts ``acquired`` and ``jv_with`` edges where the two endpoints are in
-    different sectors. Reveals which sector pairs have the most M&A / JV
-    activity (e.g. FMCG <-> Consumer, Automotive <-> Technology).
-
-    If *conn* is given, uses it (caller owns the lifecycle); otherwise opens
-    a fresh ``connect()`` and closes it. Pure SQLite — no DuckDB/duckpgq needed.
+    Sectors resolve from the canonical membership projection
+    (_sector_resolved, built by _materialise_sector_membership from the
+    post-#418 incidence store), NOT the single-valued
+    v_node.sector_classification: a dual-member company (Kuantum Papers
+    -> Agriculture + Packaging) contributes one bridge group per
+    (src sector, dst sector) pair, so BOTH memberships are visible.
+    Same-sector pairs are excluded per pair. conn contract per
+    _c_series_duck_conn; B (e_* materialised) deferred.
     """
-    SQL = """
-        SELECT e.edge_type,
-               c1.sector_classification AS sector_a,
-               c2.sector_classification AS sector_b,
-               COUNT(*) AS n
-        FROM graph_edges e
-        JOIN entities c1 ON c1.name = e.source
-        JOIN entities c2 ON c2.name = e.target
-        WHERE e.edge_type IN ('jv_with', 'acquired')
-          AND c1.sector_classification IS NOT NULL
-          AND c2.sector_classification IS NOT NULL
-          AND c1.sector_classification <> c2.sector_classification
-        GROUP BY e.edge_type, c1.sector_classification, c2.sector_classification
-        ORDER BY n DESC, e.edge_type
-    """
+    from helpers.graph.query import _stage_edges, _resolve_edges
 
-    def _build(rows):
+    con, owned = _c_series_duck_conn(conn)
+    try:
+        _stage_edges(con)
+        _resolve_edges(con)
+        # S2b: membership-backed sectors. DISTINCT pairs guard against
+        # double-counting duplicate membership rows; each edge is counted
+        # once per distinct (src sector, dst sector) pair.
+        rows = con.execute("""
+            SELECT e.edge_type,
+                   sa.name AS sector_a,
+                   sb.name AS sector_b,
+                   COUNT(*) AS n
+            FROM _edge_resolved e
+            JOIN v_node src ON src.id = e.src_id AND src.kind = 'company'
+            JOIN v_node dst ON dst.id = e.dst_id AND dst.kind = 'company'
+            JOIN (SELECT DISTINCT company_id, sector_id FROM _sector_resolved) ms
+              ON ms.company_id = e.src_id
+            JOIN (SELECT DISTINCT company_id, sector_id FROM _sector_resolved) md
+              ON md.company_id = e.dst_id
+            JOIN v_node sa ON sa.id = ms.sector_id
+            JOIN v_node sb ON sb.id = md.sector_id
+            WHERE e.edge_type IN ('jv_with', 'acquired')
+              AND sa.name <> sb.name
+            GROUP BY e.edge_type, sa.name, sb.name
+            ORDER BY n DESC, e.edge_type, sector_a, sector_b
+        """).fetchall()
         return [
             {
-                "edge_type": r["edge_type"],
-                "sector_a": r["sector_a"],
-                "sector_b": r["sector_b"],
-                "count": r["n"],
+                "edge_type": r[0],
+                "sector_a": r[1],
+                "sector_b": r[2],
+                "count": r[3],
             }
             for r in rows
         ]
-
-    if conn is not None:
-        return _build(conn.execute(SQL).fetchall())
-    from helpers.core.db import connect
-
-    conn = connect()
-    try:
-        return _build(conn.execute(SQL).fetchall())
     finally:
-        conn.close()
+        if owned:
+            con.close()
 
 
 def edges_by_year(conn=None) -> list[dict]:
-    """C4: Temporal edge formation — M&A and JV activity by year.
-
-    Only ``acquired`` and ``jv_with`` edges carry ``valid_from`` dates.
-    Returns one row per (year, edge_type) with the edge count, sorted
-    chronologically. Pairs naturally with the ``as_of`` temporal views.
-
-    If *conn* is given, uses it (caller owns the lifecycle); otherwise opens
-    a fresh ``connect()`` and closes it. Pure SQLite — no DuckDB/duckpgq needed.
+    """C4: Temporal edge formation — approach A session projections.
+    conn contract per _c_series_duck_conn; B (e_* materialised) deferred.
     """
-    SQL = """
-        SELECT substr(valid_from, 1, 4) AS year,
-               edge_type,
-               COUNT(*) AS n
-        FROM graph_edges
-        WHERE valid_from IS NOT NULL
-        GROUP BY substr(valid_from, 1, 4), edge_type
-        ORDER BY year, edge_type
-    """
+    from helpers.graph.query import _stage_edges, _resolve_edges
 
-    def _build(rows):
-        return [{"year": r["year"], "edge_type": r["edge_type"], "count": r["n"]} for r in rows]
-
-    if conn is not None:
-        return _build(conn.execute(SQL).fetchall())
-    from helpers.core.db import connect
-
-    conn = connect()
+    con, owned = _c_series_duck_conn(conn)
     try:
-        return _build(conn.execute(SQL).fetchall())
+        _stage_edges(con)
+        _resolve_edges(con)
+        rows = con.execute("""
+            SELECT substr(CAST(valid_from AS VARCHAR), 1, 4) AS year,
+                   edge_type,
+                   COUNT(*) AS n
+            FROM _edge_resolved
+            WHERE valid_from IS NOT NULL
+              AND edge_type IN ('jv_with', 'acquired')
+            GROUP BY substr(CAST(valid_from AS VARCHAR), 1, 4), edge_type
+            ORDER BY year, edge_type
+        """).fetchall()
+        return [{"year": r[0], "edge_type": r[1], "count": r[2]} for r in rows]
     finally:
-        conn.close()
+        if owned:
+            con.close()
 
 
 # --------------------------------------------------------------------------- #

@@ -38,14 +38,19 @@ entry number and stale DONE pointers):
 
 ## Current live proposals
 
-- *(no live proposals — parallel_parquet_export filed+executed same day; pending.md shows the remainder.)*
+- *(no live proposals — `graph_read_path_consolidation.md` executed + moved
+  to `../archive/graph/` 2026-10-24, see `../completed.md` #438;
+  mojo_12_adoptions moved to `../archive/tooling/` deferred 2026-10-24,
+  see `../completed.md` #437.)*
 
 - Family provenance: split 2026-10-21 from the bundled
   `duckdb20_quack_variant` filing; the executed 2.0-compat migration
   is completed.md #427. Upstream changeset:
   <https://github.com/duckdb/duckdb/releases/tag/v2.0.0>.
 Previous batch (executed + archived — see `../archive/README.md` for the
-detail bullets): `../archive/graph/merger_demerger_hyperedges.md` (#426),
+detail bullets): `../archive/tooling/mojo_12_adoptions.md` (#437, deferred),
+`../archive/tooling/jemalloc_adoption.md` (#436),
+`../archive/graph/merger_demerger_hyperedges.md` (#426),
 `../archive/tooling/review_preannotate_hints.md` (#425),
 `../archive/tooling/review_menu_prompt_driven.md` (#424),
 `../archive/tooling/tui_perf_sparkline.md` (#422),
