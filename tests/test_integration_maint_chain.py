@@ -630,6 +630,14 @@ class TestMaintChain:
         — the maint never-blocks contract), and a SECOND full run is a
         byte-stable no-op: same steps, note bytes identical, derived
         tables unchanged."""
+        # Hermetic contract (same as test_tier1_executes_all_steps_green):
+        # the served-skip must not fire in the chain — the dispatcher shims
+        # query.py, and the live quack server (if any) is not this
+        # project's store. Without the patch the file-lane steps
+        # (graph-rebuild/stamp-centrality) skip unrecorded when the REAL
+        # repo's graph store happens to be served, and the order
+        # assertion reads a phantom mismatch (2026-10-24 gate arc).
+        monkeypatch.setattr(maint, "_graph_store_served", lambda: False)
         record = _make_dispatcher(project, monkeypatch, [])
         assert maint.main(["--full"]) == 0
         executed = _scripts(record)

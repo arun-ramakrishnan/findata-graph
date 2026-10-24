@@ -70,6 +70,17 @@ commit, referenced by nothing). Entry numbers point at
 
 ## graph/ — Graph layer — algorithms, DuckPGQ retirement, Onager, knowledge-model design
 
+- [`onager_vendored_source_build.md`](graph/onager_vendored_source_build.md) —
+  onager reinstatement after the duckdb 2.0 removal: vendored source
+  build of upstream v0.5.0 (the 2.0.0 port; submodule == v2.0.0 tag)
+  via `vendor/onager/build.sh` → `models/onager/bin/`; connect-time
+  `allow_unsigned_extensions` contract (duckdb 2.0 locks the setting);
+  the decisive fix — `graph_fallbacks._dispatch` had zero callers, so
+  `algorithms._extension_first` now routes ten families + LP
+  extension-first (LP 6.15→2.88 s, route 4.98→2.79 s measured);
+  v_centrality ten-table re-stamp; perf-report failure attribution
+  (FAIL(budget|rc[, frag])); trust model = distribution-first with the
+  CLI-managed `~/.duckdb` community install — completed.md #434
 - [`hyper_link_prediction_d10.md`](graph/hyper_link_prediction_d10.md) —
   D10 hyper-native link prediction + the HGX unlock shelf: three
   star-native score lanes (jaccard, s-walk connectance s∈{2,3},

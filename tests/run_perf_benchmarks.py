@@ -14,12 +14,19 @@ Exit codes: ``0`` all benches within budget · ``1`` a bench failed ·
 pressure above ceiling), so timings would lie. A refused run appends
 nothing; a mid-run trip marks the remaining rows untrusted in the
 appended block (see the contention guard below).
+
+Failure rows carry attribution in the report's Status cell —
+``✗ FAIL(budget)`` / ``✗ FAIL(rc)`` / ``✗ FAIL(contended)`` /
+``✗ FAIL(budget, psi avg10 18.3%)`` — so a loaded box's red wall is
+readable as load, not regression (the run-1787 lesson). The ``FAIL``
+substring is invariant: gate_query's failure surfaces key on it.
 """
 
 from __future__ import annotations
 
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -201,8 +208,10 @@ BENCHMARKS: list[tuple[str, list[str], float]] = [
     # end-to-end. Since the 2.0 fallback lanes (completed.md #427) the LP
     # is a single sparse matmul (sub-second) but the lane is boot+wire
     # fetch dominated: 6.15s end-to-end (39.8s pre-vectorisation).
-    # Budget 8.0 = measured + ~30% headroom for the fallback path; the
-    # onager 4.0 shape returns if the extension ever ports to 2.0.
+    # The onager shape RETURNED 2026-10-24 (onager_vendored_source_build):
+    # the vendored v0.5.0 extension + extension-first dispatch measured
+    # 2.88s (loaded box, [via onager] in the CLI output). Budget stays 8.0
+    # until the operator's quiet-box gate arc re-bases it toward 4.0.
     (
         "graph_link_prediction",
         [
@@ -434,6 +443,34 @@ def _contention_reason(midrun: bool = False) -> str | None:
     return None
 
 
+def _load_pressure_reason() -> str | None:
+    """External-pressure evidence at this instant, for failure attribution.
+
+    The refusal guard (_contention_reason) refuses a run whose timings
+    would lie; this probe is diagnostic — a failed leg gets tagged with
+    WHY it probably failed. Same self-load constraint though: our own
+    bench bursts (centrality/betweenness measured ~10.3% avg10) must not
+    read as "external load", so avg10 is held to the SUSTAINED ceiling,
+    not the start ceiling. avg60 (the guard's window) is too laggy to
+    catch a spike that began and ended inside one leg, hence avg10 here.
+    Lane activity is binary fact. Returns a short fragment for the status
+    cell ("psi avg10 18.3%" / "load1 3.41" / "lane qa") or None.
+    """
+    lane = _gate_lane_active()
+    if lane is not None:
+        m = re.search(r"lane (\S+) active", lane)
+        return f"lane {m.group(1)}" if m else "gate lane"
+    psi = _psi_some("avg10")
+    if psi is not None:
+        if psi > _PSI_SUSTAINED_CEIL:
+            return f"psi avg10 {psi:.1f}%"
+        return None
+    load1 = os.getloadavg()[0]
+    if load1 > _LOAD_CEIL:
+        return f"load1 {load1:.2f}"
+    return None
+
+
 def run_one(label: str, args: list[str], budget: float) -> tuple[float, str, bool]:
     """Run a single benchmark, return (elapsed_seconds, status, passed)."""
     t0 = time.perf_counter()
@@ -476,10 +513,21 @@ def _run_all_benchmarks() -> tuple[
                     file=sys.stderr,
                 )
         print(f"  running {label:.<30s}", end="", flush=True)
+        # Pressure endpoints bracket the leg: avg10 before + after catches a
+        # spike that started and ended inside the leg's window (avg60 lags).
+        pre_load = _load_pressure_reason()
         dt, status, ok = run_one(label, args, budget)
         if contended_from is not None:
             status = "CONTENDED"
             ok = False
+        elif not ok:
+            post_load = _load_pressure_reason()
+            load_frag = pre_load or post_load
+            if load_frag:
+                # attribution, not excuse: the row still FAILs; the tag says
+                # the box was busy while it did (run 1787 lesson — a loaded
+                # box painted 15 legs red and read as a regression wall).
+                status = f"{status} [{load_frag}]"
         results.append((label, dt, status, ok, budget))
         print(f" {dt:6.2f}s  [{status}]")
         if not ok and contended_from is None:
@@ -547,6 +595,26 @@ def main() -> int:
     return 0 if all_ok else 1
 
 
+def _md_status(status: str, ok: bool) -> str:
+    """The md Status cell for one leg.
+
+    Every failure row keeps the literal ``FAIL`` — gate_query's failure
+    surfaces (_pick_run/_run_digest) key on that substring, and a
+    contended run must stay VISIBLE there, never silently green. The
+    parenthesised attribution is new (2026-10-24): budget vs rc vs
+    contended vs load-coincident, so a loaded box's red wall reads as
+    load, not regression. ``[frag]`` is appended by _run_all_benchmarks
+    when a leg failed under measured external pressure.
+    """
+    if ok:
+        return "✓ OK"
+    if status == "CONTENDED":
+        return "✗ FAIL(contended)"
+    kind = "rc" if status.startswith("FAIL(rc)") else "budget"
+    m = re.search(r"\[(.+)\]$", status)
+    return f"✗ FAIL({kind}, {m.group(1)})" if m else f"✗ FAIL({kind})"
+
+
 def write_report(
     results: list[tuple[str, float, str, bool, float]],
     started: str,
@@ -581,11 +649,7 @@ def write_report(
     md_lines.append("| Benchmark | Time (s) | Budget | Status |")
     md_lines.append("|---|---|---|---|")
     for label, dt, status, ok, budget in results:
-        # md rows keep the standard ✓/✗ shape — every failure-surface query
-        # keys on the FAIL substring (gate_query _pick_run/_run_digest), and
-        # a contended run must stay VISIBLE there, never silently green.
-        # The **Status:** header line above carries why it's untrusted.
-        flag = "✓ OK" if ok else "✗ FAIL"
+        flag = _md_status(status, ok)
         md_lines.append(f"| {label} | {dt:.2f} | {budget:.1f}s | {flag} |")
     md_lines.append(f"| **{passed}/{total} passed** | | | |")
     md_lines.append("")

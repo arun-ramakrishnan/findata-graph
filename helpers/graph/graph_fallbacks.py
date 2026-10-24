@@ -95,17 +95,25 @@ def onager_available() -> bool:
     the process. Cheap enough to call per dispatch and lets the fallbacks
     skip a doomed onager attempt entirely (the extension gap is a
     distribution fact, not a per-call accident).
+
+    Resolves through ``onager._load_onager`` (2026-10-24): distribution
+    first, then the vendored build (``vendor/onager/`` ->
+    ``models/onager/bin/``) — the bare ``LOAD onager`` probe predates the
+    vendored lane and kept the whole dispatch family on fallbacks even
+    with a loadable artifact on disk.
     """
     global _AVAILABLE
     if _AVAILABLE is None:
         try:
-            probe = duckdb.connect()
+            from helpers.graph.onager import OnagerUnavailable, _load_onager, connect_kwargs
+
+            probe = duckdb.connect(**connect_kwargs())
             try:
-                probe.execute("LOAD onager;")
+                _load_onager(probe)
                 _AVAILABLE = True
             finally:
                 probe.close()
-        except duckdb.Error:
+        except duckdb.Error, OnagerUnavailable:
             _AVAILABLE = False
     return _AVAILABLE
 

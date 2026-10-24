@@ -185,7 +185,17 @@ def connect_shared(
         entry = served_entry(disc, p)
         if entry is not None:
             return _attach_wire(entry, str(entry.get("alias") or p.stem))
-    return duckdb.connect(str(p), read_only=read_only)
+    return duckdb.connect(str(p), read_only=read_only, **unsigned_ext_kwargs())
+
+
+def unsigned_ext_kwargs() -> dict[str, Any]:
+    """``duckdb.connect`` kwargs permitting locally-built (unsigned)
+    extensions — the vendored onager build (vendor/onager/,
+    helpers/graph/onager.py) is the resident case. duckdb 2.0 locks
+    ``allow_unsigned_extensions`` once a database is open, so this rides
+    the connect config; harmless where no extension ever loads.
+    """
+    return {"config": {"allow_unsigned_extensions": True}}
 
 
 def is_served(path: Path | str, *, discovery: Path | None = None) -> bool:

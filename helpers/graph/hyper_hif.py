@@ -72,32 +72,32 @@ def write_hif_parquet(
     con = duckdb.connect()
     try:
         con.execute(f"ATTACH '{db_path or DEFAULT_DB_PATH}' AS src (TYPE SQLITE, READ_ONLY)")
-        nodes = con.execute(
+        nodes = con.sql(
             "SELECT DISTINCT hi.entity_name AS id, "
             "       '{\"entity_type\": \"' || e.entity_type || '\"}' AS attrs "
             "FROM src.hyper_incidences hi "
             "JOIN src.hyper_edges he ON he.id = hi.edge_id "
             "LEFT JOIN src.entities e ON e.name = hi.entity_name "
             f"WHERE he.edge_type IN ({ph}) ORDER BY 1",
-            sources,
+            params=sources,
         ).to_arrow_table()
-        edges = con.execute(
+        edges = con.sql(
             "SELECT he.edge_type || ':' || he.label AS id, "
             "       json_object('source_ref', he.source_ref, "
             "                   'properties', he.properties, "
             "                   'created_at', he.created_at) AS attrs "
             "FROM src.hyper_edges he "
             f"WHERE he.edge_type IN ({ph}) ORDER BY 1",
-            sources,
+            params=sources,
         ).to_arrow_table()
-        incs = con.execute(
+        incs = con.sql(
             "SELECT he.edge_type || ':' || he.label AS edge, "
             "       hi.entity_name AS node, hi.weight AS weight, "
             "       json_object('direction', hi.direction) AS attrs "
             "FROM src.hyper_incidences hi "
             "JOIN src.hyper_edges he ON he.id = hi.edge_id "
             f"WHERE he.edge_type IN ({ph}) ORDER BY 1, 2",
-            sources,
+            params=sources,
         ).to_arrow_table()
     finally:
         con.close()

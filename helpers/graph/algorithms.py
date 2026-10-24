@@ -503,8 +503,13 @@ def link_prediction(
         con = duckdb_connect(read_only=True)
         own = True
     try:
-        return onager_link_prediction(
-            con, edge_types=edge_types, method=method, top=top, allow_all_pairs=allow_all_pairs
+        return _extension_first(
+            onager_link_prediction,
+            con,
+            edge_types=edge_types,
+            method=method,
+            top=top,
+            allow_all_pairs=allow_all_pairs,
         )
     finally:
         if own:
@@ -634,15 +639,61 @@ def _centrality_edge_types(con: Any) -> list[str] | None:
     return types or None
 
 
+_LANE_SERVED_FAMILIES = frozenset({"onager_closeness", "onager_harmonic", "onager_betweenness"})
+"""Families whose DB-universe belongs to a scipy_bridge ROUTING lane
+(closeness/harmonic → SCIPY, betweenness → L1B_FOLD) — the extension
+must not compute them or the served contract forks (the same reason the
+stamp drops those tables). Synthetic-edges calls keep today's fallback
+behaviour too: uniform per family is easier to reason about than
+per-call-shape routing."""
+
+
+def _extension_first(fn, *args, **kwargs):
+    """Call the extension twin of ``fn`` first, degrade per call.
+
+    graph_fallbacks and the onager module share names and signatures (the
+    fallback module is a drop-in), so ``fn.__name__`` resolves the twin.
+    Degradation never aborts: OnagerUnavailable (artifact gone mid-process)
+    latches the availability probe off, and extension-flavoured duckdb
+    errors fall through to ``fn`` while anything else propagates.
+    """
+    import duckdb
+
+    import helpers.graph.graph_fallbacks as _fb_mod
+    import helpers.graph.onager as _ext_mod
+
+    if not _fb_mod.onager_available():
+        return fn(*args, **kwargs)
+    ext = getattr(_ext_mod, fn.__name__, None)
+    if ext is None:
+        return fn(*args, **kwargs)
+    try:
+        return ext(*args, **kwargs)
+    except _fb_mod.OnagerUnavailable:
+        _fb_mod._AVAILABLE = False
+    except duckdb.Error as exc:
+        if "onager" not in str(exc).lower():
+            raise
+    return fn(*args, **kwargs)
+
+
 def _onager_central(fn, con, edges, **kw):
     """Dispatch an Onager centrality with the centrality projection rule.
 
     DB path (``edges is None``): apply the index-noise exclusion. Synthetic
     ``edges=`` lists pass through untouched (they define their own graph).
+
+    Engine order (onager_vendored_source_build): the vendored extension
+    wins per call via :func:`_extension_first`; lane-served families stay
+    on ``fn`` outright.
     """
+    if fn.__name__ in _LANE_SERVED_FAMILIES:
+        if edges is not None:
+            return fn(con, edges=edges, **kw)
+        return fn(con, edge_types=_centrality_edge_types(con), edges=edges, **kw)
     if edges is not None:
-        return fn(con, edges=edges, **kw)
-    return fn(con, edge_types=_centrality_edge_types(con), edges=edges, **kw)
+        return _extension_first(fn, con, edges=edges, **kw)
+    return _extension_first(fn, con, edge_types=_centrality_edge_types(con), edges=edges, **kw)
 
 
 # --------------------------------------------------------------------------- #

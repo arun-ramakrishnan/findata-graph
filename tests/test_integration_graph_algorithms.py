@@ -1049,7 +1049,13 @@ class TestGraphDbOptimization:
         """Inside a with_onager_connection block, successive computes with
         the same projection share ONE materialisation; a different
         projection re-materialises; after the block, calls materialise
-        afresh (no state outlives the invocation)."""
+        afresh (no state outlives the invocation).
+
+        Drives the onager twins (ong.*), not the fb.* pure fallbacks:
+        735e10e60 made the fb exports pure fallback implementations, so
+        the batch scope's materialisation contract only exists on the
+        extension lane (the scope delegates there when the extension is
+        available — onager_vendored_source_build, completed.md #434)."""
         import helpers.graph.onager as ong
         import helpers.graph.graph_fallbacks as fb
 
@@ -1064,20 +1070,20 @@ class TestGraphDbOptimization:
         con = algos.duckdb_connect(read_only=True)
         try:
             with fb.with_onager_connection(con):
-                fb.onager_degree(con)
-                fb.onager_degree(con)
-                fb.onager_closeness(con)
+                ong.onager_degree(con)
+                ong.onager_degree(con)
+                ong.onager_closeness(con)
             assert calls["n"] == 1  # 3 same-projection computes, 1 rebuild
 
             calls["n"] = 0
             with fb.with_onager_connection(con):
-                fb.onager_degree(con)
-                fb.onager_degree(con, edge_types=["competes_with"])
-                fb.onager_degree(con, edge_types=["competes_with"])
+                ong.onager_degree(con)
+                ong.onager_degree(con, edge_types=["competes_with"])
+                ong.onager_degree(con, edge_types=["competes_with"])
             assert calls["n"] == 2  # projection change re-materialises
 
             calls["n"] = 0
-            fb.onager_degree(con)
+            ong.onager_degree(con)
             assert calls["n"] == 1  # outside a block: fresh as before
         finally:
             con.close()
@@ -1098,13 +1104,15 @@ class TestGraphDbOptimization:
     def test_with_onager_connection_no_sig_leak(self, synth_db):
         """The signature table is dropped on block exit: a later standalone
         compute on the same connection re-materialises (checked via the
-        temp table's absence)."""
+        temp table's absence). Drives the onager twin — the fb export is a
+        pure fallback and never materialises (completed.md #434)."""
+        import helpers.graph.onager as ong
         import helpers.graph.graph_fallbacks as fb
 
         con = algos.duckdb_connect(read_only=True)
         try:
             with fb.with_onager_connection(con):
-                fb.onager_degree(con)
+                ong.onager_degree(con)
                 leaked = con.execute(
                     "SELECT count(*) FROM information_schema.tables "
                     "WHERE table_name = '_onager_sig'"

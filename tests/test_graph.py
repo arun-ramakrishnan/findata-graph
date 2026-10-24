@@ -1294,16 +1294,16 @@ class TestFindCycles:
                 "SELECT CAST(json_extract_string(properties, '$.n_quotes') AS BIGINT) "
                 "FROM e_all_und WHERE json_extract_string(properties, '$.n_quotes') "
                 "IS NOT NULL LIMIT 1"
-            ).fetchone()[0]
+            ).fetchone()[0]  # ty: ignore[not-subscriptable] — LIMIT 1 over a WHERE-guarded row
             assert nq == 5
             # Empty-object payload survives verbatim; competes_with doubled.
             assert (
-                dcon.execute("SELECT COUNT(*) FROM e_all_und WHERE properties = '{}'").fetchone()[0]
+                dcon.execute("SELECT COUNT(*) FROM e_all_und WHERE properties = '{}'").fetchone()[0]  # ty: ignore[not-subscriptable]
                 == 2
             )
             # No source edge → NULL payload on the substrate.
             assert (
-                dcon.execute("SELECT COUNT(*) FROM e_all_und WHERE properties IS NULL").fetchone()[
+                dcon.execute("SELECT COUNT(*) FROM e_all_und WHERE properties IS NULL").fetchone()[  # ty: ignore[not-subscriptable]
                     0
                 ]
                 == 0

@@ -41,10 +41,15 @@ def _onager_available() -> bool:
     try:
         import duckdb
 
-        con = duckdb.connect(":memory:")
+        from helpers.graph.onager import _load_onager, connect_kwargs
+
+        con = duckdb.connect(":memory:", **connect_kwargs())
         try:
-            con.execute("INSTALL onager")
-            con.execute("LOAD onager")
+            # Same resolution the engine uses: distribution LOAD first,
+            # then the vendored build (vendor/onager/ -> models/onager/bin/).
+            # The old INSTALL+LOAD probe kept the onager modules skipped
+            # even with a loadable vendored artifact on disk.
+            _load_onager(con)
             return True
         finally:
             con.close()

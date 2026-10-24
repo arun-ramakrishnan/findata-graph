@@ -354,6 +354,10 @@ Open items below keep their revisit triggers inline; executed work is compressed
   requires a weight column of type `BIGINT`; variants A/B produce identical
   output. Documented at `helpers/graph/onager.py:836` and graph_design.md §5.5.
   Do not wrap until a future Onager build honours the personalisation vector.
+  (2026-10-24 reinstatement — `archive/graph/onager_vendored_source_build.md`,
+  completed.md #434 — changed NOTHING here: v0.5.0 is the 2.0.0 API port, the
+  personalised-pagerank algorithm is untouched by both the vendored build and
+  the community dist artifact.)
   Even a fixed build does not unblock the lane: the scipy exact-solve
   measured the graph-structure degeneracy (PPR ≈ 1-hop ego rank on the
   leaf-heavy graph) — see `archive/graph/scipy_personalized_pagerank.md` §7.

@@ -325,7 +325,7 @@ def _scope_label(args, stack: int, payload: dict) -> str:
     return payload.get("commit", "HEAD")
 
 
-def _ocr_preview(ref_args: tuple) -> dict | None:
+def _ocr_preview(ref_args: list[str]) -> dict | None:
     """Run the OCR delegate preview for the resolved ref args; None on refusal."""
     ocr = shutil.which("ocr")
     if ocr is None:

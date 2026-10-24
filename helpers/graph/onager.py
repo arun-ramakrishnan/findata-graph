@@ -41,8 +41,10 @@ from __future__ import annotations
 import contextlib
 import hashlib
 import heapq
+import os
 import re
 import threading
+from pathlib import Path
 from typing import Any
 
 import duckdb
@@ -102,22 +104,65 @@ def _edge_source_sql(con: duckdb.DuckDBPyConnection) -> str:
 class OnagerUnavailable(RuntimeError):
     """The onager extension is not installed for this DuckDB build.
 
-    duckdb 2.0 has no onager distribution yet (completed.md #427), so
-    ``LOAD onager`` fails with ``IO Error: Extension ... not found``.
+    The community bucket has no onager artifact for duckdb 2.0.0 yet
+    (completed.md #427), so ``LOAD onager`` fails with ``IO Error:
+    Extension ... not found`` — unless the vendored build is present (see
+    ``vendor/onager/``), in which case it is loaded from disk below.
     Callers that can degrade gracefully (the graph-algos and
     suggest-relations CLIs, the advisory legs behind them) catch this
     and skip the onager lane instead of dying with a traceback.
     """
 
 
+# Vendored build artifact (vendor/onager/build.sh -> models/onager/bin/,
+# gitignored like the GGUFs). Checked only after ``LOAD onager`` fails, so
+# the moment upstream publishes a 2.0.0 bucket artifact the signed one wins.
+_VENDORED_EXTENSION = (
+    Path(__file__).resolve().parents[2] / "models" / "onager" / "bin" / "onager.duckdb_extension"
+)
+
+
 def _load_onager(con: duckdb.DuckDBPyConnection) -> None:
     """LOAD onager, translating a missing extension into the typed
     ``OnagerUnavailable`` signal (the raw duckdb.IOException is an
-    implementation detail of the distribution gap)."""
+    implementation detail of the distribution gap).
+
+    Resolution order: the distribution path first (``LOAD onager``), then
+    the vendored build — locally compiled extensions are unsigned, and in
+    duckdb 2.0 ``allow_unsigned_extensions`` is a CONNECT-TIME config (a
+    post-connect ``SET`` dies with "Cannot change ... while database is
+    running"), so the connection must have been built with
+    :func:`connect_kwargs` for the file LOAD to succeed. A con without
+    the flag simply degrades to the fallbacks — the never-abort posture.
+    """
     try:
         con.execute("LOAD onager;")
-    except duckdb.Error as exc:
-        raise OnagerUnavailable(f"onager extension unavailable: {exc}") from exc
+        return
+    except duckdb.Error:
+        pass
+    vendored = os.environ.get("ONAGER_VENDORED_EXTENSION", str(_VENDORED_EXTENSION))
+    if os.path.exists(vendored):
+        try:
+            con.execute(f"LOAD '{vendored.replace(chr(39), '')}';")
+            return
+        except duckdb.Error:
+            pass  # present but unloadable (stale ABI / flagless con) — fall through
+    raise OnagerUnavailable("onager extension unavailable (no distribution, no vendored build)")
+
+
+def connect_kwargs() -> dict[str, Any]:
+    """``duckdb.connect`` kwargs that permit loading the vendored onager.
+
+    Delegates to ``helpers.core.duckdb_shared.unsigned_ext_kwargs`` (the
+    generic duckdb concern — core owns it so connect_shared can use it
+    without a layering inversion). Unsigned extensions are gated at
+    connect time (duckdb 2.0 locks the setting once a database is open),
+    so every connection factory that may serve onager lanes builds its
+    connections with this. Harmless where the extension never loads.
+    """
+    from helpers.core.duckdb_shared import unsigned_ext_kwargs
+
+    return unsigned_ext_kwargs()
 
 
 def _prepare(con: duckdb.DuckDBPyConnection | None) -> tuple[duckdb.DuckDBPyConnection, bool]:
@@ -132,7 +177,7 @@ def _prepare(con: duckdb.DuckDBPyConnection | None) -> tuple[duckdb.DuckDBPyConn
       build their own connection also work.
     """
     if con is None:
-        con = duckdb.connect()
+        con = duckdb.connect(**connect_kwargs())
         con.execute("LOAD sqlite;")
         _load_onager(con)
         return con, True

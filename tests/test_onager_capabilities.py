@@ -39,7 +39,7 @@ def _clique(n: int):
 
 
 def _duckdb_over(db_path: str) -> duckdb.DuckDBPyConnection:
-    con = duckdb.connect()
+    con = duckdb.connect(**onager_mod.connect_kwargs())
     con.execute("LOAD sqlite;")
     con.execute(f"ATTACH '{db_path}' AS fin (TYPE sqlite, READ_ONLY);")
     return con
@@ -410,7 +410,7 @@ def test_link_prediction_pref_attach_heap_matches_extension(tmp_path):
     )
     scon.commit()
     scon.close()
-    con = duckdb.connect()
+    con = duckdb.connect(**onager_mod.connect_kwargs())
     con.execute(f"ATTACH '{db}' AS fin (TYPE sqlite, READ_ONLY)")
     try:
         heap_rows = onager_mod.onager_link_prediction(
@@ -444,7 +444,7 @@ def test_link_prediction_pref_attach_db_path_names(tmp_path):
     )
     scon.commit()
     scon.close()
-    con = duckdb.connect()
+    con = duckdb.connect(**onager_mod.connect_kwargs())
     con.execute(f"ATTACH '{db}' AS fin (TYPE sqlite, READ_ONLY)")
     try:
         rows = onager_mod.onager_link_prediction(con, method="pref-attach", allow_all_pairs=True)

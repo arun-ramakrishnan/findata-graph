@@ -19,11 +19,14 @@ from __future__ import annotations
 
 import itertools
 import math
+import os
 import random
 
+import duckdb
 import pytest
 
 import helpers.graph.graph_fallbacks as fb
+from helpers.graph import onager as on
 
 # --------------------------------------------------------------------------- #
 # graphs + helpers
@@ -359,3 +362,89 @@ def test_math_import_contract():
     edges = _random_graph(13, nodes=14, edge_prob=0.25)
     for result in (fb.onager_laplacian(edges=edges), fb.onager_harmonic(edges=edges)):
         assert all(math.isfinite(value) for value in result.values())
+
+
+# --------------------------------------------------------------------------- #
+# vendored-extension resolution (2026-10-24, onager_vendored_source_build)
+# --------------------------------------------------------------------------- #
+class TestVendoredResolution:
+    """``_load_onager`` resolves distribution-first, vendored-second; the
+    failure paths are deterministic regardless of whether the artifact is
+    built, the success path is the LOAD canary for a stale-ABI trip.
+
+    The degradation tests must neutralise the DISTRIBUTION arm: a trusted
+    copy under ~/.duckdb/extensions (2026-10-24: upstream dist artifact,
+    community-repo install) makes bare ``LOAD onager`` succeed, so each
+    failure-path test runs against an empty fake HOME where the
+    distribution arm 404s and the vendored arm decides."""
+
+    @staticmethod
+    def _empty_home(tmp_path, monkeypatch):
+        home = tmp_path / "home"
+        home.mkdir()
+        monkeypatch.setenv("HOME", str(home))
+
+    def test_flagless_con_degrades_on_untrusted_path(self, tmp_path, monkeypatch):
+        # allow_unsigned_extensions is a CONNECT-TIME config in duckdb 2.0 —
+        # a plain con must NOT load the vendored file (it is unsigned and,
+        # unlike a copy under the extensions dir, no install metadata
+        # blesses it). With no trusted distribution either, the whole
+        # resolution degrades to OnagerUnavailable.
+        self._empty_home(tmp_path, monkeypatch)
+        con = duckdb.connect()
+        try:
+            with pytest.raises(on.OnagerUnavailable):
+                on._load_onager(con)
+        finally:
+            con.close()
+
+    def test_junk_vendored_file_degrades(self, tmp_path, monkeypatch):
+        junk = tmp_path / "not_an_extension.duckdb_extension"
+        junk.write_bytes(b"garbage")
+        self._empty_home(tmp_path, monkeypatch)
+        monkeypatch.setenv("ONAGER_VENDORED_EXTENSION", str(junk))
+        con = duckdb.connect(**on.connect_kwargs())
+        try:
+            with pytest.raises(on.OnagerUnavailable):
+                on._load_onager(con)
+        finally:
+            con.close()
+
+    def test_missing_vendored_file_degrades(self, monkeypatch, tmp_path):
+        self._empty_home(tmp_path, monkeypatch)
+        monkeypatch.setenv("ONAGER_VENDORED_EXTENSION", str(tmp_path / "absent.duckdb_extension"))
+        con = duckdb.connect(**on.connect_kwargs())
+        try:
+            with pytest.raises(on.OnagerUnavailable):
+                on._load_onager(con)
+        finally:
+            con.close()
+
+    def test_vendored_load_canary(self):
+        """LOAD verdict for the vendored build — the PROVENANCE gate. Fails
+        on a stale artifact after a duckdb bump (rebuild via
+        `make onager-build`), skips clean while unbuilt."""
+        if not os.path.exists(on._VENDORED_EXTENSION):
+            pytest.skip("vendored onager not built (vendor/onager/build.sh)")
+        con = duckdb.connect(**on.connect_kwargs())
+        try:
+            on._load_onager(con)
+            row = con.execute(
+                "SELECT loaded, installed FROM duckdb_extensions() WHERE extension_name = 'onager'"
+            ).fetchone()
+            assert row is not None  # the extension registers a catalog row on LOAD
+            (loaded, _installed) = row
+            # installed stays False for a path-LOAD (not in an extension
+            # repo); loaded is the verdict this canary exists for.
+            assert loaded
+        finally:
+            con.close()
+
+    def test_probe_sees_vendored_artifact(self, monkeypatch):
+        """The dispatch gate routes through the same resolver — with the
+        artifact present it must report available (else the whole family
+        silently stays on fallbacks)."""
+        if not os.path.exists(on._VENDORED_EXTENSION):
+            pytest.skip("vendored onager not built (vendor/onager/build.sh)")
+        monkeypatch.setattr(fb, "_AVAILABLE", None)  # bypass the process cache
+        assert fb.onager_available() is True

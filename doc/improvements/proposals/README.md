@@ -52,7 +52,8 @@ detail bullets): `../archive/graph/merger_demerger_hyperedges.md` (#426),
 `../archive/database/person_ontology_spine.md` (#419),
 `../archive/graph/hyperedge_density_dq.md` (#420),
 `../archive/graph/parquet_export_wrapper.md` (#421, BUILD path),
-`../archive/tooling/ocr_review_lanes_7b122d915_e3147ef3c.md` (#432).
+`../archive/tooling/ocr_review_lanes_7b122d915_e3147ef3c.md` (#432),
+`../archive/graph/onager_vendored_source_build.md` (#434).
 
 Historical (executed + archived; newest first):
 

@@ -107,7 +107,15 @@ def main(argv: list[str] | None = None) -> int:
     signal.signal(signal.SIGTERM, _flag)
     signal.signal(signal.SIGINT, _flag)
 
-    con = duckdb.connect(str(db))  # read-write hold: the server is the writer of record
+    # allow_unsigned_extensions is a connect-time config in duckdb 2.0 — the
+    # server's con must carry it or every onager lane arriving over the wire
+    # degrades to the graph fallbacks (helpers/graph/onager.py::connect_kwargs).
+    try:
+        from helpers.graph.onager import connect_kwargs
+
+        con = duckdb.connect(str(db), **connect_kwargs())
+    except ImportError:  # standalone child (tests) without the repo package
+        con = duckdb.connect(str(db))
     con.execute("INSTALL quack")
     con.execute("LOAD quack")
     # Explicit port: the bare 'quack:localhost' form carries no port in

@@ -60,12 +60,12 @@ def _from_live(sources: list[str], db_path: Path | str) -> pa.Table:
     con = duckdb.connect()
     try:
         con.execute(f"ATTACH '{db_path}' AS src (TYPE SQLITE, READ_ONLY)")
-        rel = con.execute(
+        rel = con.sql(
             f"SELECT {_COLUMNS} "
             "FROM src.hyper_incidences hi JOIN src.hyper_edges he ON he.id = hi.edge_id "
             f"WHERE he.edge_type IN {_in_clause(sources)} "
             "ORDER BY he.edge_type, he.label, hi.entity_name",
-            sources,
+            params=sources,
         )
         return rel.to_arrow_table()
     finally:
@@ -83,12 +83,12 @@ def _from_snapshot(sources: list[str], parquet_dir: Path) -> pa.Table:
     try:
         con.register("e", edges)
         con.register("i", incs)
-        rel = con.execute(
+        rel = con.sql(
             f"SELECT {_COLUMNS} "
             "FROM i AS hi JOIN e AS he ON he.id = hi.edge_id "
             f"WHERE he.edge_type IN {_in_clause(sources)} "
             "ORDER BY he.edge_type, he.label, hi.entity_name",
-            sources,
+            params=sources,
         )
         return rel.to_arrow_table()
     finally:
@@ -206,7 +206,7 @@ def incidence_query(table: pa.Table, sql: str, params: list | None = None) -> pa
     con = duckdb.connect()
     try:
         con.register("incidence", table)
-        rel = con.execute(sql, params or [])
+        rel = con.sql(sql, params=params or [])
         return rel.to_arrow_table()
     finally:
         con.close()

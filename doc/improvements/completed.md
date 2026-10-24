@@ -12147,3 +12147,43 @@ execution as numbered entries, so this entry completes that convention)
   sibling-via-root tree BFS, fold doc §8) and 1.61× faster end-to-end jobs=1 (3.41 s vs
   5.49 s; the earlier 5.34× was a phase-vs-phase comparison). Tests:
   `tests/test_l1_closeness.py`.
+
+## 434. Onager reinstatement — vendored source build, dispatch rewiring, v_centrality re-stamp
+
+**Date**: 2026-10-24
+**Status**: COMPLETE
+**Proposal**: `doc/improvements/archive/graph/onager_vendored_source_build.md`
+
+The duckdb 2.0 upgrade (#427) removed the onager extension and silently demoted all 13
+`_METRIC_DISPATCH` graph-algo families to the fallback chain (735e10e60); link prediction
+went 2.3-2.6 s → 39.8-47.5 s naive → 6.15 s vectorised (e3147ef3c). This arc reinstates
+the onager lane end-to-end:
+
+- **S1 vendored build** — `vendor/onager/build.sh` + `PROVENANCE.md` + Makefile
+  `onager-build`: upstream v0.5.0 @ c45146bc (the 2026-10-23 2.0.0 port) against the
+  external/duckdb submodule pinned EXACTLY at the v2.0.0 tag; artifact
+  `models/onager/bin/onager.duckdb_extension` (sha256 db2f1e87…8895f). Build traps
+  recorded: DUCKDB_VERSION=v2.0.0 must be exported (else the dev-version stamp fails the
+  loader gate) and `allow_unsigned_extensions` is a CONNECT-TIME config on duckdb 2.0
+  (post-connect SET raises) — threaded through nine factories via
+  `unsigned_ext_kwargs()`/`connect_kwargs()`.
+- **S2/S3 wire + dispatch** — the decisive find: `graph_fallbacks._dispatch` had ZERO
+  production callers since 735e10e60, so production read paths called pure fallback
+  implementations even with an extension loadable. `algorithms._extension_first` routes
+  the ten `_onager_central` families + link prediction extension-first, degrades per
+  call, and keeps the lane-served families (closeness/harmonic/betweenness) on their
+  scipy/L1B lanes. Extension-over-wire proven (degree: 20,046 nodes server-side; the
+  quack wire-params limitation does not bite — onager wrappers are literal/identifier
+  SQL behind the `_IDENT_RE` guard). Measured (loaded box): LP 2.884 s, route 2.787 s;
+  budgets stay at the 10-23 re-baseline pending the operator's quiet-box arc.
+- **S4 v_centrality re-stamp** — quack-stop → stamp-centrality → quack-start; all ten
+  tables verified over the wire (degree 20,046 rows; louvain_modularity 0.7217).
+- **S5 perf-report failure attribution** — `run_perf_benchmarks.py` failure rows carry
+  `✗ FAIL(budget|rc[, frag])` with a measured-pressure fragment, so a loaded box's red
+  wall (run 1787: 15 legs) reads as load, not regression; `FAIL` substring invariant.
+- Trust model documented: a trusted dist install exists via the duckdb CLI's
+  `~/.duckdb` (community repo serves v2.0.0; main-repo INSTALL still 404s); resolution
+  is distribution-first with the vendored build as the pinned/offline path. Tests:
+  capability battery 79/79 (first run since 10-21), fallback contract 50/50, consumers
+  133/133, attribution suite 21/21 + consumers 128/128. personalised-pagerank wrap
+  stays forbidden (algorithm unchanged by any artifact).

@@ -600,7 +600,9 @@ def _build_graph_connection(
                 _prep_graph_connection(con)
                 _attach_sqlite(con, db_path)
                 return con
-            con = duckdb.connect(str(duckdb_path))
+            from helpers.graph.onager import connect_kwargs
+
+            con = duckdb.connect(str(duckdb_path), **connect_kwargs())
             _prep_graph_connection(con)
             _attach_sqlite(con, db_path)
             if needs_build:
@@ -1003,6 +1005,13 @@ _EXTRA_MATERIALIZED = (
     "v_centrality_local_reaching",
     "v_centrality_voterank",
     "v_centrality_louvain",
+    # scipy_exact_universe S6 all-universe tables (onager reinstatement
+    # #434 restored the stamp; fbd7ef80a had dropped them from the mirror
+    # ONLY because the extension gap made them unrecomputable — operator
+    # ruling 2026-10-24: restore the 9-table mirror set). v_graph_structure
+    # was never mirrored and stays out.
+    "v_centrality_closeness_full",
+    "v_centrality_harmonic_full",
 )
 MATERIALISED_TABLES = frozenset(spec["table"] for spec in EDGE_REGISTRY.values()).union(
     _EXTRA_MATERIALIZED, {"_build_meta"}
@@ -1313,7 +1322,9 @@ def _patch_dirty_tables(tmp_duckdb_path: Path, db_path: Path) -> bool:
     stamps (centrality_rebuild_contract: absence == compute on demand)
     and the stamp-owned ``louvain_modularity`` meta key.
     """
-    con = duckdb.connect(str(tmp_duckdb_path))
+    from helpers.graph.onager import connect_kwargs
+
+    con = duckdb.connect(str(tmp_duckdb_path), **connect_kwargs())
     try:
         _prep_graph_connection(con)
         _attach_sqlite(con, db_path)
