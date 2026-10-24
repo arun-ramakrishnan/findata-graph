@@ -3861,32 +3861,67 @@ def _c_series_duck_conn(conn) -> tuple[duckdb.DuckDBPyConnection, bool]:
     return duck_connect(read_only=False), True
 
 
-def co_mention_top(n: int = 20, conn=None) -> list[dict]:
-    """C1: Top entities by co-mention frequency.
+def _c_series_ro_conn(conn) -> tuple[duckdb.DuckDBPyConnection, bool]:
+    """Read-only C-series connection resolution (graph_enhancement_roadmap A′).
 
-    Approach A (self-contained): opens its own DuckDB con, runs
-    _stage_edges / _resolve_edges, reads _edge_resolved. Keeps the
-    sqlite3 conn contract unchanged. B (e_* materialised tables)
-    deferred as longer-term. See doc/improvements/proposals/
-    graph_read_path_consolidation.md.
+    The C-series wrappers read the MATERIALISED ``e_*``/``v_*`` tables — no
+    session projections — so the production default is a READ-ONLY connection
+    through the duckdb_lock funnel: wire-attach when the store is quack-served
+    (a file-mode read-only open conflicts with the server's RW lock under
+    DuckDB 2.0 — only one process may hold the file RW and that seat belongs
+    to the server), plain read-only file open otherwise. Scratch sqlite
+    fixtures keep the RW sibling-build path from :func:`_c_series_duck_conn`
+    (the build must materialise ``e_*`` before the read-only SQL can run).
+
+    Returns ``(con, owned)`` per the ``_c_series_duck_conn`` contract.
     """
-    # Approach A: open DuckDB, build session projections, read _edge_resolved.
-    # conn contract (S2a): sqlite3 conn → sibling .duckdb fixture; DuckDB
-    # conn → passthrough; None → warm default. B (e_* materialised) deferred.
-    from helpers.graph.query import _stage_edges, _resolve_edges
+    import sqlite3
 
-    con, owned = _c_series_duck_conn(conn)
+    if isinstance(conn, duckdb.DuckDBPyConnection):
+        return conn, False
+    if isinstance(conn, sqlite3.Connection):
+        row = conn.execute("PRAGMA database_list").fetchone()
+        db_path = Path(row[2]) if row else None
+        if db_path is not None and Path(db_path) != DB_PATH:
+            # fixture store: materialise a sibling .duckdb (RW build), then
+            # query it — the caller closes it via the owned flag.
+            return _c_series_duck_conn(conn)
+    from helpers.misc.duckdb_lock import open_read_only
+
+    return open_read_only(str(DUCKDB_PATH)), True
+
+
+def co_mention_top(n: int = 20, conn=None) -> list[dict]:
+    """C1: Top entities by co-mention participation.
+
+    graph_enhancement_roadmap A′ (approach B, was deferred): reads the
+    materialised ``e_comention`` table over a read-only connection —
+    served-store compatible (wire attach under quack) with no session
+    projections.
+
+    Semantic re-base (parity-measured 2026-10-25): counts each entity's
+    TOTAL pair participations (both ``a_name`` and ``b_name`` sides),
+    matching the sqlite source of truth's any-side count. The old
+    ``_edge_resolved`` metric counted only each pair's STORED ORIENTATION
+    (src side) — arbitrary per row on the live store (one orientation per
+    unordered pair; e.g. 360 ONE WAM b_side=0) — and additionally dropped
+    rows whose partner name failed v_node resolution (Dhruv Consultancy:
+    old 0 vs sqlite truth 5). Orientation-free counting is deterministic
+    and matches ``graph_edges`` any-side counts exactly.
+    """
+    con, owned = _c_series_ro_conn(conn)
     try:
-        _stage_edges(con)
-        _resolve_edges(con)
         rows = con.execute(
             """
-            SELECT v_src.name AS entity, COUNT(*) AS co_mentions
-            FROM _edge_resolved
-            JOIN v_node v_src ON v_src.id = src_id
-            WHERE edge_type = 'co_mentioned_in'
-            GROUP BY src_id, v_src.name
-            ORDER BY co_mentions DESC
+            SELECT v.name AS entity, SUM(c) AS co_mentions
+            FROM (
+                SELECT a_name AS eid, COUNT(*) AS c FROM e_comention GROUP BY a_name
+                UNION ALL
+                SELECT b_name, COUNT(*) FROM e_comention GROUP BY b_name
+            ) t
+            JOIN v_node v ON v.id = t.eid
+            GROUP BY v.id, v.name
+            ORDER BY co_mentions DESC, entity
             LIMIT ?
         """,
             (n,),
@@ -3898,45 +3933,35 @@ def co_mention_top(n: int = 20, conn=None) -> list[dict]:
 
 
 def cross_sector_bridges(conn=None) -> list[dict]:
-    """C3: Cross-sector bridges — approach A session projections with
-    hyper-backed sector resolution (graph_read_path_consolidation S2b).
+    """C3: Cross-sector bridges — materialised reads (roadmap A′).
 
-    Sectors resolve from the canonical membership projection
-    (_sector_resolved, built by _materialise_sector_membership from the
-    post-#418 incidence store), NOT the single-valued
-    v_node.sector_classification: a dual-member company (Kuantum Papers
-    -> Agriculture + Packaging) contributes one bridge group per
-    (src sector, dst sector) pair, so BOTH memberships are visible.
-    Same-sector pairs are excluded per pair. conn contract per
-    _c_series_duck_conn; B (e_* materialised) deferred.
+    S2b semantics unchanged from #438: sectors resolve from the CANONICAL
+    hyper membership (``e_belongs`` — the materialised post-#418 incidence
+    projection), NOT the single-valued ``v_node.sector_classification``:
+    a dual-member company (Kuantum Papers -> Agriculture + Packaging)
+    contributes one bridge group per (src sector, dst sector) pair.
+    Same-sector pairs excluded per pair; DISTINCT membership guards against
+    duplicate membership rows. Parity: 72/72 groups vs the #438
+    session-projection implementation (2026-10-25).
     """
-    from helpers.graph.query import _stage_edges, _resolve_edges
-
-    con, owned = _c_series_duck_conn(conn)
+    con, owned = _c_series_ro_conn(conn)
     try:
-        _stage_edges(con)
-        _resolve_edges(con)
-        # S2b: membership-backed sectors. DISTINCT pairs guard against
-        # double-counting duplicate membership rows; each edge is counted
-        # once per distinct (src sector, dst sector) pair.
         rows = con.execute("""
-            SELECT e.edge_type,
-                   sa.name AS sector_a,
-                   sb.name AS sector_b,
-                   COUNT(*) AS n
-            FROM _edge_resolved e
-            JOIN v_node src ON src.id = e.src_id AND src.kind = 'company'
-            JOIN v_node dst ON dst.id = e.dst_id AND dst.kind = 'company'
-            JOIN (SELECT DISTINCT company_id, sector_id FROM _sector_resolved) ms
-              ON ms.company_id = e.src_id
-            JOIN (SELECT DISTINCT company_id, sector_id FROM _sector_resolved) md
-              ON md.company_id = e.dst_id
-            JOIN v_node sa ON sa.id = ms.sector_id
-            JOIN v_node sb ON sb.id = md.sector_id
-            WHERE e.edge_type IN ('jv_with', 'acquired')
-              AND sa.name <> sb.name
-            GROUP BY e.edge_type, sa.name, sb.name
-            ORDER BY n DESC, e.edge_type, sector_a, sector_b
+            SELECT edge_type, sa.name AS sector_a, sb.name AS sector_b, COUNT(*) AS n
+            FROM (
+                SELECT 'jv_with' AS edge_type, a_name AS s, b_name AS d FROM e_jv
+                UNION ALL
+                SELECT 'acquired', acquirer_name, target_name FROM e_acquired
+            ) e
+            JOIN (SELECT DISTINCT company_name, sector_name FROM e_belongs) ms
+              ON ms.company_name = e.s
+            JOIN (SELECT DISTINCT company_name, sector_name FROM e_belongs) md
+              ON md.company_name = e.d
+            JOIN v_node sa ON sa.id = ms.sector_name
+            JOIN v_node sb ON sb.id = md.sector_name
+            WHERE sa.name <> sb.name
+            GROUP BY edge_type, sa.name, sb.name
+            ORDER BY n DESC, edge_type, sector_a, sector_b
         """).fetchall()
         return [
             {
@@ -3953,23 +3978,24 @@ def cross_sector_bridges(conn=None) -> list[dict]:
 
 
 def edges_by_year(conn=None) -> list[dict]:
-    """C4: Temporal edge formation — approach A session projections.
-    conn contract per _c_series_duck_conn; B (e_* materialised) deferred.
-    """
-    from helpers.graph.query import _stage_edges, _resolve_edges
+    """C4: Temporal edge formation — materialised reads (roadmap A′).
 
-    con, owned = _c_series_duck_conn(conn)
+    ``e_jv`` / ``e_acquired`` carry ``valid_from`` natively; the DATE→VARCHAR
+    cast is the #438 2.0-typing fix, retained. Parity: 8/8 year buckets vs
+    the session-projection implementation (2026-10-25).
+    """
+    con, owned = _c_series_ro_conn(conn)
     try:
-        _stage_edges(con)
-        _resolve_edges(con)
         rows = con.execute("""
-            SELECT substr(CAST(valid_from AS VARCHAR), 1, 4) AS year,
-                   edge_type,
-                   COUNT(*) AS n
-            FROM _edge_resolved
-            WHERE valid_from IS NOT NULL
-              AND edge_type IN ('jv_with', 'acquired')
-            GROUP BY substr(CAST(valid_from AS VARCHAR), 1, 4), edge_type
+            SELECT year, edge_type, COUNT(*) AS n FROM (
+                SELECT substr(CAST(valid_from AS VARCHAR), 1, 4) AS year,
+                       'jv_with' AS edge_type
+                FROM e_jv WHERE valid_from IS NOT NULL
+                UNION ALL
+                SELECT substr(CAST(valid_from AS VARCHAR), 1, 4), 'acquired'
+                FROM e_acquired WHERE valid_from IS NOT NULL
+            ) t
+            GROUP BY year, edge_type
             ORDER BY year, edge_type
         """).fetchall()
         return [{"year": r[0], "edge_type": r[1], "count": r[2]} for r in rows]

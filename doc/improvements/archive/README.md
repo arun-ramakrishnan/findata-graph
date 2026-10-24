@@ -182,6 +182,16 @@ commit, referenced by nothing). Entry numbers point at
 - [`duckdb_concurrency_model_correction.md`](graph/duckdb_concurrency_model_correction.md) — DuckDB concurrency model correction — the `connect()` docstring's "readers never contend with a writer" clause measured false on duckdb 1.5.6 (an RW holder excludes EVERY opener); five-row matrix inline, both conflict directions pinned by cross-process negative tests with A/B controls, and the 37-coordinated / 24-uncoordinated read-only caller audit recorded — completed.md #314
 - [`graph_analytics_staleness_comparison.md`](graph/graph_analytics_staleness_comparison.md) — graph_analytics staleness as timestamps — the stats freshness banner's raw string compare across the utc_now/ISO-T shape split decided at index 10 on same-date ties (fresh reported STALE); now `MAX(julianday(col))` both sides in `_staleness_verdict()` with an INDETERMINATE guard; 129 legacy ISO rows left in place; same-day collision test mutation-checked — completed.md #316
 - [`hgx_first_scaling.md`](graph/hgx_first_scaling.md) — HGX-first scaling — h_edge/h_incidence cache (schema 15, TIER2 12), incidence-native stats section + co-membership suggestions + hyper API, S3 longest_chains cap 3000 (stride-sampled lower bounds) — D4 absorbed, igraph retired per D16 — completed.md #241
+- [`graph_enhancement_roadmap.md`](graph/graph_enhancement_roadmap.md) —
+  umbrella sequencing of the post-2.0 now-list: A′ served-mode C-series
+  reads LANDED (materialised e_* over the open_read_only funnel — wire
+  attach under quack; co_mention re-based to orientation-free
+  participation counts after the parity study caught the stored-
+  orientation + name-resolution-loss bugs), HGX community shelf evaluated
+  stay-gated (MMSBM unchallenged; core_periphery orthogonal-consumerless;
+  hyperlink degenerate; HySC/MT dep-walled on sklearn), + the
+  authoritative NOT-now trigger register (T1 CSR/ART, T2 Mojo BFS, cosine
+  kernel promotion, onager-extension on-ramp) — completed.md #439
 - [`longest_chains_cap_policy.md`](graph/longest_chains_cap_policy.md) — the
   silent exact→sampled crossover recorded (universe 20,044 vs the
   accepted-at-1,722 cap); cap raised 3000 → 6000 on a live measurement

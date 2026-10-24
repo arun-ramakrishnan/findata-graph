@@ -130,10 +130,16 @@ def test_v_node_rank_deterministic(tmp_path):
 def _ref_co_mention(db, n):
     con = _conn(db)
     try:
+        # Roadmap A′ reference: PARTICIPATION count (entity on either side
+        # of a co_mentioned_in row) — orientation-free, matching the
+        # materialised e_comention both-sides read.
         rows = con.execute(
-            "SELECT source AS entity, COUNT(*) AS co_mentions "
-            "FROM graph_edges WHERE edge_type='co_mentioned_in' "
-            "GROUP BY source ORDER BY co_mentions DESC LIMIT ?",
+            "SELECT entity, COUNT(*) AS co_mentions FROM ("
+            "SELECT source AS entity FROM graph_edges "
+            "WHERE edge_type='co_mentioned_in' "
+            "UNION ALL "
+            "SELECT target FROM graph_edges WHERE edge_type='co_mentioned_in'"
+            ") GROUP BY entity ORDER BY co_mentions DESC, entity LIMIT ?",
             (n,),
         ).fetchall()
     finally:
@@ -149,8 +155,14 @@ def test_co_mention_top_matches_reference(tmp_path):
     finally:
         con.close()
     assert got == _ref_co_mention(db, 10)
-    # Spot-check the deterministic ranking (Infosys 4 > HDFC 3 > ICICI 2).
-    assert [g["entity"] for g in got] == ["Infosys", "HDFC Bank", "ICICI Bank"]
+    # Spot-check the deterministic ranking (Infosys 6 > HDFC 5 > ICICI 4).
+    assert [g["entity"] for g in got] == [
+        "Infosys",
+        "HDFC Bank",
+        "ICICI Bank",
+        "No Ticker Co",
+        "Cap Conflict Co",
+    ]
 
 
 def _ref_cross_sector_bridges(db):
@@ -277,11 +289,16 @@ def test_c_series_per_edge_type_row_pins(tmp_path):
     db = build_seed_db(tmp_path / "seed.db")
     scon = _conn(db)
     try:
-        # Wrapper-level pins (frozen fixture numbers).
+        # Wrapper-level pins (frozen fixture numbers). Roadmap A′ re-base
+        # (2026-10-25): participation counts (both sides of each pair),
+        # orientation-free — 6/5/4 for the 9 seeded rows, not the old
+        # stored-orientation 4/3/2.
         assert co_mention_top(10, scon) == [
-            {"entity": "Infosys", "co_mentions": 4},
-            {"entity": "HDFC Bank", "co_mentions": 3},
-            {"entity": "ICICI Bank", "co_mentions": 2},
+            {"entity": "Infosys", "co_mentions": 6},
+            {"entity": "HDFC Bank", "co_mentions": 5},
+            {"entity": "ICICI Bank", "co_mentions": 4},
+            {"entity": "No Ticker Co", "co_mentions": 2},
+            {"entity": "Cap Conflict Co", "co_mentions": 1},
         ]
         assert sorted(
             cross_sector_bridges(scon),
@@ -383,3 +400,40 @@ def test_sector_members_with_market_cap_matches_reference(tmp_path):
         assert tech["Cap Conflict Co"] == "large_cap"
     finally:
         con.close()
+
+
+# ---------------------------------------------------------------------------
+# Roadmap A′ — served-store compatibility (read-only default conn)
+# ---------------------------------------------------------------------------
+def test_c_series_default_conn_routes_read_only(monkeypatch):
+    """A′ contract: the production default (conn=None) resolves through the
+    duckdb_lock open_read_only funnel — wire attach under quack, read-only
+    file open otherwise — NEVER a file-mode RW open (split-brain guard)."""
+    from helpers.graph import query as q
+    from helpers.misc import duckdb_lock
+
+    seen = {}
+
+    class _StubCon:
+        def execute(self, *a, **k):
+            seen.setdefault("sql", []).append(a[0] if a else None)
+            return self
+
+        def fetchall(self):
+            return []
+
+        def close(self):
+            seen["closed"] = True
+
+    def fake_ro(path):
+        seen["path"] = path
+        return _StubCon()
+
+    monkeypatch.setattr(duckdb_lock, "open_read_only", fake_ro)
+    try:
+        got = q.co_mention_top(5)
+    finally:
+        monkeypatch.undo()
+    assert seen["path"] == str(q.DUCKDB_PATH)
+    assert got == []
+    assert seen.get("closed") is True

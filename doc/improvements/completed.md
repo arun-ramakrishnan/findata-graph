@@ -12272,7 +12272,7 @@ materialised statements; _c_series_duck_conn shim (sqlite -> sibling
 .duckdb, warm production default preserved); edges_by_year slices
 CAST(valid_from AS VARCHAR) for 2.0 DATE typing; cross_sector_bridges
 sector resolution switched single-valued v_node.sector_classification ->
-hyper-backed _sector_resolved — dual membership query-visible (Kuantum
+hyper-backed `_sector_resolved` — dual membership query-visible (Kuantum
 Papers -> Agriculture AND Packaging), per-pair same-sector exclusion,
 deterministic tie-break. Tests: per-edge-type row pins pin the 1.5.6 CSPE
 wrong-results class ({co_mentioned_in 9, acquired 3, jv_with 1, part_of 7,
@@ -12282,3 +12282,35 @@ questions / 0 reasons, store sha256 identical (read-path purity); make qa
 13/13; make integration 1/1 (751 tests); perf parked (contended-box guard
 refused x2, operator ruling); fuzz regex-scaling leg parked timing.
 
+## 439. Graph enhancement roadmap — A′ served-mode C-series reads landed; HGX community shelf evaluated; remainder trigger-gated
+
+**Date**: 2026-10-25
+**Status**: COMPLETE
+**Proposal**: `doc/improvements/archive/graph/graph_enhancement_roadmap.md`
+
+Umbrella filing (operator ask: "write a detailed proposal so we don't lose
+track") sequencing the post-2.0 graph now-list. Slice A′ EXECUTED same day:
+the three C-series read wrappers (`co_mention_top` / `cross_sector_bridges` /
+`edges_by_year`) re-based onto the MATERIALISED tables (`e_comention` /
+`e_jv` / `e_acquired` / `e_belongs`) over a read-only connection through the
+duckdb_lock funnel (`_c_series_ro_conn`, query.py) — wire attach under quack,
+file-RO otherwise (2.0 finding: a resident server's RW lock excludes
+cross-process file opens entirely, so RO-file was never the served route).
+Parity: bridges 72/72, by-year 8/8; `co_mention_top` RE-BASED to
+orientation-free participation counts (the old metric counted stored
+orientation — arbitrary per pair on live data — and dropped
+name-resolution-failing partners; fixture pins 4/3/2 → 6/5/4 with an
+orientation-free reference). Live-verified with the quack server resident;
+served-routing pinned by test. Operational event absorbed en route: the
+parallel session's ingest died before rebuilding the derived store —
+graph.duckdb recovered via quack-stop → graph-rebuild → stamp-centrality →
+quack-start (research.db source of truth untouched). Slice C leg 1 (the
+community shelf's named trigger, hy-MMSBM disagreement QA) EVALUATED:
+incumbent unchallenged — core_periphery orthogonal-but-consumerless
+(~8 min MCMC, 0/20 top-overlap vs ho_pagerank), hyperlink_communities
+degenerate at this scale (+ HGX 1.8 load_pickle bug recorded), HySC +
+Hypergraph-MT dep-walled on scikit-lean (operator decision). B (D10
+follow-through) holds on named triggers; the NOT-now register (T1/T2-gated
+CSR/ART + Mojo BFS promotion, Mojo SIMD cosine kernel promotion trigger,
+onager-extension on-ramp) lives in the archived doc as the authoritative
+trigger table.

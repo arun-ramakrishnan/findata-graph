@@ -38,10 +38,18 @@ entry number and stale DONE pointers):
 
 ## Current live proposals
 
-- *(no live proposals — `graph_read_path_consolidation.md` executed + moved
-  to `../archive/graph/` 2026-10-24, see `../completed.md` #438;
-  mojo_12_adoptions moved to `../archive/tooling/` deferred 2026-10-24,
-  see `../completed.md` #437.)*
+- `graph_enhancement_roadmap.md` — graph enhancement roadmap (filed
+  2026-10-25): the now-list sequenced — A′ served-mode C-series reads
+  (the #438 residue: RW TEMP projections refuse under the quack
+  split-brain guard; Approach B read-only materialised reads is the
+  fix); B D10 follow-through with per-family holds (participant data,
+  eval-bank floors); C HGX shelf wiring (community algos → s-paths →
+  multi-order Lapacian) — plus the explicitly-not-now register (T1-gated
+  CSR/ART bridge, T2-gated Mojo BFS promotion, Mojo SIMD cosine kernel
+  verified PROVEN-but-not-live with its embedding-count trigger, onager
+  Rust-extension on-ramp from #434).
+  *(read-path consolidation itself executed + archived as #438;
+  mojo_12_adoptions archived deferred as #437.)*
 
 - Family provenance: split 2026-10-21 from the bundled
   `duckdb20_quack_variant` filing; the executed 2.0-compat migration

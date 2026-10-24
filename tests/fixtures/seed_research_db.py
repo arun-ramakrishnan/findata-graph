@@ -123,7 +123,8 @@ def build_seed_db(path: Path) -> Path:
     edges = [
         # NB: no part_of/has_company rows — sector membership is canonical in
         # the incidence store (2026-10-19 retirement), seeded just below.
-        # co-mention ranking: Infosys(4) > HDFC(3) > ICICI(2)
+        # co-mention participation ranking (A′, orientation-free):
+        # Infosys(6) > HDFC(5) > ICICI(4) > No Ticker(2) > Cap Conflict(1)
         ("Infosys", "HDFC Bank", "co_mentioned_in", "seed", None),
         ("Infosys", "ICICI Bank", "co_mentioned_in", "seed", None),
         ("Infosys", "No Ticker Co", "co_mentioned_in", "seed", None),
