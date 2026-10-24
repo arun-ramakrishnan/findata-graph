@@ -38,7 +38,7 @@ entry number and stale DONE pointers):
 
 ## Current live proposals
 
-- *(no live proposals — the 2026-10-21 review-lanes batch is fully discharged; pending.md shows the remainder.)*
+- *(no live proposals — parallel_parquet_export filed+executed same day; pending.md shows the remainder.)*
 
 - Family provenance: split 2026-10-21 from the bundled
   `duckdb20_quack_variant` filing; the executed 2.0-compat migration
@@ -53,7 +53,8 @@ detail bullets): `../archive/graph/merger_demerger_hyperedges.md` (#426),
 `../archive/graph/hyperedge_density_dq.md` (#420),
 `../archive/graph/parquet_export_wrapper.md` (#421, BUILD path),
 `../archive/tooling/ocr_review_lanes_7b122d915_e3147ef3c.md` (#432),
-`../archive/graph/onager_vendored_source_build.md` (#434).
+`../archive/graph/onager_vendored_source_build.md` (#434),
+`../archive/tooling/parallel_parquet_export.md` (#435).
 
 Historical (executed + archived; newest first):
 

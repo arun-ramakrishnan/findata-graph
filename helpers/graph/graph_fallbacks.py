@@ -255,21 +255,36 @@ def with_onager_connection(con: duckdb.DuckDBPyConnection | None = None):
     yield con
 
 
-def _dispatch(name: str, fallback, *args, **kwargs):
-    """Try the onager engine, fall back per call (never abort)."""
-    if onager_available():
-        from helpers.graph import onager as _onager
+def _extension_first(fn, *args, **kwargs):
+    """Call the extension twin of ``fn`` first, degrade per call (never abort).
 
-        try:
-            return getattr(_onager, name)(*args, **kwargs)
-        except OnagerUnavailable:
-            global _AVAILABLE
-            _AVAILABLE = False
-        except duckdb.Error as exc:
-            if "onager" not in str(exc).lower():
-                raise
-            _AVAILABLE = False
-    return fallback(*args, **kwargs)
+    graph_fallbacks and the onager module share names and signatures (this
+    module is a drop-in), so ``fn.__name__`` resolves the twin. Lives HERE
+    (not algorithms.py) so query.py's production metric paths can use it
+    without an import cycle — both modules already import this one.
+    Degradation never aborts: OnagerUnavailable (artifact gone mid-process)
+    latches the availability probe off, and extension-flavoured duckdb
+    errors fall through to ``fn`` while anything else propagates.
+    (Supersedes the never-wired ``_dispatch`` — the 735e10e60 lesson:
+    a dispatcher with zero callers changes nothing.)
+    """
+    global _AVAILABLE
+    if not onager_available():
+        return fn(*args, **kwargs)
+    import helpers.graph.onager as _ext_mod
+
+    ext = getattr(_ext_mod, fn.__name__, None)
+    if ext is None:
+        return fn(*args, **kwargs)
+    try:
+        return ext(*args, **kwargs)
+    except OnagerUnavailable:
+        _AVAILABLE = False
+    except duckdb.Error as exc:
+        if "onager" not in str(exc).lower():
+            raise
+        _AVAILABLE = False
+    return fn(*args, **kwargs)
 
 
 # --------------------------------------------------------------------------- #

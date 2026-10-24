@@ -103,6 +103,7 @@ def duckdb_connect(*args: Any, **kwargs: Any) -> Any:
 # and dispatches onager → igraph/scipy/SQL per call, so no lane aborts.
 from helpers.graph.graph_fallbacks import (  # noqa: E402
     OnagerUnavailable,
+    _extension_first,
     onager_betweenness,
     onager_clustering,
     onager_closeness,
@@ -457,7 +458,7 @@ def graph_metrics(
         con = duckdb_connect(read_only=True)
         own = True
     try:
-        result = onager_graph_metrics(con, edge_types=edge_types)
+        result = _extension_first(onager_graph_metrics, con, edge_types=edge_types)
     finally:
         if own:
             con.close()
@@ -646,35 +647,6 @@ must not compute them or the served contract forks (the same reason the
 stamp drops those tables). Synthetic-edges calls keep today's fallback
 behaviour too: uniform per family is easier to reason about than
 per-call-shape routing."""
-
-
-def _extension_first(fn, *args, **kwargs):
-    """Call the extension twin of ``fn`` first, degrade per call.
-
-    graph_fallbacks and the onager module share names and signatures (the
-    fallback module is a drop-in), so ``fn.__name__`` resolves the twin.
-    Degradation never aborts: OnagerUnavailable (artifact gone mid-process)
-    latches the availability probe off, and extension-flavoured duckdb
-    errors fall through to ``fn`` while anything else propagates.
-    """
-    import duckdb
-
-    import helpers.graph.graph_fallbacks as _fb_mod
-    import helpers.graph.onager as _ext_mod
-
-    if not _fb_mod.onager_available():
-        return fn(*args, **kwargs)
-    ext = getattr(_ext_mod, fn.__name__, None)
-    if ext is None:
-        return fn(*args, **kwargs)
-    try:
-        return ext(*args, **kwargs)
-    except _fb_mod.OnagerUnavailable:
-        _fb_mod._AVAILABLE = False
-    except duckdb.Error as exc:
-        if "onager" not in str(exc).lower():
-            raise
-    return fn(*args, **kwargs)
 
 
 def _onager_central(fn, con, edges, **kw):

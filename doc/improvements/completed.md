@@ -12187,3 +12187,27 @@ the onager lane end-to-end:
   capability battery 79/79 (first run since 10-21), fallback contract 50/50, consumers
   133/133, attribution suite 21/21 + consumers 128/128. personalised-pagerank wrap
   stays forbidden (algorithm unchanged by any artifact).
+
+## 435. Parallel parquet mirror export — thread the per-table COPY loop under duckdb 2.0
+
+**Date**: 2026-10-24
+**Status**: COMPLETE
+**Proposal**: `doc/improvements/archive/tooling/parallel_parquet_export.md`
+
+The snapshot export loops (duckdb sources 7 tables, sqlite 24 tables) ran one
+COPY/pyarrow-write at a time; duckdb 2.0's async I/O pool
+(`async_threads`, default 16) is statement-internal, so the wall was ours to
+reclaim. Landed a 4-worker cursor pool in `export_parquet_duckdb` +
+`export_parquet_sqlite` (snapshot_db.py) with per-worker
+read-only/sqlite connections. Three duckdb 2.0 traps hit and fixed en route:
+cursor() does not inherit the active catalog (workers re-issue USE); cursor()
+creation races ("connection is busy with another call") so cursors are built
+serially parent-side and handed through a queue; and 4 concurrent COPYs over
+quack-attach cursors break the wire result stream — the wire-served graph
+mirror keeps the serial loop via an `is_served` guard. Measured: sqlite export
+4.7 s -> 0.85 s (5.5x) pooled; whole `make snapshot` 16.0 -> 15.6 s (~3% —
+backups/verify/HIF dominate, the proposal's 60% projection was misattributed
+and is corrected in the archived doc). snapshot-check byte-stable; suites:
+integration snapshot cycle + centrality cache 20, snapshot-select 66 green.
+File-mode pool + wire-serial guard is the landing shape; the same pooling
+recipe now exists for any future file-mode export lane.

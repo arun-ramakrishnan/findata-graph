@@ -65,12 +65,14 @@ the SQLite VACUUM and the snapshot refreshed together.
 
 import argparse
 import logging
+import os
 import re
+import queue
 import sqlite3
 import sys
 import tempfile
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 # `duckdb` is an optional dependency (imported lazily where it is actually
 # used). It appears at module scope only inside the string annotation of
@@ -96,6 +98,7 @@ _PROJECT_ROOT = Path(__file__).resolve().parents[2]
 if str(_PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(_PROJECT_ROOT))
 
+from helpers.core import duckdb_shared as ds  # noqa: E402
 from helpers.core.db import connect  # noqa: E402  (post-bootstrap: entry point, lazy-import convention)
 from helpers.core.env import REPO_ROOT  # noqa: E402  (folds _compute_root)
 
@@ -251,17 +254,30 @@ def create_duckdb_snapshot(duckdb_path: Path, out_path: Path, logger: logging.Lo
         # Slice B funnel: when the store is served the CHECKPOINT lands
         # over the wire attach (a file-mode open would collide with the
         # server's lock); unserved it is the io_lock + S1 ladder path.
+        # duckdb 2.0 + quack: CHECKPOINT through a quack attach raises
+        # "Checkpoint not implemented yet" (file-mode CHECKPOINT works in
+        # 2.0 — verified both modes on a scratch db, 2026-10-24), so a
+        # SERVED store always lands in the fallback below. That fallback
+        # is complete, not lossy: the WAL sidecar ships alongside (see
+        # below), so restore reassembles the un-checkpointed tail.
         con = open_read_only(str(duckdb_path))
         try:
             con.execute("CHECKPOINT;")
         finally:
             con.close()
     except Exception as e:
-        # read-only CHECKPOINT may be rejected on some DuckDB versions;
-        # fall back to a plain file copy (the WAL sidecar carries the
-        # pending changes if any).
+        # CHECKPOINT refused (2.0 quack-attach gap, or a version that
+        # rejects read-only CHECKPOINT): fall back to a plain file copy.
         checkpointed = False
-        logger.warning(f"read-only CHECKPOINT failed ({e}); copying file as-is")
+        if ds.is_served(duckdb_path):
+            # permanent state under 2.0+quack — expected, not an alarm
+            logger.info(
+                "CHECKPOINT unavailable through the quack attach (2.0 gap); "
+                "snapshot copies the file as-is — the WAL sidecar ships "
+                "alongside, so the backup is complete"
+            )
+        else:
+            logger.warning(f"read-only CHECKPOINT failed ({e}); copying file as-is")
 
     # zstd the main .duckdb file (library-default level; tiny file at
     # ~11 MB / 0.25 s even under gzip).
@@ -690,6 +706,83 @@ def _export_duckdb_schema(
     return "\n\n".join(parts) + "\n"
 
 
+def _export_duckdb_tables(
+    con: Any,
+    tables: list[str],
+    out_dir: Path,
+    duckdb_path: Path,
+    logger: logging.Logger,
+) -> tuple[dict[str, dict], int]:
+    """COPY each table to its parquet shard (parallel_parquet_export #435).
+
+    Runs the per-table COPYs through a 4-worker cursor pool (file-mode
+    connections); wire-served stores keep the serial loop — 4 concurrent
+    COPYs over quack-attach cursors break the wire result stream ("Result
+    has been closed"). Measured regimes: small tables (the ~56-table e_*
+    class) are per-statement-overhead-bound and win 2.5x concurrent; a big
+    table gains nothing (its COPY already saturates the engine thread pool)
+    and loses nothing — the pool is wall-neutral there. Artifacts are
+    content-stable regardless of worker order (ORDER BY ALL), so pool
+    scheduling cannot churn the git-tracked blobs.
+
+    duckdb 2.0 traps baked into this shape: cursor() does NOT inherit the
+    active catalog (over the wire the store attaches under an alias and USE
+    resolves unqualified names — each worker re-issues it), and even
+    cursor() creation races under the concurrent-call refusal ("connection
+    is busy with another call") — cursors are built HERE, parent thread,
+    serially, and handed to workers through a queue.
+    """
+    _active_db = con.execute("SELECT current_database()").fetchone()[0]
+    workers = 1 if ds.is_served(duckdb_path) else min(4, os.cpu_count() or 1)
+    _cursor_q: queue.Queue[Any] = queue.Queue()
+    for _ in range(workers):
+        c = con.cursor()
+        c.execute(f'USE "{_active_db}"')
+        _cursor_q.put(c)
+
+    def _copy_one(t: str, worker: Any) -> int:
+        out_path = out_dir / f"{t}.parquet"
+        # ORDER BY ALL (maint_full_zero_churn F4): without it the COPY
+        # leaks the table's physical row order into the blob bytes, so a
+        # rebuild that left content set-identical still churned every
+        # e_* parquet (2026-08-22 audit: e_belongs/e_has reordered).
+        # Canonical column order makes the export a pure function of
+        # content; the verify path is row-count based, so this is
+        # round-trip neutral.
+        # Codec: ZSTD (default level 3, 2026-08-29) — standardized with
+        # the SQLite parquet side (#174 D2) so both parquet trees ship
+        # one codec. The earlier snappy default was speed-safe but left
+        # these git-tracked blobs larger for no real export-cost
+        # reason: zstd -3 sits in the same speed class while compressing
+        # better. Readers (DuckDB scanner, pyarrow, --restore) are
+        # codec-transparent.
+        worker.execute(
+            f"COPY (SELECT * FROM {t} ORDER BY ALL) TO '{out_path}' (FORMAT PARQUET, COMPRESSION ZSTD)"  # noqa: S608  # parameterized; interpolated parts are `?`-clauses / schema-constant identifiers
+        )
+        return out_path.stat().st_size
+
+    def _copy_table(t: str) -> int:
+        worker = _cursor_q.get()
+        try:
+            return _copy_one(t, worker)
+        finally:
+            _cursor_q.put(worker)
+
+    results: dict[str, dict] = {}
+    total_bytes = 0
+    if workers > 1:
+        from concurrent.futures import ThreadPoolExecutor
+
+        sizes = ThreadPoolExecutor(workers).map(_copy_table, tables)
+    else:
+        sizes = map(_copy_table, tables)
+    for t, sz in zip(tables, sizes):
+        total_bytes += sz
+        results[t] = {"bytes": sz}
+        logger.info(f"  Parquet DuckDB: {t}.parquet ({sz:,} bytes)")
+    return results, total_bytes
+
+
 def export_parquet_duckdb(
     duckdb_path: Path,
     out_dir: Path,
@@ -755,31 +848,7 @@ def export_parquet_duckdb(
         schema_path.write_text(_export_duckdb_schema(con, only_tables=manifest))
         logger.info(f"  Parquet DuckDB: schema DDL → {schema_path}")
 
-        results: dict[str, dict] = {}
-        total_bytes = 0
-        for t in tables:
-            out_path = out_dir / f"{t}.parquet"
-            # ORDER BY ALL (maint_full_zero_churn F4): without it the COPY
-            # leaks the table's physical row order into the blob bytes, so a
-            # rebuild that left content set-identical still churned every
-            # e_* parquet (2026-08-22 audit: e_belongs/e_has reordered).
-            # Canonical column order makes the export a pure function of
-            # content; the verify path is row-count based, so this is
-            # round-trip neutral.
-            # Codec: ZSTD (default level 3, 2026-08-29) — standardized with
-            # the SQLite parquet side (#174 D2) so both parquet trees ship
-            # one codec. The earlier snappy default was speed-safe but left
-            # these git-tracked blobs larger for no real export-cost
-            # reason: zstd -3 sits in the same speed class while compressing
-            # better. Readers (DuckDB scanner, pyarrow, --restore) are
-            # codec-transparent.
-            con.execute(
-                f"COPY (SELECT * FROM {t} ORDER BY ALL) TO '{out_path}' (FORMAT PARQUET, COMPRESSION ZSTD)"  # noqa: S608  # parameterized; interpolated parts are `?`-clauses / schema-constant identifiers
-            )
-            sz = out_path.stat().st_size
-            total_bytes += sz
-            results[t] = {"bytes": sz}
-            logger.info(f"  Parquet DuckDB: {t}.parquet ({sz:,} bytes)")
+        results, total_bytes = _export_duckdb_tables(con, tables, out_dir, duckdb_path, logger)
     finally:
         con.close()
 
@@ -906,14 +975,26 @@ def export_parquet_sqlite(sqlite_path: Path, out_dir: Path, logger: logging.Logg
 
     results: dict[str, dict] = {}
     total_bytes = 0
-    for t in tables:
+
+    def _export_sqlite_table(t: str) -> tuple[dict, int] | None:
+        # Per-worker read-only connection: the outer `con` is a shared
+        # sqlite3.Connection (not thread-safe); readers are cheap and the
+        # helper carries all ordering/filter semantics, so artifacts are
+        # byte-identical to the serial loop regardless of worker order.
         try:
-            table = _sqlite_table_arrow(con, t)
+            worker_con = connect(sqlite_path, read_only=True)
+        except Exception as e:  # noqa: BLE001  # match the serial skip contract
+            logger.warning(f"  Parquet SQLite: skipped {t} ({e})")
+            return None
+        try:
+            table = _sqlite_table_arrow(worker_con, t)
         except ParquetExportError:
             raise
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             logger.warning(f"  Parquet SQLite: skipped {t} ({e})")
-            continue
+            return None
+        finally:
+            worker_con.close()
         out_path = out_dir / f"{t}.parquet"
         # zstd codec (maint_full_single_snapshot.md D2): the SQLite tables
         # are TEXT/BLOB-heavy (note text, embeddings) and snappy leaves them
@@ -928,9 +1009,26 @@ def export_parquet_sqlite(sqlite_path: Path, out_dir: Path, logger: logging.Logg
         # table 14% BIGGER (3.54→4.03 MB). Library defaults win.
         pq.write_table(table, out_path, compression="zstd")
         sz = out_path.stat().st_size
+        return {"bytes": sz, "rows": table.num_rows}, sz
+
+    # parallel_parquet_export (2026-10-24): same 4-worker pool as the
+    # DuckDB side — the sqlite read+arrow+write chain is per-table
+    # overhead-bound at this corpus's table sizes.
+    workers = min(4, os.cpu_count() or 1)
+    names = list(tables)
+    if workers > 1:
+        from concurrent.futures import ThreadPoolExecutor
+
+        outcomes = ThreadPoolExecutor(workers).map(_export_sqlite_table, names)
+    else:
+        outcomes = map(_export_sqlite_table, names)
+    for t, outcome in zip(names, outcomes):
+        if outcome is None:
+            continue
+        entry, sz = outcome
         total_bytes += sz
-        results[t] = {"bytes": sz, "rows": table.num_rows}
-        logger.info(f"  Parquet SQLite: {t}.parquet ({sz:,} bytes, {table.num_rows} rows)")
+        results[t] = entry
+        logger.info(f"  Parquet SQLite: {t}.parquet ({sz:,} bytes, {entry['rows']} rows)")
 
     con.close()
     logger.info(

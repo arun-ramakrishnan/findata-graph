@@ -348,6 +348,22 @@ Open items below keep their revisit triggers inline; executed work is compressed
   since 2026-09-29): `CREATE INDEX … USING HNSW (emb cosine)` still
   raises `Not implemented Error: Index with opclass not supported yet!`
   — upstream blocker live, no change.**
+  **Re-checked 2026-10-24 (DuckDB 2.0.0, vss `3685131eac` after `make
+  update-extensions`): the grammar CHANGED — every `col opclass` suffix
+  is now a parser error; the index builds bare as `USING HNSW (emb)`
+  and ONLY on fixed-size `FLOAT[N]` arrays (`FLOAT[]` lists refuse:
+  "index keys must be of type FLOAT[N]"). The 1.5.x opclass blocker is
+  obsolete by grammar removal. Measured on 5k×32 unit-norm synthetic:
+  recall@10 mean 98% (min 90%) via `vss_match(…, 'l2sq')` — the 1.5.6
+  ~57% recall failure is FIXED; build 0.25 s. BUT the planner no longer
+  routes `ORDER BY array_distance … LIMIT k` through `HNSW_INDEX_SCAN`
+  (it did on 1.5.5) — the index is reachable only via explicit
+  `vss_match`/`hnsw_index_scan`, and vss_match (4.69 ms) still loses to
+  brute `array_distance` (3.09 ms) at this scale. Production adoption
+  would additionally need a `FLOAT[512]` type migration (embeds are
+  `FLOAT[]` lists). Verdict: brute-force stays shipped; the decision
+  stands. Re-trial trigger unchanged (vectors → 10⁶, or a probe shape
+  where brute hurts) + next quarterly re-check.**
 
 - **Wrap `onager_ctr_personalized_pagerank`** (deferred N5 item 6). Onager bug:
   personalisation column ignored, restart node hardcoded to `node_id 1`, and it

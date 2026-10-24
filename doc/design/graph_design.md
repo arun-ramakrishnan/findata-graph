@@ -415,7 +415,13 @@ worked examples.
    read-only then CHECKPOINT (valid on DuckDB ≥1.5; no online-backup API
    yet). A caught Error degrades to file+WAL copy with a WARNING — that
    WARNING on a known-good file is the signal the contract changed.
-   Re-test on every version bump.
+   Re-tested at the 2.0.0 bump (2026-10-24): file-mode CHECKPOINT works
+   in BOTH modes, but **CHECKPOINT through a quack attach raises
+   "Checkpoint not implemented yet"** (extension gap) — a SERVED store
+   therefore always takes the file+WAL fallback, which is complete (the
+   WAL sidecar ships alongside). snapshot_db logs that served-state
+   fallback at INFO (expected, not an alarm) and keeps the WARNING for
+   an unexpected unserved failure.
 4. **SQLite WAL + `shutil.copy`** — copy via the backup API or
    `PRAGMA wal_checkpoint(TRUNCATE)` first; raw copy can miss WAL-resident
    tables.

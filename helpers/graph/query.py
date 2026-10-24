@@ -64,6 +64,7 @@ PROJECT_ROOT = Path(__file__).resolve().parents[2]
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 from helpers.graph.graph_fallbacks import (  # noqa: E402  (sys.path set above)
+    _extension_first,
     onager_clustering,
     onager_components,
     onager_pagerank,
@@ -1008,10 +1009,12 @@ _EXTRA_MATERIALIZED = (
     # scipy_exact_universe S6 all-universe tables (onager reinstatement
     # #434 restored the stamp; fbd7ef80a had dropped them from the mirror
     # ONLY because the extension gap made them unrecomputable — operator
-    # ruling 2026-10-24: restore the 9-table mirror set). v_graph_structure
-    # was never mirrored and stays out.
+    # rulings 2026-10-24: restore the 9-table mirror set, then add
+    # v_graph_structure too so the mirror is self-contained for the
+    # structure block the API/frontend read).
     "v_centrality_closeness_full",
     "v_centrality_harmonic_full",
+    "v_graph_structure",
 )
 MATERIALISED_TABLES = frozenset(spec["table"] for spec in EDGE_REGISTRY.values()).union(
     _EXTRA_MATERIALIZED, {"_build_meta"}
@@ -4670,10 +4673,16 @@ def pagerank(
     from helpers.graph.onager import ECONOMIC_EDGE_TYPES  # noqa: PLC0415
 
     if edge_label == "Economic":
-        scores = onager_pagerank(con, edge_types=ECONOMIC_EDGE_TYPES, weighted=False, as_of=as_of)
+        scores = _extension_first(
+            onager_pagerank, con, edge_types=ECONOMIC_EDGE_TYPES, weighted=False, as_of=as_of
+        )
     else:
-        scores = onager_pagerank(
-            con, edge_types=[_label_to_edge_type(edge_label)], weighted=False, as_of=as_of
+        scores = _extension_first(
+            onager_pagerank,
+            con,
+            edge_types=[_label_to_edge_type(edge_label)],
+            weighted=False,
+            as_of=as_of,
         )
     companies = _company_names(con)
     rows = [(name, float(score)) for name, score in scores.items() if name in companies]
@@ -4698,10 +4707,16 @@ def pagerank_weighted(
     from helpers.graph.onager import ECONOMIC_EDGE_TYPES  # noqa: PLC0415
 
     if edge_label == "Economic":
-        scores = onager_pagerank(con, edge_types=ECONOMIC_EDGE_TYPES, weighted=True, as_of=as_of)
+        scores = _extension_first(
+            onager_pagerank, con, edge_types=ECONOMIC_EDGE_TYPES, weighted=True, as_of=as_of
+        )
     else:
-        scores = onager_pagerank(
-            con, edge_types=[_label_to_edge_type(edge_label)], weighted=True, as_of=as_of
+        scores = _extension_first(
+            onager_pagerank,
+            con,
+            edge_types=[_label_to_edge_type(edge_label)],
+            weighted=True,
+            as_of=as_of,
         )
     companies = _company_names(con)
     rows = [(name, float(score)) for name, score in scores.items() if name in companies]
@@ -4719,7 +4734,7 @@ def weakly_connected_components(
     out, matching the previous duckpgq-native implementation). Component
     ids are arbitrary labels — only the partition is meaningful.
     """
-    comps = onager_components(con, edge_types=[_label_to_edge_type(edge_label)])
+    comps = _extension_first(onager_components, con, edge_types=[_label_to_edge_type(edge_label)])
     companies = _company_names(con)
     rows = [(name, int(cid)) for name, cid in comps.items() if name in companies]
     rows.sort(key=lambda kv: (kv[1], kv[0]))
@@ -4735,7 +4750,7 @@ def clustering_coefficient(
     Only company names are returned (sector vertices are filtered out,
     matching the previous duckpgq-native implementation).
     """
-    ccs = onager_clustering(con, edge_types=[_label_to_edge_type(edge_label)])
+    ccs = _extension_first(onager_clustering, con, edge_types=[_label_to_edge_type(edge_label)])
     companies = _company_names(con)
     rows = [(name, float(cc)) for name, cc in ccs.items() if name in companies]
     rows.sort(key=lambda kv: (-kv[1], kv[0]))

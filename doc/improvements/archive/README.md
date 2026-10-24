@@ -368,6 +368,11 @@ commit, referenced by nothing). Entry numbers point at
 - [`refresh_chain_parallel.md`](pipeline/refresh_chain_parallel.md) — Refresh chain, parallel — fetch/apply split so independent sources overlap; per-lane `--fetch-only` stages writing scratch JSON under `$TMPDIR/findata-graph/`, parallel phase A, sequential store applies under per-store lock, per-item failure containment; `refresh-chain` Makefile target (default), `refresh-chain-ser` for the original sequential chain — completed.md #403
 
 ## tooling/ — Tooling & performance — MCP eval, doc browser/search, perf review, tech survey
+- [`parallel_parquet_export.md`](tooling/parallel_parquet_export.md) —
+  4-worker cursor pool for the parquet mirror export loops (sqlite export
+  4.7→0.85 s); three duckdb 2.0 traps recorded (cursor USE non-inheritance,
+  concurrent cursor() refusal, wire-pool result-stream breakage → wire-served
+  stores stay serial via is_served guard) — completed.md #435
 
 - [`review_preannotate_hints.md`](tooling/review_preannotate_hints.md) —
   automated carrier pre-annotation with recommended hints — every review
