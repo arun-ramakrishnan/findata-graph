@@ -66,6 +66,8 @@ CREATE TABLE v_edition(id BIGINT, "name" VARCHAR);
 
 CREATE TABLE v_embeddings(company_name VARCHAR, id BIGINT, embedding FLOAT[512]);
 
+CREATE TABLE v_graph_structure(metric VARCHAR, "value" DOUBLE);
+
 CREATE TABLE v_index(id BIGINT, "name" VARCHAR);
 
 CREATE TABLE v_institution(id BIGINT, "name" VARCHAR);
