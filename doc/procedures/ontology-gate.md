@@ -44,7 +44,7 @@ computed by the gate's own `answer_question` (grading and derivation
 share one code path — no gap between how an answer was frozen and how
 it is re-computed).
 
-Eight shapes, each pinning a documented surface:
+Eleven shapes, each pinning a documented surface:
 
 | Shape | Params | Pins |
 |---|---|---|
@@ -54,8 +54,11 @@ Eight shapes, each pinning a documented surface:
 | `entities_of_type` | `entity_type` | entity-type vocabulary rosters (§2.6) |
 | `edge_neighbors` | `source`, `edge_type` | out-edge targets per edge type (§2.1 roster) |
 | `hyperedge_members` | `edge_type`, `label` | incidence-store membership (§2.5 roster) |
+| `hyperedge_labels` | `edge_type` | n-ary family labels present (§2.5; merger/demerger families — v4) |
 | `concept_mappings_for` | `source_scheme`, `source_concept`, `match_type`? | ACTIVE crosswalk targets — the one crosswalk home, D-O1 |
 | `provenance_agents_for` | `table` | distinct agent_ids per fact table (db_schema §provenance) |
+| `ultimate_parent_of` | `company` | R3 ownership closure — the `ultimate_parent` table (ontology.md §4; absent table = pre-R3 → []) |
+| `insight_counterparts` | `kind`, `subject` | R3 `hidden_connections` / `supply_chokepoints` / `competitive_overlap` lanes (ontology.md §4; absent table = pre-R3 → []) |
 
 ## Coverage map (v2 roster, 79 questions)
 
@@ -68,6 +71,7 @@ Eight shapes, each pinning a documented surface:
 | ontology.md §2.7 — 11 schemes | `subtree-*` × 14 (all super roots + top-3 sectors + a leaf) + `xwalk-*` × 4 crosswalk picks |
 | db_schema — identifiers | `resolve-*` × 8 (6 CIN positives across vintages + 2 negatives) |
 | db_schema — provenance | `agents-*` × 5 (one per agent-carrying fact table) |
+| R3 relational-insight tables (ontology.md §4 artifact row) | `uparent-*` × 4 (Rallis→Tata Chemicals, TCS→Tata sons, 365Squared→Proximus Global acquired-reversed, HDFC depth-3 cascade) + `hidden-*` / `chokepoint-*` / `overlap-*` × 1 each (first-apply pins, v6) |
 
 **Scope boundary (measured)**: the gate pins ontology semantics —
 vocabularies, crosswalks, closures, memberships, resolution — not bulk

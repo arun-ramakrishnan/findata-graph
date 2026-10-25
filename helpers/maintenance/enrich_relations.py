@@ -1428,6 +1428,8 @@ def build_holders_edges(  # noqa
     (institution_name, company_name, weight, source_ref, properties, valid_from)
     and institution_normalized_map is holder_name -> normalized_name (for entity insert).
     """
+    from helpers.maintenance.shareholding_sync import is_category_holder  # noqa: PLC0415
+
     today = utc_today_iso()
     ref = source_ref or f"{HOLDERS_SOURCE_REF_PREFIX}:{today}"
     edges: list[tuple[str, str, float, str, dict, str | None]] = []
@@ -1456,6 +1458,8 @@ def build_holders_edges(  # noqa
                     props["value"] = float(h["value"])
                 except Exception:
                     props["value"] = h["value"]
+            if is_category_holder(holder):
+                props["category_holder"] = True
             valid_from = h.get("date")
             edges.append((holder, company, weight, ref, props, valid_from))
             if holder not in inst_norm:
@@ -1553,6 +1557,21 @@ def run_holders_pass(
     )
     if not dry_run:
         log.info("apply: inserted %d invested_in edges, %d institutions", n_inserted, n_new_insts)
+        # R6b standing reconcile: majority promotion follows every apply
+        from helpers.maintenance.shareholding_sync import (  # noqa: PLC0415
+            reconcile_majority_ownership,
+        )
+
+        rec = reconcile_majority_ownership(conn, apply=True)
+        log.info(
+            "majority reconcile: eligible=%d inserted=%d updated=%d retracted=%d "
+            "already_claimed=%d",
+            rec["majority_eligible"],
+            rec["inserted"],
+            rec["updated"],
+            rec["retracted"],
+            rec["already_claimed_foreign"],
+        )
     # Report appendix
     try:
         today = utc_today_iso()

@@ -809,14 +809,15 @@ def main(argv: list[str]) -> int:  # noqa: C901
 # It is shown in --detail instead, where it can be read without costing a
 # column on every row.
 _COLUMNS: tuple[tuple[str, str, str, int, bool], ...] = (
-    # capped at the opencode id length (ses_ + 26 hex = 30) so every lane
-    # reads as one column; dsh ids (session-<uuid>, 44 chars) and sub-sessions
-    # (`...|sub:<id>`, 65) truncate with a visible `…` instead of forcing the
-    # whole table 40 columns wider for one row's benefit. NOT shrinkable —
-    # the id is the row's identity, so it keeps its 30 even on a narrow
-    # terminal; client/model/upstream absorb the squeeze. --json and
-    # --markdown carry the full id.
-    ("session", "session", "<", 30, False),
+    # capped to hold every session-id format: opencode (ses_ + 26 hex = 29)
+    # and zcode (session_ + 44 hex = 51) both fit at 55 with headroom. dsh ids
+    # (session-<uuid>, 43) and sub-sessions (`...|sub:<id>`, 65) still exceed
+    # it and truncate with a visible `…` instead of forcing the whole table
+    # wider for one row's benefit. NOT shrinkable — the id is the row's
+    # identity, so it keeps its width even on a narrow terminal;
+    # client/model/upstream absorb the squeeze. --json and --markdown carry
+    # the full id.
+    ("session", "session", "<", 55, False),
     ("client", "client", "<", 34, True),
     ("model", "model", "<", 40, True),
     ("protocol", "proto", "<", 12, False),

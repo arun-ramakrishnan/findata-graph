@@ -12352,3 +12352,57 @@ that morning) — operator-sanctioned re-baseline INTENT_FLOOR_MRR
 0.94 → 0.93 in helpers/bench/script_eval_bank.py, bank green (ident
 1.000/8-8). First compiled kernel LIVE in the query path; the Mojo SIMD
 trial kernel stays proven-but-unwired (promotion trigger unchanged).
+
+## 441. Relational depth overhaul — typed metapaths, insight lanes, participation semantics, capability-gated scaling
+
+-**Date**: 2026-10-25
+-**Status**: COMPLETE
+-**Proposal**: `doc/improvements/archive/graph/graph_relational_depth.md`
+
+All seven slices filed and executed the same day (operator ask:
+"connections are still max 1-2 hops"). **R6 AUDIT**: the customer_of
+"extraction gap" was falsified — the VIGIL RPT sync coins BOTH trade
+directions as oriented supplier_to (4,462 mutual pairs live; 672
+cross-period pairs keep the reverse only in properties); the bonus
+finding (LIKE catch-alls mint false parentage from sibling
+descriptions) became R6a. **R6a subsidiary_of cure**: name-based
+guarded ladder in all three classifier homes (SQL/Python parity
+pinned), backfill applied 10,752→7,407 (keep 7,332 / →same_group 1,520
+/ →jv_with 31 / dropped 1,794; store 62,434→60,572), eval gate ACCEPT
++ v5 rebaseline (verified: only edge-rallis-india-same-group changed
+due to the cure), C3 census: 2 mutual-parent pairs, 187 multi-parent
+children (name-variant + orientation debt recorded). **R6b
+participation semantics**: name-based category-holder detector (BSE t3
+subtotal rows minted because subcategory headers masquerade as the
+category; NSE XBRL filtered them all along), 220/1,359 invested_in
+rows marked category_holder, stake_pct_of accessor (yfinance pctHeld
+is a FRACTION — ×100), reconcile_majority_ownership promoted 12 clean
+majorities into subsidiary_of (derive:shareholding_majority:*; the
+slice's "2 of 121" was the entity_type proxy — the NAME-based
+predicate is the structural one; refresh/retract standing, foreign rows
+never clobbered), gate ACCEPT 0 drift. **R3 insight lanes**
+(derive_relational_insights.py, four tables, content-digest pins):
+ultimate_parent 23,697 rows over metapath strict trust (new public
+ownership_parents() accessor; min-claimant adjudication, cycle guard,
+promoter-coalition annotation — HDFC AMC International (IFSC)→HDFC
+Bank the hand-checked depth-3 cascade), hidden_connections 1,898
+(≥2-shared-intermediate floor; 93,647 pass at ≥1), supply_chokepoints
+6 (Indus Towers→Airtel/Hexacom/Vodafone Idea), competitive_overlap
+8,160; eval roster v6 = 166+7 questions, two new gate shapes (absent
+table answers [] — the merger-S4 first-landed-fact pattern). **R2
+deep relationship cards**: context_pack "Deep relations" section
+(control + descendant forest, two-step supply with corroboration floor,
+insight rollups, groups/editions; opt-in research_db param; read path
+= DIRECT sqlite, no graph.duckdb v_* mirror), fixture packs Tata Steel
+(163-company forest)/HDFC AMC (dual member)/Rallis India. **R5 hyper
+s-paths**: hyper_path + shared_hyperedges + connect(semantics="hyper")
+over the incidence store (1,713 hyperedges / 10,147 incidences;
+min-(label,type) claimant BFS; generation + COUNT:MAX(rowid) stamp
+cache), 14/14 live pairs parity vs an inlined reference at 18.7
+ms/pair — HGX s_walk stays shelved. **R4**: vault_scaling §2 ladder
+rewritten — capability column heads the ladder, measured p95/crossover
+walls drive promotion, every row count demoted to a "guardrail, never
+fires" estimate. FINDING on record: Reliance Lithium Werks B.V (237
+descendants) is an INVERTED apex — a mis-oriented vigil edge.
+Test suites all green: 30 metapath / 13 derive-insights / 21
+context-pack (incl live smoke) / 102 shareholding+enrich / 25 gate.

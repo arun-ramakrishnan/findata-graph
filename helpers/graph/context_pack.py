@@ -12,7 +12,13 @@ Sources, in priority order (each contributes typed Facts):
   e_comention), directionalized and name-joined via v_node;
 - v_node / v_company profile (kind, sector, market cap, ticker);
 - semantic_neighbors (embedding kNN) when the entity has a vector;
-- sector rollup of every entity that made the pack.
+- sector rollup of every entity that made the pack;
+- R2 deep-relations section (opt-in via ``research_db``): per-semantics
+  rollups over the R3 insight tables in research.db (ultimate parent +
+  depth-3 descendant forest, hidden connections, competitor overlap,
+  chokepoint suppliers — read DIRECTLY from sqlite, no v_* mirror) plus
+  two-step supply neighborhoods and shared groups/editions from the
+  DuckDB cache (e_supplier 2-step, h_edge/h_incidence).
 
 Budget semantics: fact-count (user decision 2026-08-17). ``budget`` bounds
 the number of relation facts kept; profile + semantic + rollup sections are
@@ -41,11 +47,22 @@ if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
 import datetime as _dt  # noqa: E402  # after sys.path bootstrap
+import json  # noqa: E402
+import sqlite3  # noqa: E402
 from dataclasses import dataclass  # noqa: E402
 
 import duckdb  # noqa: E402
 
 DEFAULT_DUCKDB = Path("memory") / "graph.duckdb"
+DEFAULT_RESEARCH_DB = Path("memory") / "research.db"
+
+# R2 deep-relations constants. The supply corroboration floor mirrors the
+# hidden_connections doctrine (a single shared supplier is hub noise).
+_DEEP_MAX_DEPTH = 3
+_DEEP_TOP = 8
+_SUPPLY_MIN_SHARED = 2
+_SUPPLY_TOP = 8
+_HYPER_FAMILIES = ("group", "edition", "jv")
 
 # (table, subject_col, object_col, label, priority). Priority asc = keep
 # first; co-mention is the firehose so it trims first. okf_activation P:
@@ -266,6 +283,234 @@ def _render_relations(L: list[str], kept: list[Fact]) -> None:
     L.append("")
 
 
+# --------------------------------------------------------------------------- #
+# R2 deep-relations rollups (graph_relational_depth): per-semantics card facts
+# --------------------------------------------------------------------------- #
+def _sqlite_ro(path: Path) -> sqlite3.Connection | None:
+    if not Path(path).exists():
+        return None
+    return sqlite3.connect(f"file:{Path(path)}?mode=ro", uri=True)
+
+
+def _q(scon: sqlite3.Connection, sql: str, params: tuple = ()) -> list:
+    """Read with absent-table tolerance: a pre-R3 research.db answers []."""
+    try:
+        return scon.execute(sql, params).fetchall()
+    except sqlite3.OperationalError:
+        return []
+
+
+def _deep_control(scon: sqlite3.Connection, seed_name: str) -> list[str]:
+    """Control rollup: the ultimate_parent row + the descendant forest."""
+    lines: list[str] = []
+    row = _q(
+        scon,
+        "SELECT ultimate_parent, depth, path, root_kind, coalition_pct "
+        "FROM ultimate_parent WHERE company = ?",
+        (seed_name,),
+    )
+    if row:
+        _apex, depth, path_json, _kind, coalition = row[0]
+        path = json.loads(path_json)
+        if depth == 0:
+            line = "- control: self-root (no trusted parent)"
+            if coalition is not None:
+                line += f" — promoter coalition {coalition:.1f}%"
+            lines.append(line)
+        else:
+            chain = " → ".join(path)
+            lines.append(f"- ultimate parent: {path[-1]} (depth {depth}; chain: {chain})")
+    needle = json.dumps(seed_name)  # quoted name inside the path JSON array
+    descendants: list[tuple[str, int]] = []
+    total_desc = 0
+    for company, pjson in _q(
+        scon,
+        "SELECT company, path FROM ultimate_parent "
+        "WHERE depth > 0 AND company <> ? AND instr(path, ?) > 0",
+        (seed_name, needle),
+    ):
+        p = json.loads(pjson)
+        try:
+            # path starts at the descendant (index 0): depth-below-seed IS
+            # the seed's index in the chain
+            below = p.index(seed_name)
+        except ValueError:
+            continue
+        total_desc += 1
+        if below <= _DEEP_MAX_DEPTH:
+            descendants.append((company, below))
+    if total_desc:
+        descendants.sort()
+        direct = sum(1 for _c, b in descendants if b == 1)
+        sample = ", ".join(
+            f"{c} ({b} hop{'s' if b > 1 else ''})" for c, b in descendants[:_DEEP_TOP]
+        )
+        lines.append(
+            f"- descendant forest: {total_desc} companies roll up to this root "
+            f"({direct} direct); nearest: {sample}"
+        )
+    return lines
+
+
+def _deep_pairwise(scon: sqlite3.Connection, seed_name: str) -> list[str]:
+    """Hidden-connection / competitor-overlap / chokepoint rollups."""
+    lines: list[str] = []
+    hidden = [
+        r[0]
+        for r in _q(
+            scon,
+            "SELECT b FROM hidden_connections WHERE a = ? "
+            "UNION SELECT a FROM hidden_connections WHERE b = ?",
+            (seed_name, seed_name),
+        )
+    ]
+    if hidden:
+        top = ", ".join(sorted(hidden)[:_DEEP_TOP])
+        lines.append(f"- hidden connections ({len(hidden)}): {top}")
+    overlap = sorted(
+        {
+            r[0]
+            for r in _q(
+                scon,
+                "SELECT b FROM competitive_overlap WHERE a = ? "
+                "UNION SELECT c FROM competitive_overlap WHERE a = ? "
+                "UNION SELECT a FROM competitive_overlap WHERE b = ? "
+                "UNION SELECT c FROM competitive_overlap WHERE b = ? "
+                "UNION SELECT a FROM competitive_overlap WHERE c = ? "
+                "UNION SELECT b FROM competitive_overlap WHERE c = ?",
+                (seed_name,) * 6,
+            )
+        }
+    )
+    if overlap:
+        lines.append(
+            f"- competitor-of-competitor set ({len(overlap)}): " + ", ".join(overlap[:_DEEP_TOP])
+        )
+    chokes = [
+        supplier
+        for supplier, companies_json in _q(
+            scon, "SELECT supplier, companies FROM supply_chokepoints"
+        )
+        if seed_name in json.loads(companies_json or "[]")
+    ]
+    if chokes:
+        lines.append(
+            f"- chokepoint suppliers ({len(chokes)} — shared with rivals): "
+            + ", ".join(sorted(chokes)[:_DEEP_TOP])
+        )
+    return lines
+
+
+def _two_step_supply(con: duckdb.DuckDBPyConnection, seed_id: int) -> tuple[list[str], set[int]]:
+    """2-step supply neighborhood over e_supplier: rivals sharing ≥2 of my
+    suppliers, my suppliers' suppliers, and suppliers shared by ≥2 of my
+    customers. Returns (lines, referenced ids) — names resolve later."""
+    lines: list[str] = []
+    ids: set[int] = set()
+    sup_ids = [
+        r[0]
+        for r in con.execute(
+            "SELECT DISTINCT supplier_name FROM e_supplier WHERE customer_name = ?",
+            [seed_id],
+        ).fetchall()
+    ]
+    cust_ids = [
+        r[0]
+        for r in con.execute(
+            "SELECT DISTINCT customer_name FROM e_supplier WHERE supplier_name = ?",
+            [seed_id],
+        ).fetchall()
+    ]
+    if sup_ids:
+        slist = ", ".join(str(int(i)) for i in sup_ids)
+        rivals = con.execute(
+            f"SELECT customer_name, count(*) AS c FROM e_supplier "  # noqa: S608  # int-list inlined
+            f"WHERE supplier_name IN ({slist}) AND customer_name <> ? "
+            "GROUP BY 1 HAVING count(*) >= ? ORDER BY c DESC, 1",
+            [seed_id, _SUPPLY_MIN_SHARED],
+        ).fetchall()
+        if rivals:
+            ids.update(r[0] for r in rivals)
+            lines.append(
+                "- shared-supply rivals ("
+                + ", ".join(f"#{r[0]} ({r[1]})" for r in rivals[:_SUPPLY_TOP])
+                + ")"
+            )
+        second = con.execute(
+            f"SELECT DISTINCT supplier_name FROM e_supplier "  # noqa: S608  # int-list inlined
+            f"WHERE customer_name IN ({slist}) AND supplier_name <> ? ORDER BY 1",
+            [seed_id],
+        ).fetchall()
+        if second:
+            ids.update(r[0] for r in second)
+            lines.append(
+                "- second-tier suppliers: " + ", ".join(f"#{r[0]}" for r in second[:_SUPPLY_TOP])
+            )
+    if cust_ids:
+        clist = ", ".join(str(int(i)) for i in cust_ids)
+        shared = con.execute(
+            f"SELECT supplier_name, count(*) AS c FROM e_supplier "  # noqa: S608  # int-list inlined
+            f"WHERE customer_name IN ({clist}) AND supplier_name <> ? "
+            "GROUP BY 1 HAVING count(*) >= ? ORDER BY c DESC, 1",
+            [seed_id, _SUPPLY_MIN_SHARED],
+        ).fetchall()
+        if shared:
+            ids.update(r[0] for r in shared)
+            lines.append(
+                "- suppliers shared by my customers: "
+                + ", ".join(f"#{r[0]} ({r[1]})" for r in shared[:_SUPPLY_TOP])
+            )
+    return lines, ids
+
+
+def _groups_editions(con: duckdb.DuckDBPyConnection, seed_name: str) -> list[str]:
+    """Shared-context hyperedges (group / edition / jv families) holding
+    the seed. Absent h_* tables (pre-D4 cache) answer []."""
+    fams = ", ".join(f"'{f}'" for f in _HYPER_FAMILIES)
+    try:
+        rows = con.execute(
+            f"SELECT h.edge_type, h.label FROM h_edge h "  # noqa: S608  # constant families
+            "JOIN h_incidence i ON i.edge_id = h.id "
+            f"WHERE i.entity_name = ? AND h.edge_type IN ({fams}) "
+            "ORDER BY h.edge_type, h.label",
+            [seed_name],
+        ).fetchall()
+    except duckdb.Error:
+        return []
+    lines = []
+    for fam in _HYPER_FAMILIES:
+        labels = [label for etype, label in rows if etype == fam]
+        if labels:
+            lines.append(f"- {fam} ({len(labels)}): " + ", ".join(labels[:_DEEP_TOP]))
+    return lines
+
+
+def _deep_relations(
+    scon: sqlite3.Connection, con: duckdb.DuckDBPyConnection, seed_id: int, seed_name: str
+) -> list[str]:
+    """Assemble the whole deep-relations section; empty when nothing rolls
+    up (the header is then omitted)."""
+    L: list[str] = []
+    ctrl = _deep_control(scon, seed_name)
+    if ctrl:
+        L += ["### Control", ""] + ctrl + [""]
+    supply, sup_ids = _two_step_supply(con, seed_id)
+    if supply:
+        names = _names_for(con, sup_ids)
+        for i, line in enumerate(supply):
+            for nid, nm in names.items():
+                line = line.replace(f"#{nid}", nm)
+            supply[i] = line
+        L += ["### Two-step supply", ""] + supply + [""]
+    pairwise = _deep_pairwise(scon, seed_name)
+    if pairwise:
+        L += ["### Insight rollups", ""] + pairwise + [""]
+    hyper = _groups_editions(con, seed_name)
+    if hyper:
+        L += ["### Groups & editions", ""] + hyper + [""]
+    return L
+
+
 def build_context_pack(
     con: duckdb.DuckDBPyConnection,
     name: str,
@@ -273,6 +518,7 @@ def build_context_pack(
     hops: int = 1,
     budget: int = 40,
     k_semantic: int = 8,
+    research_db: Path | None = None,
 ) -> str:
     """Build the Markdown context pack for one entity.
 
@@ -283,6 +529,9 @@ def build_context_pack(
         budget: max relation facts kept (fact-count semantics; profile,
             semantic neighbors and the rollup are small fixed sections).
         k_semantic: semantic-neighbor rows when an embedding exists.
+        research_db: research.db path enabling the R2 deep-relations
+            section (R3 insight tables + two-step supply + groups/editions);
+            None or a missing file skips the section.
 
     Returns:
         Markdown string. Raises ValueError for an unknown entity.
@@ -328,6 +577,19 @@ def build_context_pack(
     L.append("")
     _render_relations(L, kept)
 
+    deep_lines: list[str] = []
+    if research_db is not None:
+        scon = _sqlite_ro(Path(research_db))
+        if scon is not None:
+            try:
+                deep_lines = _deep_relations(scon, con, seed_id, seed_name)
+            finally:
+                scon.close()
+    if deep_lines:
+        L.append("## Deep relations")
+        L.append("")
+        L.extend(deep_lines)
+
     if semantic:
         L.append(f"## Semantic neighbors (top {len(semantic)})")
         L.append("")
@@ -360,6 +622,12 @@ def main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(description="GraphRAG-lite context pack")
     p.add_argument("name", help="entity name or ticker (e.g. 'Mahindra & Mahindra', INFY.NS)")
     p.add_argument("--duckdb", type=Path, default=DEFAULT_DUCKDB, help="graph.duckdb path")
+    p.add_argument(
+        "--research-db",
+        type=Path,
+        default=DEFAULT_RESEARCH_DB,
+        help="research.db for the deep-relations section (missing file skips it)",
+    )
     p.add_argument("--hops", type=int, default=1, help="expansion rounds over structured edges")
     p.add_argument("--budget", type=int, default=40, help="max relation facts kept")
     p.add_argument("--k-semantic", type=int, default=8, help="semantic neighbor rows")
@@ -382,6 +650,7 @@ def main(argv: list[str] | None = None) -> int:
                 hops=args.hops,
                 budget=args.budget,
                 k_semantic=args.k_semantic,
+                research_db=args.research_db if args.research_db.exists() else None,
             )
         )
     except ValueError as e:

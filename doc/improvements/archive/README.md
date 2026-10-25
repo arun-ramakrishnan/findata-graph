@@ -70,6 +70,23 @@ commit, referenced by nothing). Entry numbers point at
 
 ## graph/ — Graph layer — algorithms, DuckPGQ retirement, Onager, knowledge-model design
 
+- [`graph_relational_depth.md`](graph/graph_relational_depth.md) —
+  relational depth overhaul, all seven slices executed same day
+  (2026-10-25): R6 audit (customer_of falsified as a gap — the RPT sync
+  orients both trade directions), R1 typed metapath `connect()`
+  (strict-trust ownership, six families, deterministic min-claimant
+  BFS, 1.8–9.2 ms warm), R6a subsidiary_of cure (guarded classifier
+  ladder + backfill 10,752→7,407, eval gate ACCEPT + v5 rebaseline),
+  R6b participation semantics (220 category-holder markers, 12
+  clean-majority promotions into subsidiary_of with standing
+  reconcile), R3 insight tables (ultimate_parent 23,697 /
+  hidden_connections 1,898 at a ≥2-shared-intermediate floor /
+  supply_chokepoints 6 / competitive_overlap 8,160; roster v6 +7
+  questions, two gate shapes), R2 context_pack deep-relations cards
+  (direct-sqlite read path, no v_* mirror), R5 hyper s-paths
+  (`semantics="hyper"`, 14/14 live parity, HGX shelved), R4
+  vault_scaling ladder rewrite (capability+p95 walls drive, counts are
+  guardrails) — completed.md #441
 - [`onager_vendored_source_build.md`](graph/onager_vendored_source_build.md) —
   onager reinstatement after the duckdb 2.0 removal: vendored source
   build of upstream v0.5.0 (the 2.0.0 port; submodule == v2.0.0 tag)

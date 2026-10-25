@@ -59,7 +59,7 @@ import json
 import re
 import sys
 import time
-from collections import Counter
+from collections import Counter, defaultdict
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
@@ -233,6 +233,12 @@ class Watch:
     blocked: Counter = field(default_factory=Counter)
     _seen_fires: set[tuple[str, str]] = field(default_factory=set)
     _seen_folds: set[tuple[str, str, str]] = field(default_factory=set)
+    # Per-session fold/fire counts (when --session is used, these are the
+    # authoritative values; the aggregate fields above include rotation-family
+    # history from all sessions)
+    per_session_folds: dict[str, int] = field(default_factory=dict)
+    per_session_saved: dict[str, int] = field(default_factory=dict)
+    per_session_fires: dict[str, Counter] = field(default_factory=lambda: defaultdict(Counter))
     pending_injects: list[dict] = field(default_factory=list)
     _seen_injects: set[tuple[str, str]] = field(default_factory=set)
     inject_packets_written: set[str] = field(default_factory=set)
@@ -296,6 +302,7 @@ class Watch:
             self._seen_injects.add(key)
             tier_name = {"1": "T1", "2": "T2", "3": "T3"}.get(tier, "ESC")
             self.fires[tier_name] += 1
+            self.per_session_fires[sid][tier_name] += 1
             if tier in ("2", "3") and self.inject_packet_path:
                 self._emit_inject_packet(sid, tier, ts)
 
@@ -316,6 +323,8 @@ class Watch:
         if mf:
             self.folds += 1
             self.saved += int(mf.group(2))
+            self.per_session_folds[sid] = self.per_session_folds.get(sid, 0) + 1
+            self.per_session_saved[sid] = self.per_session_saved.get(sid, 0) + int(mf.group(2))
 
     def _emit_inject_packet(self, sid: str, tier: str, ts: str) -> None:
         """Render a paste-ready `compress({...})` packet for an INJECT T2/T3.
@@ -492,6 +501,18 @@ def build_sample(
         except ValueError:
             age = None
 
+    # Per-session values (authoritative when --session is used); fallback to
+    # aggregate for global mode.
+    is_session_scoped = session is not None
+    if is_session_scoped and sid:
+        folds = watch.per_session_folds.get(sid, 0)
+        saved = watch.per_session_saved.get(sid, 0)
+        fires = dict(watch.per_session_fires.get(sid, Counter()))
+    else:
+        folds = watch.folds
+        saved = watch.saved
+        fires = dict(watch.fires)
+
     return Sample(
         ts=verdict.ts if verdict else now_ts(),
         sampled_at=now_ts(),
@@ -510,9 +531,9 @@ def build_sample(
         ord3=ord3,
         growth_ok=growth_ok,
         flags=flags,
-        fires=dict(watch.fires),
-        folds=watch.folds,
-        saved=watch.saved,
+        fires=fires,
+        folds=folds,
+        saved=saved,
         blocks=len(state.active),
         blocked=dict(watch.blocked),
         reason=verdict.reason if verdict else "",

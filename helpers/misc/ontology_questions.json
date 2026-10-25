@@ -1,6 +1,6 @@
 {
-  "version": 4,
-  "_note": "ontology_governance S2 frozen question set v2 — DOC-DRIVEN roster derived 2026-09-17 from the live store via ontology_eval_gate.answer_question; coverage map and derivation procedure in doc/procedures/ontology-gate.md. After each ACCEPTED ontology-affecting change, rebaseline explicitly via ontology_eval_gate.py --rebaseline 'completed.md #NNN (change)'. Answers are sorted row-sets; subtree and concept_mappings_for are active-only. | v3 pins added at nic2008_seed_table S2 (subtree x2: nic2008 section J + division 62; the +1 industry->nic2008 crosswalk pin lands with S3 promote); expected computed via answer_question from the gated candidate per doc/procedures/ontology-gate.md roster-extension flow. | xwalk pins re-synced to all active labels post sitting 20260919 (85 labels, incl. narrowMatch stacks). v4 (merger_demerger_hyperedges S4, 2026-10-21): + shape hyperedge_labels; hyper-merger-families / hyper-demerger-families pin the (currently empty) n-ary M&A families — a first landed fact REQUIRES --expect-improve on those ids.",
+  "version": 6,
+  "_note": "ontology_governance S2 frozen question set v2 — DOC-DRIVEN roster derived 2026-09-17 from the live store via ontology_eval_gate.answer_question; coverage map and derivation procedure in doc/procedures/ontology-gate.md. After each ACCEPTED ontology-affecting change, rebaseline explicitly via ontology_eval_gate.py --rebaseline 'completed.md #NNN (change)'. Answers are sorted row-sets; subtree and concept_mappings_for are active-only. | v3 pins added at nic2008_seed_table S2 (subtree x2: nic2008 section J + division 62; the +1 industry->nic2008 crosswalk pin lands with S3 promote); expected computed via answer_question from the gated candidate per doc/procedures/ontology-gate.md roster-extension flow. | xwalk pins re-synced to all active labels post sitting 20260919 (85 labels, incl. narrowMatch stacks). v4 (merger_demerger_hyperedges S4, 2026-10-21): + shape hyperedge_labels; hyper-merger-families / hyper-demerger-families pin the (currently empty) n-ary M&A families — a first landed fact REQUIRES --expect-improve on those ids. | v6 (graph_relational_depth R3, 2026-10-25): + shapes ultimate_parent_of / insight_counterparts pinning the four R3 insight tables (ultimate_parent / hidden_connections / supply_chokepoints / competitive_overlap) — an absent table answers [] (pre-R3 store); the lanes' first apply was the declared improvement.",
   "questions": [
     {
       "id": "subtree-super-sector-communication-services",
@@ -15,6 +15,7 @@
         "subsector:Broadcasting",
         "subsector:Cinema",
         "subsector:Digital",
+        "subsector:Gaming",
         "subsector:Publishing",
         "subsector:Telecom_Equipment",
         "subsector:Telecom_Services",
@@ -355,6 +356,7 @@
       },
       "expected": [
         "Brakes India",
+        "Prebo Automotive",
         "TSF Group",
         "Tata AutoComp"
       ]
@@ -367,6 +369,7 @@
         "event_type": "jv"
       },
       "expected": [
+        "HKC",
         "Inventec Corporation",
         "Signify NV",
         "Vivo Mobile"
@@ -463,6 +466,7 @@
         "event_type": "jv"
       },
       "expected": [
+        "Adani Total Gas",
         "PSP Projects"
       ]
     },
@@ -759,6 +763,7 @@
         "Forge_Castings",
         "Formulations",
         "Foundry",
+        "Gaming",
         "Gas_Distribution",
         "General_Insurance",
         "Gold_Loans",
@@ -853,6 +858,7 @@
       "expected": [
         "A_Quarter_That_Refuses_To_Behave",
         "A_Strange_Quarter_With_Very_Real_Cracks",
+        "Adani_Power_Motilal_Oswal",
         "Anchor_and_Ambitions",
         "Asian_Paints_NMDC_IndiGo",
         "BEL_HUL_Tata_Capital",
@@ -889,6 +895,7 @@
         "Half_a_century_in",
         "Havells_Ambuja_Cipla",
         "IDFC_Tata_Consumer",
+        "IRDAI_Bajaj_Auto_SBI",
         "In_the_Middle_of_Things",
         "Indian_Oil_Muthoot_Maruti",
         "Inflection_Watch",
@@ -902,18 +909,22 @@
         "Management_in_Motion",
         "Mapping_the_momentum",
         "Marico_DLF_BSE",
+        "Maruti_Hy-Tech_Symbiotec",
         "Maruti_Lumino_Indian_Bank",
         "Max_Life_Tempsens_TCS",
+        "MazDock_Mphasis_Redington",
         "Meesho_Marico_Bajaj",
         "Micron_SpaceX_Palantir",
         "Milky_Mist_Bluestone",
         "Moves_and_Motives",
         "Moving_Pieces",
+        "NSE_ONGC_SEBI",
         "No_shortcuts_here",
         "Nvidia_Samsung_Cloudflare",
         "ONGC_Divis_LG",
         "On_Record",
         "Opportunity_Between_The_Lines",
+        "PNB_Central_Bank_Rentomojo",
         "Patience_and_payoff",
         "Patterns_Beneath_the_Surface",
         "Pixels_to_perspective",
@@ -944,6 +955,7 @@
         "TCS_ICICI_Pru_HDB_Financials",
         "TCS_IFB_Gulf_Oil",
         "TCS_Indian_Bank_Amagi",
+        "TCS_Maruti_PB_Fintech",
         "Tailwinds_building",
         "Talking_Points",
         "Tariffs__Tailwinds.",
@@ -977,9 +989,23 @@
         "entity_type": "institution"
       },
       "expected": [
+        "(B)=(B)(1)+(B)(2)+(B)(3)+(B)(4)",
         "1832 Asset Management L.P.",
+        "A.L. Consultants Private Limited",
+        "A.R.Leasing Pvt Ltd",
+        "ACACIA INSTITUTIONAL PARTNERS, LP",
+        "ACACIA PARTNERS, LP",
+        "ACHIN INVESTMENT AND MERCANTILE COMPANY",
+        "ADEEP INVESTMENT COMPANY",
+        "ADITYA BIRLA SUN LIFE MUTUAL FUND - ADITYA BIRLA S",
+        "AIG DIRECT LLC",
         "AQR Capital Management, LLC",
+        "ARANAV TRADING AND INVESTMENTS PVT LTD",
+        "ARES DIVERSIFIED",
+        "ARIAL HOLDINGS 1",
         "Acadian Asset Management. LLC",
+        "Acuite Ratings & Research",
+        "Acute Ratings & Research",
         "Advisers Investment Tr-JOHCM Emerging Markets Opportunities Fd",
         "Advisors Inner Circle Fund III-GQG Partners Emerging Markets Equity Fd",
         "Advisors Inner Circle Fund-Acadian Emerging Markets Port",
@@ -988,33 +1014,50 @@
         "American Century Companies Inc",
         "Ameriprise Financial, Inc.",
         "Amundi",
+        "Anant Overseas Pvt Ltd",
+        "Anshika Consultants Pvt Ltd",
+        "Anshika Investments Pvt Ltd",
+        "Apoorva Extrusion Pvt Ltd",
         "Appaloosa LP",
         "Aquamarine Financial (cayman) Ltd",
         "Ariel Investments, LLC",
         "Aristotle Capital Management, LLC",
         "Arrowstreet Capital, Limited Partnership",
+        "Ashok Jaipuria - Registered Owner\nC/o Gayatri& Annapurana - Beneficial Owner",
         "Ativo Capital Management, LLC",
         "Atlas Capital Advisors Inc",
         "Atreides Management, LP",
+        "Aviraj Group LLC",
+        "Aviraj Overseas LLC",
+        "B M GANDHI INVESTMENT CO LLP",
         "BAILLIE GIFFORD & CO",
+        "BAJAJ FINSERV FLEXI CAP FUND",
         "BAMCO Inc.",
         "BNP Paribas Financial Markets",
         "BNY Mellon Emerging Markets Fund",
+        "Bandhan Small Cap Fund",
         "Bank Of New York Mellon Corporation",
         "Bank of America Corporation",
         "Bank of Montreal /CAN/",
         "Bank of Nova Scotia",
         "Barclays Plc",
+        "Bengal Finance And Investment Pvt Ltd",
         "Benson Wealth Management Inc",
         "Berkshire Hathaway, Inc",
         "Bernstein (Sanford C.) Emerging Markets Portfolio",
         "Blackrock Inc.",
+        "Bosch Home Comfort India Holding Limited",
         "Boston Partners",
         "Boston Trust Walden Corporation",
         "Brandes Investment Partners L.P.",
+        "Brickwork Ratings India",
         "Brookfield Corp /ON/",
         "Byrne Asset Management LLC",
+        "CASSINI PARTNERS, L.P. MANAGED BY HABROK CAPITAL M",
+        "CATAMARAN VENTURES LLP",
         "CIBC World Market, Inc.",
+        "COSMO FILMS ESOP 2015 TRUST",
+        "CRISIL Ratings",
         "Caisse Des Depots Et Consignations",
         "Calvert World Values Emerging Markets Equity Fund",
         "Capital International Investors",
@@ -1039,6 +1082,7 @@
         "Deutsche Bank AG",
         "Dimensional ETF Tr-Dimensional Emerging Markets Core Equity 2 ETF",
         "Dimensional Fund Advisors LP",
+        "Dinesh Agarwal (Huf) .",
         "Disciplined Growth Investors, Inc.",
         "Dodge & Cox Inc.",
         "Donald Smith & Co., Inc.",
@@ -1046,8 +1090,10 @@
         "Edgepoint Investment Group Inc.",
         "Envestnet Asset Management Inc.",
         "Equity Investment Corp",
+        "Espee Therapeutics LLP",
         "FMR, LLC",
         "Farallon Capital Management LLC",
+        "Fawkes Management (P) Ltd.-Registered Owner \nC/o Ashok Jaipuria Family Trust -Beneficial Owner",
         "Federated Hermes, Inc.",
         "Fidelity Emerging Markets  Index Fd",
         "Fidelity Global ex U.S. Index Fd",
@@ -1062,10 +1108,17 @@
         "First Command Advisory Services, Inc.",
         "First Trust Advisors LP",
         "Fisher Asset Management, LLC",
+        "Flex International Pvt Ltd",
         "Focus Financial Network Inc",
+        "Foreign Portfolio Investor (Individual)",
         "Franklin Resources, Inc.",
         "Fuller & Thaler Asset Management Inc.",
+        "GANDHI FINANCE CO LLP",
+        "GAUTAM NAVNITLAL ADHIKARI",
+        "GLOBAL SHOWBIZ PRIVATE LIMITED",
         "GQG Partners LLC",
+        "GUNJAN CHHAJER",
+        "GYMKHANA PARTNERS L.P.",
         "Gamma Investing LLC",
         "Generali Investments Cee, Investicni Spolecnost, A.s.",
         "Geode Capital Management, LLC",
@@ -1073,33 +1126,63 @@
         "Goldman Sachs Group Inc",
         "Great Lakes Advisors LLC",
         "Greylock Xiv Gp LLC",
+        "HDFC MUTUAL FUND - HDFC AGGRESSIVE HYBRID FUND",
+        "HDFC MUTUAL FUND - HDFC MULTI CAP FUND",
+        "HEINRICH DE FRIES GMBH",
         "HITE Hedge Asset Management LLC",
         "HRT Financial LP",
         "HSBC Holdings PLC",
+        "HSBC MUTUAL FUND - HSBC MULTI CAP FUND",
         "Hantz Financial Services, Inc.",
         "Harding Loevner LP",
         "Harris Associates L.P.",
         "Hartford/Schroders Emerging Markets Equity Fd",
+        "Hdfc Value Fund",
         "Healthcare of Ontario Pension Plan Trust Fund",
         "Hill Path Capital, LP",
         "Holocene Advisors, LP",
         "Horizon Financial Services, LLC",
+        "ICICI PRUDENTIAL VALUE FUND",
         "IMA Advisory Services, Inc.",
+        "INDIA EMERGING GIANTS FUND LIMITED",
+        "INVESTOR EDUCATION AND PROTECTION FUND (IEPF)",
+        "INVESTOR EDUCATION AND PROTECTION FUND AUTHOR",
+        "INVESTOR EDUCATION AND PROTECTION FUND AUTHORITY M",
+        "INVESTOR EDUCATION AND PROTECTION FUND AUTHORITY MINISTRY OF CORPORATE AFFAIRS",
         "Impactive Capital, LP",
         "Index Venture Associates VI Ltd",
+        "India Ratings and Research",
+        "Infomerics Valuation and Ratings",
+        "Intensive Softshare Pvt.Ltd.",
         "Invesco Ltd.",
         "Investor AB",
+        "JAGVALLABH PARASNATH CAPITAL INVESTMENT PVT LTD",
         "JPMORGAN CHASE & CO",
         "JTC Employer Solutions Trustee Ltd.",
         "Jacobs Levy Equity Management, Inc.",
+        "KALASH TRADING AND INVESTMENTS PVT LTD",
+        "KOTAK FLEXICAP FUND",
+        "KOTAK LIFE SCIENCES FUND I",
+        "Kavyansh Gupta Benefit Trust (Trustee: Rajendra Kumar Gupta and Kavita Gupta)",
+        "Kedia Securities Private Limited",
+        "Krutadnya Management And Trading Services LLP",
+        "LEVINA INVESTMENT AND MERCANTILE COMPANY",
+        "LIMELITE CONSULTANTS PVT LTD",
         "LOOMIS SAYLES & CO L P",
         "LSV Asset Management",
         "Lazard Asset Management LLC",
         "Legal & General Group PLC",
         "Legato Capital Management LLC",
+        "Life Insurance Corporation of India - P & Gs Fund",
         "Lummis Asset Management, LP",
+        "MAHINDRA MANULIFE INNOVATION OPPORTUNITIES FUND",
+        "MARKAND NAVNITLAL ADHIKARI",
+        "MORGAN STANLEY ASIA (SINGAPORE) PTE",
+        "MOTILAL OSWAL ELSS TAX SAVER FUND",
         "Mackenzie Financial Corporation",
+        "Madhu Mimani",
         "Madison Asset Management, LLC",
+        "Manish Mimani",
         "Markel Group Inc",
         "Massachusetts Financial Services Co.",
         "Matthews International Fds-Matthews Emerging Mkts Small Companies Fd",
@@ -1110,55 +1193,105 @@
         "Mitsubishi UFJ Asset Management Co., Ltd.",
         "Mondrian Investment Partners Ltd",
         "Morgan Stanley",
+        "NANDITA KASLIWAL",
+        "NIPPON LIFE INDIA TRUSTEE LTD-A/C NIPPON INDIA SMA",
+        "NOBLE SHARE TRADING PVT LTD",
         "NORGES BANK",
         "Neuberger Berman Group, LLC",
+        "Nippon Life India Trustee Ltd-A/C Nippon India Small Cap Fund",
+        "Nirmala Realinfrastructure Private Limited",
         "Nomura Holdings Inc.",
         "Northern Trust Corporation",
         "Nuveen, LLC",
         "Nvidia Corp",
+        "OJASVI INVESTMENT AND MERCANTILE COMPANY",
+        "Office Bearers",
         "Orbis Allan Gray Ltd",
+        "Ostwal Phoschem (India) Limited",
         "PNC Financial Services Group, Inc.",
+        "PRIME GLOBAL MEDIA PRIVATE LTD",
         "Pacer Advisors, Inc.",
         "Paradigm Asset Management Company, LLC",
+        "Patel Engineering Employees Welfare Trust",
+        "Pgim India Equity Growth Opportunities Fund Series Ii",
         "Phoenix Financial Ltd.",
+        "Praham India Llp",
         "Price (T.Rowe) Associates Inc",
         "Primecap Management Company",
         "Principal Origin Emerging Markets Fund",
         "Private Ocean, LLC",
+        "QUANT MUTUAL FUND - QUANT COMMODITIES FUND",
+        "Quant Mutual Fund - Quant Small Cap Fund",
+        "Quant Mutual Fund-Quant Elss Tax Saver Fund",
+        "RAMCHANDRA PRABODHCHANDRA PUROHIT",
+        "RASHESH PUROHIT",
         "RBI",
+        "RESONANCE OPPORTUNITIES FUND",
         "RNC Capital Management LLC",
+        "Raahitya Constructions Private Limited",
         "Ramirez Asset Management, Inc.",
         "Renaissance Technologies, LLC",
+        "Renosen Pharmaceuticals Private Limited",
         "Rhumbline Advisers",
         "Robeco Institutional Asset Management B.V.",
         "Royal Bank of Canada",
+        "SAMARSH CAPITAL-SAMARSH CAPITAL-FUND I",
+        "SANJAY KOTHARI HUF",
+        "SARVESH KUMAR SHAHI",
         "SEBI",
         "SG Americas Securities, LLC",
+        "SHREE BHIMASHANKAR PRODUCTION SERVICES PRIVATE LIMITED",
+        "SHREYANS FINANCIAL AND CAPITAL SERVICES LTD",
+        "SINGULARITY EQUITY FUND I",
+        "SMALLCAP WORLD FUND, INC",
         "SPDR Portfolio Emerging Markets ETF",
+        "SRI ADHIKARI BROTHERS ASSETS HOLDING PRIVATE LIMITED",
+        "SULZER INVESTMENT PVT LTD",
+        "SUNIL KUMAR CHHAJER",
         "Sageworth Trust Company",
         "Salomon & Ludwin, LLC",
+        "Samsung India Small And Mid Cap Focus Securities Master Investment Trust(Equity)",
+        "Sbi Children's Fund - Investment Plan",
         "Sc Us (ttgp), Ltd.",
         "Schwab Strategic Tr-Schwab Emerging Markets Equity ETF",
         "Shah Capital Management",
         "Shaw D.E. & Co., Inc.",
         "Shikiar Asset Management, Inc.",
+        "Sidhpur Commodities Private Limited",
         "Situational Awareness LP",
         "Softbank Group Corporation",
         "Southeastern Asset Management Inc/TN/",
+        "Sri Narsingh Infrastructure Private Limited",
+        "Srivaru Agro Private Limited",
         "Stanley-Laman Group, Ltd.",
         "State Farm Mutual Automobile Insurance Co",
         "State Street Corporation",
+        "Sub-Total (A)(1)",
+        "Sub-Total (A)(2)",
+        "Sub-Total (B)(1)",
+        "Sub-Total (B)(2)",
+        "Sub-Total (B)(4)",
+        "Subhkam Ventures I Pvt Ltd",
         "Susquehanna International Group, LLP",
         "T. Rowe Price Investment Management, Inc.",
+        "TATA MUTUAL FUND - TATA SMALL CAP FUND",
         "TCI Fund Management Ltd",
         "TD Asset Management, Inc",
         "TIAA-CREF Funds-Emerging Markets Equity Index Fund",
+        "TIMF HOLDINGS",
+        "TRICHUR SUNDARAM SANTHANAM & FAMILY PRIVATE LIMITED",
+        "TRUSTMF SMALL CAP FUND",
         "Temasek Holdings (Private) Ltd",
         "Thurston, Springer, Miller, Herd & Titak, Inc.",
         "Tidal Investments LLC",
+        "Total ( A+B+C2 )",
+        "Total (A+B+C )",
+        "Total Shareholding of Promoter and Promoter Group (A)=(A)(1)+(A)(2)",
         "Two Sigma Investments, LP",
         "UBS AM, a distinct business unit of UBS ASSET MANAGEMENT AMERICAS LLC",
         "UBS Group AG",
+        "UTI-MNC FUND",
+        "VIRAT INVESTMENT & MERCANTILE COMPANY",
         "Value Aligned Research Advisors, LLC",
         "Vanguard Asset Management, Ltd",
         "Vanguard Capital Management LLC",
@@ -1179,6 +1312,7 @@
         "Wolf Hill Capital Management, LP",
         "Xtx Topco Ltd",
         "Yorkville Advisors Global, LP",
+        "Zedd Retails Private Limited",
         "iShares Core MSCI Emerging Markets ETF",
         "iShares Core MSCI Total International Stock ETF",
         "iShares MSCI Emerging Markets ETF",
@@ -1229,6 +1363,7 @@
       },
       "expected": [
         "A_Quarter_That_Refuses_To_Behave",
+        "Adani_Power_Motilal_Oswal",
         "Anchor_and_Ambitions",
         "Asian_Paints_NMDC_IndiGo",
         "BEL_HUL_Tata_Capital",
@@ -1247,6 +1382,7 @@
         "HDFC_Groww_Havells",
         "Havells_Ambuja_Cipla",
         "IDFC_Tata_Consumer",
+        "IRDAI_Bajaj_Auto_SBI",
         "Indian_Oil_Muthoot_Maruti",
         "Infosys_Adani_Power",
         "Infosys_Adani_Tata_Motors",
@@ -1255,12 +1391,15 @@
         "LTM_HCL_ICICI_Prudential",
         "Making_It_Work",
         "Marico_DLF_BSE",
+        "Maruti_Hy-Tech_Symbiotec",
         "Maruti_Lumino_Indian_Bank",
         "Max_Life_Tempsens_TCS",
+        "MazDock_Mphasis_Redington",
         "Meesho_Marico_Bajaj",
         "Micron_SpaceX_Palantir",
         "Milky_Mist_Bluestone",
         "Moving_Pieces",
+        "NSE_ONGC_SEBI",
         "Nvidia_Samsung_Cloudflare",
         "ONGC_Divis_LG",
         "Patience_and_payoff",
@@ -1308,31 +1447,50 @@
       "expected": [
         "HDFC Bank",
         "Havells India",
+        "Heritage Foods",
+        "Hindustan Zinc",
         "Hyundai Motor India",
         "ICICI Bank",
+        "Info Edge",
+        "Jio Financial Services",
+        "KEI Industries",
         "KSB",
+        "LTM",
         "MM Forgings",
         "MOIL",
         "Mahindra EPC Irrigation",
+        "Marvel Decor",
+        "Nippon Life AMC",
+        "ONGC",
+        "P&G Hygiene and Healthcare",
         "Pearl Global Industries",
         "Persistent Systems",
         "Power Grid Corporation of India",
+        "REC",
         "Rail Vikas Nigam",
+        "Reliance Industries",
         "SML Mahindra",
         "Saudi Aramco",
+        "Sheela Foam",
         "Shree Cement",
         "Shree Digvijay Cement",
+        "Sun Pharmaceutical Industries",
         "Suzlon Energy",
         "Swiggy",
         "TVS Motor Company",
         "Tata Communications",
         "Tata Elxsi",
+        "Tata Motors Passenger Vehicles",
+        "Tata Technologies",
         "Tech Mahindra",
         "Torrent Power",
         "Transformers and Rectifiers (India)",
+        "UPL",
         "Uno Minda",
         "Varun Beverages",
+        "Vodafone Idea",
         "Voltas",
+        "Wipro",
         "Yes Bank"
       ]
     },
@@ -1392,105 +1550,7 @@
         "source": "Automotive",
         "edge_type": "has_company"
       },
-      "expected": [
-        "Amara Raja Energy and Mobility",
-        "Apollo Tyres",
-        "Ashok Leyland",
-        "Ather Energy",
-        "Autoline Industries",
-        "Automotive Axles",
-        "BMW",
-        "Bajaj Auto",
-        "Balkrishna Industries",
-        "Banco Products (India)",
-        "Belrise Industries",
-        "Bharat Forge",
-        "Bharat Gears",
-        "Bosch",
-        "Brakes India",
-        "CEAT",
-        "CIE Automotive India",
-        "Camso",
-        "Carraro India",
-        "Eicher Motors",
-        "Emerald Tyre Manufacturers",
-        "Endurance Technologies",
-        "Escorts Kubota",
-        "Exide Industries",
-        "Federal-Mogul Goetze India",
-        "Ferrari",
-        "Fiem Industries",
-        "Force Motors",
-        "GNA Axles",
-        "Gabriel India",
-        "General Motors",
-        "Grammer AG",
-        "Hero MotoCorp",
-        "Honda Motor",
-        "Hyundai Motor Company",
-        "Hyundai Motor India",
-        "Indag Rubber",
-        "India Nippon Electricals",
-        "Innoviz Technologies",
-        "Inovance Technology",
-        "JBM Auto",
-        "JTEKT India",
-        "Jamna Auto Industries",
-        "Jaya Hind Industries",
-        "Jinnaite Machinery",
-        "KPIT Technologies",
-        "Kinetic Engg",
-        "Kokusan Denki",
-        "Landmark Cars",
-        "Lucas Indian Service",
-        "Lumax Auto Technologies",
-        "Lumax Industries",
-        "MRF",
-        "Mahindra & Mahindra",
-        "Maruti Suzuki India",
-        "Mercedes-Benz Group",
-        "Motherson Sumi Wiring India",
-        "NRB Bearings",
-        "Ola Electric Mobility",
-        "Piaggio Group",
-        "Plastic Omnium",
-        "Precision Camshafts",
-        "Pritika Auto Industries",
-        "Racl Geartech",
-        "Ramkrishna Forgings",
-        "Rane Holdings",
-        "Royal Enfield",
-        "SML Mahindra",
-        "Samvardhana Motherson International",
-        "Sandhar Technologies",
-        "Schaeffler India",
-        "Setco Automotive",
-        "Shigan Quantum Technologies",
-        "Shriram Pistons",
-        "Sona BLW Precision Forgings",
-        "Stanley Electric",
-        "Studds Accessories",
-        "Subros",
-        "Sundram Fasteners",
-        "Suprajit Engineering",
-        "TSF Group",
-        "TVS Motor Company",
-        "Talbros Automotive Components",
-        "Tata AutoComp",
-        "Tata Elxsi",
-        "Tata Motors Passenger Vehicles",
-        "Tata Technologies",
-        "Tenneco Clean Air India",
-        "Tesla",
-        "Timken India",
-        "Uno Minda",
-        "VST Tillers Tractors",
-        "Varroc Engineering",
-        "VinFast Auto",
-        "Wabco India",
-        "Wardwizard Innovations Mobility",
-        "Wheels India"
-      ]
+      "expected": []
     },
     {
       "id": "edge-vanguard-capital-management-llc-invested-in",
@@ -1555,6 +1615,7 @@
       },
       "expected": [
         "Brakes India",
+        "Prebo Automotive",
         "TSF Group",
         "Tata AutoComp"
       ]
@@ -1577,9 +1638,7 @@
         "source": "20 Microns",
         "edge_type": "part_of"
       },
-      "expected": [
-        "Chemicals"
-      ]
+      "expected": []
     },
     {
       "id": "edge-motilal-oswal-financial-services-rated-by",
@@ -1589,7 +1648,9 @@
         "edge_type": "rated_by"
       },
       "expected": [
-        "CRISIL"
+        "CRISIL",
+        "CRISIL Ratings",
+        "India Ratings and Research"
       ]
     },
     {
@@ -1611,10 +1672,25 @@
         "edge_type": "same_group"
       },
       "expected": [
+        "TATA MOTORS",
+        "TQ CERT SERVICES",
+        "Tata AIG General Insurance Co",
+        "Tata Capital",
         "Tata Chemicals",
+        "Tata Communications",
         "Tata Consultancy Services",
+        "Tata Consumer Products",
+        "Tata Digital",
+        "Tata Motors Passenger Vehicle",
+        "Tata Power Company",
+        "Tata Projects",
         "Tata Technologies",
+        "Tata Teleservices",
+        "Tata Teleservices (Maharashtra)",
+        "Tata sons",
+        "The Indian Hotels Company",
         "Titan",
+        "Titan Company",
         "Trent",
         "Voltas"
       ]
@@ -2097,7 +2173,7 @@
         "Kellton Tech Solutions",
         "Khaitan Chemicals Fertilizers",
         "Khazanchi Jewellers",
-        "Kinetic Engg",
+        "Kinetic Engineering",
         "Kingfa Science & Technology (India)",
         "Kings Infra",
         "Kirloskar Pneumatic Company",
@@ -2548,6 +2624,7 @@
         "Symphony",
         "Tata Chemicals",
         "Titan",
+        "Titan Company",
         "Union Bank of India",
         "United Breweries",
         "United Spirits",
@@ -2600,6 +2677,7 @@
         "Automotive Axles",
         "Balkrishna Industries",
         "Banco Products (India)",
+        "Belrise Industries",
         "Bharat Forge",
         "Bharat Gears",
         "Bosch",
@@ -2612,6 +2690,7 @@
         "Fiem Industries",
         "GNA Axles",
         "Gabriel India",
+        "Grammer AG",
         "Indag Rubber",
         "India Nippon Electricals",
         "Innoviz Technologies",
@@ -2633,11 +2712,13 @@
         "Setco Automotive",
         "Shriram Pistons",
         "Sona BLW Precision Forgings",
+        "Studds Accessories",
         "Subros",
         "Sundram Fasteners",
         "Suprajit Engineering",
         "Swaraj Engines",
         "Talbros Automotive Components",
+        "Tenneco Clean Air India",
         "Uno Minda",
         "Varroc Engineering",
         "Wheels India"
@@ -2670,6 +2751,7 @@
         "Autoline Industries",
         "Automotive Axles",
         "BMW",
+        "BYD",
         "Bajaj Auto",
         "Balkrishna Industries",
         "Banco Products (India)",
@@ -2696,6 +2778,7 @@
         "General Motors",
         "Grammer AG",
         "Hero MotoCorp",
+        "Hero Motors",
         "Honda Motor",
         "Hyundai Motor Company",
         "Hyundai Motor India",
@@ -2709,7 +2792,7 @@
         "Jaya Hind Industries",
         "Jinnaite Machinery",
         "KPIT Technologies",
-        "Kinetic Engg",
+        "Kinetic Engineering",
         "Kokusan Denki",
         "Landmark Cars",
         "Lucas Indian Service",
@@ -2775,7 +2858,7 @@
         "Automotive Axles",
         "Balkrishna Industries",
         "Banco Products (India)",
-        "Bharat Forge",
+        "Belrise Industries",
         "Bharat Gears",
         "Bosch",
         "CEAT",
@@ -2787,6 +2870,7 @@
         "Fiem Industries",
         "GNA Axles",
         "Gabriel India",
+        "Grammer AG",
         "Indag Rubber",
         "India Nippon Electricals",
         "Innoviz Technologies",
@@ -2808,11 +2892,13 @@
         "Setco Automotive",
         "Shriram Pistons",
         "Sona BLW Precision Forgings",
+        "Studds Accessories",
         "Subros",
         "Sundram Fasteners",
         "Suprajit Engineering",
         "Swaraj Engines",
         "Talbros Automotive Components",
+        "Tenneco Clean Air India",
         "Uno Minda",
         "Varroc Engineering",
         "Wheels India"
@@ -2973,7 +3059,6 @@
         "table": "graph_edges"
       },
       "expected": [
-        "backfill_sector_edges",
         "build_sector_hierarchy",
         "coinfer",
         "derive_cited_in",
@@ -2984,11 +3069,7 @@
         "enrich_relations",
         "extract_relations",
         "manual",
-        "migration",
-        "move_sector",
-        "parse_newsletter",
         "phase2_seed",
-        "stub_sector_backfill",
         "triage_accept"
       ]
     },
@@ -3031,7 +3112,9 @@
         "table": "hyper_edges"
       },
       "expected": [
-        "derive_hyperedges"
+        "derive_hyperedges",
+        "derive_merger_hyperedges",
+        "derive_org_membership"
       ]
     },
     {
@@ -3397,7 +3480,8 @@
         "source_concept": "Paper & Paper Products"
       },
       "expected": [
-        "nic2008:17099:closeMatch"
+        "nic2008:17099:closeMatch",
+        "subsector:Paper_Products:exactMatch"
       ]
     },
     {
@@ -3408,7 +3492,8 @@
         "source_concept": "Publishing"
       },
       "expected": [
-        "nic2008:58131:closeMatch"
+        "nic2008:58131:closeMatch",
+        "subsector:Publishing:exactMatch"
       ]
     },
     {
@@ -3540,7 +3625,8 @@
         "source_concept": "Banks - Diversified"
       },
       "expected": [
-        "nic2008:64191:closeMatch"
+        "nic2008:64191:closeMatch",
+        "subsector:Foreign_Banks:exactMatch"
       ]
     },
     {
@@ -3869,7 +3955,8 @@
         "source_concept": "Oil & Gas Integrated"
       },
       "expected": [
-        "nic2008:35201:closeMatch"
+        "nic2008:35201:closeMatch",
+        "subsector:E&P:exactMatch"
       ]
     },
     {
@@ -4168,7 +4255,11 @@
       "params": {
         "edge_type": "merger"
       },
-      "expected": []
+      "expected": [
+        "LTM",
+        "merger: Clix Capital + Lakshmi Vilas Bank",
+        "merger: Devyani International + Sapphire Foods India"
+      ]
     },
     {
       "id": "hyper-demerger-families",
@@ -4176,11 +4267,100 @@
       "params": {
         "edge_type": "demerger"
       },
-      "expected": []
+      "expected": [
+        "Bajel Projects",
+        "Motherson Sumi Wiring India"
+      ]
+    },
+    {
+      "id": "uparent-rallis-india",
+      "shape": "ultimate_parent_of",
+      "params": {
+        "company": "Rallis India"
+      },
+      "expected": [
+        "Tata Chemicals"
+      ]
+    },
+    {
+      "id": "uparent-tcs",
+      "shape": "ultimate_parent_of",
+      "params": {
+        "company": "Tata Consultancy Services"
+      },
+      "expected": [
+        "Tata sons"
+      ]
+    },
+    {
+      "id": "uparent-365squared",
+      "shape": "ultimate_parent_of",
+      "params": {
+        "company": "365Squared"
+      },
+      "expected": [
+        "Proximus Global SA/NV"
+      ]
+    },
+    {
+      "id": "uparent-hdfc-amc-international",
+      "shape": "ultimate_parent_of",
+      "params": {
+        "company": "HDFC AMC International (IFSC)"
+      },
+      "expected": [
+        "HDFC Bank"
+      ]
+    },
+    {
+      "id": "hidden-5paisa-capital",
+      "shape": "insight_counterparts",
+      "params": {
+        "kind": "hidden_connections",
+        "subject": "5paisa Capital"
+      },
+      "expected": [
+        "IIFL Capital Asset Management",
+        "IIFL Facilities Services",
+        "IIFL Home Finance",
+        "IIFL Management Services",
+        "IIFL Open Fintech",
+        "IIFL Samasta Finance",
+        "India Infoline Foundation",
+        "Livlong Protection & Wellness Solutions"
+      ]
+    },
+    {
+      "id": "chokepoint-indus-towers",
+      "shape": "insight_counterparts",
+      "params": {
+        "kind": "supply_chokepoints",
+        "subject": "Indus Towers"
+      },
+      "expected": [
+        "Bharti Airtel",
+        "Bharti Hexacom",
+        "Vodafone Idea"
+      ]
+    },
+    {
+      "id": "overlap-20-microns",
+      "shape": "insight_counterparts",
+      "params": {
+        "kind": "competitive_overlap",
+        "subject": "20 Microns"
+      },
+      "expected": [
+        "Ashapura Minechem",
+        "Hindustan Zinc",
+        "Jain Resource Recycling",
+        "MOIL",
+        "Vedanta"
+      ]
     }
   ],
   "rebaselined": {
-    "at": "2026-09-18T04:18:10+00:00",
-    "ref": "completed.md #246 (nic2008_seed_table S5)"
+    "at": "2026-10-25T09:42:21+00:00",
+    "ref": "graph_relational_depth R6a subsidiary_of cure + pre-existing 2026-10-24/25 ingest drift catch-up (verified: only edge-rallis-india-same-group changed due to the cure)"
   }
 }

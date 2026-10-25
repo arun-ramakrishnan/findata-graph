@@ -377,3 +377,96 @@ class TestShapes:
                 connect(parent),
                 {"shape": "provenance_agents_for", "params": {"table": "graph_edges"}},
             )
+
+
+class TestR3InsightShapes:
+    """graph_relational_depth R3: ultimate_parent_of / insight_counterparts.
+    An ABSENT table = pre-R3 store → [] (first apply is a declared
+    improvement); populated tables answer sorted row-sets."""
+
+    def test_absent_tables_answer_empty(self, dbs):
+        parent, _ = dbs
+        conn = connect(parent)
+        assert (
+            gate.answer_question(
+                conn, {"shape": "ultimate_parent_of", "params": {"company": "Acme Ltd"}}
+            )
+            == []
+        )
+        assert (
+            gate.answer_question(
+                conn,
+                {
+                    "shape": "insight_counterparts",
+                    "params": {"kind": "hidden_connections", "subject": "Acme Ltd"},
+                },
+            )
+            == []
+        )
+
+    def test_ultimate_parent_lookup(self, tmp_path):
+        conn = connect(tmp_path / "r3.db")
+        conn.execute("CREATE TABLE ultimate_parent (company TEXT, ultimate_parent TEXT)")
+        conn.executemany(
+            "INSERT INTO ultimate_parent VALUES (?,?)",
+            [("LeafLtd", "ApexLtd"), ("MidLtd", "ApexLtd")],
+        )
+        assert gate.answer_question(
+            conn, {"shape": "ultimate_parent_of", "params": {"company": "LeafLtd"}}
+        ) == ["ApexLtd"]
+        assert (
+            gate.answer_question(
+                conn, {"shape": "ultimate_parent_of", "params": {"company": "Nope"}}
+            )
+            == []
+        )
+        conn.close()
+
+    def test_insight_counterparts_kinds(self, tmp_path):
+        conn = connect(tmp_path / "r3.db")
+        conn.execute("CREATE TABLE hidden_connections (a TEXT, b TEXT)")
+        conn.execute("CREATE TABLE supply_chokepoints (supplier TEXT, companies TEXT)")
+        conn.execute("CREATE TABLE competitive_overlap (a TEXT, b TEXT, c TEXT)")
+        conn.execute("INSERT INTO hidden_connections VALUES ('CoP','CoQ'), ('CoP','CoR')")
+        conn.execute('INSERT INTO supply_chokepoints VALUES (\'ChokeSup\', \'["C1","C2","C3"]\')')
+        conn.execute("INSERT INTO competitive_overlap VALUES ('CoA','CoB','CoC')")
+        assert gate.answer_question(
+            conn,
+            {
+                "shape": "insight_counterparts",
+                "params": {"kind": "hidden_connections", "subject": "CoP"},
+            },
+        ) == ["CoQ", "CoR"]
+        assert gate.answer_question(
+            conn,
+            {
+                "shape": "insight_counterparts",
+                "params": {"kind": "hidden_connections", "subject": "CoQ"},
+            },
+        ) == ["CoP"]
+        assert gate.answer_question(
+            conn,
+            {
+                "shape": "insight_counterparts",
+                "params": {"kind": "supply_chokepoints", "subject": "ChokeSup"},
+            },
+        ) == ["C1", "C2", "C3"]
+        assert gate.answer_question(
+            conn,
+            {
+                "shape": "insight_counterparts",
+                "params": {"kind": "competitive_overlap", "subject": "CoB"},
+            },
+        ) == ["CoA", "CoC"]
+        conn.close()
+
+    def test_bad_params_raise(self, dbs):
+        parent, _ = dbs
+        conn = connect(parent)
+        with pytest.raises(gate.GateError):
+            gate.answer_question(conn, {"shape": "ultimate_parent_of", "params": {}})
+        with pytest.raises(gate.GateError):
+            gate.answer_question(
+                conn,
+                {"shape": "insight_counterparts", "params": {"kind": "bogus", "subject": "X"}},
+            )

@@ -539,19 +539,33 @@ class TestSymmetricEmissionPrecision:
 
     def test_classify_mirror_agrees_with_sql(self, lane):
         """The load-bearing pin: classify_relationship reproduces the
-        _CLASSIFY_SQL CASE order — including the rule-order artifact
-        ('Subsidiary of Holding Company' routes sub_rev, which is what
-        manufactured 15 of the 37 live cycles)."""
+        _PAIRS_SQL CASE — guards first, catch-alls last (R6a/C1). The
+        pre-cure rule-order artifacts ('Subsidiary of Holding Company'
+        → sub_rev, which manufactured 15 of the 37 live cycles) now
+        route to same_group; subsidiary-ADJACENT parties route to
+        None instead of sub_fwd."""
         cases = [
             ("Holding Company", None, "sub_rev"),
-            ("Subsidiary of Holding Company", None, "sub_rev"),  # rule-order artifact
-            ("Subsidiary of Ultimate holding company", None, "sub_rev"),  # artifact
+            ("Subsidiary of Holding Company", None, "same_group"),  # sibling, not parent
+            ("Subsidiary of Ultimate holding company", None, "same_group"),
+            ("Subsidiary of listed holding company", None, "same_group"),
+            ("Subsidiary of listed company", None, "same_group"),
+            ("Subsidiary of the Company", None, "sub_fwd"),  # 'the Company' = the filer
+            ("Wholly owned Subsidiary of APSEZ", None, "same_group"),  # named third party
+            (
+                "Subsidiary/Joint Venture of an Entity with Significant Influence "
+                "on Holding Company",
+                None,
+                "same_group",
+            ),
             ("Wholly Owned Subsidiary", None, "sub_fwd"),
             ("Subsidiary", None, "sub_fwd"),
             ("Step-down subsidiary", None, "sub_fwd"),
+            ("holding-subsidiary", None, "sub_fwd"),
+            ("KMP of Subsidiary", None, None),  # was sub_fwd — the pollution class
+            ("Related Party of Subsidiary", None, None),
+            ("Key management personnel of Subsidiary", None, None),
             ("Fellow Subsidiary", None, "same_group"),
-            ("Subsidiary of listed holding company", None, "sub_rev"),  # '%holding%' fires first
-            ("Subsidiary of listed company", None, "same_group"),
             ("Joint Venture", None, "jv_with"),
             ("Key Management Personnel", "KMP", None),
             ("Anything", "Promoter Group", "same_group"),
@@ -579,6 +593,129 @@ class TestSymmetricEmissionPrecision:
             sql_cls = next((p["cls"] for p in rps.build_pairs(con)), None)
             py_cls = rps.classify_relationship(rel, grp)
             assert sql_cls == py_cls == want, (rel, sql_cls, py_cls, want)
+
+
+class TestSubsidiaryCureBackfill:
+    """R6a/C2: the one-shot reclassification of vigil subsidiary_of
+    edges under the guarded ladder — keep / reclass-to-same_group /
+    reclass-to-jv_with / drop, prose rows untouched, idempotent."""
+
+    def _seed(self, conn):
+        ents = [
+            "KidCo",
+            "ParentCo",
+            "SiblingA",
+            "SiblingB",
+            "KmpCo",
+            "SomeCo",
+            "JvSub",
+            "BlankCo",
+            "ProseKid",
+            "ProseParent",
+        ]
+        conn.executemany(
+            "INSERT INTO entities VALUES (?, 'company', ?, NULL)",
+            [(e, e.lower()) for e in ents],
+        )
+        rows = [
+            # (source, target, source_ref, properties) — all subsidiary_of
+            (
+                "KidCo",
+                "ParentCo",
+                "vigil:rpt:PARENT",
+                {"relationship": "Wholly Owned Subsidiary"},
+            ),  # keep
+            (
+                "SiblingB",
+                "SiblingA",
+                "vigil:rpt:SIB",
+                {"relationship": "Subsidiary of Ultimate Holding Company"},
+            ),  # → same_group
+            (
+                "KmpCo",
+                "SomeCo",
+                "vigil:rpt:KMP",
+                {"relationship": "Key management personnel of Subsidiary"},
+            ),  # drop
+            (
+                "JvSub",
+                "SomeCo",
+                "vigil:rpt:JV",
+                {"relationship": "Joint Venture Subsidiary"},
+            ),  # → jv_with
+            ("BlankCo", "SomeCo", "vigil:rpt:RAW", {}),  # unverifiable → drop
+            (
+                "ProseKid",
+                "ProseParent",
+                "derive:relations:n1",
+                {"relationship": None},
+            ),  # non-vigil: untouched
+        ]
+        for s, t, ref, props in rows:
+            conn.execute(
+                "INSERT INTO graph_edges (source, target, edge_type, source_ref, properties) "
+                "VALUES (?, ?, 'subsidiary_of', ?, ?)",
+                (s, t, ref, json.dumps(props)),
+            )
+        conn.commit()
+
+    def test_cure_dry_run_reports_plan_without_writing(self, lane):
+        _con, conn = lane
+        self._seed(conn)
+        plan = rps.cure_subsidiary_backfill(conn, apply=False)
+        assert plan["counts"] == {
+            "scanned": 5,
+            "keep": 1,
+            "to_same_group": 1,
+            "to_jv_with": 1,
+            "dropped": 2,
+            "unparsable_dropped": 1,
+        }
+        # nothing written: all six subsidiary rows still present
+        assert (
+            conn.execute(
+                "SELECT COUNT(*) FROM graph_edges WHERE edge_type='subsidiary_of'"
+            ).fetchone()[0]
+            == 6
+        )
+
+    def test_cure_apply_reclasses_drops_and_leaves_prose(self, lane):
+        _con, conn = lane
+        self._seed(conn)
+        rps.cure_subsidiary_backfill(conn, apply=True)
+        kept = conn.execute(
+            "SELECT source, target, source_ref FROM graph_edges "
+            "WHERE edge_type='subsidiary_of' ORDER BY source"
+        ).fetchall()
+        assert [tuple(r) for r in kept] == [
+            ("KidCo", "ParentCo", "vigil:rpt:PARENT"),  # strict claim kept
+            ("ProseKid", "ProseParent", "derive:relations:n1"),  # prose untouched
+        ]
+        # sibling pair → canonical orientation, symmetric, provenance kept
+        sg = conn.execute(
+            "SELECT source, target, symmetric, source_ref FROM graph_edges "
+            "WHERE edge_type='same_group'"
+        ).fetchall()
+        assert [tuple(r) for r in sg] == [("SiblingA", "SiblingB", 1, "vigil:rpt:SIB")]
+        jv = conn.execute(
+            "SELECT source, target, symmetric FROM graph_edges WHERE edge_type='jv_with'"
+        ).fetchall()
+        assert [tuple(r) for r in jv] == [("JvSub", "SomeCo", 1)]
+        # KMP + unverifiable rows are gone entirely
+        assert (
+            conn.execute(
+                "SELECT COUNT(*) FROM graph_edges WHERE source IN ('KmpCo', 'BlankCo')"
+            ).fetchone()[0]
+            == 0
+        )
+
+    def test_cure_idempotent(self, lane):
+        _con, conn = lane
+        self._seed(conn)
+        rps.cure_subsidiary_backfill(conn, apply=True)
+        plan2 = rps.cure_subsidiary_backfill(conn, apply=True)
+        assert plan2["counts"]["keep"] == 1 and plan2["counts"]["dropped"] == 0
+        assert conn.execute("SELECT COUNT(*) FROM graph_edges").fetchone()[0] == 4
 
 
 class TestNameDedupS3:

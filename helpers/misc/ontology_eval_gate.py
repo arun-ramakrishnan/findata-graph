@@ -224,6 +224,65 @@ def _answer_provenance_agents(conn: sqlite3.Connection, params: dict) -> list[st
     )
 
 
+def _answer_ultimate_parent(conn, params):
+    """R3 ultimate_parent table lookup; an ABSENT table = pre-R3 store →
+    [] (the lane's first apply is then a declared improvement)."""
+    company = params.get("company")
+    if not company:
+        raise GateError("ultimate_parent_of needs params.company")
+    try:
+        rows = conn.execute(
+            "SELECT ultimate_parent FROM ultimate_parent WHERE company = ?", (company,)
+        ).fetchall()
+    except sqlite3.OperationalError:
+        return []
+    return sorted({r[0] for r in rows})
+
+
+def _answer_insight_counterparts(conn, params):
+    """Counterparts of a subject inside one R3 insight lane; an ABSENT
+    table = pre-R3 store → []."""
+    kind = params.get("kind")
+    subject = params.get("subject")
+    if kind not in ("hidden_connections", "supply_chokepoints", "competitive_overlap"):
+        raise GateError(
+            "insight_counterparts needs params.kind "
+            "(hidden_connections|supply_chokepoints|competitive_overlap)"
+        )
+    if not subject:
+        raise GateError("insight_counterparts needs params.subject")
+    sql = {
+        "hidden_connections": (
+            "SELECT b FROM hidden_connections WHERE a = ? "
+            "UNION SELECT a FROM hidden_connections WHERE b = ?"
+        ),
+        "supply_chokepoints": "SELECT companies FROM supply_chokepoints WHERE supplier = ?",
+        "competitive_overlap": (
+            "SELECT b FROM competitive_overlap WHERE a = ? "
+            "UNION SELECT c FROM competitive_overlap WHERE a = ? "
+            "UNION SELECT a FROM competitive_overlap WHERE b = ? "
+            "UNION SELECT c FROM competitive_overlap WHERE b = ? "
+            "UNION SELECT a FROM competitive_overlap WHERE c = ? "
+            "UNION SELECT b FROM competitive_overlap WHERE c = ?"
+        ),
+    }[kind]
+    try:
+        if kind == "supply_chokepoints":
+            rows = conn.execute(sql, (subject,)).fetchall()
+            out = set()
+            for (companies_json,) in rows:
+                try:
+                    out.update(json.loads(companies_json or "[]"))
+                except ValueError:
+                    pass
+            return sorted(out)
+        n = 2 if kind == "hidden_connections" else 6
+        rows = conn.execute(sql, (subject,) * n).fetchall()
+        return sorted({r[0] for r in rows})
+    except sqlite3.OperationalError:
+        return []
+
+
 _SHAPES = {
     "subtree": _answer_subtree,
     "event_counterparties": _answer_counterparties,
@@ -234,6 +293,8 @@ _SHAPES = {
     "hyperedge_labels": _answer_hyperedge_labels,
     "concept_mappings_for": _answer_concept_mappings_for,
     "provenance_agents_for": _answer_provenance_agents,
+    "ultimate_parent_of": _answer_ultimate_parent,
+    "insight_counterparts": _answer_insight_counterparts,
 }
 
 

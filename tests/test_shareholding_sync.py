@@ -424,3 +424,277 @@ class TestBseHtmlParse:
         # filing id namespace does not collide with NSE ids
         fid = src.execute("SELECT filing_id FROM shp_filings").fetchone()[0]
         assert fid == "BSE_513108_229202617213"
+
+
+# --------------------------------------------------------------------------- #
+# R6b (graph_relational_depth): category-holder marker + majority promotion
+# --------------------------------------------------------------------------- #
+class TestCategoryHolderDetector:
+    def test_structural_rows_detected(self):
+        # live BSE t3 forms + standard subcategory labels
+        for name in (
+            "Sub-Total (A)(1)",
+            "Sub-Total (B)(4)",
+            "SUBTOTAL (C)",
+            "Total (A+B+C )",
+            "Total ( A+B+C2 )",
+            "Total Shareholding of Promoter and Promoter Group (A)=(A)(1)+(A)(2)",
+            "(B)=(B)(1)+(B)(2)+(B)(3)+(B)(4)",
+            "Foreign Portfolio Investor (Individual)",
+            "Office Bearers",
+            "Mutual Funds",
+            "Any Other (specify)",
+        ):
+            assert ss.is_category_holder(name), name
+
+    def test_named_investors_pass(self):
+        for name in (
+            "Srivaru Agro Private Limited",
+            "President of India",
+            "JASMEET SINGH BHATIA",
+            "Catterton Management Company, L.L.C.",
+            "Vanguard Capital Management LLC",
+            # 'Total' prefix must NOT match without the paren/shareholding form
+            "Total Gas Limited",
+            "TotalEnergies Holdings",
+            "INVESTOR EDUCATION AND PROTECTION FUND (IEPF)",
+            "",
+        ):
+            assert not ss.is_category_holder(name), name
+
+
+class TestStakePctOf:
+    def test_pctHeld_fraction_normalized_to_percent(self):
+        assert ss.stake_pct_of(json.dumps({"pctHeld": 0.5589})) == pytest.approx(55.89)
+
+    def test_stake_pct_percent_passthrough(self):
+        assert ss.stake_pct_of(json.dumps({"stake_pct": 74.25})) == pytest.approx(74.25)
+
+    def test_missing_and_malformed(self):
+        assert ss.stake_pct_of("{}") is None
+        assert ss.stake_pct_of(json.dumps({"stake_pct": "n/a"})) is None
+        assert ss.stake_pct_of("not json") is None
+        assert ss.stake_pct_of(None) is None
+
+
+class TestMajorityReconcile:
+    @staticmethod
+    def _seed(conn):
+        for name, etype in (
+            ("Srivaru Agro", "company"),
+            ("Ganesh Consumer", "company"),
+            ("Catterton Management", "institution"),
+            ("Birkenstock", "company"),
+            ("Sub-Total (A)(1)", "institution"),
+        ):
+            conn.execute("INSERT INTO entities VALUES (?, ?, ?, NULL)", (name, etype, name))
+        conn.executemany(
+            "INSERT INTO graph_edges (source, target, edge_type, weight, properties, source_ref) "
+            "VALUES (?, ?, 'invested_in', ?, ?, ?)",
+            [
+                # named shp majority (percent) — promotes
+                (
+                    "Srivaru Agro",
+                    "Ganesh Consumer",
+                    58.87,
+                    json.dumps({"stake_pct": 58.87, "filing_id": "BSE_X"}),
+                    "nse:shp:BSE_X",
+                ),
+                # structural subtotal majority — never promotes
+                (
+                    "Sub-Total (A)(1)",
+                    "Ganesh Consumer",
+                    64.08,
+                    json.dumps({"stake_pct": 64.08, "filing_id": "BSE_X"}),
+                    "nse:shp:BSE_X",
+                ),
+                # named yfinance fraction majority (0.5589 = 55.89%) — promotes
+                (
+                    "Catterton Management",
+                    "Birkenstock",
+                    3.0,
+                    json.dumps({"pctHeld": 0.5589}),
+                    "yfinance:holders:2026-08-25",
+                ),
+                # named minority — no
+                (
+                    "Catterton Management",
+                    "Ganesh Consumer",
+                    1.0,
+                    json.dumps({"pctHeld": 0.05}),
+                    "yfinance:holders:2026-08-25",
+                ),
+            ],
+        )
+        conn.commit()
+
+    def test_dry_run_counts_and_no_writes(self, lane):
+        _src, conn = lane
+        self._seed(conn)
+        rec = ss.reconcile_majority_ownership(conn, apply=False)
+        assert rec["invested_scanned"] == 4
+        assert rec["category_skipped"] == 1
+        assert rec["minority_skipped"] == 1
+        assert rec["majority_eligible"] == 2
+        assert rec["to_insert"] == 2
+        assert (
+            conn.execute(
+                "SELECT COUNT(*) FROM graph_edges WHERE edge_type='subsidiary_of'"
+            ).fetchone()[0]
+            == 0
+        )
+
+    def test_apply_mints_derived_subsidiary_of_and_idempotent(self, lane):
+        _src, conn = lane
+        self._seed(conn)
+        rec = ss.reconcile_majority_ownership(conn, apply=True)
+        assert (rec["inserted"], rec["updated"], rec["retracted"]) == (2, 0, 0)
+        rows = {
+            (r[0], r[1]): r
+            for r in conn.execute(
+                "SELECT source, target, weight, properties, source_ref, source_tier, symmetric "
+                "FROM graph_edges WHERE edge_type='subsidiary_of'"
+            ).fetchall()
+        }
+        # child=investee -> parent=holder, both legs normalized to percent
+        assert set(rows) == {
+            ("Ganesh Consumer", "Srivaru Agro"),
+            ("Birkenstock", "Catterton Management"),
+        }
+        edge = rows[("Ganesh Consumer", "Srivaru Agro")]
+        assert edge[2] == 1.0 and edge[6] == 0
+        assert edge[5] == "derive"
+        assert edge[4].startswith("derive:shareholding_majority:")
+        props = json.loads(edge[3])
+        assert props["pct"] == pytest.approx(58.87)
+        assert props["promoted_from"] == "nse:shp:BSE_X"
+        # idempotent re-run: identical stamps skip the write (no churn)
+        rec2 = ss.reconcile_majority_ownership(conn, apply=True)
+        assert (rec2["to_insert"], rec2["to_update"], rec2["to_retract"]) == (0, 0, 0)
+
+    def test_yfinance_fraction_promotes_normalized(self, lane):
+        _src, conn = lane
+        self._seed(conn)
+        ss.reconcile_majority_ownership(conn, apply=True)
+        props = json.loads(
+            conn.execute(
+                "SELECT properties FROM graph_edges WHERE edge_type='subsidiary_of' "
+                "AND source='Birkenstock'"
+            ).fetchone()[0]
+        )
+        assert props["pct"] == pytest.approx(55.89)
+
+    def test_foreign_subsidiary_edge_not_clobbered(self, lane):
+        _src, conn = lane
+        self._seed(conn)
+        conn.execute(
+            "INSERT INTO graph_edges (source, target, edge_type, source_ref) "
+            "VALUES ('Ganesh Consumer', 'Srivaru Agro', 'subsidiary_of', 'vigil:rpt:GCP')"
+        )
+        conn.commit()
+        rec = ss.reconcile_majority_ownership(conn, apply=True)
+        assert rec["already_claimed_foreign"] == 1
+        assert rec["inserted"] == 1  # only Birkenstock
+        ref = conn.execute(
+            "SELECT source_ref FROM graph_edges WHERE edge_type='subsidiary_of' "
+            "AND source='Ganesh Consumer'"
+        ).fetchone()[0]
+        assert ref == "vigil:rpt:GCP"
+
+    def test_refresh_on_stake_change_then_retract_when_control_lost(self, lane):
+        _src, conn = lane
+        self._seed(conn)
+        ss.reconcile_majority_ownership(conn, apply=True)
+        # stake moves (same dyad, new pct; a new filing = a new source_ref) ->
+        # refresh, not duplicate
+        conn.execute(
+            "UPDATE graph_edges SET source_ref='nse:shp:BSE_Y', properties=? "
+            "WHERE edge_type='invested_in' AND source='Srivaru Agro'",
+            (json.dumps({"stake_pct": 61.0, "filing_id": "BSE_Y"}),),
+        )
+        conn.commit()
+        rec = ss.reconcile_majority_ownership(conn, apply=True)
+        assert rec["updated"] == 1
+        props = json.loads(
+            conn.execute(
+                "SELECT properties FROM graph_edges WHERE edge_type='subsidiary_of' "
+                "AND source='Ganesh Consumer'"
+            ).fetchone()[0]
+        )
+        assert props["pct"] == pytest.approx(61.0)
+        assert props["promoted_from"] == "nse:shp:BSE_Y"
+        # holder falls below majority -> the promote edge retracts
+        conn.execute(
+            "UPDATE graph_edges SET properties=? WHERE edge_type='invested_in' "
+            "AND source='Srivaru Agro'",
+            (json.dumps({"stake_pct": 41.0, "filing_id": "BSE_Z"}),),
+        )
+        conn.commit()
+        rec = ss.reconcile_majority_ownership(conn, apply=True)
+        assert rec["retracted"] == 1
+        assert (
+            conn.execute(
+                "SELECT COUNT(*) FROM graph_edges WHERE edge_type='subsidiary_of' "
+                "AND source='Ganesh Consumer'"
+            ).fetchone()[0]
+            == 0
+        )
+        # the OTHER promote edge survives
+        assert (
+            conn.execute(
+                "SELECT COUNT(*) FROM graph_edges "
+                "WHERE source_ref LIKE 'derive:shareholding_majority:%'"
+            ).fetchone()[0]
+            == 1
+        )
+
+    def test_marker_backfill_marks_structural_rows(self, lane):
+        _src, conn = lane
+        self._seed(conn)
+        marked = ss.mark_category_holders(conn, apply=False)
+        assert (marked["scanned"], marked["to_mark"]) == (4, 1)
+        assert marked["samples"] == ["Sub-Total (A)(1)"]
+        ss.mark_category_holders(conn, apply=True)
+        props = json.loads(
+            conn.execute(
+                "SELECT properties FROM graph_edges WHERE edge_type='invested_in' "
+                "AND source='Sub-Total (A)(1)'"
+            ).fetchone()[0]
+        )
+        assert props["category_holder"] is True
+        assert props["stake_pct"] == 64.08  # existing props preserved on merge
+        rec = ss.reconcile_majority_ownership(conn, apply=False)
+        assert rec["category_skipped"] == 1
+
+
+class TestMintMarker:
+    def test_apply_candidates_marks_structural_holders(self, lane):
+        _src, conn = lane
+        conn.execute(
+            "INSERT INTO entities VALUES ('Sub-Total (A)(1)', 'institution', 'SUBTOTAL', NULL)"
+        )
+        conn.commit()
+        cands = [
+            {
+                "holder": "Sub-Total (A)(1)",
+                "holder_norm": "SUB-TOTAL (A)(1)",
+                "holder_kind": "institution",
+                "holder_class": "institution",
+                "category": "Any Other (specify)",
+                "target": "Wheels India",
+                "stake_pct": 64.08,
+                "shares": 100,
+                "voting_pct": None,
+                "pledged": None,
+                "filing_id": "BSE_T",
+                "valid_from": "2026-09-30",
+            }
+        ]
+        ss.apply_candidates(conn, cands, {}, dry_run=False)
+        props = json.loads(
+            conn.execute(
+                "SELECT properties FROM graph_edges WHERE edge_type='invested_in' "
+                "AND source='Sub-Total (A)(1)'"
+            ).fetchone()[0]
+        )
+        assert props["category_holder"] is True

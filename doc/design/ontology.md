@@ -79,6 +79,33 @@ palette, `analytics._MEMBERSHIP_TYPES`) while no `graph_edges` row carries
 it. Endpoint conventions and per-type semantics:
 `doc/design/db_schema.md` §graph_edges, `doc/design/graph_design.md` §4.
 
+**`subsidiary_of` tightened (2026-10-25, graph_relational_depth R6a).**
+VIGIL rows mint only on strict filer-claimed-control vocabulary — the
+ordered `classify_relationship` ladder in
+`helpers/maintenance/related_party_sync.py`, SQL-mirror parity-pinned:
+personnel and related-party-of-subsidiary texts drop, sibling
+descriptions ("Subsidiary of (Ultimate) Holding Company", "Fellow
+Subsidiary") rehome to `same_group`, strict positives (incl. the
+`subsidary` typo, step-down/indirect variants) and plain holding-co
+keep. One-time backfill cured the live store: 10,752 → 7,407 rows
+(7,332 VIGIL keeps + 75 non-VIGIL), `same_group` grew to 10,382;
+read-side strict filters (metapath `_STRICT_OWNERSHIP_REL`) remain
+defense-in-depth.
+
+**`invested_in` = the participation family (2026-10-25, R6b).** Stakes
+live in `properties` — `stake_pct` percent on the shp filings leg,
+`pctHeld` fraction on the yfinance leg; `shareholding_sync.stake_pct_of`
+normalizes both to percent (the weight column is mixed-kind ranking
+across legs, never a stake). Structural shareholding-page rows
+(subtotals, totals, equation lines, subcategory labels) carry
+`properties.category_holder=true`, stamped at mint in both holder lanes
+(`is_category_holder`). Control arrives ONLY via `subsidiary_of`: named
+holders at ≥50% promote as `derive:shareholding_majority:*` edges
+(`reconcile_majority_ownership`, standing after every holder-sync
+apply); sub-50 control is promoter-coalition closure (R3), not single
+majorities. `invested_in` is deliberately routed into NO metapath
+family — not even `any`: minority stakes connect everything.
+
 ### 2.2 Symmetric edge types — one row, `source LE target` (documented)
 
 <!-- roster: symmetric_edge_types -->
@@ -335,6 +362,7 @@ table (extend in the same change as any new artifact):
 | `hyper_incidences.role/valid_from/valid_to` | `derive_hyperedges --roles` | reconcile_events dry-run report vs `events` |
 | Concept `status` columns (S1) | `seed_concepts.py` supersede/upsert; `--promote` surface | `subtree()` active-only; `check_concepts` advisories |
 | Ontology change gate (S2) | `ontology_eval_gate.py` over `helpers/misc/ontology_questions.json` | acceptance criteria of ontology-affecting proposals |
+| R3 insight tables (`ultimate_parent` / `hidden_connections` / `supply_chokepoints` / `competitive_overlap`) | `derive_relational_insights.py` (`make derive-relational-insights`, dry-run default, idempotent full-replace, content-digest pins) | eval-gate shapes `ultimate_parent_of` / `insight_counterparts` (roster v6, 7 questions) |
 | `doc/reference/ontology_glossary.md` | operator/agent edits | doc_query corpus |
 | This document | same-change update with any registry change | roster-drift static check (qa-gated) |
 

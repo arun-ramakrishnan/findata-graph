@@ -158,47 +158,92 @@ def load_ratings(con: duckdb.DuckDBPyConnection, cache: Path) -> int:
 # --------------------------------------------------------------------------- #
 
 
-def classify_relationship(text: str | None, rel_group: str | None = None) -> str | None:
-    """Python mirror of the ``_CLASSIFY_SQL`` CASE (same clause order).
+# R6a/C1 guards for the subsidiary/holding-company catch-alls: texts
+# naming subsidiary-ADJACENT parties are never company↔company control
+# relations. Plain substring markers (no regex) so the SQL CASE mirrors
+# them exactly; classify_relationship is the executable ladder.
+_PERSONNEL_MARKERS = (
+    "kmp",
+    "key management",
+    "director",
+    "relative",
+    "personnel",
+    "employee",
+    "promoter of",
+)
+_RELATED_PARTY_MARKERS = ("related part", "realated part")
 
-    Vigil symmetric-emission S2: the mint-side and the prune-side must
-    classify IDENTICALLY, and SQL CASE order is load-bearing —
-    ``'%holding company%'`` fires before the ``'%subsidiar%'`` catch, so
-    texts like 'Subsidiary of Holding Company' route to ``sub_rev``.
-    Pinned by test against the SQL on seeded texts.
+
+def _norm_rel(text: str | None) -> str:
+    """Case-folded, whitespace/nbsp-collapsed relationship text — the
+    Python mirror of the SQL's ``regexp_replace(lower(relationship),
+    '\\s+', ' ', 'g')`` (filings carry ``\\xa0`` around 'of')."""
+    return " ".join((text or "").lower().split())
+
+
+def classify_relationship(text: str | None, rel_group: str | None = None) -> str | None:
+    """Relationship text → edge class: the guarded ladder (R6a/C1).
+
+    The pre-cure CASE ran ``%holding company%`` / ``%subsidiar%``
+    catch-alls with no guards, so subsidiary-ADJACENT parties ("KMP of
+    Subsidiary") and third-party-parentage descriptions ("Subsidiary of
+    (Ultimate) Holding Company" — a SIBLING, not a parent) minted false
+    child→parent edges between group companies (live example:
+    TCS→Rallis India). The cure keeps the catch-alls as the LAST
+    subsidiary rules and runs guards first:
+
+    1. personnel/KMP/relative/related-party texts → None (no control
+       relation exists for these).
+    2. fellow subsidiaries, or ``subsidiar* of X`` where X names a
+       THIRD party (any `` of `` except ``of the company`` = the filer
+       itself) → same_group (co-membership, not parentage).
+    3. joint venture → jv_with; associate / common control / promoter
+       group → same_group (pre-cure behavior, unchanged).
+    4. residual ``subsidiar`` / ``wholly owned`` → sub_fwd — now only
+       reachable by claims that the counterparty IS the filer's
+       subsidiary.
+    5. ``holding compan`` → sub_rev — counterparty IS the filer's
+       holding company.
+    6. rel_group fallback → same_group.
+
+    Mirrored clause-for-clause in the _PAIRS_SQL CASE (over the
+    nbsp-normalized text); pinned by
+    test_classify_mirror_agrees_with_sql.
     """
-    t = (text or "").lower()
-    if "holding company" in t:
-        return "sub_rev"
-    if "fellow subsidiar" in t:
-        return "same_group"
-    if t.startswith("subsidiary of listed") or t.startswith("subsidiary of ultimate"):
+    t = _norm_rel(text)
+    if any(m in t for m in _PERSONNEL_MARKERS) or any(m in t for m in _RELATED_PARTY_MARKERS):
+        return None
+    if "fellow subsidiar" in t or ("subsidiar" in t and " of " in t and "of the company" not in t):
         return "same_group"
     if "joint venture" in t:
         return "jv_with"
-    if "associat" in t:
-        return "same_group"
-    if "common control" in t or "promoter group" in t:
+    if "associat" in t or "common control" in t or "promoter group" in t:
         return "same_group"
     if "subsidiar" in t or "wholly owned" in t:
         return "sub_fwd"
+    if "holding compan" in t:
+        return "sub_rev"
     if rel_group in ("Group Companies", "Promoter Group", "Common Control/Influence"):
         return "same_group"
     return None
 
 
+# Canonical SQL form of classify_relationship's guarded ladder (R6a/C1),
+# evaluated over ``r`` = regexp_replace(lower(relationship), '\\s+', ' ',
+# 'g') — see _PAIRS_SQL for the embedding. Kept as the reference block;
+# _PAIRS_SQL and classify_relationship are the executable homes.
 _CLASSIFY_SQL = """
 CASE
-  WHEN lower(relationship) LIKE '%holding company%' THEN 'sub_rev'
-  WHEN lower(relationship) LIKE '%fellow subsidiar%' THEN 'same_group'
-  WHEN lower(relationship) LIKE 'subsidiary of listed%'
-       OR lower(relationship) LIKE 'subsidiary of ultimate%' THEN 'same_group'
-  WHEN lower(relationship) LIKE '%joint venture%' THEN 'jv_with'
-  WHEN lower(relationship) LIKE '%associat%' THEN 'same_group'
-  WHEN lower(relationship) LIKE '%common control%'
-       OR lower(relationship) LIKE '%promoter group%' THEN 'same_group'
-  WHEN lower(relationship) LIKE '%subsidiar%'
-       OR lower(relationship) LIKE '%wholly owned%' THEN 'sub_fwd'
+  WHEN regexp_matches(r, 'kmp|key management|director|relative|personnel|employee|promoter of|related part|realated part')
+    THEN NULL
+  WHEN r LIKE '%fellow subsidiar%'
+       OR (r LIKE '%subsidiar%' AND r LIKE '% of %'
+           AND r NOT LIKE '%of the company%') THEN 'same_group'
+  WHEN r LIKE '%joint venture%' THEN 'jv_with'
+  WHEN r LIKE '%associat%' OR r LIKE '%common control%'
+       OR r LIKE '%promoter group%' THEN 'same_group'
+  WHEN r LIKE '%subsidiar%' OR r LIKE '%wholly owned%' THEN 'sub_fwd'
+  WHEN r LIKE '%holding compan%' THEN 'sub_rev'
   WHEN rel_group IN ('Group Companies', 'Promoter Group',
                      'Common Control/Influence') THEN 'same_group'
 END
@@ -275,22 +320,25 @@ _PAIRS_SQL = """
            counter_party, relationship, rel_group, transaction_type,
            amount_during_period, period_end_date, xbrl_url,
     CASE
-      WHEN lower(relationship) LIKE '%holding company%' THEN 'sub_rev'
-      WHEN lower(relationship) LIKE '%fellow subsidiar%' THEN 'same_group'
-      WHEN lower(relationship) LIKE 'subsidiary of listed%'
-           OR lower(relationship) LIKE 'subsidiary of ultimate%' THEN 'same_group'
-      WHEN lower(relationship) LIKE '%joint venture%' THEN 'jv_with'
-      WHEN lower(relationship) LIKE '%associat%' THEN 'same_group'
-      WHEN lower(relationship) LIKE '%common control%'
-           OR lower(relationship) LIKE '%promoter group%' THEN 'same_group'
-      WHEN lower(relationship) LIKE '%subsidiar%'
-           OR lower(relationship) LIKE '%wholly owned%' THEN 'sub_fwd'
+      WHEN regexp_matches(r, 'kmp|key management|director|relative|personnel|employee|promoter of|related part|realated part')
+        THEN NULL
+      WHEN r LIKE '%fellow subsidiar%'
+           OR (r LIKE '%subsidiar%' AND r LIKE '% of %'
+               AND r NOT LIKE '%of the company%') THEN 'same_group'
+      WHEN r LIKE '%joint venture%' THEN 'jv_with'
+      WHEN r LIKE '%associat%' OR r LIKE '%common control%'
+           OR r LIKE '%promoter group%' THEN 'same_group'
+      WHEN r LIKE '%subsidiar%' OR r LIKE '%wholly owned%' THEN 'sub_fwd'
+      WHEN r LIKE '%holding compan%' THEN 'sub_rev'
       WHEN rel_group IN ('Group Companies', 'Promoter Group',
                          'Common Control/Influence') THEN 'same_group'
     END AS cls
-    FROM rpt_transactions
-    WHERE symbol IS NOT NULL AND counter_party IS NOT NULL
-      AND entity_name IS NOT NULL
+    FROM (
+      SELECT *, regexp_replace(lower(relationship), '\\s+', ' ', 'g') AS r
+      FROM rpt_transactions
+      WHERE symbol IS NOT NULL AND counter_party IS NOT NULL
+        AND entity_name IS NOT NULL
+    )
     ORDER BY symbol, counter_party, period_end_date_parsed DESC NULLS LAST
     """
 
@@ -913,6 +961,91 @@ def apply_rating_pairs(
 
 
 # --------------------------------------------------------------------------- #
+# subsidiary_of cure (R6a/C2)
+# --------------------------------------------------------------------------- #
+
+
+def _cure_sample(samples: dict, bucket: str, src: str, dst: str, rel) -> None:
+    if len(samples.setdefault(bucket, [])) < 5:
+        samples[bucket].append((src, dst, str(rel)[:80]))
+
+
+def cure_subsidiary_backfill(conn: sqlite3.Connection, *, apply: bool = False) -> dict:
+    """One-shot reclassification of existing ``vigil:*`` subsidiary_of
+    edges under the guarded ladder (R6a/C1 — see classify_relationship).
+
+    The mint-side classifier is cured at the source, but the store
+    already holds the polluted edges. Dispositions: strict claims keep;
+    sibling / third-party-parentage descriptions reclass to same_group
+    (canonical orientation, symmetric, properties + source_ref carried
+    so the filing remains the provenance); texts that now classify
+    jv_with reclass to jv_with; personnel / related-party texts delete
+    (no company↔company relation exists for them), including rows whose
+    properties no longer parse. Non-vigil subsidiary_of rows (prose
+    extractor) are untouched — that lane owns its own convention.
+    Idempotent: survivors re-classify to keep. graph_edges triggers bump
+    db_meta.generation on write; run the derived-store + CSR rebuild
+    chain afterwards (graph-rebuild → stamp-centrality → csr-rebuild).
+
+    Returns ``{"counts": {...}, "samples": {disposition: [(source,
+    target, relationship), ...] top-5}}`` — dry-run reports the plan
+    without writing.
+    """
+    rows = conn.execute(
+        "SELECT id, source, target, properties, source_ref FROM graph_edges "
+        "WHERE edge_type='subsidiary_of' AND source_ref LIKE 'vigil:%'"
+    ).fetchall()
+    counts = {
+        "scanned": len(rows),
+        "keep": 0,
+        "to_same_group": 0,
+        "to_jv_with": 0,
+        "dropped": 0,
+        "unparsable_dropped": 0,
+    }
+    samples: dict[str, list] = {}
+    delete_ids: list[int] = []
+    reclass: list[tuple[str, str, str, str, str]] = []
+    for rid, src, dst, props, ref in rows:
+        try:
+            rel = json.loads(props or "{}").get("relationship")
+        except TypeError, ValueError:
+            rel = None
+        cls = classify_relationship(rel)
+        if cls in ("sub_fwd", "sub_rev"):
+            counts["keep"] += 1
+            _cure_sample(samples, "keep", src, dst, rel)
+        elif cls in ("same_group", "jv_with"):
+            counts["to_same_group" if cls == "same_group" else "to_jv_with"] += 1
+            a, b = (src, dst) if src < dst else (dst, src)
+            reclass.append((a, b, cls, props, ref))
+            delete_ids.append(rid)
+            _cure_sample(samples, cls, src, dst, rel)
+        else:
+            counts["dropped"] += 1
+            if rel is None:
+                counts["unparsable_dropped"] += 1
+            delete_ids.append(rid)
+            _cure_sample(samples, "dropped", src, dst, rel)
+    if apply:
+        with conn:
+            for src, dst, etype, props, ref in reclass:
+                conn.execute(
+                    "INSERT INTO graph_edges (source, target, edge_type, weight, "
+                    "properties, source_ref, symmetric, source_tier) "
+                    "VALUES (?, ?, ?, 1.0, ?, ?, 1, 'external') "
+                    "ON CONFLICT(source, target, edge_type) DO UPDATE SET "
+                    "properties=excluded.properties, source_ref=excluded.source_ref",
+                    (src, dst, etype, props, ref),
+                )
+            conn.executemany(
+                "DELETE FROM graph_edges WHERE id = ?",
+                [(rid,) for rid in delete_ids],
+            )
+    return {"counts": counts, "samples": samples}
+
+
+# --------------------------------------------------------------------------- #
 # CLI
 # --------------------------------------------------------------------------- #
 def main(argv: list[str] | None = None) -> int:  # noqa: C901  # pass-per-flag CLI
@@ -932,9 +1065,30 @@ def main(argv: list[str] | None = None) -> int:  # noqa: C901  # pass-per-flag C
         "--supply-chain", action="store_true", help="supplier_to pass from RPT transaction types"
     )
     ap.add_argument("--ratings", action="store_true", help="rated_by pass from credit_ratings")
+    ap.add_argument(
+        "--cure-subsidiary",
+        action="store_true",
+        help="R6a/C2 backfill: reclassify existing vigil:* subsidiary_of edges under "
+        "the guarded ladder (dry-run; --apply writes; then graph-rebuild chain)",
+    )
     ap.add_argument("--max-new-entities", type=int, default=60000)
     args = ap.parse_args(argv)
 
+    if args.cure_subsidiary:
+        from helpers.core.db import connect as sqlite_connect, DEFAULT_DB_PATH  # noqa: PLC0415
+
+        conn = sqlite_connect(DEFAULT_DB_PATH)
+        try:
+            plan = cure_subsidiary_backfill(conn, apply=args.apply)
+        finally:
+            conn.close()
+        for key, val in plan["counts"].items():
+            print(f"  {key:20s} {val:>7,}")
+        for bucket, bucket_rows in sorted(plan["samples"].items()):
+            for s, t, rel in bucket_rows[:3]:
+                print(f"  [{bucket}] {s} → {t}  ({rel!r})")
+        print("cure: APPLIED" if args.apply else "cure: dry-run — no writes (--apply to write)")
+        return 0
     src = duckdb.connect(str(SOURCES_DB))
     if args.download:
         cache = download_bulk(refetch=args.refetch)

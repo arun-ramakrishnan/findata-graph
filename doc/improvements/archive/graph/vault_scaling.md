@@ -40,14 +40,30 @@ comfortable past ~200M rows (~840 MB); the DuckDB side (table ~50 B/row,
 past 100M rows is shard-by-node-range (see B-C), never a silent int
 widen.
 
-## 2. Trigger ladder (replaces the single 100ms line)
+## 2. Trigger ladder (R4 rewrite, 2026-10-25: capability + p95 walls DRIVE; counts are guardrails)
 
-| tier | rows (e_all_und doubled) | fires | serves queries |
-|---|---|---|---|
-| T0 now | 115K (was 34K at filing) | — | DuckDB BFS (8–44 ms, green) |
-| T1 | ~1M (full BFS > 100 ms) | build CSR (Phase B-A) | DuckDB + ART-index bridge and/or tiered-budget waiver |
-| T2 | ~10M (re-anchor 2026-10-01: the "rebuild > 5 s" that used to label this row is reached at ~907K rows, i.e. T1; at T2's own ~10M the measured rebuild is ~32 s) | rebuild-at-scale + Mojo BFS promotion on measured >2× crossover | CSR + Mojo BFS (parity-gated) |
-| T3 | 100M | full validation legs mandatory pre-promotion | CSR + Mojo BFS, direction-optimized |
+The count columns that used to FIRE tiers are demoted to arrival
+ESTIMATES (budgeting guardrails, never drivers). The
+graph_relational_depth arc is the in-doc case study for
+capability-gating: the cosine KNN port promoted only AFTER measurement
+(rust 892 q/s at the production 705×512 shape, numpy leads at 5k
+synthetic — shape decides, hence selector overrides), and metapath
+stayed on typed in-memory adjacency at 62K source edges because the
+CAPABILITY is labels+trust — which the label-free CSR bins cannot
+carry (B-A non-goal) — a row count could not have made that call
+either way.
+
+| tier | capability unlocked | promotion wall (MEASURED — the driver) | rows estimate (guardrail, never fires) | serves |
+|---|---|---|---|---|
+| T0 now | typed metapath `connect()` + R3 insight lanes + hyper s-paths over the source store | — (green: ownership 1.8–9.2 ms warm, hyper 18.7 ms/pair, DuckDB BFS 8–44 ms) | 115K at filing → ~126K doubled live (~63K source) | DuckDB cache + per-generation typed adjacency |
+| T1 | CSR substrate becomes the hop layer; ART-index bridge / tiered-budget waiver | full-graph BFS p95 > 100 ms sustained | ~1M (the 2026-10-01 re-anchor puts the old "rebuild > 5 s" at ~907K — same arrival band) | DuckDB + ART bridge and/or tiered-budget waiver |
+| T2 | Mojo BFS kernel, parity-gated | CSR-vs-DuckDB >2× sustained crossover, measured; rebuild-at-scale owned (~32 s measured at 10M) | ~10M | CSR + Mojo BFS (parity-gated) |
+| T3 | 100M-row validation legs complete the promotion (shard-ready int32 CSR) | full validation legs MANDATORY pre-promotion | 100M (int32 headroom 21×) | CSR + Mojo BFS, direction-optimized |
+
+The T1/T2/T3 CEILINGS stay as guardrails: the 100 ms BFS wall, the
+5 s rebuild budget, the int32 payload cap. What changed is only WHO
+fires promotion — a measured capability wall (p95 latency, sustained
+crossover, a passed validation leg), never a row count.
 
 Phase 0/1/2 split (operator decision 2026-09-04, build-early aim):
 Phase 0 = build substrate while DuckDB serves; Phase 1 = kernel +

@@ -38,15 +38,6 @@ entry number and stale DONE pointers):
 
 ## Current live proposals
 
-- `graph_relational_depth.md` — relational depth overhaul (filed
-  2026-10-25, operator ask): typed metapath layer (ownership/flow/
-  affiliation/competition/joint/attention) with `connect()` path
-  explanations over CSR, deep relationship cards, derived multi-hop
-  insights (ultimate_parent, hidden_connections, supply_chokepoints),
-  hyper s-paths leg (the shelf trigger FIRES), customer_of extraction-gap
-  fix, + the capability-gated scaling doctrine replacing count-gated
-  triggers.
-
 - `database/rust_embed_cache_port.md` — Rust port of embedding-cache
   SHA-256 + SQLite pipeline (filed 2026-10-25): Trial A shows ~3× end-to-end
   speedup on full pipeline (Rust/embed_cache); Python leads raw SHA-256
@@ -58,7 +49,8 @@ entry number and stale DONE pointers):
   is completed.md #427. Upstream changeset:
   <https://github.com/duckdb/duckdb/releases/tag/v2.0.0>.
 Previous batch (executed + archived — see `../archive/README.md` for the
-detail bullets): `../archive/graph/rust_cosine_knn_port.md` (#440),
+detail bullets): `../archive/graph/graph_relational_depth.md` (#441),
+`../archive/graph/rust_cosine_knn_port.md` (#440),
 `../archive/graph/graph_enhancement_roadmap.md` (#439),
 `../archive/graph/graph_read_path_consolidation.md` (#438),
 `../archive/tooling/mojo_12_adoptions.md` (#437, deferred),

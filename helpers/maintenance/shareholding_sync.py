@@ -78,6 +78,79 @@ _PERSON_CATEGORIES = (
 )
 _CORPORATE_CATEGORY = "BodiesCorporate"
 
+# R6b (graph_relational_depth, 2026-10-25): shareholding-page STRUCTURAL
+# rows are category holders, not investors. The NSE XBRL path filters them
+# by category axis; the BSE HTML path mints them (t3 subtotal/equation rows
+# carry subcategory headers like 'Any Other (specify)' as their category),
+# so detection is NAME-based and every invested_in mint path marks matches
+# with properties.category_holder=true. Majority promotion and participation
+# consumers filter on the marker / name test — never on the mixed-kind
+# weight column.
+_CATEGORY_HOLDER_NAMES = frozenset(
+    {
+        "office bearers",
+        "foreign portfolio investor (individual)",
+        "foreign portfolio investors",
+        "mutual funds",
+        "banks",
+        "financial institutions",
+        "insurance companies",
+        "central government",
+        "state government",
+        "venture capital funds",
+        "foreign collaborators",
+        "non-resident indians",
+        "bodies corporate",
+        "employee welfare trusts",
+        "clearing members",
+        "stock lenders",
+        "any other (specify)",
+    }
+)
+_CATEGORY_HOLDER_RE = re.compile(
+    r"^\(?\s*sub[-\s]?total\b"  # Sub-Total (A)(1) … promoter/public aggregates
+    # paren/shareholding forms only — 'Total Gas Limited' is a NAMED holder
+    r"|^\(?\s*total\s*\("  # Total (A+B+C), Total ( A+B+C2 )
+    r"|^\(?\s*total shareholding\b"  # Total Shareholding of Promoter …
+    r"|^\(?\s*(grand|net)\s+total\b"
+    r"|^\([a-z0-9]+\)\s*="  # (B)=(B)(1)+(B)(2)+… equation rows
+)
+
+
+def is_category_holder(name: str) -> bool:
+    """True for shareholding-page structural rows — subtotal/total/equation
+    lines and standard subcategory labels (aggregates, not investors)."""
+    n = " ".join((name or "").casefold().split())
+    return bool(_CATEGORY_HOLDER_RE.match(n)) or n in _CATEGORY_HOLDER_NAMES
+
+
+def stake_pct_of(properties_json: str | None) -> float | None:
+    """Participation weight accessor — the semantic stake in PERCENT.
+
+    ``pctHeld`` (yfinance holders leg) is a fraction → ×100; ``stake_pct``
+    (shp filings leg) is already percent. The weight COLUMN is mixed-kind
+    across legs (stake on shp, 1.0/3.0 ranking on yfinance) — influence
+    queries read this, never the column.
+    """
+    try:
+        d = json.loads(properties_json or "{}")
+    except TypeError, ValueError:
+        return None
+    v = d.get("pctHeld")
+    if v is not None:
+        try:
+            return round(float(v) * 100.0, 4)
+        except TypeError, ValueError:
+            return None
+    v = d.get("stake_pct")
+    if v is not None:
+        try:
+            return round(float(v), 4)
+        except TypeError, ValueError:
+            return None
+    return None
+
+
 _DDL = [
     """CREATE TABLE IF NOT EXISTS shp_filings (
         filing_id VARCHAR PRIMARY KEY,
@@ -810,6 +883,8 @@ def apply_candidates(  # noqa: C901
                 "pledged_shares": c["pledged"],
                 "filing_id": c["filing_id"],
             }
+            if is_category_holder(c["holder"]):
+                props["category_holder"] = True
             # graph_edges holds ONE interval per (source, target, type)
             # (UNIQUE constraint) — the interval history lives in
             # shp_filings/shp_holders. A newer filing UPSERTS the pair in
@@ -878,6 +953,178 @@ def build_same_group(
 
 
 # --------------------------------------------------------------------------- #
+# R6b (graph_relational_depth) — category-holder marker + majority promotion
+# --------------------------------------------------------------------------- #
+MAJORITY_PROMOTE_PREFIX = "derive:shareholding_majority"
+MAJORITY_PCT = 50.0
+
+
+def mark_category_holders(conn: sqlite3.Connection, *, apply: bool = False) -> dict:
+    """One-time backfill: stamp ``properties.category_holder=true`` on live
+    invested_in rows whose holder is a structural shareholding-page row.
+
+    Standing behavior lives at mint (apply_candidates / the yfinance
+    holders leg); this brings pre-marker rows to parity so consumers can
+    filter structurally.
+    """
+    rows = conn.execute(
+        "SELECT id, source, properties FROM graph_edges WHERE edge_type='invested_in'"
+    ).fetchall()
+    to_mark: list[tuple[int, str, str]] = []  # (id, holder, new_props)
+    for rid, holder, props_json in rows:
+        try:
+            d = json.loads(props_json or "{}")
+        except ValueError:
+            continue
+        if d.get("category_holder") or not is_category_holder(holder):
+            continue
+        d["category_holder"] = True
+        to_mark.append((rid, holder, json.dumps(d, sort_keys=True)))
+    counts = {
+        "scanned": len(rows),
+        "to_mark": len(to_mark),
+        "marked": 0,
+        "samples": sorted({holder for _rid, holder, _p in to_mark})[:6],
+    }
+    if not apply or not to_mark:
+        return counts
+    with conn:
+        conn.executemany(
+            "UPDATE graph_edges SET properties=? WHERE id=?",
+            [(props, rid) for rid, _holder, props in to_mark],
+        )
+    counts["marked"] = len(to_mark)
+    return counts
+
+
+def reconcile_majority_ownership(  # noqa: C901
+    conn: sqlite3.Connection, *, apply: bool = False
+) -> dict:
+    """Clean-majority promotion into the ownership semantic (R6b / I1).
+
+    Every ``invested_in`` row whose holder is a NAMED investor (not a
+    category holder — name test or marker) at >= ``MAJORITY_PCT`` percent
+    promotes as ``subsidiary_of`` child=investee → parent=holder with
+    ``source_ref='derive:shareholding_majority:<date>'``,
+    ``source_tier='derive'``, weight 1.0 — the stake rides in
+    ``properties.pct`` via :func:`stake_pct_of` (the participation weight;
+    the column is mixed-kind and never a stake).
+
+    Store-wide idempotent reconcile: promote-ref edges whose dyad is no
+    longer clean-majority retract (control lost / source row deleted); a
+    foreign ``subsidiary_of`` row on a desired dyad (VIGIL, manual, other
+    derive lanes) is never clobbered — counted as already-claimed.
+    Identical re-stamps skip the write so the generation trigger does not
+    churn on every sync run.
+    """
+    today = datetime.now(UTC).date().isoformat()
+    counts = {
+        "invested_scanned": 0,
+        "category_skipped": 0,
+        "no_stake_skipped": 0,
+        "minority_skipped": 0,
+        "majority_eligible": 0,
+        "to_insert": 0,
+        "to_update": 0,
+        "to_retract": 0,
+        "already_claimed_foreign": 0,
+        "inserted": 0,
+        "updated": 0,
+        "retracted": 0,
+    }
+    desired: dict[tuple[str, str], dict] = {}
+    for holder, investee, props_json, ref, valid_from in conn.execute(
+        "SELECT source, target, properties, source_ref, valid_from "
+        "FROM graph_edges WHERE edge_type='invested_in'"
+    ).fetchall():
+        counts["invested_scanned"] += 1
+        try:
+            d = json.loads(props_json or "{}")
+        except ValueError:
+            d = {}
+        if is_category_holder(holder) or d.get("category_holder"):
+            counts["category_skipped"] += 1
+            continue
+        pct = stake_pct_of(props_json)
+        if pct is None:
+            counts["no_stake_skipped"] += 1
+            continue
+        if pct < MAJORITY_PCT:
+            counts["minority_skipped"] += 1
+            continue
+        # subsidiary_of orientation: child (investee) → parent (holder)
+        desired[(investee, holder)] = {
+            "pct": pct,
+            "promoted_from": ref,
+            "valid_from": valid_from,
+        }
+    counts["majority_eligible"] = len(desired)
+
+    existing: dict[tuple[str, str], tuple[int, str, str, str | None]] = {}
+    for eid, src, tgt, ref, props, valid_from in conn.execute(
+        "SELECT id, source, target, source_ref, properties, valid_from "
+        "FROM graph_edges WHERE edge_type='subsidiary_of'"
+    ).fetchall():
+        existing[(src, tgt)] = (eid, ref, props or "{}", valid_from)
+
+    inserts: list[tuple[str, str, str, str | None, str]] = []
+    updates: list[tuple[str, str | None, str, int]] = []
+    retracts: list[int] = []
+    samples: list[tuple[str, str, float]] = []
+    retract_samples: list[tuple[str, str]] = []
+    claimed_samples: list[tuple[str, str, str]] = []
+    for child, parent in sorted(desired):
+        info = desired[(child, parent)]
+        props_json = json.dumps(
+            {"pct": info["pct"], "promoted_from": info["promoted_from"]}, sort_keys=True
+        )
+        ref = f"{MAJORITY_PROMOTE_PREFIX}:{today}"
+        hit = existing.get((child, parent))
+        if hit is None:
+            inserts.append((child, parent, props_json, info["valid_from"], ref))
+            if len(samples) < 8:
+                samples.append((child, parent, info["pct"]))
+        elif hit[1].startswith(MAJORITY_PROMOTE_PREFIX):
+            if hit[2] != props_json or hit[3] != info["valid_from"]:
+                updates.append((props_json, info["valid_from"], ref, hit[0]))
+        else:
+            counts["already_claimed_foreign"] += 1
+            if len(claimed_samples) < 5:
+                claimed_samples.append((child, parent, hit[1]))
+    for dyad in sorted(existing):
+        eid, ref, _props, _vf = existing[dyad]
+        if ref.startswith(MAJORITY_PROMOTE_PREFIX) and dyad not in desired:
+            retracts.append(eid)
+            if len(retract_samples) < 5:
+                retract_samples.append(dyad)
+
+    counts["to_insert"] = len(inserts)
+    counts["to_update"] = len(updates)
+    counts["to_retract"] = len(retracts)
+    counts["samples"] = samples
+    counts["retract_samples"] = retract_samples
+    counts["claimed_samples"] = claimed_samples
+    if not apply or not (inserts or updates or retracts):
+        return counts
+    with conn:
+        conn.executemany(
+            "INSERT INTO graph_edges (source, target, edge_type, weight, properties, "
+            "valid_from, source_ref, symmetric, source_tier) "
+            "VALUES (?, ?, 'subsidiary_of', 1.0, ?, ?, ?, 0, 'derive')",
+            inserts,
+        )
+        conn.executemany(
+            "UPDATE graph_edges SET properties=?, valid_from=?, source_ref=? WHERE id=?",
+            updates,
+        )
+        conn.executemany("DELETE FROM graph_edges WHERE id=?", [(r,) for r in retracts])
+    counts["inserted"] = len(inserts)
+    counts["updated"] = len(updates)
+    counts["retracted"] = len(retracts)
+    return counts
+
+
+# --------------------------------------------------------------------------- #
 # CLI
 # --------------------------------------------------------------------------- #
 def _resolve_companies(src: duckdb.DuckDBPyConnection, conn: sqlite3.Connection) -> dict[str, str]:
@@ -937,6 +1184,12 @@ def main(argv: list[str] | None = None) -> int:  # noqa: C901
         help="corporate-holder %% floor for same_group (default 10)",
     )
     ap.add_argument("--sleep", type=float, default=1.0, help="seconds between archive fetches")
+    ap.add_argument(
+        "--cure-participation",
+        action="store_true",
+        help="R6b backfill: stamp category_holder on structural rows + reconcile "
+        "clean-majority promotion into subsidiary_of (default dry-run; --apply writes)",
+    )
     args = ap.parse_args(argv)
 
     FETCH_SCRATCH.mkdir(parents=True, exist_ok=True)
@@ -944,6 +1197,30 @@ def main(argv: list[str] | None = None) -> int:  # noqa: C901
     if args.fetch_only and args.apply_only:
         print("[shp] --fetch-only and --apply-only are mutually exclusive")
         return 2
+
+    if args.cure_participation:
+        from helpers.core.db import connect as sqlite_connect, DEFAULT_DB_PATH
+
+        conn = sqlite_connect(DEFAULT_DB_PATH)
+        marked = mark_category_holders(conn, apply=args.apply)
+        rec = reconcile_majority_ownership(conn, apply=args.apply)
+        mode = "APPLIED" if args.apply else "dry-run"
+        print(f"participation cure ({mode}):")
+        print(
+            f"  category-holder marker: {marked['to_mark']} of {marked['scanned']} "
+            f"invested_in rows" + (f" — e.g. {marked['samples'][:3]}" if marked["samples"] else "")
+        )
+        print(
+            f"  majority reconcile: eligible={rec['majority_eligible']} "
+            f"insert={rec['to_insert']} update={rec['to_update']} "
+            f"retract={rec['to_retract']} already_claimed={rec['already_claimed_foreign']}"
+        )
+        for child, parent, pct in rec["samples"]:
+            print(f"    promote {child} -> {parent} ({pct}%)")
+        for child, parent in rec["retract_samples"]:
+            print(f"    retract {child} -> {parent}")
+        conn.close()
+        return 0
 
     # ------------------------------------------------------------------ #
     # Fetch phase — network-bound, no research.db / sources.duckdb writes #
@@ -1102,6 +1379,14 @@ def main(argv: list[str] | None = None) -> int:  # noqa: C901
     n_ent, n_fresh, n_written = apply_candidates(
         conn, candidates, norm_to_name, dry_run=not args.apply
     )
+    if args.apply:
+        # R6b standing reconcile: majority promotion follows every apply
+        rec = reconcile_majority_ownership(conn, apply=True)
+        print(
+            f"majority reconcile: eligible={rec['majority_eligible']} "
+            f"inserted={rec['inserted']} updated={rec['updated']} "
+            f"retracted={rec['retracted']} already_claimed={rec['already_claimed_foreign']}"
+        )
     mode = "APPLY" if args.apply else "dry-run"
     n_filings = _scalar(src, "SELECT COUNT(*) FROM shp_filings")
     n_universe = _scalar(

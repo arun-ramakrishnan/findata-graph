@@ -57,7 +57,7 @@ export PATH := $(CURDIR)/.venv/bin:$(PATH)
 export TMPDIR ?= $(shell test -d /mnt/data/tmp && { mkdir -p /mnt/data/tmp/findata; echo /mnt/data/tmp/findata; } || echo /tmp)
 
 
-.PHONY: help qa test live-invariants perf cover fuzz integration snapshot snapshot-check snapshot-restore sync-tags sync-coverage-tags sync-sector-links static-checks license-check tmp-sweep install-dev triage-quotes gate-fresh graph-smoke graph-stats graph-algos graph-rebuild graph-rebuild-bench update-extensions recompute-graph recompute-hyper search-fresh convo-fresh embed-gc search-tui tier-nudge tier-watch derive-relations derive-co-mentions derive-org-membership derive-event-participants derive-merger-hyperedges dup-census person-census derive-themes derive-events derive-insights derive-indices quote-coverage derive-themes-rebuild derive-cited-in derive-cited-in-rebuild derive-hyperedges derive-all refresh-indices refresh-vigil refresh-shp frontend frontend-check fold-identifiers format maint maint-full md-lint metrics-rebuild mojo-bench mojo-parity mojo-build mojo-test mojo-format relations-enrich lint types types-tests lint-audit deptry advisory ocr-version-check onager-build secret-scan cargo-audit script-search-rebuild memory-search-rebuild triage-relations teleocr-server embgemma-server granite-server llamacpp-build llamacpp-health quack-start quack-stop quack-status quack-restart quack-health csr csr-check csr-rebuild convo-search-rebuild convo-search-check analytics-parquet analytics-fresh schema-check schema-dump bili-status bili-monitor bili-stop-monitor bili-report bili-snap bili-watch-event bili-thresh-replay
+.PHONY: help qa test live-invariants perf cover fuzz integration snapshot snapshot-check snapshot-restore sync-tags sync-coverage-tags sync-sector-links static-checks license-check tmp-sweep install-dev triage-quotes gate-fresh graph-smoke graph-stats graph-algos graph-rebuild graph-rebuild-bench update-extensions recompute-graph recompute-hyper search-fresh convo-fresh embed-gc search-tui tier-nudge tier-watch derive-relations derive-co-mentions derive-org-membership derive-event-participants derive-merger-hyperedges dup-census person-census derive-themes derive-events derive-insights derive-indices quote-coverage derive-themes-rebuild derive-cited-in derive-cited-in-rebuild derive-hyperedges derive-relational-insights derive-all refresh-indices refresh-vigil refresh-shp frontend frontend-check fold-identifiers format maint maint-full md-lint metrics-rebuild mojo-bench mojo-parity mojo-build mojo-test mojo-format relations-enrich lint types types-tests lint-audit deptry advisory ocr-version-check onager-build secret-scan cargo-audit script-search-rebuild memory-search-rebuild triage-relations teleocr-server embgemma-server granite-server llamacpp-build llamacpp-health quack-start quack-stop quack-status quack-restart quack-health csr csr-check csr-rebuild convo-search-rebuild convo-search-check analytics-parquet analytics-fresh schema-check schema-dump bili-status bili-monitor bili-stop-monitor bili-report bili-snap bili-watch-event bili-thresh-replay
 
 help:           ## Show available targets (alphabetical; entries generated from the ## annotations — keep both in sync)
 > @echo "FinData targets (alphabetical):"
@@ -712,9 +712,15 @@ derive-cited-in-rebuild: ## derive-cited-in + graph-rebuild — the paired run c
 # findata/_pending_relations.txt). Excluded: metrics-rebuild (no dry-run —
 # network fetch + note writes) and suggest-relations (review tool, not a
 # derivation preview).
+derive-relational-insights: ## Derive R3 relational-insight tables (ultimate_parent, hidden_connections, supply_chokepoints, competitive_overlap): dry-run default, APPLY=1 writes
+> .venv/bin/python3 helpers/graph/derive_relational_insights.py $(if $(APPLY),--apply,)
+> @echo "✓ derive-relational-insights done"
+
 derive-all: ## READ-ONLY preview of every derive-* step (dry-runs; nothing written, sidecar suppressed)
 > @echo "=== derive-insights (stale-only worklist) ==="
 > python3 helpers/graph/derive_insights.py findata --stale-only
+> @echo "=== derive-relational-insights (R3 lanes) ==="
+> .venv/bin/python3 helpers/graph/derive_relational_insights.py
 > @echo "=== derive-relations (pending edges; sidecar suppressed) ==="
 > python3 helpers/graph/extract_relations.py findata/The_Chatter findata/Points_And_Figures findata/The_Plotlines --no-write-sidecar
 > @echo "=== derive-co-mentions ==="

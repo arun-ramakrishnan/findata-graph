@@ -194,6 +194,175 @@ class TestBuildContextPack:
         assert "## Semantic neighbors" not in pack
 
 
+R3_DDL = """
+CREATE TABLE ultimate_parent (
+    company TEXT PRIMARY KEY, ultimate_parent TEXT, depth INTEGER,
+    path TEXT, root_kind TEXT, coalition_pct REAL, computed_at DATETIME);
+CREATE TABLE hidden_connections (
+    a TEXT, b TEXT, distance INTEGER, shared_count INTEGER,
+    intermediaries TEXT, computed_at DATETIME, PRIMARY KEY (a, b));
+CREATE TABLE supply_chokepoints (
+    supplier TEXT PRIMARY KEY, competitors_served INTEGER,
+    competitor_dyads INTEGER, companies TEXT, computed_at DATETIME);
+CREATE TABLE competitive_overlap (
+    a TEXT, b TEXT, c TEXT, computed_at DATETIME, PRIMARY KEY (a, b, c));
+"""
+
+
+@pytest.fixture()
+def r3db(tmp_path: Path):
+    """R2 deep-relations fixture: the four R3 insight tables for the Acme
+    universe (self-root with coalition, 2-company descendant forest)."""
+    import json
+    import sqlite3
+
+    p = tmp_path / "research.db"
+    conn = sqlite3.connect(p)
+    conn.executescript(R3_DDL)
+    conn.executemany(
+        "INSERT INTO ultimate_parent VALUES (?,?,?,?,?,?, '2026-10-25')",
+        [
+            ("Acme", "Acme", 0, json.dumps(["Acme"]), "self-root", 64.1),
+            ("Sub One", "Acme", 1, json.dumps(["Sub One", "Acme"]), "chain-root", None),
+            (
+                "SubSub Co",
+                "Acme",
+                2,
+                json.dumps(["SubSub Co", "Sub One", "Acme"]),
+                "chain-root",
+                None,
+            ),
+            ("JV Friend", "HoldX", 1, json.dumps(["JV Friend", "HoldX"]), "chain-root", None),
+        ],
+    )
+    conn.execute(
+        "INSERT INTO hidden_connections VALUES "
+        "('Acme','Rival Co',2,2,'[\"NicheSup\",\"JvMid\"]','2026-10-25')"
+    )
+    conn.execute(
+        "INSERT INTO competitive_overlap VALUES ('Acme','Competitor','Comp C','2026-10-25')"
+    )
+    conn.execute(
+        "INSERT INTO supply_chokepoints VALUES "
+        "('BigSup',3,2,'[\"Acme\",\"Competitor\",\"Comp C\"]','2026-10-25')"
+    )
+    conn.commit()
+    yield p
+    conn.close()
+
+
+class TestDeepRelations:
+    def test_control_self_root_with_descendant_forest(self, con, r3db):
+        pack = CP.build_context_pack(con, "Acme", budget=50, research_db=r3db)
+        assert "## Deep relations" in pack
+        assert "### Control" in pack
+        assert "- control: self-root (no trusted parent) — promoter coalition 64.1%" in pack
+        assert (
+            "- descendant forest: 2 companies roll up to this root (1 direct); "
+            "nearest: Sub One (1 hop), SubSub Co (2 hops)" in pack
+        )
+
+    def test_chained_control_line(self, con, r3db):
+        pack = CP.build_context_pack(con, "Sub One", budget=50, research_db=r3db)
+        assert "- ultimate parent: Acme (depth 1; chain: Sub One → Acme)" in pack
+        assert (
+            "- descendant forest: 1 companies roll up to this root (1 direct); nearest: SubSub Co (1 hop)"
+            in pack
+        )
+
+    def test_insight_rollups(self, con, r3db):
+        pack = CP.build_context_pack(con, "Acme", budget=50, research_db=r3db)
+        assert "### Insight rollups" in pack
+        assert "- hidden connections (1): Rival Co" in pack
+        assert "- competitor-of-competitor set (2): Comp C, Competitor" in pack
+        assert "- chokepoint suppliers (1 — shared with rivals): BigSup" in pack
+
+    def test_two_step_supply_with_corroboration_floor(self, con, r3db):
+        con.execute(
+            "INSERT INTO v_node VALUES (20, 'Rival Co', 'company', 'Aerospace', NULL, NULL)"
+        )
+        con.execute(
+            "INSERT INTO v_node VALUES (21, 'NicheSup', 'company', 'Industrials', NULL, NULL)"
+        )
+        con.execute(
+            "INSERT INTO v_node VALUES (22, 'Weak Rival', 'company', 'Aerospace', NULL, NULL)"
+        )
+        # NicheSup supplies both Acme and Acme Supplier (my supplier -> 2nd tier);
+        # Rival Co is reached from BOTH of Acme's suppliers (2 shared -> kept);
+        # Weak Rival from one only (below the floor -> dropped).
+        con.execute("INSERT INTO e_supplier VALUES (21, 1, 1.0, NULL, NULL, NULL, NULL)")
+        con.execute("INSERT INTO e_supplier VALUES (21, 6, 1.0, NULL, NULL, NULL, NULL)")
+        con.execute("INSERT INTO e_supplier VALUES (6, 20, 1.0, NULL, NULL, NULL, NULL)")
+        con.execute("INSERT INTO e_supplier VALUES (21, 20, 1.0, NULL, NULL, NULL, NULL)")
+        con.execute("INSERT INTO e_supplier VALUES (6, 22, 1.0, NULL, NULL, NULL, NULL)")
+        pack = CP.build_context_pack(con, "Acme", budget=50, research_db=r3db)
+        assert "### Two-step supply" in pack
+        assert "- shared-supply rivals (Rival Co (2))" in pack
+        assert "Weak Rival" not in pack
+        assert "- second-tier suppliers: NicheSup" in pack
+
+    def test_groups_and_editions_hyperedge_families(self, con, r3db):
+        con.execute(
+            "CREATE TABLE h_edge(id BIGINT, edge_type VARCHAR, label VARCHAR, "
+            "weight DOUBLE, valid_from DATE, valid_to DATE, source_ref VARCHAR)"
+        )
+        con.execute(
+            "CREATE TABLE h_incidence(edge_id BIGINT, entity_name VARCHAR, "
+            "weight DOUBLE, direction VARCHAR, role VARCHAR, "
+            "valid_from DATE, valid_to DATE)"
+        )
+        con.execute(
+            "INSERT INTO h_edge VALUES (1, 'group', 'Aerospace Group', 1.0, NULL, NULL, NULL)"
+        )
+        con.execute("INSERT INTO h_edge VALUES (2, 'edition', 'Q1 Roundup', 1.0, NULL, NULL, NULL)")
+        con.execute("INSERT INTO h_incidence VALUES (1, 'Acme', 1.0, NULL, NULL, NULL, NULL)")
+        con.execute("INSERT INTO h_incidence VALUES (2, 'Acme', 1.0, NULL, NULL, NULL, NULL)")
+        pack = CP.build_context_pack(con, "Acme", budget=50, research_db=r3db)
+        assert "### Groups & editions" in pack
+        assert "- group (1): Aerospace Group" in pack
+        assert "- edition (1): Q1 Roundup" in pack
+
+    def test_absent_research_db_omits_section(self, con):
+        pack = CP.build_context_pack(con, "Acme", budget=50)
+        assert "## Deep relations" not in pack
+
+    def test_pre_r3_research_db_tolerated(self, con, tmp_path):
+        import sqlite3
+
+        p = tmp_path / "pre_r3.db"
+        c = sqlite3.connect(p)
+        c.execute("CREATE TABLE entities (name TEXT)")
+        c.commit()
+        c.close()
+        pack = CP.build_context_pack(con, "Acme", budget=50, research_db=p)
+        assert "## Deep relations" not in pack  # nothing rolls up on a pre-R3 store
+
+
+@pytest.mark.live
+class TestLiveDeepRelations:
+    LIVE = REPO_ROOT / "memory" / "graph.duckdb"
+
+    @pytest.fixture(autouse=True)
+    def _need_live(self):
+        if not self.LIVE.exists():
+            pytest.skip("live graph.duckdb not present")
+
+    def test_live_deep_relations_for_tata_steel(self):
+        con = query.connect_read_only(self.LIVE)
+        try:
+            pack = CP.build_context_pack(
+                con,
+                "Tata Steel",
+                budget=15,
+                research_db=REPO_ROOT / "memory" / "research.db",
+            )
+        finally:
+            con.close()
+        assert "## Deep relations" in pack
+        assert "### Control" in pack
+        assert "descendant forest" in pack
+
+
 @pytest.mark.live
 class TestLiveGraph:
     LIVE = REPO_ROOT / "memory" / "graph.duckdb"
