@@ -1604,6 +1604,102 @@ def _script_stored_embed_model(conn: sqlite3.Connection) -> str | None:
     return row[0] if row else None
 
 
+def _knn_backend() -> str:
+    """Cosine-leg backend selector (rust_cosine_knn_port S2/S3, 2026-10-25).
+
+    ``SCRIPT_KNN`` env: ``auto`` (default) → rust if the abi3 module
+    imports, else numpy, else the pure loop; explicit ``numpy`` / ``rust``
+    / ``pure`` overrides. Measured LIVE corpus 705×512 with the bytes
+    fast path (2026-10-25): rust 1.12 ms (892 q/s) > numpy 2.76 ms
+    (363 q/s) > pure 33.3 ms (30 q/s) — at production shape one fused
+    Rust pass beats numpy's per-ufunc dispatch; on a 5k×384 synthetic
+    numpy's BLAS matvec leads (3,100 vs 367 q/s), so the override exists
+    for larger shapings. Every fast path degrades to the pure loop on
+    any failure (hybrid must degrade, never 500 — app.py doctrine).
+    """
+    import os
+
+    return os.environ.get("SCRIPT_KNN", "auto")
+
+
+def _cosine_rank_rows(
+    q_vec: list[float],
+    rids: list[int],
+    vecs: list[list[float]],
+    blobs: list[bytes | str | None] | None = None,
+) -> tuple[list[tuple[int, float]], dict[int, float]]:
+    """Score decoded (rowid, vec) pairs against q_vec across backends.
+
+    ``blobs`` (the RAW stored column values) enable the zero-copy fast
+    path: when every blob is a 4*dim f32 binary row (the post-blob-migration
+    shape), the matrix is built by ``np.frombuffer(b"".join(...))`` — the
+    list→array conversion of 705×512 python floats measured ~10 ms/query
+    and dominated BOTH kernels before this (live bench 2026-10-25: numpy
+    10.9 ms ≈ rust 11.0 ms ≈ conversion-bound).
+
+    Backend parity is pinned by tests/test_cosine_knn_backends.py; the pure
+    loop is the semantic reference (stable sort; zero-norm rows score 0.0
+    exactly like the original _cosine_leg loop).
+    """
+    import numpy as np
+
+    backend = _knn_backend()
+    dim4 = 4 * len(q_vec)
+    matrix = None
+    if (
+        blobs is not None
+        and len(blobs) == len(rids)
+        and all(isinstance(b, (bytes, bytearray)) and len(b) == dim4 for b in blobs)
+    ):
+        matrix = np.frombuffer(b"".join(bytes(b) for b in blobs), dtype="<f4").reshape(
+            len(rids), len(q_vec)
+        )
+    if matrix is None:
+        matrix = np.asarray(vecs, dtype=np.float32)
+    qn = np.asarray(q_vec, dtype=np.float32)
+    if backend in ("auto", "rust"):
+        try:
+            # Dynamic import: the module is OPTIONAL (box-local abi3 wheel
+            # built from Rust/cosine_knn — absent on machines without the
+            # build), so the static deptry scan must not treat it as a
+            # declared dep. Same availability-follows pattern as the
+            # embedder selector.
+            import importlib
+
+            cosine_knn = importlib.import_module("cosine_knn")
+
+            top = cosine_knn.knn(np.ascontiguousarray(qn), np.ascontiguousarray(matrix), len(rids))
+            scored = [(rids[row], float(score)) for row, score in top]
+            return scored, {rids[row]: float(score) for row, score in top}
+        except ImportError:  # auto without the module -> numpy below
+            if backend == "rust":
+                pass  # explicit rust stays silent-fallback (never 500)
+        except Exception:  # noqa: S110  # degrade, never 500
+            pass
+    if backend in ("auto", "numpy"):
+        try:
+            denom = np.linalg.norm(matrix, axis=1) * np.linalg.norm(qn)
+            sims = np.where(denom > 0.0, (matrix @ qn) / np.where(denom > 0.0, denom, 1.0), 0.0)
+            order = np.argsort(-sims, kind="stable")
+            return (
+                [(rids[i], float(sims[i])) for i in order],
+                {rids[i]: float(sims[i]) for i in order},
+            )
+        except Exception:  # noqa: S110  # degrade to the pure loop, never 500
+            pass
+    # pure reference loop (unchanged semantics from the pre-S2 _cosine_leg)
+    norm_q = sum(x * x for x in q_vec) ** 0.5 or 1.0
+    scored: list[tuple[int, float]] = []
+    sims: dict[int, float] = {}
+    for rid, vec in zip(rids, vecs):
+        norm_v = sum(x * x for x in vec) ** 0.5 or 1.0
+        sim = sum(a * b for a, b in zip(q_vec, vec)) / (norm_q * norm_v)
+        scored.append((rid, sim))
+        sims[rid] = sim
+    scored.sort(key=lambda t: t[1], reverse=True)
+    return scored, sims
+
+
 def _cosine_leg(
     conn: sqlite3.Connection, q: str, query_vec: rbc.QueryVector | None = None
 ) -> tuple[list[tuple[int, float]], dict[int, float]]:
@@ -1613,7 +1709,10 @@ def _cosine_leg(
     the BM25 leg then carries the whole ranking (same degradation contract
     as rebuild_doc_search.search_docs). ``query_vec`` (shared_query_vector):
     a parent-fanned-out embedding used instead of a local model load when
-    its stamp matches; on mismatch the leg embeds locally as before."""
+    its stamp matches; on mismatch the leg embeds locally as before.
+
+    Scoring runs through _cosine_rank_rows (SCRIPT_KNN backend selector:
+    numpy default, rust opt-in, pure fallback — rust_cosine_knn_port S2)."""
     try:
         idx_dims = _script_stored_embed_dims(conn)
         q_vec: list[float] | None = None
@@ -1629,9 +1728,9 @@ def _cosine_leg(
             q_vec = candidate
     except Exception:  # noqa: S110  # embedder unavailable -> BM25 only
         return [], {}
-    sims: dict[int, float] = {}
-    scored: list[tuple[int, float]] = []
-    norm_q = sum(x * x for x in q_vec) ** 0.5 or 1.0
+    rids: list[int] = []
+    vecs: list[list[float]] = []
+    blobs: list[bytes | str | None] = []
     for rid, emb in conn.execute(
         "SELECT rowid, embedding FROM script_search WHERE embedding IS NOT NULL AND embedding != ''"
     ):
@@ -1643,12 +1742,10 @@ def _cosine_leg(
         vec = load_vec(emb)
         if not vec or len(vec) != len(q_vec):
             continue
-        norm_v = sum(x * x for x in vec) ** 0.5 or 1.0
-        sim = sum(a * b for a, b in zip(q_vec, vec)) / (norm_q * norm_v)
-        scored.append((rid, sim))
-        sims[rid] = sim
-    scored.sort(key=lambda t: t[1], reverse=True)
-    return scored, sims
+        rids.append(rid)
+        vecs.append(vec)
+        blobs.append(emb)
+    return _cosine_rank_rows(q_vec, rids, vecs, blobs=blobs)
 
 
 def _rows_by_rid(

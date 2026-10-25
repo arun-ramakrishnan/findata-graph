@@ -21,6 +21,8 @@ Mojo/bin/
 backup/
 output/
 venv/
+# Rust workspace build artifacts (machine-local; `cargo build` in Rust/)
+Rust/target/
 Reports/
 Telegram/
 findata/**/images

@@ -7,8 +7,10 @@ the BATCH interface the company-embeddings populate uses, plus the shared
 module's own contracts (model keying, degradation, length guard).
 """
 
+import json
 import sqlite3
 from pathlib import Path
+from types import SimpleNamespace
 
 from helpers.core.embed_cache import EMBED_CACHE_TABLE, cached_embed_batch
 
@@ -121,6 +123,105 @@ class TestCachedEmbedBatch:
         assert st["misses"] == 1
         assert st["hits"] == 0
         assert len(calls) == 2  # re-embedded
+
+    def test_opt_in_rust_hits_leave_misses_to_python(self, tmp_path, monkeypatch):
+        from helpers.core import embed_cache as EC
+        from helpers.core import vec_search as VS
+
+        store_path = tmp_path / "embed_store.db"
+        monkeypatch.setattr(VS, "EMBED_DB_PATH", store_path)
+        monkeypatch.setenv(EC._RUST_LOOKUP_ENV, "1")
+        monkeypatch.setattr(EC, "_rust_lookup_binary", lambda: tmp_path / "mock-rust")
+        conn = sqlite3.connect(tmp_path / "main.db")
+        VS._attach_vec_db(conn)
+        conn.execute(EC.EMBED_CACHE_DDL)
+        conn.commit()
+
+        requests = []
+
+        def fake_run(args, **kwargs):
+            assert args == [str(tmp_path / "mock-rust")]
+            request = json.loads(kwargs["input"])
+            requests.append(request)
+            return SimpleNamespace(
+                returncode=0,
+                stdout=json.dumps(
+                    {
+                        "protocol": 1,
+                        "hit_vectors": [{"index": 0, "vector": [9.0, 8.0]}],
+                        "miss_indices": [1, 2],
+                    }
+                ),
+                stderr="",
+            )
+
+        monkeypatch.setattr(EC.subprocess, "run", fake_run)
+        fn, calls = _fake_embed()
+        vectors, stats = cached_embed_batch(
+            conn, ["hot", "cold", "cold"], "m1", fn
+        )
+
+        assert requests[0]["db_path"] == str(store_path)
+        assert requests[0]["texts"] == ["hot", "cold", "cold"]
+        assert vectors == [[9.0, 8.0], [4.0, 1.0], [4.0, 1.0]]
+        assert stats == {"hits": 1, "misses": 2, "unique_misses": 1, "dirty": 1}
+        assert calls == [["cold"]]
+        assert len(_cache_rows(conn)) == 1
+
+    def test_rust_cli_failure_falls_back_to_python(self, tmp_path, monkeypatch, capsys):
+        from helpers.core import embed_cache as EC
+        from helpers.core import vec_search as VS
+
+        store_path = tmp_path / "embed_store.db"
+        monkeypatch.setattr(VS, "EMBED_DB_PATH", store_path)
+        monkeypatch.setenv(EC._RUST_LOOKUP_ENV, "1")
+        monkeypatch.setattr(EC, "_RUST_LOOKUP_WARNED", False)
+        monkeypatch.setattr(EC, "_rust_lookup_binary", lambda: tmp_path / "mock-rust")
+        monkeypatch.setattr(
+            EC.subprocess,
+            "run",
+            lambda *_args, **_kwargs: SimpleNamespace(
+                returncode=2, stdout="", stderr="read failed"
+            ),
+        )
+        conn = sqlite3.connect(tmp_path / "main.db")
+        VS._attach_vec_db(conn)
+        conn.execute(EC.EMBED_CACHE_DDL)
+        conn.commit()
+        fn, calls = _fake_embed()
+
+        vectors, stats = cached_embed_batch(conn, ["miss"], "m1", fn)
+
+        assert vectors == [[4.0, 1.0]]
+        assert stats["misses"] == 1
+        assert calls == [["miss"]]
+        assert "read failed" in capsys.readouterr().err
+
+    def test_opt_in_timing_splits_lookup_from_miss_embed(self, tmp_path, monkeypatch):
+        from helpers.core import embed_cache as EC
+        from helpers.core import vec_search as VS
+
+        store_path = tmp_path / "embed_store.db"
+        monkeypatch.setattr(VS, "EMBED_DB_PATH", store_path)
+        monkeypatch.setenv(EC._RUST_LOOKUP_TIMING_ENV, "1")
+        monkeypatch.setattr(
+            EC,
+            "_rust_cache_lookup",
+            lambda _conn, _texts, _model: ({0: [9.0, 8.0]}, [1]),
+        )
+        conn = sqlite3.connect(tmp_path / "main.db")
+        VS._attach_vec_db(conn)
+        conn.execute(EC.EMBED_CACHE_DDL)
+        conn.commit()
+        fn, calls = _fake_embed()
+
+        vectors, stats = cached_embed_batch(conn, ["hot", "cold"], "m1", fn)
+
+        assert vectors == [[9.0, 8.0], [4.0, 1.0]]
+        assert calls == [["cold"]]
+        assert stats["timing"]["backend"] == "rust"
+        assert stats["timing"]["cache_lookup_seconds"] >= 0
+        assert stats["timing"]["miss_embed_callback_seconds"] >= 0
 
 
 class TestPurgeIsPerCohort:

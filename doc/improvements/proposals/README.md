@@ -38,25 +38,30 @@ entry number and stale DONE pointers):
 
 ## Current live proposals
 
-- `graph_enhancement_roadmap.md` — graph enhancement roadmap (filed
-  2026-10-25): the now-list sequenced — A′ served-mode C-series reads
-  (the #438 residue: RW TEMP projections refuse under the quack
-  split-brain guard; Approach B read-only materialised reads is the
-  fix); B D10 follow-through with per-family holds (participant data,
-  eval-bank floors); C HGX shelf wiring (community algos → s-paths →
-  multi-order Lapacian) — plus the explicitly-not-now register (T1-gated
-  CSR/ART bridge, T2-gated Mojo BFS promotion, Mojo SIMD cosine kernel
-  verified PROVEN-but-not-live with its embedding-count trigger, onager
-  Rust-extension on-ramp from #434).
-  *(read-path consolidation itself executed + archived as #438;
-  mojo_12_adoptions archived deferred as #437.)*
+- `graph_relational_depth.md` — relational depth overhaul (filed
+  2026-10-25, operator ask): typed metapath layer (ownership/flow/
+  affiliation/competition/joint/attention) with `connect()` path
+  explanations over CSR, deep relationship cards, derived multi-hop
+  insights (ultimate_parent, hidden_connections, supply_chokepoints),
+  hyper s-paths leg (the shelf trigger FIRES), customer_of extraction-gap
+  fix, + the capability-gated scaling doctrine replacing count-gated
+  triggers.
+
+- `database/rust_embed_cache_port.md` — Rust port of embedding-cache
+  SHA-256 + SQLite pipeline (filed 2026-10-25): Trial A shows ~3× end-to-end
+  speedup on full pipeline (Rust/embed_cache); Python leads raw SHA-256
+  via OpenSSL SHA-NI. S1: pure-Rust crate (this trial); S2: OpenSSL
+  binding for SHA-256 parity; S3: maturin wheel + production integration.
 
 - Family provenance: split 2026-10-21 from the bundled
   `duckdb20_quack_variant` filing; the executed 2.0-compat migration
   is completed.md #427. Upstream changeset:
   <https://github.com/duckdb/duckdb/releases/tag/v2.0.0>.
 Previous batch (executed + archived — see `../archive/README.md` for the
-detail bullets): `../archive/tooling/mojo_12_adoptions.md` (#437, deferred),
+detail bullets): `../archive/graph/rust_cosine_knn_port.md` (#440),
+`../archive/graph/graph_enhancement_roadmap.md` (#439),
+`../archive/graph/graph_read_path_consolidation.md` (#438),
+`../archive/tooling/mojo_12_adoptions.md` (#437, deferred),
 `../archive/tooling/jemalloc_adoption.md` (#436),
 `../archive/graph/merger_demerger_hyperedges.md` (#426),
 `../archive/tooling/review_preannotate_hints.md` (#425),

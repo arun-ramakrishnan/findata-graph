@@ -812,7 +812,7 @@ def rebuild_via_swap(db_path: Path, incremental: bool = False) -> dict:
 
     timings = timer.as_dict()
     timings["total"] = round(sum(timings.values()), 2)
-    return {
+    result = {
         "indexed": len(keep),
         "mode": "swap",
         "timings": timings,
@@ -825,6 +825,9 @@ def rebuild_via_swap(db_path: Path, incremental: bool = False) -> dict:
         "stale_changed": [],
         "stale_deleted": [],
     }
+    if "timing" in cstats:
+        result["embed_cache_timing"] = cstats["timing"]
+    return result
 
 
 def rebuild(
@@ -966,7 +969,7 @@ def rebuild(
 
     timings = timer.as_dict()
     timings["total"] = round(sum(timings.values()), 2)
-    return {
+    result = {
         "indexed": len(rows),
         "mode": "incremental" if incremental else "full",
         "timings": timings,
@@ -979,6 +982,9 @@ def rebuild(
         "stale_changed": diff["changed"],
         "stale_deleted": diff["deleted"],
     }
+    if "timing" in cstats:
+        result["embed_cache_timing"] = cstats["timing"]
+    return result
 
 
 def summary(stats: dict) -> str:
@@ -990,11 +996,19 @@ def summary(stats: dict) -> str:
         )
     t = stats.get("timings") or {}
     phase = " ".join(f"{k}={v}s" for k, v in t.items() if k != "total")
-    return (
+    text = (
         f"convo_search: {stats.get('indexed', 0)} parts indexed "
         f"({stats.get('mode')}, total {stats.get('total', 0)})"
         + (f"\n  phases: {phase}" if phase else "")
     )
+    cache_timing = stats.get("embed_cache_timing")
+    if cache_timing:
+        text += (
+            f"\n  embed cache timing: backend={cache_timing['backend']} "
+            f"lookup={cache_timing['cache_lookup_seconds']}s "
+            f"miss-embed-callback={cache_timing['miss_embed_callback_seconds']}s"
+        )
+    return text
 
 
 def main(argv: list[str] | None = None) -> int:

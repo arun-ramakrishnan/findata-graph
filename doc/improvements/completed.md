@@ -12314,3 +12314,41 @@ follow-through) holds on named triggers; the NOT-now register (T1/T2-gated
 CSR/ART + Mojo BFS promotion, Mojo SIMD cosine kernel promotion trigger,
 onager-extension on-ramp) lives in the archived doc as the authoritative
 trigger table.
+
+## 440. Rust cosine KNN port — script_search vector leg on a live compiled kernel
+
+**Date**: 2026-10-25
+**Status**: COMPLETE
+**Proposal**: `doc/improvements/archive/graph/rust_cosine_knn_port.md`
+
+Second of the two Rust ports trialed 2026-10-25 (companion to
+rust_embed_cache_port, which closed backup-only). The crate's PyO3
+surface was rebuilt clean of the draft's 9 compile errors
+(pyfunction/pymodule name collision cascading into pyo3 macro
+internals; `std::simd` is nightly-only portable_simd — the proposal's
+"stable 1.77" note was wrong): scalar kernels with 8-lane accumulators
+(LLVM won't reassociate float adds; single accumulators never
+vectorize), zero-copy numpy-array in/out (`numpy` crate 0.22) after the
+list→Vec boundary measured ~25 ms/call at 5k×384; built with
+`-C target-feature=+avx2,+fma`, installed as a venv-local abi3 .so.
+Wired ONLY into `_cosine_leg` (rebuild_script_search.py — the sole
+production row-by-row pure-Python cosine loop; similar_notes is DuckDB
+SQL, app.py's hybrid already runs sqlite-vec) behind the SCRIPT_KNN
+selector: auto → rust-if-importable → numpy → pure (follows-availability;
+the dynamic importlib import keeps deptry green with zero config). The
+fast path builds the matrix zero-copy from raw f32 blobs
+(`np.frombuffer(b"".join(...))`) — the 705×512 list→array conversion
+had measured ~10 ms/query and made every backend conversion-bound.
+Measured live (705×512): pure 33.3 ms (30 q/s) → numpy 2.76 ms (363) →
+rust 1.12 ms (892; auto default) = 30× the shipped loop. Shape-caveat
+pinned in the proposal and _knn_backend docstring: at 5k×384 numpy's
+BLAS matvec leads (3,100 vs 367 q/s) — SCRIPT_KNN=numpy is the
+documented override. Parity: tests/test_cosine_knn_backends.py (9
+tests — three-backend exact-row parity, zero-norm semantics, selector
+routing, live-blob end-to-end); 38 script-search tests green. The
+eval-bank floor-fail during validation (intent MRR 0.938 < 0.94) was
+proven corpus growth, not code (identical under pure; corpus 548→705
+that morning) — operator-sanctioned re-baseline INTENT_FLOOR_MRR
+0.94 → 0.93 in helpers/bench/script_eval_bank.py, bank green (ident
+1.000/8-8). First compiled kernel LIVE in the query path; the Mojo SIMD
+trial kernel stays proven-but-unwired (promotion trigger unchanged).

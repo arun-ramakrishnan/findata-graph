@@ -29,12 +29,19 @@ to destroy the adopted model's whole cache with it (three live incidents
 
 Everything here is best-effort: when the store can't be attached the callers
 degrade to uncached embedding (correct, just slower).
+
+The batch wrapper can opt into a read-only Rust hit lookup for file-backed
+stores; Python remains responsible for misses, embedding, and persistence.
 """
 
 import hashlib
+import json
+import os
+import subprocess
 import sys
 import time
 from collections.abc import Callable
+from pathlib import Path
 
 from helpers.core.vec_codec import load_vec, pack_f32
 
@@ -84,9 +91,129 @@ CACHE_DDL_BARE = (
 )
 EMBED_CACHE_DDL = CACHE_DDL_BARE.replace(CACHE_TABLE_BARE, EMBED_CACHE_TABLE)
 
+_RUST_LOOKUP_ENV = "FINDATA_RUST_EMBED_CACHE_LOOKUP"
+_RUST_LOOKUP_BIN_ENV = "FINDATA_RUST_EMBED_CACHE_BIN"
+_RUST_LOOKUP_TIMING_ENV = "FINDATA_RUST_EMBED_CACHE_TIMING"
+_RUST_LOOKUP_WARNED = False
+
 
 def _hash(text: str) -> str:
     return hashlib.sha256(text.encode("utf-8", errors="replace")).hexdigest()
+
+
+def _rust_lookup_binary() -> Path | None:
+    """Return the built S1 CLI, or the explicit operator-provided binary."""
+    configured = os.environ.get(_RUST_LOOKUP_BIN_ENV)
+    if configured:
+        path = Path(configured)
+        return path if path.is_file() else None
+
+    root = Path(__file__).resolve().parents[2]
+    for profile in ("release", "debug"):
+        path = root / "Rust" / "target" / profile / "embed-cache-lookup"
+        if path.is_file():
+            return path
+    return None
+
+
+def _rust_cache_lookup(
+    conn, texts: list[str], model_label: str
+) -> tuple[dict[int, list[float]], list[int]] | None:
+    """Try the opt-in Rust hit-only lookup; None means use Python fallback.
+
+    The subprocess opens the already-attached file-backed vecdb read-only.
+    Anonymous in-memory stores cannot cross the process boundary and always
+    stay on the established Python path.
+    """
+    if os.environ.get(_RUST_LOOKUP_ENV) != "1":
+        return None
+
+    global _RUST_LOOKUP_WARNED
+
+    def warn_once(detail: str) -> None:
+        global _RUST_LOOKUP_WARNED
+        if not _RUST_LOOKUP_WARNED:
+            _progress(
+                f"[embed-cache] Rust lookup unavailable ({detail}) — "
+                "falling back to Python"
+            )
+            _RUST_LOOKUP_WARNED = True
+
+    try:
+        db_path = next(
+            (
+                row[2]
+                for row in conn.execute("PRAGMA database_list")
+                if row[1] == "vecdb" and row[2]
+            ),
+            None,
+        )
+        if not db_path:
+            return None
+        binary = _rust_lookup_binary()
+        if binary is None:
+            warn_once("CLI binary not found")
+            return None
+
+        # Python hashes with errors="replace". Normalize only the wire copy so
+        # a lone surrogate (if present) hashes to the identical UTF-8 bytes.
+        wire_texts = [
+            text.encode("utf-8", errors="replace").decode("utf-8") for text in texts
+        ]
+        request = json.dumps(
+            {
+                "protocol": 1,
+                "db_path": db_path,
+                "model": model_label,
+                "texts": wire_texts,
+            },
+            separators=(",", ":"),
+        )
+        result = subprocess.run(
+            [str(binary)],
+            input=request,
+            capture_output=True,
+            text=True,
+            timeout=30,
+            check=False,
+        )
+        if result.returncode:
+            detail = result.stderr.strip() or f"exit code {result.returncode}"
+            warn_once(detail)
+            return None
+
+        response = json.loads(result.stdout)
+        if response.get("protocol") != 1:
+            raise ValueError("unsupported response protocol")
+
+        hit_vectors: dict[int, list[float]] = {}
+        for hit in response["hit_vectors"]:
+            index = hit["index"]
+            vector = hit["vector"]
+            if type(index) is not int or not 0 <= index < len(texts):
+                raise ValueError("invalid hit index")
+            if index in hit_vectors or not isinstance(vector, list):
+                raise ValueError("invalid or duplicate hit vector")
+            if any(type(value) not in (int, float) for value in vector):
+                raise ValueError("non-numeric hit vector")
+            hit_vectors[index] = [float(value) for value in vector]
+
+        miss_indices = response["miss_indices"]
+        if any(
+            type(index) is not int or not 0 <= index < len(texts)
+            for index in miss_indices
+        ):
+            raise ValueError("invalid miss index")
+        if len(set(miss_indices)) != len(miss_indices):
+            raise ValueError("duplicate miss index")
+        if set(hit_vectors).intersection(miss_indices):
+            raise ValueError("index reported as both hit and miss")
+        if set(hit_vectors).union(miss_indices) != set(range(len(texts))):
+            raise ValueError("incomplete lookup response")
+        return hit_vectors, miss_indices
+    except Exception as exc:  # cache accelerator failures must not block embedding
+        warn_once(f"{type(exc).__name__}: {exc}")
+        return None
 
 
 def purge_foreign_models(conn, model_label: str, source: str = "") -> int:
@@ -333,6 +460,27 @@ def cached_embed_batch(
     committing early is safe even if the caller's write later fails.
     """
     stats = {"hits": 0, "misses": 0, "unique_misses": 0, "dirty": 0}
+    timing_enabled = os.environ.get(_RUST_LOOKUP_TIMING_ENV) == "1"
+    miss_embed_seconds = 0.0
+
+    def embed_missing_timed(batch: list[str]) -> list[list[float]]:
+        nonlocal miss_embed_seconds
+        if not timing_enabled:
+            return embed_missing(batch)
+        started = time.perf_counter()
+        try:
+            return embed_missing(batch)
+        finally:
+            miss_embed_seconds += time.perf_counter() - started
+
+    def record_timing(backend: str, lookup_seconds: float) -> None:
+        if timing_enabled:
+            stats["timing"] = {
+                "backend": backend,
+                "cache_lookup_seconds": round(lookup_seconds, 6),
+                "miss_embed_callback_seconds": round(miss_embed_seconds, 6),
+            }
+
     # unique_misses is always present (callers assert the whole dict)
     try:
         from helpers.core.vec_search import _attach_vec_db
@@ -340,9 +488,10 @@ def cached_embed_batch(
         _attach_vec_db(conn)
         conn.execute(EMBED_CACHE_DDL)
     except Exception:  # noqa: S110  # no sidecar -> embed uncached
-        vecs = embed_missing(texts)
+        vecs = embed_missing_timed(texts)
         stats["misses"] = len(texts)
         stats["unique_misses"] = len(texts)
+        record_timing("uncached", 0.0)
         return vecs, stats
     if purge_foreign:
         gone = purge_foreign_models(conn, model_label, source)
@@ -354,38 +503,53 @@ def cached_embed_batch(
                 flush=True,
             )
 
-    cached: dict[str, str] = {
-        row[0]: row[1]
-        for row in conn.execute(
-            f"SELECT text_hash, embedding FROM {EMBED_CACHE_TABLE} "  # noqa: S608  # constant table name
-            "WHERE model = ?",
-            (model_label,),
-        )
-    }
+    lookup_started = time.perf_counter()
+    rust_lookup = _rust_cache_lookup(conn, texts, model_label)
+    if rust_lookup is None:
+        cached: dict[str, str] = {
+            row[0]: row[1]
+            for row in conn.execute(
+                f"SELECT text_hash, embedding FROM {EMBED_CACHE_TABLE} "  # noqa: S608  # constant table name
+                "WHERE model = ?",
+                (model_label,),
+            )
+        }
+        hashes: list[str | None] = [_hash(text) for text in texts]
+        vecs: list[list[float] | None] = []
+        for hash_value in hashes:
+            raw = cached.get(hash_value) if hash_value else None
+            vec = load_vec(raw) if raw else None
+            vecs.append(vec)
+        miss_idx = [i for i, vector in enumerate(vecs) if vector is None]
+    else:
+        hit_vectors, miss_idx = rust_lookup
+        vecs = [hit_vectors.get(i) for i in range(len(texts))]
+        hashes = [None] * len(texts)
+        for index in miss_idx:
+            hashes[index] = _hash(texts[index])
+    lookup_seconds = time.perf_counter() - lookup_started
+    lookup_backend = "rust" if rust_lookup is not None else "python"
 
-    hashes = [_hash(t) for t in texts]
-    vecs: list[list[float] | None] = []
-    for h in hashes:
-        raw = cached.get(h)
-        vec = load_vec(raw) if raw else None
-        vecs.append(vec)
     stats["hits"] = sum(v is not None for v in vecs)
-
-    miss_idx = [i for i, v in enumerate(vecs) if v is None]
     stats["misses"] = len(miss_idx)
     if miss_idx:
         uniq_first: dict[str, int] = {}
         for i in miss_idx:
-            uniq_first.setdefault(hashes[i], i)
+            hash_value = hashes[i]
+            assert hash_value is not None
+            uniq_first.setdefault(hash_value, i)
         uniq_hashes = list(uniq_first)
         uniq_texts = [texts[uniq_first[h]] for h in uniq_hashes]
         stats["unique_misses"] = len(uniq_texts)
         new_vecs, dirty = _embed_misses_chunked(
-            conn, uniq_hashes, uniq_texts, model_label, embed_missing, source
+            conn, uniq_hashes, uniq_texts, model_label, embed_missing_timed, source
         )
         by_hash = dict(zip(uniq_hashes, new_vecs))
         for i in miss_idx:
-            vecs[i] = by_hash[hashes[i]]
+            hash_value = hashes[i]
+            assert hash_value is not None
+            vecs[i] = by_hash[hash_value]
         stats["dirty"] = dirty
 
+    record_timing(lookup_backend, lookup_seconds)
     return [v for v in vecs if v is not None], stats

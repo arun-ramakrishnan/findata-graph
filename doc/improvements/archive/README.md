@@ -182,6 +182,15 @@ commit, referenced by nothing). Entry numbers point at
 - [`duckdb_concurrency_model_correction.md`](graph/duckdb_concurrency_model_correction.md) — DuckDB concurrency model correction — the `connect()` docstring's "readers never contend with a writer" clause measured false on duckdb 1.5.6 (an RW holder excludes EVERY opener); five-row matrix inline, both conflict directions pinned by cross-process negative tests with A/B controls, and the 37-coordinated / 24-uncoordinated read-only caller audit recorded — completed.md #314
 - [`graph_analytics_staleness_comparison.md`](graph/graph_analytics_staleness_comparison.md) — graph_analytics staleness as timestamps — the stats freshness banner's raw string compare across the utc_now/ISO-T shape split decided at index 10 on same-date ties (fresh reported STALE); now `MAX(julianday(col))` both sides in `_staleness_verdict()` with an INDETERMINATE guard; 129 legacy ISO rows left in place; same-day collision test mutation-checked — completed.md #316
 - [`hgx_first_scaling.md`](graph/hgx_first_scaling.md) — HGX-first scaling — h_edge/h_incidence cache (schema 15, TIER2 12), incidence-native stats section + co-membership suggestions + hyper API, S3 longest_chains cap 3000 (stride-sampled lower bounds) — D4 absorbed, igraph retired per D16 — completed.md #241
+- [`rust_cosine_knn_port.md`](graph/rust_cosine_knn_port.md) —
+  script_search vector leg off the row-by-row pure-Python loop (33.3
+  ms/query at 705×512) onto a venv-local rust abi3 kernel behind the
+  SCRIPT_KNN selector (auto → rust-if-importable → numpy → pure;
+  measured 1.12 ms = 892 q/s, 30×; 5k×384 numpy-wins caveat + override
+  pinned), raw-blob np.frombuffer fast path, zero-copy numpy 0.22
+  arrays, 9-test three-backend parity; eval-bank intent floor
+  re-baselined 0.94 → 0.93 on corpus growth 548→705 (proven not-code) —
+  completed.md #440
 - [`graph_enhancement_roadmap.md`](graph/graph_enhancement_roadmap.md) —
   umbrella sequencing of the post-2.0 now-list: A′ served-mode C-series
   reads LANDED (materialised e_* over the open_read_only funnel — wire
