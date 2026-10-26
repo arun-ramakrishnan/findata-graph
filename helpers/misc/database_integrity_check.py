@@ -1990,8 +1990,8 @@ class DatabaseIntegrityChecker:
             "SELECT COUNT(*) FROM graph_edges e "
             "JOIN entities es ON es.name = e.source "
             "JOIN entities et ON et.name = e.target "
-            "WHERE e.edge_type=? AND es.entity_type IN (%s) "
-            "AND et.entity_type IN (%s)" % (sk, dk),  # noqa: S608  fixed projection, no interpolation
+            "WHERE e.edge_type=? AND es.entity_type IN ({}) "
+            "AND et.entity_type IN ({})".format(sk, dk),  # noqa: S608  fixed projection, no interpolation
             (etype,),
         ).fetchone()[0]
 
@@ -2061,11 +2061,7 @@ class DatabaseIntegrityChecker:
             sn = (
                 self._expected_projected_count(etype)
                 if etype in _PROJECTED_MEMBERSHIP_TYPES
-                else (
-                    self._expected_edge_count(etype, spec)
-                    if ge_present
-                    else 0
-                )
+                else (self._expected_edge_count(etype, spec) if ge_present else 0)
             )
             if dn is None or dn != sn:
                 mismatches.append(

@@ -28,15 +28,13 @@ DIM = 384
 
 def gen_matrix(n: int) -> list[list[float]]:
     return [
-        [math.sin(i * 31 + j * 7) * math.cos(i * 31 + j * 7) for j in range(DIM)]
-        for i in range(n)
+        [math.sin(i * 31 + j * 7) * math.cos(i * 31 + j * 7) for j in range(DIM)] for i in range(n)
     ]
 
 
 def gen_queries(n: int) -> list[list[float]]:
     return [
-        [math.cos(i * 13 + j * 3) * math.sin(i * 13 + j * 3) for j in range(DIM)]
-        for i in range(n)
+        [math.cos(i * 13 + j * 3) * math.sin(i * 13 + j * 3) for j in range(DIM)] for i in range(n)
     ]
 
 

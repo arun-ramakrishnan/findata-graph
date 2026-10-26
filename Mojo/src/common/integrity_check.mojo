@@ -343,6 +343,12 @@ def main() raises:
             #     companies are sectorless by design until a note exists.
             #   - _rel_homed (see above) — VIGIL relation-homed companies
             #     (subsidiaries/JVs/suppliers with no note and no ticker).
+            #   - `person` (2026-10-26) — the vault holds company/sector
+            #     notes; no person notes exist by design, so file coverage is
+            #     not a person metric (database_integrity_check.py
+            #     _path_exempt). Without it 983 fileless persons read
+            #     invalid-for-missing-path and the validation rate read
+            #     95.97% against the original's 100%.
             # Without them 24385 entities read invalid-for-missing-path and
             # the validation rate read 6.79% against the original's 100%.
             var tk = row[4]
@@ -353,6 +359,7 @@ def main() raises:
                 or etype == "institution"
                 or etype == "country"
                 or etype == "index"
+                or etype == "person"
                 or (etype == "company" and has_ticker)
                 or rel_homed.get(py_str(row[0]), False)
             ):
@@ -1472,29 +1479,83 @@ def main() raises:
             "AND type='table'"
         ).fetchone()
         var er_items = Python.evaluate(
-            "list(__import__('importlib').import_module("
-            "'helpers.graph.query').EDGE_REGISTRY.items())"
+            "[(k, v['table'], v.get('src_kinds', ''), v.get('dst_kinds', '')) "
+            "for k, v in __import__('importlib').import_module("
+            "'helpers.graph.query').EDGE_REGISTRY.items()]"
         )
         var e_tables = List[String]()
         for i in range(er_items.__len__()):
             var et = py_str(er_items[i][0])
-            e_tables.append(py_str(er_items[i][1]["table"]) + ":" + et)
-        e_tables.append("e_belongs_to:belongs_to")
-        e_tables.append("e_exposed_to:exposed_to")
+            # Carry the projection's endpoint-kind filter per type ("|"
+            # join; empty segments = no src_kinds/dst_kinds in the spec —
+            # 10 registry types) so the SQLite expectation can mirror
+            # _materialise_edges.
+            e_tables.append(
+                py_str(er_items[i][1])
+                + ":"
+                + et
+                + ":"
+                + py_str(er_items[i][2])
+                + "|"
+                + py_str(er_items[i][3])
+            )
+        e_tables.append("e_belongs_to:belongs_to:|")
+        e_tables.append("e_exposed_to:exposed_to:|")
         for i in range(len(e_tables)):
             var parts = e_tables[i].split(":")
             var tbl = String(parts[0])
             var et = String(parts[1])
+            var kind_parts = String(parts[2]).split("|")
+            var sk = String(kind_parts[0])
+            var dk = String(kind_parts[1])
             var dcnt = dcon.execute("SELECT COUNT(*) FROM " + tbl).fetchone()
             var scnt = 0
             if ge_present.__bool__():
-                scnt = to_i(
-                    conn.execute(
-                        "SELECT COUNT(*) FROM graph_edges WHERE edge_type='"
-                        + et
-                        + "'"
-                    ).fetchone()[0]
-                )
+                if sk == "":
+                    scnt = to_i(
+                        conn.execute(
+                            "SELECT COUNT(*) FROM graph_edges WHERE edge_type='"
+                            + et
+                            + "'"
+                        ).fetchone()[0]
+                    )
+                else:
+                    # Out-of-family endpoints (e.g. person-typed subsidiary
+                    # parents) live in graph_edges but are ABSENT from the
+                    # e_* mirror by design — _materialise_edges filters BOTH
+                    # endpoints to the spec's kinds. The expectation must
+                    # apply the same filter or every such row reads as cache
+                    # staleness (e_subsidiary read 7419 raw vs 7413 mirrored
+                    # — 6 rows). Converged 2026-10-26 with
+                    # _expected_edge_count (database_integrity_check.py
+                    # :1975-1996).
+                    var skq = String("")
+                    var sk_toks = sk.split(",")
+                    for j in range(len(sk_toks)):
+                        if skq != "":
+                            skq += ","
+                        skq += "'" + String(sk_toks[j]).strip() + "'"
+                    var dkq = String("")
+                    var dk_toks = dk.split(",")
+                    for j in range(len(dk_toks)):
+                        if dkq != "":
+                            dkq += ","
+                        dkq += "'" + String(dk_toks[j]).strip() + "'"
+                    scnt = to_i(
+                        conn.execute(
+                            "SELECT COUNT(*) FROM graph_edges e "
+                            "JOIN entities es ON es.name = e.source "
+                            "JOIN entities et ON et.name = e.target "
+                            "WHERE e.edge_type='"
+                            + et
+                            + "' AND es.entity_type IN ("
+                            + skq
+                            + ") "
+                            "AND et.entity_type IN ("
+                            + dkq
+                            + ")"
+                        ).fetchone()[0]
+                    )
             # part_of/has_company retirement (2026-10-19): e_belongs/e_has are
             # PROJECTED from the canonical sector hyperedges, so their row
             # count tracks incidences, not graph_edges (which now holds zero
