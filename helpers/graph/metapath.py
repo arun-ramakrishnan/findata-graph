@@ -147,7 +147,7 @@ class _Adjacency:
 
 
 _CACHE: dict[tuple[str, str | None], _Adjacency] = {}
-_HYPER_CACHE: dict[tuple[str, str | None, str | None], "_Hyper"] = {}
+_HYPER_CACHE: dict[tuple[str, str | None, str | None], _Hyper] = {}
 
 
 def clear_cache() -> None:
@@ -295,6 +295,57 @@ def shared_hyperedges(a: str, b: str, db_path: str | Path = DB_PATH) -> list[tup
     return sorted({(etype, label) for eid, etype, label in hy.of.get(b, ()) if eid in ea})
 
 
+def _hyper_answer(
+    a: str, b: str, s_distance: int, shared: list[tuple[str, str]], walk: list[str]
+) -> dict:
+    """Uniform result shape for every ``hyper_path`` termination."""
+    return {
+        "semantics": "hyper",
+        "a": a,
+        "b": b,
+        "s_distance": s_distance,
+        "shared": shared,
+        "walk": walk,
+        "n_hops": s_distance,
+    }
+
+
+def _hyper_claims(
+    hy: _Hyper,
+    frontier: list[str],
+    parent: dict[str, tuple[str, str, str]],
+) -> dict[str, tuple[str, str, str]]:
+    """One BFS level over entity -> hyperedge -> entity.
+
+    min-(label, edge_type) claimant per reached node, mirroring the
+    dyadic BFS convention; already-claimed nodes and the origin's own
+    incidences are skipped.
+    """
+    claims: dict[str, tuple[str, str, str]] = {}
+    for node in frontier:
+        for _eid, etype, label in hy.of.get(node, ()):
+            for other in hy.members.get(_eid, ()):
+                if other == node or other in parent:
+                    continue
+                claim = (label, etype, node)
+                if other not in claims or claim < claims[other]:
+                    claims[other] = claim
+    return claims
+
+
+def _hyper_chain(parent: dict[str, tuple[str, str, str]], b: str, a: str) -> list[str]:
+    """Walk parent pointers b -> a into the alternating entity/bridge walk."""
+    chain: list[str] = [b]
+    cur = b
+    while cur != a:
+        label, etype, prev = parent[cur]
+        chain.append(f"{etype}:{label}")
+        chain.append(prev)
+        cur = prev
+    chain.reverse()
+    return chain
+
+
 def hyper_path(a: str, b: str, *, max_hops: int = 3, db_path: str | Path = DB_PATH) -> dict | None:
     """Shortest s-walk between two entities over the incidence store (R5).
 
@@ -310,66 +361,27 @@ def hyper_path(a: str, b: str, *, max_hops: int = 3, db_path: str | Path = DB_PA
     ``max_hops`` (or an entity with no incidences) answers None.
     """
     if a == b:
-        return {
-            "semantics": "hyper",
-            "a": a,
-            "b": b,
-            "s_distance": 0,
-            "shared": [],
-            "walk": [a],
-            "n_hops": 0,
-        }
+        return _hyper_answer(a, b, 0, [], [a])
     hy = _hyper(db_path)
     if not hy.of.get(a) or not hy.of.get(b):
         return None
     shared = shared_hyperedges(a, b, db_path)
     if shared:
-        return {
-            "semantics": "hyper",
-            "a": a,
-            "b": b,
-            "s_distance": 1,
-            "shared": shared,
-            "walk": [a, b],
-            "n_hops": 1,
-        }
-    # BFS over entity -> hyperedge -> entity; min-(label, type) claimant.
-    # Distance 1 was answered above, so iteration 1's reach is redundant
-    # for b — it feeds the bridge frontier. max_hops iterations cover
-    # s-distances up to max_hops.
-    parent: dict[str, tuple[str, str, str] | None] = {a: None}
+        return _hyper_answer(a, b, 1, shared, [a, b])
+    # BFS over entity -> hyperedge -> entity. Distance 1 was answered
+    # above, so iteration 1's reach is redundant for b — it feeds the
+    # bridge frontier. max_hops iterations cover s-distances up to
+    # max_hops. The a-seed is never unpacked (the chain walk stops at a).
+    parent: dict[str, tuple[str, str, str]] = {a: ("", "", a)}
     frontier = [a]
     for _level in range(1, max_hops + 1):
-        claims: dict[str, tuple[str, str, str]] = {}
-        for node in frontier:
-            for _eid, etype, label in hy.of.get(node, ()):
-                for other in hy.members.get(_eid, ()):
-                    if other == node or other in parent:
-                        continue
-                    claim = (label, etype, node)
-                    if other not in claims or claim < claims[other]:
-                        claims[other] = claim
+        claims = _hyper_claims(hy, frontier, parent)
         if not claims:
             return None
-        if b in claims:
-            chain: list[str] = [b]
-            cur = b
-            while cur != a:
-                label, etype, prev = parent[cur] if cur in parent else claims[cur]
-                chain.append(f"{etype}:{label}")
-                chain.append(prev)
-                cur = prev
-            chain.reverse()
-            return {
-                "semantics": "hyper",
-                "a": a,
-                "b": b,
-                "s_distance": len(chain) // 2,
-                "shared": [],
-                "walk": chain,
-                "n_hops": len(chain) // 2,
-            }
         parent.update(claims)
+        if b in claims:
+            chain = _hyper_chain(parent, b, a)
+            return _hyper_answer(a, b, len(chain) // 2, [], chain)
         frontier = sorted(claims)
     return None
 

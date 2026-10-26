@@ -380,6 +380,33 @@ class TestDirectoryStructure:
 
 
 # ---------------------------------------------------------------------------
+# _path_exempt — the fileless-but-valid entity classes
+# ---------------------------------------------------------------------------
+class TestPathExempt:
+    # structural facets are fileless by design (2026-10-26: persons join —
+    # the vault holds no person notes, so file coverage is not a person
+    # metric; edge-less persons are a purge question, not a directory defect)
+    def test_structural_types_exempt(self, tmp_path):
+        checker = DatabaseIntegrityChecker(base_path=str(tmp_path))
+        for et in ("sub_sector", "theme", "institution", "country", "index", "person"):
+            assert checker._path_exempt(et, None, "X", set()) is True, et
+
+    def test_tickered_company_exempt(self, tmp_path):
+        checker = DatabaseIntegrityChecker(base_path=str(tmp_path))
+        assert checker._path_exempt("company", "TCS.NS", "TCS", set()) is True
+
+    def test_relation_homed_exempt(self, tmp_path):
+        checker = DatabaseIntegrityChecker(base_path=str(tmp_path))
+        assert checker._path_exempt("company", None, "Sub_Co", {"Sub_Co"}) is True
+
+    def test_junk_company_not_exempt(self, tmp_path):
+        # the junk signature (company, no path, no ticker, no relation)
+        # must keep counting invalid
+        checker = DatabaseIntegrityChecker(base_path=str(tmp_path))
+        assert checker._path_exempt("company", None, "Sub-Total (A)(1)", set()) is False
+
+
+# ---------------------------------------------------------------------------
 # _check_filename_format — pure
 # ---------------------------------------------------------------------------
 class TestFilenameFormat:
@@ -1160,3 +1187,57 @@ class TestCheckCinNic2008:
         conn.close()
         checker = DatabaseIntegrityChecker(db_path=str(db_path), base_path=str(tmp_path))
         assert checker.check_cin_nic2008() == {"warnings": 0, "errors": 0, "skipped": 1}
+
+
+# --- _expected_edge_count (kind-filtered cache expectation) ------------------
+# The DuckDB mirror filters src_kinds/dst_kinds specs to those entity kinds
+# at materialise time; a person-typed subsidiary parent exists in SQLite but
+# is absent from the mirror BY DESIGN. The expectation must apply the same
+# filter or every such row reads as cache staleness (2026-10-26: 6 such rows
+# made the cache check fail post-purge with a freshly rebuilt cache).
+
+
+class TestExpectedEdgeCount:
+    def _seed(self, tmp_path: Path):
+        db_path = tmp_path / "edges.db"
+        conn = sqlite3.connect(db_path)
+        conn.execute(ENTITIES_DDL)
+        conn.execute(
+            "CREATE TABLE graph_edges (id INTEGER PRIMARY KEY AUTOINCREMENT, "
+            "source TEXT NOT NULL, target TEXT NOT NULL, edge_type TEXT NOT NULL)"
+        )
+        conn.executemany(
+            "INSERT INTO entities VALUES (?,?,?,?,?,?)",
+            [
+                ("ChildCo", "company", None, "ChildCo", None, None),
+                ("ParentCo", "company", None, "ParentCo", None, None),
+                ("Promoter Person", "person", None, "Promoter_Person", None, None),
+            ],
+        )
+        conn.executemany(
+            "INSERT INTO graph_edges (source, target, edge_type) VALUES (?,?,?)",
+            [
+                ("ChildCo", "ParentCo", "subsidiary_of"),
+                ("ChildCo", "Promoter Person", "subsidiary_of"),
+                ("ChildCo", "ParentCo", "same_group"),
+            ],
+        )
+        conn.commit()
+        conn.close()
+        return DatabaseIntegrityChecker(db_path=str(db_path), base_path=str(tmp_path))
+
+    def test_plain_spec_counts_raw(self, tmp_path: Path):
+        checker = self._seed(tmp_path)
+        try:
+            assert checker._expected_edge_count("same_group", {"table": "e_group"}) == 1
+        finally:
+            checker.close()
+
+    def test_kind_spec_excludes_out_of_family_endpoints(self, tmp_path: Path):
+        checker = self._seed(tmp_path)
+        try:
+            spec = {"src_kinds": "company,institution", "dst_kinds": "company,institution"}
+            # raw count is 2; the mirror keeps only the company/institution pair
+            assert checker._expected_edge_count("subsidiary_of", spec) == 1
+        finally:
+            checker.close()

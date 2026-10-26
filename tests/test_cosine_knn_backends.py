@@ -109,7 +109,6 @@ def test_cosine_leg_end_to_end(tmp_path, monkeypatch):
         rids.append(cur.lastrowid)
     con.commit()
 
-
     q_vec = [rng.uniform(-1, 1) for _ in range(8)]
     results = {}
     for backend in ("pure", "numpy", "rust"):

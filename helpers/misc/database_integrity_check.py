@@ -1967,6 +1967,34 @@ class DatabaseIntegrityChecker:
             "JOIN hyper_edges he ON he.id = hi.edge_id WHERE he.edge_type='sector'"
         ).fetchone()[0]
 
+    def _expected_edge_count(self, etype: str, spec: dict) -> int:
+        """SQLite-side expectation for a materialized edge table.
+
+        Raw ``graph_edges`` count — EXCEPT for specs carrying
+        ``src_kinds``/``dst_kinds`` (VIGIL relation lanes, 2026-09-22):
+        the materializer (``helpers/graph/query.py::_materialise_edges``)
+        filters BOTH endpoints to those entity kinds, so rows with
+        out-of-family endpoints (e.g. person-typed subsidiary parents)
+        live in SQLite but are ABSENT from the mirror by design. The
+        expectation must apply the same filter or every such row reads
+        as cache staleness.
+        """
+        conn = self.get_connection()
+        if "src_kinds" not in spec:
+            return conn.execute(
+                "SELECT COUNT(*) FROM graph_edges WHERE edge_type=?", (etype,)
+            ).fetchone()[0]
+        sk = ", ".join(f"'{k.strip()}'" for k in spec["src_kinds"].split(","))
+        dk = ", ".join(f"'{k.strip()}'" for k in spec["dst_kinds"].split(","))
+        return conn.execute(
+            "SELECT COUNT(*) FROM graph_edges e "
+            "JOIN entities es ON es.name = e.source "
+            "JOIN entities et ON et.name = e.target "
+            "WHERE e.edge_type=? AND es.entity_type IN (%s) "
+            "AND et.entity_type IN (%s)" % (sk, dk),  # noqa: S608  fixed projection, no interpolation
+            (etype,),
+        ).fetchone()[0]
+
     def _reconcile_cache(self, duck_con) -> dict:  # noqa: C901
         """Compare the open DuckDB connection against SQLite. Factored out
         of check_cache_consistency for testability (a test can pass a fake
@@ -2034,9 +2062,7 @@ class DatabaseIntegrityChecker:
                 self._expected_projected_count(etype)
                 if etype in _PROJECTED_MEMBERSHIP_TYPES
                 else (
-                    self.get_connection()
-                    .execute("SELECT COUNT(*) FROM graph_edges WHERE edge_type=?", (etype,))
-                    .fetchone()[0]
+                    self._expected_edge_count(etype, spec)
                     if ge_present
                     else 0
                 )
@@ -2076,6 +2102,15 @@ class DatabaseIntegrityChecker:
     def _query(self, sql: str):
         conn = self.get_connection()
         return conn.execute(sql).fetchall()
+
+    @staticmethod
+    def _path_exempt(entity_type: str, ticker: str | None, name: str, rel_homed: set[str]) -> bool:
+        """Fileless-but-valid classes (rationale: exemption comment in check_integrity)."""
+        return bool(
+            entity_type in ("sub_sector", "theme", "institution", "country", "index", "person")
+            or (entity_type == "company" and ticker)
+            or name in rel_homed
+        )
 
     def check_integrity(self) -> dict:  # noqa: C901
         """
@@ -2169,10 +2204,13 @@ class DatabaseIntegrityChecker:
             # to relation-homed companies (subsidiaries/JVs/suppliers with
             # no note and no ticker). The junk signature (company, no path,
             # no ticker, no relation) stays counted as invalid.
-            if not file_path and (
-                entity_type in ("sub_sector", "theme", "institution", "country", "index")
-                or (entity_type == "company" and entity.get("ticker"))
-                or entity["name"] in _rel_homed
+            # Persons (2026-10-26): the vault holds company/sector notes —
+            # no person notes exist by design, so file coverage is not a
+            # person metric (edge-less persons are a purge question, not a
+            # directory defect; 973 counted here made the 95% target
+            # unreachable regardless of curation).
+            if not file_path and self._path_exempt(
+                entity_type, entity.get("ticker"), entity["name"], _rel_homed
             ):
                 results["valid_entities"] += 1
                 results["by_entity_type"][entity_type]["valid"] += 1

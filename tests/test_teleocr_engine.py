@@ -44,27 +44,36 @@ class _StubHandler(BaseHTTPRequestHandler):
 
     def _send(self, code: int, payload: dict) -> None:
         body = json.dumps(payload).encode()
-        self.send_response(code)
-        self.send_header("Content-Type", "application/json")
-        self.send_header("Content-Length", str(len(body)))
-        self.end_headers()
-        self.wfile.write(body)
-
-    def do_GET(self) -> None:  # noqa: N802  # http.server API
-        if self.path == "/health":
-            self._send(200, {"status": "ok"})
-        elif self.path == "/v1/models":
-            self._send(200, {"data": [{"id": STATE["model_id"]}]})
-        else:
-            self._send(404, {"error": "not found"})
+        try:
+            self.send_response(code)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+        except OSError, ValueError:
+            pass  # client vanished mid-write (port-collision traffic)
 
     def do_POST(self) -> None:  # noqa: N802  # http.server API
-        assert self.path == "/v1/chat/completions"
         length = int(self.headers.get("Content-Length", 0))
-        STATE["requests"].append(json.loads(self.rfile.read(length)))
+        try:
+            body = json.loads(self.rfile.read(length))
+        except ValueError:  # truncated/garbage foreign traffic
+            self._send(400, {"error": "bad json"})
+            return
+        if not isinstance(body, dict) or "repeat_penalty" not in body:
+            # Anything that is not an ocr_image request (proxy-mangled
+            # traffic, stray daemons) is refused instead of poisoning
+            # STATE. ocr_image always sends repeat_penalty.
+            self._send(404, {"error": "not a teleocr request"})
+            return
+        assert self.path == "/v1/chat/completions"
+        STATE["requests"].append(body)
         action = STATE["responses"].pop(0) if STATE["responses"] else {"content": "ok"}
         if action == "conn-drop":
-            self.wfile.close()
+            # drop the whole connection — closing only wfile leaves the
+            # framework's finish() flush writing to a closed file
+            self.connection.close()
+            self.close_connection = True
             return
         finish = action.get("finish_reason", "stop")
         self._send(
@@ -78,6 +87,14 @@ class _StubHandler(BaseHTTPRequestHandler):
                 ]
             },
         )
+
+    def do_GET(self) -> None:  # noqa: N802  # http.server API
+        if self.path == "/health":
+            self._send(200, {"status": "ok"})
+        elif self.path == "/v1/models":
+            self._send(200, {"data": [{"id": STATE["model_id"]}]})
+        else:
+            self._send(404, {"error": "not found"})
 
 
 @pytest.fixture()

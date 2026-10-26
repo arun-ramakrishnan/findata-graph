@@ -133,10 +133,7 @@ def _rust_cache_lookup(
     def warn_once(detail: str) -> None:
         global _RUST_LOOKUP_WARNED
         if not _RUST_LOOKUP_WARNED:
-            _progress(
-                f"[embed-cache] Rust lookup unavailable ({detail}) — "
-                "falling back to Python"
-            )
+            _progress(f"[embed-cache] Rust lookup unavailable ({detail}) — falling back to Python")
             _RUST_LOOKUP_WARNED = True
 
     try:
@@ -157,9 +154,7 @@ def _rust_cache_lookup(
 
         # Python hashes with errors="replace". Normalize only the wire copy so
         # a lone surrogate (if present) hashes to the identical UTF-8 bytes.
-        wire_texts = [
-            text.encode("utf-8", errors="replace").decode("utf-8") for text in texts
-        ]
+        wire_texts = [text.encode("utf-8", errors="replace").decode("utf-8") for text in texts]
         request = json.dumps(
             {
                 "protocol": 1,
@@ -199,10 +194,7 @@ def _rust_cache_lookup(
             hit_vectors[index] = [float(value) for value in vector]
 
         miss_indices = response["miss_indices"]
-        if any(
-            type(index) is not int or not 0 <= index < len(texts)
-            for index in miss_indices
-        ):
+        if any(type(index) is not int or not 0 <= index < len(texts) for index in miss_indices):
             raise ValueError("invalid miss index")
         if len(set(miss_indices)) != len(miss_indices):
             raise ValueError("duplicate miss index")

@@ -426,14 +426,18 @@ class TestGateShapes:
 
         data = load_questions(DEFAULT_QUESTIONS)
         by_id = {q["id"]: q for q in data["questions"]}
-        assert data["version"] == 4
+        # version tracks the roster; bumped by every rebaseline (v4 at the
+        # gate's birth → v5 R6a subsidiary cure → v6 R3 insight roster)
+        assert data["version"] == 6
         for qid, family in (
             ("hyper-merger-families", "merger"),
             ("hyper-demerger-families", "demerger"),
         ):
             assert by_id[qid]["shape"] == "hyperedge_labels"
             assert by_id[qid]["params"] == {"edge_type": family}
-            assert by_id[qid]["expected"] == []
+            # baselined since v5: expected holds the live ground truth
+            assert isinstance(by_id[qid]["expected"], list)
+            assert by_id[qid]["expected"]
 
     def test_new_shape_is_registered_for_validation(self):
         from helpers.misc.ontology_eval_gate import _SHAPES

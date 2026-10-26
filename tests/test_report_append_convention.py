@@ -63,8 +63,8 @@ def test_perf_writer_appends_run_chain(tmp_path: Path, monkeypatch: pytest.Monke
 
     report = tmp_path / "perf_report.md"
     monkeypatch.setattr(rpb, "REPORT", report)
-    rpb.write_report([("bench_one", 1.2, "ok", True, 2.0)], "2026-09-21 10:00:00", 1.5)
-    rpb.write_report([("bench_one", 1.3, "ok", True, 2.0)], "2026-09-21 11:00:00", 1.6)
+    rpb.write_report([("bench_one", 1.2, "ok", True, 2.0, "")], "2026-09-21 10:00:00", 1.5)
+    rpb.write_report([("bench_one", 1.3, "ok", True, 2.0, "")], "2026-09-21 11:00:00", 1.6)
     assert len(report_run_spans(report)) == 2
     blocks = parse_perf_report(report)
     assert [b.steps[0].seconds for b in blocks] == [1.2, 1.3]

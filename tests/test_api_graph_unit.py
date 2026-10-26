@@ -221,55 +221,45 @@ class TestCoMentions:
     def test_returns_ranked_with_counts(self, tmp_path):
         """Inject co_mentioned_in edges and verify ranking.
 
-        graph_read_path_consolidation S1' resolves edge endpoints against
-        v_node (INNER join), so every endpoint the edges reference must be
-        seeded — production editions ARE entities (entity_type='edition').
-        The pre-resolution fixture only inserted the edges and relied on the
-        raw graph_edges read tolerating unresolved endpoints.
+        A′ materialisation resolves BOTH e_comention endpoints against
+        v_company (registry kind company,company — production co-mentions
+        are company↔company pairs), so the fixture seeds company pairs.
+        Ranked counts each entity's a_name AND b_name participations, so
+        the reverse-orientation row lifts ICICI to 2.
         """
         with _seeded_sqlite_db(tmp_path) as client:
             db_path = tmp_path / "unit_graph.db"
             conn = sqlite3.connect(str(db_path))
             conn.executemany(
-                "INSERT INTO entities (name, entity_type, file_path) VALUES (?,?,?)",
-                [
-                    ("Edition1", "edition", "findata/Editions/Edition1.md"),
-                    ("Edition2", "edition", "findata/Editions/Edition2.md"),
-                    ("Edition3", "edition", "findata/Editions/Edition3.md"),
-                ],
-            )
-            conn.executemany(
                 "INSERT INTO graph_edges (source, target, edge_type, source_ref) VALUES (?,?,?,?)",
                 [
-                    ("HDFC Bank", "Edition1", "co_mentioned_in", "seed"),
-                    ("HDFC Bank", "Edition2", "co_mentioned_in", "seed"),
-                    ("HDFC Bank", "Edition3", "co_mentioned_in", "seed"),
-                    ("ICICI Bank", "Edition1", "co_mentioned_in", "seed"),
+                    ("HDFC Bank", "ICICI Bank", "co_mentioned_in", "seed"),
+                    ("HDFC Bank", "Infosys", "co_mentioned_in", "seed"),
+                    ("ICICI Bank", "HDFC Bank", "co_mentioned_in", "seed"),
                 ],
             )
             conn.commit()
             conn.close()
             data = client.get("/api/graph/co-mentions").get_json()
-        assert len(data["ranked"]) == 2
+        assert len(data["ranked"]) == 3
         assert data["ranked"][0] == {"entity": "HDFC Bank", "co_mentions": 3}
-        assert data["ranked"][1] == {"entity": "ICICI Bank", "co_mentions": 1}
+        assert data["ranked"][1] == {"entity": "ICICI Bank", "co_mentions": 2}
 
     def test_top_param_limits_results(self, tmp_path):
         with _seeded_sqlite_db(tmp_path) as client:
             db_path = tmp_path / "unit_graph.db"
             conn = sqlite3.connect(str(db_path))
-            # S1' endpoint resolution: seed every endpoint (companies + edition).
+            # A′ endpoint resolution: both sides must be company entities
+            # (e_comention resolves against v_company). Ring pairs keep
+            # every Co at 2 participations → 10 ranked rows.
             conn.executemany(
                 "INSERT INTO entities (name, entity_type, file_path) VALUES (?,?,?)",
-                [(f"Co{i}", "company", f"findata/Companies/X/Co{i}.md") for i in range(10)]
-                + [("Edition1", "edition", "findata/Editions/Edition1.md")],
+                [(f"Co{i}", "company", f"findata/Companies/X/Co{i}.md") for i in range(10)],
             )
-            for i in range(10):
-                conn.execute(
-                    "INSERT INTO graph_edges (source, target, edge_type, source_ref) "
-                    "VALUES (?,?,?,?)",
-                    (f"Co{i}", "Edition1", "co_mentioned_in", "seed"),
-                )
+            conn.executemany(
+                "INSERT INTO graph_edges (source, target, edge_type, source_ref) VALUES (?,?,?,?)",
+                [(f"Co{i}", f"Co{(i + 1) % 10}", "co_mentioned_in", "seed") for i in range(10)],
+            )
             conn.commit()
             conn.close()
             data = client.get("/api/graph/co-mentions?top=3").get_json()

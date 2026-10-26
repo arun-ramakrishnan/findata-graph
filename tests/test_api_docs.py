@@ -203,11 +203,14 @@ class TestDocsSearch:
         assert "<mark>" in hit["snippet"]
         assert "duckdb" in hit["snippet"].lower()
 
-    def test_no_matches_empty_list(self, client):
+    def test_no_matches_empty_list(self, tmp_doc_env, fake_local, client):
         """The lexical leg's no-match contract: gibberish yields an empty
         page. (Hybrid legitimately serves dense-vector near-neighbors for
         the same query — the cosine leg has no zero-result notion — so
-        this pins the bm25 path.)"""
+        this pins the bm25 path.) Hermetic by contract: against the LIVE
+        sidecar a mid-arc doc/ edit makes the index stale, and the API
+        then legitimately serves scan (mode/degradation doctrine)."""
+        tmp_doc_env.rds.rebuild(write=True)
         data = client.get("/api/docs/search?q=zzz_never_matches_zzz&hybrid=0").get_json()
         assert data["mode"] == "bm25"
         assert data["results"] == []

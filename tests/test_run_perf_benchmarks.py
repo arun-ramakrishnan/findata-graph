@@ -96,24 +96,24 @@ def _leg(monkeypatch: pytest.MonkeyPatch, pre, post, run_one_ret) -> list[tuple]
 
 def test_leg_loop_tags_pre_leg_pressure(monkeypatch: pytest.MonkeyPatch) -> None:
     """Pressure seen BEFORE the leg counts even if it cleared by leg end."""
-    results = _leg(monkeypatch, "psi avg10 20.0%", None, (9.9, "OVER_BUDGET", False))
+    results = _leg(monkeypatch, "psi avg10 20.0%", None, (9.9, "OVER_BUDGET", False, ""))
     assert results[0][2] == "OVER_BUDGET [psi avg10 20.0%]"
     assert results[0][3] is False
 
 
 def test_leg_loop_tags_post_leg_pressure(monkeypatch: pytest.MonkeyPatch) -> None:
-    results = _leg(monkeypatch, None, "lane qa", (9.9, "FAIL(rc)", False))
+    results = _leg(monkeypatch, None, "lane qa", (9.9, "FAIL(rc)", False, "boom"))
     assert results[0][2] == "FAIL(rc) [lane qa]"
 
 
 def test_leg_loop_quiet_failure_stays_untagged(monkeypatch: pytest.MonkeyPatch) -> None:
     """A clean-box failure gets no load tag — attribution must not excuse."""
-    results = _leg(monkeypatch, None, None, (9.9, "OVER_BUDGET", False))
+    results = _leg(monkeypatch, None, None, (9.9, "OVER_BUDGET", False, ""))
     assert results[0][2] == "OVER_BUDGET"
 
 
 def test_leg_loop_passing_leg_untagged(monkeypatch: pytest.MonkeyPatch) -> None:
-    results = _leg(monkeypatch, "psi avg10 20.0%", "psi avg10 20.0%", (0.9, "OK", True))
+    results = _leg(monkeypatch, "psi avg10 20.0%", "psi avg10 20.0%", (0.9, "OK", True, ""))
     assert results[0][2] == "OK"
     assert results[0][3] is True
 
@@ -126,8 +126,8 @@ def test_write_report_load_tag_round_trips(tmp_path: Path, monkeypatch: pytest.M
     monkeypatch.setattr(rpb, "REPORT", report)
     rpb.write_report(
         [
-            ("bench_ok", 1.2, "OK", True, 2.0),
-            ("bench_slow", 9.9, "OVER_BUDGET [psi avg10 18.3%]", False, 2.0),
+            ("bench_ok", 1.2, "OK", True, 2.0, ""),
+            ("bench_slow", 9.9, "OVER_BUDGET [psi avg10 18.3%]", False, 2.0, ""),
         ],
         "2026-10-24 10:00:00",
         12.0,
@@ -138,3 +138,36 @@ def test_write_report_load_tag_round_trips(tmp_path: Path, monkeypatch: pytest.M
     assert ok_step.status == "✓ OK"
     assert "FAIL" in slow_step.status
     assert "psi avg10 18.3%" in slow_step.status
+
+
+def test_write_report_failure_sections_round_trip(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A red leg emits ``## <label> (FAILED)`` + stderr tail; gate_query's
+    _leg_err_head — the err_head source for the legs table — reads it back.
+    (Run 1869 lesson: integrity_check FAIL(rc) stored err_head NULL because
+    perf reports had no sections to grep.)"""
+    from tests import run_perf_benchmarks as rpb
+
+    from helpers.misc.gate_query import _leg_err_head
+
+    report = tmp_path / "perf_report.md"
+    monkeypatch.setattr(rpb, "REPORT", report)
+    rpb.write_report(
+        [
+            ("bench_ok", 1.2, "OK", True, 2.0, ""),
+            ("bench_int", 5.2, "FAIL(rc)", False, 10.0, "exit 1: validation_rate 91.05"),
+        ],
+        "2026-10-26 10:00:00",
+        12.0,
+    )
+    lines = report.read_text().splitlines()
+    head = _leg_err_head(lines, "bench_int")
+    assert head is not None
+    assert "status: FAIL(rc)" in head
+    assert "validation_rate 91.05" in head
+    # passing legs get no section
+    assert _leg_err_head(lines, "bench_ok") is None
+    # and the table parser still sees exactly two steps
+    (block,) = parse_perf_report(report)
+    assert len(block.steps) == 2

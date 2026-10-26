@@ -93,6 +93,12 @@ def _base_url(port: int | None = None) -> str:
     return f"http://{TELEOCR_HOST}:{port or TELEOCR_PORT}"
 
 
+# HTTP(S)_PROXY must never apply to loopback traffic: under the harness
+# proxy (qa 2026-10-26) a plain-HTTP urlopen to 127.0.0.1 got intercepted
+# and the proxy rewrote the chat-completions system prompt in flight.
+_LOOPBACK_OPENER = urllib.request.build_opener(urllib.request.ProxyHandler({}))
+
+
 def preflight(port: int | None = None) -> str:
     """Health + identity probe. Returns the served model id.
 
@@ -102,7 +108,7 @@ def preflight(port: int | None = None) -> str:
     base = _base_url(port)
     try:
         # scheme+host are the engine's own loopback constant, never caller-supplied
-        with urllib.request.urlopen(f"{base}/health", timeout=10) as r:  # noqa: S310
+        with _LOOPBACK_OPENER.open(f"{base}/health", timeout=10) as r:  # noqa: S310
             body = json.load(r)
         if body.get("status") != "ok":
             raise TeleOCRUnavailable(f"teleocr server unhealthy: {body} — {_START_HINT}")
@@ -111,7 +117,7 @@ def preflight(port: int | None = None) -> str:
             f"teleocr server not reachable on {base}: {e} — {_START_HINT}"
         ) from e
     try:
-        with urllib.request.urlopen(f"{base}/v1/models", timeout=10) as r:  # noqa: S310  # loopback constant, see above
+        with _LOOPBACK_OPENER.open(f"{base}/v1/models", timeout=10) as r:  # noqa: S310  # loopback constant, see above
             body = json.load(r)
         # llama-server shape drifted: {"data":[{"id":...}]} (OpenAI) vs
         # {"models":[{"name":...}]} (recent builds) — accept both.
@@ -173,7 +179,7 @@ def ocr_image(
             headers={"Content-Type": "application/json"},
         )
         try:
-            with urllib.request.urlopen(req, timeout=REQUEST_TIMEOUT_S) as r:  # noqa: S310  # loopback constant, see above
+            with _LOOPBACK_OPENER.open(req, timeout=REQUEST_TIMEOUT_S) as r:  # noqa: S310  # loopback constant, see above
                 return json.load(r)
         except (urllib.error.URLError, OSError, json.JSONDecodeError) as e:
             raise TeleOCRUnavailable(f"teleocr request failed: {e} — {_START_HINT}") from e

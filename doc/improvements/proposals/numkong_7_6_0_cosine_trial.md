@@ -1,3 +1,12 @@
+---
+title: "Numkong 7.6.0 cosine trial"
+area: database
+status: proposed
+filed: "2026-10-18"
+completed_md: null
+executed: null
+---
+
 # Proposal: Numkong 7.6.0 cosine trial — 2026-10-18
 Status: **measured — proposal recorded, NO production migration**.
 Filed: 2026-10-18 (post-trial, user command: "do the same for numkong").

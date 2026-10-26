@@ -94,6 +94,7 @@ help:           ## Show available targets (alphabetical; entries generated from 
 > @echo "  derive-insights          DRY-RUN stale-only preview of quotes/company_metrics + auto '## The Chatter' blocks (writes nothing; apply yourself — see comment above)"
 > @echo "  derive-merger-hyperedges Derive merger/demerger hyperedges from the triage decisions journal (merger_demerger_hyperedges S2); APPLY=1 writes"
 > @echo "  derive-org-membership    Derive org_membership hyperedges from person-to-company invested_in (person_ontology_spine S3); APPLY=1 writes"
+> @echo "  derive-relational-insights Derive R3 insight tables (ultimate_parent, hidden_connections, supply_chokepoints, competitive_overlap): dry-run default, APPLY=1 writes"
 > @echo "  derive-relations         Extract jv_with/acquired/subsidiary_of/same_group/supplier_to/customer_of edges from newsletter prose"
 > @echo "  derive-themes            Derive exposed_to (company -> theme) edges from company-note prose"
 > @echo "  derive-themes-rebuild    derive-themes + graph-rebuild — the paired run themes require (writes edges, then rebuilds the DuckDB cache to match)"

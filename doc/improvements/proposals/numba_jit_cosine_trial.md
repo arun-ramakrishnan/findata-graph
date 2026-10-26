@@ -1,3 +1,12 @@
+---
+title: "Numba JIT cosine trial"
+area: database
+status: proposed
+filed: "2026-10-18"
+completed_md: null
+executed: null
+---
+
 # Proposal: Numba JIT cosine trial — 2026-10-18
 
 Status: **measured — proposal recorded, NO production migration**.

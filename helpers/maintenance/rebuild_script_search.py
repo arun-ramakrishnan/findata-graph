@@ -1651,9 +1651,10 @@ def _cosine_rank_rows(
         and len(blobs) == len(rids)
         and all(isinstance(b, (bytes, bytearray)) and len(b) == dim4 for b in blobs)
     ):
-        matrix = np.frombuffer(b"".join(bytes(b) for b in blobs), dtype="<f4").reshape(
-            len(rids), len(q_vec)
-        )
+        from typing import cast
+
+        raw = cast("list[bytes | bytearray]", blobs)
+        matrix = np.frombuffer(b"".join(raw), dtype="<f4").reshape(len(rids), len(q_vec))
     if matrix is None:
         matrix = np.asarray(vecs, dtype=np.float32)
     qn = np.asarray(q_vec, dtype=np.float32)

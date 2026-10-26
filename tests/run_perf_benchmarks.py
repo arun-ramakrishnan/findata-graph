@@ -36,6 +36,7 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 REPORT = REPO_ROOT / "outputs" / "perf_report.md"
+_TAIL_CAP = 2000  # per-leg stderr ceiling; matches gate_query's err_head cap
 
 # ── Scratch expansion (2026-10-22, quack arc) ───────────────────────────
 # A bench leg may name "{scratch}" in its argv: it expands to a FRESH
@@ -471,8 +472,14 @@ def _load_pressure_reason() -> str | None:
     return None
 
 
-def run_one(label: str, args: list[str], budget: float) -> tuple[float, str, bool]:
-    """Run a single benchmark, return (elapsed_seconds, status, passed)."""
+def run_one(label: str, args: list[str], budget: float) -> tuple[float, str, bool, str]:
+    """Run a single benchmark, return (elapsed_seconds, status, passed, stderr_tail).
+
+    The tail (last ~2 KB of stderr) rides the result so failures surface in
+    the report's ``## <label> (FAILED)`` sections — gate_query's err_head —
+    without the old failure-time subprocess re-run (which doubled the cost
+    of every red leg and printed to a console nobody archives).
+    """
     t0 = time.perf_counter()
     r = subprocess.run(  # noqa: S603  # list-form call; shell=False (default); args are constants/controlled paths
         [sys.executable, *_expand_scratch(args)],
@@ -488,18 +495,19 @@ def run_one(label: str, args: list[str], budget: float) -> tuple[float, str, boo
         status = "OVER_BUDGET"
     else:
         status = "OK"
-    return dt, status, ok
+    tail = r.stderr.decode(errors="replace").strip()[-_TAIL_CAP:]
+    return dt, status, ok, tail
 
 
 def _run_all_benchmarks() -> tuple[
-    list[tuple[str, float, str, bool, float]], str | None, str | None
+    list[tuple[str, float, str, bool, float, str]], str | None, str | None
 ]:
     """Run every BENCHMARKS leg; returns (results, contended_from, contend_why).
 
     Extracted from main() (C901): the mid-run contention probe + the
     failure-stderr surface live here, the table/report tail stays in main.
     """
-    results: list[tuple[str, float, str, bool, float]] = []
+    results: list[tuple[str, float, str, bool, float, str]] = []
     contended_from: str | None = None
     contend_why: str | None = None
     for label, args, budget in BENCHMARKS:
@@ -516,7 +524,7 @@ def _run_all_benchmarks() -> tuple[
         # Pressure endpoints bracket the leg: avg10 before + after catches a
         # spike that started and ended inside the leg's window (avg60 lags).
         pre_load = _load_pressure_reason()
-        dt, status, ok = run_one(label, args, budget)
+        dt, status, ok, tail = run_one(label, args, budget)
         if contended_from is not None:
             status = "CONTENDED"
             ok = False
@@ -528,18 +536,10 @@ def _run_all_benchmarks() -> tuple[
                 # the box was busy while it did (run 1787 lesson — a loaded
                 # box painted 15 legs red and read as a regression wall).
                 status = f"{status} [{load_frag}]"
-        results.append((label, dt, status, ok, budget))
+        results.append((label, dt, status, ok, budget, tail))
         print(f" {dt:6.2f}s  [{status}]")
-        if not ok and contended_from is None:
-            # surface stderr on failure for immediate feedback
-            r = subprocess.run(  # noqa: S603  # list-form call; shell=False (default); args are constants/controlled paths
-                [sys.executable, *_expand_scratch(args)],
-                capture_output=True,
-                stdin=subprocess.DEVNULL,
-                cwd=REPO_ROOT,
-            )
-            if r.stderr:
-                print(f"    stderr: {r.stderr.decode()[:200]}", file=sys.stderr)
+        if not ok and tail:
+            print(f"    stderr: {tail[:200]}", file=sys.stderr)
     return results, contended_from, contend_why
 
 
@@ -566,7 +566,7 @@ def main() -> int:
     lines.append("Benchmark                              Time (s)   Budget   Status")
     lines.append("-" * 70)
     all_ok = True
-    for label, dt, status, ok, budget in results:
+    for label, dt, status, ok, budget, _tail in results:
         flag = "✓" if ok else "✗"
         lines.append(f"  {label:.<36s} {dt:7.2f}  {budget:7.1f}s   {flag} {status}")
         if not ok:
@@ -616,7 +616,7 @@ def _md_status(status: str, ok: bool) -> str:
 
 
 def write_report(
-    results: list[tuple[str, float, str, bool, float]],
+    results: list[tuple[str, float, str, bool, float, str]],
     started: str,
     elapsed: float,
     status_note: str | None = None,
@@ -628,12 +628,19 @@ def write_report(
     tests/test_report_append_convention.py. ``status_note`` (a contention
     trip) adds a **Status:** line after the Generated header; the parser
     ignores lines it doesn't match, so the chain stays readable.
+
+    Failing legs additionally get a ``## <label> (FAILED)`` section carrying
+    the leg status and the captured stderr tail — the same section grammar
+    run_gate_report writes, which is what gate_query's ``err_head`` greps.
+    Before 2026-10-26 a red perf leg stored err_head NULL: the report had
+    no sections to find (run 1869: integrity_check FAIL(rc) invisible in
+    ``gate_query failures``).
     """
     from datetime import datetime
 
     ended = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    passed = sum(1 for *_, ok, _ in results if ok)
+    passed = sum(1 for *_, ok, _, _ in results if ok)
     total = len(results)
     md_lines: list[str] = []
     md_lines.append("# make perf — benchmark report")
@@ -648,10 +655,18 @@ def write_report(
     md_lines.append("")
     md_lines.append("| Benchmark | Time (s) | Budget | Status |")
     md_lines.append("|---|---|---|---|")
-    for label, dt, status, ok, budget in results:
+    for label, dt, status, ok, budget, _tail in results:
         flag = _md_status(status, ok)
         md_lines.append(f"| {label} | {dt:.2f} | {budget:.1f}s | {flag} |")
     md_lines.append(f"| **{passed}/{total} passed** | | | |")
+    for label, _dt, status, ok, _budget, tail in results:
+        if ok:
+            continue
+        md_lines.append("")
+        md_lines.append(f"## {label} (FAILED)")
+        md_lines.append("")
+        md_lines.append(f"status: {status}")
+        md_lines.append(tail if tail else "(no stderr output)")
     md_lines.append("")
     REPORT.parent.mkdir(parents=True, exist_ok=True)
     with open(REPORT, "a") as f:

@@ -486,15 +486,20 @@ class ReportScreen(ModalScreen[None]):
         row.update(extra)
         self._rows.append(row)
 
+    def _scoped_files(self, files: list[tuple[str, str, str]]) -> list[tuple[str, str, str]]:
+        """Row scope: --rel narrows to one report file, --report to a gate
+        name; neither flag keeps everything."""
+        if self._rel:
+            return [f for f in files if f[1] == self._rel]
+        if self._report:
+            return [f for f in files if f[0] == self._report]
+        return files
+
     def _fill(self) -> None:
         from helpers.misc import search_tui as _tui
 
         self._rows = []
-        files = _tui.report_files()  # main copies + outputs/wt/<name>/ copies
-        if self._rel:
-            files = [f for f in files if f[1] == self._rel]
-        elif self._report:
-            files = [f for f in files if f[0] == self._report]
+        files = self._scoped_files(_tui.report_files())  # main + outputs/wt/ copies
         for name, rel, kind in files:
             disp = _tui._report_display(name, rel)
             p = REPO_ROOT / rel

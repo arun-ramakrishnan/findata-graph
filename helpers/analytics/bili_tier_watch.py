@@ -113,7 +113,7 @@ def line_session(line: str) -> str:
     sid = m.group(1) or m.group(2) or ""
     # Strip leading "session-" prefix for normalization
     if sid.startswith("session-"):
-        sid = sid[len("session-"):]
+        sid = sid[len("session-") :]
     return sid
 
 
@@ -122,7 +122,7 @@ def _norm_session(sid: str | None) -> str:
     if not sid:
         return ""
     if sid.startswith("session-"):
-        return sid[len("session-"):]
+        return sid[len("session-") :]
     return sid
 
 

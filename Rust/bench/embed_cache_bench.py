@@ -141,15 +141,9 @@ def main() -> None:
             f"({bytes_total / sha_t / 1_000_000:.0f} MB/s)"
         )
         ins, ins_t = bench_sqlite_insert(texts)
-        print(
-            f"  sqlite insert: {ins:>8} rows in {ins_t:.4}s  "
-            f"({ins / ins_t:,.0f} rows/s)"
-        )
+        print(f"  sqlite insert: {ins:>8} rows in {ins_t:.4}s  ({ins / ins_t:,.0f} rows/s)")
         fnd, look_t = bench_sqlite_lookup(texts)
-        print(
-            f"  sqlite lookup: {fnd:>8} rows in {look_t:.4}s  "
-            f"({fnd / look_t:,.0f} rows/s)"
-        )
+        print(f"  sqlite lookup: {fnd:>8} rows in {look_t:.4}s  ({fnd / look_t:,.0f} rows/s)")
         ins2, fnd2, pipe_t = bench_full_pipeline(texts)
         print(
             f"  full pipeline: {ins2:>8} insert + {fnd2:>8} lookup in {pipe_t:.4}s  "

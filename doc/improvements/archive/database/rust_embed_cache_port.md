@@ -3,9 +3,8 @@ title: "Rust port of embedding-cache SHA-256 + SQLite pipeline"
 area: database
 status: executed
 filed: "2026-10-25"
-completed_md: null
+completed_md: "440"
 executed: "2026-10-25"
-archived: "2026-10-25"
 ---
 
 # Rust port of `helpers/core/embed_cache.py`

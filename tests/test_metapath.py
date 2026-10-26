@@ -259,6 +259,40 @@ class TestContract:
         assert "no connection" in capsys.readouterr().out
 
 
+def _reference_tables(db_path: Path) -> tuple[dict[int, set[str]], dict[str, set[int]]]:
+    """Naive incidence re-read straight from the tables (parity oracle)."""
+    import collections
+    import sqlite3
+
+    con = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)
+    members: dict[int, set[str]] = collections.defaultdict(set)
+    for eid, ent in con.execute("SELECT edge_id, entity_name FROM hyper_incidences"):
+        members[eid].add(ent)
+    of: dict[str, set[int]] = collections.defaultdict(set)
+    for eid, ents in members.items():
+        for e in ents:
+            of[e].add(eid)
+    return members, of
+
+
+def _ref_dist(members: dict[int, set[str]], of: dict[str, set[int]], a: str, b: str, cap: int = 4):
+    """Naive reference BFS: set-expansion s-distance, no determinism rules."""
+    if a == b:
+        return 0
+    seen, frontier = {a}, {a}
+    for d in range(1, cap + 1):
+        nxt: set[str] = set()
+        for n in frontier:
+            for eid in of[n]:
+                nxt |= members[eid]
+        nxt -= seen
+        if b in nxt:
+            return d
+        seen |= nxt
+        frontier = nxt
+    return None
+
+
 class TestHyperSPaths:
     """R5: s-walks over the incidence store as the hyper explanation leg."""
 
@@ -297,33 +331,7 @@ class TestHyperSPaths:
     def test_parity_vs_inlined_reference(self, scratch_db):
         """R5 acceptance: s-distances match a naive reference BFS over the
         same incidence store (reference re-reads the tables directly)."""
-        import collections
-        import sqlite3
-
-        con = sqlite3.connect(f"file:{scratch_db}?mode=ro", uri=True)
-        members: dict[int, set[str]] = collections.defaultdict(set)
-        for eid, ent in con.execute("SELECT edge_id, entity_name FROM hyper_incidences"):
-            members[eid].add(ent)
-        of: dict[str, set[int]] = collections.defaultdict(set)
-        for eid, ents in members.items():
-            for e in ents:
-                of[e].add(eid)
-
-        def ref_dist(a: str, b: str, cap: int = 4) -> int | None:
-            if a == b:
-                return 0
-            seen, frontier = {a}, {a}
-            for d in range(1, cap + 1):
-                nxt: set[str] = set()
-                for n in frontier:
-                    for eid in of[n]:
-                        nxt |= members[eid]
-                nxt -= seen
-                if b in nxt:
-                    return d
-                seen |= nxt
-                frontier = nxt
-            return None
+        members, of = _reference_tables(scratch_db)
 
         pairs = (
             ("AffA", "AffB"),
@@ -338,7 +346,7 @@ class TestHyperSPaths:
         for a, b in pairs:
             got = metapath.hyper_path(a, b, max_hops=4, db_path=scratch_db)
             got_d = None if got is None else got["s_distance"]
-            assert got_d == ref_dist(a, b), (a, b, got_d)
+            assert got_d == _ref_dist(members, of, a, b), (a, b, got_d)
 
     def test_cli_hyper_format(self, scratch_db, capsys):
         rc = metapath.main(["AffA", "AffB", "--semantics", "hyper", "--db", str(scratch_db)])

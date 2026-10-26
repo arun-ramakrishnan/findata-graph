@@ -157,9 +157,7 @@ class TestCachedEmbedBatch:
 
         monkeypatch.setattr(EC.subprocess, "run", fake_run)
         fn, calls = _fake_embed()
-        vectors, stats = cached_embed_batch(
-            conn, ["hot", "cold", "cold"], "m1", fn
-        )
+        vectors, stats = cached_embed_batch(conn, ["hot", "cold", "cold"], "m1", fn)
 
         assert requests[0]["db_path"] == str(store_path)
         assert requests[0]["texts"] == ["hot", "cold", "cold"]

@@ -53,6 +53,8 @@ from dataclasses import dataclass  # noqa: E402
 
 import duckdb  # noqa: E402
 
+from helpers.core.db import connect as _db_connect  # noqa: E402
+
 DEFAULT_DUCKDB = Path("memory") / "graph.duckdb"
 DEFAULT_RESEARCH_DB = Path("memory") / "research.db"
 
@@ -289,7 +291,7 @@ def _render_relations(L: list[str], kept: list[Fact]) -> None:
 def _sqlite_ro(path: Path) -> sqlite3.Connection | None:
     if not Path(path).exists():
         return None
-    return sqlite3.connect(f"file:{Path(path)}?mode=ro", uri=True)
+    return _db_connect(path, read_only=True)
 
 
 def _q(scon: sqlite3.Connection, sql: str, params: tuple = ()) -> list:
@@ -511,6 +513,24 @@ def _deep_relations(
     return L
 
 
+def _deep_section(
+    con: duckdb.DuckDBPyConnection,
+    seed_id: int,
+    seed_name: str,
+    research_db: Path | None,
+) -> list[str]:
+    """R2 deep-relations lines; None/missing research_db skips (empty)."""
+    if research_db is None:
+        return []
+    scon = _sqlite_ro(Path(research_db))
+    if scon is None:
+        return []
+    try:
+        return _deep_relations(scon, con, seed_id, seed_name)
+    finally:
+        scon.close()
+
+
 def build_context_pack(
     con: duckdb.DuckDBPyConnection,
     name: str,
@@ -577,14 +597,7 @@ def build_context_pack(
     L.append("")
     _render_relations(L, kept)
 
-    deep_lines: list[str] = []
-    if research_db is not None:
-        scon = _sqlite_ro(Path(research_db))
-        if scon is not None:
-            try:
-                deep_lines = _deep_relations(scon, con, seed_id, seed_name)
-            finally:
-                scon.close()
+    deep_lines = _deep_section(con, seed_id, seed_name, research_db)
     if deep_lines:
         L.append("## Deep relations")
         L.append("")
