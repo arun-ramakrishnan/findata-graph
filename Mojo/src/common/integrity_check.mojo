@@ -1550,8 +1550,7 @@ def main() raises:
                             + et
                             + "' AND es.entity_type IN ("
                             + skq
-                            + ") "
-                            "AND et.entity_type IN ("
+                            + ") AND et.entity_type IN ("
                             + dkq
                             + ")"
                         ).fetchone()[0]

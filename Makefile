@@ -336,16 +336,16 @@ metrics-rebuild: ## Refresh company financials + notes from yfinance (~1 min, 93
 # Mojo machinery (rule definitions, wildcard discovery, test runner) lives
 # in Makefile.mojo — it grows with the Mojo source/test tree. This target
 # stays thin so the main Makefile keeps a single annotated entry point.
-mojo-bench:      ## Run all Mojo bench legs via Mojo/bench/run_bench.py (MOJO_BENCH_SCALE/REPS, MOJO_BENCH_ARGS='--leg NAME')
+mojo-bench:      ## Run all Mojo bench legs via Mojo/bench/run_bench.py (FROZEN 2026-10-26: Mojo lane frozen — manual runs only; MOJO_BENCH_SCALE/REPS, MOJO_BENCH_ARGS='--leg NAME')
 > $(MAKE) -f Makefile.mojo mojo-bench
 
-mojo-parity:     ## Golden parity: Mojo integrity_check vs the Python original over 89 canonical keys (qa leg; exits 1 on any mismatch)
+mojo-parity:     ## Golden parity: Mojo integrity_check vs the Python original over 89 canonical keys (FROZEN 2026-10-26: retired from qa — manual drift-check only; exits 1 on any mismatch)
 > $(MAKE) -f Makefile.mojo mojo-parity
 
 mojo-build:      ## Compile Mojo/ sources to native binaries in Mojo/bin/ (incremental; machinery in Makefile.mojo)
 > $(MAKE) -f Makefile.mojo mojo-build
 
-mojo-test:       ## Run Mojo/tests/*.mojo test suites via mojo run (machinery in Makefile.mojo)
+mojo-test:       ## Run Mojo/tests/*.mojo test suites via mojo run (FROZEN 2026-10-26: retired from advisory — manual runs only; machinery in Makefile.mojo)
 > $(MAKE) -f Makefile.mojo mojo-test
 
 mojo-format:        ## Normalize Mojo/src + Mojo/tests with `mojo format` (fix for the tests/test_lint_gates.py format gate)
@@ -843,6 +843,6 @@ md-lint:        ## Markdown lint via pinned markdownlint-cli2 — doc/ prose bas
 deptry:         ## Run deptry dependency-health scan (unused/undeclared/transitive deps)
 > deptry .
 
-advisory:       ## Run advisory (non-gating) checks in PARALLEL (default 4 jobs; override: make advisory -j N): ty on tests, live invariants, frontend, graph algos, analytics, suggestions, doc/script/note/memory-search freshness checks, lint-audit, secret-scan, cargo-audit, mojo-test, fuzz, license-check (appends outputs/advisory_report.md)
+advisory:       ## Run advisory (non-gating) checks in PARALLEL (default 4 jobs; override: make advisory -j N): ty on tests, live invariants, frontend, graph algos, analytics, suggestions, doc/script/note/memory-search freshness checks, lint-audit, secret-scan, cargo-audit, fuzz, license-check (appends outputs/advisory_report.md)
 > python3 tests/run_gate_report.py advisory
 > @echo "✓ Advisory checks complete (appended to outputs/advisory_report.md; these do NOT block \`make qa\`)"

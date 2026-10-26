@@ -34,7 +34,11 @@ Advisory runs last: its informational legs never block. Read results via
 `gate_query` (`gate_query failures`, `gate_query latest --gate <name>`),
 not raw tails.
 
-`make qa` includes a **`mojo-parity`** leg (added 2026-10-14): the Mojo
+`make qa` included a **`mojo-parity`** leg (added 2026-10-14, **RETIRED
+from qa 2026-10-26 — Mojo lane frozen** by operator ruling: nothing in
+production consumes Mojo, so the leg was pure mirroring tax on a second
+implementation with no consumers; `make mojo-parity` survives as a
+manual drift check): the Mojo
 `integrity_check` port diffed against the Python
 `database_integrity_check.py` over 89 canonical keys. It is the only
 drift detector between the two implementations, and it is why H10 exists —
@@ -44,15 +48,16 @@ toolchain and a build**, so a bare `make qa` on a machine without
 `.venv/bin/mojo` fails there and nowhere else; and on red it prints the
 mismatched keys with the full log path, which is the fastest route to the
 offending site. Its analogue for perf regressions is `make mojo-bench`
-(still a separate, non-blocking surface).
+(still a separate, non-blocking surface; also FROZEN 2026-10-26 —
+manual runs only).
 
 qa also runs a **`schema-check`** leg — tracked `schema/` DDL vs the live
 `memory/` DBs, exit 1 on drift, fix is `make schema-dump` — and advisory
-runs five security/compliance legs: `secret-scan` (incremental git-history
-scan), `cargo-audit` (SKIPs without the binary), `mojo-test` (same
-toolchain caveat as mojo-parity), `fuzz` (Hypothesis suites, deterministic
+runs four security/compliance legs: `secret-scan` (incremental git-history
+scan), `cargo-audit` (SKIPs without the binary), `fuzz` (Hypothesis suites, deterministic
 seed; contends with the pytest-scale legs, so advisory wall time grows),
-`license-check` (AGPL + third-party inventory). All wired 2026-10-21;
+`license-check` (AGPL + third-party inventory). Wired 2026-10-21;
+`mojo-test` retired from the roster 2026-10-26 (Mojo freeze);
 `analytics-fresh` was deliberately left out — it reads external harness
 state and carries the same chronic-red risk class as convo-fresh.
 

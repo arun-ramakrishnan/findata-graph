@@ -108,3 +108,29 @@ edit.
   no-official-target status; the community L0 shim path is already
   restored (pilot doc §Update 2026-09-20).
 - No pixi/conda revisit (channel-wide dead, pilot doc §pixi).
+
+## FREEZE (2026-10-26, operator ruling: "Mojo is increasingly unviable")
+
+The Mojo lane is FROZEN — no further ports, no mirroring obligation.
+
+- **Survey finding that decided it**: nothing in production consumes
+  Mojo. No Makefile target, helper, or app.py path invokes
+  `Mojo/bin/*`; the only runners of Mojo code are the gate/bench
+  machinery itself. The graph read path went to DuckDB hyper
+  projections (#438) and the one real perf-wall kernel went to Rust
+  (`Rust/cosine_knn`, #440).
+- **Consequence**: `mojo-parity` retired from qa and `mojo-test` from
+  advisory (tests/run_gate_report.py, same day) — the parity leg was
+  the maintenance contract for the second implementation of
+  `database_integrity_check.py` (Python is the source of truth), and
+  every Python-side semantic change re-paid the port by hand; the
+  2026-10-26 person-exemption port (mojo-parity 78/88 -> 88/88) was the
+  last one.
+- **What stays**: the `make mojo-{build,parity,test,bench,format}`
+  targets as manual surfaces, `Mojo/` source as the historical record,
+  the qa format gate in test_lint_gates (free; catches accidental edits
+  to frozen code), the pyproject `mojo` optional-dep group, and this
+  document as the toolchain/bench-traps reference.
+- **Unfreeze trigger** (if ever): a measured wall that neither the
+  native Python layer nor Rust closes, with mojo-parity re-converged
+  BEFORE any new port work starts.

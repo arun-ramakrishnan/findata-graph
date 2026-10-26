@@ -235,15 +235,15 @@ GATES: dict[str, Gate] = {
             # (tests/test_schema_drift.py) with no fix hint. Wired 2026-10-21
             # after the feature_evals arc paid for its absence.
             Step("schema-check", (_MAKE, "schema-check")),
-            # mojo-parity: the Mojo integrity_check port diffed against
-            # the Python original over 89 canonical keys. This is the
-            # ONLY drift detector between the two implementations, and
-            # until 2026-10-14 it existed solely inside the mojo-bench
-            # PERF harness — never run as a gate, which is how the Mojo
-            # copy fell 26 days behind a Python checker that moved 8
-            # times. Needs the Mojo toolchain + a build, so it sits on
-            # the shared pool rather than exclusive with pytest.
-            Step("mojo-parity", (_MAKE, "mojo-parity")),
+            # mojo-parity RETIRED from qa 2026-10-26 (Mojo freeze, operator
+            # ruling: Mojo increasingly unviable). Nothing in production
+            # consumes Mojo — the leg existed solely as the mirroring
+            # contract for the second (Mojo) implementation of the
+            # integrity check, and every semantic change to
+            # database_integrity_check.py re-paid that tax by hand (the
+            # person-exemption port the same day was the last one). The
+            # `make mojo-parity` target survives as a MANUAL drift check;
+            # the frozen binary keeps working as a historical artifact.
             # snapshot_fresh_gate: generation-only freshness first — drift
             # fails here in ~0.3 s with the exact remediation instead of
             # MISMATCH archaeology 7 s into snapshot_check.
@@ -357,13 +357,14 @@ GATES: dict[str, Gate] = {
             # secret-scan is incremental (state under .git/secret-scan/) so
             # cheap after the first run; cargo-audit SKIPs without the
             # binary (same safe-skip pattern as md-lint without Node);
-            # mojo-test carries the same toolchain caveat as mojo-parity;
             # fuzz runs the Hypothesis suites (deterministic seed, -n auto —
             # contends with the pytest-scale legs, expect advisory wall time
             # to grow); license-check verifies AGPL + third-party metadata.
             Step("secret-scan", (_MAKE, "secret-scan")),
             Step("cargo-audit", (_MAKE, "cargo-audit")),
-            Step("mojo-test", (_MAKE, "mojo-test")),
+            # mojo-test RETIRED from advisory 2026-10-26 (Mojo freeze —
+            # same operator ruling as the qa mojo-parity retirement; the
+            # `make mojo-test` target survives for manual runs).
             Step("fuzz", (_MAKE, "fuzz")),
             Step("license-check", (_MAKE, "license-check")),
         ),
