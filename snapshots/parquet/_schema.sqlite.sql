@@ -287,6 +287,38 @@ CREATE TABLE event_participants (
     PRIMARY KEY (event_id, participant, role)
 );
 
+CREATE TABLE ultimate_parent (
+        company TEXT PRIMARY KEY,
+        ultimate_parent TEXT NOT NULL,
+        depth INTEGER NOT NULL,
+        path TEXT NOT NULL,
+        root_kind TEXT NOT NULL,
+        coalition_pct REAL,
+        computed_at DATETIME NOT NULL);
+
+CREATE TABLE hidden_connections (
+        a TEXT NOT NULL,
+        b TEXT NOT NULL,
+        distance INTEGER NOT NULL,
+        shared_count INTEGER NOT NULL,
+        intermediaries TEXT NOT NULL,
+        computed_at DATETIME NOT NULL,
+        PRIMARY KEY (a, b));
+
+CREATE TABLE supply_chokepoints (
+        supplier TEXT PRIMARY KEY,
+        competitors_served INTEGER NOT NULL,
+        competitor_dyads INTEGER NOT NULL,
+        companies TEXT NOT NULL,
+        computed_at DATETIME NOT NULL);
+
+CREATE TABLE competitive_overlap (
+        a TEXT NOT NULL,
+        b TEXT NOT NULL,
+        c TEXT NOT NULL,
+        computed_at DATETIME NOT NULL,
+        PRIMARY KEY (a, b, c));
+
 CREATE INDEX idx_entity_tags_tag ON entity_tags(tag);
 
 CREATE INDEX idx_entities_sector_classification ON entities(sector_classification);
