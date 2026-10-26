@@ -43,12 +43,15 @@ dependencies = [
     # PDF pipeline (helpers/pdf/pdf_conv_md.py + helpers/pdf/pdf_local.py):
     # requests for write_outputs' remote-URL image branch; pymupdf4llm for the
     # local no-OCR engine (default, local-first per operator decision 2026-08-26).
-    # liteparse (Tesseract 5.5.0 eng) is the scanned OCR fallback (0.3s) and
-    # teleocr (TeleOCR GGUF via llama-server) the terminal rung, per the
-    # teleocr_pdf_fallback proposal (Paddle API cut, pix2text removed 2026-10-06).
+    # indra-ocr (CPU-only in-process ONNX Runtime) is the scanned OCR fallback
+    # (rung 2) and teleocr (TeleOCR GGUF via llama-server) the terminal rung,
+    # per the pdf_engine_indra_ocr_rung2 proposal (lite Tesseract cut
+    # 2026-10-26; before that: Paddle API cut, pix2text removed 2026-10-06).
+    # liteparse stays for its no-OCR bbox sidecar module (no chain flags).
     "requests",
     "pymupdf4llm",
     "pymupdf", # imported directly (Pixmap/text-layer guard), not just transitively
+    "indra-ocr",
     "liteparse",
     # sqlite-vec vector index for note_search hybrid ranking (A1,
     # helpers/core/vec_search.py). Loaded per-connection exactly like

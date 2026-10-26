@@ -5,7 +5,7 @@ Runs a linear fallback chain over local engines (no network APIs since the
 Paddle cut, D2 2026-10-06 — see doc/improvements/archive/pipeline/teleocr_pdf_fallback.md):
 
     auto (default): pdf_local (pymupdf4llm, born-digital)
-                 -> lite OCR (Tesseract, scanned)
+                 -> indra OCR (serverless ONNX Runtime, scanned)
                  -> teleocr (TeleOCR GGUF via llama-server, terminal)
 
 and writes:
@@ -25,16 +25,15 @@ Usage
 
 Options
 -------
-    --engine ENGINE          auto (default) | local | lite | lite-ocr |
-                             teleocr. auto runs the LOCAL no-OCR engine
-                             first (born-digital PDFs only), falls back to
-                             lite OCR (Tesseract) when it refuses a PDF (no
-                             usable text layer), then to teleocr — the
-                             TeleOCR GGUF via a running llama-server
-                             (assumed-running contract, D3: start it with
-                             `make teleocr-server`). The rest force one
-                             engine. Trial:
-                             doc/local/evaluations/local_pdf_engine_trial.md
+    --engine ENGINE          auto (default) | local | indra | teleocr. auto
+                             runs the LOCAL no-OCR engine first (born-digital
+                             PDFs only), falls back to Indra OCR (in-process
+                             ONNX Runtime) when it refuses a PDF (no usable
+                             text layer), then to teleocr — the TeleOCR GGUF
+                             via a running llama-server (assumed-running
+                             contract, D3: start it with `make
+                             teleocr-server`). The rest force one engine.
+                             Trial: doc/local/evaluations/local_pdf_engine_trial.md
     --teleocr-port PORT      llama-server port for the teleocr engine
                              (default 8731 / TELEOCR_PORT)
     --no-images              skip copying embedded images (leaves the
@@ -67,24 +66,18 @@ from helpers.pdf.pdf_local import (  # noqa: E402
     convert as convert_local,
 )
 
-# LiteParse engine (Slice 2, liteparse_pdf_engine proposal #186):
-# liteparse_engine mirrors pdf_local.convert shape and provides the bbox
-# sidecar for no-OCR plus the OCR fallback with image sidecar.
+# Indra OCR engine (rung 2, pdf_engine_indra_ocr_rung2 proposal 2026-10-26):
+# replaces the lite OCR Tesseract fallback — in-process ONNX Runtime, no
+# server; degrades to teleocr when indra_ocr or its models are unavailable.
 try:  # noqa: E402
-    from helpers.pdf.liteparse_engine import (  # noqa: E402
-        ENGINE_LABEL_NOCR as _LITE_NOCR_LABEL,
-        ENGINE_LABEL_OCR as _LITE_OCR_LABEL,
-        convert as _lite_convert,
+    from helpers.pdf.indra_engine import (  # noqa: E402
+        INDRA_ENGINE_LABEL as _INDRA_LABEL,
+        IndraUnavailable,
+        convert as _indra_convert,
     )
-except ImportError:  # pragma: no cover - liteparse not installed
-    _lite_convert = None
-    _LITE_NOCR_LABEL = "liteparse-noocr"
-    _LITE_OCR_LABEL = "liteparse-ocr"
-# Fallback for tests that import liteparse_markdown directly
-try:  # noqa: E402
-    from helpers.pdf.liteparse_markdown import convert_liteparse_ocr as _lite_ocr_convert  # noqa: E402
-except ImportError:  # pragma: no cover
-    _lite_ocr_convert = None
+except ImportError:  # pragma: no cover - indra not installed
+    _indra_convert = None
+    _INDRA_LABEL = "indra-ocr-1.1.2"
 # TeleOCR engine (teleocr_pdf_fallback proposal): TeleOCR GGUF via llama-server,
 # the local terminal OCR rung (D2: Paddle API cut 2026-10-06; D4: pix2text
 # branch removed — subsumed, see helpers/pdf/teleocr_engine.py docstring).
@@ -355,13 +348,14 @@ def main(argv: list[str] | None = None) -> int:  # noqa: C901  # engine dispatch
     ap.add_argument("output_dir", help="directory to store the results in")
     ap.add_argument(
         "--engine",
-        choices=("auto", "local", "lite", "lite-ocr", "teleocr"),
+        choices=("auto", "local", "indra", "teleocr"),
         default="auto",
         help=(
             "auto (default): pdf_local (pymupdf4llm) for born-digital, "
-            "then lite OCR (Tesseract) for scanned, then teleocr (TeleOCR "
-            "GGUF via a running llama-server — `make teleocr-server`) as "
-            "the local terminal rung; the rest force one engine"
+            "then Indra OCR (in-process ONNX Runtime) for scanned, then "
+            "teleocr (TeleOCR GGUF via a running llama-server — `make "
+            "teleocr-server`) as the local terminal rung; the rest force "
+            "one engine"
         ),
     )
     ap.add_argument(
@@ -404,44 +398,18 @@ def main(argv: list[str] | None = None) -> int:  # noqa: C901  # engine dispatch
         print(f"error: not found: {pdf_path}", file=sys.stderr)
         return 1
 
-    # Engine chain (2026-10-06, teleocr_pdf_fallback: paddle cut D2, pix2text
-    # removed D4):
-    # auto: pdf_local (born-digital) -> lite OCR (Tesseract, 0.3s) -> teleocr
-    # (TeleOCR GGUF via llama-server, terminal local rung; ~40-120s/page CPU —
-    # fine at 5-6 docs/week).
-    # pdf_local stays primary for non-OCR per review; lite is OCR fallback,
-    # not markdown replacement; teleocr only sees pages the text layer
-    # refused and Tesseract could not parse.
+    # Engine chain (2026-10-26, pdf_engine_indra_ocr_rung2: lite Tesseract
+    # cut at rung 2; previously teleocr_pdf_fallback: paddle cut D2,
+    # pix2text removed D4):
+    # auto: pdf_local (born-digital) -> indra OCR (in-process ONNX Runtime,
+    # <1s/page) -> teleocr (TeleOCR GGUF via llama-server, terminal local
+    # rung; ~40-120s/page CPU — fine at 5-6 docs/week).
+    # pdf_local stays primary for non-OCR per review (Indra's minor glyph
+    # substitutions must never sit above the text layer); indra is the OCR
+    # fallback; teleocr only sees pages indra could not parse.
     pages: list[dict] | None = None
     engine_label = ""
     tmpdir: tempfile.TemporaryDirectory[str] | None = None
-
-    # Helper to wrap lite markdown (plain text) into the pdf_conv_md pages shape
-    def _wrap_markdown_as_pages(md_text: str, label: str) -> list[dict]:
-        # Minimal pages shape: single page with text, no images (images via pymupdf sidecar if needed)
-        # Downstream parse_newsletter handles "## " headings added by lite markdown
-        return [
-            {
-                "prunedResult": None,
-                "markdown": {"text": md_text, "images": {}},
-                "outputImages": [],
-                "inputImage": None,
-            }
-        ]
-
-    def _wrap_markdown_per_page(page_texts: list[str], label: str) -> list[dict]:
-        # Per-page wrapper so `verify_extraction` per-page coverage works on
-        # multi-page PDFs (e.g. SBI 28p via lite OCR). Each entry mirrors the
-        # pdf_local shape with its own markdown text.
-        return [
-            {
-                "prunedResult": None,
-                "markdown": {"text": pt, "images": {}},
-                "outputImages": [],
-                "inputImage": None,
-            }
-            for pt in page_texts
-        ]
 
     try:
         # 1. pdf_local (pymupdf4llm) for born-digital
@@ -455,61 +423,28 @@ def main(argv: list[str] | None = None) -> int:  # noqa: C901  # engine dispatch
                 if args.engine == "local":
                     print(f"error: local engine refused: {e}", file=sys.stderr)
                     return 1
-                print(f"  local engine refused ({e}) — trying lite OCR fallback")
-        # 2. lite / lite-ocr for scanned and bbox sidecar
-        # `lite` is the fast no-OCR path (bbox sidecar, 0.10s) — refuses scanned.
-        # `lite-ocr` / `auto` fallback is Tesseract OCR (0.3s) for scanned.
-        if pages is None and args.engine in ("auto", "lite", "lite-ocr"):
-            # Prefer the engine that handles images + per-page shape
-            if _lite_convert is not None:
+                print(f"  local engine refused ({e}) — trying Indra OCR fallback")
+        # 2. indra for scanned (in-process ONNX Runtime, no server)
+        if pages is None and args.engine in ("auto", "indra"):
+            if _indra_convert is not None:
                 try:
-                    import os as _os
-
-                    _os.environ.setdefault("TESSDATA_PREFIX", "/usr/share/tesseract-ocr/5/tessdata")
-                    # Determine ocr flag: `lite` -> no-ocr, `lite-ocr` -> ocr, `auto` -> ocr (scanned)
-                    want_ocr = args.engine == "lite-ocr" or args.engine == "auto"
-                    # For `auto` we try OCR directly (scanned); lite no-ocr would refuse anyway
-                    if args.engine == "lite":
-                        want_ocr = False
-                    # tmp dir for lite image sidecar (reuse pdf_local tmpdir if present)
                     if tmpdir is None:
-                        tmpdir = tempfile.TemporaryDirectory(prefix="lite_")
-                    lite_img_dir = Path(tmpdir.name) / "imgs"
-                    lite_img_dir.mkdir(parents=True, exist_ok=True)
-                    pages = _lite_convert(pdf_path, lite_img_dir, ocr=want_ocr)
-                    engine_label = _LITE_OCR_LABEL if want_ocr else _LITE_NOCR_LABEL
+                        tmpdir = tempfile.TemporaryDirectory(prefix="indra_")
+                    pages = _indra_convert(pdf_path, Path(tmpdir.name) / "imgs")
+                    engine_label = _INDRA_LABEL
                     total_chars = sum(len(p["markdown"]["text"]) for p in pages)
                     print(f"parsed via {engine_label} ({total_chars} chars, {len(pages)}p)")
-                except LocalRefusalError as e:
+                except IndraUnavailable as e:
                     print(
-                        f"  lite {args.engine} refused ({e}) — trying next fallback",
+                        f"  indra unavailable ({e}) — trying next fallback",
                         file=sys.stderr,
                     )
                     pages = None
                 except Exception as e:
-                    print(f"  lite failed ({e}) — trying next fallback", file=sys.stderr)
-                    pages = None
-            elif _lite_ocr_convert is not None:
-                # Fallback to old liteparse_markdown path (no image sidecar)
-                try:
-                    import os as _os
-
-                    _os.environ.setdefault("TESSDATA_PREFIX", "/usr/share/tesseract-ocr/5/tessdata")
-                    md, meta = _lite_ocr_convert(pdf_path)
-                    pts = meta.get("page_texts")
-                    if isinstance(pts, list) and len(pts) == meta.get("pages", len(pts)):
-                        pages = _wrap_markdown_per_page(pts, meta.get("engine", "liteparse-ocr"))
-                    else:
-                        pages = _wrap_markdown_as_pages(md, meta.get("engine", "liteparse-ocr"))
-                    engine_label = meta.get("engine", "liteparse-ocr-eng")
-                    print(
-                        f"parsed via lite OCR {engine_label} ({meta.get('chars', len(md))} chars, {meta.get('pages', 1)}p)"
-                    )
-                except Exception as e:
-                    print(f"  lite OCR failed ({e}) — trying next fallback", file=sys.stderr)
+                    print(f"  indra failed ({e}) — trying next fallback", file=sys.stderr)
                     pages = None
             else:
-                print("  lite not available (liteparse not installed)", file=sys.stderr)
+                print("  indra not available (indra-ocr not installed)", file=sys.stderr)
         # 3. teleocr — local terminal OCR (TeleOCR GGUF via llama-server)
         if pages is None and args.engine in ("auto", "teleocr"):
             try:
@@ -525,9 +460,10 @@ def main(argv: list[str] | None = None) -> int:  # noqa: C901  # engine dispatch
                 pages = None
         if pages is None:
             print(
-                "error: all engines exhausted — pdf_local refused, lite OCR failed, "
-                "teleocr unavailable-or-refused. Is the llama-server up? "
-                "`make teleocr-server` (see doc/improvements/archive/pipeline/teleocr_pdf_fallback.md)",
+                "error: all engines exhausted — pdf_local refused, Indra OCR "
+                "unavailable-or-failed, teleocr unavailable-or-refused. Is the "
+                "llama-server up? `make teleocr-server` (see "
+                "doc/improvements/archive/pipeline/teleocr_pdf_fallback.md)",
                 file=sys.stderr,
             )
             return 1
@@ -539,7 +475,7 @@ def main(argv: list[str] | None = None) -> int:  # noqa: C901  # engine dispatch
         write_outputs(pages, Path(args.output_dir), stem, not args.no_images, fm)
     except RenderLimitExceeded as e:
         # Terminal for every engine: a document over the render caps is
-        # over them for pdf_local, lite and teleocr alike — no fallback.
+        # over them for pdf_local, indra and teleocr alike — no fallback.
         print(f"error: render cap refused: {e}", file=sys.stderr)
         print(
             "  (parser-input sweep: raise --max-pages / --max-page-dims only for "

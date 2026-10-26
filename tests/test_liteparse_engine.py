@@ -49,7 +49,7 @@ def test_convert_nocr_born_digital(tmp_path):
 
 
 def test_convert_ocr_scanned_fixture(tmp_path):
-    pdf = Path("tests/data/ocr_samples/mixed_table_formula.pdf")
+    pdf = Path("tests/data/ocr_datasets_samples/mixed_table_formula.pdf")
     if not pdf.exists():
         pytest.skip("missing fixture")
     img_dir = tmp_path / "imgs2"
@@ -62,7 +62,7 @@ def test_convert_ocr_scanned_fixture(tmp_path):
 
 
 def test_convert_nocr_refuses_scanned(tmp_path):
-    pdf = Path("tests/data/ocr_samples/mixed_table_formula.pdf")
+    pdf = Path("tests/data/ocr_datasets_samples/mixed_table_formula.pdf")
     if not pdf.exists():
         pytest.skip("missing fixture")
     img_dir = tmp_path / "imgs3"

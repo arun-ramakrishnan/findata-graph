@@ -313,6 +313,18 @@ Open items below keep their revisit triggers inline; executed work is compressed
   worklist detector still lists the 8 authored-covered labels — they
   re-ask on future label drift by design (S4 reopen intent).
 
+- **Convo gemma embedder upgrade** (deferred #442,
+  `archive/tooling/convo_gemma_adoption.md`). S0 bank + hardened verdict
+  on record: pv_gemma 24/57 vs pv_granite 14/57 (+71%) but bm25 alone
+  22/57 beats both hybrids — the hybrid is bm25-bound, so the fusion
+  parameters, not the embedder, are the bottleneck; the 27–51 h re-embed
+  wall (gemma ≈ 288 tok/s vs granite ≈ 1,265 tok/s measured) waits
+  behind fusion repair. **Reopen triggers:** fusion tuned to ≥
+  bm25-alone on the frozen bank (cheap — reuses stored granite vectors);
+  a semantic-paraphrase recall miss the FTS leg demonstrably can't
+  cover; faster gemma serving (batch endpoint/quantization) bringing
+  the wall under ~1 day.
+
 - **Re-evaluate HNSW index macros** (deferred N5 item 5). UNBLOCKED
   then DECLINED on quality+perf — full-scale trial 2026-09-22, DuckDB
   1.5.5, vss binary unchanged since 2026-08-09. Capability: the old

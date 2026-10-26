@@ -281,7 +281,7 @@ sectors = re.findall(r"#(?:Banking|Healthcare|Technology)", content)
 
 ## PDF → Markdown
 
-When the input is a source PDF (rather than an existing newsletter markdown), convert it first. `helpers/pdf/pdf_conv_md.py` is **local-first** (2026-08-26, lite-OCR fallback 2026-09-01, teleocr terminal rung + Paddle cut 2026-10-06 — `teleocr_pdf_fallback` proposal): by default (`--engine auto`) it parses the PDF locally with `pymupdf4llm` (~2s, born-digital), and falls back to `liteparse` OCR (`Tesseract 5.5.0` `eng 4.0M`, `0.16–0.30s`, `TESSDATA_PREFIX=/usr/share/tesseract-ocr/5/tessdata`) for scanned PDFs (`MIN_CHARS_PER_PAGE 100` refusal), then to `teleocr` (TeleOCR/NaviDC-OCR Qwen2.5-VL GGUF via a **running llama-server**, D3 assume-running: `make teleocr-server`; ~10–60s/page CPU; number-exact per the S3 acceptance, 100% financial digits + control parity with the text layer) as the **terminal local rung — there is no network engine in the chain** (the Paddle API was cut 2026-10-06; historical Paddle-derived notes keep their `generated.by` provenance). The fast `liteparse no-ocr` (`0.10s`, `20.5×`, `bbox` per token) is available as `helpers/pdf/liteparse_engine.py` sidecar for RAG grounding (`--engine lite`) but **not** used for markdown primary — `pdf_local` stays primary for born-digital (Slice 1 gap `96.04%` accepted). Any engine writes a The_Chatter-style `.md` **plus** the figures already downloaded/copied and embedded — so a PDF input skips the [Image Capture](#image-capture) step entirely. The note frontmatter records which engine ran (`generated.by: pdf_conv_md.py/pymupdf4llm-X.Y.Z` vs `.../liteparse-2.15.1-ocr-eng` vs `.../teleocr-navidc-q4_k_m`).
+When the input is a source PDF (rather than an existing newsletter markdown), convert it first. `helpers/pdf/pdf_conv_md.py` is **local-first** (2026-08-26, teleocr terminal rung + Paddle cut 2026-10-06 — `teleocr_pdf_fallback` proposal; **Indra OCR replaces lite/Tesseract at rung 2, 2026-10-26 — `pdf_engine_indra_ocr_rung2` proposal**): by default (`--engine auto`) it parses the PDF locally with `pymupdf4llm` (~2s, born-digital), and falls back to **Indra OCR** (`helpers/pdf/indra_engine.py`, `indra-ocr 1.1.2`, CPU-only in-process ONNX Runtime, <1s/page, no server) for scanned PDFs (`MIN_CHARS_PER_PAGE 100` refusal), then to `teleocr` (TeleOCR/NaviDC-OCR Qwen2.5-VL GGUF via a **running llama-server**, D3 assume-running: `make teleocr-server`; ~10–60s/page CPU; terminal rung for formulas/handwriting where VLM accuracy matters) as the **terminal local rung — there is no network engine in the chain** (the Paddle API was cut 2026-10-06; historical Paddle-derived notes keep their `generated.by` provenance). Indra models (~76 MB) download on first run from Hugging Face (`datalab-to/indra-ocr`; `INDRA_OCR_MODEL_DIR` for a local folder); scorer result (`bench_data/teleocr/scripts/score.py` GT): word-recall 94.4% vs teleocr 83.3% (teleocr's LaTeX serialization loses table prose), num-recall 96.1% vs 98.9%, at ~1/100th the latency (`bench_data/indra/trial_table.md`). Known limit: minor glyph substitutions on formulas (√2→v, σ→sigma-like) — teleocr covers genuine handwritten/complex-formula pages. `pdf_local` stays primary for born-digital (Indra's glyph substitutions must never sit above the text layer). The `liteparse no-ocr` bbox sidecar (`helpers/pdf/liteparse_engine.py`) remains available for RAG grounding scripts but has **no chain flag** anymore. Any engine writes a The_Chatter-style `.md` **plus** the figures already downloaded/copied and embedded — so a PDF input skips the [Image Capture](#image-capture) step entirely. The note frontmatter records which engine ran (`generated.by: pdf_conv_md.py/pymupdf4llm-X.Y.Z` vs `.../indra-ocr-1.1.2` vs `.../teleocr-navidc-q4_k_m`).
 
 **Destination directory — the convention names it.** The `<output_dir>` argument is explicit and required. By convention a newsletter PDF goes to `findata/The_Chatter/` and its figures to `<edition>/images/` (see [Output destinations](#output-destinations)). Only a **non-conventional** destination is surfaced — once — to the operator, with the conventional alternative named: *"this PDF is landing in `<chosen_dir>`; the convention is `findata/The_Chatter/<stem>.md` or `<edition>/images/`; keep it here or move?"*. Use exactly the convention (or the confirmed deviation).
 
@@ -289,14 +289,13 @@ When the input is a source PDF (rather than an existing newsletter markdown), co
 # Convert a PDF into <output_dir> (local engine by default; no API key needed).
 python3 helpers/pdf/pdf_conv_md.py <source.pdf> <output_dir>
 
-# Force an engine: local (born-digital only) / lite (fast no-OCR sidecar 0.10s) / lite-ocr (Tesseract scanned) / teleocr (GGUF VLM, needs llama-server up).
+# Force an engine: local (born-digital only) / indra (in-process ONNX OCR, scanned) / teleocr (GGUF VLM, needs llama-server up).
 python3 helpers/pdf/pdf_conv_md.py <source.pdf> <output_dir> --engine local
-python3 helpers/pdf/pdf_conv_md.py <source.pdf> <output_dir> --engine lite
-python3 helpers/pdf/pdf_conv_md.py <source.pdf> <output_dir> --engine lite-ocr
+python3 helpers/pdf/pdf_conv_md.py <source.pdf> <output_dir> --engine indra
 python3 helpers/pdf/pdf_conv_md.py <source.pdf> <output_dir> --engine teleocr
 
 # Engine flags: --teleocr-port <port> (default 8731); --no-images works for all.
-# Lite OCR needs TESSDATA_PREFIX=/usr/share/tesseract-ocr/5/tessdata (eng.traineddata 4.0M).
+# indra downloads its ~76 MB models on first run (datalab-to/indra-ocr; INDRA_OCR_MODEL_DIR for a local folder).
 # teleocr needs the llama-server up FIRST: make teleocr-server (models/NaviDC-OCR-Q4_K_M.gguf + mmproj; Ctrl-C to stop).
 ```
 
@@ -312,7 +311,7 @@ Outputs (written under the user-chosen `<output_dir>`, e.g. `findata/The_Chatter
 
 The script names images exactly like [Image Capture](#convention) does (`.jpeg`, `<slug>_p{page}_img{N}`), so downstream stages (embedding figures into company notes in Stage 4) work identically whether the newsletter came from a PDF or was captured later. `--no-images` skips the download and leaves absolute `<img src=...>` URLs in the markdown.
 
-> **The Chatter / Points & Figures / Plotlines PDFs are born-digital** (real text layers — verified on all in-tree `Reports/*.pdf`, 2026-08-25), so the local engine handles them; the OCR fallbacks (lite OCR, teleocr) exist for true scans. If you have the PDF, use this converter and skip image capture. Only fall back to [Image Capture](#image-capture) for an existing markdown whose figures are still remote URLs.
+> **The Chatter / Points & Figures / Plotlines PDFs are born-digital** (real text layers — verified on all in-tree `Reports/*.pdf`, 2026-08-25), so the local engine handles them; the OCR fallbacks (indra, teleocr) exist for true scans. If you have the PDF, use this converter and skip image capture. Only fall back to [Image Capture](#image-capture) for an existing markdown whose figures are still remote URLs.
 
 ## Image Capture
 

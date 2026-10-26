@@ -38,16 +38,16 @@ entry number and stale DONE pointers):
 
 ## Current live proposals
 
-- `convo_gemma_adoption.md` — migrate the convo hybrid to gemma only on a
-  measured S0 win (filed 2026-10-26): 57-q real-query bank (self/decision/
-  code_ident, raw-verified), 5k pool, pv/hy arms vs granite stored vectors;
-  go/no-go floors set in the proposal; 27–51 h re-embed wall is the
-  counterweight. S0 artifacts built ahead of filing (process note inside).
-- `database/rust_embed_cache_port.md` — Rust port of embedding-cache
-  SHA-256 + SQLite pipeline (filed 2026-10-25): Trial A shows ~3× end-to-end
-  speedup on full pipeline (Rust/embed_cache); Python leads raw SHA-256
-  via OpenSSL SHA-NI. S1: pure-Rust crate (this trial); S2: OpenSSL
-  binding for SHA-256 parity; S3: maturin wheel + production integration.
+- *(none — every proposal filed here is executed and archived. The
+  2026-10-26 batch went out filed + executed + archived across sessions:
+  `../archive/pipeline/pdf_engine_indra_ocr_rung2.md` (#445),
+  `../archive/database/numba_jit_cosine_trial.md` (#443),
+  `../archive/database/numkong_7_6_0_cosine_trial.md` (#444); the
+  convo-gemma S0 arc resolved as DEFERRED (#442,
+  `../archive/tooling/convo_gemma_adoption.md`); `rust_embed_cache_port`
+  landed backup-only and archived 2026-10-25
+  (`../archive/database/rust_embed_cache_port.md`); pending.md shows the
+  remainder.)*
 
 - Family provenance: split 2026-10-21 from the bundled
   `duckdb20_quack_variant` filing; the executed 2.0-compat migration

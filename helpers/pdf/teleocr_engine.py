@@ -3,7 +3,8 @@
 
 Renders PDF pages via `pymupdf` and OCRs them through a llama.cpp
 `llama-server` running the TeleOCR (ex NaviDC-OCR) Qwen2.5-VL GGUF
-(Q4_K_M + mmproj-f16 vision encoder, both in `models/`). Trial evidence and
+(Q4_K_M + mmproj-q8_0 vision encoder, both in `models/`; the original f16
+mmproj is re-fetchable from upstream — bench_data/teleocr/README.md). Trial evidence and
 the full write-up live in `doc/local/evaluations/local_pdf_engine_trial.md`
 (§Addendum "TeleOCR (NaviDC-OCR) GGUF trial on CPU") and
 `doc/improvements/archive/pipeline/teleocr_pdf_fallback.md`.
@@ -84,7 +85,7 @@ class TeleOCRRefused(TeleOCRError):
 _START_HINT = (
     "start it with `make teleocr-server` "
     "(llama-server -m models/NaviDC-OCR-Q4_K_M.gguf "
-    "--mmproj models/NaviDC-OCR-mmproj-f16.gguf --port 8731); "
+    "--mmproj models/NaviDC-OCR-mmproj-q8_0.gguf --port 8731); "
     "see bench_data/teleocr/README.md"
 )
 

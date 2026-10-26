@@ -5102,7 +5102,7 @@ pre-existing, not touched here.
 **Date:** 2026-09-01 · **Type:** pipeline (PDF) · **Proposal:** `doc/improvements/archive/pipeline/liteparse_pdf_engine.md` (filed 2026-09-01, Slices 0–2 executed same day) · **Follows:** `archive/pipeline/local_pdf_conversion_fallback.md` (#156), `doc/local/perf/perf_skills.md:9.1` trial
 **Files:** `helpers/pdf/liteparse_engine.py` (new, 280 L, mirrors `pdf_local.convert` shape — `convert(pdf, img_dir, ocr=False|True)` + `get_bbox_sidecar()` + `pymupdf` image sidecar `≥150px & 8192B`), `helpers/pdf/liteparse_post.py` (166 L, port of `pdf_local` normalizations — tried, hurt `98.26%→91.33%` so not applied to raw `lite` text), `helpers/pdf/liteparse_markdown.py` (103 L → 135 L, `ocr_enabled=True` `Tesseract 5.5.0` `eng 4.0M` `TESSDATA_PREFIX=/usr/share/tesseract-ocr/5/tessdata`, `_looks_like_company_heading` `| Cap`/`Sector+Company`, per-page `page_texts` for `verify_extraction`), `helpers/pdf/pix2text_markdown.py` (70 L → 95 L, `pix2text 1.1.7` `mfd-1.5` `MPLBACKEND=agg` forced even under `matplotlib_inline`, `page_texts`), `helpers/pdf/pdf_conv_md.py` (`--engine auto` now `pdf_local (~2s born-digital primary) → liteparse OCR 0.16–0.30s (scanned) → pix2text 2–7s LaTeX formula opt-in (<50 chars) → Paddle PP-StructureV3` last; explicit `--engine lite` `0.10s 20.5×` bbox sidecar, `--engine lite-ocr`/`pix2text` force), `pyproject.toml` (`liteparse` + `pix2text` already declared), `tests/test_liteparse_markdown.py` (new, 11), `tests/test_pix2text_markdown.py` (new, 5), `tests/test_liteparse_engine.py` (new, 7), `doc/procedures/markdown_parse.md` (PDF→Markdown `auto` chain + engine flags)` `REFUSED ✓` + 12 tiny OCR samples)
 
-**Slice 0 — proposal + cleanup:** filed `liteparse_pdf_engine` proposal (11-doc pool, pix2text opt-in, easyocr removed), `uv pip uninstall markitdown pypdf pdfplumber reportlab pypdfium2 easyocr` (keep `liteparse 2.0.0` + `pix2text 1.1.7`), `~/.agents/skills/pdf` removed (`14` now), `helpers/pdf/liteparse_post.py`/`liteparse_markdown.py`/`pix2text_markdown.py` + `tests/data/ocr_samples/` 4 PDFs/PNGs (`handwritten_formula`, `printed_math`, `mixed_table_formula`, `scanned_benchmark` 0-char, `pdf_local` `REFUSED ✓`).
+**Slice 0 — proposal + cleanup:** filed `liteparse_pdf_engine` proposal (11-doc pool, pix2text opt-in, easyocr removed), `uv pip uninstall markitdown pypdf pdfplumber reportlab pypdfium2 easyocr` (keep `liteparse 2.0.0` + `pix2text 1.1.7`), `~/.agents/skills/pdf` removed (`14` now), `helpers/pdf/liteparse_post.py`/`liteparse_markdown.py`/`pix2text_markdown.py` + `tests/data/ocr_datasets_samples/` (6 categories, 28 files — 4 trial probes: `scanned_benchmark`, `mixed_table_formula`, `printed_math`, `handwritten_formula`; `ocr_samples/` removed; `indra` trial artifacts at `bench_data/indra/`).
 
 **Slice 1 — gap-fill & OCR eval (accepted, not promoted):** kept `pdf_local` primary per review — `lite no-ocr` `96.04%` raw / `96.02%` with post is `20.5×` bbox sidecar, not markdown replacement (`avg recall ≥97.5%` gate not met). `liteparse_post` `_filter_running_headers` over-drops on `liteparse` indented plain text (`719` items vs `pdf_local` markdown) `98.26%→91.33%` so not applied; `liteparse_markdown.py` `_looks_like_company_heading` sufficient for OCR pages (`5` headings on `SBI` OCR). `pix2text` on 4 OCR samples `handwritten 7.27s` LaTeX best, `mixed_table 2.69s` exact; on `SBI 28p` `~18s` `0.65s/page` works but `9×` slower than `pdf_local` — not used for non-OCR. Fixes: per-page `page_texts` so `verify_extraction` on 28p lite now `PASS` (`98.5%` doc, `96.7%` lowest) instead of `FAIL` single-page collapse; `MPLBACKEND=agg` forced even when `matplotlib_inline` present (`ValueError` fix). OCR fallback **PASS**: `lite Tesseract` `0.16–0.30s` on `mixed_table 333 chars` exact `100%`, `scanned_benchmark 135 chars` `100%`, `SBI 28p` forced `lite-ocr` `98.5%/96.7%` `PASS`, `auto` `99.9%/94.7%` `PASS` (pdf_local).
 
@@ -12406,3 +12406,131 @@ fires" estimate. FINDING on record: Reliance Lithium Werks B.V (237
 descendants) is an INVERTED apex — a mis-oriented vigil edge.
 Test suites all green: 30 metapath / 13 derive-insights / 21
 context-pack (incl live smoke) / 102 shareholding+enrich / 25 gate.
+
+## 442. Convo gemma adoption — S0 eval gate ran; DEFERRED (embedder parked behind fusion repair)
+
+**Verdict: DEFERRED 2026-10-26** — evaluated on a purpose-built bank, embedder
+upgrade not warranted *yet*. Proposal archived:
+`archive/tooling/convo_gemma_adoption.md` (frontmatter deferred, #442).
+
+- **S0 built the missing instrument** (no convo eval bank existed):
+  `bench_data/convo_gemma/` — `convo_build_bank.py` mines REAL user turns
+  (role='user', 30–240 ch, query-shape gate, near-dup dedup, 1–2 q/session;
+  zero Hinglish user turns exist at any length so that notes tier was
+  dropped), tiers self/decision/code_ident, expects raw-verified against the
+  parquet store. Frozen: `banks/convo_bank_57q_2026-10-26.json` (57 q;
+  opencode 41 / dsh 10 / prime-rlm 6). Arms: granite = STORED production
+  vectors; gemma = EmbeddingGemma-2 Q8 sidecar re-embed of the 5k pool
+  (5,504 s = 0.91 texts/s). Scorer legs: bm25_base (live FTS), pv_\*, hy_\*
+  (RRF_K=60, HEAD=160).
+- **Instrument hardening found a real design artifact**: the query text is
+  indexed inside its own expected session → unhardened legs got a free
+  rank-1 (bm25 saturated 57/57 MRR 1.0 — void). Fix: exclude the question's
+  own (harness, part_id) from every leg. All numbers below are hardened.
+- **Hardened verdict (57 q, top-5)**: pv_gemma 24/57 vs pv_granite 14/57
+  (+71% like-for-like, wins every tier, largest code_ident 9 v 5);
+  bm25_base 22/57; hy_gemma 10/57 vs hy_granite 8/57. Floors: hy overall
+  +2 ✓ (exactly at floor); hy decision MRR −0.017 ✗ (wanted +0.02); pv
+  corroboration ✓ decisive.
+- **Why deferred, not GO**: both hybrids score BELOW their own vector leg
+  and bm25 alone beats both hybrids — the hybrid is bm25-bound and the
+  fusion parameters are the bottleneck. Paying the 27–51 h re-embed wall
+  (gemma 288 tok/s vs granite 1,265 tok/s measured on real convo text,
+  ~4.4× slower per token; ~1.2M tok/day convo growth ≈ 68–70 min/day to
+  keep gemma fresh) would compound a mistuned ranker with a slower
+  embedder. Expert read on record: the "quickly finds old precedents"
+  property is carried by the bm25/FTS spine (exact technical strings,
+  always-fresh at harvest, zero model dependency); the embedding leg is
+  paraphrase insurance, where gemma is a real but additive win.
+- **Reopen triggers** (in the archive header): fusion tuned to ≥ bm25-alone
+  on this bank (reuses stored granite vectors — cheap); a semantic-paraphrase
+  recall miss the FTS leg demonstrably can't cover; faster gemma serving
+  (batch endpoint/quantization) bringing the wall under ~1 day.
+- **Artifacts durable**: bank + arms + scorer + frozen scores in
+  `bench_data/convo_gemma/`; a reopen re-runs `convo_score.py`, no bank
+  rebuild. Gates: none triggered (no code landed — S0 is bench_data-only
+  plus this record). Proposal lifecycle check satisfied by the frontmatter
+  flip in the same change.
+
+## 443. Numba JIT cosine trial — lane alive on py3.14, no-migration stands; Phase C crossover mapped (≥500k rows)
+
+**Verdict: EXECUTED, no production migration** (filed 2026-10-18, Phase C fired
+2026-10-26). Proposal archived: `archive/database/numba_jit_cosine_trial.md`
+(#443). Artifacts: `bench_data/phasec/README.md` (full tables, regen recipes,
+trap list).
+
+- **Trial (17,497×512 note_search vectors, best-of-15)**: numba `@njit` 1.82×
+  per-query (3.53→1.94 ms) and 3.52× single-cosine (54.2→15.4 μs), correctness
+  <1e-12; JIT compiles clean on `.venv` py3.14.0 (numba 0.68.0 + llvmlite 0.50.0).
+  The stale `perf_skills.md` sec8 row (`blocked on py 3.14.4`) is corrected by
+  measurement.
+- **Phase C (operator-fired)**: at 250k rows numba ties numpy (29.3 ms/q both);
+  at 1M×512 numba f32 `prange` **wins 117.4 vs 227.8 ms/q (1.94×)** with
+  recall@10 = 1.000 even under `fastmath` (RSS 2.29 GB). The trigger therefore
+  has a shape: it only exists **≥ ~500k rows** — the scan is a bandwidth-bound
+  GEMV OpenBLAS does not thread for single vectors; the production rust kernel
+  is single-threaded there (817 ms/q) and would need rayon to matter.
+- **No migration stands**: no production matrix is near the wall (largest live
+  corpus 17,497×512); native `vec0` closes the loop (#194). Numba is the
+  DESIGNATED Phase C backend if the wall is ever reached.
+- **Same run settled the neighbours**: quantization is storage-only (f16/i8
+  dequant casts cost 11–12× latency); HNSW terminally closed at 512-d
+  (recall@10 = 0.56 at ef=1024 already costs 10.3 ms/q; M=32 build 414 s);
+  tight-decay jemalloc RSS-neutral on all short one-shot legs (residents-only
+  lever, already wired).
+- Trap of record: `@njit(cache=True)` fails from stdin heredocs ("no locator
+  available for <stdin>") — file-based scripts only.
+
+## 444. Numkong 7.6.0 cosine trial — 1.89× at trial scale; batch-GEMM preference overturned at Phase C
+
+**Verdict: EXECUTED, no production migration; numkong wins no measured lane**
+(filed 2026-10-18, Phase C 2026-10-26). Proposal archived:
+`archive/database/numkong_7_6_0_cosine_trial.md` (#444).
+
+- **Trial (same protocol/bank as #443)**: 1.89× per-query (3.785→1.999 ms),
+  correctness delta 2.22e-16; single-cosine 54.2→30.7 μs (JIT per-single
+  overhead lower for numba; batch comparable via GEMM reuse).
+- **Phase C overturned the trial's "numkong preferred for `dots_packed`
+  batch-GEMM" line**: at 1M×512 `dots_packed` runs 145.5 vs numba's 117.4 ms/q
+  (1.24× slower) and `dots_pack` DOUBLES memory (RSS 4.06 vs 2.29 GB); at 250k
+  it is slower than plain numpy (39.3 vs 29.3 ms/q).
+- **Downgraded verdict**: numkong keeps only its dependency virtues (zero JIT
+  warm-up, no llvmlite). Designated backend for any future matrix-scale wall =
+  numba f32 `prange` (#443). Neighbouring findings (quant/HNSW/jemalloc) shared
+  with #443.
+
+## 445. Indra OCR replaces lite/Tesseract at rung 2 of the PDF engine chain
+
+**Verdict: EXECUTED 2026-10-26** — chain is now `pdf_local → indra → teleocr`
+(`auto | local | indra | teleocr`). Proposal archived:
+`archive/pipeline/pdf_engine_indra_ocr_rung2.md` (#445); trial probes live in
+`tests/data/ocr_datasets_samples/` (6 categories, 28 files), scorer in
+`bench_data/teleocr/scripts/score.py`.
+
+- **S1 `helpers/pdf/indra_engine.py`** (119 L): mirrors `teleocr_engine.convert`
+  pages shape, `mode="ocr"` (rung 2 only sees refused text layers), per-process
+  cached `Converter`, `IndraUnavailable` ladder (missing package / models) —
+  degrades to teleocr; hermetic `tests/test_indra_engine.py` (6, stubbed).
+- **S2 chain rewrite**: lite/lite-ocr Tesseract rung + TESSDATA blocks +
+  `_wrap_markdown_*` helpers removed; liteparse module + dep stay for the
+  no-OCR bbox sidecar (no chain flags).
+- **Dependency**: `indra-ocr==1.1.2` in `pyproject.toml` (pulls
+  opencv-python-headless, pypdfium2, huggingface-hub; onnxruntime 1.31.0 was
+  already present). Models ~76 MB first-run HF download
+  (`datalab-to/indra-ocr` @ v1.1.0; `INDRA_OCR_MODEL_DIR` for offline).
+- **S4 house license check (primary sources)**: weights = AI PUBS OpenRAIL-M
+  (MODIFIED) v0.1, code Apache-2.0 (github.com/datalab-to/indra). USE
+  COMPLIANT via the Attachment A §2 personal/research carve-out;
+  redistribution permitted with §4 conditions (license copy + attribution) —
+  standing rule: a bundled copy ships `models/indra-ocr/LICENSE`.
+- **S5 scorer (teleocr GT, 4 probes, engine-driven)**: indra word-recall
+  94.4% / num-recall 96.1% vs teleocr q4 83.3% / 98.9% — indra wins word
+  recall (teleocr's LaTeX serialization loses table prose, mixed_table 61.9%
+  vs 100%), teleocr keeps the digit edge; latency <1 s vs 94–118 s/page.
+  E2E smoke: `verify` PASS 100% coverage, financial digits intact,
+  `generated.by: pdf_conv_md.py/indra-ocr-1.1.2`.
+- **Docs + drift**: `doc/procedures/markdown_parse.md` rung table repointed;
+  `teleocr_engine.py` stale f16-mmproj hints fixed to q8_0 (live since
+  2026-10-09); `models/archived/NaviDC-OCR-mmproj-f16.gguf` (1.3 GB,
+  pre-quantization original) deleted — re-fetchable from
+  `nandraj/NaviDC-OCR-GGUF`.

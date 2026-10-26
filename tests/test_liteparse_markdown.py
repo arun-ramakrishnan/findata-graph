@@ -131,7 +131,7 @@ def test_convert_liteparse_ocr_uses_custom_tessdata(tmp_path):
 
 def test_convert_liteparse_ocr_mixed_table_chars(tmp_path):
     # Verify the 333-char scanned fixture produces expected length
-    pdf = Path("tests/data/ocr_samples/mixed_table_formula.pdf")
+    pdf = Path("tests/data/ocr_datasets_samples/mixed_table_formula.pdf")
     if not pdf.exists():
         pytest.skip("missing fixture")
     from helpers.pdf.liteparse_markdown import convert_liteparse_ocr

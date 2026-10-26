@@ -1,15 +1,15 @@
 ---
 title: "Numba JIT cosine trial"
 area: database
-status: proposed
+status: executed
 filed: "2026-10-18"
-completed_md: null
-executed: null
+completed_md: "443"
+executed: "2026-10-26"
 ---
 
 # Proposal: Numba JIT cosine trial — 2026-10-18
 
-Status: **measured — proposal recorded, NO production migration**.
+Status: **EXECUTED — measured 2026-10-18 (trial) + 2026-10-26 (Phase C); NO production migration** (completed.md #443).
 Filed: 2026-10-18 (post-trial, user command m01854: "do the checks, run trials and write proposals if need be").
 
 ## Operator-ordered context

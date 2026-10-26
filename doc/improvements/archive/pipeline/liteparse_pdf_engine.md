@@ -15,7 +15,7 @@ area: helpers/pdf/
 
 ## Motivation
 
-`helpers/pdf/pdf_local.py` (`pymupdf4llm 1.28.2`, `2.01s` avg on `7` `Reports/*.pdf` `5P+2G`) is correct but `21× slower` than `liteparse 2.0.0` `no-ocr` (`0.098s` avg) on same born-digital newsletters, near-parity chars (`~48–55K`) and `+ bbox` per token (`x/y/w/h`) for RAG grounding. Expanded to **11-doc pool** `7 born-digital + 4 scanned` (`tests/data/ocr_samples/` `handwritten_formula`, `printed_math`, `mixed_table_formula`, `scanned_benchmark` `0-char` text layer, `pdf_local` `REFUSED ✓`).
+`helpers/pdf/pdf_local.py` (`pymupdf4llm 1.28.2`, `2.01s` avg on `7` `Reports/*.pdf` `5P+2G`) is correct but `21× slower` than `liteparse 2.0.0` `no-ocr` (`0.098s` avg) on same born-digital newsletters, near-parity chars (`~48–55K`) and `+ bbox` per token (`x/y/w/h`) for RAG grounding. Expanded to **11-doc pool** `7 born-digital + 4 scanned` (`tests/data/ocr_datasets_samples/` `document/`: `scanned_benchmark`, `mixed_table_formula`; `synthetic/`: `printed_math`; `handwritten/`: `handwritten_formula` — all `0-char` text layer, `pdf_local` `REFUSED ✓`).
 
 `pdf_local` stays **primary for non-OCR** per review (keep unchanged) — `liteparse` is **OCR fallback**, not markdown replacement (plain `res.text` `719` items, no `##`/`imgs/` without reconstructor, `liteparse_post.py` port hurt `98.26%→91.33%` cov).
 
@@ -36,7 +36,7 @@ No `Anthropic` subscription: `pdf` skill (`pypdf/pdfplumber`) is local `pip` and
 | Yes_Bank_Colgate_Allcargo | 2.212s 98.46% | 0.114s 96.28% | 0.715s 96.28% | — |
 | **avg 7** | **2.013s 97.76% 99.79%** | **0.098s 96.04% 98.26%** | **~0.9s 96.2%** | — |
 
-### Scanned `0-char` `REFUSED ✓` (`4` `tests/data/ocr_samples/`)
+### Scanned `0-char` `REFUSED ✓` (`4` `tests/data/ocr_datasets_samples/` `scanned_benchmark` `mixed_table_formula` `printed_math` `handwritten_formula`)
 
 | Sample | `pdf_local` | `lite no-ocr` | **`lite OCR` `Tesseract` default** | **`pix2text` formula opt-in** |
 |---|---|---|---|---|
@@ -89,13 +89,13 @@ Keep `helpers/pdf/pdf_conv_md.py` pages shape unchanged (`[{markdown:{text,image
 | `Synthetic` | `synthetic_render.png` `HELLO WORLD` | `2` | `44.0KB` | *No `<100MB` in table* — `Synth800k 41GB` — synthesized render | `102 chars` `HELLO WORLD ✓` `0.17s` | `1.07s` same ✓ |
 |  | `synthetic_doc.png` `12,400` |  |  |  | `106 chars` `12,400 ✓` `0.16s` | `1.12s` same ✓ |
 
-**Location in repo:** `tests/data/ocr_datasets_samples/{natural,document,handwritten,historical,video,synthetic}/` `12` `PNG+PDF` (`828K` total, `23–64KB` per cat `<100MB`), plus `tests/data/ocr_samples/` `4` earlier `handwritten/printed/mixed/scanned_benchmark` `364K`. Combined `11+12=23`-doc pool for next eval. Kept in worktree only (`main` `tests/data/` cleaned `2026-09-01`).
+**Location in repo:** `tests/data/ocr_datasets_samples/{natural,document,handwritten,historical,video,synthetic}/` `12` `PNG+PDF` (`828K` total, `23–64KB` per cat `<100MB`), plus `tests/data/ocr_datasets_samples/{document,handwritten,synthetic}/` `8` `PNG+PDF` (4 trial probes: `scanned_benchmark`, `mixed_table_formula`, `printed_math`, `handwritten_formula`). Combined `11+12=23`-doc pool for next eval. Kept in worktree only (`main` `tests/data/` cleaned `2026-09-01`).
 
 **Eval takeaway:** `lite Tesseract` `0.16–0.21s` wins `Document/Historical/Natural/Video/Synthetic` printed tables (`12,400` exact); `pix2text` `1–2.7s` wins `Handwritten/Video-caption` formula pages (`∫ Σ √` LaTeX). No `easyocr` (removed).
 
 ## Pending slices (this work)
 
-**Slice 0 — done:** proposal filed, `uv pip uninstall markitdown pypdf pdfplumber reportlab pypdfium2 easyocr` (keep `liteparse 2.0.0` + `pix2text 1.1.7`), `~/.agents/skills/pdf` removed (`14` now), `helpers/pdf/liteparse_post.py` (166 L) + `helpers/pdf/liteparse_markdown.py` (103 L) + `helpers/pdf/pix2text_markdown.py` (70 L) + `tests/data/ocr_samples/` `4` PDFs/PNGs added to `liteparse_pdf_engine` patch (renamed from `skills`).
+**Slice 0 — done:** proposal filed, `uv pip uninstall markitdown pypdf pdfplumber reportlab pypdfium2 easyocr` (keep `liteparse 2.0.0` + `pix2text 1.1.7`), `~/.agents/skills/pdf` removed (`14` now), `helpers/pdf/liteparse_post.py` (166 L) + `helpers/pdf/liteparse_markdown.py` (103 L) + `helpers/pdf/pix2text_markdown.py` (70 L) + `tests/data/ocr_datasets_samples/` `8` trial-probe files (`document/`: `scanned_benchmark`, `mixed_table_formula`; `synthetic/`: `printed_math`; `handwritten/`: `handwritten_formula` — all `PDF`+`PNG`) added; `tests/data/ocr_samples/` removed (merged to category dirs)
 
 **Slice 1 — gap-fill and OCR eval (done 2026-09-01):**
 * Keep `pdf_local` primary (no change) per review — **accepted**: `lite no-ocr` `96.04%` raw / `96.02%` with post is `20.5×` bbox sidecar, not replacement. Gate `≥97.5%` not met, so no cutover; `pdf_local` `pymupdf4llm 1.28.2` stays primary for born-digital (7 `Reports/*.pdf` all `PASS` `99.7–99.9%` doc coverage, lowest `72–94%` via `auto`).

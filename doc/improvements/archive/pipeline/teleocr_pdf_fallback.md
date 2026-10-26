@@ -163,7 +163,7 @@ historical record.
    (`pix2text_markdown.py`, its 5 tests, the `--engine pix2text`
    short-circuit); tests per `test_liteparse_engine.py` discipline.
 3. **S3** Acceptance eval (targeted, not `make pytest`): 4
-   `tests/data/ocr_samples` ≥ Tesseract word recall AND 9/9 financial
+   `tests/data/ocr_datasets_samples/` (`4` trial probes: `scanned_benchmark`, `mixed_table_formula`, `printed_math`, `handwritten_formula`) ≥ Tesseract word recall AND 9/9 financial
    digits; 2 formula samples ≥ pix2text recorded quality (LaTeX
    well-formedness); Marico control page — zero phantom numbers vs
    pdf_local's text layer (number-multiset diff); timings recorded.
