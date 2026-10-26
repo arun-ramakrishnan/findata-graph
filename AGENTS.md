@@ -51,6 +51,11 @@ $Q/memory_query.py "stg refresh scope" --kind zcode|prime|opencode  # harness me
   when did I last look at X*. Sources are the LIVE harness stores, so
   drift is normal mid-session: `make convo-fresh` (check exits 1,
   `APPLY=1` refreshes, seconds-class).
+- **Past-trial recovery:** before re-inventing an eval bank/harness,
+  `convo_query` the trial's topic to find where it was stashed, then
+  sweep `bench_data/<topic>/` (durable, gitignored — banks/builders/
+  scorers live there, e.g. `embgemma2/banks/`) and `$TMPDIR/opencode/`
+  for the artifacts. `ls` the subdirs — shallow `find | head` misses them.
 - `convo_search.duckdb` is DuckDB: single-writer. A running rebuild
   holds the lock — `witr -f memory/convo_search.duckdb`; never start a
   second writer.

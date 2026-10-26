@@ -365,6 +365,26 @@ Open items below keep their revisit triggers inline; executed work is compressed
   stands. Re-trial trigger unchanged (vectors → 10⁶, or a probe shape
   where brute hurts) + next quarterly re-check.**
 
+- **MAX engine = the viable future small-batch GEMM route** (recorded
+  2026-10-26, Mojo-vs-Rust review; no execution yet). When embedding
+  scale hits the trigger below, the small-batch rung of the kernel
+  selector is the `max` PYTHON PACKAGE (pip; `max.graph`/`max.engine`,
+  `Inner_matmul_default`) — NOT Mojo-the-language. Measured edge
+  (doc/local/mojo/mojo_pilot.md §Scale, same box): n=8 query batches
+  beat OpenBLAS on every shape ≥7.6M elements (2.5×/2.2×/1.7×/2.4× at
+  7.6M/10M/12.8M/100M); numpy sgemm wins n=64 at EVERY shape incl.
+  K=768 (4.50 vs 5.97 ms) — the rung is strictly n≈2–16. Banked traps:
+  inputs must be 32B-aligned (vmovaps SEGV, root-caused 2026-09-02);
+  `InferenceSession(num_threads=…)` hard-crashes for any value — leave
+  default. Mojo itself stays retired (bench-side only, #437; the
+  std.python bridge holds the GIL — no in-process kernel boundary
+  exists, so Mojo cannot follow the PyO3/cosine_knn model). Selector
+  ladder for the trigger day: n=1–16 big-matrix → max package; n≥64 →
+  numpy sgemm; ≥~500k rows → numba prange (Phase C 1.94× numpy, recall
+  1.000); custom zero-copy logic → Rust/PyO3; set-SQL → DuckDB.
+  Trigger: embeddings ~10⁵+ (current 1,209, DuckDB brute ~3 ms) or any
+  measured batch-GEMM wall in production.
+
 - **Wrap `onager_ctr_personalized_pagerank`** (deferred N5 item 6). Onager bug:
   personalisation column ignored, restart node hardcoded to `node_id 1`, and it
   requires a weight column of type `BIGINT`; variants A/B produce identical

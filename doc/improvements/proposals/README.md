@@ -38,6 +38,11 @@ entry number and stale DONE pointers):
 
 ## Current live proposals
 
+- `convo_gemma_adoption.md` — migrate the convo hybrid to gemma only on a
+  measured S0 win (filed 2026-10-26): 57-q real-query bank (self/decision/
+  code_ident, raw-verified), 5k pool, pv/hy arms vs granite stored vectors;
+  go/no-go floors set in the proposal; 27–51 h re-embed wall is the
+  counterweight. S0 artifacts built ahead of filing (process note inside).
 - `database/rust_embed_cache_port.md` — Rust port of embedding-cache
   SHA-256 + SQLite pipeline (filed 2026-10-25): Trial A shows ~3× end-to-end
   speedup on full pipeline (Rust/embed_cache); Python leads raw SHA-256
