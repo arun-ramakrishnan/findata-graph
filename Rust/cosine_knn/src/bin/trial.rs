@@ -59,7 +59,12 @@ fn topk_blocked(
     let mut best = f32::NEG_INFINITY;
     for block_start in (0..rows.len()).step_by(block) {
         let block_end = (block_start + block).min(rows.len());
-        for (i, row) in rows.iter().enumerate().skip(block_start).take(block_end - block_start) {
+        for (i, row) in rows
+            .iter()
+            .enumerate()
+            .skip(block_start)
+            .take(block_end - block_start)
+        {
             let denom = qnorm * norms[i];
             let c = if denom == 0.0 {
                 f32::NEG_INFINITY
@@ -94,14 +99,18 @@ fn dot_simd(a: &[f32], b: &[f32]) -> f32 {
     for i in 0..chunks {
         let av = unsafe { core::arch::x86_64::_mm_loadu_ps(a.as_ptr().add(i * 4)) };
         let bv = unsafe { core::arch::x86_64::_mm_loadu_ps(b.as_ptr().add(i * 4)) };
-        vsum = unsafe { core::arch::x86_64::_mm_add_ps(vsum, core::arch::x86_64::_mm_mul_ps(av, bv)) };
+        vsum =
+            unsafe { core::arch::x86_64::_mm_add_ps(vsum, core::arch::x86_64::_mm_mul_ps(av, bv)) };
     }
     let mut sum = [0.0_f32; 4];
     unsafe {
         sum[0] = core::arch::x86_64::_mm_cvtss_f32(vsum);
-        sum[1] = core::arch::x86_64::_mm_cvtss_f32(core::arch::x86_64::_mm_shuffle_ps(vsum, vsum, 0x55));
-        sum[2] = core::arch::x86_64::_mm_cvtss_f32(core::arch::x86_64::_mm_shuffle_ps(vsum, vsum, 0xaa));
-        sum[3] = core::arch::x86_64::_mm_cvtss_f32(core::arch::x86_64::_mm_shuffle_ps(vsum, vsum, 0xff));
+        sum[1] =
+            core::arch::x86_64::_mm_cvtss_f32(core::arch::x86_64::_mm_shuffle_ps(vsum, vsum, 0x55));
+        sum[2] =
+            core::arch::x86_64::_mm_cvtss_f32(core::arch::x86_64::_mm_shuffle_ps(vsum, vsum, 0xaa));
+        sum[3] =
+            core::arch::x86_64::_mm_cvtss_f32(core::arch::x86_64::_mm_shuffle_ps(vsum, vsum, 0xff));
     }
     let mut s = sum.iter().sum::<f32>();
     let tail = &a[chunks * 4..];
@@ -136,7 +145,11 @@ fn topk_simd(query: &[f32], qnorm: f32, rows: &[Vec<f32>], norms: &[f32]) -> (us
 /// Deterministic f32 matrix: N x DIM, row i derived from i.
 fn gen_matrix(n: usize) -> Vec<Vec<f32>> {
     (0..n)
-        .map(|i| (0..DIM).map(|j| ((i * 31 + j * 7) as f32).sin().cos() as f32).collect())
+        .map(|i| {
+            (0..DIM)
+                .map(|j| ((i * 31 + j * 7) as f32).sin().cos() as f32)
+                .collect()
+        })
         .collect()
 }
 
@@ -149,7 +162,11 @@ fn main() {
         for &n_rows in &[1024usize, 4096, 16384] {
             let matrix = gen_matrix(n_rows);
             let queries: Vec<Vec<f32>> = (0..n_queries)
-                .map(|i| (0..DIM).map(|j| ((i * 13 + j * 3) as f32).cos().sin() as f32).collect())
+                .map(|i| {
+                    (0..DIM)
+                        .map(|j| ((i * 13 + j * 3) as f32).cos().sin() as f32)
+                        .collect()
+                })
                 .collect();
             let norms: Vec<f32> = matrix.iter().map(|v| norm(v)).collect();
             let qnorms: Vec<f32> = queries.iter().map(|v| norm(v)).collect();

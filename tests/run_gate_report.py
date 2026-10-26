@@ -362,6 +362,12 @@ GATES: dict[str, Gate] = {
             # to grow); license-check verifies AGPL + third-party metadata.
             Step("secret-scan", (_MAKE, "secret-scan")),
             Step("cargo-audit", (_MAKE, "cargo-audit")),
+            # Rust legs (rust_language_tooling S2, 2026-10-26): clippy =
+            # the lint surface, cargo test the (currently 0-test) hook —
+            # both SKIP cleanly without cargo. Advisory-first per the
+            # mojo-test precedent; promotion to qa on operator go.
+            Step("rust-clippy", (_MAKE, "rust-clippy")),
+            Step("rust-test", (_MAKE, "rust-test")),
             # mojo-test RETIRED from advisory 2026-10-26 (Mojo freeze —
             # same operator ruling as the qa mojo-parity retirement; the
             # `make mojo-test` target survives for manual runs).
@@ -643,6 +649,12 @@ def main(argv: list[str] | None = None) -> int:
         )
         return 2
     name = rest[0]
+    if name == "qa":
+        # qa hard pin (rust_language_tooling S2): the cosine selector's
+        # abi3 backend is production-carrying, so a vanished .so must FAIL
+        # the qa importability test, not skip it (gemma-sidecar shape).
+        # Direct pytest runs keep the skip.
+        os.environ.setdefault("SCRIPT_KNN_STRICT", "1")
     jobs = resolve_jobs(cli_jobs)
     print(f"(gate {name}: jobs={jobs})")
     started_dt = datetime.now()

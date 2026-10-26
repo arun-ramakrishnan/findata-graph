@@ -34,7 +34,13 @@ fn sha256_hex_openssl_hasher(text: &[u8]) -> String {
 /// Same generator as trial.rs::gen_texts — deterministic, avg ~500 B/text.
 fn gen_texts(n: usize) -> Vec<String> {
     let mut texts = Vec::with_capacity(n);
-    let sectors = ["Agriculture", "Packaging", "Technology", "Finance", "Energy"];
+    let sectors = [
+        "Agriculture",
+        "Packaging",
+        "Technology",
+        "Finance",
+        "Energy",
+    ];
     for i in 0..n {
         let len = 200 + (i % 600);
         let mut body = String::with_capacity(len);
@@ -83,7 +89,10 @@ fn main() {
         let texts = gen_texts(n);
         println!("== n={n} texts");
         for (name, f) in [
-            ("sha256 sha2+asm   ", &sha256_hex_sha2 as &dyn Fn(&[u8]) -> String),
+            (
+                "sha256 sha2+asm   ",
+                &sha256_hex_sha2 as &dyn Fn(&[u8]) -> String,
+            ),
             ("sha256 openssl    ", &sha256_hex_openssl),
             ("sha256 ossl-hasher", &sha256_hex_openssl_hasher),
         ] {

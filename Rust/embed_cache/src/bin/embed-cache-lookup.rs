@@ -39,10 +39,7 @@ fn run() -> Result<(), Box<dyn Error>> {
         return Err("db_path must not be empty".into());
     }
 
-    let conn = Connection::open_with_flags(
-        &request.db_path,
-        OpenFlags::SQLITE_OPEN_READ_ONLY,
-    )?;
+    let conn = Connection::open_with_flags(&request.db_path, OpenFlags::SQLITE_OPEN_READ_ONLY)?;
     conn.busy_timeout(Duration::from_secs(5))?;
     let (hit_vectors, miss_indices) = lookup_batch(&conn, &request.texts, &request.model)?;
     let response = Response {

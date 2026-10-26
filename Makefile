@@ -57,7 +57,7 @@ export PATH := $(CURDIR)/.venv/bin:$(PATH)
 export TMPDIR ?= $(shell test -d /mnt/data/tmp && { mkdir -p /mnt/data/tmp/findata; echo /mnt/data/tmp/findata; } || echo /tmp)
 
 
-.PHONY: help qa test live-invariants perf cover fuzz integration snapshot snapshot-check snapshot-restore sync-tags sync-coverage-tags sync-sector-links static-checks license-check tmp-sweep install-dev triage-quotes gate-fresh graph-smoke graph-stats graph-algos graph-rebuild graph-rebuild-bench update-extensions recompute-graph recompute-hyper search-fresh convo-fresh embed-gc search-tui tier-nudge tier-watch derive-relations derive-co-mentions derive-org-membership derive-event-participants derive-merger-hyperedges dup-census person-census derive-themes derive-events derive-insights derive-indices quote-coverage derive-themes-rebuild derive-cited-in derive-cited-in-rebuild derive-hyperedges derive-relational-insights derive-all refresh-indices refresh-vigil refresh-shp frontend frontend-check fold-identifiers format maint maint-full md-lint metrics-rebuild mojo-bench mojo-parity mojo-build mojo-test mojo-format relations-enrich lint types types-tests lint-audit deptry advisory ocr-version-check onager-build secret-scan cargo-audit script-search-rebuild memory-search-rebuild triage-relations teleocr-server embgemma-server granite-server llamacpp-build llamacpp-health quack-start quack-stop quack-status quack-restart quack-health csr csr-check csr-rebuild convo-search-rebuild convo-search-check analytics-parquet analytics-fresh schema-check schema-dump bili-status bili-monitor bili-stop-monitor bili-report bili-snap bili-watch-event bili-thresh-replay
+.PHONY: help qa test live-invariants perf cover fuzz integration snapshot snapshot-check snapshot-restore sync-tags sync-coverage-tags sync-sector-links static-checks license-check tmp-sweep install-dev triage-quotes gate-fresh graph-smoke graph-stats graph-algos graph-rebuild graph-rebuild-bench update-extensions recompute-graph recompute-hyper search-fresh convo-fresh embed-gc search-tui tier-nudge tier-watch derive-relations derive-co-mentions derive-org-membership derive-event-participants derive-merger-hyperedges dup-census person-census derive-themes derive-events derive-insights derive-indices quote-coverage derive-themes-rebuild derive-cited-in derive-cited-in-rebuild derive-hyperedges derive-relational-insights derive-all refresh-indices refresh-vigil refresh-shp rust-clippy rust-fmt rust-install rust-test frontend frontend-check fold-identifiers format maint maint-full md-lint metrics-rebuild mojo-bench mojo-parity mojo-build mojo-test mojo-format relations-enrich lint types types-tests lint-audit deptry advisory ocr-version-check onager-build secret-scan cargo-audit script-search-rebuild memory-search-rebuild triage-relations teleocr-server embgemma-server granite-server llamacpp-build llamacpp-health quack-start quack-stop quack-status quack-restart quack-health csr csr-check csr-rebuild convo-search-rebuild convo-search-check analytics-parquet analytics-fresh schema-check schema-dump bili-status bili-monitor bili-stop-monitor bili-report bili-snap bili-watch-event bili-thresh-replay
 
 help:           ## Show available targets (alphabetical; entries generated from the ## annotations — keep both in sync)
 > @echo "FinData targets (alphabetical):"
@@ -72,7 +72,7 @@ help:           ## Show available targets (alphabetical; entries generated from 
 > @echo "  bili-stop-monitor       Stop the background proxy monitor (never \`pkill -f\` -- it kills the caller)"
 > @echo "  bili-thresh-replay      Replay the tier fire curve offline (read-only): REPLAY_ARGS=\"<floor> <thresholds...>\""
 > @echo "  bili-watch-event        Block until the next T1 fire or fold for a session (read-only): EVENT_ARGS=\"<session> [either|t1|fold] [max_wait_s]\""
-> @echo "  cargo-audit              RustSec scan of desktop/src-tauri/Cargo.lock (advisory; SKIPs without cargo-audit)"
+> @echo "  cargo-audit              RustSec scan of the desktop + Rust/ lockfiles (advisory; SKIPs without cargo-audit)"
 > @echo "  convo-fresh              Check conversation corpus+index freshness — harvest sources vs parquet corpus vs pointer index (exit 1 on drift; APPLY=1 harvests+rebuilds; also run by make advisory)"
 > @echo "  convo-search-check        Report convo_search.duckdb file size vs payload (advisory; swap-rebuild candidate)"
 > @echo "  convo-search-rebuild      Rebuild convo_search.duckdb via atomic pid-tagged temp + os.replace swap (compacts; graph-lane pattern)"
@@ -157,6 +157,10 @@ help:           ## Show available targets (alphabetical; entries generated from 
 > @echo "  refresh-xbrl             D20: incremental NSE XBRL sweep, unseen filings only (ARGS=--new for IPOs; APPLY=1 to write)"
 > @echo "  review-patch             OCR delegation selection roster + native scan (advisory; asserts tests/Mojo visibility per rule.json; STACK=N, COMMIT=<sha>, FROM=<base> TO=<head>, OFFLINE=1)"
 > @echo "  review-scan              Native scanner roster over the review diff (advisory; bandit/shellcheck/sqlfluff/semgrep/osv on changed lines; STACK=N, COMMIT=<sha>, FROM=<base> TO=<head>, OFFLINE=1)"
+> @echo "  rust-clippy              Lint Rust/ via cargo clippy --workspace --all-targets (advisory leg; SKIPs without cargo; rust_language_tooling S2)"
+> @echo "  rust-fmt                 Normalize Rust/ formatting with cargo fmt --all (fix for the tests/test_lint_gates.py format gate; rust_language_tooling S1)"
+> @echo "  rust-install             Release-build cosine_knn + install the abi3 module into venv site-packages (SKIPs without cargo; embed_cache stays backup-only; rust_language_tooling S4)"
+> @echo "  rust-test                Run Rust/ crate tests via cargo test --workspace (advisory leg; SKIPs without cargo; rust_language_tooling S2)"
 > @echo "  schema-check             Check tracked schema/ DDL against the live memory/ DBs (exit 1 on drift; fix: make schema-dump)"
 > @echo "  schema-dump              Regenerate schema/<engine>/<db>.sql from the live memory/ DBs (proposal schema_ddl_review_surface)"
 > @echo "  script-search-rebuild    Rebuild the script metadata index (script_search sidecar; query via helpers/misc/script_query.py)"
@@ -473,11 +477,37 @@ secret-scan: ## Incremental git-history secret scan (state under .git/secret-sca
 > python3 helpers/misc/git_secret_scan.py
 > @echo "✓ Secret scan complete (incremental; state: .git/secret-scan/state.json)"
 
-cargo-audit: ## RustSec scan of the desktop lockfile (advisory; SKIPs without cargo-audit; security_evaluation Addendum 7 §E)
+cargo-audit: ## RustSec scan of the desktop + Rust/ lockfiles (advisory; SKIPs without cargo-audit; security_evaluation Addendum 7 §E)
 > @if command -v cargo-audit >/dev/null 2>&1 || [ -x "$$HOME/.cargo/bin/cargo-audit" ]; then \
 > 	cd desktop/src-tauri && PATH="$$HOME/.cargo/bin:$$PATH" cargo audit; \
+> 	cd ../../Rust && PATH="$$HOME/.cargo/bin:$$PATH" cargo audit; \
 > else \
 > 	echo "SKIP cargo-audit: not installed (cargo install cargo-audit --locked)"; \
+> fi
+
+rust-fmt:       ## Normalize Rust/ formatting with `cargo fmt --all` (fix for the tests/test_lint_gates.py format gate; rust_language_tooling S1)
+> cd Rust && cargo fmt --all
+
+rust-clippy:    ## Lint Rust/ via cargo clippy --workspace --all-targets (advisory leg; SKIPs without cargo; rust_language_tooling S2)
+> @if command -v cargo >/dev/null 2>&1 || [ -x "$$HOME/.cargo/bin/cargo" ]; then \
+> 	cd Rust && PATH="$$HOME/.cargo/bin:$$PATH" cargo clippy --workspace --all-targets; \
+> else \
+> 	echo "SKIP rust-clippy: cargo not installed"; \
+> fi
+
+rust-test:      ## Run Rust/ crate tests via cargo test --workspace (advisory leg; SKIPs without cargo; rust_language_tooling S2)
+> @if command -v cargo >/dev/null 2>&1 || [ -x "$$HOME/.cargo/bin/cargo" ]; then \
+> 	cd Rust && PATH="$$HOME/.cargo/bin:$$PATH" cargo test --workspace; \
+> else \
+> 	echo "SKIP rust-test: cargo not installed"; \
+> fi
+
+rust-install:   ## Release-build cosine_knn + install the abi3 module into venv site-packages (SKIPs without cargo; embed_cache stays backup-only — never installed; rust_language_tooling S4)
+> @if command -v cargo >/dev/null 2>&1 || [ -x "$$HOME/.cargo/bin/cargo" ]; then \
+> 	cd Rust && PATH="$$HOME/.cargo/bin:$$PATH" cargo build --release -p cosine_knn && \
+> 	python3 -c "import shutil, sysconfig; shutil.copyfile('target/release/libcosine_knn.so', sysconfig.get_paths()['purelib'] + '/cosine_knn.abi3.so'); print('installed cosine_knn.abi3.so')"; \
+> else \
+> 	echo "SKIP rust-install: cargo not installed"; \
 > fi
 
 script-search-rebuild: ## Rebuild the script metadata index (script_search sidecar; query via helpers/misc/script_query.py)
@@ -843,6 +873,6 @@ md-lint:        ## Markdown lint via pinned markdownlint-cli2 — doc/ prose bas
 deptry:         ## Run deptry dependency-health scan (unused/undeclared/transitive deps)
 > deptry .
 
-advisory:       ## Run advisory (non-gating) checks in PARALLEL (default 4 jobs; override: make advisory -j N): ty on tests, live invariants, frontend, graph algos, analytics, suggestions, doc/script/note/memory-search freshness checks, lint-audit, secret-scan, cargo-audit, fuzz, license-check (appends outputs/advisory_report.md)
+advisory:       ## Run advisory (non-gating) checks in PARALLEL (default 4 jobs; override: make advisory -j N): ty on tests, live invariants, frontend, graph algos, analytics, suggestions, doc/script/note/memory-search freshness checks, lint-audit, secret-scan, cargo-audit, rust-clippy, rust-test, fuzz, license-check (appends outputs/advisory_report.md)
 > python3 tests/run_gate_report.py advisory
 > @echo "✓ Advisory checks complete (appended to outputs/advisory_report.md; these do NOT block \`make qa\`)"

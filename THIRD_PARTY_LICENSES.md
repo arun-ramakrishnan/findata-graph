@@ -39,6 +39,7 @@ following remain under their own rights or are not relicensed by the project:
 | liteparse | Verify release license | OCR/PDF fallback |
 | TeleOCR GGUF (nandraj/NaviDC-OCR-GGUF) | Apache-2.0 (model weights) | Terminal OCR fallback runtime (models/; llama.cpp box-side, MIT) |
 | indra-ocr | Apache-2.0 (code); weights AI PUBS OpenRAIL-M (modified) v0.1 | Rung-2 OCR engine; weights NOT bundled — first-run HF download (S4 check: personal/research carve-out, use compliant) |
+| pyo3 | Apache-2.0 OR MIT (dual) | Rust/ Python bridge (cosine_knn abi3 cdylib); Mozilla MPL-2.0 for the pyo3-ffi crate where applicable |
 | sqlite-vec | MIT (verify release) | SQLite vector extension |
 | zstandard | BSD-3-Clause | Zstd decompression (dsh session logs) |
 | jsonschema | MIT | JSON Schema validation |

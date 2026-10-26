@@ -408,6 +408,7 @@ commit, referenced by nothing). Entry numbers point at
 - [`refresh_chain_parallel.md`](pipeline/refresh_chain_parallel.md) — Refresh chain, parallel — fetch/apply split so independent sources overlap; per-lane `--fetch-only` stages writing scratch JSON under `$TMPDIR/findata-graph/`, parallel phase A, sequential store applies under per-store lock, per-item failure containment; `refresh-chain` Makefile target (default), `refresh-chain-ser` for the original sequential chain — completed.md #403
 
 ## tooling/ — Tooling & performance — MCP eval, doc browser/search, perf review, tech survey
+- [`rust_language_tooling.md`](tooling/rust_language_tooling.md) — Rust/ language tooling — fmt/clippy/test/audit gates, install hook, toolchain pin for the production-carrying `Rust/` workspace: `Rust/rust-toolchain.toml` (1.99.1 + components; both were MISSING — cargo fmt/clippy refused), `rust-fmt` + qa lint_gates format test, `rust-clippy`/`rust-test` advisory legs (clippy first run 23 style-grade warnings, `-D` deferred), cargo-audit extended to `Rust/Cargo.lock`, `rust-install` (12 s release + purelib copy), SCRIPT_KNN_STRICT qa hard pin (vanished `.so` fails qa instead of silent numpy fallback), rule.json + PRODUCT_FAMILIES Rust teeth — completed.md #446
 - [`parallel_parquet_export.md`](tooling/parallel_parquet_export.md) —
   4-worker cursor pool for the parquet mirror export loops (sqlite export
   4.7→0.85 s); three duckdb 2.0 traps recorded (cursor USE non-inheritance,

@@ -1,0 +1,7 @@
+# Pinned Rust toolchain for the Rust/ workspace (rust_language_tooling S0,
+# 2026-10-26) — the Mojo-pinned-toolchain analogue: reproducible builds, and
+# the lint/format components are declared here rather than remembered.
+# Bumps are a deliberate diff; Cargo.lock updates may trail rustup updates.
+[toolchain]
+channel = "1.99.1"
+components = ["rustfmt", "clippy"]

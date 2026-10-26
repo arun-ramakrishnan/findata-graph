@@ -38,8 +38,11 @@ entry number and stale DONE pointers):
 
 ## Current live proposals
 
-- *(none — every proposal filed here is executed and archived. The
+- *(none — the rust_language_tooling proposal executed same-day
+  2026-10-26 and archived (#446); see the previous-batch line below.)*
+- *(previously: none — every proposal filed here is executed and archived. The
   2026-10-26 batch went out filed + executed + archived across sessions:
+  `../archive/tooling/rust_language_tooling.md` (#446),
   `../archive/pipeline/pdf_engine_indra_ocr_rung2.md` (#445),
   `../archive/database/numba_jit_cosine_trial.md` (#443),
   `../archive/database/numkong_7_6_0_cosine_trial.md` (#444); the

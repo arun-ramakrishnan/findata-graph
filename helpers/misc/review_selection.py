@@ -59,6 +59,13 @@ PRODUCT_FAMILIES = (
     "frontend/tests/",
     "desktop/src-tauri/",
     "desktop/src-vue/",
+    # Rust/ workspace (rust_language_tooling S6, 2026-10-26): the production
+    # cosine_knn abi3 module + embed_cache. Live probe: OCR's own extension
+    # allow-list already selected all 7 .rs files on embed_cache-arc traffic —
+    # these families close the review-scan/teeth gap, not the binary's.
+    "Rust/cosine_knn/",
+    "Rust/embed_cache/",
+    "Rust/bench/",
     # Snapshot schema mirrors (S9 follow-up 2026-10-14): the only reviewable
     # artifact of data-only commits. Exact paths (no trailing slash) so the
     # parquet binaries beside them never satisfy the family. Hardcoded here

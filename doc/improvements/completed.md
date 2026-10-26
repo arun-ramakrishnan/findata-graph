@@ -12534,3 +12534,38 @@ trap list).
   2026-10-09); `models/archived/NaviDC-OCR-mmproj-f16.gguf` (1.3 GB,
   pre-quantization original) deleted — re-fetchable from
   `nandraj/NaviDC-OCR-GGUF`.
+
+## 446. Rust/ language tooling — fmt/clippy/test/audit gates, install hook, toolchain pin
+
+**Verdict: EXECUTED 2026-10-26** (filed + executed same day). Proposal
+archived: `archive/tooling/rust_language_tooling.md` (#446). The `Rust/`
+workspace (production-carrying via the cosine_knn abi3 module) gets the
+per-language toolchain surface every other language has.
+
+- **S0 toolchain pin**: `Rust/rust-toolchain.toml` (channel 1.99.1 +
+  `rustfmt`/`clippy` components declared; rustup auto-installed the
+  pinned toolchain). Components were MISSING before this arc — `cargo
+  fmt`/clippy both refused on the box.
+- **S1 format**: one-time `cargo fmt --all` (trial.rs wrapping); `make
+  rust-fmt` fix target; `test_rust_format_footprint_clean` rides the qa
+  pytest leg via native `--check` (SKIPs without the component).
+- **S2 lint/test**: `make rust-clippy` + `make rust-test` in the
+  advisory roster (advisory-first per the mojo-test precedent). Clippy
+  first run: 23 style-grade warnings (needless casts ×4, doc-list indent
+  ×3, chunks_exact ×2, useless conversions ×2, complex type ×1) —
+  `-D warnings` deferred. qa hard pin: `SCRIPT_KNN_STRICT=1` (set by the
+  qa runner) turns the cosine importorskip into a hard assert — a
+  vanished `.so` now FAILS qa instead of silently degrading the selector
+  to numpy (gemma-sidecar shape).
+- **S3 audit**: cargo-audit scans BOTH lockfiles (desktop 479 crates +
+  `Rust/Cargo.lock` — the production-carrying lock was previously
+  unaudited).
+- **S4 install**: `make rust-install` — release build (~12 s) + copy to
+  `<purelib>/cosine_knn.abi3.so` via sysconfig purelib (never
+  hard-coded); embed_cache stays backup-only.
+- **S5/S6 review surface**: pyo3 row in THIRD_PARTY_LICENSES.md;
+  `.opencodereview/rule.json` gains 5 Rust includes (`.rs`, benches,
+  manifests, READMEs, tomls) + PRODUCT_FAMILIES teeth families
+  (cosine_knn/embed_cache/bench) — closing the review-scan gap (live
+  probe: OCR's binary already selected all `.rs`; rule.json/teeth did
+  not).

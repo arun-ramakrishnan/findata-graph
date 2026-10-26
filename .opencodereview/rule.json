@@ -27,7 +27,12 @@
     "**/package-lock.json",
     "snapshots/parquet/_schema.duckdb.sql",
     "snapshots/parquet/_schema.sources.sql",
-    "snapshots/parquet/_schema.sqlite.sql"
+    "snapshots/parquet/_schema.sqlite.sql",
+    "Rust/**/*.rs",
+    "Rust/bench/**/*.py",
+    "Rust/**/Cargo.toml",
+    "Rust/**/README.md",
+    "Rust/**/*.toml"
   ],
   "exclude": [
     "static/**/*.bundle.js",

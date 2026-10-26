@@ -7,7 +7,7 @@
 //! no network, deterministic synthetic text corpus.
 
 use hex;
-use rusqlite::{Connection, OpenFlags, params};
+use rusqlite::{params, Connection, OpenFlags};
 use sha2::{Digest, Sha256};
 use std::hint::black_box;
 use std::time::Instant;
@@ -24,9 +24,7 @@ fn sha256_hex(text: &[u8]) -> String {
 }
 
 fn pack_f32(vec: &[f32]) -> Vec<u8> {
-    vec.iter()
-        .flat_map(|v| v.to_le_bytes())
-        .collect()
+    vec.iter().flat_map(|v| v.to_le_bytes()).collect()
 }
 
 fn unpack_f32(bytes: &[u8]) -> Vec<f32> {
@@ -40,7 +38,13 @@ fn unpack_f32(bytes: &[u8]) -> Vec<f32> {
 /// (name + sector + ~200-800 char body).
 fn gen_texts(n: usize) -> Vec<String> {
     let mut texts = Vec::with_capacity(n);
-    let sectors = ["Agriculture", "Packaging", "Technology", "Finance", "Energy"];
+    let sectors = [
+        "Agriculture",
+        "Packaging",
+        "Technology",
+        "Finance",
+        "Energy",
+    ];
     for i in 0..n {
         let len = 200 + (i % 600);
         let mut body = String::with_capacity(len);
@@ -112,9 +116,9 @@ fn bench_sqlite_lookup(texts: &[String], model: &str) -> (u64, f64) {
             stmt.execute(params![h, model, blob, "companies"]).unwrap();
         }
     }
-    let mut stmt = db.prepare_cached(
-        "SELECT embedding FROM embed_cache WHERE text_hash = ? AND model = ?",
-    ).unwrap();
+    let mut stmt = db
+        .prepare_cached("SELECT embedding FROM embed_cache WHERE text_hash = ? AND model = ?")
+        .unwrap();
 
     let t0 = Instant::now();
     let mut found: u64 = 0;
@@ -142,9 +146,9 @@ fn bench_full_pipeline(texts: &[String], model: &str) -> (u64, u64, f64) {
     let mut insert_stmt = db.prepare_cached(
         "INSERT OR REPLACE INTO embed_cache (text_hash, model, embedding, source) VALUES (?, ?, ?, ?)",
     ).unwrap();
-    let mut select_stmt = db.prepare_cached(
-        "SELECT embedding FROM embed_cache WHERE text_hash = ? AND model = ?",
-    ).unwrap();
+    let mut select_stmt = db
+        .prepare_cached("SELECT embedding FROM embed_cache WHERE text_hash = ? AND model = ?")
+        .unwrap();
 
     let t0 = Instant::now();
     let mut inserted: u64 = 0;
@@ -152,7 +156,9 @@ fn bench_full_pipeline(texts: &[String], model: &str) -> (u64, u64, f64) {
     for (i, t) in texts.iter().enumerate() {
         let h = sha256_hex(t.as_bytes());
         let vec: Vec<f32> = (0..DIM).map(|_| (i as f32).cos() as f32).collect();
-        insert_stmt.execute(params![h, model, pack_f32(&vec), "companies"]).unwrap();
+        insert_stmt
+            .execute(params![h, model, pack_f32(&vec), "companies"])
+            .unwrap();
         inserted += 1;
         // lookup right after insert (mirrors CachedEmbed miss then store)
         let row = select_stmt.query_row(params![h, model], |r| {

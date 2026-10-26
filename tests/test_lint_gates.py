@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""Lint/format gates — python footprint via ruff, Mojo footprint via `mojo format`.
+"""Lint/format gates — python footprint via ruff, Mojo footprint via `mojo format`,
+Rust footprint via `cargo fmt --check`.
 
 Makes the two style gates pytest-visible so they run under the ``make qa``
 pytest leg, and adds the one property the raw ``make lint`` invocation cannot
@@ -36,6 +37,8 @@ from __future__ import annotations
 import shutil
 import subprocess
 from pathlib import Path
+
+import pytest
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 RUFF = REPO_ROOT / ".venv" / "bin" / "ruff"
@@ -152,4 +155,32 @@ def test_mojo_format_footprint_clean(tmp_path):
     ]
     assert not diverged, (
         "mojo format would change these files (run: make mojo-format):\n  " + "\n  ".join(diverged)
+    )
+
+
+# ---------------------------------------------------------------------------
+# 4 — cargo fmt over the Rust footprint
+# ---------------------------------------------------------------------------
+def test_rust_format_footprint_clean():
+    """`cargo fmt --check --all` over the Rust/ workspace.
+
+    rustfmt HAS a native --check (unlike `mojo format`), so this is a
+    direct read-only probe: fix is `make rust-fmt`. SKIPs cleanly without
+    cargo or the rustfmt component (frozen-toolchain machines keep qa
+    green) — the component is declared in Rust/rust-toolchain.toml.
+    """
+    cargo = shutil.which("cargo") or Path.home() / ".cargo" / "bin" / "cargo"
+    if not Path(cargo).is_file():
+        pytest.skip("cargo not installed — Rust/ footprint ungated")
+    r = subprocess.run(  # noqa: S603  # resolved binary, no shell
+        [str(cargo), "fmt", "--check", "--all"],
+        capture_output=True,
+        text=True,
+        cwd=REPO_ROOT / "Rust",
+        check=False,
+    )
+    if r.returncode != 0 and "is not installed for the toolchain" in (r.stderr or ""):
+        pytest.skip(f"rustfmt component missing: {r.stderr.strip()[:200]}")
+    assert r.returncode == 0, (
+        f"cargo fmt would change files (run: make rust-fmt):\n{r.stdout}\n{r.stderr}"
     )

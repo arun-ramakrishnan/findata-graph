@@ -31,9 +31,8 @@ pub fn lookup_batch(
     texts: &[String],
     model: &str,
 ) -> rusqlite::Result<(Vec<(usize, Vec<f32>)>, Vec<usize>)> {
-    let mut stmt = conn.prepare_cached(
-        "SELECT embedding FROM embed_cache WHERE text_hash = ?1 AND model = ?2",
-    )?;
+    let mut stmt = conn
+        .prepare_cached("SELECT embedding FROM embed_cache WHERE text_hash = ?1 AND model = ?2")?;
     let mut seen: HashMap<String, Option<Vec<f32>>> = HashMap::new();
     let mut hits = Vec::new();
     let mut misses = Vec::new();
@@ -65,7 +64,10 @@ mod tests {
     use rusqlite::{params, Connection};
 
     fn packed(values: &[f32]) -> Vec<u8> {
-        values.iter().flat_map(|value| value.to_le_bytes()).collect()
+        values
+            .iter()
+            .flat_map(|value| value.to_le_bytes())
+            .collect()
     }
 
     #[test]

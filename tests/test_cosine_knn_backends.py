@@ -10,6 +10,8 @@ from __future__ import annotations
 
 import random
 
+import os
+
 import pytest
 
 from helpers.maintenance.rebuild_script_search import (
@@ -72,8 +74,23 @@ def test_unknown_backend_falls_to_pure(monkeypatch):
 
 def test_rust_module_importable_and_parity_with_numpy():
     """The abi3 module itself (installed at Rust/target → site-packages)
-    must import and agree with the numpy path on random matrices."""
+    must import and agree with the numpy path on random matrices.
+
+    importorskip keeps non-build machines green, but the live selector
+    prefers rust when importable — a vanished .so degrades it to numpy
+    SILENTLY (the gemma-sidecar shape guard_gemma_stamp exists for).
+    SCRIPT_KNN_STRICT=1 (set by the qa harness) turns the skip into a
+    hard failure on boxes that carry the production backend.
+    """
     np = pytest.importorskip("numpy")
+    if os.environ.get("SCRIPT_KNN_STRICT") == "1":
+        # Dynamic import: the module is the OPTIONAL abi3 wheel (absent on
+        # machines without the build) — ty cannot resolve it statically, so
+        # the strict pin mirrors the selector's own importlib route.
+        import importlib
+
+        importlib.import_module("cosine_knn")  # hard pin: production backend must exist
+
     cosine_knn = pytest.importorskip("cosine_knn")
     rng = np.random.default_rng(3)
     m = rng.random((200, 32), dtype=np.float32)

@@ -90,7 +90,9 @@ fn knn(
     let q = query.as_slice()?;
     let m = matrix.as_array();
     if m.ndim() != 2 {
-        return Err(pyo3::exceptions::PyValueError::new_err("matrix must be 2-D"));
+        return Err(pyo3::exceptions::PyValueError::new_err(
+            "matrix must be 2-D",
+        ));
     }
     let dim = m.ncols();
     if q.len() != dim {
