@@ -31,10 +31,38 @@ A Rust port of the cosine/KNN path is **highly worthwhile**: SIMD f32x4 gives 3-
 
 ## Files
 
-- `rust_trials/cosine_knn/Cargo.toml` — std only
-- `rust_trials/cosine_knn/src/bin/trial.rs` — `topk_scalar`, `topk_simd`, `topk_blocked`, `gen_matrix`
-- `helpers/misc/cosine_bench.py` — Python baseline (pure + numpy)
-- `rust_trials/cosine_knn/README.md` — this file
+Paths as of the 2026-10-25 port (this trial lived at `rust_trials/` before
+it was promoted into the workspace crate):
+
+- `Rust/cosine_knn/Cargo.toml` — pyo3 0.30 (extension-module, abi3-py39) + numpy 0.30
+- `Rust/cosine_knn/src/lib.rs` — the SHIPPED abi3 module: `cosine_similarity`
+  (8-lane accumulators + remainder tail), `topk`, and the two `#[pyfunction]`s
+  `knn(query, matrix, k)` / `knn_batch(queries, matrix, k)`. Consumed by
+  `helpers/maintenance/rebuild_script_search.py::_cosine_rank_rows` behind the
+  `SCRIPT_KNN` selector (`auto` → rust → numpy → pure).
+- `Rust/cosine_knn/src/bin/trial.rs` — the original trial harness: `topk_scalar`,
+  `topk_simd`, `topk_blocked`, `gen_matrix`
+- `Rust/cosine_knn/README.md` — this file
+- `Rust/bench/cosine_bench.py` — Python baseline (pure + numpy)
+- `Rust/bench/cosine_gate.py` — the PERF GATE (`make perf` leg
+  `cosine_knn_ratios`): asserts rust ≥ 1.3× numpy and ≥ 5× the pure loop at the
+  live 717×512 script-search shape, so a silent fall back to numpy (rankings
+  stay correct, only the ratio collapses) cannot pass unnoticed
 
 Run: `cd Rust && cargo run --release -p cosine_knn`
 Baseline: `.venv/bin/python3 Rust/bench/cosine_bench.py`
+Gate: `.venv/bin/python3 Rust/bench/cosine_gate.py`
+
+## Cost model (2026-10-27, measured)
+
+The ratios in the table above are trial-shaped (384-d, one query). At the
+LIVE production shape (717 rows × 512 dim, `embeddinggemma-2-q8_512`) the
+honest kernel-only win over numpy is ~0.6 ms vs ~0.9–1.0 ms per query, not
+the 120–270× headline: that headline compares SIMD against the pure Python
+loop, and numpy's real cost at this size is `np.linalg.norm(M, axis=1)`
+(0.39 ms) and the all-rows list+dict return shape (0.32 ms), not the matvec
+(0.03 ms). Through the production entry point the end-to-end gap is 2.4×
+(1.07 vs 2.54 ms/query) because ~45% of the rust path is Python-side blob
+decode and list building. Both kernels are issue/bandwidth-bound here, which
+is why `target-cpu=native` moves nothing measurable (see `cosine_gate.py`
+docstring) and why the gate measures ratios rather than absolute q/s.

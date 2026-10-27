@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """Perf gate: HTTP route latency (test_gap_closure S3).
 
-All 16 legs in run_perf_benchmarks.py invoke helper scripts directly; none
-drives the Flask request path, so the gate structurally cannot catch the
-AVAIL-1 class (a 53 s unauthenticated GET). This leg times the hot routes
-through the Flask test client instead.
+Every other leg in run_perf_benchmarks.py invokes a helper script
+directly; none drove the Flask request path, so the gate structurally
+could not catch the AVAIL-1 class (a 53 s unauthenticated GET). This leg
+times the hot routes through the Flask test client instead.
 
 Idiom mirrors tests/bench_shortest_path.py: best-of-3 per route with an
 unmeasured warm-up call absorbing the one-time plan/page-cache cost.

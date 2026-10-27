@@ -7,6 +7,11 @@ edition = "2021"
 name = "trial"
 path = "src/bin/trial.rs"
 
+[[bench]]
+name = "divan_bench"
+path = "benches/divan_bench.rs"
+harness = false
+
 [lib]
 name = "cosine_knn"
 crate-type = ["cdylib", "rlib"]
@@ -14,3 +19,7 @@ crate-type = ["cdylib", "rlib"]
 [dependencies]
 pyo3 = { version = "0.30", features = ["extension-module", "abi3-py39"] }
 numpy = "0.30"
+rayon = "1.10"
+
+[dev-dependencies]
+divan = "0.1"

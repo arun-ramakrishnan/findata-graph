@@ -254,4 +254,9 @@ optional_dependencies_dev_groups = ["dev", "mojo", "review"]
 # tree-sitter + tree-sitter-sql: DbScreen SQL highlighting — the TextArea
 # loads the grammar at runtime (TextArea language="sql"), so no repo file
 # imports them directly; declared in the tui extra, not the dev group.
-per_rule_ignores = "DEP002=gunicorn|Werkzeug|finnhub-python|regex|tree-sitter|tree-sitter-sql"
+# cosine_knn: the locally-built Rust pyo3 extension (make rust-install) — a
+# bare cosine_knn.abi3.so copied into site-packages with NO distribution
+# metadata, so deptry can only classify it as transitive. Imported solely by
+# Rust/bench/cosine_gate.py (gate timing harness, SCRIPT_KNN_STRICT pins it).
+per_rule_ignores.DEP002 = ["gunicorn", "Werkzeug", "finnhub-python", "regex", "tree-sitter", "tree-sitter-sql"]
+per_rule_ignores.DEP003 = ["cosine_knn"]

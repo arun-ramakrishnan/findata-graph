@@ -60,34 +60,41 @@ Open items below keep their revisit triggers inline; executed work is compressed
    to the next c901 pass by collation S7; `_cli` at `:4055` unruled).
 
 - **production-store copy census — TRIGGER ARMED 2026-09-29, FIRED
-  2026-10-13 — RE-RUN DONE 2026-10-19 (completed.md #415)**
-  (`archive/testing/production_db_copy_audit.md`, executed same day): every
-  copy/backup site is verdict-tabled there, and the chokepoint is
-  gated deny-by-default — `copy_production_db(requestor=...)` +
-  the operator-owned `SANCTIONED_REQUESTORS` registry in
-  `tests/helpers.py`, with a static check holding call sites and
-  registry in 1:1 lockstep. **REVISIT TRIGGER: re-run the census
-  (store sizes, per-run transient, backup-lane cost) when any
-  production store roughly doubles** — a sanction is sized against the
-  data of its day and decays silently otherwise (the keep_all class:
-  copies sanctioned as small became 307 MiB × 30 per gate run). Store
-  sizes at filing: convo_search 820.5, research 307.2, embed_store
-  184.6, convo_fts 102.0, corpus 52.6, graph 39.3 + 39.0, doc_search
-  24.7 MiB. **Measured 2026-10-13: convo_fts 232.5 (2.28× — FIRED),
-  embed_store 311.7 (1.69× — also past 1.5×), research 313.7,
-  convo_search.duckdb 841, graph 48.0 + 48.5, doc_search 31.8,
-  corpus 27.2 MiB.** Growth drivers: convo_fts/embed_store scale with
-  the harvest+embed lanes (gemma cohort rows), so per-copy cost has
-  roughly doubled for the two biggest sanctioned classes — the census
-  re-run (size per lane, transient per run, backup-lane cost) is the
-  outstanding action. **2026-10-14: dead-page reclamation + a maint
-  path for every store landed** (store_wide_reclaim, completed.md #391 —
-  ≈84 MiB reclaimed across the two passes) — this census re-run stays
-  armed for payload growth: reclaim frees pages, never shrinks payloads
-  (store_wide_reclaim §F5). **2026-10-19 re-run verdicts:** embed_store
-  2.08× SANCTIONED (downtime-window insurance — it rescued multiple
-  2-5 h cache-blowouts; size was never the factor, operator ruling),
-  convo_search_fts 2.51× → its per-run backup RETIRED from the db_maint
+  2026-10-13 — RE-RUN DONE 2026-10-19 (completed.md #415) — BASELINE
+  REFRESHED 2026-10-27** (`archive/testing/production_db_copy_audit.md`,
+  executed same day): every copy/backup site is verdict-tabled there, and
+  the chokepoint is gated deny-by-default —
+  `copy_production_db(requestor=...)` + the operator-owned
+  `SANCTIONED_REQUESTORS` registry in `tests/helpers.py`, with a static
+  check holding call sites and registry in 1:1 lockstep. **REVISIT
+  TRIGGER: re-run the census (store sizes, per-run transient,
+  backup-lane cost) when any production store roughly doubles** — a
+  sanction is sized against the data of its day and decays silently
+  otherwise (the keep_all class: copies sanctioned as small became
+  307 MiB × 30 per gate run). Store sizes at original filing:
+  convo_search 820.5, research 307.2, embed_store 184.6, convo_fts
+  102.0, corpus 52.6, graph 39.3 + 39.0, doc_search 24.7 MiB. **Measured
+  2026-10-13: convo_fts 232.5 (2.28× — FIRED), embed_store 311.7
+  (1.69× — also past 1.5×), research 313.7, convo_search.duckdb 841,
+  graph 48.0 + 48.5, doc_search 31.8, corpus 27.2 MiB.** Growth
+  drivers: convo_fts/embed_store scale with the harvest+embed lanes
+  (gemma cohort rows), so per-copy cost has roughly doubled for the two
+  biggest sanctioned classes — the census re-run (size per lane,
+  transient per run, backup-lane cost) is the outstanding action.
+  **2026-10-14: dead-page reclamation + a maint path for every store
+  landed** (store_wide_reclaim, completed.md #391 — ≈84 MiB reclaimed
+  across the two passes) — this census re-run stays armed for payload
+  growth: reclaim frees pages, never shrinks payloads (store_wide_reclaim
+  §F5). **2026-10-19 re-run verdicts:** embed_store 2.08× SANCTIONED
+  (downtime-window insurance — it rescued multiple 2-5 h
+  cache-blowouts; size was never the factor, operator ruling),
+  convo_search_fts 2.51× → its per-run backup RETIRED from the db_maint.
+  **2026-10-27 baseline refresh** (`store_sweep.py` _FILING_MB updated):
+  convo_search.duckdb 414.3, convo_search_fts 304.0, embed_store 435.9,
+  corpus 53.3, doc_search 25.1, script_search 3.9, memory_search 2.4,
+  md_lint_cache 0.3, graph.xdist-shared.duckdb 58.5, agent_traces
+  185.8, sources 41.5, model_usage 1.8 MiB. All size-watch lines now
+  silent (ratio 1.0×).
   lane (−79 MiB/run; derived lookup index, minutes-class re-index),
   transient 7 MB (the 2026-09-29 mechanisms held), backup lane 1.96×.
   Standing watch: `size_watch` in store_sweep.py (warn 1.5× / ACT 2×,
@@ -376,6 +383,21 @@ Open items below keep their revisit triggers inline; executed work is compressed
   `FLOAT[]` lists). Verdict: brute-force stays shipped; the decision
   stands. Re-trial trigger unchanged (vectors → 10⁶, or a probe shape
   where brute hurts) + next quarterly re-check.**
+  **Re-checked 2026-10-27 (DuckDB 2.0.0, vss `3685131eac`, 5k×512
+  FLOAT[512]): the 2026-10-24 note was WRONG about planner routing.
+  The planner NOW routes `ORDER BY array_distance(emb, CAST(? AS
+  FLOAT[512])) LIMIT 10` through `HNSW_INDEX_SCAN` (16ms) —
+  contradicting the "planner no longer routes" claim. EXPLAIN shows
+  Hnsw Index Scan. HOWEVER: `ORDER BY array_cosine_similarity(emb,
+  CAST(? AS FLOAT[512]))` uses brute force (Seq Scan + Top N, 11ms) —
+  no HNSW route for cosine. `vss_match` is a table macro requiring a
+  query table, not a parameter. Production adoption path unchanged:
+  needs `FLOAT[512]` migration (current embeddings are `FLOAT[]` lists
+  in `note_search_vec` etc.), and the query path must use
+  `array_distance` (not cosine) to hit the index. Cosine-vs-L2 gap
+  remains the real cost (unit-norm vectors so L2 ordering ≡ cosine,
+  but cosine queries don't use HNSW).**
+
 
 - **MAX engine = the viable future small-batch GEMM route** (recorded
   2026-10-26, Mojo-vs-Rust review; no execution yet). When embedding

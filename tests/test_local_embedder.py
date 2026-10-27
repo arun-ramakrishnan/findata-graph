@@ -143,6 +143,34 @@ class TestGates:
         with pytest.raises(RuntimeError, match="unavailable"):
             LE.embed_query("text")
 
+    def test_warm_singleton_respects_unavailable_gate(self, monkeypatch):
+        """pending_improvs row 22: the cached-model path must re-gate.
+
+        The hermetically pinned suite asserts that ``available() -> False``
+        makes the embed paths refuse. That assertion used to be a
+        coincidence of ordering: ``_get_model`` returned a warm ``_MODEL``
+        WITHOUT consulting ``available()`` at all, so any earlier test that
+        had instantiated the singleton made this gate silently pass-through
+        (2026-10-07 see-note; `test_shared_query_vector` ahead of this file
+        reddened `test_embed_refuses_when_unavailable`). A cached handle
+        must never outlive a False gate — this pins the rule directly on a
+        sentinel instead of relying on which test file ran first.
+        """
+        sentinel = object()
+        monkeypatch.setattr(LE, "_MODEL", sentinel)
+        monkeypatch.setattr(LE, "_sidecar_healthy", lambda: False)
+        # conftest already pinned available() -> False: the warm handle must
+        # NOT be served, and no Llama() may be constructed either.
+        with pytest.raises(RuntimeError, match="unavailable"):
+            LE._get_model()
+        with pytest.raises(RuntimeError, match="unavailable"):
+            LE.embed_document("warm singleton must not bypass the gate")
+
+        # ...and the same warm handle IS served once the gate says yes, with
+        # no reload (the singleton contract is intact, not traded away).
+        monkeypatch.setattr(LE, "available", lambda: True)
+        assert LE._get_model() is sentinel
+
     def test_empty_document_raises_before_model_load(self):
         with pytest.raises(ValueError, match="empty"):
             LE.embed_document("   ")

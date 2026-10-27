@@ -68,15 +68,25 @@ operator, **BLOCKED** = gated on an external/upstream condition,
 | 19 | Trigger-gated (leave) | Ontology governance (a) mapping-record glossary, (b) LLM-judge protocol 2 | triggers: a metrics Q&A lane proposal; an LLM-API posture (terrain C4 revival) | BLOCKED | `pending.md` "Ontology governance #244 deferred" |
 | 20 | Trigger-gated (leave) | OpenViking context-server pilot | revive only for its differentiators (L0/L1 hierarchy, automatic memory extraction, retrieval traces); labeled eval set transfers verbatim | BLOCKED | `pending.md` "OpenViking … DEFERRED" |
 | 21 | Trigger-gated (leave) | scipy minimum-spanning-tree lane | deferred need (Kruskal toy oracle recorded) | BLOCKED | `pending.md` "scipy_algos umbrella batch" |
-| 22 | Tests/gates | `local_embedder._MODEL` lazy singleton bypasses the conftest pin | the autouse `_no_local_embedder` pin patches `available()`, but `get_model()` returns the cached live `Llama` without consulting it — once a live-embedding module has instantiated the singleton, a suite re-ordering reddens the refuses-when-unavailable gate (seen 2026-10-07: `test_shared_query_vector` before `test_local_embedder`; full-suite alphabetical order unaffected; noted not-fixed in completed.md #363) | **UNLOCK** — small fix, e.g. pin also Nones `_MODEL`, or `get_model()` re-checks `available()` on the cached path | `helpers/core/local_embedder.py:96,164-184` · `tests/conftest.py:445-469` |
+| 22 | Tests/gates | `local_embedder._MODEL` lazy singleton bypasses the conftest pin | the autouse `_no_local_embedder` pin patches `available()`, but `get_model()` returns the cached live `Llama` without consulting it — once a live-embedding module has instantiated the singleton, a suite re-ordering reddens the refuses-when-unavailable gate (seen 2026-10-07: `test_shared_query_vector` before `test_local_embedder`; full-suite alphabetical order unaffected; noted not-fixed in completed.md #363) | **CLOSED** (2026-10-27) — fixed as proposed: `_get_model()` re-gates the CACHED branch on `available()` and raises before returning the warm singleton, so `available()` is the single coherence gate between the embedder and the pseudo fallback. Steady-state cost is one `stat()` (`_hashes_ok` short-circuits on `_verified`). Regression test `tests/test_local_embedder.py::TestGates::test_warm_singleton_respects_unavailable_gate` plants a sentinel into `_MODEL`, asserts `_get_model()`/`embed_document()` raise under the pin, then flips `available -> True` and asserts the singleton is returned untouched (contract intact, no reload); proven non-vacuous by re-breaking the cached path (test failed) and restoring | repro first: `pytest tests/test_shared_query_vector.py tests/test_local_embedder.py -x -q` → `1 failed, 42 passed` at `tests/test_local_embedder.py:141`; after the fix the same ordering = 57 passed, `tests/test_local_embedder.py` 24 passed, `test_embeddings`+`test_note_embeddings`+`test_rebuild_doc_search`+`test_gemma_adoption` 170 passed · completed.md #447 |
 
-**Census (updated 2026-10-05, close-out):** rows 4, 5, 6 and 12
+**Census (updated 2026-10-27):** rows 4, 5, 6 and 12
 EXECUTED via `graph_rebuild_fast_path.md` (S1–S4; parity 31/31 tables,
 no-op rebuild 1.11 s vs 3.51 s fresh, C901 masks zero — completed.md
-entry 347). CLOSED (8): 1, 2, 3, 7, 8, 11, 13, 14 — rows 1–3/8 by the
+entry 347). CLOSED (9): 1, 2, 3, 7, 8, 11, 13, 14 — rows 1–3/8 by the
 2026-10-05 gate close-out (they were written while the gates were still
 in flight; row 8's file turned out to be already removed), 11 done in
 place, and 13 resolved: the "untracked residue" was the never-committed
-working draft of archived #312 (all findings executed). NO-ACTION (2):
+working draft of archived #312 (all findings executed) — plus row 22,
+the last UNLOCK, fixed 2026-10-27 (completed.md #447). NO-ACTION (2):
 9, 10. BLOCKED (7): 15–21. Row 22 filed 2026-10-07 (UNLOCK) from the
-script_search_gemma_adoption arc.
+script_search_gemma_adoption arc. **Every row is now CLOSED, EXECUTED,
+NO-ACTION or BLOCKED — no row remains UNLOCK.**
+
+**Row 22 note for row 9 (census):** rows 9/10 stay NO-ACTION as
+*verdicts*. The 2026-10-27 census re-run updated the filing baselines in
+`store_sweep.py` to current live sizes (convo_search_fts.db 304.0 MB,
+embed_store.db 435.9 MB, etc.). All size-watch ratios now ~1.0× — the
+doubling trigger is disarmed. `pending.md` already noted the 2026-10-19
+re-run done (completed.md #415).
+

@@ -236,28 +236,46 @@ def _get_model(n_threads: int | None = None):
     the default (None) keeps llama.cpp's own thread choice for
     single-text/query callers. Double-checked locking: concurrent first
     touches queue on _EMBED_LOCK instead of racing two Llama() inits
-    (see _EMBED_LOCK — the race silently eats the process's stdout)."""
-    global _MODEL
-    if _MODEL is None:
-        with _EMBED_LOCK:
-            if _MODEL is None:
-                if not available():
-                    raise RuntimeError(
-                        f"local embedder unavailable: {MODEL_ID} backend or model file "
-                        "missing (gate on available() or see local_embedder docstring)"
-                    )
-                from llama_cpp import Llama
+    (see _EMBED_LOCK — the race silently eats the process's stdout).
 
-                kwargs: dict = {}
-                if n_threads is not None:
-                    kwargs["n_threads"] = n_threads
-                _MODEL = Llama(
-                    model_path=str(MODEL_PATH),
-                    embedding=True,
-                    n_ctx=_N_CTX,
-                    verbose=False,
-                    **kwargs,
+    A CACHED handle is re-gated on available() before it is served. That is
+    a coherence rule, not a test convenience: available() is the single gate
+    every caller uses to choose between this embedder and the pseudo
+    fallback, so a warm singleton must never outlive a False answer. Before
+    2026-10-27 the cached path returned the Llama without consulting the
+    gate at all, which let the conftest hermetic pin (available -> False for
+    every unit test) be bypassed by any earlier live-embedding test —
+    suite re-ordering then reddened test_embed_refuses_when_unavailable
+    (seen 2026-10-07; pending_improvs row 22). Steady-state cost is one
+    stat(): _hashes_ok short-circuits on _verified, so the pinned GGUF is
+    never re-hashed here."""
+    global _MODEL
+    if _MODEL is not None:
+        if not available():
+            raise RuntimeError(
+                f"local embedder unavailable: {MODEL_ID} backend or model file "
+                "missing (gate on available() or see local_embedder docstring)"
+            )
+        return _MODEL
+    with _EMBED_LOCK:
+        if _MODEL is None:
+            if not available():
+                raise RuntimeError(
+                    f"local embedder unavailable: {MODEL_ID} backend or model file "
+                    "missing (gate on available() or see local_embedder docstring)"
                 )
+            from llama_cpp import Llama
+
+            kwargs: dict = {}
+            if n_threads is not None:
+                kwargs["n_threads"] = n_threads
+            _MODEL = Llama(
+                model_path=str(MODEL_PATH),
+                embedding=True,
+                n_ctx=_N_CTX,
+                verbose=False,
+                **kwargs,
+            )
     return _MODEL
 
 

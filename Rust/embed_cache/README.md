@@ -30,10 +30,19 @@ OpenSSL reference (`openssl speed sha256`, OpenSSL 3.5.5): ~392 MB/s at 8-KB blo
 
 ## Files
 
-- `rust_trials/embed_cache/Cargo.toml` — sha2 0.10 (with `asm`), rusqlite 0.33 (bundled), hex 0.4
-- `rust_trials/embed_cache/src/bin/trial.rs` — `bench_sha256`, `bench_sqlite_insert`, `bench_sqlite_lookup`, `bench_full_pipeline`; prints `openssl speed sha256` reference at startup
-- `helpers/misc/embed_cache_bench.py` — Python baseline (same corpus sizes)
-- `rust_trials/embed_cache/README.md` — this file
+Paths as of the workspace promotion (this trial lived at `rust_trials/`
+before it became a workspace crate):
+
+- `Rust/embed_cache/Cargo.toml` — sha2 0.10 (with `asm`), rusqlite 0.33 (bundled), hex 0.4
+- `Rust/embed_cache/src/lib.rs` — `sha256_hex`, `lookup_batch`, `decode_embedding`
+- `Rust/embed_cache/src/bin/trial.rs` — `bench_sha256`, `bench_sqlite_insert`, `bench_sqlite_lookup`, `bench_full_pipeline`; prints the `openssl speed sha256` reference at startup
+- `Rust/embed_cache/src/bin/embed-cache-lookup.rs`, `Rust/embed_cache/src/bin/sha_s2.rs`
+- `Rust/embed_cache/README.md` — this file
+- `Rust/bench/embed_cache_bench.py` — Python baseline (same corpus sizes)
+
+NOTE: `embed_cache` is **backup-only** — `make rust-install` installs
+`cosine_knn` alone, and the shipped cache path is
+`helpers/core/embed_cache.py` in pure Python.
 
 Run: `cd Rust && cargo run --release -p embed_cache`
 Baseline: `.venv/bin/python3 Rust/bench/embed_cache_bench.py`

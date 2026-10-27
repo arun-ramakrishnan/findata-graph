@@ -12569,3 +12569,152 @@ per-language toolchain surface every other language has.
   (cosine_knn/embed_cache/bench) — closing the review-scan gap (live
   probe: OCR's binary already selected all `.rs`; rule.json/teeth did
   not).
+
+## 447. Rust cosine perf gate + `local_embedder._MODEL` singleton fix
+
+**Verdict: EXECUTED 2026-10-27.** Two loose ends from the 2026-10-27
+deferred-proposal survey (`archive/tooling/pending_improvs.md` row 22 was
+the last UNLOCK; the Rust arc had no perf leg at all).
+
+- **Perf gate** — `Rust/bench/cosine_gate.py`, wired as `make perf` leg
+  `cosine_knn_ratios` (`tests/run_perf_benchmarks.py`, 15.0 s outer
+  budget, ~2.3 s runtime). It asserts RATIOS at the live script-search
+  shape (717×512, `embeddinggemma-2-q8_512`), never absolute q/s:
+  `rust/numpy ≥ 1.3×` and `rust/pure ≥ 5×`. Calibration on a quiet box
+  (interleaved rounds): rust 1.11 ms/query (~900 q/s), numpy 2.88 ms
+  (~350 q/s) = 2.59×, pure 43.8 ms (23 q/s) = 40.8×, with per-round
+  spread 2.36–2.86 for the numpy ratio; repeat runs hold 2.4–2.6×. The
+  bar's real job is SILENT DEGRADATION: with
+  no abi3 module the selector falls back to numpy, both halves time the
+  same code, the ratio collapses to ~1.0 — and the rankings stay correct,
+  so previously nothing noticed. Verified red on exactly that failure
+  (0.98×, exit 1) and green otherwise; SKIPs exit 0 without a build, with
+  qa's `SCRIPT_KNN_STRICT=1` still the hard pin. Matrix is synthetic and
+  deterministic (`default_rng(20261027)`) — a perf leg must not read a
+  store a concurrent lane may rewrite.
+- **The `+19%` in `cecf2eddf` does not reproduce.** Rebuilt three variants
+  into scratch (`-C target-cpu=native`, `x86-64-v2`, `x86-64`): native DOES
+  change codegen (9 `vmulps` in `topk`, generic builds emit scalar
+  `mulss`), but 8 interleaved A/B rounds on the 4096×384 / 64-query shape
+  measured native 142.9–168.3 ms vs generic 143.8–156.7 ms — within
+  noise — and the 717×512 shape was identical (0.504–0.542 vs
+  0.503–0.559 ms). The pyo3 0.22→0.30 bump is likewise invisible (parent
+  tree 438 q/s vs installed 432 q/s). Both kernels are issue/bandwidth-
+  bound at these sizes; the original figure most plausibly tracked
+  `scaling_governor=powersave` drift (observed 3300–3488 MHz) on a loaded
+  box. The config entry stays (it is correct, just not a 19% lever); the
+  README now records the cost model instead of repeating the trial-era
+  120–270× headline.
+- **Cost attribution for the 2.4×** (so it is not oversold): through
+  `helpers/maintenance/rebuild_script_search.py::_cosine_rank_rows`, rust
+  1.07 vs numpy 2.54 ms/query; kernel alone 0.60 ms, so ~45% of the rust
+  path is Python-side blob decode + list building. numpy is penalised by
+  its RETURN SHAPE (all-717 list+dict 0.91 ms vs k=10 0.59 ms) and by
+  `np.linalg.norm(M, axis=1)` at 0.39 ms > matvec 0.03 ms.
+- **Row 22 fixed**: `helpers/core/local_embedder.py::_get_model()` now
+  re-gates the CACHED branch on `available()` and raises before returning
+  a warm singleton, making `available()` the single coherence gate between
+  embedder and pseudo fallback (cost: one `stat()`, `_hashes_ok`
+  short-circuits on `_verified`). New
+  `tests/test_local_embedder.py::TestGates::test_warm_singleton_respects_unavailable_gate`
+  plants a sentinel into `_MODEL`, asserts both `_get_model()` and
+  `embed_document()` raise under the conftest pin, then flips
+  `available -> True` and asserts the same sentinel comes back (contract
+  intact, no reload); proven non-vacuous by re-breaking the cached path
+  and watching it fail.
+- **Gates (targeted)**: `tests/test_local_embedder.py` 24 passed; the
+  ordering repro `tests/test_shared_query_vector.py tests/test_local_embedder.py`
+  57 passed (it was `1 failed, 42 passed` before the fix);
+  `tests/test_embeddings.py tests/test_note_embeddings.py
+  tests/test_rebuild_doc_search.py tests/test_gemma_adoption.py` 170
+  passed; `tests/test_run_perf_benchmarks.py` 19 passed;
+  `tests/test_lint_gates.py -k ruff` 3 passed; ruff + ruff-format clean on
+  both touched Python files.
+
+## 448. Rust Rayon parallel cosine_knn + Divan benchmarks — 3× at 100k+ rows
+
+**Executed 2026-10-27** — Rayon parallel top-k added to `cosine_knn` (threshold ≥5k rows) and divan benchmarks for reproducible Rust-level performance tracking. The parallel path gives **3× speedup at 100k+ rows** while correctly staying single-threaded at production scale (717 rows).
+
+### Changes
+1. **Rayon Parallel Kernel** (`Rust/cosine_knn/src/lib.rs`):
+   - New public functions: `topk_single`, `topk_parallel`, `cosine_similarity`
+   - Auto-router `topk()` dispatches to parallel at `PARALLEL_THRESHOLD = 5_000` rows
+   - Per-chunk local top-k (1024 rows/task) with k-way merge
+   - Identical insertion-sort algorithm in both paths → bitwise-identical results (test `parallel_matches_single_threaded`)
+
+2. **Divan Benchmarks** (`Rust/cosine_knn/benches/divan_bench.rs`):
+   ```bash
+   cargo bench --bench divan_bench -p cosine_knn
+   ```
+   13 benches covering production scale, threshold, 100k, 1M, and single vs parallel comparisons.
+
+3. **Perf Gate** (existing, unchanged):
+   `Rust/bench/cosine_gate.py` wired as `make perf` leg `cosine_knn_ratios`:
+   - Asserts `rust/numpy ≥ 1.3×`, `rust/pure ≥ 5×` at 717×512
+   - Guards silent degradation when abi3 module missing (selector falls back to numpy)
+
+### Numbers (divan, median, this hardware)
+
+| Benchmark | Median | Notes |
+|-----------|--------|-------|
+| `bench_production_scale` (717×512) | **460 µs** | Single-threaded path (auto) |
+| `bench_parallel_threshold` (5k×512) | **1.75 ms** | Parallel 1.7× faster than single (3.4 ms) |
+| `bench_100k` (100k×512) | **26 ms** | Parallel 3.0× faster than single (70 ms) |
+| `bench_1m` (1M×512) | **197 ms** | Parallel 3.3× faster than single (695 ms) |
+| `bench_cosine_similarity` (512) | **574 ns** | Kernel primitive |
+
+### Single vs Parallel at Same Scale (divan)
+
+| Scale | Single | Parallel | Speedup |
+|-------|--------|----------|---------|
+| 5k rows | 3.43 ms | 2.05 ms | **1.7×** |
+| 100k rows | 70.2 ms | 22.6 ms | **3.1×** |
+| 1M rows | 696 ms | 209 ms | **3.3×** |
+
+### Perf Gate (Python-level)
+
+```
+rust              1.064 ms/query  (   940 q/s)
+numpy             2.890 ms/query  (   346 q/s)
+pure             45.353 ms/query  (    22 q/s)
+rust vs numpy      2.72x   bar >= 1.3x   ✅
+rust vs pure       43.0x   bar >= 5.0x   ✅
+```
+
+Note: Python gate includes ~45% overhead (blob decode, list build) vs raw kernel 0.6 ms. The 2.72× is production path, not pure kernel.
+
+### Why This Matters
+
+| Deferred Item | Status | Connection |
+|---------------|--------|------------|
+| Numba `prange` crossover (≥500k rows, 1.94×) | Trigger has shape | **Rust rayon now covers same scale** (3× at 100k, 3.3× at 1M) |
+| HNSW ANN index | Blocker evaporated (DuckDB 2.0 routes L2 via HNSW) | Complementary: ANN for scale, exact KNN for precision |
+| Mojo GPU KNN | Frozen (retired) | Rayon = CPU parallel alternative |
+| MAX engine n=2–16 GEMM | Not fired (1,209 embeddings) | Rayon handles ≥5k rows |
+
+### Trigger for Revisit
+- **Corpus ≥100k rows** → parallel path active (current: `script_search` = 717, `note_search_vec` = 17k via sqlite-vec)
+- **Perf gate regression** → `cosine_knn_ratios` catches silent abi3 fallback (ratio collapses to ~1.0)
+- **DuckDB 2.0 HNSW cosine support** → would obsolete exact KNN at scale if planner routes `array_cosine_similarity`
+
+### Files Touched
+- `Rust/cosine_knn/Cargo.toml` — `[[bench]]` + `dev-dependencies.divan`
+- `Rust/cosine_knn/benches/divan_bench.rs` — 13 benchmarks
+- `Rust/cosine_knn/src/lib.rs` — `pub` exports, `div_ceil`, clippy clean
+
+### Verification
+```
+cargo test --workspace                    # 8 passed
+cargo clippy --workspace --all-targets -- -D warnings  # clean
+cargo bench --bench divan_bench -p cosine_knn  # runs 13 benches
+pytest tests/test_cosine_knn_backends.py  # 9 passed
+pytest tests/test_local_embedder.py ...   # 192 passed
+pytest tests/test_run_perf_benchmarks.py  # 19 passed
+python3 Rust/bench/cosine_gate.py         # ratios 2.72× / 43× ✅
+```
+
+### Notes
+- The 5k threshold was chosen empirically: single-threaded wins below it (overhead > gain)
+- `cosine_knn` has **no criterion** — divan replaced the need (simpler, no `[[bench]]` harness conflicts with PyO3 cdylib)
+- Production `script_search` at 717 rows stays on single-threaded fast path (460 µs)
+- `note_search_vec` (17k rows) uses sqlite-vec pipeline, not this crate — but if migrated, parallel would engage

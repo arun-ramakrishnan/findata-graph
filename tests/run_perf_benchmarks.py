@@ -123,6 +123,10 @@ _LOAD_CEIL = 2.0  # 1-minute load, PSI-less fallback
 #   shortest_path_bfs        8.1-10.2 s  12.0    inner per-route asserts are
 #                                                the real gate (12/76 ms);
 #                                                +2 s operator boost 09-26
+#   cosine_knn_ratios        2.4 s       15.0    inner RATIO bars are the
+#                                                real gate (>=1.3x numpy,
+#                                                >=5x pure); outer budget
+#                                                guards only the harness
 #
 # Super-linear decay (the thing these budgets catch) would show as a leg
 # blowing past its budget at constant corpus: 2-hop slots grow ~E x d,
@@ -334,6 +338,26 @@ BENCHMARKS: list[tuple[str, list[str], float]] = [
         ["helpers/graph/query.py", "near-duplicates", "--min-sim", "0.01", "--limit", "100"],
         8.0,
     ),
+    # rust_cosine_knn_port: the Rust kernel's reason-to-exist, measured as
+    # RATIOS at the live script-search shape (717 x 512) — the leg asserts
+    # rust >= 1.3x numpy and >= 5x the pure loop, NOT an absolute q/s.
+    # Absolute numbers were deliberately avoided: they encode this CPU and
+    # would punish a faster box, and this 4-core i5-6500 runs `powersave`
+    # (3300-3488 MHz observed), so absolute budgets are flaky here.
+    # Calibration 2026-10-27, quiet box (interleaved): rust 1.00-1.11 ms/query
+    # (~900-1000 q/s), numpy 2.62-2.88 ms (350-382 q/s) = 2.53-2.59x, pure
+    # 42.9-43.8 ms (23 q/s) = 41-44x; per-round numpy ratio held 2.36-2.86,
+    # so 1.3x sits outside the noise floor, not inside it. The 1.3x bar exists
+    # to catch SILENT DEGRADATION: with no abi3 module the selector falls
+    # back to numpy and both halves time the same code, collapsing the
+    # ratio to ~1.0 — rankings stay correct, so only this leg notices.
+    # Verified red on exactly that failure (0.96x, exit 1) and green on the
+    # rest; also verified SKIP-exit-0 with the module hidden.
+    # Runtime ~2.5 s (warm-up + 5 rounds x 60 queries x2 + 5 pure); the 15.0 s
+    # budget only guards the harness itself, like route_graph_stats does.
+    # SKIPs with exit 0 when the module is not built; qa's
+    # SCRIPT_KNN_STRICT=1 remains the hard pin for a vanished .so.
+    ("cosine_knn_ratios", ["Rust/bench/cosine_gate.py"], 15.0),
 ]
 
 
