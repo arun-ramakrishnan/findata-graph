@@ -1,12 +1,13 @@
 //! Trial A: embedding-cache fingerprint pipeline.
 //! Reproduces helpers/core/embed_cache.py behavior in Rust:
-//!   - SHA-256(content-hash key) of every text
-//!   - SQLite KV: (text_hash, model) -> f32 BLOB embedding
+//!
+//! - SHA-256(content-hash key) of every text
+//! - SQLite KV: (text_hash, model) -> f32 BLOB embedding
+//!
 //! Benchmarks sha256 + insert-or-replace + lookup throughput vs. a
 //! matching Python baseline (run separately). Self-contained: no llama.cpp,
 //! no network, deterministic synthetic text corpus.
 
-use hex;
 use rusqlite::{params, Connection, OpenFlags};
 use sha2::{Digest, Sha256};
 use std::hint::black_box;
@@ -29,7 +30,9 @@ fn pack_f32(vec: &[f32]) -> Vec<u8> {
 
 fn unpack_f32(bytes: &[u8]) -> Vec<f32> {
     bytes
-        .chunks_exact(4)
+        .as_chunks::<4>()
+        .0
+        .iter()
         .map(|c| f32::from_le_bytes([c[0], c[1], c[2], c[3]]))
         .collect()
 }
@@ -88,7 +91,7 @@ fn bench_sqlite_insert(texts: &[String], model: &str) -> (u64, f64) {
     let mut inserted: u64 = 0;
     for (i, t) in texts.iter().enumerate() {
         let h = sha256_hex(t.as_bytes());
-        let vec: Vec<f32> = (0..DIM).map(|_| (i as f32).sin() as f32).collect();
+        let vec: Vec<f32> = (0..DIM).map(|_| (i as f32).sin()).collect();
         let blob = pack_f32(&vec);
         stmt.execute(params![h, model, blob, "companies"]).unwrap();
         inserted += 1;
@@ -155,7 +158,7 @@ fn bench_full_pipeline(texts: &[String], model: &str) -> (u64, u64, f64) {
     let mut found: u64 = 0;
     for (i, t) in texts.iter().enumerate() {
         let h = sha256_hex(t.as_bytes());
-        let vec: Vec<f32> = (0..DIM).map(|_| (i as f32).cos() as f32).collect();
+        let vec: Vec<f32> = (0..DIM).map(|_| (i as f32).cos()).collect();
         insert_stmt
             .execute(params![h, model, pack_f32(&vec), "companies"])
             .unwrap();

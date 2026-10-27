@@ -15,7 +15,9 @@ fn decode_embedding(value: ValueRef<'_>) -> Option<Vec<f32>> {
     match value {
         ValueRef::Blob(bytes) if !bytes.is_empty() && bytes.len() % 4 == 0 => Some(
             bytes
-                .chunks_exact(4)
+                .as_chunks::<4>()
+                .0
+                .iter()
                 .map(|chunk| f32::from_le_bytes([chunk[0], chunk[1], chunk[2], chunk[3]]))
                 .collect(),
         ),
@@ -24,13 +26,16 @@ fn decode_embedding(value: ValueRef<'_>) -> Option<Vec<f32>> {
     }
 }
 
+/// Hits paired with their input indices, plus the miss indices.
+pub type LookupBatch = (Vec<(usize, Vec<f32>)>, Vec<usize>);
+
 /// Return vectors for cache hits, paired with their input indices, and all
 /// input indices whose cache entry is absent or cannot be decoded.
 pub fn lookup_batch(
     conn: &Connection,
     texts: &[String],
     model: &str,
-) -> rusqlite::Result<(Vec<(usize, Vec<f32>)>, Vec<usize>)> {
+) -> rusqlite::Result<LookupBatch> {
     let mut stmt = conn
         .prepare_cached("SELECT embedding FROM embed_cache WHERE text_hash = ?1 AND model = ?2")?;
     let mut seen: HashMap<String, Option<Vec<f32>>> = HashMap::new();

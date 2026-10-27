@@ -147,7 +147,7 @@ fn gen_matrix(n: usize) -> Vec<Vec<f32>> {
     (0..n)
         .map(|i| {
             (0..DIM)
-                .map(|j| ((i * 31 + j * 7) as f32).sin().cos() as f32)
+                .map(|j| ((i * 31 + j * 7) as f32).sin().cos())
                 .collect()
         })
         .collect()
@@ -164,7 +164,7 @@ fn main() {
             let queries: Vec<Vec<f32>> = (0..n_queries)
                 .map(|i| {
                     (0..DIM)
-                        .map(|j| ((i * 13 + j * 3) as f32).cos().sin() as f32)
+                        .map(|j| ((i * 13 + j * 3) as f32).cos().sin())
                         .collect()
                 })
                 .collect();

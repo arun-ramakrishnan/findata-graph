@@ -15,8 +15,9 @@
 //! never auto-vectorizes — 8 independent lanes give SLP a fixed 8-wide
 //! pattern. Ties: row index ascending.
 //!
-//! Build with `RUSTFLAGS="-C target-feature=+avx2,+fma"` (box-local wheel;
-//! the abi3 .so is NOT portable to non-AVX2 machines).
+//! Native tuning (target-cpu) comes from .cargo/config.toml build.rustflags
+//! on every cargo invocation under Rust/ — no RUSTFLAGS export needed. The
+//! abi3 .so is box-local: NOT portable to non-x86-64-v3 machines.
 
 use numpy::PyReadonlyArray1;
 use numpy::PyReadonlyArray2;
@@ -153,4 +154,76 @@ fn cosine_knn(m: &Bound<'_, pyo3::types::PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(knn, m)?)?;
     m.add_function(wrap_pyfunction!(knn_batch, m)?)?;
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{cosine_similarity, topk};
+
+    fn assert_close(a: f32, b: f32) {
+        assert!((a - b).abs() < 1e-6, "{a} != {b}");
+    }
+
+    #[test]
+    fn identical_vectors_score_one_orthogonal_zero() {
+        let a = [1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 1.0];
+        let b = [0.0, 1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 1.0, 0.0];
+        assert_close(cosine_similarity(&a, &a), 1.0);
+        assert_eq!(cosine_similarity(&a, &b), 0.0);
+    }
+
+    #[test]
+    fn zero_vector_scores_zero() {
+        let a = [0.0; 10];
+        let b = [1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0];
+        assert_eq!(cosine_similarity(&a, &b), 0.0);
+        assert_eq!(cosine_similarity(&a, &a), 0.0);
+    }
+
+    #[test]
+    fn remainder_tail_matches_zero_padded_chunked_path() {
+        // 11 dims = 1 full 8-lane chunk + 3-element tail; zero padding leaves
+        // dot products and norms unchanged, so both paths must agree.
+        let a = [1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 11.0];
+        let mut padded = a.to_vec();
+        padded.resize(16, 0.0);
+        assert_close(
+            cosine_similarity(&a, &a),
+            cosine_similarity(&padded, &padded),
+        );
+    }
+
+    #[test]
+    fn topk_clamps_k_and_orders_descending() {
+        // Rows 0..4 with norms chosen so scores are strictly ordered.
+        let query = [1.0, 0.0];
+        let matrix = [
+            1.0, 0.0, // score 1.0
+            0.0, 1.0, // score 0.0
+            1.0, 1.0, // ~0.707
+            2.0, 0.0, // score 1.0
+            -1.0, 0.0, // score -1.0
+        ];
+        let flat: Vec<f32> = matrix.to_vec();
+        let got = topk(&query, &flat, 10, 2);
+        assert_eq!(got.len(), 5, "k clamps to n");
+        let scores: Vec<f32> = got.iter().map(|&(_, s)| s).collect();
+        let mut sorted = scores.clone();
+        sorted.sort_by(|a, b| b.partial_cmp(a).unwrap());
+        assert_eq!(scores, sorted, "descending");
+    }
+
+    #[test]
+    fn topk_ties_keep_lower_row_index() {
+        // Rows 0, 2, 4 are identical — the documented tie rule is row index
+        // ascending, so the later duplicates must never displace an equal.
+        let query = [1.0, 1.0];
+        let row = [1.0, 1.0];
+        let flat: Vec<f32> = vec![row, [0.0, 1.0], row, [1.0, 0.0], row]
+            .into_iter()
+            .flatten()
+            .collect();
+        let got = topk(&query, &flat, 3, 2);
+        assert_eq!(got, vec![(0, got[0].1), (2, got[0].1), (4, got[0].1)]);
+    }
 }

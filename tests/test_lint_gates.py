@@ -165,7 +165,7 @@ def test_rust_format_footprint_clean():
     """`cargo fmt --check --all` over the Rust/ workspace.
 
     rustfmt HAS a native --check (unlike `mojo format`), so this is a
-    direct read-only probe: fix is `make rust-fmt`. SKIPs cleanly without
+    direct read-only probe: fix is `make rust-format`. SKIPs cleanly without
     cargo or the rustfmt component (frozen-toolchain machines keep qa
     green) — the component is declared in Rust/rust-toolchain.toml.
     """
@@ -182,5 +182,5 @@ def test_rust_format_footprint_clean():
     if r.returncode != 0 and "is not installed for the toolchain" in (r.stderr or ""):
         pytest.skip(f"rustfmt component missing: {r.stderr.strip()[:200]}")
     assert r.returncode == 0, (
-        f"cargo fmt would change files (run: make rust-fmt):\n{r.stdout}\n{r.stderr}"
+        f"cargo fmt would change files (run: make rust-format):\n{r.stdout}\n{r.stderr}"
     )

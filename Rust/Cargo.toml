@@ -6,6 +6,8 @@ members = ["embed_cache", "cosine_knn"]
 version = "0.1.0"
 edition = "2021"
 
+# Release tuning lives in .cargo/config.toml build.rustflags (target-cpu =
+# native) — [profile.release] has no target-cpu key; a stray one here is an
+# unused-manifest-key warning and never reaches the compiler.
 [profile.release]
 opt-level = 3
-target-cpu = "native"

@@ -1,0 +1,5 @@
+# Box-local build tuning for every cargo invocation under Rust/ (build, test,
+# clippy). RUSTFLAGS from the environment would OVERRIDE this — keep the env
+# clear. The abi3 .so is NOT portable to non-x86-64-v3 machines.
+[build]
+rustflags = ["-C", "target-cpu=native"]
