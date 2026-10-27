@@ -19,7 +19,7 @@ created: '2025-11-16'
 last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
-  at: '2026-10-10T07:49:18Z'
+  at: '2026-10-27T11:54:46Z'
 stale_after: '2027-02-11'
 sources:
 - id: A_Quarter_That_Refuses_To_Behave
@@ -149,7 +149,7 @@ _Source: yfinance | Refreshed: 2026-10-16_
 - **The shift to a modular capex approach suggests a more flexible and less capitalintensive path to growth, avoiding large, lumpy investments a…**
 
 > "Our capacity stated is with both the plants, which is Oragadam and Vallam, where we manufacturing all our motorcycles for across the globe. We have stated a capacity of aln about 1.2 million. Currently, you are right, we are operating at almost about $90 \%$ of tha [We also me…"
-> — B Govindarajan, CEO [^chatter-Decoding_Capex_Capacity_and_Consumer_Trends]
+> — B. Govindarajan, CEO [^chatter-Decoding_Capex_Capacity_and_Consumer_Trends]
 
 - **Management expresses strong optimism for the key festive season, and importantly signals a potential new launch or significant refresh for t…**
 
@@ -158,22 +158,22 @@ _Source: yfinance | Refreshed: 2026-10-16_
 - **really helps to bring a momentum into this.] That is also being planned, Gunjan, in this. That's why I'm saying I'm positive about the festi…**
 
 > "[In response to a question about a potential foray into the 250cc segment] We have bee maintaining the middleweight is 250cc to 750cc. That's where our focus is going to be th Pramod."
-> — B Govindarajan, CEO [^chatter-Decoding_Capex_Capacity_and_Consumer_Trends]
+> — B. Govindarajan, CEO [^chatter-Decoding_Capex_Capacity_and_Consumer_Trends]
 
 - **Provides precise, quantifiable data on margin pressures. A 50 bps gross hit from commodities, partially offset by a 20 bps gain from value e…**
 
 > "I think for us, I think steel has kind of hit us a little earlier, you know, and therefore we started getting impacted by steel as well as aluminum. I think the way I'd like to say is th this quarter we've had an impact of about 50 bps. [Out of that, we've got an offset becal …"
-> — B Govindarajan, CEO [^chatter-Decoding_Capex_Capacity_and_Consumer_Trends]
+> — B. Govindarajan, CEO [^chatter-Decoding_Capex_Capacity_and_Consumer_Trends]
 
 - **Signals a potential recovery in urban demand, a segment that has been weak for the two-wheeler industry. If this trend sustains, it could pr…**
 
 > "[In response to a question about the change in rural salience] The rural market in India has been growing and urban has been slightly tepid. In the first quarter at least, I am see for us, and I have to put that with a rider, [for us the urban markets are also growing. Th is a…"
-> — B Govindarajan, CEO [^chatter-Decoding_Capex_Capacity_and_Consumer_Trends]
+> — B. Govindarajan, CEO [^chatter-Decoding_Capex_Capacity_and_Consumer_Trends]
 
 - **Provides a detailed, region-specific overview of the international strategy, highlightailored approaches for Brazil (financing, CKD), Europe…**
 
 > "In the Brazil market, we wanted to have a product which is at a very accessible price pc The team are actually working on the finance scheme in those markets, what do we have do tying up with the bank so that the customer experience is seamlessly given to them to acquire Royal…"
-> — B Govindarajan, CEO [^chatter-Decoding_Capex_Capacity_and_Consumer_Trends]
+> — B. Govindarajan, CEO [^chatter-Decoding_Capex_Capacity_and_Consumer_Trends]
 
 - **The commercial vehicle joint venture posted record sales, indicating strong underly demand in the CV cycle and providing a significant boost…**
 

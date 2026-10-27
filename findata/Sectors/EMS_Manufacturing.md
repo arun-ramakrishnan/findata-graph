@@ -35,7 +35,7 @@ Electronic Manufacturing Services — contract manufacturers, EMS, optoelectroni
 
 ## All Companies (auto)
 
-<!-- Auto-generated from the SQLite source of truth. 23 company note(s) in EMS_Manufacturing. Do not edit by hand — re-run `python3 helpers/maintenance/sync_sector_wikilinks.py` to refresh. Curated highlights live in the editorial sections above. -->
+<!-- Auto-generated from the SQLite source of truth. 24 company note(s) in EMS_Manufacturing. Do not edit by hand — re-run `python3 helpers/maintenance/sync_sector_wikilinks.py` to refresh. Curated highlights live in the editorial sections above. -->
 
 - [[Amber_Enterprises_India|Amber Enterprises India]]
 - [[Astra_Microwave_Products|Astra Microwave Products]]
@@ -60,6 +60,7 @@ Electronic Manufacturing Services — contract manufacturers, EMS, optoelectroni
 - [[Transformers_and_Rectifiers_India|Transformers and Rectifiers (India)]]
 - [[Virtuoso_Optoelectronics_Ltd|Virtuoso Optoelectronics Limited]]
 - [[Yash_Highvoltage|Yash Highvoltage]]
+- [[Zetwerk]]
 
 <!-- END auto company index -->
 ## Newsletter synthesis — EMS_Manufacturing (multi-edition)

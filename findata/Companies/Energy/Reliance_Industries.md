@@ -19,7 +19,7 @@ created: '2025-11-16'
 last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
-  at: '2026-10-10T07:49:18Z'
+  at: '2026-10-27T11:54:46Z'
 stale_after: '2027-02-11'
 sources:
 - id: A_Quarter_That_Refuses_To_Behave
@@ -123,7 +123,7 @@ _Source: yfinance | Refreshed: 2026-10-16_
 - **Management makes a pointed claim that RIL's New Energy vertical is reaching a strategic inflection point, with multi-decade growth potential…**
 
 > "I do not think it has been attempted in any other place in terms of building the giga factories... It is not about giga factories, it is the integration with Kutch, where we have access to 700,000 acres of land, which means that technically you are in a position to hc 125 giga…"
-> — V Srikanth, CFO [^chatter-Still_in_Play]
+> — V. Srikanth, CFO [^chatter-Still_in_Play]
 
 - **The readiness and scalability of the homegrown OSS/BSS and the pioneering of UB at scale, plus a substantial patent portfolio in 6G, signal…**
 
@@ -436,12 +436,12 @@ _Source: yfinance | Refreshed: 2026-10-16_
 - **Management contrasted the strong macro setup through most of the year with the sudden disruption in March driven by energy markets. This set…**
 
 > "The first 11 months seemed fairly robust... domestic activity was fairly strong,consump tailwinds were decent... energy prices were range bound. And then you go into March... almost doubling of prices... the concern for everybody is the supply shock and its impact industry and…"
-> — V Srikanth, CFO [^chatter-Reliance_Infosys_VBL]
+> — V. Srikanth, CFO [^chatter-Reliance_Infosys_VBL]
 
 - **Despite a reported decline, management emphasized that the operating environme was extremely challenging and numbers understate the disrupti…**
 
 > "Oil-to-Chemicals down 4%... but that number does not capture how difficult the environment was... physical inability to get crude, logistics cost, insurance cost, volatility and under recoveries on fuel retailing... I am very happy with the quality of performance"
-> — V Srikanth, CFO [^chatter-Reliance_Infosys_VBL]
+> — V. Srikanth, CFO [^chatter-Reliance_Infosys_VBL]
 
 - **Rising data usage continues to be a structural tailwind for telecom monetization.**
 
@@ -493,7 +493,7 @@ EBITDA margin at 7.9%... hyperlocal commerce continues to grow steadily."
 - **Apart from crude price spikes and logistics disruptions, the downstream business a faced pricing constraints, which further impacted margins…**
 
 > "We also had under-recoveries on fuel retailing because prices could not be fully passed so that also added to the pressure on the O2C business during the quarter."
-> — V Srikanth, CFO [^chatter-Reliance_Infosys_VBL]
+> — V. Srikanth, CFO [^chatter-Reliance_Infosys_VBL]
 
 - **While revenues grew, ARPU expansion remained constrained due to pricing stabili indicating monetization still has headroom.**
 

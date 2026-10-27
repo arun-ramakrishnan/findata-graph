@@ -20,7 +20,7 @@ created: '2026-01-17'
 last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
-  at: '2026-10-10T07:49:18Z'
+  at: '2026-10-27T11:54:46Z'
 stale_after: '2027-04-08'
 sources:
 - id: A_Quarter_That_Refuses_To_Behave
@@ -512,27 +512,27 @@ Operations and client delivery remain fully focused on execution."
 - **$\$ 30$ billion revenue milestone achieved while maintaining industry-leading $24.3 \%$ operating margins and $19 \%$ net margins, demonstra…**
 
 > "I'm pleased to announce that we are concluding FY '25 by surpassing the $\$ 30$ billion revenue milestone. We have achieved this while maintaining industry-leading margins, exceptional return ratios and a strong balance sheet. Our financial year 2025 revenue gr by $4.2 \%$ in …"
-> — K Krithivasan, CEO [^chatter-Between_Seasons]
+> — K. Krithivasan, CEO [^chatter-Between_Seasons]
 
 - **Record Q4 Total Contract Value (TCV) of $\$ 12.2$ billion with North America hitting time high of $\$ 6.8$ billion and BFSI contributing $\$…**
 
 > "Our record Q4 TCV of $\$ 12.2$ billion demonstrates our ability to gain market share. No America TCV reached an all-time high of $\$ 6.8$ billion. BFSI TCV was $\$ 4$ billion, and Consumer Business Group contributed $\$ 1.7$ billion. This impressive performance stands in the a…"
-> — K Krithivasan, CEO [^chatter-Between_Seasons]
+> — K. Krithivasan, CEO [^chatter-Between_Seasons]
 
 - **Economic uncertainty escalated dramatically since January with management highlighting unprecedented shift in global economic and geopolitic…**
 
 > "We have all been witnessing an increased level of uncertainty in the global economic a: geopolitical landscape in the last few weeks, making a shift from our commentary in January... We have seen instances of delays in decision-making and discretionary spend: has come under he…"
-> — K Krithivasan, CEO [^chatter-Between_Seasons]
+> — K. Krithivasan, CEO [^chatter-Between_Seasons]
 
 - **AI integration becomes standard client expectation across all new programs, fundamentally shifting from experimental to embedded service del…**
 
 > "See what's happening is, any program that we sign today, there is a request and expectation from the customer that there would be a leverage of AI. It need not necessar mean that the whole program will be done in AI. There'll be an expectation that for som: aspects of Software…"
-> — K Krithivasan, CEO [^chatter-Between_Seasons]
+> — K. Krithivasan, CEO [^chatter-Between_Seasons]
 
 - **Pipeline strength remains robust despite delays providing confidence for strong wi rates and TCV performance once macroeconomic decision-mak…**
 
 > "So, what we can talk about is our pipeline. Our pipeline continues to be strong at a ver: high level and so it gives us the confidence. As decisions are being made, we will have a strong win rate, and we'll be able to report a good TCV."
-> — K Krithivasan, CEO [^chatter-Between_Seasons]
+> — K. Krithivasan, CEO [^chatter-Between_Seasons]
 
 [^chatter-Between_Seasons]: Between Seasons — [[Between_Seasons]]
 
@@ -845,7 +845,7 @@ partnership commitment, but the potential is huge. Currently, MHP operates only 
 space for Porsche. For instance, TCS brings in capabilities in engineering. MHP doesn’t
 
 any engine…"
-> — K Krithivasan, CEO and Managing Director [^chatter-Max_Life_Tempsens_TCS]
+> — K. Krithivasan, CEO and Managing Director [^chatter-Max_Life_Tempsens_TCS]
 
 - **Management intends to introduce its global business services and supply chain management expertise to Porsche’s operations. This expansion r…**
 
@@ -854,7 +854,7 @@ any engine…"
 space. I would also look at how we can bring in TCS capabilities in the area of GBS and
 
 supply chain transformation. So many other new areas also come into play."
-> — K Krithivasan, CEO and Managing Director [^chatter-Max_Life_Tempsens_TCS]
+> — K. Krithivasan, CEO and Managing Director [^chatter-Max_Life_Tempsens_TCS]
 
 - **TCS plans to operate MHP as a standalone independent entity rather than merging fully into the parent company. This strategy focuses on prov…**
 
@@ -865,7 +865,7 @@ is to let MHP be a standalone entity and support it with scale from TCS, support
 offshore, support it with other capabilities at the larger TCS. So we are not planning to d
 
 any hard…"
-> — K Krithivasan, CEO and Managing Director [^chatter-Max_Life_Tempsens_TCS]
+> — K. Krithivasan, CEO and Managing Director [^chatter-Max_Life_Tempsens_TCS]
 
 - **The European automotive sector is currently navigating significant geopolitical and competitive pressures that demand internal transformatio…**
 
@@ -1132,7 +1132,7 @@ Specifically…"
 - **TCS expects its faster-growing new-age services, supported by strategic investments and partnerships, to increasingly offset any slowdown or…**
 
 > "Kumar, as pointed out, our overall new-age services revenue is growing faster. First of all, you'll understand that, there is moderation and subdued performance due to overall market sentiment; that's the overhang we have. But within that, new-age services are growing faster t…"
-> — K Krithivasan, MD &amp; CEO [^chatter-Closing_the_Year_Without_Closure]
+> — K. Krithivasan, MD &amp; CEO [^chatter-Closing_the_Year_Without_Closure]
 
 - **TCS will establish a special purpose vehicle, HyperVault, with an equity partner (TI) and an anchor customer, to manage the AI data center i…**
 

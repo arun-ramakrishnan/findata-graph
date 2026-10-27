@@ -67,3 +67,18 @@ The Chatter — Global Chatter: Micron, SpaceX, Palantir & More
 > — Arvind Krishna, Chairman & CEO, IBM
 
 *Source: The Chatter — Global Chatter: Micron, SpaceX, Palantir & More (Jul 5, 2026)*
+
+## The Chatter — HCL, RBL Bank, Canara Bank & More
+
+- **IBM India's internal 3-year AI transformation targeted $2B of bottom-line impact and delivered $4.5B — achieved by redesigning core workflows before automating, not basic automation alone.**
+
+- **"IBM Bob", the internal AI software-engineering tool, is used by 80,000+ engineers with up to 45% productivity gains in development; it is now sold externally (e.g., ISG India) as a new revenue stream.**
+
+- **Sovereign AI is the India thrust: Airtel partnership for secure private cloud, Sovereign Core stack with Yotta/NextGen, SWAM government reference architecture (Andhra Pradesh, BharatGen); argues enterprises should favour small domain-specific models over costly frontier models.**
+
+> "Our initial objective was to take $2 billion out of our bottom line over a three-year period through process automation and AI infusion. We exited that three-year cycle having delivered $4.5 billion in bottom-line value. Achieving that required redesigning core workflows."
+> — Sandip Patel, MD — IBM India & South Asia [chatter-HCL_RBL_Bank_Canara_Bank]
+
+[chatter-HCL_RBL_Bank_Canara_Bank]: The Chatter: HCL, RBL Bank, Canara Bank & More — [[HCL_RBL_Bank_Canara_Bank]]
+
+*Source: The Chatter — HCL, RBL Bank, Canara Bank & More*

@@ -632,6 +632,16 @@ for company in companies:
 > retro-pass output for pre-stub mentions:
 > `findata/Misc/retro_resolution_worklist.json`.
 >
+> **D17 stubs must land sector membership (2026-10-27).** The incidence
+> store is canonical membership, and no step on the stub-upgrade path
+> wrote it — the Zetwerk note (2026-10-27) passed every validator while
+> `check_orphan_companies` failed the gate. After authoring the note, run
+> `python3 -m helpers.graph.sector_membership put '<stub entity name>' <Sector>`
+> (keys on `entities.name`, the incidence FK; `--source-ref` stamps
+> edge-level provenance). `sync_tags --apply` covers the same write from
+> the note's `sector/*` tag at the next sync — wire both because the two
+> run independently.
+>
 > **Stub tickers are hygiene-passed (2026-10-16).** Of 4,159 scrip-code
 > stub tickers, 3,779 now carry verified Yahoo symbols (`ticker_hygiene`
 > lane — d14_stub_ticker_and_industry_convergence, completed.md #404);

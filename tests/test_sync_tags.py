@@ -16,7 +16,11 @@ from pathlib import Path
 import pytest
 
 
-from helpers.maintenance.migrate_to_graph_edges import ENTITIES_DDL  # noqa: E402
+from helpers.maintenance.migrate_to_graph_edges import (  # noqa: E402
+    ENTITIES_DDL,
+    HYPER_EDGES_DDL,
+    HYPER_INCIDENCES_DDL,
+)
 from helpers.validators.static_checks import CANONICAL_SECTORS  # noqa: E402
 import helpers.core.sync_tags as sync_tags  # noqa: E402
 
@@ -42,9 +46,13 @@ def _note_with_sector(sector_tag: str, title: str = "Test Co") -> str:
 
 def _seed_db(db_path: Path, rows: list[tuple]) -> None:
     """Create entities table + insert (name, entity_type, file_path,
-    sector_classification) rows."""
+    sector_classification) rows. The hyper tables come too: the apply-mode
+    sweep writes sector membership into the incidence store (D17 residual,
+    2026-10-27 Zetwerk orphan)."""
     conn = sqlite3.connect(db_path)
     conn.execute(ENTITIES_DDL)
+    conn.execute(HYPER_EDGES_DDL)
+    conn.execute(HYPER_INCIDENCES_DDL)
     conn.execute(
         "CREATE TABLE IF NOT EXISTS entity_tags ("
         "  entity_name TEXT NOT NULL, tag TEXT NOT NULL, "
@@ -200,6 +208,65 @@ def test_sync_tags_maps_all_canonical_sectors(canonical, tmp_path, monkeypatch):
     ).fetchone()[0]
     conn.close()
     assert val == canonical, f"slug {slug!r} mapped to {val!r}, expected {canonical!r}"
+
+
+def test_sync_tags_writes_sector_membership_from_note_tag(tmp_path, monkeypatch):
+    """D17 residual (2026-10-27 Zetwerk orphan): the incidence store is
+    canonical membership, so a company whose note carries a sector/* tag
+    gains its hyperedge incidence at sync — even when sector_classification
+    already matches (the column UPDATE no-ops; the membership write must
+    not). Edge-level source_ref is preserved: this sweep traverses every
+    sector roster and must not restamp edges it didn't author."""
+    monkeypatch.setattr(sync_tags, "_REPO_ROOT", tmp_path)
+
+    note_dir = tmp_path / "findata" / "Companies" / "Banking"
+    note_dir.mkdir(parents=True)
+    (note_dir / "Mem_Co.md").write_text(_note_with_sector("sector/banking", "Mem Co"))
+
+    db_path = tmp_path / "test.db"
+    _seed_db(
+        db_path,
+        [("Mem Co", "company", "findata/Companies/Banking/Mem_Co.md", "Banking")],
+    )
+    # A pre-existing roster authored by derive — the sweep must not restamp it.
+    conn = sqlite3.connect(db_path)
+    conn.execute(
+        "INSERT INTO hyper_edges (edge_type, label, source_ref) "
+        "VALUES ('sector', 'Banking', 'derive:hyperedges:part_of')"
+    )
+    conn.commit()
+    conn.close()
+
+    assert _run_sync(db_path, "--apply") == 0
+
+    conn = sqlite3.connect(db_path)
+    inc = conn.execute(
+        "SELECT hi.entity_name FROM hyper_incidences hi "
+        "JOIN hyper_edges he ON he.id = hi.edge_id "
+        "WHERE he.edge_type='sector' AND he.label='Banking'"
+    ).fetchall()
+    ref = conn.execute(
+        "SELECT source_ref FROM hyper_edges WHERE edge_type='sector' AND label='Banking'"
+    ).fetchone()[0]
+    n = conn.execute(
+        "SELECT json_extract(properties, '$.n_members') FROM hyper_edges "
+        "WHERE edge_type='sector' AND label='Banking'"
+    ).fetchone()[0]
+    conn.close()
+    assert inc == [("Mem Co",)]
+    assert ref == "derive:hyperedges:part_of", "bulk sweep must not restamp rosters"
+    assert n == 1
+
+    # Idempotent: a second sync adds nothing.
+    assert _run_sync(db_path, "--apply") == 0
+    conn = sqlite3.connect(db_path)
+    cnt = conn.execute(
+        "SELECT COUNT(*) FROM hyper_incidences hi "
+        "JOIN hyper_edges he ON he.id = hi.edge_id "
+        "WHERE he.edge_type='sector' AND he.label='Banking'"
+    ).fetchone()[0]
+    conn.close()
+    assert cnt == 1
 
 
 def test_sync_tags_leaves_entities_without_notes_unchanged(tmp_path, monkeypatch):

@@ -19,7 +19,7 @@ created: '2026-06-30'
 last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
-  at: '2026-09-07T12:07:49Z'
+  at: '2026-10-27T11:54:46Z'
 stale_after: '2027-02-11'
 sources:
 - id: A_Quarter_That_Refuses_To_Behave
@@ -74,11 +74,11 @@ _Source: yfinance | Refreshed: 2026-10-16_
 
 > "If I look at the other measure of growth in the business, I think our network expansion continues at a good pace. We are expanding inventory while focusing on quality. During the year, we added about 900 keys. Our total inventory today is about 6,228 keys. As we go to FY27, we…"
 
-- **## Manoj Bhat, MD and CEO The company has fully written down its equity investment in its European subsidia following continued geopolitical…**
+- **Manoj Bhat, MD and CEO The company has fully written down its equity investment in its European subsidia following continued geopolitical…**
 
 > "This quarter, as Manoj mentioned, we have taken an impairment charge of 234 crores towards equity investment in the entity driven by the HCR business outlook. Excluding t one-off charge, our PAT was 55.4 crores. Our total cash position continues to be healthy about 1,446 crore…"
 
-- **## Bimal Agarwal, CFO The launch of the Keystone product has successfully shifted the sales mix toward longer 10-year membership plans. This…**
+- **Bimal Agarwal, CFO The launch of the Keystone product has successfully shifted the sales mix toward longer 10-year membership plans. This…**
 
 > "New sales have jumped up roughly 20%, holding the number we mentioned in December This is led by a few factors. One is that we are seeing more adoption of the 10-year product Previously, our largest product was the 5-year plan; now it is the 10-year plan. It is trend in the ri…"
 > — Manoj Bhat, MD and CEO [^chatter-Reliance_Infosys_VBL]

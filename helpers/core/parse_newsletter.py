@@ -920,7 +920,12 @@ def emit_worklist(
             "doc/procedures/markdown_parse.md#enhancing-existing-entities. D17: entries "
             "with is_stub=true are exchange-seeded stubs (no note yet) — author the "
             "note ON the stub entity (it keeps its name/ticker; gains file_path, "
-            "sector_classification and authored fields); NEVER create a second entity."
+            "sector_classification and authored fields); NEVER create a second entity. "
+            "After authoring a stub note, land its sector membership (the incidence "
+            "store is canonical; no other step on this path writes it): "
+            "python3 -m helpers.graph.sector_membership put '<stub entity name>' "
+            "<Sector_From_The_Note>. sync_tags covers the same write at the next "
+            "tag sync — the CLI exists because the two run independently."
         ),
     }
     out = out_dir / f"{slug}_enhancement_worklist.json"
@@ -1090,6 +1095,18 @@ def main(argv: list[str] | None = None):  # noqa: C901
 
     new_cos, existing_cos, uncertain_cos = classify(companies, existing)
 
+    # Stub census — UNCONDITIONAL read-only SELECT (2026-10-27 Zetwerk miss): an
+    # apply-gated census emits worklists with stubs=∅ in dry-run/cross-check-only
+    # invocations, so likely_is_stub lies False and Stage-5 authors skip
+    # file_path=NULL stubs instead of authoring the note on them (D17).
+    stubs, tickers = set(), {}
+    for nm, tk in conn.execute(
+        "SELECT name, ticker FROM entities WHERE entity_type='company' AND file_path IS NULL"
+    ):
+        stubs.add(nm)
+        if tk:
+            tickers[nm] = tk
+
     log("1", f"extracted {len(companies)} candidate sections")
     log(
         "2",
@@ -1097,7 +1114,8 @@ def main(argv: list[str] | None = None):  # noqa: C901
         f"{len(uncertain_cos)} uncertain (fuzzy match — needs confirmation)",
     )
     for u in uncertain_cos:
-        log("2", f"  ? {u['candidate']}  ~=  existing '{u['likely_existing']}'")
+        hint = "  [STUB — author the note on it (D17)]" if u["likely_existing"] in stubs else ""
+        log("2", f"  ? {u['candidate']}  ~=  existing '{u['likely_existing']}'{hint}")
     if args.cross_check and new_cos:
         cross_check_new([name for name, _, _ in new_cos])
     # S7: ensure cross-check connection release before Stage 3/5
@@ -1157,14 +1175,7 @@ def main(argv: list[str] | None = None):  # noqa: C901
     out_dir = md_path.parent
     # D17: stub annotation — exchange-seeded entities (file_path IS NULL)
     # are the upgrade targets, distinct from authored notes to enhance.
-    stubs, tickers = set(), {}
-    if args.apply:
-        for nm, tk in conn.execute(
-            "SELECT name, ticker FROM entities WHERE entity_type='company' AND file_path IS NULL"
-        ):
-            stubs.add(nm)
-            if tk:
-                tickers[nm] = tk
+    # stubs/tickers census lives above Stage-2 logging (unconditional; see note there)
 
     # S6/S8: resolve the entity universe once, then detect
     company_names = {n for n, _, _ in new_cos + existing_cos}

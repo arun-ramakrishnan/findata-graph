@@ -17,7 +17,7 @@ last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
   at: '2026-09-07T12:07:48Z'
-stale_after: '2027-02-11'
+stale_after: '2027-04-25'
 sources:
 - id: Bajaj_Mahindra_Persistent
   resource: /findata/The_Chatter/Bajaj_Mahindra_Persistent.md
@@ -35,6 +35,10 @@ sources:
   resource: /findata/Points_And_Figures/Opportunity_Between_The_Lines.md
   title: 'Points and Figures: Opportunity Between TI Lines'
   last_modified: '2026-08-15'
+- id: Eternal_Swiggy_IHCL
+  resource: /findata/The_Chatter/Eternal_Swiggy_IHCL.md
+  title: 'The Chatter: Eternal, Swiggy, IHCL, ICICI, HDFC, KEI & More'
+  last_modified: '2026-10-27'
 ---
 
 # Indian Hotels
@@ -150,3 +154,18 @@ tags:
 ![[images/Bajaj_Mahindra_Persistent_p3_img4.jpeg]]
 
 *Source: The Chatter — Bajaj, Mahindra, Persistent, Indian Hotels & More*
+
+## The Chatter — Eternal, Swiggy, IHCL & More
+
+- **Full-year top-line guidance raised 300bps (consolidated 15-17% including airline catering; core hotels stronger) on a structural — not event-driven — demand shift and an exceptionally strong domestic wedding calendar.**
+
+- **Structural undersupply protects pricing power: ~200,000 branded rooms headed to 400,000 against ~1 million needed; the Oriental Hotels merger (appointed date April 1) adds ₹600-700 crore revenue and unlocks margins at iconic assets.**
+
+- **TajSATS is scaling non-airline institutional catering — nearly 20% of Q2 catering revenues — using industrial kitchens as central production hubs, reducing airline-cycle sensitivity.**
+
+> "India currently has roughly 200,000 branded hotel rooms, with the industry on track to add another 200,000 rooms over the next few years to reach 400,000. However, the country requires approximately one million branded hotel rooms to support long-term economic expansion."
+> — Puneet Chhatwal, MD & CEO [chatter-Eternal_Swiggy_IHCL]
+
+[chatter-Eternal_Swiggy_IHCL]: The Chatter: Eternal, Swiggy, IHCL, ICICI, HDFC, KEI & More — [[Eternal_Swiggy_IHCL]]
+
+*Source: The Chatter — Eternal, Swiggy, IHCL & More*

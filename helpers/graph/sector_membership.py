@@ -27,6 +27,7 @@ onager, igraph, the walk substrate, snapshots and the API are unchanged.
 from __future__ import annotations
 
 import sqlite3
+from pathlib import Path
 
 SECTOR_HYPER_TYPE = "sector"
 
@@ -75,6 +76,7 @@ def put_sector_membership(
     source_ref: str,
     valid_from: str | None = None,
     valid_to: str | None = None,
+    preserve_source_ref: bool = False,
 ) -> bool:
     """Add (or refresh) company→sector membership; returns True when NEW.
 
@@ -82,6 +84,12 @@ def put_sector_membership(
     transaction owns any richer convergence). The sector hyperedge is
     created on demand — a company note naming a sector that has no
     hyperedge yet must not vanish.
+
+    ``preserve_source_ref=True`` skips the edge-level source_ref
+    convergence: bulk writers that traverse every sector (sync_tags) must
+    not restamp shared rosters they didn't author; the newest *incidence*
+    is still recorded. Explicit single writes (CLI, move_sector) keep the
+    pinned latest-writer-wins convergence.
     """
     edge_id = _sector_edge_id(conn, sector, create=True)
     assert edge_id is not None  # noqa: S101  # create=True guarantees a row
@@ -91,10 +99,11 @@ def put_sector_membership(
         (edge_id, company, valid_from, valid_to),
     )
     created = cur.rowcount > 0
-    conn.execute(
-        "UPDATE hyper_edges SET source_ref = ? WHERE id = ? AND source_ref != ?",
-        (source_ref, edge_id, source_ref),
-    )
+    if not preserve_source_ref:
+        conn.execute(
+            "UPDATE hyper_edges SET source_ref = ? WHERE id = ? AND source_ref != ?",
+            (source_ref, edge_id, source_ref),
+        )
     if created:
         _refresh_member_count(conn, edge_id)
     return created
@@ -133,3 +142,54 @@ def sector_membership_rows(
         sql += " AND hi.entity_name = ?"
         params += (company,)
     return [(r[0], r[1]) for r in conn.execute(sql + " ORDER BY he.label, hi.entity_name", params)]
+
+
+def _main(argv: list[str] | None = None) -> int:
+    """CLI for the single-write flows that live outside any transaction
+    owner: the D17 stub-upgrade step (an agent authors the note on an
+    exchange-seeded stub, then lands its sector membership here) and
+    operator repairs. sync_tags carries its own in-transaction wiring."""
+    import argparse
+
+    ap = argparse.ArgumentParser(
+        prog="helpers.graph.sector_membership",
+        description="Canonical company→sector membership writes (incidence store).",
+    )
+    sub = ap.add_subparsers(dest="cmd", required=True)
+    for name, help_ in (("put", "add/refresh a membership"), ("remove", "drop a membership")):
+        p = sub.add_parser(name, help=help_)
+        p.add_argument("company", help="entities.name (display name, the incidence FK key)")
+        p.add_argument("sector", help="sector label (e.g. EMS_Manufacturing)")
+        p.add_argument(
+            "--source-ref",
+            default="sector_membership",
+            help="edge-level provenance stamp (default: sector_membership; "
+            "converges to the latest writer per the pinned contract)",
+        )
+        p.add_argument("--db", default=None, help="research.db path (default: the live one)")
+    args = ap.parse_args(argv)
+
+    from helpers.core.db import connect
+
+    db = args.db or str(Path(__file__).resolve().parents[2] / "memory" / "research.db")
+    conn = connect(db)
+    try:
+        if args.cmd == "put":
+            created = put_sector_membership(
+                conn, args.company, args.sector, source_ref=args.source_ref
+            )
+            conn.commit()
+            print(
+                f"{'created' if created else 'already present'}: {args.company!r} -> {args.sector}"
+            )
+            return 0
+        removed = remove_sector_membership(conn, args.company, args.sector)
+        conn.commit()
+        print(f"{'removed' if removed else 'was not a member'}: {args.company!r} -> {args.sector}")
+        return 0
+    finally:
+        conn.close()
+
+
+if __name__ == "__main__":
+    raise SystemExit(_main())

@@ -48,6 +48,7 @@ if str(_REPO_ROOT) not in sys.path:
 
 from helpers.core.countries import COUNTRY_VOCABULARY  # noqa: E402
 from helpers.core.db import connect  # noqa: E402
+from helpers.graph.sector_membership import put_sector_membership  # noqa: E402
 from helpers.validators.static_checks import CANONICAL_SECTORS  # noqa: E402
 from helpers.core.frontmatter import (  # noqa: E402
     extract_tags as split_front_matter,
@@ -465,6 +466,19 @@ def main(argv: list[str] | None = None) -> int:  # noqa: C901
                         [(canonical, name, canonical) for canonical, name in sector_updates],
                     )
                     sector_changed = cur.rowcount or 0
+                # D17 residual (2026-10-27 Zetwerk orphan): the incidence
+                # store is canonical membership, but only create_entity /
+                # move_sector used to write it — a note gaining its sector
+                # via tags alone (stub upgrade, retag) orphaned in
+                # check_orphan_companies until a hand repair.
+                # preserve_source_ref: this sweep traverses every sector
+                # roster and must not restamp edges it didn't author.
+                membership_added = 0
+                for canonical, name in sector_updates:
+                    if put_sector_membership(
+                        conn, name, canonical, source_ref="sync_tags", preserve_source_ref=True
+                    ):
+                        membership_added += 1
 
             inserted = conn.execute("SELECT COUNT(*) FROM entity_tags").fetchone()[0]
             total_entities = conn.execute("SELECT COUNT(*) FROM entities").fetchone()[0]
@@ -481,6 +495,11 @@ def main(argv: list[str] | None = None) -> int:  # noqa: C901
             if sector_changed:
                 print(
                     f"  sector_classification: {sector_changed} row(s) updated from note sector/* tags."
+                )
+            if membership_added:
+                print(
+                    f"  sector_membership: {membership_added} incidence(s) added "
+                    "from note sector/* tags."
                 )
         else:
             print(

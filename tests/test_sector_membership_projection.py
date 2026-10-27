@@ -141,6 +141,56 @@ def test_put_is_idempotent(db):
         con.close()
 
 
+def test_put_preserve_source_ref_skips_edge_convergence(db):
+    """Bulk writers (sync_tags traverses every sector roster) must record
+    the incidence WITHOUT restamping the shared edge's provenance — the
+    explicit escape hatch from the latest-writer-wins contract above."""
+    con = connect(db)
+    try:
+        assert put_sector_membership(
+            con, "Kuantum Papers", "Agriculture", source_ref="derive:hyperedges:part_of"
+        )
+        # Second call: same incidence exists, but a bulk-sweep write with
+        # preserve=True must not touch the edge's source_ref.
+        assert not put_sector_membership(
+            con,
+            "Kuantum Papers",
+            "Agriculture",
+            source_ref="sync_tags",
+            preserve_source_ref=True,
+        )
+        con.commit()
+        ref = con.execute(
+            "SELECT source_ref FROM hyper_edges WHERE edge_type='sector' AND label='Agriculture'"
+        ).fetchone()[0]
+        assert ref == "derive:hyperedges:part_of"
+        assert sector_membership_rows(con, "Kuantum Papers") == [("Kuantum Papers", "Agriculture")]
+    finally:
+        con.close()
+
+
+def test_cli_put_and_remove_lands_membership(db, capsys):
+    """The D17-facing CLI: an agent-authored stub note lands its membership
+    through `python3 -m helpers.graph.sector_membership put` (and removes
+    it via `remove`)."""
+    from helpers.graph.sector_membership import _main
+
+    assert _main(["put", "Kuantum Papers", "Agriculture", "--db", str(db)]) == 0
+    con = connect(db)
+    try:
+        assert sector_membership_rows(con, "Kuantum Papers") == [("Kuantum Papers", "Agriculture")]
+    finally:
+        con.close()
+
+    assert _main(["remove", "Kuantum Papers", "Agriculture", "--db", str(db)]) == 0
+    con = connect(db)
+    try:
+        assert sector_membership_rows(con, "Kuantum Papers") == []
+    finally:
+        con.close()
+    capsys.readouterr()
+
+
 def test_dual_membership_is_representable(db):
     """THE retirement argument: one company, two sectors — impossible with a
     single-valued ``part_of`` row, natural here."""

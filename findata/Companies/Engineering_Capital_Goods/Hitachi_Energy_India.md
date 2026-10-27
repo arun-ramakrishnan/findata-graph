@@ -18,7 +18,7 @@ created: '2025-11-16'
 last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
-  at: '2026-09-25T17:24:32Z'
+  at: '2026-10-27T11:54:46Z'
 stale_after: '2027-02-11'
 sources:
 - id: A_Quarter_That_Refuses_To_Behave
@@ -103,7 +103,7 @@ _Source: yfinance | Refreshed: 2026-10-16_
 - **CEO outlines the company's progress on environmental sustainability targets, highlighting achievements that exceed original goals.**
 
 > "Under the planet pillar, we are confident of achieving more than $76 \%$ reduction in CO: emissions in the financial year '25-'26 in our operations from our targeted 50\% reductio compared to our baseline year of 2019 emissions."
-> — N. Venu, Managing Director \& CEO [^chatter-The_Blind_Spots]
+> — N Venu, Managing Director \& CEO [^chatter-The_Blind_Spots]
 
 - **Management announces the company's highest-ever order backlog, providing stron revenue visibility for future quarters.**
 
@@ -116,7 +116,7 @@ _Source: yfinance | Refreshed: 2026-10-16_
 - **Management highlights a breakthrough service order representing deployment of cutting-edge environmental technology in India for the first t…**
 
 > "Some of the key service orders came from utilities and industries, including an Air core Reactor for an HVDC project, GIS and AIS extensions and repair \& retrofitting, and th. first EconiQ order in India, which is a game-changing SF6-free technology that we are deploying in I…"
-> — N. Venu, Managing Director \& CEO [^chatter-The_Blind_Spots]
+> — N Venu, Managing Director \& CEO [^chatter-The_Blind_Spots]
 
 - **CEO confirms that major HVDC projects are progressing according to schedule wi completion timelines ranging from 48-54 months.**
 
@@ -125,7 +125,7 @@ _Source: yfinance | Refreshed: 2026-10-16_
 - **Management discusses the structural demand for HVDC projects in India, revising upward previous estimates of project frequency.**
 
 > "Previously, I have been saying 1 project per year, and I also said that 2 projects per yea should come, but it is a matter of 2 to 3 projects per year is required going forward. They will come up for the bidding."
-> — N. Venu, Managing Director \& CEO [^chatter-The_Blind_Spots]
+> — N Venu, Managing Director \& CEO [^chatter-The_Blind_Spots]
 
 - **CEO quantifies Hitachi Energy's addressable market opportunity in large-scale dat center projects across their product portfolio.**
 
@@ -134,7 +134,7 @@ _Source: yfinance | Refreshed: 2026-10-16_
 - **Management clarifies that Battery Energy Storage Systems and HVDC are complementary technologies, not competitive alternatives.**
 
 > "Battery Energy Storage cannot compete with HVDC or vice versa in that. So, both technologies are required for our energy transition. And as you have seen, the SECI's mandate right now is that $10 \%$ of the renewable they need to have energy storage built it the project going …"
-> — N. Venu, Managing Director \& CEO [^chatter-The_Blind_Spots]
+> — N Venu, Managing Director \& CEO [^chatter-The_Blind_Spots]
 
 - **CEO explains the secondary investment opportunity created by data centers beyond direct equipment supply.**
 
@@ -151,7 +151,7 @@ _Source: yfinance | Refreshed: 2026-10-16_
 - **Management clarifies their strategic approach to balancing domestic focus with export opportunities, maintaining 25-30\% export contribution…**
 
 > "We would like to remain in the $25 \%-30 \%$ corridor, because we have, as I said, we have huge tailwinds arising out of the energy transition in India, both from the renewable, transmission, industries, and also rail, et cetera, in that. So, that's where we would like t focus…"
-> — N. Venu, Managing Director \& CEO [^chatter-The_Blind_Spots]
+> — N Venu, Managing Director \& CEO [^chatter-The_Blind_Spots]
 
 [^chatter-The_Blind_Spots]: The Blind Spots — [[The_Blind_Spots]]
 
