@@ -142,3 +142,33 @@ like-for-like on identical pool rows, wins every tier, largest on
 code_ident 9 v 5). Hybrid legs are bm25-bound on this bank (both hy <
 their own pv) — the embedder signal lives in the pv legs; the hybrid
 delta is positive but noise-adjacent.
+
+## FUSION REPAIR (2026-10-27 — the reopen trigger fires)
+
+`convo_fusion_sweep.py` over the frozen bank re-tuned the fusion only
+(same legs: live bm25 sidecar + stored production granite vectors; gemma
+npz record-only). Symmetric RRF is unrepairable by tuning: K ∈
+{60,100,200,400}, weights 0.7/0.5/0.3, widened vec pool 500, per-leg K —
+everything stays ≤12/57 except per-leg K (bm25 K=15 / vec K=100) at
+17–18/57, still under the spine. The vec leg drags exact-match hits out
+of the top-5.
+
+**bm25-anchored fusion** fixes it structurally: keep the FTS leg's top-5
+as ranks 1–5 in production order (exact-match recall preserved by
+construction — the floor holds with no re-embed and no index change),
+let the fused order fill the remainder (paraphrase insurance can only
+add, never displace).
+
+| variant | granite (prod vecs) | gemma |
+|---|---|---|
+| production k60 equal | 8/57 | 10/57 |
+| per-leg K 15/100 | 17/57 | 18/57 |
+| **anchored M=5** | **25/57** (+3 v floor) | **27/57** (+5 v floor) |
+
+MRR rises on every tier under the anchor (granite: decision .435 v
+bm25's .417, self .357 v .324; code_ident equal). Gemma's +2 over
+granite under the anchor is the first clean read of its net insurance
+value — but granite alone already beats the floor with zero migration.
+Artifacts: `convo_fusion_sweep_20261027.json` + `convo_fusion_sweep.py`
+(bench-only; reuses bank + npz, no re-embed). Wired into
+`helpers/misc/convo_query.py` — completed.md #449.

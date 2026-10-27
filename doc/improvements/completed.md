@@ -1225,7 +1225,8 @@ db-backup/parquet/
     entities.parquet, graph_edges.parquet, events.parquet,
     quotes.parquet, entity_tags.parquet, company_metrics.parquet,
     company_embeddings.parquet, graph_analytics.parquet, db_meta.parquet
-```
+
+```text
 
 ### Design decisions
 
@@ -4633,6 +4634,7 @@ New `PRE_FULL_STEPS` block in `maint.py`, composed only under `--full`:
 
 ```text
 steps = PRE_FULL_STEPS + [TIER1 − TIER1_FULL_SKIP] + TIER2
+
 ```
 
 - `sync-tags` + `rebuild-note-search` moved OUT of TIER2 into PRE_FULL.
@@ -12643,9 +12645,11 @@ the last UNLOCK; the Rust arc had no perf leg at all).
    - Identical insertion-sort algorithm in both paths → bitwise-identical results (test `parallel_matches_single_threaded`)
 
 2. **Divan Benchmarks** (`Rust/cosine_knn/benches/divan_bench.rs`):
+
    ```bash
    cargo bench --bench divan_bench -p cosine_knn
-   ```
+
+```text
    13 benches covering production scale, threshold, 100k, 1M, and single vs parallel comparisons.
 
 3. **Perf Gate** (existing, unchanged):
@@ -12674,12 +12678,14 @@ the last UNLOCK; the Rust arc had no perf leg at all).
 ### Perf Gate (Python-level)
 
 ```
+
 rust              1.064 ms/query  (   940 q/s)
 numpy             2.890 ms/query  (   346 q/s)
 pure             45.353 ms/query  (    22 q/s)
 rust vs numpy      2.72x   bar >= 1.3x   ✅
 rust vs pure       43.0x   bar >= 5.0x   ✅
-```
+
+```text
 
 Note: Python gate includes ~45% overhead (blob decode, list build) vs raw kernel 0.6 ms. The 2.72× is production path, not pure kernel.
 
@@ -12703,7 +12709,9 @@ Note: Python gate includes ~45% overhead (blob decode, list build) vs raw kernel
 - `Rust/cosine_knn/src/lib.rs` — `pub` exports, `div_ceil`, clippy clean
 
 ### Verification
+
 ```
+
 cargo test --workspace                    # 8 passed
 cargo clippy --workspace --all-targets -- -D warnings  # clean
 cargo bench --bench divan_bench -p cosine_knn  # runs 13 benches
@@ -12711,10 +12719,45 @@ pytest tests/test_cosine_knn_backends.py  # 9 passed
 pytest tests/test_local_embedder.py ...   # 192 passed
 pytest tests/test_run_perf_benchmarks.py  # 19 passed
 python3 Rust/bench/cosine_gate.py         # ratios 2.72× / 43× ✅
-```
+
+```text
 
 ### Notes
 - The 5k threshold was chosen empirically: single-threaded wins below it (overhead > gain)
 - `cosine_knn` has **no criterion** — divan replaced the need (simpler, no `[[bench]]` harness conflicts with PyO3 cdylib)
 - Production `script_search` at 717 rows stays on single-threaded fast path (460 µs)
 - `note_search_vec` (17k rows) uses sqlite-vec pipeline, not this crate — but if migrated, parallel would engage
+
+## 449. Convo search bm25-anchored fusion — production repair
+
+**Executed 2026-10-27** — the convo_gemma_adoption deferred arc's
+reopen trigger 1 fired: `convo_fusion_sweep.py` over the frozen 57-q
+bank showed symmetric RRF is unrepairable by tuning (K, weights,
+per-leg K, widened vec pools all ≤18/57 vs the bm25-alone floor 22/57)
+and that anchoring the FTS top-5 fixes it structurally: 25/57 granite
+(production vectors) / 27/57 gemma. Wired into production.
+
+### Changes
+1. **`helpers/misc/convo_query.py`**: new `RRF_ANCHORS = 5` +
+   `_anchored_fusion(fts, cos)` — keeps the FTS leg's top-5 as ranks
+   1–5 in production order (exact-match recall preserved by
+   construction), fused order fills the remainder; scores stay fused
+   values (display-only downstream). Hybrid call site swapped from
+   `sorted(_rrf(...))` to `_anchored_fusion(...)`.
+2. **Proposal record**: `archive/tooling/convo_gemma_adoption.md`
+   "FUSION REPAIR (2026-10-27)" section (sweep table + mechanism).
+3. **pending.md**: convo-gemma bullet updated (trigger 1 fired/closed;
+   embedder decision stays behind the 27–51 h wall); async-Parquet
+   snapshot park recorded as trigger-gated.
+
+### Validation
+- Frozen-bank bench: anchored granite 25/57 (+3 v floor), gemma 27/57
+  (+5); MRR up every tier; scores `bench_data/convo_gemma/
+  convo_fusion_sweep_20261027.json`.
+- Live smoke (production CLI, full 57 q): 57/57 with self-hits included
+  (rank-1 = the question's own row by design), 37/57 with a crude
+  rank-1-only drop — ≥ floor under every accounting; the delta vs the
+  bench's 25/57 is the exclusion-heuristic mismatch (CLI JSON carries
+  no part_id), not a wiring gap.
+- `ruff check` clean; tests/test_convo_search.py +
+  test_convo_provenance.py + test_db_maint_convo.py → 32 passed.

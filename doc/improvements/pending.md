@@ -89,7 +89,7 @@ Open items below keep their revisit triggers inline; executed work is compressed
   (downtime-window insurance — it rescued multiple 2-5 h
   cache-blowouts; size was never the factor, operator ruling),
   convo_search_fts 2.51× → its per-run backup RETIRED from the db_maint.
-  **2026-10-27 baseline refresh** (`store_sweep.py` _FILING_MB updated):
+  **2026-10-27 baseline refresh** (`store_sweep.py` `_FILING_MB` updated):
   convo_search.duckdb 414.3, convo_search_fts 304.0, embed_store 435.9,
   corpus 53.3, doc_search 25.1, script_search 3.9, memory_search 2.4,
   md_lint_cache 0.3, graph.xdist-shared.duckdb 58.5, agent_traces
@@ -326,11 +326,21 @@ Open items below keep their revisit triggers inline; executed work is compressed
   22/57 beats both hybrids — the hybrid is bm25-bound, so the fusion
   parameters, not the embedder, are the bottleneck; the 27–51 h re-embed
   wall (gemma ≈ 288 tok/s vs granite ≈ 1,265 tok/s measured) waits
-  behind fusion repair. **Reopen triggers:** fusion tuned to ≥
-  bm25-alone on the frozen bank (cheap — reuses stored granite vectors);
-  a semantic-paraphrase recall miss the FTS leg demonstrably can't
-  cover; faster gemma serving (batch endpoint/quantization) bringing
-  the wall under ~1 day.
+  behind fusion repair. **FUSION REPAIRED 2026-10-27** (#449):
+  bm25-anchored fusion (`_anchored_fusion`, FTS top-5 kept as ranks 1–5,
+  fused order fills) lands 25/57 granite / 27/57 gemma on the frozen
+  bank vs the 22/57 floor — trigger 1 FIRED and closed with granite
+  production vectors, no re-embed. The embedder decision (gemma's +2
+  under the anchor) stays parked behind the 27–51 h wall.
+  **Reopen triggers (embedder):** a semantic-paraphrase recall miss the
+  anchored fusion demonstrably can't cover; faster gemma serving (batch
+  endpoint/quantization) bringing the wall under ~1 day.
+
+- **DuckDB 2.0 async Parquet writes for `make snapshot`** (parked
+  2026-10-27, operator ruling). The 58-table mirror measures 2.6–3.7 s
+  at live scale (P2.2 review) — async I/O attacks a non-pain-term, and
+  the async-write API surface is new in 2.0. **Revisit trigger:** the
+  mirror leg exceeding its perf budget, or the mirror growing >10×.
 
 - **Re-evaluate HNSW index macros** (deferred N5 item 5). UNBLOCKED
   then DECLINED on quality+perf — full-scale trial 2026-09-22, DuckDB
@@ -397,8 +407,23 @@ Open items below keep their revisit triggers inline; executed work is compressed
   `array_distance` (not cosine) to hit the index. Cosine-vs-L2 gap
   remains the real cost (unit-norm vectors so L2 ordering ≡ cosine,
   but cosine queries don't use HNSW).**
-
-
+  **Re-checked 2026-10-27 (2.0.0, REAL scale — convo store 168,479×384,
+  cosine index via `WITH (metric='cosine')`):** routing confirmed at
+  production dims (l2 AND cosine indexes both route
+  `ORDER BY array_distance` — cosine-similarity DESC does not);
+  recall@10 = 100% vs exact (the 1.5.5 ~57% failure is dead). BUT the
+  2.0 ANN plan never beats brute at production scale: index probe runs
+  as a Hnsw-Index-Scan arm in a SEMI JOIN with a Top-N re-sort whose
+  overhead scales with n — ANN/brute ms: 9.9/9.0 @5k, 10.6/10.7 @10k,
+  3.3/19.0 @20k (noisy run), 45.1/40.9 @50k, 81.8/79.6 @100k,
+  171.7/116.6 @168k; `hnsw_ef_search` 200/400 only raises ANN cost
+  (230 ms) with recall already saturated. Index size +212% (790.6 vs
+  253.2 MB @168k), build 41.2 s; `hnsw_index_scan` not user-callable;
+  `vss_match`/`vss_join` = brute-force macros (array ops + min_by).
+  **Verdict: recall fixed, routing live, plan overhead real — HNSW
+  stays deferred (brute cosine remains the shipped path). Next-check
+  on a vss build with an index-only top-k plan (no semi-join re-sort)
+  or vectors → 10⁶.**
 - **MAX engine = the viable future small-batch GEMM route** (recorded
   2026-10-26, Mojo-vs-Rust review; no execution yet). When embedding
   scale hits the trigger below, the small-batch rung of the kernel

@@ -2,13 +2,9 @@
 title: "Rust: Rayon Parallel cosine_knn + Divan Benchmarks"
 status: executed
 area: performance
-created: 2026-10-27
-completed_md: 2026-10-27
-author: opencode
-related:
-  - "#446"  # rust_audit initial gates
-  - "pending_improvs.md row 15"  # HNSW blocker
-  - "doc/improvements/archive/database/numba_jit_cosine_trial.md"  # numba crossover at ≥500k rows
+filed: "2026-10-27"
+executed: "2026-10-27"
+completed_md: "448"
 ---
 
 ## Summary
@@ -24,9 +20,11 @@ Added **rayon-based parallel top-k** to `cosine_knn` (threshold ≥5k rows) and 
 - Identical insertion-sort algorithm in both paths → bitwise-identical results
 
 ### 2. Divan Benchmarks (`Rust/cosine_knn/benches/divan_bench.rs`)
+
 ```bash
 cargo bench --bench divan_bench -p cosine_knn
-```
+
+```text
 
 ### 3. Perf Gate (existing, unchanged)
 `Rust/bench/cosine_gate.py` wired as `make perf` leg `cosine_knn_ratios`:
@@ -54,12 +52,14 @@ cargo bench --bench divan_bench -p cosine_knn
 ### Perf Gate (Python-level, `Rust/bench/cosine_gate.py`)
 
 ```
+
 rust              1.064 ms/query  (   940 q/s)
 numpy             2.890 ms/query  (   346 q/s)
 pure             45.353 ms/query  (    22 q/s)
 rust vs numpy      2.72x   bar >= 1.3x   ✅
 rust vs pure       43.0x   bar >= 5.0x   ✅
-```
+
+```text
 
 Note: Python gate includes ~45% overhead (blob decode, list build) vs raw kernel 0.6 ms. The 2.72× is production path, not pure kernel.
 
@@ -87,6 +87,7 @@ Note: Python gate includes ~45% overhead (blob decode, list build) vs raw kernel
 ## Verification
 
 ```
+
 cargo test --workspace                    # 8 passed
 cargo clippy --workspace --all-targets -- -D warnings  # clean
 cargo bench --bench divan_bench -p cosine_knn  # runs 13 benches
@@ -94,7 +95,8 @@ pytest tests/test_cosine_knn_backends.py  # 9 passed
 pytest tests/test_local_embedder.py ...   # 192 passed
 pytest tests/test_run_perf_benchmarks.py  # 19 passed
 python3 Rust/bench/cosine_gate.py         # ratios 2.72× / 43× ✅
-```
+
+```text
 
 ## Notes
 

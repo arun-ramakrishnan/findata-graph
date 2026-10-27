@@ -89,4 +89,3 @@ NO-ACTION or BLOCKED — no row remains UNLOCK.**
 embed_store.db 435.9 MB, etc.). All size-watch ratios now ~1.0× — the
 doubling trigger is disarmed. `pending.md` already noted the 2026-10-19
 re-run done (completed.md #415).
-

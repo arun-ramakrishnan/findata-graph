@@ -205,6 +205,33 @@ def _rrf(*ranked: list[tuple[Key, float]]) -> dict[Key, float]:
     return fused
 
 
+RRF_ANCHORS = 5
+
+
+def _anchored_fusion(
+    fts: list[tuple[Key, float]], cos: list[tuple[Key, float]]
+) -> list[tuple[Key, float]]:
+    """bm25-anchored fusion (frozen-bank verdict 2026-10-27, #442 sweep):
+    symmetric RRF alone measures 8-10/57 vs the bm25-alone floor 22/57 —
+    the cosine leg drags exact-match hits out of the top-5. Anchoring the
+    FTS top-RRF_ANCHORS in production order preserves exact-match recall
+    by construction; the fused order fills the rest, so the vector leg can
+    only add. Frozen bank: granite 25/57, gemma 27/57 (floor 22)."""
+    fused = _rrf(fts, cos)
+    order = sorted(fused.items(), key=lambda kv: (-kv[1], kv[0]))
+    seen: set[Key] = set()
+    out: list[tuple[Key, float]] = []
+    for key, _s in fts[:RRF_ANCHORS]:
+        if key in fused and key not in seen:
+            out.append((key, fused[key]))
+            seen.add(key)
+    for key, s in order:
+        if key not in seen:
+            out.append((key, s))
+            seen.add(key)
+    return out
+
+
 def _fetch_rows(con: ConvoConnections, keys: list[Key]) -> dict[Key, dict]:
     if not keys:
         return {}
@@ -315,7 +342,7 @@ def search(
             if source
             else _cos_hits(con, query, pool, dims, query_vec, harness=harness)
         )
-        ranked = sorted(_rrf(fts, cos).items(), key=lambda kv: (-kv[1], kv[0]))
+        ranked = _anchored_fusion(fts, cos)
         mode = "hybrid"
     ranked = _apply_prior(con, ranked, kinds)
     if harness or source:
