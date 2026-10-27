@@ -111,6 +111,13 @@ def _watch_with(**kw) -> btw.Watch:
     return w
 
 
+@pytest.fixture(autouse=True)
+def _hermetic_session_metrics(monkeypatch):
+    """build_sample must not walk /proc or read the operator's real log family."""
+    monkeypatch.setattr(btw.bili_sessions, "reset_caches", lambda: None)
+    monkeypatch.setattr(btw.bili_sessions, "run_for_sid", lambda sid: {})
+
+
 # ---------------------------------------------------------------------------
 # the tail
 # ---------------------------------------------------------------------------
@@ -228,6 +235,19 @@ def test_an_older_verdict_never_overwrites_a_newer_one():
     assert w.verdicts["s1"].pending_t1 == 16073
 
 
+def test_current_session_follows_the_verdict_clock_not_discovery_order():
+    """`order` records a session's first in-window nudge, so a session can be
+    discovered late while carrying an older verdict (seed boundary, mixed
+    producers). The default render must follow the newest VERDICT."""
+    w = btw.Watch()
+    w.consume(NUDGE)  # s1 @ 18:05:35
+    late_but_older = NUDGE.replace("s1", "s3").replace(
+        "2026-10-19T18:05:35.123Z", "2026-10-19T18:02:00.000Z"
+    )
+    w.consume(late_but_older)
+    assert w.current_session == "s1"
+
+
 # ---------------------------------------------------------------------------
 # the sample: the three flags this watcher exists for
 # ---------------------------------------------------------------------------
@@ -306,7 +326,12 @@ def test_t1_eligible_is_flagged_when_the_fresh_mass_clears_the_bar(tmp_path):
 # ---------------------------------------------------------------------------
 
 
-def test_once_json_emits_one_sample(tmp_path, capsys):
+def test_once_json_emits_one_sample(tmp_path, capsys, monkeypatch):
+    monkeypatch.setattr(
+        btw.bili_sessions,
+        "run_for_sid",
+        lambda sid: {"nudges": 3, "requests": 12, "cum_input": 1234, "cached_input": 1100},
+    )
     db = _make_db(tmp_path)
     _add_block(db, "b1", 1, summary_len=400)
     log = tmp_path / "bili.log"
@@ -339,6 +364,12 @@ def test_once_json_emits_one_sample(tmp_path, capsys):
     assert payload["session"] == "s1"
     assert payload["bars"] == {"t1": 40000, "t2": 5000, "t3": 3000}
     assert payload["growth_floor"] == 20000
+    assert payload["nudges"] == 3
+    assert payload["requests"] == 12
+    assert payload["hit_pct"] == 0.0
+    assert payload["degen_flag"] is False
+    assert payload["cum_input"] == 1234
+    assert payload["cached_input"] == 1100
 
 
 def test_a_missing_log_is_a_fatal_error(tmp_path, monkeypatch):
@@ -357,6 +388,98 @@ def test_the_bars_are_re_read_per_sample(tmp_path):
     assert second.t1 == 25000
 
 
+def test_session_metrics_drops_the_bili_sessions_caches(monkeypatch):
+    """bili_sessions caches per process for its one-shot CLI; the watcher
+    must drop those caches or its counters freeze at the first sample."""
+    drops, reads = [], []
+
+    def fake_run(sid):
+        reads.append(sid)
+        return {"requests": 7}
+
+    monkeypatch.setattr(btw.bili_sessions, "reset_caches", lambda: drops.append(True))
+    monkeypatch.setattr(btw.bili_sessions, "run_for_sid", fake_run)
+    assert btw._session_metrics("s1") == {"requests": 7}
+    assert btw._session_metrics("s1") == {"requests": 7}
+    assert drops == [True, True]  # dropped before EVERY read, not just the first
+    assert reads == ["s1", "s1"]
+
+
+def test_session_counters_are_refetched_per_sample(tmp_path, monkeypatch):
+    """The freeze regression, end to end: successive samples must see the
+    counters move as the session accrues work."""
+    reads = {"n": 0}
+
+    def fake_run(sid):
+        reads["n"] += 1
+        return {"nudges": reads["n"], "requests": 10 * reads["n"]}
+
+    monkeypatch.setattr(btw.bili_sessions, "reset_caches", lambda: None)
+    monkeypatch.setattr(btw.bili_sessions, "run_for_sid", fake_run)
+    db = _make_db(tmp_path)
+    w = _watch_with()
+    first = btw.build_sample(w, _bars(), db, "s1")
+    second = btw.build_sample(w, _bars(), db, "s1")
+    assert (first.nudges, first.requests) == (1, 10)
+    assert (second.nudges, second.requests) == (2, 20)
+
+
+def test_session_counters_flow_into_render_and_json(tmp_path, monkeypatch):
+    monkeypatch.setattr(btw.bili_sessions, "reset_caches", lambda: None)
+    monkeypatch.setattr(
+        btw.bili_sessions,
+        "run_for_sid",
+        lambda sid: {
+            "nudges": 3,
+            "hit_pct": 90.0,
+            "requests": 12,
+            "degenerate_folds": 1,
+            "cum_input": 1234,
+            "cached_input": 1100,
+        },
+    )
+    db = _make_db(tmp_path)
+    s = btw.build_sample(_watch_with(), _bars(), db, "s1")
+    assert (s.nudges, s.hit_pct, s.requests) == (3, 90.0, 12)
+    assert s.degen_flag is True
+    assert s.cum_input == 1234 and s.cached_input == 1100
+    assert "cumIn=1.2k cachedIn=1.1k" in s.render()
+    d = s.as_dict()
+    assert (d["nudges"], d["hit_pct"], d["requests"]) == (3, 90.0, 12)
+    assert d["degen_flag"] is True and d["cum_input"] == 1234 and d["cached_input"] == 1100
+
+
 @pytest.mark.parametrize("n", [0, 1, 1000, 1_000_000])
 def test_fmt(n):
     assert btw.fmt(n) in {"0", "1", "1.0k", "1.00M"}
+
+
+class TestLineSessionZcodeForm:
+    """Zcode sessions log as `session_<hex>`; the extractor must carry the
+    FULL id (the db/dashboard key it), and recognise the bare tag too."""
+
+    Z = "session_36697bd13b3b4fbf445781dceb154794"
+
+    def test_sess_tag_keeps_the_full_zcode_id(self):
+        line = (
+            f"2026-10-27T04:29:05.603Z [info] [sess={self.Z}] [v=0.1.208] [{self.Z}] "
+            "[acp-usage] round 1 input=70374 cached=67392 (cache hit 96%)"
+        )
+        assert btw.line_session(line) == self.Z
+
+    def test_bare_zcode_tag_is_extracted(self):
+        line = (
+            f"2026-10-27T04:29:05.603Z [info] [v=0.1.208] [{self.Z}] "
+            "[acp-compress-obs] shrink 7% foldPoint=m01250 blocks=2"
+        )
+        assert btw.line_session(line) == self.Z
+
+    def test_bracket_words_are_still_not_swallowed(self):
+        assert btw.line_session("[info] hello [plugin] world") == ""
+        assert btw.line_session("no tags at all") == ""
+
+    def test_dsh_hyphen_prefix_is_stripped_but_zcode_is_not(self):
+        assert btw.line_session("[sess=session-c5f777d8-d511-4222-ae94-dda4319440bc]") == (
+            "c5f777d8-d511-4222-ae94-dda4319440bc"
+        )
+        assert btw.line_session(f"[sess={self.Z}] nudge idle") == self.Z

@@ -677,3 +677,27 @@ class TestOutcomeLinesFollowTheGap:
         for gap in ("25 min", "4.1 h", "unknown (no log line)", "n/a"):
             joined = " ".join(bs._viol_outcome_lines(gap))
             assert "already unwound" not in joined
+
+
+class TestEveryProducerSidFormIsIndexed:
+    """`_SID_RE` knew `ses_<base62>` (opencode) and `session-<uuid>` (dsh) but
+    NOT the zcode `session_<hex>` form the LIVE sessions use — every zcode
+    session was invisible to `sid_log_index()`, and the dashboard-down table
+    fallback (`sorted(sid_log_index())`) would have dropped them all."""
+
+    def test_index_maps_all_three_producer_forms(self, tmp_path: Path, monkeypatch):
+        ids = [
+            "ses_ec487e129ffe8ndwzoNFlTXbpJ",  # opencode: base62, uppercase inside
+            "session_36697bd13b3b4fbf445781dceb154794",  # zcode: session_ + hex
+            "c5f777d8-d511-4222-ae94-dda4319440bc",  # dsh: bare uuid
+        ]
+        log = tmp_path / "bili.log"
+        log.write_text(
+            "\n".join(_usage_line(i, tok=1000, cached=900) for i in ids) + "\n",
+            encoding="utf-8",
+        )
+        monkeypatch.setattr(bs, "file_logs_for_sid", lambda s: [log])
+        monkeypatch.setattr(bs, "_SID_INDEX", None)
+        idx = bs.sid_log_index()
+        missing = [i for i in ids if not idx.get(i)]
+        assert missing == [], f"sid forms the index cannot see: {missing}"

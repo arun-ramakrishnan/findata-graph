@@ -68,7 +68,7 @@ _REPO = Path(__file__).resolve().parents[2]
 if str(_REPO) not in sys.path:
     sys.path.insert(0, str(_REPO))
 
-from helpers.analytics import bili_logpath, bili_tier_nudge as btn  # noqa: E402
+from helpers.analytics import bili_logpath, bili_sessions, bili_tier_nudge as btn  # noqa: E402
 
 DEFAULT_DB = Path.home() / ".local/share/billion-context/sessions/index.db"
 DEFAULT_CONFIG = Path.home() / ".config/billion-context/billion-context.json"
@@ -97,8 +97,14 @@ RE_TS = re.compile(r"^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2})")
 # The old `\[sess=(\S+?)\]` matched only the nudge form, so fold lines
 # yielded an empty session id and were discarded — the watcher reported
 # folds=0 while the log plainly contained them. The bare form must be
-# anchored to the `ses_` prefix so it cannot swallow `[info]`/`[plugin]`.
-RE_SESS = re.compile(r"\[sess=([A-Za-z0-9_-]+)\]|\[(ses_[A-Za-z0-9_-]+)\]")
+# anchored to `ses_`/`session_` + id charset so it cannot swallow
+# `[info]`/`[plugin]`; it covers opencode `ses_<base62>` and zcode
+# `session_<hex>`. Zcode ids keep their `session_` prefix — only the dsh
+# `session-` (hyphen) prefix is stripped, since the db/dashboard key zcode
+# sessions by the full id.
+RE_SESS = re.compile(
+    r"\[sess=([A-Za-z0-9_-]+)\]|\[(ses_[A-Za-z0-9_-]+)\]|\[(session_[0-9a-fA-F]+)\]"
+)
 
 
 def line_session(line: str) -> str:
@@ -110,7 +116,7 @@ def line_session(line: str) -> str:
     m = RE_SESS.search(line)
     if not m:
         return ""
-    sid = m.group(1) or m.group(2) or ""
+    sid = m.group(1) or m.group(2) or m.group(3) or ""
     # Strip leading "session-" prefix for normalization
     if sid.startswith("session-"):
         sid = sid[len("session-") :]
@@ -251,8 +257,16 @@ class Watch:
 
     @property
     def current_session(self) -> str:
-        """The session of the most recent verdict (the newest one seen)."""
-        return self.order[-1] if self.order else ""
+        """The session of the most recent verdict (the newest one seen).
+
+        `order` records DISCOVERY (a session's first in-window nudge), and an
+        old session whose history just crossed the seed boundary discovers
+        late while carrying a hours-old verdict — picking `order[-1]` renders
+        a stale session with zero counters while the live one nudges.
+        """
+        if not self.verdicts:
+            return ""
+        return max(self.verdicts, key=lambda s: self.verdicts[s].ts)
 
     def consume(self, text: str) -> None:
         """Fold log text into the state. Idempotent: re-reading is safe."""
@@ -415,6 +429,13 @@ class Sample:
     tier: int | None
     blocked_by: str
     log_age: int | None
+    # bili_sessions' merged dashboard+log counters (see _session_metrics)
+    nudges: int = 0
+    hit_pct: float = 0.0
+    requests: int = 0
+    degen_flag: bool = False
+    cum_input: int = 0  # session-lifetime input tokens (dashboard/log merged view)
+    cached_input: int = 0  # session-lifetime cached subset
 
     def render(self) -> str:
         age = f" log_age={self.log_age}s" if self.log_age is not None else ""
@@ -431,6 +452,9 @@ class Sample:
             f"fires T1={fires.get('T1', 0)} T2={fires.get('T2', 0)} "
             f"T3={fires.get('T3', 0)} esc={fires.get('ESC', 0)} "
             f"folds={self.folds} saved={fmt(self.saved)} blocks={self.blocks} "
+            f"nudges={self.nudges} hit%={self.hit_pct:.0f} reqs={self.requests} "
+            f"degen={'Y' if self.degen_flag else 'N'} "
+            f"cumIn={fmt(self.cum_input)} cachedIn={fmt(self.cached_input)} "
             f"blocked[{blk}] {' '.join(self.flags) or '-'} rung={self.tier or '-'}"
             f" blocked_by={self.blocked_by or '-'}{age} | {self.reason[:90]}"
         )
@@ -458,8 +482,27 @@ class Sample:
             "rung": self.tier,
             "blocked_by": self.blocked_by,
             "log_age": self.log_age,
+            "nudges": self.nudges,
+            "hit_pct": self.hit_pct,
+            "requests": self.requests,
+            "degen_flag": self.degen_flag,
+            "cum_input": self.cum_input,
+            "cached_input": self.cached_input,
             "reason": self.reason,
         }
+
+
+def _session_metrics(sid: str) -> dict:
+    """One session's counters from bili_sessions' merged dashboard+log view.
+
+    bili_sessions caches its dashboard fetches and log-family parses for the
+    process lifetime -- the right shape for its one-shot CLI, fatal here: a
+    watcher that inherits them reports every counter frozen at the first
+    heartbeat. The per-sample reset re-parses the rotation family (~1 s),
+    amortised by the 60 s default sample period.
+    """
+    bili_sessions.reset_caches()
+    return bili_sessions.run_for_sid(sid) if sid else {}
 
 
 def build_sample(
@@ -502,7 +545,8 @@ def build_sample(
             age = None
 
     # Per-session values (authoritative when --session is used); fallback to
-    # aggregate for global mode.
+    # aggregate for global mode. 4 session-derived metrics added per
+    # user directive (m01639) to align with bili_sessions fields.
     is_session_scoped = session is not None
     if is_session_scoped and sid:
         folds = watch.per_session_folds.get(sid, 0)
@@ -512,6 +556,17 @@ def build_sample(
         folds = watch.folds
         saved = watch.saved
         fires = dict(watch.fires)
+
+    # Session-lifetime counters (nudges / hit% / reqs / degen / cumIn /
+    # cachedIn): bili_sessions' merged dashboard+log view is authoritative
+    # -- the dashboard for the token totals, the log for the ladder events.
+    metrics = _session_metrics(sid) if sid else {}
+    nudges = metrics.get("nudges", 0)
+    hit_pct = metrics.get("hit_pct", 0.0)
+    requests = metrics.get("requests", 0)
+    degen_flag = bool(metrics.get("degenerate_folds", 0))
+    cum_input = metrics.get("cum_input", 0)
+    cached_input = metrics.get("cached_input", 0)
 
     return Sample(
         ts=verdict.ts if verdict else now_ts(),
@@ -540,6 +595,12 @@ def build_sample(
         tier=dec.tier,
         blocked_by=dec.blocked_by,
         log_age=age,
+        nudges=nudges,
+        hit_pct=hit_pct,
+        requests=requests,
+        degen_flag=degen_flag,
+        cum_input=cum_input,
+        cached_input=cached_input,
     )
 
 

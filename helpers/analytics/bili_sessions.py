@@ -248,7 +248,13 @@ def file_logs_for_sid(sid: str) -> list[Path]:  # noqa: C901
     return sorted(set(out))
 
 
-_SID_RE = re.compile(r"ses_[A-Za-z0-9]+|session-[0-9a-fA-F-]+|[0-9a-f]{8}-[0-9a-fA-F-]{27}")
+# opencode `ses_<base62>` (uppercase inside), zcode `session_<hex>` (the LIVE
+# sessions), dsh `session-<uuid>` / bare uuid. A missing form here makes the
+# session invisible to sid_log_index() — the dashboard-down table fallback
+# would silently drop every such session, not merely parse slower.
+_SID_RE = re.compile(
+    r"ses_[A-Za-z0-9]+|session_[0-9a-fA-F]+|session-[0-9a-fA-F-]+|[0-9a-f]{8}-[0-9a-fA-F-]{27}"
+)
 _SID_INDEX: dict[str, list[Path]] | None = None
 
 
@@ -342,6 +348,22 @@ def _family_index(log_path: Path) -> dict[str, Analysis]:
             1 for w in bucket.warnings if w.kind == "reasoning-pair-violated"
         )
     return by_sid
+
+
+def reset_caches() -> None:
+    """Drop every process-lifetime cache this module holds.
+
+    The caches exist for the one-shot CLI/table path -- a 35-session table
+    would otherwise re-parse the whole rotation family per row. A consumer
+    that lives across samples (the tier watcher) must not inherit them, or
+    every counter freezes at its first read. Long-lived callers invoke this
+    before each re-read.
+    """
+    _fetch_detail.cache_clear()
+    dashboard_stats_map.cache_clear()
+    _family_index.cache_clear()
+    global _SID_INDEX
+    _SID_INDEX = None
 
 
 def _session_analysis(log_path: Path | None, sid: str) -> Analysis | None:
