@@ -784,3 +784,85 @@ class TestCrossCheck:
         pn.cross_check_new(["A"])
         out = capsys.readouterr().out
         assert "graph connect failed" in out
+
+
+# --------------------------------------------------------------------------- #
+# Test: stub census — unconditional across invocation modes
+# (2026-10-27 Zetwerk miss regression)
+# --------------------------------------------------------------------------- #
+
+
+def _seed_census_rows(project):
+    """Seed one file_path=NULL stub + one noted company, both fuzzy-matching
+    newsletter headings via word_overlap on their distinctive words.
+
+    Names avoid the Ltd/Limited/Pvt/Private suffixes — the entities table
+    CHECK rejects those for entity_type='company'.
+    """
+    from tests.helpers import open_conn  # noqa: E402
+
+    conn = open_conn(project["db_path"])
+    # Stub: file_path IS NULL -> census must flag it in EVERY mode.
+    conn.execute(
+        "INSERT INTO entities(name, entity_type, sector_classification, "
+        "normalized_name, ticker) VALUES "
+        "('Zeta Technologies Platform', 'company', 'Technology', "
+        "'Zeta_Technologies_Platform', 'ZETA')"
+    )
+    # Noted company: file_path set -> must NOT be flagged as a stub.
+    conn.execute(
+        "INSERT INTO entities(name, entity_type, sector_classification, "
+        "normalized_name, file_path) VALUES "
+        "('Epsilon Energy Renewables', 'company', 'Energy', "
+        "'Epsilon_Energy_Renewables', 'findata/Companies/Energy/Epsilon_Energy_Renewables.md')"
+    )
+    conn.commit()
+    conn.close()
+
+
+class TestStubCensus:
+    """The stub census must run unconditionally (dry-run included).
+
+    The census originally lived inside ``if args.apply:``, so a
+    cross-check-only rerun (no --apply, after e.g. embeddings came back up)
+    emitted worklists with ``stubs=∅`` — ``likely_is_stub`` lied False and
+    Stage-5 skipped authoring the note on file_path=NULL stubs (D17:
+    author ON the stub, never a second entity).
+    """
+
+    def test_dry_run_worklist_flags_stub(self, synth_project, monkeypatch):
+        _seed_census_rows(synth_project)
+        _run_dry(synth_project, monkeypatch)
+
+        wl_path = synth_project["newsletter"].parent / "Test_Edition_enhancement_worklist.json"
+        wl = json.loads(wl_path.read_text())
+        by_existing = {u["likely_existing"]: u for u in wl["uncertain_entities"]}
+
+        stub = by_existing["Zeta Technologies Platform"]
+        assert stub["likely_is_stub"] is True
+        assert stub["candidate"] == "Zeta Technologies"
+
+        # Negative control: noted company matched uncertainly, not a stub.
+        noted = by_existing["Epsilon Energy Renewables"]
+        assert noted["likely_is_stub"] is False
+
+    def test_dry_run_console_carries_stub_hint(self, synth_project, monkeypatch, capsys):
+        _seed_census_rows(synth_project)
+        _run_dry(synth_project, monkeypatch)
+
+        out = capsys.readouterr().out
+        assert "[STUB — author the note on it (D17)]" in out
+        stub_lines = [ln for ln in out.splitlines() if "STUB" in ln and "?" in ln]
+        assert any("Zeta Technologies Platform" in ln for ln in stub_lines)
+        # The noted company's uncertain line carries no hint.
+        noted_line = next(ln for ln in out.splitlines() if "Epsilon Energy Renewables" in ln)
+        assert "STUB" not in noted_line
+
+    def test_apply_mode_flags_stub_too(self, synth_project, monkeypatch):
+        _seed_census_rows(synth_project)
+        _run_apply(synth_project, monkeypatch)
+
+        wl_path = synth_project["newsletter"].parent / "Test_Edition_enhancement_worklist.json"
+        wl = json.loads(wl_path.read_text())
+        by_existing = {u["likely_existing"]: u for u in wl["uncertain_entities"]}
+        assert by_existing["Zeta Technologies Platform"]["likely_is_stub"] is True

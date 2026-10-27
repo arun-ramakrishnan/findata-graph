@@ -1987,11 +1987,11 @@ class DatabaseIntegrityChecker:
         sk = ", ".join(f"'{k.strip()}'" for k in spec["src_kinds"].split(","))
         dk = ", ".join(f"'{k.strip()}'" for k in spec["dst_kinds"].split(","))
         return conn.execute(
-            "SELECT COUNT(*) FROM graph_edges e "
+            "SELECT COUNT(*) FROM graph_edges e "  # noqa: S608  kinds from the EDGE_REGISTRY spec, not user input
             "JOIN entities es ON es.name = e.source "
             "JOIN entities et ON et.name = e.target "
-            "WHERE e.edge_type=? AND es.entity_type IN ({}) "
-            "AND et.entity_type IN ({})".format(sk, dk),  # noqa: S608  fixed projection, no interpolation
+            f"WHERE e.edge_type=? AND es.entity_type IN ({sk}) "
+            f"AND et.entity_type IN ({dk})",
             (etype,),
         ).fetchone()[0]
 

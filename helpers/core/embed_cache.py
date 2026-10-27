@@ -116,6 +116,41 @@ def _rust_lookup_binary() -> Path | None:
     return None
 
 
+def _parse_lookup_response(
+    response: dict, texts: list[str]
+) -> tuple[dict[int, list[float]], list[int]]:
+    """Validate the Rust CLI response shape; raises ValueError on any defect.
+
+    The caller treats every defect identically (warn once, fall back to the
+    Python path), so all shape violations funnel through one exception type.
+    """
+    if response.get("protocol") != 1:
+        raise ValueError("unsupported response protocol")
+
+    hit_vectors: dict[int, list[float]] = {}
+    for hit in response["hit_vectors"]:
+        index = hit["index"]
+        vector = hit["vector"]
+        if type(index) is not int or not 0 <= index < len(texts):
+            raise ValueError("invalid hit index")
+        if index in hit_vectors or not isinstance(vector, list):
+            raise ValueError("invalid or duplicate hit vector")
+        if any(type(value) not in (int, float) for value in vector):
+            raise ValueError("non-numeric hit vector")
+        hit_vectors[index] = [float(value) for value in vector]
+
+    miss_indices = response["miss_indices"]
+    if any(type(index) is not int or not 0 <= index < len(texts) for index in miss_indices):
+        raise ValueError("invalid miss index")
+    if len(set(miss_indices)) != len(miss_indices):
+        raise ValueError("duplicate miss index")
+    if set(hit_vectors).intersection(miss_indices):
+        raise ValueError("index reported as both hit and miss")
+    if set(hit_vectors).union(miss_indices) != set(range(len(texts))):
+        raise ValueError("incomplete lookup response")
+    return hit_vectors, miss_indices
+
+
 def _rust_cache_lookup(
     conn, texts: list[str], model_label: str
 ) -> tuple[dict[int, list[float]], list[int]] | None:
@@ -164,7 +199,7 @@ def _rust_cache_lookup(
             },
             separators=(",", ":"),
         )
-        result = subprocess.run(
+        result = subprocess.run(  # noqa: S603  fixed argv: repo-built or operator-configured embed-cache-lookup CLI, no shell
             [str(binary)],
             input=request,
             capture_output=True,
@@ -177,31 +212,7 @@ def _rust_cache_lookup(
             warn_once(detail)
             return None
 
-        response = json.loads(result.stdout)
-        if response.get("protocol") != 1:
-            raise ValueError("unsupported response protocol")
-
-        hit_vectors: dict[int, list[float]] = {}
-        for hit in response["hit_vectors"]:
-            index = hit["index"]
-            vector = hit["vector"]
-            if type(index) is not int or not 0 <= index < len(texts):
-                raise ValueError("invalid hit index")
-            if index in hit_vectors or not isinstance(vector, list):
-                raise ValueError("invalid or duplicate hit vector")
-            if any(type(value) not in (int, float) for value in vector):
-                raise ValueError("non-numeric hit vector")
-            hit_vectors[index] = [float(value) for value in vector]
-
-        miss_indices = response["miss_indices"]
-        if any(type(index) is not int or not 0 <= index < len(texts) for index in miss_indices):
-            raise ValueError("invalid miss index")
-        if len(set(miss_indices)) != len(miss_indices):
-            raise ValueError("duplicate miss index")
-        if set(hit_vectors).intersection(miss_indices):
-            raise ValueError("index reported as both hit and miss")
-        if set(hit_vectors).union(miss_indices) != set(range(len(texts))):
-            raise ValueError("incomplete lookup response")
+        hit_vectors, miss_indices = _parse_lookup_response(json.loads(result.stdout), texts)
         return hit_vectors, miss_indices
     except Exception as exc:  # cache accelerator failures must not block embedding
         warn_once(f"{type(exc).__name__}: {exc}")
@@ -429,6 +440,91 @@ def _embed_misses_chunked(
     return new_vecs, dirty
 
 
+def _python_cache_lookup(
+    conn, texts: list[str], model_label: str
+) -> tuple[list[list[float] | None], list[str | None], list[int]]:
+    """Cache-table hit pass (the default Python backend).
+
+    Returns ``(vectors, hashes, miss_idx)`` — ``vectors`` mirrors ``texts``
+    with ``None`` at every cache miss, ``hashes`` the sha256 per text (the
+    caller only consumes the miss rows), ``miss_idx`` the miss positions.
+    """
+    cached: dict[str, str] = {
+        row[0]: row[1]
+        for row in conn.execute(
+            f"SELECT text_hash, embedding FROM {EMBED_CACHE_TABLE} "  # noqa: S608  constant table name
+            "WHERE model = ?",
+            (model_label,),
+        )
+    }
+    hashes: list[str | None] = [_hash(text) for text in texts]
+    vecs: list[list[float] | None] = []
+    for hash_value in hashes:
+        raw = cached.get(hash_value) if hash_value else None
+        vec = load_vec(raw) if raw else None
+        vecs.append(vec)
+    miss_idx = [i for i, vector in enumerate(vecs) if vector is None]
+    return vecs, hashes, miss_idx
+
+
+def _embed_and_fill_misses(
+    conn,
+    texts: list[str],
+    vecs: list[list[float] | None],
+    miss_idx: list[int],
+    hashes: list[str | None],
+    model_label: str,
+    embed_missing_timed: Callable[[list[str]], list[list[float]]],
+    source: str,
+    stats: dict,
+) -> None:
+    """Embed the cache-miss rows and write the new vectors back into ``vecs``.
+
+    Miss rows always carry a hash: the Python path hashes every text, the Rust
+    path fills exactly the miss indices. The dict comprehension does the type
+    narrowing a list index can't express. Mutates ``vecs`` and ``stats`` in
+    place (input order is the caller's contract).
+    """
+    miss_hashes = {i: h for i in miss_idx if (h := hashes[i]) is not None}
+    uniq_first: dict[str, int] = {}
+    for i, hash_value in miss_hashes.items():
+        uniq_first.setdefault(hash_value, i)
+    uniq_hashes = list(uniq_first)
+    uniq_texts = [texts[uniq_first[h]] for h in uniq_hashes]
+    stats["unique_misses"] = len(uniq_texts)
+    new_vecs, dirty = _embed_misses_chunked(
+        conn, uniq_hashes, uniq_texts, model_label, embed_missing_timed, source
+    )
+    by_hash = dict(zip(uniq_hashes, new_vecs))
+    for i in miss_idx:
+        vecs[i] = by_hash[miss_hashes[i]]
+    stats["dirty"] = dirty
+
+
+def _lookup_vectors(
+    conn, texts: list[str], model_label: str
+) -> tuple[list[list[float] | None], list[str | None], list[int], str, float]:
+    """Cache lookup pass; returns ``(vecs, hashes, miss_idx, backend, seconds)``.
+
+    Tries the Rust accelerator first, falls back to the Python table scan.
+    ``vecs`` mirrors ``texts`` (``None`` at misses); ``hashes`` is fully
+    populated on the Python path and miss-only on the Rust path.
+    """
+    lookup_started = time.perf_counter()
+    rust_lookup = _rust_cache_lookup(conn, texts, model_label)
+    if rust_lookup is None:
+        vecs, hashes, miss_idx = _python_cache_lookup(conn, texts, model_label)
+        backend = "python"
+    else:
+        hit_vectors, miss_idx = rust_lookup
+        vecs = [hit_vectors.get(i) for i in range(len(texts))]
+        hashes = [None] * len(texts)
+        for index in miss_idx:
+            hashes[index] = _hash(texts[index])
+        backend = "rust"
+    return vecs, hashes, miss_idx, backend, time.perf_counter() - lookup_started
+
+
 def cached_embed_batch(
     conn,
     texts: list[str],
@@ -495,53 +591,24 @@ def cached_embed_batch(
                 flush=True,
             )
 
-    lookup_started = time.perf_counter()
-    rust_lookup = _rust_cache_lookup(conn, texts, model_label)
-    if rust_lookup is None:
-        cached: dict[str, str] = {
-            row[0]: row[1]
-            for row in conn.execute(
-                f"SELECT text_hash, embedding FROM {EMBED_CACHE_TABLE} "  # noqa: S608  # constant table name
-                "WHERE model = ?",
-                (model_label,),
-            )
-        }
-        hashes: list[str | None] = [_hash(text) for text in texts]
-        vecs: list[list[float] | None] = []
-        for hash_value in hashes:
-            raw = cached.get(hash_value) if hash_value else None
-            vec = load_vec(raw) if raw else None
-            vecs.append(vec)
-        miss_idx = [i for i, vector in enumerate(vecs) if vector is None]
-    else:
-        hit_vectors, miss_idx = rust_lookup
-        vecs = [hit_vectors.get(i) for i in range(len(texts))]
-        hashes = [None] * len(texts)
-        for index in miss_idx:
-            hashes[index] = _hash(texts[index])
-    lookup_seconds = time.perf_counter() - lookup_started
-    lookup_backend = "rust" if rust_lookup is not None else "python"
+    vecs, hashes, miss_idx, lookup_backend, lookup_seconds = _lookup_vectors(
+        conn, texts, model_label
+    )
 
     stats["hits"] = sum(v is not None for v in vecs)
     stats["misses"] = len(miss_idx)
     if miss_idx:
-        uniq_first: dict[str, int] = {}
-        for i in miss_idx:
-            hash_value = hashes[i]
-            assert hash_value is not None
-            uniq_first.setdefault(hash_value, i)
-        uniq_hashes = list(uniq_first)
-        uniq_texts = [texts[uniq_first[h]] for h in uniq_hashes]
-        stats["unique_misses"] = len(uniq_texts)
-        new_vecs, dirty = _embed_misses_chunked(
-            conn, uniq_hashes, uniq_texts, model_label, embed_missing_timed, source
+        _embed_and_fill_misses(
+            conn,
+            texts,
+            vecs,
+            miss_idx,
+            hashes,
+            model_label,
+            embed_missing_timed,
+            source,
+            stats,
         )
-        by_hash = dict(zip(uniq_hashes, new_vecs))
-        for i in miss_idx:
-            hash_value = hashes[i]
-            assert hash_value is not None
-            vecs[i] = by_hash[hash_value]
-        stats["dirty"] = dirty
 
     record_timing(lookup_backend, lookup_seconds)
     return [v for v in vecs if v is not None], stats

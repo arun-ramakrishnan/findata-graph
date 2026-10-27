@@ -830,6 +830,64 @@ def rebuild_via_swap(db_path: Path, incremental: bool = False) -> dict:
     return result
 
 
+def _ensure_provenance_backfill(db_path: Path, files: list[Path]) -> None:
+    """Backfill the provenance column right after the migration added it.
+
+    The column was just added, so every EXISTING row reads '' instead of
+    its corpus source. An incremental run would only re-read changed
+    files and leave the rest permanently empty — a silent under-fill that
+    looks exactly like "this session has no provenance".
+
+    Backfill it from the parquet instead of forcing a full rebuild: one
+    UPDATE per file (the index is keyed by file_path, one parquet per
+    session) costs seconds, where a full re-embed of ~200k rows is a
+    45-minute job that would change nothing but the vector column.
+    """
+    if not _provenance_migration(db_path):
+        return
+    n_files, n_rows = _backfill_provenance(db_path, files)
+    print(
+        f"provenance: column added — backfilled {n_rows} row(s) from {n_files} parquet file(s)",
+        file=sys.stderr,
+    )
+
+
+def _apply_write_window(
+    db_path: Path,
+    stored: dict[str, str],
+    drop_keys: list[tuple[str, str]],
+    rows: list[dict],
+    vecs: list[list[float]],
+) -> tuple[int, bool]:
+    """Write window 3: TOCTOU re-verify, then delete + bulk insert.
+
+    Returns ``(total_rows, changed)`` — ``changed=True`` means the stored-hash
+    fingerprint moved mid-embed (a concurrent rebuild applied a diff inside
+    our embed gap); nothing was written on this attempt and the caller must
+    redo from the read window (the fresh diff comes back empty for an
+    identical corpus, making the redo a clean no-op).
+    """
+    with io_lock(db_path, exclusive=True):
+        con = connect_with_lock_retry(lambda: duckdb.connect(str(db_path)))
+        try:
+            if _strip_prefix(_stored_hashes(con)) != stored:
+                print(
+                    f"convo rebuild: hash state changed mid-embed ({db_path}); re-reading the diff",
+                    file=sys.stderr,
+                )
+                return 0, True
+            if drop_keys:
+                _delete_duckdb_keys(con, drop_keys)
+            if rows:
+                _bulk_insert(con, rows, vecs)
+            total_row = con.execute("SELECT COUNT(*) FROM convo_search").fetchone()
+            return (total_row[0] if total_row else 0), False
+        finally:
+            # DuckDB closes BEFORE the flock releases — a queued
+            # reader's post-flock open is then collision-free.
+            con.close()
+
+
 def rebuild(
     db_path: Path, write: bool = True, incremental: bool = False, swap: bool = False
 ) -> dict:
@@ -863,21 +921,7 @@ def rebuild(
     if swap:
         return rebuild_via_swap(db_path, incremental=incremental)
 
-    if _provenance_migration(db_path):
-        # The column was just added, so every EXISTING row reads '' instead of
-        # its corpus source. An incremental run would only re-read changed
-        # files and leave the rest permanently empty — a silent under-fill that
-        # looks exactly like "this session has no provenance".
-        #
-        # Backfill it from the parquet instead of forcing a full rebuild: one
-        # UPDATE per file (the index is keyed by file_path, one parquet per
-        # session) costs seconds, where a full re-embed of ~200k rows is a
-        # 45-minute job that would change nothing but the vector column.
-        n_files, n_rows = _backfill_provenance(db_path, files)
-        print(
-            f"provenance: column added — backfilled {n_rows} row(s) from {n_files} parquet file(s)",
-            file=sys.stderr,
-        )
+    _ensure_provenance_backfill(db_path, files)
 
     rows: list[dict] = []
     vecs: list[list[float]] = []
@@ -912,30 +956,9 @@ def rebuild(
         timer.mark("embed")
 
         # -- 3. write window (TOCTOU re-verify BEFORE any write) -----------
-        with io_lock(db_path, exclusive=True):
-            con = connect_with_lock_retry(lambda: duckdb.connect(str(db_path)))
-            try:
-                if _strip_prefix(_stored_hashes(con)) != stored:
-                    # A concurrent rebuild applied a diff inside our embed
-                    # gap. Nothing written yet on this attempt — redo from
-                    # the read window (the fresh diff will come back empty
-                    # for identical corpus, making the redo a clean no-op).
-                    print(
-                        f"convo rebuild: hash state changed mid-embed "
-                        f"({db_path}); re-reading the diff",
-                        file=sys.stderr,
-                    )
-                    continue
-                if drop_keys:
-                    _delete_duckdb_keys(con, drop_keys)
-                if rows:
-                    _bulk_insert(con, rows, vecs)
-                total_row = con.execute("SELECT COUNT(*) FROM convo_search").fetchone()
-                total = total_row[0] if total_row else 0
-            finally:
-                # DuckDB closes BEFORE the flock releases — a queued
-                # reader's post-flock open is then collision-free.
-                con.close()
+        total, changed = _apply_write_window(db_path, stored, drop_keys, rows, vecs)
+        if changed:
+            continue
         timer.mark("duckdb_write")
         break
     else:
