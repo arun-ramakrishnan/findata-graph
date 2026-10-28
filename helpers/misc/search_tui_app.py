@@ -495,7 +495,7 @@ class ReportScreen(ModalScreen[None]):
             return [f for f in files if f[0] == self._report]
         return files
 
-    def _fill(self) -> None:
+    def _fill(self) -> None:  # noqa: C901 — flat dispatcher; the per-kind helpers carry the logic
         from helpers.misc import search_tui as _tui
 
         self._rows = []
