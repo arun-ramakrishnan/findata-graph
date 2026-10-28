@@ -402,6 +402,7 @@ def _insert_all(
     table: str,
     rows: list[dict[str, Any]],
     source: str,
+    purge_session: bool = True,
 ) -> None:
     """Insert `rows` into `table` for `source`, casting bool/ts/day by the
     contract. `rows` are dicts keyed by column name (source excluded); the
@@ -444,8 +445,23 @@ def _insert_all(
         elif spec[j].day_cast:
             expr = f"CAST(c{j} AS DATE)"
         selects.append(expr)
+    # Incremental-window safety (2026-10-29 agent-traces gate fix): the
+    # per-session purge below is a fallback for callers that do NOT pre-purge
+    # their window. Loaders that call _delete_window(table, source, since)
+    # first must pass purge_session=False — the blanket session DELETE here
+    # otherwise wipes same-session rows on days OUTSIDE the window (the
+    # req-0001 window-replace regression: one 09-29 re-load deleted the
+    # session's 09-28 rows right before insert).
+    if purge_session and "session_id" in cols:
+        session_ids = sorted(
+            {str(row["session_id"]) for row in rows if row.get("session_id")}
+        )
+        con.executemany(
+            f"DELETE FROM {table} WHERE source = ? AND session_id = ?",  # noqa: S608  # parameterized values; interpolated part is a schema-constant table name
+            [(source, sid) for sid in session_ids],
+        )
     con.execute(
-        f"INSERT INTO {table} (source, {', '.join(cols)}) "  # noqa: S608  # constants + fixed columns, not user input
+        f"INSERT INTO {table} (source, {', '.join(cols)}) "  # noqa: S608
         f"SELECT '{source}', {', '.join(selects)} FROM {view}"
     )
     con.unregister(view)

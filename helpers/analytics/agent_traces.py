@@ -565,7 +565,7 @@ def _parse_zcode(con, since=None):
         total = 0
         for table, rows in out.items():
             rows = trace_contracts.validate_rows(table, rows, "zcode", keep_rejected=True)
-            trace_contracts._insert_all(con, table, rows, "zcode")
+            trace_contracts._insert_all(con, table, rows, "zcode", purge_session=False)
             total += len(rows)
         return total
     finally:
@@ -927,7 +927,7 @@ def _flush_request_grains(
     total = 0
     for table, rows in extracted.items():
         rows = trace_contracts.validate_rows(table, rows, source, keep_rejected=True)
-        trace_contracts._insert_all(con, table, rows, source)
+        trace_contracts._insert_all(con, table, rows, source, purge_session=False)
         total += len(rows)
     _load_log_extra.clear()
     detail = (
@@ -1894,7 +1894,7 @@ def _parse_prime(con, since=None):  # noqa: C901  # moved verbatim; split needs 
     total = 0
     for table, rows in extracted.items():
         rows = trace_contracts.validate_rows(table, rows, "prime", keep_rejected=True)
-        trace_contracts._insert_all(con, table, rows, "prime")
+        trace_contracts._insert_all(con, table, rows, "prime", purge_session=False)
         total += len(rows)
     detail = (
         f"requests={len(req_rows)} turns={len(turn_rows)} "
@@ -1964,7 +1964,7 @@ def _parse_rollout(con, since=None, directory=None):
                 ts = _rollout_iso(r.get("startedAt"))
                 if ts is None:
                     continue
-                day = ts.astimezone().date()  # local day, per model_usage.md conventions
+                day = ts.date()  # UTC day, per model_usage.md conventions
                 if since is not None and day < since:
                     continue
                 resp = r.get("response")
@@ -2045,7 +2045,7 @@ def _parse_rollout(con, since=None, directory=None):
     rows = trace_contracts.validate_rows(
         "fact_model_step", rows, _ROLLOUT_SOURCE, keep_rejected=True
     )
-    trace_contracts._insert_all(con, "fact_model_step", rows, _ROLLOUT_SOURCE)
+    trace_contracts._insert_all(con, "fact_model_step", rows, _ROLLOUT_SOURCE, purge_session=False)
     return len(rows)
 
 
