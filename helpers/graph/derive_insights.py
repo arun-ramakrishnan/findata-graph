@@ -92,6 +92,7 @@ from __future__ import annotations
 
 import argparse
 import datetime as _dt
+import sqlite3
 import json
 import html
 import os
@@ -514,22 +515,37 @@ def _collapse_metrics(
 
 def _skip_guard(
     retained: list[Metric],
-    vault: Path,
-    path_index: dict[str, str],
+    stem_paths: dict[str, Path],
 ) -> tuple[list[Metric], list[str]]:
     """S2 skip guard: keep a row only if its full sentence lives in its
-    edition note; otherwise skip (counted) — never silently dropped and
-    never sent to a carrier."""
+    EDITION file; otherwise skip (counted) — never silently dropped and
+    never sent to a carrier.
+
+    thin_tail S2 correction (2026-10-28): the first implementation verified
+    against the ENTITY's company note instead of the edition. Notes carry a
+    quote SELECTION (attributed quotes only), so 57% of scanned magnitudes
+    (2,226 / 3,878 distinct, census 2026-10-28) failed as ``no full quote``
+    and stayed skipped — 169 of 520 magnitude-producing entities had zero
+    captured rows. The design doc (derive_insights_apply_gate.md S2) always
+    said "in the edition": the row's ``source_ref`` names the edition stem,
+    and the newsletter file IS the durable provenance. Company notes keep
+    their render-side role (only retained rows can surface as Key Figures).
+    """
     kept: list[Metric] = []
     skipped: list[str] = []
+    text_cache: dict[str, str] = {}
     for m in retained:
-        note_path = path_index.get(m.entity)
-        if not note_path or not (vault / note_path).exists():
-            skipped.append(f"{m.entity} @ {m.as_of_edition}: {m.value_raw!r} (note missing)")
+        stem = (m.source_ref or "").removeprefix(METRICS_PREFIX).rsplit(":", 1)[0]
+        edition_file = stem_paths.get(stem)
+        if edition_file is None or not edition_file.exists():
+            skipped.append(
+                f"{m.entity} @ {m.as_of_edition}: {m.value_raw!r} (edition file missing)"
+            )
             continue
-        text = (vault / note_path).read_text(encoding="utf-8")
+        if stem not in text_cache:
+            text_cache[stem] = edition_file.read_text(encoding="utf-8", errors="replace")
         sq = (m.source_quote or "").strip().strip('"').strip("'")
-        if not sq or sq not in text:
+        if not sq or sq not in text_cache[stem]:
             skipped.append(f"{m.entity} @ {m.as_of_edition}: {m.value_raw!r} (no full quote)")
             continue
         kept.append(m)
@@ -1349,6 +1365,22 @@ _L_MKT_SHARE = re.compile(r"\bmarket share\b")
 _L_STAKE = re.compile(r"\bstake\b")
 _L_DEBT = re.compile(r"\bdebt\b|\bborrowings?\b|\bnet debt\b")
 _L_MARKET_CAP = re.compile(r"\bmarket cap\b|\bmarket capitalization\b")
+# thin_tail S2.4 (2026-10-28): census of NULL-label source sentences —
+# 1,634 recovered rows carried a recognizable noun the vocabulary missed
+# ("RPO of X GW", "investment of INR X crore", "attrition was around X%",
+# "operating capacity of X", "penetration closer to X%"). Census-backed
+# additions; anything still unmatched stays NULL by design (#308 contract:
+# the empty-NULL set is the "genuinely unlabeled" population).
+_L_CAPACITY = re.compile(r"\bcapacit(?:y|ies)\b|\bcapa\b|\bgw\b|\bmw\b")
+_L_INVESTMENT = re.compile(r"\binvest(?:ments?|ing|ed|)\b")
+_L_RETURNS = re.compile(r"\broce\b|\broe\b|\breturn on\b|\broi\b")
+_L_VOLUME = re.compile(r"\bvolume[s]?\b")
+_L_ATTRITION = re.compile(r"\battrition\b")
+_L_PENETRATION = re.compile(r"\bpenetration\b")
+_L_UTILIZATION = re.compile(r"\butilization\b|\butilisation\b")
+_L_DIVIDEND = re.compile(r"\bdividend[s]?\b")
+_L_RPO = re.compile(r"\brpo\b")
+_L_REALISATION = re.compile(r"\brealization\b|\brealisation\b")
 
 # Period tokens (FY / quarter / month-year) — reuse the derive_events shape.
 _FY_RE = re.compile(r"\b(?:Q[1-4]\s*)?FY\s?\d{2,4}\b|\bQ[1-4]\s*CY\s?\d{2,4}\b", re.I)
@@ -1378,6 +1410,16 @@ _METRIC_LABEL_PATTERNS: list[tuple[re.Pattern, str]] = [
     (_L_MARKET_CAP, "market_capitalization"),
     (_L_STAKE, "stake"),
     (_L_DEBT, "debt"),
+    (_L_CAPACITY, "capacity"),
+    (_L_INVESTMENT, "investment"),
+    (_L_RETURNS, "returns"),
+    (_L_VOLUME, "volume"),
+    (_L_ATTRITION, "attrition"),
+    (_L_PENETRATION, "penetration"),
+    (_L_UTILIZATION, "utilization"),
+    (_L_DIVIDEND, "dividend"),
+    (_L_RPO, "rpo"),
+    (_L_REALISATION, "realisation"),
 ]
 
 
@@ -1390,6 +1432,15 @@ def _label_from_window(w: str) -> str | None:
         if pat.search(w):
             return label
     return None
+
+
+# Forward-tense markers for the guidance fallback (S4 census: 512 NULL rows
+# carry these; the figure is a forward-looking quantity with no metric noun).
+_FORWARD_LOOK_RE = re.compile(
+    r"\b(?:expect\w*|target\w*|plan\w*|aim\w*|forecast\w*|project\w*|"
+    r"estimat\w*|anticipat\w*|poised|going forward|should|would|will)\b",
+    re.I,
+)
 
 
 def _classify_metric(sentence: str, value_raw: str, figure_pos: int) -> str | None:
@@ -1417,9 +1468,15 @@ def _classify_metric(sentence: str, value_raw: str, figure_pos: int) -> str | No
     if label:
         return f"guidance_{label}" if is_guidance else label
     # Guidance-style figures with no identifiable metric noun still get a
-    # recognizable label rather than NULL, while the empty-NULL contract
-    # for genuinely unlabeled rows is preserved for non-guidance text.
-    return "guidance" if is_guidance else None
+    # recognizable label rather than NULL (thin_tail S4, 2026-10-29: the
+    # fallback now covers the forward-TENSE marker set — "is expected",
+    # "projected", "target by FY28", "will" — not just the literal word
+    # "guidance"; the classifier docstring always promised guidance-STYLE).
+    # The empty-NULL contract for genuinely unlabeled rows is preserved:
+    # present-tense sentences with no metric noun stay NULL.
+    if is_guidance or _FORWARD_LOOK_RE.search(low):
+        return "guidance"
+    return None
 
 
 def _parse_value_num(value_raw: str, unit: str | None) -> float | None:
@@ -1811,11 +1868,12 @@ def render_chatter_block(
         if p is not None:
             stem = p.stem
     footnote = f" [^chatter-{stem}]" if stem else ""
-    lines = [_BEGIN, "", f"## The Chatter — {edition}", ""]
+    display = _normalize_chatter_edition(edition)
+    lines = [_BEGIN, "", f"## The Chatter — {display}", ""]
     lines.append(
-        f"<!-- Auto-generated by derive_insights.py from the {edition} concall. "
+        f"<!-- Auto-generated by derive_insights.py from the {display} concall. "
         f"Edit the paraphrase/quote selection by replacing this block with a "
-        f"hand-written `## The Chatter — {edition}` section (this sentinel-"
+        f"hand-written `## The Chatter — {display}` section (this sentinel-"
         f"wrapped block is refreshed on each `--apply` run of this script). -->"
     )
     lines.append("")
@@ -1858,7 +1916,7 @@ def render_chatter_block(
     if stem:
         lines.append(f"[^chatter-{stem}]: {edition} — [[{stem}]]")
         lines.append("")
-    lines.append(f"*Source: The Chatter — {edition}*")
+    lines.append(f"*Source: The Chatter — {display}*")
     lines.extend(["", _END, ""])
     return "\n".join(lines)
 
@@ -1952,15 +2010,21 @@ class _ChatterPlan:
 
     @staticmethod
     def _build_hand_editions(text: str) -> frozenset[str]:
+        # thin_tail S5: normalize like every other edition comparison — a
+        # hand-written doubled heading ("— The Chatter: X") must cover the
+        # raw edition string the same way the auto-span match does.
         stripped = _AUTO_BLOCK_RE.sub("", text)
-        return frozenset(m.group(1).strip().lower() for m in _CHATTER_HEADING_RE.finditer(stripped))
+        return frozenset(
+            _normalize_chatter_edition(m.group(1)).strip().lower()
+            for m in _CHATTER_HEADING_RE.finditer(stripped)
+        )
 
     def _scan(self) -> None:
         spans: dict[str, tuple[int, int]] = {}
         for m in _AUTO_BLOCK_RE.finditer(self.text):
             ed = _edition_of_block(m.group(0))
             if ed is not None:
-                spans[ed.strip().lower()] = (m.start(), m.end())
+                spans[_normalize_chatter_edition(ed).strip().lower()] = (m.start(), m.end())
         self._spans = spans
 
     def _invalidate(self) -> None:
@@ -1973,7 +2037,7 @@ class _ChatterPlan:
         ``_replace_or_insert_block`` (curation-safety first, then
         refresh-or-insert with nested-block rescue).
         """
-        norm = edition.strip().lower()
+        norm = _normalize_chatter_edition(edition).strip().lower()
         if norm in self._hand_editions:
             return (self.text, False)
         spans = self._spans
@@ -2010,6 +2074,19 @@ class _ChatterPlan:
         self.text = prefix + new_block + self.text[idx:]
         self._invalidate()
         return (self.text, True)
+
+
+# thin_tail S5 (2026-10-29): editions whose H1 title itself began with
+# "The Chatter:" produced doubled headings ("## The Chatter — The Chatter: X"
+# — 660 in the corpus census). Normalization strips the redundant prefix from
+# the DISPLAY only; the raw edition string stays the as_of_edition key, so
+# both the renderer and the block-match comparison normalize before compare.
+_CHATTER_PREFIX_RE = re.compile(r"^the chatter\s*[:\u2014-]\s*", re.IGNORECASE)
+
+
+def _normalize_chatter_edition(edition: str) -> str:
+    """Display form of an edition title: leading "The Chatter:" stripped."""
+    return _CHATTER_PREFIX_RE.sub("", edition, count=1)
 
 
 def _edition_of_block(blk: str) -> str | None:
@@ -2064,7 +2141,11 @@ def _replace_or_insert_block(text: str, edition: str, new_block: str) -> tuple[s
         # (unbounded duplication; found by test_fuzz_derive_insights_regions
         # 2026-08-22).
         ed_of_blk = _edition_of_block(m.group(0))
-        if ed_of_blk is not None and ed_of_blk.strip().lower() == edition.strip().lower():
+        if (
+            ed_of_blk is not None
+            and _normalize_chatter_edition(ed_of_blk).strip().lower()
+            == _normalize_chatter_edition(edition).strip().lower()
+        ):
             return _swap(m)
     # No auto block for THIS edition: insert a new one. Other editions'
     # auto blocks are NEVER evicted (a note accumulates one block per
@@ -2491,6 +2572,275 @@ class _KfPlan:
         return (self.text, True)
 
 
+# --- Peers (auto) block — thin_tail S3.3 ------------------------------------
+# A third sentinel-wrapped section surfacing relational context from
+# graph_edges: competes_with (yfinance industry KNN, the business relation)
+# ranked first, then semantic_peer (embedding cosine, clearly labeled —
+# vector-neighbors ≠ business relation, relation_enrichment_sources §4.3).
+# Evidence is DB-side (graph_edges), so the same gate rule as Key Figures
+# applies: render whenever the block would actually change.
+_PEERS_BEGIN = "<!-- BEGIN auto peers (derive_insights.py) -->"
+_PEERS_END = "<!-- END auto peers -->"
+_PEERS_HEADING = "## Peers (auto)"
+_PEERS_PATTERN = re.compile(
+    re.escape(_PEERS_BEGIN) + r".*?" + re.escape(_PEERS_END) + r"\n?", re.DOTALL
+)
+_PEERS_MAX = 8
+_PEERS_SECTION_RES = _KF_SECTION_RES  # same insertion anchors as Key Figures
+
+
+def render_peers_block(peers: list[tuple[str, str, float]]) -> str:
+    """Render the auto ``## Peers (auto)`` markdown block.
+
+    ``peers`` is ``[(display_name, kind, score)]`` with kind in
+    ``("peer", "semantic")``, pre-ranked by the caller. Wikilinks use the
+    entity display name (same convention as the sector rosters).
+    """
+    lines = [_PEERS_BEGIN, "", _PEERS_HEADING, ""]
+    lines.append(
+        "<!-- Auto-generated by derive_insights.py from graph_edges "
+        "(competes_with = yfinance industry KNN; semantic_peer = embedding "
+        "cosine, similarity not a business relation). Refreshed on each "
+        "`--apply` run of this script; do not edit by hand. -->"
+    )
+    lines.append("")
+    if not peers:
+        lines.append("_(No peer relations captured yet.)_")
+    else:
+        for name, kind, score in peers:
+            if kind == "peer":
+                lines.append(f"- [[{name}]] — industry peer")
+            elif kind == "holder":
+                # institutions are not note-backed (no wikilink target)
+                lines.append(f"- **{name}** — holds {score * 100:.1f}%")
+            else:
+                lines.append(f"- [[{name}]] — semantic {score:.2f}")
+    lines.extend(["", _PEERS_END, ""])
+    return "\n".join(lines)
+
+
+def _peers_insertion_point(text: str) -> int:
+    """Insert after the Key Figures block if present (keeps the auto-block
+    band ordered: profile → figures → peers → chatter), else the KF anchors,
+    else before the first chatter block, else at end. Always outside auto
+    regions — the KF-nested-in-chatter incident class."""
+    m = _KF_PATTERN.search(text)
+    if m:
+        return _outside_auto_regions(text, m.end())
+    for rx in _PEERS_SECTION_RES:
+        m = rx.search(text)
+        if m:
+            nxt = _H2_RE.search(text[m.end() :])
+            return _outside_auto_regions(text, m.end() + (nxt.start() if nxt else 0))
+    m = _CHATTER_H2_RE.search(text)
+    if m:
+        return _outside_auto_regions(text, m.start())
+    return len(text)
+
+
+class _PeersPlan:
+    """Per-note Peers block plan — same search-once/rescue semantics as
+    :class:`_KfPlan`, keyed on the peers sentinels."""
+
+    def __init__(self, text: str):
+        self.text = text
+
+    def apply(self, new_block: str) -> tuple[str, bool]:
+        m = _PEERS_PATTERN.search(self.text)
+        if m:
+            if self.text[m.start() : m.end()] == new_block:
+                return (self.text, False)  # byte-identical idempotency guard
+            rescued = _extract_nested_blocks(m.group(0))
+            if rescued is None:
+                return (self.text, False)  # unbalanced sentinels — never risk content
+            replacement = (
+                ("\n\n".join(b.rstrip() for b in rescued) + "\n\n" + new_block)
+                if rescued
+                else new_block
+            )
+            self.text = self.text[: m.start()] + replacement + self.text[m.end() :]
+            return (self.text, True)
+        idx = _peers_insertion_point(self.text)
+        prefix = self.text[:idx]
+        if prefix and not prefix.endswith("\n\n"):
+            prefix += "\n" if prefix.endswith("\n") else "\n\n"
+        self.text = prefix + new_block + self.text[idx:]
+        return (self.text, True)
+
+
+def _display_names(conn) -> dict[str, str]:
+    """Display-name resolution: name itself + space-folded normalized_name."""
+    names: dict[str, str] = {}
+    for r in conn.execute("SELECT name, normalized_name FROM entities").fetchall():
+        if r["name"]:
+            names[r["name"]] = r["name"]
+        if r["normalized_name"]:
+            names.setdefault(
+                r["normalized_name"].replace("_", " "), r["name"] or r["normalized_name"]
+            )
+    return names
+
+
+def _peer_candidates(r, names: dict[str, str]) -> list[tuple[str, str, str, float]]:
+    """One graph_edge row -> ``(holder_entity, mate_entity, kind, score)`` list.
+
+    invested_in is directed institution→company: only the company end sees
+    the holder (score = pctHeld fraction; weight is the 3.0/1.0 stake band).
+    The symmetric peer types index BOTH ends (score = weight, or the cosine
+    property for semantic_peer).
+    """
+    s, t = r["source"], r["target"]
+    if s == t:
+        return []
+    try:
+        props = json.loads(r["properties"]) if r["properties"] else {}
+    except TypeError, ValueError:
+        props = {}
+    if r["edge_type"] == "invested_in":
+        return [(t, s, "holder", float(props.get("pctHeld", 0.0)))]
+    kind = "peer" if r["edge_type"] == "competes_with" else "semantic"
+    score = (
+        float(props.get("cosine", r["weight"] or 0.0))
+        if kind == "semantic"
+        else float(r["weight"] or 0.0)
+    )
+    return [(a, b, kind, score) for a, b in ((s, t), (t, s))]
+
+
+def _peers_from_db(conn) -> dict[str, list[tuple[str, str, float]]]:
+    """Load peer relations for every entity from graph_edges.
+
+    Returns ``entity -> [(display_name, kind, score)]`` ranked: competes_with
+    by weight desc first (business relation), then ``invested_in`` holders
+    (score = pctHeld fraction, institution → company, directed so only the
+    company end is indexed), then semantic_peer by cosine desc. A pair holding
+    BOTH peer types shows once as the business relation. Capped at
+    ``_PEERS_MAX`` per entity. Display names resolve through ``entities``;
+    institutions are note-less and render as plain text (thin_tail S3.4).
+    """
+    names = _display_names(conn)
+    try:
+        rows = conn.execute(
+            "SELECT source, target, edge_type, weight, properties FROM graph_edges "
+            "WHERE edge_type IN ('competes_with', 'semantic_peer', 'invested_in')"
+        ).fetchall()
+    except sqlite3.OperationalError:
+        # DB predating the relation layer (test fixtures, early stores) —
+        # no peer evidence, render nothing.
+        return {}
+    best: dict[str, dict[str, tuple[str, str, float]]] = {}
+    for r in rows:
+        for holder, mate, kind, score in _peer_candidates(r, names):
+            display = names.get(mate, mate)
+            cand = (display, kind, score)
+            cur = best.setdefault(holder, {}).get(mate)
+            # competes_with dominates; within a kind keep the higher score
+            if (
+                cur is None
+                or (kind == "peer" and cur[1] != "peer")
+                or (kind == cur[1] and score > cur[2])
+            ):
+                best[holder][mate] = cand
+    out: dict[str, list[tuple[str, str, float]]] = {}
+    for entity, mates in best.items():
+        rank = {"peer": 0, "holder": 1, "semantic": 2}
+        ranked = sorted(
+            mates.values(),
+            key=lambda c: (rank[c[1]], -c[2], c[0]),
+        )
+        out[entity] = ranked[:_PEERS_MAX]
+    return out
+
+
+def _render_one_peers_note(
+    p: Path,
+    entities: list[str],
+    *,
+    peers_by_entity: dict[str, list[tuple[str, str, float]]],
+    dry_run: bool,
+    stale_only: bool,
+) -> str:
+    """Render one note's Peers block; ``"written"/"gated"/"skip"``.
+
+    Same gate rule as the Key-Figures pass: the edition-dates gate runs
+    AFTER the plan and only when nothing would change (graph_edges evidence
+    is invisible to it).
+    """
+    text = p.read_text(encoding="utf-8", errors="replace")
+    fm_once = _load_frontmatter(text)
+    original_text = text
+    plan = _PeersPlan(text)
+    changed = False
+    for entity in entities:
+        new_block = render_peers_block(peers_by_entity[entity])
+        text, block_changed = plan.apply(new_block)
+        if block_changed:
+            changed = True
+    text = plan.text
+    if (
+        stale_only
+        and not changed
+        and (_stale_only_skip(text, frozenset(), fm=_gate_fm(p, text, fm_once)) is True)
+    ):
+        return "gated"
+    if not changed or not _balanced_or_skipped(original_text, text, p.name):
+        return "skip"
+    if dry_run:
+        return "written"
+    text = bump_generated(text, _OKF_ACTOR)
+    if not text.endswith("\n"):
+        text += "\n"  # notes terminate with a newline (md-lint MD047)
+    p.write_text(text, encoding="utf-8")
+    return "written"
+
+
+def render_peers_notes(
+    peers_by_entity: dict[str, list[tuple[str, str, float]]],
+    *,
+    dry_run: bool = True,
+    conn=None,
+    stale_only: bool = False,
+) -> tuple[int, int]:
+    """Render the auto ``## Peers (auto)`` block into each company note.
+
+    Mirrors :func:`render_metrics_notes`: one read/plan/write per note,
+    byte-identical guard, ``--stale-only`` gate evaluated AFTER the plan and
+    only when nothing would change (graph_edges evidence is invisible to the
+    edition-dates gate). Returns ``(written, gated)``.
+    """
+    own_conn = conn is None
+    if own_conn:
+        conn = connect()
+    written = gated = 0
+    try:
+        path_by_entity = _paths_by_entity(conn, list(peers_by_entity.keys()))
+        if not path_by_entity:
+            return (0, 0)
+        by_path: dict[str, list[str]] = {}
+        for entity, rel in path_by_entity.items():
+            if peers_by_entity.get(entity):
+                by_path.setdefault(rel, []).append(entity)
+        for rel, entities in sorted(by_path.items()):
+            p = PROJECT_ROOT / rel
+            if not p.exists():
+                continue
+            outcome = _render_one_peers_note(
+                p,
+                entities,
+                peers_by_entity=peers_by_entity,
+                dry_run=dry_run,
+                stale_only=stale_only,
+            )
+            if outcome == "written":
+                written += 1
+            elif outcome == "gated":
+                gated += 1
+        return (written, gated)
+    finally:
+        if own_conn:
+            conn.close()
+
+
 def _render_metric_note(
     p: Path,
     entities: list[tuple[str, list]],
@@ -2506,10 +2856,19 @@ def _render_metric_note(
 
     ``entities`` is a list of ``(entity_name, list[Metric])`` in
     insertion order (same entity order as the old per-entity loop).
-    One read, one frontmatter parse, one stale gate, one KF block per
-    entity (applied sequentially on the same text — last-entity-wins
-    KF content for shared notes byte-for-byte), one sources splice,
-    one write.
+    One read, one frontmatter parse, one KF block per entity (applied
+    sequentially on the same text — last-entity-wins KF content for
+    shared notes byte-for-byte), one sources splice, one write.
+
+    The ``--stale-only`` edition-dates gate runs AFTER the KF plan and
+    only when nothing would change: the gate models edition movement
+    (``sources[]``), but KF evidence also arrives through
+    ``company_metrics`` rows written by other writers
+    (``enrich_from_yfinance``) with no edition footprint — a KF block
+    that would actually change IS evidence movement, so it renders even
+    under ``--stale-only`` (thin_tail S1a). The idempotency guard keeps
+    byte-identical re-renders from counting as changes, so gated-clean
+    notes neither churn nor block.
 
     Returns ``"written"`` (written or would-write), ``"gated"`` (stale_only
     evidence gate) or ``"skip"`` (no change / unbalanced rewrite).
@@ -2521,10 +2880,6 @@ def _render_metric_note(
     for _, ms in entities:
         merged_stems.update(_scanned_stems({m.as_of_edition for m in ms}, index, stem_memo))
     fm_once = _load_frontmatter(text)
-    if stale_only and (
-        _stale_only_skip(text, frozenset(merged_stems), fm=_gate_fm(p, text, fm_once)) is True
-    ):
-        return "gated"
     original_text = text
     # S2: the KF plan searches the note once; entities apply block-locally
     # on the same text (last-entity-wins KF content byte-for-byte).
@@ -2536,6 +2891,12 @@ def _render_metric_note(
         if block_changed:
             changed = True
     text = plan.text
+    if (
+        stale_only
+        and not changed
+        and (_stale_only_skip(text, frozenset(merged_stems), fm=_gate_fm(p, text, fm_once)) is True)
+    ):
+        return "gated"
     text, sources_changed = _splice_sources(
         text, index, vault, extra_stems=frozenset(merged_stems), memo=res_memo, fm=fm_once
     )
@@ -2613,6 +2974,90 @@ def render_metrics_notes(
         if own_conn:
             conn.close()
     return (written, gated)
+
+
+def _metrics_from_db(conn, entities: list[str]) -> dict[str, list[Metric]]:
+    """Load persisted ``company_metrics`` rows for ``entities`` -> render map.
+
+    The scan pass only ever sees metrics collected from the editions it
+    read; rows written by other writers (``enrich_from_yfinance``) exist
+    only in the DB and were invisible to the Key-Figures render — the
+    thin-tail backfill's S1a gap. The DB is the union (scan rows are
+    persisted there too), so manifest entities render from DB truth only;
+    callers must drop any scan-collected entry for the same entity before
+    merging to avoid double-counting.
+    """
+    if not entities:
+        return {}
+    out: dict[str, list[Metric]] = {}
+    placeholders = ",".join("?" for _ in entities)
+    rows = conn.execute(
+        f"SELECT entity, metric_label, value_raw, value_num, unit, period, "  # noqa: S608  # parameterized; interpolated part is a `?`-clause
+        f"as_of_edition, source_quote FROM company_metrics "
+        f"WHERE entity IN ({placeholders}) ORDER BY id",
+        tuple(entities),
+    ).fetchall()
+    for r in rows:
+        out.setdefault(r["entity"], []).append(
+            Metric(
+                entity=r["entity"],
+                value_raw=r["value_raw"],
+                metric_label=r["metric_label"],
+                value_num=r["value_num"],
+                unit=r["unit"],
+                period=r["period"],
+                as_of_edition=r["as_of_edition"],
+                source_quote=r["source_quote"],
+            )
+        )
+    return out
+
+
+def _kf_manifest_entities(path: str, conn=None) -> list[str]:
+    """Read a ``--kf-manifest`` file: one entity name or note path per line.
+
+    ``#`` comments and blank lines skipped. Lines containing ``/`` are
+    treated as repo-relative note paths and resolved through
+    ``entities.file_path``; anything else is an exact ``entities.name``.
+    Unknown entries are reported and dropped. Pass ``conn`` to reuse a
+    connection (tests); default opens its own read connection.
+    """
+    names: list[str] = []
+    path_like: list[str] = []
+    for ln in (PROJECT_ROOT / path).read_text(encoding="utf-8").splitlines():
+        ln = ln.strip()
+        if not ln or ln.startswith("#"):
+            continue
+        (path_like if "/" in ln else names).append(ln)
+    own_conn = conn is None
+    if own_conn:
+        conn = connect()
+    try:
+        for ln in path_like:
+            row = conn.execute("SELECT name FROM entities WHERE file_path = ?", (ln,)).fetchone()
+            if row is None:
+                print(
+                    f"WARNING: kf-manifest path {ln!r}: no entity row — dropped.", file=sys.stderr
+                )
+                continue
+            names.append(row["name"])
+        if names:
+            placeholders = ",".join("?" for _ in names)
+            known = {
+                r["name"]
+                for r in conn.execute(
+                    f"SELECT name FROM entities WHERE name IN ({placeholders})",  # noqa: S608  # parameterized; interpolated part is a `?`-clause
+                    tuple(names),
+                ).fetchall()
+            }
+            for n in names:
+                if n not in known:
+                    print(f"WARNING: kf-manifest entity {n!r}: unknown — dropped.", file=sys.stderr)
+            names = [n for n in names if n in known]
+    finally:
+        if own_conn:
+            conn.close()
+    return names
 
 
 # =========================================================================== #
@@ -3333,6 +3778,18 @@ def _cli(argv: list[str] | None = None) -> int:  # noqa: C901
         help="S1b: use helpers.core.corpus shared walk (maint --full) — one walk for all derivations.",
     )
     p.add_argument(
+        "--kf-manifest",
+        metavar="FILE",
+        default=None,
+        help="Render Key-Figures blocks for the listed entities from the "
+        "PERSISTED company_metrics table (one entity name or note path "
+        "per line, '#' comments). The scan pass only sees metrics "
+        "collected from the editions it read, so DB rows written by "
+        "other writers (enrich_from_yfinance) never rendered — this "
+        "backfills exactly those notes. Manifest entities render from "
+        "DB truth; normal scan-based rendering is unchanged.",
+    )
+    p.add_argument(
         "--workers",
         type=int,
         default=None,
@@ -3368,11 +3825,10 @@ def _cli(argv: list[str] | None = None) -> int:  # noqa: C901
         # markdown_parse_procedure_audit).
         N = len(metrics)
         collapsed_clusters, distinct = _collapse_metrics(metrics)
-        retained, skipped = _skip_guard(
-            distinct,
-            PROJECT_ROOT,
-            _paths_by_entity(conn, [m.entity for m in distinct]),
-        )
+        # S2 provenance contract: verify each row's sentence against the
+        # EDITION file it was scanned from (stem encoded in source_ref).
+        stem_paths = {p.stem: p for p in _expand_paths(args.target)}
+        retained, skipped = _skip_guard(distinct, stem_paths)
         C = sum(c - 1 for _, c in collapsed_clusters if c > 1)
         K = len(skipped)
         R = len(retained)
@@ -3624,10 +4080,36 @@ def _cli(argv: list[str] | None = None) -> int:  # noqa: C901
                 + ").",
                 file=sys.stderr,
             )
-            # Key Figures (auto) blocks from metrics.
+            # Key Figures (auto) blocks from metrics. Evidence is the UNION:
+            # scan-collected rows (accurate for this run's dry-run preview,
+            # not yet persisted) for entities the scan touched, plus every
+            # PERSISTED row in company_metrics for entities it didn't —
+            # rows written by other writers (enrich_from_yfinance) carry no
+            # edition footprint and were invisible to the scan-only map
+            # (thin_tail S1a: 477 entities held metrics without a render).
             metrics_by_entity: dict[str, list[Metric]] = {}
             for m in metrics:
                 metrics_by_entity.setdefault(m.entity, []).append(m)
+            db_entities = [
+                r["entity"]
+                for r in conn.execute("SELECT DISTINCT entity FROM company_metrics").fetchall()
+                if r["entity"] not in metrics_by_entity
+            ]
+            for i in range(0, len(db_entities), 500):
+                metrics_by_entity.update(_metrics_from_db(conn, db_entities[i : i + 500]))
+            if args.kf_manifest:
+                mf_entities = _kf_manifest_entities(args.kf_manifest)
+                if mf_entities:
+                    # Manifest entities render from DB truth only — their
+                    # scan-collected rows are already persisted there, so
+                    # keeping the scan entry would double-count.
+                    for e in mf_entities:
+                        metrics_by_entity.pop(e, None)
+                    metrics_by_entity.update(_metrics_from_db(conn, mf_entities))
+                    print(
+                        f"kf-manifest: {len(mf_entities)} entities seeded from company_metrics.",
+                        file=sys.stderr,
+                    )
             kf_written, kf_gated = render_metrics_notes(
                 metrics_by_entity,
                 dry_run=not args.apply,
@@ -3638,6 +4120,21 @@ def _cli(argv: list[str] | None = None) -> int:  # noqa: C901
             print(
                 f"{kf_written} key-figures notes {n_action}"
                 + (f" ({kf_gated} notes gated by --stale-only)" if args.stale_only else "")
+                + ".",
+                file=sys.stderr,
+            )
+            # Peers (auto) blocks from graph_edges (thin_tail S3.3): DB-side
+            # evidence like Key Figures — competes_with + semantic_peer.
+            peers_by_entity = _peers_from_db(conn)
+            pw, pg = render_peers_notes(
+                peers_by_entity,
+                dry_run=not args.apply,
+                conn=conn,
+                stale_only=args.stale_only,
+            )
+            print(
+                f"{pw} peers notes {n_action}"
+                + (f" ({pg} notes gated by --stale-only)" if args.stale_only else "")
                 + ".",
                 file=sys.stderr,
             )

@@ -836,8 +836,14 @@ class TestCliStaleOnly:
         with contextlib.redirect_stderr(err2):
             rc2 = di._cli(["--apply", "--stale-only", str(tmp_path / "nl.md")])
         assert rc2 == 0
+        # thin_tail S1a (KF gate bypass) + S2 (edition-contract guard): run 1
+        # now retains ALL scan rows — the old note-target guard made run 1
+        # retain fewer than run 2 (the apply_gate doc's "not idempotent on
+        # its first pass" caveat is dead). Run 2 is the byte-identical fixed
+        # point again: chatter gated, KF plan no-change.
         assert after.read_text() == healed  # byte-identical
         assert "0 notes wrote" in err2.getvalue()
+        assert "0 key-figures notes wrote" in err2.getvalue()
         assert "gated by --stale-only" in err2.getvalue()
 
     def test_stale_only_renders_note_with_newer_evidence(self, tmp_path, monkeypatch):
@@ -2912,67 +2918,86 @@ class TestS1Collapse:
 
 class TestS2SkipGuard:
     """S2: skip guard — retain only rows whose full sentence lives in the
-    edition note; skipped rows are counted, never silently dropped."""
+    EDITION file (thin_tail S2 correction 2026-10-28: the first
+    implementation checked the entity's company NOTE, but notes carry a
+    quote selection, so 57% of scanned magnitudes failed and stayed
+    skipped; derive_insights_apply_gate.md S2 always said "in the
+    edition"). Skipped rows are counted, never silently dropped."""
 
-    def test_retained_when_quote_found(self, tmp_path):
-        vault = tmp_path / "vault"
-        note = vault / "findata" / "Companies" / "A" / "A.md"
-        note.parent.mkdir(parents=True)
-        note.write_text("A is growing. The EBITDA margin is 12%.", encoding="utf-8")
+    def _edition(self, tmp_path, body, stem="E1"):
+        ed = tmp_path / "findata" / "The_Chatter" / f"{stem}.md"
+        ed.parent.mkdir(parents=True, exist_ok=True)
+        ed.write_text(body, encoding="utf-8")
+        return {stem: ed}
+
+    def test_retained_when_quote_found_in_edition(self, tmp_path):
+        stem_paths = self._edition(tmp_path, "Our EBITDA margin was 12%. Guidance holds.")
         metrics = [
             di.Metric(
                 entity="A",
                 value_raw="12%",
                 metric_label="margin",
-                source_quote="The EBITDA margin is 12%",
+                source_quote="Our EBITDA margin was 12%",
                 as_of_edition="E1",
+                source_ref=f"{di.METRICS_PREFIX}E1:42",
             ),
         ]
-        path_index = {"A": "findata/Companies/A/A.md"}
-        kept, skipped = di._skip_guard(metrics, vault, path_index)
+        kept, skipped = di._skip_guard(metrics, stem_paths)
         assert kept == metrics
         assert skipped == []
 
-    def test_skipped_when_quote_not_found(self, tmp_path):
-        vault = tmp_path / "vault"
-        note = vault / "findata" / "Companies" / "A" / "A.md"
-        note.parent.mkdir(parents=True)
-        note.write_text("A is growing. The revenue is 10%.", encoding="utf-8")
+    def test_retained_even_without_company_note(self, tmp_path):
+        # The old guard skipped rows for note-less entities (PNB Intl, NSDL);
+        # under the edition contract the newsletter IS the provenance.
+        stem_paths = self._edition(tmp_path, "Depositories settled 3 crore accounts.")
+        metrics = [
+            di.Metric(
+                entity="National Securities Depository",
+                value_raw="3 crore",
+                metric_label="volume",
+                source_quote="Depositories settled 3 crore accounts",
+                as_of_edition="E1",
+                source_ref=f"{di.METRICS_PREFIX}E1:7",
+            ),
+        ]
+        kept, skipped = di._skip_guard(metrics, stem_paths)
+        assert kept == metrics
+        assert skipped == []
+
+    def test_skipped_when_quote_not_in_edition(self, tmp_path):
+        stem_paths = self._edition(tmp_path, "The revenue grew 10% year over year.")
         metrics = [
             di.Metric(
                 entity="A",
                 value_raw="12%",
                 metric_label="margin",
-                source_quote="The EBITDA margin is 12%",
+                source_quote="Our EBITDA margin was 12%",
                 as_of_edition="E1",
+                source_ref=f"{di.METRICS_PREFIX}E1:42",
             ),
         ]
-        path_index = {"A": "findata/Companies/A/A.md"}
-        kept, skipped = di._skip_guard(metrics, vault, path_index)
+        kept, skipped = di._skip_guard(metrics, stem_paths)
         assert kept == []
         assert len(skipped) == 1
         assert "no full quote" in skipped[0]
 
-    def test_skipped_when_note_missing(self, tmp_path):
+    def test_skipped_when_edition_file_missing(self, tmp_path):
         metrics = [
             di.Metric(
                 entity="A",
                 value_raw="12%",
                 metric_label="margin",
-                source_quote="The EBITDA margin is 12%",
+                source_quote="Our EBITDA margin was 12%",
                 as_of_edition="E1",
+                source_ref=f"{di.METRICS_PREFIX}E1:42",
             ),
         ]
-        path_index = {"A": "findata/Companies/A/A.md"}
-        kept, skipped = di._skip_guard(metrics, tmp_path, path_index)
+        kept, skipped = di._skip_guard(metrics, {})
         assert kept == []
-        assert any("note missing" in s for s in skipped)
+        assert any("edition file missing" in s for s in skipped)
 
     def test_skipped_when_source_quote_missing(self, tmp_path):
-        vault = tmp_path / "vault"
-        note = vault / "findata" / "Companies" / "A" / "A.md"
-        note.parent.mkdir(parents=True)
-        note.write_text("A is growing.", encoding="utf-8")
+        stem_paths = self._edition(tmp_path, "Some body text without figures.")
         metrics = [
             di.Metric(
                 entity="A",
@@ -2980,10 +3005,10 @@ class TestS2SkipGuard:
                 metric_label="margin",
                 source_quote=None,
                 as_of_edition="E1",
+                source_ref=f"{di.METRICS_PREFIX}E1:42",
             ),
         ]
-        path_index = {"A": "findata/Companies/A/A.md"}
-        kept, skipped = di._skip_guard(metrics, vault, path_index)
+        kept, skipped = di._skip_guard(metrics, stem_paths)
         assert kept == []
         assert any("no full quote" in s for s in skipped)
 
@@ -3056,7 +3081,10 @@ class TestS3Brief:
         assert "derive-insights gate" in text
         assert "distinct facts:" in text
         assert "collapsed:" in text
-        assert "skipped:" in text
+        # thin_tail S2: under the edition contract every scanned row traces
+        # to its edition file, so the fixture brief shows 0 skipped — the
+        # detailed skip list is a unit-level surface (TestS2SkipGuard).
+        assert "0 skipped)" in text
         assert "no judgment reaches the write" in text.lower()
         assert "outputs/derive_insights.md" in text
 
@@ -3179,3 +3207,318 @@ class TestSpeakerResolution:
         section = di.CompanySection("Flash Electronics", 1, body)
         quotes = di.extract_quotes(section, "Flash Electronics", "Flash_Electronics")
         assert quotes and quotes[0].speaker_name == "Akash Minda"
+
+
+class TestKfManifestBackfill:
+    """thin_tail S1a: ``--kf-manifest`` seeds the Key-Figures render from
+    PERSISTED company_metrics rows — the scan pass only ever saw metrics
+    collected from the editions it read, so rows written by other writers
+    (enrich_from_yfinance) never rendered."""
+
+    def _seed(self, tmp_path):
+        conn = _connect(tmp_path)
+        conn.executemany(
+            "INSERT INTO entities(name, entity_type, normalized_name, file_path) VALUES (?,?,?,?)",
+            [
+                ("MRF Ltd", "company", "MRF_Ltd", "findata/Companies/Auto/MRF.md"),
+                ("KIOCL", "company", "KIOCL", "findata/Companies/Metals/KIOCL.md"),
+            ],
+        )
+        conn.execute(
+            "INSERT INTO company_metrics(entity, metric_label, value_raw, value_num,"
+            " unit, period, as_of_edition, source_quote, source_ref)"
+            " VALUES ('MRF Ltd','Market Cap','50,000 Cr',500000.0,'Cr','2026-10',"
+            "NULL,NULL,'metrics:auto')"
+        )
+        conn.execute(
+            "INSERT INTO company_metrics(entity, metric_label, value_raw, value_num,"
+            " unit, period, as_of_edition, source_quote, source_ref)"
+            " VALUES ('MRF Ltd','P/E','25.4',25.4,NULL,NULL,'Yahoo Finance',NULL,'metrics:auto')"
+        )
+        conn.commit()
+        return conn
+
+    def test_metrics_from_db_partitions_and_maps_rows(self, tmp_path):
+        conn = self._seed(tmp_path)
+        got = di._metrics_from_db(conn, ["MRF Ltd", "KIOCL"])
+        # KIOCL holds no rows -> absent from the map (render skips it).
+        assert set(got) == {"MRF Ltd"}
+        assert [m.metric_label for m in got["MRF Ltd"]] == ["Market Cap", "P/E"]
+        m = got["MRF Ltd"][0]
+        assert m.entity == "MRF Ltd"
+        assert m.value_raw == "50,000 Cr"
+        assert m.value_num == 500000.0
+        assert m.unit == "Cr"
+        assert m.as_of_edition is None
+
+    def test_metrics_from_db_empty_entities(self, tmp_path):
+        conn = self._seed(tmp_path)
+        assert di._metrics_from_db(conn, []) == {}
+        assert di._metrics_from_db(conn, ["Ghost Corp"]) == {}
+
+    def test_kf_manifest_parses_names_paths_and_comments(self, tmp_path, monkeypatch):
+        conn = self._seed(tmp_path)
+        mf = tmp_path / "mf.txt"
+        mf.write_text(
+            "# thin_tail S1a manifest\n\nMRF Ltd\nfindata/Companies/Metals/KIOCL.md\n",
+            encoding="utf-8",
+        )
+        monkeypatch.setattr(di, "PROJECT_ROOT", tmp_path)
+        assert di._kf_manifest_entities("mf.txt", conn=conn) == ["MRF Ltd", "KIOCL"]
+
+    def test_kf_manifest_drops_unknown(self, tmp_path, monkeypatch, capsys):
+        conn = self._seed(tmp_path)
+        mf = tmp_path / "mf.txt"
+        mf.write_text("Ghost Corp\nMRF Ltd\n", encoding="utf-8")
+        monkeypatch.setattr(di, "PROJECT_ROOT", tmp_path)
+        assert di._kf_manifest_entities("mf.txt", conn=conn) == ["MRF Ltd"]
+        assert "Ghost Corp" in capsys.readouterr().err
+
+
+class TestMetricLabelVocabulary:
+    """thin_tail S2.4: census-backed label vocabulary (2026-10-28) — NULL-label
+    source sentences carried nouns the old 10-pattern table missed."""
+
+    def _label(self, sentence: str, value_raw: str) -> str | None:
+        m = sentence.lower().find(value_raw.lower())
+        return di._classify_metric(sentence, value_raw, m)
+
+    def test_capacity_from_census_shapes(self):
+        assert (
+            self._label("We are adding operating capacity of 2.5 GW by FY27.", "2.5 GW")
+            == "capacity"
+        )
+        assert self._label("Nuclear capa from 2 GW to 4 GW is planned.", "2 GW") == "capacity"
+
+    def test_investment_and_rpo(self):
+        assert (
+            self._label("This requires investment of INR 1200 crore.", "INR 1200 crore")
+            == "investment"
+        )
+        assert self._label("RPO of 4 GW is unmet currently.", "4 GW") == "rpo"
+
+    def test_services_and_consumer_nouns(self):
+        assert self._label("Attrition was around 16% this year.", "16%") == "attrition"
+        assert self._label("Penetration closer to 40% is achievable.", "40%") == "penetration"
+        assert self._label("Utilization improved to 85% in Q2.", "85%") == "utilization"
+        assert self._label("Dividend payout of 30% is maintained.", "30%") == "dividend"
+        assert self._label("Realisation improved 8% sequentially.", "8%") == "realisation"
+
+    def test_returns(self):
+        assert self._label("ROCE expanded to 18% post deleveraging.", "18%") == "returns"
+
+    def test_genuinely_unlabeled_stays_null(self):
+        # #308 contract: empty-NULL set is the genuinely-unlabeled population
+        assert self._label("Resolution varies between 30 and 40 percent here.", "30") is None
+
+    def test_guidance_prefix_still_applies(self):
+        label = self._label("Capacity guidance for FY27 is 5 GW.", "5 GW")
+        assert label == "guidance_capacity"
+
+
+class TestPeersBlock:
+    """thin_tail S3.3: `## Peers (auto)` sentinel block from graph_edges —
+    competes_with (business relation) ranks above semantic_peer (embedding
+    cosine); same DB-evidence + gate-bypass contract as Key Figures."""
+
+    def _conn(self, tmp_path):
+        conn = sqlite3.connect(tmp_path / "peers.db")
+        conn.row_factory = sqlite3.Row
+        conn.executescript(_schema_sql())
+        conn.execute(
+            "CREATE TABLE graph_edges(id INTEGER PRIMARY KEY AUTOINCREMENT,"
+            " source TEXT, target TEXT, edge_type TEXT, weight REAL, properties TEXT)"
+        )
+        return conn
+
+    def test_render_peers_block_kinds(self):
+        block = di.render_peers_block(
+            [("Infosys", "peer", 1.0), ("HCL Technologies", "semantic", 0.86)]
+        )
+        assert "## Peers (auto)" in block
+        assert "- [[Infosys]] — industry peer" in block
+        assert "- [[HCL Technologies]] — semantic 0.86" in block
+        assert "BEGIN auto peers" in block and "END auto peers" in block
+
+    def test_peers_from_db_ranks_and_indexes_both_endpoints(self, tmp_path):
+        conn = self._conn(tmp_path)
+        conn.executemany(
+            "INSERT INTO entities(name, entity_type, normalized_name, file_path) VALUES (?,?,?,?)",
+            [
+                ("A Ltd", "company", "A_Ltd", "findata/Companies/X/A_Ltd.md"),
+                ("B Ltd", "company", "B_Ltd", "findata/Companies/X/B_Ltd.md"),
+            ],
+        )
+        conn.executemany(
+            "INSERT INTO graph_edges(source, target, edge_type, weight, properties) VALUES (?,?,?,?,?)",
+            [
+                ("A Ltd", "B Ltd", "semantic_peer", 0.5, '{"cosine": 0.9}'),
+                ("A Ltd", "B Ltd", "competes_with", 1.0, "{}"),
+                ("A Ltd", "A Ltd", "competes_with", 1.0, "{}"),  # self-loop dropped
+            ],
+        )
+        conn.commit()
+        got = di._peers_from_db(conn)
+        assert set(got) == {"A Ltd", "B Ltd"}
+        # competes_with dominates the same pair even with lower recency
+        assert got["A Ltd"] == [("B Ltd", "peer", 1.0)]
+        assert got["B Ltd"] == [("A Ltd", "peer", 1.0)]
+
+    def test_peers_from_db_missing_table_is_empty(self, tmp_path):
+        conn = self._conn(tmp_path)
+        conn.execute("DROP TABLE graph_edges")
+        conn.commit()
+        assert di._peers_from_db(conn) == {}
+
+    def test_render_peers_notes_writes_idempotent_and_gate_bypasses(self, tmp_path, monkeypatch):
+        conn = self._conn(tmp_path)
+        note = tmp_path / "findata" / "Companies" / "X" / "A_Ltd.md"
+        note.parent.mkdir(parents=True)
+        # fresh derive stamp + empty sources: the edition gate WOULD skip a
+        # note in this state — the DB-evidence bypass must render anyway.
+        note.write_text(
+            "---\ntype: company\ntitle: A Ltd\ngenerated:\n  by:"
+            " derive_insights.py/v1\n  at: '2026-10-28T00:00:00Z'\nsources:\n"
+            "- id: E1\n  last_modified: '2026-09-01'\n---\n\n# A Ltd\n",
+            encoding="utf-8",
+        )
+        conn.execute(
+            "INSERT INTO entities(name, entity_type, normalized_name, file_path) VALUES"
+            " ('A Ltd','company','A_Ltd','findata/Companies/X/A_Ltd.md')"
+        )
+        conn.execute(
+            "INSERT INTO graph_edges(source, target, edge_type, weight, properties) VALUES"
+            " ('A Ltd','B Ltd','competes_with',1.0,'{}')"
+        )
+        conn.commit()
+        monkeypatch.setattr(di, "PROJECT_ROOT", tmp_path)
+        peers = di._peers_from_db(conn)
+        written, gated = di.render_peers_notes(peers, dry_run=False, conn=conn, stale_only=True)
+        assert (written, gated) == (1, 0)
+        assert "## Peers (auto)" in note.read_text(encoding="utf-8")
+        assert "[[B Ltd]] — industry peer" in note.read_text(encoding="utf-8")
+        # second run: byte-identical -> no write even under the gate
+        written2, gated2 = di.render_peers_notes(peers, dry_run=False, conn=conn, stale_only=True)
+        assert (written2, gated2) == (0, 1)
+
+    def test_peers_from_db_holders_directed_and_ranked(self, tmp_path):
+        """thin_tail S3.4: invested_in indexes the COMPANY end only; holders
+        rank between competes_with and semantic_peer."""
+        conn = self._conn(tmp_path)
+        conn.executemany(
+            "INSERT INTO entities(name, entity_type, normalized_name, file_path) VALUES (?,?,?,?)",
+            [
+                ("A Ltd", "company", "A_Ltd", "findata/Companies/X/A_Ltd.md"),
+                ("B Ltd", "company", "B_Ltd", "findata/Companies/X/B_Ltd.md"),
+            ],
+        )
+        conn.executemany(
+            "INSERT INTO graph_edges(source, target, edge_type, weight, properties) VALUES (?,?,?,?,?)",
+            [
+                ("Vanguard Group", "A Ltd", "invested_in", 3.0, '{"pctHeld": 0.0797}'),
+                ("BlackRock", "A Ltd", "invested_in", 1.0, '{"pctHeld": 0.0143}'),
+                ("A Ltd", "B Ltd", "semantic_peer", 0.5, '{"cosine": 0.9}'),
+            ],
+        )
+        conn.commit()
+        got = di._peers_from_db(conn)
+        # company end: holders by pctHeld desc, then semantic
+        assert got["A Ltd"] == [
+            ("Vanguard Group", "holder", 0.0797),
+            ("BlackRock", "holder", 0.0143),
+            ("B Ltd", "semantic", 0.9),
+        ]
+        # institution end NOT indexed (directed)
+        assert "Vanguard Group" not in got
+        # semantic_peer is symmetric: B Ltd sees A Ltd
+        assert got["B Ltd"] == [("A Ltd", "semantic", 0.9)]
+
+    def test_render_peers_block_holder_line(self):
+        block = di.render_peers_block([("Vanguard Group", "holder", 0.0797)])
+        assert "- **Vanguard Group** — holds 8.0%" in block
+        assert "[[Vanguard Group]]" not in block  # note-less: no dead wikilink
+
+
+class TestGuidanceFallback:
+    """thin_tail S4: the guidance fallback covers the forward-TENSE marker
+    set, not just the literal word "guidance" (#308: guidance-style rows get
+    a recognizable label; genuinely unlabeled rows stay NULL)."""
+
+    def _label(self, sentence: str, value_raw: str) -> str | None:
+        m = sentence.lower().find(value_raw.lower())
+        return di._classify_metric(sentence, value_raw, m)
+
+    def test_forward_tense_gets_guidance(self):
+        assert (
+            self._label(
+                "Our current expectation is that rates may rise by around 25 basis points this year.",
+                "25 basis points",
+            )
+            == "guidance"
+        )
+        assert (
+            self._label("Revenue is expected to be at approximately 1000 crore.", "1000 crore")
+            == "guidance"
+        )
+        assert (
+            self._label("The book size is projected at 10-11% of the backlog.", "10-11%")
+            == "guidance"
+        )
+
+    def test_noun_in_window_beats_both_fallbacks(self):
+        # a metric noun in the window wins over the forward-tense fallback;
+        # the guidance_ PREFIX needs the literal word "guidance" in the sentence
+        assert self._label("Capacity will reach 5 GW by FY28.", "5 GW") == "capacity"
+        assert (
+            self._label(
+                "We expect margin expansion of 140 basis points next year.", "140 basis points"
+            )
+            == "margin"
+        )
+
+    def test_present_tense_without_noun_stays_null(self):
+        # #308 contract: the empty-NULL set is the genuinely unlabeled population
+        assert self._label("Roughly 60% of the cost base is tied to imports.", "60%") is None
+        assert self._label("99.3% collection efficiency was achieved.", "99.3%") is None
+
+    def test_investing_stem_matches(self):
+        assert self._label("We'll be investing about 15 to 18 crores.", "18 crores") == "investment"
+
+
+class TestChatterDisplayNormalization:
+    """thin_tail S5: editions whose H1 began with "The Chatter:" produced
+    doubled headings ("## The Chatter — The Chatter: X" — 660 in the corpus).
+    The DISPLAY strips the redundant prefix; the raw edition stays the
+    as_of_edition key, and block matching normalizes both sides so migrated
+    headings still converge."""
+
+    def test_render_strips_doubled_prefix(self):
+        block = di.render_chatter_block("The Chatter: Making It Work", [])
+        assert "## The Chatter — Making It Work" in block
+        assert "The Chatter — The Chatter" not in block
+
+    def test_render_keeps_plain_edition(self):
+        block = di.render_chatter_block("Making It Work", [])
+        assert "## The Chatter — Making It Work" in block
+
+    def test_normalize_idempotent(self):
+        assert di._normalize_chatter_edition("The Chatter: X") == "X"
+        assert di._normalize_chatter_edition("The Chatter — X") == "X"
+        assert di._normalize_chatter_edition("X") == "X"
+        assert di._normalize_chatter_edition("The Chatter: The Chatter: X") == "The Chatter: X"
+
+    def test_migrated_heading_still_matches_for_replace(self, tmp_path):
+        # A note carrying the MIGRATED (single-prefix) heading must be found
+        # by the replace path when the raw edition string arrives again.
+        note = tmp_path / "note.md"
+        note.write_text(
+            "# A\n\n" + di.render_chatter_block("The Chatter: Making It Work", []) + "\n",
+            encoding="utf-8",
+        )
+        text = note.read_text(encoding="utf-8")
+        # fresh render of the same edition (raw key) -> byte-identical block
+        new_block = di.render_chatter_block("The Chatter: Making It Work", [])
+        new_text, changed = di._replace_or_insert_block(
+            text, "The Chatter: Making It Work", new_block
+        )
+        assert not changed  # matched the migrated heading; nothing churned

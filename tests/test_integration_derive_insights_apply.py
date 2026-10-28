@@ -260,7 +260,10 @@ class TestApplyRendersNotes:
         assert rc == 0
         text = p.note_text()
         assert di._BEGIN in text and di._END in text
-        assert f"## The Chatter — {p.edition}" in text
+        # thin_tail S5: the DISPLAY strips a doubled "The Chatter:" prefix;
+        # the raw edition string stays the as_of_edition key.
+        assert f"## The Chatter — {di._normalize_chatter_edition(p.edition)}" in text
+        assert "## The Chatter — The Chatter:" not in text
         assert di._markers_balanced(text)
         assert text.endswith("\n"), "writers must terminate notes with a newline (MD047)"
         assert "1 notes wrote" in err

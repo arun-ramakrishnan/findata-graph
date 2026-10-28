@@ -6,6 +6,8 @@ from pathlib import Path
 
 import pytest
 
+import helpers.maintenance.enrich_from_yfinance as enf  # noqa: E402
+
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 
 from helpers.maintenance.enrich_from_yfinance import (  # noqa: E402
@@ -414,3 +416,106 @@ def test_identity_ok_unanchorable_name_refuses():
 
 def test_load_aliases_missing_file_is_empty(tmp_path):
     assert load_aliases(tmp_path / "nope.json") == {}
+
+
+class TestManifestEntities:
+    """thin_tail S1b: --from-manifest selection (entity names + note paths)."""
+
+    @pytest.fixture()
+    def conn(self, tmp_path):
+        c = sqlite3.connect(":memory:")
+        c.row_factory = sqlite3.Row
+        c.execute(
+            "CREATE TABLE entities(name TEXT PRIMARY KEY, entity_type TEXT,"
+            " normalized_name TEXT, file_path TEXT, ticker TEXT)"
+        )
+        c.executemany(
+            "INSERT INTO entities(name, entity_type, normalized_name, file_path, ticker)"
+            " VALUES (?,?,?,?,?)",
+            [
+                ("MRF Ltd", "company", "MRF_Ltd", "findata/Companies/Auto/MRF.md", "MRF.NS"),
+                ("KIOCL", "company", "KIOCL", "findata/Companies/Metals/KIOCL.md", "KIOCL.NS"),
+                (
+                    "Forbes Enviro",
+                    "company",
+                    "Forbes_Enviro",
+                    "findata/Companies/Misc/Forbes_Enviro.md",
+                    None,
+                ),
+            ],
+        )
+        c.commit()
+        return c
+
+    def _manifest(self, tmp_path, body, monkeypatch):
+        mf = tmp_path / "mf.txt"
+        mf.write_text(body, encoding="utf-8")
+        monkeypatch.setattr(enf, "PROJECT_ROOT", tmp_path)
+        return mf
+
+    def test_names_paths_and_comments(self, tmp_path, monkeypatch, conn):
+        mf = self._manifest(
+            tmp_path,
+            "# s1b manifest\n\nMRF Ltd\nfindata/Companies/Metals/KIOCL.md\n",
+            monkeypatch,
+        )
+        assert enf._manifest_entities(conn, str(mf)) == ["MRF Ltd", "KIOCL"]
+
+    def test_dropped_unresolvable_path(self, tmp_path, monkeypatch, conn, caplog):
+        mf = self._manifest(
+            tmp_path,
+            "findata/Companies/Ghost/Ghost.md\nMRF Ltd\n",
+            monkeypatch,
+        )
+        assert enf._manifest_entities(conn, str(mf)) == ["MRF Ltd"]
+        assert "no entity row" in caplog.text
+
+    def test_untickered_entity_still_listed(self, tmp_path, monkeypatch, conn):
+        # Selection filter (ticker IS NOT NULL) lives in main(); the manifest
+        # reader itself must pass the name through untouched.
+        mf = self._manifest(tmp_path, "Forbes Enviro\n", monkeypatch)
+        assert enf._manifest_entities(conn, str(mf)) == ["Forbes Enviro"]
+
+
+class TestIdentityOkMinSubsetTokens:
+    """thin_tail S1c: one-word note names are too weak an anchor for the
+    ours<=theirs subset direction — 'Take' matched Take-Two, 'GEE' matched
+    Geely under the default rule."""
+
+    def test_one_word_subset_refused_at_two(self):
+        assert not identity_ok(
+            "Take",
+            {"longName": "Take-Two Interactive Software, Inc."},
+            aliases={},
+            min_subset_tokens=2,
+        )
+        assert not identity_ok(
+            "GEE",
+            {"longName": "Geely Automobile Holdings Limited"},
+            aliases={},
+            min_subset_tokens=2,
+        )
+
+    def test_exact_single_token_equality_passes_at_two(self):
+        # corporate suffixes are stripped by _name_tokens on both sides
+        assert identity_ok(
+            "PepsiCo", {"longName": "PepsiCo, Inc."}, aliases={}, min_subset_tokens=2
+        )
+
+    def test_multi_token_subset_still_passes_at_two(self):
+        assert identity_ok(
+            "HDFC Bank", {"longName": "HDFC Bank Limited"}, aliases={}, min_subset_tokens=2
+        )
+
+    def test_default_rule_unchanged(self):
+        # legacy scrip-lane semantics: 1-token subset still passes
+        assert identity_ok("Take", {"longName": "Take-Two Interactive Software, Inc."}, aliases={})
+
+    def test_exchange_shorter_side_ungated(self):
+        # theirs <= ours is the safe direction regardless of the knob
+        assert identity_ok(
+            "Power Grid Corporation of India",
+            {"shortName": "Power Grid"},
+            aliases={},
+            min_subset_tokens=2,
+        )

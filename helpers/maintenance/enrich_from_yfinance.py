@@ -270,13 +270,27 @@ def load_aliases(path: Path | None = None) -> dict[str, list[str]]:
     return data if isinstance(data, dict) else {}
 
 
-def identity_ok(name: str, info: dict, aliases: dict[str, list[str]] | None = None) -> bool:
+def identity_ok(
+    name: str,
+    info: dict,
+    aliases: dict[str, list[str]] | None = None,
+    *,
+    min_subset_tokens: int = 1,
+) -> bool:
     """True when the fetched yfinance info plausibly describes THIS company.
 
     Either name's significant tokens must be a subset of the other's (short
     exchange spellings like ``HDFC Bank`` pass against long note names), or an
     alias from the curated map must cover the exchange name. Empty names on
     either side refuse the write — there is nothing to anchor identity on.
+
+    ``min_subset_tokens`` tightens the ``ours <= theirs`` direction for
+    one-word note names (thin_tail S1c): ``Take`` subset-matches
+    ``Take-Two Interactive Software`` and ``GEE`` matches ``Geely`` — a
+    single significant token is too weak an anchor to write a ticker on.
+    Exact token-set equality always passes (``PepsiCo`` vs
+    ``PepsiCo, Inc.``); the ``theirs <= ours`` direction (exchange name
+    shorter than ours) is the safe direction and stays ungated.
     """
     if aliases is None:
         aliases = load_aliases()
@@ -284,7 +298,11 @@ def identity_ok(name: str, info: dict, aliases: dict[str, list[str]] | None = No
     ours, theirs = _name_tokens(name), _name_tokens(yf_name)
     if not ours or not theirs:
         return False
-    if ours <= theirs or theirs <= ours:
+    if ours == theirs:
+        return True
+    if ours <= theirs and len(ours) >= min_subset_tokens:
+        return True
+    if theirs <= ours:
         return True
     return any(
         (theirs <= _name_tokens(accepted)) or (_name_tokens(accepted) <= theirs)
@@ -614,6 +632,31 @@ def write_report(
 # --- main --------------------------------------------------------------------
 
 
+def _manifest_entities(conn, path: str) -> list[str]:
+    """Read a ``--from-manifest`` file: one entity name or note path per line.
+
+    ``#`` comments and blank lines skipped. Lines containing ``/`` are
+    repo-relative note paths resolved through ``entities.file_path``;
+    anything else is an exact ``entities.name``. Unresolvable lines are
+    logged and dropped; the caller's ticker/non-company filters apply on
+    top (a manifest name for an untickered entity selects nothing).
+    """
+    names: list[str] = []
+    path_like: list[str] = []
+    for ln in (PROJECT_ROOT / path).read_text(encoding="utf-8").splitlines():
+        ln = ln.strip()
+        if not ln or ln.startswith("#"):
+            continue
+        (path_like if "/" in ln else names).append(ln)
+    for ln in path_like:
+        r = conn.execute("SELECT name FROM entities WHERE file_path = ?", (ln,)).fetchone()
+        if r is None:
+            log.warning("manifest path %r: no entity row — dropped", ln)
+            continue
+        names.append(r[0])
+    return names
+
+
 def main(argv: list[str] | None = None) -> int:  # noqa: C901
     parser = argparse.ArgumentParser(description="Enrich company data from yfinance.")
     parser.add_argument(
@@ -638,6 +681,16 @@ def main(argv: list[str] | None = None) -> int:  # noqa: C901
         "--company", type=str, default=None, help="Enrich only one company (by name or ticker)"
     )
     parser.add_argument(
+        "--from-manifest",
+        type=str,
+        default=None,
+        metavar="FILE",
+        help="Enrich only the entities listed in FILE (one entities.name or "
+        "repo-relative note path per line, '#' comments). Affects ONLY the "
+        "selection — skip-logic (--max-age-days) still applies on top; pass "
+        "--max-age-days 0 (the default) to force-fetch the manifest.",
+    )
+    parser.add_argument(
         "--max-age-days",
         type=int,
         default=0,
@@ -654,7 +707,26 @@ def main(argv: list[str] | None = None) -> int:  # noqa: C901
     conn = connect(DB_PATH)
 
     # Load companies with tickers
-    if args.company:
+    if args.from_manifest:
+        names = _manifest_entities(conn, args.from_manifest)
+        if names:
+            placeholders = ",".join("?" for _ in names)
+            rows = conn.execute(
+                "SELECT name, ticker, file_path FROM entities "  # noqa: S608  # parameterized; interpolated part is a `?`-clause
+                "WHERE entity_type = 'company' "
+                "AND ticker IS NOT NULL AND ticker != '' "
+                f"AND name IN ({placeholders})",
+                tuple(names),
+            ).fetchall()
+            missing = set(names) - {r[0] for r in rows}
+            if missing:
+                log.warning(
+                    "manifest: %d/%d entities not selectable (untickered or non-company): %s",
+                    len(missing),
+                    len(names),
+                    sorted(missing)[:10],
+                )
+    elif args.company:
         like = f"%{args.company}%"
         rows = conn.execute(
             "SELECT name, ticker, file_path FROM entities "

@@ -10,6 +10,8 @@ from __future__ import annotations
 
 import re
 import sqlite3
+
+import pytest
 from pathlib import Path
 
 from helpers.core import db as core_db
@@ -86,7 +88,7 @@ def test_resolve_one_resolved(tmp_path, monkeypatch):
             {"Patel Engineering": ("PATELENG.NS", {"longName": "Patel Engineering Limited"})}
         ),
     )
-    monkeypatch.setattr(th, "identity_ok", lambda name, info, aliases=None: True)
+    monkeypatch.setattr(th, "identity_ok", lambda name, info, aliases=None, **kw: True)
     rec = th.resolve_one("Patel Engineering", "531120.BO")
     assert rec["status"] == "resolved"
     assert rec["new_ticker"] == "PATELENG.NS"
@@ -106,7 +108,7 @@ def test_resolve_one_guard_refused(tmp_path, monkeypatch):
         "search_ticker",
         _fake_search({"BF Utilities": ("BFUTIL.NS", {"longName": "Bharat Fritz Werner"})}),
     )
-    monkeypatch.setattr(th, "identity_ok", lambda name, info, aliases=None: False)
+    monkeypatch.setattr(th, "identity_ok", lambda name, info, aliases=None, **kw: False)
     rec = th.resolve_one("BF Utilities", "532430.BO")
     assert rec["status"] == "guard_refused"
     assert rec["new_ticker"] == "BFUTIL.NS"  # kept for the report, never applied
@@ -118,7 +120,7 @@ def test_resolve_one_foreign_symbol(tmp_path, monkeypatch):
         "search_ticker",
         _fake_search({"Some Co": ("MMM", {"longName": "3M Company"})}),
     )
-    monkeypatch.setattr(th, "identity_ok", lambda name, info, aliases=None: True)
+    monkeypatch.setattr(th, "identity_ok", lambda name, info, aliases=None, **kw: True)
     rec = th.resolve_one("Some Co", "531120.BO")
     assert rec["status"] == "foreign_symbol"
     assert rec["new_ticker"] == "MMM"
@@ -263,7 +265,7 @@ def test_cli_dry_run_resolves_but_never_writes(tmp_path, monkeypatch):
             {"Patel Engineering": ("PATELENG.NS", {"longName": "Patel Engineering Limited"})}
         ),
     )
-    monkeypatch.setattr(th, "identity_ok", lambda name, info, aliases=None: True)
+    monkeypatch.setattr(th, "identity_ok", lambda name, info, aliases=None, **kw: True)
     rc = th.main(["--db", str(db), "--stage", str(stage), "--report", str(report), "--sleep", "0"])
     assert rc == 0
     conn = core_db.connect(str(db))
@@ -285,7 +287,7 @@ def test_cli_fetch_only_skips_staged_names(tmp_path, monkeypatch):
         return "X.NS", {"longName": name}
 
     monkeypatch.setattr(th, "search_ticker", _counting_search)
-    monkeypatch.setattr(th, "identity_ok", lambda name, info, aliases=None: True)
+    monkeypatch.setattr(th, "identity_ok", lambda name, info, aliases=None, **kw: True)
     common = ["--db", str(db), "--stage", str(stage), "--report", str(report), "--sleep", "0"]
     assert th.main(["--fetch-only", *common]) == 0
     first = len(calls)
@@ -373,7 +375,7 @@ def test_cli_summary_line(tmp_path, monkeypatch, capsys):
             }
         ),
     )
-    monkeypatch.setattr(th, "identity_ok", lambda name, info, aliases=None: True)
+    monkeypatch.setattr(th, "identity_ok", lambda name, info, aliases=None, **kw: True)
     assert (
         th.main(["--db", str(db), "--stage", str(stage), "--report", str(report), "--sleep", "0"])
         == 0
@@ -408,7 +410,7 @@ def test_resolve_tier2_resolves_via_scrip_match(monkeypatch):
         "get_basic_info",
         lambda sym: {"longName": "Sai Parenteral's Limited"} if sym == "SAIPARENT.NS" else None,
     )
-    monkeypatch.setattr(th, "identity_ok", lambda name, info, aliases=None: True)
+    monkeypatch.setattr(th, "identity_ok", lambda name, info, aliases=None, **kw: True)
     rec = th.resolve_tier2("Sai Parenterals", "544742.BO")
     assert rec["status"] == "resolved"
     assert rec["new_ticker"] == "SAIPARENT.NS"
@@ -434,7 +436,7 @@ def test_resolve_tier2_rename_refused(monkeypatch):
         ),
     )
     monkeypatch.setattr(th, "get_basic_info", lambda sym: {"longName": "Evervie Health Limited"})
-    monkeypatch.setattr(th, "identity_ok", lambda name, info, aliases=None: False)
+    monkeypatch.setattr(th, "identity_ok", lambda name, info, aliases=None, **kw: False)
     rec = th.resolve_tier2("PVP Ventures", "517556.BO")
     assert rec["status"] == "tier2_refused"
     assert rec["new_ticker"] is None  # a rename is evidence, never a write
@@ -459,7 +461,7 @@ def test_cli_retry_failed_refetches_only_failures(tmp_path, monkeypatch):
         return "X.NS", {"longName": name}
 
     monkeypatch.setattr(th, "search_ticker", _counting_search)
-    monkeypatch.setattr(th, "identity_ok", lambda name, info, aliases=None: True)
+    monkeypatch.setattr(th, "identity_ok", lambda name, info, aliases=None, **kw: True)
     rc = th.main(
         [
             "--retry-failed",
@@ -495,7 +497,7 @@ def test_resolve_tier3_resolved_via_direct_symbol(monkeypatch):
         "get_basic_info",
         lambda sym: {"longName": "BF Utilities Limited"} if sym == "BFUTIL.BO" else None,
     )
-    monkeypatch.setattr(th, "identity_ok", lambda name, info, aliases=None: True)
+    monkeypatch.setattr(th, "identity_ok", lambda name, info, aliases=None, **kw: True)
     rec = th.resolve_tier3("BF Utilities", "532430.BO", {"532430": "BFUTIL"})
     assert rec["status"] == "resolved"
     assert rec["new_ticker"] == "BFUTIL.BO"
@@ -508,7 +510,7 @@ def test_resolve_tier3_rename_evidence(monkeypatch):
         "get_basic_info",
         lambda sym: {"longName": "Evervie Health Limited"} if sym == "PVP.NS" else None,
     )
-    monkeypatch.setattr(th, "identity_ok", lambda name, info, aliases=None: False)
+    monkeypatch.setattr(th, "identity_ok", lambda name, info, aliases=None, **kw: False)
     rec = th.resolve_tier3("PVP Ventures", "517556.BO", {"517556": "PVP"})
     assert rec["status"] == "tier3_rename"
     assert rec["new_ticker"] is None  # rename evidence, never a write
@@ -528,3 +530,122 @@ def test_cli_tier3_with_apply_only_rejected(tmp_path):
         ["--tier3", "--apply-only", "--db", str(tmp_path / "t.db"), "--stage", "s", "--report", "r"]
     )
     assert rc == 2
+
+
+class TestUntickeredLane:
+    """thin_tail S1c: --untickered resolves NULL/empty-ticker companies
+    through the same guarded pipeline and syncs the note frontmatter line."""
+
+    @pytest.fixture()
+    def conn(self):
+        c = sqlite3.connect(":memory:")
+        c.row_factory = sqlite3.Row
+        c.execute(
+            "CREATE TABLE entities(name TEXT PRIMARY KEY, entity_type TEXT,"
+            " normalized_name TEXT, file_path TEXT, ticker TEXT, last_updated TEXT)"
+        )
+        c.executemany(
+            "INSERT INTO entities(name, entity_type, normalized_name, file_path, ticker)"
+            " VALUES (?,?,?,?,?)",
+            [
+                ("Unlisted Corp", "company", "Unlisted_Corp", None, None),
+                (
+                    "Tickered Co",
+                    "company",
+                    "Tickered_Co",
+                    "findata/Companies/X/Tickered_Co.md",
+                    "TICK.NS",
+                ),
+            ],
+        )
+        c.commit()
+        return c
+
+    def test_select_untickered(self, conn):
+        from helpers.maintenance.ticker_hygiene import select_untickered
+
+        assert select_untickered(conn) == [("Unlisted Corp", "")]
+
+    def test_apply_resolved_pins_on_empty_state(self, conn):
+        from helpers.maintenance.ticker_hygiene import apply_resolved
+
+        rec = {
+            "name": "Unlisted Corp",
+            "old_ticker": "",
+            "new_ticker": "UNL.NS",
+            "status": "resolved",
+        }
+        applied, skipped = apply_resolved(conn, [rec])
+        assert (applied, skipped) == (1, 0)
+        assert (
+            conn.execute("SELECT ticker FROM entities WHERE name='Unlisted Corp'").fetchone()[0]
+            == "UNL.NS"
+        )
+
+    def test_apply_resolved_never_clobbers_resolved_ticker(self, conn):
+        from helpers.maintenance.ticker_hygiene import apply_resolved
+
+        rec = {
+            "name": "Tickered Co",
+            "old_ticker": "",
+            "new_ticker": "OTHER.NS",
+            "status": "resolved",
+        }
+        applied, _ = apply_resolved(conn, [rec])
+        assert applied == 0
+        assert (
+            conn.execute("SELECT ticker FROM entities WHERE name='Tickered Co'").fetchone()[0]
+            == "TICK.NS"
+        )
+
+    def test_set_note_ticker_replaces_null_line(self):
+        from helpers.maintenance.ticker_hygiene import _set_note_ticker
+
+        text = "---\ntitle: X\nticker: null\nsector: Y\n---\n\n# X\n"
+        out = _set_note_ticker(text, "UNL.NS")
+        assert out is not None
+        assert "ticker: UNL.NS" in out.split("---")[1]
+        assert "# X" in out  # body untouched
+
+    def test_set_note_ticker_refuses_populated_line(self):
+        from helpers.maintenance.ticker_hygiene import _set_note_ticker
+
+        text = "---\ntitle: X\nticker: KEEP.NS\n---\nbody"
+        assert _set_note_ticker(text, "OTHER.NS") is None
+
+    def test_set_note_ticker_no_frontmatter(self):
+        from helpers.maintenance.ticker_hygiene import _set_note_ticker
+
+        assert _set_note_ticker("# plain note\nticker: null\n", "A.NS") is None
+
+    def test_apply_note_tickers_updates_and_skips(self, conn, tmp_path, monkeypatch):
+        note = tmp_path / "findata" / "Companies" / "X" / "New_Co.md"
+        note.parent.mkdir(parents=True)
+        note.write_text("---\ntitle: New Co\nticker: null\n---\n\n# New Co\n", encoding="utf-8")
+        conn.execute(
+            "INSERT INTO entities(name, entity_type, normalized_name, file_path, ticker)"
+            " VALUES ('New Co','company','New_Co',?,NULL)",
+            (str(note.relative_to(tmp_path)),),
+        )
+        conn.commit()
+        monkeypatch.setattr(th, "PROJECT_ROOT", tmp_path)
+        records = [
+            {"name": "New Co", "old_ticker": "", "new_ticker": "NEW.NS", "status": "resolved"},
+            # populated frontmatter line -> refused, never clobbered
+            {
+                "name": "Tickered Co",
+                "old_ticker": "",
+                "new_ticker": "OTHER.NS",
+                "status": "resolved",
+            },
+            # no file_path -> skipped
+            {
+                "name": "Unlisted Corp",
+                "old_ticker": "",
+                "new_ticker": "UNL.NS",
+                "status": "resolved",
+            },
+        ]
+        updated, skipped = th.apply_note_tickers(conn, records)
+        assert (updated, skipped) == (1, 2)
+        assert "ticker: NEW.NS" in note.read_text(encoding="utf-8")

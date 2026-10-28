@@ -494,3 +494,18 @@ Wikidata deferred (§12.4). Q1–Q3 proceed on stated recommendations
 Measured during fold: 1,065 companies / 916 tickered; yfinance holder
 tables empty for .NS probes, AAPL populated (US-only ceiling stands);
 TATAMOTORS.NS 404s post-demerger. Green light for E1 on review.
+
+## 14. Addendum — Indian ownership gap closed without scraping (2026-10-28)
+
+The §4.6 matrix and §11 treated Indian promoter/shareholding truth as
+blocked (Screener.in ToS) with yfinance US-holder tables as the only
+ownership lane (~14 tickers). **Superseded by
+`bse_shareholding_rss.md` (#269, 2026-09-22):** BSE's open
+shareholding-pattern RSS + per-filing HTML (`--bse-rss` in
+`shareholding_sync`) delivers the promoter-group signal the scrape was
+meant for — named holders with category tags, NSE-symbol cross-reference,
+dual-exchange coverage — feeding the same `invested_in` derivation this
+arc designed. Live 2026-10-28: 1,815 `invested_in` edges; promoter tags
+flow from BSE's t3 table. No ToS gray zone was crossed. Re-anchored from
+the thin_tail arc (`doc/improvements/proposals/notes_thin_tail_quality.md`
+S3) when its operator review caught the stale routing.

@@ -578,11 +578,19 @@ def _build_graph_connection(
                 and duckdb_path.exists()
                 and not _is_warm(duckdb_path, db_path)
             ):
-                try:
-                    duckdb_path.unlink()
-                    duckdb_path.with_suffix(".duckdb.wal").unlink(missing_ok=True)
-                except OSError:
-                    pass
+                # thin_tail gates fix (2026-10-29): the stale-unlink ran BEFORE
+                # the served check, so a stale cache under a live quack server
+                # was deleted and the inline rebuild then refused — the server
+                # kept serving a deleted inode and every file-mode consumer
+                # crashed (qa/perf fallout: the live graph.duckdb vanished
+                # mid-gate). Deleting only destroys here — the rebuild below
+                # is refused under a served store either way — so skip it.
+                if not ds.is_served(duckdb_path):
+                    try:
+                        duckdb_path.unlink()
+                        duckdb_path.with_suffix(".duckdb.wal").unlink(missing_ok=True)
+                    except OSError:
+                        pass
             needs_build = (
                 fresh or rebuild or not (duckdb_path.exists() and _is_warm(duckdb_path, db_path))
             )

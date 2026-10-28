@@ -482,7 +482,7 @@
     "The_Chatter/Tailwinds_building",
     "The_Chatter/The_Blind_Spots"
    ],
-   "status": "decided",
+   "status": "resolved",
    "suggestions": [
     "Amara Raja Energy and Mobility"
    ]
@@ -1690,13 +1690,17 @@
   "Cholamandalam Investment and Finance": {
    "closed_by": "canonical resolves on a later run",
    "first_seen": "2026-09-07",
-   "last_seen": "2026-09-07",
+   "last_seen": "2026-10-28",
    "notes": [
     "The_Chatter/Between_Headwinds_and_Tailwinds",
     "The_Chatter/Talking_Points"
    ],
-   "status": "resolved",
-   "suggestions": []
+   "status": "open",
+   "suggestions": [
+    "Cholamandalam Investment and Finance Company",
+    "Cholamandalam Investment and Finance Co",
+    "Wang Investment And Finance"
+   ]
   },
   "Cipla": {
    "closed_by": "canonical resolves on a later run",
@@ -2019,7 +2023,7 @@
    "status": "resolved",
    "suggestions": []
   },
-  "Dave &amp; Buster’s Entertainment": {
+  "Dave &amp; Buster\u2019s Entertainment": {
    "closed_by": "canonical resolves on a later run",
    "first_seen": "2026-09-07",
    "last_seen": "2026-09-07",
@@ -3335,7 +3339,7 @@
    "status": "resolved",
    "suggestions": []
   },
-  "Hermès International": {
+  "Herm\u00e8s International": {
    "closed_by": "canonical resolves on a later run",
    "first_seen": "2026-09-07",
    "last_seen": "2026-09-07",
@@ -3568,6 +3572,15 @@
     "The_Chatter/Swiggy_Hyundai_Shree_Cement"
    ],
    "status": "resolved",
+   "suggestions": []
+  },
+  "IBM India MD": {
+   "first_seen": "2026-10-28",
+   "last_seen": "2026-10-28",
+   "notes": [
+    "The_Chatter/HCL_RBL_Bank_Canara_Bank"
+   ],
+   "status": "open",
    "suggestions": []
   },
   "ICICI Bank": {
@@ -4568,7 +4581,7 @@
    "status": "resolved",
    "suggestions": []
   },
-  "L'Oréal": {
+  "L'Or\u00e9al": {
    "closed_by": "canonical resolves on a later run",
    "first_seen": "2026-09-07",
    "last_seen": "2026-09-07",
@@ -4787,6 +4800,15 @@
     "The_Chatter/Making_It_Work"
    ],
    "status": "resolved",
+   "suggestions": []
+  },
+  "Lodha Developers": {
+   "first_seen": "2026-10-28",
+   "last_seen": "2026-10-28",
+   "notes": [
+    "The_Chatter/Adani_Power_Motilal_Oswal"
+   ],
+   "status": "open",
    "suggestions": []
   },
   "Lumax Auto Technologies": {
@@ -5496,7 +5518,16 @@
    "status": "resolved",
    "suggestions": []
   },
-  "Nestlé": {
+  "National Stock Exchange of India (NSE)": {
+   "first_seen": "2026-10-28",
+   "last_seen": "2026-10-28",
+   "notes": [
+    "The_Chatter/NSE_ONGC_SEBI"
+   ],
+   "status": "open",
+   "suggestions": []
+  },
+  "Nestl\u00e9": {
    "closed_by": "canonical resolves on a later run",
    "first_seen": "2026-09-07",
    "last_seen": "2026-09-07",
@@ -5506,7 +5537,7 @@
    "status": "resolved",
    "suggestions": []
   },
-  "Nestlé India": {
+  "Nestl\u00e9 India": {
    "closed_by": "canonical resolves on a later run",
    "first_seen": "2026-09-07",
    "last_seen": "2026-09-07",
@@ -5629,7 +5660,7 @@
    "notes": [
     "The_Chatter/ONGC_Divis_LG"
    ],
-   "status": "decided",
+   "status": "resolved",
    "suggestions": [
     "Vedanta Oil and Gas"
    ]
@@ -6511,6 +6542,15 @@
    "status": "resolved",
    "suggestions": []
   },
+  "Regulatory and Development Authority of India": {
+   "first_seen": "2026-10-28",
+   "last_seen": "2026-10-28",
+   "notes": [
+    "The_Chatter/IRDAI_Bajaj_Auto_SBI"
+   ],
+   "status": "open",
+   "suggestions": []
+  },
   "Reliance Consumer Products": {
    "closed_by": "canonical resolves on a later run",
    "first_seen": "2026-09-07",
@@ -6535,6 +6575,20 @@
    ],
    "status": "resolved",
    "suggestions": []
+  },
+  "Reserve Bank of India": {
+   "first_seen": "2026-10-28",
+   "last_seen": "2026-10-28",
+   "notes": [
+    "The_Chatter/NSE_ONGC_SEBI",
+    "The_Chatter/SEBI_RBI_DIPAM_Jio_Wipro"
+   ],
+   "status": "open",
+   "suggestions": [
+    "Bank of India",
+    "Union Bank of India",
+    "State Bank of India"
+   ]
   },
   "Restaurant Brands Asia": {
    "closed_by": "canonical resolves on a later run",
@@ -6639,6 +6693,15 @@
     "The_Chatter/Reliance_PayTM_Nykaa"
    ],
    "status": "resolved",
+   "suggestions": []
+  },
+  "SEBI": {
+   "first_seen": "2026-10-28",
+   "last_seen": "2026-10-28",
+   "notes": [
+    "The_Chatter/SEBI_RBI_DIPAM_Jio_Wipro"
+   ],
+   "status": "open",
    "suggestions": []
   },
   "SEBI Chairman": {
@@ -6819,12 +6882,16 @@
   "Saregama": {
    "closed_by": "canonical resolves on a later run",
    "first_seen": "2026-09-07",
-   "last_seen": "2026-09-07",
+   "last_seen": "2026-10-28",
    "notes": [
     "The_Chatter/Echoes_from_the_Boardroom"
    ],
-   "status": "resolved",
-   "suggestions": []
+   "status": "open",
+   "suggestions": [
+    "Saregama India",
+    "Saregama INC",
+    "Saregama FZE"
+   ]
   },
   "Saregama India": {
    "closed_by": "canonical resolves on a later run",
@@ -6896,6 +6963,15 @@
     "The_Chatter/On_Record"
    ],
    "status": "resolved",
+   "suggestions": []
+  },
+  "Securities and Exchange Board of India": {
+   "first_seen": "2026-10-28",
+   "last_seen": "2026-10-28",
+   "notes": [
+    "The_Chatter/MazDock_Mphasis_Redington"
+   ],
+   "status": "open",
    "suggestions": []
   },
   "Senco Gold": {
@@ -7988,6 +8064,15 @@
     "The_Chatter/Decoding_Capex_Capacity_and_Consumer_Trends"
    ],
    "status": "resolved",
+   "suggestions": []
+  },
+  "Uday Kotak Policy & Economic Address": {
+   "first_seen": "2026-10-28",
+   "last_seen": "2026-10-28",
+   "notes": [
+    "The_Chatter/Maruti_Hy-Tech_Symbiotec"
+   ],
+   "status": "open",
    "suggestions": []
   },
   "Uflex": {

@@ -72,6 +72,19 @@
    "runs_seen": 7,
    "status": "closed"
   },
+  "The_Chatter/Adani_Power_Motilal_Oswal": {
+   "accepted": 0,
+   "buckets": {
+    "G2": 7
+   },
+   "closed_by": null,
+   "coverage": 0.8814,
+   "first_seen": "2026-10-28",
+   "last_seen": "2026-10-28",
+   "openings": 59,
+   "runs_seen": 1,
+   "status": "open"
+  },
   "The_Chatter/Anchor_and_Ambitions": {
    "buckets": {
     "G2": 6
@@ -135,16 +148,17 @@
    "status": "closed"
   },
   "The_Chatter/Between_Headwinds_and_Tailwinds": {
+   "accepted": 0,
    "buckets": {
-    "G2": 12
+    "G2": 6
    },
    "closed_by": "recovered (coverage 100%)",
-   "coverage": 1.0,
+   "coverage": 0.9077,
    "first_seen": "2026-09-07",
-   "last_seen": "2026-09-07",
+   "last_seen": "2026-10-28",
    "openings": 65,
-   "runs_seen": 14,
-   "status": "closed"
+   "runs_seen": 15,
+   "status": "open"
   },
   "The_Chatter/Between_Seasons": {
    "buckets": {
@@ -190,12 +204,12 @@
     "G2": 14
    },
    "closed_by": "recovered (coverage 100%)",
-   "coverage": 0.7358,
+   "coverage": 1.0,
    "first_seen": "2026-09-07",
-   "last_seen": "2026-09-19",
+   "last_seen": "2026-10-28",
    "openings": 53,
    "runs_seen": 15,
-   "status": "open"
+   "status": "closed"
   },
   "The_Chatter/Bottlenecks__Breakouts": {
    "buckets": {
@@ -299,17 +313,17 @@
    "status": "closed"
   },
   "The_Chatter/Echoes_from_the_Boardroom": {
+   "accepted": 0,
    "buckets": {
-    "G2": 16,
-    "G3": 1
+    "G2": 5
    },
    "closed_by": "recovered (coverage 99%)",
-   "coverage": 0.9863,
+   "coverage": 0.9315,
    "first_seen": "2026-09-07",
-   "last_seen": "2026-09-07",
+   "last_seen": "2026-10-28",
    "openings": 73,
-   "runs_seen": 16,
-   "status": "closed"
+   "runs_seen": 17,
+   "status": "open"
   },
   "The_Chatter/Embracing_the_Unknown": {
    "buckets": {
@@ -336,6 +350,19 @@
    "openings": 94,
    "runs_seen": 16,
    "status": "closed"
+  },
+  "The_Chatter/HCL_RBL_Bank_Canara_Bank": {
+   "accepted": 0,
+   "buckets": {
+    "G2": 12
+   },
+   "closed_by": null,
+   "coverage": 0.8,
+   "first_seen": "2026-10-28",
+   "last_seen": "2026-10-28",
+   "openings": 60,
+   "runs_seen": 1,
+   "status": "open"
   },
   "The_Chatter/HDFC_Groww_Havells": {
    "buckets": {
@@ -385,6 +412,19 @@
    "openings": 43,
    "runs_seen": 7,
    "status": "closed"
+  },
+  "The_Chatter/IRDAI_Bajaj_Auto_SBI": {
+   "accepted": 0,
+   "buckets": {
+    "G2": 11
+   },
+   "closed_by": null,
+   "coverage": 0.75,
+   "first_seen": "2026-10-28",
+   "last_seen": "2026-10-28",
+   "openings": 44,
+   "runs_seen": 1,
+   "status": "open"
   },
   "The_Chatter/In_the_Middle_of_Things": {
    "buckets": {
@@ -523,6 +563,20 @@
    "runs_seen": 7,
    "status": "closed"
   },
+  "The_Chatter/Maruti_Hy-Tech_Symbiotec": {
+   "accepted": 0,
+   "buckets": {
+    "G2": 9,
+    "G3": 14
+   },
+   "closed_by": null,
+   "coverage": 0.54,
+   "first_seen": "2026-10-28",
+   "last_seen": "2026-10-28",
+   "openings": 50,
+   "runs_seen": 1,
+   "status": "open"
+  },
   "The_Chatter/Maruti_Lumino_Indian_Bank": {
    "accepted": 0,
    "buckets": {
@@ -548,6 +602,19 @@
    "openings": 51,
    "runs_seen": 22,
    "status": "closed"
+  },
+  "The_Chatter/MazDock_Mphasis_Redington": {
+   "accepted": 0,
+   "buckets": {
+    "G2": 11
+   },
+   "closed_by": null,
+   "coverage": 0.7556,
+   "first_seen": "2026-10-28",
+   "last_seen": "2026-10-28",
+   "openings": 45,
+   "runs_seen": 1,
+   "status": "open"
   },
   "The_Chatter/Meesho_Marico_Bajaj": {
    "buckets": {
@@ -611,6 +678,19 @@
    "openings": 81,
    "runs_seen": 16,
    "status": "closed"
+  },
+  "The_Chatter/NSE_ONGC_SEBI": {
+   "accepted": 0,
+   "buckets": {
+    "G2": 16
+   },
+   "closed_by": null,
+   "coverage": 0.6923,
+   "first_seen": "2026-10-28",
+   "last_seen": "2026-10-28",
+   "openings": 52,
+   "runs_seen": 1,
+   "status": "open"
   },
   "The_Chatter/Nvidia_Samsung_Cloudflare": {
    "buckets": {
@@ -816,6 +896,19 @@
    "runs_seen": 14,
    "status": "closed"
   },
+  "The_Chatter/SEBI_RBI_DIPAM_Jio_Wipro": {
+   "accepted": 0,
+   "buckets": {
+    "G2": 19
+   },
+   "closed_by": null,
+   "coverage": 0.7286,
+   "first_seen": "2026-10-28",
+   "last_seen": "2026-10-28",
+   "openings": 70,
+   "runs_seen": 1,
+   "status": "open"
+  },
   "The_Chatter/Sailing_the_Tide": {
    "buckets": {
     "G2": 19
@@ -957,25 +1050,26 @@
    "buckets": {
     "G2": 8
    },
-   "closed_by": "recovered (coverage 99%)",
-   "coverage": 0.9304,
-   "first_seen": "2026-09-07",
-   "last_seen": "2026-09-19",
-   "openings": 115,
-   "runs_seen": 17,
-   "status": "open"
-  },
-  "The_Chatter/Talking_Points": {
-   "buckets": {
-    "G4_sector": 5
-   },
    "closed_by": "recovered (coverage 100%)",
    "coverage": 1.0,
    "first_seen": "2026-09-07",
-   "last_seen": "2026-09-07",
-   "openings": 23,
-   "runs_seen": 9,
+   "last_seen": "2026-10-28",
+   "openings": 115,
+   "runs_seen": 17,
    "status": "closed"
+  },
+  "The_Chatter/Talking_Points": {
+   "accepted": 0,
+   "buckets": {
+    "G2": 6
+   },
+   "closed_by": "recovered (coverage 100%)",
+   "coverage": 0.7391,
+   "first_seen": "2026-09-07",
+   "last_seen": "2026-10-28",
+   "openings": 23,
+   "runs_seen": 10,
+   "status": "open"
   },
   "The_Chatter/Tariffs__Tailwinds.": {
    "buckets": {
@@ -1008,13 +1102,13 @@
    "buckets": {
     "G2": 12
    },
-   "closed_by": "recovered (coverage 98%)",
-   "coverage": 0.9184,
+   "closed_by": "recovered (coverage 100%)",
+   "coverage": 1.0,
    "first_seen": "2026-09-07",
-   "last_seen": "2026-09-19",
+   "last_seen": "2026-10-28",
    "openings": 147,
    "runs_seen": 15,
-   "status": "open"
+   "status": "closed"
   },
   "The_Chatter/The_Known_Unknowns": {
    "buckets": {

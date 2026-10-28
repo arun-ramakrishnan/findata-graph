@@ -908,3 +908,34 @@ class TestProductionPath:
             assert sector_of(c, "CEAT") == "Automotive"
         finally:
             c.close()
+
+
+class TestStaleUnlinkServedGuard:
+    """thin_tail gates fix (2026-10-29): the stale-cache unlink ran BEFORE the
+    served check, so a stale cache under a live quack server was deleted and
+    the inline rebuild then refused — the server kept serving a deleted inode
+    and the live graph.duckdb vanished mid-gate. Under a served store the
+    unlink must be skipped (the rebuild is refused either way)."""
+
+    def test_stale_cache_not_unlinked_when_served(self, tmp_path, monkeypatch):
+        import helpers.core.duckdb_shared as ds
+        from helpers.graph import query as gq
+
+        cache = tmp_path / "graph.duckdb"
+        cache.write_bytes(b"stale-cache-bytes")
+        db = tmp_path / "research.db"
+        db.write_bytes(b"")
+        monkeypatch.setattr(ds, "is_served", lambda p: True)
+        monkeypatch.setattr(gq, "_is_warm", lambda c, d: False)
+        monkeypatch.setattr(
+            ds,
+            "assert_not_served",
+            lambda p: (_ for _ in ()).throw(
+                RuntimeError("served store: rebuild refused (split-brain guard)")
+            ),
+        )
+        with pytest.raises(RuntimeError):
+            gq._build_graph_connection(
+                cache, db, fresh=False, rebuild=False, stamp_centrality=False
+            )
+        assert cache.exists(), "served cache must not be unlinked"

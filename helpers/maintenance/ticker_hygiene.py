@@ -38,6 +38,7 @@ import argparse
 import json
 import logging
 import os
+import re
 import sqlite3
 import sys
 import time
@@ -103,14 +104,52 @@ def select_candidates(conn: sqlite3.Connection) -> list[tuple[str, str]]:
     return [(str(r[0]), str(r[1])) for r in rows if is_scrip_ticker(str(r[1]))]
 
 
-def resolve_one(name: str, old_ticker: str) -> dict:
+def select_untickered(
+    conn: sqlite3.Connection, *, notes_only: bool = False
+) -> list[tuple[str, str]]:
+    """(name, "") for companies with NO ticker (thin_tail S1c).
+
+    Same guarded pipeline as the scrip lane (search_ticker + identity_ok);
+    these rows were invisible to every yfinance consumer and to the
+    financial census. Old ticker is "" — apply pins on the empty/null
+    state so a concurrently-resolved row is never clobbered.
+
+    ``notes_only`` restricts to note-backed entities (``file_path``
+    populated): the graph holds ~16k entity rows that never got a note;
+    resolving those is a separate hygiene pass, not this lane's scope.
+    """
+    sql = (
+        "SELECT name FROM entities "
+        "WHERE entity_type = 'company' AND (ticker IS NULL OR ticker = '')"
+    )
+    if notes_only:
+        sql += " AND file_path IS NOT NULL AND file_path != ''"
+    rows = conn.execute(sql).fetchall()
+    return [(str(r[0]), "") for r in rows]
+
+
+def resolve_one(
+    name: str,
+    old_ticker: str,
+    *,
+    min_subset_tokens: int = 1,
+    foreign_ok: bool = False,
+) -> dict:
     """Resolve one scrip-code candidate to a record (network: one search).
 
     Statuses:
-      resolved        guarded Indian symbol found — safe to write
+      resolved        guarded symbol found — safe to write
       unresolved      search returned nothing (delisted, mangled name, …)
       foreign_symbol  best symbol is not .NS/.BO — refused, never written
+                      (unless ``foreign_ok``: then the SAME identity guard
+                      decides — validated foreign listings resolve, e.g.
+                      PepsiCo -> PEP; noise like Accel -> Acccelevation
+                      still refuses, thin_tail S1c)
       guard_refused   identity_ok says the info describes another company
+
+    ``min_subset_tokens=2`` (untickered lane) tightens the identity guard
+    against one-word note names subset-matching unrelated multi-word
+    securities (``Take`` -> Take-Two, ``GEE`` -> Geely).
 
     ``new_ticker`` is kept on refused rows for the report, but apply only
     ever touches status == resolved.
@@ -128,9 +167,13 @@ def resolve_one(name: str, old_ticker: str) -> dict:
         return rec
     if not symbol.endswith(_INDIAN_SUFFIXES):
         rec["new_ticker"] = symbol
-        rec["status"] = "foreign_symbol"
+        if foreign_ok and identity_ok(name, info, min_subset_tokens=2):
+            rec["status"] = "resolved"
+            rec["via"] = "foreign"
+        else:
+            rec["status"] = "foreign_symbol"
         return rec
-    if not identity_ok(name, info):
+    if not identity_ok(name, info, min_subset_tokens=min_subset_tokens):
         rec["new_ticker"] = symbol
         rec["status"] = "guard_refused"
         return rec
@@ -283,16 +326,79 @@ def apply_resolved(
     for rec in records:
         if rec.get("status") != "resolved" or not rec.get("new_ticker"):
             continue
-        cur = conn.execute(
-            "UPDATE entities SET ticker = ?, last_updated = ? WHERE name = ? AND ticker = ?",
-            (rec["new_ticker"], stamp, rec["name"], rec["old_ticker"]),
-        )
+        if rec["old_ticker"]:
+            cur = conn.execute(
+                "UPDATE entities SET ticker = ?, last_updated = ? WHERE name = ? AND ticker = ?",
+                (rec["new_ticker"], stamp, rec["name"], rec["old_ticker"]),
+            )
+        else:
+            # untickered lane: pin on the NULL/empty state (thin_tail S1c)
+            cur = conn.execute(
+                "UPDATE entities SET ticker = ?, last_updated = ? "
+                "WHERE name = ? AND (ticker IS NULL OR ticker = '')",
+                (rec["new_ticker"], stamp, rec["name"]),
+            )
         if cur.rowcount:
             applied += 1
         else:
             skipped += 1
     conn.commit()
     return applied, skipped
+
+
+_TICKER_EMPTY_RE = re.compile(r"(?m)^ticker:(?:\s*(?:null|''|\"\"))?\s*$")
+
+
+def _set_note_ticker(text: str, symbol: str) -> str | None:
+    """Point the frontmatter ``ticker:`` line at ``symbol``.
+
+    Frontmatter block only; matches a null/empty ``ticker:`` line. Returns
+    the new text, or None when there is no safe site (no frontmatter, or a
+    populated ``ticker:`` line — never clobber a resolved value).
+    """
+    if not text.startswith("---"):
+        return None
+    end = text.find("\n---", 3)
+    if end == -1:
+        return None
+    new_fm, n = _TICKER_EMPTY_RE.subn(f"ticker: {symbol}", text[:end], count=1)
+    if n == 0:
+        return None
+    return new_fm + text[end:]
+
+
+def apply_note_tickers(conn: sqlite3.Connection, records: list[dict]) -> tuple[int, int]:
+    """Sync the note frontmatter ``ticker:`` line for resolved rows (S1c).
+
+    ``entities.ticker`` is the reachability truth (what every yfinance
+    consumer reads); the note frontmatter line is the census/display
+    surface. Updated only when it holds null/empty — a populated line is
+    left untouched and counted as skipped. Returns (updated, skipped).
+    """
+    updated = skipped = 0
+    for rec in records:
+        if rec.get("status") != "resolved" or not rec.get("new_ticker"):
+            continue
+        row = conn.execute(
+            "SELECT file_path FROM entities WHERE name = ?", (rec["name"],)
+        ).fetchone()
+        fp = row["file_path"] if row else None
+        if not fp:
+            skipped += 1
+            continue
+        p = PROJECT_ROOT / fp
+        if not p.exists():
+            log.warning("note %r missing for %s — frontmatter not updated", fp, rec["name"])
+            skipped += 1
+            continue
+        text = p.read_text(encoding="utf-8")
+        new_text = _set_note_ticker(text, str(rec["new_ticker"]))
+        if new_text is None:
+            skipped += 1
+            continue
+        p.write_text(new_text, encoding="utf-8")
+        updated += 1
+    return updated, skipped
 
 
 def append_report(
@@ -379,6 +485,20 @@ def main(argv: list[str] | None = None) -> int:  # noqa: C901
     parser.add_argument(
         "--company", type=str, default=None, help="restrict to a name/ticker substring"
     )
+    parser.add_argument(
+        "--untickered",
+        action="store_true",
+        help="resolve companies with NO ticker instead of scrip-code rows "
+        "(thin_tail S1c); guarded search_ticker + identity_ok, applies "
+        "entities.ticker AND the note frontmatter `ticker:` line on --apply",
+    )
+    parser.add_argument(
+        "--notes-only",
+        action="store_true",
+        help="with --untickered: restrict to note-backed entities "
+        "(file_path populated). The graph holds ~16k non-note company rows; "
+        "resolving those is out of this lane's scope. STRONGLY recommended.",
+    )
     parser.add_argument("--limit", type=int, default=None, help="cap candidates (smoke runs)")
     parser.add_argument(
         "--sleep", type=float, default=0.25, help="seconds between network resolutions"
@@ -403,6 +523,9 @@ def main(argv: list[str] | None = None) -> int:  # noqa: C901
     parser.add_argument("--report", type=str, default=str(REPORT_PATH))
     args = parser.parse_args(argv)
 
+    if args.notes_only and not args.untickered:
+        print("[ticker-hygiene] --notes-only only applies to --untickered")
+        return 2
     if args.fetch_only and args.apply_only:
         print("[ticker-hygiene] --fetch-only and --apply-only are mutually exclusive")
         return 2
@@ -417,8 +540,12 @@ def main(argv: list[str] | None = None) -> int:  # noqa: C901
         return 2
 
     stage_path = Path(args.stage)
+    if args.untickered and args.stage == str(STAGE_PATH):
+        # distinct default stage: the two populations must never merge
+        stage_path = STAGE_PATH.with_name("ticker_hygiene_stage_untickered.jsonl")
     conn = connect(args.db)
     try:
+        note_applied = note_skipped = 0
         applied = skipped = 0
         if args.apply_only:
             staged = _load_stage(stage_path)
@@ -429,9 +556,15 @@ def main(argv: list[str] | None = None) -> int:  # noqa: C901
             mode = "apply-only"
             if args.apply:
                 applied, skipped = apply_resolved(conn, records)
+                if args.untickered:
+                    note_applied, note_skipped = apply_note_tickers(conn, records)
                 mode = "apply-only+apply"
         else:
-            candidates = select_candidates(conn)
+            candidates = (
+                select_untickered(conn, notes_only=args.notes_only)
+                if args.untickered
+                else select_candidates(conn)
+            )
             if args.company:
                 needle = args.company.lower()
                 candidates = [
@@ -457,7 +590,12 @@ def main(argv: list[str] | None = None) -> int:  # noqa: C901
             )
             fresh: list[dict] = []
             for i, (name, old) in enumerate(todo, 1):
-                rec = resolve_one(name, old)
+                rec = resolve_one(
+                    name,
+                    old,
+                    min_subset_tokens=2 if args.untickered else 1,
+                    foreign_ok=args.untickered,
+                )
                 fresh.append(rec)
                 # incremental staging: each record hits the JSONL the moment
                 # it resolves, so an interrupted 4k-candidate sweep resumes
@@ -502,8 +640,12 @@ def main(argv: list[str] | None = None) -> int:  # noqa: C901
             merged = {**staged, **{r["name"]: r for r in fresh}}
             records = sorted(merged.values(), key=lambda r: r["name"])
             mode = "fetch-only" if args.fetch_only else ("fetch+apply" if args.apply else "dry-run")
+            if args.untickered:
+                mode = f"untickered-{mode}"
             if args.apply and not args.fetch_only:
                 applied, skipped = apply_resolved(conn, records)
+                if args.untickered:
+                    note_applied, note_skipped = apply_note_tickers(conn, records)
 
         counts = Counter(r["status"] for r in records)
         report_path = Path(args.report)
@@ -523,7 +665,8 @@ def main(argv: list[str] | None = None) -> int:  # noqa: C901
             f"tier2_fail={sum(1 for r in records if str(r.get('status', '')).startswith('tier2'))} "
             f"tier3_ok={sum(1 for r in records if r.get('via') == 'tier3' and r['status'] == 'resolved')} "
             f"tier3_fail={sum(1 for r in records if str(r.get('status', '')).startswith('tier3'))} "
-            f"applied={applied} skipped_moved={skipped}"
+            f"applied={applied} skipped_moved={skipped} "
+            f"note_tickers={note_applied}/{note_applied + note_skipped}"
         )
         print(f"[ticker-hygiene] stage={stage_path} report appended -> {report_path}")
         return 0

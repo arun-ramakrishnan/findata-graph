@@ -767,6 +767,42 @@ class NotesVerifier:
             return True
         return False
 
+    # thin_tail S5 (2026-10-29): canonical H2 section set for company notes.
+    # The S5 migration normalized the unambiguous variant families; these are
+    # the KNOWN pre-migration variants — advisory drift tripwires, never
+    # errors (the ~90 remaining carriers are recorded curation follow-ups:
+    # collision/multi-variant notes a human should merge).
+    CANONICAL_H2_VARIANTS = {
+        "Company Overview": (
+            "Overview",
+            "Business Overview",
+            "Comprehensive Overview",
+            "Business Profile",
+        ),
+        "Key Insights": ("Key Insights (from newsletter)",),
+        "The Chatter — <edition>": ("The Chatter — The Chatter: <edition>",),
+    }
+
+    def check_canonical_sections(self, file_path, content=None):
+        """Advisory: known non-canonical H2 section variants (thin_tail S5)."""
+        if content is None:
+            try:
+                content = open(file_path, encoding="utf-8").read()
+            except Exception:
+                return
+        for m in re.finditer(r"(?m)^## (.+?)\s*$", content):
+            h = m.group(1).strip()
+            for canon, variants in self.CANONICAL_H2_VARIANTS.items():
+                if h in variants or (
+                    canon.startswith("The Chatter") and h.startswith("The Chatter — The Chatter")
+                ):
+                    self.log_warning(
+                        "non_canonical_section",
+                        file_path,
+                        f"{h!r} is a known variant of canonical {canon!r}",
+                    )
+                    break
+
     def check_heading_duplicates(self, file_path, content=None):  # noqa: C901
         """Duplicate / near-duplicate / case-variant H3 headings + stray YAML.
 
@@ -916,6 +952,7 @@ class NotesVerifier:
             self.check_yaml_structure(str(md_file), content=content)
             self.check_content_quality(str(md_file), content=content)
             self.check_heading_duplicates(str(md_file), content=content)
+            self.check_canonical_sections(str(md_file), content=content)
         if not self.suppress_progress:
             print(f"   Checked {file_count} files in {dir_type}")
         return file_count

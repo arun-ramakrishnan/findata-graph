@@ -1,7 +1,7 @@
 ---
 title: Vikram Solar
 type: company
-ticker: VIKRAMTH.BO
+ticker: VIKRAMSOLR.NS
 sector: Renewables
 industry: Solar
 market_cap: mid_cap

@@ -1,7 +1,7 @@
 ---
 title: Dalmia Bharat
 type: company
-ticker: DALMIASUG.NS
+ticker: DALBHARAT.NS
 sector: Building_Materials
 industry: Building Materials
 market_cap: mid_cap

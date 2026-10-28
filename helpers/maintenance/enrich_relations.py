@@ -774,7 +774,10 @@ def build_semantic_peer_edges(  # noqa
         log.error("failed to import helpers.graph.query: %s", e)
         return []
     try:
-        dcon = gq.connect()  # type: ignore[attr-defined]
+        # READ-ONLY + wire-aware (thin_tail S3.1): the builder only reads the
+        # materialised v_embeddings; gq.connect() file-mode hits the quack
+        # split-brain guard when the served store is up (duckdb 2.0).
+        dcon = gq.connect_read_only(gq.DUCKDB_PATH)  # type: ignore[attr-defined]
     except Exception as e:
         log.error("failed to connect DuckDB for VSS: %s", e)
         return []
