@@ -129,7 +129,7 @@ FMCG is a sub-sector of [[Consumer_Staples]] within the broader [[Consumer]] sec
 
 ## All Companies (auto)
 
-<!-- Auto-generated from the SQLite source of truth. 84 company note(s) in FMCG. Do not edit by hand — re-run `python3 helpers/maintenance/sync_sector_wikilinks.py` to refresh. Curated highlights live in the editorial sections above. -->
+<!-- Auto-generated from the SQLite source of truth. 85 company note(s) in FMCG. Do not edit by hand — re-run `python3 helpers/maintenance/sync_sector_wikilinks.py` to refresh. Curated highlights live in the editorial sections above. -->
 
 - [[ANSA_McAL|ANSA McAL]]
 - [[AWL_Agri_Business|AWL Agri Business]]
@@ -157,6 +157,7 @@ FMCG is a sub-sector of [[Consumer_Staples]] within the broader [[Consumer]] sec
 - [[Flair_Writing_Industries|Flair Writing Industries]]
 - [[Ganesh_Consumer_Products|Ganesh Consumer Products]]
 - [[Gillette]]
+- [[Globus_Spirits|Globus Spirits]]
 - [[Godfrey_Phillips_India|Godfrey Phillips India]]
 - [[Godrej_Consumer_Products|Godrej Consumer Products]]
 - [[Gopal_Snacks|Gopal Snacks]]

@@ -26,6 +26,15 @@ onager, igraph, the walk substrate, snapshots and the API are unchanged.
 
 from __future__ import annotations
 
+import sys
+
+# sys.path bootstrap so `python3 -m helpers.graph.sector_membership` works
+# from any working directory (same pattern as helpers/graph/query.py:19).
+if __name__ == "__main__" and "helpers" not in sys.modules:
+    from pathlib import Path
+
+    sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+
 import sqlite3
 from pathlib import Path
 

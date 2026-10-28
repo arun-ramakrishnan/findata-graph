@@ -60,7 +60,7 @@ Electronic Manufacturing Services — contract manufacturers, EMS, optoelectroni
 - [[Transformers_and_Rectifiers_India|Transformers and Rectifiers (India)]]
 - [[Virtuoso_Optoelectronics_Ltd|Virtuoso Optoelectronics Limited]]
 - [[Yash_Highvoltage|Yash Highvoltage]]
-- [[Zetwerk]]
+- [[Zetwerk_Manufacturing_Business|Zetwerk]]
 
 <!-- END auto company index -->
 ## Newsletter synthesis — EMS_Manufacturing (multi-edition)

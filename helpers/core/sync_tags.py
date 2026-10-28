@@ -256,16 +256,21 @@ def _sync_from_corpus(  # noqa: C901
             continue
         for t in uniq:
             bulk.append((name, t))
-        # sector_classification E5a same as walk path
-        for t in uniq:
-            if t.startswith("sector/"):
-                slug = t.split("/", 1)[1]
-                canon = _SECTOR_SLUG_TO_CANONICAL.get(slug)
-                if canon:
-                    sector_updates.append((canon, name))
-                else:
-                    unknown_sectors.append((name, t))
-                break
+        # sector_classification E5a same as walk path — companies only.
+        # A sector entity tags itself with its own sector (sector/automotive
+        # on the Automotive sector note); writing that as membership made the
+        # sector a member of its own hyperedge (42 self-incidences, caught by
+        # integrity's sector_membership_endpoint_bad).
+        if entity_type == "company":
+            for t in uniq:
+                if t.startswith("sector/"):
+                    slug = t.split("/", 1)[1]
+                    canon = _SECTOR_SLUG_TO_CANONICAL.get(slug)
+                    if canon:
+                        sector_updates.append((canon, name))
+                    else:
+                        unknown_sectors.append((name, t))
+                    break
     return bulk, no_tags, missing_files, sector_updates, unknown_sectors, geo_slop_rows
 
 
