@@ -12761,3 +12761,24 @@ and that anchoring the FTS top-5 fixes it structurally: 25/57 granite
   no part_id), not a wiring gap.
 - `ruff check` clean; tests/test_convo_search.py +
   test_convo_provenance.py + test_db_maint_convo.py → 32 passed.
+## 450. cosine_knn production integration — benched, DEFERRED
+
+**Date:** 2026-10-28 · **Status:** DEFERRED (bench + prior evidence; no
+code) · **Proposal:**
+`doc/improvements/archive/graph/cosine_knn_production_integration.md`
+(filed 2026-10-28; this entry closes it as deferred).
+
+Deferred on review: both projected speedups conflict with recorded
+evidence and a fresh live-shape bench (17,550 x 512, warm medians).
+`similar_notes`: DuckDB SQL 1.70 ms — and the plan's prerequisite
+fetch+decode of all section vectors costs 1,717.8 ms per call, a ~1000x
+regression; Rust only wins there behind a materialized note-embedding
+matrix (EmbedMatrixStore pattern). `app.py::_flat_knn_map`: em.top_k
+numpy 11.34 ms (88 q/s) vs cosine_knn.knn 8.25 ms k=N — 1.37x, not the
+claimed 2–3x (3.64 ms only as k=10, a contract change); leg is live
+(N > vec0's 14.5k cap, app.py:955) but the gap is thin for a box-local
+abi3 dep on the serving path. Prior evidence: rust_cosine_knn_port.md
+(S3 de-scoped 2026-10-25) and note_knn_distance_ranking.md (HNSW
+declined 2026-09-22). Re-open: numpy argpartition top-k benched at
+N=17,550 with a surviving gap, or a materialized note-embedding matrix
+lands.

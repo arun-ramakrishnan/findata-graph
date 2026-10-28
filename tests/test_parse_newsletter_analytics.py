@@ -32,7 +32,7 @@ def test_with_analytics_requires_apply(monkeypatch, fake_newsletter):
     # Prevent any real capture/validation from running.
     monkeypatch.setattr(pn, "capture_images", lambda *_a, **_k: True)
     monkeypatch.setattr(pn, "extract_companies", lambda _content, _sector_dirs: [])
-    monkeypatch.setattr(pn, "classify", lambda _c, _e: ([], [], []))
+    monkeypatch.setattr(pn, "classify", lambda _c, _e, _a=None, fuzzy_candidates=None: ([], [], []))
     monkeypatch.setattr(pn, "get_existing_entity_names", lambda _conn: set())
     monkeypatch.setattr(pn, "get_sector_dirs", lambda: set())
     monkeypatch.setattr(
@@ -85,7 +85,7 @@ def test_stage6_skipped_without_with_analytics_flag(monkeypatch, fake_newsletter
 
     monkeypatch.setattr(pn, "capture_images", lambda *_a, **_k: True)
     monkeypatch.setattr(pn, "extract_companies", lambda _content, _sector_dirs: [])
-    monkeypatch.setattr(pn, "classify", lambda _c, _e: ([], [], []))
+    monkeypatch.setattr(pn, "classify", lambda _c, _e, _a=None, fuzzy_candidates=None: ([], [], []))
     monkeypatch.setattr(pn, "get_existing_entity_names", lambda _conn: set())
     monkeypatch.setattr(pn, "get_sector_dirs", lambda: set())
     monkeypatch.setattr(
@@ -111,7 +111,7 @@ def test_stage6_invoked_when_both_flags_set(monkeypatch, fake_newsletter):
 
     monkeypatch.setattr(pn, "capture_images", lambda *_a, **_k: True)
     monkeypatch.setattr(pn, "extract_companies", lambda _content, _sector_dirs: [])
-    monkeypatch.setattr(pn, "classify", lambda _c, _e: ([], [], []))
+    monkeypatch.setattr(pn, "classify", lambda _c, _e, _a=None, fuzzy_candidates=None: ([], [], []))
     monkeypatch.setattr(pn, "get_existing_entity_names", lambda _conn: set())
     monkeypatch.setattr(pn, "get_sector_dirs", lambda: set())
     monkeypatch.setattr(

@@ -432,3 +432,67 @@ class TestListedIssues:
         contradictions, missing = pn._detect_listed_issues(content, {"Netweb Technologies"})
         assert len(contradictions) == 1
         assert missing == []
+
+
+class TestClassify:
+    """classify() routing: noted-exact, alias-resolved, and NOT-covered
+    noteless names (note-gap arc 2026-10-28)."""
+
+    COMPANIES = [("Tata Motors", 5, "Auto")]
+
+    def test_alias_hit_routes_to_canonical(self):
+        new, existing, uncertain = pn.classify(
+            self.COMPANIES,
+            {"Tata Motors Passenger Vehicles"},
+            {"tata motors": "Tata Motors Passenger Vehicles"},
+        )
+        assert new == [] and uncertain == []
+        assert existing == [("Tata Motors Passenger Vehicles", 5, "Auto")]
+
+    def test_alias_map_none_is_backward_compatible(self):
+        new, existing, uncertain = pn.classify(self.COMPANIES, set())
+        assert existing == [] and uncertain == []
+        assert new == [("Tata Motors", 5, "Auto")]
+
+    def test_noted_exact_hit_still_wins_over_alias(self):
+        new, existing, uncertain = pn.classify(
+            self.COMPANIES,
+            {"Tata Motors"},
+            {"tata motors": "Some Other Entity"},
+        )
+        assert existing == [("Tata Motors", 5, "Auto")]
+
+    def test_noteless_name_is_not_coverage(self):
+        """The bug: 'Hindalco Industries' existed as a noteless stub row, so
+        the old all-names census exact-hit it and no note was ever written.
+        A name absent from existing_names must fall to fuzzy/uncertain,
+        never count as covered."""
+        new, existing, uncertain = pn.classify([("Hindalco Industries", 9, "Metals")], {"Hindalco"})
+        assert existing == []
+        assert len(uncertain) == 1 and uncertain[0]["likely_existing"] == "Hindalco"
+
+    def test_dedup_keeps_first_bucket(self):
+        companies = [("Acme", 1, None), ("Acme", 2, None)]
+        new, existing, uncertain = pn.classify(companies, {"Acme"})
+        assert existing == [("Acme", 1, None)]
+        assert new == []
+
+
+def test_get_alias_map_reads_aliases():
+    conn = sqlite3.connect(":memory:")
+    conn.execute(
+        "CREATE TABLE entity_identifiers("
+        "entity_name TEXT, identifier_type TEXT, identifier_value TEXT)"
+    )
+    conn.executemany(
+        "INSERT INTO entity_identifiers VALUES (?,?,?)",
+        [
+            ("Tata Motors Passenger Vehicles", "alias", "Tata Motors"),
+            ("Titan", "isin", "INE280A01028"),
+        ],
+    )
+    try:
+        amap = pn.get_alias_map(conn)
+    finally:
+        conn.close()
+    assert amap == {"tata motors": "Tata Motors Passenger Vehicles"}

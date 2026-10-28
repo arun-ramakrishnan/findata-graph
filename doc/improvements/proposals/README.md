@@ -38,8 +38,12 @@ entry number and stale DONE pointers):
 
 ## Current live proposals
 
-- *(none — the rust_language_tooling proposal executed same-day
-  2026-10-26 and archived (#446); see the previous-batch line below.)*
+- *(none — the cosine_knn_production_integration proposal was filed
+  2026-10-28, benched against recorded evidence, and closed DEFERRED
+  same day (#450,
+  `../archive/graph/cosine_knn_production_integration.md`); the
+  rust_language_tooling proposal before it executed same-day 2026-10-26
+  and archived (#446); see the previous-batch line below.)*
 - *(previously: none — every proposal filed here is executed and archived. The
   2026-10-26 batch went out filed + executed + archived across sessions:
   `../archive/tooling/rust_language_tooling.md` (#446),

@@ -70,6 +70,11 @@ commit, referenced by nothing). Entry numbers point at
 
 ## graph/ — Graph layer — algorithms, DuckPGQ retirement, Onager, knowledge-model design
 
+- [`cosine_knn_production_integration.md`](graph/cosine_knn_production_integration.md) —
+  wire the cosine_knn Rust backend into `query.py::similar_notes` +
+  `app.py::_flat_knn_map`; benched and DEFERRED same day (2026-10-28):
+  SQL 1.70 ms vs the plan's 1.7 s fetch+decode prerequisite; rust 1.37x
+  numpy at N=17,550 (not the claimed 2–3x) — completed.md #450
 - [`graph_relational_depth.md`](graph/graph_relational_depth.md) —
   relational depth overhaul, all seven slices executed same day
   (2026-10-25): R6 audit (customer_of falsified as a gap — the RPT sync

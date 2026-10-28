@@ -11,3 +11,4 @@ edition = "2021"
 # unused-manifest-key warning and never reaches the compiler.
 [profile.release]
 opt-level = 3
+rpath = true

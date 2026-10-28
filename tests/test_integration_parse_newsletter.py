@@ -53,6 +53,21 @@ def _build_db(db_path: Path) -> sqlite3.Connection:
             FOREIGN KEY (entity_name) REFERENCES entities(name)
                 ON DELETE CASCADE ON UPDATE CASCADE
         );
+        CREATE TABLE entity_identifiers (
+            entity_name      TEXT NOT NULL REFERENCES entities(name)
+                           ON DELETE CASCADE ON UPDATE CASCADE,
+            identifier_type  TEXT NOT NULL CHECK (identifier_type IN
+                           ('cin', 'lei', 'cik', 'isin', 'llpin', 'alias')),
+            identifier_value TEXT NOT NULL,
+            namespace        TEXT,
+            valid_from       TEXT,
+            valid_to         TEXT,
+            source_ref       TEXT NOT NULL,
+            created_at       DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            last_updated     DATETIME,
+            PRIMARY KEY (entity_name, identifier_type, identifier_value),
+            UNIQUE (identifier_type, identifier_value)
+        );
         CREATE TABLE graph_edges (
             id          INTEGER PRIMARY KEY,
             source      TEXT NOT NULL,
@@ -168,8 +183,8 @@ def synth_project(tmp_path, monkeypatch):
         )
     conn.execute(
         "INSERT INTO entities(name, entity_type, sector_classification, "
-        "normalized_name, ticker) VALUES "
-        "('HDFC Bank', 'company', 'Banking', 'HDFC_Bank', 'HDFCBANK')"
+        "normalized_name, ticker, file_path) VALUES "
+        "('HDFC Bank', 'company', 'Banking', 'HDFC_Bank', 'HDFCBANK', 'findata/Companies/Banking/HDFC_Bank.md')"
     )
     conn.commit()
     conn.close()

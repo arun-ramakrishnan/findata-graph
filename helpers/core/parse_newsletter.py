@@ -192,13 +192,41 @@ def log(stage: str, msg: str) -> None:
 # DB helpers (direct sqlite3; the SQLite MCP is for the agent, not this script)
 # ===========================================================================
 def get_existing_entity_names(conn) -> set:
-    """All company entity names + normalized_names currently in the DB."""
-    rows = conn.execute("SELECT name FROM entities WHERE entity_type='company'").fetchall()
+    """Names + normalized_names of companies that HAVE a note file.
+
+    Note-gap arc (2026-10-28): this returned every company row, so a
+    noteless stub row (file_path IS NULL -- e.g. bulk-imported)
+    exact-hit in classify() and counted as covered; the parse then never
+    wrote its note. classify()'s contract is "already has coverage", so
+    only noted rows qualify now; noteless rows fall through to the
+    alias/fuzzy path instead.
+    """
+    rows = conn.execute(
+        "SELECT name FROM entities WHERE entity_type='company' AND file_path IS NOT NULL"
+    ).fetchall()
     norm = conn.execute(
         "SELECT normalized_name FROM entities WHERE entity_type='company' "
-        "AND normalized_name IS NOT NULL"
+        "AND normalized_name IS NOT NULL AND file_path IS NOT NULL"
     ).fetchall()
     return {r[0] for r in rows} | {r[0].replace("_", " ") for r in norm}
+
+
+def get_alias_map(conn) -> dict:
+    """alias identifier value -> canonical entity name (lowercased key).
+
+    Feeds classify(): a newsletter name that exact-hits a registered alias
+    resolves straight to the canonical entity, so downstream quotes and
+    edges attach to the noted row instead of dying on a folded variant
+    name (note-gap arc 2026-10-28: 26 variants folded, aliases registered
+    under namespace 'newsletter_variant' -- but any alias counts).
+    """
+    return {
+        r[0].lower(): r[1]
+        for r in conn.execute(
+            "SELECT identifier_value, entity_name FROM entity_identifiers "
+            "WHERE identifier_type='alias'"
+        ).fetchall()
+    }
 
 
 def get_sector_dirs() -> set:
@@ -313,18 +341,30 @@ _STOPWORDS = {
 # match must share at least one token NOT in this set, otherwise two unrelated
 
 
-def classify(companies, existing_names: set):
+def classify(
+    companies,
+    existing_names: set,
+    alias_map: dict | None = None,
+    *,
+    fuzzy_candidates: list | None = None,
+):
     """
     Split into (new, existing, uncertain).
-    - existing: exact name/normalized match.
+    - existing: exact name/normalized match, or an exact alias hit resolved
+      to its canonical entity (note-gap arc 2026-10-28).
     - uncertain: no exact match but a strong fuzzy match exists -> do NOT
       auto-create (would risk a duplicate); flag for confirmation.
     - new: no match at all.
     companies is a list of (name, line, header_sector) tuples.
+    alias_map maps lowercased alias -> canonical entity name (may be None).
+    fuzzy_candidates: entities to use for fuzzy matching (defaults to existing_names).
+                      Use this to include stubs (file_path IS NULL) in fuzzy path.
     Returns (new, existing, uncertain) where each element preserves header_sector.
     """
     existing_lower = {n.lower() for n in existing_names}
     existing_list = list(existing_names)
+    alias_map = alias_map or {}
+    fuzzy_list = fuzzy_candidates if fuzzy_candidates is not None else existing_list
     new_co, existing_co, uncertain_co = [], [], []
     seen = set()
     for company in companies:
@@ -338,8 +378,12 @@ def classify(companies, existing_names: set):
         if name in existing_names or key in existing_lower:
             existing_co.append((name, line, header_sector))
             continue
+        canonical = alias_map.get(key)
+        if canonical:
+            existing_co.append((canonical, line, header_sector))
+            continue
         # Use shared fuzzy matcher (exact -> abbreviation -> word_overlap -> spellfix)
-        fuzzy, method, score = fuzzy_match(name, existing_list)
+        fuzzy, method, score = fuzzy_match(name, fuzzy_list)
         if fuzzy:
             uncertain_co.append(
                 {
@@ -1091,9 +1135,8 @@ def main(argv: list[str] | None = None):  # noqa: C901
     content = md_path.read_text(encoding="utf-8")
     sector_dirs = get_sector_dirs()
     existing = get_existing_entity_names(conn)
+    alias_map = get_alias_map(conn)
     companies = list(extract_companies(content, sector_dirs))
-
-    new_cos, existing_cos, uncertain_cos = classify(companies, existing)
 
     # Stub census — UNCONDITIONAL read-only SELECT (2026-10-27 Zetwerk miss): an
     # apply-gated census emits worklists with stubs=∅ in dry-run/cross-check-only
@@ -1106,6 +1149,15 @@ def main(argv: list[str] | None = None):  # noqa: C901
         stubs.add(nm)
         if tk:
             tickers[nm] = tk
+
+    # For fuzzy matching, include stub entities so they can be matched.
+    # Note: exact-match against existing (noted companies only) stays the same;
+    # stubs only participate in fuzzy path.
+    fuzzy_candidates = list(existing) + list(stubs)
+
+    new_cos, existing_cos, uncertain_cos = classify(
+        companies, existing, alias_map, fuzzy_candidates=fuzzy_candidates
+    )
 
     log("1", f"extracted {len(companies)} candidate sections")
     log(
