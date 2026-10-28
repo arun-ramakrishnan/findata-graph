@@ -70,6 +70,14 @@ commit, referenced by nothing). Entry numbers point at
 
 ## graph/ — Graph layer — algorithms, DuckPGQ retirement, Onager, knowledge-model design
 
+- [`hgx_unlock_shelf_probe.md`](graph/hgx_unlock_shelf_probe.md) —
+  probe the six D10-archive §4 trigger-gated HGX capabilities; probed
+  and DEFERRED same day (2026-10-28): motifs census NO-GO (only
+  trivial within-edge triple on every family, norm_delta 0.0 — no
+  cross-edge 3-node overlap in the store), reducibility measured
+  (editions 0.637@L3 vs non-edition families ~0.0 — validates the s=2
+  s-walk default); items 3–6 stay consumer-gated; three entry-point
+  corrections recorded — completed.md #451
 - [`cosine_knn_production_integration.md`](graph/cosine_knn_production_integration.md) —
   wire the cosine_knn Rust backend into `query.py::similar_notes` +
   `app.py::_flat_knn_map`; benched and DEFERRED same day (2026-10-28):

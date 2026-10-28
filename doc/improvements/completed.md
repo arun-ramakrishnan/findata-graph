@@ -12782,3 +12782,34 @@ abi3 dep on the serving path. Prior evidence: rust_cosine_knn_port.md
 declined 2026-09-22). Re-open: numpy argpartition top-k benched at
 N=17,550 with a surviving gap, or a materialized note-embedding matrix
 lands.
+
+
+## 451. HGX unlock-shelf probe — motifs NO-GO, reducibility measured, four lanes re-gated
+
+**Date:** 2026-10-28 · **Status:** DEFERRED (probe executed; no
+production wiring) · **Proposal:**
+`doc/improvements/archive/graph/hgx_unlock_shelf_probe.md` (filed +
+archived same session; this entry closes it as deferred).
+
+The six D10-archive §4 shelf capabilities were inventoried against
+hypergraphx 1.8.0 (three entry-point corrections recorded:
+`directed_motifs` module, `measures.shortest_paths` module,
+`core_periphery.model`) and the two items whose triggers had arguably
+fired were probed. **Motifs census: NO-GO** — order-3 census (runs=10,
+seed=42) over every k≥3 family returns only the trivial within-edge
+triple (edition/theme 0; max count 12 on industry), norm_delta 0.0
+throughout: node pools (270–1,211) are 1–2 orders above edge counts
+(1–85), so cross-edge 3-node overlaps never occur; the D10 k≥3-edge
+trigger was necessary but not sufficient. **Reducibility: measured** —
+editions 0.637 at layer 3 / 0.485 at layer 4 (majority of edition
+structure explainable at order ≤4) vs industry/sub_sector/sector/
+org_membership ≈ 0.0 at layers 2–6 (genuinely higher-order); validates
+the s=2 default of the landed `s_betweenness`/`s_closeness` lanes on
+non-edition families. Items 3–6 (multi-order Laplacian, s-walk
+shortest paths, RW density, community lanes 2–4) re-gated unchanged on
+named-consumer triggers. Verdicts also recorded short-form in
+`pending.md` ("HGX unlock shelf" entry, added 2026-10-28 — the D10 §4
+claim that the shelf "lands in pending.md" had never actually
+happened). Re-probe gates: motifs need cross-edge overlap mass (quick
+SQL check recorded in the proposal); reducibility re-runs on >2× edge
+growth.

@@ -453,9 +453,7 @@ def _insert_all(
     # req-0001 window-replace regression: one 09-29 re-load deleted the
     # session's 09-28 rows right before insert).
     if purge_session and "session_id" in cols:
-        session_ids = sorted(
-            {str(row["session_id"]) for row in rows if row.get("session_id")}
-        )
+        session_ids = sorted({str(row["session_id"]) for row in rows if row.get("session_id")})
         con.executemany(
             f"DELETE FROM {table} WHERE source = ? AND session_id = ?",  # noqa: S608  # parameterized values; interpolated part is a schema-constant table name
             [(source, sid) for sid in session_ids],

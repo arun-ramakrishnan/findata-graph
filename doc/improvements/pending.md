@@ -320,6 +320,59 @@ Open items below keep their revisit triggers inline; executed work is compressed
   worklist detector still lists the 8 authored-covered labels — they
   re-ask on future label drift by design (S4 reopen intent).
 
+- **HGX unlock shelf — 6 trigger-gated capabilities** (D10 archive §4
+  claims these "land in pending.md"; they never did — recorded here
+  2026-10-28 with first probe verdicts; full detail + do-not-re-probe
+  gates: `archive/graph/hgx_unlock_shelf_probe.md` #451). All six
+  verified present in
+  hypergraphx 1.8.0 (`prediction` module is NOT — §3 first-party lane
+  stands). Entry-point corrections vs the archive table:
+  `compute_directed_motifs` → `hypergraphx.motifs.directed_motifs`;
+  `calc_HO_shortest_paths` / `calc_prop_true_dyad_paths_per_spl` /
+  `calc_sizes_redundancies_of_shortest_paths` →
+  `hypergraphx.measures.shortest_paths` (not s_centralities);
+  `core_periphery` → `hypergraphx.communities.core_periphery.model`.
+
+  1. **Motifs census** (`compute_motifs`, `directed_motifs`) — PROBED
+     2026-10-28, **NO-GO on current data**: order-3 census (runs=10,
+     seed=42) over every k≥3 family returns ONLY the trivial
+     within-edge triple (industry 12, sub_sector 9, org_membership 7,
+     group 2, sector 1, country 1; edition 0, theme 0) — zero
+     multi-edge intersection motifs, norm_delta 0.0 throughout (no
+     enrichment vs config model). Cause: node pools (270–1,211) are
+     large relative to edge counts (4–85) → cross-edge 3-node overlaps
+     essentially never occur. REOPEN trigger sharpened: motif signal
+     requires cross-edge node-overlap at motif order — re-probe when a
+     family gains dense shared-membership edges (e.g. event family
+     once participant data arrives, or post-merger same_group churn).
+  2. **Reducibility** (`layer_reducibility`) — MEASURED 2026-10-28,
+     one-shot QA recorded (not wired): editions reducible at layer 3
+     (0.637) / layer 4 (0.485) — a majority of edition structure is
+     explainable at order ≤4; industry/sub_sector/sector/org_membership
+     ≈ 0.0 at layers 2–6 — genuinely higher-order. This VALIDATES the
+     s=2 default of the landed `s_betweenness`/`s_closeness` lanes on
+     the non-edition families (irreducible → s-walk is the right lens)
+     and flags editions as the family where dyadic/lower-order
+     explanations partially suffice. Re-run per-family on major store
+     growth; no production lane justified (one query, no recurring
+     consumer).
+  3. **Multi-order Laplacian** (`compute_multiorder_laplacian`,
+     `are_commuting`) — still gated: needs a named spectral-feature
+     consumer (entity-clustering QA candidate; none exists).
+  4. **s-walk shortest paths** (`calc_HO_shortest_paths` et al.) —
+     still gated: first UI/API path-explanation ask that traverses
+     hyperedges. Directed B/F-hyperpath (Gallo) remains out of HGX;
+     the directed lane stays plain-SQL BFS (`graph_design.md` D9).
+  5. **RW density** (`random_walk_density`, sig `(HG, s: ndarray,
+     time) -> list`) — still gated: needs an information-diffusion
+     analysis question (edition/news spread). `RW_stationary_state`
+     itself is already landed as `ho_pagerank` (S12/S14).
+  6. **Community lanes 2–4** (`core_periphery.model.core_periphery`,
+     `hyperlink_comm.hyperlink_communities`, `hypergraph_mt.model`,
+     `hy_sc.model`; hy_mmsbm landed in `hyper_communities.py`) — still
+     gated: hy-MMSBM block-disagreement QA or a second-opinion metric
+     validation ask.
+
 - **Convo gemma embedder upgrade** (deferred #442,
   `archive/tooling/convo_gemma_adoption.md`). S0 bank + hardened verdict
   on record: pv_gemma 24/57 vs pv_granite 14/57 (+71%) but bm25 alone
