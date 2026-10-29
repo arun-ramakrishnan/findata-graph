@@ -52,6 +52,7 @@ REPO = Path(__file__).resolve().parents[2]
 if str(REPO) not in sys.path:
     sys.path.insert(0, str(REPO))
 
+from helpers.core import jsonio  # noqa: E402  (orjson parse cutover; dumps stay stdlib per db_scaling_tuning §6.3 criteria)
 from helpers.core.db import DEFAULT_DB_PATH, connect as _db_connect  # noqa: E402
 from helpers.graph.metapath import ownership_parents  # noqa: E402
 
@@ -152,7 +153,7 @@ def derive_ultimate_parent(
         if not _PROMOTER_AGG_RE.match(holder or ""):
             continue
         try:
-            v = float(json.loads(props_json or "{}").get("stake_pct"))
+            v = float(jsonio.loads(props_json or "{}").get("stake_pct"))
         except TypeError, ValueError:
             continue
         if target not in coalition or v > coalition[target]:

@@ -45,6 +45,7 @@ FETCH_SCRATCH = (
 )
 if str(REPO) not in sys.path:
     sys.path.insert(0, str(REPO))
+from helpers.core import jsonio  # noqa: E402  (orjson parse cutover; dumps stay stdlib per db_scaling_tuning §6.3 criteria)
 from helpers.core.db import connect  # noqa: E402  (post-bootstrap: entry point, lazy-import convention)
 
 # FilingResult fields worth persisting (see nse_xbrl docs; §7.5.1)
@@ -347,7 +348,7 @@ def main() -> int:  # noqa: C901
         # Read staged results from scratch (no fetch)
         for sf in sorted(FETCH_SCRATCH.glob("*.json")):
             try:
-                data = json.loads(sf.read_text())
+                data = jsonio.loads(sf.read_text())
                 staged_results.append((data["entity"], data["rows"]))
             except Exception as exc:  # noqa: BLE001
                 print(f"[nse-xbrl] failed to read staged {sf.name}: {exc}", file=sys.stderr)

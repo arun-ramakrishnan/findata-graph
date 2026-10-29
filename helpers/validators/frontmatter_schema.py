@@ -33,7 +33,6 @@ Usage:
 
 from __future__ import annotations
 
-import json
 import re
 import sys
 from pathlib import Path
@@ -64,6 +63,7 @@ if str(REPO_ROOT) not in sys.path:
 
 # C-preferring loader (libyaml ~10x) via the shared core helper; the
 # try/except fallback dance lives there once.
+from helpers.core import jsonio  # noqa: E402  (orjson parse cutover; dumps stay stdlib per db_scaling_tuning §6.3 criteria)
 from helpers.core.frontmatter import yaml_safe_load  # noqa: E402
 
 SCHEMA_DIR = REPO_ROOT / "doc" / "okf"
@@ -117,7 +117,7 @@ def load_validator(note_type: str, engine: str = "fast"):
     """
     key = (note_type, engine)
     if key not in _VALIDATORS:
-        schema = json.loads((SCHEMA_DIR / SCHEMA_FILES[note_type]).read_text())
+        schema = jsonio.loads((SCHEMA_DIR / SCHEMA_FILES[note_type]).read_text())
         if engine == "fast":
             import fastjsonschema
 
@@ -653,7 +653,7 @@ def emit_key_doc() -> str:
         "",
     ]
     for note_type, fname in SCHEMA_FILES.items():
-        schema = json.loads((SCHEMA_DIR / fname).read_text())
+        schema = jsonio.loads((SCHEMA_DIR / fname).read_text())
         req = set(schema["required"])
         lines += [f"## {note_type}", "", f"Source: [`{fname}`]({fname})", ""]
         lines += ["| key | required | type | constraint | description |", "|---|---|---|---|---|"]

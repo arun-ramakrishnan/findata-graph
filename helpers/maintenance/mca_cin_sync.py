@@ -28,7 +28,6 @@ from __future__ import annotations
 
 import argparse
 import csv
-import json
 import os
 import sys
 import tempfile
@@ -40,6 +39,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))  # noqa: E402
 
+from helpers.core import jsonio  # noqa: E402  (orjson parse cutover; dumps stay stdlib per db_scaling_tuning §6.3 criteria)
 from helpers.core.cin import parse_cin  # noqa: E402
 from helpers.core.db import DEFAULT_DB_PATH, connect  # noqa: E402
 from helpers.core.fuzzy_match import word_overlap_match  # noqa: E402
@@ -115,7 +115,7 @@ def cmd_build(apply: bool) -> int:
     manual = _rows_read(MANUAL_PATH)
     merged.update(manual)
     if SCRATCH_HITS.exists():
-        hits = json.loads(SCRATCH_HITS.read_text())
+        hits = jsonio.loads(SCRATCH_HITS.read_text())
         for name, hit in hits.items():
             if name in manual:
                 continue
@@ -183,7 +183,7 @@ def _ogd_lookup(candidate: str, key: str) -> dict | None:
     for attempt in range(8):
         try:
             with urllib.request.urlopen(req, timeout=45) as r:  # noqa: S310  # URL is the hardcoded https OGD endpoint (OGD_BASE) + urlencoded query; no user-controlled scheme/host
-                return json.loads(r.read())
+                return jsonio.loads(r.read())
         except urllib.error.HTTPError as e:
             if e.code == 429:
                 import time

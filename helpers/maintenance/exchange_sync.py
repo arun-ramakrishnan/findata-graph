@@ -41,6 +41,7 @@ import duckdb
 REPO = Path(__file__).resolve().parents[2]
 if str(REPO) not in sys.path:
     sys.path.insert(0, str(REPO))
+from helpers.core import jsonio  # noqa: E402  (orjson parse cutover; dumps stay stdlib per db_scaling_tuning §6.3 criteria)
 from helpers.core.db import connect  # noqa: E402  (post-bootstrap: entry point, lazy-import convention)
 
 DB = REPO / "memory" / "data" / "sources.duckdb"
@@ -167,7 +168,7 @@ def fetch_szse() -> list[Row]:
     rows: list[Row] = []
     page = 1
     while page <= 200:
-        j = json.loads(
+        j = jsonio.loads(
             _get(
                 "https://www.szse.cn/api/report/ShowReport/data?SHOWTYPE=JSON"
                 "&CATALOGID=1110&TABKEY=tab1&PAGENO=" + str(page) + "&random=0.1",
@@ -222,7 +223,7 @@ def fetch_sse() -> list[Row]:
                     raise
                 time.sleep(10 * attempt)  # backoff: 10s, 20s
         m = re.search(r"jsonpCallback123\((.*)\)\s*$", t, re.S)
-        j = json.loads(m.group(1)) if m else {}
+        j = jsonio.loads(m.group(1)) if m else {}
         res = j.get("result") or []
         if not res:
             break
@@ -401,7 +402,7 @@ def ingest_krx(path: Path) -> list[Row]:
             "segment": "kospi",
             "asset_type": "equity",
         }
-        for r in json.loads(path.read_text())
+        for r in jsonio.loads(path.read_text())
     ]
 
 
@@ -450,7 +451,7 @@ def fetch_bse() -> list[Row]:
         binary=True,
         referer="https://www.bseindia.com/",
     )
-    data = json.loads(b if isinstance(b, str) else b.decode("utf-8", "replace"))
+    data = jsonio.loads(b if isinstance(b, str) else b.decode("utf-8", "replace"))
     out: list[Row] = []
     for r in data:
         if str(r.get("Segment") or "") not in ("Equity", ""):
@@ -855,7 +856,7 @@ def main() -> int:  # noqa: C901  # arg-dispatch main (flag-per-lane CLI; exit c
         if args.apply_only:
             scratch = FETCH_SCRATCH / f"{lane}.json"
             if scratch.is_file():
-                rows = json.loads(scratch.read_text())
+                rows = jsonio.loads(scratch.read_text())
             else:
                 rows = []
         else:

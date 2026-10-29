@@ -46,6 +46,7 @@ import time
 from pathlib import Path
 from typing import TypedDict
 
+from helpers.core import jsonio  # noqa: E402  (orjson parse cutover; dumps stay stdlib per db_scaling_tuning §6.3 criteria)
 from helpers.core.vec_codec import load_vec
 
 REPO = Path(__file__).resolve().parents[2]
@@ -122,7 +123,7 @@ def _embed_candidate(
     scratch = Path(f"/tmp/deep_probe_cand_{cache_name or tag}.json")  # noqa: S108  # throwaway probe scratch, single-user box
     cache: dict[str, list[float]] = {}
     if scratch.exists():
-        cache = json.loads(scratch.read_text(encoding="utf-8"))
+        cache = jsonio.loads(scratch.read_text(encoding="utf-8"))
 
     from llama_cpp import Llama
 
@@ -185,7 +186,7 @@ def _doc_vecs(tag: str, bases: list[str]) -> tuple[list[list[float]], int]:
 
 def run(tags: list[str]) -> dict:
     preflight_clean_state("note_deep_probe_candidates.py")
-    questions = json.loads(QUESTIONS_PATH.read_text(encoding="utf-8"))["questions"]
+    questions = jsonio.loads(QUESTIONS_PATH.read_text(encoding="utf-8"))["questions"]
     rows = _legacy_rows()
     bases = [f"{r[2]}\n{r[3]}\n{r[4][:8000]}" for r in rows]
     print(
@@ -298,7 +299,7 @@ def run_sectioned(tags: list[str]) -> dict:  # noqa: C901  # bench script: one s
     preflight_clean_state("note_deep_probe_candidates.py")
     from helpers.maintenance.rebuild_doc_search import fts_match_expr
 
-    deep_qs = json.loads(QUESTIONS_PATH.read_text(encoding="utf-8"))["questions"]
+    deep_qs = jsonio.loads(QUESTIONS_PATH.read_text(encoding="utf-8"))["questions"]
     eval_qs = json.load(open(REPO / "helpers/misc/embed_eval_questions.json"))["search"]
 
     sections = _live_sections()

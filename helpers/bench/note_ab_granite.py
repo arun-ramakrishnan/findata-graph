@@ -43,6 +43,7 @@ REPO = Path(__file__).resolve().parents[2]
 if str(REPO) not in sys.path:
     sys.path.insert(0, str(REPO))
 
+from helpers.core import jsonio  # noqa: E402  (orjson parse cutover; dumps stay stdlib per db_scaling_tuning §6.3 criteria)
 from helpers.bench.embed_runtime_bench import preflight_clean_state  # noqa: E402
 from helpers.bench.note_deep_probe import QUESTIONS_PATH  # noqa: E402
 from helpers.core.vec_codec import load_vec, pack_f32  # noqa: E402
@@ -79,7 +80,7 @@ def _rewrite_sandbox(fresh_fallback) -> tuple[int, int]:
     from helpers.maintenance.rebuild_note_search import _embedding_text
 
     shutil.copyfile(REPO / "memory/research.db", SANDBOX)
-    cache: dict[str, list[float]] = json.loads(VEC_CACHE.read_text(encoding="utf-8"))
+    cache: dict[str, list[float]] = jsonio.loads(VEC_CACHE.read_text(encoding="utf-8"))
     conn = sqlite3.connect(SANDBOX)
     rows = conn.execute(
         "SELECT rowid, title, sector, section_title, content FROM note_search"
@@ -157,7 +158,7 @@ def _build_sandbox_matrix():
 def _eval_endpoint(client, label: str) -> dict:
     """Search eval + deep probe + latency through the real endpoint."""
     eval_qs = json.load(open(REPO / "helpers/misc/embed_eval_questions.json"))["search"]
-    deep_qs = json.loads(QUESTIONS_PATH.read_text(encoding="utf-8"))["questions"]
+    deep_qs = jsonio.loads(QUESTIONS_PATH.read_text(encoding="utf-8"))["questions"]
 
     def top5(query: str, hybrid: bool) -> list[str]:
         url = f"/api/search?q={quote(query)}&limit={'25' if hybrid else '5'}"

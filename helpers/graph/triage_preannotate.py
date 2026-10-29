@@ -36,6 +36,7 @@ from pathlib import Path
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(_REPO_ROOT))
 
+from helpers.core import jsonio  # noqa: E402  (orjson parse cutover; dumps stay stdlib per db_scaling_tuning §6.3 criteria)
 from helpers.core.env import load_memory_env, require_env  # noqa: E402
 from helpers.graph.triage_pending_relations import SIDECAR as QUEUE  # noqa: E402
 
@@ -115,7 +116,7 @@ def parse_rows(lines: list[str]) -> list[dict]:
         if not line:
             continue
         try:
-            d = json.loads(line)
+            d = jsonio.loads(line)
         except ValueError:
             continue
         if d.get("edge_type") in ("", "suggested"):
@@ -165,7 +166,7 @@ def load_annotations(path: Path = ANNOTATIONS) -> dict[tuple[str, str, str], dic
         if not line:
             continue
         try:
-            a = json.loads(line)
+            a = jsonio.loads(line)
         except ValueError:
             continue
         eid = str(a.get("id", ""))
@@ -207,7 +208,7 @@ def call_glm(prompt: str, key: str, model: str, retries: int = 3) -> str:
                 headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json"},
             )
             with urllib.request.urlopen(req, timeout=300) as r:  # noqa: S310  # allowlisted bases; query params quoted
-                return json.loads(r.read())["choices"][0]["message"]["content"]
+                return jsonio.loads(r.read())["choices"][0]["message"]["content"]
         except Exception as exc:  # noqa: BLE001 — bounded retry, re-raised after
             last = exc
             time.sleep(5 * (attempt + 1))
@@ -260,7 +261,7 @@ def judge_rows(
         m = re.search(r"\[.*\]", content, re.S)
         if not m:
             raise ValueError(f"no JSON array in judge reply: {content[:200]!r}")
-        replies = {int(r["id"]): r for r in json.loads(m.group(0))}
+        replies = {int(r["id"]): r for r in jsonio.loads(m.group(0))}
         for i, row in enumerate(chunk, 1):
             r = replies.get(i)
             if r is None:
@@ -671,7 +672,7 @@ def escalate_rows(rows: list[dict], annotations: dict[str, dict], key: str, mode
         )
     prompt = EVIDENCE_BATCH_PROMPT.format(items="\n\n".join(items))
     _m = re.search(r"\[.*\]", call_glm(prompt, key, model), re.S)
-    replies = {int(r["id"]): r for r in json.loads(_m.group(0) if _m else "[]")}
+    replies = {int(r["id"]): r for r in jsonio.loads(_m.group(0) if _m else "[]")}
     for i, (row, a, results) in enumerate(searched, 1):
         r = replies.get(i)
         if r is None:
@@ -745,7 +746,7 @@ def rejudge_rubric(row: dict, key: str, model: str) -> dict | None:
     if not m:
         return None
     try:
-        r = json.loads(m.group(0))
+        r = jsonio.loads(m.group(0))
     except ValueError:
         return None
     if not isinstance(r, dict) or not isinstance(r.get("rubric_admit"), bool):

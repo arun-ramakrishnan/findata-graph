@@ -30,7 +30,6 @@ Unknown store sources are listed as notes, never verdicts
 from __future__ import annotations
 
 import argparse
-import json
 import sys
 from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
@@ -41,6 +40,7 @@ REPO = Path(__file__).resolve().parents[2]
 if str(REPO) not in sys.path:
     sys.path.insert(0, str(REPO))
 
+from helpers.core import jsonio  # noqa: E402  (orjson parse cutover; dumps stay stdlib per db_scaling_tuning §6.3 criteria)
 from helpers.core.db import connect  # noqa: E402  (path insert must precede)
 
 AGENT_TRACES_DB = REPO / "memory" / "data" / "agent_traces.duckdb"
@@ -116,8 +116,8 @@ def harness_frontiers(  # noqa: C901  # moved verbatim; split needs a parity har
             with open(f, errors="replace") as fh:
                 for line in fh:
                     try:
-                        ts = json.loads(line).get("startedAt") if line.strip() else None
-                    except json.JSONDecodeError, AttributeError:
+                        ts = jsonio.loads(line).get("startedAt") if line.strip() else None
+                    except jsonio.JSONDecodeError, AttributeError:
                         continue  # torn trailing line of a live write: skip
                     if not ts:
                         continue

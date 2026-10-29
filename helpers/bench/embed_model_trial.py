@@ -45,12 +45,12 @@ llama-cpp-python >= 0.3.x; the KV is NOT `bert.token_type_count`).
 """
 
 import hashlib
-import json
 import math
 import os
 import pickle
 import sys
 import time
+from helpers.core import jsonio  # noqa: E402  (orjson parse cutover; dumps stay stdlib per db_scaling_tuning §6.3 criteria)
 from pathlib import Path
 from urllib.parse import quote
 
@@ -88,7 +88,7 @@ N_CTX = 512  # parity with production bge truncation; raise per-probe (granite 2
 WORKERS = 4  # kept for SURFACES docs; serial path ignores
 K_RRF = 60
 
-QUESTIONS = json.loads(
+QUESTIONS = jsonio.loads(
     (REPO / "helpers/misc/embed_eval_questions.json").read_text(encoding="utf-8")
 )
 

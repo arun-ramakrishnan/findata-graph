@@ -47,6 +47,7 @@ from pathlib import Path
 from typing import Any
 
 import numpy as np
+from helpers.core import jsonio  # noqa: E402  (orjson parse cutover; dumps stay stdlib per db_scaling_tuning §6.3 criteria)
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 _MATRIX_PATH = _REPO_ROOT / "memory" / "embed_matrix.f32"
@@ -152,7 +153,7 @@ class EmbedMatrixStore:
             raise ValueError(f"embeddings {emb.shape} does not match {len(ids)} ids")
         if not self.meta_path.exists() or not self.matrix_path.exists():
             return self.build(ids, emb, model)
-        meta = json.loads(self.meta_path.read_text())
+        meta = jsonio.loads(self.meta_path.read_text())
         if (
             meta.get("model") != model
             or meta.get("ids") != list(ids)
@@ -182,7 +183,7 @@ class EmbedMatrixStore:
         }
 
     def load(self) -> EmbedMatrix:
-        meta = json.loads(self.meta_path.read_text())
+        meta = jsonio.loads(self.meta_path.read_text())
         mm = np.memmap(
             self.matrix_path,
             dtype=np.float32,

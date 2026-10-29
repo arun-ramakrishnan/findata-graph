@@ -48,6 +48,7 @@ import re
 import sqlite3
 import sys
 import time
+from helpers.core import jsonio  # noqa: E402  (orjson parse cutover; dumps stay stdlib per db_scaling_tuning §6.3 criteria)
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[2]
@@ -128,7 +129,7 @@ def _companies() -> list[tuple[str, str, str]]:
 
 
 def _seeds(names_with_notes: list[str]) -> tuple[list[dict], list[dict]]:
-    recorded = json.loads(QUESTIONS_PATH.read_text(encoding="utf-8"))["neighbors"]
+    recorded = jsonio.loads(QUESTIONS_PATH.read_text(encoding="utf-8"))["neighbors"]
     pool = [n for n in names_with_notes if n not in {q["company"] for q in recorded}]
     extras = [
         {"company": pool[i * len(pool) // N_EXTRA_SEEDS], "sector": None}
@@ -146,7 +147,7 @@ def _live_vectors() -> dict[str, list[float]]:
         (MODEL_ID,),
     ).fetchall()
     conn.close()
-    return {n: json.loads(e) for n, e in rows}
+    return {n: jsonio.loads(e) for n, e in rows}
 
 
 def _cache_vectors(bases: dict[str, str]) -> dict[str, list[float]] | None:
@@ -172,7 +173,7 @@ def _cache_vectors(bases: dict[str, str]) -> dict[str, list[float]] | None:
         if j is None:
             missing.append(name)
         else:
-            out[name] = json.loads(j)
+            out[name] = jsonio.loads(j)
     if missing:
         _eprint(
             f"[companies] bge-full-cache: cohort covers {len(out)}/{len(bases)} "
@@ -193,7 +194,7 @@ def _fresh_vectors(leg: str, bases: dict[str, str]) -> dict[str, list[float]]:
     scratch = Path(f"/tmp/company_base_probe_{leg}_{MODEL_ID}.json")  # noqa: S108  # throwaway probe scratch, single-user box
     done: dict[str, list[float]] = {}
     if scratch.exists():
-        done = json.loads(scratch.read_text(encoding="utf-8"))
+        done = jsonio.loads(scratch.read_text(encoding="utf-8"))
 
     out, embeds = {}, {}
     t0 = time.perf_counter()

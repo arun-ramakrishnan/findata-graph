@@ -34,6 +34,7 @@ from __future__ import annotations
 import json
 import pathlib
 import time
+from helpers.core import jsonio  # noqa: E402  (orjson parse cutover; dumps stay stdlib per db_scaling_tuning §6.3 criteria)
 from collections.abc import Callable
 
 __all__ = ["Journal", "park_items", "latest_action_by", "assemble_entries", "ReviewSession"]
@@ -103,7 +104,7 @@ def latest_action_by(
     for line in journal_path.read_text().splitlines():
         if not line.strip():
             continue
-        d = json.loads(line)
+        d = jsonio.loads(line)
         key, act = d.get(key_field), d.get("action")
         if key and act in terminal:
             latest[key] = act

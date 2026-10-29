@@ -37,6 +37,7 @@ from __future__ import annotations
 
 import re
 import unicodedata
+from helpers.core import jsonio  # noqa: E402  (orjson parse cutover; dumps stay stdlib per db_scaling_tuning §6.3 criteria)
 from functools import lru_cache
 from pathlib import Path
 
@@ -200,7 +201,6 @@ def _ledger_folds(ledger_path: Path) -> dict[str, str]:
     this file on every merge; unlike the plan artifact it is never
     regenerated, so a signed fold survives a re-plan that empties the
     plan to headers. Missing ledger = {}."""
-    import json
 
     if not ledger_path.exists():
         return {}
@@ -208,7 +208,7 @@ def _ledger_folds(ledger_path: Path) -> dict[str, str]:
     for line in ledger_path.read_text(encoding="utf-8").splitlines():
         if not line.strip():
             continue
-        row = json.loads(line)
+        row = jsonio.loads(line)
         out[name_key(row["variant"])] = row["canonical"]
     return out
 

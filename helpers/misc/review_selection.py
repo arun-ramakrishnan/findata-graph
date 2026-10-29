@@ -26,7 +26,6 @@ import argparse
 import contextlib
 import hashlib
 import io
-import json
 import shutil
 import subprocess
 import sys
@@ -39,6 +38,7 @@ if str(REPO_ROOT) not in sys.path:
 RULE_JSON = REPO_ROOT / ".opencodereview" / "rule.json"
 REVIEW_OUT_DIR = REPO_ROOT / "outputs" / "reviews"
 
+from helpers.core import jsonio  # noqa: E402  (orjson parse cutover; dumps stay stdlib per db_scaling_tuning §6.3 criteria)
 from helpers.misc import ocr_pin  # noqa: E402  # after the repo-root bootstrap above
 
 # The checked families are HARDCODED, not derived from rule.json: the whole
@@ -137,7 +137,7 @@ def _families() -> tuple[list[str], list[str]]:
     Excludes are kept so rule-excluded paths (Mojo/vendor/**) don't count as
     diff traffic an include family failed to show.
     """
-    cfg = json.loads(RULE_JSON.read_text())
+    cfg = jsonio.loads(RULE_JSON.read_text())
     includes = set(PRODUCT_FAMILIES)
     for pattern in cfg.get("include", []):
         if "*" not in pattern:
@@ -355,8 +355,8 @@ def _ocr_preview(ref_args: list[str]) -> dict | None:
     # §"(-o, not >)": strip them before parsing — never skip the strip).
     clean = "\n".join(ln for ln in proc.stdout.splitlines() if not ln.startswith("[ocr]"))
     try:
-        return json.loads(clean)
-    except json.JSONDecodeError as exc:
+        return jsonio.loads(clean)
+    except jsonio.JSONDecodeError as exc:
         print(f"ocr delegate preview: unparseable JSON: {exc}", file=sys.stderr)
         return None
 

@@ -19,6 +19,7 @@ from typing import Any
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
+from helpers.core import jsonio  # noqa: E402  (orjson parse cutover; dumps stay stdlib per db_scaling_tuning §6.3 criteria)
 from helpers.core.db import DEFAULT_DB_PATH, connect
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -63,8 +64,8 @@ def _read_cache(path: Path) -> dict[str, dict[str, Any]]:
     if not path.exists():
         return {}
     try:
-        value = json.loads(path.read_text())
-    except OSError, json.JSONDecodeError:
+        value = jsonio.loads(path.read_text())
+    except OSError, jsonio.JSONDecodeError:
         return {}
     return value if isinstance(value, dict) else {}
 
@@ -89,7 +90,7 @@ def _sparql_json(query: str, *, cache: dict[str, dict[str, Any]], cache_path: Pa
     for attempt in range(5):
         try:
             with urllib.request.urlopen(request, timeout=60) as response:  # noqa: S310
-                payload = json.loads(response.read())
+                payload = jsonio.loads(response.read())
             break
         except urllib.error.HTTPError as exc:
             if exc.code != 429:

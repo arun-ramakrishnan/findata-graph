@@ -11,6 +11,7 @@ from typing import TYPE_CHECKING, Any
 import yaml
 from dotenv import load_dotenv
 
+from helpers.core import jsonio  # noqa: E402  (orjson parse cutover; dumps stay stdlib per db_scaling_tuning §6.3 criteria)
 from helpers.web.prefab_views import register as _register_prefab_views
 from flask import (
     Flask,
@@ -3399,7 +3400,6 @@ def api_graph_metrics(metric: str):  # noqa: C901
 
     conn = get_db_connection()
     try:
-        import json as _json
 
         if metric_lc in _PAYLOAD_GRAPH_METRICS:
             # graph_docs_ui_redesign S1: structured payloads persisted by
@@ -3414,7 +3414,7 @@ def api_graph_metrics(metric: str):  # noqa: C901
                 seeds: list[str] = []
                 for r in rows:
                     try:
-                        parsed = _json.loads(r["value"])
+                        parsed = jsonio.loads(r["value"])
                     except ValueError, TypeError:
                         continue
                     cand = parsed.get("seeds")
@@ -3432,7 +3432,7 @@ def api_graph_metrics(metric: str):  # noqa: C901
             entities: list[dict] = []
             for r in rows:
                 try:
-                    parsed = _json.loads(r["value"])
+                    parsed = jsonio.loads(r["value"])
                 except ValueError, TypeError:
                     continue
                 cands = [
@@ -3528,7 +3528,7 @@ def api_graph_metrics(metric: str):  # noqa: C901
             modularity = None
             for r in rows:
                 try:
-                    parsed = _json.loads(r["value"])
+                    parsed = jsonio.loads(r["value"])
                 except ValueError, TypeError:
                     continue
                 label = parsed.get(label_key)

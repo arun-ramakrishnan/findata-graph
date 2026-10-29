@@ -45,7 +45,6 @@ Exit codes: 0 success/fresh, 1 fatal error OR --check detected drift.
 """
 
 import hashlib
-import json
 import os
 import re
 import sqlite3
@@ -60,6 +59,7 @@ _REPO_ROOT = Path(__file__).resolve().parents[2]
 if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
+from helpers.core import jsonio  # noqa: E402  (orjson parse cutover; dumps stay stdlib per db_scaling_tuning §6.3 criteria)
 from helpers.core import gemma_embedder  # noqa: E402
 from helpers.core.embed_cache import CachedEmbed  # noqa: E402
 from helpers.maintenance import rebuild_common as rbc  # noqa: E402
@@ -258,8 +258,8 @@ def _extract_prime_units(state: Path) -> tuple[list[dict], dict[str, tuple[float
     try:
         raw = state.read_text(encoding="utf-8", errors="replace")
         mtime = state.stat().st_mtime
-        doc = json.loads(raw)
-    except OSError, json.JSONDecodeError:
+        doc = jsonio.loads(raw)
+    except OSError, jsonio.JSONDecodeError:
         return [], meta
     loc = _abbrev_home(state)
     entries = doc.get("entries") if isinstance(doc, dict) else None

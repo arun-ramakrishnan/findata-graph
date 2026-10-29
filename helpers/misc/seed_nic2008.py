@@ -32,6 +32,7 @@ import pathlib
 import re
 import subprocess
 import sys
+from helpers.core import jsonio  # noqa: E402  (orjson parse cutover; dumps stay stdlib per db_scaling_tuning §6.3 criteria)
 
 HELPERS_DIR = pathlib.Path(__file__).resolve().parent
 REPO_ROOT = HELPERS_DIR.parent.parent
@@ -547,7 +548,7 @@ def converge_scheme(conn, *, apply: bool) -> dict[str, int]:
     from helpers.misc.seed_concepts import ensure_schema as ensure_concept_tables
 
     ensure_concept_tables(conn)  # concept_schemes/concepts DDL home (no copy)
-    seed = json.loads(SEED_PATH.read_text(encoding="utf-8"))
+    seed = jsonio.loads(SEED_PATH.read_text(encoding="utf-8"))
     roster = scheme_concepts(seed)
     # ownership domain = every nic2008 seed vintage (seed:nic2008/%), not
     # just the current one — a lapsed OLD-version row supersedes too
@@ -762,7 +763,7 @@ def converge_candidates(conn, *, apply: bool, k: int = 3) -> dict[str, int]:
     candidates supersede and they are never re-suggested. Idempotent:
     the scorer is pure, so a second run reports 0/0.
     """
-    seed = json.loads(SEED_PATH.read_text(encoding="utf-8"))
+    seed = jsonio.loads(SEED_PATH.read_text(encoding="utf-8"))
     subclasses = seed["subclasses"]
     labels = industry_labels(conn)
     promoted = {
@@ -895,10 +896,10 @@ def stamp_company_codes(conn, *, apply: bool, map_path: pathlib.Path | None = No
     as ``pending`` — the attestation sitting list, never auto-assigned.
     Codes outside the vendored NIC-2008 vocabulary are refused (skipped).
     """
-    map_doc = json.loads((map_path or COMPANY_CODES_PATH).read_text(encoding="utf-8"))
+    map_doc = jsonio.loads((map_path or COMPANY_CODES_PATH).read_text(encoding="utf-8"))
     flagged = list(map_doc.get("flagged_labels", []))
     codes = map_doc.get("codes", {})
-    vocab = {r["code"] for r in json.loads(SEED_PATH.read_text(encoding="utf-8"))["subclasses"]}
+    vocab = {r["code"] for r in jsonio.loads(SEED_PATH.read_text(encoding="utf-8"))["subclasses"]}
     members_by_label = label_members(conn)
     has_entities = conn.execute(
         "SELECT 1 FROM sqlite_master WHERE type='table' AND name='entities'"
@@ -950,7 +951,7 @@ def export_worklist(conn, out_path=None, *, journal_path: pathlib.Path | None = 
     lane could not score. The vault is writer-owned — this file is the
     sanctioned export surface; nothing auto-writes notes or frontmatter.
     """
-    seed = json.loads(SEED_PATH.read_text(encoding="utf-8"))
+    seed = jsonio.loads(SEED_PATH.read_text(encoding="utf-8"))
     subclasses = seed["subclasses"]
     desc_by_code = {r["code"]: r["description"] for r in subclasses}
     skip_j = (
@@ -1141,7 +1142,7 @@ def review(  # noqa: C901  # thin config over helpers.core.review_kit (S1 rehome
         reader = make_scripted_input(answers, _MENU_SPEC)
     input_fn = reader  # ask() closures and the confirm gate read through the backend
 
-    seed = json.loads(SEED_PATH.read_text(encoding="utf-8"))
+    seed = jsonio.loads(SEED_PATH.read_text(encoding="utf-8"))
     desc_by_code = {r["code"]: r["description"] for r in seed["subclasses"]}
     members_by_label = label_members(conn)
     journal_path = (journal_dir or (REPO_ROOT / "outputs" / "nic_review")) / "journal.jsonl"
@@ -1386,7 +1387,7 @@ def converge(conn, *, apply: bool) -> dict[str, int]:
     (five-level broader chain, subtree()-native) in the same pass — one
     CLI, one maint step.
     """
-    seed = json.loads(SEED_PATH.read_text(encoding="utf-8"))
+    seed = jsonio.loads(SEED_PATH.read_text(encoding="utf-8"))
     ensure_schema(conn)
     wanted = {r["subclass"]: r for r in _wanted_rows(seed)}
     have = {

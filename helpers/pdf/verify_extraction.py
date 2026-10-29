@@ -37,6 +37,7 @@ if __package__ in (None, ""):
     sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 
+from helpers.core import jsonio  # noqa: E402  (orjson parse cutover; dumps stay stdlib per db_scaling_tuning §6.3 criteria)
 from helpers.pdf.render_limits import checked_open  # noqa: E402
 
 # Per-page coverage thresholds, tuned on the 7-PDF Reports corpus
@@ -156,7 +157,7 @@ def verify(
     json_path = out_dir / f"{stem}.json"
     manifest_path = out_dir / f"{stem}.verify.json"
     md_text = md_path.read_text(encoding="utf-8")
-    pages = json.loads(json_path.read_text(encoding="utf-8"))
+    pages = jsonio.loads(json_path.read_text(encoding="utf-8"))
 
     src_pages = _source_pages(pdf_path)
     page_metrics: list[dict] = []
@@ -308,7 +309,7 @@ def main(argv: list[str] | None = None) -> int:
         manifest = verify(
             pdf_path, out_dir, stem, warn_below=args.warn_below, fail_below=args.fail_below
         )
-    except (OSError, KeyError, json.JSONDecodeError) as e:
+    except (OSError, KeyError, jsonio.JSONDecodeError) as e:
         print(f"error: verification failed: {e}", file=sys.stderr)
         return 2
     if not args.quiet:

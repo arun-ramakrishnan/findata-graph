@@ -1185,7 +1185,11 @@ def _flag_json_loads_on_embedding_receivers(src: str) -> list[tuple[int, str]]:
             isinstance(func, ast.Attribute)
             and func.attr == "loads"
             and isinstance(func.value, ast.Name)
-            and func.value.id == "json"
+            # json.loads AND jsonio.loads (orjson parse cutover 2026-10-30):
+            # the strike class is raw-JSON decode of embedding receivers, and
+            # the faster engine commits it identically — same tripwire, both
+            # module names.
+            and func.value.id in ("json", "jsonio")
         ):
             continue
         arg = node.args[0] if node.args else None
@@ -1241,7 +1245,7 @@ def check_embedding_decode_chokepoint(scope: set[Path] | None = None) -> list[st
             continue  # py_compile owns syntax/encoding failures
         for lineno, receiver in _flag_json_loads_on_embedding_receivers(src):
             failures.append(
-                f"{rel}:{lineno}: json.loads({receiver}) on an emb/vec receiver — "
+                f"{rel}:{lineno}: json/jsonio.loads({receiver}) on an emb/vec receiver — "
                 "decode via helpers.core.vec_codec.load_vec (BLOB-tolerant)"
             )
     return failures

@@ -39,10 +39,10 @@ from __future__ import annotations
 import argparse
 import difflib
 import importlib.util
-import json
 import pathlib
 import re
 import sys
+import json
 
 HELPERS_DIR = pathlib.Path(__file__).resolve().parent
 REPO_ROOT = HELPERS_DIR.parent.parent

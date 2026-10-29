@@ -117,6 +117,14 @@ dependencies = [
     # instead of a content claim about external feeds (review of
     # b28991d54..c777fa9b1, operator-accepted 2026-10-11).
     "defusedxml",
+    # Repo-wide JSON engine behind the helpers/core/jsonio.py shim (S0,
+    # db_scaling_tuning.md §6.3): 1.55-1.6x stdlib on text parse, 2.5-2.7x with
+    # -22% peak RSS on the `rb` mass lanes (81MB/pass session-JSONL corpus,
+    # measured 2026-10-29, artifacts in bench notes). Converted call sites must
+    # accept orjson's canonical compact UTF-8 output — dumps has no sort_keys
+    # and returns bytes; diff-stable writers stay on stdlib json (see shim
+    # docstring guardrails).
+    "orjson",
 ]
 
 [project.optional-dependencies]

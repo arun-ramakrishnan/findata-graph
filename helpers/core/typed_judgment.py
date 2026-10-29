@@ -61,6 +61,7 @@ _REPO_ROOT = pathlib.Path(__file__).resolve().parents[2]
 if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
+from helpers.core import jsonio  # noqa: E402  (orjson parse cutover; dumps stay stdlib per db_scaling_tuning §6.3 criteria)
 from helpers.core.env import load_memory_env  # noqa: E402
 
 __all__ = [
@@ -234,8 +235,8 @@ def resolve_key() -> str:
     p = pathlib.Path.home() / ".local/share/opencode/auth.json"
     if p.is_file():
         try:
-            return json.loads(p.read_text())["openrouter"]["key"]
-        except KeyError, json.JSONDecodeError:
+            return jsonio.loads(p.read_text())["openrouter"]["key"]
+        except KeyError, jsonio.JSONDecodeError:
             return ""
     return ""
 
@@ -263,7 +264,7 @@ def cache_age_days(
     if not tpath or not tpath.is_file():
         return None
     try:
-        ts = json.loads(tpath.read_text()).get("ts", "")
+        ts = jsonio.loads(tpath.read_text()).get("ts", "")
         then = datetime.datetime.strptime(ts, "%Y-%m-%dT%H:%M:%S")
     except ValueError, TypeError:
         return None
@@ -296,7 +297,7 @@ def normalize_answers(kind: str, resp: dict, questions: dict) -> dict:
     if start == -1 or end <= start:
         return {}
     try:
-        parsed = json.loads(content[start : end + 1])
+        parsed = jsonio.loads(content[start : end + 1])
     except ValueError:
         return {}
     if not isinstance(parsed, dict):
@@ -324,7 +325,7 @@ def ask(  # noqa: C901  (dispatch ladder: 3 question types + cache/carrier/ledge
     key = key or resolve_key()
     tpath = cache_path(c, state, questions, use_cache)
     if tpath and tpath.is_file():
-        blob = json.loads(tpath.read_text())
+        blob = jsonio.loads(tpath.read_text())
         if stats:
             stats.cache_hits += 1
         return CallResult(
@@ -515,7 +516,7 @@ def main(argv: list[str] | None = None) -> int:
     args = ap.parse_args(argv)
 
     state = pathlib.Path(args.state_file).read_text(encoding="utf-8")
-    questions = json.loads(pathlib.Path(args.questions_file).read_text(encoding="utf-8"))
+    questions = jsonio.loads(pathlib.Path(args.questions_file).read_text(encoding="utf-8"))
     carriers = args.ab.split(",") if args.ab else [args.carrier]
     key = resolve_key()
     stats = RunStats(max_cents=args.max_cents)

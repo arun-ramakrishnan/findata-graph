@@ -52,7 +52,6 @@ from __future__ import annotations
 
 import argparse
 import html
-import json
 import os
 import re
 import shutil
@@ -60,6 +59,7 @@ import sqlite3
 import subprocess
 import sys
 import time
+from helpers.core import jsonio  # noqa: E402  (orjson parse cutover; dumps stay stdlib per db_scaling_tuning §6.3 criteria)
 from collections.abc import Callable, Sequence
 
 from dataclasses import dataclass, replace as dc_replace
@@ -118,7 +118,7 @@ def _int_or_none(v: int | str | None) -> int | None:
 def parse_doc_json(raw: str, limit: int) -> list[Hit]:
     """Normalize ``doc_query.py --json`` output into hits."""
     hits: list[Hit] = []
-    for r in json.loads(raw).get("results", [])[:limit]:
+    for r in jsonio.loads(raw).get("results", [])[:limit]:
         hits.append(
             Hit(
                 path=r.get("path", ""),
@@ -141,7 +141,7 @@ def parse_script_json(raw: str, limit: int) -> list[Hit]:
     located at open time (see :func:`locate_make_target`).
     """
     hits: list[Hit] = []
-    for r in json.loads(raw).get("results", [])[:limit]:
+    for r in jsonio.loads(raw).get("results", [])[:limit]:
         kind = r.get("kind", "")
         path = r.get("path", "")
         hits.append(
@@ -540,8 +540,8 @@ def parse_convo_json(raw: str, limit: int) -> list[Hit]:
     the ``file.parquet:<row_no>`` pointer and ``line`` stays None.
     """
     try:
-        data = json.loads(raw)
-    except json.JSONDecodeError:
+        data = jsonio.loads(raw)
+    except jsonio.JSONDecodeError:
         return []
     hits = []
     for r in (data.get("results") or [])[:limit]:
@@ -580,8 +580,8 @@ def parse_git_json(raw: str, limit: int) -> list[Hit]:
     git hits are POINTERS into history, not text files: ``path`` is the
     ``git:<sha>`` pointer, ``section`` carries the commit date."""
     try:
-        data = json.loads(raw)
-    except json.JSONDecodeError:
+        data = jsonio.loads(raw)
+    except jsonio.JSONDecodeError:
         return []
     hits = []
     for r in (data.get("results") or [])[:limit]:

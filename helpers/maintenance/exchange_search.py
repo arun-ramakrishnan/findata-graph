@@ -20,10 +20,10 @@ Design constraints (same as googlefinance.py):
 
 from __future__ import annotations
 
-import json
 import re
 import urllib.parse
 import urllib.request
+from helpers.core import jsonio  # noqa: E402  (orjson parse cutover; dumps stay stdlib per db_scaling_tuning §6.3 criteria)
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -58,8 +58,8 @@ def _decode_body(body: str) -> str:
     body = body.strip()
     if body.startswith('"'):
         try:
-            return json.loads(body)
-        except json.JSONDecodeError:
+            return jsonio.loads(body)
+        except jsonio.JSONDecodeError:
             return body
     return body
 

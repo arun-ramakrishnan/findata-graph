@@ -51,6 +51,7 @@ _REPO_ROOT = Path(__file__).resolve().parents[2]
 if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
+from helpers.core import jsonio  # noqa: E402  (orjson parse cutover; dumps stay stdlib per db_scaling_tuning §6.3 criteria)
 from helpers.core.fuzzy_match import fuzzy_match  # noqa: E402
 from helpers.graph.edge_conventions import (  # noqa: E402
     SYMMETRIC_EDGE_TYPES,
@@ -445,7 +446,7 @@ def build_triage(lines: list[str], names: set[str]) -> dict:
         if not line:
             continue
         try:
-            d = json.loads(line)
+            d = jsonio.loads(line)
         except ValueError:
             unparseable.append(line)
             continue
@@ -778,7 +779,7 @@ def _read_decisions(path: Path) -> list[dict]:
         if not line:
             continue
         try:
-            d = json.loads(line)
+            d = jsonio.loads(line)
         except ValueError as e:
             # Editors happily hard-wrap a long JSON row into two physical
             # lines; name the line so the fix is a 5-second rejoin.
@@ -1074,7 +1075,7 @@ def _apply_write(plan: dict) -> None:
     existing = {}
     if Path(ALIAS_FILE).exists():
         try:
-            existing = json.loads(Path(ALIAS_FILE).read_text(encoding="utf-8"))
+            existing = jsonio.loads(Path(ALIAS_FILE).read_text(encoding="utf-8"))
         except ValueError:
             print("WARNING: relation_aliases.json unreadable — replacing", file=sys.stderr)
     existing.update(aliases)
@@ -1159,7 +1160,7 @@ def _read_suggestions_rows() -> list[dict]:
         if not line:
             continue
         try:
-            rows.append(json.loads(line))
+            rows.append(jsonio.loads(line))
         except ValueError:
             pass
     return rows
@@ -1203,7 +1204,7 @@ def _merge_noise_file(plan: dict) -> None:
     existing: set[tuple[str, str, str]] = set()
     if Path(NOISE_FILE).exists():
         try:
-            for item in json.loads(Path(NOISE_FILE).read_text(encoding="utf-8")):
+            for item in jsonio.loads(Path(NOISE_FILE).read_text(encoding="utf-8")):
                 if isinstance(item, (list, tuple)) and len(item) == 3:
                     existing.add((str(item[0]), str(item[1]), str(item[2])))
         except OSError, ValueError:
@@ -1274,7 +1275,7 @@ def _move_suggestions(suggested: list[dict]) -> None:
     if Path(SUGGESTIONS).exists():
         for line in Path(SUGGESTIONS).read_text(encoding="utf-8").splitlines():
             try:
-                d = json.loads(line)
+                d = jsonio.loads(line)
                 sug_keys.add(f"{d.get('source')}\x1f{d.get('target_mention')}")
             except ValueError:
                 pass
@@ -2007,8 +2008,8 @@ def verify_queue_files(sidecar: Path, decisions: Path) -> list[str]:  # noqa: C9
             if not line.strip() or line.lstrip().startswith("#"):
                 continue
             try:
-                rows.append(json.loads(line))
-            except json.JSONDecodeError as exc:
+                rows.append(jsonio.loads(line))
+            except jsonio.JSONDecodeError as exc:
                 violations.append(f"{label}:{i} not JSON: {exc}")
         return rows
 

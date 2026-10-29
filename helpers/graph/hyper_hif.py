@@ -41,6 +41,7 @@ PROJECT_ROOT = Path(__file__).resolve().parents[2]
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
+from helpers.core import jsonio  # noqa: E402  (orjson parse cutover; dumps stay stdlib per db_scaling_tuning §6.3 criteria)
 from helpers.core.db import DEFAULT_DB_PATH  # noqa: E402
 
 NODES_FN = "hif_nodes.parquet"
@@ -133,17 +134,17 @@ def write_hif_json(out_dir: str | Path, json_path: str | Path) -> Path:
         "type": network_type,
         "metadata": {"format": "hif-json-skin", "from": "parquet-canonical"},
         "nodes": [
-            {"node": r["id"], **json.loads(r["attrs"] or "{}")} for r in tbls["nodes"].to_pylist()
+            {"node": r["id"], **jsonio.loads(r["attrs"] or "{}")} for r in tbls["nodes"].to_pylist()
         ],
         "edges": [
-            {"edge": r["id"], **json.loads(r["attrs"] or "{}")} for r in tbls["edges"].to_pylist()
+            {"edge": r["id"], **jsonio.loads(r["attrs"] or "{}")} for r in tbls["edges"].to_pylist()
         ],
         "incidences": [
             {
                 "edge": r["edge"],
                 "node": r["node"],
                 **({"weight": r["weight"]} if r["weight"] is not None else {}),
-                **json.loads(r["attrs"] or "{}"),
+                **jsonio.loads(r["attrs"] or "{}"),
             }
             for r in tbls["incidences"].to_pylist()
         ],
@@ -200,7 +201,7 @@ def validate_hif_roundtrip(
     # attrs are valid JSON on every row
     for kind in ("nodes", "edges", "incidences"):
         for r in tbls[kind].to_pylist():
-            json.loads(r["attrs"] or "{}")
+            jsonio.loads(r["attrs"] or "{}")
     # footer network type
     m = pq.read_metadata(Path(out_dir) / EDGES_FN).metadata or {}
     footer = m.get(b"network_type", b"").decode()

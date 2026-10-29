@@ -59,6 +59,7 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
+from helpers.core import jsonio  # noqa: E402  (orjson parse cutover; dumps stay stdlib per db_scaling_tuning §6.3 criteria)
 from helpers.core.db import connect  # noqa: E402
 
 # Pinned (proposal §4.2); bump = a measured decision, never a silent float.
@@ -126,7 +127,7 @@ def _jsonc_loads(text: str) -> dict:
         else:
             out.append(c)
         i += 1
-    return json.loads("".join(out))
+    return jsonio.loads("".join(out))
 
 
 def _corpus_files() -> list[Path]:
@@ -222,7 +223,7 @@ def _split_stale(
         recorded = rows.get(key)
         digest = _hash_file(f)
         if recorded and recorded[0] == digest:
-            cached[key] = json.loads(recorded[1])
+            cached[key] = jsonio.loads(recorded[1])
         else:
             stale.append((key, digest))
     live = {_cache_key(f) for f in files}

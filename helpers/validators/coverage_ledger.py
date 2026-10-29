@@ -118,6 +118,7 @@ if __name__ == "__main__" and len(sys.argv) > 0:
     if str(_repo) not in sys.path:
         sys.path.insert(0, str(_repo))
 
+from helpers.core import jsonio  # noqa: E402  (orjson parse cutover; dumps stay stdlib per db_scaling_tuning §6.3 criteria)
 from helpers.validators.security_scopes import member_surfaces  # noqa: E402
 
 REPO = Path(__file__).resolve().parents[2]
@@ -273,7 +274,7 @@ def route_inventory(app_path: Path) -> dict[str, dict]:
 
 def _load(path: Path) -> object:
     try:
-        return json.loads(path.read_text())
+        return jsonio.loads(path.read_text())
     except FileNotFoundError:
         return []
 
@@ -342,10 +343,10 @@ def _load_taxonomy(path: Path | None = None) -> dict[str, set[str]]:
     coverage.
     """
     try:
-        data = json.loads((path or DEFAULT_TAXONOMY).read_text())
+        data = jsonio.loads((path or DEFAULT_TAXONOMY).read_text())
     except FileNotFoundError:
         return {}
-    except json.JSONDecodeError as exc:
+    except jsonio.JSONDecodeError as exc:
         sys.exit(f"class-taxonomy: {path} is not JSON: {exc}")
     if not isinstance(data, dict) or not isinstance(data.get("scopes"), dict):
         sys.exit(f"class-taxonomy: {path} must be an object with a 'scopes' map: {path}")
@@ -1023,8 +1024,8 @@ def _read_decisions(path: Path) -> list[dict]:
         if not line.strip():
             continue
         try:
-            obj = json.loads(line)
-        except json.JSONDecodeError as exc:
+            obj = jsonio.loads(line)
+        except jsonio.JSONDecodeError as exc:
             sys.exit(f"decisions line {lineno} is not JSON: {path}: {exc}")
         if not isinstance(obj, dict):
             sys.exit(f"decisions line {lineno} must be a JSON object: {path}")

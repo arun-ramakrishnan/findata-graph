@@ -41,6 +41,7 @@ _REPO_ROOT = Path(__file__).resolve().parents[2]
 if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
+from helpers.core import jsonio  # noqa: E402  (orjson parse cutover; dumps stay stdlib per db_scaling_tuning §6.3 criteria)
 from helpers.core import typed_judgment as tj  # noqa: E402
 
 # -- questions (shared across surfaces; criteria mirror the relations lane)
@@ -74,7 +75,7 @@ def load_id_annotations(path: Path) -> dict[str, dict]:
         if not line:
             continue
         try:
-            a = json.loads(line)
+            a = jsonio.loads(line)
         except ValueError:
             continue
         key = a.get("key") or a.get("id")
@@ -93,7 +94,7 @@ def load_tuple_annotations(path: Path) -> dict[tuple[str, str, str], dict]:
         if not line:
             continue
         try:
-            a = json.loads(line)
+            a = jsonio.loads(line)
         except ValueError:
             continue
         eid = str(a.get("id", ""))
@@ -158,7 +159,7 @@ def _quotes_rows() -> list[dict]:
 
     if not WORKLIST.exists():
         return []
-    return build_decisions(json.loads(WORKLIST.read_text()))
+    return build_decisions(jsonio.loads(WORKLIST.read_text()))
 
 
 def _quotes_key(row: dict) -> str:
@@ -205,7 +206,7 @@ def _findings_rows() -> list[dict]:
 
     path = _FINDINGS_PATH or DEFAULT_FINDINGS
     try:
-        data = json.loads(path.read_text())
+        data = jsonio.loads(path.read_text())
     except FileNotFoundError, ValueError:
         return []
     findings, _ = _unwrap(data, path)

@@ -39,6 +39,7 @@ import numpy as np
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 POSITIONS_PATH = _REPO_ROOT / "memory" / "graph_layout.json"
 
+from helpers.core import jsonio  # noqa: E402  (orjson parse cutover; dumps stay stdlib per db_scaling_tuning §6.3 criteria)
 from helpers.graph.edge_projection import edge_rows  # noqa: E402
 
 # Mirror of the S0 harness params (graph_measure.mjs lane 1) so the server
@@ -295,13 +296,13 @@ def load_or_compute_positions(
     stored: dict[str, Any] = {}
     if sidecar.exists():
         try:
-            stored = json.loads(sidecar.read_text())
+            stored = jsonio.loads(sidecar.read_text())
             stale = (
                 stored.get("edge_set_hash") != digest
                 or stored.get("engine") != ENGINE
                 or stored.get("engine_params") != (params or ENGINE_PARAMS)
             )
-        except json.JSONDecodeError, OSError:
+        except jsonio.JSONDecodeError, OSError:
             stale = True
     if not stale:
         return {**stored, "recomputed": False}

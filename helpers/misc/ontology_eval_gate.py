@@ -70,6 +70,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))  # noqa: E402
 
+from helpers.core import jsonio  # noqa: E402  (orjson parse cutover; dumps stay stdlib per db_scaling_tuning §6.3 criteria)
 from helpers.core.db import connect  # noqa: E402
 from helpers.misc.seed_concepts import subtree  # noqa: E402
 
@@ -272,7 +273,7 @@ def _answer_insight_counterparts(conn, params):
             out = set()
             for (companies_json,) in rows:
                 try:
-                    out.update(json.loads(companies_json or "[]"))
+                    out.update(jsonio.loads(companies_json or "[]"))
                 except ValueError:
                     pass
             return sorted(out)
@@ -309,8 +310,8 @@ def answer_question(conn: sqlite3.Connection, question: dict) -> list[str]:
 
 def load_questions(path: Path) -> dict:
     try:
-        data = json.loads(path.read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError) as e:
+        data = jsonio.loads(path.read_text(encoding="utf-8"))
+    except (OSError, jsonio.JSONDecodeError) as e:
         raise GateError(f"cannot load question set {path}: {e}") from e
     if data.get("draft"):
         raise GateError(

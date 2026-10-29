@@ -55,6 +55,7 @@ PROJECT_ROOT = Path(__file__).resolve().parents[2]
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
+from helpers.core import jsonio  # noqa: E402  (orjson parse cutover; dumps stay stdlib per db_scaling_tuning §6.3 criteria)
 from helpers.core.db import connect  # noqa: E402
 from helpers.core.get_tickers import get_basic_info, search_ticker  # noqa: E402
 from helpers.maintenance.enrich_from_yfinance import identity_ok  # noqa: E402
@@ -293,8 +294,8 @@ def _load_stage(stage_path: Path) -> dict[str, dict]:
         if not line:
             continue
         try:
-            rec = json.loads(line)
-        except json.JSONDecodeError:
+            rec = jsonio.loads(line)
+        except jsonio.JSONDecodeError:
             log.warning("skipping corrupt stage line in %s", stage_path)
             continue
         out[str(rec["name"])] = rec

@@ -30,13 +30,14 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO))
 
+from helpers.core import jsonio  # noqa: E402  (orjson parse cutover; dumps stay stdlib per db_scaling_tuning §6.3 criteria)
 EVAL_SET = REPO / "helpers" / "misc" / "embed_eval_questions.json"
 WINDOWS = 1024  # app.py inner LIMIT
 K_RRF = 60
 
 
 def load_eval(path: Path = EVAL_SET) -> list[dict]:
-    return json.loads(path.read_text())["search"]
+    return jsonio.loads(path.read_text())["search"]
 
 
 def export_corpus(db_path: str | Path) -> list[dict]:

@@ -26,7 +26,6 @@ Usage:
 from __future__ import annotations
 
 import argparse
-import json
 import sqlite3
 import sys
 from pathlib import Path
@@ -35,6 +34,7 @@ _REPO_ROOT = Path(__file__).resolve().parents[2]
 if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
+from helpers.core import jsonio  # noqa: E402  (orjson parse cutover; dumps stay stdlib per db_scaling_tuning §6.3 criteria)
 from helpers.core.db import connect  # noqa: E402
 from helpers.maintenance import rebuild_script_search as rss  # noqa: E402
 
@@ -67,7 +67,7 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--limit", type=int, default=25, help="result window per question")
     args = ap.parse_args(argv)
 
-    bank = json.loads(BANK_PATH.read_text(encoding="utf-8"))
+    bank = jsonio.loads(BANK_PATH.read_text(encoding="utf-8"))
     conn = connect(args.db, read_only=True)
     try:
         rows = conn.execute(

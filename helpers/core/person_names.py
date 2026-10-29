@@ -8,6 +8,7 @@ from collections.abc import Iterable
 from functools import lru_cache
 from pathlib import Path
 
+from helpers.core import jsonio  # noqa: E402  (orjson parse cutover; dumps stay stdlib per db_scaling_tuning §6.3 criteria)
 from helpers.core.fuzzy_match import word_overlap_match
 
 _HUF_TOKENS = ("HUF", "HINDU UNDIVIDED FAMILY", "UNDIVIDED FAMILY")
@@ -84,7 +85,6 @@ def person_fold_registry(path=PERSON_PLAN_PATH, ledger_path=PERSON_LEDGER_PATH) 
     JSONL re-parse into an O(N²) corpus walk (145 s vs 9 s budget).
     Artifacts are static within a process; no caller mutates-and-rereads
     (name_dedup.apply_plan writes the ledger directly)."""
-    import json
 
     from helpers.core.entity_identity import name_key
 
@@ -93,13 +93,13 @@ def person_fold_registry(path=PERSON_PLAN_PATH, ledger_path=PERSON_LEDGER_PATH) 
         for line in Path(ledger_path).read_text(encoding="utf-8").splitlines():
             if not line.strip():
                 continue
-            row = json.loads(line)
+            row = jsonio.loads(line)
             out[name_key(row["variant"])] = row["canonical"]
     if path and Path(path).exists():
         for line in Path(path).read_text(encoding="utf-8").splitlines():
             if not line.strip():
                 continue
-            row = json.loads(line)
+            row = jsonio.loads(line)
             for variant in row["variants"]:
                 out[name_key(variant)] = row["canonical"]
     return out

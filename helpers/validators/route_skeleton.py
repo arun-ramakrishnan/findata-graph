@@ -48,6 +48,7 @@ from __future__ import annotations
 import ast
 import json
 import sys
+from helpers.core import jsonio  # noqa: E402  (orjson parse cutover; dumps stay stdlib per db_scaling_tuning §6.3 criteria)
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -126,8 +127,8 @@ def load_skeleton(skeleton_path: Path) -> dict[str, list[str]] | None:
     if not skeleton_path.is_file():
         return None
     try:
-        data = json.loads(skeleton_path.read_text())
-    except OSError, json.JSONDecodeError:
+        data = jsonio.loads(skeleton_path.read_text())
+    except OSError, jsonio.JSONDecodeError:
         return None
     if not isinstance(data, dict) or data.get("schema") != SCHEMA:
         return None

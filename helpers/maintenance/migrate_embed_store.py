@@ -32,7 +32,6 @@ cold.
 from __future__ import annotations
 
 import argparse
-import json
 import sqlite3  # noqa: F401  # sqlite3.Error still caught on the mirror check
 import sys
 from pathlib import Path
@@ -42,6 +41,7 @@ _REPO_ROOT = Path(__file__).resolve().parents[2]
 if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
+from helpers.core import jsonio  # noqa: E402  (orjson parse cutover; dumps stay stdlib per db_scaling_tuning §6.3 criteria)
 from helpers.core.db import connect  # noqa: E402  # after sys.path bootstrap
 
 # Legacy file -> pooled-cache cohort stamp.
@@ -143,7 +143,7 @@ def sync_mirror(research_db: Path, dims: int | None = None) -> int:
                 "SELECT embedding FROM note_search "
                 "WHERE embedding IS NOT NULL AND embedding != '' LIMIT 1"
             ).fetchone()
-            dims = len(json.loads(row[0])) if row else 64
+            dims = len(jsonio.loads(row[0])) if row else 64
         return sync_vec_table(conn, dims, full=True)
     finally:
         conn.close()

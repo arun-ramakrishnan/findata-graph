@@ -53,6 +53,7 @@ from dataclasses import dataclass  # noqa: E402
 
 import duckdb  # noqa: E402
 
+from helpers.core import jsonio  # noqa: E402  (orjson parse cutover; dumps stay stdlib per db_scaling_tuning §6.3 criteria)
 from helpers.core.db import connect as _db_connect  # noqa: E402
 
 DEFAULT_DUCKDB = Path("memory") / "graph.duckdb"
@@ -313,7 +314,7 @@ def _deep_control(scon: sqlite3.Connection, seed_name: str) -> list[str]:
     )
     if row:
         _apex, depth, path_json, _kind, coalition = row[0]
-        path = json.loads(path_json)
+        path = jsonio.loads(path_json)
         if depth == 0:
             line = "- control: self-root (no trusted parent)"
             if coalition is not None:
@@ -331,7 +332,7 @@ def _deep_control(scon: sqlite3.Connection, seed_name: str) -> list[str]:
         "WHERE depth > 0 AND company <> ? AND instr(path, ?) > 0",
         (seed_name, needle),
     ):
-        p = json.loads(pjson)
+        p = jsonio.loads(pjson)
         try:
             # path starts at the descendant (index 0): depth-below-seed IS
             # the seed's index in the chain
@@ -393,7 +394,7 @@ def _deep_pairwise(scon: sqlite3.Connection, seed_name: str) -> list[str]:
         for supplier, companies_json in _q(
             scon, "SELECT supplier, companies FROM supply_chokepoints"
         )
-        if seed_name in json.loads(companies_json or "[]")
+        if seed_name in jsonio.loads(companies_json or "[]")
     ]
     if chokes:
         lines.append(

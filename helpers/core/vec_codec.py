@@ -21,7 +21,7 @@ doc/improvements/archive/database/embedding_blob_migration.md §6.
 from __future__ import annotations
 
 import array
-import json
+from helpers.core import jsonio  # noqa: E402  (orjson parse cutover; dumps stay stdlib per db_scaling_tuning §6.3 criteria)
 
 _DIMS_PER_F32 = 1  # one f32 = 4 bytes = one dimension
 
@@ -56,7 +56,7 @@ def load_vec(value: object) -> list[float] | None:
         if not value:
             return None
         try:
-            vec = json.loads(value)
+            vec = jsonio.loads(value)
         except TypeError, ValueError:
             return None
         return vec if isinstance(vec, list) else None

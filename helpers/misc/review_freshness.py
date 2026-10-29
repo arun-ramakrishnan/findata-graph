@@ -69,6 +69,7 @@ import hashlib
 import json
 import subprocess
 import sys
+from helpers.core import jsonio  # noqa: E402  (orjson parse cutover; dumps stay stdlib per db_scaling_tuning §6.3 criteria)
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -187,7 +188,7 @@ def _diff_cache_path():
 
 def _diff_cache_load() -> dict:
     try:
-        cache = json.loads(_diff_cache_path().read_text())
+        cache = jsonio.loads(_diff_cache_path().read_text())
     except FileNotFoundError:
         return {}
     except ValueError as e:
@@ -336,7 +337,7 @@ def status_range(base: str, head: str) -> tuple[str, dict | None, str]:
 
 def _load() -> list[dict]:
     try:
-        rows = json.loads(LEDGER.read_text())
+        rows = jsonio.loads(LEDGER.read_text())
     except FileNotFoundError:
         return []
     except ValueError as e:

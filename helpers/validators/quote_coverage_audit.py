@@ -40,6 +40,7 @@ from pathlib import Path
 from typing import Any
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+from helpers.core import jsonio  # noqa: E402  (orjson parse cutover; dumps stay stdlib per db_scaling_tuning §6.3 criteria)
 from helpers.graph import derive_insights as di  # noqa: E402
 
 DB_PATH = di.DB_PATH
@@ -66,7 +67,7 @@ def load_accepted_losses(path: Path | None = None) -> dict[tuple[str, int], str]
     for line in p.read_text(encoding="utf-8").splitlines():
         if not line.strip():
             continue
-        row = json.loads(line)
+        row = jsonio.loads(line)
         f = str(row.get("file") or "")
         ln = row.get("line") or 0
         if f and ln:
@@ -423,7 +424,7 @@ def audit_note(  # noqa: C901
 # --------------------------------------------------------------------------- #
 def load_watchlist(path: Path) -> dict:
     if path.exists():
-        return json.loads(path.read_text())
+        return jsonio.loads(path.read_text())
     return {"threshold": 0.95, "entries": {}}
 
 
@@ -539,7 +540,7 @@ def run_audit(  # noqa: C901
     today2 = today
     wl_path = di.PROJECT_ROOT / "findata" / "Misc" / "quote_entity_worklist.json"
     try:
-        entity_worklist = json.loads(wl_path.read_text()) if wl_path.exists() else {"entries": {}}
+        entity_worklist = jsonio.loads(wl_path.read_text()) if wl_path.exists() else {"entries": {}}
     except Exception:
         entity_worklist = {"entries": {}}
     seen_now: dict[str, list[str]] = {}

@@ -40,6 +40,7 @@ _REPO_ROOT = Path(__file__).resolve().parents[2]
 if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
+from helpers.core import jsonio  # noqa: E402  (orjson parse cutover; dumps stay stdlib per db_scaling_tuning §6.3 criteria)
 from helpers.core.db import connect  # noqa: E402
 from helpers.core.entity_identity import (  # noqa: E402
     FOOTNOTE_RE,
@@ -254,7 +255,7 @@ def _plan_rows(jsonl_path: Path) -> list[dict]:
     rows = []
     for line in jsonl_path.read_text(encoding="utf-8").splitlines():
         if line.strip():
-            rows.append(json.loads(line))
+            rows.append(jsonio.loads(line))
     return rows
 
 
@@ -289,7 +290,7 @@ def _append_ledger(folded: dict[str, str], ledger_path: Path) -> int:
     if ledger_path.exists():
         for line in ledger_path.read_text(encoding="utf-8").splitlines():
             if line.strip():
-                row = json.loads(line)
+                row = jsonio.loads(line)
                 have.add((row["variant"], row["canonical"]))
     fresh = sorted((v, c) for v, c in folded.items() if (v, c) not in have)
     if not fresh:

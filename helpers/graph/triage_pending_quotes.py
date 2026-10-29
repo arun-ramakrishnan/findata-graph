@@ -33,6 +33,7 @@ from pathlib import Path
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(_REPO_ROOT))
+from helpers.core import jsonio  # noqa: E402  (orjson parse cutover; dumps stay stdlib per db_scaling_tuning §6.3 criteria)
 from helpers.core.cin import parse_cin  # noqa: E402
 from helpers.core.db import connect  # noqa: E402
 
@@ -96,12 +97,12 @@ def load_decisions() -> list[dict]:
     rows = []
     for line in DECISIONS.read_text().splitlines():
         if line.strip():
-            rows.append(json.loads(line))
+            rows.append(jsonio.loads(line))
     return rows
 
 
 def cmd_report(vss_hints: bool = True) -> int:
-    wl = json.loads(WORKLIST.read_text())
+    wl = jsonio.loads(WORKLIST.read_text())
     rows = build_decisions(wl)
     # VSS hints (S7 follow-up): for entries WITHOUT a jaccard suggestion,
     # embed the canonical and take the nearest company (get_tickers.vss_match).
@@ -169,7 +170,7 @@ def cmd_apply() -> int:  # noqa: C901
     entities = {r[0].lower() for r in conn.execute("SELECT name FROM entities").fetchall()}
     conn.close()
 
-    aliases = json.loads(ALIASES.read_text()) if ALIASES.exists() else {}
+    aliases = jsonio.loads(ALIASES.read_text()) if ALIASES.exists() else {}
     failures = []
     alias_rows: list[tuple[str, str]] = []
     stubs: list[str] = []
@@ -211,7 +212,7 @@ def cmd_apply() -> int:  # noqa: C901
 
     ALIASES.write_text(json.dumps(aliases, indent=1, sort_keys=True, ensure_ascii=False) + "\n")
     applied_ids = {r["id"] for r in decided}
-    wl = json.loads(WORKLIST.read_text())
+    wl = jsonio.loads(WORKLIST.read_text())
     for canonical, e in wl["entries"].items():
         if _entry_id(canonical) in applied_ids:
             e["status"] = "decided"
@@ -367,7 +368,7 @@ def review(  # noqa: C901 — keypress parsing + kit wiring, split would scatter
     input_fn = reader  # ask() closures and the confirm gate read through the backend
 
     journal_path = (journal_dir or REVIEW_JOURNAL_DIR) / "journal.jsonl"
-    wl = json.loads(WORKLIST.read_text())
+    wl = jsonio.loads(WORKLIST.read_text())
     rows = build_decisions(wl)
     decided_rows: list[dict] = []
     decided_ids: set[str] = set()

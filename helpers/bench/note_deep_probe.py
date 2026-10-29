@@ -32,6 +32,7 @@ import sqlite3
 import sys
 import tempfile
 import time
+from helpers.core import jsonio  # noqa: E402  (orjson parse cutover; dumps stay stdlib per db_scaling_tuning §6.3 criteria)
 from pathlib import Path
 from urllib.parse import quote
 
@@ -131,7 +132,7 @@ def _legacy_vectors(bases: list[str]) -> list[list[float]]:
     scratch = Path(f"/tmp/note_deep_probe_legacy_vecs_{MODEL_ID}.json")  # noqa: S108  # throwaway probe scratch, single-user box
     scratch_map: dict[str, list[float]] = {}
     if scratch.exists():
-        scratch_map = json.loads(scratch.read_text(encoding="utf-8"))
+        scratch_map = jsonio.loads(scratch.read_text(encoding="utf-8"))
 
     conn = sqlite3.connect(f"file:{REPO / 'memory/embed_store.db'}?mode=ro", uri=True)
     from helpers.core.vec_search import _attach_vec_db
@@ -152,7 +153,7 @@ def _legacy_vectors(bases: list[str]) -> list[list[float]]:
         h = _hash(t)
         j = cached.get(h)
         if j is not None:
-            out.append(json.loads(j))
+            out.append(jsonio.loads(j))
             continue
         v = scratch_map.get(h)
         if v is None:
@@ -190,7 +191,7 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
 
 def run(argv: list[str] | None = None) -> int:
     args = _parse_args(argv)
-    questions = json.loads(args.questions.read_text(encoding="utf-8"))["questions"]
+    questions = jsonio.loads(args.questions.read_text(encoding="utf-8"))["questions"]
 
     # --- AFTER legs: the live endpoint ------------------------------------ #
     import app as A

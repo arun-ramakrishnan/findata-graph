@@ -29,6 +29,7 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO))
 
+from helpers.core import jsonio  # noqa: E402  (orjson parse cutover; dumps stay stdlib per db_scaling_tuning §6.3 criteria)
 from helpers.core.frontmatter import split_frontmatter  # noqa: E402
 
 
@@ -71,7 +72,7 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--apply", action="store_true", help="write (default: dry-run report)")
     a = ap.parse_args(argv)
 
-    mapping: dict[str, str] = json.loads(a.map.read_text(encoding="utf-8"))
+    mapping: dict[str, str] = jsonio.loads(a.map.read_text(encoding="utf-8"))
     notes: dict[str, Path] = {p.stem: p for p in sorted(a.root.rglob("*.md"))}
 
     counts: dict[str, int] = {

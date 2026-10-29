@@ -99,6 +99,7 @@ _REPO_ROOT = Path(__file__).resolve().parents[2]
 if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
+from helpers.core import jsonio  # noqa: E402  (orjson parse cutover; dumps stay stdlib per db_scaling_tuning §6.3 criteria)
 from helpers.core.db import connect, utc_now  # noqa: E402
 from helpers.core.entity_identity import name_key as _name_key  # noqa: E402
 from helpers.core.frontmatter import (  # noqa: E402  # after the sys.path bootstrap above
@@ -139,7 +140,7 @@ ALIAS_OVERRIDES_PATH = _REPO_ROOT / "findata" / "Misc" / "relation_aliases.json"
 def _alias_overrides() -> dict[str, str]:
     """Loaded once per process; absent/unreadable file degrades to {}."""
     try:
-        raw = json.loads(ALIAS_OVERRIDES_PATH.read_text(encoding="utf-8"))
+        raw = jsonio.loads(ALIAS_OVERRIDES_PATH.read_text(encoding="utf-8"))
     except OSError, ValueError:
         return {}
     return {
@@ -172,7 +173,7 @@ NOISE_OVERRIDES_PATH = _REPO_ROOT / "findata" / "Misc" / "relation_noise.json"
 def _noise_overrides() -> set[tuple[str, str, str]]:
     """Loaded once per process; absent/unreadable file degrades to empty."""
     try:
-        raw = json.loads(NOISE_OVERRIDES_PATH.read_text(encoding="utf-8"))
+        raw = jsonio.loads(NOISE_OVERRIDES_PATH.read_text(encoding="utf-8"))
     except OSError, ValueError:
         return set()
     out: set[tuple[str, str, str]] = set()
@@ -3046,7 +3047,7 @@ def _sidecar_ids(path: Path) -> set[str]:
         if not line:
             continue
         try:
-            d = json.loads(line)
+            d = jsonio.loads(line)
         except ValueError:
             continue
         if not isinstance(d, dict):
@@ -3574,7 +3575,7 @@ def _cli(argv: list[str] | None = None) -> int:  # noqa: C901
             key = tuple(sorted((r["source"], r["target"])))
             props_new = jv_extracted.get(key) or {}
             try:
-                stored = json.loads(r["properties"]) if r["properties"] else {}
+                stored = jsonio.loads(r["properties"]) if r["properties"] else {}
             except ValueError:
                 continue
             if "venture" in stored:

@@ -38,6 +38,7 @@ _REPO_ROOT = Path(__file__).resolve().parents[2]
 if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
+from helpers.core import jsonio  # noqa: E402  (orjson parse cutover; dumps stay stdlib per db_scaling_tuning §6.3 criteria)
 from helpers.core.countries import COUNTRY_VOCABULARY  # noqa: E402
 from helpers.core.frontmatter import yaml_safe_load  # noqa: E402
 from helpers.validators.static_checks import CANONICAL_SECTORS
@@ -235,15 +236,14 @@ def _company_codes_and_vocab() -> tuple[dict, set]:
     if _S3_CACHE is None:
         misc = Path(__file__).resolve().parents[2] / "helpers" / "misc"
         try:
-            import json as _json
 
             vocab = {
                 r["code"]
-                for r in _json.loads((misc / "nic2008_seed.json").read_text(encoding="utf-8"))[
+                for r in jsonio.loads((misc / "nic2008_seed.json").read_text(encoding="utf-8"))[
                     "subclasses"
                 ]
             }
-            doc = _json.loads((misc / "nic2008_company_codes.json").read_text(encoding="utf-8"))
+            doc = jsonio.loads((misc / "nic2008_company_codes.json").read_text(encoding="utf-8"))
             codes = doc.get("codes", {}) if isinstance(doc, dict) else {}
         except OSError, ValueError:
             vocab, codes = set(), {}

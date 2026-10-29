@@ -36,6 +36,7 @@ from pathlib import Path
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(_REPO_ROOT))
 
+from helpers.core import jsonio  # noqa: E402  (orjson parse cutover; dumps stay stdlib per db_scaling_tuning §6.3 criteria)
 from helpers.core.vec_codec import pack_f32  # noqa: E402
 
 _SURFACES = [
@@ -52,10 +53,9 @@ def _pack_sql(value):
     """SQL function: TEXT JSON -> f32 BLOB; BLOB passes through."""
     if isinstance(value, (bytes, bytearray)):
         return value
-    import json
 
     try:
-        vec = json.loads(value)
+        vec = jsonio.loads(value)
     except TypeError, ValueError:
         return value
     return pack_f32(vec) if isinstance(vec, list) and vec else value

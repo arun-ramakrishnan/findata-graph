@@ -73,6 +73,7 @@ _REPO_ROOT = Path(__file__).resolve().parents[2]
 if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
+from helpers.core import jsonio  # noqa: E402  (orjson parse cutover; dumps stay stdlib per db_scaling_tuning §6.3 criteria)
 from helpers.core.db import connect  # noqa: E402
 from helpers.graph import derive_cli as dcli  # noqa: E402  # S6 shared CLI scaffold
 from helpers.core.stable_write import ReplaceResult, stable_prefix_diff, stable_prefix_replace  # noqa: E402
@@ -296,7 +297,7 @@ def promote_from_edges(conn) -> list[Event]:
     events: list[Event] = []
     for source, target, edge_type, valid_from, props_json in rows:
         try:
-            props = json.loads(props_json) if props_json else {}
+            props = jsonio.loads(props_json) if props_json else {}
         except ValueError, TypeError:
             props = {}
         event_type = _EDGE_TO_EVENT_TYPE.get(edge_type)

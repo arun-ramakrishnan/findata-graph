@@ -30,8 +30,8 @@ Usage:
 Always exits 0 — this is a report, not a gate.
 """
 
-import json
 import sys
+from helpers.core import jsonio  # noqa: E402  (orjson parse cutover; dumps stay stdlib per db_scaling_tuning §6.3 criteria)
 from pathlib import Path
 from urllib.parse import quote
 
@@ -40,7 +40,7 @@ if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
 DB_PATH = _REPO_ROOT / "memory" / "research.db"
-QUESTIONS = json.loads(
+QUESTIONS = jsonio.loads(
     (Path(__file__).parent / "embed_eval_questions.json").read_text(encoding="utf-8")
 )
 

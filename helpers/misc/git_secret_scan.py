@@ -26,6 +26,7 @@ import subprocess
 import sys
 import threading
 import time
+from helpers.core import jsonio  # noqa: E402  (orjson parse cutover; dumps stay stdlib per db_scaling_tuning §6.3 criteria)
 from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
@@ -75,7 +76,7 @@ def _now_utc() -> str:
 def load_state() -> dict:
     if not STATE_FILE.exists():
         return {"version": 1, "scanned": set()}
-    state = json.loads(STATE_FILE.read_text())
+    state = jsonio.loads(STATE_FILE.read_text())
     scanned: set[str] = set()
     if BLOB_SET_FILE.exists():
         with gzip.open(BLOB_SET_FILE, "rt", encoding="ascii") as f:

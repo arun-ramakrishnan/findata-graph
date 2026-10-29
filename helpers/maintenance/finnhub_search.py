@@ -20,7 +20,6 @@ tests/fixtures/finnhub_search/):
 
 from __future__ import annotations
 
-import json
 import os
 import re
 import time
@@ -30,6 +29,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 
+from helpers.core import jsonio  # noqa: E402  (orjson parse cutover; dumps stay stdlib per db_scaling_tuning §6.3 criteria)
 from helpers.core.env import load_memory_env
 
 FINNHUB_SEARCH_URL = "https://finnhub.io/api/v1/search"
@@ -53,7 +53,7 @@ def trim_query(name: str, limit: int = _QUERY_LIMIT) -> str:
 
 def parse_search_response(text: str) -> list[FhMatch]:
     """Parse a /search JSON body; empty/absent result -> []."""
-    data = json.loads(text)
+    data = jsonio.loads(text)
     return [
         FhMatch(symbol=r["symbol"], description=r.get("description", ""))
         for r in data.get("result", [])

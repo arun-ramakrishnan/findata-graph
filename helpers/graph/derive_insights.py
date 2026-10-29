@@ -117,6 +117,7 @@ except ImportError:  # pragma: no cover
     Corpus = None  # type: ignore[assignment]
     _HAS_CORPUS = False
 
+from helpers.core import jsonio  # noqa: E402  (orjson parse cutover; dumps stay stdlib per db_scaling_tuning §6.3 criteria)
 from helpers.core.db import connect  # noqa: E402
 from helpers.core.stable_write import ReplaceResult, stable_prefix_diff, stable_prefix_replace  # noqa: E402
 from helpers.core.edition_index import (  # noqa: E402
@@ -2717,7 +2718,7 @@ def _peer_candidates(r, names: dict[str, str]) -> list[tuple[str, str, str, floa
     if s == t:
         return []
     try:
-        props = json.loads(r["properties"]) if r["properties"] else {}
+        props = jsonio.loads(r["properties"]) if r["properties"] else {}
     except TypeError, ValueError:
         props = {}
     if r["edge_type"] == "invested_in":
@@ -3378,8 +3379,8 @@ def _merged_quote_aliases() -> dict[str, str]:
         cached = _MERGED_ALIASES_CACHE.get(key)
         if cached is not None:
             return dict(cached)
-        user = json.loads(_QUOTES_ALIASES_PATH.read_text())
-    except FileNotFoundError, json.JSONDecodeError:
+        user = jsonio.loads(_QUOTES_ALIASES_PATH.read_text())
+    except FileNotFoundError, jsonio.JSONDecodeError:
         return dict(_QUOTE_ALIASES)
     merged = dict(_QUOTE_ALIASES)
     for k, v in user.items():

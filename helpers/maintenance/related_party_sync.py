@@ -45,6 +45,7 @@ SOURCE_REF_PREFIX = "vigil:rpt"
 # entity_name_dedup S3: the plan artifact doubles as the fold registry.
 _NAME_DEDUP_PLAN = Path(__file__).resolve().parents[2] / "findata" / "Misc" / "_name_merge_plan.txt"
 
+from helpers.core import jsonio  # noqa: E402  (orjson parse cutover; dumps stay stdlib per db_scaling_tuning §6.3 criteria)
 from helpers.maintenance.shareholding_sync import (  # noqa: E402  (post-bootstrap)
     _normalize,
     _resolve_companies,
@@ -830,7 +831,7 @@ def _subsidiary_cycle_loser(
     """The S1 cycle shape: both directions share one filer ref and
     classify sub_fwd + sub_rev — the sub_rev edge is the filing-noise
     side and loses. None = not that shape (leave untouched)."""
-    j1, j2 = json.loads(p1 or "{}"), json.loads(p2 or "{}")
+    j1, j2 = jsonio.loads(p1 or "{}"), jsonio.loads(p2 or "{}")
     c1 = classify_relationship(j1.get("relationship"))
     c2 = classify_relationship(j2.get("relationship"))
     if {c1, c2} != {"sub_fwd", "sub_rev"}:
@@ -1008,7 +1009,7 @@ def cure_subsidiary_backfill(conn: sqlite3.Connection, *, apply: bool = False) -
     reclass: list[tuple[str, str, str, str, str]] = []
     for rid, src, dst, props, ref in rows:
         try:
-            rel = json.loads(props or "{}").get("relationship")
+            rel = jsonio.loads(props or "{}").get("relationship")
         except TypeError, ValueError:
             rel = None
         cls = classify_relationship(rel)

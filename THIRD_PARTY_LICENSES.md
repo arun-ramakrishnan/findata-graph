@@ -50,6 +50,7 @@ following remain under their own rights or are not relicensed by the project:
 | nse-xbrl | MIT (verify release) | NSE filing client |
 | openpyxl | MIT | XLSX parsing |
 | regex | MIT | Mojo/Python regex bridge |
+| orjson | MIT OR Apache-2.0 (dual) | Repo-wide JSON engine behind helpers/core/jsonio.py (db_scaling_tuning §6.3) |
 | Matplotlib | PSF-based license | Plotting/OCR support |
 | HypergraphX | BSD-3-Clause | Hypergraph analytics |
 | SciPy | BSD-3-Clause | Sparse/numeric kernels |

@@ -36,6 +36,7 @@ if __name__ == "__main__" and "helpers" not in sys.modules:
     sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 import sqlite3
+from helpers.core import jsonio  # noqa: E402  (orjson parse cutover; dumps stay stdlib per db_scaling_tuning §6.3 criteria)
 from pathlib import Path
 
 SECTOR_HYPER_TYPE = "sector"
@@ -67,7 +68,7 @@ def _refresh_member_count(conn: sqlite3.Connection, edge_id: int) -> None:
     ).fetchone()[0]
     row = conn.execute("SELECT properties FROM hyper_edges WHERE id = ?", (edge_id,)).fetchone()
     try:
-        props = json.loads(row[0]) if row and row[0] else {}
+        props = jsonio.loads(row[0]) if row and row[0] else {}
     except TypeError, ValueError:
         props = {}
     props["n_members"] = int(n)

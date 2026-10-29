@@ -45,6 +45,7 @@ import argparse
 import fcntl
 import hashlib
 import json
+
 import re
 import sqlite3
 import sys
@@ -67,6 +68,7 @@ INDEX_DB = REPO / "memory/convo_search.duckdb"
 # sys.path itself before that import (static check: entry-point sys.path).
 sys.path.insert(0, str(REPO))
 
+from helpers.core import jsonio  # noqa: E402  (grouped with core imports)
 from helpers.core.db import connect  # noqa: E402
 from helpers.core import duckdb_shared  # noqa: E402  (bare-script entry point; bootstrap above)
 from helpers.core.ranges import RangeError, cutoff_from  # noqa: E402  (bare-script entry point; bootstrap above)
@@ -323,7 +325,7 @@ def _oc_reasoning_meta(d: dict) -> dict:
 def _oc_part_rows(cur_parts: Iterator[tuple], msgs: dict[str, tuple], src: str) -> list[dict]:
     out = []
     for pid, mid, sid, tc, tu, data in cur_parts:
-        d = json.loads(data)
+        d = jsonio.loads(data)
         ptype = d.get("type") or "unknown"
         text, meta = "", {}
         if ptype in ("text", "reasoning"):
@@ -373,9 +375,9 @@ def _harvest_opencode_db(db_path: Path, src: str, hwm: int | None) -> tuple[list
     try:
         msgs = {
             r[0]: (
-                (json.loads(r[1]) or {}).get("role", ""),
-                (json.loads(r[1]) or {}).get("agent", ""),
-                _oc_msg_model(json.loads(r[1]) or {}),
+                (jsonio.loads(r[1]) or {}).get("role", ""),
+                (jsonio.loads(r[1]) or {}).get("agent", ""),
+                _oc_msg_model(jsonio.loads(r[1]) or {}),
             )
             for r in con.execute("SELECT id, data FROM message")
         }
@@ -440,8 +442,8 @@ def _v2_envelope(con) -> dict[str, tuple]:
     for sid, agent, model in rows:
         if isinstance(model, str):
             try:
-                model = json.loads(model)
-            except json.JSONDecodeError:
+                model = jsonio.loads(model)
+            except jsonio.JSONDecodeError:
                 pass
         out[sid] = (agent or "", _oc_model_value(model))
     return out
@@ -454,8 +456,8 @@ def _v2_msg_envelope(con) -> dict[str, tuple]:
     try:
         for mid, data in con.execute("SELECT id, data FROM session_message"):
             try:
-                d = json.loads(data) or {}
-            except json.JSONDecodeError:
+                d = jsonio.loads(data) or {}
+            except jsonio.JSONDecodeError:
                 continue
             m = d.get("model") or {}
             out[mid] = (
@@ -470,8 +472,8 @@ def _v2_msg_envelope(con) -> dict[str, tuple]:
             if mid in out:
                 continue
             try:
-                d = json.loads(data) or {}
-            except json.JSONDecodeError:
+                d = jsonio.loads(data) or {}
+            except jsonio.JSONDecodeError:
                 continue
             out[mid] = (
                 d.get("role", ""),
@@ -612,8 +614,8 @@ def _harvest_opencode_v2(
             if seed is not None and (tu or tc or 0) <= seed:
                 continue
             try:
-                d = json.loads(data) or {}
-            except json.JSONDecodeError:
+                d = jsonio.loads(data) or {}
+            except jsonio.JSONDecodeError:
                 continue
             d["type"] = typ  # row type is a column, not in the payload
             if typ == "assistant":
@@ -697,8 +699,8 @@ def _harvest_opencode_events(
         latest: dict[str, tuple] = {}
         for (data,) in cur:
             try:
-                d = json.loads(data)
-            except json.JSONDecodeError:
+                d = jsonio.loads(data)
+            except jsonio.JSONDecodeError:
                 continue
             p = d.get("part") or {}
             if p.get("id"):
@@ -773,7 +775,7 @@ def _harvest_opencode(store: Store, writer: SessionWriter, *, force: bool = Fals
             # rowid 29963, while the other 7 sources scanned clean. Skip + name it.
             # Two corruption modes live here: a bad sqlite image raises
             # sqlite3.DatabaseError/OSError at open, and a valid image with a
-            # corrupt row raises json.JSONDecodeError or AttributeError (JSON
+            # corrupt row raises jsonio.JSONDecodeError or AttributeError (JSON
             # scalar where a dict is expected) when the message/part `data`
             # columns are parsed inside _harvest_opencode_db. Catch those EXACT
             # types — a bare ValueError net would silently skip-and-relabel
@@ -784,7 +786,7 @@ def _harvest_opencode(store: Store, writer: SessionWriter, *, force: bool = Fals
             except (
                 sqlite3.DatabaseError,
                 OSError,
-                json.JSONDecodeError,
+                jsonio.JSONDecodeError,
                 AttributeError,
             ) as exc:
                 stats.append(f"{src}: SKIP unreadable ({type(exc).__name__}: {exc})")
@@ -809,7 +811,7 @@ def _harvest_opencode(store: Store, writer: SessionWriter, *, force: bool = Fals
             except (
                 sqlite3.DatabaseError,
                 OSError,
-                json.JSONDecodeError,
+                jsonio.JSONDecodeError,
                 AttributeError,
             ) as exc:
                 stats.append(f"{src}:{lane}: SKIP unreadable ({type(exc).__name__}: {exc})")
@@ -862,10 +864,10 @@ def _prime_block(blk: object) -> tuple[str, str, dict]:
 
 def _harvest_prime_file(f: Path, src: str) -> list[dict]:
     rows = []
-    for line in open(f, errors="replace"):
+    for line in open(f, "rb"):
         try:
-            d = json.loads(line)
-        except json.JSONDecodeError:
+            d = jsonio.loads(line)
+        except jsonio.JSONDecodeError:
             continue
         if d.get("type") not in ("message", "custom_message"):
             continue
@@ -912,7 +914,7 @@ def _harvest_prime(store: Store, writer: SessionWriter, *, force: bool = False) 
     for f, src in _prime_files():
         key = f"{src}:{hashlib.blake2b(str(f).encode(), digest_size=6).hexdigest()}"
         wm_raw = store.watermark(key)
-        wm = json.loads(wm_raw) if wm_raw else None
+        wm = jsonio.loads(wm_raw) if wm_raw else None
         st = f.stat()
         cur = [int(st.st_mtime), st.st_size]
         if wm == cur and not force:
@@ -1025,8 +1027,8 @@ def _dsh_read_log(path: Path):
         if not line:
             continue
         try:
-            d = json.loads(line)
-        except json.JSONDecodeError:
+            d = jsonio.loads(line)
+        except jsonio.JSONDecodeError:
             continue
         if not isinstance(d, dict):
             continue
@@ -1183,7 +1185,7 @@ def _harvest_dsh(store: Store, writer: SessionWriter, *, force: bool = False) ->
     for path, sid, src in _dsh_logs():
         key = f"{src}:{sid}"
         wm_raw = store.watermark(key)
-        wm = json.loads(wm_raw) if wm_raw else None
+        wm = jsonio.loads(wm_raw) if wm_raw else None
         st = path.stat()
         cur = [int(st.st_mtime), int(st.st_size)]
         if wm is not None and wm[1:] == cur and not force:
@@ -1338,7 +1340,7 @@ def _harvest_bili(store: Store, writer: SessionWriter, *, force: bool = False) -
             key = f"bili:{sid}"
             cur = _bili_fingerprint(con, sid)
             wm_raw = store.watermark(key)
-            wm = json.loads(wm_raw) if wm_raw else None
+            wm = jsonio.loads(wm_raw) if wm_raw else None
             if wm is not None and wm == cur and not force:
                 stats.append(f"bili:{sid[:13]}: quiet")
                 continue
@@ -1361,8 +1363,8 @@ def _harvest_bili(store: Store, writer: SessionWriter, *, force: bool = False) -
                 [sid],
             ):
                 try:
-                    d = json.loads(payload)
-                except json.JSONDecodeError, TypeError:
+                    d = jsonio.loads(payload)
+                except jsonio.JSONDecodeError, TypeError:
                     continue
                 topic = d.get("topic") or ""
                 text = (topic + "\n" + d.get("summary", "")).strip()
@@ -1421,7 +1423,7 @@ def _bili_drift(store: Store) -> list[str]:
             for sid in sessions:
                 key = f"bili:{sid}"
                 wm_raw = store.watermark(key)
-                wm = json.loads(wm_raw) if wm_raw else None
+                wm = jsonio.loads(wm_raw) if wm_raw else None
                 if wm != _bili_fingerprint(con, sid):
                     drift.append(f"changed bili:{sid[:13]}")
         finally:
@@ -1450,8 +1452,8 @@ def _zc_model_value(v: object) -> str:
         if not s.startswith("{"):
             return s
         try:
-            v = json.loads(s)
-        except json.JSONDecodeError:
+            v = jsonio.loads(s)
+        except jsonio.JSONDecodeError:
             return s
     if isinstance(v, dict):
         return str(v.get("modelId") or "")
@@ -1483,8 +1485,8 @@ def _oc_model_value(v: object) -> str:
         s = v.strip()
         if s.startswith("{"):
             try:
-                d = json.loads(s)
-            except json.JSONDecodeError:
+                d = jsonio.loads(s)
+            except jsonio.JSONDecodeError:
                 return s
             if isinstance(d, dict):
                 return str(d.get("modelId") or d.get("modelID") or d.get("id") or "")
@@ -1534,10 +1536,10 @@ def _zcode_best_and_resps(files: list[Path]) -> tuple[dict | None, bool, dict, d
     resps: dict[str, tuple] = {}
     errs: dict[str, tuple] = {}
     for f in files:
-        for line in open(f, errors="replace"):
+        for line in open(f, "rb"):
             try:
-                d = json.loads(line)
-            except json.JSONDecodeError:
+                d = jsonio.loads(line)
+            except jsonio.JSONDecodeError:
                 continue
             req = d.get("request") or {}
             n = req.get("messageCount") or 0
@@ -1849,7 +1851,7 @@ def _dsh_log_drift(store: Store, path: Path, sid: str, src: str) -> str | None:
         st = path.stat()
     except OSError:
         return f"missing {src}:{sid[:13]} ({path})"
-    cur = json.loads(wm_raw) if wm_raw else None
+    cur = jsonio.loads(wm_raw) if wm_raw else None
     if cur is None:
         return f"new {src}:{sid[:13]}"
     if cur[1:] != [int(st.st_mtime), int(st.st_size)]:
@@ -1901,7 +1903,7 @@ def _coverage(store: Store) -> list[str]:
                 continue
             try:
                 n_ses += 1
-                n_blocks += len(json.loads(raw).get("b", {}))
+                n_blocks += len(jsonio.loads(raw).get("b", {}))
             except ValueError, AttributeError:
                 continue
         lines.append(f"bili: {n_ses} sessions tracked ({n_blocks} blocks fingerprinted)")
@@ -1993,7 +1995,7 @@ def _drift(store: Store, corpus_root: Path = CORPUS_ROOT) -> list[str]:
         key = f"{src}:{hashlib.blake2b(str(f).encode(), digest_size=6).hexdigest()}"
         st = f.stat()
         wm_raw = store.watermark(key)
-        cur = json.loads(wm_raw) if wm_raw else None
+        cur = jsonio.loads(wm_raw) if wm_raw else None
         if cur != [int(st.st_mtime), st.st_size]:
             drift.append(f"changed {src} ({f.name})")
     for sid, files in _zcode_groups().items():

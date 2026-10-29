@@ -61,6 +61,7 @@ from compression.zstd import compress, decompress
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
+from helpers.core import jsonio  # noqa: E402  (parse side of the orjson cutover; dumps stay stdlib per db_scaling_tuning §6.3 criteria)
 from helpers.misc import search_tui as st  # noqa: E402  (stdlib-only at import)
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -462,8 +463,8 @@ def _test_metadata_by_node(
         if not (lo - timedelta(seconds=120) <= mtime <= hi + timedelta(seconds=300)):
             continue
         try:
-            payload = json.loads(path.read_text())
-        except OSError, json.JSONDecodeError:
+            payload = jsonio.loads(path.read_text())
+        except OSError, jsonio.JSONDecodeError:
             continue
         if payload.get("schema") != "test-metadata.v1":
             continue
@@ -696,8 +697,8 @@ def _native_artifact_records(base: Path) -> list[dict]:  # noqa: C901
         if not path.exists():
             continue
         try:
-            payload = json.loads(path.read_text())
-        except OSError, json.JSONDecodeError:
+            payload = jsonio.loads(path.read_text())
+        except OSError, jsonio.JSONDecodeError:
             continue
         raw = payload.get("diagnostics", []) if isinstance(payload, dict) else payload
         if not isinstance(raw, list):
@@ -772,13 +773,13 @@ def _native_artifact_records(base: Path) -> list[dict]:  # noqa: C901
                 message = f"line {percent:.2f}% · branch {branch_rate * 100:.2f}%"
                 status = "pass"
             else:
-                payload = json.loads(path.read_text())
+                payload = jsonio.loads(path.read_text())
                 totals = payload.get("totals", payload) if isinstance(payload, dict) else {}
                 percent = float(totals.get("percent", totals.get("line_percent", 0)))
                 fail_under = totals.get("fail_under")
                 message = f"line coverage {percent:.2f}%"
                 status = "pass"
-        except ET.ParseError, OSError, TypeError, ValueError, json.JSONDecodeError:
+        except ET.ParseError, OSError, TypeError, ValueError, jsonio.JSONDecodeError:
             continue
         if fail_under is not None:
             try:
@@ -804,11 +805,11 @@ def _native_artifact_records(base: Path) -> list[dict]:  # noqa: C901
         try:
             if filename.endswith(".jsonl"):
                 payload = [
-                    json.loads(line) for line in path.read_text().splitlines() if line.strip()
+                    jsonio.loads(line) for line in path.read_text().splitlines() if line.strip()
                 ]
             else:
-                payload = json.loads(path.read_text())
-        except OSError, json.JSONDecodeError:
+                payload = jsonio.loads(path.read_text())
+        except OSError, jsonio.JSONDecodeError:
             continue
         raw = (
             payload.get("benchmarks", payload.get("results", []))
@@ -860,8 +861,8 @@ def _native_artifact_records(base: Path) -> list[dict]:  # noqa: C901
         if not path.exists():
             continue
         try:
-            payload = json.loads(path.read_text())
-        except OSError, json.JSONDecodeError:
+            payload = jsonio.loads(path.read_text())
+        except OSError, jsonio.JSONDecodeError:
             continue
         raw = payload.get("checks", [payload]) if isinstance(payload, dict) else payload
         if not isinstance(raw, list):
@@ -892,8 +893,8 @@ def _native_artifact_records(base: Path) -> list[dict]:  # noqa: C901
         if not path.exists():
             continue
         try:
-            payload = json.loads(path.read_text())
-        except OSError, json.JSONDecodeError:
+            payload = jsonio.loads(path.read_text())
+        except OSError, jsonio.JSONDecodeError:
             continue
         if filename.endswith(".sarif"):
             raw = []
@@ -916,8 +917,8 @@ def _native_artifact_records(base: Path) -> list[dict]:  # noqa: C901
         if not path.exists():
             continue
         try:
-            payload = json.loads(path.read_text())
-        except OSError, json.JSONDecodeError:
+            payload = jsonio.loads(path.read_text())
+        except OSError, jsonio.JSONDecodeError:
             continue
         raw = (
             payload.get("diagnostics", payload.get("results", payload))
@@ -936,8 +937,8 @@ def _retained_artifact_records(wt: str, artifact_dir: str | None) -> list[dict]:
     manifest = base / "gate-artifacts.json"
     if manifest.exists():
         try:
-            payload = json.loads(manifest.read_text())
-        except OSError, json.JSONDecodeError:
+            payload = jsonio.loads(manifest.read_text())
+        except OSError, jsonio.JSONDecodeError:
             payload = None
         raw = payload.get("artifacts", []) if isinstance(payload, dict) else payload
         default_schema = payload.get("schema") if isinstance(payload, dict) else None
@@ -1453,8 +1454,8 @@ def cmd_artifacts(con, args) -> str:  # noqa: C901
         record = dict(zip(names, row, strict=True))
         raw_metadata = record.pop("metadata_json")
         try:
-            record["metadata"] = json.loads(raw_metadata or "{}")
-        except json.JSONDecodeError:
+            record["metadata"] = jsonio.loads(raw_metadata or "{}")
+        except jsonio.JSONDecodeError:
             record["metadata"] = {"raw": raw_metadata}
         records.append(record)
     if args.json:
@@ -1884,8 +1885,8 @@ def _test_history_rows(con, args) -> tuple[list[dict], str]:
         record = dict(zip(names, row, strict=True))
         for key, default in (("phase_seconds_json", "{}"), ("markers_json", "[]")):
             try:
-                record[key.removesuffix("_json")] = json.loads(record[key] or default)
-            except json.JSONDecodeError:
+                record[key.removesuffix("_json")] = jsonio.loads(record[key] or default)
+            except jsonio.JSONDecodeError:
                 record[key.removesuffix("_json")] = default
         rows.append(record)
     return rows, metric
@@ -2083,8 +2084,8 @@ def _test_phase_totals(con, run_ids: list[int]) -> dict[str, float]:
         if seconds is not None:
             totals["total"] += seconds
         try:
-            phases = json.loads(phase_json or "{}")
-        except json.JSONDecodeError:
+            phases = jsonio.loads(phase_json or "{}")
+        except jsonio.JSONDecodeError:
             phases = {}
         for phase in ("setup", "call", "teardown"):
             value = phases.get(phase, {}).get("seconds")

@@ -42,6 +42,7 @@ if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
 import duckdb  # noqa: E402  # after sys.path bootstrap
+from helpers.core import jsonio  # noqa: E402  (orjson parse cutover; dumps stay stdlib per db_scaling_tuning §6.3 criteria)
 
 DEFAULT_SNAPSHOTS = _REPO_ROOT / "snapshots" / "parquet"
 REPORTS = ("summary", "edge-growth", "sector-growth", "top-entities", "coverage", "temporal")
@@ -487,7 +488,7 @@ def main(argv: list[str] | None = None) -> int:
         return 2
     if isinstance(r, list):  # composite report (temporal)
         if args.json:
-            print(json.dumps([json.loads(render_json(x)) for x in r], indent=2, ensure_ascii=False))
+            print(json.dumps([jsonio.loads(render_json(x)) for x in r], indent=2, ensure_ascii=False))
         else:
             print("\n\n".join(render_markdown(x) for x in r))
     else:

@@ -50,6 +50,7 @@ _PROJECT_ROOT = Path(__file__).resolve().parents[2]
 if str(_PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(_PROJECT_ROOT))
 
+from helpers.core import jsonio  # noqa: E402  (orjson parse cutover; dumps stay stdlib per db_scaling_tuning §6.3 criteria)
 from helpers.core.db import connect  # noqa: E402  # needs the shim above
 from helpers.graph.edge_projection import pairs  # noqa: E402  # needs the shim above
 
@@ -177,11 +178,11 @@ def load(
     """
     out = Path(out_dir)
     try:
-        manifest = json.loads((out / "csr_manifest.json").read_text())
+        manifest = jsonio.loads((out / "csr_manifest.json").read_text())
         offsets = np.memmap(out / "csr_offsets.bin", dtype=np.int32, mode="r")
         neighbors = np.memmap(out / "csr_neighbors.bin", dtype=np.int32, mode="r")
-        names = json.loads((out / "csr_names.json").read_text())
-    except OSError, json.JSONDecodeError:
+        names = jsonio.loads((out / "csr_names.json").read_text())
+    except OSError, jsonio.JSONDecodeError:
         return {}, np.array([]), np.array([]), [], False
     if verify_checksum:
         digest = hashlib.sha256(
@@ -412,12 +413,11 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--check", action="store_true", help="report freshness; exit 1 if stale")
     args = ap.parse_args(argv)
     if args.check:
-        import json
 
         out = Path(args.out)
         try:
-            manifest = json.loads((out / "csr_manifest.json").read_text())
-        except OSError, json.JSONDecodeError:
+            manifest = jsonio.loads((out / "csr_manifest.json").read_text())
+        except OSError, jsonio.JSONDecodeError:
             print(f"CSR: manifest missing or corrupt at {out}")
             return 1
         live = _live_generation(args.db)

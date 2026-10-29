@@ -56,6 +56,7 @@ HERE = Path(__file__).resolve().parent
 REPO = HERE.parents[1]
 if str(REPO) not in sys.path:
     sys.path.insert(0, str(REPO))
+from helpers.core import jsonio  # noqa: E402  (orjson parse cutover; dumps stay stdlib per db_scaling_tuning §6.3 criteria)
 from helpers.analytics.bili_analytics import (  # noqa: E402
     log_rotation_family,
     parse_logs,
@@ -98,8 +99,8 @@ class Bars:
         raw: dict = {}
         if path.is_file():
             try:
-                raw = json.loads(path.read_text(encoding="utf-8"))
-            except OSError, json.JSONDecodeError:
+                raw = jsonio.loads(path.read_text(encoding="utf-8"))
+            except OSError, jsonio.JSONDecodeError:
                 raw = {}
         compress = raw.get("compress") or {}
         tiers = compress.get("tierNudgeTokens") or {}
@@ -186,8 +187,8 @@ def load_session_state(db: Path, session_id: str) -> SessionState:
         ).fetchone()
         if row:
             try:
-                kstate = json.loads(row["kstate_json"] or "{}")
-            except json.JSONDecodeError:
+                kstate = jsonio.loads(row["kstate_json"] or "{}")
+            except jsonio.JSONDecodeError:
                 kstate = {}
             nudge = kstate.get("nudge") or {}
             state.last_shown_by_tier = {
@@ -200,8 +201,8 @@ def load_session_state(db: Path, session_id: str) -> SessionState:
             (session_id,),
         ):
             try:
-                payload = json.loads(r["payload_json"] or "{}")
-            except json.JSONDecodeError:
+                payload = jsonio.loads(r["payload_json"] or "{}")
+            except jsonio.JSONDecodeError:
                 payload = {}
             state.blocks.append(
                 Block(

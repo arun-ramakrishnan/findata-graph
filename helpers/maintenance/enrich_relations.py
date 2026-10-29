@@ -84,6 +84,7 @@ _REPO_ROOT = Path(__file__).resolve().parents[2]
 if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
+from helpers.core import jsonio  # noqa: E402  (orjson parse cutover; dumps stay stdlib per db_scaling_tuning §6.3 criteria)
 from helpers.core.db import connect, utc_now, utc_today_iso  # noqa: E402  (W8: utc_now for audit stamps)
 from helpers.maintenance.enrich_from_yfinance import (  # noqa: E402
     DB_PATH,
@@ -594,7 +595,7 @@ def run_yfinance_pass(
     t0 = time.perf_counter()
     cache: Path | None = fetch_cache
     if cache is not None and cache.exists() and not refresh_cache:
-        payload = json.loads(cache.read_text(encoding="utf-8"))
+        payload = jsonio.loads(cache.read_text(encoding="utf-8"))
         info_by_name = payload["info_by_name"]
         failures = [tuple(f) for f in payload["failures"]]
         fetched_at = payload.get("fetched_at", "unknown")
@@ -953,7 +954,7 @@ def coinfer_prior_pairs(path: Path = COINFER_SIDECAR_PATH) -> set[frozenset[str]
         if not line:
             continue
         try:
-            row = json.loads(line)
+            row = jsonio.loads(line)
         except ValueError:
             continue
         if row.get("origin") == COINFER_ORIGIN:
@@ -2399,7 +2400,7 @@ def _apply_finnhub_writebacks(
     with the verified info so the next bulk sweep sees the new tickers."""
     cache_payload = None
     if fetch_cache is not None and fetch_cache.exists():
-        cache_payload = json.loads(fetch_cache.read_text(encoding="utf-8"))
+        cache_payload = jsonio.loads(fetch_cache.read_text(encoding="utf-8"))
     with conn:
         for o in writebacks:
             conn.execute("UPDATE entities SET ticker = ? WHERE name = ?", (o.new_ticker, o.entity))
@@ -2510,7 +2511,7 @@ def run_finnhub_pass(
     """
     verify_store: dict = {}
     if verify_cache is not None and verify_cache.exists():
-        verify_store = json.loads(verify_cache.read_text(encoding="utf-8"))
+        verify_store = jsonio.loads(verify_cache.read_text(encoding="utf-8"))
     verify = _cached_verify(verify_fn, verify_store)
     report_path = REPORT_PATH if report_path is None else report_path
     cache_dir = GF_PAGE_CACHE_DIR if cache_dir is None else cache_dir

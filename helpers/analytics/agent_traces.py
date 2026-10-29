@@ -47,6 +47,7 @@ from __future__ import annotations
 
 import argparse
 import json
+
 import sqlite3
 import sys
 from datetime import date, datetime, timedelta, UTC
@@ -57,6 +58,7 @@ import pyarrow as pa
 
 REPO = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO))  # repo root, for helpers.core.db
+from helpers.core import jsonio  # noqa: E402  (grouped with core imports)
 from helpers.core.db import connect  # noqa: E402  (path insert must precede)
 
 from helpers.analytics import trace_contracts  # noqa: E402
@@ -694,7 +696,7 @@ def _event_noise_head(data: object) -> str | None:
     payload we cannot read degrades to None (row kept, context dropped)."""
     if isinstance(data, (str, bytes, bytearray)):
         try:
-            data = json.loads(data)
+            data = jsonio.loads(data)
         except ValueError, TypeError:
             return None
     if not isinstance(data, dict):
@@ -1001,7 +1003,7 @@ def _parse_opencode(con, since=None):  # noqa: C901  # moved verbatim; split nee
                 ts_start, day = ms_local(s[1])
                 if since and day and day < since:
                     continue
-                mj = json.loads(s[6]) if s[6] else {}
+                mj = jsonio.loads(s[6]) if s[6] else {}
                 sessions[sid] = (
                     sid,
                     ts_start,
@@ -1027,7 +1029,7 @@ def _parse_opencode(con, since=None):  # noqa: C901  # moved verbatim; split nee
                 """SELECT id, session_id, time_created, time_updated,
                    data FROM message"""
             ):
-                d = json.loads(data)
+                d = jsonio.loads(data)
                 if sid in excluded or d.get("role") != "assistant":
                     continue
                 ts, day = ms_local((d.get("time") or {}).get("created"))
@@ -1090,7 +1092,7 @@ def _parse_opencode(con, since=None):  # noqa: C901  # moved verbatim; split nee
                 v2rows = []  # pre-v2 backup copies have no v2 schema
             v2sids = set()
             for mid, sid, tc, tu, typ, data in v2rows:
-                d = json.loads(data)
+                d = jsonio.loads(data)
                 v2sids.add(sid)
                 if typ != "assistant":
                     continue
@@ -1149,7 +1151,7 @@ def _parse_opencode(con, since=None):  # noqa: C901  # moved verbatim; split nee
             # sessions have no v1 part rows, so the part loop below never
             # double-counts them.
             for mid, sid, tc, tu, typ, data in v2rows:
-                d = json.loads(data)
+                d = jsonio.loads(data)
                 if typ != "assistant" or sid in excluded:
                     continue
                 ts, day = ms_local((d.get("time") or {}).get("created"))
@@ -1202,7 +1204,7 @@ def _parse_opencode(con, since=None):  # noqa: C901  # moved verbatim; split nee
             ):
                 if sid in excluded:
                     continue
-                d = json.loads(data)
+                d = jsonio.loads(data)
                 ptype = d.get("type")
                 ts, day = ms_local(tc)
                 if ptype == "tool":
@@ -1268,7 +1270,7 @@ def _parse_opencode(con, since=None):  # noqa: C901  # moved verbatim; split nee
                     # legacy sessions' edits come from the part loop above,
                     # and re-deriving them here would double-count.
                     try:
-                        dd = json.loads(data) if isinstance(data, str) else {}
+                        dd = jsonio.loads(data) if isinstance(data, str) else {}
                     except ValueError:
                         dd = {}
                     p = dd.get("part") or {} if isinstance(dd, dict) else {}
@@ -1362,7 +1364,7 @@ def _parse_dsh(con, since=None):  # noqa: C901  # moved verbatim; split needs a 
             with open(path, "rb") as fh:
                 raw = dctx.stream_reader(fh).read()
             records = [
-                json.loads(line)
+                jsonio.loads(line)
                 for line in raw.decode("utf-8", errors="replace").splitlines()
                 if line.strip()
             ]
@@ -1592,8 +1594,8 @@ def _parse_prime(con, since=None):  # noqa: C901  # moved verbatim; split needs 
             if not line:
                 continue
             try:
-                records.append(json.loads(line))
-            except json.JSONDecodeError:
+                records.append(jsonio.loads(line))
+            except jsonio.JSONDecodeError:
                 continue
         sess_rec = next((r for r in records if r.get("type") == "session"), {})
         sid = sess_rec.get("id") or stem
@@ -1765,7 +1767,7 @@ def _parse_prime(con, since=None):  # noqa: C901  # moved verbatim; split needs 
         for line in ledger.read_text().splitlines():
             if not line.strip():
                 continue
-            r = json.loads(line)
+            r = jsonio.loads(line)
             event_rows.append(
                 (
                     None,
@@ -1782,7 +1784,7 @@ def _parse_prime(con, since=None):  # noqa: C901  # moved verbatim; split needs 
         for line in lg.read_text().splitlines():
             if not line.strip():
                 continue
-            r = json.loads(line)
+            r = jsonio.loads(line)
             if r.get("level") not in ("warn", "error"):
                 continue
             event_rows.append(
@@ -1961,11 +1963,11 @@ def _parse_rollout(con, since=None, directory=None):
         return 0
     rows = []
     for f in sorted(d.glob("model-io-*.jsonl")):
-        with open(f, errors="replace") as fh:
+        with open(f, "rb") as fh:
             for line in fh:
                 try:
-                    r = json.loads(line)
-                except json.JSONDecodeError:
+                    r = jsonio.loads(line)
+                except jsonio.JSONDecodeError:
                     continue
                 if not isinstance(r, dict) or not r.get("requestId"):
                     continue

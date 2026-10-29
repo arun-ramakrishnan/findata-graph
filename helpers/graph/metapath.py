@@ -67,6 +67,7 @@ _PROJECT_ROOT = Path(__file__).resolve().parents[2]
 if str(_PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(_PROJECT_ROOT))
 
+from helpers.core import jsonio  # noqa: E402  (orjson parse cutover; dumps stay stdlib per db_scaling_tuning §6.3 criteria)
 from helpers.core.db import connect as _db_connect  # noqa: E402  # aliased: THIS module's connect() would shadow it
 
 DB_PATH = _PROJECT_ROOT / "memory" / "research.db"
@@ -112,7 +113,7 @@ def _trust_ownership_edge(source_ref: str, properties: str | None) -> bool:
     if not source_ref.startswith(_VIGIL_PREFIX):
         return True
     try:
-        rel = json.loads(properties or "{}").get("relationship") or ""
+        rel = jsonio.loads(properties or "{}").get("relationship") or ""
     except TypeError, ValueError:
         return False
     return " ".join(str(rel).lower().split()) in _STRICT_OWNERSHIP_REL

@@ -37,6 +37,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 
+from helpers.core import jsonio  # noqa: E402  (orjson parse cutover; dumps stay stdlib per db_scaling_tuning §6.3 criteria)
 from helpers.core.db import APPLY_STAMP_PREFIX
 
 
@@ -512,7 +513,7 @@ def parse_query_vector_flag(raw: str | None) -> QueryVector | None:
     if not raw:
         return None
     try:
-        d = json.loads(raw)
+        d = jsonio.loads(raw)
         vec = tuple(float(x) for x in d["vector"])
         qv = QueryVector(vector=vec, model=str(d["model"]), dims=int(d["dims"]))
     except ValueError, TypeError, KeyError, AttributeError:

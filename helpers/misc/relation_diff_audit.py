@@ -16,8 +16,8 @@ family LOSES edges (guard against pattern edits breaking v1 coverage).
 from __future__ import annotations
 
 import argparse
-import json
 import sys
+import json
 from pathlib import Path
 
 

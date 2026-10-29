@@ -55,6 +55,7 @@ from __future__ import annotations
 import argparse
 import glob
 import json
+
 import os
 import sqlite3
 import statistics
@@ -70,6 +71,7 @@ import zstandard
 
 REPO = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO))  # repo root, for helpers.core.db
+from helpers.core import jsonio  # noqa: E402  (grouped with core imports)
 from helpers.core.db import connect  # noqa: E402  (path insert must precede)
 from helpers.misc.duckdb_lock import connect_with_lock_retry  # noqa: E402
 
@@ -197,10 +199,10 @@ def _prime_session_rows(files, since: date | None, prov_of_model: dict[str, str]
     fresh is deflated there to keep the cache-hit rate honest."""
     rows = []
     for f in files:
-        for line in Path(f).read_text(errors="replace").splitlines():
+        for line in Path(f).read_bytes().splitlines():
             try:
-                d = json.loads(line)
-            except json.JSONDecodeError:
+                d = jsonio.loads(line)
+            except jsonio.JSONDecodeError:
                 continue
             if d.get("type") != "message":
                 continue
@@ -303,12 +305,12 @@ def _prime_journal_floor(live: set[str], staged: set[str], since: date | None) -
     }
     last: dict[str, dict] = {}
     for f in sorted((PRIME_DIR / "daemon-workers").glob("*/command-journal.jsonl")):
-        for line in f.read_text(errors="replace").splitlines():
+        for line in f.read_bytes().splitlines():
             if not line.strip():
                 continue
             try:
-                d = json.loads(line)
-            except json.JSONDecodeError:
+                d = jsonio.loads(line)
+            except jsonio.JSONDecodeError:
                 continue
             data = (d.get("response") or {}).get("data") or {}
             u = data.get("usage")
@@ -798,8 +800,8 @@ def _dsh_log_records(path: Path):
         if not line:
             continue
         try:
-            d = json.loads(line)
-        except json.JSONDecodeError:
+            d = jsonio.loads(line)
+        except jsonio.JSONDecodeError:
             continue
         if isinstance(d, dict):
             yield d
@@ -1078,10 +1080,10 @@ def _prime_timing_rows(start: date, end: date, provider: str | None) -> list[dic
     prov_of_model, _ = _prime_cost_cards()
     daily: dict[str, list[float]] = {}
     for file_name in files:
-        for line in Path(file_name).read_text(errors="replace").splitlines():
+        for line in Path(file_name).read_bytes().splitlines():
             try:
-                record = json.loads(line)
-            except json.JSONDecodeError:
+                record = jsonio.loads(line)
+            except jsonio.JSONDecodeError:
                 continue
             message = record.get("message") or {}
             if record.get("type") != "message" or message.get("role") != "assistant":
@@ -1436,10 +1438,10 @@ def _prime_model_telemetry(  # noqa: C901  # moved verbatim; split needs a parit
     prov_of_model, _ = _prime_cost_cards()
     agg: dict[tuple, dict] = {}
     for file_name in files:
-        for line in Path(file_name).read_text(errors="replace").splitlines():
+        for line in Path(file_name).read_bytes().splitlines():
             try:
-                record = json.loads(line)
-            except json.JSONDecodeError:
+                record = jsonio.loads(line)
+            except jsonio.JSONDecodeError:
                 continue
             message = record.get("message") or {}
             if record.get("type") != "message" or message.get("role") != "assistant":

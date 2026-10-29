@@ -47,6 +47,7 @@ from pathlib import Path
 
 import defusedxml.ElementTree as ET
 import duckdb
+from helpers.core import jsonio  # noqa: E402  (orjson parse cutover; dumps stay stdlib per db_scaling_tuning §6.3 criteria)
 
 REPO = Path(__file__).resolve().parents[2]
 if str(REPO) not in sys.path:
@@ -133,7 +134,7 @@ def stake_pct_of(properties_json: str | None) -> float | None:
     queries read this, never the column.
     """
     try:
-        d = json.loads(properties_json or "{}")
+        d = jsonio.loads(properties_json or "{}")
     except TypeError, ValueError:
         return None
     v = d.get("pctHeld")
@@ -973,7 +974,7 @@ def mark_category_holders(conn: sqlite3.Connection, *, apply: bool = False) -> d
     to_mark: list[tuple[int, str, str]] = []  # (id, holder, new_props)
     for rid, holder, props_json in rows:
         try:
-            d = json.loads(props_json or "{}")
+            d = jsonio.loads(props_json or "{}")
         except ValueError:
             continue
         if d.get("category_holder") or not is_category_holder(holder):
@@ -1039,7 +1040,7 @@ def reconcile_majority_ownership(  # noqa: C901
     ).fetchall():
         counts["invested_scanned"] += 1
         try:
-            d = json.loads(props_json or "{}")
+            d = jsonio.loads(props_json or "{}")
         except ValueError:
             d = {}
         if is_category_holder(holder) or d.get("category_holder"):
@@ -1352,7 +1353,7 @@ def main(argv: list[str] | None = None) -> int:  # noqa: C901
 
     if args.apply_only:
         for scratch in sorted(FETCH_SCRATCH.glob("*.json")):
-            data = json.loads(scratch.read_text())
+            data = jsonio.loads(scratch.read_text())
             fid, url, parsed, rss, source = (
                 data["fid"],
                 data["url"],

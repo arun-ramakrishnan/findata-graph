@@ -52,6 +52,7 @@ _REPO_ROOT = Path(__file__).resolve().parents[2]
 if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
+from helpers.core import jsonio  # noqa: E402  (orjson parse cutover; dumps stay stdlib per db_scaling_tuning §6.3 criteria)
 from helpers.core.db import DEFAULT_DB_PATH, connect  # noqa: E402
 
 MEMBERSHIP_HYPER_TYPE = "org_membership"
@@ -86,7 +87,7 @@ def collect(conn) -> dict[str, dict[str, dict]]:
     latest: dict[tuple[str, str], dict] = {}
     for source, target, props_json, valid_from in conn.execute(_LATEST_MEMBER_SQL):
         try:
-            props = json.loads(props_json) if props_json else {}
+            props = jsonio.loads(props_json) if props_json else {}
         except TypeError, ValueError:
             props = {}
         latest[(target, source)] = {

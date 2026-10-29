@@ -48,6 +48,7 @@ PROJECT_ROOT = Path(__file__).resolve().parents[2]
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
+from helpers.core import jsonio  # noqa: E402  (orjson parse cutover; dumps stay stdlib per db_scaling_tuning §6.3 criteria)
 from helpers.core.db import connect  # noqa: E402
 from helpers.core.parse_newsletter import create_entity  # noqa: E402
 
@@ -141,10 +142,10 @@ def _load_notes():
 
 def _prop_merge(old: str | None, new: dict) -> str:
     try:
-        base = json.loads(old) if old else {}
+        base = jsonio.loads(old) if old else {}
         if not isinstance(base, dict):
             base = {}
-    except json.JSONDecodeError:
+    except jsonio.JSONDecodeError:
         base = {}
     base.update(new)
     return json.dumps(base, ensure_ascii=False)
@@ -155,7 +156,7 @@ def main(argv=None) -> int:  # noqa: C901 — stage dispatcher; each stage is a 
     ap.add_argument("--apply", action="store_true", help="execute (default: dry-run)")
     args = ap.parse_args(argv)
 
-    smap = json.loads(MAP_PATH.read_text(encoding="utf-8"))
+    smap = jsonio.loads(MAP_PATH.read_text(encoding="utf-8"))
     conn = connect(DB_PATH)
     idx = EntityIndex(conn)
 

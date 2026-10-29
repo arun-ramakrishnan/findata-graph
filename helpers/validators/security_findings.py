@@ -76,6 +76,7 @@ REPO = Path(__file__).resolve().parents[2]
 if str(REPO) not in sys.path:
     sys.path.insert(0, str(REPO))
 
+from helpers.core import jsonio  # noqa: E402  (orjson parse cutover; dumps stay stdlib per db_scaling_tuning §6.3 criteria)
 from helpers.validators.coverage_ledger import SCOPE_ENUM  # noqa: E402
 
 DEFAULT_FINDINGS = REPO / "doc/local/security/findings.json"
@@ -447,11 +448,11 @@ def _check_envelope(env: dict) -> list[str]:
 def check_findings(path: Path, *, strict: bool = False) -> int:  # noqa: C901
     """Validate a findings file. Returns 0 when clean, 1 when errors."""
     try:
-        data = json.loads(path.read_text())
+        data = jsonio.loads(path.read_text())
     except FileNotFoundError:
         print(f"FAIL: {path} not found")
         return 1
-    except json.JSONDecodeError as exc:
+    except jsonio.JSONDecodeError as exc:
         print(f"FAIL: {path} is not valid JSON: {exc}")
         return 1
 
@@ -658,11 +659,11 @@ def brief(
 ) -> int:
     """Emit a blind verification brief for exactly ONE finding (read-only)."""
     try:
-        data = json.loads(findings_path.read_text())
+        data = jsonio.loads(findings_path.read_text())
     except FileNotFoundError:
         print(f"FAIL: {findings_path} not found")
         return 1
-    except json.JSONDecodeError as exc:
+    except jsonio.JSONDecodeError as exc:
         print(f"FAIL: {findings_path} is not valid JSON: {exc}")
         return 1
 
@@ -708,9 +709,9 @@ def record_verification(findings_path: Path, result_path: Path, *, out: Path) ->
     with the blocker recorded.
     """
     try:
-        data = json.loads(findings_path.read_text())
-        result = json.loads(result_path.read_text())
-    except (FileNotFoundError, json.JSONDecodeError) as exc:
+        data = jsonio.loads(findings_path.read_text())
+        result = jsonio.loads(result_path.read_text())
+    except (FileNotFoundError, jsonio.JSONDecodeError) as exc:
         print(f"FAIL: cannot read input: {exc}")
         return 1
 
@@ -919,8 +920,8 @@ def triage(  # noqa: C901 — keypress parsing + kit wiring, split would scatter
 
     journal_path = (journal_dir or REPO / "outputs" / "findings_review") / "journal.jsonl"
     try:
-        data = json.loads(findings_path.read_text())
-    except (FileNotFoundError, json.JSONDecodeError) as exc:
+        data = jsonio.loads(findings_path.read_text())
+    except (FileNotFoundError, jsonio.JSONDecodeError) as exc:
         print_fn(f"FAIL: cannot read findings: {exc}")
         return 1
     findings, envelope = _unwrap(data, findings_path)

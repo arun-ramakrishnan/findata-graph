@@ -43,6 +43,7 @@ import time
 from collections.abc import Callable
 from pathlib import Path
 
+from helpers.core import jsonio  # noqa: E402  (orjson parse cutover; dumps stay stdlib per db_scaling_tuning §6.3 criteria)
 from helpers.core.vec_codec import load_vec, pack_f32
 
 # Greppable surface tag for every long-running progress line — filter a
@@ -212,7 +213,7 @@ def _rust_cache_lookup(
             warn_once(detail)
             return None
 
-        hit_vectors, miss_indices = _parse_lookup_response(json.loads(result.stdout), texts)
+        hit_vectors, miss_indices = _parse_lookup_response(jsonio.loads(result.stdout), texts)
         return hit_vectors, miss_indices
     except Exception as exc:  # cache accelerator failures must not block embedding
         warn_once(f"{type(exc).__name__}: {exc}")

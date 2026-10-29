@@ -47,6 +47,8 @@ if str(REPO_ROOT) not in sys.path:
     # house bootstrap — the rule.json reuse imports helpers.misc below
     sys.path.insert(0, str(REPO_ROOT))
 
+from helpers.core import jsonio  # noqa: E402  (parse side of the orjson cutover; dumps stay stdlib per db_scaling_tuning §6.3 criteria)
+
 VENV_BIN = REPO_ROOT / ".venv" / "bin"
 REVIEW_OUT_DIR = REPO_ROOT / "outputs" / "reviews"
 SCANNERS = ("bandit", "shellcheck", "sqlfluff", "semgrep", "osv")
@@ -178,7 +180,7 @@ def _fingerprint(f: Finding) -> str:
 
 def _load_ledger() -> dict[str, dict]:
     try:
-        data = json.loads(REPEAT_LEDGER.read_text(encoding="utf-8"))
+        data = jsonio.loads(REPEAT_LEDGER.read_text(encoding="utf-8"))
     except OSError, ValueError:
         return {}
     return data if isinstance(data, dict) else {}
@@ -323,8 +325,8 @@ def _json_object(text: str) -> dict:
     """
     start = text.find("{")
     if start == -1:
-        raise json.JSONDecodeError("no JSON object in scanner output", text, 0)
-    return json.loads(text[start:])
+        raise jsonio.JSONDecodeError("no JSON object in scanner output", text, 0)
+    return jsonio.loads(text[start:])
 
 
 # ------------------------------------------------------------- range and lines
@@ -638,7 +640,7 @@ def _leg_bandit(files: list[str], changed: dict[str, set[int]], head: str, tree=
     proc = _run([str(binary), "-f", "json", *tree.values()])
     try:
         payload = _json_object(proc.stdout)
-    except json.JSONDecodeError:
+    except jsonio.JSONDecodeError:
         return [], f"bandit: failed (unparseable output, rc={proc.returncode})"
     findings = []
     for issue in payload.get("results", []):
@@ -673,8 +675,8 @@ def _leg_shellcheck(files: list[str], changed: dict[str, set[int]], head: str, t
     rev = {a: r for r, a in tree.items()}
     proc = _run([str(binary), "--format=json1", *tree.values()])
     try:
-        payload = json.loads(proc.stdout)
-    except json.JSONDecodeError:
+        payload = jsonio.loads(proc.stdout)
+    except jsonio.JSONDecodeError:
         return [], f"shellcheck: failed (unparseable output, rc={proc.returncode})"
     findings = []
     for c in payload.get("comments", []):
@@ -727,8 +729,8 @@ def _leg_sqlfluff(files: list[str], changed: dict[str, set[int]], dialect: str, 
             [str(binary), "lint", "--dialect", group_dialect, "--format", "json", *abs_paths]
         )
         try:
-            payload = json.loads(proc.stdout)
-        except json.JSONDecodeError:
+            payload = jsonio.loads(proc.stdout)
+        except jsonio.JSONDecodeError:
             return [], f"sqlfluff: failed (unparseable output, rc={proc.returncode})"
         for entry in payload if isinstance(payload, list) else []:
             path = _rel_of(entry.get("filepath", ""), rev)
@@ -820,8 +822,8 @@ def _leg_semgrep(files: list[str], changed: dict[str, set[int]], head: str, tree
             env=scan_env,
         )
         try:
-            payload = json.loads(report.read_text())
-        except OSError, json.JSONDecodeError:
+            payload = jsonio.loads(report.read_text())
+        except OSError, jsonio.JSONDecodeError:
             tail = (proc.stderr or "").strip().splitlines()
             hint = tail[-1][:160] if tail else "no stderr"
             return [], f"semgrep: failed (no SARIF at {report}, rc={proc.returncode}; {hint})"
@@ -864,7 +866,7 @@ def _uv_lock_packages(text: str) -> list[tuple[str, str]]:
 
 
 def _npm_lock_packages(text: str) -> list[tuple[str, str]]:
-    payload = json.loads(text)
+    payload = jsonio.loads(text)
     out = []
     packages = payload.get("packages")
     if isinstance(packages, dict):
@@ -934,7 +936,7 @@ def _bun_lock_packages(text: str) -> list[tuple[str, str]]:
     versions, so it is deliberately not a query source: osv needs a
     concrete version and a range would silently under-report.
     """
-    payload = json.loads(_strip_jsonc(text))
+    payload = jsonio.loads(_strip_jsonc(text))
     out = []
     packages = payload.get("packages")
     if isinstance(packages, dict):
@@ -987,7 +989,7 @@ def _collect_osv_queries(tree: dict[str, str]) -> tuple[list[dict], list[tuple[s
             continue
         try:
             packages = parse(abs_path_p.read_text(encoding="utf-8", errors="replace"))
-        except json.JSONDecodeError, ValueError, OSError:
+        except jsonio.JSONDecodeError, ValueError, OSError:
             continue
         for name, version in packages:
             queries.append({"package": {"name": name, "ecosystem": ecosystem}, "version": version})
@@ -1023,7 +1025,7 @@ def _leg_osv(lockfiles: list[str], tree: dict[str, str] | None = None) -> tuple[
     try:
         with urllib.request.urlopen(req, timeout=30) as resp:  # noqa: S310
             payload = json.load(resp)
-    except (urllib.error.URLError, OSError, json.JSONDecodeError) as e:
+    except (urllib.error.URLError, OSError, jsonio.JSONDecodeError) as e:
         return [], f"osv: unavailable ({type(e).__name__}: {e})"
     findings = [
         _osv_finding(lock, name, version, vuln)

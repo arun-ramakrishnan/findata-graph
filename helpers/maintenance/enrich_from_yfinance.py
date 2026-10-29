@@ -46,6 +46,7 @@ PROJECT_ROOT = Path(__file__).resolve().parents[2]
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
+from helpers.core import jsonio  # noqa: E402  (orjson parse cutover; dumps stay stdlib per db_scaling_tuning §6.3 criteria)
 from helpers.core.db import connect  # noqa: E402
 
 # --- constants ---------------------------------------------------------------
@@ -264,8 +265,8 @@ def load_aliases(path: Path | None = None) -> dict[str, list[str]]:
     """
     p = path or ALIASES_PATH
     try:
-        data = json.loads(p.read_text(encoding="utf-8"))
-    except OSError, json.JSONDecodeError:
+        data = jsonio.loads(p.read_text(encoding="utf-8"))
+    except OSError, jsonio.JSONDecodeError:
         return {}
     return data if isinstance(data, dict) else {}
 
@@ -803,7 +804,7 @@ def main(argv: list[str] | None = None) -> int:  # noqa: C901
         staged_files = sorted(FETCH_SCRATCH.glob("*.json"))
         for sf in staged_files:
             try:
-                data = json.loads(sf.read_text())
+                data = jsonio.loads(sf.read_text())
                 results.append((data["name"], data["ticker"], data.get("file_path"), data["info"]))
             except Exception as exc:  # noqa: BLE001
                 log.warning("[enrich] failed to read staged %s: %s", sf.name, exc)

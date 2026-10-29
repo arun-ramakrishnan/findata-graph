@@ -41,6 +41,7 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO_ROOT))
+from helpers.core import jsonio  # noqa: E402  (orjson parse cutover; dumps stay stdlib per db_scaling_tuning §6.3 criteria)
 from helpers.maintenance.mca_cin_sync import DATA_DIR, MANUAL_PATH, OGD_BASE  # noqa: E402
 
 WORKLIST_PATH = DATA_DIR / "cin_worklist.csv"  # residual-queue companion (this driver)
@@ -93,7 +94,7 @@ def _ogd(field: str, value: str, key: str, limit: str = "25") -> list[dict]:
     for attempt in range(7):
         try:
             with urllib.request.urlopen(req, timeout=45) as r:  # noqa: S310  # https data.gov.in OGD endpoint
-                return (json.loads(r.read()) or {}).get("records") or []
+                return (jsonio.loads(r.read()) or {}).get("records") or []
         except Exception:
             time.sleep(min(40, 4 + 5 * attempt))
     return []
@@ -260,7 +261,7 @@ def main(argv: list[str] | None = None) -> int:
                 "(the REPL `web` phase has not run) — nothing to ingest"
             )
             return 0
-        cands = json.loads(cand_path.read_text())
+        cands = jsonio.loads(cand_path.read_text())
         rows = validate_web_candidates(cands, _gov_key(), revalidate=not args.no_revalidate)
         n = append_manual(rows, apply=args.apply)
         print(

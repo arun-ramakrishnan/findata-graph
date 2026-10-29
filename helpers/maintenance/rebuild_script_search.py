@@ -65,7 +65,6 @@ Exit codes: 0 success/fresh, 1 fatal error OR --check detected drift.
 
 import ast
 import hashlib
-import json
 import os
 import re
 import shutil
@@ -82,6 +81,7 @@ _REPO_ROOT = Path(__file__).resolve().parents[2]
 if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
+from helpers.core import jsonio  # noqa: E402  (orjson parse cutover; dumps stay stdlib per db_scaling_tuning §6.3 criteria)
 from helpers.core import gemma_embedder  # noqa: E402
 from helpers.core.embed_cache import CachedEmbed  # noqa: E402
 from helpers.core.vec_codec import load_vec, pack_f32  # noqa: E402
@@ -712,8 +712,8 @@ def _unwrap_mojo_decl(doc_json: str | None) -> dict | None:
     if doc_json is None:
         return None
     try:
-        doc = json.loads(doc_json)
-    except json.JSONDecodeError:
+        doc = jsonio.loads(doc_json)
+    except jsonio.JSONDecodeError:
         return None
     return doc.get("decl") if isinstance(doc, dict) else None
 
@@ -923,8 +923,8 @@ def _unwrap_ts_decl(doc_json: str | None) -> dict | None:
     if doc_json is None:
         return None
     try:
-        doc = json.loads(doc_json)
-    except json.JSONDecodeError:
+        doc = jsonio.loads(doc_json)
+    except jsonio.JSONDecodeError:
         return None
     return doc if isinstance(doc, dict) and "exports" in doc else None
 

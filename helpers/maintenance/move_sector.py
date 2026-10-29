@@ -23,7 +23,6 @@ Safety:
 
 from __future__ import annotations
 
-import json
 import re
 import sqlite3
 import sys
@@ -39,6 +38,7 @@ COMPANIES_DIR = PROJECT_ROOT / "findata" / "Companies"
 # Import the canonical sector set from the validator (single source of truth).
 # Previously a hand-maintained copy here that had drifted (missing FMCG,
 # Logistics, Media_Entertainment; spurious Pharmaceuticals). Bundle E5a bonus.
+from helpers.core import jsonio  # noqa: E402  (orjson parse cutover; dumps stay stdlib per db_scaling_tuning §6.3 criteria)
 from helpers.validators.static_checks import CANONICAL_SECTORS  # noqa: E402
 from helpers.core.db import utc_now  # noqa: E402  (Bundle T1: UTC last_updated)
 from helpers.core.frontmatter import split_frontmatter as split_front_matter  # noqa: E402
@@ -244,7 +244,7 @@ def main(argv: list[str] | None = None) -> int:
             if len(args) < 2:
                 print("error: --batch requires a json file path", file=sys.stderr)
                 return 2
-            batch = json.loads(Path(args[1]).read_text())
+            batch = jsonio.loads(Path(args[1]).read_text())
             entries = [(e["name"], e["new_sector"]) for e in batch]
         elif len(args) == 2:
             entries = [(args[0], args[1])]

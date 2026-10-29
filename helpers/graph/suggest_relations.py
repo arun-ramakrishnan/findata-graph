@@ -51,6 +51,7 @@ if str(_REPO_ROOT) not in sys.path:
 
 import duckdb  # noqa: E402  # after sys.path bootstrap
 
+from helpers.core import jsonio  # noqa: E402  (orjson parse cutover; dumps stay stdlib per db_scaling_tuning §6.3 criteria)
 from helpers.graph.algorithms import link_prediction  # noqa: E402
 from helpers.graph.graph_fallbacks import OnagerUnavailable  # noqa: E402
 from helpers.graph import query as _graph_query  # noqa: E402
@@ -124,7 +125,7 @@ def prior_suggestion_pairs(path: Path = SIDECAR_PATH) -> set[frozenset[str]]:
         if not line:
             continue
         try:
-            row = json.loads(line)
+            row = jsonio.loads(line)
         except ValueError:
             continue  # malformed lines are the human's to clean (H4)
         if row.get("origin") == ORIGIN:

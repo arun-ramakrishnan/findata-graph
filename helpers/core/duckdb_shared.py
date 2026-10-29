@@ -41,6 +41,7 @@ from pathlib import Path
 from typing import Any, cast
 
 import duckdb
+from helpers.core import jsonio  # noqa: E402  (orjson parse cutover; dumps stay stdlib per db_scaling_tuning §6.3 criteria)
 
 DEFAULT_DISCOVERY = Path(__file__).resolve().parents[2] / "memory" / ".quack.json"
 
@@ -73,8 +74,8 @@ def load_discovery(p: Path | str | None = None) -> dict[str, dict[str, Any]]:
     rewrites the schema."""
     path = Path(p) if isinstance(p, str) else (p or discovery_path())
     try:
-        disc = json.loads(path.read_text())
-    except OSError, json.JSONDecodeError:
+        disc = jsonio.loads(path.read_text())
+    except OSError, jsonio.JSONDecodeError:
         return {}
     if not isinstance(disc, dict):
         return {}
@@ -102,8 +103,8 @@ def read_discovery_locked(
     fd = os.open(path, os.O_RDWR | os.O_CREAT, 0o644)
     fcntl.flock(fd, fcntl.LOCK_EX)
     try:
-        data = json.loads(os.read(fd, 1 << 20) or b"{}")
-    except json.JSONDecodeError:
+        data = jsonio.loads(os.read(fd, 1 << 20) or b"{}")
+    except jsonio.JSONDecodeError:
         data = {}
     return fd, data if isinstance(data, dict) else {}
 
