@@ -53,6 +53,48 @@ import duckdb
 # by connect() in helpers/graph/query.py.
 _EDGE_TABLE = "fin.graph_edges"
 
+# Gen-keyed connection + materialization cache (corrected S1).
+# Mirrors P2.3 query.cache: per (generation, edge_types_tuple).
+# Invalidated by clear_graph_cache() (bumps SQLite generation).
+_ONAGER_CONN: dict[tuple[str, tuple[str, ...] | None], duckdb.DuckDBPyConnection] = {}
+_ONAGER_MAT: set[tuple[str, tuple[str, ...] | None]] = set()
+
+
+def _onager_cache_key(edge_types: list[str] | None = None) -> tuple[str, tuple[str, ...] | None]:
+    """Cache key = (generation, edge_types_tuple) — None = ALL."""
+    from helpers.graph.query import _current_generation_for_cache
+
+    gen = _current_generation_for_cache() or "no-gen"
+    et = tuple(sorted(edge_types)) if edge_types else None
+    return (gen, et)
+
+
+def _get_onager_connection(edge_types: list[str] | None = None) -> duckdb.DuckDBPyConnection:
+    """Return cached DuckDB connection with onager loaded (owns=False)."""
+    key = _onager_cache_key(edge_types)
+    if key in _ONAGER_CONN:
+        return _ONAGER_CONN[key]
+    # Build fresh: unsigned_ext_kwargs only (allow_unsigned_extensions).
+    # NO threads= / memory_limit= — DuckDB 2.0 defaults to all cores + 50% RAM.
+    from helpers.core.duckdb_shared import unsigned_ext_kwargs
+
+    con = duckdb.connect(**unsigned_ext_kwargs())
+    con.execute("LOAD sqlite;")
+    _load_onager(con)
+    _ONAGER_CONN[key] = con
+    return con
+
+
+def _invalidate_onager_cache() -> None:
+    """Called by clear_graph_cache() — closes all cached conns, clears mats."""
+    for con in _ONAGER_CONN.values():
+        try:
+            con.close()
+        except Exception:  # noqa: S110  # best-effort close; ignore failure
+            pass
+    _ONAGER_CONN.clear()
+    _ONAGER_MAT.clear()
+
 
 def _edge_source_sql(con: duckdb.DuckDBPyConnection) -> str:
     """SQL source for the edge projection — dyads UNION the projected
@@ -165,22 +207,16 @@ def connect_kwargs() -> dict[str, Any]:
     return unsigned_ext_kwargs()
 
 
-def _prepare(con: duckdb.DuckDBPyConnection | None) -> tuple[duckdb.DuckDBPyConnection, bool]:
-    """Return ``(con, owns)``.
-
-    * When ``con`` is ``None`` a fresh in-memory DuckDB connection is created
-      and Onager (+ sqlite, for the DB-backed path) is loaded; the caller is
-      responsible for closing it (``owns`` is ``True``).
-    * When ``con`` is supplied we assume it is a DuckDB connection from
-      ``query.connect()`` (which loads sqlite + vss; Onager itself loads
-      lazily here). ``LOAD onager`` is idempotent, so synthetic callers that
-      build their own connection also work.
+def _prepare(
+    con: duckdb.DuckDBPyConnection | None,
+    edge_types: list[str] | None = None,
+) -> tuple[duckdb.DuckDBPyConnection, bool]:
+    """Return (con, owns).
+    - con=None: return cached onager connection (owns=False, do NOT close).
+    - con supplied: load onager (idempotent); owns=False.
     """
     if con is None:
-        con = duckdb.connect(**connect_kwargs())
-        con.execute("LOAD sqlite;")
-        _load_onager(con)
-        return con, True
+        return _get_onager_connection(edge_types), False
     _load_onager(con)
     return con, False
 
@@ -359,29 +395,37 @@ def _ensure_materialized(
 ) -> bool:
     """Materialise ``_onager_e`` (+ ``_onager_int`` on the DB path), or skip.
 
-    Behaviour is identical to calling :func:`_materialize_from_db` /
-    :func:`_materialize_edges` directly UNLESS a ``with_onager_connection``
-    block is active on this thread and the requested projection already has
-    fresh temp tables — then the rebuild is skipped and the recorded
-    non-empty flag returned. The signature lives in the connection's TEMP
-    schema (hex literal; no parameter binding, so the pandas-importing
-    binding path is never touched) and is dropped when the block exits.
+    Skips if:
+    - _BATCH_CTX.active (block-level) and signature matches, OR
+    - module-level cache key (generation + edge_types) already materialized
     """
+    # Block-level signature (existing behavior).
+    # Temp tables live per-connection, so cross-connection reuse of the
+    # module-level `_ONAGER_MAT` set is UNSAFE: connection B never saw
+    # connection A's `_onager_e`, and if B just materialised different
+    # edge_types, `_onager_e` exists with WRONG data. Same-connection dedup
+    # is handled by `_sig_state` via the `_onager_sig` temp table below.
+    # `_ONAGER_MAT.add(key)` at the end is a no-op guard retained for
+    # provenance; the set is never consulted for skip decisions.
     sig = _batch_sig(edge_types, edges, as_of)
     if sig is not None:
         state = _sig_state(con, sig)
         if state is not None:
             return state
+
+    # Materialize
     if edges is None:
         ok = _materialize_from_db(con, edge_types, as_of)
     else:
         _materialize_edges(con, edges)
         ok = True
+
     if sig is not None:
         con.execute(
             "CREATE OR REPLACE TEMP TABLE _onager_sig AS "
             f"SELECT '{sig}' AS sig, {int(bool(ok))} AS nonempty"
         )
+    _ONAGER_MAT.add(_onager_cache_key(edge_types))
     return ok
 
 

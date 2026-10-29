@@ -43,6 +43,7 @@ create tables or run migrations. For schema bootstrap see
 
 from __future__ import annotations
 
+import os
 import sqlite3
 from datetime import datetime, UTC
 from pathlib import Path
@@ -196,7 +197,8 @@ def connect(
     # writers still serialize — this makes them queue rather than crash.
     conn.execute("PRAGMA busy_timeout = 5000")
     # P1.1: tuned pragmas for 30 MB DB on SSD (validated 2026-08-08):
-    # - cache_size -20000 = 80 MB (vs 8 MB) — fits entire DB + indexes in memory
+    # - cache_size: 80 MB (was 8 MB) — fits entire DB + indexes in memory.
+    #   Now env-overridable (FINDATA_SQLITE_CACHE_MB) for 2x scale: default 256 MB.
     # - synchronous NORMAL is safe in WAL (FULL is 2-3× slower, same durability in WAL)
     # - temp_store MEMORY avoids temp file I/O for sorts/joins
     # - journal_size_limit 64 MB caps WAL growth (was unbounded)
@@ -204,8 +206,9 @@ def connect(
     # - wal_autocheckpoint 1000 (4 MB) keeps WAL bounded, same as default but explicit
     # Each is per-connection (or persistent) and cheap to re-apply; wrap individually
     # so :memory: test DBs that reject mmap don't fail the whole connect().
+    cache_mb = int(os.environ.get("FINDATA_SQLITE_CACHE_MB", "256"))
     for _pragma, _val in (
-        ("cache_size", "-20000"),
+        ("cache_size", f"{-cache_mb * 256}"),
         ("synchronous", "NORMAL"),
         ("temp_store", "MEMORY"),
         ("journal_size_limit", "67108864"),

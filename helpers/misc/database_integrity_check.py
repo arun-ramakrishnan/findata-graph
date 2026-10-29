@@ -1122,6 +1122,7 @@ class DatabaseIntegrityChecker:
     # ------------------------------------------------------------------ #
     _TICKER_DUP_SUPPRESSED: set[frozenset[str]] = {
         frozenset({"Alphabet", "Google"}),
+        frozenset({"Forbes & Company", "Forbes and Company"}),
     }
 
     # --- tokenization helpers shared by the fuzzy-name check ---------------

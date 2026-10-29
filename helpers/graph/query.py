@@ -385,6 +385,13 @@ def clear_graph_cache() -> None:
         _query_cache_clear()
     except Exception:  # noqa: S110  # best-effort; ignore failure (cleanup/optional read)
         pass
+    # Invalidate onager connection + materialization cache
+    try:
+        from helpers.graph.onager import _invalidate_onager_cache
+
+        _invalidate_onager_cache()
+    except Exception:  # noqa: S110  # best-effort; ignore failure (cleanup/optional read)
+        pass
 
 
 def _prep_graph_connection(con: duckdb.DuckDBPyConnection) -> None:

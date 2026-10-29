@@ -38,7 +38,20 @@ entry number and stale DONE pointers):
 
 ## Current live proposals
 
-- *(none)* — every proposal filed here is executed and archived. Most
+- `db_scaling_tuning` — LIVE, filed 2026-10-29 (db_tuning arc;
+  `db_scaling_tuning.md`). §3.2 Onager connection cache + §3.3 SQLite cache
+  80→256MB landed in the db_tuning patch same day; §3.1 explicit
+  threads/memory_limit declined at implementation (DuckDB 2.0 all-core
+  defaults kept — recorded in the proposal addendum). 2026-10-29 §6
+  addendum: three trial-first levers — FTS5 segment optimize,
+  DuckDB preserve_insertion_order on bulk-write legs, orjson as a
+  repo-wide JSON-engine decision (operator-corrected lens; footprint
+  bench green on the mass lanes — §6.3). By-catch: the check wall is
+  opencode-lane sqlite GROUP-BY scans (§6.4) — the real single-leg
+  lever.
+
+- *(none before this)* — every earlier proposal filed here is executed
+  and archived. Most
   recent: `bili_absorb_stats_display` (filed + executed + archived
   same day 2026-10-29, #452,
   `../archive/tooling/bili_absorb_stats_display.md`) and

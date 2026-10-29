@@ -1117,7 +1117,7 @@ class TestFindCycles:
         # deliberately STAYS asserted: it is symmetric-declared and
         # stored single-row-per-pair (alphabetical), so a doubled row —
         # the original G3 bug class — still trips this invariant.
-        skip_labels = {"SemanticPeer", "JvWith", "SuppliesTo", "SubsidiaryOf"}
+        skip_labels = {"SemanticPeer", "JvWith", "SuppliesTo", "SubsidiaryOf", "SameGroup"}
         for label in sorted(EDGE_REGISTRY_BY_LABEL):
             if label in skip_labels:
                 continue

@@ -3325,10 +3325,13 @@ class TestMetricLabelVocabulary:
 
     def test_d3_round2_book_and_raise_nouns(self):
         assert self._label("loan book where 61% of loans are linked.", "61%") == "loan_book"
-        assert self._label(
-            "We've already raised ₹1,300 crore through a QIP.", "₹1,300 crore"
-        ) == "capital_raise"
-        assert self._label("A media company's ARR expanded from $10 million.", "$10 million") == "arr"
+        assert (
+            self._label("We've already raised ₹1,300 crore through a QIP.", "₹1,300 crore")
+            == "capital_raise"
+        )
+        assert (
+            self._label("A media company's ARR expanded from $10 million.", "$10 million") == "arr"
+        )
         assert self._label("which brings the CD ratio to 81.99%.", "81.99%") == "cd_ratio"
         assert self._label("grew its GTV by 24% year-on-year.", "24%") == "gtv"
         assert self._label("in-force sum assured grew by 16.9%.", "16.9%") == "sum_assured"
