@@ -248,6 +248,56 @@ def test_current_session_follows_the_verdict_clock_not_discovery_order():
     assert w.current_session == "s1"
 
 
+def test_log_age_treats_naive_verdict_ts_as_local(tmp_path, monkeypatch):
+    """The plugin's log stamps are LOCAL wall time with no offset. Stamping
+    UTC onto them put the parsed time hours in the future on the IST box:
+    log_age=-19747s in every row (pending.md 2026-10-30). A naive ts must
+    read as local; the expected value is computed from this box's own tz so
+    the test is portable."""
+    from datetime import UTC, datetime
+
+    now_epoch = datetime(2026, 10, 30, 6, 50, 0, tzinfo=UTC).timestamp()
+    monkeypatch.setattr(btw.time, "time", lambda: now_epoch)
+    db = _make_db(tmp_path)
+    _add_block(db, "b1", 1)
+    line = NUDGE.replace("2026-10-19T18:05:35.123Z", "2026-10-30T06:40:00.000")
+    w = _watch_with(text=line)
+    s = btw.build_sample(w, _bars(), db)
+    naive_local = datetime.strptime("2026-10-30T06:40:00", "%Y-%m-%dT%H:%M:%S").astimezone()
+    assert s.log_age == int(now_epoch - naive_local.timestamp())
+
+
+def test_log_age_reads_z_stamped_lines_as_local_too(tmp_path, monkeypatch):
+    """RE_TS truncates each line's stamp to seconds — any Z/offset suffix is
+    dropped before Verdict.ts, so even a Z-stamped line reads as the local
+    verdict clock (that IS the plugin's clock shape today)."""
+    from datetime import UTC, datetime
+
+    now_epoch = datetime(2026, 10, 30, 6, 50, 0, tzinfo=UTC).timestamp()
+    monkeypatch.setattr(btw.time, "time", lambda: now_epoch)
+    db = _make_db(tmp_path)
+    _add_block(db, "b1", 1)
+    w = _watch_with(text=NUDGE.replace("2026-10-19T18:05:35.123Z", "2026-10-30T06:40:00.000Z"))
+    s = btw.build_sample(w, _bars(), db)
+    naive_local = datetime.strptime("2026-10-30T06:40:00", "%Y-%m-%dT%H:%M:%S").astimezone()
+    assert s.log_age == int(now_epoch - naive_local.timestamp())
+
+
+def test_blocks_counts_all_rows_and_act_the_active_subset(tmp_path):
+    """`blocks` used to carry the active-flag subset under the same label
+    bili_sessions uses for the creation-count TOTAL (pending.md 2026-10-30).
+    Both counts now travel under their own names."""
+    db = _make_db(tmp_path)
+    _add_block(db, "b1", 1)
+    _add_block(db, "b2", 1, active=0)
+    w = _watch_with(text=NUDGE)
+    s = btw.build_sample(w, _bars(), db)
+    assert s.blocks == 2
+    assert s.act == 1
+    assert "blocks=2 act=1" in s.render()
+    assert s.as_dict()["blocks"] == 2 and s.as_dict()["act"] == 1
+
+
 # ---------------------------------------------------------------------------
 # the sample: the three flags this watcher exists for
 # ---------------------------------------------------------------------------

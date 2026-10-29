@@ -86,8 +86,34 @@ RE_NUDGE = re.compile(
 )
 RE_BLOCKED = re.compile(r"blocked:\s*T([123?])\b")
 RE_FOLD = re.compile(
-    r"\[acp-compress-obs\] shrink (\d+)% \(~(\d+)/(\d+) tok\)(?: foldPoint=(\S+))?"
+    # v0.1.209 inserted "this-fold" (and a "· cumulative N% (~x/y tok)"
+    # trailer) between the shrink% and the token counts — the old
+    # shrink N% \(~… form stopped matching and EVERY fold went uncounted
+    # (folds=0 while the log plainly showed them). [^(]* hops to the first
+    # "(~saved/total tok)", which is the THIS-FOLD pair; foldPoint stays
+    # optional because 17/50 lines omit it.
+    r"\[acp-compress-obs\] shrink (\d+)%[^(]*\(~(\d+)/(\d+) tok\)(?:.*?foldPoint=(\S+))?"
 )
+RE_ABSORB = re.compile(
+    # `[acp-absorb] absorbed m00233 (~5.5K tokens → summary ~1.1K). …` —
+    # a long tool output compacted to a summary in place (tool-acp absorb
+    # mode). Counts carry K/M suffixes; the `tool absorb executed via
+    # plugin` ack line never matches (no [acp-absorb] prefix).
+    r"\[acp-absorb\] absorbed (?P<ref>m\d+) \(~(?P<orig>[\d.]+[KM]?) tokens"
+)
+
+
+def _tok_k(s: str) -> int:
+    """`5.5K` → 5500, `781` → 781, `2.1M` → 2_100_000."""
+    s = s.strip()
+    mult = 1
+    if s.endswith("K"):
+        mult, s = 1_000, s[:-1]
+    elif s.endswith("M"):
+        mult, s = 1_000_000, s[:-1]
+    return int(float(s) * mult)
+
+
 RE_INJECT = re.compile(r"nudge INJECT(?:-ESC)? T([123?]):")
 RE_TS = re.compile(r"^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2})")
 # The log carries the session id in TWO shapes, and a line-scoped filter
@@ -103,7 +129,12 @@ RE_TS = re.compile(r"^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2})")
 # `session-` (hyphen) prefix is stripped, since the db/dashboard key zcode
 # sessions by the full id.
 RE_SESS = re.compile(
-    r"\[sess=([A-Za-z0-9_-]+)\]|\[(ses_[A-Za-z0-9_-]+)\]|\[(session_[0-9a-fA-F]+)\]"
+    # The fourth alternative is the dsh BARE form: fold lines carry
+    # [session-<uuid>] (hyphen) with no sess= key, and without it
+    # line_session() returned "" for every dsh fold — the --session filter
+    # then dropped the fold and per-session folds stayed 0 while fires
+    # (which use the [sess=...] nudge form) counted fine.
+    r"\[sess=([A-Za-z0-9_-]+)\]|\[(ses_[A-Za-z0-9_-]+)\]|\[(session_[0-9a-fA-F]+)\]|\[(session-[0-9a-fA-F-]+)\]"
 )
 
 
@@ -116,7 +147,7 @@ def line_session(line: str) -> str:
     m = RE_SESS.search(line)
     if not m:
         return ""
-    sid = m.group(1) or m.group(2) or m.group(3) or ""
+    sid = m.group(1) or m.group(2) or m.group(3) or m.group(4) or ""
     # Strip leading "session-" prefix for normalization
     if sid.startswith("session-"):
         sid = sid[len("session-") :]
@@ -238,13 +269,23 @@ class Watch:
     saved: int = 0
     blocked: Counter = field(default_factory=Counter)
     _seen_fires: set[tuple[str, str]] = field(default_factory=set)
-    _seen_folds: set[tuple[str, str, str]] = field(default_factory=set)
+    _seen_folds: set[tuple[str, str]] = field(default_factory=set)
     # Per-session fold/fire counts (when --session is used, these are the
     # authoritative values; the aggregate fields above include rotation-family
     # history from all sessions)
     per_session_folds: dict[str, int] = field(default_factory=dict)
     per_session_saved: dict[str, int] = field(default_factory=dict)
     per_session_fires: dict[str, Counter] = field(default_factory=lambda: defaultdict(Counter))
+    per_session_shrink_sum: dict[str, int] = field(default_factory=dict)
+    per_session_shrink_count: dict[str, int] = field(default_factory=dict)
+    shrink_sum: int = 0
+    shrink_count: int = 0
+    # Tool-acp absorbs (long tool outputs compacted to a summary in place)
+    absorbs: int = 0
+    absorb_credit: int = 0
+    per_session_absorbs: dict[str, int] = field(default_factory=dict)
+    per_session_absorb_credit: dict[str, int] = field(default_factory=dict)
+    _seen_absorbs: set[tuple[str, str, str]] = field(default_factory=set)
     pending_injects: list[dict] = field(default_factory=list)
     _seen_injects: set[tuple[str, str]] = field(default_factory=set)
     inject_packets_written: set[str] = field(default_factory=set)
@@ -277,6 +318,8 @@ class Watch:
                 self._consume_nudge(line, ts)
             if "[acp-compress-obs]" in line and ts:
                 self._consume_fold(line, ts)
+            if "[acp-absorb]" in line and ts:
+                self._consume_absorb(line, ts)
 
     def _consume_nudge(self, line: str, ts: str) -> None:
         m = RE_NUDGE.search(line)
@@ -321,14 +364,15 @@ class Watch:
                 self._emit_inject_packet(sid, tier, ts)
 
     def _consume_fold(self, line: str, ts: str) -> None:
-        # The dedup key must carry the session AND the fold point, not the
-        # timestamp alone: the plugin can emit several folds inside one
-        # second (different fold points), and a timestamp-only key
-        # collapsed them into one.
+        # Dedup on (ts, sid) only, NOT on the fold point: most
+        # [acp-compress-obs] lines carry no foldPoint= at all, and the old
+        # (ts, sid, point) key gave every foldless-point line in one second
+        # the SAME key (point=""), silently collapsing them to one — folds
+        # and saved looked reset/undercounted. Timestamp+session is already
+        # the honest unit here: the log emits one obs line per fold act.
         sid = line_session(line)
         mf = RE_FOLD.search(line)
-        point = mf.group(4) if mf and len(mf.groups()) >= 4 else ""
-        key = (ts, sid, point)
+        key = (ts, sid)
         if key in self._seen_folds:
             return
         if self.session and sid != self.session:
@@ -338,7 +382,32 @@ class Watch:
             self.folds += 1
             self.saved += int(mf.group(2))
             self.per_session_folds[sid] = self.per_session_folds.get(sid, 0) + 1
+            # Track shrink percentage for average
+            shrink_pct = int(mf.group(1))
+            self.per_session_shrink_sum[sid] = self.per_session_shrink_sum.get(sid, 0) + shrink_pct
+            self.per_session_shrink_count[sid] = self.per_session_shrink_count.get(sid, 0) + 1
+            self.shrink_sum = getattr(self, "shrink_sum", 0) + shrink_pct
+            self.shrink_count = getattr(self, "shrink_count", 0) + 1
             self.per_session_saved[sid] = self.per_session_saved.get(sid, 0) + int(mf.group(2))
+
+    def _consume_absorb(self, line: str, ts: str) -> None:
+        ma = RE_ABSORB.search(line)
+        if not ma:
+            return
+        sid = line_session(line)
+        # Dedup on (ts, sid, ref): the log emits one [acp-absorb] line per
+        # absorb act, keyed by the absorbed message id.
+        key = (ts, sid, ma.group("ref"))
+        if key in self._seen_absorbs:
+            return
+        if self.session and sid != self.session:
+            return
+        self._seen_absorbs.add(key)
+        credit = _tok_k(ma.group("orig"))
+        self.absorbs += 1
+        self.absorb_credit += credit
+        self.per_session_absorbs[sid] = self.per_session_absorbs.get(sid, 0) + 1
+        self.per_session_absorb_credit[sid] = self.per_session_absorb_credit.get(sid, 0) + credit
 
     def _emit_inject_packet(self, sid: str, tier: str, ts: str) -> None:
         """Render a paste-ready `compress({...})` packet for an INJECT T2/T3.
@@ -424,6 +493,9 @@ class Sample:
     folds: int
     saved: int
     blocks: int
+    # Active-flag subset of `blocks` — what the tier sums are measured over
+    # (post-T2-distill this diverges hard: b1–b10 inactive, one tier-2 spawn).
+    act: int
     blocked: dict
     reason: str
     tier: int | None
@@ -432,10 +504,14 @@ class Sample:
     # bili_sessions' merged dashboard+log counters (see _session_metrics)
     nudges: int = 0
     hit_pct: float = 0.0
+    shrink_sum: int = 0
+    shrink_count: int = 0
     requests: int = 0
     degen_flag: bool = False
     cum_input: int = 0  # session-lifetime input tokens (dashboard/log merged view)
     cached_input: int = 0  # session-lifetime cached subset
+    absorbs: int = 0  # tool-acp absorbs seen in the tail window
+    absorb_credit: int = 0  # tokens credited back for absorbed outputs
 
     def render(self) -> str:
         age = f" log_age={self.log_age}s" if self.log_age is not None else ""
@@ -451,7 +527,8 @@ class Sample:
             f"ord2={'Y' if self.ord2 else 'N'} ord3={'Y' if self.ord3 else 'N'} "
             f"fires T1={fires.get('T1', 0)} T2={fires.get('T2', 0)} "
             f"T3={fires.get('T3', 0)} esc={fires.get('ESC', 0)} "
-            f"folds={self.folds} saved={fmt(self.saved)} blocks={self.blocks} "
+            f"folds={self.folds} saved={fmt(self.saved)} blocks={self.blocks} act={self.act} shrink%={(self.shrink_sum / self.shrink_count if self.shrink_count else 0):.0f} "
+            f"abs={self.absorbs}/{fmt(self.absorb_credit)} "
             f"nudges={self.nudges} hit%={self.hit_pct:.0f} reqs={self.requests} "
             f"degen={'Y' if self.degen_flag else 'N'} "
             f"cumIn={fmt(self.cum_input)} cachedIn={fmt(self.cached_input)} "
@@ -478,6 +555,10 @@ class Sample:
             "folds": self.folds,
             "saved": self.saved,
             "blocks": self.blocks,
+            "act": self.act,
+            "shrink_pct": (self.shrink_sum / self.shrink_count if self.shrink_count else 0),
+            "absorbs": self.absorbs,
+            "absorb_credit": self.absorb_credit,
             "blocked": dict(self.blocked),
             "rung": self.tier,
             "blocked_by": self.blocked_by,
@@ -539,7 +620,13 @@ def build_sample(
     age = None
     if verdict and verdict.ts:
         try:
-            t = datetime.strptime(verdict.ts[:19], "%Y-%m-%dT%H:%M:%S").replace(tzinfo=UTC)
+            # The verdict clock is LOCAL wall time: RE_TS (:118) truncates
+            # each line's stamp to seconds with no offset, and the plugin's
+            # own log lines are local-naive (v0.1.209). Stamping UTC onto
+            # them put the parsed time hours in the future on this IST box:
+            # log_age=-19747s in every row (pending.md 2026-10-30). If the
+            # plugin ever emits offset-carrying stamps, widen RE_TS first.
+            t = datetime.strptime(verdict.ts[:19], "%Y-%m-%dT%H:%M:%S").astimezone()
             age = int(time.time() - t.timestamp())
         except ValueError:
             age = None
@@ -552,17 +639,25 @@ def build_sample(
         folds = watch.per_session_folds.get(sid, 0)
         saved = watch.per_session_saved.get(sid, 0)
         fires = dict(watch.per_session_fires.get(sid, Counter()))
+        absorbs = watch.per_session_absorbs.get(sid, 0)
+        absorb_credit = watch.per_session_absorb_credit.get(sid, 0)
     else:
         folds = watch.folds
         saved = watch.saved
         fires = dict(watch.fires)
+        absorbs = watch.absorbs
+        absorb_credit = watch.absorb_credit
 
     # Session-lifetime counters (nudges / hit% / reqs / degen / cumIn /
     # cachedIn): bili_sessions' merged dashboard+log view is authoritative
     # -- the dashboard for the token totals, the log for the ladder events.
     metrics = _session_metrics(sid) if sid else {}
     nudges = metrics.get("nudges", 0)
-    hit_pct = metrics.get("hit_pct", 0.0)
+    # `or`, not a .get default: hit_pct=None (dashboard cacheHitPct null AND
+    # no log usages -> overall_hit_pct() None) is "unknown", and the key still
+    # exists, so .get's default never fires -> render()'s :.0f crashes on None.
+    # bili_sessions' own cell render coerces the same way (row.get or 0).
+    hit_pct = metrics.get("hit_pct") or 0.0
     requests = metrics.get("requests", 0)
     degen_flag = bool(metrics.get("degenerate_folds", 0))
     cum_input = metrics.get("cum_input", 0)
@@ -587,9 +682,16 @@ def build_sample(
         growth_ok=growth_ok,
         flags=flags,
         fires=fires,
+        absorbs=absorbs,
+        absorb_credit=absorb_credit,
         folds=folds,
         saved=saved,
-        blocks=len(state.active),
+        # `blocks` was len(state.active) — the active-flag subset the tier
+        # sums use — under the same label bili_sessions uses for the
+        # dashboard's creation-count TOTAL. Both counts now travel under
+        # their own names (pending.md 2026-10-30).
+        blocks=len(state.blocks),
+        act=len(state.active),
         blocked=dict(watch.blocked),
         reason=verdict.reason if verdict else "",
         tier=dec.tier,
@@ -601,6 +703,12 @@ def build_sample(
         degen_flag=degen_flag,
         cum_input=cum_input,
         cached_input=cached_input,
+        shrink_sum=watch.per_session_shrink_sum.get(sid, 0)
+        if is_session_scoped
+        else watch.shrink_sum,
+        shrink_count=watch.per_session_shrink_count.get(sid, 0)
+        if is_session_scoped
+        else watch.shrink_count,
     )
 
 

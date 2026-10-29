@@ -19,6 +19,7 @@ import sys
 import urllib.request
 from collections import Counter
 from collections.abc import Callable, Mapping
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, UTC
 from typing import Any
 from pathlib import Path
@@ -102,6 +103,29 @@ def dashboard_sessions() -> list[dict]:
 
 def dashboard_detail(sid: str) -> dict:
     return _fetch_detail(sid)
+
+
+def _prime_details(sids: list[str]) -> None:
+    """Warm the per-session detail cache concurrently before the row loops.
+
+    Startup regression (m00708): run_for_sid fetched one
+    /sessions/{sid}/detail per session SEQUENTIALLY — 53 × ~110 ms ≈ 5.8 s,
+    72% of an 8 s wall on 50 sessions. _fetch_detail is functools.cache'd, so
+    priming it fan-out keeps every call site untouched and pays only the
+    slowest wave instead of the sum of all fetches.
+    """
+    if not sids:
+        return
+
+    def _safe(sid: str) -> dict:
+        try:
+            return dashboard_detail(sid)
+        except Exception:  # noqa: S112  # best-effort; same contract as the fetch itself
+            return {}
+
+    with ThreadPoolExecutor(max_workers=min(8, len(sids))) as pool:
+        for _ in pool.map(_safe, sids):
+            pass
 
 
 @functools.cache
@@ -327,13 +351,21 @@ def _family_index(log_path: Path) -> dict[str, Analysis]:
         by_sid.setdefault(w.session, Analysis(log_path=whole.log_path)).window_changes.append(w)
     for warn in whole.warnings:
         by_sid.setdefault(warn.session, Analysis(log_path=whole.log_path)).warnings.append(warn)
+    for ab in whole.absorbs:
+        by_sid.setdefault(ab.session, Analysis(log_path=whole.log_path)).absorbs.append(ab)
     for bucket in by_sid.values():
         # Defensive: `parse_logs` already ts-sorts every series, so appending in
         # iteration order preserves order. Kept so the buckets stay sorted if
         # that guarantee is ever relaxed. (`nudges[-1]` is read as "newest" by
         # the callers, so a silent unsorted bucket would be a wrong answer,
         # not a slow one.)
-        for series in (bucket.nudges, bucket.usages, bucket.folds, bucket.window_changes):
+        for series in (
+            bucket.nudges,
+            bucket.usages,
+            bucket.folds,
+            bucket.window_changes,
+            bucket.absorbs,
+        ):
             series.sort(key=lambda s: s.ts)
         # Keys stay STRING-valued to match `parse_log` exactly: the dashboard
         # prints and `--json` consumers see `{"200000": 264}`, and a perf fix
@@ -380,11 +412,24 @@ def _session_analysis(log_path: Path | None, sid: str) -> Analysis | None:
 
 
 def run_for_sid(sid: str) -> dict:
-    d = dashboard_detail(sid)
-    st = dashboard_stats_map().get(sid, {})
-    report = find_report(sid)
+    # Id-form hazard: the log parser strips the `session-` prefix from dsh ids,
+    # while the DB and sid_log_index may hand us `session-<uuid>` — and --detail
+    # re-filters the bili_analytics subprocess with row["session"], so a
+    # prefixed id here filtered out EVERY parsed line (the zeros bug). Keep the
+    # row identity bare, but probe dashboard/report lookups with both forms;
+    # the sub-session suffix (`<parent>|sub:<id>`) must survive.
+    bare = sid.removeprefix("session-")
+    d = dashboard_detail(sid) or dashboard_detail(bare)
+    st = dashboard_stats_map().get(sid) or dashboard_stats_map().get(bare, {})
+    report = find_report(sid) or find_report(bare)
 
-    containing = sid_log_index().get(sid) or sid_log_index().get(sid.split("|", 1)[0], [])
+    idx = sid_log_index()
+    containing = (
+        idx.get(sid)
+        or idx.get(bare)  # opencode-style logs key sessions bare
+        or idx.get("session-" + bare)  # dsh log-index keys keep the prefix
+        or idx.get(sid.split("|", 1)[0], [])
+    )
     if not containing and LIVE_LOG.is_file():
         containing = log_rotation_family(LIVE_LOG)
     # Pick the log whose rotation family is the widest (covers the most
@@ -405,7 +450,7 @@ def run_for_sid(sid: str) -> dict:
     )
 
     row = {
-        "session": sid,
+        "session": bare,
         "title": d.get("title") or st.get("title"),
         "client": d.get("clientHint") or st.get("clientHint", ""),
         "protocol": d.get("protocol") or st.get("protocol", ""),
@@ -425,9 +470,10 @@ def run_for_sid(sid: str) -> dict:
         "saved": d.get("tokensSaved", st.get("tokensSaved", 0)),
         "hit_pct": d.get("cacheHitPct", st.get("cacheHitPct", 0)),
         "blocks": d.get("blocks", st.get("blocks", 0)),
+        "shrink_pct": 0,
         "switches": switches,
-        "context_window": d.get("contextWindow", st.get("contextWindow", 0)),
         "new_content": d.get("newContent", 0),
+        "context_window": d.get("contextWindow", st.get("contextWindow", 0)),
         "comp_repay": d.get("compRepay", 0),
         "ttl_repay": d.get("ttlRepay", 0),
         "last_seen": d.get("lastSeen", st.get("lastSeen", "")),
@@ -450,7 +496,12 @@ def run_for_sid(sid: str) -> dict:
         "source": "dashboard",
     }
 
-    a = _session_analysis(log_path, sid)
+    # Buckets are keyed by bare session ids (the parser strips any
+    # `session-` prefix), so the analysis lookup must use the bare form; a
+    # prefixed id from the dashboard meta or the log index would find no
+    # bucket and silently skip the whole log merge (nudges/folds/etc. stay
+    # unset and the row renders '-').
+    a = _session_analysis(log_path, bare)
     if a is not None:
         if report:
             parse_report(report)
@@ -467,6 +518,12 @@ def run_for_sid(sid: str) -> dict:
                 "log_hit_pct": a.overall_hit_pct(),
                 "hit_pct": row.get("hit_pct") or a.overall_hit_pct(),
                 "folds": len(a.folds),
+                # Tool-acp absorb stats: long tool outputs compacted to a
+                # summary in place. Per-BLOCK shrink — unlike folds, which
+                # shrink the whole request window.
+                "absorbs": a.absorb_stats()[0],
+                "absorb_credit": a.absorb_stats()[1],
+                "absorb_shrink": a.absorb_stats()[2],
                 # Fold attribution per nudge kind (T1/T2/T3/esc/agent) —
                 # which nudge asked for the fold, not the compress tool the
                 # agent answered with. Same tags as `tier_fires`.
@@ -510,6 +567,17 @@ def run_for_sid(sid: str) -> dict:
                 "model": row.get("model")
                 or (last_nudge.model if last_nudge else row.get("model", "")),
                 "saved": row.get("saved") or sum(f.saved_tok for f in a.folds),
+                # Average shrink percentage from [acp-compress-obs] lines.
+                # Rounded HERE at the row build — an unrounded float used to
+                # hit the dashboard's `…` truncator and get cut mid-digit
+                # (the 46.42… oddity, pending.md 2026-10-30).
+                "shrink_pct": round(
+                    sum(f.shrink_pct for f in a.folds if f.shrink_pct is not None)
+                    / len([f for f in a.folds if f.shrink_pct is not None]),
+                    1,
+                )
+                if a.folds and any(f.shrink_pct is not None for f in a.folds)
+                else 0,
                 "source": ("log+dashboard" if row.get("source") == "dashboard" else "log"),
                 # Where the two stores DISAGREE. The row is a merge of a
                 # dashboard snapshot and a log parse with no marker saying
@@ -688,12 +756,13 @@ def main(argv: list[str]) -> int:  # noqa: C901
 
     meta_sessions = dashboard_sessions()
     if meta_sessions:
-        rows = [run_for_sid(m["id"]) for m in meta_sessions]
+        sids = [m["id"] for m in meta_sessions]
     else:
         # dashboard unavailable: fall back to every session the logs name,
         # across the whole rotation family, not just the current file
         sids = sorted(sid_log_index())
-        rows = [run_for_sid(s) for s in sids]
+    _prime_details(sids)
+    rows = [run_for_sid(s) for s in sids]
 
     rows.sort(key=lambda r: r.get("last_seen") or "", reverse=True)
 
@@ -717,7 +786,20 @@ def main(argv: list[str]) -> int:  # noqa: C901
         rows = kept
 
     if args.detail:
-        row = next((r for r in rows if args.detail in str(r["session"])), None)
+        # Rows carry bare ids (any `session-` prefix stripped at :413), so
+        # match in BOTH directions and against the prefixed form; otherwise
+        # `--detail session-<uuid>` finds no row while the bare form works.
+        detail = str(args.detail)
+        row = next(
+            (
+                r
+                for r in rows
+                if detail in str(r["session"])
+                or str(r["session"]) in detail
+                or detail.removeprefix("session-") == str(r["session"])
+            ),
+            None,
+        )
         if not row:
             print(f"session not found: {args.detail}", file=sys.stderr)
             return 2
@@ -748,6 +830,16 @@ def main(argv: list[str]) -> int:  # noqa: C901
             f"  {'nudges/folds':<16}: {row.get('nudges', 0)} / {row.get('folds', 0)}"
             f"  (degenerate {row.get('degenerate_folds', 0)}, blocks {row.get('blocks', 0)})"
         )
+        if row.get("absorbs"):
+            print(
+                f"  {'absorbed blocks':<16}: {row['absorbs']} events, "
+                f"~{row.get('absorb_credit', 0):,} tok credited"
+                + (
+                    f", avg block shrink {row.get('absorb_shrink', 0):.0f}%"
+                    if row.get("absorb_shrink")
+                    else ""
+                )
+            )
         # The compress ladder, per tier. The three numbers a tier is tuned by:
         # how many times it fired, the compressible mass it is carrying, and
         # the bar that mass is measured against.
@@ -860,8 +952,12 @@ _COLUMNS: tuple[tuple[str, str, str, int, bool], ...] = (
     # busted the cache (post-fold hit hit 0%).
     ("nudges", "nudges", ">", 6, False),
     ("folds", "folds", ">", 6, False),
+    # Tool-acp absorbs: long tool outputs replaced by a compact summary
+    # BEFORE they enter the window (per-block shrink, cache stays warm).
+    ("absorbs", "abs", ">", 5, False),
     ("degenerate_folds", "degen", ">", 6, False),
     ("blocks", "blocks", ">", 7, False),
+    ("shrink_pct", "shrink", ">", 6, True),
     ("esc_fires", "esc", ">", 5, False),
     # The compress ladder, per tier: `<fires>f/<pending>` — how many times the
     # tier injected a nudge, and the compressible mass it is carrying. The
@@ -899,7 +995,20 @@ def sep_line() -> str:
 _EMPTY = "-"
 # Counters default to 0 like the original formatter did; only genuinely
 # absent STRINGS get the `-` placeholder.
-_COUNTERS = frozenset({"requests", "context_now", "cum_input", "saved", "switches", "blocks"})
+_COUNTERS = frozenset(
+    {
+        "requests",
+        "context_now",
+        "cum_input",
+        "saved",
+        "switches",
+        "blocks",
+        "shrink_pct",
+        "absorbs",
+        "absorb_credit",
+        "absorb_shrink",
+    }
+)
 
 
 # `client` carries a whole runtime fingerprint for some lanes
@@ -1101,10 +1210,13 @@ def print_aggregate(rows: list[dict], args) -> int:
     total_saved = sum(r.get("saved", 0) for r in rows)
     total_ctx = sum(r.get("context_now", 0) for r in rows)
     agg_hit = (100.0 * total_cached / total_input) if total_input else 0.0
+    total_shrink = sum(r.get("shrink_pct", 0) for r in rows if r.get("shrink_pct", 0) > 0)
+    shrink_count = sum(1 for r in rows if r.get("shrink_pct", 0) > 0)
+    avg_shrink = (total_shrink / shrink_count) if shrink_count else 0
     agg_text = (
         f"AGGREGATE: sessions={len(rows)} requests={total_reqs} "
         f"cumInput={total_input} cached={total_cached} hit={agg_hit:.2f}% "
-        f"contextNow={total_ctx} saved={total_saved} blocks={sum(r.get('blocks', 0) for r in rows)}"
+        f"contextNow={total_ctx} saved={total_saved} blocks={sum(r.get('blocks', 0) for r in rows)} avgShrink%={avg_shrink:.0f}"
     )
 
     if args.aggregate or args.markdown:
@@ -1118,8 +1230,8 @@ def print_aggregate(rows: list[dict], args) -> int:
             "",
             agg_text,
             "",
-            "| session | client | model | proto | upstream | reqs | ctxNow | cumInput | saved | hit% | switches | nudges | folds | degen | blocks | lastSeen |",
-            "|---|---|---|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---|---|",
+            "| session | client | model | proto | upstream | reqs | ctxNow | cumInput | saved | hit% | switches | nudges | folds | degen | blocks | shrink% | lastSeen |",
+            "|---|---|---|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---|---|",
         ]
         for r in rows:
             ls = (r.get("last_seen") or "").replace("T", " ").replace("Z", "")
@@ -1137,7 +1249,7 @@ def print_aggregate(rows: list[dict], args) -> int:
                 f"{r.get('upstream', '')} | {r.get('requests', 0)} | {r.get('context_now', 0)} | "
                 f"{r.get('cum_input', 0)} | {r.get('saved', 0)} | {(r.get('hit_pct') or 0):.1f} | "
                 f"{r.get('switches', 0)} | {r.get('nudges', 0)} | {r.get('folds', 0)} | "
-                f"{r.get('degenerate_folds', 0)} | {r.get('blocks', 0)} | {ls} |"
+                f"{r.get('degenerate_folds', 0)} | {r.get('blocks', 0)} | {r.get('shrink_pct', 0):.0f} | {ls} |"
             )
         path.write_text("\n".join(lines) + "\n", encoding="utf-8")
         print(f"wrote {path}")

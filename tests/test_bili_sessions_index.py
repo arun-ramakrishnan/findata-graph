@@ -490,6 +490,27 @@ class TestContextNowIsNotContextTokens:
         assert row["context_now"] == 150_000, "the log is the ground truth"
         assert row["context_now_src"] == "log"
 
+    def test_shrink_pct_is_rounded_at_the_row(self, tmp_path, monkeypatch):
+        """An unrounded mean float used to hit the dashboard's `…` truncator
+        and get cut mid-digit — the 46.42… oddity (pending.md 2026-10-30).
+        Rounding belongs HERE at the row build, not in every renderer."""
+        log = tmp_path / "bili.log"
+        log.write_text(
+            "2026-10-19T04:00:00.000Z [info] [sess=ses_x] [v=0.1.209] [ses_x] "
+            "[acp-compress-obs] shrink 46.42696832579186% (~89256/192370 tok) "
+            "blocks=10 anchor≈580 tok postCtx≈91000\n",
+            encoding="utf-8",
+        )
+        a = parse_logs([log], session_filter="ses_x")
+        assert a.folds and a.folds[0].shrink_pct == pytest.approx(46.42696832579186)
+        monkeypatch.setattr(bs, "dashboard_detail", lambda s: dict(self.DASH))
+        monkeypatch.setattr(bs, "dashboard_stats_map", lambda: {"ses_x": dict(self.DASH)})
+        monkeypatch.setattr(bs, "find_report", lambda s: None)
+        monkeypatch.setattr(bs, "_session_analysis", lambda p, s: a)
+        monkeypatch.setattr(bs, "file_logs_for_sid", lambda s: [log])
+        row = bs.run_for_sid("ses_x")
+        assert row["shrink_pct"] == 46.4
+
 
 class TestDisagreementsAreNamed:
     """The row merges a dashboard snapshot with a log parse and used to prefer

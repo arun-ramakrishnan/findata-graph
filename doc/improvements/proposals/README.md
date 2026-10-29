@@ -38,12 +38,13 @@ entry number and stale DONE pointers):
 
 ## Current live proposals
 
-- *(none — the cosine_knn_production_integration proposal was filed
-  2026-10-28, benched against recorded evidence, and closed DEFERRED
-  same day (#450,
-  `../archive/graph/cosine_knn_production_integration.md`); the
-  rust_language_tooling proposal before it executed same-day 2026-10-26
-  and archived (#446); see the previous-batch line below.)*
+- *(none — the bili_absorb_stats_display proposal was filed 2026-10-29,
+  executed and archived same day (#452,
+  `../archive/tooling/bili_absorb_stats_display.md`); the
+  cosine_knn_production_integration proposal before it was benched
+  against recorded evidence and closed DEFERRED same day 2026-10-28
+  (#450, `../archive/graph/cosine_knn_production_integration.md`);
+  see the previous-batch line below.)*
 - *(previously: none — every proposal filed here is executed and archived. The
   2026-10-26 batch went out filed + executed + archived across sessions:
   `../archive/tooling/rust_language_tooling.md` (#446),

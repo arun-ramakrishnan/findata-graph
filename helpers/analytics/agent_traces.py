@@ -1586,7 +1586,15 @@ def _parse_prime(con, since=None):  # noqa: C901  # moved verbatim; split needs 
     event_rows: list[tuple] = []
     stems = _prime_files()
     for stem, f in sorted(stems.items()):
-        records = [json.loads(line) for line in f.read_text().splitlines() if line.strip()]
+        records = []
+        for line in f.read_text().splitlines():
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                records.append(json.loads(line))
+            except json.JSONDecodeError:
+                continue
         sess_rec = next((r for r in records if r.get("type") == "session"), {})
         sid = sess_rec.get("id") or stem
         ts_by_id: dict[str, datetime | None] = {}

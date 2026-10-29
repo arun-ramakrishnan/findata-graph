@@ -12813,3 +12813,32 @@ claim that the shelf "lands in pending.md" had never actually
 happened). Re-probe gates: motifs need cross-edge overlap mass (quick
 SQL check recorded in the proposal); reducibility re-runs on >2× edge
 growth.
+
+
+## 452. Bili absorb-stat display — block-shrink census + absorb↔fold correlation across the three tools
+
+**Date:** 2026-10-29 · **Status:** EXECUTED · **Proposal:**
+`doc/improvements/archive/tooling/bili_absorb_stats_display.md`
+(filed + executed + archived same day).
+
+Absorb events (`[acp-absorb] absorbed mNNNNN (~X tokens → summary
+~Y) ... (credit -N tok)`, plugin v0.1.209 log family) are now collated
+and displayed in all three bili tools: `bili_analytics.py`
+(AbsorbEvent dataclass + absorb_stats(), CLI summary line, JSON
+export), `bili_sessions.py` (abs table column, --detail
+absorbed-blocks line, --json absorbs/absorb_credit/absorb_shrink;
+root-cause fix: _family_index never bucketed absorbs per session), and
+`bili_tier_watch.py` (heartbeat abs=N/credit, --json keys; dedup key
+(ts, sid, ref)). Census: 31 absorbs, ~195,777 tok credited, avg block
+shrink 90%, 3 blowups (summary ≥ original) counted but excluded from
+the mean. Correlation finding: absorbs are tail-anchored — next-3 cache
+hits ~85–90%, zero prefix trash — while folds rewrite the prefix
+(31–363k tok KV-cache trash on bad folds; anchor-preserving late folds
+trash 0k); absorbShare separates absorb-only sessions (c1831f3d 100%,
+0 folds) from fold-heavy ones (1–14%); degenerate folds (88–100%
+shrink, postCtx 13–21k) = trashed-context signature. Pre-req fold-zero
+fixes landed in the same arc: RE_FOLD v0.1.209 "this-fold · cumulative"
+trailer, RE_SESS bare session-<uuid> form, RE_PREFIX optional Z suffix.
+Incident: the RE_ABSORB insertion briefly replaced the RE_INJECT
+definition (NameError at _consume_nudge) — restored at
+bili_tier_watch.py:115.

@@ -87,6 +87,27 @@ class FoldEvent:
 
 
 @dataclass
+class AbsorbEvent:
+    """One tool-acp absorb: a long tool output replaced by a compact summary
+    IN PLACE, before the block ever entered the request window. Unlike a
+    fold (whole-window rewrite), the edit is local to one block — the rest
+    of the prefix stays byte-identical, so the provider cache survives."""
+
+    ts: str
+    session: str
+    ref: str  # mNNNNN id of the absorbed message
+    orig_tok: int  # original tool-output tokens (= the credit granted)
+    summ_tok: int  # summary tokens that replaced it
+    warned: bool = False  # plugin's "summary not smaller" blowup warning
+
+    @property
+    def block_shrink_pct(self) -> float | None:
+        if self.orig_tok <= 0:
+            return None
+        return round(100.0 * (1.0 - self.summ_tok / self.orig_tok), 1)
+
+
+@dataclass
 class CacheUsage:
     ts: str
     session: str
@@ -161,6 +182,7 @@ class Analysis:
     folds: list[FoldEvent] = field(default_factory=list)
     usages: list[CacheUsage] = field(default_factory=list)
     window_changes: list[WindowChange] = field(default_factory=list)
+    absorbs: list[AbsorbEvent] = field(default_factory=list)
     warnings: list[Warning] = field(default_factory=list)
     intervals_seen: Counter = field(default_factory=Counter)
     reasoning_pair_violations: int = 0
@@ -178,6 +200,26 @@ class Analysis:
         if growth == 0:
             return 0.0
         return len(self.folds) * 100_000 / growth
+
+    def absorb_stats(self) -> tuple[int, int, float, int]:
+        """(events, credit tok, avg block shrink %, blowups).
+
+        The shrink mean covers SUCCESSFUL absorbs only — blowups (the
+        plugin's "summary not smaller than the original" WARNING, summary
+        larger than the source) are their own signal and would drag the
+        mean deeply negative (2 of 30 measured, down to -3335%)."""
+        shrinks = [
+            x.block_shrink_pct
+            for x in self.absorbs
+            if x.block_shrink_pct is not None and not x.warned
+        ]
+        blowups = sum(1 for x in self.absorbs if x.warned)
+        return (
+            len(self.absorbs),
+            sum(x.orig_tok for x in self.absorbs),
+            round(sum(shrinks) / len(shrinks), 1) if shrinks else 0.0,
+            blowups,
+        )
 
     def overall_hit_pct(self) -> float | None:
         total_in = sum(u.input_tok for u in self.usages)
@@ -360,10 +402,14 @@ class Analysis:
 # ---------------------------------------------------------------------------
 # Parsing — tuned for:
 #   2026-10-13T03:28:26.687Z [info] [sess=ses_...] [v=0.1.195] [ses_...] <message>
+#   2026-10-29T10:02:21.244 [info] [v=0.1.209] [session-<uuid>] [plugin] <message>
+# The dsh form carries NO `Z` on the timestamp and a bare `[session-…]`
+# bracket (no sess= key); `Z?` and the `session-` strip in parse_log
+# keep both forms on one parser.
 # ---------------------------------------------------------------------------
 
 RE_PREFIX = re.compile(
-    r"^(?P<ts>\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d+Z)\s+"
+    r"^(?P<ts>\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d+Z?)\s+"
     r"\[(?P<level>info|warn|debug|error)\]\s+"
     r"(?:\[sess=(?P<sess1>[^\]]+)\]\s+)?"
     r"(?:\[v=[^\]]+\]\s+)?"
@@ -393,7 +439,11 @@ RE_NUDGE_BODY = re.compile(
 )
 
 RE_COMPRESS_OBS_BODY = re.compile(
-    r"\[acp-compress-obs\] shrink (?P<shrink>[\d.]+)% "
+    # v0.1.209 inserted "this-fold" between shrink% and the token counts;
+    # [^(]* hops to the first "(~saved/total tok)" so both log generations
+    # parse. The fold-attribution / degenerate follow-on lines don't start
+    # with "shrink", so they still never match.
+    r"\[acp-compress-obs\] shrink (?P<shrink>[\d.]+)%[^(]*"
     r"\(~(?P<saved>\d+)/(?P<total>\d+) tok\).*?blocks=(?P<blocks>\d+) "
     r"anchor≈(?P<anchor>\d+) tok.*?postCtx≈(?P<post>\d+)"
 )
@@ -401,6 +451,30 @@ RE_COMPRESS_OBS_BODY = re.compile(
 RE_FOLD_APPLIED_BODY = re.compile(
     r"\[Compressed [^\]]+ → (?P<blocks>\d+) block\(s\),\s*~(?P<saved>\d+) tokens saved"
 )
+
+RE_ABSORB_BODY = re.compile(
+    # `[acp-absorb] absorbed m00233 (~5.5K tokens → summary ~1.1K). …`
+    # Token counts carry K/M suffixes (or are plain); the blowup WARNING,
+    # when present, names the same pair again with explicit numbers. The
+    # companion `tool absorb executed via plugin` ack line never matches
+    # (no [acp-absorb] prefix).
+    r"\[acp-absorb\] absorbed (?P<ref>m\d+)"
+    r" \(~(?P<orig>[\d.]+[KM]?) tokens → summary ~(?P<summ>[\d.]+[KM]?)\)"
+    r"(?:.*WARNING: your summary \(~(?P<wsum>[\d.]+[KM]?) tokens\)"
+    r" is not smaller than the original \(~(?P<worig>[\d.]+[KM]?) tokens\))?"
+)
+
+
+def _parse_tok(s: str) -> int:
+    """`781` → 781, `5.5K` → 5500, `2.1M` → 2_100_000."""
+    s = s.strip()
+    mult = 1
+    if s.endswith("K"):
+        mult, s = 1_000, s[:-1]
+    elif s.endswith("M"):
+        mult, s = 1_000_000, s[:-1]
+    return int(float(s) * mult)
+
 
 RE_USAGE_BODY = re.compile(
     r"\[acp-usage\] input=(?P<input>\d+) cached=(?P<cached>\d+) "
@@ -489,10 +563,17 @@ def parse_logs(paths, session_filter: str | None = None) -> Analysis:
         merged.folds.extend(part.folds)
         merged.usages.extend(part.usages)
         merged.window_changes.extend(part.window_changes)
+        merged.absorbs.extend(part.absorbs)
         merged.warnings.extend(part.warnings)
         merged.intervals_seen.update(part.intervals_seen)
         merged.reasoning_pair_violations += part.reasoning_pair_violations
-    for series in (merged.nudges, merged.folds, merged.usages, merged.window_changes):
+    for series in (
+        merged.nudges,
+        merged.folds,
+        merged.usages,
+        merged.window_changes,
+        merged.absorbs,
+    ):
         series.sort(key=lambda s: s.ts)
     merged.warnings.sort(key=lambda w: getattr(w, "ts", "") or "")
     attribute_fold_triggers(merged)
@@ -521,6 +602,11 @@ def parse_log(  # noqa: C901
                 continue
             ts = pm["ts"]
             session = pm["sess1"] or pm["sess2"] or "?"
+            # dsh logs tag lines with a bare `[session-<uuid>]` bracket
+            # (captured by sess2); strip the prefix so the id matches the
+            # session-index sids and the --session filters downstream.
+            if session.startswith("session-"):
+                session = session[len("session-") :]
             if session_filter and session != session_filter:
                 continue
             body = pm["body"]
@@ -605,6 +691,21 @@ def parse_log(  # noqa: C901
                         session=session,
                         kind="degenerate-fold",
                         detail=body[:300],
+                    )
+                )
+                continue
+
+            m = RE_ABSORB_BODY.search(body)
+            if m:
+                g = m.groupdict()
+                a.absorbs.append(
+                    AbsorbEvent(
+                        ts=ts,
+                        session=session,
+                        ref=g["ref"],
+                        orig_tok=_parse_tok(g["orig"]),
+                        summ_tok=_parse_tok(g["summ"]),
+                        warned=bool(g["wsum"]),
                     )
                 )
                 continue
@@ -981,6 +1082,17 @@ def print_report(a: Analysis, report: dict | None) -> None:  # noqa: C901
     # --- folds -----------------------------------------------------------
     print("\n[FOLDS]")
     print(f"  total folds           : {len(a.folds)}")
+    _abs_n, _abs_credit, _abs_shrink, _abs_blow = a.absorb_stats()
+    print(
+        f"  total absorbs         : {_abs_n}"
+        + (
+            f" (credit ~{_abs_credit:,} tok, avg block shrink {_abs_shrink:.0f}%"
+            + (f", {_abs_blow} blowup(s)" if _abs_blow else "")
+            + ")"
+            if _abs_n
+            else ""
+        )
+    )
     attribute_fold_triggers(a)
     trig = fold_trigger_counts(a.folds)
     if trig:
@@ -1367,6 +1479,18 @@ def main(argv: list[str]) -> int:
             },
             "tuning": {
                 "intervals_seen": dict(analysis.intervals_seen),
+                "absorbs": [
+                    {
+                        "ts": x.ts,
+                        "session": x.session,
+                        "ref": x.ref,
+                        "orig_tok": x.orig_tok,
+                        "summ_tok": x.summ_tok,
+                        "block_shrink_pct": x.block_shrink_pct,
+                        "warned": x.warned,
+                    }
+                    for x in analysis.absorbs
+                ],
                 "effective_interval": analysis.effective_interval(),
             },
             "epochs": [

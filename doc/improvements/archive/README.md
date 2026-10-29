@@ -421,6 +421,14 @@ commit, referenced by nothing). Entry numbers point at
 - [`refresh_chain_parallel.md`](pipeline/refresh_chain_parallel.md) — Refresh chain, parallel — fetch/apply split so independent sources overlap; per-lane `--fetch-only` stages writing scratch JSON under `$TMPDIR/findata-graph/`, parallel phase A, sequential store applies under per-store lock, per-item failure containment; `refresh-chain` Makefile target (default), `refresh-chain-ser` for the original sequential chain — completed.md #403
 
 ## tooling/ — Tooling & performance — MCP eval, doc browser/search, perf review, tech survey
+- [`bili_absorb_stats_display.md`](tooling/bili_absorb_stats_display.md) —
+  absorb-stat display across the three bili tools (analytics CLI/JSON,
+  sessions abs column + detail + JSON, tier_watch heartbeat + JSON):
+  census 31 absorbs / ~195.8k tok credit / 90% avg block shrink; the
+  absorb↔fold correlation — absorbs tail-anchored (zero cache trash,
+  next-3 hits ~85–90%) vs folds prefix-rewriting (31–363k tok trash on
+  bad folds); absorbShare + degenerate-fold signature documented —
+  completed.md #452
 - [`rust_rayon_parallel_cosine_knn.md`](tooling/rust_rayon_parallel_cosine_knn.md) — Rayon parallel top-k for `cosine_knn` (threshold ≥5k rows) + divan benchmarks: 3× speedup at 100k+ rows (1M rows: single 696 ms → parallel 209 ms), single-threaded at production 717 rows (460 µs). Perf gate `cosine_knn_ratios` guards silent abi3 fallback (ratio collapses to ~1.0). Replaces numba `prange` crossover target (1.94× at ≥500k rows) with rayon 3.3× at 1M rows. No criterion — divan only. — completed.md #448
 - [`rust_language_tooling.md`](tooling/rust_language_tooling.md) — Rust/ language tooling — fmt/clippy/test/audit gates, install hook, toolchain pin for the production-carrying `Rust/` workspace: `Rust/rust-toolchain.toml` (1.99.1 + components; both were MISSING — cargo fmt/clippy refused), `rust-fmt` + qa lint_gates format test, `rust-clippy`/`rust-test` advisory legs (clippy first run 23 style-grade warnings, `-D` deferred), cargo-audit extended to `Rust/Cargo.lock`, `rust-install` (12 s release + purelib copy), SCRIPT_KNN_STRICT qa hard pin (vanished `.so` fails qa instead of silent numpy fallback), rule.json + PRODUCT_FAMILIES Rust teeth — completed.md #446
 - [`parallel_parquet_export.md`](tooling/parallel_parquet_export.md) —
