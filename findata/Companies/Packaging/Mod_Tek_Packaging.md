@@ -24,14 +24,14 @@ stale_after: '2027-04-26'
 
 # Mod Tek Packaging
 
-**Company:** Mod Tek Packaging
+**Company:** Mod Tek Packaging — duplicate note; see [[Mold Tek Packaging]] (MOLDTKPAC.NS)
 **Sector:** Packaging
 **Market Cap:** Large Cap
-**Ticker:** MOTE.NS
+**Ticker:** MOLDTKPAC.NS (via [[Mold Tek Packaging]]; "Mod Tek" is an OCR/typo variant, no symbol MOTE.NS exists)
 **Entity Type:** Company
 
 ## Company Overview
-Leading company in India: Mod Tek Packaging
+Redirect: this stub duplicates [[Mold Tek Packaging]] — same company, merged per operator ruling 2026-10-29 (alias recorded in entity_identifiers).
 
 ## Key Metrics
 - **Market Capitalization:** Large Cap

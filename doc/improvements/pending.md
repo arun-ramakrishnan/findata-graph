@@ -3,6 +3,48 @@
 Full annotated triage map with live-verified trigger status.
 Open items below keep their revisit triggers inline; executed work is compressed to records.
 
+- **Thin-tail note quality — D1–D3 remainder — DEFERRED 2026-10-29**
+  (archive/pipeline/notes_thin_tail_quality.md; completed.md #452):
+  S1–S5 executed — KF evidence UNION + `--kf-manifest` backfill (KF
+  526 → 1,046), `--from-manifest` yfinance lane (139/152 stubs, 1,701
+  rows), `--untickered` hygiene (15 resolved, 132 queued in
+  `outputs/ticker_hygiene_report.md`), the S2 magnitude skip-guard root
+  cause (verified against the entity note, not the edition file; 2,226
+  rows recovered, `company_metrics` 76,172 → 78,683), S2.4 ten new label
+  patterns (NULL 3,119 → 2,539). Remainder re-measured live 2026-10-29:
+  D1 144 stubs at `-size -4k` (≤3072 B; 202 below 4096 B), D2 132
+  untickered note-backed entities, D3 1,946 NULL `metric_label` of
+  78,683 rows → same-day D3 census round 2 (+9 patterns, credit_cost
+  rejected) relabeled 28 id-keyed → same-day LLM carrier pass (session
+  agent as carrier over all 1,918 residue groups; 365 rows labeled
+  id-keyed under `metric_label IS NULL`, 53 new nouns promoted,
+  artifacts in bench_data/thin_tail/) → D3 remainder 1,553 (2.0% of
+  78,683; sub-segment levels/growths, peer/industry figures,
+  mix/coverage shares, bps deltas, and truncated-subject fragments
+  stay NULL by doctrine). Same-day D2 operator triage via menu
+  buckets (rulings m00469): 15 tickers filled (5 confirmed India +
+  Forbes and Company FORBESCO.BO + 6 foreign home-market — UBS
+  UBSG.SW, SMBC 8316.T, NEC 6701.T, Thai Union TU.BK, Piaggio PIA.MI,
+  Liberty Media FWONA — + 2 NSE-SME India CGRAPHICS.NS/TECHERA.NS +
+  Gujarat Gas GUJGASLTD.NS), 5 dispositions in `entity_ticker_status`
+  (Piramal Enterprises amalgamated → Piramal Finance; BPSL/Wabco/
+  Shri Lakshmi Cotsyn/Sterlite Power delisted), Forbes Enviro note-meta
+  ticker misattribution cleared (EUREKAFORB.NS → null; belongs to
+  Eureka Forbes), untickered note-backed 132 → 117; decisions in
+  bench_data/thin_tail/d2_triage_decisions.json. Revisit
+  triggers: D1 new newsletter editions, ~90
+  section-variant + 47 collision curation follow-ups, an explicit
+  disposition pass (+4 routed stubs: Baba Jewellers, HKC, TSF Group,
+  Time-bound Solutions; Mod-Tek Packaging merged into Mold
+  Tek Packaging MOLDTKPAC.NS — operator ruling 2026-10-29:
+  `entity_identifiers` alias + stub redirect; fabricated body ticker
+  MOTE.NS removed; 0 metrics rows, count stays 117); D2 quarterly re-run + the 5 verify-open
+  rows (Paul Merchants Finance, Carraro Group, Kering Beaute, Hitachi
+  Energy, Jos Alukkas) + geography-aware suffix preference in
+  `identity_ok`; D3 vocabulary
+  growth from new corpus (re-run the bigram census on the then-NULL
+  set), #308 desktop em-dash fallback posture.
+
 - **Review lanes (semantic vs mechanical + cosmetic floor) — EXECUTED 2026-10-22**
   (archive/tooling/ocr_review_lanes_7b122d915_e3147ef3c.md; completed.md #432):
   S1 procedure §4 lanes (`cosmetic` row below Low + anti-inflation rule 3)

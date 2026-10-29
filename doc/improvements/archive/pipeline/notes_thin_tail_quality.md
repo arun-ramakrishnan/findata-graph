@@ -1,9 +1,9 @@
 ---
 title: "Feed the thin tail — a five-lane quality program for stub-grade company notes"
-status: proposed
+status: deferred
 filed: "2026-10-28"
-executed: null
-completed_md: null
+executed: "2026-10-29"
+completed_md: "452"
 area: "findata/** (derived note sections) + helpers/maintenance (enrich_from_yfinance) + helpers/graph (derive_insights, relations)"
 ---
 
@@ -13,7 +13,8 @@ area: "findata/** (derived note sections) + helpers/maintenance (enrich_from_yfi
      archival, flip status/executed/completed_md in the same change. -->
 # Feed the thin tail — a five-lane quality program for stub-grade company notes
 
-**Date:** 2026-10-28 · **Status:** PROPOSED ·
+**Date:** 2026-10-28 · **Status:** DEFERRED (S1–S5 executed; D1–D3
+remainder tracked below) ·
 **Area:** findata/** derived sections · helpers/maintenance/enrich_from_yfinance.py · helpers/graph/derive_insights.py · relations layer
 
 ## 1. Motivation
@@ -393,11 +394,18 @@ NULL by operator ruling.
 
 ### D3 — 1,946 NULL `metric_label` rows, deferred
 
-3,119 → 1,946 via the S2.4/S4 vocabulary + forward-tense fallback. The
-remainder is the genuinely-unlabeled population per the #308 contract:
-present-tense sentences with no metric noun ("Roughly 60% of the cost
-base is tied to imports"); a bigram census found only connective
-phrases — no honest keyword label exists.
+3,119 → 1,946 → 1,918 via the S2.4/S4 vocabulary, forward-tense
+fallback, and the D3 census-round-2 vocabulary (+9 nouns, 2026-10-29),
+then 1,918 → 1,553 via the D3 LLM carrier pass (2026-10-29: 365 rows
+labeled, 53 new nouns promoted). The remainder is the
+genuinely-unlabeled population per the #308 contract: present-tense
+sentences whose figure is not the metric the sentence names —
+sub-segment levels/growths, peer/industry figures, mix/coverage
+shares, bps deltas, HTML-table cells with invisible row binding, and
+truncated-subject fragments stay NULL by doctrine; the round-2 census
+split the pre-LLM residue into 1,875 prose + 71 HTML-table quotes, and
+after the +9 patterns no further honest keyword label existed
+in-window.
 
 - **Re-entry triggers:** (a) an LLM-assisted labeling pass — the budget
   decision parked in relation_enrichment_sources §11 (out-of-scope
@@ -406,6 +414,37 @@ phrases — no honest keyword label exists.
   NEW corpus (new editions surface new nouns — re-run the bigram census
   on the then-NULL set); (c) #308's desktop-reader `—` fallback remains
   the safe consumer posture meanwhile.
+
+  Live evidence (2026-10-29 dry-runs) sharpening the plan: all 1,946
+  rows are `derive:metrics:*` with a populated `source_quote` (0
+  missing); units are percent 1,403 / crore 276 / bps 101 / bn_usd 65;
+  the loose whole-quote matcher (`backfill_metric_labels.classify_row`)
+  would label 500 but 405 of those quotes carry ≥2 figures — a
+  mislabel trap — while the figure-anchored write-time classifier
+  labels 1 of 1,946. The residue therefore needs figure-aware context
+  (LLM or human), not more regex.
+
+  Agreed follow-up order (operator, 2026-10-29): **(1) bigram census**
+  on the live NULL set to check for vocabulary growth — **DONE
+  2026-10-29**: artifact `bench_data/thin_tail/d3_bigram_census_2026-10-29.txt`;
+  +9 census-backed patterns (nim, bookings, tcv, loan_book,
+  capital_raise, arr, gtv, cd_ratio, sum_assured); credit_cost censused
+  and REJECTED ("provision coverage ratio stands a healthy 75%, with
+  credit cost at 47 bps" parks the neighbor's noun in the figure's
+  post-window); 28 rows relabeled id-keyed under `metric_label IS NULL`,
+  NULL 1,946 → 1,918; **(2) targeted LLM carrier pass** — **DONE
+  2026-10-29**: the session agent acted as the carrier over all 1,918
+  residue groups (dump `bench_data/thin_tail/d3_llm_groups.json`, read in 60-quote
+  slices); 365 rows labeled id-keyed under `metric_label IS NULL` after
+  per-row re-verification of (id, check-substring, label) against the
+  groups file (decisions `bench_data/thin_tail/d3_llm_decisions.json`, applied log
+  `bench_data/thin_tail/d3_llm_pass_2026-10-29.jsonl`); 53 new nouns promoted
+  (gnpa, nnpa, ltv, yield, order_inflow, cost_to_income, occupancy,
+  roe, roa, collections …); honesty doctrine — sub-segment
+  levels/growths, peer/industry figures, mix/coverage shares, bps
+  deltas, and truncated-subject fragments stay NULL; NULL 1,918 →
+  1,553; **(3) the D2 arc** (untickered triage), which may pick up
+  rows/entities surfaced by (1)–(2).
 
 ## 4. Acceptance criteria & shakedown
 
@@ -523,3 +562,11 @@ phrases — no honest keyword label exists.
 | 2026-10-29 | S5.3 migration | 964 heading renames / 619 files; then 41 dup-reverts + 660 chatter + 460+19 convergence | heading lines only |
 | 2026-10-29 | S5 close-out | 406 tests; verify 0 err / 103 advisory (drift tripwire); fixed point 0 | search-fresh at gates |
 | 2026-10-29 | deferred remainder recorded | D1 144 stubs · D2 150 untickered · D3 1,946 NULL labels | §3b, with re-entry triggers |
+| 2026-10-29 | D3 census round 2 (bigram, in-window vs anywhere) | 1,946 = 1,875 prose + 71 HTML-table quotes (Avanti Feeds 56); 500 rows hold a current-vocab noun somewhere (mislabel trap), 1,446 none | artifact bench_data/thin_tail/d3_bigram_census_2026-10-29.txt |
+| 2026-10-29 | D3 vocabulary +9 patterns (credit_cost rejected) | 28 retro-labels id-keyed; NULL 1,946 → 1,918 | 15 targeted label tests pass; ruff clean |
+| 2026-10-29 | D3 LLM carrier pass (session agent as carrier) | 1,918 groups read in 60-quote slices; 365 labels applied id-keyed; NULL 1,918 → 1,553 | d3_llm_groups.json / d3_llm_decisions.json / d3_llm_pass_2026-10-29.jsonl |
+| 2026-10-29 | D3 new-noun promotion | 53 nouns (gnpa, nnpa, ltv, yield, order_inflow, cost_to_income, occupancy, roe, roa, collections …) | distinct labels 85 (pre-census) → 148 (post-pass) |
+| 2026-10-29 | D3 pass honesty doctrine | sub-segment levels/growths, peer/industry, mix/coverage, bps deltas, truncated fragments stay NULL | 1 OCR-garble check fixed (G131 "lana" = land acquisition) |
+| 2026-10-29 | D2 operator triage (menu buckets, rulings m00469) | 15 tickers filled (5 confirmed India + FORBESCO.BO + 6 foreign home-market + CGRAPHICS/TECHERA NSE-SME + GUJGASLTD); untickered note-backed 132 → 117 | d2_menu_dump.json / d2_triage_decisions.json |
+| 2026-10-29 | D2 dispositions + hygiene | entity_ticker_status: Piramal Enterprises amalgamated → Piramal Finance, BPSL/Wabco/Shri Lakshmi/Sterlite Power delisted (CHECK status ∈ delisted\|amalgamated); Forbes Enviro note ticker EUREKAFORB.NS → null (misattribution) | 5 verify-open rows recorded; Mod-Tek merge recommended; 4 stubs routed to D1 |
+| 2026-10-29 | Mod-Tek merge executed (operator ruling) | alias row Mold Tek Packaging ← Mod-Tek Packaging (`entity_identifiers`, namespace newsletter_variant, source_ref merge:d2_triage_2026-10-29); stub body fabricated MOTE.NS claim removed, redirect to [[Mold Tek Packaging]] added; 0 company_metrics rows on Mod-Tek | merge ≠ fill: untickered note-backed stays 117 |

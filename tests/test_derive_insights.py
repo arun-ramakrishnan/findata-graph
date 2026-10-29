@@ -3315,6 +3315,36 @@ class TestMetricLabelVocabulary:
         label = self._label("Capacity guidance for FY27 is 5 GW.", "5 GW")
         assert label == "guidance_capacity"
 
+    def test_d3_round2_bank_and_deal_nouns(self):
+        # thin_tail D3 census round 2 (2026-10-29): census-backed additions
+        assert self._label("We closed the year with NIMs of around 9.18%.", "9.18%") == "nim"
+        assert self._label("NIM as of June was 3.06%.", "3.06%") == "nim"
+        assert self._label("We had record bookings of $22 billion.", "$22 billion") == "bookings"
+        assert self._label("Large deal wins were strong at $3.6 billion.", "$3.6 billion") == "tcv"
+        assert self._label("Total deal wins of $3.794 billion.", "$3.794 billion") == "tcv"
+
+    def test_d3_round2_book_and_raise_nouns(self):
+        assert self._label("loan book where 61% of loans are linked.", "61%") == "loan_book"
+        assert self._label(
+            "We've already raised ₹1,300 crore through a QIP.", "₹1,300 crore"
+        ) == "capital_raise"
+        assert self._label("A media company's ARR expanded from $10 million.", "$10 million") == "arr"
+        assert self._label("which brings the CD ratio to 81.99%.", "81.99%") == "cd_ratio"
+        assert self._label("grew its GTV by 24% year-on-year.", "24%") == "gtv"
+        assert self._label("in-force sum assured grew by 16.9%.", "16.9%") == "sum_assured"
+
+    def test_d3_round2_credit_cost_rejected_stays_null(self):
+        # censused and REJECTED: "credit cost" parks the neighbor's noun
+        # (provision coverage) in the figure's post-window — regex cannot
+        # bind honestly; those rows belong to the LLM pass instead.
+        assert (
+            self._label(
+                "provision coverage ratio stands a healthy 75%, with credit cost at 47 bps",
+                "75%",
+            )
+            is None
+        )
+
 
 class TestPeersBlock:
     """thin_tail S3.3: `## Peers (auto)` sentinel block from graph_edges —

@@ -1,7 +1,7 @@
 ---
 title: Forbes Enviro Solutions
 type: company
-ticker: EUREKAFORB.NS
+ticker: null
 sector: Engineering_Capital_Goods
 market_cap: small_cap
 normalized_name: Forbes_Enviro_Solutions

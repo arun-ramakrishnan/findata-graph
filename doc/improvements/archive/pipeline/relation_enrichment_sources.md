@@ -507,5 +507,5 @@ meant for — named holders with category tags, NSE-symbol cross-reference,
 dual-exchange coverage — feeding the same `invested_in` derivation this
 arc designed. Live 2026-10-28: 1,815 `invested_in` edges; promoter tags
 flow from BSE's t3 table. No ToS gray zone was crossed. Re-anchored from
-the thin_tail arc (`doc/improvements/proposals/notes_thin_tail_quality.md`
+the thin_tail arc (`doc/improvements/archive/pipeline/notes_thin_tail_quality.md`
 S3) when its operator review caught the stale routing.

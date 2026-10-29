@@ -1381,6 +1381,21 @@ _L_UTILIZATION = re.compile(r"\butilization\b|\butilisation\b")
 _L_DIVIDEND = re.compile(r"\bdividend[s]?\b")
 _L_RPO = re.compile(r"\brpo\b")
 _L_REALISATION = re.compile(r"\brealization\b|\brealisation\b")
+# thin_tail D3 census round 2 (2026-10-29): re-run over the residual NULL set
+# (1,946 rows = 1,875 prose + 71 HTML-table quotes; the HTML lane is tracked
+# separately in the archived proposal §3b D3). Nine more census-backed nouns;
+# credit_cost was censused and REJECTED — "provision coverage ratio stands a
+# healthy 75%, with credit cost at 47 bps" parks the neighbor's noun in the
+# figure's post-window, so the regex cannot bind honestly.
+_L_NIM = re.compile(r"\bnims?\b|\bnet interest margin\b")
+_L_BOOKINGS = re.compile(r"\bbookings?\b")
+_L_TCV = re.compile(r"\b(?:tcv|total contract value|deal wins?)\b")
+_L_LOAN_BOOK = re.compile(r"\bloan books?\b")
+_L_CAPITAL_RAISE = re.compile(r"\bqip\b|\brais\w+[^.]{0,30}(?:equity|capital|funds?)\b")
+_L_ARR = re.compile(r"\barr\b")
+_L_GTV = re.compile(r"\bgtv\b")
+_L_CD_RATIO = re.compile(r"\bcd ratio\b")
+_L_SUM_ASSURED = re.compile(r"\bsum assured\b")
 
 # Period tokens (FY / quarter / month-year) — reuse the derive_events shape.
 _FY_RE = re.compile(r"\b(?:Q[1-4]\s*)?FY\s?\d{2,4}\b|\bQ[1-4]\s*CY\s?\d{2,4}\b", re.I)
@@ -1420,6 +1435,15 @@ _METRIC_LABEL_PATTERNS: list[tuple[re.Pattern, str]] = [
     (_L_DIVIDEND, "dividend"),
     (_L_RPO, "rpo"),
     (_L_REALISATION, "realisation"),
+    (_L_NIM, "nim"),
+    (_L_BOOKINGS, "bookings"),
+    (_L_TCV, "tcv"),
+    (_L_LOAN_BOOK, "loan_book"),
+    (_L_CAPITAL_RAISE, "capital_raise"),
+    (_L_ARR, "arr"),
+    (_L_GTV, "gtv"),
+    (_L_CD_RATIO, "cd_ratio"),
+    (_L_SUM_ASSURED, "sum_assured"),
 ]
 
 

@@ -12842,3 +12842,41 @@ trailer, RE_SESS bare session-<uuid> form, RE_PREFIX optional Z suffix.
 Incident: the RE_ABSORB insertion briefly replaced the RE_INJECT
 definition (NameError at _consume_nudge) — restored at
 bili_tier_watch.py:115.
+
+## 453. Thin-tail note quality — five-lane program executed, D1–D3 remainder DEFERRED
+
+**Date:** 2026-10-29 · **Status:** DEFERRED (S1–S5 executed; D1–D3
+tracked remainder) · **Proposal:**
+`doc/improvements/archive/pipeline/notes_thin_tail_quality.md` (filed
+2026-10-28; this entry closes it as deferred).
+
+Trigger was an operator observation ("notes are a bit thin") plus a census
+that measured 1,212 company notes with a 277-note sub-4 KB tail. Executed
+lanes: S1a `--kf-manifest` on the Key-Figures renderer closed the
+run-scoped scan gap (25 blocks written, re-run 0); the S1 close-out moved
+the KF evidence model to a UNION of scan metrics + persisted
+`company_metrics` (chunked `_metrics_from_db`, scan wins), raising KF
+blocks 526 → 1,046 with a 0/983 residual gap. S1b `--from-manifest` on
+`enrich_from_yfinance.py` fetched 139 of 152 tickered stubs in 22.5 s
+(1,701 rows, 112 KF blocks; 6 fetch failures + 7 identity skips
+recorded). S1c `--untickered` on `ticker_hygiene.py` resolved 15 of 161
+notes-only entities and queued 132 in `outputs/ticker_hygiene_report.md`.
+S2 found the magnitude lane's skip guard verifying against the entity
+note instead of the edition file (`derive:metrics:<stem>:<line>`, per-stem
+text cache); the fix recovered 2,226 rows and 397 KF renders
+(76,172 → 78,683 rows / 1,040 entities) and restored the #139 fixed
+point to run 2, while S2.4's ten new label patterns retro-labeled 267
+rows (NULL 3,119 → 2,539). S3–S5 closed the follow-up lanes (see the
+archived copy's Appendix log).
+
+Remainder, re-measured live 2026-10-29: **D1** 144 stubs at `-size -4k`
+(≤3072 B; 202 below 4096 B) — composition is unlisted/private/foreign
+entities and micro-caps Yahoo lacks, needing human body-merging; **D2**
+132 untickered note-backed entities (prose 15/161 resolved, 132
+unresolved) needing an operator triage ruling; **D3** 1,946 NULL
+`metric_label` rows of 78,683 (the S4 relabel; NULL keeps meaning
+"unlabeled" per #308). Re-open: a newsletter edition lands, the ~90
+section-variant + 47 collision curation follow-ups are picked up, the
+operator rules on the ticker queue, or the
+`relation_enrichment_sources` S11 budget releases an LLM-assisted
+labeling pass.
