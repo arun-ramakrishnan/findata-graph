@@ -318,6 +318,56 @@ identity+dims assertion with exit codes, vs the script's process
 view) but aligned to the teleocr-down default — pair only, teleocr
 via `health.py --ocr`.
 
+## 8. Pin A/B: 78651c4 vs b12004 (2026-10-30, clean quiet-box)
+
+The re-pin day's first sweep (Appendix, 2026-10-30 row) ran on a
+contended box at `-t 4` and reads 2–3× low on every leg; it was
+superseded the same day by a controlled A/B. Method: both arms built
+with the same recipe (`GGML_NATIVE=ON`, Release, gcc 15.2.0, vendored
+qwen2vl patch applied to both), old arm = the surviving 2026-10-07
+unified-build `llama-bench` (sha `bec01f3a…`, `llama-server`
+sha `a1beb2b3…` matches the original PROVENANCE row), new arm built
+from a shallow `--branch b12004` clone. Production shape throughout:
+`-t 3 -b 2048`, pp512 with `-n 0` (old arm `-embd 1` per Appendix-A
+lineage; new arm arch-default), teleocr tg128 at `-p 0`; ABBA run
+order, PSI-gated (avg10 ≤ 1.2), 5 reps per leg, load snapshotted per
+invocation.
+
+| leg | 78651c4 | b12004 (3c809f443) | delta |
+|---|---|---|---|
+| embgemma Q8_0 pp512 | 373.45 ± 15.42 | 386.49 ± 0.54 | **+3.5%** |
+| granite/modernbert 97M pp512 | 2000.75 ± 10.42 | 2099.79 ± 67.30 | **+4.9%** |
+| teleocr qwen2vl Q4_K_M pp512 | 213.72 ± 2.02 | 214.87 ± 2.91 | parity |
+| teleocr qwen2vl Q4_K_M tg128 | 44.62–51.42 | 40.19–40.26 | **−16–22%** |
+
+Findings:
+
+- **Embedders genuinely gain** (+3.5% / +4.9% pp) — consistent with the
+  window's x86 CPU-kernel PRs (#30296 tiled accumulators, #30270 F16C
+  fix, #30157 fp32→fp16 vectorize, #30791 silu/expf). The #30445
+  LM-head skip is NOT visible here: both arms already ran embedding-mode
+  graphs (its win is server-side, not llama-bench pp).
+- **TeleOCR decode regressed, repeatably**: tg128 pinned at ≈40.2 t/s
+  (±2.4) vs 44.6–51.4 on the old pin, tight variances both sides.
+  pp is untouched. Suspects: the kernel PRs above or an unlisted
+  qwen2vl graph change in the window (both local clones are shallow;
+  attribution needs the upstream b11457→b12004 range). Production e2e
+  impact is bounded by decode's share of a page — vision mmproj and
+  prefill are unaffected — but the teleocr gate legs will feel it.
+- b12004 is also more *stable* under repeats (embgemma ±0.54 vs ±15.42).
+- Disposition **ACCEPTED 2026-10-30 (operator)**: b12004 stays pinned
+  everywhere. TeleOCR is a standby path in the OCR engine chain
+  (pdf_local default, INDRA rung 2), so its tg regression is tolerable
+  against the embedder gains and the server-side fixes; the 78651c4
+  `llama-server` fossil remains in `bench_data/llamacpp_pins/` should
+  the trade ever need revisiting.
+- Durable artifacts: `bench_data/llamacpp_pins/` — both pin bench
+  binaries (sha256 beside each), the 78651c4 `llama-server` fossil
+  (split-pin fallback), the ABBA runner scripts, and the full results +
+  env log under `ab_2026-10-30/`. Saved after `.scratch/` and
+  `bench_data/embgemma2/outputs/build/` cleanups destroyed the prior
+  fossils and nearly made the A/B impossible.
+
 ## Appendix — raw measurement log
 
 | Run | Command | Result | Notes |
@@ -325,3 +375,5 @@ via `health.py --ocr`.
 | 2026-10-07 | `llama-server 78651c4 -m NaviDC-OCR-Q4_K_M.gguf --mmproj …` :8748 | load FAIL: `blk.0.attn_q.weight expected 1024,1024 got 1024,2048` | stock qwen2vl loader; patch required — `bench_data/teleocr/outputs/build/navidc_load_fail_78651c4.log` |
 | 2026-10-07 | archived binary standalone runs | `5e03bdd` and `78651c4` both `--version` OK from bench_data | $ORIGIN rpath, sha256 beside each |
 | 2026-10-07 | TMPDIR harvest | build logs + binaries → `bench_data/{teleocr,embgemma2}/outputs/build/` | embgemma2-precedent harvest |
+| 2026-10-30 | `llama-bench -m <GGUF> -p 512 -n 128 -t 4 -b 2048` build 3c809f443 (b12004) | embgemma pp512 185.26±15.96 tg128 27.87±9.35 · granite pp512 853.45±184.46 tg128 69.11±26.84 · teleocr pp512 127.16±7.94 tg128 15.18±1.80 | **CONTAMINATED** — contended box (`-t 4`, PSI saga day), reads 2–3× low on every leg; superseded by §8 A/B. Raw: bench_data/{embgemma2,teleocr}/outputs/llama-bench-b12004.md |
+| 2026-10-30 | pin A/B per §8 (`-t 3 -b 2048`, ABBA, PSI ≤1.2) | embgemma pp512 373.45→386.49 (+3.5%) · granite pp512 2000.75→2099.79 (+4.9%) · teleocr pp512 213.72→214.87 (parity) · teleocr tg128 44.62–51.42→40.19–40.26 (−16–22%) | bench_data/llamacpp_pins/ab_2026-10-30/ (results + env.log + runners) |
