@@ -1099,6 +1099,12 @@ def apply(  # noqa: C901
                     continue
             row = dict(base)
             row["reviewed"] = str(raw_reviewed or base.get("reviewed") or date.today().isoformat())
+            # A re-review names the handler state it decided against —
+            # without a restamp the amended row is born STALE (the whole
+            # point of the path is to refresh freshness).
+            live = routes.get(surface)
+            if live:
+                row["fingerprint"] = d.get("fingerprint") or live["fingerprint"]
             if d.get("verdict") is not None:
                 row["verdict"] = d["verdict"]
             if d.get("status") is not None:

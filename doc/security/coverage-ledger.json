@@ -205,10 +205,10 @@
   "kind": "route",
   "attack_class": "injection",
   "reviewed": "2026-10-30",
-  "method": "source+live",
+  "method": "source",
   "verdict": "clean",
-  "fingerprint": "020ffb297809b0ce",
-  "note": "re-review of 828d03804 (graph export, 2026-10-21): handler rewired onto _sqlite_edge_union_sql() — constant-literal UNION ALL subquery, no interpolation; metric allowlist-gated before any use; all queries parameter-bound incl. LIMIT ?"
+  "fingerprint": "d8521943f4e020d5",
+  "note": "re-review 2026-10-30 after the S5 PEP 758 fix (three except clauses parenthesised in-handler): syntax-only, no control-flow or data-flow change; dispositions unchanged from the S1 re-review earlier today"
  },
  {
   "scope": "app",
@@ -902,9 +902,9 @@
   "attack_class": "availability",
   "reviewed": "2026-10-30",
   "method": "source",
-  "fingerprint": "020ffb297809b0ce",
+  "fingerprint": "d8521943f4e020d5",
   "status": "out_of_scope",
-  "note": "re-review of 828d03804 (graph export, 2026-10-21): handler rewired onto _sqlite_edge_union_sql() — constant-literal UNION ALL subquery, no interpolation; metric allowlist-gated before any use; all queries parameter-bound incl. LIMIT ?",
+  "note": "re-review 2026-10-30 after the S5 PEP 758 fix: syntax-only change, cost class unchanged",
   "verdict": "clean"
  },
  {
@@ -914,9 +914,9 @@
   "attack_class": "concurrency",
   "reviewed": "2026-10-30",
   "method": "source",
-  "fingerprint": "020ffb297809b0ce",
+  "fingerprint": "d8521943f4e020d5",
   "status": "out_of_scope",
-  "note": "re-review of 828d03804 (graph export, 2026-10-21): handler rewired onto _sqlite_edge_union_sql() — constant-literal UNION ALL subquery, no interpolation; metric allowlist-gated before any use; all queries parameter-bound incl. LIMIT ?",
+  "note": "re-review 2026-10-30 after the S5 PEP 758 fix: syntax-only change, read-only posture unchanged",
   "verdict": "clean"
  },
  {
@@ -1458,9 +1458,9 @@
   "attack_class": "web-protocol/auth",
   "reviewed": "2026-10-30",
   "method": "source",
-  "fingerprint": "020ffb297809b0ce",
+  "fingerprint": "d8521943f4e020d5",
   "verdict": "clean",
-  "note": "re-review of 828d03804 (graph export, 2026-10-21): handler rewired onto _sqlite_edge_union_sql() — constant-literal UNION ALL subquery, no interpolation; metric allowlist-gated before any use; all queries parameter-bound incl. LIMIT ?"
+  "note": "re-review 2026-10-30 after the S5 PEP 758 fix: syntax-only change, response shapes unchanged"
  },
  {
   "scope": "app",

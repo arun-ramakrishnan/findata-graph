@@ -381,12 +381,17 @@ Open items below keep their revisit triggers inline; executed work is compressed
      within-edge triple (industry 12, sub_sector 9, org_membership 7,
      group 2, sector 1, country 1; edition 0, theme 0) — zero
      multi-edge intersection motifs, norm_delta 0.0 throughout (no
-     enrichment vs config model). Cause: node pools (270–1,211) are
+     enrichment vs config model). ~~Cause: node pools (270–1,211) are
      large relative to edge counts (4–85) → cross-edge 3-node overlaps
-     essentially never occur. REOPEN trigger sharpened: motif signal
-     requires cross-edge node-overlap at motif order — re-probe when a
-     family gains dense shared-membership edges (e.g. event family
-     once participant data arrives, or post-merger same_group churn).
+     essentially never occur.~~ **Cause CORRECTED 2026-10-30
+     (hgx_over_dyads S5):** the census only SEES edges of size ≤ order
+     (`get_edges(size=order, up_to=True)`) — order 3 measured 24.0% of
+     live incidence mass, 93.1% of it event-family clique-expanded dyads.
+     Cross-edge 3-node overlap is in fact MET live (edition 714 entities
+     in ≥2 edges; listed_on_index 753/744; same_group 903/320) — the
+     blocker for any future census is the visibility defect, not
+     sparsity. REOPEN trigger remains: re-probe only with a census that
+     sees the full incidence (or a deliberately clique-expanded one).
   2. **Reducibility** (`layer_reducibility`) — MEASURED 2026-10-28,
      one-shot QA recorded (not wired): editions reducible at layer 3
      (0.637) / layer 4 (0.485) — a majority of edition structure is
@@ -869,3 +874,17 @@ Open items below keep their revisit triggers inline; executed work is compressed
   `round(mean, 1)` at the row build (`run_for_sid` merged row), so every
   renderer/table/json sees a clean value; the padder never sees raw
   floats. Test: `test_shrink_pct_is_rounded_at_the_row`.
+- **LanceDB ANN-only sidecar for convo_search — SHELVED 2026-10-31,
+  trigger-gated** (embedded_db_assessment.md, doc/local/evaluations/):
+  all three single-store candidates (LanceDB/UQA/LatticeDB) REJECTED as
+  FTS5-parity replacements — failures confirmed STRUCTURAL by the
+  same-day audit (AND/OR constructions change nothing; LatticeDB's
+  analyzer is hard-coded; UQA's text_match ignores boolean syntax).
+  LanceDB survives as an ANN-only sidecar candidate (IVF_PQ +
+  refine_factor 5 ~= exact ceiling, 12 ms p50 vs brute force, 61 s
+  build) but the trigger does not exist: the production DuckDB
+  brute-force cosine leg measures ~190 ms steady-state at 179,264 rows.
+  REOPEN on any ONE: cosine leg > ~1 s steady-state p50 (~5× corpus
+  growth); a sub-50 ms interactive consumer fusing convo vector
+  results; or LanceDB 1.0 + a lexical leg passing the assessment's
+  parity protocol (would dissolve the FTS5 carve-out class).

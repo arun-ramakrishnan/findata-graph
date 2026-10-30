@@ -62,7 +62,13 @@ no re-derivation.
    syntax, per-field bm25 weighting are all still absent → Alternate B
    stands (FTS5 stays SQLite permanently as the lexical engine; vectors
    move to DuckDB — brute-force parity proven). This blocker is now
-   VERIFIED-PERMANENT, not merely open.
+   VERIFIED-PERMANENT, not merely open. *(2026-10-30 probe: the gap
+   narrowed further — `match_bm25` accepts per-field `fields:=`
+   scoring scope and `create_fts_index` accepts `stemmer=`/
+   `stopwords=`/`strip_accents=`/`cluster_terms=`/`layered_search=`
+   on 2.0.0; snippet/highlight/phrase/wildcard remain absent. Full
+   note: `duckdb_vector_search_assessment.md` §6 trigger 3. Verdict
+   unchanged.)*
 3. **FK CASCADE still does not port** (re-verified 2.0.0:
    `ON DELETE CASCADE/SET NULL/SET DEFAULT` parse-rejected; plain FK
    enforced RESTRICT-only). Live `research.db` cascades (graph_edges →

@@ -1218,8 +1218,11 @@ def test_amend_revises_an_existing_row_in_place(app2, tmp_path):
     assert amended["verdict"] == "REMEDIATED"
     assert amended["reviewed"] == "2026-10-21"
     assert "amplification measured" in amended["note"]
-    # Untouched fields survive the revision.
-    assert amended["fingerprint"] == "deadbeefdeadbeef"
+    # The re-review names the handler state it decided against: a live
+    # route's fingerprint is RESTAMPED (without it the amended row is born
+    # STALE — the whole point of the path is to refresh freshness). The
+    # 2026-10-30 amend run hit exactly that: rows re-reviewed, still STALE.
+    assert amended["fingerprint"] == cl.route_inventory(app2)["/api/mut"]["fingerprint"]
 
 
 def test_amend_demands_an_existing_row_and_a_real_date(app2, tmp_path):

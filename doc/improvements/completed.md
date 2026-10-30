@@ -12937,3 +12937,103 @@ scans, an invasive separate look on harness-owned stores.
   head of which was the missing `from helpers.core import msgpackio` in
   `embed_cache.py` — a NameError whose broad except silently disabled the
   whole accelerator INCLUDING the JSON fallback.
+
+## 456. graph_analytics served-metric integrity — voterank freshest-wins, clustering off the star, payload replace-on-write
+
+**Date:** 2026-10-30 · **Status:** EXECUTED · **Proposal:**
+`doc/improvements/archive/graph/graph_analytics_integrity.md` (filed
+2026-10-30).
+
+- **S1**: `write_analytics` gains `replace_population=True` (delete
+  NOT-IN-incoming inside the same transaction; empty write never prunes);
+  `_persist_voterank` flips it on; the app.py serve loop reads
+  freshest-first (`ORDER BY computed_at DESC`, first-parseable wins).
+  Store: voterank **10 rows / 1 generation** serving the live seed list
+  incl. correct `Adani Ports and SEZ` (was 26 rows / 7 generations,
+  serving 2026-08-15).
+- **S2**: `_run_clustering` widens the BelongsTo default onto
+  `_centrality_edge_types` at DISPATCH level (compute() and CLI share
+  it); degeneracy guard in `write_analytics` logs 1-distinct-value
+  metrics over >1,000 rows. Store: **19,051 rows / 1,287 distinct**
+  (was 1,209 / 1). `test_clustering_star_is_zero` still passes.
+- **S3**: wcc joins the same universe; CLI `--apply` prints
+  live-vs-stored per metric — immediately caught **+11 residue** on 6
+  upsert-only metrics (11 live-entity stubs with no graph presence;
+  pruned same day by operator direction — 10 person stubs deleted, the
+  exchange-synced "Ashima" entity kept with only its 8 stale rows
+  pruned). Population note in `doc/design/graph_design.md`.
+- **S4**: `link_prediction` reconciles on write (**10,630 rows**, was 3
+  generations totalling ~169k); `helpers/maintenance/prune_analytics.py`
+  (dry-run default, `--db`) — 0 orphans (the 11 census orphans were
+  already cascade-cleaned).
+- **S5**: two formula-debris institution rows deleted via
+  `helpers.core.db.connect()` (68 `invested_in` edges cascade-verified);
+  3 PEP 758 except clauses parenthesised.
+- Eval gate ACCEPT (173 questions, 0 reasons). By-catch: the coverage
+  ledger `amend` path never restamped fingerprints — validator defect
+  fixed + pinned (`test_coverage_ledger.py`).
+
+## 457. hgx_over_dyads — `index` family registered, `group` widened filer-keyed, hy-MMSBM NaN block fixed, #451 record corrected
+
+**Date:** 2026-10-30 · **Status:** EXECUTED · **Proposal:**
+`doc/improvements/archive/graph/hgx_over_dyads.md` (filed 2026-10-30).
+
+- **S1**: `fit_communities` excludes zero-row-sum EM nodes (live: **110
+  excluded**, 2 of them degree-2 — degree was never the invariant) and
+  the `--apply` write is replace-on-write: store reads **0 NaN rows /
+  1,102 total / block 0 = 127 real** (was 100 NaN phantoms / 302
+  block-0 / 1,210 rows). Zero rows are never divided — no
+  RuntimeWarning at all.
+- **S2**: `index` registered in `hyperedge_types` + `_STAR_SOURCES` +
+  ontology roster (alphabetical, before `industry`); applied live:
+  **57 hyperedges / 6,615 incidences**.
+- **S3** (operator direction: widen `group`, not a 13th family):
+  filer-keyed RPT disclosure sets — **498 sets / 10,738 incidences**;
+  curated `$.group` sets coexist; `normalise_relationship` folds the
+  four `Fellow Subsidiary*` spellings (test-pinned); fold provenance
+  **1,545 → 1,450 (filer, class) pairs**; roles = dominant folded class
+  (class-split labels remain a one-line flip; interpretation in
+  `ontology.md` §2.5).
+- **S4** `subsidiary_of`/`supplier_to` DEFERRED per proposal §3 (no new
+  consumer; giant threshold bites).
+- **S5**: #451 motif NO-GO record corrected (archive + pending.md):
+  real cause = `get_edges(size=order, up_to=True)` visibility (24.0%
+  incidence coverage, 93.1% event-family), trigger 1 recorded **MET**
+  (edition 714/455, listed_on_index 753/744, same_group 903/320).
+- Eval gate ACCEPT (173 questions, 0 reasons). Ops: quack stop/start +
+  data-only `graph-rebuild` + `stamp-centrality` around the store
+  writes.
+
+## 458. MST/MSF backbone wiring — stats.py section + `make graph-mst`
+
+**Date:** 2026-10-30 · **Status:** EXECUTED · **Proposal:**
+`doc/improvements/archive/graph/mst_backbone_wiring.md` (filed
+2026-10-30).
+
+- `_print_mst_backbone()` in `helpers/graph/stats.py` (advisory, lazy
+  import, whole-call timer per the proposal's timer rule — the CLI's
+  `elapsed_s` is the scipy leg only): `make graph-stats` prints nodes
+  19,051 | components 114 | forest_edges 18,937 (= V − C) |
+  total_weight 20,993.370 | whole-call 417 ms (scipy leg 5.1 ms) +
+  top-5 edges by weight.
+- `make graph-mst` target + alphabetical help echo + `.PHONY` entry
+  (the 3-line rule; `TestMakefileHelpCompleteness` green).
+- No algorithmic/CLI changes to `l1_mst.py`; 4/4 lane tests; read-only.
+
+## 459. Max bipartite matching wiring — stats.py section + `make graph-matching`
+
+**Date:** 2026-10-30 · **Status:** EXECUTED · **Proposal:**
+`doc/improvements/archive/graph/maximum_bipartite_matching_wiring.md`
+(filed 2026-10-30).
+
+- `_print_supplier_matching()` in `helpers/graph/stats.py` (advisory;
+  timer covers the whole `s2_matching(load_supplier_incidence())` path,
+  labeled "incl. load" — the load dominates at ~880 ms vs the ~3 ms
+  scipy leg): `make graph-stats` prints suppliers 6,083 | consumers
+  8,733 | matching_size 958 | coverage 10.97% | unmatched 7,775 |
+  zero-degree 0 | 920 ms incl. load + the sparse-topology note.
+- `make graph-matching` target + alphabetical help echo (before
+  `graph-mst`) + `.PHONY` entry.
+- No changes to `scipy_matching.py` (the flagged `max_matching_size`
+  permutation-length quirk stays parked for a lane-2 algorithmic pass);
+  10/10 lane tests; read-only.

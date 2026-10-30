@@ -451,6 +451,68 @@ def hyper_structure_lines(conn, top_k: int = 5) -> list[str]:
     return lines
 
 
+def _print_mst_backbone() -> None:
+    """MST/MSF backbone (mst_backbone_wiring S1): whole-graph minimum
+    spanning forest over the lane's projection. Advisory — never fails
+    graph-stats."""
+    print(_hr("MST/MSF backbone (S1 SciPy lane)", "-"))
+    try:
+        import time
+
+        from helpers.graph.l1_mst import mst_forest
+
+        t0 = time.perf_counter()
+        res = mst_forest()
+        elapsed_ms = (time.perf_counter() - t0) * 1000
+        # Timer rule (proposal §3 S1): the WHOLE mst_forest() call is what a
+        # canonical report carries — res["elapsed_s"] covers only the scipy
+        # minimum_spanning_tree leg (~5 ms), not projection + CSR build.
+        print(
+            f"  nodes {res['n_nodes']} | components {res['n_components']} | "
+            f"forest_edges {res['n_forest_edges']} (= V − C) | "
+            f"total_weight {res['total_weight']:.3f}"
+        )
+        print(
+            f"  whole-call {elapsed_ms:.0f} ms (incl. projection + CSR; "
+            f"scipy leg alone {res['elapsed_s'] * 1000:.1f} ms)"
+        )
+        top5 = sorted(res["edges"], key=lambda e: -e[2])[:5]
+        if top5:
+            print("  top edges by weight:")
+            for a, b, w in top5:
+                print(f"    {a} — {b}: {w:.3f}")
+    except Exception as e:  # noqa: BLE001  # advisory section; never fail stats
+        print(f"  (unavailable: {type(e).__name__}: {str(e)[:120]})")
+
+
+def _print_supplier_matching() -> None:
+    """Supplier→consumer max bipartite matching
+    (maximum_bipartite_matching_wiring S1). Advisory — never fails
+    graph-stats."""
+    print(_hr("Supplier→Consumer max bipartite matching (S2 SciPy lane)", "-"))
+    try:
+        import time
+
+        from helpers.graph.scipy_matching import load_supplier_incidence, s2_matching
+
+        t0 = time.perf_counter()
+        res = s2_matching(load_supplier_incidence())
+        elapsed_ms = (time.perf_counter() - t0) * 1000
+        print(
+            f"  suppliers {res['n_suppliers']} | consumers {res['n_consumers']} | "
+            f"matching_size {res['matching_size']} | coverage {res['coverage_pct']:.2f}%"
+        )
+        print(
+            f"  unmatched consumers {len(res['unmatched_consumers'])} | "
+            f"zero-degree {len(res['zero_degree_consumers'])} | "
+            f"elapsed {elapsed_ms:.0f} ms (incl. load)"
+        )
+        if res["coverage_pct"] < 15.0:
+            print("  (sparse — typical for supplier_to topology)")
+    except Exception as e:  # noqa: BLE001  # advisory section; never fail stats
+        print(f"  (unavailable: {type(e).__name__}: {str(e)[:120]})")
+
+
 def _print_structure_metrics() -> None:
     """Print Onager whole-graph metrics and exact stamped structure scalars."""
     print(_hr("Structure (Onager, full edge set)", "-"))
@@ -724,6 +786,11 @@ def print_stats(exact_chains: bool = False) -> int:
         )
 
     _print_structure_metrics()
+
+    # --- SciPy csgraph lanes (mst_backbone_wiring S1 +
+    # maximum_bipartite_matching_wiring S1; advisory, never fail stats) ---
+    _print_mst_backbone()
+    _print_supplier_matching()
 
     # --- Longest chains (capture quality across domains) ---
     print(_hr("Longest chains — capture quality across domains", "-"))

@@ -70,6 +70,40 @@ commit, referenced by nothing). Entry numbers point at
 
 ## graph/ — Graph layer — algorithms, DuckPGQ retirement, Onager, knowledge-model design
 
+- [`mst_backbone_wiring.md`](graph/mst_backbone_wiring.md) — MST/MSF
+  backbone wiring — `_print_mst_backbone()` advisory section in stats.py
+  (whole-call timer per the proposal's rule; live: 19,051 nodes / 114
+  components / 18,937 forest edges / weight 20,993.370 / 417 ms whole-call
+  vs 5.1 ms scipy leg) + `make graph-mst` target; S3 gate registration
+  deferred — completed.md #458
+- [`maximum_bipartite_matching_wiring.md`](graph/maximum_bipartite_matching_wiring.md) —
+  supplier→consumer matching wiring — `_print_supplier_matching()`
+  advisory section in stats.py (timer "incl. load"; live: 6,083 × 8,733,
+  matching 958 = 10.97% coverage, 920 ms incl. load) + `make
+  graph-matching` target; the `max_matching_size` permutation-length
+  quirk parked for a lane-2 algorithmic pass; S3 deferred —
+  completed.md #459
+- [`graph_analytics_integrity.md`](graph/graph_analytics_integrity.md) —
+  served-metric integrity repair — `write_analytics(replace_population=)`
+  (voterank + link_prediction + hypermmsbm reconcile on write; empty
+  write never prunes); app.py voterank serve freshest-first; clustering
+  AND wcc BelongsTo defaults widened onto `_centrality_edge_types` at
+  dispatch level (1,209 rows/1 distinct → 19,051/1,287 distinct);
+  live-vs-stored drift print per `--apply` (caught +11 stub residue —
+  10 person stubs deleted, exchange-synced "Ashima" kept, rows pruned);
+  `prune_analytics.py` sweep (dry-run default); 2 formula-debris
+  entities deleted (68 edges cascaded); 3 PEP 758 excepts parenthesised;
+  by-catch: coverage-ledger `amend` fingerprint restamp defect fixed +
+  pinned — completed.md #456
+- [`hgx_over_dyads.md`](graph/hgx_over_dyads.md) — dyads → hyperedges —
+  hy-MMSBM zero-row-sum guard (110 nodes excluded live; store 0 NaN /
+  1,102 rows / block-0 = 127 real vs 100 phantoms/302/1,210); `index`
+  family registered + applied (57 hyperedges / 6,615 incidences);
+  `group` widened filer-keyed per operator direction (498 RPT disclosure
+  sets / 10,738 incidences; relationship case-fold 1,545 → 1,450 pairs,
+  test-pinned; class-split labels = one-line flip if ever wanted);
+  `subsidiary_of`/`supplier_to` DEFERRED; #451 motif NO-GO cause
+  corrected (census visibility 24.0%, trigger 1 MET) — completed.md #457
 - [`hgx_unlock_shelf_probe.md`](graph/hgx_unlock_shelf_probe.md) —
   probe the six D10-archive §4 trigger-gated HGX capabilities; probed
   and DEFERRED same day (2026-10-28): motifs census NO-GO (only

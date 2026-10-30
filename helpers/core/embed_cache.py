@@ -211,8 +211,10 @@ def _rust_cache_lookup(
             check=False,
         )
         if result.returncode:
-            detail = (result.stderr.decode("utf-8", "replace").strip() if result.stderr
-                      else f"exit code {result.returncode}")
+            stderr = result.stderr
+            if isinstance(stderr, bytes):
+                stderr = stderr.decode("utf-8", "replace")
+            detail = stderr.strip() if stderr else f"exit code {result.returncode}"
             warn_once(detail)
             return None
 

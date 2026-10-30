@@ -69,6 +69,10 @@ dependencies = [
     # GGUF via llama.cpp, CPU-only, no torch. Built from sdist on first install
     # (gcc/cmake needed); the model file itself is gitignored under models/.
     "llama-cpp-python",
+    # Binary msgpack transport (helpers/core/msgpackio.py — internal
+    # transport shim S1; helpers/graph/extract_relations.py — Edge/Unresolved
+    # msgspec.Struct classes). Imported directly, not transitively, so declared.
+    "msgspec",
     # Google Finance and Sheets API
     "gspread",
     # FinnHub API
@@ -147,124 +151,3 @@ tui = [
     "tree-sitter",
     "tree-sitter-sql",
 ]
-
-mojo = [
-    # Mojo Lang support — compiler toolchain only.
-    "mojo",
-    "max",
-]
-
-# Review-tooling scanners — CLI-only, never imported from the codebase.
-# `uv sync --extra review`; uv.lock holds the resolved pins (unpinned
-# specs by house convention — bumps ride the regular lock refresh).
-# Versions as of 2026-10-09: semgrep 1.180.0, bandit 1.9.4,
-# shellcheck-py 0.11.0.1. sqlfluff is the sqllint-equivalent SQL leg
-# (sqllint itself ships only inside the OpenQodex bundle). gitleaks and
-# osv-scanner have no PyPI distribution — those legs stay binaries
-# (gitleaks at ~/.local/bin; osv-scanner's built-in copy is current).
-review = [
-    "semgrep",
-    "bandit",
-    "shellcheck-py",
-    "sqlfluff",
-]
-
-[tool.uv]
-# Non-packaged project: `uv sync` installs dependencies without building the
-# project itself (there is no [build-system]).
-package = false
-
-[tool.ruff]
-# Ruff linter config — replaces flake8 (2026-08-13).
-#
-# Scope: real-bug catches only (pycodestyle "E" + pyflakes "F"), mirroring
-# what flake8 enforced. Stylistic rule sets (SIM/UP/RUF/PLC/TRY/DTZ/S/...)
-# are intentionally NOT selected so the gate stays meaningful on this legacy
-# codebase. `make lint` runs `ruff check .`.
-#
-# E501 (line length) is ignored: the repo permits long lines (tests reach
-# 259 chars) and the existing `static_checks.py` gate does not enforce it.
-line-length = 100
-target-version = "py314"
-
-[tool.ruff.lint]
-select = ["E", "F"]
-ignore = ["E501"]
-
-# E402 (module-import-not-at-top): every match in this repo is an intentional,
-# structural sys.path / pytest.importorskip bootstrap — the helper scripts are
-# run directly (`python3 helpers/...`) and must put repo-root on sys.path before
-# importing the helpers package; test files do the same. Inline `# noqa` on
-# every such line would be pure noise, so these files opt out of E402 instead.
-# Scope is deliberately narrow (only files that actually bootstrap) so a real
-# late-import bug elsewhere still gets caught.
-# tests/**: S101 asserts are the contract; S311 — seeded random.Random(7) is a
-# determinism fixture (same rule as hyper_scale_bench.py below, seed=7), never a
-# crypto context; S603 — tests deliberately shell out to repo-local binaries
-# (Mojo lanes) and to a clean-interpreter python for backend-order proofs, all
-# with argv built from known paths, never untrusted input.
-[tool.ruff.lint.per-file-ignores]
-"tests/**/*.py" = ["E402", "S101", "S311", "S603"]
-"doc/templates/test_module.py" = ["S101"]  # test SEED — asserts are the contract (same rationale as tests/**)
-# query.py composes parameterized SQL by purpose — every S608 there is the
-# same reviewed pattern (interpolations are ?-clause builders / constant
-# identifiers; values always bound). Per-file rule beats ~15 inline noqas
-# that ruff-format keeps stranding off their anchor lines (corpus_uniformity S7b).
-"helpers/graph/query.py" = ["S608"]
-# hyper_hif.py: same reviewed pattern as query.py — DuckDB ATTACH-count and
-# export queries interpolate only ?-clause builders (ph) / constant
-# identifiers; values always bound (S18(d) roundtrip validator).
-# hyper_arrow.py / hyper_centralities.py / hyper_data_bench.py: the same
-# hyper-lane pattern (ATTACH + IN-clause builders over constant column
-# lists; values bound) — S18/S19/S20 arcs.
-"helpers/graph/hyper_hif.py" = ["S608"]
-"helpers/graph/hyper_arrow.py" = ["S608"]
-"helpers/graph/hyper_centralities.py" = ["S608"]
-"helpers/bench/hyper_data_bench.py" = ["S608"]
-# hyper_scale_bench.py: seeded random.Random IS the benchmark's synthetic
-# generator (determinism contract, seed=7) — not a crypto context.
-"helpers/bench/hyper_scale_bench.py" = ["S311"]
-"helpers/core/get_tickers.py" = ["E402"]
-"helpers/core/parse_newsletter.py" = ["E402"]
-"helpers/core/vss_index.py" = ["E402"]
-"helpers/graph/embeddings.py" = ["E402"]
-"helpers/validators/verify_notes.py" = ["E402"]
-"helpers/pdf/pdf_conv_md.py" = ["E402"]
-
-[tool.deptry]
-# Treat the local package as first-party so it isn't flagged as an undeclared dep.
-# Reads [project].dependencies + [project.optional-dependencies] directly.
-known_first_party = ["helpers", "app", "core", "mojo_regex_battery"]
-# doc/templates seeds import their toolchain (pytest, helpers) to TEACH it —
-# they are not shipped code; exclude them from dependency analysis.
-# Mojo/bench is the same class: bench/scale tooling (max_real_matmul,
-# flat_knn) that legitimately imports the dev-group `max` toolchain and
-# numpy directly — measured, not shipped (corpus_embeddings_scaling S2c).
-extend_exclude = ["doc/templates", "Mojo/bench"]
-# The `dev`, `mojo` and `review` optional-dependencies groups hold command-line
-# tooling (pytest, hypothesis, ruff, ty, deptry; the mojo + max compiler
-# toolchain; the semgrep/bandit/shellcheck review scanners) that is never
-# imported from the codebase, so deptry cannot observe it as "used".
-# Marking the groups as dev suppresses the spurious DEP002
-# (declared-but-unused) for their packages.
-optional_dependencies_dev_groups = ["dev", "mojo", "review"]
-# gunicorn (prod WSGI server, invoked by nixpacks.toml `cmd = "gunicorn app:app"`)
-# and werkzeug (WSGI/serving, pulled in transitively by Flask) are runtime deps that
-# are not imported in the codebase. They are genuinely used, so silence DEP002 for
-# them specifically (package-scoped, so a newly-unused dep would still be caught).
-# findata-knowledge-graph is the `all` meta-extra's self-reference to the project
-# itself; with [tool.uv] package = false it is never installed, so it can never be
-# imported either.
-# regex: imported only by Mojo/bench tooling (mojo_regex_battery.py,
-# mojo_regex_corpus.py), which extend_exclude removes from scanning — it
-# stays a direct dependency for the same reason it was promoted 2026-08-30
-# (bench code is code, it just isn't shipped).
-# tree-sitter + tree-sitter-sql: DbScreen SQL highlighting — the TextArea
-# loads the grammar at runtime (TextArea language="sql"), so no repo file
-# imports them directly; declared in the tui extra, not the dev group.
-# cosine_knn: the locally-built Rust pyo3 extension (make rust-install) — a
-# bare cosine_knn.abi3.so copied into site-packages with NO distribution
-# metadata, so deptry can only classify it as transitive. Imported solely by
-# Rust/bench/cosine_gate.py (gate timing harness, SCRIPT_KNN_STRICT pins it).
-per_rule_ignores.DEP002 = ["gunicorn", "Werkzeug", "finnhub-python", "regex", "tree-sitter", "tree-sitter-sql"]
-per_rule_ignores.DEP003 = ["cosine_knn"]

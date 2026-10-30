@@ -38,8 +38,26 @@ entry number and stale DONE pointers):
 
 ## Current live proposals
 
-- *(none)* — every proposal filed here is executed and archived. Most
-  recent: `db_scaling_tuning` (filed 2026-10-29, executed 2026-10-30,
+- *(none)* — every proposal filed here is executed and archived.
+  Most recent: `mst_backbone_wiring` (filed 2026-10-30, executed
+  2026-10-30, #458,
+  `../archive/graph/mst_backbone_wiring.md`; stats.py advisory section
+  + `make graph-mst`) and `maximum_bipartite_matching_wiring` (filed
+  2026-10-30, executed 2026-10-30, #459,
+  `../archive/graph/maximum_bipartite_matching_wiring.md`; stats.py
+  advisory section + `make graph-matching`), then
+  `graph_analytics_integrity` (filed + executed
+  same day 2026-10-30, #456,
+  `../archive/graph/graph_analytics_integrity.md`; voterank
+  freshest-wins + replace-on-write, clustering/wcc off the star at
+  dispatch level, live-vs-stored drift print, `prune_analytics.py`
+  sweep, debris-entity quarantine; ledger-amend fingerprint-restamp
+  defect fixed as by-catch) and `hgx_over_dyads` (filed + executed same
+  day 2026-10-30, #457, `../archive/graph/hgx_over_dyads.md`; hy-MMSBM
+  NaN guard, `index` family 57/6,615, `group` widened filer-keyed
+  498/10,738 with fold provenance 1,545→1,450, `subsidiary_of`/
+  `supplier_to` DEFERRED, #451 record corrected), then
+  `db_scaling_tuning` (filed 2026-10-29, executed 2026-10-30,
   #454, `../archive/database/db_scaling_tuning.md`; §3.2 conn cache +
   §3.3 SQLite cache 80→256MB landed in `db_tuning`, §3.1 threads/
   memory_limit declined, §6.3 orjson ADOPTED via `helpers/core/jsonio.py`,

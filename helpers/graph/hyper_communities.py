@@ -121,10 +121,20 @@ def fit_communities(
     """Fit Hy-MMSBM; return ``{entity: {block, memberships, k, seed}}``.
 
     ``incidence`` must already be filtered (:func:`_exclude_degenerate`) —
-    singletons NaN the EM and giants collapse it (measured, §module doc).
-    Memberships are row-normalised (each company's soft assignments sum to
-    1). Deterministic for a fixed seed (measured: two seeded fits bitwise
-    equal).
+    singleton hyperedges NaN the EM and giants collapse it (measured,
+    §module doc). Memberships are row-normalised (each company's soft
+    assignments sum to 1). Deterministic for a fixed seed (measured: two
+    seeded fits bitwise equal).
+
+    Nodes the EM never saw (``model.u`` row-sum exactly 0) are EXCLUDED
+    from the returned mapping and reported on stderr
+    (graph_analytics_integrity-adjacent hgx_over_dyads S1): the
+    row-normalisation below turns a zero row into 0/0 = NaN, and
+    ``argmax`` on an all-NaN row returns 0 — silently manufacturing
+    block-0 members (measured: 100 stored / 121 fresh rows, 59.3% of
+    block 0 on a fresh fit). A node with no EM mass has no community;
+    inventing one is the defect. Degree is NOT the invariant — 2 of the
+    121 measured zero-rows were degree-2 — the row-sum is.
     """
     Hypergraph, HyMMSBM = _require_hgx()
     hg = Hypergraph(edge_list=[tuple(members) for members in incidence.values()])
@@ -132,11 +142,30 @@ def fit_communities(
     model.fit(hg, n_iter=n_iter)
 
     node2id = hg.get_mapping()._to_int
-    u = model.u / model.u.sum(axis=1, keepdims=True)
     id2node = {v: name for name, v in node2id.items()}
+    raw = model.u
+    row_sums = raw.sum(axis=1)
+    zero_mask = row_sums == 0
+    # Normalise only rows with mass — zero rows stay untouched (0.0), so no
+    # 0/0 divide (and no RuntimeWarning) ever happens; they are excluded
+    # below and never served.
+    u = raw.copy()
+    nz = ~zero_mask
+    u[nz] = raw[nz] / row_sums[nz][:, None]
+    if zero_mask.any():
+        unassigned = [id2node[i] for i in range(raw.shape[0]) if zero_mask[i]]
+        print(
+            f"NOTE: {len(unassigned)} node(s) with zero EM row-sum excluded "
+            "(no community the model can serve; argmax-on-NaN would fake "
+            f"block 0): {', '.join(unassigned[:5])}"
+            + (" ..." if len(unassigned) > 5 else ""),
+            file=sys.stderr,
+        )
     hard = u.argmax(axis=1)
     out: dict[str, dict[str, Any]] = {}
     for i in range(u.shape[0]):
+        if zero_mask[i]:
+            continue
         name = id2node[i]
         out[name] = {
             "block": int(hard[i]),
@@ -296,9 +325,15 @@ def _cli(argv: list[str] | None = None) -> int:
     if args.sweep:
         ks = [int(x) for x in args.sweep.split(",") if x.strip()]
         rows = sweep_k(
-            kept, ks=ks, seed=args.seed, n_iter=args.n_iter, allow_giant=args.allow_giant
+            kept,
+            ks=ks,
+            seed=args.seed,
+            n_iter=args.n_iter,
+            allow_giant=args.allow_giant,
         )
-        print(f"{'K':>4} {'log_likelihood':>16} {'bic':>12} {'effective_blocks':>16} {'fit_s':>7}")
+        print(
+            f"{'K':>4} {'log_likelihood':>16} {'bic':>12} {'effective_blocks':>16} {'fit_s':>7}"
+        )
         for r in rows:
             print(
                 f"{r['k']:>4} {r['log_likelihood']:>16} {r['bic']:>12} "
@@ -325,7 +360,11 @@ def _cli(argv: list[str] | None = None) -> int:
     if args.apply:
         from helpers.graph.algorithms import write_analytics
 
-        n = write_analytics(METRIC, memberships)
+        # hgx_over_dyads S1: the fit's assigned population IS the metric's
+        # population — replace-on-write so rows of nodes excluded by the
+        # zero-row-sum guard (and earlier generations generally) cannot
+        # linger as phantom block-0/NaN rows in the served store.
+        n = write_analytics(METRIC, memberships, replace_population=True)
         print(f"APPLY: wrote {n} rows to graph_analytics (metric {METRIC})")
     else:
         print("DRY-RUN (use --apply to persist to graph_analytics)")

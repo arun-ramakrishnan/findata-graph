@@ -333,3 +333,31 @@ class TestGraphMetricsPayloadMetrics:
             r = client.get("/api/graph/metrics/voterank?entity=Nobody")
         assert r.status_code == 200
         assert r.get_json()["seeds"] == ["HDFC Bank", "Infosys"]
+
+    def test_voterank_serves_freshest_generation(self, tmp_path):
+        # graph_analytics_integrity D2/S1: the pre-S1 serve loop had no
+        # ORDER BY — the autoindex scan hit the alphabetically-first row,
+        # whose payload was a 2.5-month-old seed list. Belt-and-braces read
+        # fix: freshest computed_at wins even in a mixed-generation store.
+        db_path = tmp_path / "j3_graph.db"
+        with _seeded_sqlite_db_with_analytics(tmp_path) as client:
+            conn = sqlite3.connect(str(db_path))
+            conn.execute(
+                "INSERT INTO graph_analytics(entity_name, metric, value, computed_at) "
+                "VALUES (?, 'voterank', ?, ?)",
+                (
+                    # alphabetically first — the row the old scan served
+                    "A_Stale_Sector",
+                    '{"seeds": ["A_Stale_Sector", "Old_Sector"]}',
+                    "2026-08-15 02:54:13",
+                ),
+            )
+            conn.execute(
+                "UPDATE graph_analytics SET computed_at = '2026-10-21 15:16:01' "
+                "WHERE metric = 'voterank' AND entity_name != 'A_Stale_Sector'"
+            )
+            conn.commit()
+            conn.close()
+            r = client.get("/api/graph/metrics/voterank")
+        assert r.status_code == 200
+        assert r.get_json()["seeds"] == ["HDFC Bank", "Infosys"]

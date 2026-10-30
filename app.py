@@ -3403,22 +3403,31 @@ def api_graph_metrics(metric: str):  # noqa: C901
         if metric_lc in _PAYLOAD_GRAPH_METRICS:
             # graph_docs_ui_redesign S1: structured payloads persisted by
             # algorithms._persist_link_prediction / _persist_voterank.
+            # voterank reads freshest-first (ORDER BY computed_at DESC) so a
+            # mixed-generation store serves the newest seed list, not
+            # whichever row the autoindex scan happens to hit first — that
+            # ordering served a 2.5-month-old list (graph_analytics_integrity
+            # D2). Replace-on-write (S1) keeps the store single-generation;
+            # this ordering is the belt-and-braces read fix.
             rows = conn.execute(
-                "SELECT entity_name, value FROM graph_analytics WHERE metric = ?",
+                "SELECT entity_name, value, computed_at FROM graph_analytics "
+                "WHERE metric = ? ORDER BY computed_at DESC",
                 (metric_lc,),
             ).fetchall()
             if metric_lc == "voterank":
                 # Graph-valued: every seed row carries the same ordered
-                # {"seeds": [...]} list — serve it once.
+                # {"seeds": [...]} list — serve it once, from the freshest
+                # row that parses.
                 seeds: list[str] = []
                 for r in rows:
                     try:
                         parsed = jsonio.loads(r["value"])
-                    except ValueError, TypeError:
+                    except (ValueError, TypeError):
                         continue
                     cand = parsed.get("seeds")
-                    if isinstance(cand, list) and len(cand) > len(seeds):
+                    if isinstance(cand, list) and cand:
                         seeds = [s for s in cand if isinstance(s, str)]
+                        break
                 return jsonify(
                     {
                         "metric": metric_lc,
@@ -3432,7 +3441,7 @@ def api_graph_metrics(metric: str):  # noqa: C901
             for r in rows:
                 try:
                     parsed = jsonio.loads(r["value"])
-                except ValueError, TypeError:
+                except (ValueError, TypeError):
                     continue
                 cands = [
                     {"name": c.get("name"), "score": c.get("score")}
@@ -3528,7 +3537,7 @@ def api_graph_metrics(metric: str):  # noqa: C901
             for r in rows:
                 try:
                     parsed = jsonio.loads(r["value"])
-                except ValueError, TypeError:
+                except (ValueError, TypeError):
                     continue
                 label = parsed.get(label_key)
                 if isinstance(label, int):

@@ -68,6 +68,14 @@ verbose report and its own gate_query digest.
 
 ## Phase 2 — fix loop (targeted only)
 
+- Before treating ANY red as live work, verify the report is CURRENT:
+  `git merge-base --is-ancestor <report-commit> HEAD`. A gate report from
+  a commit that is not an ancestor of HEAD describes history that was
+  amended/rebased away — its failures may already be fixed (2026-10-30:
+  qa run 2048's static_checks/pytest/schema-check reds were all fixed by
+  an upstream commit; ~30 min of re-derivation skipped once the check
+  was known). Stale report ≠ green tree: re-run the leg on HEAD after
+  confirming.
 - NEVER `make pytest` / `make test` — the suite is ~3,941 tests. Fix, then
   validate the exact nodes:
   `.venv/bin/python3 -m pytest tests/test_x.py -k <name>`.

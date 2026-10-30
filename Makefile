@@ -57,7 +57,7 @@ export PATH := $(CURDIR)/.venv/bin:$(PATH)
 export TMPDIR ?= $(shell test -d /mnt/data/tmp && { mkdir -p /mnt/data/tmp/findata; echo /mnt/data/tmp/findata; } || echo /tmp)
 
 
-.PHONY: help qa test live-invariants perf cover fuzz integration snapshot snapshot-check snapshot-restore sync-tags sync-coverage-tags sync-sector-links static-checks license-check tmp-sweep install-dev triage-quotes gate-fresh graph-smoke graph-stats graph-algos graph-rebuild graph-rebuild-bench update-extensions recompute-graph recompute-hyper search-fresh convo-fresh embed-gc search-tui tier-nudge tier-watch derive-relations derive-co-mentions derive-org-membership derive-event-participants derive-merger-hyperedges dup-census person-census derive-themes derive-events derive-insights derive-indices quote-coverage derive-themes-rebuild derive-cited-in derive-cited-in-rebuild derive-hyperedges derive-relational-insights derive-all refresh-indices refresh-vigil refresh-shp rust-clippy rust-format rust-install rust-test frontend frontend-check fold-identifiers format maint maint-full md-lint metrics-rebuild mojo-bench mojo-parity mojo-build mojo-test mojo-format relations-enrich lint types types-tests lint-audit deptry advisory ocr-version-check onager-build secret-scan cargo-audit script-search-rebuild memory-search-rebuild triage-relations teleocr-server embgemma-server granite-server llamacpp-build llamacpp-health quack-start quack-stop quack-status quack-restart quack-health csr csr-check csr-rebuild convo-search-rebuild convo-search-check analytics-parquet analytics-fresh schema-check schema-dump bili-status bili-monitor bili-stop-monitor bili-report bili-snap bili-watch-event bili-thresh-replay
+.PHONY: help qa test live-invariants perf cover fuzz integration snapshot snapshot-check snapshot-restore sync-tags sync-coverage-tags sync-sector-links static-checks license-check tmp-sweep install-dev triage-quotes gate-fresh graph-smoke graph-stats graph-algos graph-matching graph-mst graph-rebuild graph-rebuild-bench update-extensions recompute-graph recompute-hyper search-fresh convo-fresh embed-gc search-tui tier-nudge tier-watch derive-relations derive-co-mentions derive-org-membership derive-event-participants derive-merger-hyperedges dup-census person-census derive-themes derive-events derive-insights derive-indices quote-coverage derive-themes-rebuild derive-cited-in derive-cited-in-rebuild derive-hyperedges derive-relational-insights derive-all refresh-indices refresh-vigil refresh-shp rust-clippy rust-format rust-install rust-test frontend frontend-check fold-identifiers format maint maint-full md-lint metrics-rebuild mojo-bench mojo-parity mojo-build mojo-test mojo-format relations-enrich lint types types-tests lint-audit deptry advisory ocr-version-check onager-build secret-scan cargo-audit script-search-rebuild memory-search-rebuild triage-relations teleocr-server embgemma-server granite-server llamacpp-build llamacpp-health quack-start quack-stop quack-status quack-restart quack-health csr csr-check csr-rebuild convo-search-rebuild convo-search-check analytics-parquet analytics-fresh schema-check schema-dump bili-status bili-monitor bili-stop-monitor bili-report bili-snap bili-watch-event bili-thresh-replay
 
 help:           ## Show available targets (alphabetical; entries generated from the ## annotations — keep both in sync)
 > @echo "FinData targets (alphabetical):"
@@ -110,6 +110,8 @@ help:           ## Show available targets (alphabetical; entries generated from 
 > @echo "  git-fresh                Check git-history index freshness — commit/diff search over main (every check runs even if one fails; exit 1 on drift; APPLY=1 reconciles the SHA set incrementally; also run by make search-fresh)"
 > @echo "  granite-server           Start the granite-embedding-97m llama-server (Q8_0 from models/) on 127.0.0.1:8733 — Ctrl-C to stop; local_embedder only ever assumes it is running (D3), never spawns it"
 > @echo "  graph-algos              Smoke test the Onager algorithm layer (all 14 metrics, no writes)"
+> @echo "  graph-matching           Print supplier→consumer max bipartite matching (S2 SciPy lane)"
+> @echo "  graph-mst                Print the MST/MSF backbone (S1 SciPy lane) whole-graph spanning forest"
 > @echo "  graph-rebuild            Rebuild the disk-based DuckDB cache from SQLite, data-only (run after parse_newsletter --apply / derive-relations)"
 > @echo "  graph-rebuild-bench      Measure the production graph-rebuild cost ladder (tests/bench_rebuild_scale.py; opt-in, NOT a perf leg)"
 > @echo "  graph-smoke              Quick smoke test of the graph query layer (sector-of + neighbors)"
@@ -388,6 +390,12 @@ graph-smoke:    ## Quick smoke test of the graph query layer (sector-of + neighb
 
 graph-stats:    ## Print a one-shot summary of the graph state (entities, edges, sectors, hygiene)
 > python3 helpers/graph/stats.py
+
+graph-matching: ## Print supplier→consumer max bipartite matching (S2 SciPy lane)
+> python3 helpers/graph/scipy_matching.py match-suppliers
+
+graph-mst:      ## Print the MST/MSF backbone (S1 SciPy lane) whole-graph spanning forest
+> python3 helpers/graph/l1_mst.py mst-backbone --format summary
 
 analytics:       ## Read-only analytics over the git-tracked Parquet snapshot (A3; arg = report name)
 > python3 helpers/graph/analytics.py $(REPORT)

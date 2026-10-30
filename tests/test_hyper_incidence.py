@@ -471,6 +471,67 @@ Prose line two.
 
 
 # --------------------------------------------------------------------------- #
+# hgx_over_dyads S3: RPT disclosure sets widen `group`                         #
+# --------------------------------------------------------------------------- #
+class TestRPTDisclosureSets:
+    """hgx_over_dyads S3 (operator direction: widen `group`, not a 13th
+    family): one set per RPT filer (source_ref), the normalised relationship
+    class rides the incidence role, curated $.group sets coexist."""
+
+    def test_relationship_case_fold_collapses_spellings(self):
+        fold = dh.normalise_relationship
+        # the proposal's four spellings are one class
+        assert fold("Fellow Subsidiary") == fold("Fellow subsidiary")
+        assert fold("Fellow Subsidiaries") == fold("Fellow Subsidiary Company")
+        assert fold("Fellow Subsidiary") == "fellow subsidiary"
+        # general folding sanity
+        assert fold("Associates") == "associate"
+        assert fold("Promoters Group") == fold("Promoter group") == "promoter group"
+        assert fold("  Promoter   Group ") == "promoter group"
+        assert fold(None) is None
+
+    def test_filer_keyed_sets_with_dominant_class_roles(self, conn):
+        c = conn
+        dyads = [
+            ("Alpha", "Delta", "vigil:rpt:TCS", {"relationship": "Fellow Subsidiary"}),
+            ("Beta", "Delta", "vigil:rpt:TCS", {"relationship": "Fellow subsidiary"}),
+            ("Gamma", "Delta", "vigil:rpt:TCS", {"relationship": "Fellow Subsidiaries"}),
+            # direction-swapped: graph_edges is UNIQUE(source, target,
+            # edge_type), so a second class on the same pair rides the
+            # reverse direction — exactly how the live store carries the
+            # measured multi-class (filer, member) pairs
+            ("Delta", "Alpha", "vigil:rpt:TCS", {"relationship": "Associate"}),
+            ("Delta", "Beta", "vigil:rpt:TCS", {"relationship": "Associate"}),
+        ]
+        c.executemany(
+            "INSERT INTO graph_edges (source, target, edge_type, properties, source_ref) "
+            "VALUES (?, ?, 'same_group', ?, ?)",
+            [(s, t, json.dumps(p), ref) for s, t, ref, p in dyads],
+        )
+        c.commit()
+        groups, roles, counts = dh.collect_rpt_disclosure_sets(c)
+        # filer-keyed: ONE set, both endpoints are members
+        assert set(groups) == {"vigil:rpt:TCS"}
+        assert groups["vigil:rpt:TCS"] == {"Alpha", "Beta", "Gamma", "Delta"}
+        # dominant folded class: fellow subsidiary 3 dyads vs associate 2
+        assert roles[("vigil:rpt:TCS", "Delta")] == "fellow subsidiary"
+        assert roles[("vigil:rpt:TCS", "Gamma")] == "fellow subsidiary"
+        # 1-1 vote tie -> deterministic lexicographic winner
+        assert roles[("vigil:rpt:TCS", "Alpha")] == "associate"
+        assert roles[("vigil:rpt:TCS", "Beta")] == "associate"
+        # fold provenance recorded: 4 raw (filer, class) spellings -> 2 folded
+        assert counts == {"pre_fold_sets": 4, "post_fold_sets": 2}
+
+    def test_curated_group_sets_coexist(self, conn):
+        # the fixture's $.group dyad (M Group) is untouched; the base
+        # fixture carries no vigil:rpt rows, so the widening adds nothing
+        hyper, _w = dh.collect_hyperedges(conn)
+        assert hyper["group"] == {"M Group": {"Alpha", "Beta"}}
+        groups, roles, _counts = dh.collect_rpt_disclosure_sets(conn)
+        assert groups == {} and roles == {}
+
+
+# --------------------------------------------------------------------------- #
 # Consumer                                                                     #
 # --------------------------------------------------------------------------- #
 class TestConsumer:
@@ -543,6 +604,46 @@ class TestConsumer:
         m = hc.fit_communities(inc, k=2, seed=42, n_iter=200)
         blocks = {p["block"] for p in m.values()}
         assert blocks == {0}  # collapsed: the degeneracy the guard exists for
+
+    def test_fit_excludes_zero_row_sum_nodes(self, monkeypatch):
+        """hgx_over_dyads S1: nodes the EM never saw (model.u row-sum == 0)
+        are EXCLUDED from the mapping, not argmax-NaN'd into block 0.
+
+        Measured live: 100 stored / 121 fresh rows carried all-NaN
+        memberships with block 0 — np.argmax on a 0/0 row returns 0, so
+        the phantom rows were served as a real community (59.3% of block 0
+        on a fresh fit). A node with no EM mass has no community. Degree is
+        NOT the invariant (2 of the 121 were degree-2) — the row-sum is.
+
+        Pinned with a fake model zeroing one u row: deterministic plant of
+        the measured failure shape (the EM reaches it stochastically on the
+        live store, so a real fit cannot pin it). Non-vacuous: with the
+        guard reverted the node reappears with block 0 and NaN memberships.
+        """
+        import numpy as np
+
+        class _ZeroRowModel:
+            """HyMMSBM stand-in: healthy uniform u, one row exactly zero."""
+
+            def __init__(self, K, assortative, seed):
+                self.K = K
+
+            def fit(self, hg, n_iter):
+                u = np.full((hg.num_nodes(), self.K), 0.5 / self.K)
+                u[hg.get_mapping()._to_int["A"], :] = 0.0
+                self.u = u
+
+        real_hypergraph = hc._require_hgx()[0]
+        monkeypatch.setattr(hc, "_require_hgx", lambda: (real_hypergraph, _ZeroRowModel))
+
+        m = hc.fit_communities(self.INCIDENCE, k=2, seed=42, n_iter=5)
+        members = {m_ for ms in self.INCIDENCE.values() for m_ in ms}
+        assert "A" not in m
+        assert set(m) == members - {"A"}
+        for payload in m.values():
+            assert payload["block"] in (0, 1)
+            # normal nodes keep a valid row-normalised membership vector
+            assert abs(sum(payload["memberships"].values()) - 1.0) < 1e-3
 
 
 # --------------------------------------------------------------------------- #

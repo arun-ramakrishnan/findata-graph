@@ -75,6 +75,7 @@ import json
 import re
 import sqlite3
 import sys
+from collections import Counter
 from pathlib import Path
 
 # sys.path bootstrap so this works both as `python3 helpers/graph/...` (the
@@ -105,6 +106,14 @@ _STAR_SOURCES: list[tuple[str, str]] = [
     # truth rather than a copy of one.
     ("theme", "exposed_to"),
     ("country", "listed_in"),
+    # hgx_over_dyads S2 (2026-10-30): index membership joins the star lane —
+    # 6,615 dyads → 57 hyperedges (116× compression), genuinely
+    # one-directional (company → index) so the symmetric regroup was
+    # rejected. The dyad type stays excluded from the DYADIC centrality
+    # projection (EDGE_TYPES_EXCLUDED_FROM_CENTRALITY, hub-noise ruling);
+    # the hyperedge family is a separate lane whose s-walk centrality
+    # measured healthy (hgx_over_dyads §2.5).
+    ("index", "listed_on_index"),
 ]
 _SYMMETRIC_SOURCES: list[tuple[str, str, str]] = [
     ("group", "same_group", "$.group"),
@@ -1036,6 +1045,106 @@ def _write_subsector_worklist(
     return wl
 
 
+# --------------------------------------------------------------------------- #
+# hgx_over_dyads S3: RPT disclosure sets widen the `group` family              #
+# --------------------------------------------------------------------------- #
+_RPT_SOURCE_REF_LIKE = "vigil:rpt%"
+
+_RELATIONSHIP_NON_PLURAL_S = frozenset({"news", "this", "status"})
+"""Plain-'s' word endings that are not plurals — never stripped."""
+
+
+def normalise_relationship(value: str | None) -> str | None:
+    """Case-fold an RPT relationship label into its class (S3, the minimum
+    normalisation the proposal demands): Fellow Subsidiary / Fellow
+    subsidiary / Fellow Subsidiaries / Fellow Subsidiary Company are four
+    spellings of one class. lowercase → strip a trailing
+    'company'/'companies' → per-word plural fold ('ies'→'y', final 's'
+    dropped unless 'ss'/short/stoplisted) → collapse whitespace. Free-text
+    one-offs ("Subsidiary of Tech Mahindra Limited") pass through folded
+    but NOT canonicalised — deeper vocabulary work is a separate arc.
+    """
+    if value is None:
+        return None
+    text = " ".join(value.lower().split()).rstrip("#").strip()
+    for suffix in (" companies", " company"):
+        if text.endswith(suffix):
+            text = text[: -len(suffix)]
+            break
+    words = []
+    for word in text.split():
+        if word.endswith("ies") and len(word) > 4:
+            word = word[:-3] + "y"
+        elif (
+            word.endswith("s")
+            and not word.endswith("ss")
+            and len(word) > 3
+            and word not in _RELATIONSHIP_NON_PLURAL_S
+        ):
+            word = word[:-1]
+        words.append(word)
+    return " ".join(words) or None
+
+
+def collect_rpt_disclosure_sets(
+    conn,
+) -> tuple[dict[str, set[str]], dict[tuple[str, str], str], dict[str, int]]:
+    """Widen ``group`` with RPT disclosure sets (hgx_over_dyads S3, operator
+    direction 2026-10-30: widen ``group`` rather than mint a 13th family).
+
+    One set per RPT FILER — "everything declared in one company's
+    related-party filing" — keyed on ``source_ref`` (``vigil:rpt:<SYMBOL>``);
+    the normalised relationship class rides ``hyper_incidences.role``. The
+    ``$.group``-keyed curated corporate-group edges are collected as before
+    and coexist (labels cannot collide: ``Tata`` vs ``vigil:rpt:TCS``).
+
+    Role rule: a (filer, member) pair seen under several classes (~3% of
+    pairs, measured) takes the DOMINANT folded class — most dyads, tie
+    broken by the lexicographically smallest class — so the role is
+    deterministic across runs. Class-split sets (one label per
+    filer:class) would give exact roles and were the proposal's original
+    shape; the operator direction chose filer-level keying.
+
+    Returns ``(groups, roles, fold_counts)``:
+
+    - ``groups``: ``{label: members}`` to merge into ``hyper["group"]``
+    - ``roles``: ``{(label, member): folded_class}`` for the ``--roles``
+      facets pass
+    - ``fold_counts``: ``{"pre_fold_sets": (filer, raw class) pairs,
+      "post_fold_sets": (filer, folded class) pairs}`` — the
+      normalisation's provenance (acceptance: both recorded)
+    """
+    groups: dict[str, set[str]] = {}
+    class_votes: dict[tuple[str, str], Counter] = {}
+    raw_pairs: set[tuple[str, str]] = set()
+    folded_pairs: set[tuple[str, str]] = set()
+    for source, target, source_ref, rel in conn.execute(
+        "SELECT source, target, source_ref, json_extract(properties, '$.relationship') "
+        "FROM graph_edges WHERE edge_type = 'same_group' AND source_ref LIKE ?",  # noqa: S608
+        (_RPT_SOURCE_REF_LIKE,),
+    ):
+        if not source_ref:
+            continue
+        members = {m for m in (source, target) if m}
+        groups.setdefault(source_ref, set()).update(members)
+        folded = normalise_relationship(rel)
+        if rel is not None:
+            raw_pairs.add((source_ref, rel))
+        if folded is not None:
+            folded_pairs.add((source_ref, folded))
+            for member in members:
+                class_votes.setdefault((source_ref, member), Counter())[folded] += 1
+    roles: dict[tuple[str, str], str] = {}
+    for key, votes in class_votes.items():
+        # dominant class: most dyads, tie -> lexicographically smallest
+        roles[key] = min(votes.items(), key=lambda kv: (-kv[1], kv[0]))[0]
+    fold_counts = {
+        "pre_fold_sets": len(raw_pairs),
+        "post_fold_sets": len(folded_pairs),
+    }
+    return groups, roles, fold_counts
+
+
 def collect_hyperedges(  # noqa: C901
     conn, companies_dir: Path | None = None
 ) -> tuple[dict[str, dict[str, set[str]]], dict[tuple[str, str, str], float]]:
@@ -1400,6 +1509,25 @@ def _cli(argv: list[str] | None = None) -> int:  # noqa: C901  # arg-dispatch CL
             )
             facets = collect_event_facets(conn)
         hyper, weights = collect_hyperedges(conn)
+        # hgx_over_dyads S3: widen `group` with the RPT disclosure sets
+        # (filer-keyed; curated $.group sets coexist). Roles ride the
+        # --roles facets pass — without --roles the sets land untagged,
+        # same as every other non-event family.
+        rpt_groups, rpt_roles, rpt_counts = collect_rpt_disclosure_sets(conn)
+        if rpt_groups:
+            merged_group = dict(hyper.get("group", {}))
+            for label, members in rpt_groups.items():
+                merged_group.setdefault(label, set()).update(members)
+            hyper["group"] = merged_group
+            if facets is not None:
+                facets["roles"].update(rpt_roles)
+            print(
+                f"S3 RPT disclosure sets: {len(rpt_groups)} filer set(s) "
+                f"widening `group`; relationship fold "
+                f"{rpt_counts['pre_fold_sets']} -> {rpt_counts['post_fold_sets']} "
+                f"(filer, class) pair(s); {len(rpt_roles)} member role(s) "
+                "(dominant folded class)"
+            )
         valid = {r[0] for r in conn.execute("SELECT name FROM entities")}
         # D7 authored lane: `subsector:` note field is canonical per company.
         # D11 operator lane: the version-controlled COMPANY_SUB_SECTORS map

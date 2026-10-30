@@ -169,6 +169,7 @@ entry 233). Roles/validity facets on incidences per entry 234 S4.
 - edition
 - event
 - group
+- index
 - industry
 - jv
 - merger
@@ -178,6 +179,20 @@ entry 233). Roles/validity facets on incidences per entry 234 S4.
 - theme
 
 <!-- /roster -->
+
+`index` (hgx_over_dyads S2, 2026-10-30): index membership, star-shaped —
+label = the index name, members = the listed companies. Regrouped from
+the dyadic `listed_on_index` edges (one-directional company → index, so a
+symmetric regroup was rejected): 6,615 dyads
+compress 116× into 57 hyperedges, 1,274 distinct members, 753 of them in
+≥2 indexes. Written only by `helpers/graph/derive_hyperedges.py` from the
+dyadic store. Caveat that bounds expectations: 8 of the 57 indexes
+exceed the community-fit giant threshold (`max_frac=0.25`) and are
+dropped from any `hypermmsbm_community` fit — the family is
+centrality/query-first (the s-walk lanes measured healthy on it), not a
+guaranteed community lane. The dyad type itself stays excluded from the
+dyadic centrality projection (hub-noise ruling, 2026-09-19) — that
+exclusion is about dyadic degree hubs, not the incidence family.
 
 `merger` / `demerger` (merger_demerger_hyperedges S1, 2026-10-21): the
 n-ary corporate-structure families. A merger is A + B (+ …) → survivor C,
@@ -208,6 +223,38 @@ the person→company `invested_in` dyads (which stay: they are the
 economic edge and the ingest-side truth); 34 companies / 287 members at
 activation. Membership roles are NOT part of the `event_roles` roster
 above — different vocabulary, different lane.
+
+`group` WIDENED (hgx_over_dyads S3, operator direction 2026-10-30 —
+widen `group` rather than mint a 13th family): the family now holds two
+kinds of sets that cannot collide because the RPT labels are filer
+source-refs (`vigil:rpt:<SYMBOL>`) while the curated ones are group
+names (`Tata`):
+
+- curated corporate groups, as before — keyed on the dyad's
+  `$.group` property (10,357 dyads carry it on 34 rows; 9 sets live);
+- RPT disclosure sets — "everything declared in one company's
+  related-party filing", ONE set per filer keyed on `source_ref`
+  (498 filers live, ~10.7k member incidences over 10.3k dyads). The
+  normalised relationship class rides `hyper_incidences.role`
+  (written by the `--roles` pass); a (filer, member) pair seen under
+  several classes (~3% of pairs, measured — carried by direction-swapped
+  dyads, since `graph_edges` is UNIQUE(source, target, edge_type))
+  takes the DOMINANT folded class (most dyads, tie → lexicographically
+  smallest), so the role is deterministic across runs.
+
+The relationship vocabulary is case-folded, not canonicalised:
+`normalise_relationship` (`helpers/graph/derive_hyperedges.py`) folds
+Fellow Subsidiary / Fellow subsidiary / Fellow Subsidiaries / Fellow
+Subsidiary Company to one class (per-word plural fold; free-text
+one-offs like "Subsidiary of Tech Mahindra Limited" pass through
+folded). Fold provenance is printed by every derive run — 1,545 raw
+(filer, class) pairs → 1,450 folded at activation (2026-10-30). The
+proposal's original shape — class-split sets, one label per
+filer:class, exact per-incidence roles — is a one-line keying change
+away if the dominant-class rule proves too coarse. Known limitation
+shared with all non-event families: apply is ADD/UPDATE only, so a
+disclosure set whose filer stops reporting lingers until a convergence
+pass exists for `group` (the event family has one; `group` does not).
 
 ### 2.6 Entity types (documented)
 

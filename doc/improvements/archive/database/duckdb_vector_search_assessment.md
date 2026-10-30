@@ -310,6 +310,25 @@ Re-evaluate only if:
    can't express; or
 3. DuckDB `fts` gains FTS5-parity features (snippet/highlight, weighted
    bm25, phrase syntax); or
+
+   > **Re-checked 2026-10-30 (DuckDB 2.0.0, `INSTALL fts; LOAD fts;`)** —
+   > the parity gap NARROWED but trigger 3 still does not fire. Now
+   > present: `stemmer='porter'`/'`english'` (probe: unstemmed
+   > `foxes→[4]` becomes `foxes→[1,4]`; stemming is live), per-column
+   > `fields:='title'`/`'title,body'` scoping, `match_bm25(k:=1.2,
+   > b:=0.5)` weights, `stopwords='english'`, `strip_accents=1`,
+   > `lower=0`, `cluster_terms=1`, `layered_search=1`, tokenizers
+   > `regex`/`opensearch_standard` only (`'simple'` → Invalid Input
+   > Error). Still missing: `snippet`/`highlight` (Catalog Error: no
+   > such scalar function), phrase and boolean operators are SILENTLY
+   > IGNORED (`"world peace"`, `world AND peace`, `world OR peace`
+   > return identical results to bare `world peace`), prefix wildcard
+   > `wor*` returns nothing, and `incremental=1` is refused while an
+   > index exists ("a FTS index already exists") so rebuilds stay
+   > full-overwrite. FTS5 on the same corpus returns a true phrase
+   > (`"world peace"` → row 1 only), distinguishes `OR`, and matches
+   > `wor*`. Verdict: keep the split; next re-check when `fts` ships
+   > phrase syntax or snippet.
 4. **Quack** gains search-grade latency or the split's own read path
    moves server-side — note trigger #4 of the 2026-08-27 note ("Quack
    ships production") **already fired** and was executed as the

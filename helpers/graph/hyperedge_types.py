@@ -20,6 +20,13 @@ Ten families were live on 2026-10-21 (event 1133, edition 222, industry
 group 9, jv 6). Two join here — both n-ary, both written only by
 ``helpers/graph/derive_merger_hyperedges.py``:
 
+``index``
+    Index membership (hgx_over_dyads S2, 2026-10-30): the 57 ``listed_on_index``
+    targets regrouped star-style — members are the listed companies, label the
+    index name (116× compression over the 6,615 dyads; 753 members in ≥2
+    indexes). Written by ``derive_hyperedges``; the 8 largest indexes exceed
+    the community-fit giant threshold and stay centrality/query-only.
+
 ``merger``
     A + B (+ …) → survivor C.  The survivor is a MEMBER, not a second
     dyad: the old shape ("A merged with B") forced the fact into a
@@ -47,6 +54,7 @@ HYPEREDGE_TYPES: frozenset[str] = frozenset(
         "edition",
         "event",
         "group",
+        "index",
         "industry",
         "jv",
         "merger",

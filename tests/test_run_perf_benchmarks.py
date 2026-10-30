@@ -171,3 +171,100 @@ def test_write_report_failure_sections_round_trip(
     # and the table parser still sees exactly two steps
     (block,) = parse_perf_report(report)
     assert len(block.steps) == 2
+
+
+# ── refusal policy (2026-10-31 operator directive): load1 vs cores, ─────
+# ── PSI demoted to loadavg-less fallback + attribution; --force escape ──
+
+
+def test_contention_reason_runs_at_or_below_core_load(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Unless load > num_cpus the run proceeds — even with PSI screaming.
+    Light desktop load (the run-2066 all-contended wall) must never wall
+    perf off again."""
+    from tests import run_perf_benchmarks as rpb
+
+    monkeypatch.setattr(rpb, "_gate_lane_active", lambda: None)
+    monkeypatch.setattr(rpb, "_psi_some", lambda w="avg10": 18.3)
+    monkeypatch.setattr(rpb.os, "getloadavg", lambda: (rpb._LOAD_RUN_CEIL, 3.0, 2.0))
+    assert rpb._contention_reason() is None
+    assert rpb._contention_reason(midrun=True) is None
+
+
+def test_contention_reason_refuses_above_core_load(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from tests import run_perf_benchmarks as rpb
+
+    monkeypatch.setattr(rpb, "_gate_lane_active", lambda: None)
+    monkeypatch.setattr(rpb, "_psi_some", lambda w="avg10": 0.0)
+    monkeypatch.setattr(rpb.os, "getloadavg", lambda: (rpb._LOAD_RUN_CEIL + 0.01, 3.0, 2.0))
+    reason = rpb._contention_reason()
+    assert reason is not None
+    assert "load1" in reason
+
+
+def test_contention_reason_lane_still_blocks_first(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from tests import run_perf_benchmarks as rpb
+
+    monkeypatch.setattr(rpb, "_gate_lane_active", lambda: "gate lane qa active (pid 42)")
+    monkeypatch.setattr(rpb.os, "getloadavg", lambda: (0.1, 0.1, 0.1))
+    assert rpb._contention_reason() is not None
+
+
+def test_contention_reason_psi_only_host_keeps_legacy_ceilings(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """No loadavg -> the calibrated PSI ceilings still guard (burst at
+    start, sustained mid-run)."""
+    from tests import run_perf_benchmarks as rpb
+
+    def _no_loadavg() -> tuple[float, float, float]:
+        raise OSError("no loadavg on this host")
+
+    monkeypatch.setattr(rpb, "_gate_lane_active", lambda: None)
+    monkeypatch.setattr(rpb.os, "getloadavg", _no_loadavg)
+    monkeypatch.setattr(rpb, "_psi_some", lambda w="avg10": {"avg10": 11.0, "avg60": 3.0}[w])
+    assert "avg10" in (rpb._contention_reason() or "")
+    assert rpb._contention_reason(midrun=True) is None  # sustained 3% < 15%
+    monkeypatch.setattr(rpb, "_psi_some", lambda w="avg10": {"avg10": 11.0, "avg60": 20.0}[w])
+    assert "avg60" in (rpb._contention_reason(midrun=True) or "")
+
+
+def test_force_runs_through_start_refusal(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """--force: a refused-box run proceeds, the appended block is labelled
+    FORCED, and the exit code reflects leg results only."""
+    from tests import run_perf_benchmarks as rpb
+
+    monkeypatch.setattr(rpb, "REPORT", tmp_path / "perf_report.md")
+    monkeypatch.setattr(
+        rpb, "_contention_reason", lambda midrun=False: "load1 9.99 > 4 cores (box saturated)"
+    )
+    monkeypatch.setattr(
+        rpb,
+        "_run_all_benchmarks",
+        lambda force=False: ([("b", 1.0, "OK", True, 2.0, "")], None, None),
+    )
+    monkeypatch.setattr(rpb, "_cleanup_scratch", lambda: None)
+    rc = rpb.main(["--force"])
+    assert rc == 0
+    text = (tmp_path / "perf_report.md").read_text()
+    assert "**Status:** FORCED" in text
+
+
+def test_no_force_still_refuses(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Without --force a contended box still refuses with exit 3 and
+    appends nothing."""
+    from tests import run_perf_benchmarks as rpb
+
+    monkeypatch.setattr(rpb, "REPORT", tmp_path / "perf_report.md")
+    monkeypatch.setattr(rpb, "_contention_reason", lambda midrun=False: "load1 9.99")
+    rc = rpb.main([])
+    assert rc == 3
+    assert not (tmp_path / "perf_report.md").exists()

@@ -7,13 +7,17 @@ prints a formatted table to stdout, then appends the same table to
 
 Usage::
 
-    python3 tests/run_perf_benchmarks.py
+    python3 tests/run_perf_benchmarks.py [--force]
 
 Exit codes: ``0`` all benches within budget · ``1`` a bench failed ·
-``3`` CONTENDED — the box was busy (another gate lane active, or CPU
-pressure above ceiling), so timings would lie. A refused run appends
+``3`` CONTENDED — the box was busy (another gate lane active, or load
+above the core count), so timings would lie. A refused run appends
 nothing; a mid-run trip marks the remaining rows untrusted in the
-appended block (see the contention guard below).
+appended block (see the contention guard below). ``--force`` runs
+through contention: the start refusal and the mid-run cutoff are
+skipped, the appended block carries a FORCED **Status:** line, rows
+keep pressure attribution, and the exit code reflects leg results
+only.
 
 Failure rows carry attribution in the report's Status cell —
 ``✗ FAIL(budget)`` / ``✗ FAIL(rc)`` / ``✗ FAIL(contended)`` /
@@ -24,6 +28,7 @@ substring is invariant: gate_query's failure surfaces key on it.
 
 from __future__ import annotations
 
+import argparse
 import json
 import os
 import re
@@ -76,14 +81,22 @@ def _cleanup_scratch() -> None:
 #     i5-6500 (2026-10-12): idle desktop <5%, one background embed stream
 #     + browser 14.7%, pytest -n4 far higher — while our own serial bench
 #     sits at ~0-2%. 10% catches the embed-stream class without tripping
-#     on ourselves. loadavg fallback for PSI-less hosts.
+#     on ourselves.
 # (Heartbeat locations resolved by _heartbeat_paths() below — the publisher
 # contract lives in run_gate_report._outputs_root; see review F5.)
-_PSI_SOME_CEIL = 10.0  # percent, "some avg10" — start guard (box fresh, no self-load yet)
-_PSI_SUSTAINED_CEIL = 15.0  # percent, "some avg60" — mid-run guard: sustained external
+#
+# REFUSAL policy (2026-10-31 operator directive): the start/mid-run
+# refusal keys on load1 vs the CORE COUNT — a box is "too busy to time"
+# only when load1 > _LOAD_RUN_CEIL (= nproc), so light desktop load (the
+# run-2066 all-contended wall) can run. PSI keeps the diagnostic roles:
+# per-leg attribution below, plus the guard fallback on loadavg-less
+# hosts. ``--force`` overrides both refusal paths.
+_PSI_SOME_CEIL = 10.0  # percent, "some avg10" — start guard, loadavg-less hosts only
+_PSI_SUSTAINED_CEIL = 15.0  # percent, "some avg60" — attribution ceiling: sustained external
 # load trips; our own multi-thread bench bursts (centrality/betweenness measured
 # ~10.3% avg10 on a quiet run, 2026-10-12) cannot hold a 60s window that high.
-_LOAD_CEIL = 2.0  # 1-minute load, PSI-less fallback
+_LOAD_CEIL = 2.0  # 1-minute load for ATTRIBUTION tags only — run-1787 lesson stays sensitive
+_LOAD_RUN_CEIL = float(os.cpu_count() or 1)  # refusal bar: load1 vs cores ("unless load > nproc")
 
 # Each entry: (label, args, budget_seconds).
 #
@@ -442,29 +455,37 @@ def _gate_lane_active() -> str | None:
 def _contention_reason(midrun: bool = False) -> str | None:
     """Why wall-clock timing would lie right now, or None when quiet.
 
-    Start guard (midrun=False): bursty avg10 — the box is fresh, nothing
-    of ours is running yet. Mid-run guard: sustained avg60 only — our own
-    bench bursts legitimately push avg10 past the start ceiling.
+    2026-10-31 operator directive: refusal keys on load1 vs the core
+    count — unless load > num_cpus, the run proceeds — so light desktop
+    load can never wall perf off again (run-2066). The calibrated PSI
+    ceilings survive as the guard fallback on loadavg-less hosts and in
+    the per-leg attribution (_load_pressure_reason). ``--force`` (main)
+    bypasses this guard entirely.
     """
     lane = _gate_lane_active()
     if lane is not None:
         return lane
-    psi = _psi_some("avg10")
-    if psi is not None:
-        if midrun:
-            sustained = _psi_some("avg60") or 0.0
-            if sustained > _PSI_SUSTAINED_CEIL:
-                return (
-                    f"CPU pressure some avg60 {sustained:.1f}% > "
-                    f"{_PSI_SUSTAINED_CEIL:.0f}% ceiling (sustained external load)"
-                )
-            return None
-        if psi > _PSI_SOME_CEIL:
-            return f"CPU pressure some avg10 {psi:.1f}% > {_PSI_SOME_CEIL:.0f}% ceiling"
+    try:
+        load1: float | None = os.getloadavg()[0]
+    except OSError:  # loadavg-less host — fall back to the PSI ceilings
+        load1 = None
+    if load1 is not None:
+        if load1 > _LOAD_RUN_CEIL:
+            return f"load1 {load1:.2f} > {_LOAD_RUN_CEIL:g} cores (box saturated)"
         return None
-    load1 = os.getloadavg()[0]
-    if load1 > _LOAD_CEIL:
-        return f"load1 {load1:.2f} > {_LOAD_CEIL} (no PSI on this host)"
+    psi = _psi_some("avg10")
+    if psi is None:
+        return None
+    if midrun:
+        sustained = _psi_some("avg60") or 0.0
+        if sustained > _PSI_SUSTAINED_CEIL:
+            return (
+                f"CPU pressure some avg60 {sustained:.1f}% > "
+                f"{_PSI_SUSTAINED_CEIL:.0f}% ceiling (sustained external load)"
+            )
+        return None
+    if psi > _PSI_SOME_CEIL:
+        return f"CPU pressure some avg10 {psi:.1f}% > {_PSI_SOME_CEIL:.0f}% ceiling"
     return None
 
 
@@ -523,19 +544,21 @@ def run_one(label: str, args: list[str], budget: float) -> tuple[float, str, boo
     return dt, status, ok, tail
 
 
-def _run_all_benchmarks() -> tuple[
-    list[tuple[str, float, str, bool, float, str]], str | None, str | None
-]:
+def _run_all_benchmarks(
+    force: bool = False,
+) -> tuple[list[tuple[str, float, str, bool, float, str]], str | None, str | None]:
     """Run every BENCHMARKS leg; returns (results, contended_from, contend_why).
 
     Extracted from main() (C901): the mid-run contention probe + the
     failure-stderr surface live here, the table/report tail stays in main.
+    ``force=True`` (``--force``) skips the mid-run cutoff: rows still get
+    pressure attribution, the run just never declares itself untrusted.
     """
     results: list[tuple[str, float, str, bool, float, str]] = []
     contended_from: str | None = None
     contend_why: str | None = None
     for label, args, budget in BENCHMARKS:
-        if contended_from is None:
+        if contended_from is None and not force:
             mid = _contention_reason(midrun=True)
             if mid is not None:
                 contended_from = label
@@ -567,22 +590,39 @@ def _run_all_benchmarks() -> tuple[
     return results, contended_from, contend_why
 
 
-def main() -> int:
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(
+        prog="run_perf_benchmarks",
+        description="Wall-clock perf benchmarks; appends outputs/perf_report.md.",
+    )
+    parser.add_argument(
+        "--force",
+        action="store_true",
+        help="run through contention: skip the start refusal and the mid-run "
+        "cutoff; rows keep pressure attribution, exit reflects results",
+    )
+    ns = parser.parse_args(argv)
+
     # ── run ──
     from datetime import datetime
 
     started = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     refuse = _contention_reason()
-    if refuse is not None:
+    forced_note: str | None = None
+    if refuse is not None and ns.force:
+        forced_note = f"FORCED — contended at start: {refuse} — timings untrusted"
+        print(f"  ⚠ --force: {forced_note}", file=sys.stderr)
+    elif refuse is not None:
         print(f"perf refused — contended box: {refuse}", file=sys.stderr)
         print(
-            "timings would lie; re-run once the lane clears (exit 3, nothing appended)",
+            "timings would lie; re-run once the lane clears (exit 3, nothing "
+            "appended) or re-run with --force to run anyway",
             file=sys.stderr,
         )
         return 3
 
     t0 = time.perf_counter()
-    results, contended_from, contend_why = _run_all_benchmarks()
+    results, contended_from, contend_why = _run_all_benchmarks(force=ns.force)
 
     # ── table ──
     lines: list[str] = []
@@ -610,6 +650,8 @@ def main() -> int:
     if contended_from is not None:
         status_note = f"CONTENDED — {contend_why} — rows from {contended_from} on are untrusted"
         print(f"  ⚠ {status_note}")
+    elif forced_note is not None:
+        status_note = forced_note
     write_report(results, started, elapsed, status_note=status_note)
 
     if contended_from is not None:

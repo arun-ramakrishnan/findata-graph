@@ -14,6 +14,7 @@ def encode(obj) -> bytes:
 def decode(data: bytes, type_=None):
     if type_ is not None:
         import msgspec.msgpack as msgpack_mod
+
         return msgpack_mod.decode(data, type=type_)
     return _DECODER.decode(data)
 

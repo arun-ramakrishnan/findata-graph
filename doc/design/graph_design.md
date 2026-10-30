@@ -288,6 +288,26 @@ centrality, not index-membership degree. `query.pagerank` defaults to
 `BelongsTo`. On the live 56k-edge graph the two projections share 0/10
 of their top-10 (Economic: Reliance, M&M, JSW Energy, Wipro, Infosys;
 BelongsTo: membership-star artifacts).
+
+Metric universes — one universe per metric (graph_analytics_integrity
+S3, 2026-10-30). The part_of/has_company retirement (2026-10-19) turned
+the `BelongsTo` default into a triangle-free star, which silently made
+`local_clustering_coefficient` constant-zero and reduced `wcc` to a
+sector mirror; both defaults now compute over the **centrality
+universe** — `_centrality_edge_types` (all edge types minus
+`listed_on_index`, plus the projected part_of/has_company pair), the
+same 19-type population the nine Onager centralities use. Non-default
+`--edge-label` overrides keep the single-type view. Populations as of
+the fix: pagerank 17,747 (ECONOMIC) · degree/eigenvector/katz/laplacian/
+local_reaching/louvain/wcc/clustering ≈ 19,053 (centrality universe) ·
+betweenness/closeness/harmonic 1,731 each (scipy-lane contract,
+`graph_analytics_contract`) · voterank/link_prediction payload metrics
+(replace-on-write, store population == last computation). The recompute
+CLI prints live-vs-stored counts per metric on every `--apply` run, and
+`write_analytics` logs a loud warning when a metric persists one
+distinct value over >1,000 rows — the two drift detectors this arc
+added.
+
 **Do not wrap `onager_ctr_personalized_pagerank`**: its personalisation
 column is ignored, the restart node is hardcoded to node_id 1, and it errors
 without one (Onager bug, documented in onager.py — revisit on a future

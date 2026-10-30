@@ -64,16 +64,29 @@ family) returns ONLY the trivial within-edge triple
 | theme | 12 | 270 | 0 | 0 |
 
 `norm_delta` is 0.0 for every motif in every family — no enrichment
-against the configuration model. **Mechanism:** the store's node pools
-are 1–2 orders of magnitude larger than the edge counts, so two
-hyperedges almost never share 3+ nodes — the multi-edge intersection
-configurations that constitute higher-order motifs cannot occur. The
-D10 trigger ("motif counts are meaningful only where k≥3 mass exists")
-was necessary but not sufficient: k≥3 *edge* mass (479 edges, 28%) is
-present, but k≥3 *cross-edge overlap* mass is absent.
+against the configuration model. **Mechanism (CORRECTED 2026-10-30,
+hgx_over_dyads S5 — the original "node pools 1–2 orders larger than
+edge counts" claim was wrong about the store and would have misled the
+next probe):** `compute_motifs` begins
+`edges = hypergraph.get_edges(size=order, up_to=True)`
+(`hypergraphx/motifs/motifs.py`) — the census only ever SEES edges of
+size ≤ order. Order 3 therefore measured 1,191 of 1,711 live edges
+(69.6%) but only 2,420 of 10,083 incidences (**24.0% coverage — 76% of
+the incidence mass invisible**), and the visible set was 93.1%
+event-family (1,109/1,191), which is 100% k=2 clique-expanded dyads —
+precisely the structure a motif census exists to distinguish itself
+from. Hidden entirely by family at k>3: edition 98%, sector 95%, theme
+100%, country 81%, sub_sector 81%, industry 80%, org_membership 76%.
+Cross-edge 3-node overlap is in fact COMMON live (trigger 1 below is
+MET) — the census could not have seen it.
 
-**Verdict:** the census lane would report nothing but trivial
-structure. NO-GO; not wired.
+**Verdict:** the census lane still reports nothing but trivial
+structure at order 3. NO-GO stands; not wired — but the blocker is
+census VISIBILITY (`get_edges(size=order, up_to=True)`), not node-pool
+sparsity. Two API defects worth pinning if ever re-probed: the keyword
+is `runs_config_model` (not `runs`), and `observed`/`config_model`/
+`norm_delta` are lists of `(motif_tuple, count)` pairs, not the dicts
+the docstring promises.
 
 ## Probe 2 — reducibility: measured; validates s-walk lanes
 
@@ -126,12 +139,25 @@ lane justified (a single query with no recurring consumer).
 1. **Motifs census** — a family gains dense cross-edge node-overlap at
    motif order (event family once participant data arrives; merger
    churn concentrating same_group membership). Quick check before any
-   probe: `SELECT COUNT(*) FROM (SELECT hi.entity_name, COUNT(DISTINCT
-   hi.edge_id) d FROM h_incidence hi JOIN h_edge he ON he.id=hi.edge_id
-   WHERE he.edge_type='<f>' GROUP BY hi.entity_name HAVING d>=2)` —
-   motif signal needs many entities in ≥2 edges of the same family.
+   probe (table names corrected 2026-10-30 — the live names are
+   `hyper_incidences`/`hyper_edges`, not `h_incidence`/`h_edge`):
+   `SELECT COUNT(*) FROM (SELECT hi.entity_name, COUNT(DISTINCT
+   hi.edge_id) d FROM hyper_incidences hi JOIN hyper_edges he ON
+   he.id=hi.edge_id WHERE he.edge_type='<f>' GROUP BY hi.entity_name
+   HAVING d>=2)` — motif signal needs many entities in ≥2 edges of the
+   same family. **STATUS 2026-10-30 (hgx_over_dyads §2.5): this trigger
+   is MET live** — edition 714 entities in ≥2 edges (455 in ≥3), theme
+   67/19, event 284/111, and on the promoted families listed_on_index
+   753/744 and same_group 903/320. The 2026-10-28 probe recorded 0,
+   i.e. it measured a stale/partial store. What still blocks a
+   production census is the visibility defect recorded at Probe 1 (the
+   order-3 census sees 24.0% of incidence mass), NOT absent overlap.
 2. **Reducibility** — re-run per-family on major store growth (>2×
    edges); numbers recorded above are the 2026-10-28 baseline.
+   Re-checked 2026-10-30: NOT met — all five families at 1.00×, and
+   reducibility reproduces the table above exactly (edition 0.637 at
+   layer 3, 0.485 at layer 4; industry/sub_sector/sector/
+   org_membership ≈ 0.0 at layers 2–6).
 3. Items 3–6 — unchanged consumer-gated triggers (see above).
 
 ## Non-goals

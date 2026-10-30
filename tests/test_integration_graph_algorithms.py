@@ -369,6 +369,127 @@ class TestWriteAnalyticsUpsert:
         assert len(btw_rows) == len(btw)
 
 
+class TestClusteringProjection:
+    """graph_analytics_integrity S2 (D1): the BelongsTo default resolves to
+    part_of — a triangle-free star forest since the part_of/has_company
+    retirement — so every stored clustering coefficient was 0.0 by
+    construction (1,209 live rows, 1 distinct value). The default projection
+    now matches the centrality universe."""
+
+    def test_default_projection_sees_triangles(self, synth_db):
+        conn = sqlite3.connect(str(synth_db))
+        conn.execute(
+            "INSERT INTO graph_edges(source, target, edge_type, source_ref) "
+            "VALUES ('CompanyC', 'CompanyA', 'competes_with', 'test')"
+        )
+        conn.commit()
+        conn.close()
+        # A-B, B-C, C-A triangle + all three companies attached to SectorA:
+        # every neighbour pair of A/B/C/SectorA is connected → 1.0. On the
+        # star-only projection every one of these was 0.0.
+        res = compute("local_clustering_coefficient")
+        for name in ("CompanyA", "CompanyB", "CompanyC", "SectorA"):
+            assert res[name] == pytest.approx(1.0), (
+                f"{name} must see its triangle on the widened default projection"
+            )
+
+    def test_single_type_override_routes_to_labeled_path(self, synth_db, monkeypatch):
+        # Non-default edge_label keeps the single-type view (query.py's
+        # company-filtered path); only the BelongsTo default widens. The
+        # labeled path needs v_company (not built by this fixture's raw
+        # attach), so it is stubbed — the assertion is the ROUTING.
+        calls: list[str] = []
+
+        def _fake_labeled(con, *, edge_label, vertex_label):
+            calls.append(edge_label)
+            return [("CompanyA", 0.0)]
+
+        monkeypatch.setattr(algos, "_graph_clustering", _fake_labeled)
+        res = compute("local_clustering_coefficient")  # default → widened
+        assert calls == [], "the BelongsTo default must not touch the single-type path"
+        assert res["CompanyA"] == pytest.approx(1.0)
+        res2 = compute("local_clustering_coefficient", edge_label="CompetesWith")
+        assert calls == ["CompetesWith"]
+        assert res2 == {"CompanyA": 0.0}
+
+    def test_wcc_default_widens_off_the_star(self, synth_db, monkeypatch):
+        """graph_analytics_integrity S3 (D3): one universe per metric — wcc's
+        BelongsTo default (the part_of star, components that just mirror
+        sector classification) joins the centrality universe; a non-default
+        edge_label keeps the single-type view."""
+        calls: list[str] = []
+
+        def _fake_labeled(con, *, edge_label, vertex_label):
+            calls.append(edge_label)
+            return [("CompanyA", 0)]
+
+        monkeypatch.setattr(algos, "_graph_wcc", _fake_labeled)
+        res = compute("weakly_connected_component")  # default → widened
+        assert calls == [], "the BelongsTo default must not touch the single-type path"
+        assert res, "widened wcc returns the full projection's components"
+        assert all(isinstance(c, int) for c in res.values())
+        res2 = compute("weakly_connected_component", edge_label="CompetesWith")
+        assert calls == ["CompetesWith"]
+        assert res2 == {"CompanyA": 0}
+
+
+class TestDegeneracyGuard:
+    """graph_analytics_integrity S2: a metric whose persisted values are ALL
+    identical over a large population is informationally empty (the
+    clustering defect class: 1,209 rows / 1 distinct value, undetected)."""
+
+    def test_constant_metric_logged_loudly(self, synth_db, capsys, monkeypatch):
+        monkeypatch.setattr(algos, "_DEGENERACY_MIN_ROWS", 3)
+        write_analytics("pagerank", {f"N{i}": 0.5 for i in range(4)})
+        err = capsys.readouterr().err
+        assert "degenerate" in err
+        assert "pagerank" in err
+
+    def test_diverse_metric_silent(self, synth_db, capsys, monkeypatch):
+        monkeypatch.setattr(algos, "_DEGENERACY_MIN_ROWS", 3)
+        write_analytics("pagerank", {f"N{i}": i * 0.25 for i in range(4)})
+        assert "degenerate" not in capsys.readouterr().err
+
+    def test_small_constant_metric_silent(self, synth_db, capsys, monkeypatch):
+        # Below the threshold a constant payload is by design (voterank
+        # carries one shared seed list per seed row).
+        monkeypatch.setattr(algos, "_DEGENERACY_MIN_ROWS", 100)
+        write_analytics("voterank", {f"N{i}": {"seeds": ["N0", "N1"]} for i in range(4)})
+        assert "degenerate" not in capsys.readouterr().err
+
+    def test_replace_population_prunes_dropped_entities(self, synth_db):
+        """graph_analytics_integrity S1/S4: replace_population=True deletes
+        the metric's rows whose entity is NOT in the incoming population,
+        inside the same transaction. Plain UPSERT never removes rows for
+        entities that dropped out — voterank accumulated seven generations
+        and the API served the oldest one.
+        """
+        write_analytics(
+            "voterank",
+            {"Alpha": {"seeds": ["Alpha", "Beta"]}, "Ghost": {"seeds": ["Alpha", "Beta"]}},
+        )
+        n = write_analytics(
+            "voterank",
+            {"Alpha": {"seeds": ["Alpha", "Beta"]}, "Beta": {"seeds": ["Alpha", "Beta"]}},
+            replace_population=True,
+        )
+        assert n == 2
+        rows = _read_analytics(synth_db, "voterank")
+        assert sorted(r["entity_name"] for r in rows) == ["Alpha", "Beta"], (
+            "dropped entity must be pruned by the replace-on-write"
+        )
+
+    def test_default_write_does_not_prune(self, synth_db):
+        """The pruning is opt-in: the 16 healthy UPSERT metrics keep today's
+        accumulate-only semantics (their populations are node-keyed and may
+        legitimately grow/shrink without a replace).
+        """
+        write_analytics("pagerank", {"Alpha": 0.9, "Ghost": 0.4})
+        write_analytics("pagerank", {"Alpha": 0.8})
+        rows = _read_analytics(synth_db, "pagerank")
+        assert sorted(r["entity_name"] for r in rows) == ["Alpha", "Ghost"]
+
+
 # --------------------------------------------------------------------------- #
 # Test: _wrap_for_analytics shape correctness
 # --------------------------------------------------------------------------- #
@@ -771,6 +892,37 @@ class TestPhase3Centralities:
         for _name, value in rows:
             assert json.loads(value) == {"seeds": ["CompanyB", "CompanyD", "SectorA"]}
 
+    def test_persist_voterank_replaces_generation(self, synth_db):
+        """graph_analytics_integrity S1: recompute replaces the previous
+        voterank generation wholesale (the docstring always claimed this;
+        plain UPSERT never did it — seven generations accumulated and the
+        API served the oldest).
+        """
+        algos._persist_voterank(["CompanyA", "SectorA"])
+        algos._persist_voterank(["CompanyB", "CompanyD", "CompanyA"])
+
+        rows = _read_analytics(synth_db, "voterank")
+        assert sorted(r["entity_name"] for r in rows) == [
+            "CompanyA",
+            "CompanyB",
+            "CompanyD",
+        ], "dropped seed (SectorA) must not survive the recompute"
+        for r in rows:
+            assert json.loads(r["value"])["seeds"] == [
+                "CompanyB",
+                "CompanyD",
+                "CompanyA",
+            ]
+
+    def test_persist_voterank_empty_does_not_wipe(self, synth_db):
+        """An empty seed set writes nothing — the store's last good
+        generation must survive a degenerate recompute.
+        """
+        algos._persist_voterank(["CompanyA", "SectorA"])
+        assert algos._persist_voterank([]) == 0
+        rows = _read_analytics(synth_db, "voterank")
+        assert sorted(r["entity_name"] for r in rows) == ["CompanyA", "SectorA"]
+
     def test_cli_voterank_no_apply_writes_nothing(self, synth_db, capsys):
         rc = algos._cli(["voterank", "--no-apply"])
         err = capsys.readouterr().err
@@ -915,6 +1067,34 @@ class TestLinkPrediction:
             .fetchone()[0]
         )
         assert len(_json.loads(row2)["candidates"]) == 150  # jaccard uncapped
+        # graph_analytics_integrity S4: payload metrics reconcile on write —
+        # the second persist's population IS the metric's population, so
+        # hub's generation is pruned in the same transaction (the
+        # UPSERT-only version held three date generations / 9,606 rows).
+        # hub2's own candidates are rows too: 151 rows survive.
+        names = [
+            r[0]
+            for r in sqlite3.connect(str(synth_db)).execute(
+                "SELECT entity_name FROM graph_analytics WHERE metric='link_prediction'"
+            )
+        ]
+        assert "hub" not in names and "n0" not in names
+        assert "hub2" in names and len(names) == 151
+
+    def test_persist_link_prediction_empty_does_not_wipe(self, synth_db):
+        """A degenerate recompute (no pairs) writes nothing and must not
+        prune the last good generation."""
+        conn = sqlite3.connect(str(synth_db))
+        algos._persist_link_prediction([("hub", "n1", 0.5)], "jaccard", None, conn=conn)
+        assert algos._persist_link_prediction([], "jaccard", None, conn=conn) == 0
+        names = [
+            r[0]
+            for r in conn.execute(
+                "SELECT entity_name FROM graph_analytics WHERE metric='link_prediction'"
+            )
+        ]
+        conn.close()
+        assert sorted(names) == ["hub", "n1"]
 
     def test_cli_link_predict_is_dry_run_by_default(self, synth_db, capsys):
         # D13 (reverses the 2026-08-14 open-question #2 answer): the bare

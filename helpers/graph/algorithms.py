@@ -559,7 +559,12 @@ def _persist_link_prediction(
             del row["candidates"][PREF_ATTACH_STORE_CAP:]
     if not values:
         return 0
-    return write_analytics("link_prediction", values, conn=conn)
+    # graph_analytics_integrity S4: payload metrics reconcile on write —
+    # the per-node candidate population IS the metric's population, so rows
+    # for entities that left the projection are pruned in the same
+    # transaction (the UPSERT-only version held three date generations /
+    # 9,606 rows at once).
+    return write_analytics("link_prediction", values, conn=conn, replace_population=True)
 
 
 def _persist_voterank(seeds: list[str], conn: Any | None = None) -> int:
@@ -572,13 +577,16 @@ def _persist_voterank(seeds: list[str], conn: Any | None = None) -> int:
 
         {"seeds": ["First Seed", "Second Seed", ...]}
 
-    Recomputing replaces the previous rows wholesale. Returns the number
-    of entity rows written.
+    Recomputing replaces the previous rows wholesale
+    (``replace_population=True`` — the stored population is exactly the
+    seed set; the plain-UPSERT version accumulated seven generations and
+    the API served the oldest one, graph_analytics_integrity D2). Returns
+    the number of entity rows written.
     """
     if not seeds:
         return 0
     values = {name: {"seeds": list(seeds)} for name in seeds}
-    return write_analytics("voterank", values, conn=conn)
+    return write_analytics("voterank", values, conn=conn, replace_population=True)
 
 
 # --------------------------------------------------------------------------- #
@@ -793,12 +801,35 @@ def _run_pagerank_weighted(
 def _run_wcc(con, *, edges, edge_label, vertex_label, **_) -> dict[str, Any]:
     if edges is not None:
         return onager_components(con, edges=edges)
+    # graph_analytics_integrity S3 (D3): one universe per metric. wcc's
+    # BelongsTo default resolves to the part_of star — components that
+    # just mirror sector classification. The default joins the same
+    # `_centrality_edge_types` universe the other ten centralities use
+    # (S2's operator-approved width); non-default edge_label overrides
+    # keep the single-type view.
+    if edge_label == "BelongsTo" and vertex_label == "Entity":
+        types = _centrality_edge_types(con)
+        if types is not None:
+            return {n: int(c) for n, c in onager_components(con, edge_types=types).items()}
     return {n: c for n, c in _graph_wcc(con, edge_label=edge_label, vertex_label=vertex_label)}
 
 
 def _run_clustering(con, *, edges, edge_label, vertex_label, **_) -> dict[str, Any]:
     if edges is not None:
         return onager_clustering(con, edges=edges)
+    # graph_analytics_integrity S2 (D1): the BelongsTo default resolves to
+    # part_of — a triangle-free star forest since the part_of/has_company
+    # retirement (2026-10-19) — so every local clustering coefficient was
+    # 0.0 by construction (1,209 stored rows, 1 distinct value while the
+    # live function returned nonzero for all of them). The default now
+    # computes over the same `_centrality_edge_types` universe the other
+    # nine centralities use (operator direction 2026-10-30: the 19-type
+    # width stands; strict ECONOMIC stays a fallback if hub noise shows
+    # up). Non-default edge_label overrides keep the single-type view.
+    if edge_label == "BelongsTo" and vertex_label == "Entity":
+        types = _centrality_edge_types(con)
+        if types is not None:
+            return onager_clustering(con, edge_types=types)
     return {
         n: c for n, c in _graph_clustering(con, edge_label=edge_label, vertex_label=vertex_label)
     }
@@ -1107,11 +1138,66 @@ def compute(
 # --------------------------------------------------------------------------- #
 # Persistence
 # --------------------------------------------------------------------------- #
-def write_analytics(metric: str, values: dict[str, Any], conn: Any | None = None) -> int:
+_DEGENERACY_MIN_ROWS = 1_000
+"""Below this a constant metric is unremarkable (voterank carries one
+shared payload per seed by design)."""
+
+
+def _analytics_rowcount(metric: str, conn: Any | None = None) -> int:
+    """Stored row count for one metric (S3 live-vs-stored reporting)."""
+    own = conn is None
+    if own:
+        conn = connect()
+    try:
+        return conn.execute(
+            "SELECT COUNT(*) FROM graph_analytics WHERE metric = ?", (metric,)
+        ).fetchone()[0]
+    finally:
+        if own:
+            conn.close()
+
+
+def _warn_degenerate_metric(metric: str, conn: Any) -> None:
+    """Log loudly when a metric's persisted values are ALL identical over a
+    large population (graph_analytics_integrity S2 — the defect class
+    nothing detected: clustering sat at 1,209 rows / 1 distinct value for
+    a month because no gate looks at value diversity). Never fatal.
+    """
+    try:
+        n_rows, n_distinct = conn.execute(
+            "SELECT COUNT(*), COUNT(DISTINCT value) FROM graph_analytics WHERE metric = ?",
+            (metric,),
+        ).fetchone()
+    except Exception as exc:  # noqa: BLE001  guard must never break a write
+        print(f"[degeneracy-guard] skipped ({type(exc).__name__}: {exc})", file=sys.stderr)
+        return
+    if n_rows > _DEGENERACY_MIN_ROWS and n_distinct <= 1:
+        print(
+            f"WARNING: metric {metric!r} is degenerate: {n_rows} rows, "
+            f"{n_distinct} distinct value(s) — the projection is probably "
+            "wrong (graph_analytics_integrity S2)",
+            file=sys.stderr,
+        )
+
+
+def write_analytics(
+    metric: str,
+    values: dict[str, Any],
+    conn: Any | None = None,
+    *,
+    replace_population: bool = False,
+) -> int:
     """Persist a metric result to ``graph_analytics`` (UPSERT).
 
     ``values`` maps entity_name -> value (value is json-serialised). Returns
     the number of rows written.
+
+    ``replace_population`` (graph_analytics_integrity S1/S4): before the
+    upserts, inside the same transaction, delete the metric's rows whose
+    entity is NOT in the incoming population. Plain UPSERT alone never
+    removes rows for entities that dropped out, so graph-valued metrics
+    accumulated generations (voterank served a 2.5-month-old seed list).
+    Only for metrics whose stored population is exactly the incoming keys.
 
     Note on the row-by-row loop: audited for executemany() conversion but
     measured slower on the live graph. Left as-is deliberately.
@@ -1121,6 +1207,14 @@ def write_analytics(metric: str, values: dict[str, Any], conn: Any | None = None
         conn = connect()
     try:
         with conn:
+            if replace_population and values:
+                names = list(values)
+                placeholders = ",".join("?" for _ in names)
+                conn.execute(
+                    f"DELETE FROM graph_analytics WHERE metric = ? "  # noqa: S608  placeholders bounded by len(values)
+                    f"AND entity_name NOT IN ({placeholders})",
+                    (metric, *names),
+                )
             for entity_name, value in values.items():
                 conn.execute(
                     "INSERT INTO graph_analytics(entity_name, metric, value) "
@@ -1131,6 +1225,7 @@ def write_analytics(metric: str, values: dict[str, Any], conn: Any | None = None
                     "WHERE value != excluded.value",
                     (entity_name, metric, json.dumps(value)),
                 )
+            _warn_degenerate_metric(metric, conn)
     finally:
         if own_conn:
             conn.close()
@@ -1557,6 +1652,17 @@ def _cli(argv: list[str] | None = None) -> int:  # noqa: C901
                     total = 0
                     for metric_db, payload in pending_writes:
                         total += write_analytics(metric_db, payload)
+                        # graph_analytics_integrity S3: live-vs-stored per
+                        # metric, every run — the population drift that sat
+                        # unnoticed for weeks (18,704 stored vs 19,053 live)
+                        # becomes visible here.
+                        stored = _analytics_rowcount(metric_db)
+                        live = len(payload)
+                        drift = "" if stored == live else f"  DRIFT: {stored - live:+d} vs live"
+                        print(
+                            f"  {metric_db}: live {live}, stored {stored}{drift}",
+                            file=sys.stderr,
+                        )
                     print(
                         f"applied {len(pending_writes)} metric(s), {total} rows to graph_analytics",
                         file=sys.stderr,
