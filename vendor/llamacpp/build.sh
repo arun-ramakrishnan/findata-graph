@@ -43,11 +43,22 @@ cmake --build "$SRC_DIR/build" --config Release -j"$(nproc)"
 
 echo "== install to $OUT"
 mkdir -p "$OUT"
-# llama-server is a thin launcher against libllama/libggml — ship the .so set
-# (copied through, symlinks resolved) so the install runs standalone via $ORIGIN.
+# llama-server is a thin launcher: it needs libllama-server-impl.so, which
+# itself pulls libllama-common.so — copy the WHOLE .so set (through -L so
+# symlinks resolve) or the launcher dies with exit 127 at first start. The
+# 2026-10-30 cutover shipped only the libllama/libggml glob and missed
+# server-impl + common + mtmd exactly this way.
 cp -L "$SRC_DIR/build/bin/llama-server" "$OUT/llama-server"
-cp -L "$SRC_DIR"/build/bin/libllama.so* "$SRC_DIR"/build/bin/libggml*.so* "$OUT/"
+# Full-replace: drop EVERY old-version lib from OUT first — a reused
+# SRC_DIR/build keeps stale 0.x artifacts (git checkout --force does not
+# clean build/), and glob-copying over them resurrects fossil versions.
+rm -f "$OUT"/libllama*.so* "$OUT"/libggml*.so* "$OUT"/libmtmd*.so*
+cp -L "$SRC_DIR"/build/bin/libllama-server-impl.so* \
+   "$SRC_DIR"/build/bin/libllama-common.so* \
+   "$SRC_DIR"/build/bin/libllama.so* \
+   "$SRC_DIR"/build/bin/libggml*.so* \
+   "$SRC_DIR"/build/bin/libmtmd.so* "$OUT/"
 
 echo "== sha256 (record in PROVENANCE.md on re-pin)"
-( cd "$OUT" && sha256sum llama-server libllama.so.0.6.0 2>/dev/null || sha256sum llama-server )
+( cd "$OUT" && sha256sum llama-server libllama.so.0.* 2>/dev/null || sha256sum llama-server )
 echo "== DONE: $OUT/llama-server — dual-load verdict + sha go into PROVENANCE.md"

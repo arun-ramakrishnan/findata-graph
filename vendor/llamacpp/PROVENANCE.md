@@ -11,9 +11,9 @@ BOTH models must load and answer, otherwise the pin does not move.
 | llama.cpp commit | `3c809f44383bcebc318b8cddd8c6d11aaa861e9b` (2026-10-30, tag b12004) |
 | patch | `patches/qwen2vl_head_dim.patch` (35 lines, src/models/qwen2vl.cpp — vendored from bench_data/teleocr/llama_cpp_qwen2vl_teleocr.patch, applied clean) |
 | build flags | `cmake -DGGML_NATIVE=ON -DCMAKE_BUILD_TYPE=Release` (CPU AVX2/x86, gcc 15.2.0) |
-| llama-server sha256 | `9593b6b25fe2ad8e9826ab32e94e912c1d45c76498cb7c30effea8c2b101998c` |
-| libllama.so sha256 | `136556bb136f24ba83c0ee1f16e6575f09cd713810ac31992c393c73f26b1ce6` (unchanged file, now symlinked as libllama.so.0.8.0) |
-| dual-load verdict | PASS 2026-10-30 — embgemma :8732 serves 768-d embeddings AND teleocr :8731 answers NaviDC chat completion AND granite :8733 serves 384-d embeddings, same binary, canonical ports (`helpers/misc/llamacpp_health.py --ocr` exit 0) |
+| llama-server sha256 | `a1221415eefd44e0774096a3cc7a26a1e5617f694ede2d2b78082026466db226` (2026-10-30 rebuild after install-set fix; rebuilds are not bit-exact — morning build hashed `9593b6b2…`) |
+| libllama.so.0.8.0 sha256 | `c399d1fe74530c372f51ef237a2949f488459f21fcc3ddb8a51b35400e28ab0c` (the earlier `136556bb…` row had hashed the stale libllama.so.0.6.0 fossil — the old sha line hardcoded `0.6.0`) |
+| dual-load verdict | PASS 2026-10-30 (rebuild) — embgemma :8732 serves 768-d embeddings AND teleocr :8731 answers NaviDC chat completion AND granite :8733 serves 384-d embeddings, same binary, canonical ports (`helpers/misc/llamacpp_health.py --ocr` exit 0). Earlier same-day PASS was on the morning build whose install had shipped only the libllama/libggml glob — the b12004 launcher needs `libllama-server-impl.so` + `libllama-common.so`, so production exit-127'd until `build.sh` install set was fixed and the tree rebuilt |
 | mmproj requant | 2026-10-09 — mmproj f16 → Q8_0 (`llama-quantize`, same pin; 32/519 tensors correctly fell back to f16). 1,266 → 800 MiB (16.01 → 10.12 BPW). A/B on corpus images: clean banner page byte-identical; dense chart page inconclusive (f16 output itself junk). Adopted as the teleocr-server default; f16 retained as fallback artifact. |
 
 ## Lineage
@@ -34,4 +34,8 @@ BOTH models must load and answer, otherwise the pin does not move.
 1. PINNED_COMMIT= in build.sh → new commit.
 2. make llamacpp-build (patch --check fails loudly on drift — rebase patches/ first if so).
 3. Dual-load proof: both make embgemma-server and make teleocr-server load their models and answer (bank gate green / teleocr control).
-4. Record commit + sha256 set + verdict here.
+4. Record commit + sha256 set + verdict here. The install is a full-replace
+   (old-version libs wiped from `models/llamacpp/bin/` first) and ships the
+   launcher's full dependency set — server-impl + common + mtmd included;
+   mirroring the production set into `bench_data/llamacpp_pins/<pin>/` keeps
+   a restorable server, not just a bench binary.
