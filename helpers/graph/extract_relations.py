@@ -87,10 +87,12 @@ import json
 import os
 import re
 import sys
-from dataclasses import asdict, dataclass, field
 from functools import cache
 from itertools import combinations
 from pathlib import Path
+
+import msgspec
+from msgspec.structs import asdict
 from typing import Literal, NamedTuple, overload
 from collections.abc import Iterable
 
@@ -574,12 +576,11 @@ class EntityResolver:
 # --------------------------------------------------------------------------- #
 # Pattern library                                                             #
 # --------------------------------------------------------------------------- #
-@dataclass
-class Edge:
+class Edge(msgspec.Struct, frozen=False):
     source: str
     target: str
     edge_type: str
-    properties: dict = field(default_factory=dict)
+    properties: dict = msgspec.field(default_factory=dict)
     source_ref: str = ""
     symmetric: bool = False
     # Optional ISO date (YYYY-MM-DD) for the edge. Populated for `acquired`
@@ -600,8 +601,7 @@ class Edge:
 _EDGE_TYPES_WITH_PROSE_YEAR_EXTRACTION: frozenset[str] = frozenset({"acquired"})
 
 
-@dataclass
-class Unresolved:
+class Unresolved(msgspec.Struct, frozen=False):
     """A pattern match whose target entity couldn't be resolved.
 
     Written to the sidecar `findata/Misc/_pending_relations.txt` for human review.

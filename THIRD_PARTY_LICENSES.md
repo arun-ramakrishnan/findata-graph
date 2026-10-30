@@ -51,6 +51,7 @@ following remain under their own rights or are not relicensed by the project:
 | openpyxl | MIT | XLSX parsing |
 | regex | MIT | Mojo/Python regex bridge |
 | orjson | MIT OR Apache-2.0 (dual) | Repo-wide JSON engine behind helpers/core/jsonio.py (db_scaling_tuning §6.3) |
+| msgspec | BSD-3-Clause | Binary msgpack transport behind helpers/core/msgpackio.py (S1 shim); Edge/Unresolved structs in helpers/graph/extract_relations.py |
 | Matplotlib | PSF-based license | Plotting/OCR support |
 | HypergraphX | BSD-3-Clause | Hypergraph analytics |
 | SciPy | BSD-3-Clause | Sparse/numeric kernels |

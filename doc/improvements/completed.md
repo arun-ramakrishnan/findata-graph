@@ -12905,3 +12905,35 @@ write-bound leg; apparent export win was warm-up position bias —
 interleave/reverse A-B law). §6.4 by-catch parked to pending.md: the
 convo-fresh `--check` wall is opencode-lane sqlite drift GROUP-BY
 scans, an invasive separate look on harness-owned stores.
+
+## 455. msgpack + msgspec internal transport — embed_cache IPC PROMOTED on wire-true bench; weak-model take-over audit
+
+**Date:** 2026-10-30 · **Status:** EXECUTED · **Proposal:**
+`doc/improvements/archive/tooling/msgpack_msgspec_adoption.md` (filed
+2026-10-30).
+
+- **S1 shim**: `helpers/core/msgpackio.py` wraps `msgspec.msgpack`
+  (`encode`/`decode` + Struct helpers); 3 parity tests in
+  `tests/test_msgpackio.py`.
+- **S3 embed_cache IPC, PROMOTED**: Rust `embed-cache-lookup` responds
+  rmp-serde msgpack (`with_struct_map`, protocol 1); Python decodes
+  msgpack-first with JSON fallback, byte-mode stdout. Production-wire bench
+  (real binary, 256-text request, 128 hits × 384-d f32): **size ratio 0.24**
+  (248,362 B msgpack vs 1,023,603 B JSON; criterion ≤ 0.70), **decode time
+  ratio 0.09** (1.58 ms vs 16.87 ms; criterion ≤ 0.40), subprocess
+  round-trip 33.4 ms. The size win comes from Rust-side f32 floats vs JSON
+  decimal reprs — Python-side f64 synthetic benches understate it (0.86);
+  only wire-true numbers count.
+- **S2 Struct migrations**: Edge/Unresolved only (261 relation tests);
+  remaining candidates audited EXCLUDED with evidence (trace_contracts
+  dict rows; CinParse in-process; Quote/Metric pickle IPC below hot bar;
+  Gf/FhOutcome report rows).
+- **Rollout close-out**: cosine_knn N/A (in-process PyO3 abi3 module,
+  `rebuild_script_search.py:1672`, no serialization boundary); queues N/A
+  (Unresolved sidecar JSONL is a human-review artifact); S4 bulk-serialize
+  survey found no qualifying site (reopen trigger: profiled hot-loop
+  encode/decode).
+- **Take-over audit** (weak model's commit fe1d2351f): 8 defects fixed,
+  head of which was the missing `from helpers.core import msgpackio` in
+  `embed_cache.py` — a NameError whose broad except silently disabled the
+  whole accelerator INCLUDING the JSON fallback.

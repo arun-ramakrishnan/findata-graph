@@ -2,7 +2,7 @@ use embed_cache::lookup_batch;
 use rusqlite::{Connection, OpenFlags};
 use serde::{Deserialize, Serialize};
 use std::error::Error;
-use std::io::{self, Read, Write};
+use std::io::{self, Read};
 use std::path::PathBuf;
 use std::time::Duration;
 
@@ -53,8 +53,11 @@ fn run() -> Result<(), Box<dyn Error>> {
 
     let stdout = io::stdout();
     let mut output = stdout.lock();
-    serde_json::to_writer(&mut output, &response)?;
-    output.write_all(b"\n")?;
+    // MsgPack stdio (internal transport). Bytes — never text — so Python
+    // must read stdout as bytes, not UTF-8-decoded text. Structs encode as
+    // msgpack maps (with_struct_map) so Python decodes them as dicts.
+    let mut serializer = rmp_serde::Serializer::new(&mut output).with_struct_map();
+    response.serialize(&mut serializer)?;
     Ok(())
 }
 

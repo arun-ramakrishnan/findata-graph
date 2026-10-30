@@ -44,6 +44,7 @@ from collections.abc import Callable
 from pathlib import Path
 
 from helpers.core import jsonio  # noqa: E402  (orjson parse cutover; dumps stay stdlib per db_scaling_tuning §6.3 criteria)
+from helpers.core import msgpackio  # noqa: E402  msgpack stdio for Rust↔Python IPC (S3)
 from helpers.core.vec_codec import load_vec, pack_f32
 
 # Greppable surface tag for every long-running progress line — filter a
@@ -202,18 +203,28 @@ def _rust_cache_lookup(
         )
         result = subprocess.run(  # noqa: S603  fixed argv: repo-built or operator-configured embed-cache-lookup CLI, no shell
             [str(binary)],
-            input=request,
+            input=request.encode("utf-8"),
             capture_output=True,
-            text=True,
+            # stdout is MsgPack bytes (internal transport); read raw, not text.
+            text=False,
             timeout=30,
             check=False,
         )
         if result.returncode:
-            detail = result.stderr.strip() or f"exit code {result.returncode}"
+            detail = (result.stderr.decode("utf-8", "replace").strip() if result.stderr
+                      else f"exit code {result.returncode}")
             warn_once(detail)
             return None
 
-        hit_vectors, miss_indices = _parse_lookup_response(jsonio.loads(result.stdout), texts)
+        # Phase 2 trial: msgpack stdio for Rust↔Python IPC (drop-in; JSON fallback preserved)
+        # See doc/improvements/proposals/msgpack_msgspec_adoption.md §8 (S3).
+        try:
+            hit_vectors, miss_indices = _parse_lookup_response(
+                msgpackio.decode(result.stdout), texts
+            )
+        except Exception:
+            # Fallback to JSON stdio for compatibility/debug; msgpack is internal-only
+            hit_vectors, miss_indices = _parse_lookup_response(jsonio.loads(result.stdout), texts)
         return hit_vectors, miss_indices
     except Exception as exc:  # cache accelerator failures must not block embedding
         warn_once(f"{type(exc).__name__}: {exc}")
