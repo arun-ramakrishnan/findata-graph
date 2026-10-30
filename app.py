@@ -3400,7 +3400,6 @@ def api_graph_metrics(metric: str):  # noqa: C901
 
     conn = get_db_connection()
     try:
-
         if metric_lc in _PAYLOAD_GRAPH_METRICS:
             # graph_docs_ui_redesign S1: structured payloads persisted by
             # algorithms._persist_link_prediction / _persist_voterank.

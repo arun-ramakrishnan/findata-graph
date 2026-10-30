@@ -413,7 +413,6 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--check", action="store_true", help="report freshness; exit 1 if stale")
     args = ap.parse_args(argv)
     if args.check:
-
         out = Path(args.out)
         try:
             manifest = jsonio.loads((out / "csr_manifest.json").read_text())

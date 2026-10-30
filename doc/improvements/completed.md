@@ -12880,3 +12880,28 @@ section-variant + 47 collision curation follow-ups are picked up, the
 operator rules on the ticker queue, or the
 `relation_enrichment_sources` S11 budget releases an LLM-assisted
 labeling pass.
+
+## 454. DB scaling/tuning — SQLite cache + Onager conn cache landed; orjson repo-wide cutover; two levers MEASURED-NOT-ADOPTED
+
+**Date:** 2026-10-29 → 2026-10-30 · **Status:** EXECUTED · **Proposal:**
+`doc/improvements/archive/database/db_scaling_tuning.md` (filed 2026-10-29,
+executed same day + §6 addendum, archived 2026-10-30).
+
+Landed in the `db_tuning` + `orjson_fix` patches: §3.2 Onager DuckDB
+connection cache (`_get_onager_connection()` — per-call
+`duckdb.connect` + LOAD churn gone) and §3.3 SQLite `cache_size`
+80→256MB env-guarded (helpers/core/db.py). §3.1 explicit
+`threads`/`memory_limit` DECLINED at implementation — DuckDB 2.0
+all-core defaults kept. §6.3 orjson ADOPTED: `helpers/core/jsonio.py`
+shim (orjson parse / stdlib dumps), S1 mass cutover across the three
+mass lanes (harvest, agent_traces, model_analytics) + repo-wide
+`loads`/rb-read sweep (~80 files); deliberate stdlib stays per §6.3
+criteria (models.json human-edited, static_checks/corpus
+escape-sensitive); THIRD_PARTY_LICENSES.md orjson entry (MIT OR
+Apache-2.0); emb-decode tripwire extended to `jsonio.loads`.
+MEASURED-NOT-ADOPTED: §6.1 FTS5 `optimize` (automerge already flat,
+zero query-latency gain) and §6.2 `preserve_insertion_order` (no
+write-bound leg; apparent export win was warm-up position bias —
+interleave/reverse A-B law). §6.4 by-catch parked to pending.md: the
+convo-fresh `--check` wall is opencode-lane sqlite drift GROUP-BY
+scans, an invasive separate look on harness-owned stores.

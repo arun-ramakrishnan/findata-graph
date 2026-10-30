@@ -236,7 +236,6 @@ def _company_codes_and_vocab() -> tuple[dict, set]:
     if _S3_CACHE is None:
         misc = Path(__file__).resolve().parents[2] / "helpers" / "misc"
         try:
-
             vocab = {
                 r["code"]
                 for r in jsonio.loads((misc / "nic2008_seed.json").read_text(encoding="utf-8"))[

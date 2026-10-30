@@ -26,10 +26,14 @@ import subprocess
 import sys
 import threading
 import time
-from helpers.core import jsonio  # noqa: E402  (orjson parse cutover; dumps stay stdlib per db_scaling_tuning §6.3 criteria)
 from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+
+from helpers.core import jsonio  # noqa: E402  (orjson parse cutover; dumps stay stdlib per db_scaling_tuning §6.3 criteria)
+
 STATE_DIR = PROJECT_ROOT / ".git" / "secret-scan"
 STATE_FILE = STATE_DIR / "state.json"
 BLOB_SET_FILE = STATE_DIR / "blobs.txt.gz"

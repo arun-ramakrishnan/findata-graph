@@ -803,3 +803,69 @@ Open items below keep their revisit triggers inline; executed work is compressed
   manual spot-check of N editions.** Calibration acceptance: marker
   additions test-pinned, zero management sections flagged in the repro
   set.
+- **convo-fresh `--check` wall — opencode-lane drift queries — DEFERRED
+  2026-10-30** (`archive/database/db_scaling_tuning.md` §6.4): the
+  warm `--check` wall (~31s) is harness-owned opencode sqlite
+  GROUP-BY scans — `harvest_conversations.py:1743` session max-ts
+  (164 executes, ~40.2s self) and a `json_extract` event-table scan
+  (8.8s). Indexing or watermark-bounding those queries (or a sidecar
+  max-ts mirror) touches the LIVE harness stores — invasive, needs
+  its own look. **REVISIT TRIGGER: convo-fresh `--check` reds on a
+  gate arc, or the next opencode store growth spike.**
+- **bili tier_watch `log_age` negative — verdict-clock tz mismatch — FIXED
+  2026-10-30** (helpers/analytics/bili_tier_watch.py:616-627): `age`
+  stamped `tzinfo=UTC` onto the plugin verdict-clock ts, but `vts` is
+  LOCAL wall time on this IST box — observed `vts=2026-10-30T12:19:19`
+  against row stamp `06:50:12Z` yields `log_age=-19747s` (≈ −UTC+5:30)
+  in every row. FIX LANDED same day: naive parse → `.astimezone()` (treat
+  as local). RE_TS (:118) truncates every line stamp to seconds with no
+  offset, so an offset-preferring branch would be dead code — if the
+  plugin ever emits RFC3339 stamps, widen RE_TS first (comment at the fix
+  site). Live smoke: `log_age=6s`. Tests:
+  `test_log_age_treats_naive_verdict_ts_as_local`,
+  `test_log_age_reads_z_stamped_lines_as_local_too` (tz-portable). (Note:
+  `STRANDED` in the same rows is documented watcher vocabulary — "T1 is
+  under its bar", bili_tier_watch.py:40 — not a defect.)
+- **bili tier_watch `folds`/`blocks` counters diverge from proxy —
+  semantics unpinned — DEFERRED 2026-10-30** (observed 2026-10-30
+  06:50:12Z row, session c4f9c507): after the proxy created blocks
+  b8/b9/b10 in one compress call (its report: folds 5→8, saved
+  144.8k→~223k), the row read `folds=6 saved=222.9k blocks=7`. `saved`
+  total is right; `folds` counts fold ACTS via `[acp-compress-obs]`
+  dedup key `(ts, sid)` (bili_tier_watch.py:368-384) — one obs line
+  per compress call, so a 3-block call counts +1; `blocks` reads
+  `len(state.active)` from the plugin verdict state
+  (bili_tier_watch.py:679) which reported 7 while the session held 10
+  active blocks — mechanism unpinned (stale snapshot vs `active` set
+  definition vs tier filtering). Decide intended semantics (fold acts
+  vs folded ranges; active blocks vs created) and align watcher with
+  the plugin dashboard. REFINED same day: a 12:23:50 bili_sessions
+  row showed `folds=7 blocks=11` against the proxy's 8/11 —
+  bili_sessions `blocks` AGREES with the proxy; its folds lag (−1)
+  is an obs-line deficit, and tier_watch's `blocks=7` (from
+  `state.active`) stays the outlier. RESOLVED same day (post-T2-distill
+  row showed `blocks=1`): the three surfaces use three definitions
+  under one label — tier_watch `blocks=len(state.active)` counts
+  active=1 rows in `~/.local/share/billion-context/sessions/index.db`
+  (bili_tier_nudge.py:161-162,199; bili_tier_watch.py:679), the
+  bili_sessions column is the dashboard TOTAL (creation count), the
+  proxy reports per-call creations. Live DB check: our session holds 11
+  rows, b1–b10 `active=0`, b11 (tier-2) `active=1` → `blocks=1` is
+  CORRECT. The earlier `blocks=7` was a mid-arc newest-verdict snapshot
+  (bili_tier_watch.py:301-310). Residue: rename/unify the label
+  (`blocks` vs `active`), and note the T2 sweep consumed the WHOLE
+  tier-1 set (b1/b2/b7 included beyond the listed b3–b10) — listed
+  range ≠ consumed range. LABEL SPLIT LANDED same day: tier_watch
+  `Sample.blocks` = `len(state.blocks)` (creation-count TOTAL, matches
+  bili_sessions/proxy) and a new `Sample.act` = `len(state.active)` (the
+  active-flag subset the tier sums are measured over); render shows
+  `blocks=14 act=4`, json carries both. Tests:
+  `test_blocks_counts_all_rows_and_act_the_active_subset`.
+- **bili_sessions `shrink` cell truncates mid-float — `46.42…` — FIXED
+  2026-10-30** (helpers/analytics/bili_sessions.py:570-580, :956, :1119):
+  the `shrink` column averaged raw per-fold shrink floats and the
+  shrinkable-column padder (`…` truncator, natural_cap 6) cut the
+  unrounded value mid-digit — rendered `46.42…`. FIX LANDED same day:
+  `round(mean, 1)` at the row build (`run_for_sid` merged row), so every
+  renderer/table/json sees a clean value; the padder never sees raw
+  floats. Test: `test_shrink_pct_is_rounded_at_the_row`.

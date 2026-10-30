@@ -17,7 +17,7 @@
 # LLAMACPP_OUT (default models/llamacpp/bin relative to this script's repo).
 set -euo pipefail
 
-PINNED_COMMIT=78651c410dd8d97e3e22e533e0e7117889e3863a  # 2026-10-07, has gemma-embedding2
+PINNED_COMMIT=3c809f44383bcebc318b8cddd8c6d11aaa861e9b  # 2026-10-30 (b12004), has gemma-embedding2
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PATCH="$HERE/patches/qwen2vl_head_dim.patch"
 SRC_DIR="${LLAMACPP_SRC_DIR:-"${TMPDIR:-/tmp}/llamacpp-build/llama.cpp"}"

@@ -38,25 +38,15 @@ entry number and stale DONE pointers):
 
 ## Current live proposals
 
-- `db_scaling_tuning` — LIVE, filed 2026-10-29 (db_tuning arc;
-  `db_scaling_tuning.md`). §3.2 Onager connection cache + §3.3 SQLite cache
-  80→256MB landed in the db_tuning patch same day; §3.1 explicit
-  threads/memory_limit declined at implementation (DuckDB 2.0 all-core
-  defaults kept — recorded in the proposal addendum). 2026-10-29 §6
-  addendum: three trial-first levers, ALL TRIALED/EXECUTED same day —
-  §6.3 orjson ADOPTED (S0 jsonio shim + pyproject dep; S1 three mass
-  lanes on jsonio.loads + rb reads; gate_query/review_scan dumps
-  evaluated-stay-stdlib), §6.1 FTS5 optimize MEASURED-NOT-ADOPTED
-  (automerge already flat; zero query-latency gain), §6.2
-  preserve_insertion_order MEASURED-NOT-ADOPTED (no write-bound leg;
-  apparent export win was warm-up position bias). By-catch: the check
-  wall is opencode-lane sqlite GROUP-BY scans (§6.4) — the real
-  single-leg lever.
-
-- *(none before this)* — every earlier proposal filed here is executed
-  and archived. Most
-  recent: `bili_absorb_stats_display` (filed + executed + archived
-  same day 2026-10-29, #452,
+- *(none)* — every proposal filed here is executed and archived. Most
+  recent: `db_scaling_tuning` (filed 2026-10-29, executed 2026-10-30,
+  #454, `../archive/database/db_scaling_tuning.md`; §3.2 conn cache +
+  §3.3 SQLite cache 80→256MB landed in `db_tuning`, §3.1 threads/
+  memory_limit declined, §6.3 orjson ADOPTED via `helpers/core/jsonio.py`,
+  §6.1 FTS5-optimize and §6.2 preserve_insertion_order
+  MEASURED-NOT-ADOPTED, §6.4 opencode drift-query lever parked to
+  pending.md), then `bili_absorb_stats_display` (filed + executed +
+  archived same day 2026-10-29, #452,
   `../archive/tooling/bili_absorb_stats_display.md`) and
   `notes_thin_tail_quality` (filed 2026-10-28, executed with its D1–D3
   remainder DEFERRED 2026-10-29, #453,

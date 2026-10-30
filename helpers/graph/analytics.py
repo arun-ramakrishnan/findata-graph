@@ -488,7 +488,9 @@ def main(argv: list[str] | None = None) -> int:
         return 2
     if isinstance(r, list):  # composite report (temporal)
         if args.json:
-            print(json.dumps([jsonio.loads(render_json(x)) for x in r], indent=2, ensure_ascii=False))
+            print(
+                json.dumps([jsonio.loads(render_json(x)) for x in r], indent=2, ensure_ascii=False)
+            )
         else:
             print("\n\n".join(render_markdown(x) for x in r))
     else:

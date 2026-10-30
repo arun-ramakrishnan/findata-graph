@@ -1,15 +1,15 @@
 ---
 title: "db_scaling_tuning: sqlite cache + duckdb threads/connection reuse for 2x headroom"
-status: proposed
+status: executed
 filed: "2026-10-29"
-completed_md: null
-executed: null
+completed_md: "454"
+executed: "2026-10-30"
 area: "helpers/core (PRAGMA path), helpers/graph/onager.py (DuckDB connect path), doc/local"
 ---
 
 # db_scaling_tuning: sqlite/duckdb tuning for 2x scale — proposal
 
-**Date:** 2026-10-29 · **Status:** PROPOSED
+**Date:** 2026-10-29 · **Status:** EXECUTED 2026-10-30 (completed.md #454)
 **Rationale:** repo DB footprint growing; 2x scaling target requires tightening two under-tuned levers before considering infra swaps. Postgres remains a documented anti-recommendation (git 4e1ec8f322): "contradicts the embedded, git-shippable design." Both engines already serve without a server (serverless model dead — Quack/Slice B); scaling is a tuning problem, not a topology problem.
 
 **Follows:** duckdb_20_quack.md (#428), duckdb_20_sqlite_reentry.md, DuckDB 2.0 VARIANT deferred 2026-10-25. **See also:** doc/local/engineering/rust_database.md §5 SQLite access lanes, graph_db_optimization.md graph compute cost table, helpers/graph/onager.py.

@@ -43,9 +43,11 @@ class TestDumpsBytes:
 
     def test_default_hook(self):
         assert jsonio.dumps_bytes({1, 2}, default=list) is not None
+
         class _X:
             def __init__(self):
                 self.v = 7
+
         out = jsonio.loads(jsonio.dumps_bytes({"x": _X()}, default=lambda o: o.v))
         assert out == {"x": 7}
 

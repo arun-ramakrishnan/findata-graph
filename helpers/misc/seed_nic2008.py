@@ -32,10 +32,14 @@ import pathlib
 import re
 import subprocess
 import sys
-from helpers.core import jsonio  # noqa: E402  (orjson parse cutover; dumps stay stdlib per db_scaling_tuning §6.3 criteria)
 
 HELPERS_DIR = pathlib.Path(__file__).resolve().parent
 REPO_ROOT = HELPERS_DIR.parent.parent
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
+
+from helpers.core import jsonio  # noqa: E402  (orjson parse cutover; dumps stay stdlib per db_scaling_tuning §6.3 criteria)
+
 SEED_PATH = HELPERS_DIR / "nic2008_seed.json"
 COMPANY_CODES_PATH = HELPERS_DIR / "nic2008_company_codes.json"
 SOURCE_URL = (

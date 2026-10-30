@@ -59,12 +59,17 @@ import sqlite3
 import subprocess
 import sys
 import time
-from helpers.core import jsonio  # noqa: E402  (orjson parse cutover; dumps stay stdlib per db_scaling_tuning §6.3 criteria)
+from pathlib import Path, PurePosixPath
 from collections.abc import Callable, Sequence
 
 from dataclasses import dataclass, replace as dc_replace
-from pathlib import Path, PurePosixPath
 from typing import Any
+
+REPO = Path(__file__).resolve().parents[2]
+if str(REPO) not in sys.path:
+    sys.path.insert(0, str(REPO))
+
+from helpers.core import jsonio  # noqa: E402  (orjson parse cutover; dumps stay stdlib per db_scaling_tuning §6.3 criteria)
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 LANES: tuple[str, ...] = (

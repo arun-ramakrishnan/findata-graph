@@ -46,10 +46,14 @@ import time
 from pathlib import Path
 from typing import TypedDict
 
-from helpers.core import jsonio  # noqa: E402  (orjson parse cutover; dumps stay stdlib per db_scaling_tuning §6.3 criteria)
 from helpers.core.vec_codec import load_vec
 
 REPO = Path(__file__).resolve().parents[2]
+if str(REPO) not in sys.path:
+    sys.path.insert(0, str(REPO))
+
+from helpers.core import jsonio  # noqa: E402  (orjson parse cutover; dumps stay stdlib per db_scaling_tuning §6.3 criteria)
+
 if str(REPO) not in sys.path:
     sys.path.insert(0, str(REPO))
 
