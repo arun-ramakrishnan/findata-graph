@@ -18,6 +18,7 @@ import time
 from pathlib import Path
 
 import numpy as np
+from collections.abc import Iterator
 from scipy.sparse import csr_matrix
 from scipy.sparse.csgraph import minimum_spanning_tree, connected_components
 
@@ -104,7 +105,7 @@ def mst_forest(db_path=str(DEFAULT_DB_PATH)):
     }
 
 
-def find_bridges(n: int, edges: list[tuple[int, int, float]]) -> set[tuple[int, int]]:
+def find_bridges(n: int, edges: list[tuple[int, int, float]]) -> set[tuple[int, int]]:  # noqa: C901 — iterative Tarjan lowlink: frames carry resumable iterators, an explicit frame machine reads better than a recursive one at 33k edges
     """Bridges of the undirected simple graph (iterative Tarjan lowlink).
 
     graph_lane_unlocks S4: the MSF is a forest, so every forest edge is
@@ -122,12 +123,26 @@ def find_bridges(n: int, edges: list[tuple[int, int, float]]) -> set[tuple[int, 
     low = [0] * n
     bridges: set[tuple[int, int]] = set()
     timer = 0
+    stack: list[tuple[int, int, Iterator[tuple[int, int]]]] = []
+
+    def finalize_frame(u: int, pe: int) -> None:
+        """Pop u's frame: fold low[u] into the parent; the tree edge
+        parent→u is a bridge iff no back-edge covers it (low[u] > disc[parent])."""
+        stack.pop()
+        if pe < 0 or not stack:
+            return
+        p = stack[-1][0]
+        low[p] = min(low[p], low[u])
+        if low[u] > disc[p]:
+            a, b = edges[pe][0], edges[pe][1]
+            bridges.add((min(a, b), max(a, b)))
+
     for root in range(n):
         if disc[root] != -1:
             continue
         disc[root] = low[root] = timer
         timer += 1
-        stack: list[tuple[int, int, object]] = [(root, -1, iter(adj[root]))]
+        stack.append((root, -1, iter(adj[root])))
         while stack:
             u, pe, it = stack[-1]
             pushed = False
@@ -142,13 +157,7 @@ def find_bridges(n: int, edges: list[tuple[int, int, float]]) -> set[tuple[int, 
                     break
                 low[u] = min(low[u], disc[v])
             if not pushed:
-                stack.pop()
-                if pe >= 0 and stack:
-                    p = stack[-1][0]
-                    low[p] = min(low[p], low[u])
-                    if low[u] > disc[p]:
-                        a, b = edges[pe][0], edges[pe][1]
-                        bridges.add((min(a, b), max(a, b)))
+                finalize_frame(u, pe)
     return bridges
 
 
@@ -189,10 +198,7 @@ def resilience(db_path=str(DEFAULT_DB_PATH)) -> dict:
         "bridge_edges": [
             (names[a], names[b], weight_of.get((a, b), 0.0)) for a, b in sorted(bridges)
         ],
-        "backbone_bridge_edges": [
-            (names[a], names[b])
-            for a, b in sorted(backbone_bridges)
-        ],
+        "backbone_bridge_edges": [(names[a], names[b]) for a, b in sorted(backbone_bridges)],
     }
 
 

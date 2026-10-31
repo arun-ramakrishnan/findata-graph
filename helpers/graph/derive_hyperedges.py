@@ -1311,9 +1311,7 @@ def prune_stale_event_edges(
     return stats
 
 
-def prune_stale_group_edges(
-    conn, wanted_labels: set[str], *, dry_run: bool
-) -> dict[str, int]:
+def prune_stale_group_edges(conn, wanted_labels: set[str], *, dry_run: bool) -> dict[str, int]:
     """Group-family convergence (graph_lane_unlocks S2): ``group`` converges
     to the collect output.
 

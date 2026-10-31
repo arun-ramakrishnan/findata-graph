@@ -1397,22 +1397,28 @@ class TestGroupConvergence:
         # the fixture's hyper_edges starts empty; wanted=M Group, stored={GONE}
         stats = dh.prune_stale_group_edges(conn, {"M Group"}, dry_run=True)
         assert stats == {"stored": 1, "kept": 0, "dropped": 1}
-        assert conn.execute(
-            "SELECT COUNT(*) FROM hyper_edges WHERE id = ?", (edge_id,)
-        ).fetchone()[0] == 1  # dry-run wrote nothing
+        assert (
+            conn.execute("SELECT COUNT(*) FROM hyper_edges WHERE id = ?", (edge_id,)).fetchone()[0]
+            == 1
+        )  # dry-run wrote nothing
 
     def test_apply_drops_stale_and_keeps_curated(self, conn):
         gone = self._plant(conn, "vigil:rpt:GONE")
         keep = self._plant(conn, "M Group")
         stats = dh.prune_stale_group_edges(conn, {"M Group"}, dry_run=False)
         assert stats["dropped"] == 1
-        assert conn.execute(
-            "SELECT COUNT(*) FROM hyper_edges WHERE id = ?", (gone,)
-        ).fetchone()[0] == 0
-        assert conn.execute(
-            "SELECT COUNT(*) FROM hyper_edges WHERE id = ?", (keep,)
-        ).fetchone()[0] == 1
+        assert (
+            conn.execute("SELECT COUNT(*) FROM hyper_edges WHERE id = ?", (gone,)).fetchone()[0]
+            == 0
+        )
+        assert (
+            conn.execute("SELECT COUNT(*) FROM hyper_edges WHERE id = ?", (keep,)).fetchone()[0]
+            == 1
+        )
         # the incidence FK cascade took the stale membership with it
-        assert conn.execute(
-            "SELECT COUNT(*) FROM hyper_incidences WHERE edge_id = ?", (gone,)
-        ).fetchone()[0] == 0
+        assert (
+            conn.execute(
+                "SELECT COUNT(*) FROM hyper_incidences WHERE edge_id = ?", (gone,)
+            ).fetchone()[0]
+            == 0
+        )
