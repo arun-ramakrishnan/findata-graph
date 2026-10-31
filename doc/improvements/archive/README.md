@@ -70,6 +70,16 @@ commit, referenced by nothing). Entry numbers point at
 
 ## graph/ — Graph layer — algorithms, DuckPGQ retirement, Onager, knowledge-model design
 
+- [`graph_alpha_lane.md`](graph/graph_alpha_lane.md) — the alpha-research
+  discipline arc — S1 dated 46,045 edges from provenance (RPT
+  period_end + ref-embedded derive dates; evidenced stamps only,
+  901 unresolvable left undated); S2 leak-free re-sweep over all 18
+  quarter-ends (96-row table, sector-abnormal targets); **S3 caught
+  the lane's first lookahead artifact** (sweep-#1's `competes` t=+3.08
+  collapsed to ~0 leak-free) → no pre-registration;
+  `rpt_disclosure` h=4 abnormal = WATCH signal (6/12 dates); S4 sweep
+  enhancements (multi-horizon, abnormal target, O(1) indexing,
+  quarterly cadence) — completed.md #462
 - [`price_lane_alpha_research.md`](graph/price_lane_alpha_research.md) —
   the market dimension — S0 as-of substrate (`as_of.py`; 62,570/69,831
   edges visible at 2026-06-30); S1 weekly OHLCV lane (`price_sync.py`

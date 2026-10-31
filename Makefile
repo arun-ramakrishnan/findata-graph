@@ -533,7 +533,17 @@ convo-search-rebuild: ## Rebuild convo_search.duckdb via atomic swap (compacts t
 convo-search-check: ## Report convo_search.duckdb file size vs payload (advisory; swap-rebuild candidate)
 > @.venv/bin/python3 -c "import duckdb,os;d='memory/convo_search.duckdb';c=duckdb.connect(d,read_only=True);r=c.execute('SELECT COUNT(*) FROM convo_search').fetchone();c.close();size=os.path.getsize(d)/1e6;print(f'  convo_search: {size:.0f} MB, {r[0]:,} rows')"
 
-search-fresh:    ## Check ALL search indexes for staleness — doc/, script metadata, note embeddings, harness memory, git history (every check runs even if one fails; exit 1 on drift; APPLY=1 refreshes them instead; ARGS="--allow-stale"/"--sandbox" reaches the rebuild CLIs for the stale-apply guard escape/preview; also run by make advisory)
+# APPLY-from-worktree ban (operator rule 2026-10-31; doctrine:
+# doc/local/engineering/wt_workflow.md §3.2). Every *-fresh APPLY path writes
+# the SHARED stores under memory/ (symlinked from every worktree) — they are
+# main-tree operations by definition. The rebuild_common trample guard catches
+# behind-tree applies; this is the categorical front door: a linked worktree
+# may run these targets in check mode only. Detection: --git-dir differs from
+# --git-common-dir iff this is a linked worktree.
+apply_main_guard = test "$$(git rev-parse --git-dir)" = "$$(git rev-parse --git-common-dir)" || { echo "REFUSED: APPLY from a linked worktree ($$(basename "$$(git rev-parse --git-dir)")) — *-fresh APPLY writes the shared stores under memory/; run it from the main checkout (check mode without APPLY=1 works from any tree; doctrine: doc/local/engineering/wt_workflow.md §3.2)" >&2; exit 2; }
+
+search-fresh:    ## Check ALL search indexes for staleness — doc/, script metadata, note embeddings, harness memory, git history (every check runs even if one fails; exit 1 on drift; APPLY=1 refreshes them instead — MAIN TREE ONLY, refused from worktrees; ARGS="--allow-stale"/"--sandbox" reaches the rebuild CLIs for the stale-apply guard escape/preview; also run by make advisory)
+> @$(if $(APPLY),$(apply_main_guard),true)
 > @rc=0; \
 >   extra="$(if $(APPLY),,--check)"; \
 >   case " $(ARGS) " in *" --sandbox "*|*" --allow-stale "*) extra="";; esac; \
@@ -547,22 +557,25 @@ search-fresh:    ## Check ALL search indexes for staleness — doc/, script meta
 >   if [ $$rc -eq 0 ]; then echo "✓ all search indexes fresh (doc_search, script_search, note_search, memory_search, git_search)"; fi; \
 >   exit $$rc
 
-git-fresh:        ## Check git-history index freshness — commit/diff search over main (every check runs even if one fails; exit 1 on drift; APPLY=1 reconciles the SHA set incrementally; also run by make search-fresh)
+git-fresh:        ## Check git-history index freshness — commit/diff search over main (every check runs even if one fails; exit 1 on drift; APPLY=1 reconciles the SHA set incrementally — MAIN TREE ONLY; also run by make search-fresh)
+> @$(if $(APPLY),$(apply_main_guard),true)
 > @rc=0; \
 >   extra="$(if $(APPLY),,--check)"; \
 >   echo "git-fresh: $(if $(APPLY),APPLY — reconciling,check) mode"; \
 >   MAINT_TARGET=git-fresh python3 helpers/maintenance/rebuild_git_search.py $$extra $(ARGS) || rc=1; \
 >   exit $$rc
 
-gate-fresh: ## Check gate-run index freshness for helpers/misc/gate_query.py (default: report drift, exit 1 when the index is behind — nothing written; APPLY=1 force-indexes incrementally; refresh also runs automatically before every gate_query verb)
+gate-fresh: ## Check gate-run index freshness for helpers/misc/gate_query.py (default: report drift, exit 1 when the index is behind — nothing written; APPLY=1 force-indexes incrementally — MAIN TREE ONLY; refresh also runs automatically before every gate_query verb)
 > @if [ -n "$(APPLY)" ]; then \
+> 	$(apply_main_guard); \
 > 	python3 helpers/misc/gate_query.py refresh; \
 > 	echo "✓ gate index refreshed (outputs/gate_runs.duckdb; query: gate_query latest|failures|recent)"; \
 > else \
 > 	python3 helpers/misc/gate_query.py refresh --check; \
 > fi
 
-convo-fresh:      ## Check conversation corpus+index freshness — harness sources vs parquet corpus vs pointer index (every check runs even if one fails; exit 1 on drift; APPLY=1 harvests+incrementally rebuilds; also run by make advisory)
+convo-fresh:      ## Check conversation corpus+index freshness — harness sources vs parquet corpus vs pointer index (every check runs even if one fails; exit 1 on drift; APPLY=1 harvests+incrementally rebuilds — MAIN TREE ONLY, refused from worktrees; also run by make advisory)
+> @$(if $(APPLY),$(apply_main_guard),true)
 > @rc=0; \
 >   echo "convo-fresh: $(if $(APPLY),APPLY — harvesting+rebuilding,check) mode"; \
 >   t0=$$(date +%s%3N); \
@@ -576,10 +589,11 @@ convo-fresh:      ## Check conversation corpus+index freshness — harness sourc
 >   if [ $$rc -eq 0 ]; then echo "✓ convo corpus+index fresh"; fi; \
 >   exit $$rc
 
-analytics-fresh:  ## Analytics stores (agent_traces + model_usage) vs harness frontiers — read-only drift report, exit 1 when a completed day is missing; APPLY=1 runs incremental load all on both loaders
+analytics-fresh:  ## Analytics stores (agent_traces + model_usage) vs harness frontiers — read-only drift report, exit 1 when a completed day is missing; APPLY=1 runs incremental load all on both loaders — MAIN TREE ONLY, refused from worktrees
 > @rc=0; \
 >   echo "analytics-fresh: $(if $(APPLY),APPLY — loading,check) mode"; \
 >   if [ -n "$(APPLY)" ]; then \
+>     $(apply_main_guard); \
 >     MAINT_TARGET=analytics-fresh python3 helpers/analytics/model_analytics.py load all || rc=1; \
 >     MAINT_TARGET=analytics-fresh python3 helpers/analytics/agent_traces.py load all || rc=1; \
 >   fi; \

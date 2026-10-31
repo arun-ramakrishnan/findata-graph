@@ -13090,3 +13090,29 @@ bars, no daily feed, no charting, no recurring sync).
   recompute cycle.
 - Siblings B (transcript ingest) and D (MCP server) parked in
   `pending.md`. New package `helpers/research/` (report-only lanes).
+
+## 462. Graph alpha lane — edge dating, leak-free re-sweep, and a caught lookahead artifact
+
+**Date:** 2026-10-31 · **Status:** EXECUTED · **Proposal:**
+`doc/improvements/archive/graph/graph_alpha_lane.md` (filed + executed
+same day; moved up from `doc/local/evaluations/` sweep #1).
+
+- **S1**: `date_edges.py` — **46,045 edges dated from their own
+  provenance** (99.5% of five families): RPT `period_end` for
+  same_group/supplier_to/subsidiary_of (33.6k), ref-embedded derive
+  dates for competes_with/semantic_peer (12.4k). Evidenced stamps only;
+  901 unresolvable stay undated; 4/4 tests incl. `--revert` round-trip.
+  As-of substrate transformed (20,886 visible at 2025-06-30 vs 61k+
+  pre-dating).
+- **S2**: leak-free re-sweep over all 18 quarter-ends (96-row table:
+  8 signals × 2 modes × 3 horizons × raw/sector-abnormal).
+- **S3**: **NO pre-registration — the discipline caught its first
+  artifact.** Sweep-#1's leading signal (`competes`, all-mode +0.033,
+  t=+3.08) collapsed to −0.018/−0.014/−0.001 leak-free. The one
+  consistent dated read (`rpt_disclosure` h=4 abnormal +0.045, t=+2.98,
+  6/6 dates) is below the 12-date bar → WATCH signal, accrues quarterly.
+- **S4**: sweep enhancements landed — multi-horizon, sector-relative
+  abnormal target, O(1) bar indexing, quarterly cadence convention.
+- Sweep: `helpers/research/signal_sweep.py`; record in the archived
+  proposal §2/§7. The honest state: no graph signal has yet cleared
+  the leak-free bar; the lane's value is the instrument.

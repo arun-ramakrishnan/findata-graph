@@ -39,7 +39,11 @@ entry number and stale DONE pointers):
 ## Current live proposals
 
 - *(none live)* — every proposal filed here is executed and
-  archived. Most recent: `price_lane_alpha_research` (filed + executed
+  archived. Most recent: `graph_alpha_lane` (filed + executed same day
+  2026-10-31, #462,
+  `../archive/graph/graph_alpha_lane.md`; 46k edges dated, leak-free
+  re-sweep, first lookahead artifact caught — `competes` — no
+  pre-registration; `rpt_disclosure` h=4 abnormal = watch), then `price_lane_alpha_research` (filed + executed
   same day 2026-10-31, #461,
   `../archive/graph/price_lane_alpha_research.md`; as-of substrate,
   weekly OHLCV sidecar 90.2%, event studies, pre-registered precision

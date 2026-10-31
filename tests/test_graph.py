@@ -607,13 +607,24 @@ class TestCompanyNeighborsBundle:
     def test_bundle_honors_as_of(self, con):
         """as_of must thread into every arm. CEAT acquired Camso in 2023
         (verified in test_neighbors_bundle_shape); an as_of before that date
-        drops the acquired edge while leaving structural edges intact."""
-        # 2020-01-01: before the Camso acquisition.
+        drops the acquired edge while leaving structural edges intact.
+
+        graph_alpha_lane S1 update (2026-10-31): the industry-derived
+        competes_with edges are now DATED (yfinance derive 2026-08-25), so
+        the peers arm legitimately SHRINKS under a pre-2026 as_of — an
+        as-of snapshot never ADDS vs live (the point-in-time invariant),
+        and sector membership (canonical, undated) survives unchanged.
+        """
+        # 2020-01-01: before the Camso acquisition AND before the dated
+        # industry-derive competes edges.
         old = company_neighbors_bundle(con, "CEAT", as_of="2020-01-01")
         now = company_neighbors_bundle(con, "CEAT")
-        # Structural edges survive.
+        # Structural edges survive (canonical sector membership is undated).
         assert old["sector"] == now["sector"] == "Automotive"
-        assert old["peers"] == now["peers"]
+        # Point-in-time invariant: as-of never adds, and the dated
+        # competes edges drop — the peers arm shrinks, never grows.
+        assert set(old["peers"]) <= set(now["peers"])
+        assert len(old["peers"]) < len(now["peers"])
         # The acquired edge is dropped under the historical lens.
         assert old["acquired"] == []
         assert any(a["name"] == "Camso" for a in now["acquired"])
