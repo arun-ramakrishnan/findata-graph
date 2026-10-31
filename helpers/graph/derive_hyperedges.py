@@ -1311,6 +1311,45 @@ def prune_stale_event_edges(
     return stats
 
 
+def prune_stale_group_edges(
+    conn, wanted_labels: set[str], *, dry_run: bool
+) -> dict[str, int]:
+    """Group-family convergence (graph_lane_unlocks S2): ``group`` converges
+    to the collect output.
+
+    #457 widened ``group`` to 498 filer-keyed RPT disclosure sets
+    (``vigil:rpt:<SYMBOL>``) fed by an upstream that REWRITES — S9
+    counterparty resolution mutates source_refs, filings reclassify —
+    and the additive apply cannot remove a label the collector no
+    longer produces. Same verdict rule as the event family: a stored
+    ``group`` label absent from the collect output is provably stale
+    (a filer that stopped reporting, or a curated ``$.group`` dyad
+    since edited), not a membership fact. Delete by label; the
+    incidence FK cascade takes the memberships. The curated corporate
+    groups participate on the same terms — they are collected every
+    run, so a surviving dyad keeps its label.
+    """
+    stored = {
+        label
+        for (label,) in conn.execute("SELECT label FROM hyper_edges WHERE edge_type = 'group'")
+    }
+    stale = sorted(stored - wanted_labels)
+    stats = {
+        "stored": len(stored),
+        "kept": len(stored & wanted_labels),
+        "dropped": len(stale),
+    }
+    if dry_run or not stale:
+        return stats
+    qmarks = ",".join("?" * len(stale))
+    with conn:
+        conn.execute(
+            f"DELETE FROM hyper_edges WHERE edge_type = 'group' AND label IN ({qmarks})",  # noqa: S608  # ?-placeholders only, values parameterized
+            stale,
+        )
+    return stats
+
+
 def apply_hyperedges(  # noqa: C901 — per-edge_type DDL + dry-run/apply branches mirror the store schema
     hyper: dict[str, dict[str, set[str]]],
     weights: dict[tuple[str, str, str], float] | None = None,
@@ -1602,6 +1641,24 @@ def _cli(argv: list[str] | None = None) -> int:  # noqa: C901  # arg-dispatch CL
                 print(
                     f"S1 event-family convergence: {mode_p} {prune['dropped']} stale "
                     f"hyperedge(s) of {prune['stored']} stored ({prune['kept']} kept)"
+                )
+        # graph_lane_unlocks S2: group converges to the collect output —
+        # filer-keyed RPT sets ride a rewriting upstream, so a label the
+        # collector no longer produces must drop (apply is otherwise
+        # ADD/UPDATE-only for this family).
+        wanted_groups = set(hyper.get("group", {}))
+        if (
+            wanted_groups
+            or conn.execute(
+                "SELECT 1 FROM hyper_edges WHERE edge_type = 'group' LIMIT 1"
+            ).fetchone()
+        ):
+            gprune = prune_stale_group_edges(conn, wanted_groups, dry_run=not args.apply)
+            if gprune["dropped"]:
+                mode_g = "would drop" if not args.apply else "dropped"
+                print(
+                    f"S2 group-family convergence: {mode_g} {gprune['dropped']} stale "
+                    f"hyperedge(s) of {gprune['stored']} stored ({gprune['kept']} kept)"
                 )
         print(
             f"{'source':<10} {'new_edges':>10} {'new_incidences':>15}"

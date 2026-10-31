@@ -13037,3 +13037,29 @@ scans, an invasive separate look on harness-owned stores.
 - No changes to `scipy_matching.py` (the flagged `max_matching_size`
   permutation-length quirk stays parked for a lane-2 algorithmic pass);
   10/10 lane tests; read-only.
+
+## 460. Graph lane unlocks — matching Hall print fixed, group convergence, index slot decided, backbone resilience measured
+
+**Date:** 2026-10-31 · **Status:** EXECUTED · **Proposal:**
+`doc/improvements/archive/graph/graph_lane_unlocks.md` (filed
+2026-10-31).
+
+- **S1**: `s3_feasibility`'s `max_matching_size` was `len()` of scipy's
+  permutation array = column count; now counts assignments. Live
+  `assign-feasibility`: **958/6083** (was 8733/6083). Regression test
+  pins a Hall-collision shape where the bug flipped `full_matching`.
+- **S2**: `group`-family convergence pass (event-family mirror). Live:
+  1 stale of 507 stored — curated `Welspun` (0 `same_group` dyads
+  remain) — dropped; 506 labels remain.
+- **S3**: `index` centralities stay OPT-IN — adding the 49 surviving
+  hyperedges to the default scope flattens s_betweenness top-10 into a
+  0.110871 tie (vs 0.116–0.174 differentiated); decision recorded in
+  `ontology.md` §`index`.
+- **S4**: `l1_mst.py --format resilience` — full-graph bridge census vs
+  the MSF: **82.7% of forest edges (15,664/18,937) are true bridges**
+  (13,758 in the 17,013-node main component) — most backbone ties have
+  no alternate path.
+- §5's unmet-trigger register (LanceDB sidecar, DuckDB fts, reentry
+  port, HNSW vss, personalised pagerank, MAX rung, numba Phase C,
+  core-periphery, T3, P2.2, Security Phase 4, Mojo) frozen unchanged —
+  nothing fired.

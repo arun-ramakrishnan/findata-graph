@@ -295,3 +295,28 @@ if __name__ == "__main__":
     test_s3_hall_collision()
     test_live()
     print("\nall ok")
+
+
+def test_s3_matching_size_is_not_the_column_count():
+    """graph_lane_unlocks S1: s3_feasibility counted len() of scipy's
+    permutation array = COLUMN count, never the match size. This shape
+    makes the bug flip the VERDICT: 3 investors (I1 and I2 both only
+    reach T1) over exactly 3 targets, so m == n and the true max
+    matching is 2. Bug: len(perm)=3 == n=3 → full_matching True (wrong).
+    Fixed: matched 2 < 3 → False, reason carries the matched count.
+    """
+    f = tempfile.NamedTemporaryFile(suffix=".db", delete=False)
+    db = Path(f.name)
+    f.close()
+    conn = sqlite3.connect(db)
+    conn.execute("CREATE TABLE graph_edges (source TEXT, target TEXT, edge_type TEXT)")
+    for s, t in [("I1", "T1"), ("I2", "T1"), ("I3", "T2")]:
+        conn.execute("INSERT INTO graph_edges VALUES (?,?,?)", (s, t, "supplier_to"))
+    conn.commit()
+    conn.close()
+    inc = sm.load_supplier_incidence(str(db))
+    res = sm.s3_feasibility(inc)
+    assert res["max_matching_size"] == 2  # T3 unreachable; T1 serves one of I1/I2
+    assert not res["full_matching"]  # the bug's len(perm)==3==n said True
+    assert res["reason"] == "Hall collisions: max matching 2/3"
+    db.unlink()

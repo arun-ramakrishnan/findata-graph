@@ -109,7 +109,13 @@ def s3_feasibility(supplier_incidence, *, allow_sector_cuts=False):
     """
     mat = supplier_incidence["matrix"].astype(float)
     n, m = mat.shape
-    matching_size = len(maximum_bipartite_matching(mat, perm_type="row"))
+    # graph_lane_unlocks S1: scipy 1.18.1's maximum_bipartite_matching
+    # (perm_type="row") returns an array of length #columns with -1 for
+    # unmatched columns — len() is the COLUMN COUNT, never the match size
+    # (the wired lane printed "max matching 8733/6083" on a 958 match).
+    # Count assignments, the same idiom s2_matching uses.
+    perm = maximum_bipartite_matching(mat, perm_type="row")
+    matching_size = int((perm >= 0).sum())
     full = matching_size == n
     zero_cols = [j for j in range(m) if np.isclose(mat[:, j].sum(), 0)]
     return {

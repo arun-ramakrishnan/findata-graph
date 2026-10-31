@@ -70,6 +70,15 @@ commit, referenced by nothing). Entry numbers point at
 
 ## graph/ — Graph layer — algorithms, DuckPGQ retirement, Onager, knowledge-model design
 
+- [`graph_lane_unlocks.md`](graph/graph_lane_unlocks.md) — post-#456–#459
+  unlock sweep — S1 matching Hall print fixed (len-of-permutation =
+  column count → assignment count; live 958/6083; verdict-flip test
+  pinned); S2 `group` convergence pass (1 stale of 507 — curated
+  `Welspun`, 0 dyads — dropped); S3 `index` centralities stay OPT-IN
+  (default-scope s_betweenness flattens to a 0.110871 top-10 tie);
+  S4 `l1_mst --format resilience` (82.7% of forest edges are true
+  full-graph bridges); §5 freezes the unmet-trigger register —
+  completed.md #460
 - [`mst_backbone_wiring.md`](graph/mst_backbone_wiring.md) — MST/MSF
   backbone wiring — `_print_mst_backbone()` advisory section in stats.py
   (whole-call timer per the proposal's rule; live: 19,051 nodes / 114

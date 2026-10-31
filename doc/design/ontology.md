@@ -193,6 +193,16 @@ centrality/query-first (the s-walk lanes measured healthy on it), not a
 guaranteed community lane. The dyad type itself stays excluded from the
 dyadic centrality projection (hub-noise ruling, 2026-09-19) — that
 exclusion is about dyadic degree hubs, not the incidence family.
+CENTRALITY SLOT DECISION (graph_lane_unlocks S3, 2026-10-31): `index`
+stays OPT-IN for `hyper_centralities` — measured head-to-head on the
+live store, adding the 49 surviving index hyperedges to the default
+scope collapses s_betweenness into a flat 0.110871 tie across the top-10
+(shared-index membership plateaus the s-walk profile) while the default
+scope's served ranking genuinely differentiates (0.116–0.174). Also the
+giant set shifts with the node universe (6 of 8 giants exceed 25% of the
+1,212-node default universe vs 8 of 8 on the 762-node index-only one).
+Run `--sources …,index` deliberately; do not add it to
+`recompute-hyper`.
 
 `merger` / `demerger` (merger_demerger_hyperedges S1, 2026-10-21): the
 n-ary corporate-structure families. A merger is A + B (+ …) → survivor C,

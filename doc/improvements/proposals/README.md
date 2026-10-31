@@ -38,8 +38,13 @@ entry number and stale DONE pointers):
 
 ## Current live proposals
 
-- *(none)* — every proposal filed here is executed and archived.
-  Most recent: `mst_backbone_wiring` (filed 2026-10-30, executed
+- *(none live)* — every proposal filed here is executed and
+  archived. Most recent: `graph_lane_unlocks` (filed + executed same
+  day 2026-10-31, #460,
+  `../archive/graph/graph_lane_unlocks.md`; S1 matching Hall print,
+  S2 group convergence, S3 index opt-in decision, S4 backbone
+  resilience 82.7% bridges, §5 trigger register frozen), then
+  `mst_backbone_wiring` (filed 2026-10-30, executed
   2026-10-30, #458,
   `../archive/graph/mst_backbone_wiring.md`; stats.py advisory section
   + `make graph-mst`) and `maximum_bipartite_matching_wiring` (filed

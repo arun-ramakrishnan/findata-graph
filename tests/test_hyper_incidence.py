@@ -1371,3 +1371,48 @@ class TestWorklistParking:
         wl = json.loads((tmp_path / "findata" / "Misc" / "subsector_worklist.json").read_text())
         assert [u["label"] for u in wl["unmapped"]] == ["Widgets"]
         assert wl["count"] == 1 and wl["parked"] == 1
+
+
+class TestGroupConvergence:
+    """graph_lane_unlocks S2: the `group` family converges to the collect
+    output — #457's filer-keyed RPT sets ride a rewriting upstream, so a
+    stored label the collector no longer produces must drop (the additive
+    apply cannot remove it)."""
+
+    def _plant(self, conn, label):
+        cur = conn.execute(
+            "INSERT INTO hyper_edges (edge_type, label, source_ref) VALUES ('group', ?, 'test')",
+            (label,),
+        )
+        edge_id = cur.lastrowid
+        conn.execute(
+            "INSERT INTO hyper_incidences (edge_id, entity_name) VALUES (?, 'Alpha')",
+            (edge_id,),
+        )
+        conn.commit()
+        return edge_id
+
+    def test_dry_run_reports_without_deleting(self, conn):
+        edge_id = self._plant(conn, "vigil:rpt:GONE")  # no dyad produces it
+        # the fixture's hyper_edges starts empty; wanted=M Group, stored={GONE}
+        stats = dh.prune_stale_group_edges(conn, {"M Group"}, dry_run=True)
+        assert stats == {"stored": 1, "kept": 0, "dropped": 1}
+        assert conn.execute(
+            "SELECT COUNT(*) FROM hyper_edges WHERE id = ?", (edge_id,)
+        ).fetchone()[0] == 1  # dry-run wrote nothing
+
+    def test_apply_drops_stale_and_keeps_curated(self, conn):
+        gone = self._plant(conn, "vigil:rpt:GONE")
+        keep = self._plant(conn, "M Group")
+        stats = dh.prune_stale_group_edges(conn, {"M Group"}, dry_run=False)
+        assert stats["dropped"] == 1
+        assert conn.execute(
+            "SELECT COUNT(*) FROM hyper_edges WHERE id = ?", (gone,)
+        ).fetchone()[0] == 0
+        assert conn.execute(
+            "SELECT COUNT(*) FROM hyper_edges WHERE id = ?", (keep,)
+        ).fetchone()[0] == 1
+        # the incidence FK cascade took the stale membership with it
+        assert conn.execute(
+            "SELECT COUNT(*) FROM hyper_incidences WHERE edge_id = ?", (gone,)
+        ).fetchone()[0] == 0
