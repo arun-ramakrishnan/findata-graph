@@ -138,6 +138,20 @@ without re-deriving it.
   opts in, distribute fixes into owning patches (`stg refresh -p` fast
   path, `goto -k`/`spill` fallback) and message via `stg edit -f`.
   For patch messages read `doc/procedures/commit-messages.md` first.
+- **Session worktrees (worktrunk `wt`)** — full playbook:
+  `doc/local/engineering/wt_workflow.md`. Session arcs run in a wt
+  worktree (`wt switch -c <arc-slug>` from main; hooks wire symlinks,
+  `.envrc`, memory scope). Inside a worktree: read-only index work
+  (`--check`/`--sandbox`) — **never APPLY any `*-fresh` target**
+  (search-fresh/convo-fresh/analytics-fresh/…; the Makefile refuses) —
+  APPLY is a main-tree operation; no graph-DB rebuilds; no Rust `.so`
+  installs into the (shared) venv; **never complete/archive a proposal**
+  (`completed.md` numbers are main-owned; amending an already-archived
+  proposal's record is fine). Landing: operator runs `wt merge main`
+  (commit crafted on the branch per the commit-message template, merge
+  with `--no-squash`), then `stg repair` on main — the landing rides the
+  stack as the TOP patch by design; first post-merge APPLY from main
+  needs `--allow-stale` once (stamps lag the ff).
 - Use `.venv/bin/python3` explicitly in non-interactive shells.
 - **Python 3.14 / PEP 758:** `except OSError, TimeoutError:` (no
   parens, no `as`) is VALID Python 3.14 syntax — looks like Py2

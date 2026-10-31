@@ -523,6 +523,29 @@ def _print_supplier_matching() -> None:
         print(f"  (unavailable: {type(e).__name__}: {str(e)[:120]})")
 
 
+def _print_price_coverage() -> None:
+    """Weekly-price join census (price_lane_alpha_research S2). Advisory —
+    clean-skips when the parquet has not been built."""
+    print(_hr("Price coverage (weekly, S1 lane)", "-"))
+    try:
+        from helpers.research.price_join import entity_week_census
+
+        c = entity_week_census()
+        print(
+            f"  price-joinable {c['joinable']}/{c['tickered_entities']} tickered "
+            f"entities ({c['exchange_split'].get('NSE', 0)} NSE / "
+            f"{c['exchange_split'].get('BSE', 0)} BSE) | "
+            f"full-5y {c['full_depth_5y']} | rows {c['rows']} "
+            f"({c['span'][0]}..{c['span'][1]})"
+        )
+        print(
+            f"  yahoo-absent {c['yahoo_absent']} (survivorship caveat — delisted/"
+            "renamed absent from every join)"
+        )
+    except Exception as e:  # noqa: BLE001  # advisory section; never fail stats
+        print(f"  (unavailable: {type(e).__name__}: {str(e)[:120]})")
+
+
 def _print_structure_metrics() -> None:
     """Print Onager whole-graph metrics and exact stamped structure scalars."""
     print(_hr("Structure (Onager, full edge set)", "-"))
@@ -801,6 +824,7 @@ def print_stats(exact_chains: bool = False) -> int:
     # maximum_bipartite_matching_wiring S1; advisory, never fail stats) ---
     _print_mst_backbone()
     _print_supplier_matching()
+    _print_price_coverage()
 
     # --- Longest chains (capture quality across domains) ---
     print(_hr("Longest chains — capture quality across domains", "-"))

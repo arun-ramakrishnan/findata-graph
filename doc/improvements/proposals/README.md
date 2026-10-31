@@ -39,7 +39,11 @@ entry number and stale DONE pointers):
 ## Current live proposals
 
 - *(none live)* — every proposal filed here is executed and
-  archived. Most recent: `graph_lane_unlocks` (filed + executed same
+  archived. Most recent: `price_lane_alpha_research` (filed + executed
+  same day 2026-10-31, #461,
+  `../archive/graph/price_lane_alpha_research.md`; as-of substrate,
+  weekly OHLCV sidecar 90.2%, event studies, pre-registered precision
+  instrument), then `graph_lane_unlocks` (filed + executed same
   day 2026-10-31, #460,
   `../archive/graph/graph_lane_unlocks.md`; S1 matching Hall print,
   S2 group convergence, S3 index opt-in decision, S4 backbone

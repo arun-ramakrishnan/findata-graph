@@ -70,6 +70,16 @@ commit, referenced by nothing). Entry numbers point at
 
 ## graph/ — Graph layer — algorithms, DuckPGQ retirement, Onager, knowledge-model design
 
+- [`price_lane_alpha_research.md`](graph/price_lane_alpha_research.md) —
+  the market dimension — S0 as-of substrate (`as_of.py`; 62,570/69,831
+  edges visible at 2026-06-30); S1 weekly OHLCV lane (`price_sync.py`
+  → 1.17M-row sidecar, 90.2% coverage, `--fill-missing` 429 recovery;
+  NO daily feed/no recurring sync per operator); S2 join census
+  (`price_join.py` + stats advisory line + D15 register); S3 event
+  studies (acquirers −7.2% abnormal at 4w, N=13; `invested_in` ≈ no
+  signal; `listed_on_index` dates = ingest stamps, excluded); S4
+  pre-registered link-prediction precision instrument (0 measurable
+  deals at registration) — completed.md #461
 - [`graph_lane_unlocks.md`](graph/graph_lane_unlocks.md) — post-#456–#459
   unlock sweep — S1 matching Hall print fixed (len-of-permutation =
   column count → assignment count; live 958/6083; verdict-flip test

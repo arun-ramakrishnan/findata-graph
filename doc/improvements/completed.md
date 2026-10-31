@@ -13063,3 +13063,30 @@ scans, an invasive separate look on harness-owned stores.
   port, HNSW vss, personalised pagerank, MAX rung, numba Phase C,
   core-periphery, T3, P2.2, Security Phase 4, Mojo) frozen unchanged —
   nothing fired.
+
+## 461. Price lane + graph alpha research — as-of substrate, weekly OHLCV, event studies, pre-registered precision instrument
+
+**Date:** 2026-10-31 · **Status:** EXECUTED · **Proposal:**
+`doc/improvements/archive/graph/price_lane_alpha_research.md` (filed +
+executed same day; S1 re-scoped mid-arc per operator ruling — weekly
+bars, no daily feed, no charting, no recurring sync).
+
+- **S0**: `helpers/graph/as_of.py` — point-in-time edge visibility over
+  the 8,414 dated edges; live differential 62,570/69,831 visible at
+  2026-06-30 (7,261 not-yet-born, 0 expired). 5/5 tests.
+- **S1**: `price_sync.py` → `memory/data/price_history_weekly.parquet`
+  — **1,172,762 rows, 5,486 symbols (90.2%), 5y weekly**, median 261
+  weeks/symbol; `--fill-missing` recovery after Yahoo 429 bursts; the
+  594 Yahoo-absent legacy `.BO` codes carry the survivorship caveat.
+- **S2**: `helpers/research/price_join.py` census (5,487/6,081
+  joinable) + advisory line in `make graph-stats` + D15 register entry.
+- **S3**: `event_study.py` — as-of-guarded long-horizon studies. Live:
+  **acquirers −7.2% median abnormal at 4w** (N=13; volume −30%),
+  converging to +1.3% by 26w; `invested_in` filings ≈ no signal;
+  `listed_on_index` dates proven ingest-stamps and excluded.
+- **S4**: pre-registered instrument (`linkpred_precision_prereg.md` +
+  frozen 10,630-row snapshot + `linkpred_precision.py`) — registration
+  run: 0 measurable deals (24 circular-excluded); accumulates per
+  recompute cycle.
+- Siblings B (transcript ingest) and D (MCP server) parked in
+  `pending.md`. New package `helpers/research/` (report-only lanes).

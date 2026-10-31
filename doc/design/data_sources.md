@@ -231,3 +231,16 @@ Query pattern:
 - **yfinance lane** (pre-existing): tickers → industry labels via
   `helpers/core/get_tickers.py` + `helpers/maintenance/enrich_from_yfinance.py`
   — the classification-label workhorse for exchange stubs.
+
+## D15 — Yahoo weekly OHLCV lane (price_lane_alpha_research S1, 2026-10-31)
+
+| What | Value |
+|---|---|
+| Source | Yahoo Finance via `yfinance` 1.7.0 (unauthed; `yf.download`, `interval=1wk`, `auto_adjust=True` — single adjusted OHLC series) |
+| Universe | 6,081 entities carrying Yahoo-suffixed tickers (`entities.ticker`: `SBIN.NS` / `.BO` — written by the enrichment lane; the ticker is the join, the ISIN is the identifier of record) |
+| Output | `memory/data/price_history_weekly.parquet` (zstd, git-managed house sidecar; 1,172,762 rows, 5,486 symbols, 2021-10-25..2026-10-30) |
+| Tool | `helpers/maintenance/price_sync.py` — `build` (5y backfill, 200-ticker batches, jitter, per-batch retry + 90 s cooldown on Yahoo 429s) / `build --since` (on-demand top-up) / `build --fill-missing` (rate-limit recovery: fetch only absent symbols, merge) / `coverage` |
+| Freshness | NOT a gate, NOT scheduled (operator ruling: weekly signals for long-horizon analysis, no daily/charting work). Refresh is a research action: `build --since <last study date>` |
+| Coverage census | 5,487/6,081 joinable (2,922 BSE / 2,565 NSE; 3,857 full-5y) — `helpers/research/price_join.py census`; also an advisory line in `make graph-stats` |
+| Survivorship caveat | 594 tickered entities have NO Yahoo history (repeat-verified across 4 build passes; predominantly legacy numeric `.BO` scrip codes — delisted/renamed). Every join is survivor-biased toward names still listed in 2026 |
+| Successor | Kite Connect v3 historical-candles (row above) if exchange-grade daily data is ever needed |

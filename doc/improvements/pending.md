@@ -895,3 +895,14 @@ Open items below keep their revisit triggers inline; executed work is compressed
   growth); a sub-50 ms interactive consumer fusing convo vector
   results; or LanceDB 1.0 + a lexical leg passing the assessment's
   parity protocol (would dissolve the FTS5 carve-out class).
+- **Multilingual concall/transcript ingest — PARKED 2026-10-31, no
+  source pinned** (operator): the strategic multilingual play (gemma
+  11/12 vs granite 4/12 has had no consumer since #363) needs a
+  transcript source first; `doc/design/data_sources.md` has no lane for
+  it. Sourcing is the blocker, not machinery. Reopen when a source is
+  pinned.
+- **MCP server for the estate — PARKED 2026-10-31 (operator)**: zero MCP
+  surface repo-wide (38 Flask routes + 8 search CLIs + TUI are all
+  single-harness). Small, well-shaped, purely operator-workflow
+  leverage; parked only for sequencing behind the price-lane arc
+  (`price_lane_alpha_research.md`).
