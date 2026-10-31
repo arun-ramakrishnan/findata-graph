@@ -361,3 +361,18 @@ https://thechatter.zerodha.com/p/the-chatter-the-pivot-quarter?publication_id=48
 > — Vipul Mathur, MD & CEO
 
 *Source: The Chatter — Borosil, Orchid, Welspun, KRN & More*
+
+## The Chatter — SEBI, Asian Paints, Motilal Oswal, Gulf Oil & More
+
+**Full-year guidance held at ₹2,850cr despite a strong H1:** "mammoth and, in certain corridors, catastrophic" global supply-chain disruption — the philosophy is to promise what can be reliably delivered, not overcommit.
+
+**US profitability well above anchor:** formal guidance ~$250/ton EBITDA, realised ~$300/ton historically, and last quarter expanded further on a favourable high-margin product mix; the scheduled mix keeps unit profitability elevated.
+
+**Domestic pipeline demand weak:** water-sector execution "extremely slow", India execution below expectations — export traction is what keeps the Indian manufacturing base resilient; early traction returning in domestic oil & gas.
+
+**Saudi Arabia under logistical stress:** Middle East tensions complicating the kingdom operations (management remains committed).
+
+> "Under such abnormal operating conditions, our philosophy is to promise what we can reliably deliver rather than overcommit."
+> — Vipul Mathur, Managing Director and CEO
+
+*Source: The Chatter — SEBI, Asian Paints, Motilal Oswal, Gulf Oil & More*

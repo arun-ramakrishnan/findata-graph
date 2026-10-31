@@ -370,3 +370,20 @@ Cipla strengthened its diabetes portfolio with the launch of **Afrezza** — Ind
 > — Achin Gupta, MD and Global CEO
 
 *Source: The Chatter — Titan, Dixon, JSW Steel, Cipla & More*
+
+## The Chatter — SEBI, L&T, Cipla, SBI Life Insurance & More
+
+**One India +12% YoY, branded Rx +15%:** chronic-led outperformance — respiratory +11%, anti-diabetics +50% (incl. GLP-1), urology +11%, dermatology +16% (IQVIA YTD Sep '26); chronic mix at 60.3%.
+
+**US momentum on complex respiratory:** Q2 North America revenue $172M (+$10M QoQ); #1 in US albuterol MDI with 22% share; generic Ventolin (Q1) and generic Advair (Q2 — first DPI approval from the US-based network) approvals landed.
+
+**Heavy US launch schedule ahead:** ~45–50 filings planned over the next 3 years, including high-value peptides and respiratory products.
+
+**Margins on the guided trajectory:** EBITDA margin ex-other-income 18.7% (+200bps QoQ); gross margin 64.4% (+7% QoQ) on mix; expense growth (+4% QoQ) is planned launch/manufacturing-readiness spend.
+
+**Lanreotide not in the $1B exit run-rate:** no return this financial year — parallel paths (Pharmathen remediation to FDA + a new North America filing) de-risk supply; Ventolin scales as the driver.
+
+> "One India delivered 12% Y-o-Y growth, sustaining its track record of consistent double-digit growth over the last few quarters, driven by strong execution across key therapies and the resilience of our franchise in the IPM."
+> — Achin Gupta, MD and Global CEO
+
+*Source: The Chatter — SEBI, L&T, Cipla, SBI Life Insurance & More*

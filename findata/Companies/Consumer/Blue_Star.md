@@ -457,3 +457,16 @@ industry, but i…"
 > — B Thiagarajan, Managing Director
 
 *Source: The Chatter — RBI Deputy Governor, 3M, Blue Star, KFin Technologies, & More*
+
+## The Chatter — SEBI, Asian Paints, Motilal Oswal, Gulf Oil & More
+
+**Margin math is price vs a 15% input spike:** Jan–Sep raw-material costs +~15% against only 7–8% passed through — EBIT margin compressed (sharper in Q1, narrowing in Q2); an additional 5% price increase took effect Oct 1 (cumulative ~12% vs 15%).
+
+**The residual 3% closes via operations:** cost-takeout, value engineering, supply-chain optimisation, selective outsourcing of value-segment products — tangible savings land in Q3/Q4; no further consumer price increases expected.
+
+**Full-year bar:** Segment 1 (commercial B2B projects) projected at 7–7.5% EBIT margins; H2 margins must exceed 8% to hit the full-year profitability target.
+
+> "From January through September, cumulative input costs rose by roughly 15%, against which we were able to pass through only 7% to 8% in price increases to end-consumers, resulting in EBIT margin compression."
+> — Vir S. Advani, Chairman and Managing Director
+
+*Source: The Chatter — SEBI, Asian Paints, Motilal Oswal, Gulf Oil & More*

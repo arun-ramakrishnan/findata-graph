@@ -475,3 +475,22 @@ centers to be AI-enabled, with servers and GPUs to enable high computing. Global
 > — P. Ramakrishnan, Chief Financial Officer
 
 *Source: The Chatter — BEL, HUL, Tata Capital*
+
+## The Chatter — SEBI, L&T, Cipla, SBI Life Insurance & More
+
+**Record order inflows with multi-year visibility:** highest-ever quarterly order inflow at ₹1.48 trillion (+28% YoY), led by ultra-mega/mega orders in offshore/onshore hydrocarbons and carbon-lite businesses; PPM portfolio hit a record ₹1.26 trillion (+32% YoY), international at 62% of mix.
+
+**Working capital at an all-time low:** NWC ratio improved to a record 1.7% (Sep 2026) from 4.1% (Mar 2026), gross working capital down 51.7%→48%, supported by customer advances against newly secured mega-orders.
+
+**AI data-centre scale-up:** ~US$750M committed against 10,000 GPUs at the existing 30MW Chennai facility; 100MW+ of AI data-centre capacity planned over 1.5–2 years (30+50+30MW at Sriperumbudur).
+
+**PDO framework agreement:** 6-year framework with Petroleum Development Oman — bid rights over an estimated US$6–7B of hydrocarbon spending over 4–5 years, alongside three other prequalified EPC players.
+
+**Infrastructure margin drag is legacy WET:** excluding Water & Effluent Treatment, infra margins would be 40–50bps better; claims conversion into cash takes time on long-dated projects.
+
+**Green energy only under take-or-pay:** no sizeable green hydrogen/ammonia investment without assured returns — explicit lesson from the Hyderabad Metro experience; ROE dilution ruled out.
+
+> "We recorded our highest-ever quarterly order inflow at Rs.1.48 trillion, registering a growth of 28% year-on-year, led by the receipt of ultra-mega and mega orders across offshore and onshore hydrocarbons, and carbon-lite businesses within the Energy Conventional segment."
+> — P. Ramakrishnan, Head of Investor Relations
+
+*Source: The Chatter — SEBI, L&T, Cipla, SBI Life Insurance & More*

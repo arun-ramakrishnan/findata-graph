@@ -98,7 +98,7 @@ def _git_worktree_name() -> str:
 
 def _outputs_root() -> Path:
     """outputs/ of the MAIN checkout — a linked worktree files its report
-    copies under ``<main>/outputs/wt/<name>/outputs/`` (the layout
+    copies under ``<main>/outputs/wt/<name>/`` (the layout
     search_tui lane 6 and gate_query already enumerate)."""
     wt = _git_worktree_name()
     if not wt:
@@ -107,7 +107,7 @@ def _outputs_root() -> Path:
     if common_path is None:
         return REPO_ROOT / "outputs"
     common = Path(common_path).resolve()
-    return common.parent / "outputs" / "wt" / wt / "outputs"
+    return common.parent / "outputs" / "wt" / wt
 
 
 OUTPUTS_ROOT = _outputs_root()

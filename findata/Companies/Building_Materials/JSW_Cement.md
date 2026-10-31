@@ -280,3 +280,18 @@ Amongst India's leading Conglomerates with a turnover of US$23 Bn
 JSW Cement benefits from the JSW Group's integrated ecosystem, strong distribution network, and focus on sustainable cement manufacturing, positioning it well for the anticipated infrastructure-led growth in India.
 
 *Source: Points & Figures - The Truth Behind the Trendlines, Edition #7, Nov 18, 2025*
+
+## The Chatter — SEBI, L&T, Cipla, SBI Life Insurance & More
+
+**Nagaur hits EBITDA breakeven in Q2:** the North India integrated unit turned operationally profitable; +1Mtpa grinding capacity commissioned in October to cut costs further; GGBS volumes +7% YoY on infrastructure-project approvals.
+
+**Leverage slightly above comfort:** net debt ₹4,287cr at Sep-end, net debt/EBITDA 3.2x (internal comfort 3x); cost of debt stable at 7.67%; capex ₹483cr in the quarter (₹820cr H1, cash basis).
+
+**₹550–600/ton cost reduction coming in the North:** OLBC commissioning + WHRS + alternate fuel ramp + clinker-utilisation gains expected to offset industry fuel inflation and close the gap to top peers.
+
+**Fuel headwind quantified:** petcoke/fuel ₹1.84→₹2.10/Mcal ≈ ₹90/ton cement cost increase — to be neutralised via price realisations and green-energy share moving above 50%.
+
+> "I am happy to announce that at Nagaur, we achieved EBITDA breakeven in Q2. The additional 1 million ton per annum grinding capacity commissioned in October further strengthens our ability to serve this region."
+> — Nilesh Narwekar, Chief Executive Officer
+
+*Source: The Chatter — SEBI, L&T, Cipla, SBI Life Insurance & More*

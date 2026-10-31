@@ -203,3 +203,16 @@ _Source: yfinance | Refreshed: 2026-10-16_
 > — Amit Jhingran, Managing Director and CEO
 
 *Source: Zerodha The Chatter — Reliance, PayTM, Nykaa & More (Q3 FY26 concall; Amit Jhingran, MD & CEO; Prithesh Chaubey, Appointed Actuary)*
+
+## The Chatter — SEBI, L&T, Cipla, SBI Life Insurance & More
+
+**IRDAI distribution-economics recalibration is a non-event for SBI Life:** existing structure "broadly aligned" with the proposed framework — limited impact expected vs peers who may need restructuring; constructive engagement posture with the regulator.
+
+**Value of new business +19%:** VoNB ₹32.7bn for the period ended Sep 30 2026 with a healthy 27.9% margin (29.9% for the quarter); ex-GST it would be ₹33.8bn (+19.4%) at a 28.8% margin — volume growth plus favourable product mix.
+
+**Deferred annuity launch incoming:** management expects a margin "similar to, or perhaps higher than, the company margin" — aimed at India's ageing demographics and diversifying away from market-linked products.
+
+> "SBI Life's existing structure is broadly aligned with the proposed framework; therefore, we expect limited impact."
+> — Amit Jhingran, Managing Director & CEO
+
+*Source: The Chatter — SEBI, L&T, Cipla, SBI Life Insurance & More*

@@ -471,7 +471,7 @@ def test_junit_facts_normalize_metadata_and_fingerprints(corpus):
 def test_retained_worktree_artifact_rebuilds_test_facts(corpus):
     now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     artifact_dir = ".artifacts/qa/run-1"
-    wt_root = corpus / "wt" / "graph_algos" / "outputs"
+    wt_root = corpus / "wt" / "graph_algos"
     retained = wt_root / artifact_dir
     _write(retained / "qa.junit.xml", JUNIT_FACTS)
     _write(
@@ -932,7 +932,7 @@ def test_rotation_archive_and_readback(corpus):
 
 
 def test_worktree_copy_namespacing(corpus):
-    wt_rep = corpus / "wt" / "graph_algos" / "outputs" / "qa_report.md"
+    wt_rep = corpus / "wt" / "graph_algos" / "qa_report.md"
     _write(wt_rep, _gate_block("2026-09-23 12:00:00", "2026-09-23 11:59:50"))
     con = gq.connect()
     gq.refresh(con)
@@ -1016,7 +1016,7 @@ def test_wt_alias_visible_in_help(capsys):
 
 def test_wt_single_dash_alias(corpus, capsys, monkeypatch):
     _write(
-        corpus / "wt" / "graph_algos" / "outputs" / "qa_report.md",
+        corpus / "wt" / "graph_algos" / "qa_report.md",
         _gate_block("2026-09-23 12:00:00", "2026-09-23 11:59:50"),
     )
     monkeypatch.chdir(corpus.parent)

@@ -552,9 +552,7 @@ _VERIFY_RUNS_FIXTURE = (
 def test_report_where_label() -> None:
     assert report_where_label("outputs/qa_report.md", 6098) == "qa:6098"
     assert report_where_label("outputs/qa_report.md", None) == "qa"
-    assert (
-        report_where_label("outputs/wt/graph_algos/outputs/qa_report.md", 12) == "graph_algos/qa:12"
-    )
+    assert report_where_label("outputs/wt/graph_algos/qa_report.md", 12) == "graph_algos/qa:12"
     assert report_where_label("outputs/database_integrity_report.md", 3) == "integrity:3"
 
 
@@ -574,22 +572,22 @@ def test_integrity_verdict() -> None:
 
 
 def test_report_files_discovery(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """Main copies first, then each outputs/wt/<name>/outputs copy."""
+    """Main copies first, then each outputs/wt/<name> copy."""
     import helpers.misc.search_tui as tui
 
     (tmp_path / "outputs").mkdir()
     (tmp_path / "outputs" / "qa_report.md").write_text(
         "# make qa — gate report\n", encoding="utf-8"
     )
-    wt = tmp_path / "outputs" / "wt" / "graph_algos" / "outputs"
+    wt = tmp_path / "outputs" / "wt" / "graph_algos"
     wt.mkdir(parents=True)
     (wt / "qa_report.md").write_text("# make qa — gate report\n", encoding="utf-8")
     (wt / "perf_report.md").write_text("# x\n", encoding="utf-8")
     monkeypatch.setattr(tui, "REPO_ROOT", tmp_path)
     assert tui.report_files() == [
         ("qa", "outputs/qa_report.md", "gate"),
-        ("qa", "outputs/wt/graph_algos/outputs/qa_report.md", "gate"),
-        ("perf", "outputs/wt/graph_algos/outputs/perf_report.md", "perf"),
+        ("qa", "outputs/wt/graph_algos/qa_report.md", "gate"),
+        ("perf", "outputs/wt/graph_algos/perf_report.md", "perf"),
     ]
 
 
@@ -598,7 +596,7 @@ def test_run_reports_lists_worktree_copies(tmp_path: Path, monkeypatch: pytest.M
 
     (tmp_path / "outputs").mkdir()
     (tmp_path / "outputs" / "qa_report.md").write_text(_GATE_TIMED_FIXTURE, encoding="utf-8")
-    wt = tmp_path / "outputs" / "wt" / "graph_algos" / "outputs"
+    wt = tmp_path / "outputs" / "wt" / "graph_algos"
     wt.mkdir(parents=True)
     (wt / "qa_report.md").write_text(_GATE_TIMED_FIXTURE, encoding="utf-8")
     monkeypatch.setattr(tui, "REPO_ROOT", tmp_path)
@@ -655,7 +653,7 @@ def test_report_screen_tree_runs_pilot(tmp_path: Path, monkeypatch: pytest.Monke
         encoding="utf-8",
     )
     (out / "verify_notes_report.md").write_text(_VERIFY_RUNS_FIXTURE, encoding="utf-8")
-    wt = out / "wt" / "graph_algos" / "outputs"
+    wt = out / "wt" / "graph_algos"
     wt.mkdir(parents=True)
     (wt / "qa_report.md").write_text(_GATE_TIMED_FIXTURE, encoding="utf-8")
     monkeypatch.setattr(tui, "REPO_ROOT", tmp_path)
@@ -679,7 +677,7 @@ def test_report_screen_tree_runs_pilot(tmp_path: Path, monkeypatch: pytest.Monke
             enter_expanded = tree.root.children[0].is_expanded
             app.pop_screen()
             await pilot.pause(0.1)
-            app.push_screen(appmod.ReportScreen(rel="outputs/wt/graph_algos/outputs/qa_report.md"))
+            app.push_screen(appmod.ReportScreen(rel="outputs/wt/graph_algos/qa_report.md"))
             await pilot.pause(0.4)
             wt_tree = app.screen.query_one("#rep-tree", Tree)
             wt_labels = [str(c.label) for c in wt_tree.root.children]

@@ -2,7 +2,7 @@
 """gate_query — DuckDB-indexed search over the repo's gate run reports.
 
 The append-only ``outputs/*_report.md`` corpus (main + worktree copies
-under ``outputs/wt/<name>/outputs/``) is already machine-shaped:
+under ``outputs/wt/<name>/``) is already machine-shaped:
 ``# make <gate>`` headers, ``**Generated/Started/Elapsed**`` meta lines,
 ``| leg | seconds | status |`` tables. This tool indexes that corpus
 incrementally (byte-offset: only new bytes are parsed; the trailing
@@ -259,7 +259,7 @@ def report_copies(root: Path | None = None) -> list[tuple[str, Path, str, str]]:
     if wt_root.is_dir():
         for wt in sorted(p.name for p in wt_root.iterdir() if p.is_dir()):
             for name, rel, kind in st._REPORTS:
-                p = wt_root / wt / "outputs" / Path(rel).name
+                p = wt_root / wt / Path(rel).name
                 if p.exists():
                     out.append((name, p, wt, kind))
     return out
@@ -590,7 +590,7 @@ def _artifact_kind(label: str, report_kind: str) -> str | None:
 def _artifact_base(wt: str, artifact_dir: str | None) -> Path | None:
     if not artifact_dir:
         return None
-    worktree_root = ROOT / f"wt/{wt}/outputs" if wt else ROOT
+    worktree_root = ROOT / f"wt/{wt}" if wt else ROOT
     base = (worktree_root / artifact_dir).resolve()
     root = ROOT.resolve()
     if root != base and root not in base.parents:

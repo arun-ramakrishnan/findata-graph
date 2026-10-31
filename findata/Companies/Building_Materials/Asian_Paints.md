@@ -359,3 +359,18 @@ _Source: yfinance | Refreshed: 2026-10-16_
 *Source: The Chatter — Asian Paints, NMDC, IndiGo, Glenmark & More*
 
 *Last Updated: February 2026*
+
+## The Chatter — SEBI, Asian Paints, Motilal Oswal, Gulf Oil & More
+
+**Volume +7%, value +16.5% — but a seasonal mix shift:** delayed Diwali pushed the premium product mix into October, hitting this quarter's margins alongside inflation and duty implementations; double-digit growth held for two straight quarters.
+
+**Margin defence playbook:** calibrated price increases of ~3.5% (an additional ~3.5% in November) plus a Value Analysis & Value Engineering initiative launched Sep 15 across sourcing and formulations; H1 PBT margins held ~18.2% consolidated / 19.6% standalone — expects to land within the guided band, possibly the lower side, prioritising top-line growth.
+
+**Crude volatility is the swing factor:** a large share of raw materials are direct crude derivatives — management won't call inflation peaked; the counter is premiumisation, mix optimisation, and accelerated internal cost savings.
+
+**Rural outpacing urban:** rural markets growing faster in the discretionary home-repainting category, with urban discretionary spend under pressure — demand elasticity monitored step-by-step with the price actions.
+
+> "Overall, the quarter has been fairly resilient. Volume growth stood at close to 7%, while consolidated value growth reached 16.5%."
+> — Amit Syngle, Managing Director and Chief Executive Officer
+
+*Source: The Chatter — SEBI, Asian Paints, Motilal Oswal, Gulf Oil & More*

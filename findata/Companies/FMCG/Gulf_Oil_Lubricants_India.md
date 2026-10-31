@@ -126,3 +126,14 @@ _Source: yfinance | Refreshed: 2026-10-16_
 > — Ravi Chawla, MD & CEO, Gulf Oil Lubricants India
 
 *Source: The Chatter — TCS IFB Gulf Oil*
+
+## The Chatter — SEBI, Asian Paints, Motilal Oswal, Gulf Oil & More
+
+**+16% volume growth in the monsoon (low-season) quarter:** industry-leading, broad-based across every segment despite cost pressure and the West Asia crisis; costs held flat.
+
+**OEM + B2B industrial led the quarter:** OEM factory-fill up double digits, OEM franchise workshops in high double digits, B2B industrial high double digits — new B2B industrial customers contributed ~one-third of incremental growth.
+
+> "Q2, again, is a testimony to our strong business model, which is very robust and consistent... we are delighted to share that the team has delivered these results, which are again industry-leading, with 16% growth."
+> — Ravi Chawla, Managing Director & CEO
+
+*Source: The Chatter — SEBI, Asian Paints, Motilal Oswal, Gulf Oil & More*

@@ -256,3 +256,16 @@ Despite some seasonal uptick in non-performing assets (NPAs), new book NPAs rema
 > — Shalibhadra Shah, Group CFO
 
 *Source: The Chatter — Adani Power Motilal Oswal*
+
+## The Chatter — SEBI, Asian Paints, Motilal Oswal, Gulf Oil & More
+
+**Structural pivot complete — 2/3 of profits now recurring:** Q2 operating profit +29% YoY to a record ~₹718–720cr (+15% QoQ); traditional brokerage down to one-third of earnings.
+
+**AMM is the engine:** AMC profit +69% to ₹304cr on AUM growth of 23–24%; profitable PE exits from Fund II (Molbio Diagnostics, Symbiotec, Glass Wall) riding the buoyant domestic IPO market.
+
+**Fund V carry is the future catalyst:** ~$2.5B across five PE funds; Fund V (~₹9,000cr in) expected to exit at ~₹25,000cr over 7–9 years — **₹14,000–15,000cr of carried interest from that single fund**; blended PE IRR ~20%.
+
+> "Motilal Oswal Financial Services has undergone a fundamental structural transformation: two-thirds of our earnings now originate from asset management and wealth management, with traditional brokerage accounting for only one third."
+> — Raamdeo Agrawal, Chairman
+
+*Source: The Chatter — SEBI, Asian Paints, Motilal Oswal, Gulf Oil & More*

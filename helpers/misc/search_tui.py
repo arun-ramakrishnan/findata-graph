@@ -1518,7 +1518,7 @@ def report_verb_for_path(rel: str) -> str | None:
 def report_files() -> list[tuple[str, str, str]]:
     """(verb, rel, kind) for every parseable report copy: the main
     ``outputs/<name>_report.md`` first, then each
-    ``outputs/wt/<name>/outputs/<name>_report.md`` worktree copy (listed
+    ``outputs/wt/<name>/<name>_report.md`` worktree copy (listed
     separately — the where column and ``@worktree`` display names tell
     them apart)."""
     files = [(n, r, k) for n, r, k in _REPORTS if (REPO_ROOT / r).exists()]
@@ -1526,9 +1526,9 @@ def report_files() -> list[tuple[str, str, str]]:
     if wt_root.is_dir():
         for wt in sorted(p.name for p in wt_root.iterdir() if p.is_dir()):
             files.extend(
-                (n, f"outputs/wt/{wt}/outputs/{Path(r).name}", k)
+                (n, f"outputs/wt/{wt}/{Path(r).name}", k)
                 for n, r, k in _REPORTS
-                if (REPO_ROOT / "outputs" / "wt" / wt / "outputs" / Path(r).name).exists()
+                if (REPO_ROOT / "outputs" / "wt" / wt / Path(r).name).exists()
             )
     return files
 
@@ -1537,7 +1537,7 @@ def _report_display(name: str, rel: str) -> str:
     """Display name for a report copy: ``qa`` (main) / ``qa@graph_algos``
     (worktree)."""
     parts = PurePosixPath(rel).parts
-    if len(parts) > 3 and parts[0] == "outputs" and parts[1] == "wt":
+    if len(parts) >= 3 and parts[0] == "outputs" and parts[1] == "wt":
         return f"{name}@{parts[2]}"
     return name
 
@@ -1545,12 +1545,14 @@ def _report_display(name: str, rel: str) -> str:
 def report_where_label(rel: str, line: int | None) -> str:
     """Compact where-column label for report rows, differentiating main
     vs worktree copies: ``outputs/qa_report.md:6098`` → ``qa:6098``;
-    ``outputs/wt/graph_algos/outputs/qa_report.md:6098`` →
+    ``outputs/wt/graph_algos/qa_report.md:6098`` →
     ``graph_algos/qa:6098``."""
     parts = PurePosixPath(rel).parts
     stem = parts[-1] if parts else rel
     verb = report_verb_for_path(stem) or stem.removesuffix("_report.md").removesuffix(".md")
-    prefix = f"{parts[2]}/" if len(parts) > 3 and parts[0] == "outputs" and parts[1] == "wt" else ""
+    prefix = (
+        f"{parts[2]}/" if len(parts) >= 3 and parts[0] == "outputs" and parts[1] == "wt" else ""
+    )
     return f"{prefix}{verb}" + (f":{line}" if line else "")
 
 
