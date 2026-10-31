@@ -104,7 +104,11 @@ def test_tier_tripwire_advisory():
     )
     print(_axis("notes", notes, [(PHASE_A_NOTES, "Phase A ~10k: corpus work due")]))
     print(
-        _axis("matrix MB", matrix_mb, [(PHASE_C_MATRIX_MB, "Phase C tens-of-MB: similarity due")])
+        _axis(
+            "matrix MB",
+            matrix_mb,
+            [(PHASE_C_MATRIX_MB, "Phase C tens-of-MB: similarity due")],
+        )
     )
     if rows is not None and notes:
         density = rows / notes

@@ -244,7 +244,12 @@ def collect(conn, decisions_path: str | Path = DECISIONS_PATH) -> dict:
         )
 
     facts, conflicts = _resolve_conflicts(facts)
-    return {"facts": facts, "skipped": skipped, "unresolved": unresolved, "conflicts": conflicts}
+    return {
+        "facts": facts,
+        "skipped": skipped,
+        "unresolved": unresolved,
+        "conflicts": conflicts,
+    }
 
 
 def _resolve_conflicts(facts: list[dict]) -> tuple[list[dict], list[dict]]:
@@ -331,7 +336,8 @@ def apply_derivation(conn, facts: list[dict], *, dry_run: bool = True) -> dict:
     with conn:
         for edge_type, label in dropped:
             conn.execute(
-                "DELETE FROM hyper_edges WHERE edge_type = ? AND label = ?", (edge_type, label)
+                "DELETE FROM hyper_edges WHERE edge_type = ? AND label = ?",
+                (edge_type, label),
             )  # incidences follow by ON DELETE CASCADE
         for fact in facts:
             edge_type, label = fact["edge_type"], fact["label"]

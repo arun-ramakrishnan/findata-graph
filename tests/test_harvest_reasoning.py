@@ -65,14 +65,23 @@ class TestPrimeBlocks:
 
     def test_redacted_thinking_keeps_its_text_and_redaction(self) -> None:
         text, ptype, meta = hc._prime_block(
-            {"type": "redacted_thinking", "thinking": "redacted but present", "redacted": True}
+            {
+                "type": "redacted_thinking",
+                "thinking": "redacted but present",
+                "redacted": True,
+            }
         )
         assert (text, ptype) == ("redacted but present", "reasoning")
         assert meta["redacted"] is True
 
     def test_tool_call_becomes_a_tool_row(self) -> None:
         text, ptype, meta = hc._prime_block(
-            {"type": "toolCall", "id": "call_1", "name": "bash", "arguments": "{'command': 'ls'}"}
+            {
+                "type": "toolCall",
+                "id": "call_1",
+                "name": "bash",
+                "arguments": "{'command': 'ls'}",
+            }
         )
         assert ptype == "tool"
         assert text == "{'command': 'ls'}"
@@ -96,7 +105,11 @@ class TestPrimeBlocks:
         path = _prime_file(
             tmp_path,
             _msg(
-                {"type": "thinking", "thinking": "why", "thinkingSignature": "reasoning"},
+                {
+                    "type": "thinking",
+                    "thinking": "why",
+                    "thinkingSignature": "reasoning",
+                },
                 {"type": "text", "text": "answer"},
                 {"type": "toolCall", "id": "c1", "name": "bash", "arguments": "ls"},
             ),
@@ -135,7 +148,10 @@ class TestOpencodeReasoningMeta:
             "type": "reasoning",
             "text": "",
             "metadata": {
-                "openai": {"itemId": "rs_1", "reasoningEncryptedContent": "Q-PaDgF9GRNw4"}
+                "openai": {
+                    "itemId": "rs_1",
+                    "reasoningEncryptedContent": "Q-PaDgF9GRNw4",
+                }
             },
         }
         meta = hc._oc_reasoning_meta(d)
@@ -164,7 +180,11 @@ class TestOpencodeReasoningMeta:
         )
         assert rows[0]["part_type"] == "reasoning"
         assert rows[0]["text"] == ""
-        assert json.loads(rows[0]["meta"]) == {"encrypted": True, "enc_bytes": 4, "item_id": "rs_9"}
+        assert json.loads(rows[0]["meta"]) == {
+            "encrypted": True,
+            "enc_bytes": 4,
+            "item_id": "rs_9",
+        }
         assert rows[0]["model"] == "muse-spark-1.3-contributor-free"
 
 
@@ -183,7 +203,11 @@ class TestForceLane:
         f.write_text(
             json.dumps(
                 _msg(
-                    {"type": "thinking", "thinking": "why", "thinkingSignature": "reasoning"},
+                    {
+                        "type": "thinking",
+                        "thinking": "why",
+                        "thinkingSignature": "reasoning",
+                    },
                     {"type": "text", "text": "answer"},
                 )
             )

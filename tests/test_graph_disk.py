@@ -104,7 +104,10 @@ def _child_open(duckdb_path: Path, *, read_only: bool) -> tuple[int, str, str]:
         "con.close()\n"
         "print('OPENED')\n"
     )
-    env = {**os.environ, "PYTHONPATH": f"{REPO_ROOT}{os.pathsep}{REPO_ROOT / 'helpers'}"}
+    env = {
+        **os.environ,
+        "PYTHONPATH": f"{REPO_ROOT}{os.pathsep}{REPO_ROOT / 'helpers'}",
+    }
     proc = subprocess.run(  # noqa: S603  # list-form, shell=False, controlled argv (sys.executable + fixed child code)
         [sys.executable, "-c", code, str(duckdb_path)],
         capture_output=True,
@@ -234,7 +237,10 @@ class TestDiskBasics:
             "assert n > 0, 'empty v_node'\n"
             "print('OK')\n"
         )
-        env = {**os.environ, "PYTHONPATH": f"{REPO_ROOT}{os.pathsep}{REPO_ROOT / 'helpers'}"}
+        env = {
+            **os.environ,
+            "PYTHONPATH": f"{REPO_ROOT}{os.pathsep}{REPO_ROOT / 'helpers'}",
+        }
         procs = [
             subprocess.Popen(  # noqa: S603  # list-form, shell=False, controlled argv (sys.executable + fixed child code)
                 [sys.executable, "-c", child, str(tmp_db)],

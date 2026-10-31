@@ -46,7 +46,12 @@ def _oc_db(path: Path, parts: list[dict]) -> None:
     for p in parts:
         con.execute(
             "INSERT OR REPLACE INTO part VALUES (?, 'm1', 's1', ?, ?, ?)",
-            (p["id"], p["tu"], p["tu"], json.dumps({"type": "text", "text": p["text"]})),
+            (
+                p["id"],
+                p["tu"],
+                p["tu"],
+                json.dumps({"type": "text", "text": p["text"]}),
+            ),
         )
     con.commit()
     con.close()
@@ -118,7 +123,10 @@ def convo_env(tmp_path, monkeypatch):
     monkeypatch.setattr(
         hc,
         "_opencode_sources",
-        lambda: [(oc_snap, "opencode-snap:t0", True), (oc_live, "opencode:live", False)],
+        lambda: [
+            (oc_snap, "opencode-snap:t0", True),
+            (oc_live, "opencode:live", False),
+        ],
     )
     return tmp_path
 

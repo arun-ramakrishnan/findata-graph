@@ -375,7 +375,10 @@ ENDPOINTS: dict[str, tuple[str, str]] = {
     "model-usage": ("/api/monitor/usage/model-usage", ""),
     "tool-usage": ("/api/monitor/usage/tool-usage", ""),
     "activity": ("/api/monitor/credit-usage/activity", "&type=1"),
-    "usage-detail": ("/api/monitor/credit-usage/usage-detail", "&type=1&usageType=MODEL"),
+    "usage-detail": (
+        "/api/monitor/credit-usage/usage-detail",
+        "&type=1&usageType=MODEL",
+    ),
 }
 
 
@@ -546,7 +549,11 @@ def _merge_detail(parts: list[dict]) -> dict:
     for model in models.values():
         model["totalTokens"] = sum(model.get("totalTokensUsage", []))
     summary_list = [
-        {"modelCode": code, "modelName": m.get("modelName"), "totalTokens": m["totalTokens"]}
+        {
+            "modelCode": code,
+            "modelName": m.get("modelName"),
+            "totalTokens": m["totalTokens"],
+        }
         for code, m in models.items()
     ]
     total = sum(m["totalTokens"] for m in models.values())
@@ -714,7 +721,17 @@ def load_zai(con, since: date | None = None) -> int:
             # and the feed reports uncached/cached separately, already split)
             cost = day_cost(model, fresh, cached, output) or 0.0
             recs.append(
-                (day, "Zhipu", model, fresh, cached, output, fresh + cached + output, cost, "rate")
+                (
+                    day,
+                    "Zhipu",
+                    model,
+                    fresh,
+                    cached,
+                    output,
+                    fresh + cached + output,
+                    cost,
+                    "rate",
+                )
             )
     if recs:
         _delete_window(con, "zai", since)
@@ -771,7 +788,20 @@ def load_opencode(con, since: date | None = None) -> int:
             a[4] += reason
             a[5] += cost
     recs = [
-        (d_, p_, m_, a[0], a[1], a[2], 0, a[3], a[4], a[1] + a[2] + a[3] + a[4], a[5], "local")
+        (
+            d_,
+            p_,
+            m_,
+            a[0],
+            a[1],
+            a[2],
+            0,
+            a[3],
+            a[4],
+            a[1] + a[2] + a[3] + a[4],
+            a[5],
+            "local",
+        )
         for (d_, p_, m_), a in agg.items()
     ]
     recs = _drop_api_covered(con, recs)
@@ -1772,7 +1802,12 @@ def report(  # noqa: C901  # moved verbatim; split needs a parity harness (c901 
 
 # ------------------------------------------------------------------ main ----
 
-LOADERS = {"prime-rlm": load_prime_rlm, "zai": load_zai, "opencode": load_opencode, "dsh": load_dsh}
+LOADERS = {
+    "prime-rlm": load_prime_rlm,
+    "zai": load_zai,
+    "opencode": load_opencode,
+    "dsh": load_dsh,
+}
 
 
 def _refresh_backup(store: Path) -> None:
@@ -1815,7 +1850,9 @@ def main() -> None:
         "rows untouched (default 2). Use --full for a complete reload.",
     )
     lp.add_argument(
-        "--full", action="store_true", help="ignore --days; delete and reload the whole source"
+        "--full",
+        action="store_true",
+        help="ignore --days; delete and reload the whole source",
     )
     lp.add_argument("--db", type=Path, default=DB_PATH)
     rp = sub.add_parser("report", help="query the stored data")
@@ -1834,7 +1871,9 @@ def main() -> None:
         help="summary = totals + per-model rows | totals only",
     )
     rp.add_argument(
-        "--json", action="store_true", help="emit JSON (for piping into jq / other tools)"
+        "--json",
+        action="store_true",
+        help="emit JSON (for piping into jq / other tools)",
     )
     rp.add_argument(
         "--no-timing",
@@ -1850,7 +1889,8 @@ def main() -> None:
     from helpers.maintenance.maint_timing import RunTimer
 
     _timer = RunTimer(
-        "model_analytics", mode=f"load:{args.source}" if args.cmd == "load" else args.cmd
+        "model_analytics",
+        mode=f"load:{args.source}" if args.cmd == "load" else args.cmd,
     )
     try:
         if args.cmd == "load":

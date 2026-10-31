@@ -43,7 +43,10 @@ MAX_SIZE = 1_048_576  # secrets live in small text blobs; >1MB = binary junk
 # as "YOUR_API_KEY" or empty strings never match.
 PATTERNS: list[tuple[str, re.Pattern[bytes]]] = [
     ("aws-key", re.compile(rb"AKIA[0-9A-Z]{16}")),
-    ("github-pat", re.compile(rb"\bgh[pousr]_[A-Za-z0-9]{36,}\b|\bgithub_pat_[A-Za-z0-9_]{20,}\b")),
+    (
+        "github-pat",
+        re.compile(rb"\bgh[pousr]_[A-Za-z0-9]{36,}\b|\bgithub_pat_[A-Za-z0-9_]{20,}\b"),
+    ),
     ("openai-key", re.compile(rb"\bsk-(proj-)?[A-Za-z0-9]{24,}\b")),
     ("slack-token", re.compile(rb"\bxox[baprs]-[A-Za-z0-9-]{10,}\b")),
     ("google-api", re.compile(rb"\bAIza[0-9A-Za-z_\-]{35}\b")),
@@ -262,7 +265,10 @@ def main(argv: list[str] | None = None) -> int:
     }
     save_state(new_state)
 
-    lines = [f"scanned {len(delta)} new blobs ({binary} binary skipped); hits: {len(hits)}", ""]
+    lines = [
+        f"scanned {len(delta)} new blobs ({binary} binary skipped); hits: {len(hits)}",
+        "",
+    ]
     for pid, sha12, path, ctx in hits:
         lines += [f"{pid:15s} {sha12}  {path}", f"    {ctx}", ""]
     report = "\n".join(lines)

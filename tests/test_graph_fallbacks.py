@@ -292,7 +292,14 @@ def test_pagerank_weighted_is_weight_sensitive():
 
 def test_link_prediction_shared_methods_rank_by_shared_neighbours():
     # 0 and 1 share neighbours 3 and 4; 0 and 5 share only 4.
-    edges = [(0, 3, 1.0), (0, 4, 1.0), (1, 3, 1.0), (1, 4, 1.0), (5, 4, 1.0), (2, 6, 1.0)]
+    edges = [
+        (0, 3, 1.0),
+        (0, 4, 1.0),
+        (1, 3, 1.0),
+        (1, 4, 1.0),
+        (5, 4, 1.0),
+        (2, 6, 1.0),
+    ]
     ranked = fb.onager_link_prediction(edges=edges, method="common-neighbors", allow_all_pairs=True)
     assert ranked
     top = ranked[0]

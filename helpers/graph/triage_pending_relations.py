@@ -482,7 +482,12 @@ def build_triage(lines: list[str], names: set[str]) -> dict:
             row["detail"] = detail
             row["word_overlap"] = word_overlap
             prose.append(row)
-    return {"suggested": suggested, "prose": prose, "unparseable": unparseable, "dupes": dupes}
+    return {
+        "suggested": suggested,
+        "prose": prose,
+        "unparseable": unparseable,
+        "dupes": dupes,
+    }
 
 
 # S7 (system_one_typed_judgment_framework.md): the typed question text IS the
@@ -509,7 +514,12 @@ def decision_brief_for_rows(rows: list[dict], glm: dict, mercury: dict) -> list[
     needs is the factual one. Returns markdown lines; the caller owns
     the section heading.
     """
-    from helpers.core.typed_judgment import AGREE_TOL, brief, gap_of, require_surface_key
+    from helpers.core.typed_judgment import (
+        AGREE_TOL,
+        brief,
+        gap_of,
+        require_surface_key,
+    )
 
     require_surface_key("relations_triage_queue")
     ctx = "see the queue sidecar row above; this advises whether a human should review it"
@@ -1178,7 +1188,8 @@ def _drop_decided_suggestions(applied_keys: set) -> None:
     ]
     if len(kept) != len(rows):
         Path(SUGGESTIONS).write_text(
-            "".join(json.dumps(r, ensure_ascii=False) + "\n" for r in kept), encoding="utf-8"
+            "".join(json.dumps(r, ensure_ascii=False) + "\n" for r in kept),
+            encoding="utf-8",
         )
         print(
             f"suggestions file: {len(rows) - len(kept)} decided rows dropped ({len(kept)} remain)"
@@ -1426,7 +1437,12 @@ def review(  # noqa: C901 — keypress parsing + kit wiring, split would scatter
     ``packets_out`` writes the prompt packets (JSONL) for the agent
     flow. ``menu``/``prompt`` are mutually exclusive.
     """
-    from helpers.core.review_kit import Journal, ReviewSession, assemble_entries, latest_action_by
+    from helpers.core.review_kit import (
+        Journal,
+        ReviewSession,
+        assemble_entries,
+        latest_action_by,
+    )
     from helpers.core.review_menu import (
         Choice,
         MenuSpec,
@@ -1487,7 +1503,10 @@ def review(  # noqa: C901 — keypress parsing + kit wiring, split would scatter
 
     if preannotate:
         try:
-            from helpers.core.decisions_preannotate import annotate_surface, make_surface_specs
+            from helpers.core.decisions_preannotate import (
+                annotate_surface,
+                make_surface_specs,
+            )
 
             _, annotated, _ = annotate_surface(make_surface_specs()["relations"], limit=limit or 0)
             if annotated:
@@ -1680,7 +1699,10 @@ def review(  # noqa: C901 — keypress parsing + kit wiring, split would scatter
                 "id": rid,
                 "action": "second-opinion",
                 "ab": {
-                    "p_fact": {"glm": (a or {}).get("p_fact"), "mercury": (m or {}).get("p_fact")}
+                    "p_fact": {
+                        "glm": (a or {}).get("p_fact"),
+                        "mercury": (m or {}).get("p_fact"),
+                    }
                     if a or m
                     else {},
                     "p_rubric": {
@@ -1741,7 +1763,10 @@ def review(  # noqa: C901 — keypress parsing + kit wiring, split would scatter
             ans, free_note = ans.strip(), free_note.strip()
             if ans in {"p", "q", "x"}:
                 _note_ab_once()
-                return {"id": rid, "action": {"p": "skip", "q": "quit", "x": "abort"}[ans]}
+                return {
+                    "id": rid,
+                    "action": {"p": "skip", "q": "quit", "x": "abort"}[ans],
+                }
             if ans == "?":
                 print_fn("\n".join(legend))
                 _evidence(e)
@@ -1836,7 +1861,13 @@ def review(  # noqa: C901 — keypress parsing + kit wiring, split would scatter
                                     "  section company is the SURVIVOR — name the OTHER"
                                     " constituent: a/merger/<NAME>"
                                 )
-                                note({"id": rid, "action": "bad-accept", "need": "constituent"})
+                                note(
+                                    {
+                                        "id": rid,
+                                        "action": "bad-accept",
+                                        "need": "constituent",
+                                    }
+                                )
                                 continue
                             structured = {
                                 "constituents": [mention, verb_name],
@@ -1851,10 +1882,19 @@ def review(  # noqa: C901 — keypress parsing + kit wiring, split would scatter
                                 "  a merger needs two distinct constituents — discard it, "
                                 "or fix the mention"
                             )
-                            note({"id": rid, "action": "bad-accept", "need": "constituents"})
+                            note(
+                                {
+                                    "id": rid,
+                                    "action": "bad-accept",
+                                    "need": "constituents",
+                                }
+                            )
                             continue
                     else:  # demerger — the mention is ALWAYS the parent
-                        structured = {"parent": mention, "child": verb_name or e["source"]}
+                        structured = {
+                            "parent": mention,
+                            "child": verb_name or e["source"],
+                        }
                     file_decision = f"accept:{edge_type}" + (
                         f":{verb_name}" if verb_name is not None else ""
                     )
@@ -1916,7 +1956,12 @@ def review(  # noqa: C901 — keypress parsing + kit wiring, split would scatter
             else:
                 print_fn("  ? (a[/TYPE[/TARGET]] / d / al NAME / st / p / ? / q / x)")
                 continue
-            d = {"id": rid, "action": "approve", "file_decision": file_decision, "note": free_note}
+            d = {
+                "id": rid,
+                "action": "approve",
+                "file_decision": file_decision,
+                "note": free_note,
+            }
             for k in _REVIEW_FILE_FIELDS:
                 d[k] = e.get(k, False if k == "word_overlap" else "")
             _note_ab_once()
@@ -1956,7 +2001,13 @@ def review(  # noqa: C901 — keypress parsing + kit wiring, split would scatter
     ).run()
 
 
-_ALLOWED_BUCKETS = {"discard", "alias_candidate", "stub_candidate", "manual", "bad_source"}
+_ALLOWED_BUCKETS = {
+    "discard",
+    "alias_candidate",
+    "stub_candidate",
+    "manual",
+    "bad_source",
+}
 _SIDECAR_REQUIRED = (
     "id",
     "edge_type",
@@ -2062,7 +2113,9 @@ def verify_queue_files(sidecar: Path, decisions: Path) -> list[str]:  # noqa: C9
 def main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     p.add_argument(
-        "--report", action="store_true", help="build the triage report + decisions file (default)"
+        "--report",
+        action="store_true",
+        help="build the triage report + decisions file (default)",
     )
     p.add_argument(
         "--apply-decisions",
@@ -2071,10 +2124,14 @@ def main(argv: list[str] | None = None) -> int:
         "(sidecar rewrite, alias file, suggestions file, accepted edges)",
     )
     p.add_argument(
-        "--decisions", default=str(DECISIONS), help=f"decisions jsonl path (default: {DECISIONS})"
+        "--decisions",
+        default=str(DECISIONS),
+        help=f"decisions jsonl path (default: {DECISIONS})",
     )
     p.add_argument(
-        "--clear", action="store_true", help="truncate the sidecar to 0 (post-triage endgame)"
+        "--clear",
+        action="store_true",
+        help="truncate the sidecar to 0 (post-triage endgame)",
     )
     p.add_argument(
         "--verify",
@@ -2089,16 +2146,24 @@ def main(argv: list[str] | None = None) -> int:
     )
     p.add_argument("--limit", type=int, default=None, help="review: cap rows per sitting")
     p.add_argument(
-        "--redecide", action="store_true", help="review: also re-walk already-decided rows"
+        "--redecide",
+        action="store_true",
+        help="review: also re-walk already-decided rows",
     )
     p.add_argument(
-        "--skipped", action="store_true", help="review: also re-walk journaled-parked/declined rows"
+        "--skipped",
+        action="store_true",
+        help="review: also re-walk journaled-parked/declined rows",
     )
     p.add_argument(
-        "--dry-run", action="store_true", help="review: journal + print the batch, write nothing"
+        "--dry-run",
+        action="store_true",
+        help="review: journal + print the batch, write nothing",
     )
     p.add_argument(
-        "--menu", action="store_true", help="review: numbered menu input instead of raw keypresses"
+        "--menu",
+        action="store_true",
+        help="review: numbered menu input instead of raw keypresses",
     )
     p.add_argument(
         "--prompt",
@@ -2107,7 +2172,9 @@ def main(argv: list[str] | None = None) -> int:
     )
     p.add_argument("--answers", default=None, help="prompt: answers file (one verb per line)")
     p.add_argument(
-        "--packets-out", default=None, help="prompt: also write the prompt-packets JSONL here"
+        "--packets-out",
+        default=None,
+        help="prompt: also write the prompt-packets JSONL here",
     )
     p.add_argument(
         "--no-preannotate",

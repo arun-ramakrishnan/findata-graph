@@ -104,7 +104,10 @@ class TestStakePatterns:
         by_type, unresolved = _run(resolver, content)
         assert unresolved == []
         edge = by_type["subsidiary_of"][0]
-        assert (edge.source, edge.target) == ("Triveni Engineering", "Hindalco Industries")
+        assert (edge.source, edge.target) == (
+            "Triveni Engineering",
+            "Hindalco Industries",
+        )
         assert edge.properties["stake_pct"] == 74.0
         assert edge.symmetric is False
 

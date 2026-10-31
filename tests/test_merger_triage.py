@@ -188,7 +188,10 @@ class TestParseNaryAccept:
             child="Motherson Sumi Wiring India",
             decision="accept:demerger",
         )
-        names = NAMES | {"Samvardhana Motherson International", "Motherson Sumi Wiring India"}
+        names = NAMES | {
+            "Samvardhana Motherson International",
+            "Motherson Sumi Wiring India",
+        }
         fact = tpr._parse_nary_accept(row, "accept:demerger", names)
         assert fact is not None
         assert fact["parent"] == "Samvardhana Motherson International"

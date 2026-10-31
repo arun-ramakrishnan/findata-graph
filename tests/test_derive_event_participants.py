@@ -204,7 +204,10 @@ def test_event_family_reads_the_store_and_grows(conn):
     hyper, _w = dh.collect_hyperedges(conn)
     # acquisition + jv are k=2; guidance (issuer only) and the unmapped
     # type stay OUT — a one-member event carries zero co-membership signal.
-    assert hyper["event"] == {"acquisition:1": {"Alpha", "Beta"}, "jv:2": {"Alpha", "Gamma"}}
+    assert hyper["event"] == {
+        "acquisition:1": {"Alpha", "Beta"},
+        "jv:2": {"Alpha", "Gamma"},
+    }
     # THE S4 POINT: a future writer adds a third participant and the
     # hyperedge grows — no flattening step to re-run.
     conn.execute(
@@ -219,7 +222,10 @@ def test_event_family_reads_the_store_and_grows(conn):
 def test_event_family_fallback_when_store_absent(conn):
     # Pre-v16 restore posture: no store, old pair query still serves.
     hyper, _w = dh.collect_hyperedges(conn)
-    assert hyper["event"] == {"acquisition:1": {"Alpha", "Beta"}, "jv:2": {"Alpha", "Gamma"}}
+    assert hyper["event"] == {
+        "acquisition:1": {"Alpha", "Beta"},
+        "jv:2": {"Alpha", "Gamma"},
+    }
 
 
 def test_fallback_and_store_paths_agree_on_live_shape(conn):

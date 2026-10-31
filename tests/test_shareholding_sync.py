@@ -77,8 +77,18 @@ def fixture_xbrl(symbol: str = "WHEELS", period_end: str = "2026-09-21") -> byte
         "0.3803",
     )
     # named holder 1: an individual at 6.59% (0.0659 fraction)
-    _fact(root, "NameOfTheShareholder", "D_IndividualsOrHUF_Context3", "Manohar Lal Punglia")
-    _fact(root, "PermanentAccountNumberOfShareholder", "D_IndividualsOrHUF_Context3", "******")
+    _fact(
+        root,
+        "NameOfTheShareholder",
+        "D_IndividualsOrHUF_Context3",
+        "Manohar Lal Punglia",
+    )
+    _fact(
+        root,
+        "PermanentAccountNumberOfShareholder",
+        "D_IndividualsOrHUF_Context3",
+        "******",
+    )
     _fact(root, "NumberOfFullyPaidUpEquityShares", "IndividualsOrHUF_Context3", "8220000")
     _fact(
         root,
@@ -94,9 +104,17 @@ def fixture_xbrl(symbol: str = "WHEELS", period_end: str = "2026-09-21") -> byte
         "TSF INVESTMENTS LIMITED",
     )
     _fact(
-        root, "PermanentAccountNumberOfShareholder", "D_OthersIndianShareholders_Context1", "******"
+        root,
+        "PermanentAccountNumberOfShareholder",
+        "D_OthersIndianShareholders_Context1",
+        "******",
     )
-    _fact(root, "NumberOfFullyPaidUpEquityShares", "OthersIndianShareholders_Context1", "7136608")
+    _fact(
+        root,
+        "NumberOfFullyPaidUpEquityShares",
+        "OthersIndianShareholders_Context1",
+        "7136608",
+    )
     _fact(
         root,
         "ShareholdingAsAPercentageOfTotalNumberOfShares",

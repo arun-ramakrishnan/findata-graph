@@ -124,7 +124,8 @@ def _ensure_mojo_bin() -> str | None:
     if _MOJO_BIN.exists():
         return str(_MOJO_BIN)
     print(
-        f"WARNING: {_MOJO_BIN} missing — run `make mojo-build`; mojo legs skipped", file=sys.stderr
+        f"WARNING: {_MOJO_BIN} missing — run `make mojo-build`; mojo legs skipped",
+        file=sys.stderr,
     )
     return None
 
@@ -161,7 +162,10 @@ def _startup_legs(
 
     legs = [
         ("python -c pass (interpreter start)", wall([sys.executable, "-c", "pass"])),
-        ("python -c 'import pandas' (import tax)", wall([sys.executable, "-c", "import pandas"])),
+        (
+            "python -c 'import pandas' (import tax)",
+            wall([sys.executable, "-c", "import pandas"]),
+        ),
     ]
     if mojo_bin:
         legs.append(
@@ -243,7 +247,10 @@ def main() -> int:
             if mojo_bin:
                 mojo_out = _run_mojo(mojo_bin, mat_path, query, rows_n * scale, 50)
                 t_mojo = float(mojo_out["compute_ms"]) / 1e3
-                m_idx, m_score = int(mojo_out["top1_idx"]), float(mojo_out["top1_score"])
+                m_idx, m_score = (
+                    int(mojo_out["top1_idx"]),
+                    float(mojo_out["top1_score"]),
+                )
                 if m_idx != py_idx or abs(m_score - py_score) > 1e-4:
                     ok = False
                     print(

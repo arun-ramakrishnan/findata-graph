@@ -589,7 +589,9 @@ def run_yfinance_pass(
     """The full yfinance pass: fetch -> hygiene -> edges -> report."""
     companies, unlisted = load_companies(conn)
     log.info(
-        "universe: %d tickered, %d deliberately unlisted (skipped)", len(companies), len(unlisted)
+        "universe: %d tickered, %d deliberately unlisted (skipped)",
+        len(companies),
+        len(unlisted),
     )
 
     t0 = time.perf_counter()
@@ -1308,7 +1310,8 @@ def _parse_holders_dataframe(df) -> list[dict]:  # noqa
             shares_col = next((v for k, v in cols.items() if "share" in k), None)
             date_col = next((v for k, v in cols.items() if "date" in k), None)
             pct_col = next(
-                (v for k, v in cols.items() if "%" in k or "pct" in k or "out" in k), None
+                (v for k, v in cols.items() if "%" in k or "pct" in k or "out" in k),
+                None,
             )
             value_col = next((v for k, v in cols.items() if "value" in k), None)
             rows: list[dict] = []
@@ -1525,7 +1528,14 @@ def apply_holders_edges(
         for src, dst, weight, source_ref, props, valid_from in edges:
             cur = conn.execute(
                 "INSERT OR IGNORE INTO graph_edges (source, target, edge_type, weight, properties, source_ref, valid_from, symmetric) VALUES (?, ?, 'invested_in', ?, ?, ?, ?, 0)",
-                (src, dst, weight, json.dumps(props, sort_keys=True), source_ref, valid_from),
+                (
+                    src,
+                    dst,
+                    weight,
+                    json.dumps(props, sort_keys=True),
+                    source_ref,
+                    valid_from,
+                ),
             )
             inserted += cur.rowcount
     return n_new_insts, n_fresh, inserted
@@ -1560,7 +1570,11 @@ def run_holders_pass(
         n_new_insts,
     )
     if not dry_run:
-        log.info("apply: inserted %d invested_in edges, %d institutions", n_inserted, n_new_insts)
+        log.info(
+            "apply: inserted %d invested_in edges, %d institutions",
+            n_inserted,
+            n_new_insts,
+        )
         # R6b standing reconcile: majority promotion follows every apply
         from helpers.maintenance.shareholding_sync import (  # noqa: PLC0415
             reconcile_majority_ownership,
@@ -1796,7 +1810,10 @@ def _scan_slugs(
             continue
         score = name_match_score(parsed["company_name"], entity)
         if score >= GF_NAME_MATCH_THRESHOLD:
-            return (_verified_outcome(entity, ticker, slug, parsed, score, tier=tier), best)
+            return (
+                _verified_outcome(entity, ticker, slug, parsed, score, tier=tier),
+                best,
+            )
         candidate = GfOutcome(
             entity,
             ticker,
@@ -2119,7 +2136,8 @@ def _persist_gf_resolutions(
                         f'GOOGLEFINANCE("{o.slug}","{attr}")',
                         f"googlefinance:{o.slug}:{attr}",
                         json.dumps(
-                            {"fetched_at": now, "slug": o.slug, "via": "sheets"}, sort_keys=True
+                            {"fetched_at": now, "slug": o.slug, "via": "sheets"},
+                            sort_keys=True,
                         ),
                     ),
                 )
@@ -2403,7 +2421,10 @@ def _apply_finnhub_writebacks(
         cache_payload = jsonio.loads(fetch_cache.read_text(encoding="utf-8"))
     with conn:
         for o in writebacks:
-            conn.execute("UPDATE entities SET ticker = ? WHERE name = ?", (o.new_ticker, o.entity))
+            conn.execute(
+                "UPDATE entities SET ticker = ? WHERE name = ?",
+                (o.new_ticker, o.entity),
+            )
             fp = file_path_of.get(o.entity)
             note_path = _vault_note_path(fp, entity=o.entity, write=True)
             if note_path is not None and _set_frontmatter_ticker(note_path, o.new_ticker or ""):
@@ -2597,7 +2618,8 @@ def _run_classify(args) -> int:
         if args.unclassify:
             with conn:
                 cur = conn.execute(
-                    "DELETE FROM entity_ticker_status WHERE entity_name = ?", (args.unclassify,)
+                    "DELETE FROM entity_ticker_status WHERE entity_name = ?",
+                    (args.unclassify,),
                 )
             if cur.rowcount:
                 log.info("%s: classification removed", args.unclassify)
@@ -2788,7 +2810,10 @@ def main(argv: list[str] | None = None) -> int:
         conn = connect(DB_PATH)
         try:
             return run_coinfer_pass(
-                conn, per_company=args.per_company, threshold=args.threshold, dry_run=not args.apply
+                conn,
+                per_company=args.per_company,
+                threshold=args.threshold,
+                dry_run=not args.apply,
             )
         finally:
             conn.close()

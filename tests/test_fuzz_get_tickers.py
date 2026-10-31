@@ -33,7 +33,8 @@ _VAL = st.one_of(
 )
 _FMT = st.text(alphabet=st.characters(max_codepoint=0x2000), max_size=3)
 _PATH = st.text(
-    alphabet=st.characters(blacklist_categories=("Cs",), blacklist_characters="\r"), max_size=200
+    alphabet=st.characters(blacklist_categories=("Cs",), blacklist_characters="\r"),
+    max_size=200,
 )
 
 
@@ -41,7 +42,9 @@ _PATH = st.text(
 # 1. _fmt_number — never raises, always str, across heterogeneous values
 # ---------------------------------------------------------------------------
 @settings(
-    max_examples=400, deadline=None, suppress_health_check=[HealthCheck.function_scoped_fixture]
+    max_examples=400,
+    deadline=None,
+    suppress_health_check=[HealthCheck.function_scoped_fixture],
 )
 @given(val=_VAL, prefix=_FMT, suffix=_FMT)
 def test_fmt_number_never_raises(val, prefix, suffix):
@@ -56,7 +59,9 @@ def test_fmt_number_never_raises(val, prefix, suffix):
 # 2. _fmt_pct — never raises, always str
 # ---------------------------------------------------------------------------
 @settings(
-    max_examples=400, deadline=None, suppress_health_check=[HealthCheck.function_scoped_fixture]
+    max_examples=400,
+    deadline=None,
+    suppress_health_check=[HealthCheck.function_scoped_fixture],
 )
 @given(val=_VAL)
 def test_fmt_pct_never_raises(val):
@@ -71,7 +76,9 @@ def test_fmt_pct_never_raises(val):
 # 3. extract_company_name_from_path — never raises, returns str
 # ---------------------------------------------------------------------------
 @settings(
-    max_examples=300, deadline=None, suppress_health_check=[HealthCheck.function_scoped_fixture]
+    max_examples=300,
+    deadline=None,
+    suppress_health_check=[HealthCheck.function_scoped_fixture],
 )
 @given(_PATH)
 def test_extract_company_name_from_path_never_raises(path: str):
@@ -83,7 +90,9 @@ def test_extract_company_name_from_path_never_raises(path: str):
 
 
 @settings(
-    max_examples=100, deadline=None, suppress_health_check=[HealthCheck.function_scoped_fixture]
+    max_examples=100,
+    deadline=None,
+    suppress_health_check=[HealthCheck.function_scoped_fixture],
 )
 @given(_PATH)
 def test_extract_company_name_strips_extension_and_underscores(path: str):

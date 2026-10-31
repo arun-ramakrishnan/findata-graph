@@ -232,7 +232,14 @@ def r3db(tmp_path: Path):
                 "chain-root",
                 None,
             ),
-            ("JV Friend", "HoldX", 1, json.dumps(["JV Friend", "HoldX"]), "chain-root", None),
+            (
+                "JV Friend",
+                "HoldX",
+                1,
+                json.dumps(["JV Friend", "HoldX"]),
+                "chain-root",
+                None,
+            ),
         ],
     )
     conn.execute(

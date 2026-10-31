@@ -151,7 +151,10 @@ def test_half_known_ordering_proceeds(tmp_path, monkeypatch):
     """
     db = _index(tmp_path)
     spec, _ = _spec(db)
-    _git(monkeypatch, ancestry=lambda older, newer, cwd=None: None if older == STAMPED else False)
+    _git(
+        monkeypatch,
+        ancestry=lambda older, newer, cwd=None: None if older == STAMPED else False,
+    )
     assert rbc.stale_apply_reason(db, spec) is None
 
 

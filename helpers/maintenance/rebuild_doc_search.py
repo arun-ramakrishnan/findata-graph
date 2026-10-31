@@ -283,7 +283,9 @@ def resolve_doc_embedder() -> tuple[Callable[[str], list[float]], int, str, bool
     return fn, dims, label, False
 
 
-def query_embedder(model_label: str | None = None) -> tuple[Callable[[str], list[float]], int]:
+def query_embedder(
+    model_label: str | None = None,
+) -> tuple[Callable[[str], list[float]], int]:
     """Query-side counterpart for hybrid search, stamp-aware (#363 shape):
     the INDEX stamp decides, not the env — the query must live in the
     index's vector space. The gemma label serves the sidecar with

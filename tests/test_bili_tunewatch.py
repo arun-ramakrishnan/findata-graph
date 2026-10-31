@@ -69,7 +69,8 @@ class TestInjectionTierCapture:
 
     def test_t2_injection_is_not_dropped(self, tmp_path):
         body = _nudge(
-            "T2", "OVER-LIMIT T2 distill: max pending 41229 (T1 effective 14375, T2 41229)"
+            "T2",
+            "OVER-LIMIT T2 distill: max pending 41229 (T1 effective 14375, T2 41229)",
         )
         row = _scan(tmp_path, body)[SID]
         assert len(row["t1_fires"]) == 1

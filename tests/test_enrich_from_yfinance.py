@@ -433,8 +433,20 @@ class TestManifestEntities:
             "INSERT INTO entities(name, entity_type, normalized_name, file_path, ticker)"
             " VALUES (?,?,?,?,?)",
             [
-                ("MRF Ltd", "company", "MRF_Ltd", "findata/Companies/Auto/MRF.md", "MRF.NS"),
-                ("KIOCL", "company", "KIOCL", "findata/Companies/Metals/KIOCL.md", "KIOCL.NS"),
+                (
+                    "MRF Ltd",
+                    "company",
+                    "MRF_Ltd",
+                    "findata/Companies/Auto/MRF.md",
+                    "MRF.NS",
+                ),
+                (
+                    "KIOCL",
+                    "company",
+                    "KIOCL",
+                    "findata/Companies/Metals/KIOCL.md",
+                    "KIOCL.NS",
+                ),
                 (
                     "Forbes Enviro",
                     "company",
@@ -504,7 +516,10 @@ class TestIdentityOkMinSubsetTokens:
 
     def test_multi_token_subset_still_passes_at_two(self):
         assert identity_ok(
-            "HDFC Bank", {"longName": "HDFC Bank Limited"}, aliases={}, min_subset_tokens=2
+            "HDFC Bank",
+            {"longName": "HDFC Bank Limited"},
+            aliases={},
+            min_subset_tokens=2,
         )
 
     def test_default_rule_unchanged(self):

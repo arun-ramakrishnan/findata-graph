@@ -44,7 +44,10 @@ class TestResolveSector:
     def test_synonym(self):
         assert di._resolve_sector("Software") == ("Technology", "sector_commentary")
         assert di._resolve_sector("AI Computing") == ("Technology", "sector_commentary")
-        assert di._resolve_sector("Tourism &amp; Hospitality") == ("Travel", "sector_commentary")
+        assert di._resolve_sector("Tourism &amp; Hospitality") == (
+            "Travel",
+            "sector_commentary",
+        )
 
     def test_catch_all(self):
         ent, kind = di._resolve_sector("Design & Product Development Platform")
@@ -141,7 +144,10 @@ class TestSectorRender:
             entity="Travel",
             quote_text="Sector quote line long enough to be stored as a row.",
             as_of_edition="Test Edition",
-            properties={"kind": "sector_commentary", "heading": "Tourism & Hospitality"},
+            properties={
+                "kind": "sector_commentary",
+                "heading": "Tourism & Hospitality",
+            },
         )
         conn = _fresh()
         written, skipped, gated = di.render_notes(
@@ -177,7 +183,10 @@ class TestG4secSynonyms:
     `Regulator` -> Banking (RBI is bank-regulator commentary)."""
 
     def test_software_services_routes_technology(self):
-        assert di._resolve_sector("Software Services") == ("Technology", "sector_commentary")
+        assert di._resolve_sector("Software Services") == (
+            "Technology",
+            "sector_commentary",
+        )
 
     def test_regulator_routes_banking(self):
         assert di._resolve_sector("Regulator") == ("Banking", "sector_commentary")

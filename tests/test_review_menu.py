@@ -66,7 +66,11 @@ class TestPackets:
         assert p["item_id"] == "sha256:abcd1234"
         assert p["evidence"] == ENTRY
         assert len(p["choices"]) == len(QUOTES_SPEC.choices)
-        assert p["choices"][6] == {"key": "d", "label": "discard — never asked again", "hint": ""}
+        assert p["choices"][6] == {
+            "key": "d",
+            "label": "discard — never asked again",
+            "hint": "",
+        }
 
     def test_render_contains_id_and_choices(self) -> None:
         text = render_packet(build_packet(ENTRY, QUOTES_SPEC))
@@ -122,7 +126,10 @@ class TestNormalize:
         )
 
     def test_parametrized_verb_token_match(self) -> None:
-        assert normalize_answer("al Kuantum Papers", QUOTES_SPEC) == ("al Kuantum Papers", "")
+        assert normalize_answer("al Kuantum Papers", QUOTES_SPEC) == (
+            "al Kuantum Papers",
+            "",
+        )
         assert normalize_answer("sc ABC123", QUOTES_SPEC) == ("sc ABC123", "")
 
     def test_numeric_shortcut(self) -> None:
@@ -221,7 +228,10 @@ class TestRecommendedHint:
         out = io.StringIO()
         rec = {"key": "d"}
         ask = make_menu_input(
-            QUOTES_SPEC, print_fn=out.write, input_fn=lambda _p: "7", recommended=lambda: rec["key"]
+            QUOTES_SPEC,
+            print_fn=out.write,
+            input_fn=lambda _p: "7",
+            recommended=lambda: rec["key"],
         )
         assert ask() == "d"
         assert "★ recommended" in out.getvalue()

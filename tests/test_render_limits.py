@@ -30,7 +30,12 @@ from helpers.pdf import teleocr_engine  # noqa: E402
 
 
 def _write_pdf(
-    tmp_path: Path, name: str, *, pages: int = 1, width: float = 595, height: float = 842
+    tmp_path: Path,
+    name: str,
+    *,
+    pages: int = 1,
+    width: float = 595,
+    height: float = 842,
 ) -> Path:
     path = tmp_path / name
     doc = pymupdf.open()

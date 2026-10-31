@@ -92,7 +92,11 @@ class TestSectorBundleMarketCapInvariant:
         data = r.get_json()
         assert data["member_count"] == 3
         # Gamma Co (NULL cap) lands in 'unknown'; the sum still covers all 3.
-        assert data["market_cap_counts"] == {"large_cap": 1, "small_cap": 1, "unknown": 1}
+        assert data["market_cap_counts"] == {
+            "large_cap": 1,
+            "small_cap": 1,
+            "unknown": 1,
+        }
         assert sum(data["market_cap_counts"].values()) == data["member_count"]
 
     def test_market_cap_counts_match_when_members_subset(self, tmp_path, monkeypatch):

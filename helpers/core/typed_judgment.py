@@ -91,7 +91,10 @@ CHAT_URL = "https://openrouter.ai/api/v1/chat/completions"
 CACHE_DIR = pathlib.Path(
     os.environ.get("TYPED_JUDGMENT_CACHE", pathlib.Path.home() / ".cache" / "typed_judgment")
 )
-MODEL_CONTEXT = {"inception/mercury-decide:free": 32_000, "inception/mercury-2": 128_000}
+MODEL_CONTEXT = {
+    "inception/mercury-decide:free": 32_000,
+    "inception/mercury-2": 128_000,
+}
 # noul P(yes) gap below which two carriers count as agreeing. One constant so
 # the card renderer and the contentious ranker can never disagree with each other.
 AGREE_TOL = 0.2
@@ -413,7 +416,12 @@ def ask(  # noqa: C901  (dispatch ladder: 3 question types + cache/carrier/ledge
     if stats:
         stats.errors += 1
     return CallResult(
-        carrier=carrier, model=c.id, attempts=attempts, answers={}, wall_s=0.0, error=last
+        carrier=carrier,
+        model=c.id,
+        attempts=attempts,
+        answers={},
+        wall_s=0.0,
+        error=last,
     )
 
 
@@ -510,7 +518,9 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--out", help="append the result JSON to this JSONL")
     ap.add_argument("--no-cache", action="store_true")
     ap.add_argument(
-        "--max-cents", type=float, default=float(os.environ.get("OPENROUTER_MAX_CENTS", 0))
+        "--max-cents",
+        type=float,
+        default=float(os.environ.get("OPENROUTER_MAX_CENTS", 0)),
     )
     ap.add_argument("--timeout", type=float, default=60.0)
     args = ap.parse_args(argv)

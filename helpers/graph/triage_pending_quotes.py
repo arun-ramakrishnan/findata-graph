@@ -322,7 +322,12 @@ def review(  # noqa: C901 — keypress parsing + kit wiring, split would scatter
     ``packets_out`` writes the prompt packets (JSONL) for the agent
     flow. ``menu``/``prompt`` are mutually exclusive.
     """
-    from helpers.core.review_kit import Journal, ReviewSession, assemble_entries, latest_action_by
+    from helpers.core.review_kit import (
+        Journal,
+        ReviewSession,
+        assemble_entries,
+        latest_action_by,
+    )
     from helpers.core.review_menu import (
         Choice,
         MenuSpec,
@@ -409,11 +414,17 @@ def review(  # noqa: C901 — keypress parsing + kit wiring, split would scatter
     entities = {r[0].lower(): r[0] for r in conn.execute("SELECT name FROM entities").fetchall()}
     conn.close()
 
-    from helpers.core.decisions_preannotate import load_id_annotations, render_carrier_for
+    from helpers.core.decisions_preannotate import (
+        load_id_annotations,
+        render_carrier_for,
+    )
 
     if preannotate:
         try:
-            from helpers.core.decisions_preannotate import annotate_surface, make_surface_specs
+            from helpers.core.decisions_preannotate import (
+                annotate_surface,
+                make_surface_specs,
+            )
 
             _, annotated, _ = annotate_surface(make_surface_specs()["quotes"], limit=limit or 0)
             if annotated:
@@ -473,7 +484,10 @@ def review(  # noqa: C901 — keypress parsing + kit wiring, split would scatter
         while True:
             ans = input_fn("  alias 1-3 / al NAME / st / sc CIN / d / p / ? / q / x: ").strip()
             if ans in {"p", "q", "x"}:
-                return {"id": rid, "action": {"p": "skip", "q": "quit", "x": "abort"}[ans]}
+                return {
+                    "id": rid,
+                    "action": {"p": "skip", "q": "quit", "x": "abort"}[ans],
+                }
             if ans == "?":
                 print_fn("\n".join(legend))
                 _evidence(e)
@@ -590,16 +604,24 @@ def main(argv=None) -> int:
     )
     ap.add_argument("--limit", type=int, default=None, help="review: cap rows per sitting")
     ap.add_argument(
-        "--redecide", action="store_true", help="review: also re-walk annotated-unapplied rows"
+        "--redecide",
+        action="store_true",
+        help="review: also re-walk annotated-unapplied rows",
     )
     ap.add_argument(
-        "--skipped", action="store_true", help="review: also re-walk journaled-parked/declined rows"
+        "--skipped",
+        action="store_true",
+        help="review: also re-walk journaled-parked/declined rows",
     )
     ap.add_argument(
-        "--dry-run", action="store_true", help="review: journal + print the batch, write nothing"
+        "--dry-run",
+        action="store_true",
+        help="review: journal + print the batch, write nothing",
     )
     ap.add_argument(
-        "--menu", action="store_true", help="review: numbered menu input instead of raw keypresses"
+        "--menu",
+        action="store_true",
+        help="review: numbered menu input instead of raw keypresses",
     )
     ap.add_argument(
         "--prompt",
@@ -607,7 +629,10 @@ def main(argv=None) -> int:
         help="review: read one answer per item from --answers (walk order; final y/n line answers the batch confirm)",
     )
     ap.add_argument(
-        "--answers", type=Path, default=None, help="prompt: answers file (one verb per line)"
+        "--answers",
+        type=Path,
+        default=None,
+        help="prompt: answers file (one verb per line)",
     )
     ap.add_argument(
         "--packets-out",

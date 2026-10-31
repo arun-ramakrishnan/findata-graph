@@ -474,7 +474,9 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("fixtures", nargs="*", help="fixture names (default: all)")
     parser.add_argument("--list", action="store_true", help="list registered fixtures")
     parser.add_argument(
-        "--ref", default=DEFAULT_REF, help=f"git ref to diff against (default {DEFAULT_REF})"
+        "--ref",
+        default=DEFAULT_REF,
+        help=f"git ref to diff against (default {DEFAULT_REF})",
     )
     parser.add_argument("--seeds", default=",".join(str(s) for s in SEEDS))
     parser.add_argument(

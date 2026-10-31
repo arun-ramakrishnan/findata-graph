@@ -138,7 +138,10 @@ class TestAcceptRule:
         parent, candidate = dbs
         q = _questions(tmp_path)
         accept, results, reasons = gate.evaluate(
-            connect(parent), connect(candidate), json.loads(q.read_text())["questions"], set()
+            connect(parent),
+            connect(candidate),
+            json.loads(q.read_text())["questions"],
+            set(),
         )
         # NOTE: connections stay open here — evaluate is pure; callers close.
         assert accept and reasons == []
@@ -339,14 +342,20 @@ class TestShapes:
         parent, _ = dbs
         assert gate.answer_question(
             connect(parent),
-            {"shape": "edge_neighbors", "params": {"source": "Acme Ltd", "edge_type": "part_of"}},
+            {
+                "shape": "edge_neighbors",
+                "params": {"source": "Acme Ltd", "edge_type": "part_of"},
+            },
         ) == ["Financials"]
 
     def test_hyperedge_members(self, dbs):
         parent, _ = dbs
         assert gate.answer_question(
             connect(parent),
-            {"shape": "hyperedge_members", "params": {"edge_type": "edition", "label": "Ed. 1"}},
+            {
+                "shape": "hyperedge_members",
+                "params": {"edge_type": "edition", "label": "Ed. 1"},
+            },
         ) == ["Acme Ltd", "Zen Corp"]
 
     def test_concept_mappings_for_active_only(self, dbs):
@@ -362,7 +371,8 @@ class TestShapes:
     def test_provenance_agents_for(self, dbs):
         parent, _ = dbs
         assert gate.answer_question(
-            connect(parent), {"shape": "provenance_agents_for", "params": {"table": "events"}}
+            connect(parent),
+            {"shape": "provenance_agents_for", "params": {"table": "events"}},
         ) == ["derive:events"]
 
     def test_provenance_agents_rejects_bad_table(self, dbs):
@@ -468,5 +478,8 @@ class TestR3InsightShapes:
         with pytest.raises(gate.GateError):
             gate.answer_question(
                 conn,
-                {"shape": "insight_counterparts", "params": {"kind": "bogus", "subject": "X"}},
+                {
+                    "shape": "insight_counterparts",
+                    "params": {"kind": "bogus", "subject": "X"},
+                },
             )

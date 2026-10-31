@@ -78,8 +78,18 @@ _NOTES = [
     ("company", "findata/Companies/Banking/Hdfc_Bank.md", "HDFC Bank", _VEC_HDFC),
     ("company", "findata/Companies/Banking/ICICI_Bank.md", "ICICI Bank", _VEC_ICICI),
     ("company", "findata/Companies/Technology/Infosys.md", "Infosys", _VEC_INFY),
-    ("company", "findata/Companies/Banking/Hdfc_Bank_Old.md", "HDFC Bank Old", _VEC_HDFC),
-    ("chatter", "findata/The_Chatter/Bank_Chatter.md", "The Chatter: Banks", _VEC_CHATTER),
+    (
+        "company",
+        "findata/Companies/Banking/Hdfc_Bank_Old.md",
+        "HDFC Bank Old",
+        _VEC_HDFC,
+    ),
+    (
+        "chatter",
+        "findata/The_Chatter/Bank_Chatter.md",
+        "The Chatter: Banks",
+        _VEC_CHATTER,
+    ),
 ]
 
 

@@ -25,7 +25,11 @@ def _ok(usage: dict | None = None) -> tuple[int, dict]:
     return 200, {
         "answers": {
             "is_acq": {"type": "noul", "noul": 0.93},
-            "kind": {"type": "choice", "choice": "acq", "probabilities": {"acq": 0.97, "jv": 0.03}},
+            "kind": {
+                "type": "choice",
+                "choice": "acq",
+                "probabilities": {"acq": 0.97, "jv": 0.03},
+            },
             "intensity": {"type": "score", "score": "strong"},
         },
         "usage": usage or {"prompt_tokens": 120, "completion_tokens": 8},
@@ -319,7 +323,12 @@ class TestAb:
             return _ok()  # decisions lane
 
         v, _ = tj.ab(
-            "S", _q(), ["mercury-decide", "mercury-2"], key="k", transport=transport, max_attempts=1
+            "S",
+            _q(),
+            ["mercury-decide", "mercury-2"],
+            key="k",
+            transport=transport,
+            max_attempts=1,
         )
         assert v["mercury-decide"].ok is True
         assert v["mercury-2"].ok is False and v["mercury-2"].error

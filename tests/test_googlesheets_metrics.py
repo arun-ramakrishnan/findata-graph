@@ -103,7 +103,10 @@ class TestFetchGfMetrics:
             ("NSE:SRIGEE", "price"): "#N/A no data",
         }
         out = fetch_gf_metrics(
-            list(results), client_factory=self._factory(results), poll_seconds=0, attempts=3
+            list(results),
+            client_factory=self._factory(results),
+            poll_seconds=0,
+            attempts=3,
         )
         assert out[("544399:BOM", "pe")] == pytest.approx(7.3)
         assert out[("544399:BOM", "marketcap")] == pytest.approx(501782400)
@@ -124,7 +127,11 @@ class TestFetchGfMetrics:
         assert len(ws.update_calls) == 1  # ONE batch, not per-cell
         call = ws.update_calls[0]
         assert call["raw"] is False  # USER_ENTERED trap
-        assert call["values"][1] == ["BOM:544399", "price", '=GOOGLEFINANCE("BOM:544399","price")']
+        assert call["values"][1] == [
+            "BOM:544399",
+            "price",
+            '=GOOGLEFINANCE("BOM:544399","price")',
+        ]
 
     def test_empty_requests_short_circuit(self):
         assert fetch_gf_metrics([], client_factory=None) == {}

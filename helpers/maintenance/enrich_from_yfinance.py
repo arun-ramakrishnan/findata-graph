@@ -679,7 +679,10 @@ def main(argv: list[str] | None = None) -> int:  # noqa: C901
         "--workers", type=int, default=2, help="ThreadPool parallelism (default: 8)"
     )
     parser.add_argument(
-        "--company", type=str, default=None, help="Enrich only one company (by name or ticker)"
+        "--company",
+        type=str,
+        default=None,
+        help="Enrich only one company (by name or ticker)",
     )
     parser.add_argument(
         "--from-manifest",
@@ -847,7 +850,9 @@ def main(argv: list[str] | None = None) -> int:  # noqa: C901
 
     if failures:
         log.info(
-            "failed tickers (%d): %s", len(failures), ", ".join(f"{n}({t})" for n, t, _ in failures)
+            "failed tickers (%d): %s",
+            len(failures),
+            ", ".join(f"{n}({t})" for n, t, _ in failures),
         )
     if mismatches:
         # identity-guarded: wrong-entity ticker matches; nothing written for these
@@ -864,7 +869,14 @@ def main(argv: list[str] | None = None) -> int:  # noqa: C901
             safe = ticker.replace(".", "_").replace("/", "_")
             scratch = FETCH_SCRATCH / f"{safe}.json"
             scratch.write_text(
-                json.dumps({"name": name, "ticker": ticker, "file_path": file_path, "info": info})
+                json.dumps(
+                    {
+                        "name": name,
+                        "ticker": ticker,
+                        "file_path": file_path,
+                        "info": info,
+                    }
+                )
             )
             staged += 1
         print(f"[FETCH-ONLY] staged={staged} results -> {FETCH_SCRATCH}")

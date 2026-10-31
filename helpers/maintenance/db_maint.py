@@ -445,7 +445,10 @@ class DBMaintainer:
         try:
             dst.parent.mkdir(parents=True, exist_ok=True)
         except OSError as e:
-            self._log(logging.WARNING, f"cannot create backup dir ({e}); {label} backup skipped")
+            self._log(
+                logging.WARNING,
+                f"cannot create backup dir ({e}); {label} backup skipped",
+            )
             return 0
         zst_dst = zst_path(dst)
         with tempfile.NamedTemporaryFile(
@@ -564,7 +567,10 @@ class DBMaintainer:
                 try:
                     con.execute("CHECKPOINT;")
                 except duckdb.Error as e:
-                    self._log(logging.WARNING, f"read-only CHECKPOINT failed ({e}); copying as-is")
+                    self._log(
+                        logging.WARNING,
+                        f"read-only CHECKPOINT failed ({e}); copying as-is",
+                    )
                 finally:
                     con.close()
         except (duckdb.Error, OSError) as e:
@@ -575,7 +581,10 @@ class DBMaintainer:
         try:
             dst.parent.mkdir(parents=True, exist_ok=True)
         except OSError as e:
-            self._log(logging.WARNING, f"cannot create backup dir ({e}); {label} backup skipped")
+            self._log(
+                logging.WARNING,
+                f"cannot create backup dir ({e}); {label} backup skipped",
+            )
             return 0
         zst_dst = zst_path(dst)
         with tempfile.NamedTemporaryFile(suffix=src.suffix, dir=dst.parent, delete=False) as tf:
@@ -610,7 +619,9 @@ class DBMaintainer:
 
         idx = REPO / "memory/convo_search.duckdb"
         total = self._duckdb_zstd_backup(
-            idx, self.backup_path.parent / "convo_search_backup.duckdb", label="convo_search index"
+            idx,
+            self.backup_path.parent / "convo_search_backup.duckdb",
+            label="convo_search index",
         )
         return total
 
@@ -639,7 +650,10 @@ class DBMaintainer:
         try:
             dst.parent.mkdir(parents=True, exist_ok=True)
         except OSError as e:
-            self._log(logging.WARNING, f"cannot create backup dir ({e}); corpus backup skipped")
+            self._log(
+                logging.WARNING,
+                f"cannot create backup dir ({e}); corpus backup skipped",
+            )
             return 0
         from compression import zstd
 
@@ -648,7 +662,10 @@ class DBMaintainer:
                 for f in files:
                     tar.add(f, arcname=str(f.relative_to(root.parent)))
         size = zst_path(dst).stat().st_size
-        self._log(logging.INFO, f"convo corpus ({len(files)} parquet) backed up to {zst_path(dst)}")
+        self._log(
+            logging.INFO,
+            f"convo corpus ({len(files)} parquet) backed up to {zst_path(dst)}",
+        )
         return size
 
     def _backup_memory_sidecars(self) -> int:  # noqa: C901  # maintenance population, keep per archived c901_complexity_debt D1 verdict
@@ -763,7 +780,10 @@ class DBMaintainer:
         try:
             dst.parent.mkdir(parents=True, exist_ok=True)
         except OSError as e:
-            self._log(logging.WARNING, f"cannot create backup dir ({e}); sidecar backup skipped")
+            self._log(
+                logging.WARNING,
+                f"cannot create backup dir ({e}); sidecar backup skipped",
+            )
             return 0
         with zstd.open(zst_path(dst), "wb") as raw:
             with tarfile.open(fileobj=raw, mode="w|") as tar:
@@ -777,7 +797,8 @@ class DBMaintainer:
                 + (" …" if len(names) > 6 else ""),
             )
         self._log(
-            logging.INFO, f"memory sidecars ({len(members)} files) backed up to {zst_path(dst)}"
+            logging.INFO,
+            f"memory sidecars ({len(members)} files) backed up to {zst_path(dst)}",
         )
         return zst_path(dst).stat().st_size
 
@@ -829,7 +850,8 @@ class DBMaintainer:
                 conn.execute(f"PRAGMA incremental_vacuum({int(freelist_before)})")
             except sqlite3.Error as e:
                 self._log(
-                    logging.WARNING, f"incremental_vacuum failed ({e}); falling back to VACUUM"
+                    logging.WARNING,
+                    f"incremental_vacuum failed ({e}); falling back to VACUUM",
                 )
                 conn.execute("VACUUM")
                 return "vacuum"
@@ -1024,7 +1046,10 @@ class DBMaintainer:
         if self.duckdb_backup_path:
             self._log(logging.INFO, f"DuckDB backup → {self.duckdb_backup_path}")
             backup_size = self._backup_duckdb()
-            result["backup"] = {"path": str(self.duckdb_backup_path), "size": backup_size}
+            result["backup"] = {
+                "path": str(self.duckdb_backup_path),
+                "size": backup_size,
+            }
 
         before_size = self.duckdb_path.stat().st_size
         self._log(logging.INFO, f"DuckDB CHECKPOINT ({self.duckdb_path})")

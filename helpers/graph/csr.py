@@ -66,7 +66,8 @@ from helpers.graph.edge_projection import pairs  # noqa: E402  # needs the shim 
 # same loud fallback doctrine the manifest gate already enforces). Only the
 # derived artefacts (mmaps + names + pos) are memoised.
 _CACHE: dict[
-    tuple[str, str | None], tuple[dict, np.ndarray, np.ndarray, list[str], dict[str, int]]
+    tuple[str, str | None],
+    tuple[dict, np.ndarray, np.ndarray, list[str], dict[str, int]],
 ] = {}
 _CACHE_MAX = 4
 

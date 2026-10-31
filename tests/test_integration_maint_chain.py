@@ -662,10 +662,12 @@ class TestMaintChain:
 
         notes1 = project.notes_snapshot()
         events1 = _table(
-            project, "SELECT entity, event_type, source_quote FROM events ORDER BY 1, 2, 3"
+            project,
+            "SELECT entity, event_type, source_quote FROM events ORDER BY 1, 2, 3",
         )
         quotes1 = _table(
-            project, "SELECT entity, quote_text, as_of_edition FROM quotes ORDER BY 1, 2, 3"
+            project,
+            "SELECT entity, quote_text, as_of_edition FROM quotes ORDER BY 1, 2, 3",
         )
         # doc_search sidecar (step 6c, shimmed to p.root/doc_search.db over
         # the real repo doc/): full rebuilds rewrite in canonical row order,
@@ -683,11 +685,17 @@ class TestMaintChain:
         assert _scripts(record2) == expected
         assert project.notes_snapshot() == notes1
         assert (
-            _table(project, "SELECT entity, event_type, source_quote FROM events ORDER BY 1, 2, 3")
+            _table(
+                project,
+                "SELECT entity, event_type, source_quote FROM events ORDER BY 1, 2, 3",
+            )
             == events1
         )
         assert (
-            _table(project, "SELECT entity, quote_text, as_of_edition FROM quotes ORDER BY 1, 2, 3")
+            _table(
+                project,
+                "SELECT entity, quote_text, as_of_edition FROM quotes ORDER BY 1, 2, 3",
+            )
             == quotes1
         )
         assert (

@@ -435,7 +435,10 @@ def _fts_delete_keys(
 
 
 def _fts_sync(
-    sconn: sqlite3.Connection, drop_keys: list[tuple[str, str]], rows: list[dict], full: bool
+    sconn: sqlite3.Connection,
+    drop_keys: list[tuple[str, str]],
+    rows: list[dict],
+    full: bool,
 ) -> None:
     sconn.execute(FTS_DDL)
     if full:
@@ -459,7 +462,12 @@ def _embed(texts: list[str]) -> tuple[list[list[float]], dict, int, str]:
     if not texts:
         return [], {"hits": 0, "misses": 0}, dims, model_label
     if dims != EMBED_DIMS:
-        return [embed_fn(t) for t in texts], {"hits": 0, "misses": len(texts)}, dims, model_label
+        return (
+            [embed_fn(t) for t in texts],
+            {"hits": 0, "misses": len(texts)},
+            dims,
+            model_label,
+        )
     import helpers.core.local_embedder as le
 
     vecs, cstats = _cached_batch(texts, model_label, le)

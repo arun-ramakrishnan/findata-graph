@@ -726,7 +726,15 @@ def _leg_sqlfluff(files: list[str], changed: dict[str, set[int]], dialect: str, 
         groups.setdefault(_sql_engine(rel) or dialect, []).append(abs_p)
     for group_dialect, abs_paths in sorted(groups.items()):
         proc = _run(
-            [str(binary), "lint", "--dialect", group_dialect, "--format", "json", *abs_paths]
+            [
+                str(binary),
+                "lint",
+                "--dialect",
+                group_dialect,
+                "--format",
+                "json",
+                *abs_paths,
+            ]
         )
         try:
             payload = jsonio.loads(proc.stdout)
@@ -826,7 +834,10 @@ def _leg_semgrep(files: list[str], changed: dict[str, set[int]], head: str, tree
         except OSError, jsonio.JSONDecodeError:
             tail = (proc.stderr or "").strip().splitlines()
             hint = tail[-1][:160] if tail else "no stderr"
-            return [], f"semgrep: failed (no SARIF at {report}, rc={proc.returncode}; {hint})"
+            return (
+                [],
+                f"semgrep: failed (no SARIF at {report}, rc={proc.returncode}; {hint})",
+            )
     findings = []
     for run in payload.get("runs", []):
         rules = {r["id"]: r for r in run.get("tool", {}).get("driver", {}).get("rules", [])}
@@ -971,7 +982,9 @@ def _fixed_in(vuln: dict) -> str:
     return ""
 
 
-def _collect_osv_queries(tree: dict[str, str]) -> tuple[list[dict], list[tuple[str, str, str]]]:
+def _collect_osv_queries(
+    tree: dict[str, str],
+) -> tuple[list[dict], list[tuple[str, str, str]]]:
     """(querybatch payload, (lockfile, name, version) keys) from the
     materialized lockfiles. Never raises — unparsable files are skipped."""
     queries: list[dict] = []
@@ -1035,7 +1048,10 @@ def _leg_osv(lockfiles: list[str], tree: dict[str, str] | None = None) -> tuple[
     # whole-lockfile reporting: the changed-line filter is deliberately NOT
     # applied — a dependency's vulnerable version is never the changed line,
     # which is exactly how the OpenQodex trial's one real finding got hidden.
-    return findings, f"osv: ran ({len(queries)} deps queried, {len(findings)} vulnerable)"
+    return (
+        findings,
+        f"osv: ran ({len(queries)} deps queried, {len(findings)} vulnerable)",
+    )
 
 
 # ------------------------------------------------------------------------- main
@@ -1300,10 +1316,16 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--to", dest="to_ref", help="range head (with --from)")
     ap.add_argument("--offline", action="store_true", help="skip the semgrep + osv network legs")
     ap.add_argument(
-        "--only", action="append", choices=SCANNERS, help="run only this scanner (repeatable)"
+        "--only",
+        action="append",
+        choices=SCANNERS,
+        help="run only this scanner (repeatable)",
     )
     ap.add_argument(
-        "--skip", action="append", choices=SCANNERS, help="skip this scanner (repeatable)"
+        "--skip",
+        action="append",
+        choices=SCANNERS,
+        help="skip this scanner (repeatable)",
     )
     ap.add_argument("--dialect", default="ansi", help="sqlfluff SQL dialect (default ansi)")
     ap.add_argument("--json", action="store_true", help="write the findings artifact under $TMPDIR")

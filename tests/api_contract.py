@@ -190,7 +190,9 @@ def _scan_fields(body: str) -> dict[str, Field]:
     return fields
 
 
-def parse_interfaces(path: Path | None = None) -> tuple[dict[str, dict[str, Field]], list[str]]:
+def parse_interfaces(
+    path: Path | None = None,
+) -> tuple[dict[str, dict[str, Field]], list[str]]:
     """Parse api.ts into {InterfaceName: {field: Field}}.
 
     Handles `extends` (inlines parent fields) and comments. Each field keeps

@@ -160,7 +160,10 @@ def python_spawn_wall():
 
     t0 = _t.perf_counter()
     py = subprocess.run(  # noqa: S603  # repo-local script + venv python
-        [_sys.executable, str(REPO / "helpers" / "misc" / "database_integrity_check.py")],
+        [
+            _sys.executable,
+            str(REPO / "helpers" / "misc" / "database_integrity_check.py"),
+        ],
         capture_output=True,
         text=True,
         timeout=60,

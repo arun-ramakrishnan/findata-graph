@@ -323,7 +323,10 @@ def run_lane(
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument(
-        "--lane", choices=("all", *LANES), default="all", help="which lane (default all)"
+        "--lane",
+        choices=("all", *LANES),
+        default="all",
+        help="which lane (default all)",
     )
     ap.add_argument("--apply", action="store_true", help="write the table(s) (default: dry-run)")
     ap.add_argument("--verbose", "-v", action="store_true", help="sample rows per lane")
@@ -336,7 +339,13 @@ def main(argv: list[str] | None = None) -> int:
             conn.commit()
         lanes = LANES if args.lane == "all" else (args.lane,)
         for lane in lanes:
-            run_lane(conn, lane, apply_=args.apply, verbose=args.verbose, db_path=DEFAULT_DB_PATH)
+            run_lane(
+                conn,
+                lane,
+                apply_=args.apply,
+                verbose=args.verbose,
+                db_path=DEFAULT_DB_PATH,
+            )
     finally:
         conn.close()
     return 0

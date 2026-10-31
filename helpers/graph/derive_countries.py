@@ -214,7 +214,10 @@ def _cli(argv: list[str] | None = None) -> int:
         )
         if args.apply:
             write_worklist(worklist)
-            print(f"worklist written: {WORKLIST} ({len(worklist)} companies)", file=sys.stderr)
+            print(
+                f"worklist written: {WORKLIST} ({len(worklist)} companies)",
+                file=sys.stderr,
+            )
         if args.verbose:
             dcli.dump_edges_verbose(edges)
         return 0

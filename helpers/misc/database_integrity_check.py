@@ -134,9 +134,17 @@ _CHECKS: tuple[Check, ...] = (
     Check("orphan_companies", "check_orphan_companies", "error", "Orphan Companies"),
     Check("hierarchy", "check_hierarchy", "error", "Sector Hierarchy"),
     Check(
-        "market_cap_conflicts", "check_market_cap_conflicts", "error", "Market Cap Tag Conflicts"
+        "market_cap_conflicts",
+        "check_market_cap_conflicts",
+        "error",
+        "Market Cap Tag Conflicts",
     ),
-    Check("cache_consistency", "check_cache_consistency", "error", "DuckDB Cache Consistency"),
+    Check(
+        "cache_consistency",
+        "check_cache_consistency",
+        "error",
+        "DuckDB Cache Consistency",
+    ),
     Check("normalization", "check_normalization", "error", "Normalization"),
     Check(
         "duplicate_tickers",
@@ -144,8 +152,18 @@ _CHECKS: tuple[Check, ...] = (
         "error",
         "Semantic Uniqueness (duplicate tickers)",
     ),
-    Check("fuzzy_duplicates", "check_fuzzy_duplicate_names", "warning", "Fuzzy Name Similarity"),
-    Check("validity_window", "check_validity_window", "warning", "Edge Validity Window Coverage"),
+    Check(
+        "fuzzy_duplicates",
+        "check_fuzzy_duplicate_names",
+        "warning",
+        "Fuzzy Name Similarity",
+    ),
+    Check(
+        "validity_window",
+        "check_validity_window",
+        "warning",
+        "Edge Validity Window Coverage",
+    ),
     Check(
         "provenance_coverage",
         "check_provenance_coverage",
@@ -342,7 +360,11 @@ class DatabaseIntegrityChecker:
             parts = file_path.split("/")
             return len(parts) == 3  # findata, Super_Sectors, {Entity}.md
         elif entity_type == "edition" and file_path.startswith(
-            ("findata/The_Chatter/", "findata/The_PlotLines/", "findata/Points_And_Figures/")
+            (
+                "findata/The_Chatter/",
+                "findata/The_PlotLines/",
+                "findata/Points_And_Figures/",
+            )
         ):
             parts = file_path.split("/")
             return len(parts) == 3  # findata, {tree}, {Edition}.md
@@ -612,7 +634,13 @@ class DatabaseIntegrityChecker:
             ).fetchone()
             is None
         ):
-            return {"total": 0, "unknown_type": 0, "orphaned": 0, "bad_properties": 0, "errors": 0}
+            return {
+                "total": 0,
+                "unknown_type": 0,
+                "orphaned": 0,
+                "bad_properties": 0,
+                "errors": 0,
+            }
 
         total = cur.execute("SELECT COUNT(*) FROM events").fetchone()[0]
         # Build the type allowlist inline (CANONICAL_EVENT_TYPES is a frozenset
@@ -1339,7 +1367,13 @@ class DatabaseIntegrityChecker:
                 "mean": round(sum(sizes) / len(sizes), 1),
             }
         else:
-            size_summary = {"sector_count": 0, "min": 0, "median": 0, "max": 0, "mean": 0}
+            size_summary = {
+                "sector_count": 0,
+                "min": 0,
+                "median": 0,
+                "max": 0,
+                "mean": 0,
+            }
         largest = [{"sector": s, "n": n} for s, n in sector_sizes[:10]]
         smallest = [{"sector": s, "n": n} for s, n in sector_sizes[-5:]]
 
@@ -1593,7 +1627,17 @@ class DatabaseIntegrityChecker:
         conn = self.get_connection()
         cur = conn.cursor()
         cols = {row[1] for row in cur.execute("PRAGMA table_info(entities)")}
-        if not {"cin", "cin_listing", "cin_nic5", "cin_state", "cin_year", "cin_ownership"} <= cols:
+        if (
+            not {
+                "cin",
+                "cin_listing",
+                "cin_nic5",
+                "cin_state",
+                "cin_year",
+                "cin_ownership",
+            }
+            <= cols
+        ):
             return {"warnings": 0, "errors": 0, "skipped": 1}
 
         from helpers.core.cin import ROC_STATES, parse_cin
@@ -1909,12 +1953,22 @@ class DatabaseIntegrityChecker:
         """
         duckdb_path = self.base_path / "memory" / "graph.duckdb"
         if not duckdb_path.exists():
-            return {"skipped": True, "reason": "cache file absent", "errors": 0, "warnings": 1}
+            return {
+                "skipped": True,
+                "reason": "cache file absent",
+                "errors": 0,
+                "warnings": 1,
+            }
 
         from importlib.util import find_spec
 
         if find_spec("duckdb") is None:
-            return {"skipped": True, "reason": "duckdb not installed", "errors": 0, "warnings": 1}
+            return {
+                "skipped": True,
+                "reason": "duckdb not installed",
+                "errors": 0,
+                "warnings": 1,
+            }
 
         try:
             from helpers.misc.duckdb_lock import open_read_only
@@ -2066,11 +2120,19 @@ class DatabaseIntegrityChecker:
             )
             if dn is None or dn != sn:
                 mismatches.append(
-                    {"table": spec["table"], "edge_type": etype, "duckdb": dn, "sqlite": sn}
+                    {
+                        "table": spec["table"],
+                        "edge_type": etype,
+                        "duckdb": dn,
+                        "sqlite": sn,
+                    }
                 )
 
         # e_belongs_to + e_exposed_to (declared outside EDGE_REGISTRY).
-        for tbl, etype in (("e_belongs_to", "belongs_to"), ("e_exposed_to", "exposed_to")):
+        for tbl, etype in (
+            ("e_belongs_to", "belongs_to"),
+            ("e_exposed_to", "exposed_to"),
+        ):
             try:
                 dn = duck_con.execute(f"SELECT COUNT(*) FROM {tbl}").fetchone()[0]  # noqa: S608  # parameterized; interpolated parts are `?`-clauses / schema-constant identifiers
             except Exception:

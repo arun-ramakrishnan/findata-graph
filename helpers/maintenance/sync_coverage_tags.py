@@ -154,7 +154,8 @@ def main(argv: list[str] | None = None) -> int:
         return 1
     if not args.apply:
         print(
-            "dry-run: no files written; pass --apply at the operator checkpoint.", file=sys.stderr
+            "dry-run: no files written; pass --apply at the operator checkpoint.",
+            file=sys.stderr,
         )
     return 0
 

@@ -39,7 +39,14 @@ from helpers.graph.hyper_predict import (  # noqa: E402
     _stationary_pi_scores,
 )
 
-PREDICTION_GRADE = ("edition", "theme", "sector", "industry", "sub_sector", "org_membership")
+PREDICTION_GRADE = (
+    "edition",
+    "theme",
+    "sector",
+    "industry",
+    "sub_sector",
+    "org_membership",
+)
 
 
 def _load_with_validity(source: str):
@@ -154,7 +161,11 @@ def retrospective_holdout(source, method, s, ks, frac=0.2, seed=42):
         for a, b in combinations(sorted(edges[lab]), 2):
             truth_pairs.add((a, b))
     scores = _score_family(train, method, s)
-    out = {"held_edges": len(held), "train_edges": len(train), "truth_pairs": len(truth_pairs)}
+    out = {
+        "held_edges": len(held),
+        "train_edges": len(train),
+        "truth_pairs": len(truth_pairs),
+    }
     for k in ks:
         r, h, t = _recall_at_k(scores, truth_pairs, k)
         out[f"recall@{k}"] = round(r, 4)

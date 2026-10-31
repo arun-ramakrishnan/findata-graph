@@ -34,7 +34,11 @@ PARKING_ROOT = _REPO_ROOT / "outputs" / "worklist_parking"
 QUEUES: dict[str, tuple[str, str, str]] = {
     "countries": ("countries", "name", "company name (country_worklist.json)"),
     "subsector": ("subsector", "label", "subsector label (subsector_worklist.json)"),
-    "counterparty": ("counterparty", "name", "counterparty name (counterparty_worklist.json)"),
+    "counterparty": (
+        "counterparty",
+        "name",
+        "counterparty name (counterparty_worklist.json)",
+    ),
 }
 
 

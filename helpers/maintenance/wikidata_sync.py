@@ -134,13 +134,25 @@ def candidate_entities(conn: sqlite3.Connection) -> list[dict[str, str | None]]:
         name = row[0]
         by_name.setdefault(
             name,
-            {"entity_name": name, "ticker": None, "cin": None, "isin": None, "lei": None},
+            {
+                "entity_name": name,
+                "ticker": None,
+                "cin": None,
+                "isin": None,
+                "lei": None,
+            },
         )
     for row in conn.execute("SELECT DISTINCT company_name FROM company_embeddings"):
         name = row[0]
         by_name.setdefault(
             name,
-            {"entity_name": name, "ticker": None, "cin": None, "isin": None, "lei": None},
+            {
+                "entity_name": name,
+                "ticker": None,
+                "cin": None,
+                "isin": None,
+                "lei": None,
+            },
         )
     return sorted(by_name.values(), key=lambda row: str(row["entity_name"]).casefold())
 

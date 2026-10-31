@@ -148,7 +148,9 @@ def main(argv: list[str] | None = None) -> int:  # noqa: C901
                     yaml = replace_field(yaml, "normalized_name", new_normalized)
                     yaml = replace_field(yaml, "file_path", new_file_path)
                     yaml = replace_field(
-                        yaml, "permalink", f"/companies/{sector.lower()}/{new_normalized.lower()}"
+                        yaml,
+                        "permalink",
+                        f"/companies/{sector.lower()}/{new_normalized.lower()}",
                     )
                     yaml = replace_field(yaml, "title", new_name)
                     yaml = replace_field(yaml, "sector", sector)

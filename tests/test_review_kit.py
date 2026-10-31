@@ -10,7 +10,12 @@ from __future__ import annotations
 
 import json
 
-from helpers.core.review_kit import Journal, ReviewSession, assemble_entries, latest_action_by
+from helpers.core.review_kit import (
+    Journal,
+    ReviewSession,
+    assemble_entries,
+    latest_action_by,
+)
 
 
 class TestJournal:
@@ -21,7 +26,11 @@ class TestJournal:
         j.write({"label": "Airlines", "action": "approve", "code": "51101"})
         j.end(approved=1)
         lines = [json.loads(x) for x in jp.read_text().splitlines()]
-        assert [x["action"] for x in lines] == ["sitting-start", "approve", "sitting-end"]
+        assert [x["action"] for x in lines] == [
+            "sitting-start",
+            "approve",
+            "sitting-end",
+        ]
         assert all(
             x["ts"] == "20260919_000000" and x["session"] == "20260919_000000" for x in lines
         )
@@ -67,9 +76,17 @@ class TestParkItems:
         assert park_items(jp, [], key_field="name") == 0  # no-op on empty
         assert park_items(jp, ["Alpha", "Beta"], key_field="name") == 2
         lines = [json.loads(x) for x in jp.read_text().splitlines()]
-        assert [x["action"] for x in lines] == ["sitting-start", "skip", "skip", "sitting-end"]
+        assert [x["action"] for x in lines] == [
+            "sitting-start",
+            "skip",
+            "skip",
+            "sitting-end",
+        ]
         assert lines[1]["name"] == "Alpha" and lines[2]["name"] == "Beta"
-        assert latest_action_by(jp, key_field="name") == {"Alpha": "skip", "Beta": "skip"}
+        assert latest_action_by(jp, key_field="name") == {
+            "Alpha": "skip",
+            "Beta": "skip",
+        }
 
 
 class TestAssembleEntries:
@@ -99,7 +116,12 @@ class TestAssembleEntries:
 
     def test_limit_caps_after_sort(self):
         got = assemble_entries(
-            _wl(), labels_filter=None, redecide=False, skipped=False, sort_key=_key, limit=0
+            _wl(),
+            labels_filter=None,
+            redecide=False,
+            skipped=False,
+            sort_key=_key,
+            limit=0,
         )
         # limit=0 is falsy -> no cap (matches original `if limit:` semantics)
         assert len(got) == 1
@@ -184,7 +206,12 @@ class TestReviewSession:
         def ask(e, note):
             note({"label": "A", "action": "bad-override", "code": "99999"})
             order.append("ask")
-            return {"label": "A", "action": "approve", "code": "51101", "match_type": "closeMatch"}
+            return {
+                "label": "A",
+                "action": "approve",
+                "code": "51101",
+                "match_type": "closeMatch",
+            }
 
         sess = ReviewSession(
             entries=[{"label": "A"}],

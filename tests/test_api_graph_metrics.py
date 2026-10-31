@@ -62,9 +62,21 @@ _J3_ANALYTICS = [
         "ho_pagerank",
         '{"value": 0.02, "s": 1, "sources": ["sector", "theme", "industry"], "weighted": false}',
     ),
-    ("HDFC Bank", "hypermmsbm_community", '{"block": 0, "memberships": {"0": 0.7, "1": 0.3}}'),
-    ("ICICI Bank", "hypermmsbm_community", '{"block": 0, "memberships": {"0": 0.9, "1": 0.1}}'),
-    ("Infosys", "hypermmsbm_community", '{"block": 5, "memberships": {"0": 0.2, "5": 0.8}}'),
+    (
+        "HDFC Bank",
+        "hypermmsbm_community",
+        '{"block": 0, "memberships": {"0": 0.7, "1": 0.3}}',
+    ),
+    (
+        "ICICI Bank",
+        "hypermmsbm_community",
+        '{"block": 0, "memberships": {"0": 0.9, "1": 0.1}}',
+    ),
+    (
+        "Infosys",
+        "hypermmsbm_community",
+        '{"block": 5, "memberships": {"0": 0.2, "5": 0.8}}',
+    ),
     # graph_docs_ui_redesign S1: newly-served scalar centrality…
     ("HDFC Bank", "harmonic_centrality", '{"value": 0.7}'),
     ("ICICI Bank", "harmonic_centrality", '{"value": 0.5}'),
@@ -288,7 +300,12 @@ class TestGraphMetricsPayloadMetrics:
         with _seeded_sqlite_db_with_analytics(tmp_path) as client:
             r = client.get("/api/graph/metrics/bogus")
         valid = r.get_json()["valid_metrics"]
-        for m in ("ho_pagerank", "s_betweenness", "s_closeness", "hypermmsbm_community"):
+        for m in (
+            "ho_pagerank",
+            "s_betweenness",
+            "s_closeness",
+            "hypermmsbm_community",
+        ):
             assert m in valid
 
     def test_link_prediction_ranked_by_best_candidate(self, tmp_path):

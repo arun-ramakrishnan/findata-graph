@@ -257,7 +257,12 @@ def _score(
 def run() -> int:  # noqa: C901  # bench script: one straight-line report
     from helpers.core.local_embedder import MODEL_ID
 
-    all_legs = ["live-full", "bge-full-cache", "granite-trunc2000", "granite-structured"]
+    all_legs = [
+        "live-full",
+        "bge-full-cache",
+        "granite-trunc2000",
+        "granite-structured",
+    ]
     argv = list(sys.argv[1:])
     if "--json" in argv:  # drop the flag AND its value before leg collection
         i = argv.index("--json")

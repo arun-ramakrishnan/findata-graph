@@ -60,7 +60,9 @@ _ONAGER_CONN: dict[tuple[str, tuple[str, ...] | None], duckdb.DuckDBPyConnection
 _ONAGER_MAT: set[tuple[str, tuple[str, ...] | None]] = set()
 
 
-def _onager_cache_key(edge_types: list[str] | None = None) -> tuple[str, tuple[str, ...] | None]:
+def _onager_cache_key(
+    edge_types: list[str] | None = None,
+) -> tuple[str, tuple[str, ...] | None]:
     """Cache key = (generation, edge_types_tuple) — None = ALL."""
     from helpers.graph.query import _current_generation_for_cache
 
@@ -69,7 +71,9 @@ def _onager_cache_key(edge_types: list[str] | None = None) -> tuple[str, tuple[s
     return (gen, et)
 
 
-def _get_onager_connection(edge_types: list[str] | None = None) -> duckdb.DuckDBPyConnection:
+def _get_onager_connection(
+    edge_types: list[str] | None = None,
+) -> duckdb.DuckDBPyConnection:
     """Return cached DuckDB connection with onager loaded (owns=False)."""
     key = _onager_cache_key(edge_types)
     if key in _ONAGER_CONN:
@@ -282,7 +286,9 @@ def _where_inline(edge_types: list[str] | None, as_of: str | None = None) -> str
 
 
 def _materialize_from_db(
-    con: duckdb.DuckDBPyConnection, edge_types: list[str] | None, as_of: str | None = None
+    con: duckdb.DuckDBPyConnection,
+    edge_types: list[str] | None,
+    as_of: str | None = None,
 ) -> bool:
     """Build ``_onager_int`` (name -> int id) and ``_onager_e`` (remapped
     edges) directly from ``fin.graph_edges`` using SQL.

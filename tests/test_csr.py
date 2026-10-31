@@ -421,7 +421,8 @@ class TestMojoBfsParity:
         con.execute("CREATE TABLE db_meta (key VARCHAR, value VARCHAR)")
         con.execute("INSERT INTO db_meta VALUES ('generation', '7')")
         con.executemany(
-            "INSERT INTO graph_edges VALUES (?, ?, 1.0)", [("a", "b"), ("b", "c"), ("d", "e")]
+            "INSERT INTO graph_edges VALUES (?, ?, 1.0)",
+            [("a", "b"), ("b", "c"), ("d", "e")],
         )
         con.commit()
         con.close()

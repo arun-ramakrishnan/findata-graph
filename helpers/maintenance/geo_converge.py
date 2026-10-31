@@ -203,7 +203,9 @@ def main(argv: list[str] | None = None) -> int:
         "--apply", action="store_true", help="Rewrite changed notes (default: dry-run)."
     )
     ap.add_argument(
-        "--verbose", action="store_true", help="Print every changed note, not just samples."
+        "--verbose",
+        action="store_true",
+        help="Print every changed note, not just samples.",
     )
     args = ap.parse_args(argv)
 
@@ -251,7 +253,8 @@ def main(argv: list[str] | None = None) -> int:
         print(f"  ... ({len(changed) - 12} more; --verbose for all)")
     if not args.apply:
         print(
-            "dry-run: no files written; pass --apply at the operator checkpoint.", file=sys.stderr
+            "dry-run: no files written; pass --apply at the operator checkpoint.",
+            file=sys.stderr,
         )
     return 0
 

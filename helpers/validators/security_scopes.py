@@ -116,7 +116,10 @@ _SCOPE_AREAS: dict[str, tuple[dict[str, str], ...]] = {
     # Browser-served bundles. Audited: SEC-4 innerHTML/escapeHtml audit
     # (scan procedure class-table row) + vendored purify.
     "frontend": (
-        {"path": "frontend/src (TS app)", "arc": "SEC-4 full innerHTML/escapeHtml audit"},
+        {
+            "path": "frontend/src (TS app)",
+            "arc": "SEC-4 full innerHTML/escapeHtml audit",
+        },
         {
             "path": "static/ (bundles; static/vendor/purify.min.js vendored)",
             "arc": "SEC-4; vendored sanitizer shipped at 3.x",
@@ -218,7 +221,10 @@ def main(argv: list[str] | None = None) -> int:  # noqa: C901
 
     if a.mode == "seed-inventories":
         if a.out.exists():
-            print(f"seed-inventories: {a.out} already exists - left untouched", file=sys.stderr)
+            print(
+                f"seed-inventories: {a.out} already exists - left untouched",
+                file=sys.stderr,
+            )
             return 1
         a.out.parent.mkdir(parents=True, exist_ok=True)
         a.out.write_text(json.dumps(scope_skeleton(), indent=1) + "\n")

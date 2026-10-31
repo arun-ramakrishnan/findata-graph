@@ -211,7 +211,9 @@ def connect_script_db(db_path: Path | str | None = None) -> sqlite3.Connection:
 
 
 def _iter_py_units(
-    helpers_root: Path | None = None, tests_root: Path | None = None, app_py: Path | None = None
+    helpers_root: Path | None = None,
+    tests_root: Path | None = None,
+    app_py: Path | None = None,
 ):
     """Yield (rel, abs_path, kind) for every indexable Python file.
 
@@ -688,7 +690,14 @@ def _run_mojo_doc(path: Path, src_root: Path, mojo_bin: Path | None) -> str | No
         out = Path(fh.name)
     try:
         r = subprocess.run(  # noqa: S603  # repo-local venv binary, constant args
-            [str(binary), "doc", *_mojo_import_flags(src_root), "-o", str(out), str(path)],
+            [
+                str(binary),
+                "doc",
+                *_mojo_import_flags(src_root),
+                "-o",
+                str(out),
+                str(path),
+            ],
             capture_output=True,
             text=True,
             timeout=90,
@@ -887,7 +896,11 @@ def _iter_ts_units(src_root: Path | None = None, types_root: Path | None = None)
     prefix = src_root.parent.name  # 'frontend' live and in tmp trees alike
     if src_root.is_dir():
         for p in sorted(src_root.glob("**/*.ts")):
-            yield (f"{prefix}/src/{p.relative_to(src_root).as_posix()}", p, p.parent.name)
+            yield (
+                f"{prefix}/src/{p.relative_to(src_root).as_posix()}",
+                p,
+                p.parent.name,
+            )
     if types_root.is_dir():
         for p in sorted(types_root.glob("*.ts")):
             yield f"{prefix}/types/{p.name}", p, "types"
@@ -953,7 +966,11 @@ def _ts_stored_doc(
 
 
 def _ts_decl_cached(
-    conn: sqlite3.Connection | None, rel: str, chash: str, path: Path, node_bin: str | None
+    conn: sqlite3.Connection | None,
+    rel: str,
+    chash: str,
+    path: Path,
+    node_bin: str | None,
 ) -> dict | None:
     """Parsed extractor decl for a TS unit, content-addressed exactly like
     _mojo_decl_cached (regen only on hash change; failed regen falls back

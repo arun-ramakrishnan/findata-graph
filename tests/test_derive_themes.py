@@ -42,7 +42,9 @@ class TestExtractionPrecision:
 
     def test_pli_scheme_alias_triggers_edge(self, tmp_path):
         _write_note(
-            tmp_path, "Acme_Electronics", "Acme is a beneficiary of the PLI scheme for components."
+            tmp_path,
+            "Acme_Electronics",
+            "Acme is a beneficiary of the PLI scheme for components.",
         )
         edges = dt.derive_edges(dt.extract_theme_membership(tmp_path))
         targets = {e[1] for e in edges}
@@ -52,7 +54,9 @@ class TestExtractionPrecision:
         """Bare 'pli' is boilerplate (appears in 42/42 sector notes) and must
         NOT create a PLI edge — this is the precision guard."""
         _write_note(
-            tmp_path, "Acme_Chemicals", "The company filed its PLI. No scheme detail available."
+            tmp_path,
+            "Acme_Chemicals",
+            "The company filed its PLI. No scheme detail available.",
         )
         edges = dt.derive_edges(dt.extract_theme_membership(tmp_path))
         targets = {e[1] for e in edges}
@@ -61,14 +65,20 @@ class TestExtractionPrecision:
         )
 
     def test_china_plus_one_variants_match(self, tmp_path):
-        _write_note(tmp_path, "Acme_Textiles", "Benefiting from the China+1 diversification trend.")
+        _write_note(
+            tmp_path,
+            "Acme_Textiles",
+            "Benefiting from the China+1 diversification trend.",
+        )
         edges = dt.derive_edges(dt.extract_theme_membership(tmp_path))
         assert any(e[0] == "Acme_Textiles" and e[1] == "China_Plus_One" for e in edges)
 
     def test_multiple_themes_one_note(self, tmp_path):
         """A company exposed to several themes yields one edge per theme."""
         _write_note(
-            tmp_path, "Acme_Auto", "EV transition + premiumization + China plus one strategy."
+            tmp_path,
+            "Acme_Auto",
+            "EV transition + premiumization + China plus one strategy.",
         )
         edges = dt.derive_edges(dt.extract_theme_membership(tmp_path))
         themes = {e[1] for e in edges if e[0] == "Acme_Auto"}

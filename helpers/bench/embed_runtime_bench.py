@@ -64,7 +64,10 @@ def bench_throughput(path: str, n: int) -> None:
         for t in texts:
             m.create_embedding(input=[t])
         dt = time.perf_counter() - t0
-        print(f"{threads}T: {len(texts)} texts in {dt:.1f}s = {len(texts) / dt:.2f}/s", flush=True)
+        print(
+            f"{threads}T: {len(texts)} texts in {dt:.1f}s = {len(texts) / dt:.2f}/s",
+            flush=True,
+        )
         del m
 
 
@@ -105,7 +108,10 @@ def bench_sidecar(port: int, n: int) -> None:
         _post(t)
     dt = time.perf_counter() - t0
     done = len(texts) - 1
-    print(f"sidecar :{port} ({dims}d): {done} texts in {dt:.1f}s = {done / dt:.2f}/s", flush=True)
+    print(
+        f"sidecar :{port} ({dims}d): {done} texts in {dt:.1f}s = {done / dt:.2f}/s",
+        flush=True,
+    )
 
 
 def preflight_clean_state(marker: str) -> None:  # noqa: C901  # bench preflight: linear guard chain

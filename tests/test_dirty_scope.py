@@ -333,7 +333,8 @@ def pyvault(tmp_path, monkeypatch):
     paths["badsyntax"].write_text("def broken(:\n", encoding="utf-8")
     paths["badchoke"].write_text("import json\nx = json.loads(emb_vec)\n", encoding="utf-8")
     paths["badzstd"].write_text(
-        "import pyarrow.parquet as pq\npq.write_table(t, 'x.parquet')\n", encoding="utf-8"
+        "import pyarrow.parquet as pq\npq.write_table(t, 'x.parquet')\n",
+        encoding="utf-8",
     )
     paths["lane"].write_text("def load_stuff():\n    return {'a': 1}\n", encoding="utf-8")
     paths["plain"].write_text("x = 1\n", encoding="utf-8")

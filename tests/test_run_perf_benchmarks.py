@@ -37,7 +37,11 @@ def test_md_status_attribution_matrix(status: str, ok: bool, want: str) -> None:
 
 @pytest.mark.parametrize(
     ("status", "ok"),
-    [("OVER_BUDGET [psi avg10 18.3%]", False), ("FAIL(rc)", False), ("CONTENDED", False)],
+    [
+        ("OVER_BUDGET [psi avg10 18.3%]", False),
+        ("FAIL(rc)", False),
+        ("CONTENDED", False),
+    ],
 )
 def test_every_failure_cell_keeps_fail_substring(status: str, ok: bool) -> None:
     """gate_query's failure surfaces key on 'FAIL'; TUI pass-count keys on
@@ -156,7 +160,14 @@ def test_write_report_failure_sections_round_trip(
     rpb.write_report(
         [
             ("bench_ok", 1.2, "OK", True, 2.0, ""),
-            ("bench_int", 5.2, "FAIL(rc)", False, 10.0, "exit 1: validation_rate 91.05"),
+            (
+                "bench_int",
+                5.2,
+                "FAIL(rc)",
+                False,
+                10.0,
+                "exit 1: validation_rate 91.05",
+            ),
         ],
         "2026-10-26 10:00:00",
         12.0,

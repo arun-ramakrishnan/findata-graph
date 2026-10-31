@@ -107,7 +107,8 @@ def build_graph_fixture_db(path: Path) -> Path:
         )
         con.executemany("INSERT INTO entity_tags (entity_name, tag) VALUES (?, ?)", ENTITY_TAGS)
         con.executemany(
-            "INSERT INTO graph_edges (source, target, edge_type) VALUES (?, ?, ?)", GRAPH_EDGES
+            "INSERT INTO graph_edges (source, target, edge_type) VALUES (?, ?, ?)",
+            GRAPH_EDGES,
         )
         con.commit()
     finally:

@@ -61,9 +61,7 @@ class TestPruneAnalytics(unittest.TestCase):
 
     def test_census_counts_orphans_per_metric(self):
         census = dict(prune_analytics.orphan_census(self.conn))
-        self.assertEqual(
-            census, {"degree_centrality": 1, "louvain_community": 1, "pagerank": 1}
-        )
+        self.assertEqual(census, {"degree_centrality": 1, "louvain_community": 1, "pagerank": 1})
 
     def test_main_dry_run_then_apply(self):
         import contextlib
@@ -77,9 +75,7 @@ class TestPruneAnalytics(unittest.TestCase):
         self.assertIn("DRY-RUN", out.getvalue())
         self.assertIn("pagerank", out.getvalue())
         # dry-run wrote nothing
-        self.assertEqual(
-            self.conn.execute("SELECT COUNT(*) FROM graph_analytics").fetchone()[0], 5
-        )
+        self.assertEqual(self.conn.execute("SELECT COUNT(*) FROM graph_analytics").fetchone()[0], 5)
         out = io.StringIO()
         with contextlib.redirect_stdout(out):
             rc = prune_analytics.main(["--db", db, "--apply"])
@@ -87,9 +83,7 @@ class TestPruneAnalytics(unittest.TestCase):
         self.assertIn("APPLY: deleted 3", out.getvalue())
         remaining = sorted(
             (r[0], r[1])
-            for r in self.conn.execute(
-                "SELECT entity_name, metric FROM graph_analytics"
-            ).fetchall()
+            for r in self.conn.execute("SELECT entity_name, metric FROM graph_analytics").fetchall()
         )
         self.assertEqual(remaining, [("Alpha Co", "pagerank"), ("Beta Co", "pagerank")])
 

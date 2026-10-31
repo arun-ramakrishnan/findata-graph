@@ -205,7 +205,10 @@ def call_glm(prompt: str, key: str, model: str, retries: int = 3) -> str:
             req = urllib.request.Request(
                 BASE_URL,
                 data=body,
-                headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json"},
+                headers={
+                    "Authorization": f"Bearer {key}",
+                    "Content-Type": "application/json",
+                },
             )
             with urllib.request.urlopen(req, timeout=300) as r:  # noqa: S310  # allowlisted bases; query params quoted
                 return jsonio.loads(r.read())["choices"][0]["message"]["content"]
@@ -266,7 +269,10 @@ def judge_rows(
             r = replies.get(i)
             if r is None:
                 continue
-            fb, rb = _as_bool(r.get("factually_accurate")), _as_bool(r.get("rubric_admit"))
+            fb, rb = (
+                _as_bool(r.get("factually_accurate")),
+                _as_bool(r.get("rubric_admit")),
+            )
             if fb is None or rb is None:
                 continue  # malformed booleans: dropout, retried via judge_row
             try:
@@ -333,7 +339,8 @@ def _html_lane(query: str, base: str, parse) -> list[dict]:
 
 def _rss_get(url: str) -> str:
     req = urllib.request.Request(  # noqa: S310  # allowlisted bases; query params quoted
-        url, headers={"User-Agent": "Mozilla/5.0 (X11; Linux x86_64) triage-preannotate"}
+        url,
+        headers={"User-Agent": "Mozilla/5.0 (X11; Linux x86_64) triage-preannotate"},
     )
     with urllib.request.urlopen(req, timeout=30) as r:  # noqa: S310  # allowlisted bases; query params quoted
         return r.read().decode("utf-8", "replace")
@@ -598,7 +605,11 @@ def evidence_query(row: dict) -> str:
     window's debris. Rows with no truncation are unaffected.
     """
     mention = row.get("truncated_from") or row.get("target_mention", "")
-    parts = [row.get("source", ""), mention, str(row.get("edge_type", "")).replace("_", " ")]
+    parts = [
+        row.get("source", ""),
+        mention,
+        str(row.get("edge_type", "")).replace("_", " "),
+    ]
     return " ".join(p for p in parts if p)
 
 

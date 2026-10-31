@@ -125,13 +125,19 @@ class TestProbeQueries:
         # The Piramal shape: full name fits under the q limit; the
         # shorter stem is the fallback when the full form comes back
         # empty.
-        assert fh.probe_queries("Piramal Enterprises") == ["Piramal Enterprises", "Piramal"]
+        assert fh.probe_queries("Piramal Enterprises") == [
+            "Piramal Enterprises",
+            "Piramal",
+        ]
 
     def test_long_name_trims_then_adds_stems(self):
         # 'Bajaj Allianz General Insurance' trims to 'Bajaj Allianz'
         # (word-boundary cut at 20 chars); probes are the trimmed form
         # then its first word.
-        assert fh.probe_queries("Bajaj Allianz General Insurance") == ["Bajaj Allianz", "Bajaj"]
+        assert fh.probe_queries("Bajaj Allianz General Insurance") == [
+            "Bajaj Allianz",
+            "Bajaj",
+        ]
 
     def test_three_word_name_gets_intermediate_probe(self):
         assert fh.probe_queries("Ab Cd Ef Gh") == ["Ab Cd Ef Gh", "Ab Cd", "Ab"]

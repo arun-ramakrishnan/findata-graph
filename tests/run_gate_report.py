@@ -191,7 +191,9 @@ GATES: dict[str, Gate] = {
             # problems. Nonblocking (hygiene is never a gate verdict) and the
             # 24h age guard means it cannot race fixtures created this run.
             Step(
-                "tmp-sweep", (_PY, "helpers/maintenance/tmp_sweep.py", "--apply"), nonblocking=True
+                "tmp-sweep",
+                (_PY, "helpers/maintenance/tmp_sweep.py", "--apply"),
+                nonblocking=True,
             ),
             Step("lint", (_RUFF, "check", ".")),
             # markdown_lint_adoption S5 promotion: markdown joins ruff as a
@@ -289,7 +291,9 @@ GATES: dict[str, Gate] = {
         steps=(
             # tmpdir_sanitization S7 — see the qa gate's note above.
             Step(
-                "tmp-sweep", (_PY, "helpers/maintenance/tmp_sweep.py", "--apply"), nonblocking=True
+                "tmp-sweep",
+                (_PY, "helpers/maintenance/tmp_sweep.py", "--apply"),
+                nonblocking=True,
             ),
             Step(
                 "ty-tests",
@@ -338,13 +342,17 @@ GATES: dict[str, Gate] = {
                 "graph-scale-watch",
                 (_PY, "helpers/validators/graph_scale_watch.py", "--check"),
             ),
-            Step("doc-search-check", (_PY, "helpers/maintenance/rebuild_doc_search.py", "--check")),
+            Step(
+                "doc-search-check",
+                (_PY, "helpers/maintenance/rebuild_doc_search.py", "--check"),
+            ),
             Step(
                 "script-search-check",
                 (_PY, "helpers/maintenance/rebuild_script_search.py", "--check"),
             ),
             Step(
-                "note-search-check", (_PY, "helpers/maintenance/rebuild_note_search.py", "--check")
+                "note-search-check",
+                (_PY, "helpers/maintenance/rebuild_note_search.py", "--check"),
             ),
             Step(
                 "memory-search-check",

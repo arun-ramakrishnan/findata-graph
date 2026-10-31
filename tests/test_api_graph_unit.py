@@ -344,8 +344,16 @@ class TestEdgesByYear:
             conn.close()
             data = client.get("/api/graph/edges-by-year").get_json()
         assert len(data["timeline"]) == 2
-        assert data["timeline"][0] == {"year": "2023", "edge_type": "acquired", "count": 2}
-        assert data["timeline"][1] == {"year": "2024", "edge_type": "jv_with", "count": 1}
+        assert data["timeline"][0] == {
+            "year": "2023",
+            "edge_type": "acquired",
+            "count": 2,
+        }
+        assert data["timeline"][1] == {
+            "year": "2024",
+            "edge_type": "jv_with",
+            "count": 1,
+        }
 
     def test_undated_edges_excluded(self, tmp_path):
         """Edges with NULL valid_from should not appear in the timeline."""
@@ -588,7 +596,13 @@ class TestGraphEditionCompanies:
 
         def fake_edition(con, edition, k=10):
             seen.update(edition=edition, k=k)
-            return [("findata/Companies/Defense/Bharat_Electronics.md", "Bharat_Electronics", 0.84)]
+            return [
+                (
+                    "findata/Companies/Defense/Bharat_Electronics.md",
+                    "Bharat_Electronics",
+                    0.84,
+                )
+            ]
 
         monkeypatch.setattr(q, "edition_companies", fake_edition)
         monkeypatch.setattr(A, "get_graph_connection", lambda: object())
@@ -1017,7 +1031,13 @@ class TestGraphCloud:
         r = unit_client.get("/api/graph/cloud")
         assert r.status_code == 200
         data = r.get_json()
-        assert set(data) == {"nodes", "edges", "relationship_types", "total_nodes", "total_edges"}
+        assert set(data) == {
+            "nodes",
+            "edges",
+            "relationship_types",
+            "total_nodes",
+            "total_edges",
+        }
         # Seed: 6 entities; stored dyads + the projected sector pair.
         assert data["total_edges"] == len(_UNIT_ALL_EDGES)
         # Every edge endpoint is present as a node; no duplicates.
@@ -1209,7 +1229,12 @@ class TestGraphSuggestions:
             companies_only=True,
             existing_pairs=None,
         ):
-            seen.update(method=method, top=top, min_score=min_score, companies_only=companies_only)
+            seen.update(
+                method=method,
+                top=top,
+                min_score=min_score,
+                companies_only=companies_only,
+            )
             return [FakeSuggestion()]
 
         monkeypatch.setattr(sr, "suggest_relations", fake_suggest)
@@ -1228,7 +1253,12 @@ class TestGraphSuggestions:
                 "edition": "link-prediction/jaccard/x",
             }
         ]
-        assert seen == {"method": "adamic-adar", "top": 5, "min_score": 0.4, "companies_only": True}
+        assert seen == {
+            "method": "adamic-adar",
+            "top": 5,
+            "min_score": 0.4,
+            "companies_only": True,
+        }
 
     def test_suggestions_companies_only_off(self, unit_client, monkeypatch):
         import helpers.graph.suggest_relations as sr
@@ -1276,7 +1306,12 @@ class TestAnalyticsReportEndpoint:
         assert r.status_code == 200
         data = r.get_json()
         assert captured["name"] == "top-entities"
-        assert data == {"title": "T", "headers": ["a", "b"], "rows": [["1", "2"]], "note": "n"}
+        assert data == {
+            "title": "T",
+            "headers": ["a", "b"],
+            "rows": [["1", "2"]],
+            "note": "n",
+        }
 
     def test_analytics_composite_temporal_shape(self, unit_client, monkeypatch):
         import helpers.graph.analytics as an

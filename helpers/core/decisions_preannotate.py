@@ -177,7 +177,11 @@ def _quotes_state(row: dict) -> str:
 
 
 def _coverage_rows() -> list[dict]:
-    from helpers.validators.coverage_ledger import DEFAULT_APP, DEFAULT_LEDGER, _gap_records
+    from helpers.validators.coverage_ledger import (
+        DEFAULT_APP,
+        DEFAULT_LEDGER,
+        _gap_records,
+    )
 
     try:
         return _gap_records(DEFAULT_APP, DEFAULT_LEDGER)
@@ -390,7 +394,8 @@ def annotate_surface(
             f.write(json.dumps(row, ensure_ascii=False) + "\n")
             annotated += 1
             print(
-                f"  [{annotated}/{len(todo)}] {key} p_fact={p1:.2f} p_rubric={p2:.2f}", flush=True
+                f"  [{annotated}/{len(todo)}] {key} p_fact={p1:.2f} p_rubric={p2:.2f}",
+                flush=True,
             )
     return len(todo), annotated, out_path
 

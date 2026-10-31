@@ -549,7 +549,8 @@ def run_for_sid(sid: str) -> dict:
                 "tier_ord2": _tier_ord2(a.tier_pending()),
                 "tier_ord3": _tier_ord3(a.tier_pending()),
                 "tier_rung": _tier_rung(
-                    a.tier_pending(), _with_tier_overrides(a.tier_bars(), _compress_config())
+                    a.tier_pending(),
+                    _with_tier_overrides(a.tier_bars(), _compress_config()),
                 ),
                 "warnings": sorted(set(w.kind for w in a.warnings)),
                 "reason_pair_violations": a.reasoning_pair_violations,
@@ -722,7 +723,9 @@ def main(argv: list[str]) -> int:  # noqa: C901
     ap.add_argument("--json", action="store_true")
     ap.add_argument("--detail", metavar="SID")
     ap.add_argument(
-        "--aggregate", action="store_true", help="print cross-session totals after the table"
+        "--aggregate",
+        action="store_true",
+        help="print cross-session totals after the table",
     )
     ap.add_argument("--markdown", metavar="PATH", help="write a Markdown ledger to PATH")
     ap.add_argument(
@@ -808,7 +811,13 @@ def main(argv: list[str]) -> int:  # noqa: C901
         if not log:
             print("no log available for that session", file=sys.stderr)
             return 2
-        cmd = [sys.executable, str(HERE / "bili_analytics.py"), log, "--session", row["session"]]
+        cmd = [
+            sys.executable,
+            str(HERE / "bili_analytics.py"),
+            log,
+            "--session",
+            row["session"],
+        ]
         if report:
             cmd.append(report)
         print("[SESSION]")

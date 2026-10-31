@@ -1496,7 +1496,8 @@ def check_dead_c901_noqa() -> tuple[list[str], list[str]]:
             (root / rel).parent.mkdir(parents=True, exist_ok=True)
             (root / rel).write_text(
                 _strip_c901(
-                    path.read_text(encoding="utf-8", errors="replace"), _c901_comment_lines(path)
+                    path.read_text(encoding="utf-8", errors="replace"),
+                    _c901_comment_lines(path),
                 ),
                 encoding="utf-8",
             )
@@ -1787,7 +1788,9 @@ def _sql_literal_noqa_findings(py: Path) -> list[str]:
     return out
 
 
-def check_noqa_in_sql_literal(scope: set[Path] | None = None) -> tuple[list[str], list[str]]:
+def check_noqa_in_sql_literal(
+    scope: set[Path] | None = None,
+) -> tuple[list[str], list[str]]:
     """noqa_in_sql_literal_lint S2: a `# noqa` inside a SQL string literal is
     query text, not a suppression.
 

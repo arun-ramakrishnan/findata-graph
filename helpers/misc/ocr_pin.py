@@ -50,7 +50,10 @@ def probe(ocr: str = "ocr", *, timeout: float = 15.0) -> tuple[str, str]:
     """Run `<ocr> --version`. Returns `(version_or_empty, raw_first_line)`."""
     binary = shutil.which(ocr)
     if binary is None:
-        return "", f"{ocr}: not on PATH (bun global install; see doc/procedures/ocr_review.md)"
+        return (
+            "",
+            f"{ocr}: not on PATH (bun global install; see doc/procedures/ocr_review.md)",
+        )
     try:
         proc = subprocess.run(  # noqa: S603  # resolved absolute path, fixed argv, no shell
             [binary, "--version"],
@@ -59,7 +62,10 @@ def probe(ocr: str = "ocr", *, timeout: float = 15.0) -> tuple[str, str]:
             timeout=timeout,
             check=False,
         )
-    except (OSError, subprocess.SubprocessError) as exc:  # pragma: no cover - env dependent
+    except (
+        OSError,
+        subprocess.SubprocessError,
+    ) as exc:  # pragma: no cover - env dependent
         return "", f"{ocr}: unavailable ({type(exc).__name__}: {exc})"
     raw = (proc.stdout or proc.stderr or "").strip()
     return (parse_version(raw) or ""), (raw.splitlines()[0] if raw else "no version output")

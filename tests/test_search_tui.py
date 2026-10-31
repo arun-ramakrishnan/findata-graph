@@ -106,7 +106,12 @@ def test_parse_rg_lines() -> None:
 def test_parse_riprewire_symbol_rows() -> None:
     raw = '<sigs><d l="246" n="TIER2_STEPS" p="helpers/x.py" cx="0" r="1">body</d></sigs>'
     (h,) = parse_riprewire(raw)
-    assert (h.path, h.line, h.title, h.score) == ("helpers/x.py", 246, "TIER2_STEPS", 1.0)
+    assert (h.path, h.line, h.title, h.score) == (
+        "helpers/x.py",
+        246,
+        "TIER2_STEPS",
+        1.0,
+    )
 
 
 def test_parse_riprewire_callers_rows() -> None:
@@ -138,7 +143,10 @@ def test_parse_riprewire_recall_blocks() -> None:
     [
         ("callers: f", ["ripwire", ".", "--callers=f"]),
         ("impact: f", ["ripwire", ".", "--impact=f"]),
-        ("grep: STR", ["ripwire", ".", "--grep=STR", "--grep-in=any", "--legend=compact"]),
+        (
+            "grep: STR",
+            ["ripwire", ".", "--grep=STR", "--grep-in=any", "--legend=compact"],
+        ),
         ("recall: why so", ["ripwire", ".", "--recall=why so"]),
         ("plain task", ["ripwire", ".", "--for=plain task"]),
         ("grep:", ["ripwire", ".", "--for=grep:"]),
@@ -219,7 +227,10 @@ def test_notes_query_ranks_by_bm25(tmp_path: Path) -> None:
 
 
 def test_rrf_note_hits_unions_lexical_and_semantic_candidates():
-    lexical = [Hit(path="a.md", line=None, lane="notes"), Hit(path="b.md", line=None, lane="notes")]
+    lexical = [
+        Hit(path="a.md", line=None, lane="notes"),
+        Hit(path="b.md", line=None, lane="notes"),
+    ]
     semantic = [
         Hit(path="c.md", line=None, score=0.9, lane="notes"),
         Hit(path="b.md", line=None, score=0.8, lane="notes"),
@@ -262,9 +273,30 @@ def test_index_ages_missing_and_present(tmp_path: Path) -> None:
 
 def _fake_hits() -> list[Hit]:
     return [
-        Hit(path="a/b.py", line=10, title="one", section="s", snippet="snip", lane="scripts"),
-        Hit(path="a/b.py", line=20, title="two", section="s", snippet="snip2", lane="scripts"),
-        Hit(path="doc/x.md", line=3, title="md hit", section="d", snippet="md", lane="scripts"),
+        Hit(
+            path="a/b.py",
+            line=10,
+            title="one",
+            section="s",
+            snippet="snip",
+            lane="scripts",
+        ),
+        Hit(
+            path="a/b.py",
+            line=20,
+            title="two",
+            section="s",
+            snippet="snip2",
+            lane="scripts",
+        ),
+        Hit(
+            path="doc/x.md",
+            line=3,
+            title="md hit",
+            section="d",
+            snippet="md",
+            lane="scripts",
+        ),
     ]
 
 
@@ -277,7 +309,9 @@ def test_app_pilot_rows_preview_monitor(monkeypatch: pytest.MonkeyPatch) -> None
     from textual.widgets import DataTable, RichLog
 
     monkeypatch.setattr(
-        appmod, "run_lane", lambda lane, q, limit, mode="hybrid": (_fake_hits(), "3 hits · fake")
+        appmod,
+        "run_lane",
+        lambda lane, q, limit, mode="hybrid": (_fake_hits(), "3 hits · fake"),
     )
 
     app = appmod.SearchApp("anything", "scripts", 10)
@@ -321,7 +355,12 @@ def test_call_chain_drill_and_back(monkeypatch: pytest.MonkeyPatch) -> None:
         return {
             "of": sym,
             "callers": [
-                Hit(path=f"helpers/a_{sym}.py", line=10, title=f"caller_{sym}", kind="symbol")
+                Hit(
+                    path=f"helpers/a_{sym}.py",
+                    line=10,
+                    title=f"caller_{sym}",
+                    kind="symbol",
+                )
             ],
             "callees": [],
         }
@@ -438,7 +477,9 @@ def test_index_monitor_busy_frames_pilot(monkeypatch: pytest.MonkeyPatch) -> Non
     assert note_after == appmod._IDX_NOTE_HINT
 
 
-def test_index_monitor_double_refresh_guard_pilot(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_index_monitor_double_refresh_guard_pilot(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     """A4: a second R press in the same pump cycle must not double-spawn
     rebuild workers (parallel embedder rebuilds spike RAM/CPU — the
     sequential-by-design invariant)."""
@@ -1245,7 +1286,11 @@ def test_parse_report_summary_integrity() -> None:
     import tempfile
 
     with tempfile.NamedTemporaryFile(
-        mode="w", prefix="database_integrity_", suffix=".txt", delete=False, encoding="utf-8"
+        mode="w",
+        prefix="database_integrity_",
+        suffix=".txt",
+        delete=False,
+        encoding="utf-8",
     ) as f:
         f.write(_INTEGRITY_FIXTURE)
         path = Path(f.name)

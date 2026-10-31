@@ -424,7 +424,12 @@ def resolve_git_embedder(already_warned: bool = False) -> tuple:
         def _gemma_batch(texts: list[str]) -> list[list[float]]:
             return [gemma_embedder.embed_document(t) for t in texts]
 
-        return _gemma_batch, gemma_embedder.DIM, gemma_embedder.MODEL_LABEL, already_warned
+        return (
+            _gemma_batch,
+            gemma_embedder.DIM,
+            gemma_embedder.MODEL_LABEL,
+            already_warned,
+        )
     if choice == "gemma" and not already_warned:
         print(
             "WARNING: GIT_EMBEDDER=gemma but the gemma sidecar is down "
@@ -796,7 +801,14 @@ def _write_rows(
         conn.execute("DELETE FROM git_search WHERE sha = ?", (sha,))
         conn.execute(
             f"INSERT INTO git_search ({_ROW_COLS}) VALUES (?, ?, ?, ?, ?, ?)",  # noqa: S608  # constant column list
-            (sha, _iso_date(adate), subject, fblock, content, pack_f32(vec_by_sha[sha])),
+            (
+                sha,
+                _iso_date(adate),
+                subject,
+                fblock,
+                content,
+                pack_f32(vec_by_sha[sha]),
+            ),
         )
         conn.execute(
             "INSERT OR REPLACE INTO git_search_meta (sha, adate, fp) VALUES (?, ?, ?)",
@@ -1146,7 +1158,9 @@ def search_commits(
         return {
             "mode": "vector",
             "results": _hit_dicts(
-                _vector_hits(conn, scored, sims, since, path, limit, offset), sims, from_body
+                _vector_hits(conn, scored, sims, since, path, limit, offset),
+                sims,
+                from_body,
             ),
         }
     candidates: list[tuple[int, sqlite3.Row, str, bool]] = [

@@ -32,7 +32,12 @@ class TestParseBseResponse:
         # The motivating case: name search -> scrip + symbol + ISIN.
         matches = parse_bse_response(_decode_body(_load("bse_srigee.json")))
         assert matches == [
-            BseMatch(scrip="544399", symbol="SRIGEE", name="SRIGEE DLM LTD", isin="INE0RJ901010")
+            BseMatch(
+                scrip="544399",
+                symbol="SRIGEE",
+                name="SRIGEE DLM LTD",
+                isin="INE0RJ901010",
+            )
         ]
 
     def test_tmpv_row_carries_nse_symbol(self):
@@ -80,7 +85,9 @@ class TestBseSearchCached:
 
     def test_cache_miss_fetches_and_writes(self, tmp_path, monkeypatch):
         monkeypatch.setattr(
-            es, "bse_search", lambda query, **_kw: _decode_body(_load("bse_srigee.json"))
+            es,
+            "bse_search",
+            lambda query, **_kw: _decode_body(_load("bse_srigee.json")),
         )
         matches, from_cache = bse_search_cached("Srigee DLM", tmp_path)
         assert from_cache is False

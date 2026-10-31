@@ -76,7 +76,11 @@ def _gguf_model(gguf_path: str, n_ctx: int, n_threads: int | None = None):
         from llama_cpp import Llama
 
         model = Llama(
-            str(gguf_path), embedding=True, n_ctx=n_ctx, verbose=False, n_threads=n_threads
+            str(gguf_path),
+            embedding=True,
+            n_ctx=n_ctx,
+            verbose=False,
+            n_threads=n_threads,
         )
         _GGUF["model"] = model
     return model
@@ -170,7 +174,10 @@ def _run_bge_legs(n: int, worker_counts: list[int]) -> None:
         t0 = time.perf_counter()
         vecs = fn()
         dt = time.perf_counter() - t0
-        print(f"{label}: {n} in {dt:.1f}s = {n / dt:.2f}/s (dim={len(vecs[0])})", flush=True)
+        print(
+            f"{label}: {n} in {dt:.1f}s = {n / dt:.2f}/s (dim={len(vecs[0])})",
+            flush=True,
+        )
 
     # Untimed warmup — cold first legs read ~2.6x slow (see _run_gguf_legs).
     for t in texts[:4]:
@@ -178,7 +185,10 @@ def _run_bge_legs(n: int, worker_counts: list[int]) -> None:
 
     leg("serial    ", lambda: le.embed_documents(texts))
     for workers in worker_counts:
-        leg(f"pool N={workers}  ", lambda w=workers: le.embed_documents_parallel(texts, workers=w))
+        leg(
+            f"pool N={workers}  ",
+            lambda w=workers: le.embed_documents_parallel(texts, workers=w),
+        )
     leg("serial#2  ", lambda: le.embed_documents(texts))
 
 

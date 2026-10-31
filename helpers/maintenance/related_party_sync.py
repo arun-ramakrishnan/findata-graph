@@ -519,10 +519,23 @@ def apply_pairs(  # noqa: C901  # the filer/counter/edge-class resolution ladder
                     "VALUES (?, ?, ?, 1.0, ?, ?, ?, 'external') "
                     "ON CONFLICT(source, target, edge_type) DO UPDATE SET "
                     "properties=excluded.properties, source_ref=excluded.source_ref",
-                    (e["src"], e["dst"], e["etype"], e["props"], e["source_ref"], e["symm"]),
+                    (
+                        e["src"],
+                        e["dst"],
+                        e["etype"],
+                        e["props"],
+                        e["source_ref"],
+                        e["symm"],
+                    ),
                 )
                 n_written += cur.rowcount
-    return len(new_entities), len(edges), n_written, len(unresolved_filers), n_cycles_dropped
+    return (
+        len(new_entities),
+        len(edges),
+        n_written,
+        len(unresolved_filers),
+        n_cycles_dropped,
+    )
 
 
 _SALE_TYPES = ("Sale of goods or services", "Sale of fixed assets")
@@ -804,7 +817,10 @@ def prune_symmetric_artifacts(
 
 
 def _apply_deletions(
-    conn: sqlite3.Connection, deletions: list[tuple[str, str, str, str]], *, dry_run: bool
+    conn: sqlite3.Connection,
+    deletions: list[tuple[str, str, str, str]],
+    *,
+    dry_run: bool,
 ) -> None:
     """Delete the losers, ref-scoped when a source_ref exists. Split out
     of `prune_symmetric_artifacts` for C901; row-for-row the previous
@@ -1053,7 +1069,9 @@ def main(argv: list[str] | None = None) -> int:  # noqa: C901  # pass-per-flag C
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--download", action="store_true", help="bulk download + load the RPT table")
     ap.add_argument(
-        "--ratings-download", action="store_true", help="bulk download + load credit_ratings"
+        "--ratings-download",
+        action="store_true",
+        help="bulk download + load credit_ratings",
     )
     ap.add_argument("--refetch", action="store_true", help="ignore the zstd cache")
     ap.add_argument("--apply", action="store_true", help="write edges (default: dry-run)")
@@ -1063,7 +1081,9 @@ def main(argv: list[str] | None = None) -> int:  # noqa: C901  # pass-per-flag C
         help="group-structure pass (subsidiary_of/same_group/jv_with)",
     )
     ap.add_argument(
-        "--supply-chain", action="store_true", help="supplier_to pass from RPT transaction types"
+        "--supply-chain",
+        action="store_true",
+        help="supplier_to pass from RPT transaction types",
     )
     ap.add_argument("--ratings", action="store_true", help="rated_by pass from credit_ratings")
     ap.add_argument(

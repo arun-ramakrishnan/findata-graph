@@ -310,14 +310,24 @@ def test_c_series_per_edge_type_row_pins(tmp_path):
                 "sector_b": "Technology",
                 "count": 1,
             },
-            {"edge_type": "acquired", "sector_a": "Banking", "sector_b": "Technology", "count": 1},
+            {
+                "edge_type": "acquired",
+                "sector_a": "Banking",
+                "sector_b": "Technology",
+                "count": 1,
+            },
             {
                 "edge_type": "acquired",
                 "sector_a": "Packaging",
                 "sector_b": "Technology",
                 "count": 1,
             },
-            {"edge_type": "jv_with", "sector_a": "Banking", "sector_b": "Technology", "count": 1},
+            {
+                "edge_type": "jv_with",
+                "sector_a": "Banking",
+                "sector_b": "Technology",
+                "count": 1,
+            },
         ]
         assert edges_by_year(scon) == [
             {"year": "2020", "edge_type": "jv_with", "count": 1},

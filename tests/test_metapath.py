@@ -54,7 +54,13 @@ SCRATCH_ROWS = [
         {"relationship": "Key management personnel of Subsidiary"},
     ),
     # vigil plain holding company → trusted (counter IS the filer's parent)
-    ("SubCo", "HoldCo", "subsidiary_of", "vigil:rpt:HOLD", {"relationship": "Holding Company"}),
+    (
+        "SubCo",
+        "HoldCo",
+        "subsidiary_of",
+        "vigil:rpt:HOLD",
+        {"relationship": "Holding Company"},
+    ),
     # acquired: stored acquirer→acquiree; ownership joins REVERSED
     ("BigCo", "TargetCo", "acquired", "derive:relations:n2", None),
     # flow: source is always the supplier
@@ -62,7 +68,13 @@ SCRATCH_ROWS = [
     # customer_of: stored customer→supplier, mirrored into flow
     ("CustX", "SupX", "customer_of", "derive:relations:n3", None),
     # affiliation (undirected)
-    ("AffA", "AffB", "same_group", "vigil:rpt:G", {"relationship": "Fellow Subsidiary"}),
+    (
+        "AffA",
+        "AffB",
+        "same_group",
+        "vigil:rpt:G",
+        {"relationship": "Fellow Subsidiary"},
+    ),
     ("AffB", "AffC", "listed_on_index", "derive:index", None),
     # competition
     ("CompA", "CompB", "competes_with", "derive:relations:n4", None),
@@ -298,6 +310,7 @@ class TestHyperSPaths:
 
     def test_shared_hyperedges_distance_one(self, scratch_db):
         r = metapath.hyper_path("AffA", "AffB", db_path=scratch_db)
+        assert r is not None
         assert r["s_distance"] == 1
         assert r["shared"] == [("edition", "Chatter #69"), ("group", "Alpha Group")]
         assert r["walk"] == ["AffA", "AffB"]
@@ -305,9 +318,16 @@ class TestHyperSPaths:
 
     def test_two_hop_s_walk_via_bridging_entity(self, scratch_db):
         r = metapath.hyper_path("LeafCo", "CompA", max_hops=2, db_path=scratch_db)
+        assert r is not None
         assert r["s_distance"] == 2
         assert r["shared"] == []
-        assert r["walk"] == ["LeafCo", "sub_sector:Pharma", "MidCo", "edition:Bridge Ed", "CompA"]
+        assert r["walk"] == [
+            "LeafCo",
+            "sub_sector:Pharma",
+            "MidCo",
+            "edition:Bridge Ed",
+            "CompA",
+        ]
 
     def test_unreachable_self_and_hop_bound(self, scratch_db):
         # no incidences at all -> unreachable
@@ -317,6 +337,7 @@ class TestHyperSPaths:
         # hop bound: LeafCo/CompA need 2 hyperedge hops
         assert metapath.hyper_path("LeafCo", "CompA", max_hops=1, db_path=scratch_db) is None
         r = metapath.hyper_path("AffA", "AffA", db_path=scratch_db)
+        assert r is not None
         assert r["s_distance"] == 0 and r["walk"] == ["AffA"]
 
     def test_connect_dispatches_hyper_semantics(self, scratch_db):

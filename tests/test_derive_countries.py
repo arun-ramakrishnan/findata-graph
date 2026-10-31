@@ -156,7 +156,14 @@ class TestApplyAndIdempotency:
         conn = _conn()
         try:
             dc.create_country_entities(conn, ["india"], apply=True)
-            edges = [("TCS", "india", {"ticker": "TCS.NS", "via": "suffix:.NS"}, dc.SOURCE_REF)]
+            edges = [
+                (
+                    "TCS",
+                    "india",
+                    {"ticker": "TCS.NS", "via": "suffix:.NS"},
+                    dc.SOURCE_REF,
+                )
+            ]
             n1 = dc.apply_typed_edges(
                 edges, edge_type="listed_in", symmetric=0, conn=conn, dry_run=False
             )
@@ -194,7 +201,13 @@ class TestApplyAndIdempotency:
 def test_write_worklist(tmp_path):
     path = tmp_path / "country_worklist.json"
     worklist = [
-        {"name": "B", "ticker": None, "sector": None, "geography_tag": None, "reason": "no_ticker"},
+        {
+            "name": "B",
+            "ticker": None,
+            "sector": None,
+            "geography_tag": None,
+            "reason": "no_ticker",
+        },
         {
             "name": "A",
             "ticker": "FOO.ZZ",

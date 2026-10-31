@@ -1365,11 +1365,17 @@ def review(  # noqa: C901 — keypress parsing + kit wiring, split would scatter
     if packets_out is not None and entries:
         write_packets(entries, _MENU_SPEC, packets_out)
 
-    from helpers.core.decisions_preannotate import load_id_annotations, render_carrier_for
+    from helpers.core.decisions_preannotate import (
+        load_id_annotations,
+        render_carrier_for,
+    )
 
     if preannotate:
         try:
-            from helpers.core.decisions_preannotate import annotate_surface, make_surface_specs
+            from helpers.core.decisions_preannotate import (
+                annotate_surface,
+                make_surface_specs,
+            )
 
             _, annotated, _ = annotate_surface(make_surface_specs()["coverage"])
             if annotated:
@@ -1566,7 +1572,10 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--app", type=Path, default=DEFAULT_APP)
     ap.add_argument("--ledger", type=Path, default=DEFAULT_LEDGER)
     ap.add_argument(
-        "--out", type=Path, default=DEFAULT_QUEUE, help="queue: where the work queue is written"
+        "--out",
+        type=Path,
+        default=DEFAULT_QUEUE,
+        help="queue: where the work queue is written",
     )
     ap.add_argument(
         "--decisions",
@@ -1575,7 +1584,9 @@ def main(argv: list[str] | None = None) -> int:
         help="apply: the decisions journal to apply (dry-run; --write commits)",
     )
     ap.add_argument(
-        "--strict", action="store_true", help="stale rows fail; critic verdict must be COMPLETE"
+        "--strict",
+        action="store_true",
+        help="stale rows fail; critic verdict must be COMPLETE",
     )
     ap.add_argument(
         "--write", action="store_true", help="apply: commit the decisions to the ledger"
@@ -1602,7 +1613,9 @@ def main(argv: list[str] | None = None) -> int:
         "--menu", action="store_true", help="review: render each row as a numbered menu"
     )
     ap.add_argument(
-        "--prompt", action="store_true", help="review: read answers from --answers (walk order)"
+        "--prompt",
+        action="store_true",
+        help="review: read answers from --answers (walk order)",
     )
     ap.add_argument(
         "--answers",

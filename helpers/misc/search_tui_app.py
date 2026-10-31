@@ -468,7 +468,8 @@ class ReportScreen(ModalScreen[None]):
             # mounted only when a perf report is in scope.
             yield Vertical(id="rep-spark")
             yield Static(
-                "enter expands/drills · r reruns report · i indexes · esc close", id="rep-keys"
+                "enter expands/drills · r reruns report · i indexes · esc close",
+                id="rep-keys",
             )
             yield Footer()
 
@@ -1052,7 +1053,10 @@ class DbScreen(ModalScreen[None]):
                         + [line[:start] + hit + line[col:]]
                         + lines[min(row, len(lines) - 1) + 1 :]
                     )
-                    editor.cursor_location = (min(row, len(lines) - 1), start + len(hit))
+                    editor.cursor_location = (
+                        min(row, len(lines) - 1),
+                        start + len(hit),
+                    )
                 except Exception:  # noqa: BLE001 — cursor edge cases
                     return
                 event.stop()
@@ -1330,7 +1334,10 @@ class SearchApp(App[None]):
     # -- layout ----------------------------------------------------------
 
     def compose(self) -> ComposeResult:
-        yield Header(show_clock=False, name=f"search_tui · build {BUILD_STAMP} · pid {os.getpid()}")
+        yield Header(
+            show_clock=False,
+            name=f"search_tui · build {BUILD_STAMP} · pid {os.getpid()}",
+        )
         yield Input(
             value=self._initial_query,
             placeholder="query — pick a lane (tabs / 1-7), type, press enter · verbs: callers: impact: grep: recall: qa: perf: · d database",
@@ -1342,7 +1349,12 @@ class SearchApp(App[None]):
             # wrap=True + small min_width: renderables (Markdown) render at
             # the PANE width — min_width=78 forced 78 cols and clipped.
             yield RichLog(
-                id="preview", markup=True, wrap=True, max_lines=4000, min_width=1, auto_scroll=False
+                id="preview",
+                markup=True,
+                wrap=True,
+                max_lines=4000,
+                min_width=1,
+                auto_scroll=False,
             )
         yield Static("", id="status")
         yield Footer()
@@ -1605,7 +1617,10 @@ class SearchApp(App[None]):
             hit_text = lines[hit.line - 1] if hit.line <= len(lines) else ""
             log.write(self._hit_line(hit.line, hit_text, is_hit=True))
             log.write("")
-            log.write(Markdown("\n".join(lines[lo - 1 : hi]), code_theme="ansi_dark"), width=pane_w)
+            log.write(
+                Markdown("\n".join(lines[lo - 1 : hi]), code_theme="ansi_dark"),
+                width=pane_w,
+            )
             log.scroll_to(y=0, animate=False)
             return
         for n in range(lo, hi + 1):
@@ -1738,7 +1753,10 @@ class SearchApp(App[None]):
             with self.suspend():
                 subprocess.run(cmd, check=False)  # noqa: S603 — resolved opener argv, no shell
         except Exception as exc:  # pragma: no cover - terminal-dependent
-            self.notify(f"suspend failed ({exc}) — run manually: {' '.join(cmd)}", severity="error")
+            self.notify(
+                f"suspend failed ({exc}) — run manually: {' '.join(cmd)}",
+                severity="error",
+            )
             return
         self.refresh(layout=True)
         self._preview()

@@ -886,7 +886,12 @@ def _search_params() -> tuple[tuple[str, str, bool, int, int] | None, tuple | No
     so the route can return the 400 directly."""
     q = request.args.get("q", "").strip()
     doc_type = request.args.get("type", "").strip()
-    hybrid = request.args.get("hybrid", "").strip().lower() in ("1", "true", "yes", "on")
+    hybrid = request.args.get("hybrid", "").strip().lower() in (
+        "1",
+        "true",
+        "yes",
+        "on",
+    )
     try:
         limit = int(request.args.get("limit", 20))
         offset = int(request.args.get("offset", 0))
@@ -2322,7 +2327,12 @@ def api_graph_shortest():
         from helpers.graph.query import shortest_path
 
         path = shortest_path(
-            get_graph_connection(), a_canon, b_canon, max_hops, edge_label=None, as_of=as_of
+            get_graph_connection(),
+            a_canon,
+            b_canon,
+            max_hops,
+            edge_label=None,
+            as_of=as_of,
         )
     except Exception as e:
         app.logger.exception("graph shortest failed a=%r b=%r", a_canon, b_canon)
@@ -2412,7 +2422,11 @@ def api_graph_semantic(name: str):
     metric = request.args.get("metric", "cosine")
     if metric not in ("cosine", "ip"):
         return jsonify({"error": "metric must be 'cosine' or 'ip'"}), 400
-    cross_sector = request.args.get("cross_sector", "false").lower() in ("1", "true", "yes")
+    cross_sector = request.args.get("cross_sector", "false").lower() in (
+        "1",
+        "true",
+        "yes",
+    )
     try:
         from helpers.graph.query import semantic_neighbors
 
@@ -2579,7 +2593,13 @@ def api_graph_near_duplicates():
             "doc_type": doc_type,
             "min_sim": min_sim,
             "pairs": [
-                {"path_a": pa, "path_b": pb, "title_a": ta, "title_b": tb, "similarity": sim}
+                {
+                    "path_a": pa,
+                    "path_b": pb,
+                    "title_a": ta,
+                    "title_b": tb,
+                    "similarity": sim,
+                }
                 for pa, pb, ta, tb, sim in results
             ],
         }
@@ -2679,7 +2699,12 @@ def api_graph_suggestions():
             "method": method,
             "top": top,
             "suggestions": [
-                {"source": s.source, "target": s.target, "score": s.score, "edition": s.edition}
+                {
+                    "source": s.source,
+                    "target": s.target,
+                    "score": s.score,
+                    "edition": s.edition,
+                }
                 for s in results
             ],
         }
@@ -2721,7 +2746,12 @@ def api_analytics(name: str):
             {
                 "titles": [r.title for r in report],
                 "reports": [
-                    {"title": r.title, "headers": r.headers, "rows": r.rows, "note": r.note}
+                    {
+                        "title": r.title,
+                        "headers": r.headers,
+                        "rows": r.rows,
+                        "note": r.note,
+                    }
                     for r in report
                 ],
             }
@@ -3076,7 +3106,13 @@ def api_graph_hyper_structure():
     try:
         if not _hyper_present(conn):
             return jsonify(
-                {"n_hyperedges": 0, "n_incidences": 0, "families": [], "top": [], "blocks": None}
+                {
+                    "n_hyperedges": 0,
+                    "n_incidences": 0,
+                    "families": [],
+                    "top": [],
+                    "blocks": None,
+                }
             )
         n_he, n_inc = conn.execute(
             "SELECT (SELECT COUNT(*) FROM hyper_edges),"
@@ -3332,7 +3368,11 @@ _SCALAR_GRAPH_METRICS = {
 # not sorted by value. hypermmsbm_community stores {"block": int,
 # "memberships": {...}} — argmax block only; soft memberships stay internal
 # (hy-MMSBM is overlapping; the groups shape is single-label).
-_LABEL_GRAPH_METRICS = {"louvain_community", "weakly_connected_component", "hypermmsbm_community"}
+_LABEL_GRAPH_METRICS = {
+    "louvain_community",
+    "weakly_connected_component",
+    "hypermmsbm_community",
+}
 # Structured-payload metrics: value JSON is not {"value": float}; each gets
 # its own response shape in the handler below (graph_docs_ui_redesign §4.3).
 _PAYLOAD_GRAPH_METRICS = {"link_prediction", "voterank"}
@@ -3422,7 +3462,7 @@ def api_graph_metrics(metric: str):  # noqa: C901
                 for r in rows:
                     try:
                         parsed = jsonio.loads(r["value"])
-                    except (ValueError, TypeError):
+                    except ValueError, TypeError:
                         continue
                     cand = parsed.get("seeds")
                     if isinstance(cand, list) and cand:
@@ -3441,7 +3481,7 @@ def api_graph_metrics(metric: str):  # noqa: C901
             for r in rows:
                 try:
                     parsed = jsonio.loads(r["value"])
-                except (ValueError, TypeError):
+                except ValueError, TypeError:
                     continue
                 cands = [
                     {"name": c.get("name"), "score": c.get("score")}
@@ -3537,7 +3577,7 @@ def api_graph_metrics(metric: str):  # noqa: C901
             for r in rows:
                 try:
                     parsed = jsonio.loads(r["value"])
-                except (ValueError, TypeError):
+                except ValueError, TypeError:
                     continue
                 label = parsed.get(label_key)
                 if isinstance(label, int):

@@ -69,7 +69,11 @@ def stage(name: str, track: bool = True):
         peak = tracemalloc.get_traced_memory()[1] / 1e6 if track else None
         if track:
             tracemalloc.stop()
-        row = {"stage": name, "secs": round(secs, 3), "peak_mb": round(peak, 1) if peak else None}
+        row = {
+            "stage": name,
+            "secs": round(secs, 3),
+            "peak_mb": round(peak, 1) if peak else None,
+        }
         row.update(out)
         ROWS.append(row)
         print(f"[{name}] {secs:.2f}s peak={row['peak_mb']}MB { {k: v for k, v in out.items()} }")
@@ -83,7 +87,10 @@ def load_incidence_python(path: Path, max_edges: int | None) -> dict[str, list[s
         with gzip.open(path.with_suffix(path.suffix + ".gz")) as f:
             lines = f.read().decode().splitlines()
     else:  # Drive mislabel: <name>.json.gz is actually a zip
-        ds_dir, name = path.parent, path.name.replace("hyperedges-", "").replace(".txt", "")
+        ds_dir, name = (
+            path.parent,
+            path.name.replace("hyperedges-", "").replace(".txt", ""),
+        )
         with zipfile.ZipFile(ds_dir / f"{name}.json.gz") as zf:
             inner = next(z for z in zf.namelist() if z.endswith(f"hyperedges-{name}.txt"))
             with zf.open(inner) as f:

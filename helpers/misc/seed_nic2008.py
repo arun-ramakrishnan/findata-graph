@@ -139,14 +139,20 @@ def parse_pdf_text(txt: str) -> dict:  # noqa: C901 — PDF layout state machine
             title = m.group(2).strip()
             if wrap:
                 title += " " + m2.group(2).strip()  # type: ignore[union-attr]
-            summary["divisions"][m.group(1)] = {"section": cur_sec, "description": title}
+            summary["divisions"][m.group(1)] = {
+                "section": cur_sec,
+                "description": title,
+            }
             continue
         m = grp_re.match(ln)
         if m and m.group(1) not in summary["groups"]:
             title = m.group(2).strip()
             if wrap:
                 title += " " + m2.group(2).strip()  # type: ignore[union-attr]
-            summary["groups"][m.group(1)] = {"division": m.group(1)[:2], "description": title}
+            summary["groups"][m.group(1)] = {
+                "division": m.group(1)[:2],
+                "description": title,
+            }
 
     # ---- detailed part
     skip_res = [
@@ -263,7 +269,10 @@ def parse_pdf_text(txt: str) -> dict:  # noqa: C901 — PDF layout state machine
             if " " not in title[:40]:
                 title = summary["divisions"].get(dcode, {}).get("description", title)
                 out["defect_fixes"].append((f"division {dcode}", "collapsed title, from summary"))
-            emit("divisions", {"code": dcode, "section": cur["section"], "description": title})
+            emit(
+                "divisions",
+                {"code": dcode, "section": cur["section"], "description": title},
+            )
             last = ("divisions", dcode)
             continue
         m = code_re.match(ln)
@@ -274,7 +283,10 @@ def parse_pdf_text(txt: str) -> dict:  # noqa: C901 — PDF layout state machine
                 code = DEFECT_MAP[code]
             if code in PARENT_OVERRIDE:
                 out["defect_fixes"].append(
-                    (code, f"parent {PARENT_OVERRIDE[code]} (prefix quirk, both official sources)")
+                    (
+                        code,
+                        f"parent {PARENT_OVERRIDE[code]} (prefix quirk, both official sources)",
+                    )
                 )
             length = len(code)
             if length == 5:
@@ -1230,9 +1242,17 @@ def review(  # noqa: C901  # thin config over helpers.core.review_kit (S1 rehome
                 continue
             print_fn("  ? (1-3 / c CODE / s / ? / q / x)")
         if ans in {"s", "q", "x"}:
-            return {"label": label, "action": {"s": "skip", "q": "quit", "x": "abort"}[ans]}
+            return {
+                "label": label,
+                "action": {"s": "skip", "q": "quit", "x": "abort"}[ans],
+            }
         code = e["suggestions"][int(ans) - 1]["code"]
-        return {"label": label, "action": "approve", "code": code, "match_type": "closeMatch"}
+        return {
+            "label": label,
+            "action": "approve",
+            "code": code,
+            "match_type": "closeMatch",
+        }
 
     def spec_of(d: dict, e: dict) -> str:  # noqa: ARG001 — e unused: d carries both codes
         return f"industry:{d['label']}->nic2008:{d['code']}:{d['match_type']}"
@@ -1453,7 +1473,10 @@ def converge(conn, *, apply: bool) -> dict[str, int]:
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument(
-        "--db", type=pathlib.Path, default=None, help="SQLite path (default: live research.db)"
+        "--db",
+        type=pathlib.Path,
+        default=None,
+        help="SQLite path (default: live research.db)",
     )
     sub = parser.add_subparsers(dest="mode", required=True)
     p_build = sub.add_parser("build", help="parse the primary PDF into the tracked seed JSON")
@@ -1470,7 +1493,8 @@ def main(argv: list[str] | None = None) -> int:
     p_cand.add_argument("--apply", action="store_true", help="write (default: dry-run)")
     p_cand.add_argument("--k", type=int, default=3, help="top-k suggestions per label (default 3)")
     p_wl = sub.add_parser(
-        "worklist", help="export the operator coding worklist (findata/Misc/nic_worklist.json)"
+        "worklist",
+        help="export the operator coding worklist (findata/Misc/nic_worklist.json)",
     )
     p_wl.add_argument(
         "--out",
@@ -1505,7 +1529,9 @@ def main(argv: list[str] | None = None) -> int:
         help="walk skip-parked labels only (the needs-better-labels pool)",
     )
     p_rev.add_argument(
-        "--menu", action="store_true", help="review: numbered menu input instead of raw keypresses"
+        "--menu",
+        action="store_true",
+        help="review: numbered menu input instead of raw keypresses",
     )
     p_rev.add_argument(
         "--prompt",

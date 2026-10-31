@@ -67,7 +67,10 @@ class TestChangedLineMapper:
 
     def test_hunk_ranges_and_deletion_adjacency(self, monkeypatch):
         monkeypatch.setattr(rs, "_git", lambda argv: _fake_git(SAMPLE_DIFF))
-        assert rs._changed_lines("base", "head") == {"f.txt": {2, 3}, "g.py": {12, 13, 14}}
+        assert rs._changed_lines("base", "head") == {
+            "f.txt": {2, 3},
+            "g.py": {12, 13, 14},
+        }
 
     def test_deletion_at_file_start_marks_line_one_only(self, monkeypatch):
         # `@@ -1 +0,0 @@` — the new first line is the only adjacency.
@@ -332,7 +335,11 @@ class TestSeverityMapping:
 
     def test_semgrep_result_score_beats_rule_score(self):
         rules = {"r1": {"properties": {"security-severity": "9.8"}}}
-        result = {"ruleId": "r1", "level": "warning", "properties": {"security-severity": "2.0"}}
+        result = {
+            "ruleId": "r1",
+            "level": "warning",
+            "properties": {"security-severity": "2.0"},
+        }
         assert rs._semgrep_severity(result, rules) == "low"
 
     def test_semgrep_falls_back_to_rule_then_level(self):
@@ -476,7 +483,11 @@ class TestSqlfluffEngineRouting:
                 {
                     "filepath": str(tmp_path / "doc_search.sql"),
                     "violations": [
-                        {"start_line_no": 3, "code": "PRS", "description": "unparsable UNINDEXED"},
+                        {
+                            "start_line_no": 3,
+                            "code": "PRS",
+                            "description": "unparsable UNINDEXED",
+                        },
                         {
                             "start_line_no": 3,
                             "code": "LT12",
@@ -497,7 +508,10 @@ class TestSqlfluffEngineRouting:
         monkeypatch.setattr(rs, "_content_at", lambda _ref, _path: content)
         changed = {"schema/sqlite/doc_search.sql": {3}}
         found, status = rs._leg_sqlfluff(
-            list(changed), changed, "ansi", tree={q: str(tmp_path / Path(q).name) for q in changed}
+            list(changed),
+            changed,
+            "ansi",
+            tree={q: str(tmp_path / Path(q).name) for q in changed},
         )
         assert "ran" in status
         # PRS on the USING-fts5 line suppressed; the real rule on the same line kept
@@ -514,7 +528,10 @@ class TestSqlfluffEngineRouting:
         monkeypatch.setattr(rs, "_run", fake_run)
         changed = {"schema/duckdb/graph.sql": {1}, "schema/sqlite/research.sql": {1}}
         rs._leg_sqlfluff(
-            list(changed), changed, "ansi", tree={q: str(tmp_path / Path(q).name) for q in changed}
+            list(changed),
+            changed,
+            "ansi",
+            tree={q: str(tmp_path / Path(q).name) for q in changed},
         )
         assert len(argvs) == 2
         dialected = sorted(a[3] for a in argvs if len(a) > 3)
@@ -777,7 +794,10 @@ class TestS4RangeRefResolutionAndRosterDurability:
 
         monkeypatch.setattr(rs, "_git", fake_git)
         args = argparse.Namespace(
-            commit=None, from_ref="95caed4de", to_ref="refs/patches/main/review_pass", stack=None
+            commit=None,
+            from_ref="95caed4de",
+            to_ref="refs/patches/main/review_pass",
+            stack=None,
         )
         base, head = rs._resolve_range(args)
         assert (base, head) == ("a" * 40, "b" * 40)
@@ -878,7 +898,11 @@ class TestDeletionCensus:
         rs._print_report([], ["bandit: ran (0 kept on changed lines)"], deletions=[])
         assert "deletions:" not in capsys.readouterr().out
         md = rs._write_roster(
-            "ccc33333", "ddd44444", [], ["bandit: ran (0 kept on changed lines)"], deletions=[]
+            "ccc33333",
+            "ddd44444",
+            [],
+            ["bandit: ran (0 kept on changed lines)"],
+            deletions=[],
         )
         assert "deletions:" not in md.read_text(encoding="utf-8")
 

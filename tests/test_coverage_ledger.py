@@ -316,7 +316,11 @@ def test_plan_lists_exclusions_with_their_reason(app, tmp_path):
         tmp_path,
         [
             _row(attack_class="injection"),
-            _row(attack_class="availability", status="not_applicable", note="pure JSON read"),
+            _row(
+                attack_class="availability",
+                status="not_applicable",
+                note="pure JSON read",
+            ),
         ],
     )
     _, out = _plan(app, path)
@@ -418,8 +422,16 @@ def test_plan_reads_the_history_array(app, tmp_path):
             {
                 "rows": rows,
                 "history": [
-                    {"date": "2026-10-18", "scope": "app.py routes", "summary": "49 rows"},
-                    {"date": "2026-10-20", "scope": "cloudflare arc", "summary": "A1-A4"},
+                    {
+                        "date": "2026-10-18",
+                        "scope": "app.py routes",
+                        "summary": "49 rows",
+                    },
+                    {
+                        "date": "2026-10-20",
+                        "scope": "cloudflare arc",
+                        "summary": "A1-A4",
+                    },
                 ],
             },
             indent=1,
@@ -1021,7 +1033,11 @@ def test_apply_bad_pair_is_echoed_never_applied(app, tmp_path):
         cl.queue(app, ledger, scope="app", out=tmp_path / "q.jsonl")  # the pair needs rows
     decision = _decisions(
         tmp_path,
-        {"surface": "shared singleton", "attack_class": "injection", "decision": "bad_pair"},
+        {
+            "surface": "shared singleton",
+            "attack_class": "injection",
+            "decision": "bad_pair",
+        },
     )
     before = ledger.read_text()
     code, out = _apply(app, ledger, decision, write=True, scope="app")

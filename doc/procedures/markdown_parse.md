@@ -608,13 +608,21 @@ for company in companies:
             use_mcp_tool___sqlite___create_record(
                 {
                     "table": "relations",
-                    "data": {"source": company, "target": sector, "relation_type": "part_of"},
+                    "data": {
+                        "source": company,
+                        "target": sector,
+                        "relation_type": "part_of",
+                    },
                 }
             )
             use_mcp_tool___sqlite___create_record(
                 {
                     "table": "relations",
-                    "data": {"source": sector, "target": company, "relation_type": "has_company"},
+                    "data": {
+                        "source": sector,
+                        "target": company,
+                        "relation_type": "has_company",
+                    },
                 }
             )
 ```
@@ -834,7 +842,8 @@ def validate_entity_creation(entity_name):
     if not ok:
         return False, msg
     dup = query_sqlite(
-        "SELECT COUNT(*) c FROM entities WHERE normalized_name = ?", [entity["normalized_name"]]
+        "SELECT COUNT(*) c FROM entities WHERE normalized_name = ?",
+        [entity["normalized_name"]],
     )
     if dup[0]["c"] > 1:
         return False, f"Duplicate normalized_name: {entity['normalized_name']}"

@@ -16,7 +16,8 @@ def _make_db(edges):
     conn = sqlite3.connect(db)
     conn.execute("CREATE TABLE graph_edges (source TEXT, target TEXT, edge_type TEXT, weight REAL)")
     conn.executemany(
-        "INSERT INTO graph_edges VALUES (?,?,?,?)", [(s, t, "test_edge", w) for s, t, w in edges]
+        "INSERT INTO graph_edges VALUES (?,?,?,?)",
+        [(s, t, "test_edge", w) for s, t, w in edges],
     )
     conn.commit()
     conn.close()
@@ -36,7 +37,13 @@ def test_triangle_oracle():
 
 
 def test_square_diagonal():
-    edges = [("A", "B", 1.0), ("B", "C", 2.0), ("C", "D", 2.0), ("D", "A", 1.0), ("A", "C", 1.5)]
+    edges = [
+        ("A", "B", 1.0),
+        ("B", "C", 2.0),
+        ("C", "D", 2.0),
+        ("D", "A", 1.0),
+        ("A", "C", 1.5),
+    ]
     db = _make_db(edges)
     res = mst.mst_forest(str(db))
     ws = sorted(w for _, _, w in res["edges"])

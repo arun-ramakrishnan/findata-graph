@@ -486,7 +486,14 @@ def _v2_msg_envelope(con) -> dict[str, tuple]:
 
 
 def _assistant_block_row(
-    pid: str, mid: str, sid: str, ts: datetime, agent: str, model: str, b: dict, src: str
+    pid: str,
+    mid: str,
+    sid: str,
+    ts: datetime,
+    agent: str,
+    model: str,
+    b: dict,
+    src: str,
 ) -> dict | None:
     """One corpus row for an assistant content block; None skips it.
 
@@ -496,7 +503,17 @@ def _assistant_block_row(
     btype = b.get("type")
     if btype == "text":
         return _row(
-            pid, mid, sid, ts, "assistant", agent, model, "text", b.get("text") or "", {}, src
+            pid,
+            mid,
+            sid,
+            ts,
+            "assistant",
+            agent,
+            model,
+            "text",
+            b.get("text") or "",
+            {},
+            src,
         )
     if btype == "reasoning":
         return _row(
@@ -524,7 +541,17 @@ def _assistant_block_row(
             "input": str(st.get("input"))[:2000],
         }
         return _row(
-            pid, mid, sid, ts, "assistant", agent, model, "tool", " ".join(texts), meta, src
+            pid,
+            mid,
+            sid,
+            ts,
+            "assistant",
+            agent,
+            model,
+            "tool",
+            " ".join(texts),
+            meta,
+            src,
         )
     return None
 
@@ -545,7 +572,19 @@ def _v2_block_rows(
     if ctype == "user":
         if data.get("text"):
             rows.append(
-                _row(mid, mid, sid, ts, "user", agent, model, "text", data["text"], {}, src)
+                _row(
+                    mid,
+                    mid,
+                    sid,
+                    ts,
+                    "user",
+                    agent,
+                    model,
+                    "text",
+                    data["text"],
+                    {},
+                    src,
+                )
             )
     elif ctype == "assistant":
         for i, b in enumerate(data.get("content") or []):
@@ -576,7 +615,19 @@ def _v2_block_rows(
     elif ctype == "synthetic":
         # The legacy v1 lane emits synthetic text parts as text — match it.
         rows.append(
-            _row(mid, mid, sid, ts, "", agent, model, "text", data.get("text") or "", {}, src)
+            _row(
+                mid,
+                mid,
+                sid,
+                ts,
+                "",
+                agent,
+                model,
+                "text",
+                data.get("text") or "",
+                {},
+                src,
+            )
         )
     # idle / model-switched: outcome + routing markers, no searchable text.
     return rows
@@ -637,7 +688,15 @@ def _harvest_opencode_v2(
 
 
 def _event_part_row(
-    pid: str, p: dict, t, sid: str, seed: int | None, role: str, agent: str, model: str, src: str
+    pid: str,
+    p: dict,
+    t,
+    sid: str,
+    seed: int | None,
+    role: str,
+    agent: str,
+    model: str,
+    src: str,
 ) -> dict | None:
     """One event-lane row; None skips (undropped type or at/below seed).
 
@@ -801,7 +860,10 @@ def _harvest_opencode(store: Store, writer: SessionWriter, *, force: bool = Fals
         # never existed) — that is the backfill for post-cutover snapshots,
         # and per-session seeds keep it duplicate-free (see _corpus_max_ts).
         seeds: dict[str, int | None] = {}
-        for lane, fn in (("v2", _harvest_opencode_v2), ("evt", _harvest_opencode_events)):
+        for lane, fn in (
+            ("v2", _harvest_opencode_v2),
+            ("evt", _harvest_opencode_events),
+        ):
             lkey = key + ":" + lane
             if immutable and store.watermark(lkey) is not None and not force:
                 stats.append(f"{src}:{lane}: quiet")
@@ -1581,7 +1643,10 @@ def _zcode_req_rows(best: dict, sid: str, src_tag: str, partial: bool) -> list[d
     rid = best.get("requestId") or "req"
     ts = _iso_ms(best.get("startedAt") or best.get("completedAt"))
     req = best.get("request") or {}
-    meta: dict = {"messageOffset": req.get("messageOffset"), "contextKind": req.get("messagesKind")}
+    meta: dict = {
+        "messageOffset": req.get("messageOffset"),
+        "contextKind": req.get("messagesKind"),
+    }
     if partial:
         meta["partial"] = True
     for i, m in enumerate(req.get("messages") or []):
@@ -1818,7 +1883,10 @@ def _opencode_source_drift(
             return [f"unreadable {src}"]
         try:
             detail = _lane_uncovered(
-                con, corpus_root, _wm_int(store, key + ":v2"), _wm_int(store, key + ":evt")
+                con,
+                corpus_root,
+                _wm_int(store, key + ":v2"),
+                _wm_int(store, key + ":evt"),
             )
         finally:
             con.close()
@@ -2378,7 +2446,10 @@ def _resolve_orphans(  # noqa: C901
             )
             pq.write_table(table, f, compression="zstd")
     verb = "would relabel" if dry_run else "relabelled"
-    print(f"{verb} {changed_rows} row(s) across {changed_files} file(s) as orphan", file=sys.stderr)
+    print(
+        f"{verb} {changed_rows} row(s) across {changed_files} file(s) as orphan",
+        file=sys.stderr,
+    )
     if scanned:
         print(f"  scanned {scanned} parquet file(s) under {corpus_root}", file=sys.stderr)
     print("  rows are RETAINED; --keep <range> is what purges them", file=sys.stderr)

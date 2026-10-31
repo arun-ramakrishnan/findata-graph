@@ -443,7 +443,9 @@ class TestReport:
 
     def test_success_run_appends_table_no_tails(self, monkeypatch):
         monkeypatch.setattr(
-            maint.subprocess, "Popen", lambda cmd, *a, **kw: _FakeProc(0, ["all good\n"])
+            maint.subprocess,
+            "Popen",
+            lambda cmd, *a, **kw: _FakeProc(0, ["all good\n"]),
         )
         assert maint.main([]) == 0
         text = self._read()

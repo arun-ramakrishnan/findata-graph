@@ -152,13 +152,22 @@ def _pins() -> list[dict]:
         if not str(q.get("id", "")).startswith("xwalk-"):
             continue
         lanes = [
-            (e.split(":")[1], e.split(":")[2] if len(e.split(":")) > 2 else "closeMatch")
+            (
+                e.split(":")[1],
+                e.split(":")[2] if len(e.split(":")) > 2 else "closeMatch",
+            )
             for e in q.get("expected", [])
             if str(e).startswith("nic2008:")
         ]
         primary = next((c for c, mt in lanes if mt in ("closeMatch", "exactMatch")), None)
         if primary:
-            out.append({"id": q["id"], "label": q["params"]["source_concept"], "primary": primary})
+            out.append(
+                {
+                    "id": q["id"],
+                    "label": q["params"]["source_concept"],
+                    "primary": primary,
+                }
+            )
     return out
 
 

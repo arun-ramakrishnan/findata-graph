@@ -17,7 +17,7 @@
   "reviewed": "2026-09-18",
   "method": "source",
   "verdict": "clean",
-  "fingerprint": "17d1b3f5c08a3b90"
+  "fingerprint": "d091777e768dfe46"
  },
  {
   "scope": "app",
@@ -187,7 +187,7 @@
   "reviewed": "2026-09-18",
   "method": "source",
   "verdict": "clean",
-  "fingerprint": "4111485d529966fd"
+  "fingerprint": "644ffc9b6173da4c"
  },
  {
   "scope": "app",
@@ -197,7 +197,7 @@
   "reviewed": "2026-09-18",
   "method": "source+observed",
   "verdict": "clean",
-  "fingerprint": "4111485d529966fd"
+  "fingerprint": "644ffc9b6173da4c"
  },
  {
   "scope": "app",
@@ -207,7 +207,7 @@
   "reviewed": "2026-10-30",
   "method": "source",
   "verdict": "clean",
-  "fingerprint": "d8521943f4e020d5",
+  "fingerprint": "29f58ebed9e8894e",
   "note": "re-review 2026-10-30 after the S5 PEP 758 fix (three except clauses parenthesised in-handler): syntax-only, no control-flow or data-flow change; dispositions unchanged from the S1 re-review earlier today"
  },
  {
@@ -218,7 +218,7 @@
   "reviewed": "2026-09-18",
   "method": "source",
   "verdict": "clean",
-  "fingerprint": "19f3ca2f4972f29e"
+  "fingerprint": "cdbc4770a9ffcb81"
  },
  {
   "scope": "app",
@@ -298,7 +298,7 @@
   "reviewed": "2026-08-17",
   "method": "source+live",
   "verdict": "clean",
-  "fingerprint": "9e1a51eeaeb91138"
+  "fingerprint": "aa76713de754fc92"
  },
  {
   "scope": "app",
@@ -308,7 +308,7 @@
   "reviewed": "2026-09-28",
   "method": "source+live",
   "verdict": "clean",
-  "fingerprint": "824ef0f10dafbcef"
+  "fingerprint": "b2e4b6b1df957ab6"
  },
  {
   "scope": "app",
@@ -348,7 +348,7 @@
   "reviewed": "2026-09-23",
   "method": "source",
   "verdict": "clean",
-  "fingerprint": "dd37ac57bfa885c3"
+  "fingerprint": "dc812a6c7f60700a"
  },
  {
   "scope": "app",
@@ -358,7 +358,7 @@
   "reviewed": "2026-09-23",
   "method": "source+observed",
   "verdict": "note:low",
-  "fingerprint": "dd37ac57bfa885c3"
+  "fingerprint": "dc812a6c7f60700a"
  },
  {
   "scope": "app",
@@ -489,7 +489,7 @@
   "reviewed": "2026-09-19",
   "method": "source+observed+remediated",
   "verdict": "REMEDIATED",
-  "fingerprint": "19f3ca2f4972f29e"
+  "fingerprint": "cdbc4770a9ffcb81"
  },
  {
   "scope": "extractors",
@@ -550,7 +550,7 @@
   "attack_class": "availability",
   "reviewed": "2026-10-20",
   "method": "source",
-  "fingerprint": "17d1b3f5c08a3b90",
+  "fingerprint": "d091777e768dfe46",
   "status": "out_of_scope",
   "note": "bulk sweep 2026-10-20: GET-only route; route-level availability held at the class-sweep level (the AVAIL-1 quadratic-join class stays tracked at /api/graph/near-duplicates), not re-reviewed per route"
  },
@@ -561,7 +561,7 @@
   "attack_class": "concurrency",
   "reviewed": "2026-10-20",
   "method": "source",
-  "fingerprint": "17d1b3f5c08a3b90",
+  "fingerprint": "d091777e768dfe46",
   "status": "out_of_scope",
   "note": "bulk sweep 2026-10-20: GET-only route — no state mutation for a TOCTOU race; concurrency held at shared-singleton surfaces"
  },
@@ -891,7 +891,7 @@
   "attack_class": "concurrency",
   "reviewed": "2026-10-20",
   "method": "source",
-  "fingerprint": "4111485d529966fd",
+  "fingerprint": "644ffc9b6173da4c",
   "status": "out_of_scope",
   "note": "bulk sweep 2026-10-20: GET-only route — no state mutation for a TOCTOU race; concurrency held at shared-singleton surfaces"
  },
@@ -902,7 +902,7 @@
   "attack_class": "availability",
   "reviewed": "2026-10-30",
   "method": "source",
-  "fingerprint": "d8521943f4e020d5",
+  "fingerprint": "29f58ebed9e8894e",
   "status": "out_of_scope",
   "note": "re-review 2026-10-30 after the S5 PEP 758 fix: syntax-only change, cost class unchanged",
   "verdict": "clean"
@@ -914,7 +914,7 @@
   "attack_class": "concurrency",
   "reviewed": "2026-10-30",
   "method": "source",
-  "fingerprint": "d8521943f4e020d5",
+  "fingerprint": "29f58ebed9e8894e",
   "status": "out_of_scope",
   "note": "re-review 2026-10-30 after the S5 PEP 758 fix: syntax-only change, read-only posture unchanged",
   "verdict": "clean"
@@ -926,7 +926,7 @@
   "attack_class": "concurrency",
   "reviewed": "2026-10-20",
   "method": "source",
-  "fingerprint": "19f3ca2f4972f29e",
+  "fingerprint": "cdbc4770a9ffcb81",
   "status": "out_of_scope",
   "note": "bulk sweep 2026-10-20: GET-only route — no state mutation for a TOCTOU race; concurrency held at shared-singleton surfaces"
  },
@@ -1014,7 +1014,7 @@
   "attack_class": "availability",
   "reviewed": "2026-10-20",
   "method": "source",
-  "fingerprint": "9e1a51eeaeb91138",
+  "fingerprint": "aa76713de754fc92",
   "status": "out_of_scope",
   "note": "bulk sweep 2026-10-20: GET-only route; route-level availability held at the class-sweep level (the AVAIL-1 quadratic-join class stays tracked at /api/graph/near-duplicates), not re-reviewed per route"
  },
@@ -1025,7 +1025,7 @@
   "attack_class": "concurrency",
   "reviewed": "2026-10-20",
   "method": "source",
-  "fingerprint": "9e1a51eeaeb91138",
+  "fingerprint": "aa76713de754fc92",
   "status": "out_of_scope",
   "note": "bulk sweep 2026-10-20: GET-only route — no state mutation for a TOCTOU race; concurrency held at shared-singleton surfaces"
  },
@@ -1036,7 +1036,7 @@
   "attack_class": "availability",
   "reviewed": "2026-10-20",
   "method": "source",
-  "fingerprint": "824ef0f10dafbcef",
+  "fingerprint": "b2e4b6b1df957ab6",
   "status": "out_of_scope",
   "note": "bulk sweep 2026-10-20: GET-only route; route-level availability held at the class-sweep level (the AVAIL-1 quadratic-join class stays tracked at /api/graph/near-duplicates), not re-reviewed per route"
  },
@@ -1047,7 +1047,7 @@
   "attack_class": "concurrency",
   "reviewed": "2026-10-20",
   "method": "source",
-  "fingerprint": "824ef0f10dafbcef",
+  "fingerprint": "b2e4b6b1df957ab6",
   "status": "out_of_scope",
   "note": "bulk sweep 2026-10-20: GET-only route — no state mutation for a TOCTOU race; concurrency held at shared-singleton surfaces"
  },
@@ -1091,7 +1091,7 @@
   "attack_class": "concurrency",
   "reviewed": "2026-10-20",
   "method": "source",
-  "fingerprint": "dd37ac57bfa885c3",
+  "fingerprint": "dc812a6c7f60700a",
   "status": "out_of_scope",
   "note": "bulk sweep 2026-10-20: GET-only route — no state mutation for a TOCTOU race; concurrency held at shared-singleton surfaces"
  },
@@ -1288,7 +1288,7 @@
   "attack_class": "web-protocol/auth",
   "reviewed": "2026-10-20",
   "method": "source",
-  "fingerprint": "17d1b3f5c08a3b90",
+  "fingerprint": "d091777e768dfe46",
   "verdict": "note:low"
  },
  {
@@ -1448,7 +1448,7 @@
   "attack_class": "web-protocol/auth",
   "reviewed": "2026-10-20",
   "method": "source",
-  "fingerprint": "4111485d529966fd",
+  "fingerprint": "644ffc9b6173da4c",
   "verdict": "note:low"
  },
  {
@@ -1458,7 +1458,7 @@
   "attack_class": "web-protocol/auth",
   "reviewed": "2026-10-30",
   "method": "source",
-  "fingerprint": "d8521943f4e020d5",
+  "fingerprint": "29f58ebed9e8894e",
   "verdict": "clean",
   "note": "re-review 2026-10-30 after the S5 PEP 758 fix: syntax-only change, response shapes unchanged"
  },
@@ -1469,7 +1469,7 @@
   "attack_class": "web-protocol/auth",
   "reviewed": "2026-10-20",
   "method": "source",
-  "fingerprint": "19f3ca2f4972f29e",
+  "fingerprint": "cdbc4770a9ffcb81",
   "verdict": "note:low"
  },
  {
@@ -1539,7 +1539,7 @@
   "attack_class": "web-protocol/auth",
   "reviewed": "2026-10-20",
   "method": "source",
-  "fingerprint": "9e1a51eeaeb91138",
+  "fingerprint": "aa76713de754fc92",
   "verdict": "note:low"
  },
  {
@@ -1549,7 +1549,7 @@
   "attack_class": "web-protocol/auth",
   "reviewed": "2026-10-20",
   "method": "source",
-  "fingerprint": "824ef0f10dafbcef",
+  "fingerprint": "b2e4b6b1df957ab6",
   "verdict": "note:low"
  },
  {
@@ -1579,7 +1579,7 @@
   "attack_class": "web-protocol/auth",
   "reviewed": "2026-10-20",
   "method": "source",
-  "fingerprint": "dd37ac57bfa885c3",
+  "fingerprint": "dc812a6c7f60700a",
   "verdict": "note:low"
  },
  {

@@ -84,7 +84,10 @@ class TestZstdGuard:
 
     def test_docstrings_are_prose_not_sql(self, monkeypatch, tmp_path):
         _with_module(
-            monkeypatch, tmp_path, "m.py", '"""COPY ... TO x.parquet (FORMAT PARQUET) docs"""\n'
+            monkeypatch,
+            tmp_path,
+            "m.py",
+            '"""COPY ... TO x.parquet (FORMAT PARQUET) docs"""\n',
         )
         assert dfc.scan_zstd_violations() == {}
 

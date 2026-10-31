@@ -87,10 +87,14 @@ def db(tmp_path: Path):
     )
     for name, etype in names:
         conn.execute(
-            "INSERT INTO entities VALUES (?, ?, ?, NULL)", (name, etype, name.replace(" ", "_"))
+            "INSERT INTO entities VALUES (?, ?, ?, NULL)",
+            (name, etype, name.replace(" ", "_")),
         )
     for i in range(6):  # hub intermediate neighbourhood (degree 6 <= default cap)
-        conn.execute("INSERT INTO entities VALUES (?, 'company', ?, NULL)", (f"Hub{i}", f"Hub{i}"))
+        conn.execute(
+            "INSERT INTO entities VALUES (?, 'company', ?, NULL)",
+            (f"Hub{i}", f"Hub{i}"),
+        )
         _edge(conn, "HubSup", f"Hub{i}", "supplier_to", "vigil:rpt:H")
 
     # --- ultimate_parent seed ------------------------------------------ #

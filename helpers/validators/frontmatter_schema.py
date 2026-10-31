@@ -656,7 +656,10 @@ def emit_key_doc() -> str:
         schema = jsonio.loads((SCHEMA_DIR / fname).read_text())
         req = set(schema["required"])
         lines += [f"## {note_type}", "", f"Source: [`{fname}`]({fname})", ""]
-        lines += ["| key | required | type | constraint | description |", "|---|---|---|---|---|"]
+        lines += [
+            "| key | required | type | constraint | description |",
+            "|---|---|---|---|---|",
+        ]
         for key in sorted(schema["properties"]):
             prop = _resolve(dict(schema["properties"][key]), schema)
             typ = _type_str(prop) or "—"
@@ -675,7 +678,9 @@ def main(argv: list[str] | None = None) -> int:
 
     ap = argparse.ArgumentParser(description="findata frontmatter JSON-Schema tooling")
     ap.add_argument(
-        "--emit-doc", action="store_true", help=f"write {KEY_DOC} from the schemas and exit"
+        "--emit-doc",
+        action="store_true",
+        help=f"write {KEY_DOC} from the schemas and exit",
     )
     ap.add_argument(
         "--okf",

@@ -19,7 +19,12 @@ def _conn():
     )
     conn.execute(
         "INSERT INTO entities VALUES (?, ?, ?, ?)",
-        ("Acme India", "acme_india", "company", "findata/Companies/Automotive/Acme_India.md"),
+        (
+            "Acme India",
+            "acme_india",
+            "company",
+            "findata/Companies/Automotive/Acme_India.md",
+        ),
     )
     conn.execute(
         "INSERT INTO entities VALUES (?, ?, ?, ?)",

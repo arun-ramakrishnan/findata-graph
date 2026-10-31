@@ -180,7 +180,9 @@ def main(argv: list[str] | None = None) -> int:
     g = p.add_mutually_exclusive_group(required=True)
     g.add_argument("--check", action="store_true", help="report codec state per surface")
     g.add_argument(
-        "--apply", action="store_true", help="pack TEXT rows to BLOB + VACUUM (never deletes rows)"
+        "--apply",
+        action="store_true",
+        help="pack TEXT rows to BLOB + VACUUM (never deletes rows)",
     )
     args = p.parse_args(argv)
     if args.check:

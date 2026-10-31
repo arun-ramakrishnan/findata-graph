@@ -1075,8 +1075,14 @@ def cross_check_new(new_names, min_sim=0.80):
             flagged += 1
             for path, title, sim in hits:
                 stem = path.rsplit("/", 1)[-1].removesuffix(".md")
-                log("2b", f"  ⚠ NEW '{name}'  ~=  existing '{title}' ({stem}) sim={sim:.2f}")
-        log("2b", f"{flagged} of {len(new_names)} NEW name(s) have close semantic matches")
+                log(
+                    "2b",
+                    f"  ⚠ NEW '{name}'  ~=  existing '{title}' ({stem}) sim={sim:.2f}",
+                )
+        log(
+            "2b",
+            f"{flagged} of {len(new_names)} NEW name(s) have close semantic matches",
+        )
     finally:
         gcon.close()
 

@@ -103,7 +103,10 @@ class TestOkfKeys:
     def test_minimal_generated_only(self):
         fm = dict(
             GOOD_COMPANY,
-            generated={"by": "pdf_conv_md.py/PP-StructureV3", "at": "2026-08-18T09:00:00Z"},
+            generated={
+                "by": "pdf_conv_md.py/PP-StructureV3",
+                "at": "2026-08-18T09:00:00Z",
+            },
         )
         assert FMS.validate_frontmatter(fm, "company") == []
 
@@ -279,7 +282,8 @@ class TestViolationClasses:
 
     def test_hyphenated_permalink_segment_rejected(self):
         errs = FMS.validate_frontmatter(
-            dict(GOOD_COMPANY, permalink="/companies/defense/apollo-micro-systems"), "company"
+            dict(GOOD_COMPANY, permalink="/companies/defense/apollo-micro-systems"),
+            "company",
         )
         assert any("permalink" in e for e in errs)
 

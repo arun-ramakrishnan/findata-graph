@@ -70,7 +70,11 @@ def _to_markdown_lines(text: str) -> str:
 
 
 def convert_liteparse_ocr(
-    pdf_path: Path, *, dpi: int = 150, language: str = "eng", tessdata_path: str = TESSDATA_DEFAULT
+    pdf_path: Path,
+    *,
+    dpi: int = 150,
+    language: str = "eng",
+    tessdata_path: str = TESSDATA_DEFAULT,
 ) -> tuple[str, dict]:
     """Run liteparse OCR and return (markdown_text, meta).
 

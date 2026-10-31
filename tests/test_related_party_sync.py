@@ -189,7 +189,12 @@ class TestGroupPass:
             "SELECT source, target, edge_type, symmetric FROM graph_edges ORDER BY edge_type, source"
         ).fetchall()
         # forward: singapore sub -> filer
-        assert ("TVS Motor (Singapore) Pte", "TVS Motor Company", "subsidiary_of", 0) in rows
+        assert (
+            "TVS Motor (Singapore) Pte",
+            "TVS Motor Company",
+            "subsidiary_of",
+            0,
+        ) in rows
         # reverse: filer -> holding
         assert ("TVS Motor Company", "TVS Holdings", "subsidiary_of", 0) in rows
         # fellow sub -> same_group, canonical order, symmetric
@@ -411,7 +416,11 @@ class TestSymmetricEmissionPrecision:
             "SELECT source, target, source_ref FROM graph_edges "
             "WHERE edge_type='subsidiary_of' ORDER BY source_ref"
         ).fetchall()
-        assert ("ABC Auto Components", "TVS Motor Company", "vigil:rpt:TVSMOTOR") in remaining
+        assert (
+            "ABC Auto Components",
+            "TVS Motor Company",
+            "vigil:rpt:TVSMOTOR",
+        ) in remaining
         # the cross-ref pair survives intact (2 rows)
         assert sum(1 for r in remaining if r[2] != "vigil:rpt:TVSMOTOR") == 2
 
@@ -425,8 +434,16 @@ class TestSymmetricEmissionPrecision:
             "INSERT INTO graph_edges (source, target, edge_type, source_ref, properties) "
             "VALUES (?, ?, 'subsidiary_of', 'vigil:rpt:DUP', ?)",
             [
-                ("Dup Co", "Dup Company", json.dumps({"relationship": "Holding Company"})),
-                ("Dup Company", "Dup Co", json.dumps({"relationship": "Wholly owned subsidiary"})),
+                (
+                    "Dup Co",
+                    "Dup Company",
+                    json.dumps({"relationship": "Holding Company"}),
+                ),
+                (
+                    "Dup Company",
+                    "Dup Co",
+                    json.dumps({"relationship": "Wholly owned subsidiary"}),
+                ),
             ],
         )
         conn.commit()
@@ -486,7 +503,10 @@ class TestSymmetricEmissionPrecision:
         src_e, dst_e, props = conn.execute(
             "SELECT source, target, properties FROM graph_edges WHERE edge_type='supplier_to'"
         ).fetchone()
-        assert (src_e, dst_e) == ("TVS Motor Company", "Sundaram Auto")  # larger amount wins
+        assert (src_e, dst_e) == (
+            "TVS Motor Company",
+            "Sundaram Auto",
+        )  # larger amount wins
         p = json.loads(props)
         assert p["sale_amount"] == 1500.0 and p["purchase_amount"] == 700.0  # both kept
         assert p["two_way"] == "cross-period"
@@ -546,12 +566,20 @@ class TestSymmetricEmissionPrecision:
         None instead of sub_fwd."""
         cases = [
             ("Holding Company", None, "sub_rev"),
-            ("Subsidiary of Holding Company", None, "same_group"),  # sibling, not parent
+            (
+                "Subsidiary of Holding Company",
+                None,
+                "same_group",
+            ),  # sibling, not parent
             ("Subsidiary of Ultimate holding company", None, "same_group"),
             ("Subsidiary of listed holding company", None, "same_group"),
             ("Subsidiary of listed company", None, "same_group"),
             ("Subsidiary of the Company", None, "sub_fwd"),  # 'the Company' = the filer
-            ("Wholly owned Subsidiary of APSEZ", None, "same_group"),  # named third party
+            (
+                "Wholly owned Subsidiary of APSEZ",
+                None,
+                "same_group",
+            ),  # named third party
             (
                 "Subsidiary/Joint Venture of an Entity with Significant Influence "
                 "on Holding Company",

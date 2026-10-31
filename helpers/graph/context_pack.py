@@ -489,7 +489,10 @@ def _groups_editions(con: duckdb.DuckDBPyConnection, seed_name: str) -> list[str
 
 
 def _deep_relations(
-    scon: sqlite3.Connection, con: duckdb.DuckDBPyConnection, seed_id: int, seed_name: str
+    scon: sqlite3.Connection,
+    con: duckdb.DuckDBPyConnection,
+    seed_id: int,
+    seed_name: str,
 ) -> list[str]:
     """Assemble the whole deep-relations section; empty when nothing rolls
     up (the header is then omitted)."""
@@ -647,7 +650,10 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--k-semantic", type=int, default=8, help="semantic neighbor rows")
     args = p.parse_args(argv)
     if not args.duckdb.exists():
-        print(f"error: {args.duckdb} not found (run make graph-rebuild first)", file=sys.stderr)
+        print(
+            f"error: {args.duckdb} not found (run make graph-rebuild first)",
+            file=sys.stderr,
+        )
         return 2
     # Shared reader contract (not raw duckdb.connect): loads the vss scalars
     # the semantic_neighbors leg needs, never triggers a build (see

@@ -189,7 +189,9 @@ def _fetch_one(con: duckdb.DuckDBPyConnection, query: str, params: tuple) -> dic
 
 def _resolve_turn(con: duckdb.DuckDBPyConnection, harness: str, turn_id: str) -> dict[str, Any]:
     r = _fetch_one(
-        con, "SELECT * FROM fact_turn WHERE source = ? AND turn_id = ?", (harness, turn_id)
+        con,
+        "SELECT * FROM fact_turn WHERE source = ? AND turn_id = ?",
+        (harness, turn_id),
     )
     out: dict[str, Any] = {"model_requests": [], "tool_calls": []}
     if r:
@@ -433,7 +435,10 @@ def resolve(con: duckdb.DuckDBPyConnection, citation: str) -> Resolution:
             citation=citation,
             found=False,
             near_misses=[
-                {"hint": "expected form: agent-trace:<harness>#<kind>:<id>", "kind": "hint"}
+                {
+                    "hint": "expected form: agent-trace:<harness>#<kind>:<id>",
+                    "kind": "hint",
+                }
             ],
         )
     harness, anchor_type, anchor_id, full = parsed
@@ -448,7 +453,8 @@ def resolve(con: duckdb.DuckDBPyConnection, citation: str) -> Resolution:
     if anchor_type == "turn":
         res.row = _row_to_dict(
             con.execute(
-                "SELECT * FROM fact_turn WHERE source = ? AND turn_id = ?", (harness, anchor_id)
+                "SELECT * FROM fact_turn WHERE source = ? AND turn_id = ?",
+                (harness, anchor_id),
             )
         )
         res.context = _resolve_turn(con, harness, anchor_id) if res.row else {}
@@ -475,7 +481,10 @@ def resolve(con: duckdb.DuckDBPyConnection, citation: str) -> Resolution:
             res.context = {
                 "event_matches": len(matches),
                 "rows": [
-                    {"context": m["context"], "parent_span_chain": m["parent_span_chain"]}
+                    {
+                        "context": m["context"],
+                        "parent_span_chain": m["parent_span_chain"],
+                    }
                     for m in matches
                 ],
             }

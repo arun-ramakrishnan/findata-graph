@@ -753,7 +753,11 @@ class TestPhase3NativeAlgorithms:
         # Triangle edges themselves must still exist.
         from helpers.graph.query import shortest_path
 
-        for a, b in (("CEAT", "MRF"), ("CEAT", "Apollo Tyres"), ("MRF", "Apollo Tyres")):
+        for a, b in (
+            ("CEAT", "MRF"),
+            ("CEAT", "Apollo Tyres"),
+            ("MRF", "Apollo Tyres"),
+        ):
             path = shortest_path(con, a, b, max_hops=1, edge_label="CompetesWith")
             assert path is not None, f"expected competes_with edge {a} <-> {b}"
             assert path[0][0] == a and path[-1][0] == b
@@ -1117,7 +1121,13 @@ class TestFindCycles:
         # deliberately STAYS asserted: it is symmetric-declared and
         # stored single-row-per-pair (alphabetical), so a doubled row —
         # the original G3 bug class — still trips this invariant.
-        skip_labels = {"SemanticPeer", "JvWith", "SuppliesTo", "SubsidiaryOf", "SameGroup"}
+        skip_labels = {
+            "SemanticPeer",
+            "JvWith",
+            "SuppliesTo",
+            "SubsidiaryOf",
+            "SameGroup",
+        }
         for label in sorted(EDGE_REGISTRY_BY_LABEL):
             if label in skip_labels:
                 continue

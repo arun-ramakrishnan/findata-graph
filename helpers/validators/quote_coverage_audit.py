@@ -126,7 +126,15 @@ def classify_boundaries(  # noqa: C901
         if di._ROLE_HEADING_RE.match(lower):
             continue
         if lower.startswith(
-            ("comment", "discussion", "don't", "share this", "subscribe", "about ", "welcome")
+            (
+                "comment",
+                "discussion",
+                "don't",
+                "share this",
+                "subscribe",
+                "about ",
+                "welcome",
+            )
         ):
             continue
         has_cap = any(tok in lower for tok in di._CAP_TOKENS)
@@ -143,7 +151,10 @@ def classify_boundaries(  # noqa: C901
                 ):
                     structural.append((m.start(), idx, bare, raw))
                     parity.append(
-                        {"canonical": bare, "heading_line": content.count("\n", 0, m.start()) + 1}
+                        {
+                            "canonical": bare,
+                            "heading_line": content.count("\n", 0, m.start()) + 1,
+                        }
                     )
                     continue
             structural.append((m.start(), idx, None, raw))
@@ -155,7 +166,10 @@ def classify_boundaries(  # noqa: C901
             continue
         structural.append((m.start(), idx, canonical, raw))
         parity.append(
-            {"canonical": canonical, "heading_line": content.count("\n", 0, m.start()) + 1}
+            {
+                "canonical": canonical,
+                "heading_line": content.count("\n", 0, m.start()) + 1,
+            }
         )
     # Build regions from structural boundaries (non-structural headings stay
     # inside the enclosing region, exactly as production slices sections).
@@ -199,7 +213,10 @@ def assert_parity(content: str, resolver_map: dict[str, str]) -> tuple[list[Regi
     ]
     divergences: list[dict] = []
     if parity != production:
-        p_set, o_set = {tuple(p.items()) for p in parity}, {tuple(p.items()) for p in production}
+        p_set, o_set = (
+            {tuple(p.items()) for p in parity},
+            {tuple(p.items()) for p in production},
+        )
         for d in sorted(p_set ^ o_set):
             divergences.append(dict(d))
     # NOTE: resolution is NOT applied here — audit_note's S2 ladder loop owns
@@ -436,7 +453,12 @@ def update_watchlist(wl: dict, results: list[NoteResult], today: str) -> dict:
         e: dict[str, Any] | None = wl["entries"].get(key)
         if r.flagged:
             if e is None:
-                e = {"first_seen": today, "runs_seen": 0, "status": "open", "closed_by": None}
+                e = {
+                    "first_seen": today,
+                    "runs_seen": 0,
+                    "status": "open",
+                    "closed_by": None,
+                }
                 wl["entries"][key] = e
             e.update(
                 {
@@ -518,7 +540,10 @@ def run_audit(  # noqa: C901
     t0 = time.time()
     for i, p in enumerate(files, 1):
         if verbose or i % 10 == 0 or i == len(files):
-            print(f"[quotes] {i}/{len(files)} files ({time.time() - t0:.1f}s)", file=sys.stderr)
+            print(
+                f"[quotes] {i}/{len(files)} files ({time.time() - t0:.1f}s)",
+                file=sys.stderr,
+            )
         results.append(audit_note(p, resolver_map, db_rows_by_edition, threshold, accepted))
 
     wl = (

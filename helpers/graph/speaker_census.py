@@ -212,7 +212,8 @@ def write_plan(cen: dict, path: Path = PLAN_PATH) -> Path:
         lines.append("")
     path.write_text("\n".join(lines) + "\n", encoding="utf-8")
     jsonl_path.write_text(
-        "".join(json.dumps(r, ensure_ascii=False) + "\n" for r in rows), encoding="utf-8"
+        "".join(json.dumps(r, ensure_ascii=False) + "\n" for r in rows),
+        encoding="utf-8",
     )
     return path
 

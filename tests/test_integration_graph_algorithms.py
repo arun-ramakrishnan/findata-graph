@@ -466,11 +466,17 @@ class TestDegeneracyGuard:
         """
         write_analytics(
             "voterank",
-            {"Alpha": {"seeds": ["Alpha", "Beta"]}, "Ghost": {"seeds": ["Alpha", "Beta"]}},
+            {
+                "Alpha": {"seeds": ["Alpha", "Beta"]},
+                "Ghost": {"seeds": ["Alpha", "Beta"]},
+            },
         )
         n = write_analytics(
             "voterank",
-            {"Alpha": {"seeds": ["Alpha", "Beta"]}, "Beta": {"seeds": ["Alpha", "Beta"]}},
+            {
+                "Alpha": {"seeds": ["Alpha", "Beta"]},
+                "Beta": {"seeds": ["Alpha", "Beta"]},
+            },
             replace_population=True,
         )
         assert n == 2
@@ -778,7 +784,11 @@ class TestGraphMetrics:
         m_all = algos.graph_metrics()
         m_comp = algos.graph_metrics(edge_types=["competes_with"])
         # Different projections -> different cached entries.
-        assert ("graph_metrics", (), _q._current_generation_for_cache()) in _q._QUERY_CACHE
+        assert (
+            "graph_metrics",
+            (),
+            _q._current_generation_for_cache(),
+        ) in _q._QUERY_CACHE
         assert (
             "graph_metrics",
             ("competes_with",),

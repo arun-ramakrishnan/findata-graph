@@ -116,11 +116,23 @@ def test_size_watch_ratio_contract():
     mib = 1048576
     rows = [
         # 384M vs 184.6M filing = 2.08x — the live ACT case.
-        {"store": "memory/embed_store.db", "engine": "sqlite", "after_bytes": int(384 * mib)},
+        {
+            "store": "memory/embed_store.db",
+            "engine": "sqlite",
+            "after_bytes": int(384 * mib),
+        },
         # 257M vs 102.0M = 2.52x — the other live ACT case.
-        {"store": "memory/convo_search_fts.db", "engine": "duckdb", "bytes": int(257 * mib)},
+        {
+            "store": "memory/convo_search_fts.db",
+            "engine": "duckdb",
+            "bytes": int(257 * mib),
+        },
         # 40M vs 24.7M = 1.62x — warn band.
-        {"store": "memory/doc_search.db", "engine": "sqlite", "after_bytes": int(40 * mib)},
+        {
+            "store": "memory/doc_search.db",
+            "engine": "sqlite",
+            "after_bytes": int(40 * mib),
+        },
         # ~1.0x — quiet.
         {"store": "memory/corpus.db", "engine": "sqlite", "after_bytes": int(54 * mib)},
         # No baseline — one prompt line, not a crash, not silence.

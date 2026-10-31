@@ -204,11 +204,19 @@ def s3_assign_primary(incidence, *, max_exclusions: int = 20):
         mat = mat[:, [j for j in range(mat.shape[1]) if j not in set(dropped)]]
         names_t = [n for j, n in enumerate(names_t) if j not in set(dropped)]
     else:
-        return {"admissible": False, "reason": "exclusion cap hit", "excluded": excluded}
+        return {
+            "admissible": False,
+            "reason": "exclusion cap hit",
+            "excluded": excluded,
+        }
 
     sub = mat.tocsr()
     if sub.shape[1] == 0:
-        return {"admissible": False, "reason": "empty covering set", "excluded": excluded}
+        return {
+            "admissible": False,
+            "reason": "empty covering set",
+            "excluded": excluded,
+        }
     try:
         col_assign = min_weight_full_bipartite_matching(sub.T, maximize=False)
     except ValueError as exc:

@@ -120,7 +120,14 @@ def db(tmp_path):
                 (src, tgt, json.dumps({"category": cat, "stake_pct": stake}), vf, ref),
             )
 
-        edge("Ravi Kumar", "Alpha Ltd", "Promoter Group", 6.0, "2026-09-30", "nse:shp:new")
+        edge(
+            "Ravi Kumar",
+            "Alpha Ltd",
+            "Promoter Group",
+            6.0,
+            "2026-09-30",
+            "nse:shp:new",
+        )
         edge(
             "Sana Sheikh",
             "Alpha Ltd",

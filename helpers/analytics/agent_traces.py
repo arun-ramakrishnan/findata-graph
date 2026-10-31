@@ -505,7 +505,12 @@ _Z_SESSION_COLS = [
 
 # (query, target table, explicit column list for the insert-select, bool cols)
 _ZCODE_EXTRACTS = [
-    (_Z_REQUESTS, "fact_model_request", _Z_REQUEST_COLS, {"context_exceeded", "cancelled"}),
+    (
+        _Z_REQUESTS,
+        "fact_model_request",
+        _Z_REQUEST_COLS,
+        {"context_exceeded", "cancelled"},
+    ),
     (_Z_TURNS, "fact_turn", _Z_TURN_COLS, {"context_exceeded"}),
     (
         _Z_TOOLS,
@@ -1244,7 +1249,13 @@ def _parse_opencode(con, since=None):  # noqa: C901  # moved verbatim; split nee
                     if since and day and day < since:
                         continue
                     for path in d.get("files") or []:
-                        edits[(d.get("hash"), path)] = (sid, ts, day, d.get("hash"), path)
+                        edits[(d.get("hash"), path)] = (
+                            sid,
+                            ts,
+                            day,
+                            d.get("hash"),
+                            path,
+                        )
                 elif ptype == "step-finish" and mid:
                     steps[mid] = steps.get(mid, 0) + 1
                 elif ptype == "compaction":
@@ -1261,7 +1272,16 @@ def _parse_opencode(con, since=None):  # noqa: C901  # moved verbatim; split nee
                 if since and ts and ts.date() < since:
                     continue
                 if etype in _EVENT_NOISE:
-                    events[eid] = (None, eid, agg, ts, etype, None, None, _event_noise_head(data))
+                    events[eid] = (
+                        None,
+                        eid,
+                        agg,
+                        ts,
+                        etype,
+                        None,
+                        None,
+                        _event_noise_head(data),
+                    )
                 else:
                     events[eid] = (None, eid, agg, ts, etype, None, None, str(data))
                 if etype == "message.part.updated.1":
@@ -2597,7 +2617,16 @@ def side_effects_rows(con: duckdb.DuckDBPyConnection, spec: str) -> list[dict]:
         GROUP BY 1, 2, 3, 4, 5, 6 ORDER BY calls DESC""",  # noqa: S608  # constants + fixed columns, not user input
         params,
     ).fetchall()
-    cols = ["source", "tool", "scope", "read_only", "destructive", "approval", "calls", "errs"]
+    cols = [
+        "source",
+        "tool",
+        "scope",
+        "read_only",
+        "destructive",
+        "approval",
+        "calls",
+        "errs",
+    ]
     return [dict(zip(cols, r)) for r in rows]
 
 
@@ -2630,7 +2659,15 @@ def validation_rows(con: duckdb.DuckDBPyConnection, limit: int = 20) -> list[dic
                sum(coalesce(rows_rejected, 0)) AS rows_rejected,
                sum(coalesce(unknown_fields, 0)) AS unknown_fields
         FROM load_log GROUP BY source ORDER BY rows_rejected DESC, unknown_fields DESC""").fetchall()
-    cols = ["source", "loads", "rows", "ok", "rows_ok", "rows_rejected", "unknown_fields"]
+    cols = [
+        "source",
+        "loads",
+        "rows",
+        "ok",
+        "rows_ok",
+        "rows_rejected",
+        "unknown_fields",
+    ]
     out = [dict(zip(cols, r)) for r in rows][: int(limit)]
     if _has_step_table(con):
         # Error steps carry NULL usage — sum() skips them; parity is over
@@ -3334,7 +3371,9 @@ def main() -> None:
         "rows untouched (default 2). Use --full for a complete reload.",
     )
     lp.add_argument(
-        "--full", action="store_true", help="ignore --days; delete and reload the whole source"
+        "--full",
+        action="store_true",
+        help="ignore --days; delete and reload the whole source",
     )
     lp.add_argument("--db", type=Path, default=DB_PATH)
     rp = sub.add_parser("report", help="query the stored data")
@@ -3344,7 +3383,9 @@ def main() -> None:
         help="all (store span, default) | Nd | Nw | Nm | YYYY-MM-DD | YYYY-MM-DD..YYYY-MM-DD",
     )
     rp.add_argument(
-        "--json", action="store_true", help="emit JSON (for piping into jq / other tools)"
+        "--json",
+        action="store_true",
+        help="emit JSON (for piping into jq / other tools)",
     )
     rp.add_argument(
         "--legs",
@@ -3370,7 +3411,8 @@ def main() -> None:
         from helpers.maintenance.maint_timing import RunTimer
 
         _timer = RunTimer(
-            "agent_traces", mode=f"load:{args.source}" if args.cmd == "load" else args.cmd
+            "agent_traces",
+            mode=f"load:{args.source}" if args.cmd == "load" else args.cmd,
         )
         _loaded_total = 0
         try:
@@ -3425,7 +3467,10 @@ def main() -> None:
                         if n.strip() and n.strip() not in REPORT_LEGS
                     ]
                     if bad:
-                        print(f"WARNING: unknown leg(s) ignored: {', '.join(bad)}", file=sys.stderr)
+                        print(
+                            f"WARNING: unknown leg(s) ignored: {', '.join(bad)}",
+                            file=sys.stderr,
+                        )
                 report(con, args.range, as_json=args.json, only=args.legs)
         finally:
             con.close()

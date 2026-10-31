@@ -135,7 +135,11 @@ def test_real_writer_stamp_preserved_but_augmented(tmp_path, monkeypatch):
     acme = v / "Companies" / "Tech" / "Acme.md"
     text = (
         acme.read_text()
-        .replace("created: 2026-01-01\n", "created: 2026-01-01\nlast_modified: 2026-08-18\n", 1)
+        .replace(
+            "created: 2026-01-01\n",
+            "created: 2026-01-01\nlast_modified: 2026-08-18\n",
+            1,
+        )
         .replace(
             "Hand-written body.",
             "Hand-written body.\n\n*Source: The Chatter — edition*",
@@ -152,7 +156,10 @@ def test_real_writer_stamp_preserved_but_augmented(tmp_path, monkeypatch):
     backfill(v, apply=True)
     fm = _fm_of(acme)
     # generated untouched (real writer), sources+stale added.
-    assert fm["generated"] == {"by": "derive_insights.py/v1", "at": "2026-08-18T09:00:00Z"}
+    assert fm["generated"] == {
+        "by": "derive_insights.py/v1",
+        "at": "2026-08-18T09:00:00Z",
+    }
     assert fm["sources"][0]["id"] == "edition"
     assert fm["stale_after"] == (dt.date(2026, 8, 15) + dt.timedelta(days=180)).isoformat()
     assert fm["verified"] == [{"by": "human:user", "at": "2026-06-01T10:00:00Z"}]

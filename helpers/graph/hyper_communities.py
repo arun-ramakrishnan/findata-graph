@@ -157,8 +157,7 @@ def fit_communities(
         print(
             f"NOTE: {len(unassigned)} node(s) with zero EM row-sum excluded "
             "(no community the model can serve; argmax-on-NaN would fake "
-            f"block 0): {', '.join(unassigned[:5])}"
-            + (" ..." if len(unassigned) > 5 else ""),
+            f"block 0): {', '.join(unassigned[:5])}" + (" ..." if len(unassigned) > 5 else ""),
             file=sys.stderr,
         )
     hard = u.argmax(axis=1)
@@ -331,9 +330,7 @@ def _cli(argv: list[str] | None = None) -> int:
             n_iter=args.n_iter,
             allow_giant=args.allow_giant,
         )
-        print(
-            f"{'K':>4} {'log_likelihood':>16} {'bic':>12} {'effective_blocks':>16} {'fit_s':>7}"
-        )
+        print(f"{'K':>4} {'log_likelihood':>16} {'bic':>12} {'effective_blocks':>16} {'fit_s':>7}")
         for r in rows:
             print(
                 f"{r['k']:>4} {r['log_likelihood']:>16} {r['bic']:>12} "

@@ -153,7 +153,8 @@ def _stale_from_sources(entries: list[dict], fallback: str) -> str:
     """max(sources[].last_modified) + 180d else fallback + 180d
     (mirrors bump_generated's accepted Q3 rule)."""
     base = max(
-        (e["last_modified"] for e in entries if isinstance(e.get("last_modified"), str)), default=""
+        (e["last_modified"] for e in entries if isinstance(e.get("last_modified"), str)),
+        default="",
     )
     if not base:
         base = fallback
@@ -344,7 +345,10 @@ def _report(counts: dict[str, dict[str, int]], apply: bool) -> int:
         total += c.get("stamped", 0) + c.get("augmented", 0)
         bits = [f"{v} {k.replace('_', ' ')}" for k, v in c.items() if v]
         print(f"{tree}: {', '.join(bits)}", file=sys.stderr)
-    print(f"total: {total} notes {verb} ({'apply' if apply else 'dry-run'})", file=sys.stderr)
+    print(
+        f"total: {total} notes {verb} ({'apply' if apply else 'dry-run'})",
+        file=sys.stderr,
+    )
     return 0
 
 

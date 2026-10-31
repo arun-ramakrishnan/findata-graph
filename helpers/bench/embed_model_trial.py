@@ -223,7 +223,10 @@ def _report(rows, section, cats):
     print(f"{section}: " + "  ".join(parts), flush=True)
     for q, h in rows:
         if not h:
-            print(f"  MISS {section}/{q.get('id', q['query'][:30])} {q['query']!r}", flush=True)
+            print(
+                f"  MISS {section}/{q.get('id', q['query'][:30])} {q['query']!r}",
+                flush=True,
+            )
 
 
 def run_leg(tag, corpora):  # noqa: C901  # bench script: one straight-line leg
@@ -287,7 +290,10 @@ def run_leg(tag, corpora):  # noqa: C901  # bench script: one straight-line leg
             nb_ok += good
             if not good:
                 nb_miss.append((q["company"], same))
-        print(f"neighbors: {nb_ok}/{len(QUESTIONS['neighbors'])}  misses: {nb_miss}", flush=True)
+        print(
+            f"neighbors: {nb_ok}/{len(QUESTIONS['neighbors'])}  misses: {nb_miss}",
+            flush=True,
+        )
 
     if "notes" in surfaces:
         note_vecs = embed_pool(tag, [t for _k, t in notes])

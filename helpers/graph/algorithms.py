@@ -1340,7 +1340,13 @@ def _cli(argv: list[str] | None = None) -> int:  # noqa: C901
     p.add_argument("--top", type=int, default=None, help="Show/print only top-N nodes.")
     p.add_argument(
         "--method",
-        choices=["jaccard", "adamic-adar", "common-neighbors", "pref-attach", "resource-alloc"],
+        choices=[
+            "jaccard",
+            "adamic-adar",
+            "common-neighbors",
+            "pref-attach",
+            "resource-alloc",
+        ],
         default="jaccard",
         help="Link-prediction similarity measure (link-predict command).",
     )
@@ -1540,7 +1546,10 @@ def _cli(argv: list[str] | None = None) -> int:  # noqa: C901
                             )
                             link_total = len(pairs)
                     except Exception as e:
-                        print(f"  FAIL: {type(e).__name__}: {str(e)[:150]}", file=sys.stderr)
+                        print(
+                            f"  FAIL: {type(e).__name__}: {str(e)[:150]}",
+                            file=sys.stderr,
+                        )
                         continue
                     print("  [via onager]", file=sys.stderr)
                     limit = args.top if args.top is not None else 20
@@ -1573,7 +1582,10 @@ def _cli(argv: list[str] | None = None) -> int:  # noqa: C901
                         future = heavy_futures.pop("voterank", None)
                         seeds = future.get() if future is not None else voterank_seeds(duck_con)
                     except Exception as e:
-                        print(f"  FAIL: {type(e).__name__}: {str(e)[:150]}", file=sys.stderr)
+                        print(
+                            f"  FAIL: {type(e).__name__}: {str(e)[:150]}",
+                            file=sys.stderr,
+                        )
                         continue
                     if not seeds:
                         print("  (no seeds)")

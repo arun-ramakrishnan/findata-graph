@@ -35,7 +35,11 @@ HAS_DICT = bool(_word_set())
 
 # --- stub llama-server ---------------------------------------------------------
 
-STATE: dict[str, Any] = {"model_id": "NaviDC-OCR-Q4_K_M", "responses": [], "requests": []}
+STATE: dict[str, Any] = {
+    "model_id": "NaviDC-OCR-Q4_K_M",
+    "responses": [],
+    "requests": [],
+}
 
 
 class _StubHandler(BaseHTTPRequestHandler):
@@ -82,7 +86,10 @@ class _StubHandler(BaseHTTPRequestHandler):
                 "choices": [
                     {
                         "finish_reason": finish,
-                        "message": {"role": "assistant", "content": action.get("content", "")},
+                        "message": {
+                            "role": "assistant",
+                            "content": action.get("content", ""),
+                        },
                     }
                 ]
             },
@@ -178,7 +185,10 @@ def test_ocr_image_sends_official_prompt_and_guards(stub_server):
     out = ocr_image(b"fakepng", port=stub_server)
     assert out == "hello"
     body = STATE["requests"][0]
-    assert body["messages"][0] == {"role": "system", "content": "You are a helpful assistant."}
+    assert body["messages"][0] == {
+        "role": "system",
+        "content": "You are a helpful assistant.",
+    }
     assert _chat_content(body) == "What is the text in the illustrate?"
     assert body["temperature"] == 0.0
     assert body["repeat_penalty"] == REPEAT_PENALTY
@@ -186,7 +196,10 @@ def test_ocr_image_sends_official_prompt_and_guards(stub_server):
 
 
 def test_capout_retries_higher_penalty_then_succeeds(stub_server):
-    STATE["responses"] = [{"finish_reason": "length", "content": ""}, {"content": "recovered"}]
+    STATE["responses"] = [
+        {"finish_reason": "length", "content": ""},
+        {"content": "recovered"},
+    ]
     out = ocr_image(b"fakepng", port=stub_server)
     assert out == "recovered"
     assert STATE["requests"][0]["repeat_penalty"] == REPEAT_PENALTY

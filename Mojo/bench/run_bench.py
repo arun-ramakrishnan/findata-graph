@@ -297,7 +297,9 @@ def _build_legs(scales: str, reps: int) -> dict[str, dict]:
             ),
         ),
         "analyzer": dict(
-            budget=60.0, gate=3.0, fn=lambda: _run("analyzer", [str(BIN / "analyzer")], 60.0)
+            budget=60.0,
+            gate=3.0,
+            fn=lambda: _run("analyzer", [str(BIN / "analyzer")], 60.0),
         ),
         "pool-4x": dict(budget=90.0, gate=5.0, fn=_leg_pool),
         "regex-bridge": dict(

@@ -74,7 +74,13 @@ class TestGetAllEntities:
                 "INSERT INTO entities (name, entity_type, file_path, normalized_name, "
                 "sector_classification) VALUES (?,?,?,?,?)",
                 [
-                    ("Zen Co", "company", "findata/Companies/X/Zen_Co.md", "Zen_Co", "X"),
+                    (
+                        "Zen Co",
+                        "company",
+                        "findata/Companies/X/Zen_Co.md",
+                        "Zen_Co",
+                        "X",
+                    ),
                     ("X", "sector", "findata/Sectors/X.md", "X", None),
                 ],
             )
@@ -100,7 +106,11 @@ class TestGetAllEntities:
             conn = sqlite3.connect(db_path)
             conn.executemany(
                 "INSERT INTO entities (name, entity_type) VALUES (?,?)",
-                [("Zeta Co", "company"), ("Alpha Co", "company"), ("Z Sector", "sector")],
+                [
+                    ("Zeta Co", "company"),
+                    ("Alpha Co", "company"),
+                    ("Z Sector", "sector"),
+                ],
             )
             conn.commit()
             conn.close()
@@ -1101,7 +1111,14 @@ class TestCheckIdentifiers:
             [
                 ("Real Co", "lei", "A" * 20, "manual", None, None),
                 ("Ghost Co", "cik", "123456", "manual", None, None),  # dangling
-                ("Real Co", "isin", "US0378331005", "manual", "2021-01-01", "2019-01-01"),
+                (
+                    "Real Co",
+                    "isin",
+                    "US0378331005",
+                    "manual",
+                    "2021-01-01",
+                    "2019-01-01",
+                ),
             ],
         )
         conn.commit()
@@ -1142,7 +1159,11 @@ class TestCheckIdentifiers:
         conn.close()
         checker = DatabaseIntegrityChecker(db_path=str(db_path), base_path=str(tmp_path))
         try:
-            assert checker.check_identifiers() == {"warnings": 0, "errors": 0, "skipped": 1}
+            assert checker.check_identifiers() == {
+                "warnings": 0,
+                "errors": 0,
+                "skipped": 1,
+            }
         finally:
             checker.close()
 
@@ -1236,7 +1257,10 @@ class TestExpectedEdgeCount:
     def test_kind_spec_excludes_out_of_family_endpoints(self, tmp_path: Path):
         checker = self._seed(tmp_path)
         try:
-            spec = {"src_kinds": "company,institution", "dst_kinds": "company,institution"}
+            spec = {
+                "src_kinds": "company,institution",
+                "dst_kinds": "company,institution",
+            }
             # raw count is 2; the mirror keeps only the company/institution pair
             assert checker._expected_edge_count("subsidiary_of", spec) == 1
         finally:

@@ -52,13 +52,19 @@ SCHEMA_DIR = REPO_ROOT / "doc" / "okf"
 # UNPAIRED IS A FAILURE: a schema without its seed (or vice versa) reddens
 # the guard — adding a pairing is a conscious, reviewable edit.
 PAIRINGS = {
-    "company": ("doc/okf/frontmatter.company.v1.json", "doc/templates/company_note.yaml"),
+    "company": (
+        "doc/okf/frontmatter.company.v1.json",
+        "doc/templates/company_note.yaml",
+    ),
     "sector": ("doc/okf/frontmatter.sector.v1.json", "doc/templates/sector_note.yaml"),
     "super_sector": (
         "doc/okf/frontmatter.super_sector.v1.json",
         "doc/templates/super_sector_note.yaml",
     ),
-    "newsletter": ("doc/okf/frontmatter.newsletter.v1.json", "doc/templates/newsletter_note.yaml"),
+    "newsletter": (
+        "doc/okf/frontmatter.newsletter.v1.json",
+        "doc/templates/newsletter_note.yaml",
+    ),
     "proposal": ("doc/okf/frontmatter.proposal.v1.json", "doc/templates/proposal.md"),
 }
 

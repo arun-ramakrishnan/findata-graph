@@ -1145,7 +1145,12 @@ def _process_dir_worker(dir_path):
     count = v.process_directory(dir_path, Path(dir_path).name)
     industry = {
         key: v.stats.get(key, 0)
-        for key in ("company_files", "industry_carriers", "industry_nonnull", "industry_coded")
+        for key in (
+            "company_files",
+            "industry_carriers",
+            "industry_nonnull",
+            "industry_coded",
+        )
     }
     return v.issues, v.warnings, count, industry
 
@@ -1185,7 +1190,10 @@ def main(argv=None):
             # Full Corpus functional would need to replicate all 6 buckets — keep rglob for now, Corpus is pre-warm for S1b.3 shard
             return NotesVerifier().verify_all()
         except Exception as e:
-            print(f"[warn] corpus verify fallback to rglob: {e}", file=__import__("sys").stderr)
+            print(
+                f"[warn] corpus verify fallback to rglob: {e}",
+                file=__import__("sys").stderr,
+            )
     return NotesVerifier().verify_all()
 
 

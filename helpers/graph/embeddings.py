@@ -193,7 +193,8 @@ def _company_text_pair(conn: sqlite3.Connection, company_name: str) -> tuple[str
     from helpers.maintenance.rebuild_script_search import _gemma_basis
 
     r = conn.execute(
-        "SELECT file_path, sector_classification FROM entities WHERE name = ?", (company_name,)
+        "SELECT file_path, sector_classification FROM entities WHERE name = ?",
+        (company_name,),
     ).fetchone()
 
     if not r:
@@ -580,7 +581,9 @@ def main(argv: list[str] | None = None) -> int:
         "--company", default=None, help="Single company name (default: all companies)"
     )
     parser.add_argument(
-        "--clear", action="store_true", help="Delete all existing embeddings before populating"
+        "--clear",
+        action="store_true",
+        help="Delete all existing embeddings before populating",
     )
     parser.add_argument("--stats", action="store_true", help="Print embedding stats and exit")
     parser.add_argument(
@@ -628,14 +631,20 @@ def main(argv: list[str] | None = None) -> int:
     else:
         dims = args.dims or 64
         model = args.model or f"dry-run-v{dims}"
-        print(f"Generating pseudo-embeddings (dims={dims}, model={model})...", file=sys.stderr)
+        print(
+            f"Generating pseudo-embeddings (dims={dims}, model={model})...",
+            file=sys.stderr,
+        )
         count = populate_dry_run(conn, dims=dims, company=args.company)
 
     print(f"Inserted/updated {count} embeddings", file=sys.stderr)
     print(f"Stats: {json.dumps(stats(conn))}", file=sys.stderr)
 
     # Note: after populating, run `make graph-rebuild` to materialise into DuckDB
-    print("\nNext: run 'make graph-rebuild' to materialise embeddings into DuckDB", file=sys.stderr)
+    print(
+        "\nNext: run 'make graph-rebuild' to materialise embeddings into DuckDB",
+        file=sys.stderr,
+    )
 
     conn.close()
     return 0

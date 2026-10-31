@@ -61,7 +61,10 @@ class TestVerifyNote:
         assert len(v) == 1 and v[0]["by"] == "human:user"
         assert v[0]["at"].endswith("Z")  # ISO 8601 UTC
         # generated untouched; all other keys intact.
-        assert fm["generated"] == {"by": "derive_insights.py/v1", "at": "2026-08-19T10:00:00Z"}
+        assert fm["generated"] == {
+            "by": "derive_insights.py/v1",
+            "at": "2026-08-19T10:00:00Z",
+        }
         assert fm["title"] == "Marico" and fm["tags"] == ["chatter/fmcg"]
         assert split_frontmatter(note.read_text())[2] == before_body
 

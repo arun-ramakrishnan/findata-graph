@@ -11,7 +11,11 @@ _REPO_ROOT = Path(__file__).resolve().parents[3]
 if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
-from helpers.maintenance.analytics.query import connect_snapshots, list_tables, table_rows  # noqa: E402
+from helpers.maintenance.analytics.query import (  # noqa: E402
+    connect_snapshots,
+    list_tables,
+    table_rows,
+)
 
 
 def main(argv: list[str] | None = None) -> int:

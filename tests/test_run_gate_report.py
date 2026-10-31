@@ -170,7 +170,11 @@ def test_run_all_semantics_no_abort_on_failure():
     # boom fails instantly; slow steps still run and are reported.
     boom_cmd = (sys.executable, "-c", "import sys; sys.exit(1)")
     gate = rgr.Gate(
-        steps=(rgr.Step("boom", boom_cmd), rgr.Step("slow1", _SLOW), rgr.Step("slow2", _SLOW))
+        steps=(
+            rgr.Step("boom", boom_cmd),
+            rgr.Step("slow1", _SLOW),
+            rgr.Step("slow2", _SLOW),
+        )
     )
     results = rgr.run_gate(gate, jobs=3)
     by_label = {r.step.label: r for r in results}

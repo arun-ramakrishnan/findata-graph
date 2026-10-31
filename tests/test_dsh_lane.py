@@ -30,7 +30,10 @@ USER = {
 }
 AST = {
     "role": "assistant",
-    "content": [{"type": "reasoning", "text": "thinking"}, {"type": "text", "text": "done"}],
+    "content": [
+        {"type": "reasoning", "text": "thinking"},
+        {"type": "text", "text": "done"},
+    ],
     "source": {"kind": "model", "provider": "zai-coding-cn", "model": "glm-5.3-flash"},
 }
 
@@ -52,7 +55,12 @@ def _sess_dir(root: Path, slug: str, sid: str) -> Path:
 
 def _v4_records() -> list[dict]:
     return [
-        {"type": "session", "seq": 0, "time": 1000, "data": {"id": "s1", "cwd": "/repo"}},
+        {
+            "type": "session",
+            "seq": 0,
+            "time": 1000,
+            "data": {"id": "s1", "cwd": "/repo"},
+        },
         {"type": "user/message", "seq": 10, "time": 2000, "data": {"message": USER}},
         {
             "type": "assistant/message",
@@ -85,7 +93,10 @@ def _v4_records() -> list[dict]:
                 "turn": 1,
                 "step": 1,
                 "toolCallId": "call_1",
-                "message": {"role": "tool", "content": [{"type": "text", "text": "out"}]},
+                "message": {
+                    "role": "tool",
+                    "content": [{"type": "text", "text": "out"}],
+                },
                 "isError": False,
             },
         },
@@ -293,7 +304,13 @@ def _dsh_analytic_env(tmp_path, monkeypatch):
             "type": "tool/call",
             "seq": 29,
             "time": 4000,
-            "data": {"turn": 1, "step": 1, "callId": "call_1", "name": "bash", "arguments": "{}"},
+            "data": {
+                "turn": 1,
+                "step": 1,
+                "callId": "call_1",
+                "name": "bash",
+                "arguments": "{}",
+            },
         },
         {
             "type": "tool/result",
@@ -303,7 +320,10 @@ def _dsh_analytic_env(tmp_path, monkeypatch):
                 "turn": 1,
                 "step": 1,
                 "toolCallId": "call_1",
-                "message": {"role": "tool", "content": [{"type": "text", "text": "out"}]},
+                "message": {
+                    "role": "tool",
+                    "content": [{"type": "text", "text": "out"}],
+                },
                 "isError": False,
             },
         },

@@ -25,7 +25,13 @@ from helpers.maintenance import harvest_conversations as hc
 
 
 def _write(
-    root: Path, harness: str, sid: str, *, source: str, rows: int = 3, newest_days_ago: int = 1
+    root: Path,
+    harness: str,
+    sid: str,
+    *,
+    source: str,
+    rows: int = 3,
+    newest_days_ago: int = 1,
 ) -> Path:
     conv = root / harness / "conversations"
     conv.mkdir(parents=True, exist_ok=True)
@@ -183,7 +189,11 @@ class TestPurgeOlderThan:
         thing to go when someone asks to keep 30d."""
         root = tmp_path / "corpus"
         f = _write(
-            root, "opencode", "ses_snap", source="opencode-snap:2026-01-01", newest_days_ago=300
+            root,
+            "opencode",
+            "ses_snap",
+            source="opencode-snap:2026-01-01",
+            newest_days_ago=300,
         )
         hc._purge_older_than(root, "30d", dry_run=False)
         assert not f.exists()

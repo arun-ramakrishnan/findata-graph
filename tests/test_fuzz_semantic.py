@@ -61,7 +61,13 @@ def _build_db(path: Path) -> None:
         """
     )
     rows = [
-        ("CEAT", "company", "Automotive", "CEAT.NS", "findata/Companies/Automotive/CEAT.md"),
+        (
+            "CEAT",
+            "company",
+            "Automotive",
+            "CEAT.NS",
+            "findata/Companies/Automotive/CEAT.md",
+        ),
         (
             "Apollo Tyres",
             "company",
@@ -69,8 +75,20 @@ def _build_db(path: Path) -> None:
             "APOLLOTYRE.NS",
             "findata/Companies/Automotive/Apollo_Tyres.md",
         ),
-        ("MRF", "company", "Automotive", "MRF.NS", "findata/Companies/Automotive/MRF.md"),
-        ("Infosys", "company", "Technology", "INFY.NS", "findata/Companies/Technology/Infosys.md"),
+        (
+            "MRF",
+            "company",
+            "Automotive",
+            "MRF.NS",
+            "findata/Companies/Automotive/MRF.md",
+        ),
+        (
+            "Infosys",
+            "company",
+            "Technology",
+            "INFY.NS",
+            "findata/Companies/Technology/Infosys.md",
+        ),
         (
             "TCS",
             "company",

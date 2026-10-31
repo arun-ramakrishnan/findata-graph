@@ -73,7 +73,13 @@ def main(argv: list[str]) -> int:  # noqa: C901 - report formatting branches
                     continue
                 g = m.groupdict()
                 rows[h.group(1)].append(
-                    (int(g["p"]), int(g["g"]), int(g["input"]), int(g["win"]), int(g["pt"]))
+                    (
+                        int(g["p"]),
+                        int(g["g"]),
+                        int(g["input"]),
+                        int(g["win"]),
+                        int(g["pt"]),
+                    )
                 )
     total = sum(len(v) for v in rows.values())
     print(f"floor={floor:,}  evaluations parsed={total:,}  sessions={len(rows)}")

@@ -41,7 +41,14 @@ if str(_PROJECT_ROOT) not in sys.path:
 
 from helpers.graph import hyper_arrow as ha  # noqa: E402
 
-PREDICTION_FAMILIES = ("edition", "theme", "sector", "industry", "sub_sector", "org_membership")
+PREDICTION_FAMILIES = (
+    "edition",
+    "theme",
+    "sector",
+    "industry",
+    "sub_sector",
+    "org_membership",
+)
 OPT_IN_FAMILIES = ("country", "event", "jv", "group")
 METRIC = "hyper_link_prediction"
 DEFAULT_TOP = 20
@@ -258,7 +265,9 @@ def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--sources", default=",".join(PREDICTION_FAMILIES))
     ap.add_argument(
-        "--method", default="jaccard", choices=["jaccard", "s_walk", "stationary_pi", "all"]
+        "--method",
+        default="jaccard",
+        choices=["jaccard", "s_walk", "stationary_pi", "all"],
     )
     ap.add_argument("--s", type=int, default=DEFAULT_S, help="s-walk threshold (cap 3)")
     ap.add_argument("--top", type=int, default=DEFAULT_TOP)

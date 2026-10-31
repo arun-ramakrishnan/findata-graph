@@ -89,7 +89,11 @@ def a2_kernel(supplier_incidence, top_k=10):
             val = int(shared[i, j])
             if val > 0:
                 results.append(
-                    (val, supplier_incidence["suppliers"][i], supplier_incidence["suppliers"][j])
+                    (
+                        val,
+                        supplier_incidence["suppliers"][i],
+                        supplier_incidence["suppliers"][j],
+                    )
                 )
     results.sort(key=lambda x: x[0], reverse=True)
     return results[:top_k]

@@ -108,7 +108,13 @@ def seeded_tree(tmp_path, monkeypatch):
     conn.execute(
         "INSERT INTO entities (name, entity_type, sector_classification, "
         "file_path, normalized_name) VALUES (?,?,?,?,?)",
-        ("Agriculture", "sector", None, "findata/Sectors/Agriculture.md", "Agriculture"),
+        (
+            "Agriculture",
+            "sector",
+            None,
+            "findata/Sectors/Agriculture.md",
+            "Agriculture",
+        ),
     )
     conn.commit()
     conn.close()
@@ -294,7 +300,9 @@ class TestEmbeddingColumn:
         monkeypatch.setattr(local_embedder, "embed_document", _fake_384)
         monkeypatch.setattr(local_embedder, "embed_query", lambda t: _fake_384("Q:" + t))
         monkeypatch.setattr(
-            local_embedder, "embed_documents", lambda texts: [_fake_384(t) for t in texts]
+            local_embedder,
+            "embed_documents",
+            lambda texts: [_fake_384(t) for t in texts],
         )
         stats = rns.rebuild(seeded_tree, write=True)
         assert stats["embed_model"] != gemma_embedder.MODEL_LABEL
@@ -411,7 +419,9 @@ def fake_local(monkeypatch):
     # hermetic — the REAL function would spawn subprocesses that re-import
     # the unpatched module (monkeypatch never crosses spawn boundaries).
     monkeypatch.setattr(
-        LE, "embed_documents_parallel", lambda texts, workers=None: [_fake_384(t) for t in texts]
+        LE,
+        "embed_documents_parallel",
+        lambda texts, workers=None: [_fake_384(t) for t in texts],
     )
     monkeypatch.setattr(LE, "_seen", seen, raising=False)
     return LE
@@ -897,7 +907,8 @@ class TestStalenessCheck:
         self._rebuild(db_path)
         conn = sqlite3.connect(str(db_path))
         conn.execute(
-            "UPDATE entities SET sector_classification='Aquaculture' WHERE file_path=?", (self.CO,)
+            "UPDATE entities SET sector_classification='Aquaculture' WHERE file_path=?",
+            (self.CO,),
         )
         conn.commit()
         conn.close()

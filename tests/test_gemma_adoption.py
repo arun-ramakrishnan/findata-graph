@@ -348,7 +348,10 @@ class TestGuardGemmaStamp:
 
         conn = sqlite3.connect(str(tmp_path / "c.db"))
         cached_embed_batch(
-            conn, ["granite text"], "granite-embedding-97m-r2", lambda ts: [[1.0, 0.0] for _ in ts]
+            conn,
+            ["granite text"],
+            "granite-embedding-97m-r2",
+            lambda ts: [[1.0, 0.0] for _ in ts],
         )
         before = conn.execute(f"SELECT COUNT(*) FROM {EMBED_CACHE_TABLE}").fetchone()[0]  # noqa: S608
         CachedEmbed(lambda t: [0.0, 1.0], gemma_embedder.MODEL_LABEL, conn, source="script")

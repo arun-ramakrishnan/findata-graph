@@ -29,7 +29,14 @@ def _make_db(edges):
 
 def test_s2_simple():
     # 3 suppliers, 4 consumers; perfect matching covers all 3 suppliers -> 75%
-    edges = [("S1", "C1"), ("S1", "C2"), ("S2", "C2"), ("S2", "C3"), ("S3", "C3"), ("S3", "C4")]
+    edges = [
+        ("S1", "C1"),
+        ("S1", "C2"),
+        ("S2", "C2"),
+        ("S2", "C3"),
+        ("S3", "C3"),
+        ("S3", "C4"),
+    ]
     db = _make_db(edges)
     inc = sm.load_supplier_incidence(str(db))
     res = sm.s2_matching(inc)
@@ -90,7 +97,8 @@ def test_s3_possible():
     for i in range(1, 4):
         for j in range(1, 4):
             conn.execute(
-                "INSERT INTO graph_edges VALUES (?,?,?)", (f"I{i}", f"T{j}", "supplier_to")
+                "INSERT INTO graph_edges VALUES (?,?,?)",
+                (f"I{i}", f"T{j}", "supplier_to"),
             )
     conn.commit()
     conn.close()

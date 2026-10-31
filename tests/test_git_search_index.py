@@ -68,13 +68,16 @@ def repo(tmp_path):
         return git("rev-parse", "HEAD")
 
     return type(
-        "Repo", (), {"root": root, "commit": staticmethod(commit), "git": staticmethod(git)}
+        "Repo",
+        (),
+        {"root": root, "commit": staticmethod(commit), "git": staticmethod(git)},
     )()
 
 
 def _row(conn, sha: str):
     return conn.execute(
-        "SELECT sha, adate, subject, files, content FROM git_search WHERE sha = ?", (sha,)
+        "SELECT sha, adate, subject, files, content FROM git_search WHERE sha = ?",
+        (sha,),
     ).fetchone()
 
 
@@ -313,7 +316,13 @@ def test_merge_commit_indexed_without_patch(repo, tmp_path):
     repo.git("checkout", "-b", "side")
     repo.commit({"side.txt": "side\n"}, "side WHY\n")
     repo.git("checkout", "main")
-    repo.git("merge", "--no-ff", "-m", "Merge side: routed by namespace, not directory", "side")
+    repo.git(
+        "merge",
+        "--no-ff",
+        "-m",
+        "Merge side: routed by namespace, not directory",
+        "side",
+    )
     db = tmp_path / "git_search.db"
     stats = rgs.rebuild(db, git_root=repo.root)
     assert stats["total_units"] == 3
@@ -444,7 +453,8 @@ def test_rebuild_writes_body_rows_and_stamp(repo, tmp_path):
         ).fetchone()
         assert stamp == str(rgs.BODY_BASIS_VERSION)
         (fp,) = conn.execute(
-            "SELECT chunk_fp FROM git_search_body WHERE sha = ? AND chunk_idx = 0", (sha,)
+            "SELECT chunk_fp FROM git_search_body WHERE sha = ? AND chunk_idx = 0",
+            (sha,),
         ).fetchone()
         want = rgs.hashlib_blake2b(
             f"v{rgs.BODY_BASIS_VERSION}|cap{rgs.BODY_CHUNK_CAP}\n"
@@ -643,7 +653,8 @@ def test_rare_literal_threshold_is_rarity_not_blanket(repo, tmp_path):
     conn = rgs.connect_git_db(db)
     try:
         n = conn.execute(
-            "SELECT COUNT(*) FROM git_search WHERE git_search MATCH ?", ('"sharedprobe"',)
+            "SELECT COUNT(*) FROM git_search WHERE git_search MATCH ?",
+            ('"sharedprobe"',),
         ).fetchone()[0]
         assert n == rgs._RARE_LITERAL_ROWS + 1
         assert rgs._has_rare_literal(conn, "sharedprobe token throughout") is False

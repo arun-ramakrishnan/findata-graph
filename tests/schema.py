@@ -164,7 +164,14 @@ CREATE TABLE hyper_incidences (
 
 VARIANTS: dict[str, list[str]] = {
     "minimal": [ENTITIES_MINIMAL, EDGES_MINIMAL, HYPER_STORE],
-    "full": [ENTITIES_8COL, EDGES_12COL, ENTITY_TAGS, GRAPH_ANALYTICS, EVENTS, HYPER_STORE],
+    "full": [
+        ENTITIES_8COL,
+        EDGES_12COL,
+        ENTITY_TAGS,
+        GRAPH_ANALYTICS,
+        EVENTS,
+        HYPER_STORE,
+    ],
     "search": [
         ENTITIES_8COL,
         EDGES_12COL,

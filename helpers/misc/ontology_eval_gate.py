@@ -415,10 +415,15 @@ def main(argv: list[str] | None = None) -> int:
         "--candidate", type=Path, required=True, help="candidate (post-change) DB copy"
     )
     parser.add_argument(
-        "--questions", type=Path, default=DEFAULT_QUESTIONS, help="frozen question set JSON"
+        "--questions",
+        type=Path,
+        default=DEFAULT_QUESTIONS,
+        help="frozen question set JSON",
     )
     parser.add_argument(
-        "--expect-improve", default="", help="comma list of question ids the change targets"
+        "--expect-improve",
+        default="",
+        help="comma list of question ids the change targets",
     )
     parser.add_argument(
         "--rebaseline",
@@ -447,7 +452,10 @@ def main(argv: list[str] | None = None) -> int:
                 finally:
                     parent.close()
                 if not accept:
-                    print("[gate] REFUSED to rebaseline: gate did not ACCEPT", file=sys.stderr)
+                    print(
+                        "[gate] REFUSED to rebaseline: gate did not ACCEPT",
+                        file=sys.stderr,
+                    )
                     return 1
                 rebaseline(candidate, args.questions, data, args.rebaseline)
                 print(

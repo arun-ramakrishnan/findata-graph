@@ -69,7 +69,14 @@ CREATE TABLE graph_edges (
 
 # (name, entity_type, sector_classification, ticker, file_path, normalized_name)
 _SYNTH_ENTITIES = [
-    ("CEAT", "company", "Automotive", "CEAT.NS", "findata/Companies/Automotive/CEAT.md", "CEAT"),
+    (
+        "CEAT",
+        "company",
+        "Automotive",
+        "CEAT.NS",
+        "findata/Companies/Automotive/CEAT.md",
+        "CEAT",
+    ),
     (
         "Apollo Tyres",
         "company",
@@ -78,7 +85,14 @@ _SYNTH_ENTITIES = [
         "findata/Companies/Automotive/Apollo_Tyres.md",
         "Apollo_Tyres",
     ),
-    ("MRF", "company", "Automotive", "MRF.NS", "findata/Companies/Automotive/MRF.md", "MRF"),
+    (
+        "MRF",
+        "company",
+        "Automotive",
+        "MRF.NS",
+        "findata/Companies/Automotive/MRF.md",
+        "MRF",
+    ),
     (
         "Infosys",
         "company",

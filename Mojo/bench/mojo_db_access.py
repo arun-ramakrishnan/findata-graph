@@ -71,7 +71,8 @@ def quotes(limit=200):
     return (
         _sqlite()
         .execute(
-            "SELECT entity, quote_text, paraphrase, speaker_name FROM quotes LIMIT ?", (limit,)
+            "SELECT entity, quote_text, paraphrase, speaker_name FROM quotes LIMIT ?",
+            (limit,),
         )
         .fetchall()
     )

@@ -212,7 +212,14 @@ def semantic_hits(db_path: Path, query: str, limit: int, query_vec=None) -> tupl
         ], ""
     except RuntimeError as exc:
         return [], str(exc)
-    except (OSError, ValueError, KeyError, TypeError, ImportError, AttributeError) as exc:
+    except (
+        OSError,
+        ValueError,
+        KeyError,
+        TypeError,
+        ImportError,
+        AttributeError,
+    ) as exc:
         return [], f"semantic notes unavailable: {type(exc).__name__}"
 
 
@@ -274,7 +281,11 @@ def fuse(bm25: list[dict], semantic: list[dict], limit: int, per_note: bool = Fa
 
 
 def search(
-    db_path: Path, query: str, limit: int = 5, hybrid: bool = True, per_note: bool = False
+    db_path: Path,
+    query: str,
+    limit: int = 5,
+    hybrid: bool = True,
+    per_note: bool = False,
 ) -> dict:
     """Hybrid (default) or bm25-only note search; returns hits + mode."""
     from helpers.core.db import connect as db_connect
@@ -298,7 +309,11 @@ def search(
             row = conn.execute(
                 "SELECT title, section_title, sector, doc_type FROM note_search "
                 "WHERE file_path IN (?, ?) AND anchor = ? LIMIT 1",
-                (f"/{hit['path'].lstrip('/')}", hit["path"], str(hit.get("line") or "")),
+                (
+                    f"/{hit['path'].lstrip('/')}",
+                    hit["path"],
+                    str(hit.get("line") or ""),
+                ),
             ).fetchone()
             results.append(
                 {

@@ -1206,7 +1206,8 @@ def _load_stored_fingerprints(con: duckdb.DuckDBPyConnection) -> dict[str, str] 
     """
     try:
         rows = con.execute(
-            "SELECT key, value FROM _build_meta WHERE key LIKE ?", (f"{_FP_KEY_PREFIX}%",)
+            "SELECT key, value FROM _build_meta WHERE key LIKE ?",
+            (f"{_FP_KEY_PREFIX}%",),
         ).fetchall()
     except duckdb.Error:
         return None
@@ -1226,7 +1227,8 @@ def _stamp_fingerprints(con: duckdb.DuckDBPyConnection) -> None:
         _upsert_fingerprints(con, _compute_input_fingerprints(con))
     except Exception:  # noqa: BLE001  # fingerprints are an optimisation; never fail a build
         print(
-            "WARNING: input fingerprint stamping failed; next rebuild will be full", file=sys.stderr
+            "WARNING: input fingerprint stamping failed; next rebuild will be full",
+            file=sys.stderr,
         )
 
 
@@ -1374,7 +1376,10 @@ def _patch_dirty_tables(tmp_duckdb_path: Path, db_path: Path) -> bool:
         _upsert_fingerprints(con, fps)
         return True
     except Exception:  # noqa: BLE001  # any patch failure falls back to the full build
-        print("WARNING: dirty-table patch failed; falling back to full rebuild", file=sys.stderr)
+        print(
+            "WARNING: dirty-table patch failed; falling back to full rebuild",
+            file=sys.stderr,
+        )
         return False
     finally:
         con.close()
@@ -3058,7 +3063,10 @@ def shortest_path(
             if fresh:
                 return result
         except Exception as e:  # noqa: BLE001  # advisory lane; SQL never blocked
-            print(f"csr lane: unavailable ({type(e).__name__}: {str(e)[:80]})", file=sys.stderr)
+            print(
+                f"csr lane: unavailable ({type(e).__name__}: {str(e)[:80]})",
+                file=sys.stderr,
+            )
     return _shortest_path_bfs(con, src, dst, max_hops, edge_label=edge_label, as_of=as_of)
 
 
@@ -3134,9 +3142,13 @@ def _shortest_path_bfs(
 
     try:
         con.execute(
-            "CREATE OR REPLACE TEMP TABLE _bfs_frontier AS SELECT ?::BIGINT AS id", [src_id]
+            "CREATE OR REPLACE TEMP TABLE _bfs_frontier AS SELECT ?::BIGINT AS id",
+            [src_id],
         )
-        con.execute("CREATE OR REPLACE TEMP TABLE _bfs_visited AS SELECT ?::BIGINT AS id", [src_id])
+        con.execute(
+            "CREATE OR REPLACE TEMP TABLE _bfs_visited AS SELECT ?::BIGINT AS id",
+            [src_id],
+        )
         con.execute(
             "CREATE OR REPLACE TEMP TABLE _bfs_parents (id BIGINT PRIMARY KEY, parent BIGINT)"
         )
@@ -4201,7 +4213,10 @@ def _note_ref_vector(
 
 @_with_generation_cache
 def similar_notes(
-    con: duckdb.DuckDBPyConnection, file_path: str, k: int = 10, doc_type: str | None = None
+    con: duckdb.DuckDBPyConnection,
+    file_path: str,
+    k: int = 10,
+    doc_type: str | None = None,
 ) -> list[tuple[str, str, float]] | None:
     """K nearest NOTES to a note over ``v_note_embeddings``.
 
@@ -4751,7 +4766,11 @@ def pagerank(
 
     if edge_label == "Economic":
         scores = _extension_first(
-            onager_pagerank, con, edge_types=ECONOMIC_EDGE_TYPES, weighted=False, as_of=as_of
+            onager_pagerank,
+            con,
+            edge_types=ECONOMIC_EDGE_TYPES,
+            weighted=False,
+            as_of=as_of,
         )
     else:
         scores = _extension_first(
@@ -4785,7 +4804,11 @@ def pagerank_weighted(
 
     if edge_label == "Economic":
         scores = _extension_first(
-            onager_pagerank, con, edge_types=ECONOMIC_EDGE_TYPES, weighted=True, as_of=as_of
+            onager_pagerank,
+            con,
+            edge_types=ECONOMIC_EDGE_TYPES,
+            weighted=True,
+            as_of=as_of,
         )
     else:
         scores = _extension_first(
@@ -4802,7 +4825,9 @@ def pagerank_weighted(
 
 
 def weakly_connected_components(
-    con: duckdb.DuckDBPyConnection, edge_label: str = "BelongsTo", vertex_label: str = "Entity"
+    con: duckdb.DuckDBPyConnection,
+    edge_label: str = "BelongsTo",
+    vertex_label: str = "Entity",
 ) -> list[tuple[str, int]]:
     """Weakly-connected component labels (Onager-backed).
 
@@ -4819,7 +4844,9 @@ def weakly_connected_components(
 
 
 def clustering_coefficient(
-    con: duckdb.DuckDBPyConnection, edge_label: str = "BelongsTo", vertex_label: str = "Entity"
+    con: duckdb.DuckDBPyConnection,
+    edge_label: str = "BelongsTo",
+    vertex_label: str = "Entity",
 ) -> list[tuple[str, float]]:
     """Local clustering coefficient per vertex (Onager-backed).
 
@@ -4893,7 +4920,9 @@ def _cli(argv: list[str] | None = None) -> int:
     )
     sp.add_argument("--max-hops", type=int, default=4, help="Max cycle length (2..6; default 4)")
     sp.add_argument(
-        "--edge-label", default=None, help="Restrict to one edge label (e.g. SubsidiaryOf)"
+        "--edge-label",
+        default=None,
+        help="Restrict to one edge label (e.g. SubsidiaryOf)",
     )
     sp.add_argument("--limit", type=int, default=100, help="Cap on cycles returned")
 
@@ -4907,7 +4936,8 @@ def _cli(argv: list[str] | None = None) -> int:
         "similar-notes", help="K nearest notes by embedding cosine (v_note_embeddings)"
     )
     sp.add_argument(
-        "file_path", help="Reference note path (e.g. findata/Companies/Agriculture/Avanti_Feeds.md)"
+        "file_path",
+        help="Reference note path (e.g. findata/Companies/Agriculture/Avanti_Feeds.md)",
     )
     sp.add_argument("-k", "--k", type=int, default=10, help="Number of neighbors (default 10)")
     sp.add_argument("--doc-type", default=None, help="Restrict candidates to one doc_type")
@@ -4921,7 +4951,8 @@ def _cli(argv: list[str] | None = None) -> int:
     sp.add_argument("-k", "--k", type=int, default=10, help="Number of neighbors (default 10)")
 
     sp = sub.add_parser(
-        "near-duplicates", help="Near-duplicate note pairs above a cosine threshold (QA tripwire)"
+        "near-duplicates",
+        help="Near-duplicate note pairs above a cosine threshold (QA tripwire)",
     )
     sp.add_argument("--min-sim", type=float, default=0.9)
     sp.add_argument("--doc-type", default="company")
@@ -4965,7 +4996,8 @@ def _cli(argv: list[str] | None = None) -> int:
         help="Re-stamp v_centrality_* tables on the warm cache (lane-served metrics skipped per ROUTING; centrality_rebuild_contract explicit lane)",
     )
     sub.add_parser(
-        "update-extensions", help="Check installed DuckDB extensions for updates and install them"
+        "update-extensions",
+        help="Check installed DuckDB extensions for updates and install them",
     )
 
     args = p.parse_args(argv)
@@ -5094,7 +5126,11 @@ def _cli_semantic_arms(con: duckdb.DuckDBPyConnection, args: argparse.Namespace)
     """S4 split: embedding-backed print arms. None = not my command."""
     if args.cmd == "semantic-neighbors":
         results = semantic_neighbors(
-            con, args.company, k=args.k, metric=args.metric, cross_sector=args.cross_sector
+            con,
+            args.company,
+            k=args.k,
+            metric=args.metric,
+            cross_sector=args.cross_sector,
         )
         if not results:
             print(

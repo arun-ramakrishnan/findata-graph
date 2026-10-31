@@ -120,13 +120,19 @@ AGENT_SEED: dict[str, tuple[str, str | None]] = {
         "helpers/graph/derive_merger_hyperedges.py",
     ),
     "extract_relations": ("extract_relations", "helpers/graph/extract_relations.py"),
-    "build_sector_hierarchy": ("build_sector_hierarchy", "helpers/graph/build_sector_hierarchy.py"),
+    "build_sector_hierarchy": (
+        "build_sector_hierarchy",
+        "helpers/graph/build_sector_hierarchy.py",
+    ),
     "enrich_relations": (
         "enrich_relations (semantic_peer + yfinance lanes)",
         "helpers/maintenance/enrich_relations.py",
     ),
     "parse_newsletter": ("parse_newsletter", "helpers/core/parse_newsletter.py"),
-    "triage_accept": ("triage queue accept lanes", "helpers/graph/triage_pending_relations.py"),
+    "triage_accept": (
+        "triage queue accept lanes",
+        "helpers/graph/triage_pending_relations.py",
+    ),
     "move_sector": ("move_sector", "helpers/maintenance/move_sector.py"),
     "phase2_seed": ("Phase 2 seed (historical one-off)", None),
     "googlefinance": ("googlefinance (historical lane, script retired)", None),

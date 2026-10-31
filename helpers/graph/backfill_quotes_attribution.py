@@ -246,7 +246,11 @@ def main(argv=None) -> int:  # noqa: C901 — stage dispatcher; each stage is a 
                 "company",
                 "institution",
             ):
-                stage, target, kind = "speaker_map", entry["target"], idx.kinds[entry["target"]]
+                stage, target, kind = (
+                    "speaker_map",
+                    entry["target"],
+                    idx.kinds[entry["target"]],
+                )
         if target is None:
             stats["unrecovered"] += 1
             continue

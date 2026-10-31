@@ -59,7 +59,10 @@ Row = dict  # keys: symbol, name, segment, isin?, industry?, exchange
 
 @overload
 def _get(
-    url: str, referer: str | None = ..., binary: Literal[False] = ..., timeout: int = ...
+    url: str,
+    referer: str | None = ...,
+    binary: Literal[False] = ...,
+    timeout: int = ...,
 ) -> str: ...
 @overload
 def _get(
@@ -310,7 +313,10 @@ def parse_wiki_table(html: str) -> list[tuple[str, str]]:
     if not picked:
         return []
     hdr, trs = picked
-    ti = next((i for i, h in enumerate(hdr) if h in ("ticker", "symbol", "code", "stock code")), 0)
+    ti = next(
+        (i for i, h in enumerate(hdr) if h in ("ticker", "symbol", "code", "stock code")),
+        0,
+    )
     ni = next((i for i, h in enumerate(hdr) if "company" in h or "name" in h), None)
     out = []
     for r in trs[1:]:
@@ -575,7 +581,12 @@ LANE_EXCHANGES = {
     "us": ["NASDAQ", "NYSE", "NYSEAMER", "NYSEARCA", "BATS"],
 }
 LANE_SEGMENTS = {  # wiki spans 4 exchanges; TSX also fed by tmx lane
-    "wiki": [("LSE", "ftse100"), ("XETRA", "dax40"), ("EURONEXT", "cac40"), ("TSX", "tsx60")],
+    "wiki": [
+        ("LSE", "ftse100"),
+        ("XETRA", "dax40"),
+        ("EURONEXT", "cac40"),
+        ("TSX", "tsx60"),
+    ],
 }
 
 
@@ -613,7 +624,8 @@ def _connect() -> duckdb.DuckDBPyConnection:
     if "fetched_at" not in cols:
         con.execute("alter table exchange_listings add column fetched_at date")
         con.execute(
-            "update exchange_listings set fetched_at = ? where fetched_at is null", [BACKFILL_DATE]
+            "update exchange_listings set fetched_at = ? where fetched_at is null",
+            [BACKFILL_DATE],
         )
     return con
 
@@ -762,7 +774,9 @@ def main() -> int:  # noqa: C901  # arg-dispatch main (flag-per-lane CLI; exit c
         help="lanes to run (default: all scriptable)",
     )
     ap.add_argument(
-        "--apply", action="store_true", help="write store + seed stubs (default: dry-run)"
+        "--apply",
+        action="store_true",
+        help="write store + seed stubs (default: dry-run)",
     )
     ap.add_argument(
         "--fetch-only",
@@ -775,7 +789,11 @@ def main() -> int:  # noqa: C901  # arg-dispatch main (flag-per-lane CLI; exit c
         help="apply staged exchange rows (no fetch); pairs with --fetch-only",
     )
     ap.add_argument(
-        "--tmx-file", type=Path, action="append", default=[], help="TMX xlsx path (tmx lane)"
+        "--tmx-file",
+        type=Path,
+        action="append",
+        default=[],
+        help="TMX xlsx path (tmx lane)",
     )
     ap.add_argument("--krx-file", type=Path, help="KRX json path (krx lane)")
     ap.add_argument("--no-seed", action="store_true", help="skip stub seeding (store refresh only)")

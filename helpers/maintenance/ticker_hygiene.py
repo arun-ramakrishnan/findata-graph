@@ -619,7 +619,12 @@ def main(argv: list[str] | None = None) -> int:  # noqa: C901
                     _append_stage(stage_path, [rec2])
                     if j % 50 == 0:
                         n_ok = sum(1 for r in fresh if r["status"] == "resolved")
-                        log.info("  tier2 %d/%d done (resolved so far: %d)", j, len(still), n_ok)
+                        log.info(
+                            "  tier2 %d/%d done (resolved so far: %d)",
+                            j,
+                            len(still),
+                            n_ok,
+                        )
                     if args.sleep and j != len(still):
                         time.sleep(args.sleep)
 
@@ -634,7 +639,12 @@ def main(argv: list[str] | None = None) -> int:  # noqa: C901
                     _append_stage(stage_path, [rec2])  # later row supersedes on load
                     if j % 50 == 0:
                         n_ok = sum(1 for r in fresh if r["status"] == "resolved")
-                        log.info("  tier3 %d/%d done (resolved so far: %d)", j, len(still), n_ok)
+                        log.info(
+                            "  tier3 %d/%d done (resolved so far: %d)",
+                            j,
+                            len(still),
+                            n_ok,
+                        )
                     if args.sleep and j != len(still):
                         time.sleep(args.sleep)
 

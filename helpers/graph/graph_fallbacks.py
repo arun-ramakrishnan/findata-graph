@@ -105,7 +105,11 @@ def onager_available() -> bool:
     global _AVAILABLE
     if _AVAILABLE is None:
         try:
-            from helpers.graph.onager import OnagerUnavailable, _load_onager, connect_kwargs
+            from helpers.graph.onager import (
+                OnagerUnavailable,
+                _load_onager,
+                connect_kwargs,
+            )
 
             probe = duckdb.connect(**connect_kwargs())
             try:
@@ -305,7 +309,9 @@ def onager_pagerank(
         return {}
     g = _graph(labels, proj, weighted=weighted)
     ranks = g.pagerank(
-        directed=_UNDIRECTED, damping=damping, weights=g.es["weight"] if weighted else None
+        directed=_UNDIRECTED,
+        damping=damping,
+        weights=g.es["weight"] if weighted else None,
     )
     return {label: float(score) for label, score in zip(labels, ranks)}
 
@@ -583,7 +589,11 @@ def onager_katz(
         return {}
     adj = _adjacency(n, proj)
     x = _power_vector(
-        adj, alpha=float(alpha), beta=float(beta), max_iter=max_iter, tolerance=tolerance
+        adj,
+        alpha=float(alpha),
+        beta=float(beta),
+        max_iter=max_iter,
+        tolerance=tolerance,
     )
     return {label: float(v) for label, v in zip(labels, x)}
 
@@ -657,7 +667,8 @@ def onager_voterank(
     seeds: list[Any] = []
     while True:
         scores = np.array(
-            [0.0 if removed[i] else sum(ability[j] for j in adj[i]) for i in range(n)], dtype=float
+            [0.0 if removed[i] else sum(ability[j] for j in adj[i]) for i in range(n)],
+            dtype=float,
         )
         if not scores.size or scores.max() <= 0.0:
             break

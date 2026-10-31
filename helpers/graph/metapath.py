@@ -103,7 +103,13 @@ UNDIRECTED_FAMILIES: dict[str, tuple[str, ...]] = {
 }
 
 # Edge types outside every family; they join only semantics="any".
-_PERIPHERAL_TYPES = ("rated_by", "regulated_by", "approved_by", "exposed_to", "semantic_peer")
+_PERIPHERAL_TYPES = (
+    "rated_by",
+    "regulated_by",
+    "approved_by",
+    "exposed_to",
+    "semantic_peer",
+)
 
 SEMANTICS = ("ownership", "flow", *UNDIRECTED_FAMILIES, "hyper", "any")
 
@@ -124,8 +130,14 @@ class _Adjacency:
 
     def __init__(self) -> None:
         # directed families: name -> [(out-neighbour, edge_type)]
-        self.out: dict[str, dict[str, list[tuple[str, str]]]] = {"ownership": {}, "flow": {}}
-        self.rev: dict[str, dict[str, list[tuple[str, str]]]] = {"ownership": {}, "flow": {}}
+        self.out: dict[str, dict[str, list[tuple[str, str]]]] = {
+            "ownership": {},
+            "flow": {},
+        }
+        self.rev: dict[str, dict[str, list[tuple[str, str]]]] = {
+            "ownership": {},
+            "flow": {},
+        }
         self.undirected: dict[str, dict[str, list[tuple[str, str]]]] = {
             name: {} for name in UNDIRECTED_FAMILIES
         }
@@ -217,7 +229,9 @@ def _adjacency(db_path: str | Path) -> _Adjacency:
     return hit
 
 
-def ownership_parents(db_path: str | Path = DB_PATH) -> dict[str, list[tuple[str, str]]]:
+def ownership_parents(
+    db_path: str | Path = DB_PATH,
+) -> dict[str, list[tuple[str, str]]]:
     """Trusted ownership parent map — child → [(parent, edge_type)].
 
     The strict-trust subsidiary_of ∪ reversed-acquired adjacency that

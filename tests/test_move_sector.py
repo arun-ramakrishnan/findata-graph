@@ -242,7 +242,8 @@ def _make_move_test_db(tmp_path, sector="Healthcare"):
         "SELECT id FROM hyper_edges WHERE edge_type='sector' AND label=?", (sector,)
     ).fetchone()[0]
     conn.execute(
-        "INSERT INTO hyper_incidences (edge_id, entity_name) VALUES (?, 'Test Co')", (edge_id,)
+        "INSERT INTO hyper_incidences (edge_id, entity_name) VALUES (?, 'Test Co')",
+        (edge_id,),
     )
     conn.commit()
     conn.close()

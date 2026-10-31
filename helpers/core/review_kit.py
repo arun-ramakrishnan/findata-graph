@@ -37,7 +37,13 @@ import time
 from helpers.core import jsonio  # noqa: E402  (orjson parse cutover; dumps stay stdlib per db_scaling_tuning §6.3 criteria)
 from collections.abc import Callable
 
-__all__ = ["Journal", "park_items", "latest_action_by", "assemble_entries", "ReviewSession"]
+__all__ = [
+    "Journal",
+    "park_items",
+    "latest_action_by",
+    "assemble_entries",
+    "ReviewSession",
+]
 
 
 class Journal:
@@ -90,7 +96,10 @@ def park_items(journal_path: pathlib.Path, ids: list[str], *, key_field: str = "
 
 
 def latest_action_by(
-    journal_path: pathlib.Path, *, key_field: str, terminal: tuple[str, ...] = ("approve", "skip")
+    journal_path: pathlib.Path,
+    *,
+    key_field: str,
+    terminal: tuple[str, ...] = ("approve", "skip"),
 ) -> dict[str, str]:
     """Latest terminal journal decision per item id ({} when no journal).
 

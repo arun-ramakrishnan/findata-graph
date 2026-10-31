@@ -49,10 +49,19 @@ CASES = [
         flags=["IGNORECASE"],
     ),
     dict(name="non_greedy_star", mode="findall", pattern=r"<.*?>", input="<a><b><c>"),
-    dict(name="non_greedy_plus", mode="search_group", pattern=r"a+?", input="aaaa", group=0),
+    dict(
+        name="non_greedy_plus",
+        mode="search_group",
+        pattern=r"a+?",
+        input="aaaa",
+        group=0,
+    ),
     dict(name="non_greedy_opt", mode="match_bool", pattern=r"colou?r", input="color"),
     dict(
-        name="word_boundary", mode="findall", pattern=r"\bcat\b", input="cat cathedral cat! thecat"
+        name="word_boundary",
+        mode="findall",
+        pattern=r"\bcat\b",
+        input="cat cathedral cat! thecat",
     ),
     dict(name="non_boundary", mode="findall", pattern=r"\Bcat", input="thecat scatter"),
     dict(
@@ -83,8 +92,18 @@ CASES = [
         pattern=r"\d+(?=\s*dollars)",
         input="100 dollars 200 euros 300 dollars",
     ),
-    dict(name="lookbehind_pos", mode="findall", pattern=r"(?<=\$)\d+", input="$50 and $60 but 70"),
-    dict(name="lookahead_neg", mode="findall", pattern=r"foo(?!bar)", input="foobar foobaz foo"),
+    dict(
+        name="lookbehind_pos",
+        mode="findall",
+        pattern=r"(?<=\$)\d+",
+        input="$50 and $60 but 70",
+    ),
+    dict(
+        name="lookahead_neg",
+        mode="findall",
+        pattern=r"foo(?!bar)",
+        input="foobar foobaz foo",
+    ),
     dict(name="S_class", mode="findall", pattern=r"\S+", input="a b\tc\nd"),
     dict(name="D_class", mode="findall", pattern=r"\D+", input="a1b2c3"),
     dict(name="W_class", mode="findall", pattern=r"\W+", input="a!b@c#"),
@@ -149,7 +168,12 @@ CASES = [
         input="cost 1,234.50 vs 987654.00 and $12.75 or 42",
     ),
     dict(name="possessive_star", mode="findall", pattern=r"\d*+9", input="1239 999 x9"),
-    dict(name="atomic_group", mode="findall", pattern=r"(?>\d+)bar", input="123bar 1bar xbar"),
+    dict(
+        name="atomic_group",
+        mode="findall",
+        pattern=r"(?>\d+)bar",
+        input="123bar 1bar xbar",
+    ),
     dict(
         name="varwidth_lookbehind",
         mode="findall",
@@ -174,7 +198,12 @@ CASES = [
         pattern=r"\bkey\K\w*",
         input="keyword keynote lock keyboard",
     ),
-    dict(name="conditional_group", mode="findall", pattern=r"(a)?b(?(1)c|d)", input="abc bd abd"),
+    dict(
+        name="conditional_group",
+        mode="findall",
+        pattern=r"(a)?b(?(1)c|d)",
+        input="abc bd abd",
+    ),
     dict(
         name="branch_reset",
         mode="finditer_groups",
@@ -200,7 +229,10 @@ CASES = [
         input="\u20b9 99 $5 \u00a53 \u00a51000 \u20ac2",
     ),
     dict(
-        name="posix_class_alnum", mode="findall", pattern=r"[[:alnum:]]+", input="foo-bar_99 baz!"
+        name="posix_class_alnum",
+        mode="findall",
+        pattern=r"[[:alnum:]]+",
+        input="foo-bar_99 baz!",
     ),
     dict(
         name="hex_and_named_escape",
@@ -255,7 +287,11 @@ CASES = [
         input="color colour colouur colr",
     ),
     dict(
-        name="capture_repeat_last", mode="search_group", pattern=r"(a+)(\w*)", input="aaaa", group=1
+        name="capture_repeat_last",
+        mode="search_group",
+        pattern=r"(a+)(\w*)",
+        input="aaaa",
+        group=1,
     ),
     dict(
         name="greedy_vs_lazy_difference",

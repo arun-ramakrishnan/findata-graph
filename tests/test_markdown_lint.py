@@ -211,7 +211,10 @@ def test_dirty_verdict_survives_from_cache(monkeypatch, tmp_path, capsys):
     rel = str(a).lstrip("/")
     calls: list = []
     _fake_cli2(
-        monkeypatch, calls, stdout=f"{rel}:1 error MD047/x File should end with newline\n", rc=1
+        monkeypatch,
+        calls,
+        stdout=f"{rel}:1 error MD047/x File should end with newline\n",
+        rc=1,
     )
     assert ml.main([]) == 1
     assert "1 violation(s)" in capsys.readouterr().out

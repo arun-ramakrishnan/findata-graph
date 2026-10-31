@@ -52,7 +52,14 @@ def test_duplicate_value_raw_rows_labeled_independently(tmp_path):
                 "percent",
                 "EBITDA margin guidance for the quarter at 40%",
             ),
-            ("Blue Star", None, "40%", 13.0, "percent", "revenue up 13% yoy on broad-based demand"),
+            (
+                "Blue Star",
+                None,
+                "40%",
+                13.0,
+                "percent",
+                "revenue up 13% yoy on broad-based demand",
+            ),
         ],
     )
     updated, skipped, total = bfm.backfill_metric_labels(dry_run=False, conn=conn)

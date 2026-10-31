@@ -68,7 +68,12 @@ AST = {
     ],
     "finish": "stop",
     "cost": 0.01,
-    "tokens": {"input": 10, "output": 5, "reasoning": 2, "cache": {"read": 0, "write": 0}},
+    "tokens": {
+        "input": 10,
+        "output": 5,
+        "reasoning": 2,
+        "cache": {"read": 0, "write": 0},
+    },
     "time": {"created": 1999, "completed": 2004},
 }
 
@@ -92,7 +97,15 @@ def _v2_db(path: Path) -> None:
     )
     con.execute(
         "INSERT INTO session_message VALUES ('m-c1', 's9', 'compaction', 2, 2500, 2500, ?)",
-        (json.dumps({"status": "completed", "reason": "manual", "summary": "the big summary"}),),
+        (
+            json.dumps(
+                {
+                    "status": "completed",
+                    "reason": "manual",
+                    "summary": "the big summary",
+                }
+            ),
+        ),
     )
     con.execute(
         "INSERT INTO session_message VALUES ('m-s1', 's9', 'synthetic', 3, 2600, 2600, ?)",

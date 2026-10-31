@@ -137,7 +137,9 @@ except ImportError:  # PyYAML without libyaml
 
 
 def yaml_safe_load(text: str) -> Any: ...  # yaml.load(text, Loader=_SafeLoader)
-def yaml_safe_dump(obj) -> str: ...  # yaml.dump(obj, Dumper=_SafeDumper, **_YAML_DUMP_KW)
+def yaml_safe_dump(
+    obj,
+) -> str: ...  # yaml.dump(obj, Dumper=_SafeDumper, **_YAML_DUMP_KW)
 ```
 
 The try/except then lives ONCE (today the dance is copy-pasted in 3

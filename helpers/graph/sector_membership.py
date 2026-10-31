@@ -166,7 +166,10 @@ def _main(argv: list[str] | None = None) -> int:
         description="Canonical company→sector membership writes (incidence store).",
     )
     sub = ap.add_subparsers(dest="cmd", required=True)
-    for name, help_ in (("put", "add/refresh a membership"), ("remove", "drop a membership")):
+    for name, help_ in (
+        ("put", "add/refresh a membership"),
+        ("remove", "drop a membership"),
+    ):
         p = sub.add_parser(name, help=help_)
         p.add_argument("company", help="entities.name (display name, the incidence FK key)")
         p.add_argument("sector", help="sector label (e.g. EMS_Manufacturing)")

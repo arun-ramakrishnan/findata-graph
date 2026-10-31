@@ -326,7 +326,11 @@ TIER1_STEPS: list[tuple[str, list[str]]] = [
     ),
     (
         "convo-rebuild (incremental pointer/FTS/vector index refresh)",
-        [sys.executable, "helpers/maintenance/rebuild_convo_search.py", "--incremental"],
+        [
+            sys.executable,
+            "helpers/maintenance/rebuild_convo_search.py",
+            "--incremental",
+        ],
     ),
     (
         "db_maint (VACUUM/ANALYZE/REINDEX/integrity)",
@@ -336,7 +340,10 @@ TIER1_STEPS: list[tuple[str, list[str]]] = [
         "snapshot (refresh versioned snapshots)",
         [sys.executable, "helpers/maintenance/snapshot_db.py"],
     ),
-    ("graph-rebuild (refresh DuckDB cache)", [sys.executable, "helpers/graph/query.py", "rebuild"]),
+    (
+        "graph-rebuild (refresh DuckDB cache)",
+        [sys.executable, "helpers/graph/query.py", "rebuild"],
+    ),
     (
         "stamp-centrality (re-stamp v_centrality_* tables)",
         [sys.executable, "helpers/graph/query.py", "stamp-centrality"],

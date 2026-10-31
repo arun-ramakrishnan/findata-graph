@@ -72,7 +72,13 @@ def run_search() -> None:
         bm = _top5(client, q["query"], hybrid=False)
         hy = _top5(client, q["query"], hybrid=True)
         rows.append(
-            (q, any(e in bm for e in q["expect"]), any(e in hy for e in q["expect"]), bm, hy)
+            (
+                q,
+                any(e in bm for e in q["expect"]),
+                any(e in hy for e in q["expect"]),
+                bm,
+                hy,
+            )
         )
 
     print(f"{'category':10s} {'n':>3s} {'bm25':>5s} {'hybrid':>6s}")
@@ -243,7 +249,10 @@ def run_neighbors() -> None:
         ok += good
         if not good:
             misses.append(
-                (q["company"], f"{same}/5 same-sector: " + ", ".join(f"{n[0]}({n[1]})" for n in nn))
+                (
+                    q["company"],
+                    f"{same}/5 same-sector: " + ", ".join(f"{n[0]}({n[1]})" for n in nn),
+                )
             )
     con.close()
     print(f"neighbors same-sector dominance (>=3/5): {ok}/{len(QUESTIONS['neighbors'])}")

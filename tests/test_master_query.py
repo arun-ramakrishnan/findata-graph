@@ -19,7 +19,13 @@ from helpers.maintenance import rebuild_memory_search as rms  # noqa: E402
 pytestmark = [pytest.mark.integration]
 
 _H1 = Hit(
-    path="doc/a.md", line=3, title="A", section="s1", snippet="alpha match", score=0.5, lane="docs"
+    path="doc/a.md",
+    line=3,
+    title="A",
+    section="s1",
+    snippet="alpha match",
+    score=0.5,
+    lane="docs",
 )
 _H2 = Hit(
     path="helpers/x.py",
@@ -109,7 +115,11 @@ class TestFanOut:
 class TestRrfFlat:
     def test_rank_order_and_leg_tags(self):
         per_leg = mq.fan_out(
-            "q", ["docs", "scripts", "memory"], 4, lane_runner=_fake_runner, parallel=False
+            "q",
+            ["docs", "scripts", "memory"],
+            4,
+            lane_runner=_fake_runner,
+            parallel=False,
         )
         flat = mq.rrf_flat(per_leg, 3)
         # rank 1 in every leg -> same RRF; ties break by canonical leg
@@ -189,7 +199,12 @@ class TestAgeGuard:
             return [_H1], "1 hits · doc_search hybrid"
 
         out = mq.fan_out(
-            "q", ["docs", "scripts"], 4, lane_runner=spy, parallel=False, age_guard_hours=24.0
+            "q",
+            ["docs", "scripts"],
+            4,
+            lane_runner=spy,
+            parallel=False,
+            age_guard_hours=24.0,
         )
         assert "docs" in out and "skipped: index 100.0h old" in out["docs"][1]
         assert "make search-fresh APPLY=1" in out["docs"][1]
@@ -206,7 +221,12 @@ class TestAgeGuard:
     def test_convo_refresh_hint_is_convo_fresh(self, monkeypatch):
         monkeypatch.setattr(mq, "_leg_age_hours", lambda leg, root=None: 50.0)
         out = mq.fan_out(
-            "q", ["convo"], 4, lane_runner=_fake_runner, parallel=False, age_guard_hours=24.0
+            "q",
+            ["convo"],
+            4,
+            lane_runner=_fake_runner,
+            parallel=False,
+            age_guard_hours=24.0,
         )
         assert "make convo-fresh APPLY=1" in out["convo"][1]
 
@@ -218,7 +238,12 @@ class TestAgeGuard:
             lambda leg, root=None: 999.0 if leg in mq._SIDECAR_BY_LEG else None,
         )
         out = mq.fan_out(
-            "q", ["gates"], 4, lane_runner=_fake_runner, parallel=False, age_guard_hours=1.0
+            "q",
+            ["gates"],
+            4,
+            lane_runner=_fake_runner,
+            parallel=False,
+            age_guard_hours=1.0,
         )
         # gates has no guarded sidecar -> never aged out; the backend ran
         assert out["gates"] == ([_H1], "1 hits · reports hybrid")

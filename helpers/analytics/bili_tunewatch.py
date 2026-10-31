@@ -116,7 +116,17 @@ def scan() -> dict:  # noqa: C901 - one linear pass over the log family
                         d["tier"] = d["tier"].strip()
                         d["kind"] = "ESC" if "-ESC" in d["tier"] else d["tier"]
                         d["over_limit"] = "OVER-LIMIT" in d["reason"]
-                        for k in ("usage", "input", "win", "g", "f", "ref", "iv", "p", "pt"):
+                        for k in (
+                            "usage",
+                            "input",
+                            "win",
+                            "g",
+                            "f",
+                            "ref",
+                            "iv",
+                            "p",
+                            "pt",
+                        ):
                             d[k] = int(d[k])
                         injections[sid].append(d)
                 elif "acp-compress-obs" in ln and "degenerate-fold" not in ln:
@@ -152,7 +162,8 @@ def scan() -> dict:  # noqa: C901 - one linear pass over the log family
     for sid in set(nudges) | set(folds) | set(usage) | set(injections):
         eras = []
         ordered = sorted(
-            nudges.get(sid, {}).items(), key=lambda kv: (min(x[2] for x in kv[1]), kv[0])
+            nudges.get(sid, {}).items(),
+            key=lambda kv: (min(x[2] for x in kv[1]), kv[0]),
         )
         for idx, (era, rr) in enumerate(ordered):
             iv, pt, fl = era

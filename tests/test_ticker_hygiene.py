@@ -85,7 +85,12 @@ def test_resolve_one_resolved(tmp_path, monkeypatch):
         th,
         "search_ticker",
         _fake_search(
-            {"Patel Engineering": ("PATELENG.NS", {"longName": "Patel Engineering Limited"})}
+            {
+                "Patel Engineering": (
+                    "PATELENG.NS",
+                    {"longName": "Patel Engineering Limited"},
+                )
+            }
         ),
     )
     monkeypatch.setattr(th, "identity_ok", lambda name, info, aliases=None, **kw: True)
@@ -262,11 +267,27 @@ def test_cli_dry_run_resolves_but_never_writes(tmp_path, monkeypatch):
         th,
         "search_ticker",
         _fake_search(
-            {"Patel Engineering": ("PATELENG.NS", {"longName": "Patel Engineering Limited"})}
+            {
+                "Patel Engineering": (
+                    "PATELENG.NS",
+                    {"longName": "Patel Engineering Limited"},
+                )
+            }
         ),
     )
     monkeypatch.setattr(th, "identity_ok", lambda name, info, aliases=None, **kw: True)
-    rc = th.main(["--db", str(db), "--stage", str(stage), "--report", str(report), "--sleep", "0"])
+    rc = th.main(
+        [
+            "--db",
+            str(db),
+            "--stage",
+            str(stage),
+            "--report",
+            str(report),
+            "--sleep",
+            "0",
+        ]
+    )
     assert rc == 0
     conn = core_db.connect(str(db))
     tickers = dict(conn.execute("SELECT name, ticker FROM entities").fetchall())
@@ -279,7 +300,11 @@ def test_cli_dry_run_resolves_but_never_writes(tmp_path, monkeypatch):
 def test_cli_fetch_only_skips_staged_names(tmp_path, monkeypatch):
     conn = _db(tmp_path)
     conn.close()
-    db, stage, report = tmp_path / "t.db", tmp_path / "stage.jsonl", tmp_path / "report.md"
+    db, stage, report = (
+        tmp_path / "t.db",
+        tmp_path / "stage.jsonl",
+        tmp_path / "report.md",
+    )
     calls: list[str] = []
 
     def _counting_search(name: str):
@@ -288,7 +313,16 @@ def test_cli_fetch_only_skips_staged_names(tmp_path, monkeypatch):
 
     monkeypatch.setattr(th, "search_ticker", _counting_search)
     monkeypatch.setattr(th, "identity_ok", lambda name, info, aliases=None, **kw: True)
-    common = ["--db", str(db), "--stage", str(stage), "--report", str(report), "--sleep", "0"]
+    common = [
+        "--db",
+        str(db),
+        "--stage",
+        str(stage),
+        "--report",
+        str(report),
+        "--sleep",
+        "0",
+    ]
     assert th.main(["--fetch-only", *common]) == 0
     first = len(calls)
     assert first == 2  # both scrip candidates
@@ -301,14 +335,27 @@ def test_cli_fetch_only_skips_staged_names(tmp_path, monkeypatch):
 def test_cli_apply_only_applies_staged(tmp_path, monkeypatch):
     conn = _db(tmp_path)
     conn.close()
-    db, stage, report = tmp_path / "t.db", tmp_path / "stage.jsonl", tmp_path / "report.md"
+    db, stage, report = (
+        tmp_path / "t.db",
+        tmp_path / "stage.jsonl",
+        tmp_path / "report.md",
+    )
     stage.write_text(
         '{"name": "Patel Engineering", "old_ticker": "531120.BO", "new_ticker": "PATELENG.NS",'
         ' "yf_name": "Patel Engineering Limited", "status": "resolved"}\n',
         encoding="utf-8",
     )
     rc = th.main(
-        ["--apply-only", "--apply", "--db", str(db), "--stage", str(stage), "--report", str(report)]
+        [
+            "--apply-only",
+            "--apply",
+            "--db",
+            str(db),
+            "--stage",
+            str(stage),
+            "--report",
+            str(report),
+        ]
     )
     assert rc == 0
     conn = core_db.connect(str(db))
@@ -341,7 +388,11 @@ def test_cli_mutually_exclusive(tmp_path):
 def test_cli_company_filter_and_limit(tmp_path, monkeypatch):
     conn = _db(tmp_path)
     conn.close()
-    db, stage, report = tmp_path / "t.db", tmp_path / "stage.jsonl", tmp_path / "report.md"
+    db, stage, report = (
+        tmp_path / "t.db",
+        tmp_path / "stage.jsonl",
+        tmp_path / "report.md",
+    )
     monkeypatch.setattr(th, "search_ticker", _fake_search({}))
     rc = th.main(
         [
@@ -365,19 +416,37 @@ def test_cli_company_filter_and_limit(tmp_path, monkeypatch):
 def test_cli_summary_line(tmp_path, monkeypatch, capsys):
     conn = _db(tmp_path)
     conn.close()
-    db, stage, report = tmp_path / "t.db", tmp_path / "stage.jsonl", tmp_path / "report.md"
+    db, stage, report = (
+        tmp_path / "t.db",
+        tmp_path / "stage.jsonl",
+        tmp_path / "report.md",
+    )
     monkeypatch.setattr(
         th,
         "search_ticker",
         _fake_search(
             {
-                "Patel Engineering": ("PATELENG.NS", {"longName": "Patel Engineering Limited"}),
+                "Patel Engineering": (
+                    "PATELENG.NS",
+                    {"longName": "Patel Engineering Limited"},
+                ),
             }
         ),
     )
     monkeypatch.setattr(th, "identity_ok", lambda name, info, aliases=None, **kw: True)
     assert (
-        th.main(["--db", str(db), "--stage", str(stage), "--report", str(report), "--sleep", "0"])
+        th.main(
+            [
+                "--db",
+                str(db),
+                "--stage",
+                str(stage),
+                "--report",
+                str(report),
+                "--sleep",
+                "0",
+            ]
+        )
         == 0
     )
     out = capsys.readouterr().out
@@ -399,7 +468,10 @@ def test_resolve_tier2_resolves_via_scrip_match(monkeypatch):
         lambda q, cd, **kw: (
             [
                 BseMatch(
-                    scrip="544742", symbol="SAIPARENT", name="Sai Parenteral's Limited", isin=""
+                    scrip="544742",
+                    symbol="SAIPARENT",
+                    name="Sai Parenteral's Limited",
+                    isin="",
                 )
             ],
             False,
@@ -446,7 +518,11 @@ def test_resolve_tier2_rename_refused(monkeypatch):
 def test_cli_retry_failed_refetches_only_failures(tmp_path, monkeypatch):
     conn = _db(tmp_path)
     conn.close()
-    db, stage, report = tmp_path / "t.db", tmp_path / "stage.jsonl", tmp_path / "report.md"
+    db, stage, report = (
+        tmp_path / "t.db",
+        tmp_path / "stage.jsonl",
+        tmp_path / "report.md",
+    )
     stage.write_text(
         '{"name": "Patel Engineering", "old_ticker": "531120.BO", "new_ticker": "PATELENG.NS",'
         ' "yf_name": "Patel Engineering Limited", "status": "resolved"}\n'
@@ -483,7 +559,16 @@ def test_cli_retry_failed_refetches_only_failures(tmp_path, monkeypatch):
 
 def test_cli_tier2_with_apply_only_rejected(tmp_path):
     rc = th.main(
-        ["--tier2", "--apply-only", "--db", str(tmp_path / "t.db"), "--stage", "s", "--report", "r"]
+        [
+            "--tier2",
+            "--apply-only",
+            "--db",
+            str(tmp_path / "t.db"),
+            "--stage",
+            "s",
+            "--report",
+            "r",
+        ]
     )
     assert rc == 2
 
@@ -527,7 +612,16 @@ def test_resolve_tier3_dead_and_no_kite(monkeypatch):
 
 def test_cli_tier3_with_apply_only_rejected(tmp_path):
     rc = th.main(
-        ["--tier3", "--apply-only", "--db", str(tmp_path / "t.db"), "--stage", "s", "--report", "r"]
+        [
+            "--tier3",
+            "--apply-only",
+            "--db",
+            str(tmp_path / "t.db"),
+            "--stage",
+            "s",
+            "--report",
+            "r",
+        ]
     )
     assert rc == 2
 
@@ -630,7 +724,12 @@ class TestUntickeredLane:
         conn.commit()
         monkeypatch.setattr(th, "PROJECT_ROOT", tmp_path)
         records = [
-            {"name": "New Co", "old_ticker": "", "new_ticker": "NEW.NS", "status": "resolved"},
+            {
+                "name": "New Co",
+                "old_ticker": "",
+                "new_ticker": "NEW.NS",
+                "status": "resolved",
+            },
             # populated frontmatter line -> refused, never clobbered
             {
                 "name": "Tickered Co",

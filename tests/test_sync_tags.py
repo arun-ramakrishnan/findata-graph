@@ -129,7 +129,14 @@ def test_sync_tags_updates_sector_classification_from_note_tag(tmp_path, monkeyp
     db_path = tmp_path / "test.db"
     _seed_db(
         db_path,
-        [("Stale Co", "company", "findata/Companies/Banking/Stale_Co.md", "StaleValue")],
+        [
+            (
+                "Stale Co",
+                "company",
+                "findata/Companies/Banking/Stale_Co.md",
+                "StaleValue",
+            )
+        ],
     )
 
     rc = _run_sync(db_path, "--apply")
@@ -443,7 +450,12 @@ def test_allowed_tags_empty_input():
 
 def test_allowed_tags_all_valid():
     """All valid tags pass through."""
-    tags = ["entity_type/company", "sector/Banking", "market_cap/Large", "geography/India"]
+    tags = [
+        "entity_type/company",
+        "sector/Banking",
+        "market_cap/Large",
+        "geography/India",
+    ]
     result = sync_tags.allowed_tags(tags)
     assert len(result) == 4
 
@@ -471,7 +483,11 @@ class TestNoteTags:
         assert _run_sync(db_path, "--apply") == 0
 
         rows = sqlite3.connect(db_path).execute("SELECT tag FROM note_tags ORDER BY tag").fetchall()
-        assert rows == [("company/x_co",), ("publisher/zerodha",), ("series/the_chatter",)]
+        assert rows == [
+            ("company/x_co",),
+            ("publisher/zerodha",),
+            ("series/the_chatter",),
+        ]
 
     def test_only_whitelisted_namespaces_mirrored(self, tmp_path, monkeypatch):
         # entity_type/company is valid YAML on any note, but note_tags

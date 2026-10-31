@@ -93,8 +93,20 @@ def p3_db(tmp_path):
             "TATAMOTORS",
         ),
         ("JLR", "company", "Automobiles", "findata/Companies/Automobiles/JLR.md", None),
-        ("HDFC Bank", "company", "Banking", "findata/Companies/Banking/Hdfc_Bank.md", "HDFCBANK"),
-        ("Infosys", "company", "Technology", "findata/Companies/Technology/Infosys.md", "INFY"),
+        (
+            "HDFC Bank",
+            "company",
+            "Banking",
+            "findata/Companies/Banking/Hdfc_Bank.md",
+            "HDFCBANK",
+        ),
+        (
+            "Infosys",
+            "company",
+            "Technology",
+            "findata/Companies/Technology/Infosys.md",
+            "INFY",
+        ),
     ]
     for name, etype, sector, fp, ticker in companies:
         conn.execute(
@@ -150,7 +162,11 @@ Sector overview.
             source="Tata Motors",
             target="JLR",
             edge_type="acquired",
-            properties={"edition": "Test", "year": 2008, "quote": "acquired JLR in 2008"},
+            properties={
+                "edition": "Test",
+                "year": 2008,
+                "quote": "acquired JLR in 2008",
+            },
             source_ref="derive:relations:test",
             valid_from="2008-01-01",
         )

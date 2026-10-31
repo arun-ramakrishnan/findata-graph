@@ -95,7 +95,14 @@ def _add_block(db, block_id, tier, summary_len=400, active=1, session="s1"):
     con.execute(
         "INSERT INTO blocks (ord, session_id, block_id, tier, active, payload_json) "
         "VALUES (?,?,?,?,?,?)",
-        (abs(hash(block_id)) % 1000, session, block_id, tier, active, json.dumps(payload)),
+        (
+            abs(hash(block_id)) % 1000,
+            session,
+            block_id,
+            tier,
+            active,
+            json.dumps(payload),
+        ),
     )
     con.commit()
     con.close()
@@ -380,7 +387,12 @@ def test_once_json_emits_one_sample(tmp_path, capsys, monkeypatch):
     monkeypatch.setattr(
         btw.bili_sessions,
         "run_for_sid",
-        lambda sid: {"nudges": 3, "requests": 12, "cum_input": 1234, "cached_input": 1100},
+        lambda sid: {
+            "nudges": 3,
+            "requests": 12,
+            "cum_input": 1234,
+            "cached_input": 1100,
+        },
     )
     db = _make_db(tmp_path)
     _add_block(db, "b1", 1, summary_len=400)

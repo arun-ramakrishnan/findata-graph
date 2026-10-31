@@ -386,7 +386,9 @@ def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     ap.add_argument("surface", choices=sorted(CHECKLISTS), help="checklist surface to walk")
     ap.add_argument(
-        "--journal-dir", type=Path, help="override the journal parent dir (default outputs/)"
+        "--journal-dir",
+        type=Path,
+        help="override the journal parent dir (default outputs/)",
     )
     ap.add_argument(
         "--decisions",
@@ -399,7 +401,9 @@ def main(argv: list[str] | None = None) -> int:
     )
     ap.add_argument("--answers", type=Path, help="answers file (one verb per item + final y/n)")
     ap.add_argument(
-        "--packets-out", type=Path, help="write the prompt packets (JSONL) for the agent flow"
+        "--packets-out",
+        type=Path,
+        help="write the prompt packets (JSONL) for the agent flow",
     )
     ap.add_argument("--limit", type=int, default=None, help="walk at most N items (tests)")
     ap.add_argument(

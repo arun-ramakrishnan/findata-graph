@@ -54,7 +54,10 @@ def gen_hyper(n_nodes: int, target_inc: int, cap: int, seed: int = 7) -> list[tu
     total = 0
     while total < target_inc:
         size = min(
-            max(2, int(np.random.default_rng(rng.randrange(1 << 30)).lognormal(3.1, 0.9))),
+            max(
+                2,
+                int(np.random.default_rng(rng.randrange(1 << 30)).lognormal(3.1, 0.9)),
+            ),
             cap,
         )
         edges.append(tuple(rng.sample(range(n_nodes), min(size, n_nodes))))
@@ -111,7 +114,8 @@ def lane_dyadic(edges: list[tuple[int, ...]], *, analytics: bool) -> dict:
         con.execute("LOAD onager")
         con.execute("CREATE TABLE inc(edge_id INTEGER, node INTEGER)")
         con.executemany(
-            "INSERT INTO inc VALUES (?, ?)", [(e, n) for e, m in enumerate(edges) for n in m]
+            "INSERT INTO inc VALUES (?, ?)",
+            [(e, n) for e, m in enumerate(edges) for n in m],
         )
         t0 = time.perf_counter()
         con.execute(

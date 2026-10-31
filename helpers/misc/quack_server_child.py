@@ -50,7 +50,9 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--alias", default="", help="discovery key (default: the store filename stem)")
     ap.add_argument("--discovery", required=True, help="shared discovery file")
     ap.add_argument(
-        "--stop-file", required=True, help="existence of this file triggers a clean stop"
+        "--stop-file",
+        required=True,
+        help="existence of this file triggers a clean stop",
     )
     ap.add_argument(
         "--port",

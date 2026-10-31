@@ -141,7 +141,13 @@ class EmbedMatrixStore:
             "row_hashes": [_row_hash(emb[i]) for i in range(count)],
         }
         self.meta_path.write_text(json.dumps(meta))
-        return {"count": count, "rewritten": count, "rebuild": True, "model": model, "dims": dims}
+        return {
+            "count": count,
+            "rewritten": count,
+            "rebuild": True,
+            "model": model,
+            "dims": dims,
+        }
 
     def refresh(
         self, ids: list[str], embeddings: np.ndarray, model: str = "note_search"
@@ -230,7 +236,9 @@ def matrix_from_rows(rows: list[tuple[str, Any]]) -> tuple[list[str], np.ndarray
     return out_ids, np.array(vecs, dtype=np.float32)
 
 
-def from_note_search(db_path: str | Path = "memory/research.db") -> tuple[list[str], np.ndarray]:
+def from_note_search(
+    db_path: str | Path = "memory/research.db",
+) -> tuple[list[str], np.ndarray]:
     """Read the live embedding source — note_search (file_path, embedding BLOB).
 
     Post-#223 the embedding column is f32 BLOB; legacy TEXT JSON is

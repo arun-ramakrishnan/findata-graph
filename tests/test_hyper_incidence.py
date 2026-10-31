@@ -358,7 +358,12 @@ class TestHyperArrowLoader:
 
     def test_empty_sources(self):
         tbl = ha.load_incidence_arrow([])
-        assert tbl.num_rows == 0 and tbl.schema.names == ["edge_type", "label", "node", "weight"]
+        assert tbl.num_rows == 0 and tbl.schema.names == [
+            "edge_type",
+            "label",
+            "node",
+            "weight",
+        ]
 
     def test_bad_source_raises(self):
         with pytest.raises(ValueError, match="live.*snapshot"):
@@ -495,7 +500,12 @@ class TestRPTDisclosureSets:
         dyads = [
             ("Alpha", "Delta", "vigil:rpt:TCS", {"relationship": "Fellow Subsidiary"}),
             ("Beta", "Delta", "vigil:rpt:TCS", {"relationship": "Fellow subsidiary"}),
-            ("Gamma", "Delta", "vigil:rpt:TCS", {"relationship": "Fellow Subsidiaries"}),
+            (
+                "Gamma",
+                "Delta",
+                "vigil:rpt:TCS",
+                {"relationship": "Fellow Subsidiaries"},
+            ),
             # direction-swapped: graph_edges is UNIQUE(source, target,
             # edge_type), so a second class on the same pair rides the
             # reverse direction — exactly how the live store carries the
@@ -933,7 +943,8 @@ class TestEventFamilyConvergence:
             ("guidance:2", ["Gamma"]),
         ):
             eid = conn.execute(
-                "SELECT id FROM hyper_edges WHERE edge_type='event' AND label=?", (label,)
+                "SELECT id FROM hyper_edges WHERE edge_type='event' AND label=?",
+                (label,),
             ).fetchone()[0]
             conn.executemany(
                 "INSERT INTO hyper_incidences (edge_id, entity_name) VALUES (?, ?)",
@@ -1152,7 +1163,11 @@ class TestSubSectorMapping:
             self.HYPER,
             self.VALID,
             authored={"apparel retail": {"A"}},  # A alias-derives to Specialty_Chemicals
-            sub_sector_entities={"Specialty_Chemicals", "Iron_and_Steel", "Apparel_Retail"},
+            sub_sector_entities={
+                "Specialty_Chemicals",
+                "Iron_and_Steel",
+                "Apparel_Retail",
+            },
         )
         assert unmapped_authored == []
         assert groups["Apparel_Retail"] == {"A"}  # normalized hand value
@@ -1348,7 +1363,10 @@ class TestWorklistParking:
             key_field="label",
         )
         dh._write_subsector_worklist(
-            [("Banks - Regional", 38, "new sub_sector Banks"), ("Widgets", 2, "map to Widgets")]
+            [
+                ("Banks - Regional", 38, "new sub_sector Banks"),
+                ("Widgets", 2, "map to Widgets"),
+            ]
         )
         wl = json.loads((tmp_path / "findata" / "Misc" / "subsector_worklist.json").read_text())
         assert [u["label"] for u in wl["unmapped"]] == ["Widgets"]

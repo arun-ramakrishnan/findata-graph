@@ -373,9 +373,14 @@ def main(argv: list[str] | None = None) -> int:  # noqa: C901
         if args.corpus and _HAS_CORPUS:
             assert Corpus is not None  # ty: narrow  # noqa: S101  # ty narrow for Corpus | None
             corpus = Corpus.load(_REPO_ROOT / "findata", workers=4)
-            bulk, no_tags, missing_files, sector_updates, unknown_sectors, geo_slop_rows = (
-                _sync_from_corpus(corpus, conn)
-            )
+            (
+                bulk,
+                no_tags,
+                missing_files,
+                sector_updates,
+                unknown_sectors,
+                geo_slop_rows,
+            ) = _sync_from_corpus(corpus, conn)
             # _sync_from_corpus counts bulk directly; seen_entities is len of bulk distinct handled there
             seen_entities = len({e for e, _ in bulk})
             # rebuild_note_tags still needs its own walk (newsletter trees) — keep existing call below
@@ -481,7 +486,11 @@ def main(argv: list[str] | None = None) -> int:  # noqa: C901
                 membership_added = 0
                 for canonical, name in sector_updates:
                     if put_sector_membership(
-                        conn, name, canonical, source_ref="sync_tags", preserve_source_ref=True
+                        conn,
+                        name,
+                        canonical,
+                        source_ref="sync_tags",
+                        preserve_source_ref=True,
                     ):
                         membership_added += 1
 

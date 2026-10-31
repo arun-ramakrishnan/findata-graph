@@ -79,7 +79,9 @@ def main(argv: list[str] | None = None) -> int:
     )
     p.add_argument("notes", nargs="+", type=Path, help="Note path(s) to verify.")
     p.add_argument(
-        "--by", default="human:user", help="Human actor (must be human:<id>; default: human:user)."
+        "--by",
+        default="human:user",
+        help="Human actor (must be human:<id>; default: human:user).",
     )
     p.add_argument("--apply", action="store_true", help="Write (default: dry-run report).")
     args = p.parse_args(argv)

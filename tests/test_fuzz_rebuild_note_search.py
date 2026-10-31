@@ -93,7 +93,14 @@ def test_newsletter_title_typed(text):
 @_SETTINGS
 @given(
     st.sampled_from(
-        ["company", "sector", "super_sector", "chatter", "points_and_figures", "plotlines"]
+        [
+            "company",
+            "sector",
+            "super_sector",
+            "chatter",
+            "points_and_figures",
+            "plotlines",
+        ]
     ),
     _TEXT,
     _TEXT,
@@ -102,7 +109,18 @@ def test_carry_row_is_db_consistency_only(dtype, title_a, title_b):
     """The P2.2 carry contract: an entity row carries iff its entities-row
     metadata matches the stored row (title, sector, and post-adoption
     ticker/edge_context enrichment); non-entity docs always carry."""
-    row = (dtype, "findata/x.md", title_a, "sec", "content", None, "", "", "TICK", "ctx")
+    row = (
+        dtype,
+        "findata/x.md",
+        title_a,
+        "sec",
+        "content",
+        None,
+        "",
+        "",
+        "TICK",
+        "ctx",
+    )
     ent_by_path: dict[str, tuple[str, str | None, str, str]] = {
         "findata/x.md": (title_a, "sec", "TICK", "ctx")
     }

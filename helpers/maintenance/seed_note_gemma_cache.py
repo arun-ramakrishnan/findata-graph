@@ -53,7 +53,9 @@ def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     ap.add_argument("--npz", type=Path, default=NPZ_DEFAULT)
     ap.add_argument(
-        "--apply", action="store_true", help="write the cache rows (default: report only)"
+        "--apply",
+        action="store_true",
+        help="write the cache rows (default: report only)",
     )
     args = ap.parse_args()
 
@@ -98,7 +100,10 @@ def main() -> int:
         f"matched: {matched} | db-only (no npz vec): {missing} | npz-only (no live row): {extra}"
     )
     if missing or extra:
-        print("REFUSING: npz and live corpus have drifted — investigate before seeding", flush=True)
+        print(
+            "REFUSING: npz and live corpus have drifted — investigate before seeding",
+            flush=True,
+        )
         return 1
 
     if not args.apply:

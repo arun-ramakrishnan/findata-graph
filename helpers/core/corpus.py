@@ -48,7 +48,9 @@ from typing import Any
 from helpers.core.frontmatter import yaml_safe_load, strip_frontmatter
 
 try:
-    from helpers.core.db import connect as _db_connect  # S1b DB cache (sidecar, not research.db)
+    from helpers.core.db import (
+        connect as _db_connect,
+    )  # S1b DB cache (sidecar, not research.db)
 
     _HAS_DB_CONNECT = True
 except ImportError:  # pragma: no cover
@@ -264,7 +266,8 @@ class Corpus:
                             # Use blake2b 8 like note_search _file_fingerprint (title|sector|content) but here frontmatter+body
                             tmp_text = pp.read_text(encoding="utf-8", errors="replace")
                             ch = hashlib.blake2b(
-                                tmp_text.encode("utf-8", errors="replace"), digest_size=8
+                                tmp_text.encode("utf-8", errors="replace"),
+                                digest_size=8,
                             ).hexdigest()
                             if ch == cached_hash:
                                 # Content same — update mtime only, reuse cached
@@ -273,7 +276,12 @@ class Corpus:
                                 except Exception:
                                     fm = {}
                                 notes.append(
-                                    Note(path=pp, text=tmp_text, frontmatter=fm, body=body)
+                                    Note(
+                                        path=pp,
+                                        text=tmp_text,
+                                        frontmatter=fm,
+                                        body=body,
+                                    )
                                 )
                                 # Upsert mtime drift fix (and v2→v3 text backfill)
                                 to_upsert.append((key, mtime, cached_hash, fm_json, body, tmp_text))
@@ -326,7 +334,8 @@ class Corpus:
                         to_del = [k for k in under_root if k not in keep]
                         if to_del:
                             conn.executemany(
-                                "DELETE FROM corpus_cache WHERE path=?", [(k,) for k in to_del]
+                                "DELETE FROM corpus_cache WHERE path=?",
+                                [(k,) for k in to_del],
                             )
                             conn.commit()
                     finally:
@@ -358,7 +367,11 @@ class Corpus:
 
     @classmethod
     def iter_notes(  # noqa: C901
-        cls, root: str | Path = "findata", *, fields: str = "frontmatter", use_cache: bool = True
+        cls,
+        root: str | Path = "findata",
+        *,
+        fields: str = "frontmatter",
+        use_cache: bool = True,
     ) -> "Iterator[Note]":
         """S2a lazy iteration — stream Notes without materializing `list[Note]`.
 
@@ -485,7 +498,7 @@ class Corpus:
             n = _load_one(p)
             if n is None:
                 continue
-            yield Note(path=p, text="", frontmatter=n.frontmatter, body="") if light else n
+            yield (Note(path=p, text="", frontmatter=n.frontmatter, body="") if light else n)
 
     @classmethod
     def load_shard(cls, shard: str = "Companies", **kw) -> Corpus:  # noqa: UP037

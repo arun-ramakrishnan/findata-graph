@@ -753,7 +753,10 @@ def test_super_sector_missing_leading_slash_is_error(notes_verifier, tmp_path):
     now a gate-failing ERROR. The generator was normalized to emit the
     canonical /super_sectors/ form, so the bare form is a regression to flag."""
     f = tmp_path / "Financials.md"
-    f.write_text(_SUPER_SECTOR_GOOD.replace("/super_sectors/", "super_sectors/"), encoding="utf-8")
+    f.write_text(
+        _SUPER_SECTOR_GOOD.replace("/super_sectors/", "super_sectors/"),
+        encoding="utf-8",
+    )
     notes_verifier.check_yaml_structure(str(f))
     assert "Financials.md" in _issue_files(notes_verifier, "yaml_structure")
 
@@ -795,7 +798,12 @@ def _seed_hierarchy(conn):
         "INSERT OR IGNORE INTO entities (name, entity_type, file_path, normalized_name) "
         "VALUES (?, ?, ?, ?)",
         [
-            ("Financials", "super_sector", "findata/Super_Sectors/Financials.md", "Financials"),
+            (
+                "Financials",
+                "super_sector",
+                "findata/Super_Sectors/Financials.md",
+                "Financials",
+            ),
             ("Banking", "sector", "findata/Sectors/Banking.md", "Banking"),
             ("Private_Sector", "sub_sector", None, "Private_Sector"),
         ],
@@ -1132,7 +1140,10 @@ def test_market_cap_conflicts_flagged(integrity_db):
     assert mc["errors"] == 1
     assert len(mc["conflicts"]) == 1
     assert mc["conflicts"][0]["entity"] == "Good Bank"
-    assert set(mc["conflicts"][0]["tags"]) == {"market_cap/large_cap", "market_cap/mid_cap"}
+    assert set(mc["conflicts"][0]["tags"]) == {
+        "market_cap/large_cap",
+        "market_cap/mid_cap",
+    }
 
 
 def test_market_cap_conflicts_in_check_integrity(integrity_db):

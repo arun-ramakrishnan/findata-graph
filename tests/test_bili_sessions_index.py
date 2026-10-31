@@ -98,7 +98,11 @@ class TestIndexMatchesPerSessionParse:
         """`parse_log` keeps this as a bare int, so it cannot be partitioned
         post-hoc; it has to come back out of `warnings`."""
         mapping = {
-            "ses_aaa": [_line("ses_aaa"), _violation_line("ses_aaa"), _violation_line("ses_aaa")],
+            "ses_aaa": [
+                _line("ses_aaa"),
+                _violation_line("ses_aaa"),
+                _violation_line("ses_aaa"),
+            ],
             "ses_bbb": [_line("ses_bbb")],
         }
         live = _write_family(tmp_path, mapping)
@@ -212,7 +216,11 @@ class TestReasoningPairViolationsAreLoud:
         assert bs._natural({"reason_pair_violations": 1}, "reason_pair_violations") == "*1"
 
     def test_column_blank_when_zero(self):
-        for row in ({}, {"reason_pair_violations": 0}, {"reason_pair_violations": None}):
+        for row in (
+            {},
+            {"reason_pair_violations": 0},
+            {"reason_pair_violations": None},
+        ):
             assert bs._natural(row, "reason_pair_violations") == ""
 
     def test_viol_is_a_table_column(self):

@@ -460,13 +460,19 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--census", action="store_true", help="print the collision census")
     p.add_argument("--plan", action="store_true", help="write the merge-plan artifact (dry-run)")
     p.add_argument(
-        "--transpositions", action="store_true", help="include token-sort pairs in the plan"
+        "--transpositions",
+        action="store_true",
+        help="include token-sort pairs in the plan",
     )
     p.add_argument(
-        "--check", action="store_true", help="S4 gate: census vs baseline (exit 1 on growth)"
+        "--check",
+        action="store_true",
+        help="S4 gate: census vs baseline (exit 1 on growth)",
     )
     p.add_argument(
-        "--baseline", action="store_true", help="record the CURRENT count as the S4 baseline"
+        "--baseline",
+        action="store_true",
+        help="record the CURRENT count as the S4 baseline",
     )
     p.add_argument("--apply", action="store_true", help="S2: apply the plan (requires --yes)")
     p.add_argument("--yes", action="store_true", help="confirm the S2 write")

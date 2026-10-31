@@ -130,7 +130,11 @@ def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--leg", choices=("serial", "omp1pool", "flatknn"), required=True)
     ap.add_argument(
-        "--n", type=int, nargs="*", default=None, help="override N sweep (default: 1 8 64)"
+        "--n",
+        type=int,
+        nargs="*",
+        default=None,
+        help="override N sweep (default: 1 8 64)",
     )
     ap.add_argument("--reps", type=int, default=REPS)
     args = ap.parse_args()

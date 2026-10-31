@@ -200,7 +200,9 @@ def _hash_unit(raw: str) -> str:
     return hashlib.blake2b(raw.encode("utf-8", errors="replace"), digest_size=8).hexdigest()
 
 
-def _extract_zcode_units(projects: Path) -> tuple[list[dict], dict[str, tuple[float, str]]]:
+def _extract_zcode_units(
+    projects: Path,
+) -> tuple[list[dict], dict[str, tuple[float, str]]]:
     """zcode rows + file meta: every ``<scope>/memory/*.md``, scopes
     deduped by realpath (the worktree scope is a symlink to the canonical
     store — realpath dedupe is what stops double-indexing)."""
@@ -250,7 +252,9 @@ def _extract_zcode_units(projects: Path) -> tuple[list[dict], dict[str, tuple[fl
     return units, meta
 
 
-def _extract_prime_units(state: Path) -> tuple[list[dict], dict[str, tuple[float, str]]]:
+def _extract_prime_units(
+    state: Path,
+) -> tuple[list[dict], dict[str, tuple[float, str]]]:
     """prime rows + file meta from harness_state.json ``entries.memory``."""
     meta: dict[str, tuple[float, str]] = {}
     if not state.is_file():
@@ -299,7 +303,9 @@ def _parse_logfmt_line(line: str) -> dict[str, str]:
     return out
 
 
-def _extract_opencode_units(memdir: Path) -> tuple[list[dict], dict[str, tuple[float, str]]]:
+def _extract_opencode_units(
+    memdir: Path,
+) -> tuple[list[dict], dict[str, tuple[float, str]]]:
     """opencode rows + file meta: one row per logfmt record; deletions
     skipped (audit trail). Records carry no title — scope is the handle."""
     units: list[dict] = []
@@ -647,7 +653,10 @@ def rebuild(
         all_rows = _compose_rows(units, embed_fn, gemma=gemma_active)
         if _mt:
             _mt.record_phase(
-                "compose_embed", _compose_started, datetime.now(), extra=f"rows={len(all_rows)}"
+                "compose_embed",
+                _compose_started,
+                datetime.now(),
+                extra=f"rows={len(all_rows)}",
             )
 
         if isinstance(embed_fn, CachedEmbed):

@@ -99,7 +99,12 @@ def test_reference_recipe_follows_stamp(monkeypatch, tmp_path):
         f"INSERT INTO {gce.CACHE_TABLE} (text_hash, model, embedding, source) VALUES (?,?,?,?)",  # noqa: S608
         [
             # the gemma-prefixed basis, cached under the gemma label
-            (_hash("title: live | text: purpose\nbody"), "gemma", b"\x00" * 4, "script"),
+            (
+                _hash("title: live | text: purpose\nbody"),
+                "gemma",
+                b"\x00" * 4,
+                "script",
+            ),
             # the same row's GRANITE-shaped basis hash — would be 'live'
             # under the granite recipe, but the stamp says gemma
             (_hash("live\npurpose\nbody"), "granite", b"\x00" * 4, "script"),
@@ -249,7 +254,9 @@ def test_convo_stamp_resolves_and_arms_rollback_insurance(monkeypatch, tmp_path)
     """With a stamp, the foreign-model row is RETAINED (insurance), not dead.
     The live row stays live. Acceptance: stamp resolves + arms."""
     refs, store = _seed_convo(
-        monkeypatch, tmp_path, stamp_sql="SELECT value FROM convo_meta WHERE key = 'embed_model'"
+        monkeypatch,
+        tmp_path,
+        stamp_sql="SELECT value FROM convo_meta WHERE key = 'embed_model'",
     )
     live, _counts, stamps = gce._read_refs(refs)
     assert stamps["convo"] == "granite"

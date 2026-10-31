@@ -276,7 +276,11 @@ def _formatted(text: str) -> str:
     whitespace comparison against unformatted output always says "stale".
     """
     with tempfile.NamedTemporaryFile(
-        "w", suffix=".ts", dir=Path(tempfile.gettempdir()), delete=False, encoding="utf-8"
+        "w",
+        suffix=".ts",
+        dir=Path(tempfile.gettempdir()),
+        delete=False,
+        encoding="utf-8",
     ) as fh:
         fh.write(text)
         tmp = Path(fh.name)

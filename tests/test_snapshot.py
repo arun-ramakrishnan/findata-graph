@@ -172,7 +172,10 @@ def test_parquet_sqlite_excludes_fts5_shadow_tables(tmp_path):
 
 def test_parquet_verify_detects_mismatch(tmp_path):
     """Verify flags when source has more rows than the Parquet snapshot."""
-    from helpers.maintenance.snapshot_db import export_parquet_sqlite, verify_parquet_snapshot
+    from helpers.maintenance.snapshot_db import (
+        export_parquet_sqlite,
+        verify_parquet_snapshot,
+    )
 
     db = tmp_path / "src.db"
     parquet_base = tmp_path / "parquet"
@@ -198,7 +201,10 @@ def test_parquet_verify_detects_mismatch(tmp_path):
 
 def test_parquet_verify_passes_on_match(tmp_path):
     """Verify passes when Parquet matches source."""
-    from helpers.maintenance.snapshot_db import export_parquet_sqlite, verify_parquet_snapshot
+    from helpers.maintenance.snapshot_db import (
+        export_parquet_sqlite,
+        verify_parquet_snapshot,
+    )
 
     db = tmp_path / "src.db"
     parquet_base = tmp_path / "parquet"
@@ -303,7 +309,10 @@ def test_parquet_nullable_int_roundtrips_as_int64(tmp_path):
     """A NULLable INTEGER column must survive the snapshot as int64 with
     real nulls (pandas read_sql promoted it to float64/NaN — 1 became
     1.0 REAL on restore) and restore back to SQLite INTEGER storage."""
-    from helpers.maintenance.snapshot_db import export_parquet_sqlite, restore_sqlite_from_parquet
+    from helpers.maintenance.snapshot_db import (
+        export_parquet_sqlite,
+        restore_sqlite_from_parquet,
+    )
 
     db = tmp_path / "src.db"
     out_dir = tmp_path / "parquet" / "sqlite"
@@ -330,7 +339,10 @@ def test_parquet_nan_and_null_double_restore_null(tmp_path):
     """Both NULL and NaN in a REAL column restore to SQLite NULL — the S2
     NaN guard makes the old accidental pandas-laundering + SQLite
     NaN→NULL coercion explicit and deterministic."""
-    from helpers.maintenance.snapshot_db import export_parquet_sqlite, restore_sqlite_from_parquet
+    from helpers.maintenance.snapshot_db import (
+        export_parquet_sqlite,
+        restore_sqlite_from_parquet,
+    )
 
     db = tmp_path / "src.db"
     out_dir = tmp_path / "parquet" / "sqlite"
@@ -359,7 +371,10 @@ def test_parquet_export_mixed_storage_class_fails_loud(tmp_path):
     the typeof() diagnostic (pandas silently re-typed it to object)."""
     import pytest
 
-    from helpers.maintenance.snapshot_db import ParquetExportError, export_parquet_sqlite
+    from helpers.maintenance.snapshot_db import (
+        ParquetExportError,
+        export_parquet_sqlite,
+    )
 
     db = tmp_path / "src.db"
     out_dir = tmp_path / "parquet" / "sqlite"
@@ -403,7 +418,11 @@ def test_sources_duckdb_export_restore_roundtrip(tmp_path):
     pq_root = tmp_path / "parquet"
     pq_dir = pq_root / "sources"
     export_parquet_duckdb(
-        src, pq_dir, _logger(), manifest=SOURCES_TABLES, schema_filename="_schema.sources.sql"
+        src,
+        pq_dir,
+        _logger(),
+        manifest=SOURCES_TABLES,
+        schema_filename="_schema.sources.sql",
     )
     assert (pq_root / "_schema.sources.sql").exists()
     assert {p.name for p in pq_dir.glob("*.parquet")} == {
@@ -419,7 +438,11 @@ def test_sources_duckdb_export_restore_roundtrip(tmp_path):
     # restore into a FRESH target: schema (tables + view) replays, rows load
     tgt = tmp_path / "restored.duckdb"
     out = restore_duckdb_from_parquet(pq_dir, tgt, _logger(), schema_filename="_schema.sources.sql")
-    assert out["tables"] == {"exchange_listings": 2, "mca_cin": 1, "index_constituents": 1}
+    assert out["tables"] == {
+        "exchange_listings": 2,
+        "mca_cin": 1,
+        "index_constituents": 1,
+    }
     rc = duckdb.connect(str(tgt), read_only=True)
     vw_row = rc.execute("SELECT COUNT(*) FROM vw_sme").fetchone()
     assert vw_row is not None and vw_row[0] == 1

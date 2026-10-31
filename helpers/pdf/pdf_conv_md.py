@@ -283,7 +283,11 @@ def build_okf_frontmatter(
 
 
 def write_outputs(
-    pages: list[dict], out_dir: Path, stem: str, fetch_images: bool, frontmatter: str | None = None
+    pages: list[dict],
+    out_dir: Path,
+    stem: str,
+    fetch_images: bool,
+    frontmatter: str | None = None,
 ) -> None:
     """Write combined .md, raw .json, and (optionally) download images.
 

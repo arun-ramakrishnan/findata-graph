@@ -428,7 +428,8 @@ def ensure_db_meta(conn: sqlite3.Connection) -> int:
         )
     else:
         conn.execute(
-            "UPDATE db_meta SET value=? WHERE key='schema_version'", (EXPECTED_SCHEMA_VERSION,)
+            "UPDATE db_meta SET value=? WHERE key='schema_version'",
+            (EXPECTED_SCHEMA_VERSION,),
         )
 
     # triggers — idempotent: drop then create

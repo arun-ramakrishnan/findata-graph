@@ -138,7 +138,11 @@ class TestBackfill:
         con.execute("INSERT INTO convo_search (file_path, row_no, provenance) VALUES ('f', 1, '')")
         con.execute("INSERT INTO convo_search (file_path, row_no, provenance) VALUES ('f', 2, '')")
         con.close()
-        f = _corpus(tmp_path, "f", ["opencode:live", "opencode-snap:2026-07-26", "opencode:live"])
+        f = _corpus(
+            tmp_path,
+            "f",
+            ["opencode:live", "opencode-snap:2026-07-26", "opencode:live"],
+        )
         monkeypatch.setattr(rcs, "REPO", tmp_path)
         rcs._backfill_provenance(db, [f])
         rows = dict(
@@ -157,7 +161,8 @@ class TestBackfill:
         con = _make_db(db, with_provenance=True)
         for i in range(3):
             con.execute(
-                "INSERT INTO convo_search (file_path, row_no, provenance) VALUES ('f', ?, '')", [i]
+                "INSERT INTO convo_search (file_path, row_no, provenance) VALUES ('f', ?, '')",
+                [i],
             )
         con.close()
         f = _corpus(tmp_path, "f", ["opencode:live", "opencode:live", "zcode:live"])

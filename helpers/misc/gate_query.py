@@ -339,7 +339,10 @@ def _build_integrity_block(gate: str, lines: list[str]) -> st.RunBlock:
         failed = r.severity.upper() == "ERROR" and errors > 0
         steps.append(st.RunStep(r.name, None, "✗ FAIL" if failed else "✓ OK"))
         ok += not failed
-    m = next((_INTEGRITY_GEN_RE.match(ln) for ln in lines if ln.startswith("**Generated:**")), None)
+    m = next(
+        (_INTEGRITY_GEN_RE.match(ln) for ln in lines if ln.startswith("**Generated:**")),
+        None,
+    )
     ts = f"{m.group(1)} {m.group(2)}" if m else ""
     elapsed = next(
         (
@@ -425,7 +428,8 @@ def _warning_records(lines: list[str], rel: str, offset: int) -> list[dict]:
                 "message": message[:400],
                 "fingerprint": _error_fingerprint(message),
                 "metadata_json": json.dumps(
-                    {"adapter": "gate-report-warning", "leg": current_leg}, separators=(",", ":")
+                    {"adapter": "gate-report-warning", "leg": current_leg},
+                    separators=(",", ":"),
                 ),
                 "schema": "gate-warning.v1",
                 "source_rel": rel,
@@ -679,7 +683,11 @@ def _diagnostic_artifact_records(path: Path, kind: str, raw: object, schema: str
                 "message": message or None,
                 "fingerprint": _error_fingerprint(f"{code}\n{message}\n{target}"),
                 "metadata_json": json.dumps(
-                    {"adapter": f"{kind}-json", "code": code or None, "severity": severity},
+                    {
+                        "adapter": f"{kind}-json",
+                        "code": code or None,
+                        "severity": severity,
+                    },
                     separators=(",", ":"),
                 ),
                 "schema": schema,
@@ -992,7 +1000,8 @@ def refresh(con, *, full: bool = False, check: bool = False, root: Path | None =
             continue
         rel = str(path.relative_to(root))
         row = con.execute(
-            "SELECT parse_offset, size, mtime_ns FROM parse_state WHERE src_rel = ?", [rel]
+            "SELECT parse_offset, size, mtime_ns FROM parse_state WHERE src_rel = ?",
+            [rel],
         ).fetchone()
         if check:
             counts["files"] += 1
@@ -1049,7 +1058,19 @@ def refresh(con, *, full: bool = False, check: bool = False, root: Path | None =
                 continue
             meta = _extra_meta(lines)
             new_off = eoff
-            _store_run(con, rel, wt, gate, kind, lines, rb, meta, boff, eoff - boff, complete=True)
+            _store_run(
+                con,
+                rel,
+                wt,
+                gate,
+                kind,
+                lines,
+                rb,
+                meta,
+                boff,
+                eoff - boff,
+                complete=True,
+            )
             counts["runs"] += 1
         if not blocks and text.strip():
             # S3 loud zero-block invariant: newly-read bytes that yield no
@@ -1097,7 +1118,19 @@ def _store_report_run(con, rel, wt, gate, kind, lines, rb, boff, nbytes, complet
                              artifact_dir, artifact_state, complete)
            VALUES (?, ?, ?, ?, ?, ?, NULL, NULL, NULL, NULL, ?, ?, ?, ?, NULL, NULL,
                    NULL, NULL, NULL, ?) RETURNING run_id""",
-        [rel, wt, gate, started, gen, rb.elapsed, exit_code, rb.summary, boff, nbytes, complete],
+        [
+            rel,
+            wt,
+            gate,
+            started,
+            gen,
+            rb.elapsed,
+            exit_code,
+            rb.summary,
+            boff,
+            nbytes,
+            complete,
+        ],
     ).fetchone()[0]
     con.execute("DELETE FROM legs WHERE run_id = ?", [run_id])
     for s in rb.steps:
@@ -1143,7 +1176,10 @@ def _store_run(con, rel, wt, gate, kind, lines, rb, meta, boff, nbytes, complete
         return _store_report_run(con, rel, wt, gate, kind, lines, rb, boff, nbytes, complete)
     gen = _ts(rb.timestamp) or datetime.now()
     started = _ts(meta.get("started")) or gen
-    pyv = next((ln.split("**Python:**")[-1].strip() for ln in lines if "**Python:**" in ln), None)
+    pyv = next(
+        (ln.split("**Python:**")[-1].strip() for ln in lines if "**Python:**" in ln),
+        None,
+    )
     run_wt = meta.get("wt", wt) or wt
     retained_junit, artifact_state = _retained_artifact_junit(gate, run_wt, meta.get("artifacts"))
     junit_path, jfacts = _junit_facts(gate, run_wt, started, gen, retained_junit)
@@ -1240,7 +1276,10 @@ def _store_run(con, rel, wt, gate, kind, lines, rb, meta, boff, nbytes, complete
                 s.seconds,
                 message,
                 _error_fingerprint(message or ""),
-                json.dumps({"adapter": "gate-report-leg", "leg": s.label}, separators=(",", ":")),
+                json.dumps(
+                    {"adapter": "gate-report-leg", "leg": s.label},
+                    separators=(",", ":"),
+                ),
                 ARTIFACT_SCHEMA,
                 rel,
                 boff,
@@ -1383,10 +1422,12 @@ def _run_digest(con, r: dict, max_legs: int = 24) -> str:
         ).fetchall()
     ]
     legs = con.execute(
-        "SELECT leg, seconds, status FROM legs WHERE run_id = ? LIMIT ?", [r["run_id"], max_legs]
+        "SELECT leg, seconds, status FROM legs WHERE run_id = ? LIMIT ?",
+        [r["run_id"], max_legs],
     ).fetchall()
     ntests = con.execute(
-        "SELECT outcome, COUNT(*) FROM tests WHERE run_id = ? GROUP BY outcome", [r["run_id"]]
+        "SELECT outcome, COUNT(*) FROM tests WHERE run_id = ? GROUP BY outcome",
+        [r["run_id"]],
     ).fetchall()
     out = [
         f"run {r['run_id']}  {r['gate']}{'@' + r['wt'] if r['wt'] else ''}  started {r['started_at']}  wall {r['elapsed_s']}s  exit {r['exit_code']}"
@@ -1515,7 +1556,8 @@ def cmd_failures(con, args) -> str:
         [r["run_id"], args.limit],
     ).fetchall()
     bad_legs = con.execute(
-        "SELECT leg, status FROM legs WHERE run_id = ? AND status LIKE '%FAIL%'", [r["run_id"]]
+        "SELECT leg, status FROM legs WHERE run_id = ? AND status LIKE '%FAIL%'",
+        [r["run_id"]],
     ).fetchall()
     lines = [
         f"run {r['run_id']}  {r['gate']}{'@' + r['wt'] if r['wt'] else ''}  started {r['started_at']}  exit {r['exit_code']}"
@@ -1573,7 +1615,8 @@ def cmd_recent(con, args) -> str:
         bad_legs = [
             lg[0]
             for lg in con.execute(
-                "SELECT leg FROM legs WHERE run_id = ? AND status LIKE '%FAIL%'", [r["run_id"]]
+                "SELECT leg FROM legs WHERE run_id = ? AND status LIKE '%FAIL%'",
+                [r["run_id"]],
             ).fetchall()
         ]
         failed = con.execute(
@@ -1620,7 +1663,8 @@ def _recent_failures(con, args) -> str:
     for row in rows:
         r = dict(zip(cols, row))
         legs = con.execute(
-            "SELECT leg FROM legs WHERE run_id = ? AND status LIKE '%FAIL%'", [r["run_id"]]
+            "SELECT leg FROM legs WHERE run_id = ? AND status LIKE '%FAIL%'",
+            [r["run_id"]],
         ).fetchall()
         ntests = con.execute(
             "SELECT COUNT(*) FROM tests WHERE run_id = ? AND outcome IN ('failed','error')",
@@ -1706,7 +1750,8 @@ def _compare_payload(con, run_a: int, run_b: int, gate: str | None = None) -> di
         leg_rows[label] = {
             row[0]: {"seconds": row[1], "status": row[2]}
             for row in con.execute(
-                "SELECT leg, seconds, status FROM legs WHERE run_id = ?", [record["run_id"]]
+                "SELECT leg, seconds, status FROM legs WHERE run_id = ?",
+                [record["run_id"]],
             ).fetchall()
         }
     leg_names_a, leg_names_b = set(leg_rows["a"]), set(leg_rows["b"])
@@ -2312,11 +2357,18 @@ def _build_parser() -> argparse.ArgumentParser:  # noqa: C901
             )
         if name == "recent":
             sp.add_argument(
-                "-wt", "--wt", default="", metavar="NAME", help="worktree name (default main)"
+                "-wt",
+                "--wt",
+                default="",
+                metavar="NAME",
+                help="worktree name (default main)",
             )
             sp.add_argument("--gate", default="qa", help="gate filter (default: qa; or 'all')")
             sp.add_argument(
-                "--last", type=int, default=10, help="how many runs to list (default: 10)"
+                "--last",
+                type=int,
+                default=10,
+                help="how many runs to list (default: 10)",
             )
             sp.add_argument(
                 "--tests",
@@ -2365,7 +2417,10 @@ def _build_parser() -> argparse.ArgumentParser:  # noqa: C901
         if name == "rotate":
             sp.add_argument("--apply", action="store_true", help="execute (default: dry-run plan)")
             sp.add_argument(
-                "--keep-runs", type=int, default=30, help="runs kept live per report (default: 30)"
+                "--keep-runs",
+                type=int,
+                default=30,
+                help="runs kept live per report (default: 30)",
             )
             sp.add_argument(
                 "--max-mb",

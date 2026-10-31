@@ -141,7 +141,12 @@ def test_seed_stubs_dedupe_and_skip_short():
         " normalized_name text, entity_type text)"
     )
     rows = [
-        {"exchange": "LSE", "symbol": "AZN", "name": "AstraZeneca plc", "segment": "ftse100"},
+        {
+            "exchange": "LSE",
+            "symbol": "AZN",
+            "name": "AstraZeneca plc",
+            "segment": "ftse100",
+        },
         {"exchange": "LSE", "symbol": "X", "name": "AB", "segment": "ftse100"},
     ]
     made = xs.seed_stubs(rows, apply=True, con=con)
@@ -153,7 +158,14 @@ def test_seed_stubs_dedupe_and_skip_short():
 def test_write_worklist(tmp_path, monkeypatch):
     monkeypatch.setattr(xs, "WORKLIST", tmp_path / "wl.csv")
     xs.write_worklist(
-        [{"exchange": "NSE", "symbol": "NEW.NS", "name": "New IPO Ltd", "segment": "main"}],
+        [
+            {
+                "exchange": "NSE",
+                "symbol": "NEW.NS",
+                "name": "New IPO Ltd",
+                "segment": "main",
+            }
+        ],
         [{"exchange": "NSE", "symbol": "OLD.NS", "segment": "main"}],
         [("New IPO", "NEW.NS")],
     )
@@ -207,7 +219,12 @@ def test_lane_fresh_all_exchanges_must_be_fresh():
         "insert into exchange_listings values (null, 'a', null, 'equity', 'NASDAQ', 'main', 'AAPL', '2026-09-16')"
     )
     assert xs.lane_fresh(con, "us", 80) is False  # NYSE et al missing
-    for exch, sym in (("NYSE", "BAC"), ("NYSEAMER", "FUN"), ("NYSEARCA", "SPY"), ("BATS", "ONEQ")):
+    for exch, sym in (
+        ("NYSE", "BAC"),
+        ("NYSEAMER", "FUN"),
+        ("NYSEARCA", "SPY"),
+        ("BATS", "ONEQ"),
+    ):
         con.execute(
             "insert into exchange_listings values (null, 'x', null, 'equity', ?, 'main', ?, '2026-09-16')",
             [exch, sym],

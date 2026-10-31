@@ -263,7 +263,9 @@ class TestFreshnessRangeMode:
         # pair-dependent text: different ranges MUST hash differently, or the
         # fp match would mask the SUBSUMED/UNREVIEWED containment paths
         monkeypatch.setattr(
-            rf, "_diff_text_refs", lambda base, head: self.RANGE_TEXT + f"{base}..{head}\n"
+            rf,
+            "_diff_text_refs",
+            lambda base, head: self.RANGE_TEXT + f"{base}..{head}\n",
         )
         monkeypatch.setattr(
             rf,

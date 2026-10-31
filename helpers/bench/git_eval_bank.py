@@ -51,12 +51,24 @@ BANK: tuple[tuple[str, str, str], ...] = (
     ("person resolver proposal record update", "person resolver", "subject"),
     ("sector unlock proposal archived", "S3 sector unlock", "subject"),
     ("harvest fresh scoped to owned harnesses", BILI, "body"),  # S4 miss #1
-    ("snapshot parquet mirror refresh classifier labels", "parquet mirror refresh", "subject"),
-    ("gate fixes stamp semantics fixture decoupling verifier doctrine", "gate fixes", "subject"),
+    (
+        "snapshot parquet mirror refresh classifier labels",
+        "parquet mirror refresh",
+        "subject",
+    ),
+    (
+        "gate fixes stamp semantics fixture decoupling verifier doctrine",
+        "gate fixes",
+        "subject",
+    ),
     ("db_sync parquet mirror refresh meta bump", "parquet mirror refresh", "subject"),
     ("_BILI_OWNED_HARNESSES", BILI, "identifier"),
     ("SessionWriter flush writes the touched buffer alone", BILI, "body"),  # S4 miss #2
-    ("tiny backup held leaked fixture rows from tests", "Snapshot/backup overhaul", "deep-body"),
+    (
+        "tiny backup held leaked fixture rows from tests",
+        "Snapshot/backup overhaul",
+        "deep-body",
+    ),
     (
         "table-global cache eviction deleted every other root's rows",
         "Scale corpus + embeddings",

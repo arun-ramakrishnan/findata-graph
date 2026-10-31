@@ -307,7 +307,10 @@ class TestRebuildGenerationTriggers:
                 con.execute("SELECT value FROM db_meta WHERE key='generation'").fetchone()[0]
             )
             name = con.execute("SELECT name FROM entities LIMIT 1").fetchone()[0]
-            con.execute("UPDATE entities SET last_updated = last_updated WHERE name = ?", (name,))
+            con.execute(
+                "UPDATE entities SET last_updated = last_updated WHERE name = ?",
+                (name,),
+            )
             con.commit()
             gen_after = int(
                 con.execute("SELECT value FROM db_meta WHERE key='generation'").fetchone()[0]

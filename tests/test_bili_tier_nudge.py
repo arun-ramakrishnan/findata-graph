@@ -104,14 +104,28 @@ def _add_block(db, block_id, tier, summary_len=400, active=1, session="s1", show
     con.execute(
         "INSERT INTO blocks (ord, session_id, block_id, tier, active, payload_json) "
         "VALUES (?,?,?,?,?,?)",
-        (abs(hash(block_id)) % 1000, session, block_id, tier, active, json.dumps(payload)),
+        (
+            abs(hash(block_id)) % 1000,
+            session,
+            block_id,
+            tier,
+            active,
+            json.dumps(payload),
+        ),
     )
     if shown is not None:
         con.execute(
             "INSERT OR REPLACE INTO sessions (session_id, kstate_json) VALUES (?,?)",
             (
                 session,
-                json.dumps({"nudge": {"lastShownByTier": shown, "lastPerMessageNudgeTokens": 0}}),
+                json.dumps(
+                    {
+                        "nudge": {
+                            "lastShownByTier": shown,
+                            "lastPerMessageNudgeTokens": 0,
+                        }
+                    }
+                ),
             ),
         )
     con.commit()
@@ -410,7 +424,17 @@ def test_cli_session_detail_shows_the_gates(tmp_path, capsys):
     cfg = tmp_path / "billion-context.json"
     cfg.write_text(json.dumps({"compress": {"nudgeGrowthTokens": 30000}}))
     rc = btn.main(
-        ["--session", "s1", "--log", str(log), "--db", str(db), "--config", str(cfg), "--gates"]
+        [
+            "--session",
+            "s1",
+            "--log",
+            str(log),
+            "--db",
+            str(db),
+            "--config",
+            str(cfg),
+            "--gates",
+        ]
     )
     assert rc == 0
     out = capsys.readouterr().out
@@ -476,7 +500,17 @@ def test_cli_json_is_machine_readable(tmp_path, capsys):
     cfg = tmp_path / "billion-context.json"
     cfg.write_text(json.dumps({"compress": {"nudgeGrowthTokens": 30000}}))
     rc = btn.main(
-        ["--session", "s1", "--log", str(log), "--db", str(db), "--config", str(cfg), "--json"]
+        [
+            "--session",
+            "s1",
+            "--log",
+            str(log),
+            "--db",
+            str(db),
+            "--config",
+            str(cfg),
+            "--json",
+        ]
     )
     assert rc == 0
     payload = json.loads(capsys.readouterr().out)

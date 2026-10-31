@@ -278,7 +278,15 @@ def _git_add_date_follow(path: Path) -> str | None:
         return None
     try:
         out = subprocess.run(  # noqa: S603  # resolved absolute path, fixed argv, no shell
-            [git, "log", "--follow", "--diff-filter=A", "--format=%as", "--", str(path)],
+            [
+                git,
+                "log",
+                "--follow",
+                "--diff-filter=A",
+                "--format=%as",
+                "--",
+                str(path),
+            ],
             capture_output=True,
             text=True,
             timeout=30,

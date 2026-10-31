@@ -395,7 +395,16 @@ def test_run_snapshot_reuses_embed_store_zst_when_unchanged(tmp_path):
     VS.EMBED_DB_PATH = store
     try:
         rc = _cmd_create(
-            src_db, out, None, None, None, None, None, fmt="binary", with_duckdb=False, logger=_log
+            src_db,
+            out,
+            None,
+            None,
+            None,
+            None,
+            None,
+            fmt="binary",
+            with_duckdb=False,
+            logger=_log,
         )
         assert rc == 0
         store_zst = tmp_path / "snap" / "embed_store.snapshot.db.zst"
@@ -407,7 +416,16 @@ def test_run_snapshot_reuses_embed_store_zst_when_unchanged(tmp_path):
         # .zst must be reused untouched.
         os.utime(store, ns=((first_mtime - 1_000_000) // 1, 0))
         rc = _cmd_create(
-            src_db, out, None, None, None, None, None, fmt="binary", with_duckdb=False, logger=_log
+            src_db,
+            out,
+            None,
+            None,
+            None,
+            None,
+            None,
+            fmt="binary",
+            with_duckdb=False,
+            logger=_log,
         )
         assert rc == 0
         assert store_zst.stat().st_mtime_ns == first_mtime
@@ -419,7 +437,16 @@ def test_run_snapshot_reuses_embed_store_zst_when_unchanged(tmp_path):
         sconn.commit()
         sconn.close()
         rc = _cmd_create(
-            src_db, out, None, None, None, None, None, fmt="binary", with_duckdb=False, logger=_log
+            src_db,
+            out,
+            None,
+            None,
+            None,
+            None,
+            None,
+            fmt="binary",
+            with_duckdb=False,
+            logger=_log,
         )
         assert rc == 0
         assert store_zst.stat().st_mtime_ns != first_mtime

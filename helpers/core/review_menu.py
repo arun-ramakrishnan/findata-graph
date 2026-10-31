@@ -179,7 +179,10 @@ def write_packets(
             handle.write(
                 packet_json(
                     build_packet(
-                        entry, spec, prompt_text=prompt_text, recommended_key=recommended_key
+                        entry,
+                        spec,
+                        prompt_text=prompt_text,
+                        recommended_key=recommended_key,
                     )
                 )
                 + "\n"
@@ -376,7 +379,9 @@ def _read_entries(src: TextIO | pathlib.Path) -> Iterator[dict]:
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(prog="review_menu", description=__doc__.splitlines()[0])
     ap.add_argument(
-        "mode", choices=("packet", "parse"), help="packet: emit packets; parse: validate answers"
+        "mode",
+        choices=("packet", "parse"),
+        help="packet: emit packets; parse: validate answers",
     )
     ap.add_argument("--surface", default="review", help="surface name (packet header)")
     ap.add_argument("--entries", type=pathlib.Path, help="entries JSONL (packet mode)")

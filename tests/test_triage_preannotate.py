@@ -169,7 +169,12 @@ class TestEscalate:
             ),
         ):
             monkeypatch.setattr(tp, "call_glm", lambda p, k, m, reply=reply: reply)
-            a = {"p_fact": 0.2, "factually_accurate": False, "rubric_admit": True, "p_rubric": 0.9}
+            a = {
+                "p_fact": 0.2,
+                "factually_accurate": False,
+                "rubric_admit": True,
+                "p_rubric": 0.9,
+            }
             n = tp.escalate_rows([self._row()], {self._row()["id"]: a}, "k", "m")
             assert n == 1 and a["escalated"]
             assert a["factually_accurate"] is expect
@@ -198,7 +203,12 @@ class TestEscalate:
             return '{"rubric_admit":true,"p_rubric":0.8}'
 
         monkeypatch.setattr(tp, "call_glm", fake_call)
-        a = {"p_fact": 0.2, "factually_accurate": False, "rubric_admit": False, "p_rubric": 0.1}
+        a = {
+            "p_fact": 0.2,
+            "factually_accurate": False,
+            "rubric_admit": False,
+            "p_rubric": 0.1,
+        }
         tp.escalate_rows([self._row()], {self._row()["id"]: a}, "k", "m")
         assert a["factually_accurate"] is True
         assert a["rubric_admit"] is True and a["p_rubric"] == 0.8
@@ -223,7 +233,12 @@ class TestEscalate:
             return "no json here"
 
         monkeypatch.setattr(tp, "call_glm", fake_call)
-        a = {"p_fact": 0.2, "factually_accurate": False, "rubric_admit": False, "p_rubric": 0.1}
+        a = {
+            "p_fact": 0.2,
+            "factually_accurate": False,
+            "rubric_admit": False,
+            "p_rubric": 0.1,
+        }
         tp.escalate_rows([self._row()], {self._row()["id"]: a}, "k", "m")
         assert a["factually_accurate"] is True  # fact verdict stands
         assert a["rubric_admit"] is False  # prior rubric kept...
@@ -249,7 +264,12 @@ class TestEscalate:
                 '[{"id":1,"factually_accurate":true,"p_fact":0.95,"support_quote":"Acme buys Beta","evidence_url":""}]'
             ),
         )
-        a = {"p_fact": 0.2, "factually_accurate": False, "rubric_admit": False, "p_rubric": 0.1}
+        a = {
+            "p_fact": 0.2,
+            "factually_accurate": False,
+            "rubric_admit": False,
+            "p_rubric": 0.1,
+        }
         tp.escalate_rows([self._row()], {self._row()["id"]: a}, "k", "m")
         assert a["factually_accurate"] is False
         assert a.get("evidence_incomplete") is True
@@ -335,10 +355,17 @@ class TestEscalate:
 
         monkeypatch.setattr(tp, "web_search", boom)
         monkeypatch.setattr(
-            tp, "call_glm", lambda *a: pytest.fail("no evidence call when search failed")
+            tp,
+            "call_glm",
+            lambda *a: pytest.fail("no evidence call when search failed"),
         )
         row = self._row()
-        a = {"p_fact": 0.2, "factually_accurate": False, "rubric_admit": False, "p_rubric": 0.9}
+        a = {
+            "p_fact": 0.2,
+            "factually_accurate": False,
+            "rubric_admit": False,
+            "p_rubric": 0.9,
+        }
         tp.escalate_rows([row], {row["id"]: a}, "k", "m")
         assert a["needs_retry"] and not a["factually_accurate"]
 
@@ -415,7 +442,14 @@ class TestRunCli:
 
     def test_empty_queue(self, tmp_path, capsys):
         assert (
-            tp.run(["--queue", str(tmp_path / "missing.txt"), "--out", str(tmp_path / "a.jsonl")])
+            tp.run(
+                [
+                    "--queue",
+                    str(tmp_path / "missing.txt"),
+                    "--out",
+                    str(tmp_path / "a.jsonl"),
+                ]
+            )
             == 0
         )
         assert "no candidate rows" in capsys.readouterr().out
@@ -531,7 +565,9 @@ class TestSearchEnablers:
             },
         ]
         kept = tp._relevance_filter(
-            snips, "Tata Consultancy Services MHP acquired", source="Tata Consultancy Services"
+            snips,
+            "Tata Consultancy Services MHP acquired",
+            source="Tata Consultancy Services",
         )
         assert [k["url"] for k in kept] == ["https://example.com/tcs-news"]
 
@@ -605,7 +641,12 @@ class TestSearchEnablers:
 
         monkeypatch.setattr(tp, "call_glm", fake_glm)
         row = tp.parse_rows([_qrow()])[0]
-        a = {"p_fact": 0.2, "factually_accurate": False, "rubric_admit": False, "p_rubric": 0.9}
+        a = {
+            "p_fact": 0.2,
+            "factually_accurate": False,
+            "rubric_admit": False,
+            "p_rubric": 0.9,
+        }
         tp.escalate_rows([row], {row["id"]: a}, "k", "m")
         assert "fetched page text (via reader)" in captured[0]
         assert a["factually_accurate"] is True and a["support_quote"]
@@ -633,7 +674,12 @@ class TestSearchEnablers:
             ),
         )
         row = tp.parse_rows([_qrow()])[0]
-        a = {"p_fact": 0.2, "factually_accurate": False, "rubric_admit": False, "p_rubric": 0.9}
+        a = {
+            "p_fact": 0.2,
+            "factually_accurate": False,
+            "rubric_admit": False,
+            "p_rubric": 0.9,
+        }
         tp.escalate_rows([row], {row["id"]: a}, "k", "m")
         assert a["quote_unverified"] and a["needs_retry"]
         assert a["factually_accurate"] is False  # no flip without verifiable quote

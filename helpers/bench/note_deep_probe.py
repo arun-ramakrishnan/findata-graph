@@ -212,7 +212,10 @@ def run(argv: list[str] | None = None) -> int:
         return [h["file_path"] for h in r.get_json()["results"][:5]]
 
     # --- BEFORE leg: pre-sectioning simulation ---------------------------- #
-    print("building pre-sectioning simulation (legacy rows + FTS + vectors)...", file=sys.stderr)
+    print(
+        "building pre-sectioning simulation (legacy rows + FTS + vectors)...",
+        file=sys.stderr,
+    )
     rows = _legacy_rows()
     bases = [f"{r[2]}\n{r[3]}\n{r[4][:8000]}" for r in rows]
     vecs = _legacy_vectors(bases)

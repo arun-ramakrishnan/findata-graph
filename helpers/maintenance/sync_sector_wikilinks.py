@@ -232,7 +232,10 @@ def main(argv: list[str] | None = None) -> int:
         if args.sector:
             targets = [p for p in targets if p.stem == args.sector]
             if not targets:
-                print(f"ERROR: no sector file matches --sector {args.sector!r}", file=sys.stderr)
+                print(
+                    f"ERROR: no sector file matches --sector {args.sector!r}",
+                    file=sys.stderr,
+                )
                 return 1
 
         for sp in targets:

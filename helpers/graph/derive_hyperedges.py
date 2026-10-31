@@ -1295,7 +1295,11 @@ def prune_stale_event_edges(
         for (label,) in conn.execute("SELECT label FROM hyper_edges WHERE edge_type = 'event'")
     }
     stale = sorted(stored - wanted_labels)
-    stats = {"stored": len(stored), "kept": len(stored & wanted_labels), "dropped": len(stale)}
+    stats = {
+        "stored": len(stored),
+        "kept": len(stored & wanted_labels),
+        "dropped": len(stale),
+    }
     if dry_run or not stale:
         return stats
     qmarks = ",".join("?" * len(stale))

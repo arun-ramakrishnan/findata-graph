@@ -796,7 +796,13 @@ from helpers.graph.onager import ECONOMIC_EDGE_TYPES  # noqa: E402
 
 
 def test_economic_projection_excludes_membership_types():
-    membership = {"listed_on_index", "listed_in", "part_of", "has_company", "belongs_to"}
+    membership = {
+        "listed_on_index",
+        "listed_in",
+        "part_of",
+        "has_company",
+        "belongs_to",
+    }
     assert not membership & set(ECONOMIC_EDGE_TYPES)
     # the ownership/supply/ratings mass the data lanes landed is included
     for etype in (

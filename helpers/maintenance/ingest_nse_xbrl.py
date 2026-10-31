@@ -77,7 +77,12 @@ BS_FIELDS = (
     "bs_goodwill",
 )
 CF_FIELDS = ("cf_capex", "cf_dividends_paid", "cf_net_change_in_cash")
-META_FIELDS = ("paid_up_equity", "face_value", "book_value_per_share", "debt_equity_ratio")
+META_FIELDS = (
+    "paid_up_equity",
+    "face_value",
+    "book_value_per_share",
+    "debt_equity_ratio",
+)
 PER_SHARE = {"q_diluted_eps", "q_basic_eps", "book_value_per_share", "face_value"}
 RATIO = {"debt_equity_ratio"}
 
@@ -351,8 +356,14 @@ def main() -> int:  # noqa: C901
                 data = jsonio.loads(sf.read_text())
                 staged_results.append((data["entity"], data["rows"]))
             except Exception as exc:  # noqa: BLE001
-                print(f"[nse-xbrl] failed to read staged {sf.name}: {exc}", file=sys.stderr)
-        print(f"loaded {len(staged_results)} staged results from {FETCH_SCRATCH}", flush=True)
+                print(
+                    f"[nse-xbrl] failed to read staged {sf.name}: {exc}",
+                    file=sys.stderr,
+                )
+        print(
+            f"loaded {len(staged_results)} staged results from {FETCH_SCRATCH}",
+            flush=True,
+        )
     else:
         total_rows = 0
         entities_hit = 0
@@ -378,7 +389,10 @@ def main() -> int:  # noqa: C901
                 written = apply_rows(conn, rows)
                 conn.close()
                 if i % 10 == 0:
-                    print(f"{i}/{len(tgts)} rows={total_rows} written={written}", flush=True)
+                    print(
+                        f"{i}/{len(tgts)} rows={total_rows} written={written}",
+                        flush=True,
+                    )
             time.sleep(1.0)  # polite pacing (cookie-authed client)
 
         if args.fetch_only:

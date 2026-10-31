@@ -341,7 +341,10 @@ def _metrics(conn: sqlite3.Connection, name: str) -> dict:
 
 
 def _metric_values(
-    conn: sqlite3.Connection, metric: str, limit: int, extra_names: list[str] | None = None
+    conn: sqlite3.Connection,
+    metric: str,
+    limit: int,
+    extra_names: list[str] | None = None,
 ) -> list:
     """Mirror `findata-core::metric_values`: scalar ranking, top-N for size,
     unioned with the fixture ego's nodes so smoke tint overlap is covered
@@ -392,7 +395,15 @@ def _hyperedges(conn: sqlite3.Connection, name: str) -> list:
                 (r[0],),
             ).fetchall()
         ]
-        out.append({"id": r[0], "edge_type": r[1], "label": r[2], "role": r[3], "members": members})
+        out.append(
+            {
+                "id": r[0],
+                "edge_type": r[1],
+                "label": r[2],
+                "role": r[3],
+                "members": members,
+            }
+        )
     return out
 
 

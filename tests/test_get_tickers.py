@@ -244,7 +244,8 @@ class TestDisplayTicker:
             @property
             def income_stmt(self):
                 return pd.DataFrame(
-                    {"2026-03-31": [200000, 50000]}, index=["Total Revenue", "Net Income"]
+                    {"2026-03-31": [200000, 50000]},
+                    index=["Total Revenue", "Net Income"],
                 )
 
             @property
@@ -254,7 +255,8 @@ class TestDisplayTicker:
             @property
             def balance_sheet(self):
                 return pd.DataFrame(
-                    {"2026-03-31": [300000, 150000]}, index=["Total Assets", "Total Liabilities"]
+                    {"2026-03-31": [300000, 150000]},
+                    index=["Total Assets", "Total Liabilities"],
                 )
 
             @property
@@ -417,7 +419,10 @@ class TestVssMatch:
         db, vec_fn = _embed_db(tmp_path, ["One", "Two", "Three"])
         # A query that shares no hash-vector with any entity.
         match, score = gt.vss_match(
-            "Zebra", ["One", "Two", "Three"], db_path=db, embed_fn=_test_embed_fn(vec_fn)
+            "Zebra",
+            ["One", "Two", "Three"],
+            db_path=db,
+            embed_fn=_test_embed_fn(vec_fn),
         )
         assert match is None
         assert score == 0.0
@@ -438,7 +443,9 @@ class TestVssMatch:
         """fuzzy_match misses, VSS catches — method is 'vss'."""
         db, vec_fn = _embed_db(tmp_path, ["Tata Consultancy Services", "Wipro"])
         monkeypatch.setattr(
-            gt, "vss_match", lambda q, e, conn=None, index=None: ("Tata Consultancy Services", 0.98)
+            gt,
+            "vss_match",
+            lambda q, e, conn=None, index=None: ("Tata Consultancy Services", 0.98),
         )
         # "TataC Ltd" shares no distinctive token with the entity names
         # ("tatac" vs "tata consultancy services" — zero overlap), so no

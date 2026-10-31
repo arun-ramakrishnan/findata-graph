@@ -483,7 +483,10 @@ def main(argv: list[str] | None = None) -> int:
         help=f"comma-separated part_types to keep, e.g. text,reasoning (all: {','.join(KINDS)})",
     )
     p.add_argument(
-        "--json", action="store_true", dest="as_json", help="emit the raw result dicts as JSON"
+        "--json",
+        action="store_true",
+        dest="as_json",
+        help="emit the raw result dicts as JSON",
     )
     p.add_argument(
         "--expand",

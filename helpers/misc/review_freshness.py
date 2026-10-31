@@ -404,7 +404,9 @@ def _print_all_records(args) -> int:
     return 0
 
 
-def _resolve_scope(args) -> tuple[str, str, bool, int | None, tuple[str | None, str | None]]:
+def _resolve_scope(
+    args,
+) -> tuple[str, str, bool, int | None, tuple[str | None, str | None]]:
     """fp/scope + the ledger-row context for one diff identity (ranged
     pair vs stack depth)."""
     if args.from_ref is not None:

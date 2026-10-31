@@ -449,7 +449,10 @@ def gc(refs=DEFAULT_REFS, apply: bool = False) -> dict:
     out = survey(refs)
     if _mt:
         _mt.record_phase(
-            "survey", _survey_started, datetime.now(), extra=f"rows={out.get('cache_rows', 0)}"
+            "survey",
+            _survey_started,
+            datetime.now(),
+            extra=f"rows={out.get('cache_rows', 0)}",
         )
     if not apply:
         return out
@@ -488,7 +491,10 @@ def gc(refs=DEFAULT_REFS, apply: bool = False) -> dict:
     out["store_mib_after"] = round(STORE.stat().st_size / 2**20, 1)
     if _mt:
         _mt.record_phase(
-            "evict_vacuum", _evict_started, datetime.now(), extra=f"deleted={len(dead_ids)}"
+            "evict_vacuum",
+            _evict_started,
+            datetime.now(),
+            extra=f"deleted={len(dead_ids)}",
         )
     return out
 

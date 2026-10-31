@@ -144,7 +144,10 @@ def test_tool_calls_become_searchable_tool_rows(tmp_path: Path) -> None:
                 {
                     "id": "call_abc123",
                     "name": "Bash",
-                    "input": {"command": "stg series -id", "description": "list patches"},
+                    "input": {
+                        "command": "stg series -id",
+                        "description": "list patches",
+                    },
                 },
                 {"id": "call_def456", "name": "Read", "input": {"path": "Makefile"}},
             ],
@@ -186,7 +189,9 @@ def test_tool_call_part_ids_stable_across_rereads(tmp_path: Path) -> None:
     assert len(first) == len(second)
 
 
-def test_tool_calls_without_input_keep_row_with_empty_object_text(tmp_path: Path) -> None:
+def test_tool_calls_without_input_keep_row_with_empty_object_text(
+    tmp_path: Path,
+) -> None:
     rec = _rec(
         response={
             "text": "t",

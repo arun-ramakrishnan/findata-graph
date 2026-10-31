@@ -51,7 +51,14 @@ from helpers.graph.hyper_communities import (  # noqa: E402
     _exclude_degenerate,
 )
 
-METRICS = ("ho_pagerank", "s_betweenness", "s_closeness", "eigen_cec", "eigen_zec", "eigen_hec")
+METRICS = (
+    "ho_pagerank",
+    "s_betweenness",
+    "s_closeness",
+    "eigen_cec",
+    "eigen_zec",
+    "eigen_hec",
+)
 
 
 def stationary_pi(

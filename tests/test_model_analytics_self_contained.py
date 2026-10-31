@@ -25,7 +25,14 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(PROJECT_ROOT))
 
 BANNED = {"zai_usage_query", "opencode_usage_query"}
-VENDORED = ["load_api_key", "_zai_parse_range", "fetch", "local_stats", "day_cost", "local_latency"]
+VENDORED = [
+    "load_api_key",
+    "_zai_parse_range",
+    "fetch",
+    "local_stats",
+    "day_cost",
+    "local_latency",
+]
 
 
 def _tree() -> ast.Module:

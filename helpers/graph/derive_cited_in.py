@@ -485,12 +485,18 @@ def _cli(argv: list[str] | None = None) -> int:
             file=sys.stderr,
         )
         for tree in SOURCE_TREES:
-            print(f"  {per_tree.get(tree, 0):4d}  cited_in edges -> {tree}", file=sys.stderr)
+            print(
+                f"  {per_tree.get(tree, 0):4d}  cited_in edges -> {tree}",
+                file=sys.stderr,
+            )
 
         ent = create_edition_entities(conn, editions, apply=args.apply)
         ins = apply_edges(edges, conn=conn, dry_run=not args.apply)
         verb = "inserted" if args.apply else "would insert"
-        print(f"{ent} edition entities {verb}; {ins} cited_in edges {verb}.", file=sys.stderr)
+        print(
+            f"{ent} edition entities {verb}; {ins} cited_in edges {verb}.",
+            file=sys.stderr,
+        )
 
         if args.verbose:
             dcli.dump_edges_verbose(edges)

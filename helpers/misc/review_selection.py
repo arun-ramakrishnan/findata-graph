@@ -386,7 +386,10 @@ def _emit_selection(args, stack: int) -> int:
     pin_ok, pin_line = ocr_pin.status()
     print(pin_line)
     if not pin_ok:
-        print(f"  pin: helpers/misc/ocr_pin.py (pinned v{ocr_pin.PINNED})", file=sys.stderr)
+        print(
+            f"  pin: helpers/misc/ocr_pin.py (pinned v{ocr_pin.PINNED})",
+            file=sys.stderr,
+        )
     for path in reviewable:
         print(f"  + {path}")
     for path in excluded:

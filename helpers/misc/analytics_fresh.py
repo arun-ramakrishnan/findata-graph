@@ -225,7 +225,11 @@ def main(argv: list[str] | None = None) -> int:
     timer = RunTimer("analytics_fresh", mode="check")
     with timer.phase("harness_frontiers"):
         harness = harness_frontiers(
-            args.zcode_db, args.opencode_db, args.prime_dir, args.rollout_dir, args.dsh_dir
+            args.zcode_db,
+            args.opencode_db,
+            args.prime_dir,
+            args.rollout_dir,
+            args.dsh_dir,
         )
     with timer.phase("store_frontiers"):
         store = store_frontiers(args.agent_traces, args.model_usage)

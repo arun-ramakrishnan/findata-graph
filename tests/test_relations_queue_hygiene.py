@@ -282,7 +282,10 @@ class TestS6TruncateMention:
     suppressed two facts the operator accepted."""
 
     def test_live_shapes_truncate_to_the_name(self):
-        assert xr.truncate_mention(SANKYU_MENTION) == ("Sankyu Corporation", SANKYU_MENTION)
+        assert xr.truncate_mention(SANKYU_MENTION) == (
+            "Sankyu Corporation",
+            SANKYU_MENTION,
+        )
         assert xr.truncate_mention(DWS_MENTION) == (
             "European giant DWS Group",
             DWS_MENTION,
@@ -761,7 +764,12 @@ class TestS5SecondOpinionSitting:
             tmp_path,
             monkeypatch,
             glm={"id": self.GLM_ID, "p_fact": 0.5, "p_rubric": 0.5, "escalated": False},
-            mercury={"id": self.GLM_ID, "p_fact": 0.5, "p_rubric": 0.5, "escalated": False},
+            mercury={
+                "id": self.GLM_ID,
+                "p_fact": 0.5,
+                "p_rubric": 0.5,
+                "escalated": False,
+            },
         )
         tpr.review(
             input_fn=lambda _: "p",  # operator parks the row
@@ -784,7 +792,12 @@ class TestS5SecondOpinionSitting:
             tmp_path,
             monkeypatch,
             glm={"id": self.GLM_ID, "p_fact": 0.9, "escalated": False},  # no p_rubric
-            mercury={"id": self.GLM_ID, "p_fact": 0.07, "p_rubric": 0.01, "escalated": False},
+            mercury={
+                "id": self.GLM_ID,
+                "p_fact": 0.07,
+                "p_rubric": 0.01,
+                "escalated": False,
+            },
         )
         out: list[str] = []
         tpr.review(
@@ -812,8 +825,18 @@ class TestS5SecondOpinionSitting:
         self._carrier_files(
             tmp_path,
             monkeypatch,
-            glm={"id": self.GLM_ID, "p_fact": 0.9, "p_rubric": 0.05, "escalated": False},
-            mercury={"id": self.GLM_ID, "p_fact": 0.07, "p_rubric": 0.01, "escalated": False},
+            glm={
+                "id": self.GLM_ID,
+                "p_fact": 0.9,
+                "p_rubric": 0.05,
+                "escalated": False,
+            },
+            mercury={
+                "id": self.GLM_ID,
+                "p_fact": 0.07,
+                "p_rubric": 0.01,
+                "escalated": False,
+            },
         )
         calls: list[str] = []
 
@@ -849,8 +872,18 @@ class TestS5SecondOpinionSitting:
         self._carrier_files(
             tmp_path,
             monkeypatch,
-            glm={"id": self.GLM_ID, "p_fact": 0.9, "p_rubric": 0.05, "escalated": False},
-            mercury={"id": self.GLM_ID, "p_fact": 0.07, "p_rubric": 0.9, "escalated": False},
+            glm={
+                "id": self.GLM_ID,
+                "p_fact": 0.9,
+                "p_rubric": 0.05,
+                "escalated": False,
+            },
+            mercury={
+                "id": self.GLM_ID,
+                "p_fact": 0.07,
+                "p_rubric": 0.9,
+                "escalated": False,
+            },
         )
         out: list[str] = []
         tpr.review(

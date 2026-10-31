@@ -420,10 +420,14 @@ def main(argv: list[str] | None = None) -> int:
     )
     p.add_argument("--limit", type=int, default=4, help="hits per leg (default 4)")
     p.add_argument(
-        "--bm25", action="store_true", help="lexical leg only (skip cosine in hybrid legs)"
+        "--bm25",
+        action="store_true",
+        help="lexical leg only (skip cosine in hybrid legs)",
     )
     p.add_argument(
-        "--flat", action="store_true", help="also emit a rank-RRF cross-leg reading order"
+        "--flat",
+        action="store_true",
+        help="also emit a rank-RRF cross-leg reading order",
     )
     p.add_argument(
         "--age-guard",

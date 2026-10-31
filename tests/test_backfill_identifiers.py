@@ -48,7 +48,14 @@ class TestEnsureSchema:
     def test_adds_facet_block_and_registry(self, db):
         bi.ensure_schema(db)
         cols = {r[1] for r in db.execute("PRAGMA table_info(entities)")}
-        assert {"cin", "cin_listing", "cin_nic5", "cin_state", "cin_year", "cin_ownership"} <= cols
+        assert {
+            "cin",
+            "cin_listing",
+            "cin_nic5",
+            "cin_state",
+            "cin_year",
+            "cin_ownership",
+        } <= cols
         assert db.execute("SELECT 1 FROM sqlite_master WHERE name='entity_identifiers'").fetchone()
 
     def test_idempotent(self, db):

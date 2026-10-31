@@ -217,7 +217,10 @@ def discover_niftyindices(covered_stems: set[str]) -> list[IndexBatch]:
         try:
             body, _ = _get(f"{NIFTYINDICES}/indices/equity/{category}")
         except (OSError, urllib.error.URLError) as e:
-            print(f"[niftyindices] listing {category} FAILED: {str(e)[:80]}", file=sys.stderr)
+            print(
+                f"[niftyindices] listing {category} FAILED: {str(e)[:80]}",
+                file=sys.stderr,
+            )
             continue
         detail_paths += _detail_paths(body.decode("utf-8", "replace"), category)
 

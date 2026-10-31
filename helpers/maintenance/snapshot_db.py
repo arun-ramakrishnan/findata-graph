@@ -1497,7 +1497,10 @@ def _cmd_restore(  # noqa: C901  # restore orchestrator: arg branches mirror _cm
                 logger.error("sources parquet dir given but no --sources-db target")
                 return 1
             restore_duckdb_from_parquet(
-                parquet_sources_dir, sources_path, logger, schema_filename="_schema.sources.sql"
+                parquet_sources_dir,
+                sources_path,
+                logger,
+                schema_filename="_schema.sources.sql",
             )
         else:
             logger.info(f"Sources Parquet snapshot not found (skip): {parquet_sources_dir}")

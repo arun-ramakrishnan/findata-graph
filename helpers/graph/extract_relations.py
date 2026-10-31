@@ -3196,7 +3196,15 @@ def _extract_batch(
         all_edges = [e for es in edges_by_type.values() for e in es]
         ambiguities = resolver.ambiguous_log[ambig_before:]
         results.append(
-            (str(nl_path), doc_type, all_edges, unresolved, type_counts, ambiguities, group_map)
+            (
+                str(nl_path),
+                doc_type,
+                all_edges,
+                unresolved,
+                type_counts,
+                ambiguities,
+                group_map,
+            )
         )
     return results, skip_stats()
 
@@ -3429,7 +3437,10 @@ def _cli(argv: list[str] | None = None) -> int:  # noqa: C901
             # (e.g., under memory pressure or OOM killer).
             import sys as _sys
 
-            print("WARNING: ProcessPoolExecutor crashed, falling back to serial", file=_sys.stderr)
+            print(
+                "WARNING: ProcessPoolExecutor crashed, falling back to serial",
+                file=_sys.stderr,
+            )
             batch_results = [_extract_batch(chunk[0], chunk[1]) for chunk in chunks]
             # This fallback runs _extract_batch IN THE PARENT: the increments
             # are already live in the module-global _SKIP_STATS (same as the
@@ -3594,7 +3605,8 @@ def _cli(argv: list[str] | None = None) -> int:  # noqa: C901
             converged += 1
         if converged:
             print(
-                f"venture props-converged on {converged} existing jv_with row(s)", file=sys.stderr
+                f"venture props-converged on {converged} existing jv_with row(s)",
+                file=sys.stderr,
             )
             total_extracted += 0  # counts already exist; converge is enrichment
 

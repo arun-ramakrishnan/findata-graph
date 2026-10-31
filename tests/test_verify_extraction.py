@@ -73,7 +73,12 @@ def _content_page(extra: str = "") -> str:
 # canon helpers
 # ---------------------------------------------------------------------------
 def test_canon_words():
-    assert canon_words("Hello, World! HELLO world") == ["hello", "world", "hello", "world"]
+    assert canon_words("Hello, World! HELLO world") == [
+        "hello",
+        "world",
+        "hello",
+        "world",
+    ]
 
 
 def test_canon_numbers_comma_insensitive():

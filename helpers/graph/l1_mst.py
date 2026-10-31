@@ -107,7 +107,9 @@ def mst_forest(db_path=str(DEFAULT_DB_PATH)):
 def _cli(argv=None) -> int:
     p = argparse.ArgumentParser(description="S1 MST/MSF backbone (dry-run, no apply)")
     p.add_argument(
-        "command", choices=["mst-backbone"], help="minimum spanning tree/forest backbone"
+        "command",
+        choices=["mst-backbone"],
+        help="minimum spanning tree/forest backbone",
     )
     p.add_argument("--format", choices=["summary", "edges", "json"], default="summary")
     p.add_argument("--top", type=int, default=20, help="top edges to print in edges mode")
@@ -128,7 +130,8 @@ def _cli(argv=None) -> int:
         for s, t, w in sorted(res["edges"], key=lambda x: x[2])[: args.top]:
             print(f"{s}\t{t}\t{w}")
         print(
-            f"# {len(res['edges'])} forest edges, {res['n_components']} components", file=sys.stderr
+            f"# {len(res['edges'])} forest edges, {res['n_components']} components",
+            file=sys.stderr,
         )
     else:
         print(

@@ -76,7 +76,11 @@ if str(_REPO_ROOT) not in sys.path:
 from helpers.core import jsonio  # noqa: E402  (orjson parse cutover; dumps stay stdlib per db_scaling_tuning §6.3 criteria)
 from helpers.core.db import connect  # noqa: E402
 from helpers.graph import derive_cli as dcli  # noqa: E402  # S6 shared CLI scaffold
-from helpers.core.stable_write import ReplaceResult, stable_prefix_diff, stable_prefix_replace  # noqa: E402
+from helpers.core.stable_write import (  # noqa: E402
+    ReplaceResult,
+    stable_prefix_diff,
+    stable_prefix_replace,
+)
 
 # Reuse the proven date parser + regexes from extract_relations rather than
 # duplicating FY/month/year handling. Imported for internal use (not re-exported).
@@ -686,7 +690,12 @@ def apply(events: list[Event], *, conn=None, dry_run: bool = True) -> ReplaceRes
             )
         with conn:
             return stable_prefix_replace(
-                conn, "events", _DERIVED_PREFIX, _EVENT_CONTENT_COLS, _INSERT_SQL, new_rows
+                conn,
+                "events",
+                _DERIVED_PREFIX,
+                _EVENT_CONTENT_COLS,
+                _INSERT_SQL,
+                new_rows,
             )
     finally:
         if own_conn:

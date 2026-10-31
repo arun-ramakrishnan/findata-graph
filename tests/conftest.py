@@ -371,9 +371,27 @@ CREATE TABLE hyper_incidences (
 
 # (name, type, file_path, sector_classification, ticker)
 _UNIT_ENTITIES = [
-    ("HDFC Bank", "company", "findata/Companies/Banking/Hdfc_Bank.md", "Banking", "HDFCBANK"),
-    ("ICICI Bank", "company", "findata/Companies/Banking/ICICI_Bank.md", "Banking", "ICICIBANK"),
-    ("Infosys", "company", "findata/Companies/Technology/Infosys.md", "Technology", "INFY"),
+    (
+        "HDFC Bank",
+        "company",
+        "findata/Companies/Banking/Hdfc_Bank.md",
+        "Banking",
+        "HDFCBANK",
+    ),
+    (
+        "ICICI Bank",
+        "company",
+        "findata/Companies/Banking/ICICI_Bank.md",
+        "Banking",
+        "ICICIBANK",
+    ),
+    (
+        "Infosys",
+        "company",
+        "findata/Companies/Technology/Infosys.md",
+        "Technology",
+        "INFY",
+    ),
     ("Banking", "sector", "findata/Sectors/Banking.md", None, None),
     ("Technology", "sector", "findata/Sectors/Technology.md", None, None),
     ("No Ticker Co", "company", "findata/Companies/X/No_Ticker.md", "Technology", None),
@@ -724,7 +742,11 @@ def pytest_collection_modifyitems(config, items):
     # fallback lanes (helpers/graph/graph_fallbacks.py) serve every
     # consumer surface, so only extension-native suites stay gated;
     # ONAGER_GATE=off re-enables the rest to prove the fallbacks answer.
-    if not ONAGER_OK and os.environ.get("ONAGER_GATE", "").lower() not in {"off", "0", "false"}:
+    if not ONAGER_OK and os.environ.get("ONAGER_GATE", "").lower() not in {
+        "off",
+        "0",
+        "false",
+    }:
         repo_prefix = str(REPO_ROOT) + "/"
         for item in items:
             fspath = str(item.fspath)

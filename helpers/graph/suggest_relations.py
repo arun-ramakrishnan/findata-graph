@@ -366,7 +366,10 @@ def main(argv: list[str] | None = None) -> int:
     )
     args = p.parse_args(argv)
     if not DEFAULT_DUCKDB.exists():
-        print(f"error: {DEFAULT_DUCKDB} not found (run make graph-rebuild first)", file=sys.stderr)
+        print(
+            f"error: {DEFAULT_DUCKDB} not found (run make graph-rebuild first)",
+            file=sys.stderr,
+        )
         return 2
     edge_types = args.edge_types.split(",") if args.edge_types else None
     try:

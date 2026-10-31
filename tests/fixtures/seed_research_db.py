@@ -80,7 +80,13 @@ def build_seed_db(path: Path) -> Path:
     con = sqlite3.connect(str(path))
     con.executescript(SEED_SCHEMA)
     entities = [
-        ("HDFC Bank", "company", "findata/Companies/Banking/Hdfc_Bank.md", "Banking", "HDFCBANK"),
+        (
+            "HDFC Bank",
+            "company",
+            "findata/Companies/Banking/Hdfc_Bank.md",
+            "Banking",
+            "HDFCBANK",
+        ),
         (
             "ICICI Bank",
             "company",
@@ -88,9 +94,27 @@ def build_seed_db(path: Path) -> Path:
             "Banking",
             "ICICIBANK",
         ),
-        ("Infosys", "company", "findata/Companies/Technology/Infosys.md", "Technology", "INFY"),
-        ("No Ticker Co", "company", "findata/Companies/X/No_Ticker.md", "Technology", None),
-        ("Cap Conflict Co", "company", "findata/Companies/X/Cap_Conflict.md", "Technology", None),
+        (
+            "Infosys",
+            "company",
+            "findata/Companies/Technology/Infosys.md",
+            "Technology",
+            "INFY",
+        ),
+        (
+            "No Ticker Co",
+            "company",
+            "findata/Companies/X/No_Ticker.md",
+            "Technology",
+            None,
+        ),
+        (
+            "Cap Conflict Co",
+            "company",
+            "findata/Companies/X/Cap_Conflict.md",
+            "Technology",
+            None,
+        ),
         ("Banking", "sector", "findata/Sectors/Banking.md", None, None),
         ("Technology", "sector", "findata/Sectors/Technology.md", None, None),
         ("Agriculture", "sector", "findata/Sectors/Agriculture.md", None, None),

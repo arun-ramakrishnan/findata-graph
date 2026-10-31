@@ -99,7 +99,11 @@ class TestParseNewsletterValidatesClean:
             fp.parent.mkdir(parents=True, exist_ok=True)
             fp.write_text(
                 render_stub(
-                    name, norm, sector, ticker, f"/companies/{sector.lower()}/{norm.lower()}"
+                    name,
+                    norm,
+                    sector,
+                    ticker,
+                    f"/companies/{sector.lower()}/{norm.lower()}",
                 )
             )
 
@@ -245,13 +249,23 @@ class TestParseNewsletterDbConsistency:
         sector_entities = get_sector_entities(conn)
 
         create_entity(
-            conn, "ICICI Bank", "Banking", "ICICIBANK", apply=True, sector_entities=sector_entities
+            conn,
+            "ICICI Bank",
+            "Banking",
+            "ICICIBANK",
+            apply=True,
+            sector_entities=sector_entities,
         )
         conn.commit()
 
         # Second call should be a no-op
         create_entity(
-            conn, "ICICI Bank", "Banking", "ICICIBANK", apply=True, sector_entities=sector_entities
+            conn,
+            "ICICI Bank",
+            "Banking",
+            "ICICIBANK",
+            apply=True,
+            sector_entities=sector_entities,
         )
         conn.commit()
 

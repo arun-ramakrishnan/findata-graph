@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import sys
 from dataclasses import dataclass
+from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
@@ -62,7 +63,7 @@ def _install_stub(monkeypatch, converter: _FakeConverter) -> None:
 def test_convert_pages_shape(monkeypatch):
     conv = _FakeConverter([_FakePage(markdown="## Hello\n12,400")])
     _install_stub(monkeypatch, conv)
-    pages = convert("dummy.pdf")
+    pages = convert(Path("dummy.pdf"))
     assert len(pages) == 1
     page = pages[0]
     assert page["markdown"] == {"text": "## Hello\n12,400", "images": {}}
@@ -78,7 +79,7 @@ def test_convert_pages_shape(monkeypatch):
 def test_convert_markdown_none_falls_back_to_text(monkeypatch, capsys):
     conv = _FakeConverter([_FakePage(text="plain text", markdown=None)])
     _install_stub(monkeypatch, conv)
-    pages = convert("dummy.pdf")
+    pages = convert(Path("dummy.pdf"))
     assert pages[0]["markdown"]["text"] == "plain text"
 
 
@@ -87,7 +88,7 @@ def test_convert_per_page_error_tolerated(monkeypatch, capsys):
         [_FakePage(source="error", note="RuntimeError: bad page", text="", markdown="")]
     )
     _install_stub(monkeypatch, conv)
-    pages = convert("dummy.pdf")
+    pages = convert(Path("dummy.pdf"))
     assert pages[0]["prunedResult"]["indra"]["source"] == "error"
     assert "bad page" in capsys.readouterr().err
 
@@ -95,15 +96,15 @@ def test_convert_per_page_error_tolerated(monkeypatch, capsys):
 def test_converter_cached_across_calls(monkeypatch):
     conv = _FakeConverter([_FakePage()])
     _install_stub(monkeypatch, conv)
-    convert("dummy_a.pdf")
-    convert("dummy_b.pdf")
+    convert(Path("dummy_a.pdf"))
+    convert(Path("dummy_b.pdf"))
     assert conv.converted == ["dummy_a.pdf", "dummy_b.pdf"]  # one load()
 
 
 def test_unavailable_when_package_missing():
     # sys.modules["indra_ocr"] is None (autouse fixture): import raises.
     with pytest.raises(IndraUnavailable, match="not installed"):
-        convert("dummy.pdf")
+        convert(Path("dummy.pdf"))
 
 
 def test_unavailable_when_models_unavailable(monkeypatch):
@@ -115,4 +116,4 @@ def test_unavailable_when_models_unavailable(monkeypatch):
 
     monkeypatch.setitem(sys.modules, "indra_ocr", SimpleNamespace(load=_boom))
     with pytest.raises(IndraUnavailable, match="models unavailable"):
-        convert("dummy.pdf")
+        convert(Path("dummy.pdf"))

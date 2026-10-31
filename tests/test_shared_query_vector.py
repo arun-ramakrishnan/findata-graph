@@ -299,7 +299,16 @@ def seeded_notes(tmp_path, monkeypatch):
         "zzz.md, other)": [1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
     }
     rows = [
-        ("note", fp, "Cache note", "s", "how the cache warms up", pack_f32(v), "Cache", a)
+        (
+            "note",
+            fp,
+            "Cache note",
+            "s",
+            "how the cache warms up",
+            pack_f32(v),
+            "Cache",
+            a,
+        )
         for (fp, a), v in {
             ("cache.md", "cache"): vecs["(cache.md, cache)"],
             ("zzz.md", "other"): vecs["zzz.md, other)"],
@@ -313,7 +322,10 @@ def seeded_notes(tmp_path, monkeypatch):
     conn.execute("CREATE TABLE db_meta (key TEXT PRIMARY KEY, value TEXT NOT NULL)")
     from helpers.core import local_embedder as _le
 
-    conn.execute("INSERT INTO db_meta(key, value) VALUES ('note_embed_model', ?)", (_le.MODEL_ID,))
+    conn.execute(
+        "INSERT INTO db_meta(key, value) VALUES ('note_embed_model', ?)",
+        (_le.MODEL_ID,),
+    )
     conn.commit()
     conn.close()
     ids = ["cache.md#cache", "zzz.md#other"]
@@ -440,7 +452,8 @@ class TestLiveSharedVectorParity:
         try:
             own = rds.search_docs(conn, _Q, limit=_LIM)
             _assert_same_ranking(
-                own, rds.search_docs(conn, _Q, limit=_LIM, query_vec=rbc.make_query_vector(_Q))
+                own,
+                rds.search_docs(conn, _Q, limit=_LIM, query_vec=rbc.make_query_vector(_Q)),
             )
         finally:
             conn.close()
@@ -450,7 +463,8 @@ class TestLiveSharedVectorParity:
         try:
             own = rss.search_scripts(conn, _Q, limit=_LIM)
             _assert_same_ranking(
-                own, rss.search_scripts(conn, _Q, limit=_LIM, query_vec=rbc.make_query_vector(_Q))
+                own,
+                rss.search_scripts(conn, _Q, limit=_LIM, query_vec=rbc.make_query_vector(_Q)),
             )
         finally:
             conn.close()
@@ -460,7 +474,8 @@ class TestLiveSharedVectorParity:
         try:
             own = rms.search_memories(conn, _Q, limit=_LIM)
             _assert_same_ranking(
-                own, rms.search_memories(conn, _Q, limit=_LIM, query_vec=rbc.make_query_vector(_Q))
+                own,
+                rms.search_memories(conn, _Q, limit=_LIM, query_vec=rbc.make_query_vector(_Q)),
             )
         finally:
             conn.close()
@@ -622,7 +637,8 @@ class TestLiveFallback:
         try:
             own = rss.search_scripts(conn, _Q, limit=_LIM)
             _assert_same_ranking(
-                own, rss.search_scripts(conn, _Q, limit=_LIM, query_vec=self._tampered())
+                own,
+                rss.search_scripts(conn, _Q, limit=_LIM, query_vec=self._tampered()),
             )
         finally:
             conn.close()
@@ -632,7 +648,8 @@ class TestLiveFallback:
         try:
             own = rms.search_memories(conn, _Q, limit=_LIM)
             _assert_same_ranking(
-                own, rms.search_memories(conn, _Q, limit=_LIM, query_vec=self._tampered())
+                own,
+                rms.search_memories(conn, _Q, limit=_LIM, query_vec=self._tampered()),
             )
         finally:
             conn.close()

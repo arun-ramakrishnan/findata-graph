@@ -451,7 +451,9 @@ def main(argv: list[str] | None = None) -> int:  # noqa: C901  # CLI dispatch; a
     ap.add_argument("--dst", default=None)
     ap.add_argument("--top", type=int, default=10)
     ap.add_argument(
-        "--apply", action="store_true", help="write results to graph_analytics (default: dry-run)"
+        "--apply",
+        action="store_true",
+        help="write results to graph_analytics (default: dry-run)",
     )
     ap.add_argument(
         "--metric",
@@ -490,7 +492,10 @@ def main(argv: list[str] | None = None) -> int:  # noqa: C901  # CLI dispatch; a
         print(
             json.dumps(
                 {
-                    k: {"modularity": v["modularity"], "n_communities": v["n_communities"]}
+                    k: {
+                        "modularity": v["modularity"],
+                        "n_communities": v["n_communities"],
+                    }
                     for k, v in cmp_.items()
                 },
                 indent=1,
@@ -498,7 +503,11 @@ def main(argv: list[str] | None = None) -> int:  # noqa: C901  # CLI dispatch; a
         )
         if args.apply:
             metric = args.metric or "igraph_louvain_compare"
-            persist(metric, {n: c for n, c in cmp_["leiden"]["membership"].items()}, apply=True)
+            persist(
+                metric,
+                {n: c for n, c in cmp_["leiden"]["membership"].items()},
+                apply=True,
+            )
             print(f"applied {len(cmp_['leiden']['membership'])} rows under {metric!r}")
         else:
             print(
@@ -511,7 +520,10 @@ def main(argv: list[str] | None = None) -> int:  # noqa: C901  # CLI dispatch; a
             print("--src/--dst required for shortest-path", file=sys.stderr)
             return 2
         found = weighted_shortest_path(
-            g, args.src, args.dst, edge_label=(args.edge_type[0] if args.edge_type else None)
+            g,
+            args.src,
+            args.dst,
+            edge_label=(args.edge_type[0] if args.edge_type else None),
         )
         print(json.dumps(found))
         return 0
@@ -521,7 +533,10 @@ def main(argv: list[str] | None = None) -> int:  # noqa: C901  # CLI dispatch; a
             return 2
         res = maxflow_mincut(g, args.src, args.dst)
         if res is None:
-            print(f"endpoint missing from projection: {args.src!r}/{args.dst!r}", file=sys.stderr)
+            print(
+                f"endpoint missing from projection: {args.src!r}/{args.dst!r}",
+                file=sys.stderr,
+            )
             return 2
         summary = {
             **{

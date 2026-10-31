@@ -95,7 +95,11 @@ class TestApplyDecisions:
         monkeypatch.setattr(tpq, "DECISIONS", tmp_path / "d.jsonl")
         wl = {
             "entries": {
-                "Exide": {"status": "open", "suggestions": ["Exide Industries"], "notes": []},
+                "Exide": {
+                    "status": "open",
+                    "suggestions": ["Exide Industries"],
+                    "notes": [],
+                },
                 "Premier Energies": {"status": "open", "suggestions": [], "notes": []},
                 "Junk ]": {"status": "open", "suggestions": [], "notes": []},
             }

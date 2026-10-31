@@ -75,7 +75,12 @@ def test_coverage_key_and_state() -> None:
     spec = ALL_SPECS["coverage"]
     assert spec.key_of({"surface": "app", "attack_class": "injection"}) == "app/injection"
     assert "app" in spec.state_of(
-        {"surface": "app", "attack_class": "injection", "reason": "not_a_route", "methods": ["GET"]}
+        {
+            "surface": "app",
+            "attack_class": "injection",
+            "reason": "not_a_route",
+            "methods": ["GET"],
+        }
     )
 
 
@@ -88,7 +93,10 @@ def test_findings_key_and_state() -> None:
 
 def test_checklist_key_and_state() -> None:
     spec = ALL_SPECS["ocr"]
-    row = {"label": "ocr-01", "evidence": [{"kind": "checklist", "description": "Ref named"}]}
+    row = {
+        "label": "ocr-01",
+        "evidence": [{"kind": "checklist", "description": "Ref named"}],
+    }
     assert spec.key_of(row) == "ocr-01"
     assert "Ref named" in spec.state_of(row)
 
@@ -159,7 +167,9 @@ def test_load_tuple_annotations_roundtrip(tmp_path: Path) -> None:
     assert ("jv_with", "A", "B") in m
 
 
-def test_render_carrier_for_normal_and_missing(capsys: pytest.CaptureFixture[str]) -> None:
+def test_render_carrier_for_normal_and_missing(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
     c_map = {"app/injection": {"p_fact": 0.41, "p_rubric": 0.32}}
     render_carrier_for("app/injection", c_map=c_map)
     out = capsys.readouterr().out

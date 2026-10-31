@@ -177,7 +177,12 @@ def cmd_apply(apply: bool, db: Path | None) -> int:
 
 def _ogd_lookup(candidate: str, key: str) -> dict | None:
     qs = urllib.parse.urlencode(
-        {"api-key": key, "format": "json", "limit": "10", "filters[company_name]": candidate}
+        {
+            "api-key": key,
+            "format": "json",
+            "limit": "10",
+            "filters[company_name]": candidate,
+        }
     )
     req = urllib.request.Request(f"{OGD_BASE}?{qs}", headers={"User-Agent": "Mozilla/5.0 research"})  # noqa: S310  # https data.gov.in OGD endpoint
     for attempt in range(8):

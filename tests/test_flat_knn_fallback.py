@@ -75,7 +75,14 @@ def test_refresh_embed_matrix_hook_builds_and_gates(tmp_path):
         emb = rng.standard_normal((6, 32)).astype(np.float32)
         emb /= np.linalg.norm(emb, axis=1, keepdims=True)
         rows = [
-            ("company", f"findata/N{i}.md", f"N{i}", "s", "c", json.dumps(emb[i].tolist()))
+            (
+                "company",
+                f"findata/N{i}.md",
+                f"N{i}",
+                "s",
+                "c",
+                json.dumps(emb[i].tolist()),
+            )
             for i in range(6)
         ]
         conn = _mini_note_search_conn(rows)

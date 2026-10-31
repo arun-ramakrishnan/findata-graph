@@ -49,7 +49,9 @@ class TestResolve:
         entities = [("Reliance Industries", "company", "RELIANCE.NS", None)]
         exchange = [("INE002A01018", "RELIANCE", "NSE")]
         edges, names, worklist, industry = di.resolve(
-            [_const("RELIANCE", "INE002A01018", "Oil Gas & Consumable Fuels")], entities, exchange
+            [_const("RELIANCE", "INE002A01018", "Oil Gas & Consumable Fuels")],
+            entities,
+            exchange,
         )
         assert names == ["Nifty 50"] and worklist == []
         assert edges[0][:2] == ("Reliance Industries", "Nifty 50")
@@ -183,7 +185,9 @@ class TestConvergeIndustry:
         try:
             _seed(conn, [("Reliance Industries", "RELIANCE.NS", None)])
             planned, _ = di.converge_industry(
-                conn, {"Oil Gas & Consumable Fuels": ["Reliance Industries"]}, apply=False
+                conn,
+                {"Oil Gas & Consumable Fuels": ["Reliance Industries"]},
+                apply=False,
             )
             assert planned == 1
             got = conn.execute(
@@ -226,7 +230,10 @@ class TestBackfillValidity:
             "INSERT INTO graph_edges (source, target, edge_type, properties, source_ref) "
             "VALUES (?, 'Nifty 50', 'listed_on_index', ?, 'derive:indices:nse-constituents')",
             [
-                ("Reliance Industries", json.dumps({"as_of": "2026-09-18", "symbol": "RELIANCE"})),
+                (
+                    "Reliance Industries",
+                    json.dumps({"as_of": "2026-09-18", "symbol": "RELIANCE"}),
+                ),
                 ("TCS", json.dumps({"symbol": "TCS"})),  # no as_of -> untouched
             ],
         )

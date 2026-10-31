@@ -23,7 +23,11 @@ if str(PROJECT_ROOT) not in sys.path:
 # Import fuzzy_match for entity resolution (package-qualified; the bare
 # `from fuzzy_match import ...` used before only worked when CWD was
 # helpers/core/, silently breaking word_overlap_match in search_ticker).
-from helpers.core.fuzzy_match import fuzzy_match, build_spellfix_table, word_overlap_match
+from helpers.core.fuzzy_match import (
+    fuzzy_match,
+    build_spellfix_table,
+    word_overlap_match,
+)
 from helpers.core.db import connect
 
 _FUZZY_AVAILABLE = True
@@ -519,7 +523,13 @@ def _print_financials_section(financials, info):  # noqa: C901
         print("\n--- Income Statement (Annual) ---")
         latest_col = income.columns[0]
         col_label = _col_label(latest_col)
-        for label in ["Total Revenue", "Net Income", "Operating Income", "EBITDA", "Basic EPS"]:
+        for label in [
+            "Total Revenue",
+            "Net Income",
+            "Operating Income",
+            "EBITDA",
+            "Basic EPS",
+        ]:
             matches = [idx for idx in income.index if label.lower() in idx.lower()]
             if matches:
                 val = income.loc[matches[0], latest_col]
@@ -695,7 +705,9 @@ def display_ticker(symbol, detailed=False, entities=None, spellfix_conn=None, in
         _print_history_section(comp.get("history"))
         _print_financials_section(comp.get("financials", {}), info)
         _print_holders_section(
-            comp.get("major_holders"), comp.get("institutional_holders"), comp.get("fund_holders")
+            comp.get("major_holders"),
+            comp.get("institutional_holders"),
+            comp.get("fund_holders"),
         )
         _print_recommendations_section(
             comp.get("recommendations"), comp.get("recommendations_summary")

@@ -45,7 +45,14 @@ import duckdb  # noqa: E402  # after sys.path bootstrap
 from helpers.core import jsonio  # noqa: E402  (orjson parse cutover; dumps stay stdlib per db_scaling_tuning §6.3 criteria)
 
 DEFAULT_SNAPSHOTS = _REPO_ROOT / "snapshots" / "parquet"
-REPORTS = ("summary", "edge-growth", "sector-growth", "top-entities", "coverage", "temporal")
+REPORTS = (
+    "summary",
+    "edge-growth",
+    "sector-growth",
+    "top-entities",
+    "coverage",
+    "temporal",
+)
 
 # Membership edges are structural (company -> sector/dir) and would drown
 # every activity signal; analytics exclude them unless noted. cited_in is
@@ -467,7 +474,13 @@ def render_markdown(r: Report) -> str:
 def render_json(r: Report) -> str:
     """Machine-readable form (headers + rows + meta + note)."""
     return json.dumps(
-        {"title": r.title, "headers": r.headers, "rows": r.rows, "meta": r.meta, "note": r.note},
+        {
+            "title": r.title,
+            "headers": r.headers,
+            "rows": r.rows,
+            "meta": r.meta,
+            "note": r.note,
+        },
         indent=2,
         ensure_ascii=False,
     )
@@ -489,7 +502,11 @@ def main(argv: list[str] | None = None) -> int:
     if isinstance(r, list):  # composite report (temporal)
         if args.json:
             print(
-                json.dumps([jsonio.loads(render_json(x)) for x in r], indent=2, ensure_ascii=False)
+                json.dumps(
+                    [jsonio.loads(render_json(x)) for x in r],
+                    indent=2,
+                    ensure_ascii=False,
+                )
             )
         else:
             print("\n\n".join(render_markdown(x) for x in r))

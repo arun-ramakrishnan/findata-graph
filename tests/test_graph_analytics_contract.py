@@ -20,7 +20,11 @@ from helpers.graph.scipy_bridge import (
     HARMONIC_METRIC,
     contract_sources,
 )
-from helpers.maintenance.seed_analytics_contract import CONTRACT_DDL, SERVED_METRICS, seed
+from helpers.maintenance.seed_analytics_contract import (
+    CONTRACT_DDL,
+    SERVED_METRICS,
+    seed,
+)
 
 # PK order (metric, entity_name) means the legacy DISTINCT returns
 # entity_name ASC — deliberately insert in a NON-sorted order so the

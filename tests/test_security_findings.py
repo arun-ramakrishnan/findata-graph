@@ -43,9 +43,17 @@ def _confirmed(**over):
         "description": "The name parameter is concatenated into a query string.",
         "root_cause": "raw SQL string concatenation",
         "intended_behavior": "the parameter is bound",
-        "trace": [_trace("entrypoint"), _trace("propagation", line=42), _trace("sink", line=77)],
+        "trace": [
+            _trace("entrypoint"),
+            _trace("propagation", line=42),
+            _trace("sink", line=77),
+        ],
         "evidence": [
-            {"file": "app.py", "line": 77, "description": "the f-string builds the query"}
+            {
+                "file": "app.py",
+                "line": 77,
+                "description": "the f-string builds the query",
+            }
         ],
         "conditions": [{"kind": "authentication_level", "description": "any caller"}],
         "execution": {
@@ -91,7 +99,11 @@ def _rejected(**over):
         "claimed_root_cause": "an unsanitised path join",
         "trace": [_trace("entrypoint"), _trace("sink", line=310)],
         "evidence": [
-            {"file": "app.py", "line": 310, "description": "the join is bounded by the root"}
+            {
+                "file": "app.py",
+                "line": 310,
+                "description": "the join is bounded by the root",
+            }
         ],
         "reason": "the join is bounded by the resolved docs root, so no traversal is reachable",
     }
@@ -292,7 +304,15 @@ def test_a_claim_keeps_its_fingerprint_when_its_verdict_changes(tmp_path):
 
 @pytest.mark.parametrize(
     "bad",
-    ["/etc/passwd", "../outside.py", "a/../b.py", "C:/win.py", "dir./file.py", "con", "dir/aux"],
+    [
+        "/etc/passwd",
+        "../outside.py",
+        "a/../b.py",
+        "C:/win.py",
+        "dir./file.py",
+        "con",
+        "dir/aux",
+    ],
 )
 def test_unsafe_source_paths_fail(bad):
     assert sf.is_safe_relative_source_path(bad) is False
@@ -563,7 +583,9 @@ def test_a_reproduced_result_does_not_invent_missing_fields(tmp_path, capsys):
 def test_a_reproduced_result_confirms_a_complete_record(tmp_path):
     path = _write(tmp_path, [_confirmed()])
     result = _result(
-        tmp_path, verdict="reproduced", observed="the payload returned rows from the users table"
+        tmp_path,
+        verdict="reproduced",
+        observed="the payload returned rows from the users table",
     )
     merged = tmp_path / "merged.json"
     assert sf.record_verification(path, result, out=merged) == 0

@@ -256,7 +256,12 @@ def test_apply_collides_into_canonical(con, tmp_path: Path):
         "   Acme Industries Limited  -> fold\n"
     )
     plan.with_suffix(".jsonl").write_text(
-        json.dumps({"canonical": "Acme Industries Ltd", "variants": ["Acme Industries Limited"]})
+        json.dumps(
+            {
+                "canonical": "Acme Industries Ltd",
+                "variants": ["Acme Industries Limited"],
+            }
+        )
         + "\n"
     )
     res = nd.apply_plan(conn, plan, yes=True)

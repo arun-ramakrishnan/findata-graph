@@ -355,7 +355,10 @@ class TestFullTemplate:
         con = sqlite3.connect(str(cp))
         try:
             name = con.execute("SELECT name FROM entities LIMIT 1").fetchone()[0]
-            con.execute("UPDATE entities SET last_updated = last_updated WHERE name = ?", (name,))
+            con.execute(
+                "UPDATE entities SET last_updated = last_updated WHERE name = ?",
+                (name,),
+            )
             con.commit()
         finally:
             con.close()

@@ -236,7 +236,13 @@ def parse_riprewire(raw: str) -> list[Hit]:
                 pieces.append((m.group(1), int(h.group(1)), h.group(2)))
         for path, line, text in pieces[:200]:
             hits.append(
-                Hit(path=path, line=line, snippet=text.strip()[:200], lane="code", kind="grep")
+                Hit(
+                    path=path,
+                    line=line,
+                    snippet=text.strip()[:200],
+                    lane="code",
+                    kind="grep",
+                )
             )
     if not hits:
         for m in _RW_RECALL.finditer(raw):
@@ -269,7 +275,13 @@ def ripwire_argv(query: str) -> list[str]:
         if low.startswith(pref) and len(query) > len(pref):
             arg = query[len(pref) :].strip()
             if verb == "grep":
-                return ["ripwire", ".", f"--grep={arg}", "--grep-in=any", "--legend=compact"]
+                return [
+                    "ripwire",
+                    ".",
+                    f"--grep={arg}",
+                    "--grep-in=any",
+                    "--legend=compact",
+                ]
             if verb == "recall":
                 return ["ripwire", ".", f"--recall={arg}"]
             return ["ripwire", ".", f"--{verb}={arg}"]
@@ -407,7 +419,10 @@ def _run_docs(q: str, limit: int, mode: str = "hybrid", query_vec=None) -> tuple
     raw = _run(argv)
     hits = parse_doc_json(raw, limit) if raw.strip().startswith("{") else []
     if not hits and not raw.strip():
-        return [], "doc_search sidecar missing/stale — refresh from the index monitor (i)"
+        return (
+            [],
+            "doc_search sidecar missing/stale — refresh from the index monitor (i)",
+        )
     return hits, f"{len(hits)} hits · doc_search {mode}"
 
 
@@ -420,7 +435,10 @@ def _run_scripts(q: str, limit: int, mode: str = "hybrid", query_vec=None) -> tu
     raw = _run(argv)
     hits = parse_script_json(raw, limit) if raw.strip().startswith("{") else []
     if not hits and not raw.strip():
-        return [], "script_search sidecar missing/stale — refresh from the index monitor (i)"
+        return (
+            [],
+            "script_search sidecar missing/stale — refresh from the index monitor (i)",
+        )
     return hits, f"{len(hits)} hits · script_search {mode}"
 
 
@@ -436,7 +454,10 @@ def _run_notes(q: str, limit: int, mode: str = "hybrid", query_vec=None) -> tupl
         return bm25_hits, f"{len(bm25_hits)} hits · note_search bm25"
     semantic_hits, reason = _semantic_note_hits(db, q, limit, query_vec)
     if semantic_hits is None:
-        return bm25_hits, f"{len(bm25_hits)} hits · note_search bm25 fallback · {reason}"
+        return (
+            bm25_hits,
+            f"{len(bm25_hits)} hits · note_search bm25 fallback · {reason}",
+        )
     fused = _rrf_note_hits(bm25_hits, semantic_hits, limit)
     return fused, f"{len(fused)} hits · note_search hybrid · RRF{_NOTES_RRF_K}"
 
@@ -673,9 +694,17 @@ def call_chain(symbol: str) -> dict:
 
 INDEXES: tuple[tuple[str, str, str], ...] = (
     ("docs", "memory/doc_search.db", "helpers/maintenance/rebuild_doc_search.py"),
-    ("scripts", "memory/script_search.db", "helpers/maintenance/rebuild_script_search.py"),
+    (
+        "scripts",
+        "memory/script_search.db",
+        "helpers/maintenance/rebuild_script_search.py",
+    ),
     ("notes", "memory/research.db", "helpers/maintenance/rebuild_note_search.py"),
-    ("memory", "memory/memory_search.db", "helpers/maintenance/rebuild_memory_search.py"),
+    (
+        "memory",
+        "memory/memory_search.db",
+        "helpers/maintenance/rebuild_memory_search.py",
+    ),
     ("git", "memory/git_search.db", "helpers/maintenance/rebuild_git_search.py"),
 )
 
@@ -875,7 +904,15 @@ def _build_perf_block(gate: str, lines: list[str]) -> RunBlock:
             secs_s = m.group(2).strip()
             budget_s = m.group(3).strip()
             status = m.group(4).strip()
-            if label in ("Benchmark", "---", "|", "Time (s)", "Budget", "Status", "passed"):
+            if label in (
+                "Benchmark",
+                "---",
+                "|",
+                "Time (s)",
+                "Budget",
+                "Status",
+                "passed",
+            ):
                 continue
             seconds = _parse_seconds(secs_s)
             if seconds is None:
@@ -1227,7 +1264,12 @@ def parse_report_summary(path: Path) -> str:
 # for the markdown preview pane. No CSS strings change hands — the app's
 # single CSS block resolves $panel/$accent/... from the active theme.
 
-THEME_ORDER: tuple[str, ...] = ("github-dark", "github-light", "solarized-dark", "high-contrast")
+THEME_ORDER: tuple[str, ...] = (
+    "github-dark",
+    "github-light",
+    "solarized-dark",
+    "high-contrast",
+)
 
 THEMES: dict[str, dict[str, Any]] = {
     "github-dark": {
@@ -1513,7 +1555,13 @@ def report_where_label(rel: str, line: int | None) -> str:
 
 
 def _run_gate_hits(
-    name: str, rel: str, kind: str, lines: list[str], text: str, limit: int, hits: list[Hit]
+    name: str,
+    rel: str,
+    kind: str,
+    lines: list[str],
+    text: str,
+    limit: int,
+    hits: list[Hit],
 ) -> str:
     """Append gate/perf hits: latest run's rows, or all-run matches."""
     path = REPO_ROOT / rel
@@ -1995,7 +2043,11 @@ def db_run(
     path = db_store_path(store, root)
     if not path.exists():
         return DbResult(
-            columns=[], rows=[], truncated=False, elapsed_ms=0.0, error=f"missing db file: {path}"
+            columns=[],
+            rows=[],
+            truncated=False,
+            elapsed_ms=0.0,
+            error=f"missing db file: {path}",
         )
     engine = str(DB_STORES[store]["engine"])
     if engine == "sqlite":

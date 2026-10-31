@@ -9,7 +9,11 @@ from pathlib import Path
 
 import pytest
 
-from helpers.misc.search_tui import parse_integrity_runs, parse_perf_report, report_run_spans
+from helpers.misc.search_tui import (
+    parse_integrity_runs,
+    parse_perf_report,
+    report_run_spans,
+)
 
 
 def _integrity_results(ts: str) -> dict:

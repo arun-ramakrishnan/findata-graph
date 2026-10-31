@@ -505,7 +505,13 @@ class TestCandidates:
             assert len(rows) == 6
             assert all(
                 tuple(r)[:5]
-                == ("industry", "nic2008", "closeMatch", sn.CANDIDATE_SOURCE_REF, "NIC-2008")
+                == (
+                    "industry",
+                    "nic2008",
+                    "closeMatch",
+                    sn.CANDIDATE_SOURCE_REF,
+                    "NIC-2008",
+                )
                 for r in rows
             )
             assert all(r[5] == "candidate" for r in rows)
@@ -565,7 +571,11 @@ class TestCandidates:
                 "SELECT status FROM concept_mappings WHERE source_concept='Airlines'"
                 " ORDER BY status"
             ).fetchall()
-            assert sorted(s[0] for s in states) == ["active", "superseded", "superseded"]
+            assert sorted(s[0] for s in states) == [
+                "active",
+                "superseded",
+                "superseded",
+            ]
         finally:
             conn.close()
 
@@ -590,7 +600,8 @@ class TestWorklist:
         ]
         for label, name, nic5, yr in rows:
             conn.execute(
-                "INSERT INTO hyper_edges (edge_type, label) VALUES ('industry', ?)", (label,)
+                "INSERT INTO hyper_edges (edge_type, label) VALUES ('industry', ?)",
+                (label,),
             )
             eid = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
             conn.execute("INSERT INTO hyper_incidences VALUES (?, ?)", (eid, name))
@@ -627,7 +638,10 @@ class TestWorklist:
                 "vintage_counts": {"post-2008": 1, "pre-2008": 0},
             }
             air = next(x for x in wl["suggested"] if x["label"] == "Airlines")
-            assert air["cin_codes"]["61100"]["vintage_counts"] == {"post-2008": 0, "pre-2008": 1}
+            assert air["cin_codes"]["61100"]["vintage_counts"] == {
+                "post-2008": 0,
+                "pre-2008": 1,
+            }
             assert air["cin_codes"]["61100"]["nic2008"] is False
             assert [x["label"] for x in wl["no_signal"]] == ["Zzz Qqq"]
             assert json.loads(out.read_text())["counts"] == wl["counts"]
@@ -684,7 +698,10 @@ class TestReview:
             answers = iter(["1", "y"])
             out = []
             rep = sn.review(
-                conn, input_fn=lambda _p: next(answers), print_fn=out.append, journal_dir=tmp_path
+                conn,
+                input_fn=lambda _p: next(answers),
+                print_fn=out.append,
+                journal_dir=tmp_path,
             )
             assert rep["approved"] == 1 and rep["applied"] == 1 and not rep["errors"]
             active = conn.execute(
@@ -898,7 +915,8 @@ class TestStamp:
     def _map(self, tmp_path, codes):
         p = tmp_path / "map.json"
         p.write_text(
-            json.dumps({"flagged_labels": ["Conglomerates"], "codes": codes}), encoding="utf-8"
+            json.dumps({"flagged_labels": ["Conglomerates"], "codes": codes}),
+            encoding="utf-8",
         )
         return p
 
@@ -932,7 +950,8 @@ class TestStamp:
         note = tmp_path / "BEML.md"
         note.write_text(
             note.read_text().replace(
-                "industry: Conglomerates", "industry: Conglomerates\nindustry_code: 11111"
+                "industry: Conglomerates",
+                "industry: Conglomerates\nindustry_code: 11111",
             )
         )
         mp = self._map(tmp_path, {"BEML": {"code": "35202", "via": "cin"}})

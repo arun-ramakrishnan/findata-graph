@@ -223,7 +223,11 @@ def resolve_embedder() -> tuple[Callable[[str], list[float]], int, str]:
     from helpers.core import gemma_embedder
 
     if mode in ("auto", "gemma") and gemma_embedder.available():
-        return gemma_embedder.embed_document, gemma_embedder.DIM, gemma_embedder.MODEL_LABEL
+        return (
+            gemma_embedder.embed_document,
+            gemma_embedder.DIM,
+            gemma_embedder.MODEL_LABEL,
+        )
     if mode == "gemma":
         print(
             "WARNING: NOTES_EMBEDDER=gemma but the sidecar is down; "
@@ -236,7 +240,9 @@ def resolve_embedder() -> tuple[Callable[[str], list[float]], int, str]:
     return fn, dims, label
 
 
-def query_embedder(model_label: str | None = None) -> tuple[Callable[[str], list[float]], int]:
+def query_embedder(
+    model_label: str | None = None,
+) -> tuple[Callable[[str], list[float]], int]:
     """Query-side counterpart for hybrid search (app.py, note_query.py).
 
     Backend follows the INDEX STAMP, not the env: a gemma-stamped index
@@ -374,7 +380,14 @@ def _iter_findata_docs():
 # edges stay lexical-only.
 _CTX_CAP = 900
 _CTX_PER_REL = 8
-_CTX_SEG_ORDER = ("group", "competitor", "supplier", "customer", "parent", "subsidiaries")
+_CTX_SEG_ORDER = (
+    "group",
+    "competitor",
+    "supplier",
+    "customer",
+    "parent",
+    "subsidiaries",
+)
 
 
 def _edge_ctx_maps(conn) -> tuple[dict[str, str], dict[str, str]]:
@@ -430,7 +443,10 @@ def _edge_ctx_maps(conn) -> tuple[dict[str, str], dict[str, str]]:
 
 
 def _carry_row(
-    row: tuple, dtype: str, rel_posix: str, ent_by_path: dict[str, tuple[str, str | None, str, str]]
+    row: tuple,
+    dtype: str,
+    rel_posix: str,
+    ent_by_path: dict[str, tuple[str, str | None, str, str]],
 ) -> bool:
     """P2.2: can the stored note_search row be carried verbatim?
 
@@ -854,7 +870,11 @@ def rebuild(  # noqa: C901
         # fallback keep the per-doc path.
         deferred: list[tuple[int, str]] | None = [] if cache is not None else None
         _walk_started = datetime.now()
-        print("[notes] phase: walking findata + collecting rows...", file=sys.stderr, flush=True)
+        print(
+            "[notes] phase: walking findata + collecting rows...",
+            file=sys.stderr,
+            flush=True,
+        )
         rows = _collect_rows(
             conn, embed_fn=embed_fn, reuse=reuse, carried=carried, deferred=deferred
         )

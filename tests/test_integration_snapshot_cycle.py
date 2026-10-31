@@ -71,7 +71,8 @@ def _seeded_db(tmp_path: Path, name: str = "src.db", tmp_path_factory=None) -> P
     shutil.copyfile(schema_template(tmp_path_factory), db)
     dst = sqlite3.connect(str(db))
     dst.executemany(
-        "INSERT INTO entities (name, entity_type, sector_classification) VALUES (?,?,?)", _ENTITIES
+        "INSERT INTO entities (name, entity_type, sector_classification) VALUES (?,?,?)",
+        _ENTITIES,
     )
     dst.executemany(
         "INSERT INTO graph_edges (source, target, edge_type, source_ref) VALUES (?,?,?,'seed')",

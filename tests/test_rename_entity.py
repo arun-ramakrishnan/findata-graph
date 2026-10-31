@@ -154,7 +154,8 @@ class TestRenameEntityMain:
         monkeypatch.setattr(re_mod, "PROJECT_ROOT", tmp_path)
         monkeypatch.setattr(re_mod, "DB_PATH", tmp_path / "test.db")
         monkeypatch.setattr(
-            "sys.argv", ["rename_entity.py", "Old Name", "New Name", "--ticker", "NEW.NS"]
+            "sys.argv",
+            ["rename_entity.py", "Old Name", "New Name", "--ticker", "NEW.NS"],
         )
 
         db_path = _make_rename_test_db(tmp_path)

@@ -99,9 +99,21 @@ def test_converge_rows_preserves_exact_and_candidate_states() -> None:
         {"entity_name": "Alpha Limited", "qid": "Q1", "match_type": "exactMatch"},
         {"entity_name": "Beta Limited", "qid": "Q2", "match_type": "closeMatch"},
     ]
-    assert ws.converge_rows(conn, rows, apply=False) == {"exact": 1, "close": 1, "changed": 2}
-    assert ws.converge_rows(conn, rows, apply=True) == {"exact": 1, "close": 1, "changed": 2}
-    assert ws.converge_rows(conn, rows, apply=True) == {"exact": 1, "close": 1, "changed": 2}
+    assert ws.converge_rows(conn, rows, apply=False) == {
+        "exact": 1,
+        "close": 1,
+        "changed": 2,
+    }
+    assert ws.converge_rows(conn, rows, apply=True) == {
+        "exact": 1,
+        "close": 1,
+        "changed": 2,
+    }
+    assert ws.converge_rows(conn, rows, apply=True) == {
+        "exact": 1,
+        "close": 1,
+        "changed": 2,
+    }
     states = dict(
         conn.execute(
             "SELECT source_concept, status FROM concept_mappings "

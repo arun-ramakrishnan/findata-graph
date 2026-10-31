@@ -236,7 +236,12 @@ def build_vss_run_index(db_path=None, embed_fn=None):
         if not names:
             return None
         return _VssRunIndex(
-            names, np.asarray(vecs, dtype=np.float64), picked_fn, dims, fingerprint, db_path
+            names,
+            np.asarray(vecs, dtype=np.float64),
+            picked_fn,
+            dims,
+            fingerprint,
+            db_path,
         )
     finally:
         if owns and conn is not None:

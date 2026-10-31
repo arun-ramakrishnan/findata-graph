@@ -74,7 +74,11 @@ def fetch_gf_metrics(
 
     ws = client_factory().open(sheet_title).sheet1
     rows = [
-        [to_sheets_ticker(slug), attr, f'=GOOGLEFINANCE("{to_sheets_ticker(slug)}","{attr}")']
+        [
+            to_sheets_ticker(slug),
+            attr,
+            f'=GOOGLEFINANCE("{to_sheets_ticker(slug)}","{attr}")',
+        ]
         for slug, attr in requests
     ]
     ws.clear()

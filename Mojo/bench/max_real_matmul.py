@@ -185,17 +185,27 @@ def main():
         help="Rows directly (mutually exclusive with --elements; default 10000)",
     )
     ap.add_argument(
-        "--dims", type=int, default=768, help="Dims (768 for 10K, 128 for the 1M-100M family)"
+        "--dims",
+        type=int,
+        default=768,
+        help="Dims (768 for 10K, 128 for the 1M-100M family)",
     )
     ap.add_argument(
-        "--n", type=int, default=1, help="rhs columns: 1 = gemv path, >1 = TiledMatmul GEMM path"
+        "--n",
+        type=int,
+        default=1,
+        help="rhs columns: 1 = gemv path, >1 = TiledMatmul GEMM path",
     )
     ap.add_argument("--reps", type=int, default=5, help="Reps best-of")
     ap.add_argument(
-        "--data", default=None, help="Optional matrix .f32 path (default: generate locally, seed 0)"
+        "--data",
+        default=None,
+        help="Optional matrix .f32 path (default: generate locally, seed 0)",
     )
     ap.add_argument(
-        "--query", default=None, help="Optional query .f32 path (default: generate locally)"
+        "--query",
+        default=None,
+        help="Optional query .f32 path (default: generate locally)",
     )
     args = ap.parse_args()
     if args.elements is None and args.rows is None:

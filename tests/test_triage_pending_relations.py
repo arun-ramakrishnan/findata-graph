@@ -480,7 +480,8 @@ class TestReviewSitting:
 
     def test_accept_appends_row_the_validator_consumes(self, paths):
         self._sidecar(
-            paths, [("supplier_to", "Acme Corp", "Dixon Technologies", "supplies batteries")]
+            paths,
+            [("supplier_to", "Acme Corp", "Dixon Technologies", "supplies batteries")],
         )
         rep, out = self._review(["a", "y"], paths)
         assert rep["approved"] == 1 and rep["applied"] == 1
@@ -629,7 +630,12 @@ class TestReviewSitting:
         packets = tmp_path / "packets.jsonl"
         answers.write_text("")
         rep, out = self._review(
-            [], paths, menu=False, prompt=True, answers_path=answers, packets_out=packets
+            [],
+            paths,
+            menu=False,
+            prompt=True,
+            answers_path=answers,
+            packets_out=packets,
         )
         assert rep["approved"] == 0
         assert not packets.exists() or packets.stat().st_size == 0
@@ -719,7 +725,8 @@ class TestExtractorIntegration:
     def test_alias_overrides_loaded_and_case_canonicalized(self, tmp_path, monkeypatch):
         af = tmp_path / "relation_aliases.json"
         af.write_text(
-            json.dumps({"kubota corporation": "colgate palmolive india"}), encoding="utf-8"
+            json.dumps({"kubota corporation": "colgate palmolive india"}),
+            encoding="utf-8",
         )
         monkeypatch.setattr(xr, "ALIAS_OVERRIDES_PATH", af)
         xr._alias_overrides.cache_clear()

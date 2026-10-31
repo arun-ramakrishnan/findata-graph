@@ -517,7 +517,13 @@ def spectral_radius(A: csr_matrix) -> float:
     """Largest eigenvalue magnitude (ARPACK, explicit tolerance)."""
     try:
         return float(
-            eigsh(A.astype(float), k=1, which="LA", tol=EIGSH_TOL, return_eigenvectors=False)[0]
+            eigsh(
+                A.astype(float),
+                k=1,
+                which="LA",
+                tol=EIGSH_TOL,
+                return_eigenvectors=False,
+            )[0]
         )
     except ArpackNoConvergence as e:
         raise RuntimeError(
@@ -676,7 +682,13 @@ def yen_paths(
     src, dst = pos[source], pos[sink]
     t0 = time.perf_counter()
     dists, preds = csgraph_yen(
-        A, src, dst, k, directed=directed, return_predecessors=True, unweighted=unweighted
+        A,
+        src,
+        dst,
+        k,
+        directed=directed,
+        return_predecessors=True,
+        unweighted=unweighted,
     )
     _assert_budget(YEN_LANE, time.perf_counter() - t0)
     out: list[tuple[float, list[str]]] = []
@@ -889,7 +901,9 @@ def main(argv: list[str] | None = None) -> int:  # noqa: C901
         help=f"Yen K (1..{YEN_K_MAX}; cost is ~K Dijkstras)",
     )
     ap.add_argument(
-        "--directed", action="store_true", help="yen: directed graph (default: undirected)"
+        "--directed",
+        action="store_true",
+        help="yen: directed graph (default: undirected)",
     )
     ap.add_argument(
         "--unweighted",

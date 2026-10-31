@@ -184,7 +184,14 @@ BENCHMARKS: list[tuple[str, list[str], float]] = [
     # /tmp/graph_spike.txt PART 3.
     (
         "graph_l1_centrality",
-        ["helpers/graph/scipy_bridge.py", "closeness-harmonic", "--jobs", "4", "--top", "10"],
+        [
+            "helpers/graph/scipy_bridge.py",
+            "closeness-harmonic",
+            "--jobs",
+            "4",
+            "--top",
+            "10",
+        ],
         5.0,
     ),
     (
@@ -256,7 +263,12 @@ BENCHMARKS: list[tuple[str, list[str], float]] = [
     # fresh temp dir per invocation: same code path, no live mutation.
     (
         "graph_rebuild",
-        ["helpers/graph/query.py", "rebuild", "--duckdb", "{scratch}/graph_rebuild.duckdb"],
+        [
+            "helpers/graph/query.py",
+            "rebuild",
+            "--duckdb",
+            "{scratch}/graph_rebuild.duckdb",
+        ],
         5.0,
     ),
     # test_gap_closure S3: the only legs that drive the FLASK REQUEST PATH.
@@ -304,8 +316,16 @@ BENCHMARKS: list[tuple[str, list[str], float]] = [
     # STALE gate is owned by `make search-fresh` + the advisory gate's
     # doc/script/note/memory-search-check rows (exit 1 on drift, per-index
     # report tails). Perf keeps only the QUERY-latency rows below.
-    ("doc_query", ["helpers/misc/doc_query.py", "embed cache sidecar", "--limit", "5"], 3.0),
-    ("script_query", ["helpers/misc/script_query.py", "database integrity", "--limit", "5"], 3.0),
+    (
+        "doc_query",
+        ["helpers/misc/doc_query.py", "embed cache sidecar", "--limit", "5"],
+        3.0,
+    ),
+    (
+        "script_query",
+        ["helpers/misc/script_query.py", "database integrity", "--limit", "5"],
+        3.0,
+    ),
     (
         "memory_query",
         ["helpers/misc/memory_query.py", "stg refresh scope", "--limit", "5"],
@@ -321,7 +341,10 @@ BENCHMARKS: list[tuple[str, list[str], float]] = [
     ("derive_insights", ["helpers/graph/derive_insights.py"], 9.0),
     (
         "parse_newsletter",
-        ["helpers/core/parse_newsletter.py", "findata/The_Chatter/Embracing_the_Unknown.md"],
+        [
+            "helpers/core/parse_newsletter.py",
+            "findata/The_Chatter/Embracing_the_Unknown.md",
+        ],
         3.0,
     ),
     (
@@ -343,12 +366,26 @@ BENCHMARKS: list[tuple[str, list[str], float]] = [
     # below any super-linear decay.
     (
         "near_duplicates_default",
-        ["helpers/graph/query.py", "near-duplicates", "--min-sim", "0.9", "--limit", "100"],
+        [
+            "helpers/graph/query.py",
+            "near-duplicates",
+            "--min-sim",
+            "0.9",
+            "--limit",
+            "100",
+        ],
         7.0,
     ),
     (
         "near_duplicates_wide",
-        ["helpers/graph/query.py", "near-duplicates", "--min-sim", "0.01", "--limit", "100"],
+        [
+            "helpers/graph/query.py",
+            "near-duplicates",
+            "--min-sim",
+            "0.01",
+            "--limit",
+            "100",
+        ],
         8.0,
     ),
     # rust_cosine_knn_port: the Rust kernel's reason-to-exist, measured as

@@ -150,7 +150,11 @@ def _embed_candidate(
         done += 1
         if done % 64 == 0:
             r = done / (time.perf_counter() - t0)
-            print(f"  [{tag}] {done}/{len(texts)} ({r:.1f}/s fresh)", file=sys.stderr, flush=True)
+            print(
+                f"  [{tag}] {done}/{len(texts)} ({r:.1f}/s fresh)",
+                file=sys.stderr,
+                flush=True,
+            )
     del model
     if misses:
         scratch.write_text(json.dumps(cache), encoding="utf-8")
@@ -249,7 +253,14 @@ def run(tags: list[str]) -> dict:
             top5_cosine = [rows[i][1] for i, _s in sims[:5]]
             hit = any(e in top5_hybrid for e in q["expect"])
             cos_hit = any(e in top5_cosine for e in q["expect"])
-            res.append({"id": q["id"], "category": q["category"], "hybrid": hit, "cosine": cos_hit})
+            res.append(
+                {
+                    "id": q["id"],
+                    "category": q["category"],
+                    "hybrid": hit,
+                    "cosine": cos_hit,
+                }
+            )
         hyb = sum(r["hybrid"] for r in res)
         cos = sum(r["cosine"] for r in res)
         print(
@@ -275,7 +286,12 @@ def run(tags: list[str]) -> dict:
         "\ncontrols (recorded, same questions): after_bm25 13/15 | "
         "after_hybrid (sectioned bge) 11/15 | before_hybrid (bge whole-note) 11/15"
     )
-    report["controls"] = {"after_bm25": 13, "after_hybrid": 11, "before_hybrid": 11, "n": 15}
+    report["controls"] = {
+        "after_bm25": 13,
+        "after_hybrid": 11,
+        "before_hybrid": 11,
+        "n": 15,
+    }
     return report
 
 

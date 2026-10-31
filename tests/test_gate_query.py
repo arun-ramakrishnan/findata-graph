@@ -247,7 +247,10 @@ def test_pending_tail_not_indexed(corpus):
 
 
 def test_refresh_reports_parser_errors(corpus, monkeypatch):
-    _write(corpus / "qa_report.md", _gate_block("2026-09-23 10:00:00", "2026-09-23 09:59:50"))
+    _write(
+        corpus / "qa_report.md",
+        _gate_block("2026-09-23 10:00:00", "2026-09-23 09:59:50"),
+    )
     monkeypatch.setattr(gq, "_parse_block", lambda *_: None)
     con = gq.connect()
     counts = gq.refresh(con)
@@ -269,14 +272,24 @@ def test_main_warns_when_report_tail_is_pending(corpus, capsys):
 def test_latest_and_failures(corpus):
     rep = corpus / "qa_report.md"
     _write(rep, _gate_block("2026-09-23 10:00:00", "2026-09-23 09:59:50"))
-    _write(rep, _gate_block("2026-09-23 11:00:00", "2026-09-23 10:59:50", fail=True, exit_code=1))
+    _write(
+        rep,
+        _gate_block("2026-09-23 11:00:00", "2026-09-23 10:59:50", fail=True, exit_code=1),
+    )
     con = gq.connect()
     gq.refresh(con)
     args = SimpleNamespace(wt="", gate="qa", run=None, json=False)
     digest = gq.cmd_latest(con, args)
     assert "10:59:50" in digest and "FAIL" in digest
     args2 = SimpleNamespace(
-        wt="", gate="qa", run=None, json=False, full=False, brief=False, limit=20, any_run=False
+        wt="",
+        gate="qa",
+        run=None,
+        json=False,
+        full=False,
+        brief=False,
+        limit=20,
+        any_run=False,
     )
     fails = gq.cmd_failures(con, args2)
     assert "LEG FAIL: pytest" in fails and "LEG FAIL: static_checks" in fails
@@ -761,7 +774,13 @@ def test_generic_artifact_records_include_report_legs_and_manifest(corpus):
     rows = con.execute(
         "SELECT kind, target, status, schema, source_rel FROM artifacts ORDER BY kind, target"
     ).fetchall()
-    assert ("integrity", "static_checks", "fail", gq.ARTIFACT_SCHEMA, "qa_report.md") in rows
+    assert (
+        "integrity",
+        "static_checks",
+        "fail",
+        gq.ARTIFACT_SCHEMA,
+        "qa_report.md",
+    ) in rows
     assert (
         "ruff",
         "helpers/example.py",
@@ -809,7 +828,10 @@ def test_native_artifact_adapters_cover_remaining_formats(corpus):
     now = datetime.now().strftime(gq._TS_FMT)
     artifact_dir = ".artifacts/qa/run-native"
     retained = corpus / artifact_dir
-    _write(retained / "coverage.json", json.dumps({"totals": {"percent": 80, "fail_under": 90}}))
+    _write(
+        retained / "coverage.json",
+        json.dumps({"totals": {"percent": 80, "fail_under": 90}}),
+    )
     _write(retained / "coverage.xml", "<coverage>")
     _write(
         retained / "perf.json",
@@ -935,7 +957,10 @@ def test_default_gate_is_qa_and_all_escapes(corpus):
         corpus / "perf_report.md",
         PERF_BLOCK.format(gen="2026-09-23 12:00:00", start="2026-09-23 12:00:00", bt="3.5"),
     )
-    _write(corpus / "qa_report.md", _gate_block("2026-09-23 10:00:00", "2026-09-23 09:59:50"))
+    _write(
+        corpus / "qa_report.md",
+        _gate_block("2026-09-23 10:00:00", "2026-09-23 09:59:50"),
+    )
     con = gq.connect()
     gq.refresh(con)
     args = SimpleNamespace(wt="", run=None, json=False)
@@ -947,7 +972,10 @@ def test_default_gate_is_qa_and_all_escapes(corpus):
 
 
 def test_recent_failures_cross_run(corpus):
-    _write(corpus / "qa_report.md", _gate_block("2026-09-23 10:00:00", "2026-09-23 09:59:50"))
+    _write(
+        corpus / "qa_report.md",
+        _gate_block("2026-09-23 10:00:00", "2026-09-23 09:59:50"),
+    )
     _write(
         corpus / "qa_report.md",
         _gate_block("2026-09-23 11:00:00", "2026-09-23 10:59:50", fail=True),
@@ -999,12 +1027,18 @@ def test_wt_single_dash_alias(corpus, capsys, monkeypatch):
 
 def test_recent_history_view(corpus):
     # pass run, fail run, pass run — all three listed, newest first
-    _write(corpus / "qa_report.md", _gate_block("2026-09-23 10:00:00", "2026-09-23 09:59:50"))
+    _write(
+        corpus / "qa_report.md",
+        _gate_block("2026-09-23 10:00:00", "2026-09-23 09:59:50"),
+    )
     _write(
         corpus / "qa_report.md",
         _gate_block("2026-09-23 11:00:00", "2026-09-23 10:59:50", fail=True),
     )
-    _write(corpus / "qa_report.md", _gate_block("2026-09-23 12:00:00", "2026-09-23 11:59:50"))
+    _write(
+        corpus / "qa_report.md",
+        _gate_block("2026-09-23 12:00:00", "2026-09-23 11:59:50"),
+    )
     con = gq.connect()
     gq.refresh(con)
     args = SimpleNamespace(wt="", gate="qa", last=10, tests=True)
@@ -1018,7 +1052,10 @@ def test_recent_history_view(corpus):
 
 
 def test_latest_gate_all_shows_every_gate(corpus):
-    _write(corpus / "qa_report.md", _gate_block("2026-09-23 10:00:00", "2026-09-23 09:59:50"))
+    _write(
+        corpus / "qa_report.md",
+        _gate_block("2026-09-23 10:00:00", "2026-09-23 09:59:50"),
+    )
     _write(
         corpus / "perf_report.md",
         PERF_BLOCK.format(gen="2026-09-23 11:00:00", start="2026-09-23 11:00:00", bt="3.5"),
@@ -1033,7 +1070,10 @@ def test_latest_gate_all_shows_every_gate(corpus):
 
 def test_cli_end_to_end(corpus, capsys, monkeypatch):
     rep = corpus / "perf_report.md"
-    _write(rep, PERF_BLOCK.format(gen="2026-09-23 10:00:00", start="2026-09-23 10:00:00", bt="3.5"))
+    _write(
+        rep,
+        PERF_BLOCK.format(gen="2026-09-23 10:00:00", start="2026-09-23 10:00:00", bt="3.5"),
+    )
     monkeypatch.chdir(corpus.parent)
     assert gq.main(["latest", "--gate", "perf"]) == 0
     assert "graph_l1_betweenness" in capsys.readouterr().out

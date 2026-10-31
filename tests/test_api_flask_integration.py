@@ -321,7 +321,12 @@ class TestApiResponseShapes:
         assert r.status_code == 200
         data = r.get_json()
         # StatsResponse: {entity_counts, top_sectors, market_cap_counts, total_entities}
-        for k in ("entity_counts", "top_sectors", "market_cap_counts", "total_entities"):
+        for k in (
+            "entity_counts",
+            "top_sectors",
+            "market_cap_counts",
+            "total_entities",
+        ):
             assert k in data, f"StatsResponse missing key '{k}'"
 
     def test_api_search_response_has_expected_keys(self, p2_client):

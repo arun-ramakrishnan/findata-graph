@@ -65,7 +65,10 @@ FETCH_SCRATCH = (
 )
 RSS_URL = "https://nsearchives.nseindia.com/content/RSS/Shareholding_Pattern.xml"
 BSE_RSS_URL = "https://www.bseindia.com/Data/XML/ShareholdingPattern_Feed.aspx"
-UA = {"User-Agent": "Mozilla/5.0 research", "Referer": "https://nsearchives.nseindia.com/"}
+UA = {
+    "User-Agent": "Mozilla/5.0 research",
+    "Referer": "https://nsearchives.nseindia.com/",
+}
 SOURCE_REF_PREFIX = "nse:shp"
 
 XBRLI = "{http://www.xbrl.org/2003/instance}"
@@ -592,7 +595,8 @@ def parse_shp_html(html_text: str) -> dict:  # noqa: C901  # per-table parse lad
         "period_start": None,
         "period_end": _iso_date_bse(
             header.get(
-                "Quarter Ended / Half year ended/Date of Report (For Prelisting / Allotment)", ""
+                "Quarter Ended / Half year ended/Date of Report (For Prelisting / Allotment)",
+                "",
             )
             or ""
         ),
@@ -740,9 +744,17 @@ def build_candidates(
         if target is None:
             unresolved.append(symbol)
             continue
-        for _fid, category, name, pct, shares, voting, pledged, _sym, pend in by_filing.get(
-            filing_id, []
-        ):
+        for (
+            _fid,
+            category,
+            name,
+            pct,
+            shares,
+            voting,
+            pledged,
+            _sym,
+            pend,
+        ) in by_filing.get(filing_id, []):
             norm = _normalize(name)
             key = norm.upper()  # filings mix 'MANOJ B GANDHI' and
             # 'Manoj B Gandhi' — dedup case-insensitively, keep display
@@ -1161,10 +1173,14 @@ def _resolve_companies(src: duckdb.DuckDBPyConnection, conn: sqlite3.Connection)
 def main(argv: list[str] | None = None) -> int:  # noqa: C901
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument(
-        "--rss", action="store_true", help="poll the NSE RSS index and ingest new filings"
+        "--rss",
+        action="store_true",
+        help="poll the NSE RSS index and ingest new filings",
     )
     ap.add_argument(
-        "--bse-rss", action="store_true", help="poll the BSE RSS mirror and ingest new filings"
+        "--bse-rss",
+        action="store_true",
+        help="poll the BSE RSS mirror and ingest new filings",
     )
     ap.add_argument("--xml", metavar="URL|PATH", help="ingest one filing directly")
     ap.add_argument("--max", type=int, default=0, help="cap filings per run (0 = no cap)")
@@ -1180,7 +1196,10 @@ def main(argv: list[str] | None = None) -> int:  # noqa: C901
         help="apply staged filings (no fetch); pairs with --fetch-only",
     )
     ap.add_argument(
-        "--min-stake", type=float, default=0.1, help="named-holder stake %% floor (default 0.1)"
+        "--min-stake",
+        type=float,
+        default=0.1,
+        help="named-holder stake %% floor (default 0.1)",
     )
     ap.add_argument(
         "--same-group-min",

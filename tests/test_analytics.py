@@ -24,7 +24,8 @@ def snap(tmp_path: Path) -> Path:
         (tmp_path / "sqlite").mkdir()
         con.execute("CREATE TABLE meta(key VARCHAR, value VARCHAR)")
         con.executemany(
-            "INSERT INTO meta VALUES (?, ?)", [("schema_version", "9"), ("generation", "42")]
+            "INSERT INTO meta VALUES (?, ?)",
+            [("schema_version", "9"), ("generation", "42")],
         )
         con.execute("COPY meta TO '" + str(tmp_path / "duckdb" / "_build_meta.parquet") + "'")
         con.execute(
@@ -158,7 +159,8 @@ def cov_snap(tmp_path: Path) -> Path:
         (tmp_path / "sqlite").mkdir()
         con.execute("CREATE TABLE meta(key VARCHAR, value VARCHAR)")
         con.executemany(
-            "INSERT INTO meta VALUES (?, ?)", [("schema_version", "10"), ("generation", "43")]
+            "INSERT INTO meta VALUES (?, ?)",
+            [("schema_version", "10"), ("generation", "43")],
         )
         con.execute("COPY meta TO '" + str(tmp_path / "duckdb" / "_build_meta.parquet") + "'")
         con.execute(
@@ -197,8 +199,18 @@ def cov_snap(tmp_path: Path) -> Path:
             "INSERT INTO graph_edges VALUES (?, ?, ?, 'cited_in', 1.0, ?, NULL, NULL,"
             " 'derive:cited_in', 0, '2026-08-19 12:00:00')",
             [
-                (1, "A", "Ed1", '{"n_quotes": 2, "resource": "/findata/The_Chatter/Ed1.md"}'),
-                (2, "B", "Ed1", '{"n_quotes": 0, "resource": "/findata/The_Chatter/Ed1.md"}'),
+                (
+                    1,
+                    "A",
+                    "Ed1",
+                    '{"n_quotes": 2, "resource": "/findata/The_Chatter/Ed1.md"}',
+                ),
+                (
+                    2,
+                    "B",
+                    "Ed1",
+                    '{"n_quotes": 0, "resource": "/findata/The_Chatter/Ed1.md"}',
+                ),
                 (3, "C", "Ed2", '{"n_quotes": 1}'),
                 # sector note citing an edition: matrix-excluded, rollup-counted
                 (4, "Agri", "Ed1", "{}"),
@@ -286,7 +298,8 @@ def t_snap(tmp_path: Path) -> Path:
         (tmp_path / "sqlite").mkdir()
         con.execute("CREATE TABLE meta(key VARCHAR, value VARCHAR)")
         con.executemany(
-            "INSERT INTO meta VALUES (?, ?)", [("schema_version", "11"), ("generation", "44")]
+            "INSERT INTO meta VALUES (?, ?)",
+            [("schema_version", "11"), ("generation", "44")],
         )
         con.execute("COPY meta TO '" + str(tmp_path / "duckdb" / "_build_meta.parquet") + "'")
         con.execute(

@@ -109,7 +109,8 @@ def _heading_regex(newsletter_type: str) -> re.Pattern[str]:
 def _footer_regex(newsletter_type: str) -> re.Pattern[str]:
     """Build the source-footer regex for a given newsletter slug."""
     return re.compile(
-        _FOOTER_RE_TEMPLATE.format(nl=re.escape(_newsletter_title(newsletter_type))), re.MULTILINE
+        _FOOTER_RE_TEMPLATE.format(nl=re.escape(_newsletter_title(newsletter_type))),
+        re.MULTILINE,
     )
 
 

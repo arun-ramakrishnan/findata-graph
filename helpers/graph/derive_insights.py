@@ -119,7 +119,11 @@ except ImportError:  # pragma: no cover
 
 from helpers.core import jsonio  # noqa: E402  (orjson parse cutover; dumps stay stdlib per db_scaling_tuning §6.3 criteria)
 from helpers.core.db import connect  # noqa: E402
-from helpers.core.stable_write import ReplaceResult, stable_prefix_diff, stable_prefix_replace  # noqa: E402
+from helpers.core.stable_write import (  # noqa: E402
+    ReplaceResult,
+    stable_prefix_diff,
+    stable_prefix_replace,
+)
 from helpers.core.edition_index import (  # noqa: E402
     _body,
     edition_source_entry,
@@ -200,7 +204,10 @@ def _load_frontmatter(text: str) -> dict | None:
 
 
 def _stale_only_skip(
-    text: str, scanned_stems: frozenset[str] = frozenset(), *, fm: dict | None | object = _UNSET
+    text: str,
+    scanned_stems: frozenset[str] = frozenset(),
+    *,
+    fm: dict | None | object = _UNSET,
 ) -> bool | None:
     """``--stale-only`` gate (okf_activation I). True=skip, False=render,
     None=no evidence (render anyway — safe default, accepted Q3).
@@ -664,7 +671,15 @@ def _is_non_structural_heading(raw: str, lower: str) -> bool:
     if _ROLE_HEADING_RE.match(lower):
         return True
     if lower.startswith(
-        ("comment", "discussion", "don't", "share this", "subscribe", "about ", "welcome")
+        (
+            "comment",
+            "discussion",
+            "don't",
+            "share this",
+            "subscribe",
+            "about ",
+            "welcome",
+        )
     ):
         return True
     return False
@@ -945,7 +960,10 @@ def ensure_quotes_catchall(conn) -> dict:
 
 
 def iter_edition_note_section(
-    content: str, stem: str, known_bare: set[str] | None = None, boundaries: list | None = None
+    content: str,
+    stem: str,
+    known_bare: set[str] | None = None,
+    boundaries: list | None = None,
 ):
     """Yield the preamble (pre-first-heading) region as an edition-note
     section (S4/G5): masthead commentary routes to the edition entity,
@@ -1750,7 +1768,12 @@ _METRIC_CONTENT_COLS = (
 
 
 def _stable_prefix_replace(
-    conn, table: str, prefix: str, cols: tuple[str, ...], insert_sql: str, new_rows: list[tuple]
+    conn,
+    table: str,
+    prefix: str,
+    cols: tuple[str, ...],
+    insert_sql: str,
+    new_rows: list[tuple],
 ) -> ReplaceResult:
     """Prefix-scoped replace preserving id/created_at of unchanged rows.
 
@@ -1817,7 +1840,12 @@ def apply_quotes(
             return stable_prefix_diff(conn, "quotes", QUOTES_PREFIX, _QUOTE_CONTENT_COLS, new_rows)
         with conn:
             return _stable_prefix_replace(
-                conn, "quotes", QUOTES_PREFIX, _QUOTE_CONTENT_COLS, _INSERT_QUOTE_SQL, new_rows
+                conn,
+                "quotes",
+                QUOTES_PREFIX,
+                _QUOTE_CONTENT_COLS,
+                _INSERT_QUOTE_SQL,
+                new_rows,
             )
     finally:
         if own_conn:
@@ -1871,7 +1899,10 @@ def apply_metrics(
 # STAGE 4 — render auto blocks into company notes                             #
 # =========================================================================== #
 def render_chatter_block(
-    edition: str, quotes: list[Quote], index: dict | None = None, memo: dict | None = None
+    edition: str,
+    quotes: list[Quote],
+    index: dict | None = None,
+    memo: dict | None = None,
 ) -> str:
     """Render the auto ``## The Chatter — <edition>`` markdown block.
 
@@ -2049,7 +2080,10 @@ class _ChatterPlan:
         for m in _AUTO_BLOCK_RE.finditer(self.text):
             ed = _edition_of_block(m.group(0))
             if ed is not None:
-                spans[_normalize_chatter_edition(ed).strip().lower()] = (m.start(), m.end())
+                spans[_normalize_chatter_edition(ed).strip().lower()] = (
+                    m.start(),
+                    m.end(),
+                )
         self._spans = spans
 
     def _invalidate(self) -> None:
@@ -2701,7 +2735,8 @@ def _display_names(conn) -> dict[str, str]:
             names[r["name"]] = r["name"]
         if r["normalized_name"]:
             names.setdefault(
-                r["normalized_name"].replace("_", " "), r["name"] or r["normalized_name"]
+                r["normalized_name"].replace("_", " "),
+                r["name"] or r["normalized_name"],
             )
     return names
 
@@ -2923,7 +2958,12 @@ def _render_metric_note(
     ):
         return "gated"
     text, sources_changed = _splice_sources(
-        text, index, vault, extra_stems=frozenset(merged_stems), memo=res_memo, fm=fm_once
+        text,
+        index,
+        vault,
+        extra_stems=frozenset(merged_stems),
+        memo=res_memo,
+        fm=fm_once,
     )
     if not (changed or sources_changed) or not _balanced_or_skipped(original_text, text, p.name):
         return "skip"
@@ -3062,7 +3102,8 @@ def _kf_manifest_entities(path: str, conn=None) -> list[str]:
             row = conn.execute("SELECT name FROM entities WHERE file_path = ?", (ln,)).fetchone()
             if row is None:
                 print(
-                    f"WARNING: kf-manifest path {ln!r}: no entity row — dropped.", file=sys.stderr
+                    f"WARNING: kf-manifest path {ln!r}: no entity row — dropped.",
+                    file=sys.stderr,
                 )
                 continue
             names.append(row["name"])
@@ -3077,7 +3118,10 @@ def _kf_manifest_entities(path: str, conn=None) -> list[str]:
             }
             for n in names:
                 if n not in known:
-                    print(f"WARNING: kf-manifest entity {n!r}: unknown — dropped.", file=sys.stderr)
+                    print(
+                        f"WARNING: kf-manifest entity {n!r}: unknown — dropped.",
+                        file=sys.stderr,
+                    )
             names = [n for n in names if n in known]
     finally:
         if own_conn:
@@ -3493,7 +3537,10 @@ def _resolve_ladder(name: str, resolver_map: dict[str, str]) -> tuple[str | None
 
 
 def _extract_sections(
-    sections: list[CompanySection], edition: str, stem: str, resolver_map: dict[str, str]
+    sections: list[CompanySection],
+    edition: str,
+    stem: str,
+    resolver_map: dict[str, str],
 ) -> tuple[list[Quote], list[Metric]]:
     """Resolve section names against the map, then extract quotes + metrics.
 
@@ -3646,7 +3693,10 @@ def _corpus_paths(corpus: Corpus, target: str) -> list[Path]:
 
 
 def _scan_corpus(
-    corpus: Corpus, target: str, resolver_map: dict[str, str], workers: int | None = None
+    corpus: Corpus,
+    target: str,
+    resolver_map: dict[str, str],
+    workers: int | None = None,
 ) -> tuple[list[Quote], list[Metric]]:
     """Corpus fast path (S1b): scan pre-parsed notes, no file re-reads.
 
@@ -3694,7 +3744,10 @@ def _scan_corpus(
                 metrics.extend(Metric(**d) for d in m_dicts)
             return quotes, metrics
         except BrokenProcessPool:
-            print("WARNING: ProcessPoolExecutor crashed, falling back to serial", file=sys.stderr)
+            print(
+                "WARNING: ProcessPoolExecutor crashed, falling back to serial",
+                file=sys.stderr,
+            )
     quotes: list[Quote] = []
     metrics: list[Metric] = []
     for md in paths:
@@ -3740,7 +3793,10 @@ def _scan_parallel(
                 metrics.extend(Metric(**d) for d in m_dicts)
             return quotes, metrics
     except BrokenProcessPool:
-        print("WARNING: ProcessPoolExecutor crashed, falling back to serial", file=sys.stderr)
+        print(
+            "WARNING: ProcessPoolExecutor crashed, falling back to serial",
+            file=sys.stderr,
+        )
         return _scan_serial(paths, resolver_map)
 
 
@@ -3923,7 +3979,10 @@ def _cli(argv: list[str] | None = None) -> int:  # noqa: C901
 
                     q1 = tj.noul(
                         "is this a standalone recordable business metric, or a passing mention? (noul = P(standalone metric))",
-                        {"standalone": "recordable business metric", "passing": "passing mention"},
+                        {
+                            "standalone": "recordable business metric",
+                            "passing": "passing mention",
+                        },
                     )
                     q2 = tj.choice(
                         "what kind of metric is this?",
@@ -3957,7 +4016,8 @@ def _cli(argv: list[str] | None = None) -> int:  # noqa: C901
 
         if shortlist:
             scored = sorted(
-                shortlist, key=lambda t: (_ambiguity(t[1]) or 1.0, t[0].entity, t[0].value_raw)
+                shortlist,
+                key=lambda t: (_ambiguity(t[1]) or 1.0, t[0].entity, t[0].value_raw),
             )
             shown = 0
             for m, v in scored:

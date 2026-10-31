@@ -401,7 +401,10 @@ def _cli(argv: list[str] | None = None) -> int:
             write_worklist(worklist, unmapped)
             print(f"worklist written: {WORKLIST} ({len(worklist)})", file=sys.stderr)
         elif args.apply:
-            print("  --db target: live worklist NOT written (disposable copy run)", file=sys.stderr)
+            print(
+                "  --db target: live worklist NOT written (disposable copy run)",
+                file=sys.stderr,
+            )
         if args.verbose:
             dcli.dump_edges_verbose(edges)
         return 0

@@ -75,7 +75,12 @@ class TestStatusScriptReadsTheConfigBars:
     def test_absent_t1_falls_back_to_nudge_growth_tokens(self, tmp_path):
         out = _run_status(
             tmp_path,
-            {"compress": {"nudgeGrowthTokens": 30000, "tierNudgeTokens": {"t2": 38000}}},
+            {
+                "compress": {
+                    "nudgeGrowthTokens": 30000,
+                    "tierNudgeTokens": {"t2": 38000},
+                }
+            },
         )
         assert "bar1 (T1)   : 30000" in out
         assert "fallback nudgeGrowthTokens" in out

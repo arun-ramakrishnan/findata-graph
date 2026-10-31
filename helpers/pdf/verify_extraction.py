@@ -307,7 +307,11 @@ def main(argv: list[str] | None = None) -> int:
     stem = args.stem or pdf_path.stem
     try:
         manifest = verify(
-            pdf_path, out_dir, stem, warn_below=args.warn_below, fail_below=args.fail_below
+            pdf_path,
+            out_dir,
+            stem,
+            warn_below=args.warn_below,
+            fail_below=args.fail_below,
         )
     except (OSError, KeyError, jsonio.JSONDecodeError) as e:
         print(f"error: verification failed: {e}", file=sys.stderr)

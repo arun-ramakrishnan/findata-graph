@@ -196,7 +196,13 @@ SUB_CATEGORIES: dict[str, list[str]] = {
         "Instruments",
     ],
     "Healthcare": ["Medical Devices", "Medical Instruments"],
-    "FMCG": ["Food Beverages", "Household Care", "Personal Care", "Tobacco", "Business Equipment"],
+    "FMCG": [
+        "Food Beverages",
+        "Household Care",
+        "Personal Care",
+        "Tobacco",
+        "Business Equipment",
+    ],
     "Technology": [
         "Digital Platforms",
         "IT Services",
@@ -228,7 +234,13 @@ SUB_CATEGORIES: dict[str, list[str]] = {
         "Grocery",
         "Specialty Retail",
     ],
-    "NBFC": ["Vehicle Loans", "Multi_Line", "Gold Loans", "Microfinance", "Credit Cards"],
+    "NBFC": [
+        "Vehicle Loans",
+        "Multi_Line",
+        "Gold Loans",
+        "Microfinance",
+        "Credit Cards",
+    ],
     "Media_Entertainment": [
         "Broadcasting",
         "Cinema",
@@ -237,7 +249,13 @@ SUB_CATEGORIES: dict[str, list[str]] = {
         "Publishing",
         "Advertising",
     ],
-    "Energy": ["Gas Distribution", "Power Generation", "Refining", "E&P", "Oilfield Services"],
+    "Energy": [
+        "Gas Distribution",
+        "Power Generation",
+        "Refining",
+        "E&P",
+        "Oilfield Services",
+    ],
     "Real_Estate": [
         "Commercial",
         "Real Estate Development",
@@ -257,7 +275,12 @@ SUB_CATEGORIES: dict[str, list[str]] = {
         "Dealerships",
     ],
     "Aviation": ["Airlines", "Airport Operations", "Aviation Services"],
-    "Banking": ["Cooperative Banks", "Foreign Banks", "Private Sector", "Public Sector"],
+    "Banking": [
+        "Cooperative Banks",
+        "Foreign Banks",
+        "Private Sector",
+        "Public Sector",
+    ],
     "Chemicals": ["Agrochemicals", "Petrochemicals", "Specialty Chemicals"],
     "Defense": ["Aerospace", "Military"],
     "Diagnostics": ["Imaging", "IVD", "Pathology"],
@@ -498,7 +521,10 @@ def build(*, write: bool) -> int:  # noqa: C901
 
     warns = _naming_echo_warnings()
     if warns:
-        print(f"[warn] naming rule (D13 review list, {len(warns)} echoes):", file=sys.stderr)
+        print(
+            f"[warn] naming rule (D13 review list, {len(warns)} echoes):",
+            file=sys.stderr,
+        )
         for w in warns:
             print(f"    - {w}", file=sys.stderr)
     errors = _validate_coverage(live_sectors)
@@ -590,7 +616,10 @@ def build(*, write: bool) -> int:  # noqa: C901
             )
             conn.close()
             return 1
-        print("(--check mode: taxonomy + notes fresh, no writes performed)", file=sys.stderr)
+        print(
+            "(--check mode: taxonomy + notes fresh, no writes performed)",
+            file=sys.stderr,
+        )
         conn.close()
         return 0
 
@@ -707,7 +736,10 @@ def _sync_sector_uplinks(conn) -> None:
     changes = _uplink_changes(conn)
     for note_path, _old, new_content in changes:
         note_path.write_text(new_content, encoding="utf-8")
-    print(f"synced super-sector up-links in {len(changes)} sector note(s)", file=sys.stderr)
+    print(
+        f"synced super-sector up-links in {len(changes)} sector note(s)",
+        file=sys.stderr,
+    )
 
 
 def _inject_uplink(content: str, super_name: str) -> str:
@@ -776,7 +808,10 @@ def main(argv: list[str] | None = None) -> int:
     write = args.apply or (not args.check)
     # Default (no flag) is --check for safety; require explicit --apply.
     if not args.apply and not args.check:
-        print("No --apply/--check given; defaulting to --check (dry-run).", file=sys.stderr)
+        print(
+            "No --apply/--check given; defaulting to --check (dry-run).",
+            file=sys.stderr,
+        )
         write = False
     return build(write=write)
 

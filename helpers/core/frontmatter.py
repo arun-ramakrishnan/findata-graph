@@ -163,7 +163,20 @@ _HUMAN_PDF_DATE_RE = re.compile(
 _MONTHS = {
     m: i
     for i, m in enumerate(
-        ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"],
+        [
+            "Jan",
+            "Feb",
+            "Mar",
+            "Apr",
+            "May",
+            "Jun",
+            "Jul",
+            "Aug",
+            "Sep",
+            "Oct",
+            "Nov",
+            "Dec",
+        ],
         start=1,
     )
 }

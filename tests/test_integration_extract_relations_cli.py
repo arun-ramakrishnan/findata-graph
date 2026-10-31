@@ -51,7 +51,8 @@ def _make_db(db: Path, tmp_path_factory) -> None:
     shutil.copyfile(schema_template(tmp_path_factory), db)
     dst = sqlite3.connect(str(db))
     dst.executemany(
-        "INSERT INTO entities (name, entity_type) VALUES (?, 'company')", [(_REL,), (_FSN,)]
+        "INSERT INTO entities (name, entity_type) VALUES (?, 'company')",
+        [(_REL,), (_FSN,)],
     )
     dst.commit()
     dst.close()
@@ -75,7 +76,9 @@ class _XrProject:
         # tmp path (otherwise dry-runs append to the LIVE sidecar).
         real_ws = xr.write_sidecar
         monkeypatch.setattr(
-            xr, "write_sidecar", lambda unresolved, path=None: real_ws(unresolved, self.sidecar)
+            xr,
+            "write_sidecar",
+            lambda unresolved, path=None: real_ws(unresolved, self.sidecar),
         )
         monkeypatch.setattr(xr, "connect", lambda *a, **k: db_connect(str(self.db)))
         err = StringIO()
@@ -86,7 +89,8 @@ class _XrProject:
     def edges(self, edge_type: str) -> list[tuple]:
         conn = sqlite3.connect(str(self.db))
         rows = conn.execute(
-            "SELECT source, target, symmetric FROM graph_edges WHERE edge_type = ?", (edge_type,)
+            "SELECT source, target, symmetric FROM graph_edges WHERE edge_type = ?",
+            (edge_type,),
         ).fetchall()
         conn.close()
         return rows

@@ -131,7 +131,8 @@ class TestOpeningsAndCoverage:
             ["Total revenue reached a new record high of KRW 134 trillion, up"]
         )
         assert qca.opening_covered(
-            '"Total revenue reached a new record high of KRW 134 trillion, up by 43%."', keys
+            '"Total revenue reached a new record high of KRW 134 trillion, up by 43%."',
+            keys,
         )
         assert not qca.opening_covered('"Something else entirely different text here."', keys)
 
@@ -143,7 +144,8 @@ class TestOpeningsAndCoverage:
         row = "$88 \\%$ of the country is not participating in the car growth story"
         keys = qca.coverage_keys([row])
         assert qca.opening_covered(
-            '" $88 \\%$ of the country is not participating in the car growth story"', keys
+            '" $88 \\%$ of the country is not participating in the car growth story"',
+            keys,
         )
 
     def test_shape_of(self):

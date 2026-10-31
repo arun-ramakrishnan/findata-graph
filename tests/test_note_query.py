@@ -121,7 +121,11 @@ def test_fuse_is_per_section_by_default():
     """Two sections of one note are two candidates — an agent wants the
     exact section, not a collapsed note."""
     fused = nq.fuse([_hit("a.md", 3, 0.5), _hit("a.md", 9, 0.4)], [_hit("b.md", 4, 0.9)], limit=10)
-    assert {(f["path"], f["line"]) for f in fused} == {("a.md", 3), ("a.md", 9), ("b.md", 4)}
+    assert {(f["path"], f["line"]) for f in fused} == {
+        ("a.md", 3),
+        ("a.md", 9),
+        ("b.md", 4),
+    }
 
 
 def test_fuse_per_note_collapses_to_the_best_section():
@@ -168,7 +172,9 @@ def test_search_degrades_to_bm25_when_the_matrix_is_stale(tmp_path, monkeypatch)
 
 def test_search_hybrid_uses_both_legs_when_both_answer(tmp_path, monkeypatch):
     monkeypatch.setattr(
-        nq, "semantic_hits", lambda *_a, **_k: ([{"path": "b.md", "line": 4, "score": 0.9}], "")
+        nq,
+        "semantic_hits",
+        lambda *_a, **_k: ([{"path": "b.md", "line": 4, "score": 0.9}], ""),
     )
     out = nq.search(_notes_db(tmp_path), "mojo", limit=5)
     assert out["mode"] == "hybrid"

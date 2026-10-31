@@ -213,7 +213,10 @@ def test_triage_menu_prompt_mutually_exclusive(tmp_path):
 def test_triage_scripted_mode_packets(tmp_path):
     find_path = _write_findings(
         tmp_path,
-        [_base("needs_validation", fingerprint="aa"), _base("needs_validation", fingerprint="bb")],
+        [
+            _base("needs_validation", fingerprint="aa"),
+            _base("needs_validation", fingerprint="bb"),
+        ],
     )
     out = tmp_path / "merged.json"
     answers = _answers(tmp_path, ["k", "k", "q"])

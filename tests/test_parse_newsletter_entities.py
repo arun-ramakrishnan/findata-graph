@@ -112,7 +112,12 @@ class TestCreateEntityIdempotent:
         conn.commit()
         try:
             pn.create_entity(
-                conn, "Solo Co", "GhostSector", "SOLO", apply=True, sector_entities=set()
+                conn,
+                "Solo Co",
+                "GhostSector",
+                "SOLO",
+                apply=True,
+                sector_entities=set(),
             )
             conn.commit()
             assert (

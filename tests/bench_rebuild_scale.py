@@ -362,7 +362,13 @@ def _density_check(rows: int, reps: int) -> None:
         try:
             db = scratch / "research.db"
             _clone_schema(db)
-            _generate(db, rows, degree=degree, notes=int(LIVE["notes"]), dims=int(LIVE["dims"]))
+            _generate(
+                db,
+                rows,
+                degree=degree,
+                notes=int(LIVE["notes"]),
+                dims=int(LIVE["dims"]),
+            )
             best, doubled, _ = _time_rebuild(db, reps)
             print(f"{label:>34} {best:>8.2f}   (R={doubled:,})")
         finally:

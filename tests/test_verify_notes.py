@@ -258,7 +258,10 @@ class TestSectorYamlConsistency:
                 "permalink": "/sectors/banking",
                 "created": "2025-01-01",
                 "last_modified": "2025-01-02",
-                "generated": {"by": "process:okf_backfill", "at": "2026-08-19T03:03:17Z"},
+                "generated": {
+                    "by": "process:okf_backfill",
+                    "at": "2026-08-19T03:03:17Z",
+                },
                 "verified": [{"by": "human:user", "at": "2026-06-01T10:00:00Z"}],
                 "sources": [{"id": "x", "resource": "/Reports/x.pdf"}],
                 "status": "stable",
@@ -329,7 +332,10 @@ class TestSuperSectorYaml:
                 "tags": ["entity_type/super_sector"],
                 "created": "2025-01-01",
                 "last_modified": "2025-01-02",
-                "generated": {"by": "process:okf_backfill", "at": "2026-08-19T03:03:17Z"},
+                "generated": {
+                    "by": "process:okf_backfill",
+                    "at": "2026-08-19T03:03:17Z",
+                },
                 "stale_after": "2027-02-15",
             },
             "title: Financials\ntype: super_sector\npermalink: /super_sectors/financials\n"

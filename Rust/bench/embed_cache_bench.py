@@ -93,7 +93,8 @@ def bench_sqlite_lookup(texts):
         for t in texts:
             h = sha256_hex(t.encode())
             row = conn.execute(
-                "SELECT embedding FROM embed_cache WHERE text_hash=? AND model=?", (h, MODEL)
+                "SELECT embedding FROM embed_cache WHERE text_hash=? AND model=?",
+                (h, MODEL),
             ).fetchone()
             if row is not None:
                 found += 1

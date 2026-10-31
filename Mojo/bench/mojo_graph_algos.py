@@ -85,9 +85,12 @@ def script_con() -> sqlite3.Connection:
 
 
 def conn_for(kind: str):
-    return {"graph": graph_con, "research": research_con, "doc": doc_con, "script": script_con}[
-        kind
-    ]()
+    return {
+        "graph": graph_con,
+        "research": research_con,
+        "doc": doc_con,
+        "script": script_con,
+    }[kind]()
 
 
 # --------------------------------------------------------------------------- #
@@ -507,7 +510,10 @@ def _metric_fns():
         "katz_centrality": ("float_dict", _c("katz_centrality")),
         "laplacian_centrality": ("float_dict", _c("laplacian_centrality")),
         "local_reaching_centrality": ("float_dict", _c("local_reaching_centrality")),
-        "local_clustering_coefficient": ("float_dict", _c("local_clustering_coefficient")),
+        "local_clustering_coefficient": (
+            "float_dict",
+            _c("local_clustering_coefficient"),
+        ),
         "weakly_connected_component": ("partition", _c("weakly_connected_component")),
         "louvain_community": ("int_dict", _c("louvain_community")),
         "link_prediction": ("pair_list", lambda: alg.link_prediction(graph_con())),

@@ -394,7 +394,10 @@ def print_staleness(stats: dict, *, count_key: str, unit: str, refresh_cmd: str)
     changed = stats.get("stale_changed", [])
     deleted = stats.get("stale_deleted", [])
     if not (new or changed or deleted):
-        print(f"index state: FRESH ({stats.get(count_key, 0)} {unit} unchanged)", file=sys.stderr)
+        print(
+            f"index state: FRESH ({stats.get(count_key, 0)} {unit} unchanged)",
+            file=sys.stderr,
+        )
         return
     print(
         f"index state: STALE — {len(changed)} changed, {len(new)} new, {len(deleted)} deleted",
@@ -517,10 +520,16 @@ def parse_query_vector_flag(raw: str | None) -> QueryVector | None:
         vec = tuple(float(x) for x in d["vector"])
         qv = QueryVector(vector=vec, model=str(d["model"]), dims=int(d["dims"]))
     except ValueError, TypeError, KeyError, AttributeError:
-        print("WARNING: --query-vector payload unparseable, embedding locally", file=sys.stderr)
+        print(
+            "WARNING: --query-vector payload unparseable, embedding locally",
+            file=sys.stderr,
+        )
         return None
     if qv.dims <= 0 or len(vec) != qv.dims:
-        print("WARNING: --query-vector dims mismatch payload, embedding locally", file=sys.stderr)
+        print(
+            "WARNING: --query-vector dims mismatch payload, embedding locally",
+            file=sys.stderr,
+        )
         return None
     return qv
 
@@ -554,7 +563,10 @@ def _guard_and_stage(
         try:
             db_path, sandbox_dir = _sandbox_copy_db(db_path)
         except (OSError, sqlite3.Error) as exc:
-            print(f"ERROR: --sandbox copy of {db_path.name} failed: {exc}", file=sys.stderr)
+            print(
+                f"ERROR: --sandbox copy of {db_path.name} failed: {exc}",
+                file=sys.stderr,
+            )
             raise _ApplyAbort(timer.finish(1, f"--sandbox copy failed: {exc}"[:500])) from exc
     return db_path, sandbox_dir
 
@@ -659,7 +671,10 @@ def run_query_cli(argv: list[str] | None, spec: QueryCliSpec) -> int:
     p.add_argument("--db", default=None, help=spec.db_flag_help)
     p.add_argument("--bm25", action="store_true", help="lexical leg only (skip the cosine re-rank)")
     p.add_argument(
-        "--json", action="store_true", dest="as_json", help="emit the raw result dicts as JSON"
+        "--json",
+        action="store_true",
+        dest="as_json",
+        help="emit the raw result dicts as JSON",
     )
     p.add_argument(
         "--query-vector",

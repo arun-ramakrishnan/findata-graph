@@ -75,9 +75,39 @@ def conn(tmp_path) -> sqlite3.Connection:
                 "Beta",
             ),
             (2, "Gamma", "jv", "2026-02-01", None, "day", None, "Delta", "Delta"),
-            (3, "Alpha", "guidance", "2026-02-10", None, "day", "10-12%", "Beta", "Beta"),
-            (4, "Gamma", "acquisition", "2026-03-01", None, "day", None, "Delta", "Delta"),
-            (5, "Delta", "acquisition", "2026-03-01", None, "day", None, "Gamma", "Gamma"),
+            (
+                3,
+                "Alpha",
+                "guidance",
+                "2026-02-10",
+                None,
+                "day",
+                "10-12%",
+                "Beta",
+                "Beta",
+            ),
+            (
+                4,
+                "Gamma",
+                "acquisition",
+                "2026-03-01",
+                None,
+                "day",
+                None,
+                "Delta",
+                "Delta",
+            ),
+            (
+                5,
+                "Delta",
+                "acquisition",
+                "2026-03-01",
+                None,
+                "day",
+                None,
+                "Gamma",
+                "Gamma",
+            ),
             (6, "Beta", "jv", None, None, None, None, "Ghost Co", None),
             (7, "Beta", "dividend", "2026-03-05", None, "day", None, "Gamma", "Gamma"),
         ],
@@ -175,7 +205,11 @@ class TestCollectEventFacets:
 
     def test_absent_events_table(self, tmp_path):
         bare = sqlite3.connect(tmp_path / "bare.db")
-        assert dh.collect_event_facets(bare) == {"roles": {}, "props": {}, "valid_from": {}}
+        assert dh.collect_event_facets(bare) == {
+            "roles": {},
+            "props": {},
+            "valid_from": {},
+        }
         bare.close()
 
 

@@ -119,7 +119,13 @@ TRACE_KINDS = ("entrypoint", "propagation", "sink")
 # :566, :576).
 FORBIDDEN_FIELDS = {
     "confirmed": ("claimed_root_cause", "blockers", "validation_plan", "reason"),
-    "needs_validation": ("execution", "remediation", "reason", "root_cause", "severity"),
+    "needs_validation": (
+        "execution",
+        "remediation",
+        "reason",
+        "root_cause",
+        "severity",
+    ),
     "rejected": (
         "severity",
         "execution",
@@ -928,11 +934,17 @@ def triage(  # noqa: C901 — keypress parsing + kit wiring, split would scatter
     if findings is None:
         return 1
 
-    from helpers.core.decisions_preannotate import load_id_annotations, render_carrier_for
+    from helpers.core.decisions_preannotate import (
+        load_id_annotations,
+        render_carrier_for,
+    )
 
     if preannotate:
         try:
-            from helpers.core.decisions_preannotate import annotate_surface, make_surface_specs
+            from helpers.core.decisions_preannotate import (
+                annotate_surface,
+                make_surface_specs,
+            )
 
             _, annotated, _ = annotate_surface(make_surface_specs()["findings"])
             if annotated:
@@ -1030,7 +1042,10 @@ def triage(  # noqa: C901 — keypress parsing + kit wiring, split would scatter
             ans, _, free_note = ans.partition("|")
             ans, free_note = ans.strip(), free_note.strip()
             if ans in {"p", "q", "x"}:
-                return {"id": rid, "action": {"p": "skip", "q": "quit", "x": "abort"}[ans]}
+                return {
+                    "id": rid,
+                    "action": {"p": "skip", "q": "quit", "x": "abort"}[ans],
+                }
             if ans == "?":
                 print_fn("\n".join(legend))
                 _evidence(e)
@@ -1146,7 +1161,9 @@ def _main_brief(argv: list[str]) -> int:
         "--record", type=Path, help="merge a verifier result into the findings document"
     )
     ap.add_argument(
-        "--out", type=Path, help="where to write the merged document (required with --record)"
+        "--out",
+        type=Path,
+        help="where to write the merged document (required with --record)",
     )
     parsed = ap.parse_args(argv)
     if parsed.record is not None:
@@ -1168,7 +1185,9 @@ def _main_triage(argv: list[str]) -> int:
     )
     ap.add_argument("findings", nargs="?", type=Path, default=DEFAULT_FINDINGS)
     ap.add_argument(
-        "--out", type=Path, help="where to write the merged document (required to apply)"
+        "--out",
+        type=Path,
+        help="where to write the merged document (required to apply)",
     )
     ap.add_argument(
         "--all",
@@ -1182,7 +1201,9 @@ def _main_triage(argv: list[str]) -> int:
     )
     ap.add_argument("--answers", type=Path, help="answers file (one verb per finding + final y/n)")
     ap.add_argument(
-        "--packets-out", type=Path, help="write the prompt packets (JSONL) for the agent flow"
+        "--packets-out",
+        type=Path,
+        help="write the prompt packets (JSONL) for the agent flow",
     )
     ap.add_argument(
         "--no-preannotate",

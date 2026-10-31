@@ -106,7 +106,8 @@ def apply_derivation(conn, members: dict[str, dict[str, dict]], *, dry_run: bool
     existing = {
         label: eid
         for eid, label in conn.execute(
-            "SELECT id, label FROM hyper_edges WHERE edge_type = ?", (MEMBERSHIP_HYPER_TYPE,)
+            "SELECT id, label FROM hyper_edges WHERE edge_type = ?",
+            (MEMBERSHIP_HYPER_TYPE,),
         )
     }
     new_edges = sum(1 for label in members if label not in existing)
@@ -151,14 +152,27 @@ def apply_derivation(conn, members: dict[str, dict[str, dict]], *, dry_run: bool
                 cur = conn.execute(
                     "INSERT INTO hyper_edges (edge_type, label, properties, source_ref, "
                     "agent_id, source_tier) VALUES (?, ?, ?, ?, ?, ?)",
-                    (MEMBERSHIP_HYPER_TYPE, label, props_json, SOURCE_REF, AGENT_ID, SOURCE_TIER),
+                    (
+                        MEMBERSHIP_HYPER_TYPE,
+                        label,
+                        props_json,
+                        SOURCE_REF,
+                        AGENT_ID,
+                        SOURCE_TIER,
+                    ),
                 )
                 edge_id = int(cur.lastrowid)
             conn.executemany(
                 "INSERT INTO hyper_incidences "
                 "(edge_id, entity_name, weight, role, valid_from) VALUES (?, ?, ?, ?, ?)",
                 [
-                    (edge_id, person, facet["weight"], facet["role"], facet["valid_from"])
+                    (
+                        edge_id,
+                        person,
+                        facet["weight"],
+                        facet["role"],
+                        facet["valid_from"],
+                    )
                     for person, facet in sorted(mems.items())
                 ],
             )

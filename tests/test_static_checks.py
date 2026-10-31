@@ -514,7 +514,10 @@ def test_entities_indexes_constants_are_valid_ddl():
     """E1: ENTITIES_INDEXES are valid DDL that create the 4 production indexes
     on a fresh entities table. Previously these indexes had no source DDL.
     """
-    from helpers.maintenance.migrate_to_graph_edges import ENTITIES_DDL, ENTITIES_INDEXES
+    from helpers.maintenance.migrate_to_graph_edges import (
+        ENTITIES_DDL,
+        ENTITIES_INDEXES,
+    )
 
     conn = sqlite3.connect(":memory:")
     conn.execute(ENTITIES_DDL)
@@ -540,7 +543,10 @@ def test_entities_file_path_index_constant_is_valid_ddl():
     """Bundle Q1: the idx_entities_file_path index must be present in
     ENTITIES_INDEXES and create cleanly. Without it, /api/entity/<path>
     and derive_co_mentions do a full SCAN of entities on every call."""
-    from helpers.maintenance.migrate_to_graph_edges import ENTITIES_DDL, ENTITIES_INDEXES
+    from helpers.maintenance.migrate_to_graph_edges import (
+        ENTITIES_DDL,
+        ENTITIES_INDEXES,
+    )
 
     # The index constant must exist in the list.
     assert any("idx_entities_file_path" in idx for idx in ENTITIES_INDEXES), (
@@ -1309,7 +1315,10 @@ def test_stack_scope_artifacts_and_stray_dirs(tmp_path, monkeypatch):
     monkeypatch.setattr(
         sc,
         "_stack_files",
-        lambda: {tmp_path / "helpers" / "x.bak", tmp_path / "helpers" / "__pycache__" / "m.py"},
+        lambda: {
+            tmp_path / "helpers" / "x.bak",
+            tmp_path / "helpers" / "__pycache__" / "m.py",
+        },
     )
     merge_failures, advisory = sc.check_merge_markers_and_artifacts()
     assert merge_failures == []

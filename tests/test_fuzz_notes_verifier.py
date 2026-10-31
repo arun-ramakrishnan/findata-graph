@@ -93,7 +93,9 @@ def verifier(tmp_path):
 
 
 @settings(
-    suppress_health_check=[HealthCheck.function_scoped_fixture], max_examples=200, deadline=None
+    suppress_health_check=[HealthCheck.function_scoped_fixture],
+    max_examples=200,
+    deadline=None,
 )
 @given(_content_st)
 def test_fuzz_check_yaml_structure_never_raises(verifier, content: str):
@@ -116,7 +118,9 @@ def test_fuzz_check_yaml_structure_never_raises(verifier, content: str):
 
 
 @settings(
-    suppress_health_check=[HealthCheck.function_scoped_fixture], max_examples=200, deadline=None
+    suppress_health_check=[HealthCheck.function_scoped_fixture],
+    max_examples=200,
+    deadline=None,
 )
 @given(
     title=st.text(min_size=0, max_size=100),
@@ -172,7 +176,9 @@ def test_fuzz_check_yaml_structure_with_valid_frontmatter(
 
 
 @settings(
-    suppress_health_check=[HealthCheck.function_scoped_fixture], max_examples=200, deadline=None
+    suppress_health_check=[HealthCheck.function_scoped_fixture],
+    max_examples=200,
+    deadline=None,
 )
 @given(_content_st)
 def test_fuzz_check_content_quality_never_raises(verifier, content: str):
@@ -194,7 +200,9 @@ def test_fuzz_check_content_quality_never_raises(verifier, content: str):
 
 
 @settings(
-    suppress_health_check=[HealthCheck.function_scoped_fixture], max_examples=200, deadline=None
+    suppress_health_check=[HealthCheck.function_scoped_fixture],
+    max_examples=200,
+    deadline=None,
 )
 @given(st.text(min_size=0, max_size=200))
 def test_fuzz_check_filename_format_never_raises(verifier, filename: str):
@@ -214,7 +222,9 @@ def test_fuzz_check_filename_format_never_raises(verifier, filename: str):
 
 
 @settings(
-    suppress_health_check=[HealthCheck.function_scoped_fixture], max_examples=200, deadline=None
+    suppress_health_check=[HealthCheck.function_scoped_fixture],
+    max_examples=200,
+    deadline=None,
 )
 @given(
     filename_st=_filename_st,
@@ -239,7 +249,9 @@ def test_fuzz_check_name_sync_never_raises(verifier, filename_st: str, normalize
 
 
 @settings(
-    suppress_health_check=[HealthCheck.function_scoped_fixture], max_examples=500, deadline=None
+    suppress_health_check=[HealthCheck.function_scoped_fixture],
+    max_examples=500,
+    deadline=None,
 )
 @given(st.text(min_size=0, max_size=200))
 def test_fuzz_norm_heading_never_raises(verifier, heading: str):
@@ -259,7 +271,9 @@ def test_fuzz_norm_heading_never_raises(verifier, heading: str):
 
 
 @settings(
-    suppress_health_check=[HealthCheck.function_scoped_fixture], max_examples=500, deadline=None
+    suppress_health_check=[HealthCheck.function_scoped_fixture],
+    max_examples=500,
+    deadline=None,
 )
 @given(
     st.text(min_size=0, max_size=100),
@@ -282,7 +296,9 @@ def test_fuzz_heading_false_positive_never_raises(verifier, h1: str, h2: str):
 
 
 @settings(
-    suppress_health_check=[HealthCheck.function_scoped_fixture], max_examples=100, deadline=None
+    suppress_health_check=[HealthCheck.function_scoped_fixture],
+    max_examples=100,
+    deadline=None,
 )
 @given(_yaml_st)
 def test_fuzz_check_yaml_structure_consistent(verifier, yaml_content: str):
@@ -320,7 +336,9 @@ def test_fuzz_check_yaml_structure_consistent(verifier, yaml_content: str):
 
 
 @settings(
-    suppress_health_check=[HealthCheck.function_scoped_fixture], max_examples=100, deadline=None
+    suppress_health_check=[HealthCheck.function_scoped_fixture],
+    max_examples=100,
+    deadline=None,
 )
 @given(
     content_after_yaml=_content_st,
@@ -345,7 +363,9 @@ def test_fuzz_check_content_quality_various_bodies(verifier, content_after_yaml:
 
 
 @settings(
-    suppress_health_check=[HealthCheck.function_scoped_fixture], max_examples=20, deadline=None
+    suppress_health_check=[HealthCheck.function_scoped_fixture],
+    max_examples=20,
+    deadline=None,
 )
 @given(st.integers(min_value=0, max_value=10))
 def test_fuzz_verify_all_synthetic_vault(verifier, num_files: int):

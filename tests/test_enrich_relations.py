@@ -266,7 +266,8 @@ class TestYfinancePass:
     def test_pass_classifies_hygiene_failures(self, db, tmp_path, monkeypatch):
         self._seed_companies(db)
         monkeypatch.setattr(
-            "helpers.maintenance.enrich_relations.REPORT_PATH", tmp_path / "relations_report.md"
+            "helpers.maintenance.enrich_relations.REPORT_PATH",
+            tmp_path / "relations_report.md",
         )
         rc = run_yfinance_pass(
             db,
@@ -284,7 +285,8 @@ class TestYfinancePass:
     def test_fetch_cache_write_and_reuse(self, db, tmp_path, monkeypatch):
         self._seed_companies(db)
         monkeypatch.setattr(
-            "helpers.maintenance.enrich_relations.REPORT_PATH", tmp_path / "relations_report.md"
+            "helpers.maintenance.enrich_relations.REPORT_PATH",
+            tmp_path / "relations_report.md",
         )
         cache_path = tmp_path / "fetch_cache.json"
         calls = {"n": 0}
@@ -294,7 +296,11 @@ class TestYfinancePass:
             return {"industry": "Steel"}
 
         run_yfinance_pass(
-            db, check_only=True, fetch_fn=counting_fetch, workers=1, fetch_cache=cache_path
+            db,
+            check_only=True,
+            fetch_fn=counting_fetch,
+            workers=1,
+            fetch_cache=cache_path,
         )
         assert calls["n"] == 3
         payload = json.loads(cache_path.read_text())
@@ -305,13 +311,18 @@ class TestYfinancePass:
             raise AssertionError("network hit despite warm cache")
 
         run_yfinance_pass(
-            db, check_only=True, fetch_fn=exploding_fetch, workers=1, fetch_cache=cache_path
+            db,
+            check_only=True,
+            fetch_fn=exploding_fetch,
+            workers=1,
+            fetch_cache=cache_path,
         )
 
     def test_refresh_cache_refetches(self, db, tmp_path, monkeypatch):
         self._seed_companies(db)
         monkeypatch.setattr(
-            "helpers.maintenance.enrich_relations.REPORT_PATH", tmp_path / "relations_report.md"
+            "helpers.maintenance.enrich_relations.REPORT_PATH",
+            tmp_path / "relations_report.md",
         )
         cache_path = tmp_path / "fetch_cache.json"
         calls = {"n": 0}
@@ -321,7 +332,11 @@ class TestYfinancePass:
             return {"industry": "Steel"}
 
         run_yfinance_pass(
-            db, check_only=True, fetch_fn=counting_fetch, workers=1, fetch_cache=cache_path
+            db,
+            check_only=True,
+            fetch_fn=counting_fetch,
+            workers=1,
+            fetch_cache=cache_path,
         )
         run_yfinance_pass(
             db,
@@ -336,10 +351,15 @@ class TestYfinancePass:
     def test_check_only_writes_nothing(self, db, tmp_path, monkeypatch):
         self._seed_companies(db)
         monkeypatch.setattr(
-            "helpers.maintenance.enrich_relations.REPORT_PATH", tmp_path / "relations_report.md"
+            "helpers.maintenance.enrich_relations.REPORT_PATH",
+            tmp_path / "relations_report.md",
         )
         run_yfinance_pass(
-            db, check_only=True, fetch_fn=self._fake_fetcher(), workers=1, fetch_cache=None
+            db,
+            check_only=True,
+            fetch_fn=self._fake_fetcher(),
+            workers=1,
+            fetch_cache=None,
         )
         assert db.execute("SELECT COUNT(*) FROM graph_edges").fetchone()[0] == 0
 
@@ -381,7 +401,10 @@ def _gf_fetch(pages: dict[str, str]):
 
 
 def _write_gf_report(
-    path, *, issues=(("Srigee DLM", "SRIGEE.NS"),), unlisted=("Veeda Clinical Research",)
+    path,
+    *,
+    issues=(("Srigee DLM", "SRIGEE.NS"),),
+    unlisted=("Veeda Clinical Research",),
 ) -> str:
     """A minimal relations_report.md as the yfinance pass writes it."""
     text = (
@@ -412,7 +435,10 @@ class TestLoadGfTargets:
         rp = tmp_path / "relations_report.md"
         _write_gf_report(rp)
         targets = load_gf_targets(rp, include_unlisted=True)
-        assert targets == [("Srigee DLM", "SRIGEE.NS"), ("Veeda Clinical Research", None)]
+        assert targets == [
+            ("Srigee DLM", "SRIGEE.NS"),
+            ("Veeda Clinical Research", None),
+        ]
 
 
 class TestResolveGfTarget:
@@ -490,7 +516,11 @@ class TestResolveGfTarget:
 
     def test_unlisted_entity_no_candidates_without_curation(self):
         out = resolve_gf_target(
-            "Veeda Clinical Research", None, curated=None, fetch_fn=_gf_fetch({}), **self.KW
+            "Veeda Clinical Research",
+            None,
+            curated=None,
+            fetch_fn=_gf_fetch({}),
+            **self.KW,
         )
         assert out.outcome == "no-candidates"  # tier 2 (F3) is their hope
 
@@ -680,17 +710,24 @@ class TestResolveTier2:
 class TestRunGoogleFinancePass:
     def test_missing_report_returns_2(self, db, tmp_path):
         rc = run_googlefinance_pass(
-            db, report_path=tmp_path / "absent.txt", cache_dir=tmp_path, fetch_fn=_gf_fetch({})
+            db,
+            report_path=tmp_path / "absent.txt",
+            cache_dir=tmp_path,
+            fetch_fn=_gf_fetch({}),
         )
         assert rc == 2
 
     def test_appends_section_and_writes_no_data_rows(self, db, tmp_path):
         rp = tmp_path / "relations_report.md"
         original = _write_gf_report(
-            rp, issues=(("Ajax Engineering", "AJAXENGG.NS"), ("Srigee DLM", "SRIGEE.NS"))
+            rp,
+            issues=(("Ajax Engineering", "AJAXENGG.NS"), ("Srigee DLM", "SRIGEE.NS")),
         )
         rc = run_googlefinance_pass(
-            db, report_path=rp, cache_dir=tmp_path, fetch_fn=_gf_fetch({"AJAXENGG:NSE": _AJAX_PAGE})
+            db,
+            report_path=rp,
+            cache_dir=tmp_path,
+            fetch_fn=_gf_fetch({"AJAXENGG:NSE": _AJAX_PAGE}),
         )
         assert rc == 0
         # Dry-run creates the (empty) table but writes zero data rows.
@@ -712,7 +749,10 @@ class TestRunGoogleFinancePass:
         )
         db.commit()
         rc = run_googlefinance_pass(
-            db, report_path=rp, cache_dir=tmp_path, fetch_fn=_gf_fetch({"AJAXENGG:NSE": _AJAX_PAGE})
+            db,
+            report_path=rp,
+            cache_dir=tmp_path,
+            fetch_fn=_gf_fetch({"AJAXENGG:NSE": _AJAX_PAGE}),
         )
         assert rc == 0
         assert "curated (gf_only)" in rp.read_text(encoding="utf-8")
@@ -721,7 +761,11 @@ class TestRunGoogleFinancePass:
         rp = tmp_path / "relations_report.md"
         _write_gf_report(rp, issues=())
         rc = run_googlefinance_pass(
-            db, include_unlisted=True, report_path=rp, cache_dir=tmp_path, fetch_fn=_gf_fetch({})
+            db,
+            include_unlisted=True,
+            report_path=rp,
+            cache_dir=tmp_path,
+            fetch_fn=_gf_fetch({}),
         )
         assert rc == 0
         text = rp.read_text(encoding="utf-8")
@@ -736,7 +780,10 @@ class TestRunGoogleFinancePass:
             report_path=rp,
             cache_dir=tmp_path,
             fetch_fn=_gf_fetch({"544399:BOM": _SRIGEE_PAGE}),
-            search_fn=lambda q, c: ([BseMatch("544399", "SRIGEE", "SRIGEE DLM LTD")], True),
+            search_fn=lambda q, c: (
+                [BseMatch("544399", "SRIGEE", "SRIGEE DLM LTD")],
+                True,
+            ),
         )
         assert rc == 0
         text = rp.read_text(encoding="utf-8")
@@ -844,7 +891,10 @@ class TestGfApply:
             report_path=rp,
             cache_dir=tmp_path,
             fetch_fn=_gf_fetch({"544399:BOM": _SRIGEE_PAGE}),
-            search_fn=lambda q, c: ([BseMatch("544399", "SRIGEE", "SRIGEE DLM LTD")], True),
+            search_fn=lambda q, c: (
+                [BseMatch("544399", "SRIGEE", "SRIGEE DLM LTD")],
+                True,
+            ),
             metrics_fn=lambda r: (_ for _ in ()).throw(
                 AssertionError("yahoo_mapped_back must not fetch metrics")
             ),
@@ -1074,14 +1124,20 @@ class TestFinnhubPass:
     def test_apply_parity_with_dry_run(self, db, tmp_path):
         # The dry-run writeback table IS what apply writes — same pass,
         # same fakes, only dry_run flips.
-        self._seed(db, [("Piramal Enterprises", "PIEIL.NS", None), ("Gati", "ACLGATI.BO", None)])
+        self._seed(
+            db,
+            [("Piramal Enterprises", "PIEIL.NS", None), ("Gati", "ACLGATI.BO", None)],
+        )
         rp = tmp_path / "relations_report.md"
         _write_gf_report(rp, issues=(("Piramal Enterprises", "PIEIL.NS"), ("Gati", "ACLGATI.BO")))
         kw = dict(
             report_path=rp,
             fetch_cache=None,
             lookup_fn=lambda q, c: {
-                "Piramal Enterprises": ([FhMatch("PEL.NS", "Piramal Enterprises")], True),
+                "Piramal Enterprises": (
+                    [FhMatch("PEL.NS", "Piramal Enterprises")],
+                    True,
+                ),
                 "Gati": ([FhMatch("500219.BO", "JAIN IRRIGATION")], True),
             }[q],
             verify_fn=self._verify(
@@ -1113,7 +1169,8 @@ class TestTerminalClassifications:
     def _seed_status(self, db, name, status, successor=None):
         db.execute(ENTITY_TICKER_STATUS_DDL)
         db.execute(
-            "INSERT INTO entity_ticker_status VALUES (?, ?, ?, 'now')", (name, status, successor)
+            "INSERT INTO entity_ticker_status VALUES (?, ?, ?, 'now')",
+            (name, status, successor),
         )
         db.commit()
 
@@ -1128,7 +1185,8 @@ class TestTerminalClassifications:
         self._seed_status(db, "Akzo Nobel India", "amalgamated", "JSW Paints")
         rp = tmp_path / "relations_report.md"
         _write_gf_report(
-            rp, issues=(("Srigee DLM", "SRIGEE.NS"), ("Akzo Nobel India", "AKZOINDIA.BO"))
+            rp,
+            issues=(("Srigee DLM", "SRIGEE.NS"), ("Akzo Nobel India", "AKZOINDIA.BO")),
         )
         probed: list[str] = []
 
@@ -1365,7 +1423,13 @@ def test_parse_holders_dataframe_duck_typed_without_pandas():
         ],
     )
     assert _parse_holders_dataframe(frame) == [
-        {"holder": "Vanguard Group", "shares": 5, "pct": None, "value": 10_000.0, "date": None}
+        {
+            "holder": "Vanguard Group",
+            "shares": 5,
+            "pct": None,
+            "value": 10_000.0,
+            "date": None,
+        }
     ]
     assert _parse_holders_dataframe(_StubFrame(["Holder"], [])) == []
 

@@ -211,7 +211,10 @@ def main(argv: list[str] | None = None) -> int:
     if args.check and stats.candidates:
         return 1
     if not args.apply:
-        print("dry-run: no rows written; pass --apply at the operator checkpoint.", file=sys.stderr)
+        print(
+            "dry-run: no rows written; pass --apply at the operator checkpoint.",
+            file=sys.stderr,
+        )
     return 0
 
 

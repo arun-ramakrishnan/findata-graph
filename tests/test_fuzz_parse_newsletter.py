@@ -67,7 +67,9 @@ _TEXT = st.text(
 # 1. extract_companies — shape + never raises
 # ---------------------------------------------------------------------------
 @settings(
-    max_examples=300, deadline=None, suppress_health_check=[HealthCheck.function_scoped_fixture]
+    max_examples=300,
+    deadline=None,
+    suppress_health_check=[HealthCheck.function_scoped_fixture],
 )
 @given(_TEXT)
 def test_extract_companies_shape(content: str):
@@ -84,7 +86,9 @@ def test_extract_companies_shape(content: str):
 # 2. guess_sector_for — returns a member of sector_dirs or None
 # ---------------------------------------------------------------------------
 @settings(
-    max_examples=300, deadline=None, suppress_health_check=[HealthCheck.function_scoped_fixture]
+    max_examples=300,
+    deadline=None,
+    suppress_health_check=[HealthCheck.function_scoped_fixture],
 )
 @given(
     content_window=_TEXT,
@@ -109,7 +113,9 @@ def test_guess_sector_for_in_dirs_or_none(content_window: str, sector_dirs: set)
 # 3. render_stub — never raises + emits valid YAML frontmatter
 # ---------------------------------------------------------------------------
 @settings(
-    max_examples=200, deadline=None, suppress_health_check=[HealthCheck.function_scoped_fixture]
+    max_examples=200,
+    deadline=None,
+    suppress_health_check=[HealthCheck.function_scoped_fixture],
 )
 @given(_TEXT)
 def test_render_stub_never_raises(content: str):
@@ -138,7 +144,9 @@ _TICKER = st.one_of(
 
 
 @settings(
-    max_examples=200, deadline=None, suppress_health_check=[HealthCheck.function_scoped_fixture]
+    max_examples=200,
+    deadline=None,
+    suppress_health_check=[HealthCheck.function_scoped_fixture],
 )
 @given(
     name=_SAFE_TXT,

@@ -81,7 +81,14 @@ def _bar(n: int, total: int, width: int = 30) -> str:
 #: part_of/has_company stay listed although the dyads are retired
 #: (2026-10-19): the projection still emits both labels into e_dir/e_all_und,
 #: so their exclusion here is what keeps sector hops out of chain rankings.
-_CHAINS_EXCLUDE = ("part_of", "has_company", "belongs_to", "cited_in", "listed_in", "exposed_to")
+_CHAINS_EXCLUDE = (
+    "part_of",
+    "has_company",
+    "belongs_to",
+    "cited_in",
+    "listed_in",
+    "exposed_to",
+)
 #: Index membership is forbidden in BOTH views (2026-09-20, operator
 #: sign-off): listed_on_index stars are not relationships — they collapsed
 #: the whole graph into one 2,508-node component and the "longest chains"
@@ -320,7 +327,10 @@ def longest_chains(
             "ALL edges (excl. index membership)",
             _chain_edge_matrix(conn, idx, n, frozenset({"listed_on_index"}), pair_types),
         ),
-        ("ACTIVITY edges", _chain_edge_matrix(conn, idx, n, _CHAIN_FORBIDDEN, pair_types)),
+        (
+            "ACTIVITY edges",
+            _chain_edge_matrix(conn, idx, n, _CHAIN_FORBIDDEN, pair_types),
+        ),
     ):
         n_comp, comp = connected_components(mat, directed=False)
         if capped:

@@ -140,7 +140,10 @@ class TestBuildOkfFrontmatter:
         pdf.write_bytes(b"%PDF-1.4")
         monkeypatch.setattr(
             "helpers.pdf.pdf_conv_md._pdf_metadata",
-            lambda p: {"Title": "The Chatter: Bosch", "ModDate": "D:20260813120000+05'30'"},
+            lambda p: {
+                "Title": "The Chatter: Bosch",
+                "ModDate": "D:20260813120000+05'30'",
+            },
         )
         # _pdf_metadata is looked up inside build_okf_frontmatter via the
         # module global, so patch the module attribute directly.
@@ -149,7 +152,10 @@ class TestBuildOkfFrontmatter:
         monkeypatch.setattr(
             PCM,
             "_pdf_metadata",
-            lambda p: {"Title": "The Chatter: Bosch", "ModDate": "D:20260813120000+05'30'"},
+            lambda p: {
+                "Title": "The Chatter: Bosch",
+                "ModDate": "D:20260813120000+05'30'",
+            },
         )
         monkeypatch.setattr(PCM, "__file__", str(repo / "helpers/pdf/pdf_conv_md.py"))
         fm = build_okf_frontmatter(
@@ -223,7 +229,11 @@ class TestWriteOutputsFrontmatter:
     def test_frontmatter_prepended_to_md(self, tmp_path):
         pages = [{"markdown": {"text": "# Hello", "images": {}}}]
         write_outputs(
-            pages, tmp_path, "hello", fetch_images=False, frontmatter="---\ntype: newsletter\n---\n"
+            pages,
+            tmp_path,
+            "hello",
+            fetch_images=False,
+            frontmatter="---\ntype: newsletter\n---\n",
         )
         md = (tmp_path / "hello.md").read_text()
         assert md.startswith("---\ntype: newsletter\n---\n\n# Hello")
