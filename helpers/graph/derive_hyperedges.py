@@ -114,6 +114,16 @@ _STAR_SOURCES: list[tuple[str, str]] = [
     # the hyperedge family is a separate lane whose s-walk centrality
     # measured healthy (hgx_over_dyads §2.5).
     ("index", "listed_on_index"),
+    # hgx_over_dyads S4 (2026-10-31): tree/portfolio families join the star
+    # lane — subsidiary_of 7,419 dyads → 382 parent portfolios at k≥3 (max
+    # 227 members, 19× compression); supplier_to 16,696 dyads → 620 buyer
+    # portfolios at k≥3 (max 222, 27×). Both star-shaped by construction
+    # (one parent → many children; one buyer → many suppliers). Deferred
+    # from the S2/S3 wave for lack of a consumer; registered + applied as
+    # standing structure — OPT-IN for centrality lanes (index doctrine:
+    # run --sources deliberately; not added to recompute-hyper).
+    ("subsidiary", "subsidiary_of"),
+    ("supply", "supplier_to"),
 ]
 _SYMMETRIC_SOURCES: list[tuple[str, str, str]] = [
     ("group", "same_group", "$.group"),

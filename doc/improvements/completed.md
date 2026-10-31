@@ -12977,6 +12977,13 @@ scans, an invasive separate look on harness-owned stores.
 
 **Date:** 2026-10-30 · **Status:** EXECUTED · **Proposal:**
 `doc/improvements/archive/graph/hgx_over_dyads.md` (filed 2026-10-30).
+**S4 follow-through 2026-10-31** (commit b75c24062, first worktrunk
+session-worktree landing — `doc/local/engineering/wt_workflow.md`
+playbook): `subsidiary_of` + `supplier_to` registered as star families
+`subsidiary`/`supply`, applied — **382 parent portfolios (max 227) +
+620 buyer portfolios (max 222)**, registry invariants pinned
+(`tests/test_star_family_registry.py`), integrity 0 unknown types /
+0 bad roles.
 
 - **S1**: `fit_communities` excludes zero-row-sum EM nodes (live: **110
   excluded**, 2 of them degree-2 — degree was never the invariant) and

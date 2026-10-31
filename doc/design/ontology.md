@@ -176,6 +176,8 @@ entry 233). Roles/validity facets on incidences per entry 234 S4.
 - org_membership
 - sector
 - sub_sector
+- subsidiary
+- supply
 - theme
 
 <!-- /roster -->
@@ -203,6 +205,20 @@ giant set shifts with the node universe (6 of 8 giants exceed 25% of the
 1,212-node default universe vs 8 of 8 on the 762-node index-only one).
 Run `--sources …,index` deliberately; do not add it to
 `recompute-hyper`.
+
+`subsidiary` / `supply` (hgx_over_dyads S4, 2026-10-31): the tree/portfolio
+families, star-shaped by construction — `subsidiary`: label = the parent,
+members = its subsidiaries (7,419 `subsidiary_of` dyads → 382 portfolios at
+k≥3, largest 227, 19× compression); `supply`: label = the buyer, members =
+its suppliers (16,696 `supplier_to` dyads → 620 portfolios at k≥3, largest
+222, 27×). Deferred from the S2/S3 wave for lack of a consumer; registered
++ applied as standing structure with that consumer gap still open — OPT-IN
+for centrality lanes (index doctrine: run `--sources …,subsidiary,supply`
+deliberately; not added to `recompute-hyper`). Unlike `index`, the largest
+portfolios sit far below the community-fit giant threshold on their own
+family universes (~7.2k / ~9.1k nodes), so the degeneracy guard is not
+expected to bite. Underlying dyads stay centrality-visible (distributed —
+no single mega-hub like the index rosters).
 
 `merger` / `demerger` (merger_demerger_hyperedges S1, 2026-10-21): the
 n-ary corporate-structure families. A merger is A + B (+ …) → survivor C,

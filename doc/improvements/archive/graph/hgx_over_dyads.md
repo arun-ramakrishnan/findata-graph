@@ -377,7 +377,12 @@ that stops the next session re-deriving the same wrong answer.
 ## 6. Execution record (2026-10-30)
 
 S1/S2/S3/S5 executed same-day; S4 (`subsidiary_of`/`supplier_to`)
-deferred per §3.
+deferred per §3, then EXECUTED 2026-10-31 from a worktrunk session
+worktree (first run of the wt_workflow playbook): registered as star
+families `subsidiary` + `supply`, applied to the live store —
+382 parent portfolios (max 227) + 620 buyer portfolios (max 222);
+registry-wiring invariants pinned in
+`tests/test_star_family_registry.py`.
 
 | Slice | Result (measured, live store) |
 |---|---|

@@ -27,6 +27,20 @@ group 9, jv 6). Two join here — both n-ary, both written only by
     indexes). Written by ``derive_hyperedges``; the 8 largest indexes exceed
     the community-fit giant threshold and stay centrality/query-only.
 
+``subsidiary``
+    Parent-company subsidiary portfolios (hgx_over_dyads S4, 2026-10-31):
+    the 382 parents with ≥3 subsidiaries regrouped star-style — members are
+    the subsidiaries, label the parent (7,419 ``subsidiary_of`` dyads,
+    19× compression, largest portfolio 227). Written by ``derive_hyperedges``.
+
+``supply``
+    Buyer supply portfolios (hgx_over_dyads S4, 2026-10-31): the 620 buyers
+    with ≥3 suppliers regrouped star-style — members are the suppliers,
+    label the buyer (16,696 ``supplier_to`` dyads, 27× compression, largest
+    portfolio 222). Written by ``derive_hyperedges``. Both S4 families are
+    registered + applied as standing structure with NO consumer yet (the
+    deferral reason): OPT-IN for centrality lanes, not in ``recompute-hyper``.
+
 ``merger``
     A + B (+ …) → survivor C.  The survivor is a MEMBER, not a second
     dyad: the old shape ("A merged with B") forced the fact into a
@@ -61,6 +75,8 @@ HYPEREDGE_TYPES: frozenset[str] = frozenset(
         "org_membership",
         "sector",
         "sub_sector",
+        "subsidiary",
+        "supply",
         "theme",
     }
 )
