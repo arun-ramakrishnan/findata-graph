@@ -24,3 +24,4 @@ rayon = "1.10"
 
 [dev-dependencies]
 divan = "0.1"
+proptest = "1"

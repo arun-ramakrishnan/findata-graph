@@ -906,3 +906,12 @@ Open items below keep their revisit triggers inline; executed work is compressed
   single-harness). Small, well-shaped, purely operator-workflow
   leverage; parked only for sequencing behind the price-lane arc
   (`price_lane_alpha_research.md`).
+- **App-server jemalloc LD_PRELOAD trial** (parked from
+  `rust_jemalloc_global_allocator` #468 S3, 2026-11-01): the app server is
+  the real day-scale resident with allocation churn (17.5K-vector loads,
+  sqlite/duckdb buffers, imports the cosine_knn cdylib whose allocations
+  the preload reroutes too). Makefile:31-41 recipe (JEMALLOC_ENV /
+  JEMALLOC_LIB) already exists — #436 measured RSS-neutral only on SHORT
+  one-shot legs; the server leg was never run. 30-min A/B ×2, verdict on
+  RSS ratchet slope, not peak. NEVER combine with the desktop app's
+  compiled-in jemalloc (per-app; no overlap anyway — different processes).

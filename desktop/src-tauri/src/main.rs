@@ -8,6 +8,13 @@
 
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+// jemalloc global allocator (rust_jemalloc_global_allocator S1) — plugged
+// in per operator ruling 2026-11-01; MSVC excluded (jemalloc unsupported).
+// Never combine with an LD_PRELOAD'd jemalloc (two instances in one process).
+#[cfg(not(target_env = "msvc"))]
+#[global_allocator]
+static GLOBAL: tikv_jemallocator::Jemalloc = tikv_jemallocator::Jemalloc;
+
 use findata_core::{Cloud, Db, DocEntry, Ego, EntityMetrics, HyperEdge, NoteContent, RankEntry, SearchResults, SimilarHit, SuggestHit, Stats};
 
 fn db() -> Result<Db, String> {

@@ -13201,3 +13201,94 @@ run_gate_report.py Step.
   lint-gates 5, proposal-lifecycle 21, md-lint clean, search-fresh
   converged (one `--allow-stale` APPLY after operator's mid-session commit
   ff853d34f tripped `worktree_fresh_trample_guard`).
+
+## 465. Rust proptest property suite for cosine_knn — 8 properties, shrunken-counterexample shakedown
+
+**Date:** 2026-11-01 · **Status:** EXECUTED · **Proposal:**
+`doc/improvements/archive/tooling/rust_proptest_properties.md` (filed +
+executed same day). The recorded Hypothesis analogue (rust_language_tooling
+#446 tool-mapping) landed: proptest dev-dependency +
+`Rust/cosine_knn/tests/properties.rs` — 8 properties × 256 cases, all
+green (8.4 s); workspace cargo tests 8 → 16; rides the rust-test advisory
+leg unchanged (no new make target).
+
+- Properties generalize the unit tests: topk scores descending +
+  recomputed-cosine match; all-identical-rows → row indices ascending in
+  BOTH paths; forced single-vs-parallel exact parity on random shapes;
+  **tie parity at scale** (n=5–6k identical rows, k=64–512 — merge sort
+  under full tie pressure; `sort_unstable_by` concern did not
+  materialize, property now guards it); router == single at the
+  4_999/5_000/5_001 threshold boundary; zero rows score 0.0; cosine
+  bounded+symmetric; output length min(k, n) incl. k=0.
+- **Shakedown with teeth**: deliberate tie bug injected
+  (`partition_point(s >= score)` → `s > score`) → property FAILED with
+  SHRUNK minimal case **n = 2, dim = 1, k = 2**; reverted, green, lib.rs
+  byte-identical.
+- Tooling trap: proptest assert macros expand format strings via
+  `concat` — inline captures `{z}` don't compile; positional args only.
+
+## 466. Desktop lock advisory remediation — tokio/yoke cleared, zbus family accept-risk documented
+
+**Date:** 2026-11-01 · **Status:** EXECUTED · **Proposal:**
+`doc/improvements/archive/tooling/desktop_lock_advisory_remediation.md`
+(filed + executed same day; S1–S3, S4 dropped).
+
+- **S1**: `cargo update -p tokio -p yoke-derive` (1.53.1→1.54.1;
+  0.8.3→0.8.4 un-yanked), `cargo build` green 2m11s incremental,
+  re-audit: tokio unsound + yanked rows GONE — desktop findings 7 → 5.
+- **S2 finding that reframes the family**: the lock ALREADY has zbus
+  5.19.0 (tauri-plugin-opener 2.6.0, tauri 2.12.0) — the unmaintained
+  warnings are NOT stale-major: RUSTSEC-2026-0370 has `patched = []`
+  (zvariant unmaintained at every 5.x; fix = zbus 6.0 wire-module merge,
+  not targeted by tauri-plugin-opener yet). **ACCEPT-RISK**, desktop-only
+  D-Bus surface.
+- **S3**: proc-macro-error (build-time) + glib unsound (RUSTSEC-2024-0429
+  VariantStrIter) pinned by tauri 2.12's gtk 0.18 generation —
+  **ACCEPT-RISK** until tauri moves off gtk-rs 0.18. Residual floor: 4
+  unmaintained + 1 unsound, each documented.
+- **S4 dropped**: residual is accepted-risk, not gate material — no
+  desktop deny.toml wiring.
+
+## 467. Rust coverage via cargo-llvm-cov — S1 measured, closed MEASURED-NO-ACTION
+
+**Date:** 2026-11-01 · **Status:** EXECUTED · **Proposal:**
+`doc/improvements/archive/tooling/rust_cargo_llvm_cov.md` (filed +
+executed same day). cargo-llvm-cov installed; one-shot
+`cargo llvm-cov --workspace`: cosine_knn lib **73.86%** lines (uncovered
+= EXACTLY the PyO3 wrappers knn/knn_batch, lines 161–231 — unrunnable
+under cargo test, exercised by tests/test_cosine_knn_backends.py 9/9
+under SCRIPT_KNN_STRICT), embed_cache lib **100%**, trial bins 0% (kept
+as recorded artifacts per #446). **The parallel path is fully exercised**
+(local_topk 3.23k calls / 2.43M row iterations — proptest #465). S2
+(standing advisory leg) NOT justified — it would measure trial-bin noise;
+S3 unnecessary. Decision point from the proposal resolved: close.
+
+## 468. Jemalloc global allocator for the desktop tauri app — plugged in on operator ruling, trials aborted honestly
+
+**Date:** 2026-11-01 · **Status:** EXECUTED · **Proposal:**
+`doc/improvements/archive/tooling/rust_jemalloc_global_allocator.md`
+(filed + executed same day; S1 adopt, S3 parked). Operator-requested
+(Freenet-style fragmentation case, Rust 1.32 default = system allocator).
+Evidence FIRST: counting-allocator measurement ruled the Rust/ cdylibs
+OUT — cosine_knn churn is 176 B/query at production scale (2.3 KB @5k,
+40 KB @100k, 359 KB @1M) — desktop tauri = the only long-running Rust
+binary candidate.
+
+- **Landed**: `tikv-jemallocator = "0.6"` non-optional under
+  `cfg(not(target_env = "msvc"))` + `#[global_allocator]` in
+  `desktop/src-tauri/src/main.rs`; release build green (30.7 s). Verified
+  in-binary: 527 `_rjem_*` symbols + `_rjem_malloc.conf` path. cargo
+  audit: unchanged (5 accept-risk warnings, none new).
+- **Trials aborted honestly**: the 2×2 RSS A/B never measured — debug
+  build serves the tauri devUrl error page (plain cargo build doesn't
+  embed the frontend), release still showed the operator a localhost
+  error; operator ruled "No worries. Just plug the allocator in." =
+  explicit recorded exception to the #436 measured-ratchet law. Cleanup
+  via witr-verified pids (bare pkill -f had silently missed — correction
+  saved: witr for session-proc cleanup, repo-path substrings over-match
+  resident servers).
+- **Boundary recorded**: allocator governs Rust-internal allocations;
+  GTK/WebKit C code still uses glibc (no malloc interposition); never
+  combine with LD_PRELOAD jemalloc in this app.
+- **S3 parked** (pending.md): app-server LD_PRELOAD trial — the real
+  day-scale resident lever, Makefile:31-41 recipe, never measured.

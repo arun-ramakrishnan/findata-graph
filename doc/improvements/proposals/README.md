@@ -38,8 +38,21 @@ entry number and stale DONE pointers):
 
 ## Current live proposals
 
-- *(none live)* — every proposal filed here is executed and
-  archived. Most recent: `test_coverage_gap_sweep` (filed + executed
+- *(none live)* — `rust_jemalloc_global_allocator` executed + archived
+  same day (S1 desktop adopt on operator ruling, S3 parked).
+  *(previously live: the 2026-11-01 tooling batch (`rust_proptest_properties`,
+  `desktop_lock_advisory_remediation`, `rust_cargo_llvm_cov`) executed and
+  archived same day.)* Most recent archived:
+  `rust_jemalloc_global_allocator` (#468, S1 desktop adopt, S3 parked),
+  then `rust_cargo_llvm_cov` (#467, llvm-cov one-shot, MEASURED-NO-ACTION),
+  then `desktop_lock_advisory_remediation` (#466, tokio/yoke cleared,
+  zbus family accept-risk), then `rust_proptest_properties` (#465, 8
+  properties, shrunken-counterexample shakedown), then
+  `cargo_deny_superset_scan` (filed + executed same day
+  2026-11-01, #464, retro-filed at operator request —
+  `../archive/tooling/cargo_deny_superset_scan.md`; Rust/ fully clean, AGPL
+  first-party licenses + per-crate exceptions, `make rust-deny` advisory
+  leg), then `test_coverage_gap_sweep` (filed + executed
   same day 2026-11-01, #463,
   `../archive/testing/test_coverage_gap_sweep.md`; P1 unit gaps closed,
   fuzz legs incl. the as-of leak property, two integration chains, 4
@@ -59,7 +72,7 @@ entry number and stale DONE pointers):
   `mst_backbone_wiring` (filed 2026-10-30, executed
   2026-10-30, #458,
   `../archive/graph/mst_backbone_wiring.md`; stats.py advisory section
-  + `make graph-mst`) and `maximum_bipartite_matching_wiring` (filed
+  plus `make graph-mst`) and `maximum_bipartite_matching_wiring` (filed
   2026-10-30, executed 2026-10-30, #459,
   `../archive/graph/maximum_bipartite_matching_wiring.md`; stats.py
   advisory section + `make graph-matching`), then

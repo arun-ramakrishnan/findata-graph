@@ -16,3 +16,11 @@ serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 findata-core = { path = "core" }
 tauri-plugin-opener = "^2"
+
+# jemalloc global allocator — plugged in per operator ruling 2026-11-01
+# ("just plug the allocator in"; A/B RSS trials aborted — the debug build
+# serves the devUrl error page and the release build still showed it, so
+# UI-driven measurement was impractical). jemalloc does not support MSVC,
+# hence the target gate. NEVER combine with an LD_PRELOAD'd jemalloc.
+[target.'cfg(not(target_env = "msvc"))'.dependencies]
+tikv-jemallocator = "0.6"
