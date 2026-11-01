@@ -376,6 +376,11 @@ GATES: dict[str, Gate] = {
             # mojo-test precedent; promotion to qa on operator go.
             Step("rust-clippy", (_MAKE, "rust-clippy")),
             Step("rust-test", (_MAKE, "rust-test")),
+            # cargo-deny superset (advisories+bans+licenses+sources over
+            # Rust/deny.toml, 2026-11-01): extends cargo-audit on the
+            # Rust/ lock; SKIPs without the binary. Vulnerabilities FAIL,
+            # warnings-class kinds report-only.
+            Step("rust-deny", (_MAKE, "rust-deny")),
             # mojo-test RETIRED from advisory 2026-10-26 (Mojo freeze —
             # same operator ruling as the qa mojo-parity retirement; the
             # `make mojo-test` target survives for manual runs).

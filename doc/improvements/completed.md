@@ -13169,3 +13169,35 @@ research/bench code.
   `import hgx` ≠ package `hypergraphx` (absence claims need the right
   module name); `make snapshot` is the APPLY behind check-only
   `snapshot-fresh`.
+
+## 464. cargo-deny superset scan for Rust/ — advisories + bans + licenses + sources advisory leg
+
+**Date:** 2026-11-01 · **Status:** EXECUTED · **Proposal:**
+`doc/improvements/archive/tooling/cargo_deny_superset_scan.md` (filed +
+executed same day; retro-filed at operator request — "since it is a major
+feature"). Trigger: 2026-11-01 enhancement sweep ranked cargo-deny the only
+unblocked Rust tooling slice (recorded as "future" by rust_language_tooling
+#446). cargo-deny 0.20.2; `Rust/deny.toml`; `make rust-deny` advisory leg +
+run_gate_report.py Step.
+
+- **Rust/ scans FULLY CLEAN** — 0 advisories incl. warnings (pyo3 0.30.1
+  holds), bans ok, sources ok; licenses FAILED first run → 3 fixes: (1)
+  first-party crates were UNLICENSED → `license = "AGPL-3.0-or-later"` on
+  both manifests + per-crate `[[licenses.exceptions]]` (AGPL stays OFF the
+  global allow list — copyleft-viral deps must still fail), (2) tiny-keccak
+  CC0-1.0 allowed deliberately (ahash → arrow → duckdb/embed_cache), (3)
+  unmatched MPL-2.0/Unicode-DFS-2016 allowances dropped.
+- **0.20 schema gotcha:** advisory severity keys take SCOPE values
+  (`all`/`workspace`/`transitive`/`none`), not `warn`/`deny` — severity
+  routing is 0.20-defaults-only (vulnerabilities=error, warnings-class
+  report-only = house shape); `[graph] no-index` gone.
+- **Scope = Rust/ only**: desktop (479 crates) stays on cargo-audit —
+  cargo-deny DEFAULT marks unmaintained ERROR (audit: warn) and its DB
+  snapshot missed the glib/tokio unsound rows; audit stays
+  desktop-authoritative. Desktop wiring = S4 of
+  `desktop_lock_advisory_remediation` (live proposal).
+- Gates/validity: `make rust-deny` all-ok rc=0; rust-clippy -D / rust-test
+  8 / rust-format / strict parity 9/9 green after manifest edits;
+  lint-gates 5, proposal-lifecycle 21, md-lint clean, search-fresh
+  converged (one `--allow-stale` APPLY after operator's mid-session commit
+  ff853d34f tripped `worktree_fresh_trample_guard`).

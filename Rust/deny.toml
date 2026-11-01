@@ -1,0 +1,60 @@
+# cargo-deny config — one-gate superset (advisories + licenses + bans + sources)
+# over Rust/ (cosine_knn + embed_cache). Advisory leg via `make rust-deny`.
+# House shape: warnings-class findings stay WARN (do not fail the leg);
+# real vulnerabilities FAIL. Mirrors the cargo-audit leg's advisory role.
+
+[advisories]
+version = 2
+# cargo-deny 0.20 defaults already route severities the house way:
+# vulnerabilities = ERROR (fail the leg); unmaintained/unsound/yanked/
+# notice = warnings (report, don't fail). Nothing ignored yet — first
+# green decides hardening, same doctrine as clippy's -D arming
+# (rust_language_tooling S2).
+ignore = []
+
+[bans]
+multiple-versions = "warn"
+wildcards = "warn"
+deny = []
+skip = []
+skip-tree = []
+
+[licenses]
+version = 2
+confidence-threshold = 0.93
+# pyo3 stack = Apache-2.0 OR MIT (MPL-2.0 for pyo3-ffi); rayon/divan/etc.
+# Apache-2.0 OR MIT; openssl = Apache-2.0. Extend only on a first-run
+# failure — the denial names the exact crate+license.
+allow = [
+  "MIT",
+  "Apache-2.0",
+  "Apache-2.0 WITH LLVM-exception",
+  "BSD-2-Clause",
+  "BSD-3-Clause",
+  "ISC",
+  "Unicode-3.0",
+  "Zlib",
+  "CDLA-Permissive-2.0",
+  # tiny-keccak (via ahash → arrow → duckdb/embed_cache): CC0, FSF-free
+  # but not OSI-listed — allowed deliberately, not an oversight.
+  "CC0-1.0",
+]
+
+# First-party crates only (repo root LICENSE = AGPL-3.0). Third-party
+# AGPL stays REJECTED — never move AGPL-3.0-or-later into the global
+# allow list; it would admit a copyleft-viral dependency silently.
+[[licenses.exceptions]]
+allow = ["AGPL-3.0-or-later"]
+name = "cosine_knn"
+version = "*"
+
+[[licenses.exceptions]]
+allow = ["AGPL-3.0-or-later"]
+name = "embed_cache"
+version = "*"
+
+[sources]
+unknown-registry = "warn"
+unknown-git = "warn"
+allow-registry = ["https://github.com/rust-lang/crates.io-index"]
+allow-git = []

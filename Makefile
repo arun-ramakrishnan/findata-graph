@@ -57,7 +57,7 @@ export PATH := $(CURDIR)/.venv/bin:$(PATH)
 export TMPDIR ?= $(shell test -d /mnt/data/tmp && { mkdir -p /mnt/data/tmp/findata; echo /mnt/data/tmp/findata; } || echo /tmp)
 
 
-.PHONY: help qa test live-invariants perf cover fuzz integration snapshot snapshot-check snapshot-restore sync-tags sync-coverage-tags sync-sector-links static-checks license-check tmp-sweep install-dev triage-quotes gate-fresh graph-smoke graph-stats graph-algos graph-matching graph-mst graph-rebuild graph-rebuild-bench update-extensions recompute-graph recompute-hyper search-fresh convo-fresh embed-gc search-tui tier-nudge tier-watch derive-relations derive-co-mentions derive-org-membership derive-event-participants derive-merger-hyperedges dup-census person-census derive-themes derive-events derive-insights derive-indices quote-coverage derive-themes-rebuild derive-cited-in derive-cited-in-rebuild derive-hyperedges derive-relational-insights derive-all refresh-indices refresh-vigil refresh-shp rust-clippy rust-format rust-install rust-test frontend frontend-check fold-identifiers format maint maint-full md-lint metrics-rebuild mojo-bench mojo-parity mojo-build mojo-test mojo-format relations-enrich lint types types-tests lint-audit deptry advisory ocr-version-check onager-build secret-scan cargo-audit script-search-rebuild memory-search-rebuild triage-relations teleocr-server embgemma-server granite-server llamacpp-build llamacpp-health quack-start quack-stop quack-status quack-restart quack-health csr csr-check csr-rebuild convo-search-rebuild convo-search-check analytics-parquet analytics-fresh schema-check schema-dump bili-status bili-monitor bili-stop-monitor bili-report bili-snap bili-watch-event bili-thresh-replay
+.PHONY: help qa test live-invariants perf cover fuzz integration snapshot snapshot-check snapshot-restore sync-tags sync-coverage-tags sync-sector-links static-checks license-check tmp-sweep install-dev triage-quotes gate-fresh graph-smoke graph-stats graph-algos graph-matching graph-mst graph-rebuild graph-rebuild-bench update-extensions recompute-graph recompute-hyper search-fresh convo-fresh embed-gc search-tui tier-nudge tier-watch derive-relations derive-co-mentions derive-org-membership derive-event-participants derive-merger-hyperedges dup-census person-census derive-themes derive-events derive-insights derive-indices quote-coverage derive-themes-rebuild derive-cited-in derive-cited-in-rebuild derive-hyperedges derive-relational-insights derive-all refresh-indices refresh-vigil refresh-shp rust-clippy rust-format rust-install rust-test rust-deny frontend frontend-check fold-identifiers format maint maint-full md-lint metrics-rebuild mojo-bench mojo-parity mojo-build mojo-test mojo-format relations-enrich lint types types-tests lint-audit deptry advisory ocr-version-check onager-build secret-scan cargo-audit script-search-rebuild memory-search-rebuild triage-relations teleocr-server embgemma-server granite-server llamacpp-build llamacpp-health quack-start quack-stop quack-status quack-restart quack-health csr csr-check csr-rebuild convo-search-rebuild convo-search-check analytics-parquet analytics-fresh schema-check schema-dump bili-status bili-monitor bili-stop-monitor bili-report bili-snap bili-watch-event bili-thresh-replay
 
 help:           ## Show available targets (alphabetical; entries generated from the ## annotations — keep both in sync)
 > @echo "FinData targets (alphabetical):"
@@ -160,6 +160,7 @@ help:           ## Show available targets (alphabetical; entries generated from 
 > @echo "  review-patch             OCR delegation selection roster + native scan (advisory; asserts tests/Mojo visibility per rule.json; STACK=N, COMMIT=<sha>, FROM=<base> TO=<head>, OFFLINE=1)"
 > @echo "  review-scan              Native scanner roster over the review diff (advisory; bandit/shellcheck/sqlfluff/semgrep/osv on changed lines; STACK=N, COMMIT=<sha>, FROM=<base> TO=<head>, OFFLINE=1)"
 > @echo "  rust-clippy              Lint Rust/ via cargo clippy --workspace --all-targets (advisory leg; SKIPs without cargo; rust_language_tooling S2)"
+> @echo "  rust-deny                cargo-deny superset scan of Rust/ — advisories + bans + licenses + sources (advisory; SKIPs without cargo-deny)"
 > @echo "  rust-format              Normalize Rust/ formatting with cargo fmt --all (fix for the tests/test_lint_gates.py format gate; rust_language_tooling S1)"
 > @echo "  rust-install             Release-build cosine_knn + install the abi3 module into venv site-packages (SKIPs without cargo; embed_cache stays backup-only; rust_language_tooling S4)"
 > @echo "  rust-test                Run Rust/ crate tests via cargo test --workspace (advisory leg; SKIPs without cargo; rust_language_tooling S2)"
@@ -508,6 +509,13 @@ rust-test:      ## Run Rust/ crate tests via cargo test --workspace (advisory le
 > 	cd Rust && PATH="$$HOME/.cargo/bin:$$PATH" cargo test --workspace; \
 > else \
 > 	echo "SKIP rust-test: cargo not installed"; \
+> fi
+
+rust-deny:      ## cargo-deny superset scan of Rust/ — advisories + bans + licenses + sources via Rust/deny.toml (advisory leg; SKIPs without cargo-deny; vulns FAIL, warnings-class report-only)
+> @if command -v cargo-deny >/dev/null 2>&1 || [ -x "$$HOME/.cargo/bin/cargo-deny" ]; then \
+> 	cd Rust && PATH="$$HOME/.cargo/bin:$$PATH" cargo deny check; \
+> else \
+> 	echo "SKIP rust-deny: not installed (cargo install cargo-deny --locked)"; \
 > fi
 
 rust-install:   ## Release-build cosine_knn + install the abi3 module into venv site-packages (SKIPs without cargo; embed_cache stays backup-only — never installed; rust_language_tooling S4)
@@ -895,6 +903,6 @@ md-lint:        ## Markdown lint via pinned markdownlint-cli2 — doc/ prose bas
 deptry:         ## Run deptry dependency-health scan (unused/undeclared/transitive deps)
 > deptry .
 
-advisory:       ## Run advisory (non-gating) checks in PARALLEL (default 4 jobs; override: make advisory -j N): ty on tests, live invariants, frontend, graph algos, analytics, suggestions, doc/script/note/memory-search freshness checks, lint-audit, secret-scan, cargo-audit, rust-clippy, rust-test, fuzz, license-check (appends outputs/advisory_report.md)
+advisory:       ## Run advisory (non-gating) checks in PARALLEL (default 4 jobs; override: make advisory -j N): ty on tests, live invariants, frontend, graph algos, analytics, suggestions, doc/script/note/memory-search freshness checks, lint-audit, secret-scan, cargo-audit, rust-clippy, rust-test, rust-deny, fuzz, license-check (appends outputs/advisory_report.md)
 > python3 tests/run_gate_report.py advisory
 > @echo "✓ Advisory checks complete (appended to outputs/advisory_report.md; these do NOT block \`make qa\`)"
