@@ -418,6 +418,14 @@ commit, referenced by nothing). Entry numbers point at
 
 ## testing/ — Testing & QA — integration, stateful/relational, lint, coverage
 
+- [`test_coverage_gap_sweep.md`](testing/test_coverage_gap_sweep.md) —
+  coverage-gap sweep vs the late-October feature wave: P1 unit gaps closed
+  (price_sync/price_join/edge_projection/msgpackio), fuzz legs incl. the
+  as-of leak property as a Hypothesis invariant, temporal + hyper-family
+  integration chains, 4 perf legs; 5 production bugs found → fixed →
+  verified (price_sync flat-columns crash + degenerate parquet, as_of
+  differential drift gap, msgpackio UnicodeDecodeError class, jsonio NaN
+  docstring) — completed.md #463
 - [`bold_line_ratio_floor.md`](testing/bold_line_ratio_floor.md) —
   bold-line ratio floor — the scaling gate's one recurring flake closed at the
   discriminator: score only growth ratios whose base is ≥ 1 ms, so sub-millisecond

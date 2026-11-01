@@ -48,9 +48,12 @@ __all__ = ["loads", "dumps", "dumps_bytes", "JSONDecodeError"]
 JSONDecodeError = orjson.JSONDecodeError
 
 # API-identical for the repo's shapes: accepts str | bytes | bytearray, raises
-# JSONDecodeError on malformed input. orjson additionally rejects NaN/Infinity
-# by default (stdlib emits them) — log corpora don't carry them; if one ever
-# surfaces the per-line try/except skip already handles the raise.
+# JSONDecodeError on malformed input. NaN/Infinity asymmetry (measured
+# 2026-11-01): loads REJECTS them on parse (JSONDecodeError — log corpora
+# don't carry them; the per-line try/except skip handles the raise), but
+# dumps SERIALIZES them as null — a NaN written through the shim silently
+# becomes null downstream. Keep NaNs out of shim payloads; pinned in
+# tests/test_fuzz_jsonio.py.
 loads = orjson.loads
 
 

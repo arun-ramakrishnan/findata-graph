@@ -271,6 +271,34 @@ BENCHMARKS: list[tuple[str, list[str], float]] = [
         ],
         5.0,
     ),
+    # test_coverage_gap_sweep S4 (2026-11-01): legs for the late-October
+    # feature wave's hot paths, budgets = measured baseline x2 on the
+    # loaded box (raw numbers in the proposal appendix):
+    #   graph_mst 0.72s, graph_matching 1.06s, hyper_derive 1.71s,
+    #   price_census 0.25s. The MST/matching legs exercise the Hall-fix
+    # lanes (graph_lane_unlocks S1); hyper_derive is the collect+summary
+    # dry-run (never applies); price_census is the temporal lane's
+    # read-side join (read-only over the live parquet + entities).
+    (
+        "graph_mst",
+        ["helpers/graph/l1_mst.py", "mst-backbone", "--format", "summary"],
+        2.0,
+    ),
+    (
+        "graph_matching",
+        ["helpers/graph/scipy_matching.py", "match-suppliers"],
+        3.0,
+    ),
+    (
+        "hyper_derive",
+        ["helpers/graph/derive_hyperedges.py"],
+        4.0,
+    ),
+    (
+        "price_census",
+        ["helpers/research/price_join.py", "census"],
+        1.0,
+    ),
     # test_gap_closure S3: the only legs that drive the FLASK REQUEST PATH.
     # Every other entry invokes a helper script directly, so the gate could
     # not see the AVAIL-1 class (a 53 s unauthenticated GET). Best-of-3 per

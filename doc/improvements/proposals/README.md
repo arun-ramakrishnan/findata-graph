@@ -39,8 +39,12 @@ entry number and stale DONE pointers):
 ## Current live proposals
 
 - *(none live)* — every proposal filed here is executed and
-  archived. Most recent: `graph_alpha_lane` (filed + executed same day
-  2026-10-31, #462,
+  archived. Most recent: `test_coverage_gap_sweep` (filed + executed
+  same day 2026-11-01, #463,
+  `../archive/testing/test_coverage_gap_sweep.md`; P1 unit gaps closed,
+  fuzz legs incl. the as-of leak property, two integration chains, 4
+  perf legs, 5 production bugs fixed — then `graph_alpha_lane` (filed +
+  executed same day 2026-10-31, #462,
   `../archive/graph/graph_alpha_lane.md`; 46k edges dated, leak-free
   re-sweep, first lookahead artifact caught — `competes` — no
   pre-registration; `rpt_disclosure` h=4 abnormal = watch), then `price_lane_alpha_research` (filed + executed

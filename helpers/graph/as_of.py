@@ -125,10 +125,17 @@ def differential(con: sqlite3.Connection, as_of: str) -> dict:
     asof_total = len(asof)
     expired = not_yet = 0
     if has_bounds:
+        # expired = window CLOSED at/before the probe. A from-NULL but
+        # to-dated row IS expired (it is invisible and not unborn) — the
+        # old predicate required valid_from IS NOT NULL, which left such
+        # rows outside every drift class and broke the
+        # asof+expired+not_yet == live identity. Disjointness holds via
+        # the valid_from guard: a row born after the probe counts as
+        # not_yet, never expired, even when its window is also closed.
         expired = con.execute(
             "SELECT COUNT(*) FROM graph_edges WHERE "
-            "(valid_from IS NOT NULL AND valid_from <= ?) "
-            "AND (valid_to IS NOT NULL AND valid_to <= ?)",
+            "(valid_to IS NOT NULL AND valid_to <= ?) "
+            "AND (valid_from IS NULL OR valid_from <= ?)",
             (as_of, as_of),
         ).fetchone()[0]
         not_yet = con.execute(

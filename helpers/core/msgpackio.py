@@ -12,11 +12,19 @@ def encode(obj) -> bytes:
 
 
 def decode(data: bytes, type_=None):
-    if type_ is not None:
-        import msgspec.msgpack as msgpack_mod
+    try:
+        if type_ is not None:
+            import msgspec.msgpack as msgpack_mod
 
-        return msgpack_mod.decode(data, type=type_)
-    return _DECODER.decode(data)
+            return msgpack_mod.decode(data, type=type_)
+        return _DECODER.decode(data)
+    except UnicodeDecodeError as exc:
+        # A msgpack str chunk carrying invalid UTF-8 raises a bare
+        # UnicodeDecodeError — a ValueError SIBLING of DecodeError, not a
+        # subclass — so callers catching only DecodeError missed it. The
+        # seam unifies to DecodeError: one typed error class for
+        # transport corruption (framing, truncation, and now encoding).
+        raise msgspec.DecodeError(str(exc)) from exc
 
 
 def encode_struct(obj) -> bytes:

@@ -13123,3 +13123,49 @@ same day; moved up from `doc/local/evaluations/` sweep #1).
 - Sweep: `helpers/research/signal_sweep.py`; record in the archived
   proposal §2/§7. The honest state: no graph signal has yet cleared
   the leak-free bar; the lane's value is the instrument.
+
+## 463. Test coverage gap sweep — P1 unit gaps closed, fuzz/integration/perf legs for the feature wave, 5 bugs fixed
+
+**Date:** 2026-11-01 · **Status:** EXECUTED · **Proposal:**
+`doc/improvements/archive/testing/test_coverage_gap_sweep.md` (filed +
+executed same day). Trigger: operator ask to review core/fuzz/perf/
+integration coverage against the late-October feature wave (192 helper
+modules touched). Method: per-module coverage matrix by CONTENT grep
+(name matching fabricates coverage); production-wiredness separated
+research/bench code.
+
+- **S1** (49 unit tests + 11 subtests): `test_price_sync.py` (11),
+  `test_price_join.py` (8), `test_edge_projection.py` (11 — the
+  part_of/has_company projection pin, 7 consumers), `test_msgpackio.py`
+  (+14 negative/edge). All offline: faked download, patched sleeps,
+  tmp stores.
+- **S2** (`make fuzz` 195 green): `test_fuzz_msgpackio.py`
+  (roundtrip / prefix-never-decodes / typed errors),
+  `test_fuzz_jsonio.py` (orjson parity, NaN asymmetry pin),
+  `test_fuzz_date_edges.py` (total parsers, model-based plan oracle),
+  `test_fuzz_as_of.py` — THE leak property: visible set == recomputed
+  coverage predicate on generated edge-set/probe pairs, can-fail proof
+  included.
+- **S3** (8 integration tests): `test_integration_temporal_chain.py`
+  (price_sync → parquet → census → as-of event selection → event_study;
+  hand-checked −2.5% median abnormal through the REAL chain; leak-free
+  event selection both ways) + `test_integration_hyper_family_chain.py`
+  (collect → apply dry-run/no-write → idempotent apply → HIF
+  write/validate → post-export drift fails validator → hypergraphx
+  1.8.0 Hypergraph leg).
+- **S4** (4 perf legs, budgets = baseline ×2): `graph_mst` 2.0s,
+  `graph_matching` 3.0s, `hyper_derive` 4.0s (dry-run, never applies),
+  `price_census` 1.0s. Final `--force` scoreboard 31/31 rc-clean after
+  the box-state arcs (graph-rebuild + snapshot refresh, same day).
+- **5 production bugs found → fixed → verified** (guards flipped to pin
+  fixed behavior): price_sync flat-columns crash (single-ticker batch
+  lost), price_sync degenerate zero-column parquet (locked
+  `--fill-missing` out of its own recovery), as_of differential drift
+  census gap (from-NULL/to-dated rows outside every class),
+  msgpackio second error class (bare UnicodeDecodeError escaped the
+  seam), jsonio docstring NaN half-error (dumps writes null).
+- Ops traps re-confirmed and recorded: bare `python3` perf runner kills
+  all legs at 0.05s while the budget table still prints "passed";
+  `import hgx` ≠ package `hypergraphx` (absence claims need the right
+  module name); `make snapshot` is the APPLY behind check-only
+  `snapshot-fresh`.

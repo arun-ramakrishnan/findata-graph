@@ -135,12 +135,26 @@ def build(  # noqa: C901 — batch/retry/merge state machine reads best linear
             failed.extend(chunk)
             continue
         # group_by="ticker" → MultiIndex columns (ticker, field); a
-        # single-ticker batch may collapse to flat columns
-        items = df.columns.unique(level=0) if hasattr(df.columns, "levels") else [df.columns]
-        for sym in items:
-            if sym not in chunk:
-                continue
-            sub = df[sym].dropna(subset=["Close"])
+        # single-ticker batch may collapse to flat (field-only) columns —
+        # then the whole frame IS that ticker's table. A flat frame from
+        # a MULTI-ticker batch is unattributable — the chunk fails
+        # (recoverable via --fill-missing) rather than crashing on an
+        # Index-in-list elementwise membership test.
+        if hasattr(df.columns, "levels"):
+            frames = {sym: df[sym] for sym in df.columns.unique(level=0) if sym in chunk}
+        elif len(chunk) == 1:
+            frames = {chunk[0]: df}
+        else:
+            frames = {}
+        if not frames:
+            print(
+                f"[price-sync] batch {i // BATCH}: flat columns, unattributable — failing chunk",
+                file=sys.stderr,
+            )
+            failed.extend(chunk)
+            continue
+        for sym, sub in frames.items():
+            sub = sub.dropna(subset=["Close"])
             for date_idx, r in sub.iterrows():
                 rows.append(
                     {
@@ -161,7 +175,22 @@ def build(  # noqa: C901 — batch/retry/merge state machine reads best linear
             f"[price-sync] {len(failed)} ticker(s) failed after retry: {failed[:10]}...",
             file=sys.stderr,
         )
-    table = pa.Table.from_pylist(rows)
+    # Explicit schema: a fully-failed run writes a ZERO-ROW parquet that
+    # must stay readable — from_pylist([]) with no schema yields a
+    # zero-column file duckdb read_parquet cannot open, which locked the
+    # --fill-missing recovery path out of the very store it recovers.
+    schema = pa.schema(
+        [
+            ("symbol", pa.string()),
+            ("date", pa.string()),
+            ("open", pa.float64()),
+            ("high", pa.float64()),
+            ("low", pa.float64()),
+            ("close", pa.float64()),
+            ("volume", pa.int64()),
+        ]
+    )
+    table = pa.Table.from_pylist(rows, schema=schema)
     OUT_PATH.parent.mkdir(parents=True, exist_ok=True)
     tmp = OUT_PATH.with_suffix(".parquet.tmp")
     pq.write_table(table, tmp, compression="zstd")
