@@ -1830,9 +1830,19 @@ def _lane_uncovered(
         return seed if seed is not None else -1
 
     try:
-        v2max = con.execute(
-            "SELECT session_id, MAX(time_updated) FROM session_message GROUP BY session_id"
-        ).fetchall()
+        # Scalar guard first: one MAX pass proves the lane clean against the
+        # stored watermark without the GROUP BY's per-session materialization
+        # (the check-mode hot path — every clean source pays this, drifted
+        # sources still take the GROUP BY below).
+        gmax_v2 = con.execute(
+            "SELECT COALESCE(MAX(time_updated), 0) FROM session_message"
+        ).fetchone()[0]
+        if stored_v2 is not None and gmax_v2 <= stored_v2:
+            v2max = None
+        else:
+            v2max = con.execute(
+                "SELECT session_id, MAX(time_updated) FROM session_message GROUP BY session_id"
+            ).fetchall()
     except sqlite3.OperationalError:
         v2max = None
     if v2max:
@@ -1841,10 +1851,17 @@ def _lane_uncovered(
         if new_sessions:
             out["v2"] = f"{len(new_sessions)} sessions ({max(t for _, t in v2max)})"
     try:
-        evtmax = con.execute(
-            "SELECT json_extract(data,'$.part.sessionID'), MAX(json_extract(data,'$.time')) "
-            "FROM event WHERE type='message.part.updated.1' GROUP BY 1"
-        ).fetchall()
+        gmax_evt = con.execute(
+            "SELECT COALESCE(MAX(json_extract(data,'$.time')), 0) FROM event "
+            "WHERE type='message.part.updated.1'"
+        ).fetchone()[0]
+        if stored_evt is not None and gmax_evt <= stored_evt:
+            evtmax = None
+        else:
+            evtmax = con.execute(
+                "SELECT json_extract(data,'$.part.sessionID'), MAX(json_extract(data,'$.time')) "
+                "FROM event WHERE type='message.part.updated.1' GROUP BY 1"
+            ).fetchall()
     except sqlite3.OperationalError:
         evtmax = None
     if evtmax:
@@ -1872,8 +1889,18 @@ def _opencode_source_drift(
     key = f"{src}:{hashlib.blake2b(str(path).encode(), digest_size=6).hexdigest()}"
     found = []
     if immutable:
-        if store.watermark(key) is None:
+        base_wm = store.watermark(key)
+        if base_wm is None:
             found.append(f"new {src}")
+        elif (
+            _wm_int(store, key + ":v2") is not None
+            and _wm_int(store, key + ":evt") is not None
+        ):
+            # Frozen file with every lane closed: a timeshift snapshot's
+            # content can never change, so the scan is pure waste (mirrors
+            # APPLY's "quiet" rule). Missing/partial watermarks keep the
+            # scan below — the first-time :v2/:evt backfill visibility path.
+            return found
         # per-lane backfill visibility on already-seen snapshots: the
         # :v2/:evt keys never existed before the lanes, so their first
         # check fires here and the next APPLY closes them (see S3).

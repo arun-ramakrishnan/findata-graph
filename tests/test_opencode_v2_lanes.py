@@ -375,3 +375,66 @@ def test_oc_messages_v2_union(tmp_path):
     assert prov == "opencode" and model == "glm-5.3-flash"
     assert (inp, outp, cost) == (10, 5, 0.01)
     assert rows["m-old"][1:3] == ("openrouter", "or-model")
+
+
+def _drift_key(path: Path, src: str) -> str:
+    return f"{src}:{hashlib.blake2b(str(path).encode(), digest_size=6).hexdigest()}"
+
+
+def test_frozen_snapshot_skips_rescan_when_lanes_closed(tmp_path):
+    store = hc.Store(tmp_path / "c.duckdb")
+    ghost = tmp_path / "ghost" / "opencode.db"  # never created: connect must not run
+    src = "opencode-snap:2026-11-01"
+    key = _drift_key(ghost, src)
+    store.set_watermark(key, "1")
+    store.set_watermark(key + ":v2", "5")
+    store.set_watermark(key + ":evt", "5")
+    out = hc._opencode_source_drift(store, tmp_path / "corpus", ghost, src, True)
+    # A frozen, fully-watermarked source cannot drift — returned without
+    # touching the (nonexistent) file, mirroring APPLY's "quiet" rule.
+    assert out == []
+
+
+def test_frozen_snapshot_partial_watermarks_still_scans(tmp_path):
+    store = hc.Store(tmp_path / "c2.duckdb")
+    ghost = tmp_path / "ghost2" / "opencode.db"
+    src = "opencode-snap:2026-11-01"
+    store.set_watermark(_drift_key(ghost, src), "1")
+    store.set_watermark(_drift_key(ghost, src) + ":v2", "5")  # :evt missing
+    out = hc._opencode_source_drift(store, tmp_path / "corpus", ghost, src, True)
+    # Missing lane watermark = first-time backfill visibility path: the scan
+    # must still happen (ghost file => mode=ro open fails => unreadable).
+    assert out == ["unreadable opencode-snap:2026-11-01"]
+
+
+def test_lane_scalar_guard_skips_groupby_when_clean(tmp_path):
+    con = sqlite3.connect(":memory:")
+    con.executescript(V2_SCHEMA)
+    con.execute(
+        "INSERT INTO session_message VALUES ('m1','s1','user',1,100,200,'{}')"
+    )
+    con.execute(
+        "INSERT INTO event VALUES ('e1','s1',1,'message.part.updated.1',?,100)",
+        (json.dumps({"sessionID": "s1", "time": 200,
+                     "part": {"id": "p1", "sessionID": "s1"}}),),
+    )
+    traced: list[str] = []
+    con.set_trace_callback(traced.append)
+    out = hc._lane_uncovered(con, tmp_path, stored_v2=200, stored_evt=200)
+    assert out == {}
+    # Clean lanes close on the scalar MAX — the GROUP BY never executes.
+    assert not any("GROUP BY" in s for s in traced), traced
+    con.execute(
+        "INSERT INTO session_message VALUES ('m2','s2','user',2,300,900,'{}')"
+    )
+    con.execute(
+        "INSERT INTO event VALUES ('e2','s2',2,'message.part.updated.1',?,900)",
+        (json.dumps({"sessionID": "s2", "time": 900,
+                     "part": {"id": "p2", "sessionID": "s2"}}),),
+    )
+    traced.clear()
+    out = hc._lane_uncovered(con, tmp_path, stored_v2=200, stored_evt=200)
+    # Drift present: guard opens and the GROUP BY path produces lane detail.
+    assert any("GROUP BY" in s for s in traced), traced
+    assert set(out) == {"v2", "evt"}
+    con.set_trace_callback(None)

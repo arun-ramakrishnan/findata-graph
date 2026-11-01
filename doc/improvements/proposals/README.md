@@ -38,7 +38,12 @@ entry number and stale DONE pointers):
 
 ## Current live proposals
 
-- *(none live)* — `rust_jemalloc_global_allocator` executed + archived
+- `opencode_drift_check_fastpath` — LIVE, filed 2026-11-02
+  (`opencode_drift_check_fastpath.md`); db_scaling_tuning §6.4 spin-off
+  (pending.md revisit trigger invoked). Code-only: frozen-snapshot skip +
+  scalar-MAX lane guards on existing watermarks; no harness-store mutation.
+
+- *(none before this)* — `rust_jemalloc_global_allocator` executed + archived
   same day (S1 desktop adopt on operator ruling, S3 parked).
 - *(none live)* — `opencode_drift_check_fastpath` filed + executed +
   archived same day 2026-11-02, #470
