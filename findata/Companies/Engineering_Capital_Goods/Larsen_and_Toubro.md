@@ -20,7 +20,7 @@ last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
   at: '2026-10-28T18:55:35Z'
-stale_after: '2027-02-11'
+stale_after: '2027-04-29'
 sources:
 - id: A_Quarter_That_Refuses_To_Behave
   resource: /findata/The_Chatter/A_Quarter_That_Refuses_To_Behave.md
@@ -46,6 +46,10 @@ sources:
   resource: /findata/The_Chatter/Sailing_the_Tide.md
   title: 'The Chatter: Sailing the Tide'
   last_modified: '2026-08-15'
+- id: LT_Cipla_SBI_Life
+  resource: /findata/The_Chatter/LT_Cipla_SBI_Life.md
+  title: 'The Chatter: SEBI, L&T, Cipla, SBI Life Insurance & More'
+  last_modified: '2026-10-31'
 ---
 # Larsen and Toubro
 

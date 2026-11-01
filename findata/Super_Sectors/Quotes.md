@@ -314,10 +314,18 @@ sources:
   resource: /findata/The_Chatter/SEBI_RBI_DIPAM_Jio_Wipro.md
   title: 'The Chatter: SEBI, RBI, DIPAM, Jio, Wipro & More'
   last_modified: '2026-10-27'
+- id: Asian_Paints_Motilal_Gulf_Oil
+  resource: /findata/The_Chatter/Asian_Paints_Motilal_Gulf_Oil.md
+  title: 'The Chatter: SEBI, Asian Paints, Motilal Oswal, Gulf Oil & More'
+  last_modified: '2026-10-31'
+- id: LT_Cipla_SBI_Life
+  resource: /findata/The_Chatter/LT_Cipla_SBI_Life.md
+  title: 'The Chatter: SEBI, L&T, Cipla, SBI Life Insurance & More'
+  last_modified: '2026-10-31'
 generated:
   by: derive_insights.py/v1
   at: '2026-10-28T18:57:26Z'
-stale_after: '2027-04-25'
+stale_after: '2027-04-29'
 ---
 # Quotes
 

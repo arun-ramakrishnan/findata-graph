@@ -20,7 +20,7 @@ last_modified: '2026-10-16'
 generated:
   by: derive_insights.py/v1
   at: '2026-10-28T18:30:52Z'
-stale_after: '2027-04-26'
+stale_after: '2027-04-14'
 sources:
 - id: yahoo_finance_lookup
   resource: https://finance.yahoo.com/quote/540083.BO

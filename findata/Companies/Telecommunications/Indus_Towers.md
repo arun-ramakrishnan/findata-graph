@@ -15,6 +15,15 @@ tags:
 - status/active
 created: '2026-11-01'
 last_modified: '2026-11-01'
+sources:
+- id: LT_Cipla_SBI_Life
+  resource: /findata/The_Chatter/LT_Cipla_SBI_Life.md
+  title: 'The Chatter: SEBI, L&T, Cipla, SBI Life Insurance & More'
+  last_modified: '2026-10-31'
+generated:
+  by: process:okf_backfill
+  at: '2026-11-01T00:00:00Z'
+stale_after: '2027-04-29'
 ---
 
 # Indus Towers

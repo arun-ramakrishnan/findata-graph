@@ -20,7 +20,7 @@ last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
   at: '2026-10-28T18:30:52Z'
-stale_after: '2027-02-11'
+stale_after: '2027-04-29'
 sources:
 - id: A_Quarter_That_Refuses_To_Behave
   resource: /findata/The_Chatter/A_Quarter_That_Refuses_To_Behave.md
@@ -38,6 +38,10 @@ sources:
   resource: /findata/The_Chatter/TCS_IFB_Gulf_Oil.md
   title: 'The Chatter: TCS, IFB, Gulf Oil, Hinduja & More'
   last_modified: '2026-08-15'
+- id: Asian_Paints_Motilal_Gulf_Oil
+  resource: /findata/The_Chatter/Asian_Paints_Motilal_Gulf_Oil.md
+  title: 'The Chatter: SEBI, Asian Paints, Motilal Oswal, Gulf Oil & More'
+  last_modified: '2026-10-31'
 ---
 
 # Gulf Oil Lubricants India

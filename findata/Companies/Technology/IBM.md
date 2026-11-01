@@ -20,7 +20,7 @@ last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
   at: '2026-10-28T18:30:52Z'
-stale_after: '2027-02-11'
+stale_after: '2027-04-25'
 sources:
 - id: A_Quarter_That_Refuses_To_Behave
   resource: /findata/The_Chatter/A_Quarter_That_Refuses_To_Behave.md
@@ -30,6 +30,10 @@ sources:
   resource: /findata/The_Chatter/Micron_SpaceX_Palantir.md
   title: 'Global Chatter: Micron, SpaceX, Palantir & More'
   last_modified: '2026-08-15'
+- id: HCL_RBL_Bank_Canara_Bank
+  resource: /findata/The_Chatter/HCL_RBL_Bank_Canara_Bank.md
+  title: 'The Chatter: HCLTech, RBL Bank, Canara Bank Zetwerk, IKEA India & More'
+  last_modified: '2026-10-27'
 ---
 
 # IBM

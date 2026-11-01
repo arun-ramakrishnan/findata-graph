@@ -23,7 +23,7 @@ last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
   at: '2026-10-28T18:30:52Z'
-stale_after: '2027-02-11'
+stale_after: '2027-04-29'
 sources:
 - id: Beneath_the_pixels
   resource: /findata/Points_And_Figures/Beneath_the_pixels.md
@@ -33,6 +33,10 @@ sources:
   resource: /findata/Points_And_Figures/The_Truth_Behind_the_Trendlines.md
   title: 'Points \& Figures: The Truth Behind the'
   last_modified: '2026-08-15'
+- id: LT_Cipla_SBI_Life
+  resource: /findata/The_Chatter/LT_Cipla_SBI_Life.md
+  title: 'The Chatter: SEBI, L&T, Cipla, SBI Life Insurance & More'
+  last_modified: '2026-10-31'
 ---
 
 # JSW Cement Limited

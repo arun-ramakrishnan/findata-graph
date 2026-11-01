@@ -30,10 +30,14 @@ sources:
   resource: /findata/The_Chatter/Borosil_Orchid_Welspun.md
   title: 'The Chatter: Borosil, Orchid, Welspun, KRN , & More'
   last_modified: '2026-08-28'
+- id: Asian_Paints_Motilal_Gulf_Oil
+  resource: /findata/The_Chatter/Asian_Paints_Motilal_Gulf_Oil.md
+  title: 'The Chatter: SEBI, Asian Paints, Motilal Oswal, Gulf Oil & More'
+  last_modified: '2026-10-31'
 generated:
   by: derive_insights.py/v1
   at: '2026-10-28T18:30:52Z'
-stale_after: '2027-02-24'
+stale_after: '2027-04-29'
 ---
 
 # Welspun Corp Ltd

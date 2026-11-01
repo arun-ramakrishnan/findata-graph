@@ -20,7 +20,7 @@ last_modified: '2026-10-16'
 generated:
   by: derive_insights.py/v1
   at: '2026-10-28T18:30:52Z'
-stale_after: '2027-04-26'
+stale_after: '2027-04-14'
 sources:
 - id: dws_collab_sidecar
   resource: findata/Misc/_relations/DWS-invested_in-Nippon_Life_India_AIF_Management.yaml

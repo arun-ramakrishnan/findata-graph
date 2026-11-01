@@ -21,11 +21,12 @@ last_modified: '2026-09-25'
 generated:
   by: derive_insights.py/v1
   at: '2026-10-28T18:30:52Z'
-stale_after: '2027-04-26'
+stale_after: '2027-03-24'
 sources:
 - id: NSE_ONGC_SEBI
   resource: /findata/The_Chatter/NSE_ONGC_SEBI.md
   title: 'The Chatter: RBI, SEBI, NSE, ONGC & More'
+  last_modified: '2026-09-25'
 ---
 
 # NSE

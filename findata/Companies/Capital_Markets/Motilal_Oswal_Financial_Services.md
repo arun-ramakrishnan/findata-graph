@@ -21,7 +21,7 @@ last_modified: '2026-10-03'
 generated:
   by: derive_insights.py/v1
   at: '2026-10-28T18:55:34Z'
-stale_after: '2027-04-01'
+stale_after: '2027-04-29'
 sources:
 - id: A_Quarter_That_Refuses_To_Behave
   resource: /findata/The_Chatter/A_Quarter_That_Refuses_To_Behave.md
@@ -39,6 +39,10 @@ sources:
   resource: /findata/The_Chatter/Adani_Power_Motilal_Oswal.md
   title: 'The Chatter: Adani Power, Motilal Oswal, Ather & More'
   last_modified: '2026-10-03'
+- id: Asian_Paints_Motilal_Gulf_Oil
+  resource: /findata/The_Chatter/Asian_Paints_Motilal_Gulf_Oil.md
+  title: 'The Chatter: SEBI, Asian Paints, Motilal Oswal, Gulf Oil & More'
+  last_modified: '2026-10-31'
 ---
 
 # Motilal Oswal Financial Services Limited

@@ -21,7 +21,7 @@ last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
   at: '2026-10-28T18:40:22Z'
-stale_after: '2027-02-21'
+stale_after: '2027-04-29'
 sources:
 - id: Havells_Ambuja_Cipla
   resource: /findata/The_Chatter/Havells_Ambuja_Cipla.md
@@ -43,6 +43,10 @@ sources:
   resource: /findata/The_Chatter/RBI_3M_Blue_Star_KFin.md
   title: 'The Chatter: RBI Deputy Governor, 3M, Blue Star, KFin Technologies, & More'
   last_modified: '2026-08-25'
+- id: Asian_Paints_Motilal_Gulf_Oil
+  resource: /findata/The_Chatter/Asian_Paints_Motilal_Gulf_Oil.md
+  title: 'The Chatter: SEBI, Asian Paints, Motilal Oswal, Gulf Oil & More'
+  last_modified: '2026-10-31'
 ---
 
 # Blue Star | Mid Cap | Consumer Durables 
