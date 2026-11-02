@@ -38,10 +38,11 @@ entry number and stale DONE pointers):
 
 ## Current live proposals
 
-- `opencode_drift_check_fastpath` — LIVE, filed 2026-11-02
-  (`opencode_drift_check_fastpath.md`); db_scaling_tuning §6.4 spin-off
-  (pending.md revisit trigger invoked). Code-only: frozen-snapshot skip +
-  scalar-MAX lane guards on existing watermarks; no harness-store mutation.
+*(none live)* — `opencode_drift_check_fastpath` filed + executed +
+  archived same day 2026-11-02, #470
+  (`../archive/database/opencode_drift_check_fastpath.md`;
+  db_scaling_tuning §6.4 spin-off — warm convo-fresh `--check` 31s -> 5.5s,
+  zero harness-store mutation).
 
 - *(none before this)* — `rust_jemalloc_global_allocator` executed + archived
   same day (S1 desktop adopt on operator ruling, S3 parked).
@@ -55,7 +56,10 @@ entry number and stale DONE pointers):
   `--since 1d` startup 10.35s -> 1.5-1.7s), then
   `app_server_jemalloc_promotion` retro-filed + executed same day, #471
   (`../archive/tooling/app_server_jemalloc_promotion.md`; resident
-  app.py RSS −10-12% under jemalloc, wired as `make app-server`).
+  app.py RSS −10-12% under jemalloc, wired as `make app-server`), then
+  `hgx_shelf_spectral_rw_measurements` wrapped + wired + archived
+  (#472, `../archive/graph/hgx_shelf_spectral_rw_measurements.md`;
+  lanes 3+5 production wire, sub_sector commute verdict corrected).
   *(before these: `rust_jemalloc_global_allocator` executed + archived
   same day (S1 desktop adopt on operator ruling, S3 parked).)*
   *(previously live: the 2026-11-01 tooling batch (`rust_proptest_properties`,

@@ -356,6 +356,39 @@ Open items below keep their revisit triggers inline; executed work is compressed
   (`archive/graph/longest_chains_cap_policy.md`), NOT a D10 density
   condition — two gates had been merged in the scratch register;
   density is the only D10 gate.]
+  [2026-11-02 RESTATEMENT (hgx shelf re-probe): the 2026-10-19 table
+  above is STALE — the live store is now 11,693 hyperedges / 51,554
+  incidences / mean density 4.41 (6.8× edges via the later supply,
+  subsidiary, group, index, merger, demerger arcs; event k≥3 is
+  STILL 0 — participant data never arrived). Live per-family:
+
+    | family | edges | k=1 | k=2 | k≥3 |
+    |---|---|---|---|---|
+    | supply | 8,733 | 7,521 | 592 | 620 |
+    | event | 1,099 | 0 | 1,099 | **0** |
+    | subsidiary | 724 | 271 | 71 | 382 |
+    | group | 506 | 0 | 66 | 440 |
+    | edition | 225 | 1 | 0 | 224 |
+    | index | 57 | 0 | 0 | 57 |
+    | industry | 119 | 21 | 12 | 86 |
+    | sub_sector | 110 | 16 | 12 | 80 |
+    | sector | 42 | 0 | 1 | 41 |
+    | org_membership | 34 | 4 | 1 | 29 |
+    | country | 21 | 11 | 3 | 7 |
+    | theme | 12 | 0 | 0 | 12 |
+    | jv | 6 | 0 | 6 | 0 |
+    | merger | 3 | 0 | 2 | 1 |
+    | demerger | 2 | 0 | 2 | 0 |
+    | **total** | **11,693** | **7,845** | **1,867** | **1,979** (16.9%) |
+
+  36 edition and 35 event rows are duplicate-label duplicates (same
+  member set) and collapse under the HGX member-tuple contract.
+  Prediction-grade by the k≥3≥60% test is now edition, industry,
+  sub_sector, sector, org_membership, theme, PLUS group (87%) and
+  index (100%); supply (7.1%, mass is singletons) and subsidiary
+  (52.8%) carry k≥3 mass but fail the test — the engine decision
+  stays the D10 blocker.]
+
   D11 residue: RESOLVED 2026-09-19
   by the subsector authoring pass (completed.md #258,
   `archive/graph/subsector_authoring_pass.md`) — 16 buckets → 8
@@ -377,6 +410,33 @@ Open items below keep their revisit triggers inline; executed work is compressed
   `calc_sizes_redundancies_of_shortest_paths` →
   `hypergraphx.measures.shortest_paths` (not s_centralities);
   `core_periphery` → `hypergraphx.communities.core_periphery.model`.
+
+  **[2026-11-02 RE-PROBE (trigger 2 FIRED — live store 6.8× the
+  2026-10-28 baseline):** lane 1 NO-GO re-confirmed (norm_delta 0.0
+  on every measurable family, merger now included; census-visibility
+  defect unchanged). Lane 2 re-measured: edition L3 0.5486 / L4
+  0.4006 (was 0.637/0.485), industry/sub_sector/org_membership still
+  ≈0.0 — verdict unchanged. Lane 3 FIRST MEASURED: per-order
+  Laplacians build to max_k (edition 34, industry 51, sub_sector 50,
+  org_membership 31 orders) and commute on sub_sector but NOT on
+  edition/industry/org_membership. ~~commute on sub_sector~~ CORRECTED
+  2026-11-02 (#472): not reproducible — boundary max|L_i-L_i+1| is
+  O(order) (2.0, 3.0, 4.0, ...), structurally non-commuting; ALL four
+  default families read NOT under the production check. Lane 4 BLOCKED UPSTREAM: HGX 1.8.0
+  `calc_HO_shortest_paths` → `dict_to_df` raises "ValueError: setting
+  an array element with a sequence" (measures/shortest_paths.py:262)
+  on this py3.14/numpy stack — code bug, not data. Lane 5 measured on
+  largest components: edition is the only single-component family
+  (771/771 nodes); industry/sub_sector/org_membership LCs hold
+  6%/5%/15% of nodes — any diffusion lens there needs component
+  handling first. Lane 6: core-periphery MEASURED (top-coreness ≈1.0
+  gradient on edition/industry; 49.7 s @771 nodes, 22.9 s @984 —
+  expensive), HySC/HypergraphMT blocked on missing scikit-learn (venv
+  lacks the hypergraphx[ml] extra), hyperlink_communities blocked on
+  an upstream pickle bug ("Failed to load pickle 'None.hlcd'").
+  Giant-k families (country 850, index 752, group 230, subsidiary
+  227, supply 222 max_k) remain unprobed at full scale. Detail: the
+  Re-probe 2026-11-02 section of archive/graph/hgx_unlock_shelf_probe.md.]
 
   1. **Motifs census** (`compute_motifs`, `directed_motifs`) — PROBED
      2026-10-28, **NO-GO on current data**: order-3 census (runs=10,
@@ -407,16 +467,23 @@ Open items below keep their revisit triggers inline; executed work is compressed
      growth; no production lane justified (one query, no recurring
      consumer).
   3. **Multi-order Laplacian** (`compute_multiorder_laplacian`,
-     `are_commuting`) — still gated: needs a named spectral-feature
-     consumer (entity-clustering QA candidate; none exists).
+     `are_commuting`) — WIRED 2026-11-02 (#472):
+     `helpers/graph/hyper_spectral.py --lane spectral` (nnz/tolerance
+     commutativity check — HGX are_commuting is broken on this scipy —
+     plus opt-in --spectra algebraic connectivity). The instrument
+     exists; the named QA consumer (entity clustering) is still to be
+     asked for.
   4. **s-walk shortest paths** (`calc_HO_shortest_paths` et al.) —
      still gated: first UI/API path-explanation ask that traverses
      hyperedges. Directed B/F-hyperpath (Gallo) remains out of HGX;
      the directed lane stays plain-SQL BFS (`graph_design.md` D9).
   5. **RW density** (`random_walk_density`, sig `(HG, s: ndarray,
-     time) -> list`) — still gated: needs an information-diffusion
-     analysis question (edition/news spread). `RW_stationary_state`
-     itself is already landed as `ho_pagerank` (S12/S14).
+     time) -> list`) — WIRED 2026-11-02 (#472):
+     `hyper_spectral.py --lane rw` (component annotation FIRST — the
+     fragmentation finding made visible — then RW density on the LC).
+     The information-diffusion question (edition/news spread) remains
+     open; the lane is the instrument. `RW_stationary_state` itself is
+     already landed as `ho_pagerank` (S12/S14).
   6. **Community lanes 2–4** (`core_periphery.model.core_periphery`,
      `hyperlink_comm.hyperlink_communities`, `hypergraph_mt.model`,
      `hy_sc.model`; hy_mmsbm landed in `hyper_communities.py`) — still
@@ -904,12 +971,20 @@ Open items below keep their revisit triggers inline; executed work is compressed
   single-harness). Small, well-shaped, purely operator-workflow
   leverage; parked only for sequencing behind the price-lane arc
   (`price_lane_alpha_research.md`).
-- **App-server jemalloc LD_PRELOAD trial** (parked from
-  `rust_jemalloc_global_allocator` #468 S3, 2026-11-01): the app server is
-  the real day-scale resident with allocation churn (17.5K-vector loads,
-  sqlite/duckdb buffers, imports the cosine_knn cdylib whose allocations
-  the preload reroutes too). Makefile:31-41 recipe (JEMALLOC_ENV /
-  JEMALLOC_LIB) already exists — #436 measured RSS-neutral only on SHORT
-  one-shot legs; the server leg was never run. 30-min A/B ×2, verdict on
-  RSS ratchet slope, not peak. NEVER combine with the desktop app's
-  compiled-in jemalloc (per-app; no overlap anyway — different processes).
+- **App-server jemalloc LD_PRELOAD trial — MEASURED + PROMOTED
+  2026-11-02 (resident RSS −10-12%); wiring landed as `make app-server`
+  (JEMALLOC_ENV prefix, entry #471)** (parked
+  from `rust_jemalloc_global_allocator` #468 S3, 2026-11-01): 12-min A/B
+  legs ×2, ABAB-interleaved, fixed 8-endpoint request mix
+  (`/mnt/data/tmp/jemalloc_ab/`, summary.json). jemalloc
+  (tight-decay MALLOC_CONF): peak RSS −10.4% (75.0 vs 83.7 MB mean),
+  final RSS −11.9% (73.5 vs 83.5 MB), startup neutral (1.1s both),
+  request behavior identical. VmHWM +3.7% (transient touch higher —
+  decay returns pages after the peak; end-state is what matters for a
+  resident). Reps consistent, non-overlapping ranges. First probe
+  overcame two traps: the 2026-11-01 "localhost not found" was the
+  TAURI build's devUrl page, not this server (app.py starts clean under
+  LD_PRELOAD), and pid-capture/`pkill -f` self-match subtleties —
+  witr-verified pgids for cleanup. Wiring = add JEMALLOC_ENV prefix to
+  the app.py launch path (no make target exists today); NEVER combine
+  with the desktop app's compiled-in jemalloc (different processes).

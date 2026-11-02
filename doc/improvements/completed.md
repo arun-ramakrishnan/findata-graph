@@ -13318,6 +13318,10 @@ Tests 58/58 (2 mocks updated to carry `lastSeen` on mocked /sessions meta,
 `doc/improvements/archive/tooling/app_server_jemalloc_promotion.md`
 (retro-filed at operator request; trial ran directly from the parked
 `rust_jemalloc_global_allocator` #468 S3 item, pending.md S3 closure).
+**Date:** 2026-11-02 · **Status:** EXECUTED · **Record:** pending.md S3
+closure (trial run directly from the parked
+`rust_jemalloc_global_allocator` #468 S3 item; no proposal — measurement +
+one-target wiring on operator instruction).
 
 12-min A/B legs ×2 per config, ABAB-interleaved, fixed 8-endpoint request
 mix (~450 reqs/leg), RSS sampled every 10s + VmHWM
@@ -13357,3 +13361,35 @@ newer. Tests 10/10 (3 new incl. sqlite trace-callback proof the GROUP BY
 does not execute on clean lanes). Warm `--check` 31s -> 5.5s (5.7x), cold
 138s -> 8.2s; output identical. ruff + md-lint clean. Closes the
 db_scaling_tuning §6.4 defer in pending.md.
+
+
+## 472. HGX lanes 3+5 production wire — hyper_spectral.py; sub_sector commute verdict corrected
+
+**Date:** 2026-11-02 · **Status:** EXECUTED · **Proposal:**
+`doc/improvements/archive/graph/hgx_shelf_spectral_rw_measurements.md` (lanes
+3+5 of the hgx_lanes arc; implemented on operator instruction — the
+proposal's own "wire when" triggers).
+
+`helpers/graph/hyper_spectral.py` (+ tests/test_hyper_spectral.py, 6
+hermetic tests): Lane 3 = per-order Laplacians (HGX
+laplacian_matrices_all_orders) + productionized commutativity check —
+HGX are_commuting is broken on this scipy (csr_array.any(), linalg.py:475;
+csr_matrix too), replaced by an nnz/tolerance max-abs check; opt-in
+--spectra per-order algebraic connectivity (dense eigh subset — eigsh
+which='SM' is junk on PSD). Lane 5 = component annotation FIRST (count/
+sizes/LC fraction) then random_walk_density on the LC, uniform start.
+
+Live wire (2026-11-02 store): edition 188 edges / 34 orders / NOT
+commuting / 771-771 single component; industry 98 / 51 / NOT / 63-984;
+sub_sector 92 / 50 / NOT / 51-983; org_membership 30 / 31 / NOT / 41-273.
+Component annotations match the re-probe; sub_sector RW final max density
+matches EXACTLY (0.019608).
+
+**CORRECTION**: the re-probe's "sub_sector COMMUTES across orders 1-50" is
+not reproducible — boundary max|L_i-L_i+1| is O(order) (2.0, 3.0, 4.0,
+...), structurally non-commuting at any sane tolerance. All four default
+families read NOT. The proposal carries the dated correction; pending.md
+shelf entries annotated (3+5 WIRED; 6 stays deferred upstream per
+operator). Deviation note: wired as a standalone hyper_* lane CLI (house
+pattern), not the proposal's nominal query.py slot — no spectral slot
+exists there.

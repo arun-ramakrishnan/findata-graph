@@ -69,6 +69,11 @@ commit, referenced by nothing). Entry numbers point at
 - [`security_route_skeleton.md`](security/security_route_skeleton.md) — Route skeleton — `ast`-derived inventory of `app.py`'s 38 routes published to `doc/security/routes.json` and checked by `static_checks.py`; the emitted advisory is shape agreement, explicitly not a security verdict — completed.md #311
 
 ## graph/ — Graph layer — algorithms, DuckPGQ retirement, Onager, knowledge-model design
+- [`hgx_shelf_spectral_rw_measurements.md`](graph/hgx_shelf_spectral_rw_measurements.md) —
+  HGX lanes 3+5 wrapped + wired: `helpers/graph/hyper_spectral.py`
+  (multi-order Laplacian commutativity + RW density with component
+  annotation); sub_sector COMMUTES verdict corrected (not reproducible,
+  boundary diffs O(order)) — completed.md #472
 
 - [`graph_alpha_lane.md`](graph/graph_alpha_lane.md) — the alpha-research
   discipline arc — S1 dated 46,045 edges from provenance (RPT

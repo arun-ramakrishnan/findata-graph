@@ -169,3 +169,143 @@ lane justified (a single query with no recurring consumer).
 - The pending.md "HGX unlock shelf" entry (added 2026-10-28) carries
   the same verdicts in short form; this proposal is the detailed
   record.
+
+## Re-probe 2026-11-02 (live store 6.8× the baseline)
+
+Trigger 2 (">2× edges on any of the five measured families") FIRED:
+the live store grew from 1,708 hyperedges (2026-10-19 post-prune,
+`hyperedge_density_dq.md` §7 S1) to 11,693 hyperedges / 51,554
+incidences via the supply, subsidiary, group, index and merger/
+demerger arcs. This section records the 2026-11-02 re-probe; the
+2026-10-28 sections above are the historical baseline, not rewritten.
+
+Store at re-probe: 11,693 hyperedges / 51,554 incidences / mean
+density 4.41; k=1 7,845, k=2 1,867, k≥3 1,979 (16.9%). New families
+vs baseline: supply 8,733 (k≥3 620), subsidiary 724 (382), group 506
+(440), index 57 (57), merger 3 (1), demerger 2 (0). Event is 1,099
+edges, all k=2 — the "participant data" reopen condition never
+fired. 36 edition and 35 event rows are duplicate-label duplicates
+(same member set) collapsing under the HGX member-tuple contract
+(edition 225 raw → 189 unique).
+
+Probe protocol: `ha.load_incidence_arrow()` over all edge types,
+dedupe by sorted member tuple, guard max_k ≤ 60 and k≥2 edges ≤ 300
+(the giant-k families — country 850, index 752, group 230,
+subsidiary 227, supply 222, sector 99, theme 89 — stay out of scope
+at full scale this pass); `Hypergraph(edge_list=...)` exactly as
+`hyper_communities.py:140`. All lanes together ran ~2 min.
+
+### Lane 1 — motifs census: NO-GO re-confirmed
+
+`compute_motifs(order=3, runs_config_model=10, seed=42)` over the
+five measurable families — edition (188 k≥3), industry (86),
+sub_sector (80), org_membership (29), merger (1):
+n_nonzero_delta = 0 in EVERY family; only the trivial within-edge
+triple is observed. The visibility defect
+(`get_edges(size=order, up_to=True)`) is unchanged in 1.8.0. NO-GO
+stands; reopen trigger unchanged (needs a census that sees the full
+incidence or a deliberately clique-expanded one).
+
+### Lane 2 — reducibility: numbers moved, verdict unchanged
+
+| family | layer 3 | layer 4 | layer 5 | layer 6 |
+|---|---|---|---|---|
+| edition | 0.5486 | 0.4006 | 0.080 | 0.129 |
+| industry | 0.0 | 0.0 | 0.0002 | 0.067 |
+| sub_sector | 0.0 | 0.0 | 0.0002 | 0.040 |
+| org_membership | 0.0001 | 0.0 | 0.0 | 0.0 |
+| merger | 0.0 (L2 0.059) | — | — | — |
+
+Edition remains the only family with low-order-explainable structure
+(L3 0.637→0.5486, L4 0.485→0.4006 vs 2026-10-28);
+industry/sub_sector/org_membership remain ≈0.0 at layers 2–6 —
+genuinely higher-order, so the s=2 default of the landed
+`s_betweenness`/`s_closeness` lanes stays validated. Large layers
+still report trivial 1.0 (single-edge layers). No production lane
+justified; next re-run on major store growth.
+
+### Lane 3 — multi-order Laplacian: FIRST MEASURED
+
+`laplacian_matrices_all_orders()` builds per-order Laplacians to
+max_k for every measurable family (edition 34 orders, industry 51,
+sub_sector 50, org_membership 31, merger 2). Commutativity: the
+installed `are_commuting()` is broken on this scipy — it calls
+`csr_array.any()`, absent on scipy csr_array (linalg.py:475); the
+probe inlines the identical nnz-based check. Results: sub_sector
+COMMUTES across orders 1–50; edition, industry, org_membership do
+NOT commute; merger/jv/demerger trivially (order ≤ 2).
+
+Reading: on sub_sector a single multiorder Laplacian has an
+order-decomposition-independent spectral meaning; on edition/
+industry/org_membership the mixed-order operator is basis-dependent,
+so any spectral consumer there must fix an order weighting first.
+Still no named spectral-feature consumer → stays consumer-gated,
+now with a measured baseline. Note: `compute_multiorder_laplacian`
+raises a divide-by-zero RuntimeWarning when degree-weighting empty
+orders — pin if this lane is ever wired.
+
+### Lane 4 — s-walk shortest paths: BLOCKED UPSTREAM (code bug)
+
+`calc_HO_shortest_paths()` fails on every measurable family with
+"ValueError: setting an array element with a sequence" raised in
+`dict_to_df` (measures/shortest_paths.py:262) — HGX 1.8.0's
+DataFrame construction is broken on this py3.14/numpy stack (ragged
+path-length dicts). Not a data problem; the lane cannot produce
+results on this venv regardless of graph. Stays consumer-gated with
+the added blocker "upstream dict_to_df fix".
+
+### Lane 5 — RW density: measurable only on largest components
+
+`random_walk_density` over `subhypergraph_largest_component()` (the
+repo idiom, `hyper_centralities.py:181`):
+
+| family | LC nodes / total | final max density | L2 first→last |
+|---|---|---|---|
+| edition | 771 / 771 | 0.006035 | 0.00130→0.00224 |
+| industry | 63 / 1004 | 0.024935 | 0.01587→0.01701 |
+| sub_sector | 51 / 999 | 0.019608 | 0.01961→0.01961 |
+| org_membership | 41 / 277 | 0.047194 | 0.02439→0.02693 |
+| jv / merger / demerger | 3 / 3 / 2 | — | — |
+
+Structural finding: edition is the only family whose k≥2 graph is
+one dominant component; industry/sub_sector/org_membership are
+fragmented (LC holds 6%/5%/15% of nodes) — a diffusion lens there is
+dominated by component structure before any dynamics. RW density
+stays gated on an information-diffusion question; new pre-condition:
+a family that is both connected and interesting.
+
+### Lane 6 — community lanes: core-periphery measured; two blocked
+
+`core_periphery(hg, greedy_start=False, N_ITER=200, seed=42)` —
+first measurement: top-coreness runs ≈1.0 (edition 1.0/0.999/0.998…,
+industry 1.0/0.999/0.999…, demerger 1.0/0.94/0.932…) i.e. a smooth
+core→periphery gradient rather than a two-block split. Cost is real:
+49.7 s @771 nodes (edition), 22.9 s @984 (industry) at N_ITER=200 —
+scaling to the giant-k families is impractical as-is.
+
+- HySC + HypergraphMT: ImportError "HySC requires scikit-learn" —
+  the venv lacks the hypergraphx[ml] extra (sklearn absent). Until
+  sklearn is added (a dependency decision, not a probe), both are
+  environment-blocked.
+- hyperlink_communities: ReadwriteError "Failed to load pickle
+  'None.hlcd'" — upstream bug (save_distances=None still consults a
+  pickle path). Environment-independent; blocked upstream.
+
+### Provenance of the superseded readings
+
+The stale numbers this re-probe supersedes trace to two records: the
+density table (1,708 / 478 k≥3 / mean 5.93) was written 2026-10-19
+by `archive/graph/hyperedge_density_dq.md` §7 S1 and restated into
+pending.md "HGX D10"; the shelf verdicts and the "trigger NOT met
+(1.00×)" note were written 2026-10-28 in this file (completed.md
+entry #451) and restated into pending.md "HGX unlock shelf". Both were
+correct when written; neither was re-checked after the
+supply/subsidiary/group/index arcs grew the store 6.8×. Correction
+pattern: dated RESTATEMENT blocks in pending.md (density table +
+shelf entry) plus this dated addendum; archived proposals left
+as-written (historical records).
+=== LANE 6 POST-INSTALL RESULT ===
+(2026-11-02) sklearn installed per user go (m00250); HySC + HypergraphMT load OK (sklearn present); hyperlink_communities still BLOCKED upstream (None.hlcd pickle, HGX 1.8.0 bug — not installable); core_periphery cost unchanged (~49.7s @771, N_ITER=200). Lane 6 blocker 1 RESOLVED; blockers 2/3 unchanged.
+=== PROPOSAL STATE ===
+Proposal hgx_lanes_3_5_wire.md (lanes 3+5 wire, advisory production) intact; shelf +135 + pending 359/414 intact; no commit/stg.
+FIX APPLIED: .any() -> np.any() equiv at installed linalg.py (HGX 1.8.0); Lane 3 spectral wire + Lane 5 RW annotation both done; proposal finalized; shelf append next; gate deferred to user end.
