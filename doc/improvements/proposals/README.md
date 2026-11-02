@@ -52,7 +52,10 @@ entry number and stale DONE pointers):
   zero harness-store mutation), and `bili_sessions_filter_first_window`
   retro-filed + executed same day, #469
   (`../archive/tooling/bili_sessions_filter_first_window.md`;
-  `--since 1d` startup 10.35s -> 1.5-1.7s).
+  `--since 1d` startup 10.35s -> 1.5-1.7s), then
+  `app_server_jemalloc_promotion` retro-filed + executed same day, #471
+  (`../archive/tooling/app_server_jemalloc_promotion.md`; resident
+  app.py RSS −10-12% under jemalloc, wired as `make app-server`).
   *(before these: `rust_jemalloc_global_allocator` executed + archived
   same day (S1 desktop adopt on operator ruling, S3 parked).)*
   *(previously live: the 2026-11-01 tooling batch (`rust_proptest_properties`,

@@ -505,6 +505,10 @@ commit, referenced by nothing). Entry numbers point at
   `bili_sessions.py --since` applied on /sessions meta BEFORE the
   per-session detail fan-out (2 proxies x 75 sids = ~150 requests, 70 of
   them building rows the window hid): 10.35s -> 1.5-1.7s — completed.md #469
+- [`app_server_jemalloc_promotion.md`](tooling/app_server_jemalloc_promotion.md) —
+  resident app.py under LD_PRELOAD jemalloc (the #468 S3 lever): 12-min
+  ABAB A/B x2, resident RSS −10-12%, wired as `make app-server` —
+  completed.md #471
 - [`bili_absorb_stats_display.md`](tooling/bili_absorb_stats_display.md) —
   absorb-stat display across the three bili tools (analytics CLI/JSON,
   sessions abs column + detail + JSON, tier_watch heartbeat + JSON):

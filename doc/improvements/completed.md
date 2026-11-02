@@ -13312,6 +13312,31 @@ Tests 58/58 (2 mocks updated to carry `lastSeen` on mocked /sessions meta,
 1 new fallback-path test), ruff clean. Named residual lever: bulk
 `/sessions/details` endpoint (server-side, not filed).
 
+## 471. App-server jemalloc promotion — resident RSS −10-12% measured; `make app-server` wired
+
+**Date:** 2026-11-02 · **Status:** EXECUTED · **Proposal:**
+`doc/improvements/archive/tooling/app_server_jemalloc_promotion.md`
+(retro-filed at operator request; trial ran directly from the parked
+`rust_jemalloc_global_allocator` #468 S3 item, pending.md S3 closure).
+
+12-min A/B legs ×2 per config, ABAB-interleaved, fixed 8-endpoint request
+mix (~450 reqs/leg), RSS sampled every 10s + VmHWM
+(`/mnt/data/tmp/jemalloc_ab/`, summary.json): jemalloc tight-decay vs
+glibc — peak RSS 75.0 vs 83.7 MB (−10.4%), final RSS 73.5 vs 83.5 MB
+(−11.9%), startup neutral (1.1s both), request behavior identical; reps
+consistent with non-overlapping ranges. VmHWM +3.7% (transient touch
+higher before decay returns pages — end-state is the resident metric).
+The 2026-10-26 "short legs RSS-neutral" verdict does not transfer to the
+resident, as the #468 S3 hypothesis predicted. Wiring: `make app-server`
+target (JEMALLOC_ENV prefix — LD_PRELOAD libjemalloc + tight-decay
+MALLOC_CONF), help + .PHONY wired; smoke-verified (port 5200 health 200,
+libjemalloc mapped in-process). Recipe gotcha for future Makefile edits:
+`.RECIPEPREFIX =>` continuation lines need a LITERAL backslash at EOL —
+an edit-tool write collapsed `\`+newline into a mid-line `>`, which the
+shell then read as a redirect (`cannot create LD_PRELOAD=...`). The
+2026-11-01 "localhost not found" that blocked this trial was the tauri
+desktop build's devUrl page (#468), never app.py.
+
 ## 470. opencode_drift_check_fastpath — watermark-guarded drift check, warm --check 31s -> 5.5s
 
 **Date:** 2026-11-02 · **Status:** EXECUTED · **Proposal:**
