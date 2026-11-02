@@ -110,7 +110,18 @@ def lane_dyadic(edges: list[tuple[int, ...]], *, analytics: bool) -> dict:
 
     con = duckdb.connect()
     try:
-        con.execute("INSTALL onager")
+        try:
+            con.execute("INSTALL onager")
+        except duckdb.Error as exc:
+            # The extension may already be installed from a different repo
+            # origin (community-extensions vs extensions.duckdb.org) — the
+            # default INSTALL then refuses with an origin-conflict even
+            # though LOAD would succeed. Fast shape needs no onager at all
+            # (analytics=False); tolerate and let LOAD raise if truly absent.
+            print(
+                f"[dyadic lane] onager INSTALL refused "
+                f"({str(exc).splitlines()[0][:80]}); falling back to LOAD"
+            )
         con.execute("LOAD onager")
         con.execute("CREATE TABLE inc(edge_id INTEGER, node INTEGER)")
         con.executemany(
@@ -154,6 +165,67 @@ def lane_dyadic(edges: list[tuple[int, ...]], *, analytics: bool) -> dict:
         con.close()
 
 
+def lane_trail_bfs(
+    edges: list[tuple[int, ...]] | None,
+    *,
+    live: bool,
+    sources: int,
+    limit: int,
+    full_map: bool,
+    seed: int = 7,
+) -> dict:
+    """Trail lane (hyper_trail_bipartite_bfs_lane S2): unit-cost BFS over the
+
+    bipartite incidence star — hub + m spokes per hyperedge, LINEAR in m,
+    so no C(m,2) clique tax is ever materialized. Synthetic mode packs the
+    gen_hyper edges as ("e:<id>", "n<n>") pairs; live mode reads the real
+    h_incidence cache via the duckdb_lock funnel. Cutoffs are lower
+    bounds: limit (bipartite steps) is carried in the row and every text
+    line, per the sampled-chains doctrine.
+    """
+    from helpers.graph import hyper_trails as ht
+
+    wall0 = time.perf_counter()
+    if live:
+        g = ht.build_bipartite()
+        if g is None:
+            return {"lane": "trail-bfs", "status": "SKIP: h_incidence absent"}
+    elif edges is None:
+        return {"lane": "trail-bfs", "status": "SKIP: synthetic edges absent"}
+    else:
+        pairs = [(f"e:{e}", f"n{n}") for e, m in enumerate(edges) for n in m]
+        g = ht.bipartite_from_pairs(pairs)
+    build_s = round(time.perf_counter() - wall0, 2)
+    ents = g["labels"][: g["n_entities"]]
+    rng = random.Random(seed)
+    sample = ents if full_map else rng.sample(ents, min(sources, len(ents)))
+    stats = [ht.trail_source_stats(g, s, limit=limit) for s in sample]
+    ms = sorted(s["ms"] for s in stats)
+    reach = sorted(s["reachable"] for s in stats)
+    med_ms = ms[len(ms) // 2]
+    row = {
+        "lane": "trail-bfs",
+        "store": "live" if live else "synthetic",
+        "incidences": g["pairs"],
+        "nodes": len(g["labels"]),
+        "arcs": g["arcs"],
+        "build_s": build_s,
+        "sources": len(sample),
+        "limit_steps": limit,
+        "limit_hops": limit // 2,
+        "ms_source_median": round(med_ms, 2),
+        "ms_source_p90": round(ms[min(len(ms) - 1, int(len(ms) * 0.9))], 2),
+        "reachable_median": reach[len(reach) // 2],
+        "full_map_projected_s": round(med_ms * len(ents) / 1000, 1),
+    }
+    if full_map:
+        import resource
+
+        row["wall_s"] = round(time.perf_counter() - wall0, 1)
+        row["peak_rss_mb"] = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss // 1024
+    return row
+
+
 def main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     p.add_argument("--incidences", type=int, default=30_000, help="target star incidences")
@@ -167,13 +239,52 @@ def main(argv: list[str] | None = None) -> int:
         "(MINUTES at 100K incidences — see docstring)",
     )
     p.add_argument("--skip-dyadic", action="store_true", help="star lane only")
+    p.add_argument(
+        "--trail-bfs",
+        action="store_true",
+        help="also run the bipartite BFS trail lane over the synthetic "
+        "posture (hyper_trail_bipartite_bfs_lane S2)",
+    )
+    p.add_argument(
+        "--trail-live",
+        action="store_true",
+        help="trail lane reads the live h_incidence cache instead of the "
+        "synthetic posture (synthetic lanes are skipped)",
+    )
+    p.add_argument("--trail-sources", type=int, default=800)
+    p.add_argument(
+        "--trail-limit", type=int, default=40, help="bipartite-step cutoff (default 40 = 20 hops)"
+    )
+    p.add_argument("--trail-full-map", action="store_true", help="trail every entity, not a sample")
     p.add_argument("--json", action="store_true", help="JSON rows instead of text")
     args = p.parse_args(argv)
 
-    edges = gen_hyper(args.nodes, args.incidences, args.cap)
-    rows = [lane_hyper(edges, args.n_iter)]
-    if not args.skip_dyadic:
-        rows.append(lane_dyadic(edges, analytics=args.dyadic_analytics))
+    rows = []
+    if args.trail_live:
+        rows.append(
+            lane_trail_bfs(
+                None,
+                live=True,
+                sources=args.trail_sources,
+                limit=args.trail_limit,
+                full_map=args.trail_full_map,
+            )
+        )
+    else:
+        edges = gen_hyper(args.nodes, args.incidences, args.cap)
+        if args.trail_bfs:
+            rows.append(
+                lane_trail_bfs(
+                    edges,
+                    live=False,
+                    sources=args.trail_sources,
+                    limit=args.trail_limit,
+                    full_map=args.trail_full_map,
+                )
+            )
+        rows.append(lane_hyper(edges, args.n_iter))
+        if not args.skip_dyadic:
+            rows.append(lane_dyadic(edges, analytics=args.dyadic_analytics))
 
     if args.json:
         print(json.dumps(rows, indent=1))

@@ -48,6 +48,13 @@ float dust (tolerance 1e-9 still reports NOT). The production lane reports
 NOT for all four default families on the live store. Reconcile with the
 probe author before trusting any order-decomposition-independence claim.
 
+CORRECTION to the Lane 4 trigger (2026-11-02): "upstream dict_to_df fix"
+is retired as the lane-4 blocker — dead end twice over (HGX 1.8.0 is
+the newest release; a patched dict_to_df would still allocate n^2-dense
+~2.7 GB). Lane 4 is owned now: repo-native bipartite BFS lane
+(doc/improvements/archive/graph/hyper_trail_bipartite_bfs_lane.md —
+archived 2026-11-02 as completed.md #473; filed 2026-11-02).
+
 Live wire verdicts (2026-11-02 store): edition 34 orders NOT, industry 51
 NOT, sub_sector 50 NOT, org_membership 31 NOT; component annotations match
 the re-probe (edition 771/771 single, industry 63/984, sub_sector 51/983,

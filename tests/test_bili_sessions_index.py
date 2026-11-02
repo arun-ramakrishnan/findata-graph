@@ -464,7 +464,9 @@ class TestLastSeenWindow:
         monkeypatch.setattr(bs, "dashboard_sessions", lambda: [])  # dashboard down
         monkeypatch.setattr(bs, "sid_log_index", lambda: {"ses_old": [], "ses_new": []})
         monkeypatch.setattr(bs, "_prime_details", lambda sids: None)
-        monkeypatch.setattr(bs, "run_for_sid", lambda sid: next(r for r in rows if r["session"] == sid))
+        monkeypatch.setattr(
+            bs, "run_for_sid", lambda sid: next(r for r in rows if r["session"] == sid)
+        )
         rc = bs.main(["--since", "7"])
         assert rc == 0
         out = capsys.readouterr().out

@@ -1807,6 +1807,42 @@ def _harvest_zcode(store: Store, writer: SessionWriter, *, force: bool = False) 
     return "\n".join(stats) + f"\nzcode total new: {total}"
 
 
+def _lane_extrema(
+    con, stored_v2: int | None, stored_evt: int | None
+) -> tuple[list | None, list | None]:
+    """Scalar-guarded per-session extrema for both lanes: (v2max, evtmax).
+
+    One MAX pass per lane proves the lane clean against its stored
+    watermark without the GROUP BY's per-session materialization (the
+    check-mode hot path — every clean source pays this, drifted sources
+    still take the GROUP BY below). None means clean or the table is
+    absent (pre-v2 snapshots) — never drift, never a raise.
+    """
+
+    def extrema(scalar_sql: str, group_sql: str, stored: int | None):
+        try:
+            gmax = con.execute(scalar_sql).fetchone()[0]
+            if stored is not None and gmax <= stored:
+                return None
+            return con.execute(group_sql).fetchall()
+        except sqlite3.OperationalError:
+            return None
+
+    v2max = extrema(
+        "SELECT COALESCE(MAX(time_updated), 0) FROM session_message",
+        "SELECT session_id, MAX(time_updated) FROM session_message GROUP BY session_id",
+        stored_v2,
+    )
+    evtmax = extrema(
+        "SELECT COALESCE(MAX(json_extract(data,'$.time')), 0) FROM event "
+        "WHERE type='message.part.updated.1'",
+        "SELECT json_extract(data,'$.part.sessionID'), MAX(json_extract(data,'$.time')) "
+        "FROM event WHERE type='message.part.updated.1' GROUP BY 1",
+        stored_evt,
+    )
+    return v2max, evtmax
+
+
 def _lane_uncovered(
     con, corpus_root: Path, stored_v2: int | None, stored_evt: int | None
 ) -> dict[str, str]:
@@ -1829,41 +1865,12 @@ def _lane_uncovered(
         seed = seeds[sid]
         return seed if seed is not None else -1
 
-    try:
-        # Scalar guard first: one MAX pass proves the lane clean against the
-        # stored watermark without the GROUP BY's per-session materialization
-        # (the check-mode hot path — every clean source pays this, drifted
-        # sources still take the GROUP BY below).
-        gmax_v2 = con.execute(
-            "SELECT COALESCE(MAX(time_updated), 0) FROM session_message"
-        ).fetchone()[0]
-        if stored_v2 is not None and gmax_v2 <= stored_v2:
-            v2max = None
-        else:
-            v2max = con.execute(
-                "SELECT session_id, MAX(time_updated) FROM session_message GROUP BY session_id"
-            ).fetchall()
-    except sqlite3.OperationalError:
-        v2max = None
+    v2max, evtmax = _lane_extrema(con, stored_v2, stored_evt)
     if v2max:
         floor = stored_v2 if stored_v2 is not None else -1
         new_sessions = [s for s, t in v2max if (t or 0) > max(seed_for(s), floor)]
         if new_sessions:
             out["v2"] = f"{len(new_sessions)} sessions ({max(t for _, t in v2max)})"
-    try:
-        gmax_evt = con.execute(
-            "SELECT COALESCE(MAX(json_extract(data,'$.time')), 0) FROM event "
-            "WHERE type='message.part.updated.1'"
-        ).fetchone()[0]
-        if stored_evt is not None and gmax_evt <= stored_evt:
-            evtmax = None
-        else:
-            evtmax = con.execute(
-                "SELECT json_extract(data,'$.part.sessionID'), MAX(json_extract(data,'$.time')) "
-                "FROM event WHERE type='message.part.updated.1' GROUP BY 1"
-            ).fetchall()
-    except sqlite3.OperationalError:
-        evtmax = None
     if evtmax:
         floor = stored_evt if stored_evt is not None else -1
         new_sessions = [s for s, t in evtmax if s and (t or 0) > max(seed_for(s), floor)]
@@ -1892,10 +1899,7 @@ def _opencode_source_drift(
         base_wm = store.watermark(key)
         if base_wm is None:
             found.append(f"new {src}")
-        elif (
-            _wm_int(store, key + ":v2") is not None
-            and _wm_int(store, key + ":evt") is not None
-        ):
+        elif _wm_int(store, key + ":v2") is not None and _wm_int(store, key + ":evt") is not None:
             # Frozen file with every lane closed: a timeshift snapshot's
             # content can never change, so the scan is pure waste (mirrors
             # APPLY's "quiet" rule). Missing/partial watermarks keep the

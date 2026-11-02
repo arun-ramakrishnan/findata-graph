@@ -425,7 +425,14 @@ Open items below keep their revisit triggers inline; executed work is compressed
   default families read NOT under the production check. Lane 4 BLOCKED UPSTREAM: HGX 1.8.0
   `calc_HO_shortest_paths` → `dict_to_df` raises "ValueError: setting
   an array element with a sequence" (measures/shortest_paths.py:262)
-  on this py3.14/numpy stack — code bug, not data. Lane 5 measured on
+  on this py3.14/numpy stack — code bug, not data. **BLOCKER
+  RECLASSIFIED 2026-11-02 (hyper_trail_bipartite_bfs_lane):** lane 4 is
+  no longer waiting upstream — we own the implementation. The upstream
+  fix is a dead end twice over (1.8.0 is the newest release AND a
+  patched dict_to_df would still allocate n^2-dense ~2.7 GB at 18,233
+  entities); the unit-cost trail lane goes repo-native (scipy bipartite
+  BFS over `h_incidence`, proposal filed 2026-11-02, 5.1 ms/source
+  measured). Lane 5 measured on
   largest components: edition is the only single-component family
   (771/771 nodes); industry/sub_sector/org_membership LCs hold
   6%/5%/15% of nodes — any diffusion lens there needs component
@@ -477,6 +484,10 @@ Open items below keep their revisit triggers inline; executed work is compressed
      still gated: first UI/API path-explanation ask that traverses
      hyperedges. Directed B/F-hyperpath (Gallo) remains out of HGX;
      the directed lane stays plain-SQL BFS (`graph_design.md` D9).
+     **RECLASSIFIED 2026-11-02 (hyper_trail_bipartite_bfs_lane):** the
+     undirected unit-cost leg is OWNED, not upstream-blocked —
+     repo-native bipartite BFS (`helpers/graph/hyper_trails.py`,
+     proposed) replaces the HGX call; HGX keeps the rest of the shelf.
   5. **RW density** (`random_walk_density`, sig `(HG, s: ndarray,
      time) -> list`) — WIRED 2026-11-02 (#472):
      `hyper_spectral.py --lane rw` (component annotation FIRST — the

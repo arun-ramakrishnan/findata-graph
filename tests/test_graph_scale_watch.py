@@ -195,3 +195,117 @@ def test_chains_cap_constant_matches_stats() -> None:
     from helpers.graph.stats import CHAIN_CAP
 
     assert graph_scale_watch.CHAIN_CAP == CHAIN_CAP == 6000
+
+
+# --- hyper-scale watch (2026-11-02 re-anchor) ---------------------------------
+
+
+def _mk_hyper_db(
+    tmp_path: Path,
+    groups: tuple[int, ...],
+    doubled: int = 10,
+    directed: int = 5,
+) -> Path:
+    """Cache with the dyadic tables AND h_incidence (edge_id -> members)."""
+    db = _mk_db(tmp_path, doubled=doubled, directed=directed)
+    con = duckdb.connect(str(db))
+    con.execute("CREATE TABLE h_incidence (edge_id INTEGER, entity_name VARCHAR)")
+    con.executemany(
+        "INSERT INTO h_incidence VALUES (?, ?)",
+        [(e, f"e{e}_n{i}") for e, m in enumerate(groups) for i in range(m)],
+    )
+    con.close()
+    return db
+
+
+def test_hyper_ok_line(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    db = _mk_hyper_db(tmp_path, groups=(2, 2, 3))  # 7 incidences, max 3, tax C(2,2)x2 + C(3,2) = 5
+    rc = graph_scale_watch.main(["--check", "--db", str(db)])
+    out = capsys.readouterr().out
+    assert rc == 0
+    assert "hyper-scale-watch: h_incidence=7" in out
+    assert "max hyperedge=3" in out
+    assert "clique tax=5 dyads" in out
+    assert "OK" in out
+
+
+def test_hyper_warn_at_bench_posture(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    db = _mk_hyper_db(tmp_path, groups=(3, 3))  # 6 incidences
+    monkeypatch.setattr(graph_scale_watch, "H_INCIDENCE_WARN", 5)
+    rc = graph_scale_watch.main(["--check", "--db", str(db)])
+    out = capsys.readouterr().out
+    assert rc == 0, "WARN is advisory — never a gate failure"
+    assert "WARN" in out
+    assert "re-anchor hyper_scale_bench" in out
+
+
+def test_hyper_fire_exits_nonzero(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    db = _mk_hyper_db(tmp_path, groups=(3, 3))
+    monkeypatch.setattr(graph_scale_watch, "H_INCIDENCE_FIRE", 5)
+    rc = graph_scale_watch.main(["--check", "--db", str(db)])
+    out = capsys.readouterr().out
+    assert rc == 1, "h_incidence FIRE is the only exit-1 hyper axis"
+    assert "FIRE" in out
+    assert "hyper Phase B" in out
+
+
+def test_hyper_skip_when_tables_absent(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    db = _mk_db(tmp_path, doubled=10, directed=5)  # no h_incidence
+    rc = graph_scale_watch.main(["--check", "--db", str(db)])
+    out = capsys.readouterr().out
+    assert rc == 0
+    assert "hyper-scale-watch: SKIP" in out
+    assert "h_incidence not built yet" in out
+
+
+def test_hyper_clique_tax_warn_at_oom_anchor(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    db = _mk_hyper_db(tmp_path, groups=(3, 3))  # tax = 6
+    monkeypatch.setattr(graph_scale_watch, "CLIQUE_TAX_WARN", 5)
+    rc = graph_scale_watch.main(["--check", "--db", str(db)])
+    out = capsys.readouterr().out
+    assert rc == 0, "clique tax reports the wall's approach — never a gate failure"
+    assert "OOM anchor" in out
+    assert "infeasible" in out
+
+
+def test_hyper_max_edge_warn(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    db = _mk_hyper_db(tmp_path, groups=(3, 1))
+    monkeypatch.setattr(graph_scale_watch, "MAX_HYPEREDGE_WARN", 2)
+    rc = graph_scale_watch.main(["--check", "--db", str(db)])
+    out = capsys.readouterr().out
+    assert rc == 0
+    assert "max hyperedge 3 >= 2" in out
+    assert "max_k" in out
+
+
+def test_dyadic_fire_does_not_mask_hyper_watch(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Sections are independent: a dyadic T1 FIRE must not skip the hyper axes."""
+    db = _mk_hyper_db(tmp_path, groups=(2, 2))
+    monkeypatch.setattr(graph_scale_watch, "T1_ROWS", 5)  # doubled=10 >= 5 -> dyadic FIRE
+    rc = graph_scale_watch.main(["--check", "--db", str(db)])
+    out = capsys.readouterr().out
+    assert rc == 1
+    assert "FIRE" in out
+    assert "hyper-scale-watch: h_incidence=4" in out
+
+
+def test_live_hyper_thresholds_match_doctrine() -> None:
+    """Shipped hyper constants must equal the recorded anchors, not drift."""
+    assert graph_scale_watch.H_INCIDENCE_WARN == 100_000
+    assert graph_scale_watch.H_INCIDENCE_FIRE == 250_000
+    assert graph_scale_watch.MAX_HYPEREDGE_WARN == 1_000
+    assert graph_scale_watch.CLIQUE_TAX_WARN == 3_400_000

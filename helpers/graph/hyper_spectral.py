@@ -152,9 +152,7 @@ def spectral_multiorder(
     return out
 
 
-def rw_density_report(
-    incidence: dict[str, list[str]], *, steps: int = 100
-) -> dict[str, Any]:
+def rw_density_report(incidence: dict[str, list[str]], *, steps: int = 100) -> dict[str, Any]:
     """Lane 5: component annotation first, then RW density on the LC.
 
     Component structure is the report, not a footnote: the 2026-11-02
@@ -165,9 +163,7 @@ def rw_density_report(
     Hypergraph, _LMO, random_walk_density = _require_hgx()
     kept_sets = {k: set(v) for k, v in incidence.items()}
     hg_full = Hypergraph(edge_list=[tuple(m) for m in kept_sets.values()])
-    comps = sorted(
-        (sorted(c) for c in hg_full.connected_components()), key=len, reverse=True
-    )
+    comps = sorted((sorted(c) for c in hg_full.connected_components()), key=len, reverse=True)
     sizes = [len(c) for c in comps]
     hg_lc = hg_full.subhypergraph_largest_component()
     n = hg_lc.num_nodes()
@@ -204,7 +200,9 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--lane", choices=("spectral", "rw", "both"), default="both")
     ap.add_argument("--max-k", type=int, default=60, help="order cap (probe protocol: <=60)")
     ap.add_argument("--k2-cap", type=int, default=300, help="k>=2 edge cap per family")
-    ap.add_argument("--spectra", action="store_true", help="per-order algebraic connectivity (eigsh; slower)")
+    ap.add_argument(
+        "--spectra", action="store_true", help="per-order algebraic connectivity (eigsh; slower)"
+    )
     ap.add_argument("--steps", type=int, default=100, help="RW density steps")
     args = ap.parse_args(argv)
 
@@ -216,9 +214,7 @@ def main(argv: list[str] | None = None) -> int:
         except ValueError as exc:
             print(f"# {fam}: {exc}", file=sys.stderr)
             continue
-        print(
-            f"== {fam}: {len(kept)} hyperedges (deduped, guard-filtered)"
-        )
+        print(f"== {fam}: {len(kept)} hyperedges (deduped, guard-filtered)")
         if args.lane in ("spectral", "both"):
             rep = spectral_multiorder(kept, max_k=args.max_k, spectra=args.spectra)
             verdict = "COMMUTES" if rep["commutes"] else "does NOT commute"

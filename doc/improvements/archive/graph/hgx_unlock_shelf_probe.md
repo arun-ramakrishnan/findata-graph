@@ -309,3 +309,18 @@ as-written (historical records).
 === PROPOSAL STATE ===
 Proposal hgx_lanes_3_5_wire.md (lanes 3+5 wire, advisory production) intact; shelf +135 + pending 359/414 intact; no commit/stg.
 FIX APPLIED: .any() -> np.any() equiv at installed linalg.py (HGX 1.8.0); Lane 3 spectral wire + Lane 5 RW annotation both done; proposal finalized; shelf append next; gate deferred to user end.
+
+=== LANE 4 BLOCKER RECLASSIFIED ===
+(2026-11-02) The Lane 4 section above ("BLOCKED UPSTREAM (code bug)")
+stays as the historical record; the blocker itself moves from
+"upstream bug" to "we own the implementation": the upstream dict_to_df
+fix is a dead end twice over (HGX 1.8.0 IS the newest release, and even
+a patched dict_to_df still allocates an n x n dense np.empty — ~2.7 GB
+at 18,233 entities — with raw labels as matrix indices). Unit-cost
+trail distances go repo-native: scipy bipartite BFS over h_incidence
+(103,108 arcs, MB-scale — never the 2.45M-dyad clique projection);
+bipartite distance/2 = trail hops, exact. Measured 5.1 ms/source,
+~94 s full map. Proposal:
+doc/improvements/archive/graph/hyper_trail_bipartite_bfs_lane.md
+(archived 2026-11-02 as completed.md #473; filed 2026-11-02). The calc_HO_shortest_paths call site retires when that
+proposal's S3 lands; HGX keeps lanes 3/5/6.

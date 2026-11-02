@@ -38,7 +38,14 @@ entry number and stale DONE pointers):
 
 ## Current live proposals
 
-*(none live)* — `opencode_drift_check_fastpath` filed + executed +
+- *(archived same day)* — `hyper_trail_bipartite_bfs_lane` filed + executed +
+  archived same day 2026-11-02, #473
+  (`../archive/graph/hyper_trail_bipartite_bfs_lane.md`;
+  HGX unlock shelf lane 4: upstream `dict_to_df` is a dead end twice
+  over — crash unfixed AND n^2-dense design; repo-native bipartite BFS
+  trail lane landed instead — full live map 18,233 entities in 166.8 s,
+  156 MB).
+- *(archived same day)* — `opencode_drift_check_fastpath` filed + executed +
   archived same day 2026-11-02, #470
   (`../archive/database/opencode_drift_check_fastpath.md`;
   db_scaling_tuning §6.4 spin-off — warm convo-fresh `--check` 31s -> 5.5s,

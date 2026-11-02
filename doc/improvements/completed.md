@@ -13393,3 +13393,31 @@ shelf entries annotated (3+5 WIRED; 6 stays deferred upstream per
 operator). Deviation note: wired as a standalone hyper_* lane CLI (house
 pattern), not the proposal's nominal query.py slot — no spectral slot
 exists there.
+
+## 473. Hyper trail distances via repo-native bipartite BFS lane — hyper_trails.py; clique tax bypassed
+
+**Date:** 2026-11-02 · **Status:** EXECUTED · **Proposal:**
+`doc/improvements/archive/graph/hyper_trail_bipartite_bfs_lane.md`
+(S1+S2 on operator go, 2026-11-02; S3 closed as a no-op finding —
+calc_ho_shortest_paths has no live call site, lane 4 was never wired).
+
+`helpers/graph/hyper_trails.py` (+ tests/test_hyper_trails.py, 14
+hermetic tests incl. networkx ground truth with zero mismatches):
+bipartite CSR straight from h_incidence (hub + m spokes per hyperedge,
+LINEAR in m — the C(m,2) clique tax never materializes), unit-cost
+trail BFS with even-step folding (bipartite distance / 2 = trail hops
+exactly), lower-bound cutoffs carried in every output, absent-store
+degrade. Bench legs in helpers/bench/hyper_scale_bench.py:
+--trail-bfs / --trail-live / --trail-full-map.
+
+Measured (2026-11-02 live store, 51,554 incidences): full map over
+ALL 18,233 entities in 166.8 s wall / 156 MB peak RSS at limit 40
+bipartite steps (20 hops); 5.99 ms/source median, build 0.44 s →
+103,108 arcs (exactly 2×DISTINCT pairs). Synthetic 100K (09-13
+posture): 200,060 arcs, 6.67 ms/source median. Context row: HGX hyper
+lane fit100 1.23 s / 9 MB unchanged — the ~2.7 GB dense n×n design
+and the 3.42M-dyad louvain OOM are both moot on the distance axis
+(m=850 country edge costs 850 arcs, not 360,825 dyads). Numbers
+recorded in doc/local/perf/graph_scaling.md §Hyper-native posture
+(2026-11-02). pending.md lane-4 entries RECLASSIFIED the same day:
+OWNED, not upstream-blocked; gated on the first path-explanation ask.

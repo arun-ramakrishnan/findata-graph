@@ -410,13 +410,10 @@ def test_frozen_snapshot_partial_watermarks_still_scans(tmp_path):
 def test_lane_scalar_guard_skips_groupby_when_clean(tmp_path):
     con = sqlite3.connect(":memory:")
     con.executescript(V2_SCHEMA)
-    con.execute(
-        "INSERT INTO session_message VALUES ('m1','s1','user',1,100,200,'{}')"
-    )
+    con.execute("INSERT INTO session_message VALUES ('m1','s1','user',1,100,200,'{}')")
     con.execute(
         "INSERT INTO event VALUES ('e1','s1',1,'message.part.updated.1',?,100)",
-        (json.dumps({"sessionID": "s1", "time": 200,
-                     "part": {"id": "p1", "sessionID": "s1"}}),),
+        (json.dumps({"sessionID": "s1", "time": 200, "part": {"id": "p1", "sessionID": "s1"}}),),
     )
     traced: list[str] = []
     con.set_trace_callback(traced.append)
@@ -424,13 +421,10 @@ def test_lane_scalar_guard_skips_groupby_when_clean(tmp_path):
     assert out == {}
     # Clean lanes close on the scalar MAX — the GROUP BY never executes.
     assert not any("GROUP BY" in s for s in traced), traced
-    con.execute(
-        "INSERT INTO session_message VALUES ('m2','s2','user',2,300,900,'{}')"
-    )
+    con.execute("INSERT INTO session_message VALUES ('m2','s2','user',2,300,900,'{}')")
     con.execute(
         "INSERT INTO event VALUES ('e2','s2',2,'message.part.updated.1',?,900)",
-        (json.dumps({"sessionID": "s2", "time": 900,
-                     "part": {"id": "p2", "sessionID": "s2"}}),),
+        (json.dumps({"sessionID": "s2", "time": 900, "part": {"id": "p2", "sessionID": "s2"}}),),
     )
     traced.clear()
     out = hc._lane_uncovered(con, tmp_path, stored_v2=200, stored_evt=200)
