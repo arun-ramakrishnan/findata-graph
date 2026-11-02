@@ -13292,3 +13292,43 @@ binary candidate.
   combine with LD_PRELOAD jemalloc in this app.
 - **S3 parked** (pending.md): app-server LD_PRELOAD trial — the real
   day-scale resident lever, Makefile:31-41 recipe, never measured.
+
+## 469. bili_sessions startup — filter-first window on /sessions meta (~6-7x)
+
+**Date:** 2026-11-02 · **Status:** EXECUTED · **Proposal:**
+`doc/improvements/archive/tooling/bili_sessions_filter_first_window.md`
+(retro-filed at operator request; executed same day).
+
+Operator reported ~10x startup regression on
+`bili_sessions.py --since 1d`. Diagnosis: not the recent commits — the
+per-session detail fan-out had grown to ~150 HTTP calls (75 sessions x 2
+discovered proxies) against a ~16 req/s server ceiling, and 70 of those
+sessions were then HIDDEN by the window. Fix: the `/sessions` list already
+carries each session's `lastSeen`, so `main()` applies the `--since` window
+to session ids BEFORE `_prime_details`/`run_for_sid`; only window-kept sids
+are built. Dashboard-down fallback keeps the old build-then-filter path.
+`--since 1d`: 10.35s -> 1.5-1.7s; hidden-line and table output unchanged.
+Tests 58/58 (2 mocks updated to carry `lastSeen` on mocked /sessions meta,
+1 new fallback-path test), ruff clean. Named residual lever: bulk
+`/sessions/details` endpoint (server-side, not filed).
+
+## 470. opencode_drift_check_fastpath — watermark-guarded drift check, warm --check 31s -> 5.5s
+
+**Date:** 2026-11-02 · **Status:** EXECUTED · **Proposal:**
+`doc/improvements/archive/database/opencode_drift_check_fastpath.md`
+(db_scaling_tuning §6.4 spin-off; pending.md revisit trigger invoked by
+operator; filed + executed same day).
+
+Corrected the 2026-10-29 profile attribution first (read-only probe): the
+wall was never the v2 GROUP BY (2ms — session_message nearly empty after the
+upstream session_v2 migration) but the event-table GROUP BY (~3.9s per
+frozen snapshot on the timeshift mount, json_extract per row) re-run against
+8 immutable snapshots + live on every check. Two code-only guards, zero
+harness-store mutation: `_opencode_source_drift` skips immutable sources
+whose base + `:v2` + `:evt` watermarks all exist (frozen files cannot drift;
+mirrors APPLY's "quiet" rule); `_lane_uncovered` runs one scalar MAX per lane
+against the existing watermark and skips the GROUP BY unless something is
+newer. Tests 10/10 (3 new incl. sqlite trace-callback proof the GROUP BY
+does not execute on clean lanes). Warm `--check` 31s -> 5.5s (5.7x), cold
+138s -> 8.2s; output identical. ruff + md-lint clean. Closes the
+db_scaling_tuning §6.4 defer in pending.md.

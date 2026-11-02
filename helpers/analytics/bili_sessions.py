@@ -760,16 +760,43 @@ def main(argv: list[str]) -> int:  # noqa: C901
     meta_sessions = dashboard_sessions()
     if meta_sessions:
         sids = [m["id"] for m in meta_sessions]
+        # /sessions already carries each session's lastSeen — enough to apply
+        # the --since window BEFORE the per-session detail fan-out. Every
+        # detail fetch costs one HTTP call PER DISCOVERED PROXY (measured
+        # 2026-11-02: two proxies, 75 sids, 70 dropped by `--since 1d` =>
+        # ~140 of ~150 requests built rows the window then hid).
+        meta_seen = {m["id"]: str(m.get("lastSeen", "")) for m in meta_sessions}
     else:
         # dashboard unavailable: fall back to every session the logs name,
         # across the whole rotation family, not just the current file
         sids = sorted(sid_log_index())
-    _prime_details(sids)
-    rows = [run_for_sid(s) for s in sids]
+        meta_seen = {}
+
+    def _meta_kept(sid: str) -> bool:
+        if since_cutoff is None:
+            return True
+        stamp = _parse_last_seen(meta_seen.get(sid, ""))
+        # Same KEPT rule as the fallback filter below: a sid we cannot date
+        # stays — the window defers rows, it never silently hides them.
+        return stamp is None or stamp >= since_cutoff
+
+    kept_sids = [s for s in sids if _meta_kept(s)]
+    if since_cutoff is not None and meta_sessions:
+        dropped = len(sids) - len(kept_sids)
+        if dropped:
+            print(
+                f"# {dropped} session(s) last seen before "
+                f"{since_cutoff:%Y-%m-%d} ({since_text}) hidden — use --all to show",
+                file=sys.stderr,
+            )
+    _prime_details(kept_sids)
+    rows = [run_for_sid(s) for s in kept_sids]
 
     rows.sort(key=lambda r: r.get("last_seen") or "", reverse=True)
 
-    if since_cutoff is not None:
+    if since_cutoff is not None and not meta_sessions:
+        # Fallback only (no dashboard meta): last_seen exists on the row
+        # after the build, so the window runs there.
         kept, dropped = [], 0
         for r in rows:
             stamp = _parse_last_seen(r.get("last_seen"))

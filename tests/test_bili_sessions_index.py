@@ -366,7 +366,14 @@ class TestSinceAcceptsRanges:
     no flag at all."""
 
     def _run(self, monkeypatch, capsys, argv, rows):
-        monkeypatch.setattr(bs, "dashboard_sessions", lambda: [{"id": r["session"]} for r in rows])
+        # /sessions carries lastSeen: the --since window runs on it BEFORE the
+        # detail fan-out, so the mock must expose the same field the live
+        # dashboard does (2026-11-02 filter-first change).
+        monkeypatch.setattr(
+            bs,
+            "dashboard_sessions",
+            lambda: [{"id": r["session"], "lastSeen": r.get("last_seen")} for r in rows],
+        )
         monkeypatch.setattr(
             bs, "run_for_sid", lambda sid: next(r for r in rows if r["session"] == sid)
         )
@@ -432,14 +439,36 @@ class TestLastSeenWindow:
             {"session": "ses_old", "last_seen": "2020-01-01T00:00:00Z"},
             {"session": "ses_new", "last_seen": None},
         ]
+        # Dashboard path: the window runs on /sessions meta lastSeen; a sid
+        # with no parsable meta lastSeen is KEPT (undateable, never hidden).
         monkeypatch.setattr(
-            bs, "dashboard_sessions", lambda: [{"id": "ses_old"}, {"id": "ses_new"}]
+            bs,
+            "dashboard_sessions",
+            lambda: [
+                {"id": "ses_old", "lastSeen": "2020-01-01T00:00:00Z"},
+                {"id": "ses_new", "lastSeen": None},
+            ],
         )
         monkeypatch.setattr(bs, "run_for_sid", lambda sid: rows[0] if sid == "ses_old" else rows[1])
         bs.main(["--since", "7"])
         out = capsys.readouterr().out
         assert "ses_new" in out, "a row with no parsable lastSeen must still print"
         assert "ses_old" not in out, "a 2020 row is outside a 7-day window"
+
+    def test_fallback_window_filters_rows_without_meta(self, tmp_path: Path, capsys, monkeypatch):
+        """Dashboard down: the window falls back to the built row's last_seen."""
+        rows = [
+            {"session": "ses_old", "last_seen": "2020-01-01T00:00:00Z"},
+            {"session": "ses_new", "last_seen": "2099-01-01T00:00:00Z"},
+        ]
+        monkeypatch.setattr(bs, "dashboard_sessions", lambda: [])  # dashboard down
+        monkeypatch.setattr(bs, "sid_log_index", lambda: {"ses_old": [], "ses_new": []})
+        monkeypatch.setattr(bs, "_prime_details", lambda sids: None)
+        monkeypatch.setattr(bs, "run_for_sid", lambda sid: next(r for r in rows if r["session"] == sid))
+        rc = bs.main(["--since", "7"])
+        assert rc == 0
+        out = capsys.readouterr().out
+        assert "ses_new" in out and "ses_old" not in out
 
     def test_all_disables_the_window(self, capsys, monkeypatch):
         rows = [{"session": "ses_old", "last_seen": "2020-01-01T00:00:00Z"}]

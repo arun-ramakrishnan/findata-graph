@@ -815,15 +815,13 @@ Open items below keep their revisit triggers inline; executed work is compressed
   manual spot-check of N editions.** Calibration acceptance: marker
   additions test-pinned, zero management sections flagged in the repro
   set.
-- **convo-fresh `--check` wall — opencode-lane drift queries — DEFERRED
-  2026-10-30** (`archive/database/db_scaling_tuning.md` §6.4): the
-  warm `--check` wall (~31s) is harness-owned opencode sqlite
-  GROUP-BY scans — `harvest_conversations.py:1743` session max-ts
-  (164 executes, ~40.2s self) and a `json_extract` event-table scan
-  (8.8s). Indexing or watermark-bounding those queries (or a sidecar
-  max-ts mirror) touches the LIVE harness stores — invasive, needs
-  its own look. **REVISIT TRIGGER: convo-fresh `--check` reds on a
-  gate arc, or the next opencode store growth spike.**
+- **convo-fresh `--check` wall — opencode-lane drift queries — EXECUTED
+  2026-11-02 (#470, `archive/database/opencode_drift_check_fastpath.md`)**:
+  resolved without touching the harness stores — watermark guards on the
+  existing `:v2`/`:evt` keys (frozen-snapshot skip + scalar-MAX lane
+  guards); warm `--check` 31s -> 5.5s. Profile attribution corrected: the
+  wall was the event-table GROUP BY on the snapshot mounts, not the v2
+  session query. Entry closed.
 - **bili tier_watch `log_age` negative — verdict-clock tz mismatch — FIXED
   2026-10-30** (helpers/analytics/bili_tier_watch.py:616-627): `age`
   stamped `tzinfo=UTC` onto the plugin verdict-clock ts, but `vts` is

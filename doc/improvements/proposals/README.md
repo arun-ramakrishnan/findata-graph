@@ -40,6 +40,16 @@ entry number and stale DONE pointers):
 
 - *(none live)* — `rust_jemalloc_global_allocator` executed + archived
   same day (S1 desktop adopt on operator ruling, S3 parked).
+- *(none live)* — `opencode_drift_check_fastpath` filed + executed +
+  archived same day 2026-11-02, #470
+  (`../archive/database/opencode_drift_check_fastpath.md`;
+  db_scaling_tuning §6.4 spin-off — warm convo-fresh `--check` 31s -> 5.5s,
+  zero harness-store mutation), and `bili_sessions_filter_first_window`
+  retro-filed + executed same day, #469
+  (`../archive/tooling/bili_sessions_filter_first_window.md`;
+  `--since 1d` startup 10.35s -> 1.5-1.7s).
+  *(before these: `rust_jemalloc_global_allocator` executed + archived
+  same day (S1 desktop adopt on operator ruling, S3 parked).)*
   *(previously live: the 2026-11-01 tooling batch (`rust_proptest_properties`,
   `desktop_lock_advisory_remediation`, `rust_cargo_llvm_cov`) executed and
   archived same day.)* Most recent archived:
