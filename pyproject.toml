@@ -271,4 +271,6 @@ optional_dependencies_dev_groups = ["dev", "mojo", "review"]
 # metadata, so deptry can only classify it as transitive. Imported solely by
 # Rust/bench/cosine_gate.py (gate timing harness, SCRIPT_KNN_STRICT pins it).
 per_rule_ignores.DEP002 = ["gunicorn", "Werkzeug", "finnhub-python", "regex", "tree-sitter", "tree-sitter-sql"]
-per_rule_ignores.DEP003 = ["cosine_knn"]
+# sklearn: installed transitively; imported only by helpers/bench/hyper_community_probe.py:38
+# (Wall-4 ARI quality probe — bench tooling, same class as cosine_knn).
+per_rule_ignores.DEP003 = ["cosine_knn", "sklearn"]

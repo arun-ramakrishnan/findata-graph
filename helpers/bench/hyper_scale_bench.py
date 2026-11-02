@@ -173,6 +173,7 @@ def lane_trail_bfs(
     limit: int,
     full_map: bool,
     seed: int = 7,
+    workers: int | None = None,
 ) -> dict:
     """Trail lane (hyper_trail_bipartite_bfs_lane S2): unit-cost BFS over the
 
@@ -199,7 +200,7 @@ def lane_trail_bfs(
     ents = g["labels"][: g["n_entities"]]
     rng = random.Random(seed)
     sample = ents if full_map else rng.sample(ents, min(sources, len(ents)))
-    stats = [ht.trail_source_stats(g, s, limit=limit) for s in sample]
+    stats = ht.trail_source_stats_parallel(g, sample, limit=limit, workers=workers)
     ms = sorted(s["ms"] for s in stats)
     reach = sorted(s["reachable"] for s in stats)
     med_ms = ms[len(ms) // 2]
@@ -224,6 +225,73 @@ def lane_trail_bfs(
         row["wall_s"] = round(time.perf_counter() - wall0, 1)
         row["peak_rss_mb"] = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss // 1024
     return row
+
+
+def lane_chains_exact(*, cap: int = 6000, seed: int = 7) -> list[dict]:
+    """Wall-3 S3 bench leg: time-to-EXACT diameter at 2x, 5x, 10x the
+    cap, over connected random unipartite graphs.
+
+    Compares the iFUB exact-diameter kernel (stats._ifub_diameter)
+    against the sampled path (shortest_path with stride roots, the
+    cap-gated default) and against the all-pairs reference. All-pairs is
+    O(n^2) memory — it is measured only up to a feasible size and
+    recorded as null beyond (OOM-guard), which is exactly the point: the
+    diameter is now exact where all-pairs could not run.
+    """
+    from helpers.graph.stats import _ifub_diameter
+
+    import numpy as np
+    from scipy.sparse import csr_matrix
+    from scipy.sparse.csgraph import shortest_path
+
+    def connected_rand(n: int, p: float, rng: np.random.Generator) -> csr_matrix:
+        # path backbone guarantees one component; plus random chords
+        row = list(range(n - 1))
+        col = list(range(1, n))
+        A = (rng.random((n, n)) < p).astype(np.int8)
+        A = np.triu(A, 1)
+        A = A | A.T
+        for i, j in zip(row, col):
+            A[i, j] = 1
+            A[j, i] = 1
+        return csr_matrix(A)
+
+    rng = np.random.default_rng(seed)
+    rows = []
+    for mult in (2, 5, 10):
+        n = cap * mult
+        # p = 1.6/n reproduces the live chain-graph depth (diameter ~12) at
+        # ~5.6 avg degree; denser postures make iFUB degenerate toward
+        # all-pairs (the proposal's flagged worst case).
+        g = connected_rand(n, 1.6 / n, rng)
+        # sampled path (cap-gated default): stride roots
+        roots = np.unique(np.linspace(0, n - 1, cap).astype(int))
+        t = time.perf_counter()
+        shortest_path(g, method="D", unweighted=True, indices=roots)
+        sampled_s = round(time.perf_counter() - t, 4)
+        # exact via iFUB
+        t = time.perf_counter()
+        diam = _ifub_diameter(g)
+        ifub_s = round(time.perf_counter() - t, 4)
+        # all-pairs reference (feasible size only)
+        allpairs_s = None
+        if n <= 4000:
+            t = time.perf_counter()
+            shortest_path(g, method="D", unweighted=True)
+            allpairs_s = round(time.perf_counter() - t, 4)
+        rows.append(
+            {
+                "lane": "chains-exact",
+                "nodes": n,
+                "mult": mult,
+                "diameter_exact": int(diam) if diam is not None else None,
+                "sampled_s": sampled_s,
+                "ifub_exact_s": ifub_s,
+                "allpairs_s": allpairs_s,
+                "ifub_vs_sampled": round(ifub_s / sampled_s, 3) if sampled_s else None,
+            }
+        )
+    return rows
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -256,6 +324,11 @@ def main(argv: list[str] | None = None) -> int:
         "--trail-limit", type=int, default=40, help="bipartite-step cutoff (default 40 = 20 hops)"
     )
     p.add_argument("--trail-full-map", action="store_true", help="trail every entity, not a sample")
+    p.add_argument(
+        "--chains-exact",
+        action="store_true",
+        help="Wall-3 S3: time-to-exact diameter (iFUB) at 2x/5x/10x cap",
+    )
     p.add_argument("--json", action="store_true", help="JSON rows instead of text")
     args = p.parse_args(argv)
 
@@ -282,6 +355,8 @@ def main(argv: list[str] | None = None) -> int:
                     full_map=args.trail_full_map,
                 )
             )
+        if args.chains_exact:
+            rows.extend(lane_chains_exact(cap=args.cap))
         rows.append(lane_hyper(edges, args.n_iter))
         if not args.skip_dyadic:
             rows.append(lane_dyadic(edges, analytics=args.dyadic_analytics))

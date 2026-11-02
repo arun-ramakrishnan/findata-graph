@@ -38,6 +38,15 @@ entry number and stale DONE pointers):
 
 ## Current live proposals
 
+- *(archived same day)* — `scaling_next_walls` filed + executed +
+  archived same day 2026-11-02, #474
+  (`../archive/graph/scaling_next_walls.md`; five measured scaling walls
+  all landed: B-C rebuild sharding (hash-range e_all_und, parity),
+  trail-map parallelism (multiprocessing pool) + Mojo bipartite BFS
+  parity twin (promotion gated on >2× crossover), chains-cap exactness
+  (iFUB diameter), incidence-native bipartite community (louvain on
+  live h_incidence), blue-green reads (rebuild-window DEGRADED mirror
+  fallback)).
 - *(archived same day)* — `hyper_trail_bipartite_bfs_lane` filed + executed +
   archived same day 2026-11-02, #473
   (`../archive/graph/hyper_trail_bipartite_bfs_lane.md`;

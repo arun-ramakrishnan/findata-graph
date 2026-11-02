@@ -138,6 +138,62 @@ def _spawn_hold(db, script: str, seconds: float) -> subprocess.Popen:
     )
 
 
+class TestRebuildWindowDetection:
+    """Wall 5 S1 — is_rebuild_in_progress probes <db>.build.lock non-blockingly."""
+
+    def test_rebuild_window_absent_lock_false(self, tmp_path):
+        from helpers.misc.duckdb_lock import is_rebuild_in_progress
+
+        db = tmp_path / "graph.duckdb"
+        assert is_rebuild_in_progress(db) is False  # no lock file at all
+
+    def test_rebuild_window_detects_exclusive_holder(self, tmp_path):
+        import subprocess
+        import time
+
+        from helpers.misc.duckdb_lock import is_rebuild_in_progress
+
+        db = tmp_path / "graph.duckdb"
+        lock = Path(str(db) + ".build.lock")
+        holder = """
+import fcntl, sys, time
+lf = open(sys.argv[1], "w")
+fcntl.flock(lf.fileno(), fcntl.LOCK_EX)
+print("held", flush=True)
+time.sleep(float(sys.argv[2]))
+fcntl.flock(lf.fileno(), fcntl.LOCK_UN)
+lf.close()
+"""
+        proc = subprocess.Popen(
+            [sys.executable, "-c", holder, str(lock), "1.2"],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            cwd=Path(__file__).resolve().parents[1],
+        )
+        try:
+            assert proc.stdout is not None and proc.stdout.readline().strip() == "held"
+            assert is_rebuild_in_progress(db) is True
+            # After the holder releases, no window.
+            time.sleep(1.4)
+            assert is_rebuild_in_progress(db) is False
+        finally:
+            proc.wait(timeout=30)
+
+    def test_rebuild_window_shared_holder_is_not_a_window(self, tmp_path):
+        import fcntl
+
+        from helpers.misc.duckdb_lock import is_rebuild_in_progress
+
+        db = tmp_path / "graph.duckdb"
+        lock = Path(str(db) + ".build.lock")
+        with open(lock, "w") as lf:
+            fcntl.flock(lf.fileno(), fcntl.LOCK_SH)
+            # a shared (reader) holder is not a rebuild window
+            assert is_rebuild_in_progress(db) is False
+            fcntl.flock(lf.fileno(), fcntl.LOCK_UN)
+
+
 class TestCrossProcess:
     def test_rw_holder_ro_opener_retries_then_succeeds(self, tmp_path):
         """The matrix's failing row, measured: one process holds the file

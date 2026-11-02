@@ -69,6 +69,33 @@ def test_market_cap_sql_deterministic_for_conflict(tmp_path):
 
 
 # ---------------------------------------------------------------------------
+# F1b — v_node materialisation (scaling_next_walls Wall-1 S1): the market_cap
+# correlated subselect was rewritten as a grouped LEFT JOIN. The rewrite must
+# preserve the two guarantees the old CTAS gave: (1) exactly ONE v_node row per
+# entity (no fan-out when an entity carries multiple market_cap/* tags), and
+# (2) the MIN(tag) tie-break (alphabetically-first tier).
+# ---------------------------------------------------------------------------
+@pytest.mark.live
+def test_v_node_market_cap_join_no_fanout_and_min(tmp_path):
+    pytest.importorskip("duckdb")
+    from helpers.graph.query import connect
+
+    db = build_seed_db(tmp_path / "seed.db")
+    dp = db.with_suffix(".duckdb")
+    if dp.exists():
+        dp.unlink()
+    con = connect(db)  # builds v_node (the S1 JOIN path)
+    try:
+        rows = con.execute("SELECT COUNT(*) FROM v_node WHERE name = 'Cap Conflict Co'").fetchone()
+        # Exactly one row despite two conflicting tags -> no fan-out.
+        assert rows is not None and rows[0] == 1
+        cap = con.execute("SELECT market_cap FROM v_node WHERE name = 'Cap Conflict Co'").fetchone()
+        assert cap is not None and cap[0] == "large_cap"
+    finally:
+        con.close()
+
+
+# ---------------------------------------------------------------------------
 # F2 — market_cap buckets must equal distinct companies (no double-count)
 # ---------------------------------------------------------------------------
 def test_market_cap_buckets_equal_distinct_companies(tmp_path):

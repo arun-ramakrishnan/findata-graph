@@ -13421,3 +13421,51 @@ and the 3.42M-dyad louvain OOM are both moot on the distance axis
 recorded in doc/local/perf/graph_scaling.md §Hyper-native posture
 (2026-11-02). pending.md lane-4 entries RECLASSIFIED the same day:
 OWNED, not upstream-blocked; gated on the first path-explanation ask.
+## 474. Five scaling walls — rebuild sharding, trail-map parallelism, chains-cap exactness, bipartite community, blue-green reads
+
+**Date:** 2026-11-02 · **Status:** EXECUTED · **Proposal:**
+`doc/improvements/archive/graph/scaling_next_walls.md` (filed
+2026-11-02; all five walls' attackerable slices landed on main the same
+day, 2026-11-02; two decisions — Mojo BFS promotion and full gates —
+stay gated as documented).
+
+Five measured scaling walls, each landed + validated:
+
+- **Wall 1 (B-C rebuild-at-scale):** `_materialise_v_nodes` correlated
+  market_cap subselect rewritten to a grouped LEFT JOIN (same MIN
+  tie-break, 1-row-per-entity; tests/test_sql_query_correctness.py
+  F1b). `_materialise_walk_substrate(con, k_shards=1)` gained a
+  hash-range sharded e_all_und build — byte-identical output at any K,
+  consumers untouched (test_graph.py walk-substrate parity). Wall-1 S3
+  (CSR shard consumption) documented NOT APPLICABLE: CSR reads SQLite
+  graph_edges, not DuckDB e_all_und. `_shard_budget` bench in
+  tests/bench_rebuild_scale.py asserts per-shard ≤ 5 s budget
+  (R=2000, K=4 validated).
+- **Wall 2 (trail-lane full-map parallelism):** `trail_source_stats_parallel`
+  multiprocessing pool in helpers/graph/hyper_trails.py (serial
+  fallback; live 20-source median 28.7→7.7 ms at 2 workers, full-map
+  projection 523.7→140.6 s). Mojo bipartite BFS parity twin:
+  build_bipartite_csr (csr.py-format bins) + Mojo/src/bench/bfs_csr
+  parity legs (gate MOJO_BFS_PARITY). **Promotion evaluated:** new
+  Mojo/src/bench/bfs_bipartite_all.mojo single-source-to-all kernel
+  wired via MOJO_TRAIL_BFS=1; measured PARITY (6.09 vs 6.10 ms/source
+  live; 14.54 ms both synthetic) — scipy stays default, promotion
+  decision gated on a >2× sustained crossover.
+- **Wall 3 (chains-cap exactness):** `stats._ifub_diameter`
+  (Crescenzi–Grossi–Habib–Lanzi–Tomescu per-component iFUB) — exact,
+  provably safe; SAMPLED cap_note now surfaces exact diameter; tripwire
+  graph_scale_watch updated; lane_chains_exact bench leg (2×/5×/10× cap).
+- **Wall 4 (bipartite community):** probe (helpers/bench/hyper_community_probe.py)
+  → bipartite-louvain reaches ARI parity within ~0.02 at ~10–60× faster
+  wall, zero dyad materialization; landed helpers/graph/bipartite_communities.py
+  (igraph multilevel over live h_incidence, 18,233 → 559 communities,
+  --apply/dry-run); CLIQUE_TAX tripwire re-pointed to the lane.
+- **Wall 5 (blue-green reads):** `duckdb_lock.is_rebuild_in_progress`
+  (probes <db>.build.lock LOCK_SH|LOCK_NB); graph_scale_watch degrades
+  to the parquet mirror (DEGRADED) during rebuild windows instead of
+  SKIP; gate-leg integration test with a real writer holding the lock.
+
+Validation: full-arc targeted battery 196 passed (then 197 after the
+Wall-2 promotion work); ruff clean; patch scaling_fix refresh. Full
+qa+integration+perf+advisory gates deferred on operator go.
+

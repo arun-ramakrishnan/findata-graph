@@ -42,7 +42,10 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
+import os
+import subprocess as _subprocess
 import sys
 import time
 from pathlib import Path
@@ -59,6 +62,10 @@ from scipy.sparse.csgraph import connected_components, dijkstra  # noqa: E402
 DUCKDB_PATH = _PROJECT_ROOT / "memory" / "graph.duckdb"
 DEFAULT_LIMIT = 40  # bipartite steps = 20 hyperedge hops
 HUB_PREFIX = "e:"  # hub labels are namespaced so they cannot collide with entity_name
+
+# Wall 2 S3 promotion gate: set MOJO_TRAIL_BFS=1 to prefer the Mojo
+# single-source-to-all kernel over scipy dijkstra.
+_USE_MOJO_TRAIL = os.environ.get("MOJO_TRAIL_BFS") == "1"
 
 
 def _load_pairs(con=None) -> list[tuple[str, str]] | None:
@@ -129,6 +136,164 @@ def build_bipartite(con=None) -> dict | None:
     return bipartite_from_pairs(pairs)
 
 
+def build_bipartite_csr(pairs: list[tuple[str, str]], out_dir) -> dict:
+    """S2: bipartite CSR bins in the exact csr.py format.
+    Writes `bip_offsets.bin` / `bip_neighbors.bin` / `bip_names.json`
+    (same int32-LE, symmetric, sorted-row layout as csr.build) so the
+    existing Mojo kernel (Mojo/src/bench/bfs_csr.mojo) can consume the
+    bipartite incidence graph directly. Entities occupy indices
+    [0, n_entities); hubs the rest — identical labelling to
+    bipartite_from_pairs. Arcs are exactly 2 * len(uniq pairs).
+    """
+    import json
+    import time as _time
+    from pathlib import Path as _Path
+
+    uniq = sorted(set(pairs))
+    hubs = sorted({h for h, _ in uniq})
+    ents = sorted({e for _, e in uniq})
+    h_idx = {h: len(ents) + i for i, h in enumerate(hubs)}
+    e_idx = {e: i for i, e in enumerate(ents)}
+    n = len(hubs) + len(ents)
+    r = np.fromiter((e_idx[e] for _, e in uniq), dtype=np.int64, count=len(uniq))
+    c = np.fromiter((h_idx[h] for h, _ in uniq), dtype=np.int64, count=len(uniq))
+    both_r = np.concatenate([r, c])
+    both_c = np.concatenate([c, r])
+    order = np.lexsort((both_c, both_r))  # row-major, neighbors ascending
+    both_r, both_c = both_r[order], both_c[order]
+    m = both_r.size
+    offsets = np.zeros(n + 1, dtype=np.int32)
+    np.add.at(offsets, both_r + 1, 1)
+    np.cumsum(offsets, out=offsets)
+    offsets_bin = offsets.tobytes()
+    neighbors_bin = both_c.astype(np.int32).tobytes()
+    checksum = hashlib.sha256(offsets_bin + neighbors_bin).hexdigest()
+    manifest = {
+        "schema_version": 1,
+        "nodes": n,
+        "directed_rows": int(m),
+        "edges": int(m // 2),
+        "checksum": checksum,
+        "built_at": _time.strftime("%Y-%m-%dT%H:%M:%SZ", _time.gmtime()),
+        "kind": "bipartite-incidence",
+        "n_entities": len(ents),
+        "n_hubs": len(hubs),
+    }
+    out = _Path(out_dir)
+    out.mkdir(parents=True, exist_ok=True)
+    stage = [
+        (out / "bip_offsets.bin", out / ".bip_offsets.bin.tmp", offsets_bin),
+        (out / "bip_neighbors.bin", out / ".bip_neighbors.bin.tmp", neighbors_bin),
+        (
+            out / "bip_names.json",
+            out / ".bip_names.json.tmp",
+            json.dumps(ents + hubs, ensure_ascii=False).encode("utf-8"),
+        ),
+        (
+            out / "bip_manifest.json",
+            out / ".bip_manifest.json.tmp",
+            (json.dumps(manifest, indent=1) + "\n").encode("utf-8"),
+        ),
+    ]
+    for _dest, tpath, payload in stage:
+        tpath.write_bytes(payload)
+    for dest, tpath, _payload in stage:
+        os.replace(tpath, dest)
+    return manifest
+
+
+def _bip_bins_from_matrix(g: dict, out_dir) -> Path:
+    """Write bipartite CSR bins from the in-memory graph (S2 format).
+    Mirrors build_bipartite_csr but derives offsets/neighbors from the
+    scipy CSR matrix so any g (live or synthetic) is consumable by the
+    Mojo kernel without re-deriving pairs.
+    """
+    matrix = g["matrix"].tocsr()
+    offsets = matrix.indptr.astype(np.int32)
+    neighbors = matrix.indices.astype(np.int32)
+    import json
+
+    out = Path(out_dir)
+    out.mkdir(parents=True, exist_ok=True)
+    (out / "bip_offsets.bin").write_bytes(offsets.tobytes())
+    (out / "bip_neighbors.bin").write_bytes(neighbors.tobytes())
+    (out / "bip_names.json").write_bytes(
+        json.dumps(g["labels"], ensure_ascii=False).encode("utf-8")
+    )
+    return out
+
+
+_MOJO_BIN_CACHE: dict[int, Path] = {}
+
+
+def _mojo_bins(g: dict) -> Path:
+    """Cached bip bins for g (keyed by id(g)) so repeated per-source calls
+    do not rewrite the bins — bins are materialised once per graph."""
+    key = id(g)
+    cached = _MOJO_BIN_CACHE.get(key)
+    if cached is not None and cached.exists():
+        return cached
+    import tempfile
+
+    d = tempfile.mkdtemp(prefix="bip_mojo_")
+    out = _bip_bins_from_matrix(g, Path(d))
+    _MOJO_BIN_CACHE[key] = out
+    return out
+
+
+def _trail_bfs_mojo(g: dict, src_idx: int, limit: int) -> tuple[np.ndarray, np.ndarray]:
+    """Single-source-to-all trail hops via the Mojo kernel.
+
+    Promotion pathway (Wall 2 S3): shells Mojo/bin/bfs_bipartite_all
+    against cached bins derived from g, parses "ENTITY_INDEX HOPS" lines
+    for entity ids only (even hops), returns the same (cand, hops) shape
+    as _trail_bfs. Requires MOJO_TRAIL_BFS=1 AND the binary; otherwise the
+    caller falls back to scipy.
+    """
+    import os as _os
+
+    if _os.environ.get("MOJO_TRAIL_BFS") != "1":
+        raise RuntimeError("MOJO_TRAIL_BFS != 1")
+    binary = _PROJECT_ROOT / "Mojo" / "bin" / "bfs_bipartite_all"
+    if not binary.exists():
+        raise FileNotFoundError(f"mojo kernel missing: {binary}")
+    n = g["matrix"].shape[0]
+    m = int(g["matrix"].nnz)
+    n_e = g["n_entities"]
+    out = _mojo_bins(g)
+    env = dict(_os.environ)
+    venv_bin = _PROJECT_ROOT / ".venv" / "bin"
+    env["PATH"] = f"{venv_bin}:{env.get('PATH', '')}"
+    proc = _subprocess.run(  # noqa: S603 — repo-built first-party binary at a constant path, fixed numeric argv
+        [
+            str(binary),
+            str(out / "bip_offsets.bin"),
+            str(out / "bip_neighbors.bin"),
+            str(n),
+            str(m),
+            str(src_idx),
+            str(limit),
+        ],
+        capture_output=True,
+        text=True,
+        timeout=60,
+        env=env,
+    )
+    if proc.returncode != 0:
+        raise RuntimeError(f"mojo kernel rc={proc.returncode}: {proc.stderr!r}")
+    cand: list[int] = []
+    hops: list[int] = []
+    for line in proc.stdout.splitlines():
+        parts = line.split()
+        if len(parts) != 2:
+            continue
+        vid, h = int(parts[0]), int(parts[1])
+        if vid < n_e and vid != src_idx:  # entities only, self excluded
+            cand.append(vid)
+            hops.append(h)
+    return np.asarray(cand, dtype=np.int64), np.asarray(hops, dtype=np.int64)
+
+
 def _trail_bfs(g: dict, src_idx: int, limit: int) -> tuple[np.ndarray, np.ndarray]:
     """One source: (entity indices reached, hops), even distances only.
 
@@ -136,6 +301,11 @@ def _trail_bfs(g: dict, src_idx: int, limit: int) -> tuple[np.ndarray, np.ndarra
     caps bipartite steps (odd steps end at a hub, mid-hop — dropped
     here). The self entry (distance 0) is excluded.
     """
+    if _USE_MOJO_TRAIL:
+        try:
+            return _trail_bfs_mojo(g, src_idx, limit)
+        except RuntimeError, FileNotFoundError, _subprocess.TimeoutExpired:
+            pass  # fall through to scipy on any mojo failure
     dist = dijkstra(
         g["matrix"],
         directed=False,
@@ -193,6 +363,55 @@ def census(g: dict) -> dict:
     }
 
 
+_POOL_G: dict | None = None  # process-pool worker global (set by initializer)
+
+
+def _pool_init(g: dict) -> None:
+    """Copy the graph into each worker process (multiprocessing.Pool initializer)."""
+    global _POOL_G
+    _POOL_G = g
+
+
+def _pool_worker(arg: tuple[str, int]) -> dict:
+    """Worker body: timed single-source stats against the shared graph."""
+    src_label, limit = arg
+    if _POOL_G is None:
+        raise RuntimeError("pool worker graph not initialized")
+    return trail_source_stats(_POOL_G, src_label, limit=limit)
+
+
+def trail_source_stats_parallel(
+    g: dict,
+    src_labels: list[str],
+    *,
+    limit: int = DEFAULT_LIMIT,
+    workers: int | None = None,
+) -> list[dict]:
+    """Per-source trail stats via a process pool (Wall-2 S1).
+
+    Sources are structurally independent and results stay sparse, so a
+    pool gives ~= ncoresx on the 4-core box (the measured 166.8 s full
+    map). Order is preserved (results align 1:1 with src_labels).
+    Falls back to serial when the pool cannot start (e.g. no fork) or
+    workers <= 1 — never blocks the bench/CLI.
+    """
+    if workers is None:
+        workers = len(src_labels)
+    if workers <= 1 or len(src_labels) <= 1:
+        return [trail_source_stats(g, s, limit=limit) for s in src_labels]
+    import multiprocessing as mp
+
+    try:
+        with mp.Pool(
+            processes=min(workers, len(src_labels)),
+            initializer=_pool_init,
+            initargs=(g,),
+        ) as pool:
+            return pool.map(_pool_worker, [(s, limit) for s in src_labels])
+    except Exception:  # noqa: BLE001 — degrade to serial, never block
+        return [trail_source_stats(g, s, limit=limit) for s in src_labels]
+
+
 def trail_source_stats(g: dict, src_label: str, *, limit: int = DEFAULT_LIMIT) -> dict:
     """Timed single-source stats for the bench leg (no giant dicts)."""
     index = {lbl: i for i, lbl in enumerate(g["labels"][: g["n_entities"]])}
@@ -225,6 +444,12 @@ def main(argv: list[str] | None = None) -> int:
         "--full-map", action="store_true", help="all entities instead of a sample (minutes)"
     )
     p.add_argument("--census-only", action="store_true")
+    p.add_argument(
+        "--workers",
+        type=int,
+        default=None,
+        help="process-pool workers for per-source stats (default: all sources; 1 = serial)",
+    )
     p.add_argument("--seed", type=int, default=7)
     p.add_argument("--json", action="store_true")
     args = p.parse_args(argv)
@@ -244,7 +469,7 @@ def main(argv: list[str] | None = None) -> int:
 
     rng = random.Random(args.seed)  # noqa: S311 — seeded reproducible bench sampler, not crypto
     sample = ents if args.full_map else rng.sample(ents, min(args.sources, len(ents)))
-    stats = [trail_source_stats(g, s, limit=args.limit) for s in sample]
+    stats = trail_source_stats_parallel(g, sample, limit=args.limit, workers=args.workers)
     ms = sorted(s["ms"] for s in stats)
     reach = [s["reachable"] for s in stats]
     merged: dict[int, int] = {}

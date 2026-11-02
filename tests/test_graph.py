@@ -1331,3 +1331,59 @@ class TestFindCycles:
             )
         finally:
             dcon.close()
+
+    def test_walk_substrate_sharded_build_matches_single_ctas(self, tmp_path):
+        """Wall 1 S2: the hash-range sharded e_all_und build (k_shards > 1)
+        must produce byte-identical content (same rows, both directions) to the
+        historical single CTAS (k_shards == 1) — the internal build strategy
+        is invisible to every consumer."""
+        import duckdb as _ddb
+        import sqlite3
+
+        sqlite_path = tmp_path / "shard.db"
+        scon = sqlite3.connect(str(sqlite_path))
+        scon.executescript("""
+            CREATE TABLE entities (name TEXT PRIMARY KEY, entity_type TEXT);
+            CREATE TABLE graph_edges (
+                source TEXT NOT NULL, target TEXT NOT NULL, edge_type TEXT NOT NULL,
+                weight REAL NOT NULL DEFAULT 1.0, properties TEXT NOT NULL DEFAULT '{}',
+                source_ref TEXT NOT NULL DEFAULT 'test',
+                valid_from DATE, valid_to DATE,
+                CHECK (source != target)
+            );
+            INSERT INTO entities VALUES ('A','company'),('B','company'),
+                ('C','sector'),('D','company'),('E','company'),('F','company');
+            INSERT INTO graph_edges (source,target,edge_type) VALUES
+                ('A','B','competes_with'),('D','E','competes_with'),
+                ('E','F','supplies');
+        """)
+        scon.commit()
+        scon.close()
+
+        from helpers.graph.query import _materialise_walk_substrate, _stage_edges
+
+        def _substrate(k):
+            dcon = _ddb.connect()
+            dcon.execute("INSTALL sqlite; LOAD sqlite;")
+            dcon.execute(f"ATTACH '{sqlite_path}' AS fin (TYPE sqlite, READ_ONLY);")
+            dcon.execute(
+                "CREATE TABLE v_node AS "
+                "SELECT row_number() OVER () AS id, name, entity_type AS kind "
+                "FROM fin.entities"
+            )
+            _stage_edges(dcon)
+            _materialise_walk_substrate(dcon, k_shards=k)
+            rows = dcon.execute(
+                "SELECT a_id, b_id, edge_type, properties "
+                "FROM e_all_und ORDER BY a_id, b_id, edge_type, properties"
+            ).fetchall()
+            dcon.close()
+            return rows
+
+        single = _substrate(1)
+        sharded = _substrate(3)
+        assert len(single) == 6  # 3 edges x 2 directions
+        assert sharded == single, "sharded substrate must match single CTAS content"
+        # Each direction is present (undirected doubling holds under sharding).
+        pairs = {r[:2] for r in sharded}
+        assert (1, 2) in pairs and (2, 1) in pairs

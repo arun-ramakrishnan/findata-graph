@@ -1779,24 +1779,32 @@ def _materialise_v_nodes(con: duckdb.DuckDBPyConnection) -> None:
                -- every c.market_cap consumer (sector_members,
                -- sector_members_with_market_cap) expects.
                --
-               -- Bundle C2 fix (2026-07-28): a correlated subselect (not a
-               -- LEFT JOIN) picks exactly ONE tag per entity, so a company
-               -- with MULTIPLE conflicting market_cap/* tags (a data error
-               -- — 41 companies have this, e.g. Alkem Labs has both
-               -- large_cap and mid_cap) does NOT fan out into multiple
-               -- v_node rows. MIN(tag) is the deterministic tie-break; it
-               -- surfaces the conflict by always picking the
-               -- alphabetically-first (most-optimistic) tier. The right
-               -- fix is to de-duplicate the tags at the source; this CTAS
-               -- just guarantees the vertex table stays 1-row-per-entity
-               -- regardless.
-               SUBSTR(
-                 (SELECT MIN(t.tag) FROM fin.entity_tags t
-                  WHERE t.entity_name = e.name AND t.tag LIKE 'market_cap/%'),
-                 LENGTH('market_cap/') + 1
-               ) AS market_cap,
+               -- Bundle C2 fix (2026-07-28): the market_cap/* tag is the
+               -- source of truth (the entities column was dropped). MIN(tag)
+               -- is the deterministic tie-break: a company with MULTIPLE
+               -- conflicting market_cap/* tags (a data error — 41 companies,
+               -- e.g. Alkem Labs has both large_cap and mid_cap) picks the
+               -- alphabetically-first (most-optimistic) tier and stays
+               -- 1-row-per-entity (no fan-out). The right fix is to de-
+               -- duplicate the tags at the source; this CTAS just guarantees
+               -- the vertex table stays exactly one row per entity.
+               --
+               -- scaling_next_walls Wall-1 S1 (2026-11-02): rewritten from a
+               -- correlated subselect to a grouped LEFT JOIN. The pre-
+               -- aggregated mc subquery computes MIN(tag) ONCE over all
+               -- market_cap/* tags (GROUP BY entity_name) instead of once
+               -- per entity row; an entity with no market_cap/* tag still
+               -- gets NULL (no fan-out, 1-row-per-entity intact).
+               mc.market_cap,
                e.ticker
         FROM fin.entities e
+        LEFT JOIN (
+            SELECT entity_name,
+                   SUBSTR(MIN(tag), LENGTH('market_cap/') + 1) AS market_cap
+            FROM fin.entity_tags
+            WHERE tag LIKE 'market_cap/%'
+            GROUP BY entity_name
+        ) mc ON mc.entity_name = e.name
         WHERE e.entity_type IN ('company', 'sector', 'super_sector',
                                 'sub_sector', 'theme', 'edition',
                                 'institution', 'country', 'index',
@@ -2663,7 +2671,7 @@ def _materialise_edges(con: duckdb.DuckDBPyConnection) -> None:
     _materialise_walk_substrate(con)
 
 
-def _materialise_walk_substrate(con: duckdb.DuckDBPyConnection) -> None:
+def _materialise_walk_substrate(con: duckdb.DuckDBPyConnection, *, k_shards: int = 1) -> None:
     """Create the whole-graph adjacency substrates for the walk queries.
 
     e_dir keeps each edge in its STORED direction (the directed walk
@@ -2696,6 +2704,19 @@ def _materialise_walk_substrate(con: duckdb.DuckDBPyConnection) -> None:
     :func:`_materialise_sector_membership` — walks keep crossing sector
     boundaries exactly as they did when the dyads existed.
 
+    Wall 1 S2 (sharded materialise, 2026-11-02): k_shards controls how
+    e_all_und is built. At the default 1 it is byte-identical to the
+    historical single CTAS (one statement, no partitioning). Above 1 the
+    doubled substrate is built as K hash-range partitions — each INSERT..
+    SELECT is scoped to abs(hash(a_id)) % K == i so no single
+    statement materialises more than a 1/K slice (the Wall 1 5 s
+    per-shard budget, growth path past ~10M rows / the int32 ceiling).
+    The final e_all_und table is byte-identical in *content* (same
+    rows, both directions) regardless of K — only the internal build
+    strategy differs, so every consumer (BFS walk, longest_chains,
+    scale_watch COUNT, snapshot parquet export) is untouched. K partitions
+    are disjoint and cover the whole edge set exactly once per direction.
+
     Split out of _materialise_edges so tests with a hand-built minimal
     v_node(id, name) can mount the SAME substrate the production build
     produces — single source for the CTAS shapes.
@@ -2719,16 +2740,40 @@ def _materialise_walk_substrate(con: duckdb.DuckDBPyConnection) -> None:
         FROM _sector_resolved
         """
     )
+    if k_shards <= 1:
+        con.execute(
+            """
+            CREATE TABLE e_all_und AS
+            SELECT a_id, b_id, edge_type, valid_from, valid_to, properties
+            FROM e_dir
+            UNION ALL
+            SELECT b_id, a_id, edge_type, valid_from, valid_to, properties
+            FROM e_dir
+            """
+        )
+        return
     con.execute(
         """
-        CREATE TABLE e_all_und AS
-        SELECT a_id, b_id, edge_type, valid_from, valid_to, properties
-        FROM e_dir
-        UNION ALL
-        SELECT b_id, a_id, edge_type, valid_from, valid_to, properties
-        FROM e_dir
+        CREATE TABLE e_all_und (
+            a_id BIGINT, b_id BIGINT, edge_type VARCHAR,
+            valid_from DATE, valid_to DATE, properties VARCHAR
+        )
         """
     )
+    for shard in range(k_shards):
+        con.execute(
+            """
+            INSERT INTO e_all_und
+            SELECT a_id, b_id, edge_type, valid_from, valid_to, properties
+            FROM e_dir
+            WHERE abs(hash(a_id)) % ? = ?
+            UNION ALL
+            SELECT b_id, a_id, edge_type, valid_from, valid_to, properties
+            FROM e_dir
+            WHERE abs(hash(b_id)) % ? = ?
+            """,
+            [k_shards, shard, k_shards, shard],
+        )
 
 
 # --------------------------------------------------------------------------- #

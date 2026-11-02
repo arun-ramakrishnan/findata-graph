@@ -69,6 +69,10 @@ commit, referenced by nothing). Entry numbers point at
 - [`security_route_skeleton.md`](security/security_route_skeleton.md) — Route skeleton — `ast`-derived inventory of `app.py`'s 38 routes published to `doc/security/routes.json` and checked by `static_checks.py`; the emitted advisory is shape agreement, explicitly not a security verdict — completed.md #311
 
 ## graph/ — Graph layer — algorithms, DuckPGQ retirement, Onager, knowledge-model design
+- [`scaling_next_walls.md`](graph/scaling_next_walls.md) — five scaling walls
+  (B-C rebuild sharding, trail-map parallelism + Mojo bipartite BFS parity,
+  chains-cap exactness via iFUB, bipartite community, blue-green reads) —
+  completed.md #474
 - [`hgx_shelf_spectral_rw_measurements.md`](graph/hgx_shelf_spectral_rw_measurements.md) —
   HGX lanes 3+5 wrapped + wired: `helpers/graph/hyper_spectral.py`
   (multi-order Laplacian commutativity + RW density with component

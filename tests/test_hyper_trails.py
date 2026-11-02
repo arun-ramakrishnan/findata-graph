@@ -13,6 +13,9 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
+import json
+import os
+
 import duckdb
 import networkx as nx
 import pytest
@@ -21,12 +24,14 @@ _REPO = Path(__file__).resolve().parents[1]
 if str(_REPO) not in sys.path:
     sys.path.insert(0, str(_REPO))
 
+from helpers.graph import hyper_trails as ht  # noqa: E402
 from helpers.graph.hyper_trails import (  # noqa: E402
     bipartite_from_pairs,
     build_bipartite,
     census,
     trail_distances,
     trail_source_stats,
+    trail_source_stats_parallel,
 )
 
 CHAIN3 = [("e:1", "a"), ("e:1", "b"), ("e:2", "b"), ("e:2", "c"), ("e:3", "c"), ("e:3", "d")]
@@ -187,3 +192,161 @@ def test_odd_limit_mid_hop_boundary():
     got = trail_distances(g, ["a"], limit=5)
     assert got["a"]["c"] == 2
     assert "d" not in got["a"]
+
+
+def test_parallel_equals_serial_chain5():
+    """Wall-2 S1: process-pool per-source stats must match serial exactly."""
+    g = bipartite_from_pairs(CHAIN5)
+    srcs = ["a", "b", "c", "d", "e", "f"]
+    serial = [trail_source_stats(g, s) for s in srcs]
+    parallel = trail_source_stats_parallel(g, srcs, workers=2)
+    assert len(parallel) == len(serial)
+    for s, par in zip(serial, parallel):
+        # ms timing will legitimately differ; compare the structural payload
+        assert par["reachable"] == s["reachable"]
+        assert par["hop_histogram"] == s["hop_histogram"]
+        assert par["limit"] == s["limit"]
+
+
+def test_parallel_fallback_when_single_source():
+    g = bipartite_from_pairs(STAR)
+    got = trail_source_stats_parallel(g, ["a"], workers=4)
+    assert got[0]["reachable"] == 2
+
+
+class TestMojoBipartiteBfsParity:
+    """S3: Wall 2 parity gate — the bfs_csr.mojo binary run on the
+    bipartite CSR bins (build_bipartite_csr) must agree with the Python
+    trail oracle (trail_distances) on reachability and hops.
+
+    A trail hop == bipartite distance / 2 (even steps only), so the
+    Mojo "hops H" line (bipartite steps) must be 2 * oracle_hops, and
+    unreachable pairs must exit 2. Skips when the binary is not built
+    (make mojo-build); MOJO_BFS_PARITY=1 additionally runs a seeded
+    random-graph leg.
+    """
+
+    BINARY = _REPO / "Mojo" / "bin" / "bfs_csr"
+
+    @staticmethod
+    def _run(binary, out, src: int, dst: int, max_steps: int):
+        import os
+        import subprocess
+
+        n = len(json.loads((out / "bip_names.json").read_text()))
+        m = int((out / "bip_neighbors.bin").stat().st_size // 4)
+        venv_bin = _REPO / ".venv" / "bin"
+        env = dict(os.environ, PATH=f"{venv_bin}:{os.environ.get('PATH', '')}")
+        return subprocess.run(
+            [
+                str(binary),
+                str(out / "bip_offsets.bin"),
+                str(out / "bip_neighbors.bin"),
+                str(n),
+                str(m),
+                str(src),
+                str(dst),
+                str(max_steps),
+            ],
+            capture_output=True,
+            text=True,
+            timeout=60,
+            env=env,
+        )
+
+    @staticmethod
+    def _oracle_hops(g, src_label: str, dst_label: str, limit: int):
+        dist = trail_distances(g, [src_label], limit=limit)[src_label]
+        return dist.get(dst_label)
+
+    def test_parity_toy(self, tmp_path: Path):
+        if not self.BINARY.exists():
+            pytest.skip("bfs_csr binary not built (make mojo-build)")
+        out = tmp_path / "bip_toy"
+        ht.build_bipartite_csr(CHAIN3, out)
+        g = bipartite_from_pairs(CHAIN3)
+        ents = g["labels"][: g["n_entities"]]
+        index = {name: i for i, name in enumerate(ents)}
+        for s, t, steps in (
+            ("a", "d", 6),  # a-b-c-d via e1,e2,e3 = 3 hops
+            ("a", "c", 4),  # 2 hops
+            ("a", "b", 2),  # 1 hop
+        ):
+            oracle = self._oracle_hops(g, s, t, limit=40)
+            proc = self._run(self.BINARY, out, index[s], index[t], steps)
+            if oracle is None:
+                assert proc.returncode == 2, (s, t, proc.stdout)
+                assert "UNREACHABLE" in proc.stdout
+            else:
+                assert proc.returncode == 0, (s, t, proc.stderr)
+                hops_line = [ln for ln in proc.stdout.splitlines() if ln.startswith("hops ")]
+                bipartite_steps = int(hops_line[0].split()[1])
+                assert bipartite_steps == oracle * 2, (s, t, bipartite_steps, oracle)
+
+        # src == dst: the Mojo binary returns hops 0 (path of length 0),
+        # while the trail oracle excludes self — both are the same fact.
+        self_proc = self._run(self.BINARY, out, index["a"], index["a"], 0)
+        assert self_proc.returncode == 0
+        assert "hops 0" in self_proc.stdout
+
+    def test_parity_random_gated(self, tmp_path: Path):
+        if not self.BINARY.exists():
+            pytest.skip("bfs_csr binary not built (make mojo-build)")
+        if os.environ.get("MOJO_BFS_PARITY") != "1":
+            pytest.skip("MOJO_BFS_PARITY=1 not set")
+        import random as _random
+
+        rng = _random.Random(21)
+        n_ent, n_hub = 30, 15
+        pairs = set()
+        for h in range(n_hub):
+            for _ in range(rng.randint(2, 5)):
+                pairs.add((f"e:{h}", f"n{rng.randrange(n_ent)}"))
+        pairs = sorted(pairs)
+        out = tmp_path / "bip_rand"
+        ht.build_bipartite_csr(pairs, out)
+        g = bipartite_from_pairs(pairs)
+        ents = g["labels"][: g["n_entities"]]
+        index = {name: i for i, name in enumerate(ents)}
+        for _ in range(25):
+            s, t = rng.choice(ents), rng.choice(ents)
+            if s == t:
+                self_proc = self._run(self.BINARY, out, index[s], index[t], 40)
+                assert self_proc.returncode == 0
+                assert "hops 0" in self_proc.stdout
+                continue
+            oracle = self._oracle_hops(g, s, t, limit=40)
+            proc = self._run(self.BINARY, out, index[s], index[t], 40)
+            if oracle is None:
+                assert proc.returncode == 2, (s, t, proc.stdout)
+            else:
+                assert proc.returncode == 0, (s, t, proc.stderr)
+                hops_line = [ln for ln in proc.stdout.splitlines() if ln.startswith("hops ")]
+                bipartite_steps = int(hops_line[0].split()[1])
+                assert bipartite_steps == oracle * 2, (s, t, bipartite_steps, oracle)
+
+
+class TestMojoTrailDispatch:
+    """S3 promotion: the MOJO_TRAIL_BFS gate routes _trail_bfs through the
+    Mojo kernel and must return identical trail hops to scipy."""
+
+    def test_dispatch_mojo_equals_scipy(self):
+        import os
+
+        pairs = [("e:1", "a"), ("e:1", "b"), ("e:2", "b"), ("e:2", "c"), ("e:3", "c"), ("e:3", "d")]
+        binary = _REPO / "Mojo" / "bin" / "bfs_bipartite_all"
+        if not binary.exists():
+            pytest.skip("bfs_bipartite_all not built (make mojo-build)")
+        os.environ["MOJO_TRAIL_BFS"] = "1"
+        g = bipartite_from_pairs(pairs)
+        res_mojo = {
+            lbl: trail_distances(g, [lbl], limit=40)[lbl] for lbl in g["labels"][: g["n_entities"]]
+        }
+        os.environ["MOJO_TRAIL_BFS"] = "0"
+        g2 = bipartite_from_pairs(pairs)
+        res_scipy = {
+            lbl: trail_distances(g2, [lbl], limit=40)[lbl]
+            for lbl in g2["labels"][: g2["n_entities"]]
+        }
+        os.environ["MOJO_TRAIL_BFS"] = "0"
+        assert res_mojo == res_scipy

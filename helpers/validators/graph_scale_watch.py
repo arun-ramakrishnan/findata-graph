@@ -81,29 +81,10 @@ MAX_HYPEREDGE_WARN = 1_000
 CLIQUE_TAX_WARN = 3_400_000
 
 
-def _hyper_watch(con) -> int:
-    """Hyper-layer axes — the growth record's blind spot, on an open handle.
-
-    Returns the exit-code contribution: 1 only on the h_incidence FIRE.
-    Every read failure is a SKIP line, never a red (advisory leg).
-    """
+def _hyper_line(inc: int, max_edge: int, tax: int) -> int:
+    """Hyper-report lines given the three counts (live or mirror). Returns
+    the exit-code contribution: 1 only on the h_incidence FIRE."""
     rc = 0
-    try:
-        row = con.execute("SELECT COUNT(*) FROM h_incidence").fetchone()
-        inc = int(row[0]) if row and row[0] is not None else 0
-        row = con.execute(
-            "SELECT COALESCE(MAX(m), 0), COALESCE(SUM(m * (m - 1) / 2), 0) "
-            "FROM (SELECT COUNT(*) AS m FROM h_incidence GROUP BY edge_id)"
-        ).fetchone()
-        max_edge = int(row[0] or 0)
-        tax = int(row[1] or 0)
-    except duckdb.CatalogException:
-        print("hyper-scale-watch: SKIP — h_incidence not built yet in this cache")
-        return 0
-    except duckdb.Error as exc:
-        print(f"hyper-scale-watch: SKIP — hyper tables unreadable ({exc})")
-        return 0
-
     line = (
         f"hyper-scale-watch: h_incidence={inc:,} "
         f"(max hyperedge={max_edge:,}, clique tax={tax:,} dyads)"
@@ -136,10 +117,36 @@ def _hyper_watch(con) -> int:
         print(
             f"hyper-scale-watch: WARN — clique tax {tax:,} dyads at/above "
             "the measured louvain OOM anchor (~3.42M, hyper_scale_bench "
-            "09-13): dyadic analytics on the hyper layer is infeasible "
-            "at this scale."
+            "09-13): the dyadic projection is the OOM wall, but the "
+            "bipartite-louvain lane (helpers/graph/bipartite_communities.py) "
+            "reaches ARI parity on the incidence directly (Wall 4 probe "
+            "2026-11-02) — prefer it over dyadic community analytics."
         )
     return rc
+
+
+def _hyper_watch(con) -> int:
+    """Hyper-layer axes on an open live handle: query, then report via
+    _hyper_line (shared with the mirror path). Returns the exit-code
+    contribution (1 only on the h_incidence FIRE). Every read failure is
+    a SKIP line, never a red (advisory leg).
+    """
+    try:
+        row = con.execute("SELECT COUNT(*) FROM h_incidence").fetchone()
+        inc = int(row[0]) if row and row[0] is not None else 0
+        row = con.execute(
+            "SELECT COALESCE(MAX(m), 0), COALESCE(SUM(m * (m - 1) / 2), 0) "
+            "FROM (SELECT COUNT(*) AS m FROM h_incidence GROUP BY edge_id)"
+        ).fetchone()
+        max_edge = int(row[0] or 0)
+        tax = int(row[1] or 0)
+    except duckdb.CatalogException:
+        print("hyper-scale-watch: SKIP — h_incidence not built yet in this cache")
+        return 0
+    except duckdb.Error as exc:
+        print(f"hyper-scale-watch: SKIP — hyper tables unreadable ({exc})")
+        return 0
+    return _hyper_line(inc, max_edge, tax)
 
 
 def _edge_touched_count(db: Path) -> int:
@@ -173,6 +180,57 @@ def _edge_touched_count(db: Path) -> int:
         con.close()
 
 
+def _mirror_axes(db: Path) -> tuple[int | None, int, int]:
+    """Wall 5 S2: degrade to the parquet snapshot mirror when the live
+    store is mid-rebuild (single-writer funnel holds the DuckDB lock).
+    Reads the same structure axes from snapshots/parquet/duckdb (the CSR
+    path's manifest-gated mirror). Returns (rows, directed, hyper_rc) —
+    rows=None only if the mirror itself lacks e_all_und. Never raises for
+    a missing mirror: primary None -> caller SKIPs as today. The mirror is
+    structure-only and carries the same tables the watcher reads, so the
+    counts are comparable (a rebuild is in flight, so the mirror may be
+    one generation behind — that is the sanctioned degraded mode).
+    """
+    from helpers.maintenance.analytics.query import connect_snapshots
+
+    try:
+        con = connect_snapshots()
+    except Exception:  # noqa: BLE001 — advisory leg: any mirror failure → SKIP
+        return None, 0, 0
+    try:
+        try:
+            row = con.execute("SELECT COUNT(*) FROM duckdb__e_all_und").fetchone()
+            rows = int(row[0]) if row is not None else 0
+        except duckdb.CatalogException:
+            return None, 0, 0
+        directed = 0
+        try:
+            row = con.execute("SELECT COUNT(*) FROM duckdb__e_dir").fetchone()
+            directed = int(row[0]) if row is not None else 0
+        except duckdb.CatalogException:
+            pass
+        # hyper axes from the mirror — same shape as the live h_incidence
+        try:
+            row = con.execute("SELECT COUNT(*) FROM duckdb__h_incidence").fetchone()
+            inc = int(row[0]) if row and row[0] is not None else 0
+            row = con.execute(
+                "SELECT COALESCE(MAX(m), 0), COALESCE(SUM(m * (m - 1) / 2), 0) "
+                "FROM (SELECT COUNT(*) AS m FROM duckdb__h_incidence GROUP BY edge_id)"
+            ).fetchone()
+            max_edge = int(row[0] or 0) if row else 0
+            tax = int(row[1] or 0) if row else 0
+        except duckdb.CatalogException:
+            inc = 0
+            max_edge = 0
+            tax = 0
+        hyper_rc = 0
+        if inc > 0 or max_edge > 0 or tax > 0:
+            hyper_rc = _hyper_line(inc, max_edge, tax)
+        return rows, directed, hyper_rc
+    finally:
+        con.close()
+
+
 def _graph_axes(db: Path) -> tuple[int | None, int, int]:
     """(rows, directed, hyper_rc) over one read-only funnel open.
 
@@ -182,11 +240,25 @@ def _graph_axes(db: Path) -> tuple[int | None, int, int]:
     file open otherwise. rows=None when e_all_und is absent (pre-build);
     raises duckdb.CatalogException if the funnel open itself fails and
     duckdb.Error on a transient lock (live-invariants owns rebuilds —
-    the watcher must not red the gate on a busy store).
+    the watcher must not red the gate on a busy store). Wall 5: when a
+    rebuild window is detected (the single-writer funnel holds the
+    DuckDB lock) the watcher DEGRADES to the parquet mirror instead of
+    SKIPing — the advisory gate stays green, labeled degraded.
     """
-    from helpers.misc.duckdb_lock import open_read_only
+    from helpers.misc.duckdb_lock import open_read_only, is_rebuild_in_progress
 
-    con = open_read_only(db)
+    try:
+        con = open_read_only(db)
+    except duckdb.Error:
+        if is_rebuild_in_progress(db):
+            print(
+                "graph-scale-watch: DEGRADED — rebuild window detected; "
+                "reading structure axes from the parquet mirror "
+                f"(snapshots/parquet/duckdb) for {db}"
+            )
+            return _mirror_axes(db)
+        raise
+
     try:
         rows: int | None = None  # dyadic section runs only when e_all_und exists
         directed = 0
@@ -280,9 +352,10 @@ def main(argv: list[str] | None = None) -> int:
         if n > CHAIN_CAP:
             print(
                 f"chains-cap-watch: SAMPLED — edge-touched n={n:,} > cap {CHAIN_CAP:,} "
-                f"({n / CHAIN_CAP:.1f}x): diameters/distant-pairs are stride-sample "
-                "LOWER BOUNDS (stats.longest_chains). Exact numbers on demand: "
-                "longest_chains(exact=True) (~80 s / ~6 GB, scipy_exact_universe)."
+                f"({n / CHAIN_CAP:.1f}x): diameter exact via iFUB; distant-pairs "
+                "are stride-sample LOWER BOUNDS (stats.longest_chains). Exact "
+                "numbers on demand: longest_chains(exact=True) (~80 s / ~6 GB, "
+                "scipy_exact_universe)."
             )
         else:
             print(f"chains-cap-watch: exact — edge-touched n={n:,} <= cap {CHAIN_CAP:,}")

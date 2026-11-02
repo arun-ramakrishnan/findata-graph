@@ -269,3 +269,65 @@ def test_chain_dist_stats_sampled_drops_self_distance_zeros():
     assert median == float(np.median(vals)) and total == int(vals.size)
     with_zero = dist[np.isfinite(dist)]
     assert int(with_zero.size) == total + 2, "the two self-distance cells"
+
+
+def test_ifub_diameter_parity_random_components():
+    """iFUB must match scipy all-pairs exact diameter on connected and
+    multi-component graphs (Wall 3 S1)."""
+    import numpy as np
+    from scipy.sparse import csr_matrix
+    from scipy.sparse.csgraph import connected_components, shortest_path
+
+    def exact_diam(csr):
+        n = csr.shape[0]
+        if n == 0:
+            return None
+        if n == 1:
+            return 0
+        nc, comp = connected_components(csr, directed=False)
+        best = 0
+        for c in range(nc):
+            nodes = np.flatnonzero(comp == c)
+            if len(nodes) <= 1:
+                continue
+            sub = csr[nodes][:, nodes]
+            d = shortest_path(sub, method="D", unweighted=True)
+            f = np.isfinite(d)
+            best = max(best, int(d[f].max()))
+        return best
+
+    rng = np.random.default_rng(7)
+
+    def rand_component(n, p):
+        while True:
+            A = rng.random((n, n)) < p
+            A = np.triu(A, 1)
+            A = A | A.T
+            csr = csr_matrix(A.astype(np.int8))
+            nc, _ = connected_components(csr, directed=False)
+            if nc == 1:
+                return csr
+
+    cases = []
+    for n, p in [(2, 0.9), (3, 0.5), (5, 0.4), (8, 0.3), (12, 0.25), (20, 0.15)]:
+        for _ in range(8):
+            cases.append(rand_component(n, p))
+    # multi-component graph: two path components (15 + 11 nodes)
+    nc = np.zeros((30, 30), dtype=np.int8)
+    for i in range(14):
+        nc[i, i + 1] = 1
+        nc[i + 1, i] = 1
+    for i in range(15, 25):
+        nc[i, i + 1] = 1
+        nc[i + 1, i] = 1
+    cases.append(csr_matrix(nc))
+
+    for idx, csr in enumerate(cases):
+        assert stats._ifub_diameter(csr) == exact_diam(csr), f"case {idx}"
+
+    n = 60
+    path = csr_matrix((np.ones(n - 1), (np.arange(n - 1), np.arange(1, n))), shape=(n, n))
+    path = (path + path.T).astype(np.int8)
+    assert stats._ifub_diameter(path) == n - 1
+    assert stats._ifub_diameter(csr_matrix((1, 1))) == 0
+    assert stats._ifub_diameter(csr_matrix((0, 0))) is None

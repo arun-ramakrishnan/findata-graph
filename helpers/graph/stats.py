@@ -157,6 +157,70 @@ def _chain_dist_stats(dist: np.ndarray) -> tuple[int, float, int, int]:
     return diameter, median, int(hist[diameter]), total
 
 
+def _ifub_diameter(csr_graph) -> int | None:
+    """Exact diameter over an undirected unit-weight CSR graph via iFUB.
+
+    Runs iFUB (Crescenzi-Grossi-Habib-Lanzi-Tomescu) per connected
+    component: a handful of BFS sweeps (two per eccentricity probe)
+    instead of the all-pairs matrix the exact chains path used.
+    Returns the max finite diameter — the metric _chain_dist_stats
+    reports — or None for an empty graph.
+
+    Correctness proof sketch. For a component, one BFS from a start
+    vertex s reaches a farthest vertex u; a second BFS from u gives
+    distances d_u and eccentricity e_u = ecc(u). Triangle inequality
+    bounds any other vertex eccentricity: ecc(w) <= d_u[w] + e_u.
+    We keep the running lower bound lb = max seen ecc. A candidate w
+    with d_u[w] + e_u <= lb cannot exceed lb, so it is safely pruned.
+    When the descending-sorted candidate list is exhausted, every
+    vertex eccentricity <= lb and lb is attained → lb == diameter.
+    """
+    import numpy as np
+    from scipy.sparse.csgraph import connected_components, dijkstra
+
+    n = csr_graph.shape[0]
+    if n == 0:
+        return None
+    if n == 1:
+        return 0
+
+    n_comp, comp = connected_components(csr_graph, directed=False)
+
+    def _component_diameter(nodes: np.ndarray) -> int:
+        sub = csr_graph[nodes][:, nodes]
+        m = len(nodes)
+        if m <= 1:
+            return 0
+
+        def bfs(src_idx: int):
+            dist = dijkstra(sub, unweighted=True, directed=False, indices=[src_idx])[0]
+            finite = np.isfinite(dist)
+            ecc = float(dist[finite].max()) if finite.any() else 0.0
+            far = int(np.argmax(np.where(finite, dist, -1.0)))
+            return dist, ecc, far
+
+        # double sweep: s -> u -> dist_u/e_u, then candidates descending
+        _, _, u = bfs(0)
+        d_u, e_u, _ = bfs(u)
+        lb = e_u
+        order = np.argsort(-d_u)  # descending d_u => descending upper bound
+        for w in order:
+            if d_u[w] + e_u <= lb:
+                break  # monotone: no later candidate can beat lb
+            if int(w) == u:
+                continue
+            _, ecc_w, _ = bfs(int(w))
+            if ecc_w > lb:
+                lb = ecc_w
+        return int(lb)
+
+    best = 0
+    for c in range(n_comp):
+        nodes = np.flatnonzero(comp == c)
+        best = max(best, _component_diameter(nodes))
+    return best
+
+
 def _chain_edge_matrix(
     conn,
     idx: dict[str, int],
@@ -281,7 +345,11 @@ def longest_chains(
     process peak at 6,000 roots on the live graph (2026-10-19; the
     analytic arrays alone are ~1.4 GB at that sample). graph_scale_watch
     now carries the cap-crossing tripwire so no future crossover is
-    silent.
+    silent. Wall-3 S1/S2 (2026-11-02): below the cap nothing changes;
+    above it the DIAMETER is now computed exactly via iFUB
+    (_ifub_diameter, per-component double sweep) and annotated in the
+    SAMPLED line — only distant-pair selection stays sampled (lower
+    bounds), so the headline metric is never again a guess.
 
     ``exact=True`` (scipy_exact_universe S2, opt-in — never the gate
     path) lifts the sample to ALL roots: distances become exact, the
@@ -342,6 +410,7 @@ def longest_chains(
                 indices=roots,
             )
             diameter, median, ties, _total = _chain_dist_stats(dist)
+            diam_exact = _ifub_diameter(mat)  # Wall-3 S1/S2: exact despite cap
         else:
             dist, pred = shortest_path(mat, method="D", unweighted=True, return_predecessors=True)
             diameter, median, ties, _total = _chain_dist_stats(dist)
@@ -352,7 +421,8 @@ def longest_chains(
         pairs = _select_chain_pairs(dist, diameter, roots, top_k)
         cap_note = (
             f" | SAMPLED {n_roots}/{n} roots (cap {max_exact}): "
-            f"d >= {diameter}, distances are lower bounds"
+            f"d >= {diameter}, pair distances are lower bounds; "
+            f"EXACT diameter {diam_exact} via iFUB"
             if capped
             else ""
         )

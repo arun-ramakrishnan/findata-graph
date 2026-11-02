@@ -21,6 +21,86 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 graph_scale_watch = importlib.import_module("helpers.validators.graph_scale_watch")
 
 
+def test_gate_leg_rebuild_window_real_writer_stays_green_degraded(
+    tmp_path: Path,
+) -> None:
+    """Wall 5 S3 gate leg: run the watcher CLI as a subprocess while a real
+    writer holds the DuckDB file (so open_read_only genuinely fails) and the
+    graph rebuild's build.lock is held exclusively. Expect exit 0 and a
+    DEGRADED line — the advisory gate stays green during a rebuild, never
+    reds on a busy store."""
+    import subprocess
+
+    # A real DuckDB writer holds the file RW in-process.
+    db = tmp_path / "graph.duckdb"
+    con = duckdb.connect(str(db))
+    con.execute("CREATE TABLE e_all_und (a INTEGER, b INTEGER)")
+    con.execute("INSERT INTO e_all_und SELECT i, i + 1 FROM range(?) t(i)", [10])
+    con.execute("CREATE TABLE e_dir (a INTEGER, b INTEGER)")
+    con.execute("INSERT INTO e_dir SELECT i, i + 1 FROM range(?) t(i)", [5])
+    # hold the write lock (do not close)
+
+    # Build-lock holder: exclusive, dropped after the CLI run.
+    lock = Path(str(db) + ".build.lock")
+    holder = """
+import fcntl, sys, time
+lf = open(sys.argv[1], "w")
+fcntl.flock(lf.fileno(), fcntl.LOCK_EX)
+print("held", flush=True)
+time.sleep(float(sys.argv[2]))
+fcntl.flock(lf.fileno(), fcntl.LOCK_UN)
+lf.close()
+"""
+    proc = subprocess.Popen(
+        [sys.executable, "-c", holder, str(lock), "2.0"],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+        cwd=Path(__file__).resolve().parents[1],
+    )
+    try:
+        assert proc.stdout is not None and proc.stdout.readline().strip() == "held"
+        run = subprocess.run(
+            [sys.executable, "helpers/validators/graph_scale_watch.py", "--check", "--db", str(db)],
+            capture_output=True,
+            text=True,
+            cwd=Path(__file__).resolve().parents[1],
+            timeout=60,
+        )
+        assert run.returncode == 0, run.stderr
+        assert "DEGRADED" in run.stdout
+        assert "parquet mirror" in run.stdout
+        assert "SKIP" not in run.stdout
+    finally:
+        proc.wait(timeout=30)
+        con.close()
+
+
+def test_degrades_to_parquet_mirror_during_rebuild_window(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Wall 5 S2: when the funnel open raises a transient lock error AND a
+    rebuild window is detected, the watcher DEGRADES to the parquet mirror
+    rather than SKIPing — the advisory gate stays green."""
+    import duckdb as _ddb
+
+    def fake_open_read_only(_db):
+        raise _ddb.Error("IO Error: Could not set lock on file: Conflicting lock is held")
+
+    import helpers.misc.duckdb_lock as dlock
+
+    monkeypatch.setattr(dlock, "open_read_only", fake_open_read_only)
+    monkeypatch.setattr(dlock, "is_rebuild_in_progress", lambda _db: True)
+
+    # A live DB must exist for the pre-check.
+    db = _mk_db(tmp_path, doubled=10, directed=5)
+    rc = graph_scale_watch.main(["--check", "--db", str(db)])
+    out = capsys.readouterr().out
+    assert rc == 0, "degraded mode is advisory — never a gate failure"
+    assert "DEGRADED" in out
+    assert "parquet mirror" in out
+
+
 def _mk_db(tmp_path: Path, doubled: int, directed: int | None = None) -> Path:
     db = tmp_path / "graph.duckdb"
     con = duckdb.connect(str(db))
@@ -275,7 +355,7 @@ def test_hyper_clique_tax_warn_at_oom_anchor(
     out = capsys.readouterr().out
     assert rc == 0, "clique tax reports the wall's approach — never a gate failure"
     assert "OOM anchor" in out
-    assert "infeasible" in out
+    assert "bipartite-louvain lane" in out
 
 
 def test_hyper_max_edge_warn(

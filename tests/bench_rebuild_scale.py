@@ -350,6 +350,71 @@ def _breakdown(db: Path) -> None:
     print(f"  measured total at R={doubled:,}: see the table above")
 
 
+def _shard_budget(db: Path, rows: int, k: int, budget_s: float = 5.0) -> int:
+    """Wall 1 S4: time each shard's e_all_und INSERT..SELECT slice.
+
+    Rebuilds the production substrate (e_dir + single e_all_und) then drops
+    e_all_und and re-materialises it as K hash-range partitions, timing each
+    INSERT..SELECT slice individually. Reports the max slice wall time against
+    the Wall 1 5 s per-shard budget. Returns 0 if max <= budget_s else 1.
+
+    Mirrors query._materialise_walk_substrate's sharded branch SQL verbatim
+    (abs(hash(a_id)) % K == i, both directions).
+    """
+    import duckdb
+    from helpers.graph import query as q
+
+    scratch = db.with_suffix(".duckdb")
+    # Build the full production substrate once (e_dir + e_all_und).
+    con = q.connect(db_path=db, rebuild=True)
+    con.close()
+
+    con = duckdb.connect(str(scratch))
+    try:
+        # Reset to e_dir only, then re-materialise sharded.
+        con.execute("DROP TABLE e_all_und")
+        con.execute(
+            """
+            CREATE TABLE e_all_und (
+                a_id BIGINT, b_id BIGINT, edge_type VARCHAR,
+                valid_from DATE, valid_to DATE, properties VARCHAR
+            )
+            """
+        )
+        slice_s: list[float] = []
+        for shard in range(k):
+            t0 = time.perf_counter()
+            con.execute(
+                """
+                INSERT INTO e_all_und
+                SELECT a_id, b_id, edge_type, valid_from, valid_to, properties
+                FROM e_dir
+                WHERE abs(hash(a_id)) % ? = ?
+                UNION ALL
+                SELECT b_id, a_id, edge_type, valid_from, valid_to, properties
+                FROM e_dir
+                WHERE abs(hash(b_id)) % ? = ?
+                """,
+                [k, shard, k, shard],
+            )
+            slice_s.append(time.perf_counter() - t0)
+        total = con.execute("SELECT COUNT(*) FROM e_all_und").fetchone()[0]
+        doubled = con.execute("SELECT COUNT(*) FROM e_dir").fetchone()[0] * 2
+        assert total == doubled, f"sharded count {total} != doubled {doubled}"
+    finally:
+        con.close()
+        scratch.unlink(missing_ok=True)
+
+    mx = max(slice_s)
+    print(f"\nshard budget (Wall 1 S4): R={rows:,} rows, K={k} shards, budget {budget_s:g} s")
+    print("  per-shard slice wall times: " + ", ".join(f"{s:6.3f}" for s in slice_s))
+    print(
+        f"  max slice {mx:.3f} s vs {budget_s:g} s budget -> "
+        + ("OK" if mx <= budget_s else f"VIOLATION (> {budget_s:g} s)")
+    )
+    return 0 if mx <= budget_s else 1
+
+
 def _density_check(rows: int, reps: int) -> None:
     """Compare the ladder column with the production path at the same R."""
     print("\ndensity check — ladder `materialize` vs the production rebuild")
@@ -400,6 +465,12 @@ def main(argv: list[str] | None = None) -> int:
     )
     p.add_argument("--breakdown", action="store_true", help="Fixed-cost decomposition")
     p.add_argument(
+        "--shards", type=int, default=None, help="Wall 1 S4: K hash-range partitions for e_all_und"
+    )
+    p.add_argument(
+        "--shard-budget", type=float, default=5.0, help="Per-shard wall budget (default 5.0 s)"
+    )
+    p.add_argument(
         "--density-check",
         action="store_true",
         help="Compare the sibling ladder's default degree against the measured one",
@@ -407,6 +478,7 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--keep", action="store_true", help="Keep the scratch directory")
     args = p.parse_args(argv)
 
+    ret = 0
     if not SRC_DB.is_file():
         print(f"no production schema source at {SRC_DB}", file=sys.stderr)
         return 2
@@ -462,10 +534,21 @@ def main(argv: list[str] | None = None) -> int:
                 shutil.rmtree(scratch, ignore_errors=True)
     if args.density_check:
         _density_check(min(targets), args.reps)
+    if args.shards:
+        scratch = Path(tempfile.mkdtemp(prefix="scale_bfs_"))
+        try:
+            db = scratch / "research.db"
+            _clone_schema(db)
+            _generate(db, min(targets), degree=args.degree, notes=0, dims=int(LIVE["dims"]))
+            rc = _shard_budget(db, min(targets), args.shards, args.shard_budget)
+            ret = rc
+        finally:
+            if not args.keep:
+                shutil.rmtree(scratch, ignore_errors=True)
 
     _assert_prod_untouched(before)
     print("\nproduction memory/graph.duckdb + memory/research.db unchanged (size+mtime).")
-    return 0
+    return ret
 
 
 if __name__ == "__main__":

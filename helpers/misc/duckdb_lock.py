@@ -44,6 +44,7 @@ collision-free.
 from __future__ import annotations
 
 import fcntl
+import os
 import time
 from collections.abc import Callable, Generator
 from contextlib import contextmanager
@@ -129,6 +130,36 @@ def io_lock(db_path: Path | str, *, exclusive: bool) -> Generator[None]:
             yield
         finally:
             fcntl.flock(lf.fileno(), fcntl.LOCK_UN)
+
+
+def is_rebuild_in_progress(db_path: Path | str) -> bool:
+    """True when `<db>.build.lock` is held exclusively — the graph
+    rebuild's serialization flock (query._build_graph_connection). A
+    reader can probe it non-blockingly: a LOCK_SH attempt returns
+    EWOULDBLOCK exactly while a builder holds LOCK_EX across its whole
+    materialisation window, so this is a cheap, lock-agnostic way to
+    detect a rebuild window (Wall 5 S1). Absent/missing lock -> False
+    (no window). Never called for a served store (a quack server does
+    not take the flock) — callers gate on duckdb_shared.is_served.
+    """
+    lock_path = Path(str(db_path) + ".build.lock")
+    if not lock_path.exists():
+        return False
+    try:
+        fd = os.open(lock_path, os.O_RDONLY)
+    except OSError:
+        return False
+    try:
+        fcntl.flock(fd, fcntl.LOCK_SH | fcntl.LOCK_NB)
+    except OSError:
+        return True  # EWOULDBLOCK — an exclusive holder (rebuild window)
+    finally:
+        try:
+            fcntl.flock(fd, fcntl.LOCK_UN)
+        except OSError:
+            pass
+        os.close(fd)
+    return False
 
 
 def open_read_only(db_path: Path | str):
