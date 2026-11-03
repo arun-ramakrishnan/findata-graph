@@ -38,6 +38,12 @@ entry number and stale DONE pointers):
 
 ## Current live proposals
 
+- `served_store_read_funnel` — filed 2026-11-03 out of a parallel
+  unlocked-work session: PID-namespace blindness in
+  helpers/core/duckdb_shared.py:54 `_pid_alive` breaks the blocking
+  schema-drift gate (wire attach is byte-identical, so the failure is
+  non-data); S1 wire-attach fallback in open_read_only, S2 namespace-aware
+  liveness probe, S3 route the five raw bypass sites.
 - *(archived same day)* — `scaling_next_walls` filed + executed +
   archived same day 2026-11-02, #474
   (`../archive/graph/scaling_next_walls.md`; five measured scaling walls

@@ -113,6 +113,83 @@ def _mk_db(tmp_path: Path, doubled: int, directed: int | None = None) -> Path:
     return db
 
 
+def _mk_mirror_con(rows: int, directed: int, inc_rows: list[tuple[int, int]]):
+    """An in-memory snapshots-mirror con with the duckdb__* tables the
+    watcher's degraded path reads (graph_scale_watch._mirror_axes).
+    ``inc_rows`` are (edge_id, entity) pairs — the h_incidence shape."""
+    con = duckdb.connect()
+    con.execute("CREATE TABLE duckdb__e_all_und (a INTEGER, b INTEGER)")
+    con.execute("INSERT INTO duckdb__e_all_und SELECT i, i + 1 FROM range(?) t(i)", [rows])
+    con.execute("CREATE TABLE duckdb__e_dir (a INTEGER, b INTEGER)")
+    con.execute("INSERT INTO duckdb__e_dir SELECT i, i + 1 FROM range(?) t(i)", [directed])
+    con.execute("CREATE TABLE duckdb__h_incidence (edge_id INTEGER, entity INTEGER)")
+    for edge_id, entity in inc_rows:
+        con.execute("INSERT INTO duckdb__h_incidence VALUES (?, ?)", [edge_id, entity])
+    return con
+
+
+def test_degraded_mirror_data_flows_not_just_banner(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Goldfish-trial tooth: the degraded path must surface the MIRROR'S
+    data, not just the DEGRADED banner. The mirror fixture deliberately
+    carries counts DIFFERENT from the live db (7/3/5 vs the db's 10/5), so
+    asserting the printed numbers proves the values came through the
+    mirror read, not the vacuous banner path. Mutation contract: corrupt
+    the mirror fixture (empty tables) and the count assertions below go
+    red — a stale/empty mirror can no longer pass unnoticed."""
+    import helpers.misc.duckdb_lock as dlock
+    import helpers.maintenance.analytics.query as anquery
+
+    def fake_open_read_only(_db):
+        raise duckdb.Error("IO Error: Could not set lock on file: Conflicting lock is held")
+
+    monkeypatch.setattr(dlock, "open_read_only", fake_open_read_only)
+    monkeypatch.setattr(dlock, "is_rebuild_in_progress", lambda _db: True)
+
+    mirror = _mk_mirror_con(rows=7, directed=3, inc_rows=[(1, 1), (1, 2), (1, 3), (2, 1), (2, 2)])
+    monkeypatch.setattr(anquery, "connect_snapshots", lambda: mirror)
+
+    # Live db exists (pre-check) with DIFFERENT counts than the mirror.
+    db = _mk_db(tmp_path, doubled=10, directed=5)
+    rc = graph_scale_watch.main(["--check", "--db", str(db)])
+    out = capsys.readouterr().out
+    assert rc == 0
+    assert "DEGRADED" in out and "parquet mirror" in out
+    # The dyadic line must carry the MIRROR counts (7/3), not the db's 10/5.
+    assert "e_all_und=7 doubled rows (directed=3)" in out
+    # The hyper line must carry the mirror's incidence axes: inc=5,
+    # max_edge=3, clique tax=C(3,2)+C(2,2)=4.
+    assert "h_incidence=5" in out
+    assert "(max hyperedge=3, clique tax=4 dyads)" in out
+
+
+def test_degraded_empty_mirror_reports_zeroes_not_banner_only(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """The stale-fixture mutation, pinned: an EMPTY mirror is reported as
+    zeroes (visible in output) — never silently swallowed by the banner.
+    If the data path breaks and zeroes stop flowing, this goes red."""
+    import helpers.misc.duckdb_lock as dlock
+    import helpers.maintenance.analytics.query as anquery
+
+    def fake_open_read_only(_db):
+        raise duckdb.Error("IO Error: Could not set lock on file: Conflicting lock is held")
+
+    monkeypatch.setattr(dlock, "open_read_only", fake_open_read_only)
+    monkeypatch.setattr(dlock, "is_rebuild_in_progress", lambda _db: True)
+
+    mirror = _mk_mirror_con(rows=0, directed=0, inc_rows=[])
+    monkeypatch.setattr(anquery, "connect_snapshots", lambda: mirror)
+
+    db = _mk_db(tmp_path, doubled=10, directed=5)
+    rc = graph_scale_watch.main(["--check", "--db", str(db)])
+    out = capsys.readouterr().out
+    assert rc == 0
+    assert "DEGRADED" in out
+    assert "e_all_und=0 doubled rows (directed=0)" in out
+
+
 def _run(tmp_path: Path, db: Path, monkeypatch: pytest.MonkeyPatch, warn: int, fire: int) -> int:
     monkeypatch.setattr(graph_scale_watch, "WARN_ROWS", warn)
     monkeypatch.setattr(graph_scale_watch, "T1_ROWS", fire)

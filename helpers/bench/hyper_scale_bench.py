@@ -244,6 +244,16 @@ def lane_chains_exact(*, cap: int = 6000, seed: int = 7) -> list[dict]:
     from scipy.sparse import csr_matrix
     from scipy.sparse.csgraph import shortest_path
 
+    # Dense-block budget for the sampled leg: shortest_path materializes
+    # a (len(indices), n) float64 matrix, quadratic in len(indices) —
+    # unguarded it thrashed the box at wall cap (2026-11-03).
+    _SAMPLED_MEM_BUDGET_BYTES = 128 * 1024 * 1024
+    # Dense generator ceiling: rng.random((n, n)) is an n^2 float64
+    # intermediate (7.2 GB at n=30k, 28.8 GB at n=60k) — the actual
+    # thrash point of the first wall-scale attempt. Above this ceiling
+    # the graph is built sparse (same upper-triangle Bernoulli ensemble).
+    _DENSE_GEN_MAX_N = 5000
+
     def connected_rand(n: int, p: float, rng: np.random.Generator) -> csr_matrix:
         # path backbone guarantees one component; plus random chords
         row = list(range(n - 1))
@@ -256,6 +266,29 @@ def lane_chains_exact(*, cap: int = 6000, seed: int = 7) -> list[dict]:
             A[j, i] = 1
         return csr_matrix(A)
 
+    def connected_rand_sparse(n: int, p: float, rng: np.random.Generator) -> csr_matrix:
+        # Same ensemble as the dense build (each upper-triangle pair kept
+        # with probability p, plus the path backbone) without the n^2
+        # intermediate: draw the pair count from Binomial(n(n-1)/2, p),
+        # sample that many unordered pairs, dedupe, drop self-loops and
+        # backbone pairs (re-added explicitly).
+        k = rng.binomial(n * (n - 1) // 2, p)
+        i = rng.integers(0, n, size=k)
+        j = rng.integers(0, n, size=k)
+        lo = np.minimum(i, j)
+        hi = np.maximum(i, j)
+        keep = lo < hi
+        lo, hi = lo[keep], hi[keep]
+        packed = np.unique(lo.astype(np.int64) * n + hi)
+        lo = (packed // n).astype(np.int32)
+        hi = (packed % n).astype(np.int32)
+        nb = (hi - lo) != 1
+        lo, hi = lo[nb], hi[nb]
+        row = np.concatenate([np.arange(n - 1), np.arange(1, n), lo, hi])
+        col = np.concatenate([np.arange(1, n), np.arange(n - 1), hi, lo])
+        data = np.ones(row.size, dtype=np.int8)
+        return csr_matrix((data, (row, col)), shape=(n, n))
+
     rng = np.random.default_rng(seed)
     rows = []
     for mult in (2, 5, 10):
@@ -263,11 +296,21 @@ def lane_chains_exact(*, cap: int = 6000, seed: int = 7) -> list[dict]:
         # p = 1.6/n reproduces the live chain-graph depth (diameter ~12) at
         # ~5.6 avg degree; denser postures make iFUB degenerate toward
         # all-pairs (the proposal's flagged worst case).
-        g = connected_rand(n, 1.6 / n, rng)
+        gen = connected_rand if n <= _DENSE_GEN_MAX_N else connected_rand_sparse
+        g = gen(n, 1.6 / n, rng)
         # sampled path (cap-gated default): stride roots
         roots = np.unique(np.linspace(0, n - 1, cap).astype(int))
+        # Memory guard: chunk the roots so each dense (chunk, n) float64
+        # block stays under the budget. At cap 500 the threshold never
+        # triggers (one vectorized call — prior numbers reproduce
+        # byte-identically); at wall cap 6000 on n=60k this bounds the
+        # block to ~128 MB instead of ~2.9 GB. Timer covers the whole
+        # chunked pass.
+        chunk = max(1, int(_SAMPLED_MEM_BUDGET_BYTES // (8 * n)))
+        chunked = chunk < len(roots)
         t = time.perf_counter()
-        shortest_path(g, method="D", unweighted=True, indices=roots)
+        for start in range(0, len(roots), chunk):
+            shortest_path(g, method="D", unweighted=True, indices=roots[start : start + chunk])
         sampled_s = round(time.perf_counter() - t, 4)
         # exact via iFUB
         t = time.perf_counter()
@@ -286,6 +329,7 @@ def lane_chains_exact(*, cap: int = 6000, seed: int = 7) -> list[dict]:
                 "mult": mult,
                 "diameter_exact": int(diam) if diam is not None else None,
                 "sampled_s": sampled_s,
+                "sampled_chunk": chunk if chunked else None,
                 "ifub_exact_s": ifub_s,
                 "allpairs_s": allpairs_s,
                 "ifub_vs_sampled": round(ifub_s / sampled_s, 3) if sampled_s else None,

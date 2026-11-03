@@ -13469,3 +13469,46 @@ Validation: full-arc targeted battery 196 passed (then 197 after the
 Wall-2 promotion work); ruff clean; patch scaling_fix refresh. Full
 qa+integration+perf+advisory gates deferred on operator go.
 
+## 475. Goldfish-trial follow-ups — wall-scale bench rows, mirror-data and pool-dispatch test teeth
+
+Provenance: the 2026-11-03 retrospective goldfish trial on the Five
+scaling walls record (#474; raw reports outputs/reviews/
+review_goldfish_scaling_next_walls_zoomout.md and
+review_goldfish_scaling_next_walls_impl_readiness.md; triage "all
+defaults"). The trial's 8 MAJORs folded same-day into #474's record;
+three deferred items survived as doc/improvements/proposals/
+goldfish_trial_followups.md and all landed 2026-11-03 (archived to
+doc/improvements/archive/graph/goldfish_trial_followups.md).
+
+- **Wall-scale bench rows (item 1):** lane_chains_exact rerun at
+  --cap 6000 behind two memory guards — sampled-leg root chunking
+  under a 128 MB dense-block budget (new sampled_chunk row field, null
+  = single vectorized call; the cap-500 path is unchanged) and a sparse
+  graph generator above n=5000 (same upper-triangle Bernoulli ensemble;
+  the dense build's n² intermediate was 28.8 GB at the 60k rung). The
+  first unguarded attempt thrashed the machine (dense (len(roots), n)
+  block ≈2.9 GB) — the guards are the fix. Rows: 12k/30k/60k nodes =
+  iFUB 31.7s/249.7s/1248.7s vs sampled 10.0s/24.4s/56.6s (diameters
+  14/17/18), all-pairs infeasible at all three rungs, exact-vs-sampled
+  gap 3.2×/10.2×/22.1×. Cap-500 leg reproduced prior numbers (iFUB
+  0.378/1.782/5.578s, sampled 0.055/0.161/0.294s). Cited in #474's S3
+  paragraph and its Wall-3 addendum bullet.
+- **Mirror-data assertion (item 2):** tests/test_graph_scale_watch.py
+  test_degraded_mirror_data_flows_not_just_banner (stale mirror counts
+  7/3/5 asserted in the banner text; mutation-proven — an empty fixture
+  turns it red) and
+  test_degraded_empty_mirror_reports_zeroes_not_banner_only.
+- **Dispatch-spawned assertion (item 3):** tests/test_hyper_trails.py
+  test_pool_spawns_with_capped_workers (SpyPool asserts the processes
+  kwarg) and test_pool_start_failure_prints_stderr_and_falls_back
+  (capsys asserts the two stderr lines; results equal serial).
+
+Validation: ruff + format clean; targeted battery 25 passed + 18
+passed; bench empirical ladder (cap-100 sanity, cap-500 reproduction,
+cap-600 boundary dispatch, guarded cap-6000 run exit 0 / 1621.5 s
+wall); md-lint clean; all five search indexes fresh. Trial doctrine
+(grounding menu, paste-don't-paraphrase dispatch, digest-only returns,
+review_freshness --leg goldfish) lives in
+doc/local/engineering/egm_workflow.md and the goldfish-proposal-review
+skill.
+

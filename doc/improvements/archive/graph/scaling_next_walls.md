@@ -196,12 +196,23 @@ updated to say diameter is exact; docstring cap-history updated. 112/112
 tests green across stats/scale-watch/incidence. **DONE (S3):**
 `lane_chains_exact` in hyper_scale_bench.py (`--chains-exact`) measures
 time-to-exact diameter at 2×/5×/10× the harness default cap (`--cap` 500
-⇒ 1k/2.5k/5k nodes; wall-scale 12k/30k/60k rows unmeasured — Goldfish
-addendum) on connected random graphs sized to the live depth
-(p = 1.6/n ⇒ diameter ≈12). iFUB exact: 0.38s/1.66s/5.55s — while
-all-pairs at the 5k-node rung is infeasible (OOM, recorded null). Sampled path remains the faster lower-bound floor
-(0.06s/0.14s/0.29s), unchanged — the bench documents the exact-vs-sampled
-tradeoff the cap protects.
+⇒ 1k/2.5k/5k nodes; wall-scale 12k/30k/60k rows measured 2026-11-03 —
+follow-ups item 1, addendum below) on connected random graphs sized to
+the live depth (p = 1.6/n ⇒ diameter ≈12). iFUB exact: 0.38s/1.66s/5.55s —
+while all-pairs at the 5k-node rung is infeasible (OOM, recorded null).
+Sampled path remains the faster lower-bound floor (0.06s/0.14s/0.29s),
+unchanged — the bench documents the exact-vs-sampled tradeoff the cap
+protects. Wall scale (2026-11-03, `--cap 6000`, guarded rerun): iFUB
+31.7s/249.7s/1248.7s vs sampled 10.0s/24.4s/56.6s at 12k/30k/60k nodes
+(diameters 14/17/18), all-pairs infeasible at all three rungs — the
+exact-vs-sampled gap widens 3.2× → 10.2× → 22.1×. Two memory guards
+were added first, after an unguarded attempt thrashed the machine: the
+sampled leg chunks roots under a 128 MB dense-block budget
+(`sampled_chunk` row field, null = one vectorized call — the cap-500
+path is unchanged and its numbers reproduce: iFUB 0.38/1.78/5.58s), and
+the graph generator goes sparse above n=5000 (same upper-triangle
+Bernoulli ensemble; the dense build's n² intermediate was 28.8 GB at
+60k).
 
 **Axis:** kernels. **Risk:** iFUB worst case is still all-pairs-ish on
 path-like graphs — keep the sampled fallback as the floor.
@@ -418,3 +429,9 @@ as written):
   incidences); the 6k ARI gap is 0.022, slightly over the "~0.02"
   phrasing. Seed 42 was unimplemented at execution (dead param); wired
   2026-11-03 (triage #7).
+- Wall 3 (2026-11-03, goldfish_trial_followups item 1): the `--cap 6000`
+  rerun declined at triage has since run — iFUB 31.7s/249.7s/1248.7s vs
+  sampled 10.0s/24.4s/56.6s at 12k/30k/60k, all-pairs infeasible ×3;
+  cap-500 numbers reproduce (S3 paragraph above updated). The rerun is
+  guarded (sampled-leg 128 MB chunking; sparse generator above n=5000)
+  after the unguarded first attempt thrashed the machine 2026-11-03.

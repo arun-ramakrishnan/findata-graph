@@ -214,6 +214,67 @@ def test_parallel_fallback_when_single_source():
     assert got[0]["reachable"] == 2
 
 
+def test_pool_spawns_with_capped_workers(monkeypatch: pytest.MonkeyPatch):
+    """Goldfish-trial tooth (a): the multicore path must actually SPAWN a
+    pool — not silently degrade to the serial loop — and the spawn is
+    capped at min(workers, len(sources))."""
+    import multiprocessing as mp
+
+    spawned: list[int] = []
+    real_pool = mp.Pool  # a bound context method — wrap it, never subclass
+
+    class _SpyPool:
+        def __init__(self, *a, **k):
+            spawned.append(k.get("processes"))
+            self._pool = real_pool(*a, **k)
+
+        def __enter__(self):
+            self._pool.__enter__()
+            return self
+
+        def __exit__(self, *exc):
+            return self._pool.__exit__(*exc)
+
+        def map(self, fn, iterable):
+            return self._pool.map(fn, iterable)
+
+    monkeypatch.setattr(mp, "Pool", _SpyPool)
+    g = bipartite_from_pairs(CHAIN5)
+    srcs = ["a", "b", "c", "d", "e", "f"]
+    serial = [trail_source_stats(g, s) for s in srcs]
+    got = trail_source_stats_parallel(g, srcs, workers=2)
+    assert spawned == [2], "pool must spawn exactly min(workers, len(sources)) processes"
+    for s, par in zip(serial, got):
+        assert par["reachable"] == s["reachable"]
+        assert par["hop_histogram"] == s["hop_histogram"]
+
+
+def test_pool_start_failure_prints_stderr_and_falls_back(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+):
+    """Goldfish-trial tooth (b): when the pool cannot start, the fallback
+    to serial must NOT be silent — one stderr line carries the reason, and
+    results still equal the serial oracle."""
+    import multiprocessing as mp
+
+    class _Boom:
+        def __init__(self, *a, **k):
+            raise OSError("pool start failed (simulated no-fork)")
+
+    monkeypatch.setattr(mp, "Pool", _Boom)
+    g = bipartite_from_pairs(CHAIN5)
+    srcs = ["a", "b", "c", "d", "e", "f"]
+    serial = [trail_source_stats(g, s) for s in srcs]
+    got = trail_source_stats_parallel(g, srcs, workers=2)
+    err = capsys.readouterr().err
+    assert "trail parallel pool unavailable" in err
+    assert "falling back to serial" in err
+    assert "pool start failed (simulated no-fork)" in err
+    for s, par in zip(serial, got):
+        assert par["reachable"] == s["reachable"]
+        assert par["hop_histogram"] == s["hop_histogram"]
+
+
 class TestMojoBipartiteBfsParity:
     """S3: Wall 2 parity gate — the bfs_csr.mojo binary run on the
     bipartite CSR bins (build_bipartite_csr) must agree with the Python
