@@ -34,12 +34,11 @@ import sys
 from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
 
-import duckdb
-
 REPO = Path(__file__).resolve().parents[2]
 if str(REPO) not in sys.path:
     sys.path.insert(0, str(REPO))
 
+from helpers.core import duckdb_shared  # noqa: E402
 from helpers.core import jsonio  # noqa: E402  (orjson parse cutover; dumps stay stdlib per db_scaling_tuning §6.3 criteria)
 from helpers.core.db import connect  # noqa: E402  (path insert must precede)
 
@@ -149,7 +148,7 @@ def store_frontiers(
         path = paths[label]
         got: dict[str, date] = {}
         if path.is_file():
-            con = duckdb.connect(str(path), read_only=True)
+            con = duckdb_shared.connect_shared(str(path), read_only=True)
             try:
                 have = {r[0] for r in con.execute("SHOW TABLES").fetchall()}
                 if table in have:
@@ -235,9 +234,7 @@ def main(argv: list[str] | None = None) -> int:
         store = store_frontiers(args.agent_traces, args.model_usage)
     api_covered: frozenset[date] | None = None
     if args.model_usage.is_file():
-        import duckdb
-
-        con = duckdb.connect(str(args.model_usage), read_only=True)
+        con = duckdb_shared.connect_shared(str(args.model_usage), read_only=True)
         try:
             api_covered = frozenset(
                 d

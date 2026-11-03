@@ -178,12 +178,12 @@ def _run_maint(query: str, limit: int) -> tuple[list, str]:
     subprocess): tokens AND-match across cmd/mode/target/summary/phase,
     newest first. maint is self-writing — no refresh step exists, so the
     leg is age-guard exempt like gates."""
-    import duckdb
+    from helpers.core import duckdb_shared as ds
 
     db = _REPO_ROOT / "outputs" / "gate_runs.duckdb"
     con = None
     try:
-        con = duckdb.connect(str(db), read_only=True)
+        con = ds.connect_shared(str(db), read_only=True)
     except Exception as exc:
         return [], f"error: cannot open timing DB ({exc})"
     try:

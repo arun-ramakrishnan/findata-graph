@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import json
 import os
+import socket
 
 import pytest
 
@@ -137,6 +138,55 @@ class TestDiscovery:
         loaded = ds.load_discovery(p)
         assert loaded is not None
         assert set(loaded) == {"alias"}
+
+    def test_dead_pid_but_reachable_endpoint_is_kept(self, tmp_path):
+        # Namespace-hidden server: pid invisible to us, but the wire port
+        # accepts connections -> the entry must be kept (S2 fallback).
+        srv = socket.socket()
+        try:
+            srv.bind(("127.0.0.1", 0))
+            srv.listen(1)
+            port = srv.getsockname()[1]
+            p = tmp_path / "disc.json"
+            p.write_text(
+                json.dumps(
+                    {
+                        "alias": {
+                            "uri": f"quack:127.0.0.1:{port}",
+                            "token": "t",
+                            "pid": 999_999_999,
+                            "path": str(tmp_path / "x.duckdb"),
+                        }
+                    }
+                )
+            )
+            loaded = ds.load_discovery(p)
+            assert set(loaded) == {"alias"}
+        finally:
+            srv.close()
+
+    def test_dead_pid_unreachable_endpoint_is_dropped(self, tmp_path):
+        # Dead pid AND dead endpoint (closed port) -> entry dropped.
+        srv = socket.socket()
+        try:
+            srv.bind(("127.0.0.1", 0))
+            port = srv.getsockname()[1]
+        finally:
+            srv.close()
+        p = tmp_path / "disc.json"
+        p.write_text(
+            json.dumps(
+                {
+                    "alias": {
+                        "uri": f"quack:127.0.0.1:{port}",
+                        "token": "t",
+                        "pid": 999_999_999,
+                        "path": str(tmp_path / "x.duckdb"),
+                    }
+                }
+            )
+        )
+        assert ds.load_discovery(p) == {}
 
     def test_is_served_is_false_without_discovery(self, tmp_path):
         assert ds.is_served(tmp_path / "x.duckdb", discovery=tmp_path / "absent.json") is False

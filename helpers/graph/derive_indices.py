@@ -33,7 +33,6 @@ import re
 import sys
 from pathlib import Path
 
-import duckdb
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 if str(_REPO_ROOT) not in sys.path:
@@ -364,7 +363,7 @@ def _cli(argv: list[str] | None = None) -> int:
                 "SELECT name, entity_type, ticker FROM entities ORDER BY name"
             ).fetchall()
         ]
-    con = duckdb.connect(str(SOURCES_DB), read_only=True)
+    con = ds.connect_shared(str(SOURCES_DB), read_only=True)
     try:
         exchange_rows = con.execute(
             "SELECT isin, symbol, exchange FROM exchange_listings WHERE isin IS NOT NULL"

@@ -36,6 +36,7 @@ import fcntl
 import json
 import math
 import os
+import socket
 import time
 from pathlib import Path
 from typing import Any, cast
@@ -65,6 +66,31 @@ def _pid_alive(pid: object) -> bool:
     return True
 
 
+def _endpoint_reachable(
+    uri: str,
+    *,
+    timeout: float = 0.5,
+) -> bool:
+    """True when the wire endpoint (host:port) accepts a TCP connection.
+
+    Namespace-aware liveness fallback: in a PID namespace (container/CI/
+    subagent sandbox) ``os.kill(pid, 0)`` cannot see servers outside the
+    namespace, so ``_pid_alive`` lies. When the pid probe is inconclusive,
+    a reachable host:port is treated as served. Failures return False.
+    """
+    try:
+        rest = uri.split(":", 1)[1]
+        host, port = rest.rsplit(":", 1)
+        port = int(port)
+    except IndexError, ValueError:
+        return False
+    try:
+        with socket.create_connection((host, port), timeout=timeout):
+            return True
+    except OSError:
+        return False
+
+
 def load_discovery(p: Path | str | None = None) -> dict[str, dict[str, Any]]:
     """Parse + liveness-check the discovery file: {alias: entry} with
     entry {uri, token, pid, path}. Dead servers are dropped (their
@@ -85,7 +111,7 @@ def load_discovery(p: Path | str | None = None) -> dict[str, dict[str, Any]]:
         if isinstance(entry, dict)
         and "uri" in entry
         and "pid" in entry
-        and _pid_alive(entry.get("pid"))
+        and (_pid_alive(entry.get("pid")) or _endpoint_reachable(str(entry["uri"])))
     }
 
 
@@ -142,6 +168,30 @@ def served_entry(disc: dict[str, Any], path: Path | str) -> dict[str, Any] | Non
         if entry["resolved"] == want:
             return entry
     return None
+
+
+def raw_discovery(p: Path | str | None = None) -> dict[str, dict[str, Any]]:
+    """Parse the discovery file WITHOUT the liveness filter.
+
+    ``load_discovery`` drops entries whose pid looks dead (namespace-visible
+    servers raise ``ProcessLookupError``). S1's fallback needs the raw
+    declaration to know a store is *meant* to be served even when the pid
+    probe lies — so it can attach over the wire instead of surfacing a
+    file-lock conflict.
+    """
+    path = Path(p) if isinstance(p, str) else (p or discovery_path())
+    try:
+        disc = jsonio.loads(path.read_text())
+    except OSError, jsonio.JSONDecodeError:
+        return {}
+    return disc if isinstance(disc, dict) else {}
+
+
+def served_entry_unfiltered(
+    path: Path | str, *, discovery: Path | None = None
+) -> dict[str, Any] | None:
+    """The raw discovery entry for ``path`` (no liveness check), or None."""
+    return served_entry(raw_discovery(discovery), path)
 
 
 def _attach_wire(entry: dict[str, Any], alias: str) -> duckdb.DuckDBPyConnection:

@@ -12,6 +12,7 @@ io.lock EX window vs a queued reader (coordination, not retry).
 
 from __future__ import annotations
 
+import duckdb
 import os
 import subprocess
 import sys
@@ -244,3 +245,71 @@ class TestCrossProcess:
             assert elapsed >= 1.5  # queued out the writer's window, not retried
         finally:
             proc.wait(timeout=30)
+
+
+class TestS1WireFallback:
+    def test_lock_conflict_with_raw_entry_attaches_wire(self, tmp_path, monkeypatch):
+        """File-mode open hits a transient lock conflict and a raw
+        discovery entry declares the store served (pid probe lying / not
+        visible in a namespace) -> attach over the wire, not raise."""
+        import json
+
+        from helpers.core import duckdb_shared as ds
+        from helpers.misc.duckdb_lock import open_read_only
+
+        db = tmp_path / "graph.duckdb"
+        disc = tmp_path / ".quack.json"
+        # stale entry: pid 999_999_999 looks dead -> load_discovery drops
+        # it -> is_served False (file mode attempted), but raw_discovery
+        # still sees it -> S1 attaches.
+        disc.write_text(
+            json.dumps(
+                {
+                    "graph": {
+                        "uri": "quack:127.0.0.1:9999",
+                        "token": "t",
+                        "pid": 999_999_999,
+                        "path": str(db),
+                    }
+                }
+            )
+        )
+        monkeypatch.setattr(ds, "discovery_path", lambda: disc)
+
+        # file-mode ladder always raises the archived transient conflict
+        def fake_open(_p, *, read_only=False, config=None):
+            raise duckdb.Error(ARCHIVED)
+
+        monkeypatch.setattr(duckdb, "connect", fake_open)
+        monkeypatch.setattr("helpers.misc.duckdb_lock.time.sleep", lambda s: None)  # fast ladder
+
+        attached = {}
+
+        def fake_attach(entry, alias):
+            attached["called"] = True
+            attached["alias"] = alias
+            return object()
+
+        monkeypatch.setattr(ds, "_attach_wire", fake_attach)
+
+        con = open_read_only(db)
+        assert attached.get("called") is True
+        assert attached["alias"] == "graph"
+        assert con is not None
+
+    def test_lock_conflict_without_raw_entry_still_raises(self, tmp_path, monkeypatch):
+        """No discovery entry (even raw) -> the file-lock error surfaces."""
+        from helpers.core import duckdb_shared as ds
+        from helpers.misc.duckdb_lock import open_read_only
+
+        db = tmp_path / "graph.duckdb"
+        monkeypatch.setattr(ds, "discovery_path", lambda: tmp_path / "absent.json")
+
+        def fake_open(_p, *, read_only=False, config=None):
+            raise duckdb.Error(ARCHIVED)
+
+        monkeypatch.setattr(duckdb, "connect", fake_open)
+        monkeypatch.setattr("helpers.misc.duckdb_lock.time.sleep", lambda s: None)
+
+        with pytest.raises(duckdb.Error, match="Conflicting lock"):
+            open_read_only(db)

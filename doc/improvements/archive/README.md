@@ -509,6 +509,11 @@ commit, referenced by nothing). Entry numbers point at
 - [`refresh_chain_parallel.md`](pipeline/refresh_chain_parallel.md) — Refresh chain, parallel — fetch/apply split so independent sources overlap; per-lane `--fetch-only` stages writing scratch JSON under `$TMPDIR/findata-graph/`, parallel phase A, sequential store applies under per-store lock, per-item failure containment; `refresh-chain` Makefile target (default), `refresh-chain-ser` for the original sequential chain — completed.md #403
 
 ## tooling/ — Tooling & performance — MCP eval, doc browser/search, perf review, tech survey
+- [`served_store_read_funnel.md`](tooling/served_store_read_funnel.md) —
+  namespace-safe served-store liveness (socket port probe on
+  ProcessLookupError), wire-attach fallback in open_read_only on lock
+  conflict, five raw read sites routed through connect_shared —
+  completed.md #476
 
 - [`bili_sessions_filter_first_window.md`](tooling/bili_sessions_filter_first_window.md) —
   `bili_sessions.py --since` applied on /sessions meta BEFORE the

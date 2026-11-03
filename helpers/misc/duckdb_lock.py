@@ -180,4 +180,18 @@ def open_read_only(db_path: Path | str):
     if ds.is_served(db_path):
         return ds.connect_shared(str(db_path), read_only=True)
     with io_lock(db_path, exclusive=False):
-        return connect_with_lock_retry(lambda: duckdb.connect(str(db_path), read_only=True))
+        try:
+            return connect_with_lock_retry(lambda: duckdb.connect(str(db_path), read_only=True))
+        except Exception as exc:
+            # S1 wire-attach fallback: the file-mode open failed with a
+            # transient lock conflict (someone holds the file) yet a raw
+            # discovery entry declares this store served — e.g. a quack
+            # server unseen by the pid probe in a namespace. Attach over
+            # the wire instead of surfacing the file-lock error.
+            if is_transient_lock_error(str(exc)):
+                entry = ds.served_entry_unfiltered(db_path)
+                if entry is not None:
+                    return ds._attach_wire(
+                        entry, str(entry.get("alias") or Path(str(db_path)).stem)
+                    )
+            raise

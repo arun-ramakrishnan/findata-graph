@@ -18,13 +18,14 @@ import sys
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(REPO))
 DB_PATH = REPO / "outputs" / "gate_runs.duckdb"
 
 
 def connect():
-    import duckdb
+    from helpers.core import duckdb_shared as ds
 
-    return duckdb.connect(str(DB_PATH), read_only=True)
+    return ds.connect_shared(str(DB_PATH), read_only=True)
 
 
 def _percentile(values: list[float], q: float) -> float:

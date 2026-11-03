@@ -13512,3 +13512,35 @@ review_freshness --leg goldfish) lives in
 doc/local/engineering/egm_workflow.md and the goldfish-proposal-review
 skill.
 
+## 476. Served-store read funnel — namespace-safe liveness, wire-attach fallback, bypass routing
+
+Provenance: proposed 2026-11-03 (doc/improvements/proposals/
+served_store_read_funnel.md), landed same-day in the served_store patch
+(b7af6ca15), archived to doc/improvements/archive/tooling/
+served_store_read_funnel.md.
+
+- **Symptom:** memory/.quack.json serves graph at quack:localhost:9494; in
+  a PID namespace os.kill(pid, 0) raises ProcessLookupError → load_discovery()
+  returns {} → open_read_only silently degrades to file mode → "IO Error:
+  Could not set lock ... Conflicting lock is held in PID 0". Both
+  helpers/misc/schema_dump.py --check and tests/test_schema_drift.py died
+  (1 failed/1.98s) for a non-data reason; no real drift (wire attach renders
+  44 duckdb_tables() rows, body sha 1cce38a510a9, IDENTICAL: True).
+- **S1 — wire-attach fallback** in duckdb_lock.open_read_only: on a
+  lock-conflict open failure with a matching raw discovery entry
+  (served_entry_unfiltered), attach over the wire (_attach_wire) instead of
+  raising. Alone re-greens the drift gate.
+- **S2 — namespace-aware _pid_alive:** new socket-based _endpoint_reachable
+  port probe; load_discovery keeps an entry if pid alive OR endpoint
+  reachable; raw_discovery/served_entry_unfiltered added to
+  duckdb_shared.py.
+- **S3 — five raw read bypasses routed through connect_shared:** master_query.py:186,
+  maint_query.py:27, analytics_fresh.py:152 and :240, derive_indices.py:367.
+- **Tests:** test_duckdb_shared.py (dead-pid-but-reachable kept; dead-pidunreachable dropped) and test_duckdb_lock.py TestS1WireFallback (lock
+  conflict + raw entry attaches wire with alias=="graph"; without raw entry
+  still raises). Validated: 132 passed, ruff check + format clean,
+  schema_dump.py --check "schema ok: 15 DBs match their tracked DDL",
+  S2 end-to-end reproduction.
+
+Validation: targeted battery 132 passed; ruff clean; patch served_store
+refresh.
