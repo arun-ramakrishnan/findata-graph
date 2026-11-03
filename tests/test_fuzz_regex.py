@@ -290,12 +290,8 @@ def test_bold_line_regex_no_catastrophic_backtracking(text):
 # Asserts SUBQUADRATIC scaling (doubling input must not quadruple cost),
 # which is the precise property the AVAIL-2 fix established for the metric
 # patterns. A cubic regression here fails the third doubling outright.
-def test_bold_line_regex_scales_subquadratically():
-    # Measured 2026-09-20 with min-of-3 samples per size: the current
-    # (correct) pattern grows ~4.2x per doubling (quadratic is 4x); a
-    # nested-quantifier regression -- `(?:.+?\s*)+` inside the group --
-    # measures 12.2x on its middle doubling. An 8.0 threshold separates them
-    # with margin for CI noise while still rejecting the known regression.
+def _measure_bold_line_ladder() -> list[float]:
+    """Time BOLD_LINE_RE at the calibrated sizes; min-of-5 per size."""
     timings_ms = []
     for n in (160, 320, 640, 1280):
         s = ("**" + "a" * n + "** ") * n
@@ -306,17 +302,34 @@ def test_bold_line_regex_scales_subquadratically():
             BOLD_LINE_RE.match(s)
             best = min(best, (time.perf_counter() - t0) * 1000)
         timings_ms.append(best)
-    growth = [timings_ms[i + 1] / max(timings_ms[i], 0.01) for i in range(3)]
-    # Score only ratios whose base is big enough to be timing rather than
-    # scheduler noise: at n=160 the match is sub-ms, so one preempted
-    # sample inflates that first ratio past any threshold (2026-09-22:
-    # 0.36→4.44 ms = 12.3x; gate 1137 2026-09-30: ratios [12.39, 4.88,
-    # 1.03] — only the first exceeded, and under load the large-n samples
-    # inflate together, deflating the LAST ratio below the healthy ~4.2x).
-    # The middle doubling (base >= ~1.5 ms) stayed stable in every recorded
-    # run and carries the discriminator (nested-quantifier regression =
-    # 12.2x there). Warm-up + min-of-5 stay; the 8.0 threshold stays.
-    scored = [g for g, base in zip(growth, timings_ms) if base >= 1.0]
+    return timings_ms
+
+
+def test_bold_line_regex_scales_subquadratically():
+    # Measured 2026-09-20 with min-of-3 samples per size: the current
+    # (correct) pattern grows ~4.2x per doubling (quadratic is 4x); a
+    # nested-quantifier regression -- `(?:.+?\s*)+` inside the group --
+    # measures 12.2x on its middle doubling. An 8.0 threshold separates them
+    # with margin for CI noise while still rejecting the known regression.
+    # Score only ratios whose base is >= 1 ms (at n=160 the match is
+    # sub-ms, so one preempted sample inflates that first ratio past any
+    # threshold: 2026-09-22 0.36→4.44 ms = 12.3x; gate 1137 2026-09-30
+    # first ratio 12.39x off a 0.36 ms base). Under xdist gate load a
+    # >= 1 ms base can STILL get one preempted min-of-5 sample (advisory
+    # gate 3407 2026-11-04: middle ratio 10.9x because n=320 stayed at
+    # its serial 1.45 ms while the loaded n=640 sample ran 15.8 ms) — so
+    # a would-fail ladder is re-measured, up to 3 attempts. A scheduler
+    # spike is transient and passes on a retry; a real superquadratic
+    # regression is deterministic and fails EVERY attempt.
+    worst: tuple[list[float], list[float], list[float]] | None = None
+    for _attempt in range(3):
+        timings_ms = _measure_bold_line_ladder()
+        growth = [timings_ms[i + 1] / max(timings_ms[i], 0.01) for i in range(3)]
+        scored = [g for g, base in zip(growth, timings_ms) if base >= 1.0]
+        if scored and max(scored) < 8.0:
+            return
+        worst = (timings_ms, growth, scored)
+    timings_ms, growth, scored = worst  # type: ignore[assignment]
     assert scored, (
         f"BOLD_LINE_RE unmeasurable at the calibrated sizes (all bases "
         f"< 1 ms): {timings_ms} — recalibrate the size ladder"

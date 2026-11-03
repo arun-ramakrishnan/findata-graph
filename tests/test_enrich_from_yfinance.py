@@ -1,7 +1,9 @@
 """Unit tests for helpers/maintenance/enrich_from_yfinance.py."""
 
 from __future__ import annotations
+import logging
 import sqlite3
+import time
 from pathlib import Path
 
 import pytest
@@ -534,3 +536,96 @@ class TestIdentityOkMinSubsetTokens:
             aliases={},
             min_subset_tokens=2,
         )
+
+
+# ---------------------------------------------------------------------------
+# fetch_todo — progress loop ported from enrich_relations.fetch_all
+# ---------------------------------------------------------------------------
+class TestFetchTodoProgress:
+    def test_classifies_results_failures_mismatches(self, caplog):
+        todo = [
+            ("Reliance Industries", "RELIANCE.NS", "a.md"),
+            ("Felix Industries", "FELIX.NS", "b.md"),  # identity-guard rejection
+            ("Dead Co", "DEAD.NS", "c.md"),  # fetch failure
+        ]
+
+        def fake_fetch(ticker):
+            if ticker == "DEAD.NS":
+                return None
+            if ticker == "FELIX.NS":
+                return {"longName": "Felix Gold Limited"}
+            return {"longName": "Reliance Industries Limited"}
+
+        with caplog.at_level(logging.INFO, logger="enrich"):
+            results, failures, mismatches = enf.fetch_todo(
+                todo,
+                workers=2,
+                aliases={},
+                fetch_fn=fake_fetch,
+                progress_every=1,
+                progress_seconds=0.01,
+            )
+        assert [r[1] for r in results] == ["RELIANCE.NS"]
+        assert failures == [("Dead Co", "DEAD.NS", "c.md")]
+        assert mismatches == [("Felix Industries", "FELIX.NS", "Felix Gold Limited")]
+        assert "fetch progress:" in caplog.text
+        assert "failures 1" in caplog.text
+
+    def test_progress_reports_while_all_fail(self, caplog):
+        # the 46-minute silence: a 100%-failing lane still prints lines
+        todo = [(f"Dead Co {i}", f"DEAD{i}.NS", None) for i in range(6)]
+
+        def fake_fetch(_ticker):
+            return None
+
+        with caplog.at_level(logging.INFO, logger="enrich"):
+            _results, failures, _mismatches = enf.fetch_todo(
+                todo,
+                workers=2,
+                aliases={},
+                fetch_fn=fake_fetch,
+                progress_every=2,
+                progress_seconds=0.01,
+            )
+        assert len(failures) == 6
+        assert "fetch progress: 6/6" in caplog.text
+        assert "failures 6" in caplog.text
+
+    def test_stalled_flag_on_slow_in_flight_ticker(self, caplog):
+        todo = [("Fast Co", "FAST.NS", "a.md"), ("Slow Co", "SLOW.NS", "b.md")]
+        names = {"FAST.NS": "Fast Company", "SLOW.NS": "Slow Company"}
+
+        def slow_fetch(ticker):
+            if ticker == "SLOW.NS":
+                time.sleep(0.3)
+            return {"longName": names[ticker]}
+
+        with caplog.at_level(logging.INFO, logger="enrich"):
+            enf.fetch_todo(
+                todo,
+                workers=1,
+                aliases={},
+                fetch_fn=slow_fetch,
+                progress_every=100,
+                progress_seconds=0.05,
+                stalled_after=0.08,
+            )
+        assert "STALLED" in caplog.text
+        assert "SLOW.NS" in caplog.text
+
+    def test_empty_todo_short_circuits(self):
+        assert enf.fetch_todo([], workers=2, aliases={}) == ([], [], [])
+
+    def test_raising_fetch_fn_counts_as_failure(self):
+        def boom(_ticker):
+            raise RuntimeError("network exploded")
+
+        results, failures, mismatches = enf.fetch_todo(
+            [("Boom Co", "BOOM.NS", "b.md")],
+            workers=1,
+            aliases={},
+            fetch_fn=boom,
+            progress_every=1,
+        )
+        assert results == [] and mismatches == []
+        assert failures == [("Boom Co", "BOOM.NS", "b.md")]

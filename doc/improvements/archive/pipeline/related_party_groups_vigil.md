@@ -147,3 +147,35 @@ Landed on the live store (edge counts before → after):
   §Shareholding (the archives lane).
 - VIGIL docs: vigil.tigzig.com/data-api (API catalog
   api.tigzig.com/vigil/v1/docs; terms CC0 for the compilation).
+
+## Follow-up 2026-11-03 — institutional investors are not group members
+
+Operator ruling: institutional investors (LIC, HDFC LIFE, ...) hold
+market portfolios across hundreds of listed companies — that is
+investing, not group co-membership. VIGIL "common control"/
+"promoter group" classifications over such pairs are insurer-
+investor noise, and the ladder never consulted entity types: 5
+`vigil:rpt` `same_group` rows with institution endpoints (LIC x4,
+HDFC LIFE x1 vs Axis Bank, HDFC AMC, IDBI, IREDA) minted from the
+2026-11-03 chain runs and then sat invisible — the `e_group` CTAS
+filters to the spec's singular `src_kind`/`dst_kind` (company), so
+SQLite accrued rows the mirror drops by design, and the integrity
+checker (raw expectation, kind filter only on plural `src_kinds`
+specs) flagged the delta as cache staleness (`make perf` gate
+failure, run 3397).
+
+Fixes, both directions of the same semantics:
+
+- Mint guard (`related_party_sync.apply_pairs`): `same_group` pairs
+  with a non-company-typed endpoint are dropped and counted
+  (`same_group_noncompany_dropped` in the `[mode:group]` report
+  line). `subsidiary_of`/`jv_with` untouched — person-parent
+  subsidiary rows are the plural-kind lanes' doctrine, and a JV
+  partnership claim is genuine even with an insurer partner.
+- Checker alignment (`database_integrity_check.`
+  `_expected_edge_count`): singular-kind specs now filter the same
+  way the CTAS does; `invested_in` keeps its materializer kind sets
+  (institution,company,person -> company). The 5 pre-existing rows
+  were purged on operator order the same day (backup:
+  `$TMPDIR/same_group_purge_backup.json`; raw `same_group` count
+  10973 -> 10968 == `e_group`, integrity check RC=0).

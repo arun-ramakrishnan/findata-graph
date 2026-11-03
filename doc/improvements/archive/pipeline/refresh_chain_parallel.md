@@ -161,3 +161,37 @@ failures across runs.
 Verification: `--fetch-only` and `--apply-only` confirmed working on all five lanes
 (dry-run tested against live DB; mutual exclusivity returns rc=2). Scratch artifacts
 verified to land under `$TMPDIR`. Existing sequential `refresh-chain` target unchanged.
+
+## Follow-up 2026-11-03 — slice S3 (filed, pending policy call): BSE lane header upgrade
+
+Both chain runs on 2026-11-03 (18:53 dry, 19:29 `APPLY=1`) staged 0 rows on the
+BSE lane: `[bse] FETCH-FAILED: HTTP Error 403: Forbidden`. A single curl probe
+with the exact headers the lane sends (`UA` at `exchange_sync.py:56`, referer
+`https://www.bseindia.com/` from `fetch_bse()` at `exchange_sync.py:449-460`)
+reproduces `403` in ~0.07 s — an edge WAF fast-reject, not rate-limit backoff, and
+persistent across the day. Containment worked as designed: the lane stages an
+empty list, the chain proceeds, existing `exchange_listings` BSE rows are stale
+but not lost, and `lane_fresh` retries the lane on every subsequent run until
+the block clears.
+
+**Slice S3** — header upgrade. Operator rationale, verbatim: "Header upgrade —
+the honest Mozilla/5.0 research UA is an easy WAF target; a browser-grade UA +
+full header set would likely pass, but that's a scraping-policy decision I
+didn't want to make unilaterally". Operator approved the work same day.
+
+Implemented 2026-11-03 (`exchange_sync.py` `UA` constant → full browser-grade
+set: Chrome UA + `Accept`/`Accept-Language` + Sec-Fetch trio; shared by all
+seven `_get()` lanes; unit test `test_get_sends_full_browser_header_set`
+asserts the wire shape; no phase-structure changes).
+
+**Honest outcome: the header upgrade does NOT clear the BSE 403.** Probe
+evidence (2026-11-03, one shot per variant): the full browser set still gets
+`403` from `api.bseindia.com` under both urllib and curl; meanwhile
+`www.bseindia.com` serves the REAL homepage to plain urllib (correct title,
+no JS-challenge markers) and issues no `Set-Cookie` — so no cookie warm-up
+lane exists. The API edge is fingerprinting beyond headers (TLS/JA3 or
+api-host IP reputation); no TLS-impersonation lib exists in the venv. The
+upgrade stays landed as the correct browser shape for every lane, but the
+BSE lane remains 403-contained (stale-but-not-lost, retried by `lane_fresh`
+each run) until the edge relaxes — or until a further operator call on a
+`curl_cffi`-style dependency (new dependency = new policy decision).

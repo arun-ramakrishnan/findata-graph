@@ -43,6 +43,7 @@ if str(REPO) not in sys.path:
     sys.path.insert(0, str(REPO))
 from helpers.core import jsonio  # noqa: E402  (orjson parse cutover; dumps stay stdlib per db_scaling_tuning §6.3 criteria)
 from helpers.core.db import connect  # noqa: E402  (post-bootstrap: entry point, lazy-import convention)
+from helpers.misc.duckdb_lock import connect_with_lock_retry  # noqa: E402  (post-bootstrap)
 
 DB = REPO / "memory" / "data" / "sources.duckdb"
 WORKLIST = REPO / "memory" / "data" / "ipo_worklist.csv"
@@ -52,7 +53,17 @@ FETCH_SCRATCH = (
     / "exchange_fetch_scratch"
 )
 BACKFILL_DATE = "2026-09-15"  # D16 fold date for pre-existing rows
-UA = {"User-Agent": "Mozilla/5.0 research"}
+UA = {
+    "User-Agent": (
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+        "(KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36"
+    ),
+    "Accept": "*/*",
+    "Accept-Language": "en-US,en;q=0.9",
+    "Sec-Fetch-Dest": "empty",
+    "Sec-Fetch-Mode": "cors",
+    "Sec-Fetch-Site": "same-site",
+}
 
 Row = dict  # keys: symbol, name, segment, isin?, industry?, exchange
 
@@ -619,7 +630,7 @@ def lane_fresh(con: duckdb.DuckDBPyConnection, lane: str, max_age: int) -> bool:
 
 
 def _connect() -> duckdb.DuckDBPyConnection:
-    con = duckdb.connect(str(DB))
+    con = connect_with_lock_retry(lambda: duckdb.connect(str(DB)))
     cols = [r[0] for r in con.execute("describe exchange_listings").fetchall()]
     if "fetched_at" not in cols:
         con.execute("alter table exchange_listings add column fetched_at date")

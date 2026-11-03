@@ -70,7 +70,8 @@ gate_query timing --leg <leg> --last 10              # where the time goes
 - `witr` (`/usr/local/bin/witr`, `man witr`) — WHY a process/resource
   is busy, before `ps aux | grep`. `prime-agent → bash → timeout →
   python3` ancestry = THIS session (safe to kill the leaf); `witr -f
-  <db>` names a DuckDB holder.
+  <db>` names a DuckDB holder; `witr -p <pid>` prints one process's
+  full ancestry (bare `witr <pid>` does NOT match PIDs — always -p).
 - gate_query indexes `outputs/*_report.md` (main +
   `outputs/wt/<name>/`) incrementally — query BEFORE tailing reports.
 

@@ -52,7 +52,10 @@ fcntl.flock(lf.fileno(), fcntl.LOCK_UN)
 lf.close()
 """
     proc = subprocess.Popen(
-        [sys.executable, "-c", holder, str(lock), "2.0"],
+        # 8.0s window: the watcher burns ~1.6s in the S1 retry ladder before
+        # probing the build.lock, and an xdist-loaded gate adds scheduling
+        # delay — 2.0s raced the probe and flaked SKIP at gate 3402.
+        [sys.executable, "-c", holder, str(lock), "8.0"],
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
         text=True,

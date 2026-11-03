@@ -152,7 +152,6 @@ help:           ## Show available targets (alphabetical; entries generated from 
 > @echo "  recompute-graph          Recompute all graph analytics and persist to graph_analytics"
 > @echo "  recompute-hyper          Recompute HGX hyper metrics (hy-MMSBM communities + ho/s centralities)"
 > @echo "  refresh-chain            D20 phase 3 parallel — fetch lanes in parallel, apply sequentially (APPLY=1 to write)"
-> @echo "  refresh-chain-ser        D20 phase 3 sequential — exchanges → vigil → shp → enrich → CIN web → XBRL --new → snapshot (APPLY=1 to write)"
 > @echo "  refresh-exchanges        D19: sync exchange masters + detect new listings (lanes as args; APPLY=1 to write)"
 > @echo "  refresh-indices          Sync NSE index constituents into sources.duckdb (Wave 1 broad-based + sectoral; APPLY=1 to write)"
 > @echo "  refresh-shp              NSE shareholding-pattern RSS -> invested_in edges (APPLY=1 to write; quarterly cadence, weekly poll)"
@@ -283,25 +282,22 @@ refresh-shp:  ## NSE shareholding-pattern RSS lane -> sources.duckdb + invested_
 > .venv/bin/python3 helpers/maintenance/shareholding_sync.py --rss --bse-rss $(if $(APPLY),--apply)
 > @echo "✓ shareholding filings synced (dry-run unless APPLY=1)"
 
-refresh-chain-ser:  ## D20 phase 3: post-refresh hook chain — exchanges → vigil → shp → enrich → CIN web → XBRL --new → snapshot (APPLY=1 to write; all lanes incremental/idempotent)
-> .venv/bin/python3 helpers/maintenance/exchange_sync.py $(if $(APPLY),--apply)
-> .venv/bin/python3 helpers/maintenance/related_party_sync.py --download --ratings-download $(if $(APPLY),--apply)
-> .venv/bin/python3 helpers/maintenance/shareholding_sync.py --rss --bse-rss $(if $(APPLY),--apply)
-> .venv/bin/python3 helpers/maintenance/enrich_from_yfinance.py $(if $(APPLY),--apply)
-> .venv/bin/python3 helpers/maintenance/mca_cin_resolve.py ingest-web --no-revalidate $(if $(APPLY),--apply)
-> .venv/bin/python3 helpers/maintenance/ingest_nse_xbrl.py --new $(if $(APPLY),--apply)
-> $(if $(APPLY),.venv/bin/python3 helpers/maintenance/snapshot_db.py,@echo "dry-run: snapshot export skipped (APPLY=1 writes)")
-
 refresh-chain:  ## D20 phase 3 parallel — fetch lanes in parallel, apply sequentially (APPLY=1 to write)
-> .venv/bin/python3 helpers/maintenance/related_party_sync.py --download --ratings-download &
-> .venv/bin/python3 helpers/maintenance/shareholding_sync.py --rss --bse-rss --fetch-only &
-> .venv/bin/python3 helpers/maintenance/enrich_from_yfinance.py --fetch-only &
-> .venv/bin/python3 helpers/maintenance/ingest_nse_xbrl.py --new --fetch-only &
-> .venv/bin/python3 helpers/maintenance/exchange_sync.py --fetch-only &
-> .venv/bin/python3 helpers/maintenance/ticker_hygiene.py --fetch-only &
-> wait
+# phase A — parallel fetches; ONE shell for all lanes + wait (each recipe
+# line = its own shell: per-line '&' orphans the lanes and makes 'wait'
+# vacuous, letting phase B race phase A for the sources.duckdb lock)
+> @rc=0; \
+> .venv/bin/python3 helpers/maintenance/related_party_sync.py --download --ratings-download --no-load & p1=$$!; \
+> .venv/bin/python3 helpers/maintenance/shareholding_sync.py --rss --bse-rss --fetch-only & p2=$$!; \
+> .venv/bin/python3 helpers/maintenance/enrich_from_yfinance.py --fetch-only & p3=$$!; \
+> .venv/bin/python3 helpers/maintenance/ingest_nse_xbrl.py --new --fetch-only & p4=$$!; \
+> .venv/bin/python3 helpers/maintenance/exchange_sync.py --fetch-only & p5=$$!; \
+> .venv/bin/python3 helpers/maintenance/ticker_hygiene.py --fetch-only & p6=$$!; \
+> for p in $$p1 $$p2 $$p3 $$p4 $$p5 $$p6; do wait $$p || { echo "fetch lane pid $$p FAILED (exit $$?)"; rc=1; }; done; \
+> exit $$rc
+# phase B — sequential applies (single-writer stores; dry-run parity without APPLY)
 > .venv/bin/python3 helpers/maintenance/exchange_sync.py --apply-only $(if $(APPLY),--apply)
-> .venv/bin/python3 helpers/maintenance/related_party_sync.py --apply $(if $(APPLY),--apply)
+> .venv/bin/python3 helpers/maintenance/related_party_sync.py --download --ratings-download $(if $(APPLY),--apply)
 > .venv/bin/python3 helpers/maintenance/shareholding_sync.py --apply-only $(if $(APPLY),--apply)
 > .venv/bin/python3 helpers/maintenance/ticker_hygiene.py --apply-only $(if $(APPLY),--apply)
 > .venv/bin/python3 helpers/maintenance/enrich_from_yfinance.py --apply-only $(if $(APPLY),--apply)

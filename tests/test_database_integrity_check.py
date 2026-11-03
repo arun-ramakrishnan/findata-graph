@@ -1233,6 +1233,7 @@ class TestExpectedEdgeCount:
                 ("ChildCo", "company", None, "ChildCo", None, None),
                 ("ParentCo", "company", None, "ParentCo", None, None),
                 ("Promoter Person", "person", None, "Promoter_Person", None, None),
+                ("Big Insurer", "institution", None, "Big Insurer", None, None),
             ],
         )
         conn.executemany(
@@ -1241,6 +1242,8 @@ class TestExpectedEdgeCount:
                 ("ChildCo", "ParentCo", "subsidiary_of"),
                 ("ChildCo", "Promoter Person", "subsidiary_of"),
                 ("ChildCo", "ParentCo", "same_group"),
+                ("ChildCo", "Big Insurer", "same_group"),
+                ("Promoter Person", "ChildCo", "invested_in"),
             ],
         )
         conn.commit()
@@ -1250,7 +1253,32 @@ class TestExpectedEdgeCount:
     def test_plain_spec_counts_raw(self, tmp_path: Path):
         checker = self._seed(tmp_path)
         try:
-            assert checker._expected_edge_count("same_group", {"table": "e_group"}) == 1
+            # both same_group rows, including the institution-endpoint one
+            assert checker._expected_edge_count("same_group", {"table": "e_group"}) == 2
+        finally:
+            checker.close()
+
+    def test_singular_kind_spec_excludes_out_of_family_endpoints(self, tmp_path: Path):
+        # registry default branch (e.g. same_group): singular src_kind/
+        # dst_kind filter the CTAS applies — the institution-endpoint
+        # row lives in SQLite but is absent from e_group BY DESIGN
+        # (2026-11-03: 5 vigil:rpt same_group rows failed the cache check
+        # on a freshly rebuilt cache until the expectation caught up).
+        checker = self._seed(tmp_path)
+        try:
+            spec = {"src_kind": "company", "dst_kind": "company"}
+            assert checker._expected_edge_count("same_group", spec) == 1
+        finally:
+            checker.close()
+
+    def test_invested_in_expects_materializer_kind_sets(self, tmp_path: Path):
+        # invested_in CTAS admits company/person holders despite the
+        # singular institution src_kind; the expectation must keep the
+        # materializer kind sets or person-holder rows read as staleness
+        checker = self._seed(tmp_path)
+        try:
+            spec = {"src_kind": "institution", "dst_kind": "company"}
+            assert checker._expected_edge_count("invested_in", spec) == 1
         finally:
             checker.close()
 

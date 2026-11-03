@@ -250,3 +250,39 @@ def test_lane_fresh_wiki_segment_scoped():
             [exch, seg],
         )
     assert xs.lane_fresh(con, "wiki", 80) is True
+
+
+def test_get_sends_full_browser_header_set(monkeypatch):
+    """S3 header upgrade: _get() must send the browser-grade set (UA +
+    Accept/Accept-Language + Sec-Fetch trio) and layer Referer per call."""
+    seen = {}
+
+    def fake_urlopen(req, timeout=None):
+        seen["headers"] = dict(req.headers)
+        seen["timeout"] = timeout
+
+        class _Resp:
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *exc):
+                return False
+
+            def read(self):
+                return b"[]"
+
+        return _Resp()
+
+    monkeypatch.setattr(xs.urllib.request, "urlopen", fake_urlopen)
+    out = xs._get("https://example.test/api", referer="https://www.example.test/", binary=True)
+    assert out == b"[]"
+    h = {k.lower(): v for k, v in seen["headers"].items()}
+    assert h["user-agent"].startswith("Mozilla/5.0 (Windows NT 10.0; Win64; x64)")
+    assert "Chrome/" in h["user-agent"]
+    assert h["accept"] == "*/*"
+    assert h["accept-language"] == "en-US,en;q=0.9"
+    assert h["sec-fetch-dest"] == "empty"
+    assert h["sec-fetch-mode"] == "cors"
+    assert h["sec-fetch-site"] == "same-site"
+    assert h["referer"] == "https://www.example.test/"
+    assert seen["timeout"] == 60

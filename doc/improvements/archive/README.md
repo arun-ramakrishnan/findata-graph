@@ -940,6 +940,10 @@ commit, referenced by nothing). Entry numbers point at
   mtimes, S3 sibling-leg survey with the script leg shipped alongside —
   completed.md #387
 
+## maintenance/ — Maintenance, backfills, and operational tooling
+
+- [`relations_fk_stale_cache_guard.md`](maintenance/relations_fk_stale_cache_guard.md) — relations-enrich endpoint FK guard and stale-cache age protection (14-day warning, 45-day apply refusal without refresh); completed.md #477
+
 ## ui/ — Frontend & templates — reader, paper register, findata views
 
 - [`graph_docs_ui_redesign.md`](ui/graph_docs_ui_redesign.md) — Graph docs UI redesign — completed.md #145

@@ -74,7 +74,7 @@ import sys
 import time
 from collections import defaultdict
 from collections.abc import Callable
-from concurrent.futures import ThreadPoolExecutor, as_completed
+from concurrent.futures import FIRST_COMPLETED, Future, ThreadPoolExecutor, wait
 from dataclasses import dataclass, field
 from datetime import datetime, UTC
 from pathlib import Path
@@ -89,6 +89,7 @@ from helpers.core.db import connect, utc_now, utc_today_iso  # noqa: E402  (W8: 
 from helpers.maintenance.enrich_from_yfinance import (  # noqa: E402
     DB_PATH,
     PROJECT_ROOT,
+    _get_yf_session,
     fetch_company,
 )
 from helpers.maintenance.googlefinance import (  # noqa: E402
@@ -233,26 +234,91 @@ def fetch_all(
     *,
     fetch_fn=fetch_company,
     workers: int = 2,
+    progress_every: int = 250,
+    progress_seconds: float = 30.0,
+    stalled_after: float = 60.0,
 ) -> tuple[dict[str, dict], list[tuple[str, str]]]:
     """Fetch .info for every tickered company.
 
     Returns (info_by_name, failures) where failures are (name, ticker)
     pairs classified as 404/no-data — the ticker-hygiene list.
+
+    Progress reporting (2026-11-03, relations_fk_stale_cache_guard
+    follow-up): the day's --refresh-cache runs hung mid-fetch with zero
+    output — fetch_company had no request timeout, so every worker could
+    sit on stalled Yahoo responses forever, and the old as_completed
+    loop printed nothing until the very end (the cache itself is only
+    written after the last fetch). The operator killed two runs blind.
+    fetch_all now reports every progress_every completions or
+    progress_seconds, whichever first: count/total, rate, ETA, running
+    failure count, and the in-flight tickers with per-ticker elapsed
+    seconds — anything over stalled_after is flagged STALLED, the
+    kill/no-kill signal.
     """
+    total = len(companies)
+    if total == 0:
+        return {}, []
     info_by_name: dict[str, dict] = {}
     failures: list[tuple[str, str]] = []
+    started = time.monotonic()
+    last_report = started
+    last_count = 0
+    in_flight: dict[object, tuple[str, str, float]] = {}
     with ThreadPoolExecutor(max_workers=workers) as pool:
-        futures = {pool.submit(fetch_fn, ticker): (name, ticker) for name, ticker, _fp in companies}
-        for fut in as_completed(futures):
-            name, ticker = futures[fut]
-            try:
-                info = fut.result()
-            except Exception:  # defensive: fetch_fn contract says None, not raise
-                info = None
-            if info is None:
-                failures.append((name, ticker))
-            else:
-                info_by_name[name] = info
+        futures: dict[Future, tuple[str, str]] = {}
+        for name, ticker, _fp in companies:
+            fut = pool.submit(fetch_fn, ticker)
+            futures[fut] = (name, ticker)
+            in_flight[fut] = (name, ticker, time.monotonic())
+        done_count = 0
+        pending = set(futures)
+        while pending:
+            done_now, pending = wait(pending, timeout=progress_seconds, return_when=FIRST_COMPLETED)
+            now = time.monotonic()
+            for fut in done_now:
+                name, ticker = futures[fut]
+                in_flight.pop(fut, None)
+                done_count += 1
+                try:
+                    info = fut.result()
+                except Exception:  # defensive: fetch_fn contract says None, not raise
+                    info = None
+                if info is None:
+                    failures.append((name, ticker))
+                else:
+                    info_by_name[name] = info
+            due_count = done_count >= last_count + progress_every
+            due_time = (now - last_report) >= progress_seconds
+            if done_count == total or due_count or due_time:
+                elapsed = now - started
+                rate = done_count / elapsed if elapsed > 0 else 0.0
+                remaining = total - done_count
+                eta = remaining / rate if rate > 0 else None
+                flight = ", ".join(
+                    f"{tk} ({el:.0f}s{' STALLED' if el > stalled_after else ''})"
+                    for tk, el in sorted(
+                        ((t, now - t0) for (_n, t, t0) in in_flight.values()),
+                        key=lambda kv: -kv[1],
+                    )[:workers]
+                )
+                log.info(
+                    "fetch progress: %d/%d (%.0f%%) %.1f/s eta %s | failures %d | in-flight: %s",
+                    done_count,
+                    total,
+                    100.0 * done_count / total,
+                    rate,
+                    f"{eta / 60:.0f}min" if eta is not None else "?",
+                    len(failures),
+                    flight or "-",
+                )
+                last_report = now
+                last_count = done_count
+    log.info(
+        "fetch complete: %d ok, %d failures in %.0fs",
+        len(info_by_name),
+        len(failures),
+        time.monotonic() - started,
+    )
     return info_by_name, sorted(failures)
 
 
@@ -488,6 +554,70 @@ def apply_edges(
     return inserted
 
 
+def filter_known_entities(
+    conn: sqlite3.Connection,
+    edges: list[tuple[str, str, float, str, dict]],
+) -> tuple[list[tuple[str, str, float, str, dict]], list[tuple[str, str, str]]]:
+    """Partition candidate edges by whether both endpoints exist in entities.
+
+    relations_fk_stale_cache_guard S1: the 2026-11-03 apply crash
+    (IntegrityError: FOREIGN KEY constraint failed at the INSERT below)
+    came from a 71-day fetch cache holding 3 entity names renamed since
+    (graph_edges.source/target REFERENCES entities(name)). Dropping dead
+    endpoints BEFORE the write turns the crash into a reportable
+    [fk_dropped] section, and dry-run parity counts become true.
+    """
+    known = {r[0] for r in conn.execute("SELECT name FROM entities").fetchall()}
+    writable: list[tuple[str, str, float, str, dict]] = []
+    dropped: list[tuple[str, str, str]] = []
+    for source, target, weight, source_ref, props in edges:
+        if source in known and target in known:
+            writable.append((source, target, weight, source_ref, props))
+        else:
+            dropped.append((source, target, source if source not in known else target))
+    return writable, dropped
+
+
+_CACHE_WARN_DAYS = 14
+_CACHE_REFUSE_DAYS = 45
+
+
+def _guard_cache_age(
+    fetched_at: str,
+    *,
+    dry_run: bool,
+    refresh_cache: bool,
+    check_only: bool,
+) -> None:
+    """Refuse cache-fed --apply passes on stale fetches (proposal S2).
+
+    fetched_at older than _CACHE_WARN_DAYS: warn. Older than
+    _CACHE_REFUSE_DAYS (or unparseable) in edge-writing mode (not
+    --dry-run / --check-only) without --refresh-cache: SystemExit — the
+    2026-11-03 FK crash rode a 71-day-old cache. Fresh fetches never
+    reach this guard (it sits on the cache-load branch only).
+    """
+    try:
+        age_days = (datetime.now(UTC) - datetime.fromisoformat(fetched_at)).days
+    except ValueError:
+        log.warning("cache fetched_at %r unparseable — treating as stale", fetched_at)
+        age_days = _CACHE_REFUSE_DAYS + 1
+    if age_days > _CACHE_REFUSE_DAYS:
+        if not (dry_run or check_only) and not refresh_cache:
+            raise SystemExit(
+                f"relations-enrich: fetch cache is {age_days} days old "
+                f"(fetched_at {fetched_at}) — entity names may have been "
+                "renamed since and --apply would crash on the entities FK. "
+                "Re-run with --refresh-cache, or --dry-run first."
+            )
+    elif age_days > _CACHE_WARN_DAYS:
+        log.warning(
+            "fetch cache is %d days old (fetched_at %s) — consider --refresh-cache",
+            age_days,
+            fetched_at,
+        )
+
+
 def write_report(
     path: Path,
     *,
@@ -499,6 +629,7 @@ def write_report(
     n_edges: list[tuple[str, str, float, str, dict]],
     industries: dict[str, int],
     applied: int | None,
+    fk_dropped: list[tuple[str, str, str]] | None = None,
 ) -> None:
     """outputs/metrics_report.md-style run report with the ticker-hygiene section.
 
@@ -539,6 +670,11 @@ def write_report(
             f.write(
                 f"**Apply result:** {'would-insert' if mode == 'dry-run' else 'inserted'}={applied}\n"
             )
+        if fk_dropped:
+            f.write("\n## fk_dropped  # endpoints missing from entities (stale cache?)\n\n")
+            f.write("| Edge | Missing endpoint |\n|---|---|\n")
+            for source, target, missing in fk_dropped:
+                f.write(f"| {source} -> {target} | {missing} |\n")
         f.write("\n")
 
 
@@ -573,27 +709,23 @@ def _resolve_log_mcaps(
     return caps
 
 
-def run_yfinance_pass(
-    conn: sqlite3.Connection,
+def _load_or_fetch_infos(
+    companies: list[tuple[str, str, str | None]],
     *,
-    topology: str = "knn",
-    k: int = 8,
-    workers: int = 2,
-    dry_run: bool = True,
-    check_only: bool = False,
+    workers: int,
     fetch_fn=fetch_company,
     fetch_cache: Path | None = FETCH_CACHE_PATH,
     refresh_cache: bool = False,
-    mutual: bool = False,
-) -> int:
-    """The full yfinance pass: fetch -> hygiene -> edges -> report."""
-    companies, unlisted = load_companies(conn)
-    log.info(
-        "universe: %d tickered, %d deliberately unlisted (skipped)",
-        len(companies),
-        len(unlisted),
-    )
+    dry_run: bool = True,
+    check_only: bool = False,
+) -> tuple[dict[str, dict], list[tuple[str, str]]]:
+    """Fetch .info for ``companies``, or load the on-disk fetch cache when
+    it exists and passes the age guard.
 
+    Returns ``(info_by_name, failures)``; failures are (name, ticker).
+    Extracted from run_yfinance_pass (2026-11-04) to keep that orchestrator
+    under the C901 complexity ceiling the lint-audit gate enforces.
+    """
     t0 = time.perf_counter()
     cache: Path | None = fetch_cache
     if cache is not None and cache.exists() and not refresh_cache:
@@ -601,6 +733,12 @@ def run_yfinance_pass(
         info_by_name = payload["info_by_name"]
         failures = [tuple(f) for f in payload["failures"]]
         fetched_at = payload.get("fetched_at", "unknown")
+        _guard_cache_age(
+            fetched_at,
+            dry_run=dry_run,
+            refresh_cache=refresh_cache,
+            check_only=check_only,
+        )
         log.info(
             "loaded %d fetched infos (+%d failures) from cache %s (fetched_at: %s)",
             len(info_by_name),
@@ -635,6 +773,39 @@ def run_yfinance_pass(
             log.warning("ticker issue: %s (%s)", name, ticker)
         if len(failures) > 20:
             log.warning("... and %d more (see report)", len(failures) - 20)
+    return info_by_name, failures
+
+
+def run_yfinance_pass(
+    conn: sqlite3.Connection,
+    *,
+    topology: str = "knn",
+    k: int = 8,
+    workers: int = 2,
+    dry_run: bool = True,
+    check_only: bool = False,
+    fetch_fn=fetch_company,
+    fetch_cache: Path | None = FETCH_CACHE_PATH,
+    refresh_cache: bool = False,
+    mutual: bool = False,
+) -> int:
+    """The full yfinance pass: fetch -> hygiene -> edges -> report."""
+    companies, unlisted = load_companies(conn)
+    log.info(
+        "universe: %d tickered, %d deliberately unlisted (skipped)",
+        len(companies),
+        len(unlisted),
+    )
+
+    info_by_name, failures = _load_or_fetch_infos(
+        companies,
+        workers=workers,
+        fetch_fn=fetch_fn,
+        fetch_cache=fetch_cache,
+        refresh_cache=refresh_cache,
+        dry_run=dry_run,
+        check_only=check_only,
+    )
 
     edges: list[tuple[str, str, float, str, dict]] = []
     industries: dict[str, int] = {}
@@ -646,7 +817,17 @@ def run_yfinance_pass(
             industries[props["industry"]] = industries.get(props["industry"], 0) + 1
 
     applied: int | None = None
+    fk_dropped: list[tuple[str, str, str]] = []
     if not check_only:
+        edges, fk_dropped = filter_known_entities(conn, edges)
+        for source, target, missing in fk_dropped:
+            log.warning(
+                "fk_dropped: %s -> %s (endpoint %r not in entities — stale "
+                "fetch cache? try --refresh-cache)",
+                source,
+                target,
+                missing,
+            )
         applied = apply_edges(conn, edges, dry_run=dry_run)
         mode = "dry-run" if dry_run else "apply"
         log.info(
@@ -667,6 +848,7 @@ def run_yfinance_pass(
         n_edges=edges,
         industries=industries,
         applied=applied,
+        fk_dropped=fk_dropped,
     )
     log.info("report written to %s", REPORT_PATH)
     if not check_only and not dry_run:
@@ -1384,7 +1566,7 @@ def fetch_holders_for_one(ticker: str, fetch_fn=None) -> list[dict]:
     try:
         import yfinance as yf  # noqa: WPS433
 
-        t = yf.Ticker(ticker)
+        t = yf.Ticker(ticker, session=_get_yf_session())
         df = getattr(t, "institutional_holders", None)
         # yfinance 1.6.0: institutional_holders is a property returning DataFrame
         if callable(df):
@@ -1399,28 +1581,82 @@ def fetch_holders_for_all(
     *,
     fetch_fn=None,
     workers: int = 2,
+    progress_every: int = 250,
+    progress_seconds: float = 30.0,
+    stalled_after: float = 60.0,
 ) -> tuple[dict[str, list[dict]], list[str]]:
     """Fetch holders for every tickered company.
 
     Returns (holders_by_company, companies_with_holders) where holders_by_company
     maps company name -> list of holder dicts (empty list if none).
+
+    Progress reporting mirrors fetch_all (2026-11-03 hang follow-up): the
+    holders lane fans out over the same ~6k tickers against Yahoo with
+    the same stall exposure, so it gets the same count/time-based
+    progress lines with STALLED in-flight naming.
     """
+    total = len(companies)
+    if total == 0:
+        return {}, []
     holders_by_company: dict[str, list[dict]] = {}
+    started = time.monotonic()
+    last_report = started
+    last_count = 0
+    in_flight: dict[object, tuple[str, float]] = {}
     with ThreadPoolExecutor(max_workers=workers) as pool:
-        futures = {}
+        futures: dict[Future, str] = {}
         for name, ticker, _fp in companies:
             if fetch_fn is not None:
                 fut = pool.submit(fetch_holders_for_one, ticker, fetch_fn)
             else:
                 fut = pool.submit(fetch_holders_for_one, ticker)
             futures[fut] = name
-        for fut in as_completed(futures):
-            name = futures[fut]
-            try:
-                rows = fut.result()
-            except Exception:
-                rows = []
-            holders_by_company[name] = rows or []
+            in_flight[fut] = (name, time.monotonic())
+        done_count = 0
+        pending = set(futures)
+        while pending:
+            done_now, pending = wait(pending, timeout=progress_seconds, return_when=FIRST_COMPLETED)
+            now = time.monotonic()
+            for fut in done_now:
+                name = futures[fut]
+                in_flight.pop(fut, None)
+                done_count += 1
+                try:
+                    rows = fut.result()
+                except Exception:
+                    rows = []
+                holders_by_company[name] = rows or []
+            due_count = done_count >= last_count + progress_every
+            due_time = (now - last_report) >= progress_seconds
+            if done_count == total or due_count or due_time:
+                elapsed = now - started
+                rate = done_count / elapsed if elapsed > 0 else 0.0
+                remaining = total - done_count
+                eta = remaining / rate if rate > 0 else None
+                flight = ", ".join(
+                    f"{nm} ({el:.0f}s{' STALLED' if el > stalled_after else ''})"
+                    for nm, el in sorted(
+                        ((nm, now - t0) for (nm, t0) in in_flight.values()),
+                        key=lambda kv: -kv[1],
+                    )[:workers]
+                )
+                log.info(
+                    "holders fetch progress: %d/%d (%.0f%%) %.1f/s eta %s | in-flight: %s",
+                    done_count,
+                    total,
+                    100.0 * done_count / total,
+                    rate,
+                    f"{eta / 60:.0f}min" if eta is not None else "?",
+                    flight or "-",
+                )
+                last_report = now
+                last_count = done_count
+    log.info(
+        "holders fetch complete: %d companies with holders, %d empty in %.0fs",
+        sum(1 for rows in holders_by_company.values() if rows),
+        sum(1 for rows in holders_by_company.values() if not rows),
+        time.monotonic() - started,
+    )
     return holders_by_company, [n for n, rows in holders_by_company.items() if rows]
 
 

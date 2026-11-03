@@ -181,7 +181,7 @@ class TestGroupPass:
         companies = {"TVSMOTOR": "TVS Motor Company"}
         norm = {"TVS_Holdings": "TVS Holdings"}  # resolves
         pairs = rps.build_pairs(con)
-        n_ent, n_edges, written, _, _cycles = rps.apply_pairs(
+        n_ent, n_edges, written, _, _cycles, _nc = rps.apply_pairs(
             conn, pairs, companies, norm, dry_run=False
         )
         assert written == 3
@@ -203,6 +203,57 @@ class TestGroupPass:
         kinds = dict(conn.execute("SELECT name, entity_type FROM entities").fetchall())
         assert kinds["TVS Motor (Singapore) Pte"] == "company"  # created
 
+    def test_same_group_rejects_noncompany_endpoints(self, lane):
+        # 2026-11-03 operator ruling: institutional investors (LIC,
+        # HDFC LIFE, ...) are portfolio holders, not group members —
+        # same_group pairs with a non-company-typed endpoint are
+        # dropped at mint; the company<->company pair survives.
+        con, conn = lane
+        # canonical live name (fold registry maps the bare form to it)
+        conn.execute(
+            "INSERT INTO entities VALUES"
+            " ('Life Insurance Corporation of India (LIC)', 'institution', 'LIC', NULL)"
+        )
+        conn.commit()
+        _seed_rpt(
+            con,
+            [
+                (
+                    "TVSMOTOR",
+                    "TVS Motor Company Limited",
+                    "Life Insurance Corporation of India",
+                    "Associate",
+                    "Group Companies",
+                    None,
+                    None,
+                    None,
+                    None,
+                    None,
+                ),
+                (
+                    "TVSMOTOR",
+                    "TVS Motor Company Limited",
+                    "Sundaram Auto Components",
+                    "Fellow Subsidiary",
+                    "Group Companies",
+                    None,
+                    None,
+                    None,
+                    None,
+                    None,
+                ),
+            ],
+        )
+        pairs = rps.build_pairs(con)
+        n_ent, n_edges, written, _u, _c, n_nc = rps.apply_pairs(
+            conn, pairs, {"TVSMOTOR": "TVS Motor Company"}, {}, dry_run=False
+        )
+        assert n_nc == 1 and written == 1
+        rows = conn.execute(
+            "SELECT source, target FROM graph_edges WHERE edge_type='same_group'"
+        ).fetchall()
+        assert rows == [("Sundaram Auto Components", "TVS Motor Company")]
+
     def test_unresolvable_filer_reported(self, lane):
         con, conn = lane
         _seed_rpt(
@@ -223,7 +274,7 @@ class TestGroupPass:
             ],
         )
         pairs = rps.build_pairs(con)
-        n_ent, n_edges, written, n_unres, _cycles = rps.apply_pairs(
+        n_ent, n_edges, written, n_unres, _cycles, _nc = rps.apply_pairs(
             conn, pairs, {}, {}, dry_run=True
         )
         assert n_unres == 1 and n_edges == 0
@@ -357,7 +408,7 @@ class TestSymmetricEmissionPrecision:
         companies = {"TVSMOTOR": "TVS Motor Company"}
         norm = {"ABC_Auto_Components": "ABC Auto Components"}  # both spellings resolve
         pairs = rps.build_pairs(con)
-        n_ent, n_edges, written, _, n_cycles = rps.apply_pairs(
+        n_ent, n_edges, written, _, n_cycles, _nc = rps.apply_pairs(
             conn, pairs, companies, norm, dry_run=False
         )
         assert n_cycles == 1
@@ -779,7 +830,7 @@ class TestNameDedupS3:
         )
         monkeypatch.setattr(rps, "_fold_map", dict)  # no plan artifact in play
         pairs = rps.build_pairs(con)
-        n_ent, _n, written, _u, _c = rps.apply_pairs(
+        n_ent, _n, written, _u, _c, _nc = rps.apply_pairs(
             conn, pairs, {"TVSMOTOR": "TVS Motor Company"}, {}, dry_run=False
         )
         assert n_ent == 0  # NO duplicate entity minted
@@ -816,7 +867,7 @@ class TestNameDedupS3:
             ],
         )
         pairs = rps.build_pairs(con)
-        n_ent, _n, _w, _u, _c = rps.apply_pairs(
+        n_ent, _n, _w, _u, _c, _nc = rps.apply_pairs(
             conn, pairs, {"TVSMOTOR": "TVS Motor Company"}, {}, dry_run=False
         )
         assert n_ent == 0
@@ -834,3 +885,25 @@ def tmp_plan(text: str):
     f.write(text)
     f.close()
     return Path(f.name)
+
+
+class TestNoLoad:
+    def test_no_load_downloads_without_touching_sources_db(self, monkeypatch, capsys):
+        # refresh-chain phase A runs --download --no-load in parallel with
+        # sibling sources.duckdb openers: caches land on disk and the store
+        # is never opened (the long RW hold that crashed exchange_sync).
+        from pathlib import Path
+
+        def boom(*_a, **_k):  # pragma: no cover - fail loudly if reached
+            raise AssertionError("sources.duckdb must not be opened under --no-load")
+
+        monkeypatch.setattr(rps, "download_bulk", lambda refetch=False: Path("rpt.csv.gz.zst"))
+        monkeypatch.setattr(
+            rps, "download_ratings", lambda refetch=False: Path("ratings.csv.gz.zst")
+        )
+        monkeypatch.setattr(rps.duckdb, "connect", boom)
+        rc = rps.main(["--download", "--ratings-download", "--no-load"])
+        assert rc == 0
+        out = capsys.readouterr().out
+        assert "rpt_transactions cache ready: rpt.csv.gz.zst" in out
+        assert "credit_ratings cache ready: ratings.csv.gz.zst" in out

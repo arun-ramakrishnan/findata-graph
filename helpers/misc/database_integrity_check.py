@@ -2025,22 +2025,37 @@ class DatabaseIntegrityChecker:
     def _expected_edge_count(self, etype: str, spec: dict) -> int:
         """SQLite-side expectation for a materialized edge table.
 
-        Raw ``graph_edges`` count — EXCEPT for specs carrying
-        ``src_kinds``/``dst_kinds`` (VIGIL relation lanes, 2026-09-22):
-        the materializer (``helpers/graph/query.py::_materialise_edges``)
-        filters BOTH endpoints to those entity kinds, so rows with
-        out-of-family endpoints (e.g. person-typed subsidiary parents)
-        live in SQLite but are ABSENT from the mirror by design. The
-        expectation must apply the same filter or every such row reads
-        as cache staleness.
+        Raw ``graph_edges`` count — EXCEPT for specs carrying kind
+        keys: the materializer (``helpers/graph/query.py::
+        _materialise_edges``) filters BOTH endpoints to those entity
+        kinds, so rows with out-of-family endpoints (e.g. person-typed
+        subsidiary parents) live in SQLite but are ABSENT from the
+        mirror by design. The expectation must apply the same filter or
+        every such row reads as cache staleness.
+
+        Two spec shapes carry kinds, and both filter the same way the
+        CTAS does: plural ``src_kinds``/``dst_kinds`` (VIGIL relation
+        lanes, 2026-09-22) and the singular ``src_kind``/``dst_kind``
+        of the registry default branch (2026-11-03: 5 institution-
+        endpoint ``same_group`` rows made the cache check fail on a
+        freshly rebuilt cache). ``invested_in`` is special-cased in the
+        materializer to admit company/person holders despite its
+        singular institution src_kind, so its expectation keeps those
+        materializer kind sets too.
         """
         conn = self.get_connection()
-        if "src_kinds" not in spec:
+        if etype == "invested_in":
+            src_kinds = "institution,company,person"
+            dst_kinds = "company"
+        else:
+            src_kinds = spec.get("src_kinds") or spec.get("src_kind")
+            dst_kinds = spec.get("dst_kinds") or spec.get("dst_kind")
+        if not src_kinds or not dst_kinds:
             return conn.execute(
                 "SELECT COUNT(*) FROM graph_edges WHERE edge_type=?", (etype,)
             ).fetchone()[0]
-        sk = ", ".join(f"'{k.strip()}'" for k in spec["src_kinds"].split(","))
-        dk = ", ".join(f"'{k.strip()}'" for k in spec["dst_kinds"].split(","))
+        sk = ", ".join(f"'{k.strip()}'" for k in src_kinds.split(","))
+        dk = ", ".join(f"'{k.strip()}'" for k in dst_kinds.split(","))
         return conn.execute(
             "SELECT COUNT(*) FROM graph_edges e "  # noqa: S608  kinds from the EDGE_REGISTRY spec, not user input
             "JOIN entities es ON es.name = e.source "

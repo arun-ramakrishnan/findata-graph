@@ -9,13 +9,17 @@ classification. No network: fetch_fn is always injected.
 from __future__ import annotations
 
 import json
+import logging
 import sqlite3
+import time
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 import pytest
 from typing import Any
 
 from helpers.maintenance.enrich_relations import (  # noqa: E402
+    _guard_cache_age,
     ENTITY_GF_MAP_DDL,
     ENTITY_TICKER_STATUS_DDL,
     GF_NAME_MATCH_THRESHOLD,
@@ -24,6 +28,8 @@ from helpers.maintenance.enrich_relations import (  # noqa: E402
     apply_edges,
     build_candidate_edges,
     clique_industry_pairs,
+    fetch_all,
+    filter_known_entities,
     knn_industry_pairs,
     load_companies,
     load_gf_targets,
@@ -32,6 +38,13 @@ from helpers.maintenance.enrich_relations import (  # noqa: E402
     run_googlefinance_pass,
     run_yfinance_pass,
     weight_for_rank,
+)
+
+from helpers.maintenance.enrich_from_yfinance import requests as eyf_requests  # noqa: E402
+from helpers.maintenance.enrich_from_yfinance import (  # noqa: E402
+    _TimeoutSession,
+    _get_yf_session,
+    fetch_company,
 )
 from helpers.maintenance.exchange_search import BseMatch  # noqa: E402
 from helpers.maintenance.finnhub_search import FhMatch  # noqa: E402
@@ -241,6 +254,225 @@ class TestApplyEdges:
         assert row[2] == 1.0
         assert json.loads(row[3])["rank"] == 1
         assert row[5] == 1
+
+
+# --------------------------------------------------------------------------- #
+# FK + cache-age guards (relations_fk_stale_cache_guard)                       #
+# --------------------------------------------------------------------------- #
+class TestFkGuard:
+    @staticmethod
+    def _two_entities(db):
+        db.execute("INSERT INTO entities VALUES ('C0', 'T1.NS', NULL, 'company')")
+        db.execute("INSERT INTO entities VALUES ('C1', 'T2.NS', NULL, 'company')")
+        db.commit()
+
+    def test_filter_drops_renamed_endpoints(self, db):
+        self._two_entities(db)
+        edges = [
+            ("C0", "C1", 1.0, "yfinance:competes_with", {"industry": "Steel"}),
+            (
+                "Amara Raja Batteries",
+                "C1",
+                1.0,
+                "yfinance:competes_with",
+                {"industry": "Steel"},
+            ),
+            ("Gamma", "Delta", 1.0, "yfinance:competes_with", {"industry": "Steel"}),
+        ]
+        writable, dropped = filter_known_entities(db, edges)
+        assert [(e[0], e[1]) for e in writable] == [("C0", "C1")]
+        # Missing endpoint named: source first when source is the dead one.
+        assert dropped == [
+            ("Amara Raja Batteries", "C1", "Amara Raja Batteries"),
+            ("Gamma", "Delta", "Gamma"),
+        ]
+
+    def test_pass_reports_fk_dropped_instead_of_crashing(self, db, tmp_path, monkeypatch):
+        # 2026-11-03 crash shape: a warm cache names an entity renamed
+        # since the fetch; apply must complete and report the drop, not
+        # raise FOREIGN KEY constraint failed.
+        self._two_entities(db)
+        # load_log_mcaps probes this table on every write pass; the
+        # fixture graph_edges/entities-only schema lacks it.
+        db.execute("CREATE TABLE company_metrics (entity TEXT, metric_label TEXT, value_num REAL)")
+        monkeypatch.setattr(
+            "helpers.maintenance.enrich_relations.REPORT_PATH",
+            tmp_path / "relations_report.md",
+        )
+        cache_path = tmp_path / "fetch_cache.json"
+        cache_path.write_text(
+            json.dumps(
+                {
+                    "fetched_at": datetime.now(UTC).isoformat(timespec="seconds"),
+                    "info_by_name": {
+                        # marketCap present for all: keeps _resolve_log_mcaps
+                        # off the company_metrics table (not in this fixture).
+                        "C0": {"industry": "Steel", "marketCap": 1e10},
+                        "C1": {"industry": "Steel", "marketCap": 2e10},
+                        # Same industry as C0/C1 so clique candidates for it
+                        # actually EXIST — that is what the filter must drop.
+                        "Amara Raja Batteries": {
+                            "industry": "Steel",
+                            "marketCap": 3e10,
+                        },
+                    },
+                    "failures": [],
+                }
+            )
+        )
+
+        def exploding_fetch(ticker):
+            raise AssertionError("network hit despite warm cache")
+
+        rc = run_yfinance_pass(
+            db,
+            dry_run=False,
+            fetch_fn=exploding_fetch,
+            workers=1,
+            fetch_cache=cache_path,
+            topology="clique",
+        )
+        assert rc == 0
+        report = (tmp_path / "relations_report.md").read_text()
+        assert "## fk_dropped" in report
+        assert "Amara Raja Batteries" in report
+        n = db.execute(
+            "SELECT COUNT(*) FROM graph_edges WHERE edge_type='competes_with'"
+        ).fetchone()[0]
+        assert n == 1  # only the C0-C1 edge survived
+
+
+class TestCacheAgeGuard:
+    def test_fresh_cache_applies_silently(self):
+        recent = (datetime.now(UTC) - timedelta(days=2)).isoformat(timespec="seconds")
+        _guard_cache_age(recent, dry_run=False, refresh_cache=False, check_only=False)
+
+    def test_mid_age_warns_but_applies(self, caplog):
+        mid = (datetime.now(UTC) - timedelta(days=20)).isoformat(timespec="seconds")
+        with caplog.at_level(logging.WARNING, logger="helpers.maintenance.enrich_relations"):
+            _guard_cache_age(mid, dry_run=False, refresh_cache=False, check_only=False)
+        assert "20 days" in caplog.text
+
+    def test_stale_apply_refused_names_refresh_flag(self):
+        stale = (datetime.now(UTC) - timedelta(days=71)).isoformat(timespec="seconds")
+        with pytest.raises(SystemExit, match="refresh-cache"):
+            _guard_cache_age(stale, dry_run=False, refresh_cache=False, check_only=False)
+
+    def test_stale_dry_run_and_check_only_allowed(self):
+        stale = (datetime.now(UTC) - timedelta(days=71)).isoformat(timespec="seconds")
+        _guard_cache_age(stale, dry_run=True, refresh_cache=False, check_only=False)
+        _guard_cache_age(stale, dry_run=False, refresh_cache=False, check_only=True)
+
+    def test_stale_apply_with_refresh_cache_allowed(self):
+        stale = (datetime.now(UTC) - timedelta(days=71)).isoformat(timespec="seconds")
+        _guard_cache_age(stale, dry_run=False, refresh_cache=True, check_only=False)
+
+    def test_unparseable_fetched_at_refused_on_apply(self):
+        with pytest.raises(SystemExit, match="refresh-cache"):
+            _guard_cache_age("unknown", dry_run=False, refresh_cache=False, check_only=False)
+
+
+# --------------------------------------------------------------------------- #
+# fetch_all progress reporting (refresh-cache hang follow-up, 2026-11-03)     #
+# --------------------------------------------------------------------------- #
+class TestFetchAllProgress:
+    @staticmethod
+    def _fake_fetch(ticker):
+        if "DEAD" in ticker:
+            return None
+        return {"longName": f"Company {ticker}"}
+
+    def test_count_based_progress_and_final_summary(self, caplog):
+        companies = [(f"C{i}", f"T{i}.NS", None) for i in range(60)]
+
+        def paced_fetch(ticker):
+            time.sleep(0.01)  # pace completions across wait() wake-ups
+            return self._fake_fetch(ticker)
+
+        with caplog.at_level(logging.INFO, logger="enrich_relations"):
+            info, failures = fetch_all(
+                companies,
+                fetch_fn=paced_fetch,
+                workers=4,
+                progress_every=10,
+                progress_seconds=3600,
+            )
+        assert len(info) == 60 and failures == []
+        # wake-ups interleave with completions, so count thresholds fire
+        # more than once before the batch ends (final line is 60/60)
+        assert caplog.text.count("fetch progress:") >= 2
+        assert "fetch complete: 60 ok, 0 failures" in caplog.text
+
+    def test_stalled_ticker_named_with_flag(self, caplog):
+        companies = [("Slow Co", "SLOW.NS", None)] + [(f"C{i}", f"T{i}.NS", None) for i in range(8)]
+
+        def fetch(ticker, _slow={"SLOW.NS"}):
+            if ticker in _slow:
+                time.sleep(0.5)
+            return self._fake_fetch(ticker)
+
+        with caplog.at_level(logging.INFO, logger="enrich_relations"):
+            fetch_all(
+                companies,
+                fetch_fn=fetch,
+                workers=2,
+                progress_every=10**9,
+                progress_seconds=0.1,
+                stalled_after=0.2,
+            )
+        assert "SLOW.NS" in caplog.text
+        assert "STALLED" in caplog.text
+
+    def test_failures_counted_in_summary(self, caplog):
+        companies = [(f"C{i}", f"T{i}.NS", None) for i in range(2)] + [
+            (f"D{i}", f"DEAD{i}.NS", None) for i in range(2)
+        ]
+        with caplog.at_level(logging.INFO, logger="enrich_relations"):
+            info, failures = fetch_all(companies, fetch_fn=self._fake_fetch, workers=2)
+        assert len(info) == 2
+        assert sorted(t for _n, t in failures) == ["DEAD0.NS", "DEAD1.NS"]
+        assert "fetch complete: 2 ok, 2 failures" in caplog.text
+
+    def test_empty_companies_short_circuits(self):
+        assert fetch_all([], fetch_fn=self._fake_fetch) == ({}, [])
+
+
+class TestFetchCompanyTimeoutSession:
+    def test_session_is_timeout_session(self):
+        assert isinstance(_get_yf_session(), _TimeoutSession)
+
+    def test_send_injects_default_timeout(self, monkeypatch):
+        captured = {}
+
+        def fake_send(self, request, **kwargs):
+            captured.update(kwargs)
+            return "sent"
+
+        monkeypatch.setattr(eyf_requests.Session, "send", fake_send)
+        sess = _TimeoutSession()
+        assert sess.send("req") == "sent"
+        assert captured["timeout"] == (5, 30)
+        sess.send("req", timeout=9)
+        assert captured["timeout"] == 9  # explicit timeout passes through
+
+    def test_fetch_company_passes_bounded_session(self, monkeypatch):
+        captured = {}
+
+        class _StubTicker:
+            def __init__(self, ticker, session=None):
+                captured["ticker"] = ticker
+                captured["session"] = session
+
+            def get_info(self):
+                return {"longName": "Ok Co"}
+
+        import helpers.maintenance.enrich_from_yfinance as eyf
+
+        monkeypatch.setattr(eyf.yf, "Ticker", _StubTicker)
+        info = fetch_company("OK.NS")
+        assert info == {"longName": "Ok Co"}
+        assert captured["ticker"] == "OK.NS"
+        assert isinstance(captured["session"], _TimeoutSession)
 
 
 # --------------------------------------------------------------------------- #

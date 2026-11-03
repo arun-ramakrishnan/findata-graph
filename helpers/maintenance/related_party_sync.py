@@ -46,6 +46,7 @@ SOURCE_REF_PREFIX = "vigil:rpt"
 _NAME_DEDUP_PLAN = Path(__file__).resolve().parents[2] / "findata" / "Misc" / "_name_merge_plan.txt"
 
 from helpers.core import jsonio  # noqa: E402  (orjson parse cutover; dumps stay stdlib per db_scaling_tuning §6.3 criteria)
+from helpers.misc.duckdb_lock import connect_with_lock_retry  # noqa: E402  (post-bootstrap)
 from helpers.maintenance.shareholding_sync import (  # noqa: E402  (post-bootstrap)
     _normalize,
     _resolve_companies,
@@ -402,15 +403,32 @@ def apply_pairs(  # noqa: C901  # the filer/counter/edge-class resolution ladder
     *,
     max_new_entities: int = 60000,
     dry_run: bool = True,
-) -> tuple[int, int, int, int, int]:
+) -> tuple[int, int, int, int, int, int]:
     """Create counter-party entities + structural edges.
 
     Returns (n_new_entities, n_edges_would_or_written, n_written,
-    n_unresolved_filers, n_cycles_dropped). Upsert-latest per
-    (source, target, edge_type).
+    n_unresolved_filers, n_cycles_dropped, n_noncompany_dropped).
+    Upsert-latest per (source, target, edge_type).
+
+    2026-11-03 operator ruling: institutional investors (LIC, HDFC
+    LIFE, ...) are PORTFOLIO holders, not group members — an insurer
+    holding market positions across hundreds of listed companies is
+    exactly what same_group must not assert. same_group pairs with a
+    non-company-typed endpoint are dropped at mint (counted as
+    n_noncompany_dropped); the e_group CTAS already filtered them
+    (singular src_kind/dst_kind company), so they were invisible
+    noise accruing in SQLite. subsidiary_of/jv_with are untouched:
+    person-parent subsidiary rows are the plural-kind lanes' doctrine,
+    and a JV partnership claim is genuine even with an insurer partner.
     """
 
     existing = {r[0] for r in conn.execute("SELECT name FROM entities").fetchall()}
+    noncompany = {
+        r[0]
+        for r in conn.execute(
+            "SELECT name FROM entities WHERE COALESCE(entity_type, '') != 'company'"
+        ).fetchall()
+    }
     # entity_name_dedup S3 resolve-before-insert: a counter whose census
     # key matches an existing entity (or a plan-folded variant) reuses
     # that name — no duplicate entity is minted for a spelling variant.
@@ -419,6 +437,7 @@ def apply_pairs(  # noqa: C901  # the filer/counter/edge-class resolution ladder
     edges: list[dict] = []
     new_entities: dict[str, str] = {}
     unresolved_filers: set[str] = set()
+    n_noncompany_dropped = 0
     for p in pairs:
         filer = companies.get(p["symbol"])
         if filer is None:
@@ -447,6 +466,9 @@ def apply_pairs(  # noqa: C901  # the filer/counter/edge-class resolution ladder
                 cp_ent = display
         if cp_ent is None or cp_ent == filer:
             continue
+        if p["cls"] == "same_group" and (filer in noncompany or cp_ent in noncompany):
+            n_noncompany_dropped += 1
+            continue  # institutional investor — portfolio holding, not group membership
         if p["cls"] == "sub_fwd":
             src, dst, etype, symm = cp_ent, filer, "subsidiary_of", 0
         elif p["cls"] == "sub_rev":
@@ -535,6 +557,7 @@ def apply_pairs(  # noqa: C901  # the filer/counter/edge-class resolution ladder
         n_written,
         len(unresolved_filers),
         n_cycles_dropped,
+        n_noncompany_dropped,
     )
 
 
@@ -1074,6 +1097,11 @@ def main(argv: list[str] | None = None) -> int:  # noqa: C901  # pass-per-flag C
         help="bulk download + load credit_ratings",
     )
     ap.add_argument("--refetch", action="store_true", help="ignore the zstd cache")
+    ap.add_argument(
+        "--no-load",
+        action="store_true",
+        help="download caches but skip loading sources.duckdb (refresh-chain phase A: keeps the parallel fetch phase free of a long RW hold)",
+    )
     ap.add_argument("--apply", action="store_true", help="write edges (default: dry-run)")
     ap.add_argument(
         "--group",
@@ -1110,13 +1138,25 @@ def main(argv: list[str] | None = None) -> int:  # noqa: C901  # pass-per-flag C
                 print(f"  [{bucket}] {s} → {t}  ({rel!r})")
         print("cure: APPLIED" if args.apply else "cure: dry-run — no writes (--apply to write)")
         return 0
-    src = duckdb.connect(str(SOURCES_DB))
-    if args.download:
-        cache = download_bulk(refetch=args.refetch)
+    # downloads are network-bound and this lane runs in parallel with
+    # other sources.duckdb writers (make refresh-chain phase A) — fetch
+    # the caches BEFORE taking the single-writer lock (§0 lock-holder).
+    cache = download_bulk(refetch=args.refetch) if args.download else None
+    rc = download_ratings(refetch=args.refetch) if args.ratings_download else None
+    if args.no_load:
+        # refresh-chain phase A: the caches land on disk (zstd, content-
+        # addressed); the sequential apply phase re-runs --download as a
+        # cache READ and does the loads + passes with no parallel siblings.
+        if cache is not None:
+            print(f"rpt_transactions cache ready: {cache}")
+        if rc is not None:
+            print(f"credit_ratings cache ready: {rc}")
+        return 0
+    src = connect_with_lock_retry(lambda: duckdb.connect(str(SOURCES_DB)))
+    if cache is not None:
         n = load_table(src, cache)
         print(f"loaded rpt_transactions: {n} rows")
-    if args.ratings_download:
-        rc = download_ratings(refetch=args.refetch)
+    if rc is not None:
         n = load_ratings(src, rc)
         print(f"loaded credit_ratings: {n} rows")
     # no explicit pass -> all passes over whatever tables exist
@@ -1165,7 +1205,7 @@ def main(argv: list[str] | None = None) -> int:  # noqa: C901  # pass-per-flag C
         )
     if args.group:
         pairs = build_pairs(src)
-        n_ent, n_edges, n_written, n_unres, n_cycles = apply_pairs(
+        n_ent, n_edges, n_written, n_unres, n_cycles, n_nc = apply_pairs(
             conn,
             pairs,
             companies,
@@ -1177,7 +1217,8 @@ def main(argv: list[str] | None = None) -> int:  # noqa: C901  # pass-per-flag C
         print(
             f"[{mode}:group] pairs={len(pairs)} by_class={dict(by_cls)} "
             f"new_entities={n_ent} edges={n_edges} written={n_written} "
-            f"unresolved_filers={n_unres} cycles_dropped={n_cycles}"
+            f"unresolved_filers={n_unres} cycles_dropped={n_cycles} "
+            f"same_group_noncompany_dropped={n_nc}"
         )
     if args.supply_chain:
         spairs = build_supply_pairs(src)

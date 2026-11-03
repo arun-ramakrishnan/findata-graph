@@ -13544,3 +13544,16 @@ served_store_read_funnel.md.
 
 Validation: targeted battery 132 passed; ruff clean; patch served_store
 refresh.
+
+## 477. Relations-enrich FK guard — reject stale and orphaned cached endpoints
+
+Provenance: filed and landed 2026-11-03; archived to
+doc/improvements/archive/maintenance/relations_fk_stale_cache_guard.md.
+
+- **S1 — endpoint validation:** pre-filter cached relation endpoints against
+  live entities and report dropped rows under `[fk_dropped]`, preventing
+  stale names from reaching the graph-edge foreign key.
+- **S2 — cache age guard:** warn at 14 days; refuse `--apply` beyond 45 days
+  unless `--refresh-cache` is supplied.
+- **Validation:** 84/84 targeted tests; mutation proof; operator note; no
+  query-visible semantics change.

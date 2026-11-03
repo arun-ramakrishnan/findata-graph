@@ -33,10 +33,11 @@ import sqlite3
 import sys
 import time
 import unicodedata
-from concurrent.futures import ThreadPoolExecutor, as_completed
+from concurrent.futures import FIRST_COMPLETED, Future, ThreadPoolExecutor, wait
 from datetime import datetime, timedelta, UTC
 from pathlib import Path
 
+import requests
 import yfinance as yf
 
 logging.getLogger("yfinance").setLevel(logging.CRITICAL)
@@ -178,14 +179,42 @@ def _convert_value(raw: float, metric_label: str) -> float:
     return raw
 
 
+class _TimeoutSession(requests.Session):
+    """Session that bounds every request: (connect, read) seconds.
+
+    yfinance 1.7 exposes no timeout parameter (Ticker(ticker, session=...)
+    and get_info() take none) — the 2026-11-03 --refresh-cache hang was
+    workers sitting forever on stalled Yahoo responses. Routing fetches
+    through this session turns a hang into a failure fetch_company
+    already retries, in bounded time.
+    """
+
+    _TIMEOUT = (5, 30)
+
+    def send(self, *args, **kwargs):  # type: ignore[override]
+        kwargs.setdefault("timeout", self._TIMEOUT)
+        return super().send(*args, **kwargs)
+
+
+_YF_SESSION: requests.Session | None = None
+
+
+def _get_yf_session() -> requests.Session:
+    global _YF_SESSION
+    if _YF_SESSION is None:
+        _YF_SESSION = _TimeoutSession()
+    return _YF_SESSION
+
+
 def fetch_company(ticker: str, retries: int = 1) -> dict | None:
     """Fetch yfinance .info for a single ticker. Returns dict or None on failure.
 
     Retries once after a short delay to handle transient rate-limiting.
+    Every request is bounded by _TimeoutSession (connect 5s / read 30s).
     """
     for attempt in range(1 + retries):
         try:
-            info = yf.Ticker(ticker).get_info()
+            info = yf.Ticker(ticker, session=_get_yf_session()).get_info()
             # Some tickers only populate shortName (e.g. HYUNDAI.NS); accept
             # either as proof the instrument exists and has data.
             if not info or not (info.get("longName") or info.get("shortName")):
@@ -255,6 +284,107 @@ def _fold_plural(tok: str) -> str:
     if len(tok) > 3 and tok.endswith("s") and not tok.endswith("ss"):
         return tok[:-1]
     return tok
+
+
+def fetch_todo(
+    todo: list[tuple[str, str, str | None]],
+    *,
+    workers: int,
+    aliases: dict[str, list[str]],
+    fetch_fn=fetch_company,
+    progress_every: int = 250,
+    progress_seconds: float = 30.0,
+    stalled_after: float = 60.0,
+) -> tuple[
+    list[tuple[str, str, str | None, dict]],
+    list[tuple[str, str, str | None]],
+    list[tuple[str, str, str]],
+]:
+    """Fetch .info for every (name, ticker, file_path) todo triple.
+
+    Returns (results, failures, mismatches): results carry the info dict,
+    failures are (name, ticker, file_path) with no resolvable info, and
+    mismatches are (name, ticker, yf_name) identity-guard rejections.
+
+    Progress reporting (2026-11-03, ported from enrich_relations.fetch_all):
+    the old as_completed loop printed only on successful multiples of 100 —
+    an all-failing lane (four orphaned copies tripping Yahoo 429s) stayed
+    silent for 46 minutes before dumping "0/6081". fetch_todo reports every
+    progress_every completions or progress_seconds, whichever first:
+    count/total, rate, ETA, running failure count, and the in-flight tickers
+    with per-ticker elapsed seconds — anything over stalled_after is flagged
+    STALLED, the kill/no-kill signal.
+    """
+    results: list[tuple[str, str, str | None, dict]] = []
+    failures: list[tuple[str, str, str | None]] = []
+    mismatches: list[tuple[str, str, str]] = []
+    total = len(todo)
+    if total == 0:
+        return results, failures, mismatches
+
+    def _fetch_task(item: tuple[str, str, str | None]):
+        name, ticker, file_path = item
+        info = fetch_fn(ticker)
+        return name, ticker, file_path, info
+
+    started = time.monotonic()
+    last_report = started
+    last_count = 0
+    in_flight: dict[object, tuple[str, float]] = {}
+    with ThreadPoolExecutor(max_workers=workers) as pool:
+        futures: dict[Future, tuple[str, str, str | None]] = {}
+        for item in todo:
+            fut = pool.submit(_fetch_task, item)
+            futures[fut] = item
+            in_flight[fut] = (item[1], time.monotonic())
+        done_count = 0
+        pending = set(futures)
+        while pending:
+            done_now, pending = wait(pending, timeout=progress_seconds, return_when=FIRST_COMPLETED)
+            now = time.monotonic()
+            for fut in done_now:
+                in_flight.pop(fut, None)
+                done_count += 1
+                name, ticker, file_path = futures[fut]
+                try:
+                    _, _, _, info = fut.result()
+                except Exception:  # defensive: fetch_fn contract says None, not raise
+                    info = None
+                if info is None:
+                    failures.append((name, ticker, file_path))
+                    continue
+                if not identity_ok(name, info, aliases):
+                    yf_name = info.get("longName") or info.get("shortName") or "?"
+                    mismatches.append((name, ticker, yf_name))
+                    continue
+                results.append((name, ticker, file_path, info))
+            due_count = done_count >= last_count + progress_every
+            due_time = (now - last_report) >= progress_seconds
+            if done_count == total or due_count or due_time:
+                elapsed = now - started
+                rate = done_count / elapsed if elapsed > 0 else 0.0
+                remaining = total - done_count
+                eta = remaining / rate if rate > 0 else None
+                flight = ", ".join(
+                    f"{tk} ({el:.0f}s{' STALLED' if el > stalled_after else ''})"
+                    for tk, el in sorted(
+                        ((t, now - t0m) for t, t0m in in_flight.values()),
+                        key=lambda kv: -kv[1],
+                    )[:workers]
+                )
+                log.info(
+                    "fetch progress: %d/%d (%.0f%%) %.1f/s eta %s | failures %d | in-flight: %s",
+                    done_count,
+                    total,
+                    100.0 * done_count / total,
+                    rate,
+                    f"{eta / 60:.0f}min" if eta is not None else "?",
+                    len(failures),
+                    flight or "-",
+                )
+                last_report = now
+                last_count = done_count
+    return results, failures, mismatches
 
 
 def load_aliases(path: Path | None = None) -> dict[str, list[str]]:
@@ -573,8 +703,8 @@ REPORT_PATH = PROJECT_ROOT / "outputs" / "metrics_report.md"
 
 
 def write_report(
-    results: list[tuple[str, str, str, dict]],
-    failures: list[tuple[str, str, str]],
+    results: list[tuple[str, str, str | None, dict]],
+    failures: list[tuple[str, str, str | None]],
     metrics_written: int,
     edges_written: int,
     notes_updated: int,
@@ -799,7 +929,9 @@ def main(argv: list[str] | None = None) -> int:  # noqa: C901
     # --------------------------------------------------------------- #
     # Fetch phase — network-bound, no research.db writes              #
     # --------------------------------------------------------------- #
-    results: list[tuple[str, str, str, dict]] = []  # (name, ticker, file_path, info)
+    results: list[tuple[str, str, str | None, dict]] = []  # (name, ticker, file_path, info)
+    failures: list[tuple[str, str, str | None]] = []  # (name, ticker, file_path)
+    mismatches: list[tuple[str, str, str]] = []  # (name, ticker, yf name)
     t0 = time.perf_counter()
 
     if args.apply_only:
@@ -813,31 +945,8 @@ def main(argv: list[str] | None = None) -> int:  # noqa: C901
                 log.warning("[enrich] failed to read staged %s: %s", sf.name, exc)
         log.info("loaded %d staged results from %s", len(results), FETCH_SCRATCH)
     else:
-        # Fetch in parallel
-        def _fetch_task(name_ticker_path):
-            name, ticker, file_path = name_ticker_path
-            info = fetch_company(ticker)
-            return name, ticker, file_path, info
-
-        failures: list[tuple[str, str, str]] = []  # (name, ticker, file_path)
-        mismatches: list[tuple[str, str, str]] = []  # (name, ticker, yf name)
         aliases = load_aliases()
-        with ThreadPoolExecutor(max_workers=args.workers) as pool:
-            futures = {pool.submit(_fetch_task, todo_item): todo_item for todo_item in todo}
-            completed = 0
-            for f in as_completed(futures):
-                name, ticker, file_path, info = f.result()
-                completed += 1
-                if info is None:
-                    failures.append((name, ticker, file_path))
-                    continue
-                if not identity_ok(name, info, aliases):
-                    yf_name = info.get("longName") or info.get("shortName") or "?"
-                    mismatches.append((name, ticker, yf_name))
-                    continue
-                results.append((name, ticker, file_path, info))
-                if completed % 100 == 0:
-                    log.info("  fetched %d/%d...", completed, len(todo))
+        results, failures, mismatches = fetch_todo(todo, workers=args.workers, aliases=aliases)
 
         fetch_time = time.perf_counter() - t0
         log.info(

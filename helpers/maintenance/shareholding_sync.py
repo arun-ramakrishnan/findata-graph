@@ -53,6 +53,7 @@ if str(REPO) not in sys.path:
     sys.path.insert(0, str(REPO))
 
 from helpers.core import jsonio  # noqa: E402  (orjson parse cutover; dumps stay stdlib per db_scaling_tuning §6.3 criteria)
+from helpers.misc.duckdb_lock import connect_with_lock_retry  # noqa: E402  (post-bootstrap)
 
 if str(REPO) not in sys.path:
     sys.path.insert(0, str(REPO))
@@ -1250,13 +1251,26 @@ def main(argv: list[str] | None = None) -> int:  # noqa: C901
     # Fetch phase — network-bound, no research.db / sources.duckdb writes #
     # ------------------------------------------------------------------ #
     if not args.apply_only:
-        src = duckdb.connect(str(SOURCES_DB))
+        src = connect_with_lock_retry(lambda: duckdb.connect(str(SOURCES_DB)))
         ensure_sources_schema(src)
 
         ingested = 0
+        known_rss: set[str] = set()
+        known_bse: set[str] = set()
+        if args.fetch_only:
+            # refresh-chain fetch lanes run in parallel with other
+            # sources.duckdb writers — read the dedup set once, then drop
+            # the single-writer lock BEFORE the network loops.
+            once = {r[0] for r in src.execute("SELECT filing_id FROM shp_filings").fetchall()}
+            known_rss, known_bse = once, set(once)
+            src.close()
         if args.rss:
             items = parse_rss(_get_text(RSS_URL))
-            known = {r[0] for r in src.execute("SELECT filing_id FROM shp_filings").fetchall()}
+            known = (
+                known_rss
+                if args.fetch_only
+                else {r[0] for r in src.execute("SELECT filing_id FROM shp_filings").fetchall()}
+            )
             for item in items:
                 fid = _filing_id(item["url"])
                 if fid in known:
@@ -1324,7 +1338,11 @@ def main(argv: list[str] | None = None) -> int:  # noqa: C901
 
         if args.bse_rss:
             bse_items = parse_bse_rss(_get_text(BSE_RSS_URL))
-            known = {r[0] for r in src.execute("SELECT filing_id FROM shp_filings").fetchall()}
+            known = (
+                known_bse
+                if args.fetch_only
+                else {r[0] for r in src.execute("SELECT filing_id FROM shp_filings").fetchall()}
+            )
             for item in bse_items:
                 fid = _filing_id_bse(item["url"])
                 if fid in known:
@@ -1370,7 +1388,7 @@ def main(argv: list[str] | None = None) -> int:  # noqa: C901
     # --------------------------------------------------------------- #
     # Apply phase — store writes (sources.duckdb + research.db)       #
     # --------------------------------------------------------------- #
-    src = duckdb.connect(str(SOURCES_DB))
+    src = connect_with_lock_retry(lambda: duckdb.connect(str(SOURCES_DB)))
     ensure_sources_schema(src)
     from helpers.core.db import connect as sqlite_connect, DEFAULT_DB_PATH
 
@@ -1384,6 +1402,9 @@ def main(argv: list[str] | None = None) -> int:  # noqa: C901
                 data.get("rss"),
                 data.get("source", "nse"),
             )
+            if not args.apply:
+                print(f"would apply {fid} from scratch (dry-run)")
+                continue
             if source == "bse":
                 store_bse_filing(src, url, parsed, rss)
             else:
