@@ -271,7 +271,7 @@ def test_chain_dist_stats_sampled_drops_self_distance_zeros():
     assert int(with_zero.size) == total + 2, "the two self-distance cells"
 
 
-def test_ifub_diameter_parity_random_components():
+def test_ifub_diameter_parity_random_components():  # noqa: C901
     """iFUB must match scipy all-pairs exact diameter on connected and
     multi-component graphs (Wall 3 S1)."""
     import numpy as np

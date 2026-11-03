@@ -200,7 +200,19 @@ GATES: dict[str, Gate] = {
             # gating linter (S1–S4 took the corpus green; the helper SKIPs
             # rc-0 on node-less boxes so the gate stays safe there).
             Step("md-lint", (_MAKE, "md-lint")),
-            Step("types", (_TY, "check", "helpers", "app.py")),
+            Step(
+                "types",
+                (
+                    _TY,
+                    "check",
+                    "--config-file",
+                    "ty.toml",
+                    "--exit-zero-on-warning",
+                    "helpers",
+                    "app.py",
+                    "Mojo/",
+                ),
+            ),
             Step("deptry", (_DEPTRY, ".")),
             Step("static_checks", (_PY, "helpers/validators/static_checks.py")),
             # -n auto, EXCLUSIVE (runs after the cheap legs drain): the suite

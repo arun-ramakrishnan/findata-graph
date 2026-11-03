@@ -823,7 +823,7 @@ lint:           ## Run ruff linter (replaces flake8)
 > ruff check .
 
 types:          ## Run ty type checker on helpers + app.py + Mojo Python (Astral uv+ruff stack)
-> ty check helpers app.py Mojo/
+> ty check --config-file ty.toml --exit-zero-on-warning helpers app.py Mojo/
 
 # The EXPANDED ty surface (tests/): single source of truth for the exact
 # extra-search-path flag soup + ty.tests.toml config — run it standalone

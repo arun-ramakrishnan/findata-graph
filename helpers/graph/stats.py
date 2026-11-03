@@ -157,7 +157,7 @@ def _chain_dist_stats(dist: np.ndarray) -> tuple[int, float, int, int]:
     return diameter, median, int(hist[diameter]), total
 
 
-def _ifub_diameter(csr_graph) -> int | None:
+def _ifub_diameter(csr_graph) -> int | None:  # noqa: C901
     """Exact diameter over an undirected unit-weight CSR graph via iFUB.
 
     Runs iFUB (Crescenzi-Grossi-Habib-Lanzi-Tomescu) per connected

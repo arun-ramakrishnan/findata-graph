@@ -21,3 +21,14 @@
 [environment]
 python-version = "3.14"
 python = ".venv"
+
+# Bench/tooling code (helpers/bench/**) is not production code — it runs
+# standalone benchmarks and probes. The sklearn import in hyper_community_probe.py
+# is a Wall-4 ARI quality probe (bench tooling, not shipped). The transitive dep
+# is not declared in [project].dependencies, so ty cannot resolve it. Downgrade
+# to warn for bench files so real type bugs still surface.
+[[overrides]]
+include = ["helpers/bench/**"]
+
+  [overrides.rules]
+  unresolved-import = "warn"

@@ -228,6 +228,18 @@ ignore = ["E501"]
 # hyper_scale_bench.py: seeded random.Random IS the benchmark's synthetic
 # generator (determinism contract, seed=7) — not a crypto context.
 "helpers/bench/hyper_scale_bench.py" = ["S311"]
+# hyper_community_probe.py: seeded random.Random IS the probe's synthetic
+# generator (determinism contract, seed=7) — not a crypto context.
+"helpers/bench/hyper_community_probe.py" = ["S311"]
+# bipartite_communities.py: seeded random.Random IS the algorithm's deterministic
+# generator (determinism contract, seed) — not a crypto context.
+"helpers/graph/bipartite_communities.py" = ["S311"]
+# _ifub_diameter: algorithmic complexity inherent to iFUB (C901 > 10 is
+# expected for this exact-diameter routine; C901 suppression is intentional).
+"helpers/graph/stats.py:_ifub_diameter" = ["C901"]
+# test_ifub_diameter_parity_random_components: test complexity from param
+# sweeps + oracle comparison (C901 > 10 is expected; suppression intentional).
+"tests/test_graph_stats.py:test_ifub_diameter_parity_random_components" = ["C901"]
 "helpers/core/get_tickers.py" = ["E402"]
 "helpers/core/parse_newsletter.py" = ["E402"]
 "helpers/core/vss_index.py" = ["E402"]
@@ -273,4 +285,8 @@ optional_dependencies_dev_groups = ["dev", "mojo", "review"]
 per_rule_ignores.DEP002 = ["gunicorn", "Werkzeug", "finnhub-python", "regex", "tree-sitter", "tree-sitter-sql"]
 # sklearn: installed transitively; imported only by helpers/bench/hyper_community_probe.py:38
 # (Wall-4 ARI quality probe — bench tooling, same class as cosine_knn).
+# cosine_knn: locally-built Rust pyo3 extension (make rust-install) with no
+# distribution metadata — deptry classifies it as transitive.
+# Imported only by Rust/bench/cosine_gate.py (bench timing harness).
+per_rule_ignores.DEP001 = ["cosine_knn", "sklearn"]
 per_rule_ignores.DEP003 = ["cosine_knn", "sklearn"]
