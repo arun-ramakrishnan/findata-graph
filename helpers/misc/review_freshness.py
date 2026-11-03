@@ -20,6 +20,8 @@ gate-coupled):
     review_freshness.py --from X --to Y --record \
         --leg delegation --leg scan \
         --note "verdict pointer: code_review.md §…"   # close the review (runbook 6c)
+    review_freshness.py --record --leg goldfish \
+        --note "outputs/reviews/review_goldfish_<slug>_<lens>.md"  # egm_workflow §5 pass
     review_freshness.py --from X --to Y --show    # full JSON rows for this scope
     review_freshness.py --all                     # EVERY completion record, newest
                                                   #   first — find the last scanned
@@ -481,12 +483,13 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--record", action="store_true", help="record this diff as reviewed")
     ap.add_argument(
         "--leg",
-        choices=("delegation", "managed", "scan"),
+        choices=("delegation", "managed", "scan", "goldfish"),
         action="append",
         default=[],
         help="which review leg produced the verdict (scan = the native "
         "bandit/shellcheck/sqlfluff/semgrep/osv leg; managed = OCR's paid "
-        "LLM pass — record ONLY the legs that actually ran)",
+        "LLM pass; goldfish = zero-context proposal-review dispatch, "
+        "egm_workflow.md §5 — record ONLY the legs that actually ran)",
     )
     ap.add_argument("--note", default="", help="verdict pointer (e.g. code_review.md section)")
     ap.add_argument("--show", action="store_true", help="print the ledger rows for this scope")

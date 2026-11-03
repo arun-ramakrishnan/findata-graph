@@ -392,11 +392,13 @@ def trail_source_stats_parallel(
     Sources are structurally independent and results stay sparse, so a
     pool gives ~= ncoresx on the 4-core box (the measured 166.8 s full
     map). Order is preserved (results align 1:1 with src_labels).
-    Falls back to serial when the pool cannot start (e.g. no fork) or
-    workers <= 1 — never blocks the bench/CLI.
+    Falls back to serial (one stderr line) when the pool cannot start
+    (e.g. no fork) or workers <= 1 — never blocks the bench/CLI.
     """
     if workers is None:
-        workers = len(src_labels)
+        import os
+
+        workers = min(len(src_labels), os.cpu_count() or 1)
     if workers <= 1 or len(src_labels) <= 1:
         return [trail_source_stats(g, s, limit=limit) for s in src_labels]
     import multiprocessing as mp
@@ -408,7 +410,11 @@ def trail_source_stats_parallel(
             initargs=(g,),
         ) as pool:
             return pool.map(_pool_worker, [(s, limit) for s in src_labels])
-    except Exception:  # noqa: BLE001 — degrade to serial, never block
+    except Exception as exc:  # noqa: BLE001 — degrade to serial, never block
+        print(
+            f"trail parallel pool unavailable ({exc}); falling back to serial",
+            file=sys.stderr,
+        )
         return [trail_source_stats(g, s, limit=limit) for s in src_labels]
 
 

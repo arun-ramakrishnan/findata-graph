@@ -14,12 +14,14 @@ Read-only by default; --apply persists to graph_analytics via
 algorithms.write_analytics. Reads the live h_incidence star store through
 the duckdb_lock.open_read_only funnel (same seam as hyper_trails). Degrades
 cleanly when the star store is absent (pristine clone) - SKIP line, never a
-crash. Deterministic default seed 42 (igraph multilevel seeded).
+crash. Deterministic default seed 42 (wired via
+igraph.set_random_number_generator before multilevel).
 """
 
 from __future__ import annotations
 
 import argparse
+import random
 import sys
 from pathlib import Path
 
@@ -71,6 +73,7 @@ def bipartite_louvain_communities(pairs, *, seed: int = SEED) -> dict[str, int] 
     n = len(entities) + len(hubs)
     g = ig.Graph(n=n, edges=[(e_idx[e], h_idx[h]) for h, e in pairs], directed=False)
     g.es["weight"] = [1.0] * len(pairs)
+    ig.set_random_number_generator(random.Random(seed))
     comm = g.community_multilevel(weights=g.es["weight"])
     return {e: int(comm.membership[e_idx[e]]) for e in entities}
 

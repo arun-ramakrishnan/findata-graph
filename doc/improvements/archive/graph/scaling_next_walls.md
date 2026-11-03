@@ -144,7 +144,8 @@ must equal 2×oracle_hops, unreachable pairs exit 2, and src==dst
 returns hops 0. Toy leg unconditional (skips only if binary unbuilt);
 seeded random-graph leg runs under `MOJO_BFS_PARITY=1`. Both pass
 against the rebuilt binary (Mojo 1.2.0, `-I src/common -I src/bench`).
-17/17 hyper_trails suite green; ruff clean. The Wall 2 non-goal stays
+17/17 hyper_trails suite green (3 Mojo legs skip when binaries are
+unbuilt — environment-conditional); ruff clean. The Wall 2 non-goal stays
 respected: no weighted paths, no multi-source — the parity gate pins the
 contract-identical twin the proposal calls for.
 
@@ -194,10 +195,11 @@ via iFUB") while pair selection stays sampled (lower bounds); tripwire copy
 updated to say diameter is exact; docstring cap-history updated. 112/112
 tests green across stats/scale-watch/incidence. **DONE (S3):**
 `lane_chains_exact` in hyper_scale_bench.py (`--chains-exact`) measures
-time-to-exact diameter at 2×/5×/10× the cap on connected random graphs sized
-to the live depth (p = 1.6/n ⇒ diameter ≈12). iFUB exact: 0.38s/1.66s/
-5.55s at 1k/2.5k/5k nodes — while all-pairs at 10× cap is infeasible
-(OOM, recorded null). Sampled path remains the faster lower-bound floor
+time-to-exact diameter at 2×/5×/10× the harness default cap (`--cap` 500
+⇒ 1k/2.5k/5k nodes; wall-scale 12k/30k/60k rows unmeasured — Goldfish
+addendum) on connected random graphs sized to the live depth
+(p = 1.6/n ⇒ diameter ≈12). iFUB exact: 0.38s/1.66s/5.55s — while
+all-pairs at the 5k-node rung is infeasible (OOM, recorded null). Sampled path remains the faster lower-bound floor
 (0.06s/0.14s/0.29s), unchanged — the bench documents the exact-vs-sampled
 tradeoff the cap protects.
 
@@ -231,7 +233,9 @@ louvain (igraph community_multilevel on the incidence store, no projection)
 reaches ARI parity with the onager projection baseline — 0.864 vs 0.879 at
 1.5k incidences, 0.760 vs 0.759 at 3k, 0.761 vs 0.783 at 6k, 0.694 vs
 0.675 at 12k — while never materializing the dyad projection (17-49x
-blowup avoided) and running ~10-60x faster wall (0.01-0.12s vs 0.03-1.6s).
+blowup avoided) and running faster wall — per-row ratios 1.2x/67x/21x/14x
+at 1.5k/3k/6k/12k incidences (0.03-1.6s vs 0.01-0.12s; the earlier
+"~10-60x" phrasing was endpoint arithmetic — Goldfish addendum).
 Hy-MMSBM is consistently inferior (ARI 0.18-0.37) and is not the parity leg.
 Banked: bench_data/hyper_community_probe/ (sweep_report.json +
 WALL4_PROBE_REPORT.md). Verdict: GO — the wall is attackable; S3 swaps the
@@ -301,7 +305,7 @@ for an ≈ncores× win on a measured 166.8 s. Walls 2b/3 next; Wall 4
 probe-gated; Wall 5 opportunistic (pairs naturally with any Wall 1
 rebuild work).
 
-Not attackerable now, per their own gates: Phase C similarity routing
+Not attackable now, per their own gates: Phase C similarity routing
 (trigger = embedding matrix at tens of MB; live 1.9 MB); the Wall 2
 Mojo BFS *promotion* decision (the parity twin — S2 bip CSR bins + S3
 parity legs — is DONE 2026-11-02 and the kernel is proven contract-
@@ -316,3 +320,101 @@ timings under contention are parked per gates.md; parity gates keep
 the #197/#301 pattern (oracle comparison, loud mismatch). Full gates
 once per arc on the operator's go, `Gates:` trailer in the patch
 message.
+
+## Goldfish review (2026-11-03, retrospective trial)
+
+Dispatches: 2 fresh agent-run subagents (lenses zoom-out/YAGNI, implementation-readiness);
+food = this document plus its referenced sources only. Raw reports:
+outputs/reviews/review_goldfish_scaling_next_walls_zoomout.md (14 findings),
+outputs/reviews/review_goldfish_scaling_next_walls_impl_readiness.md (19 findings).
+Host spot-checked 6 cited lines across the two lenses — all verified. Freshness:
+review_freshness.py has no goldfish leg (--leg enum {delegation,managed,scan}), so this
+section is FRESH as of 2026-11-03 against sha256 1a6135c9 of this file and STALE once the
+file changes.
+
+Top findings (MAJOR, condensed — full lists in the raw reports):
+
+1. Wall-1 sharding dormant below its own trigger: production call sites keep k_shards=1
+   (helpers/graph/query.py:1323,2671,2674); built 11.5x below the 5s crossover; the
+   doctrine's cheaper waiver+ART remedy (vault_scaling.md:142-144) was skipped.
+2. Wall-2 S3 breached its own conditional ("only if (a) leaves a measured wall standing"):
+   S1 landed, the Mojo twin was built the same day with no gate evaluation, then measured
+   at parity — no >2x sustained crossover.
+3. build_bipartite_csr (helpers/graph/hyper_trails.py:139) has zero production callers;
+   the promotion path derives tempfile bins from the matrix (hyper_trails.py:205-241) —
+   the record's bridge rationale is inverted by the code.
+4. Section 7's int32-escape mechanism claim is contradicted by S3: sharding covers DuckDB
+   SQL lanes only; the int32 ceiling lives in the CSR payload (helpers/graph/csr.py:31-32).
+5. Wall-3 bench numbers sit at the wrong scales: multiples of the CLI default cap=500, not
+   the wall cap 6,000 (helpers/bench/hyper_scale_bench.py:261-262,301) — no measurements
+   exist at wall-relevant sizes.
+6. Wall-2 S1 default wiring oversubscribes at live scale: workers defaults to
+   len(src_labels) — an 18,233-process eager pool — with silent no-log serial fallback
+   (hyper_trails.py:398-412); the full map was never run in parallel in-record.
+7. Wall-4 seed-42 determinism is unimplemented: community_multilevel takes no seed
+   (helpers/graph/bipartite_communities.py:74); SEED, the param and the flag are dead code.
+8. Wall-2 baselines irreconcilable: 166.8s measured serial vs 523.7s median-projection
+   arithmetic (3.1x right-skew) — the "523.7→140.6s" improvement is not checkable against
+   any real run.
+
+Recurring MINOR themes: parity tests pass vacuously through the silent scipy fallback
+(both lenses); scale-selective speed claims ("10-60x", "ARI within ~0.02", "34-48x" vs
+probe rows 1.2x-67x); cross-doc number drift (5.92/5.98 vs 6.09/6.10 ms, three rebuild
+fits, the "attackerable" typo at line 304); mirror/fallback paths label-tested not
+data-tested; "17/17 green" is environment-conditional (3 Mojo legs skip without binaries).
+
+Lens verdicts (condensed): a mechanism-honest, re-executable record; performance and
+determinism claims are recorded more confidently than they were measured. Zoom-out:
+"should have stopped at Wall-2 S1 and the Wall-1 waiver, and enforced its own gates."
+
+Triage — RESOLVED 2026-11-03, operator picked "all defaults" (adopt #1-8 +
+doc-only minors; nothing rejected except two test-strengthening minors,
+see MINORS). The review hash above is stale by design: these fixes edited
+this file.
+
+1-4, 8 ADOPTED (addendum below): dormant-sharding note; S3
+  conditional-breach admission; bridge-rationale inversion; §7 int32
+  correction; baseline reconciliation.
+5 ADOPTED: S3 reworded in place (bench ran at the default cap 500 →
+  1k/2.5k/5k nodes; wall-scale rows unmeasured). The --cap 6000 rerun
+  was offered and declined this pass.
+6 ADOPTED (code): workers default now min(len(sources), cpu_count);
+  the serial fallback prints one stderr line (hyper_trails.py).
+7 ADOPTED (code): seeding wired via igraph.set_random_number_generator
+  (bipartite_communities.py); SEED=42 default kept.
+MINORS ADOPTED, doc-only: canonical parity numbers are completed.md
+  #474's 6.09/6.10 ms (the 5.92/5.98 above is a second run of the same
+  eval); per-row speed ratios replace "~10-60x"; "attackerable" typo
+  fixed; 17/17 marked environment-conditional. NOT ADOPTED (why:
+  doc-only scope at resolve; the raw reports carry them): mirror-data
+  assertion in the gate-leg test; dispatch-spawned assertion in
+  TestMojoTrailDispatch.
+
+Addendum (2026-11-03, post-goldfish corrections; body above preserved
+as written):
+
+- Wall 1: production call sites still pass no shard count (k_shards=1,
+  helpers/graph/query.py:1323,2671,2674); the 5 s/shard crossover sits
+  near R≈1.33M rows vs live 144,508 — sharding is deliberately dormant
+  (build-early placement); the doctrine's cheaper waiver+ART remedy
+  (vault_scaling.md:142-144) was not taken.
+- Wall 2: S3's own conditional ("only if a measured wall stands",
+  above) was never evaluated before the twin was built; measured parity
+  (6.09 vs 6.10 ms/source live, canonical per completed.md #474) means
+  no >2× crossover existed. The promotion gate remains the only
+  promotion path.
+- Wall 2 S2 bridge inverted: production dispatch derives tempfile bins
+  from the matrix (helpers/graph/hyper_trails.py:205-241);
+  build_bipartite_csr (:139-202) has test-only callers.
+- §7 correction: the int32 escape mechanism is NOT Wall 1's SQL
+  sharding — the int32 ceiling lives in the CSR payload
+  (helpers/graph/csr.py:31-32); escape = CSR widening/sharded CSR,
+  unscoped.
+- Wall 2 S1: full-map figures are median×n projections (28.7 ms ×
+  18,233 = 523.7 s); the measured serial wall was 166.8 s (right-skewed
+  per-source distribution, 3.1× gap) and the full map was never run in
+  parallel in-record — read the improvement against 166.8 s.
+- Wall 4: probe speed range is per-row 1.2x/67x/21x/14x (1.5k/3k/6k/12k
+  incidences); the 6k ARI gap is 0.022, slightly over the "~0.02"
+  phrasing. Seed 42 was unimplemented at execution (dead param); wired
+  2026-11-03 (triage #7).
