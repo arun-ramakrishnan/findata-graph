@@ -77,6 +77,29 @@ class TestReviewFreshness:
     def test_unreviewed_when_no_row(self, ledger):
         assert rf.status(1) == ("UNREVIEWED", None, "HEAD~1..HEAD")
 
+    def test_empty_patch_reads_empty_not_unreviewed(self, ledger, monkeypatch):
+        monkeypatch.setattr(rf, "_diff_text", lambda stack: "")
+        rf._diff_cache_save({})  # fresh SHAs ⇒ cache miss, fp recomputed as EMPTY_FP
+        assert rf.status(1) == ("EMPTY", None, "HEAD~1..HEAD")
+
+    def test_ranged_zero_width_pair_reads_empty(self, ledger):
+        # the fixture's faked `git diff` stdout is "" — a zero-width pair
+        assert rf.status_range("base", "head") == ("EMPTY", None, "sha-base..sha-head")
+
+    def test_record_refuses_the_empty_collision_class(self, ledger, monkeypatch, capsys):
+        monkeypatch.setattr(rf, "_diff_text", lambda stack: "")
+        rf._diff_cache_save({})
+        with pytest.raises(SystemExit, match="refusing to record.*EMPTY"):
+            rf.main(["--record", "--leg", "scan"])
+        assert not ledger.exists()  # refused before any write
+
+    def test_status_cli_prints_empty_hint(self, ledger, monkeypatch, capsys):
+        monkeypatch.setattr(rf, "_diff_text", lambda stack: "")
+        rf._diff_cache_save({})
+        assert rf.main([]) == 0
+        out = capsys.readouterr().out
+        assert "EMPTY" in out and "nothing to review" in out
+
     def test_stack_zero_refuses_the_lying_alias(self, ledger):
         with pytest.raises(RuntimeError, match="stack 0"):
             rf.fingerprint(0)
@@ -236,6 +259,14 @@ class TestPrintFreshness:
         # rf.main --record also prints (its "recorded …" line precedes ours)
         assert "review-freshness: FRESH (reviewed " in out
         assert "legs=['delegation']" in out and "test verdict" in out
+
+    def test_empty_state_prints_refresh_hint(self, ledger, monkeypatch, capsys):
+        monkeypatch.setattr(rf, "_diff_text", lambda stack: "")
+        rf._diff_cache_save({})
+        rs._print_freshness(1)
+        out = capsys.readouterr().out
+        assert "review-freshness: EMPTY" in out
+        assert "nothing to review; refresh the patch" in out
 
     def test_unavailable_never_raises(self, ledger, monkeypatch, capsys):
         def boom(stack):

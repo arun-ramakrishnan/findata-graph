@@ -245,6 +245,8 @@ def _print_freshness(stack: int, range_args: tuple[str, str] | None = None) -> N
 
         state, row, _ = rf.status_range(*range_args) if range_args else rf.status(stack)
         line = f"review-freshness: {state}"
+        if state == "EMPTY":
+            line += " (empty diff — nothing to review; refresh the patch)"
         if row is not None:
             if state == "SUBSUMED":
                 line += f" (contained in {row.get('scope')}, reviewed {row['reviewed_at']}"

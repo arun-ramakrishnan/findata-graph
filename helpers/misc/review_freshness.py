@@ -38,6 +38,11 @@ Recipes:
     # a subrange of a reviewed superset reads SUBSUMED (same base, asked head
     # an ancestor of the recorded head) — not a lying UNREVIEWED (S11b)
 
+    # an EMPTY diff (fresh 'stg new' placeholder, zero-width pair) reads
+    # EMPTY, never UNREVIEWED, and --record refuses it: sha256("") is one
+    # collision class shared by every empty diff — a row against it would
+    # lie FRESH for all of them (2026-11-04, the qt_bridges empty top patch)
+
     # any argument spelling of the same pair reads the same row (scope labels
     # are canonical from RESOLVED SHAs); --leg without --record is refused
 
@@ -146,6 +151,14 @@ LEDGER_ROOT = _main_checkout_root()
 # Ledger, its diffcache and its flock all derive from this path, so they all
 # follow the main checkout together.
 LEDGER = LEDGER_ROOT / "outputs" / "reviews" / "review-freshness.json"
+
+# sha256 of zero bytes of diff text — the fp EVERY empty diff hashes to:
+# a collision class, not a diff identity. An unrefreshed 'stg new'
+# placeholder and a zero-width --from/--to pair both land here, so a
+# ledger row recorded against it would claim every future empty patch
+# FRESH (2026-11-04: the empty qt_bridges top patch read UNREVIEWED under
+# this fp while the diffcache already held two SHA pairs mapped to it).
+EMPTY_FP = hashlib.sha256(b"").hexdigest()[:16]
 
 
 def _rev_sha(ref: str) -> str:
@@ -320,10 +333,12 @@ def _is_ancestor(asked: str, recorded: str) -> bool:
 
 def status_range(base: str, head: str) -> tuple[str, dict | None, str]:
     """(state, row, scope) for a landed pair — state in FRESH / STALE /
-    SUBSUMED / UNREVIEWED (S11b: SUBSUMED = the asked head is an ancestor
-    of a recorded head over the same base, so this range's diff is
-    contained in an already-reviewed superset)."""
+    SUBSUMED / UNREVIEWED / EMPTY (S11b: SUBSUMED = the asked head is an
+    ancestor of a recorded head over the same base, so this range's diff
+    is contained in an already-reviewed superset)."""
     fp, scope = fingerprint_range(base, head)
+    if fp == EMPTY_FP:  # zero-width pair — same collision class as an empty patch
+        return "EMPTY", None, scope
     base_sha, head_sha = _rev_sha(base), _rev_sha(head)
     rows = _load()
     live = next((r for r in rows if r.get("fingerprint") == fp), None)
@@ -372,8 +387,10 @@ def _save(rows: list[dict]) -> None:
 
 
 def status(stack: int) -> tuple[str, dict | None, str]:
-    """(state, row, scope) — state in FRESH / STALE / UNREVIEWED."""
+    """(state, row, scope) — state in FRESH / STALE / UNREVIEWED / EMPTY."""
     fp, scope = fingerprint(stack)
+    if fp == EMPTY_FP:  # before any row match: sha256("") is a class, not an identity
+        return "EMPTY", None, scope
     rows = _load()
     live = next((r for r in rows if r.get("fingerprint") == fp), None)
     if live is not None:
@@ -421,6 +438,14 @@ def _resolve_scope(
 def _record_verdict(args, rows, fp, scope, ranged, stack_for_row, range_shas) -> int:
     """--record: upsert the verdict row (union legs on a live
     fingerprint; backfill SHAs on rows recorded before S11b)."""
+    if fp == EMPTY_FP:
+        sys.exit(
+            f"refusing to record {scope} fp={fp}: the diff is EMPTY — an unrefreshed "
+            "'stg new' placeholder or zero-width pair has no content to review, and "
+            "every empty diff shares this fp (a row here would read ALL future empty "
+            "patches FRESH). 'stg refresh' the patch first or record the real range "
+            "with --from/--to."
+        )
     legs = sorted(set(args.leg)) or ["delegation"]
     live = next((r for r in rows if r.get("fingerprint") == fp), None)
     if live is not None:
@@ -466,6 +491,11 @@ def _print_verdict(args, state, row, scope, fp) -> None:
             f"  contained in recorded range {row.get('scope')} — reviewed "
             f"{row['reviewed_at']} legs={row.get('legs')}"
             + (f" note={row['note']}" if row.get("note") else "")
+        )
+    elif state == "EMPTY":
+        print(
+            "  the diff text is empty — an unrefreshed 'stg new' placeholder or "
+            "zero-width pair has nothing to review ('stg refresh', then re-run)"
         )
     else:
         print("  no recorded review for this diff")

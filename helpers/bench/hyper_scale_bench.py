@@ -35,6 +35,7 @@ import random
 import sys
 import time
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO_ROOT))
@@ -45,6 +46,9 @@ import warnings  # noqa: E402
 warnings.filterwarnings("ignore", category=SyntaxWarning)  # HGX docstrings
 
 import numpy as np  # noqa: E402
+
+if TYPE_CHECKING:
+    from scipy.sparse import csr_matrix
 
 
 def gen_hyper(n_nodes: int, target_inc: int, cap: int, seed: int = 7) -> list[tuple[int, ...]]:
@@ -227,6 +231,69 @@ def lane_trail_bfs(
     return row
 
 
+# Dense-block budget for the sampled leg: shortest_path materializes
+# a (len(indices), n) float64 matrix, quadratic in len(indices) —
+# unguarded it thrashed the box at wall cap (2026-11-03).
+# (Module-level since range-review R12 — the guard is load-bearing and
+# previously untested; hoisted so tests can pin it.)
+_SAMPLED_MEM_BUDGET_BYTES = 128 * 1024 * 1024
+
+# Dense generator ceiling: rng.random((n, n)) is an n^2 float64
+# intermediate (7.2 GB at n=30k, 28.8 GB at n=60k) — the actual
+# thrash point of the first wall-scale attempt. Above this ceiling
+# the graph is built sparse (same upper-triangle Bernoulli ensemble).
+_DENSE_GEN_MAX_N = 5000
+
+
+def connected_rand(n: int, p: float, rng: np.random.Generator) -> csr_matrix:
+    """Dense-ish connected generator: path backbone + Bernoulli chords."""
+    from scipy.sparse import csr_matrix
+
+    # path backbone guarantees one component; plus random chords
+    row = list(range(n - 1))
+    col = list(range(1, n))
+    A = (rng.random((n, n)) < p).astype(np.int8)
+    A = np.triu(A, 1)
+    A = A | A.T
+    for i, j in zip(row, col):
+        A[i, j] = 1
+        A[j, i] = 1
+    return csr_matrix(A)
+
+
+def connected_rand_sparse(n: int, p: float, rng: np.random.Generator) -> csr_matrix:
+    """Same ensemble as the dense build without the n^2 intermediate."""
+    from scipy.sparse import csr_matrix
+
+    # Same ensemble as the dense build (each upper-triangle pair kept
+    # with probability p, plus the path backbone) without the n^2
+    # intermediate: draw the pair count from Binomial(n(n-1)/2, p),
+    # sample that many unordered pairs, dedupe, drop self-loops and
+    # backbone pairs (re-added explicitly).
+    k = rng.binomial(n * (n - 1) // 2, p)
+    i = rng.integers(0, n, size=k)
+    j = rng.integers(0, n, size=k)
+    lo = np.minimum(i, j)
+    hi = np.maximum(i, j)
+    keep = lo < hi
+    lo, hi = lo[keep], hi[keep]
+    packed = np.unique(lo.astype(np.int64) * n + hi)
+    lo = (packed // n).astype(np.int32)
+    hi = (packed % n).astype(np.int32)
+    nb = (hi - lo) != 1
+    lo, hi = lo[nb], hi[nb]
+    row = np.concatenate([np.arange(n - 1), np.arange(1, n), lo, hi])
+    col = np.concatenate([np.arange(1, n), np.arange(n - 1), hi, lo])
+    data = np.ones(row.size, dtype=np.int8)
+    return csr_matrix((data, (row, col)), shape=(n, n))
+
+
+def roots_chunk(n: int) -> int:
+    """Roots per shortest_path call: each dense (chunk, n) float64
+    block stays under ``_SAMPLED_MEM_BUDGET_BYTES``."""
+    return max(1, int(_SAMPLED_MEM_BUDGET_BYTES // (8 * n)))
+
+
 def lane_chains_exact(*, cap: int = 6000, seed: int = 7) -> list[dict]:
     """Wall-3 S3 bench leg: time-to-EXACT diameter at 2x, 5x, 10x the
     cap, over connected random unipartite graphs.
@@ -240,54 +307,7 @@ def lane_chains_exact(*, cap: int = 6000, seed: int = 7) -> list[dict]:
     """
     from helpers.graph.stats import _ifub_diameter
 
-    import numpy as np
-    from scipy.sparse import csr_matrix
     from scipy.sparse.csgraph import shortest_path
-
-    # Dense-block budget for the sampled leg: shortest_path materializes
-    # a (len(indices), n) float64 matrix, quadratic in len(indices) —
-    # unguarded it thrashed the box at wall cap (2026-11-03).
-    _SAMPLED_MEM_BUDGET_BYTES = 128 * 1024 * 1024
-    # Dense generator ceiling: rng.random((n, n)) is an n^2 float64
-    # intermediate (7.2 GB at n=30k, 28.8 GB at n=60k) — the actual
-    # thrash point of the first wall-scale attempt. Above this ceiling
-    # the graph is built sparse (same upper-triangle Bernoulli ensemble).
-    _DENSE_GEN_MAX_N = 5000
-
-    def connected_rand(n: int, p: float, rng: np.random.Generator) -> csr_matrix:
-        # path backbone guarantees one component; plus random chords
-        row = list(range(n - 1))
-        col = list(range(1, n))
-        A = (rng.random((n, n)) < p).astype(np.int8)
-        A = np.triu(A, 1)
-        A = A | A.T
-        for i, j in zip(row, col):
-            A[i, j] = 1
-            A[j, i] = 1
-        return csr_matrix(A)
-
-    def connected_rand_sparse(n: int, p: float, rng: np.random.Generator) -> csr_matrix:
-        # Same ensemble as the dense build (each upper-triangle pair kept
-        # with probability p, plus the path backbone) without the n^2
-        # intermediate: draw the pair count from Binomial(n(n-1)/2, p),
-        # sample that many unordered pairs, dedupe, drop self-loops and
-        # backbone pairs (re-added explicitly).
-        k = rng.binomial(n * (n - 1) // 2, p)
-        i = rng.integers(0, n, size=k)
-        j = rng.integers(0, n, size=k)
-        lo = np.minimum(i, j)
-        hi = np.maximum(i, j)
-        keep = lo < hi
-        lo, hi = lo[keep], hi[keep]
-        packed = np.unique(lo.astype(np.int64) * n + hi)
-        lo = (packed // n).astype(np.int32)
-        hi = (packed % n).astype(np.int32)
-        nb = (hi - lo) != 1
-        lo, hi = lo[nb], hi[nb]
-        row = np.concatenate([np.arange(n - 1), np.arange(1, n), lo, hi])
-        col = np.concatenate([np.arange(1, n), np.arange(n - 1), hi, lo])
-        data = np.ones(row.size, dtype=np.int8)
-        return csr_matrix((data, (row, col)), shape=(n, n))
 
     rng = np.random.default_rng(seed)
     rows = []
@@ -306,7 +326,7 @@ def lane_chains_exact(*, cap: int = 6000, seed: int = 7) -> list[dict]:
         # byte-identically); at wall cap 6000 on n=60k this bounds the
         # block to ~128 MB instead of ~2.9 GB. Timer covers the whole
         # chunked pass.
-        chunk = max(1, int(_SAMPLED_MEM_BUDGET_BYTES // (8 * n)))
+        chunk = roots_chunk(n)
         chunked = chunk < len(roots)
         t = time.perf_counter()
         for start in range(0, len(roots), chunk):

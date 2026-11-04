@@ -371,6 +371,49 @@ class TestCacheAgeGuard:
         with pytest.raises(SystemExit, match="refresh-cache"):
             _guard_cache_age("unknown", dry_run=False, refresh_cache=False, check_only=False)
 
+    # ---- range-review R6: the WIRING point, not just the guard ----
+    # The unit tests above call _guard_cache_age directly; the S2 finding
+    # was that the CALL SITE (inside _load_or_fetch_infos) was neutered
+    # and 91/91 still passed. This test drives the real loader with a
+    # stale on-disk cache, so removing the guard call at the wiring
+    # point turns it red.
+
+    def _write_cache(self, path: Path, fetched_at: str) -> None:
+        path.write_text(
+            json.dumps({"info_by_name": {}, "failures": [], "fetched_at": fetched_at}),
+            encoding="utf-8",
+        )
+
+    def test_loader_stale_cache_refused_on_apply(self, tmp_path):
+        from helpers.maintenance.enrich_relations import _load_or_fetch_infos
+
+        cache = tmp_path / "fetch_cache.json"
+        stale = (datetime.now(UTC) - timedelta(days=71)).isoformat(timespec="seconds")
+        self._write_cache(cache, stale)
+        with pytest.raises(SystemExit, match="refresh-cache"):
+            _load_or_fetch_infos([], workers=1, fetch_cache=cache, dry_run=False)
+
+    def test_loader_stale_cache_dry_run_ok(self, tmp_path):
+        from helpers.maintenance.enrich_relations import _load_or_fetch_infos
+
+        cache = tmp_path / "fetch_cache.json"
+        stale = (datetime.now(UTC) - timedelta(days=71)).isoformat(timespec="seconds")
+        self._write_cache(cache, stale)
+        infos, failures = _load_or_fetch_infos([], workers=1, fetch_cache=cache, dry_run=True)
+        assert infos == {} and failures == []
+
+    def test_loader_refresh_cache_bypasses_guard_without_fetch(self, tmp_path):
+        from helpers.maintenance.enrich_relations import _load_or_fetch_infos
+
+        cache = tmp_path / "fetch_cache.json"
+        stale = (datetime.now(UTC) - timedelta(days=71)).isoformat(timespec="seconds")
+        self._write_cache(cache, stale)
+        # refresh_cache skips the cache entirely; empty companies => no fetches
+        infos, failures = _load_or_fetch_infos(
+            [], workers=1, fetch_cache=cache, refresh_cache=True, dry_run=False
+        )
+        assert infos == {} and failures == []
+
 
 # --------------------------------------------------------------------------- #
 # fetch_all progress reporting (refresh-cache hang follow-up, 2026-11-03)     #

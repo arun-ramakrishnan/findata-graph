@@ -2,11 +2,16 @@
 # Build the onager DuckDB extension against DuckDB v2.0.0 (vendor/onager —
 # onager_vendored_source_build).
 #
-# Why vendored: `INSTALL onager` under duckdb 2.0.0 LTS 404s — the community
-# bucket has no v2.0.0/linux_amd64 artifact even though upstream v0.5.0 is the
-# 2.0.0 port ("Update the project to build after the DuckDB 2.0.0's API
-# changes (#32)", 2026-10-23) and its dist pipeline builds duckdb_version:
-# v2.0.0. We build the same shape locally; helpers/graph/onager.py prefers a
+# Why vendored: install speed/reproducibility, NOT availability — the
+# community repo DOES serve a v0.5.0/linux_amd64 artifact for duckdb 2.0.0
+# (HTTP 200, sha256 in PROVENANCE.md 'Why vendored (truth corrected
+# 2026-10-24 afternoon)'; fresh-box bootstrap: SET
+# custom_extension_repository='community-extensions.duckdb.org';
+# INSTALL onager; LOAD onager). An earlier header here claimed the bucket
+# had no 2.0.0 artifact — that claim was retracted 2026-10-24. Upstream
+# v0.5.0 is the 2.0.0 port ("Update the project to build after the DuckDB
+# 2.0.0's API changes (#32)", 2026-10-23). We build the same shape locally;
+# helpers/graph/onager.py prefers a
 # loadable extension over the scipy/numpy fallback chain the moment LOAD
 # succeeds, so this artifact restores the onager lane for all 13 dispatch
 # families (and the personalised-pagerank wrap stays forbidden — see

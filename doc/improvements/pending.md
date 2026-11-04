@@ -3,6 +3,17 @@
 Full annotated triage map with live-verified trigger status.
 Open items below keep their revisit triggers inline; executed work is compressed to records.
 
+- **Range-review follow-ups a6fccfb23..4b6f50912 — EXECUTED 2026-11-04**
+  (archive/tooling/range_review_followups.md; completed.md #479):
+  R1–R14 all closed same-day — quack bridge cut, connect_shared narrowed
+  (plain connect; unsigned explicit at onager/build/server-child only +
+  doc/security note), freeze chronology recorded, hyper_spectral finding
+  mis-aimed (lane CLI, house pattern #472), refresh-chain smoke leg,
+  age-guard wiring tests, qa_gate frontmatter, onager-rationale reword,
+  ty bench error + sklearn carve-out, oracle + pinned step contract +
+  S1b corpus fastpath, bench guard tests, lanes name guard. Residual:
+  none.
+
 - **Thin-tail note quality — D1–D3 remainder — DEFERRED 2026-10-29**
   (archive/pipeline/notes_thin_tail_quality.md; completed.md #452):
   S1–S5 executed — KF evidence UNION + `--kf-manifest` backfill (KF

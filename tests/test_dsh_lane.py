@@ -383,3 +383,18 @@ def test_parse_dsh_grains(tmp_path, monkeypatch):
         assert sess and sess[0][1] == "glm-5.3-flash"
     finally:
         con.close()
+
+
+class TestLaneNameGuard:
+    """Range-review R14: an unknown lane name used to silently filter to
+    an EMPTY lane set — a harvest that ingested nothing or a drift check
+    that checked nothing, both reading as clean. Now it fails loudly."""
+
+    def test_unknown_lane_rejected(self):
+        with pytest.raises(ValueError, match="unknown lanes"):
+            hc._check_lanes(("dsh", "dshh"))
+
+    def test_valid_lanes_pass(self):
+        hc._check_lanes(("dsh",))
+        hc._check_lanes(hc._LANES)
+        hc._check_lanes(None)  # None = all lanes, unfiltered

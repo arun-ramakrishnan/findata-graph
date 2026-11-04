@@ -16,10 +16,6 @@ path = "src/bin/sha_s2.rs"
 name = "embed-cache-lookup"
 path = "src/bin/embed-cache-lookup.rs"
 
-[[bin]]
-name = "quack-query"
-path = "src/bin/quack-query.rs"
-
 [lib]
 name = "embed_cache"
 path = "src/lib.rs"

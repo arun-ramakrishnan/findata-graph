@@ -138,7 +138,7 @@ help:           ## Show available targets (alphabetical; entries generated from 
 > @echo "  mojo-test                Run Mojo/tests/*.mojo test suites via mojo run (machinery in Makefile.mojo)"
 > @echo "  near-duplicates          Report near-duplicate note pairs above cosine 0.9 (rename tripwire; READ-ONLY)"
 > @echo "  ocr-version-check        Assert the OCR binary matches the pinned version (helpers/misc/ocr_pin.py; advisory)"
-> @echo "  onager-build             Build the onager DuckDB extension against duckdb v2.0.0 into models/onager/bin (vendor/onager recipe: pinned CogitatorTech/onager v0.5.0 — the community bucket has no 2.0.0 artifact)"
+> @echo "  onager-build             Build the onager DuckDB extension against duckdb v2.0.0 into models/onager/bin (vendor/onager recipe: pinned CogitatorTech/onager v0.5.0 — vendored for install speed/reproducibility; the community repo DOES serve a 2.0.0 artifact, see vendor/onager/PROVENANCE.md)"
 > @echo "  parity                   Byte-compare registered refactor targets against REF (default HEAD) across pinned hash seeds (warns; STRICT=1 to gate)"
 > @echo "  perf                     Run wall-clock perf benchmarks, print timing table, and append to outputs/perf_report.md"
 > @echo "  person-census            Person-name dup census (person_name_dedup): --check gate vs baseline, --plan writes the merge plan"
@@ -249,7 +249,7 @@ perf:           ## Run wall-clock perf benchmarks, print timing table, and appen
 ocr-version-check: ## Assert the OCR binary matches the pinned version (helpers/misc/ocr_pin.py; advisory)
 > @.venv/bin/python3 helpers/misc/ocr_pin.py
 
-onager-build:  ## Build the onager DuckDB extension against duckdb v2.0.0 into models/onager/bin (vendor/onager recipe: pinned CogitatorTech/onager v0.5.0, the 2.0.0 port — the community bucket has no 2.0.0 artifact; LOAD verdict goes to vendor/onager/PROVENANCE.md)
+onager-build:  ## Build the onager DuckDB extension against duckdb v2.0.0 into models/onager/bin (vendor/onager recipe: pinned CogitatorTech/onager v0.5.0, the 2.0.0 port — vendored for install speed/reproducibility, NOT availability; the community repo serves a 2.0.0 artifact — see PROVENANCE.md 'Why vendored'; LOAD verdict goes to vendor/onager/PROVENANCE.md)
 > @bash vendor/onager/build.sh
 
 cover:          ## Run all tests with coverage over helpers/ (branch + missing-line report)

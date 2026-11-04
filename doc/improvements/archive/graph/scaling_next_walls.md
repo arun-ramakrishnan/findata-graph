@@ -163,6 +163,13 @@ process spawn amortizes or the graph grows well past the int32/100M
 posture). The promotion *decision* stays gated on a measured >2× crossover,
 per the NOT-attackable note.
 
+**Freeze chronology (range-review R3, 2026-11-04):** Mojo itself was
+frozen at 7d8c4dc56; this env-gated port landed post-freeze in 4ebbc41c0
+as a dormant, contract-identical alternative — scipy default untouched,
+nothing wire-visible, promotion still gated on the measured >2×
+crossover. Recorded here so the post-freeze landing is not mistaken for
+a promotion.
+
 **Axis:** kernels. **Risk:** low — per-source independence is
 structural; B-B non-goals (batched/multi-source) respected here.
 

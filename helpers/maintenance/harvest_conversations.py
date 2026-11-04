@@ -2125,6 +2125,20 @@ def _zcode_lane_drift(store: Store, corpus_root: Path) -> list[str]:
     return out
 
 
+_LANES = ("opencode", "prime-rlm", "zcode", "dsh", "bili")
+
+
+def _check_lanes(lanes: tuple[str, ...] | None) -> None:
+    """Range-review R14: an unknown lane name used to filter to an EMPTY
+    lane set silently — a drift check that checked nothing or a harvest
+    that ingested nothing, both reading as clean. Fail loudly instead."""
+    if lanes is None:
+        return
+    unknown = sorted(set(lanes) - set(_LANES))
+    if unknown:
+        raise ValueError(f"unknown lanes {unknown}; valid: {list(_LANES)}")
+
+
 def _drift(
     store: Store, corpus_root: Path = CORPUS_ROOT, lanes: tuple[str, ...] | None = None
 ) -> list[str]:
@@ -2132,6 +2146,7 @@ def _drift(
 
     If ``lanes`` is provided, only check drift for those lanes.
     """
+    _check_lanes(lanes)
     allowed = set(lanes) if lanes is not None else None
     lane_checks: list[tuple[str, Callable[[Store, Path], list[str]]]] = [
         ("opencode", _opencode_lane_drift),
@@ -2248,6 +2263,7 @@ def harvest(
             ("dsh", _harvest_dsh),
             ("bili", _harvest_bili),
         )
+        _check_lanes(lanes)
         if lanes is not None:
             allowed = set(lanes)
             lane_iter = ((n, f) for n, f in lane_iter if n in allowed)

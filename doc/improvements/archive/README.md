@@ -509,6 +509,14 @@ commit, referenced by nothing). Entry numbers point at
 - [`refresh_chain_parallel.md`](pipeline/refresh_chain_parallel.md) — Refresh chain, parallel — fetch/apply split so independent sources overlap; per-lane `--fetch-only` stages writing scratch JSON under `$TMPDIR/findata-graph/`, parallel phase A, sequential store applies under per-store lock, per-item failure containment; `refresh-chain` Makefile target (default), `refresh-chain-ser` for the original sequential chain — completed.md #403
 
 ## tooling/ — Tooling & performance — MCP eval, doc browser/search, perf review, tech survey
+- [`range_review_followups.md`](tooling/range_review_followups.md) —
+  first three-leg review (delegation + scan + goldfish) over
+  e3147ef3c..4b6f50912 as fix items R1–R14: quack bridge cut,
+  connect_shared unsigned-narrowing + doc/security threat note, freeze
+  chronology addendum, refresh-chain smoke leg, age-guard wiring tests,
+  ty bench error escalation, pinned chain contract + S1b corpus
+  fastpath, bench memory-guard tests, lanes name guard —
+  completed.md #479
 - [`served_store_read_funnel.md`](tooling/served_store_read_funnel.md) —
   namespace-safe served-store liveness (socket port probe on
   ProcessLookupError), wire-attach fallback in open_read_only on lock

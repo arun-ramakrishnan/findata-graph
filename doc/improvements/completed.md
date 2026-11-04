@@ -13578,3 +13578,73 @@ doc/improvements/archive/testing/qa_gate_heavy_tests.md.
   `test_chain_idempotence` — 7 tests ~121s, qa pytest leg 353.0 -> 317.1s wall.
 - **Validation:** make qa 12/12 (5636 passed, 5 skipped), make perf 31/31,
   make advisory 20/22 (2 pre-existing non-gating warnings).
+
+## 479. Range-review follow-ups a6fccfb23..4b6f50912 — R1–R14 executed
+
+Provenance: filed 2026-11-04 out of the first three-leg review (OCR
+delegation + review scan + goldfish) over e3147ef3c..4b6f50912
+(fp=d52f6763e4abdd0b, legs=['delegation','goldfish','scan']); archived to
+doc/improvements/archive/tooling/range_review_followups.md.
+
+- **R1 — quack bridge cut:** `helpers/core/quack_query.py` +
+  `Rust/embed_cache/src/bin/quack-query.rs` deleted, Cargo `[[bin]]`
+  block dropped; the two internal-identifier semgrep mediums died with
+  the file.
+- **R2 — unsigned-ext narrowing (amended acceptance):** the wire server
+  MUST carry `allow_unsigned_extensions` (onager lanes over the wire
+  degrade otherwise), so the fix is narrowing not server denial:
+  `connect_shared` connects plain; the flag stays explicit at onager's
+  own con, the query.py file-mode build, and the server child; threat
+  note `doc/security/unsigned-extensions.md`; pin
+  `tests/test_duckdb_shared.py::TestConnectSharedUnsigned`.
+- **R3 — freeze chronology recorded:** dated addendum in
+  `archive/graph/scaling_next_walls.md` — Mojo frozen at 7d8c4dc56, the
+  env-gated port landed post-freeze in 4ebbc41c0 as dormant alternative;
+  scipy default untouched; promotion still gated on measured >2x
+  crossover.
+- **R4 — finding mis-aimed, closed:** completed.md #472 documents
+  hyper_spectral as an operator-instructed standalone lane CLI (house
+  pattern); zero importers is expected for CLI lanes. Docstring
+  clarified; no cut; narration needed no correction.
+- **R5 — refresh-chain smoke leg:**
+  `tests/test_refresh_chain_smoke.py` (4 integration tests) pins the
+  `--fetch-only` -> scratch JSON -> `--apply-only` contract hermetically
+  (tmp FETCH_SCRATCH + SOURCES_DB, sentinel seam at
+  `_resolve_companies`); writer-schema drift fails loud.
+- **R6 — cache-age-guard wiring tests:** three tests through
+  `_load_or_fetch_infos` (the call site the S2 mutation neutered) —
+  stale on-disk cache -> SystemExit on apply, dry-run OK, refresh_cache
+  bypasses guard without network.
+- **R7 — qa_gate archive frontmatter:** status executed + completed_md
+  478; SAVEPOINT-rejection noted (tests/test_rebuild_schema.py:31).
+- **R8 — retracted rationale reworded:** Makefile:141/:252 +
+  vendor/onager/build.sh now state vendoring = speed/reproducibility
+  (community repo DOES serve the 2.0.0 artifact; PROVENANCE.md).
+- **R9 — ty bench override escalated:** bench `unresolved-import` ->
+  error; the sklearn residual (same rule aliased import-not-found in
+  this ty version) carved back to warn via a file-level override on
+  hyper_community_probe.py.
+- **R10 — idempotence oracle strengthened:** `record2 == record`
+  (script+argv+rc) in test_chain_idempotence — settle-on-first-run
+  mutations fail.
+- **R11 — chain contract pinned + S1b covered:** pinned
+  `EXPECTED_FULL_SCRIPTS` literal (32 steps; constants drift fails);
+  `TestCorpusFastpath` proves the S1b fastpath is actually taken (its
+  silent walk-fallback was the invisible regression mode) and derives
+  identical events to the walk arm.
+- **R12 — bench memory guards tested:**
+  `_SAMPLED_MEM_BUDGET_BYTES`/`_DENSE_GEN_MAX_N`/generators/`roots_chunk`
+  hoisted to module level; 9 tests pin the budget bound, ceiling,
+  chunk>=1, and generator shape/parity.
+- **R13 — record-only:** 4ebbc41c0 commit-message breach (empty subject
+  and body, over-bundle) recorded in the proposal; no git rewrite.
+- **R14 — lanes guard:** `_check_lanes` raises on unknown lane names
+  (was: silent empty lane set in `harvest()`/`_drift()`); remaining NIT
+  bullets closed as recorded notes.
+- **Validation:** 154 targeted tests across six touched test files
+  (test_duckdb_shared 31, test_hyper_scale_bench 9, test_dsh_lane 38,
+  test_refresh_chain_smoke 4, test_enrich_relations CacheAgeGuard 9,
+  test_integration_maint_chain contract+corpus+idempotence+tier1 63);
+  ruff check + format clean; md-lint clean on touched docs;
+  ty bench rc=0 under make-target flags. Tree left dirty for the
+  operator (stg refresh per owning patches at operator discretion).

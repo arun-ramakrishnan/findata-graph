@@ -1,15 +1,15 @@
 ---
 title: "Slim qa-gate heavy tests (S1 dsh_lane + S2 rebuild_schema)"
-status: proposed
+status: executed
 filed: "2026-11-04"
-executed: null
-completed_md: null
+executed: "2026-11-04"
+completed_md: "478"
 area: "tests/test_dsh_lane.py, tests/test_rebuild_schema.py, helpers/maintenance/harvest_conversations.py"
 ---
 
 # Slim qa-gate heavy tests (S1 dsh_lane + S2 rebuild_schema)
 
-**Date:** 2026-11-04 · **Status:** PROPOSED ·
+**Date:** 2026-11-04 · **Status:** EXECUTED (completed.md #478) ·
 **Area:** tests/test_dsh_lane.py, tests/test_rebuild_schema.py, helpers/maintenance/harvest_conversations.py
 
 ## 1. Motivation
@@ -34,7 +34,7 @@ Chosen mechanism: test-only isolation parameters; production defaults untouched.
 
 **S1 (harvest lanes filter + test_dsh_lane.py module-scoped fixture):** Add private `lanes: tuple[str,...] | None = None` kwarg to `harvest()` (default None = all 5 lanes; production CLI unchanged). Update the lane loop to filter to only selected lanes. In test_dsh_lane.py, pass `lanes=("dsh",)` to every harvest() call and introduce a module-scoped synthetic session fixture to avoid re-creating the .dsh tree per test. Target: file-time 134.6s → <40s.
 
-**S2 (test_rebuild_schema.py trimmed template + SAVEPOINT):** Replace `tmp_db` fixture (clones full_template 404MB per test) with `build_trimmed_template` (120 co + CEAT only). Add module-scoped clone + SQLite SAVEPOINT per mutating test to preserve isolation (fixture docstring requires isolated file). Target: file-time 123.4s → <30s.
+**S2 (test_rebuild_schema.py trimmed template + SAVEPOINT):** Replace `tmp_db` fixture (clones full_template 404MB per test) with `build_trimmed_template` (120 co + CEAT only). Add module-scoped clone + SQLite SAVEPOINT per mutating test to preserve isolation (fixture docstring requires isolated file). Target: file-time 123.4s → <30s. **As landed:** the SAVEPOINT isolation scheme was REJECTED in implementation — it broke under real write patterns ("SAVEPOINT games", tests/test_rebuild_schema.py:31); what shipped is the trimmed template plus per-test clones of it.
 
 **S3 (test_integration_maint_chain.py synthetic seed):** Landed 2026-11-04 (supersedes the earlier "defer" — user asked whether the S3 debt was fixed, then to complete it). The fixture no longer backs up the 404MB live DB: `_build_db` reflink-clones the shared `schema_template` (canonical DDL, zero rows, ~2MB) and `_seed_test_data` inserts a minimal FK-consistent corpus — 42 sectors (build_sector_hierarchy `_validate_coverage` requires exactly the SUPER_SECTORS member set, zero orphans; the step INSERT-OR-IGNOREs the 10 super + 142 sub entities itself), HDFC Bank/ICICI Bank with repo-root-relative `file_path` (`findata/Companies/…`, the derive_events join contract), the 182 COMPANY_SUB_SECTORS map members, 3 graph_edges, and a db_meta scrub of production apply-stamps (worktree_fresh_trample_guard). The combined `test_full_chain_order_and_idempotence` is split into `test_chain_order` + `test_chain_idempotence` (+1 full chain run, ~27s — accepted for isolation/readability); `_shim_derive_events` disables the `--corpus` fast path (Corpus.load returns real-repo notes that can never resolve under the tmp `_REPO_ROOT`). File: 111.7s → ~121s JUnit sum for 7 tests, standalone serial 120–122s vs 78.5s for the old 6-test file.
 
@@ -62,7 +62,7 @@ Alternatives considered:
 ## 5. Risks
 
 - **Lanes filter introduces bug** — mitigation: module-scoped fixture + run file twice green; production callers pass nothing (default None = all lanes).
-- **Trimmed template misses schema** — mitigation: build_trimmed_template already used elsewhere; SAVEPOINT restores per-test isolation.
+- **Trimmed template misses schema** — mitigation: build_trimmed_template already used elsewhere; (as landed the SAVEPOINT isolation was rejected — per-test clones preserve isolation instead).
 - **Timing flake returns** — mitigation: test_graph_scale_watch holder already widened to 8.0s; synthetic 10-row table decoupled from graph size.
 
 ## 6. Non-goals

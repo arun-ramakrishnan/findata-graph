@@ -29,6 +29,7 @@ import sqlite3
 import subprocess
 import sys
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
@@ -237,7 +238,7 @@ class _MaintProject:
         con.execute("PRAGMA foreign_keys = ON")
         try:
             sectors = sorted({s for members in bsh.SUPER_SECTORS.values() for s in members})
-            entities = [
+            entities: list[tuple[str, str, str | None, str, str]] = [
                 (name, "sector", f"Sectors/{name}.md", name, "2026-01-01") for name in sectors
             ]
             # Fixture companies need file_path for _build_vault to find them;
@@ -635,6 +636,105 @@ def _full_expected_steps() -> list[str]:
     )
 
 
+# Pinned chain contract (range-review R11): the derived list above reads
+# the SAME maint.py constants the dispatcher executes, so deriving alone
+# can never catch a constants drift. This literal is the externally-owned
+# expectation — a deliberate chain change must update it consciously.
+EXPECTED_FULL_SCRIPTS = [
+    "helpers/core/sync_tags.py",
+    "helpers/misc/backfill_okf_provenance.py",
+    "helpers/misc/backfill_row_provenance.py",
+    "helpers/misc/seed_concepts.py",
+    "helpers/misc/backfill_identifiers.py",
+    "helpers/misc/seed_nic2008.py",
+    "helpers/maintenance/rebuild_note_search.py",
+    "helpers/graph/derive_cited_in.py",
+    "helpers/maintenance/harvest_conversations.py",
+    "helpers/maintenance/rebuild_convo_search.py",
+    "helpers/maintenance/db_maint.py",
+    "helpers/graph/query.py",
+    "helpers/maintenance/sync_sector_wikilinks.py",
+    "helpers/maintenance/build_sector_hierarchy.py",
+    "helpers/graph/embeddings.py",
+    "helpers/maintenance/rebuild_doc_search.py",
+    "helpers/graph/query.py",
+    "helpers/graph/query.py",
+    "helpers/graph/algorithms.py",
+    "helpers/graph/derive_insights.py",
+    "helpers/maintenance/sync_coverage_tags.py",
+    "helpers/core/sync_tags.py",
+    "helpers/maintenance/fold_identifiers.py",
+    "helpers/graph/derive_events.py",
+    "helpers/graph/derive_hyperedges.py",
+    "helpers/graph/query.py",
+    "helpers/graph/hyper_communities.py",
+    "helpers/graph/hyper_centralities.py",
+    "helpers/validators/static_checks.py",
+    "helpers/validators/frontmatter_schema.py",
+    "helpers/maintenance/snapshot_db.py",
+    "helpers/graph/csr.py",
+]
+
+
+class TestChainContract:
+    def test_full_chain_scripts_pinned(self):
+        """The derived step list must equal the pinned literal — constants
+        drift in maint.py fails here, not silently."""
+        assert _full_expected_steps() == EXPECTED_FULL_SCRIPTS
+
+
+class TestCorpusFastpath:
+    """Range-review R11 (fish F6): the hermetic chain forces
+    _HAS_CORPUS=False, so the production S1b corpus fastpath was
+    untested — and it can fail SILENTLY (derive_events.py:757 catches
+    every Corpus.load exception and falls back to the walk, which
+    produces identical events). Pin both halves of the contract: the
+    fastpath is actually TAKEN, and it derives the SAME events as the
+    walk arm."""
+
+    def test_fastpath_taken_and_parity_with_walk(self, project, monkeypatch):
+        p = project
+        monkeypatch.setattr(de, "COMPANIES_DIR", p.vault / "Companies")
+        monkeypatch.setattr(de, "_REPO_ROOT", p.root)
+        monkeypatch.setattr(de, "connect", lambda *a, **k: db_connect(str(p.db)))
+
+        # Arm 1 — the walk (as the chain shim runs it: _HAS_CORPUS=False)
+        monkeypatch.setattr(de, "_HAS_CORPUS", False)
+        assert de._cli(["--corpus", "--apply"]) == 0
+        events_walk = _table(
+            p,
+            "SELECT entity, event_type, source_quote FROM events ORDER BY 1, 2, 3",
+        )
+
+        conn = db_connect(str(p.db))
+        conn.execute("DELETE FROM events")
+        conn.commit()
+        conn.close()
+
+        # Arm 2 — the corpus fastpath over the SAME tmp-vault notes
+        notes = [
+            SimpleNamespace(path=fp.resolve(), body=fp.read_text(encoding="utf-8"))
+            for fp in sorted((p.vault / "Companies").rglob("*.md"))
+        ]
+        assert notes, "fixture must seed at least one company note"
+        fake_corpus = SimpleNamespace(notes=notes)
+        called: list[tuple] = []
+
+        def _fake_load(*args, **kwargs):
+            called.append(args)
+            return fake_corpus
+
+        monkeypatch.setattr(de, "_HAS_CORPUS", True)
+        monkeypatch.setattr(de, "Corpus", SimpleNamespace(load=_fake_load))
+        assert de._cli(["--corpus", "--apply"]) == 0
+        assert called, "Corpus.load not invoked — S1b fastpath silently fell back"
+        events_corpus = _table(
+            p,
+            "SELECT entity, event_type, source_quote FROM events ORDER BY 1, 2, 3",
+        )
+        assert events_corpus == events_walk
+
+
 class TestMaintChain:
     def test_tier1_executes_all_steps_green(self, project, monkeypatch):
         # The served-skip must not fire in the hermetic chain: the
@@ -738,6 +838,11 @@ class TestMaintChain:
         record2 = _make_dispatcher(project, monkeypatch, [])
         assert maint.main(["--full"]) == 0
         assert _scripts(record2) == expected
+        # Range-review R10: compare the FULL records (script, argv, rc) —
+        # script names alone let a per-step rc drift (e.g. a step that
+        # passed green then degrades to rc!=0-with-tolerated-failure)
+        # through as 'idempotent'.
+        assert record2 == record
         assert project.notes_snapshot() == notes1
         assert (
             _table(

@@ -3,6 +3,10 @@
 shelf; baselines from the 2026-11-02 re-probe,
 doc/improvements/archive/graph/hgx_unlock_shelf_probe.md).
 
+Standalone lane CLI (house pattern — completed.md #472): deliberately no
+query.py slot and no module importers; dispatch is CLI-only. Zero
+importers is expected, not dead code.
+
 Two read-only lanes over the star-incidence store, per edge-type family:
 
   spectral-multiorder — per-order Laplacians to max_k (HGX

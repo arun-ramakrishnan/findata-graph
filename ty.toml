@@ -23,12 +23,22 @@ python-version = "3.14"
 python = ".venv"
 
 # Bench/tooling code (helpers/bench/**) is not production code — it runs
-# standalone benchmarks and probes. The sklearn import in hyper_community_probe.py
-# is a Wall-4 ARI quality probe (bench tooling, not shipped). The transitive dep
-# is not declared in [project].dependencies, so ty cannot resolve it. Downgrade
-# to warn for bench files so real type bugs still surface.
+# standalone benchmarks and probes. Since 2026-11-04 (range-review R9)
+# unresolvable imports are ERROR for bench — bench was verified clean of
+# first-party drift, so module-path drift now fails the types leg like
+# production code. One known residual: sklearn in hyper_community_probe.py
+# (undeclared optional Wall-4 ARI probe dep) is scoped back to WARN by the
+# file-level override below — later overrides win over broader ones.
+# (Note: this ty version aliases import-not-found under unresolved-import,
+# so the third-party residual cannot be separated by rule, only by file.)
 [[overrides]]
 include = ["helpers/bench/**"]
+
+  [overrides.rules]
+  unresolved-import = "error"
+
+[[overrides]]
+include = ["helpers/bench/hyper_community_probe.py"]
 
   [overrides.rules]
   unresolved-import = "warn"

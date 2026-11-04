@@ -229,6 +229,12 @@ def connect_shared(
     What must NEVER go over this helper is a swap-replace build: use
     `assert_not_served` there (os.replace swaps the directory entry,
     not the server's open handle — §2.6 split-brain rule).
+
+    Unsigned extensions are deliberately NOT permitted on a shared con:
+    no caller loads onager over one (materialization runs on onager's own
+    in-memory con; the graph file-mode build and the wire server child
+    carry the flag explicitly where their lanes need it — see
+    doc/security/unsigned-extensions.md).
     """
     p = Path(path)
     disc = load_discovery(discovery)
@@ -236,7 +242,7 @@ def connect_shared(
         entry = served_entry(disc, p)
         if entry is not None:
             return _attach_wire(entry, str(entry.get("alias") or p.stem))
-    return duckdb.connect(str(p), read_only=read_only, **unsigned_ext_kwargs())
+    return duckdb.connect(str(p), read_only=read_only)
 
 
 def unsigned_ext_kwargs() -> dict[str, Any]:
@@ -244,7 +250,12 @@ def unsigned_ext_kwargs() -> dict[str, Any]:
     extensions — the vendored onager build (vendor/onager/,
     helpers/graph/onager.py) is the resident case. duckdb 2.0 locks
     ``allow_unsigned_extensions`` once a database is open, so this rides
-    the connect config; harmless where no extension ever loads.
+    the connect config.
+
+    Scope is deliberately narrow: onager's own connection, the graph
+    file-mode build path, and the quack server child. Shared/file-mode
+    reads stay plain — the old ambient form ("harmless where no
+    extension ever loads") was retired 2026-11-04 (range-review R2).
     """
     return {"config": {"allow_unsigned_extensions": True}}
 
