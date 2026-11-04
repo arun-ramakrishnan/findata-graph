@@ -450,11 +450,25 @@ Open items below keep their revisit triggers inline; executed work is compressed
   handling first. Lane 6: core-periphery MEASURED (top-coreness ≈1.0
   gradient on edition/industry; 49.7 s @771 nodes, 22.9 s @984 —
   expensive), HySC/HypergraphMT blocked on missing scikit-learn (venv
-  lacks the hypergraphx[ml] extra), hyperlink_communities blocked on
-  an upstream pickle bug ("Failed to load pickle 'None.hlcd'").
-  Giant-k families (country 850, index 752, group 230, subsidiary
-  227, supply 222 max_k) remain unprobed at full scale. Detail: the
-  Re-probe 2026-11-02 section of archive/graph/hgx_unlock_shelf_probe.md.]
+  lacks the hypergraphx[ml] extra — LOCAL action, not upstream: verified
+  2026-11-05 `uv pip install --dry-run 'hypergraphx[ml]'` = 5 packages,
+  incl. scikit-learn 1.9.1; hy_sc/model.py imports sklearn.cluster.KMeans
+  with a `KMeans = None` fallback; hypergraph_mt/model.py has no sklearn
+  import), hyperlink_communities blocked on
+  an upstream pickle bug ("Failed to load pickle 'None.hlcd'" — exception-type
+  mismatch: readwrite/io_pickle.load_pickle wraps any failure as
+  ReadwriteError, never FileNotFoundError, so the caller's `except
+  FileNotFoundError` fallback never fires; save path also needs
+  expose_data_structures a numpy array lacks; density wall stands).
+  Giant-k families re-characterized 2026-11-05 (was "unprobed at full
+  scale"): country 10 k>=2 edges LOAD (919 nodes, max edge 850, 0.34 s);
+  index 57 LOAD (1,274 nodes, max edge 752, 0.13 s); group 506 /
+  subsidiary 451 / supply 709 RAISE the `k2_cap` guard in
+  hyper_spectral.py load_family (count guard, not the max_k order cap).
+  Spectral cost country max_k 60->850 = 3.0->2.9 s (RSS ~173-179 MB).
+  Deferred with the source proposal: `archive/database/market_cap_f1_hypergated.md`
+  (#480, 2026-11-05 post-review, S4 banked and S5/S6 parked).
+  Detail: the Re-probe 2026-11-02 section of archive/graph/hgx_unlock_shelf_probe.md.]
 
   1. **Motifs census** (`compute_motifs`, `directed_motifs`) — PROBED
      2026-10-28, **NO-GO on current data**: order-3 census (runs=10,
@@ -509,8 +523,16 @@ Open items below keep their revisit triggers inline; executed work is compressed
   6. **Community lanes 2–4** (`core_periphery.model.core_periphery`,
      `hyperlink_comm.hyperlink_communities`, `hypergraph_mt.model`,
      `hy_sc.model`; hy_mmsbm landed in `hyper_communities.py`) — still
-     gated: hy-MMSBM block-disagreement QA or a second-opinion metric
-     validation ask.
+     gated, but the gate itself is undefined (verified 2026-11-05):
+     `sweep_k` (hyper_communities.py:178) reports only log_likelihood/
+     bic/effective_blocks/fit_s and its `allow_giant` parameter is DEAD
+     inside (filtering happens upstream in `_cli`/`_exclude_degenerate`);
+     no disagreement metric/threshold named anywhere. Only existing
+     second-opinion harness: `helpers/bench/hyper_community_probe.py`
+     (ARI proj-vs-hgx, synthetic planted hypergraphs only — no live-family
+     variant; needs the sklearn install from lane 6's correction to run).
+     With `allow_giant=True` the size-850 country edge collapses HyMMSBM
+     to one block (894/919 nodes). Signal: `archive/database/market_cap_f1_hypergated.md` §3.2 S5 (deferred #480).
 
 - **Convo gemma embedder upgrade** (deferred #442,
   `archive/tooling/convo_gemma_adoption.md`). S0 bank + hardened verdict

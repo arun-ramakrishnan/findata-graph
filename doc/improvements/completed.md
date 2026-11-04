@@ -13648,3 +13648,48 @@ doc/improvements/archive/tooling/range_review_followups.md.
   ruff check + format clean; md-lint clean on touched docs;
   ty bench rc=0 under make-target flags. Tree left dirty for the
   operator (stg refresh per owning patches at operator discretion).
+
+## 480. F1 market_cap conflict + hypergraph gated lanes — deferred (S4 banked, S5/S6 parked)
+
+Provenance: filed 2026-11-05 out of a SQL investigation
+(`master_query`/`convo_query`/`ripwire`); post-review correction the
+same day (read-only re-check) showed the F1 premise was stale and the
+§3.2 probe spec misread the code; filed + reviewed + archived
+2026-11-05. Archived to
+doc/improvements/archive/database/market_cap_f1_hypergated.md.
+
+- **F1 — monitoring note, not a migration:** the 41 conflicting
+  `market_cap/*` companies were fixed at the SOURCE on 2026-08-05
+  (`findata_corpus_audit.md:126` "C2-FIX-RESOLVED"); the archived
+  ACTIVE claim (`sql_query_improvements.md:4`) is stale — the same
+  file at `:39` records "Data is clean TODAY." Verified 2026-11-05:
+  source `findata/**/*.md` scan (1,212 notes carry a market_cap
+  value, 0 with >1 distinct value) and live DB (`conflicts 0`,
+  `market_cap_rows 1129`). S3 is already satisfied:
+  `check_market_cap_conflicts`
+  (`helpers/misc/database_integrity_check.py:1412`) is registered as
+  an ERROR-severity `Check`
+  (`helpers/misc/database_integrity_check.py:126-178`) wired into
+  `make qa` via `tests/run_gate_report.py`, plus `/api/graph/stats`
+  `conflicting_market_cap` (`app.py`) and green guards
+  (`tests/test_sql_query_correctness.py`,
+  `tests/test_validators.py`,
+  `tests/test_database_integrity_check.py`,
+  `tests/test_api_graph_unit.py`). S1/S2 quarantine is NEW work (the
+  `dedupe_market_cap_tags.py` remediation tool no longer exists) and
+  the acceptance criterion must not rewrite archived history to
+  satisfy a grep. Retained below as monitoring/annotation only.
+- **S4 — one-shot QA banked (the probe ran, no production wire):**
+  `bench_data/hyper_giantk_probe/` (`S4_PROBE_REPORT.md` +
+  `s4_probe_20261105-102753.json`) — `country`/`index` already load
+  at defaults, `--k2-cap` is the admission guard not `max_k`,
+  lifted `max_k` 60→850 costs ~0.1 s extra, `commutes=False`
+  everywhere, trail lane linear (103,108 arcs). No lane is wired.
+- **S5 — stays gated on an undefined disagreement metric:**
+  `sweep_k` (`helpers/graph/hyper_communities.py:178`) `allow_giant`
+  is dead; no live-family ARI variant. **S6 — parked as only a
+  prerequisite** for S5's harness (`hyper_community_probe.py:38`
+  sklearn ARI) and HySC fit — no lane needs it while S5 is parked.
+- **Validation:** live read-only probes only; no gates run. Tree left
+  dirty for the operator (stg refresh per owning patches at operator
+  discretion).

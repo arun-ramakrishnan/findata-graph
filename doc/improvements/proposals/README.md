@@ -44,6 +44,11 @@ entry number and stale DONE pointers):
   schema-drift gate (wire attach is byte-identical, so the failure is
   non-data); S1 wire-attach fallback in open_read_only, S2 namespace-aware
   liveness probe, S3 route the five raw bypass sites.
+- *(archived 2026-11-05)* — `market_cap_f1_hypergated` filed + deferred
+  same day 2026-11-05, #480
+  (`../archive/database/market_cap_f1_hypergated.md`; post-review
+  correction: F1 41 conflicts fixed at source 2026-08-05, live 0;
+  S4 giant-k probe banked as one-shot QA, S5/S6 parked).
 - *(archived same day)* — `scaling_next_walls` filed + executed +
   archived same day 2026-11-02, #474
   (`../archive/graph/scaling_next_walls.md`; five measured scaling walls
