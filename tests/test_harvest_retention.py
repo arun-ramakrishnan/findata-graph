@@ -310,7 +310,7 @@ class TestDeletedSessionsAreReported:
     def test_check_path_populates_the_field(self, tmp_path: Path, monkeypatch):
         root = self._root(tmp_path, [], monkeypatch)
         _write(root, "opencode", "ses_gone", source="opencode:live")
-        monkeypatch.setattr(hc, "_drift", lambda store, cr: [])
+        monkeypatch.setattr(hc, "_drift", lambda store, cr, lanes=None: [])
         monkeypatch.setattr(hc, "_coverage", lambda store: [])
         out = hc.harvest(check=True, corpus_root=root, db=tmp_path / "meta.db")
         assert out["stale_deleted"] == ["ses_gone"]
@@ -320,7 +320,7 @@ class TestDeletedSessionsAreReported:
     def test_resolved_orphans_keep_check_green(self, tmp_path: Path, monkeypatch):
         root = self._root(tmp_path, [], monkeypatch)
         _write(root, "opencode", "ses_gone", source="orphan:opencode")
-        monkeypatch.setattr(hc, "_drift", lambda store, cr: [])
+        monkeypatch.setattr(hc, "_drift", lambda store, cr, lanes=None: [])
         monkeypatch.setattr(hc, "_coverage", lambda store: [])
         out = hc.harvest(check=True, corpus_root=root, db=tmp_path / "meta.db")
         assert out["stale_deleted"] and not out["stale_deleted_unresolved"]
@@ -422,7 +422,7 @@ class TestProvenanceDriftIsChecked:
         )
 
     def test_check_path_surfaces_it(self, tmp_path, monkeypatch):
-        monkeypatch.setattr(hc, "_drift", lambda store, cr: [])
+        monkeypatch.setattr(hc, "_drift", lambda store, cr, lanes=None: [])
         monkeypatch.setattr(hc, "_coverage", lambda store: [])
         monkeypatch.setattr(hc, "_deleted_sessions", lambda cr: ([], []))
         monkeypatch.setattr(

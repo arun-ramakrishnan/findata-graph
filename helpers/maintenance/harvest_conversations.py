@@ -50,7 +50,7 @@ import re
 import sqlite3
 import sys
 import time
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -2072,17 +2072,31 @@ def _provenance_drift(corpus_root: Path = CORPUS_ROOT, index_db: Path = INDEX_DB
     return out
 
 
-def _drift(store: Store, corpus_root: Path = CORPUS_ROOT) -> list[str]:
-    """--check verdict: sources whose current fingerprint differs from the watermark."""
-    drift = []
+def _opencode_lane_drift(store: Store, corpus_root: Path) -> list[str]:
+    out: list[str] = []
     for path, src, immutable in _opencode_sources():
-        drift.extend(_opencode_source_drift(store, corpus_root, path, src, immutable))
-    drift.extend(_snap_count_drift(store))
+        out.extend(_opencode_source_drift(store, corpus_root, path, src, immutable))
+    return out
+
+
+def _snap_lane_drift(store: Store, corpus_root: Path) -> list[str]:
+    return _snap_count_drift(store)
+
+
+def _dsh_lane_drift(store: Store, corpus_root: Path) -> list[str]:
+    out: list[str] = []
     for path, sid, src in _dsh_logs():
         line = _dsh_log_drift(store, path, sid, src)
         if line is not None:
-            drift.append(line)
-    drift.extend(_bili_drift(store))
+            out.append(line)
+    return out
+
+
+def _bili_lane_drift(store: Store, corpus_root: Path) -> list[str]:
+    return _bili_drift(store)
+
+
+def _prime_lane_drift(store: Store, corpus_root: Path) -> list[str]:
     # dsh-index lag lines are NOT corpus drift: they describe the EXTERNAL
     # dsh session-query index (~/.dsh/**/session-search.db), which no
     # harvest APPLY can advance. Folding them into the drift list made
@@ -2090,18 +2104,47 @@ def _drift(store: Store, corpus_root: Path = CORPUS_ROOT) -> list[str]:
     # 13 missing + 1 lagging sessions kept the flag up across applies).
     # They surface as an advisory in main()'s check output instead; the
     # lines close when the dsh indexer next catches up.
+    out: list[str] = []
     for f, src in _prime_files():
         key = f"{src}:{hashlib.blake2b(str(f).encode(), digest_size=6).hexdigest()}"
         st = f.stat()
         wm_raw = store.watermark(key)
         cur = jsonio.loads(wm_raw) if wm_raw else None
         if cur != [int(st.st_mtime), st.st_size]:
-            drift.append(f"changed {src} ({f.name})")
+            out.append(f"changed {src} ({f.name})")
+    return out
+
+
+def _zcode_lane_drift(store: Store, corpus_root: Path) -> list[str]:
+    out: list[str] = []
     for sid, files in _zcode_groups().items():
         key = f"zcode:{sid}"
         cur = json.dumps([[int(f.stat().st_mtime), f.stat().st_size] for f in files])
         if store.watermark(key) != cur:
-            drift.append(f"changed zcode:{sid}")
+            out.append(f"changed zcode:{sid}")
+    return out
+
+
+def _drift(
+    store: Store, corpus_root: Path = CORPUS_ROOT, lanes: tuple[str, ...] | None = None
+) -> list[str]:
+    """--check verdict: sources whose current fingerprint differs from the watermark.
+
+    If ``lanes`` is provided, only check drift for those lanes.
+    """
+    allowed = set(lanes) if lanes is not None else None
+    lane_checks: list[tuple[str, Callable[[Store, Path], list[str]]]] = [
+        ("opencode", _opencode_lane_drift),
+        ("snap", _snap_lane_drift),
+        ("dsh", _dsh_lane_drift),
+        ("bili", _bili_lane_drift),
+        ("prime-rlm", _prime_lane_drift),
+        ("zcode", _zcode_lane_drift),
+    ]
+    drift: list[str] = []
+    for lane, check in lane_checks:
+        if allowed is None or lane in allowed:
+            drift.extend(check(store, corpus_root))
     return drift
 
 
@@ -2150,6 +2193,7 @@ def harvest(
     db: Path = INDEX_DB,
     timer=None,
     force_lane: str | None = None,
+    lanes: tuple[str, ...] | None = None,
 ) -> dict:
     """The S1 core: union all sources into the per-session parquet corpus.
 
@@ -2160,12 +2204,17 @@ def harvest(
     ``force_lane`` re-reads one lane even where its watermark says the
     source is already harvested (a parser change — e.g. prime's dropped
     thinking/toolCall blocks — recovers nothing without it).
+
+    ``lanes`` (test-only) restricts which lanes to run; default None = all
+    five lanes. Production callers (maint CLI) pass nothing and get the
+    full set unchanged. Tests pass ``lanes=("dsh",)`` to isolate the dsh
+    lane without the other four lanes' overhead.
     """
     t0 = time.perf_counter()
     store = Store(db, read_only=check)
     try:
         if check:
-            drift = _drift(store, corpus_root)
+            drift = _drift(store, corpus_root, lanes)
             fresh = not drift
             deleted, unresolved = _deleted_sessions(corpus_root)
             prov = _provenance_drift(corpus_root)
@@ -2191,22 +2240,26 @@ def harvest(
                 "elapsed": 0.0,
             }
         writer = SessionWriter(corpus_root)
-        lanes, lane_seconds = [], {}
-        for name, fn in (
+        lane_results, lane_seconds = [], {}
+        lane_iter = (
             ("opencode", _harvest_opencode),
             ("prime-rlm", _harvest_prime),
             ("zcode", _harvest_zcode),
             ("dsh", _harvest_dsh),
             ("bili", _harvest_bili),
-        ):
+        )
+        if lanes is not None:
+            allowed = set(lanes)
+            lane_iter = ((n, f) for n, f in lane_iter if n in allowed)
+        for name, fn in lane_iter:
             if timer is not None:
                 with timer.phase(f"lane:{name}"):
                     t_lane = time.perf_counter()
-                    lanes.append(fn(store, writer, force=force_lane == name))
+                    lane_results.append(fn(store, writer, force=force_lane == name))
                     lane_seconds[name] = round(time.perf_counter() - t_lane, 2)
             else:
                 t_lane = time.perf_counter()
-                lanes.append(fn(store, writer, force=force_lane == name))
+                lane_results.append(fn(store, writer, force=force_lane == name))
                 lane_seconds[name] = round(time.perf_counter() - t_lane, 2)
         if timer is not None:
             with timer.phase("flush"):
@@ -2221,7 +2274,7 @@ def harvest(
         store.close()
         return {
             "check": False,
-            "lanes": "\n".join(lanes),
+            "lanes": "\n".join(lane_results),
             "sessions_written": sessions,
             "lane_seconds": lane_seconds,
             "elapsed": time.perf_counter() - t0,

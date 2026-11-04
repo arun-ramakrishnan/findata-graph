@@ -42,7 +42,6 @@ from helpers.graph import derive_events as de  # noqa: E402
 from helpers.graph import derive_insights as di  # noqa: E402
 from helpers.graph import embeddings as emb  # noqa: E402
 from helpers.graph import query  # noqa: E402
-from helpers.graph.query import DB_PATH  # noqa: E402
 from helpers.graph import csr  # noqa: E402
 from helpers.graph import derive_cited_in as dci  # noqa: E402
 from helpers.graph import derive_hyperedges as dh_mod  # noqa: E402
@@ -65,16 +64,10 @@ from helpers.misc import seed_concepts as sc  # noqa: E402
 
 pytestmark = [pytest.mark.integration]
 
+# The only companies the fixture writes vault notes for (their entities
+# carry file_path so _build_vault can place them). The full company set
+# (all COMPANY_SUB_SECTORS members) is seeded in _seed_test_data.
 _KEEP_COMPANIES = ("HDFC Bank", "ICICI Bank")
-# D11 authored-map members must survive the prune: derive-hyperedges
-# re-derives sub_sector hyperedges for ALL COMPANY_SUB_SECTORS members
-# and hyper_incidences.entity_name is FK-bound to entities(name) — a
-# pruned member aborts the chain (FK constraint failed). All 182 exist
-# in the live DB; the tmp fixture must keep them too.
-_KEEP_MAP_MEMBERS = tuple(
-    sorted({m for members in dh_mod.COMPANY_SUB_SECTORS.values() for m in members})
-)
-_KEEP_ALL = _KEEP_COMPANIES + _KEEP_MAP_MEMBERS
 
 _NEWSLETTER = """\
 # The Chatter: Alpha Edition
@@ -116,93 +109,35 @@ def _company_note(title: str, sector: str) -> str:
 
 
 class _MaintProject:
-    """A tmp repo stand-in: pruned production-schema DB + minimal vault,
-    with the two explicit WRITES already applied (sector hierarchy + sector
-    rosters) so the chain's --check gates are green — exactly the state
-    maint-full assumes in production."""
+    """A tmp repo stand-in: schema_template DB (canonical DDL, zero rows)
+    + minimal FK-consistent seed + minimal vault, with the two explicit
+    WRITES already applied (sector hierarchy + sector rosters) so the
+    chain's --check gates are green — exactly the state maint-full assumes
+    in production."""
 
-    def __init__(self, root: Path):
+    def __init__(self, root: Path, tmp_path_factory) -> None:
         self.root = root
         self.db = root / "research.db"
         self.duckdb = root / "graph.duckdb"
         self.vault = root / "findata"
-        self._build_db()
+        self._build_db(tmp_path_factory)
         self._build_vault()
         self._apply_explicit_writes()
 
     # -- fixture construction ------------------------------------------ #
-    def _build_db(self) -> None:
-        src = sqlite3.connect(str(DB_PATH))
-        dst = sqlite3.connect(str(self.db))
-        src.backup(dst)
-        src.close()
-        placeholders = ",".join("?" * len(_KEEP_ALL))
-        dst.execute(
-            "CREATE TEMP TABLE keep AS SELECT name FROM ("  # noqa: S608  # placeholders only — constant SQL + ? keep-list
-            "SELECT name, 0 o FROM entities WHERE entity_type != 'company' "
-            "UNION ALL SELECT name, 1 o FROM entities WHERE name IN (" + placeholders + ") "
-            "GROUP BY name HAVING MIN(o))",
-            _KEEP_ALL,
-        )
-        dst.execute(
-            "DELETE FROM graph_edges WHERE source NOT IN "
-            "(SELECT name FROM keep) OR target NOT IN (SELECT name FROM keep)"
-        )
-        dst.execute("DELETE FROM entity_tags WHERE entity_name NOT IN (SELECT name FROM keep)")
-        dst.execute("DELETE FROM quotes WHERE entity NOT IN (SELECT name FROM keep)")
-        dst.execute("DELETE FROM company_metrics WHERE entity NOT IN (SELECT name FROM keep)")
-        dst.execute(
-            "DELETE FROM company_embeddings WHERE company_name NOT IN (SELECT name FROM keep)"
-        )
-        dst.execute(
-            "DELETE FROM entity_identifiers WHERE entity_name NOT IN (SELECT name FROM keep)"
-        )
-        dst.execute("DELETE FROM graph_analytics")  # recomputed by the chain
-        # graph_analytics_contract (arc 2, schema v14) FK-cascades to entities.
-        # The prune below runs with FK enforcement OFF (sqlite3 default), so a
-        # stranded contract row is invisible until foreign_key_check — which
-        # db_maint runs as a gate (measured: 3,006 violations). Prune it here.
-        dst.execute(
-            "DELETE FROM graph_analytics_contract WHERE entity_name NOT IN (SELECT name FROM keep)"
-        )
-        dst.execute("DELETE FROM events")  # recomputed by the chain
-        # event_participants (schema v16) FK-cascades to events(id); with the
-        # events prune above it would strand every row (measured: 5,008 FK
-        # violations in foreign_key_check — db_maint gates on it). The chain
-        # does not re-derive the store; an absent table is the clean state.
-        dst.execute("DELETE FROM event_participants")
-        # speaker_identity (schema v15) person_name REFERENCES entities(name)
-        # ON DELETE SET NULL — but the prune runs with FK enforcement OFF,
-        # so pruned person entities strand the alias rows instead. Chain
-        # steps treat the table as optional (derive_hyperedges has_store
-        # path); delete it here too.
-        dst.execute("DELETE FROM speaker_identity")
-        # hyper store is recomputed by the chain's derive-hyperedges step;
-        # keeping it here would strand FK references after the entity prune
-        dst.execute("DELETE FROM hyper_incidences")
-        dst.execute("DELETE FROM hyper_edges")
-        # The live apply stamp names the worktree HEAD the shared index was
-        # built from — a tmp project is not that lineage. Scrub it so the
-        # chain's note-search step bootstraps fresh and stamps THIS tree,
-        # instead of the trample guard refusing a "diverged" HEAD (which
-        # made the chain HEAD-coupled and failed on every operator commit).
-        dst.execute("DELETE FROM db_meta WHERE key IN ('apply_head', 'apply_worktree', 'apply_ts')")
-        # DROP the FTS index (shadows included — DELETEs leave tombstones
-        # that keep the file ~7MB, which dominates the snapshot compress cost);
-        # the chain's rebuild-note-search step recreates it via CREATE
-        # VIRTUAL TABLE IF NOT EXISTS.
-        dst.execute("DROP TABLE IF EXISTS note_search")
-        dst.execute("DROP TABLE IF EXISTS note_search_meta")
-        # The live backup carries db_meta.note_embed_model (the notes surface
-        # is gemma-stamped in production). Under the conftest sidecar pin the
-        # chain's rebuild resolves the pseudo embedder, and guard_gemma_stamp
-        # would refuse to populate a gemma-stamped index with it — this tmp
-        # surface is never gemma-stamped, so drop the copied stamp.
-        dst.execute("DELETE FROM db_meta WHERE key = 'note_embed_model'")
-        dst.execute("DELETE FROM entities WHERE name NOT IN (SELECT name FROM keep)")
-        dst.commit()
-        dst.execute("VACUUM")
-        dst.close()
+    def _build_db(self, tmp_path_factory) -> None:
+        """Clone the shared schema_template (canonical DDL, zero rows, ~2MB)
+        and seed minimal FK-consistent data. Replaces the old live-DB backup
+        (1.25s / 404MB) + prune + VACUUM (5.13s) with a reflink + seed
+        (<200ms); schema matches production exactly, so every FK constraint
+        holds under helpers.core.db.connect() (foreign_keys = ON)."""
+        from tests._tmp_hygiene import reflink_or_copy, schema_template
+
+        reflink_or_copy(schema_template(tmp_path_factory), self.db)
+        con = sqlite3.connect(str(self.db))
+        con.execute("PRAGMA journal_mode=WAL")
+        con.close()
+        self._seed_test_data(self.db)
 
     def _build_vault(self) -> None:
         (self.vault / "The_Chatter").mkdir(parents=True)
@@ -282,10 +217,104 @@ class _MaintProject:
         conn.close()
         return rows
 
+    def _seed_test_data(self, db_path: Path) -> None:
+        """Seed minimal FK-consistent data into the schema_template clone.
+
+        Sectors: EXACTLY the bsh.SUPER_SECTORS member set (42) — the
+        fixture's build_sector_hierarchy --apply validates zero-orphan
+        coverage (every live sector mapped, no unknown refs), so seeding
+        any other sector set fails coverage. The step itself then creates
+        the 10 super_sector + 142 sub_sector entities via INSERT OR IGNORE.
+        Companies: all 182 dh_mod.COMPANY_SUB_SECTORS members (derive-
+        hyperedges rides this map; hyper_incidences.entity_name is
+        FK-bound to entities(name)) plus the two fixture companies
+        _build_vault writes notes for.
+        graph_analytics is left EMPTY on purpose — the chain's
+        recompute-graph refreshes it (the pruned-live fixture deleted it
+        for the same reason).
+        """
+        con = sqlite3.connect(str(db_path))
+        con.execute("PRAGMA foreign_keys = ON")
+        try:
+            sectors = sorted({s for members in bsh.SUPER_SECTORS.values() for s in members})
+            entities = [
+                (name, "sector", f"Sectors/{name}.md", name, "2026-01-01") for name in sectors
+            ]
+            # Fixture companies need file_path for _build_vault to find them;
+            # REPO-ROOT-RELATIVE (live contract: findata/...) — derive_events'
+            # path_to_name join and the vault walk both key on this form.
+            entities += [
+                (
+                    "HDFC Bank",
+                    "company",
+                    "findata/Companies/HDFC_Bank.md",
+                    "HDFC Bank",
+                    "2026-01-01",
+                ),
+                (
+                    "ICICI Bank",
+                    "company",
+                    "findata/Companies/ICICI_Bank.md",
+                    "ICICI Bank",
+                    "2026-01-01",
+                ),
+            ]
+            # All COMPANY_SUB_SECTORS members as companies (no vault notes)
+            map_members = sorted({m for ms in dh_mod.COMPANY_SUB_SECTORS.values() for m in ms})
+            entities += [
+                (name, "company", None, name, "2026-01-01")
+                for name in map_members
+                if name not in _KEEP_COMPANIES
+            ]
+
+            for name, etype, fp, norm, updated in entities:
+                con.execute(
+                    "INSERT INTO entities (name, entity_type, file_path, normalized_name, last_updated)"
+                    " VALUES (?, ?, ?, ?, ?)",
+                    (name, etype, fp, norm, updated),
+                )
+
+            edges = [
+                (1, "HDFC Bank", "ICICI Bank", "competes_with", 1.0, "{}", None, None, "test", 0),
+                (2, "HDFC Bank", "Banking", "part_of", 1.0, "{}", None, None, "test", 0),
+                (3, "ICICI Bank", "Banking", "part_of", 1.0, "{}", None, None, "test", 0),
+            ]
+            for e in edges:
+                con.execute(
+                    "INSERT INTO graph_edges (id, source, target, edge_type, weight, properties, valid_from, valid_to, source_ref, symmetric) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                    e,
+                )
+
+            con.execute("INSERT OR REPLACE INTO db_meta (key, value) VALUES ('generation', '0')")
+            con.execute(
+                "INSERT OR REPLACE INTO db_meta (key, value) VALUES ('schema_version', '16')"
+            )
+
+            # Scrub the shared index's apply stamps: schema_template keeps the
+            # production db_meta rows naming a worktree HEAD that has nothing
+            # to do with this tmp project — the note-search step's trample
+            # guard would refuse a "diverged" HEAD (chain HEAD-coupled).
+            # Scrubbed = the step bootstraps fresh and stamps THIS tree.
+            con.execute(
+                "DELETE FROM db_meta WHERE key IN ('apply_head', 'apply_worktree', 'apply_ts')"
+            )
+            # Same for the embed stamp: the tmp note surface is never
+            # gemma-stamped (conftest pins the pseudo embedder); keeping the
+            # copied stamp makes guard_gemma_stamp refuse to populate it.
+            con.execute("DELETE FROM db_meta WHERE key = 'note_embed_model'")
+
+            con.commit()
+        finally:
+            con.close()
+
 
 @pytest.fixture(scope="module")
 def project(tmp_path_factory) -> _MaintProject:
-    return _MaintProject(tmp_path_factory.mktemp("maint_chain"))
+    # Module-scoped like the pre-schema_template fixture: template clone +
+    # seed + hierarchy/roster applies cost ~11s, and every test here is
+    # order-tolerant by design (chain_order asserts the FIRST --full
+    # snapshot; idempotence compares its own run1 vs run2 bytes).
+    return _MaintProject(tmp_path_factory.mktemp("maint_chain"), tmp_path_factory)
 
 
 # --------------------------------------------------------------------------- #
@@ -424,6 +453,12 @@ def _shim_derive_events(p, mp, args):
     mp.setattr(de, "COMPANIES_DIR", p.vault / "Companies")
     mp.setattr(de, "_REPO_ROOT", p.root)
     mp.setattr(de, "connect", lambda *a, **k: db_connect(str(p.db)))
+    # The chain step passes --corpus (S1b shared walk); Corpus.load would
+    # return the REAL repo's cached notes, whose paths can never resolve
+    # under the tmp _REPO_ROOT — every note would be skipped and the
+    # prose arm would legitimately derive 0 events. Hermetic choice:
+    # disable the fast path so extraction re-walks the tmp vault.
+    mp.setattr(de, "_HAS_CORPUS", False)
     return _rc(de._cli(list(args)))
 
 
@@ -588,6 +623,18 @@ def _scripts(record) -> list[str]:
     return [entry[0] for entry in record]
 
 
+def _full_expected_steps() -> list[str]:
+    """Script order of one maint --full run: PRE_FULL + TIER1 (snapshot
+    elided per TIER1_FULL_SKIP) + TIER2 — ONE snapshot at the tail
+    (maint_full_single_snapshot.md D1); the PRE_FULL index refreshers
+    (sync-tags, note-search) run before the backup."""
+    return (
+        [cmd[1] for _, cmd in maint.PRE_FULL_STEPS]
+        + [cmd[1] for label, cmd in maint.TIER1_STEPS if label not in maint.TIER1_FULL_SKIP]
+        + [cmd[1] for _, cmd in maint.TIER2_STEPS]
+    )
+
+
 class TestMaintChain:
     def test_tier1_executes_all_steps_green(self, project, monkeypatch):
         # The served-skip must not fire in the hermetic chain: the
@@ -621,15 +668,12 @@ class TestMaintChain:
         assert executed == expected
 
     @pytest.mark.onager
-    def test_full_chain_order_and_idempotence(self, project, monkeypatch):
-        """--full runs PRE_FULL + TIER1 then TIER2 in order (derive-insights
-        strictly before derive-events; the TIER1 snapshot is elided — one
-        snapshot
-        at the tail), the embeddings
-        best-effort step stays green (local embedder pinned off by conftest
-        — the maint never-blocks contract), and a SECOND full run is a
-        byte-stable no-op: same steps, note bytes identical, derived
-        tables unchanged."""
+    def test_chain_order(self, project, monkeypatch):
+        """--full runs PRE_FULL + TIER1 then TIER2 in order: derive-insights
+        strictly before derive-events, and the TIER1 snapshot is elided —
+        ONE snapshot at the tail. The embeddings best-effort step stays
+        green (local embedder pinned off by conftest — the maint
+        never-blocks contract)."""
         # Hermetic contract (same as test_tier1_executes_all_steps_green):
         # the served-skip must not fire in the chain — the dispatcher shims
         # query.py, and the live quack server (if any) is not this
@@ -659,6 +703,17 @@ class TestMaintChain:
         assert emb_entry[2] == 0
         # derive-events really worked (the seeded guidance bullet)
         assert any(r[0] == "guidance" for r in _table(project, "SELECT event_type FROM events"))
+
+    @pytest.mark.onager
+    def test_chain_idempotence(self, project, monkeypatch):
+        """A SECOND --full run is a byte-stable no-op: same steps, note
+        bytes identical, and derived tables (events/quotes plus the
+        doc_search sidecar in canonical row order) unchanged."""
+        monkeypatch.setattr(maint, "_graph_store_served", lambda: False)
+        record = _make_dispatcher(project, monkeypatch, [])
+        assert maint.main(["--full"]) == 0
+        expected = _full_expected_steps()
+        assert _scripts(record) == expected
 
         notes1 = project.notes_snapshot()
         events1 = _table(

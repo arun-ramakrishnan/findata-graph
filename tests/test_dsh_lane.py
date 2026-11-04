@@ -135,7 +135,7 @@ def _corpus_rows(tmp_path):
 
 def test_dsh_lane_mapping(dsh_env):
     tmp_path = dsh_env
-    stats = hc.harvest(corpus_root=tmp_path / "corpus", db=tmp_path / "c.duckdb")
+    stats = hc.harvest(corpus_root=tmp_path / "corpus", db=tmp_path / "c.duckdb", lanes=("dsh",))
     assert "dsh total new: 4" in stats["lanes"]
     rows = _corpus_rows(tmp_path)
     assert rows["session-aaaa:10"]["text"] == "do the thing"
@@ -152,8 +152,8 @@ def test_dsh_lane_mapping(dsh_env):
 
 def test_dsh_rerun_quiet_then_delta(dsh_env):
     tmp_path = dsh_env
-    hc.harvest(corpus_root=tmp_path / "corpus", db=tmp_path / "c.duckdb")
-    stats = hc.harvest(corpus_root=tmp_path / "corpus", db=tmp_path / "c.duckdb")
+    hc.harvest(corpus_root=tmp_path / "corpus", db=tmp_path / "c.duckdb", lanes=("dsh",))
+    stats = hc.harvest(corpus_root=tmp_path / "corpus", db=tmp_path / "c.duckdb", lanes=("dsh",))
     assert "dsh total new: 0" in stats["lanes"]
     d = tmp_path / ".dsh" / "sessions" / "proj" / "session-aaaa"
     recs = _v4_records() + [
@@ -165,7 +165,7 @@ def test_dsh_rerun_quiet_then_delta(dsh_env):
         },
     ]
     _log(d / "session.v4.jsonl.zstd", recs)
-    stats = hc.harvest(corpus_root=tmp_path / "corpus", db=tmp_path / "c.duckdb")
+    stats = hc.harvest(corpus_root=tmp_path / "corpus", db=tmp_path / "c.duckdb", lanes=("dsh",))
     assert "dsh total new: 1" in stats["lanes"]
     assert _corpus_rows(tmp_path)["session-aaaa:50"]["text"] == "again"
 
@@ -175,12 +175,12 @@ def test_dsh_v0_fallback_and_overlap(dsh_env):
     # v0 alongside v4: v4 wins, no double ingest
     d = tmp_path / ".dsh" / "sessions" / "proj" / "session-aaaa"
     _log(d / "session.jsonl.zstd", _v4_records())
-    stats = hc.harvest(corpus_root=tmp_path / "corpus", db=tmp_path / "c.duckdb")
+    stats = hc.harvest(corpus_root=tmp_path / "corpus", db=tmp_path / "c.duckdb", lanes=("dsh",))
     assert "dsh total new: 4" in stats["lanes"]
     # v0-only session: fallback reads it
     d2 = _sess_dir(tmp_path, "proj", "session-bbbb")
     _log(d2 / "session.jsonl.zstd", _v4_records())
-    stats = hc.harvest(corpus_root=tmp_path / "corpus", db=tmp_path / "c.duckdb")
+    stats = hc.harvest(corpus_root=tmp_path / "corpus", db=tmp_path / "c.duckdb", lanes=("dsh",))
     assert "dsh total new: 4" in stats["lanes"]
     assert "session-bbbb:10" in _corpus_rows(tmp_path)
 
@@ -253,8 +253,10 @@ def test_dsh_index_absent_is_quiet(tmp_path, monkeypatch):
 
 def test_dsh_drift_and_prefix_isolation(dsh_env):
     tmp_path = dsh_env
-    hc.harvest(corpus_root=tmp_path / "corpus", db=tmp_path / "c.duckdb")
-    out = hc.harvest(check=True, corpus_root=tmp_path / "corpus", db=tmp_path / "c.duckdb")
+    hc.harvest(corpus_root=tmp_path / "corpus", db=tmp_path / "c.duckdb", lanes=("dsh",))
+    out = hc.harvest(
+        check=True, corpus_root=tmp_path / "corpus", db=tmp_path / "c.duckdb", lanes=("dsh",)
+    )
     assert out["check"] and not out["index_stale"], out["stale_new"]
     # session ids can never collide with the other harnesses' lanes
     assert "session-aaaa".startswith("session-")

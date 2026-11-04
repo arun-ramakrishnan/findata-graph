@@ -13557,3 +13557,24 @@ doc/improvements/archive/maintenance/relations_fk_stale_cache_guard.md.
   unless `--refresh-cache` is supplied.
 - **Validation:** 84/84 targeted tests; mutation proof; operator note; no
   query-visible semantics change.
+
+## 478. QA gate heavy tests — harvest lanes filter + hermetic test DB fixtures
+
+Provenance: filed and landed 2026-11-04; archived to
+doc/improvements/archive/testing/qa_gate_heavy_tests.md.
+
+- **S1 — harvest lanes filter:** `harvest()` gains a private `lanes=`
+  kwarg (default all 5 lanes; `helpers/maintenance/harvest_conversations.py`);
+  `tests/test_dsh_lane.py` harvests only the dsh lane — 134.6s -> 1.34s
+  JUnit. `_drift` decomposed into 6 per-lane helpers (lint-audit C901),
+  signature unchanged.
+- **S2 — rebuild_schema hermetic fixture:** `tests/test_rebuild_schema.py`
+  clones a ~2MB `schema_template` + seeds 5 FK-consistent entities per test
+  instead of cloning the 404MB live DB — 123.4s -> ~87s (20 tests).
+- **S3 — maint_chain hermetic fixture + split:** same template + seed (42
+  sectors, HDFC/ICICI with repo-root file_path, 182 COMPANY_SUB_SECTORS
+  members, db_meta apply-stamp scrub) replaces live backup + prune + VACUUM;
+  the 46s full-chain test split into `test_chain_order` +
+  `test_chain_idempotence` — 7 tests ~121s, qa pytest leg 353.0 -> 317.1s wall.
+- **Validation:** make qa 12/12 (5636 passed, 5 skipped), make perf 31/31,
+  make advisory 20/22 (2 pre-existing non-gating warnings).
