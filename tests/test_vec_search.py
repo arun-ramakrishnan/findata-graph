@@ -1,21 +1,23 @@
 """
-Tests for helpers/core/vec_search.py — the sqlite-vec KNN mirror table (A1).
+Tests for helpers/core/vec_search.py -- the DuckDB note_search mirror
+(pure-DuckDB arc S2, 2026-11-05; sqlite-vec retired).
 
 Covers the three entry points' contracts:
-- vec_available gating (extension missing -> False, never raises)
+- vec_available gating (mirror absent -> False, never raises)
 - knn_similarities: correctness vs a float64 cosine ground truth, k > rows,
   dims mismatch, lazy backfill from the FTS JSON column
 - sync_vec_table: full refresh, incremental upsert/delete, None-embedding
   rows drop their vec entry, malformed JSON skipped
 
 These tests seed a real FTS5 note_search-shaped table (mirroring
-test_api_search._SCHEMA) so the backfill path reads production shape.
+test_api_search._SCHEMA) so the backfill path reads production shape; the
+mirror itself is read back through the DuckDB sidecar (conftest redirects
+VEC_INDEX_DB_PATH per-test).
 """
 
 import json
 import math
 import sqlite3
-import struct
 
 import pytest
 
@@ -24,15 +26,20 @@ from helpers.core import vec_search as VS
 DIMS = 4
 
 
-def _pack(vec):
-    return struct.pack(f"{len(vec)}f", *vec)
-
-
 def _cos(a, b):
     dot = sum(x * y for x, y in zip(a, b))
     na = math.sqrt(sum(x * x for x in a))
-    nb = math.sqrt(sum(x * x for x in b))
+    nb = math.sqrt(sum(y * y for y in b))
     return dot / (na * nb) if na and nb else 0.0
+
+
+def _mirror_count() -> int:
+    """Row count read straight from the DuckDB sidecar (new S2 contract)."""
+    con = VS._open_ro(VS.VEC_INDEX_DB_PATH)
+    try:
+        return con.execute(f"SELECT COUNT(*) FROM {VS.VEC_TABLE}").fetchone()[0]  # noqa: S608  # VEC_TABLE is a module constant
+    finally:
+        con.close()
 
 
 @pytest.fixture()
@@ -54,7 +61,7 @@ def k(fp: str) -> str:
 
 
 def _seed_fts(conn, docs):
-    """docs: list of (file_path, vector | None) — one section row each
+    """docs: list of (file_path, vector | None) -- one section row each
     (anchor '1'), so vec keys are the composite {file_path}#1."""
     for fp, vec in docs:
         emb = json.dumps(vec) if vec is not None else None
@@ -77,16 +84,13 @@ VECS = {
 class TestVecAvailable:
     def test_false_without_table(self, fts_conn):
         _seed_fts(fts_conn, list(VECS.items()))
-        # No vec table yet and lazy_backfill=False -> unavailable.
+        # No mirror yet and lazy_backfill=False -> unavailable.
         assert VS.vec_available(fts_conn, DIMS, lazy_backfill=False) is False
 
     def test_lazy_backfill_creates_and_populates(self, fts_conn):
         _seed_fts(fts_conn, list(VECS.items()) + [("d.md", None)])
         assert VS.vec_available(fts_conn, DIMS, lazy_backfill=True) is True
-        n = fts_conn.execute(
-            f"SELECT COUNT(*) FROM {VS.qualified()}"  # noqa: S608  # schema-qualified via the module helper
-        ).fetchone()[0]
-        assert n == 3  # d.md has no embedding -> not mirrored
+        assert _mirror_count() == 3  # d.md has no embedding -> not mirrored
 
     def test_empty_fts_means_unavailable(self, fts_conn):
         # Table exists but zero rows -> nothing to serve -> False.
@@ -115,8 +119,19 @@ class TestKnnSimilarities:
         got = VS.knn_similarities(fts_conn, [1.0, 0, 0, 0], k=99, dims=DIMS)
         assert got is not None and len(got) == 3
 
+    def test_k_none_whole_corpus_exact(self, fts_conn):
+        """k=None is the hybrid-search usage: EVERY doc carries its exact
+        similarity, no HNSW top-k truncation (the retired VEC0_KNN_MAX cap
+        silently zeroed page docs outside the global top-k)."""
+        _seed_fts(fts_conn, list(VECS.items()))
+        VS.sync_vec_table(fts_conn, DIMS, full=True)
+        got = VS.knn_similarities(fts_conn, [0.95, 0.05, 0.0, 0.0], k=None, dims=DIMS)
+        assert got is not None and len(got) == 3
+        for fp, vec in VECS.items():
+            assert got[k(fp)] == pytest.approx(_cos([0.95, 0.05, 0.0, 0.0], vec), abs=1e-6)
+
     def test_none_when_unavailable(self, fts_conn):
-        # No vec table, no lazy backfill possible on an empty FTS.
+        # No mirror, no lazy backfill possible on an empty FTS.
         assert VS.knn_similarities(fts_conn, [1, 0, 0, 0], k=3, dims=DIMS) is None
 
     def test_dims_mismatch_returns_none(self, fts_conn):
@@ -130,10 +145,7 @@ class TestSyncVecTable:
         _seed_fts(fts_conn, list(VECS.items()))
         assert VS.sync_vec_table(fts_conn, DIMS, full=True) == 3
         assert VS.sync_vec_table(fts_conn, DIMS, full=True) == 3  # no dupes
-        n = fts_conn.execute(
-            f"SELECT COUNT(*) FROM {VS.qualified()}"  # noqa: S608  # schema-qualified via the module helper
-        ).fetchone()[0]
-        assert n == 3
+        assert _mirror_count() == 3
 
     def test_incremental_upsert_and_delete(self, fts_conn):
         _seed_fts(fts_conn, list(VECS.items()))
@@ -151,6 +163,25 @@ class TestSyncVecTable:
         assert got is not None
         assert set(got) == {k("a.md"), k("b.md")}
         assert got[k("a.md")] == pytest.approx(1.0, abs=1e-6)  # new vector serves
+
+    def test_delete_files_prefix_deletes_sections(self, fts_conn):
+        """delete_files drops every section row of a file (prefix '{fp}#')."""
+        _seed_fts(fts_conn, list(VECS.items()))
+        # a second section row for a.md (anchor '2')
+        fts_conn.execute(
+            "INSERT INTO note_search (doc_type, file_path, title, sector, "
+            "content, embedding, section_title, anchor) "
+            "VALUES ('company', 'a.md', 'a.md', 'S', 'body text', ?, '', '2')",
+            (json.dumps([0.0, 0.0, 1.0, 0.0]),),
+        )
+        fts_conn.commit()
+        VS.sync_vec_table(fts_conn, DIMS, full=True)
+        assert _mirror_count() == 4
+        VS.sync_vec_table(fts_conn, DIMS, delete_files=["a.md"])
+        got = VS.knn_similarities(fts_conn, [1.0, 0, 0, 0], k=9, dims=DIMS)
+        assert got is not None
+        assert k("a.md") not in got and "a.md#2" not in got
+        assert set(got) == {k("b.md"), k("c.md")}
 
     def test_none_embedding_drops_vec_row(self, fts_conn):
         _seed_fts(fts_conn, list(VECS.items()))
@@ -177,20 +208,23 @@ class TestSyncVecTable:
 
 
 class TestFallbackRobustness:
-    def test_missing_package_degrades(self, fts_conn, monkeypatch):
+    def test_unwritable_mirror_degrades(self, fts_conn, tmp_path, monkeypatch):
+        """Sidecar unusable (path occupied by a directory): every entry
+        point reports unavailable instead of raising."""
         _seed_fts(fts_conn, list(VECS.items()))
-        monkeypatch.setattr(VS, "_EXTENSION_PATH", None)
-        # Every entry point reports unavailable instead of raising.
+        monkeypatch.setattr(VS, "VEC_INDEX_DB_PATH", tmp_path / "occupied")
+        (tmp_path / "occupied").mkdir()
         assert VS.vec_available(fts_conn, DIMS, lazy_backfill=True) is False
         assert VS.knn_similarities(fts_conn, [1, 0, 0, 0], k=3, dims=DIMS) is None
         assert VS.sync_vec_table(fts_conn, DIMS, full=True) == 0
 
 
 class TestStoredDimsAndRecreate:
-    """local_embeddings (2026-08-20): stored_dims feeds app.py's vector-space
-    gate, and a dims change (model swap) must recreate the vec0 table — an
-    IF-NOT-EXISTS CREATE alone would leave a FLOAT[N] table the new dims
-    can never write into, silently serving stale vectors to KNN."""
+    """local_embeddings (2026-08-20) + S2: stored_dims feeds app.py's
+    vector-space gate, and a dims change (model swap) must recreate the
+    mirror table -- an IF-NOT-EXISTS CREATE alone would leave a FLOAT[N]
+    table the new dims can never write into, silently serving stale
+    vectors to KNN."""
 
     def test_stored_dims_none_without_table(self, fts_conn):
         assert VS.stored_dims(fts_conn) is None
@@ -221,11 +255,12 @@ class TestStoredDimsAndRecreate:
 
 class TestEmbedStoreConsolidation:
     """Pins for the consolidated embed store (embed_store_consolidation,
-    2026-08): one shared file for cache + mirror, with the :memory:-main
+    2026-08): one shared SQLITE file for the pooled cache (the vec mirror
+    moved out to the DuckDB sidecar in S2), with the :memory:-main
     hermeticity branch preserved."""
 
     def test_file_backed_mains_share_one_store(self, tmp_path):
-        """Two connections opening DIFFERENT index dbs land their vec/cache
+        """Two connections opening DIFFERENT index dbs land their cache
         state in the SAME store file (per-test EMBED_DB_PATH via conftest)."""
         from helpers.core.embed_cache import CachedEmbed
 
@@ -264,7 +299,7 @@ class TestEmbedStoreConsolidation:
         old_gen("some text")
         old_gen("other text")
         a.commit()
-        # default: no purge — foreign rows survive
+        # default: no purge -- foreign rows survive
         keep = CachedEmbed(lambda t: [0.2] * 4, "new-model", a, source="doc")
         keep("some text")
         a.commit()
@@ -313,4 +348,4 @@ class TestEmbedStoreConsolidation:
             n = after.execute("SELECT COUNT(*) FROM embed_cache").fetchone()[0]
         finally:
             after.close()
-        assert n == 1  # the live store was not mutated by the memory conn
+        assert n == 1  # only the seeded row -- the in-memory main never landed

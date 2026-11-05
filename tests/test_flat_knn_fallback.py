@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """S2d tests — flat-matrix KNN fallback + rebuild refresh hook (corpus_embeddings_scaling).
 
-Hermetic: synthetic stores in tmp_path; no research.db, no vec0, no MAX.
+Hermetic: synthetic stores in tmp_path; no research.db, no vector
+mirror, no MAX.
 """
 
 from __future__ import annotations

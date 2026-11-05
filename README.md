@@ -58,7 +58,7 @@ memory/graph.duckdb  — DuckDB disk cache: v_node + one e_* table per edge type
         ├── pattern queries, shortest paths (BFS), cycles … plain SQL
         └── centralities, communities, link prediction … Onager extension
         │
-        ├── content-addressable search sidecars (SQLite FTS5 + vec0):
+        ├── content-addressable search sidecars (SQLite FTS5 + vectors):
         │     doc/ corpus · note embeddings · script metadata — `make search-fresh`
         ▼
 app.py — Flask: /findata explorer UI + /api/graph/* JSON API
@@ -162,7 +162,8 @@ takes the write lock. duckpgq and NetworkX were retired in Aug 2026.
 ## Search & embeddings
 
 Three content-addressable indexes, each SQLite FTS5 (BM25) + local
-`bge-small-en-v1.5` vectors in a shared vec0 sidecar (hybrid cosine):
+`bge-small-en-v1.5` vectors in shared sidecars (hybrid cosine; the note
+vector mirror is a DuckDB HNSW sidecar since duckdb_pure_stack S2):
 
 | Index | Corpus | Query |
 |---|---|---|

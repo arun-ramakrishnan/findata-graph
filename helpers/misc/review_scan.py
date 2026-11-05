@@ -757,9 +757,9 @@ def _leg_sqlfluff(files: list[str], changed: dict[str, set[int]], dialect: str, 
                     line, _content_at("HEAD", path) if path in tree else None
                 ):
                     # documented skip (schema_ddl_review_surface §4 S5): fts5
-                    # UNINDEXED columns and vec0 FLOAT[]/distance_metric are
-                    # extension syntax no sqlfluff grammar knows; the DDL is
-                    # generated from live catalogs so it cannot carry a noqa
+                    # UNINDEXED columns are extension syntax no sqlfluff
+                    # grammar knows; the DDL is generated from live catalogs
+                    # so it cannot carry a noqa
                     continue
                 findings.append(
                     Finding(
@@ -775,15 +775,15 @@ def _leg_sqlfluff(files: list[str], changed: dict[str, set[int]], dialect: str, 
 
 
 def _extension_syntax(line_no: int | None, content: list[str] | None) -> bool:
-    """True when the cited line sits inside a `USING fts5(...)`/`USING
-    vec0(...)` clause — measured 2026-10-09: sqlfluff's sqlite grammar
-    rejects UNINDEXED (fts5) and FLOAT[512]/distance_metric (vec0); the
-    DDL is machine-generated so an inline noqa is impossible."""
+    """True when the cited line sits inside a `USING fts5(...)` clause —
+    measured 2026-10-09: sqlfluff's sqlite grammar rejects UNINDEXED
+    (fts5); the DDL is machine-generated so an inline noqa is impossible.
+    (The sqlite-vec extension was retired 2026-11-05, duckdb_pure_stack S2.)"""
     if content is None or line_no is None or line_no > len(content):
         return False
     start = max(0, line_no - 4)
     window = "\n".join(content[start:line_no])
-    return "USING fts5(" in window or "USING vec0(" in window
+    return "USING fts5(" in window
 
 
 def _leg_semgrep(files: list[str], changed: dict[str, set[int]], head: str, tree=None):

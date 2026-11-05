@@ -97,6 +97,19 @@ def connect(db_path: Path) -> ConvoConnections:
     from helpers.misc.duckdb_lock import open_read_only
 
     con = open_read_only(db_path)
+    # S1+S3 (duckdb_pure_stack): engage the store's native indexes — the
+    # persistent HNSW and the FTS schema. LOAD/SET are session-scoped and
+    # legal on a read-only connection; failures degrade to the sqlite
+    # fallback legs, never raise (pre-S3 stores have neither).
+    for stmt in (
+        "LOAD fts",
+        "LOAD vss",
+        "SET hnsw_enable_experimental_persistence=true",
+    ):
+        try:
+            con.execute(stmt)
+        except duckdb.Error:  # noqa: S110  # missing extension/store: leg degrades
+            pass
     sconn = sqlite3.connect(  # noqa: S608  # FTS sidecar is a plain sqlite file, read-only URI
         f"file:{db_path.parent / FTS_DB_NAME}?mode=ro", uri=True
     )
@@ -124,15 +137,51 @@ def _stored_model(con: ConvoConnections) -> str | None:
 def _fts_hits(
     con: ConvoConnections, query: str, limit: int, harness: str | None = None
 ) -> list[tuple[Key, float]]:
-    """Token-quoted FTS5 bm25 (lower-is-better rank → negate to score)."""
+    """Lexical bm25 hits: native DuckDB FTS first (S3), sqlite FTS5 fallback.
+
+    Pre-S3 stores raise CatalogException on the native schema and take
+    the unchanged sqlite leg. The duckdb form MUST filter IS NOT NULL:
+    without it, once true matches fall below the limit, NULL-score rows
+    leak into the tail (probe 2026-11-05) and a zero-match query returns
+    arbitrary rows as hits.
+    """
+    if not query.strip():
+        return []
+    try:
+        return _fts_hits_duckdb(con, query, limit, harness)
+    except duckdb.CatalogException:
+        return _fts_hits_sqlite(con, query, limit, harness)
+
+
+def _fts_hits_duckdb(
+    con: ConvoConnections, query: str, limit: int, harness: str | None = None
+) -> list[tuple[Key, float]]:
+    """Native match_bm25 over the stored full text (higher-is-better)."""
     q = " ".join(f'"{w.replace(chr(34), chr(34) * 2)}"' for w in query.split())
-    sql = "SELECT harness, part_id, rank FROM convo_fts WHERE convo_fts MATCH ? "
-    params: list = [q]
+    sc = "fts_main_convo_search.match_bm25(part_id, ?)"
+    sql = f"SELECT harness, part_id, {sc} FROM convo_search WHERE {sc} IS NOT NULL "  # noqa: S608  # sc is a constant score-expression string
+    params: list = [q, q]
     if harness:
         # Filter in the leg, not after fusion: a post-fusion filter on a
         # fixed pool starves narrow harnesses on generic terms (bili lane:
         # "context" has 6839 corpus hits, 10 bili — top-20 fusion holds no
         # bili rows to filter down to).
+        sql += "AND harness = ? "
+        params.append(harness)
+    sql += f"ORDER BY {sc} DESC LIMIT ?"
+    params.extend([q, limit])
+    rows = con.ddb.execute(sql, params).fetchall()
+    return [((h, pid), -float(s)) for h, pid, s in rows]
+
+
+def _fts_hits_sqlite(
+    con: ConvoConnections, query: str, limit: int, harness: str | None = None
+) -> list[tuple[Key, float]]:
+    """Token-quoted FTS5 bm25 (lower-is-better rank → negate to score)."""
+    q = " ".join(f'"{w.replace(chr(34), chr(34) * 2)}"' for w in query.split())
+    sql = "SELECT harness, part_id, rank FROM convo_fts WHERE convo_fts MATCH ? "
+    params: list = [q]
+    if harness:
         sql += "AND harness = ? "
         params.append(harness)
     sql += "ORDER BY rank LIMIT ?"

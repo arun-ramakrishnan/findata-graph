@@ -5037,7 +5037,7 @@
         <path data-edge-from="entities" data-edge-to="embedder" data-edge-key="1" data-edge-id="entities-embedder" data-composition-points="372.5,138;372.5,208" d="M 372.5 138 L 372.5 208" class="a-default" stroke-width="1.5" marker-end="url(#arrowhead)"/>
         <path data-edge-from="doc_corpus" data-edge-to="embedder" data-edge-key="2" data-edge-id="doc-embedder" data-composition-points="540,109;497.5,109;497.5,224;455,224" d="M 540 109 L 505.5 109 Q 497.5 109 497.5 117 L 497.5 216 Q 497.5 224 489.5 224 L 455 224" class="a-default" stroke-width="1.5" marker-end="url(#arrowhead)"/>
         <path data-edge-from="script_cohort" data-edge-to="embedder" data-edge-key="3" data-edge-id="scripts-embedder" data-composition-points="790,109;766,109;766,230.5;455,230.5" d="M 790 109 L 774 109 Q 766 109 766 117 L 766 222.5 Q 766 230.5 758 230.5 L 455 230.5" class="a-default" stroke-width="1.5" marker-end="url(#arrowhead)"/>
-        <path data-edge-from="embedder" data-edge-to="store" data-edge-label="pooled cache · vec0 mirror" data-edge-key="4" data-edge-id="embedder-store" data-composition-points="455,237;790,237" d="M 455 237 L 790 237" class="a-emphasis" stroke-width="1.8" marker-end="url(#arrowhead-emphasis)"/>
+        <path data-edge-from="embedder" data-edge-to="store" data-edge-label="pooled cache · vector mirror" data-edge-key="4" data-edge-id="embedder-store" data-composition-points="455,237;790,237" d="M 455 237 L 790 237" class="a-emphasis" stroke-width="1.8" marker-end="url(#arrowhead-emphasis)"/>
         <path data-edge-from="embedder" data-edge-to="note_search" data-edge-label="rebuild_note_search" data-edge-key="5" data-edge-id="embedder-note" data-composition-points="290,244;240,244;240,358;190,358" d="M 290 244 L 248 244 Q 240 244 240 252 L 240 350 Q 240 358 232 358 L 190 358" class="a-default" stroke-width="1.5" marker-end="url(#arrowhead)"/>
         <path data-edge-from="embedder" data-edge-to="company_emb" data-edge-label="--maint / populate" data-edge-key="6" data-edge-id="embedder-company" data-composition-points="372.5,266;372.5,336" d="M 372.5 266 L 372.5 336" class="a-default" stroke-width="1.5" marker-end="url(#arrowhead)"/>
         <path data-edge-from="embedder" data-edge-to="doc_search" data-edge-label="rebuild_doc_search" data-edge-key="7" data-edge-id="embedder-doc" data-composition-points="455,243.5;497.5,243.5;497.5,365;540,365" d="M 455 243.5 L 489.5 243.5 Q 497.5 243.5 497.5 251.5 L 497.5 357 Q 497.5 365 505.5 365 L 540 365" class="a-default" stroke-width="1.5" marker-end="url(#arrowhead)"/>
@@ -5118,8 +5118,8 @@
         <text data-detail="fine" x="877.5" y="258" class="t-database" font-size="7" text-anchor="middle">sha256-keyed cache</text>
         </g>
 
-        <g id="node-note_search" data-node-id="note_search" data-node-label="note_search" tabindex="0" role="button" aria-label="Focus note_search, Architecture component" aria-pressed="false" data-node-kind="database" data-node-tag="FTS5 + vec0" data-node-context="Architecture component">
-          <title>note_search · Architecture component · FTS5 + vec0</title>
+        <g id="node-note_search" data-node-id="note_search" data-node-label="note_search" tabindex="0" role="button" aria-label="Focus note_search, Architecture component" aria-pressed="false" data-node-kind="database" data-node-tag="FTS5 + DuckDB vectors" data-node-context="Architecture component">
+          <title>note_search · Architecture component · FTS5 + DuckDB vectors</title>
           <rect x="40" y="336" width="150" height="58" rx="6" class="c-mask"/>
           <rect x="40" y="336" width="150" height="58" rx="6" class="c-database" stroke-width="1.5"/>
           <g aria-hidden="true" data-semantic-sigil="database" class="semantic-sigil s-database" transform="translate(46 342) scale(0.6875)">
@@ -5127,7 +5127,7 @@
             <path d="M3 4v8c0 1.1 2.2 2 5 2s5-.9 5-2V4M3 8c0 1.1 2.2 2 5 2s5-.9 5-2"/>
           </g>
           <text data-node-label="" x="115" y="369" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">note_search</text>
-        <text data-detail="fine" x="115" y="386" class="t-database" font-size="7" text-anchor="middle">FTS5 + vec0</text>
+        <text data-detail="fine" x="115" y="386" class="t-database" font-size="7" text-anchor="middle">FTS5 + DuckDB vectors</text>
         </g>
 
         <g id="node-company_emb" data-node-id="company_emb" data-node-label="company_embeddings" tabindex="0" role="button" aria-label="Focus company_embeddings, Architecture component" aria-pressed="false" data-node-kind="database" data-node-tag="entity vectors" data-node-context="Architecture component">
@@ -5166,15 +5166,15 @@
         <text data-detail="fine" x="865" y="386" class="t-database" font-size="7" text-anchor="middle">FTS5 + embeds</text>
         </g>
 
-        <g id="node-seam" data-node-id="seam" data-node-label="hybrid query seam" tabindex="0" role="button" aria-label="Focus hybrid query seam, Architecture component" aria-pressed="false" data-node-kind="backend" data-node-tag="vec0 → FlatKNN → cosine" data-node-context="Architecture component">
-          <title>hybrid query seam · Architecture component · vec0 → FlatKNN → cosine</title>
+        <g id="node-seam" data-node-id="seam" data-node-label="hybrid query seam" tabindex="0" role="button" aria-label="Focus hybrid query seam, Architecture component" aria-pressed="false" data-node-kind="backend" data-node-tag="DuckDB HNSW → FlatKNN → cosine" data-node-context="Architecture component">
+          <title>hybrid query seam · Architecture component · DuckDB HNSW → FlatKNN → cosine</title>
           <rect x="290" y="464" width="165" height="58" rx="6" class="c-mask"/>
           <rect x="290" y="464" width="165" height="58" rx="6" class="c-backend" stroke-width="1.5"/>
           <g aria-hidden="true" data-semantic-sigil="backend" class="semantic-sigil s-backend" transform="translate(296 470) scale(0.6875)">
             <path d="M6 3 3 8l3 5M10 3l3 5-3 5"/>
           </g>
           <text data-node-label="" x="372.5" y="497" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">hybrid query seam</text>
-        <text data-detail="fine" x="372.5" y="514" class="t-backend" font-size="7" text-anchor="middle">vec0 → FlatKNN → cosine</text>
+        <text data-detail="fine" x="372.5" y="514" class="t-backend" font-size="7" text-anchor="middle">DuckDB HNSW → FlatKNN → cosine</text>
         </g>
 
         <g id="node-consumers" data-node-id="consumers" data-node-label="search UI · tickers" tabindex="0" role="button" aria-label="Focus search UI · tickers, Architecture component" aria-pressed="false" data-node-kind="frontend" data-node-tag="/api/search" data-node-context="Architecture component">
@@ -5196,9 +5196,9 @@
 
 
 
-        <g data-detail="context" data-edge-from="embedder" data-edge-to="store" data-edge-label="pooled cache · vec0 mirror" data-edge-key="4" data-edge-id="embedder-store">
+        <g data-detail="context" data-edge-from="embedder" data-edge-to="store" data-edge-label="pooled cache · vector mirror" data-edge-key="4" data-edge-id="embedder-store">
           <rect x="555.1" y="262" width="134.8" height="14" rx="3" class="c-mask"/>
-          <text x="622.5" y="272" class="t-backend" font-size="8" text-anchor="middle">pooled cache · vec0 mirror</text>
+          <text x="622.5" y="272" class="t-backend" font-size="8" text-anchor="middle">pooled cache · vector mirror</text>
         </g>
         <g data-detail="context" data-edge-from="embedder" data-edge-to="note_search" data-edge-label="rebuild_note_search" data-edge-key="5" data-edge-id="embedder-note">
           <rect x="189.4" y="281" width="101.2" height="14" rx="3" class="c-mask"/>

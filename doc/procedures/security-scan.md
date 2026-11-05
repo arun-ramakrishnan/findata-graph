@@ -157,7 +157,7 @@ pass. Review by attack class, not by route:
 | AI / LLM | local-only | embeddings via local GGUF (llama.cpp, SHA-256-pinned model); no chat completion, no tool-calling |
 | Protocols / RPC / messaging | n/a | no gRPC / GraphQL / protobuf |
 | Desktop / mobile / IPC | covered 2026-10-01 | Tauri viewer: Rust IPC + `v-html` sinks + opener path (Addendum 7 §A-C; DESK-1/2 hardening notes) |
-| Memory safety / binary | watch | parsers are vendored C++ (PyMuPDF, DuckDB, sqlite-vec, llama.cpp, Mojo CSR lanes) — Python surface reviewed, internals not |
+| Memory safety / binary | watch | parsers are vendored C++ (PyMuPDF, DuckDB, llama.cpp, Mojo CSR lanes) — Python surface reviewed, internals not |
 | Cloud / deployment | partial | nixpacks/gunicorn config; SEC-5 platform-auth deploy-gated |
 
 When you run a class for the first time, expect the finding there: every

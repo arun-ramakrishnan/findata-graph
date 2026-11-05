@@ -1219,9 +1219,8 @@ def check_embedding_decode_chokepoint(scope: set[Path] | None = None) -> list[st
         scope = _DIRTY_PY_SCOPE
     allowlist_prefixes = (
         "helpers/core/vec_codec.py",
-        # One-shot migrations read pre-blob TEXT by design.
+        # One-shot migration reads pre-blob TEXT by design.
         "helpers/maintenance/migrate_embedding_blob.py",
-        "helpers/maintenance/migrate_embed_store.py",
     )
     failures: list[str] = []
     if scope is not None:

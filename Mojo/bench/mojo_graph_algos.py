@@ -13,7 +13,7 @@ native run below) and drives the original metric functions end-to-end
   * DuckDB extensions sqlite (ATTACH) + vss via query.connect()
   * the repo's full FTS5 surface: note_search (/api/search shape),
     doc_search + script_search (bm25-weighted, OR-quoted MATCH),
-    plus the sqlite-vec vec0 KNN mirror
+    plus the DuckDB KNN vector mirror
 
 EVERY connection is read-only (connect(..., read_only=True)); the vec case
 is pre-gated with lazy_backfill=False so it can never write. Onager temp
@@ -491,7 +491,7 @@ def native_sql(name: str):
 # Metric cases — the ORIGINAL functions driven end-to-end. These are the
 # 14 `make graph-algos` metrics (12 compute() + link-predict + voterank)
 # plus the whole-graph onager_graph_metrics block (make graph-stats) and
-# the vec0 KNN mirror. kind selects the canonical form both sides build.
+# the KNN vector mirror. kind selects the canonical form both sides build.
 # --------------------------------------------------------------------------- #
 def _metric_fns():
     from helpers.graph import algorithms as alg
@@ -521,7 +521,7 @@ def _metric_fns():
         # direct onager call (not the cached query.py wrapper) so the
         # Mojo-side timing is not flattered by the result cache
         "graph_metrics": ("scalars", lambda: _on.onager_graph_metrics(graph_con())),
-        "vec0_knn": ("float_dict", vec_knn),
+        "vector_knn": ("float_dict", vec_knn),
     }
 
 
@@ -545,7 +545,7 @@ def run_metric(name: str):
 
 
 def vec_knn():
-    """sqlite-vec KNN over the note embedding mirror — the hybrid-search
+    """DuckDB KNN over the note embedding mirror — the hybrid-search
     neighbour leg. Pre-gated read-only: lazy_backfill=False means an
     absent mirror returns None (probe prints SKIP), NEVER a write."""
     import json as _json
@@ -553,8 +553,6 @@ def vec_knn():
     from helpers.core import vec_search as vs
 
     conn = research_con()
-    if not vs._attach_ok(conn):
-        return None
     if not vs.vec_available(conn, VEC_DIMS, lazy_backfill=False):
         return None
     row = conn.execute(

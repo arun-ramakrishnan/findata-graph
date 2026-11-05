@@ -13,9 +13,10 @@ the DECISION-GRADE comparison — no shape simulations:
          _embedding_text composition the rebuild uses), granite query
          embedder patched in; same endpoint, same questions, same window
 
-Mechanics that make leg B faithful: at 14.5k rows the endpoint's vec0
-KNN auto-routes past VEC0_KNN_MAX to the flat-matrix leg, which reads
-the embedding column — so rewriting that column IS the model swap;
+Mechanics that make leg B faithful: the endpoint's whole-corpus KNN
+(k=None) reads the embedding mirror — sqlite-vec-era 4096 caps routing
+to the flat-matrix leg are gone (S2, 2026-11-05: DuckDB sidecar) — so
+rewriting the embedding column IS the model swap;
 query_embedder is imported inside the handler, so patching the
 rebuild_note_search module attribute redirects every request; connect()
 is imported per call in get_db_connection, so patching

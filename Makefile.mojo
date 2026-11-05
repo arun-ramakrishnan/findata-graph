@@ -76,7 +76,7 @@ mojo-parity: $(MOJO_BIN)/integrity_check
 
 # Harness: Mojo/bench/run_bench.py runs every bench leg and appends the
 # table to Mojo/bench/bench_report.txt. Legs: cosine-knn (the 4-way
-# py_math/py_json/sqlite-vec/mojo_simd comparison via bench_cosine_knn.py),
+# py_math/py_json/duckdb/mojo_simd comparison via bench_cosine_knn.py),
 # analyzer (multi-tier compute table), pool-4x (bench_pool x4 workers,
 # synthetic matrix), regex-bridge (mojo_regex_probe), yaml-corpus
 # (vendored mojo-yaml frontmatter sweep), regex-corpus (whole-corpus

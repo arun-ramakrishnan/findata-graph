@@ -456,10 +456,10 @@ class TestHybridSearch:
 
 
 # --------------------------------------------------------------------------- #
-# A1: the sqlite-vec KNN path (global re-rank) vs the Python-cosine fallback  #
+# A1: the native KNN path (global re-rank) vs the Python-cosine fallback     #
 # --------------------------------------------------------------------------- #
 class TestHybridKnnPath:
-    """Pins that hybrid uses the vec0 KNN map when available and keeps the
+    """Pins that hybrid uses the KNN vector map when available and keeps the
     exact response contract when it isn't."""
 
     def test_hybrid_calls_knn_and_uses_its_similarities(self, client, monkeypatch):

@@ -390,7 +390,7 @@ class TestEmbeddingColumn:
 
 # --------------------------------------------------------------------------- #
 # local_embeddings (2026-08-20): the resolver picks the local bge model when  #
-# available, threads its dims into the vec0 mirror, and self-heals a          #
+# available, threads its dims into the vector mirror, and self-heals a        #
 # dims change on the next rebuild. Fakes stand in for the model (hermetic).   #
 # --------------------------------------------------------------------------- #
 
@@ -472,43 +472,30 @@ class TestLocalEmbedderWiring:
 
     def test_vec_mirror_follows_dims_change(self, seeded_tree, fake_local, monkeypatch):
         """Index at 384 with the local model, then a machine where the model
-        is gone (pseudo 64): the rebuild must recreate the vec0 table at 64 —
+        is gone (pseudo 64): the rebuild must recreate the mirror at 64 —
         not silently keep serving a FLOAT[384] table the 64-dim sync can't
         write into."""
         from helpers.core import vec_search as VS
 
         rns.rebuild(seeded_tree, write=True)
-        # vec sidecar lives next to the db file; query via a vec-loaded conn
-        import sqlite_vec
-
-        def _vec_conn():
-            c = sqlite3.connect(str(seeded_tree))
-            c.enable_load_extension(True)
-            c.load_extension(sqlite_vec.loadable_path())
-            c.enable_load_extension(False)
-            VS._attach_vec_db(c)
-            return c
-
-        c = _vec_conn()
+        con = sqlite3.connect(str(seeded_tree))
         try:
-            assert VS.stored_dims(c) == 384
-            n384 = c.execute(f"SELECT COUNT(*) FROM {VS.qualified()}").fetchone()[0]  # noqa: S608
+            assert VS.stored_dims(con) == 384
         finally:
-            c.close()
-        assert n384 == 4
+            con.close()
+        assert _mirror_count() == 4
 
         # Model gone -> pseudo rebuild at 64.
         monkeypatch.setattr(fake_local, "available", lambda: False)
         stats = rns.rebuild(seeded_tree, write=True)
         assert stats["embed_model"].startswith("dry-run-v")
 
-        c = _vec_conn()
+        con = sqlite3.connect(str(seeded_tree))
         try:
-            assert VS.stored_dims(c) == 64
-            n64 = c.execute(f"SELECT COUNT(*) FROM {VS.qualified()}").fetchone()[0]  # noqa: S608
+            assert VS.stored_dims(con) == 64
         finally:
-            c.close()
-        assert n64 == 4
+            con.close()
+        assert _mirror_count() == 4
 
     def test_stored_embed_dims_gate_helper(self, seeded_tree):
         rns.rebuild(seeded_tree, write=True)
@@ -646,43 +633,32 @@ class TestLocalEmbedderWiring:
 
 
 # --------------------------------------------------------------------------- #
-# A1: sqlite-vec mirror table (note_search_vec) maintenance                  #
+# A1/S2: DuckDB vector mirror table (note_search_vec) maintenance            #
 # --------------------------------------------------------------------------- #
 
 
+def _mirror_count() -> int:
+    """Row count straight from the DuckDB sidecar (S2, 2026-11-05: the
+    mirror left sqlite-vec for memory/note_vectors.duckdb; conftest
+    redirects VEC_INDEX_DB_PATH per test)."""
+    from helpers.core import vec_search as VS
+
+    con = VS._open_ro(VS.VEC_INDEX_DB_PATH)
+    try:
+        return con.execute(f"SELECT COUNT(*) FROM {VS.VEC_TABLE}").fetchone()[0]  # noqa: S608  # VEC_TABLE is a module constant
+    finally:
+        con.close()
+
+
 class TestVecMirror:
-    """The rebuild keeps the vec0 mirror in lock-step with the FTS table."""
-
-    @staticmethod
-    def _vec_conn(db_path):
-        """Raw connection WITH sqlite-vec loaded (the module is per-conn —
-        querying a vec0 table on a bare connection raises 'no such module')."""
-        import sqlite_vec
-
-        from helpers.core.vec_search import _attach_vec_db
-
-        conn = sqlite3.connect(str(db_path))
-        conn.enable_load_extension(True)
-        conn.load_extension(sqlite_vec.loadable_path())
-        conn.enable_load_extension(False)
-        _attach_vec_db(conn)  # the vec0 table lives in the sidecar (vecdb)
-        return conn
+    """The rebuild keeps the vector mirror in lock-step with the FTS table."""
 
     def test_full_rebuild_populates_vec_table(self, seeded_tree):
         import helpers.maintenance.rebuild_note_search as R
 
         stats = R.rebuild(R.DEFAULT_DB)
         assert stats["vec_rows"] == 4  # 4 section rows
-        conn = self._vec_conn(R.DEFAULT_DB)
-        try:
-            from helpers.core.vec_search import qualified
-
-            n = conn.execute(
-                f"SELECT COUNT(*) FROM {qualified()}"  # noqa: S608  # qualified() constant
-            ).fetchone()[0]
-        finally:
-            conn.close()
-        assert n == 4
+        assert _mirror_count() == 4
 
     def test_incremental_rebuild_updates_vec_rows(self, seeded_tree):
         import helpers.maintenance.rebuild_note_search as R
@@ -746,19 +722,14 @@ class TestVecMirror:
         (R.FINDATA / "Sectors" / "Agriculture.md").unlink()
         stats = R.rebuild(R.DEFAULT_DB, incremental=True)
         assert stats["deletes"] == 1
-        from helpers.core.vec_search import qualified
+        from helpers.core import vec_search as VS
 
-        conn = self._vec_conn(R.DEFAULT_DB)
+        con = VS._open_ro(VS.VEC_INDEX_DB_PATH)
         try:
-            fps = {
-                r[0]
-                for r in conn.execute(
-                    f"SELECT file_path FROM {qualified()}"  # noqa: S608  # qualified() constant
-                )
-            }
+            keys = {r[0] for r in con.execute(f"SELECT row_key FROM {VS.VEC_TABLE}").fetchall()}  # noqa: S608  # VEC_TABLE is a module constant
         finally:
-            conn.close()
-        assert not any("Agriculture.md" in fp for fp in fps)
+            con.close()
+        assert not any("Agriculture.md" in k for k in keys)
 
     def test_vec_similarity_matches_python_cosine(self, seeded_tree, monkeypatch):
         """KNN similarity over the mirrored table == float64 cosine of the
@@ -779,7 +750,7 @@ class TestVecMirror:
         monkeypatch.setattr(local_embedder, "available", lambda: False)
 
         rns.rebuild(seeded_tree)
-        conn = self._vec_conn(seeded_tree)
+        conn = sqlite3.connect(str(seeded_tree))
         try:
             rows = conn.execute(
                 "SELECT file_path, anchor, embedding FROM note_search WHERE embedding IS NOT NULL"

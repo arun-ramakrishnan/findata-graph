@@ -23,7 +23,7 @@ the write side; this one owns freshness and query.
 |---|---|---|---|
 | `doc_search` FTS5 (BM25, section-level) + per-chunk embeddings | `memory/doc_search.db` (gitignored sidecar) | `doc/**` (incl. gitignored `doc/local/`) | `doc_query.py`, `GET /api/docs/search` |
 | `script_search` FTS5 + embeddings, hybrid RRF | `memory/script_search.db` (gitignored sidecar) | `helpers/**`, `tests/**`, `app.py`, Makefile | `script_query.py` |
-| `note_search` FTS5 (+ vec0 mirror in research.db) | inside `memory/research.db` | `findata/**` markdowns | `GET /api/search?hybrid=true`, TUI notes lane |
+| `note_search` FTS5 (+ DuckDB vector mirror `memory/note_vectors.duckdb`) | inside `memory/research.db` | `findata/**` markdowns | `GET /api/search?hybrid=true`, TUI notes lane |
 | `memory_search` FTS5 + embeddings, hybrid RRF | `memory/memory_search.db` (gitignored sidecar) | harness memory pools: zcode (`~/.zcode/cli/memories/`), prime-rlm (`harness_state.json`), opencode (`.opencode/memory/*.logfmt`) | `memory_query.py` (`--kind zcode\|prime\|opencode`), TUI memory lane |
 | `git_search` FTS5 + embeddings, hybrid RRF | `memory/git_search.db` (gitignored sidecar) | git history: every commit on `main` of the PRIMARY checkout — message (vector leg) + noise-excluded diff text (lexical leg) | `git_query.py` (`--since`, `--path`) |
 | Embed cache `(sha256(text), model) -> vector` | pooled `memory/embed_store.db` (schema `vecdb`) | shared by all indexers | automatic |

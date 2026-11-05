@@ -53,11 +53,9 @@ dependencies = [
     "pymupdf", # imported directly (Pixmap/text-layer guard), not just transitively
     "indra-ocr",
     "liteparse",
-    # sqlite-vec vector index for note_search hybrid ranking (A1,
-    # helpers/core/vec_search.py). Loaded per-connection exactly like
-    # sqlite-spellfix above; KNN degrades to a Python cosine fallback when
-    # the extension is unavailable.
-    "sqlite-vec",
+    # (sqlite-vec retired 2026-11-05, duckdb_pure_stack S2: the note_search
+    # vector mirror is now DuckDB HNSW in memory/note_vectors.duckdb,
+    # helpers/core/vec_search.py — no SQLite extension to load.)
     # JSON-Schema validation of findata note frontmatter (
     # helpers/validators/frontmatter_schema.py; schemas in doc/okf/).
     "jsonschema",

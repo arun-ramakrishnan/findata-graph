@@ -313,8 +313,9 @@ def run(argv: list[str] | None = None) -> int:
     print(f"criterion hybrid >= before:    {'PASS' if ok2 else 'FAIL'}")
 
     # --- latency (S3 acceptance #4) ---------------------------------------- #
-    # The vec0 KNN caps at k=4096 < 14.5k section rows, so the production
-    # cosine leg is the flat-matrix map — measure that (plus the endpoint).
+    # The production cosine leg is a whole-corpus KNN map (k=None; post-S2
+    # the DuckDB mirror) — measure the flat-matrix fallback (plus the
+    # endpoint) as the latency floor.
     qv0 = q_vecs[questions[0]["query"]]
     t0 = time.perf_counter()
     A._flat_knn_map(qv0, ["findata/Companies/Agriculture/Avanti_Feeds.md#1"])

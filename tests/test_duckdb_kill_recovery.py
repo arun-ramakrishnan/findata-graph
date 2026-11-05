@@ -120,9 +120,11 @@ con.close()
 
 def _schema_sql(shape: str) -> str:
     if shape == "convo_search":
-        from helpers.maintenance.rebuild_convo_search import CONVO_SEARCH_DDL
+        # dims=None keeps the legacy UNSIZED embedding column: the kill test
+        # simulates a pre-S1 store mid-write, which the DDL function models.
+        from helpers.maintenance.rebuild_convo_search import _convo_search_ddl
 
-        return CONVO_SEARCH_DDL
+        return _convo_search_ddl(None)
     from helpers.analytics.agent_traces import SCHEMA
 
     return SCHEMA

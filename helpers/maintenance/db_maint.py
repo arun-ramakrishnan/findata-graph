@@ -475,9 +475,11 @@ class DBMaintainer:
     def _backup_embed_store(self) -> int:
         """Paired recovery copy of the consolidated embed store.
 
-        Since the embed_store consolidation the vec0 mirror + pooled
-        content-hash cache live in ONE SQLite database
-        (``memory/embed_store.db``, see helpers/core/vec_search.py); a
+        Since the embed_store consolidation the pooled content-hash
+        cache lives in ONE SQLite database (``memory/embed_store.db``,
+        see helpers/core/vec_search.py; the vector mirror that shared it
+        was retired 2026-11-05 for a DuckDB sidecar, snapshot-excluded);
+        a
         research_backup.db without it restores to a cold re-embed (~minutes
         of CPU). Resolution order: a per-db ``<db>_vec.db`` sibling wins
         (pre-migration clones and tests that seed one); otherwise the

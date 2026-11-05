@@ -989,7 +989,7 @@ def search_docs(  # noqa: C901
     except sqlite3.Error:
         return {"mode": "bm25", "results": []}
 
-    # Cosine leg: whole-table Python scan (no vec0 mirror at this scale —
+    # Cosine leg: whole-table Python scan (no vector mirror at this scale —
     # ~600 rows x 384 dims is sub-millisecond) gated on the stored stamp:
     # the query must live in the index's vector space (S2, the #367
     # mirror). A shared QueryVector whose model/dims disagree with the

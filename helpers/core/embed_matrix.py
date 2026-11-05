@@ -3,8 +3,9 @@
 
 Proposal ``doc/improvements/archive/tooling/corpus_embeddings_scaling.md``
 (S2b/S2c; BLOB-native revival in bulk_data_lanes S3): the embedding
-substrate (``research.db note_search`` f32-BLOB column, vec0 mirror in
-``memory/embed_store.db``) has no mmap-able **aligned** float32 matrix, which
+substrate (``research.db note_search`` f32-BLOB column, DuckDB vector
+mirror in ``memory/note_vectors.duckdb``) has no mmap-able **aligned**
+float32 matrix, which
 is the contract the 2026-09-02 MAX bench proved required — the JIT CPU kernel
 reads host inputs zero-copy with ``vmovaps`` loads that need 32-byte
 alignment (misaligned inputs segfaulted 8/8; aligned passed 8/8).

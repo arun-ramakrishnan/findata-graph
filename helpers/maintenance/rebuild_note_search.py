@@ -319,8 +319,8 @@ def _noop_embed(_text: str) -> list[float]:
 # maint budget. Remedy per the proposal: a (sha256(text), model) -> vector
 # cache so unchanged docs never re-embed. It lives in the vec SIDECAR
 # (<db>_vec.db, schema vecdb) — derived, snapshot-excluded, lazily rebuilt
-# state, exactly like the vec0 mirror; a new table in research.db would
-# collide with the schema-drift guards and DuckDB scanner expectations.
+# state, exactly like the DuckDB vector mirror; a new table in research.db
+# would collide with the schema-drift guards and DuckDB scanner expectations.
 # Extracted to helpers/core/embed_cache.py (2026-08-21) when the company-
 # embeddings populate became the second consumer; the sidecar table keeps
 # its note_search_emb_cache name (renaming would orphan warm caches).
@@ -676,7 +676,7 @@ def _rows_by_path(rows: list[tuple]) -> dict[str, list[tuple]]:
 
 
 def vec_row_key(row: tuple) -> str:
-    """Composite vec0/matrix key for a section row: "{file_path}#{anchor}".
+    """Composite vector-mirror/matrix key for a section row: "{file_path}#{anchor}".
     The FILE must not contain '#' (findata paths don't) — one separator,
     unambiguous split."""
     return f"{row[1]}#{row[7]}"
@@ -721,7 +721,7 @@ def _migrate_schema(conn) -> bool:
 def _refresh_embed_matrix(conn) -> int | None:  # type: ignore[no-untyped-def]
     """S2d (corpus_embeddings_scaling): best-effort refresh of the aligned
     f32 matrix (memory/embed_matrix.f32) after note_search embeddings move.
-    Same derived-state class as the vec0 mirror — rebuilt here, never
+    Same derived-state class as the vector mirror — rebuilt here, never
     load-bearing; any failure downgrades to a one-line stderr warning (the
     search-side staleness gate falls back to the Python cosine, not to
     stale matrix results).
@@ -790,8 +790,8 @@ def rebuild(  # noqa: C901
         conn.execute(NOTE_SEARCH_DDL)
         conn.execute(NOTE_SEARCH_META_DDL)
         # Resolve the embedder once: real local model when available, pseudo
-        # fallback otherwise. The resolved dims flow into the vec0 mirror so
-        # the KNN table always matches the JSON column's vector space.
+        # fallback otherwise. The resolved dims flow into the vector mirror
+        # so the KNN table always matches the JSON column's vector space.
         # Internally-resolved embedders get the Q3 sidecar cache (unchanged
         # docs never re-embed); injected test embed_fn stay raw.
         embed_dims = _PSEUDO_DIMS
@@ -1063,10 +1063,10 @@ def rebuild(  # noqa: C901
             n = conn.execute("SELECT COUNT(*) FROM note_search").fetchone()[0]
             stats["indexed"] = n
             stats["mode"] = "full"
-            # A1: mirror the embedding column into the sqlite-vec vec0 table
-            # (after the FTS commit — sync is idempotent and best-effort; the
-            # JSON column stays the source of truth).
-            print("[notes] phase: syncing vec0 mirror...", file=sys.stderr, flush=True)
+            # A1/S2: mirror the embedding column into the DuckDB vector
+            # sidecar (after the FTS commit — sync is idempotent and
+            # best-effort; the JSON column stays the source of truth).
+            print("[notes] phase: syncing vector mirror...", file=sys.stderr, flush=True)
             stats["vec_rows"] = sync_vec_table(conn, embed_dims, full=True)
             # S2d: keep the aligned f32 matrix in step (hash-gated row rewrites)
             print("[notes] phase: refreshing f32 matrix...", file=sys.stderr, flush=True)
@@ -1148,7 +1148,7 @@ def rebuild(  # noqa: C901
             stats["mode"] = "incremental"
             stats["upserts"] = len(to_upsert)
             stats["deletes"] = len(to_delete)
-            # A1: mirror the same delta into the vec0 table. Keys are
+            # A1/S2: mirror the same delta into the vector sidecar. Keys are
             # composite "{file_path}#{anchor}" row keys; every upserted file
             # is prefix-deleted first so dropped sections leave no stale
             # vectors behind.

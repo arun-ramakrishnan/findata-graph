@@ -17,7 +17,7 @@ Rules that make drift meaningful (a diff is schema intent, not churn):
 - deterministic emission: sqlite objects in sqlite_master.rowid order
   (creation order, the stable choice snapshot_db.py already relies on),
   duckdb tables in name order; no timestamps, no volatile stats;
-- shadow tables of a virtual table (fts5/vec0) are EXCLUDED — the
+- shadow tables of a virtual table (fts5) are EXCLUDED — the
   CREATE VIRTUAL TABLE statement recreates them; keeping them would
   make the file non-replayable and churn on every rebuild;
 - internal sqlite_% objects excluded;
@@ -83,7 +83,7 @@ def source_dbs() -> list[tuple[Path, str]]:
 
 
 def _virtual_modules(con: sqlite3.Connection) -> dict[str, str]:
-    """Virtual table name -> module ('fts5'/'vec0'), lowercased."""
+    """Virtual table name -> module (e.g. 'fts5'), lowercased."""
     rows = con.execute(
         "SELECT name, sql FROM sqlite_master WHERE type='table' AND sql LIKE '%VIRTUAL TABLE%'"
     ).fetchall()
@@ -95,19 +95,17 @@ def _virtual_modules(con: sqlite3.Connection) -> dict[str, str]:
 
 
 # Shadow-table suffixes per virtual-table module. FTS5 creates exactly the
-# five; sqlite-vec vec0 creates chunks/rowids/info plus vector_chunksNN.
-# NOTE the asymmetry the old prefix match got wrong: `_info` is a vec0
-# SHADOW but a REAL house companion table for the FTS5 search DBs
-# (doc_search_info / memory_search_info / script_search_info).
+# five. (The sqlite-vec extension's shadow tables were retired with the
+# extension, 2026-11-05, duckdb_pure_stack S2: the note_search vector
+# mirror is now a DuckDB sidecar, so no SQLite db on the dump surface
+# carries vector virtual tables.)
 _SHADOW_SUFFIXES: dict[str, frozenset[str]] = {
     "fts5": frozenset({"data", "idx", "content", "docsize", "config"}),
-    "vec0": frozenset({"chunks", "rowids", "info"}),
 }
-_VEC0_VECTOR_RE = re.compile(r"vector_chunks\d+")
 
 
 def _is_shadow(name: str, virtual_modules: dict[str, str]) -> bool:
-    """True for fts5/vec0 shadow tables of a virtual table. The CREATE
+    """True for fts5 shadow tables of a virtual table. The CREATE
     VIRTUAL TABLE statement recreates its shadows, so emitting them would
     make the dump non-replayable.
 
@@ -122,8 +120,6 @@ def _is_shadow(name: str, virtual_modules: dict[str, str]) -> bool:
             continue
         rest = name[len(virtual) + 1 :]
         if rest in _SHADOW_SUFFIXES.get(module, frozenset()):
-            return True
-        if module == "vec0" and _VEC0_VECTOR_RE.fullmatch(rest):
             return True
     return False
 

@@ -3,7 +3,7 @@
 workload (lives in Mojo/bench/, driven by `make mojo-bench`).
 
 Context (doc/local/mojo_pilot.md): every production numeric path in this
-repo is already native (sqlite-vec KNN, DuckDB VSS, onager, llama.cpp,
+repo is already native (extension KNN, DuckDB VSS, onager, llama.cpp,
 MuPDF); the only pure-Python vector math left is the app.py hybrid-search
 cosine fallback. This bench measures exactly that workload four ways:
 
@@ -11,14 +11,15 @@ cosine fallback. This bench measures exactly that workload four ways:
                   generator-expression sums), vectors pre-parsed
   b. py_json    — same + per-row json.loads (the fallback's real cost:
                   embeddings live as JSON text in the note_search table)
-  c. sqlite-vec — the production native path (knn_similarities, C KNN
-                  over the vec0 mirror in memory/embed_store.db)
+  c. duckdb     — the production native path (knn_similarities,
+                  vectorized cosine over the DuckDB mirror in
+                  memory/note_vectors.duckdb)
   d. mojo_simd  — Mojo/src/bench/bench_cosine.mojo binary: SIMD
                   (hardware-width f32 lanes) whole-corpus scan over a
                   float32 dump of the same corpus
 
 Corpus scales x1/x4/x16 (whole-corpus row replication) project corpus
-growth; the sqlite-vec leg runs at x1 only (it queries the live table).
+growth; the duckdb leg runs at x1 only (it queries the live table).
 
 NOT wired into `make perf` — a Mojo toolchain dependency does not
 belong in a regression gate.
@@ -191,7 +192,7 @@ def main() -> int:
     conn = connect()
     try:
         file_paths, jsons, vecs = _load_corpus(conn)
-        # sqlite-vec leg (x1 only): the production native path.
+        # duckdb leg (x1 only): the production native path.
         _ = knn_similarities(conn, vecs[0], None, DIMS)  # warm-up (ATTACH etc.)
         vec_best = _best_of(lambda: knn_similarities(conn, vecs[0], None, DIMS), args.reps)
         vec_knn = knn_similarities(conn, vecs[0], None, DIMS)
@@ -227,7 +228,7 @@ def main() -> int:
             "rows",
             "py_math",
             "py_json",
-            "sqlite-vec",
+            "duckdb",
             "mojo_simd",
             "mojo vs py_math",
             "mojo vs py_json",
@@ -287,9 +288,9 @@ def main() -> int:
         for row in table_rows:
             print(_render(row))
 
-        # sqlite-vec correctness: production top-1 must be the query doc itself.
+        # duckdb correctness: production top-1 must be the query doc itself.
         if vec_knn is None:
-            print("NOTE: sqlite-vec unavailable — native leg skipped in validation")
+            print("NOTE: duckdb mirror unavailable — native leg skipped in validation")
         else:
             vec_top1 = next(iter(vec_knn))
             vec_ok = vec_top1 == file_paths[py_idx]
@@ -298,7 +299,7 @@ def main() -> int:
             print(
                 f"validation: python top1 idx={py_idx} score={py_score:.6f} ({file_paths[py_idx]})"
             )
-            print(f"validation: sqlite-vec top1 = {vec_top1} [{'OK' if vec_ok else 'MISMATCH'}]")
+            print(f"validation: duckdb top1 = {vec_top1} [{'OK' if vec_ok else 'MISMATCH'}]")
             print(f"validation: mojo top1 matches python at every scale [{'OK' if ok else 'FAIL'}]")
 
         print()

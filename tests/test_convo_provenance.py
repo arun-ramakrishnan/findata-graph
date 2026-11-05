@@ -94,12 +94,13 @@ class TestMigration:
         assert rcs._provenance_migration(tmp_path / "nope.duckdb") is False
 
     def test_ddl_carries_the_column(self):
-        assert "provenance" in rcs.CONVO_SEARCH_DDL
+        ddl = rcs._convo_search_ddl(None)  # column set is identical at any dims
+        assert "provenance" in ddl
         # the staging schema must match the table exactly or the Arrow batch
         # is rejected or, worse, silently mis-aligned
         names = [n for n, _ in rcs._STAGE_SCHEMA_FIELDS]
         for col in names:
-            assert col in rcs.CONVO_SEARCH_DDL, f"{col} missing from the DDL"
+            assert col in ddl, f"{col} missing from the DDL"
 
 
 class TestBackfill:

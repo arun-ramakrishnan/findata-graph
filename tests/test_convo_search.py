@@ -921,3 +921,73 @@ def test_harness_filter_constrains_legs_not_post_fusion(convo_env, monkeypatch):
         assert all(r["harness"] == "prime-rlm" for r in out["results"])
     finally:
         con.close()
+
+
+class TestDuckNativeFTS:
+    """S3: the lexical leg reads the store's native FTS index, with the
+    sqlite sidecar as fallback for pre-S3 stores."""
+
+    def _build(self, tmp, monkeypatch):
+        db = tmp / "convo_search.duckdb"
+        hc.harvest(corpus_root=tmp / "corpus", db=db)
+        monkeypatch.setattr(rcs, "REPO", tmp)
+        monkeypatch.setattr(rcs, "CORPUS_DIR_GLOB", "corpus/*/*/*.parquet")
+        monkeypatch.setattr(
+            rcs,
+            "_embed",
+            lambda texts: (
+                [[float(len(t) % 7), 1.0, 0.0] for t in texts],
+                {"hits": 0, "misses": len(texts)},
+                3,
+                "test-model",
+            ),
+        )
+        stats = rcs.rebuild(tmp / "idx" / "convo_search.duckdb", write=True)
+        assert stats["indexed"] > 0
+        return tmp / "idx" / "convo_search.duckdb"
+
+    def test_native_fts_answers_and_zero_match_is_empty(self, convo_env, monkeypatch):
+        from helpers.misc import convo_query as cq
+
+        idx = self._build(convo_env, monkeypatch)
+        cc = cq.connect(idx)
+        try:
+            hits = cq._fts_hits(cc, "igraph decision", limit=5)
+            assert hits, "native FTS returned no hits for a seeded token"
+            # the NULL-score guard: once matches < limit, non-matching rows
+            # must NOT leak into the tail (probe 2026-11-05)
+            assert cq._fts_hits(cc, "qqqqzzzz wvvvyy", limit=5) == []
+            filtered = cq._fts_hits(cc, "igraph decision", limit=5, harness="opencode")
+            assert filtered and all(k[0] == "opencode" for k, _s in filtered)
+        finally:
+            cc.close()
+
+    def test_full_text_survives_the_bulk_insert(self, convo_env, monkeypatch):
+        idx = self._build(convo_env, monkeypatch)
+        con = duckdb.connect(str(idx), read_only=True)
+        try:
+            n = con.execute(
+                "SELECT COUNT(*) FROM convo_search "
+                "WHERE text IS NULL OR length(text) <> text_len "
+                "OR left(text, length(snippet)) <> snippet"
+            ).fetchone()[0]
+        finally:
+            con.close()
+        assert n == 0, f"{n} rows lost full text or desynced from snippet"
+
+    def test_falls_back_to_sqlite_when_index_missing(self, convo_env, monkeypatch):
+        from helpers.misc import convo_query as cq
+
+        idx = self._build(convo_env, monkeypatch)
+        con = duckdb.connect(str(idx))
+        try:
+            con.execute("LOAD fts")
+            con.execute("PRAGMA drop_fts_index('convo_search')")
+        finally:
+            con.close()
+        cc = cq.connect(idx)
+        try:
+            hits = cq._fts_hits(cc, "igraph", limit=5)
+            assert hits, "sqlite fallback leg returned no hits"
+        finally:
+            cc.close()

@@ -602,13 +602,19 @@ def _embed_store_to_tmp(tmp_path):
     from helpers.core import vec_search
 
     orig = vec_search.EMBED_DB_PATH
-    # Deliberately NO mkdir here: _attach_vec_db self-creates parents on
-    # first real use, and tests that assert EXACT tmp_path contents
-    # (e.g. test_exchange_search filename sanitisation) would see the stray
+    orig_vec_index = vec_search.VEC_INDEX_DB_PATH
+    # Deliberately NO mkdir here: vec_search self-creates parents on first
+    # real use, and tests that assert EXACT tmp_path contents (e.g.
+    # test_exchange_search filename sanitisation) would see the stray
     # memory/ dir as pollution.
     vec_search.EMBED_DB_PATH = tmp_path / "memory" / "embed_store.db"
+    # Pure-DuckDB arc S2: the note_search_vec mirror moved out of the embed
+    # store into its own DuckDB sidecar -- redirect it per-test too, or any
+    # KNN-path test would create the live memory/note_vectors.duckdb.
+    vec_search.VEC_INDEX_DB_PATH = tmp_path / "memory" / "note_vectors.duckdb"
     yield
     vec_search.EMBED_DB_PATH = orig
+    vec_search.VEC_INDEX_DB_PATH = orig_vec_index
 
 
 @pytest.fixture(autouse=True)

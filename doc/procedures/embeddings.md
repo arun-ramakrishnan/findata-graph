@@ -19,7 +19,7 @@ use `.venv/bin/python3`).
 
 | | `helpers/graph/embeddings.py` | `helpers/maintenance/rebuild_note_search.py` |
 |---|---|---|
-| Index | `company_embeddings` (research.db) | `note_search` FTS5 + vec0 sidecar mirror |
+| Index | `company_embeddings` (research.db) | `note_search` FTS5 + DuckDB vector mirror (`memory/note_vectors.duckdb`, HNSW) |
 | Granularity | **One vector per entity** (~1,050 companies) | **One row per document** (~1,227: companies, sectors, super-sectors, every newsletter edition) |
 | Text basis | name + sector + note body first 5,000 chars | title + sector + body first 8,000 chars (newsletters have no entity rows; body text lives only in files) |
 | Answers | "Which known company is this name?" (`vss_match` in get_tickers); "companies similar to X" (`semantic_neighbors` via DuckDB `v_embeddings`) | "Which documents discuss X?" (`/api/search?hybrid=true`: BM25 + cosine fused with RRF) |
@@ -28,14 +28,15 @@ use `.venv/bin/python3`).
 Both sides embed through **one module** — `helpers/core/local_embedder.py`
 (bge-small-en-v1.5, 384-dim, offline). The BGE rule that queries carry a
 retrieval prefix and documents do not lives only there; never embed at a
-call site. The vec0 mirror and the pooled **embed cache**
+call site. The pooled **embed cache**
 (`helpers/core/embed_cache.py`, one `(sha256(text), model, source)` table
-serving every indexer — note/company/doc/script cohorts) live in the
+serving every indexer — note/company/doc/script cohorts) lives in the
 **consolidated embed store** `memory/embed_store.db` (attached as schema
-`vecdb`; never research.db itself: DuckDB's SQLite scanner cannot
-catalog-scan vec0 virtual tables). The store replaced the per-index
-`<db>_vec.db` sidecars in 2026-08 (embed_store_consolidation); the legacy
-files survive renamed as `*.migrated.bak` until hand-cleanup.
+`vecdb`); it replaced the per-index `<db>_vec.db` sidecars in 2026-08
+(embed_store_consolidation); the legacy files survive renamed as
+`*.migrated.bak` until hand-cleanup. The vector mirror itself left
+SQLite for `memory/note_vectors.duckdb` (DuckDB HNSW, duckdb_pure_stack
+S2, 2026-11-05) when the sqlite-vec extension was retired.
 
 ## One-time setup (per machine)
 
@@ -150,7 +151,7 @@ chatter/metric blocks, sector rosters. Afterwards:
   by design), but each doc's text is hashed against the pooled store cache —
   unchanged text is a cache hit and never re-embeds. Only the new letter
   and the handful of edited notes re-embed (~0.8 s each) and get cached. A
-  typical letter cycle costs seconds-to-a-minute. The vec0 mirror follows
+  typical letter cycle costs seconds-to-a-minute. The vector mirror follows
   in lock-step. (An explicit `--incremental` flag exists but maint never
   uses it — the cache made it unnecessary.)
 - **company_embeddings: cached refresh in maint-full (step 6b).**

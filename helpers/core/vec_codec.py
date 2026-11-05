@@ -9,8 +9,8 @@ form during migration.
 
 Precision note (measured 2026-09-10): the stored JSON carries f64
 precision; packing rounds to nearest f32 — max |dcos| 8.4e-9, 0/59
-top-5 neighbor flips, and every retrieval surface (sqlite-vec chunks,
-DuckDB FLOAT[]) already quantizes to f32.
+top-5 neighbor flips, and every retrieval surface (the DuckDB vector
+mirror's FLOAT[] columns) already quantizes to f32.
 
 Rejected riders, measured on this box (Skylake: AVX2+F16C, no
 AVX512-FP16): f16 — 3.6x CPU penalty in numpy compute for ~12 MB;

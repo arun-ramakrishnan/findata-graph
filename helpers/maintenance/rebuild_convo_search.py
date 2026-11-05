@@ -57,16 +57,50 @@ SKIP_PART_PREFIXES = ("step-",)
 
 _pseudo_warned = False
 
-CONVO_SEARCH_DDL = """
+# S1 (duckdb_pure_stack): the embedding column is SIZED — DuckDB HNSW index
+# keys must be FLOAT[N]; an unsized FLOAT[] raises "Binder Error: HNSW index
+# keys must be of type FLOAT[N]" at CREATE INDEX (probe 2026-11-05,
+# /mnt/data/tmp/hnsw_unsized_probe.py). The size comes from the RUN's
+# resolved embedder dims, never a constant: production granite pins 384 (the
+# EMBED_DIMS cache-lane guard above), the swap rebuild stamps convo_meta
+# embed_dims for readers, and a future third dim is a model change riding a
+# full swap rebuild (FI-2 in doc/local/evaluations/unified_backend_assessment.md).
+# The legacy apply path keeps creating the UNSIZED column: incremental
+# windows never build HNSW, and unsized stores keep accepting any dims
+# until their next full swap rebuild sizes them.
+HNSW_EF_CONSTRUCTION = 128
+
+
+def _load_vss(con) -> None:
+    """Bind the persisted HNSW index before an in-place write window.
+
+    S1 (duckdb_pure_stack): the swapped-in store carries a persisted HNSW
+    index on convo_search.embedding. A connection that modifies that table
+    without the vss extension loaded fails at bind time — ``unknown index
+    type 'HNSW'`` (gate-arc hit 2026-11-05: the incremental write window
+    died after its 280 s embed). No-op for pre-S1 stores (no index to bind)
+    and for fresh tmp builds (they LOAD vss themselves before CREATE INDEX).
+    """
+    con.execute("INSTALL vss")
+    con.execute("LOAD vss")
+
+
+def _convo_search_ddl(dims: int | None) -> str:
+    """convo_search DDL; dims=None keeps the legacy unsized FLOAT[] column."""
+    sized = f"[{dims}]" if dims is not None else "[]"
+    return f"""
 CREATE TABLE IF NOT EXISTS convo_search (
   harness VARCHAR, session_id VARCHAR, part_id VARCHAR,
   file_path VARCHAR, row_no BIGINT,
   ts TIMESTAMP, role VARCHAR, agent VARCHAR, model VARCHAR, part_type VARCHAR,
-  text_len BIGINT, snippet VARCHAR, embedding FLOAT[],
+  text VARCHAR, -- full part text (S3): input to the native FTS index
+  text_len BIGINT, snippet VARCHAR, embedding FLOAT{sized},
   provenance VARCHAR DEFAULT '',
   PRIMARY KEY (harness, part_id)
 )
 """
+
+
 CONVO_META_DDL = "CREATE TABLE IF NOT EXISTS convo_meta (key VARCHAR PRIMARY KEY, value VARCHAR)"
 FTS_DDL = (
     "CREATE VIRTUAL TABLE IF NOT EXISTS convo_fts USING fts5("
@@ -161,6 +195,7 @@ def _provenance_migration(db_path: Path) -> bool:
         return False
     con = duckdb.connect(str(db_path))
     try:
+        _load_vss(con)  # ALTER on a post-S1 store binds the HNSW index
         con.execute(
             "ALTER TABLE convo_search ADD COLUMN IF NOT EXISTS provenance VARCHAR DEFAULT ''"
         )
@@ -260,6 +295,7 @@ def _backfill_models(db_path: Path, files: list[Path]) -> tuple[int, int]:
     with io_lock(db_path, exclusive=True):
         con = connect_with_lock_retry(lambda: duckdb.connect(str(db_path)))
         try:
+            _load_vss(con)  # UPDATE convo_search below must bind the HNSW index
             for f in files:
                 rel = str(f.relative_to(REPO))
                 try:
@@ -324,6 +360,7 @@ def _read_file(f: Path) -> tuple[str, list[dict]]:
                 "agent": r.get("agent") or "",
                 "model": r.get("model") or "",
                 "part_type": r.get("part_type") or "text",
+                "text": text,
                 "text_len": len(text),
                 "snippet": text[:SNIPPET_CAP],
                 "provenance": r.get("source") or "",
@@ -440,6 +477,12 @@ def _fts_sync(
     rows: list[dict],
     full: bool,
 ) -> None:
+    """Transitional FTS5 sidecar sync (pre-S3 readers; retires post-merge).
+
+    The sidecar indexes the SNIPPET (8 KB cap) while the S3 native index
+    covers the full text column — a documented divergence that only
+    affects the fallback leg of pre-S3 stores.
+    """
     sconn.execute(FTS_DDL)
     if full:
         # a full rebuild must not leave rows the DuckDB side dropped
@@ -451,6 +494,34 @@ def _fts_sync(
         [(r["snippet"], r["harness"], r["part_id"], r["session_id"]) for r in rows],
     )
     sconn.commit()
+
+
+def _refresh_fts_index(db_path: Path) -> None:
+    """Recreate the native FTS index after an in-place write window.
+
+    DuckDB's FTS index is a one-shot structure: rows written after
+    PRAGMA create_fts_index are invisible to it (no incremental
+    maintenance), so any in-place window ends with drop + recreate.
+    Best-effort by design: a pre-S3 store (no text column yet) keeps
+    its sqlite fallback leg until its next swap rebuild.
+    """
+    try:
+        with io_lock(db_path, exclusive=True):
+            con = connect_with_lock_retry(lambda: duckdb.connect(str(db_path)))
+            try:
+                _load_vss(con)  # FTS (re)build binds every index on the table
+                has_index = con.execute(
+                    "SELECT 1 FROM duckdb_schemas WHERE schema_name = 'fts_main_convo_search'"
+                ).fetchone()
+                con.execute("INSTALL fts")
+                con.execute("LOAD fts")
+                if has_index:
+                    con.execute("PRAGMA drop_fts_index('convo_search')")
+                con.execute("PRAGMA create_fts_index('convo_search', 'part_id', 'text')")
+            finally:
+                con.close()
+    except duckdb.Error as exc:
+        print(f"convo rebuild: native FTS refresh skipped ({exc})", file=sys.stderr)
 
 
 def _embed(texts: list[str]) -> tuple[list[list[float]], dict, int, str]:
@@ -500,7 +571,7 @@ _FTS_DB_PATH: Path = REPO / "memory" / FTS_DB_NAME
 
 _STAGE = "convo_stage_arrow"
 
-# Column order must match CONVO_SEARCH_DDL exactly.
+# Column order must match _convo_search_ddl() exactly.
 _STAGE_SCHEMA_FIELDS = (
     ("harness", "string"),
     ("session_id", "string"),
@@ -512,6 +583,7 @@ _STAGE_SCHEMA_FIELDS = (
     ("agent", "string"),
     ("model", "string"),
     ("part_type", "string"),
+    ("text", "string"),
     ("text_len", "int64"),
     ("snippet", "string"),
     ("embedding", "listf32"),
@@ -551,6 +623,7 @@ def _bulk_insert(con: duckdb.DuckDBPyConnection, rows: list[dict], vecs: list[li
             pa.field("agent", pa.string()),
             pa.field("model", pa.string()),
             pa.field("part_type", pa.string()),
+            pa.field("text", pa.string()),
             pa.field("text_len", pa.int64()),
             pa.field("snippet", pa.string()),
             # f32 == the table's FLOAT and the cache's packing, so this is a
@@ -569,9 +642,34 @@ def _bulk_insert(con: duckdb.DuckDBPyConnection, rows: list[dict], vecs: list[li
     con.execute("SELECT 1").fetchall()  # duckdb2-drain: pending result blocks register()
     con.register(_STAGE, table)
     try:
+        # sized target (swap-built FLOAT[N]): cast the Arrow list explicitly
+        # so a wrong-dim vector fails loudly here instead of silently
+        # binding; the size is read from the TARGET table's declared column
+        # so legacy unsized stores keep taking any length unchanged
+        row = con.execute(
+            "SELECT data_type FROM duckdb_columns "
+            "WHERE table_name = 'convo_search' AND column_name = 'embedding'"
+        ).fetchone()
+        if row is None:  # no embedding column: legacy/pre-stage store, no cast
+            emb_sql = "embedding"
+        else:
+            size = row[0].removeprefix("FLOAT[").removesuffix("]")
+            emb_sql = f"CAST(embedding AS FLOAT[{size}])" if size.isdigit() else "embedding"
+        # S3: the text column only exists in swap-built stores; an
+        # in-place window against a pre-S3 store must not reference it
+        # (the column arrives at that store's next swap rebuild).
+        present = {
+            r[0]
+            for r in con.execute(
+                "SELECT column_name FROM duckdb_columns WHERE table_name = 'convo_search'"
+            ).fetchall()
+        }
+        col_sql = ", ".join(
+            emb_sql if n == "embedding" else n for n, _ in _STAGE_SCHEMA_FIELDS if n in present
+        )
         con.execute(
             f"INSERT OR REPLACE INTO convo_search "  # noqa: S608  # constant table names
-            f"SELECT {', '.join(n for n, _ in _STAGE_SCHEMA_FIELDS)} FROM {_STAGE}"
+            f"SELECT {col_sql} FROM {_STAGE}"
         )
     finally:
         con.unregister(_STAGE)
@@ -777,7 +875,7 @@ def rebuild_via_swap(db_path: Path, incremental: bool = False) -> dict:
 
         con = duckdb.connect(str(tmp))
         try:
-            con.execute(CONVO_SEARCH_DDL)
+            con.execute(_convo_search_ddl(dims))
             con.execute(CONVO_META_DDL)
             if keep:
                 _bulk_insert(con, keep, vecs)
@@ -787,6 +885,30 @@ def rebuild_via_swap(db_path: Path, incremental: bool = False) -> dict:
                 + [("embed_model", model_label), ("embed_dims", str(dims))],
             )
             _carry_harvest_state(con, db_path)
+            # S1 (duckdb_pure_stack): persisted HNSW on the embedding
+            # column, built on the fresh tmp BEFORE the swap instant so
+            # readers never observe a store without the index (68 s at
+            # 191k x 384, trial 2026-11-05). The experimental-persistence
+            # flag is per connection.
+            if keep:
+                con.execute("INSTALL vss")
+                con.execute("LOAD vss")
+                con.execute("SET hnsw_enable_experimental_persistence=true")
+                con.execute(
+                    "CREATE INDEX idx_convo_search_emb ON convo_search "
+                    f"USING HNSW (embedding) WITH (metric='cosine', ef_construction={HNSW_EF_CONSTRUCTION})"
+                )
+                timer.mark("hnsw_build")
+                # S3 (duckdb_pure_stack): native FTS over the stored full
+                # text, keyed on part_id (globally unique in the live
+                # corpus, verified 2026-11-05). Built on the tmp BEFORE
+                # the swap instant, same invariant as HNSW above; the
+                # index persists with the file (probe 2026-11-05: fresh
+                # RO conn + LOAD fts answers after reopen).
+                con.execute("INSTALL fts")
+                con.execute("LOAD fts")
+                con.execute("PRAGMA create_fts_index('convo_search', 'part_id', 'text')")
+                timer.mark("fts_build")
         finally:
             con.close()
         timer.mark("duckdb_write")
@@ -813,6 +935,11 @@ def rebuild_via_swap(db_path: Path, incremental: bool = False) -> dict:
             .fetchone()
         )
         total = total_row[0] if total_row else 0
+        # Gate acceptance (duckdb_pure_stack): the swap must land every
+        # row the fresh build carried; a mismatch means a torn swap and
+        # the caller must fail loudly, not serve a partial store.
+        if total != len(keep):
+            raise RuntimeError(f"swap rebuild row-count mismatch: {total} != {len(keep)}")
     finally:
         tmp.unlink(missing_ok=True)
         tmp_wal.unlink(missing_ok=True)
@@ -878,6 +1005,7 @@ def _apply_write_window(
     with io_lock(db_path, exclusive=True):
         con = connect_with_lock_retry(lambda: duckdb.connect(str(db_path)))
         try:
+            _load_vss(con)
             if _strip_prefix(_stored_hashes(con)) != stored:
                 print(
                     f"convo rebuild: hash state changed mid-embed ({db_path}); re-reading the diff",
@@ -947,7 +1075,8 @@ def rebuild(
         with io_lock(db_path, exclusive=True):
             con = connect_with_lock_retry(lambda: duckdb.connect(str(db_path)))
             try:
-                con.execute(CONVO_SEARCH_DDL)
+                _load_vss(con)  # the mode diff below can DELETE from convo_search
+                con.execute(_convo_search_ddl(None))
                 con.execute(CONVO_META_DDL)
                 stored = _strip_prefix(_stored_hashes(con))
                 if incremental:
@@ -975,7 +1104,9 @@ def rebuild(
             "rerun when concurrent rebuild traffic settles"
         )
 
-    # -- 4. FTS sync: independent sqlite store, OUTSIDE the duckdb window --
+    # -- 4. FTS refresh + sync: independent of any convo-db window ------
+    _refresh_fts_index(db_path)
+    timer.mark("fts_refresh")
     from helpers.core.db import connect as db_connect
 
     sconn = db_connect(_FTS_DB_PATH)

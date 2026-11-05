@@ -653,17 +653,12 @@ def _export_sqlite_schema(con: sqlite3.Connection) -> str:
     # FTS5 virtual tables FIRST: ``CREATE VIRTUAL TABLE ... USING fts5``
     # creates every shadow table (incl. ``note_search_content``) itself, so
     # the plain-table pass must not try to create them again.
-    # A1: vec0 virtual tables are excluded too — derived state (rebuilt by
-    # rebuild_note_search / lazily on first hybrid search), like FTS shadows.
-    # Since the A1-regression fix (2026-08-18) the vec0 table lives in a
-    # SIDECAR db (research.db_vec.db), not research.db, so this filter is a
-    # belt-and-braces guard against it ever migrating back (a vec0 table in
-    # research.db breaks DuckDB's ATTACH catalog scan — see vec_search.py).
+    # (A1's vector-extension exclusion guard was retired 2026-11-05,
+    # duckdb_pure_stack S2: the vector mirror is a DuckDB sidecar now,
+    # never a SQLite virtual table in research.db.)
     vtables = stmts(
         "table",
-        "AND sql LIKE '%VIRTUAL TABLE%' "
-        "AND name NOT LIKE 'entities_fuzzy%' "
-        "AND sql NOT LIKE '%vec0%'",
+        "AND sql LIKE '%VIRTUAL TABLE%' AND name NOT LIKE 'entities_fuzzy%'",
     )
     base_tables = stmts(
         "table",
@@ -1797,12 +1792,15 @@ def _cmd_create(
 
 
 def _snapshot_embed_store(db_path: Path, out_path: Path, logger: logging.Logger) -> None:
-    """Embed store sidecar: the vec0 mirror + pooled content-hash cache
-    live in ONE consolidated SQLite database
+    """Embed store sidecar: the pooled content-hash cache lives in ONE
+    consolidated SQLite database
     (helpers.core.vec_search.EMBED_DB_PATH) since the embed_store
     consolidation; pre-consolidation clones (and tests seeding tmp
-    dbs) may still carry a per-db <db>_vec.db sibling. All derived
-    state — but the cache is content-addressed and expensive to
+    dbs) may still carry a per-db <db>_vec.db sibling. (The vector
+    mirror that shared this store was retired 2026-11-05 for a
+    DuckDB sidecar — memory/note_vectors.duckdb — which is derived,
+    snapshot-excluded state rebuilt lazily on first hybrid search.)
+    All derived state — but the cache is content-addressed and expensive to
     re-fill cold (~minutes of re-embedding). Copy-only (no
     verify_snapshot: that helper is hardcoded to
     entities/relations); the sqlite online-backup API already

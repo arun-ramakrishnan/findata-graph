@@ -38,6 +38,12 @@ entry number and stale DONE pointers):
 
 ## Current live proposals
 
+- `duckdb_pure_stack` — filed 2026-11-05 out of the unified-backend
+  parity trial (doc/local/evaluations/unified_backend_assessment.md §7):
+  pure-DuckDB retrieval stack — S1 HNSW into convo_search.duckdb via
+  swap-rebuild (+ ~370 MB reclaim), S2 retire vec0/sqlite-vec (12-file
+  surface), S3 lexical leg FTS5 → native match_bm25 (39 vs 22/57), S4
+  hybrid retune (fusion currently below its own best pure leg).
 - `served_store_read_funnel` — filed 2026-11-03 out of a parallel
   unlocked-work session: PID-namespace blindness in
   helpers/core/duckdb_shared.py:54 `_pid_alive` breaks the blocking

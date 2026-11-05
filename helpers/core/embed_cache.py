@@ -7,10 +7,10 @@ a ``(sha256(text), model)`` -> vector cache so unchanged text never re-embeds.
 Since the embed_store consolidation it lives in ONE pooled SQLite database
 (the vec store, ``memory/embed_store.db``, attached as schema ``vecdb``)
 shared by every consumer; the old per-index ``<db>_vec.db`` copies were
-migrated once (``helpers/maintenance/migrate_embed_store.py``). Derived,
-snapshot-excluded state exactly like the vec0 mirror beside it; a new table
-in research.db would collide with the schema-drift guards and DuckDB scanner
-expectations.
+migrated once (migrate_embed_store.py, retired 2026-11-05 once every live
+store was pooled). Derived, snapshot-excluded state exactly like the DuckDB
+vector mirror beside it; a new table in research.db would collide with the
+schema-drift guards and DuckDB scanner expectations.
 
 One cache serves EVERY text population — note_search rebuild
 (per-doc wrapper), doc/script indexers, company-embeddings populate (batch

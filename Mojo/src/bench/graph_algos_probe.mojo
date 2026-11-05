@@ -8,11 +8,11 @@
    §2 SQL cases — the Mojo side EXECUTES the SQL itself (Onager temp-table
         materialisation + table functions with named params (seed => 42),
         graph aux counts, and the repo's full FTS5 surface: note_search /
-        doc_search / script_search shapes + the vec0 KNN mirror is §3).
+        doc_search / script_search shapes + the vector KNN mirror is §3).
         Parity = row count + repr-byte checksum vs the native run
         (fixture Mojo/bench/mojo_graph_algos.py, db_access pattern).
    §3 metric cases — the original functions (all 14 `make graph-algos`
-        metrics + whole-graph metrics + vec0 KNN) driven from Mojo; the
+        metrics + whole-graph metrics + vector KNN) driven from Mojo; the
         CANONICAL string is rebuilt Mojo-side (sort/join/group logic here,
         only %.6f float formatting via the fixture's bridge lambda) and
         must equal the native canonical byte-for-byte.

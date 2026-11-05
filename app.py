@@ -704,8 +704,8 @@ def api_resolve():
 
 def _flat_knn_map(q_vec, page_paths, store=None):  # type: ignore[no-untyped-def]
     """S2d (corpus_embeddings_scaling): whole-corpus cosine map from the
-    aligned f32 matrix — the fallback of the fallback, used only when vec0
-    is unavailable. Same ``{file_path: similarity}`` contract as
+    aligned f32 matrix — the fallback of the fallback, used only when the
+    vector mirror is unavailable. Same ``{file_path: similarity}`` contract as
     ``knn_similarities`` (global-rank semantics, accepted 2026-08-17).
 
     Staleness gate: the matrix ids must cover the whole candidate page —
@@ -727,7 +727,7 @@ def _flat_knn_map(q_vec, page_paths, store=None):  # type: ignore[no-untyped-def
 
 def _vec_row_key(row) -> str:
     """KNN key for a note_search result row. Sectioned rows (note
-    sectioning, 2026-09-06) key as "{file_path}#{anchor}" — the vec0/matrix
+    sectioning, 2026-09-06) key as "{file_path}#{anchor}" — the mirror/matrix
     key rebuild_note_search.vec_row_key writes. Rows fetched from a
     pre-sectioning table carry NULL anchors and key by bare file_path —
     the shape their mirror was built with, still served between code deploy
@@ -931,8 +931,9 @@ def _hybrid_search_results(conn, rows, query: str, limit: int, offset: int) -> l
     still contribute their BM25 score — a degraded embedding must not drop a
     strong lexical match off the page.
 
-    A1 (sqlite-vec, 2026-08-17): the cosine leg comes from a single KNN
-    query over the vec0 mirror table (helpers/core.vec_search) instead of
+    A1 (2026-08-17; native store moved to a DuckDB sidecar 2026-11-05,
+    duckdb_pure_stack S2): the cosine leg comes from a single KNN
+    query over the vector mirror table (helpers/core.vec_search) instead of
     a Python loop that JSON-decodes and dot-products every page row.
     ``k=None`` sizes the KNN to the whole corpus so every page doc keeps
     its EXACT similarity value (float32 quantization differs from the
@@ -958,8 +959,8 @@ def _hybrid_search_results(conn, rows, query: str, limit: int, offset: int) -> l
     q_vec = _resolve_query_vec(conn, query)
 
     # A1: whole-corpus KNN first (k=None -> exact per-section similarities);
-    # None result = unavailable (or beyond vec0's k cap at 14.5k section
-    # rows) -> S2d flat-matrix leg -> Python cosine loop. Whatever map wins,
+    # None result = unavailable (the old extension's k cap died with S2) ->
+    # S2d flat-matrix leg -> Python cosine loop. Whatever map wins,
     # collapse it to NOTE level first: the cosine leg must rank a note by
     # its BEST-scoring section — the page row carries the BM25-best section,
     # whose cosine can be mediocre even when another section of the same

@@ -7,7 +7,7 @@ convention of tests/run_perf_benchmarks.py). Invoked by ``make mojo-bench``
 Legs (each a subprocess with its own time budget; ``--leg`` to filter):
 
   cosine-knn     Mojo/bench/bench_cosine_knn.py — 4-way comparison table
-                 (py_math / py_json / sqlite-vec / mojo_simd) + cross-
+                 (py_math / py_json / duckdb / mojo_simd) + cross-
                  validations, at corpus scales xN (MOJO_BENCH_SCALE/REPS)
   analyzer       Mojo/bin/analyzer — compute-tier table (scalar vs SIMD,
                  1M samples; GPU tier compile-eliminated off-GPU hosts)
@@ -30,7 +30,7 @@ Legs (each a subprocess with its own time budget; ``--leg`` to filter):
   graph-algos    Mojo/bin/graph_algos_probe — the make graph-algos
                  surface via the ORIGINAL python modules (Onager DuckDB
                  extension table functions + the repo's full FTS5
-                 surface: note_search/doc_search/script_search + vec0
+                 surface: note_search/doc_search/script_search + DuckDB
                  KNN). SQL executed Mojo-side, checksum + canonical
                  parity GATED (any mismatch fails the leg; ~30 s)
   regex-corpus   Mojo/bin/corpus_sweep regex — every findall battery
@@ -245,7 +245,7 @@ def _leg_graph_algos() -> tuple[float, bool, str]:
     DuckDB community extension (temp-table materialisation + table
     functions incl. seed => 42 louvain), the sqlite ATTACH + vss
     extensions, the repo's full FTS5 surface (note_search / doc_search /
-    script_search shapes + the sqlite-vec vec0 KNN mirror), all 14
+    script_search shapes + the DuckDB KNN vector mirror), all 14
     metrics driven end-to-end, and the CLI --all --no-apply run.
     Mojo-side SQL execute + checksum/canonical parity is GATED (operator
     decision 2026-08-30): any mismatch exits 1 and fails this leg.
