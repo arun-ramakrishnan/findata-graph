@@ -1,0 +1,311 @@
+# S2 supply k=1 alias-fold plan (polyadic_capture_edge_fidelity S2)
+# clusters: 53 | operator rulings 2026-11-07, batches of 10
+# canonical = ruled parent entity; variants = k=1 buyer entities
+# machine form: _name_merge_plan_s2_supply_k1.jsonl (verbatim names; regenerate together)
+
+== Aditya Birla Capital
+   Aditya Birla Capital Digital  -> fold
+
+== Aditya Birla Sun Life AMC
+   Aditya Birla Sun Life AMC Pte , Singapore  -> fold
+
+== Anand Rathi Wealth
+   Anand Rathi  -> fold
+   Anand Rathi IT  -> fold
+
+== Angel One
+   Angel One Investment Services  -> fold
+
+== Apollo Tyres
+   Apollo Tyres (Austria) Gessellschaft m.b.H  -> fold
+   Apollo Tyres (Europe) B.V  -> fold
+   Apollo Tyres (France) SAS  -> fold
+   Apollo Tyres (Hungary) Kft  -> fold
+   Apollo Tyres (Hungary) Sales Kft  -> fold
+   Apollo Tyres (NL) B.V  -> fold
+   Apollo Tyres Holdings (Singapore) Pte  -> fold
+
+== Ashok Leyland
+   Ashok Leyland (UAE) LLC  -> fold
+   Ashok Leyland Defence Systems  -> fold
+   Ashok Leyland Nigeria  -> fold
+
+== Asian Paints
+   Asian Paints PPG  -> fold
+
+== Aurobindo Pharma
+   AUROBINDO PHARMA COLOMBIA SAS  -> fold
+   AUROBINDO PHARMA PRODUTOS FARMACEUTICA A  -> fold
+   Aurobindo Pharma (Italia) S.r.l  -> fold
+   Aurobindo Pharma (Malta)  -> fold
+   Aurobindo Pharma (Pty)  -> fold
+   Aurobindo Pharma B.V  -> fold
+   Aurobindo Pharma FZ-LLC  -> fold
+   Aurobindo Pharma Japan KK  -> fold
+   Aurobindo Pharma USA Inc  -> fold
+
+== Avalon Technologies
+   Avalon Technology & Services  -> fold
+
+== BLS International Services
+   BLS E-Services  -> fold
+
+== Berger Paints India
+   Berger Paints Emirates (LLC)  -> fold
+   Berger Rock Paints  -> fold
+
+== Bharat Forge
+   Bharat Forge Aluminiumtechnik GmbH  -> fold
+   Bharat Forge CDP GmbH  -> fold
+   Bharat Forge Daun GmbH  -> fold
+   Bharat Forge Global Holding GmbH  -> fold
+   Bharat Forge International  -> fold
+
+== Bharti Airtel
+   Bharti Airtel (France) Sas  -> fold
+   Bharti Airtel (Hong Kong)  -> fold
+   Bharti Airtel (Uk)  -> fold
+   Bharti Airtel (Usa)  -> fold
+   Bharti Airtel International (Netherlands) B.V  -> fold
+   Bharti Airtel Services  -> fold
+
+== Bikaji Foods International
+   Bikaji Foods Retail  -> fold
+
+== Blue Star
+   Blue Star Climatech  -> fold
+   Blue Star Engineering & Electronics  -> fold
+   Blue Star MEA Airconditioning LLC  -> fold
+
+== CG Power and Industrial Solutions
+   CG POWER INDUSTRIAL SOLUTIONS  -> fold
+
+== DCM Shriram
+   DCM Shriram Bio Enchem  -> fold
+
+== Dilip Buildcon
+   Dilip Buildcon -Varah Infra (Jv)  -> fold
+   Dilip Buildcon-Varah Infra (Jv)  -> fold
+
+== Electrosteel Castings
+   Electrosteel Castings Gulf FZE  -> fold
+
+== Emcure Pharmaceuticals
+   Emcure Pharmaceuticals South Africa (Pty)  -> fold
+
+== Fine Organic Industries
+   Fine Organic Industries (Thailand) Co  -> fold
+
+== GMM Pfaudler
+   Gmm Pfaudler Us Inc  -> fold
+
+== Garware Hi-Tech Films
+   Garware Hi-Tech Films International  -> fold
+
+== General Electric Company (GE)
+   General Electric (Switzerland) GmbH  -> fold
+   General Electric Technology GmbH  -> fold
+
+== Glenmark Pharmaceuticals
+   Glenmark Pharmaceuticals Australia  -> fold
+   Glenmark Pharmaceuticals BV  -> fold
+   Glenmark Pharmaceuticals Canada Inc  -> fold
+   Glenmark Pharmaceuticals Canada Inc., Canada  -> fold
+   Glenmark Pharmaceuticals Europe  -> fold
+   Glenmark Pharmaceuticals FZE  -> fold
+   Glenmark Pharmaceuticals Inc  -> fold
+   Glenmark Pharmaceuticals Kenya  -> fold
+   Glenmark Pharmaceuticals SK SRO  -> fold
+   Glenmark Pharmaceuticals SK, s.r.o., Slovak Republic  -> fold
+   Glenmark Pharmaceuticals SP Zoo, Poland  -> fold
+   Glenmark Pharmaceuticals South Africa (Pty)  -> fold
+   Glenmark Pharmaceuticals Sp Z.o.o  -> fold
+   Glenmark Pharmaceuticals s.r.o  -> fold
+   Glenmark Pharmaceuticals s.r.o., Czech Republic  -> fold
+   Glenmark Pharmaceuticals sro. CZ  -> fold
+
+== Gujarat Fluorochemicals
+   Gujarat Fluorochemicals GmbH  -> fold
+
+== HCL Technologies
+   Filial Espanola De HCL Technologies S.L  -> fold
+   HCL Muscat Technologies L.L.C  -> fold
+   HCL Technologies (Proprietary)  -> fold
+   HCL Technologies (Shanghai)  -> fold
+   HCL Technologies (Taiwan)  -> fold
+   HCL Technologies (Thailand)  -> fold
+   HCL Technologies Austria GmbH  -> fold
+   HCL Technologies B.V  -> fold
+   HCL Technologies Beijing Co  -> fold
+   HCL Technologies Belgium BV  -> fold
+   HCL Technologies Bulgaria EOOD  -> fold
+   HCL Technologies Chile Spa  -> fold
+   HCL Technologies Columbia S.A.S  -> fold
+   HCL Technologies Corporate Services  -> fold
+   HCL Technologies Costa Rica Sociedad De Responsabilidad Limitada  -> fold
+   HCL Technologies Czech Republic s.r.o  -> fold
+   HCL Technologies Denmark Aps  -> fold
+   HCL Technologies Egypt  -> fold
+   HCL Technologies Estonia OÜ  -> fold
+   HCL Technologies Finland Oy  -> fold
+   HCL Technologies France SAS  -> fold
+   HCL Technologies Germany GmbH  -> fold
+   HCL Technologies Greece Single Member P.C  -> fold
+   HCL Technologies Italy S.P.A  -> fold
+   HCL Technologies Lanka ( )  -> fold
+   HCL Technologies Lithuania UAB  -> fold
+   HCL Technologies Luxembourg S.a r.l  -> fold
+   HCL Technologies Mexico S DE RL DE CV  -> fold
+   HCL Technologies Middle East FZ-LLC  -> fold
+   HCL Technologies Morocco  -> fold
+   HCL Technologies Norway AS  -> fold
+   HCL Technologies Philippines Inc  -> fold
+   HCL Technologies Romania s.r.l  -> fold
+   HCL Technologies S.A  -> fold
+   HCL Technologies S.A.C  -> fold
+   HCL Technologies Slovakia s. r. o  -> fold
+   HCL Technologies Solutions GmbH  -> fold
+   HCL Technologies South Africa (Proprietary)  -> fold
+   HCL Technologies Starschema Kft  -> fold
+   HCL Technologies Sweden AB  -> fold
+   HCL Technologies UK  -> fold
+   HCL Technologies Vietnam Company  -> fold
+
+== Heritage Foods
+   Heritage Novandie Foods  -> fold
+
+== Hexaware Technologies
+   Hexaware Al Balagh Technologies LLC  -> fold
+   Hexaware Technologies Asia Pacific Pte  -> fold
+   Hexaware Technologies Gmbh  -> fold
+
+== Hindustan Petroleum
+   Hindustan Petroleum Corporation HPCL  -> fold
+
+== Hindustan Zinc
+   Hindustan Zinc Alloys  -> fold
+
+== Hitachi Energy
+   Hitachi Energy (China) , Beijing, China  -> fold
+   Hitachi Energy (Thailand) , Bangkok, Thailand  -> fold
+   Hitachi Energy (Thailand) , Thailand )  -> fold
+   Hitachi Energy , Saudi Arabia  -> fold
+   Hitachi Energy , Zürich, Switzerland (Holding Company)  -> fold
+   Hitachi Energy Argentina S.A.U., Argentina  -> fold
+   Hitachi Energy Argentina S.A.U., Ciudad Autonoma de Buenos Aires, Argentina  -> fold
+   Hitachi Energy Australia Pty , Australia  -> fold
+   Hitachi Energy Belgium N.V., Belgium  -> fold
+   Hitachi Energy Brasil a, Brazil  -> fold
+   Hitachi Energy Bulgaria EOOD, Bulgaria  -> fold
+   Hitachi Energy Bulgaria EOOD, Sevlievo, Bulgaria  -> fold
+   Hitachi Energy Canada Inc., Canada  -> fold
+   Hitachi Energy Canada Inc., Saint-Laurent, Quebec, Canada  -> fold
+   Hitachi Energy Chile S.A., Santiago, Chile  -> fold
+   Hitachi Energy Colombia a, Colombia  -> fold
+   Hitachi Energy Czech Republic s.r.o., Trutnov, Czech Republic  -> fold
+   Hitachi Energy Czech Republic s.r.o.,Czech Republic  -> fold
+   Hitachi Energy Denmark A/S, Denmark  -> fold
+   Hitachi Energy Denmark A/S, Skovlunde, Denmark  -> fold
+   Hitachi Energy Engineering Technologies Safat, Kuwait  -> fold
+   Hitachi Energy Finland Oy, Finland  -> fold
+   Hitachi Energy Finland Oy, Vaasa, Finland  -> fold
+   Hitachi Energy France, France  -> fold
+   Hitachi Energy Germany AG, Germany  -> fold
+
+== Hitachi Energy India
+   Hitachi Energy (Holding Company)  -> fold
+
+== Honeywell Automation India
+   HONEYWELL AUTOMATION TECHNOLOGY CHINA CO  -> fold
+
+== JSW Energy
+   JSW Renewable Energy (Cement)  -> fold
+   JSW Renewable Energy (Dolvi)  -> fold
+
+== JSW Steel
+   JSW Realty & Infrastructure  -> fold
+
+== Larsen and Toubro
+   Larsen & Toubro Electromech LLC  -> fold
+
+== Life Insurance Corporation of India (LIC)
+   Life Insurance Corporation Of India  -> fold
+
+== Maruti Suzuki India
+   Maruti Suzuki Toyotsu India  -> fold
+
+== Route Mobile
+   Route Mobile PTE  -> fold
+
+== Samvardhana Motherson International
+   Motherson Technology Services  -> fold
+
+== Siemens Energy
+   Siemens Energy AB  -> fold
+
+== Star Cement
+   Star Cement Meghalaya  -> fold
+
+== Suzuki Motor
+   Cambodia Suzuki Motor Co  -> fold
+   Suzuki (Myanmar) Motor Co  -> fold
+   Suzuki Motor Thailand Co  -> fold
+
+== Tata Communications
+   TATA COMMUNICATIONS PAYMENT SOLUTIONS  -> fold
+   Tata Communications (International) Pte  -> fold
+   Tata Communications (UK)  -> fold
+
+== Tata Consultancy Services
+   Tata Consultancy Services (China) Co  -> fold
+   Tata Consultancy Services Asia Pacific Pte  -> fold
+   Tata Consultancy Services Saudi Arabia  -> fold
+
+== Tata Power
+   Tata Power EV Charging Solutions  -> fold
+   Tata Power Trading Company  -> fold
+
+== Tata Steel
+   Tata Steel International Americas Inc  -> fold
+   Tata Steel Support Services  -> fold
+   Tata Steel TABB  -> fold
+   Tata Steel Technical Services  -> fold
+
+== Tech Mahindra
+   Tech Mahindra Americas Inc  -> fold
+   Tech Mahindra Bahrain SPC  -> fold
+   Tech Mahindra Cerium  -> fold
+   Tech Mahindra Cerium Systems SDN. BHD  -> fold
+   Tech Mahindra Consulting Group Inc  -> fold
+   Tech Mahindra Digital Pty  -> fold
+   Tech Mahindra GmbH  -> fold
+   Tech Mahindra ICT Services Malaysia SDN BHD  -> fold
+   Tech Mahindra IT Services NL BV  -> fold
+   Tech Mahindra LLC  -> fold
+   Tech Mahindra Luxembourg Sa rl  -> fold
+   Tech Mahindra Mexico Cloud Services, S.DE R.L. DE C.V  -> fold
+   Tech Mahindra Norway AS  -> fold
+   Tech Mahindra SPC  -> fold
+   Tech Mahindra Shanghai Co  -> fold
+   Tech Mahindra Singapore Pte  -> fold
+   Tech Mahindra South Africa Pty  -> fold
+   Tech Mahindra Spain SL  -> fold
+   Tech Mahindra Sweden AB  -> fold
+   Tech Mahindra Switzerland SA  -> fold
+   Tech Mahindra Thailand  -> fold
+   Tech Mahindra Vietnam Company  -> fold
+
+== Thomas Cook (India)
+   Thomas Cook Lanka ( )  -> fold
+   Thomas Cook Mauritius Operations Company  -> fold
+
+== Usha Martin
+   Usha Martin Europe BV  -> fold
+   Usha Martin Singapore Pte  -> fold
+
+== Waaree Energies
+   Waaree Technologies  -> fold
+
+== Zee Entertainment Enterprises
+   Zee Entertainment Middle East FZ LLC  -> fold
+

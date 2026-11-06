@@ -97,6 +97,8 @@ COMPANIES_DIR = _REPO_ROOT / "findata" / "Companies"
 PROMOTE_SOURCE_REF = "derive:events:edge-promotion"
 GUIDANCE_SOURCE_REF = "derive:events:guidance-prose"
 MGMT_SOURCE_REF = "derive:events:management-prose"
+ACQ_TRIANGLE_SOURCE_REF = "derive:events:acq-triangle"
+JV_CONSORTIUM_SOURCE_REF = "derive:events:jv-consortium"
 _DERIVED_PREFIX = "derive:events:"  # the LIKE sweep matches all three arms
 
 # Edge type -> event_type mapping for the promote arm.
@@ -210,6 +212,90 @@ _MGMT_VERB_TOKENS: tuple[str, ...] = (
     "incoming",
 )
 
+# S1 (polyadic_capture_edge_fidelity) — n-ary participant shapes. Two
+# extractors feed the participant payload (unresolved names stay free-text
+# evidence; resolution is resolve-only via EntityResolver — no mint):
+#
+# _ACQ_TRIANGLE_PASSIVE_RE — "Acquired by <buyer> from <seller>" (the note
+# subject is the TARGET; Ambuja_Cement.md:128). Group names are non-greedy
+# capitalised spans bounded by clause punctuation.
+# _ACQ_FROM_SELLER_RE — active voice "acquiring ... from <seller>" (the
+# subject is the ACQUIRER; Torrent_Power.md:271, IndiGrid.md:104).
+# _CONSULT_LEAD_RE — "led by <lead>" / "<lead>-led" inside consortium /
+# JV windows (Vodafone_Idea.md:238, Bharat_Electronics.md:351).
+# Seller/buyer spans stop at the next clause connective (lookahead), not
+# just at punctuation — "from L&T to expand capacity" must capture "L&T".
+_SPAN_STOP = r"(?=\s+(?:to|for|with|and|which|that|as|at|in|of|by)\b|\s*[.;,]|$)"
+# Verb part case-insensitive ("acquired"/"Acquired"/"ACQUIRED"), but the
+# captured spans stay CASE-SENSITIVE — IGNORECASE lets lowercase noun
+# phrases become sellers ("seller=cost disruptions", measured in the
+# 2026-11-07 corpus census).
+_ACQ_TRIANGLE_PASSIVE_RE = re.compile(
+    r"(?i:\bacquir(?:e|es|ed|ing)\b)[^.;]{0,140}?\bby\s+"
+    r"(?P<buyer>[A-Z][\w&.'’ ()-]{2,60}?)\s+from\s+"
+    r"(?P<seller>[A-Z][\w&.'’ ()-]{2,60}?)" + _SPAN_STOP,
+)
+_ACQ_FROM_SELLER_RE = re.compile(
+    r"(?i:\b(?:acquir|purchas)(?:e|es|ed|ing)\b)[^.;]{0,140}?\bfrom\s+"
+    r"(?P<seller>[A-Z][\w&.'’ ()-]{2,60}?)" + _SPAN_STOP,
+)
+_CONSORTIUM_HINT_RE = re.compile(r"\bconsortium\b|\bjoint venture\b|\bJV\b", re.IGNORECASE)
+# Lead markers, three corpus shapes (tried in order):
+#   "led by <lead>" / "headed by <lead>"   (Vodafone_Idea.md:351 paraphrase)
+#   "<lead>-led"                            ("an SBI-led consortium", :238)
+#   "<lead> as the lead"                    ("with L&T as the lead bid", BEL :351)
+_CONSORTIUM_LEAD_RES = (
+    re.compile(
+        r"\b(?:led|headed)\s+by\s+([A-Z][\w&.'’ ()-]{2,60}?)" + _SPAN_STOP,
+    ),
+    re.compile(r"\b([A-Z][\w&.'’]*(?:\s+[A-Z][\w&.'’]+){0,3})-led\b"),
+    re.compile(r"\b([A-Z][\w&.'’ ()-]{2,60}?)\s+as the lead\b"),
+)
+# Common-word spans the proper-span regex picks up but no entity is.
+_SPAN_STOPWORDS = frozenset(
+    "we our us the this that it its a an and for with in on of is are was "
+    "were be been as at by to will would can could should may might "
+    # census 2026-11-07: section-header / boilerplate spans
+    "current source chatter founded joint strategic larg long new first "
+    "leading major global key core total combined pursuant respect".split()
+)
+# Resolved-but-wrong participants: country/structural entities (india,
+# china, germany...) are real entities but never JV partners.
+_PARTICIPANT_DENYLIST_TYPES = frozenset(
+    {"country", "structural", "edition", "sector", "sub_sector", "theme", "super_sector"}
+)
+# Proper-span candidates inside consortium windows: capitalised word runs
+# (≤5 tokens, may include &/’), filtered by the resolver — anything that
+# doesn't resolve to a canonical entity stays evidence, never a member.
+_PROPER_SPAN_RE = re.compile(r"\b(?:[A-Z][\w&.'’]*-)?[A-Z][\w&.'’]*(?:\s+[A-Z][\w&.'’]+){0,4}\b")
+# Trailing connective noise on captured spans ("Adani Group from" / "the ...").
+_SPAN_TRIM_RE = re.compile(
+    r"\s+(?:from|with|and|for|along|to|in|by|of|the|a|an|is|are|was|were|led|which|that)$"
+    r"|^(?:the|a|an)\s+",
+    re.IGNORECASE,
+)
+_CONSORTIUM_HINT_TOKENS: tuple[str, ...] = ("consortium", "joint venture", " jv")
+
+
+def _clean_span(span: str) -> str | None:
+    """Trim connective noise off a captured proper span; None when empty."""
+    s = span.strip()
+    while True:
+        trimmed = _SPAN_TRIM_RE.sub("", s).strip(" ,;-–—")
+        if trimmed == s:
+            break
+        s = trimmed
+    return s or None
+
+
+def _participant(role: str, name: str, resolver) -> dict:
+    """One payload entry; entity=canonical when the resolver knows the
+    name (resolve-only — EntityResolver returns None on unknown and can
+    never mint), else free-text evidence with entity=None."""
+    entity = resolver.resolve(name) if resolver is not None else None
+    return {"role": role, "name": name, "entity": entity}
+
+
 # P1 perf: compiled patterns for _iter_bullets + _capture_period_token (were
 # inline re.split / re.search per call — 169K + several K calls respectively).
 _SENTENCE_SPLIT_RE = re.compile(r"(?<=[.!?])\s+")
@@ -236,6 +322,12 @@ class Event:
     as_of_edition: str | None = None
     source_ref: str = PROMOTE_SOURCE_REF
     properties: dict = field(default_factory=dict)
+    # S1 (polyadic_capture_edge_fidelity): n-ary participant payload —
+    # [{role, name, entity|None}]. Serialized into properties.participants
+    # at apply(); collect() (derive_event_participants) projects resolved
+    # entries into event_participants rows. Unresolved names stay here as
+    # free-text evidence — NEVER minted as entities.
+    participants: list[dict] = field(default_factory=list)
 
 
 # --------------------------------------------------------------------------- #
@@ -479,6 +571,161 @@ def _extract_management(
     return _dedup(events)
 
 
+def _extract_acquisition_triangle(  # noqa: C901  # prose-extractor: acquisition-clause variant branching
+    company: str,
+    body: str,
+    path: str | None,
+    windows: list[str] | None = None,
+    resolver=None,
+) -> list[Event]:
+    """S1: acquisition events with a seller (and voice-correct acquirer).
+
+    Two voices, roles assigned per sentence voice:
+    - passive "Acquired by <buyer> from <seller>" — the NOTE SUBJECT is the
+      target (Ambuja: "Acquired by Adani Group from Holcim");
+    - active "acquiring ... from <seller>" — the SUBJECT is the acquirer
+      (Torrent: "acquiring a major thermal power asset from L&T").
+    The subject always participates (entity=company, resolved by
+    construction — it IS the canonical entity); buyer/seller resolve via
+    EntityResolver or stay free-text evidence. No mint, ever.
+    """
+    events: list[Event] = []
+    for window in windows if windows is not None else _iter_bullets(body):
+        if "acqui" not in window.lower() and "purchas" not in window.lower():
+            continue
+        passive = _ACQ_TRIANGLE_PASSIVE_RE.search(window)
+        active = None if passive else _ACQ_FROM_SELLER_RE.search(window)
+        if not passive and not active:
+            continue
+        deny = getattr(resolver, "deny_entities", frozenset())
+        parts: list[dict] = []
+
+        def _add(role: str, name: str) -> None:
+            p = _participant(role, name, resolver)
+            ent = p.get("entity")
+            if ent and (ent == company or ent in deny):
+                return  # resolves to the subject or a country — redundant/noise
+            parts.append(p)
+
+        if passive:
+            parts.append(_participant("target", company, None) | {"entity": company})
+            buyer = _clean_span(passive.group("buyer"))
+            seller = _clean_span(passive.group("seller"))
+            if buyer:
+                _add("acquirer", buyer)
+            if seller:
+                _add("seller", seller)
+            counterparty = buyer
+        else:
+            # active is guaranteed not None here because of the check above
+            assert active is not None
+            parts.append(_participant("acquirer", company, None) | {"entity": company})
+            seller = _clean_span(active.group("seller"))
+            if seller:
+                _add("seller", seller)
+            counterparty = seller
+        # ≥2 participants with the subject — else the pattern was noise.
+        if len(parts) < 2:
+            continue
+        event_date, period, precision = _parse_event_date(window)
+        events.append(
+            Event(
+                entity=company,
+                event_type="acquisition",
+                event_date=event_date,
+                period=period,
+                date_precision=precision,
+                counterparty=counterparty,
+                source_quote=window,
+                as_of_edition=path,
+                source_ref=ACQ_TRIANGLE_SOURCE_REF,
+                participants=parts,
+            )
+        )
+    return _dedup(events)
+
+
+def _extract_jv_consortium(  # noqa: C901  # prose-extractor: consortium-member clause variants
+    company: str,
+    body: str,
+    path: str | None,
+    windows: list[str] | None = None,
+    resolver=None,
+) -> list[Event]:
+    """S1: consortium / JV windows with named counterparties.
+
+    The subject is a `partner`; "led by X" marks the `lead_partner`;
+    other proper spans that RESOLVE to canonical entities become
+    `partner` rows. Unresolved named spans stay in the payload as
+    evidence (entity=None) — the resolve-only contract. Emitted only
+    when the window names at least one non-subject party (resolved or
+    evidence) — a consortium mention with zero named parties is
+    commentary, not an n-ary fact.
+    """
+    events: list[Event] = []
+    for window in windows if windows is not None else _iter_bullets(body):
+        wl = window.lower()
+        if not any(t in wl for t in _CONSORTIUM_HINT_TOKENS):
+            continue
+        if not _CONSORTIUM_HINT_RE.search(window):
+            continue
+        parts: dict[str, dict] = {}
+        parts[company] = _participant("partner", company, None) | {"entity": company}
+        seen_entities = {company}  # S1: spans resolving to the subject are redundant
+        deny_entities = getattr(resolver, "deny_entities", frozenset())
+        lead = next((m for m in (r.search(window) for r in _CONSORTIUM_LEAD_RES) if m), None)
+        if lead:
+            name = _clean_span(lead.group(1))
+            if name and name != company:
+                parts[name] = _participant("lead_partner", name, resolver)
+        for span in _PROPER_SPAN_RE.findall(window):
+            name = _clean_span(span)
+            if not name or name == company or name in parts:
+                continue
+            if name.lower() in _SPAN_STOPWORDS:
+                continue
+            cand = _participant("partner", name, resolver)
+            if cand["entity"] is None and name.isupper() and len(name) <= 4:
+                continue  # unresolved acronym (RFP, ADA) — noise, not evidence
+            parts.setdefault(name, cand)
+        # S1 census fixes: dedupe by resolved entity (subject spelled two
+        # ways must not double-count), drop country/structural resolutions,
+        # cap the payload (boilerplate windows spawn 8+ spans).
+        seen_entities: set[str] = set()
+        pruned: dict[str, dict] = {}
+        for n, p in parts.items():
+            ent = p.get("entity")
+            if ent and ent in seen_entities:
+                continue
+            if ent and ent in deny_entities:
+                continue
+            if ent:
+                seen_entities.add(ent)
+            pruned[n] = p
+        parts = pruned
+        if len(parts) > 7:
+            continue  # boilerplate window, not an n-ary fact
+        others = [p for n, p in parts.items() if n != company]
+        if not others:
+            continue
+        event_date, period, precision = _parse_event_date(window)
+        events.append(
+            Event(
+                entity=company,
+                event_type="jv",
+                event_date=event_date,
+                period=period,
+                date_precision=precision,
+                counterparty=None,
+                source_quote=window,
+                as_of_edition=path,
+                source_ref=JV_CONSORTIUM_SOURCE_REF,
+                participants=list(parts.values()),
+            )
+        )
+    return _dedup(events)
+
+
 def _dedup(events: list[Event]) -> list[Event]:
     """Drop near-identical events within one company.
 
@@ -546,6 +793,7 @@ def extract_from_prose(  # noqa: C901
     root: Path = COMPANIES_DIR,
     path_to_name: dict[str, str] | None = None,
     corpus=None,  # S1b shared walk: pre-parsed notes (helpers.core.corpus)
+    resolver=None,  # S1: EntityResolver (resolve-only) for participant payload
 ) -> list[Event]:
     """Scan company notes and derive guidance + management_change events.
 
@@ -594,6 +842,14 @@ def extract_from_prose(  # noqa: C901
             windows = list(_iter_bullets(body))
             events.extend(_extract_guidance(company, body, rel, windows=windows))
             events.extend(_extract_management(company, body, rel, windows=windows))
+            events.extend(
+                _extract_acquisition_triangle(
+                    company, body, rel, windows=windows, resolver=resolver
+                )
+            )
+            events.extend(
+                _extract_jv_consortium(company, body, rel, windows=windows, resolver=resolver)
+            )
         # Restore a stable order (by date then quote).
         events.sort(key=lambda e: (e.event_date or "", e.source_quote or ""))
         return events
@@ -622,6 +878,12 @@ def extract_from_prose(  # noqa: C901
         windows = list(_iter_bullets(body))
         events.extend(_extract_guidance(company, body, rel, windows=windows))
         events.extend(_extract_management(company, body, rel, windows=windows))
+        events.extend(
+            _extract_acquisition_triangle(company, body, rel, windows=windows, resolver=resolver)
+        )
+        events.extend(
+            _extract_jv_consortium(company, body, rel, windows=windows, resolver=resolver)
+        )
     return events
 
 
@@ -680,7 +942,14 @@ def apply(events: list[Event], *, conn=None, dry_run: bool = True) -> ReplaceRes
                 ev.source_quote,
                 ev.as_of_edition,
                 ev.source_ref,
-                json.dumps(ev.properties, ensure_ascii=False, sort_keys=True),
+                json.dumps(
+                    {
+                        **ev.properties,
+                        **({"participants": ev.participants} if ev.participants else {}),
+                    },
+                    ensure_ascii=False,
+                    sort_keys=True,
+                ),
             )
             for ev in events
         ]
@@ -756,7 +1025,30 @@ def _cli(argv: list[str] | None = None) -> int:
                 _corpus = Corpus.load("findata", workers=1, use_cache=True)  # ty: ignore[unresolved-attribute]
             except Exception:  # noqa: S110
                 _corpus = None
-        extracted = extract_from_prose(COMPANIES_DIR, path_to_name, corpus=_corpus)
+        # S1 (polyadic): resolve-only participant resolver over ALL entity
+        # names (not just companies — an acquirer/seller/lead can be an
+        # institution). None on unknown; EntityResolver cannot mint.
+        # allow_fuzzy=False + the country/structural denylist are census-
+        # driven (2026-11-07): fuzzy mis-resolutions ("Tata Group"→"Tata
+        # Consumer Products UK Group") and country entities as partners
+        # are noise the no-mint rule cannot fix after the fact.
+        from helpers.graph.extract_relations import EntityResolver  # noqa: PLC0415
+
+        _resolver = EntityResolver(
+            (r[0] for r in conn.execute("SELECT name FROM entities").fetchall()),
+            allow_fuzzy=False,
+        )
+        _ph = ",".join("?" for _ in _PARTICIPANT_DENYLIST_TYPES)
+        _resolver.deny_entities = frozenset(
+            r[0]
+            for r in conn.execute(
+                f"SELECT name FROM entities WHERE entity_type IN ({_ph})",  # noqa: S608
+                tuple(_PARTICIPANT_DENYLIST_TYPES),
+            ).fetchall()
+        )
+        extracted = extract_from_prose(
+            COMPANIES_DIR, path_to_name, corpus=_corpus, resolver=_resolver
+        )
         all_events = promoted + extracted
 
         by_type: dict[str, int] = defaultdict(int)

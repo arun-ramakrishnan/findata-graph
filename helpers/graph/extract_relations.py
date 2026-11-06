@@ -429,9 +429,16 @@ class EntityResolver:
     Returns the resolved name, or None if no confident match.
     """
 
-    def __init__(self, names: Iterable[str]):
+    def __init__(self, names: Iterable[str], *, allow_fuzzy: bool = True):
         # All names + case-folded index for O(1) exact lookup.
         self._names: list[str] = list(names)
+        # S1 (polyadic): participant extraction uses allow_fuzzy=False — the
+        # fuzzy tier resolves "Tata Group"→"Tata Consumer Products UK Group"
+        # and "India"→the country entity (measured in the 2026-11-07 corpus
+        # census); participant incidences demand stricter identity than
+        # counterparty promotion does. Exact + canonical-fold + alias +
+        # suffix tiers only.
+        self._allow_fuzzy = allow_fuzzy
         self._by_lower: dict[str, str] = {n.lower(): n for n in self._names}
         # S1 (resolver_extractor_hardening): canonical-folded index so apostrophe /
         # diacritic / camelCase variants resolve without hand-aliases.
@@ -453,6 +460,10 @@ class EntityResolver:
         # report lines ("mention X matched N candidates equally well"). Never
         # consulted for resolution — logging only.
         self.ambiguous_log: list[tuple[str, list[str]]] = []
+        # S1 (polyadic participant extraction): denylist of entity types
+        # that should never appear as counterparties (countries, etc.).
+        # Set by the caller after construction; empty set means no denylist.
+        self.deny_entities: frozenset[str] = frozenset()
 
     def _canonical_hit(self, aliased: str | None) -> str | None:
         """An aliased name lands in DB-canonical casing (check + return
@@ -518,6 +529,8 @@ class EntityResolver:
         if sk in self._by_canonical:
             return self._by_canonical[sk]
         # 3. Fuzzy.
+        if not self._allow_fuzzy:
+            return None
         return self._fuzzy(m)
 
     def _fuzzy_single_token(self, mention: str, ct: frozenset[str]) -> str | None:
@@ -2920,6 +2933,38 @@ def apply_edges(
     return ApplyEdgesResult(inserted, skipped_fk, skipped_suppressed)
 
 
+def _is_iso_date(value: str) -> bool:
+    """True for a bare YYYY-MM-DD date (the shape valid_from stores)."""
+    if len(value) != 10 or value[4] != "-" or value[7] != "-":
+        return False
+    return value[:4].isdigit() and value[5:7].isdigit() and value[8:].isdigit()
+
+
+def _sidecar_temporal_fields(sidecar: dict) -> tuple[str | None, str | None]:
+    """Resolve (valid_from, properties.as_of) from a sidecar as_of (S3).
+
+    The sidecar as_of is the human-audited temporal anchor for the edge
+    (B2 provenance lane). A bare ISO date fills the valid_from column so
+    the as-of/differential query layer sees it; any other shape (partial
+    dates, prose) is preserved verbatim in properties.as_of instead of
+    being silently dropped.
+    """
+    raw = sidecar.get("as_of")
+    if isinstance(raw, str):
+        value = raw.strip()
+    else:
+        # YAML parses an unquoted as_of such as 2026-10-03 as datetime.date, not str.
+        isoformat = getattr(raw, "isoformat", None)
+        if isoformat is None:
+            return None, None
+        value = str(isoformat())[:10].strip()
+    if not value:
+        return None, None
+    if _is_iso_date(value):
+        return value, None
+    return None, value
+
+
 def promote_relation_sidecars(conn, dry_run: bool = True) -> tuple[int, int]:
     """Promote B2 relation sidecars (findata/_relations/*.yaml) into graph_edges.
 
@@ -3001,11 +3046,16 @@ def promote_relation_sidecars(conn, dry_run: bool = True) -> tuple[int, int]:
                 skipped += 1
                 continue
 
+            valid_from, as_of_props = _sidecar_temporal_fields(sidecar)
             props = {
                 "doc_type": "sidecar",
                 "b2_version": "0.1",
                 "provenance": sidecar.get("provenance", {}),
             }
+            if "confidence" in sidecar:
+                props["confidence"] = sidecar["confidence"]
+            if as_of_props is not None:
+                props["as_of"] = as_of_props
             src, tgt = (
                 canonical_pair(source, target)
                 if edge_type in _SYMMETRIC_TYPES
@@ -3018,7 +3068,7 @@ def promote_relation_sidecars(conn, dry_run: bool = True) -> tuple[int, int]:
                 properties=props,
                 source_ref=f"promote:sidecar:{slug}",
                 symmetric=edge_type in _SYMMETRIC_TYPES,
-                valid_from=None,
+                valid_from=valid_from,
             )
             result = apply_edges([edge], conn=conn, dry_run=dry_run, existing=None)
             if result.inserted:

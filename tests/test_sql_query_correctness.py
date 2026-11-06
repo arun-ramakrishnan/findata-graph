@@ -157,21 +157,20 @@ def test_v_node_rank_deterministic(tmp_path):
 def _ref_co_mention(db, n):
     con = _conn(db)
     try:
-        # Roadmap A′ reference: PARTICIPATION count (entity on either side
-        # of a co_mentioned_in row) — orientation-free, matching the
-        # materialised e_comention both-sides read.
-        rows = con.execute(
-            "SELECT entity, COUNT(*) AS co_mentions FROM ("
-            "SELECT source AS entity FROM graph_edges "
-            "WHERE edge_type='co_mentioned_in' "
-            "UNION ALL "
-            "SELECT target FROM graph_edges WHERE edge_type='co_mentioned_in'"
-            ") GROUP BY entity ORDER BY co_mentions DESC, entity LIMIT ?",
-            (n,),
-        ).fetchall()
+        # Roadmap A′ reference, S5 re-based: PARTICIPATION count over the
+        # canonical edition family projection (the dyads are retired) —
+        # one row per unordered pair in e_comention, so participation =
+        # distinct co-mention partners.
+        from helpers.graph.derive_co_mentions import project_co_mention_pairs
+
+        counts: dict[str, int] = {}
+        for a, b, _w in project_co_mention_pairs(con):
+            counts[a] = counts.get(a, 0) + 1
+            counts[b] = counts.get(b, 0) + 1
+        rows = sorted(counts.items(), key=lambda kv: (-kv[1], kv[0]))[:n]
     finally:
         con.close()
-    return [{"entity": r["entity"], "co_mentions": r["co_mentions"]} for r in rows]
+    return [{"entity": name, "co_mentions": count} for name, count in rows]
 
 
 def test_co_mention_top_matches_reference(tmp_path):
@@ -182,7 +181,8 @@ def test_co_mention_top_matches_reference(tmp_path):
     finally:
         con.close()
     assert got == _ref_co_mention(db, 10)
-    # Spot-check the deterministic ranking (Infosys 6 > HDFC 5 > ICICI 4).
+    # Spot-check the deterministic ranking (S5 projection: distinct partners —
+    # Infosys 4 > HDFC Bank 3 > ICICI Bank 2 = No Ticker Co 2 > Cap Conflict 1).
     assert [g["entity"] for g in got] == [
         "Infosys",
         "HDFC Bank",
@@ -316,14 +316,14 @@ def test_c_series_per_edge_type_row_pins(tmp_path):
     db = build_seed_db(tmp_path / "seed.db")
     scon = _conn(db)
     try:
-        # Wrapper-level pins (frozen fixture numbers). Roadmap A′ re-base
-        # (2026-10-25): participation counts (both sides of each pair),
-        # orientation-free — 6/5/4 for the 9 seeded rows, not the old
-        # stored-orientation 4/3/2.
+        # Wrapper-level pins (frozen fixture numbers). S5 re-base
+        # (2026-11-07): the dyads are retired — e_comention is the
+        # edition-family projection, one row per pair, so participation =
+        # distinct partners (was: both-sides-of-9-dyad-rows 6/5/4/2/1).
         assert co_mention_top(10, scon) == [
-            {"entity": "Infosys", "co_mentions": 6},
-            {"entity": "HDFC Bank", "co_mentions": 5},
-            {"entity": "ICICI Bank", "co_mentions": 4},
+            {"entity": "Infosys", "co_mentions": 4},
+            {"entity": "HDFC Bank", "co_mentions": 3},
+            {"entity": "ICICI Bank", "co_mentions": 2},
             {"entity": "No Ticker Co", "co_mentions": 2},
             {"entity": "Cap Conflict Co", "co_mentions": 1},
         ]
@@ -380,7 +380,10 @@ def test_c_series_per_edge_type_row_pins(tmp_path):
             if owned:
                 dcon.close()
         assert got == {
-            "co_mentioned_in": 9,
+            # S5: e_comention is the edition-family projection — 6
+            # distinct shared-edition pairs from the 3 seeded editions
+            # (was 9 dyad rows, duplicated orientations included).
+            "co_mentioned_in": 6,
             "acquired": 3,
             "jv_with": 1,
             "part_of": 7,

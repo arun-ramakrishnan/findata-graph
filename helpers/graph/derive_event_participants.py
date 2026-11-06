@@ -100,23 +100,56 @@ def ensure_schema(conn) -> None:
     conn.commit()
 
 
-def collect(conn) -> dict[int, list[tuple[str, str]]]:
+def collect(conn) -> dict[int, list[tuple[str, str]]]:  # noqa: C901  # prose-extractor: per-family dispatch branches are linear, not nested
     """``{event_id: [(participant, role), ...]}`` over all event types.
 
     Events whose ``event_type`` is outside ``EVENT_ROLE_BY_TYPE`` are
     reported by the caller (worklist posture) and carry no rows — an
     unknown type never confabulates roles.
+
+    S1 (polyadic_capture_edge_fidelity): when ``events.properties``
+    carries a ``participants`` payload (the n-ary prose extractors), it
+    SUPERSEDES the pair shape for that event — one row per RESOLVED
+    participant (payload roles: acquirer/target/seller/partner/
+    lead_partner), in payload order. Unresolved payload entries
+    (entity=None) never become rows: the FK lands only canonical names,
+    and the no-mint rule keeps them free-text evidence in properties.
     """
+    import json  # noqa: PLC0415  (json_valid CHECK guarantees parseable)
+    import sqlite3  # noqa: PLC0415  (OperationalError guard)
+
     out: dict[int, list[tuple[str, str]]] = {}
-    for eid, etype, ent, cp in conn.execute(
-        "SELECT id, event_type, entity, counterparty_entity FROM events ORDER BY id"
+    # S1 defense in depth: payload rows land only on entities that exist —
+    # a stale canonical name in a payload would otherwise blow the FK up
+    # mid-apply instead of being skipped (and reported) here.
+    try:
+        known = {r[0] for r in conn.execute("SELECT name FROM entities").fetchall()}
+    except sqlite3.OperationalError:  # fresh DB without entities
+        known = set()
+    for eid, etype, ent, cp, props_raw in conn.execute(
+        "SELECT id, event_type, entity, counterparty_entity, properties FROM events ORDER BY id"
     ):
-        ent_role, cp_role = EVENT_ROLE_BY_TYPE.get(etype, (None, None))
+        try:
+            payload = (json.loads(props_raw) if props_raw else {}).get("participants") or []
+        except json.JSONDecodeError:  # pragma: no cover — CHECK-enforced
+            payload = []
         rows: list[tuple[str, str]] = []
-        if ent_role:
-            rows.append((ent, ent_role))
-        if cp_role and cp:
-            rows.append((cp, cp_role))
+        if payload:
+            seen: set[tuple[str, str]] = set()
+            for p in payload:
+                entity, role = p.get("entity"), p.get("role")
+                if not entity or not role or entity not in known:
+                    continue
+                key = (entity, role)
+                if key not in seen:
+                    seen.add(key)
+                    rows.append(key)
+        else:
+            ent_role, cp_role = EVENT_ROLE_BY_TYPE.get(etype, (None, None))
+            if ent_role:
+                rows.append((ent, ent_role))
+            if cp_role and cp:
+                rows.append((cp, cp_role))
         if rows:
             out[int(eid)] = rows
     return out
@@ -140,7 +173,8 @@ def apply_participants(
         if eid not in existing:
             continue
         stored = sorted(
-            conn.execute(
+            (r[0], r[1])
+            for r in conn.execute(
                 "SELECT participant, role FROM event_participants WHERE event_id = ?",
                 (eid,),
             ).fetchall()

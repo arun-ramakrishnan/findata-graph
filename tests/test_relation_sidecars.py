@@ -222,7 +222,8 @@ class TestPromoteSidecarsEmission:
             assert e.edge_type == "jv_with"
             assert e.source_ref == "promote:sidecar:Glenmark_Pharma_Nordic_(SE)-jv_with-AbbVie.yaml"
             assert e.symmetric is True  # jv_with is symmetric
-            assert e.valid_from is None
+            assert e.valid_from == "2026-10-03"
+            assert e.properties["confidence"] == 0.85
             assert e.properties["doc_type"] == "sidecar"
             assert e.properties["provenance"]["row_id"] == "29b0e7a8c1"
 
@@ -300,3 +301,25 @@ class TestPromoteSidecarsEmission:
             # Already-existing edges are re-confirmed, not double-counted.
             assert promoted == 0
             assert skipped == 0
+
+
+def test_sidecar_temporal_fields_resolves_iso_and_prose():
+    """S3: ISO as_of fills valid_from; prose is preserved in properties.as_of."""
+    from helpers.graph.extract_relations import _sidecar_temporal_fields
+
+    assert _sidecar_temporal_fields({"as_of": "2026-10-03"}) == ("2026-10-03", None)
+    assert _sidecar_temporal_fields({"as_of": "Oct 2026"}) == (None, "Oct 2026")
+    assert _sidecar_temporal_fields({}) == (None, None)
+    assert _sidecar_temporal_fields({"as_of": "   "}) == (None, None)
+
+
+def test_sidecar_temporal_fields_accepts_yaml_dates():
+    # S3: PyYAML parses an unquoted as_of as datetime.date; it must still fill valid_from.
+    import datetime
+    from helpers.graph.extract_relations import _sidecar_temporal_fields
+
+    assert _sidecar_temporal_fields(dict(as_of=datetime.date(2026, 10, 3))) == ("2026-10-03", None)
+    assert _sidecar_temporal_fields(dict(as_of=datetime.datetime(2026, 10, 3, 12, 0))) == (
+        "2026-10-03",
+        None,
+    )

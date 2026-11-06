@@ -1,25 +1,34 @@
 #!/usr/bin/env python3
-"""Derive `co_mentioned_in` edges from newsletter enhancement blocks.
+"""Stage newsletter co-mention edition sets (S5 — the dyads are retired).
 
 When `parse_newsletter` enhances a company note from a newsletter edition, it
 appends a `## <Newsletter> — <edition title>` heading plus a matching
 `*Source: <Newsletter> — <edition title>*` footer. Every company enhanced
 from the same edition therefore carries an identical edition title; those
-companies are "co-mentioned" and we materialise a symmetric `co_mentioned_in`
-edge between every unordered pair.
+companies "co-mention" each other.
 
-This is Slice C of Graph Phase 2 — see `doc/design/graph_design.md` §4 for the
-symmetric-edge convention (`source LE target`, one row per pair).
+S5 (polyadic_capture_edge_fidelity) retired the `co_mentioned_in` DYADS:
+C(n,2) pair rows in `graph_edges` misrepresent shared-edition context as
+company-to-company relations (9,638 rows duplicating what the edition
+hyperedge family already carries). This lane now stages the per-edition
+participant SET into `co_mention_editions` (one row per edition x company);
+`derive_hyperedges` unions it with the quotes table (S8) into the canonical
+edition hyperedge family, and pair views are PROJECTED on demand
+(``project_co_mention_pairs`` — sqlite consumers) or materialised in the
+DuckDB cache (``e_comention`` — the sector-retirement compatibility
+pattern).
 
 Public API
 ----------
 - ``extract_co_mentions(newsletter_type)`` — scan the vault, group entities
   by edition title. Returns ``{edition_title: [entity_name, ...]}``.
-- ``derive_edges(edition_to_entities)`` — generate canonical unordered pairs
-  with ``properties`` + ``source_ref`` for each edition.
-- ``apply_edges(edges, conn, dry_run)`` — INSERT OR IGNORE into
-  ``graph_edges``. Idempotent via the UNIQUE(source, target, edge_type)
-  constraint.
+- ``apply_edition_sets(edition_to_entities, ...)`` — stage the sets
+  (idempotent INSERT OR IGNORE into ``co_mention_editions``).
+- ``project_co_mention_pairs(conn)`` — shared-edition pair view over the
+  canonical edition family, ``weight = n_shared_editions + 1``.
+- ``derive_edges(edition_to_entities)`` — pair math over extracted sets
+  (projection/parity tests; no longer a store writer).
+- ``apply_edges(...)`` — RETIRED, raises with the migration pointer.
 
 CLI
 ---
@@ -62,12 +71,30 @@ if str(_REPO_ROOT) not in sys.path:
 
 from helpers.core.db import connect  # noqa: E402
 from helpers.graph import derive_cli as dcli  # noqa: E402  # S6 shared CLI scaffold
-from helpers.graph._edge_writer import apply_typed_edges  # noqa: E402
 
 # --------------------------------------------------------------------------- #
 # Constants                                                                   #
 # --------------------------------------------------------------------------- #
 COMPANIES_DIR = _REPO_ROOT / "findata" / "Companies"
+
+# S5 (polyadic_capture_edge_fidelity): the co_mentioned_in DYADS are
+# retired from graph_edges — shared-edition context is carried by the
+# canonical edition hyperedge family (hyper_edges/hyper_incidences), and
+# pair views are PROJECTED on demand. This lane's capture output is the
+# per-edition participant SET, staged here; derive_hyperedges unions it
+# with the quotes table (S8) into the edition family. One row per
+# (edition, company) — the C(n,2) pair blowup dies at the source.
+CO_MENTION_EDITIONS_DDL = """
+CREATE TABLE IF NOT EXISTS co_mention_editions (
+    edition_title TEXT    NOT NULL,
+    entity_name   TEXT    NOT NULL
+                    REFERENCES entities(name) ON DELETE CASCADE ON UPDATE CASCADE,
+    newsletter    TEXT    NOT NULL,
+    source_ref    TEXT    NOT NULL,
+    created_at    DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (edition_title, entity_name)
+)
+"""
 
 # Supported newsletter types. The key is the canonical slug (matches the
 # source_ref / properties.newsletter value); the value is the literal heading
@@ -367,142 +394,128 @@ def derive_edges(
 # --------------------------------------------------------------------------- #
 # Persistence                                                                 #
 # --------------------------------------------------------------------------- #
+def ensure_co_mention_editions_schema(conn) -> None:
+    """Create the ``co_mention_editions`` staging table when missing."""
+    conn.execute(CO_MENTION_EDITIONS_DDL)
+    conn.commit()
+
+
+def apply_edition_sets(
+    edition_to_entities: Mapping[str, Iterable[str]],
+    *,
+    newsletter_type: str = "The_Chatter",
+    conn=None,
+    dry_run: bool = True,
+) -> int:
+    """Stage the per-edition participant sets (S5 writer — replaces the dyad INSERT).
+
+    One row per ``(edition_title, entity_name)`` into
+    ``co_mention_editions``; ``derive_hyperedges`` unions this with the
+    quotes table into the canonical edition hyperedge family. Idempotent
+    via the PRIMARY KEY (INSERT OR IGNORE — the lane's stance stays
+    additive, same as the dyads ever were).
+
+    Returns the number of rows actually inserted (``dry_run=False``) or
+    that would be inserted (``dry_run=True``).
+    """
+    own = conn is None
+    if own:
+        conn = connect()
+    try:
+        ensure_co_mention_editions_schema(conn)
+        source_ref = _newsletter_source_ref(newsletter_type)
+        rows = [
+            (edition_title, entity_name, newsletter_type, source_ref)
+            for edition_title, entities in sorted(edition_to_entities.items())
+            for entity_name in sorted(set(entities))
+        ]
+        if dry_run:
+            staged = {
+                (r[0], r[1])
+                for r in conn.execute(
+                    "SELECT edition_title, entity_name FROM co_mention_editions"
+                ).fetchall()
+            }
+            return sum(1 for row in rows if (row[0], row[1]) not in staged)
+        inserted = 0
+        with conn:
+            before = conn.total_changes
+            conn.executemany(
+                "INSERT OR IGNORE INTO co_mention_editions "
+                "(edition_title, entity_name, newsletter, source_ref) "
+                "VALUES (?, ?, ?, ?)",
+                rows,
+            )
+            inserted = conn.total_changes - before
+        return int(inserted)
+    finally:
+        if own:
+            conn.close()
+
+
+def project_co_mention_pairs(conn) -> list[tuple[str, str, float]]:
+    """Project shared-edition pairs from the CANONICAL edition family (S5).
+
+    The store-level replacement for reading ``co_mentioned_in`` rows from
+    ``graph_edges``: for every edition hyperedge, all unordered member
+    pairs are emitted once, ``a < b``, with ``weight = n_shared_editions + 1``
+    (the ``backfill_weights`` count+1 law, preserved so consumers that
+    ranked on dyad weights keep their scale). NOTE the semantic widening:
+    the projection covers the WHOLE edition family — newsletter co-mentions
+    AND quote-participation editions — which is precisely the
+    "shared-edition context" the retired dyads misnamed company-to-company
+    relations.
+
+    Pure read over the caller's connection; the DuckDB cache carries the
+    same projection materialised as ``e_comention`` (sector-retirement
+    precedent — consumers keep working with zero changes).
+    """
+    import sqlite3  # noqa: PLC0415  (OperationalError guard)
+
+    try:
+        rows = conn.execute(
+            """
+            SELECT i1.entity_name AS a, i2.entity_name AS b,
+                   COUNT(DISTINCT i1.edge_id) AS n
+            FROM hyper_incidences i1
+            JOIN hyper_incidences i2
+              ON i2.edge_id = i1.edge_id AND i2.entity_name > i1.entity_name
+            JOIN hyper_edges h ON h.id = i1.edge_id AND h.edge_type = 'edition'
+            GROUP BY a, b
+            ORDER BY a, b
+            """
+        ).fetchall()
+    except sqlite3.OperationalError:
+        # no hyper store (fresh/synthetic DB) — empty projection, never-block
+        return []
+    return [(r[0], r[1], float(r[2]) + 1.0) for r in rows]
+
+
 def apply_edges(
     edges: Iterable[tuple[str, str, dict, str]],
     *,
     conn=None,
     dry_run: bool = True,
 ) -> int:
-    """Insert ``co_mentioned_in`` edges into ``graph_edges`` with INSERT OR IGNORE.
+    """RETIRED (S5): pair materialization into graph_edges is gone.
 
-    Thin wrapper over :func:`helpers.graph._edge_writer.apply_typed_edges`
-    (``edge_type='co_mentioned_in'``, ``symmetric=1``). Kept as the module's
-    public API because tests and the CLI call it by name.
-
-    Args:
-        edges: Iterable of ``(source, target, properties, source_ref)``.
-        conn: Reuse an existing SQLite connection. If None, opens a fresh one.
-        dry_run: If True (default), no rows are written; the function still
-            counts how many would be inserted (i.e. not already present).
-
-    Returns:
-        Number of rows actually inserted (``dry_run=False``) or that would be
-        inserted (``dry_run=True``). Rows skipped due to the
-        ``UNIQUE(source, target, edge_type)`` constraint are not counted.
+    Shared-edition context lives in the edition hyperedge family; pair
+    views are projected (:func:`project_co_mention_pairs`). This stub
+    refuses loudly so no caller silently re-materializes the clique.
     """
-    inserted = apply_typed_edges(
-        edges,
-        edge_type="co_mentioned_in",
-        symmetric=1,
-        conn=conn,
-        dry_run=dry_run,
+    raise NotImplementedError(
+        "S5 (polyadic_capture_edge_fidelity): co_mentioned_in dyads are "
+        "retired from graph_edges. Stage edition sets with "
+        "apply_edition_sets() and project pair views with "
+        "project_co_mention_pairs()."
     )
-    if not dry_run:
-        backfill_weights(conn=conn, edges=edges)
-    return inserted
-
-
-def backfill_weights(  # noqa: C901
-    conn=None,
-    *,
-    edges=None,
-    pair_counts=None,
-    edition_to_entities=None,
-) -> int:
-    """Set ``co_mentioned_in`` edge weights from the per-pair co-mention count.
-
-    Weight = ``count + 1`` (mirroring ``derive_cited_in.backfill_weights``).
-    Idempotent: derives the count from (in priority order) an explicit
-    ``pair_counts`` mapping, ``edition_to_entities``, the supplied ``edges``,
-    or the ``count``/aliases already stamped in ``properties``. Returns the
-    number of rows updated.
-    """
-    own = conn is None
-    if own:
-        conn = connect()
-    try:
-        # Resolve pair -> count.
-        resolved: dict[tuple[str, str], int] = {}
-        if pair_counts is not None:
-            for k, v in pair_counts.items():
-                key = tuple(sorted(k)) if isinstance(k, (list, tuple)) else k
-                resolved[tuple(sorted(key))] = int(v)  # type: ignore[arg-type]
-        elif edition_to_entities is not None:
-            for pair, n in count_pair_co_mentions(edition_to_entities).items():
-                a, b = sorted(pair)
-                resolved[(a, b)] = int(n)
-        elif edges is not None:
-            # Aggregate distinct editions per pair from the edge batch.
-            agg: dict[tuple[str, str], set[str]] = {}
-            for source, target, props, _sr in edges:
-                key = tuple(sorted((source, target)))
-                agg.setdefault(key, set()).add(str((props or {}).get("edition", "")))
-            resolved = {k: len(v) for k, v in agg.items()}
-        else:
-            resolved = {}
-
-        total_updated = 0
-        if resolved:
-            for (a, b), count in resolved.items():
-                cur = conn.execute(
-                    "UPDATE graph_edges SET weight = ? "
-                    "WHERE edge_type = 'co_mentioned_in' "
-                    "AND source = ? AND target = ?",
-                    (float(count) + 1.0, a, b),
-                )
-                # symmetric row (target, source) if present
-                cur2 = conn.execute(
-                    "UPDATE graph_edges SET weight = ? "
-                    "WHERE edge_type = 'co_mentioned_in' "
-                    "AND source = ? AND target = ?",
-                    (float(count) + 1.0, b, a),
-                )
-                n1 = cur.rowcount if cur.rowcount and cur.rowcount > 0 else 0
-                n2 = cur2.rowcount if cur2.rowcount and cur2.rowcount > 0 else 0
-                total_updated += n1 + n2
-        else:
-            # Fall back to properties-stamped count (cited_in style).
-            cur = conn.execute(
-                "UPDATE graph_edges SET weight = "
-                "COALESCE("
-                "CAST(json_extract(properties, '$.count') AS REAL),"
-                "CAST(json_extract(properties, '$.n_mentions') AS REAL),"
-                "CAST(json_extract(properties, '$.n_co_mentions') AS REAL),"
-                "CAST(json_extract(properties, '$.co_mention_count') AS REAL),"
-                "CAST(json_extract(properties, '$.n_editions') AS REAL)"
-                ") + 1.0 "
-                "WHERE edge_type = 'co_mentioned_in' "
-                "AND ("
-                "json_extract(properties, '$.count') IS NOT NULL OR "
-                "json_extract(properties, '$.n_mentions') IS NOT NULL OR "
-                "json_extract(properties, '$.n_co_mentions') IS NOT NULL OR "
-                "json_extract(properties, '$.co_mention_count') IS NOT NULL OR "
-                "json_extract(properties, '$.n_editions') IS NOT NULL"
-                ") "
-                "AND (weight IS NULL OR weight != "
-                "COALESCE("
-                "CAST(json_extract(properties, '$.count') AS REAL),"
-                "CAST(json_extract(properties, '$.n_mentions') AS REAL),"
-                "CAST(json_extract(properties, '$.n_co_mentions') AS REAL),"
-                "CAST(json_extract(properties, '$.co_mention_count') AS REAL),"
-                "CAST(json_extract(properties, '$.n_editions') AS REAL)"
-                ") + 1.0)"
-            )
-            total_updated = cur.rowcount if cur.rowcount and cur.rowcount > 0 else 0
-
-        if own:
-            conn.commit()
-        return int(total_updated)
-    finally:
-        if own:
-            conn.close()
 
 
 # --------------------------------------------------------------------------- #
 # CLI                                                                         #
 # --------------------------------------------------------------------------- #
 _ARGS = dcli.DeriveArgsSpec(
-    apply_help="Write edges to graph_edges (default: dry-run summary only).",
+    apply_help="Stage edition sets into co_mention_editions (default: dry-run summary only).",
     stale_help="S1c: skip when no source newer than last derived.",
     corpus=True,
 )
@@ -510,7 +523,11 @@ _ARGS = dcli.DeriveArgsSpec(
 
 def _cli(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(
-        description="Derive co_mentioned_in edges from newsletter enhancement blocks.",
+        description=(
+            "Stage newsletter co-mention edition sets (S5: the co_mentioned_in "
+            "dyads are retired — derive_hyperedges unions these sets with the "
+            "quotes table into the canonical edition hyperedge family)."
+        ),
     )
     p.add_argument(
         "--newsletter",
@@ -529,41 +546,30 @@ def _cli(argv: list[str] | None = None) -> int:
         except Exception:  # noqa: S110
             _corpus = None
     editions = extract_co_mentions(args.newsletter, corpus=_corpus)
-    edges = derive_edges(editions, newsletter_type=args.newsletter)
 
     # Summary to stderr so stdout stays machine-readable if needed.
+    n_members = sum(len(v) for v in editions.values())
     print(
-        f"[{args.newsletter}] editions={len(editions)} "
-        f"derived_edges={len(edges)} "
+        f"[{args.newsletter}] editions={len(editions)} members={n_members} "
         f"({'apply' if args.apply else 'dry-run'})",
         file=sys.stderr,
     )
-    # Per-edition breakdown.
+    # Per-edition breakdown (pairs shown as the projection they feed).
     for edition_title in sorted(editions):
         names = editions[edition_title]
         n_pairs = len(names) * (len(names) - 1) // 2
         print(
-            f"  {len(names):3d} co  {n_pairs:5d} pairs  {edition_title}",
+            f"  {len(names):3d} co  {n_pairs:5d} proj pairs  {edition_title}",
             file=sys.stderr,
         )
 
-    # Report the per-pair co-mention count distribution (proposal acceptance).
-    pc = count_pair_co_mentions(editions)
-    from collections import Counter
-
-    dist = Counter(pc.values())
-    print(
-        "pair_count_distribution=" + ",".join(f"{k}:{dist[k]}" for k in sorted(dist)),
-        file=sys.stderr,
-    )
-
-    inserted = apply_edges(edges, dry_run=not args.apply)
-    action = "inserted" if args.apply else "would insert"
-    print(f"{inserted} {action}.", file=sys.stderr)
+    staged = apply_edition_sets(editions, newsletter_type=args.newsletter, dry_run=not args.apply)
+    action = "staged" if args.apply else "would stage"
+    print(f"{staged} edition memberships {action}.", file=sys.stderr)
 
     if args.verbose:
-        for source, target, props, source_ref in edges:
-            print(f"{source}\t{target}\t{json.dumps(props, ensure_ascii=False)}")
+        for edition_title, names in sorted(editions.items()):
+            print(f"{edition_title}\t{json.dumps(names, ensure_ascii=False)}")
     return 0
 
 

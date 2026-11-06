@@ -127,7 +127,12 @@ _STAR_SOURCES: list[tuple[str, str]] = [
 ]
 _SYMMETRIC_SOURCES: list[tuple[str, str, str]] = [
     ("group", "same_group", "$.group"),
-    ("edition", "co_mentioned_in", "$.edition"),
+    # S5 (polyadic_capture_edge_fidelity): the edition family left the dyad
+    # regroup — same retirement shape as sector above. The co_mentioned_in
+    # dyads are retired from graph_edges; the family is the UNION of the
+    # co_mention_editions staging table (newsletter lane) and the quotes
+    # table (S8), collected in collect() below. Deleting this entry is what
+    # makes the store the source of truth rather than a copy of the dyads.
     # S10: regroup jv_with by the captured venture name where prose states
     # it (2/69 rows live; capture hook landed in extract_relations S10).
     ("jv", "jv_with", "$.venture"),
@@ -638,7 +643,7 @@ def _parse_magnitude(raw: str | None) -> tuple[float | None, str | None]:
     return num, unit
 
 
-def collect_event_facets(conn) -> dict:
+def collect_event_facets(conn) -> dict:  # noqa: C901  # facet collector: one branch per event family
     """Role/facet projections for counterparty-carrying events (S4).
 
     Returns ``{"roles": {(label, member): role}, "props": {label: {...}},
@@ -677,6 +682,52 @@ def collect_event_facets(conn) -> dict:
             facets["props"][label] = props
         if date:
             facets["valid_from"][label] = date
+    # S1 (polyadic): events with a participants payload get their roles
+    # from the event_participants store rows themselves (payload roles:
+    # acquirer/target/seller/partner/lead_partner — beyond the pair
+    # vocabulary), so N-party incidences tag roles like pairs do.
+    has_store = (
+        conn.execute(
+            "SELECT 1 FROM sqlite_master WHERE name='event_participants' AND type='table'"
+        ).fetchone()
+        is not None
+    )
+    if has_store and "properties" in cols:
+        import json  # noqa: PLC0415
+
+        for eid, etype, date, period, prec, mag, props_raw in conn.execute(
+            "SELECT id, event_type, event_date, period, date_precision, magnitude, "
+            "properties FROM events WHERE properties LIKE '%\"participants\"%'"
+        ):
+            try:
+                payload = (json.loads(props_raw) if props_raw else {}).get("participants") or []
+            except json.JSONDecodeError:  # pragma: no cover — CHECK-enforced
+                continue
+            if not any(p.get("entity") for p in payload):
+                continue
+            label = f"{etype}:{eid}"
+            for participant, role in conn.execute(
+                "SELECT participant, role FROM event_participants WHERE event_id = ?",
+                (eid,),
+            ):
+                if role:
+                    facets["roles"][(label, participant)] = role
+            num, unit = _parse_magnitude(mag)
+            props = {
+                k: v
+                for k, v in {
+                    "period": period,
+                    "date_precision": prec,
+                    "magnitude_raw": mag,
+                    "magnitude_numeric": num,
+                    "magnitude_unit": unit,
+                }.items()
+                if v is not None
+            }
+            if props:
+                facets["props"].setdefault(label, props)
+            if date:
+                facets["valid_from"].setdefault(label, date)
     return facets
 
 
@@ -1220,6 +1271,27 @@ def collect_hyperedges(  # noqa: C901
     except sqlite3.OperationalError:
         pass  # no quotes table (fresh/test DBs) — unweighted edition sets
 
+    # S5 (polyadic_capture_edge_fidelity): the newsletter co-mention lane
+    # stages per-edition participant sets into ``co_mention_editions`` (the
+    # dyad capture path is retired) — unioned here exactly like the quotes
+    # path above: one edition = one participant set, however captured.
+    # Weight stays None (the apply path leaves existing quote-count weights
+    # untouched; staging carries no intensity of its own).
+    try:
+        has_staging = (
+            conn.execute(
+                "SELECT 1 FROM sqlite_master WHERE name='co_mention_editions' AND type='table'"
+            ).fetchone()
+            is not None
+        )
+        if has_staging:
+            for label, member in conn.execute(
+                "SELECT edition_title, entity_name FROM co_mention_editions"
+            ):
+                out.setdefault("edition", {}).setdefault(label, set()).add(member)
+    except sqlite3.OperationalError:
+        pass  # fresh DB without entities — nothing staged to union
+
     # S9: event hyperedges — one PER EVENT ROW (participants from the
     # event_participants store, person_ontology_spine S4). NOT grouped by
     # (event_type, date, source_ref): measured 2026-09-13, 'derive:events:
@@ -1498,7 +1570,9 @@ def _upstream_types(hyper_type: str) -> list[str]:
     if hyper_type == "sub_sector":
         return ["industry"]  # S11: derived label map, not a dyad family
     if hyper_type == "edition":
-        return ["co_mentioned_in", "quotes"]  # S8: union of both capture paths
+        # S5: the dyad capture path is retired — the newsletter lane stages
+        # per-edition sets into co_mention_editions, collected below.
+        return ["newsletter_co_mention", "quotes"]  # union of both capture paths
     for ht, t in _STAR_SOURCES + [(ht, t) for ht, t, _ in _SYMMETRIC_SOURCES]:
         if ht == hyper_type:
             return [t]

@@ -570,9 +570,11 @@ TIER2_STEPS: list[tuple[str, list[str]]] = [
         [sys.executable, "helpers/graph/derive_events.py", "--corpus", "--apply"],
     ),
     # hypergraph incidence backfill (hypergraph_incidence_hyx, 2026-09-13):
-    # regroups the membership dyads (exposed_to/listed_in/same_group/
-    # co_mentioned_in — sector is CANONICAL since the part_of/has_company
-    # retirement, 2026-10-19, and is not derived) into
+    # regroups the membership dyads (exposed_to/listed_in/same_group —
+    # sector is CANONICAL since the part_of/has_company retirement,
+    # 2026-10-19, and is not derived; edition joined them via the S5
+    # co_mentioned_in retirement — the family unions the
+    # co_mention_editions staging table + quotes, not dyads) into
     # hyper_edges/hyper_incidences AFTER every upstream edge producer has run.
     # Idempotent (UNIQUE keys) — a warm no-change cycle
     # inserts 0 rows. SQLite-only write — but since D4 (hgx_first_scaling,

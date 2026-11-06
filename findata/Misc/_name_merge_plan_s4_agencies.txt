@@ -1,0 +1,11 @@
+# Entity-name merge plan (polyadic_capture_edge_fidelity S4 — agency canonical fixes)
+# operator rulings 2026-11-07: per-family merge into listed entity; Acute→Acuite typo fold;
+# CRISIL Ratings→CRISIL full merge (self-loop subsidiary/supply facts accepted lost, operator ruling).
+# applied via name_dedup.apply_plan (gated, ledgered).
+
+== Acuite Ratings & Research
+   Acute Ratings & Research  -> fold
+
+== CRISIL  [listed]
+   CRISIL Ratings  -> fold
+

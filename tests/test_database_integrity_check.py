@@ -1293,3 +1293,76 @@ class TestExpectedEdgeCount:
             assert checker._expected_edge_count("subsidiary_of", spec) == 1
         finally:
             checker.close()
+
+
+class TestExpectedComentionCount:
+    """S5 co_mentioned_in retirement (2026-11-07): the cache-reconcile
+    expectation for ``co_mentioned_in`` must mirror the e_comention
+    compatibility projection (edition-family pairs), not the retired
+    graph_edges dyad count — otherwise a freshly rebuilt cache reads as
+    staleness (e_comention duckdb=11315 vs sqlite=0)."""
+
+    def _seed(self, tmp_path: Path, *, with_hyper_store: bool = True):
+        db_path = tmp_path / "comention.db"
+        conn = sqlite3.connect(db_path)
+        conn.execute(ENTITIES_DDL)
+        conn.execute(
+            "CREATE TABLE graph_edges (id INTEGER PRIMARY KEY AUTOINCREMENT, "
+            "source TEXT NOT NULL, target TEXT NOT NULL, edge_type TEXT NOT NULL)"
+        )
+        if with_hyper_store:
+            conn.execute(
+                "CREATE TABLE hyper_edges (id INTEGER PRIMARY KEY, edge_type TEXT NOT NULL)"
+            )
+            conn.execute(
+                "CREATE TABLE hyper_incidences ("
+                "id INTEGER PRIMARY KEY AUTOINCREMENT, edge_id INTEGER NOT NULL, "
+                "entity_name TEXT NOT NULL)"
+            )
+            conn.executemany(
+                "INSERT INTO entities VALUES (?,?,?,?,?,?)",
+                [
+                    ("AlphaCo", "company", None, "AlphaCo", None, None),
+                    ("BetaCo", "company", None, "BetaCo", None, None),
+                    ("Lone Person", "person", None, "Lone_Person", None, None),
+                ],
+            )
+            # edition 1: Alpha+Beta+person; edition 2: Alpha+Beta; sector: Alpha.
+            # Distinct unordered COMPANY pairs over the edition family: 1.
+            conn.executemany(
+                "INSERT INTO hyper_edges VALUES (?,?)",
+                [(1, "edition"), (2, "edition"), (3, "sector")],
+            )
+            conn.executemany(
+                "INSERT INTO hyper_incidences (edge_id, entity_name) VALUES (?,?)",
+                [
+                    (1, "AlphaCo"),
+                    (1, "BetaCo"),
+                    (1, "Lone Person"),
+                    (2, "AlphaCo"),
+                    (2, "BetaCo"),
+                    (3, "AlphaCo"),
+                ],
+            )
+        conn.commit()
+        conn.close()
+        return DatabaseIntegrityChecker(db_path=str(db_path), base_path=str(tmp_path))
+
+    def test_projection_counts_edition_family_pairs(self, tmp_path: Path):
+        checker = self._seed(tmp_path)
+        try:
+            # Alpha+Beta share two editions → ONE aggregated pair row;
+            # the person incidence and the sector edge are out of family.
+            assert checker._expected_comention_count() == 1
+        finally:
+            checker.close()
+
+    def test_absent_store_yields_zero(self, tmp_path: Path):
+        # no hyper store → the materializer's empty-table posture (0),
+        # NOT the legacy dyad fallback — the co-mention cache build has
+        # no dyad path post-S5.
+        checker = self._seed(tmp_path, with_hyper_store=False)
+        try:
+            assert checker._expected_comention_count() == 0
+        finally:
+            checker.close()

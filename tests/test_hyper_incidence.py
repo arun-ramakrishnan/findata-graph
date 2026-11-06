@@ -86,10 +86,22 @@ def conn(tmp_path) -> sqlite3.Connection:
             ("Gamma", "India", "listed_in", "{}"),
             # symmetric source: same_group with a properties.group key
             ("Alpha", "Beta", "same_group", json.dumps({"group": "M Group"})),
-            # symmetric source: co_mentioned_in with a properties.edition key
-            ("Alpha", "Gamma", "co_mentioned_in", json.dumps({"edition": "Ed 1"})),
-            ("Beta", "Gamma", "co_mentioned_in", json.dumps({"edition": "Ed 1"})),
         ],
+    )
+    # S5 (co_mentioned_in retirement): the edition family no longer regroups
+    # dyads — the newsletter lane stages per-edition sets into
+    # co_mention_editions (collected below, unioned with quotes).
+    c.execute(
+        "CREATE TABLE IF NOT EXISTS co_mention_editions ("
+        " edition_title TEXT NOT NULL, entity_name TEXT NOT NULL,"
+        " newsletter TEXT NOT NULL, source_ref TEXT NOT NULL,"
+        " created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,"
+        " PRIMARY KEY (edition_title, entity_name))"
+    )
+    c.executemany(
+        "INSERT INTO co_mention_editions (edition_title, entity_name, newsletter, source_ref)"
+        " VALUES (?, ?, 'The_Chatter', 'derive:co_mentioned:The_Chatter')",
+        [("Ed 1", "Alpha"), ("Ed 1", "Beta"), ("Ed 1", "Gamma")],
     )
     # S8 seed: quotes drive the weighted edition regroup. Alpha quoted 3x in
     # Ed 1 (weight 3, member UNION with the co_mentioned set), Delta quoted
@@ -196,8 +208,8 @@ class TestBackfill:
     def test_symmetric_regroup_both_endpoints(self, conn):
         hyper, weights = dh.collect_hyperedges(conn)
         assert hyper["group"] == {"M Group": {"Alpha", "Beta"}}
-        # S8: edition = UNION of co_mentioned members and quoted companies;
-        # sector-entity quotes filtered out; weight = quote count.
+        # S8/S5: edition = UNION of the staged newsletter sets and quoted
+        # companies; sector-entity quotes filtered out; weight = quote count.
         assert hyper["edition"] == {
             "Ed 1": {"Alpha", "Beta", "Gamma"},
             "Ed 2": {"Delta"},
@@ -242,7 +254,7 @@ class TestBackfill:
         # sector carries ITS OWN provenance — canonical, never derive's
         # (2026-10-19 retirement).
         assert refs["sector:Automotive"] == "sector_membership"
-        assert refs["edition:Ed 1"] == "derive:hyperedges:co_mentioned_in+quotes"
+        assert refs["edition:Ed 1"] == "derive:hyperedges:newsletter_co_mention+quotes"
 
     def test_load_incidence_labels_prefixed(self, conn, tmp_path):
         hyper, weights = dh.collect_hyperedges(conn)

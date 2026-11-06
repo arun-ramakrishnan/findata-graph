@@ -509,3 +509,155 @@ def test_dedup_preserves_different_types():
 
 def test_dedup_empty():
     assert de._dedup([]) == []
+
+
+# --------------------------------------------------------------------------- #
+# S1 (polyadic_capture_edge_fidelity) — n-ary participant extractors          #
+# --------------------------------------------------------------------------- #
+class _FakeResolver:
+    """Resolve-only stand-in mirroring EntityResolver's contract: returns
+    the canonical name or None — it cannot mint."""
+
+    def __init__(self, table: dict[str, str]):
+        self._t = {k.lower(): v for k, v in table.items()}
+
+    def resolve(self, mention: str):
+        return self._t.get(mention.strip().lower())
+
+
+class TestAcquisitionTriangle:
+    def test_passive_voice_roles(self):
+        """Ambuja shape: 'Acquired by Adani Group from Holcim' — the NOTE
+        SUBJECT is the target, buyer=acquirer, seller=seller."""
+        evs = de._extract_acquisition_triangle(
+            "Ambuja Cement",
+            "- Acquired by Adani Group from Holcim.",
+            None,
+            resolver=_FakeResolver({"Adani Group": "Adani Group", "Holcim": "Holcim"}),
+        )
+        assert len(evs) == 1
+        ev = evs[0]
+        assert ev.event_type == "acquisition"
+        by_role = {p["role"]: p for p in ev.participants}
+        assert by_role["target"]["entity"] == "Ambuja Cement"
+        assert by_role["acquirer"]["entity"] == "Adani Group"
+        assert by_role["seller"]["entity"] == "Holcim"
+
+    def test_active_voice_roles(self):
+        """Torrent shape: 'acquiring a major asset from L&T' — the SUBJECT
+        is the acquirer, seller resolved or evidence."""
+        evs = de._extract_acquisition_triangle(
+            "Torrent Power",
+            "Torrent Power is acquiring a major thermal power asset from L&T to expand capacity.",
+            None,
+            resolver=_FakeResolver({"L&T": "Larsen and Toubro"}),
+        )
+        assert len(evs) == 1
+        by_role = {p["role"]: p for p in evs[0].participants}
+        assert by_role["acquirer"]["entity"] == "Torrent Power"
+        assert by_role["seller"]["entity"] == "Larsen and Toubro"
+
+    def test_unresolved_stays_evidence(self):
+        """Resolve-only: an unknown seller keeps entity=None — never minted."""
+        evs = de._extract_acquisition_triangle(
+            "Ambuja Cement",
+            "- Acquired by Adani Group from Holcim.",
+            None,
+            resolver=_FakeResolver({"Adani Group": "Adani Group"}),  # Holcim unknown
+        )
+        assert len(evs) == 1
+        by_role = {p["role"]: p for p in evs[0].participants}
+        assert by_role["seller"]["entity"] is None
+        assert by_role["seller"]["name"] == "Holcim"
+
+    def test_no_resolver_all_evidence(self):
+        evs = de._extract_acquisition_triangle(
+            "Ambuja Cement", "- Acquired by Adani Group from Holcim.", None, resolver=None
+        )
+        assert len(evs) == 1
+        assert all(p["entity"] in (None, "Ambuja Cement") for p in evs[0].participants)
+
+    def test_plain_acquisition_bullet_not_matched(self):
+        """The existing acquisition-SENSE guard shape (no by/from triangle)
+        must not produce a participant event."""
+        evs = de._extract_acquisition_triangle(
+            "ABC Ltd", "- Acquires the defence arm of XYZ for Rs 100 cr.", None
+        )
+        assert evs == []
+
+
+class TestJvConsortium:
+    def test_lead_and_resolved_partner(self):
+        evs = de._extract_jv_consortium(
+            "Bharat Electronics",
+            "We expect the formal RFP to be received by the consortium—with L&T as the lead bid and BEL as a partner.",
+            None,
+            resolver=_FakeResolver({"L&T": "Larsen and Toubro", "BEL": "Bharat Electronics"}),
+        )
+        assert len(evs) == 1
+        ev = evs[0]
+        assert ev.event_type == "jv"
+        names = {p["name"]: p for p in ev.participants}
+        assert names["Bharat Electronics"]["role"] == "partner"
+        assert names["L&T"]["role"] == "lead_partner"
+        assert names["L&T"]["entity"] == "Larsen and Toubro"
+
+    def test_unresolved_named_party_stays_evidence(self):
+        """Vi shape: 'SBI-led consortium of PSU, private, and foreign banks' —
+        SBI resolves; the unnamed cohorts stay evidence, no mint."""
+        evs = de._extract_jv_consortium(
+            "Vodafone Idea",
+            "We are deeply engaged with an SBI-led consortium of PSU, private, and foreign banks.",
+            None,
+            resolver=_FakeResolver({"SBI": "State Bank of India"}),
+        )
+        assert len(evs) == 1
+        by_role = {p["name"]: p for p in evs[0].participants}
+        assert by_role["SBI"]["role"] == "lead_partner"
+        assert by_role["SBI"]["entity"] == "State Bank of India"
+        unresolved = [p for p in evs[0].participants if p["entity"] is None]
+        assert all("PSU" not in p["name"] or p["entity"] is None for p in unresolved)
+
+    def test_no_named_parties_no_event(self):
+        evs = de._extract_jv_consortium(
+            "ABC Ltd", "We are part of a large banking consortium for this deal.", None
+        )
+        assert evs == []
+
+
+class TestParticipantsPayloadApply:
+    def test_participants_ride_properties_json(self, tmp_path):
+        """apply() serializes the payload into properties.participants —
+        the events schema is untouched (no DDL change)."""
+        conn = _connect(tmp_path)
+        conn.execute("INSERT INTO entities VALUES ('Ambuja Cement', 'company', NULL, NULL, NULL)")
+        conn.commit()
+        ev = de.Event(
+            entity="Ambuja Cement",
+            event_type="acquisition",
+            source_ref=de.ACQ_TRIANGLE_SOURCE_REF,
+            participants=[
+                {"role": "target", "name": "Ambuja Cement", "entity": "Ambuja Cement"},
+                {"role": "acquirer", "name": "Adani Group", "entity": "Adani Group"},
+                {"role": "seller", "name": "Holcim", "entity": None},
+            ],
+        )
+        de.apply([ev], conn=conn, dry_run=False)
+        props = json.loads(conn.execute("SELECT properties FROM events").fetchone()[0])
+        assert len(props["participants"]) == 3
+        assert props["participants"][2]["entity"] is None
+
+    def test_zero_new_entities_by_construction(self, tmp_path):
+        """The S1 acceptance guard: the full payload path mints nothing."""
+        conn = _connect(tmp_path)
+        conn.execute("INSERT INTO entities VALUES ('Ambuja Cement', 'company', NULL, NULL, NULL)")
+        conn.commit()
+        before = conn.execute("SELECT COUNT(*) FROM entities").fetchone()[0]
+        evs = de._extract_acquisition_triangle(
+            "Ambuja Cement",
+            "- Acquired by Adani Group from Holcim.",
+            None,
+            resolver=_FakeResolver({}),  # nothing resolves
+        )
+        de.apply(evs, conn=conn, dry_run=False)
+        assert conn.execute("SELECT COUNT(*) FROM entities").fetchone()[0] == before

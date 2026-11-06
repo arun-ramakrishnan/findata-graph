@@ -953,6 +953,13 @@ def apply_rating_pairs(
             display = _safe_display(ag)
             if display is None:
                 continue
+            # polyadic S4: a folded variant (name_dedup ledger — e.g.
+            # 'Acute Ratings & Research', 'CRISIL Ratings') must resolve to
+            # its canonical BEFORE the mint check, or the next vigil sync
+            # re-mints the merged-away entity (the fold's reversibility).
+            from helpers.core.entity_identity import name_key  # noqa: PLC0415
+
+            display = _fold_map().get(name_key(display), display)
             agencies[ag] = display
     new_agencies = [d for d in agencies.values() if d not in existing]
     edges = []

@@ -147,17 +147,10 @@ def build_seed_db(path: Path) -> Path:
     edges = [
         # NB: no part_of/has_company rows — sector membership is canonical in
         # the incidence store (2026-10-19 retirement), seeded just below.
-        # co-mention participation ranking (A′, orientation-free):
-        # Infosys(6) > HDFC(5) > ICICI(4) > No Ticker(2) > Cap Conflict(1)
-        ("Infosys", "HDFC Bank", "co_mentioned_in", "seed", None),
-        ("Infosys", "ICICI Bank", "co_mentioned_in", "seed", None),
-        ("Infosys", "No Ticker Co", "co_mentioned_in", "seed", None),
-        ("Infosys", "Cap Conflict Co", "co_mentioned_in", "seed", None),
-        ("HDFC Bank", "Infosys", "co_mentioned_in", "seed", None),
-        ("HDFC Bank", "ICICI Bank", "co_mentioned_in", "seed", None),
-        ("HDFC Bank", "No Ticker Co", "co_mentioned_in", "seed", None),
-        ("ICICI Bank", "Infosys", "co_mentioned_in", "seed", None),
-        ("ICICI Bank", "HDFC Bank", "co_mentioned_in", "seed", None),
+        # NB (S5, 2026-11-07): no co_mentioned_in rows either — the dyads are
+        # retired; the co-mention ranking projects from the canonical edition
+        # hyperedge family seeded just below (Infosys(4) > HDFC(3) =
+        # No Ticker(3) > ICICI(2) = Cap Conflict(2) distinct partners).
         # cross-sector M&A (counted) + same-sector (must be excluded)
         ("HDFC Bank", "Infosys", "acquired", "seed", "2021-03-15"),
         ("HDFC Bank", "ICICI Bank", "acquired", "seed", "2022-07-01"),
@@ -194,6 +187,33 @@ def build_seed_db(path: Path) -> Path:
             # Kuantum Papers: dual membership — BOTH sector hyperedges.
             (3, "Kuantum Papers"),
             (4, "Kuantum Papers"),
+        ],
+    )
+
+    # Edition family (S5 co_mentioned_in retirement) — the canonical
+    # co-mention substrate. Three editions whose shared-edition pairs give
+    # the deterministic participation ranking:
+    #   Infosys(4) > HDFC Bank(3) = No Ticker Co(3) > ICICI Bank(2) =
+    #   Cap Conflict Co(2)  (distinct co-mention partners).
+    con.executemany(
+        "INSERT INTO hyper_edges (id, edge_type, label, source_ref) VALUES (?,?,?,?)",
+        [
+            (11, "edition", "Edition Alpha", "seed"),
+            (12, "edition", "Edition Beta", "seed"),
+            (13, "edition", "Edition Gamma", "seed"),
+        ],
+    )
+    con.executemany(
+        "INSERT INTO hyper_incidences (edge_id, entity_name) VALUES (?,?)",
+        [
+            (11, "Infosys"),
+            (11, "HDFC Bank"),
+            (11, "ICICI Bank"),
+            (12, "Infosys"),
+            (12, "HDFC Bank"),
+            (12, "No Ticker Co"),
+            (13, "Infosys"),
+            (13, "Cap Conflict Co"),
         ],
     )
     con.commit()

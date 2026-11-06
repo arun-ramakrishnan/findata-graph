@@ -2498,6 +2498,76 @@ def _materialise_sector_membership(con: duckdb.DuckDBPyConnection) -> None:
         )
 
 
+def _materialise_co_mention(con: duckdb.DuckDBPyConnection) -> None:
+    """Resolve shared-edition pairs from the CANONICAL hyper store (S5, co_mentioned_in retirement).
+
+    The ``co_mentioned_in`` dyads used to be stored in ``graph_edges``
+    (9,638 symmetric rows materialising C(n,2) pairs per newsletter
+    edition) while the edition hyperedge family carried the SAME
+    co-mention context as incidences — and the family is strictly more
+    expressive (newsletter sets ∪ quote participation, S8). S5 retired
+    the dyads; this CTAS is the compatibility projection:
+    ``_comention_resolved`` carries ONE aggregated row per unordered
+    company pair (canonical ``a < b``), ``weight = n_shared_editions + 1``
+    (the retired ``backfill_weights`` count+1 law, so weight-ranked
+    consumers keep their scale), built from the edition family's
+    incidences. ``_edge_resolved`` (→ registry CTAS for ``e_comention``)
+    and the walk substrate read it, so every consumer — onager
+    prediction/economic projections, link prediction, Mojo parity bench,
+    igraph/scipy bridges — keeps working with ZERO changes.
+
+    Semantic widening (documented, proposal §S5): the projection covers
+    the WHOLE edition family — newsletter co-mentions AND quote
+    participation — which is the shared-edition context the dyads
+    misnamed company-to-company relations.
+
+    Absent store (pristine clone, synthetic fixture) → empty table, no
+    error (the sector-retirement never-block posture). Idempotent
+    (``CREATE OR REPLACE``).
+    """
+    try:
+        con.execute(
+            """
+            CREATE OR REPLACE TEMP TABLE _comention_resolved AS
+            SELECT a.id AS src_id, b.id AS dst_id,
+                   'company' AS src_kind, 'company' AS dst_kind,
+                   'co_mentioned_in' AS edge_type,
+                   COUNT(DISTINCT he.id) + 1 AS weight,
+                   '{}' AS properties,
+                   'derive:hyperedges:newsletter_co_mention+quotes' AS source_ref,
+                   CAST(NULL AS VARCHAR) AS valid_from,
+                   CAST(NULL AS VARCHAR) AS valid_to
+            FROM fin.hyper_edges he
+            JOIN fin.hyper_incidences hi1 ON hi1.edge_id = he.id
+            JOIN fin.hyper_incidences hi2
+              ON hi2.edge_id = he.id AND hi2.entity_name > hi1.entity_name
+            JOIN v_node a ON a.name = hi1.entity_name AND a.kind = 'company'
+            JOIN v_node b ON b.name = hi2.entity_name AND b.kind = 'company'
+            WHERE he.edge_type = 'edition'
+            GROUP BY a.id, b.id
+            """
+        )
+    except duckdb.Error:
+        # no hyper store attached (pristine clone / synthetic fixture):
+        # an empty projection keeps every downstream CTAS shape valid.
+        con.execute(
+            """
+            CREATE OR REPLACE TEMP TABLE _comention_resolved AS
+            SELECT CAST(NULL AS BIGINT) AS src_id,
+                   CAST(NULL AS BIGINT) AS dst_id,
+                   CAST(NULL AS VARCHAR) AS src_kind,
+                   CAST(NULL AS VARCHAR) AS dst_kind,
+                   CAST(NULL AS VARCHAR) AS edge_type,
+                   CAST(NULL AS DOUBLE) AS weight,
+                   CAST(NULL AS VARCHAR) AS properties,
+                   CAST(NULL AS VARCHAR) AS source_ref,
+                   CAST(NULL AS VARCHAR) AS valid_from,
+                   CAST(NULL AS VARCHAR) AS valid_to
+            WHERE false
+            """
+        )
+
+
 def _resolve_edges(con: duckdb.DuckDBPyConnection) -> None:
     """graph_rebuild_fast_path S3: resolve every staged edge ONCE.
 
@@ -2527,6 +2597,7 @@ def _resolve_edges(con: duckdb.DuckDBPyConnection) -> None:
     those TEMP tables only.
     """
     _materialise_sector_membership(con)
+    _materialise_co_mention(con)
     con.execute(
         """
         CREATE OR REPLACE TEMP TABLE _edge_resolved_base AS
@@ -2539,6 +2610,11 @@ def _resolve_edges(con: duckdb.DuckDBPyConnection) -> None:
         JOIN v_node dst ON dst.name = ge.target
         """
     )
+    # S5 (co_mentioned_in retirement): the projection from the canonical
+    # edition family is the AUTHORITATIVE source for the type — any
+    # leftover dyad rows (mid-migration rebuild) are dropped here so
+    # e_comention can never double-count.
+    con.execute("DELETE FROM _edge_resolved_base WHERE edge_type = 'co_mentioned_in'")
     con.execute(
         """
         CREATE OR REPLACE TEMP TABLE _edge_resolved AS
@@ -2551,6 +2627,10 @@ def _resolve_edges(con: duckdb.DuckDBPyConnection) -> None:
         SELECT sector_id, company_id, 'sector', 'company',
                'has_company', weight, '{}', source_ref, valid_from, valid_to
         FROM _sector_resolved
+        UNION ALL
+        SELECT src_id, dst_id, src_kind, dst_kind,
+               edge_type, weight, properties, source_ref, valid_from, valid_to
+        FROM _comention_resolved
         """
     )
 
@@ -2726,6 +2806,7 @@ def _materialise_walk_substrate(con: duckdb.DuckDBPyConnection, *, k_shards: int
     produces — single source for the CTAS shapes.
     """
     _materialise_sector_membership(con)
+    _materialise_co_mention(con)
     con.execute(
         """
         CREATE TABLE e_dir AS
@@ -2734,6 +2815,7 @@ def _materialise_walk_substrate(con: duckdb.DuckDBPyConnection, *, k_shards: int
         FROM _stg_edges ge
         JOIN v_node src ON src.name = ge.source
         JOIN v_node dst ON dst.name = ge.target
+        WHERE ge.edge_type != 'co_mentioned_in'
         UNION ALL
         SELECT company_id, sector_id, 'part_of', valid_from, valid_to,
                NULL::VARCHAR AS properties
@@ -2742,6 +2824,10 @@ def _materialise_walk_substrate(con: duckdb.DuckDBPyConnection, *, k_shards: int
         SELECT sector_id, company_id, 'has_company', valid_from, valid_to,
                NULL::VARCHAR AS properties
         FROM _sector_resolved
+        UNION ALL
+        SELECT src_id, dst_id, edge_type, valid_from, valid_to,
+               NULL::VARCHAR AS properties
+        FROM _comention_resolved
         """
     )
     if k_shards <= 1:

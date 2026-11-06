@@ -1192,13 +1192,13 @@ def build_coinfer_suggestions(  # noqa
     except Exception:
         non_comention_existing = existing
 
-    rows = conn.execute(
-        "SELECT source, target, weight FROM graph_edges WHERE edge_type = 'co_mentioned_in'"
-    ).fetchall()
-    # Aggregate weight per unordered pair (in case of split rows; normally 1 row)
+    # S5 (co_mentioned_in retirement): the dyads are gone from graph_edges —
+    # rank over the projection from the canonical edition hyperedge family.
+    from helpers.graph.derive_co_mentions import project_co_mention_pairs  # noqa: PLC0415
+
     pair_weight: dict[tuple[str, str], float] = {}
-    for s, t, w in rows:
-        a, b = _pair(s, t)
+    for a, b, w in project_co_mention_pairs(conn):
+        a, b = _pair(a, b)
         pair_weight[(a, b)] = pair_weight.get((a, b), 0.0) + float(w or 1.0)
 
     # Score each pair

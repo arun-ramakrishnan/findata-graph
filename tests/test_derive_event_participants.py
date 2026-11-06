@@ -15,6 +15,7 @@ Layers:
 
 from __future__ import annotations
 
+import json
 import sqlite3
 from pathlib import Path
 
@@ -235,3 +236,98 @@ def test_fallback_and_store_paths_agree_on_live_shape(conn):
     conn.execute("DROP TABLE event_participants")
     fallback, _ = dh.collect_hyperedges(conn)
     assert with_store["event"] == fallback["event"]
+
+
+# --------------------------------------------------------------------------- #
+# S1 (polyadic_capture_edge_fidelity) — N-party payload projection            #
+# --------------------------------------------------------------------------- #
+def _payload_event(conn, props: dict, *, etype: str = "jv", entity: str = "Alpha") -> int:
+    conn.execute(
+        "INSERT INTO events (event_type, entity, counterparty_entity, source_ref, properties) "
+        "VALUES (?, ?, NULL, 'derive:events:jv-consortium', ?)",
+        (etype, entity, json.dumps(props)),
+    )
+    conn.commit()
+    return conn.execute("SELECT MAX(id) FROM events").fetchone()[0]
+
+
+def test_collect_payload_supersedes_pair_shape(conn):
+    """A participants payload emits N resolved rows in payload order and
+    REPLACES the pair shape — no acquirer/target rows from the columns."""
+    dep.ensure_schema(conn)
+    eid = _payload_event(
+        conn,
+        {
+            "participants": [
+                {"role": "partner", "name": "Alpha", "entity": "Alpha"},
+                {"role": "lead_partner", "name": "Beta", "entity": "Beta"},
+                {"role": "partner", "name": "Gamma", "entity": "Gamma"},
+            ]
+        },
+    )
+    got = dep.collect(conn)
+    assert got[eid] == [
+        ("Alpha", "partner"),
+        ("Beta", "lead_partner"),
+        ("Gamma", "partner"),
+    ]
+
+
+def test_collect_payload_unresolved_never_becomes_row(conn):
+    """entity=None payload entries (free-text evidence) produce NO rows —
+    the no-mint rule at the projection boundary."""
+    dep.ensure_schema(conn)
+    eid = _payload_event(
+        conn,
+        {
+            "participants": [
+                {"role": "partner", "name": "Alpha", "entity": "Alpha"},
+                {"role": "lead_partner", "name": "SBI-led group", "entity": None},
+            ]
+        },
+    )
+    got = dep.collect(conn)
+    assert got[eid] == [("Alpha", "partner")]
+
+
+def test_collect_payload_entity_must_exist_for_fk(conn):
+    """A payload entry naming a NON-existent 'canonical' would violate the
+    FK — it must not produce a row (defense in depth beyond resolved=True)."""
+    dep.ensure_schema(conn)
+    eid = _payload_event(
+        conn,
+        {
+            "participants": [
+                {"role": "partner", "name": "Alpha", "entity": "Alpha"},
+                {"role": "partner", "name": "Ghost Co", "entity": "Ghost Co"},
+            ]
+        },
+    )
+    got = dep.collect(conn)
+    assert got[eid] == [("Alpha", "partner")]
+
+
+def test_nparty_hyperedge_grows_through_full_store_path(conn):
+    """End-to-end: a 3-participant event yields a k=3 event-family
+    hyperedge with payload roles tagged on the incidences."""
+    dep.ensure_schema(conn)
+    eid = _payload_event(
+        conn,
+        {
+            "participants": [
+                {"role": "partner", "name": "Alpha", "entity": "Alpha"},
+                {"role": "lead_partner", "name": "Beta", "entity": "Beta"},
+                {"role": "partner", "name": "Gamma", "entity": "Gamma"},
+            ]
+        },
+    )
+    rows = dep.collect(conn)
+    stats = dep.apply_participants(conn, rows, dry_run=False)
+    assert stats["rows"] >= 3
+    out, _weights = dh.collect_hyperedges(conn)
+    members = out["event"][f"jv:{eid}"]
+    assert members == {"Alpha", "Beta", "Gamma"}
+    # roles flow through collect_event_facets (S1 extension) → apply --roles
+    facets = dh.collect_event_facets(conn)
+    assert facets["roles"][(f"jv:{eid}", "Beta")] == "lead_partner"
+    assert facets["roles"][(f"jv:{eid}", "Gamma")] == "partner"

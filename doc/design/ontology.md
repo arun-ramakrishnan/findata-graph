@@ -151,7 +151,9 @@ roles live as `event_participants.role` rows written by
 
 - acquirer
 - issuer
+- lead_partner
 - partner
+- seller
 - subject
 - target
 

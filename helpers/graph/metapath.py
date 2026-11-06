@@ -194,6 +194,12 @@ def _build_adjacency(db_path: str | Path) -> _Adjacency:
             f"SELECT source, target, edge_type, source_ref, {prop_col} "  # noqa: S608
             "FROM graph_edges"
         ).fetchall()
+        # S5 (co_mentioned_in retirement): the attention family projects its
+        # connectivity from the canonical edition hyperedge family — read
+        # INSIDE the try (the connection closes in the finally below).
+        from helpers.graph.derive_co_mentions import project_co_mention_pairs  # noqa: PLC0415
+
+        comention_pairs = project_co_mention_pairs(con)
     finally:
         con.close()
     for src, dst, etype, ref, props in rows:
@@ -215,6 +221,8 @@ def _build_adjacency(db_path: str | Path) -> _Adjacency:
                 adj.add_undirected(fam, src, dst, etype)
             elif etype in _PERIPHERAL_TYPES:
                 adj._add_any(src, dst, etype)
+    for a, b, _w in comention_pairs:
+        adj.add_undirected("attention", a, b, "co_mentioned_in")
     return adj
 
 

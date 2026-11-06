@@ -104,7 +104,8 @@ def test_collect_regroups_dyads_into_expected_families(chain_store):
     assert hyper["jv"] == {"VentureX": {"Alpha Ltd", "Gamma Ltd"}}
     # hermetic fixture: no quotes/events/industry sources fired
     assert weights == {}
-    assert hyper["edition"] == {}  # co_mentioned_in is a symmetric source — empty here
+    # S5: edition materialises only when a capture path fires (staging/quotes)
+    assert hyper.get("edition", {}) == {}
     assert hyper.get("event", {}) == {}  # no events table → the family never materialises
     assert hyper["industry"] == {}
 

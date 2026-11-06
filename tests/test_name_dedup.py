@@ -292,3 +292,69 @@ def test_check_gate_baseline(con, tmp_path: Path):
 def test_apply_refuses_missing_plan(con, tmp_path: Path):
     with pytest.raises(SystemExit, match="missing"):
         nd.apply_plan(con, tmp_path / "nope.txt", yes=True)
+
+
+@pytest.mark.live
+class TestS2FoldLedgerInvariants:
+    """S2 guard (polyadic_capture_edge_fidelity): the live fold ledger's
+    own invariants — the exact analog of the alias-table invariants
+    (test_fuzz_relations_aliases): a bad fold row (self-fold, dangling
+    canonical, variant still present as an entity) silently breaks
+    resolution or resurrects the variant. Skips without the live store.
+
+    The census SCORING is presentation-only (scratch tooling, report
+    never written back) — these invariants are the write-path guard:
+    everything in the ledger got there through the gated
+    ``apply_plan(--yes)`` on signed plan artifacts, operator-ruled.
+    """
+
+    LEDGER = nd.LEDGER_PATH
+
+    @pytest.fixture(autouse=True)
+    def _need_live(self):
+        if not self.LEDGER.exists():
+            pytest.skip("live fold ledger not present")
+
+    def _rows(self):
+        return [
+            json.loads(line)
+            for line in self.LEDGER.read_text(encoding="utf-8").splitlines()
+            if line.strip()
+        ]
+
+    def test_no_self_folds_or_dangling_canonicals(self):
+
+        rows = self._rows()
+        assert rows, "fold ledger empty"
+        for row in rows:
+            variant, canonical = row["variant"], row["canonical"]
+            assert variant != canonical, f"self-fold: {variant!r}"
+            assert canonical and canonical.strip() == canonical
+
+    def test_s2_supply_batch_variants_gone_canonicals_alive(self):
+        """The S2 append specifically: every supply-batch variant is gone
+        from entities, every canonical it points at still exists."""
+        from helpers.core.db import connect  # noqa: E402, PLC0415
+
+        con = connect()
+        try:
+            s2 = [
+                (r["variant"], r["canonical"])
+                for r in self._rows()
+                if "Tech Mahindra" in r["variant"]
+                or "Glenmark" in r["variant"]
+                or "Hitachi Energy" in r["variant"]
+                or "HCL Technologies" in r["variant"]
+            ]
+            assert len(s2) >= 50  # the S2 append is in place
+            for variant, canonical in s2:
+                assert (
+                    con.execute("SELECT 1 FROM entities WHERE name = ?", (variant,)).fetchone()
+                    is None
+                ), f"variant resurrected: {variant!r}"
+                assert (
+                    con.execute("SELECT 1 FROM entities WHERE name = ?", (canonical,)).fetchone()
+                    is not None
+                ), f"dangling canonical: {canonical!r}"
+        finally:
+            con.close()

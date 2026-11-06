@@ -333,7 +333,9 @@ class TestSupplyPass:
 
 
 class TestRatingsPass:
-    def test_agency_entities_and_rated_by(self, lane):
+    def test_agency_entities_and_rated_by(self, lane, monkeypatch):
+        # unregistered variant: no fold registered → legacy mint behavior
+        monkeypatch.setattr(rps, "_fold_map", lambda: {})
         con, conn = lane
         con.execute(rps._DDL_RATINGS)
         con.execute("DELETE FROM credit_ratings")
@@ -356,6 +358,35 @@ class TestRatingsPass:
         assert json.loads(row[2])["rating"] == "AA+"
         kinds = dict(conn.execute("SELECT name, entity_type FROM entities").fetchall())
         assert kinds["CRISIL Ratings"] == "institution"
+
+    def test_folded_agency_resolves_not_reminted(self, lane, monkeypatch):
+        """polyadic S4: a folded variant agency (name_dedup ledger) must
+        resolve to its canonical BEFORE the mint check — the next vigil
+        sync must not re-mint the merged-away entity."""
+        con, conn = lane
+        # the canonical exists as a company (reality: CRISIL is listed)
+        conn.execute("INSERT INTO entities VALUES ('CRISIL', 'company', 'CRISIL', NULL)")
+        conn.commit()
+        monkeypatch.setattr(rps, "_fold_map", lambda: {"crisil ratings": "CRISIL"})
+        con.execute(rps._DDL_RATINGS)
+        con.execute("DELETE FROM credit_ratings")
+        con.execute(
+            "INSERT INTO credit_ratings (nse_symbol, rating_agency, credit_rating, "
+            "rating_action, date_of_rating, outlook, instrument_name, xbrl_url, red_flag_reason) "
+            "VALUES ('TVSMOTOR', 'CRISIL Ratings Limited', 'AA+', 'New', '2026-01-26', "
+            "'Stable', 'EQ', 'https://x/r.xml', 'not_flagged')"
+        )
+        pairs = rps.build_rating_pairs(con)
+        n_ag, n_edges, written = rps.apply_rating_pairs(
+            conn, pairs, {"TVSMOTOR": "TVS Motor Company"}, dry_run=False
+        )
+        assert n_ag == 0, "folded variant must not re-mint an agency entity"
+        assert written == 1
+        row = conn.execute("SELECT target FROM graph_edges WHERE edge_type='rated_by'").fetchone()
+        assert row[0] == "CRISIL", "rated_by must resolve to the canonical entity"
+        assert not conn.execute(
+            "SELECT COUNT(*) FROM entities WHERE name = 'CRISIL Ratings'"
+        ).fetchone()[0]
 
 
 class TestSymmetricEmissionPrecision:

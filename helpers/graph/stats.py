@@ -872,20 +872,46 @@ def print_stats(exact_chains: bool = False) -> int:
     # part_of/has_company retirement (2026-10-19): membership is canonical in
     # the incidence store, so it leaves the dyad breakdown but must not leave
     # the report — shown as its own line, projected as the pair a reader knows.
+    # co_mentioned_in retirement (polyadic S5 2026-11-07): same treatment for
+    # the edition projections — pairs derived from co_mention_editions'
+    # canonical edition family, counted the same way the integrity checker
+    # counts them (_expected_comention_count).
     _mconn = connect()
     try:
         n_membership = _mconn.execute(
             "SELECT COUNT(*) FROM hyper_incidences hi "
             "JOIN hyper_edges he ON he.id = hi.edge_id WHERE he.edge_type='sector'"
         ).fetchone()[0]
+        n_comention = _mconn.execute(
+            """
+            SELECT COUNT(*) FROM (
+              SELECT DISTINCT hi1.entity_name AS a, hi2.entity_name AS b
+              FROM hyper_edges he
+              JOIN hyper_incidences hi1 ON hi1.edge_id = he.id
+              JOIN hyper_incidences hi2 ON hi2.edge_id = he.id
+                   AND hi2.entity_name > hi1.entity_name
+              JOIN entities ea ON ea.name = hi1.entity_name
+                   AND ea.entity_type = 'company'
+              JOIN entities eb ON eb.name = hi2.entity_name
+                   AND eb.entity_type = 'company'
+              WHERE he.edge_type = 'edition'
+            )
+            """
+        ).fetchone()[0]
     except Exception:  # noqa: BLE001  # advisory; pre-retirement DBs
         n_membership = 0
+        n_comention = 0
     finally:
         _mconn.close()
     if n_membership:
         print(
             f"  {'sector membership':20} {_bar(n_membership, max_n)}"
             "  (hyper_incidences; part_of/has_company are derived, not stored)"
+        )
+    if n_comention:
+        print(
+            f"  {'co_mentioned_in':20} {_bar(n_comention, max_n)}"
+            "  (edition projections; co-mention pairs are derived, not stored)"
         )
 
     _print_structure_metrics()

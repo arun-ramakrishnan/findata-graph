@@ -86,7 +86,7 @@ help:           ## Show available targets (alphabetical; entries generated from 
 > @echo "  derive-all               READ-ONLY preview of every derive-* step (dry-runs; nothing written, sidecar suppressed)"
 > @echo "  derive-cited-in          Derive cited_in (note -> edition) edges from OKF sources[] frontmatter (okf_activation P)"
 > @echo "  derive-cited-in-rebuild  derive-cited-in + graph-rebuild — the paired run cited_in requires (writes entities+edges, then rebuilds the DuckDB cache to match)"
-> @echo "  derive-co-mentions       Derive co_mentioned_in edges from newsletter enhancement blocks"
+> @echo "  derive-co-mentions       Stage newsletter co-mention edition sets (S5: dyads retired; feeds the edition hyperedge family)"
 > @echo "  derive-countries          Derive listed_in (company -> country) edges from exchange tickers (country layer C1)"
 > @echo "  derive-event-participants Materialise the event_participants n-ary store (person_ontology_spine S4): dry-run default, APPLY=1 writes"
 > @echo "  derive-events            Promote relation edges + extract guidance/management events into the events timeline table"
@@ -699,7 +699,7 @@ recompute-hyper: ## Recompute HGX hyper metrics (hy-MMSBM communities + ho/s cen
 > python3 helpers/graph/hyper_centralities.py --apply
 > @echo "✓ hyper metrics refreshed (hypermmsbm_community, ho_pagerank, s_betweenness, s_closeness)"
 
-derive-co-mentions: ## Derive co_mentioned_in edges from newsletter enhancement blocks
+derive-co-mentions: ## Stage newsletter co-mention edition sets (S5: dyads retired; feeds the edition hyperedge family)
 > python3 helpers/graph/derive_co_mentions.py --newsletter The_Chatter --apply
 > @echo "✓ co_mentioned_in edges refreshed"
 

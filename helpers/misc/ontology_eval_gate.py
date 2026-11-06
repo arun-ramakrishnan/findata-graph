@@ -55,6 +55,8 @@ Usage:
     python3 helpers/misc/ontology_eval_gate.py --parent A.db --candidate B.db \
         --questions helpers/misc/ontology_questions.json --expect-improve q1,q2
     python3 helpers/misc/ontology_eval_gate.py --parent A.db --candidate B.db \
+        --questions Q.json --expect-shrink q3  # semantic re-base (declared loss)
+    python3 helpers/misc/ontology_eval_gate.py --parent A.db --candidate B.db \
         --questions Q.json --rebaseline "completed.md #NNN (the accepting change)"
 """
 
@@ -328,7 +330,11 @@ def load_questions(path: Path) -> dict:
 
 
 def _evaluate_one(
-    parent: sqlite3.Connection, candidate: sqlite3.Connection, q: dict, declared: bool
+    parent: sqlite3.Connection,
+    candidate: sqlite3.Connection,
+    q: dict,
+    declared: bool,
+    expect_shrink: frozenset[str] = frozenset[str](),
 ) -> dict:
     """Answer one question on both sides and classify its verdict.
 
@@ -356,15 +362,30 @@ def _evaluate_one(
     entry["parent_n"], entry["candidate_n"] = len(p), len(c)
     entry["added"] = sorted(set(c) - set(p))
     entry["lost"] = sorted(set(p) - set(c))
-    if p == c and declared:
+    shrink = qid in expect_shrink
+    if p == c and (declared or shrink):
         entry["verdict"] = VERDICT_UNCHANGED
-        entry["reason"] = f"{qid}: declared improvement did not materialize"
+        entry["reason"] = (
+            f"{qid}: declared shrink did not materialize"
+            if shrink
+            else f"{qid}: declared improvement did not materialize"
+        )
     elif p == c:
         entry["verdict"] = VERDICT_UNCHANGED
     elif declared and entry["lost"]:
         entry["verdict"] = VERDICT_REGRESSED
         entry["reason"] = f"{qid}: declared change LOST rows ({entry['lost']})"
     elif declared:
+        entry["verdict"] = VERDICT_IMPROVED
+    elif shrink and entry["added"]:
+        # a declared shrink that GAINS rows is not the change that was declared
+        entry["verdict"] = VERDICT_REGRESSED
+        entry["reason"] = f"{qid}: declared shrink GAINED rows ({entry['added']})"
+    elif shrink:
+        # S5 semantic re-base (polyadic_capture_edge_fidelity): a declared
+        # shrink whose answer LOST rows IS the materialization — the
+        # retirement of a representation legitimately removes rows while
+        # the fact survives in its canonical lane.
         entry["verdict"] = VERDICT_IMPROVED
     else:
         entry["verdict"] = VERDICT_UNDECLARED
@@ -379,13 +400,17 @@ def evaluate(
     candidate: sqlite3.Connection,
     questions: list[dict],
     expect_improve: set[str],
+    expect_shrink: frozenset[str] = frozenset[str](),
 ) -> tuple[bool, list[dict], list[str]]:
     """Run the accept rule; returns (accept, per-question results, reasons)."""
     known_ids = {q["id"] for q in questions}
     unknown = sorted(expect_improve - known_ids)
     if unknown:
         raise GateError(f"--expect-improve names unknown question ids: {unknown}")
-    results = [_evaluate_one(parent, candidate, q, q["id"] in expect_improve) for q in questions]
+    results = [
+        _evaluate_one(parent, candidate, q, q["id"] in expect_improve, expect_shrink)
+        for q in questions
+    ]
     reasons = [e.pop("reason") for e in results if "reason" in e]
     # _evaluate_one sets a reason exactly when the verdict blocks acceptance
     # (regressed/undeclared/errored) or a declared improvement didn't move.
@@ -426,6 +451,13 @@ def main(argv: list[str] | None = None) -> int:
         help="comma list of question ids the change targets",
     )
     parser.add_argument(
+        "--expect-shrink",
+        default="",
+        help="comma list of question ids whose answers legitimately SHRINK "
+        "(semantic re-base: the lost rows are the declared materialization; "
+        "gained rows still regress)",
+    )
+    parser.add_argument(
         "--rebaseline",
         default=None,
         metavar="REF",
@@ -441,13 +473,17 @@ def main(argv: list[str] | None = None) -> int:
         if not args.rebaseline and not args.parent:
             raise GateError("--parent is required unless --rebaseline")
         expect = {q for q in args.expect_improve.split(",") if q}
+        expect_shrink = frozenset(q for q in args.expect_shrink.split(",") if q)
+        overlap = expect & expect_shrink
+        if overlap:
+            raise GateError(f"--expect-improve and --expect-shrink overlap: {sorted(overlap)}")
         candidate = connect(args.candidate)
         try:
             if args.rebaseline:
                 parent = connect(args.parent)
                 try:
                     accept, results, reasons = evaluate(
-                        parent, candidate, data["questions"], expect
+                        parent, candidate, data["questions"], expect, expect_shrink
                     )
                 finally:
                     parent.close()
@@ -464,7 +500,9 @@ def main(argv: list[str] | None = None) -> int:
                 return 0
             parent = connect(args.parent)
             try:
-                accept, results, reasons = evaluate(parent, candidate, data["questions"], expect)
+                accept, results, reasons = evaluate(
+                    parent, candidate, data["questions"], expect, expect_shrink
+                )
             finally:
                 parent.close()
         finally:
@@ -478,6 +516,7 @@ def main(argv: list[str] | None = None) -> int:
         "question_set": str(args.questions),
         "question_set_version": data.get("version", 1),
         "expect_improve": sorted(expect),
+        "expect_shrink": sorted(expect_shrink),
         "accept": accept,
         "reasons": reasons,
         "questions": results,

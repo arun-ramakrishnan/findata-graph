@@ -414,6 +414,8 @@ class DatabaseIntegrityChecker:
                 "type_mismatch": 0,
                 "sector_membership_endpoint_bad": 0,
                 "circular": 0,
+                "sidecar_temporal_missing": 0,
+                "sidecar_temporal_orphaned": 0,
                 "errors": 0,
             }
 
@@ -515,6 +517,39 @@ class DatabaseIntegrityChecker:
             "WHERE r.relation_type='exposed_to' AND e.entity_type!='theme'"
         )
 
+        # S3 (polyadic_capture_edge_fidelity): a sidecar-promoted edge must
+        # carry the temporal anchor its human-audited sidecar declared. The
+        # promotion writer maps sidecar as_of -> valid_from (ISO dates) or
+        # properties.as_of (prose dates) and copies confidence, so a promoted
+        # row with neither is a regression in the write path. Rows whose
+        # sidecar file has since been deleted are permanently underivable and
+        # are counted separately, report-only. graph_edges is queried directly
+        # because the relations view projects only source/target/relation_type.
+        sidecar_missing = 0
+        sidecar_orphaned = 0
+        if (
+            cur.execute(
+                "SELECT 1 FROM sqlite_master WHERE name='graph_edges' AND type='table'"
+            ).fetchone()
+            is not None
+        ):
+            stale = cur.execute(
+                "SELECT source_ref, CASE WHEN properties IS NULL "
+                "OR NOT json_valid(properties) THEN NULL "
+                "ELSE json_extract(properties, '$.as_of') END "
+                "FROM graph_edges WHERE source_ref LIKE 'promote:sidecar:%' "
+                "AND (valid_from IS NULL OR valid_from = '')"
+            ).fetchall()
+            relations_dir = self.base_path / "findata" / "Misc" / "_relations"
+            for source_ref, as_of_prop in stale:
+                slug = source_ref.split("promote:sidecar:", 1)[1]
+                if as_of_prop is not None:
+                    continue
+                if (relations_dir / slug).exists():
+                    sidecar_missing += 1
+                else:
+                    sidecar_orphaned += 1
+
         errors = (
             unknown_type
             + self_loops
@@ -525,6 +560,7 @@ class DatabaseIntegrityChecker:
             + bt_tgt_bad
             + et_src_bad
             + et_tgt_bad
+            + sidecar_missing
         )
         return {
             "total": total,
@@ -537,6 +573,8 @@ class DatabaseIntegrityChecker:
             "exposed_to_endpoint_bad": et_src_bad + et_tgt_bad,
             "circular": circular,
             "circular_two_way_exempt": two_way_exempt,
+            "sidecar_temporal_missing": sidecar_missing,
+            "sidecar_temporal_orphaned": sidecar_orphaned,
             "errors": errors,
         }
 
@@ -2065,6 +2103,47 @@ class DatabaseIntegrityChecker:
             (etype,),
         ).fetchone()[0]
 
+    def _expected_comention_count(self) -> int:
+        """SQLite-side expectation for the ``e_comention`` compatibility
+        projection (S5 co_mentioned_in retirement, 2026-11-07).
+
+        The dyads are retired from ``graph_edges`` (9,638 → 0 rows); the
+        cache table is projected from the canonical edition family
+        (newsletter co-mentions ∪ quote participation) — ONE aggregated
+        row per unordered company pair sharing ≥1 edition
+        (``helpers/graph/query.py::_materialise_co_mention``). The
+        expectation must mirror that projection or the projection
+        itself reads as cache staleness (e_comention duckdb=11315 vs
+        sqlite=0 was exactly that false positive).
+
+        Absent hyper store → 0: the materializer's absent-store posture
+        is an empty table, so the expectation must be empty too (the
+        sector projection falls back to dyads instead because ITS cache
+        build does; this one does not).
+        """
+        conn = self.get_connection()
+        if (
+            conn.execute(
+                "SELECT 1 FROM sqlite_master WHERE name='hyper_incidences' AND type='table'"
+            ).fetchone()
+            is None
+        ):
+            return 0
+        return conn.execute(
+            "SELECT COUNT(*) FROM ("
+            "  SELECT DISTINCT hi1.entity_name AS a, hi2.entity_name AS b"
+            "  FROM hyper_edges he"
+            "  JOIN hyper_incidences hi1 ON hi1.edge_id = he.id"
+            "  JOIN hyper_incidences hi2 ON hi2.edge_id = he.id"
+            "   AND hi2.entity_name > hi1.entity_name"
+            "  JOIN entities ea ON ea.name = hi1.entity_name"
+            "   AND ea.entity_type = 'company'"
+            "  JOIN entities eb ON eb.name = hi2.entity_name"
+            "   AND eb.entity_type = 'company'"
+            "  WHERE he.edge_type = 'edition'"
+            ")"
+        ).fetchone()[0]
+
     def _reconcile_cache(self, duck_con) -> dict:  # noqa: C901
         """Compare the open DuckDB connection against SQLite. Factored out
         of check_cache_consistency for testability (a test can pass a fake
@@ -2131,7 +2210,11 @@ class DatabaseIntegrityChecker:
             sn = (
                 self._expected_projected_count(etype)
                 if etype in _PROJECTED_MEMBERSHIP_TYPES
-                else (self._expected_edge_count(etype, spec) if ge_present else 0)
+                else (
+                    self._expected_comention_count()
+                    if etype == "co_mentioned_in"
+                    else (self._expected_edge_count(etype, spec) if ge_present else 0)
+                )
             )
             if dn is None or dn != sn:
                 mismatches.append(

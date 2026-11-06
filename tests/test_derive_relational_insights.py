@@ -213,7 +213,26 @@ class TestHiddenConnections:
 
     def test_co_mentioned_pair_excluded(self, db):
         path, conn = db
-        _edge(conn, "CoP", "CoQ", "co_mentioned_in", "derive:comention:x")
+        # S5: co_mentioned_in dyads are retired — seed the CANONICAL edition
+        # family instead (the pair view projects from it).
+        conn.executescript(
+            """
+            CREATE TABLE IF NOT EXISTS hyper_edges (
+                id INTEGER PRIMARY KEY, edge_type TEXT NOT NULL,
+                label TEXT NOT NULL, weight REAL, valid_from TEXT,
+                valid_to TEXT, source_ref TEXT, properties TEXT,
+                created_at TEXT, agent_id TEXT, source_tier TEXT,
+                UNIQUE(edge_type, label));
+            CREATE TABLE IF NOT EXISTS hyper_incidences (
+                edge_id INTEGER NOT NULL REFERENCES hyper_edges(id),
+                entity_name TEXT NOT NULL,
+                weight REAL, direction TEXT, role TEXT,
+                valid_from TEXT, valid_to TEXT,
+                PRIMARY KEY (edge_id, entity_name));
+            INSERT INTO hyper_edges (id, edge_type, label) VALUES (9001, 'edition', 'Edition Z');
+            INSERT INTO hyper_incidences (edge_id, entity_name) VALUES (9001, 'CoP'), (9001, 'CoQ');
+            """
+        )
         conn.commit()
         dri.run_lane(conn, "hidden-connections", apply_=True, db_path=path)
         rows = {(r[0], r[1]) for r in _rows(conn, "hidden_connections")}

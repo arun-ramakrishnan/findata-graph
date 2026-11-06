@@ -230,20 +230,32 @@ class TestCoMentions:
         with _seeded_sqlite_db(tmp_path) as client:
             db_path = tmp_path / "unit_graph.db"
             conn = sqlite3.connect(str(db_path))
+            # S5 (co_mentioned_in retirement): the dyads are gone — seed the
+            # canonical edition family instead. e_comention is ONE row per
+            # pair, so participation = distinct partners. The conftest seed's
+            # Edition Alpha already pairs HDFC↔ICICI↔Infosys; U2 adds
+            # HDFC↔Peer Co → HDFC 3 > ICICI 2 = Infosys 2 > Peer 1.
+            conn.execute(
+                "INSERT INTO entities (name, entity_type, file_path) "
+                "VALUES ('Peer Co', 'company', 'findata/Companies/X/Peer.md')"
+            )
             conn.executemany(
-                "INSERT INTO graph_edges (source, target, edge_type, source_ref) VALUES (?,?,?,?)",
-                [
-                    ("HDFC Bank", "ICICI Bank", "co_mentioned_in", "seed"),
-                    ("HDFC Bank", "Infosys", "co_mentioned_in", "seed"),
-                    ("ICICI Bank", "HDFC Bank", "co_mentioned_in", "seed"),
-                ],
+                "INSERT INTO hyper_edges (id, edge_type, label, source_ref) VALUES (?,?,?,?)",
+                [(901, "edition", "Edition U1", "seed"),
+                 (902, "edition", "Edition U2", "seed")],
+            )
+            conn.executemany(
+                "INSERT INTO hyper_incidences (edge_id, entity_name) VALUES (?,?)",
+                [(901, "HDFC Bank"), (901, "ICICI Bank"), (901, "Infosys"),
+                 (902, "HDFC Bank"), (902, "Peer Co")],
             )
             conn.commit()
             conn.close()
             data = client.get("/api/graph/co-mentions").get_json()
-        assert len(data["ranked"]) == 3
+        assert len(data["ranked"]) == 4
         assert data["ranked"][0] == {"entity": "HDFC Bank", "co_mentions": 3}
         assert data["ranked"][1] == {"entity": "ICICI Bank", "co_mentions": 2}
+        assert data["ranked"][2] == {"entity": "Infosys", "co_mentions": 2}
 
     def test_top_param_limits_results(self, tmp_path):
         with _seeded_sqlite_db(tmp_path) as client:
@@ -256,9 +268,16 @@ class TestCoMentions:
                 "INSERT INTO entities (name, entity_type, file_path) VALUES (?,?,?)",
                 [(f"Co{i}", "company", f"findata/Companies/X/Co{i}.md") for i in range(10)],
             )
+            # S5: ring via the edition family — one edition per ring edge,
+            # every Co at 2 distinct partners → 10 ranked rows.
             conn.executemany(
-                "INSERT INTO graph_edges (source, target, edge_type, source_ref) VALUES (?,?,?,?)",
-                [(f"Co{i}", f"Co{(i + 1) % 10}", "co_mentioned_in", "seed") for i in range(10)],
+                "INSERT INTO hyper_edges (id, edge_type, label, source_ref) VALUES (?,?,?,?)",
+                [(1000 + i, "edition", f"Ring Edition {i}", "seed") for i in range(10)],
+            )
+            conn.executemany(
+                "INSERT INTO hyper_incidences (edge_id, entity_name) VALUES (?,?)",
+                [(1000 + i, f"Co{i}") for i in range(10)]
+                + [(1000 + i, f"Co{(i + 1) % 10}") for i in range(10)],
             )
             conn.commit()
             conn.close()

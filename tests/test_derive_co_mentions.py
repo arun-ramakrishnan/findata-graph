@@ -126,58 +126,135 @@ def synthetic_db(tmp_path) -> Path:
     return db_path
 
 
-class TestApplyEdges:
-    def test_apply_inserts_and_counts(self, synthetic_db):
-        edges = derive_edges({"Edition X": ["A", "B", "C"]})
-        assert len(edges) == 3
+class TestApplyEditionSets:
+    """S5 writer contract: stage per-edition sets into co_mention_editions
+    (the pair materialization into graph_edges is retired — apply_edges
+    raises)."""
+
+    def test_apply_edition_sets_stages_and_counts(self, synthetic_db):
+        from helpers.graph.derive_co_mentions import apply_edition_sets
 
         conn = sqlite3.connect(synthetic_db)
         conn.execute("PRAGMA foreign_keys = ON")
         try:
-            n = apply_edges(edges, conn=conn, dry_run=False)
+            n = apply_edition_sets(
+                {"Edition X": ["A", "B", "C"]},
+                newsletter_type="The_Chatter",
+                conn=conn,
+                dry_run=False,
+            )
             assert n == 3
             rows = conn.execute(
-                "SELECT source, target, edge_type, symmetric, source_ref "
-                "FROM graph_edges ORDER BY source, target"
+                "SELECT edition_title, entity_name, newsletter, source_ref "
+                "FROM co_mention_editions ORDER BY entity_name"
             ).fetchall()
-            assert len(rows) == 3
-            for _s, _t, edge_type, symmetric, source_ref in rows:
-                assert edge_type == "co_mentioned_in"
-                assert symmetric == 1
-                assert source_ref == "derive:co_mentioned:The_Chatter"
+            assert rows == [
+                ("Edition X", "A", "The_Chatter", "derive:co_mentioned:The_Chatter"),
+                ("Edition X", "B", "The_Chatter", "derive:co_mentioned:The_Chatter"),
+                ("Edition X", "C", "The_Chatter", "derive:co_mentioned:The_Chatter"),
+            ]
         finally:
             conn.close()
 
-    def test_apply_is_idempotent(self, synthetic_db):
-        """Running insert twice should not duplicate rows."""
-        edges = derive_edges({"Edition X": ["A", "B", "C"]})
+    def test_apply_edition_sets_is_idempotent(self, synthetic_db):
+        from helpers.graph.derive_co_mentions import apply_edition_sets
+
         conn = sqlite3.connect(synthetic_db)
         conn.execute("PRAGMA foreign_keys = ON")
         try:
-            first = apply_edges(edges, conn=conn, dry_run=False)
-            second = apply_edges(edges, conn=conn, dry_run=False)
+            first = apply_edition_sets(
+                {"Edition X": ["A", "B", "C"]},
+                conn=conn,
+                dry_run=False,
+            )
+            second = apply_edition_sets(
+                {"Edition X": ["A", "B", "C"]},
+                conn=conn,
+                dry_run=False,
+            )
             assert first == 3
-            assert second == 0  # all skipped via INSERT OR IGNORE
-            count = conn.execute(
-                "SELECT COUNT(*) FROM graph_edges WHERE edge_type='co_mentioned_in'"
-            ).fetchone()[0]
-            assert count == 3
+            assert second == 0  # INSERT OR IGNORE on the PK
         finally:
             conn.close()
 
-    def test_dry_run_does_not_write(self, synthetic_db):
-        edges = derive_edges({"Edition X": ["A", "B"]})  # 1 pair
+    def test_apply_edition_sets_dry_run_does_not_write(self, synthetic_db):
+        from helpers.graph.derive_co_mentions import apply_edition_sets
+
         conn = sqlite3.connect(synthetic_db)
         conn.execute("PRAGMA foreign_keys = ON")
         try:
-            n = apply_edges(edges, conn=conn, dry_run=True)
-            assert n == 1  # would insert the single pair
-            count = conn.execute(
-                "SELECT COUNT(*) FROM graph_edges WHERE edge_type='co_mentioned_in'"
-            ).fetchone()[0]
-            assert count == 0  # nothing actually written
+            n = apply_edition_sets({"Edition X": ["A", "B"]}, conn=conn, dry_run=True)
+            assert n == 2  # would stage both memberships
+            count = conn.execute("SELECT COUNT(*) FROM co_mention_editions").fetchone()[0]
+            assert count == 0
         finally:
             conn.close()
+
+    def test_apply_edges_is_retired(self, synthetic_db):
+        """The S5 guard: no caller may silently re-materialize the clique."""
+
+        edges = derive_edges({"Edition X": ["A", "B"]})
+        with pytest.raises(NotImplementedError, match="retired"):
+            apply_edges(edges, conn=sqlite3.connect(synthetic_db), dry_run=False)
+
+
+class TestProjectCoMentionPairs:
+    """The S5 pair view: projected from the canonical edition family,
+    canonical a < b, weight = n_shared_editions + 1."""
+
+    @pytest.fixture()
+    def edition_family_db(self, tmp_path):
+        db_path = tmp_path / "fam.db"
+        conn = sqlite3.connect(db_path)
+        conn.executescript(
+            """
+            CREATE TABLE entities (name TEXT PRIMARY KEY);
+            CREATE TABLE hyper_edges (
+                id INTEGER PRIMARY KEY,
+                edge_type TEXT NOT NULL,
+                label TEXT NOT NULL,
+                weight REAL,
+                valid_from TEXT, valid_to TEXT,
+                source_ref TEXT, properties TEXT,
+                created_at TEXT, agent_id TEXT, source_tier TEXT,
+                UNIQUE(edge_type, label)
+            );
+            CREATE TABLE hyper_incidences (
+                edge_id INTEGER NOT NULL REFERENCES hyper_edges(id) ON DELETE CASCADE,
+                entity_name TEXT NOT NULL,
+                weight REAL, direction TEXT, role TEXT,
+                valid_from TEXT, valid_to TEXT,
+                PRIMARY KEY (edge_id, entity_name)
+            );
+            """
+        )
+        conn.executemany("INSERT INTO entities VALUES (?)", [("A",), ("B",), ("C",)])
+        conn.execute("INSERT INTO hyper_edges (id, edge_type, label) VALUES (1, 'edition', 'E1')")
+        conn.execute("INSERT INTO hyper_edges (id, edge_type, label) VALUES (2, 'edition', 'E2')")
+        for eid, members in [(1, ["A", "B", "C"]), (2, ["A", "B"])]:
+            for m in members:
+                conn.execute(
+                    "INSERT INTO hyper_incidences (edge_id, entity_name) VALUES (?, ?)",
+                    (eid, m),
+                )
+        conn.commit()
+        yield conn
+        conn.close()
+
+    def test_projects_pairs_with_count_plus_one_weight(self, edition_family_db):
+        from helpers.graph.derive_co_mentions import project_co_mention_pairs
+
+        pairs = project_co_mention_pairs(edition_family_db)
+        # A-B share both editions -> weight 3; A-C and B-C share one -> 2.
+        assert sorted(pairs) == [("A", "B", 3.0), ("A", "C", 2.0), ("B", "C", 2.0)]
+
+    def test_projection_is_canonical_and_deduped(self, edition_family_db):
+        from helpers.graph.derive_co_mentions import project_co_mention_pairs
+
+        pairs = project_co_mention_pairs(edition_family_db)
+        keys = [(a, b) for a, b, _w in pairs]
+        assert keys == sorted(set(keys))
+        assert all(a < b for a, b in keys)
 
 
 # --------------------------------------------------------------------------- #

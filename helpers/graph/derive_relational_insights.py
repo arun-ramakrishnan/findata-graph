@@ -198,9 +198,11 @@ def derive_hidden_connections(
         struct[s].add(t)
         struct[t].add(s)
     comention: dict[str, set[str]] = defaultdict(set)
-    for s, t in conn.execute(
-        "SELECT source, target FROM graph_edges WHERE edge_type='co_mentioned_in'"
-    ).fetchall():
+    # S5 (co_mentioned_in retirement): the dyads are gone from graph_edges —
+    # the pair view projects from the canonical edition hyperedge family.
+    from helpers.graph.derive_co_mentions import project_co_mention_pairs  # noqa: PLC0415
+
+    for s, t, _w in project_co_mention_pairs(conn):
         comention[s].add(t)
         comention[t].add(s)
 

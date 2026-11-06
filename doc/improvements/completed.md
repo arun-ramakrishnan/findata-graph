@@ -13935,3 +13935,154 @@ to doc/improvements/archive/database/duckdb_pure_stack.md.
   rows (`sid#bid` part_ids).
 - Gates: targeted tests only per doctrine (7 suites green, ruff
   clean); no quartet run — maintenance-lane arc, operator's call.
+
+## 486. Polyadic S4 — institution canonical fixes (agency families unified)
+
+- **Date:** 2026-11-07 · **Status:** EXECUTED · **Proposal:** doc/improvements/archive/graph/polyadic_capture_edge_fidelity.md §S4
+- Operator rulings on live census: **per-family typing** (CRISIL/ICRA/
+  CARE Ratings are listed companies — the proposal's literal
+  all-institution flip would have broken sector-membership integrity,
+  company projections and embeddings; superseded by "one entity per
+  agency family"), **Acute→Acuite** typo fold (1 edge),
+  **CRISIL Ratings→CRISIL full merge** (57 rated_by; the subsidiary_of
+  + reciprocal supplier_to edges + 2 incidences were real RPT facts —
+  operator accepted the self-loop losses).
+- Execution: gated `name_dedup.apply_plan` with signed plan artifacts
+  (`findata/Misc/_name_merge_plan_s4_agencies.*`): 54 rows re-pointed,
+  7 collisions consolidated, 2 entities folded, zero_loss_ok True;
+  folds appended to the default `_name_fold_ledger.jsonl`. Re-mint
+  guard added to `related_party_sync.apply_rating_pairs` (agency
+  display resolves through `_fold_map()` before the mint check —
+  vigil CSV spellings can no longer resurrect folded entities;
+  `test_folded_agency_resolves_not_reminted` + legacy mint test
+  pinned). Backup: db-backup/research_backup_pre_s4_2026-11-07.db.
+- Post: 9 distinct rating/regulation targets, zero residual
+  references, integrity 100%, graph-rebuild + stamp-centrality done.
+  Census artifact `outputs/institution_ed1_census.md`: 7 ED-1 pairs
+  remain (1 real: SBI Mutual Fund↔Funds; 6 debris) + 43 truncation-
+  capped names flagged report-only.
+- Noted for follow-up: all rated_by edges carry `date_of_rating` in
+  properties but valid_from=NULL — S3's backfill flag not yet run on
+  the standing edges (S3 landed in 9b7312e4e with promotion-path
+  coverage only).
+
+## 487. Polyadic S1 — n-ary event participants (the polyadic feed)
+
+- **Date:** 2026-11-07 · **Status:** EXECUTED · **Proposal:** doc/improvements/archive/graph/polyadic_capture_edge_fidelity.md §S1
+- Injection boundary resolved: extraction (derive_events — two new
+  prose extractors: `_extract_acquisition_triangle` voice-correct
+  roles, `_extract_jv_consortium` lead/partner shapes) →
+  `EntityResolver(allow_fuzzy=False)` resolve-only (no mint) → payload
+  rides `events.properties.participants` (no DDL) → projection
+  (`derive_event_participants.collect()` supersedes the pair shape for
+  payload events; rows only for resolved names that exist) → roles to
+  incidences via `collect_event_facets` extension. Roster: `seller`,
+  `lead_partner` added to ontology.md `event_roles` in the same change.
+  `EntityResolver` gained `allow_fuzzy` (default True, no behavior
+  change elsewhere).
+- Census-first (operator-agreed) caught real precision failures before
+  any write: fuzzy mis-resolutions ("Tata Group"→"Tata Consumer
+  Products UK Group"), country entities as partners, lowercase sellers
+  (IGNORECASE leak), header spans. Fixes: strict resolver tier +
+  country/structural denylist + case-sensitive spans + stopwords +
+  per-entity dedup + span cap. Hardened yield: 11 ≥3-resolved events,
+  all real-world verifiable; operator approved apply.
+- Eval gate: ACCEPT — 173 questions / 0 reasons (frozen set does not
+  yet pin event-family membership; add at next rebaseline). Canonical
+  apply: 156 new events, 2,815 participant rows, event family +75
+  hyperedges/+164 incidences.
+- Acceptance: **11 new k≥3 event hyperedges** (8 k=3, 3 k=4 —
+  Ambuja←Adani Enterprises←Holcim; Eicher+VECV+AB Volvo; Brakes India
+  cluster; ICICI/Prudential + Bajaj/Allianz JVs) — LTM no longer the
+  only one; k-distribution event 1,161 k=2 + 11 k≥3; zero new
+  entities (guard test); zero dangling incidences; integrity 100%;
+  graph-rebuild + stamp-centrality done. Latent fix:
+  `apply_participants` sorted() on sqlite3.Row (Row-factory crash).
+- Ratings events DEFERRED (operator): the vigil rated_by lane owns
+  rating actions; no duplicate representation.
+- Post-S4 latent observation carried: rated_by edges carry
+  `date_of_rating` in properties with valid_from=NULL (S3b backfill,
+  filed).
+
+## 488. Polyadic S2 — supply k=1 buyer census (the shadow ledger)
+
+- **Date:** 2026-11-07 · **Status:** EXECUTED · **Proposal:** doc/improvements/archive/graph/polyadic_capture_edge_fidelity.md §S2
+- Measured twist: the k=1 buyer labels are already REGISTERED entities
+  (7,412/7,413 — the proposal's free-text framing predates the
+  pending-triage promotions). Census re-ranked the 7,413 k=1 buyers by
+  ruling relevance (tier A alias-candidate 1,266 / B merge-duplicate
+  796 / C rest 5,351) → top-200 ruled by the operator in 20 batches of
+  10.
+- All 200 ruled `alias:` into their canonical parent (47 clusters, gated
+  `name_dedup.apply_plan`, DEFAULT ledger; zero keep/non-entity — every
+  top-200 label was a subsidiary/spelling duplicate). Operator
+  overrides of word-overlap noise candidates: Samvardhana Motherson
+  International, Waaree Energies, JSW Steel, Berger Paints India; the
+  13-row mangled Hitachi Energy overseas family folded into Hitachi
+  Energy (GLOBAL) not the scored Hitachi Energy India; Anand Rathi
+  umbrella+IT → Anand Rathi Wealth; JVs folded per small-scale ruling.
+- Acceptance: k=1 7,413 → 7,222 (84.2% → 83.9% of 8,604; honest yield —
+  the long tail is untouched and census-ranked); zero auto-accept
+  (apply_plan --yes gate; guard tests
+  `TestS2FoldLedgerInvariants` live-marked: ledger invariants + S2
+  variants gone/canonicals alive); FK 0, integrity ok, 0 dangling;
+  graph-rebuild + stamp-centrality; backup
+  `db-backup/research_backup_pre_s2_2026-11-07.db`.
+- Findings recorded: (1) star-family zombie prune is arc-owned —
+  derive_hyperedges' star apply is additive, folded labels leave zombie
+  supply hyperedges (S2 added a precise plan-variant prune; general
+  prune belongs in the future full-refresh mode); (2) 109/200 folded
+  subs had NO `subsidiary_of` edge at fold time (HCL overseas tail,
+  Hitachi family, GE, …) — per-batch restore table in
+  `outputs/supply_k1_census.md`, rides the S3b backfill rider.
+
+## 489. Polyadic S3b — standing-edge evidence backfill (the rider)
+
+- **Date:** 2026-11-07 · **Status:** EXECUTED · **Proposal:** doc/improvements/archive/graph/polyadic_capture_edge_fidelity.md §S3b
+- Rode the S2 arc's db-touching session, same day. Live re-measure
+  corrected the filed numbers first: rated_by carries
+  `properties.date_of_rating` on 211/214 (not 214 — Muthoot ×2 +
+  Motilal Oswal prose never stated a date); acquired 30 and jv_with 3
+  were already backfilled by S3's promotion path; regulated_by/
+  approved_by/customer_of carry nothing derivable (stay NULL, D-O3).
+- Two plain idempotent UPDATEs (the SQL is the record, no tooling):
+  rated_by.valid_from ← date_of_rating (211 rows; all 157 distinct
+  values ISO, matching column convention) + one manual subsidiary_of
+  edge carrying properties.date (Kotak Life→Kotak Bank; flagged scope
+  extension). Idempotent: re-run writes 0.
+- Acceptance: rated_by 0/214 → 211/214; database_integrity_check 100%
+  (S3's sidecar check scoped to promote:sidecar:% — green); FK 0;
+  graph-rebuild + stamp-centrality; backup
+  `db-backup/research_backup_pre_s3b_2026-11-07.db`.
+- Rider scope correction: S2's subsidiary_of restore does NOT work as
+  filed (109 folded variants no longer exist → variant→canonical is a
+  self-loop FK trap); the census artifact's per-batch table carries as
+  PROVENANCE for any future re-mint arc.
+
+## 490. Polyadic S5 — edition clique retirement (incidence canonical)
+
+- **Date:** 2026-11-07 · **Status:** EXECUTED · **Proposal:** doc/improvements/archive/graph/polyadic_capture_edge_fidelity.md §S5
+- The part_of/has_company playbook replicated for co_mentioned_in:
+  writer flip (derive_co_mentions stages per-edition SETS into the new
+  `co_mention_editions` table — C(n,2) blowup dies at source; dyad
+  INSERT retired with a loud stub), regroup drop (edition left
+  `_SYMMETRIC_SOURCES`; family = co_mention_editions ∪ quotes), cache
+  compatibility projection (`_materialise_co_mention` →
+  `_comention_resolved` merged into `_edge_resolved` + walk substrate;
+  one aggregated row per pair, weight = n_shared_editions+1) so every
+  cache consumer (onager, link prediction, Mojo parity, bridges,
+  e_comention API) kept working with ZERO changes.
+- sqlite-side consumers re-pointed to `project_co_mention_pairs()`:
+  semantic_peer derivation, enrich_relations ranking, metapath
+  attention family. analytics `coment` stat → 0 by design (documented).
+- Eval gate: the frozen accept-rule only admitted gains — extended with
+  `--expect-shrink` (declared semantic re-base; gained rows still
+  regress). **ACCEPT — 173 questions, 0 reasons** (declared shrinks:
+  edge-hdfc-amc-co-mentioned-in, agents-graph-edges).
+- Acceptance: co_mentioned_in 9,638 → 0 (graph_edges 71,291 → 61,653,
+  exact); edition family 225/3,038 → 294/3,441 (+69/+403 newsletter-only
+  editions); stored capture rows ~3.7× reduction; served pair view
+  11,315 (semantic widening documented — quote editions project too;
+  sqlite helper == DuckDB cache exactly); integrity 100%, FK 0;
+  graph-rebuild + stamp-centrality; backup
+  `db-backup/research_backup_pre_s5_2026-11-07.db`.
