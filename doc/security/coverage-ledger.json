@@ -207,7 +207,7 @@
   "reviewed": "2026-10-30",
   "method": "source",
   "verdict": "clean",
-  "fingerprint": "29f58ebed9e8894e",
+  "fingerprint": "d8521943f4e020d5",
   "note": "re-review 2026-10-30 after the S5 PEP 758 fix (three except clauses parenthesised in-handler): syntax-only, no control-flow or data-flow change; dispositions unchanged from the S1 re-review earlier today"
  },
  {
@@ -902,7 +902,7 @@
   "attack_class": "availability",
   "reviewed": "2026-10-30",
   "method": "source",
-  "fingerprint": "29f58ebed9e8894e",
+  "fingerprint": "d8521943f4e020d5",
   "status": "out_of_scope",
   "note": "re-review 2026-10-30 after the S5 PEP 758 fix: syntax-only change, cost class unchanged",
   "verdict": "clean"
@@ -914,7 +914,7 @@
   "attack_class": "concurrency",
   "reviewed": "2026-10-30",
   "method": "source",
-  "fingerprint": "29f58ebed9e8894e",
+  "fingerprint": "d8521943f4e020d5",
   "status": "out_of_scope",
   "note": "re-review 2026-10-30 after the S5 PEP 758 fix: syntax-only change, read-only posture unchanged",
   "verdict": "clean"
@@ -1458,7 +1458,7 @@
   "attack_class": "web-protocol/auth",
   "reviewed": "2026-10-30",
   "method": "source",
-  "fingerprint": "29f58ebed9e8894e",
+  "fingerprint": "d8521943f4e020d5",
   "verdict": "clean",
   "note": "re-review 2026-10-30 after the S5 PEP 758 fix: syntax-only change, response shapes unchanged"
  },
@@ -1817,6 +1817,26 @@
   "attack_class": "injection",
   "reviewed": "2026-10-20",
   "method": "source",
+  "verdict": "clean"
+ },
+ {
+  "scope": "app",
+  "surface": "/api/graph/personalized-pagerank",
+  "kind": "route",
+  "attack_class": "injection",
+  "reviewed": "2026-11-06",
+  "method": "source+live",
+  "fingerprint": "fb5b9d799eb79dae",
+  "verdict": "clean"
+ },
+ {
+  "scope": "app",
+  "surface": "/api/graph/personalized-pagerank",
+  "kind": "route",
+  "attack_class": "web-protocol/auth",
+  "reviewed": "2026-11-06",
+  "method": "source",
+  "fingerprint": "fb5b9d799eb79dae",
   "verdict": "clean"
  }
 ]

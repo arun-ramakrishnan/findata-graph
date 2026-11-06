@@ -74,13 +74,16 @@ DEFAULT_DB_PATH = _REPO_ROOT / "memory" / "research.db"
 # existing corpus with zero per-quote writes); 16 adds event_participants —
 # the n-ary event participant store (person_ontology_spine S4, fed by
 # derive_event_participants; the event hyperedge family reads it);
+# 17 adds ppr_results — the seed-keyed PPR results store
+# (scipy_personalized_pagerank §C, ppr_results_table; canonical-only —
+# no DuckDB cache bump);
 # new edge types are data, not schema.
 # helpers/graph/query.py::_SCHEMA_VERSION versions a DIFFERENT surface — the
 # disposable DuckDB cache layout — and bumps on cache-only changes as well
 # (note vectors, lane tables). A SQLite schema change implies a cache bump,
 # not the reverse: do NOT keep the two in sync.
-EXPECTED_USER_VERSION = 16
-EXPECTED_SCHEMA_VERSION = "16"
+EXPECTED_USER_VERSION = 17
+EXPECTED_SCHEMA_VERSION = "17"
 
 
 def utc_now() -> str:

@@ -55,8 +55,14 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
 import sys
 import tempfile
+
+try:
+    import numpy as np
+except ImportError:  # pragma: no cover
+    np = None  # type: ignore[assignment]
 from collections.abc import Callable
 from contextlib import contextmanager, nullcontext
 from contextvars import ContextVar
@@ -1056,6 +1062,47 @@ def _run_local_reaching(con, *, edges, **_) -> dict[str, Any]:
     return local_reaching_centrality(con, edges=edges)
 
 
+def _run_pagerank_personalized(
+    con, *, seed=None, alpha=0.85, edges=None, db_path=None, sector_scope=False, **_
+) -> dict[str, Any]:
+    """Scipy exact PPR (not via onager — the extension cannot serve it).
+
+    ``seed`` is required (``ValueError`` if missing). ``edges`` is ignored:
+    the lane always runs the scipy centrality projection over SQLite
+    ``graph_edges`` (db_path-aware, same as the closeness/harmonic DB
+    path). Empty store raises via ``load_centrality_projection``.
+
+    ``sector_scope`` (proposal §5c, hybrid): solve on the seed's sector
+    cohort UNION its direct relational neighbours instead of the whole
+    projection — bounds ego-localization by construction (Infosys held
+    0.4257 self-mass on the global relational projection).
+    """
+    from helpers.graph.scipy_bridge import (
+        DEFAULT_DB_PATH,
+        PPR_ALPHA_DEFAULT,
+        PPR_INCLUDE_EDGE_TYPES,
+        load_centrality_projection,
+        personalized_pagerank_scores,
+        sector_cohort,
+    )
+
+    if not seed:
+        raise ValueError("pagerank_personalized requires a seed")
+    if alpha is None:
+        alpha = PPR_ALPHA_DEFAULT
+    eff_db_path = db_path if db_path else DEFAULT_DB_PATH
+    A, names = load_centrality_projection(eff_db_path, include_edge_types=PPR_INCLUDE_EDGE_TYPES)
+    if sector_scope:
+        cohort = sector_cohort(eff_db_path, seed)
+        keep = [i for i, n in enumerate(names) if n in cohort]
+        if not keep or seed not in {names[i] for i in keep}:
+            raise KeyError(f"PPR seed {seed!r} not in the projection")
+        A = A[keep][:, keep]
+        names = [names[i] for i in keep]
+    vec = personalized_pagerank_scores(A, names, seed, alpha=alpha)
+    return {names[i]: float(vec[i]) for i in range(len(names))}
+
+
 _METRIC_DISPATCH: dict[str, Callable[..., dict[str, Any]]] = {
     "pagerank": _run_pagerank,
     "pagerank_weighted": _run_pagerank_weighted,
@@ -1070,6 +1117,7 @@ _METRIC_DISPATCH: dict[str, Callable[..., dict[str, Any]]] = {
     "katz_centrality": _run_katz,
     "laplacian_centrality": _run_laplacian,
     "local_reaching_centrality": _run_local_reaching,
+    "pagerank_personalized": _run_pagerank_personalized,
 }
 
 
@@ -1084,6 +1132,9 @@ def compute(
     approximate: bool | None = None,
     as_of: str | None = None,
     db_path: str | Path | None = None,
+    seed: str | None = None,
+    alpha: float | None = None,
+    sector_scope: bool = False,
 ) -> dict[str, Any]:
     """Compute a single graph metric and return {entity_name: value}.
 
@@ -1099,11 +1150,11 @@ def compute(
 
     Parameters
     ----------
-    metric : one of pagerank, weakly_connected_component,
+    metric : one of pagerank, pagerank_weighted, weakly_connected_component,
         local_clustering_coefficient, louvain_community, betweenness_centrality,
         degree_centrality, closeness_centrality, eigenvector_centrality,
         harmonic_centrality, katz_centrality, laplacian_centrality,
-        local_reaching_centrality.
+        local_reaching_centrality, pagerank_personalized.
     edge_label : graph label (BelongsTo, CompetesWith, ...) resolved to an
         edge_type for the pagerank/wcc/clustering metrics.
     top_k : optional cap on returned nodes (betweenness_centrality).
@@ -1112,6 +1163,11 @@ def compute(
     db_path : SQLite store for SCIPY-routed lanes (default: the live
         ``memory/research.db``); tests pass tmp stores. Ignored by
         Onager-backed metrics.
+    seed, alpha : ``pagerank_personalized`` only. ``seed`` required
+        (``ValueError`` if missing); ``alpha`` defaults to 0.85.
+    sector_scope : ``pagerank_personalized`` only (proposal §5c hybrid) —
+        solve on the seed's sector cohort ∪ its direct relational
+        neighbours instead of the whole projection.
     """
     own = con is None
     if own:
@@ -1129,6 +1185,9 @@ def compute(
             approximate=approximate,
             as_of=as_of,
             db_path=db_path,
+            seed=seed,
+            alpha=alpha,
+            sector_scope=sector_scope,
         )
     finally:
         if own:
@@ -1232,6 +1291,37 @@ def write_analytics(
     return len(values)
 
 
+def write_ppr_results(
+    seed: str,
+    payload: dict[str, float],
+    *,
+    alpha: float | None = None,
+    conn: Any | None = None,
+    replace: bool = True,
+) -> int:
+    """Persist a PPR top-N payload to ``ppr_results`` (seed-keyed UPSERT).
+
+    Delegates to ``scipy_bridge.write_ppr_results``. Returns
+    ``len(payload)``. ``replace=True`` (default here — the canonical
+    refresh posture) deletes the seed's stored rows first so entities
+    that dropped out of the payload cannot strand stale scores.
+    """
+    from helpers.graph.scipy_bridge import (
+        PPR_ALPHA_DEFAULT,
+        write_ppr_results as _write_ppr,
+    )
+
+    alpha = PPR_ALPHA_DEFAULT if alpha is None else alpha
+    own_conn = conn is None
+    if own_conn:
+        conn = connect()
+    try:
+        return _write_ppr(conn, seed, payload, alpha=alpha, replace=replace)
+    finally:
+        if own_conn:
+            conn.close()
+
+
 # --------------------------------------------------------------------------- #
 # CLI
 # --------------------------------------------------------------------------- #
@@ -1249,6 +1339,7 @@ _METRIC_TO_ANALYTICS_NAME = {
     "katz": "katz_centrality",
     "laplacian": "laplacian_centrality",
     "local-reaching": "local_reaching_centrality",
+    "pagerank-personalized": "pagerank_personalized",
 }
 
 
@@ -1334,10 +1425,27 @@ def _cli(argv: list[str] | None = None) -> int:  # noqa: C901
             "local-reaching",
             "link-predict",
             "voterank",
+            "pagerank-personalized",
         ],
-        help="Algorithm to run. Omit when using --all.",
+        help="Algorithm to run. Omit when using --all/--all-ppr-top50.",
     )
     p.add_argument("--top", type=int, default=None, help="Show/print only top-N nodes.")
+    p.add_argument(
+        "--seed", default=None, help="pagerank-personalized: seed entity name (required)."
+    )
+    p.add_argument(
+        "--alpha",
+        type=float,
+        default=None,
+        help="pagerank-personalized alpha (default 0.85, must be in (0,1)).",
+    )
+    p.add_argument(
+        "--sector",
+        action="store_true",
+        help="pagerank-personalized: hybrid per-sector scope — solve on the "
+        "seed's sector cohort UNION its direct relational neighbours "
+        "(proposal §5c; bounds ego-localization by construction).",
+    )
     p.add_argument(
         "--method",
         choices=[
@@ -1387,6 +1495,24 @@ def _cli(argv: list[str] | None = None) -> int:  # noqa: C901
         "louvain, wcc, clustering, closeness, eigenvector, harmonic, katz, "
         "laplacian, local-reaching) plus link-predict and voterank.",
     )
+    p.add_argument(
+        "--all-ppr-top50",
+        action="store_true",
+        help="Trial batch (see proposal scipy_personalized_pagerank §3.5): "
+        "run PPR for the 50 India-listed large_cap companies and persist "
+        "each under pagerank_personalized. Separate from --all (--all "
+        "cannot carry a seed). Without --seeds-file the set is the "
+        "alpha-PREFIX of the candidate pool (A–D bias — see review "
+        "outcome BLOCKER-1); pass a curated list for a real Nifty-50.",
+    )
+    p.add_argument(
+        "--seeds-file",
+        metavar="PATH",
+        help="Curated seed list for --all-ppr-top50 (one entity name per "
+        "line; '#' comments and blank lines ignored). Names not present "
+        "in the projection are counted as skipped in the summary — the "
+        "final line reports solved/skipped, never solved=listed.",
+    )
     write_flags = p.add_mutually_exclusive_group()
     write_flags.add_argument(
         "--apply",
@@ -1418,10 +1544,14 @@ def _cli(argv: list[str] | None = None) -> int:  # noqa: C901
     if args.jobs < 1:
         p.error("--jobs must be at least 1")
 
-    if not args.cmd and not args.all:
-        p.error("either a command or --all is required")
+    if not args.cmd and not args.all and not args.all_ppr_top50:
+        p.error("either a command, --all or --all-ppr-top50 is required")
     if args.all and args.cmd:
         p.error("--all cannot be combined with an explicit command")
+    if args.all_ppr_top50 and args.cmd:
+        p.error("--all-ppr-top50 cannot be combined with an explicit command")
+    if args.all and args.all_ppr_top50:
+        p.error("--all and --all-ppr-top50 are mutually exclusive")
 
     cmd_to_metric = {
         "degree": "degree_centrality",
@@ -1437,11 +1567,109 @@ def _cli(argv: list[str] | None = None) -> int:  # noqa: C901
         "katz": "katz_centrality",
         "laplacian": "laplacian_centrality",
         "local-reaching": "local_reaching_centrality",
+        "pagerank-personalized": "pagerank_personalized",
     }
     # --all refreshes everything recompute-graph persists: node-keyed
     # metrics plus the list-valued link-predict and voterank. Writes are
     # uniformly opt-in via --apply (D13); the default is dry-run.
     commands = [*cmd_to_metric.keys(), "link-predict", "voterank"] if args.all else [args.cmd]
+
+    # --all-ppr-top50 trial batch (proposal §3.5 + ppr_results_table §3.2):
+    # 50 India-listed large_cap seeds, top-N per seed under ppr_results
+    # (seed-keyed; NO graph_analytics — that table's PK (metric, entity)
+    # overwrote all 50 seeds onto one slot set, the 865k-attempt /
+    # 17,302-row explosion the live trial measured 2026-11-06).
+    if args.all_ppr_top50:
+        import time as _time
+
+        from helpers.graph.scipy_bridge import (
+            PPR_ALPHA_DEFAULT,
+            PPR_INCLUDE_EDGE_TYPES,
+            PPR_TOP_DEFAULT,
+            load_centrality_projection,
+            personalized_pagerank_scores,
+        )
+
+        t0 = _time.perf_counter()
+        A, names = load_centrality_projection(include_edge_types=PPR_INCLUDE_EDGE_TYPES)
+        pos = {n: i for i, n in enumerate(names)}
+        # 258 India-listed large_cap candidates; cap 50 (alpha order today;
+        # a curated top-50 list is the follow-up).
+        # PPR projection is include-only relational (PPR_INCLUDE_EDGE_TYPES):
+        # listed_in routed mass through the country hub, then
+        # co_mentioned_in volume let IT majors hoover every seed's mass.
+        # Seeds with no relational edges are skipped loudly below.
+        con = connect(read_only=True, row_factory=None)
+        try:
+            seeds = [
+                r[0]
+                for r in con.execute(
+                    "SELECT DISTINCT t.entity_name FROM entity_tags t "
+                    "JOIN graph_edges e ON e.source = t.entity_name "
+                    "AND e.edge_type = 'listed_in' AND e.target = 'india' "
+                    "WHERE t.tag = 'market_cap/large_cap' "
+                    "ORDER BY t.entity_name LIMIT 50"
+                ).fetchall()
+            ]
+        finally:
+            con.close()
+        seed_source = "alpha-prefix sample (A–D bias, NOT curated — review BLOCKER-1)"
+        if getattr(args, "seeds_file", None):
+            seeds_path = Path(args.seeds_file)
+            if not seeds_path.is_file():
+                print(f"--seeds-file not found: {seeds_path}", file=sys.stderr)
+                return 2
+            curated = [
+                ln.strip()
+                for ln in seeds_path.read_text(encoding="utf-8").splitlines()
+                if ln.strip() and not ln.strip().startswith("#")
+            ]
+            if not curated:
+                print(f"--seeds-file is empty: {seeds_path}", file=sys.stderr)
+                return 2
+            seeds = curated
+            seed_source = f"curated list ({seeds_path}, {len(seeds)} seeds)"
+        alpha = PPR_ALPHA_DEFAULT if args.alpha is None else args.alpha
+        top_n = getattr(args, "top", None) or PPR_TOP_DEFAULT
+        print(f"seed set: {seed_source}", file=sys.stderr)
+        solved = 0
+        skipped: list[str] = []
+        applied_rows = 0
+        for seed in seeds:
+            if seed not in pos:
+                print(
+                    f"warn: seed {seed!r} not in the projection — skipping (trial guard)",
+                    file=sys.stderr,
+                )
+                skipped.append(seed)
+                continue
+            vec = personalized_pagerank_scores(A, names, seed, alpha=alpha)
+            full = {
+                names[i]: float(vec[i])
+                for i in range(len(names))
+                if math.isfinite(vec[i]) and vec[i] > 0
+            }
+            # Top-N first (proposal §4): 50 × 100 = 5,000 rows; --full
+            # would write the full 17,302/seed (865k attempts).
+            payload = dict(sorted(full.items(), key=lambda kv: (-kv[1], kv[0]))[:top_n])
+            if args.apply:
+                applied_rows += write_ppr_results(seed, payload, alpha=alpha)
+            solved += 1
+            print(f"seed={seed!r} payload={len(payload)} {'applied' if args.apply else 'dry-run'}")
+        elapsed = _time.perf_counter() - t0
+        # Review BLOCKER-1 accounting: the summary reports solved vs
+        # skipped explicitly — `applied=len(seeds)` read as "50" while
+        # the edgeless guard silently shrank the real set.
+        if args.apply:
+            print(
+                f"applied {solved} seeds under 'ppr_results' "
+                f"({len(seeds) - solved} skipped, {applied_rows} rows)"
+            )
+        print(
+            f"--all-ppr-top50: {solved} solved / {len(skipped)} skipped of "
+            f"{len(seeds)} listed, {elapsed:.1f}s" + (f"; skipped={skipped!r}" if skipped else "")
+        )
+        return 0
 
     # Open one DuckDB connection for all metrics in this run. Every metric
     # is Onager-backed (post-duckpgq-retirement); connect() loads sqlite/vss
@@ -1631,6 +1859,13 @@ def _cli(argv: list[str] | None = None) -> int:  # noqa: C901
                             edge_label=pr_label,
                             top_k=args.top,
                             as_of=as_of,
+                            seed=args.seed if cmd == "pagerank-personalized" else None,
+                            alpha=args.alpha if cmd == "pagerank-personalized" else None,
+                            sector_scope=(
+                                getattr(args, "sector", False)
+                                if cmd == "pagerank-personalized"
+                                else False
+                            ),
                         )
                     via = "  [via onager]"
                     if _scipy_routed(metric):
@@ -1655,6 +1890,37 @@ def _cli(argv: list[str] | None = None) -> int:  # noqa: C901
                 if metric_db is None:
                     continue
                 payload = _wrap_for_analytics(cmd, result, modularity=louvain_modularity)
+                if cmd == "pagerank-personalized":
+                    # ppr_results_table: PPR is seed-conditioned and lives
+                    # in ppr_results (seed-keyed), never in graph_analytics
+                    # (PK (metric,entity) last-seed-wins would silently
+                    # overwrite each seed's row). Truncate BEFORE the
+                    # write — the full projection is 17K+/seed.
+                    from helpers.graph.scipy_bridge import (
+                        PPR_ALPHA_DEFAULT,
+                        PPR_TOP_DEFAULT,
+                    )
+
+                    top_n = args.top if getattr(args, "top", None) else PPR_TOP_DEFAULT
+                    alpha_bin = args.alpha if args.alpha is not None else PPR_ALPHA_DEFAULT
+                    ranked = sorted(
+                        ((k, v) for k, v in result.items() if isinstance(v, (int, float))),
+                        key=lambda kv: (-kv[1], kv[0]),
+                    )[:top_n]
+                    ppr_payload = {k: float(v) for k, v in ranked}
+                    seed = args.seed
+                    if seed is None:
+                        print(
+                            "  FAIL: pagerank-personalized requires --seed",
+                            file=sys.stderr,
+                        )
+                        continue
+                    n_written = write_ppr_results(seed, ppr_payload, alpha=alpha_bin)
+                    print(
+                        f"  applied {n_written} rows to ppr_results (seed={seed!r})",
+                        file=sys.stderr,
+                    )
+                    continue
                 pending_writes.append((metric_db, payload))
 
             if args.apply:

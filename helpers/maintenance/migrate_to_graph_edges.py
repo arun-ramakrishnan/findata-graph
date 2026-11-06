@@ -32,7 +32,7 @@ from pathlib import Path
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(PROJECT_ROOT))
 
-from helpers.core.db import connect  # noqa: E402
+from helpers.core.db import connect, ensure_db_meta  # noqa: E402
 
 DB_PATH = PROJECT_ROOT / "memory" / "research.db"
 
@@ -324,6 +324,28 @@ CREATE TABLE IF NOT EXISTS graph_analytics (
 );
 """
 
+PPR_RESULTS_TABLE_DDL = """
+CREATE TABLE IF NOT EXISTS ppr_results (
+    seed        TEXT NOT NULL,
+    entity      TEXT NOT NULL REFERENCES entities(name) ON DELETE CASCADE,
+    score       REAL NOT NULL,
+    alpha       REAL NOT NULL DEFAULT 0.85,
+    computed_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    -- PK seed-first (ppr_results_table §2): every hot query is
+    -- `WHERE seed = ? ORDER BY score DESC`. Mirrors the Bundle-P3
+    -- metric-first argument for graph_analytics.
+    PRIMARY KEY (seed, entity)
+);
+"""
+
+PPR_RESULTS_INDEX_DDL = """
+CREATE INDEX IF NOT EXISTS idx_ppr_results_seed_rank ON ppr_results(seed, score DESC);
+"""
+
+# Two-statement bundle kept for rebuild_schema.py consumers that execute
+# statements one at a time via executescript-style splitting.
+PPR_RESULTS_DDL = PPR_RESULTS_TABLE_DDL + PPR_RESULTS_INDEX_DDL
+
 RELATIONS_VIEW_DDL = """
 CREATE VIEW IF NOT EXISTS relations AS
     SELECT source, target, edge_type AS relation_type
@@ -382,6 +404,13 @@ def migrate(verbose: bool = True) -> dict:  # noqa: C901
 
         # 2. graph_analytics table
         conn.execute(GRAPH_ANALYTICS_DDL)
+
+        # 2a-ppr. ppr_results (ppr_results_table §2): seed-keyed PPR
+        #     results. IF NOT EXISTS makes this a no-op on existing DBs;
+        #     fresh builds land it with the rest. sqlite3 executes one
+        #     statement per call — table and index separately.
+        conn.execute(PPR_RESULTS_TABLE_DDL)
+        conn.execute(PPR_RESULTS_INDEX_DDL)
 
         # 2b. events table (D7 — temporal spine). IF NOT EXISTS makes this a
         #     no-op on existing DBs; the value is on fresh builds. FK->entities.
@@ -460,6 +489,14 @@ def migrate(verbose: bool = True) -> dict:  # noqa: C901
         conn.close()
 
     if verbose:
+        # 6. Version markers (ppr_results_table §4): user_version /
+        #    schema_version → EXPECTED. ensure_db_meta is the documented
+        #    one-shot migration (idempotent: re-seeds db_meta, re-creates
+        #    the generation triggers, sets PRAGMA user_version). Runs after
+        #    the main transaction so its own commit cannot half-land the
+        #    DDL; a failure here leaves the tables created and the bump
+        #    retryable by re-running this script.
+        ensure_db_meta(connect(DB_PATH))
         print("== relations → graph_edges migration ==")
         for k, v in stats.items():
             print(f"  {k:32} {v}")

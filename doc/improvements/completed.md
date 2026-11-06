@@ -13785,3 +13785,104 @@ to doc/improvements/archive/database/duckdb_pure_stack.md.
   cost of a 113-module port, 33 cascade re-solves, maintenance
   redesign. Slices S0–S3 stay in the archived copy; revisit on trigger
   2 (second writer) or a backup-pain event.
+
+## 484. SciPy personalized PageRank lane + ppr_results table — executed (trial live)
+
+- **Filed/provenance:** doc/improvements/archive/graph/scipy_personalized_pagerank.md
+  (archived 2026-11-06; replaces the stale 2026-09-23 deferral copy,
+  whose §7 gate record is preserved as its §7)
+  + doc/improvements/archive/database/ppr_results_table.md (2026-11-06, operator:
+  "ok then lets do 3", "write a proposal for this table if need be since
+  it is a schema change", "clean up the 17K CRISIL rows first. Then lets
+  do C"). Follows the archived exact-solve design
+  (doc/improvements/archive/graph/scipy_personalized_pagerank.md §7) and
+  the #409 re-probe: revival needs a named consumer + the centrality
+  projection (seed-localization fix), not merely a working solver.
+- **What landed:**
+  - helpers/graph/scipy_bridge.py: `personalized_pagerank_scores` (sparse
+    `spsolve((I−αPᵀ), (1−α)v)`; P=D⁻¹A row-stochastic, dangling nodes
+    teleport to the seed; KeyError unknown seed, ValueError α∉(0,1);
+    a-b hand oracle 0.5405/0.4595), `PPR_LANE`/`PPR_METRIC`
+    "pagerank_personalized" ROUTING=SCIPY, `write_ppr_results` seed-keyed
+    UPSERT, CLI `pagerank-personalized --seed --alpha --top --full
+    --apply` (dry-run default).
+  - helpers/graph/algorithms.py: `compute("pagerank_personalized",
+    seed, alpha)`, dispatch + `_METRIC_TO_ANALYTICS_NAME` entry, CLI
+    command, `--all-ppr-top50` batch scope (50 India-listed large_cap
+    seeds; `--all` cannot carry a seed — mutually exclusive argparse),
+    single-CLI apply branch routed to `ppr_results` (never
+    `graph_analytics`).
+  - app.py `GET /api/graph/personalized-pagerank` (read-only recompute;
+    seed required 400, α∈(0,1), top 1..100).
+  - Schema v17: `ppr_results(seed, entity, score, alpha, computed_at)`
+    PK `(seed, entity)` + `idx_ppr_results_seed_rank`;
+    `EXPECTED_USER_VERSION` 16→17 (helpers/core/db.py:85);
+    DDL in migrate_to_graph_edges.py (table/index split — sqlite3
+    executes one statement per call) + rebuild_schema.py;
+    `ensure_db_meta` wired into migrate() (connect() does NOT
+    self-heal user_version — explicit one-shot).
+- **Onager bug unchanged:** the vendored build (v0.5.0, DuckDB 2.0 API
+  port) still ignores the personalization column and hardcodes restart
+  node 1 (onager.py NOTE, pending.md N5 item 6) — the scipy lane sits
+  BESIDE Onager, no wrap.
+- **Live verdict (2026-11-06):** migration run (v16→v17, ppr_results
+  created), `--all-ppr-top50 --apply` → 50 seeds × top-100 = 5,000 rows
+  in 27.2s (0.53 s/solve over the 19,347-node centrality projection);
+  graph_analytics untouched (208,481 rows); integrity check 100.0%
+  validation ("schema_version=17 (expected 17) drift=0",
+  user_version=OK); static_checks 39 routes OK after routes.json +
+  coverage-ledger rows (injection + web-protocol/auth, verdict clean —
+  GET read-only, parameterized, seed via names.index only).
+  maint.py unaffected: no version gating; step 7 `algorithms.py --all
+  --apply` carries no PPR (batch scope is opt-in `--all-ppr-top50`).
+- **Tests:** tests/test_scipy_bridge.py 49 passed — hand/dense oracles,
+  seed-conditioning, CLI dry-run/apply re-pointed to ppr_results,
+  dispatch compute, `test_ppr_all_ppr_top50_tmpstore` (monkeypatched
+  projection + connect; 4 seeds × 100 rows; graph_analytics absent).
+  Regression caught: `--top default=None` broke
+  `min(args.top, len(...))` print sites (guarded).
+- **Projection evolution (same-day operator passes, recorded in the
+  archived `archive/database/ppr_results_table.md` §7):**
+  1. Baseline full centrality projection put the `india` country node #2
+     (0.0088) for HDFC Bank — `listed_in` hub noise → PPR projection
+     excludes `listed_in` (`PPR_EXCLUDE_EDGE_TYPES`).
+  2. Top rows stayed IT majors (Tech Mahindra/TCS/HCL/Wipro/Infosys
+     ~0.0055 regardless of seed sector) — `co_mentioned_in` is newsletter
+     mention VOLUME → PPR flipped to an include-only relational
+     projection (`load_centrality_projection` grew `include_edge_types`;
+     baseline lanes untouched). Ranking became sector-coherent:
+     HDFC Bank → IndusInd/PNB/Kotak/Axis/BoB/Canara/CSB; CRISIL →
+     BSE/Oracle Financial/CDSL.
+  3. `invested_in` pulled 66 non-company rows (mutual funds) into stored
+     top-100s → dropped on operator call; 6 same_group/subsidiary_of
+     typed endpoints remain (structurally real, accepted).
+  Final `PPR_INCLUDE_EDGE_TYPES` (scipy_bridge.py): `competes_with,
+  same_group, supplier_to, customer_of, subsidiary_of, jv_with,
+  acquired, semantic_peer`. Batch rerun 17.5s (50 × top-100).
+- **Review outcomes (operator, 2026-11-06 evening; proposal §5b):**
+  BLOCKER-1 alpha-prefix seed set (A–D bias, not curated) →
+  `--seeds-file` shipped + honest solved/skipped accounting (summary
+  never claims listed=solved; skipped names echoed; uncurated runs
+  self-label as alpha-prefix). MAJOR-1 Onager bug sidestepped (by
+  design — wrap stays forbidden) + "projection unchanged" stale
+  (same-day passes ARE the hub-stripped projection) + localization
+  concern numerically confirmed on the relational projection:
+  Infosys 0.4257 self-mass (vs HDFC Bank 0.163) — the revival gate's
+  per-sector-subgraph arm stays OPEN (archive/graph/
+  scipy_personalized_pagerank.md §7). **Same evening the operator
+  picked record + IMPLEMENT (hybrid)** for that arm — §5c in the lane
+  proposal: `sector_cohort()` (sector cohort ∪ direct relational
+  neighbours over `PPR_INCLUDE_EDGE_TYPES`), CLI `--sector` (scipy_bridge
+  + algorithms), `compute(..., sector_scope=True)`, API `?sector=1`;
+  batch `--all-ppr-top50` stays global by design. Measured: HDFC Bank
+  cohort 63 → pure-bank top-8; CRISIL cohort 94 keeps Oracle Financial
+  (cross-sector direct neighbour); Infosys self-mass 0.4455 ≈ global
+  (purity ≠ de-localization — remainder stays with the gate arm).
+  `test_ppr_sector_scope_hybrid` added; suite 50 passed.
+- **Writer semantics fix (staleness):** pure UPSERT stranded rows whose
+  entities dropped out of the payload (dropping `listed_in` left
+  `('3M India','india', 0.0134)` stored forever — no fresh computation
+  can produce it). `write_ppr_results` gained `replace=True`
+  (per-seed `DELETE` in the same transaction — the drift class
+  `write_analytics` S3 solved with `replace_population`); all PPR
+  writers pass it.

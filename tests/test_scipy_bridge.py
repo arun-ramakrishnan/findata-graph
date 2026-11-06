@@ -168,6 +168,7 @@ def test_routing_table_covers_known_metrics():
         "harmonic_centrality",
         sb.YEN_LANE,
         sb.MAXFLOW_LANE,
+        sb.PPR_LANE,
     }
     # metric lanes must be dispatchable; the s-t lanes are CLI commands, not metrics
     assert set(sb.ROUTING) <= set(alg._METRIC_DISPATCH) | {
@@ -406,8 +407,12 @@ def _exact_store(tmp_path, metric):
     spath = tmp_path / f"{metric}.db"
     scon = sqlite3.connect(str(spath))
     scon.execute("CREATE TABLE graph_edges (source VARCHAR, target VARCHAR, edge_type VARCHAR)")
+    # PPR include-only projection (PPR_INCLUDE_EDGE_TYPES) filters edge
+    # types, so the PPR-parameterised fixture must use a relational type
+    # ('competes_with'); katz/eigenvector lanes see every type either way.
+    edge_type = "competes_with" if metric == "pagerank_personalized" else "cited_in"
     scon.executemany(
-        "INSERT INTO graph_edges VALUES (?, ?, 'cited_in')",
+        f"INSERT INTO graph_edges VALUES (?, ?, '{edge_type}')",  # noqa: S608  # edge_type is a module-local literal pair
         [("a", "b"), ("b", "c"), ("c", "d")],
     )
     scon.execute(
@@ -418,6 +423,16 @@ def _exact_store(tmp_path, metric):
         "INSERT INTO graph_analytics (entity_name, metric, value) VALUES (?, ?, '0.0')",
         [(n, metric) for n in ["a", "b", "c", "d"]],
     )
+    if metric == "pagerank_personalized":
+        # ppr_results_table §2: the PPR lane persists here, not in
+        # graph_analytics. Same seed-keyed shape as the canonical DDL
+        # (helpers/maintenance/migrate_to_graph_edges.py PPR_RESULTS_TABLE_DDL).
+        scon.execute(
+            "CREATE TABLE ppr_results (seed TEXT NOT NULL, entity TEXT NOT NULL, "
+            "score REAL NOT NULL, alpha REAL NOT NULL DEFAULT 0.85, "
+            "computed_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP, "
+            "PRIMARY KEY (seed, entity))"
+        )
     scon.commit()
     scon.close()
     return spath
@@ -684,3 +699,220 @@ def test_closeness_harmonic_all_universe_dryrun(store, capsys):
     out = captured.out
     assert "compute-only" in out
     assert "b: 0.500000" in out  # WF top: center of the path component
+
+
+# --------------------------------------------------------------------------- #
+# Personalized PageRank (scipy exact-solve lane) — proposal
+# doc/improvements/archive/graph/scipy_personalized_pagerank.md §4
+# --------------------------------------------------------------------------- #
+def test_ppr_hand_oracle_ab():
+    # Hand oracle (proposal §4.1): a-b path, seed a, alpha=0.85.
+    from scipy.sparse import csr_matrix as _csr
+
+    A = _csr(np.array([[0.0, 1.0], [1.0, 0.0]]))
+    x = sb.personalized_pagerank_scores(A, ["a", "b"], "a", alpha=0.85)
+    # x = (I-a*P^T)^-1 (1-a)v ; P=[[0,1],[1,0]] symmetric
+    # => x_a = 0.15/(1-0.85^2) = 0.5405405..., x_b = 0.85 * x_a = 0.4594594...
+    assert x[0] == pytest.approx(0.15 / (1 - 0.85**2), rel=1e-9)
+    assert x[1] == pytest.approx(0.85 * 0.15 / (1 - 0.85**2), rel=1e-9)
+    assert float(x.sum()) == pytest.approx(1.0, abs=1e-9)
+
+
+def test_ppr_dense_oracle():
+    # Dense oracle (§4.2): numpy solve over the same matrix.
+    import numpy.linalg as _la
+
+    A = _star_csr(4)
+    names = ["c", "l1", "l2", "l3", "l4"]
+    x = sb.personalized_pagerank_scores(A, names, "l1", alpha=0.85)
+    # Build P = D^-1 A (symmetric here; row-normalisable).
+    deg = A.sum(axis=1).A1 if hasattr(A.sum(axis=1), "A1") else np.asarray(A.sum(axis=1)).ravel()
+    P = A.toarray() / deg[:, None]
+    v = np.zeros(5)
+    v[1] = 1.0
+    ref = _la.solve(np.eye(5) - 0.85 * P.T, 0.15 * v)
+    np.testing.assert_allclose(x, ref, rtol=1e-6)
+
+
+def test_ppr_seed_conditioning_and_missing():
+    A = _star_csr(4)
+    names = ["c", "l1", "l2", "l3", "l4"]
+    x1 = sb.personalized_pagerank_scores(A, names, "l1", alpha=0.85)
+    x2 = sb.personalized_pagerank_scores(A, names, "l2", alpha=0.85)
+    # Seed mass follows the seed (hub degree trait — the center dominates
+    # any leaf seed, but the seeded leaf outscores the other leaves).
+    assert not np.allclose(x1, x2)
+    assert x1[1] > x1[2] and x2[2] > x2[1]  # seeded leaf > other leaves
+    with pytest.raises(KeyError, match="not in the projection"):
+        sb.personalized_pagerank_scores(A, names, "nope", alpha=0.85)
+    with pytest.raises(ValueError, match=r"alpha must be in \(0, 1\)"):
+        sb.personalized_pagerank_scores(A, names, "l1", alpha=1.0)
+
+
+def test_ppr_cli_dry_run_and_apply(tmp_path):
+    spath = _exact_store(tmp_path, "pagerank_personalized")
+    assert sb.main(["pagerank-personalized", "--seed", "a", "--db", str(spath), "--top", "2"]) == 0
+    # dry-run wrote nothing: graph_analytics keeps its 4 pre-seeded rows,
+    # ppr_results is still empty.
+    scon = sqlite3.connect(str(spath))
+    n_ga = scon.execute(
+        "SELECT COUNT(*) FROM graph_analytics WHERE metric='pagerank_personalized'"
+    ).fetchone()[0]
+    n0 = scon.execute("SELECT COUNT(*) FROM ppr_results").fetchone()[0]
+    scon.close()
+    assert n_ga == 4  # _exact_store pre-seeds 4 rows with value '0.0'
+    assert n0 == 0
+    assert (
+        sb.main(
+            ["pagerank-personalized", "--seed", "a", "--db", str(spath), "--top", "2", "--apply"]
+        )
+        == 0
+    )
+    scon = sqlite3.connect(str(spath))
+    rows = scon.execute("SELECT entity, score FROM ppr_results WHERE seed='a'").fetchall()
+    n_ga_after = scon.execute(
+        "SELECT COUNT(*) FROM graph_analytics WHERE metric='pagerank_personalized'"
+    ).fetchone()[0]
+    scon.close()
+    # ppr_results_table: the PPR lane persists seed-keyed rows in
+    # ppr_results; graph_analytics is never touched.
+    assert n_ga_after == 4
+    vals = {e: float(v) for e, v in rows}
+    assert len(vals) == 2  # --top 2 truncation
+    assert vals["b"] > vals["a"] > 0  # seed mass decays with path distance
+    assert sum(vals.values()) < 1.0  # top-2 slice of a 4-node path
+
+
+def test_ppr_dispatch_compute(tmp_path):
+    # algorithms.compute dispatches the lane (seed required). Needs the
+    # include-set edge type: the plain `store` fixture has no edge_type
+    # column, so PPR's include-only projection would be empty there.
+    spath = _exact_store(tmp_path, "pagerank_personalized")
+    res = alg.compute("pagerank_personalized", seed="a", db_path=spath)
+    assert res["a"] > res["d"]
+    with pytest.raises(ValueError, match="requires a seed"):
+        alg.compute("pagerank_personalized", db_path=spath)
+
+
+def test_ppr_all_ppr_top50_tmpstore(tmp_path, monkeypatch):
+    """§3.5 batch scope: 50 India large_cap seeds land in ppr_results,
+    one row set per seed; graph_analytics untouched."""
+    spath = tmp_path / "top50.db"
+    scon = sqlite3.connect(str(spath))
+    scon.execute("CREATE TABLE graph_edges (source TEXT, target TEXT, edge_type TEXT)")
+    scon.execute("CREATE TABLE entity_tags (entity_name TEXT, tag TEXT)")
+    scon.execute(
+        "CREATE TABLE ppr_results (seed TEXT NOT NULL, entity TEXT NOT NULL, "
+        "score REAL NOT NULL, alpha REAL NOT NULL DEFAULT 0.85, "
+        "computed_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP, "
+        "PRIMARY KEY (seed, entity))"
+    )
+    names = [f"s{i:02d}" for i in range(25)]
+    rows = [(names[i], names[i + 1], "cited_in") for i in range(24)]
+    rows += [(names[i + 1], names[i], "cited_in") for i in range(24)]
+    # 4 tagged seeds (LIMIT 50 keeps them all) with their listed_in edges.
+    for n in names[:4]:
+        rows.append((n, "india", "listed_in"))
+        scon.execute("INSERT INTO entity_tags VALUES (?, 'market_cap/large_cap')", (n,))
+    scon.executemany("INSERT INTO graph_edges VALUES (?, ?, ?)", rows)
+    scon.commit()
+    scon.close()
+
+    # The batch block builds its projection via the module-level import;
+    # point it at the tmp graph (25-node path) instead of the live store.
+    import scipy.sparse as _sp
+
+    a = np.zeros((25, 25))
+    for i in range(24):
+        a[i, i + 1] = 1.0
+        a[i + 1, i] = 1.0
+    A = _sp.csr_matrix(a)
+
+    def fake_load(db_path=None, *, include_edge_types=None):
+        return A, names
+
+    def fake_connect(*_a, **_k):
+        return sqlite3.connect(str(spath))
+
+    monkeypatch.setattr(sb, "load_centrality_projection", fake_load)
+    monkeypatch.setattr(alg, "connect", fake_connect)
+
+    rc = alg._cli(["--all-ppr-top50", "--apply"])
+    assert rc == 0
+    scon = sqlite3.connect(str(spath))
+    n_rows = scon.execute("SELECT COUNT(*) FROM ppr_results").fetchone()[0]
+    n_seeds = scon.execute("SELECT COUNT(DISTINCT seed) FROM ppr_results").fetchone()[0]
+    has_ga = scon.execute(
+        "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='graph_analytics'"
+    ).fetchone()[0]
+    scon.close()
+    assert rc == 0 and n_seeds == 4
+    # top_n = PPR_TOP_DEFAULT (100) > |projection| → all positive rows/seed.
+    assert n_rows == 100
+    assert has_ga == 0  # batch scope never touches graph_analytics (absent here)
+
+
+def test_ppr_sector_scope_hybrid(tmp_path):
+    """Proposal §5c hybrid per-sector scope: solve on the seed's sector
+    cohort UNION its direct relational neighbours. A same-sector node and
+    a cross-sector direct neighbour enter; a cross-sector non-neighbour
+    stays out (present only in the global solve)."""
+    spath = tmp_path / "sector.db"
+    scon = sqlite3.connect(str(spath))
+    scon.execute("CREATE TABLE entities (name TEXT PRIMARY KEY, sector_classification TEXT)")
+    scon.execute("CREATE TABLE graph_edges (source TEXT, target TEXT, edge_type TEXT)")
+    scon.execute(
+        "CREATE TABLE ppr_results (seed TEXT NOT NULL, entity TEXT NOT NULL, "
+        "score REAL NOT NULL, alpha REAL NOT NULL DEFAULT 0.85, "
+        "computed_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP, "
+        "PRIMARY KEY (seed, entity))"
+    )
+    # a = seed (sector S); b = same sector; x = cross sector, DIRECT
+    # neighbour of a; y = cross sector, NO edge to a; z = same sector,
+    # linked to b (second hop within cohort).
+    rows = [
+        ("a", "S"),
+        ("b", "S"),
+        ("z", "S"),
+        ("x", "T"),
+        ("y", "T"),
+    ]
+    scon.executemany("INSERT INTO entities VALUES (?, ?)", rows)
+    edges = [
+        ("a", "b", "competes_with"),
+        ("b", "a", "competes_with"),
+        ("a", "x", "supplier_to"),
+        ("x", "a", "supplier_to"),
+        ("b", "z", "same_group"),
+        ("z", "b", "same_group"),
+        ("x", "y", "competes_with"),
+        ("y", "x", "competes_with"),
+    ]
+    scon.executemany("INSERT INTO graph_edges VALUES (?, ?, ?)", edges)
+    scon.commit()
+    scon.close()
+
+    # Sector solve: cohort(a) = {a, b, z} ∪ direct neighbours {x}; y out.
+    cohort = sb.sector_cohort(str(spath), "a")
+    assert cohort == {"a", "b", "z", "x"}
+    # Unknown seed / no-sector-no-neighbours seed → {seed} only.
+    assert sb.sector_cohort(str(spath), "ghost") == {"ghost"}
+
+    rc = sb.main(
+        ["pagerank-personalized", "--seed", "a", "--sector", "--db", str(spath), "--apply"]
+    )
+    assert rc == 0
+    scon = sqlite3.connect(str(spath))
+    got = {r[0] for r in scon.execute("SELECT entity FROM ppr_results WHERE seed='a'")}
+    assert "y" not in got  # cross-sector non-neighbour excluded
+    assert {"a", "b", "x"} <= got  # seed + same-sector + direct cross-sector
+    scon.close()
+
+    # Global solve (no --sector): y enters via the x–y edge.
+    rc = sb.main(["pagerank-personalized", "--seed", "a", "--db", str(spath), "--apply"])
+    assert rc == 0
+    scon = sqlite3.connect(str(spath))
+    got_global = {r[0] for r in scon.execute("SELECT entity FROM ppr_results WHERE seed='a'")}
+    scon.close()
+    assert "y" in got_global
+    assert rc == 0

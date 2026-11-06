@@ -64,7 +64,7 @@ from functools import partial
 import sys
 import time
 from pathlib import Path
-from typing import TypedDict
+from typing import Any, TypedDict
 
 import numpy as np
 from scipy.sparse import csr_array, csr_matrix, identity
@@ -88,6 +88,44 @@ CLOSINESS_METRIC = "closeness_centrality"
 HARMONIC_METRIC = "harmonic_centrality"
 KATZ_METRIC = "katz_centrality"
 EIGEN_METRIC = "eigenvector_centrality"
+PPR_LANE = "pagerank_personalized"
+PPR_METRIC = "pagerank_personalized"
+PPR_ALPHA_DEFAULT = 0.85
+# PPR-specific projection exclusions (operator: "yes it is producing noise.
+# Drop listed_in and lets see", 2026-11-06): the baseline
+# load_centrality_projection exclusion set plus listed_in — a country node
+# routes seed mass to every home-market peer (HDFC Bank's #2 was `india`,
+# ~0.005 sprinkle on all India-listed rows), which is hub noise, not walk
+# proximity. Baseline default unchanged: closeness/harmonic/katz/eigenvector
+# lanes and their graph_analytics contract keep parity.
+PPR_EXCLUDE_EDGE_TYPES = ("listed_on_index", "listed_in")
+# Second noise pass (operator: "sure lets try it", 2026-11-06): flip PPR to
+# an include-only relational projection. co_mentioned_in is newsletter
+# mention VOLUME (9,638 edges) — IT majors hoovered seed mass regardless of
+# the seed's sector (HDFC Bank's post-listed_in top-10 was still
+# Tech Mahindra/TCS/HCL/Wipro/Infosys). Keep company↔company relational
+# structure: competitor, group, supply-chain, ownership, JV, M&A,
+# embedding neighbours. Sector/theme/country/regulator/note hubs stay out.
+# invested_in dropped on operator call ("drop invested_in", 2026-11-06):
+# company→institution edges pulled 66 non-company rows (mutual funds) into
+# stored top-100s.
+PPR_INCLUDE_EDGE_TYPES = (
+    "competes_with",
+    "same_group",
+    "supplier_to",
+    "customer_of",
+    "subsidiary_of",
+    "jv_with",
+    "acquired",
+    "semantic_peer",
+)
+#: Seed-keyed results table (ppr_results_table §2). `graph_analytics`
+#: PK is (metric, entity) — per-seed PPR rows there overwrote each
+#: other (last-seed-wins, the 865k UPSERT / 17,302-row explosion the
+#: live trial measured 2026-11-06). This table is PK (seed, entity).
+PPR_TABLE = "ppr_results"
+#: Top-N per seed first (proposal §4): 50 seeds x 100 = 5,000 rows.
+PPR_TOP_DEFAULT = 100
 #: Explicit ARPACK tolerance (the lane never inherits a default).
 EIGSH_TOL = 1e-10
 #: Katz admissibility margin: refuse alpha at/above this fraction of the
@@ -110,6 +148,7 @@ YEN_K_MAX = 25
 LANE_BUDGETS: dict[str, float] = {
     YEN_LANE: 5.0,
     MAXFLOW_LANE: 5.0,
+    PPR_LANE: 5.0,
 }
 
 
@@ -129,6 +168,7 @@ ROUTING: dict[str, str] = {
     "link_prediction": "ONAGER_DEFAULT",
     YEN_LANE: "SCIPY",
     MAXFLOW_LANE: "SCIPY",
+    PPR_LANE: "SCIPY",
 }
 
 
@@ -482,6 +522,9 @@ def compute(
 
 def load_centrality_projection(
     db_path: str | Path = DEFAULT_DB_PATH,
+    *,
+    exclude_edge_types: tuple[str, ...] = ("listed_on_index",),
+    include_edge_types: tuple[str, ...] | None = None,
 ) -> tuple[csr_matrix, list[str]]:
     """Unweighted ex-index CSR for the exact-solve lanes (Katz/eigenvector).
 
@@ -490,6 +533,20 @@ def load_centrality_projection(
     the centrality-projection rule (``listed_on_index`` excluded — the
     lanes par Onager, which applies it). Unweighted by measurement:
     weighted solves par worse (r=0.92) than unweighted (r=0.9996).
+
+    ``exclude_edge_types`` extends the baseline exclusion set. The PPR
+    lane passes ``("listed_on_index", "listed_in")``: a country node
+    routes seed mass to every home-market peer (measured 2026-11-06 —
+    HDFC Bank's #2 was ``india``), which is hub noise, not proximity.
+
+    ``include_edge_types`` (when not ``None``) flips to an allow-list:
+    only those edge types enter the projection. The PPR lane uses it to
+    keep relational structure only — ``co_mentioned_in`` is newsletter
+    mention volume, so IT majors hoovered seed mass regardless of the
+    seed's sector (measured 2026-11-06: HDFC Bank's post-listed_in
+    top-10 was still Tech Mahindra/TCS/HCL/Wipro/Infosys). Entities
+    reachable only through excluded types are absent from the
+    projection; the PPR seed guard reports them loudly.
     """
     con = connect(db_path, read_only=True, row_factory=None)
     try:
@@ -498,7 +555,12 @@ def load_centrality_projection(
         rows = [(s, t, et) for s, t, et, _w in _edge_rows(con)]
     finally:
         con.close()
-    kept = [(s, t) for s, t, et in rows if s != t and et != "listed_on_index"]
+    if include_edge_types is not None:
+        inc = frozenset(include_edge_types)
+        kept = [(s, t) for s, t, et in rows if s != t and et in inc]
+    else:
+        excl = frozenset(exclude_edge_types)
+        kept = [(s, t) for s, t, et in rows if s != t and et not in excl]
     names = sorted({s for s, _ in kept} | {t for _, t in kept})
     pos = {n: i for i, n in enumerate(names)}
     eb = sorted({tuple(sorted((pos[s], pos[t]))) for s, t in kept})
@@ -573,6 +635,154 @@ def eigenvector_scores(A: csr_matrix) -> np.ndarray:
     if v[np.argmax(np.abs(v))] < 0:
         v = -v
     return v
+
+
+def sector_cohort(
+    db_path: str | Path = DEFAULT_DB_PATH,
+    seed: str = "",
+    *,
+    include_edge_types: tuple[str, ...] = PPR_INCLUDE_EDGE_TYPES,
+) -> frozenset[str]:
+    """Hybrid per-sector scope (operator decision 2026-11-06, proposal §5c).
+
+    Cohort = the seed's ``sector_classification`` cohort (every entity
+    sharing the label) **∪** the seed's direct relational neighbours
+    (either direction, ``include_edge_types`` only). The direct-neighbour
+    union keeps genuinely cross-sector structure the trial surfaced —
+    CRISIL → Oracle Financial Services Software (Technology) via the
+    exchange-infrastructure supply chain — which a hard sector cut would
+    delete. Entities with no sector label only enter via that
+    neighbour arm. An unknown seed or a seed with no sector and no
+    relational neighbours yields the empty set (the caller raises).
+    """
+    con = connect(db_path, read_only=True, row_factory=None)
+    try:
+        row = con.execute(
+            "SELECT sector_classification FROM entities WHERE name = ?", (seed,)
+        ).fetchone()
+        members: set[str] = {seed}
+        if row and row[0]:
+            members.update(
+                r[0]
+                for r in con.execute(
+                    "SELECT name FROM entities WHERE sector_classification = ?",
+                    (row[0],),
+                ).fetchall()
+            )
+        placeholders = ",".join("?" * len(include_edge_types))
+        members.update(
+            r[0]
+            for r in con.execute(
+                f"SELECT target FROM graph_edges WHERE source = ? "
+                f"AND edge_type IN ({placeholders})",
+                (seed, *include_edge_types),
+            ).fetchall()
+        )
+        members.update(
+            r[0]
+            for r in con.execute(
+                f"SELECT source FROM graph_edges WHERE target = ? "  # noqa: S608  # placeholders are ?-marks, values bound
+                f"AND edge_type IN ({placeholders})",
+                (seed, *include_edge_types),
+            ).fetchall()
+        )
+    finally:
+        con.close()
+    return frozenset(members)
+
+
+def personalized_pagerank_scores(
+    A: csr_matrix,
+    names: list[str],
+    seed: str,
+    alpha: float = PPR_ALPHA_DEFAULT,
+) -> np.ndarray:
+    """Exact personalized PageRank ``x = alpha*P^T x + (1-alpha) v``.
+
+    ``P`` is row-stochastic (``P = D^-1 A``); dangling rows teleport to the
+    seed. ``v`` is one-hot on ``seed``. Solves ``(I - alpha*P^T) x =
+    (1-alpha) v`` with :func:`spsolve` — no iteration, no divergence risk.
+    ``x`` sums to 1 when ``P`` is row-stochastic and the system is
+    non-singular (alpha in (0, 1)).
+    """
+    _assert_scipy_lane(PPR_LANE)
+    if not 0 < alpha < 1:
+        raise ValueError(f"PPR alpha must be in (0, 1), got {alpha!r}")
+    pos = {n: i for i, n in enumerate(names)}
+    if seed not in pos:
+        raise KeyError(f"PPR seed {seed!r} not in the projection")
+    n = A.shape[0]
+    if n == 0:
+        raise ValueError("PPR: empty projection")
+    seed_idx = pos[seed]
+    t0 = time.perf_counter()
+    # Row-stochastic P = D^-1 A: row sums (A is symmetric from
+    # load_centrality_projection / load_projection — both directions
+    # emitted, self-loops dropped — so row sums == column sums; use row
+    # sums for the general D^-1 A form anyway).
+    deg = np.asarray(A.sum(axis=1)).ravel().astype(float)
+    inv_deg = np.zeros(n, dtype=float)
+    nz = deg > 0
+    inv_deg[nz] = 1.0 / deg[nz]
+    # D^-1 A: scale rows.
+    P = csr_matrix(A.astype(float))
+    P.data = P.data * np.repeat(inv_deg, np.diff(P.indptr))
+    # Dangling rows (deg == 0) teleport to seed: P[dangling, seed] = 1.
+    if np.any(~nz):
+        P = P.tolil()
+        for d in np.flatnonzero(~nz):
+            P[d, seed_idx] = 1.0
+        P = P.tocsr()
+    v = np.zeros(n, dtype=float)
+    v[seed_idx] = 1.0
+    M = identity(n, format="csc") - alpha * P.T.tocsc()
+    x = np.asarray(spsolve(M, (1.0 - alpha) * v)).ravel()
+    _assert_budget(PPR_LANE, time.perf_counter() - t0)
+    return x
+
+
+def write_ppr_results(
+    conn: Any,
+    seed: str,
+    payload: dict[str, float],
+    *,
+    alpha: float = PPR_ALPHA_DEFAULT,
+    replace: bool = False,
+) -> int:
+    """Persist a PPR top-N payload to ``ppr_results`` (seed-keyed UPSERT).
+
+    ``payload`` maps entity -> score (top-N, already sorted/truncated by
+    the caller if desired). ``alpha`` is recorded per row so mixed-alpha
+    batches stay honest. Returns the number of rows written.
+
+    ``replace=True`` (the canonical-refresh posture) first deletes every
+    stored row for ``seed`` inside the same transaction: a projection
+    change can drop entities out of the payload entirely, and a pure
+    UPSERT would leave their stale scores behind forever (measured
+    2026-11-06 — dropping ``listed_in`` stranded per-seed ``india`` rows
+    even though no fresh computation could produce them; the same drift
+    class ``write_analytics`` S3 solved with ``replace_population``).
+
+    Row-by-row loop, no executemany — same deliberate posture as
+    ``algorithms.write_analytics`` (measured slower on the live graph).
+    Reruns overwrite the same (seed, entity) slots via the PK, not
+    append: a ``--all-ppr-top50`` rerun stays at 5,000 rows, it does
+    not grow to 10,000.
+    """
+    with conn:
+        if replace:
+            conn.execute("DELETE FROM ppr_results WHERE seed = ?", (seed,))
+        for entity, score in payload.items():
+            conn.execute(
+                "INSERT INTO ppr_results(seed, entity, score, alpha) "
+                "VALUES (?, ?, ?, ?) "
+                "ON CONFLICT(seed, entity) DO UPDATE SET "
+                "score = excluded.score, alpha = excluded.alpha, "
+                "computed_at = CURRENT_TIMESTAMP "
+                "WHERE score != excluded.score OR alpha != excluded.alpha",
+                (seed, entity, float(score), float(alpha)),
+            )
+    return len(payload)
 
 
 def _assert_scipy_lane(lane: str) -> None:
@@ -794,7 +1004,8 @@ def _run_exact_lane(args: argparse.Namespace, scon) -> int:
     t_build = time.perf_counter() - t0
     if args.command == "katz":
         metric = KATZ_METRIC
-        vec = katz_scores(A, args.alpha)
+        alpha = args.alpha if args.alpha is not None else 1e-4
+        vec = katz_scores(A, alpha)
     else:
         metric = EIGEN_METRIC
         vec = eigenvector_scores(A)
@@ -818,7 +1029,7 @@ def _run_exact_lane(args: argparse.Namespace, scon) -> int:
         )
     payload = {c: float(vec[pos[c]]) for c in contract}
     ranked = sorted(payload.items(), key=lambda kv: (-kv[1], kv[0]))[: args.top]
-    print(f"[{metric}] top {min(args.top, len(payload))}")
+    print(f"[{metric}] top {min(args.top, len(payload)) if args.top is not None else len(payload)}")
     for name, score in ranked:
         print(f"  {name}: {score:.6f}")
     if args.apply:
@@ -826,6 +1037,69 @@ def _run_exact_lane(args: argparse.Namespace, scon) -> int:
         print(f"applied {n} rows under {metric!r}")
     else:
         print(f"dry-run: would write {len(payload)} rows under {metric!r}")
+    scon.close()
+    return 0
+
+
+def _run_ppr_lane(args: argparse.Namespace, scon) -> int:
+    """Personalized PageRank exact lane (seed-conditioned solve).
+
+    Top-N-persisted payload (no contract — a relative metric has no
+    population); ``--apply`` UPSERTs the top-N under ``ppr_results``
+    (seed-keyed, ppr_results_table §3.1). Single-process solve;
+    ``--jobs`` accepted but ignored.
+    """
+    if not args.seed:
+        scon.close()
+        raise SystemExit("pagerank-personalized requires --seed")
+    alpha = PPR_ALPHA_DEFAULT if args.alpha is None else args.alpha
+    t0 = time.perf_counter()
+    A, names = load_centrality_projection(
+        args.db,
+        include_edge_types=PPR_INCLUDE_EDGE_TYPES,
+    )
+    sector_note = ""
+    if getattr(args, "sector", False):
+        cohort = sector_cohort(args.db, args.seed)
+        keep = [i for i, n in enumerate(names) if n in cohort]
+        if not keep or args.seed not in {names[i] for i in keep}:
+            scon.close()
+            raise KeyError(f"PPR seed {args.seed!r} not in the projection")
+        A = A[keep][:, keep]
+        names = [names[i] for i in keep]
+        sector_note = f" | sector-scope: {len(names)} nodes"
+    pos = {n: i for i, n in enumerate(names)}
+    t_build = time.perf_counter() - t0
+    # personalized_pagerank_scores validates seed/alpha and the budget.
+    vec = personalized_pagerank_scores(A, names, args.seed, alpha=alpha)
+    print(
+        f"CSR: n={A.shape[0]} nnz={A.nnz} | build {t_build:.2f}s{sector_note}",
+        file=sys.stderr,
+        flush=True,
+    )
+    full = {
+        name: float(vec[pos[name]])
+        for name in names
+        if np.isfinite(vec[pos[name]]) and vec[pos[name]] > 0
+    }
+    # Top-N first (proposal §4): --full persists the full projection.
+    # args.top=None (argparse default) means "no explicit top" → PPR_TOP_DEFAULT;
+    # never slice [:None] (that is the full projection, not a top-N).
+    top_n = args.top if getattr(args, "top", None) else PPR_TOP_DEFAULT
+    payload = (
+        full
+        if getattr(args, "full", False)
+        else dict(sorted(full.items(), key=lambda kv: (-kv[1], kv[0]))[:top_n])
+    )
+    ranked = sorted(full.items(), key=lambda kv: (-kv[1], kv[0]))[:top_n]
+    print(f"[{PPR_METRIC} seed={args.seed!r} alpha={alpha}]")
+    for name, score in ranked:
+        print(f"  {name}: {score:.6f}")
+    if args.apply:
+        n = write_ppr_results(scon, args.seed, payload, alpha=alpha, replace=True)
+        print(f"applied {n} rows under {PPR_TABLE!r}")
+    else:
+        print(f"dry-run: would write {len(payload)} rows under {PPR_TABLE!r}")
     scon.close()
     return 0
 
@@ -845,6 +1119,7 @@ def main(argv: list[str] | None = None) -> int:  # noqa: C901
             "max-flow",
             "structure",
             "routing",
+            "pagerank-personalized",
         ],
         help="closeness-harmonic = the L1a lane; katz = exact Katz solve "
         "(--alpha, guarded); eigenvector = ARPACK dominant eigenvector "
@@ -853,7 +1128,8 @@ def main(argv: list[str] | None = None) -> int:  # noqa: C901
         "max-flow = Dinic value + min-cut (--source/--sink); "
         "structure = exact diameter/radius/APL over every node "
         "(scipy_exact_universe S1, opt-in); "
-        "routing = print ROUTING",
+        "routing = print ROUTING; "
+        "pagerank-personalized = exact PPR solve (--seed/--alpha/--top)",
     )
     ap.add_argument(
         "--universe",
@@ -871,18 +1147,38 @@ def main(argv: list[str] | None = None) -> int:  # noqa: C901
         help="which metrics to derive (both come from one dijkstra pass; "
         "the flag exists for future leg splits)",
     )
-    ap.add_argument("--top", type=int, default=10)
+    ap.add_argument("--top", type=int, default=None)
     ap.add_argument(
         "--alpha",
         type=float,
-        default=1e-4,
+        default=None,
         help="Katz alpha (katz command only; refused at/above "
-        "0.99/lambda_max — see KATZ_RADIUS_MARGIN)",
+        "0.99/lambda_max — see KATZ_RADIUS_MARGIN); PPR alpha "
+        "(pagerank-personalized, must be in (0,1); default "
+        f"{PPR_ALPHA_DEFAULT})",
+    )
+    ap.add_argument(
+        "--seed",
+        default=None,
+        help="pagerank-personalized: seed entity name (required)",
     )
     ap.add_argument(
         "--apply",
         action="store_true",
-        help="UPSERT results into graph_analytics (default: dry-run)",
+        help="UPSERT results into graph_analytics (or ppr_results for pagerank-personalized) (default: dry-run)",
+    )
+    ap.add_argument(
+        "--full",
+        action="store_true",
+        help="pagerank-personalized: persist the full projection "
+        "instead of the top-N (ppr_results_table §3.1)",
+    )
+    ap.add_argument(
+        "--sector",
+        action="store_true",
+        help="pagerank-personalized: hybrid per-sector scope — solve on "
+        "the seed's sector cohort UNION its direct relational neighbours "
+        "(proposal §5c; bounds ego-localization by construction)",
     )
     ap.add_argument(
         "--jobs",
@@ -927,6 +1223,8 @@ def main(argv: list[str] | None = None) -> int:  # noqa: C901
     scon = connect(args.db, row_factory=None)
     if args.command in ("katz", "eigenvector"):
         return _run_exact_lane(args, scon)
+    if args.command == "pagerank-personalized":
+        return _run_ppr_lane(args, scon)
     t0 = time.perf_counter()
     A, names = load_projection(args.db)
     contract = contract_sources(args.db)
@@ -968,7 +1266,9 @@ def main(argv: list[str] | None = None) -> int:  # noqa: C901
     if args.metrics in ("closeness", "both"):
         clo_map = dict(zip(src_names, clo))
         ranked = sorted(clo_map.items(), key=lambda kv: (-kv[1], kv[0]))[: args.top]
-        print(f"[{CLOSINESS_METRIC}] top {min(args.top, len(clo_map))}")
+        print(
+            f"[{CLOSINESS_METRIC}] top {min(args.top, len(clo_map)) if args.top is not None else len(clo_map)}"
+        )
         for name, score in ranked:
             print(f"  {name}: {score:.6f}")
         if args.apply:
@@ -986,7 +1286,9 @@ def main(argv: list[str] | None = None) -> int:  # noqa: C901
     if args.metrics in ("harmonic", "both"):
         harm_map = dict(zip(src_names, harm))
         ranked = sorted(harm_map.items(), key=lambda kv: (-kv[1], kv[0]))[: args.top]
-        print(f"[{HARMONIC_METRIC}] top {min(args.top, len(harm_map))}")
+        print(
+            f"[{HARMONIC_METRIC}] top {min(args.top, len(harm_map)) if args.top is not None else len(harm_map)}"
+        )
         for name, score in ranked:
             print(f"  {name}: {score:.6f}")
         if args.apply:

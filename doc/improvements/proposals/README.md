@@ -38,6 +38,22 @@ entry number and stale DONE pointers):
 
 ## Current live proposals
 
+- *(archived 2026-11-06)* — `scipy_personalized_pagerank` filed +
+  executed same day, #484 (`../archive/graph/scipy_personalized_pagerank.md`;
+  deferred exact-solve PPR lane shipped beside Onager — whose
+  personalised-pagerank bug the custom build does NOT fix — CLI + API +
+  dispatch + `--all-ppr-top50` (50 India-listed large_cap seeds, 5,000
+  rows live); review outcomes §5b (BLOCKER-1 `--seeds-file` shipped,
+  MAJOR-1 recorded); hybrid per-sector slice §5c (`--sector` /
+  `sector_scope=True` / `?sector=1`); replaces the stale 2026-09-23
+  deferral copy, whose §7 gate record is preserved in the archived doc).
+- *(archived 2026-11-06)* — `ppr_results_table` filed + executed same
+  day, #484 (`../archive/database/ppr_results_table.md`; seed-keyed
+  `ppr_results` schema v17 live + the same-day projection-evolution
+  record: `listed_in` country-hub drop, include-only 8-type relational
+  PPR projection (`co_mentioned_in` volume + `invested_in` dropped),
+  and the per-seed `replace=True` writer fix for payload-dropout
+  staleness).
 - *(archived 2026-11-06)* — `graph_hnsw_next` filed + executed S1 same
   day, #482 (`../archive/database/graph_hnsw_next.md`; graph-lane HNSW
   landed: indexes + stopgap-reroute + served-path vss, step-0 gates

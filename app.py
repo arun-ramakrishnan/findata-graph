@@ -3002,7 +3002,8 @@ def api_graph_stats():
 _EDGE_SEMANTICS: dict[str, dict[str, object]] = {
     "co_mentioned_in": {
         "symmetric": True,
-        "semantics": "Newsletter co-mention (derived)",
+        "semantics": "Shared-edition co-mention (derived; S5 — projected from "
+        "the canonical edition hyperedge family, no longer a stored dyad)",
     },
     # part_of/has_company retirement (2026-10-19): both remain served — the
     # DuckDB cache projects them from the canonical sector hyperedges — but
@@ -3364,6 +3365,11 @@ _SCALAR_GRAPH_METRICS = {
     "ho_pagerank",
     "s_betweenness",
     "s_closeness",
+    # scipy_personalized_pagerank §3.3: seed-conditioned rows persisted by
+    # `scipy_bridge.py pagerank-personalized --apply` / `--all-ppr-top50`.
+    # (ppr_results_table §C: those rows moved to ppr_results; this entry
+    # is a deferred pointer, not a graph_analytics serve path.)
+    # "pagerank_personalized",  # removed — see ppr_results_table (seed-keyed table)
 }
 # Label metrics: value is an int community/component/block id. Ranked/grouped,
 # not sorted by value. hypermmsbm_community stores {"block": int,
@@ -3655,6 +3661,71 @@ def api_graph_edges_by_year():
         return jsonify({"timeline": edges_by_year(conn=conn)})
     finally:
         conn.close()
+
+
+@app.route("/api/graph/personalized-pagerank")
+def api_graph_personalized_pagerank():
+    """Scipy personalized PageRank: seed-conditioned walk proximity.
+
+    Ranked desc by score over the centrality projection (`listed_on_index`
+    excluded). Read-only; no persistence.
+
+    Query params:
+      - seed=<entity> (required; 400 if missing/unknown)
+      - alpha=0.85 (default; must be in (0,1); 400 otherwise)
+      - top=20 (default; 1..100; 400 otherwise)
+      - sector=1 (optional; hybrid per-sector scope — the seed's sector
+        cohort ∪ its direct relational neighbours, proposal §5c)
+
+    Returns: {"seed": ..., "alpha": ..., "sector": <bool>,
+              "n": <projection size>,
+              "results": [{"entity": ..., "score": ...}, ...]}
+    """
+    from helpers.graph.algorithms import compute
+
+    seed = request.args.get("seed", "").strip()
+    if not seed:
+        return jsonify({"error": "seed is required (entity name)"}), 400
+    sector = request.args.get("sector", "") in ("1", "true", "yes")
+    alpha_raw = request.args.get("alpha", "0.85")
+    try:
+        alpha = float(alpha_raw)
+    except TypeError, ValueError:
+        return jsonify({"error": f"alpha must be a number, got {alpha_raw!r}"}), 400
+    if not 0 < alpha < 1:
+        return jsonify({"error": f"alpha must be in (0, 1), got {alpha!r}"}), 400
+    top_raw = request.args.get("top", "20")
+    try:
+        top = int(top_raw)
+    except TypeError, ValueError:
+        return jsonify({"error": f"top must be an integer, got {top_raw!r}"}), 400
+    if not 1 <= top <= 100:
+        return jsonify({"error": f"top must be in 1..100, got {top!r}"}), 400
+    conn = get_db_connection()
+    try:
+        try:
+            result = compute(
+                "pagerank_personalized",
+                seed=seed,
+                alpha=alpha,
+                sector_scope=sector,
+            )
+        except KeyError as e:
+            return jsonify({"error": str(e)}), 400
+        except ValueError as e:
+            return jsonify({"error": str(e)}), 400
+    finally:
+        conn.close()
+    ranked = sorted(result.items(), key=lambda kv: (-kv[1], kv[0]))[:top]
+    return jsonify(
+        {
+            "seed": seed,
+            "alpha": alpha,
+            "sector": sector,
+            "n": len(result),
+            "results": [{"entity": name, "score": float(value)} for name, value in ranked],
+        }
+    )
 
 
 @app.route("/api/graph/refresh", methods=["POST"])

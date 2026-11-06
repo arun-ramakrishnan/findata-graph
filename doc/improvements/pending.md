@@ -252,13 +252,16 @@ Open items below keep their revisit triggers inline; executed work is compressed
 
 - **scipy_algos umbrella batch — FILED 2026-09-23, five children
   DEFERRED + ARCHIVED 2026-09-23** (completed.md #272–276; triggers
-  recorded in each record): `personalized_pagerank` (no consumer —
-  blocker is the Onager bug only; the "1-hop ego" structural claim is
-  CORRECTED 2026-10-31: re-anchored by #409 (`ppr_reprobe_economic.md`)
-  — PPR is seed-dependent, not universally degenerate (Infosys hop≥2
-  0.038 ego-local, HDFC Bank hop≥2 0.508 propagates); do not cite
-  degeneracy as an independent blocker — see
-  `graph_lane_unlocks.md` §5 register),
+  recorded in each record): `personalized_pagerank` (**UN-DEFERRED +
+  EXECUTED 2026-11-06** via the scipy exact-solve lane — completed.md
+  #484: `compute("pagerank_personalized")`, CLI
+  `pagerank-personalized`, GET /api/graph/personalized-pagerank,
+  batch `--all-ppr-top50` into the new seed-keyed `ppr_results` table
+  (schema v17); the Onager wrap stays forbidden — the scipy lane sits
+  beside Onager; **hybrid per-sector slice landed same day**
+  (archive/graph/scipy_personalized_pagerank.md §5c: `--sector` /
+  `sector_scope=True` / `?sector=1`, solve on seed's sector cohort ∪
+  direct relational neighbours; batch stays global),
   `maximum_flow` (**un-deferred + implemented 2026-09-24** via
   `archive/graph/scipy_st_lanes_routing_switch.md`), `minimum_spanning_tree`
   (need still deferred), `yen_k_shortest` (**un-deferred + implemented

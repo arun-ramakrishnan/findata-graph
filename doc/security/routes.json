@@ -137,6 +137,12 @@
       ]
     },
     {
+      "path": "/api/graph/personalized-pagerank",
+      "methods": [
+        "GET"
+      ]
+    },
+    {
       "path": "/api/graph/positions",
       "methods": [
         "GET"

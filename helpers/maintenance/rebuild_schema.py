@@ -68,6 +68,8 @@ from helpers.maintenance.migrate_to_graph_edges import (  # noqa: E402
     GRAPH_ANALYTICS_DDL,
     GRAPH_EDGES_DDL,
     GRAPH_EDGES_INDEXES,
+    PPR_RESULTS_TABLE_DDL,
+    PPR_RESULTS_INDEX_DDL,
     RELATIONS_VIEW_DDL,
 )
 
@@ -161,10 +163,17 @@ _GRAPH_ANALYTICS_COLS = [
     "value",
     "computed_at",
 ]
+_PPR_RESULTS_COLS = [
+    "seed",
+    "entity",
+    "score",
+    "alpha",
+    "computed_at",
+]
 
 
 def rebuild(db_path: Path | str = DB_PATH, *, dry_run: bool = False) -> dict:
-    """Rebuild entities, graph_edges, graph_analytics from canonical DDL.
+    """Rebuild entities, graph_edges, graph_analytics, ppr_results from canonical DDL.
 
     Returns a stats dict with before/after row counts and the list of
     indexes recreated. When ``dry_run`` is True, reports what would happen
@@ -232,6 +241,12 @@ def rebuild(db_path: Path | str = DB_PATH, *, dry_run: bool = False) -> dict:
 
         # 5. graph_analytics (FK → entities; P3 PK reversal lands here).
         n_an = _rebuild_table(conn, "graph_analytics", GRAPH_ANALYTICS_DDL, _GRAPH_ANALYTICS_COLS)
+
+        # 5b. ppr_results (FK → entities; seed-keyed, ppr_results_table §2).
+        # No copy: seed-keyed results are a cache, not a contract — a
+        # legitimately empty table on rebuild is correct.
+        conn.execute(PPR_RESULTS_TABLE_DDL)
+        conn.execute(PPR_RESULTS_INDEX_DDL)
 
         # Post-copy integrity check: foreign_key_check reports violations
         # regardless of the enforcement flag. If the copy preserved all FK
