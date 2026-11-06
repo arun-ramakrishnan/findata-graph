@@ -508,12 +508,14 @@ def knn_similarities(
             hits.sort(key=lambda r: r[1], reverse=True)
         else:
             hits = con.execute(
-                "SELECT row_key, 1.0 - array_cosine_distance(embedding, " + vec_lit + ") AS sim "
+                "SELECT row_key, array_cosine_distance(embedding, " + vec_lit + ") AS dist "
                 f"FROM {VEC_TABLE} "
                 "ORDER BY array_cosine_distance(embedding, " + vec_lit + ") ASC "
                 "LIMIT ?",
                 (int(k),),
             ).fetchall()
+            # Convert distance to similarity AFTER the top-k to preserve HNSW routing
+            hits = [(rk, 1.0 - dist) for rk, dist in hits]
     except Exception:  # noqa: BLE001 - best-effort
         return None
     finally:

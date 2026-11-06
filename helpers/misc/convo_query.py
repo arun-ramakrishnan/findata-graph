@@ -218,8 +218,8 @@ def _cos_hits(
     # _PSEUDO_DIMS for the degraded path) — a hardcoded 384 breaks pseudo mode.
     cast = f"FLOAT[{int(dims)}]"
     sql = (
-        "SELECT harness, part_id, array_cosine_similarity("  # noqa: S608  # cast width is int(dims) from the stored index; vector + limit are bound
-        f"embedding::{cast}, ?::{cast}) s "
+        "SELECT harness, part_id, array_cosine_distance("  # noqa: S608  # cast width is int(dims) from the stored index; vector + limit are bound
+        f"embedding::{cast}, ?::{cast}) dist "
         "FROM convo_search WHERE embedding IS NOT NULL "
     )
     params: list = [list(qv)]
@@ -233,10 +233,11 @@ def _cos_hits(
         # column — which is why the search() caller over-fetches that leg.
         sql += "AND provenance LIKE ? ESCAPE '\\' "
         params.append(_like_pattern(source))
-    sql += "ORDER BY s DESC LIMIT ?"
+    sql += "ORDER BY dist ASC LIMIT ?"
     params.append(limit)
     rows = con.ddb.execute(sql, params).fetchall()
-    return [((harness, pid), float(s)) for harness, pid, s in rows]
+    # Convert distance to similarity: cos = 1 - d*d/2 for unit vectors
+    return [((harness, pid), 1.0 - float(dist) * float(dist) / 2.0) for harness, pid, dist in rows]
 
 
 def _like_pattern(source: str) -> str:

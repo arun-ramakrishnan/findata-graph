@@ -13693,3 +13693,95 @@ doc/improvements/archive/database/market_cap_f1_hypergated.md.
 - **Validation:** live read-only probes only; no gates run. Tree left
   dirty for the operator (stg refresh per owning patches at operator
   discretion).
+
+## 481. Pure-DuckDB retrieval stack (S1–S4) — executed; S5 deferred
+
+Provenance: filed 2026-11-05 out of the unified-backend parity trial
+(doc/local/evaluations/unified_backend_assessment.md §7; five legs
+against SurrealDB / Gel / ArangoDB / PostgreSQL / pure DuckDB on the
+57-question convo bank + 100-query lexical parity + HNSW-vs-brute
+recall). Executed S1–S4 in the duckdb-pure-stack-s234 worktree the
+same day, merged to main (323610e6e + 8fc3e1ca4), live cutover
+verified, step-0 re-baseline on the live corpus 2026-11-06. Archived
+to doc/improvements/archive/database/duckdb_pure_stack.md.
+
+- **What landed:** S1 persistent HNSW in convo_search.duckdb
+  (`idx_convo_search_emb`, cosine, ef_construction=128, FLOAT[384]
+  sized column, swap-rebuild + ~370 MB reclaim); S2 sqlite-vec retired
+  (12-file surface, note mirror → memory/note_vectors.duckdb HNSW);
+  S3 full-text column + native match_bm25 reader with sqlite fallback
+  (sidecar still built during transition, retirement = graph_hnsw_next
+  S2); S4 anchored RRF retune (k=20, 3 anchors).
+- **Verdicts (57-question bank):** lexical 22 → 38/57, vector
+  14 → 27/57, hybrid 8 → 40–41/57, zero-results 22 → 0/100 → 2/100 on
+  the live corpus (two stopword-only shingles duckdb fts strips;
+  benign). Hybrid beats its best pure leg (40 ≥ 38); HNSW warm p50
+  ~11 ms; native-FTS p50 ~205–350 ms accepted per the 10× rule.
+- **Gate corrections at step-0 (2026-11-06):** strict-set recall is
+  f32 tie-cluster composition, not quality — HNSW 10th-pick sim-floor
+  matches exact brute within −5.96e-08 on every query probed, so the
+  ≥ .8649 strict gate was reworded to a quality-floor + latency gate.
+  Side-finding: DuckDB 2.0.0 vss MAINTAINS HNSW indexes on INSERT
+  (controlled self-query test) — the one-shot assumption holds for FTS
+  only; DELETE behavior untested.
+- **S5 stays deferred** (notes mirror → DuckDB-primary): blocker is
+  crash-consistency machinery, not size (39.6 MB ≈ 1× duplication);
+  revisit triggers live in the archived file §S5.
+- **Remaining operator items at archival:** `make qa` on go; refresh
+  dirty generated schema files if not already landed.
+
+## 482. Graph-lane HNSW (graph_hnsw_next S1) — executed; S2/S3 deferred
+
+- **Filed/provenance:** doc/improvements/proposals/graph_hnsw_next.md
+  (2026-11-06), authored by the parallel morning session; reviewed and
+  gap-fixed by the gates session (re-baseline honesty, quack-server
+  posture, parity self-reference, recall evidence chain), edits
+  operator-approved. Archived to
+  doc/improvements/archive/database/graph_hnsw_next.md.
+- **S1 executed 2026-11-06:** idx_v_embeddings_emb +
+  idx_v_note_embeddings_emb (cosine, ef_construction=128) built on
+  graph.duckdb (72.6 → 117.9 MB); morning probes: v recall 300/300,
+  note tuple 179/180, latency v_hnsw 9.33 vs brute 11.18 ms, note_hnsw
+  10.22 vs 40.83 ms. Three commits (de7362594, 1d0aa3de7): vec_search
+  distance-after-top-k, _cos_hits array_cosine_distance ASC, quack
+  server INSTALL/LOAD vss (served path no longer brute-forces).
+- **Reroute landed (this session):** helpers/graph/query.py
+  semantic_neighbors routes the default-cosine leg through
+  _semantic_neighbors_cosine (literal-ref single-level cosine_distance
+  ORDER BY — the only form the 2.0.0 planner takes to Hnsw Index Scan;
+  score = 1 − d for cosine_distance, cross_sector + ip stay on the
+  legacy exact scan; GROUP BY note wrappers cannot route, noted).
+  Verified: names equal, scores within 1e-5 (f32 cross-formula noise),
+  ALL-OK edge cases; 222 targeted tests + ruff clean; ruff-format gate
+  fixed (1 reformat).
+- **Step-0 re-baseline on the live 194,525-row corpus:** arms
+  anch_k20_a3 40/57 MRR .5041 (gate ≥39 PASS), lex 38/57, vec 27/57;
+  parity overlap 2.62/10, zero-results FTS5 22/100 vs duck 2/100
+  (stopword-only, benign); HNSW p50 11.16 ms. Recall diagnostics:
+  strict-set .5088 is f32 tie-cluster composition (HNSW 10th-pick
+  sim-floor −5.96e-08 vs brute; ef_search setting does not exist in
+  2.0.0) — parity gate reworded to sim-floor within 1e-6 + ≤15 ms.
+- **S2/S3 deferred** (FTS5-sidecar retirement; doc/script/memory/git
+  lane semantic legs): tracked in the archived copy with corrected
+  gates and the pre-existing-lint fixes; consolidation posture (S4
+  spin-off) split into #483.
+
+## 483. One-store consolidation decision (duckdb_full_consolidation) — decision: do not merge now; deferred
+
+- **Filed/provenance:** doc/improvements/proposals/duckdb_full_consolidation.md
+  (2026-11-06), filed by the gates session out of graph_hnsw_next S4 +
+  duckdb_consolidation_assessment.md's re-entry protocol. Archived to
+  doc/improvements/archive/database/duckdb_full_consolidation.md.
+- **Measured verdicts (2026-11-06):** consolidation gate NOT met; HNSW
+  partially fired (3 lanes live, experimental flag + tie-noise recall
+  caveats); B2-lite: one DuckDB file = one RW process OR many RO, never
+  mixed → P1 embedded (drop quack) vs P2 wire-everything posture fork
+  is the operator call; B1-lite: 113 modules import helpers.core.db
+  (2.6× September's 44), 19 raw sqlite3 sites, 33 FK CASCADE sites and
+  CASCADE still parser-rejected on 2.0.0 (probe verified).
+- **Decision:** DO NOT MERGE NOW — the convo lane is already
+  self-contained DuckDB (2.8 GB), vectors mirrored, remaining two-engine
+  sync one 3.7 s materialise; the merge buys one-file backup at the
+  cost of a 113-module port, 33 cascade re-solves, maintenance
+  redesign. Slices S0–S3 stay in the archived copy; revisit on trigger
+  2 (second writer) or a backup-pain event.

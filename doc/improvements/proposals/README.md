@@ -38,12 +38,18 @@ entry number and stale DONE pointers):
 
 ## Current live proposals
 
-- `duckdb_pure_stack` — filed 2026-11-05 out of the unified-backend
-  parity trial (doc/local/evaluations/unified_backend_assessment.md §7):
-  pure-DuckDB retrieval stack — S1 HNSW into convo_search.duckdb via
-  swap-rebuild (+ ~370 MB reclaim), S2 retire vec0/sqlite-vec (12-file
-  surface), S3 lexical leg FTS5 → native match_bm25 (39 vs 22/57), S4
-  hybrid retune (fusion currently below its own best pure leg).
+- *(archived 2026-11-06)* — `graph_hnsw_next` filed + executed S1 same
+  day, #482 (`../archive/database/graph_hnsw_next.md`; graph-lane HNSW
+  landed: indexes + stopgap-reroute + served-path vss, step-0 gates
+  pass; S2 FTS5-sidecar retirement + S3 lane-CLI semantic legs
+  deferred remainder, tracked in the archived copy).
+- *(archived 2026-11-06)* — `duckdb_full_consolidation` filed + deferred
+  same day 2026-11-06, #483
+  (`../archive/database/duckdb_full_consolidation.md`; trigger verdicts
+  gate NOT met, B2-lite contention map, B1-lite port sizing — 113
+  importers, 33 CASCADE sites, FK CASCADE parser-rejected on 2.0.0 —
+  P1/P2 posture fork; recommendation: do not merge now, revisit on
+  trigger 2 second-writer or a backup-pain event).
 - `served_store_read_funnel` — filed 2026-11-03 out of a parallel
   unlocked-work session: PID-namespace blindness in
   helpers/core/duckdb_shared.py:54 `_pid_alive` breaks the blocking

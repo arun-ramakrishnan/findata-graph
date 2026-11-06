@@ -411,9 +411,13 @@ def _prep_graph_connection(con: duckdb.DuckDBPyConnection) -> None:
     # the materialised e_* tables. See
     # doc/improvements/archive/graph/duckpgq_retirement.txt.
     # P2.5: vss provides the array_cosine_* scalars used by
-    # semantic_neighbors(). The HNSW index-accelerated scan macros
-    # (hnsw_index_scan, vss_match) are broken on vss b833341; brute-force
-    # scalar functions work fine at 1k scale (~3ms).
+    # semantic_neighbors(). HNSW routing facts (EXPLAIN probe on the live
+    # store, 2026-11-06): idx_v_embeddings_emb / idx_v_note_embeddings_emb
+    # engage only for ORDER BY array_cosine_distance(...) with a FLOAT[N]
+    # literal reference — bound-parameter or scalar-subquery references,
+    # projection expressions (e.g. 1 - d*d/2), L2/NIP orderings, and
+    # GROUP BY aggregates all fall back to sequential scan. (The old
+    # b833341 scan-macro breakage note is historical; that path is unused.)
     con.execute("LOAD sqlite;")
     con.execute("LOAD vss;")
     # Onager (graph algorithms) loads lazily per call in helpers/graph/onager.py
@@ -4091,8 +4095,10 @@ def semantic_neighbors(
     """Find companies with embeddings most similar to a given company.
 
     Requires a populated v_embeddings table (see helpers/graph/embeddings.py
-    for population). Uses DuckDB VSS scalar functions -- no HNSW index needed
-    at current scale (~3ms for 1k companies).
+    for population). Default cosine metric routes through the HNSW index
+    (idx_v_embeddings_emb, metric='cosine') when it exists; cross_sector
+    and the ip metric keep the exact scalar scan (no routed form — probe
+    2026-11-06).
 
     Args:
         con: DuckDB connection (from connect()).
@@ -4125,21 +4131,6 @@ def semantic_neighbors(
     if n == 0:
         return []
 
-    if metric == "cosine":
-        # Unit-norm vectors (local_embedder._normalize): l2-ASC ordering ==
-        # cosine-DESC ordering, same exact ranking; score converted back via
-        # cos = 1 - d*d/2 (note_knn_distance_ranking S3 — the distance scalar
-        # is ~11x the cosine scalar at the 16.5k-note scale).
-        sim_expr = "array_distance"
-        direction = "ASC"
-        filter_cond = "sim < 2"  # cos > 0 <=> d < 2 for unit vectors
-    elif metric == "ip":
-        sim_expr = "array_negative_inner_product"
-        direction = "DESC"
-        filter_cond = "sim < 0"
-    else:
-        raise ValueError("Unknown metric: " + repr(metric) + " (use cosine or ip)")
-
     # Determine the embedding dimension at runtime.  The vss extension on
     # duckdb 1.5.4 does not accept variable-length FLOAT[] arrays in its
     # scalar functions -- only fixed-length FLOAT[N] matches.  We read the
@@ -4148,6 +4139,30 @@ def semantic_neighbors(
     dim = dim_row[0] if dim_row else 0
     if dim == 0:
         return []
+
+    if metric == "cosine" and not cross_sector:
+        return _semantic_neighbors_cosine(con, company, k, dim)
+
+    # Legacy exact single-query scan — ip always (no routed form, probe
+    # 2026-11-06: only cosine-distance ORDER BY engages
+    # idx_v_embeddings_emb), and cosine when cross_sector: that filter
+    # must apply BEFORE LIMIT, which no routed single-level form does.
+    if metric == "cosine":
+        # Unit-norm vectors (local_embedder._normalize): l2-ASC ordering ==
+        # cosine-DESC ordering, same exact ranking; score converted back via
+        # cos = 1 - d*d/2 (note_knn_distance_ranking S3 — the distance scalar
+        # is ~11x the cosine scalar at the 16.5k-note scale).
+        sim_expr = "array_distance"
+        direction = "ASC"
+        filter_cond = "sim < 2"  # cos > 0 <=> d < 2 for unit vectors
+        score_expr = "1 - ce.sim * ce.sim / 2"
+    elif metric == "ip":
+        sim_expr = "array_negative_inner_product"
+        direction = "DESC"
+        filter_cond = "sim < 0"
+        score_expr = "ce.sim"
+    else:
+        raise ValueError("Unknown metric: " + repr(metric) + " (use cosine or ip)")
 
     # Part C (sql_capability_unlocks): the company name travels as a bind
     # parameter everywhere it appears (reference vector, self-exclusion,
@@ -4168,7 +4183,6 @@ def semantic_neighbors(
     # filter_cond / direction), int casts (dim, k), or fixed subqueries
     # with ? binds (ref_vec, sector_filter); the company name never
     # touches the SQL text.
-    score_expr = "1 - ce.sim * ce.sim / 2" if metric == "cosine" else "ce.sim"
     query = (
         "SELECT v.name, v.sector_classification, " + score_expr + " "  # noqa: S608  # ?-bound (adjudicated cluster, S13)
         "FROM ( "
@@ -4202,6 +4216,76 @@ def semantic_neighbors(
     return [(row[0], row[1], row[2]) for row in r]
 
 
+def _vec_literal(vec, dim: int) -> str:
+    """Numeric FLOAT[N] literal for an embedding vector.
+
+    Routing requirement, not style: the HNSW planner engages idx_*_emb
+    only when the reference vector is a literal in the ORDER BY
+    expression — a bound parameter or scalar subquery falls back to
+    sequential scan (EXPLAIN probe 2026-11-06; same finding as
+    vec_search._vec_literal). Values are repr()-formatted floats, so no
+    corpus text ever reaches the SQL text.
+    """
+    return "[" + ", ".join(repr(float(x)) for x in vec) + "]::FLOAT[" + str(dim) + "]"
+
+
+def _semantic_neighbors_cosine(
+    con: duckdb.DuckDBPyConnection,
+    company: str,
+    k: int,
+    dim: int,
+) -> list[tuple[str, str, float]]:
+    """Routed cosine leg of semantic_neighbors (graph_hnsw_next S1).
+
+    One single-level query — the HNSW index serves ORDER BY
+    array_cosine_distance(...) ASC only with a literal reference and no
+    projection beyond the distance itself; joins and score conversion
+    happen off the routed top-k. Score: array_cosine_distance d on
+    unit vectors satisfies cos = 1 - d directly (the legacy L2 path
+    converts via 1 - d*d/2 — same value, different distance family).
+    Names resolve through v_node (kind='company') with the same
+    INNER-JOIN semantics as the legacy form.
+    """
+    row = con.execute(
+        "SELECT embedding FROM v_embeddings WHERE company_name = ?", [company]
+    ).fetchone()
+    if row is None or not row[0]:
+        return []
+    cd = (
+        "array_cosine_distance(CAST(embedding AS FLOAT["
+        + str(dim)
+        + "]), CAST("
+        + _vec_literal(row[0], dim)
+        + " AS FLOAT["
+        + str(dim)
+        + "]))"
+    )
+    # d < 2 is cos > 0 on unit vectors — the old filter_cond, pushed into
+    # the routed WHERE (probe: the query stays on Hnsw Index Scan).
+    rows = con.execute(
+        "SELECT id, " + cd + " AS d FROM v_embeddings "  # noqa: S608  # interpolated: numeric literal + int dims only
+        "WHERE company_name != ? AND " + cd + " < 2 "
+        "ORDER BY " + cd + " ASC LIMIT " + str(int(k)),
+        [company],
+    ).fetchall()
+    ids = [r[0] for r in rows]
+    if not ids:
+        return []
+    ph = ", ".join("?" for _ in ids)
+    meta = con.execute(
+        "SELECT id, name, sector_classification FROM v_node "
+        "WHERE kind = 'company' AND id IN (" + ph + ")",  # noqa: S608  # ?-bound names; ph count-of-ints
+        [*ids],
+    ).fetchall()
+    by_id = {m[0]: (m[1], m[2]) for m in meta}
+    out: list[tuple[str, str, float]] = []
+    for i, d in rows:
+        m = by_id.get(i)
+        if m is not None:
+            out.append((m[0], m[1], 1 - float(d)))
+    return out
+
+
 # --------------------------------------------------------------------------- #
 # Note-embedding wrappers (sql_capability_unlocks A2 — v_note_embeddings)
 #
@@ -4213,6 +4297,10 @@ def semantic_neighbors(
 # Any FUTURE text-query wrapper over v_note_embeddings MUST go through
 # rebuild_note_search.query_embedder() (BGE instruction prefix), never
 # embed_document.
+# Routing note (probe 2026-11-06): these are path-level queries (GROUP BY
+# file_path + MIN(dist)), which no row-level index scan can serve — they
+# stay exact brute-force (~41ms vs ~10ms routed row-KNN, within the
+# <=10x directive) even though idx_v_note_embeddings_emb exists.
 # --------------------------------------------------------------------------- #
 _EDITION_DOC_TYPES = ("chatter", "points_and_figures", "plotlines")
 

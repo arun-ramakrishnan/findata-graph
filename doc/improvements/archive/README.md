@@ -381,6 +381,31 @@ commit, referenced by nothing). Entry numbers point at
 
 ## database/ — Databases — DuckDB/SQLite engine and SQL query improvements
 
+- [`duckdb_full_consolidation.md`](database/duckdb_full_consolidation.md) —
+  one-store consolidation decision doc (graph_hnsw_next S4 spin-off):
+  trigger verdicts (gate NOT met; HNSW partially fired), B2-lite
+  contention map (one-RW-or-many-RO, P1 embedded vs P2 wire posture
+  fork), B1-lite port sizing (113 helpers.core.db importers, 19 raw
+  sqlite sites, 33 FK CASCADE sites parser-rejected on 2.0.0), S0–S3
+  slice plan; recommendation DO NOT MERGE NOW (ops win shrank — convo
+  lane self-contained 2.8 GB, remaining sync 3.7 s materialise — cost
+  grew 2.6× since September); deferred, revisit on second-writer or
+  backup-pain trigger — completed.md #483
+- [`graph_hnsw_next.md`](database/graph_hnsw_next.md) — graph-lane HNSW +
+  remaining retrieval unlocks: S1 executed (idx_v_embeddings_emb +
+  idx_v_note_embeddings_emb cosine ef=128; bounded-KNN reroute via
+  literal-ref cosine_distance ORDER BY — probes showed only that form
+  routes; quack server INSTALL/LOAD vss so the served path stops
+  brute-forcing; step-0 gates pass on the live 194,525-row corpus);
+  S2 FTS5-sidecar retirement + S3 doc/script/memory/git lane-CLI
+  semantic legs deferred — completed.md #482
+- [`duckdb_pure_stack.md`](database/duckdb_pure_stack.md) —
+  pure-DuckDB retrieval stack (S1–S4 executed in one arc): persistent
+  HNSW in convo_search.duckdb, sqlite-vec retired (12-file surface,
+  notes mirror → note_vectors.duckdb), native match_bm25 over a full
+  text column with sqlite fallback, anchored RRF k=20/3 anchors; bank
+  lexical 22→38, vector 14→27, hybrid 8→40-41, zero-results 22→2/100;
+  S5 notes-primary deferred — completed.md #481
 - [`opencode_drift_check_fastpath.md`](database/opencode_drift_check_fastpath.md) —
   watermark-guarded opencode drift check (db_scaling_tuning §6.4 spin-off):
   frozen-snapshot skip + scalar-MAX lane guards, no harness-store mutation;

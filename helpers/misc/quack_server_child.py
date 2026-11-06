@@ -44,6 +44,47 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 from helpers.core import duckdb_shared as ds  # noqa: E402
 
 
+def _shadow_bind_holder(port: int) -> str | None:
+    """Kernel-truth shadow-bind guard: the pid= segment of a foreign
+    LISTENer on port, or None when the port is free or already ours.
+    (quack_serve binds SO_REUSEPORT - a second bind SUCCEEDS and the
+    kernel load-balances between two servers, splitting auth tokens
+    and catalogs; proven 2026-10-22. Bind-probing would succeed; ss
+    is the kernel truth.)"""
+    listeners = subprocess.run(  # noqa: S603  - fixed argv, kernel truth
+        ["/usr/bin/ss", "-ltnp", f"sport = :{port}"],
+        capture_output=True,
+        text=True,
+    ).stdout
+    foreign = [line for line in listeners.splitlines() if f"pid={os.getpid()}," not in line]
+    if any("LISTEN" in line for line in foreign):
+        return next(
+            (seg for line in foreign if "LISTEN" in line for seg in line.split() if "pid=" in seg),
+            "unknown",
+        )
+    return None
+
+
+def _load_serving_extensions(con: duckdb.DuckDBPyConnection) -> None:
+    """quack always; vss + HNSW persistence best-effort. vss serves the
+    graph lane's HNSW indexes (idx_v_embeddings_emb /
+    idx_v_note_embeddings_emb): without it the planner cannot bind
+    those indexes and served queries fall back to Seq Scan. Each
+    statement is independent - a missing extension must not take the
+    server down (queries degrade to brute force)."""
+    con.execute("INSTALL quack")
+    con.execute("LOAD quack")
+    for _stmt in (
+        "INSTALL vss",
+        "LOAD vss",
+        "SET hnsw_enable_experimental_persistence = true",
+    ):
+        try:
+            con.execute(_stmt)
+        except Exception as e:  # noqa: BLE001 - server must survive
+            print(f"quack-server: {_stmt} failed: {e}", file=sys.stderr)
+
+
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     ap.add_argument("--db", required=True, help="store to serve (one server per store)")
@@ -72,30 +113,12 @@ def main(argv: list[str] | None = None) -> int:
     stop_file.parent.mkdir(parents=True, exist_ok=True)
     stop_file.unlink(missing_ok=True)
 
-    # Pre-flight: refuse to shadow-bind. quack_serve binds with
-    # SO_REUSEPORT, so a second server on the same port SUCCEEDS at
-    # binding and the kernel then load-balances client connections
-    # between the two — each holding a different token (auth failures)
-    # and a different catalog (wrong-store routing). Proven 2026-10-22:
-    # a throwaway child shadow-bound the resident server on 9494 and
-    # wire attaches failed ~50% of the time with
-    # InvalidInputException: Authentication failed. Bind-probing is
-    # useless here (it would succeed); ss is the kernel truth.
-    listeners = subprocess.run(  # noqa: S603  — fixed argv, kernel truth for the SO_REUSEPORT guard
-        ["/usr/bin/ss", "-ltnp", f"sport = :{args.port}"],
-        capture_output=True,
-        text=True,
-    ).stdout
-    foreign = [line for line in listeners.splitlines() if f"pid={os.getpid()}," not in line]
-    if any("LISTEN" in line for line in foreign):
-        holder = next(
-            (seg for line in foreign if "LISTEN" in line for seg in line.split() if "pid=" in seg),
-            "unknown",
-        )
+    holder = _shadow_bind_holder(args.port)
+    if holder is not None:
         print(
             f"quack-server: port {args.port} already served by another process "
-            f"({holder}) — shadow-binding would split auth and routing. "
-            "Stop it first (`make quack-stop`) or pass an explicit --port.",
+            f"({holder}) - shadow-binding would split auth and routing. "
+            "Stop it first (make quack-stop) or pass an explicit --port.",
             file=sys.stderr,
         )
         return 2
@@ -118,8 +141,7 @@ def main(argv: list[str] | None = None) -> int:
         con = duckdb.connect(str(db), **connect_kwargs())
     except ImportError:  # standalone child (tests) without the repo package
         con = duckdb.connect(str(db))
-    con.execute("INSTALL quack")
-    con.execute("LOAD quack")
+    _load_serving_extensions(con)
     # Explicit port: the bare 'quack:localhost' form carries no port in
     # the returned uri, so clients cannot tell servers apart and would
     # all land on the default 9494. Pinning it keeps discovery unambiguous.
