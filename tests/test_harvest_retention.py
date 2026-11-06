@@ -392,14 +392,15 @@ class TestProvenanceDriftIsChecked:
         idx = tmp_path / "idx.duckdb"
         con = duckdb.connect(str(idx))
         con.execute(
-            "CREATE TABLE convo_search (file_path VARCHAR, row_no INTEGER, provenance VARCHAR)"
+            "CREATE TABLE convo_search (file_path VARCHAR, part_id VARCHAR, provenance VARCHAR)"
         )
         rel = str((root / "opencode" / "conversations" / "ses_x.parquet").resolve())
+        # S4: join on (file_path, part_id), not row_no. _write uses part_id='p0', 'p1', etc.
         con.executemany(
             "INSERT INTO convo_search VALUES (?, ?, ?)",
-            [(rel, i, "orphan:opencode") for i in range(4)],
+            [(rel, f"p{i}", "orphan:opencode") for i in range(4)],
         )
-        con.execute("UPDATE convo_search SET provenance='opencode:live' WHERE row_no=2")
+        con.execute("UPDATE convo_search SET provenance='opencode:live' WHERE part_id='p2'")
         con.close()
         drift = hc._provenance_drift(root, idx)
         assert len(drift) == 1, f"expected exactly the one bad row, got {drift}"

@@ -10,6 +10,7 @@ pin the orchestrator's wiring — including the qa-style run report
 
 from __future__ import annotations
 
+import logging
 import sys
 from pathlib import Path
 
@@ -514,3 +515,84 @@ class TestReport:
         monkeypatch.setattr(maint.subprocess, "Popen", lambda cmd, *a, **kw: _FakeProc(0))
         assert maint.main(["--dry-run"]) == 0
         assert not maint.REPORT_PATH.exists()
+
+
+# --------------------------------------------------------------------------- #
+# Convo dead-block tripwire (convo_search_dead_block_compaction S2)           #
+# --------------------------------------------------------------------------- #
+class TestConvoSwapTripwire:
+    """The maint-cycle --incremental→--swap flip: per-run, store-state-driven,
+    orchestrator-owned (same idiom as _served_file_lane_skip). Only the flag
+    inside the convo-rebuild cmd may change — labels, tuple shape, cmd[0],
+    cmd[1] and every other step must survive untouched."""
+
+    @staticmethod
+    def _convo_cmd():
+        ((label, cmd),) = [s for s in maint.TIER1_STEPS if s[0].split(" (")[0] == "convo-rebuild"]
+        return label, list(cmd)
+
+    def _run(self, monkeypatch, anatomy_dict):
+        monkeypatch.setattr(
+            "helpers.maintenance.duckdb_block_anatomy.anatomy", lambda db: anatomy_dict
+        )
+        logger = logging.getLogger("test_tripwire")
+        steps = [(label, list(cmd)) for label, cmd in maint.TIER1_STEPS]
+        return maint._maybe_upgrade_convo_swap(steps, logger)
+
+    def test_above_trigger_flips_incremental_to_swap(self, monkeypatch):
+        hot = {"status": "ok", "file_bytes": 3_000_000_000, "dead_bytes": 1_500_000_000}
+        label, _cmd = self._convo_cmd()
+        steps = self._run(monkeypatch, hot)
+        convo = [s for s in steps if s[0] == label]
+        assert len(convo) == 1
+        assert "--swap" in convo[0][1]
+        assert "--incremental" not in convo[0][1]
+
+    def test_below_trigger_keeps_incremental(self, monkeypatch):
+        cool = {"status": "ok", "file_bytes": 1_900_032_000, "dead_bytes": 694_000_000}
+        label, _cmd = self._convo_cmd()
+        steps = self._run(monkeypatch, cool)
+        convo = [s for s in steps if s[0] == label]
+        assert "--incremental" in convo[0][1]
+        assert "--swap" not in convo[0][1]
+
+    def test_unavailable_probe_degrades_to_incremental(self, monkeypatch):
+        label, _cmd = self._convo_cmd()
+        steps = self._run(monkeypatch, {"status": "unavailable", "reason": "IOException"})
+        convo = [s for s in steps if s[0] == label]
+        assert "--incremental" in convo[0][1]
+
+    def test_raising_probe_degrades_to_incremental(self, monkeypatch, caplog):
+        def boom(db):
+            raise RuntimeError("io exploded")
+
+        monkeypatch.setattr("helpers.maintenance.duckdb_block_anatomy.anatomy", boom)
+        label, _cmd = self._convo_cmd()
+        steps = maint._maybe_upgrade_convo_swap(
+            [(lb, list(c)) for lb, c in maint.TIER1_STEPS], logging.getLogger("test_tripwire")
+        )
+        convo = [s for s in steps if s[0] == label]
+        assert "--incremental" in convo[0][1]
+        assert any("swap-tripwire probe failed" in r.message for r in caplog.records)
+
+    def test_flip_leaves_every_other_step_untouched(self, monkeypatch):
+        hot = {"status": "ok", "file_bytes": 3_000_000_000, "dead_bytes": 1_500_000_000}
+        label, _cmd = self._convo_cmd()
+        before = [(lb, list(c)) for lb, c in maint.TIER1_STEPS]
+        steps = self._run(monkeypatch, hot)
+        assert len(steps) == len(before)
+        for (bl, bc), (al, ac) in zip(before, steps):
+            assert bl == al, "labels never change"
+            if bl != label:
+                assert bc == ac, f"non-convo step mutated: {bl}"
+        # module constants untouched (shallow-copy semantics)
+        orig = [c for lb, c in maint.TIER1_STEPS if lb == label][0]
+        assert "--incremental" in orig and "--swap" not in orig
+
+    def test_module_constant_lists_unchanged_after_flip(self, monkeypatch):
+        """The flip must not leak into TIER1_STEPS (the plan log, dry-run and
+        every later run read the same module list)."""
+        hot = {"status": "ok", "file_bytes": 3_000_000_000, "dead_bytes": 1_500_000_000}
+        label, _cmd = self._convo_cmd()
+        self._run(monkeypatch, hot)
+        assert all("--swap" not in c for _l, c in maint.TIER1_STEPS)

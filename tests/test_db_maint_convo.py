@@ -207,3 +207,88 @@ def test_backup_convo_corpus_skips_when_empty(tmp_path, monkeypatch):
     m = _maintainer(tmp_path)
     assert m._backup_convo_corpus() == 0
     assert not (tmp_path / "db-backup/convo_corpus_backup.tar.zst").exists()
+
+
+# --------------------------------------------------------------------------- #
+# F4 dead-block probe (convo_search_dead_block_compaction S2)                  #
+# --------------------------------------------------------------------------- #
+class TestF4DeadBlockProbe:
+    """The duckdb sidecar loop measures block anatomy over its own
+    connection (a nested open would deadlock on its exclusive flock)
+    and raises the F4 alert above DUCKDB_DEAD_PCT / DUCKDB_DEAD_BYTES."""
+
+    def test_sidecar_row_carries_anatomy_and_alert_fires(self, tmp_path, monkeypatch, caplog):
+        import logging as _logging
+
+        from helpers.maintenance import db_maint as dm
+
+        idx, _fts = _make_index(tmp_path)
+        # retarget the registered estate at the tmp store
+        monkeypatch.setattr(dm, "SIDECAR_DUCKDB", ((str(idx), False),))
+        monkeypatch.setattr(dm, "REPO_ROOT", tmp_path)
+        m2 = dm.DBMaintainer(
+            tmp_path / "live/research.db",
+            tmp_path / "db-backup/research_backup.db",
+            backup_sidecars=False,
+        )
+        with caplog.at_level(_logging.WARNING, logger=m2.logger.name):
+            rows = m2.maintain_registered_sidecars()
+        duck_rows = [r for r in rows if r.get("engine") == "duckdb"]
+        assert len(duck_rows) == 1
+        row = duck_rows[0]
+        assert row["action"] == "checkpoint"
+        assert row["dead_blocks"] == 0  # fresh store: fully compact
+        assert row["dead_pct"] == 0.0
+        # threshold-down: the alert must fire (P3.6 shape, advisory only)
+        monkeypatch.setattr(type(m2), "DUCKDB_DEAD_PCT", -1.0)
+        with caplog.at_level(_logging.WARNING, logger=m2.logger.name):
+            m2.maintain_registered_sidecars()
+        assert any("F4 alert" in r.message for r in caplog.records)
+
+    def test_report_prints_dead_note(self, tmp_path, monkeypatch, capsys):
+        from helpers.maintenance.db_maint import _print_report
+
+        r = {
+            "settings": {},
+            "before": {
+                "file_size": 1,
+                "pages": 1,
+                "freelist": 0,
+                "wasted_pct": 0.0,
+                "wasted_bytes": 0,
+            },
+            "after": {
+                "file_size": 1,
+                "pages": 1,
+                "freelist": 0,
+                "wasted_pct": 0.0,
+                "wasted_bytes": 0,
+            },
+            "stat_staleness_before": {},
+            "stat_staleness_after": {},
+            "backup": {"path": "b", "size": 1},
+            "sidecars": [
+                {
+                    "store": "memory/convo_search.duckdb",
+                    "engine": "duckdb",
+                    "action": "checkpoint",
+                    "dead_pct": 36.5,
+                    "dead_bytes": 694_000_000,
+                    "secs": 0.1,
+                },
+                {
+                    "store": "memory/embed_store.db",
+                    "engine": "sqlite",
+                    "action": "checkpoint",
+                    "wasted_pct": 0.5,
+                    "secs": 0.1,
+                },
+            ],
+            "indexes": [],
+            "integrity_check": "ok",
+            "foreign_key_violations": 0,
+        }
+        _print_report(r)
+        out = capsys.readouterr().out
+        assert "dead 36.5% (661.8 MB)" in out  # _fmt_bytes is binary
+        assert "wasted 0.5%" in out

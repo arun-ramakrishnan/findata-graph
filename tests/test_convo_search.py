@@ -274,7 +274,8 @@ def test_rebuild_index_and_check(convo_env, monkeypatch):
 
 
 def test_pointer_expand_resolves_the_right_row(convo_env, monkeypatch):
-    """A row_no pointer must read back the EXACT corpus row it indexed."""
+    """A part-addressed pointer (S4: file:part_id) must read back the EXACT
+    corpus row it indexed; legacy row_no pointers still resolve positionally."""
     tmp = convo_env
     from helpers.misc import convo_query as cq
 
@@ -303,11 +304,15 @@ def test_pointer_expand_resolves_the_right_row(convo_env, monkeypatch):
         assert rows
         for harness, part_id, file_path, row_no, snippet in rows:
             monkeypatch.setattr(cq, "REPO", tmp)
-            rec = cq.expand(f"{file_path}:{row_no}")
+            rec = cq.expand(f"{file_path}:{part_id}")
             # the row the pointer names is the row whose digest we indexed
             assert rec["harness"] == harness
             assert rec["part_id"] == part_id
             assert rec["text"].startswith(snippet[:40])
+        # legacy positional pointer (pre-S4 format, found in old logs)
+        harness, part_id, file_path, row_no, snippet = rows[0]
+        rec = cq.expand(f"{file_path}:{row_no}")
+        assert rec["part_id"] == part_id
     finally:
         con.close()
 
@@ -645,11 +650,20 @@ def test_incremental_indexes_only_the_delta(convo_env, monkeypatch):
     s.close()
 
 
-def test_compaction_reshifts_row_no_and_pointers_stay_correct(convo_env, monkeypatch):
-    """A harness compaction drops/reorders parts: every LATER row_no shifts
-    while the text is unchanged. The pointers are row numbers, so the
-    index must re-resolve them — otherwise a pointer silently reads the
-    wrong part (T8's compaction guard)."""
+def test_compaction_noop_and_drops_propagate(convo_env, monkeypatch):
+    """S4, corrected model (measured 2026-11-07: the live corpus is
+    append-only in practice — 255/255 parts aligned, zero drops, bili
+    compression is reversible at the log/backing-db layer so the corpus
+    never loses parts):
+
+    - a pure RENUMBER (parts reordered, text + part_ids untouched) must
+      be a ZERO-WRITE no-op: no deletes, no re-embeds, no FTS refresh —
+      the whole-part rewrite waves this arc set out to kill;
+    - pointers are part-addressed, so they resolve correctly even with
+      the stale row_no a no-op leaves behind;
+    - a genuine DROP (a part vanishing from the parquet) must still
+      propagate: the index follows the corpus.
+    """
     from helpers.misc import convo_query as cq
 
     tmp = convo_env
@@ -659,9 +673,8 @@ def test_compaction_reshifts_row_no_and_pointers_stay_correct(convo_env, monkeyp
 
     f = next((tmp / "corpus/opencode/conversations").glob("*.parquet"))
     tbl = pq.read_table(f)
-    # three parts so there is a "tail" whose row_no must move
     extra = []
-    for i, pid in enumerate(("pA", "pB")):
+    for pid in ("pA", "pB"):
         extra.append(
             {
                 "part_id": pid,
@@ -681,41 +694,79 @@ def test_compaction_reshifts_row_no_and_pointers_stay_correct(convo_env, monkeyp
 
     monkeypatch.setattr(rcs, "REPO", tmp)
     monkeypatch.setattr(rcs, "CORPUS_DIR_GLOB", "corpus/*/*/*.parquet")
+    embed_calls: list[list[str]] = []
     monkeypatch.setattr(
         rcs,
         "_embed",
         lambda texts: (
-            [[1.0, 0.0] for _ in texts],
+            embed_calls.extend(texts) or [[1.0, 0.0] for _ in texts],
             {"hits": 0, "misses": len(texts)},
             2,
             "test-model",
         ),
     )
+    refresh_calls: list[bool] = []
+    real_refresh = rcs._refresh_fts_index
+    monkeypatch.setattr(
+        rcs, "_refresh_fts_index", lambda db: refresh_calls.append(True) or real_refresh(db)
+    )
     idx = tmp / "idx" / "convo_search.duckdb"
     rcs.rebuild(idx, write=True)
+    monkeypatch.setattr(cq, "REPO", tmp)
 
-    # COMPACT: drop the first part, so pA/pB/p2/p3 all shift up by one row
+    def part_set():
+        # short-lived read-only open: the write path cannot run while a
+        # read_only connection to the same file is alive in-process
+        con = cq.connect(idx)
+        try:
+            return set(
+                con.ddb.execute(
+                    "SELECT part_id FROM convo_search WHERE file_path LIKE '%opencode%'"
+                ).fetchall()
+            )
+        finally:
+            con.close()
+
+    def count():
+        con = cq.connect(idx)
+        try:
+            return con.ddb.execute("SELECT COUNT(*) FROM convo_search").fetchone()[0]
+        finally:
+            con.close()
+
+    base_set, base_count = part_set(), count()
+    assert {("pA",), ("pB",)} <= base_set
+
+    # 1) pure RENUMBER: reverse parquet row order, texts + part_ids intact.
+    #    Pre-S4 this flagged the whole file; post-S4 it must write nothing.
     rows = pq.read_table(f).to_pylist()
-    compacted = [r for r in rows if r["part_id"] != "p1"]
-    pq.write_table(pa.Table.from_pylist(compacted, schema=tbl.schema), f)
-    rcs.rebuild(idx, write=True, incremental=True)
+    pq.write_table(pa.Table.from_pylist(list(reversed(rows)), schema=tbl.schema), f)
+    embed_calls.clear()
+    no_op = rcs.rebuild(idx, write=True, incremental=True)
+    assert no_op["indexed"] == 0, f"renumber must be a no-op, got {no_op}"
+    assert not embed_calls, "renumber must not re-embed anything"
+    assert part_set() == base_set and count() == base_count
 
+    # 2) pointers resolve by part_id even with the stale row_no
     con = cq.connect(idx)
     try:
-        monkeypatch.setattr(cq, "REPO", tmp)  # pointers are repo-relative
-        # every pointer must resolve to ITS OWN part, for every row
         bad = con.ddb.execute(
-            "SELECT part_id, file_path, row_no FROM convo_search WHERE file_path LIKE '%opencode%'"
+            "SELECT part_id, file_path FROM convo_search WHERE file_path LIKE '%opencode%'"
         ).fetchall()
-        assert len(bad) >= 4
-        for part_id, file_path, row_no in bad:
-            rec = cq.expand(f"{file_path}:{row_no}")
-            assert rec["part_id"] == part_id, (
-                f"pointer {file_path}:{row_no} resolves to {rec['part_id']}, "
-                f"not {part_id} — stale row_no after compaction"
-            )
     finally:
         con.close()
+    assert len(bad) >= 4
+    for part_id, file_path in bad:
+        rec = cq.expand(f"{file_path}:{part_id}")
+        assert rec["part_id"] == part_id
+
+    # 3) a genuine DROP must still propagate (index follows the corpus)
+    rows = pq.read_table(f).to_pylist()
+    kept = [r for r in rows if r["part_id"] != "pA"]
+    pq.write_table(pa.Table.from_pylist(kept, schema=tbl.schema), f)
+    rcs.rebuild(idx, write=True, incremental=True)
+    assert part_set() == base_set - {("pA",)}, "dropped part must leave the index"
+    assert count() == base_count - 1
 
 
 def test_query_hybrid_fuse(convo_env, monkeypatch):
@@ -991,3 +1042,43 @@ class TestDuckNativeFTS:
             assert hits, "sqlite fallback leg returned no hits"
         finally:
             cc.close()
+
+
+def test_no_change_run_skips_fts_refresh(convo_env, monkeypatch):
+    """S4: the native-FTS drop+recreate (~34 s over 27M terms rows) is
+    pointless when the run wrote nothing — a quiet gate arc must skip it."""
+    tmp = convo_env
+    hc.harvest(corpus_root=tmp / "corpus", db=tmp / "convo_search.duckdb")
+    monkeypatch.setattr(rcs, "REPO", tmp)
+    monkeypatch.setattr(rcs, "CORPUS_DIR_GLOB", "corpus/*/*/*.parquet")
+    monkeypatch.setattr(
+        rcs,
+        "_embed",
+        lambda texts: (
+            [[1.0, 0.0] for _ in texts],
+            {"hits": 0, "misses": len(texts)},
+            2,
+            "test-model",
+        ),
+    )
+    idx = tmp / "idx" / "convo_search.duckdb"
+    rcs.rebuild(idx, write=True)
+
+    calls: list[str] = []
+    monkeypatch.setattr(rcs, "_refresh_fts_index", lambda db: calls.append(str(db)))
+    rcs.rebuild(idx, write=True, incremental=True)
+    assert not calls, "zero-change incremental must not drop/recreate the FTS index"
+
+    # a content change must still refresh it
+    import pyarrow as pa
+    import pyarrow.parquet as pq
+
+    f = next((tmp / "corpus/opencode/conversations").glob("*.parquet"))
+    tbl = pq.read_table(f)
+    rows = tbl.to_pylist()
+    for r in rows:
+        if r["part_id"] == "p1":
+            r["text"] = "changed body triggers refresh"
+    pq.write_table(pa.Table.from_pylist(rows, schema=tbl.schema), f)
+    rcs.rebuild(idx, write=True, incremental=True)
+    assert len(calls) == 1, "a content change must refresh the native FTS index"

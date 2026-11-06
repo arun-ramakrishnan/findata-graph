@@ -43,8 +43,11 @@ SCHEMA = [
     ("snippet", "VARCHAR"),
     ("embedding", "FLOAT[]"),
     ("provenance", "VARCHAR"),
+    ("content_hash", "VARCHAR"),
 ]
-OLD_SCHEMA = SCHEMA[:-1]  # what an index built before the column existed looks like
+# pre-provenance index (explicit, NOT a slice: content_hash trails provenance
+# in SCHEMA, so [:-1] would still carry provenance after the S4 column landed)
+OLD_SCHEMA = [c for c in SCHEMA if c[0] != "provenance"]
 
 
 def _make_db(path, *, with_provenance: bool):

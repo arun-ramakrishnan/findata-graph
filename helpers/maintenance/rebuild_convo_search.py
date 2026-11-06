@@ -96,6 +96,7 @@ CREATE TABLE IF NOT EXISTS convo_search (
   text VARCHAR, -- full part text (S3): input to the native FTS index
   text_len BIGINT, snippet VARCHAR, embedding FLOAT{sized},
   provenance VARCHAR DEFAULT '',
+  content_hash VARCHAR, -- S4: sha256(full text); row_no is NOT identity
   PRIMARY KEY (harness, part_id)
 )
 """
@@ -364,6 +365,7 @@ def _read_file(f: Path) -> tuple[str, list[dict]]:
                 "text_len": len(text),
                 "snippet": text[:SNIPPET_CAP],
                 "provenance": r.get("source") or "",
+                "content_hash": hashlib.sha256(text.encode("utf-8", "replace")).hexdigest(),
             }
         )
     return _file_hash(f), rows
@@ -424,27 +426,40 @@ def _delete_duckdb_keys(
 
 def _indexed_state(
     con: duckdb.DuckDBPyConnection, rel: str
-) -> dict[tuple[str, str], tuple[str, int, int]]:
-    """(harness, part_id) → (snippet, text_len, row_no) indexed for a file.
+) -> dict[tuple[str, str], tuple[str, int, str | None]]:
+    """(harness, part_id) → (snippet, text_len, content_hash) indexed for a file.
 
-    ``row_no`` is part of the fingerprint on purpose, and it is the
-    compaction guard. The pointers ARE row numbers into the parquet, so
-    if a harness compacts/rewrites a session (parts reordered or
-    dropped), every SUBSEQUENT part keeps its id and text but moves to a
-    different row. Comparing only the text would skip those rows and
-    leave pointers resolving to the wrong part — silent corruption. With
-    row_no in the tuple, a compaction flags the whole tail as changed
-    and it is re-indexed: correct, and cheap because compaction is rare
-    (tolerated skew, deliberately).
+    S4 (convo_search_dead_block_compaction): ``row_no`` is deliberately NOT
+    part of the fingerprint any more. Harness compactions rewrite the
+    parquet with text and part_ids untouched but row_no re-shifted; under
+    the old row_no-in-fingerprint rule that flagged the whole active
+    session for DELETE+reinsert — measured at 694 MB of dead DuckDB
+    blocks from ONE refresh (2026-11-06 23:01), because DuckDB 2.0 does
+    not reclaim freed blocks at scale and the vector column rides every
+    rewrite. Pointers are part-addressed now (``file:part_id``), so a
+    renumber is a genuine no-op. Dropped parts still vanish via the
+    ``row is None → drop_keys`` path in _rebuild_incremental_mode, and
+    true content edits still match via snippet/text_len/content_hash.
+    Legacy stores without the content_hash column compare (snippet,
+    text_len) with hash=None on both sides — same semantics, minus the
+    exact-beyond-snippet-cap detection that arrives with the column.
     """
-    return {
-        (h, p): (snip, tlen, rno)
-        for h, p, snip, tlen, rno in con.execute(
-            "SELECT harness, part_id, snippet, text_len, row_no FROM convo_search "
-            "WHERE file_path = ?",
-            [rel],
+    cols = {
+        r[0]
+        for r in con.execute(
+            "SELECT column_name FROM duckdb_columns WHERE table_name = 'convo_search'"
         ).fetchall()
     }
+    sel = "harness, part_id, snippet, text_len" + (
+        ", content_hash" if "content_hash" in cols else ""
+    )
+    out: dict[tuple[str, str], tuple[str, int, str | None]] = {}
+    for h, p, snip, tlen, *rest in con.execute(
+        f"SELECT {sel} FROM convo_search WHERE file_path = ?",  # noqa: S608  # constant column list
+        [rel],
+    ).fetchall():
+        out[(h, p)] = (snip, tlen, rest[0] if rest else None)
+    return out
 
 
 def _fts_delete_keys(
@@ -588,6 +603,7 @@ _STAGE_SCHEMA_FIELDS = (
     ("snippet", "string"),
     ("embedding", "listf32"),
     ("provenance", "string"),
+    ("content_hash", "string"),
 )
 
 
@@ -634,6 +650,8 @@ def _bulk_insert(con: duckdb.DuckDBPyConnection, rows: list[dict], vecs: list[li
             # `provenance` here because `source` collides with the parquet
             # reader's own vocabulary and the index is queried by humans.
             pa.field("provenance", pa.string()),
+            # S4: sha256(full text) — the change-fingerprint identity column
+            pa.field("content_hash", pa.string()),
         ]
     )
     table = pa.Table.from_pydict(
@@ -765,10 +783,12 @@ def _rebuild_incremental_mode(
 
     Delta-only is the T8b fix, not a style choice: re-inserting unchanged
     rows costs ~11 s of FTS re-tokenization per run for text that never
-    changed. Harness parts are append-only, so row_no shifts ONLY on a
-    compaction — which is exactly why row_no is part of the change
-    fingerprint below (a compaction re-shifts every later row while the
-    text stays identical, and only the fingerprint catches it).
+    changed. Harness parts are append-only and part_ids are stable across
+    harness compactions — the parquet rewrite renumbers rows but keeps
+    text and part_ids (S4): the fingerprint below is row_no-free, so a
+    compaction is a zero-write no-op and only appends, drops and true
+    content edits write. Pointers are part-addressed (convo_query), so
+    the stale row_no that a no-op leaves behind is harmless metadata.
     """
     current = {str(f.relative_to(REPO)): _file_hash(f) for f in files}
     diff = _diff(current, stored)
@@ -789,7 +809,7 @@ def _rebuild_incremental_mode(
             row = new_keys.get(key)
             if row is None:
                 drop_keys.append(key)
-            elif was != (row["snippet"], row["text_len"], row["row_no"]):
+            elif was != (row["snippet"], row["text_len"], row.get("content_hash")):
                 drop_keys.append(key)
                 rewritten.add(key)
         keep.extend(r for key, r in new_keys.items() if key not in seen or key in rewritten)
@@ -829,7 +849,7 @@ def _rebuild_embed_and_persist(
     con.executemany(
         "INSERT OR REPLACE INTO convo_meta VALUES (?, ?)",
         [(f"file:{rel}", h) for rel, h in current.items()]
-        + [("embed_model", model_label), ("embed_dims", str(dims))],
+        + [("embed_model", model_label), ("embed_dims", str(dims)), ("key_schema", "content_v1")],
     )
     return cstats, model_label, dims
 
@@ -882,7 +902,11 @@ def rebuild_via_swap(db_path: Path, incremental: bool = False) -> dict:
             con.executemany(
                 "INSERT OR REPLACE INTO convo_meta VALUES (?, ?)",
                 [(f"file:{rel}", h) for rel, h in current.items()]
-                + [("embed_model", model_label), ("embed_dims", str(dims))],
+                + [
+                    ("embed_model", model_label),
+                    ("embed_dims", str(dims)),
+                    ("key_schema", "content_v1"),
+                ],
             )
             _carry_harvest_state(con, db_path)
             # S1 (duckdb_pure_stack): persisted HNSW on the embedding
@@ -1105,7 +1129,12 @@ def rebuild(
         )
 
     # -- 4. FTS refresh + sync: independent of any convo-db window ------
-    _refresh_fts_index(db_path)
+    # S4: the native-FTS refresh is a full drop+recreate re-tokenization
+    # (~34 s over all 27M terms rows) that strands its own dead blocks —
+    # pointless when this run wrote nothing (a renumber-only no-op or a
+    # quiet gate). full mode always refreshes (it just wiped the store).
+    if rows or drop_keys or not incremental:
+        _refresh_fts_index(db_path)
     timer.mark("fts_refresh")
     from helpers.core.db import connect as db_connect
 
@@ -1123,7 +1152,11 @@ def rebuild(
             con.executemany(
                 "INSERT OR REPLACE INTO convo_meta VALUES (?, ?)",
                 [(f"file:{rel}", h) for rel, h in current.items()]
-                + [("embed_model", model_label), ("embed_dims", str(dims))],
+                + [
+                    ("embed_model", model_label),
+                    ("embed_dims", str(dims)),
+                    ("key_schema", "content_v1"),
+                ],
             )
         finally:
             con.close()

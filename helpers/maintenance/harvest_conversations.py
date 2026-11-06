@@ -2020,10 +2020,11 @@ def _provenance_drift(corpus_root: Path = CORPUS_ROOT, index_db: Path = INDEX_DB
     is not a check. Measured 2026-10-17: 912 rows were wrong after a relabel and
     `make convo-fresh APPLY=1` did not correct them.
 
-    The join is positional on `(file_path, row_no)`, the same key
-    `_backfill_provenance` uses, because one parquet can carry MIXED
-    provenance. Rows the index does not have are skipped — an unindexed file is
-    `stale_new`'s business, not a provenance disagreement.
+    The join is on `(file_path, part_id)` (S4 — part_ids are stable across
+    harness compactions; the old positional `(file_path, row_no)` join
+    would false-positive after every renumber no-op). One parquet can
+    carry MIXED provenance. Rows the index does not have are skipped — an
+    unindexed file is `stale_new`'s business, not a provenance disagreement.
     """
     import pyarrow.parquet as pq
 
@@ -2036,10 +2037,13 @@ def _provenance_drift(corpus_root: Path = CORPUS_ROOT, index_db: Path = INDEX_DB
     except Exception:
         return []
     try:
+        # S4: join on (file_path, part_id), not row_no — part_ids are
+        # stable across harness compactions, row_no is not (a renumber
+        # no-op leaves the stored row_no stale by design).
         idx = {
             (r[0], r[1]): r[2]
             for r in con.execute(
-                "SELECT file_path, row_no, provenance FROM convo_search"
+                "SELECT file_path, part_id, provenance FROM convo_search"
             ).fetchall()
         }
     except Exception:
@@ -2050,7 +2054,13 @@ def _provenance_drift(corpus_root: Path = CORPUS_ROOT, index_db: Path = INDEX_DB
     out: list[str] = []
     for f in _all_corpus_files(Path(corpus_root)):
         try:
-            srcs = pq.read_table(f, columns=["source"]).column("source").to_pylist()
+            tbl = pq.read_table(f, columns=["part_id", "source"])
+            rows = list(
+                zip(
+                    tbl.column("part_id").to_pylist(),
+                    tbl.column("source").to_pylist(),
+                )
+            )
         except Exception:  # noqa: S112  # unreadable file: --check reports it, a source census must not abort
             continue
         # `--corpus-root` may point outside REPO. Falling back to the absolute
@@ -2061,8 +2071,8 @@ def _provenance_drift(corpus_root: Path = CORPUS_ROOT, index_db: Path = INDEX_DB
         except ValueError:
             rel = str(f.resolve())
         buckets: dict[str, int] = {}
-        for row_no, s in enumerate(srcs):
-            got = idx.get((rel, row_no))
+        for part_id, s in rows:
+            got = idx.get((rel, part_id))
             if got is not None and got != s:
                 buckets[f"{got or '(empty)'} -> {s or '(empty)'}"] = (
                     buckets.get(f"{got or '(empty)'} -> {s or '(empty)'}", 0) + 1

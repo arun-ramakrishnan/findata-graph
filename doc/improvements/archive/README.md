@@ -8,6 +8,15 @@ commit, referenced by nothing). Entry numbers point at
 
 ## convo_search/ — Conversation search harvest + rebuild
 
+- [`convo_search_dead_block_compaction.md`](convo_search/convo_search_dead_block_compaction.md) —
+  dead-block compaction: S1 swap rebuild (4.84→1.27 GB, VACUUM
+  measured zero — swap-rebuild-only size law), S2 block-anatomy
+  tripwire (maint flips --incremental→--swap above max(1 GB, 40%);
+  db_maint F4 closed) + S4 zero-churn content-hash delta
+  (row_no out of the fingerprint, part-addressed pointers, gated FTS
+  refresh — corpus measured append-only; renumber = no-op) + S5
+  retention window filed deferred; migration-route doctrine
+  (COPY+ALTER preserves HNSW) — completed.md #485
 - [`convo_reasoning_capture.md`](convo_search/convo_reasoning_capture.md) —
   capture reasoning + tool blocks across harness lanes: prime
   `thinking`/`toolCall` blocks (0 → 3,541 reasoning / 7,919 tool rows),

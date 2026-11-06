@@ -39,7 +39,8 @@ $Q/memory_query.py "stg refresh scope" --kind zcode|prime|opencode
 
 - doc/script/note hits are text locators (`path:line`) — Read only the
   linked section, never the file.
-- convo hits are pointers (`file.parquet:<row_no>`): `--expand POINTER`
+- convo hits are pointers (`file.parquet:<part_id>`; legacy
+  `file.parquet:<row_no>` from old logs still expands): `--expand POINTER`
   prints the body; tool traffic (~56% of corpus) is already demoted by a
   rank prior. Sources are the LIVE harness stores — drift mid-session is
   normal; `make convo-fresh` (check exits 1, `APPLY=1` refreshes).

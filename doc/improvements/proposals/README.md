@@ -66,6 +66,26 @@ entry number and stale DONE pointers):
   importers, 33 CASCADE sites, FK CASCADE parser-rejected on 2.0.0 —
   P1/P2 posture fork; recommendation: do not merge now, revisit on
   trigger 2 second-writer or a backup-pain event).
+- `polyadic_capture_edge_fidelity` — filed 2026-11-06 out of a
+  live-DB edge-quality audit: five slices — S1 n-ary event
+  participants (only ONE k≥3 transactional hyperedge exists:
+  merger LTM; all 1,099 event + 6 jv hyperedges are k=2), S2 supply
+  k=1 counterparty census (7,521/8,733 = 86% degenerate, buyer =
+  free-text label; manual rulings only), S3 persist sidecar
+  as_of/confidence (confidence on 6/71,940 edges; jv_with
+  valid_from 2/1,111, rated_by 0/218), S4 institution canonical
+  fixes (Acuite/Acute near-dupe, agency typing split company vs
+  institution), S5 retire the co_mentioned_in clique (9,638 dyads
+  ↔ 225 edition hyperedges/3,038 incidences, 3.2× cut); S6
+  buyer-side supply probe parked. No fuzzy entity expansion
+  (2026-10 operator ruling baked in as constraint).
+- *(archived 2026-11-07)* — `convo_search_dead_block_compaction` filed
+  2026-11-06, executed 2026-11-07, #485
+  (`../archive/convo_search/convo_search_dead_block_compaction.md`;
+  S1 swap compaction 4.84→1.27 GB, S2 dead-block tripwire + db_maint
+  F4 closure, S3 swap-rebuild-only size law, S4 zero-churn content-hash
+  delta + part-addressed pointers, S5 retention window filed deferred
+  trigger-gated; migration-route doctrine recorded in-proposal).
 - `served_store_read_funnel` — filed 2026-11-03 out of a parallel
   unlocked-work session: PID-namespace blindness in
   helpers/core/duckdb_shared.py:54 `_pid_alive` breaks the blocking

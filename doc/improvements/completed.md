@@ -13886,3 +13886,52 @@ to doc/improvements/archive/database/duckdb_pure_stack.md.
   (per-seed `DELETE` in the same transaction — the drift class
   `write_analytics` S3 solved with `replace_population`); all PPR
   writers pass it.
+
+## 485. convo_search dead-block compaction — swap tripwire, zero-churn delta, retention filed
+
+- **Date:** 2026-11-07 · **Status:** EXECUTED · **Proposal:** doc/improvements/archive/convo_search/convo_search_dead_block_compaction.md
+  (filed 2026-11-06 out of a size audit: convo_search.duckdb at 4.84 GB
+  with ~670 MB live — DuckDB never reclaims freed blocks; VACUUM/
+  CHECKPOINT measured zero on a scratch copy).
+- **S1** (2026-11-06): one-off `rebuild_convo_search.py --swap` —
+  4.842→1.256 GB, zero dead blocks post-swap, drift 0/0/0, embed cache
+  197,515 hits/0 misses; hnsw_build = 92% of runtime.
+- **S2** (2026-11-07): `helpers/maintenance/duckdb_block_anatomy.py`
+  probe (block-set-union live vs used; read-only, advisory-degrading)
+  + maint.py `_maybe_upgrade_convo_swap` (convo-rebuild
+  --incremental→--swap when dead_bytes ≥ max(1 GB, 40% of file);
+  label/tuple shape pinned by tests) + db_maint F4 closed (duckdb
+  sidecars report `dead {pct}%` in SIDECARS; P3.6-shaped alert above
+  DUCKDB_DEAD_PCT=40 / 1 GB, measured over the sidecar loop's own
+  connection — a nested open_read_only would self-deadlock on the
+  exclusive flock).
+- **S3**: ANALYZE = planner stats only; doc sweep found the
+  assessments already record "DuckDB VACUUM reclaims 0 bytes" — the
+  swap-rebuild-only size law stands.
+- **S4** (2026-11-07): content-hash-era delta — change fingerprint
+  drops row_no → `(snippet, text_len, content_hash)` (sha256 full
+  text, new column, `key_schema=content_v1`); pointers part-addressed
+  (`file.parquet:<part_id>`, legacy row_no pointers still expand;
+  parse anchors on `.parquet` — part_id contains `:`); native-FTS
+  refresh gated on actual writes; harvest provenance drift check
+  joins `(file_path, part_id)`. Grounded in a corrected attribution
+  (operator-informed): the corpus is append-only in practice —
+  255/255 parts aligned, zero drops (bili compression is reversible
+  at the log/backing-db layer); the 694 MB dead added by ONE
+  incremental refresh is stable residue, and a no-op run post-S4
+  measures ZERO growth. Migration swap: 1.90→1.266 GB, 197,692 rows,
+  content_hash fully populated, expand round-trip verified. 96
+  targeted tests green. Migration-route doctrine recorded in the
+  proposal: schema-additive changes on HNSW stores go
+  COPY+ALTER+replace (COPY carries the persisted index);
+  `rebuild_via_swap` is for compaction/shape-changing DDL; in-place
+  UPDATE backfill is never the answer (rewrites the row incl. vector).
+- **S5** FILED DEFERRED (trigger-gated): index retention window —
+  corpus stays complete (archive of record); trigger = index live
+  >3 GB OR swap >45 min OR corpus >4 MB/day sustained. Bili Absorb
+  already caps tool-output text at the proxy (~5.5K→1.1K tokens, on
+  top of T1/T2/T3 tiers), pre-empting a size-cap indexer lever; the
+  harvest bili lane indexes the compression summaries as their own
+  rows (`sid#bid` part_ids).
+- Gates: targeted tests only per doctrine (7 suites green, ruff
+  clean); no quartet run — maintenance-lane arc, operator's call.

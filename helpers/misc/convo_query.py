@@ -433,7 +433,7 @@ def search(
                 "model": r.get("model") or "unrecorded",
                 "head": r["snippet"][:HEAD],
                 "provenance": r["provenance"],
-                "pointer": f"{r['file_path']}:{r['row_no']}",
+                "pointer": f"{r['file_path']}:{r['part_id']}",
             }
         )
     return {"mode": mode, "results": results}
@@ -450,13 +450,28 @@ def _stale_warning(con: ConvoConnections) -> str | None:
 
 
 def expand(pointer: str, max_chars: int = 4000) -> dict:
-    """Resolve a ``file.parquet:<row_no>`` pointer to the full corpus row.
+    """Resolve a corpus pointer to the full corpus row.
+
+    S4 (convo_search_dead_block_compaction): pointers are part-addressed
+    — ``file.parquet:<part_id>`` — because harness compactions renumber
+    rows while part_ids stay stable, so a positional pointer would rot
+    between index refreshes. Legacy ``file.parquet:<row_no>`` pointers
+    (older logs/reports) still resolve positionally.
 
     The index stores only an 8 KiB snippet; the body never enters the
     db. This is the read path the TUI preview uses.
     """
-    rel, _, row = pointer.rpartition(":")
-    if not rel or not row.isdigit():
+    # Anchor the split on ".parquet", not rpartition(":"): part_id itself
+    # contains a colon (`{sid}:{seq}[#{i}]`), so the LAST colon of the
+    # pointer sits inside the part id, and the path never does.
+    marker = ".parquet"
+    cut = pointer.find(marker)
+    if cut == -1:
+        raise ValueError(f"not a corpus pointer: {pointer!r}")
+    rel = pointer[: cut + len(marker)]
+    tail = pointer[cut + len(marker) :]
+    tail = tail[1:] if tail.startswith(":") else tail
+    if not tail:
         raise ValueError(f"not a corpus pointer: {pointer!r}")
     p = Path(rel)
     if not p.is_absolute():
@@ -465,11 +480,23 @@ def expand(pointer: str, max_chars: int = 4000) -> dict:
         raise FileNotFoundError(f"corpus file gone: {p}")
     import pyarrow.parquet as pq
 
-    n = int(row)
     tbl = pq.read_table(p)
-    if not 0 <= n < tbl.num_rows:
-        raise IndexError(f"row {n} out of range for {p.name} ({tbl.num_rows} rows)")
-    rec = tbl.slice(n, 1).to_pylist()[0]
+    if tail.isdigit():
+        # legacy positional pointer (pre-S4): row_no into the parquet
+        n = int(tail)
+        if not 0 <= n < tbl.num_rows:
+            raise IndexError(f"row {n} out of range for {p.name} ({tbl.num_rows} rows)")
+        rec = tbl.slice(n, 1).to_pylist()[0]
+    else:
+        # part-addressed pointer (S4): part_ids are stable across
+        # compactions, so filter instead of slicing by position
+        if "part_id" not in tbl.column_names:
+            raise ValueError(f"corpus file has no part_id column: {p.name}")
+        idx = tbl.column_names.index("part_id")
+        matches = [i for i, v in enumerate(tbl.column(idx).to_pylist()) if v == tail]
+        if not matches:
+            raise IndexError(f"part {tail!r} not found in {p.name} ({tbl.num_rows} rows)")
+        rec = tbl.slice(matches[0], 1).to_pylist()[0]
     text = rec.get("text") or ""
     # the corpus carries no harness column — the segment before
     # `conversations/` is the namespace (same rule as the index builder)

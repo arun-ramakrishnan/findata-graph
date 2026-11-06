@@ -825,6 +825,14 @@ class DBMaintainer:
     # line so a run acts on its own waste instead of only alerting about it.
     WASTED_PCT = 5.0
 
+    # DuckDB dead-block alert thresholds (the F4 metric — see
+    # duckdb_block_anatomy). DuckDB has no VACUUM-based reclamation
+    # (measured zero on a bloated copy, 2026-11-06), so this alerts
+    # toward the swap rebuild instead of acting itself: the
+    # maint.py cycle owns the --incremental→--swap flip.
+    DUCKDB_DEAD_PCT = 40.0
+    DUCKDB_DEAD_BYTES = 1_000_000_000
+
     def reclaim_freelist(
         self, conn: sqlite3.Connection, auto_vac: int, freelist_before: int
     ) -> str:
@@ -1104,11 +1112,14 @@ class DBMaintainer:
         every conflict; house ``connect()``): ``reclaim_freelist`` → ANALYZE
         iff ``sqlite_stat1`` was never primed → ``wal_checkpoint(TRUNCATE)``
         → ``quick_check`` iff mutated. Per duckdb store: ``io_lock(EX)`` →
-        CHECKPOINT [+ VACUUM per the registry flag] — a foreign RW holder
-        fails the open → skipped. Per-store isolated: a busy store is a
-        ``skipped`` row, never a failed run. Every sqlite row reports
-        ``wasted_pct``; values above ``WASTED_PCT`` raise the P3.6 alert
-        (S4 — DuckDB deferred until a valid waste metric exists, F4).
+        CHECKPOINT [+ VACUUM per the registry flag] + the F4 dead-block
+        probe (duckdb_block_anatomy, measured over the same connection —
+        a nested open would deadlock on our own flock) — a foreign RW
+        holder fails the open → skipped. Per-store isolated: a busy store
+        is a ``skipped`` row, never a failed run. Every sqlite row
+        reports ``wasted_pct``; values above ``WASTED_PCT`` raise the
+        P3.6 alert; duckdb rows report ``dead_pct``/``dead_bytes`` above
+        the DUCKDB_DEAD_* thresholds.
         """
         rows: list[dict] = []
         for rel in SIDECAR_SQLITE:
@@ -1137,9 +1148,18 @@ class DBMaintainer:
                             con.execute("VACUUM")
                             # Flush VACUUM's rewrite out of the WAL.
                             con.execute("CHECKPOINT")
+                        # F4: the DuckDB waste metric, measured AFTER the
+                        # checkpoint (dead blocks only exist on disk here).
+                        from helpers.maintenance.duckdb_block_anatomy import anatomy_from_con
+
+                        a = anatomy_from_con(con, p)
                     finally:
                         con.close()
                 row["action"] = "checkpoint+vacuum" if vacuum else "checkpoint"
+                if a.get("status") == "ok":
+                    row["dead_blocks"] = a["dead_blocks"]
+                    row["dead_pct"] = a["dead_pct"]
+                    row["dead_bytes"] = a["dead_bytes"]
             except duckdb.IOException as e:  # foreign RW holder -> never force
                 row["action"] = f"skipped ({type(e).__name__})"
                 self._log(logging.WARNING, f"{rel}: {row['action']}")
@@ -1147,6 +1167,19 @@ class DBMaintainer:
                 row["action"] = f"error ({type(e).__name__})"
                 self._log(logging.ERROR, f"{rel}: {row['action']}: {e}")
             row["secs"] = round(time.time() - t0, 2)
+            # F4 alert, P3.6 shape: advisory warning toward the swap
+            # rebuild (the maint cycle owns the --incremental→--swap flip;
+            # db_maint never compacts DuckDB — VACUUM reclaims zero).
+            if (
+                row.get("dead_pct", 0) > self.DUCKDB_DEAD_PCT
+                or row.get("dead_bytes", 0) > self.DUCKDB_DEAD_BYTES
+            ):
+                self._log(
+                    logging.WARNING,
+                    f"F4 alert ({rel}): dead blocks {row['dead_pct']}% "
+                    f"dead / {row['dead_bytes'] / 1e9:.2f} GB — swap rebuild "
+                    f"(rebuild_convo_search.py --swap) is the only compactor",
+                )
             rows.append(row)
         return rows
 
@@ -1246,10 +1279,15 @@ def _print_report(r: dict) -> None:  # noqa: C901
     print("\n=== SIDECARS (store_wide_reclaim estate) ===")
     for row in r.get("sidecars", []):
         note = f"  wasted {row['wasted_pct']}%" if "wasted_pct" in row else ""
+        dead = (
+            f"  dead {row['dead_pct']}% ({_fmt_bytes(row['dead_bytes'])})"
+            if "dead_pct" in row
+            else ""
+        )
         quick = f"  quick={row['quick']}" if "quick" in row else ""
         print(
             f"{row['store']:36} {row['engine']:6} {row['action']:28}"
-            f"{note}{quick}  {row.get('secs', '?')}s"
+            f"{note}{dead}{quick}  {row.get('secs', '?')}s"
         )
 
     print("\n=== AFTER ===")

@@ -239,6 +239,57 @@ def _failed_advisory_step(label: str, result: _StepResult, logger: logging.Logge
     return True
 
 
+# Dead-block tripwire for the convo store (proposal
+# convo_search_dead_block_compaction S2). The incremental rebuild's
+# in-place DELETE+reinsert strands dead blocks DuckDB never returns
+# (measured: one incremental pass after the 2026-11-06 swap re-bloated
+# the store by ~650 MB); past this trigger the cycle upgrades the step
+# to --swap, which rebuilds compact and reclaims. Read-only probe,
+# advisory degrade — a failed probe keeps the cheap incremental path.
+CONVO_DB = PROJECT_ROOT / "memory" / "convo_search.duckdb"
+
+
+def _maybe_upgrade_convo_swap(
+    steps: list[tuple[str, list[str]]], logger: logging.Logger
+) -> list[tuple[str, list[str]]]:
+    """Flip the convo-rebuild step to ``--swap`` when dead blocks justify it.
+
+    Per-run, store-state-driven decision living in the orchestrator — the
+    same idiom as ``_served_file_lane_skip``. The label, tuple shape,
+    cmd[0] and cmd[1] stay untouched (tests/test_maint.py pins them);
+    only the ``--incremental`` flag inside the convo-rebuild cmd is
+    replaced. Probe failure degrades to no-flip with a warning.
+    """
+    try:
+        from helpers.maintenance.duckdb_block_anatomy import anatomy, above_swap_trigger, summarize
+
+        a = anatomy(CONVO_DB)
+        if not above_swap_trigger(a):
+            return steps
+        for i, (label, cmd) in enumerate(steps):
+            if label.split(" (")[0] != "convo-rebuild":
+                continue
+            cmd = list(cmd)
+            if "--swap" in cmd:
+                return steps
+            cmd[:] = ["--swap" if f == "--incremental" else f for f in cmd]
+            if "--swap" not in cmd:  # defensive: flag absent → append
+                cmd.append("--swap")
+            steps[i] = (label, cmd)
+            logger.warning(
+                "convo-rebuild upgraded to --swap for this cycle: dead blocks "
+                "%s ≥ trigger (max(1 GB, 40%% of file)) — proposal "
+                "convo_search_dead_block_compaction S2",
+                summarize(a),
+            )
+            break
+    except Exception as exc:  # advisory degrade — never break the chain
+        logger.warning(
+            "convo swap-tripwire probe failed (%s); keeping --incremental", type(exc).__name__
+        )
+    return steps
+
+
 # (label, command). Each step is a list suitable for subprocess.run.
 # Commands use repo-root-relative paths so the cwd is explicit.
 #
@@ -784,6 +835,7 @@ def main(argv: list[str] | None = None) -> int:
 
     _prewarm_corpus(args, logger)
     steps = _select_steps(args)
+    steps = _maybe_upgrade_convo_swap(steps, logger)
 
     logger.info(
         "Maintenance plan (%d steps%s):",
