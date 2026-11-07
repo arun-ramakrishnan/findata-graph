@@ -39,3 +39,23 @@ BOTH models must load and answer, otherwise the pin does not move.
    launcher's full dependency set — server-impl + common + mtmd included;
    mirroring the production set into `bench_data/llamacpp_pins/<pin>/` keeps
    a restorable server, not just a bench binary.
+
+## 2026-11-08 RUNPATH repair (no re-pin)
+
+- Symptoms: every leg's launcher exit 127 / `ldd` → `libllama-server-impl.so => not found`.
+- Root cause: the built binaries baked `$SRC_DIR/build/bin` (scratch, under
+  $TMPDIR) as RUNPATH; the scratch dir was swept and the installed copies in
+  `models/llamacpp/bin/` lost their only resolution path.
+- Fix: `patchelf --set-rpath '$ORIGIN'` on all 17 installed files (binary +
+  .so set). Tree is again relocatable; shas below are the POST-REPAIR set
+  (bytes changed in the dynamic section only — code unchanged, same pin).
+- Build-side fix: build.sh now passes `-DCMAKE_BUILD_RPATH_USE_ORIGIN=ON`,
+  so future builds are relocatable at the source.
+- Operator ruling 2026-11-08: NO TMPDIR in the build recipe — source
+  checkout + build tree default moved from `$TMPDIR/llamacpp-build/llama.cpp`
+  to durable machine-local `models/llamacpp/src/llama.cpp` (models/ is a
+  gitignored symlink; still overridable via LLAMACPP_SRC_DIR). The 2026-10-30
+  install ran fine only because the scratch build dir was still alive to
+  satisfy its own baked RUNPATH — that whole class of failure is now out.
+- Post-repair shas: llama-server `0498998d2b79ce6a2a745f3cd2388523b234f5fd8b7fd48a27e4d46bff3f94e6`,
+  libllama.so.0.8.0 `3062eeb6ed9437ba1f503dd2c0e04dafd0faab2ed77595ed4e43302c529d5e1e`.

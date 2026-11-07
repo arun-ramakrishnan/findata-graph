@@ -13,14 +13,21 @@
 # GGUFs). Provenance duty: after a re-pin, update PROVENANCE.md (commit,
 # sha256 set, dual-load verdict — BOTH models must load, that is the gate).
 #
-# Env overrides: LLAMACPP_SRC_DIR (source checkout, default under $TMPDIR),
-# LLAMACPP_OUT (default models/llamacpp/bin relative to this script's repo).
+# The source checkout + build tree live under models/llamacpp/src/ — DURABLE
+# machine-local storage, never $TMPDIR: a TMPDIR sweep once took the build
+# dir's RUNPATH-baked solibs with it and every server leg died (see
+# PROVENANCE.md, 2026-11-08 RUNPATH repair). models/ is gitignored, so the
+# checkout never touches git status.
+#
+# Env overrides: LLAMACPP_SRC_DIR (source checkout; default durable under
+# models/llamacpp/src), LLAMACPP_OUT (default models/llamacpp/bin relative
+# to this script's repo).
 set -euo pipefail
 
 PINNED_COMMIT=3c809f44383bcebc318b8cddd8c6d11aaa861e9b  # 2026-10-30 (b12004), has gemma-embedding2
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PATCH="$HERE/patches/qwen2vl_head_dim.patch"
-SRC_DIR="${LLAMACPP_SRC_DIR:-"${TMPDIR:-/tmp}/llamacpp-build/llama.cpp"}"
+SRC_DIR="${LLAMACPP_SRC_DIR:-"$HERE/../../models/llamacpp/src/llama.cpp"}"
 OUT="${LLAMACPP_OUT:-"$HERE/../../models/llamacpp/bin"}"
 
 echo "== llamacpp-build: pin $PINNED_COMMIT"
@@ -38,7 +45,11 @@ git -C "$SRC_DIR" apply --check "$PATCH"   # fails loudly if upstream drifted
 git -C "$SRC_DIR" apply "$PATCH"
 
 echo "== cmake + build (CPU AVX2, GGML_NATIVE=ON)"
-cmake -S "$SRC_DIR" -B "$SRC_DIR/build" -DGGML_NATIVE=ON -DCMAKE_BUILD_TYPE=Release
+# BUILD_RPATH_USE_ORIGIN: make intra-build-tree rpaths $ORIGIN-relative so
+# the installed copies survive TMPDIR sweeps — without this the binaries
+# baked $SRC_DIR/build/bin as RUNPATH and died the day that scratch dir
+# was cleaned (every leg down until patchelf --set-rpath '$ORIGIN').
+cmake -S "$SRC_DIR" -B "$SRC_DIR/build" -DGGML_NATIVE=ON -DCMAKE_BUILD_TYPE=Release -DCMAKE_BUILD_RPATH_USE_ORIGIN=ON
 cmake --build "$SRC_DIR/build" --config Release -j"$(nproc)"
 
 echo "== install to $OUT"
