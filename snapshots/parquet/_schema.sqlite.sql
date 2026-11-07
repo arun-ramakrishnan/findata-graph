@@ -319,6 +319,28 @@ CREATE TABLE competitive_overlap (
         computed_at DATETIME NOT NULL,
         PRIMARY KEY (a, b, c));
 
+CREATE TABLE ppr_results (
+    seed        TEXT NOT NULL,
+    entity      TEXT NOT NULL REFERENCES entities(name) ON DELETE CASCADE,
+    score       REAL NOT NULL,
+    alpha       REAL NOT NULL DEFAULT 0.85,
+    computed_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    -- PK seed-first (ppr_results_table §2): every hot query is
+    -- `WHERE seed = ? ORDER BY score DESC`. Mirrors the Bundle-P3
+    -- metric-first argument for graph_analytics.
+    PRIMARY KEY (seed, entity)
+);
+
+CREATE TABLE co_mention_editions (
+    edition_title TEXT    NOT NULL,
+    entity_name   TEXT    NOT NULL
+                    REFERENCES entities(name) ON DELETE CASCADE ON UPDATE CASCADE,
+    newsletter    TEXT    NOT NULL,
+    source_ref    TEXT    NOT NULL,
+    created_at    DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (edition_title, entity_name)
+);
+
 CREATE INDEX idx_entity_tags_tag ON entity_tags(tag);
 
 CREATE INDEX idx_entities_sector_classification ON entities(sector_classification);
@@ -363,9 +385,7 @@ CREATE INDEX idx_speaker_identity_person ON speaker_identity(person_name);
 
 CREATE INDEX idx_event_participants_participant ON event_participants(participant);
 
-CREATE VIEW relations AS
-    SELECT source, target, edge_type AS relation_type
-    FROM graph_edges;
+CREATE INDEX idx_ppr_results_seed_rank ON ppr_results(seed, score DESC);
 
 CREATE VIEW v_quote_speaker AS
 SELECT q.id            AS quote_id,
@@ -376,6 +396,10 @@ SELECT q.id            AS quote_id,
        si.person_name
 FROM quotes q
 LEFT JOIN speaker_identity si ON si.alias_name = q.speaker_name;
+
+CREATE VIEW relations AS
+    SELECT source, target, edge_type AS relation_type
+    FROM graph_edges;
 
 CREATE TRIGGER graph_edges_agent_id_registered_insert
 BEFORE INSERT ON "graph_edges"
