@@ -673,7 +673,7 @@ def sector_cohort(
         members.update(
             r[0]
             for r in con.execute(
-                f"SELECT target FROM graph_edges WHERE source = ? "
+                f"SELECT target FROM graph_edges WHERE source = ? "  # noqa: S608  # placeholders are ?-marks, values bound
                 f"AND edge_type IN ({placeholders})",
                 (seed, *include_edge_types),
             ).fetchall()

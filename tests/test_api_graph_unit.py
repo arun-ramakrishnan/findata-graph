@@ -241,13 +241,17 @@ class TestCoMentions:
             )
             conn.executemany(
                 "INSERT INTO hyper_edges (id, edge_type, label, source_ref) VALUES (?,?,?,?)",
-                [(901, "edition", "Edition U1", "seed"),
-                 (902, "edition", "Edition U2", "seed")],
+                [(901, "edition", "Edition U1", "seed"), (902, "edition", "Edition U2", "seed")],
             )
             conn.executemany(
                 "INSERT INTO hyper_incidences (edge_id, entity_name) VALUES (?,?)",
-                [(901, "HDFC Bank"), (901, "ICICI Bank"), (901, "Infosys"),
-                 (902, "HDFC Bank"), (902, "Peer Co")],
+                [
+                    (901, "HDFC Bank"),
+                    (901, "ICICI Bank"),
+                    (901, "Infosys"),
+                    (902, "HDFC Bank"),
+                    (902, "Peer Co"),
+                ],
             )
             conn.commit()
             conn.close()
