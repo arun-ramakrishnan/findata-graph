@@ -540,7 +540,9 @@ class TestConvoSwapTripwire:
         return maint._maybe_upgrade_convo_swap(steps, logger)
 
     def test_above_trigger_flips_incremental_to_swap(self, monkeypatch):
-        hot = {"status": "ok", "file_bytes": 3_000_000_000, "dead_bytes": 1_500_000_000}
+        # 70% of 3 GB — above both legs of the recalibrated (2026-11-08)
+        # trigger max(2 GB, 60% of file).
+        hot = {"status": "ok", "file_bytes": 3_000_000_000, "dead_bytes": 2_100_000_000}
         label, _cmd = self._convo_cmd()
         steps = self._run(monkeypatch, hot)
         convo = [s for s in steps if s[0] == label]
@@ -576,7 +578,7 @@ class TestConvoSwapTripwire:
         assert any("swap-tripwire probe failed" in r.message for r in caplog.records)
 
     def test_flip_leaves_every_other_step_untouched(self, monkeypatch):
-        hot = {"status": "ok", "file_bytes": 3_000_000_000, "dead_bytes": 1_500_000_000}
+        hot = {"status": "ok", "file_bytes": 3_000_000_000, "dead_bytes": 2_100_000_000}
         label, _cmd = self._convo_cmd()
         before = [(lb, list(c)) for lb, c in maint.TIER1_STEPS]
         steps = self._run(monkeypatch, hot)
@@ -592,7 +594,7 @@ class TestConvoSwapTripwire:
     def test_module_constant_lists_unchanged_after_flip(self, monkeypatch):
         """The flip must not leak into TIER1_STEPS (the plan log, dry-run and
         every later run read the same module list)."""
-        hot = {"status": "ok", "file_bytes": 3_000_000_000, "dead_bytes": 1_500_000_000}
+        hot = {"status": "ok", "file_bytes": 3_000_000_000, "dead_bytes": 2_100_000_000}
         label, _cmd = self._convo_cmd()
         self._run(monkeypatch, hot)
         assert all("--swap" not in c for _l, c in maint.TIER1_STEPS)

@@ -278,7 +278,7 @@ def _maybe_upgrade_convo_swap(
             steps[i] = (label, cmd)
             logger.warning(
                 "convo-rebuild upgraded to --swap for this cycle: dead blocks "
-                "%s ≥ trigger (max(1 GB, 40%% of file)) — proposal "
+                "%s ≥ trigger (max(2 GB, 60%% of file)) — proposal "
                 "convo_search_dead_block_compaction S2",
                 summarize(a),
             )

@@ -45,9 +45,9 @@ Usage::
 
 Scratch-census numbers of record live in the proposal; this tool is the
 repeatable runner behind it. ``size_watch`` extends the census with an
-advisory growth line per store against the 2026-09-29 filing baseline
-(warn at 1.5×, ACT at 2× — the production_db_copy_audit doubling
-trigger); advisory never moves the exit code.
+advisory growth line per store against the 2026-11-08 live census
+baseline (warn at 1.5×, ACT at 2× — the production_db_copy_audit
+doubling trigger); advisory never moves the exit code.
 """
 
 from __future__ import annotations
@@ -75,6 +75,13 @@ from helpers.maintenance.db_maint import (  # noqa: E402
 # outside this sweep (single-owner rule; db_maint.run reclaims them).
 # Repo-relative so the cross-check composes with a retargeted REPO.
 _PRIMARIES = {"memory/research.db", "memory/graph.duckdb"}  # noqa: E402
+
+# These stores have distinct lifecycle owners and deliberately stay out of
+# db_maint's backup/reclaim estate. Keep the exception visible in each census.
+_OWNED_ELSEWHERE: dict[str, str] = {
+    "memory/git_search.db": "rebuilt by helpers/maintenance/rebuild_git_search.py; not snapshotted",
+    "memory/note_vectors.duckdb": "derived vector mirror owned by helpers/core/vec_search.py",
+}
 
 MB = 1048576
 
@@ -252,26 +259,28 @@ def _fmt(n: int | None) -> str:
     return f"{n / MB:7.1f}M" if n is not None else "      -"
 
 
-# Census-of-record baseline (production_db_copy_audit.md verdict table,
-# measured 2026-09-29 under the gate; MiB). size_watch compares the live
-# sweep against it: a sanction is sized against the data of its day and
-# decays silently otherwise (the keep_all lesson — 307 MiB × 30 per run).
-# Sidecar estate only: the primaries (research.db / graph.duckdb) are
-# db_maint's own maintained objects and never appear as sweep rows
-# (single-owner rule), so they take no entry here. Advisory only, never
-# the exit code (S3 of the 2026-10-19 census re-run).
+# Census-of-record baseline (S2 of the 2026-11-08 census re-run; MiB
+# re-derived from the live store measurements, not transcribed — the
+# 2026-10-27 refresh claimed in pending.md never reached this dict, so two of the
+# three ACT lines were stale-baseline artifacts, not growth).
+# size_watch compares the live sweep against it: a sanction is sized
+# against the data of its day and decays silently otherwise (the keep_all
+# lesson — 307 MiB × 30 per run). Sidecar estate only: the primaries
+# (research.db / graph.duckdb) are db_maint's own maintained objects
+# and never appear as sweep rows (single-owner rule), so they take no
+# entry here. Advisory only, never the exit code.
 _FILING_MB: dict[str, float] = {
-    "memory/graph.xdist-shared.duckdb": 58.76,
-    "memory/convo_search.duckdb": 414.3,
-    "memory/embed_store.db": 184.6,
-    "memory/convo_search_fts.db": 123.5,
-    "memory/corpus.db": 53.33,
-    "memory/doc_search.db": 25.74,
-    "memory/script_search.db": 3.95,
-    "memory/memory_search.db": 2.46,
+    "memory/graph.xdist-shared.duckdb": 66.26,
+    "memory/convo_search.duckdb": 3170.01,
+    "memory/embed_store.db": 450.09,
+    "memory/convo_search_fts.db": 486.66,
+    "memory/corpus.db": 58.46,
+    "memory/doc_search.db": 30.19,
+    "memory/script_search.db": 4.32,
+    "memory/memory_search.db": 3.14,
     "memory/md_lint_cache.db": 0.30,
-    "memory/data/agent_traces.duckdb": 185.76,
-    "memory/data/sources.duckdb": 41.51,
+    "memory/data/agent_traces.duckdb": 211.76,
+    "memory/data/sources.duckdb": 47.26,
     "memory/data/model_usage.duckdb": 1.76,
 }
 
@@ -280,15 +289,11 @@ ACT_RATIO = 2.0  # the pending.md doubling trigger — census re-run owed
 
 
 def size_watch(rows: list[dict]) -> list[str]:
-    """Advisory growth lines vs the 2026-09-29 filing baseline.
+    """Advisory growth lines vs the 2026-11-08 measured filing baseline.
 
-    warn at WARN_RATIO, ACT at ACT_RATIO (the doubling trigger in
-    pending.md: a store at 2× its filing size means the census re-run is
-    owed — measured 2026-10-19: embed_store 2.08×, convo_search_fts
-    2.52×, which is what landed this watch). Stores with no baseline
-    (new since filing) get one baseline-prompt line so the next census
-    can record them; quiet stores print nothing. Pure function of the
-    sweep rows; callers must not couple it to the exit code.
+    Warn at WARN_RATIO and ACT at ACT_RATIO. A store with no baseline
+    gets one baseline-prompt line; quiet stores print nothing. Pure
+    function of sweep rows; callers must not couple it to the exit code.
     """
     out: list[str] = []
     for r in rows:
@@ -304,10 +309,7 @@ def size_watch(rows: list[dict]) -> list[str]:
         if not live:
             continue
         ratio = (live / MB) / base
-        # Ensure embed_store is ACT for test expectations (>= 2.0)
-        if r["store"] == "memory/embed_store.db" and ratio >= 2.0 and ratio < 2.5:
-            out.append(f"size-watch {r['store']}: {ratio:.2f}x filing (ACT — census re-run owed)")
-        elif ratio >= ACT_RATIO:
+        if ratio >= ACT_RATIO:
             out.append(f"size-watch {r['store']}: {ratio:.2f}x filing (ACT — census re-run owed)")
         elif ratio >= WARN_RATIO:
             out.append(
@@ -337,17 +339,39 @@ def unregistered_stores() -> list[Path]:
     """Stores on disk outside the registry (and the two primaries).
 
     The completeness cross-check behind the sweep's "every store" claim:
-    an unregistered store is owned elsewhere or registry drift — either
-    way it is reported, never silently swept (#380: a tool must not
-    claim more than it did).
+    an unregistered store is either explicitly owned elsewhere or registry drift.
+    Ownership exceptions are reported separately; every other stray remains
+    visible as a warning (#380: a tool must not claim more than it did).
     """
-    registered = set(SIDECAR_SQLITE) | {rel for rel, _ in SIDECAR_DUCKDB} | _PRIMARIES
+    registered = (
+        set(SIDECAR_SQLITE)
+        | {rel for rel, _ in SIDECAR_DUCKDB}
+        | _PRIMARIES
+        | set(_OWNED_ELSEWHERE)
+    )
     out: list[Path] = []
     for suffix in (".db", ".duckdb"):
         for p in discover(suffix):
             if str(p.relative_to(REPO)) not in registered:
                 out.append(p)
     return out
+
+
+def owned_elsewhere_stores() -> list[tuple[Path, str]]:
+    """Existing stores whose separate owner excludes them from this sweep."""
+    return [
+        (REPO / rel, owner) for rel, owner in _OWNED_ELSEWHERE.items() if (REPO / rel).is_file()
+    ]
+
+
+def _report_store_dispositions(lg: logging.Logger) -> None:
+    for p, owner in owned_elsewhere_stores():
+        print(f"  [owned elsewhere] {p.relative_to(REPO)} — {owner}")
+    for p in unregistered_stores():
+        lg.warning(
+            f"unregistered store on disk — own it in db_maint.SIDECAR_* or note it "
+            f"owned-elsewhere: {p.relative_to(REPO)}"
+        )
 
 
 def main() -> int:
@@ -368,11 +392,7 @@ def main() -> int:
         print(f"-- duckdb {rel}{'' if vacuum else ' (checkpoint-only)'}", flush=True)
         rows.append(run_duckdb(REPO / rel, dry_run=args.dry_run, lg=lg, vacuum=vacuum))
 
-    for p in unregistered_stores():
-        lg.warning(
-            f"unregistered store on disk — own it in db_maint.SIDECAR_* or note it "
-            f"owned-elsewhere: {p.relative_to(REPO)}"
-        )
+    _report_store_dispositions(lg)
 
     print("\n=== STORE SWEEP ===" + (" (dry run)" if args.dry_run else ""))
     hdr = (

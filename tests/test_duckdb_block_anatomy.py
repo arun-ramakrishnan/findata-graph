@@ -138,13 +138,33 @@ class TestSwapTrigger:
         assert not dba.above_swap_trigger(a)
         assert not dba.above_swap_trigger(a, min_dead_bytes=1_000_000_000)
 
+    def test_recalibrated_trigger_2026_11_08(self):
+        """Trigger recalibrated 2026-11-08 to max(2 GB, 60%) — a swap only
+        rebuilds live data (~27 min), so the trigger sets frequency, and
+        the first production fire (61.7% dead after two incremental
+        passes) came too early. Pin both sides of the new regime: the
+        2026-11-08 bloat still fires, a mid-cycle store stays below."""
+        # The fire that prompted the recalibration: 2052 MB of 3.324 GB.
+        fired = _craft(file_bytes=3_323_998_208, dead_bytes=2_052_000_000)
+        assert dba.above_swap_trigger(fired)
+        # Post-swap store (~1.3 GB live) after two incremental passes
+        # (~650 MB dead each): 50% — below both legs, incremental stays.
+        mid = _craft(file_bytes=2_600_000_000, dead_bytes=1_300_000_000)
+        assert not dba.above_swap_trigger(mid)
+
     def test_fires_above_both_legs(self):
         a = _craft(file_bytes=2_000_000_000, dead_bytes=900_000_000)
+        # Both legs pinned explicitly — this test isolates the max()
+        # composite, not the default trigger values.
         assert dba.above_swap_trigger(
-            a, min_dead_bytes=800_000_000
+            a, min_dead_bytes=800_000_000, max_dead_pct=40.0
         )  # pct leg: 900M >= 40% of 2G (800M)
-        assert dba.above_swap_trigger(a, min_dead_bytes=900_000_000)  # byte leg at >= boundary
-        assert not dba.above_swap_trigger(a, min_dead_bytes=1_000_000_000)  # 900M < 1G byte leg
+        assert dba.above_swap_trigger(
+            a, min_dead_bytes=900_000_000, max_dead_pct=40.0
+        )  # byte leg at >= boundary
+        assert not dba.above_swap_trigger(
+            a, min_dead_bytes=1_000_000_000, max_dead_pct=40.0
+        )  # 900M < 1G byte leg
 
     def test_at_byte_boundary_fires_ge_not_gt(self):
         a = _craft(file_bytes=1_000, dead_bytes=100)

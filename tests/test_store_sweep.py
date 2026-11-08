@@ -107,33 +107,44 @@ def test_unregistered_stores_cross_check(sweep_repo, monkeypatch):
     assert [p.name for p in ss.unregistered_stores()] == ["stray.db"]
 
 
-def test_size_watch_ratio_contract():
-    """Advisory growth watch vs the 2026-09-29 filing baseline
-    (production_db_copy_audit S3, landed 2026-10-19): ACT at 2×, warn at
-    1.5×, quiet below that; stores with no baseline get one prompt line;
-    and the row shape matches what run_sqlite/run_duckdb emit
-    (after_bytes post-sweep, bytes on the census-only/duckdb paths)."""
+def test_size_watch_ratio_contract(monkeypatch):
+    """Threshold contract using synthetic baselines, not live filing data.
+
+    ACT at 2×, warn at 1.5×, quiet below; stores without a filing get
+    one prompt line. The row shape matches run_sqlite/run_duckdb
+    (after_bytes post-sweep, bytes on census-only/duckdb paths).
+    """
     mib = 1048576
+    monkeypatch.setattr(
+        ss,
+        "_FILING_MB",
+        {
+            "memory/embed_store.db": 184.6,
+            "memory/convo_search_fts.db": 102.0,
+            "memory/doc_search.db": 24.7,
+            "memory/corpus.db": 53.33,
+        },
+    )
     rows = [
-        # 384M vs 184.6M filing = 2.08x — the live ACT case.
+        # 384M / 184.6M = 2.08× — synthetic ACT case.
         {
             "store": "memory/embed_store.db",
             "engine": "sqlite",
             "after_bytes": int(384 * mib),
         },
-        # 257M vs 102.0M = 2.52x — the other live ACT case.
+        # 257M / 102.0M = 2.52× — second synthetic ACT case.
         {
             "store": "memory/convo_search_fts.db",
             "engine": "duckdb",
             "bytes": int(257 * mib),
         },
-        # 40M vs 24.7M = 1.62x — warn band.
+        # 40M / 24.7M = 1.62× — synthetic warn band.
         {
             "store": "memory/doc_search.db",
             "engine": "sqlite",
             "after_bytes": int(40 * mib),
         },
-        # ~1.0x — quiet.
+        # 54M / 53.33M ≈ 1.01× — quiet.
         {"store": "memory/corpus.db", "engine": "sqlite", "after_bytes": int(54 * mib)},
         # No baseline — one prompt line, not a crash, not silence.
         {"store": "memory/git_search.db", "engine": "sqlite", "bytes": int(26 * mib)},
@@ -153,6 +164,19 @@ def test_size_watch_ratio_contract():
     # The watch is advisory by contract: it must never change the
     # exit-code inputs.
     assert ss.exit_code(rows) == 0
+
+
+def test_owned_elsewhere_stores_are_listed_not_unregistered(sweep_repo, monkeypatch):
+    owned = sweep_repo / "memory" / "owned.duckdb"
+    stray = sweep_repo / "memory" / "stray.db"
+    owned.write_bytes(b"x")
+    stray.write_bytes(b"x")
+    monkeypatch.setattr(ss, "SIDECAR_SQLITE", ())
+    monkeypatch.setattr(ss, "SIDECAR_DUCKDB", ())
+    monkeypatch.setattr(ss, "_OWNED_ELSEWHERE", {"memory/owned.duckdb": "fixture owner"})
+
+    assert ss.owned_elsewhere_stores() == [(owned, "fixture owner")]
+    assert ss.unregistered_stores() == [stray]
 
 
 def test_size_watch_primaries_absent():

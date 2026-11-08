@@ -282,3 +282,31 @@ it now is.
   `make pytest`.
 - S2: new unit test for the tripwire + `tests/test_maint.py` green;
   full arc gates on the operator's go per `doc/procedures/gates.md`.
+
+## 6. Production execution record (2026-11-08)
+
+First production activation of the S2 maint-cycle tripwire. `make maint`
+logged `convo-rebuild upgraded to --swap for this cycle: dead blocks
+3.32 GB, live 3570 blocks, dead 2052 MB (61.7%) >= trigger`; the swap
+step ran 1596.16 s and `memory/convo_search.duckdb` went from
+3,323,998,208 B (3170.01 MiB) to 1,300,508,672 B (1240.29 MiB) —
+~1.88 GiB reclaimed, matching this proposal's projected live-data +
+index size (~1.256 GB). Row-count parity was enforced before the swap
+per S1. Measured during the ifub/store-census close-out arc; the
+census reconciliation in `doc/improvements/pending.md` keeps the
+pre-swap 3170.01 MiB value as history and records this post-swap size
+separately.
+
+**Trigger recalibrated 2026-11-08 (operator: "swap criteria is too
+tight").** A swap rebuilds only the live data (~3570 blocks, ~27 min),
+so the trigger sets fire frequency, not per-swap cost; the measured
+cycle showed one incremental pass strands ~650-700 MB dead, so the
+original max(1 GB, 40%) fired after just two passes.
+`helpers/maintenance/duckdb_block_anatomy.py` now trips at
+max(2 GB, 60% of file) — roughly doubling the interval (post-fire
+trajectory: 35.7% dead after the next pass, firing ~3 passes out).
+This first production fire would still fire under the raised trigger
+(2,052 MB >= max(2 GB, 60% of 3.324 GB) = 1.994 GB); the boundary is
+re-pinned in `tests/test_duckdb_block_anatomy.py`
+(`test_recalibrated_trigger_2026_11_08`) and the flip fixtures in
+`tests/test_maint.py` sit above the new legs.

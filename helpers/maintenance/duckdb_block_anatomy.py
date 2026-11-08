@@ -32,12 +32,19 @@ _REPO = str(Path(__file__).resolve().parents[2])
 if _REPO not in sys.path:
     sys.path.insert(0, _REPO)
 
-# Proposal S2 trigger: dead bytes >= max(1 GB, 40% of file). The >= (not
+# Proposal S2 trigger: dead bytes >= max(2 GB, 60% of file). The >= (not
 # the sqlite freelist's strict >) is deliberate — this is a lower-bound
 # "big enough to be worth a full swap rebuild" test, not a waste alarm;
 # the boundary is pinned by test_duckdb_block_anatomy.py.
-MIN_DEAD_BYTES = 1_000_000_000
-MAX_DEAD_PCT = 40.0
+#
+# Recalibrated 2026-11-08 (operator: "swap criteria is too tight"): a swap
+# rebuilds the LIVE data (~3570 blocks, ~27 min), so the trigger only sets
+# frequency — each incremental pass strands ~650 MB dead, and at 1 GB/40%
+# the first production cycle fired after just two passes (2026-11-08:
+# 61.7% dead, swap 1596 s). 2 GB/60% doubles the interval; peak waste
+# stays ~2.6 GB on this store, which is cheap relative to a daily swap.
+MIN_DEAD_BYTES = 2_000_000_000
+MAX_DEAD_PCT = 60.0
 
 
 def anatomy(db_path: Path | str) -> dict:

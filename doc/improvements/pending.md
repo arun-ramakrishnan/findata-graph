@@ -108,9 +108,9 @@ Open items below keep their revisit triggers inline; executed work is compressed
   parity fixture — byte-identical across pinned hash seeds; mask off;
   see `archive/tooling/c901_d1_split_near_duplicate_notes.md`; the earlier
   batch-2 hold expired — the P2.2 arc was doc-only). **All four ruling
-   masks executed.** What remains in `query.py` are the two pre-existing
-   unruled C901 masks (`_materialise_centrality_cache` at `:1594` booked
-   to the next c901 pass by collation S7; `_cli` at `:4055` unruled).
+   masks executed.** The earlier statement that two pre-existing query.py masks remained is stale.
+   query.py has no remaining `# noqa: C901` masks; `.venv/bin/python3 -m ruff check --select C901 .` reports `All checks passed!`;
+   no current repo-wide C901 violation is recorded. No code split is in scope for this census arc.
 
 - **production-store copy census — TRIGGER ARMED 2026-09-29, FIRED
   2026-10-13 — RE-RUN DONE 2026-10-19 (completed.md #415) — BASELINE
@@ -153,6 +153,16 @@ Open items below keep their revisit triggers inline; executed work is compressed
   Standing watch: `size_watch` in store_sweep.py (warn 1.5× / ACT 2×,
   advisory-only) — trigger RE-ARMED on the same rule against the
   2026-10-19 live sizes.
+
+   **2026-11-08 census reconciliation.** The 2026-10-27 baseline refresh recorded above did not reach the live `_FILING_MB` dictionary until this arc; `helpers/maintenance/store_sweep.py:272-285` now carries the current measured MiB filing: graph.xdist 66.26, convo_search 3170.01, embed_store 450.09, convo_fts 486.66, corpus 58.46, doc_search 30.19, script_search 4.32, memory_search 3.14, md_lint_cache 0.30, agent_traces 211.76, sources 47.26, model_usage 1.76.
+
+   Live `memory/convo_search.duckdb` is 3,323,998,208 B (3,170.01 MiB), not the earlier 2,491.8 MiB estimate. `helpers/maintenance/store_sweep.py --dry-run` exited 0 over 12 registered stores, reported no size-watch ACT lines and reclaimed 0.0 MiB; SQLite sidecar freelist remained 0 and page size 4096.
+
+   The dry-run reports `memory/git_search.db` and `memory/note_vectors.duckdb` as owned elsewhere (their own rebuild/vector owners), while `memory/research.duckdb` remains the one unregistered stale derived file (50,081,792 B, built 2026-10-19 from `memory/research.db`, generation 615698) and `memory/findata-graph.db` remains an unregistered 0-byte artifact; both warnings stay visible and neither was changed. Owner disposition 2026-11-08: keep both stores visible and unregistered — do not adopt them into `db_maint` and do not delete them. Post-maint observation (same day): `memory/findata-graph.db` is no longer on disk (operator-removed; the ruling stands as history) and `memory/research.duckdb` is unchanged at 50,081,792 B.
+
+   Backup directory `/mnt/data/findata-graph/db-backup` (repo symlink `db-backup/`) contained 21 files, 4,229,130,159 B total; `.zst` files 2,201,659,311 B, raw `.db` files 2,027,438,080 B, and other sidecars 32,768 B. The eight currently named per-store backup artifacts (convo_search, embed_store, memory_sidecars, convo_corpus, research, graph, agent_traces, model_usage backups) sum to 1,704,221,448 B compressed. The directory total includes duplicate snapshots and five 405,487,616-byte `research_backup_pre_*` files, so it is not itself a per-run transient measurement; no backup was deleted.
+
+   The 2026-10-19 per-run transient figure remains 7 MB; it was not remeasured because an isolated targeted-test attempt failed before setup with `OSError: [Errno 30] Read-only file system: '/mnt/data/tmp/store-census-chain-20261108'`. No test ran in that attempt and no temp directory was created. Re-measured 2026-11-08 once the operator made `/mnt/data/tmp` writable: `tests/test_integration_maint_chain.py -q` under `pytest --basetemp=/mnt/data/tmp/store-census-chain-20261108` — 9 passed in 75.41 s, transient footprint 171,670,450 B (163.7 MiB), entirely outside the repo tree. The 7 MB figure is now historical only. No full gate was run in this arc (none was authorized); validation stayed on targeted tests per gates.md.
 
 - **production-DB copies in tests (§D2) — CLOSED 2026-09-29 (schema class
   migrated; downsampler class adjudicated VALID)**: the schema-only class
