@@ -255,6 +255,20 @@ def reflink_or_copy(src: Path, dst: Path) -> Path:
 
 def _shared_template(tmp_path_factory, filename: str, build) -> Path:
     """Once-per-run flock-shared template build (the #307 S1 mechanism)."""
+    # Template donors read the LIVE research.db exactly once per run by
+    # design (build_schema_template/build_full_template) — the sanctioned
+    # read the hermeticity watch must not report (qa gate regression
+    # sweep, 2026-11-08).
+    from tests import hermeticity_watch
+
+    hermeticity_watch.allow()
+    try:
+        return _shared_template_locked(tmp_path_factory, filename, build)
+    finally:
+        hermeticity_watch.disallow()
+
+
+def _shared_template_locked(tmp_path_factory, filename: str, build) -> Path:
     base = tmp_path_factory.getbasetemp()
     if base.name.startswith("popen-gw"):
         # xdist worker: <run-root>/popen-gw<k> — the run root is the

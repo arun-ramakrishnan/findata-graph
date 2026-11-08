@@ -339,6 +339,13 @@ def _shim_db_maint(p, mp, args):
             str(p.duckdb),
             "--duckdb-backup",
             str(p.root / "db-backup" / "b.duckdb"),
+            # The sidecar backup lane is REPO-anchored live state (embed
+            # store, the 2.5 GB convo_search index, corpus tar) — reading
+            # + CHECKPOINTing the live store from the hermetic chain was
+            # 22.6 s per chain run AND a hermeticity violation (qa gate
+            # regression, 2026-11-08). The chain tests orchestration, not
+            # backup artifacts.
+            "--no-backup-sidecars",
         ],
     )
     return _rc(db_maint.main())

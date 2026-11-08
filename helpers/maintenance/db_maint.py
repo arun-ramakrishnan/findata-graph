@@ -1397,6 +1397,17 @@ def main(argv: list[str] | None = None) -> int:  # noqa: C901
         "--log", default="INFO", help="Logging level (DEBUG, INFO, WARNING, ERROR)."
     )
     parser.add_argument(
+        "--no-backup-sidecars",
+        action="store_true",
+        help="Skip the production sidecar backups (embed store, convo_search "
+        "index + corpus tar, memory/ catch-all). These copy hundreds of MB "
+        "of REPO-anchored live state per run — the convo index alone was "
+        "2.5 GB after the pure-duckdb vector inline (2026-11-05), which is "
+        "what made every hermetic maint-chain run pay a 22 s live-store "
+        "backup (qa gate regression, 2026-11-08). CLI mirror of the "
+        "DBMaintainer(backup_sidecars=False) the unit tests already use.",
+    )
+    parser.add_argument(
         "--sync-check",
         action="store_true",
         help="After maintenance, run verify_notes.py + database_integrity_check.py.",
@@ -1461,6 +1472,7 @@ def main(argv: list[str] | None = None) -> int:  # noqa: C901
         logger=logging.getLogger("db_maint"),
         duckdb_path=duckdb_path,
         duckdb_backup_path=duckdb_backup_path,
+        backup_sidecars=not args.no_backup_sidecars,
     )
     try:
         results = maintainer.run()

@@ -354,6 +354,17 @@ GATES: dict[str, Gate] = {
                 "graph-scale-watch",
                 (_PY, "helpers/validators/graph_scale_watch.py", "--check"),
             ),
+            # Watchers born of the 2026-11-08 gates-layer regression sweep:
+            # hermeticity-watch reports non-live tests that touched the live
+            # memory/ stores during the last qa run (recorded by the
+            # always-on tests/hermeticity_watch.py — the 404 MB clone and
+            # the 2.5 GB convo backup both started as write-capable test
+            # connects); gate-timing-watch fires on per-leg median drift
+            # (>1.5x and >5s, last-5 vs prior-10 runs) so slow creep is
+            # visible in-cycle, not weeks later. Both SKIP cleanly without
+            # history; promotion to hard-fail on operator go.
+            Step("hermeticity-watch", (_PY, "helpers/validators/hermeticity_watch.py")),
+            Step("gate-timing-watch", (_PY, "helpers/validators/gate_timing_watch.py")),
             Step(
                 "doc-search-check",
                 (_PY, "helpers/maintenance/rebuild_doc_search.py", "--check"),

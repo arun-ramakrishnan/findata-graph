@@ -176,7 +176,7 @@ def _ifub_diameter(csr_graph) -> int | None:  # noqa: C901
     vertex eccentricity <= lb and lb is attained → lb == diameter.
     """
     import numpy as np
-    from scipy.sparse.csgraph import connected_components, dijkstra
+    from scipy.sparse.csgraph import connected_components
 
     n = csr_graph.shape[0]
     if n == 0:
@@ -187,16 +187,50 @@ def _ifub_diameter(csr_graph) -> int | None:  # noqa: C901
     n_comp, comp = connected_components(csr_graph, directed=False)
 
     def _component_diameter(nodes: np.ndarray) -> int:
-        sub = csr_graph[nodes][:, nodes]
+        sub = csr_graph[nodes][:, nodes].tocsr()
+        sub.sort_indices()
         m = len(nodes)
         if m <= 1:
             return 0
+        # Precomputed CSR arrays + a vectorized frontier BFS: the previous
+        # per-BFS scipy dijkstra call re-validated and re-converted the
+        # matrix every time (~1.2 ms fixed cost) and the distance post-
+        # processing ran 4 full O(m) passes (isfinite / max / where /
+        # argmax). Live render 2026-11-08: 38k BFS sweeps = 128 s, ~46 s
+        # of it scipy call overhead, ~67 s the numpy passes. A connected
+        # component has ALL distances finite, so the mask work was dead
+        # weight too. Parity is pinned by
+        # test_ifub_diameter_parity_random_components.
+        indptr = sub.indptr.astype(np.int64)
+        indices = sub.indices.astype(np.int64)
 
         def bfs(src_idx: int):
-            dist = dijkstra(sub, unweighted=True, directed=False, indices=[src_idx])[0]
-            finite = np.isfinite(dist)
-            ecc = float(dist[finite].max()) if finite.any() else 0.0
-            far = int(np.argmax(np.where(finite, dist, -1.0)))
+            dist = np.full(m, -1, dtype=np.int64)
+            dist[src_idx] = 0
+            frontier = np.array([src_idx], dtype=np.int64)
+            d = 0
+            while frontier.size:
+                d += 1
+                starts = indptr[frontier]
+                counts = indptr[frontier + 1] - starts
+                total = int(counts.sum())
+                if not total:
+                    break
+                # gather adj[sub] for the whole frontier in one shot
+                offs = np.arange(total, dtype=np.int64) - np.repeat(
+                    np.cumsum(counts) - counts, counts
+                )
+                nbrs = indices[np.repeat(starts, counts) + offs]
+                fresh = nbrs[dist[nbrs] < 0]
+                if not fresh.size:
+                    break
+                # duplicate writes are harmless — same d — so no dedupe:
+                # np.unique here was 100 s of the render (2026-11-08)
+                dist[fresh] = d
+                frontier = np.flatnonzero(dist == d)
+
+            ecc = int(dist.max())
+            far = int(dist.argmax())
             return dist, ecc, far
 
         # double sweep: s -> u -> dist_u/e_u, then candidates descending

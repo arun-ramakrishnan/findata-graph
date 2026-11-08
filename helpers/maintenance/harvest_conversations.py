@@ -1077,13 +1077,17 @@ def _dsh_read_log(path: Path):
     Yields (seq, time, type, data) per record.
     """
     dctx = zstandard.ZstdDecompressor()
-    buf = b""
+    chunks = []
     with open(path, "rb") as fh, dctx.stream_reader(fh) as reader:
         while True:
             chunk = reader.read(1 << 20)
             if not chunk:
                 break
-            buf += chunk
+            chunks.append(chunk)
+    # join-once, never `buf += chunk`: the quadratic re-concat copied the
+    # whole decompressed log per 1 MB chunk — 15.4 s of every convo-fresh
+    # check just here (qa gate regression sweep, 2026-11-08)
+    buf = b"".join(chunks)
     for line in buf.decode("utf-8", errors="replace").splitlines():
         line = line.strip()
         if not line:

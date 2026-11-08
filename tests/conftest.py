@@ -793,6 +793,19 @@ def pytest_runtest_logreport(report):
     }
 
 
+@pytest.hookimpl(hookwrapper=True)
+def pytest_runtest_protocol(item, nextitem):
+    """Hermeticity-watch attribution: live-store touches during this
+    test's setup/call/teardown carry its node id. live-marked tests are
+    exempt — live-invariants legitimately touches the live stores."""
+    from tests import hermeticity_watch
+
+    live = item.get_closest_marker("live") is not None
+    hermeticity_watch.current_node(None if live else item.nodeid)
+    yield
+    hermeticity_watch.current_node(None)
+
+
 def _write_test_metadata(session):
     target = _test_metadata_target(session.config)
     if target is None:
@@ -826,6 +839,20 @@ def pytest_configure(config):
     # fast instead. Individual tests opt into the fail-fast arm with
     # monkeypatch.delenv.
     os.environ.setdefault("GRAPH_STALE_REBUILD", "inline")
+    # Hermeticity watch (qa gate regression sweep, 2026-11-08): record
+    # live-store touches per test; the advisory leg reports them. The
+    # CONTROLLER wipes stale recordings first so the leg only ever reads
+    # this run's workers.
+    from tests import hermeticity_watch
+
+    hermeticity_watch.install()
+    if os.environ.get("PYTEST_XDIST_WORKER") is None:
+        try:
+            if hermeticity_watch.REPORT_DIR.is_dir():
+                for old in hermeticity_watch.REPORT_DIR.glob("*.json"):
+                    old.unlink()
+        except Exception:  # noqa: S110 — hygiene must never fail a run
+            pass
     worker = os.environ.get("PYTEST_XDIST_WORKER")
     if worker:
         from helpers.graph import query as gq
@@ -940,6 +967,9 @@ def pytest_unconfigure(config):
 
 
 def pytest_sessionfinish(session, exitstatus):
+    from tests import hermeticity_watch
+
+    hermeticity_watch.write_report(session.config)
     _write_test_metadata(session)
     if os.environ.get("PYTEST_XDIST_WORKER"):
         return  # workers own no private cache under the shared-cache design

@@ -873,6 +873,13 @@ def _scipy_routed(metric: str) -> bool:
     return _sb.ROUTING.get(metric) == "SCIPY"
 
 
+def _ppr_metric_name() -> str:
+    """The ROUTING-owned name of the personalized-PageRank metric."""
+    from helpers.graph import scipy_bridge as _sb
+
+    return _sb.PPR_METRIC
+
+
 def _l1b_routed() -> bool:
     """True when ROUTING assigns betweenness to the L1b fold lane.
 
@@ -1837,6 +1844,19 @@ def _cli(argv: list[str] | None = None) -> int:  # noqa: C901
                 louvain_modularity: float | None = None
                 if cmd == "louvain":
                     louvain_modularity = louvain_communities(duck_con).modularity
+                if args.all and metric == _ppr_metric_name():
+                    # PPR is seed-required (scipy_personalized_pagerank #484;
+                    # the onager variant this lane replaced hardcoded its
+                    # restart node, so a seedless --all result would be
+                    # quietly wrong, not merely missing). --all cannot serve
+                    # it: say so instead of KeyError-FAIL + empty section
+                    # (2026-11-08 advisory graph-algos fallout).
+                    print(
+                        "  SKIP in --all: pagerank-personalized is seed-required — "
+                        "use the dedicated `pagerank-personalized --seed <entity>` command",
+                        file=sys.stderr,
+                    )
+                    continue
                 try:
                     as_of = args.as_of if cmd in ("pagerank", "pagerank-weighted") else None
                     if args.all and metric == "betweenness_centrality" and "l1b" in heavy_futures:

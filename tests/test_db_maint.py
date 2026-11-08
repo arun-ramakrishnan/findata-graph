@@ -511,3 +511,46 @@ class TestSidecarEstate:
         with caplog.at_level(logging.WARNING, logger="test_sidecar_estate"):
             self._maintainer(estate).maintain_registered_sidecars()
         assert any("P3.6 alert (memory/side_a.db)" in r.message for r in caplog.records)
+
+
+class TestCliNoBackupSidecars:
+    """CLI mirror of DBMaintainer(backup_sidecars=False) — the wiring the
+    hermetic maint-chain shim relies on (qa gate regression 2026-11-08:
+    the chain's db_maint step CHECKPOINT+backed-up the live 2.5 GB
+    convo_search index every run because main() never exposed the flag)."""
+
+    def test_flag_reaches_maintainer(self, tmp_path, monkeypatch):
+        captured: dict[str, bool] = {}
+
+        def fake_run(self):
+            captured["sidecars"] = self.backup_sidecars
+            return {"integrity_check": "ok", "foreign_key_violations": 0, "settings": {}}
+
+        monkeypatch.setattr(db_maint.DBMaintainer, "run", fake_run)
+        monkeypatch.setattr(db_maint, "_print_report", lambda *a, **k: None)
+        db = tmp_path / "research.db"
+        con = sqlite3.connect(str(db))
+        con.execute("CREATE TABLE t (i INT)")
+        con.close()
+        rc = db_maint.main(
+            ["--db", str(db), "--backup", str(tmp_path / "b.db"), "--no-backup-sidecars"]
+        )
+        assert rc == 0
+        assert captured["sidecars"] is False
+
+    def test_default_keeps_sidecars(self, tmp_path, monkeypatch):
+        captured: dict[str, bool] = {}
+
+        def fake_run(self):
+            captured["sidecars"] = self.backup_sidecars
+            return {"integrity_check": "ok", "foreign_key_violations": 0, "settings": {}}
+
+        monkeypatch.setattr(db_maint.DBMaintainer, "run", fake_run)
+        monkeypatch.setattr(db_maint, "_print_report", lambda *a, **k: None)
+        db = tmp_path / "research.db"
+        con = sqlite3.connect(str(db))
+        con.execute("CREATE TABLE t (i INT)")
+        con.close()
+        rc = db_maint.main(["--db", str(db), "--backup", str(tmp_path / "b.db")])
+        assert rc == 0
+        assert captured["sidecars"] is True

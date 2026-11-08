@@ -66,6 +66,25 @@ also run inside qa's pytest `-m "not live"` (`tests/run_gate_report.py`
 keeps the overlap deliberately); the dedicated leg buys the isolated
 verbose report and its own gate_query digest.
 
+Two watch legs (2026-11-08 gates-layer regression sweep, advisory-first
+with promotion to hard-fail on operator go) guard the recurring
+slowness class at the cycle that causes it:
+
+- **`hermeticity-watch`** — the qa pytest suite records, per test, every
+  connection or file open reaching into the live `memory/` stores
+  (always-on recorder, `tests/hermeticity_watch.py`; sub-second
+  overhead; `live`-marked tests and the `_tmp_hygiene` template donors
+  are exempt by design). The leg fires (exit 1) when a NON-live test
+  made a write-capable live-store connect — the exact opening move of
+  the 404 MB live-DB clone (#478) and the 2.5 GB convo_search backup
+  the maint-chain paid per run. Read-only touches report-only.
+- **`gate-timing-watch`** — per-leg median of the last 5 gate runs vs
+  the prior 10 from `outputs/gate_runs.duckdb`; fires above 1.5× AND
+  +5 s so sub-second legs can't noise-fire. Turns the slow creep that
+  previously surfaced weeks later via `gate_query` into an in-cycle
+  advisory red. Investigate via `gate_query timing --leg <leg>`; the
+  loaded-box confound (Phase 0) applies before recording numbers.
+
 ## Phase 2 — fix loop (targeted only)
 
 - Before treating ANY red as live work, verify the report is CURRENT:
