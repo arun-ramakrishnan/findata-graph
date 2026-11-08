@@ -20,7 +20,7 @@ last_modified: '2026-10-16'
 generated:
   by: derive_insights.py/v1
   at: '2026-11-08T05:25:07Z'
-stale_after: '2027-05-07'
+stale_after: '2027-04-14'
 sources:
 - id: yahoo_finance_lookup
   resource: https://finance.yahoo.com/quote/VPRPL.NS

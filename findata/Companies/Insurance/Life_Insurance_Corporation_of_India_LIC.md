@@ -20,7 +20,7 @@ last_modified: '2026-11-08'
 generated:
   by: derive_insights.py/v1
   at: '2026-11-08T05:25:06Z'
-stale_after: '2027-02-11'
+stale_after: '2027-05-07'
 sources:
 - id: Tata_Steel_LIC
   resource: /findata/The_Chatter/Tata_Steel_LIC.md
@@ -33,6 +33,7 @@ sources:
 - id: OpenAI_LIC_Mphasis
   resource: /findata/The_Chatter/OpenAI_LIC_Mphasis.md
   title: 'The Chatter: OpenAI, LIC, Mphasis, Mahindra & More'
+  last_modified: '2026-11-08'
 ---
 # Life Insurance Corporation of India (LIC)
 

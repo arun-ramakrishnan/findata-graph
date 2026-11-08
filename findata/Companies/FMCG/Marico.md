@@ -21,7 +21,7 @@ last_modified: '2026-11-08'
 generated:
   by: derive_insights.py/v1
   at: '2026-11-08T05:25:06Z'
-stale_after: '2027-02-11'
+stale_after: '2027-05-07'
 sources:
 - id: A_Quarter_That_Refuses_To_Behave
   resource: /findata/The_Chatter/A_Quarter_That_Refuses_To_Behave.md
@@ -46,6 +46,7 @@ sources:
 - id: Bajaj_Finserv_Zydus_BEL
   resource: /findata/The_Chatter/Bajaj_Finserv_Zydus_BEL.md
   title: 'The Chatter: Bajaj Finserv, Zydus, BEL, Thomas & More'
+  last_modified: '2026-11-08'
 ---
 
 # Marico

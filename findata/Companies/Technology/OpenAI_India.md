@@ -20,6 +20,7 @@ sources:
 - id: OpenAI_LIC_Mphasis
   resource: /findata/The_Chatter/OpenAI_LIC_Mphasis.md
   title: 'The Chatter: OpenAI, LIC, Mphasis, Mahindra & More'
+  last_modified: '2026-11-08'
 ---
 
 # OpenAI India

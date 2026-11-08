@@ -325,13 +325,15 @@ sources:
 - id: Bajaj_Finserv_Zydus_BEL
   resource: /findata/The_Chatter/Bajaj_Finserv_Zydus_BEL.md
   title: 'The Chatter: Bajaj Finserv, Zydus, BEL, Thomas & More'
+  last_modified: '2026-11-08'
 - id: OpenAI_LIC_Mphasis
   resource: /findata/The_Chatter/OpenAI_LIC_Mphasis.md
   title: 'The Chatter: OpenAI, LIC, Mphasis, Mahindra & More'
+  last_modified: '2026-11-08'
 generated:
   by: derive_insights.py/v1
   at: '2026-11-08T05:25:04Z'
-stale_after: '2027-04-29'
+stale_after: '2027-05-07'
 ---
 # Quotes
 
