@@ -3,6 +3,91 @@
 Full annotated triage map with live-verified trigger status.
 Open items below keep their revisit triggers inline; executed work is compressed to records.
 
+- **Entity-alias fold round 2 — EXECUTED 2026-11-08** (menu+rulings:
+  `bench_data/entity_alias_triage/round2/`). Operator ruled the 19
+  un-ruled plan rows: 17 folds (the 16 legal-name variants — Allied
+  Blenders, Gillette, HDFC AMC/Life, Hindalco, IRFC, Macrotech/Lodha,
+  LIC, Manipal case-variant, MCX, Nippon Life, PNB, Sagility,
+  Saregama, TCS paren-stub, Tempsens — plus Sun Pharma Holdings,
+  ruled the same top-level holdco) + 2 keeps (Welspun Holdings =
+  distinct holdco; SBI Ventures = distinct PE-type arm). Scoped apply
+  (backup `db-backup/research_backup_pre_alias_fold_round2_
+  2026-11-08.db`): 17 variants folded, 2 rows re-pointed, 222
+  duplicate rows consolidated (Hindalco 241+200 was the big split),
+  9 entity rows deleted, zero-loss. Post: derive-hyperedges +
+  graph-rebuild + stamp-centrality; integrity 100%. **dup-census
+  re-baselined at 79** (was FAIL 80 > 0; gate green — future FAILs =
+  genuine writer drift; the 79 remaining clusters are post-plan
+  ingest growth, a future round-3 worklist). Co-supply stable
+  (515 buyers; top ranks unchanged genuine peers).
+
+- **Entity-alias fold round 1 — EXECUTED 2026-11-08** (source:
+  co-supply S1 by-product worklist; menu+rulings:
+  `bench_data/entity_alias_triage/`). Operator ruled in-session: 7
+  canonical folds (Indian Hotels 3-way, Titan 3-way incl. case
+  variant, Larsen and Toubro `&` variant, TATA MOTORS→Tata Motors
+  Passenger Vehicles rename, CG Power 2 long forms, Agratas, Aditya
+  Birla Renewables) + 12 KEEP (parent/subsidiary/JV shapes: Tata
+  Capital×Housing Finance, Tata Comms×TCTS/TCCS, Tata Power×RE/DD,
+  Tata Motors×Finance/Insurance/GS, Air India×Sats/TAJ SATS/Taco,
+  Adani Ennore, JLR China). Execution: pre-mutation backup
+  (`db-backup/research_backup_pre_alias_fold_2026-11-08.db`), rows
+  merged into `_name_merge_plan.{txt,jsonl}`, SCOPED apply via
+  `name_dedup.apply_plan` routing to the MAIN ledger (the plan's 19
+  UN-RULED census rows — incl. suspicious SBI←SBI Ventures /
+  Welspun Corp←Welspun Holdings / Sun Pharma←Sun Pharma Holdings
+  parent-shapes — left PENDING, not applied). Stats: 13 variants
+  folded, 126 edge rows re-pointed, **1,515 duplicate edges
+  consolidated**, 13 entity rows deleted, 0 FK-retained,
+  zero_loss_ok. Post: derive-hyperedges (980 hyperedges/14,638
+  incidences regenerated) + graph-rebuild + stamp-centrality;
+  integrity 100%. **Verified**: buyers 547→517, duplicate pairs gone
+  from the co-supply top — genuine peers now rank (ACC×Ambuja 0.97,
+  TMPV×Tata Steel, Adani group pairs); pair mass 6,603→4,942 (high
+  band 3,196→1,959). **Open**: dup-census gate FAIL 80 > baseline 0
+  (the 19 un-ruled plan rows + post-baseline ingest growth) — next
+  operator ruling round, do NOT re-baseline to silence; Bharti
+  Airtel×Bharti Hexacom (0.97) is the live example the S2 prereg's
+  alias-exclusion rule covers.
+
+- **Co-supply peer lane — S1+S2 LANDED 2026-11-08**
+  (`co_supply_peer_lane.md`; parent: archive/graph/algorithms_adoption_sweep.md S3 verdict). S1: `helpers/graph/co_supply.py` + `make co-supply-peers`
+  (report-only; 7 hermetic tests) — buyer-pair shared-supplier
+  scoring, `shared/min(n1,n2)` normalization, census-≥4 high band.
+  Live: 6,603 pairs ≥2 shared (high 3,196 / watch 3,407), matching
+  the census. **By-product finding: entity-duplicate pairs dominated
+  the top ranks** (Adani Ports SEZ × APSEZ 0.99, Ambuja Cement ×
+  Ambuja Cements 0.98, Titan × Titan Company 1.00 — alias worklist
+  for the identity lanes) → eliminated at source same day (see
+  "Entity-alias fold round 1"). S2: pre-registration filed BEFORE
+  measurement (`doc/local/evaluations/cosupply_precision_prereg.md` —
+  hypothesis: ≥4-shared-supplier pairs co-occur in future staged
+  editions above the buyer-pair base rate; NO-GO/KEEP decision rule
+  frozen; alias exclusion via `entity_identity.fold_registry` as
+  defense-in-depth — the Bharti Airtel × Bharti Hexacom 0.97 shape
+  is a legitimate prediction, not excluded). Runner
+  `helpers/research/cosupply_precision.py` (freeze/score; 7 hermetic
+  tests). Instrument frozen: `bench_data/alpha_research/
+  cosupply_snapshot.csv` — 4,942 pairs / 517 buyers (universe 285) at
+  2026-11-08T16:19:27Z; realization surface = `co_mention_editions`
+  newly-staged titles (edition hyper_edges carry no valid_from —
+  staging clock caveat recorded). Registration run: realized 0.
+  Re-run at each `make derive-co-mentions` close; context-pack
+  wiring (S3) gated on the KEEP read.
+
+- **Group-family triage — CLOSED 2026-11-08, operator ruling (b):
+  keep both populations** (`bench_data/group_triage/group_triage_report.md`
+  + `group_pairs_ge4.csv`, reproducible via `hyper_motifs --pairs-out`).
+  The merge-hypothesis REJECTED: 163/169 high-overlap pairs are
+  vigil-vs-vigil (Tata/AB/Adani constellations — per-ticker
+  related-party disclosures of group-affiliated tickers share members
+  by construction; k=3 +30.6 is the derivation working). Ruling
+  recorded as a dated paragraph in the `ontology.md` §2.5 `group`
+  block: curated redundancy bounded and on record (`Tata` 7/7 RPT
+  union coverage, `Adani` 2/2; `Bajaj`/`TVS` kept because RPT-blind);
+  no retirement, no constellation-derived edges, no schema change;
+  populations separable by `source_ref`. Worklist closed.
+
 - **Range-review follow-ups a6fccfb23..4b6f50912 — EXECUTED 2026-11-04**
   (archive/tooling/range_review_followups.md; completed.md #479):
   R1–R14 all closed same-day — quack bridge cut, connect_shared narrowed

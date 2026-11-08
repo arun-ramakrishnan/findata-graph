@@ -4,3 +4,15 @@
 # S2 applies ONLY on operator sign-off of this file (name_dedup.py --apply --yes)
 # machine form: _name_merge_plan.jsonl (verbatim names; regenerate together)
 
+
+# operator-approved folds 2026-11-08 (co-supply alias menu, bench_data/entity_alias_triage/)
+#   Adani Ports and SEZ <- Adani Ports and Special Economic Zone
+#   Aditya Birla Renewables <- Aditya Birla Renewables Energy
+#   Agratas <- AGRATAS ENERGY STORAGE SOLUTIONS
+#   Ambuja Cement <- Ambuja Cements
+#   CG Power <- CG Power and Industrial Solutions; CG Power And Industrial Solutions
+#   Indian Hotels <- Indian Hotels Company; THE INDIAN HOTELS CO; The Indian Hotels Company
+#   Larsen and Toubro <- Larsen & Toubro
+#   Tata Motors Passenger Vehicles <- TATA MOTORS
+#   Titan <- Titan Company; Titan company
+# un-ruled census rows above stay PENDING review (scoped apply used)

@@ -78,6 +78,15 @@ commit, referenced by nothing). Entry numbers point at
 - [`security_route_skeleton.md`](security/security_route_skeleton.md) — Route skeleton — `ast`-derived inventory of `app.py`'s 38 routes published to `doc/security/routes.json` and checked by `static_checks.py`; the emitted advisory is shape agreement, explicitly not a security verdict — completed.md #311
 
 ## graph/ — Graph layer — algorithms, DuckPGQ retirement, Onager, knowledge-model design
+- [`algorithms_adoption_sweep.md`](graph/algorithms_adoption_sweep.md) —
+  the 2026-11-08 library-shelf sweep (8 items): S1 DuckDB fuzzy pushdown
+  measured-not-adopted (parity 204/204 but 0.39×; module kept); S2
+  scipy.stats significance layer; S3 full-incidence motifs census
+  (`hyper_motifs.py` — supply ENRICHED +54.6/+59.6; spun off the group
+  triage ruling, the co-supply lane S1+S2 + prereg, and entity-alias
+  fold rounds 1+2); S5 igraph second opinions in graph-stats; S7 RRF
+  consolidation (6 sites, frozen-bank identical); S4/S6/S8 deferred
+  with triggers — completed.md #494
 - [`scaling_next_walls.md`](graph/scaling_next_walls.md) — five scaling walls
   (B-C rebuild sharding, trail-map parallelism + Mojo bipartite BFS parity,
   chains-cap exactness via iFUB, bipartite community, blue-green reads) —

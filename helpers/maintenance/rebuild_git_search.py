@@ -1027,8 +1027,8 @@ def _fuse_scores(
     candidates: list[tuple[int, sqlite3.Row, str, bool]],
     cos_rank: dict[int, int] | None,
 ) -> list[tuple[float, sqlite3.Row, str]]:
-    """RRF-fuse (bm25_pos, row, snippet, is_extra) candidates (rds._RRF_K,
-    the shared formula).
+    """RRF-fuse (bm25_pos, row, snippet, is_extra) candidates (the shared
+    two-leg formula; extras fuse on the cosine leg alone).
 
     An EXTRA (a cosine-only row outside the BM25 page) fuses on its cosine
     term ALONE. The S5 live bank caught why: extras were handed synthetic
@@ -1036,22 +1036,10 @@ def _fuse_scores(
     body chunks outrank the bm25-#1 row on rare-literal queries
     (SessionWriter: bm25 -17.1 vs -9.6 runner-up, yet ranked ~6th fused).
     Real two-leg page evidence must always outrank a synthetic one."""
-    from helpers.maintenance import rebuild_doc_search as rds
+    from helpers.core.rank_fusion import rrf_two_leg  # noqa: E402  (algorithms_adoption_sweep S7)
 
     worst = len(cos_rank) if cos_rank else 0
-    fused = []
-    for bm25_pos, row, snippet, is_extra in candidates:
-        if cos_rank is None:
-            rrf = 1.0 / (rds._RRF_K + bm25_pos + 1)
-        elif is_extra:
-            rrf = 1.0 / (rds._RRF_K + cos_rank.get(row[0], worst + bm25_pos) + 1)
-        else:
-            rrf = (1.0 / (rds._RRF_K + bm25_pos + 1)) + (
-                1.0 / (rds._RRF_K + cos_rank.get(row[0], worst + bm25_pos) + 1)
-            )
-        fused.append((rrf, row, snippet))
-    fused.sort(key=lambda t: t[0], reverse=True)
-    return fused
+    return rrf_two_leg(candidates, cos_rank, worst, extra_pred=lambda c: c[3])
 
 
 def _hit_dicts(

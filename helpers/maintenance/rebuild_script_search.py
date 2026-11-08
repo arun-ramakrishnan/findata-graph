@@ -86,6 +86,7 @@ from helpers.core import gemma_embedder  # noqa: E402
 from helpers.core.embed_cache import CachedEmbed  # noqa: E402
 from helpers.core.vec_codec import load_vec, pack_f32  # noqa: E402
 from helpers.maintenance import rebuild_common as rbc  # noqa: E402
+from helpers.core.rank_fusion import rrf_two_leg  # noqa: E402  (algorithms_adoption_sweep S7)
 from helpers.maintenance import rebuild_doc_search as rds  # noqa: E402
 
 # Monkeypatchable (the VAULT_ROOT lesson: import-bound root constants silently
@@ -1789,19 +1790,9 @@ def _fuse_scores(
     candidates: list[tuple[int, sqlite3.Row, str]], cos_rank: dict[int, int] | None
 ) -> list[tuple[float, sqlite3.Row, str]]:
     """RRF-fuse (bm25_pos, row, snippet) candidates into sorted hits
-    (rds._RRF_K, same formula as search_docs)."""
+    (the shared two-leg formula, same as search_docs)."""
     worst = len(cos_rank) if cos_rank else 0
-    fused = []
-    for bm25_pos, row, snippet in candidates:
-        if cos_rank is not None:
-            rrf = (1.0 / (rds._RRF_K + bm25_pos + 1)) + (
-                1.0 / (rds._RRF_K + cos_rank.get(row[0], worst + bm25_pos) + 1)
-            )
-        else:
-            rrf = 1.0 / (rds._RRF_K + bm25_pos + 1)
-        fused.append((rrf, row, snippet))
-    fused.sort(key=lambda t: t[0], reverse=True)
-    return fused
+    return rrf_two_leg(candidates, cos_rank, worst)
 
 
 def _fused_hits(

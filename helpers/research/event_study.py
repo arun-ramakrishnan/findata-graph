@@ -19,7 +19,11 @@ Outcome per horizon h ∈ {4, 13, 26} weeks: forward return of the
 subject vs the MEDIAN forward return of its canonical-sector peers
 (hyper_edges ``sector`` membership, subject excluded) — abnormal return;
 plus a volume ratio (post-window mean volume vs the 8-week pre-window
-mean, z-scored against the pre-window std).
+mean, z-scored against the pre-window std). A significance layer
+(algorithms_adoption_sweep S2) reports Wilcoxon signed-rank and sign-test
+p-values plus a 90% bootstrap CI on the median abnormal return —
+report-only, seeded, degraded to ``—`` when the sample can't support
+the test.
 
 Survivorship caveat (S2's, inherited): subjects without Yahoo history
 — disproportionately DELISTED acquired targets — are censored, so the
@@ -139,6 +143,46 @@ def _volume_ratio(bars, idx: int, h: int) -> float | None:
     return statistics.fmean(post) / mean_pre - 1.0
 
 
+def _significance(abnormal: list[float], pos: int, n: int) -> dict:
+    """scipy.stats layer for one horizon (algorithms_adoption_sweep S2).
+
+    Report-only additions to the point estimates: Wilcoxon signed-rank
+    vs 0 (are abnormal returns centered off zero?), a sign-test binomial
+    on the positive share, and a 90% bootstrap CI on the median
+    (percentile method, seeded rng — deterministic run to run). Each
+    column degrades to None when the sample can't support it (n = 0, or
+    the degenerate all-zero-differences sample Wilcoxon refuses).
+    """
+    if not abnormal:
+        return {"p_wilcoxon": None, "p_sign": None, "ci90": None}
+    import numpy as np
+    from scipy import stats as st
+
+    out: dict = {"p_wilcoxon": None, "p_sign": None, "ci90": None}
+    try:
+        p = float(st.wilcoxon(abnormal, alternative="two-sided").pvalue)
+        out["p_wilcoxon"] = round(p, 4) if p == p else None  # nan on tie-degenerate samples
+    except ValueError:
+        pass  # all abnormal returns identical (e.g. all 0.0) — untestable
+    if n:
+        out["p_sign"] = round(float(st.binomtest(pos, n, 0.5).pvalue), 4)
+    try:
+        arr = np.asarray(abnormal, dtype=float)
+        boot = st.bootstrap(
+            (arr,),
+            np.median,
+            confidence_level=0.9,
+            n_resamples=2000,
+            method="percentile",
+            rng=np.random.default_rng(42),
+        )
+        lo, hi = boot.confidence_interval
+        out["ci90"] = (round(float(lo), 4), round(float(hi), 4))
+    except ValueError, IndexError:
+        pass  # sample too degenerate for a CI — point estimate still printed
+    return out
+
+
 def study(  # noqa: C901 — the event kernel: anchor/censor/peer-baseline per horizon, linear in events
     events: list[tuple[str, str]],
     tickers: dict[str, str],
@@ -205,17 +249,17 @@ def study(  # noqa: C901 — the event kernel: anchor/censor/peer-baseline per h
     for h in horizons:
         d = per_h[h]
         n = len(d["abnormal"])
-        rows.append(
-            {
-                "horizon_weeks": h,
-                "n": n,
-                "median_abnormal": round(statistics.median(d["abnormal"]), 4) if n else None,
-                "pct_positive": round(d["pos"] / n * 100, 1) if n else None,
-                "median_volume_ratio": round(statistics.median(d["vol"]), 3) if d["vol"] else None,
-                "censored": d["censored"],
-                "no_price_data": d["no_data"],
-            }
-        )
+        row = {
+            "horizon_weeks": h,
+            "n": n,
+            "median_abnormal": round(statistics.median(d["abnormal"]), 4) if n else None,
+            "pct_positive": round(d["pos"] / n * 100, 1) if n else None,
+            "median_volume_ratio": round(statistics.median(d["vol"]), 3) if d["vol"] else None,
+            "censored": d["censored"],
+            "no_price_data": d["no_data"],
+        }
+        row.update(_significance(d["abnormal"], d["pos"], n))
+        rows.append(row)
     return {"n_events": len(events), "rows": rows}
 
 
@@ -248,8 +292,8 @@ def _cli(argv: list[str] | None = None) -> int:
                 f"\n{etype} (subject = {EVENT_SOURCES[etype]} side; {res['n_events']} dated events)"
             )
             print(
-                f"{'h(wk)':>6} {'N':>5} {'med_abn':>9} {'%pos':>6} {'med_volΔ':>9} "
-                f"{'censored':>9} {'no_px':>6}"
+                f"{'h(wk)':>6} {'N':>5} {'med_abn':>9} {'%pos':>6} {'p_wil':>7} {'p_sign':>7} "
+                f"{'ci90':>18} {'med_volΔ':>9} {'censored':>9} {'no_px':>6}"
             )
             for r in res["rows"]:
                 ma = f"{r['median_abnormal']:+.4f}" if r["median_abnormal"] is not None else "—"
@@ -259,9 +303,16 @@ def _cli(argv: list[str] | None = None) -> int:
                     else "—"
                 )
                 pp = f"{r['pct_positive']:.0f}%" if r["pct_positive"] is not None else "—"
+                pw = f"{r['p_wilcoxon']:.4f}" if r.get("p_wilcoxon") is not None else "—"
+                ps = f"{r['p_sign']:.4f}" if r.get("p_sign") is not None else "—"
+                ci = (
+                    f"[{r['ci90'][0]:+.4f},{r['ci90'][1]:+.4f}]"
+                    if r.get("ci90") is not None
+                    else "—"
+                )
                 print(
-                    f"{r['horizon_weeks']:>6} {r['n']:>5} {ma:>9} {pp:>6} {mv:>9} "
-                    f"{r['censored']:>9} {r['no_price_data']:>6}"
+                    f"{r['horizon_weeks']:>6} {r['n']:>5} {ma:>9} {pp:>6} {pw:>7} {ps:>7} "
+                    f"{ci:>18} {mv:>9} {r['censored']:>9} {r['no_price_data']:>6}"
                 )
         print(
             "\nSURVIVORSHIP CAVEAT: subjects without Yahoo history (delisted/"

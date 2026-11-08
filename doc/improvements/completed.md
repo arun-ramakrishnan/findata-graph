@@ -14173,3 +14173,41 @@ to doc/improvements/archive/database/duckdb_pure_stack.md.
 - Gates: quartet run after both arcs (qa reds fixed targeted — maint
   ordering, pin tests, format, schema-dump; integration PASS; perf
   REFUSED parked; advisory 22/24 known classes).
+
+## 494. Algorithms adoption sweep — push the installed library shelf into the lanes
+
+- **Date:** 2026-11-08 · **Status:** EXECUTED (S2/S3/S5/S7 landed; S1
+  measured-not-adopted; S4/S6/S8 deferred with triggers) ·
+  **Proposal:** doc/improvements/archive/graph/algorithms_adoption_sweep.md
+  · Survey: doc/local/evaluations/algorithms_assessment.md §9
+- S1 DuckDB fuzzy pushdown — parity 204/204 on the live 24,733-entity
+  corpus but 0.27–0.39× the Python loop; MEASURED-NOT-ADOPTED, module
+  kept as instrument (`helpers/core/fuzzy_duckdb.py` + 30 tests +
+  bench), no wiring; at-scale fix named (token→entity inverted index).
+- S2 scipy.stats significance layer — wilcoxon/binomtest/bootstrap CI
+  in `event_study.py` (live: invested_in 13-week −4.7%, p<0.0001);
+  exact binomial + BH FDR in `linkpred_precision.py`; prereg amended
+  non-decisionally.
+- S3 repo-native full-incidence motifs census — `hyper_motifs.py` + 12
+  hermetic tests + `--pairs-out`; live: supply ENRICHED +54.6/+59.6,
+  edition/group bimodal, index/event/industry ~NULL — the HGX
+  norm_delta=0 verdict was an instrument artifact. Follow-through:
+  group triage (ruling b, keep both populations), co-supply lane
+  S1+S2 (co_supply.py, prereg frozen, snapshot 4,942 pairs), and the
+  entity-alias fold rounds 1+2 (19 canonical folds total, 2 keeps,
+  1,737 duplicate edges consolidated, census re-baselined 79).
+- S5 igraph second opinions — `graph-stats` section: 753 articulation
+  points, coreness max_k=32 (k17-19 edition spikes), assortativity
+  −0.2416; 4 hermetic tests.
+- S7 RRF consolidation — `helpers/core/rank_fusion.py`, SIX sites
+  (note/convo/doc/memory/script/git; extras rule absorbed), benches
+  untouched; zero-behavior-change proven via 4 reference-parity tests
+  + 7 frozen query surfaces all rank identical
+  (bench_data/rrf_consolidation/).
+- S4 hypergraphx[ml] / S6 cKDTree near-dup / S8 numpy 2.5 ingest —
+  DEFERRED with recorded reopen triggers (consumer-ask + prereg'd
+  disagreement metric / 5×10³ paths / measured hot loop).
+- Gates: not yet run this session (multi-arc stack awaiting the
+  operator's quartet go); targeted tests only throughout
+  (fuzzy_duckdb 30, hyper_motifs 12, co_supply 7, cosupply_precision
+  7, rank_fusion 4, igraph_second_opinion 4, event_study +11).

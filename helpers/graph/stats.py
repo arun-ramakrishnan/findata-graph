@@ -493,6 +493,47 @@ def longest_chains(
     return lines
 
 
+def igraph_second_opinion_lines(top_k: int = 8) -> list[str]:
+    """igraph second-opinion instruments (algorithms_adoption_sweep S5,
+    report-only) — the three cheap structure lenses the Onager lanes
+    don't carry, over the SAME graph_edges projection the bridge uses:
+
+    - articulation points: exact cut vertices (near-free; complements
+      the sampled betweenness lane for chokepoint QA),
+    - coreness: the full k-core profile (generalizes the 2-core peel
+      l1_closeness builds its exact lane on),
+    - degree assortativity: one-number mixing trend, tracked across
+      editions.
+    """
+    from helpers.graph.igraph_bridge import _require_igraph, build_graph, load_projection
+
+    ig = _require_igraph()
+    g, _name_to_id = build_graph(load_projection())
+    lines: list[str] = [f"  (projection: {g.vcount()} vertices / {g.ecount()} edges)"]
+
+    aps = sorted({g.vs[i]["name"] for i in g.articulation_points()})
+    if aps:
+        shown = ", ".join(aps[:top_k]) + (
+            f" … +{len(aps) - top_k} more" if len(aps) > top_k else ""
+        )
+        lines.append(f"  articulation points: {len(aps)} — {shown}")
+    else:
+        lines.append("  articulation points: 0 (2-connected)")
+
+    core = g.coreness()
+    if core:
+        max_k = max(core)
+        dist: dict[int, int] = {}
+        for c in core:
+            dist[c] = dist.get(c, 0) + 1
+        profile = " ".join(f"k{kk}:{dist[kk]}" for kk in sorted(dist))
+        lines.append(f"  coreness: max_k={max_k} ({profile})")
+
+    assort = ig.Graph.assortativity_degree(g)
+    lines.append(f"  degree assortativity: {assort:+.4f}")
+    return lines
+
+
 def hyper_structure_lines(conn, top_k: int = 5) -> list[str]:
     """Render the hypergraph structure section (pure function of ``conn``).
 
@@ -880,36 +921,17 @@ def _print_country_census() -> None:
         print(f"  (graph cache unavailable: {e})")
 
 
-def print_stats(exact_chains: bool = False) -> int:
-    # --- Distributions: sourced from the checker (single source of truth) ---
-    checker = DatabaseIntegrityChecker()
-    try:
-        gs = checker.check_graph_summary()
-    finally:
-        checker.close()
+def _print_retired_edge_types(max_n: int) -> None:
+    """Retired edge types stay in the report as their canonical projections.
 
-    ec = gs["entity_counts"]
-    xec = gs["edge_counts"]
-    n_entities = sum(ec.values())
-    n_companies = ec.get("company", 0)
-    n_sectors = ec.get("sector", 0)
-    n_edges = sum(xec.values())
-
-    print(_hr("FinData Graph — Stats"))
-    print(f"\nEntities: {n_entities}  (companies: {n_companies}, sectors: {n_sectors})")
-    print(f"Edges:    {n_edges}  across graph_edges")
-
-    print("\nEdge-type breakdown:")
-    max_n = max(xec.values(), default=1)
-    for etype, n in xec.items():
-        print(f"  {etype:20} {_bar(n, max_n)}")
-    # part_of/has_company retirement (2026-10-19): membership is canonical in
-    # the incidence store, so it leaves the dyad breakdown but must not leave
-    # the report — shown as its own line, projected as the pair a reader knows.
-    # co_mentioned_in retirement (polyadic S5 2026-11-07): same treatment for
-    # the edition projections — pairs derived from co_mention_editions'
-    # canonical edition family, counted the same way the integrity checker
-    # counts them (_expected_comention_count).
+    part_of/has_company retirement (2026-10-19): membership is canonical in
+    the incidence store, so it leaves the dyad breakdown but must not leave
+    the report — shown as its own line, projected as the pair a reader knows.
+    co_mentioned_in retirement (polyadic S5 2026-11-07): same treatment for
+    the edition projections — pairs derived from co_mention_editions'
+    canonical edition family, counted the same way the integrity checker
+    counts them (_expected_comention_count).
+    """
     _mconn = connect()
     try:
         n_membership = _mconn.execute(
@@ -948,6 +970,32 @@ def print_stats(exact_chains: bool = False) -> int:
             "  (edition projections; co-mention pairs are derived, not stored)"
         )
 
+
+def print_stats(exact_chains: bool = False) -> int:
+    # --- Distributions: sourced from the checker (single source of truth) ---
+    checker = DatabaseIntegrityChecker()
+    try:
+        gs = checker.check_graph_summary()
+    finally:
+        checker.close()
+
+    ec = gs["entity_counts"]
+    xec = gs["edge_counts"]
+    n_entities = sum(ec.values())
+    n_companies = ec.get("company", 0)
+    n_sectors = ec.get("sector", 0)
+    n_edges = sum(xec.values())
+
+    print(_hr("FinData Graph — Stats"))
+    print(f"\nEntities: {n_entities}  (companies: {n_companies}, sectors: {n_sectors})")
+    print(f"Edges:    {n_edges}  across graph_edges")
+
+    print("\nEdge-type breakdown:")
+    max_n = max(xec.values(), default=1)
+    for etype, n in xec.items():
+        print(f"  {etype:20} {_bar(n, max_n)}")
+    _print_retired_edge_types(max_n)
+
     _print_structure_metrics()
 
     # --- SciPy csgraph lanes (mst_backbone_wiring S1 +
@@ -977,6 +1025,14 @@ def print_stats(exact_chains: bool = False) -> int:
         print(f"  (unavailable: {type(e).__name__}: {str(e)[:120]})")
     finally:
         _hconn.close()
+
+    # --- igraph second opinions (S5: exact cut vertices / k-cores / mixing) ---
+    print(_hr("igraph second opinions (report-only)", "-"))
+    try:
+        for _line in igraph_second_opinion_lines():
+            print(_line)
+    except Exception as e:  # noqa: BLE001  # advisory section; never fail stats
+        print(f"  (unavailable: {type(e).__name__}: {str(e)[:120]})")
 
     _print_distributions(gs)
     _print_country_census()

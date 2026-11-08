@@ -39,7 +39,6 @@ FTS_DB_NAME = "convo_search_fts.db"
 # instead of a `bili/` corpus directory. There is no bili directory to
 # filter on, so it is deliberately absent here.
 HARNESSES = ["opencode", "prime-rlm", "zcode", "dsh"]
-RRF_K = 60
 HEAD = 160
 
 # Rank prior. Tool traffic is ~30k of 53,423 indexed rows — but NOT under
@@ -247,39 +246,7 @@ def _like_pattern(source: str) -> str:
     return "%" + source.replace("\\", "\\\\").replace("%", r"\%").replace("_", r"\_") + "%"
 
 
-def _rrf(*ranked: list[tuple[Key, float]]) -> dict[Key, float]:
-    fused: dict[Key, float] = {}
-    for hits in ranked:
-        for i, (key, _score) in enumerate(hits):
-            fused[key] = fused.get(key, 0.0) + 1.0 / (RRF_K + i + 1)
-    return fused
-
-
-RRF_ANCHORS = 5
-
-
-def _anchored_fusion(
-    fts: list[tuple[Key, float]], cos: list[tuple[Key, float]]
-) -> list[tuple[Key, float]]:
-    """bm25-anchored fusion (frozen-bank verdict 2026-10-27, #442 sweep):
-    symmetric RRF alone measures 8-10/57 vs the bm25-alone floor 22/57 —
-    the cosine leg drags exact-match hits out of the top-5. Anchoring the
-    FTS top-RRF_ANCHORS in production order preserves exact-match recall
-    by construction; the fused order fills the rest, so the vector leg can
-    only add. Frozen bank: granite 25/57, gemma 27/57 (floor 22)."""
-    fused = _rrf(fts, cos)
-    order = sorted(fused.items(), key=lambda kv: (-kv[1], kv[0]))
-    seen: set[Key] = set()
-    out: list[tuple[Key, float]] = []
-    for key, _s in fts[:RRF_ANCHORS]:
-        if key in fused and key not in seen:
-            out.append((key, fused[key]))
-            seen.add(key)
-    for key, s in order:
-        if key not in seen:
-            out.append((key, s))
-            seen.add(key)
-    return out
+from helpers.core.rank_fusion import anchored_fusion as _anchored_fusion  # noqa: E402  (algorithms_adoption_sweep S7 — the convo named variant lives in the one RRF home; frozen-bank verdict 2026-10-27, #442: granite 25/57, gemma 27/57)
 
 
 def _fetch_rows(con: ConvoConnections, keys: list[Key]) -> dict[Key, dict]:

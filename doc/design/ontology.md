@@ -270,6 +270,21 @@ names (`Tata`):
   takes the DOMINANT folded class (most dyads, tie → lexicographically
   smallest), so the role is deterministic across runs.
 
+  Ruling 2026-11-08 (group-triage census, algorithms_adoption_sweep S3
+  follow-through; report:
+  `bench_data/group_triage/group_triage_report.md`): KEEP BOTH
+  populations (option b). The full-incidence census measured the
+  RPT-set cross-edge overlap as real-but-by-construction — 169 pairs
+  share ≥4 members, resolving to 27 business-group constellations
+  (Tata ×14 filers, Aditya Birla ×7, Adani ×6; k=3 norm_delta +30.58)
+  because group-affiliated filers disclose the whole group. Curated
+  redundancy is bounded and recorded: `Tata`'s 7 members are all
+  covered by the RPT union, `Adani`'s 2/2 — while `Bajaj`/`TVS` have
+  no RPT coverage and are kept precisely because the derivation
+  cannot see them. No retirement, no constellation-derived edges, no
+  schema change; the populations are already separable by
+  `source_ref` (`vigil:rpt:<SYM>` prefix vs `$.group` provenance).
+
 The relationship vocabulary is case-folded, not canonicalised:
 `normalise_relationship` (`helpers/graph/derive_hyperedges.py`) folds
 Fellow Subsidiary / Fellow subsidiary / Fellow Subsidiaries / Fellow

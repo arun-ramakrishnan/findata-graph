@@ -62,6 +62,7 @@ if str(_REPO_ROOT) not in sys.path:
 from helpers.core import jsonio  # noqa: E402  (orjson parse cutover; dumps stay stdlib per db_scaling_tuning §6.3 criteria)
 from helpers.core import gemma_embedder  # noqa: E402
 from helpers.core.embed_cache import CachedEmbed  # noqa: E402
+from helpers.core.rank_fusion import rrf_two_leg  # noqa: E402  (algorithms_adoption_sweep S7)
 from helpers.maintenance import rebuild_common as rbc  # noqa: E402
 from helpers.maintenance import rebuild_doc_search as rds  # noqa: E402
 
@@ -853,7 +854,7 @@ def search_memories(
     """Hybrid BM25 + cosine search over memory_search. Never raises.
 
     Same candidate-union + RRF design as rebuild_script_search.search_scripts
-    (rds._RRF_K formula), filtered on the UNINDEXED kind column. At this
+    (the shared two-leg RRF formula), filtered on the UNINDEXED kind column. At this
     corpus size (~70 rows) the Python cosine loop is free."""
     expr = rds.fts_match_expr(q)
     if not expr:
@@ -902,16 +903,7 @@ def search_memories(
             extra += 1
 
     worst = len(cos_rank) if cos_rank else 0
-    fused = []
-    for bm25_pos, row, snippet in candidates:
-        if cos_rank is not None:
-            rrf = (1.0 / (rds._RRF_K + bm25_pos + 1)) + (
-                1.0 / (rds._RRF_K + cos_rank.get(row[0], worst + bm25_pos) + 1)
-            )
-        else:
-            rrf = 1.0 / (rds._RRF_K + bm25_pos + 1)
-        fused.append((rrf, row, snippet))
-    fused.sort(key=lambda t: t[0], reverse=True)
+    fused = rrf_two_leg(candidates, cos_rank, worst)
 
     results = [
         {

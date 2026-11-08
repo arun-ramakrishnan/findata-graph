@@ -37,7 +37,6 @@ if str(_REPO) not in sys.path:
 
 REPO = _REPO
 DEFAULT_DB = REPO / "memory/research.db"
-RRF_K = 60
 HEAD = 400
 SEMANTIC_CANDIDATES = 200
 
@@ -223,12 +222,7 @@ def semantic_hits(db_path: Path, query: str, limit: int, query_vec=None) -> tupl
         return [], f"semantic notes unavailable: {type(exc).__name__}"
 
 
-def rrf(*ranked: list[tuple[Key, float]]) -> dict[Key, float]:
-    fused: dict[Key, float] = {}
-    for hits in ranked:
-        for i, (key, _s) in enumerate(hits):
-            fused[key] = fused.get(key, 0.0) + 1.0 / (RRF_K + i + 1)
-    return fused
+from helpers.core.rank_fusion import rrf  # noqa: E402  (algorithms_adoption_sweep S7 — the one RRF home)
 
 
 def _fuse_key(h: dict) -> Key:

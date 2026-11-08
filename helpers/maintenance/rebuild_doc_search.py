@@ -846,7 +846,7 @@ def _mtime_of(root: Path | None, rel: str) -> float:
 # --- query core (shared by app.py /api/docs/search and helpers/misc/doc_query) ---
 
 # RRF constant, identical to app.py::_hybrid_search_results.
-_RRF_K = 60
+from helpers.core.rank_fusion import rrf_two_leg  # noqa: E402  (algorithms_adoption_sweep S7)
 
 # Diversification cap: max section-chunks per file in a result page.
 _MAX_PER_FILE = 2
@@ -1064,16 +1064,7 @@ def search_docs(  # noqa: C901
             extra_pos += 1
 
     worst = len(cos_rank) if cos_rank else 0
-    fused = []
-    for bm25_pos, row, snippet in candidates:
-        if cos_rank is not None:
-            rrf = (1.0 / (_RRF_K + bm25_pos + 1)) + (
-                1.0 / (_RRF_K + cos_rank.get(row[0], worst + bm25_pos) + 1)
-            )
-        else:
-            rrf = 1.0 / (_RRF_K + bm25_pos + 1)
-        fused.append((rrf, row, snippet))
-    fused.sort(key=lambda t: t[0], reverse=True)
+    fused = rrf_two_leg(candidates, cos_rank, worst)
 
     # Diversification: at most _MAX_PER_FILE chunks per file in the final
     # order. A knowledge query wants the best DISTINCT documents; without
