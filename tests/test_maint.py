@@ -114,7 +114,7 @@ class TestPlan:
         labels = [label for label, _ in maint.TIER1_STEPS]
         assert labels == [
             "convo-fresh (harvest harness sessions into the parquet corpus)",
-            "convo-rebuild (incremental pointer/FTS/vector index refresh)",
+            "convo-rebuild (incremental pointer/FTS refresh; exact-KNN, no ANN index)",
             "db_maint (VACUUM/ANALYZE/REINDEX/integrity)",
             "rederive-hyper (re-derive standing hyperedge families)",
             "snapshot (refresh versioned snapshots)",
@@ -255,7 +255,7 @@ class TestPlan:
         # Non-skipped TIER1 order is preserved and still precedes TIER2.
         assert [lab for lab, _ in skipped][:2] == [
             "convo-fresh (harvest harness sessions into the parquet corpus)",
-            "convo-rebuild (incremental pointer/FTS/vector index refresh)",
+            "convo-rebuild (incremental pointer/FTS refresh; exact-KNN, no ANN index)",
         ]
         assert [lab for lab, _ in skipped][2:] == [
             "db_maint (VACUUM/ANALYZE/REINDEX/integrity)",
@@ -536,13 +536,17 @@ class TestReport:
 
 
 # --------------------------------------------------------------------------- #
-# Convo dead-block tripwire (convo_search_dead_block_compaction S2)           #
+# Convo dead-block tripwire (convo_search_drop_hnsw_numpy_copy_compact S3)     #
 # --------------------------------------------------------------------------- #
-class TestConvoSwapTripwire:
-    """The maint-cycle --incremental→--swap flip: per-run, store-state-driven,
-    orchestrator-owned (same idiom as _served_file_lane_skip). Only the flag
-    inside the convo-rebuild cmd may change — labels, tuple shape, cmd[0],
-    cmd[1] and every other step must survive untouched."""
+class TestConvoCompactTripwire:
+    """The maint-cycle --compact tripwire: per-run, store-state-driven,
+    orchestrator-owned (same idiom as _served_file_lane_skip).
+
+    It APPENDS --compact; it must never remove --incremental, because the
+    incremental pass is what refreshes the corpus and a COPY compaction
+    would otherwise carry already-stale rows. Only the convo-rebuild cmd
+    may change — labels, tuple shape, cmd[0], cmd[1] and every other step
+    must survive untouched."""
 
     @staticmethod
     def _convo_cmd():
@@ -555,9 +559,9 @@ class TestConvoSwapTripwire:
         )
         logger = logging.getLogger("test_tripwire")
         steps = [(label, list(cmd)) for label, cmd in maint.TIER1_STEPS]
-        return maint._maybe_upgrade_convo_swap(steps, logger)
+        return maint._maybe_compact_convo(steps, logger)
 
-    def test_above_trigger_flips_incremental_to_swap(self, monkeypatch):
+    def test_above_trigger_appends_compact(self, monkeypatch):
         # 70% of 3 GB — above both legs of the recalibrated (2026-11-08)
         # trigger max(2 GB, 60% of file).
         hot = {"status": "ok", "file_bytes": 3_000_000_000, "dead_bytes": 2_100_000_000}
@@ -565,22 +569,25 @@ class TestConvoSwapTripwire:
         steps = self._run(monkeypatch, hot)
         convo = [s for s in steps if s[0] == label]
         assert len(convo) == 1
-        assert "--swap" in convo[0][1]
-        assert "--incremental" not in convo[0][1]
+        assert "--compact" in convo[0][1]
+        # --incremental MUST survive: compaction carries rows, it does not
+        # refresh the corpus.
+        assert "--incremental" in convo[0][1]
 
-    def test_below_trigger_keeps_incremental(self, monkeypatch):
+    def test_below_trigger_leaves_step_alone(self, monkeypatch):
         cool = {"status": "ok", "file_bytes": 1_900_032_000, "dead_bytes": 694_000_000}
         label, _cmd = self._convo_cmd()
         steps = self._run(monkeypatch, cool)
         convo = [s for s in steps if s[0] == label]
         assert "--incremental" in convo[0][1]
-        assert "--swap" not in convo[0][1]
+        assert "--compact" not in convo[0][1]
 
     def test_unavailable_probe_degrades_to_incremental(self, monkeypatch):
         label, _cmd = self._convo_cmd()
         steps = self._run(monkeypatch, {"status": "unavailable", "reason": "IOException"})
         convo = [s for s in steps if s[0] == label]
         assert "--incremental" in convo[0][1]
+        assert "--compact" not in convo[0][1]
 
     def test_raising_probe_degrades_to_incremental(self, monkeypatch, caplog):
         def boom(db):
@@ -588,14 +595,27 @@ class TestConvoSwapTripwire:
 
         monkeypatch.setattr("helpers.maintenance.duckdb_block_anatomy.anatomy", boom)
         label, _cmd = self._convo_cmd()
-        steps = maint._maybe_upgrade_convo_swap(
+        steps = maint._maybe_compact_convo(
             [(lb, list(c)) for lb, c in maint.TIER1_STEPS], logging.getLogger("test_tripwire")
         )
         convo = [s for s in steps if s[0] == label]
         assert "--incremental" in convo[0][1]
-        assert any("swap-tripwire probe failed" in r.message for r in caplog.records)
+        assert any("compact-tripwire probe failed" in r.message for r in caplog.records)
 
-    def test_flip_leaves_every_other_step_untouched(self, monkeypatch):
+    def test_already_present_is_idempotent(self, monkeypatch):
+        """A human running --compact by hand must not get it twice."""
+        hot = {"status": "ok", "file_bytes": 3_000_000_000, "dead_bytes": 2_100_000_000}
+        label, _cmd = self._convo_cmd()
+        steps = [(lb, list(c)) for lb, c in maint.TIER1_STEPS]
+        for i, (lb, c) in enumerate(steps):
+            if lb.split(" (")[0] == "convo-rebuild":
+                c.append("--compact")
+                steps[i] = (lb, c)
+        out = self._run(monkeypatch, hot)
+        convo = [s for s in out if s[0] == label]
+        assert convo[0][1].count("--compact") == 1
+
+    def test_trigger_leaves_every_other_step_untouched(self, monkeypatch):
         hot = {"status": "ok", "file_bytes": 3_000_000_000, "dead_bytes": 2_100_000_000}
         label, _cmd = self._convo_cmd()
         before = [(lb, list(c)) for lb, c in maint.TIER1_STEPS]
@@ -607,12 +627,11 @@ class TestConvoSwapTripwire:
                 assert bc == ac, f"non-convo step mutated: {bl}"
         # module constants untouched (shallow-copy semantics)
         orig = [c for lb, c in maint.TIER1_STEPS if lb == label][0]
-        assert "--incremental" in orig and "--swap" not in orig
+        assert "--incremental" in orig and "--compact" not in orig
 
-    def test_module_constant_lists_unchanged_after_flip(self, monkeypatch):
-        """The flip must not leak into TIER1_STEPS (the plan log, dry-run and
-        every later run read the same module list)."""
+    def test_module_constant_lists_unchanged_after_trigger(self, monkeypatch):
+        """The trigger must not leak into TIER1_STEPS (the plan log, dry-run
+        and every later run read the same module list)."""
         hot = {"status": "ok", "file_bytes": 3_000_000_000, "dead_bytes": 2_100_000_000}
-        label, _cmd = self._convo_cmd()
         self._run(monkeypatch, hot)
-        assert all("--swap" not in c for _l, c in maint.TIER1_STEPS)
+        assert all("--compact" not in c for _l, c in maint.TIER1_STEPS)

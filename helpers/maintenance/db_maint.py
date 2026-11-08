@@ -116,7 +116,7 @@ SIDECAR_SQLITE: tuple[str, ...] = (
     "memory/memory_search.db",
     "memory/md_lint_cache.db",
 )
-# (path, vacuum) — convo_search is CHECKPOINT-only: its swap-rebuild
+# (path, vacuum) — convo_search is CHECKPOINT-only: its compact-copy
 # rewrites the file wholesale, the checkpoint is the belt-and-braces
 # (§5.4 ruling). xdist-shared is registered skip-busy (§5.3 ruling).
 SIDECAR_DUCKDB: tuple[tuple[str, bool], ...] = (
@@ -828,8 +828,8 @@ class DBMaintainer:
     # DuckDB dead-block alert thresholds (the F4 metric — see
     # duckdb_block_anatomy). DuckDB has no VACUUM-based reclamation
     # (measured zero on a bloated copy, 2026-11-06), so this alerts
-    # toward the swap rebuild instead of acting itself: the
-    # maint.py cycle owns the --incremental→--swap flip.
+    # toward the compact step instead of acting itself: the
+    # maint.py cycle owns the --compact tripwire.
     DUCKDB_DEAD_PCT = 40.0
     DUCKDB_DEAD_BYTES = 1_000_000_000
 
@@ -1167,9 +1167,9 @@ class DBMaintainer:
                 row["action"] = f"error ({type(e).__name__})"
                 self._log(logging.ERROR, f"{rel}: {row['action']}: {e}")
             row["secs"] = round(time.time() - t0, 2)
-            # F4 alert, P3.6 shape: advisory warning toward the swap
-            # rebuild (the maint cycle owns the --incremental→--swap flip;
-            # db_maint never compacts DuckDB — VACUUM reclaims zero).
+            # F4 alert, P3.6 shape: advisory warning toward the compact
+            # step (the maint cycle owns the --compact tripwire; db_maint
+            # never compacts DuckDB — VACUUM reclaims zero here).
             if (
                 row.get("dead_pct", 0) > self.DUCKDB_DEAD_PCT
                 or row.get("dead_bytes", 0) > self.DUCKDB_DEAD_BYTES
@@ -1177,8 +1177,8 @@ class DBMaintainer:
                 self._log(
                     logging.WARNING,
                     f"F4 alert ({rel}): dead blocks {row['dead_pct']}% "
-                    f"dead / {row['dead_bytes'] / 1e9:.2f} GB — swap rebuild "
-                    f"(rebuild_convo_search.py --swap) is the only compactor",
+                    f"dead / {row['dead_bytes'] / 1e9:.2f} GB — compact "
+                    f"(rebuild_convo_search.py --compact) is the only compactor",
                 )
             rows.append(row)
         return rows

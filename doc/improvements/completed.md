@@ -14211,3 +14211,65 @@ to doc/improvements/archive/database/duckdb_pure_stack.md.
   operator's quartet go); targeted tests only throughout
   (fuzzy_duckdb 30, hyper_motifs 12, co_supply 7, cosupply_precision
   7, rank_fusion 4, igraph_second_opinion 4, event_study +11).
+
+## 495. convo_search — drop HNSW, exact-KNN leg, COPY-compaction; no swap in the maint cycle
+
+- **Date:** 2026-11-09 · **Status:** EXECUTED (S1–S5 landed; numpy leg
+  opt-in after review F1) ·
+  **Proposal:** doc/improvements/archive/convo_search/convo_search_drop_hnsw_numpy_copy_compact.md
+  · Supersedes the swap doctrine of completed.md #485
+- S5 live compaction — `memory/convo_search.duckdb` **4.40 GB → 0.977 GB
+  in ~15 s** (70.3% dead → 2.8%) vs the old 1596 s / 30–40 min
+  `--swap`. The clock was never the COPY: a naive `COPY FROM DATABASE`
+  carried the persisted HNSW blob and cost 158 s; DROP INDEX +
+  CHECKPOINT first (1.9 s) then COPY (12.8–14.2 s) is ~100× cheaper.
+  Parity exact on convo_search 203,921 / convo_meta 397 /
+  harvest_meta 425 / part_index 159,424; native FTS
+  `match_bm25(part_id,'hypergraph')` still 1899 hits; `duckdb_indexes()`
+  now empty.
+- Root cause of the bloat — HNSW, not the write path: three 250-row
+  delta waves WITH the index → dead 28.1→35.6→44.9→51.9%, file
+  1.32→2.705 GB; WITHOUT it → dead flat 2.1%, file flat 1.32 GB. Mass
+  UPDATE (203k), mass DELETE (100k) and FTS drop+recreate (34 s each)
+  are all block-neutral on DuckDB 2.0 without the index. This makes the
+  2026-11-06 law ("VACUUM reclaims 0 bytes") CONDITIONAL: CHECKPOINT
+  reclaims iff no HNSW blob pins the freed blocks (measured 4.399 →
+  3.71 GB, dead 70.3% → 0.8%, in 0.9 s).
+- S1 exact-KNN leg — `helpers/misc/convo_query.py`: Arrow
+  `.combine_chunks().flatten()` zero-copy matrix + numpy matmul +
+  provenance mask via `pyarrow.compute`, behind an LRU keyed
+  `(path, mtime_ns, size, dims)`. Review F1 (subprocess-per-query means
+  the LRU never warms) was CONFIRMED by A/B: numpy-first 3303–5199 ms
+  vs SQL scan 1304–1979 ms one-shot, so the dispatch was REVERSED —
+  `array_cosine_distance` is the default, numpy is cache-only with
+  `warm_matrix()` for long-lived callers. Legs agree exactly (identical
+  key order, max score delta 6.55e-08). `LOAD vss` retired from
+  `connect()`.
+- S2 `compact_via_copy` — COPY FROM DATABASE is required over
+  table-level `CREATE TABLE AS` because FTS scoring is a persisted
+  MACRO (`match_bm25` otherwise raises `CatalogException`); EXPORT/
+  IMPORT rejected (loses indexes). Guard `Table swap in progress — do
+  not interrupt` printed twice; READ_ONLY src attach keeps readers live
+  while a writer fails fast on the DuckDB lock; `rebuild_via_swap` and
+  its swap-only DDL helpers deleted.
+- S3 tripwire KEPT as a regression watch — `_maybe_compact_convo` now
+  APPENDS `--compact` instead of replacing `--incremental` (a copy
+  compaction does not refresh the corpus); `db_maint` F4 alert
+  retargeted to `--compact`, thresholds 40% / 1 GB unchanged. S4
+  `tmp_sweep` gained `*.duckdb.copy-*.tmp{,.wal}`.
+- By-catch — `duckdb_block_anatomy.anatomy_from_con` closes the
+  CALLER's connection despite its docstring, which killed the first live
+  run at 14.2 s (`Connection Error: Connection already closed!` on the
+  following DETACH); compaction now measures the temp via `anatomy()`
+  on its own handle. DuckDB `.fetchone()` leaves an unfinished result
+  that breaks a later `to_arrow_table()` (`ResourceInUseException`) —
+  meta readers switched to `.fetchall()`. Also: `COPY FROM DATABASE`
+  needs the current database ALIAS, and `VACUUM <attached-alias>` is
+  not supported.
+- Tests: 2 new hermetic compaction tests (parity + FTS equality + index
+  drop + byte-identical store on failure) and
+  `TestConvoSwapTripwire` → `TestConvoCompactTripwire` (7). Targeted
+  suite **94 passed** across test_convo_search / test_maint /
+  test_duckdb_block_anatomy / test_db_maint_convo / test_tmp_sweep /
+  test_rebuild_cli_flags; ruff check + format clean. Gates not run this
+  session (operator owns the quartet go).

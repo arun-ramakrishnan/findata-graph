@@ -5,8 +5,10 @@ Reaps THIS repo's $TMPDIR residue before a gate run so a full temp dir can
 never crash the very run that exists to catch problems, plus the rebuild
 residue a SIGKILLed rebuild leaves INSIDE the repo (`memory/*.rebuild-*.tmp`
 and its `.wal`/`.build.lock` siblings — see `helpers/graph/query.py`
-`_rebuild_via_swap`, whose `finally` unlink never runs when the process is
-killed). Only removes entries the sweep can prove this repo owns:
+`_rebuild_via_swap`; and `memory/*.copy-*.tmp` from
+`rebuild_convo_search.compact_via_copy` — both rely on a `finally` unlink
+that never runs when the process is killed). Only removes entries the sweep
+can prove this repo owns:
 
   * file basenames matching a known artifact glob (stray
     ``sp.db``/``tmp*.db`` scratch DBs, the TUI log, ...),
@@ -81,6 +83,10 @@ REPO_RESIDUE_GLOBS = (
     "*.duckdb.rebuild-*.tmp",  # helpers/graph/query.py:1496-1498 scratch copy
     "*.duckdb.rebuild-*.tmp.wal",  #  ...its WAL sidecar
     "*.duckdb.rebuild-*.tmp.build.lock",  #  ...and its build lock
+    # convo compaction (rebuild_convo_search.compact_via_copy): same shape,
+    # different tag. No .build.lock sibling — the compaction never takes one.
+    "*.duckdb.copy-*.tmp",
+    "*.duckdb.copy-*.tmp.wal",
 )
 # Never touch these (pytest retention, systemd/snap/X11, another user's tmp).
 NEVER = (

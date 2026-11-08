@@ -38,6 +38,15 @@ entry number and stale DONE pointers):
 
 ## Current live proposals
 
+- *(none)* — no proposal is awaiting execution.
+- *(archived 2026-11-09)* — `convo_search_drop_hnsw_numpy_copy_compact`
+  executed same day, #495
+  (`../archive/convo_search/convo_search_drop_hnsw_numpy_copy_compact.md`;
+  HNSW was the bloat source, not the write path; compaction 4.40 GB →
+  0.977 GB in ~15 s by dropping the index BEFORE the COPY — the naive
+  copy carried the 370 MB graph blob and cost 158 s; exact-KNN numpy leg
+  is opt-in after F1, `--swap` retired, tripwire kept as a regression
+  watch).
 - *(archived 2026-11-08)* — `star_hyperedge_consumer_wiring` executed
   same day, #492
   (`../archive/graph/star_hyperedge_consumer_wiring.md`; S0 dyad audit

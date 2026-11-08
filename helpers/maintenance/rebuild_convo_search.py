@@ -57,29 +57,30 @@ SKIP_PART_PREFIXES = ("step-",)
 
 _pseudo_warned = False
 
-# S1 (duckdb_pure_stack): the embedding column is SIZED — DuckDB HNSW index
-# keys must be FLOAT[N]; an unsized FLOAT[] raises "Binder Error: HNSW index
-# keys must be of type FLOAT[N]" at CREATE INDEX (probe 2026-11-05,
-# /mnt/data/tmp/hnsw_unsized_probe.py). The size comes from the RUN's
-# resolved embedder dims, never a constant: production granite pins 384 (the
-# EMBED_DIMS cache-lane guard above), the swap rebuild stamps convo_meta
-# embed_dims for readers, and a future third dim is a model change riding a
-# full swap rebuild (FI-2 in doc/local/evaluations/unified_backend_assessment.md).
-# The legacy apply path keeps creating the UNSIZED column: incremental
-# windows never build HNSW, and unsized stores keep accepting any dims
-# until their next full swap rebuild sizes them.
-HNSW_EF_CONSTRUCTION = 128
+# S1 (duckdb_pure_stack): the embedding column is SIZED FLOAT[N] rather than
+# FLOAT[]. The size comes from the RUN's resolved embedder dims, never a
+# constant: production granite pins 384 (the EMBED_DIMS cache-lane guard
+# above), the store stamps convo_meta embed_dims for readers, and a future
+# third dim is a model change riding a full rebuild (FI-2 in
+# doc/local/evaluations/unified_backend_assessment.md). The legacy apply path
+# keeps creating the UNSIZED column: incremental windows never rebuild the
+# column, and unsized stores keep accepting any dims until a full pass sizes
+# them. (Sizing also used to be load-bearing for the retired HNSW index,
+# whose keys must be FLOAT[N] — probe 2026-11-05, /mnt/data/tmp/hnsw_unsized_probe.py.)
 
 
 def _load_vss(con) -> None:
-    """Bind the persisted HNSW index before an in-place write window.
+    """Bind a persisted HNSW index before an in-place write window.
 
-    S1 (duckdb_pure_stack): the swapped-in store carries a persisted HNSW
-    index on convo_search.embedding. A connection that modifies that table
-    without the vss extension loaded fails at bind time — ``unknown index
-    type 'HNSW'`` (gate-arc hit 2026-11-05: the incremental write window
-    died after its 280 s embed). No-op for pre-S1 stores (no index to bind)
-    and for fresh tmp builds (they LOAD vss themselves before CREATE INDEX).
+    Historical, but still load-bearing for stores built before the
+    2026-11-09 retirement: those carry a persisted HNSW index on
+    convo_search.embedding, and a connection that modifies that table
+    without the extension loaded fails at bind time — ``unknown index type
+    'HNSW'`` (gate-arc hit 2026-11-05: the incremental write window died
+    after its 280 s embed). No-op for a post-retirement store (nothing to
+    bind) and for fresh tmp builds. Cheap when idle: the extension is cached
+    under ~/.duckdb/extensions. Retire with the last HNSW-bearing store
+    (proposal convo_search_drop_hnsw_numpy_copy_compact S5).
     """
     con.execute("INSTALL vss")
     con.execute("LOAD vss")
@@ -103,6 +104,13 @@ CREATE TABLE IF NOT EXISTS convo_search (
 
 
 CONVO_META_DDL = "CREATE TABLE IF NOT EXISTS convo_meta (key VARCHAR PRIMARY KEY, value VARCHAR)"
+
+# Tables a compaction must copy AND count-verify. convo_search/convo_meta
+# carry the index proper; harvest_meta/part_index carry the harvest
+# watermarks and its own key map. The old swap path had to mirror those two
+# by hand (_carry_harvest_state) because it rebuilt from the corpus; COPY
+# carries every table, so the parity gate below is what protects them.
+_COMPACT_TABLES = ("convo_search", "convo_meta", "harvest_meta", "part_index")
 FTS_DDL = (
     "CREATE VIRTUAL TABLE IF NOT EXISTS convo_fts USING fts5("
     "text, harness UNINDEXED, part_id UNINDEXED, session_id UNINDEXED, "
@@ -112,57 +120,6 @@ FTS_DDL = (
 
 def fts_db_for(db_path: Path) -> Path:
     return db_path.parent / FTS_DB_NAME
-
-
-HARVEST_META_DDL = (
-    "CREATE TABLE IF NOT EXISTS harvest_meta ("
-    "source VARCHAR PRIMARY KEY, watermark VARCHAR, updated_ts TIMESTAMP)"
-)
-PART_INDEX_DDL = (
-    "CREATE TABLE IF NOT EXISTS part_index ("
-    "harness VARCHAR, part_id VARCHAR, session_id VARCHAR, "
-    "PRIMARY KEY (harness, part_id))"
-)
-
-
-def _carry_harvest_state(new_con: duckdb.DuckDBPyConnection, old_path: Path) -> None:
-    """Mirror harvest_meta + part_index into the fresh swap store.
-
-    The swap builds only the index tables; without this, every swap
-    silently dropped the harvest watermarks and the next harvest re-read
-    the whole corpus (full re-ingest, re-embedding ~139k rows), and the
-    schema dump drifted until the next write-harvest re-created the
-    tables. Best-effort: when the old store is unreadable (partial file,
-    version skew) the state is skipped with a warning — a missing
-    watermark degrades to a slower harvest, never to a wrong one.
-
-    Wire-safe: the old store may be read via the Slice B funnel (a
-    resident server holds it rw, excluding file-mode opens) even though
-    the swap itself refuses to run served."""
-    new_con.execute(HARVEST_META_DDL)
-    new_con.execute(PART_INDEX_DDL)
-    if not old_path.exists():
-        return
-    try:
-        from helpers.misc.duckdb_lock import open_read_only
-
-        old = open_read_only(old_path)
-        try:
-            wm = old.execute("SELECT source, watermark, updated_ts FROM harvest_meta").fetchall()
-            parts = old.execute("SELECT harness, part_id, session_id FROM part_index").fetchall()
-        finally:
-            old.close()
-    except Exception as exc:  # noqa: BLE001 — degraded carry is not fatal
-        print(
-            f"  [swap] harvest state not carried ({type(exc).__name__}: {exc}); "
-            "next harvest re-reads sources"
-        )
-        return
-    if wm:
-        new_con.executemany("INSERT OR REPLACE INTO harvest_meta VALUES (?, ?, ?)", wm)
-    if parts:
-        new_con.executemany("INSERT OR REPLACE INTO part_index VALUES (?, ?, ?)", parts)
-    print(f"  [swap] carried harvest state: {len(wm)} watermark(s), {len(parts)} part(s)")
 
 
 def _corpus_files() -> list[Path]:
@@ -854,139 +811,176 @@ def _rebuild_embed_and_persist(
     return cstats, model_label, dims
 
 
-def rebuild_via_swap(db_path: Path, incremental: bool = False) -> dict:
-    """Full rebuild into a pid-tagged temp, then atomic ``os.replace`` swap.
+COMPACT_GUARD = "Table swap in progress — do not interrupt"
 
-    The in-place DELETE+reinsert cycle leaves 67% of the file as dead /
-    fragmented space; DuckDB 1.5.6 VACUUM reclaims 0 bytes here. Building
-    a fresh compact DB in ``<path>.rebuild-<pid>.tmp`` and swapping it in
-    reclaims it (graph lane's ``_rebuild_via_swap`` pattern).
 
-    Lock contract (S3 preserved): embed runs with NO live-db connection;
-    the only live-file exclusive window is the final swap instant. FTS
-    sync (independent sqlite store) runs after the swap, so a failed FTS
-    leaves the fresh DuckDB live with a stale FTS — the next ``--check``
-    catches it and a re-run redoes the sync.
+def compact_via_copy(db_path: Path) -> dict:
+    """Compact a store by copying it table-by-table into a fresh file.
+
+    This is a COMPACTION, not a rebuild: no corpus read, no embedding, no
+    FTS recreate, no HNSW. The corpus is untouched and the store's rows
+    are already correct — only the dead blocks are wrong.
+
+    Why COPY and not a swap rebuild (measured 2026-11-09):
+
+    - `COPY FROM DATABASE` carries every table INCLUDING the native FTS
+      schema (fts_main_convo_search.dict/docs/fields/stats/stopwords/
+      terms) and its persisted match_bm25 macro, so lexical recall
+      survives with no 34 s recreate. Row-count parity is exact on
+      convo_search / convo_meta / harvest_meta / part_index.
+    - It carries a persisted HNSW index TOO — and copying that blob is
+      what made the naive recipe cost 158 s. So the index is dropped
+      FIRST, which is cheap (0.8 s, and CHECKPOINT then returns the
+      freed blocks), and the COPY drops to 14 s. Compaction after HNSW
+      retirement therefore costs ~15 s instead of the old 1596 s
+      `--swap` rebuild (of which hnsw_build was 1638 s and fts_build 29 s).
+
+    Lock contract: the source is attached READ-ONLY, so concurrent
+    convo_query readers keep opening it (shared file lock) for the whole
+    copy; a WRITER would get DuckDB's Conflicting lock and fail fast,
+    which is the desired outcome during a compaction window. The
+    exclusive `io.lock` is taken only around `os.replace`.
     """
     ds.assert_not_served(db_path)  # os.replace would swap the inode under a live server
+    from helpers.maintenance.duckdb_block_anatomy import anatomy
+
     db_path = Path(db_path)
     db_path.parent.mkdir(parents=True, exist_ok=True)
-    global _FTS_DB_PATH
-    _FTS_DB_PATH = fts_db_for(db_path)
     timer = _Phases()
 
-    files = _corpus_files()
-
-    tmp = db_path.with_name(f"{db_path.name}.rebuild-{os.getpid()}.tmp")
+    tmp = db_path.with_name(f"{db_path.name}.copy-{os.getpid()}.tmp")
     tmp_wal = tmp.with_name(tmp.name + ".wal")
-    tmp_lock = tmp.with_name(tmp.name + ".build.lock")
-    tmp.unlink(missing_ok=True)
-    tmp_wal.unlink(missing_ok=True)
-    tmp_lock.unlink(missing_ok=True)
 
+    before_rows: dict[str, int] = {}
+    before_bytes = db_path.stat().st_size if db_path.exists() else 0
+    print(COMPACT_GUARD, file=sys.stderr, flush=True)
     try:
-        target = _read_files(files)
-        keep = [r for _h, rr in target.values() for r in rr]
-        current = {rel: h for rel, (h, _rows) in target.items()}
-        timer.mark("hash+read")
+        tmp.unlink(missing_ok=True)
+        tmp_wal.unlink(missing_ok=True)
 
-        vecs, cstats, dims, model_label = _embed([r["snippet"] for r in keep])
-        timer.mark("embed")
-
-        con = duckdb.connect(str(tmp))
-        try:
-            con.execute(_convo_search_ddl(dims))
-            con.execute(CONVO_META_DDL)
-            if keep:
-                _bulk_insert(con, keep, vecs)
-            con.executemany(
-                "INSERT OR REPLACE INTO convo_meta VALUES (?, ?)",
-                [(f"file:{rel}", h) for rel, h in current.items()]
-                + [
-                    ("embed_model", model_label),
-                    ("embed_dims", str(dims)),
-                    ("key_schema", "content_v1"),
-                ],
+        # Drop the ANN index before copying. COPY FROM DATABASE carries the
+        # index WITH its blob, and copying ~370 MB of graph is what cost
+        # 158 s vs 14 s without it (probed 2026-11-09). This has to run on a
+        # write connection, i.e. before the read-only attach below — and it
+        # is the ONLY write this function performs on the live store, so it
+        # takes the exclusive io.lock (queues flock-compliant readers for the
+        # ~2 s it needs; the rest of the copy runs lock-free on a READ_ONLY
+        # attach). This is the window the guard above names.
+        with io_lock(db_path, exclusive=True):
+            dropped = _drop_ann_indexes(db_path)
+        timer.mark("drop_index")
+        if dropped:
+            print(
+                f"  dropped {', '.join(dropped)} "
+                "(COPY FROM DATABASE would carry its blob — 158 s vs 14 s)",
+                file=sys.stderr,
+                flush=True,
             )
-            _carry_harvest_state(con, db_path)
-            # S1 (duckdb_pure_stack): persisted HNSW on the embedding
-            # column, built on the fresh tmp BEFORE the swap instant so
-            # readers never observe a store without the index (68 s at
-            # 191k x 384, trial 2026-11-05). The experimental-persistence
-            # flag is per connection.
-            if keep:
-                con.execute("INSTALL vss")
-                con.execute("LOAD vss")
-                con.execute("SET hnsw_enable_experimental_persistence=true")
-                con.execute(
-                    "CREATE INDEX idx_convo_search_emb ON convo_search "
-                    f"USING HNSW (embedding) WITH (metric='cosine', ef_construction={HNSW_EF_CONSTRUCTION})"
-                )
-                timer.mark("hnsw_build")
-                # S3 (duckdb_pure_stack): native FTS over the stored full
-                # text, keyed on part_id (globally unique in the live
-                # corpus, verified 2026-11-05). Built on the tmp BEFORE
-                # the swap instant, same invariant as HNSW above; the
-                # index persists with the file (probe 2026-11-05: fresh
-                # RO conn + LOAD fts answers after reopen).
-                con.execute("INSTALL fts")
-                con.execute("LOAD fts")
-                con.execute("PRAGMA create_fts_index('convo_search', 'part_id', 'text')")
-                timer.mark("fts_build")
+
+        work = duckdb.connect(":memory:")
+        try:
+            work.execute("INSTALL fts")
+            work.execute("LOAD fts")
+            work.execute(f"ATTACH '{db_path}' AS src (READ_ONLY)")
+            for table in _COMPACT_TABLES:
+                try:
+                    res = work.execute(
+                        f"SELECT COUNT(*) FROM src.{table}"  # noqa: S608  # fixed constant table list
+                    ).fetchone()
+                    before_rows[table] = res[0] if res else 0
+                except duckdb.CatalogException:
+                    before_rows[table] = 0
+            timer.mark("probe")
+
+            work.execute(f"ATTACH '{tmp}' AS dst")
+            try:
+                work.execute("COPY FROM DATABASE src TO dst")
+                work.execute("CHECKPOINT dst")
+                timer.mark("copy")
+                after_rows = {}
+                for table in _COMPACT_TABLES:
+                    try:
+                        res = work.execute(
+                            f"SELECT COUNT(*) FROM dst.{table}"  # noqa: S608  # fixed constant table list
+                        ).fetchone()
+                        after_rows[table] = res[0] if res else 0
+                    except duckdb.CatalogException:
+                        after_rows[table] = 0
+            finally:
+                work.execute("DETACH dst")
         finally:
-            con.close()
-        timer.mark("duckdb_write")
+            work.close()
+        timer.mark("verify")
 
+        # Measure the temp file on a connection of its OWN. anatomy_from_con
+        # closes whatever connection it is handed (its docstring claims
+        # otherwise, but its `finally: con.close()` does not), so calling it
+        # on `work` above killed that connection and broke the DETACH after it.
+        post_anatomy = anatomy(tmp)
+
+        # Parity gate: a torn copy must fail loudly, never be swapped in.
+        if after_rows != before_rows:
+            raise RuntimeError(f"compact copy row-count mismatch: {after_rows} != {before_rows}")
         if tmp_wal.exists():
-            raise RuntimeError(f"rebuild temp not cleanly closed: {tmp_wal} still exists")
+            raise RuntimeError(f"compact temp not cleanly closed: {tmp_wal} still exists")
 
+        print(COMPACT_GUARD, file=sys.stderr, flush=True)
         with io_lock(db_path, exclusive=True):
             os.replace(tmp, db_path)
         timer.mark("swap")
-
-        from helpers.core.db import connect as db_connect
-
-        sconn = db_connect(_FTS_DB_PATH)
-        try:
-            _fts_sync(sconn, [], keep, full=True)
-        finally:
-            sconn.close()
-        timer.mark("fts_sync")
-
-        total_row = (
-            duckdb.connect(str(db_path), read_only=True)
-            .execute("SELECT COUNT(*) FROM convo_search")
-            .fetchone()
-        )
-        total = total_row[0] if total_row else 0
-        # Gate acceptance (duckdb_pure_stack): the swap must land every
-        # row the fresh build carried; a mismatch means a torn swap and
-        # the caller must fail loudly, not serve a partial store.
-        if total != len(keep):
-            raise RuntimeError(f"swap rebuild row-count mismatch: {total} != {len(keep)}")
     finally:
         tmp.unlink(missing_ok=True)
         tmp_wal.unlink(missing_ok=True)
-        tmp_lock.unlink(missing_ok=True)
 
+    after_bytes = db_path.stat().st_size
     timings = timer.as_dict()
     timings["total"] = round(sum(timings.values()), 2)
-    result = {
-        "indexed": len(keep),
-        "mode": "swap",
+    return {
+        "indexed": after_rows.get("convo_search", 0),
+        "mode": "compact",
         "timings": timings,
-        "total": total,
-        "embedded": cstats["misses"],
-        "embed_cache_hits": cstats["hits"],
-        "embed_cache_misses": cstats["misses"],
+        "total": after_rows.get("convo_search", 0),
+        "bytes_before": before_bytes,
+        "bytes_after": after_bytes,
+        "post_dead_pct": post_anatomy.get("dead_pct"),
         "index_stale": False,
         "stale_new": [],
         "stale_changed": [],
         "stale_deleted": [],
     }
-    if "timing" in cstats:
-        result["embed_cache_timing"] = cstats["timing"]
-    return result
+
+
+def _drop_ann_indexes(db_path: Path) -> list[str]:
+    """DROP every ANN index on convo_search; return the names dropped.
+
+    A pre-2026-11-09 store carries the persisted HNSW index from the
+    `--swap` era. Two reasons to drop it here rather than leave it:
+
+    1. COPY FROM DATABASE copies the index AND its blob, which makes the
+       compaction 11x slower (158 s vs 14 s measured 2026-11-09).
+    2. The read path no longer consults it (convo_query._cos_hits is an
+       exact numpy scan), so every byte it spends is waste.
+
+    `LOAD vss` is required to bind an HNSW index at all; a store with no
+    index never reaches the DROP. Idempotent and best-effort: a store from
+    the post-retirement era has nothing to drop.
+    """
+    con = duckdb.connect(str(db_path))
+    try:
+        rows = con.execute(
+            "SELECT index_name FROM duckdb_indexes() WHERE table_name = 'convo_search'"
+        ).fetchall()
+        names = [r[0] for r in rows]
+        if not names:
+            return []
+        con.execute("INSTALL vss")
+        con.execute("LOAD vss")
+        for name in names:
+            con.execute(f'DROP INDEX IF EXISTS "{name}"')  # noqa: S608  # catalog-sourced, quoted
+        con.execute("CHECKPOINT")
+        return names
+    finally:
+        con.close()
 
 
 def _ensure_provenance_backfill(db_path: Path, files: list[Path]) -> None:
@@ -1049,7 +1043,7 @@ def _apply_write_window(
 
 
 def rebuild(
-    db_path: Path, write: bool = True, incremental: bool = False, swap: bool = False
+    db_path: Path, write: bool = True, incremental: bool = False, compact: bool = False
 ) -> dict:
     """The S2 core. ``--check`` (write=False) never resolves the embedder.
 
@@ -1078,8 +1072,8 @@ def rebuild(
     files = _corpus_files()
     if not write:
         return _rebuild_check_mode(db_path, files, timer)
-    if swap:
-        return rebuild_via_swap(db_path, incremental=incremental)
+    if compact:
+        return compact_via_copy(db_path)
 
     _ensure_provenance_backfill(db_path, files)
 
@@ -1215,7 +1209,11 @@ def main(argv: list[str] | None = None) -> int:
         db_help="convo_search duckdb path",
         check_help="report corpus-vs-index drift, exit 1, no writes",
         incremental_help="reprocess only new/changed corpus files",
-        swap_help="atomic pid-tagged temp + os.replace swap (compacts the duckdb; graph-lane pattern)",
+        compact_help=(
+            "compact the store in place: COPY FROM DATABASE into a pid-tagged "
+            "temp, then os.replace (no corpus read, no re-embed; ~15 s at "
+            "204k rows). Prints a do-not-interrupt guard."
+        ),
         rebuild_fn=rebuild,
         summary=summary,
         migrated_msg="",

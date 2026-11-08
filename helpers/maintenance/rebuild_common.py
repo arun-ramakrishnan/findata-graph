@@ -63,7 +63,11 @@ class RebuildCliSpec:
     full_help: str | None = None
     resolve_db: Callable[[str], Path | None] | None = None
     handle_errors: bool = True
-    swap_help: str | None = None
+    # Indexes whose store can be compacted in place (COPY FROM DATABASE into
+    # a pid-tagged temp, then os.replace) register --compact. Replaces the
+    # retired --swap, which rebuilt from the corpus and was 100x slower than
+    # the copy once the HNSW index stopped forcing a full re-embed.
+    compact_help: str | None = None
     # S1: name of the key/value meta table in THIS index that carries the
     # working-set stamp (db_meta / doc_search_info / script_search_info /
     # memory_search_info). None = no stamp, no guard (duckdb convo lane).
@@ -349,8 +353,8 @@ def build_rebuild_parser(spec: RebuildCliSpec) -> argparse.ArgumentParser:
     p.add_argument("--incremental", action="store_true", default=True)
     if spec.full_help is not None:
         p.add_argument("--full", action="store_true", help=spec.full_help)
-    if spec.swap_help is not None:
-        p.add_argument("--swap", action="store_true", help=spec.swap_help)
+    if spec.compact_help is not None:
+        p.add_argument("--compact", action="store_true", help=spec.compact_help)
     return p
 
 
@@ -596,11 +600,11 @@ def run_rebuild_cli(argv: list[str] | None, spec: RebuildCliSpec) -> int:
 
     from helpers.maintenance.maint_timing import RunTimer, active
 
-    mode = "check" if args.check else ("swap" if getattr(args, "swap", False) else "apply")
+    mode = "check" if args.check else ("compact" if getattr(args, "compact", False) else "apply")
     # --full wins over --incremental (the default) and maps to incremental=False
     # for a complete rewrite. --check disables writes and reports freshness.
     # getattr: --full is only registered when spec.full_help is set (the convo
-    # spec omits it, since its atomic swap rebuilds the whole duckdb anyway).
+    # spec omits it, since a compaction COPY carries the whole duckdb anyway).
     incremental = bool(
         not args.check and not getattr(args, "full", False) and getattr(args, "incremental", True)
     )
@@ -625,8 +629,8 @@ def run_rebuild_cli(argv: list[str] | None, spec: RebuildCliSpec) -> int:
             return aborted.code
         try:
             kwargs: dict = dict(write=not args.check, incremental=incremental)
-            if spec.swap_help is not None:
-                kwargs["swap"] = args.swap
+            if spec.compact_help is not None:
+                kwargs["compact"] = args.compact
             if spec.handle_errors:
                 try:
                     stats = spec.rebuild_fn(db_path, **kwargs)

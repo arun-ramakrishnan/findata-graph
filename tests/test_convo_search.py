@@ -801,7 +801,9 @@ def test_query_hybrid_fuse(convo_env, monkeypatch):
         monkeypatch.setattr(
             cq,
             "_cos_hits",
-            lambda c, q, limit, dims, query_vec=None, harness=None: [(("prime-rlm", "pm1:0"), 0.9)],
+            lambda c, q, limit, dims, query_vec=None, harness=None, source=None: [
+                (("prime-rlm", "pm1:0"), 0.9)
+            ],
         )
         out = cq.search(con, "hello", limit=3)
         assert out["mode"] == "hybrid"
@@ -1082,3 +1084,113 @@ def test_no_change_run_skips_fts_refresh(convo_env, monkeypatch):
     pq.write_table(pa.Table.from_pylist(rows, schema=tbl.schema), f)
     rcs.rebuild(idx, write=True, incremental=True)
     assert len(calls) == 1, "a content change must refresh the native FTS index"
+
+
+def test_compact_via_copy_parity_and_index_drop(convo_env, monkeypatch, capsys):
+    """compact_via_copy must preserve every row + the native FTS macro, and
+    must NOT carry the retired HNSW index into the compacted store."""
+    import duckdb
+
+    tmp = convo_env
+    db = tmp / "convo_search.duckdb"
+    hc.harvest(corpus_root=tmp / "corpus", db=db)
+    monkeypatch.setattr(rcs, "REPO", tmp)
+    monkeypatch.setattr(rcs, "CORPUS_DIR_GLOB", "corpus/*/*/*.parquet")
+    monkeypatch.setattr(
+        rcs,
+        "_embed",
+        lambda texts: (
+            [[1.0, 0.0] for _ in texts],
+            {"hits": 0, "misses": len(texts)},
+            2,
+            "test-model",
+        ),
+    )
+    idx = tmp / "idx" / "convo_search.duckdb"
+    rcs.rebuild(idx, write=True)
+
+    def counts(p):
+        c = duckdb.connect(str(p), read_only=True)
+        try:
+            c.execute("LOAD fts")
+            out = {}
+            for t in rcs._COMPACT_TABLES:
+                try:
+                    out[t] = c.execute(f"SELECT COUNT(*) FROM {t}").fetchone()[0]  # noqa: S608
+                except duckdb.CatalogException:
+                    out[t] = 0
+            ids = c.execute("SELECT harness, part_id FROM convo_search ORDER BY 1, 2").fetchall()
+            fts = c.execute(
+                "SELECT COUNT(*) FROM (SELECT fts_main_convo_search.match_bm25(part_id, 'hello') s "
+                "FROM convo_search) WHERE s IS NOT NULL"
+            ).fetchone()[0]
+        finally:
+            c.close()
+        return out, ids, fts
+
+    before_counts, before_ids, before_fts = counts(idx)
+    before_size = idx.stat().st_size
+
+    stats = rcs.compact_via_copy(idx)
+
+    after_counts, after_ids, fts_hits = counts(idx)
+    assert stats["mode"] == "compact"
+    assert after_counts == before_counts, "row-count parity across every compacted table"
+    assert after_ids == before_ids, "row identity + order preserved"
+    # The token itself may or may not be in this synthetic corpus; what must
+    # hold is that the lexical scoring behaves IDENTICALLY after the copy.
+    assert fts_hits == before_fts, "native FTS scoring must be unchanged by the COPY"
+
+    # The HNSW index must be gone for GOOD: not rebuilt, not copied back.
+    c = duckdb.connect(str(idx), read_only=True)
+    try:
+        left = c.execute(
+            "SELECT index_name FROM duckdb_indexes() WHERE table_name = 'convo_search'"
+        ).fetchall()
+    finally:
+        c.close()
+    assert left == [], f"compacted store must carry no ANN index, found {left}"
+
+    # The guard is printed at the start AND right before the swap.
+    err = capsys.readouterr().err
+    assert err.count(rcs.COMPACT_GUARD) >= 2, "guard must bracket the downtime window"
+
+    # A compaction never grows the store.
+    assert idx.stat().st_size <= before_size
+
+
+def test_compact_failure_leaves_the_live_store_intact(convo_env, monkeypatch):
+    """A compaction that dies mid-flight must never touch the live store and
+    must not leave its pid-tagged temp behind."""
+    import duckdb
+
+    tmp = convo_env
+    idx = tmp / "idx" / "convo_search.duckdb"
+    idx.parent.mkdir(parents=True, exist_ok=True)
+    con = duckdb.connect(str(idx))
+    try:
+        con.execute(
+            "CREATE TABLE convo_search (harness VARCHAR, part_id VARCHAR, embedding FLOAT[2])"
+        )
+        con.execute("INSERT INTO convo_search VALUES ('h', 'p1', [1.0, 0.0])")
+        con.execute("CREATE TABLE convo_meta (key VARCHAR PRIMARY KEY, value VARCHAR)")
+        con.execute("INSERT INTO convo_meta VALUES ('embed_dims', '2')")
+        con.execute("CHECKPOINT")
+    finally:
+        con.close()
+    original = idx.read_bytes()
+
+    def boom(path):
+        raise RuntimeError("vss exploded")
+
+    monkeypatch.setattr(rcs, "_drop_ann_indexes", boom)
+    try:
+        rcs.compact_via_copy(idx)
+    except RuntimeError as exc:
+        assert "vss exploded" in str(exc)
+    else:  # pragma: no cover
+        raise AssertionError("a failed compaction must raise")
+
+    assert idx.read_bytes() == original, "the live store must be untouched after a failed compact"
+    leftovers = list(idx.parent.glob("*.copy-*.tmp*"))
+    assert leftovers == [], f"failed compaction left temp residue: {leftovers}"

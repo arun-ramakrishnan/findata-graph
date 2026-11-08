@@ -8,6 +8,19 @@ commit, referenced by nothing). Entry numbers point at
 
 ## convo_search/ — Conversation search harvest + rebuild
 
+- [`convo_search_drop_hnsw_numpy_copy_compact.md`](convo_search/convo_search_drop_hnsw_numpy_copy_compact.md) —
+  bloat's real source was the persisted HNSW index, not the write path:
+  three delta waves WITH it → dead 28→52%, file 1.32→2.705 GB, WITHOUT
+  it → flat 2.1% / 1.32 GB; mass UPDATE/DELETE and FTS recreate are
+  block-neutral once it is gone (so #485's "VACUUM reclaims 0 bytes" is
+  CONDITIONAL on HNSW pinning blocks). Compaction 4.40 GB → 0.977 GB in
+  ~15 s vs the old 1596 s `--swap` — drop the index (1.9 s) THEN
+  `COPY FROM DATABASE` (14 s); copying the HNSW blob first was the whole
+  158 s. Exact-KNN leg in `convo_query` (Arrow zero-copy + numpy + LRU,
+  opt-in via `warm_matrix` because F1 proved subprocess-per-query never
+  warms it — `array_cosine_distance` stays the default); `--swap` gone,
+  `--compact` in, maint tripwire kept as a regression watch that
+  APPENDS `--compact` → completed.md #495
 - [`convo_search_dead_block_compaction.md`](convo_search/convo_search_dead_block_compaction.md) —
   dead-block compaction: S1 swap rebuild (4.84→1.27 GB, VACUUM
   measured zero — swap-rebuild-only size law), S2 block-anatomy

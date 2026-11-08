@@ -240,28 +240,38 @@ def _failed_advisory_step(label: str, result: _StepResult, logger: logging.Logge
 
 
 # Dead-block tripwire for the convo store (proposal
-# convo_search_dead_block_compaction S2). The incremental rebuild's
-# in-place DELETE+reinsert strands dead blocks DuckDB never returns
-# (measured: one incremental pass after the 2026-11-06 swap re-bloated
-# the store by ~650 MB); past this trigger the cycle upgrades the step
-# to --swap, which rebuilds compact and reclaims. Read-only probe,
-# advisory degrade — a failed probe keeps the cheap incremental path.
+# convo_search_drop_hnsw_numpy_copy_compact S3). The incremental rebuild's
+# in-place DELETE+reinsert used to strand dead blocks DuckDB never returned
+# (measured: one incremental pass re-bloated the store by ~650 MB). With
+# the HNSW index retired that churn is block-NEUTRAL (2026-11-09 probes:
+# delete+reinsert waves, native-FTS recreate, mass UPDATE and mass DELETE
+# all left the file flat at 2.1% dead), so this is now a REGRESSION
+# tripwire rather than a routine compactor: it fires if a future write
+# path or re-added ANN index starts stranding blocks again.
+#
+# The action is ``--compact`` APPENDED, never a replacement: --incremental
+# must still run to refresh the corpus (a COPY compaction carries rows
+# that are already stale). One cycle then does incremental-then-compact.
+# Read-only probe, advisory degrade — a failed probe keeps the cheap path.
 CONVO_DB = PROJECT_ROOT / "memory" / "convo_search.duckdb"
 
 
-def _maybe_upgrade_convo_swap(
+def _maybe_compact_convo(
     steps: list[tuple[str, list[str]]], logger: logging.Logger
 ) -> list[tuple[str, list[str]]]:
-    """Flip the convo-rebuild step to ``--swap`` when dead blocks justify it.
+    """Append ``--compact`` to the convo-rebuild step when dead blocks justify it.
 
     Per-run, store-state-driven decision living in the orchestrator — the
     same idiom as ``_served_file_lane_skip``. The label, tuple shape,
-    cmd[0] and cmd[1] stay untouched (tests/test_maint.py pins them);
-    only the ``--incremental`` flag inside the convo-rebuild cmd is
-    replaced. Probe failure degrades to no-flip with a warning.
+    cmd[0] and cmd[1] stay untouched (tests/test_maint.py pins them); only
+    a flag is appended. Probe failure degrades to no-compact with a warning.
     """
     try:
-        from helpers.maintenance.duckdb_block_anatomy import anatomy, above_swap_trigger, summarize
+        from helpers.maintenance.duckdb_block_anatomy import (
+            above_swap_trigger,
+            anatomy,
+            summarize,
+        )
 
         a = anatomy(CONVO_DB)
         if not above_swap_trigger(a):
@@ -270,22 +280,21 @@ def _maybe_upgrade_convo_swap(
             if label.split(" (")[0] != "convo-rebuild":
                 continue
             cmd = list(cmd)
-            if "--swap" in cmd:
+            if "--compact" in cmd:
                 return steps
-            cmd[:] = ["--swap" if f == "--incremental" else f for f in cmd]
-            if "--swap" not in cmd:  # defensive: flag absent → append
-                cmd.append("--swap")
+            cmd.append("--compact")
             steps[i] = (label, cmd)
             logger.warning(
-                "convo-rebuild upgraded to --swap for this cycle: dead blocks "
-                "%s ≥ trigger (max(2 GB, 60%% of file)) — proposal "
-                "convo_search_dead_block_compaction S2",
+                "convo-rebuild will --compact after its incremental pass this cycle: "
+                "dead blocks %s ≥ trigger (max(2 GB, 60%% of file)) — proposal "
+                "convo_search_drop_hnsw_numpy_copy_compact S3",
                 summarize(a),
             )
             break
     except Exception as exc:  # advisory degrade — never break the chain
         logger.warning(
-            "convo swap-tripwire probe failed (%s); keeping --incremental", type(exc).__name__
+            "convo compact-tripwire probe failed (%s); keeping --incremental",
+            type(exc).__name__,
         )
     return steps
 
@@ -356,7 +365,7 @@ PRE_FULL_STEPS: list[tuple[str, list[str]]] = [
 _ADVISORY_STEPS: frozenset[str] = frozenset(
     {
         "convo-fresh (harvest harness sessions into the parquet corpus)",
-        "convo-rebuild (incremental pointer/FTS/vector index refresh)",
+        "convo-rebuild (incremental pointer/FTS refresh; exact-KNN, no ANN index)",
     }
 )
 
@@ -376,7 +385,7 @@ TIER1_STEPS: list[tuple[str, list[str]]] = [
         [sys.executable, "helpers/maintenance/harvest_conversations.py"],
     ),
     (
-        "convo-rebuild (incremental pointer/FTS/vector index refresh)",
+        "convo-rebuild (incremental pointer/FTS refresh; exact-KNN, no ANN index)",
         [
             sys.executable,
             "helpers/maintenance/rebuild_convo_search.py",
@@ -881,7 +890,7 @@ def main(argv: list[str] | None = None) -> int:
 
     _prewarm_corpus(args, logger)
     steps = _select_steps(args)
-    steps = _maybe_upgrade_convo_swap(steps, logger)
+    steps = _maybe_compact_convo(steps, logger)
 
     logger.info(
         "Maintenance plan (%d steps%s):",

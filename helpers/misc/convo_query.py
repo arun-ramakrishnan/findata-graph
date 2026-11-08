@@ -19,12 +19,16 @@ from __future__ import annotations
 
 import argparse
 import json
+import logging
 import sqlite3
 import sys
+from collections import OrderedDict
 from dataclasses import dataclass
 from pathlib import Path
 
 import duckdb
+
+log = logging.getLogger(__name__)
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 if str(_REPO_ROOT) not in sys.path:
@@ -79,6 +83,10 @@ class ConvoConnections:
 
     ddb: duckdb.DuckDBPyConnection
     sconn: sqlite3.Connection
+    # Store path — the cache key for the exact-KNN matrix (S1 of proposal
+    # convo_search_drop_hnsw_numpy_copy_compact). None for connections
+    # built by hand (tests): the leg then skips the cache and reloads.
+    db_path: Path | None = None
 
     def close(self) -> None:
         for c in (self.ddb, self.sconn):
@@ -96,41 +104,46 @@ def connect(db_path: Path) -> ConvoConnections:
     from helpers.misc.duckdb_lock import open_read_only
 
     con = open_read_only(db_path)
-    # S1+S3 (duckdb_pure_stack): engage the store's native indexes — the
-    # persistent HNSW and the FTS schema. LOAD/SET are session-scoped and
-    # legal on a read-only connection; failures degrade to the sqlite
-    # fallback legs, never raise (pre-S3 stores have neither).
-    for stmt in (
-        "LOAD fts",
-        "LOAD vss",
-        "SET hnsw_enable_experimental_persistence=true",
-    ):
-        try:
-            con.execute(stmt)
-        except duckdb.Error:  # noqa: S110  # missing extension/store: leg degrades
-            pass
+    # S3 (duckdb_pure_stack): the native FTS schema is the only index the
+    # read path still needs. LOAD is session-scoped and legal on a
+    # read-only connection; failure degrades to the sqlite fallback leg,
+    # never raises (pre-S3 stores have no native schema).
+    #
+    # The vss/HNSW lines are GONE by design (proposal
+    # convo_search_drop_hnsw_numpy_copy_compact S1): the cosine leg is an
+    # exact numpy scan over the Arrow-loaded matrix, so no ANN index is
+    # consulted. A store that still carries a persisted HNSW index from
+    # the pre-2026-11-09 era opens fine without vss loaded (probed
+    # 2026-11-09) — it is simply dead weight until the next --compact.
+    try:
+        con.execute("LOAD fts")
+    except duckdb.Error:  # noqa: S110  # missing extension: leg degrades
+        pass
     sconn = sqlite3.connect(  # noqa: S608  # FTS sidecar is a plain sqlite file, read-only URI
         f"file:{db_path.parent / FTS_DB_NAME}?mode=ro", uri=True
     )
-    return ConvoConnections(con, sconn)
+    return ConvoConnections(con, sconn, Path(db_path))
 
 
 def _stored_dims(con: ConvoConnections) -> int | None:
+    # fetchall (not fetchone): a partially-consumed result blocks the
+    # connection's relation API, and _load_matrix runs a .sql() relation on
+    # this same connection right after this read.
     try:
-        row = con.ddb.execute("SELECT value FROM convo_meta WHERE key = 'embed_dims'").fetchone()
+        rows = con.ddb.execute("SELECT value FROM convo_meta WHERE key = 'embed_dims'").fetchall()
     except duckdb.CatalogException:
         return None
-    return int(row[0]) if row else None
+    return int(rows[0][0]) if rows else None
 
 
 def _stored_model(con: ConvoConnections) -> str | None:
     """Index-side model label from convo_meta, or None when the sidecar
     predates the stamp (dims-only back-compat, not a reject)."""
     try:
-        row = con.ddb.execute("SELECT value FROM convo_meta WHERE key = 'embed_model'").fetchone()
+        rows = con.ddb.execute("SELECT value FROM convo_meta WHERE key = 'embed_model'").fetchall()
     except duckdb.CatalogException:
         return None
-    return row[0] if row else None
+    return rows[0][0] if rows else None
 
 
 def _fts_hits(
@@ -189,30 +202,280 @@ def _fts_hits_sqlite(
     return [((harness, pid), -float(rank)) for harness, pid, rank in rows]
 
 
-def _cos_hits(
+# --- exact KNN leg (S1: proposal convo_search_drop_hnsw_numpy_copy_compact) ---
+#
+# The cosine leg used to be a DuckDB `array_cosine_distance` query routed
+# through a persisted HNSW index. That index was the store's bloat engine:
+# every incremental write rewrote the whole ~370 MB blob, stranding the
+# blocks it vacated (measured 2026-11-09: +693 MB per 250-row wave with the
+# index, flat without; DROP INDEX + CHECKPOINT reclaims 4.40 GB -> 3.71 GB
+# in 0.9 s, while CHECKPOINT with the index reclaimed 0 bytes). It was also
+# approximate: recall@10 0.887 mean, 0.30 min against exact cosine.
+#
+# So the index is gone and the leg is an EXACT numpy scan over the
+# Arrow-loaded matrix, cached per process. Measured on the 203,921 x 384
+# live corpus (DuckDB 2.0.0, pyarrow 26.0.1): Arrow fetch 264 ms, flatten
+# 41 ms, matmul 86 ms, argsort 25 ms — and the fetch is paid once per
+# process because the matrix is immutable between rebuilds.
+#
+# Invalidation is by (path, mtime_ns, size, dims): a rebuild or a --compact
+# swaps the inode (os.replace) or rewrites the file, so the next query
+# reloads without any explicit cache-busting call.
+_MATRIX_CACHE_MAX = 2  # LRU entries; one store is ~320 MB of float32
+_MATRIX_CACHE: OrderedDict[tuple, dict] = OrderedDict()
+_MATRIX_FALLBACK_WARNED = False
+
+
+def warm_matrix(con: ConvoConnections) -> bool:
+    """Pre-load the exact-KNN matrix so subsequent searches use it.
+
+    Only worth calling from a process that will issue MANY queries: the load
+    is ~0.9-1.7 s of Arrow transfer for 204k x 384. Every CLI invocation is
+    one-shot and takes the in-database scan leg instead, so this exists for
+    long-lived lanes (the TUI's in-process expand path, bench harnesses).
+    Returns True when the matrix is resident afterwards.
+    """
+    dims = _stored_dims(con)
+    if not dims:
+        return False
+    return _load_matrix(con, dims) is not None
+
+
+def _matrix_cache_key(con: ConvoConnections, dims: int) -> tuple | None:
+    """(path, mtime_ns, size, dims) or None when the path is unknown."""
+    path = getattr(con, "db_path", None)
+    if path is None:
+        return None
+    try:
+        st = Path(path).stat()
+    except OSError:
+        return None
+    return (str(path), st.st_mtime_ns, st.st_size, int(dims))
+
+
+def _fetch_scan_tables(con: ConvoConnections):
+    """Meta + embeddings Arrow tables, row-aligned by scan order.
+
+    Two queries, not one: a wide select that mixes the FIXED_SIZE_LIST
+    vector column with VARCHAR metadata is dramatically slower to
+    materialize than the sum of its parts (measured on the 204k store:
+    864 ms combined vs 161 ms embeddings-only + 18 ms meta-only). The
+    row ORDER is identical (no ORDER BY, same scan order), which is what
+    lets the row masks line up with the matrix.
+    """
+    try:
+        try:
+            meta = con.ddb.sql(
+                "SELECT harness, part_id, provenance FROM convo_search WHERE embedding IS NOT NULL"
+            ).to_arrow_table()
+        except duckdb.CatalogException:
+            # pre-provenance store: the column arrives with the migration,
+            # and the source filter simply cannot match anything yet.
+            meta = con.ddb.sql(
+                "SELECT harness, part_id FROM convo_search WHERE embedding IS NOT NULL"
+            ).to_arrow_table()
+        emb_tbl = con.ddb.sql(
+            "SELECT embedding FROM convo_search WHERE embedding IS NOT NULL"
+        ).to_arrow_table()
+    except Exception:  # noqa: BLE001  # any read shape we cannot plan -> SQL leg
+        return None
+    if emb_tbl.num_rows == 0 or meta.num_rows != emb_tbl.num_rows:
+        # A row-count disagreement means the two scans saw different
+        # snapshots (concurrent write) — the masks would silently misalign.
+        return None
+    return meta, emb_tbl
+
+
+def _matrix_entry(tbl, emb_tbl, n_rows: int, dims: int, key) -> dict | None:
+    """Validate the Arrow shape and build the cacheable matrix entry.
+
+    Degrades to None (SQL leg) on any shape we cannot treat as a dense
+    matrix: variable-length lists, ragged rows, or a stored width that
+    disagrees with convo_meta's embed_dims.
+    """
+    import pyarrow as pa
+
+    emb = emb_tbl.column("embedding").combine_chunks()
+    if not pa.types.is_fixed_size_list(emb.type):
+        # variable-length list: an all-NULL tail or ragged rows would make the
+        # reshape a lie — take the SQL leg instead of guessing.
+        return None
+    width = int(emb.type.list_size)
+    if width != int(dims):
+        # The stored vectors and convo_meta disagree; the old SQL leg raised a
+        # DuckDB cast error here. Degrade to the lexical leg instead of dying.
+        if key is not None:
+            log.warning(
+                "convo_search embedding width %s != embed_dims %s — cosine leg disabled",
+                width,
+                dims,
+            )
+        return None
+    import numpy as np
+    import pyarrow.compute as pc
+
+    mat = emb.flatten().to_numpy(zero_copy_only=False).reshape(n_rows, width)
+    mat = np.asarray(mat, dtype=np.float32)
+    norms = np.linalg.norm(mat, axis=1)
+    return {
+        "table": tbl,
+        "mat": mat,
+        "norms": norms,
+        "harness": tbl.column("harness"),
+        "part_id": tbl.column("part_id"),
+        "provenance": tbl.column("provenance") if "provenance" in tbl.column_names else None,
+        "pc": pc,
+    }
+
+
+def _load_matrix(con: ConvoConnections, dims: int, *, cache_only: bool = False) -> dict | None:
+    """Whole-store embedding matrix + row keys, Arrow -> numpy (cached).
+
+    Returns None when numpy/pyarrow is unavailable or the store cannot be
+    read this way; the caller then takes the SQL leg. The returned dict
+    keeps the Arrow table alive because `mat` is a zero-copy view into
+    its buffers.
+    """
+    try:
+        import numpy  # noqa: F401  # availability guard: the helpers below import unguarded
+        import pyarrow.compute  # noqa: F401
+    except ImportError:  # pragma: no cover - both are declared runtime deps
+        return None
+    key = _matrix_cache_key(con, dims)
+    if key is None:
+        # No stable identity for this store (in-memory / served attach) — we
+        # could never cache it, so never pay to build it.
+        return None
+    hit = _MATRIX_CACHE.get(key)
+    if hit is not None:
+        _MATRIX_CACHE.move_to_end(key)
+        return hit
+    if cache_only:
+        return None
+    fetched = _fetch_scan_tables(con)
+    if fetched is None:
+        return None
+    tbl, emb_tbl = fetched
+    entry = _matrix_entry(tbl, emb_tbl, emb_tbl.num_rows, dims, key)
+    if entry is None:
+        return None
+    if key is not None:
+        _MATRIX_CACHE[key] = entry
+        _MATRIX_CACHE.move_to_end(key)
+        while len(_MATRIX_CACHE) > _MATRIX_CACHE_MAX:
+            _MATRIX_CACHE.popitem(last=False)
+    return entry
+
+
+def _row_mask(entry: dict, harness: str | None, source: str | None):
+    """Boolean row mask for the leg's optional filters, None when unfiltered.
+
+    `source` matches by substring, which is exactly what `search()`'s
+    post-filter (`source in prov`) and the SQL leg's `LIKE '%<escaped>%'`
+    both reduce to (`_like_pattern` escapes the source's own % and _, so the
+    wrapped pattern is a literal containment test). "*" means non-empty.
+    Returns False (not None) when a filter can match nothing at all.
+    """
+    import numpy as np
+
+    pc = entry["pc"]
+    mask = None
+    if harness:
+        m = pc.fill_null(pc.equal(entry["harness"], harness), False)
+        mask = m.to_numpy(zero_copy_only=False)
+    if source:
+        prov = entry["provenance"]
+        if prov is None:
+            return False  # column absent: nothing can match
+        if source == "*":
+            m = pc.fill_null(pc.not_equal(prov, ""), False)
+        else:
+            m = pc.fill_null(pc.match_substring(prov, source), False)
+        m = m.to_numpy(zero_copy_only=False)
+        mask = m if mask is None else (mask & m)
+    if mask is not None:
+        mask = np.asarray(mask, dtype=bool)
+    return mask
+
+
+def _cos_hits_numpy(
     con: ConvoConnections,
-    query: str,
+    qv: list[float],
     limit: int,
     dims: int,
-    query_vec=None,
-    harness: str | None = None,
-    source: str | None = None,
-) -> list[tuple[Key, float]]:
-    from helpers.core import local_embedder as le
-    from helpers.maintenance import rebuild_common as rbc
+    harness: str | None,
+    source: str | None,
+    *,
+    cache_only: bool = False,
+) -> list[tuple[Key, float]] | None:
+    """Exact top-N cosine over the in-memory matrix; None = leg unavailable.
 
-    qv: list[float] | None = None
-    if query_vec is not None:
-        qv = rbc.check_query_vector(_stored_model(con), dims, query_vec)
-    if qv is None:
-        if le.available():
-            qv = le.embed_query(query)
-        else:
-            from helpers.graph.embeddings import _pseudo_embedding
-
-            qv = _pseudo_embedding(query, dims)
-    if len(qv) != dims:
+    cache_only returns None instead of materializing the matrix. The automatic
+    dispatch sets it: paying the ~313 MB load to answer ONE query is a
+    regression against the in-database scan, and only a process that intends
+    to ask repeatedly should pay it up front (see warm_matrix).
+    """
+    try:
+        import numpy as np
+    except ImportError:  # pragma: no cover
+        return None
+    entry = _load_matrix(con, dims, cache_only=cache_only)
+    if entry is None:
+        return None
+    q = np.asarray(qv, dtype=np.float32)
+    qn = float(np.linalg.norm(q))
+    if qn == 0.0:
         return []
+    q = q / qn
+    scores = entry["mat"] @ q  # rows are unit-norm in the live corpus
+    norms = entry["norms"]
+    if not np.allclose(norms, 1.0, atol=1e-3):
+        scores = scores / np.where(norms == 0.0, 1.0, norms)
+    mask = _row_mask(entry, harness, source)
+    if mask is False:
+        return []
+    if mask is not None:
+        idx = np.flatnonzero(np.asarray(mask, dtype=bool))
+        if idx.size == 0:
+            return []
+        sub = scores[idx]
+        k = min(int(limit), int(idx.size))
+        order = np.argsort(-sub, kind="stable")[:k]
+        sel = idx[order]
+    else:
+        sel = np.argsort(-scores, kind="stable")[: int(limit)]
+    if sel.size == 0:
+        return []
+    dist = 1.0 - scores[sel]  # array_cosine_distance for unit vectors
+    out: list[tuple[Key, float]] = []
+    harnesses = entry["harness"].take(_pa_indices(sel)).to_pylist()
+    part_ids = entry["part_id"].take(_pa_indices(sel)).to_pylist()
+    for h, pid, d in zip(harnesses, part_ids, dist, strict=True):
+        out.append(((h, pid), 1.0 - float(d) * float(d) / 2.0))
+    return out
+
+
+def _pa_indices(sel):
+    import pyarrow as pa
+
+    return pa.array([int(i) for i in sel], type=pa.int64())
+
+
+def _cos_hits_sql(
+    con: ConvoConnections,
+    qv: list[float],
+    limit: int,
+    dims: int,
+    harness: str | None,
+    source: str | None,
+) -> list[tuple[Key, float]]:
+    """Exact in-DuckDB cosine scan — the fallback when numpy is unavailable.
+
+    `array_cosine_distance` is a core DuckDB function (no vss extension
+    needed). With the HNSW index gone this is a plain full scan, so it is
+    exact too; it costs ~118 ms/query against the in-memory path's ~86 ms
+    but needs no 313 MB resident matrix.
+    """
     # cast width MUST match the stored vectors (384 for the house embedder,
     # _PSEUDO_DIMS for the degraded path) — a hardcoded 384 breaks pseudo mode.
     cast = f"FLOAT[{int(dims)}]"
@@ -237,6 +500,44 @@ def _cos_hits(
     rows = con.ddb.execute(sql, params).fetchall()
     # Convert distance to similarity: cos = 1 - d*d/2 for unit vectors
     return [((harness, pid), 1.0 - float(dist) * float(dist) / 2.0) for harness, pid, dist in rows]
+
+
+def _cos_hits(
+    con: ConvoConnections,
+    query: str,
+    limit: int,
+    dims: int,
+    query_vec=None,
+    harness: str | None = None,
+    source: str | None = None,
+) -> list[tuple[Key, float]]:
+    from helpers.core import local_embedder as le
+    from helpers.maintenance import rebuild_common as rbc
+
+    qv: list[float] | None = None
+    if query_vec is not None:
+        qv = rbc.check_query_vector(_stored_model(con), dims, query_vec)
+    if qv is None:
+        if le.available():
+            qv = le.embed_query(query)
+        else:
+            from helpers.graph.embeddings import _pseudo_embedding
+
+            qv = _pseudo_embedding(query, dims)
+    if len(qv) != dims:
+        return []
+    # Dispatch order is deliberate: the numpy leg WINS only when the matrix is
+    # already resident in this process. Materializing it costs a ~313 MB Arrow
+    # transfer, which dominates a one-shot invocation (measured 2026-11-09 on
+    # the 204k store: 3.5-4.5 s end-to-end vs 1.5 s for the in-DB scan). The
+    # CLI lane — and therefore every master_query/TUI call, which subprocesses
+    # this file — is always one-shot, so it takes the SQL leg. A long-lived
+    # caller (search_tui_app in-process, bench harnesses) calls
+    # warm_matrix() once and gets the 30-90 ms numpy path from then on.
+    hits = _cos_hits_numpy(con, qv, limit, dims, harness, source, cache_only=True)
+    if hits is not None:
+        return hits
+    return _cos_hits_sql(con, qv, limit, dims, harness, source)
 
 
 def _like_pattern(source: str) -> str:
@@ -354,11 +655,7 @@ def search(
         ranked = fts
         mode = "bm25"
     else:
-        cos = (
-            _cos_hits(con, query, pool, dims, query_vec, harness=harness, source=source)
-            if source
-            else _cos_hits(con, query, pool, dims, query_vec, harness=harness)
-        )
+        cos = _cos_hits(con, query, pool, dims, query_vec, harness=harness, source=source)
         ranked = _anchored_fusion(fts, cos)
         mode = "hybrid"
     ranked = _apply_prior(con, ranked, kinds)
@@ -408,8 +705,8 @@ def search(
 
 def _stale_warning(con: ConvoConnections) -> str | None:
     try:
-        row = con.ddb.execute("SELECT COUNT(*) FROM convo_search").fetchone()
-        if row and row[0]:
+        rows = con.ddb.execute("SELECT COUNT(*) FROM convo_search").fetchall()
+        if rows and rows[0][0]:
             return None
     except duckdb.CatalogException:
         pass

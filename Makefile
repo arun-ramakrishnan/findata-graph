@@ -71,12 +71,14 @@ help:           ## Show available targets (alphabetical; entries generated from 
 > @echo "  bili-snap               Snapshot the proxy state now (read-only): SNAP_ARGS=\"<session ids>\""
 > @echo "  bili-status             Proxy status report (read-only): effective bars, injections, folds, burn, cache"
 > @echo "  bili-stop-monitor       Stop the background proxy monitor (never \`pkill -f\` -- it kills the caller)"
-> @echo "  bili-thresh-replay cosupply-score      Replay the tier fire curve offline (read-only): REPLAY_ARGS=\"<floor> <thresholds...>\""
+> @echo "  bili-thresh-replay       Replay the tier fire curve offline (read-only): REPLAY_ARGS=\"<floor> <thresholds...>\""
 > @echo "  bili-watch-event        Block until the next T1 fire or fold for a session (read-only): EVENT_ARGS=\"<session> [either|t1|fold] [max_wait_s]\""
 > @echo "  cargo-audit              RustSec scan of the desktop + Rust/ lockfiles (advisory; SKIPs without cargo-audit)"
+> @echo "  co-supply-peers          Print co-supply buyer-pair report, shared-supplier ranking (co_supply_peer_lane S1; report-only)"
 > @echo "  convo-fresh              Check conversation corpus+index freshness — harvest sources vs parquet corpus vs pointer index (exit 1 on drift; APPLY=1 harvests+rebuilds; also run by make advisory)"
-> @echo "  convo-search-check        Report convo_search.duckdb file size vs payload (advisory; swap-rebuild candidate)"
-> @echo "  convo-search-rebuild      Rebuild convo_search.duckdb via atomic pid-tagged temp + os.replace swap (compacts; graph-lane pattern)"
+> @echo "  convo-search-check        Report convo_search.duckdb file size vs payload (advisory; compact candidate)"
+> @echo "  convo-search-rebuild      Compact convo_search.duckdb in place via COPY FROM DATABASE + os.replace (~15 s; no re-embed)"
+> @echo "  cosupply-score           Run the co-supply prereg precision score (report-only; cosupply_precision_prereg.md)"
 > @echo "  cover                    Run all tests with coverage over helpers/ (branch + missing-line report)"
 > @echo "  csr                      Build the CSR substrate (memory/csr/; shortest-path fast lane)"
 > @echo "  csr-check                Check CSR substrate freshness (exit 1 if stale; also run by make advisory)"
@@ -87,7 +89,6 @@ help:           ## Show available targets (alphabetical; entries generated from 
 > @echo "  derive-cited-in          Derive cited_in (note -> edition) edges from OKF sources[] frontmatter (okf_activation P)"
 > @echo "  derive-cited-in-rebuild  derive-cited-in + graph-rebuild — the paired run cited_in requires (writes entities+edges, then rebuilds the DuckDB cache to match)"
 > @echo "  derive-co-mentions       Stage newsletter co-mention edition sets (S5: dyads retired; feeds the edition hyperedge family) + cosupply prereg score"
-> @echo "  cosupply-score            Run the co-supply prereg precision score (report-only; cosupply_precision_prereg.md)"
 > @echo "  derive-countries          Derive listed_in (company -> country) edges from exchange tickers (country layer C1)"
 > @echo "  derive-event-participants Materialise the event_participants n-ary store (person_ontology_spine S4): dry-run default, APPLY=1 writes"
 > @echo "  derive-events            Promote relation edges + extract guidance/management events into the events timeline table"
@@ -432,7 +433,7 @@ bili-snap:      ## Snapshot the proxy state now (read-only): SNAP_ARGS="<session
 bili-watch-event: ## Block until the next T1 fire or fold for a session (read-only): EVENT_ARGS="<session> [either|t1|fold] [max_wait_s]"
 > .venv/bin/python3 helpers/analytics/bili_watch_event.py $(EVENT_ARGS)
 
-bili-thresh-replay cosupply-score: ## Replay the tier fire curve offline (read-only): REPLAY_ARGS="<floor> <thresholds...>"
+bili-thresh-replay: ## Replay the tier fire curve offline (read-only): REPLAY_ARGS="<floor> <thresholds...>"
 > .venv/bin/python3 helpers/analytics/bili_thresh_replay.py $(REPLAY_ARGS)
 
 suggest-relations: ## Print link-prediction relation suggestions (C2; append with --append)
@@ -536,11 +537,11 @@ memory-search-rebuild: ## Rebuild the harness-memory index (memory_search sideca
 > python3 helpers/maintenance/rebuild_memory_search.py
 > @echo "✓ memory_search index rebuilt (memory/memory_search.db; gate: make search-fresh / advisory)"
 
-convo-search-rebuild: ## Rebuild convo_search.duckdb via atomic swap (compacts the duckdb; graph-lane pattern)
-> MAINT_TARGET=convo-search-rebuild python3 helpers/maintenance/rebuild_convo_search.py --swap
-> @echo "✓ convo_search rebuilt via atomic swap (memory/convo_search.duckdb)"
+convo-search-rebuild: ## Compact convo_search.duckdb in place (COPY FROM DATABASE + os.replace; no re-embed)
+> MAINT_TARGET=convo-search-rebuild python3 helpers/maintenance/rebuild_convo_search.py --compact
+> @echo "✓ convo_search compacted in place (memory/convo_search.duckdb)"
 
-convo-search-check: ## Report convo_search.duckdb file size vs payload (advisory; swap-rebuild candidate)
+convo-search-check: ## Report convo_search.duckdb file size vs payload (advisory; compact candidate)
 > @.venv/bin/python3 -c "import duckdb,os;d='memory/convo_search.duckdb';c=duckdb.connect(d,read_only=True);r=c.execute('SELECT COUNT(*) FROM convo_search').fetchone();c.close();size=os.path.getsize(d)/1e6;print(f'  convo_search: {size:.0f} MB, {r[0]:,} rows')"
 
 # APPLY-from-worktree ban (operator rule 2026-10-31; doctrine:
