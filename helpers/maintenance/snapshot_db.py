@@ -2002,6 +2002,15 @@ def main(argv: list[str] | None = None) -> int:
         "graph-rebuild, whose cache refresh otherwise leaves the mirror "
         "one rebuild stale.",
     )
+    parser.add_argument(
+        "--duckdb-snapshot-only",
+        action="store_true",
+        help="CREATE path: re-capture ONLY the local DuckDB .zst backup "
+        "(db-backup/graph.snapshot.duckdb.zst + its WAL sidecar). maint.py "
+        "runs this after graph-rebuild, which would otherwise leave the "
+        ".zst one rebuild stale (the SQLite .zst keeps its step-2 "
+        "restore-point position).",
+    )
     parser.set_defaults(with_duckdb=True)
     parser.add_argument(
         "--sources-db",
@@ -2074,6 +2083,8 @@ def main(argv: list[str] | None = None) -> int:
         if args.quick
         else "parquet_duckdb_only"
         if args.parquet_duckdb_only
+        else "duckdb_snapshot_only"
+        if args.duckdb_snapshot_only
         else "create"
     )
     _timer = RunTimer("snapshot_db", mode=_mode)
@@ -2149,6 +2160,18 @@ def main(argv: list[str] | None = None) -> int:
                 logger,
             )
             return _timer.finish(0, "mode=parquet_duckdb_only")
+        if args.duckdb_snapshot_only:
+            if not duckdb_path.exists():
+                print(f"ERROR: {duckdb_path} not found", file=sys.stderr)
+                return _timer.finish(1, "duckdb_snapshot_only: duckdb missing")
+            _timed(
+                "create_duckdb_snapshot",
+                create_duckdb_snapshot,
+                duckdb_path,
+                duckdb_out,
+                logger,
+            )
+            return _timer.finish(0, "mode=duckdb_snapshot_only")
         rc = _timed(
             "create",
             _cmd_create,

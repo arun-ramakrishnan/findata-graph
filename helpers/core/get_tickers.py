@@ -349,7 +349,10 @@ def vss_match(
     owns = False
     try:
         if conn is None:
-            conn = connect(db_path, row_factory=None)
+            # Read-only: vss_match only SELECTs company_embeddings — a
+            # write-capable open from a non-live test is a hermeticity
+            # Tier-A violation (2026-11-08 gate sweep).
+            conn = connect(db_path, row_factory=None, read_only=True)
             owns = True
 
         rows = conn.execute(

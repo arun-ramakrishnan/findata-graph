@@ -171,6 +171,7 @@ class TestCLI:
         sidecar = tmp_path / "s.txt"
         suggs = [SR.Suggestion("A", "B", 0.5, "jaccard", "e")]
         self._patch(monkeypatch, suggs)
+        monkeypatch.setattr(SR, "existing_edge_pairs", lambda *a, **k: set())
         assert SR.main(["--append", "--out", str(sidecar)]) == 0
         assert "appended 1" in capsys.readouterr().out
         rows = [json.loads(line) for line in sidecar.read_text().splitlines()]
@@ -304,6 +305,7 @@ class TestSupplierPeers:
             ("TCS", "SmallCo", 3.0),  # exactly at the floor — kept
         ]
         monkeypatch.setattr(SR, "_supplier_peer_pairs", lambda top: raw)
+        monkeypatch.setattr(SR, "existing_edge_pairs", lambda *a, **k: set())
         got = SR.suggest_relations(con, method="supplier_peers", top=25)
         pairs = {(s.source, s.target) for s in got}
         assert ("TataComm", "TCS") in pairs or ("TCS", "TataComm") in pairs

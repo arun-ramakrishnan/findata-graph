@@ -10,9 +10,13 @@ from pathlib import Path
 
 import pytest
 
-# One xdist group for the whole module: the module-scoped stats_render
-# fixture below is rebuilt PER WORKER under -n auto — without the group,
-# three workers each pay the full print_stats() render in parallel.
+# The module-scoped stats_render fixture below is rebuilt PER WORKER under
+# -n auto. Grouping is now done by --dist=loadscope (module-level) in the
+# live-invariants gate leg — the xdist_group marker is inert on pytest 9.2.0
+# + xdist 3.8.0 (Node.nodeid returns str(self._id), so the group suffix
+# never reaches LoadGroupScheduling._split_scope). The marker is kept as
+# documentation of intent; loadscope is what actually pins this module to
+# one worker so print_stats() renders once per worker, not once per test.
 pytestmark = [pytest.mark.live, pytest.mark.xdist_group("graph_stats_render")]
 
 

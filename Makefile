@@ -118,6 +118,7 @@ help:           ## Show available targets (alphabetical; entries generated from 
 > @echo "  graph-smoke              Quick smoke test of the graph query layer (sector-of + neighbors)"
 > @echo "  graph-stats              Print a one-shot summary of the graph state (entities, edges, sectors, hygiene)"
 > @echo "  hif-export               Export the hypergraph in HIF to snapshots/hif/ (rides make snapshot; SOURCES=... to override)"
+> @echo "  hyper-star-centrality    OPT-IN s-walk centralities over the standing star families (index/subsidiary/supply; k≥3 portfolios only; star_hyperedge_consumer_wiring S3)"
 > @echo "  install-dev              Install dev dependencies (uv sync; prunes undeclared packages)"
 > @echo "  integration              Run end-to-end cross-component pipeline tests (parse_newsletter, API bridge, etc.; appends outputs/integration_report.md)"
 > @echo "  license-check            Verify AGPL metadata, root license, and third-party inventory"
@@ -194,7 +195,7 @@ help:           ## Show available targets (alphabetical; entries generated from 
 > @echo "  tier-nudge               Manual billion-context tier-ladder nudge (read-only): SESSION_ARGS=\"--session <id> --nudge\" prints the state, the nudge text and the exact compress(...) call"
 > @echo "  tier-watch               Watch the billion-context tier ladder live (read-only): prints why each rung is or is not ready (bars, pools, ordering, growth floor); --once for a single sample"
 > @echo "  tier-watch-auto          Auto-write compress() packets for INJECT T2/T3 (auto-fire); PACKET=<path> defaults to /mnt/data/tmp/opencode/t2_packet.jsonl; WATCH_ARGS for extra flags"
-> @echo "  tmp-sweep                Reap this repo's temp-dir residue (scratch DBs, stale bench dirs, TUI log) — 24h age guard, dry-run by default; APPLY=1 removes (proposal: tmpdir_sanitization)"
+> @echo "  tmp-sweep                Reap this repo's temp-dir + memory/ rebuild residue (scratch DBs, stale bench dirs, TUI log, killed-rebuild .tmp) — 24h age guard, dry-run by default; APPLY=1 removes (proposal: tmpdir_sanitization)"
 > @echo "  triage-quotes            Triage the quote entity worklist: report + bucketed decisions file (triage_pending_quotes)"
 > @echo "  triage-relations         Triage the _pending_relations queue: report + bucketed decisions file (pending_relations_triage)"
 > @echo "  types                    Run ty type checker on helpers + app.py (Astral uv+ruff stack)"
@@ -219,7 +220,7 @@ store-sweep:    ## Standalone estate sweep: census + reclaim/checkpoint every re
 parity:         ## Byte-compare registered refactor targets against REF (default HEAD) across pinned hash seeds (warns; STRICT=1 to gate)
 > python3 helpers/misc/parity_harness.py $(if $(REF),--ref $(REF),) $(if $(STRICT),--strict,)
 
-tmp-sweep:      ## Reap this repo's temp-dir residue (scratch DBs, stale bench dirs, TUI log) — 24h age guard, dry-run by default; APPLY=1 removes (proposal: tmpdir_sanitization)
+tmp-sweep:      ## Reap this repo's temp-dir + memory/ rebuild residue (scratch DBs, stale bench dirs, TUI log, killed-rebuild .tmp) — 24h age guard, dry-run by default; APPLY=1 removes (proposal: tmpdir_sanitization)
 > python3 helpers/maintenance/tmp_sweep.py $(if $(APPLY),--apply,)
 
 qa:             ## Run lint + markdown lint + types + deptry + static + pytest + notes + integrity + schema-check + snapshot in PARALLEL (default 4 jobs; override: make qa -j N; run-all — failures reported at the end; appends outputs/qa_report.md)
@@ -233,7 +234,7 @@ test:           ## pytest unit tests only (no live DB, no slow benchmarks; xdist
 # graph cache to a per-worker copy under PYTEST_XDIST_WORKER; tests that
 # must hit the real cache carry the real_graph_cache marker.
 live-invariants: ## Run ONLY the live-marked invariant tests (-m live, xdist -n auto; skip-safe on pristine clone)
-> pytest -m live -n auto --dist=loadgroup
+> pytest -m live -n auto --dist=loadscope
 > @echo "✓ live invariant tests passed"
 
 perf:           ## Run wall-clock perf benchmarks, print timing table, and append to outputs/perf_report.md

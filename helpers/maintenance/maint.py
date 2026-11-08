@@ -443,6 +443,20 @@ TIER1_STEPS: list[tuple[str, list[str]]] = [
         "snapshot duckdb parquet mirror (post-rebuild)",
         [sys.executable, "helpers/maintenance/snapshot_db.py", "--parquet-duckdb-only"],
     ),
+    # The .zst BACKUP has the same one-rebuild-stale defect as the parquet
+    # mirror above: step 2 captures db-backup/graph.snapshot.duckdb.zst
+    # BEFORE graph-rebuild rewrites the cache, so every plain-mode maint
+    # left the restore copy trailing the live store and the qa
+    # snapshot_check leg red ("DuckDB generation: snapshot=... source=...
+    # -> MISMATCH (stale snapshot)", recurring since 2026-10-31). Re-capture
+    # ONLY the local DuckDB .zst here, after the rebuild + stamp, so the
+    # recovery copy matches the store. The SQLite .zst keeps its step-2
+    # position (its restore-point semantics are deliberate) — this step
+    # never touches it.
+    (
+        "snapshot duckdb .zst backup (post-rebuild)",
+        [sys.executable, "helpers/maintenance/snapshot_db.py", "--duckdb-snapshot-only"],
+    ),
 ]
 
 TIER2_STEPS: list[tuple[str, list[str]]] = [
@@ -677,6 +691,11 @@ TIER1_FULL_SKIP: frozenset[str] = frozenset(
         # (step 10) AFTER its own graph rebuilds, so a mid-run mirror
         # export would be unconditionally overwritten anyway.
         "snapshot duckdb parquet mirror (post-rebuild)",
+        # The post-rebuild .zst re-capture joins for the same reason: the
+        # TIER2 tail snapshot is a full create (binary + parquet) that
+        # lands after the TIER2 rebuilds, so a mid-run capture is
+        # unconditionally overwritten — same class as the mirror above.
+        "snapshot duckdb .zst backup (post-rebuild)",
         # rederive-hyper joins too (star_hyperedge_consumer_wiring S2):
         # the TIER2 lane runs the FULL derive_hyperedges --apply (all
         # families) before its own graph rebuild + tail snapshot — a

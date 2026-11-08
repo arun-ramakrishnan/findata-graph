@@ -144,5 +144,5 @@ def test_broken_process_pool_falls_back_to_serial(monkeypatch, tmp_path):
     # same file -- the recovery path end to end, no seeded DB needed.
     note = tmp_path / "nl.md"
     note.write_text("Reliance and Infosys announced a partnership.\n", encoding="utf-8")
-    rc = ER._cli([str(tmp_path)])
+    rc = ER._cli([str(tmp_path), "--db", str(tmp_path / "store.db")])
     assert rc == 0

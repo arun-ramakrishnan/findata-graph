@@ -63,12 +63,10 @@ logger = logging.getLogger(__name__)
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
-from helpers.graph.graph_fallbacks import (  # noqa: E402  (sys.path set above)
-    _extension_first,
-    onager_clustering,
-    onager_components,
-    onager_pagerank,
-)
+# _extension_first, onager_pagerank, onager_components, onager_clustering moved
+# to helpers/graph/algorithm_wrappers.py with the algorithm wrappers
+# (2026-11-08, hotspot-module split item #8). graph_fallbacks is otherwise
+# still in use elsewhere in this module.
 from helpers.misc.duckdb_lock import connect_with_lock_retry, io_lock  # noqa: E402
 from helpers.core import duckdb_shared as ds  # noqa: E402
 
@@ -125,8 +123,20 @@ def _query_cache_clear() -> None:
         _QUERY_CACHE.clear()
 
 
-def _current_generation_for_cache(duckdb_path: Path | None = None) -> str | None:
-    """Generation string for cache key — None if db_meta absent (pre-migration)."""
+def _current_generation_for_cache(duckdb_path: Path | None = None, *, con=None) -> str | None:
+    """Generation string for cache key — None if db_meta absent (pre-migration).
+
+    Pass `con` (a live DuckDB handle) to read the generation from THAT
+    db's db_meta instead of opening the live store; the decorator path
+    forwards the caller's con so tests with a tmp DuckDB don't touch
+    memory/research.db. Returns None if db_meta is missing on the con.
+    """
+    if con is not None:
+        try:
+            row = con.execute("SELECT value FROM db_meta WHERE key='generation'").fetchone()
+            return str(row[0]) if row else None
+        except Exception:
+            return None
     try:
         from helpers.core.db import connect as _dbc
 
@@ -157,9 +167,9 @@ def _with_generation_cache(fn):
 
     @functools.wraps(fn)
     def _wrapper(con, *args, **kwargs):
-        # con is DuckDB handle — not part of cache key (same logical DB)
+        # con is DuckDB handle — pass it so tmp-DuckDB tests don't read live
         try:
-            gen = _current_generation_for_cache()
+            gen = _current_generation_for_cache(con=con)
         except Exception:
             gen = None
         # Use schema version too so code bumps invalidate
@@ -756,7 +766,7 @@ def _check_generation_staleness(con, duckdb_path: Path, db_path: Path | None) ->
             if not cand.exists():
                 continue
             try:
-                _scon = _db_connect(str(cand))
+                _scon = _db_connect(str(cand), read_only=True)
                 try:
                     _row = _scon.execute(
                         "SELECT value FROM db_meta WHERE key='generation'"
@@ -871,7 +881,7 @@ def _probe_note_embed_state(
         if not cand.exists():
             continue
         try:
-            _scon = _db_connect(str(cand))
+            _scon = _db_connect(str(cand), read_only=True)
             try:
                 dims = None
                 try:
@@ -4941,155 +4951,24 @@ def country_exposure_bundle(con: duckdb.DuckDBPyConnection) -> dict:
     }
 
 
-def _label_to_edge_type(label: str) -> str:
-    """Map an edge label (e.g. 'BelongsTo') to its graph_edges.edge_type.
-
-    Covers the EDGE_REGISTRY labels plus the two out-of-registry tables
-    (hierarchy / exposure) declared outside the EDGE_REGISTRY loop
-    separately.
-    """
-    spec = EDGE_REGISTRY_BY_LABEL.get(label)
-    if spec is not None:
-        return spec["edge_type"]
-    if label == "BelongsToHierarchy":
-        return "belongs_to"
-    if label == "ExposedTo":
-        return "exposed_to"
-    raise ValueError(f"unknown edge label: {label}")
-
-
-def _company_names(con: duckdb.DuckDBPyConnection) -> set[str]:
-    """The set of company vertex names (replaces the ``JOIN v_company`` the
-    duckpgq wrappers used to filter sector vertices out of the results)."""
-    return {r[0] for r in con.execute("SELECT name FROM v_company").fetchall()}
-
-
-def pagerank(
-    con: duckdb.DuckDBPyConnection,
-    edge_label: str = "Economic",
-    vertex_label: str = "Entity",
-    as_of: str | None = None,
-) -> list[tuple[str, float]]:
-    """PageRank over the graph (Onager-backed).
-
-    Returns a list of (entity_name, pagerank_score) sorted by score desc.
-    Only company names are returned (sector vertices are filtered out,
-    matching the previous duckpgq-native implementation).
-
-    ``edge_label`` is a property-graph label (e.g. 'Economic', 'BelongsTo',
-    'CompetesWith'); it is resolved to the underlying graph_edges
-    edge_type(s). The default ``'Economic'`` (pagerank_graph_enhancements
-    S1) runs over ``onager.ECONOMIC_EDGE_TYPES`` — every non-membership
-    type — so the rank measures economic centrality; ``'BelongsTo'`` (the
-    pre-S1 default) stays available as the legacy membership view.
-    ``vertex_label`` is accepted for signature compatibility and ignored
-    (Onager has no property-graph vertex labels).
-    """
-    from helpers.graph.onager import ECONOMIC_EDGE_TYPES  # noqa: PLC0415
-
-    if edge_label == "Economic":
-        scores = _extension_first(
-            onager_pagerank,
-            con,
-            edge_types=ECONOMIC_EDGE_TYPES,
-            weighted=False,
-            as_of=as_of,
-        )
-    else:
-        scores = _extension_first(
-            onager_pagerank,
-            con,
-            edge_types=[_label_to_edge_type(edge_label)],
-            weighted=False,
-            as_of=as_of,
-        )
-    companies = _company_names(con)
-    rows = [(name, float(score)) for name, score in scores.items() if name in companies]
-    rows.sort(key=lambda kv: (-kv[1], kv[0]))
-    return rows
-
-
-def pagerank_weighted(
-    con: duckdb.DuckDBPyConnection,
-    edge_label: str = "Economic",
-    vertex_label: str = "Entity",
-    as_of: str | None = None,
-) -> list[tuple[str, float]]:
-    """Weighted PageRank over the ECONOMIC projection (S2).
-
-    Same projection and shape as :func:`pagerank` but consumes the
-    carried edge weights (cited_in ``n_quotes + 1``, invested_in stakes,
-    competes_with similarity) instead of unit weights. Persisted under
-    the distinct metric name ``pagerank_weighted`` so weighted and
-    unweighted outputs can be evaluated side by side.
-    """
-    from helpers.graph.onager import ECONOMIC_EDGE_TYPES  # noqa: PLC0415
-
-    if edge_label == "Economic":
-        scores = _extension_first(
-            onager_pagerank,
-            con,
-            edge_types=ECONOMIC_EDGE_TYPES,
-            weighted=True,
-            as_of=as_of,
-        )
-    else:
-        scores = _extension_first(
-            onager_pagerank,
-            con,
-            edge_types=[_label_to_edge_type(edge_label)],
-            weighted=True,
-            as_of=as_of,
-        )
-    companies = _company_names(con)
-    rows = [(name, float(score)) for name, score in scores.items() if name in companies]
-    rows.sort(key=lambda kv: (-kv[1], kv[0]))
-    return rows
-
-
-def weakly_connected_components(
-    con: duckdb.DuckDBPyConnection,
-    edge_label: str = "BelongsTo",
-    vertex_label: str = "Entity",
-) -> list[tuple[str, int]]:
-    """Weakly-connected component labels (Onager-backed).
-
-    Returns a list of (entity_name, component_id) sorted by (component_id,
-    name). Only company names are returned (sector vertices are filtered
-    out, matching the previous duckpgq-native implementation). Component
-    ids are arbitrary labels — only the partition is meaningful.
-    """
-    comps = _extension_first(onager_components, con, edge_types=[_label_to_edge_type(edge_label)])
-    companies = _company_names(con)
-    rows = [(name, int(cid)) for name, cid in comps.items() if name in companies]
-    rows.sort(key=lambda kv: (kv[1], kv[0]))
-    return rows
-
-
-def clustering_coefficient(
-    con: duckdb.DuckDBPyConnection,
-    edge_label: str = "BelongsTo",
-    vertex_label: str = "Entity",
-) -> list[tuple[str, float]]:
-    """Local clustering coefficient per vertex (Onager-backed).
-
-    Returns a list of (entity_name, coefficient) sorted by coefficient desc.
-    Only company names are returned (sector vertices are filtered out,
-    matching the previous duckpgq-native implementation).
-    """
-    ccs = _extension_first(onager_clustering, con, edge_types=[_label_to_edge_type(edge_label)])
-    companies = _company_names(con)
-    rows = [(name, float(cc)) for name, cc in ccs.items() if name in companies]
-    rows.sort(key=lambda kv: (-kv[1], kv[0]))
-    return rows
-
-
-def _label_to_table(label: str) -> str | None:
-    """Map an edge label (e.g. 'BelongsTo') to its table name (e_g: 'e_belongs')."""
-    for spec in EDGE_REGISTRY.values():
-        if spec["label"] == label:
-            return spec["table"]
-    return None
+# --- Algorithm wrappers extracted to helpers/graph/algorithm_wrappers.py ---
+# See that module for the canonical definitions (split 2026-11-08, item #8);
+# these names are kept here as a thin re-export so existing import sites
+# (`from helpers.graph.query import pagerank, ...`) keep resolving.
+# The underscore helpers are re-exported too: algorithm_wrappers.py is the
+# canonical home, but tests and callers reach them through this module
+# (tests/test_query_helpers.py::TestLabelToTable), and an un-re-exported
+# private name is exactly the breakage a "public surface unchanged" claim
+# misses.
+from helpers.graph.algorithm_wrappers import (  # noqa: E402, F401
+    _company_names,
+    _label_to_edge_type,
+    _label_to_table,
+    clustering_coefficient,
+    pagerank,
+    pagerank_weighted,
+    weakly_connected_components,
+)
 
 
 # --------------------------------------------------------------------------- #

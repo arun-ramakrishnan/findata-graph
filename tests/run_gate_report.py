@@ -318,10 +318,14 @@ GATES: dict[str, Gate] = {
             # copy, so the live suite spreads across workers without
             # cross-process DuckDB lock collisions (serial 72.5s -> ~50s).
             # Tests asserting real-cache semantics carry `real_graph_cache`.
-            # --dist=loadgroup honours the modules' xdist_group markers
-            # (test_graph_stats renders print_stats once per WORKER, not
-            # once per test — under plain dist=load the marker was inert
-            # and 3 workers each paid a full render; 2026-09-20).
+            # --dist=loadscope groups by MODULE so a module-scoped fixture
+            # (test_graph_stats' stats_render) builds once per worker, not
+            # once per test. The older --dist=loadgroup + xdist_group marker
+            # is INERT on pytest 9.2.0 + xdist 3.8.0: xdist rewrites
+            # item._nodeid but Node.nodeid now returns str(self._id), so the
+            # group suffix never reaches LoadGroupScheduling._split_scope and
+            # loadgroup degrades to plain load (2026-11-08; measured 111s
+            # loadscope vs 240s loadgroup quiet-box, 336s contended gate).
             Step(
                 "live-invariants",
                 (
@@ -332,7 +336,7 @@ GATES: dict[str, Gate] = {
                     "live",
                     "-n",
                     "auto",
-                    "--dist=loadgroup",
+                    "--dist=loadscope",
                     "--junitxml",
                     str(_JUNIT_DIR / "advisory.junit.xml"),
                     "--test-metadata-manifest",

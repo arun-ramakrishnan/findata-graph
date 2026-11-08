@@ -935,9 +935,72 @@ def _check_archived_proposals(archive_dir: Path, fatal: list[str]) -> None:
             )
 
 
-def _check_live_list_refs(proposals_dir: Path, live: set[str], fatal: list[str]) -> None:
+def _archived_proposal_names(archive_dir: Path) -> set[str]:
+    """Every proposal basename that already lives under archive/ (any topic dir)."""
+    if not archive_dir.is_dir():
+        return set()
+    return {p.name for p in archive_dir.rglob("*.md")}
+
+
+def _scan_live_bullets(section: str, archived: set[str], fatal: list[str]) -> None:
+    """Flag any live-list bullet that advertises an already-archived topic.
+
+    Split into bullets so a marker on one bullet never excuses another; a
+    wrapped entry keeps its marker on the opening line by convention. A
+    bullet counts as historical when it carries any of the house markers
+    this list uses for "not live": *(archived ...)* on a single entry, or
+    *(none live)* / *(none before this)* on the trailing recap bullet that
+    enumerates a whole archived batch.
+    """
+    historical = ("*(archived", "*(none live", "*(none before this")
+    bullet: list[str] = []
+
+    def _flush(lines: list[str]) -> None:
+        if not lines:
+            return
+        body = "\n".join(lines)
+        if any(marker in body for marker in historical):
+            return
+        for token in re.findall(r"`([\w./-]+)`", body):
+            if "/" in token:
+                continue
+            stem = token if token.endswith(".md") else f"{token}.md"
+            if stem in archived:
+                fatal.append(
+                    f"proposals/README live list still advertises "
+                    f"{token}, which is archived (archive/{stem}) — mark "
+                    f"the bullet *(archived <date>)* and point it at the "
+                    f"archive copy"
+                )
+
+    for line in section.splitlines():
+        if line.startswith("- "):
+            _flush(bullet)
+            bullet = [line]
+        elif bullet and line.strip():
+            bullet.append(line)
+        else:
+            _flush(bullet)
+            bullet = []
+    _flush(bullet)
+
+
+def _check_live_list_refs(
+    proposals_dir: Path, live: set[str], fatal: list[str], archive_dir: Path | None = None
+) -> None:
     """The proposals README live list may only reference files that
-    exist in proposals/ (archived entries belong in archive/README.md)."""
+    exist in proposals/ (archived entries belong in archive/README.md),
+    and no bullet there may still advertise an ALREADY-ARCHIVED topic
+    without saying so.
+
+    The second half was the 2026-11-03 → 2026-11-08 hole: an executed,
+    archived proposal (`served_store_read_funnel`, #476) sat in the live
+    list for five days because the first check only looked for a
+    `.md`-suffixed token that was missing from `proposals/` — the stale
+    line named the proposal WITHOUT the extension, so neither half fired.
+    A live-list bullet that names an archived proposal must carry an
+    `*(archived` marker (the house convention every other entry follows).
+    """
     readme = proposals_dir / "README.md"
     if not readme.is_file():
         return
@@ -952,6 +1015,9 @@ def _check_live_list_refs(proposals_dir: Path, live: set[str], fatal: list[str])
                 f"not in proposals/ (archived entries belong in "
                 f"archive/README.md)"
             )
+    if archive_dir is None:
+        return
+    _scan_live_bullets(section, _archived_proposal_names(archive_dir), fatal)
 
 
 def check_proposal_lifecycle() -> tuple[list[str], list[str]]:
@@ -987,7 +1053,7 @@ def check_proposal_lifecycle() -> tuple[list[str], list[str]]:
 
     _check_archived_proposals(archive_dir, fatal)
 
-    _check_live_list_refs(proposals_dir, live, fatal)
+    _check_live_list_refs(proposals_dir, live, fatal, archive_dir)
 
     return fatal, []
 

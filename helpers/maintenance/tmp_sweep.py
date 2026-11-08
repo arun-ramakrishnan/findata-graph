@@ -2,8 +2,11 @@
 """Gate-front temp-dir hygiene sweep (tmpdir_sanitization S7).
 
 Reaps THIS repo's $TMPDIR residue before a gate run so a full temp dir can
-never crash the very run that exists to catch problems. Only removes
-entries the sweep can prove this repo owns:
+never crash the very run that exists to catch problems, plus the rebuild
+residue a SIGKILLed rebuild leaves INSIDE the repo (`memory/*.rebuild-*.tmp`
+and its `.wal`/`.build.lock` siblings — see `helpers/graph/query.py`
+`_rebuild_via_swap`, whose `finally` unlink never runs when the process is
+killed). Only removes entries the sweep can prove this repo owns:
 
   * file basenames matching a known artifact glob (stray
     ``sp.db``/``tmp*.db`` scratch DBs, the TUI log, ...),
@@ -34,6 +37,9 @@ import sys
 import tempfile
 import time
 from pathlib import Path
+
+# Repo root, so the memory/-side residue sweep resolves without a cwd guess.
+REPO_ROOT = Path(__file__).resolve().parents[2]
 
 DEFAULT_MIN_AGE_HOURS = 24.0
 
@@ -66,6 +72,16 @@ DIR_GLOBS = (
 )
 # Files whose presence marks a bare ``tmpXXXXXX/`` mkdtemp dir as ours.
 MARKER_FILES = ("sp.db", "sp.duckdb", "notes.duckdb")
+# Rebuild residue inside the repo's memory/ dir. A clean rebuild removes
+# these in `_rebuild_via_swap`'s finally block; a leftover means the builder
+# was SIGKILLed or the box died mid-rebuild, so the swap never happened and
+# nothing references them. Age-guarded like everything else (a live rebuild's
+# tmp is mtime-hot).
+REPO_RESIDUE_GLOBS = (
+    "*.duckdb.rebuild-*.tmp",  # helpers/graph/query.py:1496-1498 scratch copy
+    "*.duckdb.rebuild-*.tmp.wal",  #  ...its WAL sidecar
+    "*.duckdb.rebuild-*.tmp.build.lock",  #  ...and its build lock
+)
 # Never touch these (pytest retention, systemd/snap/X11, another user's tmp).
 NEVER = (
     "pytest-of-*",
@@ -122,6 +138,29 @@ def candidates(tempdir: Path, min_age_hours: float) -> list[Path]:
     return found
 
 
+def repo_candidates(memory_dir: Path, min_age_hours: float) -> list[Path]:
+    """Return rebuild residue this repo owns inside its own `memory/` dir.
+
+    A plain glob over `memory/` — never recursive — because the rebuild
+    scratch files are created by `duckdb_path.with_name(...)` next to the
+    live store. Same ownership + age guards as the temp-dir sweep, so an
+    in-flight rebuild (mtime seconds old) is never touched.
+    """
+    if not memory_dir.is_dir():
+        return []
+    cutoff = time.time() - min_age_hours * 3600
+    found: list[Path] = []
+    for entry in sorted(memory_dir.iterdir(), key=lambda p: p.name):
+        if not entry.is_file():
+            continue
+        if not any(fnmatch.fnmatch(entry.name, pat) for pat in REPO_RESIDUE_GLOBS):
+            continue
+        if not _owned_by_me(entry) or not _old_enough(entry, cutoff):
+            continue
+        found.append(entry)
+    return found
+
+
 def _size(path: Path) -> int:
     try:
         if path.is_dir():
@@ -155,6 +194,16 @@ def main(argv: list[str] | None = None) -> int:
         default=os.environ.get("TMPDIR") or tempfile.gettempdir(),
         help="temp root (default: $TMPDIR, else the system temp dir)",
     )
+    ap.add_argument(
+        "--memory-dir",
+        default=str(REPO_ROOT / "memory"),
+        help="repo scratch dir to sweep for rebuild residue (default: <repo>/memory)",
+    )
+    ap.add_argument(
+        "--no-memory-side",
+        action="store_true",
+        help="skip the in-repo memory/ rebuild-residue half (temp-dir sweep only)",
+    )
     args = ap.parse_args(argv)
 
     if args.apply and args.check:
@@ -166,11 +215,18 @@ def main(argv: list[str] | None = None) -> int:
         return 1
 
     found = candidates(tempdir, args.min_age_hours)
+    residue = (
+        [] if args.no_memory_side else repo_candidates(Path(args.memory_dir), args.min_age_hours)
+    )
+    found = found + residue
     total = sum(_size(p) for p in found)
     with_mb = f"{total / 1e6:.1f} MB"
 
     if not found:
-        print(f"tmp-sweep: clean — nothing older than {args.min_age_hours:g}h under {tempdir}")
+        print(
+            f"tmp-sweep: clean — nothing older than {args.min_age_hours:g}h under {tempdir}"
+            + ("" if args.no_memory_side else f" and {args.memory_dir}")
+        )
         return 0
 
     verb = "removed" if args.apply else "reclaimable"

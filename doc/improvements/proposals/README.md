@@ -108,12 +108,17 @@ entry number and stale DONE pointers):
   F4 closure, S3 swap-rebuild-only size law, S4 zero-churn content-hash
   delta + part-addressed pointers, S5 retention window filed deferred
   trigger-gated; migration-route doctrine recorded in-proposal).
-- `served_store_read_funnel` — filed 2026-11-03 out of a parallel
-  unlocked-work session: PID-namespace blindness in
-  helpers/core/duckdb_shared.py:54 `_pid_alive` breaks the blocking
-  schema-drift gate (wire attach is byte-identical, so the failure is
-  non-data); S1 wire-attach fallback in open_read_only, S2 namespace-aware
-  liveness probe, S3 route the five raw bypass sites.
+- *(archived 2026-11-03)* — `served_store_read_funnel` filed and executed
+  the same day out of a parallel unlocked-work session, #476
+  (`../archive/tooling/served_store_read_funnel.md`; PID-namespace
+  blindness in the served-store liveness probe broke the blocking
+  schema-drift gate — wire attach is byte-identical, so the failure was
+  never data; S1 wire-attach fallback in `open_read_only`, S2
+  namespace-aware liveness probe, S3 routed the five raw bypass sites).
+  This entry sat un-archived in the live list from 2026-11-03 to
+  2026-11-08 — the lifecycle static check only inspected the archived
+  file's frontmatter, never this pointer (see the guard added
+  2026-11-08).
 - *(archived 2026-11-05)* — `market_cap_f1_hypergated` filed + deferred
   same day 2026-11-05, #480
   (`../archive/database/market_cap_f1_hypergated.md`; post-review

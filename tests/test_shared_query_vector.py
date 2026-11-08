@@ -442,6 +442,7 @@ def _assert_same_ranking(own, other, tol: float = 2e-3) -> None:
 
 
 @needs_model
+@pytest.mark.live
 class TestLiveSharedVectorParity:
     @pytest.fixture(autouse=True)
     def _real(self, real_backend):
@@ -502,6 +503,7 @@ class TestLiveSharedVectorParity:
 
 
 @needs_model
+@pytest.mark.live
 class TestLiveNoLocalLoad:
     """Every own-embed hook rigged to raise: a valid shared vector must
     still score on all five cores — proving no leg touches the model."""
@@ -610,6 +612,7 @@ class TestLiveNoLocalLoad:
 
 
 @needs_model
+@pytest.mark.live
 class TestLiveFallback:
     """Tampered-label vector on every core: reject + local embed = own."""
 

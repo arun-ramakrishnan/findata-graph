@@ -3419,6 +3419,15 @@ def _cli(argv: list[str] | None = None) -> int:  # noqa: C901
             "— the threshold is your call; the counter is the deliverable."
         ),
     )
+    p.add_argument(
+        "--db",
+        metavar="PATH",
+        default=None,
+        help=(
+            "Path to the SQLite store (default: live memory/research.db). "
+            "Tests pass a tmp db_path here; the production CLI is unchanged."
+        ),
+    )
     args = p.parse_args(argv)
 
     # Expand the mix of files / dirs / globs into a flat sorted list of .md
@@ -3429,8 +3438,36 @@ def _cli(argv: list[str] | None = None) -> int:  # noqa: C901
         return 1
 
     # Load entity names once.
-    conn = connect()
+    conn = connect(args.db)
     try:
+        # --db flag is test-only; ensure a minimal schema so the test
+        # fixture (a fresh tmp_path .db) doesn't 404 on entities.
+        if args.db is not None:
+            # Minimal schema for the test path (--db is test-only;
+            # production opens the live memory/research.db which already
+            # has the full schema from migrations).
+            conn.execute(
+                "CREATE TABLE IF NOT EXISTS entities ("
+                "  name TEXT PRIMARY KEY,"
+                "  entity_type TEXT NOT NULL"
+                ")"
+            )
+            conn.execute(
+                "CREATE TABLE IF NOT EXISTS graph_edges ("
+                "  source TEXT, target TEXT, weight REAL,"
+                "  properties TEXT, source_ref TEXT,"
+                "  valid_from TEXT, valid_to TEXT,"
+                "  edge_type TEXT"
+                ")"
+            )
+            conn.execute(
+                "CREATE TABLE IF NOT EXISTS relation_sidecars ("
+                "  source TEXT, target TEXT, edge_type TEXT,"
+                "  weight REAL, properties TEXT, source_ref TEXT,"
+                "  primary_tag TEXT, origin TEXT"
+                ")"
+            )
+            conn.commit()
         names = [
             r["name"]
             for r in conn.execute(

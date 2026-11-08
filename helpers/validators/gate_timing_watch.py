@@ -13,6 +13,11 @@ Per (gate, leg) with enough history on both sides:
 - FIRE   : RECENT > 1.5x BASE and RECENT - BASE > 5 s (ratio guards
   against noise on sub-second legs; the absolute floor guards against
   re-flagging a 0.1 -> 0.2 s leg forever)
+- NOTE   : no verdict when the BASE window itself spans > 4x (a leg that
+  alternates fast/slow modes — md-lint SKIP vs real, convo-rebuild
+  incremental vs full — has a median that is not a reliable reference;
+  the two windows catch different mode-mixes and the median comparison
+  is meaningless). Printed as a NOTE, never a FIRE.
 
 DB missing / locked / empty — SKIP line, exit 0 (same safe-skip
 doctrine as graph_scale_watch: a concurrent gate-query writer must not
@@ -46,17 +51,17 @@ def _median(values: list[float]) -> float:
     return vs[mid] if n % 2 else (vs[mid - 1] + vs[mid]) / 2.0
 
 
-def main_with_db(
-    db: Path,
-    *,
-    recent: int = 5,
-    baseline: int = 10,
-    ratio: float = 1.5,
-    floor: float = 5.0,
-) -> int:
+def _load_history(
+    db: Path, *, recent: int, baseline: int
+) -> dict[tuple[str, str], list[float]] | None:
+    """Open the gate-timing index read-only and bucket per-leg durations.
+
+    Returns None when the index is absent or unreadable - the caller
+    treats that as a SKIP (no history to judge), never a failure.
+    """
     if not db.exists():
-        print(f"gate-timing-watch: SKIP — no index at {db}")
-        return 0
+        print(f"gate-timing-watch: SKIP - no index at {db}")
+        return None
     try:
         import duckdb
 
@@ -64,8 +69,8 @@ def main_with_db(
 
         con = connect_with_lock_retry(lambda: duckdb.connect(str(db), read_only=True))
     except Exception as exc:
-        print(f"gate-timing-watch: SKIP — index unreadable ({type(exc).__name__}: {exc})")
-        return 0
+        print(f"gate-timing-watch: SKIP - index unreadable ({type(exc).__name__}: {exc})")
+        return None
 
     try:
         rows = con.execute(
@@ -88,20 +93,93 @@ def main_with_db(
     history: dict[tuple[str, str], list[float]] = {}
     for gate, leg, seconds in rows:
         history.setdefault((gate, leg), []).append(float(seconds))
+    return history
+
+
+def _classify_leg(
+    gate: str,
+    leg: str,
+    vals: list[float],
+    *,
+    recent: int,
+    baseline: int,
+    ratio: float,
+    floor: float,
+) -> tuple[str, tuple] | None:
+    """Verdict for one leg: a (kind, payload) pair, or None for no verdict.
+
+    A leg needs at least 3 samples on each side before it can drift. A
+    multimodal baseline (spans more than 4x) records a NOTE instead of a
+    FIRE because the two windows then catch different mode-mixes.
+    """
+    recent_vals = vals[:recent]
+    base_vals = vals[recent : recent + baseline]
+    if len(recent_vals) < 3 or len(base_vals) < 3:
+        return None  # not enough history on one side - no verdict
+    m_recent, m_base = _median(recent_vals), _median(base_vals)
+    if m_base <= 0:
+        return None
+    if not (m_recent > ratio * m_base and m_recent - m_base > floor):
+        return None
+    # Multimodal-baseline guard: a leg that alternates between a fast
+    # mode and a slow mode (md-lint SKIP vs real lint; convo-rebuild
+    # incremental vs full) has a baseline window whose median is not a
+    # reliable reference - the two windows catch different mode-mixes.
+    # When the baseline itself spans more than 4x, this would be a false
+    # fire: record a NOTE instead of a regression (2026-11-08: the
+    # md-lint 0.9->8.5s and convo-rebuild 16->80s "regressions" were
+    # both this artifact). Only legs that would otherwise FIRE reach
+    # here, so sub-second noise legs never produce a NOTE.
+    if min(base_vals) > 0 and max(base_vals) / min(base_vals) > 4.0:
+        return (
+            "note",
+            (gate, leg, m_base, m_recent, min(base_vals), max(base_vals)),
+        )
+    return (
+        "fire",
+        (gate, leg, m_base, m_recent, len(recent_vals), len(base_vals)),
+    )
+
+
+def main_with_db(
+    db: Path,
+    *,
+    recent: int = 5,
+    baseline: int = 10,
+    ratio: float = 1.5,
+    floor: float = 5.0,
+) -> int:
+    history = _load_history(db, recent=recent, baseline=baseline)
+    if history is None:
+        return 0
 
     regressions: list[tuple[str, str, float, float, int, int]] = []
+    multimodal: list[tuple[str, str, float, float, float, float]] = []
     for (gate, leg), vals in sorted(history.items()):
-        recent_vals = vals[:recent]
-        base_vals = vals[recent : recent + baseline]
-        if len(recent_vals) < 3 or len(base_vals) < 3:
-            continue  # not enough history on one side — no verdict
-        m_recent, m_base = _median(recent_vals), _median(base_vals)
-        if m_base <= 0:
+        verdict = _classify_leg(
+            gate,
+            leg,
+            vals,
+            recent=recent,
+            baseline=baseline,
+            ratio=ratio,
+            floor=floor,
+        )
+        if verdict is None:
             continue
-        if m_recent > ratio * m_base and m_recent - m_base > floor:
-            regressions.append((gate, leg, m_base, m_recent, len(recent_vals), len(base_vals)))
+        kind, payload = verdict
+        if kind == "note":
+            multimodal.append(payload)
+        else:
+            regressions.append(payload)
 
     quiet = sum(1 for v in history.values() if len(v) >= 3)
+    for gate, leg, m_base, m_recent, lo, hi in multimodal:
+        print(
+            f"  NOTE {gate}/{leg}: baseline multimodal ({lo:.1f}s..{hi:.1f}s, "
+            f"median {m_base:.1f}s -> recent {m_recent:.1f}s) — no verdict "
+            f"(fast/slow mode mix; gate_query timing --leg {leg} for the trend)"
+        )
     if regressions:
         print(f"gate-timing-watch: {quiet} leg(s) with history — {len(regressions)} REGRESSED")
         for gate, leg, m_base, m_recent, nr, nb in regressions:

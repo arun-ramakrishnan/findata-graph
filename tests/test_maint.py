@@ -88,7 +88,11 @@ class TestPlan:
         # rederive-hyper re-derives the standing families before the
         # snapshot (SQLite writes must precede the backup) and before
         # graph-rebuild (the cache mirrors fresh shapes same-run).
-        assert len(maint.TIER1_STEPS) == 9
+        # 10 since the 2026-11-08 snapshot-ordering arc: the local DuckDB
+        # .zst backup is re-captured AFTER graph-rebuild (step 2 alone left
+        # it one rebuild stale, so the qa snapshot_check leg was red after
+        # every plain maint).
+        assert len(maint.TIER1_STEPS) == 10
 
     def test_tier1_steps_order(self):
         # The order is load-bearing:
@@ -103,6 +107,10 @@ class TestPlan:
         #   4. the duckdb parquet mirror re-exports AFTER the rebuild+stamp
         #      (step 2's export predates the rebuilt cache; without step 4
         #      the mirror runs one rebuild stale — snapshot_db --check fails)
+        #   5. the local DuckDB .zst backup is re-captured for the SAME
+        #      reason one layer down: verify_duckdb_snapshot reads the .zst,
+        #      so step 2's copy is stale after every rebuild. The SQLite
+        #      .zst keeps its step-2 restore-point position.
         labels = [label for label, _ in maint.TIER1_STEPS]
         assert labels == [
             "convo-fresh (harvest harness sessions into the parquet corpus)",
@@ -114,6 +122,7 @@ class TestPlan:
             "stamp-centrality (re-stamp v_centrality_* tables)",
             "csr-rebuild (refresh CSR substrate)",
             "snapshot duckdb parquet mirror (post-rebuild)",
+            "snapshot duckdb .zst backup (post-rebuild)",
         ]
 
     def test_tier2_has_twenty_steps(self):
@@ -230,17 +239,14 @@ class TestPlan:
         # maint only.
         skipped = [s for s in maint.TIER1_STEPS if s[0] not in maint.TIER1_FULL_SKIP]
         full = maint.PRE_FULL_STEPS + skipped + maint.TIER2_STEPS
-        # 5 since star_hyperedge_consumer_wiring S2 (2026-11-08): rederive-hyper
-        # joins — TIER2 runs the FULL derive_hyperedges --apply before its
-        # own rebuild + tail snapshot.
-        assert len(maint.TIER1_FULL_SKIP) == 5
+        # 6 since the 2026-11-08 snapshot-ordering arc: the post-rebuild
+        # .zst re-capture joins the elision — the TIER2 tail snapshot is a
+        # full create that lands after the TIER2 rebuilds.
+        assert len(maint.TIER1_FULL_SKIP) == 6
         assert "csr-rebuild (refresh CSR substrate)" in maint.TIER1_FULL_SKIP
         assert "snapshot (refresh versioned snapshots)" in maint.TIER1_FULL_SKIP
         assert "snapshot duckdb parquet mirror (post-rebuild)" in maint.TIER1_FULL_SKIP
-        # 5 since star_hyperedge_consumer_wiring S2 (2026-11-08):
-        # rederive-hyper joins — TIER2 runs the FULL derive_hyperedges
-        # --apply before its own rebuild + tail snapshot.
-        assert len(maint.TIER1_FULL_SKIP) == 5
+        assert "snapshot duckdb .zst backup (post-rebuild)" in maint.TIER1_FULL_SKIP
         assert len(full) == len(maint.PRE_FULL_STEPS) + len(skipped) + len(maint.TIER2_STEPS)
         snapshot_labels = [lab for lab, _ in full if lab.startswith("snapshot")]
         assert snapshot_labels == [

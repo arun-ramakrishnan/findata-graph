@@ -245,3 +245,80 @@ def test_apply_edges_backfills_weights(tmp_path):
     # rerun: no inserts, weights unchanged (idempotent)
     assert dc.apply_edges(edges, conn=con, dry_run=False) == 0
     assert con.execute("SELECT COUNT(*) FROM graph_edges WHERE weight=1.0").fetchone()[0] == 3
+
+
+# --------------------------------------------------------------------------- #
+# backfill_weights: the retired count+1 weight law (direct surface)            #
+# --------------------------------------------------------------------------- #
+def _weight_schema():
+    con = sqlite3.connect(":memory:")
+    con.executescript(_schema_sql())
+    return con
+
+
+def _seed_edge(con, source, target, properties, weight, edge_type="cited_in"):
+    con.execute(
+        "INSERT INTO graph_edges(source, target, edge_type, properties, weight) VALUES (?,?,?,?,?)",
+        (source, target, edge_type, properties, weight),
+    )
+
+
+def test_backfill_weights_sets_n_quotes_plus_one():
+    """The weight law is exactly n_quotes + 1.0 — the +1 keeps a 0-quote
+    citation at unit weight, so a bare n_quotes cast would flatten every
+    one-off citation to 0 and silently zero the co-mention projection
+    (helpers/graph/query.py `_materialise_co_mention` depends on this law)."""
+    con = _weight_schema()
+    _seed_edge(con, "Alpha Co", "Edition_One", '{"n_quotes": 0}', None)
+    _seed_edge(con, "Beta Co", "Edition_One", '{"n_quotes": 3}', None)
+    _seed_edge(con, "Gamma Co", "Edition_Two", '{"n_quotes": 7}', 99.0)
+
+    assert dc.backfill_weights(conn=con) == 3
+    rows = dict(
+        con.execute("SELECT source, weight FROM graph_edges WHERE edge_type='cited_in'").fetchall()
+    )
+    assert rows == {"Alpha Co": 1.0, "Beta Co": 4.0, "Gamma Co": 8.0}
+
+
+def test_backfill_weights_is_idempotent_and_reports_zero_on_rerun():
+    """Derived purely from properties, so a second pass updates nothing and
+    returns 0 — the value callers and maint rely on to prove convergence."""
+    con = _weight_schema()
+    _seed_edge(con, "Alpha Co", "Edition_One", '{"n_quotes": 2}', None)
+    assert dc.backfill_weights(conn=con) == 1
+    assert dc.backfill_weights(conn=con) == 0
+
+
+def test_backfill_weights_skips_rows_without_n_quotes():
+    """A cited_in row whose properties carry no n_quotes (legacy/partial
+    write) stays untouched instead of being nulled to 1.0."""
+    con = _weight_schema()
+    _seed_edge(con, "Alpha Co", "Edition_One", "{}", 5.0)
+    _seed_edge(con, "Alpha Co", "Edition_Two", '{"resource": "x"}', None)
+    assert dc.backfill_weights(conn=con) == 0
+    rows = con.execute(
+        "SELECT target, weight FROM graph_edges WHERE edge_type='cited_in' ORDER BY target"
+    ).fetchall()
+    assert rows == [("Edition_One", 5.0), ("Edition_Two", None)]
+
+
+def test_backfill_weights_leaves_other_edge_types_alone():
+    """Only cited_in is owned by this lane — a co_mentioned_in row carrying
+    the same property key must not be rewritten (each family owns its law)."""
+    con = _weight_schema()
+    _seed_edge(con, "Alpha Co", "Beta Co", '{"n_quotes": 9}', 2.5, edge_type="co_mentioned_in")
+    _seed_edge(con, "Alpha Co", "Edition_One", '{"n_quotes": 9}', None)
+    assert dc.backfill_weights(conn=con) == 1
+    other = con.execute(
+        "SELECT weight FROM graph_edges WHERE edge_type='co_mentioned_in'"
+    ).fetchone()[0]
+    assert other == 2.5
+
+
+def test_backfill_weights_no_longer_matches_is_one_shot():
+    """A weight that DISAGREES is corrected once; the WHERE guard means a
+    matching row is never rewritten, so bulk re-runs stay cheap."""
+    con = _weight_schema()
+    _seed_edge(con, "Alpha Co", "Edition_One", '{"n_quotes": 4}', 5.5)
+    _seed_edge(con, "Beta Co", "Edition_One", '{"n_quotes": 4}', 5.0)
+    assert dc.backfill_weights(conn=con) == 1

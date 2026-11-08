@@ -1804,3 +1804,78 @@ def test_noqa_inside_single_line_fstring_reports_the_right_line(tmp_path, monkey
     fatal, _ = sc.check_noqa_in_sql_literal()
     assert len(fatal) == 1, fatal
     assert "bad_inline.py:2" in fatal[0]
+
+
+# --------------------------------------------------------------------------- #
+# Proposal lifecycle: live list may not advertise an archived proposal         #
+# --------------------------------------------------------------------------- #
+def _seed_proposals(monkeypatch, tmp_path, bullets: str, archived: tuple[str, ...] = ()):
+    """Seed a minimal doc/improvements tree and repoint REPO_ROOT at it."""
+    proposals = tmp_path / "doc" / "improvements" / "proposals"
+    archive = tmp_path / "doc" / "improvements" / "archive"
+    proposals.mkdir(parents=True)
+    archive.mkdir(parents=True)
+    (proposals / "README.md").write_text(
+        "# Live proposals\n\n## Current live proposals\n\n" + bullets, encoding="utf-8"
+    )
+    for name in archived:
+        (archive / f"{name}.md").write_text("# archived\n", encoding="utf-8")
+    monkeypatch.setattr(sc, "REPO_ROOT", tmp_path)
+    return proposals, archive
+
+
+def test_live_list_flags_archived_proposal_without_marker(tmp_path, monkeypatch):
+    """2026-11-08 regression: `served_store_read_funnel` sat in the live list
+    for five days after #476 archived it, because the stale bullet named the
+    proposal WITHOUT a .md extension — the pre-existing existence check only
+    looked at `.md`-suffixed tokens, so nothing fired."""
+    _seed_proposals(
+        monkeypatch,
+        tmp_path,
+        "- `served_store_read_funnel` — filed 2026-11-03, S1 wire-attach\n"
+        "  fallback, S2 liveness probe.\n",
+        archived=("served_store_read_funnel",),
+    )
+    fatal, _ = sc.check_proposal_lifecycle()
+    assert len(fatal) == 1, fatal
+    assert "still advertises served_store_read_funnel" in fatal[0]
+    assert "*(archived" in fatal[0]
+
+
+def test_live_list_accepts_archived_marker(tmp_path, monkeypatch):
+    """The house marker retires the warning even though the name is archived."""
+    _seed_proposals(
+        monkeypatch,
+        tmp_path,
+        "- *(archived 2026-11-03)* — `served_store_read_funnel` filed and\n"
+        "  executed the same day, #476 (`../archive/tooling/served_store_read_funnel.md`).\n",
+        archived=("served_store_read_funnel",),
+    )
+    assert sc.check_proposal_lifecycle() == ([], [])
+
+
+def test_live_list_recap_bullet_marker_retires_batch(tmp_path, monkeypatch):
+    """The trailing recap bullet enumerates a whole archived batch under one
+    *(none live)* marker; its members must not each be flagged."""
+    _seed_proposals(
+        monkeypatch,
+        tmp_path,
+        "- *(none live)* — `rust_proptest_properties` filed + executed +\n"
+        "  archived same day, and `rust_cargo_llvm_cov` archived the same day.\n",
+        archived=("rust_proptest_properties", "rust_cargo_llvm_cov"),
+    )
+    assert sc.check_proposal_lifecycle() == ([], [])
+
+
+def test_live_list_marker_on_one_bullet_does_not_excuse_another(tmp_path, monkeypatch):
+    """The marker is per-bullet: a retired entry never shields the next one."""
+    _seed_proposals(
+        monkeypatch,
+        tmp_path,
+        "- *(archived 2026-11-03)* — `first_topic` (#476).\n"
+        "- `second_topic` — still advertised live.\n",
+        archived=("first_topic", "second_topic"),
+    )
+    fatal, _ = sc.check_proposal_lifecycle()
+    assert len(fatal) == 1, fatal
+    assert "still advertises second_topic" in fatal[0]

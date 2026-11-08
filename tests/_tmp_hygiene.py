@@ -212,6 +212,11 @@ def build_full_template(dst: Path) -> Path:
     racing sidecars onto one file. DELETE mode makes the published file
     self-contained; read-only opens then touch nothing.
     """
+    # Donor read of the live store by design (hermeticity_watch.allow);
+    # the template is the production_db_copy_audit S2/S3 contract.
+    from tests import hermeticity_watch
+
+    hermeticity_watch.allow()
     src = sqlite3.connect(str(DB_PATH))
     out = sqlite3.connect(str(dst))
     try:
@@ -221,6 +226,7 @@ def build_full_template(dst: Path) -> Path:
     finally:
         out.close()
         src.close()
+        hermeticity_watch.disallow()
     return dst
 
 

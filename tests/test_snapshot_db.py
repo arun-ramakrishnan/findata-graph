@@ -712,3 +712,65 @@ def test_verify_ephemeral_absent_still_skips_quietly(tmp_path):
     res = snapshot_db._verify_parquet_duckdb_side(pq_dir.parent, gdb, _log)
     assert res["mismatches"] == [], res
     assert res["tables_checked"] == 1  # ephemeral skipped, entities checked
+
+
+# ---------------------------------------------------------------------------
+# --duckdb-snapshot-only (2026-11-08 snapshot-ordering arc)
+# ---------------------------------------------------------------------------
+def test_duckdb_snapshot_only_recaptures_stale_zst(tmp_path, monkeypatch, caplog):
+    """The post-rebuild step: re-capture ONLY the local DuckDB .zst.
+
+    Plain-mode maint captured the .zst BEFORE graph-rebuild, so after every
+    rebuild the restore copy trailed the live store and the qa
+    snapshot_check leg failed ("DuckDB generation: snapshot=... source=...
+    -> MISMATCH (stale snapshot)"). This mode is the narrow fix: refresh the
+    .zst from the current cache, leave the SQLite .zst alone.
+    """
+    import duckdb
+
+    live_dd = tmp_path / "live.duckdb"
+    con = duckdb.connect(str(live_dd))
+    con.execute("CREATE TABLE v_node (id INTEGER, name VARCHAR)")
+    con.execute("INSERT INTO v_node VALUES (1, 'A')")
+    con.close()
+
+    duckdb_out = tmp_path / "graph.snapshot.duckdb.zst"
+    sqlite_out = tmp_path / "research.snapshot.db.zst"
+    sqlite_out.write_bytes(b"sqlite-sentinel")
+
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "snapshot_db.py",
+            "--duckdb-snapshot-only",
+            "--duckdb",
+            str(live_dd),
+            "--duckdb-out",
+            str(duckdb_out),
+            "--out",
+            str(sqlite_out),
+        ],
+    )
+    with caplog.at_level(logging.INFO, logger="snapshot_db"):
+        assert snapshot_main() == 0
+    assert duckdb_out.exists() and duckdb_out.stat().st_size > 0
+    # the SQLite restore-point copy is NOT touched by this mode
+    assert sqlite_out.read_bytes() == b"sqlite-sentinel"
+
+
+def test_duckdb_snapshot_only_fails_closed_when_cache_missing(tmp_path, monkeypatch, capsys):
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "snapshot_db.py",
+            "--duckdb-snapshot-only",
+            "--duckdb",
+            str(tmp_path / "absent.duckdb"),
+            "--duckdb-out",
+            str(tmp_path / "out.duckdb.zst"),
+        ],
+    )
+    assert snapshot_main() == 1
+    assert "not found" in capsys.readouterr().err
