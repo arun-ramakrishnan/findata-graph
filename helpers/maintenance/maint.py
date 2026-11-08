@@ -387,19 +387,15 @@ TIER1_STEPS: list[tuple[str, list[str]]] = [
         "db_maint (VACUUM/ANALYZE/REINDEX/integrity)",
         [sys.executable, "helpers/maintenance/db_maint.py"],
     ),
-    (
-        "snapshot (refresh versioned snapshots)",
-        [sys.executable, "helpers/maintenance/snapshot_db.py"],
-    ),
     # rederive-hyper (star_hyperedge_consumer_wiring S2, 2026-11-08):
-    # re-derive the standing hyperedge families BEFORE graph-rebuild so the
-    # cache's h_edge mirror picks the fresh shapes up in the SAME maint run
-    # (placing it after graph-rebuild would leave the cache one maint of
-    # lag). After snapshot, so the SQLite backup is not split by a
-    # mid-sequence write. The three families are fully derived — the
-    # threshold families ride delete-then-insert, so the step is idempotent.
-    # Named rederive-* to stay clear of `make recompute-hyper` (the HGX
-    # metrics lane over the DEFAULT families — a different operation).
+    # re-derive the standing hyperedge families BEFORE the snapshot (the
+    # first placement put this SQLite writer after `snapshot` and the qa
+    # snapshot_check leg rightly failed on the drift) and BEFORE
+    # graph-rebuild, so the cache's h_edge mirror picks the fresh shapes
+    # up in the SAME maint run. The three families are fully derived —
+    # the threshold families ride delete-then-insert, so the step is
+    # idempotent. Named rederive-* to stay clear of `make recompute-hyper`
+    # (the HGX metrics lane over the DEFAULT families — a different op).
     (
         "rederive-hyper (re-derive standing hyperedge families)",
         [
@@ -409,6 +405,10 @@ TIER1_STEPS: list[tuple[str, list[str]]] = [
             "--families",
             "index,subsidiary,supply",
         ],
+    ),
+    (
+        "snapshot (refresh versioned snapshots)",
+        [sys.executable, "helpers/maintenance/snapshot_db.py"],
     ),
     (
         "graph-rebuild (refresh DuckDB cache)",
@@ -677,6 +677,12 @@ TIER1_FULL_SKIP: frozenset[str] = frozenset(
         # (step 10) AFTER its own graph rebuilds, so a mid-run mirror
         # export would be unconditionally overwritten anyway.
         "snapshot duckdb parquet mirror (post-rebuild)",
+        # rederive-hyper joins too (star_hyperedge_consumer_wiring S2):
+        # the TIER2 lane runs the FULL derive_hyperedges --apply (all
+        # families) before its own graph rebuild + tail snapshot — a
+        # filtered mid-run re-derivation is seconds of work the tail
+        # supersedes.
+        "rederive-hyper (re-derive standing hyperedge families)",
         # stamp-centrality joins too (centrality_rebuild_contract): the
         # TIER2 graph rebuilds are data-only and DROP v_centrality_* —
         # a mid-run stamp would be seconds of work the tail erases

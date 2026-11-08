@@ -14116,3 +14116,60 @@ to doc/improvements/archive/database/duckdb_pure_stack.md.
   2026-11-08 census reconciliation appended; size-watch trigger re-armed
   against the new baseline. No C901 refactor needed; the S2 owner-report
   loop lives in `_report_store_dispositions` (main stayed ≤10).
+## 492. Star-hyperedge consumers — reconcile the standing families, then wire them
+
+- **Date:** 2026-11-08 · **Status:** EXECUTED · **Proposal:** doc/improvements/archive/graph/star_hyperedge_consumer_wiring.md
+- S0 dyad audit: the 4,485 flipped `supplier_to` mutuals are the DOCUMENTED
+  same-period two-way emission (related_party_sync symmetric-emission S2),
+  not a writer bug — rev 1's misdiagnosis recorded in the proposal.
+  Existing prune re-run: 10 cross-period drops (17,174 → 17,164) + 5
+  same_group cycles; 294 mutuals skipped on unresolved filer symbols =
+  resolver-lane residue, surfaced as the report-only `xperiod_mutual`
+  integrity counter (98 headroom).
+- S0 threshold: `_STAR_SOURCES` → `(family, dyad, min_k)`; k≥3 actually
+  applied for the first time (the recorded 382/620 shapes had never been
+  implemented) with delete-then-insert convergence — re-derived store:
+  subsidiary 386 (min 3/max 228), supply 683 (min 3/max 222), index 57
+  unchanged; supply labels verified as dyad targets (buyers). Direction
+  rule confirmed: source = supplier, flow-derived (96% hold on
+  single-orientation rows).
+- S1: context-pack `_HYPER_FAMILIES` extended to six families —
+  index/subsidiary/supply facts render via the existing h_edge ⋈
+  h_incidence lane (Reliance pack: `index (10)`, `supply (19)`); the
+  dyadic `e_subsidiary` `_EDGE_SPECS` row stays.
+- S2: `--families` selector on derive_hyperedges (validated, filters
+  after cross-family derivations) + `rederive-hyper` TIER1 maint step
+  (between db_maint and snapshot — a SQLite write after the backup
+  breaks snapshot_check, as the gate arc caught live — and before
+  graph-rebuild; joins TIER1_FULL_SKIP in --full where TIER2's full
+  derive supersedes it). Execution lesson: the family filter must guard
+  the per-family convergence prunes — a filtered run nuked all 1,167
+  event + 506 group rows before the guard landed; healed by full apply.
+- S3: `make hyper-star-centrality` — zero-code opt-in via the hyper
+  lanes' existing `--sources` (the rev-1 PPR-whitelist idea mislocated
+  the mechanism). hyperedge_types.py docstring + db_schema §hyper_edges
+  refreshed to the landed store (3,447 hyperedges / 43,869 incidences).
+
+## 493. Mapping record glossary — repo-native edge entries (semantics only)
+
+- **Date:** 2026-11-08 · **Status:** EXECUTED · **Proposal:** doc/improvements/archive/database/ontology_mapping_glossary_enhancement.md
+- "Repo-native mapping records" section appended to
+  doc/reference/ontology_glossary.md: 7 entries (subsidiary_of with the
+  ORG subOrganizationOf refinement, same_group, invested_in,
+  listed_on_index, supplier_to, semantic_peer, retired
+  co_mentioned_in-as-projection) — Kind/Direction/Semantics/External
+  referent or house convention/Star projection, ZERO live row counts
+  (one dated db_schema.md pointer per entry, per the ontology.md §1
+  anti-drift rule; rev 1's claim of the glossary as the magnitudes home
+  recorded as reversed).
+- db_schema.md refreshed in the same sitting: header "Live row counts"
+  re-dated (entities 24,733 / graph_edges 61,680 / quotes 9,021 /
+  hyper_edges 3,447 + 43,869 incidences / company_metrics 79,481 / …);
+  §graph_edges corrected to 17-of-19 populated (penalized_by AND retired
+  co_mentioned_in both structurally zero).
+- Exclusions argued per-type (11 types: structural families live in
+  §hyper_edges, event-provenance types in §events, small
+  self-describing lanes excluded with reasons).
+- Gates: quartet run after both arcs (qa reds fixed targeted — maint
+  ordering, pin tests, format, schema-dump; integration PASS; perf
+  REFUSED parked; advisory 22/24 known classes).

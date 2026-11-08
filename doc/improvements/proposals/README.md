@@ -38,24 +38,22 @@ entry number and stale DONE pointers):
 
 ## Current live proposals
 
-- `star_hyperedge_consumer_wiring` — filed 2026-11-08, PROPOSED (rev 2)
-  (`../proposals/star_hyperedge_consumer_wiring.md`; S0 reconcile the
-  three standing-structure families first — the recorded k≥3 portfolio
-  threshold (382/620) was never implemented; live store carries 738/8,605
-  threshold-less stars incl. singletons, direction verified correct —
-  then S1 extend context_pack's `_HYPER_FAMILIES` lane (not `_EDGE_SPECS`:
-  the star tables live in `h_edge`/`h_incidence` and `e_subsidiary` is
-  already a dyadic spec), S2 add the `--families` selector + a
-  `recompute-hyper` TIER1 step, S3 opt-in centrality via the
-  `PPR_INCLUDE_EDGE_TYPES` pattern; proposed completed.md #492).
-- `ontology_mapping_glossary_enhancement` — filed 2026-11-08, PROPOSED
-  (rev 2)
-  (`../proposals/ontology_mapping_glossary_enhancement.md`; add
-  repo-native mapping entries for processed graph edge types /
-  hyperedge families to `doc/reference/ontology_glossary.md` — semantics
-  only, magnitudes moved to `db_schema.md` per the ontology.md §1
-  anti-drift rule, per-type dispositions for all 11 excluded types;
-  finalize AFTER #492 S0; proposed completed.md #493).
+- *(archived 2026-11-08)* — `star_hyperedge_consumer_wiring` executed
+  same day, #492
+  (`../archive/graph/star_hyperedge_consumer_wiring.md`; S0 dyad audit
+  reversed the rev-1 writer-bug claim — same-period two-way emission is
+  documented design — and applied the k≥3 threshold for the first time,
+  re-deriving the stars to 386/683 with delete-then-insert convergence;
+  S1 six-family `_HYPER_FAMILIES` context-pack lane; S2 `--families`
+  selector + `rederive-hyper` maint step (snapshot-ordering lesson
+  included); S3 `make hyper-star-centrality` opt-in).
+- *(archived 2026-11-08)* — `ontology_mapping_glossary_enhancement`
+  executed same day, #493
+  (`../archive/database/ontology_mapping_glossary_enhancement.md`;
+  7 repo-native mapping entries in
+  `doc/reference/ontology_glossary.md` — semantics-only,
+  magnitudes in `doc/design/db_schema.md` per the anti-drift rule,
+  refreshed same sitting; per-type dispositions for all 11 exclusions).
 - *(archived 2026-11-08)* — `ifub_frontier_bfs_and_store_census_closeout`
   executed same day, #491
   (`../archive/maintenance/ifub_frontier_bfs_and_store_census_closeout.md`;

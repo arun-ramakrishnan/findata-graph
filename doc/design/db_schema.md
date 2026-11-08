@@ -13,12 +13,14 @@ the dumps are the byte-exact live DDL and the format contract lives in
 and identifier-style rules are excluded there as generator noise; what
 surfaces is structural (AM04/RF02/RF03 — view column contracts).
 
-Live row counts (2026-09-14): entities 1685, entity_tags 7211,
-graph_edges 19325, events 436, quotes 8272, company_metrics 4412,
-graph_analytics 23,837, hyper_edges 469 / hyper_incidences 5659,
-provenance_agents 21, concept_schemes 11 / concepts 403 /
-concept_mappings 68, entity_identifiers 0 (S3 registry, fills on
-operator writes), note_search (FTS5) + `relations` VIEW.
+Live row counts (2026-11-08, measured for the
+ontology_mapping_glossary_enhancement refresh): entities 24,733,
+entity_tags 7,404, graph_edges 61,680 (17 of 19 registered types
+populated), events 1,628, quotes 9,021, company_metrics 79,481,
+graph_analytics 208,942, hyper_edges 3,447 / hyper_incidences 43,869
+(15 families — see §`hyper_edges` above), provenance_agents 24,
+concept_schemes 12 / concepts 2,515 / concept_mappings 505,
+entity_identifiers 6,754, note_search (FTS5) + `relations` VIEW.
 
 ## `entities`
 
@@ -89,10 +91,13 @@ query: JOIN two tag aliases for tag intersection.
 
 ## `graph_edges` — canonical edge store
 
-Directed links; supersedes the `relations` table. 62,433 rows across 19
-registered edge types — 18 populated; `penalized_by` is registered with
-zero rows (counts + symmetric convention: `graph_design.md` §4,
-refreshed 2026-10-19).
+Directed links; supersedes the `relations` table. 61,680 rows across 19
+registered edge types — 17 populated; `penalized_by` and
+`co_mentioned_in` (retired to the `edition` hyperedge family, projected
+on read) are registered with zero rows (counts + symmetric convention:
+`graph_design.md` §4, refreshed 2026-11-08 after the
+star_hyperedge_consumer_wiring S0 dyad audit — the same-period two-way
+`supplier_to` emission is the documented shape, not a duplicate).
 Producers: `parse_newsletter`/`markdown_parse` (sector membership → the
 canonical `hyper_edges` store, NOT this table),
 `extract_relations.py` (company↔company from prose),
@@ -111,7 +116,7 @@ absorption gate: `doc/improvements/archive/database/partof_hascompany_retirement
 |---|---|---|
 | `id` | INTEGER PK | autoincrement |
 | `source` / `target` | TEXT | FK → `entities(name)` cascade |
-| `edge_type` | TEXT | 19 registered values (18 populated; `penalized_by` zero rows), `graph_design.md` §4 |
+| `edge_type` | TEXT | 19 registered values (17 populated; `penalized_by` + retired `co_mentioned_in` zero rows), `graph_design.md` §4 |
 | `weight` | REAL | default 1.0 |
 | `properties` | TEXT | JSON; `CHECK (json_valid(...))` |
 | `valid_from` / `valid_to` | DATE | temporal window; NULL valid_from = always-valid, NULL valid_to = current |

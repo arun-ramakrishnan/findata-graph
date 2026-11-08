@@ -84,7 +84,11 @@ class TestPlan:
         # the v_centrality_* tables.
         # 8 since the 2026-10-21 gate-arc expansion: csr-rebuild joins so
         # `make maint` refreshes every derived state the gates check.
-        assert len(maint.TIER1_STEPS) == 8
+        # 9 since star_hyperedge_consumer_wiring S2 (2026-11-08):
+        # rederive-hyper re-derives the standing families before the
+        # snapshot (SQLite writes must precede the backup) and before
+        # graph-rebuild (the cache mirrors fresh shapes same-run).
+        assert len(maint.TIER1_STEPS) == 9
 
     def test_tier1_steps_order(self):
         # The order is load-bearing:
@@ -104,6 +108,7 @@ class TestPlan:
             "convo-fresh (harvest harness sessions into the parquet corpus)",
             "convo-rebuild (incremental pointer/FTS/vector index refresh)",
             "db_maint (VACUUM/ANALYZE/REINDEX/integrity)",
+            "rederive-hyper (re-derive standing hyperedge families)",
             "snapshot (refresh versioned snapshots)",
             "graph-rebuild (refresh DuckDB cache)",
             "stamp-centrality (re-stamp v_centrality_* tables)",
@@ -225,10 +230,17 @@ class TestPlan:
         # maint only.
         skipped = [s for s in maint.TIER1_STEPS if s[0] not in maint.TIER1_FULL_SKIP]
         full = maint.PRE_FULL_STEPS + skipped + maint.TIER2_STEPS
-        assert len(maint.TIER1_FULL_SKIP) == 4
+        # 5 since star_hyperedge_consumer_wiring S2 (2026-11-08): rederive-hyper
+        # joins — TIER2 runs the FULL derive_hyperedges --apply before its
+        # own rebuild + tail snapshot.
+        assert len(maint.TIER1_FULL_SKIP) == 5
         assert "csr-rebuild (refresh CSR substrate)" in maint.TIER1_FULL_SKIP
         assert "snapshot (refresh versioned snapshots)" in maint.TIER1_FULL_SKIP
         assert "snapshot duckdb parquet mirror (post-rebuild)" in maint.TIER1_FULL_SKIP
+        # 5 since star_hyperedge_consumer_wiring S2 (2026-11-08):
+        # rederive-hyper joins — TIER2 runs the FULL derive_hyperedges
+        # --apply before its own rebuild + tail snapshot.
+        assert len(maint.TIER1_FULL_SKIP) == 5
         assert len(full) == len(maint.PRE_FULL_STEPS) + len(skipped) + len(maint.TIER2_STEPS)
         snapshot_labels = [lab for lab, _ in full if lab.startswith("snapshot")]
         assert snapshot_labels == [

@@ -98,6 +98,118 @@ the 5 defensible mappings.
   triples); `wasGeneratedBy` is the external reading of
   "row ← agent".
 
+## Repo-native mapping records
+
+House edge types with no clean external borrow — the entry records the
+repo's own semantics (kind, direction, convention, star projection).
+**No live row counts here**: magnitudes live in `db_schema.md`
+(`ontology.md` §1 anti-drift rule); each entry carries one dated pointer.
+Dyad vs star canonicality follows the arity of the fact — these are all
+pairwise evidence-bearing dyads (`graph_edges` canonical), so each entry
+names the derived star projection (`hyper_edges` family) without
+conflating the two (`star_hyperedge_consumer_wiring.md`, #492).
+
+### repo `subsidiary_of` — filer-claimed control edge
+
+- **Kind:** dyadic relation, `graph_edges`; direction subsidiary → parent
+- **External referent:** ORG `subOrganizationOf`
+  (<https://www.w3.org/NS/org/#subOrganizationOf>) — a refinement, not a
+  copy: the repo stores only filer-claimed control per the
+  related_party_sync classify_relationship ladder (VIGIL RPT lane);
+  sibling-group descriptions that org-style vocabularies fold into
+  `subOrganizationOf` are rehomed to `same_group` here.
+- **Star projection:** the `subsidiary` family — parent portfolios at
+  k≥3 (members = subsidiaries, label = parent); re-derived by the
+  `rederive-hyper` maint step.
+- **Magnitudes:** `db_schema.md` §`graph_edges` (dyads) and
+  §`hyper_edges` (star), counts dated there.
+
+### repo `same_group` — fellow-subsidiary / peer regrouping edge
+
+- **Kind:** dyadic relation, `graph_edges`; symmetric-declared,
+  single-row-per-pair (alphabetical anchor — a doubled row is the G3 bug
+  class, pruned)
+- **External referent:** none (house term).
+- **Semantics:** group co-membership surfaced by the tightened
+  `subsidiary_of` ladder plus widened peer regrouping; the
+  `$.group` property is the hyperedge label the `group` family
+  regroups on. Provenance convention: `vigil:rpt:<SYMBOL>` refs.
+- **Star projection:** the `group` family (RPT disclosure sets widen it;
+  converges to the collect output — a label the collector no longer
+  produces drops).
+- **Magnitudes:** `db_schema.md` §`graph_edges` / §`hyper_edges`.
+
+### repo `invested_in` — participation / stake edge
+
+- **Kind:** dyadic relation, `graph_edges`; direction holder → holding
+- **External referent:** none (house term); FIBO BE has no exact
+  "reported holder stake" property — do not force a mapping.
+- **Semantics:** `stake_pct` (shp filings leg) / `pctHeld` (yfinance
+  leg), both normalized to percent via
+  `shareholding_sync.stake_pct_of`. The `weight` column is mixed-kind
+  ranking across legs — never a stake. Structural shareholding-page
+  rows (subtotals, totals, equation lines, subcategory labels) carry no
+  stake.
+- **Star projection:** none (no family regroups it).
+- **Magnitudes:** `db_schema.md` §`graph_edges`.
+
+### repo `listed_on_index` — index-membership edge
+
+- **Kind:** dyadic relation, `graph_edges`; direction company → index
+- **External referent:** none (house term).
+- **Semantics:** membership of a listed index, exchange-sourced.
+  Deliberately EXCLUDED from the dyadic centrality projection
+  (`EDGE_TYPES_EXCLUDED_FROM_CENTRALITY`, hub-noise ruling): a 500-name
+  index would route every co-member mass through one hub.
+- **Star projection:** the `index` family — one hyperedge per index
+  (threshold-free; each index is genuine standing structure). The dyad
+  type stays retired from centrality; the family's s-walk lanes are the
+  opt-in consumer (`make hyper-star-centrality`).
+- **Magnitudes:** `db_schema.md` §`graph_edges` / §`hyper_edges`.
+
+### repo `supplier_to` — supply-relationship edge
+
+- **Kind:** dyadic relation, `graph_edges`; direction supplier → buyer
+- **External referent:** none (house term); the supply-chain lexicography
+  (SCOR, FIBO) has no clean single-relation borrow for "reported
+  supply relationship" — do not force one.
+- **Semantics:** one row per reported supply relationship, dominated by
+  the VIGIL RPT lane. Orientation is flow-derived: purchase-dominant
+  RPT → the counterparty is the supplier; sale-dominant → the filer is
+  (96% convention hold on single-orientation rows, measured 2026-11-08).
+  Same-period two-way trading emits BOTH orientations by design
+  (`related_party_sync.py` symmetric-emission S2); cross-period
+  mutuals collapse to the larger-amount direction.
+- **Star projection:** the `supply` family — buyer portfolios at k≥3
+  (members = suppliers, label = buyer).
+- **Magnitudes:** `db_schema.md` §`graph_edges` / §`hyper_edges`.
+
+### repo `semantic_peer` — embedding-neighbour edge
+
+- **Kind:** dyadic relation, `graph_edges`; symmetric
+- **External referent:** SKOS `relatedMatch` is the loosest analogue but
+  carries no similarity semantics — recorded as house term, SKOS not
+  cited as a mapping.
+- **Semantics:** embedding-neighbour cosine over company note vectors,
+  brute-force `array_distance` (no ANN — perfect recall by
+  construction, `_vec_literal` routing for the HNSW-era planner).
+- **Star projection:** none (already symmetric dyads; no regroup).
+- **Magnitudes:** `db_schema.md` §`graph_edges`.
+
+### repo `co_mentioned_in` — RETIRED dyad, projected on read
+
+- **Kind:** retired from `graph_edges` (2026-10-19, #490); the FACT is
+  genuinely n-ary (an edition's participant set), so the `edition`
+  hyperedge family is canonical and the pairwise view projects on read
+  — the reverse of every entry above.
+- **Semantics of the projection:** served pair view over
+  `h_edge` ⋈ `h_incidence` (`edition` family), degeneracy guard drops
+  tiny sets; sqlite-side helper and the DuckDB cache agree exactly.
+  Kept in the `ontology.md` §2.1 roster though zero rows are stored.
+- **External referent:** none (house term).
+- **Magnitudes:** `db_schema.md` §`hyper_edges` (family) — the dyad
+  count is structurally zero, not stale.
+
 ## Citation policy (fixed by S5)
 
 1. Borrowed NAMES in code → cite in the module docstring (URI + spec

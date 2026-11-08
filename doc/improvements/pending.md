@@ -813,8 +813,12 @@ Open items below keep their revisit triggers inline; executed work is compressed
 
 - **Ontology governance #244 deferred** (2026-09-17; (c) resolved
   2026-09-19) — (a) Mapping record glossary note (EvoOntology Mapping:
-  term→table/column/filter/grain) — trigger: a metrics Q&A lane
-  proposal; (b) LLM-judge protocol 2 for the change gate (`"llm_judge"`
+  term→table/column/filter/grain) — SHIPPED 2026-11-08 de-facto
+  (completed.md #493: 7 repo-native mapping entries in
+  `doc/reference/ontology_glossary.md`, semantics-only with dated
+  `db_schema.md` pointers — the EvoOntology term→grain discipline
+  satisfied without the metrics Q&A lane; trigger closed);
+  (b) LLM-judge protocol 2 for the change gate (`"llm_judge"`
   slot reserved in the report schema, aggregation from EvoOntology
   evaluation.py:63) — trigger: an LLM-API posture (terrain C4 revival
   condition); (c) DONE 2026-09-19: `helpers/core/vocab.py` exports
