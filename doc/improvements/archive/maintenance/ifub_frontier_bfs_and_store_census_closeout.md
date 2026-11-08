@@ -1,13 +1,13 @@
 ---
 title: "Refresh production store census and close out iFUB frontier BFS"
-status: proposed
+status: executed
 filed: "2026-11-08"
-executed: null
-completed_md: null
+executed: "2026-11-08"
+completed_md: "491"
 area: "helpers/graph/stats.py, helpers/maintenance/db_maint.py, helpers/maintenance/store_sweep.py, tests/test_store_sweep.py, tests/test_integration_maint_chain.py, doc/improvements/pending.md"
 ---
 
-**Date:** 2026-11-08 · **Status:** PROPOSED · **Execution:** underway (S1 verified; S2 in progress; S3 pending)
+**Date:** 2026-11-08 · **Status:** EXECUTED 2026-11-08 (S1 verified; S2 census landed + first production --swap via the S2 tripwire; S3 stale-record corrections landed) · **Proposal:** completed.md #491
 **Area:** helpers/graph/stats.py, helpers/maintenance/db_maint.py, helpers/maintenance/store_sweep.py, tests/test_store_sweep.py, doc/improvements/pending.md
 
 ## 1. Motivation

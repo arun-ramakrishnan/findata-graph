@@ -19,7 +19,7 @@ created: '2025-12-20'
 last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
-  at: '2026-10-28T18:55:35Z'
+  at: '2026-11-08T05:25:06Z'
 stale_after: '2027-02-11'
 sources:
 - id: A_Quarter_That_Refuses_To_Behave
@@ -87,11 +87,11 @@ _Source: yfinance | Refreshed: 2026-10-16_
 - [[Amara Raja Energy and Mobility]] — industry peer
 - [[Escorts Kubota]] — industry peer
 - [[Samvardhana Motherson International]] — industry peer
+- [[TATA MOTORS]] — industry peer
 - [[Tata Motors Commercial Vehicles]] — industry peer
 - [[Tata Motors Passenger Vehicles]] — industry peer
 - [[Olectra Greentech]] — industry peer
 - [[AB Volvo]] — industry peer
-- [[VST Tillers Tractors]] — industry peer
 
 <!-- END auto peers -->
 

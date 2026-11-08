@@ -114,7 +114,10 @@ Open items below keep their revisit triggers inline; executed work is compressed
 
 - **production-store copy census — TRIGGER ARMED 2026-09-29, FIRED
   2026-10-13 — RE-RUN DONE 2026-10-19 (completed.md #415) — BASELINE
-  REFRESHED 2026-10-27** (`archive/testing/production_db_copy_audit.md`,
+  REFRESHED 2026-10-27 — RE-BASELINED 2026-11-08 (completed.md #491,
+  `archive/maintenance/ifub_frontier_bfs_and_store_census_closeout.md` —
+  the 10-27 refresh had never reached `_FILING_MB`; live values now in
+  code, size-watch re-armed below)** (`archive/testing/production_db_copy_audit.md`,
   executed same day): every copy/backup site is verdict-tabled there, and
   the chokepoint is gated deny-by-default —
   `copy_production_db(requestor=...)` + the operator-owned
@@ -152,7 +155,8 @@ Open items below keep their revisit triggers inline; executed work is compressed
   transient 7 MB (the 2026-09-29 mechanisms held), backup lane 1.96×.
   Standing watch: `size_watch` in store_sweep.py (warn 1.5× / ACT 2×,
   advisory-only) — trigger RE-ARMED on the same rule against the
-  2026-10-19 live sizes.
+  2026-11-08 live sizes (the 2026-10-19 baseline is superseded; see the
+  census reconciliation below).
 
    **2026-11-08 census reconciliation.** The 2026-10-27 baseline refresh recorded above did not reach the live `_FILING_MB` dictionary until this arc; `helpers/maintenance/store_sweep.py:272-285` now carries the current measured MiB filing: graph.xdist 66.26, convo_search 3170.01, embed_store 450.09, convo_fts 486.66, corpus 58.46, doc_search 30.19, script_search 4.32, memory_search 3.14, md_lint_cache 0.30, agent_traces 211.76, sources 47.26, model_usage 1.76.
 

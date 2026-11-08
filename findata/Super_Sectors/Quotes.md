@@ -8,7 +8,7 @@ tags:
 - entity_type/super_sector
 - super_sector/quotes
 created: '2026-09-07'
-last_modified: '2026-10-10'
+last_modified: '2026-11-08'
 sources:
 - id: A_Quarter_That_Refuses_To_Behave
   resource: /findata/The_Chatter/A_Quarter_That_Refuses_To_Behave.md
@@ -322,9 +322,15 @@ sources:
   resource: /findata/The_Chatter/LT_Cipla_SBI_Life.md
   title: 'The Chatter: SEBI, L&T, Cipla, SBI Life Insurance & More'
   last_modified: '2026-10-31'
+- id: Bajaj_Finserv_Zydus_BEL
+  resource: /findata/The_Chatter/Bajaj_Finserv_Zydus_BEL.md
+  title: 'The Chatter: Bajaj Finserv, Zydus, BEL, Thomas & More'
+- id: OpenAI_LIC_Mphasis
+  resource: /findata/The_Chatter/OpenAI_LIC_Mphasis.md
+  title: 'The Chatter: OpenAI, LIC, Mphasis, Mahindra & More'
 generated:
   by: derive_insights.py/v1
-  at: '2026-10-28T18:57:26Z'
+  at: '2026-11-08T05:25:04Z'
 stale_after: '2027-04-29'
 ---
 # Quotes
@@ -1008,28 +1014,6 @@ market prices …"
 
 > "Three things have happened during this quarter - (I) increased competitive intensity in FMCG space has impacted our gross margins; (II) surge in wages of entry level positions due to demand / supply mismatch of skilled workforce; and (III) continued investments $i$ improving o…"
 > — Mr. Neville Noronha, CEO \& MD [^chatter-Risks_Rewards_and_Revelations]
-
-- *[Indian Hotels Company]*
-
-- **Indian Hotels Company Strong demand growth continues to outpace new hotel supply, driving industryleading RevPAR growth**
-
-> "The hospitality cycle remains firmly in an up-swing. Industry-wide in FY-25, room-nig sold grew about 6 percent while available supply increased 'under 3 percent'. That gap matters: demand keeps outrunning new rooms, which is why RevPAR at IHCL rose 12 percent for the full yea…"
-> — Punit Chhatwal, MD \& CEO [^chatter-Risks_Rewards_and_Revelations]
-
-- **Selective approach to new hotel expansions, focusing only on asset-light or strategi projects offering high returns**
-
-> "Pure green-field—buying land, securing approvals, building from scratch—still does no clear our IRR hurdle in most metros. Where it works is when land comes on a long lease favourable terms or when it leverages state-driven tourism hubs like Ekta Nagar (Gujara there we expect …"
-> — Punit Chhatwal, MD \& CEO [^chatter-Risks_Rewards_and_Revelations]
-
-- **Increased willingness of Indian consumers to pay premium prices boosts IHCL's profitability**
-
-> "Indian consumers have become far more willing to pay for premium experiences; we no estimate 'well north of a million' people who will spend materially on hotels and restaurants. That lets us push rate-led RevPAR-flow-through on rate increases can be $\&$ 90 percent-while occu…"
-> — Punit Chhatwal, MD \& CEO [^chatter-Risks_Rewards_and_Revelations]
-
-- **Leisure tourism recovery lagging; IHCL invests actively to accelerate broader forei; tourist arrivals**
-
-> "Technically, foreign tourist arrivals are not yet back to pre-Covid, so we now talk about 'foreign arrivals' more broadly. Business-related inflows-from global capability centres auto OEMs, post-G20 follow-ups-are rising steadily, but pure leisure remains below 20 IHCL is spen…"
-> — Punit Chhatwal, MD \& CEO [^chatter-Risks_Rewards_and_Revelations]
 
 - *[R R Kabel]*
 
@@ -113897,3 +113881,31 @@ Currently, spot prices are 145 per kg for fishmeal."
 
 *Source: The Chatter — SEBI, RBI, DIPAM, Jio & Wipro*
 
+
+## The Chatter — OpenAI LIC Mphasis
+
+**Policy Special — taxation & financial architecture:** Uday Kotak (Founder & Non-Executive Director, Kotak Mahindra Bank) and Ananth Narayan Gopalakrishnan (former Whole-Time Member, SEBI) on the structural distortions governing Indian capital flows — person-anchored policy commentary routed to the quote catch-all.
+
+**The tax wedge between equity and fixed income:** Equity capital gains are taxed at ~14% (12.5% + surcharge) while interest income hits the 39% highest marginal slab — a disparity that penalises bank deposits and fixed income and needs narrowing.
+
+**Residence-based taxation is the global norm:** The OECD standard taxes non-controlling portfolio equity in the investor's country of residence, not at source — Indians investing in the US/UK/Germany/Japan/Singapore pay no capital gains there; India remains an outlier taxing foreigners at source.
+
+**DTAAs break down in practice:** Sovereign wealth funds, pension funds and endowments are tax-exempt at home, so Indian withholding tax is pure deadweight cost; US individuals cannot claim foreign tax credits for a fund's provision statement.
+
+**Rupee-basis gains tax dollar losses:** Because gains are computed in rupees, a global investor can lose in dollar/euro/sterling terms and still owe Indian capital gains tax — compounded by custodians needing clearance certificates for every transaction before repatriation.
+
+**The empirical FPI record:** After FY19's 10% LTCG reintroduction, cumulative net FPI equity flows turned to ~$10bn net outflow (vs $100bn inflow FY09-18); after the 12.5% hike, FY25-FY27 net outflows approached $50bn — source-based taxation cited by allocators in Tokyo, Singapore and Paris as an acute structural irritant.
+
+**Financial repression in the debt market:** The RBI bought ₹11.6 lakh cr of G-secs (~2.5% of GDP annually across FY25-26) to suppress yields and facilitated $143bn of FCNR(B) inflows swapped at subsidised rates — rates managed by policy, not set by willing savers and borrowers.
+
+**Negative real returns drive the equity flood:** A 7% FD yield is negative real for anyone in the 30-39% bracket, pushing savers into equities, gold and real estate; non-government credit stands at just 65% of equity market cap — the lowest credit-to-equity ratio globally (US 95%, mature economies 125-195%, global norm 140%).
+
+**The fix on the table:** Rationalise interest taxation to a flat 20% — capital migrates from overheated equities back to deposits and corporate bonds, normalising equity multiples, revitalising the credit market and attracting institutional foreign capital across both debt and equity.
+
+> "The gap between a 14% tax on equities and 39% on fixed income is exceptionally wide, and that disparity needs to be narrowed."
+> — Uday Kotak, Founder & Non-Executive Director, Kotak Mahindra Bank
+
+> "India remains an outlier by insisting that foreigners pay capital gains tax at source. This is not about exempting foreign capital while taxing domestic investors; it is about respecting global residence-based taxation."
+> — Ananth Narayan Gopalakrishnan, Former Whole-Time Member, SEBI
+
+*Source: The Chatter — OpenAI LIC Mphasis*

@@ -38,6 +38,15 @@ entry number and stale DONE pointers):
 
 ## Current live proposals
 
+- *(archived 2026-11-08)* — `ifub_frontier_bfs_and_store_census_closeout`
+  executed same day, #491
+  (`../archive/maintenance/ifub_frontier_bfs_and_store_census_closeout.md`;
+  iFUB vectorized frontier BFS verified 1.5-2.6× faster with parity pin;
+  `_FILING_MB` refreshed to 2026-11-08 live values after the 10-27
+  refresh was found never to have reached the code; first production
+  `--swap` via the S2 tripwire (~1.88 GiB reclaimed off convo_search);
+  owner dispositions recorded; pending.md C901 + census records
+  corrected).
 - *(archived 2026-11-06)* — `scipy_personalized_pagerank` filed +
   executed same day, #484 (`../archive/graph/scipy_personalized_pagerank.md`;
   deferred exact-solve PPR lane shipped beside Onager — whose

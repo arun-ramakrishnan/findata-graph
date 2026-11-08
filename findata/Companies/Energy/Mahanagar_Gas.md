@@ -19,7 +19,7 @@ created: '2026-08-03'
 last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
-  at: '2026-10-28T18:55:35Z'
+  at: '2026-11-08T05:25:07Z'
 stale_after: '2027-02-11'
 sources:
 - id: A_Quarter_That_Refuses_To_Behave
@@ -105,7 +105,7 @@ Industrial/segment supply is partly curtailed during global tightness; CNG and d
 - **Aditya Birla Sun Life Mutual Fund - Aditya Birla Sun Life Psu Equity Fund** — holds 0.0%
 - **Bajaj Life Insurance** — holds 0.0%
 - **HDFC MUTUAL FUND - HDFC MULTI CAP FUND** — holds 0.0%
-- **Life Insurance Corporation Of India** — holds 0.0%
+- **Life Insurance Corporation of India (LIC)** — holds 0.0%
 - **Parag Parikh Flexi Cap Fund** — holds 0.0%
 
 <!-- END auto peers -->

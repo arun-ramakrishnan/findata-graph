@@ -18,6 +18,7 @@ from pathlib import Path
 import pytest
 
 
+from helpers.core.duckdb_shared import WireConnection  # noqa: E402
 from helpers.graph.fixture_note_embeddings import near_dup_con  # noqa: E402
 from helpers.maintenance.rebuild_note_search import NOTE_SEARCH_DDL  # noqa: E402
 from helpers.graph.query import (  # noqa: E402
@@ -335,6 +336,19 @@ class TestNotesLikeText:
         assert all(s <= 1e-6 for _p, _t, s in leaked)
         res = notes_like_text(con, "x", k=1, embed_fn=lambda _t: _VEC_HDFC)
         assert res is not None and len(res) == 1
+
+    def test_wire_connection_mode(self, note_con):
+        # Regression: the production read path wraps graph.duckdb in a
+        # WireConnection (resident quack server) that inlines bound
+        # parameters via sql_lit — a list parameter has no literal
+        # rendering there and raised TypeError. The query vector must
+        # ride in the SQL as a numeric _vec_literal, on both surfaces.
+        con, _ = note_con
+        wire = WireConnection(con)
+        res = notes_like_text(wire, "HDFC Bank", embed_fn=lambda _t: _VEC_HDFC)
+        assert res is not None
+        res = [r for r in res if r[2] > 1e-6]
+        assert res[0][0] == "findata/Companies/Banking/Hdfc_Bank.md"
 
     def test_dims_mismatch_returns_none(self, note_con):
         con, _ = note_con

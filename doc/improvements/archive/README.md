@@ -986,6 +986,7 @@ commit, referenced by nothing). Entry numbers point at
 ## maintenance/ — Maintenance, backfills, and operational tooling
 
 - [`relations_fk_stale_cache_guard.md`](maintenance/relations_fk_stale_cache_guard.md) — relations-enrich endpoint FK guard and stale-cache age protection (14-day warning, 45-day apply refusal without refresh); completed.md #477
+- [`ifub_frontier_bfs_and_store_census_closeout.md`](maintenance/ifub_frontier_bfs_and_store_census_closeout.md) — iFUB vectorized frontier BFS close-out (1.5-2.6× faster, parity-pinned) + 2026-11-08 production store census (`_FILING_MB` actually refreshed this time; convo_search 3,170 MiB live; first production `--swap` via the S2 tripwire, ~1.88 GiB reclaimed; owner dispositions + 163.7 MiB per-run transient); completed.md #491
 
 ## ui/ — Frontend & templates — reader, paper register, findata views
 

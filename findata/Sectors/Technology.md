@@ -107,7 +107,7 @@ The Technology sector in India encompasses software development, IT services, ha
 
 ## All Companies (auto)
 
-<!-- Auto-generated from the SQLite source of truth. 89 company note(s) in Technology. Do not edit by hand — re-run `python3 helpers/maintenance/sync_sector_wikilinks.py` to refresh. Curated highlights live in the editorial sections above. -->
+<!-- Auto-generated from the SQLite source of truth. 90 company note(s) in Technology. Do not edit by hand — re-run `python3 helpers/maintenance/sync_sector_wikilinks.py` to refresh. Curated highlights live in the editorial sections above. -->
 
 - [[Accelya_Holding_World|Accelya Holding World]]
 - [[Accenture|Accenture plc]]
@@ -166,6 +166,7 @@ The Technology sector in India encompasses software development, IT services, ha
 - [[Nucleus_Software_Exports|Nucleus Software Exports]]
 - [[Olectra_Greentech|Olectra Greentech]]
 - [[Onward_Technologies|Onward Technologies]]
+- [[OpenAI_India|OpenAI India]]
 - [[Oracle_Corporation|Oracle Corporation]]
 - [[Oracle_Financial_Services_Software|Oracle Financial Services Software]]
 - [[Oracle_Global_Mauritius|Oracle Global Mauritius]]

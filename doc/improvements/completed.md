@@ -14086,3 +14086,33 @@ to doc/improvements/archive/database/duckdb_pure_stack.md.
   sqlite helper == DuckDB cache exactly); integrity 100%, FK 0;
   graph-rebuild + stamp-centrality; backup
   `db-backup/research_backup_pre_s5_2026-11-07.db`.
+## 491. iFUB frontier BFS close-out + production store census refresh
+
+- **Date:** 2026-11-08 · **Status:** EXECUTED · **Proposal:** doc/improvements/archive/maintenance/ifub_frontier_bfs_and_store_census_closeout.md
+- S1 (verification): vectorized frontier BFS in `helpers/graph/stats.py:160`
+  adopted on measured parity — 1.52×/1.93×/2.60× faster at n=2k/6k/12k with
+  identical diameters (13/14/16); scipy parity pin green (48 random connected
+  cases + path components); `--no-backup-sidecars` integration-chain path
+  verified (9 passed) with the production `backup_sidecars=True` default
+  untouched.
+- S2 (census): `_FILING_MB` in `helpers/maintenance/store_sweep.py:272-285`
+  refreshed to 2026-11-08 live MiB values — the 2026-10-27 baseline refresh
+  had never reached the code. Live `memory/convo_search.duckdb` measured
+  3,323,998,208 B (3,170.01 MiB), superseding the 2,491.8 MiB estimate; full
+  15-store census table in the proposal appendix. First production `--swap`
+  via the new S2 tripwire compacted convo_search to 1.30 GB (~1.88 GiB
+  reclaimed, 1596 s); re-run's incremental pass re-bloomed to 1,879.8 MiB
+  (dead 706 MB / 35.7%), matching the known ~650-700 MB/pass re-bloat law.
+- Owner dispositions: `memory/git_search.db` (rebuild_git_search) and
+  `memory/note_vectors.duckdb` (vec_search/rebuild_note_search) reported
+  owned-elsewhere, unregistered; `memory/research.duckdb` (stale derived)
+  and `memory/findata-graph.db` (empty, later operator-removed) stay
+  visible warnings — adopt or delete nothing (operator ruling 2026-11-08).
+  Per-run transient re-measured: 163.7 MiB under writable /mnt/data/tmp
+  basetemp (supersedes the 2026-10-19 7 MB figure). Backup inventory
+  measured (21 files / 4.23 GB), nothing pruned — operator-owned.
+- S3 (stale records): pending.md C901 entry corrected (all four ruling
+  masks executed, query.py mask-free, repo-wide C901 scan clean) and the
+  2026-11-08 census reconciliation appended; size-watch trigger re-armed
+  against the new baseline. No C901 refactor needed; the S2 owner-report
+  loop lives in `_report_store_dispositions` (main stayed ≤10).

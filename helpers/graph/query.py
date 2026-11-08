@@ -4579,13 +4579,17 @@ def notes_like_text(
     if not vec or len(vec) != dim:
         return None
     k = max(0, int(k))
+    # The query vector is inlined as a numeric literal (_vec_literal),
+    # never a bound parameter: a list parameter has no sql_lit rendering,
+    # so the wire-mode connection (graph.duckdb served by a resident
+    # quack server) raises TypeError before the SQL is even sent.
     r = con.execute(
         f"""
         SELECT file_path, title, 1 - dist * dist / 2 AS sim FROM (
           SELECT file_path, title,
                  MIN(array_distance(
                      CAST(emb AS FLOAT[{dim}]),
-                     CAST(? AS FLOAT[{dim}]))) AS dist
+                     {_vec_literal(vec, dim)})) AS dist
           FROM v_note_embeddings
           WHERE doc_type = ?
           GROUP BY file_path, title
@@ -4593,8 +4597,8 @@ def notes_like_text(
         WHERE sim IS NOT NULL AND sim > ?
         ORDER BY dist, file_path
         LIMIT {int(k)}
-        """,  # noqa: S608  # ?-bound (adjudicated cluster, S13)
-        [vec, doc_type, float(min_sim)],
+        """,  # noqa: S608  # vec is a repr()-formatted float literal; text never touches SQL
+        [doc_type, float(min_sim)],
     ).fetchall()
     return [(row[0], row[1], row[2]) for row in r]
 

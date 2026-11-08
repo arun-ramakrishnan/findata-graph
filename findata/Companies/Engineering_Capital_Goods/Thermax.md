@@ -20,7 +20,7 @@ created: '2026-02-16'
 last_modified: '2026-02-16'
 generated:
   by: derive_insights.py/v1
-  at: '2026-10-28T18:40:22Z'
+  at: '2026-11-08T05:25:07Z'
 stale_after: '2027-02-11'
 sources:
 - id: Bajaj_Mahindra_Persistent
@@ -88,7 +88,7 @@ _Source: yfinance | Refreshed: 2026-10-16_
 - [[3M Company]] — industry peer
 - [[Cyient]] — industry peer
 - [[Jain Irrigation Systems]] — industry peer
-- [[EMS]] — semantic 0.74
+- **(B)=(B)(1)+(B)(2)+(B)(3)+(B)(4)** — holds 0.0%
 
 <!-- END auto peers -->
 <!-- BEGIN auto chatter block (derive_insights.py) -->
