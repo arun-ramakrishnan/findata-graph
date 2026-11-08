@@ -245,6 +245,66 @@ class TestBackfill:
         assert sum(e for e, _ in stats2.values()) == 0
         assert sum(i for _, i in stats2.values()) == 0
 
+    def test_star_threshold_k3(self, conn):
+        # S0 threshold (star_hyperedge_consumer_wiring, 2026-11-08):
+        # subsidiary/supply regroup at k≥3 — sub-threshold portfolios drop,
+        # threshold-free families (index-equivalent singletons) are
+        # unaffected. Seed: parent P1 with 3 subsidiaries (kept), P2 with 2
+        # (dropped); buyer B1 with 3 suppliers (kept), B2 with 1 (dropped).
+        conn.executemany(
+            "INSERT INTO entities (name, entity_type) VALUES (?, 'company')",
+            [("P1",), ("P2",), ("B1",), ("B2",)]
+            + [(f"S{i}",) for i in range(1, 6)]
+            + [(f"V{i}",) for i in range(1, 5)],
+        )
+        conn.executemany(
+            "INSERT INTO graph_edges (source, target, edge_type, properties, source_ref) "
+            "VALUES (?, ?, ?, '{}', 'test')",
+            [
+                ("S1", "P1", "subsidiary_of"),
+                ("S2", "P1", "subsidiary_of"),
+                ("S3", "P1", "subsidiary_of"),
+                ("S4", "P2", "subsidiary_of"),
+                ("S5", "P2", "subsidiary_of"),
+                ("V1", "B1", "supplier_to"),
+                ("V2", "B1", "supplier_to"),
+                ("V3", "B1", "supplier_to"),
+                ("V4", "B2", "supplier_to"),
+            ],
+        )
+        hyper, _w = dh.collect_hyperedges(conn)
+        assert hyper["subsidiary"] == {"P1": {"S1", "S2", "S3"}}
+        assert "P2" not in hyper["subsidiary"]
+        assert hyper["supply"] == {"B1": {"V1", "V2", "V3"}}
+        assert "B2" not in hyper["supply"]
+        # threshold-free families keep singletons (theme/country above).
+
+    def test_families_selector_filters_and_validates(self, conn):
+        # S2 --families: narrows the collect output to the selection;
+        # unknown names fail loudly (never a silent empty write set).
+        conn.executemany(
+            "INSERT INTO entities (name, entity_type) VALUES (?, 'company')",
+            [("P1",)] + [(f"S{i}",) for i in range(1, 4)],
+        )
+        conn.executemany(
+            "INSERT INTO graph_edges (source, target, edge_type, properties, source_ref) "
+            "VALUES (?, ?, ?, '{}', 'test')",
+            [
+                ("S1", "P1", "subsidiary_of"),
+                ("S2", "P1", "subsidiary_of"),
+                ("S3", "P1", "subsidiary_of"),
+            ],
+        )
+        hyper, _w = dh.collect_hyperedges(conn)
+        selected = {"index", "subsidiary", "supply"}
+        narrowed = {k: v for k, v in hyper.items() if k in selected}
+        assert "subsidiary" in narrowed and narrowed["subsidiary"] == {"P1": {"S1", "S2", "S3"}}
+        # everything outside the selection drops, incl. the non-star families
+        assert "theme" not in narrowed and "country" not in narrowed
+        assert set(narrowed) <= selected
+        unknown = {"nosuchfamily"} - set(hyper)
+        assert unknown == {"nosuchfamily"}  # _cli errors on this class
+
     def test_source_ref_records_upstream(self, conn):
         hyper, weights = dh.collect_hyperedges(conn)
         dh.apply_hyperedges(hyper, weights, conn=conn, dry_run=False)

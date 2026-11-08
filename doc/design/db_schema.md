@@ -351,19 +351,23 @@ Set-valued facts as first-class rows (hypergraph_incidence_hyx proposal,
 2026-09-13; source memo `doc/local/evaluations/hyper_graph_assessment.md`).
 A category IS a hyperedge here (its members via `hyper_incidences`) instead
 of a materialised star of dyads — star expansion is storage truth, the
-`graph_edges` clique projections stay derive-time views. Live (2026-10-19,
-after the sector-retirement projection, S8/S11/S17/S21 and the
-`org_membership` family): 1,827 hyperedges / 10,266 incidences over 10
-types (`event` 1,252, `edition` 222, `industry` 119, `sub_sector` 110,
-`sector` 42 — CANONICAL for membership since the part_of/has_company
-retirement, `org_membership` 34 — person_ontology_spine S3,
-`country` 21, `theme` 12, `group` 9, `jv` 6). The FAMILY UNIVERSE is
+`graph_edges` clique projections stay derive-time views. Live (2026-11-08,
+after the star_hyperedge_consumer_wiring S0 threshold reconciliation —
+`subsidiary`/`supply` re-derived at k≥3 via delete-then-insert, event and
+group converged): 3,447 hyperedges / 43,869 incidences over 15 types
+(`event` 1,167, `supply` 683, `group` 506, `subsidiary` 386, `edition`
+298, `industry` 120, `sub_sector` 110, `sector` 42 — CANONICAL for
+membership since
+the part_of/has_company retirement, `index` 57, `org_membership` 34 —
+person_ontology_spine S3, `country` 21, `theme` 12, `jv` 6,
+`merger` 3, `demerger` 2). Star shapes: `index` 57 portfolios (min 10 /
+max 752 members; 753 companies in ≥2 indexes), `subsidiary` 386 parents
+(min 3 / max 228), `supply` 683 buyers (min 3 / max 222; labels are
+dyad `target` = buyer). The FAMILY UNIVERSE is
 code-enforced, not schema-enforced: `hyper_edges.edge_type` carries no
 CHECK, so a family exists because it is registered in
-`helpers/graph/hyperedge_types.py` — 12 families (the 10 live above plus
-`merger` and `demerger`, which materialise only from accepted triage
-decisions via `make derive-merger-hyperedges`; see
-`doc/improvements/archive/graph/merger_demerger_hyperedges.md`). The roster is
+`helpers/graph/hyperedge_types.py` — 15 families (all live above).
+The roster is
 gated in `doc/design/ontology.md` §2.5 and the integrity gate fails on an
 unknown family or a bad `role`.
 D7 (2026-09-15): an authored `subsector:` note field is CANONICAL per

@@ -65,7 +65,7 @@ _DEEP_MAX_DEPTH = 3
 _DEEP_TOP = 8
 _SUPPLY_MIN_SHARED = 2
 _SUPPLY_TOP = 8
-_HYPER_FAMILIES = ("group", "edition", "jv")
+_HYPER_FAMILIES = ("group", "edition", "jv", "index", "subsidiary", "supply")
 
 # (table, subject_col, object_col, label, priority). Priority asc = keep
 # first; co-mention is the firehose so it trims first. okf_activation P:
@@ -467,7 +467,8 @@ def _two_step_supply(con: duckdb.DuckDBPyConnection, seed_id: int) -> tuple[list
 
 
 def _groups_editions(con: duckdb.DuckDBPyConnection, seed_name: str) -> list[str]:
-    """Shared-context hyperedges (group / edition / jv families) holding
+    """Shared-context hyperedges (group / edition / jv plus the S1
+    index / subsidiary / supply standing-structure families) holding
     the seed. Absent h_* tables (pre-D4 cache) answer []."""
     fams = ", ".join(f"'{f}'" for f in _HYPER_FAMILIES)
     try:

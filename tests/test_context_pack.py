@@ -329,6 +329,60 @@ class TestDeepRelations:
         assert "- group (1): Aerospace Group" in pack
         assert "- edition (1): Q1 Roundup" in pack
 
+    def test_star_families_render_in_hyper_lane(self, con, r3db):
+        # star_hyperedge_consumer_wiring S1 (2026-11-08): the standing
+        # structure families join _HYPER_FAMILIES — index membership,
+        # parent portfolios, buyer portfolios render beside group/edition.
+        con.execute(
+            "CREATE TABLE h_edge(id BIGINT, edge_type VARCHAR, label VARCHAR, "
+            "weight DOUBLE, valid_from DATE, valid_to DATE, source_ref VARCHAR)"
+        )
+        con.execute(
+            "CREATE TABLE h_incidence(edge_id BIGINT, entity_name VARCHAR, "
+            "weight DOUBLE, direction VARCHAR, role VARCHAR, "
+            "valid_from DATE, valid_to DATE)"
+        )
+        for eid, fam, label in [
+            (1, "index", "NIFTY 50"),
+            (2, "subsidiary", "Vedanta"),
+            (3, "supply", "Big Buyer"),
+        ]:
+            con.execute(
+                "INSERT INTO h_edge VALUES (?, ?, ?, 1.0, NULL, NULL, NULL)",
+                [eid, fam, label],
+            )
+            con.execute(
+                "INSERT INTO h_incidence VALUES (?, 'Acme', 1.0, NULL, NULL, NULL, NULL)",
+                [eid],
+            )
+        pack = CP.build_context_pack(con, "Acme", budget=50, research_db=r3db)
+        assert "### Groups & editions" in pack
+        assert "- index (1): NIFTY 50" in pack
+        assert "- subsidiary (1): Vedanta" in pack
+        assert "- supply (1): Big Buyer" in pack
+
+    def test_empty_star_families_graceful(self, con, r3db):
+        # Seed with no star-family memberships: the lane renders only the
+        # families with hits; no index/subsidiary/supply lines, no error.
+        con.execute(
+            "CREATE TABLE h_edge(id BIGINT, edge_type VARCHAR, label VARCHAR, "
+            "weight DOUBLE, valid_from DATE, valid_to DATE, source_ref VARCHAR)"
+        )
+        con.execute(
+            "CREATE TABLE h_incidence(edge_id BIGINT, entity_name VARCHAR, "
+            "weight DOUBLE, direction VARCHAR, role VARCHAR, "
+            "valid_from DATE, valid_to DATE)"
+        )
+        con.execute(
+            "INSERT INTO h_edge VALUES (1, 'group', 'Aerospace Group', 1.0, NULL, NULL, NULL)"
+        )
+        con.execute("INSERT INTO h_incidence VALUES (1, 'Acme', 1.0, NULL, NULL, NULL, NULL)")
+        pack = CP.build_context_pack(con, "Acme", budget=50, research_db=r3db)
+        assert "- group (1): Aerospace Group" in pack
+        assert "- index (" not in pack
+        assert "- subsidiary (" not in pack
+        assert "- supply (" not in pack
+
     def test_absent_research_db_omits_section(self, con):
         pack = CP.build_context_pack(con, "Acme", budget=50)
         assert "## Deep relations" not in pack

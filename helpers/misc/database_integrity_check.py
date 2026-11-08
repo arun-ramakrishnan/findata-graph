@@ -550,6 +550,35 @@ class DatabaseIntegrityChecker:
                 else:
                     sidecar_orphaned += 1
 
+        # Cross-period supplier_to mutuals (star_hyperedge_consumer_wiring
+        # S0-hygiene, 2026-11-08): a same-source_ref pair stored in BOTH
+        # orientations is legitimate ONLY as same-period two-way emission
+        # (related_party_sync symmetric-emission S2). A mutual whose two
+        # rows carry DISJOINT period_end values is the artifact class
+        # prune_symmetric_artifacts collapses. REPORT-ONLY, not in errors:
+        # the prune skips mutuals whose filer symbol no longer resolves
+        # (294 at the 2026-11-08 run — resolver-lane material), so a
+        # nonzero count here measures cleanup headroom, not a gate
+        # failure. Mutuals with a missing period on either side are
+        # un-decidable (conservative keep) and not counted.
+        xperiod_mutual = 0
+        if cur.execute(
+            "SELECT 1 FROM sqlite_master WHERE name='graph_edges' AND type='table'"
+        ).fetchone():
+            xperiod_mutual = one(
+                """
+                SELECT COUNT(*) FROM graph_edges e1
+                JOIN graph_edges e2
+                  ON e1.source = e2.target AND e1.target = e2.source
+                 AND e1.edge_type = e2.edge_type AND e1.source_ref = e2.source_ref
+                WHERE e1.edge_type = 'supplier_to' AND e1.source < e2.source
+                  AND json_extract(e1.properties, '$.period_end') IS NOT NULL
+                  AND json_extract(e2.properties, '$.period_end') IS NOT NULL
+                  AND json_extract(e1.properties, '$.period_end')
+                      != json_extract(e2.properties, '$.period_end')
+                """
+            )
+
         errors = (
             unknown_type
             + self_loops
@@ -575,6 +604,7 @@ class DatabaseIntegrityChecker:
             "circular_two_way_exempt": two_way_exempt,
             "sidecar_temporal_missing": sidecar_missing,
             "sidecar_temporal_orphaned": sidecar_orphaned,
+            "xperiod_mutual": xperiod_mutual,
             "errors": errors,
         }
 

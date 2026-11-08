@@ -98,32 +98,40 @@ COMPANIES_DIR = _REPO_ROOT / "findata" / "Companies"
 #                     dyads; the category is the hyperedge).
 #   mode "symmetric"— label = a JSON property key of the dyad, members = BOTH
 #                     endpoints (peer dyads: same_group, co_mentioned_in).
-_STAR_SOURCES: list[tuple[str, str]] = [
+_STAR_SOURCES: list[tuple[str, str, int | None]] = [
+    # (family, dyad edge type, min portfolio size k). k=None = threshold-free
+    # (every label becomes a hyperedge); k>=2 drops sub-threshold portfolios
+    # in the regroup (star_hyperedge_consumer_wiring S0, 2026-11-08 — the
+    # k>=3 shapes the hgx arc recorded were never applied before this).
     # part_of/has_company retirement (2026-10-19): the sector family is
     # CANONICAL here (the dyad pair that used to feed it is retired), so
     # sector is derived from nothing and skipped by the regroup pass —
     # deleting it from this list is what makes the store the source of
     # truth rather than a copy of one.
-    ("theme", "exposed_to"),
-    ("country", "listed_in"),
+    ("theme", "exposed_to", None),
+    ("country", "listed_in", None),
     # hgx_over_dyads S2 (2026-10-30): index membership joins the star lane —
     # 6,615 dyads → 57 hyperedges (116× compression), genuinely
     # one-directional (company → index) so the symmetric regroup was
-    # rejected. The dyad type stays excluded from the DYADIC centrality
-    # projection (EDGE_TYPES_EXCLUDED_FROM_CENTRALITY, hub-noise ruling);
-    # the hyperedge family is a separate lane whose s-walk centrality
+    # rejected. Threshold-free: each of the 57 indexes is genuine standing
+    # structure (753 members sit in ≥2 of them). The dyad type stays
+    # excluded from the DYADIC centrality projection
+    # (EDGE_TYPES_EXCLUDED_FROM_CENTRALITY, hub-noise ruling); the
+    # hyperedge family is a separate lane whose s-walk centrality
     # measured healthy (hgx_over_dyads §2.5).
-    ("index", "listed_on_index"),
+    ("index", "listed_on_index", None),
     # hgx_over_dyads S4 (2026-10-31): tree/portfolio families join the star
-    # lane — subsidiary_of 7,419 dyads → 382 parent portfolios at k≥3 (max
-    # 227 members, 19× compression); supplier_to 16,696 dyads → 620 buyer
-    # portfolios at k≥3 (max 222, 27×). Both star-shaped by construction
-    # (one parent → many children; one buyer → many suppliers). Deferred
-    # from the S2/S3 wave for lack of a consumer; registered + applied as
-    # standing structure — OPT-IN for centrality lanes (index doctrine:
-    # run --sources deliberately; not added to recompute-hyper).
-    ("subsidiary", "subsidiary_of"),
-    ("supply", "supplier_to"),
+    # lane at k≥3 — one parent → many children; one buyer → many
+    # suppliers. The threshold is what keeps context-pack facts signal-
+    # dense (sub-threshold portfolios duplicate the dyadic facts
+    # context_pack already renders) and keeps the centrality lanes free
+    # of the hub noise the hgx thresholds were designed to exclude.
+    # Deferred from the S2/S3 wave for lack of a consumer; registered +
+    # applied as standing structure — OPT-IN for centrality lanes (index
+    # doctrine: run --families deliberately; wired into recompute-hyper by
+    # star_hyperedge_consumer_wiring S2).
+    ("subsidiary", "subsidiary_of", 3),
+    ("supply", "supplier_to", 3),
 ]
 _SYMMETRIC_SOURCES: list[tuple[str, str, str]] = [
     ("group", "same_group", "$.group"),
@@ -1225,13 +1233,19 @@ def collect_hyperedges(  # noqa: C901
     """
     out: dict[str, dict[str, set[str]]] = {}
 
-    for hyper_type, dyad_type in _STAR_SOURCES:
+    for hyper_type, dyad_type, min_k in _STAR_SOURCES:
         groups: dict[str, set[str]] = {}
         for member, label in conn.execute(
             "SELECT source, target FROM graph_edges WHERE edge_type = ?",  # noqa: S608
             (dyad_type,),
         ):
             groups.setdefault(label, set()).add(member)
+        if min_k is not None:
+            # S0 threshold (star_hyperedge_consumer_wiring): drop
+            # sub-threshold portfolios — they duplicate the dyadic facts
+            # consumers already render and would re-import hub noise into
+            # the centrality lanes.
+            groups = {label: m for label, m in groups.items() if len(m) >= min_k}
         out[hyper_type] = groups
 
     for hyper_type, dyad_type, prop in _SYMMETRIC_SOURCES:
@@ -1573,7 +1587,7 @@ def _upstream_types(hyper_type: str) -> list[str]:
         # S5: the dyad capture path is retired — the newsletter lane stages
         # per-edition sets into co_mention_editions, collected below.
         return ["newsletter_co_mention", "quotes"]  # union of both capture paths
-    for ht, t in _STAR_SOURCES + [(ht, t) for ht, t, _ in _SYMMETRIC_SOURCES]:
+    for ht, t, _k in _STAR_SOURCES + [(ht, t, None) for ht, t, _ in _SYMMETRIC_SOURCES]:
         if ht == hyper_type:
             return [t]
     return [hyper_type]
@@ -1598,6 +1612,14 @@ def _cli(argv: list[str] | None = None) -> int:  # noqa: C901  # arg-dispatch CL
         action="store_true",
         help="S4: write/converge participant roles + event facets on incidences "
         "(reconciliation report prints before any apply)",
+    )
+    p.add_argument(
+        "--families",
+        default=None,
+        help="Comma-separated family subset to (re)derive, e.g. "
+        "'index,subsidiary,supply' (star_hyperedge_consumer_wiring S2). "
+        "Default: all families. Threshold families in the selection are "
+        "delete-then-insert on --apply (fully derived, no authored rows).",
     )
     args = p.parse_args(argv)
 
@@ -1696,6 +1718,17 @@ def _cli(argv: list[str] | None = None) -> int:  # noqa: C901  # arg-dispatch CL
             if args.apply and (unmapped or unmapped_authored):
                 wl = _write_subsector_worklist(unmapped, unmapped_authored)
                 print(f"worklist: {wl.relative_to(_REPO_ROOT)}")
+        # S2 family selector (star_hyperedge_consumer_wiring): narrow the
+        # write set AFTER all cross-family derivations (sub_sector reads
+        # industry/group inputs) so a filtered run never starves them.
+        if args.families:
+            selected = {f.strip() for f in args.families.split(",") if f.strip()}
+            unknown = selected - set(hyper)
+            if unknown:
+                p.error(
+                    f"--families: unknown family name(s) {sorted(unknown)}; known: {sorted(hyper)}"
+                )
+            hyper = {k: v for k, v in hyper.items() if k in selected}
         n_types = sum(len(g) for g in hyper.values())
         n_members = sum(len(m) for g in hyper.values() for m in g.values())
         print(
@@ -1707,11 +1740,47 @@ def _cli(argv: list[str] | None = None) -> int:  # noqa: C901  # arg-dispatch CL
                 for label, members in sorted(groups.items()):
                     print(f"{hyper_type}\t{label}\t{len(members)} members")
 
+        # S0 threshold convergence (star_hyperedge_consumer_wiring): the
+        # threshold families are fully derived (no authored content), but
+        # apply_hyperedges is INSERT OR IGNORE additive-only — without a
+        # delete-then-insert pass, sub-threshold rows from earlier runs
+        # linger forever. Delete the selected threshold families' derived
+        # rows before the apply re-inserts only the k≥3 portfolios.
+        if args.apply:
+            selected = (
+                {f.strip() for f in args.families.split(",") if f.strip()}
+                if args.families
+                else None  # None = all families (default full run)
+            )
+            for ht, _t, k in _STAR_SOURCES:
+                if k is None or (selected is not None and ht not in selected):
+                    continue
+                edges = conn.execute(
+                    "SELECT id FROM hyper_edges WHERE edge_type = ? "
+                    "AND source_ref LIKE 'derive:hyperedges:%'",
+                    (ht,),
+                ).fetchall()
+                with conn:
+                    for (eid,) in edges:
+                        conn.execute("DELETE FROM hyper_incidences WHERE edge_id = ?", (eid,))
+                        conn.execute("DELETE FROM hyper_edges WHERE id = ?", (eid,))
+                print(f"S0 prune: dropped {len(edges)} derived '{ht}' hyperedges (pre-threshold)")
+
         stats = apply_hyperedges(hyper, weights, conn=conn, dry_run=not args.apply, facets=facets)
         # S1 density verdict: the event family converges to the collect
         # output (stale labels + sub-threshold singletons drop).
+        # --families guard (star_hyperedge_consumer_wiring S2): a filtered
+        # run's hyper dict lacks the unselected families — pruning against
+        # an empty wanted-set would nuke every stored row of a family the
+        # run never re-derived. Skip convergence for unselected families.
+        selected_families = (
+            {f.strip() for f in args.families.split(",") if f.strip()} if args.families else None
+        )
+        family_selected = lambda fam: (  # noqa: E731  # trivial guard closure
+            selected_families is None or fam in selected_families
+        )
         wanted_events = set(hyper.get("event", {}))
-        if (
+        if family_selected("event") and (
             wanted_events
             or conn.execute(
                 "SELECT 1 FROM hyper_edges WHERE edge_type = 'event' LIMIT 1"
@@ -1729,7 +1798,7 @@ def _cli(argv: list[str] | None = None) -> int:  # noqa: C901  # arg-dispatch CL
         # collector no longer produces must drop (apply is otherwise
         # ADD/UPDATE-only for this family).
         wanted_groups = set(hyper.get("group", {}))
-        if (
+        if family_selected("group") and (
             wanted_groups
             or conn.execute(
                 "SELECT 1 FROM hyper_edges WHERE edge_type = 'group' LIMIT 1"

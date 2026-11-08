@@ -391,6 +391,25 @@ TIER1_STEPS: list[tuple[str, list[str]]] = [
         "snapshot (refresh versioned snapshots)",
         [sys.executable, "helpers/maintenance/snapshot_db.py"],
     ),
+    # rederive-hyper (star_hyperedge_consumer_wiring S2, 2026-11-08):
+    # re-derive the standing hyperedge families BEFORE graph-rebuild so the
+    # cache's h_edge mirror picks the fresh shapes up in the SAME maint run
+    # (placing it after graph-rebuild would leave the cache one maint of
+    # lag). After snapshot, so the SQLite backup is not split by a
+    # mid-sequence write. The three families are fully derived — the
+    # threshold families ride delete-then-insert, so the step is idempotent.
+    # Named rederive-* to stay clear of `make recompute-hyper` (the HGX
+    # metrics lane over the DEFAULT families — a different operation).
+    (
+        "rederive-hyper (re-derive standing hyperedge families)",
+        [
+            sys.executable,
+            "helpers/graph/derive_hyperedges.py",
+            "--apply",
+            "--families",
+            "index,subsidiary,supply",
+        ],
+    ),
     (
         "graph-rebuild (refresh DuckDB cache)",
         [sys.executable, "helpers/graph/query.py", "rebuild"],
