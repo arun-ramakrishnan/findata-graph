@@ -535,6 +535,67 @@ class TestReport:
         assert not maint.REPORT_PATH.exists()
 
 
+class TestRetention:
+    """gate_output_fidelity S4: a maint run now retains one FULL log per step
+    under .artifacts/maint/<run-id>/ and names that dir in the report, so
+    `gate_query output --gate maint --leg L` can reach the whole output rather
+    than the 60-line tail the report keeps for a red step."""
+
+    def _read(self) -> str:
+        return maint.REPORT_PATH.read_text()
+
+    def _fix_run_id(self, monkeypatch, run_id="20260101T000000-000000"):
+        monkeypatch.setattr(maint.gate_retain, "run_id_now", lambda: run_id)
+        return run_id
+
+    def test_report_names_the_artifact_dir_and_exit(self, monkeypatch, tmp_path):
+        run_id = self._fix_run_id(monkeypatch)
+        monkeypatch.setattr(maint.subprocess, "Popen", lambda cmd, *a, **kw: _FakeProc(0))
+        assert maint.main([]) == 0
+        text = self._read().split("# make maint — maint report")[-1]
+        # relative to the OUTPUTS root (the report's dir), which is how
+        # gate_query resolves it — never absolute, never a bare run dir
+        assert f"**Artifacts:** .artifacts/maint/{run_id}" in text
+        assert "**Exit:** 0" in text
+        # the meta must stay inside the first lines gate_query parses
+        assert text.strip().splitlines().index("**Exit:** 0") < 8
+
+    def test_each_step_writes_a_full_log(self, monkeypatch, tmp_path):
+        run_id = self._fix_run_id(monkeypatch, "20260101T000001-000000")
+        log_dir = tmp_path / ".artifacts" / "maint" / run_id
+        long_output = [f"line-{i}\n" for i in range(120)]
+        monkeypatch.setattr(
+            maint.subprocess, "Popen", lambda cmd, *a, **kw: _FakeProc(0, long_output)
+        )
+        assert maint.main([]) == 0
+        logs = sorted(log_dir.glob("maint.*.log"))
+        assert len(logs) == len(maint.TIER1_STEPS)
+        body = logs[0].read_text()
+        # every line, not the deque's 400-line cap and not the 60-line tail
+        assert "line-0" in body and "line-119" in body
+
+    def test_failed_step_log_keeps_the_whole_output(self, monkeypatch, tmp_path):
+        run_id = self._fix_run_id(monkeypatch, "20260101T000002-000000")
+        log_dir = tmp_path / ".artifacts" / "maint" / run_id
+        noisy = [f"noise-{i}\n" for i in range(100)] + ["FATAL: the real cause\n"]
+
+        def fake_popen(cmd, *a, **kw):
+            return _FakeProc(0) if _is_convo_step(cmd) else _FakeProc(2, noisy)
+
+        monkeypatch.setattr(maint.subprocess, "Popen", fake_popen)
+        assert maint.main([]) == 1
+        failed = [p for p in log_dir.glob("maint.*.log") if "noise-0" in p.read_text()]
+        assert len(failed) == 1
+        assert "FATAL: the real cause" in failed[0].read_text()
+        text = self._read().split("# make maint — maint report")[-1]
+        assert "**Exit:** 1" in text
+
+    def test_dry_run_creates_no_artifacts(self, monkeypatch, tmp_path):
+        monkeypatch.setattr(maint.subprocess, "Popen", lambda cmd, *a, **kw: _FakeProc(0))
+        assert maint.main(["--dry-run"]) == 0
+        assert not (tmp_path / ".artifacts").exists()
+
+
 # --------------------------------------------------------------------------- #
 # Convo dead-block tripwire (convo_search_drop_hnsw_numpy_copy_compact S3)     #
 # --------------------------------------------------------------------------- #

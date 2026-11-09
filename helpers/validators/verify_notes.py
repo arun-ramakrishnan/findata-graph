@@ -38,6 +38,12 @@ _REPO_ROOT = Path(__file__).resolve().parents[2]
 if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
+from helpers.misc import gate_retain  # noqa: E402
+
+#: Retained per-bucket logs are bounded like the gate runner's (.artifacts/ is
+#: gitignored); 40 runs is ~2 weeks of daily runs, enough to compare.
+_ARTIFACT_KEEP_RUNS = 40
+
 from helpers.core import jsonio  # noqa: E402  (orjson parse cutover; dumps stay stdlib per db_scaling_tuning §6.3 criteria)
 from helpers.core.countries import COUNTRY_VOCABULARY  # noqa: E402
 from helpers.core.frontmatter import yaml_safe_load  # noqa: E402
@@ -964,48 +970,113 @@ class NotesVerifier:
         return errors, warnings
 
     def generate_report(self, output_file="outputs/verify_notes_report.md"):
+        """Append this run's markdown block, retaining one full log per bucket.
+
+        The block is assembled in memory first because the `**Artifacts:**`
+        line must name the directory the per-bucket logs actually landed in —
+        `gate_query output --gate verify --leg <bucket>` resolves it from
+        there, and verify never rides run_gate_report.
+        """
         errors, warnings = self._totals()
+
+        lines: list[str] = [
+            "# FinData Knowledge Graph — Notes Verification Report",
+            "",
+            f"**Generated:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}  ·  "
+            f"**Started:** {self._started_at.strftime('%Y-%m-%d %H:%M:%S')}  ·  "
+            f"**Elapsed:** {time.monotonic() - self._t0:.1f}s  ·  "
+            f"**Project Root:** `{self.project_root}`  ·  "
+            f"**Artifacts:** {self._retain_section_logs(output_file, errors, warnings)}",
+            f"**Exit:** {1 if errors else 0}",
+            "",
+            "| Metric | Value |",
+            "|---|---|",
+            f"| Total Files Checked | {self.stats['total_files']} |",
+            f"| Errors | {errors} |",
+            f"| Warnings | {warnings} |",
+            "",
+            "## ERRORS (gate-failing)",
+            "",
+        ]
+        for bucket, items in self.issues.items():
+            if items:
+                lines.append(f"### {bucket} ({len(items)})")
+                lines.extend(f"- {i['file']}: {i['description']}" for i in items)
+                lines.append("")
+
+        if any(self.warnings.values()):
+            lines.extend(["## WARNINGS (advisory)", ""])
+            for bucket, items in self.warnings.items():
+                if items:
+                    lines.append(f"### {bucket} ({len(items)})")
+                    lines.extend(f"- {w['file']}: {w['description']}" for w in items)
+                    lines.append("")
+
+        lines.extend(["## Verdict", ""])
+        if errors == 0:
+            lines.append("✅ All notes passed verification (no errors).")
+        else:
+            lines.append(f"⚠️  Found {errors} errors that need attention.")
+        lines.append("")
 
         Path(output_file).parent.mkdir(parents=True, exist_ok=True)
         with open(output_file, "a", encoding="utf-8") as f:
-            f.write("# FinData Knowledge Graph — Notes Verification Report\n\n")
-            f.write(
-                f"**Generated:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}  ·  "
-                f"**Started:** {self._started_at.strftime('%Y-%m-%d %H:%M:%S')}  ·  "
-                f"**Elapsed:** {time.monotonic() - self._t0:.1f}s  ·  "
-                f"**Project Root:** `{self.project_root}`\n\n"
-            )
-            f.write("| Metric | Value |\n|---|---|\n")
-            f.write(f"| Total Files Checked | {self.stats['total_files']} |\n")
-            f.write(f"| Errors | {errors} |\n")
-            f.write(f"| Warnings | {warnings} |\n\n")
-
-            f.write("## ERRORS (gate-failing)\n\n")
-            for bucket, items in self.issues.items():
-                if items:
-                    f.write(f"### {bucket} ({len(items)})\n")
-                    for issue in items:
-                        f.write(f"- {issue['file']}: {issue['description']}\n")
-                    f.write("\n")
-
-            if any(self.warnings.values()):
-                f.write("## WARNINGS (advisory)\n\n")
-                for bucket, items in self.warnings.items():
-                    if items:
-                        f.write(f"### {bucket} ({len(items)})\n")
-                        for w in items:
-                            f.write(f"- {w['file']}: {w['description']}\n")
-                        f.write("\n")
-
-            f.write("## Verdict\n\n")
-            if errors == 0:
-                f.write("✅ All notes passed verification (no errors).\n")
-            else:
-                f.write(f"⚠️  Found {errors} errors that need attention.\n")
-
-            f.write("\n")
+            f.write("\n".join(lines) + "\n")
 
         return errors
+
+    def _retain_section_logs(self, output_file, errors: int, warnings: int) -> str:
+        """Write one log per `### bucket (N)` section + a sidecar; return the
+        `**Artifacts:**` value (relative to the report's dir).
+
+        Bucket labels are what gate_query indexes as legs (`### yaml_structure
+        (1)` -> leg `yaml_structure`), so `output --leg yaml_structure` finds
+        `verify.yaml_structure.log`. Best-effort: a read-only tree must not
+        fail the gate, so any OSError leaves the value empty.
+        """
+        try:
+            out = Path(output_file)
+            root = gate_retain.artifacts_root_for(out)
+            run_id = gate_retain.run_id_now()
+            log_dir = gate_retain.run_dir(root, "verify", run_id)
+            sections: list[str] = [
+                "# FinData Knowledge Graph — Notes Verification Report",
+                f"**Generated:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}",
+                f"**Total files:** {self.stats['total_files']}  ·  **Errors:** {errors}"
+                f"  ·  **Warnings:** {warnings}",
+                "",
+            ]
+            for severity, bucket_map in (("ERROR", self.issues), ("WARNING", self.warnings)):
+                for bucket, items in bucket_map.items():
+                    if not items:
+                        continue
+                    sections.append(f"### {bucket} ({len(items)})")
+                    sections.extend(f"- {i['file']}: {i['description']}" for i in items)
+                    sections.append("")
+            gate_retain.write_section_logs(log_dir, "verify", sections, prefix="### ")
+            gate_retain.write_json_artifact(
+                log_dir / "verify.json",
+                {
+                    "schema": "verify-json.v1",
+                    "total_files": self.stats["total_files"],
+                    "errors": errors,
+                    "warnings": warnings,
+                    "buckets": [
+                        {"name": b, "count": len(items), "severity": "error"}
+                        for b, items in self.issues.items()
+                        if items
+                    ]
+                    + [
+                        {"name": b, "count": len(items), "severity": "warning"}
+                        for b, items in self.warnings.items()
+                        if items
+                    ],
+                },
+            )
+            gate_retain.prune_old_runs(root, "verify", _ARTIFACT_KEEP_RUNS)
+            return gate_retain.artifact_meta_value(out.parent, log_dir)
+        except OSError:
+            return ""
 
     def verify_all(self):
         print("🚀 Starting comprehensive notes verification...")

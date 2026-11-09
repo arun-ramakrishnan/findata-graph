@@ -54,6 +54,7 @@ def _sibling_worktree_roots(base_path: Path) -> list[Path]:
 # helpers.* import to be preceded by a sys.path bootstrap).
 from helpers.validators.static_checks import CANONICAL_EVENT_TYPES  # noqa: E402
 from helpers.core.frontmatter import extract_tags as _note_yaml_tags  # noqa: E402
+from helpers.misc import gate_retain  # noqa: E402
 
 # Edge types whose rows are PROJECTED into the DuckDB cache from the
 # canonical sector hyperedges instead of read from graph_edges
@@ -115,6 +116,14 @@ _KNOWN_EDGE_TYPES: tuple[str, ...] = (
 # bespoke aggregation logic (by_entity_type, validation_rate, etc.) that      #
 # doesn't fit the uniform check_<x>()->dict shape. Everything else is.        #
 # --------------------------------------------------------------------------- #
+# Retained per-check logs are bounded like the gate runner's (.artifacts/ is
+# gitignored); 40 runs is ~2 weeks of daily runs, enough to compare.
+_ARTIFACT_KEEP_RUNS = 40
+# The writers stamp each gate-failing section with "-> errors=N"; reading the
+# counter back out keeps the sidecar and the rendered report from disagreeing.
+_ERRORS_RE = re.compile(r"->\s*errors=(\d+)")
+
+
 @dataclass(frozen=True)
 class Check:
     name: str
@@ -2493,11 +2502,70 @@ class DatabaseIntegrityChecker:
         self.close()  # release the memoized connection
         return results
 
+    @staticmethod
+    def exit_code(results: dict) -> int:
+        """0/1 by the same registry rule `main()` uses — one definition, so
+        the report's `**Exit:**` can never disagree with the process."""
+        if results.get("summary", {}).get("validation_rate", 100) < 95:
+            return 1
+        for chk in _CHECKS:
+            if chk.severity != "error":
+                continue
+            if results.get(chk.name, {}).get("errors", 0):
+                return 1
+        return 0
+
+    def _retain_section_logs(self, out: Path, results: dict, lines: list[str]) -> str | None:
+        """Retain this run's section logs + a `integrity.json` sidecar.
+
+        Called before the meta line is rendered, so the `**Artifacts:**`
+        value it returns is the real directory. Retention is best-effort:
+        a read-only tree must not fail the gate.
+        """
+        try:
+            root = gate_retain.artifacts_root_for(out)
+            run_id = gate_retain.run_id_now()
+            log_dir = gate_retain.run_dir(root, "integrity", run_id)
+            gate_retain.write_section_logs(log_dir, "integrity", [*lines, ""])
+            # Per-section counters are read back OUT of the rendered report,
+            # so the sidecar's names match the index's leg labels ("RELATIONS")
+            # rather than the registry keys ("relations").
+            checks = []
+            for name, body in gate_retain.split_sections([*lines, ""]):
+                head = body[0] if body else ""
+                errors = sum(int(n) for n in _ERRORS_RE.findall("\n".join(body)))
+                checks.append(
+                    {
+                        "name": name,
+                        "severity": "error" if "ERROR" in head.upper() else "warning",
+                        "errors": errors,
+                        "ok": errors == 0,
+                    }
+                )
+            gate_retain.write_json_artifact(
+                log_dir / "integrity.json",
+                {
+                    "schema": "integrity-json.v1",
+                    "timestamp": results.get("timestamp"),
+                    "exit_code": self.exit_code(results),
+                    "checks": checks,
+                },
+            )
+            gate_retain.prune_old_runs(root, "integrity", _ARTIFACT_KEEP_RUNS)
+            return gate_retain.artifact_meta_value(out.parent, log_dir)
+        except OSError:
+            return None
+
     def write_report_file(self, results: dict):  # noqa: C901
         """
         Persist the full report (including every advisory warning) to disk so
         warnings can be reviewed in detail after the run. Mirrors verify_notes'
         report-file approach. Path: <base_path>/outputs/database_integrity_report.md.
+
+        Each run also retains one FULL log per `## CHECK` section under
+        `outputs/.artifacts/integrity/<run-id>/` and stamps that dir in the
+        report meta, so `gate_query output --gate integrity --leg RELATIONS`
+        serves the check's own evidence instead of re-running the checker.
         """
         out = self.base_path / "outputs" / "database_integrity_report.md"
         rel = results["relations"]
@@ -2510,7 +2578,14 @@ class DatabaseIntegrityChecker:
             _meta += (
                 f"  ·  **Ended:** {results['ended']}  ·  **Elapsed:** {results['elapsed_s']:.1f}s"
             )
+        # Two placeholders: the artifacts value can only be filled once the
+        # sections below exist (retention writes one log PER section), and the
+        # exit line must stay in the block's first 8 lines where gate_query
+        # reads it. Both are filled at the end, just before the file write.
+        _meta_idx = len(lines)
         lines.append(_meta)
+        _exit_idx = len(lines)
+        lines.append("")
         lines.append("")
 
         lines.append("## RELATIONS (ERROR-level; gate-failing)")
@@ -2713,6 +2788,13 @@ class DatabaseIntegrityChecker:
         lines.append("## INVALID ENTITIES (file_path issues)")
         for issue in results.get("invalid_entities_list", []):
             lines.append(f"  - {issue['name']} ({issue['entity_type']}): {issue['issue']}")
+
+        # Retention reads the finished sections, so it runs here — then the
+        # placeholders written at the top get the real values.
+        _artifacts = self._retain_section_logs(out, results, lines)
+        if _artifacts:
+            lines[_meta_idx] = f"{_meta}  ·  **Artifacts:** {_artifacts}"
+        lines[_exit_idx] = f"**Exit:** {self.exit_code(results)}"
 
         out.parent.mkdir(parents=True, exist_ok=True)
         with open(out, "a", encoding="utf-8") as f:
@@ -3009,14 +3091,7 @@ def main(argv: list[str] | None = None):
         # gate. WARNING-severity checks never fail it. The file_path
         # coverage target (< 95%) is a separate structural gate that
         # predates the registry and stays explicit.
-        if results["summary"]["validation_rate"] < 95:
-            return 1  # Entity file_path coverage below target
-        for chk in _CHECKS:
-            if chk.severity != "error":
-                continue
-            if results.get(chk.name, {}).get("errors", 0):
-                return 1  # a registered ERROR check found regressions
-        return 0  # Success
+        return checker.exit_code(results)
 
     except Exception as e:
         print(f"❌ Error during integrity check: {e}")

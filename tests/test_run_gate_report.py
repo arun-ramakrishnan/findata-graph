@@ -6,6 +6,7 @@ Exercises the runner mechanics against fake steps only — the real gates
 
 from __future__ import annotations
 
+import os
 import sys
 from datetime import datetime
 
@@ -25,6 +26,41 @@ def test_run_step_streams_and_captures(capsys):
 
     bad = rgr.Step("echo-fail", (sys.executable, "-c", "import sys; sys.exit(3)"))
     assert rgr.run_step(bad).rc == 3
+
+
+def test_run_step_streams_full_output_to_log(tmp_path, monkeypatch, capsys):
+    # gate_output_fidelity S3: the in-memory capture is capped (_CAPTURE_LINES)
+    # but the log beside the junit keeps every line, which is what a failure
+    # investigation needs.
+    live = tmp_path / ".junit"
+    live.mkdir()
+    monkeypatch.setattr(rgr, "_JUNIT_DIR", live)
+    monkeypatch.setattr(rgr, "_CURRENT_GATE", "qa")
+    script = "import sys; [print(f'line-{i}') for i in range(500)]"
+    step = rgr.Step("chatty", (sys.executable, "-c", script))
+
+    result = rgr.run_step(step)
+
+    assert result.rc == 0
+    assert len(result.tail) == rgr._CAPTURE_LINES  # in-memory cap still applies
+    log = rgr.step_log_path("qa", "chatty")
+    assert log == live / "qa.chatty.log"
+    lines = log.read_text().splitlines()
+    assert lines[0].startswith("--- chatty: ")  # header echoes the command
+    assert "line-0" in lines and "line-499" in lines  # nothing truncated
+    assert "line-499" in capsys.readouterr().out  # still streamed live
+
+
+def test_run_step_without_gate_skips_log(tmp_path, monkeypatch):
+    # run_step is also called directly (tests, ad-hoc); without a published
+    # gate name it must not invent a log path.
+    live = tmp_path / ".junit"
+    live.mkdir()
+    monkeypatch.setattr(rgr, "_JUNIT_DIR", live)
+    monkeypatch.setattr(rgr, "_CURRENT_GATE", None)
+    step = rgr.Step("plain", (sys.executable, "-c", "print('hi')"))
+    assert rgr.run_step(step).rc == 0
+    assert list(live.iterdir()) == []
 
 
 def test_sequential_gate_runs_each_step(monkeypatch):
@@ -121,6 +157,7 @@ def test_retain_test_artifacts_copies_current_run_files(tmp_path, monkeypatch):
     )
     for name in native_names:
         (live / f"qa.{name}").write_text("{}")
+    (live / "qa.pytest.log").write_text("fullline\n")
     relative = rgr.retain_test_artifacts("qa", "run-1", datetime.now())
     retained = artifacts / "qa" / "run-1"
     assert relative == ".artifacts/qa/run-1"
@@ -130,9 +167,45 @@ def test_retain_test_artifacts_copies_current_run_files(tmp_path, monkeypatch):
             "qa.junit.xml",
             "qa.metadata.gw0.json",
             "qa.metadata.json",
+            "qa.pytest.log",
             *native_names,
         ]
     )
+
+
+def test_retain_test_artifacts_without_junit_keeps_step_logs(tmp_path, monkeypatch):
+    # gate_output_fidelity S3: a junit-less gate (perf) retained NOTHING
+    # before this — the run dir was never created, so the index had no
+    # artifact path and no err_head for its failed legs (366 of 721).
+    live = tmp_path / ".junit"
+    artifacts = tmp_path / ".artifacts"
+    monkeypatch.setattr(rgr, "OUTPUTS_ROOT", tmp_path)
+    monkeypatch.setattr(rgr, "_JUNIT_DIR", live)
+    monkeypatch.setattr(rgr, "_ARTIFACT_ROOT", artifacts)
+    live.mkdir()
+    (live / "perf.bench_one.log").write_text("TIMING ROW\n")
+
+    relative = rgr.retain_test_artifacts("perf", "run-1", datetime.now())
+
+    assert relative == ".artifacts/perf/run-1"
+    assert sorted(p.name for p in (artifacts / "perf" / "run-1").iterdir()) == [
+        "perf.bench_one.log"
+    ]
+
+
+def test_retain_test_artifacts_returns_none_when_nothing_is_fresh(tmp_path, monkeypatch):
+    live = tmp_path / ".junit"
+    artifacts = tmp_path / ".artifacts"
+    monkeypatch.setattr(rgr, "OUTPUTS_ROOT", tmp_path)
+    monkeypatch.setattr(rgr, "_JUNIT_DIR", live)
+    monkeypatch.setattr(rgr, "_ARTIFACT_ROOT", artifacts)
+    live.mkdir()
+    (live / "qa.pytest.log").write_text("stale run\n")
+    old = datetime.now().timestamp() - 3600
+    os.utime(live / "qa.pytest.log", (old, old))
+
+    assert rgr.retain_test_artifacts("qa", "run-old", datetime.now()) is None
+    assert not artifacts.exists()
 
 
 def test_main_rejects_unknown_gate(capsys):

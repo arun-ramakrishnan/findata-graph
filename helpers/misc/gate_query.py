@@ -71,6 +71,8 @@ DB_PATH = Path(os.environ.get("GATE_QUERY_DB", ROOT / "gate_runs.duckdb"))
 ERR_CAP = 16_000  # per-test err_blob cap
 TEST_ARTIFACT_SCHEMA = "test-facts.v1"
 ARTIFACT_SCHEMA = "gate-artifact.v1"
+# Per-step stdout logs retained beside the junit (tests/run_gate_report.py).
+_STEP_LOG_SUFFIX = ".log"
 
 _STARTED_RE = re.compile(r"\*\*Started:\*\*\s+([\d: -]+)")
 _COMMIT_RE = re.compile(r"\*\*Commit:\*\*\s*([0-9a-f]+)")
@@ -389,6 +391,15 @@ def _build_verify_block(gate: str, lines: list[str]) -> st.RunBlock:
     return st.RunBlock(gate, vr.timestamp, None, tuple(steps), summary, None)
 
 
+# gate_output_fidelity S3: the pre-fix budget (6 lines / 2,000 chars) was
+# sized for a report tail that often carried no diagnostic at all — 1,021 of
+# 3,825 indexed FAIL legs had err_head IS NULL (perf 51%, integrity 41%,
+# verify 100%, measured 2026-11-09). A failed leg now records enough text to
+# diagnose without re-running it; the full log rides in the run artifacts.
+_ERR_HEAD_LINES = 40
+_ERR_HEAD_CHARS = 8000
+
+
 def _leg_err_head(lines: list[str], label: str) -> str | None:
     """First non-blank lines of a leg's ``## <label> (FAILED)`` section."""
     start = None
@@ -404,10 +415,42 @@ def _leg_err_head(lines: list[str], label: str) -> str | None:
             break
         if ln.strip():
             body.append(ln)
-        if len(body) >= 6:
+        if len(body) >= _ERR_HEAD_LINES:
             break
     text = "\n".join(body).strip()
-    return text[:2000] or None
+    return text[:_ERR_HEAD_CHARS] or None
+
+
+def _verify_err_head(lines: list[str], label: str) -> str | None:
+    """Issue lines under a failed verify bucket's ``### <label> (N)`` section.
+
+    The verify report puts the finding on the bullet lines (one file + one
+    reason each) and leaves the bucket heading as the only leg record, so
+    the pre-fix head was NULL for every verify FAIL leg (8 of 8, measured
+    2026-11-09).
+    """
+    section_error = False
+    start = None
+    for i, ln in enumerate(lines):
+        if ln.startswith("## "):
+            section_error = "ERROR" in ln[3:].upper()
+            continue
+        bm = st._VERIFY_BUCKET_RE.match(ln)  # noqa: SLF001
+        if bm and bm.group(1) == label and section_error:
+            start = i + 1
+            break
+    if start is None:
+        return None
+    body: list[str] = []
+    for ln in lines[start:]:
+        if ln.startswith("## ") or st._VERIFY_BUCKET_RE.match(ln):  # noqa: SLF001
+            break
+        if ln.strip():
+            body.append(ln.strip())
+        if len(body) >= _ERR_HEAD_LINES:
+            break
+    text = chr(10).join(body).strip()
+    return text[:_ERR_HEAD_CHARS] or None
 
 
 def _warning_records(lines: list[str], rel: str, offset: int) -> list[dict]:
@@ -478,6 +521,33 @@ def _test_metadata_by_node(
     return out
 
 
+def _junit_node_id(classname: str, name: str) -> str:
+    """Rebuild pytest's node id from junit classname + name.
+
+    JUnit flattens the whole dotted path into classname: for
+    tests/test_x.py::TestThing::test_it it emits tests.test_x.TestThing.
+    Only the MODULE portion becomes a path; class segments stay
+    '::'-joined. Splitting on the first capitalised segment is what
+    tells them apart, and it is exact here: pytest.ini pins
+    python_classes = Test*, so every class segment starts uppercase
+    while module segments (tests, test_x) do not.
+
+    Treating every dot as a separator (pre-fix behaviour) produced
+    tests/test_x/TestThing.py::test_it - a path that does not exist -
+    for every class-based test. Measured on qa run 3520: 821 of 1007
+    indexed file values were fabricated and 3527 of 5838 rows attached
+    to them, silently breaking marker filtering (118/783 integration
+    tests matched), per-file timing and history-by-file queries.
+    """
+    if not classname:
+        return name
+    parts = classname.split(".")
+    split = next((i for i, part in enumerate(parts) if part[:1].isupper()), len(parts))
+    module = "/".join(parts[:split]) + ".py"
+    classes = parts[split:]
+    return "::".join([module, *classes, name])
+
+
 def _junit_facts(
     gate: str,
     wt: str,
@@ -506,7 +576,7 @@ def _junit_facts(
     for case in root.iter("testcase"):
         cls = case.get("classname", "")
         name = case.get("name", "")
-        node = cls.replace(".", "/") + ".py::" + name if cls else name
+        node = _junit_node_id(cls, name)
         meta = metadata.get(node, {})
         try:
             secs = float(case.get("time") or 0)
@@ -605,7 +675,15 @@ def _retained_artifact_junit(
     if base is None:
         return None, "not_collected" if not artifact_dir else "invalid"
     junit = base / f"{gate}.junit.xml"
-    return (junit, "retained") if junit.exists() else (None, "missing")
+    if junit.exists():
+        return junit, "retained"
+    # A run whose lane retains per-leg stdout logs but has no junit at all
+    # (perf, maint, integrity, verify) is NOT a broken run — it is a lane
+    # with a different artifact shape. The pre-fix answer ('missing') read
+    # as data loss and hid the fact that `gate_query output` works.
+    if any(base.glob(f"{gate}.*{_STEP_LOG_SUFFIX}")):
+        return None, "logs"
+    return None, "missing"
 
 
 def _artifact_record(
@@ -1089,16 +1167,24 @@ def refresh(con, *, full: bool = False, check: bool = False, root: Path | None =
 def _integrity_err_head(
     rows: list[st.CheckRow] | tuple[st.CheckRow, ...], label: str
 ) -> str | None:
-    """First detail lines of a failed integrity section, capped like
-    ``_leg_err_head``."""
+    """A failed integrity check's summary plus its first detail lines.
+
+    The summary is where a whole class of failure lives: RELATIONS reports
+    `total=60543 ... type_mismatch=42 ... -> errors=42` with no detail lines
+    at all, so a detail-only head recorded NULL for a genuinely failed gate
+    (95 of 230 indexed integrity FAIL legs, measured 2026-11-09). Capped
+    like `_leg_err_head`.
+    """
     r = next((r for r in rows if r.name == label), None)
-    if r is None or not r.detail:
+    if r is None:
         return None
-    text = "\n".join(r.detail[:6]).strip()
-    return text[:2000] or None
+    body = [r.summary] if r.summary else []
+    body.extend(r.detail)
+    text = "\n".join(body[:_ERR_HEAD_LINES]).strip()
+    return text[:_ERR_HEAD_CHARS] or None
 
 
-def _store_report_run(con, rel, wt, gate, kind, lines, rb, boff, nbytes, complete) -> int:
+def _store_report_run(con, rel, wt, gate, kind, lines, rb, meta, boff, nbytes, complete) -> int:
     """Lean store path for the integrity/verify report kinds: no junit
     artifacts, no warning records (integrity `## SECTION` headings must not
     be mis-ingested as warnings), exit_code 0/1 by the run's own error
@@ -1111,13 +1197,19 @@ def _store_report_run(con, rel, wt, gate, kind, lines, rb, boff, nbytes, complet
         m = re.search(r"\b([1-9]\d*) errors", rb.summary)
         exit_code = 1 if m else 0
     started = gen = _ts(rb.timestamp) or datetime.now()
+    # integrity/verify write their own markdown reports and used to store
+    # artifact_dir NULL unconditionally — so their retained per-check logs
+    # were unreachable from the index even after the lanes started keeping
+    # them (791 integrity + 529 verify runs, measured 2026-11-09).
+    artifact_dir = meta.get("artifacts") if meta else None
+    _junit, artifact_state = _retained_artifact_junit(gate, wt, artifact_dir)
     run_id = con.execute(
         """INSERT INTO runs (src_rel, wt, gate, started_at, generated_at, elapsed_s,
                              jobs, python_ver, commit_sha, patch_name, exit_code, summary,
                              header_offset, nbytes, junit_path, arch_path, artifact_schema,
                              artifact_dir, artifact_state, complete)
            VALUES (?, ?, ?, ?, ?, ?, NULL, NULL, NULL, NULL, ?, ?, ?, ?, NULL, NULL,
-                   NULL, NULL, NULL, ?) RETURNING run_id""",
+                   NULL, ?, ?, ?) RETURNING run_id""",
         [
             rel,
             wt,
@@ -1129,16 +1221,19 @@ def _store_report_run(con, rel, wt, gate, kind, lines, rb, boff, nbytes, complet
             rb.summary,
             boff,
             nbytes,
+            artifact_dir,
+            artifact_state,
             complete,
         ],
     ).fetchone()[0]
     con.execute("DELETE FROM legs WHERE run_id = ?", [run_id])
     for s in rb.steps:
-        err_head = (
-            _integrity_err_head(rows, s.label)
-            if kind == "integrity" and "FAIL" in s.status
-            else None
-        )
+        if kind == "integrity" and "FAIL" in s.status:
+            err_head = _integrity_err_head(rows, s.label)
+        elif kind == "verify" and "FAIL" in s.status:
+            err_head = _verify_err_head(lines, s.label)
+        else:
+            err_head = None
         con.execute(
             "INSERT INTO legs VALUES (?, ?, ?, ?, ?)",
             [run_id, s.label, s.seconds, s.status, err_head],
@@ -1170,10 +1265,83 @@ def _insert_rows_batch(con, table: str, columns: str | None, rows: list[tuple]) 
         con.unregister("_gq_batch")
 
 
+def _store_junit_rows(con, run_id, jfacts) -> None:
+    """Replace a run's tests/test_facts rows from re-derived junit facts.
+
+    Shared by the ingest path and the refresh --rebuild-tests backfill so
+    both write identical rows."""
+    con.execute("DELETE FROM tests WHERE run_id = ?", [run_id])
+    if jfacts:
+        _insert_rows_batch(
+            con,
+            "tests",
+            None,
+            [
+                (
+                    run_id,
+                    "pytest",
+                    fact["node_id"],
+                    fact["outcome"],
+                    fact["seconds"],
+                    fact["err_head"] or "",
+                    fact["err_blob"] or "",
+                )
+                for fact in jfacts
+            ],
+        )
+    con.execute("DELETE FROM test_facts WHERE run_id = ?", [run_id])
+    if jfacts:
+        _insert_rows_batch(
+            con,
+            "test_facts",
+            (
+                "run_id, leg, node_id, file, outcome, seconds, phase, phase_seconds_json, "
+                "markers_json, file_line, err_head, err_blob, error_fingerprint, worker, "
+                "artifact_schema"
+            ),
+            [
+                (
+                    run_id,
+                    "pytest",
+                    fact["node_id"],
+                    fact["file"],
+                    fact["outcome"],
+                    fact["seconds"],
+                    fact["phase"],
+                    json.dumps(fact["phase_seconds"], separators=(",", ":"))
+                    if fact["phase_seconds"]
+                    else None,
+                    json.dumps(fact["markers"], separators=(",", ":")) if fact["markers"] else None,
+                    fact["file_line"],
+                    fact["err_head"],
+                    fact["err_blob"],
+                    fact["error_fingerprint"],
+                    fact["worker"],
+                    fact["artifact_schema"],
+                )
+                for fact in jfacts
+            ],
+        )
+
+
 def _store_run(con, rel, wt, gate, kind, lines, rb, meta, boff, nbytes, complete) -> int:  # noqa: C901
+    # Cascade the replace: when a block re-parses, the old run row goes and
+    # so must its children (legs/bench/tests/test_facts/artifacts keyed by
+    # the OLD run_id). Leaking them — the pre-2026-11-09 behaviour — left
+    # 552 phantom FAIL legs with no run behind them, inflating every
+    # failure and timing aggregate (measured 2026-11-09).
+    old_ids = [
+        r[0]
+        for r in con.execute(
+            "SELECT run_id FROM runs WHERE src_rel = ? AND header_offset = ?", [rel, boff]
+        ).fetchall()
+    ]
+    for old_id in old_ids:
+        for table in ("legs", "bench", "tests", "test_facts", "artifacts"):
+            con.execute(f"DELETE FROM {table} WHERE run_id = ?", [old_id])  # noqa: S608  # table names are a literal tuple
     con.execute("DELETE FROM runs WHERE src_rel = ? AND header_offset = ?", [rel, boff])
     if kind in ("integrity", "verify"):
-        return _store_report_run(con, rel, wt, gate, kind, lines, rb, boff, nbytes, complete)
+        return _store_report_run(con, rel, wt, gate, kind, lines, rb, meta, boff, nbytes, complete)
     gen = _ts(rb.timestamp) or datetime.now()
     started = _ts(meta.get("started")) or gen
     pyv = next(
@@ -1187,16 +1355,6 @@ def _store_run(con, rel, wt, gate, kind, lines, rb, meta, boff, nbytes, complete
         artifact_state = "corrupt"
     elif not meta.get("artifacts") and junit_path is not None:
         artifact_state = "live"
-    jrows = [
-        (
-            fact["node_id"],
-            fact["outcome"],
-            fact["seconds"],
-            fact["err_head"] or "",
-            fact["err_blob"] or "",
-        )
-        for fact in jfacts
-    ]
     exit_code = (
         int(meta["exit"])
         if "exit" in meta
@@ -1313,42 +1471,7 @@ def _store_run(con, rel, wt, gate, kind, lines, rb, meta, boff, nbytes, complete
                 "INSERT INTO bench VALUES (?, ?, ?, ?, ?)",
                 [run_id, s.label, s.seconds or 0.0, budgets.get(s.label), s.status],
             )
-    con.execute("DELETE FROM tests WHERE run_id = ?", [run_id])
-    if jrows:
-        _insert_rows_batch(con, "tests", None, [(run_id, "pytest", *row) for row in jrows])
-    con.execute("DELETE FROM test_facts WHERE run_id = ?", [run_id])
-    if jfacts:
-        _insert_rows_batch(
-            con,
-            "test_facts",
-            (
-                "run_id, leg, node_id, file, outcome, seconds, phase, phase_seconds_json, "
-                "markers_json, file_line, err_head, err_blob, error_fingerprint, worker, "
-                "artifact_schema"
-            ),
-            [
-                (
-                    run_id,
-                    "pytest",
-                    fact["node_id"],
-                    fact["file"],
-                    fact["outcome"],
-                    fact["seconds"],
-                    fact["phase"],
-                    json.dumps(fact["phase_seconds"], separators=(",", ":"))
-                    if fact["phase_seconds"]
-                    else None,
-                    json.dumps(fact["markers"], separators=(",", ":")) if fact["markers"] else None,
-                    fact["file_line"],
-                    fact["err_head"],
-                    fact["err_blob"],
-                    fact["error_fingerprint"],
-                    fact["worker"],
-                    fact["artifact_schema"],
-                )
-                for fact in jfacts
-            ],
-        )
+    _store_junit_rows(con, run_id, jfacts)
     if junit_path is not None:
         return run_id  # junit ingested — the -ra text fallback would double-count
     for ln in lines:  # fallback: pytest -ra summary lines (no junit / legacy blocks)
@@ -2201,6 +2324,75 @@ def cmd_timing(con, args) -> str:
     return "\n".join(out)
 
 
+_UNSAFE_STEP_LABEL = re.compile(r"[/\\\x00]")
+
+
+def _safe_step_label(label: str) -> str:
+    """Mirror of `helpers.misc.gate_retain.safe_label` — writer and reader
+    must derive the same filename, so both sanitize identically."""
+    return _UNSAFE_STEP_LABEL.sub("_", label)
+
+
+def cmd_output(con, args) -> str:
+    """Print a leg's retained full stdout (gate_output_fidelity S3).
+
+    The report carries a capped tail and the index carries a capped
+    ``err_head``; neither is the whole story when a leg fails deep inside
+    its output. ``retain_test_artifacts`` copies each step's complete
+    stdout next to the junit as ``<gate>.<label>.log``, so this verb reads the
+    record of what actually happened instead of re-running the leg and
+    getting a different tree, load average, and (for perf) verdict.
+    """
+    gate = None if args.gate == "all" else args.gate
+    r = _pick_run(con, args.run, args.wt, gate, only_failed=False)
+    if r is None:
+        return "no runs indexed"
+    base = _artifact_base(r["wt"], r["artifact_dir"])
+    if base is None:
+        return (
+            f"run {r['run_id']} has no retained artifact directory "
+            f"({r['artifact_state'] or 'not_collected'}) — no output log to read "
+            f"(the lane predates artifact retention)"
+        )
+    label = args.leg
+    if not label:
+        available = sorted(p.name for p in base.glob(f"*{_STEP_LOG_SUFFIX}"))
+        if not available:
+            return f"run {r['run_id']}: no per-step output logs retained in {base}"
+        return "retained output logs (pass --leg <name>):\n" + "\n".join(
+            f"  {name}" for name in available
+        )
+    path = base / f"{r['gate']}.{_safe_step_label(label)}{_STEP_LOG_SUFFIX}"
+    if not path.exists():
+        known = sorted(
+            p.name.removesuffix(_STEP_LOG_SUFFIX).removeprefix(f"{r['gate']}.")
+            for p in base.glob(f"{r['gate']}.*{_STEP_LOG_SUFFIX}")
+        )
+        return (
+            f"no retained output for leg {label!r} in run {r['run_id']} "
+            f"(retained legs: {', '.join(known) or 'none'})"
+        )
+    text = path.read_text(errors="replace")
+    lines = text.splitlines()
+    if args.grep:
+        needle = args.grep.lower()
+        kept = [ln for ln in lines if needle in ln.lower()]
+        if not kept:
+            return f"{path.name}: no line matching {args.grep!r} ({len(lines)} lines)"
+        return _cap_output(
+            f"{path.name}: {len(kept)} of {len(lines)} line(s) matching {args.grep!r}",
+            kept,
+            args.tail,
+        )
+    return _cap_output(f"{path.name}: {len(lines)} line(s)", lines, args.tail)
+
+
+def _cap_output(header: str, lines: list[str], tail: int) -> str:
+    if tail <= 0 or len(lines) <= tail:
+        return header + "\n" + "\n".join(lines)
+    return header + f" · showing last {tail} (--tail 0 for all)\n" + "\n".join(lines[-tail:])
+
+
 def cmd_grep(con, args) -> str:
     rows = con.execute(
         """SELECT r.run_id, r.gate, r.started_at, t.node_id, t.err_head
@@ -2272,6 +2464,107 @@ def cmd_rotate(con, args) -> str:
     return header + "\n" + "\n".join(out)
 
 
+# (index name, "table(cols)") for the ART indexes rebuild_test_facts must
+# route around: DuckDB 2.0.0 index maintenance fails ("Failed to delete
+# all rows from index") on rows whose entries went missing from the index
+# — measured on the live index 2026-11-09, orphaned test_facts rows are
+# unindexed — so the rebuild drops them up front and re-creates them from
+# the post-rebuild tables, repairing the latent staleness.
+_REBUILD_INDEXES = (
+    ("test_facts_node_idx", "test_facts(node_id, run_id)"),
+    ("test_facts_error_idx", "test_facts(error_fingerprint, run_id)"),
+    ("artifacts_kind_target_idx", "artifacts(kind, target, run_id)"),
+    ("artifacts_status_idx", "artifacts(status, run_id)"),
+)
+
+
+def _rebuild_drop_indexes(con) -> None:
+    """Drop the ART indexes rebuild_test_facts must route around (see
+    _REBUILD_INDEXES); re-created from the post-rebuild tables at the end."""
+    for name, _target in _REBUILD_INDEXES:
+        con.execute(f"DROP INDEX IF EXISTS {name}")
+
+
+def _rebuild_create_indexes(con) -> None:
+    for name, target in _REBUILD_INDEXES:
+        con.execute(f"CREATE INDEX IF NOT EXISTS {name} ON {target}")
+
+
+def _purge_orphan_rows(con, *, apply: bool) -> int:
+    """Count (and in apply mode delete) child rows whose run row is gone —
+    the old _store_run re-parse path deleted the run row but never its
+    children. Counted even in dry-run so the plan reports them."""
+    total = 0
+    for table in ("legs", "bench", "tests", "test_facts", "artifacts"):
+        n = con.execute(
+            f"SELECT count(*) FROM {table} "  # noqa: S608  # table name from a literal tuple
+            "WHERE run_id NOT IN (SELECT run_id FROM runs)"
+        ).fetchone()[0]
+        total += n
+        if apply and n:
+            con.execute(
+                f"DELETE FROM {table} "  # noqa: S608  # table name from a literal tuple
+                "WHERE run_id NOT IN (SELECT run_id FROM runs)"
+            )
+    return total
+
+
+def rebuild_test_facts(con, *, apply: bool = False) -> dict:
+    """One-time backfill behind refresh --rebuild-tests: re-derive every
+        run's tests/test_facts rows from its RETAINED junit artifact
+    (outputs/.artifacts/<gate>/<run>/), fixing node ids fabricated by the
+    pre-2026-11-09 classname mangler and re-attaching the markers/err text
+    that derivation lost. Runs whose junit is gone keep their existing rows;
+    also purges rows orphaned by the old _store_run re-parse path (children
+    outliving their run row). Dry-run by default; --apply writes."""
+    counts = {
+        "runs_scanned": 0,
+        "runs_with_junit": 0,
+        "rows": 0,
+        "wrong_node_rows": 0,
+        "no_junit": 0,
+        "orphan_rows": 0,
+    }
+    if apply:
+        # Drop before any write: the orphan purge below DELETEs rows that are
+        # missing from the ART indexes (DuckDB 2.0.0 fatal on index
+        # maintenance), and skipping per-round index maintenance also speeds
+        # the per-run DELETE+INSERT cycles. Re-created from the post-rebuild
+        # tables at the end; a crash mid-rebuild is safe because connect()
+        # re-creates them via SCHEMA on the next open.
+        _rebuild_drop_indexes(con)
+    runs = con.execute(
+        "SELECT run_id, gate, wt, started_at, generated_at, artifact_dir "
+        "FROM runs WHERE artifact_dir IS NOT NULL ORDER BY run_id"
+    ).fetchall()
+    for run_id, gate, wt, started, gen, artifact_dir in runs:
+        counts["runs_scanned"] += 1
+        retained, _state = _retained_artifact_junit(gate, wt, artifact_dir)
+        if retained is None:
+            counts["no_junit"] += 1
+            continue
+        _junit_path, facts = _junit_facts(gate, wt, started, gen, retained)
+        if not facts:
+            counts["no_junit"] += 1
+            continue
+        counts["runs_with_junit"] += 1
+        counts["rows"] += len(facts)
+        existing = {
+            row[0]
+            for row in con.execute(
+                "SELECT node_id FROM test_facts WHERE run_id = ?", [run_id]
+            ).fetchall()
+        }
+        new_ids = {fact["node_id"] for fact in facts}
+        counts["wrong_node_rows"] += len(existing - new_ids)
+        if apply:
+            _store_junit_rows(con, run_id, facts)
+    counts["orphan_rows"] = _purge_orphan_rows(con, apply=apply)
+    if apply:
+        _rebuild_create_indexes(con)
+    return counts
+
+
 def _refresh_check_message(counts: dict) -> str:
     if counts["changed_files"] == 0:
         return f"gate index up to date ({counts['files']} report copies scanned)"
@@ -2283,6 +2576,16 @@ def _refresh_check_message(counts: dict) -> str:
 
 
 def cmd_refresh(con, args) -> str:
+    if getattr(args, "rebuild_tests", False):
+        counts = rebuild_test_facts(con, apply=args.apply)
+        mode = "apply" if args.apply else "dry-run; --apply to write"
+        return (
+            f"rebuild-tests ({mode}): {counts['runs_scanned']} runs with artifact_dir, "
+            f"{counts['runs_with_junit']} re-derivable, {counts['rows']} test rows "
+            f"({counts['wrong_node_rows']} with a fabricated node id), "
+            f"{counts['no_junit']} without retained junit, "
+            f"{counts['orphan_rows']} orphaned rows"
+        )
     if args.check:
         counts = refresh(con, full=args.full, check=True)
         return _refresh_check_message(counts)
@@ -2324,6 +2627,7 @@ def _build_parser() -> argparse.ArgumentParser:  # noqa: C901
         ("artifacts", "read-only generic gate artifact records"),
         ("timing", "leg timing history vs budget"),
         ("grep", "keyword over indexed failure text"),
+        ("output", "print a leg's retained full stdout (--leg; no rerun)"),
         ("rotate", "archive old runs to outputs/archives (zstd)"),
         ("refresh", "force re-index"),
     ):
@@ -2414,6 +2718,28 @@ def _build_parser() -> argparse.ArgumentParser:  # noqa: C901
         if name == "grep":
             sp.add_argument("substr")
             sp.add_argument("--limit", type=int, default=25)
+        if name == "output":
+            sp.add_argument(
+                "-wt",
+                "--wt",
+                default="",
+                metavar="NAME",
+                help="worktree name (default main; -wt NAME and --wt NAME both work)",
+            )
+            sp.add_argument("--run", type=int, default=None, help="explicit run id")
+            sp.add_argument("--gate", default="qa", help="gate filter (default: qa; or 'all')")
+            sp.add_argument("--leg", default=None, help="step label (omit to list retained legs)")
+            sp.add_argument(
+                "--grep",
+                default=None,
+                help="print only lines matching this substring (case-insensitive)",
+            )
+            sp.add_argument(
+                "--tail",
+                type=int,
+                default=200,
+                help="lines to show from the end (default: 200; 0 = all)",
+            )
         if name == "rotate":
             sp.add_argument("--apply", action="store_true", help="execute (default: dry-run plan)")
             sp.add_argument(
@@ -2434,6 +2760,17 @@ def _build_parser() -> argparse.ArgumentParser:  # noqa: C901
                 "--check",
                 action="store_true",
                 help="report drift without indexing (exit 1 when behind; make gate-fresh default)",
+            )
+            sp.add_argument(
+                "--rebuild-tests",
+                action="store_true",
+                help="one-time backfill: re-derive tests/test_facts from retained junit "
+                "artifacts (fixes fabricated node ids + lost markers); dry-run by default",
+            )
+            sp.add_argument(
+                "--apply",
+                action="store_true",
+                help="execute the --rebuild-tests plan (default: dry-run plan)",
             )
     return ap
 
@@ -2472,6 +2809,7 @@ def main(argv: list[str] | None = None) -> int:
             "artifacts": cmd_artifacts,
             "timing": cmd_timing,
             "grep": cmd_grep,
+            "output": cmd_output,
             "rotate": cmd_rotate,
             "refresh": cmd_refresh,
         }[args.cmd]

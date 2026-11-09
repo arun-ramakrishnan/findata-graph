@@ -37,11 +37,36 @@ import subprocess
 import sys
 import tempfile
 import time
+from datetime import datetime
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
+
+from helpers.misc import gate_retain  # noqa: E402  # imported after the sys.path seed above
+
 REPORT = REPO_ROOT / "outputs" / "perf_report.md"
 _TAIL_CAP = 2000  # per-leg stderr ceiling; matches gate_query's err_head cap
+
+# ── Artifact retention (gate_output_fidelity S4) ────────────────────────
+# Perf used to retain NOTHING: subprocess.run(capture_output=True) kept a
+# 2 KB stderr tail and discarded the rest, so all 173 indexed perf runs
+# carried artifact_state='not_collected' and `gate_query output --gate perf
+# --leg derive_events` answered "no retained artifact directory" (measured
+# 2026-11-09). The lane now writes, per run, into
+# `<outputs>/.artifacts/perf/<run-id>/`:
+#   perf.<leg>.log   complete stdout+stderr of every leg
+#   perf.json        machine-readable rows (gate_query's perf-json.v1 adapter)
+# and stamps the report block with **Artifacts:** so the index can find it.
+# The artifacts root follows the REPORT file, not a worktree guess: gate_query
+# resolves `**Artifacts:**` against the outputs root it found the report in,
+# so the two must be the same tree even when a linked worktree writes locally.
+OUTPUTS_ROOT = gate_retain.artifacts_root_for(REPORT).parent
+ARTIFACTS_ROOT = gate_retain.artifacts_root_for(REPORT)
+_ARTIFACT_KEEP_RUNS = 40  # bounded like gate_query rotate's default keep policy
+_CURRENT_LOG_DIR: Path | None = None  # set per run by _run_all_benchmarks
+_RUN_ID: str | None = None  # this run's artifact dir name; set by main()
 
 # ── Scratch expansion (2026-10-22, quack arc) ───────────────────────────
 # A bench leg may name "{scratch}" in its argv: it expands to a FRESH
@@ -339,7 +364,18 @@ BENCHMARKS: list[tuple[str, list[str], float]] = [
         ["helpers/graph/derive_co_mentions.py", "--newsletter", "The_Chatter"],
         2.0,
     ),
-    ("derive_events", ["helpers/graph/derive_events.py"], 3.0),
+    # 5.0s since 2026-11-09 (operator call): the 3.0s budget was calibrated on
+    # the pre-polyadic corpus. d820ef8fc (2026-11-06, 'polyadic capture: n-ary
+    # events') shifted this leg 2.17-2.76s -> 3.23-3.42s deterministically —
+    # measured on a quiet box (load 2.2, psi avg10 4.3%), pre-polyadic
+    # d820ef8fc~1 = 2.62/2.62/2.76s vs HEAD 3.37/3.42/3.40s, so it is real
+    # work, not contention. Attribution: the two new prose arms
+    # (_extract_jv_consortium, _extract_acquisition_triangle) add ~0.42s;
+    # EntityResolver.__init__ over 24,711 names adds ~0.31s. Raising the
+    # budget parks that cost as accepted baseline instead of a standing red —
+    # perf_improvs P1 already landed its regex fixes (2026-08-10), so the
+    # remaining time is extraction logic, not a harness artefact.
+    ("derive_events", ["helpers/graph/derive_events.py"], 5.0),
     # Search-index freshness --checks LEFT perf 2026-08-26 (#159): the
     # STALE gate is owned by `make search-fresh` + the advisory gate's
     # doc/script/note/memory-search-check rows (exit 1 on drift, per-index
@@ -590,22 +626,37 @@ def run_one(label: str, args: list[str], budget: float) -> tuple[float, str, boo
     without the old failure-time subprocess re-run (which doubled the cost
     of every red leg and printed to a console nobody archives).
     """
+    argv = [sys.executable, *_expand_scratch(args)]
     t0 = time.perf_counter()
-    r = subprocess.run(  # noqa: S603  # list-form call; shell=False (default); args are constants/controlled paths
-        [sys.executable, *_expand_scratch(args)],
-        capture_output=True,
+    # communicate() (not a stdout loop) because a leg that writes more than
+    # a pipe buffer to stderr while we block on stdout would deadlock; the
+    # in-memory profile is identical to the old capture_output=True.
+    proc = subprocess.Popen(  # noqa: S603  # list-form call; shell=False (default); args are constants/controlled paths
+        argv,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
         stdin=subprocess.DEVNULL,
         cwd=REPO_ROOT,
     )
+    out_raw, err_raw = proc.communicate()
     dt = time.perf_counter() - t0
-    ok = r.returncode == 0 and dt < budget
-    if r.returncode != 0:
+    stdout_text = out_raw.decode(errors="replace")
+    stderr_text = err_raw.decode(errors="replace")
+    if _CURRENT_LOG_DIR is not None:
+        gate_retain.write_step_log(
+            _CURRENT_LOG_DIR / f"perf.{gate_retain.safe_label(label)}.log",
+            f"{label}: {' '.join(argv)}",
+            stdout_text + stderr_text,
+        )
+    rc = proc.returncode
+    ok = rc == 0 and dt < budget
+    if rc != 0:
         status = "FAIL(rc)"
     elif dt >= budget:
         status = "OVER_BUDGET"
     else:
         status = "OK"
-    tail = r.stderr.decode(errors="replace").strip()[-_TAIL_CAP:]
+    tail = stderr_text.strip()[-_TAIL_CAP:]
     return dt, status, ok, tail
 
 
@@ -669,9 +720,12 @@ def main(argv: list[str] | None = None) -> int:
     ns = parser.parse_args(argv)
 
     # ── run ──
-    from datetime import datetime
-
+    global _CURRENT_LOG_DIR, _RUN_ID
     started = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    _RUN_ID = gate_retain.run_id_now()
+    # Created BEFORE the first leg so a crashed or refused-mid-run lane still
+    # keeps the legs it completed (the logs are written as each leg ends).
+    _CURRENT_LOG_DIR = gate_retain.run_dir(ARTIFACTS_ROOT, "perf", _RUN_ID)
     refuse = _contention_reason()
     forced_note: str | None = None
     if refuse is not None and ns.force:
@@ -717,13 +771,54 @@ def main(argv: list[str] | None = None) -> int:
         print(f"  ⚠ {status_note}")
     elif forced_note is not None:
         status_note = forced_note
-    write_report(results, started, elapsed, status_note=status_note)
+    artifact_dir = _retain_run_artifacts(results, started, elapsed)
+    write_report(results, started, elapsed, status_note=status_note, artifact_dir=artifact_dir)
 
     if contended_from is not None:
         _cleanup_scratch()
         return 3
     _cleanup_scratch()
     return 0 if all_ok else 1
+
+
+def _retain_run_artifacts(
+    results: list[tuple[str, float, str, bool, float, str]],
+    started: str,
+    elapsed: float,
+) -> str | None:
+    """Finish the run's artifact dir: perf.json + prune, return the
+    `**Artifacts:**` value (relative to the outputs root).
+
+    The per-leg logs are already on disk (run_one wrote them while the leg
+    ran, so a crashed run still keeps the legs it completed). This adds the
+    machine-readable sidecar gate_query's perf-json.v1 adapter reads and
+    bounds the directory count.
+    """
+    log_dir = _CURRENT_LOG_DIR
+    if log_dir is None:
+        return None
+    payload = {
+        "schema": "perf-json.v1",
+        "generated": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        "started": started,
+        "elapsed_s": round(elapsed, 3),
+        "benchmarks": [
+            {
+                "name": label,
+                "seconds": round(dt, 3),
+                "budget_s": budget,
+                "status": "pass" if ok else "fail",
+                "raw_status": status,
+            }
+            for label, dt, status, ok, budget, _tail in results
+        ],
+    }
+    try:
+        gate_retain.write_json_artifact(log_dir / "perf.json", payload)
+    except OSError:
+        return None
+    gate_retain.prune_old_runs(ARTIFACTS_ROOT, "perf", _ARTIFACT_KEEP_RUNS)
+    return gate_retain.artifact_meta_value(OUTPUTS_ROOT, log_dir)
 
 
 def _md_status(status: str, ok: bool) -> str:
@@ -751,6 +846,7 @@ def write_report(
     started: str,
     elapsed: float,
     status_note: str | None = None,
+    artifact_dir: str | None = None,
 ) -> None:
     """Append one ``#``-delimited run block to outputs/perf_report.md.
 
@@ -767,22 +863,22 @@ def write_report(
     no sections to find (run 1869: integrity_check FAIL(rc) invisible in
     ``gate_query failures``).
     """
-    from datetime import datetime
-
     ended = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     passed = sum(1 for *_, ok, _, _ in results if ok)
     total = len(results)
+    artifacts_str = f"  ·  **Artifacts:** {artifact_dir}" if artifact_dir else ""
     md_lines: list[str] = []
     md_lines.append("# make perf — benchmark report")
     md_lines.append("")
     md_lines.append(
         f"**Generated:** {ts}  ·  **Started:** {started}  ·  **Ended:** {ended}  ·  "
-        f"**Elapsed:** {elapsed:.1f}s  ·  **Python:** {sys.version.split()[0]}"
+        f"**Elapsed:** {elapsed:.1f}s  ·  **Python:** {sys.version.split()[0]}{artifacts_str}"
     )
     if status_note:
         md_lines.append("")
         md_lines.append(f"**Status:** {status_note}")
+    md_lines.append(f"**Exit:** {0 if passed == total else 1}")
     md_lines.append("")
     md_lines.append("| Benchmark | Time (s) | Budget | Status |")
     md_lines.append("|---|---|---|---|")

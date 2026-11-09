@@ -14273,3 +14273,77 @@ to doc/improvements/archive/database/duckdb_pure_stack.md.
   test_duckdb_block_anatomy / test_db_maint_convo / test_tmp_sweep /
   test_rebuild_cli_flags; ruff check + format clean. Gates not run this
   session (operator owns the quartet go).
+
+## 496. gate tooling — output fidelity: true node ids, retained step logs, integration leg retired from the battery
+
+- **Date:** 2026-11-09 · **Status:** EXECUTED (S1–S4 + S1b landed same
+  day) ·
+  **Proposal:** doc/improvements/archive/testing/gate_output_fidelity_and_integration_leg.md
+- S1 node-id fix — `gate_query` rebuilt junit node ids as
+  `cls.replace(".", "/") + ".py::" + name`, fabricating the path for
+  every class-based test: 821 of 1,007 distinct `file` values for qa run
+  3520 did not exist on disk, 3,527/5,838 rows (60.4%) sat on bogus
+  paths, and `--marker integration` returned 118 of 783. The fix
+  `_junit_node_id(classname, name)` splits at the first uppercase-initial
+  segment (`pytest.ini` pins `python_classes = Test*`), joins module
+  parts with `/` + `.py` and class parts with `::`; 5,838/5,838 node ids
+  resolve exactly. Deterministic mangling is why `--node` history still
+  worked and the defect survived unnoticed.
+- S1b backfill — `gate_query refresh --rebuild-tests` (dry-run default,
+  `--apply` writes) re-derived `tests`/`test_facts` from retained junit:
+  358 runs with artifact_dir, 340 re-derivable, 767,846 test rows
+  (500,791 fabricated node ids repaired), 1,491,591 orphaned rows purged
+  (the old `_store_run` re-parse deleted the run row but never its
+  children). DuckDB 2.0 cannot DELETE rows missing from an ART index, so
+  apply drops and re-creates the four ART indexes around the writes.
+  Acceptance: run 3520 `--marker integration` 118 → 783.
+- S2 — integration leg retired from the arc battery
+  (`doc/procedures/gates.md` Phase 1 is now `make qa && make perf &&
+  make advisory`): the 783 integration tests are a strict subset of qa's
+  5,838 (junit + metadata set difference empty; `-m "integration and
+  live"` collects 0), the leg cost ~141 s per arc, and d91e73c45
+  (2026-08-31) already dropped the same duplicate from advisory. `make
+  integration` survives as a manual target and stays indexed.
+- S3 — `run_step` streams full stdout to `outputs/.junit/<gate>.<label>.log`
+  and `retain_test_artifacts` copies them into the run dir (previously
+  junit-less gates like perf got NO artifact dir at all);
+  `_FAILED_TAIL_LINES = 400` for failed steps (60 stays for passing);
+  `gate_query` err_head widened 6 lines/2,000 chars → 40/8,000;
+  integrity err_head now summary+detail; new `_verify_err_head`; new verb
+  `gate_query output --run N --leg L [--grep] [--tail]` reads the
+  retained log without a rerun. 1,021/3,825 FAIL legs had NULL err_head
+  (perf 51%, integrity 41%, verify 100%); none of the 469 non-orphan
+  NULLs' source reports still exist, so the historical NULLs stay —
+  retained logs cover every future run.
+- S4 — retention for the four lanes that never ride the runner (`perf`,
+  `maint`, `integrity`, `verify`): each ran its own subprocesses and
+  discarded stdout, so `gate_query output` had nothing to read — perf
+  173/173 runs `not_collected`, maint 73/73, integrity/verify 1,320 runs
+  with NULL `artifact_dir`. New `helpers/misc/gate_retain.py` holds the
+  writer half of the contract (`helpers/` may not import `tests/`); every
+  lane now writes `outputs/.artifacts/<gate>/<run-id>/<gate>.<label>.log`
+  plus a JSON sidecar (`perf.json` / `integrity.json` / `verify.json`),
+  stamps `**Artifacts:**` + `**Exit:**` inside the first 8 report lines,
+  and keeps the 40 newest runs per gate. Run ids are allocated before
+  the first step, so a crashed or contended lane keeps its completed
+  legs. `gate_query` learns the new `artifact_state='logs'` and stores
+  `artifact_dir` for integrity/verify. The archived proposal's §6
+  non-goal ("touching the maint/integrity/verify reporting surfaces") is
+  superseded by its §7.
+- Perf budget — `derive_events` 3.0 s → 5.0 s (operator directive): the
+  polyadic shift in d820ef8fc (2026-11-06) moved the leg 2.17–2.76 s →
+  3.23–3.42 s deterministically on an idle box (two new prose arms ≈
+  +0.42 s, `EntityResolver` over 24,711 names ≈ +0.31 s; the P1 regex
+  fixes of 2026-08-10 had already landed). The budget moves; the
+  regression is recorded rather than hidden.
+- Tests: `test_gate_query.py` 46 passed, `test_run_gate_report.py` 23
+  passed (regression coverage for `_junit_node_id`, rebuild-tests, log
+  streaming, retain, and the output verb); ruff check + format clean;
+  md-lint clean. Gates battery launched immediately after this archival
+  (operator go, same day). S4 round: 223 passed across 7 files
+  (`test_gate_retain.py` 12 new, `test_gate_query.py` 49,
+  `test_run_perf_benchmarks.py` 25, `test_maint.py` 41,
+  `test_report_append_convention.py` 5, `test_verify_notes.py` 69);
+  ruff check + format clean; md-lint clean. No live perf/maint/integrity/
+  verify run has yet been indexed through the new path — the first live
+  run of each lane is the real acceptance.

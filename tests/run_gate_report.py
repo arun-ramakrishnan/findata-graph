@@ -131,10 +131,19 @@ _JUNIT_DIR.mkdir(parents=True, exist_ok=True)
 _ARTIFACT_ROOT = OUTPUTS_ROOT / ".artifacts"
 
 _TAIL_LINES = 60  # lines appended to the report per step
+# Failing steps get the whole capture: the 60-line budget truncated exactly
+# the blocks a reader needs (1,021 of 3,825 indexed FAIL legs carried no
+# error text at all, 26.7%; perf 51%, integrity 41%, verify 100% — measured
+# 2026-11-09). A PASSING step keeps the cheap tail; nobody reads it.
+_FAILED_TAIL_LINES = 400
 # ty-tests digest budget: concise diagnostics are 1 line each; 120 covers
 # the worst historical burst (91 diagnostics, 2026-08-25) with margin.
 _TY_TESTS_TAIL_LINES = 120
 _CAPTURE_LINES = 400  # rolling in-memory cap while streaming
+# gate_output_fidelity S3: the complete stdout of every step is streamed to
+# outputs/.junit/<gate>.<label>.log and copied into the run's artifact dir,
+# so a failure is readable from the index instead of by re-running the leg.
+_STEP_LOG_SUFFIX = ".log"
 _DEFAULT_JOBS = 4  # 4 cores (user directive 2026-08-25); override: --jobs N / make -j N
 
 
@@ -418,6 +427,17 @@ GATES: dict[str, Gate] = {
 }
 
 
+# gate_output_fidelity S3: the gate being run, published by main() so
+# run_step can name its full-output log without a signature change (every
+# runner test monkeypatches run_step with the old three-arg shape).
+_CURRENT_GATE: str | None = None
+
+
+def step_log_path(gate_name: str, label: str) -> Path:
+    """Where a step's complete stdout lands: outputs/.junit/<gate>.<label>.log."""
+    return _JUNIT_DIR / f"{gate_name}.{label}{_STEP_LOG_SUFFIX}"
+
+
 def run_step(step: Step, *, jobs: int = 1, out_lock: threading.Lock | None = None) -> Result:
     """Run one gate step: stream its output live, capture a rolling tail.
 
@@ -425,11 +445,18 @@ def run_step(step: Step, *, jobs: int = 1, out_lock: threading.Lock | None = Non
     writer lock (readable interleaving), and pytest steps get a per-step
     ``cache_dir`` so concurrent pytest processes never race on the shared
     ``.pytest_cache`` (report tails stay unprefixed).
+
+    The COMPLETE stdout is also written to ``outputs/.junit/<gate>.<label>.log``
+    while streaming (gate_output_fidelity S3): the in-memory deque cap and
+    the report tail budget truncate exactly what a failure investigation
+    needs, and ``retain_test_artifacts`` copies that log into the run's
+    artifact directory so it outlives the next run.
     """
     args = list(step.args)
     if jobs > 1 and "pytest" in args:
         args += ["-o", f"cache_dir=.pytest_cache/{step.label}"]
     lock = out_lock if out_lock is not None else threading.Lock()
+    log_path = step_log_path(_CURRENT_GATE, step.label) if _CURRENT_GATE else None
 
     def _emit(line: str) -> None:
         with lock:
@@ -447,14 +474,23 @@ def run_step(step: Step, *, jobs: int = 1, out_lock: threading.Lock | None = Non
         text=True,
     )
     assert proc.stdout is not None
-    for raw in proc.stdout:
-        line = raw.rstrip("\n")
-        if jobs == 1:
-            _emit(line)
-        else:
-            _emit(f"[{step.label}] {line}")
-        capture.append(line)
-    rc = proc.wait()
+    log_file = open(log_path, "w") if log_path else None  # noqa: SIM115  # closed in the finally below
+    try:
+        if log_file is not None:
+            log_file.write(f"--- {step.label}: {' '.join(args)}\n")
+        for raw in proc.stdout:
+            line = raw.rstrip("\n")
+            if jobs == 1:
+                _emit(line)
+            else:
+                _emit(f"[{step.label}] {line}")
+            capture.append(line)
+            if log_file is not None:
+                log_file.write(line + "\n")
+        rc = proc.wait()
+    finally:
+        if log_file is not None:
+            log_file.close()
     return Result(step, time.perf_counter() - t0, rc, list(capture))
 
 
@@ -540,9 +576,24 @@ def table_lines(
 
 
 def retain_test_artifacts(gate_name: str, run_id: str, started: datetime) -> str | None:
+    """Copy this run's machine-readable artifacts into .artifacts/<gate>/<run>/.
+
+    A gate with no junit (perf, which is a benchmark runner; integrity and
+    verify, which write their own reports) used to retain NOTHING at all —
+    which is why 51% of indexed perf FAIL legs and 41% of integrity ones
+    carried no error text (measured 2026-11-09). The per-step stdout logs
+    are retained on their own merit, so the run directory is created
+    whenever ANY fresh artifact exists.
+    """
     junit = _JUNIT_DIR / f"{gate_name}.junit.xml"
     cutoff = started.timestamp() - 2
-    if not junit.exists() or junit.stat().st_mtime < cutoff:
+    fresh_logs = [
+        log
+        for log in sorted(_JUNIT_DIR.glob(f"{gate_name}.*{_STEP_LOG_SUFFIX}"))
+        if log.stat().st_mtime >= cutoff
+    ]
+    has_junit = junit.exists() and junit.stat().st_mtime >= cutoff
+    if not has_junit and not fresh_logs:
         return None
     destination = _ARTIFACT_ROOT / gate_name / run_id
     destination.mkdir(parents=True, exist_ok=True)
@@ -576,6 +627,11 @@ def retain_test_artifacts(gate_name: str, run_id: str, started: datetime) -> str
         native = _JUNIT_DIR / f"{gate_name}.{filename}"
         if native.exists() and native.stat().st_mtime >= cutoff:
             shutil.copy2(native, destination / filename)
+    # gate_output_fidelity S3: per-step full stdout logs. They are the only
+    # complete record of what a failing leg printed — the report tail is
+    # capped and the run's own console output is not persisted anywhere.
+    for log in fresh_logs:
+        shutil.copy2(log, destination / log.name)
     return str(destination.relative_to(OUTPUTS_ROOT))
 
 
@@ -653,7 +709,7 @@ def write_report(
                 if r.skipped:
                     continue
                 why = "FAILED" if r.rc != 0 else "OK"
-                keep = r.step.tail_lines or _TAIL_LINES
+                keep = r.step.tail_lines or (_FAILED_TAIL_LINES if r.rc != 0 else _TAIL_LINES)
                 f.write(f"## {r.step.label} ({why})\n\n")
                 f.write("\n".join(r.tail[-min(keep, len(r.tail)) :]) + "\n\n")
             f.flush()
@@ -689,6 +745,8 @@ def main(argv: list[str] | None = None) -> int:
         )
         return 2
     name = rest[0]
+    global _CURRENT_GATE
+    _CURRENT_GATE = name
     if name == "qa":
         # qa hard pin (rust_language_tooling S2): the cosine selector's
         # abi3 backend is production-carrying, so a vanished .so must FAIL

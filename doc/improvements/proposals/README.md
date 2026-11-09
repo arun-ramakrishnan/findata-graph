@@ -38,7 +38,13 @@ entry number and stale DONE pointers):
 
 ## Current live proposals
 
-- *(none)* — no proposal is awaiting execution.
+- *(archived 2026-11-09)* — `gate_output_fidelity_and_integration_leg`
+  filed and executed the same day, #496
+  (`../archive/testing/gate_output_fidelity_and_integration_leg.md`;
+  node-id fix 118→783, retained step logs + `gate_query output` verb,
+  the ~141 s redundant `integration` leg retired from the arc battery,
+  and a §7 addendum covering retention for the four lanes that never
+  ride the runner — perf, maint, integrity, verify).
 - *(archived 2026-11-09)* — `convo_search_drop_hnsw_numpy_copy_compact`
   executed same day, #495
   (`../archive/convo_search/convo_search_drop_hnsw_numpy_copy_compact.md`;

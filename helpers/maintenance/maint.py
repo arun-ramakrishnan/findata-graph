@@ -176,6 +176,8 @@ PROJECT_ROOT = Path(__file__).resolve().parents[2]
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))  # bootstrap for helpers.* imports  # noqa: E402
 
+from helpers.misc import gate_retain  # noqa: E402
+
 try:
     from helpers.core.corpus import Corpus  # S1b shared walk  # noqa: E402
 
@@ -189,6 +191,14 @@ except ImportError:  # pragma: no cover
 REPORT_PATH = PROJECT_ROOT / "outputs" / "maint_report.md"
 _TAIL_LINES = 60  # lines appended to the report per failed step
 _CAPTURE_LINES = 400  # rolling in-memory cap while streaming
+
+# Per-run artifact dir (outputs/.artifacts/maint/<run-id>): the report keeps
+# 60 tail lines per FAILED step, which was all `gate_query output` could ever
+# reach — every maint run indexed as artifact_state='not_collected'. One full
+# log per step fixes that; None = retention off (tests, import-only use).
+_ARTIFACT_KEEP_RUNS = 40
+_RUN_LOG_DIR: Path | None = None
+_RUN_ID: str | None = None
 
 
 def _graph_store_served() -> bool:
@@ -219,12 +229,22 @@ def _served_file_lane_skip(label: str, logger: logging.Logger) -> _StepResult | 
     """
     if label.split(" (")[0] not in _FILE_LANE_STEPS or not _graph_store_served():
         return None
-    logger.warning(
-        "skipping %s — memory/graph.duckdb is served by the quack "
-        "server; stop it (`make quack-stop`) for the offline rebuild",
-        label,
+    reason = (
+        "skipped: memory/graph.duckdb is served by the quack server; "
+        "stop it (`make quack-stop`) for the offline rebuild"
     )
-    return _StepResult(label, 0, 0.0, ["skipped: quack-served store"])
+    logger.warning("skipping %s — %s", label, reason.removeprefix("skipped: "))
+    # Retain the reason under this step's log name too: a skipped step reads
+    # as OK in the index, and "no log at all" would look like a retention gap.
+    if _RUN_LOG_DIR is not None and _RUN_ID is not None:
+        gate_retain.write_step_log(
+            gate_retain.step_log_path(
+                gate_retain.artifacts_root_for(REPORT_PATH), "maint", _RUN_ID, label
+            ),
+            label,
+            f"{reason}\n",
+        )
+    return _StepResult(label, 0, 0.0, [reason])
 
 
 def _failed_advisory_step(label: str, result: _StepResult, logger: logging.Logger) -> bool:
@@ -746,6 +766,13 @@ def _run_step(label: str, cmd: list[str], dry_run: bool, logger: logging.Logger)
         logger.info("(dry-run; skipping)")
         return _StepResult(label, 0, 0.0)
     capture: deque[str] = deque(maxlen=_CAPTURE_LINES)
+    log_path = (
+        gate_retain.step_log_path(
+            gate_retain.artifacts_root_for(REPORT_PATH), "maint", _RUN_ID, label
+        )
+        if _RUN_LOG_DIR is not None and _RUN_ID is not None
+        else None
+    )
     t0 = time.perf_counter()
     proc = subprocess.Popen(  # noqa: S603  # list-form call; shell=False (default); args are TIER*_STEPS constants
         cmd,
@@ -755,10 +782,25 @@ def _run_step(label: str, cmd: list[str], dry_run: bool, logger: logging.Logger)
         text=True,
     )
     assert proc.stdout is not None  # noqa: S101  # type narrowing only — stdout=PIPE guarantees a stream
-    for raw in proc.stdout:
-        sys.stdout.write(raw)
-        sys.stdout.flush()
-        capture.append(raw.rstrip("\n"))
+    # Full stdout goes to the retained log; the console still streams live and
+    # the deque still feeds the report's failed-step section.
+    log_handle = (
+        open(log_path, "w")  # noqa: SIM115  # one handle per step, closed below
+        if log_path is not None
+        else None
+    )
+    if log_handle is not None:
+        log_handle.write(f"{label}: {' '.join(cmd)}\n")
+    try:
+        for raw in proc.stdout:
+            sys.stdout.write(raw)
+            sys.stdout.flush()
+            capture.append(raw.rstrip("\n"))
+            if log_handle is not None:
+                log_handle.write(raw)
+    finally:
+        if log_handle is not None:
+            log_handle.close()
     rc = proc.wait()
     if rc != 0:
         logger.error("step failed with exit %d: %s", rc, label)
@@ -813,6 +855,7 @@ def _write_report(
     *,
     started: str | None = None,
     elapsed: float | None = None,
+    artifact_dir: str | None = None,
 ) -> None:
     """Append one markdown run record: `# make <mode>` header +
     `| step | time | status |` table, then a `## <step> (FAILED)` section
@@ -822,9 +865,17 @@ def _write_report(
     started_str = f"  ·  **Started:** {started}  ·  **Elapsed:** {elapsed:.1f}s" if started else ""
     mode = "maint-full" if full else "maint"
     REPORT_PATH.parent.mkdir(parents=True, exist_ok=True)
+    artifacts_str = f"  ·  **Artifacts:** {artifact_dir}" if artifact_dir else ""
+    exit_code = 0 if all(r.rc == 0 or r.label in _ADVISORY_STEPS for r in results) else 1
     with open(REPORT_PATH, "a") as f:
         f.write(f"# make {mode} — maint report\n\n")
-        f.write(f"**Generated:** {ts}{started_str}  ·  **Python:** {sys.version.split()[0]}\n\n")
+        f.write(
+            f"**Generated:** {ts}{started_str}  ·  **Python:** {sys.version.split()[0]}"
+            f"{artifacts_str}\n"
+        )
+        # gate_query reads **Exit:** from the block's first lines, before the
+        # step table — the verdict lives in the table footer, too far down.
+        f.write(f"**Exit:** {exit_code}\n\n")
         f.write("| Step | Time (s) | Status |\n")
         f.write("|---|---|---|\n")
         for r in results:
@@ -863,6 +914,16 @@ def _select_steps(args) -> list:
     return list(TIER1_STEPS)
 
 
+def _retain_run_artifacts() -> str | None:
+    """Prune older maint run dirs and return this run's relative artifact
+    path for the report's `**Artifacts:**` line (None when retention is off)."""
+    if _RUN_LOG_DIR is None:
+        return None
+    root = gate_retain.artifacts_root_for(REPORT_PATH)
+    gate_retain.prune_old_runs(root, "maint", _ARTIFACT_KEEP_RUNS)
+    return gate_retain.artifact_meta_value(REPORT_PATH.parent, _RUN_LOG_DIR)
+
+
 def main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     p.add_argument(
@@ -887,6 +948,15 @@ def main(argv: list[str] | None = None) -> int:
     logger = logging.getLogger("maint")
     started = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     t0 = time.perf_counter()
+
+    # Retention is set up BEFORE the plan runs so a step that crashes the
+    # chain still leaves its completed predecessors' logs behind.
+    global _RUN_LOG_DIR, _RUN_ID
+    if not args.dry_run:
+        _RUN_ID = gate_retain.run_id_now()
+        _RUN_LOG_DIR = gate_retain.run_dir(
+            gate_retain.artifacts_root_for(REPORT_PATH), "maint", _RUN_ID
+        )
 
     _prewarm_corpus(args, logger)
     steps = _select_steps(args)
@@ -926,6 +996,7 @@ def main(argv: list[str] | None = None) -> int:
             args.full,
             started=started,
             elapsed=time.perf_counter() - t0,
+            artifact_dir=_retain_run_artifacts(),
         )
         print(f"appended to {REPORT_PATH.name}")
 

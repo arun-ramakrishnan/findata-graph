@@ -162,8 +162,12 @@ without re-deriving it.
   rewrites `except (A, B):` → `except A, B:` repo-wide. Never "fix"
   those lines back to parens and never flag them as syntax errors —
   that diff is expected, not a regression.
-- **Backgrounding past a tool call (all harnesses):** tool timeouts kill
-  the process GROUP — plain `&`/nohup children die with it. Use
+- **Backgrounding past a tool call (all harnesses):** PRIMARY — the
+  harness job mechanism: pass `run_in_background: true` on the bash
+  call, then collect with `job_output` (`wait: true` blocks until the
+  job finishes; never sleep-poll). BACKUP, for long runners that must
+  outlive the harness or when job support is unavailable: tool timeouts
+  kill the process GROUP — plain `&`/nohup children die with it. Use
   `setsid bash -c '<abs cmd> > <abs log> 2>&1; echo $? > <cmd>.exit' </dev/null >/dev/null 2>&1 &`
   — absolute paths INSIDE the subshell (cwd binds at parse time), then
   poll the `.exit` marker with short commands; never sleep-poll, never

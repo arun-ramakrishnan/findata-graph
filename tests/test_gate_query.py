@@ -135,10 +135,16 @@ JUNIT_FACTS = """<testsuites><testsuite tests="5" failures="2" errors="1">
   </testcase>
 </testsuite></testsuites>"""
 
+JUNIT_CLASS_BASED = """<testsuites><testsuite tests="1" failures="0">
+  <testcase classname="tests.test_facts.TestThing" name="test_it" time="0.10">
+    <properties><property name="pytest.mark.integration" value=""/></properties>
+  </testcase>
+</testsuite></testsuites>"""
 
-def one(con, sql: str):
+
+def one(con, sql: str, params: list | None = None):
     """fetchone() with a non-None guard (ty-clean single-row reads)."""
-    row = con.execute(sql).fetchone()
+    row = con.execute(sql, params or []).fetchone()
     assert row is not None
     return row
 
@@ -468,6 +474,37 @@ def test_junit_facts_normalize_metadata_and_fingerprints(corpus):
     con.close()
 
 
+def test_junit_node_id_rebuilds_class_segments_as_node_ids():
+    """JUnit flattens the dotted path; only module segments become paths.
+
+    Regression guard for the 2026-11-09 finding: treating every dot as a
+    path separator fabricated tests/test_x/TestThing.py for every
+    class-based test (821 of 1007 indexed files, 3527 of 5838 rows),
+    which silently disabled --marker filtering (118 of 783 integration
+    tests matched) and per-file history.
+    """
+    assert gq._junit_node_id("tests.test_x", "test_plain") == "tests/test_x.py::test_plain"
+    assert (
+        gq._junit_node_id("tests.test_x.TestThing", "test_it")
+        == "tests/test_x.py::TestThing::test_it"
+    )
+    assert (
+        gq._junit_node_id("tests.test_pkg.test_x.TestOuter.TestInner", "test_deep")
+        == "tests/test_pkg/test_x.py::TestOuter::TestInner::test_deep"
+    )
+    assert (
+        gq._junit_node_id("tests.test_query_helpers.TestLabelToTable", "test_belongs_to")
+        == "tests/test_query_helpers.py::TestLabelToTable::test_belongs_to"
+    )
+    # Parametrised ids carry the bracket suffix in name; it must survive.
+    assert (
+        gq._junit_node_id("tests.test_ranges.TestParseRange", "test_accepts[45min-expected7]")
+        == "tests/test_ranges.py::TestParseRange::test_accepts[45min-expected7]"
+    )
+    # Empty classname -> the bare name (pytest can emit it).
+    assert gq._junit_node_id("", "test_bare") == "test_bare"
+
+
 def test_retained_worktree_artifact_rebuilds_test_facts(corpus):
     now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     artifact_dir = ".artifacts/qa/run-1"
@@ -513,6 +550,63 @@ def test_retained_worktree_artifact_rebuilds_test_facts(corpus):
     con.execute("DELETE FROM test_facts")
     gq.refresh(con, full=True)
     assert one(con, "SELECT COUNT(*) FROM test_facts")[0] == 5
+    con.close()
+
+
+def test_rebuild_tests_fixes_fabricated_node_ids_and_orphans(corpus):
+    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    artifact_dir = ".artifacts/qa/run-rebuild"
+    retained = corpus / artifact_dir
+    _write(retained / "qa.junit.xml", JUNIT_CLASS_BASED)
+    block = _gate_block(now, now).replace(
+        "**Python:** 3.14.0",
+        f"**Python:** 3.14.0  ·  **Artifacts:** {artifact_dir}",
+    )
+    _write(corpus / "qa_report.md", block)
+    con = gq.connect()
+    gq.refresh(con)
+    run_id = one(con, "SELECT run_id FROM runs")[0]
+    # simulate the pre-2026-11-09 state: the classname mangler fabricated
+    # the node id and the marker merge silently failed for class-based rows
+    mangled = "tests/test_facts/TestThing.py::test_it"
+    con.execute("UPDATE tests SET node_id = ? WHERE run_id = ?", [mangled, run_id])
+    con.execute(
+        "UPDATE test_facts SET node_id = ?, file = ?, markers_json = NULL WHERE run_id = ?",
+        [mangled, "tests/test_facts/TestThing.py", run_id],
+    )
+    # rows orphaned by the old _store_run re-parse path (children outliving
+    # their run row)
+    con.execute(
+        "INSERT INTO test_facts VALUES (9999, 'pytest', 'tests/gone.py::test_gone', "
+        "'tests/gone.py', 'passed', 0.1, NULL, NULL, NULL, NULL, NULL, NULL, "
+        "NULL, NULL, 'test-facts.v1')"
+    )
+    con.execute("INSERT INTO legs VALUES (9999, 'pytest', 1.0, 'OK', NULL)")
+    # dry-run reports the plan without writing
+    counts = gq.rebuild_test_facts(con, apply=False)
+    assert counts["runs_scanned"] == 1
+    assert counts["runs_with_junit"] == 1
+    assert counts["rows"] == 1
+    assert counts["wrong_node_rows"] == 1
+    assert counts["orphan_rows"] == 2
+    assert one(con, "SELECT node_id FROM test_facts WHERE run_id = ?", [run_id])[0] == mangled
+    # apply re-derives from the retained junit and purges the orphans
+    counts = gq.rebuild_test_facts(con, apply=True)
+    assert counts["orphan_rows"] == 2
+    fixed = "tests/test_facts.py::TestThing::test_it"
+    assert one(con, "SELECT node_id FROM tests WHERE run_id = ?", [run_id])[0] == fixed
+    row = one(
+        con,
+        "SELECT node_id, file, markers_json FROM test_facts WHERE run_id = ?",
+        [run_id],
+    )
+    assert row[0] == fixed
+    assert row[1] == "tests/test_facts.py"
+    assert "integration" in (row[2] or "")
+    assert one(con, "SELECT COUNT(*) FROM test_facts WHERE run_id = 9999")[0] == 0
+    assert one(con, "SELECT COUNT(*) FROM legs WHERE run_id = 9999")[0] == 0
+    # the ART indexes survive the rebuild (dropped + re-created)
+    assert one(con, "SELECT COUNT(*) FROM duckdb_indexes()")[0] >= 4
     con.close()
 
 
@@ -821,6 +915,78 @@ def test_generic_artifact_records_include_report_legs_and_manifest(corpus):
     }
     args.json = False
     assert "artifact record" in gq.cmd_artifacts(con, args)
+    con.close()
+
+
+def test_integrity_err_head_keeps_summary_without_detail():
+    # RELATIONS reports its whole failure on the summary line ("-> errors=42")
+    # with no detail lines; a detail-only head recorded NULL for a real FAIL
+    # (95 of 230 indexed integrity FAIL legs, 2026-11-09).
+    from helpers.misc import search_tui as st
+
+    rows = st._parse_integrity_chunk(
+        [
+            "## RELATIONS (ERROR-level; gate-failing)",
+            "total=60543 type_mismatch=42 -> errors=42",
+            "",
+            "## DUCKDB CACHE CONSISTENCY (ERROR-level; gate-failing)",
+            "drift=0 row_mismatches=2 -> errors=2",
+            "  - e_belongs: duckdb=1212 sqlite=1254",
+        ]
+    )
+    assert gq._integrity_err_head(rows, "RELATIONS") == (
+        "total=60543 type_mismatch=42 -> errors=42"
+    )
+    duckdb = gq._integrity_err_head(rows, "DUCKDB CACHE CONSISTENCY")
+    assert duckdb is not None
+    assert duckdb.startswith("drift=0 row_mismatches=2")
+    assert "e_belongs" in duckdb  # detail lines still follow the summary
+    assert gq._integrity_err_head(rows, "ABSENT CHECK") is None
+
+
+def test_output_verb_reads_retained_step_log(corpus):
+    # gate_output_fidelity S3: a failing leg's complete stdout is retained
+    # beside the junit, so gate_query serves it instead of the reader
+    # re-running the leg (different tree, load average, perf verdict).
+    now = datetime.now().strftime(gq._TS_FMT)
+    artifact_dir = ".artifacts/qa/run-out"
+    retained = corpus / artifact_dir
+    log_lines = ["collected 3 items", *[f"noise-{i}" for i in range(50)], "FAILED tests/test_x.py"]
+    _write(retained / "qa.pytest.log", "\n".join(log_lines) + "\n")
+    block = _gate_block(now, now, fail=True).replace(
+        "**Python:** 3.14.0",
+        f"**Python:** 3.14.0  ·  **Artifacts:** {artifact_dir}",
+    )
+    _write(corpus / "qa_report.md", block)
+    con = gq.connect()
+    gq.refresh(con)
+    base = SimpleNamespace(run=None, gate="qa", wt="", leg="pytest", grep=None, tail=5)
+    out = gq.cmd_output(con, base)
+    # default tail is a window, not the whole log
+    assert "qa.pytest.log: 52 line(s)" in out
+    assert "FAILED tests/test_x.py" in out and "noise-0" not in out
+    base.tail = 0
+    assert "noise-0" in gq.cmd_output(con, base)
+    base.grep = "failed"
+    assert "1 of 52 line(s) matching 'failed'" in gq.cmd_output(con, base)
+    # unknown leg names what IS retained instead of failing silently
+    base.leg, base.grep = "type_check", None
+    assert "retained legs: pytest" in gq.cmd_output(con, base)
+    # no --leg lists the retained set
+    base.leg = None
+    assert "qa.pytest.log" in gq.cmd_output(con, base)
+    con.close()
+
+
+def test_output_verb_without_artifacts(corpus):
+    now = datetime.now().strftime(gq._TS_FMT)
+    _write(corpus / "qa_report.md", _gate_block(now, now, fail=True))
+    con = gq.connect()
+    gq.refresh(con)
+    out = gq.cmd_output(
+        con, SimpleNamespace(run=None, gate="qa", wt="", leg="pytest", grep=None, tail=10)
+    )
+    assert "no retained artifact directory" in out
     con.close()
 
 
@@ -1170,4 +1336,134 @@ def test_cmd_timing_pass_only_uses_registry_filter(corpus):
     assert "3.00s" in out_pass
     assert "4.00s" not in out_pass
     assert "no history for" not in out_pass
+    con.close()
+
+# ── gate_output_fidelity S4: the non-runner lanes ───────────────────────
+# perf / maint / integrity / verify never ride run_gate_report, so before
+# 2026-11-09 they retained NOTHING: every perf run indexed as
+# artifact_state='not_collected' and `gate_query output` could not reach a
+# single leg. These pin the layout + the index plumbing.
+
+
+_INTEGRITY_BLOCK = """# FinData Knowledge Graph — Database Integrity Report
+
+**Generated:** {gen}  ·  **Database:** `memory/research.db`  ·  **Ended:** {gen}  ·  **Elapsed:** 9.0s  ·  **Artifacts:** {artifacts}
+
+## RELATIONS (ERROR-level; gate-failing)
+total=1 orphaned=0 -> errors=0
+
+## NOTE TAGS (ERROR-level; gate-failing)
+total=2 stale=0 -> errors=0
+"""
+
+_VERIFY_BLOCK = """# FinData Knowledge Graph — Notes Verification Report
+
+**Generated:** {gen}  ·  **Started:** {gen}  ·  **Elapsed:** 1.0s  ·  **Project Root:** `/repo`  ·  **Artifacts:** {artifacts}
+
+| Metric | Value |
+|---|---|
+| Total Files Checked | 3 |
+| Errors | 1 |
+| Warnings | 0 |
+
+## ERRORS (gate-failing)
+
+### yaml_structure (1)
+- a.md: boom
+
+## Verdict
+
+⚠️  Found 1 errors that need attention.
+"""
+
+
+PERF_BLOCK_WITH_ARTIFACTS = """# make perf — benchmark report
+
+**Generated:** {gen}  ·  **Started:** {gen}  ·  **Ended:** {gen}  ·  **Elapsed:** 10.0s  ·  **Python:** 3.14.0  ·  **Artifacts:** {artifacts}
+**Exit:** 1
+
+| Benchmark | Time (s) | Budget | Status |
+|---|---|---|---|
+| graph_l1_centrality | 2.50 | 5.0s | ✓ OK |
+| derive_events | 3.23 | 3.0s | ✗ FAIL(budget) |
+
+## derive_events (FAILED)
+
+status: OVER_BUDGET
+companies_scanned 396
+"""
+
+
+def test_perf_run_with_logs_only_is_not_missing(corpus):
+    """A perf run retains per-leg logs and NO junit. Reading that as
+    'missing' claimed data loss that was not there; the state is 'logs'."""
+    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    artifact_dir = ".artifacts/perf/20260101T000000-000000"
+    _write(
+        corpus / artifact_dir / "perf.derive_events.log",
+        "--- derive_events: python3 helpers/graph/derive_events.py\ncompanies_scanned 396\n",
+    )
+    _write(
+        corpus / "perf_report.md",
+        PERF_BLOCK_WITH_ARTIFACTS.format(gen=now, artifacts=artifact_dir),
+    )
+    con = gq.connect()
+    gq.refresh(con)
+    state = one(con, "SELECT artifact_state FROM runs")[0]
+    assert state == "logs", state
+    out = gq.cmd_output(
+        con,
+        SimpleNamespace(run=None, gate="perf", wt="", leg="derive_events", grep=None, tail=0),
+    )
+    assert "perf.derive_events.log" in out
+    assert "companies_scanned 396" in out
+    con.close()
+
+
+def test_output_verb_lists_perf_legs(corpus):
+    """--leg omitted names every retained log — the discovery path a
+    perf-only lane needs, since it never writes a junit."""
+    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    artifact_dir = ".artifacts/perf/20260101T000001-000000"
+    _write(corpus / artifact_dir / "perf.derive_events.log", "x\n")
+    _write(corpus / artifact_dir / "perf.doc_query.log", "y\n")
+    _write(
+        corpus / "perf_report.md",
+        PERF_BLOCK_WITH_ARTIFACTS.format(gen=now, artifacts=artifact_dir),
+    )
+    con = gq.connect()
+    gq.refresh(con)
+    out = gq.cmd_output(
+        con, SimpleNamespace(run=None, gate="perf", wt="", leg=None, grep=None, tail=10)
+    )
+    assert "perf.derive_events.log" in out and "perf.doc_query.log" in out
+    con.close()
+
+
+def test_integrity_and_verify_store_their_artifact_dir(corpus):
+    """integrity/verify wrote their own reports and stored artifact_dir NULL,
+    so 791 + 529 indexed runs could never reach a retained log."""
+    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    integrity_dir = ".artifacts/integrity/20260101T000002-000000"
+    _write(corpus / integrity_dir / "integrity.RELATIONS.log", "total=1 -> errors=0\n")
+    _write(
+        corpus / "database_integrity_report.md",
+        _INTEGRITY_BLOCK.format(gen=now.replace(" ", "T"), artifacts=integrity_dir),
+    )
+    verify_dir = ".artifacts/verify/20260101T000003-000000"
+    _write(corpus / verify_dir / "verify.yaml_structure.log", "- a.md: boom\n")
+    _write(
+        corpus / "verify_notes_report.md",
+        _VERIFY_BLOCK.format(gen=now, artifacts=verify_dir),
+    )
+    con = gq.connect()
+    gq.refresh(con)
+    rows = dict(
+        con.execute("SELECT gate, artifact_state FROM runs").fetchall(),
+    )
+    assert rows["integrity"] == "logs", rows
+    assert rows["verify"] == "logs", rows
+    dirs = dict(con.execute("SELECT gate, artifact_dir FROM runs").fetchall())
+    assert dirs["integrity"] == integrity_dir
+    assert dirs["verify"] == verify_dir
     con.close()
