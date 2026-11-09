@@ -14384,3 +14384,31 @@ to doc/improvements/archive/database/duckdb_pure_stack.md.
   iFUB, kernel vs scipy 14-family sweep, Rust reference + naive
   proptest, live A/B structural fields identical). Gates battery
   launched immediately after this archival (operator go, same day).
+
+## 498. rusqlite/libsqlite3-sys bump — RUSTSEC-2026-0459 cleared from
+    both lockfiles
+
+- Advisory cargo-audit leg red: RUSTSEC-2026-0459 (CVE-2026-119375, 6.8
+  medium, vendored bundled SQLite, fix libsqlite3-sys >=0.39.0) at
+  0.31.0 (Rust/Cargo.lock via embed_cache) and 0.30.1 (desktop/src-tauri
+  via findata-core).
+- Pairing measured on the crates.io deps API BEFORE the bump: rusqlite
+  0.40.2 still requires ^0.38.2 — 0.41.1 (^0.39.0) is the first and only
+  stable minor satisfying the bar, collapsing latest-vs-minimal-sufficient
+  to the same version.
+- Both consumers bumped to rusqlite 0.41.1 (bundled kept — vendored
+  patched SQLite, reproducible builds); locks resolve libsqlite3-sys
+  0.39.1; new transitives hashlink 0.12.2, thiserror 2, rsqlite-vfs,
+  sqlite-wasm-rs.
+- Zero API fallout (tiny surface: Connection/params!/OptionalExtension/
+  ValueRef); cargo test workspace green, clippy -D warnings + fmt clean;
+  findata-core 16/20 — 4 live-data failures (ego_company_bundle,
+  ego_sector_bundle, entity_hyperedges_bundle, similar_notes_ranking)
+  PRE-EXISTING, control-proven by re-running on the old lock (identical
+  16/4).
+- embed_cache README re-baselined on the new bundled SQLite: full-pipeline
+  Rust 3.1–4.7× Python (was 2.5–3.4×), insert 3.1–3.4×, lookup 1.4–1.8×
+  per row; SHA-256 row unchanged (OpenSSL 3.5.5 still leads).
+- cargo audit rc=0 on BOTH locks (allowed warnings only: arrow-data
+  RUSTSEC-2026-0442 out-of-scope, desktop tauri stack upstream-bound);
+  cargo deny licenses ok. Advisory full-run re-check on operator gate go.

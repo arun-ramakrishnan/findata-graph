@@ -11,17 +11,19 @@ Rust build uses `sha2` crate with `features = ["asm"]` → SHA-NI on x86_64 CPUs
 
 | Size | sha256 Rust+SHA-NI | sha256 Py (OpenSSL) | insert Rust | insert Py | lookup Rust | lookup Py | full-pipeline Rust | full-pipeline Py |
 |------|-------------------|---------------------|-------------|-----------|-------------|-----------|--------------------|------------------|
-| 256 | 138 MB/s | 218 MB/s | 113k r/s | 29k r/s | 279k r/s | 147k r/s | 179k ops/s | 53k ops/s |
-| 1,024 | 155 MB/s | 265 MB/s | 110k r/s | 34k r/s | 202k r/s | 144k r/s | 183k ops/s | 63k ops/s |
-| 4,096 | 180 MB/s | 226 MB/s | 90k r/s | 27k r/s | 194k r/s | 111k r/s | 131k ops/s | 51k ops/s |
+| 256 | 173 MB/s | 157 MB/s | 112k r/s | 35k r/s | 311k r/s | 197k r/s | 298k ops/s | 63k ops/s |
+| 1,024 | 141 MB/s | 216 MB/s | 124k r/s | 36k r/s | 248k r/s | 139k r/s | 196k ops/s | 64k ops/s |
+| 4,096 | 174 MB/s | 275 MB/s | 106k r/s | 34k r/s | 210k r/s | 149k r/s | 190k ops/s | 60k ops/s |
+
+Re-baselined 2026-11-09 on rusqlite 0.41.1 (RUSTSEC-2026-0459 bump — bundled SQLite rebuilt): full-pipeline Rust now 3.1–4.7× Python; per-row insert 3.1–3.4×, lookup 1.4–1.8×.
 
 OpenSSL reference (`openssl speed sha256`, OpenSSL 3.5.5): ~392 MB/s at 8-KB blocks, ~354 MB/s at 1-KB blocks. Python's `hashlib` wraps OpenSSL; Rust's `sha2` crate (even with SHA-NI asm) is a software implementation, so OpenSSL leads on raw hashing.
 
 ## Verdict (corrected)
 
-**Rust wins every row except raw SHA-256.** Full pipeline: Rust ~2.5–3.4× faster than Python at all sizes. The per-row `COMMIT` WAL pattern dominates at scale, but Rust's rusqlite insert/lookup is ~3–4× faster per row, so the pipeline advantage holds.
+**Rust wins every row except raw SHA-256.** Full pipeline: Rust ~3.1–4.7× faster than Python at all sizes (re-measured on rusqlite 0.41.1). The per-row `COMMIT` WAL pattern dominates at scale, but Rust's rusqlite insert is ~3.1–3.4× and lookup ~1.4–1.8× faster per row, so the pipeline advantage holds.
 
-**SHA-256 row:** Python/OpenSSL still leads (~226–265 MB/s vs Rust ~138–180 MB/s). To close this gap:
+**SHA-256 row:** Python/OpenSSL still leads (~157–275 MB/s vs Rust ~141–174 MB/s). To close this gap:
 
 - Enable `sha2` crate's `asm` feature (already done — uses SHA-NI on supported CPUs; software fallback otherwise). This raised Rust from ~128→180 MB/s but doesn't match OpenSSL.
 - For full hardware acceleration, bind directly to OpenSSL via the `openssl` Rust crate (requires `libssl-dev` / pkg-config). The crate version `v3_5` feature is unavailable in this sandbox's dependency set; install `libssl-dev` and upgrade the `openssl` crate version to close the SHA-256 gap.
@@ -33,7 +35,7 @@ OpenSSL reference (`openssl speed sha256`, OpenSSL 3.5.5): ~392 MB/s at 8-KB blo
 Paths as of the workspace promotion (this trial lived at `rust_trials/`
 before it became a workspace crate):
 
-- `Rust/embed_cache/Cargo.toml` — sha2 0.10 (with `asm`), rusqlite 0.33 (bundled), hex 0.4
+- `Rust/embed_cache/Cargo.toml` — sha2 0.10 (with `asm`), rusqlite 0.41.1 (bundled; RUSTSEC-2026-0459 bump 2026-11-09), hex 0.4
 - `Rust/embed_cache/src/lib.rs` — `sha256_hex`, `lookup_batch`, `decode_embedding`
 - `Rust/embed_cache/src/bin/trial.rs` — `bench_sha256`, `bench_sqlite_insert`, `bench_sqlite_lookup`, `bench_full_pipeline`; prints the `openssl speed sha256` reference at startup
 - `Rust/embed_cache/src/bin/embed-cache-lookup.rs`, `Rust/embed_cache/src/bin/sha_s2.rs`

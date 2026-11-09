@@ -37,7 +37,10 @@ entry number and stale DONE pointers):
    repointed 16 dead sites).
 
 ## Current live proposals
-
+- *(archived 2026-11-09)* — `rusqlite_bump_rustsec_2026_0459` executed
+  same day, #498 (`../archive/tooling/rusqlite_bump_rustsec_2026_0459.md`;
+  rusqlite 0.41.1 both workspaces, `libsqlite3-sys` 0.39.1, `cargo audit`
+  rc=0 both locks, embed_cache README re-baselined 3.1–4.7× pipeline)
 - *(archived 2026-11-09)* — `rust_bfs_kernels_stats_trails` executed
   same day, #497
   (`../archive/graph/rust_bfs_kernels_stats_trails.md`; `graph_kernels`

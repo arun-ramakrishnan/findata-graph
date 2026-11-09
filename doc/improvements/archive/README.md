@@ -578,6 +578,13 @@ commit, referenced by nothing). Entry numbers point at
 - [`refresh_chain_parallel.md`](pipeline/refresh_chain_parallel.md) — Refresh chain, parallel — fetch/apply split so independent sources overlap; per-lane `--fetch-only` stages writing scratch JSON under `$TMPDIR/findata-graph/`, parallel phase A, sequential store applies under per-store lock, per-item failure containment; `refresh-chain` Makefile target (default), `refresh-chain-ser` for the original sequential chain — completed.md #403
 
 ## tooling/ — Tooling & performance — MCP eval, doc browser/search, perf review, tech survey
+- [`rusqlite_bump_rustsec_2026_0459.md`](tooling/rusqlite_bump_rustsec_2026_0459.md) —
+  rusqlite/libsqlite3-sys bump clearing RUSTSEC-2026-0459 (CVE-2026-119375,
+  6.8 medium, vendored bundled SQLite) from both lockfiles: rusqlite 0.32
+  (desktop `findata-core`) + 0.33 (`embed_cache`) → 0.41.1 — measured FIRST
+  stable minor pairing `libsqlite3-sys` ^0.39.0 (0.40.2 still ^0.38.2);
+  locks 0.39.1, `cargo audit` rc=0 both, zero API fallout, embed_cache
+  README re-baselined (full-pipeline 3.1–4.7×) — completed.md #498
 - [`range_review_followups.md`](tooling/range_review_followups.md) —
   first three-leg review (delegation + scan + goldfish) over
   e3147ef3c..4b6f50912 as fix items R1–R14: quack bridge cut,
