@@ -91,6 +91,16 @@ commit, referenced by nothing). Entry numbers point at
 - [`security_route_skeleton.md`](security/security_route_skeleton.md) — Route skeleton — `ast`-derived inventory of `app.py`'s 38 routes published to `doc/security/routes.json` and checked by `static_checks.py`; the emitted advisory is shape agreement, explicitly not a security verdict — completed.md #311
 
 ## graph/ — Graph layer — algorithms, DuckPGQ retirement, Onager, knowledge-model design
+- [`rust_bfs_kernels_stats_trails.md`](graph/rust_bfs_kernels_stats_trails.md) —
+  the 2026-11-09 Rust/PyO3 BFS arc: `graph_kernels` abi3 crate fires
+  the kernel-selector ladder's custom-kernel rung for BFS-shaped work —
+  exact all-pairs histogram stats replace sampled `shortest_path` +
+  iFUB (stats CLI 76.63 s → 11.27 s; peak 2.9 GB → 456 MB; canonical
+  ties) and batched limited-source trail BFS replaces per-source
+  dijkstra + pool pickles (`--full-map` 166.8 s → 3.56 s,
+  0.17 ms/source); SciPy and mp.Pool fallbacks kept
+  (`TRAIL_BFS_RUST=0` escape hatch); cosine-shaped Rust stays closed
+  (0.47–0.49×) — completed.md #497
 - [`algorithms_adoption_sweep.md`](graph/algorithms_adoption_sweep.md) —
   the 2026-11-08 library-shelf sweep (8 items): S1 DuckDB fuzzy pushdown
   measured-not-adopted (parity 204/204 but 0.39×; module kept); S2

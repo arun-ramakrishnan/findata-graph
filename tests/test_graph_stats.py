@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import contextlib
 import io
+import importlib.util
 import sqlite3
 from pathlib import Path
 
@@ -231,6 +232,15 @@ class TestLongestChainsExact:
         capped = longest_chains(conn, max_exact=10)
         exact = longest_chains(conn, max_exact=10, exact=True)
         conn.close()
+        if importlib.util.find_spec("graph_kernels") is not None:
+            # S2b kernel lane: stats are exact over ALL roots already —
+            # the sample never engages, so capped == exact everywhere.
+            assert not any("SAMPLED" in ln for ln in capped)
+            assert not any("SAMPLED" in ln for ln in exact)
+            assert capped == exact, "kernel lane ignores the cap"
+            d = int(capped[0].split("diameter ")[1].split(" ")[0])
+            assert d == 59, "a 60-node path has diameter 59"
+            return
         assert any("SAMPLED 10/60" in ln for ln in capped)
         assert not any("SAMPLED" in ln for ln in exact)
         d_capped = int(capped[0].split("diameter ")[1].split(" ")[0])
@@ -335,3 +345,55 @@ def test_ifub_diameter_parity_random_components():  # noqa: C901
     assert stats._ifub_diameter(path) == n - 1
     assert stats._ifub_diameter(csr_matrix((1, 1))) == 0
     assert stats._ifub_diameter(csr_matrix((0, 0))) is None
+
+
+def test_ifub_diameter_kernel_lane_matches_ifub_lane():
+    """When the Rust graph_kernels extension is installed, the
+    kernel-first dispatch in _ifub_diameter must agree with the
+    pure-Python iFUB fallback lane on the same graphs (S2a swap).
+
+    Forces the fallback by stubbing _ifub_diameter_kernel to None —
+    the same path a venv without the .so takes — so both lanes run
+    inside one test regardless of install state.
+    """
+    import numpy as np
+    from scipy.sparse import csr_matrix
+
+    n = 90
+    rng = np.random.default_rng(11)
+    A = np.triu(rng.random((n, n)) < 0.06, 1)
+    A = A | A.T
+    random_csr = csr_matrix(A.astype(np.int8))
+    path = csr_matrix((np.ones(n - 1), (np.arange(n - 1), np.arange(1, n))), shape=(n, n))
+    path = (path + path.T).astype(np.int8)
+    star = np.zeros((n, n), dtype=np.int8)
+    star[0, 1:] = star[1:, 0] = 1
+    star_csr = csr_matrix(star)
+    # disconnected: two path components + one isolated node
+    dis = np.zeros((n, n), dtype=np.int8)
+    for i in range(39):
+        dis[i, i + 1] = dis[i + 1, i] = 1
+    for i in range(41, 79):
+        dis[i, i + 1] = dis[i + 1, i] = 1
+    dis_csr = csr_matrix(dis)
+
+    for idx, csr in enumerate([random_csr, path, star_csr, dis_csr]):
+        kernel_lane = stats._ifub_diameter(csr)
+        with monkeypatch_for_ifub_stub():
+            fallback_lane = stats._ifub_diameter(csr)
+        assert kernel_lane is not None
+        assert kernel_lane == fallback_lane, (
+            f"case {idx}: kernel {kernel_lane} vs ifub {fallback_lane}"
+        )
+        # degenerate shapes share both lanes' contracts
+        assert stats._ifub_diameter(csr_matrix((1, 1))) == 0
+        assert stats._ifub_diameter(csr_matrix((0, 0))) is None
+
+
+@contextlib.contextmanager
+def monkeypatch_for_ifub_stub():
+    """Stub the kernel probe to None so _ifub_diameter takes the iFUB lane."""
+    import unittest.mock
+
+    with unittest.mock.patch.object(stats, "_ifub_diameter_kernel", lambda csr: None):
+        yield

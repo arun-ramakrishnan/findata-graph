@@ -420,7 +420,13 @@ as written):
   above) was never evaluated before the twin was built; measured parity
   (6.09 vs 6.10 ms/source live, canonical per completed.md #474) means
   no >2× crossover existed. The promotion gate remains the only
-  promotion path.
+  promotion path. RESOLVED 2026-11-09 (rust_bfs_kernels_stats_trails
+  S3): the crossover was integration-shaped, not kernel-shaped — the
+  Mojo lane paid per-source subprocess+text-parse (~6 ms), so a fast BFS
+  could only tie. One batched in-process Rust call over all sources
+  (graph_kernels.limited_bfs_sources, rayon inside) measures 0.14–0.17
+  ms/source, full map 166.8 s → 3.56 s (47×), payload parity pinned
+  against scipy (A/B TRAIL_BFS_RUST=0 + tests/test_hyper_trails.py).
 - Wall 2 S2 bridge inverted: production dispatch derives tempfile bins
   from the matrix (helpers/graph/hyper_trails.py:205-241);
   build_bipartite_csr (:139-202) has test-only callers.

@@ -759,6 +759,16 @@ Open items below keep their revisit triggers inline; executed work is compressed
   1.000); custom zero-copy logic → Rust/PyO3; set-SQL → DuckDB.
   Trigger: embeddings ~10⁵+ (current 1,209, DuckDB brute ~3 ms) or any
   measured batch-GEMM wall in production.
+- **Rust/PyO3 rung of the ladder — FIRED for BFS-shaped work (not GEMM)**
+  (2026-11-09, `rust_bfs_kernels_stats_trails`, executed same day):
+  `graph_kernels` (Rust/graph_kernels, abi3) ships two adopted entrants —
+  `all_pairs_bfs_stats` (exact diameter/median/ties histograms; stats CLI
+  76.6 s → 11.3 s, 1.75 GB sampled matrices → ~0.3 MB scratch) and
+  `limited_bfs_sources` (batched trail histograms; full map 166.8 s →
+  3.56 s, 6.35 → 0.17 ms/source). The Mojo per-source-subprocess lesson
+  is the design rule: batch ALL sources into one in-process call. Kernel
+  ladder for embeddings is unchanged — cosine-shaped Rust stays closed
+  (0.47–0.49× vs numpy, refuted with rayon).
 
 - **Wrap `onager_ctr_personalized_pagerank`** (deferred N5 item 6). Onager bug:
   personalisation column ignored, restart node hardcoded to `node_id 1`, and it

@@ -957,6 +957,13 @@ def main(argv: list[str] | None = None) -> int:
         _RUN_LOG_DIR = gate_retain.run_dir(
             gate_retain.artifacts_root_for(REPORT_PATH), "maint", _RUN_ID
         )
+    else:
+        # A dry run has no run id — reset any stale globals from an earlier
+        # main() in the same process, or retained-log writers (e.g.
+        # _served_file_lane_skip's skip log) fire on the previous run's id
+        # and create .artifacts during a dry run (qa 4141 regression).
+        _RUN_ID = None
+        _RUN_LOG_DIR = None
 
     _prewarm_corpus(args, logger)
     steps = _select_steps(args)

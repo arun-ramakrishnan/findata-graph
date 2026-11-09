@@ -55,6 +55,14 @@ from helpers.misc.database_integrity_check import DatabaseIntegrityChecker  # no
 #: this constant so the tripwire and the diagnostic cannot drift.
 CHAIN_CAP = 6000
 
+#: Longest-chains DISPLAY sample (rust_bfs_kernels_stats_trails S2b).
+#: When the graph_kernels kernel supplies exact stats over all roots,
+#: predecessor rows exist only to render distant-pair examples: below
+#: this size the full matrix is cheap and keeps the historic exact-mode
+#: selection; above it a stride display sample keeps render memory flat
+#: (512 x 19k float64+int32 ~= 118 MB vs 1.75 GB at 6,000 roots).
+CHAIN_DISPLAY_ROOTS = 512
+
 
 def _hr(label: str, char: str = "=") -> str:
     return f"\n{char * 60}\n{label}\n{char * 60}"
@@ -157,6 +165,49 @@ def _chain_dist_stats(dist: np.ndarray) -> tuple[int, float, int, int]:
     return diameter, median, int(hist[diameter]), total
 
 
+def _graph_kernels_stats(csr_graph):
+    """Exact all-pairs BFS stats via the Rust graph_kernels kernel.
+
+    Returns (diameter, median, ordered ties, total ordered pairs) over
+    ALL roots: one frontier-BFS sweep per node folded into a single
+    distance histogram (live 19k-node projections: ~1.2 s and 74.7 KB
+    per-thread scratch, vs ~24 s + a 1.75 GB dist/pred materialisation
+    for the 6,000-root scipy sample). Ties are ORDERED pair counts;
+    callers halve for the canonical (a<b) figure. Returns None when
+    the extension module is not installed so callers fall back to the
+    scipy/iFUB lanes; parity is pinned by
+    test_ifub_diameter_parity_random_components,
+    test_ifub_diameter_kernel_lane_matches_ifub_lane, and the
+    longest_chains kernel-lane tests.
+    """
+    import numpy as np
+
+    try:
+        import graph_kernels
+    except ImportError:
+        return None
+
+    mat = csr_graph.tocsr()
+    mat.sort_indices()
+    diam, median, ties, total, _hist = graph_kernels.all_pairs_bfs_stats(
+        np.ascontiguousarray(mat.indptr, dtype=np.int32),
+        np.ascontiguousarray(mat.indices, dtype=np.int32),
+    )
+    return int(diam), float(median), int(ties), int(total)
+
+
+def _ifub_diameter_kernel(csr_graph) -> int | None:
+    """Exact diameter via the Rust graph_kernels all-pairs kernel.
+
+    Thin wrapper over _graph_kernels_stats (the S2a entry point):
+    returns the exact max finite pairwise distance — semantics matching
+    _ifub_diameter — or None when the extension module is not installed
+    so the caller falls back to the pure-Python iFUB lane.
+    """
+    stats = _graph_kernels_stats(csr_graph)
+    return None if stats is None else stats[0]
+
+
 def _ifub_diameter(csr_graph) -> int | None:  # noqa: C901
     """Exact diameter over an undirected unit-weight CSR graph via iFUB.
 
@@ -184,6 +235,9 @@ def _ifub_diameter(csr_graph) -> int | None:  # noqa: C901
     if n == 1:
         return 0
 
+    kernel_diam = _ifub_diameter_kernel(csr_graph)
+    if kernel_diam is not None:
+        return kernel_diam
     n_comp, comp = connected_components(csr_graph, directed=False)
 
     def _component_diameter(nodes: np.ndarray) -> int:
@@ -385,6 +439,18 @@ def longest_chains(
     SAMPLED line — only distant-pair selection stays sampled (lower
     bounds), so the headline metric is never again a guess.
 
+    S2b (rust_bfs_kernels_stats_trails, 2026-11-09): with the
+    graph_kernels extension installed, stats for BOTH views come
+    exact over ALL roots from the Rust all-pairs kernel and the cap
+    stops binding — the SAMPLED compromise, its 1.75 GB dist/pred
+    materialisation, and the separate iFUB diameter call exist only
+    on the scipy fallback lane. Pair display keeps predecessor rows:
+    the full matrix below CHAIN_DISPLAY_ROOTS (historic selection
+    preserved byte-identically), a stride display sample above it —
+    per-row distances stay exact, the row set is presentational.
+    Ties become canonical (a<b) in this lane, matching the historic
+    exact branch.
+
     ``exact=True`` (scipy_exact_universe S2, opt-in — never the gate
     path) lifts the sample to ALL roots: distances become exact, the
     SAMPLED note disappears. Cost at the 21,461-root live set: ~80 s
@@ -393,7 +459,9 @@ def longest_chains(
     2026-09-26). The old ``triu_indices`` finite-stats pass (3.7 GB of
     index arrays at 21k, an OOM-shaped leftover from the 1.7k era) is
     replaced by a chunked integer histogram — identical median/diameter/
-    ties, O(chunk*n) memory.
+    ties, O(chunk*n) memory. With the kernel lane live the flag is a
+    no-op — stats are already exact over all roots (fallback lanes
+    unchanged).
     """
     import numpy as np
     from scipy.sparse.csgraph import connected_components, shortest_path
@@ -435,7 +503,31 @@ def longest_chains(
         ),
     ):
         n_comp, comp = connected_components(mat, directed=False)
-        if capped:
+        kernel_stats = _graph_kernels_stats(mat)
+        if kernel_stats is not None:
+            # S2b: exact stats over ALL roots from the Rust kernel —
+            # no n^2 matrices, no sampled lower bounds, cap-proof.
+            # Predecessor rows only feed pair display: the full matrix
+            # below CHAIN_DISPLAY_ROOTS keeps the historic exact-mode
+            # selection byte-identical; a stride display sample above
+            # it keeps render memory flat.
+            diameter, median, ties, _total = kernel_stats
+            ties //= 2  # symmetric square → canonical (a<b) pair count
+            if n > CHAIN_DISPLAY_ROOTS:
+                roots = np.unique(np.linspace(0, n - 1, CHAIN_DISPLAY_ROOTS).astype(int))
+                dist, pred = shortest_path(
+                    mat,
+                    method="D",
+                    unweighted=True,
+                    return_predecessors=True,
+                    indices=roots,
+                )
+            else:
+                roots = None
+                dist, pred = shortest_path(
+                    mat, method="D", unweighted=True, return_predecessors=True
+                )
+        elif capped:
             dist, pred = shortest_path(
                 mat,
                 method="D",
@@ -453,13 +545,21 @@ def longest_chains(
             lines.append(f"  {label}: no edges")
             continue
         pairs = _select_chain_pairs(dist, diameter, roots, top_k)
-        cap_note = (
-            f" | SAMPLED {n_roots}/{n} roots (cap {max_exact}): "
-            f"d >= {diameter}, pair distances are lower bounds; "
-            f"EXACT diameter {diam_exact} via iFUB"
-            if capped
-            else ""
-        )
+        if kernel_stats is not None:
+            cap_note = (
+                f" | EXACT all {n} roots via graph_kernels; "
+                f"pairs from {len(roots)}-root display sample"
+                if roots is not None
+                else ""
+            )
+        elif capped:
+            cap_note = (
+                f" | SAMPLED {n_roots}/{n} roots (cap {max_exact}): "
+                f"d >= {diameter}, pair distances are lower bounds; "
+                f"EXACT diameter {diam_exact} via iFUB"
+            )
+        else:
+            cap_note = ""
         lines.append(
             f"  {label}: {n_comp} components | diameter {diameter} "
             f"({ties} pairs at d={diameter}) | median dist {median:.0f}"

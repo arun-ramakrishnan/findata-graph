@@ -52,7 +52,10 @@ version = "*"
 allow = ["AGPL-3.0-or-later"]
 name = "embed_cache"
 version = "*"
-
+[[licenses.exceptions]]
+allow = ["AGPL-3.0-or-later"]
+name = "graph_kernels"
+version = "*"
 [sources]
 unknown-registry = "warn"
 unknown-git = "warn"

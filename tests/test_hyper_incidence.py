@@ -19,6 +19,7 @@ Run:
 
 from __future__ import annotations
 
+import importlib.util
 import json
 import re
 import sqlite3
@@ -847,8 +848,15 @@ class TestLongestChains:
         finally:
             c.close()
         text = "\n".join(first)
-        assert "SAMPLED 5/12 roots (cap 5)" in text
-        assert "d >= " in text and "lower bounds" in text
+        kernel_live = importlib.util.find_spec("graph_kernels") is not None
+        if kernel_live:
+            # S2b kernel lane: all-root exact stats, the sampled-root
+            # compromise (and its SAMPLED / lower-bound annotation) is
+            # gone; components/pairs/determinism all still hold.
+            assert "SAMPLED" not in text
+        else:
+            assert "SAMPLED 5/12 roots (cap 5)" in text
+            assert "d >= " in text and "lower bounds" in text
         assert first == second  # stride sample: deterministic, no RNG
         # Structure survives sampling: components, pairs, chain lines.
         assert "1 components" in text and "d=" in text

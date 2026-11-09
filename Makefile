@@ -165,7 +165,7 @@ help:           ## Show available targets (alphabetical; entries generated from 
 > @echo "  rust-clippy              Lint Rust/ via cargo clippy --workspace --all-targets (advisory leg; SKIPs without cargo; rust_language_tooling S2)"
 > @echo "  rust-deny                cargo-deny superset scan of Rust/ — advisories + bans + licenses + sources (advisory; SKIPs without cargo-deny)"
 > @echo "  rust-format              Normalize Rust/ formatting with cargo fmt --all (fix for the tests/test_lint_gates.py format gate; rust_language_tooling S1)"
-> @echo "  rust-install             Release-build cosine_knn + install the abi3 module into venv site-packages (SKIPs without cargo; embed_cache stays backup-only; rust_language_tooling S4)"
+> @echo "  rust-install             Release-build cosine_knn + graph_kernels, install the abi3 modules into venv site-packages (SKIPs without cargo; embed_cache stays backup-only — rust_language_tooling S4)"
 > @echo "  rust-test                Run Rust/ crate tests via cargo test --workspace (advisory leg; SKIPs without cargo; rust_language_tooling S2)"
 > @echo "  schema-check             Check tracked schema/ DDL against the live memory/ DBs (exit 1 on drift; fix: make schema-dump)"
 > @echo "  schema-dump              Regenerate schema/<engine>/<db>.sql from the live memory/ DBs (proposal schema_ddl_review_surface)"
@@ -521,10 +521,12 @@ rust-deny:      ## cargo-deny superset scan of Rust/ — advisories + bans + lic
 > 	echo "SKIP rust-deny: not installed (cargo install cargo-deny --locked)"; \
 > fi
 
-rust-install:   ## Release-build cosine_knn + install the abi3 module into venv site-packages (SKIPs without cargo; embed_cache stays backup-only — never installed; rust_language_tooling S4)
+rust-install:   ## Release-build cosine_knn + graph_kernels, install the abi3 modules into venv site-packages (SKIPs without cargo; embed_cache stays backup-only — never installed; rust_language_tooling S4)
 > @if command -v cargo >/dev/null 2>&1 || [ -x "$$HOME/.cargo/bin/cargo" ]; then \
 > 	cd Rust && PATH="$$HOME/.cargo/bin:$$PATH" cargo build --release -p cosine_knn && \
-> 	python3 -c "import shutil, sysconfig; shutil.copyfile('target/release/libcosine_knn.so', sysconfig.get_paths()['purelib'] + '/cosine_knn.abi3.so'); print('installed cosine_knn.abi3.so')"; \
+> 	PATH="$$HOME/.cargo/bin:$$PATH" cargo build --release -p graph_kernels && \
+> 	python3 -c "import shutil, sysconfig; shutil.copyfile('target/release/libcosine_knn.so', sysconfig.get_paths()['purelib'] + '/cosine_knn.abi3.so'); print('installed cosine_knn.abi3.so')" && \
+> 	python3 -c "import shutil, sysconfig; shutil.copyfile('target/release/libgraph_kernels.so', sysconfig.get_paths()['purelib'] + '/graph_kernels.abi3.so'); print('installed graph_kernels.abi3.so')"; \
 > else \
 > 	echo "SKIP rust-install: cargo not installed"; \
 > fi

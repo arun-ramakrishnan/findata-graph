@@ -67,6 +67,14 @@ HUB_PREFIX = "e:"  # hub labels are namespaced so they cannot collide with entit
 # single-source-to-all kernel over scipy dijkstra.
 _USE_MOJO_TRAIL = os.environ.get("MOJO_TRAIL_BFS") == "1"
 
+# S3 (rust_bfs_kernels_stats_trails, 2026-11-09): set TRAIL_BFS_RUST=0 to
+# force the scipy/process-pool lane (A/B parity runs, fallback pinning);
+# the graph_kernels batch is the default when the extension is installed.
+# The Mojo per-source subprocess lesson drives the shape: ALL sources go
+# in ONE kernel invocation — rayon parallelism lives inside it. The env
+# var is read at CALL time so tests and A/B runs can flip lanes
+# mid-process (an import-time constant froze the first test attempt).
+
 
 def _load_pairs(con=None) -> list[tuple[str, str]] | None:
     """DISTINCT (edge_id, entity_name) pairs from ``h_incidence``.
@@ -380,6 +388,57 @@ def _pool_worker(arg: tuple[str, int]) -> dict:
     return trail_source_stats(_POOL_G, src_label, limit=limit)
 
 
+def _trail_stats_kernel_batch(g: dict, src_labels: list[str], *, limit: int) -> list[dict] | None:
+    """S3 fast lane: ALL sources through one graph_kernels call, or None.
+
+    Returns per-source dicts byte-compatible with :func:`trail_source_stats`
+    (ms / reachable / hop_histogram / limit) so callers cannot tell the
+    lanes apart except by timing: `ms` is the amortized per-source share
+    of the single batched call. `None` = kernel unavailable or
+    TRAIL_BFS_RUST=0 — caller falls back to the pool lane.
+
+    Semantics mirror `_trail_bfs` exactly (pinned by tests and the
+    proptest/naive-reference parity in Rust): entities at even bipartite
+    distance <= limit, hops = distance / 2, self excluded, hub mid-hops
+    never counted.
+    """
+    if os.environ.get("TRAIL_BFS_RUST") == "0" or not src_labels:
+        return None
+    try:
+        import graph_kernels
+    except ImportError:
+        return None
+    labels = g["labels"]
+    n_e = g["n_entities"]
+    index = {lbl: i for i, lbl in enumerate(labels[:n_e])}
+    unknown = [s for s in src_labels if s not in index]
+    if unknown:
+        raise ValueError(f"unknown source entities: {unknown[:5]}")
+    m = g["matrix"].tocsr()
+    m.sort_indices()
+    t0 = time.perf_counter()
+    reach, hists = graph_kernels.limited_bfs_sources(
+        np.ascontiguousarray(m.indptr, dtype=np.int32),
+        np.ascontiguousarray(m.indices, dtype=np.int32),
+        np.fromiter((index[s] for s in src_labels), dtype=np.int32, count=len(src_labels)),
+        int(n_e),
+        int(limit),
+    )
+    ms_each = (time.perf_counter() - t0) * 1000.0 / len(src_labels)
+    out: list[dict] = []
+    for si, row in enumerate(hists):
+        hist = {int(h): int(c) for h, c in enumerate(row) if c}
+        out.append(
+            {
+                "ms": round(ms_each, 2),
+                "reachable": int(reach[si]),
+                "hop_histogram": hist,
+                "limit": int(limit),
+            }
+        )
+    return out
+
+
 def trail_source_stats_parallel(
     g: dict,
     src_labels: list[str],
@@ -387,7 +446,12 @@ def trail_source_stats_parallel(
     limit: int = DEFAULT_LIMIT,
     workers: int | None = None,
 ) -> list[dict]:
-    """Per-source trail stats via a process pool (Wall-2 S1).
+    """Per-source trail stats: kernel batch first, process pool fallback.
+
+    S3 (2026-11-09): with the graph_kernels extension installed and
+    TRAIL_BFS_RUST unset, ONE batched kernel call (rayon across sources)
+    answers everything — the pool below is the kernel-absent fallback
+    (Wall-2 S1 shape, kept verbatim):
 
     Sources are structurally independent and results stay sparse, so a
     pool gives ~= ncoresx on the 4-core box (the measured 166.8 s full
@@ -395,6 +459,9 @@ def trail_source_stats_parallel(
     Falls back to serial (one stderr line) when the pool cannot start
     (e.g. no fork) or workers <= 1 — never blocks the bench/CLI.
     """
+    kernel = _trail_stats_kernel_batch(g, src_labels, limit=limit)
+    if kernel is not None:
+        return kernel
     if workers is None:
         import os
 
@@ -447,7 +514,9 @@ def main(argv: list[str] | None = None) -> int:
         help="bipartite-step cutoff (default 40 = 20 hops)",
     )
     p.add_argument(
-        "--full-map", action="store_true", help="all entities instead of a sample (minutes)"
+        "--full-map",
+        action="store_true",
+        help="all entities instead of a sample (seconds via graph_kernels; minutes on the scipy fallback)",
     )
     p.add_argument("--census-only", action="store_true")
     p.add_argument(

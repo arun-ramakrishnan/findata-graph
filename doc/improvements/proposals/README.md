@@ -38,6 +38,14 @@ entry number and stale DONE pointers):
 
 ## Current live proposals
 
+- *(archived 2026-11-09)* — `rust_bfs_kernels_stats_trails` executed
+  same day, #497
+  (`../archive/graph/rust_bfs_kernels_stats_trails.md`; `graph_kernels`
+  abi3 crate: exact all-pairs BFS stats — stats CLI 76.63 s → 11.27 s,
+  peak 2.9 GB → 456 MB, canonical ties; batched trail kernel — full map
+  166.8 s → 3.56 s at 0.17 ms/source with hop-level parity; SciPy/pool
+  fallbacks kept behind `TRAIL_BFS_RUST=0`; cosine-shaped Rust stays
+  closed).
 - *(archived 2026-11-09)* — `gate_output_fidelity_and_integration_leg`
   filed and executed the same day, #496
   (`../archive/testing/gate_output_fidelity_and_integration_leg.md`;

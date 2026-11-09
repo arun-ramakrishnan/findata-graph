@@ -108,7 +108,7 @@ target).
 | item | state | trigger |
 |---|---|---|
 | CSR rebuild + ART bridge | CSR substrate BUILT (#301, 0.17 s); ART bridge is the T1 action | T1: ~1M doubled rows (~11 VIGIL intakes) |
-| Mojo BFS CSR promotion | kernel parity-proven (42.6× 1-hop vs SQL, 4.9–5.7× 2-hop) | T2: ~10M rows, measured >2× crossover |
+| Mojo BFS CSR promotion | kernel parity-proven (42.6× 1-hop vs SQL, 4.9–5.7× 2-hop); SUPERSEDED 2026-11-09 — the Rust `graph_kernels.limited_bfs_sources` batch (rust_bfs_kernels_stats_trails S3) landed in production dispatch with 47× full-map (166.8 s → 3.56 s) and exact scipy parity; the promotion question is answered in Rust, not Mojo | T2 moot for this lane — the crossover existed once all sources batched in-process (per-source subprocess overhead was the parity ceiling) |
 | **Mojo SIMD cosine kernel promotion** | **PROVEN but NOT live — verified 2026-10-25**: no production caller (script_query + rg over helpers/: zero hits; the kernel lives in `Mojo/src/common/cosine.mojo` + bench harnesses `tests/bench_cosine_knn.py`, `Mojo/src/bench/bench_cosine*.mojo`). Production similarity = DuckDB SQL brute (`semantic_neighbors`, ~3 ms at 1,209 company embeddings) | embedding-count trigger: when SQL brute > ~50 ms class (~10⁵+ rows or repeated full-corpus scans); until then SQL is simpler and codec-adjacent to the store |
 | Onager extension of missing primitives (e.g. personalized pagerank) | on-ramp OPEN since #434 (vendored Rust build owned) | when a lane is blocked on a missing primitive — incremental, not preemptive |
 | igraph promotion to primary | backup seat (D17) | if onager lane fails or a family is igraph-unique |

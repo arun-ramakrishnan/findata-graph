@@ -1338,6 +1338,7 @@ def test_cmd_timing_pass_only_uses_registry_filter(corpus):
     assert "no history for" not in out_pass
     con.close()
 
+
 # ── gate_output_fidelity S4: the non-runner lanes ───────────────────────
 # perf / maint / integrity / verify never ride run_gate_report, so before
 # 2026-11-09 they retained NOTHING: every perf run indexed as

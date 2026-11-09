@@ -29,16 +29,27 @@ python = ".venv"
 # production code. One known residual: sklearn in hyper_community_probe.py
 # (undeclared optional Wall-4 ARI probe dep) is scoped back to WARN by the
 # file-level override below — later overrides win over broader ones.
-# (Note: this ty version aliases import-not-found under unresolved-import,
-# so the third-party residual cannot be separated by rule, only by file.)
+# (Note: 2026-11-09 — ty renamed `unresolved-import` → `import-not-found`;
+# the overrides below use the current name. graph_kernels joins sklearn in
+# the known local-residual class.)
 [[overrides]]
 include = ["helpers/bench/**"]
 
   [overrides.rules]
-  unresolved-import = "error"
+  import-not-found = "error"
 
 [[overrides]]
 include = ["helpers/bench/hyper_community_probe.py"]
 
   [overrides.rules]
-  unresolved-import = "warn"
+  import-not-found = "warn"
+
+# graph_kernels: locally-built Rust pyo3 abi3 module (make rust-install,
+# rust_bfs_kernels_stats_trails #497) — .so in site-packages with no
+# stubs, so ty cannot resolve it. Scoped to WARN in its two consumer
+# files (kernel-first dispatch keeps a kernel-absent fallback lane).
+[[overrides]]
+include = ["helpers/graph/stats.py", "helpers/graph/hyper_trails.py"]
+
+  [overrides.rules]
+  import-not-found = "warn"

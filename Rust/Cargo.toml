@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["embed_cache", "cosine_knn"]
+members = ["embed_cache", "cosine_knn", "graph_kernels"]
 
 [workspace.package]
 version = "0.1.0"

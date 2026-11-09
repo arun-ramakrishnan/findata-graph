@@ -286,5 +286,8 @@ per_rule_ignores.DEP002 = ["gunicorn", "Werkzeug", "finnhub-python", "regex", "t
 # cosine_knn: locally-built Rust pyo3 extension (make rust-install) with no
 # distribution metadata — deptry classifies it as transitive.
 # Imported only by Rust/bench/cosine_gate.py (bench timing harness).
-per_rule_ignores.DEP001 = ["cosine_knn", "sklearn"]
-per_rule_ignores.DEP003 = ["cosine_knn", "sklearn"]
+# graph_kernels: same class — locally-built Rust pyo3 abi3 module
+# (make rust-install), no distribution metadata; imported by
+# helpers/graph/stats.py + helpers/graph/hyper_trails.py (#497).
+per_rule_ignores.DEP001 = ["cosine_knn", "graph_kernels", "sklearn"]
+per_rule_ignores.DEP003 = ["cosine_knn", "graph_kernels", "sklearn"]

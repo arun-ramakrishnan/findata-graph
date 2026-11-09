@@ -14347,3 +14347,40 @@ to doc/improvements/archive/database/duckdb_pure_stack.md.
   ruff check + format clean; md-lint clean. No live perf/maint/integrity/
   verify run has yet been indexed through the new path — the first live
   run of each lane is the real acceptance.
+
+## 497. Rust BFS kernels for graph-stats and trail lanes — exact
+      all-pairs stats, batched trail map
+
+- `make graph-stats` — the 76.63 s wall was three stacked costs:
+  sampled SciPy `shortest_path` materialising 6,000×19,130 `dist`+
+  `pred` (1.75 GB peak), iFUB re-sweeping ~19,300 numpy frontiers
+  (37.6 s), and bincount stats over the sample. The new `graph_kernels`
+  abi3 crate (Rust/graph_kernels; rayon inside; histogram sized
+  `m.max(2)` after a path-graph panic lesson from the family sweep)
+  computes exact all-pairs aggregate stats over ALL 19,130 roots in
+  ~2.2 s and 0.29 MB scratch — CLI wall 76.63 s → 11.27 s, peak RSS
+  ~2.9 GB → 456 MB, ties now canonical on both projections (897 ALL /
+  1,224 ACTIVITY), display pairs from a 512-root sample;
+  `_ifub_diameter` keeps a kernel-first dispatch with the iFUB lane as
+  fallback.
+- `hyper_trails` — the SciPy lane cost 6.35 ms/source in per-source
+  distance vectors plus process-pool graph pickles (full map 166.8 s).
+  Kernel `limited_bfs_sources` batches ALL sources into ONE in-process
+  call — the per-source-subprocess shape that capped the Mojo lane at
+  parity is designed out: 0.17 ms/source, `--full-map` 166.8 s →
+  3.56 s (47×), hop histograms parity-pinned vs `dijkstra` (58-source
+  smoke, CHAIN3/5/STAR/SPLIT test pins, proptest bipartite family).
+- Fallbacks kept for the kernel-absent world: capped/exact SciPy lanes
+  in `longest_chains`, mp.Pool trail lane behind a call-time
+  `TRAIL_BFS_RUST=0` escape hatch; `make rust-install` now installs
+  both `.abi3.so` files.
+- Register annotations: pending.md kernel-selector ladder gains the
+  FIRED Rust/PyO3 BFS rung; roadmap Mojo-BFS T2 register SUPERSEDED
+  (the crossover was integration-shaped, not kernel-shaped); scaling
+  Wall 2 RESOLVED annotation.
+- Tests: targeted 117 passed + 1 env-gated skip (test_graph_stats,
+  test_hyper_trails, test_hyper_incidence); cargo test workspace 27
+  green; clippy -D warnings + fmt clean; parity four ways (kernel vs
+  iFUB, kernel vs scipy 14-family sweep, Rust reference + naive
+  proptest, live A/B structural fields identical). Gates battery
+  launched immediately after this archival (operator go, same day).

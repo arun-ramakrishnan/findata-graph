@@ -215,10 +215,14 @@ def test_parallel_fallback_when_single_source():
 
 
 def test_pool_spawns_with_capped_workers(monkeypatch: pytest.MonkeyPatch):
-    """Goldfish-trial tooth (a): the multicore path must actually SPAWN a
-    pool — not silently degrade to the serial loop — and the spawn is
-    capped at min(workers, len(sources))."""
+    """Goldfish-trial tooth (a): the multicore FALLBACK path must actually
+    SPAWN a pool — not silently degrade to the serial loop — and the spawn
+    is capped at min(workers, len(sources)). TRAIL_BFS_RUST=0 pins the
+    pool lane so the tooth keeps guarding it even with the graph_kernels
+    batch installed (S3: the kernel answers first by default)."""
     import multiprocessing as mp
+
+    monkeypatch.setenv("TRAIL_BFS_RUST", "0")
 
     spawned: list[int] = []
     real_pool = mp.Pool  # a bound context method — wrap it, never subclass
@@ -257,6 +261,8 @@ def test_pool_start_failure_prints_stderr_and_falls_back(
     results still equal the serial oracle."""
     import multiprocessing as mp
 
+    monkeypatch.setenv("TRAIL_BFS_RUST", "0")  # pin the pool lane (S3 kernel-first)
+
     class _Boom:
         def __init__(self, *a, **k):
             raise OSError("pool start failed (simulated no-fork)")
@@ -273,6 +279,39 @@ def test_pool_start_failure_prints_stderr_and_falls_back(
     for s, par in zip(serial, got):
         assert par["reachable"] == s["reachable"]
         assert par["hop_histogram"] == s["hop_histogram"]
+
+
+def test_kernel_batch_matches_scipy_pool_payload():
+    """S3: the graph_kernels batch lane must be payload-identical to the
+    scipy pool lane on toy graphs — reachable and hop_histogram per
+    source, ms legitimately differs (amortized batch share). Also pins
+    the unknown-source ValueError contract shared with
+    trail_distances. Skips when the extension is not installed."""
+    import importlib.util
+
+    if importlib.util.find_spec("graph_kernels") is None:
+        pytest.skip("graph_kernels extension not installed")
+
+    for pairs, srcs in (
+        (CHAIN5, ["a", "b", "c", "d", "e", "f"]),
+        (CHAIN3, ["a", "b", "c", "d"]),
+        (STAR, ["a", "b", "c"]),
+        (SPLIT, ["a", "b", "c", "d"]),
+    ):
+        g = bipartite_from_pairs(pairs)
+        for limit in (1, 2, 5, 40):
+            scipy_lane = [trail_source_stats(g, s, limit=limit) for s in srcs]
+            kernel_lane = trail_source_stats_parallel(g, srcs, limit=limit)
+            assert kernel_lane is not None
+            assert len(kernel_lane) == len(scipy_lane)
+            for s, par in zip(scipy_lane, kernel_lane):
+                assert par["reachable"] == s["reachable"], (pairs, limit)
+                assert par["hop_histogram"] == s["hop_histogram"], (pairs, limit)
+                assert par["limit"] == s["limit"]
+
+    g = bipartite_from_pairs(CHAIN5)
+    with pytest.raises(ValueError, match="unknown source entities"):
+        trail_source_stats_parallel(g, ["nope"])
 
 
 class TestMojoBipartiteBfsParity:

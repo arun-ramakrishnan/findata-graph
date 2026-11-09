@@ -746,6 +746,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "graph_kernels"
+version = "0.1.0"
+dependencies = [
+ "numpy",
+ "proptest",
+ "pyo3",
+ "rayon",
+]
+
+[[package]]
 name = "half"
 version = "2.7.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
