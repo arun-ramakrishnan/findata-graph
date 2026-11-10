@@ -43,7 +43,7 @@ from pathlib import Path
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 
-FOOTNOTE_RE = re.compile(r"\s*\*+\s*$")
+FOOTNOTE_RE = re.compile(r"(?<!\s)\s*\*+\s*$")
 _APOSTROPHE_RE = re.compile("['’]")
 _CAMEL_RE_1 = re.compile(r"(?<=[a-z0-9])(?=[A-Z])")
 _CAMEL_RE_2 = re.compile(r"(?<=[A-Z])(?=[A-Z][a-z])")

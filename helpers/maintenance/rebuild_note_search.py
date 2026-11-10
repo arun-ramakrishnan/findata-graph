@@ -562,9 +562,15 @@ def _collect_rows(
     reuse: dict[str, tuple[float, list[tuple]]] | None = None,
     carried: set[str] | None = None,
     deferred: list[tuple[int, str]] | None = None,
-) -> list[tuple]:
-    """Collect one 6-tuple row per doc: (dtype, rel_path, title, sector,
+) -> tuple[list[tuple], dict[str, Path]]:
+    """Collect one row per doc: (dtype, rel_path, title, sector,
     body, embedding_json).
+
+    Also returns the abs_path of every doc it walked, keyed by the same
+    ``findata/<rel>`` path used in the rows. The caller needs those paths
+    for the meta fingerprint; returning them here is what lets the rebuild
+    do ONE tree walk and ONE fingerprint pass instead of three of each
+    (S1, quadratic_regex_sweep_and_cleanups).
 
     ``deferred`` switches embedding to two-phase batch mode: rows are
     collected with a None embedding and (row_index, text) pairs appended
@@ -574,9 +580,10 @@ def _collect_rows(
     are untouched by deferral (they bring their old embedding)."""
     """Build the full FTS row set by reading files + one bulk entity lookup.
 
-    Returns a list of (doc_type, file_path, title, sector, content, embedding)
-    tuples. embedding is a JSON string (or None if embedding failed/unavailable).
-    Entity docs (company/sector/super_sector) get their canonical title +
+    Returns (rows, doc_paths): a list of (doc_type, file_path, title, sector,
+    content, embedding) tuples — embedding is a JSON string (or None if
+    embedding failed/unavailable) — and a file_path -> abs_path map for the
+    same docs. Entity docs (company/sector/super_sector) get their canonical title +
     sector_classification from the entities table via a single file_path->row
     map (avoids N+1). Newsletters have no entity row; their title is the H1.
 
@@ -612,16 +619,19 @@ def _collect_rows(
         )
 
     rows = []
+    doc_paths: dict[str, Path] = {}
     for dtype, abs_path, rel in _iter_findata_docs():
         rel_posix = f"findata/{rel.as_posix()}"
         if reuse is not None and rel_posix in reuse:
             if _try_carry(rel_posix, abs_path, dtype, reuse, ent_by_path, carried):
                 rows.extend(reuse[rel_posix][1])
+                doc_paths[rel_posix] = abs_path
                 continue
         try:
             text = abs_path.read_text(encoding="utf-8", errors="replace")
         except OSError:
             continue
+        doc_paths[rel_posix] = abs_path
         sector = ""
         ticker = ctx = ""
         if dtype in ("company", "sector", "super_sector"):
@@ -651,7 +661,7 @@ def _collect_rows(
                 ticker,
                 ctx,
             )
-    return rows
+    return rows, doc_paths
 
 
 # P2.1: incremental meta table — stores per-file fingerprint to avoid
@@ -875,7 +885,7 @@ def rebuild(  # noqa: C901
             file=sys.stderr,
             flush=True,
         )
-        rows = _collect_rows(
+        rows, doc_paths = _collect_rows(
             conn, embed_fn=embed_fn, reuse=reuse, carried=carried, deferred=deferred
         )
         print(
@@ -983,9 +993,11 @@ def rebuild(  # noqa: C901
             for r in conn.execute("SELECT file_path, mtime, content_hash FROM note_search_meta")
         }
         rows_by_path = _rows_by_path(rows)
+        # One fingerprint pass, fed by the paths _collect_rows already walked.
+        # The staleness verdict, the full-branch meta refresh and the
+        # incremental diff all read this dict — no second or third tree walk.
         current_meta: dict[str, tuple[float, str]] = {}
-        for _dtype, abs_path, rel in _iter_findata_docs():
-            rel_posix = f"findata/{rel.as_posix()}"
+        for rel_posix, abs_path in doc_paths.items():
             doc_rows = rows_by_path.get(rel_posix)
             if not doc_rows:
                 continue
@@ -1044,16 +1056,9 @@ def rebuild(  # noqa: C901
                     )
                 # Refresh meta for incremental next run
                 conn.execute("DELETE FROM note_search_meta")
-                meta_rows = []
-                for dtype, abs_path, rel in _iter_findata_docs():
-                    rel_posix = f"findata/{rel.as_posix()}"
-                    doc_rows = rows_by_path.get(rel_posix)
-                    if not doc_rows:
-                        continue
-                    title, sector = doc_rows[0][2], doc_rows[0][3]
-                    joined = "\x00".join(r[4] for r in doc_rows)
-                    mtime, chash = _file_fingerprint(abs_path, title, sector, joined)
-                    meta_rows.append((rel_posix, mtime, chash))
+                meta_rows = [
+                    (rel_posix, mtime, chash) for rel_posix, (mtime, chash) in current_meta.items()
+                ]
                 if meta_rows:
                     conn.executemany(
                         "INSERT OR REPLACE INTO note_search_meta (file_path, mtime, content_hash) VALUES (?, ?, ?)",
@@ -1100,30 +1105,17 @@ def rebuild(  # noqa: C901
             for fp in list(existing.keys()):
                 if fp not in seen_on_disk:
                     to_delete.append(fp)
-            # Re-iterate with abs_path to compute fingerprint and diff
-            for dtype, abs_path, rel in _iter_findata_docs():
-                rel_posix = f"findata/{rel.as_posix()}"
-                doc_rows = rows_by_path.get(rel_posix)
-                if not doc_rows:
-                    continue
+            # Re-iterate the collected file set (no second walk) to diff
+            # fingerprints computed above.
+            for rel_posix, (mtime, chash) in current_meta.items():
                 prev = existing.get(rel_posix)
-                if prev is not None and carried is not None and rel_posix in carried:
-                    # DB-carried rows whose mtime still matches: the content
-                    # is by construction the stored one — skip the re-hash.
-                    try:
-                        if abs_path.stat().st_mtime == prev[0]:
-                            continue
-                    except OSError:
-                        pass
-                title, sector = doc_rows[0][2], doc_rows[0][3]
-                joined = "\x00".join(r[4] for r in doc_rows)
-                mtime, chash = _file_fingerprint(abs_path, title, sector, joined)
-                if prev is None or prev[1] != chash:
+                if prev is not None and prev[1] == chash:
                     # Hash-only guard: an mtime drift with identical content
                     # (worktree/checkout skew) must NOT re-upsert — it would
                     # bump the DB generation and cool the warm DuckDB cache
                     # for no content change.
-                    to_upsert.append((doc_rows, mtime, chash))
+                    continue
+                to_upsert.append((rows_by_path[rel_posix], mtime, chash))
             # Apply delta in one transaction
             with conn:
                 for fp in to_delete:

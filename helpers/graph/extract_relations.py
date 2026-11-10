@@ -354,17 +354,22 @@ _LEADING_ARTICLE_POSS_RE = re.compile(
     re.IGNORECASE,
 )
 _MENTION_FIRST_TOKEN_RE = re.compile(r"[\s,/]+")
+# S6 (quadratic_regex_sweep_and_cleanups): leading ``\s+`` made every
+# trailing-suffix strip O(n^2) — ``re.search`` retried the unattached
+# greedy run at each of the n whitespace positions. ``(?<=\s)`` is the
+# same required boundary at zero width; the matched span no longer
+# includes the separator, and every call site strips afterwards.
 _TRAILING_LEGAL_SUFFIX_RE = re.compile(
-    r"\s+(Limited|Ltd\.?|Private|Pvt\.?|Company|Co\.?)$",
+    r"(?<!\s)\s+(Limited|Ltd\.?|Private|Pvt\.?|Company|Co\.?)$",
     re.IGNORECASE,
 )
 _GROUP_NAME_SUFFIX_RE = re.compile(
-    r"\s+(?:Corp(?:oration)?|Group|Holdings|Industries)$",
+    r"(?<!\s)\s+(?:Corp(?:oration)?|Group|Holdings|Industries)$",
     re.IGNORECASE,
 )
 _LEADING_ARTICLE_RE = re.compile(r"^(?:a|an|the)\s+", re.IGNORECASE)
 _HEADING_LEGAL_SUFFIX_RE = re.compile(
-    r"\s+(Limited|Ltd\.?|Private|Pvt\.?)$",
+    r"(?<!\s)\s+(Limited|Ltd\.?|Private|Pvt\.?)$",
     re.IGNORECASE,
 )
 _HEADING_START_RE = re.compile(r"^[A-Z0-9]")
@@ -375,15 +380,19 @@ _SPEAKER_ROLE_RE = re.compile(
 )
 _H1_TITLE_RE = re.compile(r"^#\s+(.+?)\s*$", re.MULTILINE)
 _TRAILING_JUNK_RE = re.compile(
-    r"\s+(?:the|a|an|its|their|our|in|on|at|to|for|and|or)$",
+    r"(?<!\s)\s+(?:the|a|an|its|their|our|in|on|at|to|for|and|or)$",
     re.IGNORECASE,
 )
+# Split lanes: the old ``\s*,\s*`` / ``\s+and\s+`` forms rescanned the
+# trailing whitespace run at every start position (O(n^2)). The separators
+# are matched WITHOUT the surrounding space and every chunk is ``.strip()``ed
+# by `_list_chunks`, so the split result is token-identical.
 _LIST_CHUNK_SPLIT_RE = re.compile(
-    r"\s*,\s*|\s+\band\b\s+|\s+\bor\b\s+|\s+&\s+",
+    r"(?<!\s)\s*,\s*|(?<!\s)\s+(?:and|or|&)\s+",
     re.IGNORECASE,
 )
 _LEADING_CONJ_RE = re.compile(r"^(?:and|or|&)\s+", re.IGNORECASE)
-_TRAILING_NUM_UNIT_RE = re.compile(r"\s+\d+(?:\.\d+)?\s+\w+(?:\s+\w+){0,2}$")
+_TRAILING_NUM_UNIT_RE = re.compile(r"(?<!\s)\s+\d+(?:\.\d+)?\s+\w+(?:\s+\w+){0,2}$")
 _WS_RUN_RE = re.compile(r"\s+")
 
 
@@ -2247,7 +2256,8 @@ _PREDICATE_BOUNDARY = re.compile(
 )
 # A trailing lone lowercase letter is OCR garble ("Group l divesting"), not a
 # name element. Uppercase single letters are left alone ("Company A").
-_TRAILING_GARBLE_TOKEN = re.compile(r"\s+[a-z]$")
+# S6: `(?<=\s)` instead of a leading `\s+` — see the suffix table above.
+_TRAILING_GARBLE_TOKEN = re.compile(r"(?<!\s)\s+[a-z]$")
 
 
 def truncate_mention(mention: str) -> tuple[str, str]:

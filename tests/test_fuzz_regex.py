@@ -509,3 +509,173 @@ def test_bold_line_regex_failing_path_has_a_timeout_cap():
             _time_bold_rung(_BOLD_FAIL_RUNGS[1])
     finally:
         globals()["BOLD_LINE_RE"] = saved
+
+
+# ---------------------------------------------------------------------------
+# The `\s+`-anchored family (S6, quadratic_regex_sweep_and_cleanups)
+# ---------------------------------------------------------------------------
+# A DIFFERENT blowup from BOLD_LINE_RE's, and a different blind spot. These
+# patterns end in a required suffix (`$` or `\s*cap`) preceded by a greedy,
+# unattached `\s+`. `re.search` retries at every start position; at each of the
+# n whitespace positions the engine consumes the rest of the run and only then
+# fails the suffix. n attempts x O(n) = O(n^2) - measured ratio 3.89-4.34 per
+# doubling, up to 29 s at 16k chars.
+#
+# Two things make this family hard to guard and easy to get wrong:
+#
+#   1. A possessive `\s++` does NOT help (88 ms vs 2275 ms at n=8000 - better
+#      constant, same ratio). The cost is `re.search` retrying, not intra-attempt
+#      backtracking.
+#   2. The obvious lookbehind rewrite `(?<=\s)` IS linear but changes the
+#      matched span, so `.sub()` leaves a trailing space and `.split()` yields
+#      different chunks. A corpus parity harness caught 166 such drifts. The
+#      shipped form is `(?<!\s)\s+...`: it pins each attempt to the start of a
+#      whitespace run (so one attempt per run) while still consuming the run.
+#
+# Sizes start at 4000, where the quadratic is ≥100 ms and unmissable. The
+# pre-existing SECTION_RE guard is the cautionary example: it scores at
+# `max_size=400`, where SECTION_RE costs 1.49 ms, so it could never see the
+# 524 ms it takes at 8000 newlines.
+
+_S6_GUARD_CAP_S = 2.0  # healthy calls are sub-4 ms at every size here
+
+# (name, pattern, input factory) — one row per rewritten pattern family.
+_S6_PATTERNS = [
+    (
+        "extract_relations._TRAILING_LEGAL_SUFFIX_RE",
+        r"(?<!\s)\s+(Limited|Ltd\.?|Private|Pvt\.?|Company|Co\.?)$",
+        re.IGNORECASE,
+    ),
+    (
+        "extract_relations._GROUP_NAME_SUFFIX_RE",
+        r"(?<!\s)\s+(?:Corp(?:oration)?|Group|Holdings|Industries)$",
+        re.IGNORECASE,
+    ),
+    (
+        "extract_relations._TRAILING_JUNK_RE",
+        r"(?<!\s)\s+(?:the|a|an|its|their|our|in|on|at|to|for|and|or)$",
+        re.IGNORECASE,
+    ),
+    (
+        "extract_relations._TRAILING_NUM_UNIT_RE",
+        r"(?<!\s)\s+\d+(?:\.\d+)?\s+\w+(?:\s+\w+){0,2}$",
+        0,
+    ),
+    (
+        "extract_relations._LIST_CHUNK_SPLIT_RE",
+        r"(?<!\s)\s*,\s*|(?<!\s)\s+(?:and|or|&)\s+",
+        re.IGNORECASE,
+    ),
+    (
+        "parse_newsletter.SUFFIX_RE",
+        r"(?<!\s)\s+(Limited|Ltd\.?|Private|Pvt\.?)$",
+        re.IGNORECASE,
+    ),
+    (
+        "parse_newsletter._CAP_CUT_RE",
+        r"(?<!\s)\s+(?:large|larg|mid|small|micro|nano|mega)\s*cap",
+        re.IGNORECASE,
+    ),
+    (
+        "derive_insights.SUFFIX_RE",
+        r"(?<!\s)\s+(Limited|Ltd\.?|Private|Pvt\.?|Inc\.?|Corp\.?)$",
+        re.IGNORECASE,
+    ),
+    (
+        "derive_insights._CAP_CUT",
+        r"(?<!\s)\s+(?:large|larg|mid|small|micro|nano|mega)\s*cap",
+        re.IGNORECASE,
+    ),
+    (
+        "derive_events._SPAN_TRIM_RE",
+        r"(?<!\s)\s+(?:from|with|and|for|along|to|in|by|of|the|a|an|is|are|"
+        r"was|were|led|which|that)$|^(?:the|a|an)\s+",
+        re.IGNORECASE,
+    ),
+    ("entity_identity.FOOTNOTE_RE", r"(?<!\s)\s*\*+\s*$", 0),
+    (
+        "related_party_sync._PAREN",
+        r"(?<!\s)\s*\((?:formerly|formerly known as|now known as)[^)]*\)\s*",
+        re.IGNORECASE,
+    ),
+    (
+        "triage_pending_quotes._GARBAGE_RE",
+        r"((?<!\s)\s+I$|\]$|[,;]\s*$|_\S*$|\\)",
+        re.IGNORECASE,
+    ),
+]
+
+
+def _s6_input(n: int, kind: str) -> str:
+    """Adversarial input: a run of `n` whitespace chars that must NOT match."""
+    if kind == "newline":
+        return "\n" * n + "X"
+    if kind == "tab":
+        return "\t" * n + "X"
+    return " " * n + "X"
+
+
+def _s6_min_ms(rx: re.Pattern, text: str, reps: int = 5) -> float:
+    """min-of-reps wall time in ms (min discards scheduler/cache noise)."""
+    best = float("inf")
+    for _ in range(reps):
+        t0 = time.perf_counter()
+        rx.search(text)
+        best = min(best, (time.perf_counter() - t0) * 1000)
+    return best
+
+
+@pytest.mark.parametrize("name,pattern,flags", _S6_PATTERNS)
+@pytest.mark.parametrize("kind", ["space", "tab", "newline"])
+def test_s6_suffix_patterns_stay_linear(name, pattern, flags, kind):
+    """Each `\\s+`-anchored pattern must grow ~2x per 2x input, not ~4x.
+
+    The shipped form is O(n); the pre-S6 form scored 3.89-4.34 on this exact
+    comparison. Base sizes are >= 4000 so the quadratic (>=100 ms) is well
+    clear of timer noise, and the ratio - not an absolute time - is the
+    assertion, because absolute times move with machine load.
+    """
+    rx = re.compile(pattern, flags)
+    small = _s6_min_ms(rx, _s6_input(4000, kind))
+    large = _s6_min_ms(rx, _s6_input(8000, kind))
+    ratio = large / max(small, 0.01)
+    assert ratio < 2.6, (
+        f"{name} grew {ratio:.2f}x on a 2x whitespace step "
+        f"({small:.3f} ms -> {large:.3f} ms on {kind!r}) - linear is ~2.0. "
+        f"A ratio near 4.0 means the leading `\\s+` has been reintroduced "
+        f"without its `(?<!\\s)` guard. A possessive `\\s++` does NOT fix "
+        f"this; see doc/improvements/archive/tooling/quadratic_regex_sweep_and_cleanups.md"
+    )
+
+
+@pytest.mark.parametrize("name,pattern,flags", _S6_PATTERNS)
+def test_s6_suffix_patterns_terminate_under_cap(name, pattern, flags):
+    """A 16k-char whitespace run must return, not stall the gate.
+
+    Absolute cap rather than a ratio: if the quadratic comes back, this fails
+    in 2 s with the offending pattern named instead of hanging the pytest leg.
+    """
+    rx = re.compile(pattern, flags)
+    text = _s6_input(16000, "space")
+    try:
+        _call_with_cap(rx.search, text, cap_s=_S6_GUARD_CAP_S)
+    except _BoldGuardTimeout:
+        raise AssertionError(
+            f"{name} exceeded {_S6_GUARD_CAP_S:.0f}s on a 16k-char whitespace "
+            f"run - the `\\s+`-anchored quadratic has regressed"
+        ) from None
+
+
+def test_s6_lookbehind_form_would_change_spans():
+    """Why the fix is `(?<!\\s)\\s+` and not a bare `(?<=\\s)`.
+
+    Documents the trap that a corpus parity harness caught (166 drifts): a bare
+    lookbehind is linear but stops consuming the separator, so every `.sub()`
+    leaves a trailing space. This pins the difference so a future "simplify
+    the lookbehind" edit fails here first.
+    """
+    good = re.compile(r"(?<!\s)\s+(Limited)$")
+    trap = re.compile(r"(?<=\s)(Limited)$")
+    sample = "Graphite India Limited"
+    assert good.sub("", sample) == "Graphite India"
+    assert trap.sub("", sample) == "Graphite India "  # the drift

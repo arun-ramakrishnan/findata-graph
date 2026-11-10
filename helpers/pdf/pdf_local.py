@@ -76,6 +76,9 @@ HEADING_LINE_RE = re.compile(r"^(#{1,6})\s+(.+)$")
 BOLD_LINE_RE = re.compile(r"^(?:\*\*[^*\n]*(?:\*(?!\*)[^*\n]*)*\*\*\s*)+$")
 # Cap tokens in the "| Large Cap |" tail — a glued heading always has one.
 CAP_TAIL_RE = re.compile(r"\|[^|]*\b(?:large|mid|small|micro|nano|mega)\s*cap", re.I)
+# Same shape as HEADING_LINE_RE but MULTILINE (that one is used with `.match`
+# on single lines, so it carries no flag); S7 de-duplicated the inline copy.
+_H1_SEARCH_RE = re.compile(r"^#{1,6}\s+(.+)$", re.MULTILINE)
 # Sector phrases a glued heading may start with (mirrors parse_newsletter
 # _SECTOR_WORDS + the observed newsletter vocabulary; longest-first order
 # matters — checked at match time, so keep this list readable instead).
@@ -170,7 +173,7 @@ def _filter_running_headers(text: str, title: str | None) -> tuple[str, str | No
     seen_urls: set[str] = set()
     title_seen = title is not None  # recorded on an earlier page already
     if title is None:
-        m = re.search(r"^#{1,6}\s+(.+)$", text, re.M)
+        m = _H1_SEARCH_RE.search(text)
         title = m.group(1).strip() if m else None
         title_seen = title is not None
     for line in text.splitlines():

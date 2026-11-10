@@ -64,6 +64,7 @@ import json
 import re
 import sys
 from collections import defaultdict
+from collections.abc import Iterator
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -269,8 +270,13 @@ _PARTICIPANT_DENYLIST_TYPES = frozenset(
 # doesn't resolve to a canonical entity stays evidence, never a member.
 _PROPER_SPAN_RE = re.compile(r"\b(?:[A-Z][\w&.'’]*-)?[A-Z][\w&.'’]*(?:\s+[A-Z][\w&.'’]+){0,4}\b")
 # Trailing connective noise on captured spans ("Adani Group from" / "the ...").
+# S6 (quadratic_regex_sweep_and_cleanups): `(?<=\s)` for the trailing branch —
+# the old leading `\s+` rescanned the remaining whitespace run at each start
+# position. `_clean_span` strips " ,;-–—" after each pass, so the span change
+# is invisible. The `^(?:the|a|an)\s+` branch stays: it is anchored at ^ and
+# already linear.
 _SPAN_TRIM_RE = re.compile(
-    r"\s+(?:from|with|and|for|along|to|in|by|of|the|a|an|is|are|was|were|led|which|that)$"
+    r"(?<!\s)\s+(?:from|with|and|for|along|to|in|by|of|the|a|an|is|are|was|were|led|which|that)$"
     r"|^(?:the|a|an)\s+",
     re.IGNORECASE,
 )
@@ -442,26 +448,32 @@ def _iter_bullets(body: str):
     bullet content, then fall back to splitting prose sentences, so both shapes
     are covered. Trailing whitespace + blank lines are skipped.
 
-    P1 perf fix (2026-08-10): previously iterated body.splitlines() TWICE
-    (once for lines, once for sentences) yielding single-sentence bullets
-    twice. Now iterates once: yields each non-blank line, then yields any
-    sentence splits that aren't identical to the whole line. The seen set
-    spans both phases so nothing is yielded twice.
+    Ordering is part of the contract: every whole line is yielded before any
+    sentence split, and `_dedup` relies on seeing the richest (longest) quote
+    first. So this stays two passes over the lines — what S7 removed is the
+    duplicated work per pass, not the passes: P1's fix (2026-08-10) had already
+    stopped re-splitting the text, but each pass still re-`strip()`ed every
+    line. The stripped list is now built once and zipped back with the raw
+    line, so each line is stripped once instead of twice.
     """
     seen: set[str] = set()
     lines = body.splitlines()
-    for line in lines:
-        stripped = line.strip()
+    stripped_lines = [line.strip() for line in lines]
+    for stripped in stripped_lines:
         if not stripped:
             continue
         yield stripped
         seen.add(stripped)
     # Also yield sentence-split prose (management changes often run in
     # multi-clause sentences inside ## The Chatter that aren't bullets).
-    for line in lines:
+    # The sense gate reads the RAW line: it is a word-boundary search, and
+    # keeping the raw input avoids re-deriving it from the stripped copy.
+    for line, stripped in zip(lines, stripped_lines, strict=True):
+        if not stripped:
+            continue
         if _ACQUISITION_SENSE_RE.search(line) or _MODE_SENSE_RE.search(line):
             continue
-        for sentence in _SENTENCE_SPLIT_RE.split(line.strip()):
+        for sentence in _SENTENCE_SPLIT_RE.split(stripped):
             sentence = sentence.strip()
             if len(sentence) < 25 or sentence in seen:
                 continue
@@ -469,8 +481,24 @@ def _iter_bullets(body: str):
             yield sentence
 
 
+def _windows_lowered(body: str) -> Iterator[tuple[str, str]]:
+    """Yield ``(window, window.lower())`` — the pair every extractor needs.
+
+    S7: each of the four extractors re-lowered the same windows; measured
+    434,633 windows over the corpus cost ~128 ms per full pass, so the four
+    passes paid ~0.5 s. Building the lowered form once halves that to one
+    pass, and the caller (``extract_from_prose``) materialises the list once so
+    all four extractors share it.
+    """
+    for window in _iter_bullets(body):
+        yield window, window.lower()
+
+
 def _extract_guidance(
-    company: str, body: str, path: str | None, windows: list[str] | None = None
+    company: str,
+    body: str,
+    path: str | None,
+    windows: list[tuple[str, str]] | None = None,
 ) -> list[Event]:
     """Guidance events: fiscal token AND a metric AND a forward-looking signal.
 
@@ -485,12 +513,11 @@ def _extract_guidance(
     iteration of 1051 files).
     """
     events: list[Event] = []
-    for window in windows if windows is not None else _iter_bullets(body):
+    for window, wl in windows if windows is not None else _windows_lowered(body):
         # S4 perf: literal prefilter — both fiscal patterns require the
         # substrings "fy"/"cy" (IGNORECASE), so a window missing both can
         # never pass. Two C-speed `in` tests replace ~2 regex searches on
         # ~98% of windows (89K windows -> 1.6K fiscal passes, 2026-09-01).
-        wl = window.lower()
         if "fy" not in wl and "cy" not in wl:
             continue
         has_fiscal = bool(_FY_TOKEN_RE.search(window) or _CY_QUARTER_RE.search(window))
@@ -524,14 +551,16 @@ def _extract_guidance(
 
 
 def _extract_management(
-    company: str, body: str, path: str | None, windows: list[str] | None = None
+    company: str,
+    body: str,
+    path: str | None,
+    windows: list[tuple[str, str]] | None = None,
 ) -> list[Event]:
     """Management-change events: role-change verb AND an executive title."""
     events: list[Event] = []
-    for window in windows if windows is not None else _iter_bullets(body):
+    for window, wl in windows if windows is not None else _windows_lowered(body):
         # S4 perf: literal prefilter (see _MGMT_VERB_TOKENS) — rejects
         # ~99.97% of windows (28 of 89K pass) before the verb regex runs.
-        wl = window.lower()
         if not any(t in wl for t in _MGMT_VERB_TOKENS):
             continue
         if not _CHANGE_VERB_RE.search(window):
@@ -575,7 +604,7 @@ def _extract_acquisition_triangle(  # noqa: C901  # prose-extractor: acquisition
     company: str,
     body: str,
     path: str | None,
-    windows: list[str] | None = None,
+    windows: list[tuple[str, str]] | None = None,
     resolver=None,
 ) -> list[Event]:
     """S1: acquisition events with a seller (and voice-correct acquirer).
@@ -590,8 +619,8 @@ def _extract_acquisition_triangle(  # noqa: C901  # prose-extractor: acquisition
     EntityResolver or stay free-text evidence. No mint, ever.
     """
     events: list[Event] = []
-    for window in windows if windows is not None else _iter_bullets(body):
-        if "acqui" not in window.lower() and "purchas" not in window.lower():
+    for window, wl in windows if windows is not None else _windows_lowered(body):
+        if "acqui" not in wl and "purchas" not in wl:
             continue
         passive = _ACQ_TRIANGLE_PASSIVE_RE.search(window)
         active = None if passive else _ACQ_FROM_SELLER_RE.search(window)
@@ -649,7 +678,7 @@ def _extract_jv_consortium(  # noqa: C901  # prose-extractor: consortium-member 
     company: str,
     body: str,
     path: str | None,
-    windows: list[str] | None = None,
+    windows: list[tuple[str, str]] | None = None,
     resolver=None,
 ) -> list[Event]:
     """S1: consortium / JV windows with named counterparties.
@@ -663,8 +692,7 @@ def _extract_jv_consortium(  # noqa: C901  # prose-extractor: consortium-member 
     commentary, not an n-ary fact.
     """
     events: list[Event] = []
-    for window in windows if windows is not None else _iter_bullets(body):
-        wl = window.lower()
+    for window, wl in windows if windows is not None else _windows_lowered(body):
         if not any(t in wl for t in _CONSORTIUM_HINT_TOKENS):
             continue
         if not _CONSORTIUM_HINT_RE.search(window):
@@ -726,6 +754,15 @@ def _extract_jv_consortium(  # noqa: C901  # prose-extractor: consortium-member 
     return _dedup(events)
 
 
+# S7: event_key compiled these per event (3 x re.search on every dedup pass).
+_EVENT_KEY_YEAR_RE = re.compile(r"20\d{2}")
+_EVENT_KEY_MONTH_RE = re.compile(
+    r"jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec|\b(?:0?[1-9]|1[0-2])[-/]",
+    re.IGNORECASE,
+)
+_EVENT_KEY_DIGITS_RE = re.compile(r"\d+")
+
+
 def _dedup(events: list[Event]) -> list[Event]:
     """Drop near-identical events within one company.
 
@@ -740,13 +777,8 @@ def _dedup(events: list[Event]) -> list[Event]:
     def event_key(ev: Event) -> tuple:
         if ev.event_type == "management_change" and ev.properties.get("person"):
             period = ev.period or ev.event_date or ""
-            year_match = re.search(r"20\d{2}", period)
-            month_match = re.search(
-                r"jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec|"
-                r"\b(?:0?[1-9]|1[0-2])[-/]",
-                period,
-                re.IGNORECASE,
-            )
+            year_match = _EVENT_KEY_YEAR_RE.search(period)
+            month_match = _EVENT_KEY_MONTH_RE.search(period)
             quarter = "unknown"
             if year_match:
                 month = 1
@@ -769,7 +801,7 @@ def _dedup(events: list[Event]) -> list[Event]:
                     if token[:3] in names:
                         month = names.index(token[:3]) + 1
                     else:
-                        digits = re.search(r"\d+", token)
+                        digits = _EVENT_KEY_DIGITS_RE.search(token)
                         month = int(digits.group()) if digits else 1
                 quarter = f"{year_match.group()}Q{(month - 1) // 3 + 1}"
             return (ev.event_type, person_name_key(ev.properties["person"]), quarter)
@@ -839,7 +871,7 @@ def extract_from_prose(  # noqa: C901
             body = note.body
             if not body.strip():
                 continue
-            windows = list(_iter_bullets(body))
+            windows = list(_windows_lowered(body))
             events.extend(_extract_guidance(company, body, rel, windows=windows))
             events.extend(_extract_management(company, body, rel, windows=windows))
             events.extend(
@@ -875,7 +907,7 @@ def extract_from_prose(  # noqa: C901
         # P1 perf: iterate bullets ONCE and share across both extractors
         # (previously each extractor called _iter_bullets independently, so
         # 1051 files were iterated 4x: 2 extractors × 2 splitlines passes).
-        windows = list(_iter_bullets(body))
+        windows = list(_windows_lowered(body))
         events.extend(_extract_guidance(company, body, rel, windows=windows))
         events.extend(_extract_management(company, body, rel, windows=windows))
         events.extend(

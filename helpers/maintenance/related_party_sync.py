@@ -289,7 +289,10 @@ def _safe_display(name: str) -> str | None:
 # name tripping these would be silently dropped by INSERT OR IGNORE and
 # blow up the edge FK — validate before creating.
 _CHECK_BAD = re.compile(r"limited|ltd|pvt|private", re.I)
-_PAREN = re.compile(r"\s*\((?:formerly|formerly known as|now known as)[^)]*\)\s*", re.I)
+# S6 (quadratic_regex_sweep_and_cleanups): the leading `\s*` was O(n^2) on a
+# long whitespace run. `(?<=\s)` supplies the same "preceded by whitespace"
+# boundary at zero width; the caller collapses runs and strips afterwards.
+_PAREN = re.compile(r"(?<!\s)\s*\((?:formerly|formerly known as|now known as)[^)]*\)\s*", re.I)
 
 
 def _clean_counterparty(name: str) -> str | None:

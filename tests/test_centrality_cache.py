@@ -422,16 +422,47 @@ def test_compute_flag_bypasses_table_read(cache_db, monkeypatch, capsys):
     assert "C3" in out  # compute actually produced the path-middle leader
 
 
-def test_slow_table_miss_advises_lane(capsys):
-    """A stamp miss on a historically slow table names the cost and the
-    lane alternative (fail-loud instead of a silent 150 s hang)."""
+@pytest.mark.parametrize(
+    "table,metric",
+    [
+        ("v_centrality_closeness", "closeness_centrality"),
+        ("v_centrality_harmonic", "harmonic_centrality"),
+        ("v_centrality_betweenness", "betweenness_centrality"),
+    ],
+)
+def test_lane_served_table_is_never_read(capsys, table, metric):
+    """Lane-served metrics have no stamp BY DESIGN, so reading them is a
+    guaranteed miss (one failed SQL + a wrong advisory on every call).
+
+    S5 (quadratic_regex_sweep_and_cleanups) made the read a no-op: no SQL, no
+    stderr. The old text ("≈150-163 s cold") described the vendored-extension
+    path this code never takes — measured 2026-11-10, DuckDB closeness is
+    ~9-10 s, not 150 s.
+    """
+    from helpers.graph import scipy_bridge
+
+    assert scipy_bridge.ROUTING[metric] in ("SCIPY", "L1B_FOLD")
     con = duckdb.connect()
     try:
-        assert alg._cached_central_scores(con, "v_centrality_closeness") is None
+        assert alg._cached_central_scores(con, table) is None
+    finally:
+        con.close()
+    assert capsys.readouterr().err == ""
+
+
+def test_non_lane_cold_table_still_advises_once(capsys):
+    """A genuinely cold non-lane table keeps its advisory — but only once."""
+    import helpers.graph.algorithms as a
+
+    a._ADVISED_TABLES.discard("v_centrality_katz")
+    con = duckdb.connect()
+    try:
+        assert a._cached_central_scores(con, "v_centrality_katz") is None
+        assert a._cached_central_scores(con, "v_centrality_katz") is None
     finally:
         con.close()
     err = capsys.readouterr().err
-    assert "scipy lane" in err and "150-163 s" in err
+    assert err.count("v_centrality_katz") <= 1, err
 
 
 def test_fast_table_miss_stays_silent(capsys):

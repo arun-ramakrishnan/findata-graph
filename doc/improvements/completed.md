@@ -14603,3 +14603,129 @@ to doc/improvements/archive/database/duckdb_pure_stack.md.
 - Proposal: doc/improvements/archive/testing/bold_line_guard_failing_path.md
   (§3 S3 records the deadline→SIGALRM amendment, §3 "As built" records what
   actually landed, Appendix keeps the raw measurement log).
+
+## 502. Quadratic regex sweep — 18 `\s+`-anchored O(n²) patterns, a consuming guard, and the cleanups that came with them
+
+**Date**: 2026-11-10
+
+- **The finding.** An AST sweep of all 366 `re.compile` sites under
+  `helpers/` found **17 quadratic patterns** of the shape `\s+(?:…)$` plus
+  `SECTION_RE` (a different mechanism: `^\s*` crossing newlines under
+  `re.MULTILINE`) — 18 in total. Ladders on spaces/tabs/newlines at
+  n=1000→16000 gave ratio **3.89–4.34 per doubling** (O(n²)):
+  `_SPAN_TRIM_RE` 106.9 → 29,067.8 ms, `_CAP_CUT` 39.7 → 10,048.2 ms,
+  `SUFFIX_RE` 36.9 → 9,167.6 ms. Reachable end-to-end on newsletter text
+  that keeps INTERNAL whitespace runs through `.strip()`:
+  `parse_newsletter.extract_companies` → `_CAP_CUT_RE.search(name)`
+  **2,616 ms**, `derive_insights._canonicalize` → `_CAP_CUT.search(name)`
+  **2,642 ms**, `derive_events._clean_span` → `_SPAN_TRIM_RE.sub`
+  **8,530 ms** (all with an 8000-space run). The current vault is
+  unexposed — no run of ≥20 whitespace chars in 1,401 `findata/*.md` (max
+  newline run 8) — so this is a latent-crash fix, not a wall-clock win;
+  the hazard is the OCR path (`pdf_conv_md` → newsletter markdown →
+  `parse_newsletter`).
+- **The fix that did NOT work, and why it matters.** A bare zero-width
+  lookbehind `(?<=\s)` is linear but stops consuming the separator, so
+  `.sub()` leaves a trailing space (`"Graphite India Limited"` →
+  `"Graphite India "`) and `.split()` yields different chunks: the corpus
+  parity harness found **166 mismatches / 19,709 samples** (66
+  `_LIST_CHUNK_SPLIT_RE`, 57 `_TRAILING_NUM_UNIT_RE`, 42 `FOOTNOTE_RE`, 1
+  `_PAREN`) — `"Chip designers, foundries, memory manufacturers, and
+  semicon"` lost a list separator. A possessive `\s++` also fails
+  (88 ms vs 2,275 ms at n=8000, ratio still ≈4) because the cost is
+  `re.search` retrying at every start position, not intra-attempt
+  backtracking. **Shipped form: `(?<!\s)\s+…`** — pins each attempt to the
+  start of a whitespace run while still consuming it, so the span is
+  byte-identical. Final ladder 1.89–2.39, `super-linear: []`; parity
+  **0 / 19,709** through each call site's own method (`sub().strip()`,
+  `sub().strip(" .,;:")`, bare `sub()`, squash-and-strip,
+  split-and-strip, search-and-slice, `_clean_span` loop-until-stable,
+  `findall`, boolean gate).
+- **The two `|^` exceptions** (the old leading `\s*` could match at string
+  start): `entity_identity.FOOTNOTE_RE` → `r"(?<!\s)\s*\*+\s*$"` (a bare
+  `r"\*+\s*$"` would strip the leading `**` of `"**Acme"`) and
+  `related_party_sync._PAREN` → `r"(?<!\s)\s*\(…\)\s*"`. `SECTION_RE` got
+  a different mechanism entirely: `r"^[^\S\n]*#{1,3}\s+(.+?)(?:\s*[|·].*)*$"`
+  (`[^\S\n]` is the same horizontal whitespace but cannot cross a newline).
+- **Guard.** `tests/test_fuzz_regex.py` grew a `\s+`-anchored section:
+  13-pattern table × 3 whitespace kinds, ratio `< 2.6` at ladder sizes
+  ≥4000, median-of-5, SIGALRM cap, plus a pin that the `(?<=\s)` form
+  would change spans. Discrimination proven: the old form at 4k→8k is
+  512.9 → 2,034.1 ms (ratio 3.97, FAIL) and the shipped form 0.32 → 0.69 ms
+  (ratio 2.13, PASS). This is the #501 lesson applied — the existing
+  `SECTION_RE` guard capped at `max_size=400`, where the quadratic costs
+  1.49 ms and a real 524 ms @8000 newlines is invisible to it.
+- **S1 — note_search rebuild, one walk and one hash pass**
+  (`helpers/maintenance/rebuild_note_search.py`). `_collect_rows` returns
+  `(rows, doc_paths)`; `current_meta` is built once from it instead of
+  being re-derived by a second walk (staleness), a third (full-branch meta)
+  and a fourth (incremental diff) — the branches are mutually exclusive, so
+  an apply-run walked 3× and `--check` walked 2×. Instrumented proof:
+  `--check` walks **2→1**, incremental **3→1**, fingerprints **1,674→1,398**.
+  Wall clock cannot resolve it (a full apply is dominated by
+  embedding/vec sync, ~141 s on a copied DB), so the counter probe is the
+  evidence; isolated cost of the removed work is ~0.19 s per apply-run.
+- **S2 — `_label_from_window` prefiltered** (`helpers/graph/derive_insights.py`).
+  `_LABEL_PREFILTER` maps every one of the 31 label patterns to a
+  NECESSARY literal, with `_MISSING_PREFILTER` raising at import time so a
+  future pattern cannot silently narrow a match. The ORIGINAL ordered
+  `_L_MARGIN`/`_L_EBITDA` special case and list loop are untouched — a
+  `|`-joined alternation was measured (0.1148 s vs 0.1268 s) and rejected
+  because leftmost-match priority is a behaviour change. On the 9,551 real
+  windows: **125.7 ms → 46.0 ms (2.73×)**, 82% of windows unlabelled and
+  now short-circuiting; parity 0 mismatches on 9,551 windows + 400 files.
+  `_L_INVESTMENT`'s `ed|)` empty branch became `(?:…|ed)?` — it never
+  matched empty, but the empty alternative let bare "invest" match.
+- **S4 — `heading_line` accumulated** (`derive_insights.py`).
+  `_line_starts()` accumulates `content.count("\n", prev, pos)` over
+  boundary gaps: **480.3 ms → ~395 ms** over 1,401 files / 20,510
+  sections, 0 mismatching files (1,768 company + 18,742 sector sections
+  compared on `(canonical_name, heading_line)`). A first attempt with a
+  full newline-offset list + `bisect` was **5× slower** (2,498 ms) — the C
+  `str.count` over the gap wins.
+- **S5 — the closeness advisory was lying** (`helpers/graph/algorithms.py`).
+  The draft's "synthetic `edges=` lands in a ~150 s exact-Onager path"
+  claim is **false**: `_onager_central` sends lane-served families with
+  `edges is not None` straight to `graph_fallbacks.onager_closeness`
+  (igraph), measured 3,000 values in **1.06 s** (n=3000/9000 edges). The
+  real defect was observability — `v_centrality_closeness` is deliberately
+  DROPPED for lane-served families (`query.py:2205-2208`), so
+  `_cached_central_scores` always missed and printed a 150 s warning this
+  path never pays. `_table_never_stamped()` now gates the read on the same
+  `scipy_bridge.ROUTING` table that drops the stamp; the hint moved to
+  `_LANE_TABLE_HINTS` and fires once per table per process
+  (`_ADVISED_TABLES`). Measured: DB closeness 19,130 values in 10.46 s,
+  harmonic 10.34 s.
+- **S7 — trivia, partial by design.** Eleven `re.sub` sites in
+  `derive_insights.py` hoisted to module consts (three now reuse
+  `_WS_CANON_RE` instead of re-spelling `\s+`); `event_key`'s three inline
+  searches compiled; a shared `_windows_lowered()` lets four extractors
+  lower each window once (117,203 windows: 4 passes 171 ms → 1 pass 73 ms);
+  `_iter_bullets` strips each line once but KEEPS both passes (yield order
+  is contract — `_dedup` prefers the longest quote), measured
+  3,265 → 3,210 ms, parity 434,633 windows; `pdf_local`'s inline heading
+  search became `_H1_SEARCH_RE`. Deliberately skipped: `triage_preannotate`
+  greedy→lazy (changes which JSON blob wins when the reply has prose
+  brackets — LLM-bound, needs its own parity test), the RSS triple-search
+  (network-bound), `_clean_body` (~0.05 s).
+- **S3 deliberately NOT applied** — sharing the `splitlines` pass saves
+  ≈0.012 s (the two calls cost 0.024 s over 1,768 sections); the 0.6–1.0 s
+  first estimate was mis-attributed to `_extract_metrics_from_sentence`
+  (60,016 calls / 1.349 s cum), which is now excluded as needing its own
+  proposal. The curly-quote/emphasis contract is not worth 12 ms.
+- **Honest total.** ≈0.4 s of measured wall-clock against a
+  `derive_insights` leg wall of 7.23/7.44 s (budget 9.0 s) — this is a
+  cleanup, not a perf-leg rescue. The leg's real levers are
+  `select.poll` worker wait (3.7 s), `yaml.get_single_data` (0.354 s),
+  `edition_index.resolve_editions` (0.217 s tottime), `_scan` (0.250 s).
+- Validation: **586 targeted tests green** (`test_fuzz_regex`,
+  `test_centrality_cache`, `test_derive_events`, `test_derive_insights`,
+  `test_pdf_local`, `test_parse_newsletter_entities`,
+  `test_related_party_sync`, `test_extract_relations_extraction`,
+  `test_rebuild_note_search`), `ruff check`/`format` clean,
+  `markdown_lint` 0 violations, `check_proposal_lifecycle()` `([], [])`,
+  `make search-fresh` all five indexes fresh. `make qa`/`make perf` full
+  gate NOT RUN — archived on the operator's instruction.
+- Proposal: doc/improvements/archive/tooling/quadratic_regex_sweep_and_cleanups.md
+  (§5 carries the three-pass provenance table: first estimate vs measured
+  vs method, and the corrections that reversed S5 and S6).

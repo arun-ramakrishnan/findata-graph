@@ -1866,6 +1866,94 @@ def test_label_from_window_no_match():
     assert di._label_from_window("random text here") is None
 
 
+# S2 (quadratic_regex_sweep_and_cleanups): the literal prefilter must be a
+# NECESSARY condition — if no token hits, no classifier may match. These pin
+# that invariant plus the list-priority order the prefilter must not disturb.
+_LABEL_PREFILTER_CASES = [
+    ("revenue grew 12%", "revenue"),
+    ("turnover rose", "revenue"),
+    ("net sales up", "revenue"),
+    ("profit after tax", "profit"),
+    ("earnings grew", "profit"),
+    ("capex of rs 500 crore", "capex"),
+    ("assets under management", "aum"),
+    ("order book strong", "order_book"),
+    ("bid pipeline healthy", "order_book"),
+    ("growth of 20%", "growth"),
+    ("cagr of 18%", "growth"),
+    ("market share at 22%", "market_share"),
+    ("stake sale", "stake"),
+    ("net debt reduced", "debt"),
+    ("borrowings fell", "debt"),
+    ("market cap of rs 900 crore", "market_capitalization"),
+    ("operating capacity of 5 gw", "capacity"),
+    ("investment of inr 200 crore", "investment"),
+    # _L_CAPACITY precedes _L_INVESTMENT in _METRIC_LABEL_PATTERNS.
+    ("invested in capacity", "capacity"),
+    ("roce at 18%", "returns"),
+    # _L_GROWTH precedes _L_VOLUME.
+    ("volume growth", "growth"),
+    ("attrition was around 9%", "attrition"),
+    ("penetration closer to 40%", "penetration"),
+    ("utilization at 78%", "utilization"),
+    ("dividend of rs 5", "dividend"),
+    # _L_CAPACITY ("gw") precedes _L_RPO.
+    ("rpo of 3 gw", "capacity"),
+    ("rpo stood at rs 900 crore", "rpo"),
+    ("realisation up 4%", "realisation"),
+    ("nim at 3.2%", "nim"),
+    ("bookings strong", "bookings"),
+    ("tcv of usd 2 bn", "tcv"),
+    ("loan book grew", "loan_book"),
+    ("qip raised capital", "capital_raise"),
+    ("arr crossed", "arr"),
+    ("gtv up", "gtv"),
+    ("cd ratio at 78%", "cd_ratio"),
+    ("sum assured of rs 10 lakh", "sum_assured"),
+    ("ebitda margin expanded", "ebitda_margin"),
+    ("gross margin improved", "margin"),
+]
+
+
+@pytest.mark.parametrize(("text", "expected"), _LABEL_PREFILTER_CASES)
+def test_label_prefilter_never_narrows_a_match(text, expected):
+    """A positive classifier hit must survive the prefilter (S2)."""
+    assert di._label_from_window(text) == expected
+
+
+def test_label_prefilter_covers_every_pattern():
+    """Every label pattern (and the margin special case) has a necessary
+    literal — the import-time guard exists so a new pattern cannot silently
+    bypass the prefilter; this pins that the guard actually ran."""
+    patterns = [di._L_MARGIN, *(pat for pat, _label in di._METRIC_LABEL_PATTERNS)]
+    for pat in patterns:
+        assert di._LABEL_PREFILTER.get(pat), f"no prefilter literals for {pat.pattern!r}"
+    assert di._MISSING_PREFILTER == []
+    assert len(di._METRIC_LABEL_PATTERNS) == 29
+
+
+def test_label_prefilter_bails_on_unlabelled_window():
+    """The common case (82% of live windows) must short-circuit to None."""
+    assert di._label_from_window("the company said it expects to") is None
+    assert di._label_from_window("") is None
+
+
+@pytest.mark.parametrize(
+    ("text", "expected"),
+    [
+        # _L_REVENUE precedes _L_DEBT in _METRIC_LABEL_PATTERNS.
+        ("debt and revenue", "revenue"),
+        # _L_ORDER precedes _L_GROWTH.
+        ("growth in order book", "order_book"),
+        # The margin special case runs before the list.
+        ("margin on revenue", "margin"),
+    ],
+)
+def test_label_prefilter_preserves_list_priority(text, expected):
+    """The prefilter must not turn the ordered list into leftmost-match."""
+    assert di._label_from_window(text) == expected
+
+
 # ---------------------------------------------------------------------------
 # _classify_metric
 # ---------------------------------------------------------------------------

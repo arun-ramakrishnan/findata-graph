@@ -91,6 +91,7 @@ USAGE
 from __future__ import annotations
 
 import argparse
+
 import datetime as _dt
 import sqlite3
 import json
@@ -386,8 +387,8 @@ _U_BN_RE = re.compile(r"\bbn\b|billion")
 _U_MN_RE = re.compile(r"\bmn\b|million")
 _U_GW_RE = re.compile(r"\bgw\b")
 _U_MW_RE = re.compile(r"\bmw\b")
-_CAP_CUT = re.compile(r"\s+(?:large|larg|mid|small|micro|nano|mega)\s*cap", re.I)
-SUFFIX_RE = re.compile(r"\s+(Limited|Ltd\.?|Private|Pvt\.?|Inc\.?|Corp\.?)$", re.I)
+_CAP_CUT = re.compile(r"(?<!\s)\s+(?:large|larg|mid|small|micro|nano|mega)\s*cap", re.I)
+SUFFIX_RE = re.compile(r"(?<!\s)\s+(Limited|Ltd\.?|Private|Pvt\.?|Inc\.?|Corp\.?)$", re.I)
 _HEADING_RE = re.compile(r"^(#{1,3})\s+(.+)$", re.MULTILINE)
 # P3 perf: compiled heading classifiers for iter_company_sections (were inline
 # re.match per heading per file — 2834 section yields × 3-4 calls each).
@@ -396,7 +397,20 @@ _ATTR_DASH_CAP_RE = re.compile(r"^(##\s+)?[-–—][A-Z]")
 _ROLE_HEADING_RE = re.compile(r"^(management|executive|leadership|board)\b")
 # Also pre-compiled for _canonicalize (was inline re.sub per call).
 _WS_CANON_RE = re.compile(r"\s+")
-_SUFFIX2_RE = re.compile(r"\s+(Limited|Ltd\.?|Private|Pvt\.?)$", re.I)
+# S7 hoists: these ran as inline `re.sub` per metric value / heading. The
+# whitespace one was a genuine duplicate of `_WS_CANON_RE` above.
+_VAL_DASH_RE = re.compile(r"[\u2013\u2014\u002d]")
+_VAL_RANGE_RE = re.compile(r"\s*-\s*")
+_VAL_PCT_RE = re.compile(r"\s*%\s*")
+_BARE_LEAD_RE = re.compile(r"^[.\-\u2013\u2014\[\s]+")
+_BARE_TRAIL_RE = re.compile(r"[\]\s]+$")
+_TRAIL_SEP_RE = re.compile(r"[\s,;]+$")
+_PIPE_I_RE = re.compile(r"\s+I$")
+_PAREN_STRIP_RE = re.compile(r"\s*\([^)]*\)\s*")
+_AMP_RE = re.compile(r"\s*&\s*")
+_AND_RE = re.compile(r"\s+and\s+")
+_HEADING_HASH_RE = re.compile(r"^\s*#+\s*")
+_SUFFIX2_RE = re.compile(r"(?<!\s)\s+(Limited|Ltd\.?|Private|Pvt\.?)$", re.I)
 # H1 title extraction in _edition_title (was inline re.match per newsletter).
 _H1_TITLE_RE = re.compile(r"^#\s+(.+?)\s*$", re.MULTILINE)
 # derive_insights_perf proposal (2026-09-05): hoisted per-file compiles
@@ -487,10 +501,10 @@ def _canonical_metric_value(value_raw: str) -> str:
     import unicodedata
 
     v = unicodedata.normalize("NFKC", str(value_raw))
-    v = re.sub(r"[\u2013\u2014\u002d]", "-", v)  # dash folding
-    v = re.sub(r"\s+", " ", v).strip()  # whitespace collapse
-    v = re.sub(r"\s*-\s*", "-", v)  # range form: fold spaces around the hyphen
-    v = re.sub(r"\s*%\s*", "%", v)  # attach percent sign
+    v = _VAL_DASH_RE.sub("-", v)  # dash folding
+    v = _WS_CANON_RE.sub(" ", v).strip()  # whitespace collapse (shared const)
+    v = _VAL_RANGE_RE.sub("-", v)  # range form: fold spaces around the hyphen
+    v = _VAL_PCT_RE.sub("%", v)  # attach percent sign
     v = v.strip("(),")  # parens/trailing comma trim
     v = v.replace(",", "")  # comma stripping
     return v
@@ -641,8 +655,8 @@ def _is_marker_heading(raw: str) -> bool:
     # lead/trail marker punctuation skip straight to the set probe.
     if r[0] not in ".-\u2013\u2014[ \t" and r[-1] not in "] \t":
         return r.lower() in _BARE_MARKER_WORDS
-    bare = re.sub(r"^[.\-\u2013\u2014\[\s]+", "", r)
-    bare = re.sub(r"[\]\s]+$", "", bare).lower()
+    bare = _BARE_LEAD_RE.sub("", r)
+    bare = _BARE_TRAIL_RE.sub("", bare).lower()
     return bare in _BARE_MARKER_WORDS
 
 
@@ -742,6 +756,24 @@ def _structural_boundaries(
     return structural
 
 
+def _line_starts(content: str, positions: list[int]) -> list[int]:
+    """1-based line number for each byte offset in ``positions`` (ascending).
+
+    S4 (quadratic_regex_sweep_and_cleanups): the callers used to run
+    ``content.count("\\n", 0, start) + 1`` once per heading, rescanning the
+    document prefix each time. Counting each gap once is the same C-level
+    ``str.count`` but every character is scanned at most once in total.
+    """
+    out: list[int] = []
+    line = 1
+    prev = 0
+    for pos in positions:
+        line += content.count("\n", prev, pos)
+        out.append(line)
+        prev = pos
+    return out
+
+
 def iter_company_sections(
     content: str, known_bare: set[str] | None = None, boundaries: list | None = None
 ):
@@ -753,15 +785,18 @@ def iter_company_sections(
     structural = (
         boundaries if boundaries is not None else _structural_boundaries(content, known_bare)
     )
+    company = [(si, s) for si, s in enumerate(structural) if s[2] is not None]
+    lines = _line_starts(content, [s[0] for _si, s in company])
     # Walk the structural headings; each company's body runs to the next
     # structural heading (company or sector), or EOF.
-    for si, (start, _idx, canonical, _raw) in enumerate(structural):
+    for (si, (start, _idx, canonical, _raw)), heading_line in zip(company, lines):
         if canonical is None:
-            continue  # this structural heading is a sector, not a company
+            continue  # company filters s[2] is not None; guard keeps ty's narrowing
+
         end = structural[si + 1][0] if si + 1 < len(structural) else len(content)
         yield CompanySection(
             canonical_name=canonical,
-            heading_line=content.count("\n", 0, start) + 1,
+            heading_line=heading_line,
             body=content[start:end],
         )
 
@@ -861,7 +896,7 @@ def _resolve_sector(raw: str) -> tuple[str, str]:
     No force-fit: unmatched headings land in the Quotes catch-all with the
     raw heading preserved in properties for triage.
     """
-    key = re.sub(r"\s+", " ", html.unescape(raw).strip()).lower()
+    key = _WS_CANON_RE.sub(" ", html.unescape(raw).strip()).lower()
     if key in _SECTOR_BY_LOWER:
         return _SECTOR_BY_LOWER[key], "sector_commentary"
     syn = _SECTOR_SYNONYMS.get(key)
@@ -888,9 +923,9 @@ def iter_sector_sections(
     structural = (
         boundaries if boundaries is not None else _structural_boundaries(content, known_bare)
     )
-    for si, (start, _idx, canonical, raw) in enumerate(structural):
-        if canonical is not None:
-            continue
+    sector = [(si, s) for si, s in enumerate(structural) if s[2] is None]
+    lines = _line_starts(content, [s[0] for _si, s in sector])
+    for (si, (start, _idx, _canonical, raw)), heading_line in zip(sector, lines):
         end = structural[si + 1][0] if si + 1 < len(structural) else len(content)
         entity, kind = _resolve_sector(raw)
         # Provenance heading is unescaped for humans (&amp; -> &); the
@@ -898,7 +933,7 @@ def iter_sector_sections(
         yield (
             CompanySection(
                 canonical_name=entity,
-                heading_line=content.count("\n", 0, start) + 1,
+                heading_line=heading_line,
                 body=content[start:end],
             ),
             html.unescape(raw).strip(),
@@ -1391,7 +1426,7 @@ _L_MARKET_CAP = re.compile(r"\bmarket cap\b|\bmarket capitalization\b")
 # additions; anything still unmatched stays NULL by design (#308 contract:
 # the empty-NULL set is the "genuinely unlabeled" population).
 _L_CAPACITY = re.compile(r"\bcapacit(?:y|ies)\b|\bcapa\b|\bgw\b|\bmw\b")
-_L_INVESTMENT = re.compile(r"\binvest(?:ments?|ing|ed|)\b")
+_L_INVESTMENT = re.compile(r"\binvest(?:ments?|ing|ed)?\b")
 _L_RETURNS = re.compile(r"\broce\b|\broe\b|\breturn on\b|\broi\b")
 _L_VOLUME = re.compile(r"\bvolume[s]?\b")
 _L_ATTRITION = re.compile(r"\battrition\b")
@@ -1466,9 +1501,79 @@ _METRIC_LABEL_PATTERNS: list[tuple[re.Pattern, str]] = [
 ]
 
 
+# S2 (quadratic_regex_sweep_and_cleanups): literal prefilter for
+# _label_from_window. The ordered loop must stay as-is — it encodes list
+# PRIORITY, and one joined alternation would switch to leftmost-match
+# priority ("growth in order book" currently labels order_book; a joined
+# alternation would label growth). So we keep the order and just ask once
+# "could ANY classifier match?" with plain substring scans, which are ~26x
+# cheaper than a 30-branch regex on a 26-char window.
+#
+# Each tuple holds one literal that EVERY match of that pattern must
+# contain (a necessary condition, so a miss here is a guaranteed miss).
+# The import-time check below turns "someone added a pattern and forgot the
+# table" into a loud failure instead of a silently-narrowed prefilter.
+_LABEL_PREFILTER: dict[re.Pattern, tuple[str, ...]] = {
+    _L_MARGIN: ("margin", "ebitda"),
+    _L_REVENUE: ("revenue", "turnover", "sales", "topline", "top line"),
+    _L_PROFIT: ("profit", "pat", "income", "earnings"),
+    _L_CAPEX: ("capex", "expenditure", "spend", "sanctioned"),
+    _L_AUM: ("aum", "management"),
+    _L_ORDER: ("order", "pipeline"),
+    _L_GROWTH: ("growth", "yoy", "cagr"),
+    _L_MKT_SHARE: ("market share",),
+    _L_STAKE: ("stake",),
+    _L_DEBT: ("debt", "borrowing"),
+    _L_MARKET_CAP: ("market cap", "capitalization"),
+    _L_CAPACITY: ("capacit", "capa", "gw", "mw"),
+    _L_INVESTMENT: ("invest",),
+    _L_RETURNS: ("roce", "roe", "return on", "roi"),
+    _L_VOLUME: ("volume",),
+    _L_ATTRITION: ("attrition",),
+    _L_PENETRATION: ("penetration",),
+    _L_UTILIZATION: ("utiliz", "utilis"),
+    _L_DIVIDEND: ("dividend",),
+    _L_RPO: ("rpo",),
+    _L_REALISATION: ("realiz", "realis"),
+    _L_NIM: ("nim", "interest margin"),
+    _L_BOOKINGS: ("booking",),
+    _L_TCV: ("tcv", "contract value", "deal win"),
+    _L_LOAN_BOOK: ("loan book",),
+    _L_CAPITAL_RAISE: ("qip", "rais"),
+    _L_ARR: ("arr",),
+    _L_GTV: ("gtv",),
+    _L_CD_RATIO: ("cd ratio",),
+    _L_SUM_ASSURED: ("sum assured",),
+}
+
+_LABEL_PREFILTER_TOKENS: tuple[str, ...] = tuple(
+    dict.fromkeys(
+        token
+        for pat in (_L_MARGIN, *[pat for pat, _label in _METRIC_LABEL_PATTERNS])
+        for token in _LABEL_PREFILTER.get(pat, ())
+    )
+)
+
+_MISSING_PREFILTER = [
+    pat.pattern
+    for pat in (_L_MARGIN, *[pat for pat, _label in _METRIC_LABEL_PATTERNS])
+    if not _LABEL_PREFILTER.get(pat)
+]
+if _MISSING_PREFILTER:  # pragma: no cover - guards future pattern additions
+    raise RuntimeError(
+        "derive_insights: _LABEL_PREFILTER needs a necessary literal for every "
+        f"metric-label pattern; missing: {_MISSING_PREFILTER}"
+    )
+
+
 def _label_from_window(w: str) -> str | None:
     """Classify a lowered text window to a metric label. Returns None if no
     metric noun is present."""
+    for token in _LABEL_PREFILTER_TOKENS:
+        if token in w:
+            break
+    else:
+        return None
     if _L_MARGIN.search(w):
         return "ebitda_margin" if _L_EBITDA.search(w) else "margin"
     for pat, label in _METRIC_LABEL_PATTERNS:
@@ -3239,11 +3344,11 @@ def _candidate_keys(name: str) -> tuple[str, list[str], list[str]]:
 
     add(t2, base)
     add(t2, base.replace("'", ""))  # Divi's -> Divis
-    stripped = re.sub(r"[\s,;]+$", "", base)  # trailing separator artifact
+    stripped = _TRAIL_SEP_RE.sub("", base)  # trailing separator artifact
     add(t3, stripped)
-    pipe_i = re.sub(r"\s+I$", "", base)  # converter pipe-artifact: `Voltas I`
+    pipe_i = _PIPE_I_RE.sub("", base)  # converter pipe-artifact: `Voltas I`
     add(t3, pipe_i)
-    paren = re.sub(r"\s*\([^)]*\)\s*", " ", base).strip()  # `(India)`-style
+    paren = _PAREN_STRIP_RE.sub(" ", base).strip()  # `(India)`-style
     add(t3, paren)
     return exact, t2, t3
 
@@ -3271,9 +3376,9 @@ def _symbol_variants(key: str) -> list[str]:
     """`&` <-> `and` fold, both directions (post-unescape)."""
     out = []
     if "&" in key:
-        out.append(re.sub(r"\s*&\s*", " and ", key))
+        out.append(_AMP_RE.sub(" and ", key))
     if " and " in key:
-        out.append(re.sub(r"\s+and\s+", " & ", key))
+        out.append(_AND_RE.sub(" & ", key))
     return out
 
 
@@ -3558,7 +3663,7 @@ def _extract_sections(
         if not entity_name:
             if not _person_role_heading(section.canonical_name):
                 continue  # S2 terminus: worklist/audit visibility, never silent capture
-            raw_heading = re.sub(r"^\s*#+\s*", "", section.body.split("\n", 1)[0]).strip()
+            raw_heading = _HEADING_HASH_RE.sub("", section.body.split("\n", 1)[0]).strip()
             section.canonical_name = _CATCH_ALL_ENTITY
             for q in extract_quotes(section, edition, stem):
                 q.properties["kind"] = "catch_all"

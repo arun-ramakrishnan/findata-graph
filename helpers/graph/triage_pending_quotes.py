@@ -48,7 +48,9 @@ MERCURY_ANNOTATIONS = _REPO_ROOT / "findata" / "Misc" / "_quote_annotations_merc
 # qualifier tiers can fix — trailing `I` / `]` / `,` / `;`, stray `_`, a
 # literal backslash (escaped `&` that unescape+fold already failed to
 # resolve), or a doubled first word ("Poonawala Poonawalla Fincorp").
-_GARBAGE_RE = re.compile(r"(\s+I$|\]$|[,;]\s*$|_\S*$|\\)", re.I)
+# S6 (quadratic_regex_sweep_and_cleanups): `(?<=\s)` replaces the leading
+# `\s+` in the first branch; it is a .search() gate (no span use).
+_GARBAGE_RE = re.compile(r"((?<!\s)\s+I$|\]$|[,;]\s*$|_\S*$|\\)", re.I)
 
 
 def _doubled_word(canonical: str) -> bool:

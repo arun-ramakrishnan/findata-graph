@@ -38,6 +38,7 @@ entry number and stale DONE pointers):
 
 ## Current live proposals
 *(none)*
+
 - *(archived 2026-11-10)* — `bold_line_guard_failing_path` executed same
   day, #501 (`../archive/testing/bold_line_guard_failing_path.md`; the
   BOLD_LINE_RE rewrite was correct but BOTH guards were blind to the pattern

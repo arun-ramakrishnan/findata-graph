@@ -88,13 +88,23 @@ ALGORITHMS = PROJECT_ROOT / "helpers" / "graph" / "algorithms.py"
 # Headings like:  ## Bharat Forge | Large Cap | Auto & Defence
 # or              # Oil and Natural Gas Corporation Limited Large Cap Oil & Gas
 SECTION_RE = re.compile(
-    r"^\s*#{1,3}\s+(.+?)(?:\s*[|·].*)*$",  # company heading, drop the "| cap | sector" tail
+    # S6 (quadratic_regex_sweep_and_cleanups): ``^\s*`` was O(n^2) on a run of
+    # blank lines — with re.MULTILINE every line start retried a greedy ``\s*``
+    # that spanned the rest of the document. ``[^\S\n]`` is the same leading
+    # horizontal whitespace, but it cannot cross a newline (``^`` already
+    # handles those), so each position is scanned once.
+    r"^[^\S\n]*#{1,3}\s+(.+?)(?:\s*[|·].*)*$",  # company heading, drop the "| cap | sector" tail
     re.MULTILINE,
 )
 # Trailing legal suffixes to strip when forming the canonical short name.
-SUFFIX_RE = re.compile(r"\s+(Limited|Ltd\.?|Private|Pvt\.?)$", re.IGNORECASE)
+# S6 (quadratic_regex_sweep_and_cleanups): the leading ``\s+`` turned every
+# strip into O(n^2) on a long whitespace run (``re.search`` retries an
+# unattached greedy run at each start position). ``(?<=\s)`` keeps the same
+# required boundary at zero width; both call sites ``.strip()`` afterwards,
+# so the match-span change is invisible.
+SUFFIX_RE = re.compile(r"(?<!\s)\s+(Limited|Ltd\.?|Private|Pvt\.?)$", re.IGNORECASE)
 # Second legal-suffix pass (handles OCR variants like "Ltd." that survive SUFFIX_RE).
-_SUFFIX2_RE = re.compile(r"\s+(Limited|Ltd\.?|Private|Pvt\.?)$", re.IGNORECASE)
+_SUFFIX2_RE = re.compile(r"(?<!\s)\s+(Limited|Ltd\.?|Private|Pvt\.?)$", re.IGNORECASE)
 # Collapse runs of whitespace to a single space (used in heading name cleanup).
 _WS_RE = re.compile(r"\s+")
 
@@ -126,7 +136,10 @@ _CAP_TOKENS = (
     "unlisted",
 )
 # Cut the name at the first cap token (incl. OCR variants like 'Larg Cap', 'Mid Cap.').
-_CAP_CUT_RE = re.compile(r"\s+(?:large|larg|mid|small|micro|nano|mega)\s*cap", re.IGNORECASE)
+# S6 (quadratic_regex_sweep_and_cleanups): `(?<=\s)` replaces the leading `\s+`
+# — the caller slices at ``cut.start()`` so the separator must still be outside
+# the match, which a lookbehind guarantees. Both call sites then `.strip()`.
+_CAP_CUT_RE = re.compile(r"(?<!\s)\s+(?:large|larg|mid|small|micro|nano|mega)\s*cap", re.IGNORECASE)
 _SECTOR_WORDS = frozenset(
     {
         "retail",

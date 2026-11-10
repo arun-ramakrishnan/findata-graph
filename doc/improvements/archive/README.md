@@ -623,6 +623,24 @@ commit, referenced by nothing). Entry numbers point at
 - [`refresh_chain_parallel.md`](pipeline/refresh_chain_parallel.md) — Refresh chain, parallel — fetch/apply split so independent sources overlap; per-lane `--fetch-only` stages writing scratch JSON under `$TMPDIR/findata-graph/`, parallel phase A, sequential store applies under per-store lock, per-item failure containment; `refresh-chain` Makefile target (default), `refresh-chain-ser` for the original sequential chain — completed.md #403
 
 ## tooling/ — Tooling & performance — MCP eval, doc browser/search, perf review, tech survey
+- [`quadratic_regex_sweep_and_cleanups.md`](tooling/quadratic_regex_sweep_and_cleanups.md) —
+  an AST sweep of all 366 `re.compile` sites under `helpers/` found **17 quadratic
+  `\s+(?:…)$` patterns** plus `SECTION_RE` (`^\s*` crossing newlines under `re.MULTILINE`),
+  ratio 3.89–4.34 per doubling, reachable at **2,616 / 2,642 / 8,530 ms** on a heading with
+  an 8000-space run (`parse_newsletter`, `derive_insights._canonicalize`,
+  `derive_events._clean_span`) — latent, not live (no ≥20-char whitespace run in 1,401 files;
+  the OCR path is the hazard). The obvious `(?<=\s)` lookbehind is linear but drifts
+  **166/19,709 spans** (lost list separators), and `\s++` does not help; the shipped
+  `(?<!\s)\s+…` consumes the run so the span is identical — ladder 1.89–2.39, parity
+  0/19,709. Guarded by a 13-pattern × 3-whitespace ladder at sizes ≥4000 asserting
+  ratio < 2.6 (the old `SECTION_RE` guard capped at 400, where the quadratic is 1.49 ms and
+  a real 524 ms @8000 newlines is invisible). Same arc: S1 note_search one walk + one hash
+  pass (instrumented walks 2→1 / 3→1, fingerprints 1,674→1,398), S2 `_label_from_window`
+  literal prefilter (125.7→46.0 ms, 82% of windows short-circuit, import-time guard so a new
+  pattern cannot silently bypass it), S4 accumulated `str.count` for `heading_line`
+  (480→395 ms), S5 the closeness advisory corrected — the "synthetic edges = 150 s Onager"
+  claim was DISPROVED (1.06 s via the igraph fallback); the actual defect was a stale warning
+  this path never pays, now gated by `_table_never_stamped()` — completed.md #502
 - [`rusqlite_bump_rustsec_2026_0459.md`](tooling/rusqlite_bump_rustsec_2026_0459.md) —
   rusqlite/libsqlite3-sys bump clearing RUSTSEC-2026-0459 (CVE-2026-119375,
   6.8 medium, vendored bundled SQLite) from both lockfiles: rusqlite 0.32

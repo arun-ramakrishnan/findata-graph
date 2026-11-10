@@ -705,6 +705,28 @@ def bypass_centrality_cache():
         _BYPASS_CENTRALITY_CACHE.reset(token)
 
 
+def _table_never_stamped(table: str) -> bool:
+    """True when ``_stamp_score_metric`` DROPS ``table`` by construction.
+
+    Lane-served families (``scipy_bridge.ROUTING`` → SCIPY / L1B_FOLD) never
+    get a ``v_centrality_<metric>`` table — the stamp deletes any stale one so
+    absence stays the "compute on demand" contract
+    (``helpers/graph/query.py:_stamp_score_metric``). Reading such a table is
+    therefore a guaranteed miss: one failed SQL round-trip plus a misleading
+    "historically slow" advisory on every call. Routing is re-read per call, so
+    reverting a ROUTING value resumes both the stamp and the read.
+    """
+    if not table.startswith("v_centrality_"):
+        return False
+    metric = f"{table.removeprefix('v_centrality_')}_centrality"
+    try:
+        from helpers.graph import scipy_bridge as _sb
+
+        return _sb.ROUTING.get(metric) in ("SCIPY", "L1B_FOLD")
+    except Exception:  # noqa: S110  # best-effort; unknown -> behave as before
+        return False
+
+
 def _cached_central_scores(con: Any, table: str) -> dict[str, Any] | None:
     """Serve ``{name: score}`` from a warm ``v_centrality_<metric>`` table.
 
@@ -715,6 +737,10 @@ def _cached_central_scores(con: Any, table: str) -> dict[str, Any] | None:
     next (and its lane alternative) instead of hanging silently.
     """
     if _BYPASS_CENTRALITY_CACHE.get():
+        return None
+    if _table_never_stamped(table):
+        # Not a "miss" — this table is dropped on purpose (lane-served).
+        # S5: no SQL, no advisory; the compute path below is the fast lane.
         return None
     try:
         rows = con.execute(f"SELECT name, score FROM {table}").fetchall()  # noqa: S608
@@ -727,19 +753,30 @@ def _cached_central_scores(con: Any, table: str) -> dict[str, Any] | None:
     return {n: s for n, s in rows} or None
 
 
-#: Stamp-miss advisories for historically slow tables (costs measured
-#: 2026-09-23 at VIGIL scale). Fast tables miss silently — nothing to say.
-_SLOW_TABLE_HINTS = {
-    "v_centrality_closeness": "fresh Onager closeness ≈150-163 s cold; the scipy lane serves it in ~6 s (algorithms.py closeness)",
-    "v_centrality_harmonic": "fresh Onager harmonic ≈192 s cold; the scipy lane serves it in ~6 s (algorithms.py harmonic)",
-    "v_centrality_betweenness": "fresh Onager betweenness ≈40-50 s cold; the L1b fold lane serves it in ~8 s (algorithms.py betweenness)",
+#: Stamp-miss advisories. Lane-served families never have a table (the stamp
+#: drops them on purpose), so their hint describes the lane rather than a
+#: "cold stamp" cost: the pre-S5 text claimed "≈150-163 s cold" for closeness,
+#: but that cost belongs to the vendored-extension path this code never takes —
+#: measured 2026-11-10: DuckDB direct 19,130 values in 9.4 s, synthetic
+#: ``edges=`` 1.06 s, extension twin 137.6 s (proposal
+#: quadratic_regex_sweep_and_cleanups.md, S5). Fast tables miss silently.
+_LANE_TABLE_HINTS = {
+    "v_centrality_closeness": "lane-served (scipy_bridge.ROUTING: SCIPY) — unstamped by design; computing live (~9 s from DuckDB at live scale)",
+    "v_centrality_harmonic": "lane-served (scipy_bridge.ROUTING: SCIPY) — unstamped by design; computing live",
+    "v_centrality_betweenness": "lane-served (scipy_bridge.ROUTING: L1B_FOLD) — unstamped by design; computing via the 2-core fold",
 }
+
+#: One advisory per table per process: the pre-S5 form re-printed on every
+#: call, which turned an operator hint into stderr noise.
+_ADVISED_TABLES: set[str] = set()
 
 
 def _advise_slow_miss(table: str) -> None:
-    hint = _SLOW_TABLE_HINTS.get(table)
-    if hint is not None:
-        print(f"centrality cache: {table} absent — {hint}", file=sys.stderr)
+    hint = _LANE_TABLE_HINTS.get(table)
+    if hint is None or table in _ADVISED_TABLES:
+        return
+    _ADVISED_TABLES.add(table)
+    print(f"centrality cache: {table} absent — {hint}", file=sys.stderr)
 
 
 def _cached_voterank(con: Any) -> list[str] | None:
