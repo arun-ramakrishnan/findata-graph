@@ -20,8 +20,11 @@ Conventions:
 - properties JSON carries consolidated/audited flags
 - idempotent on (entity, metric_label, period, source_ref)
 
-The nse_xbrl client uses cookie auth (fragile); failures return []
-with a warning, never block other entities.
+Transport is cookie-free (2026-11-10 trial, xchange_filings.md §7.9:
+both routes serve plain requests with browser UA + Referer — the retired
+NSEClient cookie route needed hand-pasted Akamai cookies that died within
+hours, a month of rows=0). Failures return [] with a warning, never
+block other entities.
 """
 
 from __future__ import annotations
@@ -31,6 +34,7 @@ import datetime as dt
 import json
 import os
 import re
+import requests
 import sqlite3
 import sys
 import time
@@ -221,13 +225,71 @@ def targets(conn: sqlite3.Connection, limit: int | None = None, offset: int = 0)
 _CLIENT = None
 
 
+class CookielessNSEClient:
+    """Cookie-free transport for the two NSE routes this lane needs.
+
+    Verified open 2026-11-10 (xchange_filings.md §7.9): both
+    ``/api/integrated-filing-results`` and the
+    ``nsearchives.nseindia.com/corporate/xbrl/`` archive serve plain
+    ``requests`` with browser UA + Referer — no Akamai handshake. The
+    retired ``nse_xbrl.NSEClient`` cookie route (hand-pasted cookies with
+    a hours TTL; a month of rows=0 decay) is gone; ``FilingResult.from_xbrl``
+    remains the official-XBRL decoder.
+
+    Same duck-type the tests fake: ``get_integrated_filings`` /
+    ``get_integrated_xbrl``; any non-200 raises so the per-entity
+    ``except`` in ``fetch_filings`` keeps its ``[]`` isolation.
+    """
+
+    BASE = "https://www.nseindia.com"
+    REFERER = BASE + "/companies-listing/corporate-integrated-filing"
+    TIMEOUT = 30
+    UA = (
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+        "(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
+    )
+
+    def __init__(self) -> None:
+        self.session = requests.Session()
+        self.session.headers.update(
+            {
+                "accept": "*/*",
+                "accept-language": "en-US,en;q=0.9",
+                "user-agent": self.UA,
+                "referer": self.REFERER,
+            }
+        )
+
+    def get_integrated_filings(
+        self, symbol: str, issuer: str, page: int = 1, size: int = 50
+    ) -> dict:
+        resp = self.session.get(
+            self.BASE + "/api/integrated-filing-results",
+            params={
+                "index": "equities",
+                "symbol": symbol,
+                "issuer": issuer,
+                "period_ended": "all",
+                "type": "Integrated Filing- Financials",
+                "page": page,
+                "size": size,
+            },
+            timeout=self.TIMEOUT,
+        )
+        resp.raise_for_status()
+        return resp.json()
+
+    def get_integrated_xbrl(self, xbrl_url: str) -> str:
+        resp = self.session.get(xbrl_url, timeout=self.TIMEOUT)
+        resp.raise_for_status()
+        return resp.text
+
+
 def client():
-    """One shared NSEClient per run (cookie reuse; no per-entity spam)."""
+    """One shared cookie-free client per run (session reuse; no per-entity spam)."""
     global _CLIENT
     if _CLIENT is None:
-        from nse_xbrl import NSEClient
-
-        _CLIENT = NSEClient()
+        _CLIENT = CookielessNSEClient()
     return _CLIENT
 
 
@@ -393,7 +455,7 @@ def main() -> int:  # noqa: C901
                         f"{i}/{len(tgts)} rows={total_rows} written={written}",
                         flush=True,
                     )
-            time.sleep(1.0)  # polite pacing (cookie-authed client)
+            time.sleep(1.0)  # polite pacing (open routes — stay polite)
 
         if args.fetch_only:
             n_staged = len(list(FETCH_SCRATCH.glob("*.json")))

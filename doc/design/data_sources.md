@@ -48,8 +48,15 @@ Needs browser `User-Agent` + `Referer: https://www.nseindia.com/`.
 | `nsearchives.nseindia.com/content/indices/ind_niftytotalmarket_list.csv` | ~750 | same columns (underscore before `list` — take the href from the index page) |
 | `nsearchives.nseindia.com/content/indices/ind_niftysmelist.csv` | 529 | SME EMERGE index, Series `SM` |
 
-`www.nseindia.com/api/*` routes need cookie handshakes and mostly 404
-(`/api/live-analysis-sme-scrips` died even with a warmed session) — avoid.
+`www.nseindia.com/api/*` mostly 404s or needs cookie handshakes
+(`/api/live-analysis-sme-scrips` died even with a warmed session) — avoid,
+with ONE verified exception (2026-11-10: browser UA + Referer suffice, NO
+cookies): `/api/integrated-filing-results` (params `index/symbol/period_ended/type`;
+`issuer` is a server-side no-op) and the `nsearchives.nseindia.com/corporate/xbrl/`
+archive — the two routes of the XBRL filings lane (`ingest_nse_xbrl.py`).
+Coverage is per-issuer patchy (MCX/TATAMOTORS absent entirely; TCS index lags
+under the `Integrated Filing- Financials` type filter) — failures come back
+empty, so keep the per-entity isolation.
 Full Emerge board list: NOT pinned (EQUITY_SME.csv 404s); SME coverage
 rides the EMERGE index list until pinned.
 

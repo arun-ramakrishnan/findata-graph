@@ -1,6 +1,8 @@
 """Tests for helpers/maintenance/ingest_nse_xbrl.py (D20, offline)."""
 
 import json
+import pytest
+import requests
 import sqlite3
 
 from helpers.maintenance import ingest_nse_xbrl as nx
@@ -123,3 +125,56 @@ def test_fetch_filings_full_bypasses_skip(monkeypatch):
     fc = _seed_client(monkeypatch, rows, docs)
     out = nx.fetch_filings("RELIANCE", "Reliance Industries", known_refs={known}, full=True)
     assert len(out) == 1 and fc.downloads == [known]
+
+
+def test_cookieless_client_params_and_failure(monkeypatch):
+    """Shim: right params + headers, JSON passthrough, non-200 raises."""
+
+    class StubResp:
+        def __init__(self, status, payload=None):
+            self.status_code = status
+            self._payload = payload
+
+        def raise_for_status(self):
+            if self.status_code >= 400:
+                raise requests.HTTPError(str(self.status_code))
+
+        def json(self):
+            return self._payload
+
+    class StubSession:
+        def __init__(self):
+            self.headers = {}
+            self.calls = []
+
+        def get(self, url, params=None, timeout=None):
+            self.calls.append((url, params, timeout))
+            if len(self.calls) == 1:
+                return StubResp(200, {"data": []})
+            return StubResp(403)
+
+    monkeypatch.setattr(nx.requests, "Session", StubSession)
+    c = nx.CookielessNSEClient()
+    assert c.session.headers["referer"].endswith("corporate-integrated-filing")
+
+    listing = c.get_integrated_filings("RELIANCE", "Reliance Industries Limited")
+    assert listing == {"data": []}
+    url, params, timeout = c.session.calls[0]
+    assert url == nx.CookielessNSEClient.BASE + "/api/integrated-filing-results"
+    assert params["index"] == "equities" and params["symbol"] == "RELIANCE"
+    assert params["type"] == "Integrated Filing- Financials"
+    assert timeout == nx.CookielessNSEClient.TIMEOUT
+
+    with pytest.raises(requests.HTTPError):
+        c.get_integrated_xbrl("https://nsearchives.nseindia.com/corporate/xbrl/X.xml")
+
+
+def test_fetch_filings_isolates_transport_failure(monkeypatch):
+    """Non-200 transport error → per-entity [] (no raise out of fetch_filings)."""
+
+    class BoomClient:
+        def get_integrated_filings(self, symbol, issuer, page=1, size=50):
+            raise requests.HTTPError("503")
+
+    monkeypatch.setattr(nx, "_CLIENT", BoomClient())
+    assert nx.fetch_filings("RELIANCE", "Reliance Industries") == []
