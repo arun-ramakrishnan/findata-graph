@@ -1,6 +1,6 @@
 """Phase 2 fuzz tests — regex robustness (ReDoS detection).
 
-Property-based tests (via Hypothesis) for the two regexes that parse
+Property-based tests (via Hypothesis) for the regexes that parse
 untrusted newsletter input:
 
   - `SECTION_RE` (helpers/core/parse_newsletter.py:67) — extracts
@@ -16,19 +16,34 @@ untrusted newsletter input:
     (unclosed tags, many attributes) the regex engine may backtrack
     heavily.
 
+  - `BOLD_LINE_RE` (helpers/pdf/pdf_local.py:76) — detects whole-line
+    bold headings. Its pre-2026-11-10 form paired a lazy `.+?` with an
+    outer `+` and went EXPONENTIAL on the failing path (145 B -> 3 s).
+    It has its own two guards at the bottom of this file; see the
+    module-level comment there.
+
 The contract under test is NOT "the regex returns the right match" —
 it is "the regex terminates quickly and does not crash on any input".
-A ReDoS would manifest as a Hypothesis deadline timeout, which the
-test reports as a failure with the offending input shrunk to a
-minimal reproducible case.
 
-Runs alongside regular pytest in `make qa`. Hypothesis defaults to
-100 random examples per @given test; each completes in <1s.
+Note that Hypothesis' `deadline` does NOT deliver that contract on its
+own: it fires between examples, so a catastrophically backtracking
+regex hangs the test instead of failing it (measured, 2026-11-10). The
+guards that defend against a ReDoS therefore assert with an explicit
+SIGALRM cap where a hang is the failure mode, and with measured
+timing ratios where a slow-down is.
+
+Runs alongside regular pytest in `make qa`; Hypothesis defaults to
+100 random examples per `@given` test.
 """
 
 from __future__ import annotations
 
+import re
+import signal
+import statistics
 import time
+
+import pytest
 
 from hypothesis import given, settings, strategies as st
 
@@ -260,36 +275,104 @@ def test_range_regex_adversarial_space_runs_are_linear():
 
 
 # ---------------------------------------------------------------------------
-# BOLD_LINE_RE (helpers/pdf/pdf_local.py:70) — the remaining quadratic shape
+# BOLD_LINE_RE (helpers/pdf/pdf_local.py:76) - two guards, two paths
 # ---------------------------------------------------------------------------
-# `^(?:\*\*.+?\*\*\s*)+$` pairs a lazy `.+?` inside a repeated group with
-# an outer `+`: on a long run of bold segments the engine can re-split the
-# boundary between the `.+?` and the trailing `\s*` in O(n^2) ways. Measured
-# 2026-09-20: 0.02 ms at 10 segments -> 71 ms at 320 (quadratic, bounded).
-# This is the last AVAIL-2-class pattern outside a fuzz guard.
+# The pre-2026-11-10 form `^(?:\*\*.+?\*\*\s*)+$` paired a lazy `.+?` inside a
+# repeated group with an outer `+`.
+#
+# On the SUCCESS path that is only mildly superlinear, and both the old and
+# the shipped form scale linearly there - which is why the success-path ladder
+# alone provably cannot see the bug (see its comment below).
+#
+# The blowup lives on the FAILURE path: a long run of well-formed segments
+# followed by a terminator that never closes the match, so the engine re-splits
+# every segment boundary and the cost DOUBLES per added segment. Measured
+# 2026-11-10: 145 bytes -> 3038 ms at 2.00x/segment - exponential in length,
+# not quadratic.
+#
+# The shipped disjoint form
+#     `^(?:\*\*[^*\n]*(?:\*(?!\*)[^*\n]*)*\*\*\s*)+$`
+# is 33 ns/byte flat across six doublings (3 KB -> 96 KB).
+#
+# BOTH pre-existing guards were blind to the old form: monkeypatching it back
+# in still gave `2 passed, 11 deselected`. The success-path ladder cannot fail
+# because its shape quadruples in LENGTH per rung, and the old random strategy
+# never assembled the ~25 complete segments a blowup needs. The failing-path
+# ladder and the structured strategy below are the two parts that actually
+# discriminate. Rationale and full measurements:
+# doc/improvements/archive/testing/bold_line_guard_failing_path.md
 
-BOLD_ALPHABET = st.characters(
-    whitelist_categories=("Ll", "Lu", "Nd"), whitelist_characters="*| 	"
-)
+_BOLD_GUARD_CAP_S = 1.0  # a healthy call is sub-millisecond at every size here
 
 
-@settings(deadline=500, max_examples=200)
-@given(st.text(alphabet=BOLD_ALPHABET, max_size=900))
-def test_bold_line_regex_no_catastrophic_backtracking(text):
-    r"""BOLD_LINE_RE must terminate fast on any bold-heavy input.
+class _BoldGuardTimeout(Exception):
+    """A BOLD_LINE_RE call overran its cap.
 
-    A regression to an ambiguous form (e.g. `\s*` folded into the class
-    as `[-\s]`, or the lazy `.+?` made greedy) turns this quadratic; a
-    genuinely cubic shape would blow the Hypothesis deadline here.
+    Hypothesis' own ``deadline`` cannot help here - it fires between examples,
+    so a catastrophically backtracking regex simply hangs the test instead of
+    failing it (observed 2026-11-10: the old pattern ran >20 s at 30 segments
+    with no deadline violation). An explicit SIGALRM cap turns a would-be hang
+    into an immediate, attributable failure.
     """
-    BOLD_LINE_RE.findall(text)
 
 
-# Deterministic adversarial case: the exact shape that makes the boundary
-# ambiguous -- many bold segments, each with content, separated by spaces.
-# Asserts SUBQUADRATIC scaling (doubling input must not quadruple cost),
-# which is the precise property the AVAIL-2 fix established for the metric
-# patterns. A cubic regression here fails the third doubling outright.
+def _call_with_cap(fn, text: str, cap_s: float = _BOLD_GUARD_CAP_S):
+    """Run ``fn(text)`` under a SIGALRM cap; raise _BoldGuardTimeout on overrun."""
+
+    def _alarm(signum, frame):
+        raise _BoldGuardTimeout
+
+    previous = signal.signal(signal.SIGALRM, _alarm)
+    signal.setitimer(signal.ITIMER_REAL, cap_s)
+    try:
+        return fn(text)
+    finally:
+        signal.setitimer(signal.ITIMER_REAL, 0)
+        signal.signal(signal.SIGALRM, previous)
+
+
+# Structured, not random. `st.text` over a bold-ish alphabet was the original
+# strategy and it never found the blowup: it essentially always produces text
+# that either matches immediately or fails at the first character. The blowup
+# needs ~25 COMPLETE `**seg** ` units before a terminator that cannot close the
+# match, so the strategy assembles that shape directly and varies the segment
+# count instead of hoping to stumble on it.
+_BOLD_HYP_SEGMENT = "**bold segment** "
+
+
+@settings(deadline=None, max_examples=200)
+@given(
+    segments=st.integers(min_value=1, max_value=40),
+    terminator=st.sampled_from(["|", "!", "(", "a", ""]),
+)
+def test_bold_line_regex_no_catastrophic_backtracking(segments, terminator):
+    r"""BOLD_LINE_RE must terminate fast on adversarial bold-heavy input.
+
+    Exercises both paths at every segment count up to 40: the bare empty
+    terminator closes the match (success path), the others leave it unclosed
+    (failure path, where the pre-2026-11-10 lazy `.+?` form went exponential).
+    The per-call SIGALRM cap is the assertion - a reintroduced ambiguity raises
+    here within a second rather than hanging the gate.
+    """
+    text = _BOLD_HYP_SEGMENT * segments + terminator
+    try:
+        _call_with_cap(BOLD_LINE_RE.findall, text)
+        _call_with_cap(BOLD_LINE_RE.match, text)
+    except _BoldGuardTimeout:
+        raise AssertionError(
+            f"BOLD_LINE_RE exceeded {_BOLD_GUARD_CAP_S:.0f}s on "
+            f"{segments} segments + {terminator!r} (len {len(text)}) - the "
+            f"failure path has regressed to catastrophic backtracking"
+        ) from None
+
+
+# Positive-path ladder, kept only as a guard against a CUBIC regression. The
+# shape is quadratic in LENGTH by construction - `n` bold runs of `n`
+# characters - so every rung quadruples the input and ~4x time IS linear. This
+# ladder therefore CANNOT see the exponential failure-path blowup that the
+# pre-2026-11-10 form had; `test_bold_line_regex_failing_path_stays_linear`
+# below is the guard for that. Keeping this one costs ~30 ms and still catches
+# a genuinely cubic shape (a mutation measured 12.2x on its middle doubling).
 def _measure_bold_line_ladder() -> list[float]:
     """Time BOLD_LINE_RE at the calibrated sizes; min-of-5 per size."""
     timings_ms = []
@@ -306,21 +389,15 @@ def _measure_bold_line_ladder() -> list[float]:
 
 
 def test_bold_line_regex_scales_subquadratically():
-    # Measured 2026-09-20 with min-of-3 samples per size: the current
-    # (correct) pattern grows ~4.2x per doubling (quadratic is 4x); a
-    # nested-quantifier regression -- `(?:.+?\s*)+` inside the group --
-    # measures 12.2x on its middle doubling. An 8.0 threshold separates them
-    # with margin for CI noise while still rejecting the known regression.
-    # Score only ratios whose base is >= 1 ms (at n=160 the match is
-    # sub-ms, so one preempted sample inflates that first ratio past any
-    # threshold: 2026-09-22 0.36→4.44 ms = 12.3x; gate 1137 2026-09-30
-    # first ratio 12.39x off a 0.36 ms base). Under xdist gate load a
-    # >= 1 ms base can STILL get one preempted min-of-5 sample (advisory
-    # gate 3407 2026-11-04: middle ratio 10.9x because n=320 stayed at
-    # its serial 1.45 ms while the loaded n=640 sample ran 15.8 ms) — so
-    # a would-fail ladder is re-measured, up to 3 attempts. A scheduler
-    # spike is transient and passes on a retry; a real superquadratic
-    # regression is deterministic and fails EVERY attempt.
+    # Score only ratios whose base is >= 1 ms (at n=160 the match is sub-ms, so
+    # one preempted sample inflates that first ratio past any threshold:
+    # 2026-09-22 0.36->4.44 ms = 12.3x; gate 1137 2026-09-30 first ratio 12.39x
+    # off a 0.36 ms base). Under xdist gate load a >= 1 ms base can STILL get
+    # one preempted min-of-5 sample (advisory gate 3407 2026-11-04: middle ratio
+    # 10.9x because n=320 stayed at its serial 1.45 ms while the loaded n=640
+    # sample ran 15.8 ms) - so a would-fail ladder is re-measured, up to 3
+    # attempts. A scheduler spike is transient and passes on a retry; a real
+    # superquadratic regression is deterministic and fails EVERY attempt.
     worst: tuple[list[float], list[float], list[float]] | None = None
     for _attempt in range(3):
         timings_ms = _measure_bold_line_ladder()
@@ -332,9 +409,103 @@ def test_bold_line_regex_scales_subquadratically():
     timings_ms, growth, scored = worst  # type: ignore[assignment]
     assert scored, (
         f"BOLD_LINE_RE unmeasurable at the calibrated sizes (all bases "
-        f"< 1 ms): {timings_ms} — recalibrate the size ladder"
+        f"< 1 ms): {timings_ms} - recalibrate the size ladder"
     )
     assert max(scored) < 8.0, (
         f"BOLD_LINE_RE growth superquadratic: {timings_ms} ms, ratios "
         f"{growth} (scored on >=1 ms bases: {scored})"
     )
+
+
+# ---------------------------------------------------------------------------
+# Failing-path ladder - the guard the success-path ladder cannot be
+# ---------------------------------------------------------------------------
+# `("**" + "a"*1000 + "** ") * segments + "|"` is the shape the old lazy `.+?`
+# form was exponential on: the long pad keeps each segment cheap for a linear
+# engine, while the non-closing `|` forces the overall match to FAIL, which is
+# what makes the engine re-split every segment boundary. Rungs at 8 and 32
+# segments are 8,041 and 32,161 bytes - a 4x length step, so a linear engine
+# must score ~4.0.
+#
+# Measured 2026-11-10 (median of 5 rounds; 10 trials min 3.82 / max 4.15):
+#
+#     shipped pattern   0.362 ms -> 1.439 ms   ratio 4.11
+#     old lazy form     3.318 ms -> TIMEOUT     cannot score at all
+_BOLD_FAIL_PAD = 1000
+_BOLD_FAIL_RUNGS = (8, 32)  # 8,041 -> 32,161 bytes: a 4x length step
+_BOLD_FAIL_CAP_S = 2.0  # per rung; the old form needs >2 s on a 32 KB rung
+_BOLD_FAIL_ROUNDS = 5  # median round, per the test_performance.py idiom
+_BOLD_FAIL_MAX_RATIO = 8.0  # linear is ~4.0; 2x headroom, cannot flap
+
+
+def _bold_failing_input(segments: int) -> str:
+    """Adversarial line that FAILS to match: N complete segments then ``|``."""
+    return ("**" + "a" * _BOLD_FAIL_PAD + "** ") * segments + "|"
+
+
+def _time_bold_rung(segments: int) -> float:
+    """Seconds for one ``BOLD_LINE_RE.match`` at this rung; raises on timeout."""
+    start = time.perf_counter()
+    _call_with_cap(BOLD_LINE_RE.match, _bold_failing_input(segments), _BOLD_FAIL_CAP_S)
+    return time.perf_counter() - start
+
+
+def _measure_bold_failing_ratio() -> float:
+    """Median round ratio between the two rungs; both timed in the same round.
+
+    Timing the rungs back-to-back inside a round (rather than timing each rung
+    independently and dividing) is what makes the ratio robust to a loaded box:
+    a stalled round inflates both legs, so the median round still reports the
+    underlying scaling. Same idiom as ``tests/test_performance.py``.
+    """
+    small, large = _BOLD_FAIL_RUNGS
+    _time_bold_rung(small)  # warm-up: first hit pays regex-cache costs
+    ratios = []
+    for _ in range(_BOLD_FAIL_ROUNDS):
+        t_small = _time_bold_rung(small)
+        t_large = _time_bold_rung(large)
+        ratios.append(t_large / max(t_small, 1e-9))
+    return statistics.median(ratios)
+
+
+def test_bold_line_regex_failing_path_stays_linear():
+    """The guard that actually discriminates: the FAILURE path must stay linear.
+
+    The success-path ladder above passes for the pre-2026-11-10 lazy form as
+    well as the shipped one, because both are linear when the line matches.
+    This test forces the match to fail, where the lazy form doubled per added
+    segment: it times out on the 32 KB rung instead of scoring, so a regression
+    to `.+?` fails here loudly rather than shipping a ReDoS.
+    """
+    try:
+        ratio = _measure_bold_failing_ratio()
+    except _BoldGuardTimeout:
+        raise AssertionError(
+            f"BOLD_LINE_RE did not finish a {_BOLD_FAIL_RUNGS[1]}-segment rung "
+            f"within {_BOLD_FAIL_CAP_S:.0f}s - the failure path has regressed "
+            f"to catastrophic backtracking (a lazy `.+?` paired with the outer "
+            f"`+` is the usual cause)"
+        ) from None
+    assert ratio < _BOLD_FAIL_MAX_RATIO, (
+        f"BOLD_LINE_RE failing-path growth {ratio:.2f}x on a 4x length step "
+        f"(budget {_BOLD_FAIL_MAX_RATIO}, linear is ~4.0) - the failure path "
+        f"regressed to a superlinear shape; a lazy `.+?` paired with the "
+        f"outer `+` is the usual cause"
+    )
+
+
+def test_bold_line_regex_failing_path_has_a_timeout_cap():
+    """A pathological rung fails fast instead of hanging the gate.
+
+    With the pre-2026-11-10 lazy form installed the large rung must raise
+    rather than run for minutes. This is what makes a red gate report the
+    regression in seconds instead of timing out the whole pytest leg.
+    """
+    monkeypatched = re.compile(r"^(?:\*\*.+?\*\*\s*)+$")
+    saved = globals()["BOLD_LINE_RE"]
+    globals()["BOLD_LINE_RE"] = monkeypatched
+    try:
+        with pytest.raises(_BoldGuardTimeout):
+            _time_bold_rung(_BOLD_FAIL_RUNGS[1])
+    finally:
+        globals()["BOLD_LINE_RE"] = saved

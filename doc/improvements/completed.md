@@ -14532,3 +14532,74 @@ to doc/improvements/archive/database/duckdb_pure_stack.md.
   (§0 traps register records the five measurement artifacts that made the
   lane look empty; §3 rewritten as-landed with the false premises and the
   S4 pool math).
+
+## 501. BOLD_LINE_RE fuzz guard — the failing path, a SIGALRM cap, and the exclusion record
+
+**Date**: 2026-11-10
+
+- The 2026-11-10 rewrite of `BOLD_LINE_RE` in helpers/pdf/pdf_local.py:76
+  (lazy `.+?` → disjoint inner alternation) was measured correct AND its
+  linearity claim confirmed: old form EXPONENTIAL on the failing path
+  (145 bytes → 3038.33 ms, 2.00× per 6-byte segment: 0.19/2.99/24.35/
+  188.04/1515.56/3038.33 ms at 10/14/17/20/23/24 segments) and new form
+  33 ns/byte flat across six doublings (3 KB → 96 KB: 0.102, 0.207,
+  0.395, 0.792, 1.522, 3.169 ms).
+- Corpus parity proven the hard way: all 28 `Reports/*.pdf` through the real
+  pymupdf4llm path, `_normalize_headings` run twice and diffed page by page →
+  **0 differing lines / 538 bold-ish lines**. Sweep of 111,024 `**` lines in
+  `findata/` + `doc/` found 48 match differences and, through the real use
+  site (`_fix_heading_line`, which also gates on `|" in stripped`), exactly
+  ONE: `findata/Companies/Retail/Vaibhav_Global.md:30`, which has UNBALANCED
+  bold (closing `**` only at the end) and is a vault note never fed to
+  `pdf_local` — production impact zero. "Identical results everywhere" was
+  stronger than the evidence; "identical on the PDF domain" is what holds.
+- **The finding that mattered: both guards were blind.** Monkeypatching the
+  OLD regex back into tests/test_fuzz_regex.py still gave `2 passed, 11
+  deselected in 0.61s`. Two structural reasons: (a) the success-path ladder
+  builds `("**"+"a"*n+"** ")*n`, so LENGTH grows as n² — every rung
+  quadruples the input, and 4× time IS linear; measured OLD
+  `[0.36, 1.41, 5.81, 23.62] ms` ratios `[3.87, 4.12, 4.07]` → PASS. The 8.0
+  threshold can only catch a CUBIC regression. (b) the Hypothesis test drew
+  random text and essentially never assembles the ~25 complete `**seg** `
+  units a blowup needs. Its docstring said "doubling input must not
+  quadruple cost" but `n` is not the input size.
+- **Second finding, discovered by building the fix**: Hypothesis' `deadline`
+  fires BETWEEN examples, so it cannot interrupt a catastrophically
+  backtracking regex — the structured strategy with `deadline=500` HUNG
+  instead of failing (old pattern: n=20 365.1 ms, n=25 11403.8 ms, n≥30
+  >20 s with no deadline violation), blowing a whole pytest leg's
+  execution timeout. Replaced with an explicit 1 s SIGALRM cap
+  (`_call_with_cap`) that raises a named AssertionError carrying the
+  segment count and terminator.
+- As landed — tests/test_fuzz_regex.py: module docstring names BOLD_LINE_RE
+  as a third guarded regex and states the deadline caveat; `_BOLD_GUARD_CAP_S
+  = 1.0`, `_BoldGuardTimeout`, `_call_with_cap(fn, text, cap_s)`, structured
+  `test_bold_line_regex_no_catastrophic_backtracking`
+  (`@settings(deadline=None, max_examples=200)`, 1-40 complete segments +
+  non-closing terminator), the failing-path ladder (`_BOLD_FAIL_PAD = 1000`,
+  `_BOLD_FAIL_RUNGS = (8, 32)` = 8,041 → 32,161 bytes, `_BOLD_FAIL_CAP_S =
+  2.0`, `_BOLD_FAIL_ROUNDS = 5`, `_BOLD_FAIL_MAX_RATIO = 8.0`, median-of-5
+  back-to-back rounds per the `tests/test_performance.py` `_median_round_ratio`
+  idiom), and the cap self-test. The success-path ladder keeps its logic;
+  `_BoldLadderTimeout` was superseded by `_BoldGuardTimeout`, shared by both.
+  tests/test_pdf_local.py gained three S4 pins: the documented rescue shape
+  (matches), `***A | B***` and `**A | B***` (no match), and the
+  `Vaibhav_Global.md:30` soup (`match` is None and `_normalize_headings` is a
+  no-op) — recording the decision so a future session does not "restore" the
+  accidental tolerance as a bug fix.
+- Discrimination proven END TO END, not argued: a pytest plugin swapping
+  `sys.modules['test_fuzz_regex'].BOLD_LINE_RE` for the old pattern turns
+  `-k bold` from `4 passed, 11 deselected` into `2 failed, 2 passed in
+  20.64s` — both new guards red, the ladder with "did not finish a
+  32-segment rung within 2s". (A `-p patchplug` module that IMPORTS the test
+  module does not work — ModuleNotFoundError; patch `sys.modules` from
+  `pytest_collection_modifyitems`.)
+- Validation: `-k bold` 4 passed five consecutive runs at 2.94–2.96 s; trio
+  (test_fuzz_regex + test_pdf_local + test_pdf_conv_md) 67 passed;
+  `tests/test_fuzz_*.py -n auto` 198 passed × 3 runs (21.58/21.47/20.62 s);
+  `ruff check --select S,UP,C901 .` clean; `ruff format --check .` 2407 files
+  clean; markdown_lint 0 violations. `make qa` / `make fuzz` full-gate pass
+  NOT RUN — archived on the operator's instruction.
+- Proposal: doc/improvements/archive/testing/bold_line_guard_failing_path.md
+  (§3 S3 records the deadline→SIGALRM amendment, §3 "As built" records what
+  actually landed, Appendix keeps the raw measurement log).

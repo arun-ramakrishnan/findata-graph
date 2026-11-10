@@ -38,6 +38,21 @@ entry number and stale DONE pointers):
 
 ## Current live proposals
 *(none)*
+- *(archived 2026-11-10)* — `bold_line_guard_failing_path` executed same
+  day, #501 (`../archive/testing/bold_line_guard_failing_path.md`; the
+  BOLD_LINE_RE rewrite was correct but BOTH guards were blind to the pattern
+  it replaced — monkeypatching the old `(?:\*\*.+?\*\*\s*)+` back in still
+  gave `2 passed`; S1 added a failing-path ladder
+  (`("**" + "a"*1000 + "** ") * segments + "|"`, 8,041 → 32,161 bytes, 2 s
+  SIGALRM per rung, median-of-5-rounds ratio < 8.0), S3 made the Hypothesis
+  strategy assemble complete segments plus a non-closing terminator AND
+  replaced `deadline` with an explicit SIGALRM cap because deadline cannot
+  interrupt a running regex (it HUNG instead of failing), S2 corrected the
+  misleading comment (the shape is quadratic in LENGTH by construction, so
+  the 8.0 budget only catches a cubic regression), S4 pinned the deliberate
+  exclusion of unbalanced bold with the 0/28-PDF differential as the reason
+  it is safe; discrimination proven end to end — the old pattern injected
+  turns `-k bold` from `4 passed` into `2 failed`)
 - *(archived 2026-11-10)* — `bili_first_class_convo_search` executed same
   day, #500 (`../archive/convo_search/bili_first_class_convo_search.md`;
   bili compression summaries as first-class convo_search citizens:

@@ -544,6 +544,22 @@ commit, referenced by nothing). Entry numbers point at
   scheduler noise cannot inflate the first doubling (gate 1137: [12.39, 4.88, 1.03]);
   the middle doubling carries the 12.2× nested-quantifier regression discriminator;
   warm-up + min-of-5 + the 8.0 threshold stay — completed.md #326
+- [`bold_line_guard_failing_path.md`](testing/bold_line_guard_failing_path.md) —
+  the BOLD_LINE_RE guard was blind to the very pattern it guarded: the
+  success-path ladder grows its shape as n² in LENGTH (so ~4× per rung IS
+  linear — measured on the OLD exponential pattern it still passed), and the
+  Hypothesis strategy drew random text that never assembles the ~25 complete
+  `**seg**` units a blowout needs. Added a FAILING-path ladder
+  (`("**" + "a"*1000 + "** ") * segments + "|"`, 8,041 → 32,161 bytes, 2 s
+  SIGALRM per rung, median-of-5-back-to-back-rounds ratio < 8.0 — the old
+  pattern times out on the second rung) and a structured strategy; crucially,
+  Hypothesis' `deadline` fires BETWEEN examples so it cannot interrupt a
+  backtracking regex — the structured version HUNG instead of failing, so
+  every call now carries an explicit 1 s SIGALRM cap. Proven end to end: the
+  old pattern injected turns `-k bold` from `4 passed` into `2 failed`. Also
+  recorded the deliberate exclusion of unbalanced bold (0 differing lines
+  across 28 PDFs; exactly one vault-note difference in 111,024 `**` lines) —
+  completed.md #501
 - [`xdist_shared_graph_cache.md`](testing/xdist_shared_graph_cache.md) — one
   shared read-only xdist graph cache (`graph.xdist-shared.duckdb`, force-RO
   default-path connects, controller mtime stamping) + orphan sweep (PID

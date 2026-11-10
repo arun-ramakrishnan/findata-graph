@@ -69,7 +69,11 @@ HEADING_LINE_RE = re.compile(r"^(#{1,6})\s+(.+)$")
 # Whole-line bold (no #): pymupdf4llm sometimes emits company headings as
 # **Sector** **<u>Company | Cap | Sector</u>** body lines (seen: Delhivery,
 # SBI_Delhivery_Titan p11) — rescue them into real headings.
-BOLD_LINE_RE = re.compile(r"^(?:\*\*.+?\*\*\s*)+$")
+# Inner alternates are disjoint ([^*\n] never matches an asterisk; the
+# single-asterisk branch requires it NOT be doubled), so the segment split
+# is unambiguous and matching is linear — no lazy .+? paired with the
+# outer + (AVAIL-2 class).
+BOLD_LINE_RE = re.compile(r"^(?:\*\*[^*\n]*(?:\*(?!\*)[^*\n]*)*\*\*\s*)+$")
 # Cap tokens in the "| Large Cap |" tail — a glued heading always has one.
 CAP_TAIL_RE = re.compile(r"\|[^|]*\b(?:large|mid|small|micro|nano|mega)\s*cap", re.I)
 # Sector phrases a glued heading may start with (mirrors parse_newsletter

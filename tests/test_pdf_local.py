@@ -9,6 +9,7 @@ import pytest
 
 
 from helpers.pdf.pdf_local import (  # noqa: E402
+    BOLD_LINE_RE,
     MIN_IMAGE_BYTES,
     MIN_IMAGE_PX,
     LocalRefusalError,
@@ -94,6 +95,32 @@ def test_normalize_headings_rescues_bold_body_heading():
 
 def test_normalize_headings_leaves_plain_bold_alone():
     assert _normalize_headings("**Some bold sentence.**") == "**Some bold sentence.**"
+
+
+@pytest.mark.parametrize("line", ["***A | B***", "**A | B***"])
+def test_bold_line_re_excludes_unbalanced_bold(line):
+    # BOLD_LINE_RE requires balanced bold. A line closed by `***` (bold+italic)
+    # or by a stray single `*` is malformed input; the pre-2026-11-10 lazy
+    # `.+?` form matched it by accident, the disjoint form does not.
+    assert BOLD_LINE_RE.match(line) is None
+
+
+def test_bold_line_re_excludes_trailing_bold_soup():
+    # Unbalanced bold across a multi-field body line: only the final `**`
+    # closes, so every interior `**` opens a nested run. The old form rescued
+    # this to a heading; the new one declines. Recording it stops a future
+    # session from "restoring" the tolerance as a bug fix.
+    line = (
+        "**Sector:** Retail | **Market Cap:** Small Cap | "
+        "**Geography:** India (International Operations)**"
+    )
+    assert BOLD_LINE_RE.match(line) is None
+    assert _normalize_headings(line) == line
+
+
+def test_bold_line_re_matches_documented_rescue_shape():
+    line = "**Logistics** **<u>Delhivery | Large Cap | Logistics</u>**"
+    assert BOLD_LINE_RE.match(line) is not None
 
 
 def test_filter_running_headers(tmp_path=None):
