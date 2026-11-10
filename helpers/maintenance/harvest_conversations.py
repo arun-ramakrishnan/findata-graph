@@ -409,7 +409,21 @@ _V2_SKIP_TYPES = ("idle", "model-switched")
 # lanes never double-ingest one block under different ids.
 _V2_DROPPED_TYPES = ("step-start", "step-finish", "patch", "compaction", "file")
 
-_SNAP_COUNT_KEY = "opencode-snap:source-count"
+# Rotation-safe "have we seen this image" registry: the snapshot STAMPS visible
+# at the last harvest that could actually see the mount, as a JSON list.
+#
+# A scalar COUNT cannot express this. The timeshift root is a backup mount — it
+# is absent for long stretches — and images rotate away as new ones land, so the
+# count shrinks as legitimately as it grows. Measured 2026-11-10: 10 snapshot
+# stamps carry watermarks while 8 are on the mount, and the legacy counter read
+# **0** (a mount-less harvest stamped it), which made the growth check
+# `cur_n < int(rec)` unable to fire for any value of cur_n. Set difference
+# answers the real question — "which image has nobody harvested?" — exactly.
+_SNAP_SEEN_KEY = "snap-images:seen"
+# Legacy scalar counter, retired by the registry above but still read as the
+# "a harvest has run at least once" marker when the registry is empty, so a
+# corpus that predates the registry does not announce every image at once.
+_SNAP_COUNT_KEY_LEGACY = "opencode-snap:source-count"
 
 
 def _corpus_max_ts(corpus_root: Path, sid: str) -> int | None:
@@ -790,6 +804,20 @@ def _harvest_opencode_events(
         con.close()
 
 
+def _snap_stamps() -> list[str]:
+    """Snapshot image stamps currently on the backup mount ([] when absent).
+
+    A plain glob on a missing directory is silently empty, which is the right
+    behaviour everywhere in this module: /mnt/store/timeshift/snapshots is a
+    BACKUP mount and is legitimately unmounted for long stretches. Only the
+    drift census needs to tell "no images" apart from "no mount", and it does
+    that with SNAP_ROOT.is_dir() itself.
+    """
+    if not SNAP_ROOT.is_dir():
+        return []
+    return sorted(p.name for p in SNAP_ROOT.iterdir() if p.is_dir())
+
+
 def _snapshot_opencode_dbs() -> list[Path]:
     pat = "*/localhost/home/arun/.local/share/opencode/opencode.db"
     return sorted(SNAP_ROOT.glob(pat))
@@ -810,11 +838,8 @@ def _opencode_sources() -> list[tuple[Path, str, bool]]:
 
 def _harvest_opencode(store: Store, writer: SessionWriter, *, force: bool = False) -> str:
     stats, parts_total = [], 0
-    n_snaps = 0
     for path, src, immutable in _opencode_sources():
         key = f"{src}:{hashlib.blake2b(str(path).encode(), digest_size=6).hexdigest()}"
-        if immutable:
-            n_snaps += 1
         hwm_raw = store.watermark(key)
         if immutable and hwm_raw is not None and not force:
             stats.append(f"{src}: quiet")
@@ -883,7 +908,7 @@ def _harvest_opencode(store: Store, writer: SessionWriter, *, force: bool = Fals
             store.set_watermark(lkey, str(lnew))
             parts_total += len(lrows)
             stats.append(f"{src}:{lane}: {len(lrows)} parts")
-    store.set_watermark(_SNAP_COUNT_KEY, str(n_snaps))
+    _record_snap_seen(store)
     return "\n".join(stats) + f"\nopencode total new: {parts_total}"
 
 
@@ -1006,6 +1031,38 @@ def _dsh_index_path() -> Path | None:
     return candidates[0] if candidates else None
 
 
+def _dsh_indexed_max(idx: Path) -> dict[str, int] | None:
+    """session_id -> max indexed seq; None when the index is unreadable."""
+    try:
+        con = connect(str(idx), read_only=True)
+    except sqlite3.DatabaseError:
+        return None
+    try:
+        try:
+            return {
+                r[0]: r[1]
+                for r in con.execute(
+                    "SELECT session_id, MAX(seq) FROM persisted_docs GROUP BY session_id"
+                ).fetchall()
+            }
+        except sqlite3.OperationalError:
+            return None
+    finally:
+        con.close()
+
+
+def _dsh_log_max_seq(path: Path) -> int | None:
+    """Highest seq in one session log; None when the log cannot be read."""
+    live_max = -1
+    try:
+        for seq, _ts, _typ, _data in _dsh_read_log(path):
+            if isinstance(seq, int) and seq > live_max:
+                live_max = seq
+    except OSError, zstandard.ZstdError:
+        return None
+    return live_max
+
+
 def _dsh_index_lag() -> list[str]:
     """S4: derived-index coherence. Compares per-session max seq between
     the session logs (source of truth) and the session-query index.
@@ -1016,56 +1073,64 @@ def _dsh_index_lag() -> list[str]:
     idx = _dsh_index_path()
     if idx is None:
         return out
-    try:
-        con = connect(str(idx), read_only=True)
-    except sqlite3.DatabaseError:
+    indexed = _dsh_indexed_max(idx)
+    if indexed is None:
         return out
-    try:
-        try:
-            indexed = {
-                r[0]: r[1]
-                for r in con.execute(
-                    "SELECT session_id, MAX(seq) FROM persisted_docs GROUP BY session_id"
-                ).fetchall()
-            }
-        except sqlite3.OperationalError:
-            return out
-    finally:
-        con.close()
     for path, sid, _src in _dsh_logs():
-        live_max = -1
-        try:
-            for seq, _ts, _typ, _data in _dsh_read_log(path):
-                if isinstance(seq, int) and seq > live_max:
-                    live_max = seq
-        except OSError, zstandard.ZstdError:
-            continue
+        if _src != "dsh:live":
+            continue  # snapshot logs are not in the live derived index
+        live_max = _dsh_log_max_seq(path)
+        if live_max is None:
+            continue  # unreadable log: no comparison possible
         if sid not in indexed:
             out.append(f"dsh-index:missing {sid[:13]} (log {live_max})")
         elif indexed[sid] is not None and live_max > int(indexed[sid]):
             out.append(f"dsh-index:lagging {sid[:13]} (log {live_max} > index {int(indexed[sid])})")
     return out
-    return Path.home() / ".dsh" / "sessions"
 
 
 def _dsh_logs() -> list[tuple[Path, str, str]]:
     """(log path, session id, src). v4 preferred; v0 only when v4 is absent
     for a session dir — the generations overlap (measured 2026-10-11: 23
     shared (seq,type) keys, v4 re-stamping identical content by 1-2ms),
-    so reading both would double-ingest under different seqs."""
-    out = []
+    so reading both would double-ingest under different seqs.
+
+    Snapshots come first, oldest→newest, exactly like the opencode and prime
+    lanes: a session that no longer exists live is retained under
+    `dsh-snap:<stamp>` instead of being lost with the harness. Measured
+    2026-11-10: the images carry 95 session dirs / 124 log files (v4 and v0
+    both present in 29 of them), and a session dir outlives the live store.
+
+    The glob is deliberately session-file-shaped (`sessions/*/*/`). A
+    recursive walk of a snapshot root is not an option: one image holds
+    ~839k files, most of them `~/.dsh` profiles and node_modules.
+    """
+    out: list[tuple[Path, str, str]] = []
+    for sessions in sorted(SNAP_ROOT.glob("*/localhost/home/arun/.dsh/sessions")):
+        if not sessions.is_dir():
+            continue
+        tag = f"dsh-snap:{_snap_ts(sessions)}"
+        for sess_dir in sorted(sessions.glob("*/*/")):
+            picked = _dsh_pick_log(sess_dir)
+            if picked is not None:
+                out.append((picked, sess_dir.name, tag))
     home = _dsh_home()
     if not home.is_dir():
         return out
     for sess_dir in sorted(home.glob("*/*/")):
-        sid = sess_dir.name
-        v4 = sess_dir / "session.v4.jsonl.zstd"
-        v0 = sess_dir / "session.jsonl.zstd"
-        if v4.is_file():
-            out.append((v4, sid, "dsh:live"))
-        elif v0.is_file():
-            out.append((v0, sid, "dsh:live"))
+        picked = _dsh_pick_log(sess_dir)
+        if picked is not None:
+            out.append((picked, sess_dir.name, "dsh:live"))
     return out
+
+
+def _dsh_pick_log(sess_dir: Path) -> Path | None:
+    """v4 log when present, else the v0 fallback, else None."""
+    v4 = sess_dir / "session.v4.jsonl.zstd"
+    if v4.is_file():
+        return v4
+    v0 = sess_dir / "session.jsonl.zstd"
+    return v0 if v0.is_file() else None
 
 
 def _dsh_read_log(path: Path):
@@ -1639,6 +1704,10 @@ def _zcode_best_and_resps(files: list[Path]) -> tuple[dict | None, bool, dict, d
 def _zcode_req_rows(best: dict, sid: str, src_tag: str, partial: bool) -> list[dict]:
     """Build request-message rows from the fullest request.
 
+    `src_tag` is the FULL provenance label (`zcode:live`, `zcode-snap:<stamp>`),
+    used verbatim — the bare-tag + prefix composition double-prefixed S6 labels
+    (measured 2026-11-10: `zcode:zcode-snap:…` rows failed `_is_snapshot_src`).
+
     S2: the request's messagesKind rides the meta — `full` rows are the
     whole conversation; `tail`/`delta` (and kind-blind fallbacks) are
     marked partial so a reader never mistakes a compacted context for
@@ -1669,7 +1738,7 @@ def _zcode_req_rows(best: dict, sid: str, src_tag: str, partial: bool) -> list[d
                 "req-msg",
                 text,
                 meta,
-                f"zcode:{src_tag}",
+                src_tag,
             )
         )
     return rows
@@ -1703,7 +1772,7 @@ def _zcode_resp_rows(resps: dict, errs: dict, sid: str, src_tag: str) -> list[di
                     "text",
                     text,
                     {},
-                    f"zcode:{src_tag}",
+                    src_tag,
                 )
             )
         if reasoning:
@@ -1719,7 +1788,7 @@ def _zcode_resp_rows(resps: dict, errs: dict, sid: str, src_tag: str) -> list[di
                     "reasoning",
                     reasoning,
                     {},
-                    f"zcode:{src_tag}",
+                    src_tag,
                 )
             )
         for i, call in enumerate(tool_calls):
@@ -1740,7 +1809,7 @@ def _zcode_resp_rows(resps: dict, errs: dict, sid: str, src_tag: str) -> list[di
                     "tool",
                     call_text,
                     {k: v for k, v in meta.items() if v is not None},
-                    f"zcode:{src_tag}",
+                    src_tag,
                 )
             )
     for rid, (started, message, model) in errs.items():
@@ -1756,7 +1825,7 @@ def _zcode_resp_rows(resps: dict, errs: dict, sid: str, src_tag: str) -> list[di
                 "error",
                 message,
                 {},
-                f"zcode:{src_tag}",
+                src_tag,
             )
         )
     return rows
@@ -1782,27 +1851,39 @@ def _iso_ms(v: str | None) -> datetime:
         return datetime(1970, 1, 1, tzinfo=UTC)
 
 
+def _zcode_src_for(files: list[Path]) -> str:
+    """Provenance label for one session's rollout files.
+
+    `zcode:live` when the harness still holds the file; otherwise
+    `zcode-snap:<stamp>` naming WHICH image last carried it. The old coarse
+    `zcode:snap` (8,266 rows / 28 sids, measured 2026-11-10) could not say
+    when, so a snapshot-backed row was indistinguishable from one retained by
+    any other image — the per-snapshot granularity opencode and prime already
+    carry. Live wins when both exist: the same rule the other lanes use.
+    """
+    if any(not _is_under(f, SNAP_ROOT) for f in files):
+        return "zcode:live"
+    stamps = sorted({_snap_ts(f) for f in files if _is_under(f, SNAP_ROOT)})
+    return f"zcode-snap:{stamps[-1]}" if stamps else "zcode-snap:unknown"
+
+
+def _is_under(path: Path, root: Path) -> bool:
+    try:
+        path.relative_to(root)
+    except ValueError:
+        return False
+    return True
+
+
 def _harvest_zcode(store: Store, writer: SessionWriter, *, force: bool = False) -> str:
-    by_sid: dict[str, list[Path]] = {}
-    srcs: dict[str, str] = {}
-    for base, tag in ((SNAP_ROOT, "snap"), (Path.home(), "live")):
-        pat = (
-            "*/localhost/home/arun/.zcode/cli/rollout/model-io-*.jsonl"
-            if tag == "snap"
-            else ".zcode/cli/rollout/model-io-*.jsonl"
-        )
-        for f in sorted(base.glob(pat)):
-            sid = _safe(f.stem.replace("model-io-sess_", ""))
-            by_sid.setdefault(sid, []).append(f)
-            srcs[sid] = tag
     stats, total = [], 0
-    for sid, files in sorted(by_sid.items()):
+    for sid, files in sorted(_zcode_groups().items()):
         key = f"zcode:{sid}"
         cur = json.dumps([[int(f.stat().st_mtime), f.stat().st_size] for f in files])
         if store.watermark(key) == cur and not force:
             stats.append(f"zcode:{sid}: quiet")
             continue
-        rows = _harvest_zcode_file(files, sid, srcs[sid])
+        rows = _harvest_zcode_file(files, sid, _zcode_src_for(files))
         writer.add("zcode", rows)
         store.register("zcode", rows)
         store.set_watermark(key, cur)
@@ -1893,6 +1974,34 @@ def _wm_int(store: Store, key: str) -> int | None:
         return None
 
 
+def _probe_connect(path: Path) -> sqlite3.Connection:
+    """Read-only connection for a DRIFT PROBE, safe under a read-only $HOME.
+
+    A read-only open of a WAL-mode database still needs to create (or map) the
+    `-shm` shared-memory sidecar. When $HOME is read-only that fails with
+    `sqlite3.OperationalError: unable to open database file` — measured
+    2026-11-10 on the live opencode.db (WAL mode, 237 MB), where it made
+    `make convo-fresh --check` crash instead of reporting drift.
+
+    `?immutable=1` tells sqlite the file cannot change, so it skips locking and
+    all sidecar work. That is exactly right for a probe that only compares
+    watermarks, and exactly wrong for the harvest path, which must see the
+    newest WAL content — so the fallback lives HERE, on the probe only. The
+    apply path keeps the normal reader.
+    """
+    try:
+        con = connect(path, read_only=True)
+    except sqlite3.OperationalError:
+        con = None
+    if con is not None:
+        try:
+            con.execute("SELECT 1").fetchone()
+            return con
+        except sqlite3.OperationalError:
+            con.close()
+    return sqlite3.connect(f"{path.resolve().as_uri()}?immutable=1", uri=True)
+
+
 def _opencode_source_drift(
     store: Store, corpus_root: Path, path: Path, src: str, immutable: bool
 ) -> list[str]:
@@ -1913,7 +2022,7 @@ def _opencode_source_drift(
         # :v2/:evt keys never existed before the lanes, so their first
         # check fires here and the next APPLY closes them (see S3).
         try:
-            con = connect(path, read_only=True)
+            con = _probe_connect(path)
         except sqlite3.DatabaseError, OSError:
             return [f"unreadable {src}"]
         try:
@@ -1929,7 +2038,7 @@ def _opencode_source_drift(
             verb = "new" if store.watermark(key + ":" + lane) is None else "changed"
             found.append(f"{verb} {src}:{lane} ({line})")
         return found
-    con = connect(path, read_only=True)
+    con = _probe_connect(path)
     try:
         row = con.execute("SELECT COALESCE(MAX(time_updated), 0) FROM part").fetchone()
         hwm = row[0] if row else 0
@@ -1962,15 +2071,66 @@ def _dsh_log_drift(store: Store, path: Path, sid: str, src: str) -> str | None:
     return None
 
 
-def _snap_count_drift(store: Store) -> list[str]:
-    """Snapshot-root visibility drift (lane-blind when the root is gone)."""
-    if not SNAP_ROOT.is_dir():
-        return [f"missing snapshot root {SNAP_ROOT} (snapshot lanes blind)"]
-    cur_n = len(_snapshot_opencode_dbs())
-    rec = store.watermark(_SNAP_COUNT_KEY)
-    if rec is not None and cur_n < int(rec):
-        return [f"opencode-snap sources shrank {rec}->{cur_n} ({SNAP_ROOT})"]
-    return []
+def _snap_seen(store: Store) -> list[str]:
+    """Snapshot stamps a mount-aware harvest has already covered."""
+    raw = store.watermark(_SNAP_SEEN_KEY)
+    if not raw:
+        return []
+    try:
+        val = jsonio.loads(raw)
+    except jsonio.JSONDecodeError, TypeError:
+        return []  # a corrupted registry must not gate forever
+    return [str(s) for s in val] if isinstance(val, list) else []
+
+
+def _record_snap_seen(store: Store) -> list[str]:
+    """Merge the currently visible stamps into the seen-registry and return it.
+
+    Union, never overwrite: an image that rotates away between harvests must
+    stay recorded, or every rotation would re-announce it as new. Called only
+    from the harvest path, and only when the mount is actually visible — a
+    mount-less harvest must record nothing, which is exactly what the legacy
+    scalar counter got wrong (it stamped 0 and blinded the growth check).
+    """
+    stamps = _snap_stamps()
+    if not stamps:
+        return _snap_seen(store)
+    seen = sorted(set(_snap_seen(store)) | set(stamps))
+    store.set_watermark(_SNAP_SEEN_KEY, json.dumps(seen))
+    return seen
+
+
+def _snap_lane_drift(store: Store) -> list[str]:
+    """Snapshot-image drift: which visible image has nobody harvested yet.
+
+    Two properties this must have, both learned the hard way:
+
+    1. ABSENCE IS NOT DRIFT. The timeshift root is a backup mount and is
+       legitimately gone for long stretches. Reporting it as drift made the
+       gate cry wolf through every unmounted window, so the missing-mount case
+       is a quiet coverage line (see _coverage), not a drift item.
+
+    2. ROTATION IS NOT DRIFT, GROWTH IS. Images rotate away as new ones land,
+       so the count shrinks as legitimately as it grows — and a scalar count
+       cannot express "this image is unharvested" anyway. Measured 2026-11-10:
+       the legacy `opencode-snap:source-count` read 0 (stamped by a mount-less
+       harvest), which made its `cur_n < rec` growth check inert for every
+       possible cur_n; meanwhile the 2026-11-07 image sat unharvested while
+       reading as covered. Set difference answers the real question.
+    """
+    stamps = _snap_stamps()
+    if not stamps:
+        return []  # mount absent: coverage reports it, drift does not gate
+    seen = _snap_seen(store)
+    if not seen:
+        # Never recorded (pre-registry corpus, or only mount-less harvests have
+        # run). Everything visible is unharvested as far as the registry knows,
+        # and that is worth exactly one line — not one per image.
+        if store.watermark(_SNAP_COUNT_KEY_LEGACY) is None:
+            return []
+        return [f"new snapshots {len(stamps)} visible, none recorded as harvested"]
+    unseen = [s for s in stamps if s not in seen]
+    return [f"new snapshot {s}" for s in unseen]
 
 
 def _coverage(store: Store) -> list[str]:
@@ -1996,6 +2156,20 @@ def _coverage(store: Store) -> list[str]:
         lines.append(f"dsh: {len(_dsh_logs())} session logs tracked")
     except OSError as exc:
         lines.append(f"dsh: source enumeration failed ({exc})")
+    stamps = _snap_stamps()
+    if stamps:
+        seen = set(_snap_seen(store))
+        pending = [s for s in stamps if s not in seen]
+        lines.append(
+            f"snapshots: {len(stamps)} image(s) on {SNAP_ROOT}"
+            + (f", {len(pending)} unharvested" if pending else ", all recorded as harvested")
+        )
+    else:
+        # Absence is normal: /mnt/store/timeshift is a backup mount and is gone
+        # for long stretches. Silence it would leave "the snapshot lanes found
+        # nothing" indistinguishable from "the lanes never ran" — the exact
+        # confusion _coverage exists to prevent.
+        lines.append(f"snapshots: mount absent ({SNAP_ROOT}) — snapshot lanes idle")
     idx = _bili_index_path()
     if _bili_index_state() != "ready":
         lines.append(_bili_absent_note(_bili_index_state(), idx))
@@ -2093,8 +2267,8 @@ def _opencode_lane_drift(store: Store, corpus_root: Path) -> list[str]:
     return out
 
 
-def _snap_lane_drift(store: Store, corpus_root: Path) -> list[str]:
-    return _snap_count_drift(store)
+def _snap_images_drift(store: Store, corpus_root: Path) -> list[str]:
+    return _snap_lane_drift(store)
 
 
 def _dsh_lane_drift(store: Store, corpus_root: Path) -> list[str]:
@@ -2164,7 +2338,7 @@ def _drift(
     allowed = set(lanes) if lanes is not None else None
     lane_checks: list[tuple[str, Callable[[Store, Path], list[str]]]] = [
         ("opencode", _opencode_lane_drift),
-        ("snap", _snap_lane_drift),
+        ("snap", _snap_images_drift),
         ("dsh", _dsh_lane_drift),
         ("bili", _bili_lane_drift),
         ("prime-rlm", _prime_lane_drift),
@@ -2406,8 +2580,8 @@ def _all_corpus_files(corpus_root: Path) -> list[Path]:
 def _refresh_index_provenance(files: list[Path], *, dry_run: bool = False) -> None:
     """Re-read `source` from these parquets into `convo_search.provenance`.
 
-    `_backfill_provenance` joins on `(file_path, row_no)` — positional, no
-    re-embedding — because a single parquet can carry MIXED provenance (19 of
+    `_backfill_provenance` joins on the stable `(file_path, part_id)` key —
+    no re-embedding — because a single parquet can carry MIXED provenance (19 of
     the 271 corpus files do). That makes it exactly right for repairing an
     in-place relabel, which produces no file-level diff for the rebuild to
     notice.
@@ -2435,8 +2609,8 @@ def _refresh_index_models(files: list[Path]) -> None:
 
     Sibling of `_refresh_index_provenance`: the in-place model migrations
     rewrite corpus parquets with text and part_ids untouched, which no
-    incremental rebuild notices (`_backfill_models` joins positionally on
-    `(file_path, row_no)` — no re-embedding, embed cache stays valid).
+    incremental rebuild notices (`_backfill_models` joins on the stable
+    `(file_path, part_id)` key — no re-embedding, embed cache stays valid).
     """
     if not files:
         print("  models: nothing to refresh", file=sys.stderr)
@@ -2519,7 +2693,7 @@ def _resolve_orphans(  # noqa: C901
             if not sids:
                 continue
             # `live` here means "the harness's own storage". Only opencode has
-            # a queryable live-session list (its `session` table); dsh/prime/
+            # a queryable live-session list (its `session_v2`/`session` tables);
             # zcode are file-enumerated with no equivalent manifest, so they
             # return None and are skipped rather than guessed at — relabelling
             # 500 live sessions as orphans is not a recoverable mistake.
@@ -2613,20 +2787,53 @@ def _opencode_live_session_ids() -> set[str]:
 
 
 def _oc_live_ids() -> set[str] | None:
+    """Session ids the LIVE opencode store holds, or None when it cannot answer.
+
+    Three separate defects lived in the previous version, and all three
+    answered a LIVE question with something that was not the live set:
+
+    1. It queried only `session` — the LEGACY table. Since the v2 cutover that
+       table is empty (measured 2026-11-10: session 0 rows, session_v2 3 rows,
+       session_message 2,577 rows), so the live store yielded an EMPTY SET.
+    2. It iterated the live db AND every snapshot db, returning the first set
+       that a query succeeded on. Iteration order made the live db win, but a
+       live open that raised fell through to a snapshot — and a snapshot id set
+       answers "what existed then", not "what exists now".
+    3. An empty set is indistinguishable from "the harness purged everything",
+       so `_resolve_orphans` relabelled every live session `orphan:opencode`
+       (3 live sessions / ~505 messages, measured 2026-11-10).
+
+    So this reads ONLY the live db, UNIONS the modern tables (session_v2, the
+    legacy session, and session_message so an in-flight session whose rows have
+    landed but whose metadata has not is still recognised), and FAILS CLOSED —
+    an empty union returns None rather than an empty set, which makes the
+    caller skip the harness instead of relabelling it wholesale.
+    """
     import sqlite3
 
-    for cand in sorted(Path.home().glob(".local/share/opencode/opencode.db")) + sorted(
-        (SNAP_ROOT).glob("*/localhost/home/arun/.local/share/opencode/opencode.db")
-    ):
-        try:
-            con = sqlite3.connect(f"file:{cand}?mode=ro", uri=True)
+    live = Path.home() / ".local/share/opencode/opencode.db"
+    if not live.is_file():
+        return None
+    try:
+        con = sqlite3.connect(f"file:{live}?mode=ro", uri=True)
+    except sqlite3.Error:
+        return None
+    try:
+        ids: set[str] = set()
+        for sql in (
+            "SELECT id FROM session_v2",
+            "SELECT id FROM session",
+            "SELECT DISTINCT session_id FROM session_message",
+        ):
             try:
-                return {r[0] for r in con.execute("SELECT id FROM session")}
-            finally:
-                con.close()
-        except sqlite3.Error:
-            continue
-    return None
+                ids.update(r[0] for r in con.execute(sql) if r[0])
+            except sqlite3.Error:
+                # A schema vintage without that table simply contributes nothing;
+                # the tables that DO exist still answer.
+                continue
+    finally:
+        con.close()
+    return ids or None
 
 
 def _purge_older_than(corpus_root: Path, keep: str, *, dry_run: bool) -> tuple[int, int]:
@@ -2719,7 +2926,7 @@ def main(argv: list[str] | None = None) -> int:  # noqa: C901
         action="store_true",
         help="re-read `model` from every corpus parquet into "
         "convo_search.model; repairs an index left stale by an in-place "
-        "model migration (positional join, no re-embed; the migrate "
+        "model migration ((file_path, part_id) join, no re-embed; the "
         "flags do this for themselves)",
     )
     p.add_argument(

@@ -14412,3 +14412,123 @@ to doc/improvements/archive/database/duckdb_pure_stack.md.
 - cargo audit rc=0 on BOTH locks (allowed warnings only: arrow-data
   RUSTSEC-2026-0442 out-of-scope, desktop tauri stack upstream-bound);
   cargo deny licenses ok. Advisory full-run re-check on operator gate go.
+
+---
+
+## 499. Timeshift snapshot lane — stamped image registry, dsh snapshot glob, fail-closed live-id probe, doctrine-history lane
+
+**Date**: 2026-11-10
+
+- The snapshot census was a scalar (`opencode-snap:source-count`) that read
+  `0` after any mount-less harvest, so `cur_n < rec` could never fire and
+  grew silently when images arrived; an absent `/mnt/store/timeshift` mount
+  also reported as drift. Replaced with `snap-images:seen` — a JSON stamp
+  registry UNION-merged per mount-aware harvest. Set difference names the
+  unharvested image exactly, rotation never re-announces, and an absent
+  mount produces no drift (operator constraint: the backup mount is
+  optional). Legacy count key retained only as a 'harvest has run once'
+  marker so a pre-registry corpus announces once.
+- dsh had NO snapshot lane at all: `_dsh_logs()` only globbed
+  `~/.dsh/sessions`. Added the snapshot glob
+  (`<image>/localhost/home/arun/.dsh/sessions/<scope>/<session>/`), tagged
+  `dsh-snap:<stamp>`, v4 preferred over v0 per session (generations
+  overlap with 1-2 ms re-stamps — reading both double-counts). 16,901
+  snapshot rows now in the corpus (16,897 from the 11-07 image, 4 from
+  09-26) where previously there were none.
+- `_oc_live_ids()` read the LEGACY `session` table (0 rows live) and
+  returned an EMPTY SET, so every live opencode session was relabelled
+  `orphan:opencode` — 3 sessions / ~505 messages. Rewritten to union
+  `session_v2` + `session` + `session_message` on the live db ONLY and to
+  return None (skip the harness) on an empty union: an empty set is
+  indistinguishable from 'the harness purged everything' and must fail
+  closed, not relabel.
+- Read-only-$HOME robustness: `_probe_connect` tries a read-only open,
+  proves it with `SELECT 1`, then falls back to `immutable=1` (skips -shm
+  sidecar work — right for a watermark probe, wrong for a harvest, which
+  must see the newest WAL).
+- zcode provenance gained per-image granularity (S6): the coarse
+  `zcode:snap` could not say WHICH image retained a session.
+  `_zcode_src_for()` now returns `zcode-snap:<newest stamp>` (or
+  `zcode:live` when any file is outside the mount). A composition bug
+  found by exercising the lane with real queries: the row builders still
+  wrapped the now-full label in `f"zcode:{...}"`, producing
+  `zcode:zcode-snap:<stamp>` for 1,241 rows — a label that neither matches
+  `--source zcode-snap:` nor passes `_is_snapshot_src`'s
+  `startswith("zcode-snap")`, so those rows were silently
+  non-snapshot-classified. Builders now take the label verbatim; re-
+  harvested via `--force-lane zcode` (stable part_ids → merged in place).
+- Doctrine-history lane in memory_search (NOT convo_search): 166 records
+  that survive only in timeshift images are indexed under
+  `zcode-snap` / `prime-snap` / `opencode-snap` provenance kinds with a
+  `seen <stamps> in N image(s)` prefix, deduped against live and
+  keeping the OLDEST stamp. `memory_query.py --history only|include|exclude`.
+  Trap: the image stamp must stay OUT of the record name or cross-image
+  dedupe silently dies (17 records became 51 rows).
+- Provenance backfill fix: `_backfill_provenance` / `_backfill_models`
+  joined positionally on `(file_path, row_no)`; the dsh snapshot lane's
+  seq-merge rewrites parquets in a different row order than the index was
+  built from, so the backfill wrote labels onto WRONG rows (measured: 29
+  dsh files with paired opposite mismatches; 39 of 491 rows shifted in
+  session-0ac25dca). Both now join on the stable `(file_path, part_id)`
+  key, regression-pinned by `test_backfill_is_row_order_independent` and
+  `test_backfill_models_is_row_order_independent`.
+- Validation: ontology eval gate over the frozen 173-question set →
+  ACCEPT (0 regressions); `make convo-fresh --check` clean apart from the
+  active live session; 110 targeted tests pass (18 new in
+  tests/test_snapshot_lane_harvest.py, 5 in
+  tests/test_memory_snapshot_lane.py); ruff + markdown_lint clean.
+- Frozen-set cache assertion holds: 290,103 corpus rows across 400
+  parquet files; 6 of 8 mounted images carry a dsh tree, 124 dsh logs.
+
+## 500. Bili summaries as first-class convo_search citizens — leg-level filters, two-column projection, summary partition
+
+**Date**: 2026-11-10
+
+- Two proposal premises measured FALSE before implementation:
+  `agent_norm`/`part_type_norm` were redundant — `convo_search` already
+  carries exact `agent`/`part_type` columns — and the filed
+  `UPDATE … FROM meta_json` was unimplementable: `meta_json` does not
+  exist in the index. `meta` lives only in the parquet (74.55 MB across
+  290,186 rows, up to 1.9 MB/row) and must never enter the index.
+- S4 (post-fusion ×1.5 cosine boost) measured INOPERATIVE as filed: the
+  fused candidate pool is `max(limit*4, 20)` rows drawn BEFORE fusion, and
+  the best bili summary sits at overall rank 308–37,593 (cosine 0.63–0.75)
+  — a post-fusion multiplier can never change membership. Redesigned:
+  filters are LEG-LEVEL (`RowFilters` into `_cos_hits` numpy+SQL legs)
+  and `--summary-first` PARTITIONS the fused ranking instead of boosting.
+- S1 query surface in `convo_query.py`: `--agent`, `--part-type`,
+  `--bili-active {0,1}`, `--bili-tier N`, `--summary-first`. NULL never
+  matches an active/tier value ("unspecified" ≠ "superseded"); an FTS-leg
+  safety net post-filters (the sidecar has no agent/part_type). Also:
+  `proxy` added to `HARNESSES` (was an argparse error; 83 bili rows),
+  `compression-summary` added to `KINDS`, neutral
+  `PART_PRIOR['compression-summary'] = 1.0`.
+- S2 decided by measurement: S2a — the orphan relabel STAYS; `--agent
+  bili` pierces it directly (all 1,044 `orphan:opencode` bili rows
+  retrievable), so S2b's relabel-predicate clause + corpus rewrite would
+  buy a second name for the same rows.
+- S3 as landed: `bili_active BOOLEAN` + `bili_tier INTEGER` in the DDL,
+  stage schema, and Arrow batch; `_bili_column_migration` (idempotent
+  `ADD COLUMN IF NOT EXISTS`, no ~45-min re-embed) and `_backfill_bili`
+  joining on the stable `(file_path, part_id)` key with parquet meta
+  read at backfill time. Live run: 1,607 rows across 63 files; 0
+  non-bili rows carry values; distribution matches the measured census.
+  Baseline recounted 1,583 → 1,607 (the dsh lane ingested 24 more bili
+  rows between filing and landing).
+- Regression repair: the earlier schema edit had silently dropped
+  `pa.field("provenance", …)` and duplicated `content_hash` in
+  `_bulk_insert`'s Arrow schema — 15 pre-existing tests failed with
+  'Referenced column "provenance" not found' only once the stage table
+  was registered and SELECTed.
+- Validation: 24 new tests in tests/test_bili_convo_columns.py
+  (projection table, migration idempotence, part_id-join row-order
+  independence, NULL semantics, summary partition pinned where the
+  summaries do NOT text-match the query); targeted surface 167 passed /
+  1 skipped; ruff + markdown_lint + static_checks clean; live checks —
+  'embed cache --agent bili' puts bili summaries at ranks 1–3.
+  `make qa` NOT RUN (archived on the operator's instruction before a
+  full gate pass).
+- Proposal: doc/improvements/archive/convo_search/bili_first_class_convo_search.md
+  (§0 traps register records the five measurement artifacts that made the
+  lane look empty; §3 rewritten as-landed with the false premises and the
+  S4 pool math).

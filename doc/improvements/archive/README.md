@@ -7,6 +7,35 @@ commit, referenced by nothing). Entry numbers point at
 `../completed.md`. Live items live in `../pending.md`.
 
 ## convo_search/ — Conversation search harvest + rebuild
+- [`timeshift_snapshot_lane.md`](convo_search/timeshift_snapshot_lane.md) —
+  timeshift snapshot ingestion: the scalar image count (`opencode-snap:source-count`,
+  read `0` after any mount-less harvest so growth was invisible and an absent
+  backup mount read as drift) became a UNION-merged stamp registry
+  (`snap-images:seen`) that names exactly which image is unharvested; dsh got
+  the snapshot glob it never had (16,901 `dsh-snap:<stamp>` rows, v4 preferred
+  over v0 to avoid the 1-2 ms re-stamp double count); the live-id probe stopped
+  reading the legacy `session` table (0 rows live → empty set → 3 live sessions
+  relabelled `orphan:opencode`) and now unions `session_v2`/`session`/
+  `session_message`, failing CLOSED on an empty union; zcode gained
+  `zcode-snap:<stamp>` per-image labels (the row builders' double-prefix bug
+  caught by querying the lane); and 166 doctrine records that survive only in
+  images got a dedupe-first `--history` lane in memory_search (stamp kept OUT
+  of the record name, oldest image wins). Provenance backfill re-pointed from
+  positional `(file_path, row_no)` to `(file_path, part_id)` after the dsh
+  seq-merge reordered a parquet under a stale index — completed.md #499
+- [`bili_first_class_convo_search.md`](convo_search/bili_first_class_convo_search.md) —
+  bili compression summaries as first-class convo_search citizens: the
+  as-filed `agent_norm/part_type_norm` columns measured redundant (the
+  store already carries exact `agent`/`part_type`) and the ×1.5
+  post-fusion cosine boost measured INOPERATIVE (the fused pool is
+  `max(limit*4, 20)` rows drawn BEFORE fusion; the best bili summary sits
+  at overall rank 308–37,593), so S4 became a `--summary-first` PARTITION
+  and the filters became LEG-LEVEL (`RowFilters` into the cosine leg —
+  `--agent`, `--part-type`, `--bili-active`, `--bili-tier`; NULL never
+  matches; `proxy` unblocked in `HARNESSES`). S2a: the orphan relabel
+  stays — `--agent bili` pierces it. S3: `bili_active`/`bili_tier`
+  backfilled on the `(file_path, part_id)` join from parquet meta (which
+  never enters the index), 1,607 rows / 63 files live — completed.md #500
 
 - [`convo_search_drop_hnsw_numpy_copy_compact.md`](convo_search/convo_search_drop_hnsw_numpy_copy_compact.md) —
   bloat's real source was the persisted HNSW index, not the write path:

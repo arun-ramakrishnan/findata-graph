@@ -66,13 +66,20 @@ def main(argv: list[str] | None = None) -> int:
     def _extra_args(p: argparse.ArgumentParser) -> None:
         p.add_argument(
             "--kind",
-            choices=["zcode", "prime", "opencode"],
+            choices=[*rms._LIVE_KINDS, *rms._HISTORY_KINDS],
             default=None,
-            help="filter: zcode | prime | opencode pool rows",
+            help="filter: zcode | prime | opencode pool rows, or a *-snap history kind",
+        )
+        p.add_argument(
+            "--history",
+            choices=["exclude", "include", "only"],
+            default="exclude",
+            help="snapshot-history rows from the timeshift mount: exclude (default, "
+            "what we believe now) | include | only (was this ever true)",
         )
 
     def _search_kwargs(args: argparse.Namespace) -> dict:
-        return {"kind": args.kind}
+        return {"kind": args.kind, "history": args.history}
 
     return rbc.run_query_cli(
         argv,

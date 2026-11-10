@@ -13,7 +13,12 @@ Two traps this file exists to pin, both hit during the build:
 2. **19 of the 271 corpus files carry MIXED provenance** (a session harvested
    live AND covered by a snapshot has both values in one parquet), so a
    per-file backfill either writes a lie or skips the file and leaves ~2,670
-   rows empty. Hence the `(file_path, row_no)` join.
+   rows empty. Hence the `(file_path, part_id)` join — part_ids are stable
+   across harness compactions, while a positional `(file_path, row_no)` join
+   swaps labels whenever a harvest rewrites the parquet in a different row
+   order than the index was built from (measured 2026-11-10: 39 of 491 rows
+   shifted in session-0ac25dca after the dsh snapshot lane merged live and
+   snapshot rows by seq).
 """
 
 from __future__ import annotations
@@ -121,7 +126,9 @@ class TestBackfill:
     def test_fills_a_single_source_file(self, tmp_path, monkeypatch):
         db = tmp_path / "x.duckdb"
         con = _make_db(db, with_provenance=True)
-        con.execute("INSERT INTO convo_search (file_path, row_no, provenance) VALUES ('f', 0, '')")
+        con.execute(
+            "INSERT INTO convo_search (file_path, row_no, part_id, provenance) VALUES ('f', 0, 'p0', '')"
+        )
         con.close()
         f = _corpus(tmp_path, "f", ["opencode:live"] * 3)
         monkeypatch.setattr(rcs, "REPO", tmp_path)
@@ -138,9 +145,15 @@ class TestBackfill:
         """The case that makes a per-file backfill wrong: one file, two sources."""
         db = tmp_path / "x.duckdb"
         con = _make_db(db, with_provenance=True)
-        con.execute("INSERT INTO convo_search (file_path, row_no, provenance) VALUES ('f', 0, '')")
-        con.execute("INSERT INTO convo_search (file_path, row_no, provenance) VALUES ('f', 1, '')")
-        con.execute("INSERT INTO convo_search (file_path, row_no, provenance) VALUES ('f', 2, '')")
+        con.execute(
+            "INSERT INTO convo_search (file_path, row_no, part_id, provenance) VALUES ('f', 0, 'p0', '')"
+        )
+        con.execute(
+            "INSERT INTO convo_search (file_path, row_no, part_id, provenance) VALUES ('f', 1, 'p1', '')"
+        )
+        con.execute(
+            "INSERT INTO convo_search (file_path, row_no, part_id, provenance) VALUES ('f', 2, 'p2', '')"
+        )
         con.close()
         f = _corpus(
             tmp_path,
@@ -160,13 +173,110 @@ class TestBackfill:
             2: "opencode:live",
         }
 
+    def test_backfill_is_row_order_independent(self, tmp_path, monkeypatch):
+        """Regression (2026-11-10): a harvest may rewrite a parquet in a
+        different row order than the index was built from (the dsh snapshot
+        lane merges live+snapshot rows by seq). A positional (file_path,
+        row_no) join then swaps labels between rows; the part_id join must
+        not."""
+        db = tmp_path / "x.duckdb"
+        con = _make_db(db, with_provenance=True)
+        # index built when the parquet was single-source, rows p0,p1,p2
+        for i in range(3):
+            con.execute(
+                "INSERT INTO convo_search (file_path, row_no, part_id, provenance) "
+                "VALUES ('f', ?, ?, '')",
+                [i, f"p{i}"],
+            )
+        con.close()
+        # parquet REWRITTEN in a different order: p2, p0, p1 — each row now
+        # carries the source of its own part_id, not of its position
+        order = [2, 0, 1]
+        sources = {
+            0: "dsh:live",
+            1: "dsh-snap:2026-11-07_17-00-06",
+            2: "dsh-snap:2026-11-07_17-00-06",
+        }
+        f = tmp_path / "f"
+        pq.write_table(
+            pa.Table.from_pylist(
+                [
+                    {
+                        "session_id": "ses_x",
+                        "part_id": f"p{i}",
+                        "source": sources[i],
+                        "part_type": "text",
+                        "text": f"body {i} " * 40,
+                        "role": "assistant",
+                        "ts": None,
+                        "row_no": pos,
+                    }
+                    for pos, i in enumerate(order)
+                ]
+            ),
+            f,
+        )
+        monkeypatch.setattr(rcs, "REPO", tmp_path)
+        rcs._backfill_provenance(db, [f])
+        rows = dict(
+            duckdb.connect(str(db))
+            .execute("SELECT part_id, provenance FROM convo_search ORDER BY part_id")
+            .fetchall()
+        )
+        assert rows == {
+            "p0": "dsh:live",
+            "p1": "dsh-snap:2026-11-07_17-00-06",
+            "p2": "dsh-snap:2026-11-07_17-00-06",
+        }
+
+    def test_backfill_models_is_row_order_independent(self, tmp_path, monkeypatch):
+        """Same regression class for `_backfill_models`: model values must
+        follow part_id, not position."""
+        db = tmp_path / "x.duckdb"
+        con = _make_db(db, with_provenance=True)
+        for i in range(3):
+            con.execute(
+                "INSERT INTO convo_search (file_path, row_no, part_id, model) "
+                "VALUES ('f', ?, ?, '')",
+                [i, f"p{i}"],
+            )
+        con.close()
+        models = {0: "m-a", 1: "m-b", 2: "m-c"}
+        f = tmp_path / "f"
+        pq.write_table(
+            pa.Table.from_pylist(
+                [
+                    {
+                        "session_id": "ses_x",
+                        "part_id": f"p{i}",
+                        "model": models[i],
+                        "part_type": "text",
+                        "text": f"body {i} " * 40,
+                        "role": "assistant",
+                        "ts": None,
+                        "row_no": pos,
+                    }
+                    for pos, i in enumerate([2, 0, 1])
+                ]
+            ),
+            f,
+        )
+        monkeypatch.setattr(rcs, "REPO", tmp_path)
+        rcs._backfill_models(db, [f])
+        rows = dict(
+            duckdb.connect(str(db))
+            .execute("SELECT part_id, model FROM convo_search ORDER BY part_id")
+            .fetchall()
+        )
+        assert rows == {"p0": "m-a", "p1": "m-b", "p2": "m-c"}
+
     def test_leaves_nothing_empty(self, tmp_path, monkeypatch):
         db = tmp_path / "x.duckdb"
         con = _make_db(db, with_provenance=True)
         for i in range(3):
             con.execute(
-                "INSERT INTO convo_search (file_path, row_no, provenance) VALUES ('f', ?, '')",
-                [i],
+                "INSERT INTO convo_search (file_path, row_no, part_id, provenance) VALUES ('f', ?, ?, '')",
+                [i, f"p{i}"],
             )
         con.close()
         f = _corpus(tmp_path, "f", ["opencode:live", "opencode:live", "zcode:live"])

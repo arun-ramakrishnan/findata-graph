@@ -41,8 +41,18 @@ FTS_DB_NAME = "convo_search_fts.db"
 # harness-specific plugin (2026-10-17), so harvest_conversations.py routes
 # its blocks into the OWNING harness's session file (source='bili-index/*')
 # instead of a `bili/` corpus directory. There is no bili directory to
+# Compression summaries are not a peer harness: billion-context is a
+# harness-specific plugin (2026-10-17), so harvest_conversations.py routes
+# its blocks into the OWNING harness's session file (source='bili-index/*')
+# instead of a `bili/` corpus directory. There is no bili directory to
 # filter on, so it is deliberately absent here.
-HARNESSES = ["opencode", "prime-rlm", "zcode", "dsh"]
+#
+# `proxy` IS a directory (memory/data/harness/proxy/conversations/) and was
+# simply missing from this list, which made `--harness proxy` an argparse
+# error even though 83 bili rows carry that harness value — the only way to
+# reach them was `--source bili-index/proxy`. Same rule as the others: the
+# list mirrors the corpus namespaces, nothing more.
+HARNESSES = ["opencode", "prime-rlm", "zcode", "dsh", "proxy"]
 HEAD = 160
 
 # Rank prior. Tool traffic is ~30k of 53,423 indexed rows — but NOT under
@@ -61,10 +71,34 @@ PART_PRIOR: dict[str, float] = {
     "reasoning": 1.0,
     "req-msg": 0.6,
     "step-finish": 0.3,
+    # A compression summary is prose written FOR retrieval, not incidental
+    # tool noise, so the neutral 0.6 fallback would demote it below every
+    # assistant text row. This does NOT fix the rank problem by itself —
+    # measured 2026-11-10, the best summary for 'mem mtime gate' sits at
+    # overall cosine rank 4,511, far outside the fused candidate pool, so a
+    # weight cannot promote what was never a candidate. It only stops the
+    # prior from demoting a row the user explicitly asked for.
+    "compression-summary": 1.0,
 }
 DEFAULT_PRIOR = 0.6
 # `--kinds` accepts part_types AND roles; a row is kept when EITHER matches
-KINDS = sorted({"text", "reasoning", "req-msg", "step-finish", "user", "assistant", *TOOL_ROLES})
+#
+# `compression-summary` is a part_type, not a role: 1,607 rows carry it (all
+# agent='bili'), and without it here `--kinds compression-summary` was an
+# argparse error — the kind the whole bili lane exists for could not be
+# named on the command line.
+KINDS = sorted(
+    {
+        "text",
+        "reasoning",
+        "req-msg",
+        "step-finish",
+        "user",
+        "assistant",
+        "compression-summary",
+        *TOOL_ROLES,
+    }
+)
 
 
 def _prior_for(role: str, part_type: str) -> float:
@@ -75,6 +109,41 @@ def _prior_for(role: str, part_type: str) -> float:
 
 # (harness, part_id) — part ids are only unique WITHIN a harness namespace.
 Key = tuple[str, str]
+
+# bili compression summaries are one part_type, not a harness: 1,607 rows
+# spread over opencode/dsh/proxy (see HARNESSES above).
+SUMMARY_PART = "compression-summary"
+
+
+@dataclass(frozen=True)
+class RowFilters:
+    """Exact-match row constraints that must reach INSIDE the candidate legs.
+
+    Why a leg-level filter and not a post-fusion one: the fused pool is
+    `max(limit*4, 20)` rows (convo_query.search), so anything that is not
+    already in those 20 can never be promoted by a re-weight. Measured
+    2026-11-10, the best-matching bili summary for 'mem mtime gate' sat at
+    overall cosine rank 4,511 with a *good* 0.63 cosine — it was simply
+    never a candidate. Filtering in the leg means the pool is drawn from
+    the filtered population instead of being whittled down after the fact.
+
+    `--kinds` stays a post-fusion filter by design (it accepts roles as
+    well as part_types and is a display preference); `--part-type` is the
+    exact leg-level one.
+    """
+
+    agent: str | None = None
+    part_type: str | None = None
+    bili_active: bool | None = None
+    bili_tier: int | None = None
+
+    def any(self) -> bool:
+        return (
+            self.agent is not None
+            or self.part_type is not None
+            or self.bili_active is not None
+            or self.bili_tier is not None
+        )
 
 
 @dataclass
@@ -241,6 +310,11 @@ def warm_matrix(con: ConvoConnections) -> bool:
     return _load_matrix(con, dims) is not None
 
 
+def _convo_columns(con: ConvoConnections) -> set[str]:
+    """Column names the store actually carries (migrations land over time)."""
+    return {r[0] for r in con.ddb.execute("DESCRIBE convo_search").fetchall()}
+
+
 def _matrix_cache_key(con: ConvoConnections, dims: int) -> tuple | None:
     """(path, mtime_ns, size, dims) or None when the path is unknown."""
     path = getattr(con, "db_path", None)
@@ -264,16 +338,21 @@ def _fetch_scan_tables(con: ConvoConnections):
     lets the row masks line up with the matrix.
     """
     try:
-        try:
-            meta = con.ddb.sql(
-                "SELECT harness, part_id, provenance FROM convo_search WHERE embedding IS NOT NULL"
-            ).to_arrow_table()
-        except duckdb.CatalogException:
-            # pre-provenance store: the column arrives with the migration,
-            # and the source filter simply cannot match anything yet.
-            meta = con.ddb.sql(
-                "SELECT harness, part_id FROM convo_search WHERE embedding IS NOT NULL"
-            ).to_arrow_table()
+        cols = _convo_columns(con)
+    except duckdb.Error:  # noqa: S110  # table absent: the caller test-reports it
+        return None
+    # Columns arrive in migrations (provenance 2026-11-09, bili_* 2026-11-10),
+    # so the select is built from what THIS store actually has rather than
+    # assuming the newest schema — a pre-migration store must still answer
+    # a plain query instead of raising CatalogException on an unknown column.
+    want = ["harness", "part_id"]
+    want += [
+        c for c in ("provenance", "agent", "part_type", "bili_active", "bili_tier") if c in cols
+    ]
+    try:
+        meta = con.ddb.sql(
+            f"SELECT {', '.join(want)} FROM convo_search WHERE embedding IS NOT NULL"  # noqa: S608  # want is a closed list of known column names
+        ).to_arrow_table()
         emb_tbl = con.ddb.sql(
             "SELECT embedding FROM convo_search WHERE embedding IS NOT NULL"
         ).to_arrow_table()
@@ -324,6 +403,13 @@ def _matrix_entry(tbl, emb_tbl, n_rows: int, dims: int, key) -> dict | None:
         "harness": tbl.column("harness"),
         "part_id": tbl.column("part_id"),
         "provenance": tbl.column("provenance") if "provenance" in tbl.column_names else None,
+        # Filter columns, absent (None) on a pre-migration store. `agent` and
+        # `part_type` date from the first build; the bili pair is S3 of
+        # proposal bili_first_class_convo_search.
+        "agent": tbl.column("agent") if "agent" in tbl.column_names else None,
+        "part_type": tbl.column("part_type") if "part_type" in tbl.column_names else None,
+        "bili_active": (tbl.column("bili_active") if "bili_active" in tbl.column_names else None),
+        "bili_tier": tbl.column("bili_tier") if "bili_tier" in tbl.column_names else None,
         "pc": pc,
     }
 
@@ -367,32 +453,94 @@ def _load_matrix(con: ConvoConnections, dims: int, *, cache_only: bool = False) 
     return entry
 
 
-def _row_mask(entry: dict, harness: str | None, source: str | None):
+def _source_mask(pc, entry: dict, source: str):
+    """Source-filter mask; None when the provenance column is absent."""
+    prov = entry["provenance"]
+    if prov is None:
+        return None  # column absent: nothing can match
+    if source == "*":
+        return pc.fill_null(pc.not_equal(prov, ""), False).to_numpy(zero_copy_only=False)
+    return pc.fill_null(pc.match_substring(prov, source), False).to_numpy(zero_copy_only=False)
+
+
+def _rf_masks(pc, entry: dict, rf: RowFilters) -> list | None:
+    """Exact-match filter-group masks; None when a needed column is absent."""
+    masks = []
+    for col, want in (
+        ("agent", rf.agent),
+        ("part_type", rf.part_type),
+    ):
+        if want is None:
+            continue
+        arr = entry.get(col)
+        if arr is None:
+            return None  # column absent: nothing can match
+        masks.append(pc.fill_null(pc.equal(arr, want), False).to_numpy(zero_copy_only=False))
+    if rf.bili_active is not None:
+        arr = entry.get("bili_active")
+        if arr is None:
+            return None
+        # NULL means "not a bili row / payload without the field" — it
+        # must NOT satisfy either --bili-active 0 or 1.
+        masks.append(
+            pc.fill_null(pc.equal(arr, bool(rf.bili_active)), False).to_numpy(zero_copy_only=False)
+        )
+    if rf.bili_tier is not None:
+        arr = entry.get("bili_tier")
+        if arr is None:
+            return None
+        masks.append(
+            pc.fill_null(pc.equal(pc.cast(arr, "int64"), int(rf.bili_tier)), False).to_numpy(
+                zero_copy_only=False
+            )
+        )
+    return masks
+
+
+def _row_mask(
+    entry: dict,
+    harness: str | None,
+    source: str | None,
+    rf: RowFilters | None = None,
+):
     """Boolean row mask for the leg's optional filters, None when unfiltered.
 
     `source` matches by substring, which is exactly what `search()`'s
     post-filter (`source in prov`) and the SQL leg's `LIKE '%<escaped>%'`
     both reduce to (`_like_pattern` escapes the source's own % and _, so the
     wrapped pattern is a literal containment test). "*" means non-empty.
+
+    `rf` is the exact-match `RowFilters` group (--agent/--part-type/
+    --bili-active/--bili-tier). It applies HERE, before the top-k selection,
+    so the candidate pool is drawn from the filtered population — the whole
+    point of S1: a bili summary at overall cosine rank 4,511 becomes rank ≤20
+    *within* the summary population and therefore a real candidate.
     Returns False (not None) when a filter can match nothing at all.
     """
     import numpy as np
 
     pc = entry["pc"]
     mask = None
-    if harness:
-        m = pc.fill_null(pc.equal(entry["harness"], harness), False)
-        mask = m.to_numpy(zero_copy_only=False)
-    if source:
-        prov = entry["provenance"]
-        if prov is None:
-            return False  # column absent: nothing can match
-        if source == "*":
-            m = pc.fill_null(pc.not_equal(prov, ""), False)
-        else:
-            m = pc.fill_null(pc.match_substring(prov, source), False)
-        m = m.to_numpy(zero_copy_only=False)
+
+    def _conj(m):
+        nonlocal mask
         mask = m if mask is None else (mask & m)
+
+    if harness:
+        _conj(
+            pc.fill_null(pc.equal(entry["harness"], harness), False).to_numpy(zero_copy_only=False)
+        )
+    if source:
+        sm = _source_mask(pc, entry, source)
+        if sm is None:
+            return False  # column absent: nothing can match
+        _conj(sm)
+    if rf is not None and rf.any():
+        rms = _rf_masks(pc, entry, rf)
+        if rms is None:
+            return False  # column absent: nothing can match
+        for m in rms:
+            _conj(m)
     if mask is not None:
         mask = np.asarray(mask, dtype=bool)
     return mask
@@ -407,6 +555,7 @@ def _cos_hits_numpy(
     source: str | None,
     *,
     cache_only: bool = False,
+    rf: RowFilters | None = None,
 ) -> list[tuple[Key, float]] | None:
     """Exact top-N cosine over the in-memory matrix; None = leg unavailable.
 
@@ -431,7 +580,7 @@ def _cos_hits_numpy(
     norms = entry["norms"]
     if not np.allclose(norms, 1.0, atol=1e-3):
         scores = scores / np.where(norms == 0.0, 1.0, norms)
-    mask = _row_mask(entry, harness, source)
+    mask = _row_mask(entry, harness, source, rf)
     if mask is False:
         return []
     if mask is not None:
@@ -468,6 +617,7 @@ def _cos_hits_sql(
     dims: int,
     harness: str | None,
     source: str | None,
+    rf: RowFilters | None = None,
 ) -> list[tuple[Key, float]]:
     """Exact in-DuckDB cosine scan — the fallback when numpy is unavailable.
 
@@ -475,6 +625,10 @@ def _cos_hits_sql(
     needed). With the HNSW index gone this is a plain full scan, so it is
     exact too; it costs ~118 ms/query against the in-memory path's ~86 ms
     but needs no 313 MB resident matrix.
+
+    The `rf` filters pre-filter in SQL for the same reason they pre-filter
+    the numpy mask: a post-fusion filter can only subtract from a pool that
+    was drawn without it (see RowFilters).
     """
     # cast width MUST match the stored vectors (384 for the house embedder,
     # _PSEUDO_DIMS for the degraded path) — a hardcoded 384 breaks pseudo mode.
@@ -495,11 +649,36 @@ def _cos_hits_sql(
         # column — which is why the search() caller over-fetches that leg.
         sql += "AND provenance LIKE ? ESCAPE '\\' "
         params.append(_like_pattern(source))
+    sql += _rf_sql(rf, params)
     sql += "ORDER BY dist ASC LIMIT ?"
     params.append(limit)
     rows = con.ddb.execute(sql, params).fetchall()
     # Convert distance to similarity: cos = 1 - d*d/2 for unit vectors
-    return [((harness, pid), 1.0 - float(dist) * float(dist) / 2.0) for harness, pid, dist in rows]
+    return [((h, pid), 1.0 - float(dist) * float(dist) / 2.0) for h, pid, dist in rows]
+
+
+def _rf_sql(rf: RowFilters | None, params: list) -> str:
+    """AND-clause for the exact-match filters; appends its own bound params.
+
+    Exact equality, never LIKE: these are closed vocabularies (agent names,
+    part_types, booleans, small tier ints). NULL never matches here, which is
+    the required behaviour — a NULL `bili_active` means "not a bili row", and
+    `--bili-active 0` must not sweep those in.
+    """
+    if rf is None or not rf.any():
+        return ""
+    out = ""
+    for col, want in (("agent", rf.agent), ("part_type", rf.part_type)):
+        if want is not None:
+            out += f"AND {col} = ? "  # noqa: S608  # col is a closed literal set
+            params.append(want)
+    if rf.bili_active is not None:
+        out += "AND bili_active = ? "
+        params.append(bool(rf.bili_active))
+    if rf.bili_tier is not None:
+        out += "AND bili_tier = ? "
+        params.append(int(rf.bili_tier))
+    return out
 
 
 def _cos_hits(
@@ -510,6 +689,7 @@ def _cos_hits(
     query_vec=None,
     harness: str | None = None,
     source: str | None = None,
+    rf: RowFilters | None = None,
 ) -> list[tuple[Key, float]]:
     from helpers.core import local_embedder as le
     from helpers.maintenance import rebuild_common as rbc
@@ -534,10 +714,10 @@ def _cos_hits(
     # this file — is always one-shot, so it takes the SQL leg. A long-lived
     # caller (search_tui_app in-process, bench harnesses) calls
     # warm_matrix() once and gets the 30-90 ms numpy path from then on.
-    hits = _cos_hits_numpy(con, qv, limit, dims, harness, source, cache_only=True)
+    hits = _cos_hits_numpy(con, qv, limit, dims, harness, source, cache_only=True, rf=rf)
     if hits is not None:
         return hits
-    return _cos_hits_sql(con, qv, limit, dims, harness, source)
+    return _cos_hits_sql(con, qv, limit, dims, harness, source, rf)
 
 
 def _like_pattern(source: str) -> str:
@@ -592,6 +772,60 @@ def _fetch_rows(con: ConvoConnections, keys: list[Key]) -> dict[Key, dict]:
     return result
 
 
+def _rf_keys(con: ConvoConnections, keys: list[Key], rf: RowFilters) -> set[Key]:
+    """Keys among `keys` that satisfy the exact-match filters.
+
+    One OR-ed query for the whole candidate set (same shape as _kinds_of).
+    A store too old to have the bili columns answers with none of them —
+    the SELECT lists only the columns this store actually carries.
+    """
+    if not keys:
+        return set()
+    try:
+        cols = _convo_columns(con)
+    except duckdb.Error:
+        return set(keys)
+    want = [c for c in ("agent", "part_type", "bili_active", "bili_tier") if c in cols]
+    if not want:
+        return set(keys)  # nothing to filter on: claim nothing, drop nothing
+    where = " OR ".join(["(harness = ? AND part_id = ?)"] * len(keys))
+    rows = con.ddb.execute(
+        f"SELECT harness, part_id, {', '.join(want)} FROM convo_search WHERE {where}",  # noqa: S608  # want is a closed list of known columns; the OR-pattern is fixed
+        [v for k in keys for v in k],
+    ).fetchall()
+    keep: set[Key] = set()
+    for r in rows:
+        rec = dict(zip(["harness", "part_id", *want], r, strict=True))
+        if rf.agent is not None and rec.get("agent") != rf.agent:
+            continue
+        if rf.part_type is not None and rec.get("part_type") != rf.part_type:
+            continue
+        if rf.bili_active is not None and rec.get("bili_active") is not rf.bili_active:
+            continue
+        if rf.bili_tier is not None and rec.get("bili_tier") != rf.bili_tier:
+            continue
+        keep.add((rec["harness"], rec["part_id"]))
+    return keep
+
+
+def _partition_summaries(
+    con: ConvoConnections, ranked: list[tuple[Key, float]]
+) -> list[tuple[Key, float]]:
+    """Summaries first, preserving within-group order; NOT a re-rank.
+
+    `--summary-first` promises an ordering, so it must be a partition: a
+    score multiplier would silently reorder both groups and could not even
+    promote a summary that is outside the fused pool (measured 2026-11-10:
+    best summary at overall cosine rank 4,511 for 'mem mtime gate').
+    """
+    if not ranked:
+        return ranked
+    kinds_of = _kinds_of(con, [k for k, _ in ranked])
+    first = [kv for kv in ranked if kinds_of.get(kv[0], ("", ""))[1] == SUMMARY_PART]
+    rest = [kv for kv in ranked if kinds_of.get(kv[0], ("", ""))[1] != SUMMARY_PART]
+    return first + rest
+
+
 def _kinds_of(con: ConvoConnections, keys: list[Key]) -> dict[Key, tuple[str, str]]:
     """(role, part_type) per candidate — one OR-ed query for the whole pool.
 
@@ -633,6 +867,8 @@ def search(
     kinds: list[str] | None = None,
     query_vec=None,
     source: str | None = None,
+    rf: RowFilters | None = None,
+    summary_first: bool = False,
 ) -> dict:
     """Hybrid (default) or bm25-only search; returns the result dicts.
 
@@ -642,8 +878,22 @@ def search(
     filter. ``query_vec`` (shared_query_vector): a parent-fanned-out
     embedding used instead of a local model load when its stamp matches;
     on mismatch the leg embeds locally as before.
+
+    `rf` is the exact-match filter group and reaches INSIDE both legs — see
+    RowFilters for why post-fusion filtering cannot serve the bili lane.
+
+    `summary_first` is a PARTITION, not a boost: the compression summaries
+    keep their within-group order and are placed ahead of everything else,
+    each group still ordered by the fused score. A multiplier was measured
+    and rejected (2026-11-10): the best summary sits at overall cosine rank
+    4,511, so no post-fusion weight can lift it into a 20-row pool. A
+    partition is honest about what it does — it answers "show me the
+    summaries for this" without claiming they are the *closest* rows.
     """
     dims = _stored_dims(con)
+    # A filtered leg selects from the filtered population, so the pool stays
+    # limit-sized: over-fetching would only cost latency. `kinds` still needs
+    # its 3x because it filters AFTER fusion.
     pool = max(limit * 4, 20) * (3 if kinds else 1)
     # The FTS leg lives in a separate sqlite file with no provenance column, so
     # it cannot pre-filter and has to over-fetch instead. `orphan:` is ~10% of
@@ -655,11 +905,19 @@ def search(
         ranked = fts
         mode = "bm25"
     else:
-        cos = _cos_hits(con, query, pool, dims, query_vec, harness=harness, source=source)
+        cos = _cos_hits(con, query, pool, dims, query_vec, harness=harness, source=source, rf=rf)
         ranked = _anchored_fusion(fts, cos)
         mode = "hybrid"
     ranked = _apply_prior(con, ranked, kinds)
-    if harness or source:
+    if rf is not None and rf.any():
+        # Safety net, not the primary filter: both cosine legs already
+        # pre-filtered, but the FTS leg can only post-filter (its sidecar
+        # carries no agent/part_type — see _fts_hits). Subtract, never
+        # starve: the cosine pool was drawn from the filtered population.
+        keep = _rf_keys(con, [k for k, _ in ranked], rf)
+        ranked = [(k, s) for k, s in ranked if k in keep]
+    if summary_first:
+        ranked = _partition_summaries(con, ranked)
         # Provenance is a post-filter, not a pre-filter: the candidate pool is
         # over-fetched for `kinds` but a provenance filter would need its own
         # over-fetch to avoid starving on an uncommon label (e.g. `orphan:`),
@@ -824,6 +1082,42 @@ def main(argv: list[str] | None = None) -> int:
         help=f"comma-separated part_types to keep, e.g. text,reasoning (all: {','.join(KINDS)})",
     )
     p.add_argument(
+        "--agent",
+        default=None,
+        metavar="NAME",
+        help="exact agent filter, e.g. bili (leg-level: the candidate pool is "
+        "drawn from the filtered population, not filtered afterwards)",
+    )
+    p.add_argument(
+        "--part-type",
+        default=None,
+        metavar="TYPE",
+        help="exact part_type filter, e.g. compression-summary (leg-level, "
+        "unlike --kinds which is a post-fusion display filter that also "
+        "accepts roles)",
+    )
+    p.add_argument(
+        "--bili-active",
+        default=None,
+        metavar="{0,1}",
+        help="bili lifecycle filter: 1 = meta.active true, 0 = superseded; "
+        "omit for both. NULL (non-bili or payload without the field) never "
+        "matches either value",
+    )
+    p.add_argument(
+        "--bili-tier",
+        default=None,
+        type=int,
+        metavar="N",
+        help="keep only bili rows whose meta.tier == N",
+    )
+    p.add_argument(
+        "--summary-first",
+        action="store_true",
+        help="partition the hits: compression summaries first (their own "
+        "order preserved), everything else after — not a score boost",
+    )
+    p.add_argument(
         "--json",
         action="store_true",
         dest="as_json",
@@ -857,6 +1151,12 @@ def main(argv: list[str] | None = None) -> int:
             print(warning, file=sys.stderr)
             return 1
         kinds = [k.strip() for k in args.kinds.split(",") if k.strip()] if args.kinds else None
+        rf = RowFilters(
+            agent=args.agent,
+            part_type=args.part_type,
+            bili_active=None if args.bili_active is None else bool(int(args.bili_active)),
+            bili_tier=args.bili_tier,
+        )
         if kinds:
             unknown = [k for k in kinds if k not in KINDS]
             if unknown:
@@ -872,6 +1172,8 @@ def main(argv: list[str] | None = None) -> int:
             kinds=kinds,
             query_vec=rbc.parse_query_vector_flag(args.query_vector),
             source=args.source,
+            rf=rf,
+            summary_first=args.summary_first,
         )
     finally:
         con.close()

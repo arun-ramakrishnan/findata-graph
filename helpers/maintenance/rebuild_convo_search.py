@@ -37,8 +37,8 @@ if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
 import duckdb  # noqa: E402  # after the sys.path shim (bare-script convention)
-
 from helpers.core import duckdb_shared as ds  # noqa: E402  (bare-script entry point; bootstrap above)
+from helpers.core import jsonio  # noqa: E402  (tolerant JSON: corpus meta is data, not trust)
 from helpers.misc.duckdb_lock import connect_with_lock_retry, io_lock, open_read_only  # noqa: E402
 
 REPO = _REPO_ROOT
@@ -98,6 +98,17 @@ CREATE TABLE IF NOT EXISTS convo_search (
   text_len BIGINT, snippet VARCHAR, embedding FLOAT{sized},
   provenance VARCHAR DEFAULT '',
   content_hash VARCHAR, -- S4: sha256(full text); row_no is NOT identity
+  -- bili lane projection (proposal bili_first_class_convo_search S3): the
+  -- compression-summary payload carries its own lifecycle fields in the
+  -- corpus `meta` JSON, but `meta` itself is up to 1.9 MB per row and
+  -- never enters the index. Project ONLY the two the query surface filters
+  -- on. NULL means "this row has no bili metadata" — an unspecified
+  -- active/tier, never a default of 0/1. Column order MUST match the
+  -- migrated live table (content_hash predates bili; bili was appended via
+  -- ALTER TABLE ADD COLUMN) or the positional INSERT ... SELECT in
+  -- _bulk_insert misaligns.
+  bili_active BOOLEAN,
+  bili_tier INTEGER,
   PRIMARY KEY (harness, part_id)
 )
 """
@@ -162,20 +173,59 @@ def _provenance_migration(db_path: Path) -> bool:
     return True
 
 
+def _bili_column_migration(db_path: Path) -> bool:
+    """Add `bili_active`/`bili_tier` to an index built before S3.
+
+    Same trap as `_provenance_migration`: `CREATE TABLE IF NOT EXISTS` is a
+    no-op on an existing table, so changing the DDL alone leaves every
+    pre-existing row without the columns and nothing raises.
+
+    Returns True when the columns were just added, which makes the caller
+    backfill them from the parquet `meta` (a full re-embed would cost ~45
+    minutes to change nothing but these two columns).
+    """
+    ds.assert_not_served(db_path)  # in-place DDL write: forbidden against a served store
+    if not db_path.exists():
+        return False
+    try:
+        con = duckdb.connect(str(db_path))
+    except duckdb.Error:
+        return False
+    try:
+        cols = {r[0] for r in con.execute("DESCRIBE convo_search").fetchall()}
+    except duckdb.Error:
+        return False  # table absent: the fresh build gets them from the DDL
+    finally:
+        con.close()
+    if {"bili_active", "bili_tier"} <= cols:
+        return False
+    con = duckdb.connect(str(db_path))
+    try:
+        _load_vss(con)  # ALTER on a post-S1 store binds the HNSW index
+        con.execute("ALTER TABLE convo_search ADD COLUMN IF NOT EXISTS bili_active BOOLEAN")
+        con.execute("ALTER TABLE convo_search ADD COLUMN IF NOT EXISTS bili_tier INTEGER")
+    finally:
+        con.close()
+    return True
+
+
 def _file_hash(f: Path) -> str:
     return hashlib.blake2b(f.read_bytes(), digest_size=8).hexdigest()
 
 
 def _backfill_provenance(db_path: Path, files: list[Path]) -> tuple[int, int]:
     """Fill `provenance` on existing rows from their parquet's `source`.
-
-    Joined on `(file_path, row_no)`, NOT per-file: 19 of the 271 corpus files
+    Joined on `(file_path, part_id)`, NOT per-file: 19 of the 271 corpus files
     carry MIXED provenance (a session harvested live and also covered by a
     snapshot has both `opencode:live` and `opencode-snap:<ts>` in one file),
     so a per-file UPDATE either writes a lie or skips the file and leaves its
-    ~2,670 rows empty. `row_no` is the enumerate index over the parquet's rows,
-    which is exactly what `_read_file` stored, so the join is positional and
-    needs no re-embedding.
+    ~2,670 rows empty. `part_id` is the stable row key — the same doctrine as
+    `_provenance_drift`'s join (part_ids survive harness compactions and
+    multi-source merges; `row_no` does not: measured 2026-11-10, after the
+    dsh snapshot lane merged snapshot+live rows into one seq-ordered file,
+    39 of 491 index rows held a `row_no` that no longer matched their parquet
+    position, and the old positional backfill swapped two rows' provenance).
+    No re-embedding either way.
 
     Returns (files, rows).
     """
@@ -194,9 +244,11 @@ def _backfill_provenance(db_path: Path, files: list[Path]) -> tuple[int, int]:
             for f in files:
                 rel = str(f.relative_to(REPO))
                 try:
-                    srcs = pq.read_table(f, columns=["source"]).column("source").to_pylist()
+                    tbl = pq.read_table(f, columns=["part_id", "source"])
                 except Exception:  # noqa: S112  # unreadable file: --check reports it; index refresh continues
                     continue
+                pids = tbl.column("part_id").to_pylist()
+                srcs = tbl.column("source").to_pylist()
                 if not any(srcs):
                     continue
                 # Wire clients cannot bind parameters (Slice B learning):
@@ -204,24 +256,24 @@ def _backfill_provenance(db_path: Path, files: list[Path]) -> tuple[int, int]:
                 # for the file connect.
                 rel_lit = ds.sql_lit(rel)
                 rows = con.execute(
-                    f"SELECT row_no, provenance FROM convo_search WHERE file_path = {rel_lit}"  # noqa: S608  — rel_lit via ds.sql_lit
+                    f"SELECT part_id, provenance FROM convo_search WHERE file_path = {rel_lit}"  # noqa: S608  — rel_lit via ds.sql_lit
                 ).fetchall()
                 if not rows:
                     continue
-                by_no = dict(rows)
+                by_pid = dict(rows)
                 # one UPDATE per distinct source in the file, not per row
-                buckets: dict[str, list[int]] = {}
-                for row_no, src in enumerate(srcs):
-                    if row_no in by_no and src:
-                        buckets.setdefault(src, []).append(row_no)
+                buckets: dict[str, list[str]] = {}
+                for pid, src in zip(pids, srcs):
+                    if pid and pid in by_pid and src:
+                        buckets.setdefault(src, []).append(pid)
                 if not buckets:
                     continue
                 files_touched += 1
-                for src, nos in buckets.items():
-                    ph = ",".join(str(int(n)) for n in nos)
+                for src, ids in buckets.items():
+                    ph = ",".join(ds.sql_lit(p) for p in ids)
                     con.execute(
-                        f"UPDATE convo_search SET provenance = {ds.sql_lit(src)} "  # noqa: S608  — src/rel_lit via ds.sql_lit, row_no int-cast
-                        f"WHERE file_path = {rel_lit} AND row_no IN ({ph})"
+                        f"UPDATE convo_search SET provenance = {ds.sql_lit(src)} "  # noqa: S608  — src/rel_lit/pid via ds.sql_lit
+                        f"WHERE file_path = {rel_lit} AND part_id IN ({ph})"
                     )
             total_row = con.execute(
                 "SELECT count(*) FROM convo_search WHERE provenance <> ''"
@@ -241,8 +293,10 @@ def _backfill_models(db_path: Path, files: list[Path]) -> tuple[int, int]:
     part_ids untouched, so no incremental rebuild ever notices a changed
     facet — the corpus said one thing, the index another (measured
     2026-10-18: corpus 0 dict-string model rows, index 5,327). Same
-    positional `(file_path, row_no)` join, no re-embedding; only rows
-    whose index value differs are written, so the count is honest.
+    2026-10-18: corpus 0 dict-string model rows, index 5,327). Joins on the
+    stable `(file_path, part_id)` key (same doctrine as `_backfill_provenance`),
+    no re-embedding; only rows whose index value differs are written, so the
+    count is honest.
 
     Returns (files, rows).
     """
@@ -257,35 +311,135 @@ def _backfill_models(db_path: Path, files: list[Path]) -> tuple[int, int]:
             for f in files:
                 rel = str(f.relative_to(REPO))
                 try:
-                    models = pq.read_table(f, columns=["model"]).column("model").to_pylist()
+                    tbl = pq.read_table(f, columns=["part_id", "model"])
                 except Exception:  # noqa: S112  # unreadable file: --check reports it; index refresh continues
                     continue
+                pids = tbl.column("part_id").to_pylist()
+                models = tbl.column("model").to_pylist()
                 rows = con.execute(
-                    "SELECT row_no, model FROM convo_search WHERE file_path = ?",
+                    "SELECT part_id, model FROM convo_search WHERE file_path = ?",
                     [rel],
                 ).fetchall()
                 if not rows:
                     continue
-                by_no = dict(rows)
+                by_pid = dict(rows)
                 # one UPDATE per distinct model value in the file, not per row
-                buckets: dict[str, list[int]] = {}
-                for row_no, m in enumerate(models):
-                    if row_no in by_no and m and by_no[row_no] != m:
-                        buckets.setdefault(m, []).append(row_no)
+                buckets: dict[str, list[str]] = {}
+                for pid, m in zip(pids, models):
+                    if pid and pid in by_pid and m and by_pid[pid] != m:
+                        buckets.setdefault(m, []).append(pid)
                 if not buckets:
                     continue
                 files_touched += 1
-                for m, nos in buckets.items():
-                    ph = ",".join("?" * len(nos))
+                for m, ids in buckets.items():
+                    ph = ",".join("?" * len(ids))
                     con.execute(
                         f"UPDATE convo_search SET model = ? "  # noqa: S608  # constant template; only the placeholder count varies
-                        f"WHERE file_path = ? AND row_no IN ({ph})",
-                        [m, rel, *nos],
+                        f"WHERE file_path = ? AND part_id IN ({ph})",
+                        [m, rel, *ids],
                     )
-                    rows_touched += len(nos)
+                    rows_touched += len(ids)
         finally:
             con.close()
     return (files_touched, rows_touched)
+
+
+def _backfill_bili(db_path: Path, files: list[Path]) -> tuple[int, int]:
+    """Fill `bili_active`/`bili_tier` from the parquet `meta` on existing rows.
+
+    Same join doctrine as `_backfill_provenance`: on `(file_path, part_id)`,
+    never per file and never positionally. Only bili rows carry the fields,
+    but the SELECT is per file anyway — one UPDATE per distinct
+    (active, tier) pair, not per row.
+
+    No re-embed: this rewrites two nullable columns.
+    """
+    import pyarrow.parquet as pq
+
+    with (
+        io_lock(db_path, exclusive=True) if not ds.is_served(db_path) else contextlib.nullcontext()
+    ):
+        con = ds.connect_shared(str(db_path), read_only=False)
+        try:
+            files_touched = rows_touched = 0
+            for f in files:
+                rel = str(f.relative_to(REPO))
+                try:
+                    tbl = pq.read_table(f, columns=["part_id", "agent", "meta"])
+                except Exception:  # noqa: S112  # unreadable file: --check reports it
+                    continue
+                pids = tbl.column("part_id").to_pylist()
+                agents = tbl.column("agent").to_pylist()
+                metas = tbl.column("meta").to_pylist()
+                rel_lit = ds.sql_lit(rel)
+                rows = con.execute(
+                    f"SELECT part_id FROM convo_search WHERE file_path = {rel_lit}"  # noqa: S608  — rel_lit via ds.sql_lit
+                ).fetchall()
+                if not rows:
+                    continue
+                indexed = {r[0] for r in rows}
+                # (active, tier) -> [part_id, ...]: a handful of buckets per
+                # file, so this is a few UPDATEs rather than one per row.
+                buckets: dict[tuple[bool | None, int | None], list[str]] = {}
+                for pid, ag, meta in zip(pids, agents, metas, strict=True):
+                    if not pid or pid not in indexed:
+                        continue
+                    proj = _bili_columns({"agent": ag or "", "meta": meta})
+                    key = (proj["bili_active"], proj["bili_tier"])
+                    if key == (None, None):
+                        continue
+                    buckets.setdefault(key, []).append(pid)
+                if not buckets:
+                    continue
+                files_touched += 1
+                for (active, tier), ids in buckets.items():
+                    ph = ",".join(ds.sql_lit(p) for p in ids)
+                    act_sql = "NULL" if active is None else ("TRUE" if active else "FALSE")
+                    tier_sql = "NULL" if tier is None else str(int(tier))
+                    con.execute(
+                        f"UPDATE convo_search SET bili_active = {act_sql}, "  # noqa: S608  — literals via ds.sql_lit / int
+                        f"bili_tier = {tier_sql} "
+                        f"WHERE file_path = {rel_lit} AND part_id IN ({ph})"
+                    )
+                    rows_touched += len(ids)
+        finally:
+            con.close()
+    return (files_touched, rows_touched)
+
+
+def _bili_columns(row: dict) -> dict:
+    """Project the bili lifecycle fields out of the corpus `meta` JSON.
+
+    S3 of proposal bili_first_class_convo_search: the compression-summary
+    payload carries `tier`/`active`/`namespace`, and the corpus `meta`
+    column is the ONLY place they live. It is also up to 1.9 MB per row
+    (74 MB across the corpus) so it never enters the index — this projects
+    just the two the query surface filters on.
+
+    Returns NULL for both on every non-bili row, and on a bili row whose
+    payload predates the fields: NULL means "unspecified", which the CLI
+    reports as such. It must never become False/0 — that would claim the
+    row was deliberately deactivated.
+    """
+    if row.get("agent") != "bili":
+        return {"bili_active": None, "bili_tier": None}
+    raw = row.get("meta")
+    if not raw:
+        return {"bili_active": None, "bili_tier": None}
+    try:
+        meta = jsonio.loads(raw) if isinstance(raw, str) else raw
+    except jsonio.JSONDecodeError, TypeError:
+        # A malformed payload is a data problem to surface, not a crash in
+        # the middle of a 200k-row rebuild — and not a silent False.
+        return {"bili_active": None, "bili_tier": None}
+    if not isinstance(meta, dict):
+        return {"bili_active": None, "bili_tier": None}
+    active = meta.get("active")
+    tier = meta.get("tier")
+    return {
+        "bili_active": None if active is None else bool(active),
+        "bili_tier": int(tier) if isinstance(tier, int) else None,
+    }
 
 
 def _read_file(f: Path) -> tuple[str, list[dict]]:
@@ -322,6 +476,7 @@ def _read_file(f: Path) -> tuple[str, list[dict]]:
                 "text_len": len(text),
                 "snippet": text[:SNIPPET_CAP],
                 "provenance": r.get("source") or "",
+                **_bili_columns(r),
                 "content_hash": hashlib.sha256(text.encode("utf-8", "replace")).hexdigest(),
             }
         )
@@ -561,6 +716,8 @@ _STAGE_SCHEMA_FIELDS = (
     ("embedding", "listf32"),
     ("provenance", "string"),
     ("content_hash", "string"),
+    ("bili_active", "bool"),
+    ("bili_tier", "int64"),
 )
 
 
@@ -609,6 +766,12 @@ def _bulk_insert(con: duckdb.DuckDBPyConnection, rows: list[dict], vecs: list[li
             pa.field("provenance", pa.string()),
             # S4: sha256(full text) — the change-fingerprint identity column
             pa.field("content_hash", pa.string()),
+            # bili lifecycle projection (S3): NULL for every row that carries no
+            # compression-summary metadata, so the filter can distinguish
+            # "unspecified" from "superseded" without a sentinel. Column order
+            # MUST match the DDL / _STAGE_SCHEMA_FIELDS (positional insert).
+            pa.field("bili_active", pa.bool_()),
+            pa.field("bili_tier", pa.int64()),
         ]
     )
     table = pa.Table.from_pydict(
@@ -1005,6 +1168,22 @@ def _ensure_provenance_backfill(db_path: Path, files: list[Path]) -> None:
     )
 
 
+def _ensure_bili_backfill(db_path: Path, files: list[Path]) -> None:
+    """Backfill `bili_active`/`bili_tier` right after the migration added them.
+
+    Identical reasoning to `_ensure_provenance_backfill`: an incremental run
+    re-reads only changed files, so every other row would keep NULL forever —
+    which the CLI reports as "unspecified" rather than "not bili".
+    """
+    if not _bili_column_migration(db_path):
+        return
+    n_files, n_rows = _backfill_bili(db_path, files)
+    print(
+        f"bili: columns added — backfilled {n_rows} row(s) from {n_files} parquet file(s)",
+        file=sys.stderr,
+    )
+
+
 def _apply_write_window(
     db_path: Path,
     stored: dict[str, str],
@@ -1076,6 +1255,7 @@ def rebuild(
         return compact_via_copy(db_path)
 
     _ensure_provenance_backfill(db_path, files)
+    _ensure_bili_backfill(db_path, files)
 
     rows: list[dict] = []
     vecs: list[list[float]] = []

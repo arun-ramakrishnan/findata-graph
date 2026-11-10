@@ -110,12 +110,18 @@ def _write_pools(tree):
 @pytest.fixture
 def tree(tmp_path, monkeypatch):
     """Mini three-pool layout; ALL module constants retargeted (the
-    VAULT_ROOT lesson) so CLI defaults land inside tmp, never the live repo."""
+    VAULT_ROOT lesson) so CLI defaults land inside tmp, never the live repo.
+
+    SNAP_ROOT is retargeted too and left ABSENT: the live timeshift mount
+    must never leak into a hermetic test (and an absent mount is the normal
+    state anyway). Tests that want the history lane build their own images.
+    """
     _write_pools(tmp_path)
     monkeypatch.setattr(rms, "MEMORY_DB", tmp_path / "memory_search.db")
     monkeypatch.setattr(rms, "ZCODE_PROJECTS", tmp_path / "zcode-projects")
     monkeypatch.setattr(rms, "PRIME_STATE", tmp_path / "prime" / "harness" / "harness_state.json")
     monkeypatch.setattr(rms, "OPENCODE_MEM", tmp_path / "opencode")
+    monkeypatch.setattr(rms, "SNAP_ROOT", tmp_path / "absent-snap")
     return tmp_path
 
 
@@ -294,6 +300,7 @@ class TestBuild:
         monkeypatch.setattr(rms, "ZCODE_PROJECTS", tmp_path / "absent-zcode")
         monkeypatch.setattr(rms, "PRIME_STATE", tmp_path / "absent-prime.json")
         monkeypatch.setattr(rms, "OPENCODE_MEM", tmp_path / "absent-opencode")
+        monkeypatch.setattr(rms, "SNAP_ROOT", tmp_path / "absent-snap")
         stats = rms.rebuild(tmp_path / "memory_search.db", embed_fn=_fake_embed)
         assert stats["total_rows"] == 0
         assert not stats["index_stale"]

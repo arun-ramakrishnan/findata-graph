@@ -37,6 +37,28 @@ entry number and stale DONE pointers):
    repointed 16 dead sites).
 
 ## Current live proposals
+*(none)*
+- *(archived 2026-11-10)* — `bili_first_class_convo_search` executed same
+  day, #500 (`../archive/convo_search/bili_first_class_convo_search.md`;
+  bili compression summaries as first-class convo_search citizens:
+  leg-level `--agent/--part-type/--bili-active/--bili-tier` filters +
+  `--summary-first` partition, orphan relabel kept — `--agent bili`
+  pierces it, `bili_active/bili_tier` backfilled on the
+  `(file_path, part_id)` join across 1,607 rows / 63 files; the as-filed
+  `agent_norm/part_type_norm` columns measured redundant and the ×1.5
+  post-fusion boost measured inoperative — the pool is drawn before
+  fusion — so S4 became the partition)
+- *(archived 2026-11-10)* — `timeshift_snapshot_lane` executed same day,
+  #499 (`../archive/convo_search/timeshift_snapshot_lane.md`;
+  `snap-images:seen` stamp registry replaces the inert source-count scalar
+  (an ABSENT backup mount is never drift), dsh snapshot glob adds 16,901
+  `dsh-snap:<stamp>` rows where there were none, the live-id probe unions
+  `session_v2`/`session`/`session_message` and fails closed instead of
+  relabelling 3 live sessions, `zcode-snap:<stamp>` per-image labels (plus
+  the double-prefix composition bug caught by querying the lane), and a
+  166-record `--history` lane in memory_search for doctrine that only
+  survives in snapshots)
+
 - *(archived 2026-11-09)* — `rusqlite_bump_rustsec_2026_0459` executed
   same day, #498 (`../archive/tooling/rusqlite_bump_rustsec_2026_0459.md`;
   rusqlite 0.41.1 both workspaces, `libsqlite3-sys` 0.39.1, `cargo audit`

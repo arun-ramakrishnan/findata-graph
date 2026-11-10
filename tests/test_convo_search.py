@@ -60,7 +60,13 @@ def _oc_db(path: Path, parts: list[dict]) -> None:
 @pytest.fixture()
 def convo_env(tmp_path, monkeypatch):
     """Synthetic sources + retargeted module constants; returns the tmp root."""
-    oc_snap = tmp_path / "snap_old/localhost/home/arun/.local/share/opencode/opencode.db"
+    # A dedicated mount root holding ONE dated image. Pointing SNAP_ROOT at
+    # tmp_path itself made every tmp subdir ("corpus", "home", "live", ...)
+    # look like a snapshot image to _snap_stamps().
+    oc_snap = (
+        tmp_path
+        / "snaproot/2026-07-26_19-00-02/localhost/home/arun/.local/share/opencode/opencode.db"
+    )
     oc_live = tmp_path / "live/opencode.db"
     _oc_db(
         oc_snap,
@@ -116,7 +122,7 @@ def convo_env(tmp_path, monkeypatch):
         + "\n"
     )
 
-    monkeypatch.setattr(hc, "SNAP_ROOT", tmp_path)
+    monkeypatch.setattr(hc, "SNAP_ROOT", tmp_path / "snaproot")
     monkeypatch.setattr(Path, "home", lambda: tmp_path / "home", raising=False)
     # Source lists point at the synthetic dbs (both opencode dbs feed the
     # dedup assertion; prime/zcode live under the patched home).
@@ -165,9 +171,13 @@ def test_harvest_skips_unreadable_source_and_keeps_the_rest(convo_env, monkeypat
     still harvests everything else.
     """
     tmp = convo_env
-    oc_snap = tmp / "snap_old/localhost/home/arun/.local/share/opencode/opencode.db"
+    oc_snap = (
+        tmp / "snaproot/2026-07-26_19-00-02/localhost/home/arun/.local/share/opencode/opencode.db"
+    )
     oc_live = tmp / "live/opencode.db"
-    boom = tmp / "snap_bad/localhost/home/arun/.local/share/opencode/opencode.db"
+    boom = (
+        tmp / "snaproot/2026-08-26_19-00-01/localhost/home/arun/.local/share/opencode/opencode.db"
+    )
     boom.parent.mkdir(parents=True, exist_ok=True)
     boom.write_bytes(b"this is not a sqlite database at all")
 
@@ -801,7 +811,9 @@ def test_query_hybrid_fuse(convo_env, monkeypatch):
         monkeypatch.setattr(
             cq,
             "_cos_hits",
-            lambda c, q, limit, dims, query_vec=None, harness=None, source=None: [
+            # rf: the bili exact-match filters thread into the cosine leg
+            # (bili_first_class_convo_search S1) — stubs must track it.
+            lambda c, q, limit, dims, query_vec=None, harness=None, source=None, rf=None: [
                 (("prime-rlm", "pm1:0"), 0.9)
             ],
         )

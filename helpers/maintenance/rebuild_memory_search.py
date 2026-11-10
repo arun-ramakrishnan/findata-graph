@@ -75,6 +75,10 @@ MEMORY_DB = _REPO_ROOT / "memory" / "memory_search.db"
 ZCODE_PROJECTS = Path.home() / ".zcode" / "cli" / "memories" / "projects"
 PRIME_STATE = Path.home() / ".prime" / "agent" / "harness" / "harness_state.json"
 OPENCODE_MEM = _REPO_ROOT / ".opencode" / "memory"
+# Timeshift backup mount — the SNAPSHOT-HISTORY lane's only source. It is a
+# backup mount: ABSENT IS NORMAL (never an error, never drift), so every
+# extractor below returns empty when it is not there.
+SNAP_ROOT = Path("/mnt/store/timeshift/snapshots")
 
 # FTS5 DDL, mirroring script_search's shape (title is the match-heavy
 # column; the handles are UNINDEXED). FTS5 can't ALTER TABLE ADD COLUMN,
@@ -123,6 +127,15 @@ _ROW_COLS = "title, kind, name, source_path, purpose, content, embedding"
 # opencode audit file: deleted records are history, not live doctrine —
 # the plugin's own loader filters it the same way.
 _OPENCODE_SKIP = {"deletions.logfmt"}
+
+# Snapshot-history kinds: doctrine recovered from timeshift images. They exist
+# in the same table as the live pools but must NOT win a live recall by
+# default — "what do we believe now" is the everyday question. `--history`
+# includes them; `--history-only` asks "was this ever true" without borrowing
+# today's answer.
+_HISTORY_KINDS = ("zcode-snap", "prime-snap", "opencode-snap")
+_HISTORY_KIND_SET = frozenset(_HISTORY_KINDS)
+_LIVE_KINDS = ("zcode", "prime", "opencode")
 
 # logfmt ``key="quoted value"`` / ``key=bare`` scanner. The record is one
 # physical line by logfmt contract (content newlines are escaped \n).
@@ -345,6 +358,305 @@ def _extract_opencode_units(
                 }
             )
         meta[loc] = (mtime, _hash_unit(raw))
+    return units, meta
+
+
+# --- snapshot-history lane -------------------------------------------------
+# Doctrine that has ROTATED OUT of the live pools survives only in the
+# timeshift images. It is history, not live doctrine, so it goes in the SAME
+# sidecar under distinct kinds (`zcode-snap` / `prime-snap` /
+# `opencode-snap`) rather than a separate index: "what do we believe now"
+# and "what did we believe on 2026-08-26" stay one query apart.
+#
+# DEDUPE IS THE WHOLE DESIGN. Six images carrying the same unchanged record
+# would otherwise yield six identical rows. Each history unit is keyed by the
+# CONTENT hash of the record it carries, so:
+#   - a record byte-identical to its live version produces NO history row
+#     (asking "was this ever true" about today's text is noise);
+#   - a record present unchanged across N images produces ONE row whose
+#     `seen` stamps list all N images (provenance without duplication).
+#
+# The row keeps the OLDEST stamp the content was seen at: "how far back does
+# this go" is the question the lane exists to answer.
+
+
+def _snap_stamps(root: Path) -> list[str]:
+    """Visible image stamps, oldest first. Empty when the mount is absent —
+    the backup mount is routinely unmounted, and that is NORMAL."""
+    if not root.is_dir():
+        return []
+    try:
+        return sorted(p.name for p in root.iterdir() if p.is_dir())
+    except OSError:
+        return []
+
+
+def _snap_ts(path: Path, root: Path) -> str:
+    """Image stamp of a path under the mount ("" when it is not under it)."""
+    try:
+        return path.relative_to(root).parts[0]
+    except ValueError:
+        return ""
+
+
+def _snap_home(root: Path, stamp: str) -> Path:
+    """The image's $HOME: timeshift stores <root>/<stamp>/localhost/home/<user>."""
+    return root / stamp / "localhost" / "home" / Path.home().name
+
+
+def _history_unit(
+    *,
+    kind: str,
+    name: str,
+    title: str,
+    purpose: str,
+    content: str,
+    source_path: str,
+    stamp: str,
+    mtime: float,
+) -> dict:
+    """One snapshot-history unit. `hash` is the CONTENT identity (not the
+    file's): dedupe on it is what keeps six images from six rows."""
+    return {
+        "kind": kind,
+        "name": name,
+        "title": title,
+        "purpose": purpose,
+        "content": content,
+        "source_path": source_path,
+        "mtime": mtime,
+        "hash": _hash_unit(content),
+        "unit_key": source_path,
+    }
+
+
+def _dedupe_history(
+    units: list[dict], live_hashes: set[str]
+) -> tuple[list[dict], dict[str, tuple[float, str]]]:
+    """Drop rows whose content is live unchanged, merge repeats across
+    images, and return (units, source-file meta).
+
+    Two content versions of the SAME name both survive (that is the point:
+    the doctrine changed, and both states are historically true); they are
+    told apart by their source_path stamp."""
+    by_key: dict[str, tuple[dict, set[str]]] = {}
+    for unit in units:
+        if unit["hash"] in live_hashes:
+            continue
+        key = f"{unit['kind']}|{unit['name']}|{unit['hash']}"
+        kept = by_key.get(key)
+        if kept is None:
+            by_key[key] = (unit, {unit["_stamp"]})
+            continue
+        row, stamps = kept
+        stamps.add(unit["_stamp"])
+        if unit["_stamp"] < row["_stamp"]:
+            row["_stamp"] = unit["_stamp"]
+            row["source_path"] = unit["source_path"]
+            row["mtime"] = unit["mtime"]
+    out: list[dict] = []
+    meta: dict[str, tuple[float, str]] = {}
+    for row, stamps in by_key.values():
+        ordered = sorted(stamps)
+        seen = ", ".join(ordered) if len(ordered) <= 3 else f"{ordered[0]} … {ordered[-1]}"
+        tail = f"seen {seen} in {len(ordered)} image(s)"
+        row["purpose"] = f"{tail} — {row['purpose']}" if row["purpose"] else tail
+        row.pop("_stamp", None)
+        out.append(row)
+        meta[row["source_path"]] = (row["mtime"], row["hash"])
+    return out, meta
+
+
+def _live_pool_hashes(
+    zcode_projects: Path, prime_state: Path, opencode_dir: Path
+) -> dict[str, set[str]]:
+    """Per-pool content hashes of TODAY'S live records: the dedupe basis.
+
+    A snapshot record byte-identical to a live record is not history — it is
+    today's doctrine, and the live row already says so."""
+    units, _meta = _collect_units(zcode_projects, prime_state, opencode_dir)
+    out: dict[str, set[str]] = {"zcode": set(), "prime": set(), "opencode": set()}
+    for unit in units:
+        out[unit["kind"]].add(_hash_unit(unit["content"]))
+    return out
+
+
+def _extract_zcode_history(
+    projects: Path, root: Path, live_hashes: set[str]
+) -> tuple[list[dict], dict[str, tuple[float, str]]]:
+    """zcode doctrine versions that exist only inside timeshift images.
+
+    Scopes are deduped by realpath exactly like the live extractor, and a
+    scope whose memory dir resolves OUTSIDE the image (the 2026-11-07 image
+    carries live-pointing symlinks) contributes NOTHING: reading through such
+    a link would re-index the live pool as history."""
+    units: list[dict] = []
+    seen_real: set[str] = set()
+    for stamp in _snap_stamps(root):
+        projects_dir = _snap_home(root, stamp) / ".zcode" / "cli" / "memories" / "projects"
+        if not projects_dir.is_dir():
+            continue
+        for scope in sorted(projects_dir.iterdir()):
+            mem = scope / "memory"
+            if not mem.is_dir():
+                continue
+            try:
+                real = str(mem.resolve())
+            except OSError:
+                continue
+            if not real.startswith(str(root)) or real in seen_real:
+                continue
+            seen_real.add(real)
+            for p in sorted(mem.glob("*.md")):
+                try:
+                    raw = p.read_text(encoding="utf-8", errors="replace")
+                    mtime = p.stat().st_mtime
+                except OSError:
+                    continue
+                fields, body = _split_zcode_frontmatter(raw)
+                name = fields.get("name") or p.stem
+                content = (
+                    f"type: {fields['type']}\n\n{body.strip()}"
+                    if fields.get("type")
+                    else body.strip()
+                )
+                unit = _history_unit(
+                    kind="zcode-snap",
+                    name=name,
+                    title=name if name != "MEMORY" else "MEMORY.md index",
+                    purpose=fields.get("description", ""),
+                    content=content,
+                    source_path=_abbrev_home(p),
+                    stamp=stamp,
+                    mtime=mtime,
+                )
+                unit["_stamp"] = stamp
+                units.append(unit)
+    return _dedupe_history(units, live_hashes)
+
+
+def _extract_prime_history(
+    state: Path, root: Path, live_hashes: set[str]
+) -> tuple[list[dict], dict[str, tuple[float, str]]]:
+    """prime-rlm `entries.memory` entries recoverable only from images."""
+    units: list[dict] = []
+    for stamp in _snap_stamps(root):
+        snap_state = _snap_home(root, stamp) / ".prime" / "agent" / "harness" / "harness_state.json"
+        if not snap_state.is_file():
+            continue
+        try:
+            raw = snap_state.read_text(encoding="utf-8", errors="replace")
+            mtime = snap_state.stat().st_mtime
+            doc = jsonio.loads(raw)
+        except OSError, jsonio.JSONDecodeError:
+            continue
+        entries = doc.get("entries") if isinstance(doc, dict) else None
+        memories = entries.get("memory") if isinstance(entries, dict) else None
+        for mid, entry in sorted((memories or {}).items()):
+            entry = entry or {}
+            content = (entry.get("content") or "").strip()
+            if not content:
+                continue
+            title = (entry.get("title") or mid).strip()
+            unit = _history_unit(
+                kind="prime-snap",
+                name=mid,
+                title=title,
+                purpose=title,
+                content=content,
+                source_path=f"{_abbrev_home(snap_state)}#{mid}",
+                stamp=stamp,
+                mtime=mtime,
+            )
+            unit["_stamp"] = stamp
+            units.append(unit)
+    return _dedupe_history(units, live_hashes)
+
+
+def _extract_opencode_history(
+    memdir: Path, root: Path, live_hashes: set[str]
+) -> tuple[list[dict], dict[str, tuple[float, str]]]:
+    """opencode logfmt records recoverable only from images.
+
+    The live pool sits INSIDE the repo, so the images carry it under the
+    worktree path; deletions.logfmt is skipped there too (audit trail)."""
+    units: list[dict] = []
+    try:
+        rel = memdir.relative_to(Path.home())
+    except ValueError:
+        return [], {}
+    for stamp in _snap_stamps(root):
+        snap_dir = _snap_home(root, stamp) / rel
+        if not snap_dir.is_dir():
+            continue
+        for p in sorted(snap_dir.glob("*.logfmt")):
+            if p.name in _OPENCODE_SKIP:
+                continue
+            try:
+                raw = p.read_text(encoding="utf-8", errors="replace")
+                mtime = p.stat().st_mtime
+            except OSError:
+                continue
+            for line in raw.splitlines():
+                rec = _parse_logfmt_line(line)
+                if not rec.get("content"):
+                    continue
+                content = (
+                    f"type: {rec.get('type', '')}\ntags: {rec.get('tags', '')}\n\n" + rec["content"]
+                )
+                scope = rec.get("scope", "")
+                unit = _history_unit(
+                    kind="opencode-snap",
+                    # Name carries NO stamp: the dedupe key is
+                    # kind|name|content-hash, and a stamped name would keep
+                    # six images of one unchanged record as six rows.
+                    name=f"{p.stem}#{_hash_unit(content)[:8]}",
+                    title=scope or p.stem,
+                    purpose=scope,
+                    content=content,
+                    source_path=f"{_abbrev_home(p)}#{_hash_unit(content)[:8]}",
+                    stamp=stamp,
+                    mtime=mtime,
+                )
+                unit["_stamp"] = stamp
+                units.append(unit)
+    return _dedupe_history(units, live_hashes)
+
+
+def _collect_history_units(
+    zcode_projects: Path | None = None,
+    prime_state: Path | None = None,
+    opencode_dir: Path | None = None,
+    snap_root: Path | None = None,
+) -> tuple[list[dict], dict[str, tuple[float, str]]]:
+    """Snapshot-history units across the three doctrine pools.
+
+    Absent mount => no rows and no meta, silently: the timeshift root is a
+    backup mount and its absence is normal, NOT drift."""
+    root = Path(snap_root or SNAP_ROOT)
+    if not root.is_dir():
+        return [], {}
+    zcode_projects = Path(zcode_projects or ZCODE_PROJECTS)
+    prime_state = Path(prime_state or PRIME_STATE)
+    opencode_dir = Path(opencode_dir or OPENCODE_MEM)
+    live = _live_pool_hashes(zcode_projects, prime_state, opencode_dir)
+    units: list[dict] = []
+    meta: dict[str, tuple[float, str]] = {}
+    for extract, pool in (
+        (_extract_zcode_history, "zcode"),
+        (_extract_prime_history, "prime"),
+        (_extract_opencode_history, "opencode"),
+    ):
+        target = {
+            "zcode": zcode_projects,
+            "prime": prime_state,
+            "opencode": opencode_dir,
+        }[pool]
+        got, m = extract(target, root, live[pool])
+        units += got
+        # meta keys carry the snap:: prefix so a reader can tell a history
+        # source file from a live one without re-deriving the lane.
+        meta.update({f"snap::{k}": v for k, v in m.items()})
     return units, meta
 
 
@@ -624,13 +936,17 @@ def rebuild(
     zcode_projects: Path | None = None,
     prime_state: Path | None = None,
     opencode_dir: Path | None = None,
+    snap_root: Path | None = None,
 ) -> dict:
-    """Rebuild the memory_search FTS index. Returns a stats dict."""
+    """Rebuild the memory_search FTS index. Returns a stats dict.
+
+    The snapshot-history lane rides along: `snap_root` defaults to SNAP_ROOT,
+    and an absent mount simply contributes nothing."""
+
     from datetime import datetime
 
     from helpers.maintenance.maint_timing import current as _mt_timer
 
-    db_path = Path(db_path) if db_path is not None else MEMORY_DB
     conn = connect_memory_db(db_path)
     stats: dict = {}
     _mt = _mt_timer()  # None outside a CLI run (tests): all timing below is a no-op
@@ -646,6 +962,11 @@ def rebuild(
 
         _collect_started = datetime.now()
         units, files_meta = _collect_units(zcode_projects, prime_state, opencode_dir)
+        hist_units, hist_meta = _collect_history_units(
+            zcode_projects, prime_state, opencode_dir, snap_root
+        )
+        units += hist_units
+        files_meta.update(hist_meta)
         if _mt:
             _mt.record_phase(
                 "collect", _collect_started, datetime.now(), extra=f"units={len(units)}"
@@ -669,6 +990,8 @@ def rebuild(
 
         stats["total_units"] = len(units)
         stats["total_rows"] = len(all_rows)
+        stats["history_units"] = len(hist_units)
+        stats["history_snapshots"] = len(_snap_stamps(Path(snap_root or SNAP_ROOT)))
         stats["embedded"] = sum(1 for r in all_rows if r[6])
         by_kind: dict[str, int] = {}
         for r in all_rows:
@@ -724,8 +1047,10 @@ def _print_staleness(stats: dict) -> None:
 def _summary_line(stats: dict) -> str:
     by_kind = stats.get("by_kind", {})
     breakdown = ", ".join(f"{k}={by_kind[k]}" for k in sorted(by_kind))
+    hist = stats.get("history_units", 0)
+    hist_note = f", {hist} snapshot-history record(s)" if hist else ""
     return (
-        f"memory_search: {stats.get('total_rows', 0)} records ({breakdown}) "
+        f"memory_search: {stats.get('total_rows', 0)} records ({breakdown}){hist_note} "
         f"({stats.get('embed_model', 'n/a')})"
     )
 
@@ -750,6 +1075,7 @@ def memory_index_stale(
     zcode_projects: Path | None = None,
     prime_state: Path | None = None,
     opencode_dir: Path | None = None,
+    snap_root: Path | None = None,
 ) -> bool:
     """True when the pools differ from memory_search_meta (file set or
     content hashes) — the read-path staleness probe. Any error counts as
@@ -764,7 +1090,19 @@ def memory_index_stale(
     if not meta:
         return True
     _units, files_meta = _collect_units(zcode_projects, prime_state, opencode_dir)
-    if meta.keys() - files_meta.keys():
+    # The snapshot-history lane participates in the staleness verdict ONLY as a
+    # REMOVAL probe. It may legitimately be empty (mount absent — a backup
+    # mount, not an error), so an ABSENT mount must never mark the index stale;
+    # while a history row that vanished from a PRESENT mount must. Snapshots are
+    # immutable, so no history meta key is ever "changed" — only new or gone.
+    root = Path(snap_root or SNAP_ROOT)
+    _hist_units, hist_meta = _collect_history_units(zcode_projects, prime_state, opencode_dir, root)
+    files_meta.update(hist_meta)
+    removed = meta.keys() - files_meta.keys()
+    if not root.is_dir():
+        # Lane idle, not deleted: keep stored snap:: rows out of the verdict.
+        removed = {k for k in removed if not k.startswith("snap::")}
+    if removed:
         return True
     # hash-exact (mtime excluded — the shared-index worktree lesson), and
     # cheap at this corpus size
@@ -842,6 +1180,67 @@ def _cosine_leg(
     return scored, sims
 
 
+def _kind_ok(value: str, kind: str | None, history: str) -> bool:
+    """Kind predicate for the history axis; an explicit kind wins over it."""
+    if kind:
+        return value == kind
+    if history == "only":
+        return value in _HISTORY_KIND_SET
+    if history == "exclude":
+        return value not in _HISTORY_KIND_SET
+    return True
+
+
+def _memory_where(expr: str, kind: str | None, history: str) -> tuple[str, list]:
+    """FTS MATCH plus the kind filter. An explicit kind wins over history."""
+    where = "memory_search MATCH ?"
+    params: list = [expr]
+    if kind:
+        where += " AND kind = ?"
+        params.append(kind)
+    elif history in ("only", "exclude"):
+        placeholders = ", ".join("?" * len(_HISTORY_KINDS))
+        where += f" AND kind {'IN' if history == 'only' else 'NOT IN'} ({placeholders})"  # noqa: S608  # fixed keyword + fixed placeholder count
+        params.extend(_HISTORY_KINDS)
+    return where, params
+
+
+def _memory_candidates(
+    conn: sqlite3.Connection,
+    page: list[sqlite3.Row],
+    scored: list[tuple[int, float]],
+    cos_rank: dict[int, int] | None,
+    kind: str | None,
+    history: str,
+    limit: int,
+) -> list[tuple[int, sqlite3.Row, str]]:
+    """BM25 page plus cosine-only rows, as (rank, row, snippet-head) triples."""
+    candidates: list[tuple[int, sqlite3.Row, str]] = [
+        (pos, row, row[7]) for pos, row in enumerate(page)
+    ]
+    if cos_rank is None:
+        return candidates
+    page_rids = {row[0] for row in page}
+    rows_by_rid = {
+        r[0]: r
+        for r in conn.execute(
+            "SELECT rowid, title, kind, name, source_path, purpose, content FROM memory_search"
+        )
+        if _kind_ok(r[2], kind, history)
+    }
+    extra = 0
+    for rid, _sim in scored[:limit]:
+        if rid in page_rids:
+            continue
+        row = rows_by_rid.get(rid)
+        if row is None:
+            continue
+        head = " ".join((row[6] or "").split())[:200]
+        candidates.append((len(page) + extra, row, head))
+        extra += 1
+    return candidates
+
+
 def search_memories(
     conn: sqlite3.Connection,
     q: str,
@@ -850,20 +1249,22 @@ def search_memories(
     kind: str | None = None,
     hybrid: bool = True,
     query_vec: rbc.QueryVector | None = None,
+    history: str = "exclude",
 ) -> dict:
     """Hybrid BM25 + cosine search over memory_search. Never raises.
 
     Same candidate-union + RRF design as rebuild_script_search.search_scripts
-    (the shared two-leg RRF formula), filtered on the UNINDEXED kind column. At this
-    corpus size (~70 rows) the Python cosine loop is free."""
+    (the shared two-leg RRF formula), filtered on the UNINDEXED kind column.
+
+    ``history`` governs the snapshot-history kinds (zcode-snap / prime-snap /
+    opencode-snap): "exclude" (default) answers "what do we believe NOW",
+    "include" adds the recovered doctrine, "only" asks "was this ever true".
+    An explicit ``kind`` wins over ``history`` — naming a kind is unambiguous.
+    """
     expr = rds.fts_match_expr(q)
     if not expr:
         return {"mode": "bm25", "results": []}
-    where = "memory_search MATCH ?"
-    params: list = [expr]
-    if kind:
-        where += " AND kind = ?"
-        params.append(kind)
+    where, params = _memory_where(expr, kind, history)
     try:
         page = conn.execute(
             f"SELECT rowid, title, kind, name, source_path, purpose, rank, "  # noqa: S608  # WHERE fully parameterized; f-string interpolates fixed columns only
@@ -878,30 +1279,7 @@ def search_memories(
 
     scored, sims = _cosine_leg(conn, q, query_vec) if hybrid else ([], {})
     cos_rank = {rid: pos for pos, (rid, _s) in enumerate(scored)} if scored else None
-
-    candidates: list[tuple[int, sqlite3.Row, str]] = [
-        (pos, row, row[7]) for pos, row in enumerate(page)
-    ]
-    if cos_rank is not None:
-        page_rids = {row[0] for row in page}
-        rows_by_rid = {
-            r[0]: r
-            for r in conn.execute(
-                "SELECT rowid, title, kind, name, source_path, purpose, content FROM memory_search"
-            )
-            if kind is None or r[2] == kind
-        }
-        extra = 0
-        for rid, _sim in scored[:limit]:
-            if rid in page_rids:
-                continue
-            row = rows_by_rid.get(rid)
-            if row is None:
-                continue
-            head = " ".join((row[6] or "").split())[:200]
-            candidates.append((len(page) + extra, row, head))
-            extra += 1
-
+    candidates = _memory_candidates(conn, page, scored, cos_rank, kind, history, limit)
     worst = len(cos_rank) if cos_rank else 0
     fused = rrf_two_leg(candidates, cos_rank, worst)
 

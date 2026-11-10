@@ -325,13 +325,21 @@ def test_v2_backfill_seed_skips_harvested(v2_env):
     assert "opencode total new: 0" in stats["lanes"]
 
 
-def test_missing_snapshot_root_is_drift(v2_env, monkeypatch):
+def test_absent_snapshot_root_is_not_drift(v2_env, monkeypatch):
+    """An unmounted backup mount is NORMAL, never drift (operator constraint).
+
+    /mnt/store/timeshift/snapshots is a backup mount and is legitimately
+    absent for long stretches. The retired check emitted `missing snapshot
+    root ...` as an index-stale item, which turned `make convo-fresh --check`
+    red through every unmounted window instead of reporting a quiet lane.
+    """
     tmp_path, _db = v2_env
     hc.harvest(corpus_root=tmp_path / "corpus", db=tmp_path / "c.duckdb")
     monkeypatch.setattr(hc, "SNAP_ROOT", Path("/nonexistent-timeshift-root"))
     out = hc.harvest(check=True, corpus_root=tmp_path / "corpus", db=tmp_path / "c.duckdb")
-    assert out["index_stale"]
-    assert any("missing snapshot root" in d for d in out["stale_new"])
+    assert not out["index_stale"]
+    assert not any("snapshot" in d for d in out["stale_new"])
+    assert any(line.startswith("snapshots: mount absent") for line in out["coverage"])
 
 
 def test_oc_model_value_shapes():
