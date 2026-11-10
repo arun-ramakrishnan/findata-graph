@@ -1022,7 +1022,7 @@ def _cli(argv: list[str] | None = None) -> int:
         _corpus = None
         if args.corpus and _HAS_CORPUS:
             try:
-                _corpus = Corpus.load("findata", workers=1, use_cache=True)  # ty: ignore[unresolved-attribute]
+                _corpus = Corpus.load("findata", workers=1, use_cache=True)  # ty: ignore[missing-union-attribute]
             except Exception:  # noqa: S110
                 _corpus = None
         # S1 (polyadic): resolve-only participant resolver over ALL entity

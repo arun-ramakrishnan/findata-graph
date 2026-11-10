@@ -405,7 +405,7 @@ def _chain_path(pred, row: int, a: int, b: int) -> list[int]:
     return path
 
 
-def longest_chains(
+def longest_chains(  # noqa: C901  # one flat report over two edge views; splitting scatters the exact-vs-sampled cap contract
     conn, top_k: int = 5, *, max_exact: int = CHAIN_CAP, exact: bool = False
 ) -> list[str]:
     """Render the longest-chains section lines (pure function of ``conn``).

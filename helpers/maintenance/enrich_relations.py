@@ -899,7 +899,7 @@ def _semantic_pair_for_company(
 ) -> list[tuple[tuple[str, str], dict]]:
     """Fetch top-k neighbours for one company and return canonical pairs."""
     try:
-        neigh = gq.semantic_neighbors(dcon, company, k=k)  # ty: ignore[unresolved-attribute]
+        neigh = gq.semantic_neighbors(dcon, company, k=k)  # ty: ignore[missing-attribute]
     except Exception as e:
         log.warning("semantic_neighbors failed for %s: %s", company, e)
         return []

@@ -1302,8 +1302,8 @@ def _parquet_rows(path: Path) -> tuple[list[str], list[tuple]]:
             # null, NaN becomes null, values pass through. No fill_null
             # (that would coerce genuine NULLs to 0.0). ty: the pyarrow
             # compute functions are dynamically generated — unresolvable.
-            c = pc.if_else(  # ty: ignore[unresolved-attribute]
-                pc.is_nan(c),  # ty: ignore[unresolved-attribute]
+            c = pc.if_else(  # ty: ignore[missing-attribute]
+                pc.is_nan(c),  # ty: ignore[missing-attribute]
                 pa.scalar(None, c.type),
                 c,
             )

@@ -281,5 +281,7 @@ def test_coverage_reports_every_lane_including_absent_bili(tmp_path, monkeypatch
     store = Store(tmp_path / "meta.duckdb")
     lines = _coverage(store)
     store.close()
-    assert len(lines) == 5
-    assert lines[4] == "bili: SKIP missing index.db (no billion-context on this machine)"
+    # 6 lanes: opencode, prime-rlm, zcode, dsh, timeshift-snapshots, bili
+    # (the timeshift-snapshots lane was added by the timeshift_snapshot_lane arc)
+    assert len(lines) == 6
+    assert lines[5] == "bili: SKIP missing index.db (no billion-context on this machine)"

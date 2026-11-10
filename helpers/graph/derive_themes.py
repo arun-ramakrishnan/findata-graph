@@ -411,7 +411,7 @@ def _cli(argv: list[str] | None = None) -> int:
                 # subtree (1078/1243 notes, ~8 MB vs ~29 MB resident; the shared
                 # corpus cache eviction is root-scoped, so the other shards' rows
                 # survive a shard load — see corpus.py S2a fix).
-                corpus = Corpus.load_shard("Companies", workers=1, use_cache=True)  # ty: ignore[unresolved-attribute]
+                corpus = Corpus.load_shard("Companies", workers=1, use_cache=True)  # ty: ignore[missing-union-attribute]
             except Exception:  # noqa: S110
                 corpus = None
         membership = list(extract_theme_membership(COMPANIES_DIR, path_to_name, corpus=corpus))

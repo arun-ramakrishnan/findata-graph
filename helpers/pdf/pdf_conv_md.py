@@ -393,9 +393,9 @@ def main(argv: list[str] | None = None) -> int:  # noqa: C901  # engine dispatch
     )
     args = ap.parse_args(argv)
     if args.max_pages is not None:
-        render_limits.MAX_PAGES = args.max_pages  # ty: ignore[unresolved-attribute]  # module self-ref alias
+        render_limits.MAX_PAGES = args.max_pages  # ty: ignore[missing-attribute]  # module self-ref alias
     if args.max_page_dims is not None:
-        render_limits.MAX_PAGE_PTS = args.max_page_dims  # ty: ignore[unresolved-attribute]  # module self-ref alias
+        render_limits.MAX_PAGE_PTS = args.max_page_dims  # ty: ignore[missing-attribute]  # module self-ref alias
 
     pdf_path = Path(args.source_pdf)
     if not pdf_path.is_file():

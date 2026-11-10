@@ -3888,7 +3888,7 @@ def _cli(argv: list[str] | None = None) -> int:  # noqa: C901
         if args.corpus and _HAS_CORPUS:
             try:
                 # For Corpus, target is findata newsletters; load full findata and filter in scan via corpus param
-                _corpus = Corpus.load("findata", workers=1, use_cache=True)  # ty: ignore[unresolved-attribute]
+                _corpus = Corpus.load("findata", workers=1, use_cache=True)  # ty: ignore[missing-union-attribute]
                 quotes, metrics = scan(args.target, conn, corpus=_corpus, workers=args.workers)
             except Exception:
                 quotes, metrics = scan(args.target, conn, workers=args.workers)

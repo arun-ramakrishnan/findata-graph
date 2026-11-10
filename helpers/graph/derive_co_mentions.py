@@ -542,7 +542,7 @@ def _cli(argv: list[str] | None = None) -> int:
     _corpus = None
     if args.corpus and _HAS_CORPUS:
         try:
-            _corpus = Corpus.load("findata", workers=1, use_cache=True)  # ty: ignore[unresolved-attribute]
+            _corpus = Corpus.load("findata", workers=1, use_cache=True)  # ty: ignore[missing-union-attribute]
         except Exception:  # noqa: S110
             _corpus = None
     editions = extract_co_mentions(args.newsletter, corpus=_corpus)

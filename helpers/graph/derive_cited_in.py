@@ -456,7 +456,7 @@ def _cli(argv: list[str] | None = None) -> int:
         corpus = None
         if args.corpus and _HAS_CORPUS:
             try:
-                corpus = Corpus.load(vault, workers=1, use_cache=True)  # ty: ignore[unresolved-attribute]
+                corpus = Corpus.load(vault, workers=1, use_cache=True)  # ty: ignore[missing-union-attribute]
             except Exception:  # noqa: S110
                 corpus = None
         editions = edition_notes(vault, corpus=corpus)
