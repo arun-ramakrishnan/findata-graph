@@ -119,7 +119,7 @@ CREATE TABLE company_metrics (
     source_quote  TEXT,                 -- verbatim line it came from (provenance)
     source_ref    TEXT NOT NULL,        -- "derive:metrics:<newsletter_stem>:<line>"
     properties    TEXT NOT NULL DEFAULT '{}',
-    created_at    DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP, agent_id TEXT REFERENCES provenance_agents(agent_id) ON UPDATE CASCADE ON DELETE SET NULL, source_tier TEXT CHECK (source_tier IN ('manual','migration','derive','regulator','external')),
+    created_at    DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP, agent_id TEXT REFERENCES provenance_agents(agent_id) ON UPDATE CASCADE ON DELETE SET NULL, source_tier TEXT CHECK (source_tier IN ('manual','migration','derive','regulator','external')), consolidated INTEGER,
     CHECK (json_valid(properties))
 );
 
@@ -400,6 +400,24 @@ LEFT JOIN speaker_identity si ON si.alias_name = q.speaker_name;
 CREATE VIEW relations AS
     SELECT source, target, edge_type AS relation_type
     FROM graph_edges;
+
+CREATE VIEW company_metrics_ruled AS
+SELECT * FROM company_metrics WHERE period IS NULL OR metric_label IS NULL
+UNION ALL
+SELECT * FROM company_metrics WHERE id IN (
+    SELECT id FROM (
+        SELECT id, ROW_NUMBER() OVER (
+            PARTITION BY entity, metric_label, period, consolidated
+            ORDER BY CASE WHEN source_ref GLOB '*_[0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9]_WEB.xml'
+                         THEN substr(source_ref, -18, 4) || substr(source_ref, -20, 2)
+                              || substr(source_ref, -22, 2) || substr(source_ref, -14, 6)
+                         ELSE NULL END DESC,
+                     id DESC
+        ) AS rn
+        FROM company_metrics
+        WHERE period IS NOT NULL AND metric_label IS NOT NULL
+    ) WHERE rn = 1
+);
 
 CREATE TRIGGER graph_edges_agent_id_registered_insert
 BEFORE INSERT ON "graph_edges"
