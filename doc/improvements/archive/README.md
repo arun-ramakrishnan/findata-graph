@@ -7,6 +7,15 @@ commit, referenced by nothing). Entry numbers point at
 `../completed.md`. Live items live in `../pending.md`.
 
 ## convo_search/ — Conversation search harvest + rebuild
+- [`convo_fresh_new_parts_table.md`](convo_search/convo_fresh_new_parts_table.md) —
+  convo-fresh new-parts breakdown — per-harness tally
+  (units/parts/quiet/skipped) rendered in BOTH modes: check dry-runs the
+  lanes on a never-flushing writer over the real corpus_root
+  (persistence impossible by construction — `commit()` raises on
+  read-only), so the table shows exactly the next APPLY's numbers
+  without writing; `est embed ≈Ns` from `convo_meta.embed_s_per_row`
+  recorded by the rebuild on real cache-miss embeds (suppressed until
+  first measured) — completed.md #503
 - [`timeshift_snapshot_lane.md`](convo_search/timeshift_snapshot_lane.md) —
   timeshift snapshot ingestion: the scalar image count (`opencode-snap:source-count`,
   read `0` after any mount-less harvest so growth was invisible and an absent

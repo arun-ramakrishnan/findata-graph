@@ -836,13 +836,20 @@ def _opencode_sources() -> list[tuple[Path, str, bool]]:
     return dbs
 
 
-def _harvest_opencode(store: Store, writer: SessionWriter, *, force: bool = False) -> str:
+def _harvest_opencode(
+    store: Store,
+    writer: SessionWriter,
+    *,
+    force: bool = False,
+    tally: dict | None = None,
+) -> str:
     stats, parts_total = [], 0
     for path, src, immutable in _opencode_sources():
         key = f"{src}:{hashlib.blake2b(str(path).encode(), digest_size=6).hexdigest()}"
         hwm_raw = store.watermark(key)
         if immutable and hwm_raw is not None and not force:
             stats.append(f"{src}: quiet")
+            _tally(tally, "opencode", "quiet")
         else:
             # force means FULL re-read: the per-source hwm filter would
             # re-scan the db yet re-emit nothing already harvested — a
@@ -874,12 +881,14 @@ def _harvest_opencode(store: Store, writer: SessionWriter, *, force: bool = Fals
                 AttributeError,
             ) as exc:
                 stats.append(f"{src}: SKIP unreadable ({type(exc).__name__}: {exc})")
+                _tally(tally, "opencode", "skipped")
                 continue
             writer.add("opencode", rows)
             store.register("opencode", rows)
             store.set_watermark(key, str(new_hwm))
             parts_total += len(rows)
             stats.append(f"{src}: {'full' if hwm is None else 'delta'} {len(rows)} parts")
+            _tally(tally, "opencode", "parts", src, len(rows))
         # S1/S2 lanes: own watermark keys, per-session corpus seeds. A source
         # the legacy lane already finished still runs these once (their keys
         # never existed) — that is the backfill for post-cutover snapshots,
@@ -892,6 +901,7 @@ def _harvest_opencode(store: Store, writer: SessionWriter, *, force: bool = Fals
             lkey = key + ":" + lane
             if immutable and store.watermark(lkey) is not None and not force:
                 stats.append(f"{src}:{lane}: quiet")
+                _tally(tally, "opencode", "quiet")
                 continue
             try:
                 lrows, lnew = fn(path, src, seeds, writer.root)
@@ -902,12 +912,14 @@ def _harvest_opencode(store: Store, writer: SessionWriter, *, force: bool = Fals
                 AttributeError,
             ) as exc:
                 stats.append(f"{src}:{lane}: SKIP unreadable ({type(exc).__name__}: {exc})")
+                _tally(tally, "opencode", "skipped")
                 continue
             writer.add("opencode", lrows)
             store.register("opencode", lrows)
             store.set_watermark(lkey, str(lnew))
             parts_total += len(lrows)
             stats.append(f"{src}:{lane}: {len(lrows)} parts")
+            _tally(tally, "opencode", "parts", f"{src}:{lane}", len(lrows))
     _record_snap_seen(store)
     return "\n".join(stats) + f"\nopencode total new: {parts_total}"
 
@@ -993,7 +1005,13 @@ def _prime_files() -> list[tuple[Path, str]]:
     return out
 
 
-def _harvest_prime(store: Store, writer: SessionWriter, *, force: bool = False) -> str:
+def _harvest_prime(
+    store: Store,
+    writer: SessionWriter,
+    *,
+    force: bool = False,
+    tally: dict | None = None,
+) -> str:
     """`force` ignores the per-file watermark (a parser change must re-read a
     source the watermark declares done; see `--force-lane`). A re-read emits
     the same part_ids, so it merges instead of duplicating."""
@@ -1006,6 +1024,7 @@ def _harvest_prime(store: Store, writer: SessionWriter, *, force: bool = False) 
         cur = [int(st.st_mtime), st.st_size]
         if wm == cur and not force:
             stats.append(f"{src}: quiet")
+            _tally(tally, "prime-rlm", "quiet")
             continue
         rows = _harvest_prime_file(f, src)
         writer.add("prime-rlm", rows)
@@ -1013,6 +1032,7 @@ def _harvest_prime(store: Store, writer: SessionWriter, *, force: bool = False) 
         store.set_watermark(key, json.dumps(cur))
         total += len(rows)
         stats.append(f"{src}: {len(rows)} parts")
+        _tally(tally, "prime-rlm", "parts", src, len(rows))
     return "\n".join(stats) + f"\nprime-rlm total new: {total}"
 
 
@@ -1311,7 +1331,13 @@ def _harvest_dsh_file(
     return rows, max_seq
 
 
-def _harvest_dsh(store: Store, writer: SessionWriter, *, force: bool = False) -> str:
+def _harvest_dsh(
+    store: Store,
+    writer: SessionWriter,
+    *,
+    force: bool = False,
+    tally: dict | None = None,
+) -> str:
     stats, total = [], 0
     for path, sid, src in _dsh_logs():
         key = f"{src}:{sid}"
@@ -1321,6 +1347,7 @@ def _harvest_dsh(store: Store, writer: SessionWriter, *, force: bool = False) ->
         cur = [int(st.st_mtime), int(st.st_size)]
         if wm is not None and wm[1:] == cur and not force:
             stats.append(f"{src}:{sid[:13]}: quiet")
+            _tally(tally, "dsh", "quiet")
             continue
         # Rotation/truncation (smaller file than recorded): the seq floor
         # is meaningless — full ingest, stable ids merge newest-wins.
@@ -1331,12 +1358,14 @@ def _harvest_dsh(store: Store, writer: SessionWriter, *, force: bool = False) ->
             # A live session's concurrent append can tear the tail frame;
             # name it and keep the other sessions (opencode-lane rule).
             stats.append(f"{src}:{sid[:13]}: SKIP unreadable ({type(exc).__name__}: {exc})")
+            _tally(tally, "dsh", "skipped")
             continue
         writer.add("dsh", rows)
         store.register("dsh", rows)
         store.set_watermark(key, json.dumps([max_seq, *cur]))
         total += len(rows)
         stats.append(f"{src}:{sid[:13]}: {len(rows)} parts")
+        _tally(tally, "dsh", "parts", f"{src}:{sid[:13]}", len(rows))
     return "\n".join(stats) + f"\ndsh total new: {total}"
 
 
@@ -1449,7 +1478,13 @@ def _bili_fingerprint(con, sid: str) -> dict:
     }
 
 
-def _harvest_bili(store: Store, writer: SessionWriter, *, force: bool = False) -> str:
+def _harvest_bili(
+    store: Store,
+    writer: SessionWriter,
+    *,
+    force: bool = False,
+    tally: dict | None = None,
+) -> str:
     """BILI compression summaries (bili_convo_lane proposal S1-S3).
 
     Every block is indexed regardless of `active` — manual compacts
@@ -1474,6 +1509,7 @@ def _harvest_bili(store: Store, writer: SessionWriter, *, force: bool = False) -
             wm = jsonio.loads(wm_raw) if wm_raw else None
             if wm is not None and wm == cur and not force:
                 stats.append(f"bili:{sid[:13]}: quiet")
+                _tally(tally, "bili", "quiet")
                 continue
             if wm is None or wm.get("v") != cur["v"]:
                 # Row-shape migration normally forces a clean rewrite so two
@@ -1528,6 +1564,7 @@ def _harvest_bili(store: Store, writer: SessionWriter, *, force: bool = False) -
             store.set_watermark(key, json.dumps(cur, sort_keys=True))
             total += len(rows)
             stats.append(f"bili:{sid[:13]} ({ns}): {len(rows)} parts")
+            _tally(tally, "bili", "parts", f"{sid[:13]} ({ns})", len(rows))
     finally:
         con.close()
     return "\n".join(stats) + f"\nbili total new: {total}"
@@ -1875,13 +1912,20 @@ def _is_under(path: Path, root: Path) -> bool:
     return True
 
 
-def _harvest_zcode(store: Store, writer: SessionWriter, *, force: bool = False) -> str:
+def _harvest_zcode(
+    store: Store,
+    writer: SessionWriter,
+    *,
+    force: bool = False,
+    tally: dict | None = None,
+) -> str:
     stats, total = [], 0
     for sid, files in sorted(_zcode_groups().items()):
         key = f"zcode:{sid}"
         cur = json.dumps([[int(f.stat().st_mtime), f.stat().st_size] for f in files])
         if store.watermark(key) == cur and not force:
             stats.append(f"zcode:{sid}: quiet")
+            _tally(tally, "zcode", "quiet")
             continue
         rows = _harvest_zcode_file(files, sid, _zcode_src_for(files))
         writer.add("zcode", rows)
@@ -1889,6 +1933,7 @@ def _harvest_zcode(store: Store, writer: SessionWriter, *, force: bool = False) 
         store.set_watermark(key, cur)
         total += len(rows)
         stats.append(f"zcode:{sid}: {len(rows)} parts")
+        _tally(tally, "zcode", "parts", sid, len(rows))
     return "\n".join(stats) + f"\nzcode total new: {total}"
 
 
@@ -2390,6 +2435,88 @@ def _migrate_zcode_models(corpus_root: Path) -> tuple[int, int]:
     return fixed_files, fixed_rows
 
 
+# --- APPLY new-parts tally (the convo-fresh table) ---------------------
+def _tally(
+    tally: dict | None, lane: str, kind: str, label: str = "", n: int = 1
+) -> None:
+    """Record one lane outcome for the APPLY new-parts table.
+
+    ``kind`` is "parts" (``label`` produced ``n`` new rows), "quiet"
+    (watermark matched, nothing read) or "skipped" (source unreadable).
+    ``tally`` is optional so positional test callers of the lane functions
+    keep working unchanged.
+    """
+    if tally is None:
+        return
+    t = tally.setdefault(lane, {"units": {}, "quiet": 0, "skipped": 0})
+    if kind == "parts":
+        t["units"][label] = t["units"].get(label, 0) + n
+    else:
+        t[kind] += n
+
+
+def _read_embed_rate(con) -> float | None:
+    """s/part measured by the last real embed, read from convo_meta.
+
+    rebuild_convo_search.py records ``embed_s_per_row`` whenever its embed
+    actually missed the cache, so the APPLY table can translate this run's
+    new-parts count into an embed-time estimate without hardcoding a rate.
+    Fresh stores have no convo_meta yet — any failure reads as None.
+    """
+    if con is None:
+        return None
+    try:
+        row = con.execute(
+            "SELECT value FROM convo_meta WHERE key = 'embed_s_per_row'"
+        ).fetchone()
+        return float(row[0]) if row else None
+    except Exception:  # fresh stores have no convo_meta yet
+        return None
+
+
+def _format_new_table(
+    tally: dict, embed_rate: float | None, lane_order: tuple[str, ...]
+) -> str:
+    """Neat per-harness breakdown of what this APPLY harvested.
+
+    ``new`` counts units that produced parts — sessions for dsh/zcode/bili,
+    source-lanes for opencode/prime (their watermarks are per source, not
+    per session). ``parts`` is the column the embed estimate scales.
+    """
+    rows: list[tuple[str, int, int, str]] = []
+    tot_s = tot_p = 0
+    for lane in lane_order:
+        t = tally.get(lane) or {"units": {}, "quiet": 0, "skipped": 0}
+        units = t.get("units")
+        if not isinstance(units, dict):
+            units = {}
+        n_s, n_p = len(units), sum(units.values())
+        tot_s += n_s
+        tot_p += n_p
+        shown = sorted(units.items(), key=lambda kv: (-kv[1], kv[0]))
+        detail = "; ".join(f"{label}: {parts}" for label, parts in shown[:6])
+        if len(shown) > 6:
+            detail += f"; … +{len(shown) - 6} more"
+        notes = [f"{t['quiet']} quiet"] if t["quiet"] else []
+        if t["skipped"]:
+            notes.append(f"{t['skipped']} skipped")
+        if notes:
+            detail = f"{detail}  ({', '.join(notes)})" if detail else ", ".join(notes)
+        rows.append((lane, n_s, n_p, detail or "—"))
+    w = max(len(r[0]) for r in rows)
+    out = ["new-parts breakdown (new = sessions/source-lanes with new parts):"]
+    out.append(f"  {'harness':<{w}}  new  parts  detail")
+    for lane, n_s, n_p, detail in rows:
+        out.append(f"  {lane:<{w}}  {n_s:>3}  {n_p:>5}  {detail}")
+    out.append(f"  {'total':<{w}}  {tot_s:>3}  {tot_p:>5}")
+    if embed_rate and tot_p:
+        out.append(
+            f"  est embed ≈{tot_p * embed_rate:.0f}s "
+            f"({tot_p} parts @ {embed_rate:.2f}s/part, last measured embed)"
+        )
+    return "\n".join(out)
+
+
 def harvest(
     check: bool = False,
     corpus_root: Path = CORPUS_ROOT,
@@ -2421,6 +2548,30 @@ def harvest(
             fresh = not drift
             deleted, unresolved = _deleted_sessions(corpus_root)
             prov = _provenance_drift(corpus_root)
+            # Dry-run the lanes for the pending-parts table: the read-only
+            # store buffers set_watermark/register in memory (only commit()
+            # persists and it raises on read_only), and this writer never
+            # flushes — the real index and corpus stay untouched. The writer
+            # wraps the real corpus_root so opencode's per-session seeds read
+            # the same files APPLY would. Corruption still fails loudly:
+            # _drift above raises where a lane would only SKIP-and-name.
+            _check_lanes(lanes)
+            dry_names = _LANES if lanes is None else tuple(
+                n for n in _LANES if n in set(lanes)
+            )
+            tally: dict = {}
+            dry_writer = SessionWriter(corpus_root)
+            for name, fn in (
+                ("opencode", _harvest_opencode),
+                ("prime-rlm", _harvest_prime),
+                ("zcode", _harvest_zcode),
+                ("dsh", _harvest_dsh),
+                ("bili", _harvest_bili),
+            ):
+                if name in dry_names:
+                    fn(store, dry_writer, force=force_lane == name, tally=tally)
+            embed_rate = _read_embed_rate(store.con)
+            table = _format_new_table(tally, embed_rate, dry_names)
             return {
                 "check": True,
                 "index_stale": not fresh,
@@ -2439,11 +2590,15 @@ def harvest(
                 # the corpus may be perfectly correct and the index still be
                 # serving labels the parquet no longer carries.
                 "stale_provenance": prov,
+                "tally": tally,
+                "embed_rate": embed_rate,
+                "table": table,
                 "coverage": _coverage(store),
-                "elapsed": 0.0,
+                "elapsed": time.perf_counter() - t0,
             }
         writer = SessionWriter(corpus_root)
         lane_results, lane_seconds = [], {}
+        tally: dict = {}
         lane_iter = (
             ("opencode", _harvest_opencode),
             ("prime-rlm", _harvest_prime),
@@ -2459,11 +2614,11 @@ def harvest(
             if timer is not None:
                 with timer.phase(f"lane:{name}"):
                     t_lane = time.perf_counter()
-                    lane_results.append(fn(store, writer, force=force_lane == name))
+                    lane_results.append(fn(store, writer, force=force_lane == name, tally=tally))
                     lane_seconds[name] = round(time.perf_counter() - t_lane, 2)
             else:
                 t_lane = time.perf_counter()
-                lane_results.append(fn(store, writer, force=force_lane == name))
+                lane_results.append(fn(store, writer, force=force_lane == name, tally=tally))
                 lane_seconds[name] = round(time.perf_counter() - t_lane, 2)
         if timer is not None:
             with timer.phase("flush"):
@@ -2474,11 +2629,14 @@ def harvest(
             t_flush = time.perf_counter()
             sessions = writer.flush()
             lane_seconds["flush"] = round(time.perf_counter() - t_flush, 2)
+        embed_rate = _read_embed_rate(store.con)
         store.commit()
         store.close()
         return {
             "check": False,
             "lanes": "\n".join(lane_results),
+            "tally": tally,
+            "embed_rate": embed_rate,
             "sessions_written": sessions,
             "lane_seconds": lane_seconds,
             "elapsed": time.perf_counter() - t0,
@@ -3021,6 +3179,8 @@ def main(argv: list[str] | None = None) -> int:  # noqa: C901
     if out["check"]:
         for line in out.get("coverage", []):
             print(f"  {line}", file=sys.stderr)
+        if out.get("table"):
+            print(out["table"], file=sys.stderr)
         lag = _dsh_index_lag()
         if lag:
             print(
@@ -3075,6 +3235,10 @@ def main(argv: list[str] | None = None) -> int:  # noqa: C901
         print("corpus state: FRESH", file=sys.stderr)
         return timer.finish(0, "FRESH")
     print(out["lanes"], file=sys.stderr)
+    print(
+        _format_new_table(out.get("tally") or {}, out.get("embed_rate"), _LANES),
+        file=sys.stderr,
+    )
     per_lane = " ".join(f"{k}={v}s" for k, v in out["lane_seconds"].items())
     print(
         f"✓ corpus: {out['sessions_written']} session files written "

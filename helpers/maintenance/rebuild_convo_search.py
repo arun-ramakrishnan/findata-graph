@@ -305,7 +305,9 @@ def _backfill_models(db_path: Path, files: list[Path]) -> tuple[int, int]:
     files_touched = 0
     rows_touched = 0
     with io_lock(db_path, exclusive=True):
-        con = connect_with_lock_retry(lambda: duckdb.connect(str(db_path)))
+        con = connect_with_lock_retry(
+            lambda: duckdb.connect(str(db_path), **ds.memory_cap_config())
+        )
         try:
             _load_vss(con)  # UPDATE convo_search below must bind the HNSW index
             for f in files:
@@ -634,7 +636,9 @@ def _refresh_fts_index(db_path: Path) -> None:
     """
     try:
         with io_lock(db_path, exclusive=True):
-            con = connect_with_lock_retry(lambda: duckdb.connect(str(db_path)))
+            con = connect_with_lock_retry(
+                lambda: duckdb.connect(str(db_path), **ds.memory_cap_config())
+            )
             try:
                 _load_vss(con)  # FTS (re)build binds every index on the table
                 has_index = con.execute(
@@ -1200,7 +1204,9 @@ def _apply_write_window(
     identical corpus, making the redo a clean no-op).
     """
     with io_lock(db_path, exclusive=True):
-        con = connect_with_lock_retry(lambda: duckdb.connect(str(db_path)))
+        con = connect_with_lock_retry(
+            lambda: duckdb.connect(str(db_path), **ds.memory_cap_config())
+        )
         try:
             _load_vss(con)
             if _strip_prefix(_stored_hashes(con)) != stored:
@@ -1271,7 +1277,9 @@ def rebuild(
     for _attempt in (1, 2):
         # -- 1. read window ------------------------------------------------
         with io_lock(db_path, exclusive=True):
-            con = connect_with_lock_retry(lambda: duckdb.connect(str(db_path)))
+            con = connect_with_lock_retry(
+                lambda: duckdb.connect(str(db_path), **ds.memory_cap_config())
+            )
             try:
                 _load_vss(con)  # the mode diff below can DELETE from convo_search
                 con.execute(_convo_search_ddl(None))
@@ -1321,16 +1329,25 @@ def rebuild(
 
     # -- meta window: only after FTS succeeded (failure ordering preserved) -
     with io_lock(db_path, exclusive=True):
-        con = connect_with_lock_retry(lambda: duckdb.connect(str(db_path)))
+        con = connect_with_lock_retry(
+            lambda: duckdb.connect(str(db_path), **ds.memory_cap_config())
+        )
         try:
+            meta_rows = [(f"file:{rel}", h) for rel, h in current.items()] + [
+                ("embed_model", model_label),
+                ("embed_dims", str(dims)),
+                ("key_schema", "content_v1"),
+            ]
+            # Measured embed rate, read back by harvest_conversations' APPLY
+            # table to translate its new-parts count into an embed-time
+            # estimate. Only real cache-miss embeds carry timing — the pseudo
+            # and dims-mismatch paths return no "timing" key at all.
+            cb_s = (cstats.get("timing") or {}).get("miss_embed_callback_seconds")
+            if cstats.get("misses") and cb_s:
+                meta_rows.append(("embed_s_per_row", str(round(cb_s / cstats["misses"], 4))))
             con.executemany(
                 "INSERT OR REPLACE INTO convo_meta VALUES (?, ?)",
-                [(f"file:{rel}", h) for rel, h in current.items()]
-                + [
-                    ("embed_model", model_label),
-                    ("embed_dims", str(dims)),
-                    ("key_schema", "content_v1"),
-                ],
+                meta_rows,
             )
         finally:
             con.close()

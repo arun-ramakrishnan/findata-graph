@@ -14729,3 +14729,37 @@ to doc/improvements/archive/database/duckdb_pure_stack.md.
 - Proposal: doc/improvements/archive/tooling/quadratic_regex_sweep_and_cleanups.md
   (§5 carries the three-pass provenance table: first estimate vs measured
   vs method, and the corrections that reversed S5 and S6).
+
+## 503. convo-fresh new-parts breakdown — per-harness tally in APPLY and check, est-embed from the last measured s/row
+
+**Date**: 2026-11-11
+
+- Operator ask: "print a neat table of all the new sessions/parts it
+  encountered for refresh/embedding". All five harvest lanes now carry a
+  kwarg-only `tally=None` recorder (`_tally`);
+  `_format_new_table` renders per-harness new-units/parts (top-6 detail
+  + "… +N more"), quiet/skipped counts, a total row, and an
+  `est embed ≈Ns` line driven by a new `convo_meta.embed_s_per_row`
+  key (`_read_embed_rate`) that rebuild_convo_search.py records from
+  the last real cache-miss embed (absent until then — suppressed, not
+  faked).
+- Check mode prints the same table without writing anything: lanes
+  dry-run on the read-only store + a SessionWriter over the REAL
+  corpus_root that never flushes — `Store.set_watermark`/`register`
+  only buffer in memory and `commit()` raises on `read_only`
+  (persistence impossible by construction). Purity test asserts no
+  watermark survives `harvest(check=True)`. `elapsed` in the check
+  result is real now (was hardcoded 0.0); verdict/exit semantics
+  untouched (STALE exit 1 via the `_drift` mirrors).
+- Regression caught mid-implementation and kept as a record: a 27-tuple
+  edit batch deleted bili's version-bump condition
+  (`if wm is None or wm.get("v") != cur["v"]:`), making
+  `writer.fresh.add` unreachable — the lane test failed
+  2-rows-vs-1 and HEAD-green→tree-red was proven in a throwaway
+  worktree before the fix.
+- Validation: targeted suite (6 files incl. new
+  tests/test_harvest_new_table.py, 4 tests) = **84 passed / 1
+  intentional skip**; ruff clean; live check table
+  `dsh:live:session-3c347: 171 parts`, total 5 units / 172 parts,
+  9.05 s wall.
+- Proposal: doc/improvements/archive/convo_search/convo_fresh_new_parts_table.md

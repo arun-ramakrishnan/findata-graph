@@ -115,6 +115,15 @@ without re-deriving it.
   worktree behind the shared index refuses APPLY on purpose
   (`worktree_fresh_trample_guard`) — sync, or re-run with
   `--allow-stale` and a reason; do not retry. Preview with `--sandbox`.
+  MAIN trips the guard too during stgit arcs: every `stg refresh` rewrites
+  HEAD, so the indexes' stamped commit id diverges from the live tree and
+  `*-fresh APPLY` REFUSES ("stale apply — … has DIVERGED") even on the main
+  checkout — this is ROUTINE mid-arc, not a worktree-only event
+  (operator-ruled 2026-11-11). Fix: `make search-fresh APPLY=1 ARGS=--allow-stale`
+  (same ARGS form for any `*-fresh` APPLY), citing the divergence as the
+  reason — there is no mid-arc "sync" short of rewriting the stack. A
+  `*-fresh` CHECK-mode exit 1 means STALE DRIFT (the designed signal), not
+  a crash; converge with APPLY, then plain check must be rc=0.
 - Markdown lint-only: NEVER `markdownlint --fix` on `findata/**`
   (writer-owned vault); `doc/` is remediable.
 - Gate arcs follow `doc/procedures/gates.md`: full gates ONCE per arc
@@ -154,6 +163,16 @@ without re-deriving it.
   with `--no-squash`), then `stg repair` on main — the landing rides the
   stack as the TOP patch by design; first post-merge APPLY from main
   needs `--allow-stale` once (stamps lag the ff).
+- **Ad-hoc code runs in the persistent python pod (all harnesses):** any
+  task needing more than one short shell command — loops, subprocess
+  calls, file surgery, multi-line SQL, anything with nested quoting —
+  goes in the harness's persistent interpreter cell (DSH: the
+  eval/python-pod tool) using `subprocess.run([...])` with LIST argv.
+  Shell-string one-liners passed through a JS/JSON-quoted tool argument
+  burn turns on backtick/`${}`-escaping failures (2026-11-11: three dead
+  batches on one append script before switching). A heredoc script is
+  fine when written to a FILE first, then executed; quoting layers
+  (JS → python → bash) is the thing to refuse.
 - Use `.venv/bin/python3` explicitly in non-interactive shells.
 - **Python 3.14 / PEP 758:** `except OSError, TimeoutError:` (no
   parens, no `as`) is VALID Python 3.14 syntax — looks like Py2
@@ -175,4 +194,8 @@ without re-deriving it.
 - **Scratch files: `$TMPDIR` ONLY** (here `/mnt/data/tmp`). Never
   `/tmp/opencode` or any other `/tmp` path — the operator rejects
   those. Expand it (`"${TMPDIR:-/tmp}/x"`) when it may be unset; logs,
-  `.exit` markers and driver scripts go there too.
+  `.exit` markers and driver scripts go there too. If `$TMPDIR` is
+  READ-ONLY in a session (happened 2026-11-11, `/mnt/data/tmp` mounted
+  ro): fall back to a workspace scratch dir (e.g. `.smoke_tmp/`), use it
+  for the same things, and delete it when done — never fall back to
+  `/tmp`.

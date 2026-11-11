@@ -295,3 +295,10 @@ entry number and stale DONE pointers):
   `duckdb20_quack_variant` filing; the executed 2.0-compat migration
   is completed.md #427. Upstream changeset:
   <https://github.com/duckdb/duckdb/releases/tag/v2.0.0>.
+- *(archived 2026-11-11)* — `convo_fresh_new_parts_table` executed same
+  day, #503 (`../archive/convo_search/convo_fresh_new_parts_table.md`;
+  per-harness new-parts tally in APPLY and check — check dry-runs the
+  lanes on a never-flushing writer over the real corpus_root so the
+  table shows exactly the next APPLY's numbers without writing;
+  `est embed ≈Ns` from `convo_meta.embed_s_per_row`, recorded by the
+  rebuild on real cache-miss embeds).
