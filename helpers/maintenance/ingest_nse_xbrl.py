@@ -138,9 +138,10 @@ def unit_for(field: str) -> str:
 def filing_to_rows(f, entity: str) -> list[dict]:
     """FilingResult (duck-typed) -> company_metrics row dicts."""
     period = fy_quarter(getattr(f, "period_end", "") or "")
+    consolidated = bool(getattr(f, "is_consolidated", False))
     props = json.dumps(
         {
-            "consolidated": bool(getattr(f, "is_consolidated", False)),
+            "consolidated": consolidated,
             "audited": bool(getattr(f, "is_audited", False)),
             "period_start": str(getattr(f, "period_start", None) or ""),
             "period_end": str(getattr(f, "period_end", None) or ""),
@@ -169,6 +170,7 @@ def filing_to_rows(f, entity: str) -> list[dict]:
                 or getattr(f, "url", None)
                 or "nse-integrated-filing",
                 "source_tier": "external",
+                "consolidated": int(consolidated),
                 "properties": props,
             }
         )
@@ -192,8 +194,8 @@ def apply_rows(conn: sqlite3.Connection, rows: list[dict]) -> int:
             continue
         conn.execute(
             "insert into company_metrics (entity, metric_label, value_raw,"
-            " value_num, unit, period, source_ref, source_tier, properties)"
-            " values (?,?,?,?,?,?,?,?,?)",
+            " value_num, unit, period, source_ref, source_tier, properties, consolidated)"
+            " values (?,?,?,?,?,?,?,?,?,?)",
             (
                 r["entity"],
                 r["metric_label"],
@@ -204,6 +206,7 @@ def apply_rows(conn: sqlite3.Connection, rows: list[dict]) -> int:
                 r["source_ref"],
                 r["source_tier"],
                 r["properties"],
+                r.get("consolidated"),
             ),
         )
         keys.add(k)

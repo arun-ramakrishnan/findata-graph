@@ -19,6 +19,9 @@ import pytest
 
 from helpers.core.db import connect
 from helpers.misc import ontology_eval_gate as gate
+from helpers.maintenance.migrate_to_graph_edges import (  # noqa: E402
+    COMPANY_METRICS_RULED_VIEW_DDL,
+)
 
 
 def _build_db(path: Path) -> None:
@@ -84,6 +87,24 @@ def _build_db(path: Path) -> None:
     )
     conn.execute("INSERT INTO hyper_edges (id, edge_type, label) VALUES (1, 'edition', 'Ed. 1')")
     conn.execute("INSERT INTO hyper_incidences VALUES (1, 'Acme Ltd'), (1, 'Zen Corp')")
+    conn.execute(
+        "CREATE TABLE company_metrics (id INTEGER PRIMARY KEY, entity TEXT, "
+        "metric_label TEXT, value_num REAL, period TEXT, source_ref TEXT, "
+        "properties TEXT, consolidated INTEGER)"
+    )
+    conn.execute(
+        "INSERT INTO company_metrics VALUES "
+        "(1, 'Acme Ltd', 'q_revenue', 100.0, 'FY27Q1', "
+        "'https://nsearchives.nseindia.com/xbrl/INTEGRATED_FILING_INDAS_1_15072026075004_WEB.xml', "
+        "'{\"consolidated\": true}', 1), "
+        "(2, 'Acme Ltd', 'q_revenue', 120.0, 'FY27Q1', "
+        "'https://nsearchives.nseindia.com/xbrl/INTEGRATED_FILING_INDAS_1_17072026075004_WEB.xml', "
+        "'{\"consolidated\": true}', 1), "
+        "(3, 'Acme Ltd', 'q_revenue', 40.0, 'FY27Q1', "
+        "'https://nsearchives.nseindia.com/xbrl/INTEGRATED_FILING_INDAS_1_17072026075004_WEB.xml', "
+        "'{\"consolidated\": false}', 0)"
+    )
+    conn.execute(COMPANY_METRICS_RULED_VIEW_DDL)
     conn.commit()
     conn.close()
 
@@ -218,6 +239,85 @@ class TestQuestionSet:
         )
         with pytest.raises(gate.GateError, match="known shape"):
             gate.load_questions(path)
+
+
+class TestMetricValue:
+    """The metric_value shape reads the certified-grain view
+    (company_metrics_ruled — grain proposal §3.2)."""
+
+    Q = {
+        "id": "metric-acme-qrev",
+        "shape": "metric_value",
+        "params": {
+            "entity": "Acme Ltd",
+            "metric_label": "q_revenue",
+            "period": "FY27Q1",
+            "scope": "consolidated",
+        },
+    }
+
+    def test_latest_filing_within_scope_wins(self, dbs):
+        _parent, candidate = dbs
+        assert gate.answer_question(connect(candidate), self.Q) == ["120.0"]
+
+    def test_scope_separation(self, dbs):
+        _parent, candidate = dbs
+        q = {**self.Q, "params": {**self.Q["params"], "scope": "standalone"}}
+        assert gate.answer_question(connect(candidate), q) == ["40.0"]
+
+    def test_absent_view_answers_empty(self, dbs):
+        _parent, candidate = dbs
+        _mutate(candidate, "DROP VIEW company_metrics_ruled")
+        assert gate.answer_question(connect(candidate), self.Q) == []
+
+    def test_missing_params_raise(self, dbs):
+        _parent, candidate = dbs
+        with pytest.raises(gate.GateError):
+            gate.answer_question(connect(candidate), {"shape": "metric_value", "params": {}})
+        with pytest.raises(gate.GateError, match="scope"):
+            gate.answer_question(
+                connect(candidate),
+                {
+                    "shape": "metric_value",
+                    "params": {
+                        "entity": "Acme Ltd",
+                        "metric_label": "q_revenue",
+                        "period": "FY27Q1",
+                        "scope": "both",
+                    },
+                },
+            )
+
+    def test_first_apply_is_a_declared_improvement(self, dbs):
+        parent, candidate = dbs
+        _mutate(parent, "DROP VIEW company_metrics_ruled")
+        q = [self.Q]
+        accept, _results, reasons = gate.evaluate(connect(parent), connect(candidate), q, set())
+        assert not accept and any("undeclared answer change" in r for r in reasons)
+        accept, results, reasons = gate.evaluate(
+            connect(parent), connect(candidate), q, {"metric-acme-qrev"}
+        )
+        assert accept, reasons
+        assert results[0]["verdict"] == "improved"
+
+    def test_restatement_of_a_pinned_quarter_blocks(self, dbs):
+        """A refiling that CHANGES a certified value is a blocking semantic
+        change: undeclared it is an undeclared change; declared it LOST the
+        pinned row. Restatements need an operator re-pin, not a silent pass."""
+        parent, candidate = dbs
+        _mutate(
+            candidate,
+            "INSERT INTO company_metrics VALUES (4, 'Acme Ltd', 'q_revenue', 130.0, 'FY27Q1', "
+            "'https://nsearchives.nseindia.com/xbrl/INTEGRATED_FILING_INDAS_1_19072026075004_WEB.xml', "
+            "'{\"consolidated\": true}', 1)",
+        )
+        q = [self.Q]
+        accept, _results, _reasons = gate.evaluate(connect(parent), connect(candidate), q, set())
+        assert not accept
+        accept, _results, reasons = gate.evaluate(
+            connect(parent), connect(candidate), q, {"metric-acme-qrev"}
+        )
+        assert not accept and any("LOST rows" in r for r in reasons)
 
 
 class TestMain:

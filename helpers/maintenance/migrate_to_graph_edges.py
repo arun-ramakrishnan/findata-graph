@@ -295,6 +295,10 @@ CREATE TABLE IF NOT EXISTS company_metrics (
     source_ref    TEXT NOT NULL,        -- "derive:metrics:<newsletter_stem>:<line>"
     properties    TEXT NOT NULL DEFAULT '{}',
     created_at    DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    agent_id      TEXT,                 -- provenance agent (register in provenance_agents first)
+    source_tier   TEXT,                 -- external|derive|regulator|manual|migration
+    consolidated  INTEGER,             -- 1|0|NULL — scope flag promoted from properties
+                                        -- (grain proposal §3.1; backfilled, ingest writes it)
     CHECK (json_valid(properties))
 );
 """
@@ -303,6 +307,36 @@ COMPANY_METRICS_INDEXES = [
     "CREATE INDEX IF NOT EXISTS idx_metrics_entity_label ON company_metrics(entity, metric_label);",
     "CREATE INDEX IF NOT EXISTS idx_metrics_edition ON company_metrics(as_of_edition);",
 ]
+
+# Certified grain view (proposal archive/database/company_metrics_grain_and_bank §3.1,
+# operator ruling A1 2026-11-11: both scopes kept, keyed by consolidated).
+# One row per (entity, metric_label, period, consolidated) — the latest filing
+# within scope, ties broken by the newest id. Rows with a NULL key part (period
+# or metric_label) pass through unfiltered. The filing timestamp is the
+# 14-digit day-first stamp in the NSE source_ref suffix ('_DDMMYYYYHHMMSS_WEB.xml'),
+# reordered to YYYYMMDDHHMMSS so plain string comparison is chronological;
+# rows without one (yfinance/derive) sort last within their partition.
+# Read-time certification only — the raw table stays append-only (write-time
+# dedup was rejected: it destroys provenance).
+COMPANY_METRICS_RULED_VIEW_DDL = """
+CREATE VIEW IF NOT EXISTS company_metrics_ruled AS
+SELECT * FROM company_metrics WHERE period IS NULL OR metric_label IS NULL
+UNION ALL
+SELECT * FROM company_metrics WHERE id IN (
+    SELECT id FROM (
+        SELECT id, ROW_NUMBER() OVER (
+            PARTITION BY entity, metric_label, period, consolidated
+            ORDER BY CASE WHEN source_ref GLOB '*_[0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9]_WEB.xml'
+                         THEN substr(source_ref, -18, 4) || substr(source_ref, -20, 2)
+                              || substr(source_ref, -22, 2) || substr(source_ref, -14, 6)
+                         ELSE NULL END DESC,
+                     id DESC
+        ) AS rn
+        FROM company_metrics
+        WHERE period IS NOT NULL AND metric_label IS NOT NULL
+    ) WHERE rn = 1
+)
+"""
 
 GRAPH_ANALYTICS_DDL = """
 CREATE TABLE IF NOT EXISTS graph_analytics (
@@ -427,6 +461,19 @@ def migrate(verbose: bool = True) -> dict:  # noqa: C901
         conn.execute(COMPANY_METRICS_DDL)
         for idx in COMPANY_METRICS_INDEXES:
             conn.execute(idx)
+
+        # 2c-grain. company_metrics.consolidated — ALTER-based promotion from
+        #     the properties JSON (grain proposal §3.1); idempotent via column
+        #     check. The backfill re-runs harmlessly; ingest writes the column
+        #     directly going forward. Then the certified-grain view.
+        cm_cols = {r[1] for r in conn.execute("PRAGMA table_info(company_metrics)")}
+        if "consolidated" not in cm_cols:
+            conn.execute("ALTER TABLE company_metrics ADD COLUMN consolidated INTEGER")
+        conn.execute(
+            "UPDATE company_metrics SET consolidated = json_extract(properties, '$.consolidated') "
+            "WHERE consolidated IS NULL AND json_extract(properties, '$.consolidated') IS NOT NULL"
+        )
+        conn.execute(COMPANY_METRICS_RULED_VIEW_DDL)
 
         # 2d. hyper_edges + hyper_incidences (hypergraph incidence layer,
         #     hypergraph_incidence_hyx proposal 2026-09-13). IF NOT EXISTS ->

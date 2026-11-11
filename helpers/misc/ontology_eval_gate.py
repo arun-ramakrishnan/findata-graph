@@ -286,6 +286,30 @@ def _answer_insight_counterparts(conn, params):
         return []
 
 
+def _answer_metric_value(conn, params):
+    """Certified-grain metric lookup (company_metrics_ruled — proposal
+    archive/database/company_metrics_grain_and_bank §3.2, operator ruling A1:
+    both scopes kept, keyed by consolidated). An ABSENT view = pre-grain
+    store → [] (the lane's first apply is then a declared improvement)."""
+    entity = params.get("entity")
+    label = params.get("metric_label")
+    period = params.get("period")
+    scope = params.get("scope")
+    if not entity or not label or not period:
+        raise GateError("metric_value needs params.entity, params.metric_label, params.period")
+    if scope not in ("consolidated", "standalone"):
+        raise GateError("metric_value needs params.scope (consolidated|standalone)")
+    try:
+        rows = conn.execute(
+            "SELECT value_num FROM company_metrics_ruled "
+            "WHERE entity = ? AND metric_label = ? AND period = ? AND consolidated = ?",
+            (entity, label, period, 1 if scope == "consolidated" else 0),
+        ).fetchall()
+    except sqlite3.OperationalError:
+        return []
+    return sorted({str(r[0]) for r in rows if r[0] is not None})
+
+
 _SHAPES = {
     "subtree": _answer_subtree,
     "event_counterparties": _answer_counterparties,
@@ -298,6 +322,7 @@ _SHAPES = {
     "provenance_agents_for": _answer_provenance_agents,
     "ultimate_parent_of": _answer_ultimate_parent,
     "insight_counterparts": _answer_insight_counterparts,
+    "metric_value": _answer_metric_value,
 }
 
 

@@ -14828,3 +14828,71 @@ to doc/improvements/archive/database/duckdb_pure_stack.md.
   capped connection reports `memory_limit = 4.6 GiB` (5 GB). Full gates NOT
   RUN — trial closed on the operator's instruction, gates parked.
 - Proposal: doc/improvements/archive/database/duckdb_read_side_tuning_trial.md
+
+## 506. company_metrics grain rule (scope-keyed), `metric_value` gate shape, and the NL->SQL question bank
+
+**Date**: 2026-11-11
+**Status**: COMPLETE
+
+Executes [`archive/database/company_metrics_grain_and_bank.md`](archive/database/company_metrics_grain_and_bank.md)
+(#506) — read that for the full trial, the ruling surface, and the rejected
+alternatives.
+
+**Problem.** `company_metrics` had no row identity: 79,396 rows collapsed to
+49,826 distinct `(entity, metric_label, period)` keys with no natural-key
+constraint, so naive `SUM(value_num)` over `q_revenue` read 12,680,960.89
+against a per-key 7,519,934.98 — a **1.69x** inflation (`q_ebitda` 1.68x,
+`q_pbt` 1.66x). The nine-script trial in `bench_data/metric_grain/` proved the
+conflicts are NOT duplicates: 0 of 63,390 document-level keys carry two values,
+and 99.7% of the 18,956 conflicting keys are consolidated-vs-standalone scope
+(taxonomy: scope_only 18,846 / window+scope 43 / vintage_only 21).
+
+**Operator ruling (A1, m01000).** Grain = `(entity, metric_label, period,
+consolidated)`; **both scopes are legitimate, distinct facts** and both survive.
+B1 (latest filing within scope for the residual 49 restatements), C1/C3
+(`derive_internal` stays uncontrolled in the store, excluded from the bank), D1
+(one series per (label, scope)) carried as defaults.
+
+**Change — read-time certification, no row destruction.** The store stays
+append-only (every row keeps `agent_id`/`source_ref`/`source_tier`):
+
+- `consolidated` promoted from `properties` JSON to a first-class nullable
+  column (`migrate_to_graph_edges.py` canonical DDL + idempotent ALTER/backfill
+  in `migrate()`); `ingest_nse_xbrl.py` writes it directly.
+- Certified view `company_metrics_ruled`: one row per
+  `(entity, metric_label, period, consolidated)`, latest filing within scope
+  (NSE `source_ref` 14-digit day-first stamp reordered to sortable form), ties
+  by newest id; NULL-key rows pass through. **Live: 79,396 raw -> 76,976 ruled,
+  2,420 collapsed** — exactly what the trial taxonomy predicted once A1 keying
+  removes the 18,846 scope conflicts.
+- New gate shape `metric_value` (+ tests) reading the view; an ABSENT view
+  answers `[]` so a pre-grain store first apply is a declared improvement.
+- Frozen question set **v6 -> v7**: 6 `metric_value` pins (Reliance `q_revenue`,
+  Infosys `q_ebitda`, Bajaj Finance `q_pbt`; both scopes each), computed via
+  the gate own `answer_question`.
+- Probe gains the shape over Parquet (same rule inline, scope read from
+  properties) and loads **`helpers/misc/answerability_questions.json`** alongside
+  the frozen set: 15 bank entries (8 metric across both scopes + 7 SQL across
+  identity/relations/nary/events/control/insight/crosswalk), each carrying the
+  NL question, shape, params and an operator-attested pin.
+- Grain audit (advisory, never a gate) in `check_company_metrics`:
+  `ruled`/`collapsed`/`null_keys`/`key_conflicts` — live 76,976 / 2,420 / 3,742 / 95.
+
+**Eval gate (house rule).** `ontology_eval_gate.py` over v7 between the
+pre-grain and post-grain store copies: **ACCEPT — 179 questions, 0 reasons**,
+with `--expect-improve` on the six metric ids. `answerability_probe --parity`
+-> **0 mismatches** across all 194 questions (live view vs inline parquet rule).
+Probe full run: 178 answered · 5 negative · 11 drifted (pre-existing S5-era
+pins, unchanged) · **0 empty · 0 errored**. Targeted tests: **163 passed**
+(`test_ontology_eval_gate`, `test_answerability_probe`,
+`test_database_integrity_check`); ruff + markdownlint clean. A restatement of a
+pinned quarter BLOCKS the gate by design — re-pin explicitly, never silently.
+
+**Follow-on deliberately not taken here.** `derive_internal` facet vocabulary
+(3,982 rows, multi-facet labels: guidance 16 / capacity 11 / growth 8) and the
+NL front door itself (the bank is pins, not a runtime) remain open.
+
+**Files**: `helpers/misc/ontology_eval_gate.py`, `helpers/misc/answerability_probe.py`,
+`helpers/misc/answerability_questions.json` (new), `helpers/misc/ontology_questions.json`,
+`helpers/misc/database_integrity_check.py`, `helpers/maintenance/migrate_to_graph_edges.py`,
+`helpers/maintenance/ingest_nse_xbrl.py`, and the three test files.

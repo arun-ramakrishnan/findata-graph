@@ -39,6 +39,25 @@ entry number and stale DONE pointers):
 ## Current live proposals
 *(none)*
 
+- *(archived 2026-11-11)* — `company_metrics_grain_and_bank` filed and
+  executed same day, #506
+  (`../archive/database/company_metrics_grain_and_bank.md`). The trial
+  (`bench_data/metric_grain/`) proved the 18,956 "conflicting"
+  `(entity, metric_label, period)` keys were 99.7% consolidated-vs-standalone
+  SCOPE, not duplicates (0 of 63,390 document-level keys carry two values) —
+  so ruling A1 keys the grain `(entity, metric_label, period, consolidated)`
+  and keeps BOTH scopes; certification is READ-TIME (a `company_metrics_ruled`
+  view, 76,976 ruled / 2,420 collapsed) rather than write-time dedup, which
+  would have destroyed provenance. The `consolidated` flags moved from
+  `properties` JSON to a real column (63,390 backfilled; ingest writes it
+  directly), the gate gained a `metric_value` shape with the frozen set at v7
+  (6 pins, both scopes), the probe gained the same rule over Parquet plus a
+  git-tracked bank at `helpers/misc/answerability_questions.json` (15 entries),
+  and `check_company_metrics` gained an advisory grain audit. Gate ACCEPT on
+  179 questions with 0 reasons; probe parity 0 mismatches; 163 targeted tests
+  green. Naive `SUM(value_num)` was inflating `q_revenue` by 1.69x
+  (12,680,960.89 vs 7,519,934.98) — that is the migration notice.
+
 - *(archived 2026-11-10)* — `bold_line_guard_failing_path` executed same
   day, #501 (`../archive/testing/bold_line_guard_failing_path.md`; the
   BOLD_LINE_RE rewrite was correct but BOTH guards were blind to the pattern

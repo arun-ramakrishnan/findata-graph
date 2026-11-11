@@ -1,6 +1,6 @@
 {
-  "version": 6,
-  "_note": "ontology_governance S2 frozen question set v2 — DOC-DRIVEN roster derived 2026-09-17 from the live store via ontology_eval_gate.answer_question; coverage map and derivation procedure in doc/procedures/ontology-gate.md. After each ACCEPTED ontology-affecting change, rebaseline explicitly via ontology_eval_gate.py --rebaseline 'completed.md #NNN (change)'. Answers are sorted row-sets; subtree and concept_mappings_for are active-only. | v3 pins added at nic2008_seed_table S2 (subtree x2: nic2008 section J + division 62; the +1 industry->nic2008 crosswalk pin lands with S3 promote); expected computed via answer_question from the gated candidate per doc/procedures/ontology-gate.md roster-extension flow. | xwalk pins re-synced to all active labels post sitting 20260919 (85 labels, incl. narrowMatch stacks). v4 (merger_demerger_hyperedges S4, 2026-10-21): + shape hyperedge_labels; hyper-merger-families / hyper-demerger-families pin the (currently empty) n-ary M&A families — a first landed fact REQUIRES --expect-improve on those ids. | v6 (graph_relational_depth R3, 2026-10-25): + shapes ultimate_parent_of / insight_counterparts pinning the four R3 insight tables (ultimate_parent / hidden_connections / supply_chokepoints / competitive_overlap) — an absent table answers [] (pre-R3 store); the lanes' first apply was the declared improvement.",
+  "version": 7,
+  "_note": "ontology_governance S2 frozen question set v2 — DOC-DRIVEN roster derived 2026-09-17 from the live store via ontology_eval_gate.answer_question; coverage map and derivation procedure in doc/procedures/ontology-gate.md. After each ACCEPTED ontology-affecting change, rebaseline explicitly via ontology_eval_gate.py --rebaseline 'completed.md #NNN (change)'. Answers are sorted row-sets; subtree and concept_mappings_for are active-only. | v3 pins added at nic2008_seed_table S2 (subtree x2: nic2008 section J + division 62; the +1 industry->nic2008 crosswalk pin lands with S3 promote); expected computed via answer_question from the gated candidate per doc/procedures/ontology-gate.md roster-extension flow. | xwalk pins re-synced to all active labels post sitting 20260919 (85 labels, incl. narrowMatch stacks). v4 (merger_demerger_hyperedges S4, 2026-10-21): + shape hyperedge_labels; hyper-merger-families / hyper-demerger-families pin the (currently empty) n-ary M&A families — a first landed fact REQUIRES --expect-improve on those ids. | v6 (graph_relational_depth R3, 2026-10-25): + shapes ultimate_parent_of / insight_counterparts pinning the four R3 insight tables (ultimate_parent / hidden_connections / supply_chokepoints / competitive_overlap) — an absent table answers [] (pre-R3 store); the lanes' first apply was the declared improvement. | v7 (company_metrics_grain_and_bank, 2026-11-11): + shape metric_value pinning the certified grain view company_metrics_ruled (ruling A1 — both scopes kept, keyed by consolidated; latest filing within scope wins). An absent view answers [] (pre-grain store); the lane's first apply was the declared improvement. A restatement of a pinned quarter blocks the gate by design — re-pin explicitly, never silently.",
   "questions": [
     {
       "id": "subtree-super-sector-communication-services",
@@ -4356,6 +4356,84 @@
         "Jain Resource Recycling",
         "MOIL",
         "Vedanta"
+      ]
+    },
+    {
+      "id": "metric-reliance-q-revenue-fy27q1-cons",
+      "shape": "metric_value",
+      "params": {
+        "entity": "Reliance Industries",
+        "metric_label": "q_revenue",
+        "period": "FY27Q1",
+        "scope": "consolidated"
+      },
+      "expected": [
+        "311850.0"
+      ]
+    },
+    {
+      "id": "metric-reliance-q-revenue-fy27q1-solo",
+      "shape": "metric_value",
+      "params": {
+        "entity": "Reliance Industries",
+        "metric_label": "q_revenue",
+        "period": "FY27Q1",
+        "scope": "standalone"
+      },
+      "expected": [
+        "166013.0"
+      ]
+    },
+    {
+      "id": "metric-infosys-q-ebitda-fy26q4-cons",
+      "shape": "metric_value",
+      "params": {
+        "entity": "Infosys",
+        "metric_label": "q_ebitda",
+        "period": "FY26Q4",
+        "scope": "consolidated"
+      },
+      "expected": [
+        "12221.0"
+      ]
+    },
+    {
+      "id": "metric-infosys-q-ebitda-fy26q4-solo",
+      "shape": "metric_value",
+      "params": {
+        "entity": "Infosys",
+        "metric_label": "q_ebitda",
+        "period": "FY26Q4",
+        "scope": "standalone"
+      },
+      "expected": [
+        "10557.0"
+      ]
+    },
+    {
+      "id": "metric-bajaj-finance-q-pbt-fy27q1-cons",
+      "shape": "metric_value",
+      "params": {
+        "entity": "Bajaj Finance",
+        "metric_label": "q_pbt",
+        "period": "FY27Q1",
+        "scope": "consolidated"
+      },
+      "expected": [
+        "8143.89"
+      ]
+    },
+    {
+      "id": "metric-bajaj-finance-q-pbt-fy27q1-solo",
+      "shape": "metric_value",
+      "params": {
+        "entity": "Bajaj Finance",
+        "metric_label": "q_pbt",
+        "period": "FY27Q1",
+        "scope": "standalone"
+      },
+      "expected": [
+        "7162.86"
       ]
     }
   ],

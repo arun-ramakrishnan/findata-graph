@@ -1,0 +1,242 @@
+{
+  "version": 1,
+  "_note": "NL -> SQL -> pinned answer question bank (proposal archive/database/company_metrics_grain_and_bank §3.3, seeded 2026-11-11). Entries carry the NL question, the shape that answers it (metric_value for certified-grain lookups, sql for everything else), and an operator-attested pin computed from the committed snapshot and cross-checked against the live store. The probe runs this bank ALONGSIDE the frozen set by default; --no-bank skips it; --fail-on drifted is the CI gate. metric entries are keyed by ruling A1: one row per (entity, metric_label, period, consolidated) — latest filing within scope (ruling A1/B1). Restatements re-pin explicitly, never silently.",
+  "questions": [
+    {
+      "id": "bank-metric-wam-q-revenue-fy27q1-cons",
+      "question": "What was 360 ONE WAM's consolidated quarterly revenue for FY27Q1, in crore?",
+      "intent": "metrics",
+      "shape": "metric_value",
+      "params": {
+        "entity": "360 ONE WAM",
+        "metric_label": "q_revenue",
+        "period": "FY27Q1",
+        "scope": "consolidated"
+      },
+      "expected": [
+        "1226.09"
+      ],
+      "grain": "one row per (entity, metric_label, period, consolidated) — latest filing within scope (ruling A1/B1)"
+    },
+    {
+      "id": "bank-metric-wam-q-revenue-fy27q1-solo",
+      "question": "And 360 ONE WAM's standalone quarterly revenue for the same quarter?",
+      "intent": "metrics",
+      "shape": "metric_value",
+      "params": {
+        "entity": "360 ONE WAM",
+        "metric_label": "q_revenue",
+        "period": "FY27Q1",
+        "scope": "standalone"
+      },
+      "expected": [
+        "70.63"
+      ],
+      "grain": "one row per (entity, metric_label, period, consolidated) — latest filing within scope (ruling A1/B1)"
+    },
+    {
+      "id": "bank-metric-reliance-q-ebitda-fy27q1-cons",
+      "question": "What was Reliance Industries' consolidated EBITDA for FY27Q1, in crore?",
+      "intent": "metrics",
+      "shape": "metric_value",
+      "params": {
+        "entity": "Reliance Industries",
+        "metric_label": "q_ebitda",
+        "period": "FY27Q1",
+        "scope": "consolidated"
+      },
+      "expected": [
+        "45730.0"
+      ],
+      "grain": "one row per (entity, metric_label, period, consolidated) — latest filing within scope (ruling A1/B1)"
+    },
+    {
+      "id": "bank-metric-reliance-q-ebitda-fy27q1-solo",
+      "question": "And Reliance Industries' standalone EBITDA for FY27Q1?",
+      "intent": "metrics",
+      "shape": "metric_value",
+      "params": {
+        "entity": "Reliance Industries",
+        "metric_label": "q_ebitda",
+        "period": "FY27Q1",
+        "scope": "standalone"
+      },
+      "expected": [
+        "21796.0"
+      ],
+      "grain": "one row per (entity, metric_label, period, consolidated) — latest filing within scope (ruling A1/B1)"
+    },
+    {
+      "id": "bank-metric-infosys-q-basic-eps-fy27q1-cons",
+      "question": "What was Infosys' consolidated basic EPS for FY27Q1, in rupees?",
+      "intent": "metrics",
+      "shape": "metric_value",
+      "params": {
+        "entity": "Infosys",
+        "metric_label": "q_basic_eps",
+        "period": "FY27Q1",
+        "scope": "consolidated"
+      },
+      "expected": [
+        "19.19"
+      ],
+      "grain": "one row per (entity, metric_label, period, consolidated) — latest filing within scope (ruling A1/B1)"
+    },
+    {
+      "id": "bank-metric-infosys-q-basic-eps-fy27q1-solo",
+      "question": "And Infosys' standalone basic EPS for FY27Q1?",
+      "intent": "metrics",
+      "shape": "metric_value",
+      "params": {
+        "entity": "Infosys",
+        "metric_label": "q_basic_eps",
+        "period": "FY27Q1",
+        "scope": "standalone"
+      },
+      "expected": [
+        "17.87"
+      ],
+      "grain": "one row per (entity, metric_label, period, consolidated) — latest filing within scope (ruling A1/B1)"
+    },
+    {
+      "id": "bank-metric-bajaj-finance-q-revenue-fy26q4-cons",
+      "question": "What was Bajaj Finance's consolidated quarterly revenue for FY26Q4, in crore?",
+      "intent": "metrics",
+      "shape": "metric_value",
+      "params": {
+        "entity": "Bajaj Finance",
+        "metric_label": "q_revenue",
+        "period": "FY26Q4",
+        "scope": "consolidated"
+      },
+      "expected": [
+        "21605.79"
+      ],
+      "grain": "one row per (entity, metric_label, period, consolidated) — latest filing within scope (ruling A1/B1)"
+    },
+    {
+      "id": "bank-metric-bajaj-finance-q-revenue-fy26q4-solo",
+      "question": "And Bajaj Finance's standalone quarterly revenue for FY26Q4?",
+      "intent": "metrics",
+      "shape": "metric_value",
+      "params": {
+        "entity": "Bajaj Finance",
+        "metric_label": "q_revenue",
+        "period": "FY26Q4",
+        "scope": "standalone"
+      },
+      "expected": [
+        "18430.12"
+      ],
+      "grain": "one row per (entity, metric_label, period, consolidated) — latest filing within scope (ruling A1/B1)"
+    },
+    {
+      "id": "bank-sql-identity-isin",
+      "question": "Which company does ISIN INE040A01034 identify?",
+      "intent": "identity",
+      "shape": "sql",
+      "params": {
+        "sql": "SELECT entity_name FROM sqlite__entity_identifiers WHERE identifier_value = 'INE040A01034'"
+      },
+      "expected": [
+        "HDFC Bank"
+      ]
+    },
+    {
+      "id": "bank-sql-relations-competes",
+      "question": "Which companies does ICICI Bank compete with?",
+      "intent": "relations",
+      "shape": "sql",
+      "params": {
+        "sql": "SELECT target FROM sqlite__graph_edges WHERE source = 'ICICI Bank' AND edge_type = 'competes_with' ORDER BY target"
+      },
+      "expected": [
+        "Indian Bank",
+        "Kotak Mahindra Bank",
+        "Punjab National Bank (PNB)",
+        "State Bank of India",
+        "Union Bank of India",
+        "Yes Bank"
+      ]
+    },
+    {
+      "id": "bank-sql-nary-sector-members",
+      "question": "Which companies are in the Financial Services sector?",
+      "intent": "nary",
+      "shape": "sql",
+      "params": {
+        "sql": "SELECT DISTINCT hi.entity_name FROM sqlite__hyper_incidences hi JOIN sqlite__hyper_edges he ON he.id = hi.edge_id WHERE he.edge_type = 'sector' AND he.label = 'Financial_Services' ORDER BY 1"
+      },
+      "expected": [
+        "360 ONE WAM",
+        "BlackRock",
+        "CRIF High Mark",
+        "Clix Capital",
+        "Housing and Urban Development Corporation",
+        "Indian Railway Finance",
+        "Indian Renewable Energy Development Agency",
+        "PAGAC Ecstasy",
+        "Paul Merchants Finance",
+        "Prudential plc",
+        "REC",
+        "Samayat Services LLP",
+        "Sun Life Financial"
+      ]
+    },
+    {
+      "id": "bank-sql-events-acquisitions",
+      "question": "Which companies did Reliance Industries acquire?",
+      "intent": "events",
+      "shape": "sql",
+      "params": {
+        "sql": "SELECT DISTINCT counterparty_entity FROM sqlite__events WHERE entity = 'Reliance Industries' AND event_type = 'acquisition' AND counterparty_entity IS NOT NULL ORDER BY 1"
+      },
+      "expected": [
+        "Velvette"
+      ]
+    },
+    {
+      "id": "bank-sql-control-ultimate-parent",
+      "question": "Who is the ultimate parent of HDFC AMC?",
+      "intent": "control",
+      "shape": "sql",
+      "params": {
+        "sql": "SELECT ultimate_parent FROM sqlite__ultimate_parent WHERE company = 'HDFC AMC'"
+      },
+      "expected": [
+        "HDFC Bank"
+      ]
+    },
+    {
+      "id": "bank-sql-insight-hidden-connections",
+      "question": "Which companies is 5paisa Capital connected to beyond the obvious graph edges?",
+      "intent": "insight",
+      "shape": "sql",
+      "params": {
+        "sql": "SELECT b FROM sqlite__hidden_connections WHERE a = '5paisa Capital' UNION SELECT a FROM sqlite__hidden_connections WHERE b = '5paisa Capital' ORDER BY 1"
+      },
+      "expected": [
+        "IIFL Capital Asset Management",
+        "IIFL Facilities Services",
+        "IIFL Home Finance",
+        "IIFL Management Services",
+        "IIFL Open Fintech",
+        "IIFL Samasta Finance",
+        "India Infoline Foundation",
+        "Livlong Protection & Wellness Solutions"
+      ]
+    },
+    {
+      "id": "bank-sql-crosswalk-advertising",
+      "question": "Where does the industry concept 'Advertising Agencies' map to in the NIC 2008 scheme?",
+      "intent": "crosswalk",
+      "shape": "sql",
+      "params": {
+        "sql": "SELECT target_concept FROM sqlite__concept_mappings WHERE source_scheme = 'industry' AND source_concept = 'Advertising Agencies' AND target_scheme = 'nic2008' AND status = 'active' ORDER BY 1"
+      },
+      "expected": [
+        "73100"
+      ]
+    }
+  ]
+}

@@ -461,6 +461,24 @@ commit, referenced by nothing). Entry numbers point at
 
 ## database/ — Databases — DuckDB/SQLite engine and SQL query improvements
 
+- [`company_metrics_grain_and_bank.md`](database/company_metrics_grain_and_bank.md) —
+  `company_metrics` grain rule (scope-keyed), `metric_value` gate shape, and
+  the NL->SQL question bank: 79,396 rows / 49,826 distinct
+  `(entity, metric_label, period)` keys with NO row identity — naive
+  `SUM(value_num)` over `q_revenue` inflated 1.69x (12,680,960.89 vs
+  7,519,934.98); the nine-script trial proved the conflicts are not
+  duplicates (0 of 63,390 doc-level keys carry two values; 99.7% are
+  consolidated-vs-standalone SCOPE), so ruling A1 keys the grain
+  `(entity, metric_label, period, consolidated)` and keeps both scopes;
+  read-time certification, not dedup — `consolidated` promoted to a column
+  (63,390 backfilled, ingest writes it directly), certified view
+  `company_metrics_ruled` (76,976 ruled / 2,420 collapsed), new
+  `metric_value` gate shape (frozen set v6 -> v7, 6 pins), probe parity over
+  the same rule, advisory grain audit in `check_company_metrics`, and the
+  git-tracked bank at `helpers/misc/answerability_questions.json`
+  (15 entries: 8 metric both-scope + 7 SQL across the probe's intents);
+  gate ACCEPT (179 questions, 0 reasons) — completed.md #506
+
 - [`duckdb_full_consolidation.md`](database/duckdb_full_consolidation.md) —
   one-store consolidation decision doc (graph_hnsw_next S4 spin-off):
   trigger verdicts (gate NOT met; HNSW partially fired), B2-lite

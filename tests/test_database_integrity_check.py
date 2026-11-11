@@ -22,6 +22,9 @@ from pathlib import Path
 import pytest
 
 from helpers.misc.database_integrity_check import DatabaseIntegrityChecker  # noqa: E402
+from helpers.maintenance.migrate_to_graph_edges import (  # noqa: E402
+    COMPANY_METRICS_RULED_VIEW_DDL,
+)
 
 ENTITIES_DDL = (
     "CREATE TABLE entities ("
@@ -798,8 +801,40 @@ class TestCompanyMetrics:
             assert result["orphaned"] == 1
             assert result["errors"] == 1
 
+    def test_grain_audit_zeroed_on_a_pre_grain_store(self, tmp_path):
+        with _make_rich_db(tmp_path) as (db_path, checker):
+            result = checker.check_company_metrics()
+            assert result["errors"] == 0
+            assert result["ruled"] == 0
+            assert result["collapsed"] == 0
+            assert result["null_keys"] == 0
+            assert result["key_conflicts"] == 0
 
-# ---------------------------------------------------------------------------
+    def test_grain_audit_counts_collapse_and_conflicts(self, tmp_path):
+        with _make_rich_db(tmp_path) as (db_path, checker):
+            conn = sqlite3.connect(db_path)
+            conn.execute("INSERT INTO entities VALUES ('Co A', 'company', 'x', 'Co_A', 'X', NULL)")
+            conn.execute("ALTER TABLE company_metrics ADD COLUMN consolidated INTEGER")
+            conn.execute(
+                "INSERT INTO company_metrics (entity, metric_label, value_num, period, "
+                "source_ref, properties, consolidated) VALUES "
+                "('Co A', 'q_revenue', 100.0, 'FY27Q1', 'x', '{}', 1), "
+                "('Co A', 'q_revenue', 120.0, 'FY27Q1', 'y', '{}', 1), "
+                "('Co A', 'q_revenue', 40.0, 'FY27Q1', 'z', '{}', 0), "
+                "('Co A', NULL, NULL, NULL, 'w', '{}', NULL)"
+            )
+            conn.execute(COMPANY_METRICS_RULED_VIEW_DDL)
+            conn.commit()
+            conn.close()
+            result = checker.check_company_metrics()
+            assert result["errors"] == 0  # the audit is advisory, never a gate
+            assert result["null_keys"] == 1
+            assert result["key_conflicts"] == 1  # the consolidated q_revenue group
+            assert result["ruled"] == 3  # 2 certified + 1 null-key passthrough
+            assert result["collapsed"] == 1
+
+
+# --------------------------------------------------------------------------- #
 # check_graph_summary — DB-backed (advisory, never errors)
 # ---------------------------------------------------------------------------
 class TestGraphSummary:

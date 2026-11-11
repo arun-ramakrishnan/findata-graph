@@ -835,6 +835,15 @@ class DatabaseIntegrityChecker:
 
         Same shape as check_quotes: orphan + bad-properties only (metric_label
         and unit are free-text best-effort fields, not a controlled vocab).
+
+        Grain audit (advisory — proposal archive/database/company_metrics_grain_and_bank
+        §3.1, ruling A1): ``ruled``/``collapsed`` describe the certified view
+        ``company_metrics_ruled`` (one row per complete key, latest filing
+        within scope); ``null_keys`` counts rows outside the grain key;
+        ``key_conflicts`` counts complete-key groups whose older refilings the
+        latest-filing rule discards. None of these gate — they describe the
+        collapse the ruling accepts. Zeroed on a pre-grain store (no
+        ``consolidated`` column / no view yet).
         """
         conn = self.get_connection()
         cur = conn.cursor()
@@ -844,7 +853,16 @@ class DatabaseIntegrityChecker:
             ).fetchone()
             is None
         ):
-            return {"total": 0, "orphaned": 0, "bad_properties": 0, "errors": 0}
+            return {
+                "total": 0,
+                "orphaned": 0,
+                "bad_properties": 0,
+                "errors": 0,
+                "ruled": 0,
+                "collapsed": 0,
+                "null_keys": 0,
+                "key_conflicts": 0,
+            }
         total = cur.execute("SELECT COUNT(*) FROM company_metrics").fetchone()[0]
         orphaned = cur.execute(
             "SELECT COUNT(*) FROM company_metrics WHERE entity NOT IN (SELECT name FROM entities)"
@@ -852,11 +870,33 @@ class DatabaseIntegrityChecker:
         bad_properties = cur.execute(
             "SELECT COUNT(*) FROM company_metrics WHERE json_valid(properties) = 0"
         ).fetchone()[0]
+        grain = {"ruled": 0, "collapsed": 0, "null_keys": 0, "key_conflicts": 0}
+        cols = {r[1] for r in cur.execute("PRAGMA table_info(company_metrics)")}
+        if "consolidated" in cols:
+            grain["null_keys"] = cur.execute(
+                "SELECT COUNT(*) FROM company_metrics WHERE period IS NULL OR metric_label IS NULL"
+            ).fetchone()[0]
+            grain["key_conflicts"] = cur.execute(
+                "SELECT COUNT(*) FROM (SELECT entity, metric_label, period, consolidated "
+                "FROM company_metrics WHERE period IS NOT NULL AND metric_label IS NOT NULL "
+                "GROUP BY 1, 2, 3, 4 HAVING COUNT(DISTINCT value_num) > 1)"
+            ).fetchone()[0]
+            if (
+                cur.execute(
+                    "SELECT 1 FROM sqlite_master WHERE name='company_metrics_ruled' AND type='view'"
+                ).fetchone()
+                is not None
+            ):
+                grain["ruled"] = cur.execute(
+                    "SELECT COUNT(*) FROM company_metrics_ruled"
+                ).fetchone()[0]
+                grain["collapsed"] = total - grain["ruled"]
         return {
             "total": total,
             "orphaned": orphaned,
             "bad_properties": bad_properties,
             "errors": orphaned + bad_properties,
+            **grain,
         }
 
     def check_orphan_companies(self) -> dict:

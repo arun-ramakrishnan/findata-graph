@@ -912,7 +912,11 @@ Open items below keep their revisit triggers inline; executed work is compressed
   (completed.md #493: 7 repo-native mapping entries in
   `doc/reference/ontology_glossary.md`, semantics-only with dated
   `db_schema.md` pointers — the EvoOntology term→grain discipline
-  satisfied without the metrics Q&A lane; trigger closed);
+  satisfied without the metrics Q&A lane; trigger closed — and the metrics
+  Q&A lane has since landed its first half: completed.md #506 (grain rule +
+  `metric_value` gate shape + the NL->SQL question bank at
+  `helpers/misc/answerability_questions.json`); what remains open from it is
+  the NL front door itself, not the `term→table/column/filter/grain` mapping);
   (b) LLM-judge protocol 2 for the change gate (`"llm_judge"`
   slot reserved in the report schema, aggregation from EvoOntology
   evaluation.py:63) — trigger: an LLM-API posture (terrain C4 revival
