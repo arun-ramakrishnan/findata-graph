@@ -72,6 +72,7 @@ import zstandard
 REPO = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO))  # repo root, for helpers.core.db
 from helpers.core import jsonio  # noqa: E402  (grouped with core imports)
+from helpers.core.duckdb_shared import memory_cap_config  # noqa: E402
 from helpers.core.db import connect  # noqa: E402  (path insert must precede)
 from helpers.misc.duckdb_lock import connect_with_lock_retry  # noqa: E402
 
@@ -1883,7 +1884,7 @@ def main() -> None:
     rp.add_argument("--db", type=Path, default=DB_PATH)
     args = ap.parse_args()
 
-    con = duckdb.connect(str(args.db))
+    con = duckdb.connect(str(args.db), **memory_cap_config())
     con.execute(SCHEMA)
     load_ok = False
     from helpers.maintenance.maint_timing import RunTimer

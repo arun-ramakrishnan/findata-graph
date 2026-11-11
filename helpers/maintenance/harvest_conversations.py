@@ -36,7 +36,10 @@ wins) and rewritten; untouched sessions are never re-read.
 
 CLI mirrors the search-fresh contract: ``--check`` reports drift and
 exits 1 without writing; default (or APPLY=1 via ``make convo-fresh``)
-harvests.
+harvests. APPLY prints one line per touched source; the per-unit
+"quiet" watermark-match lines are suppressed unless ``--verbose``
+(``make convo-fresh ARGS=--verbose``) — the new-parts table still
+counts them.
 """
 
 from __future__ import annotations
@@ -2436,9 +2439,7 @@ def _migrate_zcode_models(corpus_root: Path) -> tuple[int, int]:
 
 
 # --- APPLY new-parts tally (the convo-fresh table) ---------------------
-def _tally(
-    tally: dict | None, lane: str, kind: str, label: str = "", n: int = 1
-) -> None:
+def _tally(tally: dict | None, lane: str, kind: str, label: str = "", n: int = 1) -> None:
     """Record one lane outcome for the APPLY new-parts table.
 
     ``kind`` is "parts" (``label`` produced ``n`` new rows), "quiet"
@@ -2466,17 +2467,13 @@ def _read_embed_rate(con) -> float | None:
     if con is None:
         return None
     try:
-        row = con.execute(
-            "SELECT value FROM convo_meta WHERE key = 'embed_s_per_row'"
-        ).fetchone()
+        row = con.execute("SELECT value FROM convo_meta WHERE key = 'embed_s_per_row'").fetchone()
         return float(row[0]) if row else None
     except Exception:  # fresh stores have no convo_meta yet
         return None
 
 
-def _format_new_table(
-    tally: dict, embed_rate: float | None, lane_order: tuple[str, ...]
-) -> str:
+def _format_new_table(tally: dict, embed_rate: float | None, lane_order: tuple[str, ...]) -> str:
     """Neat per-harness breakdown of what this APPLY harvested.
 
     ``new`` counts units that produced parts — sessions for dsh/zcode/bili,
@@ -2515,6 +2512,18 @@ def _format_new_table(
             f"({tot_p} parts @ {embed_rate:.2f}s/part, last measured embed)"
         )
     return "\n".join(out)
+
+
+def _drop_quiet_lines(block: str) -> str:
+    """Strip per-unit "…: quiet" lines from a lanes block (APPLY print).
+
+    Default APPLY output: quiet watermark matches are noise (100+ lines
+    in steady state, zero information — user request 2026-11-11); the
+    new-parts table already counts them per lane. ``--verbose`` prints
+    the unfiltered block. Lane functions still RETURN quiet lines (tests
+    assert on them); this filters presentation only.
+    """
+    return "\n".join(line for line in block.splitlines() if not line.rstrip().endswith(": quiet"))
 
 
 def harvest(
@@ -2556,9 +2565,7 @@ def harvest(
             # the same files APPLY would. Corruption still fails loudly:
             # _drift above raises where a lane would only SKIP-and-name.
             _check_lanes(lanes)
-            dry_names = _LANES if lanes is None else tuple(
-                n for n in _LANES if n in set(lanes)
-            )
+            dry_names = _LANES if lanes is None else tuple(n for n in _LANES if n in set(lanes))
             tally: dict = {}
             dry_writer = SessionWriter(corpus_root)
             for name, fn in (
@@ -3103,6 +3110,13 @@ def main(argv: list[str] | None = None) -> int:  # noqa: C901
         "forced re-read merges rather than duplicating). Runs the full "
         "harvest; only the named lane ignores its watermark.",
     )
+    p.add_argument(
+        "-v",
+        "--verbose",
+        action="store_true",
+        help="APPLY: print per-unit quiet lines (default: suppressed — the "
+        "new-parts table still shows their counts). No effect on --check.",
+    )
     args = p.parse_args(argv)
     if (
         args.keep
@@ -3234,7 +3248,9 @@ def main(argv: list[str] | None = None) -> int:  # noqa: C901
             )
         print("corpus state: FRESH", file=sys.stderr)
         return timer.finish(0, "FRESH")
-    print(out["lanes"], file=sys.stderr)
+    lanes_text = out["lanes"] if args.verbose else _drop_quiet_lines(out["lanes"])
+    if lanes_text:
+        print(lanes_text, file=sys.stderr)
     print(
         _format_new_table(out.get("tally") or {}, out.get("embed_rate"), _LANES),
         file=sys.stderr,

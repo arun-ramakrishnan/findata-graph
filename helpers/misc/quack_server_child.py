@@ -138,9 +138,11 @@ def main(argv: list[str] | None = None) -> int:
     try:
         from helpers.graph.onager import connect_kwargs
 
-        con = duckdb.connect(str(db), **connect_kwargs())
+        kw = connect_kwargs()
+        kw.setdefault("config", {}).update(ds.memory_cap_config()["config"])
+        con = duckdb.connect(str(db), **kw)
     except ImportError:  # standalone child (tests) without the repo package
-        con = duckdb.connect(str(db))
+        con = duckdb.connect(str(db), **ds.memory_cap_config())
     _load_serving_extensions(con)
     # Explicit port: the bare 'quack:localhost' form carries no port in
     # the returned uri, so clients cannot tell servers apart and would

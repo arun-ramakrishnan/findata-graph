@@ -80,7 +80,9 @@ def _rows_read(path: Path) -> dict[str, dict]:
     if path.suffix == ".duckdb":
         import duckdb
 
-        con = duckdb.connect(str(path), read_only=True)
+        from helpers.core.duckdb_shared import memory_cap_config
+
+        con = duckdb.connect(str(path), read_only=True, **memory_cap_config())
         try:
             cur = con.execute("SELECT * FROM mca_cin")
             cols = [d[0] for d in cur.description]
@@ -94,7 +96,9 @@ def _rows_read(path: Path) -> dict[str, dict]:
 def _write_duckdb(rows: dict[str, dict]) -> None:
     import duckdb
 
-    con = duckdb.connect(str(SOURCES_DB))
+    from helpers.core.duckdb_shared import memory_cap_config
+
+    con = duckdb.connect(str(SOURCES_DB), **memory_cap_config())
     try:
         con.execute("DROP TABLE IF EXISTS mca_cin")
         con.execute("""CREATE TABLE mca_cin (

@@ -54,6 +54,7 @@ Usage:
 
 import argparse
 import logging
+import re
 import sqlite3
 import subprocess
 import sys
@@ -61,6 +62,11 @@ import tempfile
 import time
 from pathlib import Path
 from typing import Any
+
+_SECRET_RE = re.compile(
+    r"(^\.env$)|(svc_account)|(credential)|(secret)|(token)|(\.key$)|(\.pem$)",
+    re.IGNORECASE,
+)
 
 LOG_FORMAT = "%(asctime)s [%(levelname)s] %(message)s"
 
@@ -564,8 +570,10 @@ class DBMaintainer:
             # behind the checkpoint.
             from helpers.misc.duckdb_lock import io_lock as _io_lock
 
+            from helpers.core.duckdb_shared import memory_cap_config
+
             with _io_lock(src, exclusive=False):
-                con = duckdb.connect(str(src), read_only=True)
+                con = duckdb.connect(str(src), read_only=True, **memory_cap_config())
                 try:
                     con.execute("CHECKPOINT;")
                 except duckdb.Error as e:
@@ -695,7 +703,6 @@ class DBMaintainer:
           ``*.lock``. The WAL is already merged by the online-backup /
           checkpoint routines of the artifacts that own one.
         """
-        import re
         import tarfile
 
         from compression import zstd
@@ -720,10 +727,7 @@ class DBMaintainer:
             "data/model_usage.duckdb",
             "data/harness",
         }
-        secret_re = re.compile(
-            r"(^\.env$)|(svc_account)|(credential)|(secret)|(token)|(\.key$)|(\.pem$)",
-            re.IGNORECASE,
-        )
+        secret_re = _SECRET_RE
         transient_suffixes = ("-wal", "-shm", ".lock", ".tmp")
         # A catch-all must not become a way to tar a data lake: one huge
         # drop (model weights, a raw ingest) is LOGGED as a coverage gap
@@ -1048,6 +1052,8 @@ class DBMaintainer:
             self._log(logging.WARNING, "duckdb not installed; skipping DuckDB maintenance")
             return {"status": "skipped", "reason": "duckdb not installed"}
 
+        from helpers.core.duckdb_shared import memory_cap_config
+
         result: dict = {"path": str(self.duckdb_path)}
 
         # Pre-mutation recovery backup. Same shape as the SQLite backup:
@@ -1084,7 +1090,7 @@ class DBMaintainer:
             result.update(status="ok", checkpoint="skipped (served)")
             return result
         with _io_lock(self.duckdb_path, exclusive=True):
-            con = duckdb.connect(str(self.duckdb_path))
+            con = duckdb.connect(str(self.duckdb_path), **memory_cap_config())
             try:
                 con.execute("CHECKPOINT;")
                 self._log(logging.INFO, "DuckDB VACUUM")
@@ -1131,6 +1137,8 @@ class DBMaintainer:
             return rows
         from helpers.misc.duckdb_lock import io_lock
 
+        from helpers.core.duckdb_shared import memory_cap_config
+
         for rel, vacuum in SIDECAR_DUCKDB:
             p = REPO_ROOT / rel
             row: dict = {"store": rel, "engine": "duckdb"}
@@ -1141,7 +1149,7 @@ class DBMaintainer:
             t0 = time.time()
             try:
                 with io_lock(p, exclusive=True):
-                    con = duckdb.connect(str(p))
+                    con = duckdb.connect(str(p), **memory_cap_config())
                     try:
                         con.execute("CHECKPOINT")
                         if vacuum:

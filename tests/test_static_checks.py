@@ -1879,3 +1879,69 @@ def test_live_list_marker_on_one_bullet_does_not_excuse_another(tmp_path, monkey
     fatal, _ = sc.check_proposal_lifecycle()
     assert len(fatal) == 1, fatal
     assert "still advertises second_topic" in fatal[0]
+
+
+# --------------------------------------------------------------------------- #
+# Loop-invariant recomputation (ladder_indexing arc, 2026-11-11)              #
+# --------------------------------------------------------------------------- #
+def test_loop_invariant_set_recomputation_flagged(tmp_path, monkeypatch):
+    """set() on an operand bound outside the loop is advisory-flagged."""
+    src = (
+        "def f(names, m):\n"
+        "    for k in m:\n"
+        "        s = set(names.split())\n"
+        "        del s\n"
+    )
+    (tmp_path / "probe.py").write_text(src, encoding="utf-8")
+    monkeypatch.setattr(sc, "REPO_ROOT", tmp_path)
+    fatal, advisory = sc.check_loop_invariant_recomputation()
+    assert fatal == []
+    assert len(advisory) == 1
+    assert "probe.py:3" in advisory[0]
+    assert "set()/split()/re.compile() on names" in advisory[0]
+
+
+def test_loop_invariant_recompile_flagged(tmp_path, monkeypatch):
+    """re.compile() on a loop-invariant operand is advisory-flagged."""
+    src = (
+        "import re\n"
+        "def f(pat, lines):\n"
+        "    for line in lines:\n"
+        "        rx = re.compile(pat)\n"
+        "        rx.search(line)\n"
+    )
+    (tmp_path / "probe.py").write_text(src, encoding="utf-8")
+    monkeypatch.setattr(sc, "REPO_ROOT", tmp_path)
+    fatal, advisory = sc.check_loop_invariant_recomputation()
+    assert fatal == []
+    assert len(advisory) == 1
+    assert "probe.py:4" in advisory[0]
+
+
+def test_loop_variable_operand_not_flagged(tmp_path, monkeypatch):
+    """Operands bound inside the loop (e.g. the loop var) are legitimate."""
+    src = (
+        "def f(m):\n"
+        "    for k in m:\n"
+        "        s = set(k.split())\n"
+        "        del s\n"
+    )
+    (tmp_path / "probe.py").write_text(src, encoding="utf-8")
+    monkeypatch.setattr(sc, "REPO_ROOT", tmp_path)
+    fatal, advisory = sc.check_loop_invariant_recomputation()
+    assert (fatal, advisory) == ([], [])
+
+
+def test_nested_function_body_not_flagged(tmp_path, monkeypatch):
+    """Calls inside a nested def are not per-iteration work — skipped."""
+    src = (
+        "def f(m):\n"
+        "    for k in m:\n"
+        "        def g():\n"
+        "            return set(names.split())\n"
+        "        del g\n"
+    )
+    (tmp_path / "probe.py").write_text(src, encoding="utf-8")
+    monkeypatch.setattr(sc, "REPO_ROOT", tmp_path)
+    fatal, advisory = sc.check_loop_invariant_recomputation()
+    assert (fatal, advisory) == ([], [])

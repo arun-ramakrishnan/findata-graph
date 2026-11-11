@@ -122,6 +122,7 @@ _ARTIFACT_KEEP_RUNS = 40
 # The writers stamp each gate-failing section with "-> errors=N"; reading the
 # counter back out keeps the sidecar and the rendered report from disagreeing.
 _ERRORS_RE = re.compile(r"->\s*errors=(\d+)")
+_NAME_OK_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_]*$")
 
 
 @dataclass(frozen=True)
@@ -1113,7 +1114,7 @@ class DatabaseIntegrityChecker:
         match the file_path basename; orphaned files (on disk, not in DB).
         """
         # Allow leading digit for brand names that legitimately start with a number
-        name_ok = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_]*$")
+        name_ok = _NAME_OK_RE
         conn = self.get_connection()
         cur = conn.cursor()
 

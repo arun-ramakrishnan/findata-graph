@@ -23,7 +23,6 @@ Env: BILI_LOG, BILI_LOG_OLD, BILI_TIMELINE, BILI_WATCH_DIR, BILI_RATE
 
 from __future__ import annotations
 
-import json
 import os
 import re
 import sys
@@ -38,6 +37,7 @@ _REPO = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__
 if _REPO not in sys.path:
     sys.path.insert(0, _REPO)
 
+from helpers.core import jsonio  # noqa: E402  (orjson dumps cutover S1)
 from helpers.analytics.bili_logpath import discover_all  # noqa: E402
 
 RATE = float(os.environ.get("BILI_RATE", "0.1"))  # billed cache-read multiple of input price
@@ -262,7 +262,7 @@ def cmd_snap(argv: list[str]) -> int:
         for sid, row in sorted(data.items()):
             if sids and sid not in sids:
                 continue
-            fh.write(json.dumps(row, separators=(",", ":")) + "\n")
+            fh.write(jsonio.dumps(row) + "\n")
             n += 1
     print(f"{datetime.now(UTC).strftime('%Y-%m-%dT%H:%M:%SZ')} snap {n} session(s) -> {TIMELINE}")
     return 0

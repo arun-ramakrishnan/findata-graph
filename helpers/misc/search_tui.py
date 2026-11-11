@@ -51,6 +51,7 @@ exits 2. Needs a TTY.
 from __future__ import annotations
 
 import argparse
+import functools
 import html
 import os
 import re
@@ -69,7 +70,7 @@ REPO = Path(__file__).resolve().parents[2]
 if str(REPO) not in sys.path:
     sys.path.insert(0, str(REPO))
 
-from helpers.core import jsonio  # noqa: E402  (orjson parse cutover; dumps stay stdlib per db_scaling_tuning §6.3 criteria)
+from helpers.core import jsonio  # noqa: E402  (orjson parse cutover; dumps cutover S1)
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 LANES: tuple[str, ...] = (
@@ -2099,12 +2100,18 @@ def editor_chain() -> list[str]:
     return []
 
 
+@functools.lru_cache(maxsize=128)
+def _make_target_re(target: str) -> re.Pattern:
+    """Compile (once, cached) a make-target rule-line pattern."""
+    return re.compile(rf"^{re.escape(target)}:")
+
+
 def locate_make_target(root: Path, target: str) -> tuple[str, int] | None:
     """Find a make target's rule line (script lane 'make' rows)."""
     mk = root / "Makefile"
     if not mk.exists():
         return None
-    pat = re.compile(rf"^{re.escape(target)}:")
+    pat = _make_target_re(target)
     for i, ln in enumerate(mk.read_text(errors="replace").splitlines(), 1):
         if pat.match(ln):
             return str(mk), i

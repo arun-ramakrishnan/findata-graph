@@ -55,7 +55,6 @@ running proxy); override with `BILI_LOG` / `--config` / `--db`.
 from __future__ import annotations
 
 import argparse
-import json
 import re
 import sys
 import time
@@ -68,6 +67,7 @@ _REPO = Path(__file__).resolve().parents[2]
 if str(_REPO) not in sys.path:
     sys.path.insert(0, str(_REPO))
 
+from helpers.core import jsonio  # noqa: E402  (orjson dumps cutover S1)
 from helpers.analytics import bili_logpath, bili_sessions, bili_tier_nudge as btn  # noqa: E402
 
 DEFAULT_DB = Path.home() / ".local/share/billion-context/sessions/index.db"
@@ -463,7 +463,7 @@ class Watch:
         path = Path(packet_path)
         try:
             with path.open("a", encoding="utf-8") as fh:
-                fh.write(json.dumps(packet, ensure_ascii=False) + "\n")
+                fh.write(jsonio.dumps(packet) + "\n")
         except OSError as exc:
             print(f"# inject packet write failed: {exc}", file=sys.stderr, flush=True)
 
@@ -757,7 +757,7 @@ def main(argv: list[str] | None = None) -> int:  # noqa: C901
         bars_now = btn.Bars.from_file(args.config)
         sample = build_sample(watch, bars_now, args.db, _norm_session(args.session))
         if args.json:
-            print(json.dumps(sample.as_dict(), indent=2), flush=True)
+            print(jsonio.dumps(sample.as_dict(), indent=2), flush=True)
         else:
             print(sample.render(), flush=True)
 

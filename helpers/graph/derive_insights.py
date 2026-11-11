@@ -3255,12 +3255,23 @@ _NEWSLETTER_CHROME_NAMES = {"image_map", "images"}
 _NEWSLETTER_TREES = ("The_Chatter", "Points_And_Figures", "The_PlotLines")
 
 
+class _ResolverMap(dict):
+    """dict subclass carrying one-off ladder caches (`_fz_index`, `_qv_index`)
+    as instance attributes; plain dicts can't hold attrs and fall back to the
+    uncached O(N) path."""
+
+    _fz_index: dict | None
+    _qv_index: dict | None
+
+
 def _build_resolver_map(conn) -> dict[str, str]:
     """One DB round-trip: company name + normalized_name -> canonical db name (lowercased keys)."""
     rows = conn.execute(
         "SELECT name, normalized_name FROM entities WHERE entity_type='company'"
     ).fetchall()
-    m: dict[str, str] = {}
+    m = _ResolverMap()
+    m._fz_index = None
+    m._qv_index = None
     for r in rows:
         name = r["name"]
         norm = r["normalized_name"]
@@ -3356,7 +3367,14 @@ def _candidate_keys(name: str) -> tuple[str, list[str], list[str]]:
 def _qualifier_variants(key: str, resolver_map: dict[str, str]) -> list[str]:
     """Query-side trailing-qualifier strips (Titan Company -> titan),
     then entity-side qualifier extensions (Mitsubishi Chemical ->
-    Mitsubishi Chemical Group; unique hit only, ambiguity -> no resolve)."""
+    Mitsubishi Chemical Group; unique hit only, ambiguity -> no resolve).
+
+    Entity-side scan is bucketed by first token (built once per resolver_map):
+    ``ent_key.startswith(key + " ")`` implies first-token equality, so only
+    the query's bucket can match. Matches carry their original insertion index
+    and are appended in that order, preserving the exact output order callers
+    rely on (``_resolve_qualifier_tier`` consumes ``[:2]`` / ``[2:]``).
+    """
     words = key.split()
     out = []
     for _ in range(2):  # up to two successive strips (… Company Ltd)
@@ -3366,9 +3384,24 @@ def _qualifier_variants(key: str, resolver_map: dict[str, str]) -> list[str]:
         else:
             break
     # entity-side: `query <qualifier>` keys (unique hit enforced by caller)
-    for ent_key in resolver_map:
+    index = getattr(resolver_map, "_qv_index", None)
+    if index is None:
+        index = {}
+        for i, ent_key in enumerate(resolver_map):
+            first = ent_key.split(" ", 1)[0]
+            index.setdefault(first, []).append((i, ent_key))
+        try:
+            if isinstance(resolver_map, _ResolverMap):
+                resolver_map._qv_index = index
+        except AttributeError:
+            pass  # foreign plain dict: recompute per call (uncached)
+    hits = []
+    first = key.split(" ", 1)[0]
+    for i, ent_key in index.get(first, ()):
         if ent_key.startswith(key + " ") and ent_key[len(key) + 1 :] in _QUALIFIER_TOKENS:
-            out.append(ent_key)
+            hits.append((i, ent_key))
+    hits.sort()
+    out.extend(ent_key for _, ent_key in hits)
     return out
 
 
@@ -3598,18 +3631,44 @@ def _resolve_alias_tier(
     return None, ""
 
 
-def _fuzzy_suggestions(name: str, resolver_map: dict[str, str]) -> list[str]:
-    """Miss -> ranked fuzzy suggestions (token-set jaccard), never applied."""
+def _fuzzy_suggestions(name: str, resolver_map: dict[str, str]) -> list[str]:  # noqa: C901  # one ranking walk (token index -> jaccard -> sort); splitting scatters the scoring order
+    """Miss -> ranked fuzzy suggestions (token-set jaccard), never applied.
+
+    Inverted token index, built once per resolver_map: candidates = union of
+    posting lists over query tokens. Any key with jac >= 0.5 shares at least
+    one token with the query, so the candidate set is a superset of all
+    scorers — skipping non-candidates cannot change the result. The final
+    sort is by (jac, ent) in the original order-independent (ties by reverse-
+    lexicographic ent), so suggestions are identical.
+    """
     exact = _ascii_fold(name).lower().strip()
     qwords = set(exact.replace("&", " ").split())
+    if not qwords:
+        return []
+    index = getattr(resolver_map, "_fz_index", None)
+    if index is None:
+        index = {}
+        for i, (ent_key, ent) in enumerate(resolver_map.items()):
+            ewords = frozenset(ent_key.replace("&", " ").split())
+            if not ewords:
+                continue
+            for tok in ewords:
+                index.setdefault(tok, []).append((i, ent, ewords))
+        try:
+            if isinstance(resolver_map, _ResolverMap):
+                resolver_map._fz_index = index
+        except AttributeError:
+            pass  # foreign plain dict: recompute per call (uncached)
     scored = []
-    for ent_key, ent in resolver_map.items():
-        ewords = set(ent_key.replace("&", " ").split())
-        if not qwords or not ewords:
-            continue
-        jac = len(qwords & ewords) / len(qwords | ewords)
-        if jac >= 0.5:
-            scored.append((jac, ent))
+    seen = set()
+    for tok in qwords:
+        for i, ent, ewords in index.get(tok, ()):
+            if i in seen:
+                continue
+            seen.add(i)
+            jac = len(qwords & ewords) / len(qwords | ewords)
+            if jac >= 0.5:
+                scored.append((jac, ent))
     scored.sort(reverse=True)
     suggestions = []
     for _, ent in scored[:3]:

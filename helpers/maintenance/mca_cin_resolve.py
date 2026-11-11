@@ -141,7 +141,9 @@ def load_worklist_rows() -> list[dict]:
 def load_listing_names() -> dict[str, str]:
     import duckdb
 
-    con = duckdb.connect(str(DATA_DIR / "sources.duckdb"), read_only=True)
+    from helpers.core.duckdb_shared import memory_cap_config
+
+    con = duckdb.connect(str(DATA_DIR / "sources.duckdb"), read_only=True, **memory_cap_config())
     try:
         return {
             r[0]: r[1]

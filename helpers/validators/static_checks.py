@@ -2011,6 +2011,132 @@ def check_route_skeleton() -> tuple[list[str], list[str]]:
     return fatal, advisory
 
 
+# --------------------------------------------------------------------------- #
+# Loop-invariant recomputation (anti-repeat-work AST lint)                     #
+# --------------------------------------------------------------------------- #
+# Ladder-indexing arc (2026-11-11): derive_insights' two hotspots each scanned
+# the full 48,793-key resolver_map per call (729 qualifier + 94 fuzzy calls)
+# and rebuilt per-entry token sets / re-scanned keys every time. The durable
+# guard for that class is a static rule: a set()/split()/re.compile() call
+# inside a for-loop whose operands reference only names bound OUTSIDE the loop
+# produces the identical object each iteration — redundant recompute that
+# scales with iterations × operand cost.
+_LOOP_INVARIANT_FUNCS = ("set", "frozenset")
+
+
+def _is_loop_invariant_call(node: ast.AST) -> bool:
+    if not isinstance(node, ast.Call):
+        return False
+    func = node.func
+    if isinstance(func, ast.Name):
+        return func.id in _LOOP_INVARIANT_FUNCS
+    if isinstance(func, ast.Attribute):
+        if func.attr == "split":
+            return True
+        if (
+            func.attr == "compile"
+            and isinstance(func.value, ast.Name)
+            and func.value.id == "re"
+        ):
+            return True
+    return False
+
+
+def _collect_bound_names(stmts: list[ast.stmt]) -> set[str]:
+    """All names stored anywhere in a statement list (pruned at nested defs)."""
+    bound: set[str] = set()
+    for node in stmts:
+        for child in ast.walk(node):
+            if isinstance(child, (ast.FunctionDef, ast.AsyncFunctionDef, ast.Lambda)):
+                continue
+            if isinstance(child, ast.Name) and isinstance(child.ctx, ast.Store):
+                bound.add(child.id)
+    return bound
+
+
+def _for_target_names(f: ast.For) -> set[str]:
+    """The loop variable(s) of a ``for`` — bound per iteration, so operands
+    referencing them are legitimately per-iteration data."""
+    return {n.id for n in ast.walk(f.target) if isinstance(n, ast.Name)}
+
+
+def _free_arg_names(call: ast.Call, bound: set[str]) -> set[str]:
+    """Argument names of `call` that are NOT bound inside the loop."""
+    free: set[str] = set()
+    values = [*call.args, *(kw.value for kw in call.keywords)]
+    for value in values:
+        for n in ast.walk(value):
+            if isinstance(n, ast.Name) and n.id not in bound:
+                free.add(n.id)
+    return free
+
+
+def _explore_loop_bodies(
+    items: list[ast.stmt], bound: set[str], hits: list[tuple[int, str]]
+) -> None:
+    for node in items:
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.Lambda)):
+            continue
+        if isinstance(node, ast.For):
+            b = bound | _collect_bound_names(node.body) | _for_target_names(node)
+            _explore_loop_bodies(node.body, b, hits)
+        elif _is_loop_invariant_call(node):
+            free = _free_arg_names(node, bound)
+            if free:
+                hits.append((node.lineno, ", ".join(sorted(free))))
+        else:
+            for child in ast.iter_child_nodes(node):
+                _explore_loop_bodies([child], bound, hits)
+
+
+def _collect_for_nodes(items: list[ast.stmt], out: list[ast.For]) -> None:
+    """All ``for`` nodes anywhere in a module (including inside function bodies)."""
+    for node in items:
+        if isinstance(node, ast.For):
+            out.append(node)
+        _collect_for_nodes(list(ast.iter_child_nodes(node)), out)
+
+
+def check_loop_invariant_recomputation(scope: set[Path] | None = None) -> tuple[list[str], list[str]]:
+    """ADVISORY: flag set()/split()/re.compile() calls whose operands are loop-invariant.
+
+    A call inside a for-loop that references only names bound outside the loop
+    is recomputed identically every iteration — the derive_insights ladder
+    pattern (2026-11-11). Operands bound inside the loop (e.g. the loop
+    variable) and nested function bodies are correctly ignored.
+
+    Advisory (never blocks ``make qa``): the tree holds ~27 set/frozenset and
+    ~169 re.compile sites in-loop today; surfacing is the first step, a
+    hoist sweep is the follow-on (mirrors S2/\"502 sweep).
+    """
+    if scope is None:
+        scope = _DIRTY_PY_SCOPE
+    files = _scoped_py_files(scope) if scope is not None else _walk(REPO_ROOT, ".py")
+    advisory: list[str] = []
+    for p in files:
+        try:
+            tree = ast.parse(p.read_text(encoding="utf-8"))
+        except (OSError, SyntaxError):
+            continue
+        fors: list[ast.For] = []
+        _collect_for_nodes(tree.body, fors)
+        hits: list[tuple[int, str]] = []
+        for f in fors:
+            bound = _collect_bound_names(f.body) | _for_target_names(f)
+            _explore_loop_bodies(f.body, bound, hits)
+        seen: set[tuple[int, str]] = set()
+        for lineno, free in hits:
+            key = (lineno, free)
+            if key in seen:
+                continue
+            seen.add(key)
+            advisory.append(
+                f"{p.relative_to(REPO_ROOT)}:{lineno}: loop-invariant recompute "
+                f"(set()/split()/re.compile() on {free}) inside a for-loop"
+            )
+    return [], advisory
+
+
 CHECKS = [
     ("Python syntax", check_python_syntax),
     ("JS syntax", check_js_syntax),
@@ -2042,6 +2168,10 @@ CHECKS = [
     # inside a SQL string is query text, not a suppression (blocking — the
     # tree is clean; the house-wide sweep measured zero SQL hits)
     ("noqa inside SQL literal", check_noqa_in_sql_literal),
+    # ladder_indexing arc (2026-11-11): redundancy guard for the derive_insights
+    # pattern — loop-invariant set()/split()/re.compile() recompute (advisory:
+    # surfaces drift, never gates qa; hoist sweep is the follow-on)
+    ("Loop-invariant recomputation", check_loop_invariant_recomputation),
     # security-coverage #247b S3: API-route coverage ledger (advisory-skip
     # when the operator-local ledger is absent)
     ("Coverage ledger", check_coverage_ledger),

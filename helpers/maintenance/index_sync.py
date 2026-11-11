@@ -44,6 +44,7 @@ from email.utils import parsedate_to_datetime
 from pathlib import Path
 
 import duckdb
+from helpers.core.duckdb_shared import memory_cap_config  # noqa: E402
 
 REPO = Path(__file__).resolve().parents[2]
 if str(REPO) not in sys.path:
@@ -347,7 +348,7 @@ def _cli(argv: list[str] | None = None) -> int:
         from helpers.misc.duckdb_lock import io_lock
 
         with io_lock(DB, exclusive=False):
-            con = duckdb.connect(str(DB))
+            con = duckdb.connect(str(DB), **memory_cap_config())
             try:
                 if _table_exists(con):
                     cutoff = date.today().toordinal() - a.max_age_days
@@ -370,7 +371,7 @@ def _cli(argv: list[str] | None = None) -> int:
         from helpers.misc.duckdb_lock import io_lock
 
         with io_lock(DB, exclusive=True):
-            con = duckdb.connect(str(DB))
+            con = duckdb.connect(str(DB), **memory_cap_config())
             try:
                 stats = fold(con, batches, run_date, apply=True)
             finally:

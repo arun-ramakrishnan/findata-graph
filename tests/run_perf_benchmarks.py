@@ -403,6 +403,18 @@ BENCHMARKS: list[tuple[str, list[str], float]] = [
     # over the measured warm time while still catching regressions.
     ("pdf_pipeline_local", ["tests/bench_pdf_pipeline.py"], 7.0),
     ("derive_insights", ["helpers/graph/derive_insights.py"], 9.0),
+    # ladder_indexing arc (2026-11-11): micro-leg for the entity-resolution
+    # ladder. Guards the O(N) full-map scan returning to
+    # _qualifier_variants/_fuzzy_suggestions: measured 2026-11-11 with 5k
+    # synthetic keys — qv 0.075 ms/call, fz 2.9 ms/call post-indexing vs
+    # ~10.3/~69.6 ms pre-indexing. The leg asserts its own per-call ceilings
+    # (5 ms / 40 ms); the outer budget only guards the harness.
+    ("ladder_indexing", ["tests/bench_ladder_indexing.py"], 15.0),
+    # quick_wins S1 guard (proposal #504, archived): stdlib json.dumps vs
+    # jsonio.dumps (orjson) ratio floor 2.5x (measured 3.9-9.1x across the
+    # five shapes + ledger row loop). A regression re-introducing stdlib
+    # dumps in a mass lane collapses the ratio toward 1.0 and trips the floor.
+    ("quick_wins_json_dumps", ["tests/bench_quick_wins.py"], 8.0),
     (
         "parse_newsletter",
         [

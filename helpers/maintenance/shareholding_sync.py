@@ -47,6 +47,7 @@ from pathlib import Path
 
 import defusedxml.ElementTree as ET
 import duckdb
+from helpers.core.duckdb_shared import memory_cap_config  # noqa: E402
 
 REPO = Path(__file__).resolve().parents[2]
 if str(REPO) not in sys.path:
@@ -1251,7 +1252,7 @@ def main(argv: list[str] | None = None) -> int:  # noqa: C901
     # Fetch phase — network-bound, no research.db / sources.duckdb writes #
     # ------------------------------------------------------------------ #
     if not args.apply_only:
-        src = connect_with_lock_retry(lambda: duckdb.connect(str(SOURCES_DB)))
+        src = connect_with_lock_retry(lambda: duckdb.connect(str(SOURCES_DB), **memory_cap_config()))
         ensure_sources_schema(src)
 
         ingested = 0
@@ -1388,7 +1389,7 @@ def main(argv: list[str] | None = None) -> int:  # noqa: C901
     # --------------------------------------------------------------- #
     # Apply phase — store writes (sources.duckdb + research.db)       #
     # --------------------------------------------------------------- #
-    src = connect_with_lock_retry(lambda: duckdb.connect(str(SOURCES_DB)))
+    src = connect_with_lock_retry(lambda: duckdb.connect(str(SOURCES_DB), **memory_cap_config()))
     ensure_sources_schema(src)
     from helpers.core.db import connect as sqlite_connect, DEFAULT_DB_PATH
 

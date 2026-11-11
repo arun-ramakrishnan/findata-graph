@@ -14763,3 +14763,68 @@ to doc/improvements/archive/database/duckdb_pure_stack.md.
   `dsh:live:session-3c347: 171 parts`, total 5 units / 172 parts,
   9.05 s wall.
 - Proposal: doc/improvements/archive/convo_search/convo_fresh_new_parts_table.md
+
+## 504. Swap residual stdlib json.dumps sites to jsonio (orjson) and hoist recurrent re.compile sites
+
+**Date**: 2026-11-11
+
+- S1 — orjson dumps cutover at residual mass-lane sites:
+  `helpers/analytics/agent_traces.py` (5 sites: :719 head, :1800/:1819
+  event rows, :2020 tool-input, :2058 tools-json; summary print :3078;
+  dropped `import json`), `bili_tier_watch.py` (:466 JSONL packet, :760
+  sample print), `bili_tunewatch.py` (:265 timeline row), `bili_monitor.py`
+  (:212 monitor row; gained repo-root bootstrap for `helpers.core`, dropped
+  `import json`).
+- S2 — regex hoists: `extract_relations.py` `_yaml_field_re` `@cache`
+  helper; `search_tui.py` `_make_target_re`
+  `@functools.lru_cache(maxsize=128)`; module consts
+  `database_integrity_check.py` `_NAME_OK_RE`, `db_maint.py` `_SECRET_RE`
+  (top-level `import re` replaced the local one), `enrich_from_yfinance.py`
+  `_INDUSTRY_RE`, `rebuild_doc_search.py` `_REF_LINE_RE` + `_IMG_SUFFIX_RE`.
+- S3 dropped: `parse_newsletter.SECTION_RE` was already linearized inside S6
+  (#502) — verified in-tree.
+- Measured (bench artifacts `$TMPDIR/opencode/bench_quick_wins.py`): dumps
+  microbench 50k reps best-of-3 — delegation-row 0.111→0.027 s (4.2×),
+  log-warn-row 0.098→0.025 s (3.9×), tool-input 0.200→0.028 s (7.2×),
+  tools-list 0.641→0.070 s (9.1×), head-dict-sorted 0.141→0.029 s (4.9×);
+  output sizes identical. Real-ledger row-loop 4.1–4.3× (both sub-ms at 38
+  rows — no whole-leg wall delta claimable). Hoist overhead 0.23 µs/call;
+  per-line search shape 1.00× (hygiene, not a wall win). Parity:
+  `json.loads(jsonio.dumps(x)) == x` for all shapes.
+- Validation: **125 targeted tests green** (`test_jsonio`, `test_fuzz_jsonio`,
+  `test_extract_relations_yaml`, `test_fuzz_rebuild_doc_search`,
+  `test_enrich_from_yfinance`), `ruff check` clean on all 10 touched files,
+  `py_compile` clean. Full gates NOT RUN — archived on the operator's
+  instruction (gate validation parked).
+- Proposal: doc/improvements/archive/tooling/perf_quick_wins_json_dumps_regex_hoist.md
+
+## 505. DuckDB read-side tuning trial (convo_search read legs) + repo-wide 5 GB memory cap
+
+**Date**: 2026-11-11
+
+- Trial (real read path through `convo_query.connect()` / `open_read_only`,
+  DuckDB 2.0.0, i5-6500 4c no-HT, warm cache, best-of-5, ms): baseline FTS
+  `embed cache` 296.7 / `context` 199.2 / point read 6.4 / meta 0.44;
+  `SET threads=1` 816.4 / 462.5 (2.3–2.75× slower — default threads=4 is
+  already optimal); `threads=4` == baseline; `memory_limit=512MB` 321.1 /
+  209.0 and `1.5GB` 305.1 / 197.5 — no effect (working sets tiny). Default
+  `memory_limit` is 11.2 GiB (~70% of the 16 GB box) — a cap is policy, not
+  a perf lever.
+- Verdict: **measured-not-adopted** for tuning (same class as FTS5 optimize,
+  `preserve_insertion_order=false`); mmap/read-ahead not exposed as 2.0.0
+  knobs; FTS legs engine-bound bm25.
+- Implemented (operator-requested policy): repo-wide 5 GB cap via
+  `helpers/core/duckdb_shared.py` `MEMORY_LIMIT` + `memory_cap_config()` on
+  every file-backed connection — funnels `connect_shared` / `open_read_only`,
+  graph build/onager/quack-server child (config merged with unsigned-ext
+  kwargs), and 22 raw sites across maintenance sync/backup/rebuild
+  (`rebuild_convo_search`, `db_maint`, `snapshot_db`, `index_sync`,
+  `store_sweep`, `maint_timing`, `ticker_hygiene`, `fold_identifiers`,
+  `mca_cin_sync/resolve`, `shareholding/exchange/related_party_sync`),
+  analytics (`agent_traces`, `model_analytics`), query CLIs (`gate_query`,
+  `gate_timing_watch`, `trace_quote`, `anchor_stability`, `vec_search`).
+  Pure `:memory:` scratch + `helpers/bench/*` exempt.
+- Validation: `py_compile` + `ruff check` clean on all 25 edited files; fresh
+  capped connection reports `memory_limit = 4.6 GiB` (5 GB). Full gates NOT
+  RUN — trial closed on the operator's instruction, gates parked.
+- Proposal: doc/improvements/archive/database/duckdb_read_side_tuning_trial.md

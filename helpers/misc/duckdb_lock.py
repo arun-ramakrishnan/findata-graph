@@ -181,7 +181,9 @@ def open_read_only(db_path: Path | str):
         return ds.connect_shared(str(db_path), read_only=True)
     with io_lock(db_path, exclusive=False):
         try:
-            return connect_with_lock_retry(lambda: duckdb.connect(str(db_path), read_only=True))
+            return connect_with_lock_retry(
+                lambda: duckdb.connect(str(db_path), read_only=True, **ds.memory_cap_config())
+            )
         except Exception as exc:
             # S1 wire-attach fallback: the file-mode open failed with a
             # transient lock conflict (someone holds the file) yet a raw

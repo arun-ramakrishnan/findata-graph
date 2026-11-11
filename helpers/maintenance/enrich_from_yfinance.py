@@ -84,6 +84,7 @@ _PROFILE_PATTERN = re.compile(
 # misplacing the region boundary (2026-08-19: 10 of 58 restored profiles
 # landed inside the true chatter region this way).
 _AUTO_MARKER = re.compile(r"<!--\s*(BEGIN|END)\s+auto\b.*?-->", re.DOTALL)
+_INDUSTRY_RE = re.compile(r"^industry:\s*(.*)$")
 
 
 def _auto_region_spans(text: str) -> list[tuple[int, int]]:
@@ -551,7 +552,7 @@ def _update_frontmatter(text: str, industry: str) -> str:
         return text
 
     # Check if industry already exists
-    industry_re = re.compile(r"^industry:\s*(.*)$")
+    industry_re = _INDUSTRY_RE
     for i in range(1, fm_end):
         m = industry_re.match(lines[i])
         if m:

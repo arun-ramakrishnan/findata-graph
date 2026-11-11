@@ -439,7 +439,7 @@ def verify_duckdb_snapshot(  # noqa: C901
 
         # Read-only is sufficient post-duckpgq-retirement: the structural
         # check is pure SELECTs (no DDL, no extension needed).
-        con = duckdb.connect(str(tmp_path), read_only=True)
+        con = duckdb.connect(str(tmp_path), read_only=True, **ds.memory_cap_config())
         try:
             snap_counts = _count_tables(con)
             snap_pg_ok = _property_graph_constructible(con)
@@ -1405,7 +1405,7 @@ def restore_duckdb_from_parquet(
     for stale in (tmp, Path(str(tmp) + ".wal")):
         stale.unlink(missing_ok=True)
 
-    con = duckdb.connect(str(tmp))
+    con = duckdb.connect(str(tmp), **ds.memory_cap_config())
     restored: dict[str, int] = {}
     try:
         con.execute(schema_path.read_text())
@@ -1539,7 +1539,7 @@ def _read_parquet_generation(parquet_path: Path) -> str | None:
     try:
         import duckdb
 
-        con = duckdb.connect()
+        con = duckdb.connect(**ds.memory_cap_config())
         try:
             row = con.execute(
                 "SELECT value FROM read_parquet(?) WHERE key='generation'",

@@ -22,12 +22,17 @@ Env: BILI_LOG, BILI_LOG_OLD, BILI_WATCH_DIR, BILI_RATE
 from __future__ import annotations
 
 import importlib.util
-import json
 import os
 import sys
 import tempfile
 import time
 from datetime import UTC, datetime
+
+_REPO = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+if _REPO not in sys.path:
+    sys.path.insert(0, _REPO)
+
+from helpers.core import jsonio  # noqa: E402  (orjson dumps cutover S1)
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 DATA = os.environ.get("BILI_WATCH_DIR", os.path.join(tempfile.gettempdir(), "bili_watch"))
@@ -209,7 +214,7 @@ def main(argv: list[str]) -> int:  # noqa: C901 - one linear pass per tick
                 for sid, row in data.items():
                     lu = row["last_usage"][-1] if row["last_usage"] else None
                     sn.write(
-                        json.dumps(
+                        jsonio.dumps(
                             {
                                 "run_ts": row["run_ts"],
                                 "sid": sid,

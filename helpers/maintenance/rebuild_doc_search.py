@@ -377,6 +377,13 @@ def _doc_basis(title: str, section_title: str, content: str, *, gemma: bool) -> 
     return f"{title}\n{section_title}\n{content[:_EMBED_BODY_CAP]}"
 
 
+_REF_LINE_RE = re.compile(
+    r"\*\*(Follows|Follow-up|See also|See|References?|Adopted (?:in|by))\*\*"
+    r"|completed\.md #\d+|see `doc/"
+)
+_IMG_SUFFIX_RE = re.compile(r"\.(png|jpg|jpeg|svg|gif)$", re.I)
+
+
 def _file_enrichment(text: str) -> tuple[str, str, str]:
     """(meta, links, trail) enrichment columns for one file (adoption S7).
 
@@ -402,13 +409,10 @@ def _file_enrichment(text: str) -> tuple[str, str, str]:
         tgt = m.group(2).strip()
         if tgt.startswith(("http", "mailto:", "data:", "#")):
             continue
-        if re.search(r"\.(png|jpg|jpeg|svg|gif)$", tgt, re.I):
+        if _IMG_SUFFIX_RE.search(tgt):
             continue
         parts.append(f"{m.group(1).strip()} {tgt}")
-    ref_line = re.compile(
-        r"\*\*(Follows|Follow-up|See also|See|References?|Adopted (?:in|by))\*\*"
-        r"|completed\.md #\d+|see `doc/"
-    )
+    ref_line = _REF_LINE_RE
     for ln in lines:
         if ref_line.search(ln):
             parts.append(re.sub(r"[*`]", "", ln).strip())

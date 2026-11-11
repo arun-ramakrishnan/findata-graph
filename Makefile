@@ -587,13 +587,13 @@ gate-fresh: ## Check gate-run index freshness for helpers/misc/gate_query.py (de
 > 	python3 helpers/misc/gate_query.py refresh --check; \
 > fi
 
-convo-fresh:      ## Check conversation corpus+index freshness — harness sources vs parquet corpus vs pointer index (every check runs even if one fails; exit 1 on drift; APPLY=1 harvests+incrementally rebuilds — MAIN TREE ONLY, refused from worktrees; also run by make advisory)
+convo-fresh:      ## Check conversation corpus+index freshness — harness sources vs parquet corpus vs pointer index (every check runs even if one fails; exit 1 on drift; APPLY=1 harvests+incrementally rebuilds — MAIN TREE ONLY, refused from worktrees; ARGS reaches harvest_conversations.py, e.g. ARGS=--verbose prints per-unit quiet lines; also run by make advisory)
 > @$(if $(APPLY),$(apply_main_guard),true)
 > @rc=0; \
 >   echo "convo-fresh: $(if $(APPLY),APPLY — harvesting+rebuilding,check) mode"; \
 >   t0=$$(date +%s%3N); \
->   echo "--- harvest_conversations $(if $(APPLY),,--check)"; \
->   MAINT_TARGET=convo-fresh python3 helpers/maintenance/harvest_conversations.py $(if $(APPLY),,--check) || rc=1; \
+>   echo "--- harvest_conversations $(if $(APPLY),,--check) $(ARGS)"; \
+>   MAINT_TARGET=convo-fresh python3 helpers/maintenance/harvest_conversations.py $(if $(APPLY),,--check) $(ARGS) || rc=1; \
 >   echo "    took $$(( $$(date +%s%3N) - t0 ))ms"; \
 >   t1=$$(date +%s%3N); \
 >   echo "--- rebuild_convo_search $(if $(APPLY),--incremental,--check)"; \

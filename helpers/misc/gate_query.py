@@ -62,6 +62,7 @@ from compression.zstd import compress, decompress
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 from helpers.core import jsonio  # noqa: E402  (parse side of the orjson cutover; dumps stay stdlib per db_scaling_tuning §6.3 criteria)
+from helpers.core.duckdb_shared import memory_cap_config  # noqa: E402
 from helpers.misc import search_tui as st  # noqa: E402  (stdlib-only at import)
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -231,7 +232,7 @@ def connect() -> duckdb.DuckDBPyConnection:
     # S2 (duckdb_transient_lock_retry): two concurrent gate_query
     # invocations (query + refresh) race this RW open; the ladder
     # absorbs the transient conflict.
-    con = connect_with_lock_retry(lambda: duckdb.connect(str(DB_PATH)))
+    con = connect_with_lock_retry(lambda: duckdb.connect(str(DB_PATH), **memory_cap_config()))
     con.execute(SCHEMA)
     return con
 

@@ -37,6 +37,7 @@ from pathlib import Path
 from typing import Literal, overload
 
 import duckdb
+from helpers.core.duckdb_shared import memory_cap_config  # noqa: E402
 
 REPO = Path(__file__).resolve().parents[2]
 if str(REPO) not in sys.path:
@@ -630,7 +631,7 @@ def lane_fresh(con: duckdb.DuckDBPyConnection, lane: str, max_age: int) -> bool:
 
 
 def _connect() -> duckdb.DuckDBPyConnection:
-    con = connect_with_lock_retry(lambda: duckdb.connect(str(DB)))
+    con = connect_with_lock_retry(lambda: duckdb.connect(str(DB), **memory_cap_config()))
     cols = [r[0] for r in con.execute("describe exchange_listings").fetchall()]
     if "fetched_at" not in cols:
         con.execute("alter table exchange_listings add column fetched_at date")

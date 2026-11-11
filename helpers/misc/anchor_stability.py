@@ -11,6 +11,7 @@ import sys
 from pathlib import Path
 
 import duckdb
+from helpers.core.duckdb_shared import memory_cap_config  # noqa: E402
 
 REPO = Path("/home/arun/Research/findata-graph")
 DB_PATH = REPO / "memory" / "data" / "agent_traces.duckdb"
@@ -52,11 +53,11 @@ def load_all():
 
 
 def run_census(db=DB_PATH):
-    con = duckdb.connect(str(db))
+    con = duckdb.connect(str(db), **memory_cap_config())
     before = snapshot(con)
     con.close()
     load_all()
-    con = duckdb.connect(str(db))
+    con = duckdb.connect(str(db), **memory_cap_config())
     after = snapshot(con)
     con.close()
     rows = []

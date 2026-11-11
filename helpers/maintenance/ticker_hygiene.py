@@ -274,7 +274,9 @@ def _load_kite_map() -> dict[str, str]:
     """
     import duckdb
 
-    dcon = duckdb.connect(str(PROJECT_ROOT / "memory" / "data" / "sources.duckdb"), read_only=True)
+    from helpers.core.duckdb_shared import memory_cap_config
+
+    dcon = duckdb.connect(str(PROJECT_ROOT / "memory" / "data" / "sources.duckdb"), read_only=True, **memory_cap_config())
     try:
         rows = dcon.execute(
             "SELECT symbol, kite_tradingsymbol FROM exchange_listings WHERE exchange = 'BSE'"

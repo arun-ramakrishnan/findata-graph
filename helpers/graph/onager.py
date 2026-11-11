@@ -78,11 +78,12 @@ def _get_onager_connection(
     key = _onager_cache_key(edge_types)
     if key in _ONAGER_CONN:
         return _ONAGER_CONN[key]
-    # Build fresh: unsigned_ext_kwargs only (allow_unsigned_extensions).
-    # NO threads= / memory_limit= — DuckDB 2.0 defaults to all cores + 50% RAM.
-    from helpers.core.duckdb_shared import unsigned_ext_kwargs
+    # Build fresh: unsigned_ext_kwargs (allow_unsigned_extensions) merged
+    # with the repo memory cap — a single config dict, last-key-wins.
+    from helpers.core.duckdb_shared import memory_cap_config, unsigned_ext_kwargs
 
-    con = duckdb.connect(**unsigned_ext_kwargs())
+    cfg = {**unsigned_ext_kwargs()["config"], **memory_cap_config()["config"]}
+    con = duckdb.connect(config=cfg)
     con.execute("LOAD sqlite;")
     _load_onager(con)
     _ONAGER_CONN[key] = con

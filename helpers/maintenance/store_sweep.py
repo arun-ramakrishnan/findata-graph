@@ -224,11 +224,13 @@ def run_duckdb(p: Path, *, dry_run: bool, lg: logging.Logger, vacuum: bool = Tru
 
     import duckdb
 
+    from helpers.core.duckdb_shared import memory_cap_config
+
     t0 = time.time()
     before = p.stat().st_size
     try:
         with io_lock(p, exclusive=True):
-            con = duckdb.connect(str(p))
+            con = duckdb.connect(str(p), **memory_cap_config())
             try:
                 con.execute("CHECKPOINT")
                 if vacuum:

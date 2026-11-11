@@ -187,7 +187,9 @@ class RunTimer:
         try:
             import duckdb
 
-            con = duckdb.connect(str(DB_PATH))
+            from helpers.core.duckdb_shared import memory_cap_config
+
+            con = duckdb.connect(str(DB_PATH), **memory_cap_config())
             try:
                 con.execute(_SCHEMA)
                 max_row = con.execute(

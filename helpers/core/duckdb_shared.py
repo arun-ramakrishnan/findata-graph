@@ -204,7 +204,7 @@ def _attach_wire(entry: dict[str, Any], alias: str) -> duckdb.DuckDBPyConnection
     The shell is wrapped in `WireConnection`: the extension drops bound
     parameters on table-reading queries, so parameters are inlined as
     literals before they reach the wire (see `inline_params`)."""
-    con = duckdb.connect()
+    con = duckdb.connect(**memory_cap_config())
     con.execute(
         f"CREATE SECRET (TYPE quack, TOKEN {sql_lit(entry['token'])}, SCOPE {sql_lit(entry['uri'])})"
     )
@@ -242,7 +242,21 @@ def connect_shared(
         entry = served_entry(disc, p)
         if entry is not None:
             return _attach_wire(entry, str(entry.get("alias") or p.stem))
-    return duckdb.connect(str(p), read_only=read_only)
+    return duckdb.connect(str(p), read_only=read_only, **memory_cap_config())
+
+
+# Repo-wide DuckDB memory cap: default is ~70% of RAM (11.2 GiB on the
+# 16 GB box), which can drive the machine to swap under concurrent FTS /
+# materialization legs. Measured trial (2026-11-11, duckdb_read_side_tuning
+# trial): 5 GB (and even 512 MB) is performance-neutral on every read leg,
+# so cap all real connections here. Pure `:memory:` scratch, benches, and
+# the standalone trial script keep their own limits.
+MEMORY_LIMIT = "5GB"
+
+
+def memory_cap_config() -> dict[str, Any]:
+    """``duckdb.connect`` kwargs enforcing the repo memory cap."""
+    return {"config": {"memory_limit": MEMORY_LIMIT}}
 
 
 def unsigned_ext_kwargs() -> dict[str, Any]:

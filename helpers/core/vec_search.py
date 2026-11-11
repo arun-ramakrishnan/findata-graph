@@ -169,7 +169,9 @@ def qualified() -> str:
 def _open_rw(path: Path):
     import duckdb
 
-    con = duckdb.connect(str(path))
+    from helpers.core.duckdb_shared import memory_cap_config
+
+    con = duckdb.connect(str(path), **memory_cap_config())
     for pragma in _HNSW_PRAGMAS:
         con.execute(pragma)
     return con
@@ -186,8 +188,10 @@ def _open_ro(path: Path):
 
     from helpers.misc.duckdb_lock import io_lock
 
+    from helpers.core.duckdb_shared import memory_cap_config
+
     with io_lock(path, exclusive=False):
-        con = duckdb.connect(str(path), read_only=True)
+        con = duckdb.connect(str(path), read_only=True, **memory_cap_config())
     for pragma in _HNSW_PRAGMAS:
         con.execute(pragma)
     return con

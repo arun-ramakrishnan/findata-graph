@@ -54,6 +54,7 @@ from collections.abc import Sequence
 from typing import Any
 
 import duckdb
+from helpers.core.duckdb_shared import memory_cap_config  # noqa: E402
 
 REPO = Path(__file__).resolve().parents[2]
 DB_PATH = REPO / "memory" / "data" / "agent_traces.duckdb"
@@ -617,7 +618,7 @@ def _sweep_mode(args: argparse.Namespace) -> int:
     """Resolve every agent-trace: token found under the given PATH(s)."""
     roots = args.sweep if args.sweep else [REPO / "doc"]
     try:
-        con = duckdb.connect(str(args.db))
+        con = duckdb.connect(str(args.db), **memory_cap_config())
     except Exception as exc:  # noqa: BLE001
         print(f"error: could not open trace store: {exc}", file=sys.stderr)
         return 1

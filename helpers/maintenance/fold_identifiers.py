@@ -11,6 +11,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 import duckdb
+from helpers.core.duckdb_shared import memory_cap_config  # noqa: E402
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 if str(REPO_ROOT) not in sys.path:
@@ -47,7 +48,7 @@ def _base_symbol(ticker: str) -> str:
 def load_exchange_listings(path: Path = SOURCES_DB) -> list[tuple[str, str, str]]:
     if not path.exists():
         raise FileNotFoundError(path)
-    con = duckdb.connect(str(path), read_only=True)
+    con = duckdb.connect(str(path), read_only=True, **memory_cap_config())
     try:
         rows = con.execute(
             "SELECT exchange, symbol, isin FROM exchange_listings "

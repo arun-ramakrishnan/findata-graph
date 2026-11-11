@@ -527,6 +527,7 @@ commit, referenced by nothing). Entry numbers point at
 - [`wikidata_qid_crosswalk.md`](database/wikidata_qid_crosswalk.md) — Wikidata QID crosswalk — identifier-first SPARQL, cached parquet sidecar, dry-run SKOS convergence, and same-QID E3 suppression; live fetch parked, no mappings applied — completed.md #296
 - [`snapshot_parallel_and_compressed_backups.md`](database/snapshot_parallel_and_compressed_backups.md) — Parallel per-DB snapshot + zstd-compressed recovery backups — completed.md #175
 - [`zstd_binary_backups.md`](database/zstd_binary_backups.md) — zstd binary backups — `.gz` → `.zst` for db-backup/ recovery artifacts — completed.md #176
+- [`duckdb_read_side_tuning_trial.md`](database/duckdb_read_side_tuning_trial.md) — DuckDB read-side tuning trial — measured-not-adopted (default threads=4 optimal; 1.5 GB/512 MB memory caps perf-neutral; mmap/read-ahead not exposed on 2.0.0); repo-wide 5 GB `memory_limit` cap landed as operator-requested policy via `memory_cap_config()` on every file-backed connection — completed.md #505
 
 ## okf/ — OKF v0.2 — provenance vocabulary, activation, sources maintenance, read-side
 
@@ -632,6 +633,15 @@ commit, referenced by nothing). Entry numbers point at
 - [`refresh_chain_parallel.md`](pipeline/refresh_chain_parallel.md) — Refresh chain, parallel — fetch/apply split so independent sources overlap; per-lane `--fetch-only` stages writing scratch JSON under `$TMPDIR/findata-graph/`, parallel phase A, sequential store applies under per-store lock, per-item failure containment; `refresh-chain` Makefile target (default), `refresh-chain-ser` for the original sequential chain — completed.md #403
 
 ## tooling/ — Tooling & performance — MCP eval, doc browser/search, perf review, tech survey
+- [`perf_quick_wins_json_dumps_regex_hoist.md`](tooling/perf_quick_wins_json_dumps_regex_hoist.md) —
+  residual stdlib `json.dumps` → orjson (`jsonio.dumps`) at mass-lane sites
+  (agent_traces ×5 + summary print, bili_tier_watch, bili_tunewatch,
+  bili_monitor; unused `import json` dropped, monitor gained repo bootstrap)
+  + regex hoists (`_yaml_field_re` `@cache`, `_make_target_re` lru_cache,
+  `_NAME_OK_RE`/`_SECRET_RE`/`_INDUSTRY_RE`/`_REF_LINE_RE`/`_IMG_SUFFIX_RE`
+  module consts) — measured dumps 3.9–9.1×, row-loop 4.1–4.3×, hoist
+  0.23 µs/call (hygiene); SECTION_RE already linear by S6, dropped —
+  completed.md #504
 - [`quadratic_regex_sweep_and_cleanups.md`](tooling/quadratic_regex_sweep_and_cleanups.md) —
   an AST sweep of all 366 `re.compile` sites under `helpers/` found **17 quadratic
   `\s+(?:…)$` patterns** plus `SECTION_RE` (`^\s*` crossing newlines under `re.MULTILINE`),

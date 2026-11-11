@@ -30,6 +30,7 @@ import urllib.request
 from pathlib import Path
 
 import duckdb
+from helpers.core.duckdb_shared import memory_cap_config  # noqa: E402
 
 REPO = Path(__file__).resolve().parents[2]
 if str(REPO) not in sys.path:
@@ -1162,7 +1163,7 @@ def main(argv: list[str] | None = None) -> int:  # noqa: C901  # pass-per-flag C
         if rc is not None:
             print(f"credit_ratings cache ready: {rc}")
         return 0
-    src = connect_with_lock_retry(lambda: duckdb.connect(str(SOURCES_DB)))
+    src = connect_with_lock_retry(lambda: duckdb.connect(str(SOURCES_DB), **memory_cap_config()))
     if cache is not None:
         n = load_table(src, cache)
         print(f"loaded rpt_transactions: {n} rows")

@@ -632,7 +632,9 @@ def _build_graph_connection(
                 return con
             from helpers.graph.onager import connect_kwargs
 
-            con = duckdb.connect(str(duckdb_path), **connect_kwargs())
+            kw = connect_kwargs()
+            kw.setdefault("config", {}).update(ds.memory_cap_config()["config"])
+            con = duckdb.connect(str(duckdb_path), **kw)
             _prep_graph_connection(con)
             _attach_sqlite(con, db_path)
             if needs_build:
@@ -1358,7 +1360,9 @@ def _patch_dirty_tables(tmp_duckdb_path: Path, db_path: Path) -> bool:
     """
     from helpers.graph.onager import connect_kwargs
 
-    con = duckdb.connect(str(tmp_duckdb_path), **connect_kwargs())
+    kw = connect_kwargs()
+    kw.setdefault("config", {}).update(ds.memory_cap_config()["config"])
+    con = duckdb.connect(str(tmp_duckdb_path), **kw)
     try:
         _prep_graph_connection(con)
         _attach_sqlite(con, db_path)

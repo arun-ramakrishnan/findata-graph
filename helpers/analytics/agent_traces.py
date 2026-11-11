@@ -46,7 +46,6 @@ Schema notes (deliberate deviations from capture_traces.md §5.1):
 from __future__ import annotations
 
 import argparse
-import json
 
 import sqlite3
 import sys
@@ -59,6 +58,7 @@ import pyarrow as pa
 REPO = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO))  # repo root, for helpers.core.db
 from helpers.core import jsonio  # noqa: E402  (grouped with core imports)
+from helpers.core.duckdb_shared import memory_cap_config  # noqa: E402
 from helpers.core.db import connect  # noqa: E402  (path insert must precede)
 
 from helpers.analytics import trace_contracts  # noqa: E402
@@ -716,7 +716,7 @@ def _event_noise_head(data: object) -> str | None:
         "model": model.get("modelID") if isinstance(model, dict) else None,
         "role": info.get("role"),
     }
-    return json.dumps(head, sort_keys=True) if any(head.values()) else None
+    return jsonio.dumps(head, sort_keys=True) if any(head.values()) else None
 
 
 def _oc_dbs() -> list[Path]:
@@ -1797,7 +1797,7 @@ def _parse_prime(con, since=None):  # noqa: C901  # moved verbatim; split needs 
                     f"delegation.{r.get('op')}",
                     None,
                     None,
-                    json.dumps(r),
+                    jsonio.dumps(r),
                 )
             )
     for lg in (PRIME_DIR / "logs").glob("agent.jsonl*"):
@@ -1816,7 +1816,7 @@ def _parse_prime(con, since=None):  # noqa: C901  # moved verbatim; split needs 
                     f"log.{r.get('level')}",
                     None,
                     None,
-                    json.dumps(r),
+                    jsonio.dumps(r),
                 )
             )
     if since:
@@ -2017,7 +2017,7 @@ def _parse_rollout(con, since=None, directory=None):
                     tools.append(
                         {
                             "name": tc.get("name"),
-                            "input": json.dumps(arg)[:_TOOL_INPUT_HEAD]
+                            "input": jsonio.dumps(arg)[:_TOOL_INPUT_HEAD]
                             if arg is not None
                             else None,
                         }
@@ -2055,7 +2055,7 @@ def _parse_rollout(con, since=None, directory=None):
                         "text_chars": len(text),
                         "reasoning_chars": len(reasoning),
                         "tool_call_count": len(tools),
-                        "tools_json": json.dumps(tools)[:_TOOLS_JSON_CAP],
+                        "tools_json": jsonio.dumps(tools)[:_TOOLS_JSON_CAP],
                         "text_head": text[:_TEXT_HEAD],
                         "reasoning_head": reasoning[:_TEXT_HEAD],
                         "messages_kind": req.get("messagesKind"),
@@ -3075,9 +3075,7 @@ def report(  # noqa: C901  # moved verbatim; split needs a parity harness (c901 
         wanted = {n.strip() for n in only.split(",") if n.strip()}
         legs = {k: v for k, v in legs.items() if k in wanted}
     if as_json:
-        import json
-
-        print(json.dumps({"range": spec, **legs}, indent=2, default=str))
+        print(jsonio.dumps({"range": spec, **legs}, indent=2, default=str))
         return
     start, end = parse_range(spec, con)
     print(f"== agent traces  {start}..{end} ==")
@@ -3403,7 +3401,7 @@ def main() -> None:
     from helpers.misc.duckdb_lock import connect_with_lock_retry, io_lock
 
     with io_lock(args.db, exclusive=True):
-        con = connect_with_lock_retry(lambda: duckdb.connect(str(args.db)))
+        con = connect_with_lock_retry(lambda: duckdb.connect(str(args.db), **memory_cap_config()))
         con.execute(SCHEMA)
         _ensure_load_log_outcome_columns(con)
         _ensure_model_request_error_message(con)

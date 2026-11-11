@@ -101,7 +101,7 @@ _REPO_ROOT = Path(__file__).resolve().parents[2]
 if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
-from helpers.core import jsonio  # noqa: E402  (orjson parse cutover; dumps stay stdlib per db_scaling_tuning §6.3 criteria)
+from helpers.core import jsonio  # noqa: E402  (orjson parse cutover; dumps cutover S1)
 from helpers.core.db import connect, utc_now  # noqa: E402
 from helpers.core.entity_identity import name_key as _name_key  # noqa: E402
 from helpers.core.frontmatter import (  # noqa: E402  # after the sys.path bootstrap above
@@ -1588,6 +1588,15 @@ _SUPPRESSED_EDGES: set[tuple[str, str, str]] = {
 # --------------------------------------------------------------------------- #
 # Document-type detection & company-note helpers                              #
 # --------------------------------------------------------------------------- #
+@cache
+def _yaml_field_re(field: str) -> re.Pattern:
+    """Compile (once, cached) the YAML field-extraction pattern."""
+    return re.compile(
+        r"^" + re.escape(field) + r"\s*:\s*(.+?)\s*$",
+        re.MULTILINE,
+    )
+
+
 def _parse_yaml_field(content: str, field: str) -> str | None:
     """Best-effort single-field extraction from YAML front matter.
 
@@ -1603,10 +1612,7 @@ def _parse_yaml_field(content: str, field: str) -> str | None:
     if not m:
         return None
     yaml_block = content[: m.end()]
-    pat = re.compile(
-        r"^" + re.escape(field) + r"\s*:\s*(.+?)\s*$",
-        re.MULTILINE,
-    )
+    pat = _yaml_field_re(field)
     fm = pat.search(yaml_block)
     if not fm:
         return None

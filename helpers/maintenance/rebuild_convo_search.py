@@ -151,7 +151,7 @@ def _provenance_migration(db_path: Path) -> bool:
     if not db_path.exists():
         return False
     try:
-        con = duckdb.connect(str(db_path))
+        con = duckdb.connect(str(db_path), **ds.memory_cap_config())
     except duckdb.Error:
         return False
     try:
@@ -162,7 +162,7 @@ def _provenance_migration(db_path: Path) -> bool:
         con.close()
     if "provenance" in cols:
         return False
-    con = duckdb.connect(str(db_path))
+    con = duckdb.connect(str(db_path), **ds.memory_cap_config())
     try:
         _load_vss(con)  # ALTER on a post-S1 store binds the HNSW index
         con.execute(
@@ -188,7 +188,7 @@ def _bili_column_migration(db_path: Path) -> bool:
     if not db_path.exists():
         return False
     try:
-        con = duckdb.connect(str(db_path))
+        con = duckdb.connect(str(db_path), **ds.memory_cap_config())
     except duckdb.Error:
         return False
     try:
@@ -199,7 +199,7 @@ def _bili_column_migration(db_path: Path) -> bool:
         con.close()
     if {"bili_active", "bili_tier"} <= cols:
         return False
-    con = duckdb.connect(str(db_path))
+    con = duckdb.connect(str(db_path), **ds.memory_cap_config())
     try:
         _load_vss(con)  # ALTER on a post-S1 store binds the HNSW index
         con.execute("ALTER TABLE convo_search ADD COLUMN IF NOT EXISTS bili_active BOOLEAN")
@@ -1132,7 +1132,7 @@ def _drop_ann_indexes(db_path: Path) -> list[str]:
     index never reaches the DROP. Idempotent and best-effort: a store from
     the post-retirement era has nothing to drop.
     """
-    con = duckdb.connect(str(db_path))
+    con = duckdb.connect(str(db_path), **ds.memory_cap_config())
     try:
         rows = con.execute(
             "SELECT index_name FROM duckdb_indexes() WHERE table_name = 'convo_search'"
