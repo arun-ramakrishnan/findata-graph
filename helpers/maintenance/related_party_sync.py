@@ -27,6 +27,7 @@ import re
 import sqlite3
 import sys
 import urllib.request
+from datetime import datetime
 from pathlib import Path
 
 import duckdb
@@ -176,6 +177,12 @@ _PERSONNEL_MARKERS = (
 )
 _RELATED_PARTY_MARKERS = ("related part", "realated part")
 
+# A-prime (rpt_attribution §2.3): step-down-subsidiary texts carry INVERTED
+# polarity — the disclosed party sits BELOW the counterparty, so the
+# child→parent edge must target the counterparty (sub_rev). Plain
+# substring markers (no regex) so the SQL CASE mirrors them exactly.
+_POLARITY_REV = ("step down subsidiar", "stepdown subsidiar", "step-down subsidiar")
+
 
 def _norm_rel(text: str | None) -> str:
     """Case-folded, whitespace/nbsp-collapsed relationship text — the
@@ -202,12 +209,21 @@ def classify_relationship(text: str | None, rel_group: str | None = None) -> str
        itself) → same_group (co-membership, not parentage).
     3. joint venture → jv_with; associate / common control / promoter
        group → same_group (pre-cure behavior, unchanged).
-    4. residual ``subsidiar`` / ``wholly owned`` → sub_fwd — now only
+    4. step-down-subsidiary texts (A-prime, rpt_attribution §2.3) →
+       sub_rev as the TEXT-LEVEL default — the disclosed party sits
+       BELOW the counterparty, so the child→parent edge targets the
+       counterparty; `of the company` texts (filer-owned step-down subs)
+       stay sub_fwd. Direction is then re-resolved PER FILING CONTEXT in
+       apply_pairs (S3 correction, 2026-11-12): the bare string is used
+       both ways across filers (see the ROUTE/Ashok-Leyland anchors
+       there), so only self-listing and declared-ancestor rows keep
+       sub_rev.
+    5. residual `subsidiar` / `wholly owned` → sub_fwd — now only
        reachable by claims that the counterparty IS the filer's
        subsidiary.
-    5. ``holding compan`` → sub_rev — counterparty IS the filer's
+    6. `holding compan` → sub_rev — counterparty IS the filer's
        holding company.
-    6. rel_group fallback → same_group.
+    7. rel_group fallback → same_group.
 
     Mirrored clause-for-clause in the _PAIRS_SQL CASE (over the
     nbsp-normalized text); pinned by
@@ -222,6 +238,12 @@ def classify_relationship(text: str | None, rel_group: str | None = None) -> str
         return "jv_with"
     if "associat" in t or "common control" in t or "promoter group" in t:
         return "same_group"
+    # A-prime (rpt_attribution §2.3): step-down texts mean the disclosed
+    # party is a step-down subsidiary OF the counterparty — child→parent
+    # must target the counterparty. 'of the company' texts (filer-owned
+    # step-down subs) keep sub_fwd.
+    if any(m in t for m in _POLARITY_REV) and "of the company" not in t:
+        return "sub_rev"
     if "subsidiar" in t or "wholly owned" in t:
         return "sub_fwd"
     if "holding compan" in t:
@@ -245,6 +267,9 @@ CASE
   WHEN r LIKE '%joint venture%' THEN 'jv_with'
   WHEN r LIKE '%associat%' OR r LIKE '%common control%'
        OR r LIKE '%promoter group%' THEN 'same_group'
+  WHEN (r LIKE '%step down subsidiar%' OR r LIKE '%stepdown subsidiar%'
+        OR r LIKE '%step-down subsidiar%')
+       AND r NOT LIKE '%of the company%' THEN 'sub_rev'
   WHEN r LIKE '%subsidiar%' OR r LIKE '%wholly owned%' THEN 'sub_fwd'
   WHEN r LIKE '%holding compan%' THEN 'sub_rev'
   WHEN rel_group IN ('Group Companies', 'Promoter Group',
@@ -263,6 +288,42 @@ _BENEFIT_SCHEME_RE = re.compile(
     r"|pension(?!\s*(?:fund\s*)?management)",
     re.I,
 )
+
+
+_DIRECT_OWNERSHIP_TEXT = frozenset(
+    {
+        "holding company",
+        "ultimate holding company",
+        "intermediate holding company",
+        "immediate holding company",
+        "parent",
+        "promoter",
+        "promoters",
+    }
+)
+
+
+def _is_group_relative_text(rel_norm: str) -> bool:
+    """True when a relationship text names a holding company/promoter of the
+    FILER rather than a direct owner of the disclosed entity.
+
+    Bare ownership texts ("Holding Company", "Ultimate Holding Company",
+    "Parent") are DIRECT claims about the disclosed entity and are read
+    entity-relative (the REDINGTON RWANDA rule). Generic references ("Subsidiary
+    of Holding Company", "Joint venture of Holding Company", "Promoter Group")
+    are group-relative: read against a subsidiary subject they mint a parent
+    chain instead of a sibling relation under the filer group. "holding company
+    (" prefixed forms (e.g. "holding company (body corporate)") stay direct —
+    they quantify the holding itself.
+
+    Refined 2026-11-12 after two refuted rounds: flattening ALL subject!=filer
+    sub_fwd inflated same_group 3.2x and destroyed real parent claims; the
+    self-disclosure (company_name vs entity) discriminator also failed because
+    filer-self rows still carry entity-relative truths (VOLTAS/TCS). Only the
+    generic holdco/promoter texts flatten."""
+    if rel_norm in _DIRECT_OWNERSHIP_TEXT or rel_norm.startswith("holding company ("):
+        return False
+    return "holding compan" in rel_norm or "promoter" in rel_norm
 
 
 def _safe_display(name: str) -> str | None:
@@ -322,7 +383,8 @@ def _clean_counterparty(name: str) -> str | None:
 
 
 _PAIRS_SQL = """
-    SELECT DISTINCT ON (symbol, counter_party) symbol, entity_name,
+    SELECT DISTINCT ON (symbol, entity_name, counter_party) symbol, entity_name,
+           company_name,
            counter_party, relationship, rel_group, transaction_type,
            amount_during_period, period_end_date, xbrl_url,
     CASE
@@ -334,6 +396,9 @@ _PAIRS_SQL = """
       WHEN r LIKE '%joint venture%' THEN 'jv_with'
       WHEN r LIKE '%associat%' OR r LIKE '%common control%'
            OR r LIKE '%promoter group%' THEN 'same_group'
+      WHEN (r LIKE '%step down subsidiar%' OR r LIKE '%stepdown subsidiar%'
+            OR r LIKE '%step-down subsidiar%')
+           AND r NOT LIKE '%of the company%' THEN 'sub_rev'
       WHEN r LIKE '%subsidiar%' OR r LIKE '%wholly owned%' THEN 'sub_fwd'
       WHEN r LIKE '%holding compan%' THEN 'sub_rev'
       WHEN rel_group IN ('Group Companies', 'Promoter Group',
@@ -345,7 +410,20 @@ _PAIRS_SQL = """
       WHERE symbol IS NOT NULL AND counter_party IS NOT NULL
         AND entity_name IS NOT NULL
     )
-    ORDER BY symbol, counter_party, period_end_date_parsed DESC NULLS LAST
+    -- Tie-break inside a (symbol, entity_name, counter_party, period)
+    -- tie: prefer the row whose relationship text the ownership closure
+    -- trusts (metapath._STRICT_OWNERSHIP_REL). Pre-flight found the
+    -- TCS/'Tata sons' key otherwise landing on 'Ultimate Holding
+    -- Company', which the trust filter rejects — silently dropping
+    -- Tata sons as TCS's parent and re-rooting TCS under Voltas.
+    ORDER BY symbol, entity_name, counter_party, period_end_date_parsed DESC NULLS LAST,
+             CASE WHEN r IN ('subsidiary', 'subsidiaries', 'subsidiary company',
+                             'wholly owned subsidiary', 'wholly owned subsidiaries',
+                             'wholly-owned subsidiary', 'wholly-owned subsidiaries',
+                             'wholly owned subsidiary company', 'step down subsidiary',
+                             'stepdown subsidiary', 'subsidiary of the company',
+                             'holding company')
+                  THEN 0 ELSE 1 END
     """
 
 
@@ -354,7 +432,7 @@ def build_pairs(con: duckdb.DuckDBPyConnection) -> list[dict]:
     filing's attributes per pair (_PAIRS_SQL mirrors _CLASSIFY_SQL)."""
     rows = con.execute(_PAIRS_SQL).fetchall()
     out = []
-    for sym, ent, cp, rel, grp, ttype, amt, pend, url, cls in rows:
+    for sym, ent, cname, cp, rel, grp, ttype, amt, pend, url, cls in rows:
         if cls is None:
             continue
         clean = _clean_counterparty(cp)
@@ -364,6 +442,7 @@ def build_pairs(con: duckdb.DuckDBPyConnection) -> list[dict]:
             {
                 "symbol": sym,
                 "entity": ent,
+                "company_name": cname,
                 "counter_display": cp,
                 "counter": clean,
                 "relationship": rel,
@@ -399,7 +478,74 @@ def _census_names(conn: sqlite3.Connection) -> dict[str, str]:
     return ei.registry_index(conn)
 
 
-def apply_pairs(  # noqa: C901  # the filer/counter/edge-class resolution ladder
+_LEGAL_TAIL_RE = re.compile(r"[_ ](PRIVATE|PVT|LIMITED|LTD|COMPANY|CORPORATION|CORP|INC|LLP|CO)$")
+
+
+def _loose_key(name: str | None) -> str:
+    """Normalized name with legal-form tails and a leading 'THE' stripped, so
+    the same company written the way two filings write it lands on one key:
+    'The Indian Hotels Company Limited' and 'Indian Hotels' both give
+    'INDIAN_HOTELS'. Used to notice that a disclosed entity_name is the FILER
+    under another spelling — a disclosed subject that is really the filer must
+    not be minted as a second entity (A4 fragmentation: it split 'Indian
+    Hotels' into four nodes and emptied the bank's jv/same_group pins)."""
+    if not name:
+        return ""
+    key = _normalize(name).upper()
+    while True:
+        nxt = re.sub(r"^THE[_ ]", "", _LEGAL_TAIL_RE.sub("", key))
+        if nxt == key or not nxt:
+            return key
+        key = nxt
+
+
+def _resolve_party(  # noqa: C901  # the shared disclosed-party resolution ladder
+    raw: str,
+    norm_to_name: dict[str, str],
+    fold: dict[str, str],
+    census_map: dict[str, str],
+    existing: set[str],
+    new_entities: dict[str, str],
+    *,
+    max_new_entities: int,
+) -> str | None:
+    """S2 (rpt_attribution A4): resolve a disclosed party name to an
+    entity — the same ladder the counter-party walk uses: normalized hit
+    → fold/census variant → mint under the shared cap. None = unresolvable
+    (the caller drops the pair and counts it). No filer guard: a subject
+    that resolves to the counterparty is a self-edge and drops there."""
+    from helpers.core.entity_identity import FOOTNOTE_RE, name_key  # noqa: PLC0415
+
+    norm = _normalize(raw)
+    hit = norm_to_name.get(norm.upper())
+    if hit is None:
+        ck = name_key(FOOTNOTE_RE.sub("", raw.strip()))
+        hit = fold.get(ck) or census_map.get(ck)
+    if hit is None:
+        display = _safe_display(raw)
+        if display and display not in existing and display not in new_entities:
+            if len(new_entities) < max_new_entities:
+                new_entities[display] = norm
+                hit = display
+        elif display in existing or display in new_entities:
+            hit = display
+    return hit
+
+
+def _period_sort(period: str | None) -> tuple[int, int, int]:
+    """Filing period_end 'DD-MON-YYYY' as a sortable key; anything the
+    filings do not write that way sorts as (0, 0, 0) so an unparseable
+    period never wins a recency tie."""
+    if period:
+        try:
+            d = datetime.strptime(period.strip(), "%d-%b-%Y")
+            return (d.year, d.month, d.day)
+        except ValueError:
+            return (0, 0, 0)
+    return (0, 0, 0)
+
+
+def apply_pairs(  # noqa: C901  # the filer/subject/counter/edge-class resolution ladder
     conn: sqlite3.Connection,
     pairs: list[dict],
     companies: dict[str, str],
@@ -407,12 +553,30 @@ def apply_pairs(  # noqa: C901  # the filer/counter/edge-class resolution ladder
     *,
     max_new_entities: int = 60000,
     dry_run: bool = True,
-) -> tuple[int, int, int, int, int, int]:
-    """Create counter-party entities + structural edges.
+) -> tuple[int, int, int, int, int, int, int, int]:
+    """Create subject/counter-party entities + structural edges.
 
     Returns (n_new_entities, n_edges_would_or_written, n_written,
-    n_unresolved_filers, n_cycles_dropped, n_noncompany_dropped).
-    Upsert-latest per (source, target, edge_type).
+    n_unresolved_filers, n_cycles_dropped, n_noncompany_dropped,
+    n_subject_unresolvable, n_vote_dropped). Upsert-latest per
+    (source, target, edge_type).
+
+    S2 (rpt_attribution A4): the edge SUBJECT is the filing's disclosed
+    entity_name (resolved through the same ladder as the counter-party,
+    minting under the shared cap), not the filer — a 'Holding Company'
+    row filed by RELIANCE with entity_name 'Lithium Werks China
+    Manufacturing Co., Ltd.' is Lithium-Werks→Reliance, not the inverted
+    edge that re-rooted 238 companies under 'Reliance Lithium Werks
+    B.V'. The filer stays the subject for 'of the company' texts (the
+    counterparty is the filer's own subsidiary there). An unresolved
+    subject drops the pair; a subject equal to the counterparty is a
+    self-edge and drops.
+
+    A sub_fwd row whose subject is NOT the filer is only a SIBLING
+    relation unless the filer itself wrote the text — the 'Subsidiary'
+    label is relative to whoever spoke. See the A4 discriminator below
+    (pre-flight: VOLTAS's 'Universal MEP / Tata Consultancy Services /
+    Subsidiary' group row otherwise re-rooted TCS under Voltas).
 
     2026-11-03 operator ruling: institutional investors (LIC, HDFC
     LIFE, ...) are PORTFOLIO holders, not group members — an insurer
@@ -438,50 +602,124 @@ def apply_pairs(  # noqa: C901  # the filer/counter/edge-class resolution ladder
     # that name — no duplicate entity is minted for a spelling variant.
     census_map = _census_names(conn)
     fold = _fold_map()
+    # S3 polarity-correction context (ruled slice, 2026-11-12): counters
+    # each symbol's filer declares as ITS OWN holding company (rows where
+    # entity_name ~= company_name and the class is sub_rev). A bare
+    # step-down row whose counter is in this set points UP — the subject
+    # is the counter's step-down sub (ROUTE pattern). Everything else
+    # points DOWN (the counter is the subject's step-down sub).
+    filer_ancestors: dict[str, set[str]] = {}
+    for p in pairs:
+        if (
+            p.get("company_name")
+            and p["cls"] == "sub_rev"
+            and _loose_key(p["entity"]) == _loose_key(p["company_name"])
+        ):
+            filer_ancestors.setdefault(p["symbol"], set()).add(_loose_key(p["counter"]))
     edges: list[dict] = []
     new_entities: dict[str, str] = {}
     unresolved_filers: set[str] = set()
     n_noncompany_dropped = 0
+    n_subject_unresolvable = 0
     for p in pairs:
         filer = companies.get(p["symbol"])
         if filer is None:
             unresolved_filers.add(p["symbol"])
             continue
-        cp_norm = _normalize(p["counter"])
-        cp_ent = norm_to_name.get(cp_norm.upper())
-        if cp_ent is None:
-            from helpers.core.entity_identity import FOOTNOTE_RE, name_key  # noqa: PLC0415
-
-            ck = name_key(FOOTNOTE_RE.sub("", p["counter"].strip()))
-            hit = fold.get(ck) or census_map.get(ck)
-            if hit and hit != filer:
-                cp_ent = hit
-        if cp_ent is None:
-            display = _safe_display(p["counter"])
-            if display and display not in existing and display not in new_entities:
-                if len(new_entities) < max_new_entities:
-                    new_entities[display] = cp_norm
-                    cp_ent = display
-                else:
-                    continue  # cap reached — skip the edge, reported in dry-run
-            elif display in existing:
-                cp_ent = display
-            elif display in new_entities:
-                cp_ent = display
-        if cp_ent is None or cp_ent == filer:
+        # S2 (rpt_attribution A4): the edge subject is the filing's
+        # disclosed entity_name — except 'of the company' texts, where the
+        # counterparty is the filer's own subsidiary and the filer stays
+        # the subject.
+        if "of the company" in _norm_rel(p["relationship"]):
+            subject = filer
+        elif _loose_key(p["entity"]) == _loose_key(filer):
+            # The disclosed entity_name is the filer under another spelling
+            # ('The Indian Hotels Company Limited' filed by INDHOTEL). Minting
+            # it would fork the filer into a second node and orphan every edge
+            # that names the filer — A4 subject attribution's one real cost.
+            subject = filer
+        else:
+            subject = _resolve_party(
+                p["entity"],
+                norm_to_name,
+                fold,
+                census_map,
+                existing,
+                new_entities,
+                max_new_entities=max_new_entities,
+            )
+            if subject is None:
+                n_subject_unresolvable += 1
+                continue
+        cp_ent = _resolve_party(
+            p["counter"],
+            norm_to_name,
+            fold,
+            census_map,
+            existing,
+            new_entities,
+            max_new_entities=max_new_entities,
+        )
+        if cp_ent is None or cp_ent == subject:
             continue
         if p["cls"] == "same_group" and (filer in noncompany or cp_ent in noncompany):
             n_noncompany_dropped += 1
             continue  # institutional investor — portfolio holding, not group membership
-        if p["cls"] == "sub_fwd":
-            src, dst, etype, symm = cp_ent, filer, "subsidiary_of", 0
-        elif p["cls"] == "sub_rev":
-            src, dst, etype, symm = filer, cp_ent, "subsidiary_of", 0
-        elif p["cls"] == "same_group":
-            src, dst = (cp_ent, filer) if cp_ent < filer else (filer, cp_ent)
+        cls = p["cls"]
+        # A relationship text is read relative to entity_name (the subject) —
+        # verified against the store: REDINGTON row (entity_name 'REDINGTON
+        # RWANDA LTD', counter_party 'Redington Gulf FZE', relationship
+        # 'Holding company') means Gulf FZE is Rwanda's parent, and only that
+        # reading is true. So sub_fwd/sub_rev orientation needs no change.
+        #
+        # But some texts are written relative to the FILER's holding company,
+        # not to the disclosed entity: 'Subsidiary of Holding Company',
+        # 'Subsidiaries of Ultimate Holding Company', 'Joint venture of
+        # Holding Company'. Read against a SUBSIDIARY subject they mint a
+        # parent chain for that subsidiary instead of a sibling relation under
+        # the filer's group (live: this is why Indian Hotels' 57 jv edges
+        # collapsed to 10 and JSW Energy's same_group 211 -> 119). When the
+        # text names a holding company/promoter AND the subject is not the
+        # filer itself, the pair is a group relation under the filer.
+        if subject != filer and cls in ("sub_fwd", "sub_rev", "jv_with"):
+            rel_norm = _norm_rel(p["relationship"])
+            if _is_group_relative_text(rel_norm):
+                cls = "same_group"
+        # S3 polarity correction (ruled slice, 2026-11-12): the BARE
+        # step-down text is direction-ambiguous — the same string points
+        # up in some filings (ROUTE: 'Route Mobile (UK) Limited' +
+        # 'Step down subsidiary' + Proximus = the entity IS the step-down
+        # sub) and down in others (Ashok Leyland/ADVENZYMES: the counter IS
+        # the entity's step-down sub; the A-prime flip inverted those).
+        # Resolved per pair from filing context: subject == filer → the
+        # filer listing its own step-downs (sub_fwd); counter declared as
+        # the FILER's holding company elsewhere in the same symbol's
+        # rows → the subject sits below it (keep sub_rev); otherwise →
+        # sub_fwd (the default, AL pattern).
+        rerouted: str | None = None
+        if cls == "sub_rev" and any(m in _norm_rel(p["relationship"]) for m in _POLARITY_REV):
+            counter_is_filer_ancestor = _loose_key(p["counter"]) in filer_ancestors.get(
+                p["symbol"], set()
+            )
+            if subject == filer or not counter_is_filer_ancestor:
+                cls = "sub_fwd"
+                rerouted = "self" if subject == filer else "default"
+                # a reroute is a direction GUESS from an ambiguous text —
+                # flagged so the cross-ref vote can resolve reroute-made
+                # mutual conflicts instead of keeping both sides as a
+                # phantom co-control tie.
+        if cls == "same_group" and (subject in noncompany or cp_ent in noncompany):
+            n_noncompany_dropped += 1
+            continue  # institutional investor — portfolio holding, not group membership
+        if cls == "sub_fwd":
+            src, dst, etype, symm = cp_ent, subject, "subsidiary_of", 0
+        elif cls == "sub_rev":
+            src, dst, etype, symm = subject, cp_ent, "subsidiary_of", 0
+        elif cls == "same_group":
+            src, dst = (cp_ent, subject) if cp_ent < subject else (subject, cp_ent)
             etype, symm = "same_group", 1
         else:  # jv_with
-            src, dst = (cp_ent, filer) if cp_ent < filer else (filer, cp_ent)
+            src, dst = (cp_ent, subject) if cp_ent < subject else (subject, cp_ent)
             etype, symm = "jv_with", 1
         edges.append(
             {
@@ -489,7 +727,11 @@ def apply_pairs(  # noqa: C901  # the filer/counter/edge-class resolution ladder
                 "dst": dst,
                 "etype": etype,
                 "symm": symm,
-                "cls": p["cls"],
+                "cls": cls,
+                "rerouted": rerouted,
+                "period": p["period_end"],
+                "url": p["xbrl_url"],
+                "rel": _norm_rel(p["relationship"]),
                 "source_ref": f"{SOURCE_REF_PREFIX}:{p['symbol']}",
                 "props": json.dumps(
                     {
@@ -529,6 +771,85 @@ def apply_pairs(  # noqa: C901  # the filer/counter/edge-class resolution ladder
                         n_cycles_dropped += 1
     if dropped:
         edges = [e for e in edges if id(e) not in dropped]
+    # S2 cross-ref vote (rpt_attribution §4): two filers can assert
+    # OPPOSITE directions of the same subsidiary pair. The vote keeps the
+    # direction backed by more distinct filings (xbrl_url); a tie of
+    # EXPLICIT sub_fwd claims keeps both (a mutual claim is co-control,
+    # not a cycle — the closure's cycle-guard handles the residue). A tie
+    # that carries reroute-made claims resolves by strength + recency
+    # below, because those claims are guesses, not assertions.
+    n_vote_dropped = 0
+    own = [e for e in edges if e["etype"] == "subsidiary_of"]
+    fwd: dict[tuple[str, str], set[str]] = {}
+    rev: dict[tuple[str, str], set[str]] = {}
+    for e in own:
+        key = tuple(sorted((e["src"], e["dst"])))
+        (fwd if e["src"] < e["dst"] else rev).setdefault(key, set()).add(e["url"])
+    mutual = set(fwd) & set(rev)
+    dropped_v: set[int] = set()
+    for key in mutual:
+        n_f, n_r = len(fwd[key]), len(rev[key])
+        key_edges = [e for e in own if tuple(sorted((e["src"], e["dst"]))) == key]
+        if n_f == n_r:
+            losers = [e for e in key_edges if e["cls"] != "sub_fwd"]
+            # Polarity-slice refinement: a rerouted bare step-down text is a
+            # direction GUESS, not an explicit claim. When a tie key carries
+            # reroute-made claims on both sides (ASHOKLEY DSD: the FY26 row
+            # pairs (Hinduja Tech, DSD UK) and the 30-SEP-2025 row pairs
+            # (DSD UK, Hinduja Tech) — both rerouted sub_fwd), the old
+            # co-control tie minted a cycle from one ambiguous relationship.
+            # Resolve by claim strength (explicit text > filer-self reroute
+            # > default-down reroute), then filing recency. Keys carrying
+            # only explicit claims keep the old tie.
+            sub_fwd_edges = [e for e in key_edges if e["cls"] == "sub_fwd"]
+            if any(e.get("rerouted") for e in key_edges) and len(sub_fwd_edges) > 1:
+                strength = {"default": 0, "self": 1}
+                winner = max(
+                    sub_fwd_edges,
+                    key=lambda e: (
+                        strength.get(e.get("rerouted"), 2),
+                        _period_sort(e.get("period")),
+                    ),
+                )
+                losers += [e for e in sub_fwd_edges if e is not winner]
+            for e in losers:
+                dropped_v.add(id(e))
+                n_vote_dropped += 1
+        else:
+            for e in key_edges:
+                is_fwd = e["src"] < e["dst"]
+                if (n_f > n_r) != is_fwd:
+                    dropped_v.add(id(e))
+                    n_vote_dropped += 1
+    if dropped_v:
+        edges = [e for e in edges if id(e) not in dropped_v]
+    # S2/S4 pre-flight finding (TCS re-root): several DIFFERENT pair keys
+    # resolve onto the same (source, target, edge_type) edge -- a filer's
+    # 'Holding Company' row and its subsidiaries' 'Ultimate Holding Company'
+    # rows all key TCS -> Tata Sons. The write path is upsert-LATEST, so an
+    # untrusted row could overwrite the trusted one and
+    # metapath._trust_ownership_edge then refuses the edge, re-rooting TCS at
+    # itself. A trust-passing claim is never downgraded here; among equally
+    # trusted claims the last row still wins (the historical semantics).
+    from helpers.graph.metapath import _STRICT_OWNERSHIP_REL  # noqa: PLC0415
+
+    def _trust_passing(edge: dict) -> bool:
+        return edge["etype"] == "subsidiary_of" and _norm_rel(edge["rel"]) in _STRICT_OWNERSHIP_REL
+
+    keep_pos: dict[tuple[str, str, str], int] = {}
+    deduped: list[dict] = []
+    for e in edges:
+        ekey = (e["src"], e["dst"], e["etype"])
+        pos = keep_pos.get(ekey)
+        if pos is None:
+            keep_pos[ekey] = len(deduped)
+            deduped.append(e)
+        elif _trust_passing(deduped[pos]) and not _trust_passing(e):
+            continue  # never downgrade a trusted ownership claim
+        else:
+            deduped[pos] = e
+    edges = deduped
+
     n_written = 0
     if not dry_run:
         with conn:
@@ -562,7 +883,34 @@ def apply_pairs(  # noqa: C901  # the filer/counter/edge-class resolution ladder
         len(unresolved_filers),
         n_cycles_dropped,
         n_noncompany_dropped,
+        n_subject_unresolvable,
+        n_vote_dropped,
     )
+
+
+def purge_rpt_edges(
+    conn: sqlite3.Connection, edge_types: list[str], *, dry_run: bool = True
+) -> dict[str, int]:
+    """S2 replay hygiene (rpt_attribution §4 S4): the vigil:rpt namespace
+    is fully derived from rpt_transactions, but the write path is
+    upsert-only — without a purge, pairs that stop existing (attribution
+    re-keys them) survive as stale edges forever. Returns per-type
+    counts either way; deletes only when dry_run is false."""
+    pattern = f"{SOURCE_REF_PREFIX}:%"
+    counts: dict[str, int] = {}
+    for etype in edge_types:
+        counts[etype] = conn.execute(
+            "SELECT COUNT(*) FROM graph_edges WHERE source_ref LIKE ? AND edge_type=?",
+            (pattern, etype),
+        ).fetchone()[0]
+    if not dry_run:
+        with conn:
+            for etype in edge_types:
+                conn.execute(
+                    "DELETE FROM graph_edges WHERE source_ref LIKE ? AND edge_type=?",
+                    (pattern, etype),
+                )
+    return counts
 
 
 _SALE_TYPES = ("Sale of goods or services", "Sale of fixed assets")
@@ -1202,6 +1550,15 @@ def main(argv: list[str] | None = None) -> int:  # noqa: C901  # pass-per-flag C
     n_unres = 0
 
     if args.group or args.supply_chain:
+        # S2 replay hygiene (rpt_attribution §4 S4): the vigil:rpt lane is
+        # fully derived from rpt_transactions — purge the previous run's
+        # edges before re-applying so re-keyed pairs cannot survive as
+        # stale edges (the write path is upsert-only).
+        ptypes = ["subsidiary_of", "same_group", "jv_with"] if args.group else []
+        if args.supply_chain:
+            ptypes.append("supplier_to")
+        pcounts = purge_rpt_edges(conn, ptypes, dry_run=not args.apply)
+        print(f"[{mode}:purge] " + " ".join(f"{t}={pcounts[t]}" for t in ptypes))
         # Vigil symmetric-emission S2: clean existing same-ref artifacts
         # BEFORE the passes; the mint-time drops keep a re-run from
         # re-creating them. Same-ref scope only; dups flagged, not merged.
@@ -1216,7 +1573,7 @@ def main(argv: list[str] | None = None) -> int:  # noqa: C901  # pass-per-flag C
         )
     if args.group:
         pairs = build_pairs(src)
-        n_ent, n_edges, n_written, n_unres, n_cycles, n_nc = apply_pairs(
+        n_ent, n_edges, n_written, n_unres, n_cycles, n_nc, n_su, n_vd = apply_pairs(
             conn,
             pairs,
             companies,
@@ -1229,7 +1586,8 @@ def main(argv: list[str] | None = None) -> int:  # noqa: C901  # pass-per-flag C
             f"[{mode}:group] pairs={len(pairs)} by_class={dict(by_cls)} "
             f"new_entities={n_ent} edges={n_edges} written={n_written} "
             f"unresolved_filers={n_unres} cycles_dropped={n_cycles} "
-            f"same_group_noncompany_dropped={n_nc}"
+            f"same_group_noncompany_dropped={n_nc} "
+            f"subject_unresolvable={n_su} vote_dropped={n_vd}"
         )
     if args.supply_chain:
         spairs = build_supply_pairs(src)

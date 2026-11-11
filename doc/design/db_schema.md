@@ -288,12 +288,28 @@ cross-edition tracking view.
 | `source_quote` | TEXT | verbatim line (provenance) |
 | `source_ref` | TEXT | `derive:metrics:<stem>:<line>` — idempotency key |
 | `agent_id` / `source_tier` | TEXT | row provenance (S1), converged from `source_ref` prefixes |
+| `consolidated` | INTEGER | `1` \| `0` \| NULL — scope flag, promoted from `properties.consolidated` (grain rule, #506) |
 | `properties` | TEXT | JSON, json_valid CHECK |
 | `created_at` | DATETIME | |
 
 No natural UNIQUE key; idempotency = DELETE-then-INSERT on
 `source_ref LIKE 'derive:metrics:%'`. Indexes: `(entity, metric_label)`,
 edition.
+
+**Grain and the certified view (#506).** The table is append-only and keeps
+every provenance row, so the grain is enforced at READ time, not by dedup.
+`company_metrics_ruled` is a VIEW carrying one row per
+`(entity, metric_label, period, consolidated)` — the latest filing within
+scope, ties broken by the newest `id`; rows with a NULL `period` or
+`metric_label` pass through unkeyed. The filing timestamp is the 14-digit
+day-first stamp in the NSE `source_ref` suffix
+(`_DDMMYYYYHHMMSS_WEB.xml`), reordered to sortable form; `yfinance` and
+`derive:%` rows carry none and sort last within their partition. **Any
+aggregate over this table must read the view**, not the base table: naive
+`SUM(value_num)` over `q_revenue` inflates 1.69x (12,680,960.89 vs
+7,519,934.98) because consolidated and standalone scopes are different
+facts, and refilings stack. `check_company_metrics` reports the collapse
+advisories (`ruled` / `collapsed` / `null_keys` / `key_conflicts`).
 
 ## `graph_analytics` — per-entity graph metrics
 

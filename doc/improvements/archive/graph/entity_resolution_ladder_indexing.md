@@ -1,15 +1,15 @@
 ---
 title: "Entity-resolution ladder indexing: cache token sets + bucket qualifier scans in derive_insights"
-status: proposed
+status: executed
 filed: "2026-11-11"
-executed: null
-completed_md: null
+executed: "2026-11-11"
+completed_md: '508'
 area: graph
 ---
 
 # Entity-resolution ladder indexing: cache token sets + bucket qualifier scans
 
-**Date:** 2026-11-11 · **Status:** PROPOSED ·
+**Date:** 2026-11-11 · **Status:** EXECUTED (completed.md #508, archived 2026-11-12) ·
 **Area:** helpers/graph/derive_insights.py
 
 ## 1. Motivation

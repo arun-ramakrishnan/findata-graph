@@ -1214,6 +1214,79 @@ def collect_rpt_disclosure_sets(
     return groups, roles, fold_counts
 
 
+# --------------------------------------------------------------------------- #
+# S6 curated family lane (rpt_attribution_filer_resolution_and_group_family
+# B4): git-tracked seeds widened into ``group`` under ``family:<name>``
+# labels. Curation is an operator edit of helpers/misc/family_seeds.json;
+# the disclosure-scope ``vigil:rpt:<SYMBOL>`` sets are NOT families.
+# --------------------------------------------------------------------------- #
+
+FAMILY_SEEDS_PATH = Path(__file__).resolve().parents[1] / "misc" / "family_seeds.json"
+FAMILY_LABEL_PREFIX = "family:"
+
+
+def collect_family_seeds(seed_path: Path | None = None) -> dict[str, set[str]]:
+    """Load the curated family lane into ``{label: members}``.
+
+    Seed file (helpers/misc/family_seeds.json) maps ``family`` ->
+    ``members[]``; labels are namespaced ``family:<name>`` so they cannot
+    collide with the disclosure lane (``vigil:rpt:<SYMBOL>``) or the
+    curated ``$.group`` dyad sets (bare names). Same return shape as
+    :func:`collect_rpt_disclosure_sets` groups for the ``hyper["group"]``
+    merge. A missing file is an empty lane (fresh/test trees); a malformed
+    file is a hard error (curation is a tracked edit — fail loudly).
+    """
+    path = seed_path or FAMILY_SEEDS_PATH
+    try:
+        doc = json.loads(path.read_text())
+    except FileNotFoundError:
+        return {}
+    families = doc.get("families")
+    if not isinstance(families, list):
+        raise ValueError(f"family seed file {path}: 'families' must be a list")
+    out: dict[str, set[str]] = {}
+    for entry in families:
+        name = entry.get("family")
+        members = entry.get("members")
+        if (
+            not isinstance(name, str)
+            or not name.strip()
+            or not isinstance(members, list)
+            or not members
+            or not all(isinstance(m, str) and m.strip() for m in members)
+        ):
+            raise ValueError(
+                f"family seed file {path}: bad entry {entry!r} "
+                "(need family + non-empty members[] of strings)"
+            )
+        label = FAMILY_LABEL_PREFIX + name
+        if label in out:
+            raise ValueError(f"family seed file {path}: duplicate family {name!r}")
+        out[label] = {m.strip() for m in members}
+    return out
+
+
+def validate_family_seeds(
+    groups: dict[str, set[str]], valid: set[str]
+) -> tuple[dict[str, set[str]], dict[str, list[str]]]:
+    """Drop seed members that do not resolve to a stored entity.
+
+    Curation is a git-tracked edit, so a typo must be VISIBLE, not a mint:
+    unknown names are removed per family and reported (the S6 print line
+    carries them). Returns ``(filtered_groups, dropped)``.
+    """
+    filtered: dict[str, set[str]] = {}
+    dropped: dict[str, list[str]] = {}
+    for label, members in groups.items():
+        unknown = sorted(m for m in members if m not in valid)
+        kept = members.difference(unknown)
+        if kept:
+            filtered[label] = kept
+        if unknown:
+            dropped[label] = unknown
+    return filtered, dropped
+
+
 def collect_hyperedges(  # noqa: C901
     conn, companies_dir: Path | None = None
 ) -> tuple[dict[str, dict[str, set[str]]], dict[tuple[str, str, str], float]]:
@@ -1676,6 +1749,30 @@ def _cli(argv: list[str] | None = None) -> int:  # noqa: C901  # arg-dispatch CL
                 "(dominant folded class)"
             )
         valid = {r[0] for r in conn.execute("SELECT name FROM entities")}
+        # S6 (rpt_attribution_filer_resolution_and_group_family B4): widen
+        # ``group`` with the curated family lane — git-tracked seeds under
+        # ``family:<name>`` labels, members validated against entities (a
+        # seed typo is dropped and printed, never minted — hyper_incidences
+        # is FK-clean by construction). Labels cannot collide with the
+        # disclosure lane or the curated ``$.group`` sets. Landing inside
+        # ``hyper["group"]`` also puts the labels under the S2 prune
+        # convergence: a seed removed from the file is pruned on the next run.
+        family_groups = collect_family_seeds()
+        if family_groups:
+            family_groups, family_dropped = validate_family_seeds(family_groups, valid)
+            if family_groups:
+                merged_family = dict(hyper.get("group", {}))
+                for label, members in family_groups.items():
+                    merged_family.setdefault(label, set()).update(members)
+                hyper["group"] = merged_family
+            n_family_members = sum(len(m) for m in family_groups.values())
+            n_family_dropped = sum(len(v) for v in family_dropped.values())
+            print(
+                f"S6 family seeds: {len(family_groups)} curated family set(s) "
+                f"widening `group` ({n_family_members} member(s))"
+                + (f"; unresolved dropped: {family_dropped}" if n_family_dropped else "")
+            )
+
         # D7 authored lane: `subsector:` note field is canonical per company.
         # D11 operator lane: the version-controlled COMPANY_SUB_SECTORS map
         # rides the same precedence (map wins on conflict — no note writes).

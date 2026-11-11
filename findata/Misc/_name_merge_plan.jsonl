@@ -1,28 +1,128 @@
-{"canonical": "Adani Ports and SEZ", "variants": ["Adani Ports and Special Economic Zone"]}
-{"canonical": "Allied Blenders and Distillers", "variants": ["Allied Blenders & Distillers"]}
-{"canonical": "Ambuja Cement", "variants": ["Ambuja Cements"]}
-{"canonical": "CG Power", "variants": ["CG Power And Industrial Solutions", "CG Power and Industrial Solutions"]}
-{"canonical": "Gillette", "variants": ["GILLETTE INDIA"]}
-{"canonical": "HDFC AMC", "variants": ["HDFC Asset Management Company"]}
-{"canonical": "HDFC Life", "variants": ["HDFC Life Insurance Company"]}
-{"canonical": "Hindalco", "variants": ["Hindalco Industries"]}
-{"canonical": "Indian Railway Finance", "variants": ["INDIAN RAILWAY FINANCE CORPORATION"]}
-{"canonical": "Indian Hotels", "variants": ["Indian Hotels Company", "THE INDIAN HOTELS CO", "The Indian Hotels Company"]}
-{"canonical": "Macrotech Developers", "variants": ["LODHA DEVELOPERS"]}
-{"canonical": "Larsen and Toubro", "variants": ["Larsen & Toubro"]}
-{"canonical": "Life Insurance Corporation of India (LIC)", "variants": ["Life Insurance Corporation of India"]}
-{"canonical": "Manipal Payment And Identity Solutions", "variants": ["Manipal Payment and Identity Solutions"]}
-{"canonical": "Multi Commodity Exchange of India (MCX)", "variants": ["Multi commodity Exchange of India"]}
-{"canonical": "Nippon Life AMC", "variants": ["Nippon Life India Asset Management"]}
-{"canonical": "Punjab National Bank (PNB)", "variants": ["Punjab National Bank"]}
-{"canonical": "Sagility", "variants": ["Sagility India"]}
-{"canonical": "Saregama India", "variants": ["Saregama"]}
-{"canonical": "Tata Motors Passenger Vehicles", "variants": ["TATA MOTORS"]}
-{"canonical": "Tata Consultancy Services", "variants": ["Tata Consultancy Services (TCS)"]}
-{"canonical": "Tempsens Instruments", "variants": ["Tempsens Instruments (India)"]}
-{"canonical": "Titan", "variants": ["Titan Company", "Titan company"]}
-{"canonical": "Welspun Corp", "variants": ["Welspun Holdings"]}
-{"canonical": "Sun Pharmaceutical Industries", "variants": ["Sun Pharma Holdings"]}
-{"canonical": "State Bank of India", "variants": ["SBI Ventures"]}
-{"canonical": "Agratas", "variants": ["AGRATAS ENERGY STORAGE SOLUTIONS"]}
-{"canonical": "Aditya Birla Renewables", "variants": ["Aditya Birla Renewables Energy"]}
+{"canonical": "Acme Solar Holdings", "variants": ["ACME Solar Holdings"], "key": "acme solar holdings", "listed_hit": true}
+{"canonical": "Adani Ports and Special Economic Zone", "variants": ["Adani Ports And Special Economic Zone"], "key": "adani ports and special economic zone", "listed_hit": false}
+{"canonical": "Affle 3i", "variants": ["Affle 3i \")"], "key": "affle 3i", "listed_hit": true}
+{"canonical": "Agilus Diagnostics Nepal )", "variants": ["Agilus Diagnostics Nepal"], "key": "agilus diagnostics nepal", "listed_hit": false}
+{"canonical": "AIX Connect", "variants": ["AIX Connect )"], "key": "aix connect", "listed_hit": false}
+{"canonical": "Akzo Nobel a", "variants": ["Akzo Nobel a"], "key": "akzo nobel a", "listed_hit": false}
+{"canonical": "Akzo Nobel Car Refinishes B.V", "variants": ["Akzo Nobel Car Refinishes B.V"], "key": "akzo nobel car refinishes b v", "listed_hit": false}
+{"canonical": "Akzo Nobel Coatings (Dongguan) Co", "variants": ["Akzo Nobel Coatings (Dongguan) Co"], "key": "akzo nobel coatings dongguan co", "listed_hit": false}
+{"canonical": "Akzo Nobel Paints Lanka ( )", "variants": ["Akzo Nobel Paints Lanka ( )"], "key": "akzo nobel paints lanka", "listed_hit": false}
+{"canonical": "Akzo Nobel Paints (Malaysia) Sdn. Bhd", "variants": ["Akzo Nobel Paints (Malaysia) Sdn. Bhd"], "key": "akzo nobel paints malaysia sdn bhd", "listed_hit": false}
+{"canonical": "Akzo Nobel Paints Taiwan", "variants": ["Akzo Nobel Paints Taiwan"], "key": "akzo nobel paints taiwan", "listed_hit": false}
+{"canonical": "Akzo Nobel Paints (Thailand)", "variants": ["Akzo Nobel Paints (Thailand)"], "key": "akzo nobel paints thailand", "listed_hit": false}
+{"canonical": "Akzo Nobel Powder Coatings Korea Co", "variants": ["Akzo Nobel Powder Coatings Korea Co"], "key": "akzo nobel powder coatings korea co", "listed_hit": false}
+{"canonical": "Akzo Nobel UAE Paints L.L.C", "variants": ["Akzo Nobel UAE Paints L.L.C"], "key": "akzo nobel uae paints l l c", "listed_hit": false}
+{"canonical": "Allcargo Corporate Services", "variants": ["Allcargo Corporate Services . )"], "key": "allcargo corporate services", "listed_hit": false}
+{"canonical": "ASTRAL PIPES KENYA", "variants": ["ASTRAL PIPES ,KENYA"], "key": "astral pipes kenya", "listed_hit": false}
+{"canonical": "Avaada MHYavat", "variants": ["Avaada MH Yavat"], "key": "avaada mh yavat", "listed_hit": false}
+{"canonical": "Bangalore Malur Highways #####", "variants": ["Bangalore Malur Highways"], "key": "bangalore malur highways", "listed_hit": false}
+{"canonical": "Bharat Coking Coal", "variants": ["Bharat CokingCoal"], "key": "bharat coking coal", "listed_hit": false}
+{"canonical": "Blazeclan Technologies", "variants": ["BlazeclanTechnologies"], "key": "blazeclan technologies", "listed_hit": false}
+{"canonical": "BLS Consular Service Ireland", "variants": ["BLS Consular Service ,Ireland"], "key": "bls consular service ireland", "listed_hit": false}
+{"canonical": "BRISTLECONE INDIA (FORMERLY BRISTLECONE INDIA )", "variants": ["BRISTLECONE INDIA FORMERLY BRISTLECONE INDIA"], "key": "bristlecone india formerly bristlecone india", "listed_hit": false}
+{"canonical": "Carat Lane Trading", "variants": ["CaratLane Trading"], "key": "carat lane trading", "listed_hit": false}
+{"canonical": "CG Power and Industrial Solutions", "variants": ["CG Power And Industrial Solutions"], "key": "cg power and industrial solutions", "listed_hit": false}
+{"canonical": "Cholamandalam Investment and Finance Company", "variants": ["Cholamandalam Investment and\nFinance Company"], "key": "cholamandalam investment and finance company", "listed_hit": true}
+{"canonical": "Coal LigniteUrja Vikas", "variants": ["Coal Lignite Urja Vikas"], "key": "coal lignite urja vikas", "listed_hit": false}
+{"canonical": "Comfort Click , Ireland", "variants": ["Comfort Click (Ireland)"], "key": "comfort click ireland", "listed_hit": false}
+{"canonical": "CreditAccess Life Insurance", "variants": ["Credit Access Life Insurance"], "key": "credit access life insurance", "listed_hit": false}
+{"canonical": "Crisil Irevna Australia Pty ‬", "variants": ["Crisil Irevna Australia Pty"], "key": "crisil irevna australia pty", "listed_hit": false}
+{"canonical": "Cyient DLM", "variants": ["CYIENT DLM"], "key": "cyient dlm", "listed_hit": false}
+{"canonical": "Dadra and Nagar Haveli and Daman and Diu Power Distribution Corporation", "variants": ["Dadra and Nagar Haveli and Daman and Diu Power\nDistribution Corporation"], "key": "dadra and nagar haveli and daman and diu power distribution corporation", "listed_hit": false}
+{"canonical": "Dalmia Cement (North East) )", "variants": ["Dalmia Cement (North East)"], "key": "dalmia cement north east", "listed_hit": false}
+{"canonical": "Dhrol-Bhadra Highways", "variants": ["Dhrol Bhadra Highways ####"], "key": "dhrol bhadra highways", "listed_hit": false}
+{"canonical": "Digital18 Media $", "variants": ["Digital18 Media"], "key": "digital18 media", "listed_hit": false}
+{"canonical": "Dilip Buildcon-Varah Infra (JV)", "variants": ["Dilip Buildcon -Varah Infra (JV)"], "key": "dilip buildcon varah infra jv", "listed_hit": false}
+{"canonical": "DLF City Centre (merged with DLF Cyber City Developers )", "variants": ["DLF CITY CENTRE (MERGED WITH DLF CYBER CITY DEVELOPERS)"], "key": "dlf city centre merged with dlf cyber city developers", "listed_hit": false}
+{"canonical": "Dodaballapur Hoskote Highways #", "variants": ["Dodaballapur Hoskote Highways"], "key": "dodaballapur hoskote highways", "listed_hit": false}
+{"canonical": "E.I.D. Parry (India)", "variants": ["E.I.D.Parry (India)"], "key": "e i d parry india", "listed_hit": false}
+{"canonical": "ERIS M.J. BIOPHARM", "variants": ["ERIS M. J. BIOPHARM"], "key": "eris m j biopharm", "listed_hit": false}
+{"canonical": "Ex-cel Plastics, Ireland", "variants": ["Ex-Cel Plastics , Ireland"], "key": "ex cel plastics ireland", "listed_hit": false}
+{"canonical": "G.G. Tronics India", "variants": ["G. G. Tronics India"], "key": "g g tronics india", "listed_hit": false}
+{"canonical": "G S Pharmaceutical Distributors", "variants": ["G.S.Pharmaceutical Distributors"], "key": "g s pharmaceutical distributors", "listed_hit": false}
+{"canonical": "Garware HiTech Films International", "variants": ["Garware Hi-Tech Films International"], "key": "garware hi tech films international", "listed_hit": false}
+{"canonical": "Geshipping(IFSC)", "variants": ["GeshippingIFSC"], "key": "geshipping ifsc", "listed_hit": false}
+{"canonical": "Glenmark Farmaceutica a", "variants": ["Glenmark Farmacêutica a"], "key": "glenmark farmaceutica a", "listed_hit": false}
+{"canonical": "GMR Rajahmundry Energy", "variants": ["GMR Rajahmundry Energy"], "key": "gmr rajahmundry energy", "listed_hit": false}
+{"canonical": "H.G. Luxury Hotels", "variants": ["H G LUXURY HOTELS"], "key": "h g luxury hotels", "listed_hit": false}
+{"canonical": "IdeaRx Services", "variants": ["Idea Rx Services"], "key": "idea rx services", "listed_hit": false}
+{"canonical": "IFCI Infrastructure Development (IIDL)", "variants": ["IFCI INFRASTRUCTURE DEVELOPMENT (IIDL)"], "key": "ifci infrastructure development iidl", "listed_hit": false}
+{"canonical": "Indian Renewable Energy Development Agency", "variants": ["Indian Renewable Energy\nDevelopment Agency"], "key": "indian renewable energy development agency", "listed_hit": true}
+{"canonical": "Intellect Design Arena", "variants": ["IntellectDesignArena"], "key": "intellect design arena", "listed_hit": true}
+{"canonical": "International Paint (Korea)", "variants": ["International Paint (Korea)"], "key": "international paint korea", "listed_hit": false}
+{"canonical": "International Paint (Nederland) B.V", "variants": ["International Paint (Nederland) B.V"], "key": "international paint nederland b v", "listed_hit": false}
+{"canonical": "International Paint of Shanghai Co", "variants": ["International Paint of Shanghai Co"], "key": "international paint of shanghai co", "listed_hit": false}
+{"canonical": "International Paint (Panama) Inc", "variants": ["International Paint (Panama) Inc"], "key": "international paint panama inc", "listed_hit": false}
+{"canonical": "International Paint Singapore Pte", "variants": ["International Paint Singapore Pte"], "key": "international paint singapore pte", "listed_hit": false}
+{"canonical": "International Paint (Taiwan)", "variants": ["International Paint (Taiwan)"], "key": "international paint taiwan", "listed_hit": false}
+{"canonical": "IPLTech Electric", "variants": ["IPL Tech Electric"], "key": "ipl tech electric", "listed_hit": false}
+{"canonical": "J B Chemicals & Pharmaceuticals", "variants": ["J.B.Chemicals & Pharmaceuticals"], "key": "j b chemicals pharmaceuticals", "listed_hit": true}
+{"canonical": "J.K.CEMENT (WESTERN)", "variants": ["J.K. CEMENT WESTERN"], "key": "j k cement western", "listed_hit": false}
+{"canonical": "J.K.INVESTORS (BOMBAY)", "variants": ["J K Investors (Bombay)"], "key": "j k investors bombay", "listed_hit": false}
+{"canonical": "J Kumar-NCC", "variants": ["J KumarNCC"], "key": "j kumar ncc", "listed_hit": false}
+{"canonical": "Joyce Foam PTY , Australia", "variants": ["Joyce Foam Pty , Australia"], "key": "joyce foam pty australia", "listed_hit": false}
+{"canonical": "JSW Renewable Energy Dolvi Three", "variants": ["JSW Renewable Energy Dolvi Three"], "key": "jsw renewable energy dolvi three", "listed_hit": false}
+{"canonical": "Linde Enterprises (West) . )", "variants": ["Linde Enterprises (West)"], "key": "linde enterprises west", "listed_hit": false}
+{"canonical": "LTIMindtree S.A", "variants": ["LTIMindtree S. A"], "key": "lti mindtree s a", "listed_hit": false}
+{"canonical": "MAHINDRA ACCELO (FORMERLY KNOWN AS MAHINDRA INTERTRADE )", "variants": ["MAHINDRA ACCELO FORMERLY KNOWN AS MAHINDRA INTERTRADE"], "key": "mahindra accelo formerly known as mahindra intertrade", "listed_hit": false}
+{"canonical": "MAHINDRA INTEGRATED BUSINESS SOLUTIONS", "variants": ["Mahindra Integrated Business Solutions"], "key": "mahindra integrated business solutions", "listed_hit": false}
+{"canonical": "Malur Bangarpet Highways", "variants": ["Malur Bangarpet Highways #######"], "key": "malur bangarpet highways", "listed_hit": false}
+{"canonical": "Mankind Petcare", "variants": ["Mankind Petcare )"], "key": "mankind petcare", "listed_hit": false}
+{"canonical": "Mastek Systems Company", "variants": ["Mastek Systems Company"], "key": "mastek systems company", "listed_hit": false}
+{"canonical": "Mastek Systems Pty", "variants": ["Mastek Systems Pty"], "key": "mastek systems pty", "listed_hit": false}
+{"canonical": "Mastek Systems (Singapore) Pte", "variants": ["Mastek Systems Singapore Pte"], "key": "mastek systems singapore pte", "listed_hit": false}
+{"canonical": "Mastek UK", "variants": ["Mastek (UK)"], "key": "mastek uk", "listed_hit": false}
+{"canonical": "MLL MOBILITY (FORMERLY KNOWN AS MERU MOBILITY TECH )", "variants": ["MLL MOBILITY FORMERLY KNOWN AS MERU MOBILITY TECH"], "key": "mll mobility formerly known as meru mobility tech", "listed_hit": false}
+{"canonical": "Moneycontrol Dot Com India", "variants": ["Moneycontrol.Dot Com India"], "key": "moneycontrol dot com india", "listed_hit": false}
+{"canonical": "Mphasis Poland sp. z o. o", "variants": ["Mphasis Poland Sp. z o.o"], "key": "mphasis poland sp z o o", "listed_hit": false}
+{"canonical": "MSSL México, S.A. De C.V", "variants": ["MSSL Mexico S.A. De C.V"], "key": "mssl mexico s a de c v", "listed_hit": false}
+{"canonical": "N.A.Cold Storages", "variants": ["N. A. Cold Storages"], "key": "n a cold storages", "listed_hit": false}
+{"canonical": "Narenpur Purnea Highways ##", "variants": ["Narenpur Purnea Highways"], "key": "narenpur purnea highways", "listed_hit": false}
+{"canonical": "News18 Marathi", "variants": ["News18 Marathi #"], "key": "news18 marathi", "listed_hit": false}
+{"canonical": "Nielsen + Partner Pte", "variants": ["Nielsen+Partner Pte"], "key": "nielsen partner pte", "listed_hit": false}
+{"canonical": "NLC IndiaGreen Energy", "variants": ["NLC India Green Energy"], "key": "nlc india green energy", "listed_hit": false}
+{"canonical": "Praxair Business Solutions and Supplies . )", "variants": ["Praxair Business Solutions and Supplies"], "key": "praxair business solutions and supplies", "listed_hit": false}
+{"canonical": "Promineo Buildcon [formerly known as Sunteck YM Realty ]", "variants": ["Promineo Buildcon [formerly known as Sunteck YM Realty"], "key": "promineo buildcon formerly known as sunteck ym realty", "listed_hit": false}
+{"canonical": "PT International Paint Indonesia", "variants": ["PT International Paint Indonesia"], "key": "pt international paint indonesia", "listed_hit": false}
+{"canonical": "R.S. Enterprises (Bangalore)", "variants": ["R S Enterprises(Bangalore)"], "key": "r s enterprises bangalore", "listed_hit": false}
+{"canonical": "Raipur-Visakhapatnam-CG-2 Highways", "variants": ["Raipur-Visakhapatnam Cg-2 Highways"], "key": "raipur visakhapatnam cg 2 highways", "listed_hit": false}
+{"canonical": "Redington Ghana", "variants": ["Redington (Ghana)"], "key": "redington ghana", "listed_hit": false}
+{"canonical": "Reflect Healthcare And Retail )", "variants": ["Reflect Healthcare And Retail"], "key": "reflect healthcare and retail", "listed_hit": false}
+{"canonical": "Reliance Battery Greentech", "variants": ["Reliance Battery\nGreentech"], "key": "reliance battery greentech", "listed_hit": false}
+{"canonical": "Reliance NU Suntech (formerly known as Siyom Hydro Power )", "variants": ["RELIANCE NU SUNTECH (Formerly known as Siyom Hydro Power )"], "key": "reliance nu suntech formerly known as siyom hydro power", "listed_hit": false}
+{"canonical": "Repallewada Highways ###", "variants": ["Repallewada Highways"], "key": "repallewada highways", "listed_hit": false}
+{"canonical": "SBICap Securities", "variants": ["SBI Cap Securities"], "key": "sbi cap securities", "listed_hit": false}
+{"canonical": "Siam Yachiyo Co", "variants": ["SiamYachiyo Co"], "key": "siam yachiyo co", "listed_hit": false}
+{"canonical": "Siemens Energy , Hong Kong", "variants": ["Siemens Energy ,Hong Kong"], "key": "siemens energy hong kong", "listed_hit": false}
+{"canonical": "Siemens Energy , Ireland", "variants": ["Siemens Energy ,Ireland"], "key": "siemens energy ireland", "listed_hit": false}
+{"canonical": "Siemens Energy , Nigeria", "variants": ["Siemens Energy ,Nigeria"], "key": "siemens energy nigeria", "listed_hit": false}
+{"canonical": "Siemens Energy , South Korea", "variants": ["Siemens Energy ,South Korea"], "key": "siemens energy south korea", "listed_hit": false}
+{"canonical": "Siemens Energy , Thailand", "variants": ["Siemens Energy ,Thailand"], "key": "siemens energy thailand", "listed_hit": false}
+{"canonical": "Six Rays Pte", "variants": ["SixRays PTE"], "key": "six rays pte", "listed_hit": false}
+{"canonical": "Skyrise Home Developers", "variants": ["SKYRISE HOME DEVELOPERS"], "key": "skyrise home developers", "listed_hit": false}
+{"canonical": "Sleepwell Enterprises . , India", "variants": ["Sleepwell Enterprises , India"], "key": "sleepwell enterprises india", "listed_hit": false}
+{"canonical": "Solar Madencilik Hizmetleri A.S. Turkey", "variants": ["Solar Madencilik Hizmetleri A S Turkey"], "key": "solar madencilik hizmetleri a s turkey", "listed_hit": false}
+{"canonical": "Solar Mining Services (Pty) Australia", "variants": ["Solar Mining Services (Pty) , Australia"], "key": "solar mining services pty australia", "listed_hit": false}
+{"canonical": "Solar Mining Services (Pty) South Africa", "variants": ["Solar Mining Services Pty South Africa"], "key": "solar mining services pty south africa", "listed_hit": false}
+{"canonical": "Solar Patlayici Maddeler San.A.S", "variants": ["Solar Patlayici Maddeler San A S"], "key": "solar patlayici maddeler san a s", "listed_hit": false}
+{"canonical": "Star UnionDai ichi Life Insurance Co", "variants": ["STAR UNION DAI-ICHI LIFE INSURANCE CO"], "key": "star union dai ichi life insurance co", "listed_hit": false}
+{"canonical": "Stock Holding Corporation of India (SHCIL)", "variants": ["StockHolding Corporation of India (SHCIL)"], "key": "stock holding corporation of india shcil", "listed_hit": false}
+{"canonical": "StockHolding Document Management Services (SDMS)", "variants": ["Stock Holding Document Management Services (SDMS)"], "key": "stock holding document management services sdms", "listed_hit": false}
+{"canonical": "Styrenix Performance Materials (Thailand)", "variants": ["Styrenix Performance\nMaterials (Thailand)"], "key": "styrenix performance materials thailand", "listed_hit": false}
+{"canonical": "Sundram Fasteners (Zhejiang) )", "variants": ["Sundram Fasteners Zhejiang"], "key": "sundram fasteners zhejiang", "listed_hit": false}
+{"canonical": "Tata Communications Comunicacoes E Multimídia (Brazil) Limitada", "variants": ["Tata Communications Comunicacoes E Multimidia (Brazil) Limitada"], "key": "tata communications comunicacoes e multimidia brazil limitada", "listed_hit": false}
+{"canonical": "Tata Motors Digital.AI Labs", "variants": ["Tata Motors Digital AI Labs"], "key": "tata motors digital ai labs", "listed_hit": false}
+{"canonical": "Tech Mahindra Servicos a", "variants": ["TECH MAHINDRA SERVIÇOS A"], "key": "tech mahindra servicos a", "listed_hit": false}
+{"canonical": "TECOSIM Engineering Services , India", "variants": ["Tecosim Engineering Services India"], "key": "tecosim engineering services india", "listed_hit": false}
+{"canonical": "Tecosim Japan (Japan)", "variants": ["TECOSIM Japan , Japan"], "key": "tecosim japan japan", "listed_hit": false}
+{"canonical": "Tecosim , UK", "variants": ["Tecosim UK"], "key": "tecosim uk", "listed_hit": false}
+{"canonical": "TML Business Services", "variants": ["TML Business Services )"], "key": "tml business services", "listed_hit": false}
+{"canonical": "Tor.ai", "variants": ["Tor AI"], "key": "tor ai", "listed_hit": false}
+{"canonical": "Transweld MechnicalEngineering Works", "variants": ["Transweld Mechnical Engineering Works"], "key": "transweld mechnical engineering works", "listed_hit": false}
+{"canonical": "Unichem Laboratories , Ireland", "variants": ["Unichem Laboratories Ireland"], "key": "unichem laboratories ireland", "listed_hit": false}
+{"canonical": "Unilever Asia", "variants": ["Unilever Asia"], "key": "unilever asia", "listed_hit": false}
+{"canonical": "Unilever Thai Trading", "variants": ["Unilever Thai Trading"], "key": "unilever thai trading", "listed_hit": false}
+{"canonical": "Viluppuram Highways ######", "variants": ["Viluppuram Highways"], "key": "viluppuram highways", "listed_hit": false}
+{"canonical": "WeWork India Management", "variants": ["We Work India Management"], "key": "we work india management", "listed_hit": true}
+{"canonical": "Welspun Corp", "variants": ["WELSPUN CORP"], "key": "welspun corp", "listed_hit": true}
+{"canonical": "WongDoody ,Taipei", "variants": ["WongDoody (Taipei)"], "key": "wong doody taipei", "listed_hit": false}

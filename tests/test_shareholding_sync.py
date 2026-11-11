@@ -716,3 +716,96 @@ class TestMintMarker:
             ).fetchone()[0]
         )
         assert props["category_holder"] is True
+
+
+class TestTickerBridge:
+    """S1 (rpt_attribution C1): RPT filers whose symbol never matched an
+    exchange_listings name resolve via the entities ticker column (NSE
+    suffix preferred), then via rpt_transactions.company_name — 135 of
+    the 136 dropped filers recovered; GSPL stays unresolved (no entity
+    exists)."""
+
+    @pytest.fixture()
+    def bridge_lane(self, tmp_path: Path):
+        src = duckdb.connect(str(tmp_path / "sources.duckdb"))
+        src.execute(
+            "CREATE TABLE exchange_listings (symbol VARCHAR, name VARCHAR, "
+            "asset_type VARCHAR, exchange VARCHAR, segment VARCHAR)"
+        )
+        src.execute("CREATE TABLE rpt_transactions (symbol VARCHAR, company_name VARCHAR)")
+        conn = sqlite3.connect(tmp_path / "research.db")
+        conn.execute("PRAGMA foreign_keys=ON")
+        conn.executescript(
+            """
+            CREATE TABLE entities (
+                name TEXT PRIMARY KEY, entity_type TEXT NOT NULL,
+                normalized_name TEXT, file_path TEXT, ticker TEXT);
+            """
+        )
+        conn.commit()
+        return src, conn
+
+    def test_ticker_bridge_resolves_rpt_symbol(self, bridge_lane):
+        src, conn = bridge_lane
+        conn.execute(
+            "INSERT INTO entities VALUES ('CCL Products', 'company', 'CCL_Products', NULL, 'CCL.NS')"
+        )
+        conn.commit()
+        src.execute("INSERT INTO rpt_transactions VALUES ('CCL', NULL)")
+        assert ss._resolve_companies(src, conn) == {"CCL": "CCL Products"}
+
+    def test_suffix_rank_prefers_nse(self, bridge_lane):
+        src, conn = bridge_lane
+        conn.executemany(
+            "INSERT INTO entities VALUES (?, 'company', ?, NULL, ?)",
+            [
+                ("CCL Products", "CCL_Products", "CCL.NS"),
+                ("CCL Industries Inc", "CCL_Industries_Inc", "CCL.TO"),
+            ],
+        )
+        conn.commit()
+        src.execute("INSERT INTO rpt_transactions VALUES ('CCL', NULL)")
+        # same base 'CCL': the NSE listing outranks the TSX one
+        assert ss._resolve_companies(src, conn) == {"CCL": "CCL Products"}
+
+    def test_ambiguous_base_skipped(self, bridge_lane):
+        src, conn = bridge_lane
+        conn.executemany(
+            "INSERT INTO entities VALUES (?, 'company', ?, NULL, ?)",
+            [
+                ("Foo Ltd", "Foo_Ltd", "FOO.NS"),
+                ("Bar Ltd", "Bar_Ltd", "FOO.NS"),
+            ],
+        )
+        conn.commit()
+        src.execute("INSERT INTO rpt_transactions VALUES ('FOO', NULL)")
+        # two NSE candidates on one base with no listing name to
+        # tiebreak: ambiguous -> stays unresolved, never guessed
+        assert ss._resolve_companies(src, conn) == {}
+
+    def test_company_name_fallback(self, bridge_lane):
+        src, conn = bridge_lane
+        conn.execute(
+            "INSERT INTO entities VALUES ('LTIMindtree', 'company', 'LTIMindtree', NULL, NULL)"
+        )
+        conn.commit()
+        src.execute("INSERT INTO rpt_transactions VALUES ('LTIM', 'LTIMindtree Limited')")
+        # no listing, no ticker: the filing's own company_name resolves
+        assert ss._resolve_companies(src, conn) == {"LTIM": "LTIMindtree"}
+
+    def test_listing_resolution_still_wins(self, bridge_lane):
+        src, conn = bridge_lane
+        src.execute(
+            "INSERT INTO exchange_listings VALUES ('WHEELS', 'Wheels India Limited', 'equity', 'NSE', 'main')"
+        )
+        conn.executemany(
+            "INSERT INTO entities VALUES (?, 'company', ?, NULL, ?)",
+            [
+                ("Wheels India", "Wheels_India", None),
+                ("Other Co", "Other_Co", "WHEELS.NS"),
+            ],
+        )
+        conn.commit()
+        src.execute("INSERT INTO rpt_transactions VALUES ('WHEELS', NULL)")
+        # the listing loop resolves first; the bridge never overrides it
+        assert ss._resolve_companies(src, conn) == {"WHEELS": "Wheels India"}

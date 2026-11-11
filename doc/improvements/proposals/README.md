@@ -39,6 +39,27 @@ entry number and stale DONE pointers):
 ## Current live proposals
 *(none)*
 
+- *(archived 2026-11-12)* — `canonical_name_resolution`
+  (graph/, filed + executed 2026-11-12, #509 —
+  `../archive/graph/canonical_name_resolution.md`). NSE-certified duplicate-spelling
+  folds: 22 foldable clusters, 28 variants folded, 147 rows re-pointed, zero loss.
+
+- *(archived 2026-11-12)* — `entity_resolution_ladder_indexing`
+  (graph/, filed + executed 2026-11-11, #508 —
+  `../archive/graph/entity_resolution_ladder_indexing.md`). The archival
+  step was missed at execution time; flipped and moved during the #507
+  close-out. Ladder indexing 2.8x/4.35x, parity 823/823.
+
+- *(archived 2026-11-12)* — `rpt_attribution_filer_resolution_and_group_family`
+  (graph/, filed 2026-11-11, executed same arc, #507
+  — `../archive/graph/rpt_attribution_filer_resolution_and_group_family.md`).
+  Ruled C1 + A4 + A-prime + B0/B4 (m02492): ticker bridge, entity-subject
+  attribution, step-down polarity with a reroute-made recency tiebreak, the
+  replay-mint fork guard, and the curated family lane
+  (helpers/misc/family_seeds.json). Gate ACCEPT 182/0 with --expect-change;
+  probe v11 213 answered / 5 negative / 10 drifted / 0 errored. Evidence in
+  bench_data/vigil_attribution/ + bench_data/stepdown_polarity/.
+
 - *(archived 2026-11-11)* — `company_metrics_grain_and_bank` filed and
   executed same day, #506
   (`../archive/database/company_metrics_grain_and_bank.md`). The trial
@@ -52,7 +73,8 @@ entry number and stale DONE pointers):
   `properties` JSON to a real column (63,390 backfilled; ingest writes it
   directly), the gate gained a `metric_value` shape with the frozen set at v7
   (6 pins, both scopes), the probe gained the same rule over Parquet plus a
-  git-tracked bank at `helpers/misc/answerability_questions.json` (15 entries),
+  git-tracked bank at `helpers/misc/answerability_questions.json` (seed 15,
+  grown to 46 entries in v2 the same day),
   and `check_company_metrics` gained an advisory grain audit. Gate ACCEPT on
   179 questions with 0 reasons; probe parity 0 mismatches; 163 targeted tests
   green. Naive `SUM(value_num)` was inflating `q_revenue` by 1.69x

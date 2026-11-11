@@ -129,6 +129,36 @@ commit, referenced by nothing). Entry numbers point at
 - [`security_route_skeleton.md`](security/security_route_skeleton.md) — Route skeleton — `ast`-derived inventory of `app.py`'s 38 routes published to `doc/security/routes.json` and checked by `static_checks.py`; the emitted advisory is shape agreement, explicitly not a security verdict — completed.md #311
 
 ## graph/ — Graph layer — algorithms, DuckPGQ retirement, Onager, knowledge-model design
+- [`canonical_name_resolution.md`](graph/canonical_name_resolution.md) —
+  the 2026-11-12 duplicate-spelling fold arc (#509): loose-key census over 28,725
+  entities -> 840 clusters, NSE-listing certification -> 22 foldable (41 review,
+  777 unlisted never folded), safe/review/reject token classifier (foreign arms
+  Wipro Inc / Mphasis Corporation stay separate BY DESIGN; Nifty Private Bank
+  guarded), 28 variants folded / 147 edge rows re-pointed / 141 duplicate rows
+  collapsed / ledger +28 (kind=canonical), zero loss 87,263 -> 87,122; gate
+  ACCEPT with edge-rallis + family-tata declared, probe 213/5/10 parity 0.
+- [`entity_resolution_ladder_indexing.md`](graph/entity_resolution_ladder_indexing.md) —
+  the 2026-11-11 derive_insights ladder-indexing arc (#508, archived
+  2026-11-12 after the archival step was missed): token posting lists for
+  `_fuzzy_suggestions` + first-token bucketing for `_qualifier_variants`
+  cached on `_ResolverMap` — scan leg 26.4 s -> 6.07 s (4.35x), total
+  31.37 s -> 11.15 s (2.8x), 823/823 parity over the 131-file scan;
+  benches registered in run_perf_benchmarks (`ladder_indexing`,
+  `quick_wins_json_dumps`), advisory AST check
+  `check_loop_invariant_recomputation` added
+- [`rpt_attribution_filer_resolution_and_group_family.md`](graph/rpt_attribution_filer_resolution_and_group_family.md) —
+  the 2026-11-11/12 RPT-loader correctness arc (#507): 61.9% of RPT rows
+  disclose a party other than the filer but every edge was attributed to the
+  filer (ultimate_parent(Reliance Industries) = Reliance Lithium Werks B.V via
+  238 inverted edges); ruled C1 ticker bridge (136 -> 1 unresolved filers,
+  GSPL closed by the fork guard), A4 entity-subject attribution with
+  `_is_group_relative_text` (live mints on replay 275 -> 0), A-prime
+  step-down polarity per-pair + a reroute-made recency tiebreak, the
+  replay-mint fork guard (INDHOTEL -> mint hijack), and the curated family
+  lane (`family_seeds.json` v3, family:Adani 24 -> 66 with Ambuja kept).
+  Gate --expect-change mode added; ACCEPT 182/0; probe v11 213/5/10/0,
+  parity 0. Duplicate-entity debt recorded ('Titan'/'Titan company' visible
+  in the Rallis pin)
 - [`rust_bfs_kernels_stats_trails.md`](graph/rust_bfs_kernels_stats_trails.md) —
   the 2026-11-09 Rust/PyO3 BFS arc: `graph_kernels` abi3 crate fires
   the kernel-selector ladder's custom-kernel rung for BFS-shaped work —
@@ -476,7 +506,8 @@ commit, referenced by nothing). Entry numbers point at
   `metric_value` gate shape (frozen set v6 -> v7, 6 pins), probe parity over
   the same rule, advisory grain audit in `check_company_metrics`, and the
   git-tracked bank at `helpers/misc/answerability_questions.json`
-  (15 entries: 8 metric both-scope + 7 SQL across the probe's intents);
+  (seed 15: 8 metric both-scope + 7 SQL across the probe's intents; grown
+  to 46 in v2 the same day — 20 metric + 26 SQL over 10 intents);
   gate ACCEPT (179 questions, 0 reasons) — completed.md #506
 
 - [`duckdb_full_consolidation.md`](database/duckdb_full_consolidation.md) —

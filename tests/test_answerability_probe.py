@@ -596,6 +596,32 @@ class TestShippedSet:
         assert rc == 0
         assert "adhoc" in capsys.readouterr().out
 
+    def test_shipped_bank_has_zero_drift(self):
+        """Every shipped bank pin must still hold, or it is a lie in the bank.
+
+        The frozen set tolerates drift (11 pins are known S5-era churn, re-pinned
+        by an operator act); the bank does not — a drifted bank entry means the
+        NL question no longer has the answer it claims, and the bank is small
+        enough that an operator should notice immediately.
+        """
+        report = probe.probe_all()
+        assert report["bank"], "the shipped bank must load by default"
+        bank = [r for r in report["records"] if r.get("set") == "bank"]
+        assert bank
+        bad = [r for r in bank if r["status"] != probe.STATUS_ANSWERED]
+        assert not bad, bad
+
+    def test_shipped_bank_entries_are_well_formed(self):
+        """Each bank entry carries the NL text, an intent and a pin."""
+        report = probe.probe_all()
+        bank = [r for r in report["records"] if r.get("set") == "bank"]
+        for rec in bank:
+            assert rec["question"], f"{rec['id']} carries no NL question text"
+            assert rec["intent"] and rec["intent"] != "unknown", rec["id"]
+            assert rec["expected_n"] > 0, f"{rec['id']} has no pin"
+        ids = [r["id"] for r in bank]
+        assert len(ids) == len(set(ids)), "bank ids must be unique"
+
 
 @pytest.mark.skipif(not _has_artifacts(), reason="needs both the snapshot and the live store")
 def test_live_and_snapshot_agree():

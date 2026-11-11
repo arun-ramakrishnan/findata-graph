@@ -1,18 +1,521 @@
 # Entity-name merge plan (entity_name_dedup S1 — DRY-RUN artifact)
-# clusters: 0 | names: 20644 | footnote names: 12 | edge rows touched: 0
+# clusters: 128 | names: 22928 | footnote names: 4 | edge rows touched: 2236
 # canonical rule: listed-entity > degree > lex; footnote `**` variants never win
 # S2 applies ONLY on operator sign-off of this file (name_dedup.py --apply --yes)
 # machine form: _name_merge_plan.jsonl (verbatim names; regenerate together)
 
+== Acme Solar Holdings [listed]  (key: acme solar holdings; edge rows 243)
+   ACME Solar Holdings  -> fold
+   Acme Solar Holdings
 
-# operator-approved folds 2026-11-08 (co-supply alias menu, bench_data/entity_alias_triage/)
-#   Adani Ports and SEZ <- Adani Ports and Special Economic Zone
-#   Aditya Birla Renewables <- Aditya Birla Renewables Energy
-#   Agratas <- AGRATAS ENERGY STORAGE SOLUTIONS
-#   Ambuja Cement <- Ambuja Cements
-#   CG Power <- CG Power and Industrial Solutions; CG Power And Industrial Solutions
-#   Indian Hotels <- Indian Hotels Company; THE INDIAN HOTELS CO; The Indian Hotels Company
-#   Larsen and Toubro <- Larsen & Toubro
-#   Tata Motors Passenger Vehicles <- TATA MOTORS
-#   Titan <- Titan Company; Titan company
-# un-ruled census rows above stay PENDING review (scoped apply used)
+== Adani Ports and Special Economic Zone  (key: adani ports and special economic zone; edge rows 346)
+   Adani Ports And Special Economic Zone  -> fold
+   Adani Ports and Special Economic Zone
+
+== Affle 3i [listed]  (key: affle 3i; edge rows 39)
+   Affle 3i
+   Affle 3i ")  -> fold
+
+== Agilus Diagnostics Nepal )  (key: agilus diagnostics nepal; edge rows 5)
+   Agilus Diagnostics Nepal  -> fold
+   Agilus Diagnostics Nepal )
+
+== AIX Connect  (key: aix connect; edge rows 10)
+   AIX Connect
+   AIX Connect )  -> fold
+
+== Akzo Nobel a  (key: akzo nobel a; edge rows 4)
+   Akzo Nobel a  -> fold
+   Akzo Nobel a
+
+== Akzo Nobel Car Refinishes B.V  (key: akzo nobel car refinishes b v; edge rows 4)
+   Akzo Nobel Car Refinishes B.V  -> fold
+   Akzo Nobel Car Refinishes B.V
+
+== Akzo Nobel Coatings (Dongguan) Co  (key: akzo nobel coatings dongguan co; edge rows 5)
+   Akzo Nobel Coatings (Dongguan) Co
+   Akzo Nobel Coatings (Dongguan) Co  -> fold
+
+== Akzo Nobel Paints Lanka ( )  (key: akzo nobel paints lanka; edge rows 4)
+   Akzo Nobel Paints Lanka ( )  -> fold
+   Akzo Nobel Paints Lanka ( )
+
+== Akzo Nobel Paints (Malaysia) Sdn. Bhd  (key: akzo nobel paints malaysia sdn bhd; edge rows 4)
+   Akzo Nobel Paints (Malaysia) Sdn. Bhd  -> fold
+   Akzo Nobel Paints (Malaysia) Sdn. Bhd
+
+== Akzo Nobel Paints Taiwan  (key: akzo nobel paints taiwan; edge rows 6)
+   Akzo Nobel Paints Taiwan  -> fold
+   Akzo Nobel Paints Taiwan
+
+== Akzo Nobel Paints (Thailand)  (key: akzo nobel paints thailand; edge rows 6)
+   Akzo Nobel Paints (Thailand)  -> fold
+   Akzo Nobel Paints (Thailand)
+
+== Akzo Nobel Powder Coatings Korea Co  (key: akzo nobel powder coatings korea co; edge rows 4)
+   Akzo Nobel Powder Coatings Korea Co  -> fold
+   Akzo Nobel Powder Coatings Korea Co
+
+== Akzo Nobel UAE Paints L.L.C  (key: akzo nobel uae paints l l c; edge rows 6)
+   Akzo Nobel UAE Paints L.L.C  -> fold
+   Akzo Nobel UAE Paints L.L.C
+
+== Allcargo Corporate Services  (key: allcargo corporate services; edge rows 5)
+   Allcargo Corporate Services
+   Allcargo Corporate Services . )  -> fold
+
+== ASTRAL PIPES KENYA  (key: astral pipes kenya; edge rows 2)
+   ASTRAL PIPES ,KENYA  -> fold
+   ASTRAL PIPES KENYA
+
+== Avaada MHYavat  (key: avaada mh yavat; edge rows 2)
+   Avaada MH Yavat  -> fold
+   Avaada MHYavat
+
+== Bangalore Malur Highways #####  (key: bangalore malur highways; edge rows 4)
+   Bangalore Malur Highways  -> fold
+   Bangalore Malur Highways #####
+
+== Bharat Coking Coal  (key: bharat coking coal; edge rows 8)
+   Bharat Coking Coal
+   Bharat CokingCoal  -> fold
+
+== Blazeclan Technologies  (key: blazeclan technologies; edge rows 17)
+   Blazeclan Technologies
+   BlazeclanTechnologies  -> fold
+
+== BLS Consular Service Ireland  (key: bls consular service ireland; edge rows 2)
+   BLS Consular Service ,Ireland  -> fold
+   BLS Consular Service Ireland
+
+== BRISTLECONE INDIA (FORMERLY BRISTLECONE INDIA )  (key: bristlecone india formerly bristlecone india; edge rows 16)
+   BRISTLECONE INDIA (FORMERLY BRISTLECONE INDIA )
+   BRISTLECONE INDIA FORMERLY BRISTLECONE INDIA  -> fold
+
+== Carat Lane Trading  (key: carat lane trading; edge rows 7)
+   Carat Lane Trading
+   CaratLane Trading  -> fold
+
+== CG Power and Industrial Solutions  (key: cg power and industrial solutions; edge rows 89)
+   CG Power And Industrial Solutions  -> fold
+   CG Power and Industrial Solutions
+
+== Cholamandalam Investment and Finance Company [listed]  (key: cholamandalam investment and finance company; edge rows 133)
+   Cholamandalam Investment and Finance Company  -> fold
+   Cholamandalam Investment and Finance Company
+
+== Coal LigniteUrja Vikas  (key: coal lignite urja vikas; edge rows 2)
+   Coal Lignite Urja Vikas  -> fold
+   Coal LigniteUrja Vikas
+
+== Comfort Click , Ireland  (key: comfort click ireland; edge rows 4)
+   Comfort Click (Ireland)  -> fold
+   Comfort Click , Ireland
+
+== CreditAccess Life Insurance  (key: credit access life insurance; edge rows 2)
+   Credit Access Life Insurance  -> fold
+   CreditAccess Life Insurance
+
+== Crisil Irevna Australia Pty ‬  (key: crisil irevna australia pty; edge rows 10)
+   Crisil Irevna Australia Pty  -> fold
+   Crisil Irevna Australia Pty ‬
+
+== Cyient DLM  (key: cyient dlm; edge rows 58)
+   CYIENT DLM  -> fold
+   Cyient DLM
+
+== Dadra and Nagar Haveli and Daman and Diu Power Distribution Corporation  (key: dadra and nagar haveli and daman and diu power distribution corporation; edge rows 6)
+   Dadra and Nagar Haveli and Daman and Diu Power Distribution Corporation  -> fold
+   Dadra and Nagar Haveli and Daman and Diu Power Distribution Corporation
+
+== Dalmia Cement (North East) )  (key: dalmia cement north east; edge rows 12)
+   Dalmia Cement (North East)  -> fold
+   Dalmia Cement (North East) )
+
+== Dhrol-Bhadra Highways  (key: dhrol bhadra highways; edge rows 3)
+   Dhrol Bhadra Highways ####  -> fold
+   Dhrol-Bhadra Highways
+
+== Digital18 Media $  (key: digital18 media; edge rows 41)
+   Digital18 Media  -> fold
+   Digital18 Media $
+
+== Dilip Buildcon-Varah Infra (JV)  (key: dilip buildcon varah infra jv; edge rows 6)
+   Dilip Buildcon -Varah Infra (JV)  -> fold
+   Dilip Buildcon-Varah Infra (JV)
+
+== DLF City Centre (merged with DLF Cyber City Developers )  (key: dlf city centre merged with dlf cyber city developers; edge rows 9)
+   DLF CITY CENTRE (MERGED WITH DLF CYBER CITY DEVELOPERS)  -> fold
+   DLF City Centre (merged with DLF Cyber City Developers )
+
+== Dodaballapur Hoskote Highways #  (key: dodaballapur hoskote highways; edge rows 5)
+   Dodaballapur Hoskote Highways  -> fold
+   Dodaballapur Hoskote Highways #
+
+== E.I.D. Parry (India)  (key: e i d parry india; edge rows 140)
+   E.I.D. Parry (India)
+   E.I.D.Parry (India)  -> fold
+
+== ERIS M.J. BIOPHARM  (key: eris m j biopharm; edge rows 7)
+   ERIS M. J. BIOPHARM  -> fold
+   ERIS M.J. BIOPHARM
+
+== Ex-cel Plastics, Ireland  (key: ex cel plastics ireland; edge rows 2)
+   Ex-Cel Plastics , Ireland  -> fold
+   Ex-cel Plastics, Ireland
+
+== G.G. Tronics India  (key: g g tronics india; edge rows 8)
+   G. G. Tronics India  -> fold
+   G.G. Tronics India
+
+== G S Pharmaceutical Distributors  (key: g s pharmaceutical distributors; edge rows 44)
+   G S Pharmaceutical Distributors
+   G.S.Pharmaceutical Distributors  -> fold
+
+== Garware HiTech Films International  (key: garware hi tech films international; edge rows 8)
+   Garware Hi-Tech Films International  -> fold
+   Garware HiTech Films International
+
+== Geshipping(IFSC)  (key: geshipping ifsc; edge rows 3)
+   Geshipping(IFSC)
+   GeshippingIFSC  -> fold
+
+== Glenmark Farmaceutica a  (key: glenmark farmaceutica a; edge rows 5)
+   Glenmark Farmaceutica a
+   Glenmark Farmacêutica a  -> fold
+
+== GMR Rajahmundry Energy  (key: gmr rajahmundry energy; edge rows 6)
+   GMR Rajahmundry Energy  -> fold
+   GMR Rajahmundry Energy
+
+== H.G. Luxury Hotels  (key: h g luxury hotels; edge rows 2)
+   H G LUXURY HOTELS  -> fold
+   H.G. Luxury Hotels
+
+== IdeaRx Services  (key: idea rx services; edge rows 5)
+   Idea Rx Services  -> fold
+   IdeaRx Services
+
+== IFCI Infrastructure Development (IIDL)  (key: ifci infrastructure development iidl; edge rows 2)
+   IFCI INFRASTRUCTURE DEVELOPMENT (IIDL)  -> fold
+   IFCI Infrastructure Development (IIDL)
+
+== Indian Renewable Energy Development Agency [listed]  (key: indian renewable energy development agency; edge rows 46)
+   Indian Renewable Energy Development Agency  -> fold
+   Indian Renewable Energy Development Agency
+
+== Intellect Design Arena [listed]  (key: intellect design arena; edge rows 60)
+   Intellect Design Arena
+   IntellectDesignArena  -> fold
+
+== International Paint (Korea)  (key: international paint korea; edge rows 6)
+   International Paint (Korea)  -> fold
+   International Paint (Korea)
+
+== International Paint (Nederland) B.V  (key: international paint nederland b v; edge rows 5)
+   International Paint (Nederland) B.V  -> fold
+   International Paint (Nederland) B.V
+
+== International Paint of Shanghai Co  (key: international paint of shanghai co; edge rows 4)
+   International Paint of Shanghai Co  -> fold
+   International Paint of Shanghai Co
+
+== International Paint (Panama) Inc  (key: international paint panama inc; edge rows 4)
+   International Paint (Panama) Inc  -> fold
+   International Paint (Panama) Inc
+
+== International Paint Singapore Pte  (key: international paint singapore pte; edge rows 6)
+   International Paint Singapore Pte  -> fold
+   International Paint Singapore Pte
+
+== International Paint (Taiwan)  (key: international paint taiwan; edge rows 4)
+   International Paint (Taiwan)  -> fold
+   International Paint (Taiwan)
+
+== IPLTech Electric  (key: ipl tech electric; edge rows 17)
+   IPL Tech Electric  -> fold
+   IPLTech Electric
+
+== J B Chemicals & Pharmaceuticals [listed]  (key: j b chemicals pharmaceuticals; edge rows 53)
+   J B Chemicals & Pharmaceuticals
+   J.B.Chemicals & Pharmaceuticals  -> fold
+
+== J.K.CEMENT (WESTERN)  (key: j k cement western; edge rows 2)
+   J.K. CEMENT WESTERN  -> fold
+   J.K.CEMENT (WESTERN)
+
+== J.K.INVESTORS (BOMBAY)  (key: j k investors bombay; edge rows 8)
+   J K Investors (Bombay)  -> fold
+   J.K.INVESTORS (BOMBAY)
+
+== J Kumar-NCC  (key: j kumar ncc; edge rows 3)
+   J Kumar-NCC
+   J KumarNCC  -> fold
+
+== Joyce Foam PTY , Australia  (key: joyce foam pty australia; edge rows 5)
+   Joyce Foam PTY , Australia
+   Joyce Foam Pty , Australia  -> fold
+
+== JSW Renewable Energy Dolvi Three  (key: jsw renewable energy dolvi three; edge rows 4)
+   JSW Renewable Energy Dolvi Three
+   JSW Renewable Energy Dolvi Three  -> fold
+
+== Linde Enterprises (West) . )  (key: linde enterprises west; edge rows 4)
+   Linde Enterprises (West)  -> fold
+   Linde Enterprises (West) . )
+
+== LTIMindtree S.A  (key: lti mindtree s a; edge rows 14)
+   LTIMindtree S. A  -> fold
+   LTIMindtree S.A
+
+== MAHINDRA ACCELO (FORMERLY KNOWN AS MAHINDRA INTERTRADE )  (key: mahindra accelo formerly known as mahindra intertrade; edge rows 13)
+   MAHINDRA ACCELO (FORMERLY KNOWN AS MAHINDRA INTERTRADE )
+   MAHINDRA ACCELO FORMERLY KNOWN AS MAHINDRA INTERTRADE  -> fold
+
+== MAHINDRA INTEGRATED BUSINESS SOLUTIONS  (key: mahindra integrated business solutions; edge rows 62)
+   MAHINDRA INTEGRATED BUSINESS SOLUTIONS
+   Mahindra Integrated Business Solutions  -> fold
+
+== Malur Bangarpet Highways  (key: malur bangarpet highways; edge rows 3)
+   Malur Bangarpet Highways
+   Malur Bangarpet Highways #######  -> fold
+
+== Mankind Petcare  (key: mankind petcare; edge rows 8)
+   Mankind Petcare
+   Mankind Petcare )  -> fold
+
+== Mastek Systems Company  (key: mastek systems company; edge rows 20)
+   Mastek Systems Company
+   Mastek Systems Company  -> fold
+
+== Mastek Systems Pty  (key: mastek systems pty; edge rows 15)
+   Mastek Systems Pty
+   Mastek Systems Pty  -> fold
+
+== Mastek Systems (Singapore) Pte  (key: mastek systems singapore pte; edge rows 19)
+   Mastek Systems (Singapore) Pte
+   Mastek Systems Singapore Pte  -> fold
+
+== Mastek UK  (key: mastek uk; edge rows 26)
+   Mastek (UK)  -> fold
+   Mastek UK
+
+== MLL MOBILITY (FORMERLY KNOWN AS MERU MOBILITY TECH )  (key: mll mobility formerly known as meru mobility tech; edge rows 9)
+   MLL MOBILITY (FORMERLY KNOWN AS MERU MOBILITY TECH )
+   MLL MOBILITY FORMERLY KNOWN AS MERU MOBILITY TECH  -> fold
+
+== Moneycontrol Dot Com India  (key: moneycontrol dot com india; edge rows 6)
+   Moneycontrol Dot Com India
+   Moneycontrol.Dot Com India  -> fold
+
+== Mphasis Poland sp. z o. o  (key: mphasis poland sp z o o; edge rows 16)
+   Mphasis Poland Sp. z o.o  -> fold
+   Mphasis Poland sp. z o. o
+
+== MSSL México, S.A. De C.V  (key: mssl mexico s a de c v; edge rows 5)
+   MSSL Mexico S.A. De C.V  -> fold
+   MSSL México, S.A. De C.V
+
+== N.A.Cold Storages  (key: n a cold storages; edge rows 2)
+   N. A. Cold Storages  -> fold
+   N.A.Cold Storages
+
+== Narenpur Purnea Highways ##  (key: narenpur purnea highways; edge rows 4)
+   Narenpur Purnea Highways  -> fold
+   Narenpur Purnea Highways ##
+
+== News18 Marathi  (key: news18 marathi; edge rows 10)
+   News18 Marathi
+   News18 Marathi #  -> fold
+
+== Nielsen + Partner Pte  (key: nielsen partner pte; edge rows 6)
+   Nielsen + Partner Pte
+   Nielsen+Partner Pte  -> fold
+
+== NLC IndiaGreen Energy  (key: nlc india green energy; edge rows 4)
+   NLC India Green Energy  -> fold
+   NLC IndiaGreen Energy
+
+== Praxair Business Solutions and Supplies . )  (key: praxair business solutions and supplies; edge rows 4)
+   Praxair Business Solutions and Supplies  -> fold
+   Praxair Business Solutions and Supplies . )
+
+== Promineo Buildcon [formerly known as Sunteck YM Realty ]  (key: promineo buildcon formerly known as sunteck ym realty; edge rows 2)
+   Promineo Buildcon [formerly known as Sunteck YM Realty  -> fold
+   Promineo Buildcon [formerly known as Sunteck YM Realty ]
+
+== PT International Paint Indonesia  (key: pt international paint indonesia; edge rows 5)
+   PT International Paint Indonesia  -> fold
+   PT International Paint Indonesia
+
+== R.S. Enterprises (Bangalore)  (key: r s enterprises bangalore; edge rows 5)
+   R S Enterprises(Bangalore)  -> fold
+   R.S. Enterprises (Bangalore)
+
+== Raipur-Visakhapatnam-CG-2 Highways  (key: raipur visakhapatnam cg 2 highways; edge rows 5)
+   Raipur-Visakhapatnam Cg-2 Highways  -> fold
+   Raipur-Visakhapatnam-CG-2 Highways
+
+== Redington Ghana  (key: redington ghana; edge rows 10)
+   Redington (Ghana)  -> fold
+   Redington Ghana
+
+== Reflect Healthcare And Retail )  (key: reflect healthcare and retail; edge rows 4)
+   Reflect Healthcare And Retail  -> fold
+   Reflect Healthcare And Retail )
+
+== Reliance Battery Greentech  (key: reliance battery greentech; edge rows 3)
+   Reliance Battery Greentech  -> fold
+   Reliance Battery Greentech
+
+== Reliance NU Suntech (formerly known as Siyom Hydro Power )  (key: reliance nu suntech formerly known as siyom hydro power; edge rows 2)
+   RELIANCE NU SUNTECH (Formerly known as Siyom Hydro Power )  -> fold
+   Reliance NU Suntech (formerly known as Siyom Hydro Power )
+
+== Repallewada Highways ###  (key: repallewada highways; edge rows 5)
+   Repallewada Highways  -> fold
+   Repallewada Highways ###
+
+== SBICap Securities  (key: sbi cap securities; edge rows 2)
+   SBI Cap Securities  -> fold
+   SBICap Securities
+
+== Siam Yachiyo Co  (key: siam yachiyo co; edge rows 13)
+   Siam Yachiyo Co
+   SiamYachiyo Co  -> fold
+
+== Siemens Energy , Hong Kong  (key: siemens energy hong kong; edge rows 5)
+   Siemens Energy , Hong Kong
+   Siemens Energy ,Hong Kong  -> fold
+
+== Siemens Energy , Ireland  (key: siemens energy ireland; edge rows 5)
+   Siemens Energy , Ireland
+   Siemens Energy ,Ireland  -> fold
+
+== Siemens Energy , Nigeria  (key: siemens energy nigeria; edge rows 5)
+   Siemens Energy , Nigeria
+   Siemens Energy ,Nigeria  -> fold
+
+== Siemens Energy , South Korea  (key: siemens energy south korea; edge rows 6)
+   Siemens Energy , South Korea
+   Siemens Energy ,South Korea  -> fold
+
+== Siemens Energy , Thailand  (key: siemens energy thailand; edge rows 6)
+   Siemens Energy , Thailand
+   Siemens Energy ,Thailand  -> fold
+
+== Six Rays Pte  (key: six rays pte; edge rows 7)
+   Six Rays Pte
+   SixRays PTE  -> fold
+
+== Skyrise Home Developers  (key: skyrise home developers; edge rows 6)
+   SKYRISE HOME DEVELOPERS  -> fold
+   Skyrise Home Developers
+
+== Sleepwell Enterprises . , India  (key: sleepwell enterprises india; edge rows 2)
+   Sleepwell Enterprises , India  -> fold
+   Sleepwell Enterprises . , India
+
+== Solar Madencilik Hizmetleri A.S. Turkey  (key: solar madencilik hizmetleri a s turkey; edge rows 2)
+   Solar Madencilik Hizmetleri A S Turkey  -> fold
+   Solar Madencilik Hizmetleri A.S. Turkey
+
+== Solar Mining Services (Pty) Australia  (key: solar mining services pty australia; edge rows 6)
+   Solar Mining Services (Pty) , Australia  -> fold
+   Solar Mining Services (Pty) Australia
+
+== Solar Mining Services (Pty) South Africa  (key: solar mining services pty south africa; edge rows 7)
+   Solar Mining Services (Pty) South Africa
+   Solar Mining Services Pty South Africa  -> fold
+
+== Solar Patlayici Maddeler San.A.S  (key: solar patlayici maddeler san a s; edge rows 4)
+   Solar Patlayici Maddeler San A S  -> fold
+   Solar Patlayici Maddeler San.A.S
+
+== Star UnionDai ichi Life Insurance Co  (key: star union dai ichi life insurance co; edge rows 3)
+   STAR UNION DAI-ICHI LIFE INSURANCE CO  -> fold
+   Star UnionDai ichi Life Insurance Co
+
+== Stock Holding Corporation of India (SHCIL)  (key: stock holding corporation of india shcil; edge rows 3)
+   Stock Holding Corporation of India (SHCIL)
+   StockHolding Corporation of India (SHCIL)  -> fold
+
+== StockHolding Document Management Services (SDMS)  (key: stock holding document management services sdms; edge rows 4)
+   Stock Holding Document Management Services (SDMS)  -> fold
+   StockHolding Document Management Services (SDMS)
+
+== Styrenix Performance Materials (Thailand)  (key: styrenix performance materials thailand; edge rows 5)
+   Styrenix Performance Materials (Thailand)  -> fold
+   Styrenix Performance Materials (Thailand)
+
+== Sundram Fasteners (Zhejiang) )  (key: sundram fasteners zhejiang; edge rows 7)
+   Sundram Fasteners (Zhejiang) )
+   Sundram Fasteners Zhejiang  -> fold
+
+== Tata Communications Comunicacoes E Multimídia (Brazil) Limitada  (key: tata communications comunicacoes e multimidia brazil limitada; edge rows 2)
+   Tata Communications Comunicacoes E Multimidia (Brazil) Limitada  -> fold
+   Tata Communications Comunicacoes E Multimídia (Brazil) Limitada
+
+== Tata Motors Digital.AI Labs  (key: tata motors digital ai labs; edge rows 16)
+   Tata Motors Digital AI Labs  -> fold
+   Tata Motors Digital.AI Labs
+
+== Tech Mahindra Servicos a  (key: tech mahindra servicos a; edge rows 6)
+   TECH MAHINDRA SERVIÇOS A  -> fold
+   Tech Mahindra Servicos a
+
+== TECOSIM Engineering Services , India  (key: tecosim engineering services india; edge rows 9)
+   TECOSIM Engineering Services , India
+   Tecosim Engineering Services India  -> fold
+
+== Tecosim Japan (Japan)  (key: tecosim japan japan; edge rows 4)
+   TECOSIM Japan , Japan  -> fold
+   Tecosim Japan (Japan)
+
+== Tecosim , UK  (key: tecosim uk; edge rows 14)
+   Tecosim , UK
+   Tecosim UK  -> fold
+
+== TML Business Services  (key: tml business services; edge rows 10)
+   TML Business Services
+   TML Business Services )  -> fold
+
+== Tor.ai  (key: tor ai; edge rows 4)
+   Tor AI  -> fold
+   Tor.ai
+
+== Transweld MechnicalEngineering Works  (key: transweld mechnical engineering works; edge rows 10)
+   Transweld Mechnical Engineering Works  -> fold
+   Transweld MechnicalEngineering Works
+
+== Unichem Laboratories , Ireland  (key: unichem laboratories ireland; edge rows 5)
+   Unichem Laboratories , Ireland
+   Unichem Laboratories Ireland  -> fold
+
+== Unilever Asia  (key: unilever asia; edge rows 5)
+   Unilever Asia
+   Unilever Asia  -> fold
+
+== Unilever Thai Trading  (key: unilever thai trading; edge rows 4)
+   Unilever Thai Trading  -> fold
+   Unilever Thai Trading
+
+== Viluppuram Highways ######  (key: viluppuram highways; edge rows 4)
+   Viluppuram Highways  -> fold
+   Viluppuram Highways ######
+
+== WeWork India Management [listed]  (key: we work india management; edge rows 28)
+   We Work India Management  -> fold
+   WeWork India Management
+
+== Welspun Corp [listed]  (key: welspun corp; edge rows 133)
+   WELSPUN CORP  -> fold
+   Welspun Corp
+
+== WongDoody ,Taipei  (key: wong doody taipei; edge rows 5)
+   WongDoody (Taipei)  -> fold
+   WongDoody ,Taipei
+
+# -- person-name clusters: EXCLUDED from this merge (route to the #293 person-resolver arc) --
+   N A Estate | N.A. Estate
+

@@ -31,6 +31,7 @@ from __future__ import annotations
 import argparse
 import datetime
 import json
+import re
 import sqlite3
 import sys
 from collections import defaultdict
@@ -53,6 +54,19 @@ from helpers.core.entity_identity import (  # noqa: E402
 PLAN_PATH = _REPO_ROOT / "findata" / "Misc" / "_name_merge_plan.txt"
 BASELINE_PATH = _REPO_ROOT / "findata" / "Misc" / "_name_dedup_baseline.txt"
 LEDGER_PATH = _REPO_ROOT / "findata" / "Misc" / "_name_fold_ledger.jsonl"
+
+CANON_PLAN_PATH = _REPO_ROOT / "findata" / "Misc" / "_name_canonical_plan.txt"
+NSE_SOURCE = _REPO_ROOT / "memory" / "data" / "sources.duckdb"
+
+# canonical-name classifier token classes (canonical_name_resolution S1):
+# tokens a variant may add over the winner and still be the same company
+# (legal-tail / display-form noise) vs tokens that signal a DIFFERENT
+# legal entity (foreign-arm forms) or need a human (real-name
+# constituents like Corporation that are part of some companies' own
+# legal names -- Hindustan Petroleum Corporation -- and of other
+# groups' parents -- Bosch Corporation).
+_CANON_SAFE_TAILS = frozenset({"the", "company", "co", "limited", "ltd"})
+_CANON_REVIEW_TAILS = frozenset({"corp", "corporation"})
 
 
 def normalise(name: str) -> str:
@@ -300,7 +314,12 @@ def _append_ledger(folded: dict[str, str], ledger_path: Path) -> int:
         for variant, canonical in fresh:
             fh.write(
                 json.dumps(
-                    {"variant": variant, "canonical": canonical, "folded_at": stamp},
+                    {
+                        "variant": variant,
+                        "canonical": canonical,
+                        "folded_at": stamp,
+                        "kind": "canonical",
+                    },
                     ensure_ascii=False,
                 )
                 + "\n"
@@ -419,10 +438,60 @@ def apply_plan(  # noqa: C901
                     ).rowcount
             except sqlite3.IntegrityError:
                 entities_retained += 1
-    after = con.execute("SELECT COUNT(*) FROM graph_edges").fetchone()[0]
+    # Ledger sweep (the invariant the S2 tests assert): variants folded by
+    # EARLIER runs can be re-minted later with zero edges (a replay or a
+    # source-side writer); the census reads graph_edges names, so such rows
+    # are invisible to every later plan and would survive forever. Retire
+    # them here — but FOLD FIRST: hyper_incidences.entity_name is ON DELETE
+    # CASCADE, so deleting the entity row without re-pointing its
+    # memberships silently drops them from every derived surface (seen live
+    # 2026-11-12: family:Tata lost a member). Re-point to the canonical,
+    # collapse exact duplicates, and only then remove the row.
     ledger = ledger_path or ledger_path_for(plan_path)
+    ledger_swept = 0
+    ledger_folds: dict[str, str] = {}
+    if has_entities and ledger.exists():
+        for line in ledger.read_text(encoding="utf-8").splitlines():
+            if not line.strip():
+                continue
+            try:
+                rec = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            variant = rec.get("variant")
+            if variant and variant not in folded and rec.get("canonical"):
+                ledger_folds[variant] = rec["canonical"]
+        for variant, canon in sorted(ledger_folds.items()):
+            if not con.execute("SELECT 1 FROM entities WHERE name = ?", (variant,)).fetchone():
+                continue
+            with con:
+                con.execute(
+                    "UPDATE hyper_incidences SET entity_name = ? WHERE entity_name = ?",
+                    (canon, variant),
+                )
+                con.execute(
+                    "DELETE FROM hyper_incidences WHERE rowid NOT IN ("
+                    "  SELECT MIN(rowid) FROM hyper_incidences"
+                    "  GROUP BY edge_id, entity_name, role)"
+                )
+            refs = con.execute(
+                "SELECT (SELECT COUNT(*) FROM graph_edges WHERE source = ? OR target = ?)"
+                " + (SELECT COUNT(*) FROM hyper_incidences WHERE entity_name = ?)",
+                (variant, variant, variant),
+            ).fetchone()[0]
+            if refs:
+                continue
+            try:
+                with con:
+                    ledger_swept += con.execute(
+                        "DELETE FROM entities WHERE name = ?", (variant,)
+                    ).rowcount
+            except sqlite3.IntegrityError:
+                entities_retained += 1
+    after = con.execute("SELECT COUNT(*) FROM graph_edges").fetchone()[0]
     return {
         "variants_folded": len(folded),
+        "ledger_swept": ledger_swept,
         "rows_repointed": repointed,
         "duplicate_rows_removed": dupes + collapsed,
         "collapsing_duplicates": collapsed,
@@ -434,6 +503,214 @@ def apply_plan(  # noqa: C901
         "fold_ledger_appended": _append_ledger(folded, ledger),
         "fold_ledger": str(ledger),
     }
+
+
+def _nse_names() -> list[str]:
+    """NSE equity listing display names from the sources DB (empty when
+    the gitignored store is absent, e.g. a fresh clone)."""
+    if not NSE_SOURCE.exists():
+        return []
+    import duckdb  # noqa: PLC0415  (canonical lane only; keep module import light)
+
+    con = duckdb.connect(str(NSE_SOURCE), read_only=True)
+    try:
+        return [
+            r[0]
+            for r in con.execute(
+                "SELECT name FROM exchange_listings "
+                "WHERE exchange = 'NSE' AND asset_type = 'equity' AND name IS NOT NULL"
+            ).fetchall()
+        ]
+    finally:
+        con.close()
+
+
+def _diff_class(variant: str, winner: str) -> str:
+    """'safe' | 'review' | 'reject' for the tokens a variant adds over
+    the winner. Missing tokens are harmless shortening and never
+    classify; the deciding set is what the variant ADDS."""
+
+    def toks(s: str) -> set[str]:
+        return {t for t in re.findall(r"[a-z0-9]+", s.lower()) if t}
+
+    extra = toks(variant) - toks(winner)
+    if not extra:
+        return "safe"
+    if extra & _CANON_REVIEW_TAILS:
+        return "review"
+    # "Private" is safe only as the 'Private Limited' legal unit: alone it
+    # distinguishes real neighbours (Nifty Bank vs Nifty Private Bank).
+    standalone_private = (extra & {"private", "pvt"}) and not (extra & {"limited", "ltd"})
+    if standalone_private or extra - _CANON_SAFE_TAILS - {"private", "pvt"}:
+        return "reject"
+    return "safe"
+
+
+def canonical_census(con, *, nse_names: list[str] | None = None) -> dict:  # noqa: C901  # one census pass (loose-key clusters + NSE fold eligibility)
+    """Duplicate-spelling clusters over the ENTITIES table keyed by the
+    loader's own loose key (helpers.maintenance.related_party_sync
+    ._loose_key -- the same rule that would mint a variant), so the
+    canonical fold and the mint path can never disagree. A cluster is
+    foldable only when an NSE equity listing shares its loose key (a
+    listed company certifies the cluster is one real issuer's
+    spellings); the winner is an exact-normalised NSE match, else the
+    highest-ref member. Variants classify per _diff_class; mixed
+    entity_type clusters and any 'review' variant keep the whole
+    cluster out of the plan (report-only)."""
+    from helpers.maintenance.related_party_sync import _loose_key  # noqa: PLC0415
+
+    if nse_names is None:
+        nse_names = _nse_names()
+    nse_keys: dict[str, str] = {}
+    for n in nse_names:
+        nse_keys.setdefault(_loose_key(n), n)
+
+    ents = con.execute("SELECT name, entity_type FROM entities").fetchall()
+    refs: dict[str, int] = dict.fromkeys((n for n, _ in ents), 0)
+    for (n,) in con.execute(
+        "SELECT source FROM graph_edges UNION ALL SELECT target FROM graph_edges"
+    ).fetchall():
+        if n in refs:
+            refs[n] += 1
+    try:
+        incidences = con.execute("SELECT entity_name FROM hyper_incidences").fetchall()
+    except sqlite3.OperationalError:  # minimal fixtures may lack the table
+        incidences = []
+    for (n,) in incidences:
+        if n in refs:
+            refs[n] += 1
+
+    clusters: dict[str, list[str]] = defaultdict(list)
+    etypes: dict[str, set[str]] = defaultdict(set)
+    for n, t in ents:
+        clusters[_loose_key(n)].append(n)
+        etypes[_loose_key(n)].add(t)
+
+    plan, review, reject, unlisted = [], [], [], []
+    for key, members in sorted(clusters.items()):
+        if len(members) < 2:
+            continue
+        nse = nse_keys.get(key)
+        if nse is None:
+            unlisted.append({"key": key, "members": sorted(members)})
+            continue
+        exact = [m for m in members if _name_key(FOOTNOTE_RE.sub("", m)) == _name_key(nse)]
+        if len(exact) == 1:
+            winner = exact[0]
+        else:  # refs desc, then the shorter display form, then stable lex
+            winner = sorted(
+                members,
+                key=lambda m: (
+                    -refs[m],
+                    len(re.findall(r"[a-z0-9]+", m.lower())),
+                    m,
+                ),
+            )[0]
+        mixed = len(etypes[key]) > 1
+        blocks, revs, rejs = [], [], []
+        for v in sorted(members):
+            if v == winner:
+                continue
+            cls = _diff_class(v, winner)
+            (blocks if cls == "safe" else revs if cls == "review" else rejs).append(v)
+        if mixed or revs or not blocks:
+            review.append(
+                {
+                    "key": key,
+                    "winner": winner,
+                    "nse": nse,
+                    "safe": blocks,
+                    "review": revs,
+                    "reject": rejs,
+                    "entity_types": sorted(etypes[key]),
+                    "refs": {m: refs[m] for m in members},
+                }
+            )
+            continue
+        plan.append(
+            {
+                "canonical": winner,
+                "variants": blocks,
+                "key": key,
+                "listed_hit": True,
+                "refs_moved": sum(refs[v] for v in blocks),
+            }
+        )
+        if rejs:
+            reject.append({"key": key, "winner": winner, "reject": rejs})
+    return {
+        "n_clusters": len([c for c in clusters.values() if len(c) > 1]),
+        "plan": plan,
+        "review": review,
+        "reject": reject,
+        "unlisted": unlisted,
+        "refs_moved": sum(p["refs_moved"] for p in plan),
+    }
+
+
+def write_canonical_plan(cc: dict, path: Path = CANON_PLAN_PATH) -> Path:
+    """Same artifact contract as write_plan: a human-reviewable txt plus
+    the JSONL machine form --apply consumes verbatim. REVIEW/REJECT/
+    unlisted clusters are REPORT-ONLY and never reach the machine form."""
+    display = lambda s: s.replace(chr(10), " ")  # noqa: E731  (txt readability only)
+    jsonl_path = path.with_suffix(".jsonl")
+    lines = [
+        "# Canonical-name merge plan (canonical_name_resolution -- DRY-RUN artifact)",
+        f"# clusters: {cc['n_clusters']} | foldable: {len(cc['plan'])} | "
+        f"review: {len(cc['review'])} | foreign-form rejects: {len(cc['reject'])} | "
+        f"unlisted: {len(cc['unlisted'])} | edge/incidence refs re-pointed: {cc['refs_moved']}",
+        "# winner rule: exact-normalised NSE listing match > refs; NSE loose-key match certifies the cluster",
+        "# variant rule: only legal-tail/display noise (the/company/co/private/pvt/limited/ltd) folds;",
+        "#   Corp/Corporation differences -> review; any other added token (Inc, LLC, ...) -> reject (subsidiary-shaped)",
+        "# REVIEW and REJECT sections are report-only; S2 applies ONLY the foldable blocks",
+        f"# machine form: {jsonl_path.name}",
+        "",
+    ]
+    for p_ in cc["plan"]:
+        lines.append(
+            f"== {display(p_['canonical'])} [listed]  (key: {p_['key']}; refs moved {p_['refs_moved']})"
+        )
+        for v in p_["variants"]:
+            lines.append(f"   {display(v)}  -> fold")
+        lines.append("")
+    if cc["review"]:
+        lines.append("# -- REVIEW (report-only: mixed entity_type or Corp-form differences) --")
+        for r_ in cc["review"]:
+            bits = [
+                f"{m}({r_['refs'][m]})"
+                for m in sorted(r_["refs"], key=r_["refs"].get, reverse=True)
+            ]
+            note = (
+                "mixed-types " + "/".join(r_["entity_types"]) if len(r_["entity_types"]) > 1 else ""
+            )
+            lines.append(
+                f"   {r_['winner']} <- {'; '.join(r_['safe'])}"
+                f" ; review: {'; '.join(r_['review'])}"
+                f" ; reject: {'; '.join(r_['reject'])}"
+                + (f" ; {note}" if note else "")
+                + f"  [{'; '.join(bits)}]"
+            )
+        lines.append("")
+    if cc["reject"]:
+        lines.append(
+            "# -- foreign-form variants never folded (subsidiary-shaped: Inc/LLC/other tokens) --"
+        )
+        for r_ in cc["reject"]:
+            lines.append(f"   {r_['winner']}  !=  {'; '.join(r_['reject'])}")
+        lines.append("")
+    path.write_text(chr(10).join(lines) + chr(10), encoding="utf-8")
+    jsonl_path.write_text(
+        "".join(
+            json.dumps(
+                {k: p_[k] for k in ("canonical", "variants", "key", "listed_hit")},
+                ensure_ascii=False,
+            )
+            + chr(10)
+            for p_ in cc["plan"]
+        ),
+        encoding="utf-8",
+    )
+    return path
 
 
 def check(con, baseline_path: Path = BASELINE_PATH) -> int:
@@ -474,14 +751,38 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help="record the CURRENT count as the S4 baseline",
     )
+    p.add_argument(
+        "--canonical-plan",
+        action="store_true",
+        help="canonical_name_resolution S1: duplicate-spelling census vs NSE winners; writes the plan artifacts (dry-run)",
+    )
+    p.add_argument(
+        "--plan-path",
+        type=Path,
+        default=None,
+        help="apply a non-default plan artifact (e.g. the canonical plan)",
+    )
     p.add_argument("--apply", action="store_true", help="S2: apply the plan (requires --yes)")
     p.add_argument("--yes", action="store_true", help="confirm the S2 write")
     args = p.parse_args(argv)
 
     con = connect()
     try:
+        if args.canonical_plan:
+            cc = canonical_census(con)
+            path = write_canonical_plan(cc)
+            print(f"canonical plan -> {path}")
+            print(
+                f"clusters={cc['n_clusters']} foldable={len(cc['plan'])} "
+                f"review={len(cc['review'])} rejects={len(cc['reject'])} "
+                f"unlisted={len(cc['unlisted'])} refs_moved={cc['refs_moved']}"
+            )
+            print("operator review gates S2: --apply --yes --plan-path <the canonical plan>")
+            return 0
         if args.apply:
-            res = apply_plan(con, yes=args.yes)
+            plan_path = args.plan_path or PLAN_PATH
+            ledger = LEDGER_PATH if args.plan_path else None
+            res = apply_plan(con, plan_path, yes=args.yes, ledger_path=ledger)
             print(json.dumps(res, indent=2))
             print("next: refresh the duckdb graph caches (standard graph rebuild)")
             return 0

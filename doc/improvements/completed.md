@@ -14872,9 +14872,21 @@ append-only (every row keeps `agent_id`/`source_ref`/`source_tier`):
   the gate own `answer_question`.
 - Probe gains the shape over Parquet (same rule inline, scope read from
   properties) and loads **`helpers/misc/answerability_questions.json`** alongside
-  the frozen set: 15 bank entries (8 metric across both scopes + 7 SQL across
-  identity/relations/nary/events/control/insight/crosswalk), each carrying the
-  NL question, shape, params and an operator-attested pin.
+  the frozen set: **15 bank entries** seeded (8 metric across both scopes + 7 SQL
+  across identity/relations/nary/events/control/insight/crosswalk), each
+  carrying the NL question, shape, params and an operator-attested pin.
+- **Bank grown to v2 the same session** (`grow the bank`, operator go): 15 ->
+  **46 entries** (20 `metric_value` + 26 `sql`) over 10 intents. Every pin
+  measured on the snapshot and cross-checked live against the ruled view; the
+  bank contributes **zero** drift while the frozen set keeps its 11 S5-era
+  drifted pins. Probe total **225 questions - 209 answered / 5 negative /
+  11 drifted / 0 empty / 0 errored**. Three candidate pins were **withheld**
+  because a pin would freeze a known-wrong or known-incomplete state:
+  `ultimate_parent` for the Reliance group (an inverted `subsidiary_of` edge,
+  `vigil:rpt:RELIANCE`, rolls 238 companies under the leaf *Reliance Lithium
+  Werks B.V*), NIFTY 500 membership (499 of 500), and group-hyperedge sizes
+  (Adani 2 / Bajaj 2 / Hinduja 3 - sparse). New tests assert the shipped bank
+  has zero drift and every entry is well-formed (44 tests in the probe file).
 - Grain audit (advisory, never a gate) in `check_company_metrics`:
   `ruled`/`collapsed`/`null_keys`/`key_conflicts` — live 76,976 / 2,420 / 3,742 / 95.
 
@@ -14882,8 +14894,11 @@ append-only (every row keeps `agent_id`/`source_ref`/`source_tier`):
 pre-grain and post-grain store copies: **ACCEPT — 179 questions, 0 reasons**,
 with `--expect-improve` on the six metric ids. `answerability_probe --parity`
 -> **0 mismatches** across all 194 questions (live view vs inline parquet rule).
-Probe full run: 178 answered · 5 negative · 11 drifted (pre-existing S5-era
-pins, unchanged) · **0 empty · 0 errored**. Targeted tests: **163 passed**
+Probe full run at archival time (seed bank): 178 answered · 5 negative ·
+11 drifted (pre-existing S5-era pins, unchanged) · **0 empty · 0 errored**
+(after the v2 bank growth: 225 questions, 209 answered — see the bank bullet
+above). Targeted tests: **163 passed** at archival, **44 in the probe file**
+plus gate and integrity suites after the bank-growth tests landed
 (`test_ontology_eval_gate`, `test_answerability_probe`,
 `test_database_integrity_check`); ruff + markdownlint clean. A restatement of a
 pinned quarter BLOCKS the gate by design — re-pin explicitly, never silently.
@@ -14896,3 +14911,139 @@ NL front door itself (the bank is pins, not a runtime) remain open.
 `helpers/misc/answerability_questions.json` (new), `helpers/misc/ontology_questions.json`,
 `helpers/misc/database_integrity_check.py`, `helpers/maintenance/migrate_to_graph_edges.py`,
 `helpers/maintenance/ingest_nse_xbrl.py`, and the three test files.
+
+
+## 507. RPT attribution and filer resolution: entity-subject edges, ticker-bridged filers, and a curated family lane
+
+**Date:** 2026-11-11/12 · **Status:** EXECUTED (proposal archived) · **Area:** RPT loader (helpers/maintenance/) and the ownership/group derivations (helpers/graph/)
+
+The RPT disclosure loader attributed every relationship to the FILING COMPANY
+instead of the DISCLOSED ENTITY, flattened group disclosures into parent claims,
+and read step-down polarity backwards. Proposed after a two-day measurement
+pass (bench_data/vigil_attribution/, bench_data/stepdown_polarity/); ruled
+C1 + A4 + A-prime + B0/B4 by the operator (m02492 'looks good to me. Proceed').
+
+- **Ticker bridge (C1).** `_resolve_companies` gained a ticker-carrier fallback
+  (entities.ticker, NSE > BSE > other, ambiguity guarded) plus a company_name
+  fallback: RPT-unresolved filers 136 -> 1 (GSPL remained until the fork guard).
+- **Entity-subject attribution (A4).** `apply_pairs` resolves the subject from the
+  row's disclosed `entity_name` (filer kept only for 'of the company' rows);
+  generic holding/promoter texts uttered by a third party flatten to same_group
+  via `_is_group_relative_text`; bare ownership texts stay entity-relative.
+  Reliance Industries self-roots again (was rooted at Reliance Lithium Werks B.V
+  via 238 inverted edges); live mints on replay: 275 -> 0.
+- **Step-down polarity (A-prime).** Bare step-down texts are decided PER PAIR:
+  filer-self rows point down, a counter already declared as the filer's ancestor
+  keeps sub_rev, everything else defaults down (bench_data/stepdown_polarity/
+  anchors: ADVENZYMES, ROUTE, AL). A reroute-made mutual conflict now resolves
+  by reroute strength then filing period — explicit-claim ties keep co-control.
+- **Replay-mint fork guard.** A replay that mints legal-variant entities can
+  hijack the NEXT replay's filer binding (INDHOTEL bound to the mint
+  'THE INDIAN HOTELS CO' because its NSE listing spelling exact-normalized to
+  the mint; Indian Hotels' 10 jv_with edges vanished). Fix: when the listing hit
+  and exactly one ticker carrier agree under the loose key, bind to the carrier.
+  GSPL resolves too (~417 rows recovered).
+- **Group family (B0/B4).** Disclosure-scope lane (one set per RPT filer,
+  'vigil:rpt:<SYMBOL>') kept as-is; curated family lane shipped as
+  helpers/misc/family_seeds.json + family:<name> labels; seeds at v3 carry the
+  operator's Adani anchors with Ambuja members kept (family:Adani 24 -> 66).
+- **Gate.** `--expect-change` declaration mode added to ontology_eval_gate.py
+  (a declared re-root both loses and gains rows). Final run vs the pre-arc
+  backup: **ACCEPT — 182 questions, 0 reasons** with --expect-change
+  edge-rallis-india-same-group,uparent-hdfc-amc-international.
+- **Pins.** Frozen set v8 -> v11 (182 questions): uparent-hdfc-amc-international
+  re-pinned ['HDFC Bank'] (the earlier ['HDFC AMC'] stop was a duplicate-entity
+  artifact — three HDFC AMC* entities exist), edge-rallis-india-same-group
+  re-pinned to the 25-name post-polarity list. Bank v5: hidden-count re-pinned,
+  bank-sql-rel-jv-indian-hotels recovered to 10. Probe v11: **213 answered ·
+  5 negative · 10 drifted (pre-S5-era pins) · 0 empty · 0 errored**; --parity 0.
+- **Known debt (recorded, not fixed).** Duplicate entities remain visible in the
+  Rallis pin ('Titan'/'Titan company', 'Tata AIG ...Co'/'...Company'); fold /
+  dedupe is a separate lane.
+
+**Tests:** 69 loader tests (test_related_party_sync + test_shareholding_sync incl.
+subject-attribution, recency-tiebreak and fork-guard verdicts); probe + gate +
+integrity + schema-drift suites together 244 passed. Targeted only — full gates
+are operator-owned.
+
+**Files:** helpers/maintenance/related_party_sync.py, helpers/maintenance/shareholding_sync.py,
+helpers/misc/ontology_eval_gate.py, helpers/misc/ontology_questions.json,
+helpers/misc/answerability_questions.json, helpers/misc/family_seeds.json,
+helpers/graph/derive_hyperedges.py, and the test files.
+
+
+## 508. Entity-resolution ladder indexing: cache token sets + bucket qualifier scans in derive_insights
+
+**Date:** 2026-11-11 (archived 2026-11-12 — the archival step was missed; the
+operator asked for it during the #507 close-out) · **Status:** EXECUTED ·
+**Area:** helpers/graph/derive_insights.py
+
+cProfile on the production derive_insights scan leg (131 newsletter files,
+--workers 1) showed the entity-resolution ladder dominating: 26.4 s of 31.37 s
+total, with `_qualifier_variants` (35.6M `startswith` calls over the whole
+48,793-key resolver map) and `_fuzzy_suggestions` (4.6M redundant split+set
+rebuilds per miss) as the top two. Landed, parity-preserving:
+
+- `_fuzzy_suggestions`: token posting lists cached on the resolver map —
+  any key scoring jac >= 0.5 must share >= 1 token with the query, so the
+  candidate set is a superset of scorers; identical results by construction.
+- `_qualifier_variants`: first-token bucketing — the
+  `startswith(key + " ")` filter implies first-token equality, so only the
+  query's bucket scans; bucket matches carry their original insertion index
+  (caller slices [:2]/[2:], order behavior-bearing) and sort by it.
+- Cache carrier: `_ResolverMap` (dict subclass with `_fz_index`/
+  `_qv_index` attributes; WeakKeyDictionary rejected — dict-subclass keys
+  unhashable via ReferenceType; plain dicts fall back to the uncached path).
+
+**Measured (same invocation):** 31.37 s -> 11.15 s total (2.8x), scan leg
+26.4 s -> 6.07 s (4.35x), 64.3M -> 10.99M calls; `_qualifier_variants`
+7.48 s self -> 0.055 s (136x); `_fuzzy_suggestions` 6.54 s -> 0.271 s
+(24x). Parity harness over the full 131-file scan: 823/823 identical
+(94 fuzzy + 729 qualifier); quotes 9016 / metrics 4966 unchanged; CLI
+dry-run summary identical.
+
+**Fold-ins:** #1 regression benches `tests/bench_ladder_indexing.py` +
+`tests/bench_quick_wins.py` registered in `tests/run_perf_benchmarks.py`
+(`ladder_indexing` 15 s budget, `quick_wins_json_dumps` 8 s budget; make
+perf green 2026-11-11); #2 advisory AST check
+`check_loop_invariant_recomputation` in
+helpers/validators/static_checks.py (flags set()/split()/re.compile() on
+loop-invariant operands; ~23 sites in tree today, hoist sweep is the
+follow-on) with 4 unit tests.
+
+Targeted validation only (py_compile, ruff, parity harness, benches);
+full gates operator-owned per the 2026-11-11 instruction.
+## 509. Canonical-name resolution: NSE-certified duplicate-spelling folds
+
+Ruling m06076 ("NSE listing is reliable way to pick a winner for tie break and fold in the
+right direction") after the alias-triage menu showed nine direction-inverted Class-A pairs
+(the ledger canonical was the RARER spelling: Adani Ports and Special Economic Zone 394 refs
+vs Adani Ports and SEZ 45, Titan Company 11 vs Titan 307, Indian Hotels Company 5 vs
+Indian Hotels 602...). Proposal doc/improvements/archive/graph/canonical_name_resolution.md
+(filed + executed 2026-11-12).
+
+- Lane (helpers/graph/name_dedup.py): canonical_census clusters ENTITIES by the loader own
+  loose key (related_party_sync._loose_key) so the fold and the mint path can never disagree;
+  a cluster folds only when an NSE equity listing (memory/data/sources.duckdb) shares the
+  loose key; winner = exact-normalised NSE match, else refs desc, shorter display form, lex.
+  _diff_class classifier on tokens the variant ADDS: safe folds (the/company/co/limited/ltd +
+  Private Limited unit + case/punct), review holds (corp/corporation: Bosch Corporation,
+  Hindustan Petroleum Corporation, MRF Corp; mixed entity_type: SBI Life, ICICI Pru),
+  rejects never fold (Wipro Inc, Cyient Inc, Mphasis Corporation = foreign-arm legal
+  entities; standalone private/pvt keeps Nifty Private Bank).
+- Census 2026-11-12: 840 loose-key clusters over 28,725 entities -> 22 NSE-certified
+  foldable, 41 review, 777 unlisted (never folded).
+- Apply (S2 via --plan-path): 28 variants folded, 147 edge rows re-pointed, 141 duplicate
+  rows collapsed, 28 ledger rows appended (kind=canonical), zero loss (87,263 -> 87,122).
+  Head folds: Tata Power 137 refs, Indian Hotels 92 (3 IHCL replay mints), Titan 79
+  (TITAN COMPANY/Titan Company/Titan company), Phoenix Mills 36, ICICI Lombard 22.
+- Derivations rebuilt: ultimate_parent 26,226 rows (was 26,383), hidden_connections 41,672
+  (was 41,879), supply_chokepoints 7, competitive_overlap 8,160; make snapshot refreshed.
+- Gate ACCEPT: --expect-change edge-rallis-india-same-group,hyper-family-tata (frozen v12:
+  rallis re-pinned to 22 canonical spellings, hyper-family-tata 233 -> 230 - duplicate
+  membership spellings collapsed; the AIG Co/Company and Titan dupes in unlisted clusters
+  remain visible debt). Probe v12: 213 answered / 5 negative / 10 drifted (all S5-era) /
+  0 empty / 0 errored, parity 0. Bank v7: bank-sql-insight-hidden-count -> 41672.
+- Ledger invariant (test_ledger_scope_and_variants_gone) extended with the canonical class:
+  kind=canonical rows scope-checked by loose-key equality (NSE-certified), variant refs
+  still asserted 0. Targeted suite 264 passed; name_dedup --check ok (dup-census 0 <= 0).

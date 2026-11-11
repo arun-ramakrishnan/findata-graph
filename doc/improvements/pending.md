@@ -915,8 +915,15 @@ Open items below keep their revisit triggers inline; executed work is compressed
   satisfied without the metrics Q&A lane; trigger closed — and the metrics
   Q&A lane has since landed its first half: completed.md #506 (grain rule +
   `metric_value` gate shape + the NL->SQL question bank at
-  `helpers/misc/answerability_questions.json`); what remains open from it is
-  the NL front door itself, not the `term→table/column/filter/grain` mapping);
+  `helpers/misc/answerability_questions.json`, grown to 46 entries over 10
+  business intents on 2026-11-11 — NL text, shape, params and a pin each); what
+  remains open from it is the NL front door runtime (a question router over the
+  bank) and the certified SQL attribute layer behind it, not the
+  `term→table/column/filter/grain` mapping); the ownership side of the bank
+  is now backed too — completed.md #507 (2026-11-12, RPT attribution: the
+  filer-subject defect that rooted Reliance at Reliance Lithium Werks B.V is
+  fixed, `uparent-reliance-industries` landed in frozen v8 as self-root,
+  and the group family carries the curated `family:<name>` lane);
   (b) LLM-judge protocol 2 for the change gate (`"llm_judge"`
   slot reserved in the report schema, aggregation from EvoOntology
   evaluation.py:63) — trigger: an LLM-API posture (terrain C4 revival

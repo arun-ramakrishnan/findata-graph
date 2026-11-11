@@ -268,7 +268,27 @@ names (`Tata`):
   several classes (~3% of pairs, measured — carried by direction-swapped
   dyads, since `graph_edges` is UNIQUE(source, target, edge_type))
   takes the DOMINANT folded class (most dyads, tie → lexicographically
+
   smallest), so the role is deterministic across runs.
+
+Lane contract (B0 ruling, 2026-11-11): the vigil labels are a
+**disclosure-scope** lane — what one filer declared in one filing season —
+not corporate families; never read `vigil:rpt:<SYMBOL>` membership as one
+family, and no algorithmic merge of the two populations survives measurement
+(proposal graph/rpt_attribution_filer_resolution_and_group_family.md §2.6).
+Real corporate families belong in the curated lane — the 8 `$.group` dyad
+sets plus the S6 `family:<name>` lane (built 2026-11-12): git-tracked seeds
+in `helpers/misc/family_seeds.json`, widened into `group` by
+derive_hyperedges under `family:<name>` labels, each member validated
+against entities so a seed typo is dropped and printed (never minted), and
+prune-converged — removing a seed prunes its hyperedge on the next run.
+Growing a family is an operator curation edit to that seed file. Seeds v2
+(2026-11-12, operator mode-1 core-only blessing) grew the lane to 290
+members — Tata 233, Adani 24, Bajaj 18, Hinduja 4 (incl. the ruled fact
+that Ashok Leyland's parent is Hinduja Automotive), Aditya Birla 4,
+Muthoot Pappachan 3, RP Sanjiv Goenka 2, TVS 2 — each family unioned with
+the members declared by ≥2 distinct filers in
+`bench_data/family_curation/review_sheet.md`.
 
   Ruling 2026-11-08 (group-triage census, algorithms_adoption_sweep S3
   follow-through; report:

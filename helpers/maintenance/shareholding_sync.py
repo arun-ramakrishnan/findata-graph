@@ -1162,11 +1162,82 @@ def _resolve_companies(src: duckdb.DuckDBPyConnection, conn: sqlite3.Connection)
         for r in conn.execute("SELECT normalized_name, name FROM entities").fetchall()
         if r[0]
     }
+    by_tick: dict[str, list[tuple[str, int]]] = {}
+    # minimal fixtures / older stores may lack the ticker column — the
+    # bridge is a no-op there, never a crash
+    if "ticker" in {r[1] for r in conn.execute("PRAGMA table_info(entities)").fetchall()}:
+        for name, tick in conn.execute(
+            "SELECT name, ticker FROM entities WHERE ticker IS NOT NULL AND ticker != 0"
+        ).fetchall():
+            t = str(tick).strip().upper()
+            base, _, suffix = t.partition(".")
+            # NSE-preferred, then BSE; foreign/bare tickers rank last so a
+            # base shared with an Indian listing never resolves abroad (CCL
+            # is NSE 'CCL Products', not TSX 'CCL Industries Inc')
+            rank = 0 if suffix == "NS" else 1 if suffix == "BO" else 2
+            by_tick.setdefault(base, []).append((name, rank))
+    rpt_symbols: set[str] = set()
+    try:
+        rpt_symbols = {
+            r[0]
+            for r in src.execute("SELECT DISTINCT symbol FROM rpt_transactions").fetchall()
+            if r[0]
+        }
+    except duckdb.CatalogException:
+        pass
+    from helpers.maintenance.related_party_sync import _loose_key  # noqa: PLC0415  (loader-local helper; avoids the shs<->rps cycle)
+
     out = {}
+    # Replay-mint fork guard (follow-up to rpt_attribution C1): the
+    # exact-normalization listing join binds a symbol to whatever entity
+    # owns that normalized spelling - including VARIANTS an earlier
+    # replay minted (live: the NSE listing 'THE INDIAN HOTELS CO.'
+    # normalized straight onto the minted 'THE INDIAN HOTELS CO' the
+    # moment that mint existed, re-binding filer INDHOTEL away from the
+    # canonical 'Indian Hotels' and re-attributing every INDHOTEL edge to
+    # the fork). Listing precedence stays (test_listing_resolution_still_wins),
+    # but when the hit and exactly one ticker carrier for the symbol are
+    # the SAME company under different spellings (loose key equal), bind
+    # to the curated carrier.
+
     for symbol, name in listings:
         if symbol in out:
             continue
         ent = entities.get(_normalize(name or ""))
+        if not ent:
+            continue
+        carriers = [
+            n for n, _ in by_tick.get(symbol.upper(), []) if _loose_key(n) == _loose_key(ent)
+        ]
+        out[symbol] = carriers[0] if len(carriers) == 1 else ent
+
+    listing_names: dict[str, str] = {}
+    for symbol, name in listings:
+        listing_names.setdefault(symbol, name)
+    for symbol in sorted(({s for s, _ in listings} | rpt_symbols) - out.keys()):
+        cands = by_tick.get(symbol.upper())
+        if not cands:
+            continue
+        best = min(r for _, r in cands)
+        top = [n for n, r in cands if r == best]
+        if len(top) == 1:
+            out[symbol] = top[0]
+            continue
+        lname = listing_names.get(symbol, "")
+        hits = [c for c in top if _normalize(c).upper() == _normalize(lname or "").upper()]
+        if len(hits) == 1:
+            out[symbol] = hits[0]
+    try:
+        cname_rows = src.execute(
+            "SELECT DISTINCT symbol, company_name FROM rpt_transactions "
+            "WHERE company_name IS NOT NULL ORDER BY symbol, company_name"
+        ).fetchall()
+    except duckdb.CatalogException:
+        cname_rows = []
+    for symbol, cname in cname_rows:
+        if symbol in out or not cname:
+            continue
+        ent = entities.get(_normalize(cname))
         if ent:
             out[symbol] = ent
     return out
@@ -1252,7 +1323,9 @@ def main(argv: list[str] | None = None) -> int:  # noqa: C901
     # Fetch phase — network-bound, no research.db / sources.duckdb writes #
     # ------------------------------------------------------------------ #
     if not args.apply_only:
-        src = connect_with_lock_retry(lambda: duckdb.connect(str(SOURCES_DB), **memory_cap_config()))
+        src = connect_with_lock_retry(
+            lambda: duckdb.connect(str(SOURCES_DB), **memory_cap_config())
+        )
         ensure_sources_schema(src)
 
         ingested = 0

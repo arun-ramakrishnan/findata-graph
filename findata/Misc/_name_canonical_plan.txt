@@ -1,0 +1,51 @@
+# Canonical-name merge plan (canonical_name_resolution -- DRY-RUN artifact)
+# clusters: 818 | foldable: 0 | review: 41 | foreign-form rejects: 0 | unlisted: 777 | edge/incidence refs re-pointed: 0
+# winner rule: exact-normalised NSE listing match > refs; NSE loose-key match certifies the cluster
+# variant rule: only legal-tail/display noise (the/company/co/private/pvt/limited/ltd) folds;
+#   Corp/Corporation differences -> review; any other added token (Inc, LLC, ...) -> reject (subsidiary-shaped)
+# REVIEW and REJECT sections are report-only; S2 applies ONLY the foldable blocks
+# machine form: _name_canonical_plan.jsonl
+
+# -- REVIEW (report-only: mixed entity_type or Corp-form differences) --
+   Alembic Pharmaceuticals <-  ; review:  ; reject: Alembic Pharmaceuticals Inc  [Alembic Pharmaceuticals(40); Alembic Pharmaceuticals Inc(3)]
+   Alkem Laboratories <-  ; review: Alkem Laboratories Corporation ; reject:   [Alkem Laboratories(127); Alkem Laboratories Corporation(5)]
+   Birlasoft <-  ; review:  ; reject: Birlasoft Inc  [Birlasoft(70); Birlasoft Inc(18)]
+   Bombay Burmah Trading Corporation <- The Bombay Burmah Trading Corporation ; review: The Bombay Burmah Trading Corp ; reject:   [Bombay Burmah Trading Corporation(28); The Bombay Burmah Trading Corporation(4); The Bombay Burmah Trading Corp(1)]
+   Bosch <-  ; review: Bosch Corporation ; reject:   [Bosch(399); Bosch Corporation(5)]
+   Coforge <-  ; review:  ; reject: Coforge, Inc  [Coforge(180); Coforge, Inc(10)]
+   Cyient <-  ; review:  ; reject: Cyient Inc  [Cyient(238); Cyient Inc(36)]
+   Cyient DLM <-  ; review:  ; reject: CYIENT DLM INC  [Cyient DLM(65); CYIENT DLM INC(3)]
+   eMudhra <-  ; review:  ; reject: eMudhra Inc  [eMudhra(22); eMudhra Inc(9)]
+   Gokaldas Exports <-  ; review: Gokaldas Exports Corporation ; reject:   [Gokaldas Exports(56); Gokaldas Exports Corporation(2)]
+   Hexaware Technologies <-  ; review:  ; reject: Hexaware Technologies Inc  [Hexaware Technologies(134); Hexaware Technologies Inc(10)]
+   HFCL <-  ; review:  ; reject: HFCL INC  [HFCL(111); HFCL INC(5)]
+   Hindustan Petroleum <-  ; review: Hindustan Petroleum Corporation ; reject:   [Hindustan Petroleum(75); Hindustan Petroleum Corporation(15)]
+   ICICI Prudential Life Insurance <- ICICI PRUDENTIAL LIFE INSURANCE COMPANY LIMITED; ICICI Prudential Life Insurance Co. Ltd. ; review:  ; reject:  ; mixed-types company/institution  [ICICI Prudential Life Insurance(90); ICICI PRUDENTIAL LIFE INSURANCE COMPANY LIMITED(14); ICICI Prudential Life Insurance Co. Ltd.(1)]
+   Indegene <-  ; review:  ; reject: Indegene, Inc  [Indegene(89); Indegene, Inc(28)]
+   Indian Railway Finance <-  ; review: INDIAN RAILWAY FINANCE CORPORATION ; reject:   [Indian Railway Finance(56); INDIAN RAILWAY FINANCE CORPORATION(6)]
+   International Gemological Institute <-  ; review:  ; reject: International Gemological Institute Inc  [International Gemological Institute(33); International Gemological Institute Inc(2)]
+   Inventurus Knowledge Solutions <-  ; review:  ; reject: Inventurus Knowledge Solutions Inc  [Inventurus Knowledge Solutions(32); Inventurus Knowledge Solutions Inc(2)]
+   KPIT Technologies <-  ; review:  ; reject: KPIT Technologies Inc  [KPIT Technologies(134); KPIT Technologies Inc(22)]
+   KSB <-  ; review:  ; reject: KSB Inc  [KSB(183); KSB Inc(3)]
+   Mastek <-  ; review:  ; reject: Mastek Inc  [Mastek(48); Mastek Inc(16)]
+   Mphasis <-  ; review: Mphasis Corporation ; reject:   [Mphasis(218); Mphasis Corporation(43)]
+   MRF <-  ; review: MRF Corp ; reject:   [MRF(60); MRF Corp(4)]
+   Natco Pharma <-  ; review:  ; reject: NATCO Pharma Inc  [Natco Pharma(75); NATCO Pharma Inc(2)]
+   Neuland Laboratories <-  ; review:  ; reject: Neuland Laboratories INC  [Neuland Laboratories(28); Neuland Laboratories INC(1)]
+   Nifty Bank <-  ; review:  ; reject: Nifty Private Bank  [Nifty Bank(14); Nifty Private Bank(10)]
+   Ola Electric Mobility <-  ; review:  ; reject: Ola Electric Mobility Inc  [Ola Electric Mobility(89); Ola Electric Mobility Inc(3)]
+   Oracle Financial Services Software <-  ; review:  ; reject: Oracle Financial Services Software, Inc  [Oracle Financial Services Software(205); Oracle Financial Services Software, Inc(10)]
+   Persistent Systems <-  ; review:  ; reject: Persistent Systems, Inc  [Persistent Systems(118); Persistent Systems, Inc(3)]
+   Pfizer <-  ; review:  ; reject: Pfizer Inc  [Pfizer(62); Pfizer Inc(1)]
+   Piramal Pharma <-  ; review:  ; reject: Piramal Pharma Inc  [Piramal Pharma(86); Piramal Pharma Inc(9)]
+   Route Mobile <-  ; review:  ; reject: Route Mobile INC  [Route Mobile(105); Route Mobile INC(12)]
+   Sai Life Sciences <-  ; review:  ; reject: Sai Life Sciences Inc  [Sai Life Sciences(32); Sai Life Sciences Inc(4)]
+   SBI Life Insurance Company <- Sbi Life Insurance Co. Ltd ; review:  ; reject:  ; mixed-types company/institution  [SBI Life Insurance Company(100); Sbi Life Insurance Co. Ltd(3)]
+   Sterlite Technologies <-  ; review:  ; reject: Sterlite Technologies Inc  [Sterlite Technologies(124); Sterlite Technologies Inc(11)]
+   Sun Pharmaceutical Industries <-  ; review:  ; reject: Sun Pharmaceutical Industries, Inc  [Sun Pharmaceutical Industries(157); Sun Pharmaceutical Industries, Inc(40)]
+   Tata Technologies <-  ; review:  ; reject: Tata Technologies Inc  [Tata Technologies(369); Tata Technologies Inc(37)]
+   Tega Industries <-  ; review:  ; reject: Tega Industries Inc  [Tega Industries(77); Tega Industries Inc(9)]
+   Thermax <-  ; review:  ; reject: Thermax Inc  [Thermax(146); Thermax Inc(6)]
+   Wipro <-  ; review:  ; reject: Wipro Inc  [Wipro(596); Wipro Inc(2)]
+   Zensar Technologies <-  ; review:  ; reject: Zensar Technologies Inc  [Zensar Technologies(100); Zensar Technologies Inc(5)]
+

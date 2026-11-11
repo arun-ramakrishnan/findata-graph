@@ -429,9 +429,8 @@ class TestGateShapes:
 
         data = load_questions(DEFAULT_QUESTIONS)
         by_id = {q["id"]: q for q in data["questions"]}
-        # version tracks the roster; bumped by every rebaseline (v4 at the
-        # gate's birth → v5 R6a subsidiary cure → v6 R3 insight roster)
-        assert data["version"] == 6
+        # version tracks the roster; bumped by every rebaseline (v7 #506 metric pins → v8 uparent pins → v9 family anchors → v10/v11 re-pins → v12 canonical names)
+        assert data["version"] == 12
         for qid, family in (
             ("hyper-merger-families", "merger"),
             ("hyper-demerger-families", "demerger"),

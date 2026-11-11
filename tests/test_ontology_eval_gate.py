@@ -224,6 +224,98 @@ class TestAcceptRule:
             gate.evaluate(connect(parent), connect(candidate), q, {"nope"})
 
 
+class TestExpectChange:
+    """--expect-change (rpt_attribution §5): a declared re-root both loses
+    and gains rows — the change itself is the materialization."""
+
+    def test_declared_re_root_accepts(self, dbs, tmp_path):
+        parent, candidate = dbs
+        _mutate(
+            candidate,
+            "UPDATE entity_identifiers SET entity_name='Acme Ltd' WHERE identifier_value='LEI-ZEN'",
+        )
+        q = json.loads(_questions(tmp_path).read_text())["questions"]
+        accept, results, reasons = gate.evaluate(
+            connect(parent),
+            connect(candidate),
+            q,
+            set(),
+            frozenset(),
+            frozenset({"resolve-lei"}),
+        )
+        assert accept, reasons
+        verdicts = {r["id"]: r["verdict"] for r in results}
+        assert verdicts["resolve-lei"] == "improved"
+
+    def test_undeclared_re_root_still_rejects(self, dbs, tmp_path):
+        parent, candidate = dbs
+        _mutate(
+            candidate,
+            "UPDATE entity_identifiers SET entity_name='Acme Ltd' WHERE identifier_value='LEI-ZEN'",
+        )
+        q = json.loads(_questions(tmp_path).read_text())["questions"]
+        accept, _, reasons = gate.evaluate(connect(parent), connect(candidate), q, set())
+        assert not accept
+        assert any("undeclared answer change" in r for r in reasons)
+
+    def test_declared_change_not_materialized_rejects(self, dbs, tmp_path):
+        parent, candidate = dbs
+        q = json.loads(_questions(tmp_path).read_text())["questions"]
+        accept, _, reasons = gate.evaluate(
+            connect(parent), connect(candidate), q, set(), frozenset(), frozenset({"resolve-lei"})
+        )
+        assert not accept
+        assert any("declared change did not materialize" in r for r in reasons)
+
+    def test_unknown_expect_change_id_raises(self, dbs, tmp_path):
+        parent, candidate = dbs
+        q = json.loads(_questions(tmp_path).read_text())["questions"]
+        with pytest.raises(gate.GateError):
+            gate.evaluate(
+                connect(parent), connect(candidate), q, set(), frozenset(), frozenset({"nope"})
+            )
+
+    def test_cli_expect_change_accepts_re_root(self, dbs, tmp_path, capsys):
+        parent, candidate = dbs
+        _mutate(
+            candidate,
+            "UPDATE entity_identifiers SET entity_name='Acme Ltd' WHERE identifier_value='LEI-ZEN'",
+        )
+        rc = gate.main(
+            [
+                "--parent",
+                str(parent),
+                "--candidate",
+                str(candidate),
+                "--questions",
+                str(_questions(tmp_path)),
+                "--expect-change",
+                "resolve-lei",
+            ]
+        )
+        assert rc == 0
+        assert "ACCEPT" in capsys.readouterr().out
+
+    def test_cli_overlap_declaration_rc2(self, dbs, tmp_path, capsys):
+        parent, candidate = dbs
+        rc = gate.main(
+            [
+                "--parent",
+                str(parent),
+                "--candidate",
+                str(candidate),
+                "--questions",
+                str(_questions(tmp_path)),
+                "--expect-improve",
+                "resolve-lei",
+                "--expect-change",
+                "resolve-lei",
+            ]
+        )
+        assert rc == 2
+        assert "overlap" in capsys.readouterr().err
+
+
 class TestQuestionSet:
     def test_draft_set_refused(self, tmp_path):
         path = tmp_path / "draft.json"

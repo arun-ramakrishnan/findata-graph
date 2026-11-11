@@ -360,6 +360,7 @@ def _evaluate_one(
     q: dict,
     declared: bool,
     expect_shrink: frozenset[str] = frozenset[str](),
+    expect_change: frozenset[str] = frozenset[str](),
 ) -> dict:
     """Answer one question on both sides and classify its verdict.
 
@@ -388,11 +389,14 @@ def _evaluate_one(
     entry["added"] = sorted(set(c) - set(p))
     entry["lost"] = sorted(set(p) - set(c))
     shrink = qid in expect_shrink
-    if p == c and (declared or shrink):
+    change = qid in expect_change
+    if p == c and (declared or shrink or change):
         entry["verdict"] = VERDICT_UNCHANGED
         entry["reason"] = (
             f"{qid}: declared shrink did not materialize"
             if shrink
+            else f"{qid}: declared change did not materialize"
+            if change
             else f"{qid}: declared improvement did not materialize"
         )
     elif p == c:
@@ -401,6 +405,12 @@ def _evaluate_one(
         entry["verdict"] = VERDICT_REGRESSED
         entry["reason"] = f"{qid}: declared change LOST rows ({entry['lost']})"
     elif declared:
+        entry["verdict"] = VERDICT_IMPROVED
+    elif change:
+        # rpt_attribution §5: a declared re-root legitimately both loses
+        # and gains rows — the change itself is the materialization.
+        # --expect-improve demands pure gain, --expect-shrink pure loss;
+        # a re-root is neither and used to block as undeclared.
         entry["verdict"] = VERDICT_IMPROVED
     elif shrink and entry["added"]:
         # a declared shrink that GAINS rows is not the change that was declared
@@ -426,14 +436,18 @@ def evaluate(
     questions: list[dict],
     expect_improve: set[str],
     expect_shrink: frozenset[str] = frozenset[str](),
+    expect_change: frozenset[str] = frozenset[str](),
 ) -> tuple[bool, list[dict], list[str]]:
     """Run the accept rule; returns (accept, per-question results, reasons)."""
     known_ids = {q["id"] for q in questions}
     unknown = sorted(expect_improve - known_ids)
     if unknown:
         raise GateError(f"--expect-improve names unknown question ids: {unknown}")
+    unknown_change = sorted(expect_change - known_ids)
+    if unknown_change:
+        raise GateError(f"--expect-change names unknown question ids: {unknown_change}")
     results = [
-        _evaluate_one(parent, candidate, q, q["id"] in expect_improve, expect_shrink)
+        _evaluate_one(parent, candidate, q, q["id"] in expect_improve, expect_shrink, expect_change)
         for q in questions
     ]
     reasons = [e.pop("reason") for e in results if "reason" in e]
@@ -483,6 +497,13 @@ def main(argv: list[str] | None = None) -> int:
         "gained rows still regress)",
     )
     parser.add_argument(
+        "--expect-change",
+        default="",
+        help="comma list of question ids whose answers legitimately CHANGE "
+        "(rpt_attribution §5: a declared re-root both loses and gains rows — "
+        "the change itself is the materialization)",
+    )
+    parser.add_argument(
         "--rebaseline",
         default=None,
         metavar="REF",
@@ -499,16 +520,20 @@ def main(argv: list[str] | None = None) -> int:
             raise GateError("--parent is required unless --rebaseline")
         expect = {q for q in args.expect_improve.split(",") if q}
         expect_shrink = frozenset(q for q in args.expect_shrink.split(",") if q)
+        expect_change = frozenset(q for q in args.expect_change.split(",") if q)
         overlap = expect & expect_shrink
         if overlap:
             raise GateError(f"--expect-improve and --expect-shrink overlap: {sorted(overlap)}")
+        overlap_c = (expect | expect_shrink) & expect_change
+        if overlap_c:
+            raise GateError(f"--expect-change overlaps another declaration: {sorted(overlap_c)}")
         candidate = connect(args.candidate)
         try:
             if args.rebaseline:
                 parent = connect(args.parent)
                 try:
                     accept, results, reasons = evaluate(
-                        parent, candidate, data["questions"], expect, expect_shrink
+                        parent, candidate, data["questions"], expect, expect_shrink, expect_change
                     )
                 finally:
                     parent.close()
@@ -526,7 +551,7 @@ def main(argv: list[str] | None = None) -> int:
             parent = connect(args.parent)
             try:
                 accept, results, reasons = evaluate(
-                    parent, candidate, data["questions"], expect, expect_shrink
+                    parent, candidate, data["questions"], expect, expect_shrink, expect_change
                 )
             finally:
                 parent.close()
@@ -542,6 +567,7 @@ def main(argv: list[str] | None = None) -> int:
         "question_set_version": data.get("version", 1),
         "expect_improve": sorted(expect),
         "expect_shrink": sorted(expect_shrink),
+        "expect_change": sorted(expect_change),
         "accept": accept,
         "reasons": reasons,
         "questions": results,
