@@ -61,7 +61,7 @@ def test_apply_rows_idempotent():
         "create table company_metrics (id integer primary key, entity text,"
         " metric_label text, value_raw text, value_num real, unit text,"
         " period text, source_ref text not null, source_tier text,"
-        " properties text)"
+        " properties text, consolidated integer)"
     )
     rows = nx.filing_to_rows(FakeFiling(), "Reliance Industries")
     n1 = nx.apply_rows(conn, rows)

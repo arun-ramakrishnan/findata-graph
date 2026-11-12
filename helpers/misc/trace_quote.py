@@ -54,9 +54,12 @@ from collections.abc import Sequence
 from typing import Any
 
 import duckdb
-from helpers.core.duckdb_shared import memory_cap_config  # noqa: E402
 
 REPO = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(REPO))
+
+from helpers.core.duckdb_shared import memory_cap_config  # noqa: E402
+
 DB_PATH = REPO / "memory" / "data" / "agent_traces.duckdb"
 HARNESSES = ("prime", "opencode", "zcode")
 

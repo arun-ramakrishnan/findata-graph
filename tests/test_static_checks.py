@@ -1886,12 +1886,7 @@ def test_live_list_marker_on_one_bullet_does_not_excuse_another(tmp_path, monkey
 # --------------------------------------------------------------------------- #
 def test_loop_invariant_set_recomputation_flagged(tmp_path, monkeypatch):
     """set() on an operand bound outside the loop is advisory-flagged."""
-    src = (
-        "def f(names, m):\n"
-        "    for k in m:\n"
-        "        s = set(names.split())\n"
-        "        del s\n"
-    )
+    src = "def f(names, m):\n    for k in m:\n        s = set(names.split())\n        del s\n"
     (tmp_path / "probe.py").write_text(src, encoding="utf-8")
     monkeypatch.setattr(sc, "REPO_ROOT", tmp_path)
     fatal, advisory = sc.check_loop_invariant_recomputation()
@@ -1920,12 +1915,7 @@ def test_loop_invariant_recompile_flagged(tmp_path, monkeypatch):
 
 def test_loop_variable_operand_not_flagged(tmp_path, monkeypatch):
     """Operands bound inside the loop (e.g. the loop var) are legitimate."""
-    src = (
-        "def f(m):\n"
-        "    for k in m:\n"
-        "        s = set(k.split())\n"
-        "        del s\n"
-    )
+    src = "def f(m):\n    for k in m:\n        s = set(k.split())\n        del s\n"
     (tmp_path / "probe.py").write_text(src, encoding="utf-8")
     monkeypatch.setattr(sc, "REPO_ROOT", tmp_path)
     fatal, advisory = sc.check_loop_invariant_recomputation()

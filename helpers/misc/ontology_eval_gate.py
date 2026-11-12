@@ -354,7 +354,7 @@ def load_questions(path: Path) -> dict:
     return data
 
 
-def _evaluate_one(
+def _evaluate_one(  # noqa: C901  # one verdict ladder (declared/change/shrink comparisons); the branches ARE the contract
     parent: sqlite3.Connection,
     candidate: sqlite3.Connection,
     q: dict,
@@ -472,7 +472,7 @@ def rebaseline(candidate: sqlite3.Connection, questions_path: Path, data: dict, 
     return data
 
 
-def main(argv: list[str] | None = None) -> int:
+def main(argv: list[str] | None = None) -> int:  # noqa: C901  # one CLI surface (declarations + diff + report)
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--parent", type=Path, help="parent (pre-change) DB copy")
     parser.add_argument(

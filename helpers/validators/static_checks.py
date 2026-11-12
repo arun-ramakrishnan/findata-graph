@@ -24,6 +24,7 @@ Usage:
 from __future__ import annotations
 
 import ast
+from collections.abc import Sequence
 import io
 import os
 import py_compile
@@ -2024,22 +2025,18 @@ def check_route_skeleton() -> tuple[list[str], list[str]]:
 _LOOP_INVARIANT_FUNCS = ("set", "frozenset")
 
 
-def _is_loop_invariant_call(node: ast.AST) -> bool:
+def _is_loop_invariant_call(node: ast.AST) -> ast.Call | None:
     if not isinstance(node, ast.Call):
-        return False
+        return None
     func = node.func
     if isinstance(func, ast.Name):
-        return func.id in _LOOP_INVARIANT_FUNCS
+        return node if func.id in _LOOP_INVARIANT_FUNCS else None
     if isinstance(func, ast.Attribute):
         if func.attr == "split":
-            return True
-        if (
-            func.attr == "compile"
-            and isinstance(func.value, ast.Name)
-            and func.value.id == "re"
-        ):
-            return True
-    return False
+            return node
+        if func.attr == "compile" and isinstance(func.value, ast.Name) and func.value.id == "re":
+            return node
+    return None
 
 
 def _collect_bound_names(stmts: list[ast.stmt]) -> set[str]:
@@ -2072,7 +2069,7 @@ def _free_arg_names(call: ast.Call, bound: set[str]) -> set[str]:
 
 
 def _explore_loop_bodies(
-    items: list[ast.stmt], bound: set[str], hits: list[tuple[int, str]]
+    items: Sequence[ast.AST], bound: set[str], hits: list[tuple[int, str]]
 ) -> None:
     for node in items:
         if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.Lambda)):
@@ -2080,16 +2077,17 @@ def _explore_loop_bodies(
         if isinstance(node, ast.For):
             b = bound | _collect_bound_names(node.body) | _for_target_names(node)
             _explore_loop_bodies(node.body, b, hits)
-        elif _is_loop_invariant_call(node):
-            free = _free_arg_names(node, bound)
-            if free:
-                hits.append((node.lineno, ", ".join(sorted(free))))
         else:
-            for child in ast.iter_child_nodes(node):
-                _explore_loop_bodies([child], bound, hits)
+            call = _is_loop_invariant_call(node)
+            if call is not None:
+                free = _free_arg_names(call, bound)
+                if free:
+                    hits.append((call.lineno, ", ".join(sorted(free))))
+        for child in ast.iter_child_nodes(node):
+            _explore_loop_bodies([child], bound, hits)
 
 
-def _collect_for_nodes(items: list[ast.stmt], out: list[ast.For]) -> None:
+def _collect_for_nodes(items: Sequence[ast.AST], out: list[ast.For]) -> None:
     """All ``for`` nodes anywhere in a module (including inside function bodies)."""
     for node in items:
         if isinstance(node, ast.For):
@@ -2097,7 +2095,9 @@ def _collect_for_nodes(items: list[ast.stmt], out: list[ast.For]) -> None:
         _collect_for_nodes(list(ast.iter_child_nodes(node)), out)
 
 
-def check_loop_invariant_recomputation(scope: set[Path] | None = None) -> tuple[list[str], list[str]]:
+def check_loop_invariant_recomputation(
+    scope: set[Path] | None = None,
+) -> tuple[list[str], list[str]]:
     """ADVISORY: flag set()/split()/re.compile() calls whose operands are loop-invariant.
 
     A call inside a for-loop that references only names bound outside the loop
@@ -2116,7 +2116,7 @@ def check_loop_invariant_recomputation(scope: set[Path] | None = None) -> tuple[
     for p in files:
         try:
             tree = ast.parse(p.read_text(encoding="utf-8"))
-        except (OSError, SyntaxError):
+        except OSError, SyntaxError:
             continue
         fors: list[ast.For] = []
         _collect_for_nodes(tree.body, fors)

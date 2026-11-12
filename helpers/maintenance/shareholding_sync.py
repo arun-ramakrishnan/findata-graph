@@ -1146,7 +1146,7 @@ def reconcile_majority_ownership(  # noqa: C901
 # --------------------------------------------------------------------------- #
 # CLI
 # --------------------------------------------------------------------------- #
-def _resolve_companies(src: duckdb.DuckDBPyConnection, conn: sqlite3.Connection) -> dict[str, str]:
+def _resolve_companies(src: duckdb.DuckDBPyConnection, conn: sqlite3.Connection) -> dict[str, str]:  # noqa: C901  # one resolution ladder (listings -> ticker bridge -> name fallback); splitting scatters the precedence order
     # the XBRL Symbol identifier carries either an NSE trading symbol or
     # a BSE scrip code (both seen live) — resolve against both exchanges.
     # A symbol can carry several listing-name variants (NSE canonical,

@@ -3445,8 +3445,20 @@ def _shortest_path_cte(
             f" AND (ge.valid_from IS NULL OR ge.valid_from <= '{iso}')"
             f" AND (ge.valid_to IS NULL OR ge.valid_to >= '{iso}')"
         )
+    # The walk edges are MATERIALISED into a CTE before the recursion.
+    # Inline (`JOIN (<union>) ge`) made DuckDB 2.0.0 raise an INTERNAL
+    # "dict-surviving cache: global dictionary column 0 changed identity"
+    # error once the attached SQLite grew past ~60k graph_edges rows
+    # (observed on the 2026-11-12 store; older restores pass). The
+    # materialised form keeps the same rows and the same temporal /
+    # edge_type filters, and also stops the attached SQLite being
+    # re-scanned on every recursion step.
     query = f"""
-    WITH RECURSIVE walk(node, depth, path) AS (
+    WITH RECURSIVE
+      walk_edges AS MATERIALIZED (
+{_walk_edges_sql(con)}
+      ),
+      walk(node, depth, path) AS (
         SELECT name, 0, name AS path
         FROM fin.entities
         WHERE name = {_lit(src)}
@@ -3457,7 +3469,7 @@ def _shortest_path_cte(
             w.path || '||' ||
               CASE WHEN ge.source = w.node THEN ge.target ELSE ge.source END
         FROM walk w
-        JOIN ({_walk_edges_sql(con)}) ge
+        JOIN walk_edges ge
           ON (ge.source = w.node OR ge.target = w.node){edge_type_clause}{temporal_clause}
         WHERE w.depth < {int(max_hops)}
           -- Cycle guard (Bundle F1): token-exact membership test, NOT a

@@ -11,9 +11,13 @@ import sys
 from pathlib import Path
 
 import duckdb
+
+REPO = Path(__file__).resolve().parents[2]
+if str(REPO) not in sys.path:
+    sys.path.insert(0, str(REPO))
+
 from helpers.core.duckdb_shared import memory_cap_config  # noqa: E402
 
-REPO = Path("/home/arun/Research/findata-graph")
 DB_PATH = REPO / "memory" / "data" / "agent_traces.duckdb"
 AGENT_TRACES = REPO / "helpers" / "analytics" / "agent_traces.py"
 

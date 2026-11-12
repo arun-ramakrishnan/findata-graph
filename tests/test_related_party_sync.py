@@ -1506,6 +1506,70 @@ class TestSubjectAttribution:
         # drops and is COUNTED, never silently skipped
         assert (n_su, written) == (1, 0)
 
+    def test_case_variant_of_a_name_minted_in_this_run_resolves_to_it(self, lane):
+        """A spelling variant of a name minted EARLIER IN THE SAME run must
+        resolve to that entity, not mint a twin row.
+
+        The 2026-11-11 replay minted 402 case-variant duplicate entities
+        ('AAROHI SOLAR' beside 'Aarohi Solar') because the within-run mint
+        index was keyed by the exact display string: the registry folds
+        case variants of PRE-EXISTING entities, but a name minted earlier in
+        the same run was invisible to it.
+        """
+        con, conn = lane
+        _seed_rpt(
+            con,
+            [
+                (
+                    "AROHI",
+                    "Aarohi Solar Limited",
+                    "X Counter Ltd",
+                    "Subsidiary",
+                    "Group Companies",
+                    "Sale of goods or services",
+                    "10",
+                    "31-MAR-2026",
+                    "2026-03-31",
+                    "https://x/10.xml",
+                ),
+                (
+                    "AROHI",
+                    "AAROHI SOLAR LIMITED",
+                    "Y Counter Ltd",
+                    "Subsidiary",
+                    "Group Companies",
+                    "Sale of goods or services",
+                    "20",
+                    "31-MAR-2025",
+                    "2025-03-31",
+                    "https://x/11.xml",
+                ),
+            ],
+        )
+        companies = {"AROHI": "Aarohi Parent"}
+        norm = {"AAROHI_PARENT": "Aarohi Parent"}
+        pairs = rps.build_pairs(con)
+        n_ent, _ne, written, _u, _c, _nc, _su, _vd = rps.apply_pairs(
+            conn, pairs, companies, norm, dry_run=False
+        )
+        # ONE subject (the first spelling) + two counters = 3 new entities
+        assert n_ent == 3
+        assert written == 2
+        # 'Subsidiary' is sub_fwd: the counter is the child (source), the
+        # disclosed subject is the parent (target) — and BOTH rows point at
+        # the single minted subject, never at a case-variant twin.
+        tgts = [r[0] for r in conn.execute("SELECT target FROM graph_edges").fetchall()]
+        assert len(tgts) == 2
+        assert len(set(tgts)) == 1  # ONE entity, not a case-variant twin
+        assert set(tgts) <= {"Aarohi Solar", "AAROHI SOLAR"}
+        minted = [
+            r[0]
+            for r in conn.execute(
+                "SELECT name FROM entities WHERE name LIKE 'Aarohi%' OR name LIKE 'AAROHI%'"
+            ).fetchall()
+        ]
+        assert len(minted) == 1
+
     def test_purge_rpt_edges_dry_run_then_apply(self, lane):
         con, conn = lane
         conn.executemany(

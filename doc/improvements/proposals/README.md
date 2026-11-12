@@ -37,7 +37,14 @@ entry number and stale DONE pointers):
    repointed 16 dead sites).
 
 ## Current live proposals
-*(none)*
+
+- *(filed 2026-11-12)* — `group_membership_compaction`
+  (graph/, filed 2026-11-12 —
+  `graph/group_membership_compaction.md`). Compact vigil group-hyperedge
+  membership (962 stale incidences, 240 `n_members` mismatches) and purge
+  the 334 stranded-orphan tail the 2026-11-12 bounded cleanup left behind;
+  adds the first group-membership gate pins. Evidence in
+  `bench_data/orphan_cleanup/`.
 
 - *(archived 2026-11-12)* — `canonical_name_resolution`
   (graph/, filed + executed 2026-11-12, #509 —

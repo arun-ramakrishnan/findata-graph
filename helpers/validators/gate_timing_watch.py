@@ -69,7 +69,9 @@ def _load_history(
 
         from helpers.core.duckdb_shared import memory_cap_config
 
-        con = connect_with_lock_retry(lambda: duckdb.connect(str(db), read_only=True, **memory_cap_config()))
+        con = connect_with_lock_retry(
+            lambda: duckdb.connect(str(db), read_only=True, **memory_cap_config())
+        )
     except Exception as exc:
         print(f"gate-timing-watch: SKIP - index unreadable ({type(exc).__name__}: {exc})")
         return None

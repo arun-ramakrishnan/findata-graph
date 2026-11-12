@@ -285,6 +285,18 @@ def _answer_ultimate_parent(con: duckdb.DuckDBPyConnection, params: dict) -> lis
     return sorted({row[0] for row in rows})
 
 
+# competitive_overlap counterpart pairs (both directions of a/b/c) as
+# LITERAL SQL — no identifier interpolation, so the S608 audit stays clean.
+_OVERLAP_PAIRS_SQL = (
+    "SELECT b FROM sqlite__competitive_overlap WHERE a = ?",
+    "SELECT c FROM sqlite__competitive_overlap WHERE a = ?",
+    "SELECT a FROM sqlite__competitive_overlap WHERE b = ?",
+    "SELECT c FROM sqlite__competitive_overlap WHERE b = ?",
+    "SELECT a FROM sqlite__competitive_overlap WHERE c = ?",
+    "SELECT b FROM sqlite__competitive_overlap WHERE c = ?",
+)
+
+
 def _answer_insight_counterparts(con: duckdb.DuckDBPyConnection, params: dict) -> list[str]:
     kind, subject = params.get("kind"), params.get("subject")
     if kind not in ("hidden_connections", "supply_chokepoints", "competitive_overlap"):
@@ -302,17 +314,7 @@ def _answer_insight_counterparts(con: duckdb.DuckDBPyConnection, params: dict) -
         ).fetchall()
         return sorted({row[0] for row in rows})
     if kind == "competitive_overlap":
-        sql = " UNION ".join(
-            f"SELECT {col} FROM sqlite__competitive_overlap WHERE {side} = ?"
-            for side, col in (
-                ("a", "b"),
-                ("a", "c"),
-                ("b", "a"),
-                ("b", "c"),
-                ("c", "a"),
-                ("c", "b"),
-            )
-        )
+        sql = " UNION ".join(_OVERLAP_PAIRS_SQL)
         rows = con.execute(sql, (subject,) * 6).fetchall()
         return sorted({row[0] for row in rows})
     out: set[str] = set()

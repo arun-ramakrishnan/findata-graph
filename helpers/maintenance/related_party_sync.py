@@ -505,7 +505,7 @@ def _resolve_party(  # noqa: C901  # the shared disclosed-party resolution ladde
     fold: dict[str, str],
     census_map: dict[str, str],
     existing: set[str],
-    new_entities: dict[str, str],
+    new_entities: dict[str, tuple[str, str]],
     *,
     max_new_entities: int,
 ) -> str | None:
@@ -518,17 +518,27 @@ def _resolve_party(  # noqa: C901  # the shared disclosed-party resolution ladde
 
     norm = _normalize(raw)
     hit = norm_to_name.get(norm.upper())
+    ck = name_key(FOOTNOTE_RE.sub("", raw.strip()))
     if hit is None:
-        ck = name_key(FOOTNOTE_RE.sub("", raw.strip()))
         hit = fold.get(ck) or census_map.get(ck)
     if hit is None:
         display = _safe_display(raw)
-        if display and display not in existing and display not in new_entities:
-            if len(new_entities) < max_new_entities:
-                new_entities[display] = norm
+        if display:
+            # Within-run mints are indexed by CENSUS KEY, not by display
+            # string: the registry (census_map) folds case/punctuation
+            # variants of every PRE-EXISTING entity, but a name minted
+            # earlier in THIS run was invisible to it, so a second spelling
+            # of the same name minted a duplicate entity row (the 2026-11-11
+            # replay minted 402 case-variant twins). First spelling wins,
+            # exactly like registry_index.
+            minted = new_entities.get(ck)
+            if minted is not None:
+                hit = minted[0]
+            elif display in existing:
                 hit = display
-        elif display in existing or display in new_entities:
-            hit = display
+            elif len(new_entities) < max_new_entities:
+                new_entities[ck] = (display, norm)
+                hit = display
     return hit
 
 
@@ -617,7 +627,7 @@ def apply_pairs(  # noqa: C901  # the filer/subject/counter/edge-class resolutio
         ):
             filer_ancestors.setdefault(p["symbol"], set()).add(_loose_key(p["counter"]))
     edges: list[dict] = []
-    new_entities: dict[str, str] = {}
+    new_entities: dict[str, tuple[str, str]] = {}
     unresolved_filers: set[str] = set()
     n_noncompany_dropped = 0
     n_subject_unresolvable = 0
@@ -853,7 +863,7 @@ def apply_pairs(  # noqa: C901  # the filer/subject/counter/edge-class resolutio
     n_written = 0
     if not dry_run:
         with conn:
-            for display, norm in new_entities.items():
+            for _key, (display, norm) in new_entities.items():
                 conn.execute(
                     "INSERT OR IGNORE INTO entities (name, entity_type, "
                     "normalized_name, file_path) VALUES (?, 'company', ?, NULL)",
