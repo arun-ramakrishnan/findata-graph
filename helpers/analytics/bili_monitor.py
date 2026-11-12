@@ -226,7 +226,6 @@ def main(argv: list[str]) -> int:  # noqa: C901 - one linear pass per tick
                                 "eras": row["eras"],
                                 "last": lu,
                             },
-                            separators=(",", ":"),
                         )
                         + "\n"
                     )

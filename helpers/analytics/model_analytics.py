@@ -1847,8 +1847,8 @@ def main() -> None:
         "--days",
         type=int,
         default=2,
-        help="incremental: refresh only the last N days, leaving older "
-        "rows untouched (default 2). Use --full for a complete reload.",
+        help="incremental: refresh today plus the previous N-1 days, leaving "
+        "older rows untouched (default 2). Use --full for a complete reload.",
     )
     lp.add_argument(
         "--full",
@@ -1907,7 +1907,7 @@ def main() -> None:
             for s in srcs:
                 started = datetime.now(UTC)
                 # incremental: refresh only recent days unless --full
-                since = date.today() - timedelta(days=args.days) if not args.full else None
+                since = date.today() - timedelta(days=args.days - 1) if not args.full else None
                 try:
                     _p0 = datetime.now(UTC)
                     n = LOADERS[s](con, since)
