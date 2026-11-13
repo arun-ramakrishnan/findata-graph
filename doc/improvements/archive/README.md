@@ -129,6 +129,21 @@ commit, referenced by nothing). Entry numbers point at
 - [`security_route_skeleton.md`](security/security_route_skeleton.md) — Route skeleton — `ast`-derived inventory of `app.py`'s 38 routes published to `doc/security/routes.json` and checked by `static_checks.py`; the emitted advisory is shape agreement, explicitly not a security verdict — completed.md #311
 
 ## graph/ — Graph layer — algorithms, DuckPGQ retirement, Onager, knowledge-model design
+- [`semantic_cluster_label_metric.md`](graph/semantic_cluster_label_metric.md) —
+  the 2026-11-12 semantic-cluster label metric arc (#513): e-means lane
+  `helpers/graph/semantic_clusters.py` (pinned seed/k/nepochs; lazy faiss-cpu;
+  fit 0.215s live, sector ARI 0.2401; 0.307 baseline not reproducible on current
+  store, re-anchored 0.21-0.24; family alignment ARI 0.056 confirms lens is
+  sector-anchored, not family-aware), `write_analytics` DuckDB UPSERT bug fix,
+  app wiring + pyproject `lens` optional group, gate ACCEPT 191/0.
+- [`group_discovery_scale_lane.md`](graph/group_discovery_scale_lane.md) —
+  the 2026-11-12 group-discovery scale-lane arc (#514): component inventory
+  `helpers/maintenance/group_discovery_inventory.py` (657 weak components over
+  13,233 companies), curated v6+v7 seeds (39 families / 2,439 members / 0
+  dropped; first-wave clean single-filer family + blob-core families;
+  PSU/JV/MNC-ARM/polysemy exclusions), gate ACCEPT 207/0 then 217/0, growth
+  monitor `group_discovery_growth_monitor.py` (S4), hyperedge co-occurrence
+  lens `hyperedge_cooccurrence_lens.py` (S5); blob triage recorded in proposal.
 - [`group_membership_compaction.md`](graph/group_membership_compaction.md) —
   the 2026-11-12 group-membership compaction arc (#512): compact_group_membership
   in derive_hyperedges.py (964 stale incidences dropped: 962 vigil + 2 $.group

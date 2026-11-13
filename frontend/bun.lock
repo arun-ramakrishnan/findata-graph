@@ -13,7 +13,7 @@
       },
       "devDependencies": {
         "esbuild": "0.28.1",
-        "prettier": "^3.10.0",
+        "prettier": "^3.10.1",
         "typescript": "7.0.2",
         "valibot": "^1.5.0",
       },
@@ -128,7 +128,7 @@
 
     "obliterator": ["obliterator@2.0.5", "https://registry.npmmirror.com/obliterator/-/obliterator-2.0.5.tgz", {}, "sha512-42CPE9AhahZRsMNslczq0ctAEtqk8Eka26QofnqC346BZdHDySk3LWka23LI7ULIw11NmltpiLagIq8gBozxTw=="],
 
-    "prettier": ["prettier@3.10.0", "https://registry.npmmirror.com/prettier/-/prettier-3.10.0.tgz", { "bin": { "prettier": "bin/prettier.cjs" } }, "sha512-mBi4765LgjO1PFjlEs7pUeK0nb1bw71c+N4/ItfeUWNdY5cV2pRKaFpbbFRYmDJMO+5ZwzGxHRqHxFZna7iv5w=="],
+    "prettier": ["prettier@3.10.1", "https://registry.npmmirror.com/prettier/-/prettier-3.10.1.tgz", { "bin": { "prettier": "bin/prettier.cjs" } }, "sha512-70vp3ZUYoPlFbF9uiTdXHUUCGEIp7d4+6p+8DYbkm2jP7x/3i/paXVF6dopSI3zd/CEitrZN1rc4i85xWmmXlg=="],
 
     "sigma": ["sigma@3.0.3", "https://registry.npmmirror.com/sigma/-/sigma-3.0.3.tgz", { "dependencies": { "events": "^3.3.0", "graphology-utils": "^2.5.2" } }, "sha512-5H0zFlx6/NTQpqBg4Rm569ZOpnBOXMaS25UQThIWMU3XyzI5AhmorK/gnl87BvJBLhQd0tW4C0LIp3enWzMoNw=="],
 

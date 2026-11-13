@@ -1,15 +1,15 @@
 ---
 title: "Add a semantic_cluster label metric (e-means over company_embeddings)"
-status: proposed
+status: executed
 filed: "2026-11-12"
-executed: null
-completed_md: null
+executed: "2026-11-12"
+completed_md: "513"
 area: "graph analytics (new lane helpers/graph/semantic_clusters.py; app.py label allowlists)"
 ---
 
 # Add a semantic_cluster label metric (e-means over company_embeddings)
 
-**Date:** 2026-11-12 · **Status:** PROPOSED ·
+**Date:** 2026-11-12 · **Status:** EXECUTED (2026-11-12, completed.md #513) ·
 **Area:** new CLI lane `helpers/graph/semantic_clusters.py`; `app.py` label
 allowlists; `graph_analytics` store (memory/research.db)
 

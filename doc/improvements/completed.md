@@ -15120,3 +15120,44 @@ refuted: 34a65547d only filed the proposal). Proposal doc/improvements/archive/g
 - Parity: answerability_probe --parity 0 mismatches after make snapshot refresh
   (snapshots/parquet/ + db-backup/*.zst + snapshots/hif/); 11 pre-refresh mismatches were the
   stale pre-v5 snapshot.
+
+## 513. Semantic-cluster label metric: e-means over company_embeddings
+
+Lane `helpers/graph/semantic_clusters.py` (pinned seed 42 / k 42 / nepochs 5 /
+batch_law throughput; lazy faiss-cpu import; `--apply` writes graph_analytics
+rows with payload pins). L2-normalized embeddings -> NumpyEmeans (faiss.contrib
+e_means; legacy clustering name gone in 1.16.0). Live: fit 0.215s, 42/42
+non-empty clusters, sector ARI 0.2401; 5-seed sweep 0.20-0.22 mean 0.212;
+the claimed 0.307 baseline was not reproducible on any current store state
+(pre-#507/#509 evidence) — re-anchored 0.21-0.24 and recorded. Family
+alignment experiment: ARI(semantic vs family_seeds) 0.056 (Tata scattered,
+0.19 majority share) — embedding lens does NOT see institutional families;
+sector stays canonical. Collateral fix: write_analytics
+(helpers/graph/algorithms.py:1286) DuckDB UPSERT bug (bare CURRENT_TIMESTAMP
+Binder error + Connection.__exit__ closing caller conns) fixed by binding
+`now` param + explicit commit. Gate ACCEPT 191/0 (report
+gate_accept_semantic_cluster_report.json). App wiring: _LABEL_GRAPH_METRICS
++ label_key map. faiss-cpu>=1.16.0 optional group added to pyproject.
+
+## 514. Group-discovery scale lane: component inventory for curated family seeds
+
+5 S: S1 inventory `helpers/maintenance/group_discovery_inventory.py` (read-only
+657 weak components over 13,233 company-company same_group dyads; profile:
+size/density/top_refs/sectors/family hits/merge flags; markdown+JSON; 3/3
+tests). S2 curated seeds: family_seeds.json v6 (+16 first-wave clean
+single-filer families, 30 families/2,009 members, 0 dropped) and v7
+(+9 blob-core families — Mahindra 64, Bharti 29, Vedanta 18, Reliance 67,
+SP Group 43, Torrent 48, Max 19, Jubilant 41, Leela 5 — and 2 extensions:
+Aditya Birla 4->68, JSW 5->37; 39 families/2,439 members; core = members in
+>=2 RPT labels of a cluster ∪ name-token matches). S3 gate pins:
+ontology_questions v15->v16 (207q, +16 pins) and v16->v18 (217q, +9 v7 pins
++ aditya-birla + refreshed jsw); gate ACCEPT 207/0 (v6) and 217/0 (v7, fresh
+21:45 parent snapshot). S4 growth monitor
+`helpers/maintenance/group_discovery_growth_monitor.py` (4/4 tests; first run:
+coverage 3,120->5,037, family hits +2,088, 9 new merge flags, topology stable
+657->657). S5 hyperedge co-occurrence lens
+`helpers/maintenance/hyperedge_cooccurrence_lens.py` (5/5 tests; group top
+overlaps recapitulate family structure; event/subsidiary/index hubs). Blob
+triage of the 5 largest components recorded in proposal §4. Exclusions: PSU/
+state, JVs, foreign MNC arms, polysemy (DCM Shriram), evidence-less
+singletons. Current curated family:Tata stays 230 (operator decision).

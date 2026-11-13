@@ -38,14 +38,14 @@ entry number and stale DONE pointers):
 
 ## Current live proposals
 
-- *(filed 2026-11-12)* — `semantic_cluster_label_metric`
-  (graph/, filed 2026-11-12 —
+- *(archived 2026-11-12)* — `semantic_cluster_label_metric`
+  (graph/, filed 2026-11-12, executed 2026-11-12, completed.md #513 —
   `graph/semantic_cluster_label_metric.md`). Add a semantic_cluster
   label metric — e-means (faiss contrib) over the 1,209×512
-  company_embeddings as a taxonomy-drift instrument (sector ARI 0.307,
-  NMI ceiling 0.537; optional faiss-cpu dep, pinned seed/k/nepochs).
-  Evidence in `doc/local/engineering/emeans_algorithm.md`
-  (machine-local), §4–§5.
+  company_embeddings as a taxonomy-drift instrument (live sector ARI
+  0.2401, re-anchored 0.21–0.24; NMI ceiling 0.537; optional faiss-cpu
+  dep, pinned seed/k/nepochs). Evidence in
+  `doc/local/engineering/emeans_algorithm.md` (machine-local), §4–§5.
 
 - *(archived 2026-11-12)* — `name_token_family_seed_lane`
   (graph/, filed 2026-11-12, executed 2026-11-12, completed.md #510 —
@@ -55,6 +55,16 @@ entry number and stale DONE pointers):
   `family_seeds.json` sink; vector-space detection measured and rejected
   (4.8×, blind on 99.4% of subsidiary_of edges). Evidence in
   `doc/local/engineering/emeans_algorithm.md` (machine-local), §9.
+
+- *(archived 2026-11-12)* — `group_discovery_scale_lane`
+  (graph/, filed 2026-11-12, executed 2026-11-12, completed.md #514 —
+  `../archive/graph/group_discovery_scale_lane.md`). Component inventory +
+  curated family seeds at corpus scale: 657 weak components over 13,233
+  company-company same_group dyads; v6 first-wave (16 clean single-filer
+  families) + v7 blob-core families (9 new + 2 extensions; 39 families /
+  2,439 members / 0 dropped); gate ACCEPT 207/0 then 217/0; growth
+  monitor + hyperedge co-occurrence lens. Evidence in
+  `bench_data/group_discovery_inventory/` and `bench_data/hyperedge_cooccurrence/`.
 
 - *(archived 2026-11-12)* — `group_membership_compaction`
   (graph/, filed + executed 2026-11-12, completed.md #512 —
