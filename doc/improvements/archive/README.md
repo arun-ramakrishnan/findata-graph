@@ -129,6 +129,36 @@ commit, referenced by nothing). Entry numbers point at
 - [`security_route_skeleton.md`](security/security_route_skeleton.md) — Route skeleton — `ast`-derived inventory of `app.py`'s 38 routes published to `doc/security/routes.json` and checked by `static_checks.py`; the emitted advisory is shape agreement, explicitly not a security verdict — completed.md #311
 
 ## graph/ — Graph layer — algorithms, DuckPGQ retirement, Onager, knowledge-model design
+- [`mnc_arm_lane.md`](graph/mnc_arm_lane.md) —
+  curated `mnc:<parent>` lens for foreign-multinational arms keyed on
+  disclosure filers (mnc_dyad_pass 29 symbols → 25 matched / 1,919
+  members; mnc_seeds.json + derive_hyperedges S12 lane; relabels:
+  HINDUNILVR/COLPAL → Unilever/Colgate-Palmolive, CIE Automotive →
+  family:Mahindra; 25 hyper-mnc pins; gates 242/240/239q ACCEPT) —
+  completed.md #517
+- [`tata_seed_coverage_invariant.md`](graph/tata_seed_coverage_invariant.md) —
+  the 2026-11-13 Tata seed coverage arc (#516): corrected context-scoped
+  probe refuted the flawed seed-constrained maximality probe (24
+  context-multi members outside the seed; 8 Tata-root-token members
+  operator-approved → family_seeds v8, Tata 230 → 238; 16 non-token
+  suppliers/JV names advisory never seeded) + guard
+  `helpers/maintenance/family_label_coverage_check.py` (violations =
+  context-multi + root token missing from seed; advisory = context-multi
+  no token), blocking qa step `family-label-coverage` (run_gate_report.py
+  :286) documented in gates.md; live `--check` PASS 0 violations / 16
+  advisory; tests 9/9, suites 59/59.
+- [`foreign_links_mapping_lane.md`](graph/foreign_links_mapping_lane.md) —
+  the 2026-11-13 foreign-links mapping arc (#515): probe
+  `foreign_name_isin_probe.py` (foreign masters 23,190; ISIN only
+  BSE/NSE/HKEX/TWSE) + generator `foreign_links_generate.py` (strict = exact
+  or fuzzy ≥0.80, review 0.66–0.79; ADR primary-listing preference — US
+  NASDAQ/NYSE line is a listing path, demoted to aliases when a home-market
+  primary exists; US rows checked only against home-primary entities) +
+  curated `helpers/misc/foreign_links.json` + apply lane
+  `foreign_links_apply.py` (ticker → alias, ISIN → isin, namespace = exchange,
+  source_ref `foreign_links_lane`); 46 rows applied / 31 entities / 8
+  namespaces, 0 conflicts, idempotent; coverage 31/150 (remainder
+  unlisted/private/not-in-master). Tests 24/24.
 - [`semantic_cluster_label_metric.md`](graph/semantic_cluster_label_metric.md) —
   the 2026-11-12 semantic-cluster label metric arc (#513): e-means lane
   `helpers/graph/semantic_clusters.py` (pinned seed/k/nepochs; lazy faiss-cpu;
@@ -723,6 +753,13 @@ commit, referenced by nothing). Entry numbers point at
 - [`refresh_chain_parallel.md`](pipeline/refresh_chain_parallel.md) — Refresh chain, parallel — fetch/apply split so independent sources overlap; per-lane `--fetch-only` stages writing scratch JSON under `$TMPDIR/findata-graph/`, parallel phase A, sequential store applies under per-store lock, per-item failure containment; `refresh-chain` Makefile target (default), `refresh-chain-ser` for the original sequential chain — completed.md #403
 
 ## tooling/ — Tooling & performance — MCP eval, doc browser/search, perf review, tech survey
+- [`group_growth_gate.md`](tooling/group_growth_gate.md) —
+  growth monitor promoted to blocking qa leg `group-growth-check`:
+  `gate_check` fails on family-hit loss / removed merge flags / gone
+  family-bearing component / empty dyads; tracked reference
+  group_discovery_reference.json (post-v7: 657 components / 13,233
+  companies / 2,428 family hits) moved deliberately with seed edits —
+  completed.md #518
 - [`perf_quick_wins_json_dumps_regex_hoist.md`](tooling/perf_quick_wins_json_dumps_regex_hoist.md) —
   residual stdlib `json.dumps` → orjson (`jsonio.dumps`) at mass-lane sites
   (agent_traces ×5 + summary print, bili_tier_watch, bili_tunewatch,

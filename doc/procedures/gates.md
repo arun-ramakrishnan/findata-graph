@@ -132,6 +132,17 @@ offending site. Its analogue for perf regressions is `make mojo-bench`
 (still a separate, non-blocking surface; also FROZEN 2026-10-26 —
 manual runs only).
 
+The qa battery also runs a **`group-growth-check`** leg (group_growth_gate,
+2026-11-13): the group-discovery growth monitor in `--check` mode against
+the tracked reference `helpers/maintenance/group_discovery_reference.json`
+(post-v7, 657 components). It fails only on erosion of the curated-group
+signal — family-hit loss, removed merge flags, a gone component hosting
+curated family members, or an empty dyad set — and reports growth/new
+components without failing. Intended family-structure changes (e.g. seed
+edits) must move the reference deliberately in the same change
+(`--refresh-reference`), the same doctrine as the ontology-questions
+rebaseline.
+
 qa also runs a **`schema-check`** leg — tracked `schema/` DDL vs the live
 `memory/` DBs, exit 1 on drift, fix is `make schema-dump` — and advisory
 runs four security/compliance legs: `secret-scan` (incremental git-history

@@ -1256,31 +1256,33 @@ def collect_rpt_disclosure_sets(
 # --------------------------------------------------------------------------- #
 
 FAMILY_SEEDS_PATH = Path(__file__).resolve().parents[1] / "misc" / "family_seeds.json"
+MNC_SEEDS_PATH = Path(__file__).resolve().parents[1] / "misc" / "mnc_seeds.json"
 COUNTERPARTY_ALIASES_PATH = (
     Path(__file__).resolve().parents[1] / "misc" / "counterparty_aliases.json"
 )
 FAMILY_LABEL_PREFIX = "family:"
+MNC_LABEL_PREFIX = "mnc:"
 
 
-def collect_family_seeds(seed_path: Path | None = None) -> dict[str, set[str]]:
-    """Load the curated family lane into ``{label: members}``.
+def _collect_seed_lane(path: Path, prefix: str, lane_name: str) -> dict[str, set[str]]:
+    """Load a curated seed lane file into ``{label: members}``.
 
-    Seed file (helpers/misc/family_seeds.json) maps ``family`` ->
-    ``members[]``; labels are namespaced ``family:<name>`` so they cannot
-    collide with the disclosure lane (``vigil:rpt:<SYMBOL>``) or the
+    Shared by the family lane (``family:<name>``) and the MNC arm lane
+    (``mnc:<parent>``). Seed file JSON shape: ``{"families": [{"family":
+    name, "members": [...]}]}``; labels are namespaced per lane so they
+    cannot collide with the disclosure lane (``vigil:rpt:<SYMBOL>``) or the
     curated ``$.group`` dyad sets (bare names). Same return shape as
     :func:`collect_rpt_disclosure_sets` groups for the ``hyper["group"]``
     merge. A missing file is an empty lane (fresh/test trees); a malformed
     file is a hard error (curation is a tracked edit — fail loudly).
     """
-    path = seed_path or FAMILY_SEEDS_PATH
     try:
         doc = json.loads(path.read_text())
     except FileNotFoundError:
         return {}
     families = doc.get("families")
     if not isinstance(families, list):
-        raise ValueError(f"family seed file {path}: 'families' must be a list")
+        raise ValueError(f"{lane_name} seed file {path}: 'families' must be a list")
     out: dict[str, set[str]] = {}
     for entry in families:
         name = entry.get("family")
@@ -1293,14 +1295,24 @@ def collect_family_seeds(seed_path: Path | None = None) -> dict[str, set[str]]:
             or not all(isinstance(m, str) and m.strip() for m in members)
         ):
             raise ValueError(
-                f"family seed file {path}: bad entry {entry!r} "
+                f"{lane_name} seed file {path}: bad entry {entry!r} "
                 "(need family + non-empty members[] of strings)"
             )
-        label = FAMILY_LABEL_PREFIX + name
+        label = prefix + name
         if label in out:
-            raise ValueError(f"family seed file {path}: duplicate family {name!r}")
+            raise ValueError(f"{lane_name} seed file {path}: duplicate family {name!r}")
         out[label] = {m.strip() for m in members}
     return out
+
+
+def collect_family_seeds(seed_path: Path | None = None) -> dict[str, set[str]]:
+    """Load the curated family lane (``family:<name>``)."""
+    return _collect_seed_lane(seed_path or FAMILY_SEEDS_PATH, FAMILY_LABEL_PREFIX, "family")
+
+
+def collect_mnc_seeds(seed_path: Path | None = None) -> dict[str, set[str]]:
+    """Load the curated MNC arm lane (``mnc:<parent>``)."""
+    return _collect_seed_lane(seed_path or MNC_SEEDS_PATH, MNC_LABEL_PREFIX, "mnc")
 
 
 def validate_family_seeds(
@@ -1576,7 +1588,11 @@ def compact_group_membership(
     """
     pruned = 0
     for label, members in groups.items():
-        if label.startswith(FAMILY_LABEL_PREFIX) or not members:
+        if (
+            label.startswith(FAMILY_LABEL_PREFIX)
+            or label.startswith(MNC_LABEL_PREFIX)
+            or not members
+        ):
             continue
         edge = conn.execute(
             "SELECT id FROM hyper_edges WHERE edge_type = 'group' AND label = ?",
@@ -1858,6 +1874,27 @@ def _cli(argv: list[str] | None = None) -> int:  # noqa: C901  # arg-dispatch CL
                 + (f"; unresolved dropped: {family_dropped}" if n_family_dropped else "")
             )
 
+        # S12 MNC arm lane (mnc_arm_lane proposal): foreign-parent filer arms
+        # under ``mnc:<parent>`` labels — same validate/drop semantics as S6,
+        # separate namespace so family and MNC labels cannot collide. Members
+        # come from the curated helpers/misc/mnc_seeds.json manifest
+        # (generated from the read-only MNC pass).
+        mnc_groups = collect_mnc_seeds()
+        if mnc_groups:
+            mnc_groups, mnc_dropped = validate_family_seeds(mnc_groups, valid)
+            if mnc_groups:
+                merged_mnc = dict(hyper.get("group", {}))
+                for label, members in mnc_groups.items():
+                    merged_mnc.setdefault(label, set()).update(members)
+                hyper["group"] = merged_mnc
+            n_mnc_members = sum(len(m) for m in mnc_groups.values())
+            n_mnc_dropped = sum(len(v) for v in mnc_dropped.values())
+            print(
+                f"S12 MNC seeds: {len(mnc_groups)} curated MNC arm set(s) "
+                f"widening `group` ({n_mnc_members} member(s))"
+                + (f"; unresolved dropped: {mnc_dropped}" if n_mnc_dropped else "")
+            )
+
         # D7 authored lane: `subsector:` note field is canonical per company.
         # D11 operator lane: the version-controlled COMPANY_SUB_SECTORS map
         # rides the same precedence (map wins on conflict — no note writes).
@@ -2003,9 +2040,7 @@ def _cli(argv: list[str] | None = None) -> int:  # noqa: C901  # arg-dispatch CL
                 if compacted:
                     print(f"S1 group-membership compaction: {compacted} stale incidence(s) dropped")
             elif hyper.get("group"):
-                would_compact = compact_group_membership(
-                    conn, hyper.get("group", {}), dry_run=True
-                )
+                would_compact = compact_group_membership(conn, hyper.get("group", {}), dry_run=True)
                 if would_compact:
                     print(
                         f"S1 group-membership compaction: {would_compact} stale "

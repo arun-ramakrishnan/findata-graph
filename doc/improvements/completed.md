@@ -15161,3 +15161,90 @@ overlaps recapitulate family structure; event/subsidiary/index hubs). Blob
 triage of the 5 largest components recorded in proposal §4. Exclusions: PSU/
 state, JVs, foreign MNC arms, polysemy (DCM Shriram), evidence-less
 singletons. Current curated family:Tata stays 230 (operator decision).
+
+## 515. Foreign links mapping lane: international entities ↔ xchanges masters
+
+Foreign-identifier lane over the international universe (150 tagged entities):
+S1 probe `helpers/maintenance/foreign_name_isin_probe.py` (foreign masters
+23,190; ISIN only on BSE/NSE/HKEX/TWSE; 76 exact + 46 fuzzy ≥0.66). S2
+generator `helpers/maintenance/foreign_links_generate.py` — tier policy exact
+or fuzzy ≥0.80 strict, 0.66–0.79 review-only; ADR primary-listing preference
+(a US NASDAQ/NYSE line is a listing path, not the canonical home listing:
+home-market primary wins, US line demoted to `links_aliases.json`; US rows
+checked only against entities with a home primary — never the whole universe,
+so generic US master names cannot leak into review). Live: 44 primary rows /
+31 entities (3 with ISIN), 5 ADR aliases demoted (CGI GIB, Diageo DEO, Merck
+MRK, Prudential PUK, Shopify SHOP), 2 review-only. S3 curated
+`helpers/misc/foreign_links.json` + `helpers/maintenance/foreign_links_apply.py`
+(ticker → identifier_type `alias`, namespace = exchange; ISIN → `isin`;
+conflict-checked, idempotent INSERT OR IGNORE, dry-run default,
+source_ref `foreign_links_lane`): 46 rows applied across 31 entities / 8
+namespaces, 1 pre-existing exchange_sync duplicate skipped, 0 conflicts, re-run
+inserts 0. Coverage 31/150 (remainder unlisted/private/not-in-master — noted
+ceiling). Tests 24/24 (generator 12 incl ADR demotion + `_is_adr_name`,
+probe 4, apply 7, tag 3).
+
+## 516. Tata seed coverage invariant: filer-label maximality guard + v8 seed expansion
+
+Filer-label maximality guard for complete families. Probe history: the
+seed-constrained probe wrongly concluded maximality (union 230, 0 candidates
+— self-answering); the corrected context-scoped probe found 24 context-multi
+members outside the seed across the 17 Tata-context filer labels, 8 carrying
+a Tata root token (tata/taj/trent/titan/voltas) — operator approved all 8
+(family_seeds v8: TATA ELECTRONICS SYSTEMS SOLUTIONS, Taj Enterprises,
+Taj GVK Hotels And Resorts, Taj International Hotels, Tata Cleantech Capital,
+Tata Consultancy Services UK, Tata Value Homes, Trent Hypermarket; 230 → 238;
+16 non-token suppliers/JV names advisory, never seeded). Guard
+`helpers/maintenance/family_label_coverage_check.py` (read-only census:
+violations = context-multi ≥2 filer labels + root token and missing from
+seed; advisory = context-multi without token; `family:*`/`$.group` labels
+excluded; `--families` override, `all` scope): tests 9/9. Wired as blocking
+qa step `family-label-coverage` (tests/run_gate_report.py:286) + documented
+in doc/procedures/gates.md. Live: `--check` PASS (0 violations / 16
+advisory); questions v21 pin hyper-family-tata expected 238 = seeds = store
+incidences; validate_family_seeds 37 families / 2,336 members / 0 dropped;
+59/59 round suites. Reference-rot fix: v8 `_note` attribution + gate-runner
+comment restored to the proposal name.
+
+## 517. MNC arm lane: `mnc:<parent>` group hyperedges from foreign-parent filer labels
+
+Curated lens for foreign-multinational arms inside the dyad store. The
+`same_group` evidence keys on disclosure filers (`vigil:rpt:<SYMBOL>`), and
+25 of those filers are arms of foreign parents (Siemens, Schneider, Bosch,
+ABB, Unilever, Colgate-Palmolive, …) with no home in the Indian-promoter
+family lane; the operator ruled the MNC label is the useful classification
+even inside India (governance/accounting premium, run like their
+international parents). Read-only pass `helpers/maintenance/mnc_dyad_pass.py`
+(29 foreign-parent filer symbols → 25 matched / 1,919 members; profiles with
+density, subsidiary_of share, family-hit collisions, bridge labels) →
+`helpers/misc/mnc_seeds.json` v1 (25 families / 1,919 members, same schema as
+family_seeds) → derive_hyperedges S12 lane (`_collect_seed_lane` shared
+loader, `MNC_LABEL_PREFIX="mnc:"`, compact skip extended to `mnc:` labels) →
+25 `hyper-mnc-<slug>` ontology pins (questions v18 → v19, 242q). Relabels on
+operator evidence: HINDUNILVR/COLPAL moved from family lane to
+`mnc:Unilever plc` / `mnc:Colgate-Palmolive` (v9, 240q), CIE Automotive
+reclassified INTO `family:Mahindra` as M&M-flagship subsidiary — operator
+call on the subsidiary_of edge + 66.4% promoter holding — (mnc_seeds v2
+24/1,860; family:Mahindra 64 → 65; 239q; each move gate-ACCEPTed:
+242/240/239q, 0 reasons). Tests: mnc_dyad_pass 5, mnc_seeds_lane 7;
+69/69 across the lane suites.
+
+## 518. Gate-acceptance growth watch: block on curated-group signal erosion
+
+Growth monitor promoted to a blocking qa leg. The curated family/MNC seed
+lanes change the group hypergraph deliberately, but nothing failed when it
+changed *accidentally* — the ontology eval gate pins per-question answers
+yet never watches discovery topology. `group_discovery_growth_monitor.py`
+gained `gate_check(reference, current) -> (ok, reasons)`: fails on
+family-hit loss, removed merge flags, a gone component hosting curated
+family members, or an empty dyad set; growth/new components report without
+failing. Tracked reference
+`helpers/maintenance/group_discovery_reference.json` (post-v7: 657
+components / 13,233 companies / family hits 2,428) regenerated via
+`--refresh-reference` — intended seed-driven changes move the reference in
+the same change, the same doctrine as ontology rebaseline. Wired as qa step
+`group-growth-check` (tests/run_gate_report.py, after schema-check,
+blocking) + documented in doc/procedures/gates.md. Tests: 6 policy +
+wiring introspection (11/11 monitor suite; 42 across
+monitor/inventory/lens/gate-runner); live `--check` PASS (657 → 657,
+family-hit +0, sampled coverage 5,037 → 5,050).

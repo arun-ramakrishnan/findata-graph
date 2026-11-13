@@ -258,6 +258,39 @@ GATES: dict[str, Gate] = {
             # (tests/test_schema_drift.py) with no fix hint. Wired 2026-10-21
             # after the feature_evals arc paid for its absence.
             Step("schema-check", (_MAKE, "schema-check")),
+            # group_growth_gate: erosion watchdog for the curated-group lane
+            # (#514). Runs the inventory inline against the live DB and
+            # diffs the tracked reference (helpers/maintenance/
+            # group_discovery_reference.json). Fails only on erosion:
+            # family-hit loss, removed merge flags, a gone component hosting
+            # curated family members, or an empty dyad set. Intended
+            # family-structure changes move the reference deliberately
+            # (--refresh-reference) in the same change. Growth/new
+            # components are reported, never failed.
+            Step(
+                "group-growth-check",
+                (
+                    _PY,
+                    "helpers/maintenance/group_discovery_growth_monitor.py",
+                    "--check",
+                    "--db",
+                    "memory/research.db",
+                ),
+            ),
+            # tata_seed_coverage_invariant: filer-label maximality guard for
+            # complete families (family:Tata). Read-only census; fails only
+            # when a vigil:rpt:* label intersects a complete family without
+            # being contained in its seed. Non-filer labels are never
+            # evaluated; partial labels of non-complete families report
+            # only.
+            Step(
+                "family-label-coverage",
+                (
+                    _PY,
+                    "helpers/maintenance/family_label_coverage_check.py",
+                    "--check",
+                ),
+            ),
             # mojo-parity RETIRED from qa 2026-10-26 (Mojo freeze, operator
             # ruling: Mojo increasingly unviable). Nothing in production
             # consumes Mojo — the leg existed solely as the mirroring

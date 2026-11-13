@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 """Group-discovery growth monitor (S4 of group_discovery_scale_lane).
 
 Re-runs the inventory on a target store and diffs against a reference
@@ -21,7 +22,13 @@ The report includes:
 - seed-coverage delta (family-hit members);
 - per-size-band histogram delta (e.g. [2,4), [4,8), ...).
 
-Exit code 0 always (advisory tool).
+Gate mode (``--check``): exit 1 when the diff violates the erosion policy
+(see ``gate_check``) — family-hit loss, removed merge flags, a gone
+component hosting curated family members, or an empty current dyad set.
+Growth-only diffs report, never fail. ``--refresh-reference`` rewrites the
+tracked reference from the current run — the deliberate path for intended
+family-structure changes (do it in the same change as the seed edit).
+Default invocation (no ``--check``) stays advisory: prints and exits 0.
 """
 
 from __future__ import annotations
@@ -33,6 +40,15 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO_ROOT))
+
+from helpers.maintenance.group_discovery_inventory import (  # noqa: E402
+    _component_profile,
+    _components,
+    _load,
+    load_family_seeds,
+)
+
+DEFAULT_REFERENCE = REPO_ROOT / "helpers" / "maintenance" / "group_discovery_reference.json"
 
 
 def _band(size: int) -> str:
@@ -127,23 +143,16 @@ def compute(reference: list[dict], current: list[dict]) -> dict:
 
 def render(report: dict) -> str:
     lines = ["# Group-discovery growth monitor", ""]
-    lines.append(
-        f"- components: {report['reference_components']} → "
-        f"{report['current_components']}"
-    )
+    lines.append(f"- components: {report['reference_components']} → {report['current_components']}")
     lines.append(
         f"- companies in components (sampled): {report['reference_companies_sampled']} → "
         f"{report['current_companies_sampled']}"
     )
     lines.append(f"- family-hit delta: {report['family_hit_delta']:+d}")
     if report["merge_flags_added"]:
-        lines.append(
-            f"- merge flags added: {', '.join(report['merge_flags_added'])}"
-        )
+        lines.append(f"- merge flags added: {', '.join(report['merge_flags_added'])}")
     if report["merge_flags_removed"]:
-        lines.append(
-            f"- merge flags removed: {', '.join(report['merge_flags_removed'])}"
-        )
+        lines.append(f"- merge flags removed: {', '.join(report['merge_flags_removed'])}")
     lines.append("")
     if report["new_components"]:
         lines.append("## New components")
@@ -175,20 +184,114 @@ def render(report: dict) -> str:
     return "\n".join(lines)
 
 
+def gate_check(reference: list[dict], current: list[dict]) -> tuple[bool, list[str]]:
+    """Erosion policy for gate mode: (ok, reasons).
+
+    Failure conditions (regressions only — growth/new components pass):
+
+    1. ``family_hit_delta < 0`` — curated-family signal eroded.
+    2. ``merge_flags_removed`` non-empty — an adjudicated multi-family
+       merge flag disappeared.
+    3. A gone component that carried ``family_members`` — a component
+       hosting curated family members vanished.
+    4. Empty current dyad set — the store lost its company-company
+       ``same_group`` edges.
+    """
+    if not current:
+        return False, [
+            "current component set is empty — no company-company same_group dyads in store"
+        ]
+    report = compute(reference, current)
+    reasons: list[str] = []
+    if report["family_hit_delta"] < 0:
+        reasons.append(
+            f"family-hit delta {report['family_hit_delta']:+d} < 0 (curated-family signal eroded)"
+        )
+    if report["merge_flags_removed"]:
+        reasons.append("merge flags removed: " + ", ".join(report["merge_flags_removed"]))
+    for g in report["gone_components"]:
+        gone = [c for c in reference if c.get("size") == g["size"]]
+        fam = [c for c in gone if c.get("family_members")]
+        if fam:
+            refs = ", ".join(r[0] for r in g["top_refs"])
+            reasons.append(
+                f"component with curated family members disappeared (size {g['size']}, refs {refs})"
+            )
+    return (not reasons), reasons
+
+
+def run_inventory(db: str) -> list[dict]:
+    """Run the inventory inline against a live DB (read-only)."""
+    import duckdb
+
+    from helpers.core.duckdb_shared import memory_cap_config
+
+    conn = duckdb.connect(db, **memory_cap_config())
+    try:
+        dyads, sectors = _load(conn)
+        if not dyads:
+            return []
+        families = load_family_seeds()
+        return [_component_profile(c, dyads, sectors, families) for c in _components(dyads)]
+    finally:
+        conn.close()
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__)
-    ap.add_argument("--reference", required=True, type=Path)
-    ap.add_argument("--current", required=True, type=Path)
+    ap.add_argument("--reference", type=Path, default=DEFAULT_REFERENCE)
+    ap.add_argument("--current", type=Path, default=None)
+    ap.add_argument(
+        "--db",
+        default="memory/research.db",
+        help="live DB to run the inventory inline (used when --current is absent)",
+    )
+    ap.add_argument(
+        "--check", action="store_true", help="gate mode: exit 1 on erosion policy failure"
+    )
+    ap.add_argument(
+        "--refresh-reference",
+        action="store_true",
+        help="rewrite the tracked reference from the current run",
+    )
     ap.add_argument("--json", dest="json_out", type=Path, default=None)
     args = ap.parse_args()
 
-    ref = load_report(args.reference)
-    cur = load_report(args.current)
+    ref_path = args.reference
+    if not ref_path.is_absolute():
+        ref_path = REPO_ROOT / ref_path
+
+    if args.current is not None:
+        cur = load_report(args.current)
+    else:
+        cur = run_inventory(args.db)
+
+    if args.refresh_reference:
+        ref_path.parent.mkdir(parents=True, exist_ok=True)
+        ref_path.write_text(json.dumps(cur, indent=2) + "\n")
+        print(f"wrote reference {ref_path} ({len(cur)} components)")
+        return 0
+
+    ref = load_report(ref_path)
     report = compute(ref, cur)
     print(render(report))
     if args.json_out:
         args.json_out.write_text(json.dumps(report, indent=2) + "\n")
         print(f"wrote {args.json_out}")
+
+    if args.check:
+        ok, reasons = gate_check(ref, cur)
+        if ok:
+            print("group-growth gate: PASS (no erosion signal)")
+            return 0
+        print("group-growth gate: FAIL")
+        for r in reasons:
+            print(f"  - {r}")
+        print(
+            "If this is an intended family-structure change, refresh the "
+            "reference in the same change (--refresh-reference)."
+        )
+        return 1
     return 0
 
 
