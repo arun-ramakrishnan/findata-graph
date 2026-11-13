@@ -1,16 +1,30 @@
 ---
 title: "Tata family-seed coverage invariant: filer-label maximality guard"
-status: proposed
+status: executed
 filed: "2026-11-13"
-executed: null
-completed_md: null
+executed: "2026-11-13"
+completed_md: "516"
 area: "graph (family-seed integrity guard; helpers/maintenance/family_label_coverage_check.py)"
 ---
 
 # Tata family-seed coverage invariant: filer-label maximality guard
 
-**Date:** 2026-11-13 · **Status:** PROPOSED ·
+**Date:** 2026-11-13 · **Status:** EXECUTED (completed.md #516) ·
 **Area:** family-seed integrity (read-only census + qa gate step)
+
+> **Execution note (2026-11-13).** The §1 maximality conclusion below was
+> refuted by a corrected probe: the original query constrained candidates to
+> *current seed members* (self-answering — union 230, 0 candidates). The
+> corrected **context-scoped** probe (candidates drawn from all filer-label
+> companies appearing in ≥2 of the 17 Tata-context labels) found **24
+> context-multi members outside the seed**, of which **8 carry a Tata root
+> token** (tata/taj/trent/titan/voltas): TATA ELECTRONICS SYSTEMS SOLUTIONS,
+> Taj Enterprises, Taj GVK Hotels And Resorts, Taj International Hotels,
+> Tata Cleantech Capital, Tata Consultancy Services UK, Tata Value Homes,
+> Trent Hypermarket. Operator approved all 8 → `family_seeds.json` v8,
+> Tata 230 → 238 (16 non-token context-multi names — suppliers/JV counters
+> — remain advisory, never seeded). The invariant guard below was built
+> exactly to enforce this class of decision loudly.
 
 ## 1. Motivation
 
@@ -63,11 +77,23 @@ green because the invariant is then satisfied again.
 1. Unit tests: FULL label passes; PARTIAL label fires under `--check`
    for a complete family; non-filer labels never fire; `--families`
    override scopes the check; empty store skips rc 0.
-2. Live run on the current store: `--check` exits 0 (all 20
-   `vigil:rpt:TATA*` labels FULL; the `family:TVS` intersection is
-   excluded as non-filer).
+   **VERIFIED — tests/test_family_label_coverage_check.py 9/9** (token
+   tiering: violations = context-multi **and** root token; advisory =
+   context-multi without token; `family:*`/`$.group` labels excluded;
+   single-label appearances informational).
+2. Live run on the current store: `--check` exits 0.
+   **VERIFIED — PASS, 0 violations, 16 advisory** (all Tata-context filer
+   labels contained post-v8: family:Tata 238 = pin expected = store
+   incidences; questions v21).
 3. qa gate step present; gates.md documents the leg.
+   **VERIFIED — Step("family-label-coverage") in
+   tests/run_gate_report.py:286; doc/procedures/gates.md paragraph added
+   2026-11-13.**
 4. ruff + py_compile clean; helper + round suites pass.
+   **VERIFIED — py_compile + ruff clean; 59/59 across
+   family_label_coverage_check / hyper_family_chain / ontology_eval_gate /
+   name_token_candidates; validate_family_seeds 37 families / 2,336
+   members / 0 dropped.**
 
 ## 4. Risks
 
@@ -83,6 +109,9 @@ green because the invariant is then satisfied again.
 
 ## 5. Non-goals
 
-- No seed edits (the evidence shows none are justified).
-- No auto-expansion; no change to the curated 230.
+- No seed edits without the evidence pass (the flawed §1 probe shipped no
+  edits; the corrected context-scoped probe drove the operator-approved
+  v8 expansion, 230 → 238).
+- No auto-expansion; every seed change is a git-tracked curation edit that
+  must satisfy this gate in the same change.
 - No gate-name surface change (rides the qa battery).

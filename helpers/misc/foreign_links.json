@@ -1,0 +1,287 @@
+{
+  "Allianz": [
+    {
+      "exchange": "XETRA",
+      "symbol": "ALV.DE",
+      "source": "foreign_links_lane"
+    }
+  ],
+  "BMW": [
+    {
+      "exchange": "XETRA",
+      "symbol": "BMW.DE",
+      "source": "foreign_links_lane"
+    }
+  ],
+  "BYD": [
+    {
+      "exchange": "HKEX",
+      "symbol": "01211",
+      "source": "foreign_links_lane",
+      "isin": "CNE100000296"
+    }
+  ],
+  "Bayer": [
+    {
+      "exchange": "XETRA",
+      "symbol": "BAYN.DE",
+      "source": "foreign_links_lane"
+    }
+  ],
+  "Brookfield Infrastructure Partners L.P": [
+    {
+      "exchange": "TSX",
+      "symbol": "BILP.TO",
+      "source": "foreign_links_lane"
+    },
+    {
+      "exchange": "TSX",
+      "symbol": "BIP.TO",
+      "source": "foreign_links_lane"
+    },
+    {
+      "exchange": "TSX",
+      "symbol": "BIP.UN",
+      "source": "foreign_links_lane"
+    },
+    {
+      "exchange": "TSX",
+      "symbol": "BIP.UN.TO",
+      "source": "foreign_links_lane"
+    }
+  ],
+  "CCL Industries Inc": [
+    {
+      "exchange": "TSX",
+      "symbol": "CCL.B",
+      "source": "foreign_links_lane"
+    },
+    {
+      "exchange": "TSX",
+      "symbol": "CCL.B.TO",
+      "source": "foreign_links_lane"
+    },
+    {
+      "exchange": "TSX",
+      "symbol": "CCL.TO",
+      "source": "foreign_links_lane"
+    }
+  ],
+  "CGI Inc": [
+    {
+      "exchange": "TSX",
+      "symbol": "GIB.A",
+      "source": "foreign_links_lane"
+    },
+    {
+      "exchange": "TSX",
+      "symbol": "GIB.A.TO",
+      "source": "foreign_links_lane"
+    },
+    {
+      "exchange": "TSX",
+      "symbol": "GIB.TO",
+      "source": "foreign_links_lane"
+    }
+  ],
+  "Canadian Tire Corporation": [
+    {
+      "exchange": "TSX",
+      "symbol": "CTC.A",
+      "source": "foreign_links_lane"
+    },
+    {
+      "exchange": "TSX",
+      "symbol": "CTC.A.TO",
+      "source": "foreign_links_lane"
+    },
+    {
+      "exchange": "TSX",
+      "symbol": "CTC.TO",
+      "source": "foreign_links_lane"
+    }
+  ],
+  "Dassault Syst\u00e8mes": [
+    {
+      "exchange": "EURONEXT",
+      "symbol": "DSY.PA",
+      "source": "foreign_links_lane"
+    }
+  ],
+  "Diageo plc": [
+    {
+      "exchange": "LSE",
+      "symbol": "DGE",
+      "source": "foreign_links_lane"
+    }
+  ],
+  "Haleon plc": [
+    {
+      "exchange": "LSE",
+      "symbol": "HLN",
+      "source": "foreign_links_lane"
+    }
+  ],
+  "Heidelberg Materials": [
+    {
+      "exchange": "XETRA",
+      "symbol": "HEI.DE",
+      "source": "foreign_links_lane"
+    }
+  ],
+  "Hyundai Motor Company": [
+    {
+      "exchange": "KRX",
+      "symbol": "005380.KS",
+      "source": "foreign_links_lane"
+    }
+  ],
+  "Inventec Corporation": [
+    {
+      "exchange": "TWSE",
+      "symbol": "2356",
+      "source": "foreign_links_lane",
+      "isin": "TW0002356003"
+    }
+  ],
+  "L'Oreal": [
+    {
+      "exchange": "EURONEXT",
+      "symbol": "OR.PA",
+      "source": "foreign_links_lane"
+    }
+  ],
+  "Mercedes-Benz Group": [
+    {
+      "exchange": "XETRA",
+      "symbol": "MBG.DE",
+      "source": "foreign_links_lane"
+    }
+  ],
+  "Merck": [
+    {
+      "exchange": "XETRA",
+      "symbol": "MRK.DE",
+      "source": "foreign_links_lane"
+    }
+  ],
+  "NEC": [
+    {
+      "exchange": "TSE",
+      "symbol": "8793",
+      "source": "foreign_links_lane"
+    }
+  ],
+  "Prudential plc": [
+    {
+      "exchange": "LSE",
+      "symbol": "PRU",
+      "source": "foreign_links_lane"
+    }
+  ],
+  "Rogers Communications Inc": [
+    {
+      "exchange": "TSX",
+      "symbol": "RCI.B",
+      "source": "foreign_links_lane"
+    },
+    {
+      "exchange": "TSX",
+      "symbol": "RCI.B.TO",
+      "source": "foreign_links_lane"
+    },
+    {
+      "exchange": "TSX",
+      "symbol": "RCI.TO",
+      "source": "foreign_links_lane"
+    }
+  ],
+  "Samsung Electronics": [
+    {
+      "exchange": "KRX",
+      "symbol": "005930.KS",
+      "source": "foreign_links_lane"
+    }
+  ],
+  "Samsung SDI Co": [
+    {
+      "exchange": "KRX",
+      "symbol": "006400.KS",
+      "source": "foreign_links_lane"
+    }
+  ],
+  "Sanofi": [
+    {
+      "exchange": "EURONEXT",
+      "symbol": "SAN.PA",
+      "source": "foreign_links_lane"
+    }
+  ],
+  "Shell": [
+    {
+      "exchange": "LSE",
+      "symbol": "SHEL",
+      "source": "foreign_links_lane"
+    }
+  ],
+  "Shopify": [
+    {
+      "exchange": "TSX",
+      "symbol": "SHOP.TO",
+      "source": "foreign_links_lane"
+    }
+  ],
+  "Siemens Energy": [
+    {
+      "exchange": "XETRA",
+      "symbol": "ENR.DE",
+      "source": "foreign_links_lane"
+    }
+  ],
+  "Standard Chartered": [
+    {
+      "exchange": "LSE",
+      "symbol": "STAN",
+      "source": "foreign_links_lane"
+    }
+  ],
+  "Sun Life Financial": [
+    {
+      "exchange": "TSX",
+      "symbol": "SLF.TO",
+      "source": "foreign_links_lane"
+    }
+  ],
+  "Teck Resources": [
+    {
+      "exchange": "TSX",
+      "symbol": "TECK.B",
+      "source": "foreign_links_lane"
+    },
+    {
+      "exchange": "TSX",
+      "symbol": "TECK.B.TO",
+      "source": "foreign_links_lane"
+    },
+    {
+      "exchange": "TSX",
+      "symbol": "TECK.TO",
+      "source": "foreign_links_lane"
+    }
+  ],
+  "Tencent": [
+    {
+      "exchange": "HKEX",
+      "symbol": "00700",
+      "source": "foreign_links_lane",
+      "isin": "KYG875721634"
+    }
+  ],
+  "Unilever PLC": [
+    {
+      "exchange": "LSE",
+      "symbol": "ULVR",
+      "source": "foreign_links_lane"
+    }
+  ]
+}

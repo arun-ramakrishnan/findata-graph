@@ -143,6 +143,19 @@ edits) must move the reference deliberately in the same change
 (`--refresh-reference`), the same doctrine as the ontology-questions
 rebaseline.
 
+qa also runs a **`family-label-coverage`** leg
+(`family_label_coverage_check.py --check`, tata_seed_coverage_invariant,
+2026-11-13): read-only filer-label maximality guard for complete families
+(`COMPLETE_FAMILIES = {"Tata"}`, currently 238 members). Every `vigil:rpt:*`
+label intersecting a complete family must be fully contained in its seed —
+a PARTIAL label means a company carries the family's root token
+(tata/taj/trent/titan/voltas) in ≥2 filer contexts but is missing from the
+curated seed, i.e. a curation gap. Context-multi names without a root token
+(suppliers, JV counters — HyperVault, Stryder Cycle, TP* Solar SPVs, …) are
+advisory and never block. The deliberate path for a legitimate expansion is
+to edit `family_seeds.json` in the same change; the gate then passes
+(`family:Tata` went 230 → 238 this way and the leg is green).
+
 qa also runs a **`schema-check`** leg — tracked `schema/` DDL vs the live
 `memory/` DBs, exit 1 on drift, fix is `make schema-dump` — and advisory
 runs four security/compliance legs: `secret-scan` (incremental git-history
