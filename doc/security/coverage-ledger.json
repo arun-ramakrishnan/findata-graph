@@ -204,10 +204,10 @@
   "surface": "/api/graph/metrics/<metric>",
   "kind": "route",
   "attack_class": "injection",
-  "reviewed": "2026-11-07",
+  "reviewed": "2026-11-13",
   "method": "source",
   "verdict": "clean",
-  "fingerprint": "29f58ebed9e8894e",
+  "fingerprint": "efe23a2e5983e50a",
   "note": "re-review 2026-11-07 after the S5 PEP 758 fix (three except clauses parenthesised in-handler): syntax-only, no control-flow or data-flow change; dispositions unchanged from the S1 re-review earlier today"
  },
  {
@@ -499,7 +499,7 @@
   "reviewed": "2026-10-20",
   "method": "source",
   "status": "not_applicable",
-  "note": "https-only fetch + 4-byte JPEG/PNG magic gate before decode; no vendored-format parser input — the unbounded-read finding was remediated 2026-10-20 (capped read, MAX_IMAGE_BYTES) and confirmed in the findings file"
+  "note": "https-only fetch + 4-byte JPEG/PNG magic gate before decode; no vendored-format parser input \u2014 the unbounded-read finding was remediated 2026-10-20 (capped read, MAX_IMAGE_BYTES) and confirmed in the findings file"
  },
  {
   "scope": "extractors",
@@ -541,7 +541,7 @@
   "method": "source",
   "fingerprint": "1e042d2e67f16485",
   "status": "out_of_scope",
-  "note": "bulk sweep 2026-10-20: GET-only route — no state mutation for a TOCTOU race; concurrency held at shared-singleton surfaces"
+  "note": "bulk sweep 2026-10-20: GET-only route \u2014 no state mutation for a TOCTOU race; concurrency held at shared-singleton surfaces"
  },
  {
   "scope": "app",
@@ -563,7 +563,7 @@
   "method": "source",
   "fingerprint": "d091777e768dfe46",
   "status": "out_of_scope",
-  "note": "bulk sweep 2026-10-20: GET-only route — no state mutation for a TOCTOU race; concurrency held at shared-singleton surfaces"
+  "note": "bulk sweep 2026-10-20: GET-only route \u2014 no state mutation for a TOCTOU race; concurrency held at shared-singleton surfaces"
  },
  {
   "scope": "app",
@@ -585,7 +585,7 @@
   "method": "source",
   "fingerprint": "2b0c4099b80b6125",
   "status": "out_of_scope",
-  "note": "bulk sweep 2026-10-20: GET-only route — no state mutation for a TOCTOU race; concurrency held at shared-singleton surfaces"
+  "note": "bulk sweep 2026-10-20: GET-only route \u2014 no state mutation for a TOCTOU race; concurrency held at shared-singleton surfaces"
  },
  {
   "scope": "app",
@@ -607,7 +607,7 @@
   "method": "source",
   "fingerprint": "533ac8ef7f83e07c",
   "status": "out_of_scope",
-  "note": "bulk sweep 2026-10-20: GET-only route — no state mutation for a TOCTOU race; concurrency held at shared-singleton surfaces"
+  "note": "bulk sweep 2026-10-20: GET-only route \u2014 no state mutation for a TOCTOU race; concurrency held at shared-singleton surfaces"
  },
  {
   "scope": "app",
@@ -629,7 +629,7 @@
   "method": "source",
   "fingerprint": "a712972563ebc06c",
   "status": "out_of_scope",
-  "note": "bulk sweep 2026-10-20: GET-only route — no state mutation for a TOCTOU race; concurrency held at shared-singleton surfaces"
+  "note": "bulk sweep 2026-10-20: GET-only route \u2014 no state mutation for a TOCTOU race; concurrency held at shared-singleton surfaces"
  },
  {
   "scope": "app",
@@ -651,7 +651,7 @@
   "method": "source",
   "fingerprint": "146aaed88caa2257",
   "status": "out_of_scope",
-  "note": "bulk sweep 2026-10-20: GET-only route — no state mutation for a TOCTOU race; concurrency held at shared-singleton surfaces"
+  "note": "bulk sweep 2026-10-20: GET-only route \u2014 no state mutation for a TOCTOU race; concurrency held at shared-singleton surfaces"
  },
  {
   "scope": "app",
@@ -673,7 +673,7 @@
   "method": "source",
   "fingerprint": "0da365909fccdb2b",
   "status": "out_of_scope",
-  "note": "bulk sweep 2026-10-20: GET-only route — no state mutation for a TOCTOU race; concurrency held at shared-singleton surfaces"
+  "note": "bulk sweep 2026-10-20: GET-only route \u2014 no state mutation for a TOCTOU race; concurrency held at shared-singleton surfaces"
  },
  {
   "scope": "app",
@@ -695,7 +695,7 @@
   "method": "source",
   "fingerprint": "9b9039d435044af5",
   "status": "out_of_scope",
-  "note": "bulk sweep 2026-10-20: GET-only route — no state mutation for a TOCTOU race; concurrency held at shared-singleton surfaces"
+  "note": "bulk sweep 2026-10-20: GET-only route \u2014 no state mutation for a TOCTOU race; concurrency held at shared-singleton surfaces"
  },
  {
   "scope": "app",
@@ -717,7 +717,7 @@
   "method": "source",
   "fingerprint": "4d06b20f3bdcdc27",
   "status": "out_of_scope",
-  "note": "bulk sweep 2026-10-20: GET-only route — no state mutation for a TOCTOU race; concurrency held at shared-singleton surfaces"
+  "note": "bulk sweep 2026-10-20: GET-only route \u2014 no state mutation for a TOCTOU race; concurrency held at shared-singleton surfaces"
  },
  {
   "scope": "app",
@@ -739,7 +739,7 @@
   "method": "source",
   "fingerprint": "23699a444d51aca1",
   "status": "out_of_scope",
-  "note": "bulk sweep 2026-10-20: GET-only route — no state mutation for a TOCTOU race; concurrency held at shared-singleton surfaces"
+  "note": "bulk sweep 2026-10-20: GET-only route \u2014 no state mutation for a TOCTOU race; concurrency held at shared-singleton surfaces"
  },
  {
   "scope": "app",
@@ -761,7 +761,7 @@
   "method": "source",
   "fingerprint": "60a0547a5e533b6d",
   "status": "out_of_scope",
-  "note": "bulk sweep 2026-10-20: GET-only route — no state mutation for a TOCTOU race; concurrency held at shared-singleton surfaces"
+  "note": "bulk sweep 2026-10-20: GET-only route \u2014 no state mutation for a TOCTOU race; concurrency held at shared-singleton surfaces"
  },
  {
   "scope": "app",
@@ -783,7 +783,7 @@
   "method": "source",
   "fingerprint": "a8a96eed23cedb02",
   "status": "out_of_scope",
-  "note": "bulk sweep 2026-10-20: GET-only route — no state mutation for a TOCTOU race; concurrency held at shared-singleton surfaces"
+  "note": "bulk sweep 2026-10-20: GET-only route \u2014 no state mutation for a TOCTOU race; concurrency held at shared-singleton surfaces"
  },
  {
   "scope": "app",
@@ -805,7 +805,7 @@
   "method": "source",
   "fingerprint": "e6e7669f98e52a7c",
   "status": "out_of_scope",
-  "note": "bulk sweep 2026-10-20: GET-only route — no state mutation for a TOCTOU race; concurrency held at shared-singleton surfaces"
+  "note": "bulk sweep 2026-10-20: GET-only route \u2014 no state mutation for a TOCTOU race; concurrency held at shared-singleton surfaces"
  },
  {
   "scope": "app",
@@ -827,7 +827,7 @@
   "method": "source",
   "fingerprint": "dac1327e58dde846",
   "status": "out_of_scope",
-  "note": "bulk sweep 2026-10-20: GET-only route — no state mutation for a TOCTOU race; concurrency held at shared-singleton surfaces"
+  "note": "bulk sweep 2026-10-20: GET-only route \u2014 no state mutation for a TOCTOU race; concurrency held at shared-singleton surfaces"
  },
  {
   "scope": "app",
@@ -838,7 +838,7 @@
   "method": "source",
   "fingerprint": "02802858004af623",
   "status": "out_of_scope",
-  "note": "bulk sweep 2026-10-20: GET-only route — no state mutation for a TOCTOU race; concurrency held at shared-singleton surfaces"
+  "note": "bulk sweep 2026-10-20: GET-only route \u2014 no state mutation for a TOCTOU race; concurrency held at shared-singleton surfaces"
  },
  {
   "scope": "app",
@@ -860,7 +860,7 @@
   "method": "source",
   "fingerprint": "82df37510be50280",
   "status": "out_of_scope",
-  "note": "bulk sweep 2026-10-20: GET-only route — no state mutation for a TOCTOU race; concurrency held at shared-singleton surfaces"
+  "note": "bulk sweep 2026-10-20: GET-only route \u2014 no state mutation for a TOCTOU race; concurrency held at shared-singleton surfaces"
  },
  {
   "scope": "app",
@@ -882,7 +882,7 @@
   "method": "source",
   "fingerprint": "a77771eb6bbe70ba",
   "status": "out_of_scope",
-  "note": "bulk sweep 2026-10-20: GET-only route — no state mutation for a TOCTOU race; concurrency held at shared-singleton surfaces"
+  "note": "bulk sweep 2026-10-20: GET-only route \u2014 no state mutation for a TOCTOU race; concurrency held at shared-singleton surfaces"
  },
  {
   "scope": "app",
@@ -893,16 +893,16 @@
   "method": "source",
   "fingerprint": "644ffc9b6173da4c",
   "status": "out_of_scope",
-  "note": "bulk sweep 2026-10-20: GET-only route — no state mutation for a TOCTOU race; concurrency held at shared-singleton surfaces"
+  "note": "bulk sweep 2026-10-20: GET-only route \u2014 no state mutation for a TOCTOU race; concurrency held at shared-singleton surfaces"
  },
  {
   "scope": "app",
   "surface": "/api/graph/metrics/<metric>",
   "kind": "route",
   "attack_class": "availability",
-  "reviewed": "2026-11-07",
+  "reviewed": "2026-11-13",
   "method": "source",
-  "fingerprint": "29f58ebed9e8894e",
+  "fingerprint": "efe23a2e5983e50a",
   "status": "out_of_scope",
   "note": "re-review 2026-11-07 after the S5 PEP 758 fix: syntax-only change, cost class unchanged",
   "verdict": "clean"
@@ -912,9 +912,9 @@
   "surface": "/api/graph/metrics/<metric>",
   "kind": "route",
   "attack_class": "concurrency",
-  "reviewed": "2026-11-07",
+  "reviewed": "2026-11-13",
   "method": "source",
-  "fingerprint": "29f58ebed9e8894e",
+  "fingerprint": "efe23a2e5983e50a",
   "status": "out_of_scope",
   "note": "re-review 2026-11-07 after the S5 PEP 758 fix: syntax-only change, read-only posture unchanged",
   "verdict": "clean"
@@ -928,7 +928,7 @@
   "method": "source",
   "fingerprint": "cdbc4770a9ffcb81",
   "status": "out_of_scope",
-  "note": "bulk sweep 2026-10-20: GET-only route — no state mutation for a TOCTOU race; concurrency held at shared-singleton surfaces"
+  "note": "bulk sweep 2026-10-20: GET-only route \u2014 no state mutation for a TOCTOU race; concurrency held at shared-singleton surfaces"
  },
  {
   "scope": "app",
@@ -950,7 +950,7 @@
   "method": "source",
   "fingerprint": "99f835d8cb52f9a5",
   "status": "out_of_scope",
-  "note": "bulk sweep 2026-10-20: GET-only route — no state mutation for a TOCTOU race; concurrency held at shared-singleton surfaces"
+  "note": "bulk sweep 2026-10-20: GET-only route \u2014 no state mutation for a TOCTOU race; concurrency held at shared-singleton surfaces"
  },
  {
   "scope": "app",
@@ -972,7 +972,7 @@
   "method": "source",
   "fingerprint": "528fd91636068733",
   "status": "out_of_scope",
-  "note": "bulk sweep 2026-10-20: GET-only route — no state mutation for a TOCTOU race; concurrency held at shared-singleton surfaces"
+  "note": "bulk sweep 2026-10-20: GET-only route \u2014 no state mutation for a TOCTOU race; concurrency held at shared-singleton surfaces"
  },
  {
   "scope": "app",
@@ -983,7 +983,7 @@
   "method": "source",
   "fingerprint": "e56bd2010eb50750",
   "status": "out_of_scope",
-  "note": "bulk sweep 2026-10-20: GET-only route — no state mutation for a TOCTOU race; concurrency held at shared-singleton surfaces"
+  "note": "bulk sweep 2026-10-20: GET-only route \u2014 no state mutation for a TOCTOU race; concurrency held at shared-singleton surfaces"
  },
  {
   "scope": "app",
@@ -1005,7 +1005,7 @@
   "method": "source",
   "fingerprint": "2e9203f4b172e9c7",
   "status": "out_of_scope",
-  "note": "bulk sweep 2026-10-20: GET-only route — no state mutation for a TOCTOU race; concurrency held at shared-singleton surfaces"
+  "note": "bulk sweep 2026-10-20: GET-only route \u2014 no state mutation for a TOCTOU race; concurrency held at shared-singleton surfaces"
  },
  {
   "scope": "app",
@@ -1027,7 +1027,7 @@
   "method": "source",
   "fingerprint": "aa76713de754fc92",
   "status": "out_of_scope",
-  "note": "bulk sweep 2026-10-20: GET-only route — no state mutation for a TOCTOU race; concurrency held at shared-singleton surfaces"
+  "note": "bulk sweep 2026-10-20: GET-only route \u2014 no state mutation for a TOCTOU race; concurrency held at shared-singleton surfaces"
  },
  {
   "scope": "app",
@@ -1049,7 +1049,7 @@
   "method": "source",
   "fingerprint": "b2e4b6b1df957ab6",
   "status": "out_of_scope",
-  "note": "bulk sweep 2026-10-20: GET-only route — no state mutation for a TOCTOU race; concurrency held at shared-singleton surfaces"
+  "note": "bulk sweep 2026-10-20: GET-only route \u2014 no state mutation for a TOCTOU race; concurrency held at shared-singleton surfaces"
  },
  {
   "scope": "app",
@@ -1060,7 +1060,7 @@
   "method": "source",
   "fingerprint": "73721099a015705c",
   "status": "out_of_scope",
-  "note": "bulk sweep 2026-10-20: GET-only route — no state mutation for a TOCTOU race; concurrency held at shared-singleton surfaces"
+  "note": "bulk sweep 2026-10-20: GET-only route \u2014 no state mutation for a TOCTOU race; concurrency held at shared-singleton surfaces"
  },
  {
   "scope": "app",
@@ -1082,7 +1082,7 @@
   "method": "source",
   "fingerprint": "ee492eab3a000734",
   "status": "out_of_scope",
-  "note": "bulk sweep 2026-10-20: GET-only route — no state mutation for a TOCTOU race; concurrency held at shared-singleton surfaces"
+  "note": "bulk sweep 2026-10-20: GET-only route \u2014 no state mutation for a TOCTOU race; concurrency held at shared-singleton surfaces"
  },
  {
   "scope": "app",
@@ -1093,7 +1093,7 @@
   "method": "source",
   "fingerprint": "dc812a6c7f60700a",
   "status": "out_of_scope",
-  "note": "bulk sweep 2026-10-20: GET-only route — no state mutation for a TOCTOU race; concurrency held at shared-singleton surfaces"
+  "note": "bulk sweep 2026-10-20: GET-only route \u2014 no state mutation for a TOCTOU race; concurrency held at shared-singleton surfaces"
  },
  {
   "scope": "app",
@@ -1115,7 +1115,7 @@
   "method": "source",
   "fingerprint": "6864ae8d26242d96",
   "status": "out_of_scope",
-  "note": "bulk sweep 2026-10-20: GET-only route — no state mutation for a TOCTOU race; concurrency held at shared-singleton surfaces"
+  "note": "bulk sweep 2026-10-20: GET-only route \u2014 no state mutation for a TOCTOU race; concurrency held at shared-singleton surfaces"
  },
  {
   "scope": "app",
@@ -1137,7 +1137,7 @@
   "method": "source",
   "fingerprint": "85d90dbe93d72f8b",
   "status": "out_of_scope",
-  "note": "bulk sweep 2026-10-20: GET-only route — no state mutation for a TOCTOU race; concurrency held at shared-singleton surfaces"
+  "note": "bulk sweep 2026-10-20: GET-only route \u2014 no state mutation for a TOCTOU race; concurrency held at shared-singleton surfaces"
  },
  {
   "scope": "app",
@@ -1159,7 +1159,7 @@
   "method": "source",
   "fingerprint": "018ce0995f721e40",
   "status": "out_of_scope",
-  "note": "bulk sweep 2026-10-20: GET-only route — no state mutation for a TOCTOU race; concurrency held at shared-singleton surfaces"
+  "note": "bulk sweep 2026-10-20: GET-only route \u2014 no state mutation for a TOCTOU race; concurrency held at shared-singleton surfaces"
  },
  {
   "scope": "app",
@@ -1181,7 +1181,7 @@
   "method": "source",
   "fingerprint": "d1e9385999f6e5e3",
   "status": "out_of_scope",
-  "note": "bulk sweep 2026-10-20: GET-only route — no state mutation for a TOCTOU race; concurrency held at shared-singleton surfaces"
+  "note": "bulk sweep 2026-10-20: GET-only route \u2014 no state mutation for a TOCTOU race; concurrency held at shared-singleton surfaces"
  },
  {
   "scope": "app",
@@ -1203,7 +1203,7 @@
   "method": "source",
   "fingerprint": "3a57303ff6e63346",
   "status": "out_of_scope",
-  "note": "bulk sweep 2026-10-20: GET-only route — no state mutation for a TOCTOU race; concurrency held at shared-singleton surfaces"
+  "note": "bulk sweep 2026-10-20: GET-only route \u2014 no state mutation for a TOCTOU race; concurrency held at shared-singleton surfaces"
  },
  {
   "scope": "app",
@@ -1225,7 +1225,7 @@
   "method": "source",
   "fingerprint": "d94a630f9f46ed3c",
   "status": "out_of_scope",
-  "note": "bulk sweep 2026-10-20: GET-only route — no state mutation for a TOCTOU race; concurrency held at shared-singleton surfaces"
+  "note": "bulk sweep 2026-10-20: GET-only route \u2014 no state mutation for a TOCTOU race; concurrency held at shared-singleton surfaces"
  },
  {
   "scope": "app",
@@ -1247,7 +1247,7 @@
   "method": "source",
   "fingerprint": "d8f1f6c67b8f2564",
   "status": "out_of_scope",
-  "note": "bulk sweep 2026-10-20: GET-only route — no state mutation for a TOCTOU race; concurrency held at shared-singleton surfaces"
+  "note": "bulk sweep 2026-10-20: GET-only route \u2014 no state mutation for a TOCTOU race; concurrency held at shared-singleton surfaces"
  },
  {
   "scope": "app",
@@ -1269,7 +1269,7 @@
   "method": "source",
   "fingerprint": "13a88863378ef0ae",
   "status": "out_of_scope",
-  "note": "bulk sweep 2026-10-20: GET-only route — no state mutation for a TOCTOU race; concurrency held at shared-singleton surfaces"
+  "note": "bulk sweep 2026-10-20: GET-only route \u2014 no state mutation for a TOCTOU race; concurrency held at shared-singleton surfaces"
  },
  {
   "scope": "app",
@@ -1456,9 +1456,9 @@
   "surface": "/api/graph/metrics/<metric>",
   "kind": "route",
   "attack_class": "web-protocol/auth",
-  "reviewed": "2026-10-30",
+  "reviewed": "2026-11-13",
   "method": "source",
-  "fingerprint": "29f58ebed9e8894e",
+  "fingerprint": "efe23a2e5983e50a",
   "verdict": "clean",
   "note": "re-review 2026-10-30 after the S5 PEP 758 fix: syntax-only change, response shapes unchanged"
  },
@@ -1688,7 +1688,7 @@
   "reviewed": "2026-10-20",
   "method": "source",
   "status": "not_applicable",
-  "note": "auth is an HTTP-endpoint property, not a connection-object property; the singleton serves no HTTP and is reachable only outside request context behind _graph_lock — route-level auth dispositioned per-route (37 covers) with the SEC-5 deploy gate tracked at /api/graph/refresh"
+  "note": "auth is an HTTP-endpoint property, not a connection-object property; the singleton serves no HTTP and is reachable only outside request context behind _graph_lock \u2014 route-level auth dispositioned per-route (37 covers) with the SEC-5 deploy gate tracked at /api/graph/refresh"
  },
  {
   "scope": "graph",
