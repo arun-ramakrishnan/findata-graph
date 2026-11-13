@@ -3379,6 +3379,7 @@ _LABEL_GRAPH_METRICS = {
     "louvain_community",
     "weakly_connected_component",
     "hypermmsbm_community",
+    "semantic_cluster",
 }
 # Structured-payload metrics: value JSON is not {"value": float}; each gets
 # its own response shape in the handler below (graph_docs_ui_redesign §4.3).
@@ -3573,6 +3574,7 @@ def api_graph_metrics(metric: str):  # noqa: C901
             label_key = {
                 "louvain_community": "community",
                 "hypermmsbm_community": "block",  # D1: HGX hy-MMSBM argmax block
+                "semantic_cluster": "cluster",  # e-means argmax cluster id
             }.get(metric_lc, "componentId")
             rows = conn.execute(
                 "SELECT entity_name, value FROM graph_analytics "

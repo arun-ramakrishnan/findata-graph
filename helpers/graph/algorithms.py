@@ -58,6 +58,7 @@ import json
 import math
 import sys
 import tempfile
+from datetime import UTC, datetime
 
 try:
     import numpy as np
@@ -1308,28 +1309,38 @@ def write_analytics(
     own_conn = conn is None
     if own_conn:
         conn = connect()
+    now = datetime.now(UTC).isoformat()
     try:
-        with conn:
-            if replace_population and values:
-                names = list(values)
-                placeholders = ",".join("?" for _ in names)
-                conn.execute(
-                    f"DELETE FROM graph_analytics WHERE metric = ? "  # noqa: S608  placeholders bounded by len(values)
-                    f"AND entity_name NOT IN ({placeholders})",
-                    (metric, *names),
-                )
-            for entity_name, value in values.items():
-                conn.execute(
-                    "INSERT INTO graph_analytics(entity_name, metric, value) "
-                    "VALUES (?, ?, ?) "
-                    "ON CONFLICT(metric, entity_name) DO UPDATE SET "
-                    "value = excluded.value, "
-                    "computed_at = CURRENT_TIMESTAMP "
-                    "WHERE value != excluded.value",
-                    (entity_name, metric, json.dumps(value)),
-                )
+        # NOTE: no `with conn:` here — DuckDB's Connection.__exit__ CLOSES
+        # the connection, so a caller-provided conn (own_conn=False) would
+        # be killed mid-flow. Both backends auto-commit per statement, so
+        # the delete+upsert loop needs no explicit transaction wrapper.
+        if replace_population and values:
+            names = list(values)
+            placeholders = ",".join("?" for _ in names)
+            conn.execute(
+                f"DELETE FROM graph_analytics WHERE metric = ? "  # noqa: S608  placeholders bounded by len(values)
+                f"AND entity_name NOT IN ({placeholders})",
+                (metric, *names),
+            )
+        for entity_name, value in values.items():
+            conn.execute(
+                "INSERT INTO graph_analytics(entity_name, metric, value) "
+                "VALUES (?, ?, ?) "
+                "ON CONFLICT(metric, entity_name) DO UPDATE SET "
+                "value = excluded.value, "
+                "computed_at = ? "
+                "WHERE value != excluded.value",
+                (entity_name, metric, json.dumps(value), now),
+            )
             _warn_degenerate_metric(metric, conn)
     finally:
+        # Explicit commit: backend-neutral. DuckDB's Connection.__exit__ would
+        # CLOSE a caller-provided conn, and sqlite3's implicit transaction
+        # would otherwise stay uncommitted for the same conn — commit here
+        # covers both (own_conn branch commits then closes).
+        if hasattr(conn, "commit"):
+            conn.commit()
         if own_conn:
             conn.close()
     return len(values)

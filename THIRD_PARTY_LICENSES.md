@@ -71,6 +71,7 @@ the selected wheel.
 | `tui` | Textual, Rich, tree-sitter, tree-sitter-sql | Preserve upstream MIT/BSD notices; runtime extra remains separately governed |
 | `mojo` | Mojo and MAX toolchains | Record the exact compiler/runtime license and exceptions per release; do not infer from the Python project license |
 | `review` | bandit, semgrep, shellcheck-py, sqlfluff | Advisory review-scanner tooling (proposal `review_scan_leg`); each is Apache-2.0 (bandit), LGPL-2.1 (semgrep core, Apache-2.0 for the ruleset), MIT (shellcheck-py wraps GPL-3.0 shellcheck, invoked as a separate process), MIT (sqlfluff). Not part of the runtime grant; invoked as subprocesses from the review leg, never imported by runtime code |
+| `lens` | faiss-cpu | MIT (Facebook AI Research faiss; CPU-only wheel bundles the MIT-licensed core, no GPU/CUDA components); runtime extra, gated by the `lens` optional-dependency group — imported only by the semantic-cluster lens (`helpers/graph/semantic_clusters.py`), never in the main runtime path |
 
 ## Frontend packages
 

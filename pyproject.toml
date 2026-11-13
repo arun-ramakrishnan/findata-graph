@@ -150,6 +150,16 @@ tui = [
     "tree-sitter-sql",
 ]
 
+# Embedding-lens label metric (helpers/graph/semantic_clusters.py, proposal
+# semantic_cluster_label_metric). Optional extra — `uv sync --extra lens`;
+# the lane prints an install hint when faiss is absent. faiss-cpu 1.16.0
+# (MIT, cp310-abi3) verified compatible with this py3.14 venv; NumpyEmeans
+# ships in faiss.contrib.e_means (the legacy faiss.contrib.clustering name
+# no longer exists in 1.16.0).
+lens = [
+    "faiss-cpu>=1.16.0",
+]
+
 mojo = [
     # Mojo Lang support — compiler toolchain only.
     "mojo",
