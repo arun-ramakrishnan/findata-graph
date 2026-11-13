@@ -1554,6 +1554,53 @@ def prune_stale_group_edges(conn, wanted_labels: set[str], *, dry_run: bool) -> 
     return stats
 
 
+def compact_group_membership(
+    conn,
+    groups: dict[str, set[str]],
+    *,
+    dry_run: bool = True,
+) -> int:
+    """S1 compaction: converge group-HYPEREDGE member incidences to the
+    current dyad-derived membership.
+
+    Only dyad-derived labels are compacted — ``vigil:rpt:*`` (filer
+    disclosure sets, keyed by ``source_ref``) and bare ``$.group`` labels
+    (curated corporate groups) both rebuild their membership from current
+    ``same_group`` dyads. ``family:*`` seed labels are NOT dyad-derived
+    (curated lists) and are untouched. Incidences whose member has no
+    current dyad under the label are deleted — the additive ``INSERT OR
+    IGNORE`` apply path never shrinks, so without this pass stale members
+    (companies that left a filer's disclosure set / a curated group) linger
+    forever. Returns the number of incidences deleted (or would-delete in
+    dry-run).
+    """
+    pruned = 0
+    for label, members in groups.items():
+        if label.startswith(FAMILY_LABEL_PREFIX) or not members:
+            continue
+        edge = conn.execute(
+            "SELECT id FROM hyper_edges WHERE edge_type = 'group' AND label = ?",
+            (label,),
+        ).fetchone()
+        if edge is None:
+            continue
+        qmarks = ",".join("?" * len(members))
+        if dry_run:
+            cur = conn.execute(
+                f"SELECT COUNT(*) FROM hyper_incidences WHERE edge_id = ? "  # noqa: S608  # ?-placeholders only, values parameterized
+                f"AND entity_name NOT IN ({qmarks})",
+                (edge[0], *members),
+            )
+        else:
+            cur = conn.execute(
+                f"DELETE FROM hyper_incidences WHERE edge_id = ? "  # noqa: S608  # ?-placeholders only, values parameterized
+                f"AND entity_name NOT IN ({qmarks})",
+                (edge[0], *members),
+            )
+        pruned += cur.fetchone()[0] if dry_run else cur.rowcount
+    return pruned
+
+
 def apply_hyperedges(  # noqa: C901 — per-edge_type DDL + dry-run/apply branches mirror the store schema
     hyper: dict[str, dict[str, set[str]]],
     weights: dict[tuple[str, str, str], float] | None = None,
@@ -1569,10 +1616,11 @@ def apply_hyperedges(  # noqa: C901 — per-edge_type DDL + dry-run/apply branch
     re-run reports 0/0 when nothing upstream changed (S8 weight refreshes on
     existing members are not counted as new). ``weights`` supplies
     per-incidence intensities; members without one get NULL. Membership
-    shrinkage
-    (a company leaving a category) is NOT compacted here — the backfill is
-    additive; compaction belongs to a future full-refresh mode (proposal
-    §3 S2, honest-scope note).
+    shrinkage (a company leaving a category) is compacted by
+    :func:`compact_group_membership` for dyad-derived ``group`` labels
+    (``vigil:rpt:*`` + bare ``$.group``; ``family:*`` seeds untouched) —
+    run it from the caller after apply with ``dry_run`` mirroring this
+    call (proposal §3 S1/S2, honest-scope note).
 
     ``facets`` (S4, from :func:`collect_event_facets`, ``--roles``):
     per-incidence roles are written on INSERT and converged on existing
@@ -1945,6 +1993,24 @@ def _cli(argv: list[str] | None = None) -> int:  # noqa: C901  # arg-dispatch CL
                     f"S2 group-family convergence: {mode_g} {gprune['dropped']} stale "
                     f"hyperedge(s) of {gprune['stored']} stored ({gprune['kept']} kept)"
                 )
+            # S1 member-level compaction: converge incidence membership to the
+            # current dyad-derived set for vigil/$.group labels (family:*
+            # seeds untouched). Prune first (labels absent from collect are
+            # dropped); then delete incidences whose member has no current
+            # dyad under a surviving label.
+            if args.apply:
+                compacted = compact_group_membership(conn, hyper.get("group", {}), dry_run=False)
+                if compacted:
+                    print(f"S1 group-membership compaction: {compacted} stale incidence(s) dropped")
+            elif hyper.get("group"):
+                would_compact = compact_group_membership(
+                    conn, hyper.get("group", {}), dry_run=True
+                )
+                if would_compact:
+                    print(
+                        f"S1 group-membership compaction: {would_compact} stale "
+                        f"incidence(s) would drop"
+                    )
         print(
             f"{'source':<10} {'new_edges':>10} {'new_incidences':>15}"
             + (f"  ({len(weights)} weighted)" if weights else "")

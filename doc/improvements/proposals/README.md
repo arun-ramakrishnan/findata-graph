@@ -56,13 +56,13 @@ entry number and stale DONE pointers):
   (4.8×, blind on 99.4% of subsidiary_of edges). Evidence in
   `doc/local/engineering/emeans_algorithm.md` (machine-local), §9.
 
-- *(filed 2026-11-12)* — `group_membership_compaction`
-  (graph/, filed 2026-11-12 —
-  `graph/group_membership_compaction.md`). Compact vigil group-hyperedge
-  membership (962 stale incidences, 240 `n_members` mismatches) and purge
-  the 334 stranded-orphan tail the 2026-11-12 bounded cleanup left behind;
-  adds the first group-membership gate pins. Evidence in
-  `bench_data/orphan_cleanup/`.
+- *(archived 2026-11-12)* — `group_membership_compaction`
+  (graph/, filed + executed 2026-11-12, completed.md #512 —
+  `../archive/graph/group_membership_compaction.md`). Compact vigil group-hyperedge
+  membership (964 stale incidences, n_members mismatches 234 -> 0), purge the
+  334 stranded-orphan tail (317 purged, 17 named event-referenced residue);
+  first group-membership gate pins hyper-group-{tcs,reliance,mam}, gate ACCEPT
+  191/0. Evidence in `bench_data/orphan_cleanup/`.
 
 - *(archived 2026-11-12)* — `canonical_name_resolution`
   (graph/, filed + executed 2026-11-12, #509 —

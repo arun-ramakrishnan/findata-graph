@@ -15097,3 +15097,26 @@ Antony waste-management confirm). Proposal doc/improvements/archive/graph/subsec
 - Gate: final ACCEPT --expect-improve incl type-sub-sector (parent 14:18 pre-apply snapshot,
   candidate live) — 188 questions, 0 reasons; reports gate_accept_v14_report.json +
   gate_final_subsector_proposal_report.json. Questions v14.
+## 512. Compact group-hyperedge membership; close the stranded-orphan tail
+
+Ruling m01588 (operator chose "Implement it now" after the archived-at-commit theory was
+refuted: 34a65547d only filed the proposal). Proposal doc/improvements/archive/graph/group_membership_compaction.md
+(filed + executed 2026-11-12).
+
+- S1 compaction: compact_group_membership() in derive_hyperedges.py runs after apply for
+  dyad-derived labels (vigil + bare $.group; family:* untouched). Live: 964 stale incidences
+  dropped (962 vigil + 2 $.group residue); stale vigil count 962 -> 0.
+- S2 n_members hygiene: mismatches 234 -> 0 on all 624 group edges.
+- S3 stranded-tail purge: helpers/maintenance/purge_stranded_companies.py (plan-first --check/
+  --apply; FK cascade; events counterparty_entity SET NULL protects event-referenced names).
+  Apply: 317 stranded-orphan companies purged; orphans 334 -> 17 named residue (kept + reported).
+- S4 gate pins: hyper-group-tcs (205) / hyper-group-reliance (276) / hyper-group-mam (173)
+  added (questions v14 -> v15, 191). Gate ACCEPT --expect-shrink on the 4 group pins +
+  --expect-improve on family/sub-sector pins: 191 questions, 0 reasons
+  (gate_accept_group_compaction_report.json). hyper-group-tata shrunk 7 -> 5 (TCS/Voltas
+  $.group residue) — declared shrink; family:Tata (230) untouched.
+- Validation: tests/test_group_membership_compaction.py 6/6 + full hyper suite 115 passed;
+  ruff + py_compile clean. Proposal §3/§4 annotated IMPLEMENTED/VERIFIED.
+- Parity: answerability_probe --parity 0 mismatches after make snapshot refresh
+  (snapshots/parquet/ + db-backup/*.zst + snapshots/hif/); 11 pre-refresh mismatches were the
+  stale pre-v5 snapshot.
