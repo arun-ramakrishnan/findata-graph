@@ -15072,3 +15072,28 @@ generator, S2 curated sink, S3 eval-gate). Proposal doc/improvements/archive/gra
   counts exactly (family:Tata 230 ... family:Aarti 3); hyper-family pins answer-match live.
 - Sibling proposal subsector_lane_completion.md documents the S9/S11 gaps found closing
   this arc (curated aliases + authored mapping; gate ACCEPT 188/0).
+
+## 511. S9/S11 gap completion: counterparty aliases + authored subsector mapping
+
+Ruling m01433: (operator approved the S11 mapping table; Cosmos cooperative-bank label fix;
+Antony waste-management confirm). Proposal doc/improvements/archive/graph/subsector_lane_completion.md
+(filed + executed 2026-11-12).
+
+- S9 alias tier (helpers/misc/counterparty_aliases.json, consulted post exact/NOCASE/normalized,
+  pre-unresolved): Abbott -> Abbott India, Coal Lignite Urja Vikas -> Coal LigniteUrja Vikas,
+  L&T -> Larsen & Toubro, STAR UNION DAI-ICHI LIFE INSURANCE CO -> Star Union Dai-Ichi Life
+  Insurance Company. Unresolved 8 -> 4 (Adani Group, Reliance Group), Renew, Highbond — parked
+  skip in outputs/worklist_parking/counterparty/journal.jsonl (approved 0); worklist count 4/parked 4.
+  Stale alias target = dropped + reported, never minted.
+- S11 authored lane: 93 notes mapped per-company for the 6 split buckets (banks PSU/private,
+  packaging flexible/rigid, capital markets brokers/depositories/exchanges, metal fab
+  forge/castings, semi design/memory/foundry, renewable solar/hydro) via
+  helpers/misc/author_subsector.py --map (notes_map.json 93/93, 0 missing). +5 aliases
+  (Recreational Vehicles/Telecom Tower Infrastructure/Oil & Gas Midstream/Industrial
+  Distribution/Waste Management); Waste_Management node under Infrastructure (build_sector_hierarchy.py,
+  153 entities/185 edges applied). Cosmos note: dropped wrong industry: Medical Distribution.
+- Derived: 116 aliases -> 111 sub_sector hyperedges / 1,011 members (was 108/999); D7 authored
+  203 assignments (182 map); 6 unmapped labels remain by design (split buckets — members authored).
+- Gate: final ACCEPT --expect-improve incl type-sub-sector (parent 14:18 pre-apply snapshot,
+  candidate live) — 188 questions, 0 reasons; reports gate_accept_v14_report.json +
+  gate_final_subsector_proposal_report.json. Questions v14.

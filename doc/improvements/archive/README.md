@@ -129,6 +129,15 @@ commit, referenced by nothing). Entry numbers point at
 - [`security_route_skeleton.md`](security/security_route_skeleton.md) — Route skeleton — `ast`-derived inventory of `app.py`'s 38 routes published to `doc/security/routes.json` and checked by `static_checks.py`; the emitted advisory is shape agreement, explicitly not a security verdict — completed.md #311
 
 ## graph/ — Graph layer — algorithms, DuckPGQ retirement, Onager, knowledge-model design
+- [`subsector_lane_completion.md`](graph/subsector_lane_completion.md) —
+  the 2026-11-12 S9/S11 gap closure arc (#511): curated counterparty
+  alias tier (`helpers/misc/counterparty_aliases.json`, 4 entries; 8 →
+  4 unresolved, remainder parked skip in the worklist journal), S11
+  authored subsector mapping (93 notes; 5 new aliases; `Waste_Management`
+  taxonomy node under Infrastructure; Cosmos `Medical Distribution` label
+  dropped; 12 → 6 label-unmapped, all members authored; 111 sub_sector
+  hyperedges / 1,011 members), gate ACCEPT 188 questions / 0 reasons
+  (`--expect-improve` incl. type-sub-sector), questions v14.
 - [`name_token_family_seed_lane.md`](graph/name_token_family_seed_lane.md) —
   the 2026-11-12 name-token/family-seed lane arc (#510): read-only candidate
   generator `helpers/maintenance/name_token_candidates.py` (df≤5 core 571

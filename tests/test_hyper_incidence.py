@@ -992,13 +992,9 @@ class TestCounterpartyResolution:
         stops carrying it."""
         c = self._events_conn(conn)
         alias_file = tmp_path / "counterparty_aliases.json"
-        alias_file.write_text(
-            json.dumps({"aliases": {"BETA CORP": "Beta"}}), encoding="utf-8"
-        )
+        alias_file.write_text(json.dumps({"aliases": {"BETA CORP": "Beta"}}), encoding="utf-8")
         monkeypatch.setattr(dh, "COUNTERPARTY_ALIASES_PATH", alias_file)
-        c.execute(
-            "UPDATE events SET counterparty = 'BETA CORP' WHERE counterparty = 'Beta'"
-        )
+        c.execute("UPDATE events SET counterparty = 'BETA CORP' WHERE counterparty = 'Beta'")
         c.commit()
         n_ok, n_bad, names = dh.resolve_counterparties(c, dry_run=True)
         assert (n_ok, n_bad) == (1, 1) and names == ["Ghost CP Co"]
@@ -1010,9 +1006,7 @@ class TestCounterpartyResolution:
         ).fetchone()
         assert row[0] == "Beta"
 
-    def test_alias_tier_stale_target_is_dropped_not_minted(
-        self, conn, tmp_path, monkeypatch
-    ):
+    def test_alias_tier_stale_target_is_dropped_not_minted(self, conn, tmp_path, monkeypatch):
         """An alias whose target resolves to no stored entity must not mint a
         new counterparty_entity — it stays in the unresolved worklist."""
         c = self._events_conn(conn)

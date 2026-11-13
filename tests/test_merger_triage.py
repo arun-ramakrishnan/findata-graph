@@ -429,8 +429,8 @@ class TestGateShapes:
 
         data = load_questions(DEFAULT_QUESTIONS)
         by_id = {q["id"]: q for q in data["questions"]}
-        # version tracks the roster; bumped by every rebaseline (v7 #506 metric pins → v8 uparent pins → v9 family anchors → v10/v11 re-pins → v12 canonical names)
-        assert data["version"] == 12
+        # version tracks the roster; bumped by every rebaseline (v7 #506 metric pins → v8 uparent pins → v9 family anchors → v10/v11 re-pins → v12 canonical names → v13 family pins → v14 rebaseline → v15 group compact pins → v16 v6 family pins → v18 v7 family pins → v19 MNC pins → v20 relabels → v21 CIE reclassification)
+        assert data["version"] == 21
         for qid, family in (
             ("hyper-merger-families", "merger"),
             ("hyper-demerger-families", "demerger"),
