@@ -282,8 +282,17 @@ class TestSectorHierarchy:
 
     def test_belongs_to_materialised_in_graph(self, con):
         # The e_belongs_to table must be populated (the dedicated CTAS ran).
+        # Derive the expectation from the taxonomy rather than pinning a
+        # number that rots on every taxonomy edit: every sector carries one
+        # super-sector parent and every authored sub-sector one sector
+        # parent (super-sectors have no parent, so they contribute no row).
+        # (Was a hardcoded 184 = 42 + 142 from the 2026-09-19 census; the
+        # taxonomy gained a 143rd authored sub-sector on 2026-11-14.)
         n = con.execute("SELECT COUNT(*) FROM e_belongs_to").fetchone()[0]
-        assert n == 184  # 42 sector->super + 142 sub->sector (live census, 2026-09-19)
+        expected = sum(len(sectors) for sectors in SUPER_SECTORS.values()) + sum(
+            len(_subs) for _subs in SUB_CATEGORIES.values()
+        )
+        assert n == expected
 
     def test_vertex_projections_populated(self, con):
         # The 4 entity kinds must all materialise as vertices. The live DB

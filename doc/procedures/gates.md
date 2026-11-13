@@ -279,9 +279,18 @@ slowness class at the cycle that causes it:
 2. ASK the operator: distribute into owning patches, or keep the collector?
    Distribution is optional every arc.
 3. If distributing — group fixes by OWNING patch, then route per patch:
-   - **Fast path** — paths disjoint from every patch ABOVE P (probe with
-     `stg files <each patch above P>`; disjoint means refresh -p cannot
-     conflict): `stg refresh -p <P> --force -a "gate fix: <what/why>" -- <paths>`
+   - **Precondition probe (REQUIRED before any route)** — `stg files
+     <each patch above P>` to establish disjointness AND `stg series -id`
+     to confirm P's position. 2026-11-13 trap: `refresh -p <P>` when P is
+     not top is a SILENT NO-OP — exit 0, nothing delivered, the fix stays
+     in the collector. A no-op or a conflict means STOP: take a fresh
+     `stg export` checkpoint and hand the route choice to the operator
+     (repair discipline: max one repair attempt per failure class,
+     split_patch.md § Repair discipline — chaining a second improvised
+     repair is how the 2026-11-13 stack destruction started).
+   - **Fast path** — paths disjoint from every patch ABOVE P (probe
+     above; disjoint means refresh -p cannot conflict): `stg refresh -p
+     <P> --force -a "gate fix: <what/why>" -- <paths>`
    - **Fallback** — refresh -p conflicted (a `refresh-temp` patch is left
      behind): `stg undo` (one step undoes the merge, a second also drops
      the temp patch), then the goto -k round-trip per split_patch.md:
@@ -317,6 +326,14 @@ slowness class at the cycle that causes it:
 
 - No `stg new` except the collector; no `stg delete` without the step-0
   export; no `git commit`/`amend`/`rebase`; no full-suite runs mid-arc.
+- StGit internals are operator-owned: `stg init`, `stg branch -c/-r/-d`,
+  and ANY hand edit of `refs/stacks/*` or `refs/patches/*` are forbidden
+  to the agent. StGit 2.x keeps the authoritative stack in
+  `refs/stacks/<branch>` (undo = its metadata chain) and
+  `refs/patches/*` are a derived cache that autorepair silently
+  rewrites — hand edits are invisible damage that surfaces later
+  (2026-11-13 stack destruction; split_patch.md § StGit 2.x internals,
+  postmortem `doc/local/engineering/stgit_incident_2026-11-13.md`).
 - The close-out distribution rides the arc's explicit go — AGENTS.md's
   "never `stg refresh` unprompted" still holds for everything outside this
   protocol.

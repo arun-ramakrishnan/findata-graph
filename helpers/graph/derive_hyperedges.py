@@ -1358,7 +1358,16 @@ def collect_hyperedges(  # noqa: C901
     for hyper_type, dyad_type, min_k in _STAR_SOURCES:
         groups: dict[str, set[str]] = {}
         for member, label in conn.execute(
-            "SELECT source, target FROM graph_edges WHERE edge_type = ?",  # noqa: S608
+            # Valid-window filter (2026-11-14): a dyad closed by
+            # `derive_indices --prune-absent` (valid_to set) must not keep
+            # joining the regrouped hyperedge. Without this the index
+            # family was a pure union of ever-membership — measured NIFTY 50
+            # at 51 members (Wipro, closed 2026-11-13, still inside beside
+            # its replacement BSE), 281 stale incidences across 36 index
+            # hyperedges. NULL bounds read as always-visible, matching
+            # helpers/graph/as_of.py.
+            "SELECT source, target FROM graph_edges WHERE edge_type = ? "  # noqa: S608
+            "AND (valid_to IS NULL OR valid_to > date('now'))",
             (dyad_type,),
         ):
             groups.setdefault(label, set()).add(member)
@@ -1374,13 +1383,15 @@ def collect_hyperedges(  # noqa: C901
         groups = {}
         for label, member in conn.execute(
             "SELECT json_extract(properties, ?) AS label, source AS member "
-            "FROM graph_edges WHERE edge_type = ? AND label IS NOT NULL",  # noqa: S608
+            "FROM graph_edges WHERE edge_type = ? AND label IS NOT NULL "  # noqa: S608
+            "AND (valid_to IS NULL OR valid_to > date('now'))",
             (prop, dyad_type),
         ):
             groups.setdefault(label, set()).add(member)
         for label, member in conn.execute(
             "SELECT json_extract(properties, ?) AS label, target AS member "
-            "FROM graph_edges WHERE edge_type = ? AND label IS NOT NULL",  # noqa: S608
+            "FROM graph_edges WHERE edge_type = ? AND label IS NOT NULL "  # noqa: S608
+            "AND (valid_to IS NULL OR valid_to > date('now'))",
             (prop, dyad_type),
         ):
             groups.setdefault(label, set()).add(member)
@@ -1566,6 +1577,56 @@ def prune_stale_group_edges(conn, wanted_labels: set[str], *, dry_run: bool) -> 
     return stats
 
 
+def compact_membership(
+    conn,
+    hyper_type: str,
+    groups: dict[str, set[str]],
+    *,
+    skip_prefixes: tuple[str, ...] = (),
+    dry_run: bool = True,
+) -> int:
+    """Converge a fully-derived family's incidences to the collect output.
+
+    ``apply_hyperedges`` is INSERT OR IGNORE — additive only — so a member
+    the collector no longer produces lingers forever unless the caller
+    prunes. This is the generic pass behind
+    :func:`compact_group_membership` (which adds the ``family:``/``mnc:``
+    curated-label exemption) and the star families (index/theme/country/
+    subsidiary/supply), where the collect output IS the whole membership.
+
+    Labels absent from ``groups`` are left alone here: whole-label staleness
+    is the separate ``prune_stale_*_edges`` convergence, and a filtered
+    ``--families`` run legitimately collects only its selection.
+
+    Returns incidences deleted (or would-delete in dry-run).
+    """
+    pruned = 0
+    for label, members in groups.items():
+        if not members or any(label.startswith(p) for p in skip_prefixes):
+            continue
+        edge = conn.execute(
+            "SELECT id FROM hyper_edges WHERE edge_type = ? AND label = ?",
+            (hyper_type, label),
+        ).fetchone()
+        if edge is None:
+            continue
+        qmarks = ",".join("?" * len(members))
+        if dry_run:
+            cur = conn.execute(
+                f"SELECT COUNT(*) FROM hyper_incidences WHERE edge_id = ? "  # noqa: S608  # ?-placeholders only, values parameterized
+                f"AND entity_name NOT IN ({qmarks})",
+                (edge[0], *members),
+            )
+        else:
+            cur = conn.execute(
+                f"DELETE FROM hyper_incidences WHERE edge_id = ? "  # noqa: S608  # ?-placeholders only, values parameterized
+                f"AND entity_name NOT IN ({qmarks})",
+                (edge[0], *members),
+            )
+        pruned += cur.fetchone()[0] if dry_run else cur.rowcount
+    return pruned
+
+
 def compact_group_membership(
     conn,
     groups: dict[str, set[str]],
@@ -1586,35 +1647,13 @@ def compact_group_membership(
     forever. Returns the number of incidences deleted (or would-delete in
     dry-run).
     """
-    pruned = 0
-    for label, members in groups.items():
-        if (
-            label.startswith(FAMILY_LABEL_PREFIX)
-            or label.startswith(MNC_LABEL_PREFIX)
-            or not members
-        ):
-            continue
-        edge = conn.execute(
-            "SELECT id FROM hyper_edges WHERE edge_type = 'group' AND label = ?",
-            (label,),
-        ).fetchone()
-        if edge is None:
-            continue
-        qmarks = ",".join("?" * len(members))
-        if dry_run:
-            cur = conn.execute(
-                f"SELECT COUNT(*) FROM hyper_incidences WHERE edge_id = ? "  # noqa: S608  # ?-placeholders only, values parameterized
-                f"AND entity_name NOT IN ({qmarks})",
-                (edge[0], *members),
-            )
-        else:
-            cur = conn.execute(
-                f"DELETE FROM hyper_incidences WHERE edge_id = ? "  # noqa: S608  # ?-placeholders only, values parameterized
-                f"AND entity_name NOT IN ({qmarks})",
-                (edge[0], *members),
-            )
-        pruned += cur.fetchone()[0] if dry_run else cur.rowcount
-    return pruned
+    return compact_membership(
+        conn,
+        "group",
+        groups,
+        skip_prefixes=(FAMILY_LABEL_PREFIX, MNC_LABEL_PREFIX),
+        dry_run=dry_run,
+    )
 
 
 def apply_hyperedges(  # noqa: C901 — per-edge_type DDL + dry-run/apply branches mirror the store schema
@@ -2046,6 +2085,24 @@ def _cli(argv: list[str] | None = None) -> int:  # noqa: C901  # arg-dispatch CL
                         f"S1 group-membership compaction: {would_compact} stale "
                         f"incidence(s) would drop"
                     )
+        # Valid-window convergence (2026-11-14): the star families are fully
+        # derived from dyads, but `apply_hyperedges` only INSERTs — a dyad
+        # closed by `derive_indices --prune-absent` (valid_to set) dropped out
+        # of `collect_hyperedges` yet stayed in its hyperedge. Measured before
+        # the fix: 281 stale index incidences across 36 hyperedges (NIFTY 50
+        # at 51 members — Wipro closed 2026-11-13 still counted beside its
+        # replacement BSE). Every star family now compacts to the collect set.
+        for _ht, _dt, _k in _STAR_SOURCES:
+            if not family_selected(_ht) or not hyper.get(_ht):
+                continue
+            if args.apply:
+                gone = compact_membership(conn, _ht, hyper[_ht], dry_run=False)
+                if gone:
+                    print(f"valid-window compaction: {gone} stale '{_ht}' incidence(s) dropped")
+            else:
+                would = compact_membership(conn, _ht, hyper[_ht], dry_run=True)
+                if would:
+                    print(f"valid-window compaction: {would} stale '{_ht}' incidence(s) would drop")
         print(
             f"{'source':<10} {'new_edges':>10} {'new_incidences':>15}"
             + (f"  ({len(weights)} weighted)" if weights else "")

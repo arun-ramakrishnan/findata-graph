@@ -15288,3 +15288,65 @@ bugs fixed: missing tokenizer dedupe (window-count divergence) and raw-tuple
 vs unreduced-fraction comparison → cross-multiplication. Unit tests
 `Mojo/tests/test_window_shingles.mojo` 9 green; acceptance 1–5 VERIFIED;
 no gate changes. Proposal: archive/tooling/mojo_window_shingle_lens.md.
+
+## 521. Group-dyad wave 2 — PSU/state & JV catalogs, residual MNC arms, index-label hygiene
+
+Wave-2 extraction from the triaged same_group dyads (completed.md #514 §4
+blob verdicts) — the verdict classes the family/MNC lanes deliberately never
+seed, delivered as a mostly read-only catalog arc. S1 PSU/state catalog
+(`helpers/maintenance/psu_dyad_pass.py`, mirrors the MNC dyad pass;
+`PSU_PARENTS` 26 symbols → ministry + level with central/state/borderline
+classification): live run 26 labels profiled / 419 members / 0 uncharted
+(top POWERGRID 50, ONGC 37, SBILIFE 33, NHPC 33, COALINDIA 31, NTPC 25).
+S2 JV census (`helpers/maintenance/jv_dyad_census.py`, name-pattern scan +
+`jv_with` cross-ref): 208 JV-shaped entities across 212 label-memberships,
+1,507 live `jv_with` edges — key discovery: jv_with edges live in
+`graph_edges`, not `hyper_edges` (star-lane query returns []) — anchors AWL
+29 / RENUKA 10, resolved partner pairs (DBL×JV family, Aditya Birla Power
+Composites↔Grasim, Matsui↔Motherson, Aravali/Aravali-SAIL↔NTPC, Turf Estate
+LLP↔PRESTIGE, Itezhi Tezhi↔Tata Power). S3 residual MNC arm probe
+(`helpers/maintenance/mnc_arm_probe.py`, canonical Indian-listed name
+fragments; subsidiary_of/same_group/hyperedge/embedding-peers evidence):
+ZFCV → already-homed in `vigil:rpt:ZFCVINDIA` (56 members, full ZF/WABCO
+global network; the dyad pass keyed the wrong ticker); ASTRAZENEC /
+NOVARTIS / ABBOTINDIA → documented absence (no same_group label; only
+subsidiary_of/embedding/index evidence), absence notes appended to archived
+mnc_arm_lane.md §5; no seeds added. S4 index-label hygiene verified at
+derive time: NIFTY 500 ≡ Nifty500 Multicap 50-25-25 Index 499/499 members,
+Jaccard 1.0 (one-line finding, no store change). Acceptance 1–6 VERIFIED;
+catalog-only default (D1/D2 off) leaves gate untouched (239q, 0 reasons).
+Tests 14/14 across the three helpers (psu 5/5, jv 5/5, probe 4/4);
+lifecycle fatal []/advisory []. No changes to family_seeds.json /
+mnc_seeds.json. Proposal: archive/graph/group_dyad_wave2.md.
+
+Follow-up executed the same day (operator request): index-label dedup
+landed as `helpers/maintenance/index_label_dedup.py` plus an
+`INDEX_NAME_CANONICAL` fold inside `derive_indices.resolve()`, so
+NIFTY 500 ≡ Nifty500 Multicap 50-25-25 Index ≡ Nifty500 LargeMidSmall
+Equal-Cap Weighted (499/499 identical each) collapse to one label at
+derivation time. Live fold: 2 alias hyperedges merged into `NIFTY 500`
+(499 incidences preserved) + 2 alias index entities dropped (998
+`listed_on_index` alias edges removed by FK CASCADE) → index census
+57 → 55 entities/hyperedges. `apply_fold()` commits explicitly (closing a
+sqlite3 connection rolls back an open transaction; a regression test
+covers persistence-after-close). Re-derivation adds 31 index incidences
+(502 members for NIFTY 500) and re-typed subsidy/supply lanes; gate
+ACCEPT 239 questions / 0 reasons against the 21:02 pre-fold snapshot. The
+two smaller duplicates (MidSmallcap400 50-50 ≡ MidSmallcap 400 399/399;
+Nifty Financial Services 25/50 ≡ Nifty Financial Services 20/20) are
+reported-not-folded pending an operator ruling. Tests 5/5
+(`tests/test_index_label_dedup.py`) + 19/19 with the derive-indices
+suite.
+Follow-up #2 (2026-11-14, operator ruling: fold the remaining two).
+`Nifty MidSmallcap400 50-50` ≡ `Nifty MidSmallcap 400` and `Nifty
+Financial Services 25/50 Index` ≡ `Nifty Financial Services` moved from
+`OTHER_MEASURED_DUPS` into `INDEX_NAME_CANONICAL` (helper +
+`derive_indices.resolve()`). Applied: 2 alias hyperedges merged, 2 alias
+entities dropped (402 + 20 `listed_on_index` alias edges cascade-removed)
+→ index census 55 → 53; canonical member sets unchanged (MidSmallcap 400
+at 402 after 3 constituents landed since the first measurement,
+Financial Services at 20). Re-derivation re-inserted nothing (fold
+idempotent). Cache rebuilt (v_node 27,827 → 27,825), integrity exit 0,
+gate ACCEPT 239 questions / 0 reasons against the post-fold-1 parent
+snapshot. Weight-scheme nuance survives only in each edge's
+`index_slug` property.

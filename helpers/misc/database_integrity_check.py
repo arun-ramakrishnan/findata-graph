@@ -185,6 +185,12 @@ _CHECKS: tuple[Check, ...] = (
     Check("cin_nic2008", "check_cin_nic2008", "warning", "CIN nic5 <-> NIC-2008 (vintage)"),
     Check("graph_summary", "check_graph_summary", "warning", "Graph Summary"),
     Check("db_meta", "check_db_meta", "error", "DB Meta (generation + user_version)"),
+    Check(
+        "index_prune_plan",
+        "check_index_prune_plan",
+        "warning",
+        "Index Membership Prune Plan",
+    ),
 )
 
 
@@ -1975,6 +1981,64 @@ class DatabaseIntegrityChecker:
                 warning_total += missing_from
         return {"by_type": by_type, "warnings": warning_total, "errors": 0}
 
+    def check_index_prune_plan(self) -> dict:
+        """ADVISORY: would `derive_indices --prune-absent` actually write anything?
+
+        Guards the same class of defect as the gc_embed_cache dead-row report:
+        a plan of N candidates that the writer silently skips, or closes with no
+        date, looks identical to a successful prune from the CLI rowcount alone.
+        Read-only — it re-derives the plan via
+        :func:`helpers.graph.derive_indices.plan_close` against the current
+        sidecar, then classifies each candidate by the `valid_to` already on
+        the row. Warnings never fail a gate (`exit_code` counts errors only).
+        """
+        try:
+            from helpers.graph.derive_indices import (  # noqa: E402
+                DEFAULT_MAX_CLOSE,
+                audit_prune_plan,
+                load_constituents,
+                plan_close,
+                plan_revival,
+            )
+
+            constituents = load_constituents()
+            candidates = plan_close(constituents, conn=self.get_connection())
+            audit = audit_prune_plan(candidates, conn=self.get_connection())
+        except Exception as exc:  # noqa: BLE001 — advisory, never a gate
+            return {
+                "warnings": 1,
+                "errors": 0,
+                "error": f"{type(exc).__name__}: {exc}",
+            }
+
+        revival = 0
+        try:
+            revival = len(plan_revival(constituents, conn=self.get_connection()))
+        except Exception:  # noqa: BLE001,S110 — a dead revival lane is not fatal
+            revival = 0
+
+        by_index = dict(audit.by_index)
+        if len(audit.by_index) > 12:
+            by_index = dict(sorted(audit.by_index.items(), key=lambda kv: (-kv[1][0], kv[0]))[:12])
+        warnings = list(audit.warnings)
+        if revival:
+            warnings.append(
+                f"{revival} closed listed_on_index edge(s) are asserted by the current "
+                "sidecar but reopen_current has no CLI caller — they stay closed"
+            )
+        return {
+            "candidates": audit.candidates,
+            "would_write": audit.would_write,
+            "already_closed": audit.already_closed,
+            "dateless": audit.dateless,
+            "by_date": dict(audit.by_date),
+            "by_index": by_index,
+            "revival": revival,
+            "max_close": DEFAULT_MAX_CLOSE,
+            "warnings": warnings,
+            "errors": 0,
+        }
+
     # ------------------------------------------------------------------ #
     # Cross-store cache consistency (DuckDB cache vs SQLite source-of-truth)
     # ------------------------------------------------------------------ #
@@ -2847,6 +2911,39 @@ class DatabaseIntegrityChecker:
             )
         lines.append("")
 
+        ipp = results.get("index_prune_plan", {})
+        lines.append("## INDEX MEMBERSHIP PRUNE PLAN (advisory)")
+        if ipp.get("error"):
+            lines.append(f"  unavailable: {ipp['error']}")
+        else:
+            lines.append(
+                f"  plan={ipp.get('candidates', 0)} -> "
+                f"would_write={ipp.get('would_write', 0)} "
+                f"already_closed={ipp.get('already_closed', 0)} "
+                f"dateless={ipp.get('dateless', 0)} "
+                f"(abort above {ipp.get('max_close', 0)})"
+            )
+            by_date = ipp.get("by_date") or {}
+            if by_date:
+                lines.append(
+                    "  close dates: " + ", ".join(f"{d}={n}" for d, n in sorted(by_date.items()))
+                )
+            by_index = ipp.get("by_index") or {}
+            for index, (total, dateless, sample, close_on) in sorted(
+                by_index.items(), key=lambda kv: (-kv[1][0], kv[0])
+            ):
+                lines.append(
+                    f"  {index:38} {total} edges  close_on={close_on or 'NONE'}"
+                    f"  ({dateless} undated)" + ("  e.g. " + ", ".join(sample) if sample else "")
+                )
+            if ipp.get("revival"):
+                lines.append(
+                    f"  WARNING {ipp['revival']} closed edge(s) the sidecar re-asserts; "
+                    "reopen_current has no CLI caller — they stay closed"
+                )
+            for warning in ipp.get("warnings") or []:
+                lines.append(f"  WARNING {warning}")
+
         gs = results.get("graph_summary", {})
         lines.append("## GRAPH SUMMARY (advisory; shape snapshot)")
         ec = gs.get("entity_counts", {})
@@ -3100,6 +3197,21 @@ class DatabaseIntegrityChecker:
                 f"valid_from={stats['with_valid_from']:4} "
                 f"(missing {stats['missing_valid_from']})"
             )
+        print("✂️  INDEX MEMBERSHIP PRUNE PLAN (advisory):")
+        ipp = results.get("index_prune_plan", {})
+        if ipp.get("error"):
+            print(f"   unavailable: {ipp['error']}")
+        else:
+            print(
+                f"   plan={ipp.get('candidates', 0)} -> "
+                f"would_write={ipp.get('would_write', 0)} "
+                f"already_closed={ipp.get('already_closed', 0)} "
+                f"dateless={ipp.get('dateless', 0)}"
+            )
+            for d, n in sorted((ipp.get("by_date") or {}).items()):
+                print(f"   close date {d}: {n} edges")
+            for warning in ipp.get("warnings") or []:
+                print(f"   WARNING {warning}")
         print()
 
         print("📊 GRAPH SUMMARY (advisory; shape snapshot):")

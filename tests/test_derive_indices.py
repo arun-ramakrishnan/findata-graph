@@ -251,3 +251,401 @@ class TestBackfillValidity:
         # idempotent: converged -> 0 updates
         assert di.backfill_validity(conn=conn) == 0
         conn.close()
+
+
+# --------------------------------------------------------------------------- #
+# Reconstitution sweep: prune departed members (valid_to) + revive returners
+# --------------------------------------------------------------------------- #
+class TestReconstitutionSweep:
+    def _conn_with_edges(self, rows):
+        """Seed graph_edges with ``(source, target, as_of[, symbol])`` membership rows.
+
+        The sidecar symbol defaults to the upper-cased entity name; pass it
+        explicitly when the two differ (``"Wipro"`` -> ``"WIPRO"``).
+        """
+        conn = _conn()
+        for row in rows:
+            source, index, as_of = row[0], row[1], row[2]
+            symbol = row[3] if len(row) > 3 else source.upper()
+            conn.execute(
+                "INSERT INTO graph_edges (source, target, edge_type, properties, source_ref) "
+                "VALUES (?, ?, 'listed_on_index', ?, 'derive:indices:nse-constituents')",
+                (source, index, json.dumps({"as_of": as_of, "symbol": symbol})),
+            )
+        conn.commit()
+        return conn
+
+    def test_current_pairs_folds_aliases_and_ignores_dateless(self):
+        pairs = di.current_pairs(
+            [
+                _const("RELIANCE", "INE002A01018"),  # as_of 2026-09-18
+                {
+                    "index_name": "Nifty MidSmallcap400 50-50",
+                    "symbol": "RELIANCE",
+                    "as_of": None,  # dateless -> still present, never closed
+                    "index_slug": "x",
+                    "isin": "",
+                    "company_name": "Reliance",
+                    "industry": "",
+                },
+                {
+                    "index_name": "Nifty 50",
+                    "symbol": "",
+                    "as_of": "2026-09-18",
+                    "index_slug": "x",
+                    "isin": "",
+                    "company_name": "x",
+                    "industry": "",
+                },
+            ]
+        )
+        assert ("RELIANCE", "Nifty 50") in pairs
+        assert ("RELIANCE", "Nifty MidSmallcap 400") in pairs
+        assert all(symbol for symbol, _ in pairs)
+
+    def test_plan_close_finds_departures_only(self):
+        constituents = [
+            _const("RELIANCE"),  # still a Nifty 50 member
+            {**_const("WIPRO"), "index_name": "Nifty Bank"},  # WIPRO left Nifty 50
+        ]
+        conn = self._conn_with_edges(
+            [
+                ("Reliance Industries", "Nifty 50", "2026-09-18", "RELIANCE"),
+                ("Wipro", "Nifty 50", "2026-09-18", "WIPRO"),  # gone from the sidecar
+            ]
+        )
+        try:
+            plan = di.plan_close(constituents, conn=conn)
+        finally:
+            conn.close()
+        assert [(s, t, sym) for s, t, sym, _ in plan] == [("Wipro", "Nifty 50", "WIPRO")]
+        assert plan[0][3] == "2026-09-18"  # close_on = newest vintage for the index
+
+    def test_plan_close_ignores_foreign_symbol(self):
+        constituents = [_const("RELIANCE")]
+        conn = self._conn_with_edges([("Outsider Co", "Nifty 50", "2026-09-18", "OUTSID")])
+        try:
+            plan = di.plan_close(constituents, conn=conn)
+        finally:
+            conn.close()
+        assert plan == []  # sidecar never described OUTSID -> out of scope
+
+    def test_close_superseded_sets_valid_to_and_is_idempotent(self):
+        constituents = [
+            _const("RELIANCE"),
+            {**_const("WIPRO"), "index_name": "Nifty Bank"},  # left Nifty 50
+        ]
+        conn = self._conn_with_edges([("Wipro", "Nifty 50", "2026-09-18", "WIPRO")])
+        try:
+            plan = di.plan_close(constituents, conn=conn)
+            assert di.close_superseded(plan, conn=conn, apply=True) == 1
+            row = conn.execute(
+                "SELECT valid_from, valid_to FROM graph_edges WHERE source='Wipro'"
+            ).fetchone()
+            assert tuple(row) == (None, "2026-09-18")
+            # second pass: already closed at that date -> no further writes
+            assert di.close_superseded(plan, conn=conn, apply=True) == 0
+            # dry-run reports the pending change without writing
+            conn.execute("UPDATE graph_edges SET valid_to = NULL")
+            conn.commit()
+            assert di.close_superseded(plan, conn=conn, apply=False) == 1
+            assert conn.execute("SELECT valid_to FROM graph_edges").fetchone()[0] is None
+        finally:
+            conn.close()
+
+    def test_close_superseded_skips_dateless_close_on(self):
+        conn = self._conn_with_edges([("Wipro", "Nifty 50", None, "WIPRO")])
+        try:
+            assert (
+                di.close_superseded([("Wipro", "Nifty 50", "WIPRO", "")], conn=conn, apply=True)
+                == 0
+            )
+        finally:
+            conn.close()
+
+    def test_reopen_current_revives_only_current_vintage(self):
+        constituents = [
+            {**_const("WIPRO"), "as_of": "2026-11-13"},  # current vintage
+        ]
+        conn = self._conn_with_edges(
+            [
+                ("Wipro", "Nifty 50", "2026-09-18", "WIPRO"),
+                ("Wipro", "Nifty Bank", "2026-09-18", "WIPRO"),  # closed, not in sidecar now
+            ]
+        )
+        try:
+            conn.execute("UPDATE graph_edges SET valid_to='2026-11-13' WHERE source='Wipro'")
+            conn.commit()
+            assert di.reopen_current(constituents, conn=conn, apply=True) == 1
+            assert (
+                conn.execute("SELECT valid_to FROM graph_edges WHERE target='Nifty 50'").fetchone()[
+                    0
+                ]
+                is None
+            )
+            # the Nifty Bank row stays closed: sidecar no longer asserts it
+            assert (
+                conn.execute(
+                    "SELECT valid_to FROM graph_edges WHERE target='Nifty Bank'"
+                ).fetchone()[0]
+                == "2026-11-13"
+            )
+            assert di.reopen_current(constituents, conn=conn, apply=True) == 0
+        finally:
+            conn.close()
+
+    def test_reopen_current_refuses_mass_reopen(self):
+        constituents = [
+            {**_const("WIPRO"), "as_of": "2026-11-13"},
+        ]
+        conn = self._conn_with_edges([("Wipro", "Nifty 50", "2026-09-18", "WIPRO")])
+        try:
+            conn.execute("UPDATE graph_edges SET valid_to='2026-11-13'")
+            conn.commit()
+            try:
+                di.reopen_current(constituents, conn=conn, apply=True, max_reopen=0)
+            except RuntimeError as exc:
+                assert "re-open" in str(exc)
+            else:
+                raise AssertionError("expected RuntimeError on mass reopen")
+            assert conn.execute("SELECT valid_to FROM graph_edges").fetchone()[0] == "2026-11-13"
+        finally:
+            conn.close()
+
+    def test_closed_edge_is_visible_through_day_before_reconstitution(self):
+        """valid_to is EXCLUSIVE (as_of.py): the departure disappears at the new vintage."""
+        import helpers.graph.as_of as as_of_mod
+
+        # The sidecar publishes the new vintage only; the departed member is
+        # absent from it, so close_on is the newest vintage that index has.
+        constituents = [
+            {**_const("RELIANCE"), "as_of": "2026-11-13"},
+            {**_const("WIPRO"), "index_name": "Nifty Bank", "as_of": "2026-11-13"},
+        ]
+        conn = self._conn_with_edges(
+            [
+                ("Wipro", "Nifty 50", "2026-09-18", "WIPRO"),
+                ("Reliance Industries", "Nifty 50", "2026-09-18", "RELIANCE"),
+            ]
+        )
+        try:
+            di.backfill_validity(conn=conn)  # stamps valid_from from properties.as_of
+            plan = di.plan_close(constituents, conn=conn)
+            assert [row[3] for row in plan] == ["2026-11-13"]
+            assert di.close_superseded(plan, conn=conn, apply=True) == 1
+            before = [r for r in as_of_mod.edges_as_of(conn, "2026-11-12", edge_type=di.EDGE_TYPE)]
+            after = [r for r in as_of_mod.edges_as_of(conn, "2026-11-13", edge_type=di.EDGE_TYPE)]
+            assert sorted(r["source"] for r in before) == ["Reliance Industries", "Wipro"]
+            assert [r["source"] for r in after] == [
+                "Reliance Industries"
+            ]  # Wipro gone at the new vintage
+        finally:
+            conn.close()
+
+
+# --------------------------------------------------------------------------- #
+# Prune audit: what a prune plan would actually write                          #
+# --------------------------------------------------------------------------- #
+class TestPruneAudit:
+    @staticmethod
+    def _bulk_rows(conn, index, count, *, as_of, valid_from, valid_to=None):
+        """Seed ``count`` rows via a single INSERT ... SELECT (no 251-step loop)."""
+        conn.execute(
+            "INSERT INTO graph_edges "
+            "(source, target, edge_type, properties, valid_from, valid_to, source_ref) "
+            "SELECT 'S' || key, ?, 'listed_on_index', "
+            "       json_object('as_of', ?, 'symbol', 'S' || key), ?, ?, "
+            "       'derive:indices:nse-constituents' "
+            "FROM json_each(?)",
+            (
+                index,
+                as_of,
+                valid_from,
+                valid_to,
+                json.dumps([0] * count),
+            ),
+        )
+        conn.commit()
+        return conn
+
+    def _conn_with_edges(self, rows):
+        conn = _conn()
+        for row in rows:
+            source, index, as_of, valid_to = row[0], row[1], row[2], row[3]
+            valid_from = row[4] if len(row) > 4 else None
+            conn.execute(
+                "INSERT INTO graph_edges "
+                "(source, target, edge_type, properties, valid_from, valid_to, source_ref) "
+                "VALUES (?, ?, 'listed_on_index', ?, ?, ?, 'derive:indices:nse-constituents')",
+                (
+                    source,
+                    index,
+                    json.dumps({"as_of": as_of, "symbol": source.upper()}),
+                    valid_from,
+                    valid_to,
+                ),
+            )
+        conn.commit()
+        return conn
+
+    def test_audit_separates_would_write_from_already_closed(self):
+        # plan_close derives a candidate's close_on from the NEWEST sidecar vintage
+        # for that index, so the index must appear in the sidecar at 2026-11-14.
+        # Nifty Microcap 250 is present there; Nifty 100 is not, and falls back to
+        # the row's own valid_from.
+        constituents = [
+            {**_const("WIPRO"), "as_of": "2026-11-14"},
+            {**_const("RELIANCE"), "index_name": "Nifty Microcap 250", "as_of": "2026-11-14"},
+        ]
+        conn = self._conn_with_edges(
+            [
+                # still open -> a real write at the new vintage
+                ("Wipro", "Nifty Microcap 250", "2026-09-18", None),
+                # already closed at exactly that date -> no write
+                ("Wipro", "Nifty 100", "2026-11-13", "2026-11-13", "2026-11-13"),
+            ]
+        )
+        try:
+            plan = di.plan_close(constituents, conn=conn)
+            assert sorted(row[3] for row in plan) == ["2026-11-13", "2026-11-14"]
+            audit = di.audit_prune_plan(plan, conn=conn)
+            assert audit.candidates == 2
+            assert audit.would_write == 1
+            assert audit.already_closed == 1
+            assert audit.dateless == 0
+            assert audit.by_date == {"2026-11-13": 1, "2026-11-14": 1}
+            assert audit.by_index["Nifty Microcap 250"] == (1, 0, ["Wipro"], "2026-11-14")
+            # the writer is the only thing that can confirm the count
+            assert di.close_superseded(plan, conn=conn, apply=True) == 1
+        finally:
+            conn.close()
+
+    def test_dateless_index_is_reported_as_dateless_not_silently_skipped(self):
+        """close_superseded `continue`s an empty close_on: plan and write disagree."""
+        constituents = [{**_const("WIPRO"), "index_name": "Nifty Bank", "as_of": None}]
+        conn = self._conn_with_edges([("Wipro", "Nifty 50", "2026-09-18", None)])
+        try:
+            plan = di.plan_close(constituents, conn=conn)
+            audit = di.audit_prune_plan(plan, conn=conn)
+            assert audit.candidates == 1, "an undated index is still a plan candidate"
+            assert audit.dateless == 1 and audit.would_write == 0
+            assert di.close_superseded(plan, conn=conn, apply=True) == 0
+            assert any("no close date" in w for w in audit.warnings)
+            assert any("counts will disagree" in w for w in audit.warnings)
+        finally:
+            conn.close()
+
+    def test_mass_closure_escalates_per_index_warning(self):
+        # plan_close only gates a candidate on the SYMBOL existing somewhere in the
+        # sidecar (sidecar_symbols), so a whole index can be absent from the sidecar:
+        # the 251 rows fall back to their own valid_from for close_on.
+        # The candidate set is keyed on the SYMBOL existing somewhere in the sidecar
+        # (sidecar_symbols), so the 251 rows only need their symbols asserted by SOME
+        # index; a sentinel member of the index under sweep supplies the vintage that
+        # stamps close_on.
+        count = di.INDEX_CLOSE_WARN + 1
+        constituents = [
+            {**_const(f"S{i}"), "index_name": "Nifty Bank", "as_of": "2026-11-14"}
+            for i in range(count)
+        ]
+        constituents.append(
+            {**_const("SENTINEL"), "index_name": "Nifty Microcap 250", "as_of": "2026-11-14"}
+        )
+        conn = _conn()
+        self._bulk_rows(
+            conn,
+            "Nifty Microcap 250",
+            count,
+            as_of="2026-09-18",
+            valid_from=None,
+        )
+        try:
+            plan = di.plan_close(constituents, conn=conn)
+            assert len(plan) == count
+            audit = di.audit_prune_plan(plan, conn=conn)
+            assert audit.would_write == count
+            assert any("Nifty Microcap 250" in w for w in audit.warnings)
+            assert any("real reconstitution" in w for w in audit.warnings)
+            # the advisory's first line is that index, so the operator reads it first
+            rendered = di.render_prune_advisory(audit)
+            assert "Nifty Microcap 250" in rendered[0]
+            assert str(count) in rendered[0]
+        finally:
+            conn.close()
+
+    def test_render_advisory_warns_when_the_writer_ignores_the_plan(self):
+        constituents = [{**_const("WIPRO"), "index_name": "Nifty Bank", "as_of": "2026-11-14"}]
+        conn = self._conn_with_edges([("Wipro", "Nifty 50", "2026-09-18", None, "2026-11-13")])
+        try:
+            plan = di.plan_close(constituents, conn=conn)
+            assert [row[3] for row in plan] == ["2026-11-13"]
+            audit = di.audit_prune_plan(plan, conn=conn)
+            assert audit.would_write == 1
+            lines = di.render_prune_advisory(audit, revival=2, close_n=0)
+            text = "\n".join(lines)
+            assert "prune plan: 1 candidates -> 1 would write" in text
+            assert "reopen_current is not wired" in text
+            assert "wrote 0 rows against a plan of 1" in text
+            assert "0 already closed at that date" in text
+            # no writer ran: no disagreement is claimed
+            assert "refused or re-counted" not in "\n".join(
+                di.render_prune_advisory(audit, revival=0)
+            )
+        finally:
+            conn.close()
+
+    def test_format_prune_advisory_is_one_block(self):
+        conn = self._conn_with_edges([("Wipro", "Nifty 50", "2026-09-18", None)])
+        try:
+            audit = di.audit_prune_plan(di.plan_close([], conn=conn), conn=conn)
+            text = di.format_prune_advisory(audit)
+            assert "plan is empty" in text
+            assert text.count("\n") == text.strip().count("\n")
+        finally:
+            conn.close()
+
+
+class TestPlanRevival:
+    def _conn_with_edges(self, rows):
+        conn = _conn()
+        for source, index, as_of, valid_to in rows:
+            conn.execute(
+                "INSERT INTO graph_edges (source, target, edge_type, properties, valid_to, source_ref) "
+                "VALUES (?, ?, 'listed_on_index', ?, ?, 'derive:indices:nse-constituents')",
+                (
+                    source,
+                    index,
+                    json.dumps({"as_of": as_of, "symbol": source.upper()}),
+                    valid_to,
+                ),
+            )
+        conn.commit()
+        return conn
+
+    def test_revival_finds_re_admitted_symbol_but_reopen_is_unwired(self):
+        # _const pins index_name='Nifty 50', so WIPRO is re-admitted THERE while
+        # it left Nifty Bank: revival keys on the (symbol, index) pair, not the symbol.
+        constituents = [
+            {**_const("WIPRO"), "as_of": "2026-11-14"},
+            {
+                **_const("RELIANCE", "INE002A01018"),
+                "index_name": "Nifty Bank",
+                "as_of": "2026-11-14",
+            },
+        ]
+        conn = self._conn_with_edges(
+            [
+                ("Wipro", "Nifty 50", "2026-09-18", "2026-11-13"),  # left, then re-admitted
+                ("Wipro", "Nifty Bank", "2026-09-18", "2026-11-13"),  # left, not re-admitted
+            ]
+        )
+        try:
+            revival = di.plan_revival(constituents, conn=conn)
+            assert [row[:2] for row in revival] == [("Wipro", "Nifty 50")]
+            assert revival[0][3] == "2026-11-14"
+            assert di.plan_revival(constituents, conn=conn, symbols={"WIPRO"}) == revival
+            # nothing in the CLI calls reopen_current, so the plan stays advisory
+            assert di.reopen_current(constituents, conn=conn, apply=True) == 1
+            assert di.plan_revival(constituents, conn=conn) == []
+        finally:
+            conn.close()

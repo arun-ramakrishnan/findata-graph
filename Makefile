@@ -746,8 +746,8 @@ derive-hyperedges: ## Regroup membership dyads into hyper_edges/hyper_incidences
 > python3 helpers/graph/derive_hyperedges.py --apply
 > @echo "✓ hyperedge incidence refreshed (hyper_edges + hyper_incidences)"
 
-derive-indices: ## Derive index entities + listed_on_index edges from NSE index constituents (pair with graph-rebuild)
-> python3 helpers/graph/derive_indices.py --apply
+derive-indices: ## Derive index entities + listed_on_index edges from NSE index constituents (pair with graph-rebuild; PRUNE=1 closes departed memberships with valid_to)
+> python3 helpers/graph/derive_indices.py --apply $(if $(PRUNE),--prune-absent)
 > @echo "✓ index entities + listed_on_index edges + converged sectors refreshed (pair with graph-rebuild)"
 
 # Note-rendering path — DELIBERATELY DRY-RUN (2026-08-19): a bare `make

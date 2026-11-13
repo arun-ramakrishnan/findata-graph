@@ -38,6 +38,14 @@ entry number and stale DONE pointers):
 
 ## Current live proposals
 
+- *(archived 2026-11-13)* — `group_dyad_wave2` (graph/, filed 2026-11-13,
+  executed 2026-11-13, completed.md #521 — S1 `psu_dyad_pass.py` 26 labels /
+  419 members; S2 `jv_dyad_census.py` 208 JV-shaped entities, 1,507 live
+  `jv_with` edges (graph_edges, not hyper_edges); S3 `mnc_arm_probe.py`
+  — ZFCV already-homed in `vigil:rpt:ZFCVINDIA` (56 members), ASTRAZENEC/
+  NOVARTIS/ABBOTINDIA documented absence; S4 NIFTY 500 ≡ Multicap 499/1.0
+  verified; 14/14 tests, catalog-only default).
+
 - *(archived 2026-11-12)* — `semantic_cluster_label_metric`
   (graph/, filed 2026-11-12, executed 2026-11-12, completed.md #513 —
   `graph/semantic_cluster_label_metric.md`). Add a semantic_cluster

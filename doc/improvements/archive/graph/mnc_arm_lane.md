@@ -104,6 +104,24 @@ rule as the family-seed lane) and profiles them. Report + manifest:
   China…) — kept as labels (the MNC network IS the disclosure), but the
   "Indian companies only" view should filter on `entity_type='company'` +
   exchange/CIN presence at query time.
+- **Residual arms probe (S3 of group_dyad_wave2.md, 2026-11-13)** — the 4
+  curated arms absent from the dyad store, resolution status:
+  - `ZFCV` → **already-homed**: `vigil:rpt:ZFCVINDIA` exists (56 members,
+    full ZF/WABCO global network incl. ZF CV Control Systems Manufacturing
+    India + 20+ foreign arms). The dyad pass keyed ticker `ZFCV`; the filer
+    label is `ZFCVINDIA` — reconcile the catalog key if this arm is ever
+    re-seeded.
+  - `ASTRAZENEC` → **documented absence**: AstraZeneca Pharma India (4
+    `subsidiary_of` edges, no same_group label; embedding peers Strides
+    Pharma Science 0.803 / Novartis India 0.767).
+  - `NOVARTIS` → **documented absence**: Novartis India (1 `subsidiary_of`
+    edge, no same_group label; peers Abbott India 0.828 / Zydus Lifesciences
+    0.806).
+  - `ABBOTINDIA` → **documented absence**: Abbott India (1
+    `subsidiary_of` edge, no same_group label, 18 index hyperedges; peers
+    Novartis India 0.828 / Haleon India 0.797).
+  - No seeds added for these four; any future seed wave must go through the
+    validate + adjudication + gate-pins path.
 
 ## 6. Risks
 
