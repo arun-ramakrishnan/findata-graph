@@ -129,6 +129,15 @@ commit, referenced by nothing). Entry numbers point at
 - [`security_route_skeleton.md`](security/security_route_skeleton.md) — Route skeleton — `ast`-derived inventory of `app.py`'s 38 routes published to `doc/security/routes.json` and checked by `static_checks.py`; the emitted advisory is shape agreement, explicitly not a security verdict — completed.md #311
 
 ## graph/ — Graph layer — algorithms, DuckPGQ retirement, Onager, knowledge-model design
+- [`name_token_family_seed_lane.md`](graph/name_token_family_seed_lane.md) —
+  the 2026-11-12 name-token/family-seed lane arc (#510): read-only candidate
+  generator `helpers/maintenance/name_token_candidates.py` (df≤5 core 571
+  candidates / 80 hits / 14.0% / 491 new vs the measured evidence 554/80/14.4%),
+  v5 seeds (Godrej/ICICI/Raymond/JSW/Welspun/Aarti; 14 families / 351 members /
+  0 dropped; Shriram polysemy + foreign Samsung/Oracle + edge-less Max excluded),
+  6 `hyper-family-*` pins declared + gate ACCEPT (188 questions, 0 reasons),
+  rebaselined questions v13 → v14. Sibling: subsector_lane_completion.md
+  (S9/S11 gaps).
 - [`canonical_name_resolution.md`](graph/canonical_name_resolution.md) —
   the 2026-11-12 duplicate-spelling fold arc (#509): loose-key census over 28,725
   entities -> 840 clusters, NSE-listing certification -> 22 foldable (41 review,

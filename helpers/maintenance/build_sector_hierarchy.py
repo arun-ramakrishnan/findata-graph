@@ -224,6 +224,7 @@ SUB_CATEGORIES: dict[str, list[str]] = {
         "Infra EPC",
         "Water Treatment",
         "Infrastructure Operations",
+        "Waste Management",
     ],
     "Retail": [
         "Apparel Retail",

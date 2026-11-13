@@ -4,6 +4,7 @@ type: company
 ticker: CRCL
 sector: Fintech_Payments
 industry: Capital Markets
+subsector: Digital_Platforms
 market_cap: large_cap
 geography: usa
 business_model: b2b

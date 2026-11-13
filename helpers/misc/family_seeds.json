@@ -1,6 +1,6 @@
 {
-  "version": 4,
-  "_note": "S6 curated family lane (rpt_attribution_filer_resolution_and_group_family B4, landed 2026-11-12): git-tracked seeds for corporate families inside the group hyperedge family. Labels are namespaced family:<name> so they cannot collide with the disclosure-scope RPT lane (vigil:rpt:<SYMBOL>) or the curated $.group dyad sets (bare names). Members must resolve to stored entities — unknown names are dropped at derive time with a printed warning, never minted. Seeded 2026-11-12 from the live $.group dyad sets; curation grows by editing this file (a removed family is pruned from the store on the next derive). v2 (2026-11-12, operator mode-1 core-only blessing): each measured family grows by the members declared by >=2 distinct filers (review_sheet unions) plus the ruled Hinduja Automotive fact; Tata 5->233, Adani 2->24, Bajaj 2->17, Hinduja 3->4. v3 (2026-11-12, operator: add Adani anchors Ambuja Cement/ACC/New Delhi Television and keep the anchor-declared members): Adani 24->66 = core(filers>=2) 30 + anchor-declared 43 + curated 24 (overlap-collapsed); anchor-only adds incl ACC Concrete South/West, ACC Mineral Resources, Orient Cement, Holderind Investments, Endeavour Trade And Investment, Ambuja Concrete North/West.\nv4 (2026-11-12): removed 3 dead Tata spellings ('THE TATA POWER COMPANY', 'Tata Power Company', 'The Indian Hotels Company') — unresolvable since earlier dedup passes; their intended targets ('Tata Power', 'Indian Hotels') are already members, so membership is unchanged (233 -> 230 lines, 0 resolved members lost).",
+  "version": 5,
+  "_note": "S6 curated family lane (rpt_attribution_filer_resolution_and_group_family B4, landed 2026-11-12): git-tracked seeds for corporate families inside the group hyperedge family. Labels are namespaced family:<name> so they cannot collide with the disclosure-scope RPT lane (vigil:rpt:<SYMBOL>) or the curated $.group dyad sets (bare names). Members must resolve to stored entities — unknown names are dropped at derive time with a printed warning, never minted. Seeded 2026-11-12 from the live $.group dyad sets; curation grows by editing this file (a removed family is pruned from the store on the next derive). v2 (2026-11-12, operator mode-1 core-only blessing): each measured family grows by the members declared by >=2 distinct filers (review_sheet unions) plus the ruled Hinduja Automotive fact; Tata 5->233, Adani 2->24, Bajaj 2->17, Hinduja 3->4. v3 (2026-11-12, operator: add Adani anchors Ambuja Cement/ACC/New Delhi Television and keep the anchor-declared members): Adani 24->66 = core(filers>=2) 30 + anchor-declared 43 + curated 24 (overlap-collapsed); anchor-only adds incl ACC Concrete South/West, ACC Mineral Resources, Orient Cement, Holderind Investments, Endeavour Trade And Investment, Ambuja Concrete North/West.\nv4 (2026-11-12): removed 3 dead Tata spellings ('THE TATA POWER COMPANY', 'Tata Power Company', 'The Indian Hotels Company') — unresolvable since earlier dedup passes; their intended targets ('Tata Power', 'Indian Hotels') are already members, so membership is unchanged (233 -> 230 lines, 0 resolved members lost). v5 (2026-11-12, name_token_family_seed_lane S2 first apply): 6 new families from the S1 candidate generator's edge-verified complete families — Godrej (4), ICICI (4), Raymond (3), JSW (5, all under vigil:rpt:JS RPT disclosure), Welspun (3, cross-linked via Welspun Living + WELENT/WELCORP disclosures), Aarti (3, Industries hub already same_group with both others). Excluded on evidence: Shriram (polysemy — DCM Shriram persons-cluster vs Shriram Finance corporate-cluster vs Shriram Pistons SPR cluster are three distinct groups; no cross-edges), Samsung/Oracle (foreign non-promoter), Max (Healthcare leg edge-less).",
   "families": [
     {
       "family": "Adani",
@@ -369,6 +369,58 @@
         "United Telecom",
         "Universal MEP Projects & Engineering Services",
         "Voltas"
+      ]
+    },
+    {
+      "family": "Godrej",
+      "members": [
+        "Godrej Agrovet",
+        "Godrej Consumer Products",
+        "Godrej Industries",
+        "Godrej Properties"
+      ]
+    },
+    {
+      "family": "ICICI",
+      "members": [
+        "ICICI Bank",
+        "ICICI Lombard General Insurance",
+        "ICICI Prudential Asset Management Company",
+        "ICICI Prudential Life Insurance"
+      ]
+    },
+    {
+      "family": "Raymond",
+      "members": [
+        "Raymond",
+        "Raymond Lifestyle",
+        "Raymond Realty"
+      ]
+    },
+    {
+      "family": "JSW",
+      "members": [
+        "JSW Steel",
+        "JSW Energy",
+        "JSW Infrastructure",
+        "JSW Cement",
+        "JSW Paints"
+      ]
+    },
+    {
+      "family": "Welspun",
+      "members": [
+        "Welspun Corp",
+        "Welspun Enterprises",
+        "Welspun Living"
+      ]
+    },
+    {
+      "family": "Aarti",
+      "members": [
+        "Aarti Industries",
+        "Aarti Drugs",
+        "Aarti Pharmalabs"
       ]
     }
   ]

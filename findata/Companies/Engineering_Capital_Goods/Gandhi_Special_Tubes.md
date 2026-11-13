@@ -4,6 +4,7 @@ type: company
 ticker: 513108.BO
 sector: Engineering_Capital_Goods
 industry: Metal Fabrication
+subsector: Forge_Castings
 market_cap: small_cap
 normalized_name: Gandhi_Special_Tubes
 permalink: /companies/engineering_capital_goods/gandhi_special_tubes

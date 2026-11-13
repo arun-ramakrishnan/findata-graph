@@ -4,6 +4,7 @@ type: company
 ticker: JKIPL.BO
 sector: Engineering_Capital_Goods
 industry: Industrial Distribution
+subsector: Specialized_Logistics
 market_cap: micro_cap
 normalized_name: Jinkushal_Industries
 permalink: /companies/engineering_capital_goods/jinkushal_industries

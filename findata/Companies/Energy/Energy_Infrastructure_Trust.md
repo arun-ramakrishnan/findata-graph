@@ -4,6 +4,7 @@ type: company
 ticker: ENERGYINF.BO
 sector: Energy
 industry: Oil & Gas Midstream
+subsector: Infrastructure_Operations
 market_cap: micro_cap
 normalized_name: Energy_Infrastructure_Trust
 file_path: findata/Companies/Energy/Energy_Infrastructure_Trust.md

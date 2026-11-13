@@ -4,6 +4,7 @@ type: company
 ticker: AWHCL.NS
 sector: Logistics
 industry: Waste Management
+subsector: Waste_Management
 market_cap: small_cap
 normalized_name: Antony_Waste_Handling_Cell
 permalink: /companies/logistics/antony_waste_handling_cell

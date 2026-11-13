@@ -4,6 +4,7 @@ type: company
 ticker: BHARATFORG.NS
 sector: Automotive
 industry: Metal Fabrication
+subsector: Forge_Castings
 market_cap: mid_cap
 normalized_name: Bharat_Forge
 permalink: /companies/automotive/bharat_forge

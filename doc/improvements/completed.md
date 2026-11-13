@@ -15047,3 +15047,28 @@ Indian Hotels 602...). Proposal doc/improvements/archive/graph/canonical_name_re
 - Ledger invariant (test_ledger_scope_and_variants_gone) extended with the canonical class:
   kind=canonical rows scope-checked by loose-key equality (NSE-certified), variant refs
   still asserted 0. Targeted suite 264 passed; name_dedup --check ok (dup-census 0 <= 0).
+
+## 510. Name-token/family-seed lane: candidate generator + curated v5 seeds + eval-gate
+
+Ruling m00992 (operator chose the name-token strand first from the 6-idea list; S1 read-only
+generator, S2 curated sink, S3 eval-gate). Proposal doc/improvements/archive/graph/name_token_family_seed_lane.md
+(filed + executed 2026-11-12).
+
+- S1 generator (helpers/maintenance/name_token_candidates.py, read-only): stopworded
+  distinctive tokens len>2, df-capped, excludes existing same_group/subsidiary_of/jv_with
+  pairs, ordered deterministic report. Default universe = the 1,209 company_embeddings
+  companies (measurement population). Core df≤5: 571 candidates / 80 hits / 14.0% /
+  491 new (measured evidence 554/80/14.4%, hits exact); extended df≤25: 3,228 / 136 /
+  4.2%; --strict (heavy noise stopwords): 424 / 80 / 18.9%. Read-only asserted:
+  graph_edges 87,109 + hyper_incidences 57,148 unchanged. Tests 7/7.
+- S2 v5 seeds: Godrej/ICICI/Raymond/JSW/Welspun/Aarti added (helpers/misc/family_seeds.json
+  4 -> 5); validate_family_seeds -> 14 families / 351 members / 0 dropped; derive dry-run
+  6 new hyperedges / 26 incidences. Excluded on evidence: Shriram (polysemy, 3 groups),
+  Samsung/Oracle (foreign), Max (Healthcare leg edge-less, optional).
+- S3 eval-gate: 6 hyper-family-* pins added (questions v12 -> v13, 188 questions); gate
+  ACCEPT --expect-improve (parent = 14:18 pre-apply research.snapshot.db.zst copy), 0
+  reasons; rebaselined v13 -> v14 (ref derive_hyperedges_apply_family_seeds_v5_2026-11-12).
+- Apply (derive_hyperedges --apply): S6 14/351; hyper_incidences per family match seed
+  counts exactly (family:Tata 230 ... family:Aarti 3); hyper-family pins answer-match live.
+- Sibling proposal subsector_lane_completion.md documents the S9/S11 gaps found closing
+  this arc (curated aliases + authored mapping; gate ACCEPT 188/0).

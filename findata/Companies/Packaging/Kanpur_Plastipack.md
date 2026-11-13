@@ -4,6 +4,7 @@ type: company
 ticker: KANPRPLA.NS
 sector: Packaging
 industry: Packaging & Containers
+subsector: Flexible_Packaging
 market_cap: small_cap
 normalized_name: Kanpur_Plastipack
 permalink: /companies/packaging/kanpur_plastipack

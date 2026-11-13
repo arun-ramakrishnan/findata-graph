@@ -4,6 +4,7 @@ type: company
 ticker: HOG
 sector: International
 industry: Recreational Vehicles
+subsector: Automobiles
 market_cap: large_cap
 normalized_name: Harley_Davidson
 permalink: /companies/international/harley_davidson

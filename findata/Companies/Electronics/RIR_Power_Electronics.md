@@ -4,6 +4,7 @@ type: company
 ticker: RIR.BO
 sector: Electronics
 industry: Semiconductors
+subsector: Design
 market_cap: small_cap
 normalized_name: RIR_Power_Electronics
 permalink: /companies/electronics/rir_power_electronics

@@ -4,6 +4,7 @@ type: company
 ticker: D05.SI
 sector: Banking
 industry: Banks - Regional
+subsector: Private_Sector
 market_cap: large_cap
 normalized_name: DBS_Group
 permalink: /companies/banking/dbs_group

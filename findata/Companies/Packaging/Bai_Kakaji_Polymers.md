@@ -4,6 +4,7 @@ type: company
 ticker: BAIKAKAJI.BO
 sector: Packaging
 industry: Packaging & Containers
+subsector: Flexible_Packaging
 market_cap: micro_cap
 normalized_name: Bai_Kakaji_Polymers
 file_path: findata/Companies/Packaging/Bai_Kakaji_Polymers.md

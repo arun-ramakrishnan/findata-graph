@@ -4,6 +4,7 @@ type: company
 ticker: SGFIN.NS
 sector: NBFC
 industry: Capital Markets
+subsector: Multi_Segment
 market_cap: small_cap
 normalized_name: SG_Finserve
 permalink: /companies/nbfc/sg_finserve

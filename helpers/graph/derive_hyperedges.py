@@ -521,6 +521,28 @@ def extract_subsector_membership(
     return out
 
 
+def _load_counterparty_aliases(path: Path | None = None) -> dict[str, str]:
+    """Curated S9 aliases: ``{raw_counterparty: canonical_entity_name}``.
+
+    Loaded only when the file exists; a malformed file is a hard error
+    (curation is a tracked edit — fail loudly, same doctrine as family
+    seeds). Targets are validated against entities at resolve time, so a
+    stale alias is dropped + reported, never minted.
+    """
+    p = path or COUNTERPARTY_ALIASES_PATH
+    try:
+        doc = json.loads(p.read_text())
+    except FileNotFoundError:
+        return {}
+    aliases = doc.get("aliases")
+    if not isinstance(aliases, dict):
+        raise ValueError(f"counterparty aliases {p}: 'aliases' must be an object")
+    for raw, target in aliases.items():
+        if not isinstance(raw, str) or not isinstance(target, str) or not raw.strip():
+            raise ValueError(f"counterparty aliases {p}: bad entry {raw!r}")
+    return aliases
+
+
 def resolve_counterparties(conn, *, dry_run: bool = True) -> tuple[int, int, list[str]]:
     """S9: resolve ``events.counterparty`` -> ``counterparty_entity`` (FK).
 
@@ -540,6 +562,9 @@ def resolve_counterparties(conn, *, dry_run: bool = True) -> tuple[int, int, lis
         (r[0] or "").replace("_", " ").lower()
         for r in conn.execute("SELECT normalized_name FROM entities")
     }
+    aliases = _load_counterparty_aliases()
+    # alias targets must resolve to a stored entity; stale entries are
+    # dropped + reported (worklist), never minted (same doctrine as family seeds)
     resolved: list[tuple[str, str]] = []
     unresolved: list[str] = []
     for eid, cp in conn.execute(
@@ -554,7 +579,11 @@ def resolve_counterparties(conn, *, dry_run: bool = True) -> tuple[int, int, lis
         elif cp.replace("_", " ").lower() in norm:
             resolved.append((cp, str(eid)))
         else:
-            unresolved.append(cp)
+            target = aliases.get(cp)
+            if target is not None and (target in names or target.lower() in nocase):
+                resolved.append((target, str(eid)))
+            else:
+                unresolved.append(cp)
     if not dry_run and resolved:
         with conn:
             for cp, eid in resolved:
@@ -951,6 +980,11 @@ SUB_SECTOR_ALIASES.update(
         "Advertising Agencies": "Advertising",
         "Staffing & Employment Services": "Staffing",
         "Oil & Gas Equipment & Services": "Oilfield_Services",
+        "Recreational Vehicles": "Automobiles",
+        "Telecom Tower Infrastructure": "Telecom_Services",
+        "Oil & Gas Midstream": "Infrastructure_Operations",
+        "Industrial Distribution": "Specialized_Logistics",
+        "Waste Management": "Waste_Management",
     }
 )
 
@@ -1222,6 +1256,9 @@ def collect_rpt_disclosure_sets(
 # --------------------------------------------------------------------------- #
 
 FAMILY_SEEDS_PATH = Path(__file__).resolve().parents[1] / "misc" / "family_seeds.json"
+COUNTERPARTY_ALIASES_PATH = (
+    Path(__file__).resolve().parents[1] / "misc" / "counterparty_aliases.json"
+)
 FAMILY_LABEL_PREFIX = "family:"
 
 

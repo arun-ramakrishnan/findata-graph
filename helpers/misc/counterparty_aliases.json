@@ -1,0 +1,9 @@
+{
+  "_note": "S9 curated counterparty aliases (2026-11-12): raw events.counterparty strings that only match a stored entity modulo spelling/shortening (CO vs COMPANY, missing space, parent-brand vs Indian leg). Consulted by resolve_counterparties after the exact/NOCASE/normalized tiers and before the unresolved bucket. Targets must resolve to a stored entity — a typo here is dropped and reported, never minted.",
+  "aliases": {
+    "Abbott": "Abbott India",
+    "Coal Lignite Urja Vikas": "Coal LigniteUrja Vikas",
+    "L&T": "Larsen & Toubro",
+    "STAR UNION DAI-ICHI LIFE INSURANCE CO": "Star Union Dai-Ichi Life Insurance Company"
+  }
+}

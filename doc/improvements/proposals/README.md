@@ -38,6 +38,24 @@ entry number and stale DONE pointers):
 
 ## Current live proposals
 
+- *(filed 2026-11-12)* — `semantic_cluster_label_metric`
+  (graph/, filed 2026-11-12 —
+  `graph/semantic_cluster_label_metric.md`). Add a semantic_cluster
+  label metric — e-means (faiss contrib) over the 1,209×512
+  company_embeddings as a taxonomy-drift instrument (sector ARI 0.307,
+  NMI ceiling 0.537; optional faiss-cpu dep, pinned seed/k/nepochs).
+  Evidence in `doc/local/engineering/emeans_algorithm.md`
+  (machine-local), §4–§5.
+
+- *(archived 2026-11-12)* — `name_token_family_seed_lane`
+  (graph/, filed 2026-11-12, executed 2026-11-12, completed.md #510 —
+  `graph/name_token_family_seed_lane.md`). Extend the
+  name-token/family-seed group lane: a read-only candidate generator over
+  entity names (76× lift, works on unlisted parents) feeding the curated
+  `family_seeds.json` sink; vector-space detection measured and rejected
+  (4.8×, blind on 99.4% of subsidiary_of edges). Evidence in
+  `doc/local/engineering/emeans_algorithm.md` (machine-local), §9.
+
 - *(filed 2026-11-12)* — `group_membership_compaction`
   (graph/, filed 2026-11-12 —
   `graph/group_membership_compaction.md`). Compact vigil group-hyperedge

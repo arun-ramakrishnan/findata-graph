@@ -4,6 +4,7 @@ type: company
 ticker: INDUSTOWER.NS
 sector: Telecommunications
 industry: Telecom Tower Infrastructure
+subsector: Telecom_Services
 market_cap: mid_cap
 normalized_name: Indus_Towers
 permalink: /companies/telecommunications/indus_towers
