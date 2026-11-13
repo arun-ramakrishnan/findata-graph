@@ -1754,6 +1754,13 @@ def _cli(argv: list[str] | None = None) -> int:  # noqa: C901
             scipy_results: dict[str, dict[str, float]] = {}
             link_artifact: dict[str, Any] | None = None
             link_total: int | None = None
+            # Hoisted out of the command loop: the edge-type projection is
+            # loop-invariant (same args on every iteration).
+            edge_types_arg = (
+                [t.strip() for t in args.edge_types.split(",") if t.strip()]
+                if args.edge_types
+                else None
+            )
             if fork_pool is not None:
                 if "betweenness" in commands and _l1b_routed():
                     heavy_futures["l1b"] = fork_pool.submit(_run_heavy_chunk, ("l1b", None))
@@ -1766,11 +1773,7 @@ def _cli(argv: list[str] | None = None) -> int:  # noqa: C901
                     and artifact_path is not None
                     and not (args.method == "pref-attach" and not args.allow_all_pairs)
                 ):
-                    edge_types = (
-                        [t.strip() for t in args.edge_types.split(",") if t.strip()]
-                        if args.edge_types
-                        else None
-                    )
+                    edge_types = edge_types_arg
                     heavy_futures["link"] = fork_pool.submit(
                         _run_heavy_chunk,
                         (
@@ -1805,11 +1808,7 @@ def _cli(argv: list[str] | None = None) -> int:  # noqa: C901
                             "(~243M pairs at VIGIL scale); refused — re-run "
                             "with --allow-all-pairs for the exact top-K heap"
                         )
-                    edge_types = (
-                        [t.strip() for t in args.edge_types.split(",") if t.strip()]
-                        if args.edge_types
-                        else None
-                    )
+                    edge_types = edge_types_arg
                     try:
                         if link_artifact is None and "link" in heavy_futures:
                             link_artifact = heavy_futures.pop("link").get()

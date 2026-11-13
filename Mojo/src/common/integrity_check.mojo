@@ -314,6 +314,17 @@ def main() raises:
     ).fetchall()
     for i in range(rel_homed_rows.__len__()):
         rel_homed[py_str(rel_homed_rows[i][0])] = True
+    # Sector-homed companies (2026-11-13 orphan homing): companies whose home
+    # is a SECTOR hyperedge incidence carry no note and no ticker — the
+    # incidence is the home, not a file. Mirrors the Python original's
+    # _path_exempt sector-home class.
+    var sector_homed = Dict[String, Bool]()
+    var sector_homed_rows = conn.execute(
+        "SELECT DISTINCT hi.entity_name FROM hyper_incidences hi "
+        "JOIN hyper_edges he ON he.id = hi.edge_id WHERE he.edge_type='sector'"
+    ).fetchall()
+    for i in range(sector_homed_rows.__len__()):
+        sector_homed[py_str(sector_homed_rows[i][0])] = True
     var n = rows.__len__()
     var valid = 0
     var invalid = 0
@@ -347,7 +358,9 @@ def main() raises:
             #     notes; no person notes exist by design, so file coverage is
             #     not a person metric (database_integrity_check.py
             #     _path_exempt). Without it 983 fileless persons read
-            #     invalid-for-missing-path and the validation rate read
+            #   - sector-homed companies (2026-11-13) — the company home is a
+            #     SECTOR hyperedge incidence (see sector_homed above), so a
+            #     note is not expected.
             #     95.97% against the original's 100%.
             # Without them 24385 entities read invalid-for-missing-path and
             # the validation rate read 6.79% against the original's 100%.
@@ -362,6 +375,10 @@ def main() raises:
                 or etype == "person"
                 or (etype == "company" and has_ticker)
                 or rel_homed.get(py_str(row[0]), False)
+                or (
+                    etype == "company"
+                    and sector_homed.get(py_str(row[0]), False)
+                )
             ):
                 valid += 1
                 bt_valid[etype] = bt_valid.get(etype, 0) + 1
@@ -1636,11 +1653,19 @@ def main() raises:
         print(rep[i])
 
     # write the report file (tool mode: repo root like the original;
-    # parity mode: /tmp so the operator's real report is never clobbered).
+    # parity mode: $TMPDIR so the operator's real report is never
+    # clobbered — house rule: scratch lives under $TMPDIR, never /tmp).
     # Full sectioned markdown mirroring the original write_report_file.
     var report_path = String("database_integrity_report.txt")
     if parity_mode:
-        report_path = String("/tmp/mojo_db_integrity_report.txt")
+        var tmp_dir = py_str(
+            Python.evaluate("__import__('os').environ.get('TMPDIR', '')")
+        )
+        if tmp_dir.byte_length() == 0:
+            tmp_dir = py_str(
+                Python.evaluate("__import__('tempfile').gettempdir()")
+            )
+        report_path = tmp_dir + "/mojo_db_integrity_report.txt"
     var rf = open(report_path, "w")
     rf.write("FinData Knowledge Graph - Database Integrity Report (Mojo port)")
     rf.write("\n")

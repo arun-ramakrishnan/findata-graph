@@ -385,6 +385,83 @@ def test_parse_dsh_grains(tmp_path, monkeypatch):
         con.close()
 
 
+def test_parse_dsh_repeated_call_id_keeps_both_calls(tmp_path, monkeypatch):
+    """The run_code counter restarts mid-session, so the SAME callId is
+    emitted twice (measured 2026-11-13: `functions.run_code:32` at turn 40
+    step 23 and again at step 225). The table PK is (source, tool_call_id),
+    so keying on the raw callId let the second call silently overwrite the
+    first in-memory and then collide on insert. Rows must be keyed on the
+    log-unique `{sid}:{seq}` and joined on (turn, step, callId)."""
+    d = tmp_path / ".dsh" / "sessions" / "proj" / "session-aaaa"
+    d.mkdir(parents=True, exist_ok=True)
+    import zstandard
+
+    cctx = zstandard.ZstdCompressor()
+
+    def _call(seq: int, turn: int, step: int) -> dict:
+        return {
+            "type": "tool/call",
+            "seq": seq,
+            "time": seq * 1000,
+            "data": {
+                "turn": turn,
+                "step": step,
+                "callId": "functions.run_code:32",
+                "name": "run_code",
+                "arguments": "{}",
+            },
+        }
+
+    def _result(seq: int, turn: int, step: int) -> dict:
+        return {
+            "type": "tool/result",
+            "seq": seq,
+            "time": seq * 1000 + 500,
+            "data": {
+                "turn": turn,
+                "step": step,
+                "toolCallId": "functions.run_code:32",
+                "message": {"role": "tool", "content": [{"type": "text", "text": f"out{seq}"}]},
+                "isError": False,
+            },
+        }
+
+    recs = [
+        {"type": "session", "seq": 0, "time": 1000, "data": {"id": "session-aaaa"}},
+        {
+            "type": "model/selection",
+            "seq": 4,
+            "time": 1500,
+            "data": {"provider": "zai-coding-cn", "model": "glm-5.3-flash"},
+        },
+        _call(29, 40, 23),
+        _result(36, 40, 23),
+        _call(40, 40, 225),
+        _result(47, 40, 225),
+    ]
+    with open(d / "session.v4.jsonl.zstd", "wb") as fh:
+        with cctx.stream_writer(fh) as w:
+            for r in recs:
+                w.write((json.dumps(r) + "\n").encode())
+    monkeypatch.setattr(Path, "home", lambda: tmp_path, raising=False)
+
+    import duckdb
+
+    con = duckdb.connect(":memory:")
+    try:
+        con.execute(at.SCHEMA)
+        at._parse_dsh(con, None)  # must not raise ConstraintException
+        ids = [
+            r[0]
+            for r in con.execute(
+                "SELECT tool_call_id FROM fact_tool_call WHERE source='dsh' ORDER BY ts"
+            ).fetchall()
+        ]
+        assert ids == ["session-aaaa:29", "session-aaaa:40"], ids
+    finally:
+        con.close()
+
+
 class TestLaneNameGuard:
     """Range-review R14: an unknown lane name used to silently filter to
     an EMPTY lane set — a harvest that ingested nothing or a drift check

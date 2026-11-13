@@ -9,9 +9,14 @@ Anchor kinds (mirror the star schema identity columns):
     event:<span_id>         -> fact_event
 
 Token form: agent-trace:<harness>#<anchor>, harness in {prime, opencode,
-zcode}. Every entity id is unique within its harness namespace, so the
+zcode, dsh}. Every entity id is unique within its harness namespace, so the
 token resolves unambiguously. Event span_ids may repeat within a harness;
 when they do, all matches are printed.
+
+Harness id shapes: `dsh` tool rows carry `{session_id}:{seq}` (the log's
+append-only record coordinate) because dsh `callId`s are NOT unique — the
+run_code counter restarts mid-session and 147 ids collide across sessions
+(measured 2026-11-13). The id contains a colon; quote the whole token.
 
 Stability (S2 of trace_quote_citations): every identity column is
 harness-native and 100% stable across full re-ingest runs (captured in
@@ -61,8 +66,10 @@ sys.path.insert(0, str(REPO))
 from helpers.core.duckdb_shared import memory_cap_config  # noqa: E402
 
 DB_PATH = REPO / "memory" / "data" / "agent_traces.duckdb"
-HARNESSES = ("prime", "opencode", "zcode")
+HARNESSES = ("prime", "opencode", "zcode", "dsh")
 
+# Anchor ids may contain ':' (dsh tool rows are `{session_id}:{seq}`), so the
+# id group is greedy to end-of-token rather than a character class.
 _TOKEN_RE = re.compile(r"^agent-trace:(\S+)#(turn|tool|req|event):(\S+)$")
 
 
@@ -346,7 +353,9 @@ def _resolve_event(
 # Doc-sweep mode (citations S3): find agent-trace: tokens in doc/** and resolve
 # --------------------------------------------------------------------------- #
 
-_S3_RE = re.compile(r"agent-trace:(\S+)#(?:turn|tool|req|event):([A-Za-z0-9_\-]+)")
+# Id charset includes ':' — dsh tool rows are `{session_id}:{seq}`. Trailing
+# punctuation (prose periods, closing backticks) is not in the class.
+_S3_RE = re.compile(r"agent-trace:(\S+)#(?:turn|tool|req|event):([A-Za-z0-9_\-:]+)")
 _SCAN_SUFFIXES = {".md", ".markdown", ".rst", ".txt"}
 
 

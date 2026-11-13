@@ -464,7 +464,7 @@ def _explain(hops: list[tuple[str, str, str]], semantics: str, direction: str, a
     }
 
 
-def connect(  # noqa: C901  # the per-family search ladder reads flat, not nested
+def connect(  # the per-family search ladder reads flat, not nested
     a: str,
     b: str,
     semantics: str | None = None,

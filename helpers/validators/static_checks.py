@@ -2057,42 +2057,73 @@ def _for_target_names(f: ast.For) -> set[str]:
     return {n.id for n in ast.walk(f.target) if isinstance(n, ast.Name)}
 
 
-def _free_arg_names(call: ast.Call, bound: set[str]) -> set[str]:
-    """Argument names of `call` that are NOT bound inside the loop."""
-    free: set[str] = set()
+def _call_operand_names(call: ast.Call) -> set[str]:
+    """Names a candidate call READS: positional/keyword operands plus the
+    receiver of a method call (``x.split()`` reads ``x``). The callable
+    itself (``set``/``frozenset``) is not an operand; the ``re`` module in
+    ``re.compile(pat)`` is a namespace, not data.
+    """
+    names: set[str] = set()
     values = [*call.args, *(kw.value for kw in call.keywords)]
+    func = call.func
+    if isinstance(func, ast.Attribute):
+        receiver = func.value
+        is_module_qualifier = (
+            func.attr == "compile" and isinstance(receiver, ast.Name) and receiver.id == "re"
+        )
+        if not is_module_qualifier:
+            values.append(receiver)
     for value in values:
         for n in ast.walk(value):
-            if isinstance(n, ast.Name) and n.id not in bound:
-                free.add(n.id)
-    return free
+            if isinstance(n, ast.Name):
+                names.add(n.id)
+    return names
 
 
-def _explore_loop_bodies(
-    items: Sequence[ast.AST], bound: set[str], hits: list[tuple[int, str]]
-) -> None:
+def _scan_scope(items: Sequence[ast.AST], hits: list[tuple[int, str]]) -> None:
+    """Find every for-loop in module/function scope and scan its body.
+
+    Module scope and function bodies are scanned alike (a loop inside a
+    function is still a loop); the loop body's own scope rules are applied
+    by :func:`_scan_loop_body`.
+    """
     for node in items:
-        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.Lambda)):
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            _scan_scope(node.body, hits)
             continue
         if isinstance(node, ast.For):
-            b = bound | _collect_bound_names(node.body) | _for_target_names(node)
-            _explore_loop_bodies(node.body, b, hits)
-        else:
-            call = _is_loop_invariant_call(node)
-            if call is not None:
-                free = _free_arg_names(call, bound)
-                if free:
-                    hits.append((call.lineno, ", ".join(sorted(free))))
+            bound = _collect_bound_names(node.body) | _for_target_names(node)
+            _scan_loop_body(node.body, bound, hits)
+            continue
         for child in ast.iter_child_nodes(node):
-            _explore_loop_bodies([child], bound, hits)
+            _scan_scope([child], hits)
 
 
-def _collect_for_nodes(items: Sequence[ast.AST], out: list[ast.For]) -> None:
-    """All ``for`` nodes anywhere in a module (including inside function bodies)."""
+def _scan_loop_body(items: Sequence[ast.AST], bound: set[str], hits: list[tuple[int, str]]) -> None:
+    """Scan one loop body for loop-invariant recomputes.
+
+    ``bound`` holds the names bound by this loop AND every enclosing loop
+    (loop targets plus names assigned in the loop body). A candidate call is
+    flagged only when NONE of its operands is bound there — then the call
+    yields the identical object on every iteration. A single operand that
+    depends on a loop variable disqualifies the whole call.
+    """
     for node in items:
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.Lambda)):
+            continue  # a nested def is not per-iteration work
         if isinstance(node, ast.For):
-            out.append(node)
-        _collect_for_nodes(list(ast.iter_child_nodes(node)), out)
+            inner = bound | _collect_bound_names(node.body) | _for_target_names(node)
+            # the iterable is evaluated once per ENCLOSING iteration
+            _scan_loop_body([node.iter], bound, hits)
+            _scan_loop_body(node.body, inner, hits)
+            continue
+        call = _is_loop_invariant_call(node)
+        if call is not None:
+            operands = _call_operand_names(call)
+            if operands and not (operands & bound):
+                hits.append((call.lineno, ", ".join(sorted(operands))))
+        for child in ast.iter_child_nodes(node):
+            _scan_loop_body([child], bound, hits)
 
 
 def check_loop_invariant_recomputation(
@@ -2118,12 +2149,9 @@ def check_loop_invariant_recomputation(
             tree = ast.parse(p.read_text(encoding="utf-8"))
         except OSError, SyntaxError:
             continue
-        fors: list[ast.For] = []
-        _collect_for_nodes(tree.body, fors)
         hits: list[tuple[int, str]] = []
-        for f in fors:
-            bound = _collect_bound_names(f.body) | _for_target_names(f)
-            _explore_loop_bodies(f.body, bound, hits)
+        _scan_scope(tree.body, hits)
+
         seen: set[tuple[int, str]] = set()
         for lineno, free in hits:
             key = (lineno, free)

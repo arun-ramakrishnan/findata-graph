@@ -18,7 +18,7 @@ Legs (each a subprocess with its own time budget; ``--leg`` to filter):
                  (needs .venv on PATH for the bridge; ~0.5s)
   yaml-corpus    Mojo/bin/corpus_sweep yaml — vendored mojo-yaml parses
                  every findata note frontmatter (regenerates
-                 /tmp/note_paths.txt first; expects FAIL: 0; pure Mojo,
+                 paths file first ($TMPDIR/note_paths.txt); expects FAIL: 0; pure Mojo,
                  no bridge)
   db-access      Mojo/bin/db_access_probe — SQLite (FTS5 + relational,
                  research.db) and DuckDB (graph.duckdb) from Mojo via the
@@ -68,7 +68,9 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parents[2]
 BIN = REPO_ROOT / "Mojo" / "bin"
 REPORT = REPO_ROOT / "Mojo" / "bench" / "bench_report.txt"
-PATHS_FILE = Path("/tmp/note_paths.txt")  # noqa: S108
+# House rule (doc/procedures/ocr_review.md): scratch lives under
+# $TMPDIR, never a literal /tmp.
+PATHS_FILE = Path(os.environ.get("TMPDIR", tempfile.gettempdir())) / "note_paths.txt"
 
 
 def _loadavg() -> str:
@@ -166,7 +168,7 @@ def _leg_pool() -> tuple[float, bool, str]:
 
 
 def _regen_paths() -> str | None:
-    """Refresh /tmp/note_paths.txt (all findata docs); error text or None."""
+    """Refresh $TMPDIR/note_paths.txt (all findata docs); error text or None."""
     regen = subprocess.run(  # noqa: S603  # sys.executable + repo-local import
         [
             sys.executable,
@@ -192,7 +194,7 @@ def _corpus_sweep(phase: str, budget: float) -> tuple[float, bool, str]:
     err = _regen_paths()
     if err:
         return 0.0, False, err
-    return _run(f"corpus:{phase}", [str(BIN / "corpus_sweep"), phase], budget)
+    return _run(f"corpus:{phase}", [str(BIN / "corpus_sweep"), phase, str(PATHS_FILE)], budget)
 
 
 def _leg_yaml() -> tuple[float, bool, str]:
@@ -276,7 +278,7 @@ def _build_legs(scales: str, reps: int) -> dict[str, dict]:
     # loadavg 4.68 (times: cosine 7.1, analyzer 0.45, pool 0.27, bridge 2.6,
     # yaml 0.12, regex-corpus 26.6, db-access 16.2, db-integrity 2.0,
     # graph-algos 31.2) with ~2-3x headroom. Note yaml/regex-corpus gate
-    # only covers the corpus_sweep BINARY — /tmp/note_paths.txt regen time
+    # only covers the corpus_sweep BINARY — note_paths.txt regen time
     # is deliberately outside the measured window (it's I/O, not the
     # kernel under test).
     return {

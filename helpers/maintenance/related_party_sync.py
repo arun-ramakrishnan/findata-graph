@@ -499,7 +499,7 @@ def _loose_key(name: str | None) -> str:
         key = nxt
 
 
-def _resolve_party(  # noqa: C901  # the shared disclosed-party resolution ladder
+def _resolve_party(  # the shared disclosed-party resolution ladder
     raw: str,
     norm_to_name: dict[str, str],
     fold: dict[str, str],

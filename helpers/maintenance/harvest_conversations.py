@@ -1244,7 +1244,9 @@ def _dsh_tool_result_row(
     """Tool-result row: matched call wins, else orphan-result; None when textless."""
     cid = data.get("toolCallId") or (m.get("source") or {}).get("callId")
     text = _dsh_content_text(m.get("content"))
-    call = calls.pop(cid, None)
+    # callId alone is not a key: the run_code counter restarts and re-emits
+    # within a session (measured 2026-11-13), so join on (turn, step, callId).
+    call = calls.pop((data.get("turn"), data.get("step"), cid), None)
     if call is not None:
         cpid, _cts, cdata = call
         meta = {
@@ -1294,7 +1296,9 @@ def _dsh_record_rows(
         return _dsh_assistant_rows(pid, sid, ts, m, model, src), (model or None)
     if typ == "tool/call":
         if data.get("callId"):
-            calls[data["callId"]] = (pid, ts, data)
+            # (turn, step, callId) — callIds repeat within a session (the
+            # run_code counter restarts); seq is the unique log coordinate.
+            calls[(data.get("turn"), data.get("step"), data["callId"])] = (pid, ts, data)
         return [], None
     if typ == "tool/result":
         m = data.get("message") or {}
@@ -3213,8 +3217,9 @@ def main(argv: list[str] | None = None) -> int:  # noqa: C901
                 f"orphan:*)",
                 file=sys.stderr,
             )
+            unresolved_set = set(unresolved)
             for sid in deleted[:10]:
-                mark = "UNRESOLVED" if sid in set(unresolved) else "orphan:*"
+                mark = "UNRESOLVED" if sid in unresolved_set else "orphan:*"
                 print(f"  {mark:<11} {sid}", file=sys.stderr)
         if out["index_stale"] or unresolved or out.get("stale_provenance"):
             prov = out.get("stale_provenance") or []

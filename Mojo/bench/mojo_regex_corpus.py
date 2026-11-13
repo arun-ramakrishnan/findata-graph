@@ -10,13 +10,20 @@ same total match count (parity = the correctness check).
 from __future__ import annotations
 
 import json
+import os
 import pathlib
+import tempfile
 import time
 
 import regex as re
 
 _HERE = pathlib.Path(__file__).parent
 CASES_PATH = _HERE / "mojo_regex_cases.json"
+
+
+def _paths_file():
+    """Scratch corpus list — $TMPDIR/note_paths.txt (house rule, never /tmp)."""
+    return pathlib.Path(os.environ.get("TMPDIR") or tempfile.gettempdir()) / "note_paths.txt"
 
 
 def patterns():
@@ -39,13 +46,18 @@ def npatterns():
 
 
 def read_doc(path):
-    """Note body WITHOUT frontmatter (split on --- like the yaml tools)."""
+    """Note body WITHOUT frontmatter (split on --- like the yaml tools).
+
+    Everything after the closing `---` is the body; later `---` fences
+    inside the body are content, not delimiters.
+    """
     text = pathlib.Path(path).read_text(errors="replace")
-    parts = text.split("---")
+    parts = text.split("---", 2)
     return parts[2] if len(parts) >= 3 else text
 
 
-def scan_python_stats(paths_file="/tmp/note_paths.txt", limit=0):  # noqa: S108
+def scan_python_stats(paths_file=None, limit=0):
+    paths_file = paths_file or str(_paths_file())
     """Native scan: every pattern over every doc body; stats dict.
 
     The Mojo probe reads this dict through the bridge for the parity
@@ -73,7 +85,8 @@ def scan_python_stats(paths_file="/tmp/note_paths.txt", limit=0):  # noqa: S108
     }
 
 
-def scan_python(paths_file="/tmp/note_paths.txt", limit=0):  # noqa: S108
+def scan_python(paths_file=None, limit=0):
+    paths_file = paths_file or str(_paths_file())
     s = scan_python_stats(paths_file, limit)
     return (
         f"python : docs={s['docs']} bytes={s['bytes']} "

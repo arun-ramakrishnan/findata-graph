@@ -146,6 +146,11 @@ class TestTokenParse:
                 token = f"agent-trace:{harness}#{kind}:id123"
                 assert tq.parse_token(token) == (harness, kind, "id123", token)
 
+    def test_parse_dsh_tool_id_with_colon(self):
+        """dsh tool ids are `{session_id}:{seq}` — the colon must survive."""
+        token = "agent-trace:dsh#tool:session-aaaa:3532"
+        assert tq.parse_token(token) == ("dsh", "tool", "session-aaaa:3532", token)
+
     def test_parse_rejects_invalid_harness(self):
         assert tq.parse_token("agent-trace:unknown#turn:abc") is None
         assert tq.parse_token("agent-trace:open#turn:abc") is None

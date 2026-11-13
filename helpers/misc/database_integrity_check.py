@@ -2341,12 +2341,19 @@ class DatabaseIntegrityChecker:
         return conn.execute(sql).fetchall()
 
     @staticmethod
-    def _path_exempt(entity_type: str, ticker: str | None, name: str, rel_homed: set[str]) -> bool:
+    def _path_exempt(
+        entity_type: str,
+        ticker: str | None,
+        name: str,
+        rel_homed: set[str],
+        sector_homed: set[str] | None = None,
+    ) -> bool:
         """Fileless-but-valid classes (rationale: exemption comment in check_integrity)."""
         return bool(
             entity_type in ("sub_sector", "theme", "institution", "country", "index", "person")
             or (entity_type == "company" and ticker)
             or name in rel_homed
+            or (entity_type == "company" and sector_homed is not None and name in sector_homed)
         )
 
     def check_integrity(self) -> dict:  # noqa: C901
@@ -2408,6 +2415,28 @@ class DatabaseIntegrityChecker:
                 ).fetchall()
             }
 
+        # Sector-homed companies (2026-11-13 orphan homing): a company whose
+        # home is a SECTOR hyperedge incidence (hyper_incidences ⨝ hyper_edges
+        # with edge_type='sector') carries no note and no ticker — its home is
+        # the incidence, not a file. Same fileless class as the relation-homed
+        # companies above; mirrors check_orphan_companies, which already treats
+        # sector incidence as the canonical company home.
+        if (
+            _cur_h.execute(
+                "SELECT COUNT(*) FROM sqlite_master "
+                "WHERE name IN ('hyper_edges','hyper_incidences') AND type IN ('table','view')"
+            ).fetchone()[0]
+            < 2
+        ):
+            _sector_homed = set()  # fresh/partial DB (test fixtures): no sector homes
+        else:
+            _sector_homed = {
+                row[0]
+                for row in _cur_h.execute(
+                    "SELECT DISTINCT hi.entity_name FROM hyper_incidences hi "
+                    "JOIN hyper_edges he ON he.id = hi.edge_id WHERE he.edge_type='sector'"  # noqa: S608  # fixed projection, no interpolation
+                ).fetchall()
+            }
         print("📋 Analyzing entities...")
         for i, entity in enumerate(entities, 1):
             if i % 100 == 0:
@@ -2444,10 +2473,20 @@ class DatabaseIntegrityChecker:
             # Persons (2026-10-26): the vault holds company/sector notes —
             # no person notes exist by design, so file coverage is not a
             # person metric (edge-less persons are a purge question, not a
-            # directory defect; 973 counted here made the 95% target
+            # Sector-homed companies (2026-11-13 orphan homing): companies whose
+            # home is a SECTOR hyperedge incidence (hyper_incidences ⨝ hyper_edges
+            # with edge_type='sector') carry no note and no ticker — the
+            # incidence is the home, not a file. Same fileless class as the
+            # relation-homed companies above; check_orphan_companies already
+            # treats sector incidence as the canonical company home.
+
             # unreachable regardless of curation).
             if not file_path and self._path_exempt(
-                entity_type, entity.get("ticker"), entity["name"], _rel_homed
+                entity_type,
+                entity.get("ticker"),
+                entity["name"],
+                _rel_homed,
+                _sector_homed,
             ):
                 results["valid_entities"] += 1
                 results["by_entity_type"][entity_type]["valid"] += 1

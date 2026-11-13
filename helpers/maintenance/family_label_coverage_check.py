@@ -35,6 +35,7 @@ import json
 import sys
 from collections import defaultdict
 from pathlib import Path
+from typing import TypedDict
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO_ROOT))
@@ -62,6 +63,19 @@ FILER_PREFIX = "vigil:rpt:"
 FAMILY_ROOT_TOKENS = {
     "Tata": ("tata", "taj", "trent", "titan", "voltas"),
 }
+
+
+class CoverageRow(TypedDict):
+    """One filer-label coverage row (findings are derived from rows later)."""
+
+    label: str
+    size: int
+    companies: int
+    intersects: str | None
+    coverage: str
+    outside_multi: list[str]
+    outside_tokens: list[str]
+    outside_single: list[str]
 
 
 def _load_group_labels(conn) -> dict[str, dict]:
@@ -92,7 +106,7 @@ def _assess_label(
     fam_members: set[str],
     appears: dict[str, int],
     tokens: tuple[str, ...],
-) -> dict:
+) -> CoverageRow:
     """One label's coverage row (findings are derived from rows later)."""
     inter = d["companies"] & fam_members
     full = inter == d["companies"]
@@ -161,7 +175,7 @@ def coverage_report(
     # per-family, per-company context appearance counts
     fam_appears: dict[str, dict[str, int]] = _context_counts(fam_ctx, labels)
 
-    rows = []
+    rows: list[CoverageRow] = []
     fam_order = sorted(families.items(), key=lambda kv: (kv[0] not in complete, kv[0]))
     for label, d in sorted(labels.items()):
         if not label.startswith(FILER_PREFIX):

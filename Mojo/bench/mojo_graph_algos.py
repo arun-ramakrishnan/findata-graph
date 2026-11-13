@@ -160,7 +160,11 @@ _VOTERANK_SQL = """
         (SELECT src, dst, weight FROM _onager_e)) v
     JOIN _onager_int i ON i.nid = v.node_id
 """
-# onager_link_prediction's SQL verbatim (limit omitted — full ranking).
+# The synthetic `edges=` branch of onager_link_prediction (the extension's
+# onager_lnk_jaccard over `SELECT src, dst, weight`), NOT the production
+# DB path — since S3 (graph_perf_l1) the DB path uses a 2-hop cand/agg
+# join in helpers/graph/onager.py, so this SQL is not "verbatim" of
+# anything production runs. Kept as the extension-branch cross-check.
 _JACCARD_SQL = """
     WITH pairs AS (
         SELECT DISTINCT LEAST(node1, node2) AS lo, GREATEST(node1, node2) AS hi,

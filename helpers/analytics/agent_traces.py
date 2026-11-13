@@ -1391,7 +1391,7 @@ def _parse_dsh(con, since=None):  # noqa: C901  # moved verbatim; split needs a 
         except (OSError, zstandard.ZstdError, ValueError) as exc:
             print(f"  dsh: SKIP unreadable ({path.name}: {exc})", file=sys.stderr)
             continue
-        calls: dict[str, tuple] = {}
+        calls: dict[tuple, tuple] = {}
         msg_step: dict[tuple, str] = {}
         usage_in = usage_out = 0
         model = prov = title = None
@@ -1460,13 +1460,26 @@ def _parse_dsh(con, since=None):  # noqa: C901  # moved verbatim; split needs a 
                 )
             elif typ == "tool/call":
                 if data.get("callId"):
-                    calls[data["callId"]] = (d.get("seq"), ts, day, data)
+                    # dsh callIds are NOT unique per session: the run_code
+                    # counter restarts and re-emits (measured 2026-11-13:
+                    # callId `functions.run_code:32` fires at turn 40 step 23
+                    # and again at step 225 of the SAME session), and 147 ids
+                    # collide across sessions. Join on the (turn, step,
+                    # callId) triple instead, and key the stored row on
+                    # `{sid}:{seq}` — seq is unique per log (0 duplicates) and
+                    # matches the convo lane's part_id for the same record.
+                    calls[(data.get("turn"), data.get("step"), data["callId"])] = (
+                        d.get("seq"),
+                        ts,
+                        day,
+                        data,
+                    )
             elif typ == "tool/result":
                 m = data.get("message") or {}
                 cid = data.get("toolCallId") or (m.get("source") or {}).get("callId")
                 if not isinstance(cid, str):
                     continue
-                call = calls.pop(cid, None)
+                call = calls.pop((data.get("turn"), data.get("step"), cid), None)
                 if call is None:
                     continue
                 _seq, cts, cday, cdata = call
@@ -1482,8 +1495,13 @@ def _parse_dsh(con, since=None):  # noqa: C901  # moved verbatim; split needs a 
                     else None
                 )
                 mid = msg_step.get((data.get("turn"), data.get("step"))) or f"{sid}:{_seq}"
-                tools[cid] = (
-                    cid,
+                # PK is (source, tool_call_id): the raw callId is NOT unique
+                # (counter restarts mid-session, 147 cross-session collisions
+                # measured 2026-11-13), so the stored id is the log-unique
+                # `{sid}:{seq}` — the same id the convo lane uses as part_id.
+                tid = f"{sid}:{_seq}"
+                tools[tid] = (
+                    tid,
                     sid,
                     mid,
                     cdata.get("name"),

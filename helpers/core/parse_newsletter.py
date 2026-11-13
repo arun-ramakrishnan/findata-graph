@@ -1201,8 +1201,9 @@ def main(argv: list[str] | None = None):  # noqa: C901
 
     # Resolve sectors for all new companies (fast, pure CPU).
     resolved = []  # (name, line, sector) tuples for companies with a sector
+    content_lines = content.split("\n")
     for name, line, header_sector in new_cos:
-        window = content.split("\n")[line - 1 : line + 2]
+        window = content_lines[line - 1 : line + 2]
         # Use header-declared sector when available (overrides guess_sector_for).
         if header_sector:
             sector = header_sector

@@ -1180,8 +1180,9 @@ class TestHyperCentralities:
         assert abs(sum(res["ho_pagerank"].values()) - 1.0) < 1e-6
         assert set(res["ho_pagerank"]) == {"A", "B", "C", "D", "E", "F", "G", "H"}
         # s-lanes: per-node means over incident hyperedges
+        expected = set(res["ho_pagerank"])
         for m in ("s_betweenness", "s_closeness"):
-            assert set(res[m]) == set(res["ho_pagerank"])
+            assert set(res[m]) == expected
             assert all(v >= 0 for v in res[m].values())
 
     def test_eigen_uniform_runs_and_seeded(self):

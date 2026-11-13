@@ -418,6 +418,23 @@ class TestPathExempt:
         checker = DatabaseIntegrityChecker(base_path=str(tmp_path))
         assert checker._path_exempt("company", None, "Sub-Total (A)(1)", set()) is False
 
+    def test_sector_homed_company_exempt(self, tmp_path):
+        # 2026-11-13 orphan homing: a company whose home is a SECTOR hyperedge
+        # incidence has no note by design — same fileless class as a
+        # relation-homed company.
+        checker = DatabaseIntegrityChecker(base_path=str(tmp_path))
+        assert checker._path_exempt("company", None, "Homeless_Co", set(), {"Homeless_Co"}) is True
+
+    def test_sector_home_does_not_exempt_non_company(self, tmp_path):
+        # the sector-home class is company-scoped
+        checker = DatabaseIntegrityChecker(base_path=str(tmp_path))
+        assert checker._path_exempt("sector", None, "Homeless_Co", set(), {"Homeless_Co"}) is False
+
+    def test_sector_homed_absent_still_invalid(self, tmp_path):
+        # not sector-homed -> keeps counting invalid
+        checker = DatabaseIntegrityChecker(base_path=str(tmp_path))
+        assert checker._path_exempt("company", None, "Homeless_Co", set(), set()) is False
+
 
 # ---------------------------------------------------------------------------
 # _check_filename_format — pure
