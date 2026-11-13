@@ -115,13 +115,11 @@ perf needs a quiet box — so the lever is scope, not concurrency: run only
 the gates the arc's change class needs (the pure-code carve-out above),
 and never re-run a gate to "confirm".
 
-`make qa` included a **`mojo-parity`** leg (added 2026-10-14, **RETIRED
-from qa 2026-10-26 — Mojo lane frozen** by operator ruling: nothing in
-production consumes Mojo, so the leg was pure mirroring tax on a second
-implementation with no consumers; `make mojo-parity` survives as a
-manual drift check): the Mojo
+`make qa` includes a **`mojo-parity`** leg (added 2026-10-14, retired
+from qa 2026-10-26 during the Mojo freeze, **re-added 2026-11-13** after
+the lane re-evaluation re-converged parity 92/92): the Mojo
 `integrity_check` port diffed against the Python
-`database_integrity_check.py` over 89 canonical keys. It is the only
+`database_integrity_check.py` over now 92 canonical keys. It is the only
 drift detector between the two implementations, and it is why H10 exists —
 it previously lived only in the `mojo-bench` perf harness, was never a gate,
 and so never ran. Two practical consequences: the leg **needs the Mojo

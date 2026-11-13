@@ -291,15 +291,16 @@ GATES: dict[str, Gate] = {
                     "--check",
                 ),
             ),
-            # mojo-parity RETIRED from qa 2026-10-26 (Mojo freeze, operator
-            # ruling: Mojo increasingly unviable). Nothing in production
-            # consumes Mojo — the leg existed solely as the mirroring
+            # mojo-parity READDED to qa 2026-11-13 (operator go after the
+            # Mojo re-evaluation). The parity leg is the mirroring
             # contract for the second (Mojo) implementation of the
-            # integrity check, and every semantic change to
-            # database_integrity_check.py re-paid that tax by hand (the
-            # person-exemption port the same day was the last one). The
-            # `make mojo-parity` target survives as a MANUAL drift check;
-            # the frozen binary keeps working as a historical artifact.
+            # integrity check; it was RETIRED 2026-10-26 during the Mojo
+            # freeze, then re-converged 92/92 when the lane was
+            # re-evaluated (three drift causes fixed in integrity_check.mojo:
+            # Forbes duplicate-ticker suppression, company_metrics grain
+            # keys, e_comention edition-projection expectation). The make
+            # target sets PATH itself; the frozen-binary note is obsolete.
+            Step("mojo-parity", (_MAKE, "-f", "Makefile.mojo", "mojo-parity")),
             # snapshot_fresh_gate: generation-only freshness first — drift
             # fails here in ~0.3 s with the exact remediation instead of
             # MISMATCH archaeology 7 s into snapshot_check.

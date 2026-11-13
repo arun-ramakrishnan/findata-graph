@@ -134,3 +134,61 @@ The Mojo lane is FROZEN — no further ports, no mirroring obligation.
 - **Unfreeze trigger** (if ever): a measured wall that neither the
   native Python layer nor Rust closes, with mojo-parity re-converged
   BEFORE any new port work starts.
+
+## RE-EVALUATION (2026-11-13): parity re-converged, lane viable as manual surface
+
+Operator asked whether the lane is viable to continue after the 1.x
+breakages (m04219). Re-ran the full manual surface on the pinned
+1.2.0 toolchain:
+
+- `mojo-parity` was at **84/92** — eight keys had drifted behind the
+  Python original since the freeze. Root causes, all three now fixed in
+  `Mojo/src/common/integrity_check.mojo`:
+  - `duplicate_tickers` — Python's `_TICKER_DUP_SUPPRESSED` gained the
+    Forbes & Company / Forbes and Company pair (FORBESCO.BO name-variant
+    pair); the Mojo mirror `_ticker_dup_suppressed` still only had
+    Alphabet/Google.
+  - `company_metrics.{ruled,collapsed,null_keys,key_conflicts}` — the
+    grain audit keys in `check_company_metrics` (consolidated-column +
+    `company_metrics_ruled` view census) were never ported; the Mojo
+    checker emitted only total/orphaned/bad_properties/errors.
+  - `cache_consistency.row_mismatches` — `e_comention` is now a
+    projection from the edition hyperedges (S5 co_mentioned_in
+    retirement, 2026-11-07); the Mojo expectation still read the raw
+    (zeroed) dyad count, manufacturing a false 11,384-vs-0 drift.
+    Now mirrors `_expected_comention_count()`.
+- Result: **parity 92/92 exact, GOLDEN PARITY OK**, `make mojo-parity`
+  exits 0. `make mojo-build` clean (deprecation warnings only: `alloc`
+  without `Layout`); `make mojo-test` 12/12.
+
+What 1.2 offers us (from the 2026-10-24 census + the 1.2.0 changelog):
+
+- **Pattern matching** (`match`/`case`, `comptime match`, `if case`,
+  `while case`, list destructuring) — the highest-value 1.2 addition for
+  this codebase: it can replace the long if/elif chains in
+  `integrity_check.mojo` with exhaustive, compile-checked matches
+  (struct matches are enforced exhaustive — missing arms fail to build).
+- **Faster compilation** — `nn` package −38% (98s→61s) and jemalloc on
+  Linux +10–13% for large GPU kernels; our ~35-binary build surface
+  benefits if a full rebuild is ever gated.
+- **String perf** — padding up to 86× faster, repetition ~2×, and
+  `startswith`/`endswith` now O(affix); `atof()` correctness fixes
+  (>53-bit mantissas, malformed strings now raise) matter for any
+  numeric parsing bench.
+- **API stabilizations** — `StringSpan` immutable (+`MutStringSpan`),
+  `Layout`-based alloc, `Tuple.element_types`→`Ts`, `where` clauses with
+  `else "..."` diagnostics, trait opt-out `not <Trait>`, `--elaboration-stats`
+  hidden flag for diagnosing slow compiles. The 1.2 pin is stable (Oct
+  22, 2026); nightly is already 1.3.0.dev, so pinning protects us from
+  the next churn.
+
+Verdict: the **maintenance tax has dropped to near zero** — parity is
+re-converged, everything builds and tests on the pinned 1.2.0, and the
+three drift causes were all small mechanical mirrors rather than API
+breakages. The lane is **viable to continue as a manual drift-check and
+bench surface**. The freeze's strategic premise is unchanged, though:
+nothing in production consumes Mojo (graph reads are DuckDB projections,
+the cosine kernel is Rust), so the unfreeze trigger still requires a
+measured wall Python/Rust can't close. Recommendation: keep the manual
+`make mojo-parity` drift-check; re-adding the leg to qa is the
+operator's call.

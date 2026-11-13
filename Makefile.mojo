@@ -64,8 +64,10 @@ mojo-test:
 # values for `fuzzy_duplicates.pairs`, `normalization.duplicates` and
 # `duplicate_tickers.groups` run to tens of KB and would otherwise land
 # verbatim in the gate report. The exit code is the BINARY's, not grep's.
-# (`duplicate_tickers.groups` and `normalization.errors` disagree because
-# Python suppresses duplicate-ticker groups the Mojo copy still counts.)
+# (`duplicate_tickers.groups` was a known divergence — the Python original
+# suppressed the Forbes & Company / Forbes and Company pair, the Mojo copy
+# didn't — until 2026-11-13, when _ticker_dup_suppressed was extended to
+# mirror the Python set, making parity exact 92/92.)
 MOJO_PARITY_LOG = $${TMPDIR:-/mnt/data/tmp}/mojo_parity.log
 .PHONY: mojo-parity
 mojo-parity: $(MOJO_BIN)/integrity_check
@@ -83,7 +85,9 @@ mojo-parity: $(MOJO_BIN)/integrity_check
 # findall battery), db-access (sqlite+duckdb drivers through the
 # bridge), db-integrity (the integrity_check port, golden parity),
 # graph-algos (make graph-algos surface via the original modules —
-# Onager + the full FTS5 surface, parity-gated). This target builds ALL
+# Onager + the full FTS5 surface, parity-gated), window-shingles
+# (windowed local-affinity lens — Mojo vs golden fixture, exact
+# rational parity, perf smoke). This target builds ALL
 # binaries first (every one is a leg input). Single leg:
 #   make mojo-bench MOJO_BENCH_ARGS='--leg pool-4x'
 # Knobs: MOJO_BENCH_SCALE=1,4 MOJO_BENCH_REPS=5 (cosine-knn leg only).

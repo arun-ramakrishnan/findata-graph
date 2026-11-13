@@ -138,7 +138,7 @@ help:           ## Show available targets (alphabetical; entries generated from 
 > @echo "  mojo-bench               Run perf-gated Mojo bench legs (cosine-knn, analyzer, pool-4x, regex-bridge, yaml-corpus, regex-corpus, db-access, db-integrity, graph-algos) — measured-time gate per leg, report: Mojo/bench/bench_report.txt"
 > @echo "  mojo-build               Compile Mojo/ sources to native binaries in Mojo/bin/ (incremental; machinery in Makefile.mojo)"
 > @echo "  mojo-format                 Normalize Mojo/src + Mojo/tests with \`mojo format\` (fix for the tests/test_lint_gates.py format gate)"
-> @echo "  mojo-parity             Golden parity: Mojo integrity_check vs the Python original over 89 canonical keys (qa leg; exits 1 on any mismatch)"
+> @echo "  mojo-parity             Golden parity: Mojo integrity_check vs the Python original over 92 canonical keys (qa leg; exits 1 on any mismatch)"
 > @echo "  mojo-test                Run Mojo/tests/*.mojo test suites via mojo run (machinery in Makefile.mojo)"
 > @echo "  near-duplicates          Report near-duplicate note pairs above cosine 0.9 (rename tripwire; READ-ONLY)"
 > @echo "  ocr-version-check        Assert the OCR binary matches the pinned version (helpers/misc/ocr_pin.py; advisory)"
@@ -347,7 +347,7 @@ metrics-rebuild: ## Refresh company financials + notes from yfinance (~1 min, 93
 mojo-bench:      ## Run all Mojo bench legs via Mojo/bench/run_bench.py (FROZEN 2026-10-26: Mojo lane frozen — manual runs only; MOJO_BENCH_SCALE/REPS, MOJO_BENCH_ARGS='--leg NAME')
 > $(MAKE) -f Makefile.mojo mojo-bench
 
-mojo-parity:     ## Golden parity: Mojo integrity_check vs the Python original over 89 canonical keys (FROZEN 2026-10-26: retired from qa — manual drift-check only; exits 1 on any mismatch)
+mojo-parity:     ## Golden parity: Mojo integrity_check vs the Python original over 92 canonical keys (qa leg 2026-11-13 — re-added after parity re-convergence; exits 1 on any mismatch)
 > $(MAKE) -f Makefile.mojo mojo-parity
 
 mojo-build:      ## Compile Mojo/ sources to native binaries in Mojo/bin/ (incremental; machinery in Makefile.mojo)

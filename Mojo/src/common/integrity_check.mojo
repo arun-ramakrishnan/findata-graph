@@ -70,13 +70,14 @@ def _ticker_dup_suppressed(names: List[String]) -> Bool:
     ticker sharing: parent + brand-note pairs where both notes legitimately
     frontmatter the same listed ticker. Ported 2026-10-14 — 2026-09-16:
     Alphabet (listed parent) + Google (brand note), both writer-owned notes
-    since 2026-08-15, GOOGL by design.
+    since 2026-08-15, GOOGL by design. Extended 2026-11-13: Forbes &
+    Company / Forbes and Company (same listed entity, name-variant pair,
+    FORBESCO.BO) — mirrors the Python set's second entry.
 
     Python matches with `frozenset([a,b]) in _TICKER_DUP_SUPPRESSED` over
     every pair, so the rule is "every pair in a group is suppressed". Only
-    one entry exists and it is a 2-element group, so the general fold
-    collapses to this test; widen both sides together if a second entry is
-    ever added.
+    two 2-element groups exist, so the general fold collapses to these
+    tests; widen both sides together if a third entry is ever added.
     """
     if len(names) != 2:
         return False
@@ -84,6 +85,8 @@ def _ticker_dup_suppressed(names: List[String]) -> Bool:
     var b = names[1]
     return (a == "Alphabet" and b == "Google") or (
         a == "Google" and b == "Alphabet"
+    ) or (a == "Forbes & Company" and b == "Forbes and Company") or (
+        a == "Forbes and Company" and b == "Forbes & Company"
     )
 
 
@@ -716,6 +719,54 @@ def main() raises:
         canon[tbl + ".orphaned"] = String(q_orphan)
         canon[tbl + ".bad_properties"] = String(q_badp)
         canon[tbl + ".errors"] = String(q_orphan + q_badp)
+        if tbl == "company_metrics":
+            # Grain audit — mirrors check_company_metrics() in the Python
+            # original (database_integrity_check.py:833). ruled/collapsed/
+            # null_keys/key_conflicts describe the certified
+            # company_metrics_ruled view (one row per complete key, latest
+            # filing within scope); zeroed on a pre-grain store (no
+            # consolidated column / no view yet). The consolidated column
+            # presence is the grain marker.
+            var cm_has_grain = False
+            var cm_cols = conn.execute(
+                "PRAGMA table_info(company_metrics)"
+            ).fetchall()
+            for ci2 in range(cm_cols.__len__()):
+                if py_str(cm_cols[ci2][1]) == "consolidated":
+                    cm_has_grain = True
+            var cm_null_keys = 0
+            var cm_key_conflicts = 0
+            var cm_ruled = 0
+            if cm_has_grain:
+                cm_null_keys = to_i(
+                    conn.execute(
+                        "SELECT COUNT(*) FROM company_metrics WHERE"
+                        " period IS NULL OR metric_label IS NULL"
+                    ).fetchone()[0]
+                )
+                cm_key_conflicts = to_i(
+                    conn.execute(
+                        "SELECT COUNT(*) FROM (SELECT entity, metric_label,"
+                        " period, consolidated FROM company_metrics WHERE"
+                        " period IS NOT NULL AND metric_label IS NOT NULL"
+                        " GROUP BY 1, 2, 3, 4 HAVING"
+                        " COUNT(DISTINCT value_num) > 1)"
+                    ).fetchone()[0]
+                )
+                var cm_view = conn.execute(
+                    "SELECT 1 FROM sqlite_master WHERE"
+                    " name='company_metrics_ruled' AND type='view'"
+                ).fetchone()
+                if cm_view.__bool__():
+                    cm_ruled = to_i(
+                        conn.execute(
+                            "SELECT COUNT(*) FROM company_metrics_ruled"
+                        ).fetchone()[0]
+                    )
+            canon["company_metrics.null_keys"] = String(cm_null_keys)
+            canon["company_metrics.key_conflicts"] = String(cm_key_conflicts)
+            canon["company_metrics.ruled"] = String(cm_ruled)
+            canon["company_metrics.collapsed"] = String(q_total - cm_ruled)
 
     # Both NOT (...) guards ported 2026-10-14 (completed.md #268 D19 /
     # related_party_groups_vigil). D19 exchange intake: listings-derived
@@ -1585,6 +1636,37 @@ def main() raises:
                         " he.edge_type='sector'"
                     ).fetchone()[0]
                 )
+            # S5 co_mentioned_in retirement (2026-11-07): e_comention is
+            # PROJECTED from the canonical edition family (newsletter
+            # co-mentions ∪ quote participation) — ONE aggregated row per
+            # unordered company pair sharing ≥1 edition. The dyads are
+            # retired from graph_edges, so the raw edge count reads 0 and
+            # the projection itself would read as staleness. Mirrors
+            # _expected_comention_count() in the Python original
+            # (database_integrity_check.py:2162). Absent hyper store → 0
+            # (the materializer's absent-store posture is an empty table).
+            if tbl == "e_comention":
+                var cm_he_present = conn.execute(
+                    "SELECT 1 FROM sqlite_master WHERE name='hyper_incidences'"
+                    " AND type='table'"
+                ).fetchone()
+                if cm_he_present.__bool__():
+                    scnt = to_i(
+                        conn.execute(
+                            "SELECT COUNT(*) FROM (SELECT DISTINCT"
+                            " hi1.entity_name AS a, hi2.entity_name AS b"
+                            " FROM hyper_edges he JOIN hyper_incidences hi1"
+                            " ON hi1.edge_id = he.id JOIN"
+                            " hyper_incidences hi2 ON hi2.edge_id = he.id"
+                            " AND hi2.entity_name > hi1.entity_name"
+                            " JOIN entities ea ON ea.name = hi1.entity_name"
+                            " AND ea.entity_type = 'company' JOIN entities eb"
+                            " ON eb.name = hi2.entity_name AND eb.entity_type"
+                            " = 'company' WHERE he.edge_type = 'edition')"
+                        ).fetchone()[0]
+                    )
+                else:
+                    scnt = 0
             var ds = String("None")
             if dcnt.__bool__():
                 ds = py_str(dcnt[0])

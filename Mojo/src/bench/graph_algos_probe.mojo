@@ -33,6 +33,7 @@ from std.time import perf_counter_ns
 
 from bridge import join_list, py_str, sys_exit, to_i
 from list_utils import merge_sort_strs
+from slice_utils import clamp_slice
 
 
 # ---------------------------------------------------------------- helpers
@@ -41,9 +42,10 @@ from list_utils import merge_sort_strs
 
 
 def head_bytes(s: String, n: Int) -> String:
-    # diagnostic truncation — byte slicing TRAPS past the end
-    var end = n if n < s.byte_length() else s.byte_length()
-    return String(s[byte=0:end])
+    # diagnostic truncation — byte slicing TRAPS past the end, so clamp
+    # via slice_utils.clamp_slice (safe even for n > byte_length / n < 0)
+    var c = clamp_slice(s.byte_length(), 0, n)
+    return String(s[byte=0:c[1]])
 
 
 def metric_canonical(
