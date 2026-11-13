@@ -30,13 +30,14 @@ from std.time import perf_counter_ns
 # T1 — pattern matching (1.2 headline feature)
 # --------------------------------------------------------------------------
 
+
 def _match_literal(x: Int) -> String:
     match x:
         case 0:
             return "zero"
         case 1 | 2:  # or-pattern
             return "small"
-        case _:       # wildcard binding (no capture)
+        case _:  # wildcard binding (no capture)
             return "other"
 
 
@@ -91,9 +92,15 @@ def test_t1_pattern_matching() raises:
     assert_true(_match_guard(42) == "big", "guard >10")
     assert_true(_match_guard(5) == "positive", "guard >0")
     assert_true(_match_guard(-3) == "nonpositive", "guard else")
-    assert_true(_match_tuple(Tuple[Int, String](0, "hi")) == "zero:hi", "tuple literal")
-    assert_true(_match_tuple(Tuple[Int, String](1, "x")) == "one-x", "tuple guard")
-    assert_true(_match_tuple(Tuple[Int, String](2, "y")) == "other", "tuple fallback")
+    assert_true(
+        _match_tuple(Tuple[Int, String](0, "hi")) == "zero:hi", "tuple literal"
+    )
+    assert_true(
+        _match_tuple(Tuple[Int, String](1, "x")) == "one-x", "tuple guard"
+    )
+    assert_true(
+        _match_tuple(Tuple[Int, String](2, "y")) == "other", "tuple fallback"
+    )
     var xs = List[Int]()
     assert_true(_destructure_list(xs) == -1, "empty list")
     xs.append(7)
@@ -109,6 +116,7 @@ def test_t1_pattern_matching() raises:
 # --------------------------------------------------------------------------
 # T2 — String padding / repetition (perf + correctness)
 # --------------------------------------------------------------------------
+
 
 def test_t2_string_pad_repeat() raises:
     var s = "ab"
@@ -136,6 +144,7 @@ def test_t2_string_pad_repeat() raises:
 # --------------------------------------------------------------------------
 # T3 — atof() correctness (1.2 fixes)
 # --------------------------------------------------------------------------
+
 
 def test_t3_atof_correctness() raises:
     # Note: standalone `atof` no longer exists in the 1.2.0 stdlib; the
@@ -167,6 +176,7 @@ def test_t3_atof_correctness() raises:
 # T4 — startswith/endswith O(affix)
 # --------------------------------------------------------------------------
 
+
 def test_t4_affix() raises:
     var s = "The quick brown fox"
     assert_true(s.startswith("The"), "startswith hit")
@@ -187,6 +197,7 @@ def test_t4_affix() raises:
 # T5 — SIMD.from_bytes/as_bytes endian parameter
 # --------------------------------------------------------------------------
 
+
 def test_t5_simd_endian() raises:
     # 4 bytes, big-endian → 0x01020304
     var bytes = Array[UInt8, 4](uninitialized=True)
@@ -203,6 +214,7 @@ def test_t5_simd_endian() raises:
 # --------------------------------------------------------------------------
 # T6 — Array slicing → Span + Tuple.first_of[T]()
 # --------------------------------------------------------------------------
+
 
 def _sum_readonly(s: Span[Int, ...]) -> Int:
     var acc = 0
@@ -265,8 +277,8 @@ def test_t6_slice_firstof() raises:
 # T7 — where <cond> else "msg" + trait opt-out `not <Trait>`
 # --------------------------------------------------------------------------
 
-def _requires_positive[x: Int]() -> Int
-    where x > 0 else "x must be positive":
+
+def _requires_positive[x: Int]() -> Int where x > 0 else "x must be positive":
     return x * 2
 
 
@@ -286,6 +298,7 @@ def test_t7_where_not_trait() raises:
 # --------------------------------------------------------------------------
 # T8 — Layout/Allocation keyword-only alignment param
 # --------------------------------------------------------------------------
+
 
 def test_t8_layout_alignment() raises:
     # Note: the installed 1.2.0 stdlib Layout only exposes `count` (the

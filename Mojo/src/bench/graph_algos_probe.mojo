@@ -45,7 +45,7 @@ def head_bytes(s: String, n: Int) -> String:
     # diagnostic truncation — byte slicing TRAPS past the end, so clamp
     # via slice_utils.clamp_slice (safe even for n > byte_length / n < 0)
     var c = clamp_slice(s.byte_length(), 0, n)
-    return String(s[byte=0:c[1]])
+    return String(s[byte = 0 : c[1]])
 
 
 def metric_canonical(

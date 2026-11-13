@@ -15248,3 +15248,43 @@ blocking) + documented in doc/procedures/gates.md. Tests: 6 policy +
 wiring introspection (11/11 monitor suite; 42 across
 monitor/inventory/lens/gate-runner); live `--check` PASS (657 → 657,
 family-hit +0, sampled coverage 5,037 → 5,050).
+
+## 519. Mojo 1.2 changelog trials + qa re-add
+
+Re-evaluation after the frozen lane's 1.x breakages (archive/tooling/
+mojo_12_adoptions.md) concluded maintenance tax is near zero but the lane
+remains a manual drift-check/bench surface. This closed two operator steps:
+(1) `mojo-parity` re-added to the qa battery — `Step("mojo-parity", (_MAKE,
+"-f", "Makefile.mojo", "mojo-parity"))` in tests/run_gate_report.py, gates.md
+paragraph rewritten (89→92 canonical keys); (2) **mojo_12_changelog_trials.md**
+— 8 trials (T1–T8) over the 1.2.0 changelog: pattern matching
+(match/case, guards, wildcards, tuples, list destructuring, comptime),
+String pad/repeat perf (20k pads <1s), atof moves (Float64 builtin),
+O(affix) startswith/endswith (10MB <100ms), SIMD endian, Array→Span
+slicing + Tuple.first_of, where-guard + trait opt-out, Layout alignment
+APIs (count-only in this build). Slice probes (§2.4) established: spans are
+zero-copy views with fatal non-recoverable OOB/negative asserts, no step or
+negative-index slicing, read-only default span params (mut requires
+`Span[mut=True, T, ...]`), no span→array constructor, and span returns from
+free functions are not expressible (origin not concrete). Shipped
+`Mojo/src/common/slice_utils.mojo` (`clamp_slice` → clamped `(lo, hi)` pairs,
+7 unit tests) and wired its first consumer `head_bytes`
+(Mojo/src/bench/graph_algos_probe.mojo:43). Proposal recorded in
+archive/tooling/mojo_12_changelog_trials.md; `make mojo-test` 5 files green.
+
+## 520. Mojo windowed-shingle similarity lens (unfreeze step 3)
+
+Genuine analytical feature giving the Mojo lane a production consumer for
+`slice_utils`: **local affinity** via windowed-shingle token Jaccard (max +
+mean over aligned windows; resists vocabulary dilution vs global cosine).
+`Mojo/src/bench/window_shingles.mojo` (`window_ranges` via `clamp_slice`,
+`window_jaccard` exact rationals, `local_affinity`, `tokenize_lower` mirror
+with dedupe) mirrors the golden oracle `Mojo/bench/mojo_window_shingles.py`
+(20-doc deterministic sample; pure-rational goldens). New bench leg
+`window-shingles` registered in Mojo/bench/run_bench.py (budget 40s, gate
+5s). Measured: **parity 210/210** (exact cross-multiplication, zero float
+error), leg 0.08s, perf smoke 0.001 ms (2×2k tokens, <200ms). Two bring-up
+bugs fixed: missing tokenizer dedupe (window-count divergence) and raw-tuple
+vs unreduced-fraction comparison → cross-multiplication. Unit tests
+`Mojo/tests/test_window_shingles.mojo` 9 green; acceptance 1–5 VERIFIED;
+no gate changes. Proposal: archive/tooling/mojo_window_shingle_lens.md.

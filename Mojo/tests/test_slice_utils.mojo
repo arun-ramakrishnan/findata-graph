@@ -51,10 +51,10 @@ def test_usage_slicing_safe() raises:
     for i in range(5):
         arr[i] = i
     var c = clamp_slice(5, -1, 10)
-    var sp = arr[c[0]:c[1]]
+    var sp = arr[c[0] : c[1]]
     assert_true(sp.__len__() == 5, "clamped slice covers full array")
     var c2 = clamp_slice(5, 2, 2)
-    var sp2 = arr[c2[0]:c2[1]]
+    var sp2 = arr[c2[0] : c2[1]]
     assert_true(sp2.__len__() == 0, "empty clamped slice")
 
 

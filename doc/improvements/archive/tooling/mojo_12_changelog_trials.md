@@ -1,8 +1,13 @@
-# Mojo 1.2 changelog trials + qa re-add
+---
+title: "Mojo 1.2 changelog trials + qa re-add"
+status: executed
+filed: 2026-11-13
+executed: 2026-11-13
+completed_md: "519"
+area: tooling
+---
 
-- **Status:** proposed
-- **Filed:** 2026-11-13
-- **Area:** tooling (Mojo lane)
+# Mojo 1.2 changelog trials + qa re-add
 
 ## 1. Motivation
 

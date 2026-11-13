@@ -1233,6 +1233,15 @@ commit, referenced by nothing). Entry numbers point at
   mtimes, S3 sibling-leg survey with the script leg shipped alongside —
   completed.md #387
 
+- [`mojo_12_changelog_trials.md`](tooling/mojo_12_changelog_trials.md) —
+  Mojo 1.2 changelog trials + qa re-add: `mojo-parity` leg restored to
+  qa; T1–T8 trials measured (slice probes: zero-copy span views, fatal
+  asserts, read-only defaults, no span returns); `slice_utils.clamp_slice`
+  shipped + `head_bytes` consumer — completed.md #519
+- [`mojo_window_shingle_lens.md`](tooling/mojo_window_shingle_lens.md) —
+  windowed-shingle local-affinity lens (unfreeze step 3): bench leg
+  `window-shingles`, golden oracle, parity 210/210 exact rationals, perf
+  smoke 0.001 ms — completed.md #520
 ## maintenance/ — Maintenance, backfills, and operational tooling
 
 - [`relations_fk_stale_cache_guard.md`](maintenance/relations_fk_stale_cache_guard.md) — relations-enrich endpoint FK guard and stale-cache age protection (14-day warning, 45-day apply refusal without refresh); completed.md #477

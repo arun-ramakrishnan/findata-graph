@@ -83,10 +83,11 @@ def _ticker_dup_suppressed(names: List[String]) -> Bool:
         return False
     var a = names[0]
     var b = names[1]
-    return (a == "Alphabet" and b == "Google") or (
-        a == "Google" and b == "Alphabet"
-    ) or (a == "Forbes & Company" and b == "Forbes and Company") or (
-        a == "Forbes and Company" and b == "Forbes & Company"
+    return (
+        (a == "Alphabet" and b == "Google")
+        or (a == "Google" and b == "Alphabet")
+        or (a == "Forbes & Company" and b == "Forbes and Company")
+        or (a == "Forbes and Company" and b == "Forbes & Company")
     )
 
 
