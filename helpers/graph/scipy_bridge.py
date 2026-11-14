@@ -704,7 +704,7 @@ def personalized_pagerank_scores(
     row-stochastic and the system is non-singular (alpha in (0, 1)).
 
     Solve order (2026-11-14, S2 prototype in
-    doc/improvements/proposals/graph_kernels_ppr_lane.md): the Rust
+    doc/improvements/archive/graph/graph_kernels_ppr_lane.md): the Rust
     ``graph_kernels.personalized_pagerank`` power-iteration kernel when
     the extension is installed and ``A`` is binary — measured on the
     live projection (n=22,204, nnz=126,916): parity 1.69e-13 vs the
@@ -757,9 +757,7 @@ def _ppr_kernel_lane(A: csr_matrix, seed_idx: int, alpha: float) -> np.ndarray |
     m.sort_indices()
     indptr = np.ascontiguousarray(m.indptr, dtype=np.int32)
     indices = np.ascontiguousarray(m.indices, dtype=np.int32)
-    return graph_kernels.personalized_pagerank(
-        indptr, indices, seed_idx, alpha, 1e-12, 1000
-    )
+    return graph_kernels.personalized_pagerank(indptr, indices, seed_idx, alpha, 1e-12, 1000)
 
 
 def _ppr_spsolve_lane(A: csr_matrix, seed_idx: int, alpha: float) -> np.ndarray:
@@ -786,6 +784,135 @@ def _ppr_spsolve_lane(A: csr_matrix, seed_idx: int, alpha: float) -> np.ndarray:
     v[seed_idx] = 1.0
     M = identity(n, format="csc") - alpha * P.T.tocsc()
     return np.asarray(spsolve(M, (1.0 - alpha) * v)).ravel()
+
+
+def _ppr_kernel_batch_lane(A: csr_matrix, seed_idxs: list[int], alpha: float) -> np.ndarray | None:
+    """Rust batched one-hot PPR ((k, n) float64), or None when the
+    kernel lane is unavailable (same guards as ``_ppr_kernel_lane``)."""
+    try:
+        import graph_kernels
+    except ImportError:
+        return None
+    if not hasattr(graph_kernels, "personalized_pagerank_batch"):
+        return None
+    if A.shape[0] > 2**31 - 1 or A.nnz > 2**31 - 1:
+        return None
+    if not np.all(A.data == 1):
+        return None
+    m = A.tocsr()
+    m.sort_indices()
+    indptr = np.ascontiguousarray(m.indptr, dtype=np.int32)
+    indices = np.ascontiguousarray(m.indices, dtype=np.int32)
+    return graph_kernels.personalized_pagerank_batch(
+        indptr,
+        indices,
+        np.asarray(seed_idxs, dtype=np.int32),
+        alpha,
+        1e-12,
+        1000,
+    )
+
+
+def personalized_pagerank_scores_multi(
+    A: csr_matrix,
+    names: list[str],
+    seeds: list[str],
+    alpha: float = PPR_ALPHA_DEFAULT,
+) -> dict[str, np.ndarray]:
+    """Batched personalized PageRank — one scores vector per seed.
+
+    Kernel-first (``personalized_pagerank_batch``, rayon across seeds —
+    the multi-seed sweep primitive unlocked 2026-11-14: sector scans,
+    population batches, ``ppr_results`` refresh); scipy fallback solves
+    per seed when the kernel lane is unavailable. Same math and contract
+    as :func:`personalized_pagerank_scores` per row. Raises KeyError
+    naming the first unknown seed.
+    """
+    _assert_scipy_lane(PPR_LANE)
+    if not 0 < alpha < 1:
+        raise ValueError(f"PPR alpha must be in (0, 1), got {alpha!r}")
+    pos = {n: i for i, n in enumerate(names)}
+    missing = [s for s in seeds if s not in pos]
+    if missing:
+        raise KeyError(f"PPR seeds {missing!r} not in the projection")
+    if A.shape[0] == 0:
+        raise ValueError("PPR: empty projection")
+    idxs = [pos[s] for s in seeds]
+    t0 = time.perf_counter()
+    rows = _ppr_kernel_batch_lane(A, idxs, alpha)
+    if rows is None:
+        rows = np.stack([_ppr_spsolve_lane(A, i, alpha) for i in idxs])
+    _assert_budget(PPR_LANE, time.perf_counter() - t0)
+    return {s: rows[i] for i, s in enumerate(seeds)}
+
+
+def ppr_alpha_curve(
+    A: csr_matrix,
+    names: list[str],
+    seed: str,
+    alphas: tuple[float, ...] = (0.5, 0.65, 0.75, 0.85, 0.9, 0.95),
+) -> list[dict[str, float]]:
+    """Self-mass vs alpha for one seed — the ego-localization trait.
+
+    The 2026-11-06 review pinned seed-localization as seed-dependent
+    (Infosys 0.4257 self-mass vs HDFC Bank 0.163 at alpha=0.85) with no
+    cheap way to characterize it. The curve is the diagnostic: a
+    flat/high curve = ego-local seed (star-attached, mass stays home), a
+    rising-then-low curve = diffuse seed (mass reaches hop>=2). Rows:
+    ``{"alpha", "self_mass", "top_other", "top_other_score"}``.
+    """
+    _assert_scipy_lane(PPR_LANE)
+    pos = {n: i for i, n in enumerate(names)}
+    if seed not in pos:
+        raise KeyError(f"PPR seed {seed!r} not in the projection")
+    out: list[dict[str, Any]] = []
+    for a in alphas:
+        x = personalized_pagerank_scores(A, names, seed, alpha=a)
+        si = pos[seed]
+        order = np.argsort(-x)
+        top_other = next(int(j) for j in order if j != si)
+        out.append(
+            {
+                "alpha": a,
+                "self_mass": float(x[si]),
+                "top_other": names[top_other],
+                "top_other_score": float(x[top_other]),
+            }
+        )
+    return out
+
+
+def ppr_pair_asymmetry(
+    A: csr_matrix,
+    names: list[str],
+    a: str,
+    b: str,
+    alpha: float = PPR_ALPHA_DEFAULT,
+) -> dict[str, Any]:
+    """Directed PPR proximity of a pair, both directions.
+
+    ``a_to_b`` is PPR(seed=a)[b] — how much of a's relational field b
+    occupies; ``b_to_a`` the mirror. The pair ``ratio`` (>=1 in the
+    direction of stronger pull) is a new signal: symmetric projections
+    still produce asymmetric PPR because the D^-1 row normalization
+    weights a high-degree node's attention across more neighbours.
+    """
+    _assert_scipy_lane(PPR_LANE)
+    pos = {n: i for i, n in enumerate(names)}
+    for s in (a, b):
+        if s not in pos:
+            raise KeyError(f"PPR seed {s!r} not in the projection")
+    res = personalized_pagerank_scores_multi(A, names, [a, b], alpha=alpha)
+    xa, xb = res[a], res[b]
+    ia, ib = pos[a], pos[b]
+    a_to_b, b_to_a = float(xa[ib]), float(xb[ia])
+    hi, lo = max(a_to_b, b_to_a), min(a_to_b, b_to_a)
+    return {
+        "a_to_b": a_to_b,
+        "b_to_a": b_to_a,
+        "ratio": hi / lo if lo > 0 else float("inf"),
+        "stronger": a if a_to_b >= b_to_a else b,
+    }
 
 
 def write_ppr_results(

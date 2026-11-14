@@ -353,7 +353,7 @@ def test_kernel_csr_arrays_zero_copy():
     arrays (a copy) for int64 input — the zero-copy ingress contract.
     """
     import numpy as np
-    from scipy.sparse import coo_matrix, csr_matrix
+    from scipy.sparse import coo_matrix
 
     from helpers.graph.stats import kernel_csr_arrays
 
@@ -439,8 +439,7 @@ def _ppr_spsolve_ref(indptr, indices, seed, alpha=0.85):
 
     n = len(indptr) - 1
     a = sp.csr_matrix(
-        (np.ones(len(indices)),
-         (np.repeat(np.arange(n), np.diff(indptr)), indices)),
+        (np.ones(len(indices)), (np.repeat(np.arange(n), np.diff(indptr)), indices)),
         shape=(n, n),
     )
     deg = np.asarray(a.sum(axis=1)).ravel().astype(float)
@@ -494,3 +493,83 @@ def sp_matrix(rows, cols, n):
     import scipy.sparse as sp
 
     return sp.csr_matrix((np.ones(len(rows)), (rows, cols)), shape=(n, n))
+
+
+def test_ppr_vec_kernel_matches_dense_reference():
+    """S5 set-teleport: the Rust vec lane must match an independent dense
+    solve of x = aP^Tx + (1-a)v with dangling rows redistributing ∝ v
+    (the only convention that reduces to the one-hot scipy lane)."""
+    import numpy as np
+    from scipy.sparse import csr_matrix
+
+    try:
+        import graph_kernels as gk
+    except ImportError:
+        pytest.skip("graph_kernels not installed")
+    if not hasattr(gk, "personalized_pagerank_vec"):
+        pytest.skip("stale graph_kernels .so without personalized_pagerank_vec")
+
+    rng = np.random.default_rng(11)
+    for trial in range(5):
+        n = int(rng.integers(15, 60))
+        mask = rng.random((n, n)) < 0.08
+        np.fill_diagonal(mask, False)
+        if trial % 2 == 0:
+            mask = mask | mask.T
+        rows, cols = np.nonzero(mask)
+        m = csr_matrix((np.ones(len(rows)), (rows, cols)), shape=(n, n))
+        m.sort_indices()
+        ip = np.ascontiguousarray(m.indptr, dtype=np.int32)
+        ix = np.ascontiguousarray(m.indices, dtype=np.int32)
+        # random sparse teleport set
+        v = np.zeros(n)
+        chosen = rng.choice(n, size=max(1, n // 5), replace=False)
+        v[chosen] = rng.random(len(chosen))
+        v /= v.sum()
+        alpha = 0.85
+        xk = gk.personalized_pagerank_vec(ip, ix, v, alpha, 1e-13, 5000)
+        # dense reference: P rows scaled by 1/deg, dangling rows = v
+        P = m.toarray().astype(float)
+        deg = P.sum(axis=1)
+        for i in range(n):
+            if deg[i] > 0:
+                P[i] /= deg[i]
+            else:
+                P[i] = v
+        ref = np.linalg.solve(np.eye(n) - alpha * P.T, (1 - alpha) * v)
+        assert abs(xk.sum() - 1.0) < 1e-6, f"trial {trial} sum {xk.sum()}"
+        assert np.abs(xk - ref).max() < 1e-9, f"trial {trial} maxdiff {np.abs(xk - ref).max()}"
+
+
+def test_ppr_cohort_slice_kernel_lane():
+    """Proposal S3 pin: the kernel lane stays correct on arbitrary
+    sub-CSR cohort slices (the sector_scope path) — kernel vs scipy on
+    the SAME slice, binary A[keep][:,keep]."""
+    import numpy as np
+    from scipy.sparse import csr_matrix
+
+    try:
+        import graph_kernels as gk
+    except ImportError:
+        pytest.skip("graph_kernels not installed")
+    if not hasattr(gk, "personalized_pagerank"):
+        pytest.skip("stale graph_kernels .so without personalized_pagerank")
+
+    rng = np.random.default_rng(3)
+    n = 80
+    mask = rng.random((n, n)) < 0.07
+    mask = mask | mask.T
+    np.fill_diagonal(mask, False)
+    rows, cols = np.nonzero(mask)
+    A = csr_matrix((np.ones(len(rows)), (rows, cols)), shape=(n, n))
+    keep = sorted(rng.choice(n, size=30, replace=False).tolist())
+    S = A[np.ix_(keep, keep)].tocsr()
+    S.sort_indices()
+    from helpers.graph.scipy_bridge import _ppr_kernel_lane, _ppr_spsolve_lane
+
+    for si in (0, 7, len(keep) - 1):
+        kx = _ppr_kernel_lane(S, si, 0.85)
+        if kx is None:
+            pytest.skip("kernel lane unavailable")
+        sx = _ppr_spsolve_lane(S, si, 0.85)
+        assert np.abs(kx - sx).max() < 1e-10, f"slice seed {si}"

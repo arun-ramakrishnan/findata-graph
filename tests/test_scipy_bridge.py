@@ -944,3 +944,45 @@ def test_ppr_sector_scope_hybrid(tmp_path):
     scon.close()
     assert "y" in got_global
     assert rc == 0
+
+
+def test_ppr_multi_matches_single_and_missing_seed():
+    """S1 batch: scores_multi rows equal the single-seed solves (kernel
+    batch or scipy loop, whichever engages), unknown seeds raise KeyError."""
+    A = _star_csr(4)
+    names = ["c", "l1", "l2", "l3", "l4"]
+    multi = sb.personalized_pagerank_scores_multi(A, names, ["l1", "c"], alpha=0.85)
+    single_l1 = sb.personalized_pagerank_scores(A, names, "l1", alpha=0.85)
+    single_c = sb.personalized_pagerank_scores(A, names, "c", alpha=0.85)
+    np.testing.assert_allclose(multi["l1"], single_l1, atol=1e-10)
+    np.testing.assert_allclose(multi["c"], single_c, atol=1e-10)
+    with pytest.raises(KeyError, match="not in the projection"):
+        sb.personalized_pagerank_scores_multi(A, names, ["l1", "nope"], alpha=0.85)
+
+
+def test_ppr_alpha_curve_hub_closed_form():
+    """Alpha curve (#2 diagnostic): on a star the hub's self-mass has
+    the closed form 1/(1+alpha) — leaves return everything (h = a^2 h
+    + (1-a) teleport), so the curve pins exact semantics per alpha."""
+    A = _star_csr(4)
+    names = ["c", "l1", "l2", "l3", "l4"]
+    alphas = (0.5, 0.7, 0.85, 0.95)
+    curve = sb.ppr_alpha_curve(A, names, "c", alphas=alphas)
+    assert [row["alpha"] for row in curve] == list(alphas)
+    for row in curve:
+        assert row["self_mass"] == pytest.approx(1.0 / (1.0 + row["alpha"]), rel=1e-6)
+        assert row["top_other"] in names and 0.0 < row["top_other_score"] < 1.0
+
+
+def test_ppr_pair_asymmetry_leaf_pulls_hub():
+    """Pair asymmetry (#4): on a star, the leaf's field is ~all hub
+    (its only neighbour) while the hub's field spreads across 4 leaves —
+    b_to_a > a_to_b and the ratio matches the hand shape."""
+    A = _star_csr(4)
+    names = ["c", "l1", "l2", "l3", "l4"]
+    pair = sb.ppr_pair_asymmetry(A, names, "c", "l1", alpha=0.85)
+    assert pair["stronger"] == "l1"
+    assert pair["b_to_a"] > pair["a_to_b"] > 0.0
+    assert pair["ratio"] == pytest.approx(pair["b_to_a"] / pair["a_to_b"])
+    with pytest.raises(KeyError):
+        sb.ppr_pair_asymmetry(A, names, "c", "ghost", alpha=0.85)

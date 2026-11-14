@@ -410,6 +410,12 @@ BENCHMARKS: list[tuple[str, list[str], float]] = [
     # ~10.3/~69.6 ms pre-indexing. The leg asserts its own per-call ceilings
     # (5 ms / 40 ms); the outer budget only guards the harness.
     ("ladder_indexing", ["tests/bench_ladder_indexing.py"], 15.0),
+    # ppr_edge_attribution Q3 harness (graph_kernels_ppr_lane §7, live store):
+    # leave-one-type-out over the 8 relational PPR types + economic
+    # cross-projection. The leg asserts its own wall ceiling (60s); the
+    # outer budget guards the harness itself (10 projection loads + 10
+    # batch solves on research.db — measured ~30-40s warm on a quiet box).
+    ("ppr_edge_attribution", ["tests/bench_ppr_edge_attribution.py"], 90.0),
     # quick_wins S1 guard (proposal #504, archived): stdlib json.dumps vs
     # jsonio.dumps (orjson) ratio floor 2.5x (measured 3.9-9.1x across the
     # five shapes + ledger row loop). A regression re-introducing stdlib

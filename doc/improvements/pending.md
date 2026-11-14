@@ -360,7 +360,10 @@ Open items below keep their revisit triggers inline; executed work is compressed
   beside Onager; **hybrid per-sector slice landed same day**
   (archive/graph/scipy_personalized_pagerank.md §5c: `--sector` /
   `sector_scope=True` / `?sector=1`, solve on seed's sector cohort ∪
-  direct relational neighbours; batch stays global),
+  direct relational neighbours; batch stays global; **solve engine
+  went kernel-first 2026-11-14** — Rust power iteration, 10.3×/seed,
+  parity 1.7e-13, batch/set-teleport/α-curve/asymmetry surfaces —
+  `archive/graph/graph_kernels_ppr_lane.md`, completed.md #523),
   `maximum_flow` (**un-deferred + implemented 2026-09-24** via
   `archive/graph/scipy_st_lanes_routing_switch.md`), `minimum_spanning_tree`
   (need still deferred), `yen_k_shortest` (**un-deferred + implemented

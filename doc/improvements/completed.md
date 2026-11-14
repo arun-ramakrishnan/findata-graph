@@ -15417,3 +15417,75 @@ structure-independent. Rust ppr_tests 3 green (sum/one, dangling-zero,
 component isolation), `test_ppr_kernel_matches_scipy_spsolve` green
 (6 random shapes incl. directed/dangling/self-loop vs an independent
 spsolve reference).
+
+Follow-up 3 (same day): the prototype became the lane —
+`personalized_pagerank_scores` (`helpers/graph/scipy_bridge.py`) now
+tries the Rust kernel first (`_ppr_kernel_lane`: extension present +
+stale-check + int32 bounds + binary data only) and falls back to the
+extracted `_ppr_spsolve_lane`; `_assert_scipy_lane`/`_assert_budget`
+still wrap whichever solve ran and ROUTING ownership is unchanged.
+Proposal filed and archived:
+`doc/improvements/archive/graph/graph_kernels_ppr_lane.md`
+(in-progress; hardening slices: batch API, cohort-slice pin, budget
+posture). Suites: test_scipy_bridge 52/52 (incl. new
+`test_ppr_kernel_lane_engages_and_weighted_falls_back` — engagement +
+weighted fallback + uniform-×2 renormalization parity),
+test_graph_stats 22/22.
+
+## 523. graph_kernels PPR lane — first-party kernel wired kernel-first + batch/set-teleport/α-curve/asymmetry surfaces
+
+Follows #522 (same-day continuation; supersedes its S2 slice). The
+prototype became the lane, then grew the query surfaces:
+
+**Lane wiring** — `personalized_pagerank_scores`
+(`helpers/graph/scipy_bridge.py`) tries `_ppr_kernel_lane` (Rust
+power-iteration, binary-CSR-only, stale-`.so`/int32 guards) and falls
+back to the extracted `_ppr_spsolve_lane`; ROUTING ownership
+(`pagerank_personalized → SCIPY`) and the 5.0 s budget guard unchanged.
+Live A/B (n=22,204, nnz=126,916): 42.9 ms vs 442 ms/seed = **10.3×**,
+maxdiff 1.69e-13. Public route verified:
+`compute("pagerank_personalized", seed=…)` → 571–593 ms end-to-end
+(projection-load-bound), per-engine min-of-3 7.7–8.2×.
+
+**Bonus finding** — spsolve exactness is structure-fragile: on
+unstructured random graphs `(I − αPᵀ)` fill-in-blows (COLAMD 7.2M LU nnz
+@ n=6,000; >240 s hang @ n=22,300; MMD_AT_PLUS_A 3.3× better, still
+minutes). The live projection's sector-block structure is what keeps
+scipy at 0.44 s — a rebuilt/cross-sector projection could silently hit
+the trap; the LU-free kernel cannot. Data:
+`bench_data/graph_kernels_ppr/fillin.json`.
+
+**Surfaces (S1/S5/S6)** — `personalized_pagerank_batch` (rayon, 2^28
+cap) via bridge `personalized_pagerank_scores_multi`: **16.7 ms/seed**
+batched (k=10), batch-vs-single maxdiff 0.0;
+`personalized_pagerank_vec` set-teleport (dangling redistributes ∝ v —
+the only convention reducing to one-hot scipy parity; PPR linear in v
+only on dangling-free graphs, pinned): 50 ms for a 10-name group
+"note-style" neighborhood; `ppr_alpha_curve` (localization trait:
+HCL Infosys 0.502→0.051, HDFC Bank 0.540→0.079 over α 0.5→0.95);
+`ppr_pair_asymmetry` (TCS parent↔sub ratio **90.7×** on a symmetric
+projection — degree-normalization asymmetry).
+
+**Cross-sector verdict recorded** (§6 of the proposal): the 2026-11-06
+signal breakdown was projection COMPOSITION (`ppr_results_table.md` §7
+passes), fixed above the solve engine; the parity-exact kernel changes
+none of it — what it removes is the wall-time failure mode and the
+10×-cheaper composition-debug loop.
+
+Suites: test_scipy_bridge 53/53 (3 new), test_graph_stats 25/25 (2 new
++ cohort-slice pin), Rust 12+5+0 (3 new). Trial data + rerun scripts:
+`bench_data/graph_kernels_ppr/` (README documents rerun discipline).
+
+**Follow-up (2026-11-14): Q3 edge-type attribution harness** — the §7
+query-3 gap (analysis harness) is now landed as
+`helpers/graph/ppr_edge_attribution.py` (batch-API composition; cohort
+even-spread; per-seed top-k Jaccard / normalized rank displacement /
+score L-∞ shift / self-mass delta). First live run (memory/research.db,
+α 0.85, k=10, cohort 20, wall 8.95 s): `same_group` ablation is the
+largest disruptor (Jaccard μ 0.470, rank displacement μ 0.402, 18/20
+scored — two cohort seeds orphaned out of the projection), followed by
+`subsidiary_of` (0.832, 16/20); `customer_of`/`acquired`/`jv_with` are
+near-inert (≥0.955); cross-projection economic-vs-relational Jaccard μ
+0.973 (20/20). Data: `edge_attribution.json` + `edge_attribution_report.md`
+in `bench_data/graph_kernels_ppr/`; perf leg `ppr_edge_attribution`
+(live, 90 s budget). Suites: tests/test_ppr_edge_attribution.py 8/8.

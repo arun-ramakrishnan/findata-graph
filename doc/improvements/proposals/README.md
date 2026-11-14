@@ -38,6 +38,14 @@ entry number and stale DONE pointers):
 
 ## Current live proposals
 
+- *(archived 2026-11-14)* — `graph_kernels_ppr_lane` (graph/, filed
+  2026-11-14, executed 2026-11-14, completed.md #523 — first-party
+  power-iteration PPR kernel wired kernel-first into
+  `personalized_pagerank_scores` with the scipy spsolve solve as
+  fallback: 10.3×/seed on the live projection, parity 1.69e-13,
+  spsolve fill-in-blowup finding on unstructured graphs; batch (16.7
+  ms/seed), set-teleport (50 ms), α-curve and pair-asymmetry (90.7×)
+  surfaces; cross-sector signal verdict §6).
 - *(archived 2026-11-13)* — `group_dyad_wave2` (graph/, filed 2026-11-13,
   executed 2026-11-13, completed.md #521 — S1 `psu_dyad_pass.py` 26 labels /
   419 members; S2 `jv_dyad_census.py` 208 JV-shaped entities, 1,507 live

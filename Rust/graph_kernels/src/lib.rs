@@ -50,53 +50,86 @@ use rayon::prelude::*;
 /// Roots below this run the sequential loop — rayon pool handoff costs
 /// more than the sweeps at toy sizes (tests, unit graphs).
 pub const PARALLEL_THRESHOLD: usize = 1_024;
-/// Roots per rayon task; each task owns scratch (dist + two frontiers).
+/// Roots per rayon task; each task owns scratch (stamp + two frontiers).
 const ROOT_CHUNK: usize = 256;
 
+/// Per-sweep scratch for [`bfs_hist`]: the epoch stamp array plus the two
+/// frontier buffers. One struct so the sweep signature stays under
+/// clippy's argument ceiling and the caller owns exactly one lifetime.
+pub struct BfsScratch {
+    stamp: Vec<u32>,
+    frontier: Vec<u32>,
+    next: Vec<u32>,
+    epoch: u32,
+}
+
+impl BfsScratch {
+    fn new(m: usize) -> Self {
+        Self {
+            stamp: vec![0u32; m],
+            frontier: Vec::with_capacity(m),
+            next: Vec::with_capacity(m),
+            epoch: 0,
+        }
+    }
+
+    /// Advance to the next root's epoch, re-zeroing the stamps only at
+    /// u32::MAX wrap (never in practice) so a stale stamp cannot
+    /// false-match a fresh epoch.
+    fn next_root(&mut self) {
+        self.epoch = self.epoch.wrapping_add(1);
+        if self.epoch == 0 {
+            self.stamp.fill(0);
+            self.epoch = 1;
+        }
+    }
+}
+
 /// One BFS sweep from `src`, folding per-distance ordered-pair counts
-/// into `hist`. `stamp` is scratch: visit marking is by `epoch` (the
-/// caller increments it per root), so there is NO per-root O(m) reset —
-/// the old `dist.fill(-1)` per root cost ~5–6% wall on the 22.3k-node
-/// all-pairs bench (6 interleaved rounds, 2026-11-14) and the stored
-/// depth was never read (the histogram folds `next.len()` per level).
-/// Duplicate CSR entries and self-loops are harmless — the stamp!=epoch
-/// visit check sees each node once. `epoch` starts at 1; `stamp`
-/// arrives zeroed (0 = never-visited).
+/// into `hist`. Visit marking is by `scratch.epoch` (the caller advances
+/// it per root), so there is NO per-root O(m) reset — the old
+/// `dist.fill(-1)` per root cost ~5–6% wall on the 22.3k-node all-pairs
+/// bench (6 interleaved rounds, 2026-11-14) and the stored depth was
+/// never read (the histogram folds `next.len()` per level). Duplicate CSR
+/// entries and self-loops are harmless — the stamp!=epoch visit check
+/// sees each node once. Stamps arrive zeroed (0 = never-visited).
+///
+/// Scratch travels as one `&mut` (`BfsScratch`) rather than four loose
+/// params: clippy's too_many_arguments fired at 8/7 when `epoch` joined
+/// the signature, and the four buffers are one lifetime anyway.
 fn bfs_hist(
     indptr: &[i32],
     indices: &[i32],
     src: usize,
-    stamp: &mut [u32],
-    frontier: &mut Vec<u32>,
-    next: &mut Vec<u32>,
+    scratch: &mut BfsScratch,
     hist: &mut [u64],
-    epoch: u32,
 ) {
-    stamp[src] = epoch;
-    frontier.clear();
-    frontier.push(src as u32);
+    let epoch = scratch.epoch;
+    scratch.stamp[src] = epoch;
+    scratch.frontier.clear();
+    scratch.frontier.push(src as u32);
     let mut level: usize = 0;
-    while !frontier.is_empty() {
+    while !scratch.frontier.is_empty() {
         level += 1;
         if level >= hist.len() {
             // Unreachable on well-formed CSR (max distance is m-1 and
             // hist is sized m.max(2)); guard rather than trust callers.
             break;
         }
-        for &v in frontier.iter() {
+        for &v in scratch.frontier.iter() {
             let lo = indptr[v as usize] as usize;
             let hi = indptr[v as usize + 1] as usize;
             for &nb in &indices[lo..hi] {
                 let nn = nb as usize;
-                if stamp[nn] != epoch {
-                    stamp[nn] = epoch;
-                    next.push(nb as u32);
+                if scratch.stamp[nn] != epoch {
+                    scratch.stamp[nn] = epoch;
+                    scratch.next.push(nb as u32);
                 }
             }
         }
-        hist[level] += next.len() as u64;
-        std::mem::swap(frontier, next);
-        next.clear();
+        hist[level] += scratch.next.len() as u64;
+        std::mem::swap(&mut scratch.frontier, &mut scratch.next);
+        scratch.next.clear();
     }
 }
 
@@ -106,28 +139,10 @@ pub fn all_pairs_hist_seq(indptr: &[i32], indices: &[i32]) -> Vec<u64> {
     let m = indptr.len() - 1;
     let hist_len = m.max(2);
     let mut hist = vec![0u64; hist_len];
-    let mut stamp = vec![0u32; m];
-    let mut epoch: u32 = 0;
-    let mut frontier = Vec::with_capacity(m);
-    let mut next = Vec::with_capacity(m);
+    let mut scratch = BfsScratch::new(m);
     for src in 0..m {
-        epoch = epoch.wrapping_add(1);
-        if epoch == 0 {
-            // u32::MAX roots exhausted (never in practice): re-zero and
-            // restart epochs at 1 so stale stamps can't false-match.
-            stamp.fill(0);
-            epoch = 1;
-        }
-        bfs_hist(
-            indptr,
-            indices,
-            src,
-            &mut stamp,
-            &mut frontier,
-            &mut next,
-            &mut hist,
-            epoch,
-        );
+        scratch.next_root();
+        bfs_hist(indptr, indices, src, &mut scratch, &mut hist);
     }
     hist
 }
@@ -149,28 +164,12 @@ pub fn all_pairs_hist(indptr: &[i32], indices: &[i32], force_parallel: bool) -> 
             .into_par_iter()
             .map(|ci| {
                 let mut local = vec![0u64; hist_len];
-                let mut stamp = vec![0u32; m];
-                let mut epoch: u32 = 0;
-                let mut frontier = Vec::with_capacity(m);
-                let mut next = Vec::with_capacity(m);
+                let mut scratch = BfsScratch::new(m);
                 let lo = ci * ROOT_CHUNK;
                 let hi = (lo + ROOT_CHUNK).min(m);
                 for src in lo..hi {
-                    epoch = epoch.wrapping_add(1);
-                    if epoch == 0 {
-                        stamp.fill(0);
-                        epoch = 1;
-                    }
-                    bfs_hist(
-                        indptr,
-                        indices,
-                        src,
-                        &mut stamp,
-                        &mut frontier,
-                        &mut next,
-                        &mut local,
-                        epoch,
-                    );
+                    scratch.next_root();
+                    bfs_hist(indptr, indices, src, &mut scratch, &mut local);
                 }
                 local
             })
@@ -439,12 +438,143 @@ fn personalized_pagerank<'py>(
         return Err(PyValueError::new_err("seed out of range"));
     }
     let seed = seed as usize;
-    let x = py.detach(|| ppr_power_iterate(ip, ix, seed, alpha, tol, max_iter as usize));
+    let x = py.detach(|| ppr_power_iterate_seed(ip, ix, seed, alpha, tol, max_iter as usize));
     Ok(ndarray::Array1::from(x).into_pyarray(py))
 }
 
-/// Power iteration core (pure, testable without Python).
-fn ppr_power_iterate(
+/// Personalized PageRank with a SET teleport vector (S5, 2026-11-14).
+///
+/// Same math as `personalized_pagerank` but the teleport distribution
+/// `v` is arbitrary (normalized to sum 1 here — zeros allowed, negative
+/// entries rejected). Dangling rows redistribute their mass ∝ `v`, the
+/// natural generalization of the one-hot lane (P[d, :] = v), which
+/// reduces to P[d, seed] = 1 when v is one-hot. Use: "the relational
+/// neighborhood of every entity a note/document mentions" — the note
+/// picks where teleport mass lands without polluting the walk.
+#[pyfunction]
+fn personalized_pagerank_vec<'py>(
+    py: Python<'py>,
+    indptr: PyReadonlyArray1<'py, i32>,
+    indices: PyReadonlyArray1<'py, i32>,
+    teleport: PyReadonlyArray1<'py, f64>,
+    alpha: f64,
+    tol: f64,
+    max_iter: i64,
+) -> PyResult<Bound<'py, PyArray1<f64>>> {
+    let ip: &[i32] = indptr.as_slice()?;
+    let ix: &[i32] = indices.as_slice()?;
+    let v: &[f64] = teleport.as_slice()?;
+    if ip.is_empty() {
+        return Err(PyValueError::new_err(
+            "indptr must carry at least the [0] terminator",
+        ));
+    }
+    if ip.windows(2).any(|w| w[0] > w[1]) {
+        return Err(PyValueError::new_err("indptr must be non-decreasing"));
+    }
+    let n = ip.len() - 1;
+    if *ip.last().unwrap() as usize != ix.len() {
+        return Err(PyValueError::new_err("indptr[-1] must equal len(indices)"));
+    }
+    if ix.iter().any(|&x| x < 0 || x as usize >= n) {
+        return Err(PyValueError::new_err("indices out of range"));
+    }
+    if !(alpha > 0.0 && alpha < 1.0) {
+        return Err(PyValueError::new_err("alpha must be in (0, 1)"));
+    }
+    if tol <= 0.0 {
+        return Err(PyValueError::new_err("tol must be positive"));
+    }
+    if max_iter < 1 {
+        return Err(PyValueError::new_err("max_iter must be >= 1"));
+    }
+    if v.len() != n {
+        return Err(PyValueError::new_err(
+            "teleport length must equal the node count",
+        ));
+    }
+    if v.iter().any(|&x| !x.is_finite() || x < 0.0) {
+        return Err(PyValueError::new_err(
+            "teleport entries must be finite and non-negative",
+        ));
+    }
+    let vsum: f64 = v.iter().sum();
+    if vsum <= 0.0 {
+        return Err(PyValueError::new_err("teleport must have positive mass"));
+    }
+    let v: Vec<f64> = v.iter().map(|&x| x / vsum).collect();
+    let x = py.detach(|| ppr_power_iterate(ip, ix, &v, alpha, tol, max_iter as usize));
+    Ok(ndarray::Array1::from(x).into_pyarray(py))
+}
+
+/// Batched one-hot PPR (S1, 2026-11-14) — rayon across seeds, one
+/// solve per row, zero-copy (k, n) float64 return.
+///
+/// Row i is the `personalized_pagerank` solution for `seeds[i]` — the
+/// multi-seed sweep primitive (sector scans, population batches,
+/// ppr_results refresh). Result is k*n float64s; the call refuses
+/// k*n > 2^28 (~2 GB) — chunk population sweeps (n ~20k → k <= 8,000
+/// per call) instead of raising the cap.
+#[pyfunction]
+#[allow(clippy::type_complexity)]
+fn personalized_pagerank_batch<'py>(
+    py: Python<'py>,
+    indptr: PyReadonlyArray1<'py, i32>,
+    indices: PyReadonlyArray1<'py, i32>,
+    seeds: PyReadonlyArray1<'py, i32>,
+    alpha: f64,
+    tol: f64,
+    max_iter: i64,
+) -> PyResult<Bound<'py, PyArray2<f64>>> {
+    let ip: &[i32] = indptr.as_slice()?;
+    let ix: &[i32] = indices.as_slice()?;
+    let srcs: &[i32] = seeds.as_slice()?;
+    if ip.is_empty() {
+        return Err(PyValueError::new_err(
+            "indptr must carry at least the [0] terminator",
+        ));
+    }
+    if ip.windows(2).any(|w| w[0] > w[1]) {
+        return Err(PyValueError::new_err("indptr must be non-decreasing"));
+    }
+    let n = ip.len() - 1;
+    if *ip.last().unwrap() as usize != ix.len() {
+        return Err(PyValueError::new_err("indptr[-1] must equal len(indices)"));
+    }
+    if ix.iter().any(|&x| x < 0 || x as usize >= n) {
+        return Err(PyValueError::new_err("indices out of range"));
+    }
+    if !(alpha > 0.0 && alpha < 1.0) {
+        return Err(PyValueError::new_err("alpha must be in (0, 1)"));
+    }
+    if tol <= 0.0 {
+        return Err(PyValueError::new_err("tol must be positive"));
+    }
+    if max_iter < 1 {
+        return Err(PyValueError::new_err("max_iter must be >= 1"));
+    }
+    if srcs.iter().any(|&s| s < 0 || s as usize >= n) {
+        return Err(PyValueError::new_err("seeds out of range"));
+    }
+    let k = srcs.len();
+    if (k as u64) * (n as u64) > 1u64 << 28 {
+        return Err(PyValueError::new_err(format!(
+            "result {k}x{n} exceeds the 2^28-cell cap — chunk the batch"
+        )));
+    }
+    let rows: Vec<Vec<f64>> = py.detach(|| {
+        srcs.par_iter()
+            .map(|&s| ppr_power_iterate_seed(ip, ix, s as usize, alpha, tol, max_iter as usize))
+            .collect()
+    });
+    let flat: Vec<f64> = rows.into_iter().flatten().collect();
+    let arr = ndarray::Array2::from_shape_vec((k, n), flat)
+        .map_err(|e| PyValueError::new_err(format!("batch shape: {e}")))?;
+    Ok(PyArray2::from_owned_array(py, arr))
+}
+
+/// One-hot convenience over the vector core.
+fn ppr_power_iterate_seed(
     ip: &[i32],
     ix: &[i32],
     seed: usize,
@@ -453,25 +583,39 @@ fn ppr_power_iterate(
     max_iter: usize,
 ) -> Vec<f64> {
     let n = ip.len() - 1;
-    // Row degrees of the binary adjacency; dangling rows teleport.
-    let deg: Vec<f64> = ip
-        .windows(2)
-        .map(|w| (w[1] - w[0]) as f64)
-        .collect();
-    let mut x = vec![0.0f64; n];
-    x[seed] = 1.0;
+    let mut v = vec![0.0f64; n];
+    v[seed] = 1.0;
+    ppr_power_iterate(ip, ix, &v, alpha, tol, max_iter)
+}
+
+/// Power-iteration core over an arbitrary teleport vector (pure,
+/// testable without Python). `v` must be normalized (sum 1).
+fn ppr_power_iterate(
+    ip: &[i32],
+    ix: &[i32],
+    v: &[f64],
+    alpha: f64,
+    tol: f64,
+    max_iter: usize,
+) -> Vec<f64> {
+    let n = ip.len() - 1;
+    // Row degrees of the binary adjacency; dangling rows redistribute.
+    let deg: Vec<f64> = ip.windows(2).map(|w| (w[1] - w[0]) as f64).collect();
+    let mut x = v.to_vec();
     let mut nx = vec![0.0f64; n];
     let base = 1.0 - alpha;
     for _ in 0..max_iter {
         nx.fill(0.0);
-        // nx = P^T x, scattered row-wise; dangling row i sends x[i] to
-        // the seed (P[i, seed] = 1), matching the scipy lane.
+        // nx = P^T x, scattered row-wise; dangling row i sends x[i]
+        // back ∝ the teleport vector (P[i, :] = v) — reduces to the
+        // one-hot lane's P[i, seed] = 1 when v is one-hot.
+        let mut dangling_mass = 0.0f64;
         for (i, &xi) in x.iter().enumerate() {
             if xi == 0.0 {
                 continue;
             }
             if deg[i] == 0.0 {
-                nx[seed] += xi;
+                dangling_mass += xi;
             } else {
                 let inv = 1.0 / deg[i];
                 let lo = ip[i] as usize;
@@ -481,9 +625,14 @@ fn ppr_power_iterate(
                 }
             }
         }
+        if dangling_mass > 0.0 {
+            for (j, slot) in nx.iter_mut().enumerate() {
+                *slot += dangling_mass * v[j];
+            }
+        }
         let mut delta = 0.0;
         for (j, slot) in x.iter_mut().enumerate() {
-            let nv = alpha * nx[j] + if j == seed { base } else { 0.0 };
+            let nv = alpha * nx[j] + base * v[j];
             delta += (nv - *slot).abs();
             *slot = nv;
         }
@@ -499,6 +648,8 @@ fn graph_kernels(m: &Bound<'_, pyo3::types::PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(all_pairs_bfs_stats, m)?)?;
     m.add_function(wrap_pyfunction!(limited_bfs_sources, m)?)?;
     m.add_function(wrap_pyfunction!(personalized_pagerank, m)?)?;
+    m.add_function(wrap_pyfunction!(personalized_pagerank_vec, m)?)?;
+    m.add_function(wrap_pyfunction!(personalized_pagerank_batch, m)?)?;
     Ok(())
 }
 
@@ -681,7 +832,7 @@ mod tests {
 
 #[cfg(test)]
 mod ppr_tests {
-    use super::ppr_power_iterate;
+    use super::ppr_power_iterate_seed;
 
     fn csr(adj: &[&[usize]]) -> (Vec<i32>, Vec<i32>) {
         let mut ip = vec![0i32];
@@ -697,7 +848,7 @@ mod ppr_tests {
     fn ppr_sums_to_one_and_converges() {
         // undirected triangle + isolated node 3 (dangling)
         let (ip, ix) = csr(&[&[1, 2], &[0, 2], &[0, 1], &[]]);
-        let x = ppr_power_iterate(&ip, &ix, 0, 0.85, 1e-12, 500);
+        let x = ppr_power_iterate_seed(&ip, &ix, 0, 0.85, 1e-12, 500);
         let s: f64 = x.iter().sum();
         assert!((s - 1.0).abs() < 1e-9, "sum {s}");
         assert!(x.iter().all(|&v| v >= 0.0 && v.is_finite()));
@@ -710,7 +861,7 @@ mod ppr_tests {
     fn ppr_star_seed_concentrates() {
         // star: hub 0 connected to leaves 1..5, seed at hub
         let (ip, ix) = csr(&[&[1, 2, 3, 4, 5], &[0], &[0], &[0], &[0], &[0]]);
-        let x = ppr_power_iterate(&ip, &ix, 0, 0.85, 1e-12, 500);
+        let x = ppr_power_iterate_seed(&ip, &ix, 0, 0.85, 1e-12, 500);
         // symmetric: leaves all tie
         for w in x[1..6].windows(2) {
             assert!((w[0] - w[1]).abs() < 1e-12, "leaf tie {x:?}");
@@ -723,8 +874,96 @@ mod ppr_tests {
         // edges 0-1 and 2-3, no link between: mass from seed 0 never
         // reaches {2,3}
         let (ip, ix) = csr(&[&[1], &[0], &[3], &[2]]);
-        let x = ppr_power_iterate(&ip, &ix, 0, 0.85, 1e-12, 500);
+        let x = ppr_power_iterate_seed(&ip, &ix, 0, 0.85, 1e-12, 500);
         assert!(x[2].abs() < 1e-11 && x[3].abs() < 1e-11);
         assert!(x[0] + x[1] > 0.999999);
+    }
+}
+
+#[cfg(test)]
+mod ppr_vec_tests {
+    use super::{ppr_power_iterate, ppr_power_iterate_seed};
+
+    fn csr(adj: &[&[usize]]) -> (Vec<i32>, Vec<i32>) {
+        let mut ip = vec![0i32];
+        let mut ix = Vec::new();
+        for a in adj {
+            ix.extend(a.iter().map(|&v| v as i32));
+            ip.push(ix.len() as i32);
+        }
+        (ip, ix)
+    }
+
+    #[test]
+    fn ppr_linear_in_teleport_vector_no_dangling() {
+        // On a dangling-free graph P is v-independent, so PPR is linear
+        // in v: x(v) = sum_i v_i * x(e_i). (With dangling rows the
+        // operator itself depends on v — redistribution ∝ v — and
+        // linearity does NOT hold; that convention is forced by
+        // one-hot scipy parity.)
+        let (ip, ix) = csr(&[&[1, 2], &[0, 3], &[0, 3], &[1, 2]]);
+        let n = ip.len() - 1;
+        let ones: Vec<Vec<f64>> = (0..n)
+            .map(|s| ppr_power_iterate_seed(&ip, &ix, s, 0.85, 1e-13, 2000))
+            .collect();
+        let w = [0.30, 0.0, 0.45, 0.25];
+        let mut v = vec![0.0; n];
+        v.copy_from_slice(&w);
+        let x = ppr_power_iterate(&ip, &ix, &v, 0.85, 1e-13, 2000);
+        for j in 0..n {
+            let want: f64 = w.iter().zip(&ones).map(|(&wi, o)| wi * o[j]).sum();
+            assert!(
+                (x[j] - want).abs() < 1e-9,
+                "node {j}: vec {} vs linear mix {}",
+                x[j],
+                want
+            );
+        }
+    }
+
+    #[test]
+    fn ppr_dangling_set_teleport_splits_mass() {
+        // Star 0 -> {1, 2}; 1 and 2 dangle, returning mass ∝ v.
+        // Flipping the teleport order must flip x[0]/x[1] dominance —
+        // the observable of ∝-v redistribution (uniform redistribution
+        // would break one-hot scipy parity, so it is not an option).
+        let (ip, ix) = csr(&[&[1, 2], &[], &[]]);
+        let v_a = [0.6, 0.4, 0.0];
+        let v_b = [0.4, 0.6, 0.0];
+        let xa = ppr_power_iterate(&ip, &ix, &v_a, 0.85, 1e-13, 2000);
+        let xb = ppr_power_iterate(&ip, &ix, &v_b, 0.85, 1e-13, 2000);
+        for x in [&xa, &xb] {
+            assert!((x.iter().sum::<f64>() - 1.0).abs() < 1e-9, "{x:?}");
+        }
+        // Hand-solved fixed point for v_a: a = 0.6/1.51, c = 0.425a
+        // (node 0 -> {1,2} even split; 1, 2 dangle back ∝ v).
+        assert!((xa[0] - 0.6 / 1.51).abs() < 1e-9, "xa[0]={}", xa[0]);
+        assert!(
+            (xa[2] - 0.425 * (0.6 / 1.51)).abs() < 1e-9,
+            "xa[2]={}",
+            xa[2]
+        );
+        // Scores move with their teleport share.
+        assert!(xa[0] > xb[0] && xa[1] < xb[1], "{xa:?} vs {xb:?}");
+    }
+
+    #[test]
+    fn ppr_one_hot_path_unchanged() {
+        // The refactored core must reproduce the original one-hot
+        // semantics exactly on a graph with dangling nodes.
+        let (ip, ix) = csr(&[&[1, 2], &[0, 2], &[0, 1], &[]]);
+        let x = ppr_power_iterate_seed(&ip, &ix, 0, 0.85, 1e-12, 500);
+        let s: f64 = x.iter().sum();
+        assert!((s - 1.0).abs() < 1e-9);
+        assert!(x[3].abs() < 1e-11, "dangling score {}", x[3]);
+        assert!(x[0] > x[1], "{x:?}");
+        assert!((x[1] - x[2]).abs() < 1e-12, "triangle symmetric {x:?}");
+        // one-hot v through the vec core: identical numbers.
+        let mut v = vec![0.0; 4];
+        v[0] = 1.0;
+        let xv = ppr_power_iterate(&ip, &ix, &v, 0.85, 1e-12, 500);
+        for j in 0..4 {
+            assert!((x[j] - xv[j]).abs() < 1e-14, "node {j}");
+        }
     }
 }
