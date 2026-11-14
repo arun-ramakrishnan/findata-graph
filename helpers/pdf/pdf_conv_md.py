@@ -89,6 +89,8 @@ from helpers.pdf.teleocr_engine import (  # noqa: E402
 from helpers.pdf.verify_extraction import (  # noqa: E402
     verify as verify_extraction,
 )
+import datetime as _dt  # noqa: E402
+
 from helpers.core.frontmatter import (  # noqa: E402
     iso_now_utc,
     moddate_to_iso_date,
@@ -248,6 +250,10 @@ def build_okf_frontmatter(
       bundle-relative path with a leading ``/``; ``title`` falls back to
       the stem when pdfinfo has none; ``last_modified`` is the PDF's
       ModDate converted to an ISO UTC date (omitted when unknown).
+    - ``stale_after``: max(sources[].last_modified) + 180d when the note
+      carries a source ModDate, else generated.at + 180d — the accepted
+      Q3 population rule (mirrors bump_generated). Emitted right after
+      ``generated`` so the OKF block reads generated → stale_after → sources.
     """
     repo_root = Path(__file__).resolve().parents[2]
     try:
@@ -257,29 +263,74 @@ def build_okf_frontmatter(
     fm: dict = {"type": "newsletter"}
     meta = _pdf_metadata(pdf_path)
     fm["title"] = meta.get("Title") or _first_heading_title(pages, stem)
-    tags: list[str] = []
-    if out_dir is not None:
-        series = re.sub(r"[^a-z0-9]+", "_", Path(out_dir).name.lower()).strip("_")
-        if series:
-            tags.append(f"series/{series}")
-            publisher = _PUBLISHER_BY_SERIES.get(series)
-            if publisher:
-                tags.append(f"publisher/{publisher}")
+    tags = _okf_tags(out_dir)
     if tags:
         fm["tags"] = tags
     fm["generated"] = {"by": f"pdf_conv_md.py/{model}", "at": now or iso_now_utc()}
     if rel is not None and rel.parts[:1] == ("Reports",):
-        src = {
-            "id": stem,
-            "resource": "/" + rel.as_posix(),
-            "title": meta.get("Title") or pdf_path.stem,
-            "author": "process:pdf_conv_md",
-        }
-        lm = moddate_to_iso_date(meta.get("ModDate"))
-        if lm:
-            src["last_modified"] = lm
+        src = _okf_source_entry(rel, stem, pdf_path, meta)
         fm["sources"] = [src]
+    _apply_stale_after(fm)
     return render_frontmatter(fm)
+
+
+def _okf_tags(out_dir: Path | str | None) -> list[str]:
+    """Namespaced source vocabulary: ``series/<out_dir slug>`` always, plus
+    ``publisher/<slug>`` when the series is in the known map (omitted when
+    unknown, never guessed — accepted Q1)."""
+    tags: list[str] = []
+    if out_dir is None:
+        return tags
+    series = re.sub(r"[^a-z0-9]+", "_", Path(out_dir).name.lower()).strip("_")
+    if series:
+        tags.append(f"series/{series}")
+        publisher = _PUBLISHER_BY_SERIES.get(series)
+        if publisher:
+            tags.append(f"publisher/{publisher}")
+    return tags
+
+
+def _okf_source_entry(rel: Path, stem: str, pdf_path: Path, meta: dict) -> dict:
+    """The single OKF source entry for a Reports/ PDF: bundle-relative
+    resource path, pdfinfo title (stem fallback), process author, and the
+    ModDate as ISO UTC when known."""
+    src = {
+        "id": stem,
+        "resource": "/" + rel.as_posix(),
+        "title": meta.get("Title") or pdf_path.stem,
+        "author": "process:pdf_conv_md",
+    }
+    lm = moddate_to_iso_date(meta.get("ModDate"))
+    if lm:
+        src["last_modified"] = lm
+    return src
+
+
+def _apply_stale_after(fm: dict) -> None:
+    """OKF v0.2 §5.5 absolute stale date: max(sources[].last_modified) + 180d
+    when a source date exists, else generated.at + 180d (the Q3 rule).
+    Inserts ``stale_after`` right after ``generated`` (key order rebuilt)."""
+    base = None
+    for src in fm.get("sources") or []:
+        lm = src.get("last_modified")
+        if isinstance(lm, str) and lm:
+            base = max(base or "", lm)
+    if base is None:
+        base = str(fm["generated"]["at"])[:10]
+    try:
+        stale = (_dt.date.fromisoformat(base) + _dt.timedelta(days=180)).isoformat()
+    except ValueError:
+        stale = None
+    if not stale:
+        return
+    # rebuild preserving key order: insert stale_after after generated
+    new_fm = {}
+    for k, v in fm.items():
+        new_fm[k] = v
+        if k == "generated":
+            new_fm["stale_after"] = stale
+    fm.clear()
+    fm.update(new_fm)
 
 
 def write_outputs(

@@ -287,6 +287,7 @@ class NotesVerifier:
         self.issues = {
             "yaml_structure": [],
             "name_sync": [],
+            "file_path_sync": [],
             "filename_format": [],
             "content_minimal": [],
             "content_missing_structure": [],
@@ -344,6 +345,44 @@ class NotesVerifier:
             return
         if stem.endswith("_"):
             self.log_issue("filename_format", file_path, f"Trailing underscore in filename: {stem}")
+
+    def _repo_relative_path(self, file_path):
+        """Normalize a scan path for comparison with a note's file_path.
+
+        Tests pass paths like "/findata/Companies/.../X.md" (root-anchored,
+        not under project_root), so fall back to the "findata/" suffix.
+        """
+        path = Path(file_path)
+        candidate = path.as_posix() if path.is_absolute() else str(file_path).replace("\\", "/")
+        try:
+            rel = path.relative_to(self.project_root).as_posix()
+        except ValueError:
+            idx = candidate.find("findata/")
+            rel = candidate[idx:] if idx != -1 else candidate
+        if rel.startswith("./"):
+            rel = rel[2:]
+        return rel
+
+    def check_file_path_sync(self, file_path, data):
+        """A note's file_path, when present, must name its actual location."""
+        declared = data.get("file_path")
+        if declared is None:  # sector/company notes commonly omit it
+            return
+        if not isinstance(declared, str) or not declared.strip():
+            self.log_issue(
+                "file_path_sync",
+                file_path,
+                "file_path must be a non-empty repo-relative path",
+            )
+            return
+        declared = Path(declared.strip()).as_posix()
+        actual = self._repo_relative_path(file_path)
+        if declared != actual:
+            self.log_issue(
+                "file_path_sync",
+                file_path,
+                f"file_path {declared!r} does not match actual path {actual!r}",
+            )
 
     def check_name_sync(self, file_path, data):
         """normalized_name must be present and equal the filename (minus .md)."""
@@ -450,6 +489,7 @@ class NotesVerifier:
 
         # name sync (needs parsed data; only meaningful when YAML parsed)
         self.check_name_sync(file_path, data)
+        self.check_file_path_sync(file_path, data)
 
         # type-specific consistency
         if data.get("type") == "sector":

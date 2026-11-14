@@ -731,7 +731,9 @@ Overview text line one.
 
 def test_super_sector_good_note_passes(notes_verifier, tmp_path):
     """A well-formed super_sector note produces zero issues."""
-    f = tmp_path / "Financials.md"
+    d = tmp_path / "findata" / "Super_Sectors"
+    d.mkdir(parents=True, exist_ok=True)
+    f = d / "Financials.md"
     f.write_text(_SUPER_SECTOR_GOOD, encoding="utf-8")
     notes_verifier.check_yaml_structure(str(f))
     all_flagged = set().union(*notes_verifier.issues.values())

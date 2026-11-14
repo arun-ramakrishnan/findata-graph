@@ -690,3 +690,54 @@ class TestLogging:
         )
         assert v.warnings.get("industry_code") and len(v.warnings["industry_code"]) == 1
         assert "not a NIC-2008 subclass" in v.warnings["industry_code"][0]["description"]
+
+
+# ---------------------------------------------------------------------------
+# check_file_path_sync
+# ---------------------------------------------------------------------------
+class TestFilePathSync:
+    def test_absent_ok(self):
+        v = make_verifier()
+        v.check_file_path_sync(
+            "/findata/Companies/Banking/Test_Co.md", {"normalized_name": "Test_Co"}
+        )
+        assert len(v.issues["file_path_sync"]) == 0
+
+    def test_matching(self):
+        v = make_verifier()
+        v.check_file_path_sync(
+            "/findata/Companies/Banking/Test_Co.md",
+            {"file_path": "findata/Companies/Banking/Test_Co.md"},
+        )
+        assert len(v.issues["file_path_sync"]) == 0
+
+    def test_stale_after_move(self):
+        v = make_verifier()
+        v.check_file_path_sync(
+            "/findata/Companies/NBFC/Shriram_Finance.md",
+            {"file_path": "findata/Companies/Financial_Services/Shriram_Finance.md"},
+        )
+        assert len(v.issues["file_path_sync"]) == 1
+        assert "does not match" in v.issues["file_path_sync"][0]["description"]
+
+    def test_empty(self):
+        v = make_verifier()
+        v.check_file_path_sync("/findata/Companies/Banking/Test_Co.md", {"file_path": ""})
+        assert len(v.issues["file_path_sync"]) == 1
+
+    def test_wired_into_yaml_structure(self):
+        v = make_verifier()
+        content = (
+            "---\n"
+            "title: Test Co\n"
+            "type: company\n"
+            "normalized_name: Test_Co\n"
+            "file_path: findata/Companies/NBFC/Test_Co.md\n"
+            "permalink: /companies/banking/test_co\n"
+            "tags:\n"
+            "- entity_type/company\n"
+            "created: '2025-01-01'\n"
+            "---\n\n# Test Co\n"
+        )
+        v.check_yaml_structure("/findata/Companies/Banking/Test_Co.md", content=content)
+        assert any("does not match" in i["description"] for i in v.issues["file_path_sync"])

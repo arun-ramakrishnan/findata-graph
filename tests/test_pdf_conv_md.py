@@ -287,3 +287,59 @@ def test_write_outputs_copies_local_engine_images(tmp_path):
     assert copied.read_bytes() == b"\xff\xd8fake-jpeg-bytes"
     md = (tmp_path / "out" / "note.md").read_text(encoding="utf-8")
     assert "![[images/note_p1_img1.jpeg]]" in md
+
+
+class TestStaleAfterEmission:
+    def test_stale_after_from_source_moddate(self, tmp_path, monkeypatch):
+        import helpers.pdf.pdf_conv_md as PCM
+
+        repo = tmp_path / "root"
+        reports = repo / "Reports"
+        reports.mkdir(parents=True)
+        pdf = reports / "Bosch_Amara_Zydus.pdf"
+        pdf.write_bytes(b"%PDF-1.4")
+        monkeypatch.setattr(
+            PCM,
+            "_pdf_metadata",
+            lambda p: {"Title": "The Chatter: Bosch", "ModDate": "D:20260813120000+05'30'"},
+        )
+        monkeypatch.setattr(PCM, "__file__", str(repo / "helpers/pdf/pdf_conv_md.py"))
+        fm = build_okf_frontmatter(
+            [], pdf, "PP-StructureV3", "bosch_amara_zydus", now="2026-08-18T09:00:00Z"
+        )
+        data = yaml_safe_load(fm.split("\n---\n")[0][4:])
+        # 2026-08-13 (ModDate) + 180d = 2027-02-09
+        assert data["stale_after"] == "2027-02-09"
+        # ordering: generated -> stale_after -> sources
+        keys = list(data)
+        assert keys.index("generated") < keys.index("stale_after") < keys.index("sources")
+
+    def test_stale_after_from_generated_at_when_no_reports_pdf(self, tmp_path):
+        pdf = tmp_path / "elsewhere.pdf"  # NOT under Reports/ -> no sources
+        fm = build_okf_frontmatter(
+            _PAGES, pdf, "PP-StructureV3", "the_chatter", now="2026-08-18T09:00:00Z"
+        )
+        data = yaml_safe_load(fm.split("\n---\n")[0][4:])
+        assert "sources" not in data
+        # 2026-08-18 (generated.at date) + 180d = 2027-02-14
+        assert data["stale_after"] == "2027-02-14"
+        keys = list(data)
+        assert keys.index("generated") < keys.index("stale_after")
+
+    def test_stale_after_handles_missing_moddate(self, tmp_path, monkeypatch):
+        import helpers.pdf.pdf_conv_md as PCM
+
+        repo = tmp_path / "root"
+        reports = repo / "Reports"
+        reports.mkdir(parents=True)
+        pdf = reports / "No_Date.pdf"
+        pdf.write_bytes(b"%PDF-1.4")
+        monkeypatch.setattr(PCM, "_pdf_metadata", lambda p: {"Title": "No Date"})  # no ModDate
+        monkeypatch.setattr(PCM, "__file__", str(repo / "helpers/pdf/pdf_conv_md.py"))
+        fm = build_okf_frontmatter([], pdf, "PP-StructureV3", "no_date", now="2026-08-18T09:00:00Z")
+        data = yaml_safe_load(fm.split("\n---\n")[0][4:])
+        assert (
+            data["sources"][0].get("last_modified") is None
+            or "last_modified" not in data["sources"][0]
+        )
+        assert data["stale_after"] == "2027-02-14"  # generated.at basis

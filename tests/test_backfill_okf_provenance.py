@@ -258,7 +258,7 @@ def test_sources_mode_migrates_flat_tags(tmp_path, monkeypatch):
     monkeypatch.setattr(ei, "git_add_date", lambda p: "2026-08-15")
     counts = backfill_sources(v, apply=True, repo_root=tmp_path)
     fm = _fm_of(note)
-    assert fm["tags"] == ["series/the_chatter", "publisher/zerodha"]
+    assert fm["tags"] == ["publisher/zerodha", "series/the_chatter"]
     assert counts["The_Chatter"]["tag_migrations"] == 1
 
 
@@ -270,10 +270,11 @@ def test_sources_mode_keeps_unknown_flat_tags_and_warns(tmp_path, monkeypatch, c
     backfill_sources(v, apply=True, repo_root=tmp_path)
     fm = _fm_of(note)
     assert fm["tags"] == [
+        "mystery",
         "series/the_chatter",
         "publisher/zerodha",
-        "mystery",
-    ]  # kept; schema gate flags it
+    ]  # kept in place; series/publisher appended
+
     assert "mystery" in capsys.readouterr().err
 
 
@@ -284,9 +285,9 @@ def test_sources_mode_preserves_namespaced_tags(tmp_path, monkeypatch):
     monkeypatch.setattr(ei, "git_add_date", lambda p: "2026-08-15")
     backfill_sources(v, apply=True, repo_root=tmp_path)
     assert _fm_of(note)["tags"] == [
+        "company/avanti_feeds",
         "series/the_chatter",
         "publisher/zerodha",
-        "company/avanti_feeds",
     ]
 
 
@@ -298,3 +299,33 @@ def test_sources_mode_idempotent(tmp_path, monkeypatch):
     counts = backfill_sources(v, apply=True, repo_root=tmp_path)
     assert counts["The_Chatter"]["stamped"] == 0
     assert {p: p.read_bytes() for p in v.rglob("*.md")} == snap
+
+
+def test_sources_mode_skips_undated_note(tmp_path, monkeypatch):
+    v = _make_vault(tmp_path)
+    note = v / "The_Chatter" / "Hot_Edition.md"
+    note.write_text("# Hot Edition\n\nprose\n")
+    monkeypatch.setattr(ei, "git_add_date", lambda p: None)
+    counts = backfill_sources(v, apply=True, repo_root=tmp_path)
+    # No PDF and no git add-date -> skipped, never stamped with wall-clock now().
+    assert note.read_text() == "# Hot Edition\n\nprose\n"  # unmodified
+
+    assert counts["The_Chatter"]["skipped_undated"] == 2  # Hot_Edition + the fixture edition.md
+
+    assert counts["The_Chatter"]["stamped"] == 0
+
+
+def test_sources_mode_existing_tags_keep_order_and_append_missing(tmp_path, monkeypatch):
+    v = _make_vault(tmp_path)
+    note = v / "The_Chatter" / "edition.md"
+    note.write_text(
+        "---\ntype: newsletter\ntags:\n- company/avanti_feeds\n- series/the_chatter\n---\nbody\n"
+    )
+    monkeypatch.setattr(ei, "git_add_date", lambda p: "2026-08-15")
+    backfill_sources(v, apply=True, repo_root=tmp_path)
+    # series/the_chatter kept in place; publisher appended; order preserved.
+    assert _fm_of(note)["tags"] == [
+        "company/avanti_feeds",
+        "series/the_chatter",
+        "publisher/zerodha",
+    ]

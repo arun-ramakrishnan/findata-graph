@@ -25,13 +25,17 @@ Two modes (default: derived):
   frontmatter/first heading/stem, ``sources[]`` from a same-stem PDF under
   Reports/ when one exists (pdfinfo ModDate as the date), else no sources
   and ``generated.at`` = the note's git add-date. Never fabricates a
-  resource: no PDF, no sources entry.
+  resource: no PDF, no sources entry. Notes with no PDF and no git add-date
+  (untracked / git unavailable) are SKIPPED and counted as
+  ``skipped_undated`` — the stamp never falls back to the wall clock.
+
 
 Actor honesty: stamps are ``process:okf_backfill`` — a metadata pass, not
 a content derive; the next real machine rewrite overwrites ``generated``
 (last-writer-wins). ``verified`` and every other frontmatter key survive
 the YAML round-trip. Re-runs are no-ops when nothing changed (dates are
-read from git/frontmatter, not the clock).
+read from git/frontmatter or the linked PDF's ModDate, never the clock).
+
 
 Role since okf_sources_maintenance §3.2: derive_insights maintains
 ``sources[]`` on the derived trees AT RENDER TIME (the splice), so for
@@ -98,10 +102,12 @@ _FLAT_TAG_MIGRATION = {
 def _source_tags(existing, tree_name: str) -> tuple[list[str], bool, list[str]]:
     """Merge machine tags for a source note (newsletter_notes_adoption S3).
 
-    Returns (tags, migrated_any, unknown_flat_tags): ``series/<tree-slug>``
-    + known ``publisher/`` first, then existing namespaced tags, then known
-    flat tags migrated via the fixed map; unknown flat tags are kept verbatim
-    and returned so the caller can report them.
+    Returns (tags, migrated_any, unknown_flat_tags): existing
+    namespaced tags keep their order; ``series/<tree-slug>`` + known
+    ``publisher/`` are appended (not prepended) when missing; known flat
+    tags are migrated in place via the fixed map; unknown flat tags are
+    kept verbatim and returned so the caller can report them.
+
     """
     series = re.sub(r"[^a-z0-9]+", "_", tree_name.lower()).strip("_")
     wanted = [f"series/{series}"]
@@ -109,13 +115,10 @@ def _source_tags(existing, tree_name: str) -> tuple[list[str], bool, list[str]]:
     if publisher:
         wanted.append(f"publisher/{publisher}")
     raw = [t for t in (existing or []) if isinstance(t, str)]
-    migrated = [t for t in raw if t in _FLAT_TAG_MIGRATION]
     unknown_flat = [t for t in raw if "/" not in t and t not in _FLAT_TAG_MIGRATION]
-    rest = [t for t in raw if "/" in t]
-    tags = list(
-        dict.fromkeys(wanted + [_FLAT_TAG_MIGRATION[t] for t in migrated] + rest + unknown_flat)
-    )
-    return tags, bool(migrated), unknown_flat
+
+    tags = [_FLAT_TAG_MIGRATION.get(t, t) for t in (raw + wanted)]
+    return list(dict.fromkeys(tags)), bool(any(t in _FLAT_TAG_MIGRATION for t in raw)), unknown_flat
 
 
 def _parse_fm(text: str) -> dict | None:
@@ -239,12 +242,13 @@ def backfill(vault: Path, *, apply: bool) -> dict[str, dict[str, int]]:
     return counts
 
 
-def _source_at(fm: dict, p: Path, repo_root: Path) -> tuple[str | None, bool]:
+def _source_at(fm: dict, p: Path, repo_root: Path) -> tuple[str | None, bool, bool]:
     """generated.at for a source note + whether a PDF was linked.
 
     PDF ModDate when a same-stem PDF exists under Reports/ (also installs
-    the sources[] entry), else the note's git add-date, else None (caller
-    falls back to wall-clock now).
+    the sources[] entry), else the note's git add-date, else None (untracked
+    or git unavailable — caller skips and reports ``skipped_undated`` rather
+    than stamping wall-clock now()).
     """
     if not isinstance(fm.get("sources"), list):
         pdf = repo_root / "Reports" / f"{p.stem}.pdf"
@@ -261,11 +265,11 @@ def _source_at(fm: dict, p: Path, repo_root: Path) -> tuple[str | None, bool]:
                 entry["last_modified"] = lm
             fm["sources"] = [entry]
             if lm:
-                return f"{lm}T00:00:00Z", True
+                return f"{lm}T00:00:00Z", True, False
             d = _ei.git_add_date(p)  # PDF lacks ModDate -> git date, not now
-            return (f"{d}T00:00:00Z" if d else None), True
+            return (f"{d}T00:00:00Z" if d else None), True, d is None
     d = _ei.git_add_date(p)
-    return (f"{d}T00:00:00Z" if d else None), False
+    return (f"{d}T00:00:00Z" if d else None), False, d is None
 
 
 def _prep_source_fm(text: str, p: Path, tree: Path, vault: Path) -> tuple[dict, bool] | None:
@@ -310,6 +314,7 @@ def backfill_sources(
             "stamped": 0,
             "unchanged": 0,
             "skipped_real_writer": 0,
+            "skipped_undated": 0,
             "pdf_linked": 0,
             "tag_migrations": 0,
         }
@@ -324,7 +329,10 @@ def backfill_sources(
             fm, migrated = prepped
             if migrated:
                 c["tag_migrations"] += 1
-            at, pdf_linked = _source_at(fm, p, repo_root)
+            at, pdf_linked, undated = _source_at(fm, p, repo_root)
+            if undated:
+                c["skipped_undated"] += 1
+                continue
             if pdf_linked:
                 c["pdf_linked"] += 1
             new_text = bump_generated(render_frontmatter(fm) + _body(text), _ACTOR, now=at)
@@ -334,6 +342,7 @@ def backfill_sources(
             if apply:
                 p.write_text(new_text, encoding="utf-8")
             c["stamped"] += 1
+
         counts[tree.name] = c
     return counts
 
