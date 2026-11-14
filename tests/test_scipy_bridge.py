@@ -749,6 +749,34 @@ def test_ppr_seed_conditioning_and_missing():
         sb.personalized_pagerank_scores(A, names, "l1", alpha=1.0)
 
 
+def test_ppr_kernel_lane_engages_and_weighted_falls_back():
+    """S2 kernel lane (2026-11-14): personalized_pagerank_scores prefers
+    the Rust power-iteration kernel on binary CSR (parity vs the spsolve
+    solve pinned at 1.7e-13 live) and falls back to scipy for weighted
+    input — the kernel is topology-only."""
+    A = _star_csr(4)
+    names = ["c", "l1", "l2", "l3", "l4"]
+    try:
+        import graph_kernels as gk
+    except ImportError:
+        gk = None
+    if gk is not None and not hasattr(gk, "personalized_pagerank"):
+        gk = None
+    if gk is None:
+        pytest.skip("graph_kernels extension without personalized_pagerank")
+    assert sb._ppr_kernel_lane(A, 1, 0.85) is not None
+    ref = sb._ppr_spsolve_lane(A, 1, 0.85)
+    xk = sb.personalized_pagerank_scores(A, names, "l1", alpha=0.85)
+    np.testing.assert_allclose(xk, ref, atol=1e-10)
+    # Uniformly-weighted variant: kernel declines (not binary), scipy
+    # normalizes it back to the same P — answers must agree anyway.
+    Aw = A.astype(float).copy()
+    Aw.data = Aw.data * 2.0
+    assert sb._ppr_kernel_lane(Aw, 1, 0.85) is None
+    xw = sb.personalized_pagerank_scores(Aw, names, "l1", alpha=0.85)
+    np.testing.assert_allclose(xw, ref, atol=1e-9)
+
+
 def test_ppr_cli_dry_run_and_apply(tmp_path):
     spath = _exact_store(tmp_path, "pagerank_personalized")
     assert sb.main(["pagerank-personalized", "--seed", "a", "--db", str(spath), "--top", "2"]) == 0

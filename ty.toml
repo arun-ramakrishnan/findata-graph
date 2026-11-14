@@ -49,7 +49,11 @@ include = ["helpers/bench/hyper_community_probe.py"]
 # stubs, so ty cannot resolve it. Scoped to WARN in its two consumer
 # files (kernel-first dispatch keeps a kernel-absent fallback lane).
 [[overrides]]
-include = ["helpers/graph/stats.py", "helpers/graph/hyper_trails.py"]
+include = [
+  "helpers/graph/stats.py",
+  "helpers/graph/hyper_trails.py",
+  "helpers/graph/scipy_bridge.py",
+]
 
   [overrides.rules]
   import-not-found = "warn"

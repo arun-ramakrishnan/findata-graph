@@ -218,7 +218,7 @@ class Corpus:
                 # Build file -> mtime map (0.003s walk)
                 mtimes = {pp: pp.stat().st_mtime for pp in files}
                 conn = (
-                    _db_connect(_CACHE_DB)  # ty: ignore[call-non-callable]
+                    _db_connect(_CACHE_DB)  # ty: ignore[not-callable]
                     if _HAS_DB_CONNECT
                     else __import__("sqlite3").connect(str(_CACHE_DB))
                 )
@@ -302,7 +302,7 @@ class Corpus:
                 # Upsert misses
                 if to_upsert:
                     conn = (
-                        _db_connect(_CACHE_DB)  # ty: ignore[call-non-callable]
+                        _db_connect(_CACHE_DB)  # ty: ignore[not-callable]
                         if _HAS_DB_CONNECT
                         else __import__("sqlite3").connect(str(_CACHE_DB))
                     )
@@ -325,7 +325,7 @@ class Corpus:
                 under_root = [k for k in cached if k.startswith(root_key + "/")]
                 if len(under_root) != len(files):
                     conn = (
-                        _db_connect(_CACHE_DB)  # ty: ignore[call-non-callable]
+                        _db_connect(_CACHE_DB)  # ty: ignore[not-callable]
                         if _HAS_DB_CONNECT
                         else __import__("sqlite3").connect(str(_CACHE_DB))
                     )
@@ -395,7 +395,7 @@ class Corpus:
                 import json as _json
 
                 mtimes = {pp: pp.stat().st_mtime for pp in files}
-                conn = _db_connect(_CACHE_DB)  # ty: ignore[call-non-callable]  # _HAS_DB_CONNECT-gated above
+                conn = _db_connect(_CACHE_DB)  # ty: ignore[not-callable]  # _HAS_DB_CONNECT-gated above
                 try:
                     _ensure_cache_text_column(conn)
                     # list rows so the light (3-col) and full (5-col) dicts share
@@ -474,7 +474,7 @@ class Corpus:
                 finally:
                     if to_upsert or mtime_fixups:
                         try:
-                            conn = _db_connect(_CACHE_DB)  # ty: ignore[call-non-callable]
+                            conn = _db_connect(_CACHE_DB)  # ty: ignore[not-callable]
                             try:
                                 if to_upsert:
                                     conn.executemany(
@@ -527,7 +527,7 @@ def _init_db_cache(notes: list[Note], root: Path | None = None) -> None:
 
         _CACHE_DB.parent.mkdir(parents=True, exist_ok=True)
         conn = (
-            _db_connect(_CACHE_DB)  # ty: ignore[call-non-callable]
+            _db_connect(_CACHE_DB)  # ty: ignore[not-callable]
             if _HAS_DB_CONNECT
             else __import__("sqlite3").connect(str(_CACHE_DB))
         )

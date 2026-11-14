@@ -5,6 +5,10 @@
 //! Python API (PyO3 + numpy, zero-copy):
 //! - `all_pairs_bfs_stats(indptr: np.int32[n+1], indices: np.int32[nnz])`
 //!   `-> (diameter: int, median: float, ties: int, total: int, hist: np.uint64[m])`
+//! - `personalized_pagerank(indptr, indices, seed: int, alpha, tol, max_iter)`
+//!   `-> np.float64[n]` — S2 prototype: power-iteration PPR, scipy-lane
+//!   parity 1.7e-13 on the live projection, ~10× faster per seed
+//!   (2026-11-14, completed.md #522 follow-up).
 //!
 //! Semantics — byte-for-byte the numbers `helpers/graph/stats.py`
 //! derives from a full scipy all-pairs matrix (`_chain_dist_stats`):
@@ -50,20 +54,25 @@ pub const PARALLEL_THRESHOLD: usize = 1_024;
 const ROOT_CHUNK: usize = 256;
 
 /// One BFS sweep from `src`, folding per-distance ordered-pair counts
-/// into `hist`. `dist` is scratch: reset here (fill(-1)), so callers
-/// reuse one buffer across sources. Duplicate CSR entries and self-loops
-/// are harmless — the dist<0 visit check sees each node once.
+/// into `hist`. `stamp` is scratch: visit marking is by `epoch` (the
+/// caller increments it per root), so there is NO per-root O(m) reset —
+/// the old `dist.fill(-1)` per root cost ~5–6% wall on the 22.3k-node
+/// all-pairs bench (6 interleaved rounds, 2026-11-14) and the stored
+/// depth was never read (the histogram folds `next.len()` per level).
+/// Duplicate CSR entries and self-loops are harmless — the stamp!=epoch
+/// visit check sees each node once. `epoch` starts at 1; `stamp`
+/// arrives zeroed (0 = never-visited).
 fn bfs_hist(
     indptr: &[i32],
     indices: &[i32],
     src: usize,
-    dist: &mut [i32],
+    stamp: &mut [u32],
     frontier: &mut Vec<u32>,
     next: &mut Vec<u32>,
     hist: &mut [u64],
+    epoch: u32,
 ) {
-    dist.fill(-1);
-    dist[src] = 0;
+    stamp[src] = epoch;
     frontier.clear();
     frontier.push(src as u32);
     let mut level: usize = 0;
@@ -79,8 +88,8 @@ fn bfs_hist(
             let hi = indptr[v as usize + 1] as usize;
             for &nb in &indices[lo..hi] {
                 let nn = nb as usize;
-                if dist[nn] < 0 {
-                    dist[nn] = level as i32;
+                if stamp[nn] != epoch {
+                    stamp[nn] = epoch;
                     next.push(nb as u32);
                 }
             }
@@ -97,18 +106,27 @@ pub fn all_pairs_hist_seq(indptr: &[i32], indices: &[i32]) -> Vec<u64> {
     let m = indptr.len() - 1;
     let hist_len = m.max(2);
     let mut hist = vec![0u64; hist_len];
-    let mut dist = vec![-1i32; m];
+    let mut stamp = vec![0u32; m];
+    let mut epoch: u32 = 0;
     let mut frontier = Vec::with_capacity(m);
     let mut next = Vec::with_capacity(m);
     for src in 0..m {
+        epoch = epoch.wrapping_add(1);
+        if epoch == 0 {
+            // u32::MAX roots exhausted (never in practice): re-zero and
+            // restart epochs at 1 so stale stamps can't false-match.
+            stamp.fill(0);
+            epoch = 1;
+        }
         bfs_hist(
             indptr,
             indices,
             src,
-            &mut dist,
+            &mut stamp,
             &mut frontier,
             &mut next,
             &mut hist,
+            epoch,
         );
     }
     hist
@@ -131,20 +149,27 @@ pub fn all_pairs_hist(indptr: &[i32], indices: &[i32], force_parallel: bool) -> 
             .into_par_iter()
             .map(|ci| {
                 let mut local = vec![0u64; hist_len];
-                let mut dist = vec![-1i32; m];
+                let mut stamp = vec![0u32; m];
+                let mut epoch: u32 = 0;
                 let mut frontier = Vec::with_capacity(m);
                 let mut next = Vec::with_capacity(m);
                 let lo = ci * ROOT_CHUNK;
                 let hi = (lo + ROOT_CHUNK).min(m);
                 for src in lo..hi {
+                    epoch = epoch.wrapping_add(1);
+                    if epoch == 0 {
+                        stamp.fill(0);
+                        epoch = 1;
+                    }
                     bfs_hist(
                         indptr,
                         indices,
                         src,
-                        &mut dist,
+                        &mut stamp,
                         &mut frontier,
                         &mut next,
                         &mut local,
+                        epoch,
                     );
                 }
                 local
@@ -235,9 +260,14 @@ fn all_pairs_bfs_stats<'py>(
 /// `_trail_bfs` in helpers/graph/hyper_trails.py exactly.
 ///
 /// Returns (reachable per source, flat row-major histograms of width
-/// limit/2 + 1). Sources are independent → rayon over them, each with
-/// its own scratch; one batched call replaces per-source subprocess or
-/// scipy passes (the Wall-2 Mojo lesson).
+/// limit/2 + 1). Sources are independent → rayon over them; one
+/// batched call replaces per-source subprocess or scipy passes (the
+/// Wall-2 Mojo lesson). Visits are marked by a zeroed stamp array
+/// (S6): the old `dist` vec was write-only in this loop (depth lives
+/// in `level`), and a thread-local epoch-stamp variant measured 5%
+/// SLOWER than per-source alloc + zero fill at every scale tested
+/// (22k/100k/300k nodes) — the memset is not the bottleneck, so the
+/// stamp is allocated per source like the dist was.
 pub fn limited_bfs_hists(
     indptr: &[i32],
     indices: &[i32],
@@ -251,14 +281,17 @@ pub fn limited_bfs_hists(
         .par_iter()
         .map(|&src| {
             let src = src as usize;
-            let mut dist = vec![-1i32; m];
+            let mut row = vec![0u64; width];
+            let mut row_reach: u32 = 0;
+            // Stamp marks visits (0 = unvisited); depth is `level`, so
+            // no per-node dist store is needed. Per-source alloc, like
+            // the dist it replaces — TLS/epoch reuse measured slower.
+            let mut stamp = vec![0u32; m];
             let mut frontier: Vec<u32> = Vec::with_capacity(m);
             let mut next: Vec<u32> = Vec::with_capacity(m);
-            dist[src] = 0;
+            stamp[src] = 1;
             frontier.push(src as u32);
-            let mut row = vec![0u64; width];
             let mut level: usize = 0;
-            let mut row_reach: u32 = 0;
             while !frontier.is_empty() && level < limit {
                 next.clear();
                 for &v in &frontier {
@@ -266,8 +299,8 @@ pub fn limited_bfs_hists(
                     let hi = indptr[v as usize + 1] as usize;
                     for &w in &indices[lo..hi] {
                         let wu = w as usize;
-                        if dist[wu] == -1 {
-                            dist[wu] = (level + 1) as i32;
+                        if stamp[wu] == 0 {
+                            stamp[wu] = 1;
                             next.push(w as u32);
                         }
                     }
@@ -288,7 +321,12 @@ pub fn limited_bfs_hists(
         })
         .collect();
     let reach: Vec<u32> = rows.iter().map(|r| r.0).collect();
-    let hists: Vec<u64> = rows.iter().flat_map(|r| r.1.iter().copied()).collect();
+    // One memcpy of the whole histogram block (rows are contiguous
+    // after collect) instead of three copies + per-row cloning.
+    let mut hists = vec![0u64; rows.len() * width];
+    for (i, r) in rows.iter().enumerate() {
+        hists[i * width..(i + 1) * width].copy_from_slice(&r.1);
+    }
     (reach, hists)
 }
 
@@ -339,14 +377,128 @@ fn limited_bfs_sources<'py>(
     let (reach, hists) =
         py.detach(|| limited_bfs_hists(ip, ix, srcs, n_entities as usize, limit as usize));
     let width = limit as usize / 2 + 1;
-    let rows: Vec<Vec<u64>> = hists.chunks(width).map(<[u64]>::to_vec).collect();
-    Ok((reach.into_pyarray(py), PyArray2::from_vec2(py, &rows)?))
+    // Zero-copy return: move the flat buffer into the ndarray backing
+    // store (no Vec<Vec>, no memcpy — from_owned_array reuses the Vec).
+    let n_src = srcs.len();
+    let arr = ndarray::Array2::from_shape_vec((n_src, width), hists)
+        .map_err(|e| PyValueError::new_err(format!("hist shape: {e}")))?;
+    Ok((reach.into_pyarray(py), PyArray2::from_owned_array(py, arr)))
+}
+
+/// Personalized PageRank on CSR — S2 prototype (power iteration).
+///
+/// Mirrors the scipy exact lane `personalized_pagerank_scores`
+/// (`helpers/graph/scipy_bridge.py`): `P = D^-1 A` row-stochastic over
+/// the BINARY adjacency (this kernel takes only topology — unweighted
+/// CSR, same contract as the BFS entries), dangling rows teleport to
+/// `seed`, teleport vector `v` one-hot on `seed`. Iterates
+/// `x' = alpha * P^T x + (1-alpha) v` from `x0 = v` until the L1 delta
+/// drops below `tol` or `max_iter` is hit; sums stay 1 by construction.
+/// Duplicates in a CSR row are summed consistently (they inflate both
+/// the row's entries and its degree), self-loops are just entries.
+/// Validation mirrors `limited_bfs_sources`; ValueError on malformed
+/// CSR, out-of-range seed, alpha outside (0, 1), tol <= 0,
+/// max_iter < 1. Returns float64 scores (len n).
+#[pyfunction]
+fn personalized_pagerank<'py>(
+    py: Python<'py>,
+    indptr: PyReadonlyArray1<'py, i32>,
+    indices: PyReadonlyArray1<'py, i32>,
+    seed: i64,
+    alpha: f64,
+    tol: f64,
+    max_iter: i64,
+) -> PyResult<Bound<'py, PyArray1<f64>>> {
+    let ip: &[i32] = indptr.as_slice()?;
+    let ix: &[i32] = indices.as_slice()?;
+    if ip.is_empty() {
+        return Err(PyValueError::new_err(
+            "indptr must carry at least the [0] terminator",
+        ));
+    }
+    if ip.windows(2).any(|w| w[0] > w[1]) {
+        return Err(PyValueError::new_err("indptr must be non-decreasing"));
+    }
+    let n = ip.len() - 1;
+    if *ip.last().unwrap() as usize != ix.len() {
+        return Err(PyValueError::new_err("indptr[-1] must equal len(indices)"));
+    }
+    if ix.iter().any(|&v| v < 0 || v as usize >= n) {
+        return Err(PyValueError::new_err("indices out of range"));
+    }
+    if !(alpha > 0.0 && alpha < 1.0) {
+        return Err(PyValueError::new_err("alpha must be in (0, 1)"));
+    }
+    if tol <= 0.0 {
+        return Err(PyValueError::new_err("tol must be positive"));
+    }
+    if max_iter < 1 {
+        return Err(PyValueError::new_err("max_iter must be >= 1"));
+    }
+    if seed < 0 || seed as usize >= n {
+        return Err(PyValueError::new_err("seed out of range"));
+    }
+    let seed = seed as usize;
+    let x = py.detach(|| ppr_power_iterate(ip, ix, seed, alpha, tol, max_iter as usize));
+    Ok(ndarray::Array1::from(x).into_pyarray(py))
+}
+
+/// Power iteration core (pure, testable without Python).
+fn ppr_power_iterate(
+    ip: &[i32],
+    ix: &[i32],
+    seed: usize,
+    alpha: f64,
+    tol: f64,
+    max_iter: usize,
+) -> Vec<f64> {
+    let n = ip.len() - 1;
+    // Row degrees of the binary adjacency; dangling rows teleport.
+    let deg: Vec<f64> = ip
+        .windows(2)
+        .map(|w| (w[1] - w[0]) as f64)
+        .collect();
+    let mut x = vec![0.0f64; n];
+    x[seed] = 1.0;
+    let mut nx = vec![0.0f64; n];
+    let base = 1.0 - alpha;
+    for _ in 0..max_iter {
+        nx.fill(0.0);
+        // nx = P^T x, scattered row-wise; dangling row i sends x[i] to
+        // the seed (P[i, seed] = 1), matching the scipy lane.
+        for (i, &xi) in x.iter().enumerate() {
+            if xi == 0.0 {
+                continue;
+            }
+            if deg[i] == 0.0 {
+                nx[seed] += xi;
+            } else {
+                let inv = 1.0 / deg[i];
+                let lo = ip[i] as usize;
+                let hi = ip[i + 1] as usize;
+                for &j in &ix[lo..hi] {
+                    nx[j as usize] += xi * inv;
+                }
+            }
+        }
+        let mut delta = 0.0;
+        for (j, slot) in x.iter_mut().enumerate() {
+            let nv = alpha * nx[j] + if j == seed { base } else { 0.0 };
+            delta += (nv - *slot).abs();
+            *slot = nv;
+        }
+        if delta < tol {
+            break;
+        }
+    }
+    x
 }
 
 #[pymodule]
 fn graph_kernels(m: &Bound<'_, pyo3::types::PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(all_pairs_bfs_stats, m)?)?;
     m.add_function(wrap_pyfunction!(limited_bfs_sources, m)?)?;
+    m.add_function(wrap_pyfunction!(personalized_pagerank, m)?)?;
     Ok(())
 }
 
@@ -524,5 +676,55 @@ mod tests {
         let (reach0, hists0) = super::limited_bfs_hists(&ip, &ix, &sources, n_e, 0);
         assert!(reach0.iter().all(|&r| r == 0));
         assert_eq!(hists0.len(), sources.len()); // width 1, all zeros
+    }
+}
+
+#[cfg(test)]
+mod ppr_tests {
+    use super::ppr_power_iterate;
+
+    fn csr(adj: &[&[usize]]) -> (Vec<i32>, Vec<i32>) {
+        let mut ip = vec![0i32];
+        let mut ix = Vec::new();
+        for a in adj {
+            ix.extend(a.iter().map(|&v| v as i32));
+            ip.push(ix.len() as i32);
+        }
+        (ip, ix)
+    }
+
+    #[test]
+    fn ppr_sums_to_one_and_converges() {
+        // undirected triangle + isolated node 3 (dangling)
+        let (ip, ix) = csr(&[&[1, 2], &[0, 2], &[0, 1], &[]]);
+        let x = ppr_power_iterate(&ip, &ix, 0, 0.85, 1e-12, 500);
+        let s: f64 = x.iter().sum();
+        assert!((s - 1.0).abs() < 1e-9, "sum {s}");
+        assert!(x.iter().all(|&v| v >= 0.0 && v.is_finite()));
+        // dangling node 3's mass teleports back to seed 0: the exact
+        // solution has x[3] = 0 (nothing flows INTO a dangling node).
+        assert!(x[3].abs() < 1e-11, "dangling score {}", x[3]);
+    }
+
+    #[test]
+    fn ppr_star_seed_concentrates() {
+        // star: hub 0 connected to leaves 1..5, seed at hub
+        let (ip, ix) = csr(&[&[1, 2, 3, 4, 5], &[0], &[0], &[0], &[0], &[0]]);
+        let x = ppr_power_iterate(&ip, &ix, 0, 0.85, 1e-12, 500);
+        // symmetric: leaves all tie
+        for w in x[1..6].windows(2) {
+            assert!((w[0] - w[1]).abs() < 1e-12, "leaf tie {x:?}");
+        }
+        assert!(x[0] > x[1], "hub {} > leaf {}", x[0], x[1]);
+    }
+
+    #[test]
+    fn ppr_two_components_isolated() {
+        // edges 0-1 and 2-3, no link between: mass from seed 0 never
+        // reaches {2,3}
+        let (ip, ix) = csr(&[&[1], &[0], &[3], &[2]]);
+        let x = ppr_power_iterate(&ip, &ix, 0, 0.85, 1e-12, 500);
+        assert!(x[2].abs() < 1e-11 && x[3].abs() < 1e-11);
+        assert!(x[0] + x[1] > 0.999999);
     }
 }

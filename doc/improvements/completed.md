@@ -15350,3 +15350,70 @@ idempotent). Cache rebuilt (v_node 27,827 → 27,825), integrity exit 0,
 gate ACCEPT 239 questions / 0 reasons against the post-fold-1 parent
 snapshot. Weight-scheme nuance survives only in each edge's
 `index_slug` property.
+
+## 522. Rust kernel expansion proposal — S6/S7 built + trials; proposal archived
+
+Same-day arc on
+`archive/graph/rust_kernel_expansion_derive_insights_ipc.md` (filed and
+partially executed 2026-11-14; S1–S5 stay plan-now / trigger-gated). S6
+`limited_bfs_hists` scratch: the filed thread-local/epoch-stamp reuse was
+BUILT FIRST and measured ~5% SLOWER than HEAD at every scale tried
+(22k/100k/300k nodes, 200–800 sources, interleaved A/B, control rebuilt
+same-day after catching ~3% toolchain codegen drift in the 2026-11-09
+.so — kernel trials must rebuild the control). Landed instead: per-source
+`vec![0u32; m]` visited-stamp with the write-only `dist` vec dropped
+(depth lives in `level`) — **~6–7% faster** (166.6–172.1 ms vs
+177.8–183.8 ms, 800 sources × 22.3k nodes, 5 rounds), bit-parity,
+`cargo test` 11/11; committed `4158bcbd9`. TLS scratch leg CLOSED — do
+not re-derive. S7 caller-copy discipline: the per-call
+tocsr/sort/ascontiguousarray premise measured **0.000 ms** at live scale
+vs ~170 ms kernel (scipy CSR constructors already yield int32 contiguous,
+so `ascontiguousarray` is the identity) — landed as shared
+`kernel_csr_arrays()` (`helpers/graph/stats.py`) used by both kernel call
+sites (`stats.py:192`, `hyper_trails.py:420`) with the zero-copy ingress
+pinned by `test_kernel_csr_arrays_zero_copy` (identity `is` assert);
+`test_graph_stats.py` 21/21, `test_hyper_trails.py` 21/21 + 1 skip.
+Return-copy prototype (from the earlier optimization pass) kept in
+`limited_bfs_sources`: `Array2::from_shape_vec` +
+`PyArray2::from_owned_array` zero-copy return — parity exact, wall parity
+(171.2 vs 172.8 ms), no speedup claimed at current payload sizes. Same-day
+trial verdicts recorded in the archived §6: S4 articulation PASS (1,629
+APs on live CSR, 0.264 s Python — kernel unneeded at this scale), S1
+matrix cache CONFIRMED (warm 1.461 s cold / 0.001 s cached), S2 PPR
+seed-dependence CONFIRMED (Infosys 0.2656 vs HDFC 0.2025; shipped lane is
+scipy exact `helpers/graph/algorithms.py:1110`, not Onager), S5 PARTIAL
+(0.3 ms/file YAML parse; 4.0 s select.poll idle-wait is IPC-shape, not a
+kernel problem). jemalloc closed line re-affirmed: its sanctioned
+replacement is S7 discipline, not an allocator swap.
+
+Follow-up (same day): the epoch-stamp trick extended to the all-pairs
+kernel — `bfs_hist()` (`Rust/graph_kernels/src/lib.rs`) now takes
+`stamp: &mut [u32]` + per-root `epoch` instead of `dist: &mut [i32]` with
+per-root `dist.fill(-1)`; callers (`all_pairs_hist_seq`, the rayon chunk
+lane of `all_pairs_hist`) own one zeroed stamp + wrapping epoch per
+chunk, re-zeroing only at u32::MAX wrap. The stored depth was never read
+(the histogram folds `next.len()` per level), so the fill was pure
+overhead: 6 interleaved rounds on the 22.3k/179k bench — best 5,114.9 →
+4,833.7 ms (**1.058× faster**, median 5,259.8 → 5,004.6, 1.051×), hist
+bit-exact, diam/median/total identical. Distinct from the losing S6 TLS
+form: scratch stays a plain `&mut` param owned by the caller/chunk. Rust
+6+5+0 tests, `test_graph_stats.py` 21/21 on the stamp .so.
+
+Follow-up 2 (same day): S2 prototype landed anyway —
+`personalized_pagerank(indptr, indices, seed, alpha, tol, max_iter)` in
+`Rust/graph_kernels/src/lib.rs` (power iteration on binary CSR, dangling
+rows teleport to seed, `x' = alpha*P^T x + (1-alpha) v` from `x0 = v`,
+L1 tol default 1e-12). Parity vs the scipy exact lane
+(`personalized_pagerank_scores`, `helpers/graph/scipy_bridge.py:694`): on
+the live projection (n=22,204, nnz=126,916) maxdiff **1.69e-13** across 5
+seeds × 5 interleaved rounds; self-mass matches (HCL Infosystems 0.1521
+both). Speed: **~42.9 ms/seed vs ~442 ms/seed = 10.3×**. Bonus finding:
+spsolve exactness is structure-sensitive — on unstructured random graphs
+the (I − alpha Pᵀ) solve blows up in fill-in (COLAMD: 7.2M LU nnz at
+n=6,000; ≥22.3k hangs >240 s; MMD_AT_PLUS_A 3.3× less fill but still
+minutes) — the sector-block structure of the live projection is what
+keeps the scipy lane at 0.44 s. The kernel lane is LU-free and
+structure-independent. Rust ppr_tests 3 green (sum/one, dangling-zero,
+component isolation), `test_ppr_kernel_matches_scipy_spsolve` green
+(6 random shapes incl. directed/dangling/self-loop vs an independent
+spsolve reference).

@@ -165,6 +165,28 @@ def _chain_dist_stats(dist: np.ndarray) -> tuple[int, float, int, int]:
     return diameter, median, int(hist[diameter]), total
 
 
+def kernel_csr_arrays(mat):
+    """(indptr, indices) int32 arrays for the graph_kernels extension.
+
+    S7: the two kernel call sites used to repeat tocsr/sort/ascontiguousarray
+    inline. Measured 2026-11-14 at 22.3k nodes / 179k nnz: the whole
+    conversion is 0.000 ms (scipy CSR constructors already yield int32
+    contiguous indptr/indices, so ascontiguousarray is the identity) vs
+    ~170 ms kernel — the filed "~10 MB per call" only materializes for an
+    int64 upstream matrix. This helper makes the pass-through explicit and
+    does the one real cast when needed, so the kernel boundary stays
+    zero-copy in the common case. Pinned by test_kernel_csr_arrays_zero_copy.
+    """
+    import numpy as np
+
+    m = mat.tocsr()
+    m.sort_indices()
+    return (
+        np.ascontiguousarray(m.indptr, dtype=np.int32),
+        np.ascontiguousarray(m.indices, dtype=np.int32),
+    )
+
+
 def _graph_kernels_stats(csr_graph):
     """Exact all-pairs BFS stats via the Rust graph_kernels kernel.
 
@@ -180,19 +202,13 @@ def _graph_kernels_stats(csr_graph):
     test_ifub_diameter_kernel_lane_matches_ifub_lane, and the
     longest_chains kernel-lane tests.
     """
-    import numpy as np
-
     try:
         import graph_kernels
     except ImportError:
         return None
 
-    mat = csr_graph.tocsr()
-    mat.sort_indices()
-    diam, median, ties, total, _hist = graph_kernels.all_pairs_bfs_stats(
-        np.ascontiguousarray(mat.indptr, dtype=np.int32),
-        np.ascontiguousarray(mat.indices, dtype=np.int32),
-    )
+    indptr, indices = kernel_csr_arrays(csr_graph)
+    diam, median, ties, total, _hist = graph_kernels.all_pairs_bfs_stats(indptr, indices)
     return int(diam), float(median), int(ties), int(total)
 
 

@@ -9,6 +9,7 @@ name = "graph_kernels"
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
+ndarray = "0.17"
 pyo3 = { version = "0.30", features = ["extension-module", "abi3-py39"] }
 numpy = "0.30"
 rayon = "1.10"

@@ -347,6 +347,35 @@ def test_ifub_diameter_parity_random_components():  # noqa: C901
     assert stats._ifub_diameter(csr_matrix((0, 0))) is None
 
 
+def test_kernel_csr_arrays_zero_copy():
+    """S7: kernel_csr_arrays must hand the kernel the SAME int32 arrays when
+    the input is already int32/contiguous (no copy), and return int32
+    arrays (a copy) for int64 input — the zero-copy ingress contract.
+    """
+    import numpy as np
+    from scipy.sparse import coo_matrix, csr_matrix
+
+    from helpers.graph.stats import kernel_csr_arrays
+
+    n = 50
+    rows = np.array([0, 1, 2, 5, 9])
+    cols = np.array([1, 2, 3, 4, 0])
+    m = coo_matrix((np.ones(5), (rows, cols)), shape=(n, n)).tocsr()
+    assert m.indptr.dtype == np.int32 and m.indices.dtype == np.int32
+    indptr, indices = kernel_csr_arrays(m)
+    assert indptr is m.indptr and indices is m.indices
+
+    m64 = m.astype(np.int64)
+    indptr64, indices64 = kernel_csr_arrays(m64)
+    assert indptr64.dtype == np.int32 and indices64.dtype == np.int32
+    assert np.array_equal(indptr64, m64.indptr) and np.array_equal(indices64, m64.indices)
+
+    # non-CSR input (COO) is converted to CSR
+    coo = coo_matrix((np.ones(5), (rows, cols)), shape=(n, n))
+    indptr_c, _ = kernel_csr_arrays(coo)
+    assert indptr_c.dtype == np.int32
+
+
 def test_ifub_diameter_kernel_lane_matches_ifub_lane():
     """When the Rust graph_kernels extension is installed, the
     kernel-first dispatch in _ifub_diameter must agree with the
@@ -397,3 +426,71 @@ def monkeypatch_for_ifub_stub():
 
     with unittest.mock.patch.object(stats, "_ifub_diameter_kernel", lambda csr: None):
         yield
+
+
+def _ppr_spsolve_ref(indptr, indices, seed, alpha=0.85):
+    """Independent spsolve reference mirroring the scipy lane contract
+    (personalized_pagerank_scores in helpers/graph/scipy_bridge.py):
+    P = D^-1 A row-stochastic (binary A), dangling rows teleport to the
+    seed, solve (I - alpha*P^T) x = (1-alpha) v exactly."""
+    import numpy as np
+    import scipy.sparse as sp
+    from scipy.sparse.linalg import spsolve
+
+    n = len(indptr) - 1
+    a = sp.csr_matrix(
+        (np.ones(len(indices)),
+         (np.repeat(np.arange(n), np.diff(indptr)), indices)),
+        shape=(n, n),
+    )
+    deg = np.asarray(a.sum(axis=1)).ravel().astype(float)
+    inv = np.where(deg > 0, 1.0 / np.maximum(deg, 1e-300), 0.0)
+    p = a.astype(float)
+    p.data = p.data * np.repeat(inv, np.diff(p.indptr))
+    if np.any(deg == 0):
+        p = p.tolil()
+        for d in np.flatnonzero(deg == 0):
+            p[d, seed] = 1.0
+        p = p.tocsr()
+    eye = sp.identity(n, format="csc")
+    v = np.zeros(n)
+    v[seed] = 1.0
+    x = np.asarray(spsolve(eye - alpha * p.T.tocsc(), (1.0 - alpha) * v)).ravel()
+    return x
+
+
+def test_ppr_kernel_matches_scipy_spsolve():
+    """S2 prototype: the Rust power-iteration PPR must land on the scipy
+    exact spsolve solution (L1 close) across graph shapes — symmetric
+    projection-like, directed, with dangling rows and self-loops."""
+    import numpy as np
+    import graph_kernels as gk
+
+    if not hasattr(gk, "personalized_pagerank"):
+        pytest.skip("stale graph_kernels .so without personalized_pagerank")
+
+    rng = np.random.default_rng(7)
+    for trial in range(6):
+        n = int(rng.integers(20, 120))
+        density = float(rng.uniform(0.02, 0.10))
+        mask = rng.random((n, n)) < density
+        np.fill_diagonal(mask, False)
+        if trial % 2 == 0:  # symmetric projection-like variant
+            mask = mask | mask.T
+        rows, cols = np.nonzero(mask)
+        if len(rows) == 0:
+            continue
+        m = sp_matrix(rows, cols, n)
+        ip, ix = np.asarray(m.indptr, dtype=np.int32), np.asarray(m.indices, dtype=np.int32)
+        seed = int(rng.integers(0, n))
+        xk = gk.personalized_pagerank(ip, ix, seed, 0.85, 1e-12, 1000)
+        xr = _ppr_spsolve_ref(ip, ix, seed)
+        assert abs(xk.sum() - 1.0) < 1e-6, f"trial {trial} sum {xk.sum()}"
+        assert np.abs(xk - xr).max() < 1e-8, f"trial {trial} maxdiff {np.abs(xk - xr).max()}"
+
+
+def sp_matrix(rows, cols, n):
+    import numpy as np
+    import scipy.sparse as sp
+
+    return sp.csr_matrix((np.ones(len(rows)), (rows, cols)), shape=(n, n))

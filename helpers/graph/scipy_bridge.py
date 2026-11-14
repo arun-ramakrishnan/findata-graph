@@ -700,10 +700,20 @@ def personalized_pagerank_scores(
     """Exact personalized PageRank ``x = alpha*P^T x + (1-alpha) v``.
 
     ``P`` is row-stochastic (``P = D^-1 A``); dangling rows teleport to the
-    seed. ``v`` is one-hot on ``seed``. Solves ``(I - alpha*P^T) x =
-    (1-alpha) v`` with :func:`spsolve` — no iteration, no divergence risk.
-    ``x`` sums to 1 when ``P`` is row-stochastic and the system is
-    non-singular (alpha in (0, 1)).
+    seed. ``v`` is one-hot on ``seed``. ``x`` sums to 1 when ``P`` is
+    row-stochastic and the system is non-singular (alpha in (0, 1)).
+
+    Solve order (2026-11-14, S2 prototype in
+    doc/improvements/proposals/graph_kernels_ppr_lane.md): the Rust
+    ``graph_kernels.personalized_pagerank`` power-iteration kernel when
+    the extension is installed and ``A`` is binary — measured on the
+    live projection (n=22,204, nnz=126,916): parity 1.69e-13 vs the
+    spsolve solution, ~10.3x per seed (42.9 ms vs 442 ms), and
+    structure-robust where the exact solve fill-in-blows on
+    unstructured graphs. Falls back to the scipy exact spsolve solve
+    ``(I - alpha*P^T) x = (1-alpha) v`` — no iteration, no divergence
+    risk — when the kernel lane is unavailable. ``_assert_budget``
+    covers whichever lane ran.
     """
     _assert_scipy_lane(PPR_LANE)
     if not 0 < alpha < 1:
@@ -716,6 +726,45 @@ def personalized_pagerank_scores(
         raise ValueError("PPR: empty projection")
     seed_idx = pos[seed]
     t0 = time.perf_counter()
+    x = _ppr_kernel_lane(A, seed_idx, alpha)
+    if x is None:
+        x = _ppr_spsolve_lane(A, seed_idx, alpha)
+    _assert_budget(PPR_LANE, time.perf_counter() - t0)
+    return x
+
+
+def _ppr_kernel_lane(A: csr_matrix, seed_idx: int, alpha: float) -> np.ndarray | None:
+    """Rust graph_kernels power-iteration PPR over binary CSR, or None.
+
+    None means "kernel lane unavailable" — extension missing/stale, A
+    not binary (the kernel is topology-only; weighted CSR must keep the
+    scipy solve), or CSR too large for int32 indexing. The caller falls
+    back to :func:`_ppr_spsolve_lane`. Parity vs spsolve is pinned by
+    ``test_ppr_kernel_matches_scipy_spsolve`` (tests/test_graph_stats.py)
+    and the live-projection A/B in completed.md #522 follow-up 2.
+    """
+    try:
+        import graph_kernels
+    except ImportError:
+        return None
+    if not hasattr(graph_kernels, "personalized_pagerank"):
+        return None
+    if A.shape[0] > 2**31 - 1 or A.nnz > 2**31 - 1:
+        return None
+    if not np.all(A.data == 1):
+        return None
+    m = A.tocsr()
+    m.sort_indices()
+    indptr = np.ascontiguousarray(m.indptr, dtype=np.int32)
+    indices = np.ascontiguousarray(m.indices, dtype=np.int32)
+    return graph_kernels.personalized_pagerank(
+        indptr, indices, seed_idx, alpha, 1e-12, 1000
+    )
+
+
+def _ppr_spsolve_lane(A: csr_matrix, seed_idx: int, alpha: float) -> np.ndarray:
+    """The scipy exact spsolve solve (the lane's original body)."""
+    n = A.shape[0]
     # Row-stochastic P = D^-1 A: row sums (A is symmetric from
     # load_centrality_projection / load_projection — both directions
     # emitted, self-loops dropped — so row sums == column sums; use row
@@ -736,9 +785,7 @@ def personalized_pagerank_scores(
     v = np.zeros(n, dtype=float)
     v[seed_idx] = 1.0
     M = identity(n, format="csc") - alpha * P.T.tocsc()
-    x = np.asarray(spsolve(M, (1.0 - alpha) * v)).ravel()
-    _assert_budget(PPR_LANE, time.perf_counter() - t0)
-    return x
+    return np.asarray(spsolve(M, (1.0 - alpha) * v)).ravel()
 
 
 def write_ppr_results(

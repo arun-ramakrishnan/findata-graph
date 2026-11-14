@@ -148,7 +148,7 @@ class TestTokenParse:
 
     def test_parse_dsh_tool_id_with_colon(self):
         """dsh tool ids are `{session_id}:{seq}` — the colon must survive."""
-        token = "agent-trace:dsh#tool:session-aaaa:3532"
+        token = "agent-trace:dsh#tool:session-aaaa:3532"  # noqa: S105 — a token, not a secret
         assert tq.parse_token(token) == ("dsh", "tool", "session-aaaa:3532", token)
 
     def test_parse_rejects_invalid_harness(self):

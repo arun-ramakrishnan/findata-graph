@@ -21,11 +21,15 @@ include = ["tests/"]
   # Optional narrowing: conn.execute(...).fetchone()[0] (COUNT(*) always returns a row)
   not-subscriptable = "warn"
   # scipy guard: _nx_pagerank is None when scipy is missing (pytest.importorskip)
-  call-non-callable = "warn"
+  not-callable = "warn"
   no-matching-overload = "warn"
   # Mock proxy objects (_FailingConn, _FlakyCon) don't match typed signatures
   invalid-argument-type = "warn"
   # Fixture yield type
-  invalid-return-type = "warn"
+  invalid-explicit-return = "warn"
   # Third-party stub gaps (yfinance.ticker_lookups)
-  unresolved-attribute = "warn"
+  missing-attribute = "warn"
+  # graph_kernels: locally-built Rust pyo3 abi3 module with no stubs (the
+  # same local residual class ty.toml scopes to warn for its helpers
+  # consumers) — tests import it behind an importorskip guard.
+  import-not-found = "warn"

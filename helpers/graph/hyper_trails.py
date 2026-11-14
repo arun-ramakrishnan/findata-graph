@@ -414,12 +414,13 @@ def _trail_stats_kernel_batch(g: dict, src_labels: list[str], *, limit: int) -> 
     unknown = [s for s in src_labels if s not in index]
     if unknown:
         raise ValueError(f"unknown source entities: {unknown[:5]}")
-    m = g["matrix"].tocsr()
-    m.sort_indices()
+    from helpers.graph.stats import kernel_csr_arrays  # noqa: E402
+
+    indptr, indices = kernel_csr_arrays(g["matrix"])
     t0 = time.perf_counter()
     reach, hists = graph_kernels.limited_bfs_sources(
-        np.ascontiguousarray(m.indptr, dtype=np.int32),
-        np.ascontiguousarray(m.indices, dtype=np.int32),
+        indptr,
+        indices,
         np.fromiter((index[s] for s in src_labels), dtype=np.int32, count=len(src_labels)),
         int(n_e),
         int(limit),
