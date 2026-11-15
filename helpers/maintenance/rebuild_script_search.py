@@ -2091,8 +2091,8 @@ def _summary_line(stats: dict) -> str:
 # (title + content — the legacy bm25 weight matrix, title 2.0 / content
 # 1.0; purpose rides inside content as the "purpose:" block). kind/rel_path/
 # area become plain SQL columns (better filters than the legacy UNINDEXED
-# FTS5 columns). The doc/memory S1/S2 lessons apply unchanged: dedicated
-# sqlite cache handle (rds._DuckCachedEmbed), replacement rebuild, no
+# FTS5 columns). The doc/memory S1/S2 lessons apply unchanged: native
+# duckdb cache handle (embed-store fold S0), replacement rebuild, no
 # snippet()/highlight() (rds._highlight_window replacement). The mojo/ts
 # content-addressed doc caches live in the same duckdb store (same tables).
 SCRIPT_DUCKDB_DDL = """
@@ -2157,16 +2157,14 @@ def rebuild_script_duckdb(
     Reuses the engine-agnostic extraction pipeline (``_collect_units`` —
     with the mojo/ts content-addressed doc caches living in the SAME
     duckdb store — and ``_compose_rows``) plus the pooled embed cache via
-    the dedicated-sqlite-handle subclass (``rds._DuckCachedEmbed`` — a
-    duckdb conn cannot host the vecdb attach). Replacement rebuild
+    the native duckdb handle (``rds.CachedEmbed`` — the duckdb host conn
+    IS the cache conn, embed-store fold S0). Replacement rebuild
     (delete-all + insert): the corpus is ~1.9k rows, full rebuild is
     seconds. ``write=False`` (--check): freshness verdict only — no DDL,
     no writes, no embedder resolution (content hashes are the identity of
     record; the mojo/ts caches still serve the collection the same way
     the legacy --check pre-warms them).
     """
-    from helpers.maintenance.rebuild_doc_search import _DuckCachedEmbed
-
     db_path = Path(db_path) if db_path is not None else SCRIPT_DUCKDB_DB
     stats: dict = {}
 
@@ -2208,11 +2206,9 @@ def rebuild_script_duckdb(
             stats["embed_cache_hits"] = embed_fn.hits
             stats["embed_cache_misses"] = embed_fn.misses
             stats["embed_cache_state"] = embed_fn.status_line()
-            if isinstance(embed_fn, _DuckCachedEmbed) and embed_fn.dirty:
-                embed_fn.commit()  # content-addressed: early commit is safe
         return stats
     finally:
-        if isinstance(embed_fn, _DuckCachedEmbed):
+        if isinstance(embed_fn, CachedEmbed):
             embed_fn.close()
         conn.close()
 
@@ -2260,8 +2256,6 @@ def _check_freshness_script_duckdb(
 def _resolve_script_embedder_duckdb(conn, embed_fn, stats: dict):
     """Resolve the script embedder for the DuckDB store. An injected
     embed_fn passes through as the dry-run pseudo-embedder."""
-    from helpers.maintenance.rebuild_doc_search import _DuckCachedEmbed
-
     embed_dims = rds._PSEUDO_DIMS
     model_label: str | None = None
     gemma_active = False
@@ -2277,9 +2271,9 @@ def _resolve_script_embedder_duckdb(conn, embed_fn, stats: dict):
             os.environ.get(SCRIPT_EMBEDDER_ENV),
         )
         if model_label != f"dry-run-v{rds._PSEUDO_DIMS}":
-            # Dedicated-sqlite cache handle (duckdb conns can't host the
-            # pooled-store attach — see rds._DuckCachedEmbed).
-            embed_fn = _DuckCachedEmbed(embed_fn, model_label, source="script")
+            # Native duckdb cache handle: the duckdb host conn IS the
+            # cache conn (embed-store fold S0 — no sqlite attach).
+            embed_fn = rds.CachedEmbed(embed_fn, model_label, conn, source="script")
     return embed_fn, embed_dims, model_label, gemma_active
 
 

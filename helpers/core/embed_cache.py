@@ -4,13 +4,15 @@
 Q3 of the local_embeddings proposal (2026-08-20): with a real embedding
 model, a FULL refresh costs minutes of CPU, busting the maint budget. Remedy:
 a ``(sha256(text), model)`` -> vector cache so unchanged text never re-embeds.
-Since the embed_store consolidation it lives in ONE pooled SQLite database
-(the vec store, ``memory/embed_store.db``, attached as schema ``vecdb``)
-shared by every consumer; the old per-index ``<db>_vec.db`` copies were
-migrated once (migrate_embed_store.py, retired 2026-11-05 once every live
-store was pooled). Derived, snapshot-excluded state exactly like the DuckDB
-vector mirror beside it; a new table in research.db would collide with the
-schema-drift guards and DuckDB scanner expectations.
+Since the embed_store consolidation it lives in ONE pooled DuckDB database
+(``memory/embed_store.duckdb``, native — the sqlite ATTACH era ended
+2026-11-15 with the note_search carve-out S0 / embed-store fold) shared by
+every consumer; the old pre-consolidation per-index ``<db>_vec.db`` copies
+were migrated once (migrate_embed_store.py, retired 2026-11-05 once every
+live store was pooled), and the sqlite ``embed_store.db`` is retained only
+as rollback insurance. Derived, snapshot-excluded state exactly like the
+DuckDB vector mirror beside it; a new table in research.db would collide
+with the schema-drift guards and DuckDB scanner expectations.
 
 One cache serves EVERY text population — note_search rebuild
 (per-doc wrapper), doc/script indexers, company-embeddings populate (batch
@@ -27,24 +29,20 @@ to destroy the adopted model's whole cache with it (three live incidents
 2026-10-07/08). Dead-text eviction is `make embed-gc`'s job; the explicit
 ``purge_foreign_models()`` survives for one-off model retirement only.
 
-Everything here is best-effort: when the store can't be attached the callers
-degrade to uncached embedding (correct, just slower).
-
-The batch wrapper can opt into a read-only Rust hit lookup for file-backed
-stores; Python remains responsible for misses, embedding, and persistence.
+Everything here is best-effort: when the store can't be opened the callers
+degrade to uncached embedding (correct, just slower). The engine is
+DuckDB throughout — writers are maintenance paths (serialized by the
+search-fresh / maint-full discipline), readers open the file read-only.
+(The opt-in Rust hit-lookup accelerator from the sqlite era was removed
+with the attach shim; it was a trial bench, never installed.)
 """
 
 import hashlib
-import json
 import os
-import subprocess
 import sys
 import time
 from collections.abc import Callable
-from pathlib import Path
 
-from helpers.core import jsonio  # noqa: E402  (orjson parse cutover; dumps stay stdlib per db_scaling_tuning §6.3 criteria)
-from helpers.core import msgpackio  # noqa: E402  msgpack stdio for Rust↔Python IPC (S3)
 from helpers.core.vec_codec import load_vec, pack_f32
 
 # Greppable surface tag for every long-running progress line — filter a
@@ -76,10 +74,10 @@ def _progress(msg: str) -> None:
 _REINIT_EVERY = 128
 
 
-# Qualified name inside the attached ``vecdb`` schema used at runtime.
-EMBED_CACHE_TABLE = "vecdb.embed_cache"
-# Bare (unqualified) names for tooling that opens the store file directly
-# (the migration script) instead of going through vec_search._attach_vec_db.
+# The cache table lives unqualified inside the consolidated duckdb store
+# (no ATTACH alias — the ``vecdb`` schema era ended with the S0 fold).
+EMBED_CACHE_TABLE = "embed_cache"
+# Bare (unqualified) names for tooling that opens the store file directly.
 CACHE_TABLE_BARE = "embed_cache"
 LEGACY_CACHE_TABLE = "note_search_emb_cache"
 CACHE_DDL_BARE = (
@@ -91,146 +89,11 @@ CACHE_DDL_BARE = (
     " PRIMARY KEY (text_hash, model)"
     ")"
 )
-EMBED_CACHE_DDL = CACHE_DDL_BARE.replace(CACHE_TABLE_BARE, EMBED_CACHE_TABLE)
-
-_RUST_LOOKUP_ENV = "FINDATA_RUST_EMBED_CACHE_LOOKUP"
-_RUST_LOOKUP_BIN_ENV = "FINDATA_RUST_EMBED_CACHE_BIN"
-_RUST_LOOKUP_TIMING_ENV = "FINDATA_RUST_EMBED_CACHE_TIMING"
-_RUST_LOOKUP_WARNED = False
+EMBED_CACHE_DDL = CACHE_DDL_BARE
 
 
 def _hash(text: str) -> str:
     return hashlib.sha256(text.encode("utf-8", errors="replace")).hexdigest()
-
-
-def _rust_lookup_binary() -> Path | None:
-    """Return the built S1 CLI, or the explicit operator-provided binary."""
-    configured = os.environ.get(_RUST_LOOKUP_BIN_ENV)
-    if configured:
-        path = Path(configured)
-        return path if path.is_file() else None
-
-    root = Path(__file__).resolve().parents[2]
-    for profile in ("release", "debug"):
-        path = root / "Rust" / "target" / profile / "embed-cache-lookup"
-        if path.is_file():
-            return path
-    return None
-
-
-def _parse_lookup_response(
-    response: dict, texts: list[str]
-) -> tuple[dict[int, list[float]], list[int]]:
-    """Validate the Rust CLI response shape; raises ValueError on any defect.
-
-    The caller treats every defect identically (warn once, fall back to the
-    Python path), so all shape violations funnel through one exception type.
-    """
-    if response.get("protocol") != 1:
-        raise ValueError("unsupported response protocol")
-
-    hit_vectors: dict[int, list[float]] = {}
-    for hit in response["hit_vectors"]:
-        index = hit["index"]
-        vector = hit["vector"]
-        if type(index) is not int or not 0 <= index < len(texts):
-            raise ValueError("invalid hit index")
-        if index in hit_vectors or not isinstance(vector, list):
-            raise ValueError("invalid or duplicate hit vector")
-        if any(type(value) not in (int, float) for value in vector):
-            raise ValueError("non-numeric hit vector")
-        hit_vectors[index] = [float(value) for value in vector]
-
-    miss_indices = response["miss_indices"]
-    if any(type(index) is not int or not 0 <= index < len(texts) for index in miss_indices):
-        raise ValueError("invalid miss index")
-    if len(set(miss_indices)) != len(miss_indices):
-        raise ValueError("duplicate miss index")
-    if set(hit_vectors).intersection(miss_indices):
-        raise ValueError("index reported as both hit and miss")
-    if set(hit_vectors).union(miss_indices) != set(range(len(texts))):
-        raise ValueError("incomplete lookup response")
-    return hit_vectors, miss_indices
-
-
-def _rust_cache_lookup(
-    conn, texts: list[str], model_label: str
-) -> tuple[dict[int, list[float]], list[int]] | None:
-    """Try the opt-in Rust hit-only lookup; None means use Python fallback.
-
-    The subprocess opens the already-attached file-backed vecdb read-only.
-    Anonymous in-memory stores cannot cross the process boundary and always
-    stay on the established Python path.
-    """
-    if os.environ.get(_RUST_LOOKUP_ENV) != "1":
-        return None
-
-    global _RUST_LOOKUP_WARNED
-
-    def warn_once(detail: str) -> None:
-        global _RUST_LOOKUP_WARNED
-        if not _RUST_LOOKUP_WARNED:
-            _progress(f"[embed-cache] Rust lookup unavailable ({detail}) — falling back to Python")
-            _RUST_LOOKUP_WARNED = True
-
-    try:
-        db_path = next(
-            (
-                row[2]
-                for row in conn.execute("PRAGMA database_list")
-                if row[1] == "vecdb" and row[2]
-            ),
-            None,
-        )
-        if not db_path:
-            return None
-        binary = _rust_lookup_binary()
-        if binary is None:
-            warn_once("CLI binary not found")
-            return None
-
-        # Python hashes with errors="replace". Normalize only the wire copy so
-        # a lone surrogate (if present) hashes to the identical UTF-8 bytes.
-        wire_texts = [text.encode("utf-8", errors="replace").decode("utf-8") for text in texts]
-        request = json.dumps(
-            {
-                "protocol": 1,
-                "db_path": db_path,
-                "model": model_label,
-                "texts": wire_texts,
-            },
-            separators=(",", ":"),
-        )
-        result = subprocess.run(  # noqa: S603  fixed argv: repo-built or operator-configured embed-cache-lookup CLI, no shell
-            [str(binary)],
-            input=request.encode("utf-8"),
-            capture_output=True,
-            # stdout is MsgPack bytes (internal transport); read raw, not text.
-            text=False,
-            timeout=30,
-            check=False,
-        )
-        if result.returncode:
-            stderr = result.stderr
-            if isinstance(stderr, bytes):
-                stderr = stderr.decode("utf-8", "replace")
-            detail = stderr.strip() if stderr else f"exit code {result.returncode}"
-            warn_once(detail)
-            return None
-
-        # Phase 2 trial: msgpack stdio for Rust↔Python IPC (drop-in; JSON fallback preserved)
-        # See doc/improvements/proposals/msgpack_msgspec_adoption.md §8 (S3).
-        try:
-            hit_vectors, miss_indices = _parse_lookup_response(
-                msgpackio.decode(result.stdout), texts
-            )
-        except Exception:
-            # Fallback to JSON stdio for compatibility/debug; msgpack is internal-only
-            hit_vectors, miss_indices = _parse_lookup_response(jsonio.loads(result.stdout), texts)
-        return hit_vectors, miss_indices
-    except Exception as exc:  # cache accelerator failures must not block embedding
-        warn_once(f"{type(exc).__name__}: {exc}")
-        return None
 
 
 def purge_foreign_models(conn, model_label: str, source: str = "") -> int:
@@ -271,10 +134,10 @@ class CachedEmbed:
 
     Counts hits/misses/dirty for the stats report. ``source`` stamps the
     pooled-cache cohort ('note'/'doc'/'script'/'company') — analytics only,
-    never a lookup key. Best-effort: if the store can't be attached the
+    never a lookup key. Best-effort: if the store can't be opened the
     wrapper degrades to the raw embed_fn — but the degradation is LOUD
     (stderr warning + ``status_line()`` in the rebuild summary) and
-    self-heals: the attach is retried every ``_REINIT_EVERY`` misses, so a
+    self-heals: the open is retried every ``_REINIT_EVERY`` misses, so a
     store that was busy only at construction time recovers mid-pass
     (doc_leg_embed_cache_persistence S1, 2026-10-17: a full doc pass
     embedded 377 sections uncached because a concurrent writer held the
@@ -291,7 +154,7 @@ class CachedEmbed:
     ):
         self._fn = embed_fn
         self._model = model_label
-        self._conn = conn
+        self._host_conn = conn
         self._source = source
         self.hits = 0
         self.misses = 0
@@ -299,10 +162,12 @@ class CachedEmbed:
         self._store_errors = 0
         self._miss_total = 0
         self._attach_error: str | None = None
+        self._conn = None
+        self._owns_conn = False
         self._ok = self._try_init()
         if not self._ok:
             _progress(
-                f"[embed-cache] attach failed ({self._attach_error}) — "
+                f"[embed-cache] init failed ({self._attach_error}) — "
                 f"{_tag(self._source, self._model)} embedding UNCACHED; "
                 f"retrying every {_REINIT_EVERY} misses"
             )
@@ -318,20 +183,39 @@ class CachedEmbed:
 
     def _try_init(self) -> bool:
         try:
-            from helpers.core.vec_search import _attach_vec_db
+            import duckdb  # noqa: F401  # engine presence gate
+        except ImportError as exc:
+            self._attach_error = f"ModuleNotFoundError: {exc}"
+            return False
+        try:
+            from helpers.core.vec_search import _resolve_cache_conn
 
-            _attach_vec_db(self._conn)
-            self._conn.execute(EMBED_CACHE_DDL)
+            cache_conn = _resolve_cache_conn(self._host_conn)
+            cache_conn.execute(EMBED_CACHE_DDL)
+            self._conn = cache_conn
+            self._owns_conn = cache_conn is not self._host_conn
             self._attach_error = None
             return True
         except Exception as exc:  # recorded, surfaced via status_line()
             self._attach_error = f"{type(exc).__name__}: {exc}"
             return False
 
+    def close(self) -> None:
+        """Close a dedicated cache conn opened for a non-duckdb host.
+
+        No-op for adopted duckdb hosts (the caller owns that conn)."""
+        if self._owns_conn and self._conn is not None:
+            try:
+                self._conn.close()
+            except Exception:  # noqa: S110  # best-effort close
+                pass
+            self._conn = None
+            self._owns_conn = False
+
     def status_line(self) -> str:
         """One-line cache state for rebuild summaries (S1 surfacing)."""
         if not self._ok:
-            return f"OFF — attach failed: {self._attach_error}"
+            return f"OFF — init failed: {self._attach_error}"
         extra = f", {self._store_errors} store failures" if self._store_errors else ""
         return f"on (hits={self.hits}, misses={self.misses}, cached={self.dirty}{extra})"
 
@@ -345,7 +229,7 @@ class CachedEmbed:
         self._ok = self._try_init()
         if self._ok:
             _progress(
-                f"{_tag(self._source, self._model)} cache attach "
+                f"{_tag(self._source, self._model)} cache init "
                 f"recovered after {self._miss_total} uncached miss(es)"
             )
 
@@ -469,7 +353,7 @@ def _python_cache_lookup(
             f"SELECT text_hash, embedding FROM {EMBED_CACHE_TABLE} "  # noqa: S608  constant table name
             "WHERE model = ?",
             (model_label,),
-        )
+        ).fetchall()
     }
     hashes: list[str | None] = [_hash(text) for text in texts]
     vecs: list[list[float] | None] = []
@@ -520,22 +404,13 @@ def _lookup_vectors(
 ) -> tuple[list[list[float] | None], list[str | None], list[int], str, float]:
     """Cache lookup pass; returns ``(vecs, hashes, miss_idx, backend, seconds)``.
 
-    Tries the Rust accelerator first, falls back to the Python table scan.
-    ``vecs`` mirrors ``texts`` (``None`` at misses); ``hashes`` is fully
-    populated on the Python path and miss-only on the Rust path.
+    Python table scan on the native duckdb store (the sqlite-era Rust
+    accelerator was removed with the attach shim). ``vecs`` mirrors
+    ``texts`` (``None`` at misses); ``hashes`` is fully populated.
     """
     lookup_started = time.perf_counter()
-    rust_lookup = _rust_cache_lookup(conn, texts, model_label)
-    if rust_lookup is None:
-        vecs, hashes, miss_idx = _python_cache_lookup(conn, texts, model_label)
-        backend = "python"
-    else:
-        hit_vectors, miss_idx = rust_lookup
-        vecs = [hit_vectors.get(i) for i in range(len(texts))]
-        hashes = [None] * len(texts)
-        for index in miss_idx:
-            hashes[index] = _hash(texts[index])
-        backend = "rust"
+    vecs, hashes, miss_idx = _python_cache_lookup(conn, texts, model_label)
+    backend = "python"
     return vecs, hashes, miss_idx, backend, time.perf_counter() - lookup_started
 
 
@@ -562,7 +437,7 @@ def cached_embed_batch(
     committing early is safe even if the caller's write later fails.
     """
     stats = {"hits": 0, "misses": 0, "unique_misses": 0, "dirty": 0}
-    timing_enabled = os.environ.get(_RUST_LOOKUP_TIMING_ENV) == "1"
+    timing_enabled = os.environ.get("FINDATA_RUST_EMBED_CACHE_TIMING") == "1"
     miss_embed_seconds = 0.0
 
     def embed_missing_timed(batch: list[str]) -> list[list[float]]:
@@ -585,44 +460,49 @@ def cached_embed_batch(
 
     # unique_misses is always present (callers assert the whole dict)
     try:
-        from helpers.core.vec_search import _attach_vec_db
+        from helpers.core.vec_search import _resolve_cache_conn
 
-        _attach_vec_db(conn)
-        conn.execute(EMBED_CACHE_DDL)
+        cache_conn = _resolve_cache_conn(conn)
+        cache_conn.execute(EMBED_CACHE_DDL)
     except Exception:  # noqa: S110  # no sidecar -> embed uncached
         vecs = embed_missing_timed(texts)
         stats["misses"] = len(texts)
         stats["unique_misses"] = len(texts)
         record_timing("uncached", 0.0)
         return vecs, stats
-    if purge_foreign:
-        gone = purge_foreign_models(conn, model_label, source)
-        if gone:
-            print(
-                f"[embed-cache] purged {gone} foreign-model row(s) in "
-                f"source cohort {source!r} (model-swap GC)",
-                file=sys.stderr,
-                flush=True,
-            )
+    owns_conn = cache_conn is not conn
+    try:
+        if purge_foreign:
+            gone = purge_foreign_models(cache_conn, model_label, source)
+            if gone:
+                print(
+                    f"[embed-cache] purged {gone} foreign-model row(s) in "
+                    f"source cohort {source!r} (model-swap GC)",
+                    file=sys.stderr,
+                    flush=True,
+                )
 
-    vecs, hashes, miss_idx, lookup_backend, lookup_seconds = _lookup_vectors(
-        conn, texts, model_label
-    )
-
-    stats["hits"] = sum(v is not None for v in vecs)
-    stats["misses"] = len(miss_idx)
-    if miss_idx:
-        _embed_and_fill_misses(
-            conn,
-            texts,
-            vecs,
-            miss_idx,
-            hashes,
-            model_label,
-            embed_missing_timed,
-            source,
-            stats,
+        vecs, hashes, miss_idx, lookup_backend, lookup_seconds = _lookup_vectors(
+            cache_conn, texts, model_label
         )
 
-    record_timing(lookup_backend, lookup_seconds)
-    return [v for v in vecs if v is not None], stats
+        stats["hits"] = sum(v is not None for v in vecs)
+        stats["misses"] = len(miss_idx)
+        if miss_idx:
+            _embed_and_fill_misses(
+                cache_conn,
+                texts,
+                vecs,
+                miss_idx,
+                hashes,
+                model_label,
+                embed_missing_timed,
+                source,
+                stats,
+            )
+
+        record_timing(lookup_backend, lookup_seconds)
+        return [v for v in vecs if v is not None], stats
+    finally:
+        if owns_conn:
+            cache_conn.close()

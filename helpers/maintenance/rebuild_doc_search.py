@@ -1224,38 +1224,6 @@ def _compose_searchtext(row: tuple) -> str:
     return " ".join(s for s in (title, section_title, content, meta, links, trail) if s)
 
 
-class _DuckCachedEmbed(CachedEmbed):
-    """CachedEmbed whose cache handle is a DEDICATED sqlite conn.
-
-    The DuckDB store conn cannot host the cache attach: duckdb rejects
-    sqlite PRAGMAs (``busy_timeout`` → CatalogException → attach failed →
-    every section embeds UNCACHED, the 2026-11-15 live-build finding) and
-    its sqlite scanner is the wrong engine for the cache's writes. The
-    subclass points ``self._conn`` at its own sqlite3 connection to the
-    SAME pooled ``embed_store.db``; every inherited CachedEmbed behavior
-    (attach, lookup, miss-fill, status_line) then runs unchanged.
-    """
-
-    def __init__(self, embed_fn, model_label: str, source: str = "doc"):
-        from helpers.core.db import connect as _db_connect
-        from helpers.core.vec_search import EMBED_DB_PATH
-
-        self._owns_conn = True
-        super().__init__(
-            embed_fn,
-            model_label,
-            _db_connect(EMBED_DB_PATH),
-            source=source,
-        )
-
-    def commit(self) -> None:
-        """Persist cached vectors (content-addressed: early commit is safe)."""
-        self._conn.commit()
-
-    def close(self) -> None:
-        self._conn.close()
-
-
 def rebuild_duckdb(
     db_path: Path | str | None = None,
     *,
@@ -1324,11 +1292,9 @@ def rebuild_duckdb(
             stats["embed_cache_hits"] = embed_fn.hits
             stats["embed_cache_misses"] = embed_fn.misses
             stats["embed_cache_state"] = embed_fn.status_line()
-            if isinstance(embed_fn, _DuckCachedEmbed) and embed_fn.dirty:
-                embed_fn.commit()  # content-addressed: early commit is safe
         return stats
     finally:
-        if isinstance(embed_fn, _DuckCachedEmbed):
+        if isinstance(embed_fn, CachedEmbed):
             embed_fn.close()
         conn.close()
 
@@ -1374,9 +1340,9 @@ def _write_doc_store(
 def _resolve_doc_embedder_duckdb(conn, embed_fn, stats: dict):
     """Resolve the embedder for a DuckDB rebuild: an injected embed_fn
     (tests) passes through; otherwise resolve the house default, run the
-    gemma demotion guard, and wrap in the dedicated-sqlite cache handle
-    (duckdb conns can't host the pooled-store attach — see
-    _DuckCachedEmbed). Returns (embed_fn, embed_dims, model_label,
+    gemma demotion guard, and wrap in the native duckdb cache handle
+    (the duckdb host conn IS the cache conn — no dedicated sqlite handle,
+    embed-store fold S0). Returns (embed_fn, embed_dims, model_label,
     gemma_active)."""
     if embed_fn is not None:
         return embed_fn, _PSEUDO_DIMS, None, False
@@ -1391,7 +1357,7 @@ def _resolve_doc_embedder_duckdb(conn, embed_fn, stats: dict):
         os.environ.get(DOC_EMBEDDER_ENV),
     )
     if model_label != f"dry-run-v{_PSEUDO_DIMS}":
-        embed_fn = _DuckCachedEmbed(embed_fn, model_label, source="doc")
+        embed_fn = CachedEmbed(embed_fn, model_label, conn, source="doc")
     return embed_fn, embed_dims, model_label, gemma_active
 
 

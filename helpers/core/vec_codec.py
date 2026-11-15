@@ -51,7 +51,10 @@ def load_vec(value: object) -> list[float] | None:
     if value is None:
         return None
     if isinstance(value, (bytes, bytearray, memoryview)):
-        return unpack_f32(bytes(value))
+        try:
+            return unpack_f32(bytes(value))
+        except TypeError, ValueError:
+            return None  # corrupt/stale blob -> treated as a cache miss
     if isinstance(value, str):
         if not value:
             return None

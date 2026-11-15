@@ -138,16 +138,21 @@ def _legacy_vectors(bases: list[str]) -> list[list[float]]:
     if scratch.exists():
         scratch_map = jsonio.loads(scratch.read_text(encoding="utf-8"))
 
-    conn = sqlite3.connect(f"file:{REPO / 'memory/embed_store.db'}?mode=ro", uri=True)
-    from helpers.core.vec_search import _attach_vec_db
+    import duckdb
 
-    _attach_vec_db(conn)
+    from helpers.core.duckdb_shared import memory_cap_config
+
+    conn = duckdb.connect(
+        f"{REPO / 'memory/embed_store.duckdb'}",
+        read_only=True,
+        **memory_cap_config(),
+    )
     cached = {
         row[0]: row[1]
         for row in conn.execute(
-            "SELECT text_hash, embedding FROM vecdb.embed_cache WHERE model = ?",
+            "SELECT text_hash, embedding FROM embed_cache WHERE model = ?",
             (MODEL_ID,),
-        )
+        ).fetchall()
     }
     conn.close()
 

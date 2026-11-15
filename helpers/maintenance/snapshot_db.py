@@ -1793,17 +1793,17 @@ def _cmd_create(
 
 def _snapshot_embed_store(db_path: Path, out_path: Path, logger: logging.Logger) -> None:
     """Embed store sidecar: the pooled content-hash cache lives in ONE
-    consolidated SQLite database
-    (helpers.core.vec_search.EMBED_DB_PATH) since the embed_store
-    consolidation; pre-consolidation clones (and tests seeding tmp
-    dbs) may still carry a per-db <db>_vec.db sibling. (The vector
-    mirror that shared this store was retired 2026-11-05 for a
+    consolidated DuckDB database
+    (helpers.core.vec_search.EMBED_DB_PATH) since the embed-store fold
+    (S0, 2026-11-15); pre-fold clones (and tests seeding tmp
+    dbs) may still carry a per-db <db>_vec.db sqlite sibling. (The
+    vector mirror that shared this store was retired 2026-11-05 for a
     DuckDB sidecar — memory/note_vectors.duckdb — which is derived,
     snapshot-excluded state rebuilt lazily on first hybrid search.)
     All derived state — but the cache is content-addressed and expensive to
     re-fill cold (~minutes of re-embedding). Copy-only (no
     verify_snapshot: that helper is hardcoded to
-    entities/relations); the sqlite online-backup API already
+    entities/relations); the DuckDB checkpoint-then-copy backup already
     gives WAL consistency."""
     vec_src = db_path.with_name(db_path.name + "_vec.db")
     if vec_src.exists():
@@ -1814,7 +1814,7 @@ def _snapshot_embed_store(db_path: Path, out_path: Path, logger: logging.Logger)
 
     store = Path(EMBED_DB_PATH)
     if store.exists():
-        store_out = out_path.parent / f"{store.stem}.snapshot.db.zst"
+        store_out = out_path.parent / f"{store.stem}.snapshot.duckdb.zst"
         # Skip re-compress when the store is unchanged since the
         # last backup (maint_full_single_snapshot.md D3): mtime is
         # the fingerprint — db_maint never writes the store and
@@ -1828,7 +1828,7 @@ def _snapshot_embed_store(db_path: Path, out_path: Path, logger: logging.Logger)
         if store_out.exists() and store.stat().st_mtime <= store_out.stat().st_mtime:
             logger.info("Embed store unchanged since last backup — reusing %s", store_out)
         else:
-            create_snapshot(store, store_out, logger)
+            create_duckdb_snapshot(store, store_out, logger)
     else:
         logger.info("Embed store absent — backup skipped (%s)", store)
 

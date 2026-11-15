@@ -150,6 +150,10 @@ SIDECAR_DUCKDB: tuple[tuple[str, bool], ...] = (
         "memory/memory_search.duckdb",
         False,
     ),  # duckdb_sidecar_fold S2: native FTS; small file, CHECKPOINT rides maint
+    (
+        "memory/embed_store.duckdb",
+        False,
+    ),  # embed-store fold S0: pooled content-hash cache; CHECKPOINT rides maint
     ("memory/graph.xdist-shared.duckdb", True),
     ("memory/data/agent_traces.duckdb", True),
     ("memory/data/sources.duckdb", True),
@@ -505,16 +509,15 @@ class DBMaintainer:
         """Paired recovery copy of the consolidated embed store.
 
         Since the embed_store consolidation the pooled content-hash
-        cache lives in ONE SQLite database (``memory/embed_store.db``,
-        see helpers/core/vec_search.py; the vector mirror that shared it
-        was retired 2026-11-05 for a DuckDB sidecar, snapshot-excluded);
-        a
+        cache lives in ONE DuckDB database (``memory/embed_store.duckdb``,
+        see helpers/core/vec_search.py; the sqlite ``embed_store.db``
+        remains only as a legacy rollback file); a
         research_backup.db without it restores to a cold re-embed (~minutes
         of CPU). Resolution order: a per-db ``<db>_vec.db`` sibling wins
         (pre-migration clones and tests that seed one); otherwise the
-        shared EMBED_DB_PATH store is backed up as ``embed_store_backup.db``
-        beside this run's backup. Same WAL-consistent sqlite online-backup
-        as _backup; absent state just skips.
+        shared EMBED_DB_PATH store is backed up as ``embed_store_backup.duckdb``
+        beside this run's backup. Same DuckDB checkpoint-then-copy backup
+        as _duckdb_zstd_backup; absent state just skips.
 
         2026-10-19 census re-run: a proposal to retire this twin was
         REJECTED by the operator — this backup is the downtime-window
@@ -528,15 +531,15 @@ class DBMaintainer:
                 vec_src,
                 self.backup_path.with_name(self.backup_path.name.replace(".db", "_vec.db")),
             )
-        else:
-            from helpers.core.vec_search import EMBED_DB_PATH
+            return self._sqlite_zstd_backup(src, dst, label="Embed store")
+        from helpers.core.vec_search import EMBED_DB_PATH
 
-            src = Path(EMBED_DB_PATH)
-            if not src.exists():
-                self._log(logging.INFO, f"Embed store absent — backup skipped ({src})")
-                return 0
-            dst = self.backup_path.parent / "embed_store_backup.db"
-        return self._sqlite_zstd_backup(src, dst, label="Embed store")
+        src = Path(EMBED_DB_PATH)
+        if not src.exists():
+            self._log(logging.INFO, f"Embed store absent — backup skipped ({src})")
+            return 0
+        dst = self.backup_path.parent / "embed_store_backup.duckdb"
+        return self._duckdb_zstd_backup(src, dst, label="Embed store")
 
     def _backup_corpus(self) -> int:
         """Paired recovery copy of the S1b corpus cache (memory/corpus.db).
@@ -804,6 +807,7 @@ class DBMaintainer:
             "research.db",
             "graph.duckdb",
             "embed_store.db",
+            "embed_store.duckdb",
             "corpus.db",
             "doc_search.db",
             "memory_search.db",

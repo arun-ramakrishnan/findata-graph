@@ -158,16 +158,21 @@ def _cache_vectors(bases: dict[str, str]) -> dict[str, list[float]] | None:
     """Old-production-base vectors from the bge rollback cohort, or None if
     coverage is short (a shrunken neighbor pool would skew the readout)."""
     from helpers.core.embed_cache import _hash
-    from helpers.core.vec_search import _attach_vec_db
+    import duckdb
 
-    conn = sqlite3.connect(f"file:{REPO / 'memory/embed_store.db'}?mode=ro", uri=True)
-    _attach_vec_db(conn)
+    from helpers.core.duckdb_shared import memory_cap_config
+
+    conn = duckdb.connect(
+        f"{REPO / 'memory/embed_store.duckdb'}",
+        read_only=True,
+        **memory_cap_config(),
+    )
     cached = {
         r[0]: r[1]
         for r in conn.execute(
-            "SELECT text_hash, embedding FROM vecdb.embed_cache WHERE model = ?",
+            "SELECT text_hash, embedding FROM embed_cache WHERE model = ?",
             (BGE_MODEL,),
-        )
+        ).fetchall()
     }
     conn.close()
 

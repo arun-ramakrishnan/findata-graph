@@ -618,31 +618,29 @@ def _embed(texts: list[str]) -> tuple[list[list[float]], dict, int, str]:
 
 
 def _cached_batch(texts: list[str], model_label: str, le) -> tuple[list[list[float]], dict]:
-    """cached_embed_batch against the shared embed_store sqlite conn.
+    """cached_embed_batch against the consolidated duckdb embed store.
 
-    S5: the retired FTS5 sidecar was the convo cache host; the cache now
-    lives on the shared memory/embed_store.db, like the doc/script/git
-    legs.
+    Embed-store fold S0: the cache is a native duckdb store opened
+    directly (no sqlite sidecar); the convo rebuild conn isn't in scope
+    here, so we open a dedicated cache conn for the batch.
     """
     from helpers.core.embed_cache import cached_embed_batch
 
-    from helpers.core.db import connect as db_connect
-    from helpers.core.vec_search import EMBED_DB_PATH
+    from helpers.core.vec_search import open_cache_conn
 
-    EMBED_DB_PATH.parent.mkdir(parents=True, exist_ok=True)
-    sconn = db_connect(EMBED_DB_PATH)
+    cache_conn = open_cache_conn()
     try:
         # No automatic model-difference purge (2026-10-08): a prior-model
         # row is rollback insurance, dead-text eviction is `make embed-gc`.
         return cached_embed_batch(
-            sconn,
+            cache_conn,
             texts,
             model_label,
             le.embed_documents_parallel,
             source="convo",
         )
     finally:
-        sconn.close()
+        cache_conn.close()
 
 
 _STAGE = "convo_stage_arrow"

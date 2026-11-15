@@ -1369,8 +1369,8 @@ def search_memories(
 # Native FTS (fts_main_memory_search.match_bm25) over a composed searchtext
 # (title + purpose + content — the legacy bm25 weight ordering); kind/name/
 # source_path become plain SQL columns (better filters than the legacy
-# UNINDEXED FTS5 columns). The doc S1 lessons apply unchanged: dedicated
-# sqlite cache handle (rds._DuckCachedEmbed), replacement rebuild, no
+# UNINDEXED FTS5 columns). The doc S1 lessons apply unchanged: native
+# duckdb cache handle (embed-store fold S0), replacement rebuild, no
 # snippet()/highlight() (rds._highlight_window replacement).
 MEMORY_DUCKDB_DDL = """
 CREATE TABLE IF NOT EXISTS memory_search (
@@ -1418,15 +1418,14 @@ def rebuild_memory_duckdb(
 
     Reuses the engine-agnostic extraction pipeline (``_collect_units`` +
     ``_collect_history_units`` + ``_compose_rows``) and the pooled embed
-    cache via the dedicated-sqlite-handle subclass (``rds._DuckCachedEmbed`` —
-    a duckdb conn cannot host the vecdb attach). Replacement rebuild
+    cache via the native duckdb handle (``rds.CachedEmbed`` — the
+    duckdb host conn IS the cache conn, embed-store fold S0).
+    Replacement rebuild
     (delete-all + insert): the corpus is a few hundred records, the full
     rewrite IS the everyday path (legacy header doctrine, same as doc S1).
     ``write=False`` (--check): freshness verdict only — no DDL, no writes,
     no embedder resolution (content hashes are the identity of record).
     """
-    from helpers.maintenance.rebuild_doc_search import _DuckCachedEmbed
-
     db_path = Path(db_path) if db_path is not None else MEMORY_DUCKDB_DB
     stats: dict = {}
 
@@ -1477,11 +1476,9 @@ def rebuild_memory_duckdb(
             stats["embed_cache_hits"] = embed_fn.hits
             stats["embed_cache_misses"] = embed_fn.misses
             stats["embed_cache_state"] = embed_fn.status_line()
-            if isinstance(embed_fn, _DuckCachedEmbed) and embed_fn.dirty:
-                embed_fn.commit()  # content-addressed: early commit is safe
         return stats
     finally:
-        if isinstance(embed_fn, _DuckCachedEmbed):
+        if isinstance(embed_fn, CachedEmbed):
             embed_fn.close()
         conn.close()
 
@@ -1510,8 +1507,6 @@ def _check_freshness_memory_duckdb(db_path: Path, files_meta: dict, stats: dict)
 def _resolve_memory_embedder_duckdb(conn, embed_fn, stats: dict):
     """Resolve the memory embedder for the DuckDB store. An injected
     embed_fn passes through as the dry-run pseudo-embedder."""
-    from helpers.maintenance.rebuild_doc_search import _DuckCachedEmbed
-
     embed_dims = rds._PSEUDO_DIMS
     model_label: str | None = None
     gemma_active = False
@@ -1527,9 +1522,9 @@ def _resolve_memory_embedder_duckdb(conn, embed_fn, stats: dict):
             os.environ.get(MEMORY_EMBEDDER_ENV),
         )
         if model_label != f"dry-run-v{rds._PSEUDO_DIMS}":
-            # Dedicated-sqlite cache handle (duckdb conns can't host the
-            # pooled-store attach — see rds._DuckCachedEmbed).
-            embed_fn = _DuckCachedEmbed(embed_fn, model_label, source="memory")
+            # Native duckdb cache handle: the duckdb host conn IS the
+            # cache conn (embed-store fold S0 — no sqlite attach).
+            embed_fn = rds.CachedEmbed(embed_fn, model_label, conn, source="memory")
     return embed_fn, embed_dims, model_label, gemma_active
 
 

@@ -553,20 +553,24 @@ class TestLocalEmbedderWiring:
         from helpers.core import vec_search as VS
 
         rns.rebuild(seeded_tree, write=False)
-        con = sqlite3.connect(str(seeded_tree))
-        try:
-            VS._attach_vec_db(con)
-            if (
-                con.execute(
-                    "SELECT COUNT(*) FROM vecdb.sqlite_master WHERE name = 'embed_cache'"
-                ).fetchone()[0]
-                == 0
-            ):
-                n = 0  # check never attached/wrote the sidecar cache
-            else:
-                n = con.execute("SELECT COUNT(*) FROM vecdb.embed_cache").fetchone()[0]
-        finally:
-            con.close()
+        from pathlib import Path
+
+        if not Path(VS.EMBED_DB_PATH).exists():
+            n = 0  # check never created the store
+        else:
+            cache = VS.open_cache_conn(read_only=True)
+            try:
+                if (
+                    cache.execute(
+                        "SELECT count(*) FROM duckdb_tables() WHERE lower(table_name) = 'embed_cache'"
+                    ).fetchone()[0]
+                    == 0
+                ):
+                    n = 0  # store exists but check never wrote the cache table
+                else:
+                    n = cache.execute("SELECT COUNT(*) FROM embed_cache").fetchone()[0]
+            finally:
+                cache.close()
         assert n == 0  # check performs no embedding, writes no cache rows
         # The applying rebuild then embeds every doc once.
         s = rns.rebuild(seeded_tree, write=True)
@@ -590,16 +594,13 @@ class TestLocalEmbedderWiring:
         assert s2["embed_cache_misses"] == 4  # label changed -> no hits
         assert s2["embed_cache_hits"] == 0
 
-        con = sqlite3.connect(str(seeded_tree))
+        cache = VS.open_cache_conn(read_only=True)
         try:
-            VS._attach_vec_db(con)
             groups = dict(
-                con.execute(
-                    "SELECT model, COUNT(*) FROM vecdb.embed_cache GROUP BY model"
-                ).fetchall()
+                cache.execute("SELECT model, COUNT(*) FROM embed_cache GROUP BY model").fetchall()
             )
         finally:
-            con.close()
+            cache.close()
         # Keying: no cross-model serving (misses=4 above). No purge: the
         # old generation stays readable-by-its-own-stamp, nothing else.
         assert groups == {first_label: 4, first_label + "-tmp": 4}

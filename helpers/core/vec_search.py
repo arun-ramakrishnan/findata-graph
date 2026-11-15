@@ -83,64 +83,65 @@ VEC_TABLE = "note_search_vec"
 VEC_INDEX_DB_PATH = _REPO_ROOT / "memory" / "note_vectors.duckdb"
 
 # Consolidated embed store -- the pooled content-hash cache
-# (helpers/core/embed_cache.py) still lives in this SQLite database. The vec
-# mirror MOVED OUT to VEC_INDEX_DB_PATH; the constant stays exported because
-# the cache, db_maint's twin backup and the snapshot export all resolve this
-# path (and historically several callers import it from here).
-EMBED_DB_PATH = _REPO_ROOT / "memory" / "embed_store.db"
-
-# Schema alias the consolidated embed store is ATTACHed under (sqlite
-# side; cache-only since S2 -- the vec mirror itself moved to the DuckDB
-# sidecar above).
-VEC_SCHEMA = "vecdb"
+# (helpers/core/embed_cache.py). Moved to DuckDB 2026-11-15 (note_search
+# carve-out S0 / embed-store fold): the cache is a NATIVE duckdb store —
+# no sqlite ATTACH shim (``_attach_vec_db``/``vecdb`` retired with the
+# S1–S5 sidecar arc). ``EMBED_SQLITE_DB_PATH`` is the retired legacy
+# file, kept as rollback insurance and the one-time migration source.
+EMBED_DB_PATH = _REPO_ROOT / "memory" / "embed_store.duckdb"
+EMBED_SQLITE_DB_PATH = _REPO_ROOT / "memory" / "embed_store.db"
 
 
-def _store_path(conn: sqlite3.Connection) -> str:
-    """Resolve the consolidated embed store for this connection.
-
-    File-backed mains share EMBED_DB_PATH regardless of which index DB
-    they opened (research/doc/script caches pool into one store). In-memory
-    or temporary mains get an anonymous in-memory store so tests and
-    throwaway conns stay isolated -- hermeticity never depends on where the
-    main file lives.
-    """
-    for _seq, name, file in conn.execute("PRAGMA database_list").fetchall():
-        if name == "main" and file:
-            return str(Path(EMBED_DB_PATH))
-    return ":memory:"
-
-
-def _attach_vec_db(conn: sqlite3.Connection) -> None:
-    """Idempotently ATTACH the consolidated embed store as "vecdb".
-
-    Cache infrastructure (embed_cache.py's pooled store); since S2 the vec
-    mirror no longer lives here -- this attach serves the embed cache only.
-    """
-    # Connection-wide lock-wait BEFORE attaching so a concurrent first
-    # attach/create against a busy store queues instead of erroring.
+def _is_duckdb_conn(conn) -> bool:
+    """True for a live duckdb connection (adopted as the cache handle)."""
     try:
-        conn.execute("PRAGMA busy_timeout = 5000")
-    except sqlite3.Error:
-        pass  # exotic conn; attach below still best-effort
-    have = conn.execute(
-        "SELECT 1 FROM pragma_database_list WHERE name = ?", (VEC_SCHEMA,)
-    ).fetchone()
-    if have:
-        return
-    path = _store_path(conn)
-    if path == ":memory:":
-        conn.execute(f"ATTACH DATABASE ':memory:' AS {VEC_SCHEMA}")
-    else:
-        Path(path).parent.mkdir(parents=True, exist_ok=True)
-        conn.execute(f"ATTACH DATABASE ? AS {VEC_SCHEMA}", (path,))
-        # WAL lets app.py's lazy cache writes coexist with rebuilder writers
-        # on one shared file; short early-commit transactions keep writer
-        # windows tiny. Best-effort: read-only or transiently locked stores
-        # keep working in their current journal mode.
-        try:
-            conn.execute(f"PRAGMA {VEC_SCHEMA}.journal_mode = WAL").fetchone()
-        except sqlite3.Error:
-            pass
+        import duckdb
+    except ImportError:
+        return False
+    return isinstance(conn, duckdb.DuckDBPyConnection)
+
+
+def open_cache_conn(*, read_only: bool = False):
+    """Open the consolidated duckdb embed cache.
+
+    RW by default (maintenance writers); ``read_only=True`` for GC /
+    snapshot reads. Parents are created for RW opens only. Raises the
+    driver exception; callers degrade to uncached embedding.
+    """
+    from helpers.core.duckdb_shared import memory_cap_config
+
+    path = Path(EMBED_DB_PATH)
+    if not read_only:
+        path.parent.mkdir(parents=True, exist_ok=True)
+    import duckdb
+
+    return duckdb.connect(str(path), read_only=read_only, **memory_cap_config())
+
+
+def _resolve_cache_conn(conn):
+    """Native duckdb cache connection for a given host connection.
+
+    - duckdb host  -> the host itself (one engine, one file handle)
+    - sqlite host  -> a dedicated duckdb cache conn: the shared file
+      cache for file-backed mains, an anonymous in-memory duckdb store
+      for :memory: mains (hermetic tests, no tmp pollution)
+    - anything else -> best-effort file cache
+    """
+    if _is_duckdb_conn(conn):
+        return conn
+    try:
+        main_file = None
+        for _seq, name, file in conn.execute("PRAGMA database_list").fetchall():
+            if name == "main":
+                main_file = file
+                break
+    except Exception:  # noqa: BLE001  # foreign conn types -> file cache
+        return open_cache_conn()
+    if not main_file:
+        import duckdb
+
+        return duckdb.connect(":memory:")
+    return open_cache_conn()
 
 
 # Persistent HNSW needs the experimental-persistence flag on EVERY

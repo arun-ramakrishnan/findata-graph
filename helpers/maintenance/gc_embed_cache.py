@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Evict dead rows from the shared embed cache (bloat control, T3).
 
-The embed cache (``memory/embed_store.db`` → ``embed_cache``, keyed
+The embed cache (``memory/embed_store.duckdb`` → ``embed_cache``, keyed
 ``(text_hash, model)``) is append-only by nature, so rows from finished
 trials, spikes and abandoned lanes sit next to live ones forever: at the
 first convo cold run it held 23,648 rows / 76.9 MiB, of which 1,222 were
@@ -10,7 +10,9 @@ a ``company`` trial lane that no index references any more.
 Eviction is SAFE BY CONSTRUCTION — the cache is a pure function of
 (text, model), so deleting a row can only cost a recompute, never
 correctness. What makes it useful is that deletion is the only way the
-file shrinks (SQLite does not return pages on DELETE; APPLY VACUUMs).
+store's live data shrinks (DuckDB does not return file pages on DELETE;
+CHECKPOINT merges the WAL so the on-disk file reflects the deletion,
+but the file does not shrink in size — the space is reclaimed lazily).
 
 Two guard rails, both fail-safe:
 
@@ -43,8 +45,19 @@ if str(_REPO) not in sys.path:
     sys.path.insert(0, str(_REPO))
 
 REPO = _REPO
-STORE = REPO / "memory/embed_store.db"
+STORE = REPO / "memory/embed_store.duckdb"
 CACHE_TABLE = "embed_cache"
+
+
+def _open_store(read_only: bool = False):
+    """Open the DuckDB embed store (S0): read-only for survey/classify,
+    read-write for gc/retire. A missing store raises (same fail-fast as
+    the legacy sqlite connect)."""
+    import duckdb
+
+    from helpers.core.duckdb_shared import memory_cap_config
+
+    return duckdb.connect(str(STORE), read_only=read_only, **memory_cap_config())
 
 
 @dataclass(frozen=True)
@@ -287,7 +300,6 @@ def _open_ref(ref):
 def _ref_basis_text(ref, con, row, text_fn, stamps) -> str | None:
     """One row's cache-key basis text. The text_db variant reads the same
     db the row came from (hash INSIDE the connection scope)."""
-    import sqlite3
 
     if ref.text_db is not None:
         if not isinstance(con, sqlite3.Connection):
@@ -365,9 +377,7 @@ def _classify(
     """Read refs, then mark any source whose coverage looks WRONG as
     'unverified' so its cache rows are never deleted."""
     live, counts, stamps = _read_refs(refs)
-    from helpers.core.db import connect
-
-    con = connect(STORE, read_only=True)
+    con = _open_store(read_only=True)
     try:
         rows = con.execute(f"SELECT model, source, text_hash FROM {CACHE_TABLE}").fetchall()  # noqa: S608
     finally:
@@ -472,29 +482,31 @@ def gc(refs=DEFAULT_REFS, apply: bool = False) -> dict:
     _evict_started = datetime.now()
     live, _counts, unverified, extra = _classify(refs)
     stamps = extra["stamps"]
-    from helpers.core.db import connect
+    import duckdb
 
     try:
-        con = connect(STORE)
-    except sqlite3.Error as exc:
+        con = _open_store(read_only=False)
+    except duckdb.Error as exc:
         raise RuntimeError(f"cache store not writable ({exc})") from exc
     try:
-        rows = con.execute(f"SELECT rowid, model, source, text_hash FROM {CACHE_TABLE}").fetchall()  # noqa: S608
+        rows = con.execute(f"SELECT text_hash, model, source FROM {CACHE_TABLE}").fetchall()  # noqa: S608
         dead_ids = [
-            rid
-            for rid, model, source, h in rows
+            (h, model)
+            for h, model, source in rows
             if source not in unverified
             and not any(h in bucket for bucket in live.values())
             and not (stamps.get(source) and model != stamps[source])
         ]
         if dead_ids:
             con.executemany(
-                f"DELETE FROM {CACHE_TABLE} WHERE rowid = ?",  # noqa: S608
-                [(rid,) for rid in dead_ids],
+                f"DELETE FROM {CACHE_TABLE} WHERE text_hash = ? AND model = ?",  # noqa: S608
+                dead_ids,
             )
-            con.commit()
-        con.execute("VACUUM")
-    except sqlite3.OperationalError as exc:
+        # DuckDB has no VACUUM; CHECKPOINT merges the WAL so the
+        # deletion is reflected on disk (file size itself is reclaimed
+        # lazily by the engine, not by this step).
+        con.execute("CHECKPOINT")
+    except duckdb.Error as exc:
         raise RuntimeError(
             f"cache store busy ({exc}) — do not GC while an embed rebuild runs"
         ) from exc
@@ -550,12 +562,13 @@ def retire(model: str, source: str | None = None, apply: bool = False) -> dict:
     retired rows are the model-switch-back insurance: a later switch
     re-embeds that cohort from scratch.
     """
-    from helpers.core.db import connect
 
     stamps = _read_refs(DEFAULT_REFS)[2]
     scope = "model = ?" + (" AND source = ?" if source else "")  # noqa: S608
     params = (model, source) if source else (model,)
-    con = connect(STORE, read_only=True)
+    import duckdb
+
+    con = _open_store(read_only=True)
     try:
         victims = con.execute(
             f"SELECT source, COUNT(*) FROM {CACHE_TABLE} WHERE {scope} GROUP BY source",  # noqa: S608
@@ -580,18 +593,18 @@ def retire(model: str, source: str | None = None, apply: bool = False) -> dict:
     }
     if not apply:
         return out
-    con = connect(STORE)
+    con = _open_store(read_only=False)
     try:
         cur = con.execute(f"DELETE FROM {CACHE_TABLE} WHERE {scope}", params)  # noqa: S608
-        con.commit()
-        con.execute("VACUUM")
-    except sqlite3.OperationalError as exc:
+        deleted = cur.rowcount or 0
+        con.execute("CHECKPOINT")
+    except duckdb.Error as exc:
         raise RuntimeError(
             f"cache store busy ({exc}) — do not retire while a rebuild runs"
         ) from exc
     finally:
         con.close()
-    out["deleted"] = cur.rowcount or 0
+    out["deleted"] = deleted
     out["store_mib_after"] = round(STORE.stat().st_size / 2**20, 1)
     return out
 

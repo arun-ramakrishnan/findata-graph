@@ -335,8 +335,8 @@ def test_embed_cache_gc_evicts_dead_keeps_live(tmp_path, monkeypatch):
     from helpers.core.vec_codec import pack_f32
     from helpers.maintenance import gc_embed_cache as gec
 
-    store = tmp_path / "embed_store.db"
-    con = sqlite3.connect(store)
+    store = tmp_path / "embed_store.duckdb"
+    con = duckdb.connect(store)
     con.execute(CACHE_DDL_BARE)
     vec = pack_f32([0.1, 0.2, 0.3])
     for text, source in (
@@ -349,7 +349,6 @@ def test_embed_cache_gc_evicts_dead_keeps_live(tmp_path, monkeypatch):
             f"INSERT INTO {CACHE_TABLE_BARE} VALUES (?, ?, ?, ?)",  # noqa: S608
             (_hash(text), "m1", vec, source),
         )
-    con.commit()
     con.close()
 
     ref_db = tmp_path / "doc_search.db"
@@ -389,7 +388,7 @@ def test_embed_cache_gc_evicts_dead_keeps_live(tmp_path, monkeypatch):
     applied = gec.gc(refs=refs, apply=True)
     assert applied["deleted"] == 1
     left = dict(
-        sqlite3.connect(store)
+        duckdb.connect(store)
         .execute(f"SELECT text_hash, source FROM {CACHE_TABLE_BARE}")  # noqa: S608  # constant table name from the module under test
         .fetchall()
     )
@@ -404,7 +403,7 @@ def test_embed_cache_gc_evicts_dead_keeps_live(tmp_path, monkeypatch):
             refs=refs + (gec.Ref("gone", tmp_path / "nope.db", "SELECT content FROM x"),),
             apply=True,
         )
-    assert len(sqlite3.connect(store).execute(f"SELECT 1 FROM {CACHE_TABLE_BARE}").fetchall()) == 3  # noqa: S608
+    assert len(duckdb.connect(store).execute(f"SELECT 1 FROM {CACHE_TABLE_BARE}").fetchall()) == 3  # noqa: S608
 
 
 def test_gc_reference_text_basis_matches_the_builders():

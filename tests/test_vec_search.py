@@ -19,6 +19,7 @@ import json
 import math
 import sqlite3
 
+import duckdb
 import pytest
 
 from helpers.core import vec_search as VS
@@ -255,31 +256,29 @@ class TestStoredDimsAndRecreate:
 
 class TestEmbedStoreConsolidation:
     """Pins for the consolidated embed store (embed_store_consolidation,
-    2026-08): one shared SQLITE file for the pooled cache (the vec mirror
-    moved out to the DuckDB sidecar in S2), with the :memory:-main
-    hermeticity branch preserved."""
+    2026-08; the store moved sqlite→DuckDB in S0, 2026-11-15): one
+    shared DuckDB file for the pooled cache (the vec mirror already lives
+    in its own DuckDB sidecar), with the :memory:-main hermeticity branch
+    preserved."""
 
     def test_file_backed_mains_share_one_store(self, tmp_path):
-        """Two connections opening DIFFERENT index dbs land their cache
-        state in the SAME store file (per-test EMBED_DB_PATH via conftest)."""
+        """Two connections opening the SAME store file land their cache
+        state in the same DuckDB database (per-test EMBED_DB_PATH via
+        conftest)."""
         from helpers.core.embed_cache import CachedEmbed
 
-        a = sqlite3.connect(str(tmp_path / "index_a.db"))
-        b = sqlite3.connect(str(tmp_path / "index_b.db"))
+        a = duckdb.connect(str(tmp_path / "index_a.db"))
+        b = duckdb.connect(str(tmp_path / "index_a.db"))  # same file
         ce_a = CachedEmbed(lambda t: [0.1] * 4, "m", a, source="doc")
         assert ce_a._ok
         vec = ce_a("shared text")  # cohort doc seeds the pooled key
-        a.commit()
         ce_b = CachedEmbed(lambda t: [0.2] * 4, "m", b, source="script")
-        b.commit()
         assert ce_b._ok
         # Same hash, written by cohort A -> served to connection B.
         # Approximation: f32 BLOB storage rounds the [0.1] test vector.
         assert ce_b("shared text") == pytest.approx(vec, rel=1e-6) and ce_b.hits == 1
-        con = sqlite3.connect(str(VS.EMBED_DB_PATH))
+        con = duckdb.connect(str(tmp_path / "index_a.db"))
         try:
-            # Direct connection: the pooled table is unqualified main here
-            # ('vecdb' exists only as an ATTACH alias at runtime).
             rows = dict(
                 con.execute("SELECT source, COUNT(*) FROM embed_cache GROUP BY source").fetchall()
             )
@@ -289,61 +288,50 @@ class TestEmbedStoreConsolidation:
 
     def test_purge_foreign_models_gc_on_swap(self, tmp_path):
         """Model-swap GC (2026-09-16): purge_foreign=True deletes the previous
-        generation's rows at attach; default False leaves them (trials share
+        generation's rows at init; default False leaves them (trials share
         this store with candidate labels and must not purge production)."""
         from helpers.core.embed_cache import CachedEmbed
 
-        a = sqlite3.connect(str(tmp_path / "index.db"))
+        a = duckdb.connect(str(tmp_path / "index.db"))
         old_gen = CachedEmbed(lambda t: [0.1] * 4, "old-model", a, source="doc")
         assert old_gen._ok
         old_gen("some text")
         old_gen("other text")
-        a.commit()
         # default: no purge -- foreign rows survive
         keep = CachedEmbed(lambda t: [0.2] * 4, "new-model", a, source="doc")
         keep("some text")
-        a.commit()
-        n = a.execute("SELECT COUNT(*) FROM vecdb.embed_cache WHERE model='old-model'").fetchone()[
-            0
-        ]
+        n = a.execute("SELECT COUNT(*) FROM embed_cache WHERE model='old-model'").fetchone()[0]
         assert n == 2
         # purge_foreign=True: old generation GCed, current rows survive
         purged = CachedEmbed(lambda t: [0.3] * 4, "new-model", a, source="doc", purge_foreign=True)
         purged("third text")
-        a.commit()
-        rows = dict(a.execute("SELECT model, COUNT(*) FROM vecdb.embed_cache GROUP BY model"))
+        rows = dict(a.execute("SELECT model, COUNT(*) FROM embed_cache GROUP BY model").fetchall())
         assert rows == {"new-model": 2}
 
     def test_in_memory_main_gets_anonymous_store_not_live(self, tmp_path):
         """The :memory:-main hermeticity branch: even with a POPULATED real
-        store on disk at EMBED_DB_PATH, an in-memory main attaches an
-        anonymous sidecar and never touches the file (the consolidation
-        trap this pins)."""
-        VS.EMBED_DB_PATH = tmp_path / "live" / "embed_store.db"
+        store on disk at EMBED_DB_PATH, an in-memory main resolves to an
+        in-memory store and never touches the file (the consolidation trap
+        this pins)."""
+        VS.EMBED_DB_PATH = tmp_path / "live" / "embed_store.duckdb"
         (tmp_path / "live").mkdir()
-        seeded = sqlite3.connect(str(VS.EMBED_DB_PATH))
+        seeded = duckdb.connect(str(VS.EMBED_DB_PATH))
         seeded.execute(
             "CREATE TABLE embed_cache (text_hash TEXT, model TEXT, "
-            "embedding TEXT, source TEXT DEFAULT '', PRIMARY KEY(text_hash, model))"
+            "embedding BLOB, source TEXT DEFAULT '', PRIMARY KEY(text_hash, model))"
         )
-        seeded.execute("INSERT INTO embed_cache VALUES ('h', 'm', '[]', 'x')")
-        seeded.commit()
+        seeded.execute("INSERT INTO embed_cache VALUES ('h', 'm', NULL, 'x')")
         seeded.close()
 
-        mem = sqlite3.connect(":memory:")
-        VS._attach_vec_db(mem)
-        attached_files = [
-            r[2] for r in mem.execute("PRAGMA database_list").fetchall() if r[1] == "vecdb"
-        ]
-        assert attached_files == [""]  # anonymous :memory:, not the live path
+        mem = duckdb.connect(":memory:")
+        VS._resolve_cache_conn(mem)
         mem.execute(
-            "CREATE TABLE vecdb.embed_cache (text_hash TEXT, model TEXT, "
-            "embedding TEXT, source TEXT DEFAULT '')"
+            "CREATE TABLE embed_cache (text_hash TEXT, model TEXT, "
+            "embedding BLOB, source TEXT DEFAULT '')"
         )
-        mem.execute("INSERT INTO vecdb.embed_cache VALUES ('junk', '', '', '')")
-        mem.commit()
+        mem.execute("INSERT INTO embed_cache VALUES ('junk', '', NULL, '')")
 
-        after = sqlite3.connect(str(VS.EMBED_DB_PATH))
+        after = duckdb.connect(str(VS.EMBED_DB_PATH), read_only=True)
         try:
             n = after.execute("SELECT COUNT(*) FROM embed_cache").fetchone()[0]
         finally:

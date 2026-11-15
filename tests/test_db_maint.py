@@ -7,7 +7,9 @@ from pathlib import Path
 
 import pytest
 
+import duckdb
 
+from helpers.core.embed_cache import CACHE_DDL_BARE  # noqa: E402
 from helpers.core.env import REPO_ROOT  # noqa: E402
 from helpers.core.zstd_io import decompress_file  # noqa: E402
 from helpers.maintenance import db_maint  # noqa: E402
@@ -310,21 +312,17 @@ class TestBackupVec:
 
     def test_store_branch_when_no_legacy_sibling(self, tmp_path):
         """Post-migration (no <db>_vec.db anywhere) the shared
-        EMBED_DB_PATH store is backed up as embed_store_backup.db."""
+        EMBED_DB_PATH store is backed up as embed_store_backup.duckdb."""
         from helpers.core import vec_search as VS
 
         db_path = tmp_path / "test.db"
         self._mkdb(db_path)
         store_dir = tmp_path / "memory"
         store_dir.mkdir(exist_ok=True)  # conftest autouse created it
-        store = store_dir / "embed_store.db"
-        sconn = sqlite3.connect(str(store))
-        sconn.execute(
-            "CREATE TABLE embed_cache (text_hash TEXT, model TEXT, "
-            "embedding TEXT, source TEXT DEFAULT '', PRIMARY KEY(text_hash, model))"
-        )
+        store = store_dir / "embed_store.duckdb"
+        sconn = duckdb.connect(str(store))
+        sconn.execute(CACHE_DDL_BARE)
         sconn.execute("INSERT INTO embed_cache VALUES ('h', 'm', '[1]', 'doc')")
-        sconn.commit()
         sconn.close()
 
         saved = VS.EMBED_DB_PATH
@@ -335,11 +333,11 @@ class TestBackupVec:
         finally:
             VS.EMBED_DB_PATH = saved
 
-        dst_zst = tmp_path / "embed_store_backup.db.zst"
+        dst_zst = tmp_path / "embed_store_backup.duckdb.zst"
         assert dst_zst.exists()
-        plain = tmp_path / "embed_store_roundtrip.db"
+        plain = tmp_path / "embed_store_roundtrip.duckdb"
         decompress_file(dst_zst, plain)
-        got = sqlite3.connect(str(plain))
+        got = duckdb.connect(str(plain), read_only=True)
         n = got.execute("SELECT COUNT(*) FROM embed_cache").fetchone()[0]
         got.close()
         assert n == 1

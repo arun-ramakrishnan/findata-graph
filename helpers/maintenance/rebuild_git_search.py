@@ -694,9 +694,9 @@ def rebuild_git_duckdb(
 
     Reuses the whole reconciliation pipeline (``_messages``/``_numstats``/
     ``_fp``, ``_body_chunks``, ``_diffs_for``, ``_embed_pass``) on the
-    duckdb store. ``_embed_pass`` gets a dedicated sqlite cache handle
-    (a duckdb conn cannot host the pooled-store vecdb attach — S1
-    lesson); its info stamps land in the duckdb ``git_search_info``.
+    duckdb store. ``_embed_pass`` caches through the native duckdb embed
+    store (embed-store fold S0 — no dedicated sqlite handle); its info
+    stamps land in the duckdb ``git_search_info``.
 
     Replacement rebuild (delete-all + insert): the corpus is ~574 commits,
     full rebuild is seconds with a warm cache. ``write=False`` (--check):
@@ -730,31 +730,19 @@ def rebuild_git_duckdb(
         diffs = _diffs_for(root, list(ordered))
         stats: dict = {"total_units": len(reachable)}
 
-        from helpers.core.db import connect as _db_connect
-        from helpers.core.vec_search import EMBED_DB_PATH
-
-        # The cache may live on a path whose parents don't exist yet
-        # (tmp/repo-less hosts, early boot, pty dirs).
-        EMBED_DB_PATH.parent.mkdir(parents=True, exist_ok=True)
-        cache_conn = _db_connect(EMBED_DB_PATH)
-        try:
-            label, vec_by_sha, chunk_vec_map = _embed_pass(
-                conn,
-                root,
-                messages,
-                reachable,
-                stats,
-                embed_shas,
-                chunk_shas,
-                chunk_plan,
-                basis_stale=True,
-                body_stale=True,
-                incremental=False,
-                cache_conn=cache_conn,
-            )
-            cache_conn.commit()
-        finally:
-            cache_conn.close()
+        label, vec_by_sha, chunk_vec_map = _embed_pass(
+            conn,
+            root,
+            messages,
+            reachable,
+            stats,
+            embed_shas,
+            chunk_shas,
+            chunk_plan,
+            basis_stale=True,
+            body_stale=True,
+            incremental=False,
+        )
 
         rows, body_rows, meta_rows = _compose_git_rows(
             ordered, messages, numstats, diffs, vec_by_sha, chunk_vec_map, chunk_plan
@@ -956,7 +944,6 @@ def _embed_pass(
     basis_stale: bool,
     body_stale: bool,
     incremental: bool,
-    cache_conn=None,
 ) -> tuple[str, dict, dict]:
     """Resolve the embedder, run the head/chunk batches, stamp the bases.
 
@@ -964,14 +951,12 @@ def _embed_pass(
     chunk_vec_map). The demotion guard and the mixed-vector-space refusal
     keep their exact wording — they are doctrine, not diagnostics.
 
-    ``cache_conn`` (duckdb_sidecar_fold S4): a dedicated sqlite handle
-    for the pooled embed cache — a duckdb conn cannot host the vecdb
-    attach (S1 lesson). The cache batch calls use it; the info stamps
-    still land on ``conn``."""
+    The cache is the native duckdb store: ``cached_embed_batch`` resolves
+    the host conn (duckdb → adopt; sqlite → dedicated duckdb cache conn),
+    embed-store fold S0. The info stamps land on ``conn``."""
     # The embedder resolves BEFORE the texts compose: the basis is
     # per-model (gemma's prefix contract), so label must be known first.
     embed_missing, dims, label, _ = resolve_git_embedder()
-    batch_conn = cache_conn if cache_conn is not None else conn
     prev_model = _stored_embed_model(conn)
     # Demotion guard for the gemma-adopted state: the follow-availability
     # selector must never silently populate the fallback model over a
@@ -1000,7 +985,7 @@ def _embed_pass(
 
         if embed_shas:
             vecs, emb_stats = cached_embed_batch(
-                batch_conn, texts, label, embed_missing, source=SOURCE_COHORT
+                conn, texts, label, embed_missing, source=SOURCE_COHORT
             )
             vec_by_sha = dict(zip(embed_shas, vecs))
             stats["embedded"] = emb_stats["unique_misses"]
@@ -1008,7 +993,7 @@ def _embed_pass(
             stats["embed_cache_misses"] = emb_stats["misses"]
         if chunk_plan:
             chunk_vecs, body_stats = cached_embed_batch(
-                batch_conn,
+                conn,
                 [
                     _chunk_embed_text(label, messages[s][1].split("\n", 1)[0], t)
                     for s, _i, t in chunk_plan

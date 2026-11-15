@@ -591,14 +591,15 @@ def _no_local_embedder():
 @pytest.fixture(autouse=True)
 def _embed_store_to_tmp(tmp_path):
     """Redirect the consolidated embed store (vec_search.EMBED_DB_PATH) into
-    the per-test tmp dir (embed_store_consolidation, 2026-08). Without this,
-    ANY file-backed connection reaching vec_search._attach_vec_db —
-    rebuilders' tmp index DBs included — would attach and CREATE the live
-    memory/embed_store.db during pytest. Same plain save/restore style as
-    _no_local_embedder: an autouse monkeypatch would instantiate before
-    unit_client and re-apply after its restore (the leak ordering documented
-    there). The :memory:-main branch in _attach_vec_db bypasses this path
-    entirely; a dedicated test pins that."""
+    the per-test tmp dir (embed_store_consolidation, 2026-08; S0 moved
+    the store to DuckDB). Without this, ANY file-backed connection
+    resolving the cache — rebuilders' tmp index DBs included — would
+    open/create the live memory/embed_store.duckdb during pytest. Same
+    plain save/restore style as _no_local_embedder: an autouse
+    monkeypatch would instantiate before unit_client and re-apply after
+    its restore (the leak ordering documented there). The :memory:-main
+    branch in _resolve_cache_conn bypasses this path entirely; a dedicated
+    test pins that."""
     from helpers.core import vec_search
 
     orig = vec_search.EMBED_DB_PATH
@@ -607,7 +608,7 @@ def _embed_store_to_tmp(tmp_path):
     # real use, and tests that assert EXACT tmp_path contents (e.g.
     # test_exchange_search filename sanitisation) would see the stray
     # memory/ dir as pollution.
-    vec_search.EMBED_DB_PATH = tmp_path / "memory" / "embed_store.db"
+    vec_search.EMBED_DB_PATH = tmp_path / "memory" / "embed_store.duckdb"
     # Pure-DuckDB arc S2: the note_search_vec mirror moved out of the embed
     # store into its own DuckDB sidecar -- redirect it per-test too, or any
     # KNN-path test would create the live memory/note_vectors.duckdb.

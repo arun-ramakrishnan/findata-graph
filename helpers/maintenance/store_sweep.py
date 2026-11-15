@@ -274,7 +274,7 @@ def _fmt(n: int | None) -> str:
 _FILING_MB: dict[str, float] = {
     "memory/graph.xdist-shared.duckdb": 66.26,
     "memory/convo_search.duckdb": 3170.01,
-    "memory/embed_store.db": 450.09,
+    "memory/embed_store.duckdb": 387.26,
     "memory/corpus.db": 58.46,
     "memory/doc_search.db": 30.19,
     "memory/script_search.db": 4.32,

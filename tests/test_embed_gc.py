@@ -8,6 +8,7 @@ flipped to gemma)."""
 
 import sqlite3
 
+import duckdb
 import pytest
 
 from helpers.core.embed_cache import CACHE_DDL_BARE, _hash
@@ -20,8 +21,8 @@ def _seed(monkeypatch, tmp_path):
     Cache rows: (live basis, gemma) referenced; (other basis, granite)
     rollback - unreferenced but MUST be retained; (dead basis, gemma)
     genuinely dead - the only deletable row."""
-    store = tmp_path / "embed_store.db"
-    con = sqlite3.connect(store)
+    store = tmp_path / "embed_store.duckdb"
+    con = duckdb.connect(store)
     con.execute(CACHE_DDL_BARE)
     con.executemany(
         f"INSERT INTO {gce.CACHE_TABLE} (text_hash, model, embedding, source) VALUES (?,?,?,?)",  # noqa: S608
@@ -31,7 +32,6 @@ def _seed(monkeypatch, tmp_path):
             (_hash("dead text"), "gemma", b"\x00" * 4, "script"),
         ],
     )
-    con.commit()
     con.close()
     monkeypatch.setattr(gce, "STORE", store)
 
@@ -58,7 +58,7 @@ def _seed(monkeypatch, tmp_path):
 
 
 def _rows(store):
-    con = sqlite3.connect(store)
+    con = duckdb.connect(store)
     try:
         return sorted(con.execute("SELECT model, text_hash FROM embed_cache").fetchall())
     finally:
@@ -92,8 +92,8 @@ def test_reference_recipe_follows_stamp(monkeypatch, tmp_path):
     the reference recipe must switch with the stamp or the ACTIVE
     model's live rows all read dead (2026-10-08: the granite _doc_text
     recipe marked all 550 gemma script rows dead)."""
-    store = tmp_path / "embed_store.db"
-    con = sqlite3.connect(store)
+    store = tmp_path / "embed_store.duckdb"
+    con = duckdb.connect(store)
     con.execute(CACHE_DDL_BARE)
     con.executemany(
         f"INSERT INTO {gce.CACHE_TABLE} (text_hash, model, embedding, source) VALUES (?,?,?,?)",  # noqa: S608
@@ -110,7 +110,6 @@ def test_reference_recipe_follows_stamp(monkeypatch, tmp_path):
             (_hash("live\npurpose\nbody"), "granite", b"\x00" * 4, "script"),
         ],
     )
-    con.commit()
     con.close()
     monkeypatch.setattr(gce, "STORE", store)
 
@@ -179,8 +178,8 @@ def test_retire_refuses_active_stamp(monkeypatch, tmp_path):
 def test_stampless_cohort_keeps_legacy_behavior(monkeypatch, tmp_path):
     """No stamp SQL -> the cohort keeps the old unreferenced-equals-dead
     rule (convo today; any future index without a stamp table)."""
-    store = tmp_path / "embed_store.db"
-    con = sqlite3.connect(store)
+    store = tmp_path / "embed_store.duckdb"
+    con = duckdb.connect(store)
     con.execute(CACHE_DDL_BARE)
     con.executemany(
         f"INSERT INTO {gce.CACHE_TABLE} (text_hash, model, embedding, source) VALUES (?,?,?,?)",  # noqa: S608
@@ -189,13 +188,10 @@ def test_stampless_cohort_keeps_legacy_behavior(monkeypatch, tmp_path):
             (_hash("dead text"), "granite", b"\x00" * 4, "convo"),
         ],
     )
-    con.commit()
     con.close()
     monkeypatch.setattr(gce, "STORE", store)
 
     index = tmp_path / "convo.duckdb"
-    import duckdb
-
     dcon = duckdb.connect(str(index))
     dcon.execute("CREATE TABLE convo_search AS SELECT 'live text' AS snippet")
     dcon.close()
@@ -214,8 +210,8 @@ def test_stampless_cohort_keeps_legacy_behavior(monkeypatch, tmp_path):
 def _seed_convo(monkeypatch, tmp_path, *, stamp_sql, foreign=True):
     """convo-shaped store + index. Cache: one live granite row (the stamp's
     model), plus one FOREIGN-model row whose fate is the whole point."""
-    store = tmp_path / "embed_store.db"
-    con = sqlite3.connect(store)
+    store = tmp_path / "embed_store.duckdb"
+    con = duckdb.connect(store)
     con.execute(CACHE_DDL_BARE)
     rows = [(_hash("live snippet"), "granite", b"\x00" * 4, "convo")]
     if foreign:
@@ -224,13 +220,10 @@ def _seed_convo(monkeypatch, tmp_path, *, stamp_sql, foreign=True):
         f"INSERT INTO {gce.CACHE_TABLE} (text_hash, model, embedding, source) VALUES (?,?,?,?)",  # noqa: S608
         rows,
     )
-    con.commit()
     con.close()
     monkeypatch.setattr(gce, "STORE", store)
 
     index = tmp_path / "convo_search.duckdb"
-    import duckdb
-
     dcon = duckdb.connect(str(index))
     dcon.execute("CREATE TABLE convo_search (snippet VARCHAR)")
     dcon.execute("CREATE TABLE convo_meta (key VARCHAR, value VARCHAR)")

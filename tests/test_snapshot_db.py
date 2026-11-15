@@ -4,6 +4,10 @@ from __future__ import annotations
 import logging
 import os
 import sqlite3
+
+import duckdb
+
+from helpers.core.embed_cache import CACHE_DDL_BARE
 import sys
 from pathlib import Path
 
@@ -384,11 +388,10 @@ def test_run_snapshot_reuses_embed_store_zst_when_unchanged(tmp_path):
 
     store_dir = tmp_path / "memory"
     store_dir.mkdir(exist_ok=True)  # conftest autouse created it
-    store = store_dir / "embed_store.db"
-    sconn = sqlite3.connect(str(store))
-    sconn.execute("CREATE TABLE embed_cache (k TEXT PRIMARY KEY)")
-    sconn.execute("INSERT INTO embed_cache VALUES ('x')")
-    sconn.commit()
+    store = store_dir / "embed_store.duckdb"
+    sconn = duckdb.connect(str(store))
+    sconn.execute(CACHE_DDL_BARE)
+    sconn.execute("INSERT INTO embed_cache VALUES ('x', 'm', '[1]', 'doc')")
     sconn.close()
 
     saved = VS.EMBED_DB_PATH
@@ -407,7 +410,7 @@ def test_run_snapshot_reuses_embed_store_zst_when_unchanged(tmp_path):
             logger=_log,
         )
         assert rc == 0
-        store_zst = tmp_path / "snap" / "embed_store.snapshot.db.zst"
+        store_zst = tmp_path / "snap" / "embed_store.snapshot.duckdb.zst"
         first_bytes = store_zst.read_bytes()
         first_mtime = store_zst.stat().st_mtime_ns
 
@@ -432,9 +435,8 @@ def test_run_snapshot_reuses_embed_store_zst_when_unchanged(tmp_path):
         assert store_zst.read_bytes() == first_bytes
 
         # A real write (new row ⇒ new size + fresh mtime) forces recompression.
-        sconn = sqlite3.connect(str(store))
-        sconn.execute("INSERT INTO embed_cache VALUES ('y')")
-        sconn.commit()
+        sconn = duckdb.connect(str(store))
+        sconn.execute("INSERT INTO embed_cache VALUES ('y', 'm', '[1]', 'doc')")
         sconn.close()
         rc = _cmd_create(
             src_db,

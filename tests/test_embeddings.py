@@ -530,7 +530,7 @@ def _add_two_companies(conn):
 class TestPopulateLocalCached:
     def test_cold_seeds_cache_then_warm_hits_without_embedding(self, tmp_path, monkeypatch, capsys):
         from helpers.core import local_embedder as LE
-        from helpers.core.vec_search import _attach_vec_db
+        from helpers.core import vec_search as VS
 
         conn, _ = _make_embed_db(tmp_path)
         _add_two_companies(conn)
@@ -541,11 +541,14 @@ class TestPopulateLocalCached:
         assert len(calls) == 1 and len(calls[0]) == 2  # one batch, both texts
         assert "0 hits, 2 misses" in capsys.readouterr().err
 
-        _attach_vec_db(conn)  # idempotent: populate already attached it
-        seeded = conn.execute(
-            "SELECT COUNT(*) FROM vecdb.embed_cache WHERE model = ?",
-            (LE.MODEL_ID,),
-        ).fetchone()[0]
+        cache = VS.open_cache_conn(read_only=True)
+        try:
+            seeded = cache.execute(
+                "SELECT COUNT(*) FROM embed_cache WHERE model = ?",
+                (LE.MODEL_ID,),
+            ).fetchone()[0]
+        finally:
+            cache.close()
         assert seeded == 2
 
         n2 = populate_local(conn)

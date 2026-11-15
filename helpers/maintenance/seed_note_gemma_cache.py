@@ -45,7 +45,7 @@ def _norm(p: str) -> str:
 def main() -> int:
     import numpy as np
 
-    from helpers.core import embed_cache, vec_search
+    from helpers.core import embed_cache
     from helpers.core.db import connect
     from helpers.core.gemma_embedder import MODEL_LABEL as GEMMA_LABEL
     from helpers.core.vec_codec import pack_f32
@@ -66,7 +66,14 @@ def main() -> int:
     npz_vecs = {(p, a): doc_vecs[i] for i, (p, a) in enumerate(zip(paths, anchors))}
 
     conn = connect()
-    vec_search._attach_vec_db(conn)  # private but the canonical attach (used by rebuild paths)
+    # Embed-store fold S0: the cache is now the native duckdb store — the
+    # research.db conn cannot host it (duckdb attrs are duckdb-only), so
+    # write through a dedicated cache conn instead of the legacy vecdb
+    # attach (vec_search._attach_vec_db removed).
+    from helpers.core.vec_search import open_cache_conn
+
+    cache_conn = open_cache_conn()
+    cache_conn.execute(embed_cache.EMBED_CACHE_DDL)
     cur = conn.execute(
         "SELECT file_path, anchor, title, sector, section_title, content FROM note_search"
     )
@@ -90,8 +97,7 @@ def main() -> int:
         matched += 1
         if len(chunk) >= 2000:
             if args.apply:
-                conn.executemany(insert_sql, chunk)
-                conn.commit()
+                cache_conn.executemany(insert_sql, chunk)
             chunk.clear()
 
     extra = len(npz_vecs) - matched
@@ -111,12 +117,12 @@ def main() -> int:
         return 0
 
     if chunk:
-        conn.executemany(insert_sql, chunk)
-        conn.commit()
-    n = conn.execute(
+        cache_conn.executemany(insert_sql, chunk)
+    n = cache_conn.execute(
         f"SELECT count(*) FROM {embed_cache.EMBED_CACHE_TABLE} WHERE model = ?",  # noqa: S608
         (GEMMA_LABEL,),
     ).fetchone()[0]
+    cache_conn.close()
     print(f"seeded {matched} cache rows; total {GEMMA_LABEL} rows now: {n}")
     return 0
 
