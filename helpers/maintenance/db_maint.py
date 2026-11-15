@@ -42,6 +42,21 @@ downtime-window insurance that rescued multiple cache-blowout incidents
   - ``research.snapshot.db.zst`` / ``graph.snapshot.duckdb.zst``
                                  : reconstructable state for git history
                                    (taken after maintenance completes).
+  - ``bili_index_backup.db.zst``
+                                 : recovery copy of the billion-context
+                                   proxy's PRIMARY session store (added
+                                   2026-11-15). Since billion-context
+                                   0.1.214 the proxy persists sessions to
+                                   ``~/.local/share/billion-context/sessions/index.db``
+                                   ONLY (the legacy JSON envelope is no
+                                   longer written), so that file is the
+                                   sole durable copy of the proxy's
+                                   sessions. The repo-side harvested corpus
+                                   keeps only the compression summaries,
+                                   so the raw proxy history has no other
+                                   recovery path. Manual restore:
+                                   ``zstd -dc db-backup/bili_index_backup.db.zst > ~/.local/share/billion-context/sessions/index.db``
+                                   (with the proxy stopped).
 
 See also: ``helpers/maintenance/maint.py`` — the orchestrator that runs
 db_maint → snapshot_db → graph-rebuild in the right order. Prefer
@@ -54,6 +69,7 @@ Usage:
 
 import argparse
 import logging
+import os
 import re
 import sqlite3
 import subprocess
@@ -678,6 +694,72 @@ class DBMaintainer:
         )
         return size
 
+    def _backup_bili_index(self) -> int:
+        """Recovery copy of the billion-context proxy's PRIMARY session store.
+
+        Since billion-context 0.1.214 the proxy persists sessions to
+        ``~/.local/share/billion-context/sessions/index.db`` ONLY (the legacy
+        JSON envelope is no longer written), so that file is the SOLE durable
+        copy of the proxy's sessions. The repo-side harvested corpus keeps
+        only the compression summaries, so the RAW proxy history has no other
+        recovery path — unlike the other harness stores, whose full
+        conversation rows are captured in the harvested parquet corpus
+        (``db-backup/convo_corpus_backup.tar.zst``).
+
+        The source is opened READ-ONLY: the live proxy owns that file, and a
+        read-write open would take a write lock on the very store the tools
+        must never disturb. ``VACUUM INTO`` yields a consistent snapshot of a
+        live WAL database (one read transaction; the proxy's writer is not
+        blocked) and compacts the copy; if the SQLite build refuses it, the
+        online backup API is the fallback (also read-only at the source).
+        """
+        from helpers.core.zstd_io import compress_file, zst_path
+        from helpers.maintenance.harvest_conversations import bili_index_path
+
+        src = bili_index_path()
+        if not src.exists():
+            self._log(logging.INFO, f"bili proxy index absent — backup skipped ({src})")
+            return 0
+        dst = self.backup_path.parent / "bili_index_backup.db"
+        try:
+            dst.parent.mkdir(parents=True, exist_ok=True)
+        except OSError as e:
+            self._log(
+                logging.WARNING,
+                f"cannot create backup dir ({e}); bili index backup skipped",
+            )
+            return 0
+        fd, staging_name = tempfile.mkstemp(suffix=".db", dir=dst.parent)
+        os.close(fd)
+        staging = Path(staging_name)
+        staging.unlink(missing_ok=True)  # VACUUM INTO refuses an existing target
+        try:
+            con = connect(src, read_only=True, enable_fk=False)
+            try:
+                try:
+                    con.execute("VACUUM INTO ?", (str(staging),))
+                except sqlite3.Error:
+                    # Older SQLite builds lack VACUUM INTO; the online backup
+                    # API gives the same read-only-at-the-source snapshot.
+                    bconn = sqlite3.connect(str(staging))
+                    try:
+                        con.backup(bconn)
+                    finally:
+                        bconn.close()
+            finally:
+                con.close()
+            size = compress_file(staging, zst_path(dst))
+        except (sqlite3.Error, OSError) as e:
+            self._log(
+                logging.WARNING,
+                f"bili proxy index backup skipped ({type(e).__name__}: {e})",
+            )
+            return 0
+        finally:
+            staging.unlink(missing_ok=True)
+        self._log(logging.INFO, f"bili proxy index backed up to {zst_path(dst)}")
+        return size
+
     def _backup_memory_sidecars(self) -> int:  # noqa: C901  # maintenance population, keep per archived c901_complexity_debt D1 verdict
         """Catch-all: every ``memory/`` + ``memory/data/`` file WITHOUT its
         own registration goes into one tar.zst.
@@ -944,6 +1026,14 @@ class DBMaintainer:
                 self._backup_corpus()
                 self._backup_convo_search()
                 self._backup_convo_corpus()
+                # The proxy's primary session store is NOT repo-anchored
+                # (unlike every store above), but it is the same class of
+                # thing: a primary copy with no rebuild path. Under the
+                # pure-SQLite default (billion-context 0.1.214+) it holds the
+                # proxy's raw messages, which the harvested corpus keeps only
+                # as compression summaries. Gated by the same flag for the
+                # same reason — it is a heavy production copy.
+                self._backup_bili_index()
                 self._backup_memory_sidecars()
 
             # P2.5: incremental vacuum when auto_vacuum==INCREMENTAL and freelist

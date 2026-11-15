@@ -7,6 +7,7 @@ from helpers.maintenance.harvest_conversations import (
     SessionWriter,
     Store,
     _bili_drift,
+    _coverage,
     _harvest_bili,
 )
 
@@ -164,10 +165,14 @@ def test_bili_missing_store_is_quiet_skip(tmp_path, monkeypatch):
 def test_bili_lost_index_is_not_a_quiet_skip(tmp_path, monkeypatch):
     """billion-context installed but sessions/index.db gone = drift, not absence.
 
-    Under `storage.unified=shadow` (0.1.197+) the index is a derived
-    artifact double-ingested from the primary store, so a storage migration
-    or shadow reset deletes it. Reporting that as the designed quiet skip
-    would truncate the lane's history while the gate stayed green.
+    History: under `storage.unified=shadow` (0.1.197+) the index was a
+    derived artifact double-ingested from the primary store, so a storage
+    migration or shadow reset deleted it. Reporting that as the designed
+    quiet skip would truncate the lane's history while the gate stayed green.
+
+    Since 0.1.214 the proxy defaults to PURE SQLITE — index.db IS the primary
+    store and the sole durable copy — so the loss is no longer re-derivable
+    from the proxy. The note must name the recovery copy that can restore it.
     """
     monkeypatch.setattr(
         "helpers.maintenance.harvest_conversations._bili_index_path",
@@ -182,8 +187,57 @@ def test_bili_lost_index_is_not_a_quiet_skip(tmp_path, monkeypatch):
     writer = SessionWriter(tmp_path / "corpus")
     out = _harvest_bili(store, writer)
     assert "LOST" in out and "SKIP" not in out
+    # pure-SQLite default: the note points at the recovery copy
+    assert "bili_index_backup.db.zst" in out
     drift = _bili_drift(store)
     assert len(drift) == 1 and "LOST" in drift[0]
+    store.close()
+
+
+def test_bili_vanished_session_is_drift(tmp_path, monkeypatch):
+    """A watermark-tracked session gone from index.db is drift (2026-11-15).
+
+    _bili_drift used to iterate ONLY sessions still present in the live
+    index, so a session disappearing from the pure-SQLite primary store
+    left its repo-side watermark looking healthy and the --check gate
+    green. Under 0.1.214+ that disappearance IS the loss — the watermark
+    set must meet the live set, and _coverage must show the gap.
+    """
+    idx = tmp_path / "index.db"
+    _fake_index(idx, [("b1", "ses_keep", 1, "t", "s")], namespace="opencode")
+    monkeypatch.setattr("helpers.maintenance.harvest_conversations._bili_index_path", lambda: idx)
+    store = Store(tmp_path / "meta.duckdb")
+    writer = SessionWriter(tmp_path / "corpus")
+    _harvest_bili(store, writer)
+    assert _bili_drift(store) == []
+    # The proxy loses a session: the watermark remains, the live index does not.
+    con = sqlite3.connect(idx)
+    con.execute("DELETE FROM blocks WHERE session_id = 'ses_keep'")
+    con.commit()
+    con.close()
+    drift = _bili_drift(store)
+    assert len(drift) == 1 and "vanished" in drift[0] and "ses_keep" in drift[0]
+    cov = _coverage(store)
+    assert any("ABSENT" in ln for ln in cov)
+    store.close()
+
+
+def test_bili_corrupt_index_is_reported_not_raised(tmp_path, monkeypatch):
+    """A damaged primary store is REPORTED, not raised (2026-11-15).
+
+    Under the pure-SQLite default index.db is the proxy's primary store, so
+    a truncated/corrupt file is real damage. The harvest lane must still
+    produce a report line instead of crashing the gate — the operator has to
+    be able to SEE the damage and restore from db-backup/.
+    """
+    idx = tmp_path / "index.db"
+    idx.write_bytes(b"this is not a sqlite database")
+    monkeypatch.setattr("helpers.maintenance.harvest_conversations._bili_index_path", lambda: idx)
+    store = Store(tmp_path / "meta.duckdb")
+    writer = SessionWriter(tmp_path / "corpus")
+    out = _harvest_bili(store, writer)
+    assert "UNREADABLE" in out
+    assert "NOT harvested" in out
     store.close()
 
 

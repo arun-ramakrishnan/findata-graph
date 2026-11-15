@@ -63,7 +63,7 @@ placement invariant).
 
 | Step | Notes |
 |---|---|
-| `db_maint` | VACUUM/ANALYZE/REINDEX/integrity; takes the `db-backup/*_backup.*.zst` recovery copies (pre-VACUUM) |
+| `db_maint` | VACUUM/ANALYZE/REINDEX/integrity; takes the `db-backup/*_backup.*.zst` recovery copies (pre-VACUUM) — including `bili_index_backup.db.zst`, the recovery copy of the billion-context proxy's primary session store |
 | `snapshot` | versioned snapshots (post-mutation) — **elided in `--full`** (`TIER1_FULL_SKIP`), the TIER2 tail re-snapshots everything |
 | `graph-rebuild` | DuckDB cache from the snapshotted SQLite — data-only since centrality_rebuild_contract: drops the `v_centrality_*` tables |
 | `stamp-centrality` | re-stamps the ten `v_centrality_*` tables (centrality_rebuild_contract explicit lane; BFS family costs minutes at 56k edges, so it never rides the implicit rebuild) |
@@ -119,6 +119,12 @@ bookkeeping.
 - **Post-ingest / post-surgery** → `make maint-full` (17 steps).
 - **Crash mid-VACUUM** → restore from `db-backup/*_backup.*.zst`:
   `zstd -dc db-backup/research_backup.db.zst > memory/research.db`.
+- **Proxy session store lost** → since billion-context 0.1.214 the proxy writes
+  sessions to `~/.local/share/billion-context/sessions/index.db` ONLY (no JSON
+  envelope), so that file is the sole durable copy: restore with
+  `zstd -dc db-backup/bili_index_backup.db.zst >
+  ~/.local/share/billion-context/sessions/index.db` (with the proxy stopped),
+  then re-run `make convo-fresh` to re-harvest the recovered sessions.
 - **Verify a backup** → decompress to an alt location, `PRAGMA
   integrity_check`, diff row counts vs live (expect drift only in
   tables written after the backup point).

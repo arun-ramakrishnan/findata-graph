@@ -221,6 +221,12 @@ while the gate stayed green. Now tri-state — `_bili_index_state()` returns
 `ready` / `absent` (quiet, by design) / `lost` (reported by `_bili_drift()` and
 `_coverage()` as `bili: LOST index.db — …`).
 
+**Superseded storage model (see §15).** Since billion-context 0.1.214 the proxy
+persists sessions to `sessions/index.db` *only* — the JSON envelope is no longer
+written — so the file is no longer a derived artefact but the proxy's **primary**
+store. A `lost` index is now real data loss with no rebuild path, and the lane's
+note names the recovery copy (`db-backup/bili_index_backup.db.zst`).
+
 ## 8. Amendment 2026-10-17 — how compaction and folding actually decide
 
 Everything here was measured from `~/.local/state/billion-context/bili.log*`
@@ -1560,6 +1566,87 @@ Residual risk and its one-line fix: a compressible mass that plateaus
 between 43,220 and 49,959 would not trigger T1 — the corpus's single
 near-miss. If that ever bites, delete `tierNudgeTokens.t1` and T1's bar
 falls back to `nudgeGrowthTokens` (30,000). No re-measurement needed.
+
+## 15. Amendment 2026-11-15 — the proxy stores sessions in SQLite only
+
+billion-context **0.1.214** changed the default storage model. The upgrade
+notice: *"sessions are persisted to the SQLite index (`index.db`) only by default
+— the legacy JSON envelope file is no longer written"*. Existing data is
+untouched, old and new sessions both load, but **the index is now the sole
+durable copy** — and index-only sessions are invisible to v0.1.196 and earlier
+binaries. The notice also says to include `index.db` in backups.
+
+The old model is recorded here as history so the change is legible, not because it
+still holds. Under `storage.unified=shadow` (0.1.197+) every session write was
+double-ingested into `sessions/index.db` and digest-reconciled, making that file a
+**derived** artefact whose lifecycle was governed by the proxy's migration. Under
+the current default it is the **primary** store. The tri-state from §7
+(`ready` / `absent` / `lost`) still holds, but it now matters **more**, not less:
+a `lost` index is no longer a re-derivable artefact that the proxy can rebuild,
+it is real data loss with no rebuild path.
+
+### 15.1 What changed in the lane
+
+| surface | before | now |
+|---|---|---|
+| `sessions/index.db` | derived, double-ingested shadow copy | **primary**, sole durable copy |
+| legacy JSON envelope | written alongside every session | **not written** (opt-in via `storage.jsonWriter=on`) |
+| `lost` index means | proxy can re-derive it | **history is gone**; only a backup restores it |
+| `absent` index means | no proxy on this machine | unchanged |
+
+Code changes (`helpers/maintenance/harvest_conversations.py`):
+
+- the lane docstring and `_bili_root()` record the new model and keep the
+  2026-10-17 shadow review as history;
+- `bili_index_path()` is now a **public accessor** — one owner of the path so the
+  harvest lane and the backup lane cannot drift apart;
+- the `lost` note names the recovery copy: `db-backup/bili_index_backup.db.zst`;
+- the store is opened read-only, and a corrupt or truncated store is **reported**
+  (`bili: UNREADABLE index.db …`) instead of raising — the gate is a report, and a
+  crash there would look like a broken repo rather than a damaged proxy store.
+
+### 15.2 The backup gap this opened
+
+The repo-side harvested corpus keeps only the **compression summaries** of the
+proxy's sessions. The raw proxy messages live in `index.db` and nowhere else:
+on this host that file is ~804 MB with namespaces `dsh` (102 sessions),
+`opencode` (51) and `proxy` (19), 2,035 blocks and 154,037 messages. Nothing in
+`db-backup/` covered it, and `db_maint`'s sidecar estate is repo-anchored
+(`memory/` only) — the raw harness stores (`~/.local/share/opencode/opencode.db`,
+`~/.dsh/sessions`, `~/.prime/agent/sessions`, `~/.zcode/cli/rollout`) are outside
+it as well. The proxy's own harvest covers `dsh`/`opencode` sessions that also
+live in their own harness stores; only the `proxy` namespace is unique to
+`index.db`.
+
+So `DBMaintainer._backup_bili_index()` (`helpers/maintenance/db_maint.py`) now
+takes a recovery copy: `db-backup/bili_index_backup.db.zst`. It opens the source
+**read-only** (`connect(..., read_only=True)`) — `_sqlite_zstd_backup()` opens its
+source read-write and must never be pointed at the live proxy store. Measured on
+the live file: `VACUUM INTO` staging 4.0 s, zstd 5.6 s, ~191 MB compressed.
+
+Restore (proxy stopped):
+
+```bash
+zstd -dc db-backup/bili_index_backup.db.zst > ~/.local/share/billion-context/sessions/index.db
+```
+
+### 15.3 The operator's storage choice is still open
+
+The notice offers two remedies, and the repo does not pick for the operator:
+
+- `storage.jsonWriter=on` (or `BILI_STORAGE_JSON_WRITER=1`) restores the JSON
+  envelope, giving a second copy of the raw sessions;
+- `storage.unified=full` forces the unified store explicitly.
+
+This host runs neither: `~/.config/billion-context/billion-context.json` has no
+`storage` key, so the 0.1.214 pure-SQLite default applies. Note that the `bili`
+CLI (`ls` / `rm` / `archive` / `restore` / `gc`) and the unified-store API both
+require the unified store to be enabled — under the pure default they refuse.
+
+Open objectives:
+- Deliver the notes-refresh analysis ('we finished updating 84 notes', m00001) using convo_search/master_query/ripwire/rg — analysis complete; final written answer still owed.
+- Update convo-fresh for the new BILI pure-SQLite default (m00070): CODE DONE; docs now being amended (bili_convo_lane.md §15 applied next, timeshift_snapshot_lane.md:149 stale ref, maintenance.md restore command, pending.md board entry), then `make search-fresh` advisory, delete .smoke_tmp/, leave tree dirty.
+- Answer the operator's db_maint-coverage question (m00337) in the final reply: raw harness stores are outside db_maint's estate; only the repo-side harvested corpus is backed up; index.db is now also covered by the new bili_index_backup.db.zst lane.
 
 ## Appendix — raw measurement log
 

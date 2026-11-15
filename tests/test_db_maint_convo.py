@@ -292,3 +292,50 @@ class TestF4DeadBlockProbe:
         out = capsys.readouterr().out
         assert "dead 36.5% (661.8 MB)" in out  # _fmt_bytes is binary
         assert "wasted 0.5%" in out
+
+
+# --------------------------------------------------------------------------- #
+# Proxy session store (billion-context pure-SQLite default)                    #
+# --------------------------------------------------------------------------- #
+def _fake_proxy_index(tmp_path: Path) -> Path:
+    """A tiny stand-in for the proxy's sessions/index.db."""
+    idx = tmp_path / "proxy/index.db"
+    idx.parent.mkdir(parents=True, exist_ok=True)
+    con = sqlite3.connect(idx)
+    con.execute("CREATE TABLE sessions (session_id TEXT PRIMARY KEY, namespace TEXT)")
+    con.execute("CREATE TABLE blocks (block_id TEXT, session_id TEXT, payload_json TEXT)")
+    con.execute("INSERT INTO sessions VALUES (?, ?)", ("s1", "proxy"))
+    con.execute("INSERT INTO blocks VALUES (?, ?, ?)", ("b1", "s1", "{}"))
+    con.commit()
+    con.close()
+    return idx
+
+
+def test_backup_bili_index_copies_proxy_primary_store(tmp_path, monkeypatch):
+    """The proxy store is the SOLE durable copy of proxy sessions under the
+    pure-SQLite default (0.1.214+), so it gets a recovery copy like every
+    other primary with no rebuild path. The source is opened read-only —
+    the live proxy owns that file."""
+    idx = _fake_proxy_index(tmp_path)
+    monkeypatch.setattr(hc, "bili_index_path", lambda: idx)
+    m = _maintainer(tmp_path)
+    size = m._backup_bili_index()
+    out = tmp_path / "db-backup/bili_index_backup.db.zst"
+    assert out.exists()
+    assert size == out.stat().st_size > 0
+    restored = tmp_path / "restored.db"
+    decompress_file(out, restored)
+    con = sqlite3.connect(restored)
+    try:
+        assert con.execute("SELECT COUNT(*) FROM sessions").fetchone()[0] == 1
+        assert con.execute("SELECT namespace FROM sessions").fetchone()[0] == "proxy"
+    finally:
+        con.close()
+
+
+def test_backup_bili_index_skips_when_proxy_absent(tmp_path, monkeypatch):
+    """Machines without the proxy stay green — absence is not drift."""
+    monkeypatch.setattr(hc, "bili_index_path", lambda: tmp_path / "nope/index.db")
+    m = _maintainer(tmp_path)
+    assert m._backup_bili_index() == 0
+    assert not (tmp_path / "db-backup/bili_index_backup.db.zst").exists()

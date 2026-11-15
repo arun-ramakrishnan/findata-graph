@@ -761,3 +761,102 @@ class TestEveryProducerSidFormIsIndexed:
         idx = bs.sid_log_index()
         missing = [i for i in ids if not idx.get(i)]
         assert missing == [], f"sid forms the index cannot see: {missing}"
+
+
+def _fold_line(
+    sid: str, *, saved: int, shrink: int = 50, ts: str = "2026-10-17T04:25:18.000Z"
+) -> str:
+    return (
+        f"{ts} [info] [v=0.1.209] [{sid}] [plugin] [acp-compress-obs] "
+        f"shrink {shrink}% this-fold (~{saved}/100000 tok) · cumulative {shrink}% "
+        f"(~{saved}/100000 tok) foldPoint=m00001 blocks=2 anchor≈1000 tok "
+        f"(5 active blocks, sys excluded) postCtx≈50000"
+    )
+
+
+class TestRotatorArchiveDirectoryIsInTheFamily:
+    """billion-context rotates into `bili.log.archive/<stamp>/bili.log`, a
+    DIRECTORY, not a `.old` sibling file. `log_rotation_family` globbed
+    `bili.log*` and kept only `is_file()` matches, so the whole archive was
+    invisible: measured 2026-11-15 a 10.7 MB archive holding 33 folds, 15
+    absorbs and 28 T1 fires never reached any reader."""
+
+    def test_archive_directory_member_joins_the_family(self, tmp_path: Path):
+        live = tmp_path / "bili.log"
+        live.write_text(_line("ses_aaa") + "\n", encoding="utf-8")
+        arch = tmp_path / "bili.log.archive" / "20261114T054102619-2382534-1"
+        arch.mkdir(parents=True)
+        (arch / "bili.log").write_text(_line("ses_bbb") + "\n", encoding="utf-8")
+
+        fam = log_rotation_family(live)
+        assert set(fam) == {arch / "bili.log", live}, "the archive directory must join the family"
+        assert len(parse_logs(fam).nudges) == 2
+
+    def test_both_generations_are_read(self, tmp_path: Path):
+        """A session split across the live log and the archive must report the
+        UNION of its samples, not whichever file happened to be larger."""
+        live = tmp_path / "bili.log"
+        live.write_text(_fold_line("ses_aaa", saved=111) + "\n", encoding="utf-8")
+        arch = tmp_path / "bili.log.archive" / "20261114T054102619-2382534-1"
+        arch.mkdir(parents=True)
+        (arch / "bili.log").write_text(
+            _fold_line("ses_aaa", saved=222, ts="2026-10-16T01:00:00.000Z") + "\n",
+            encoding="utf-8",
+        )
+
+        a = parse_logs(log_rotation_family(live), session_filter="ses_aaa")
+        assert len(a.folds) == 2, "both files' folds must survive"
+        assert sum(f.saved_tok for f in a.folds) == 333
+
+    def test_session_union_beats_a_single_member(self, tmp_path: Path, monkeypatch):
+        """`run_for_sid` used to `max(family_len, st_size)` one file out of the
+        set that named the session — silently dropping the other's history."""
+        live = tmp_path / "bili.log"
+        live.write_text(_fold_line("ses_aaa", saved=111) + "\n", encoding="utf-8")
+        arch = tmp_path / "bili.log.archive" / "stamp"
+        arch.mkdir(parents=True)
+        (arch / "bili.log").write_text(
+            _fold_line("ses_aaa", saved=222, ts="2026-10-16T01:00:00.000Z") + "\n",
+            encoding="utf-8",
+        )
+
+        monkeypatch.setattr(bs, "dashboard_detail", lambda s: {"requests": 1})
+        monkeypatch.setattr(bs, "dashboard_stats_map", lambda: {"ses_aaa": {"requests": 1}})
+        monkeypatch.setattr(bs, "find_report", lambda s: None)
+        monkeypatch.setattr(bs, "sid_log_index", lambda: {"ses_aaa": [arch / "bili.log", live]})
+        row = bs.run_for_sid("ses_aaa")
+        assert row["folds"] == 2
+        assert row["saved"] == 333
+
+
+class TestSavedPrefersTheLog:
+    """`saved` was `dashboard or folds`, so the dashboard's own (much larger)
+    counter won whenever present — 4.4x corpus-wide on 2026-11-15 (16.2M vs
+    3.7M) and 463,447 vs 335,348 on one session. Cross-session tallies mixed
+    two units under one label."""
+
+    def test_log_folds_win_and_the_dashboard_figure_is_kept(self, tmp_path: Path, monkeypatch):
+        dash = {"tokensSaved": 999_999}
+        monkeypatch.setattr(bs, "dashboard_detail", lambda s: dash)
+        monkeypatch.setattr(bs, "dashboard_stats_map", lambda: {"ses_aaa": dash})
+        monkeypatch.setattr(bs, "find_report", lambda s: None)
+        monkeypatch.setattr(bs, "sid_log_index", lambda: {})
+        log = tmp_path / "bili.log"
+        log.write_text(_fold_line("ses_aaa", saved=111) + "\n", encoding="utf-8")
+        monkeypatch.setattr(bs, "LIVE_LOG", log)
+        monkeypatch.setattr(bs, "file_logs_for_sid", lambda s: [log])
+
+        row = bs.run_for_sid("ses_aaa")
+        assert row["saved"] == 111, "the log's per-fold sum is the comparable figure"
+        assert row["saved_dashboard"] == 999_999, "the dashboard counter stays reachable"
+
+    def test_dashboard_figure_used_when_the_log_has_no_folds(self, monkeypatch):
+        dash = {"tokensSaved": 555}
+        monkeypatch.setattr(bs, "dashboard_detail", lambda s: dash)
+        monkeypatch.setattr(bs, "dashboard_stats_map", lambda: {"ses_aaa": dash})
+        monkeypatch.setattr(bs, "find_report", lambda s: None)
+        monkeypatch.setattr(bs, "sid_log_index", lambda: {})
+        monkeypatch.setattr(bs, "LIVE_LOG", Path("/nonexistent/bili.log"))
+        monkeypatch.setattr(bs, "_session_analysis", lambda p, s: None)
+        row = bs.run_for_sid("ses_aaa")
+        assert row["saved"] == 555, "no log evidence: fall back rather than zero"

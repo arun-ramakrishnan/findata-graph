@@ -339,7 +339,21 @@ def _family_index(log_path: Path) -> dict[str, Analysis]:
     plus a full `log_path.read_text()` per session purely to test whether the
     session id appeared in the file at all.
     """
-    whole = parse_logs(log_rotation_family(log_path))
+    return _index_paths(tuple(log_rotation_family(log_path)))
+
+
+@functools.lru_cache(maxsize=4)
+def _index_paths(paths: tuple[Path, ...]) -> dict[str, Analysis]:
+    """`_family_index` over an explicit file set (the per-session UNION).
+
+    A session's history can be split across files that no single member's
+    rotation family reaches — the rotator moves a finished log into
+    `bili.log.archive/<stamp>/bili.log`, whose own `bili.log*` glob sees
+    only itself. Picking ONE member therefore loses the other's samples
+    (measured 2026-11-15: three sessions under-reported folds because the
+    archive won the size tie-break against the live log).
+    """
+    whole = parse_logs(list(paths))
     by_sid: dict[str, Analysis] = {}
     for n in whole.nudges:
         by_sid.setdefault(n.session, Analysis(log_path=whole.log_path)).nudges.append(n)
@@ -398,16 +412,27 @@ def reset_caches() -> None:
     _SID_INDEX = None
 
 
-def _session_analysis(log_path: Path | None, sid: str) -> Analysis | None:
-    """The bucket for `sid`, or None when the family has no samples for it.
+def _session_analysis(
+    log_path: Path | list[Path] | tuple[Path, ...] | None, sid: str
+) -> Analysis | None:
+    """The bucket for `sid`, or None when the given log set has no samples.
 
     A sub-session (`<parent>|sub:<id>`) logs under its PARENT id, so the lookup
     has to use the parent or the bucket is empty — which is why the last
     sub-session row kept reporting an empty model.
+
+    `log_path` is normally ONE file (its rotation family is parsed); a session
+    whose history is SPLIT across files passes the explicit list instead,
+    because neither file's own family reaches the other.
     """
     if log_path is None:
         return None
-    index = _family_index(log_path)
+    if isinstance(log_path, (list, tuple)):
+        if not log_path:
+            return None
+        index = _index_paths(tuple(dict.fromkeys(log_path)))
+    else:
+        index = _family_index(log_path)
     return index.get(sid.split("|", 1)[0]) or index.get(sid)
 
 
@@ -432,15 +457,17 @@ def run_for_sid(sid: str) -> dict:
     )
     if not containing and LIVE_LOG.is_file():
         containing = log_rotation_family(LIVE_LOG)
-    # Pick the log whose rotation family is the widest (covers the most
-    # rotated siblings). `bili.log.old` (11 MB) is larger than `bili.log`
-    # (6.8 MB) but its glob `bili.log.old*` misses `bili.log`, silently
-    # dropping every session whose data lives mostly in the current file.
-    log_path = (
-        max(containing, key=lambda p: (len(log_rotation_family(p)), p.stat().st_size))
-        if containing
-        else None
-    )
+    # The session's history can be SPLIT across the files that name it: the
+    # rotator moves a finished log into `bili.log.archive/<stamp>/bili.log`,
+    # and that directory's own `bili.log*` glob matches only itself, so no
+    # single member's rotation family reaches the other. Picking one member
+    # (the old `max(family_len, st_size)` heuristic) dropped the other's
+    # samples outright — measured 2026-11-15: the 10.7 MB archive beat the
+    # 10.0 MB live log on size and three sessions under-reported folds
+    # (1 vs 4, 17 vs 22, 7 vs 8). Parse the UNION instead; `log_path` keeps
+    # naming the newest member for reporting.
+    containing = list(dict.fromkeys(containing))
+    log_path = max(containing, key=lambda p: (p.stat().st_mtime, p.name)) if containing else None
 
     switches = (
         st.get("modelSwitches", 0)
@@ -467,6 +494,13 @@ def run_for_sid(sid: str) -> dict:
         "context_now": d.get("lastInputTokens", st.get("lastInputTokens", 0)),
         "cum_input": d.get("inputTokens", st.get("inputTokens", 0)),
         "cached_input": d.get("cachedTokens", st.get("cachedTokens", 0)),
+        # The dashboard's own counter, kept under its own key. `saved` below is
+        # the LOG-derived figure (sum of per-fold savings), which is the one
+        # every other row in this table is comparable against. Measured
+        # 2026-11-15: the two disagree by 4.4x corpus-wide (16.2M dashboard vs
+        # 3.7M folds) and a single session 463,447 vs 335,348, so mixing them
+        # under one label made cross-session tallies drift.
+        "saved_dashboard": d.get("tokensSaved", st.get("tokensSaved", 0)),
         "saved": d.get("tokensSaved", st.get("tokensSaved", 0)),
         "hit_pct": d.get("cacheHitPct", st.get("cacheHitPct", 0)),
         "blocks": d.get("blocks", st.get("blocks", 0)),
@@ -492,6 +526,7 @@ def run_for_sid(sid: str) -> dict:
         "tier_bars": {},
         "tier_blocked": {},
         "log": str(log_path) if log_path else None,
+        "logs": [str(p) for p in containing],
         "report": str(report) if report else None,
         "source": "dashboard",
     }
@@ -501,7 +536,7 @@ def run_for_sid(sid: str) -> dict:
     # prefixed id from the dashboard meta or the log index would find no
     # bucket and silently skip the whole log merge (nudges/folds/etc. stay
     # unset and the row renders '-').
-    a = _session_analysis(log_path, bare)
+    a = _session_analysis(containing or log_path, bare)
     if a is not None:
         if report:
             parse_report(report)
@@ -567,7 +602,9 @@ def run_for_sid(sid: str) -> dict:
                 "context_now_src": ("log" if a.usages else row.get("context_now_src", "")),
                 "model": row.get("model")
                 or (last_nudge.model if last_nudge else row.get("model", "")),
-                "saved": row.get("saved") or sum(f.saved_tok for f in a.folds),
+                "saved": sum(f.saved_tok for f in a.folds)
+                or row.get("saved")
+                or row.get("saved_dashboard", 0),
                 # Average shrink percentage from [acp-compress-obs] lines.
                 # Rounded HERE at the row build — an unrounded float used to
                 # hit the dashboard's `…` truncator and get cut mid-digit

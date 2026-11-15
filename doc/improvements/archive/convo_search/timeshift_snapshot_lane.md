@@ -146,9 +146,19 @@ Union over all snapshots and live on `(session_id, block_id)` is 1,587; the
 11 snapshot-only blocks are **already in the corpus** (bili part_id is
 `{sid}#{bid}`). The corpus holds 1,583 bili rows in total
 (`agent='bili'`, `part_type='compression-summary'`). Conclusion: the live-only
-bili path (`_bili_index_path()`, harvest_conversations.py:1278) already
+bili path (`_bili_index_path()`, helpers/maintenance/harvest_conversations.py:1383;
+public accessor `bili_index_path()`) already
 covers every block that exists in any snapshot — adding a bili snapshot
 lane would be duplicate work.
+
+**Storage-model update (2026-11-15, billion-context 0.1.214).** The proxy now
+persists sessions to `sessions/index.db` ONLY — the legacy JSON envelope is no
+longer written — so that file is the proxy's **primary** store and the sole
+durable copy, not the derived artefact this section assumed. The "no snapshot
+lane" conclusion still stands for *blocks* (the corpus covers them), but the raw
+proxy messages exist only in `index.db`, so the recovery copy
+`db-backup/bili_index_backup.db.zst` now covers them. See
+`doc/improvements/archive/convo_search/bili_convo_lane.md` §15.
 
 ### 2.7 Read-only-open crash on the live opencode db
 

@@ -57,7 +57,22 @@ printf 'growth      : %s\n' "$(grep -hoE 'growth=-?[0-9]+/[0-9]+' "$L" | tail -1
 
 echo
 echo "=== injection/fold ledger, last 8 (whole family)"
-grep -hE "nudge INJECT|acp-compress-obs" "$L" "$OLD" 2>/dev/null | tail -8 | cut -c1-210
+# The family is NOT just live + `.old`: the proxy rotates a finished log into
+# `bili.log.archive/<stamp>/bili.log`, a DIRECTORY, so a two-file grep showed
+# an empty ledger while the archive held the last 33 folds (measured
+# 2026-11-15). bili_logpath owns discovery; ask it for every member.
+FAM_FILES="$("$PY" -c 'import sys; sys.path.insert(0, sys.argv[1]);
+from pathlib import Path
+from helpers.analytics.bili_logpath import discover_log
+from helpers.analytics.bili_analytics import log_rotation_family
+print("\n".join(str(p) for p in log_rotation_family(Path(discover_log()))))' "$REPO_ROOT" 2>/dev/null || true)"
+if [ -n "$FAM_FILES" ]; then
+    # shellcheck disable=SC2086  # newline-separated paths, deliberately split
+    grep -hE "nudge INJECT|acp-compress-obs" $FAM_FILES 2>/dev/null |
+        sort | tail -8 | cut -c1-210
+else
+    grep -hE "nudge INJECT|acp-compress-obs" "$L" "$OLD" 2>/dev/null | tail -8 | cut -c1-210
+fi
 
 echo
 echo "=== per-session live state (live log only)"

@@ -1063,6 +1063,31 @@ Open items below keep their revisit triggers inline; executed work is compressed
   guards); warm `--check` 31s -> 5.5s. Profile attribution corrected: the
   wall was the event-table GROUP BY on the snapshot mounts, not the v2
   session query. Entry closed.
+- **bili proxy storage default flipped to pure SQLite (0.1.214) — FIXED
+  2026-11-15** (upgrade notice: sessions now persist to `index.db` ONLY,
+  the legacy JSON envelope is no longer written, and `index.db` is the sole
+  durable copy): the repo's convo-fresh lane read `index.db` all along, so
+  nothing broke — but three things were stale. (1) The lane's own rationale
+  still said `index.db` was a derived shadow artefact, so a `lost` index read
+  as recoverable; it is now the PRIMARY store and its loss is real data loss
+  (`helpers/maintenance/harvest_conversations.py` — `_bili_root()` docstring,
+  new public `bili_index_path()`, `lost` note names the recovery copy,
+  corrupt store is REPORTED not raised). (2) NOTHING backed up `index.db`
+  (~804 MB live, namespaces dsh 102 / opencode 51 / proxy 19, 154,037
+  messages) and `db_maint`'s sidecar estate is repo-anchored, so the raw
+  proxy messages had no recovery path — `DBMaintainer._backup_bili_index()`
+  now writes `db-backup/bili_index_backup.db.zst` from a READ-ONLY source
+  (never `_sqlite_zstd_backup`, which opens its source read-write).
+  (3) `db-backup/` never covered the raw harness stores either
+  (`~/.local/share/opencode/opencode.db`, `~/.dsh/sessions`,
+  `~/.prime/agent/sessions`, `~/.zcode/cli/rollout`) — only the repo-side
+  harvested corpus tar (`convo_corpus_backup.tar.zst`) is backed up; that
+  corpus keeps compression summaries, not the raw proxy messages. OPEN for
+  the operator: the proxy's storage remedy (`storage.jsonWriter=on` or
+  `storage.unified=full`) is not set on this host — `index.db` stays the only
+  copy, and the `bili` CLI (`ls`/`rm`/`archive`/`restore`/`gc`) requires the
+  unified store to be enabled. Docs: bili_convo_lane.md §15,
+  timeshift_snapshot_lane.md §2.6, procedures/maintenance.md restore row.
 - **bili tier_watch `log_age` negative — verdict-clock tz mismatch — FIXED
   2026-10-30** (helpers/analytics/bili_tier_watch.py:616-627): `age`
   stamped `tzinfo=UTC` onto the plugin verdict-clock ts, but `vts` is

@@ -13916,8 +13916,11 @@ to doc/improvements/archive/database/duckdb_pure_stack.md.
   refresh gated on actual writes; harvest provenance drift check
   joins `(file_path, part_id)`. Grounded in a corrected attribution
   (operator-informed): the corpus is append-only in practice —
-  255/255 parts aligned, zero drops (bili compression is reversible
-  at the log/backing-db layer); the 694 MB dead added by ONE
+  255/255 parts aligned, zero drops (bili compression was reversible at
+  the log/backing-db layer in the shadow era; storage-model update
+  2026-11-15 — pure-SQLite index.db is the sole durable copy, so that
+  reversibility now rides db_maint's bili backup lane, see
+  bili_convo_lane.md §15); the 694 MB dead added by ONE
   incremental refresh is stable residue, and a no-op run post-S4
   measures ZERO growth. Migration swap: 1.90→1.266 GB, 197,692 rows,
   content_hash fully populated, expand round-trip verified. 96

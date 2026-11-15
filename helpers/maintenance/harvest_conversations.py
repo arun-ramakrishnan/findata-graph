@@ -25,7 +25,11 @@ part_id collision:
   searchable ``error`` rows (S2).
 - bili: live billion-context ``sessions/index.db`` compression summaries
   (ALL blocks regardless of `active`; per-session {block: [hash, active]}
-  fingerprint, quiet on match).
+  fingerprint, quiet on match). Since billion-context 0.1.214 the proxy's
+  default storage is PURE SQLITE — sessions are persisted to that file
+  only and the legacy JSON envelope is no longer written — so the lane
+  reads the proxy's PRIMARY store directly, and a missing index means
+  the proxy's history is gone rather than merely re-derivable.
 
 Incremental: per-source watermarks in ``memory/convo_search.duckdb``
 (opencode: max ``time_updated`` per db; files: mtime+size). Immutable
@@ -1382,6 +1386,17 @@ def _bili_index_path() -> Path:
     return Path.home() / ".local" / "share" / "billion-context" / "sessions" / "index.db"
 
 
+def bili_index_path() -> Path:
+    """Public accessor for the proxy's session-store path.
+
+    Single owner of the path so the harvest lane and db_maint's recovery
+    copy cannot drift apart. Since billion-context 0.1.214 this file is the
+    proxy's PRIMARY store (pure-SQLite default), not a derived artefact —
+    see _bili_root() for the storage-model history.
+    """
+    return _bili_index_path()
+
+
 # Harnesses whose session files the bili lane owns outright — i.e. no other
 # harvest lane writes them. 'unknown' is the index-without-a-sessions-table
 # case. A namespace that HAS a lane (opencode, prime-rlm, zcode, dsh) is
@@ -1394,12 +1409,19 @@ def _bili_root() -> Path:
 
     Distinguishes "this machine has no billion-context" (a quiet skip —
     the lane's designed behaviour) from "billion-context is installed but
-    the index is gone" (storage migration or a shadow-store reset, which
-    silently truncates this lane's history). Review 2026-10-17: under
-    billion-context 0.1.197 `storage.unified=shadow` every session write
-    is double-ingested into `sessions/index.db` and digest-reconciled,
-    making that file a derived artefact whose lifecycle is governed by
-    the proxy's migration, not by us. A reset must not read as healthy.
+    the index is gone" (which silently truncates this lane's history).
+
+    Review 2026-11-15 (billion-context 0.1.214): the proxy's default
+    storage became PURE SQLITE — sessions are persisted to
+    `sessions/index.db` ONLY and the legacy JSON envelope is no longer
+    written (the JSON writer is opt-in via `storage.jsonWriter=on`).
+    The 2026-10-17 note below is therefore HISTORY: under
+    `storage.unified=shadow` (0.1.197+) index.db was a derived,
+    double-ingested artefact whose lifecycle the proxy's migration
+    governed. Under the current default it is the PRIMARY store and the
+    sole durable copy of the proxy's sessions, so its loss is real data
+    loss (only a db-backup copy can restore it). The tri-state matters
+    MORE under the new model, not less: 'lost' must never read as healthy.
     """
     return _bili_index_path().parent.parent
 
@@ -1419,13 +1441,16 @@ def _bili_absent_note(state: str, idx: Path) -> str:
     machine). 'lost' is NOT quiet: the proxy is installed, so a missing
     index is a reset or a storage migration, and reporting it as a skip
     would silently truncate this lane's history while the gate stayed
-    green.
+    green. Under the pure-SQLite default (0.1.214+) index.db is the
+    proxy's primary store, so 'lost' means the sessions themselves are
+    gone — the message points at the recovery copy.
     """
     if state == "absent":
         return "bili: SKIP missing index.db (no billion-context on this machine)"
     return (
         f"bili: LOST index.db — billion-context present at {_bili_root()} but "
-        f"{idx} is gone (shadow-store reset or storage migration); "
+        f"{idx} is gone (pure-SQLite default: this file IS the proxy's primary "
+        f"store; recovery copy = db-backup/bili_index_backup.db.zst); "
         f"this lane's history is NOT harvested"
     )
 
@@ -1496,16 +1521,30 @@ def _harvest_bili(
 
     Every block is indexed regardless of `active` — manual compacts
     deactivate blocks without replacement and the inactive set holds
-    unique topics (trial 4/10 ACTIVE-only vs 9/10 ALL). Missing store is a
-    quiet skip (source absent, not drift), so machines without the proxy
-    stay green.
+    unique topics (trial 4/10 ACTIVE-only vs 9/10 ALL). A missing store is
+    not a blanket quiet skip: 'absent' (no billion-context installed) stays
+    quiet, but 'lost' (proxy present, index.db gone) reports LOST — under
+    the pure-SQLite default that file is the sessions' only durable copy
+    (see _bili_absent_note / _bili_drift).
+
+    The store is the proxy's PRIMARY artifact under the pure-SQLite
+    default (0.1.214+), so it is opened READ-ONLY (never a write lock on
+    a store the live proxy owns) and an unreadable file is reported as
+    unreadable rather than raised — the gate must stay a report, not a
+    crash, when the proxy is mid-restart.
     """
     idx = _bili_index_path()
     state = _bili_index_state()
     if state != "ready":
         return _bili_absent_note(state, idx)
     stats, total = [], 0
-    con = connect(idx, read_only=True)
+    try:
+        con = connect(idx, read_only=True)
+    except sqlite3.Error as exc:
+        return (
+            f"bili: UNREADABLE index.db ({type(exc).__name__}: {exc}); "
+            f"this lane's history is NOT harvested"
+        )
     try:
         sessions = sorted(r[0] for r in con.execute("SELECT DISTINCT session_id FROM blocks"))
         for sid in sessions:
@@ -1530,51 +1569,67 @@ def _harvest_bili(
                 # a re-harvest overwrites its own rows in place.
                 if ns in _BILI_OWNED_HARNESSES:
                     writer.fresh.add((ns, sid))
-            rows = []
-            for bid, payload, created, tier, act in con.execute(
-                "SELECT block_id, payload_json, created_at, tier, active"
-                " FROM blocks WHERE session_id = ?",
-                [sid],
-            ):
-                try:
-                    d = jsonio.loads(payload)
-                except jsonio.JSONDecodeError, TypeError:
-                    continue
-                topic = d.get("topic") or ""
-                text = (topic + "\n" + d.get("summary", "")).strip()
-                if not text:
-                    continue
-                rows.append(
-                    _row(
-                        f"{sid}#{bid}",  # session-scoped: bare block ids
-                        bid,  # collide across sessions on the
-                        sid,  # (harness, part_id) primary key
-                        _ms(created),
-                        "assistant",
-                        "bili",
-                        "",
-                        "compression-summary",
-                        text,
-                        {
-                            "tier": tier,
-                            "active": bool(act),
-                            "topic": topic,
-                            "namespace": ns,
-                            "summary_hash": cur["b"].get(bid, [None])[0],
-                            "created_at": created,
-                        },
-                        f"bili-index/{ns}",
-                    )
-                )
+            rows = _bili_rows_for_session(con, sid, ns, cur)
             writer.add(ns, rows)
             store.register(ns, rows)
             store.set_watermark(key, json.dumps(cur, sort_keys=True))
             total += len(rows)
             stats.append(f"bili:{sid[:13]} ({ns}): {len(rows)} parts")
             _tally(tally, "bili", "parts", f"{sid[:13]} ({ns})", len(rows))
+    except sqlite3.Error as exc:
+        # A corrupt or truncated primary store must be REPORTED, never
+        # raised: the gate is a report, and a crash here would look like a
+        # broken repo instead of a damaged proxy store.
+        return (
+            f"bili: UNREADABLE index.db ({type(exc).__name__}: {exc}); "
+            f"this lane's history is NOT harvested"
+        )
     finally:
         con.close()
     return "\n".join(stats) + f"\nbili total new: {total}"
+
+
+def _bili_rows_for_session(con, sid: str, ns: str, cur: dict) -> list:
+    """Compose harvest rows for one bili session's blocks. Malformed
+    payloads and empty summaries are skipped (a report lane, not a
+    crash); part ids are session-scoped (`sid#bid`) so bare block ids
+    never collide across sessions on the (harness, part_id) key."""
+    rows = []
+    for bid, payload, created, tier, act in con.execute(
+        "SELECT block_id, payload_json, created_at, tier, active FROM blocks WHERE session_id = ?",
+        [sid],
+    ):
+        try:
+            d = jsonio.loads(payload)
+        except jsonio.JSONDecodeError, TypeError:
+            continue
+        topic = d.get("topic") or ""
+        text = (topic + "\n" + d.get("summary", "")).strip()
+        if not text:
+            continue
+        rows.append(
+            _row(
+                f"{sid}#{bid}",
+                bid,
+                sid,
+                _ms(created),
+                "assistant",
+                "bili",
+                "",
+                "compression-summary",
+                text,
+                {
+                    "tier": tier,
+                    "active": bool(act),
+                    "topic": topic,
+                    "namespace": ns,
+                    "summary_hash": cur["b"].get(bid, [None])[0],
+                    "created_at": created,
+                },
+                f"bili-index/{ns}",
+            )
+        )
+    return rows
 
 
 def _bili_drift(store: Store) -> list[str]:
@@ -1582,7 +1637,11 @@ def _bili_drift(store: Store) -> list[str]:
 
     Silent only when billion-context is genuinely absent. A present root
     with a missing index reports drift (review 2026-10-17): the quiet-skip
-    path used to cover both cases, so a shadow-store reset read as healthy.
+    path used to cover both cases, so a proxy-store reset read as healthy.
+    Under the pure-SQLite default (0.1.214+) that reset is unrecoverable
+    from the proxy itself — index.db is its primary store. A watermark-
+    tracked session that no longer appears in the live index is drift too
+    ('vanished'): that disappearance IS the loss the quiet-skip era hid.
     """
     idx = _bili_index_path()
     state = _bili_index_state()
@@ -1601,6 +1660,16 @@ def _bili_drift(store: Store) -> list[str]:
                 wm = jsonio.loads(wm_raw) if wm_raw else None
                 if wm != _bili_fingerprint(con, sid):
                     drift.append(f"changed bili:{sid[:13]}")
+            live = set(sessions)
+            for key in store._wm:
+                if not key.startswith("bili:"):
+                    continue
+                if key[len("bili:") :] not in live:
+                    drift.append(
+                        f"vanished bili:{key[5:18]} — watermark tracked, session "
+                        f"absent from index.db (recovery copy: "
+                        f"db-backup/bili_index_backup.db.zst)"
+                    )
         finally:
             con.close()
     except sqlite3.DatabaseError as exc:
@@ -2222,20 +2291,41 @@ def _coverage(store: Store) -> list[str]:
         # nothing" indistinguishable from "the lanes never ran" — the exact
         # confusion _coverage exists to prevent.
         lines.append(f"snapshots: mount absent ({SNAP_ROOT}) — snapshot lanes idle")
+    lines.extend(_bili_coverage(store))
+    return lines
+
+
+def _bili_coverage(store: Store) -> list[str]:
+    """Bili lane's --check coverage lines: tracked-session/block counts from
+    the watermarks, plus the vanished-session cross-check against the live
+    index (tracked > live means sessions the proxy lost — see _bili_drift)."""
     idx = _bili_index_path()
     if _bili_index_state() != "ready":
-        lines.append(_bili_absent_note(_bili_index_state(), idx))
-    else:
-        n_ses, n_blocks = 0, 0
-        for key, raw in store._wm.items():
-            if not key.startswith("bili:"):
-                continue
-            try:
-                n_ses += 1
-                n_blocks += len(jsonio.loads(raw).get("b", {}))
-            except ValueError, AttributeError:
-                continue
-        lines.append(f"bili: {n_ses} sessions tracked ({n_blocks} blocks fingerprinted)")
+        return [_bili_absent_note(_bili_index_state(), idx)]
+    lines = []
+    n_ses, n_blocks = 0, 0
+    for key, raw in store._wm.items():
+        if not key.startswith("bili:"):
+            continue
+        try:
+            n_ses += 1
+            n_blocks += len(jsonio.loads(raw).get("b", {}))
+        except ValueError, AttributeError:
+            continue
+    lines.append(f"bili: {n_ses} sessions tracked ({n_blocks} blocks fingerprinted)")
+    try:
+        con = connect(idx, read_only=True)
+        try:
+            n_live = con.execute("SELECT count(DISTINCT session_id) FROM blocks").fetchone()[0]
+        finally:
+            con.close()
+        if n_live < n_ses:
+            lines.append(
+                f"bili: {n_ses - n_live} tracked session(s) ABSENT from "
+                f"index.db ({n_live} live) — vanished sessions, see --check"
+            )
+    except sqlite3.DatabaseError as exc:
+        lines.append(f"bili: live-count failed ({type(exc).__name__}: {exc})")
     return lines
 
 

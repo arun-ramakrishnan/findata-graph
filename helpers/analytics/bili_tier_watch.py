@@ -69,6 +69,7 @@ if str(_REPO) not in sys.path:
 
 from helpers.core import jsonio  # noqa: E402  (orjson dumps cutover S1)
 from helpers.analytics import bili_logpath, bili_sessions, bili_tier_nudge as btn  # noqa: E402
+from helpers.analytics.bili_analytics import log_rotation_family  # noqa: E402
 
 DEFAULT_DB = Path.home() / ".local/share/billion-context/sessions/index.db"
 DEFAULT_CONFIG = Path.home() / ".config/billion-context/billion-context.json"
@@ -223,12 +224,33 @@ class Tail:
         return data.decode("utf-8", "replace")
 
     def seed(self) -> str:
-        """The existing tail of the family: rotated file first, then live."""
+        """The existing history: every rotated member in full, then the live tail.
+
+        Rotated members are FINITE (the rotator only moves a closed log), so
+        they are read whole — applying `seed_bytes` to them as well silently
+        truncated the archive, which is the very thing the seed exists to
+        cover (measured 2026-11-15: 8 MB of a 10.7 MB archive dropped 3 folds
+        and 8 absorbs). Only the live file, which grows without bound, is
+        tail-limited.
+        """
         parts = []
-        if self.old is not None and self.old.is_file():
-            parts.append(self._tail(self.old))
+        seen: set[Path] = set()
+        for p in log_rotation_family(self.log):
+            if p == self.log:
+                continue
+            seen.add(p)
+            parts.append(self._read_whole(p))
+        if self.old is not None and self.old.is_file() and self.old not in seen:
+            parts.append(self._read_whole(self.old))
         parts.append(self._tail(self.log))
         return "".join(parts)
+
+    @staticmethod
+    def _read_whole(path: Path) -> str:
+        try:
+            return path.read_bytes().decode("utf-8", "replace")
+        except OSError:
+            return ""
 
     def poll(self) -> str:
         """Bytes appended since the last poll; re-seeds after a rotation."""

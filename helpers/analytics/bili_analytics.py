@@ -530,11 +530,24 @@ def log_rotation_family(path: Path) -> list[Path]:
 
     Order is oldest-first by mtime because callers index `[-1]` for the
     newest record — parsing newest-first would make the OLDEST win.
+
+    A rotated sibling may be a FILE (`.old`, `.1`, `.2.gz`) or a DIRECTORY
+    (`bili.log.archive/<stamp>/bili.log`) — the proxy switched to the
+    directory layout, and a plain `glob + is_file()` silently dropped the
+    whole archive (measured 2026-11-15: 10.7 MB, 33 folds, 15 absorbs and
+    28 T1 fires invisible, so the two readers under-reported against a
+    union that sums to exactly the per-file parts). Directory members are
+    therefore descended one level and globbed with the same name rule.
     """
     parent = path.parent
     if not parent.is_dir():
         return [path] if path.is_file() else []
-    fam = [p for p in parent.glob(path.name + "*") if p.is_file()]
+    fam: list[Path] = []
+    for p in parent.glob(path.name + "*"):
+        if p.is_file():
+            fam.append(p)
+        elif p.is_dir():
+            fam.extend(q for q in p.rglob(path.name + "*") if q.is_file())
     return sorted(fam, key=lambda p: (p.stat().st_mtime, p.name))
 
 
