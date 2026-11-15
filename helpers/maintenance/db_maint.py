@@ -154,6 +154,10 @@ SIDECAR_DUCKDB: tuple[tuple[str, bool], ...] = (
         "memory/embed_store.duckdb",
         False,
     ),  # embed-store fold S0: pooled content-hash cache; CHECKPOINT rides maint
+    (
+        "memory/note_search.duckdb",
+        False,
+    ),  # note_search carve-out S1: native FTS sidecar; CHECKPOINT rides maint
     ("memory/graph.xdist-shared.duckdb", True),
     ("memory/data/agent_traces.duckdb", True),
     ("memory/data/sources.duckdb", True),
@@ -814,6 +818,7 @@ class DBMaintainer:
             "memory_search.duckdb",
             "script_search.duckdb",
             "convo_search.duckdb",
+            "note_search.duckdb",
             "data/sources.duckdb",
             "data/agent_traces.duckdb",
             "data/model_usage.duckdb",

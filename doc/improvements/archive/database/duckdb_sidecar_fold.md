@@ -306,6 +306,14 @@ operator go; archive the proposal; record in completed.md.
 - Targeted suites green; full qa once on operator go.
 - md-lint + search-fresh clean.
 
+> **Follow-on (2026-11-16): the note_search carve-out has landed.** The
+> phase-1 successor (`doc/improvements/proposals/database/note_search_carve_out.md`)
+> completed S0 (embed-cache fold) → S4 (ops wiring). The note FTS5 shadow
+> in `research.db` is now a documented rollback artifact (legacy rebuild
+> path kept green), and the live note index is the DuckDB sidecar
+> `memory/note_search.duckdb`. The residual `fts5` grep allowance from the
+> line above is now scoped to that rollback path only.
+
 ## 6. Sizing (re-baseline from reentry §6.4)
 
 S1 3–4 d (pilot + test rework), S2–S4 ~1.5–2 d each (pattern reuse),

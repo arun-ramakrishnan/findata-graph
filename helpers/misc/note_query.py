@@ -7,10 +7,13 @@ a shell — useless for an agent session and for scripting. This module is
 the canonical query surface; the TUI lane delegates here (TUI = the
 interactive front door, not the implementation).
 
-Two legs over the same rows in `memory/research.db`:
+Two legs over the same rows in the note_search store (default:
+`memory/note_search.duckdb` — the S1 sidecar; the legacy `research.db`
+FTS5 host is reachable via `--db memory/research.db`):
 
-- **bm25**: FTS5 `note_search` (porter tokens), `bm25(note_search)`
-  ascending. Lexical precision — exact terms, tickers, metric names.
+- **bm25**: native DuckDB FTS `match_bm25` (sidecar) or FTS5
+  `note_search` (legacy; porter tokens). Lexical precision — exact
+  terms, tickers, metric names.
 - **cosine**: the note semantic matrix (`memory/embed_matrix.f32` via
   `EmbedMatrixStore`) searched with `top_k`. Semantic recall — a query
   phrased differently from the note still lands.
@@ -36,12 +39,49 @@ if str(_REPO) not in sys.path:
     sys.path.insert(0, str(_REPO))
 
 REPO = _REPO
-DEFAULT_DB = REPO / "memory/research.db"
+DEFAULT_DB = REPO / "memory/note_search.duckdb"
 HEAD = 400
 SEMANTIC_CANDIDATES = 200
 
 
 Key = tuple[str, str]
+
+
+def open_note_index(db_path):
+    """Open the note_search store for queries; returns (conn, engine).
+
+    Engine is ``"duckdb"`` for the S1 sidecar (``.duckdb``) and
+    ``"sqlite"`` for the legacy research.db FTS5 host. Read-only in both
+    cases. The native FTS extension is loaded explicitly — it is an
+    extension and fresh reader connections must load it (the build
+    connection's PRAGMA creates it implicitly; readers don't).
+    """
+    if str(db_path).endswith(".duckdb"):
+        import duckdb
+
+        from helpers.core.duckdb_shared import memory_cap_config
+
+        con = duckdb.connect(str(db_path), read_only=True, **memory_cap_config())
+        try:
+            con.execute("INSTALL fts")
+        except duckdb.Error:
+            pass
+        try:
+            con.execute("LOAD fts")
+        except duckdb.Error:
+            pass
+        return con, "duckdb"
+    from helpers.core.db import connect as db_connect
+
+    return db_connect(Path(db_path), read_only=True, wal=False), "sqlite"
+
+
+def _is_duckdb(conn) -> bool:
+    try:
+        import duckdb
+    except ImportError:
+        return False
+    return isinstance(conn, duckdb.DuckDBPyConnection)
 
 
 def fts_safe(query: str) -> str:
@@ -88,12 +128,129 @@ def note_snippet(content: str, query: str) -> str:
     return " ".join(words[start : start + 32])
 
 
+def note_snippet_highlighted(content: str, query: str) -> str:
+    """A 32-word window centred on the first query token, with matching
+    tokens wrapped in <mark>…</mark>.
+
+    DuckDB native FTS has no snippet()/highlight(); this restores the
+    legacy FTS5 snippet() contract /api/search returns (marks + ellipsized
+    edges). note_snippet stays plain for CLI/TUI surfaces.
+    """
+    tokens = re.findall(r"[\w']+", query.casefold())
+    if not tokens or not content:
+        return ""
+    words = content.split()
+    lowered = [w.casefold() for w in words]
+    position = next(
+        (i for token in tokens for i, word in enumerate(lowered) if token in word),
+        0,
+    )
+    start = max(0, position - 8)
+    window = words[start : start + 32]
+    out = " ".join(
+        f"<mark>{w}</mark>" if any(t in w.casefold() for t in tokens) else w for w in window
+    )
+    if start > 0:
+        out = "… " + out
+    if start + 32 < len(words):
+        out = out + " …"
+    return out
+
+
+def search_notes_duckdb(
+    conn,
+    q: str,
+    limit: int = 20,
+    offset: int = 0,
+    *,
+    doc_type: str | None = None,
+) -> tuple[list[tuple], int]:
+    """DuckDB note_search sidecar candidate generation for /api/search.
+
+    Returns (rows, total_count); rows carry the legacy FTS5 contract
+    (doc_type, file_path, title, sector, embedding, score, highlighted
+    snippet, section_title, anchor) so app.py's shared fusion builders run
+    unchanged on both engines.
+
+    Policy mirrors the legacy AND-first/OR-fill (deep-probe lesson,
+    2026-09-06): the quoted-token AND expression is served first, the OR
+    expression fills the remainder, deduped to NOTE level (best-scoring
+    section per file_path — rows arrive score-desc, so first occurrence
+    wins). total_count always counts the OR space, like the legacy route.
+    """
+    from helpers.maintenance.rebuild_doc_search import fts_match_expr
+
+    or_expr = fts_match_expr(q)
+    if not or_expr:
+        return [], 0
+    and_expr = or_expr.replace(" OR ", " ") if or_expr else ""
+    sc = "fts_main_note_search.match_bm25(id, ?)"
+
+    def _fetch(expr: str) -> list[tuple]:
+        where_parts = [f"{sc} IS NOT NULL"]
+        params: list = [expr, expr]  # sc appears twice: SELECT score + WHERE
+        if doc_type:
+            where_parts.append("doc_type = ?")
+            params.append(doc_type)
+        rows = conn.execute(
+            "SELECT doc_type, file_path, title, sector, embedding, "
+            f"{sc} AS score, content, section_title, anchor "  # noqa: S608  # sc is a fixed literal
+            f"FROM note_search WHERE {' AND '.join(where_parts)} "
+            "ORDER BY score DESC LIMIT 1024",
+            params,
+        ).fetchall()
+        best: dict[str, tuple] = {}
+        for r in rows:
+            best.setdefault(r[1], r)
+        return list(best.values())
+
+    window = limit + offset  # both legs paginate notes in Python
+    rows: list[tuple] = list(_fetch(and_expr)) if and_expr else []
+    if len(rows) < window and or_expr != and_expr:
+        seen = {r[1] for r in rows}
+        for r in _fetch(or_expr):
+            if r[1] not in seen:
+                rows.append(r)
+                seen.add(r[1])
+            if len(rows) >= window:
+                break
+
+    where_parts = [f"{sc} IS NOT NULL"]
+    params: list = [or_expr]
+    if doc_type:
+        where_parts.append("doc_type = ?")
+        params.append(doc_type)
+    total_count = conn.execute(
+        f"SELECT COUNT(DISTINCT file_path) FROM note_search WHERE {' AND '.join(where_parts)}",
+        params,
+    ).fetchone()[0]
+
+    # Replace raw content (index 6) with the <mark>-highlighted snippet —
+    # the legacy snippet() contract /api/search returns.
+    contract = [
+        (r[0], r[1], r[2], r[3], r[4], r[5], note_snippet_highlighted(r[6], q), r[7], r[8])
+        for r in rows
+    ]
+    return contract, total_count
+
+
 def bm25_hits(conn, query: str, limit: int) -> list[dict]:
-    """Token-safe FTS5 bm25 (lower-is-better rank → negate to score).
+    """Token-safe bm25 hits; engine-routed.
+
+    SQLite: FTS5 ``bm25(note_search)`` (lower-is-better rank → negate).
+    DuckDB: native ``match_bm25`` macro (higher-is-better score; the
+    ``IS NOT NULL`` filter is mandatory — non-matching rows carry NULL
+    scores and would leak into the tail otherwise).
 
     Returns full dicts — the bm25 leg owns every prose field, so the
     fusion has something to show even when the semantic leg adds a hit.
     """
+    if _is_duckdb(conn):
+        return _bm25_hits_duckdb(conn, query, limit)
+    return _bm25_hits_sqlite(conn, query, limit)
+
+
+def _bm25_hits_sqlite(conn, query: str, limit: int) -> list[dict]:
     rows = conn.execute(
         "SELECT file_path, anchor, title, section_title, sector, doc_type, "
         "substr(content, 1, 4000) AS content, bm25(note_search) "
@@ -116,6 +273,35 @@ def bm25_hits(conn, query: str, limit: int) -> list[dict]:
     ]
 
 
+def _bm25_hits_duckdb(conn, query: str, limit: int) -> list[dict]:
+    q = " ".join(f'"{w.replace(chr(34), chr(34) * 2)}"' for w in query.split())
+    sc = "fts_main_note_search.match_bm25(id, ?)"
+    rows = conn.execute(
+        "SELECT file_path, anchor, title, section_title, sector, doc_type, "
+        "substr(content, 1, 4000), "
+        + sc
+        + " FROM note_search WHERE "
+        + sc
+        + " IS NOT NULL ORDER BY "
+        + sc
+        + " DESC LIMIT ?",
+        [q, q, q, limit],
+    ).fetchall()
+    return [
+        {
+            "path": str(r[0]).removeprefix("/"),
+            "line": _anchor_line(r[1]),
+            "title": r[2] or "",
+            "section": r[3] or "",
+            "sector": r[4] or "",
+            "doc_type": r[5] or "",
+            "head": note_snippet(r[6] or "", query),
+            "score": float(r[7] or 0.0),
+        }
+        for r in rows
+    ]
+
+
 @lru_cache(maxsize=4)
 def load_notes_matrix(db_path: str):
     """Staleness-gated note semantic matrix (cached; 25 MB, do not reload).
@@ -126,22 +312,49 @@ def load_notes_matrix(db_path: str):
     """
     import numpy as np  # noqa: F401  (import guard: numpy missing = bm25 only)
 
-    from helpers.core.db import connect as db_connect
     from helpers.core.embed_matrix import EmbedMatrixStore
-    from helpers.maintenance.rebuild_note_search import stored_embed_dims
 
-    conn = db_connect(Path(db_path), read_only=True, wal=False)
-    try:
-        row_count = conn.execute("SELECT COUNT(*) FROM note_search").fetchone()[0]
-        dims = stored_embed_dims(conn)
-    finally:
-        conn.close()
+    row_count, dims = _index_count_dims(Path(db_path))
     matrix = EmbedMatrixStore().load()
     if int(matrix.meta["count"]) != row_count:
         raise RuntimeError("matrix stale — run rebuild-note-search")
     if dims is not None and int(dims) != int(matrix.meta["dims"]):
         raise RuntimeError("matrix dimensions stale — run rebuild-note-search")
     return matrix
+
+
+def _index_count_dims(db_path: Path) -> tuple[int, int | None]:
+    """(row_count, embed_dims) from the index store, engine-agnostic.
+
+    SQLite: COUNT + stored_embed_dims (first non-null embedding). DuckDB
+    sidecar: the info table's ``row_count``/``embed_dims`` stamps (written
+    by the rebuild; no need to decode a blob).
+    """
+    if str(db_path).endswith(".duckdb"):
+        import duckdb
+
+        from helpers.core.duckdb_shared import memory_cap_config
+
+        con = duckdb.connect(str(db_path), read_only=True, **memory_cap_config())
+        try:
+            row_count = con.execute("SELECT COUNT(*) FROM note_search").fetchone()[0]
+            dims_row = con.execute(
+                "SELECT value FROM note_search_info WHERE key = 'embed_dims'"
+            ).fetchone()
+            dims = int(dims_row[0]) if dims_row and dims_row[0] else None
+        finally:
+            con.close()
+        return row_count, dims
+    from helpers.core.db import connect as db_connect
+    from helpers.maintenance.rebuild_note_search import stored_embed_dims
+
+    conn = db_connect(db_path, read_only=True, wal=False)
+    try:
+        row_count = conn.execute("SELECT COUNT(*) FROM note_search").fetchone()[0]
+        dims = stored_embed_dims(conn)
+    finally:
+        conn.close()
+    return row_count, dims
 
 
 def note_query_embedder(model_label: str | None = None):
@@ -157,10 +370,27 @@ def note_query_embedder(model_label: str | None = None):
 
 
 def _stored_note_model(db_path: Path) -> str | None:
-    """db_meta.note_embed_model — the real index-side model label (the
-    matrix meta stamps a generic 'note_search'; the SQL home carries the
-    model the rows were built with). None when unstamped (dims-only
+    """Index-side model label, engine-agnostic.
+
+    SQLite: ``db_meta.note_embed_model``. DuckDB sidecar: the info
+    table's ``embed_model`` stamp. None when unstamped (dims-only
     back-compat, not a reject)."""
+    if str(db_path).endswith(".duckdb"):
+        import duckdb
+
+        from helpers.core.duckdb_shared import memory_cap_config
+
+        try:
+            con = duckdb.connect(str(db_path), read_only=True, **memory_cap_config())
+            try:
+                row = con.execute(
+                    "SELECT value FROM note_search_info WHERE key = 'embed_model'"
+                ).fetchone()
+            finally:
+                con.close()
+        except Exception:  # noqa: BLE001  # missing table / locked db -> None
+            return None
+        return row[0] if row else None
     try:
         from helpers.core.db import connect as db_connect
 
@@ -282,9 +512,7 @@ def search(
     per_note: bool = False,
 ) -> dict:
     """Hybrid (default) or bm25-only note search; returns hits + mode."""
-    from helpers.core.db import connect as db_connect
-
-    conn = db_connect(db_path, read_only=True, wal=False)
+    conn, _engine = open_note_index(db_path)
     try:
         pool = max(limit * 4, 20)
         bm = bm25_hits(conn, query, pool)
@@ -354,7 +582,11 @@ def main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     p.add_argument("query", help="free-text query; punctuation is safe")
     p.add_argument("--limit", type=int, default=5, help="max hits (default 5)")
-    p.add_argument("--db", default=str(DEFAULT_DB), help="note_search sqlite path")
+    p.add_argument(
+        "--db",
+        default=str(DEFAULT_DB),
+        help="note_search store path (.duckdb sidecar or legacy research.db)",
+    )
     p.add_argument("--bm25", action="store_true", help="lexical leg only (skip cosine)")
     p.add_argument(
         "--per-note",

@@ -864,10 +864,24 @@ def _is_warm(duckdb_path: Path, db_path: Path | None = None) -> bool:
         return False
 
 
+def _note_sidecar_path(duckdb_path: Path) -> Path | None:
+    """Path of the note-search sidecar, or None when absent.
+
+    S3 (note_search carve-out): the canonical note index now lives in a
+    DuckDB sidecar (``note_search.duckdb``) colocated with the graph
+    cache file (production: both under ``memory/``). Colocation-only —
+    a fallback to the production path would let tmp test caches
+    silently probe the live sidecar. Returns None when absent —
+    callers fall back to the legacy sqlite read path.
+    """
+    cand = duckdb_path.parent / "note_search.duckdb"
+    return cand if cand.is_file() else None
+
+
 def _probe_note_embed_state(
     duckdb_path: Path, db_path: Path | None = None
 ) -> tuple[str | None, str | None]:
-    """Live SQLite-side (note_embed_dims, note_embed_model) probe for _is_warm.
+    """Live (note_embed_dims, note_embed_model) probe for _is_warm.
 
     Dims come from json-parsing the first non-empty note_search embedding
     (stored_embed_dims discipline: unparsable JSON counts as absent).
@@ -876,7 +890,34 @@ def _probe_note_embed_state(
     guessing); when None, tries the .db COLOCATED with the .duckdb first,
     then DB_PATH — same candidate order (and for the same test-isolation
     reason) as the generation check in _is_warm.
+
+    S3 (note_search carve-out): the configured note-search sidecar
+    (``<duckdb-path parent>/note_search.duckdb``) is probed FIRST when it
+    exists — its info table (``note_search_info`` keys ``embed_dims`` /
+    ``embed_model``) is now the canonical home of the stamp. When no
+    sidecar is present (legacy research.db still holding the FTS5 index,
+    tests), the sqlite probe below is the fallback.
     """
+    sidecar = _note_sidecar_path(duckdb_path)
+    if sidecar is not None:
+        try:
+            from helpers.core.duckdb_shared import memory_cap_config
+
+            scon = duckdb.connect(str(sidecar), read_only=True, **memory_cap_config())
+            try:
+                row = scon.execute(
+                    "SELECT key, value FROM note_search_info "
+                    "WHERE key IN ('embed_dims', 'embed_model')"
+                ).fetchall()
+                info = dict(row)
+                dims = info.get("embed_dims")
+                model = info.get("embed_model")
+                if dims is not None or model is not None:
+                    return dims, model
+            finally:
+                scon.close()
+        except Exception:  # noqa: S110  # best-effort; ignore failure (cleanup/optional read)
+            pass
     from helpers.core.db import connect as _db_connect
 
     for cand in (db_path,) if db_path is not None else (duckdb_path.with_suffix(".db"), DB_PATH):
@@ -928,18 +969,44 @@ def _mark_warm(con: duckdb.DuckDBPyConnection, db_path: Path) -> None:
         try:
             _row = _scon.execute("SELECT value FROM db_meta WHERE key='generation'").fetchone()
             gen_val = str(int(_row[0])) if _row and _row[0] is not None else None
-            # sql_capability_unlocks A1: the note-embedding model label lives
-            # in db_meta (note_search rows carry no model column — db_meta is
-            # the only SQL-side home; stamped by rebuild_note_search's apply
-            # path). Stamped here so _is_warm can catch same-dims swaps.
-            _row = _scon.execute(
-                "SELECT value FROM db_meta WHERE key='note_embed_model'"
-            ).fetchone()
-            note_model = _row[0] if _row and _row[0] else None
         finally:
             _scon.close()
     except Exception:
         gen_val = None
+    # sql_capability_unlocks A1: the note-embedding model label lives
+    # in db_meta (note_search rows carry no model column — db_meta is
+    # the only SQL-side home; stamped by rebuild_note_search's apply
+    # path). Stamped here so _is_warm can catch same-dims swaps.
+    # S3 (note_search carve-out): the sidecar info table is now the
+    # canonical home — read IT first when present, db_meta fallback.
+    note_model = None
+    sidecar = _note_sidecar_path(_duckdb_path_of(con))
+    if sidecar is not None:
+        try:
+            from helpers.core.duckdb_shared import memory_cap_config
+
+            _scon = duckdb.connect(str(sidecar), read_only=True, **memory_cap_config())
+            try:
+                _row = _scon.execute(
+                    "SELECT value FROM note_search_info WHERE key='embed_model'"
+                ).fetchone()
+                note_model = _row[0] if _row and _row[0] else None
+            finally:
+                _scon.close()
+        except Exception:  # noqa: S110  # best-effort; ignore failure (cleanup/optional read)
+            pass
+    if note_model is None:
+        try:
+            _scon = _db_connect(str(db_path))
+            try:
+                _row = _scon.execute(
+                    "SELECT value FROM db_meta WHERE key='note_embed_model'"
+                ).fetchone()
+                note_model = _row[0] if _row and _row[0] else None
+            finally:
+                _scon.close()
+        except Exception:  # noqa: S110  # best-effort; ignore failure (cleanup/optional read)
+            pass
     # sql_capability_unlocks A1: stamp the materialised note-embedding dims
     # (len() of one stored vector; empty table -> no stamp) so _is_warm can
     # detect a dims-changing model swap.
@@ -1178,6 +1245,44 @@ def _compute_input_fingerprints(con: duckdb.DuckDBPyConnection) -> dict[str, str
         fps["embeddings"] = f"{int(emb[0])}:{int(emb[1])}"
     except duckdb.Error:
         fps["embeddings"] = "absent"
+    # Note-embedding fingerprint. S3 (note_search carve-out): when the
+    # sidecar (colocated note_search.duckdb) exists, stamp from IT —
+    # count from the note_search table, dims + model from its info table.
+    # Legacy fallback: the fin-attached sqlite FTS5 table + db_meta.
+    sidecar = None
+    try:
+        _src = _fin_sqlite_path(con)
+        if _src:
+            _cand = Path(_src).with_name("note_search.duckdb")
+            if _cand.is_file():
+                sidecar = _cand
+    except Exception:  # noqa: S110  # best-effort; fall back to legacy
+        pass
+    if sidecar is not None:
+        try:
+            from helpers.core.duckdb_shared import memory_cap_config
+
+            _scon = duckdb.connect(str(sidecar), read_only=True, **memory_cap_config())
+            try:
+                n = _scon.execute(
+                    "SELECT COUNT(*) FROM note_search "
+                    "WHERE embedding IS NOT NULL AND embedding != ''"
+                ).fetchone()
+                info = dict(
+                    _scon.execute(
+                        "SELECT key, value FROM note_search_info "
+                        "WHERE key IN ('embed_dims', 'embed_model')"
+                    ).fetchall()
+                )
+            finally:
+                _scon.close()
+            if n is not None:
+                fps["note_embeddings"] = (
+                    f"{int(n[0])}:{info.get('embed_dims', '')}:{info.get('embed_model', '')}"
+                )
+                return fps
+        except Exception:  # noqa: S110, BLE001  # best-effort; fall back to legacy
+            pass
     try:
         n = con.execute(
             "SELECT COUNT(*) FROM fin.note_search WHERE embedding IS NOT NULL AND embedding != ''"
@@ -1883,6 +1988,19 @@ def _fin_sqlite_path(con: duckdb.DuckDBPyConnection) -> str | None:
         return None
 
 
+def _duckdb_path_of(con: duckdb.DuckDBPyConnection) -> Path:
+    """File path of the graph cache backing ``con`` (main database)."""
+    try:
+        row = con.execute(
+            "SELECT path FROM duckdb_databases() WHERE database_name = current_database()"
+        ).fetchone()
+        if row and row[0]:
+            return Path(row[0])
+    except Exception:  # noqa: S110  # best-effort; caller falls back
+        pass
+    return DUCKDB_PATH
+
+
 def _read_fin_embeddings(
     con: duckdb.DuckDBPyConnection, table: str, key_cols: str
 ) -> tuple[list[tuple], int]:
@@ -2061,6 +2179,51 @@ def _materialise_hyper(con: duckdb.DuckDBPyConnection) -> None:
     )
 
 
+def _read_sidecar_note_embeddings(sidecar: Path) -> tuple[list[tuple], int]:
+    """Read ``(file_path, doc_type, title, embedding_blob)`` from the sidecar.
+
+    S3 (note_search carve-out): mirrors ``_read_fin_embeddings``'s
+    ``(rows, dims)`` contract for the note index now living in the
+    DuckDB sidecar. The sidecar stores f32 BLOBs (same codec as the
+    legacy sqlite column), so the blob path applies; returns
+    ``([], 0)`` on any unreadable state — callers fall back to the
+    legacy path or an empty typed table.
+    """
+    from helpers.core.duckdb_shared import memory_cap_config
+    from helpers.core.vec_codec import dims_from_blob, load_vec, pack_f32
+
+    out: list[tuple] = []
+    dims = 0
+    try:
+        scon = duckdb.connect(str(sidecar), read_only=True, **memory_cap_config())
+        try:
+            cur = scon.execute(
+                "SELECT file_path, doc_type, title, embedding FROM note_search "
+                "WHERE embedding IS NOT NULL AND embedding != ''"
+            )
+            for row in cur.fetchall():
+                emb = row[-1]
+                if isinstance(emb, (bytes, bytearray)):
+                    blob, d = bytes(emb), dims_from_blob(emb)
+                else:
+                    vec = load_vec(emb)
+                    if not vec:
+                        continue
+                    blob, d = pack_f32(vec), len(vec)
+                if d == 0:
+                    continue
+                if dims == 0:
+                    dims = d
+                elif d != dims:
+                    continue
+                out.append((*row[:-1], blob))
+        finally:
+            scon.close()
+    except Exception as _exc:  # noqa: S110  # unreadable source -> caller's fallback
+        return [], 0
+    return out, dims
+
+
 def _materialise_note_embeddings(con: duckdb.DuckDBPyConnection) -> int:
     """Project the note_search FTS index's embedding column into DuckDB.
 
@@ -2095,7 +2258,12 @@ def _materialise_note_embeddings(con: duckdb.DuckDBPyConnection) -> int:
 
     dims = 0
     rows: list[tuple[str, str | None, str | None, bytes]] = []
-    if table_exists:
+    # S3 (note_search carve-out): sidecar first when present; the legacy
+    # sqlite FTS5 ATTACH read is the fallback (tests, unmigrated DBs).
+    sidecar = _note_sidecar_path(_duckdb_path_of(con))
+    if sidecar is not None:
+        rows, dims = _read_sidecar_note_embeddings(sidecar)
+    elif table_exists:
         # embedding_blob_migration S3: Python-side read of f32 BLOBs (TEXT
         # tolerated) + arrow projection; the in-SQL CAST cannot parse
         # binary, and this path also skips parsing 140 MB of JSON text
@@ -4486,10 +4654,11 @@ def similar_notes(
     if ref_vec is None:
         return None
     type_clause = ""
-    params: list = [ref_vec, file_path]
+    params: list = [file_path]
     if doc_type is not None:
         type_clause = " AND doc_type = ?"
         params.append(doc_type)
+    ref_lit = _vec_literal(ref_vec, dim)
     # Candidates are path-level: rows are per-section, so GROUP BY
     # file_path + MIN(dist) = the note's best-matching section, one row
     # per note (same single distance pass as a flat scan).
@@ -4499,7 +4668,7 @@ def similar_notes(
           SELECT file_path, title,
                  MIN(array_distance(
                      CAST(emb AS FLOAT[{dim}]),
-                     CAST(? AS FLOAT[{dim}]))) AS dist
+                     CAST({ref_lit} AS FLOAT[{dim}]))) AS dist
           FROM v_note_embeddings
           WHERE file_path != ?{type_clause}
           GROUP BY file_path, title
@@ -4543,6 +4712,7 @@ def notes_like_entity(
     if ref_vec is None:
         return None
     in_ph = ", ".join("?" for _ in doc_types)
+    ref_lit = _vec_literal(ref_vec, dim)
     # Path-level candidates (see similar_notes): best section per note.
     r = con.execute(
         f"""
@@ -4550,7 +4720,7 @@ def notes_like_entity(
           SELECT file_path, title,
                  MIN(array_distance(
                      CAST(emb AS FLOAT[{dim}]),
-                     CAST(? AS FLOAT[{dim}]))) AS dist
+                     CAST({ref_lit} AS FLOAT[{dim}]))) AS dist
           FROM v_note_embeddings
           WHERE file_path != ?
             AND doc_type IN ({in_ph})
@@ -4560,7 +4730,7 @@ def notes_like_entity(
         ORDER BY dist, file_path
         LIMIT {int(k)}
         """,  # noqa: S608  # ?-bound (adjudicated cluster, S13)
-        [ref_vec, ref_path, *doc_types],
+        [ref_path, *doc_types],
     ).fetchall()
     return [(row[0], row[1], row[2]) for row in r]
 
@@ -4674,6 +4844,7 @@ def edition_companies(
     ref_vec = _note_ref_vector(con, ref_path, dim)
     if ref_vec is None:
         return None
+    ref_lit = _vec_literal(ref_vec, dim)
     # Path-level candidates (see similar_notes): best section per note.
     r = con.execute(
         f"""
@@ -4681,7 +4852,7 @@ def edition_companies(
           SELECT file_path, title,
                  MIN(array_distance(
                      CAST(emb AS FLOAT[{dim}]),
-                     CAST(? AS FLOAT[{dim}]))) AS dist
+                     CAST({ref_lit} AS FLOAT[{dim}]))) AS dist
           FROM v_note_embeddings
           WHERE file_path != ? AND doc_type = 'company'
           GROUP BY file_path, title
@@ -4690,7 +4861,7 @@ def edition_companies(
         ORDER BY dist, file_path
         LIMIT {int(k)}
         """,  # noqa: S608  # ?-bound (adjudicated cluster, S13)
-        [ref_vec, ref_path],
+        [ref_path],
     ).fetchall()
     return [(row[0], row[1], row[2]) for row in r]
 

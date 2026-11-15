@@ -235,6 +235,21 @@ def blob_client(tmp_path):
 
 
 @pytest.fixture(autouse=True)
+def _force_legacy_fts_path(monkeypatch, tmp_path):
+    """Pin /api/search to the legacy sqlite FTS5 path.
+
+    These tests seed a hermetic sqlite note_search table and exercise the
+    endpoint as a unit; the production default prefers the DuckDB sidecar
+    (memory/note_search.duckdb) when present. Point the module-level
+    sidecar path at a nonexistent file so the tested path is always the
+    legacy one, independent of what live stores exist on the machine.
+    """
+    import app as A  # noqa: WPS433  # lazy — avoid Flask import at collection
+
+    monkeypatch.setattr(A, "_NOTE_SEARCH_SIDECAR_PATH", tmp_path / "no-sidecar.duckdb")
+
+
+@pytest.fixture(autouse=True)
 def _three_dim_query_space(monkeypatch):
     """Pin the hybrid query embedder to the 3-dim space of this module's
     hand-crafted seed vectors (local_embeddings, 2026-08-20).
@@ -256,6 +271,84 @@ def _results(resp):
 
 
 # --- tests ------------------------------------------------------------------
+
+
+class TestSearchDuckDBSidecar:
+    """The S2 DuckDB sidecar branch of /api/search.
+
+    The autouse _force_legacy_fts_path fixture pins the endpoint to the
+    legacy sqlite path for every other test class; here we build a real
+    DuckDB sidecar (via rebuild_note_search) and repoint the module-level
+    constant at it, so the sidecar branch itself is exercised end-to-end.
+    """
+
+    def _seed_sidecar(self, tmp_path, monkeypatch):
+        from helpers.maintenance import rebuild_note_search as RNS
+
+        findata = tmp_path / "findata"
+        (findata / "Companies" / "Agriculture").mkdir(parents=True)
+        (findata / "Companies" / "Agriculture" / "Acme_Feeds.md").write_text(
+            "# Acme Feeds\nLeading shrimp feed manufacturer for aquaculture.\n",
+            encoding="utf-8",
+        )
+        db_path = tmp_path / "entities.db"
+        conn = sqlite3.connect(str(db_path))
+        conn.execute(
+            "CREATE TABLE entities (name TEXT, entity_type TEXT, "
+            "sector_classification TEXT, file_path TEXT, normalized_name TEXT)"
+        )
+        conn.execute(
+            "INSERT INTO entities VALUES (?, ?, ?, ?, ?)",
+            (
+                "Acme_Feeds",
+                "company",
+                "Agriculture",
+                "findata/Companies/Agriculture/Acme_Feeds.md",
+                "Acme_Feeds",
+            ),
+        )
+        conn.commit()
+        conn.close()
+        monkeypatch.setattr(RNS, "FINDATA", findata)
+        monkeypatch.setattr(RNS, "DEFAULT_DB", db_path)
+        monkeypatch.setattr(
+            RNS, "resolve_embedder", lambda: (lambda t: [0.01] * 64, 64, "pseudo-test")
+        )
+        sidecar_path = tmp_path / "note_search.duckdb"
+        RNS.rebuild(sidecar_path, write=True)
+        return sidecar_path
+
+    def _point_sidecar(self, tmp_path, monkeypatch):
+        import app as A  # noqa: WPS433  # lazy — avoid Flask import at collection
+
+        sc = self._seed_sidecar(tmp_path, monkeypatch)
+        monkeypatch.setattr(A, "_NOTE_SEARCH_SIDECAR_PATH", sc)
+        return sc
+
+    def test_sidecar_serves_results(self, client, tmp_path, monkeypatch):
+        self._point_sidecar(tmp_path, monkeypatch)
+        r = client.get("/api/search?q=shrimp")
+        assert r.status_code == 200
+        body = r.get_json()
+        assert set(body) == {"results", "total_count", "limit", "offset"}
+        names = sorted(h["title"] for h in body["results"])
+        assert names == ["Acme_Feeds"]
+        assert all("<mark>" in h["snippet"] for h in body["results"])
+
+    def test_sidecar_syntax_error_returns_400(self, client, tmp_path, monkeypatch):
+        import helpers.misc.note_query as nq  # noqa: WPS433  # lazy import
+
+        self._point_sidecar(tmp_path, monkeypatch)
+
+        def boom(*_a, **_k):
+            import duckdb
+
+            raise duckdb.Error("Parser Error: syntax error at or near")
+
+        monkeypatch.setattr(nq, "search_notes_duckdb", boom)
+        r = client.get("/api/search?q=shrimp")
+        assert r.status_code == 400
+        assert "invalid query syntax" in r.get_json()["error"]
 
 
 class TestSearch:

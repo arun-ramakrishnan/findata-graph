@@ -106,7 +106,7 @@ ALL_LEGS = (
 _SIDECAR_BY_LEG: dict[str, str] = {
     "docs": "memory/doc_search.duckdb",
     "scripts": "memory/script_search.duckdb",
-    "notes": "memory/research.db",
+    "notes": "memory/note_search.duckdb",
     "memory": "memory/memory_search.duckdb",
     "convo": "memory/convo_search.duckdb",
     "git": "memory/git_search.duckdb",

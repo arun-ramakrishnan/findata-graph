@@ -84,9 +84,42 @@ from helpers.core.db import connect, bump_generation  # noqa: E402
 from helpers.core.vec_search import sync_vec_table  # noqa: E402
 from helpers.core.frontmatter import split_frontmatter_with_title as _strip_frontmatter  # noqa: E402
 from helpers.maintenance import rebuild_common as rbc  # noqa: E402
+import duckdb  # noqa: E402  (used by the DuckDB-native sidecar path, S1)
 
 DEFAULT_DB = _REPO_ROOT / "memory" / "research.db"
 FINDATA = _REPO_ROOT / "findata"
+
+# S1 (note_search_carve_out): DuckDB-native sidecar store. The legacy FTS5
+# virtual table inside research.db stays the default (DEFAULT_DB); pass
+# `--db memory/note_search.duckdb` to build/query the native sidecar.
+# Gitignored via memory/ (same as doc_search.duckdb).
+NOTE_DB = _REPO_ROOT / "memory" / "note_search.duckdb"
+NOTE_DUCKDB_DB = _REPO_ROOT / "memory" / "note_search.duckdb"
+
+
+def connect_note_db(path):
+    """Open the note_search store: ``.duckdb`` → DuckDB native (S1),
+    anything else → the legacy SQLite research.db FTS5 host."""
+    if Path(path).suffix.lower() == ".duckdb":
+        from helpers.core.duckdb_shared import memory_cap_config
+
+        con = duckdb.connect(str(path), **memory_cap_config())
+        # Native FTS is an extension: load it on EVERY connection (the
+        # build connection's PRAGMA create_fts_index loads it implicitly,
+        # but fresh reader connections must load it explicitly — the
+        # doc sidecar previously relied on ambient process state, which
+        # is not hermetic).
+        try:
+            con.execute("INSTALL fts")
+        except duckdb.Error:
+            pass
+        try:
+            con.execute("LOAD fts")
+        except duckdb.Error:
+            pass
+        return con
+    return connect(path)
+
 
 # FTS5 DDL. standalone table (no content='' external-content link) so we can
 # index body text read from files + the newsletter corpora (which have no
@@ -781,6 +814,261 @@ def _stamp_note_model(conn, model_label: str) -> None:
     conn.commit()
 
 
+# --------------------------------------------------------------------------- #
+# DuckDB-native sidecar (note_search_carve_out S1, 2026-11-15)
+# --------------------------------------------------------------------------- #
+# Same row shape as the legacy FTS5 store; `searchtext` is the composed FTS
+# field (title + sector + content + section_title + ticker + edge_context +
+# doc_type) — DuckDB native `create_fts_index` indexes ONE text column. The
+# cosine leg reads `embedding` (identical f32 BLOB codec) from the same rows.
+NOTE_DUCKDB_DDL = """
+CREATE TABLE IF NOT EXISTS note_search (
+  id BIGINT PRIMARY KEY,
+  doc_type VARCHAR, file_path VARCHAR,
+  title VARCHAR, sector VARCHAR, content VARCHAR, embedding BLOB,
+  section_title VARCHAR, anchor VARCHAR, ticker VARCHAR, edge_context VARCHAR,
+  searchtext VARCHAR
+);
+"""
+
+NOTE_DUCKDB_META_DDL = """
+CREATE TABLE IF NOT EXISTS note_search_meta (
+  file_path VARCHAR PRIMARY KEY, mtime DOUBLE, content_hash VARCHAR
+);
+"""
+
+NOTE_DUCKDB_INFO_DDL = """
+CREATE TABLE IF NOT EXISTS note_search_info (key VARCHAR PRIMARY KEY, value VARCHAR);
+"""
+
+
+def _compose_searchtext(row: tuple) -> str:
+    """The composed native-FTS field for a stored row ("-joined).
+
+    Legacy FTS5 indexes every note_search column except file_path/embedding/
+    anchor; the composed field covers the same token set.
+    """
+    doc_type, _fp, title, sector, content, _emb, section_title, _anchor, ticker, edge_context = row
+    return " ".join(
+        s for s in (doc_type, title, sector, content, section_title, ticker, edge_context) if s
+    )
+
+
+def _text_hash(abs_path: Path) -> str | None:
+    """Raw-file content hash (blake2b-8 hex) — the meta identity of a file."""
+    try:
+        data = abs_path.read_bytes()
+    except OSError:
+        return None
+    return hashlib.blake2b(data, digest_size=8).hexdigest()
+
+
+def _read_note_info(conn, key: str) -> str | None:
+    row = conn.execute("SELECT value FROM note_search_info WHERE key = ?", (key,)).fetchone()
+    return row[0] if row else None
+
+
+def rebuild_note_duckdb(
+    db_path: Path | str | None = None,
+    *,
+    write: bool = True,
+    embed_fn=None,
+) -> dict:
+    """Build/rebuild the DuckDB-native note_search store (S1).
+
+    Reuses the engine-agnostic walk/section pipeline (``_iter_findata_docs``
+    + ``_collect_rows``) against the research.db connection for the entity
+    lookups; writes one ``note_search`` table + meta/info stamp tables, then
+    builds the native FTS index over ``searchtext``. The embed cache lives
+    in this sidecar (duckdb host conn == cache conn, S0 fold).
+    Replacement rebuild (delete-all + insert) — incremental carry is a later
+    slice (the corpus is ~16k rows; full rebuild is seconds).
+    ``write=False`` (--check): freshness verdict only — no DDL, no writes,
+    no embedder resolution, no entity lookups (hash-only verdict).
+    """
+    db_path = Path(db_path) if db_path is not None else NOTE_DUCKDB_DB
+    stats: dict = {}
+
+    meta_info: dict[str, tuple[float, str]] = {}
+    for _dtype, abs_path, rel in _iter_findata_docs():
+        chash = _text_hash(abs_path)
+        if chash is None:
+            continue
+        rel_posix = f"findata/{rel.as_posix()}"
+        try:
+            mtime = abs_path.stat().st_mtime
+        except OSError:
+            mtime = 0.0
+        meta_info[rel_posix] = (mtime, chash)
+
+    stats["total_files"] = len(meta_info)
+    stats["total_docs"] = len(meta_info)
+    stats["mode"] = "full"
+
+    if not write:
+        return _check_freshness_note_duckdb(meta_info, db_path, stats)
+
+    conn = connect_note_db(db_path)
+    research = None
+    deferred: list[tuple[int, str]] | None = None
+    try:
+        conn.execute(NOTE_DUCKDB_DDL)
+        conn.execute(NOTE_DUCKDB_META_DDL)
+        conn.execute(NOTE_DUCKDB_INFO_DDL)
+
+        embed_dims = _PSEUDO_DIMS
+        model_label = None
+        cache = None
+        if embed_fn is None:
+            embed_fn, embed_dims, model_label = resolve_embedder()
+            stats["embed_model"] = model_label
+            from helpers.core.gemma_embedder import guard_gemma_stamp
+
+            guard_gemma_stamp(
+                _read_note_info(conn, "embed_model"),
+                model_label,
+                os.environ.get(NOTES_EMBEDDER_ENV),
+            )
+            if model_label != f"dry-run-v{_PSEUDO_DIMS}":
+                cache = CachedEmbed(embed_fn, model_label, conn, source="note")
+                embed_fn = cache
+                deferred = []
+        else:
+            embed_fn = embed_fn  # injected test embedder
+
+        research = connect(DEFAULT_DB)
+        rows, doc_paths = _collect_rows(
+            research, embed_fn=embed_fn, reuse=None, carried=None, deferred=deferred
+        )
+        if deferred is not None:
+            from helpers.core import gemma_embedder, local_embedder
+            from helpers.core.embed_cache import cached_embed_batch
+
+            idxs = [i for i, text in deferred if text.strip()]
+            texts = [text for _i, text in deferred if text.strip()]
+            if model_label == gemma_embedder.MODEL_LABEL:
+
+                def _gemma_batch(missing: list[str]) -> list[list[float]]:
+                    return [gemma_embedder.embed_document(t) for t in missing]
+
+                batch_fn = _gemma_batch
+            else:
+                batch_fn = local_embedder.embed_documents_parallel
+            try:
+                if model_label is None:
+                    raise ValueError("model_label unresolved before batch embed")
+                vecs, _batch_stats = cached_embed_batch(
+                    conn, texts, model_label, batch_fn, source="note"
+                )
+            except Exception as e:  # noqa: BLE001  # degrade -> same as legacy
+                print(f"[notes] warn: batch embed failed ({e})", file=sys.stderr)
+                vecs = []
+            for i, text in zip(idxs, texts):
+                if i >= len(vecs):
+                    continue
+                vec = vecs[i]
+                if vec is None:
+                    continue
+                row = rows[i]
+                rows[i] = row[:5] + (pack_f32(vec),) + row[6:]
+            if cache is not None:
+                stats["embed_cache_hits"] = cache.hits
+                stats["embed_cache_misses"] = cache.misses
+
+        all_rows = rows
+        stats["total_rows"] = len(all_rows)
+        stats["embedded"] = sum(1 for r in all_rows if r[5])
+
+        _write_note_store(conn, all_rows, meta_info, model_label, embed_dims)
+
+        stats["indexed"] = conn.execute("SELECT COUNT(*) FROM note_search").fetchone()[0]
+        if cache is not None:
+            stats["embed_cache_state"] = cache.status_line()
+        return stats
+    finally:
+        if research is not None:
+            research.close()
+        conn.close()
+
+
+def _write_note_store(
+    conn,
+    all_rows: list[tuple],
+    meta_info: dict[str, tuple[float, str]],
+    model_label: str | None,
+    embed_dims: int,
+) -> None:
+    """Replacement write: delete-all + insert rows/meta/info stamps, then
+    rebuild the native FTS index (one-shot structure; drop+recreate covers
+    both fresh and pre-existing stores)."""
+    conn.execute("DELETE FROM note_search")
+    conn.execute("DELETE FROM note_search_meta")
+    if all_rows:
+        conn.executemany(
+            "INSERT INTO note_search "
+            "(id, doc_type, file_path, title, sector, content, embedding, "
+            "section_title, anchor, ticker, edge_context, searchtext) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            [(i, *r, _compose_searchtext(r)) for i, r in enumerate(all_rows)],
+        )
+    conn.executemany(
+        "INSERT OR REPLACE INTO note_search_meta VALUES (?, ?, ?)",
+        [(rel, mtime, chash) for rel, (mtime, chash) in meta_info.items()],
+    )
+    if model_label is not None:
+        conn.executemany(
+            "INSERT OR REPLACE INTO note_search_info VALUES (?, ?)",
+            [
+                ("embed_model", model_label),
+                ("embed_dims", str(embed_dims)),
+                ("row_count", str(len(all_rows))),
+            ],
+        )
+    try:
+        conn.execute("PRAGMA drop_fts_index('note_search')")
+    except duckdb.Error:
+        pass
+    conn.execute("PRAGMA create_fts_index('note_search', 'id', 'searchtext')")
+
+
+def _check_freshness_note_duckdb(
+    meta_info: dict[str, tuple[float, str]], db_path: Path, stats: dict
+) -> dict:
+    """Freshness verdict vs the stored DuckDB store (same doctrine as the
+    legacy --check: content hashes; stale = new/changed/deleted). Mutates
+    and returns ``stats``; the verdict is printed here (legacy contract:
+    main() only maps index_stale to the exit code)."""
+    stats["sections_carried"] = 0
+    stats["embedded"] = 0
+    try:
+        conn = connect_note_db(db_path)
+        try:
+            stored_meta = {
+                r[0]: (r[1], r[2])
+                for r in conn.execute(
+                    "SELECT file_path, mtime, content_hash FROM note_search_meta"
+                ).fetchall()
+            }
+            stats["total_rows"] = conn.execute("SELECT COUNT(*) FROM note_search").fetchone()[0]
+        finally:
+            conn.close()
+    except Exception:  # noqa: S110  # store absent/unreadable: all files read as new
+        stored_meta = {}
+        stats["total_rows"] = 0
+    on_disk = set(meta_info)
+    stats["stale_new"] = sorted(fp for fp in on_disk if fp not in stored_meta)
+    stats["stale_deleted"] = sorted(fp for fp in stored_meta if fp not in on_disk)
+    stats["stale_changed"] = sorted(
+        fp for fp in on_disk if fp in stored_meta and stored_meta[fp][1] != meta_info[fp][1]
+    )
+    stats["index_stale"] = bool(
+        stats["stale_new"] or stats["stale_changed"] or stats["stale_deleted"]
+    )
+    stats["total_docs"] = len(on_disk)
+    _print_staleness(stats)
+    return stats
+
+
 def rebuild(  # noqa: C901
     db_path: Path,
     write: bool = True,
@@ -788,6 +1076,8 @@ def rebuild(  # noqa: C901
     embed_fn=None,
 ) -> dict:
     """Rebuild the note_search FTS index. Returns a stats dict."""
+    if Path(db_path).suffix.lower() == ".duckdb":
+        return rebuild_note_duckdb(db_path, write=write, embed_fn=embed_fn)
     from datetime import datetime
 
     from helpers.maintenance.maint_timing import current as _mt_timer
@@ -1196,12 +1486,13 @@ def _resolve_db(db_arg: str) -> Path | None:
     Returns None (after printing the ERROR) when the DB is missing —
     run_rebuild_cli maps that to exit 1. Unlike the doc/script sidecars
     (created on first run), note_search reads research.db, which must
-    already exist.
+    already exist. Exception: a ``.duckdb`` target is the S1 sidecar
+    (created on first run), so a missing file is fine.
     """
     db_path = Path(db_arg)
     if not db_path.is_absolute():
         db_path = _REPO_ROOT / db_path
-    if not db_path.exists():
+    if not db_path.exists() and db_path.suffix.lower() != ".duckdb":
         print(f"ERROR: database not found: {db_path}", file=sys.stderr)
         return None
     return db_path
@@ -1213,7 +1504,10 @@ def main(argv: list[str] | None = None) -> int:
         rbc.RebuildCliSpec(
             description=__doc__.split("\n\n")[0],
             default_db=str(DEFAULT_DB),
-            db_help="Path to research.db (default: memory/research.db).",
+            db_help=(
+                "Path to research.db (default: memory/research.db); a "
+                ".duckdb target builds/queries the S1 native sidecar."
+            ),
             check_help="Count indexable docs without writing (for CI / dry-run).",
             incremental_help="Incremental rebuild (only re-index changed/deleted files, P2.1).",
             full_help="Full rebuild: delete the sidecar and rebuild from scratch.",

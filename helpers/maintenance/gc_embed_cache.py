@@ -234,10 +234,11 @@ DEFAULT_REFS: tuple[Ref, ...] = (
     ),
     Ref(
         "note",
-        REPO / "memory/research.db",
+        REPO
+        / "memory/note_search.duckdb",  # note_search carve-out S1: live store (legacy research.db FTS5 is the rollback artifact)
         "SELECT title, sector, section_title, content FROM note_search",
         _note_text,
-        stamp_sql="SELECT value FROM db_meta WHERE key = 'note_embed_model'",
+        stamp_sql="SELECT value FROM note_search_info WHERE key = 'embed_model'",
     ),
     Ref(
         "convo",

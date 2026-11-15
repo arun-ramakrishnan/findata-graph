@@ -32,6 +32,12 @@ load_dotenv()
 
 app = Flask(__name__)
 
+# Default DuckDB note_search sidecar (order: sidecar first, legacy sqlite
+# FTS5 fallback). Tests monkeypatch this to a nonexistent path when they
+# need the legacy path; the production default is colocated
+# memory/note_search.duckdb.
+_NOTE_SEARCH_SIDECAR_PATH = Path(__file__).resolve().parent / "memory" / "note_search.duckdb"
+
 # Cache for /api/sectors sector_entity file reads (read 42 markdown files +
 # YAML-parse on every request otherwise). Keyed on (mtime_ns, size) per file,
 # so any content change on disk auto-invalidates — no generation coupling,
@@ -803,23 +809,35 @@ def _resolve_query_vec(conn, query: str) -> list[float] | None:
     to BM25-only (embedder unavailable, or index/query vector spaces differ —
     mismatched dims would compute zip-truncated garbage cosine)."""
     try:
+        import duckdb
+
         from helpers.maintenance.rebuild_note_search import (
             query_embedder,
             stored_embed_dims,
         )
 
-        # The backend follows the index stamp (notes_gemma_adoption S3): a
-        # gemma-stamped index must be queried with gemma even when the
-        # embedder env says otherwise. Unstamped -> None -> legacy path.
-        # A db with no db_meta table at all is an unstamped index, NOT a
-        # failure — the SELECT must not abort the whole resolver into a
-        # silent BM25-only degrade.
-        try:
-            stamp_row = conn.execute(
-                "SELECT value FROM db_meta WHERE key = 'note_embed_model'"
-            ).fetchone()
-        except sqlite3.Error:  # no db_meta (hermetic/minimal db) -> unstamped
-            stamp_row = None
+        if isinstance(conn, duckdb.DuckDBPyConnection):
+            # Sidecar stamp lives inside note_search_info (S1), not
+            # research.db db_meta.
+            try:
+                stamp_row = conn.execute(
+                    "SELECT value FROM note_search_info WHERE key = 'embed_model'"
+                ).fetchone()
+            except Exception:  # noqa: BLE001  # missing info table -> unstamped
+                stamp_row = None
+        else:
+            # The backend follows the index stamp (notes_gemma_adoption S3): a
+            # gemma-stamped index must be queried with gemma even when the
+            # embedder env says otherwise. Unstamped -> None -> legacy path.
+            # A db with no db_meta table at all is an unstamped index, NOT a
+            # failure — the SELECT must not abort the whole resolver into a
+            # silent BM25-only degrade.
+            try:
+                stamp_row = conn.execute(
+                    "SELECT value FROM db_meta WHERE key = 'note_embed_model'"
+                ).fetchone()
+            except sqlite3.Error:  # no db_meta (hermetic/minimal db) -> unstamped
+                stamp_row = None
         embed_q, _dims = query_embedder(stamp_row[0] if stamp_row else None)
         q_vec = embed_q(query)
         idx_dims = stored_embed_dims(conn)
@@ -1007,41 +1025,96 @@ def _hybrid_search_results(conn, rows, query: str, limit: int, offset: int) -> l
     return results
 
 
-@app.route("/api/search")
-def api_search():
-    """Free-text search across ALL findata/ markdowns via the note_search FTS5 index.
+def _search_notes_duckdb(
+    q: str,
+    doc_type: str | None,
+    hybrid: bool,
+    limit: int,
+    offset: int,
+) -> tuple[list[dict], int] | None:
+    """DuckDB note_search sidecar branch for /api/search.
 
-    Unlike /api/entities (which matches entity name + sector tag only), this
-    searches the full *body* text of company notes, sector notes, super-sector
-    notes, AND the newsletter corpora (The_Chatter, Points_And_Figures,
-    The_PlotLines). It finds content the name/tag search structurally cannot —
-    e.g. "shrimp feed" resolves to Avanti Feeds + a Points & Figures edition.
+    Returns (results, total_count), or None when the sidecar is absent or
+    unusable — the caller then serves the legacy sqlite FTS5 path. Row
+    tuples carry the same contract as the legacy path (doc_type, file_path,
+    title, sector, embedding, score, snippet, section_title, anchor), so
+    the shared fusion builders (_hybrid_search_results) run unchanged.
 
-    Query params:
-        q     (required) free-text query; FTS5 MATCH syntax (quoted phrases ok).
-        type  (optional) filter to one doc_type: company | sector |
-              super_sector | chatter | points_and_figures | plotlines.
-        limit (default 20), offset (default 0).
-        hybrid (optional) "1"/"true" — RRF-fuse the BM25 ranking with vector
-              cosine similarity against each row's stored embedding. The query
-              is embedded with the same pseudo-embedder the rebuild used by
-              default, so out of the box this re-ranks by *lexical* proximity
-              of the hash vectors; with real embeddings (embed_fn injected into
-              rebuild_note_search) it becomes genuinely semantic. Degrades to
-              pure FTS ranking when the embedding column is absent.
-
-    Returns a polymorphic hit list (results include non-entity newsletters, so
-    the key is `results`, not `entities`). Each hit carries a snippet() with
-    <mark>-highlighted matches and a `similarity` (null unless hybrid=true).
-
-    Errors: 400 on empty/ malformed q; 503 if the FTS index hasn't been built.
+    Candidate generation (AND-first/OR-fill, native ``match_bm25`` + a
+    Python <mark> snippet) lives in helpers/misc/note_query.py, where the
+    sidecar build tests can exercise it without the Flask app.
     """
-    parsed, err = _search_params()
-    if err:
-        return err
-    # _search_params invariant: err is None <=> parsed set
-    q, doc_type, hybrid, limit, offset = typing.cast(tuple, parsed)
+    import duckdb
 
+    from helpers.core.duckdb_shared import memory_cap_config
+    from helpers.misc.note_query import search_notes_duckdb
+
+    sidecar = _NOTE_SEARCH_SIDECAR_PATH
+    if not sidecar.exists():
+        return None
+    try:
+        conn = duckdb.connect(str(sidecar), read_only=True, **memory_cap_config())
+        conn.execute("INSTALL fts")  # noqa: S608  # constant
+        conn.execute("LOAD fts")  # noqa: S608  # constant
+    except Exception:  # noqa: BLE001  # absent/corrupt/locked -> legacy rollback
+        return None
+
+    try:
+        contract, total_count = search_notes_duckdb(conn, q, limit + offset, 0, doc_type=doc_type)
+        if hybrid and contract:
+            results = _hybrid_search_results(conn, contract, q, limit, offset)
+        else:
+            results = [_hit_dict(row, None) for row in contract[offset : offset + limit]]
+        return results, total_count
+    except Exception as exc:  # bad query syntax -> 400 (not fallback)
+        app.logger.info("duckdb search match error for q=%r: %s", q, exc)
+        raise
+    finally:
+        conn.close()
+
+
+def _sidecar_search_or_bad_request(
+    q: str,
+    doc_type: str | None,
+    hybrid: bool,
+    limit: int,
+    offset: int,
+):
+    """Run the DuckDB sidecar branch of /api/search.
+
+    Returns the JSON response, or None when the sidecar is absent/unusable
+    (caller falls back to the legacy sqlite FTS5 path). Query-syntax errors
+    are converted to a 400 response — legacy parity (the FTS5 path does the
+    same for MATCH parse failures)."""
+    try:
+        ddb = _search_notes_duckdb(q, doc_type, hybrid, limit, offset)
+    except Exception as exc:  # duckdb query syntax -> 400 like legacy FTS5
+        app.logger.info("search MATCH error for q=%r: %s", q, exc)
+        return jsonify({"error": f"invalid query syntax: {exc}"}), 400
+    if ddb is None:
+        return None
+    results, total_count = ddb
+    return jsonify(
+        {
+            "results": results,
+            "total_count": total_count,
+            "limit": limit,
+            "offset": offset,
+        }
+    )
+
+
+def _search_legacy_fts5(
+    q: str,
+    doc_type: str | None,
+    hybrid: bool,
+    limit: int,
+    offset: int,
+):
+    """Legacy sqlite FTS5 branch of /api/search — used when the DuckDB
+    sidecar is absent or unusable (see _sidecar_search_or_bad_request).
+    Query-syntax errors are converted to a 400 response, never a 500.
+    """
     conn = get_db_connection()
     cursor = conn.cursor()
     try:
@@ -1183,6 +1256,52 @@ def api_search():
         )
     finally:
         conn.close()
+
+
+@app.route("/api/search")
+def api_search():
+    """Free-text search across ALL findata/ markdowns via the note_search index
+    (native DuckDB FTS sidecar when present; legacy FTS5 research.db otherwise).
+
+    Unlike /api/entities (which matches entity name + sector tag only), this
+    searches the full *body* text of company notes, sector notes, super-sector
+    notes, AND the newsletter corpora (The_Chatter, Points_And_Figures,
+    The_PlotLines). It finds content the name/tag search structurally cannot —
+    e.g. "shrimp feed" resolves to Avanti Feeds + a Points & Figures edition.
+
+    Query params:
+        q     (required) free-text query; FTS5 MATCH syntax (quoted phrases ok).
+        type  (optional) filter to one doc_type: company | sector |
+              super_sector | chatter | points_and_figures | plotlines.
+        limit (default 20), offset (default 0).
+        hybrid (optional) "1"/"true" — RRF-fuse the BM25 ranking with vector
+              cosine similarity against each row's stored embedding. The query
+              is embedded with the same pseudo-embedder the rebuild used by
+              default, so out of the box this re-ranks by *lexical* proximity
+              of the hash vectors; with real embeddings (embed_fn injected into
+              rebuild_note_search) it becomes genuinely semantic. Degrades to
+              pure FTS ranking when the embedding column is absent.
+
+    Returns a polymorphic hit list (results include non-entity newsletters, so
+    the key is `results`, not `entities`). Each hit carries a snippet() with
+    <mark>-highlighted matches and a `similarity` (null unless hybrid=true).
+
+    Errors: 400 on empty/ malformed q; 503 if no index exists (sidecar and
+    legacy both absent).
+    """
+    parsed, err = _search_params()
+    if err:
+        return err
+    # _search_params invariant: err is None <=> parsed set
+    q, doc_type, hybrid, limit, offset = typing.cast(tuple, parsed)
+
+    # DuckDB sidecar first (S1/S2): native FTS + the same fusion, identical
+    # response shape. None = sidecar absent/unusable -> legacy sqlite FTS5.
+    resp = _sidecar_search_or_bad_request(q, doc_type, hybrid, limit, offset)
+    if resp is not None:
+        return resp
+
+    return _search_legacy_fts5(q, doc_type, hybrid, limit, offset)
 
 
 # --------------------------------------------------------------------------- #

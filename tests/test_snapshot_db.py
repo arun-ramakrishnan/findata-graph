@@ -776,3 +776,91 @@ def test_duckdb_snapshot_only_fails_closed_when_cache_missing(tmp_path, monkeypa
     )
     assert snapshot_main() == 1
     assert "not found" in capsys.readouterr().err
+
+
+# ---------------------------------------------------------------------------
+# note_search sidecar (S4, note_search carve-out arc)
+# ---------------------------------------------------------------------------
+def test_note_sidecar_parquet_roundtrip(tmp_path):
+    """The S4 note-side export/verify/restore leg mirrors the sources leg:
+    own manifest (NOTE_SEARCH_TABLES), own schema file, own parquet tree
+    under snapshots/parquet/note/. The native FTS shadow
+    (fts_main_note_search) is derived state and must NOT be exported."""
+    duckdb = pytest.importorskip("duckdb")
+
+    note = tmp_path / "note_search.duckdb"
+    con = duckdb.connect(str(note))
+    con.execute(
+        "CREATE TABLE note_search (id BIGINT PRIMARY KEY, doc_type VARCHAR, "
+        "file_path VARCHAR, title VARCHAR, sector VARCHAR, content VARCHAR, "
+        "embedding BLOB, section_title VARCHAR, anchor VARCHAR, ticker VARCHAR, "
+        "edge_context VARCHAR, searchtext VARCHAR)"
+    )
+    con.execute("CREATE TABLE note_search_meta (file_path VARCHAR PRIMARY KEY, mtime REAL, content_hash VARCHAR)")
+    con.execute("CREATE TABLE note_search_info (key VARCHAR PRIMARY KEY, value VARCHAR)")
+    con.execute(
+        "INSERT INTO note_search VALUES "
+        "(1, 'company', 'findata/Companies/A.md', 'A', 'S', 'body', NULL, "
+        "'sec', 'a', 'TCK', 'ctx', 'company A S body sec a TCK ctx'), "
+        "(2, 'sector', 'findata/Sectors/B.md', 'B', 'S2', 'body2', NULL, "
+        "'sec2', 'b', '', 'ctx2', 'sector B S2 body2 sec2 b ctx2')"
+    )
+    con.execute("INSERT INTO note_search_meta VALUES ('findata/Companies/A.md', 1.0, 'h1')")
+    con.execute("INSERT INTO note_search_info VALUES ('embed_model', 'embeddinggemma-2-q8_512'), ('embed_dims', '512'), ('row_count', '2')")
+    con.close()
+
+    pq_base = tmp_path / "snapshots" / "parquet"
+    export_parquet_duckdb(
+        note,
+        pq_base / "note",
+        _log,
+        manifest=snapshot_db.NOTE_SEARCH_TABLES,
+        schema_filename="_schema.note.sql",
+    )
+    assert (pq_base / "_schema.note.sql").exists()
+    # derived FTS shadow never exported
+    assert not list((pq_base / "note").glob("fts_main_note_search*"))
+
+    res = snapshot_db._verify_parquet_duckdb_side(pq_base, note, _log, subdir="note")
+    assert res["mismatches"] == [], res
+    assert res["tables_checked"] == 3
+
+    restored = tmp_path / "restored_note.duckdb"
+    info = restore_duckdb_from_parquet(pq_base / "note", restored, _log, schema_filename="_schema.note.sql")
+    assert info["tables"]["note_search"] == 2
+    assert info["tables"]["note_search_info"] == 3
+    con = duckdb.connect(str(restored), read_only=True)
+    assert con.execute("SELECT COUNT(*) FROM note_search").fetchone()[0] == 2
+    assert con.execute("SELECT value FROM note_search_info WHERE key='embed_model'").fetchone()[0] == "embeddinggemma-2-q8_512"
+    con.close()
+
+
+def test_note_sidecar_stray_table_warns_and_skips(tmp_path, caplog):
+    """Manifest guard mirrors the graph-store rule: a note-sidecar table
+    outside NOTE_SEARCH_TABLES gets no parquet file and a loud WARNING."""
+    duckdb = pytest.importorskip("duckdb")
+
+    note = tmp_path / "note_search.duckdb"
+    con = duckdb.connect(str(note))
+    con.execute("CREATE TABLE note_search (id BIGINT PRIMARY KEY, file_path VARCHAR, content VARCHAR, searchtext VARCHAR)")
+    con.execute("CREATE TABLE note_search_info (key VARCHAR PRIMARY KEY, value VARCHAR)")
+    con.execute("CREATE TABLE scratch_bench (a VARCHAR)")
+    con.execute("INSERT INTO note_search VALUES (1, 'findata/Companies/A.md', 'body', 'A body')")
+    con.execute("INSERT INTO scratch_bench VALUES ('X')")
+    con.close()
+
+    pq_base = tmp_path / "snapshots" / "parquet"
+    with caplog.at_level(logging.WARNING, logger="snapshot_db"):
+        export_parquet_duckdb(
+            note,
+            pq_base / "note",
+            _log,
+            manifest=snapshot_db.NOTE_SEARCH_TABLES,
+            schema_filename="_schema.note.sql",
+        )
+    assert not (pq_base / "note" / "scratch_bench.parquet").exists()
+    assert any("scratch_bench" in r.message for r in caplog.records)
+
+    res = snapshot_db._verify_parquet_duckdb_side(pq_base, note, _log, subdir="note")
+    assert res["mismatches"] == [], res
+    assert res["tables_checked"] == 2

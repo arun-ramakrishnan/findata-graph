@@ -126,6 +126,20 @@ SOURCES_TABLES = frozenset(
         "shp_holders",
     }
 )
+# note_search carve-out S1: the live note index is the DuckDB sidecar
+# (memory/note_search.duckdb) since 2026-11-16; its FTS5 shadow in
+# research.db is the legacy rollback artifact. The sidecar's base tables
+# are the snapshot's canonical note leg; the native FTS index
+# (fts_main_note_search) is derived state, rebuilt by
+# rebuild_note_search.py, and excluded like the fts_main_* shadows.
+DEFAULT_NOTE_DUCKDB = "memory/note_search.duckdb"
+NOTE_SEARCH_TABLES = frozenset(
+    {
+        "note_search",
+        "note_search_meta",
+        "note_search_info",
+    }
+)
 DEFAULT_DUCKDB_OUT = "db-backup/graph.snapshot.duckdb.zst"
 # Git-tracked, restoreable Parquet snapshot (see module docstring).
 DEFAULT_PARQUET = "snapshots/parquet"
@@ -1454,6 +1468,9 @@ def _cmd_restore(  # noqa: C901  # restore orchestrator: arg branches mirror _cm
     sources_path: Path | None = None,
     parquet_sources_dir: Path | None = None,
     with_sources: bool = True,
+    note_path: Path | None = None,
+    parquet_note_dir: Path | None = None,
+    with_note: bool = True,
 ) -> int:
     """--restore: rebuild live DBs from the git-tracked Parquet snapshot."""
     if db_path.exists() and not force:
@@ -1465,11 +1482,16 @@ def _cmd_restore(  # noqa: C901  # restore orchestrator: arg branches mirror _cm
     if with_sources and sources_path is not None and sources_path.exists() and not force:
         logger.error(f"Refusing to overwrite existing {sources_path} — pass --force")
         return 1
+    if with_note and note_path is not None and note_path.exists() and not force:
+        logger.error(f"Refusing to overwrite existing {note_path} — pass --force")
+        return 1
     targets = [str(db_path)]
     if with_duckdb:
         targets.append(str(duckdb_path))
     if with_sources and sources_path is not None:
         targets.append(str(sources_path))
+    if with_note and note_path is not None:
+        targets.append(str(note_path))
     logger.warning(
         "destructive op: restore live DBs from Parquet snapshot -> %s | "
         "live state since the snapshot is LOST | undo: none — snapshot "
@@ -1499,6 +1521,19 @@ def _cmd_restore(  # noqa: C901  # restore orchestrator: arg branches mirror _cm
             )
         else:
             logger.info(f"Sources Parquet snapshot not found (skip): {parquet_sources_dir}")
+    if with_note and parquet_note_dir is not None:
+        if parquet_note_dir.exists():
+            if note_path is None:
+                logger.error("note parquet dir given but no --note-db target")
+                return 1
+            restore_duckdb_from_parquet(
+                parquet_note_dir,
+                note_path,
+                logger,
+                schema_filename="_schema.note.sql",
+            )
+        else:
+            logger.info(f"Note Parquet snapshot not found (skip): {parquet_note_dir}")
     return 0
 
 
@@ -1692,6 +1727,8 @@ def _cmd_check(
     logger: logging.Logger,
     sources_path: Path | None = None,
     with_sources: bool = True,
+    note_path: Path | None = None,
+    with_note: bool = True,
 ) -> int:
     """--check: verify zstd binary + Parquet snapshots round-trip."""
     # --check ALWAYS verifies both formats (zstd binary + Parquet),
@@ -1729,6 +1766,18 @@ def _cmd_check(
             )
         else:
             logger.info(f"Parquet verify (sources): {rs['tables_checked']} tables checked, all OK")
+    if with_note and note_path is not None and note_path.exists():
+        rn = _verify_parquet_duckdb_side(parquet_base, note_path, logger, subdir="note")
+        if rn["mismatches"]:
+            ok = False
+            for m in rn["mismatches"]:
+                logger.warning(f"  Parquet MISMATCH: {m}")
+            logger.warning(
+                "  note side has no generation/bump log — drift is table-level; "
+                "re-capture with make snapshot"
+            )
+        else:
+            logger.info(f"Parquet verify (note): {rn['tables_checked']} tables checked, all OK")
     return 0 if ok else 1
 
 
@@ -1746,6 +1795,9 @@ def _cmd_create(
     sources_path: Path | None = None,
     parquet_sources_dir: Path | None = None,
     with_sources: bool = True,
+    note_path: Path | None = None,
+    parquet_note_dir: Path | None = None,
+    with_note: bool = True,
 ) -> int:
     """Default: create the snapshot (binary / parquet / both) and verify.
 
@@ -1785,6 +1837,9 @@ def _cmd_create(
                 sources_path=sources_path,
                 parquet_sources_dir=parquet_sources_dir,
                 with_sources=with_sources,
+                note_path=note_path,
+                parquet_note_dir=parquet_note_dir,
+                with_note=with_note,
             )
             and ok
         )
@@ -1910,10 +1965,14 @@ def _create_parquet_snapshot(
     sources_path: Path | None = None,
     parquet_sources_dir: Path | None = None,
     with_sources: bool = True,
+    note_path: Path | None = None,
+    parquet_note_dir: Path | None = None,
+    with_note: bool = True,
 ) -> bool:
     """Parquet-format branch of ``_cmd_create``: sqlite + (optional)
-    DuckDB + (optional, D15) sources.duckdb export, each with its own
-    verify, one thread per database."""
+    DuckDB + (optional, D15) sources.duckdb + (optional, S4 note_search
+    carve-out) note_search.duckdb export, each with its own verify, one
+    thread per database."""
     from concurrent.futures import ThreadPoolExecutor
 
     if parquet_base is None or parquet_sqlite_dir is None:
@@ -1955,12 +2014,36 @@ def _create_parquet_snapshot(
             )
         return True
 
+    def _note_parquet_worker() -> bool:
+        # S4 (note_search carve-out): the live note index is the DuckDB
+        # sidecar — own manifest, own schema file, own parquet tree under
+        # snapshots/parquet/note/. Skips silently when absent (pristine
+        # clones, pre-S1 stores).
+        if with_note and note_path is not None and note_path.exists():
+            if parquet_note_dir is None:
+                raise ValueError("with_note=True requires a note parquet dir")
+            export_parquet_duckdb(
+                note_path,
+                parquet_note_dir,
+                logger,
+                manifest=NOTE_SEARCH_TABLES,
+                schema_filename="_schema.note.sql",
+            )
+            return (
+                _verify_parquet_duckdb_side(parquet_base, note_path, logger, subdir="note")[
+                    "mismatches"
+                ]
+                == []
+            )
+        return True
+
     ok = True
-    with ThreadPoolExecutor(max_workers=3) as pool:
+    with ThreadPoolExecutor(max_workers=4) as pool:
         sq = pool.submit(_sqlite_parquet_worker)
         dq = pool.submit(_duckdb_parquet_worker)
         rc = pool.submit(_sources_parquet_worker)
-        ok = sq.result() and dq.result() and rc.result()
+        nq = pool.submit(_note_parquet_worker)
+        ok = sq.result() and dq.result() and rc.result() and nq.result()
     return ok
 
 
@@ -2024,6 +2107,18 @@ def main(argv: list[str] | None = None) -> int:
         help="Skip the sources.duckdb snapshot leg.",
     )
     parser.set_defaults(with_sources=True)
+    parser.add_argument(
+        "--note-db",
+        default=DEFAULT_NOTE_DUCKDB,
+        help="Note-search DuckDB sidecar (S4 note_search carve-out) relative to repo root.",
+    )
+    parser.add_argument(
+        "--no-note",
+        dest="with_note",
+        action="store_false",
+        help="Skip the note_search.duckdb snapshot leg.",
+    )
+    parser.set_defaults(with_note=True)
     parser.add_argument(
         "--format",
         choices=["binary", "parquet", "both"],
@@ -2105,6 +2200,9 @@ def main(argv: list[str] | None = None) -> int:
     sources_path = Path(args.sources_db)
     sources_path = sources_path if sources_path.is_absolute() else root / sources_path
     parquet_sources_dir = parquet_base / "sources"
+    note_path = Path(args.note_db)
+    note_path = note_path if note_path.is_absolute() else root / note_path
+    parquet_note_dir = parquet_base / "note"
 
     def _timed(phase: str, fn, *a, **k):
         _p0 = datetime.now()
@@ -2128,6 +2226,9 @@ def main(argv: list[str] | None = None) -> int:
                 sources_path=sources_path,
                 parquet_sources_dir=parquet_sources_dir,
                 with_sources=args.with_sources,
+                note_path=note_path,
+                parquet_note_dir=parquet_note_dir,
+                with_note=args.with_note,
             )
             return _timer.finish(rc, f"mode=restore rc={rc}")
         if args.check:
@@ -2143,6 +2244,8 @@ def main(argv: list[str] | None = None) -> int:
                 logger,
                 sources_path=sources_path,
                 with_sources=args.with_sources,
+                note_path=note_path,
+                with_note=args.with_note,
             )
             return _timer.finish(rc, f"mode=check rc={rc}")
         if args.quick:
@@ -2188,6 +2291,9 @@ def main(argv: list[str] | None = None) -> int:
             sources_path=sources_path,
             parquet_sources_dir=parquet_sources_dir,
             with_sources=args.with_sources,
+            note_path=note_path,
+            parquet_note_dir=parquet_note_dir,
+            with_note=args.with_note,
         )
         return _timer.finish(rc, f"mode=create rc={rc}")
     except Exception as e:  # pragma: no cover

@@ -334,10 +334,9 @@ def notes_query(db_path: Path, query: str, limit: int) -> list[Hit]:
 
     Core lives in ``note_query`` — this lane only maps rows to ``Hit``.
     """
-    from helpers.core.db import connect as _db_connect
     from helpers.misc import note_query as nq
 
-    conn = _db_connect(db_path, read_only=True, wal=False)
+    conn, _engine = nq.open_note_index(db_path)
     try:
         rows = nq.bm25_hits(conn, query, limit)
     finally:
@@ -444,9 +443,9 @@ def _run_scripts(q: str, limit: int, mode: str = "hybrid", query_vec=None) -> tu
 
 
 def _run_notes(q: str, limit: int, mode: str = "hybrid", query_vec=None) -> tuple[list[Hit], str]:
-    db = REPO_ROOT / "memory" / "research.db"
+    db = REPO_ROOT / "memory" / "note_search.duckdb"
     if not db.exists():
-        return [], "memory/research.db missing"
+        return [], "memory/note_search.duckdb missing — run rebuild_note_search.py"
     try:
         bm25_hits = notes_query(db, q, limit)
     except sqlite3.Error as e:  # pragma: no cover - defensive
@@ -702,7 +701,7 @@ INDEXES: tuple[tuple[str, str, str], ...] = (
         "memory/script_search.duckdb",
         "helpers/maintenance/rebuild_script_search.py",
     ),
-    ("notes", "memory/research.db", "helpers/maintenance/rebuild_note_search.py"),
+    ("notes", "memory/note_search.duckdb", "helpers/maintenance/rebuild_note_search.py"),
     (
         "memory",
         "memory/memory_search.duckdb",

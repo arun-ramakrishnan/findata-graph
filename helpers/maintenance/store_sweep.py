@@ -275,6 +275,7 @@ _FILING_MB: dict[str, float] = {
     "memory/graph.xdist-shared.duckdb": 66.26,
     "memory/convo_search.duckdb": 3170.01,
     "memory/embed_store.duckdb": 387.26,
+    "memory/note_search.duckdb": 216.75,
     "memory/corpus.db": 58.46,
     "memory/doc_search.db": 30.19,
     "memory/script_search.db": 4.32,

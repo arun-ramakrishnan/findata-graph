@@ -385,10 +385,11 @@
   "surface": "/api/search",
   "kind": "route",
   "attack_class": "injection",
-  "reviewed": "2026-08-17",
+  "reviewed": "2026-11-16",
   "method": "source+live",
   "verdict": "clean",
-  "fingerprint": "018ce0995f721e40"
+  "fingerprint": "69ad25607d23a8e5",
+  "note": "re-review 2026-11-16 after S2 DuckDB sidecar branch (duckdb_fts_sql_topk_regression): q/doc_type flow parameterized in search_notes_duckdb (tokens as ? params; doc_type via where_extra params); FTS match strings are query-language expressions with token quoting (fts_match_expr) \u2014 no SQL interpolation of user input; sidecar opened read-only; syntax errors converted to 400 (not 500)"
  },
  {
   "scope": "app",
@@ -1144,22 +1145,24 @@
   "surface": "/api/search",
   "kind": "route",
   "attack_class": "availability",
-  "reviewed": "2026-10-20",
+  "reviewed": "2026-11-16",
   "method": "source",
-  "fingerprint": "018ce0995f721e40",
+  "fingerprint": "69ad25607d23a8e5",
   "status": "out_of_scope",
-  "note": "bulk sweep 2026-10-20: GET-only route; route-level availability held at the class-sweep level (the AVAIL-1 quadratic-join class stays tracked at /api/graph/near-duplicates), not re-reviewed per route"
+  "note": "bulk sweep 2026-10-20: GET-only route; route-level availability held at the class-sweep level (the AVAIL-1 quadratic-join class stays tracked at /api/graph/near-duplicates), not re-reviewed per route. re-review 2026-11-16: sidecar branch opens memory/note_search.duckdb read-only; absent/corrupt/locked -> except -> None -> legacy FTS5 fallback; route remains GET-only with bounded local-file reads",
+  "verdict": "clean"
  },
  {
   "scope": "app",
   "surface": "/api/search",
   "kind": "route",
   "attack_class": "concurrency",
-  "reviewed": "2026-10-20",
+  "reviewed": "2026-11-16",
   "method": "source",
-  "fingerprint": "018ce0995f721e40",
+  "fingerprint": "69ad25607d23a8e5",
   "status": "out_of_scope",
-  "note": "bulk sweep 2026-10-20: GET-only route \u2014 no state mutation for a TOCTOU race; concurrency held at shared-singleton surfaces"
+  "note": "bulk sweep 2026-10-20: GET-only route \u2014 no state mutation for a TOCTOU race; concurrency held at shared-singleton surfaces. re-review 2026-11-16: sidecar opened read-only per request and closed in finally; no shared mutable state introduced",
+  "verdict": "clean"
  },
  {
   "scope": "app",
@@ -1607,10 +1610,11 @@
   "surface": "/api/search",
   "kind": "route",
   "attack_class": "web-protocol/auth",
-  "reviewed": "2026-10-20",
+  "reviewed": "2026-11-16",
   "method": "source",
-  "fingerprint": "018ce0995f721e40",
-  "verdict": "note:low"
+  "fingerprint": "69ad25607d23a8e5",
+  "verdict": "note:low",
+  "note": "re-review 2026-11-16 after S2 sidecar branch: route shape unchanged (GET /api/search, no auth decorator); stateless handler; malformed-query path now returns 400 JSON on both engines"
  },
  {
   "scope": "app",
