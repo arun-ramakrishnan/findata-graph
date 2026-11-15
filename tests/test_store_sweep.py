@@ -120,7 +120,7 @@ def test_size_watch_ratio_contract(monkeypatch):
         "_FILING_MB",
         {
             "memory/embed_store.db": 184.6,
-            "memory/convo_search_fts.db": 102.0,
+            "memory/convo_search.duckdb": 102.0,
             "memory/doc_search.db": 24.7,
             "memory/corpus.db": 53.33,
         },
@@ -134,7 +134,7 @@ def test_size_watch_ratio_contract(monkeypatch):
         },
         # 257M / 102.0M = 2.52× — second synthetic ACT case.
         {
-            "store": "memory/convo_search_fts.db",
+            "store": "memory/convo_search.duckdb",
             "engine": "duckdb",
             "bytes": int(257 * mib),
         },
@@ -147,14 +147,14 @@ def test_size_watch_ratio_contract(monkeypatch):
         # 54M / 53.33M ≈ 1.01× — quiet.
         {"store": "memory/corpus.db", "engine": "sqlite", "after_bytes": int(54 * mib)},
         # No baseline — one prompt line, not a crash, not silence.
-        {"store": "memory/git_search.db", "engine": "sqlite", "bytes": int(26 * mib)},
+        {"store": "memory/git_search.duckdb", "engine": "duckdb", "bytes": int(26 * mib)},
         # No baseline AND 0 bytes — fully silent.
         {"store": "memory/data/sources.duckdb", "engine": "duckdb", "bytes": 0},
     ]
     lines = ss.size_watch(rows)
     assert sum("embed_store" in ln for ln in lines) == 1
     assert "ACT" in next(ln for ln in lines if "embed_store" in ln)
-    assert "ACT" in next(ln for ln in lines if "convo_search_fts" in ln)
+    assert "ACT" in next(ln for ln in lines if "convo_search.duckdb" in ln)
     assert "warn" in next(ln for ln in lines if "doc_search" in ln)
     assert not any("corpus" in ln for ln in lines)
     assert "no filing baseline" in next(ln for ln in lines if "git_search" in ln)

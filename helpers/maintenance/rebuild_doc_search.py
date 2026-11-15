@@ -24,7 +24,7 @@ RESIDENCE — own sidecar DB, never research.db: doc/local/ is private
 git-tracked snapshots/parquet/ export. Keeping the index (which stores
 doc/local/ PLAINTEXT in the FTS content column) inside research.db
 would make its privacy manifest-dependent — one future export-allowlist
-edit away from leaking. memory/doc_search.db is gitignored via memory/,
+edit away from leaking. memory/doc_search.duckdb is gitignored via memory/,
 never snapshotted, never attached to DuckDB, never touched by db_maint:
 locality is structural. Deleting it costs one warm rebuild. No
 bump_generation either — nothing downstream derives from this table.
@@ -71,11 +71,16 @@ from helpers.core import gemma_embedder  # noqa: E402
 from helpers.core.vec_codec import load_vec, pack_f32  # noqa: E402
 from helpers.core.fs_walk import iter_tree_files  # noqa: E402
 from helpers.maintenance import rebuild_common as rbc  # noqa: E402
+import duckdb  # noqa: E402  (used by the DuckDB-native sidecar path, S1)
 
 # Module-level and monkeypatchable (the VAULT_ROOT lesson: import-bound root
 # constants silently point tests at the live vault — tests MUST retarget both).
 DOC_ROOT = _REPO_ROOT / "doc"
-DOC_DB = _REPO_ROOT / "memory" / "doc_search.db"
+# duckdb_sidecar_fold S1 default: the DuckDB-native store. The legacy FTS5
+# sidecar (doc_search.db) stays openable via --db for rollback; tests pin
+# both paths (tests/test_doc_query_duckdb.py, tests/test_rebuild_doc_search.py).
+DOC_DB = _REPO_ROOT / "memory" / "doc_search.duckdb"
+DOC_DUCKDB_DB = _REPO_ROOT / "memory" / "doc_search.duckdb"
 
 DOC_EXTS = {".md", ".txt"}
 
@@ -144,12 +149,21 @@ DOC_EMBEDDER_ENV = "DOC_EMBEDDER"
 _H2 = "## "
 
 
-def connect_doc_db(db_path: Path | str | None = None) -> sqlite3.Connection:
-    """Open (creating if needed) the doc_search sidecar via the house
-    connection helper (standard pragmas: Row factory, WAL, busy_timeout —
-    so concurrent app.py readers never collide with a maint rebuild)."""
+def connect_doc_db(db_path: Path | str | None = None):
+    """Open (creating if needed) the doc_search sidecar.
+
+    Path suffix decides the engine: ``.duckdb`` → a DuckDB-native store
+    (duckdb_sidecar_fold S1 — native FTS + inline embeddings); anything
+    else → the house SQLite connection helper (standard pragmas: Row
+    factory, WAL, busy_timeout — so concurrent app.py readers never
+    collide with a maint rebuild).
+    """
     path = Path(db_path) if db_path is not None else DOC_DB
     path.parent.mkdir(parents=True, exist_ok=True)
+    if path.suffix.lower() == ".duckdb":
+        from helpers.core.duckdb_shared import memory_cap_config
+
+        return duckdb.connect(str(path), **memory_cap_config())
     from helpers.core.db import connect as _db_connect
 
     return _db_connect(path)
@@ -313,7 +327,7 @@ def query_embedder(
     return _pseudo, _PSEUDO_DIMS
 
 
-def stored_embed_model(conn: sqlite3.Connection) -> str | None:
+def stored_embed_model(conn) -> str | None:
     """Index-side model label from doc_search_info, or None when the
     sidecar predates the stamp (shared_query_vector: missing label keeps
     the dims-only back-compat check, not a hard reject)."""
@@ -324,7 +338,7 @@ def stored_embed_model(conn: sqlite3.Connection) -> str | None:
     return row[0] if row else None
 
 
-def stored_embed_dims(conn: sqlite3.Connection) -> int | None:
+def stored_embed_dims(conn) -> int | None:
     """Dims of the first stored doc_search embedding, or None when empty.
 
     Hybrid-search gate (same contract as rebuild_note_search.stored_embed_dims):
@@ -532,6 +546,28 @@ def _migrate_schema(conn: sqlite3.Connection) -> bool:
 
 def rebuild(  # noqa: C901
     db_path: Path | None = None,
+    write: bool = True,
+    incremental: bool = False,
+    embed_fn=None,
+    root: Path | None = None,
+) -> dict:
+    """Rebuild the doc_search index. Returns a stats dict.
+
+    Engine dispatch (duckdb_sidecar_fold S1): a ``.duckdb`` target uses
+    the native-FTS path (``rebuild_duckdb``; full rebuild — incremental
+    carry is a later slice); anything else uses the historical SQLite
+    FTS5 path below.
+    """
+    db_path = Path(db_path) if db_path is not None else DOC_DB
+    if db_path.suffix.lower() == ".duckdb":
+        return rebuild_duckdb(db_path, write=write, embed_fn=embed_fn, root=root)
+    return _rebuild_sqlite(
+        db_path, write=write, incremental=incremental, embed_fn=embed_fn, root=root
+    )
+
+
+def _rebuild_sqlite(  # noqa: C901
+    db_path: Path,
     write: bool = True,
     incremental: bool = False,
     embed_fn=None,
@@ -878,18 +914,23 @@ def fts_match_expr(q: str) -> str:
     return " OR ".join(tokens)
 
 
-def doc_index_ready(conn: sqlite3.Connection) -> bool:
+def doc_index_ready(conn) -> bool:
     """True when the doc_search table exists (i.e. at least one rebuild ran)."""
     try:
-        row = conn.execute(
-            "SELECT 1 FROM sqlite_master WHERE type='table' AND name='doc_search'"
-        ).fetchone()
-    except sqlite3.Error:
+        if isinstance(conn, duckdb.DuckDBPyConnection):
+            row = conn.execute(
+                "SELECT 1 FROM information_schema.tables WHERE table_name = 'doc_search'"
+            ).fetchone()
+        else:
+            row = conn.execute(
+                "SELECT 1 FROM sqlite_master WHERE type='table' AND name='doc_search'"
+            ).fetchone()
+    except Exception:  # noqa: S110
         return False
     return row is not None
 
 
-def doc_index_stale(conn: sqlite3.Connection, root: Path | None = None) -> bool:
+def doc_index_stale(conn, root: Path | None = None) -> bool:
     """True when doc/ differs from doc_search_meta.
 
     The read-path gate for /api/docs/search: a stale index degrades to the
@@ -905,11 +946,16 @@ def doc_index_stale(conn: sqlite3.Connection, root: Path | None = None) -> bool:
     Fails closed: unreadable file or missing meta hash ⇒ stale.
     """
     try:
-        meta = {
-            r[0]: (r[1], r[2])
-            for r in conn.execute("SELECT file_path, mtime, content_hash FROM doc_search_meta")
-        }
-    except sqlite3.Error:
+        if isinstance(conn, duckdb.DuckDBPyConnection):
+            rows = conn.execute(
+                "SELECT file_path, mtime, content_hash FROM doc_search_meta"
+            ).fetchall()
+        else:
+            rows = conn.execute(
+                "SELECT file_path, mtime, content_hash FROM doc_search_meta"
+            ).fetchall()
+        meta = {r[0]: (r[1], r[2]) for r in rows}
+    except Exception:  # noqa: S110
         return True
     if not meta:
         return True
@@ -930,6 +976,35 @@ def doc_index_stale(conn: sqlite3.Connection, root: Path | None = None) -> bool:
 
 
 def search_docs(  # noqa: C901
+    conn,
+    q: str,
+    limit: int = 25,
+    offset: int = 0,
+    *,
+    hybrid: bool = True,
+    query_vec: rbc.QueryVector | None = None,
+) -> dict:
+    """Hybrid BM25 + cosine search over doc_search. Never raises.
+
+    Dispatches on the connection engine: DuckDB-native store → native
+    ``match_bm25`` + Python highlight (``_search_docs_duckdb``); legacy
+    SQLite FTS5 → the historical bm25+snippet path below. Both return
+    the same dict contract.
+
+    Degradation: a dims mismatch or embedder failure drops the cosine leg
+    (mode bm25); the CALLER handles missing/stale tables (scan fallback)
+    — this function requires doc_index_ready(conn).
+    """
+    if isinstance(conn, duckdb.DuckDBPyConnection):
+        return _search_docs_duckdb(
+            conn, q, limit=limit, offset=offset, hybrid=hybrid, query_vec=query_vec
+        )
+    return _search_docs_sqlite(
+        conn, q, limit=limit, offset=offset, hybrid=hybrid, query_vec=query_vec
+    )
+
+
+def _search_docs_sqlite(  # noqa: C901
     conn: sqlite3.Connection,
     q: str,
     limit: int = 25,
@@ -1101,7 +1176,7 @@ def search_docs(  # noqa: C901
             "section": parent,
             "title": row[1],
             "section_title": row[2],
-            "anchor": row[4],
+            "anchor": int(row[4]) if row[4] not in (None, "") else None,
             "snippet": snippet,
             "score": round(rrf, 6),
             # Always present (null when no cosine leg) — the TS contract
@@ -1113,6 +1188,438 @@ def search_docs(  # noqa: C901
     if note:
         out["note"] = note
     return out
+
+
+# --------------------------------------------------------------------------- #
+# DuckDB-native sidecar (duckdb_sidecar_fold S1, 2026-11-15)
+# --------------------------------------------------------------------------- #
+# Same row shape as the legacy FTS5 store; `searchtext` is the composed
+# FTS field (title + section_title + content + meta + links + trail) —
+# DuckDB native `create_fts_index` indexes ONE text column. The cosine leg
+# reads `embedding` (identical f32 BLOB codec) from the same rows.
+DOC_DUCKDB_DDL = """
+CREATE TABLE IF NOT EXISTS doc_search (
+  id BIGINT PRIMARY KEY,
+  title VARCHAR, section_title VARCHAR, file_path VARCHAR, anchor VARCHAR,
+  content VARCHAR, embedding BLOB,
+  meta VARCHAR, links VARCHAR, trail VARCHAR,
+  searchtext VARCHAR
+);
+"""
+
+DOC_DUCKDB_META_DDL = """
+CREATE TABLE IF NOT EXISTS doc_search_meta (
+  file_path VARCHAR PRIMARY KEY, mtime DOUBLE, content_hash VARCHAR
+);
+"""
+
+DOC_DUCKDB_INFO_DDL = """
+CREATE TABLE IF NOT EXISTS doc_search_info (key VARCHAR PRIMARY KEY, value VARCHAR);
+"""
+
+
+def _compose_searchtext(row: tuple) -> str:
+    """The composed native-FTS field for a stored row ("-joined)."""
+    title, section_title, _fp, _anchor, content, _emb, meta, links, trail = row
+    return " ".join(s for s in (title, section_title, content, meta, links, trail) if s)
+
+
+class _DuckCachedEmbed(CachedEmbed):
+    """CachedEmbed whose cache handle is a DEDICATED sqlite conn.
+
+    The DuckDB store conn cannot host the cache attach: duckdb rejects
+    sqlite PRAGMAs (``busy_timeout`` → CatalogException → attach failed →
+    every section embeds UNCACHED, the 2026-11-15 live-build finding) and
+    its sqlite scanner is the wrong engine for the cache's writes. The
+    subclass points ``self._conn`` at its own sqlite3 connection to the
+    SAME pooled ``embed_store.db``; every inherited CachedEmbed behavior
+    (attach, lookup, miss-fill, status_line) then runs unchanged.
+    """
+
+    def __init__(self, embed_fn, model_label: str, source: str = "doc"):
+        from helpers.core.db import connect as _db_connect
+        from helpers.core.vec_search import EMBED_DB_PATH
+
+        self._owns_conn = True
+        super().__init__(
+            embed_fn,
+            model_label,
+            _db_connect(EMBED_DB_PATH),
+            source=source,
+        )
+
+    def commit(self) -> None:
+        """Persist cached vectors (content-addressed: early commit is safe)."""
+        self._conn.commit()
+
+    def close(self) -> None:
+        self._conn.close()
+
+
+def rebuild_duckdb(
+    db_path: Path | str | None = None,
+    *,
+    write: bool = True,
+    embed_fn=None,
+    root: Path | None = None,
+) -> dict:
+    """Build/rebuild the DuckDB-native doc_search store (S1).
+
+    Reuses the engine-agnostic walk/chunk/embed pipeline (``_iter_doc_files``
+    + ``_file_rows``); writes one ``doc_search`` table + meta/info stamp
+    tables, then builds the native FTS index over ``searchtext``.
+    Replacement rebuild (delete-all + insert) — incremental carry is a
+    later slice (the corpus is 4.5k rows; full rebuild is seconds).
+    ``write=False`` (--check): freshness verdict only — no DDL, no
+    writes, no embedder resolution (mirrors the legacy check posture:
+    the verdict is content-hash only, hash is the identity of record).
+    """
+    db_path = Path(db_path) if db_path is not None else DOC_DUCKDB_DB
+    stats: dict = {}
+
+    rows_by_file: dict[str, list[tuple]] = {}
+    hash_by_file: dict[str, str] = {}
+    for rel, abs_path in _iter_doc_files(root):
+        chash = _text_hash(abs_path)
+        if chash is None:
+            continue
+        hash_by_file[rel] = chash
+        if write:
+            rows_by_file[rel] = []  # populated below, post embedder resolve
+
+    stats["total_files"] = len(hash_by_file)
+    stats["mode"] = "full"
+
+    if not write:
+        return _check_freshness_duckdb(hash_by_file, db_path, stats)
+
+    conn = connect_doc_db(db_path)
+    try:
+        conn.execute(DOC_DUCKDB_DDL)
+        conn.execute(DOC_DUCKDB_META_DDL)
+        conn.execute(DOC_DUCKDB_INFO_DDL)
+
+        embed_fn, embed_dims, model_label, gemma_active = _resolve_doc_embedder_duckdb(
+            conn, embed_fn, stats
+        )
+
+        for rel, abs_path in _iter_doc_files(root):
+            rows, chash, _carried = _file_rows(abs_path, rel, embed_fn, gemma=gemma_active)
+            if chash is None:
+                hash_by_file.pop(rel, None)
+                rows_by_file.pop(rel, None)
+                continue
+            rows_by_file[rel] = rows
+            hash_by_file[rel] = chash
+
+        all_rows = [r for rows in rows_by_file.values() for r in rows]
+        stats["total_rows"] = len(all_rows)
+        stats["sections_carried"] = 0
+        stats["embedded"] = sum(1 for r in all_rows if r[5])
+
+        _write_doc_store(conn, all_rows, rows_by_file, hash_by_file, root, model_label, embed_dims)
+
+        stats["indexed"] = conn.execute("SELECT COUNT(*) FROM doc_search").fetchone()[0]
+        if isinstance(embed_fn, CachedEmbed):
+            stats["embed_cache_hits"] = embed_fn.hits
+            stats["embed_cache_misses"] = embed_fn.misses
+            stats["embed_cache_state"] = embed_fn.status_line()
+            if isinstance(embed_fn, _DuckCachedEmbed) and embed_fn.dirty:
+                embed_fn.commit()  # content-addressed: early commit is safe
+        return stats
+    finally:
+        if isinstance(embed_fn, _DuckCachedEmbed):
+            embed_fn.close()
+        conn.close()
+
+
+def _write_doc_store(
+    conn,
+    all_rows: list[tuple],
+    rows_by_file: dict[str, list[tuple]],
+    hash_by_file: dict[str, str],
+    root: Path | None,
+    model_label: str | None,
+    embed_dims: int,
+) -> None:
+    """Replacement write: delete-all + insert rows/meta/info stamps, then
+    rebuild the native FTS index (one-shot structure; drop+recreate covers
+    both fresh and pre-existing stores)."""
+    conn.execute("DELETE FROM doc_search")
+    conn.execute("DELETE FROM doc_search_meta")
+    if all_rows:
+        conn.executemany(
+            "INSERT INTO doc_search "
+            "(id, title, section_title, file_path, anchor, content, embedding, "
+            "meta, links, trail, searchtext) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            [(i, *r, _compose_searchtext(r)) for i, r in enumerate(all_rows)],
+        )
+    conn.executemany(
+        "INSERT OR REPLACE INTO doc_search_meta VALUES (?, ?, ?)",
+        [(rel, _mtime_of(root, rel), hash_by_file[rel]) for rel in rows_by_file],
+    )
+    if model_label is not None:
+        conn.executemany(
+            "INSERT OR REPLACE INTO doc_search_info VALUES (?, ?)",
+            [("embed_model", model_label), ("embed_dims", str(embed_dims))],
+        )
+    try:
+        conn.execute("PRAGMA drop_fts_index('doc_search')")
+    except duckdb.Error:
+        pass
+    conn.execute("PRAGMA create_fts_index('doc_search', 'id', 'searchtext')")
+
+
+def _resolve_doc_embedder_duckdb(conn, embed_fn, stats: dict):
+    """Resolve the embedder for a DuckDB rebuild: an injected embed_fn
+    (tests) passes through; otherwise resolve the house default, run the
+    gemma demotion guard, and wrap in the dedicated-sqlite cache handle
+    (duckdb conns can't host the pooled-store attach — see
+    _DuckCachedEmbed). Returns (embed_fn, embed_dims, model_label,
+    gemma_active)."""
+    if embed_fn is not None:
+        return embed_fn, _PSEUDO_DIMS, None, False
+    embed_fn, embed_dims, model_label, gemma_active = resolve_doc_embedder()
+    stats["embed_model"] = model_label
+    # Top-level demotion guard (mirrors the legacy sqlite path): a
+    # gemma-stamped store is never silently re-embedded by the
+    # fallback model. DOC_EMBEDDER=granite is the explicit escape.
+    gemma_embedder.guard_gemma_stamp(
+        stored_embed_model(conn),
+        model_label,
+        os.environ.get(DOC_EMBEDDER_ENV),
+    )
+    if model_label != f"dry-run-v{_PSEUDO_DIMS}":
+        embed_fn = _DuckCachedEmbed(embed_fn, model_label, source="doc")
+    return embed_fn, embed_dims, model_label, gemma_active
+
+
+def _check_freshness_duckdb(hash_by_file: dict[str, str], db_path: Path, stats: dict) -> dict:
+    """Freshness verdict vs the stored DuckDB store (same doctrine as the
+    legacy --check: content hashes; stale = new/changed/deleted). Mutates
+    and returns ``stats``; the verdict is printed here (legacy contract:
+    main() only maps index_stale to the exit code)."""
+    stats["sections_carried"] = 0
+    stats["embedded"] = 0
+    try:
+        conn = connect_doc_db(db_path)
+        try:
+            stored_meta = {
+                r[0]: (r[1], r[2])
+                for r in conn.execute(
+                    "SELECT file_path, mtime, content_hash FROM doc_search_meta"
+                ).fetchall()
+            }
+            stats["total_rows"] = conn.execute("SELECT COUNT(*) FROM doc_search").fetchone()[0]
+        finally:
+            conn.close()
+    except Exception:  # noqa: S110  # store absent/unreadable: all files read as new
+        stored_meta = {}
+        stats["total_rows"] = 0
+    on_disk = set(hash_by_file)
+    stats["stale_new"] = sorted(fp for fp in on_disk if fp not in stored_meta)
+    stats["stale_deleted"] = sorted(fp for fp in stored_meta if fp not in on_disk)
+    stats["stale_changed"] = sorted(
+        fp for fp in on_disk if fp in stored_meta and stored_meta[fp][1] != hash_by_file[fp]
+    )
+    stats["index_stale"] = bool(
+        stats["stale_new"] or stats["stale_changed"] or stats["stale_deleted"]
+    )
+    _print_staleness(stats)
+    return stats
+
+
+def _highlight_window(content: str, q: str, width: int = 16) -> str:
+    """Word-window snippet with <mark> around query-token matches.
+
+    DuckDB native FTS has no snippet()/highlight(); this is the Python
+    replacement (note_snippet pattern, `helpers/misc/note_query.py:71`).
+    Output shape matches what the legacy FTS5 snippet() produced:
+    a ≤~32-word window around the first matching token, matches wrapped
+    in <mark>…</mark>, clipped edges ellipsized.
+    """
+    if not content:
+        return ""
+    tokens = re.findall(r"[\w']+", q.casefold())
+    words = content.split()
+    lowered = [w.casefold() for w in words]
+    pos = next(
+        (i for token in tokens for i, w in enumerate(lowered) if token in w),
+        None,
+    )
+    if pos is None:
+        return " ".join(words[: width * 2])
+    start = max(0, pos - width // 2)
+    window = words[start : start + width * 2]
+    out = " ".join(
+        f"<mark>{w}</mark>" if any(t in w.casefold() for t in tokens) else w for w in window
+    )
+    return f" … {out} … " if start or start + len(window) < len(words) else out
+
+
+def _resolve_q_vec_duckdb(
+    conn, q: str, hybrid: bool, query_vec: rbc.QueryVector | None
+) -> tuple[list[float] | None, str | None]:
+    """Resolve the query vector for the DuckDB cosine leg: a stamp-matched
+    shared QV wins; otherwise embed locally when the index dims agree.
+    Returns (q_vec, note) — (None, note) means the BM25 leg carries the
+    whole ranking (same degradation contract as the FTS5 path)."""
+    if not hybrid:
+        return None, None
+    q_vec: list[float] | None = None
+    note: str | None = None
+    try:
+        idx_model = stored_embed_model(conn)
+        idx_dims = stored_embed_dims(conn)
+        if query_vec is not None:
+            q_vec = rbc.check_query_vector(idx_model, idx_dims, query_vec)
+            if q_vec is None and query_vec.model != (idx_model or ""):
+                note = (
+                    f"query-vector stamp mismatch (index "
+                    f"{idx_model or 'unstroked'}/{idx_dims}d, QV "
+                    f"{query_vec.model}/{query_vec.dims}d) — embedding locally"
+                )
+        if q_vec is None:
+            embed_q, _dims = query_embedder(idx_model)
+            candidate = embed_q(q)
+            if idx_dims is not None and idx_dims == len(candidate):
+                q_vec = candidate
+    except Exception:  # noqa: S110
+        note = note or "vector embedder unavailable — bm25-only"
+        q_vec = None
+    return q_vec, note
+
+
+def _cosine_leg_duckdb(
+    conn, q_vec: list[float] | None
+) -> tuple[list[tuple[int, float]], dict[int, float], dict[int, int] | None]:
+    """Cosine-score every stored embedding against q_vec (keyed on id):
+    (scored desc, sims, cos_rank). ([], {}, None) when q_vec is None —
+    the BM25 leg then carries the whole ranking."""
+    if q_vec is None:
+        return [], {}, None
+    norm_q = sum(x * x for x in q_vec) ** 0.5 or 1.0
+    scored: list[tuple[int, float]] = []
+    sims: dict[int, float] = {}
+    for rid, emb in conn.execute(
+        "SELECT id, embedding FROM doc_search WHERE embedding IS NOT NULL AND embedding != ''"
+    ).fetchall():
+        vec = load_vec(emb)
+        if not vec or len(vec) != len(q_vec):
+            continue
+        norm_v = sum(x * x for x in vec) ** 0.5 or 1.0
+        sim = sum(a * b for a, b in zip(q_vec, vec)) / (norm_q * norm_v)
+        scored.append((rid, sim))
+        sims[rid] = sim
+    scored.sort(key=lambda t: t[1], reverse=True)
+    cos_rank = {rid: pos for pos, (rid, _s) in enumerate(scored)}
+    return scored, sims, cos_rank
+
+
+def _search_docs_duckdb(
+    conn,
+    q: str,
+    limit: int = 25,
+    offset: int = 0,
+    *,
+    hybrid: bool = True,
+    query_vec: rbc.QueryVector | None = None,
+) -> dict:
+    """Native match_bm25 + Python highlight + cosine leg over the DuckDB store.
+
+    Result dict shape is identical to the FTS5 path (mode/results/note),
+    so `doc_query`/app.py consumers are untouched.
+    """
+    expr = fts_match_expr(q)
+    if not expr:
+        return {"mode": "bm25", "results": []}
+    sc = "fts_main_doc_search.match_bm25(id, ?)"
+    try:
+        page = conn.execute(
+            "SELECT id, title, section_title, file_path, anchor, content, "  # noqa: S608  # sc is a fixed literal (match_bm25 macro call), not user input
+            f"embedding, {sc} AS score "
+            f"FROM doc_search WHERE {sc} IS NOT NULL "
+            f"ORDER BY score DESC LIMIT ?",
+            (expr, expr, limit + offset),
+        ).fetchall()
+    except duckdb.Error:
+        return {"mode": "bm25", "results": []}
+
+    q_vec, note = _resolve_q_vec_duckdb(conn, q, hybrid, query_vec)
+    scored, sims, cos_rank = _cosine_leg_duckdb(conn, q_vec)
+
+    # page rows: (id, title, section_title, file_path, anchor, content, embedding, score)
+    candidates: list[tuple[int, tuple, str]] = [
+        (pos, row[:5], _highlight_window(row[5], q)) for pos, row in enumerate(page)
+    ]
+    if cos_rank is not None:
+        page_rids = {row[0] for row in page}
+        extra_pos = 0
+        for rid, _sim in scored[: limit + offset]:
+            if rid in page_rids:
+                continue
+            row = conn.execute(
+                "SELECT id, title, section_title, file_path, anchor, content "
+                "FROM doc_search WHERE id = ?",
+                (rid,),
+            ).fetchone()
+            if row is None:
+                continue
+            head = " ".join((row[5] or "").split())[:200]
+            candidates.append((len(page) + extra_pos, row[:5], head))
+            extra_pos += 1
+
+    worst = len(cos_rank) if cos_rank else 0
+    fused = rrf_two_leg(candidates, cos_rank, worst)
+
+    results = _emit_doc_results(fused, sims, offset, limit)
+    out = {"mode": "hybrid" if cos_rank is not None else "bm25", "results": results}
+    if note:
+        out["note"] = note
+    return out
+
+
+def _emit_doc_results(
+    fused: list[tuple[float, tuple, str]],
+    sims: dict[int, float],
+    offset: int,
+    limit: int,
+) -> list[dict]:
+    """Per-file diversification cap + offset slice + hit-dict building
+    (the FTS5 path's emit tail, shared shape)."""
+    from collections import Counter
+
+    per_file: Counter = Counter()
+    emitted: list[tuple[float, tuple, str]] = []
+    for rrf, row, snippet in fused:
+        fp = row[3]
+        if per_file[fp] >= _MAX_PER_FILE:
+            continue
+        per_file[fp] += 1
+        emitted.append((rrf, row, snippet))
+        if len(emitted) >= offset + limit:
+            break
+
+    results = []
+    for rrf, row, snippet in emitted[offset:]:
+        path = row[3]
+        parts = PurePosixPath(path).parts
+        parent = "/".join(parts[1:-1]) if len(parts) > 2 else ""
+        results.append(
+            {
+                "path": path,
+                "name": PurePosixPath(path).name,
+                "section": parent,
+                "title": row[1],
+                "section_title": row[2],
+                "anchor": int(row[4]) if row[4] not in (None, "") else None,
+                "snippet": snippet,
+                "score": round(rrf, 6),
+                "similarity": round(sims[row[0]], 6) if row[0] in sims else None,
+            }
+        )
+    return results
 
 
 def _summary_line(stats: dict) -> str:
@@ -1131,7 +1638,7 @@ def main(argv: list[str] | None = None) -> int:
         rbc.RebuildCliSpec(
             description=__doc__.split("\n\n")[0],
             default_db=str(DOC_DB),
-            db_help="Path to the doc_search sidecar (default: memory/doc_search.db).",
+            db_help="Path to the doc_search sidecar (default: memory/doc_search.duckdb).",
             check_help="Dry-run: count files/rows, report index freshness "
             "(changed/new/deleted), no writes. Exits 1 when stale.",
             incremental_help="Incremental rebuild (only re-index changed/deleted files).",

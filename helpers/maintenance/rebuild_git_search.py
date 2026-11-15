@@ -41,7 +41,7 @@ inverts the cost (proposal: doc/improvements/proposals/git_history_search.md):
   index built from a behind tree would be silently wrong.
 
 RESIDENCE — own sidecar, same doctrine as script_search:
-memory/git_search.db is gitignored via memory/, never snapshotted, never
+memory/git_search.duckdb is gitignored via memory/, never snapshotted, never
 attached to DuckDB. Derived state; delete it and one warm rebuild restores
 everything (embeddings included — the cache is content-addressed).
 
@@ -75,7 +75,11 @@ if str(_REPO_ROOT) not in sys.path:
 
 from helpers.core.vec_codec import load_vec, pack_f32  # noqa: E402  (house bootstrap above)
 
-GIT_SEARCH_DB = _REPO_ROOT / "memory" / "git_search.db"
+import duckdb  # noqa: E402  (duckdb_sidecar_fold S4: native-FTS git sidecar path)
+
+GIT_SEARCH_DB = _REPO_ROOT / "memory" / "git_search.duckdb"
+GIT_DUCKDB_DB = GIT_SEARCH_DB
+_GIT_SQLITE_DB = _REPO_ROOT / "memory" / "git_search.db"
 
 REF = "main"
 
@@ -204,11 +208,21 @@ GIT_SEARCH_BODY_DDL = (
 _ROW_COLS = "sha, adate, subject, files, content, embedding"
 
 
-def connect_git_db(db_path: Path | str | None = None) -> sqlite3.Connection:
-    """Open (creating if needed) the git_search sidecar via the house
-    connection helper (standard pragmas: row factory, WAL, busy_timeout)."""
+def connect_git_db(db_path: Path | str | None = None):
+    """Open (creating if needed) the git_search sidecar.
+
+    Engine dispatch (duckdb_sidecar_fold S4): a ``.duckdb`` suffix opens a
+    DuckDB-native store (native FTS + inline embeddings + the body-chunk
+    table, house memory cap); anything else opens the legacy FTS5 sidecar
+    via the house sqlite helper (standard pragmas: Row factory, WAL,
+    busy_timeout)."""
     path = Path(db_path) if db_path is not None else GIT_SEARCH_DB
     path.parent.mkdir(parents=True, exist_ok=True)
+    if path.suffix.lower() == ".duckdb":
+        from helpers.core.duckdb_shared import memory_cap_config
+
+        return duckdb.connect(str(path), **memory_cap_config())
+
     from helpers.core.db import connect as _db_connect
 
     return _db_connect(path)
@@ -514,6 +528,11 @@ def rebuild(
     rewrite (every reachable sha re-extracted and re-embedded);
     `git_root` overrides the repo root (fixture/test injection — the
     default resolves the primary checkout, refusing linked worktrees)."""
+    db_path = Path(db_path)
+    if db_path.suffix.lower() == ".duckdb":
+        # duckdb_sidecar_fold S4: the DuckDB-native store is rebuild-only
+        # (replacement rebuild; corpus ~574 commits).
+        return rebuild_git_duckdb(db_path, write=write, git_root=git_root)
     root = primary_repo_root(git_root)
     messages = _messages(root)
     numstats = _numstats(root)
@@ -623,6 +642,259 @@ def rebuild(
         conn.close()
 
 
+# ---------------------------------------------------------------------------
+# DuckDB-native sidecar (duckdb_sidecar_fold S4, 2026-11-15)
+#
+# Native FTS (fts_main_git_search.match_bm25) over a composed searchtext =
+# the legacy FTS5 content column (message + touched-paths block + capped
+# diff) — sha/adate/subject/files were UNINDEXED there and become plain SQL
+# columns. The body-chunk table rides along (chunk_fp identical). Stamps
+# (embed_model/embed_dims/embed_basis/body_basis) stay in git_search_info.
+GIT_DUCKDB_DDL = """
+CREATE TABLE IF NOT EXISTS git_search (
+  id BIGINT PRIMARY KEY,
+  sha TEXT,
+  adate TEXT,
+  subject TEXT,
+  files TEXT,
+  content TEXT,
+  embedding BLOB,
+  searchtext TEXT
+)
+"""
+GIT_DUCKDB_META_DDL = """
+CREATE TABLE IF NOT EXISTS git_search_meta (
+  sha TEXT PRIMARY KEY,
+  adate REAL NOT NULL,
+  fp TEXT NOT NULL
+)
+"""
+GIT_DUCKDB_INFO_DDL = """
+CREATE TABLE IF NOT EXISTS git_search_info ( key TEXT PRIMARY KEY, value TEXT NOT NULL)
+"""
+GIT_DUCKDB_BODY_DDL = """
+CREATE TABLE IF NOT EXISTS git_search_body (
+  sha TEXT NOT NULL,
+  chunk_idx INTEGER NOT NULL,
+  embedding BLOB NOT NULL,
+  chunk_fp TEXT NOT NULL,
+  PRIMARY KEY (sha, chunk_idx)
+)
+"""
+
+
+def rebuild_git_duckdb(
+    db_path: Path | str | None = None,
+    *,
+    write: bool = True,
+    git_root: Path | None = None,
+) -> dict:
+    """Build/rebuild the DuckDB-native git_search store (duckdb_sidecar_fold
+    S4).
+
+    Reuses the whole reconciliation pipeline (``_messages``/``_numstats``/
+    ``_fp``, ``_body_chunks``, ``_diffs_for``, ``_embed_pass``) on the
+    duckdb store. ``_embed_pass`` gets a dedicated sqlite cache handle
+    (a duckdb conn cannot host the pooled-store vecdb attach — S1
+    lesson); its info stamps land in the duckdb ``git_search_info``.
+
+    Replacement rebuild (delete-all + insert): the corpus is ~574 commits,
+    full rebuild is seconds with a warm cache. ``write=False`` (--check):
+    the same meta-vs-fp verdict as the FTS5 path, printed by the shared
+    ``_check_verdict``.
+    """
+    root = primary_repo_root(git_root)
+    messages = _messages(root)
+    numstats = _numstats(root)
+    reachable = set(messages)
+    ordered = list(messages)  # newest first
+
+    conn = connect_git_db(db_path)
+    try:
+        if not write:
+            return _check_freshness_git_duckdb(conn, messages, numstats, reachable, ordered)
+
+        conn.execute(GIT_DUCKDB_DDL)
+        conn.execute(GIT_DUCKDB_META_DDL)
+        conn.execute(GIT_DUCKDB_INFO_DDL)
+        conn.execute(GIT_DUCKDB_BODY_DDL)
+        _drop_stale_git_tables(conn)
+
+        # Whole-corpus embed: the replacement rebuild re-extracts every row
+        # (basis version = current; body basis = current).
+        embed_shas = list(reversed(ordered))
+        chunk_shas = list(reversed(ordered))
+        chunk_plan = [
+            (s, i, t) for s in chunk_shas for i, t in enumerate(_body_chunks(messages[s][1]))
+        ]
+        diffs = _diffs_for(root, list(ordered))
+        stats: dict = {"total_units": len(reachable)}
+
+        from helpers.core.db import connect as _db_connect
+        from helpers.core.vec_search import EMBED_DB_PATH
+
+        # The cache may live on a path whose parents don't exist yet
+        # (tmp/repo-less hosts, early boot, pty dirs).
+        EMBED_DB_PATH.parent.mkdir(parents=True, exist_ok=True)
+        cache_conn = _db_connect(EMBED_DB_PATH)
+        try:
+            label, vec_by_sha, chunk_vec_map = _embed_pass(
+                conn,
+                root,
+                messages,
+                reachable,
+                stats,
+                embed_shas,
+                chunk_shas,
+                chunk_plan,
+                basis_stale=True,
+                body_stale=True,
+                incremental=False,
+                cache_conn=cache_conn,
+            )
+            cache_conn.commit()
+        finally:
+            cache_conn.close()
+
+        rows, body_rows, meta_rows = _compose_git_rows(
+            ordered, messages, numstats, diffs, vec_by_sha, chunk_vec_map, chunk_plan
+        )
+
+        _write_git_store(conn, rows, body_rows, meta_rows)
+
+        stats["indexed"] = len(ordered)
+        stats["total_rows"] = conn.execute("SELECT COUNT(*) FROM git_search").fetchone()[0]
+        stats["total_body_chunks"] = len(body_rows)
+        stats["embed_model"] = label
+        return stats
+    finally:
+        conn.close()
+
+
+def _check_freshness_git_duckdb(
+    conn, messages: dict, numstats: dict, reachable: set, ordered: list
+) -> dict:
+    """--check staleness verdict vs the stored meta (sha fingerprints);
+    absent store reads as all-new. Prints the verdict and returns stats."""
+    try:
+        meta = {
+            r[0]: (r[1], r[2])
+            for r in conn.execute("SELECT sha, adate, fp FROM git_search_meta").fetchall()
+        }
+    except Exception:  # noqa: S110  # store absent/unreadable -> all new
+        meta = {}
+    dropped = sorted(set(meta) - reachable)
+    new_shas = [s for s in reversed(ordered) if s not in meta]
+    changed = []
+    for s in ordered:
+        if s in meta:
+            _adate, body = messages[s]
+            if _fp(body, _files_block(numstats.get(s, []))) != meta[s][1]:
+                changed.append(s)
+    changed.reverse()
+    stats: dict = {
+        "total_units": len(reachable),
+        "stale_new": list(new_shas),
+        "stale_changed": list(changed),
+        "stale_deleted": dropped,
+    }
+    prev_body_basis = _stored_body_basis(conn)
+    body_stale = prev_body_basis != str(BODY_BASIS_VERSION)
+    stats["stale_body_basis"] = body_stale
+    stats["index_stale"] = bool(new_shas or changed or dropped or body_stale)
+    _check_verdict(conn, stats, body_stale)
+    return stats
+
+
+def _drop_stale_git_tables(conn) -> None:
+    """Clean slate before the replacement write: drop any stale FTS
+    shadows + base (a partial/aborted earlier build may have left a
+    columnless base with shadows — IF NOT EXISTS would no-op past it)."""
+    try:
+        conn.execute("PRAGMA drop_fts_index('git_search')")
+    except duckdb.Error:
+        pass
+    for shadow in (
+        "git_search_data",
+        "git_search_idx",
+        "git_search_content",
+        "git_search_docsize",
+        "git_search_config",
+    ):
+        conn.execute(f"DROP TABLE IF EXISTS {shadow}")
+    conn.execute("DROP TABLE IF EXISTS git_search")
+    conn.execute(GIT_DUCKDB_DDL)
+
+
+def _compose_git_rows(
+    ordered: list,
+    messages: dict,
+    numstats: dict,
+    diffs: dict,
+    vec_by_sha: dict,
+    chunk_vec_map: dict,
+    chunk_plan: list,
+):
+    """Compose the replacement-write row sets: main rows, body-chunk rows,
+    and sha fingerprints. Returns (rows, body_rows, meta_rows)."""
+    rows = []
+    body_rows = []
+    meta_rows = []
+    for sha in ordered:
+        adate, body = messages[sha]
+        subject = body.split("\n", 1)[0]
+        fblock = _files_block(numstats.get(sha, []))
+        content = f"{body}\n{fblock}\n{diffs.get(sha, '')}"
+        rows.append(
+            (
+                sha,
+                _iso_date(adate),
+                subject,
+                fblock,
+                content,
+                pack_f32(vec_by_sha[sha]),
+                content,
+            )
+        )
+        meta_rows.append((sha, float(adate), _fp(body, fblock)))
+    for s, i, t in chunk_plan:
+        body_rows.append(
+            (
+                s,
+                i,
+                pack_f32(chunk_vec_map[(s, i)]),
+                hashlib_blake2b(f"v{BODY_BASIS_VERSION}|cap{BODY_CHUNK_CAP}\n{t}"),
+            )
+        )
+    return rows, body_rows, meta_rows
+
+
+def _write_git_store(conn, rows: list, body_rows: list, meta_rows: list) -> None:
+    """Replacement write: delete-all + insert main/meta/body rows, then
+    create the native FTS index."""
+    conn.execute("DELETE FROM git_search")
+    conn.execute("DELETE FROM git_search_meta")
+    conn.execute("DELETE FROM git_search_body")
+    if rows:
+        conn.executemany(
+            "INSERT INTO git_search "
+            "(id, sha, adate, subject, files, content, embedding, searchtext) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+            [(i, *r) for i, r in enumerate(rows)],
+        )
+    if meta_rows:
+        conn.executemany(
+            "INSERT OR REPLACE INTO git_search_meta (sha, adate, fp) VALUES (?, ?, ?)",
+            meta_rows,
+        )
+    if body_rows:
+        conn.executemany(
+            "INSERT INTO git_search_body (sha, chunk_idx, embedding, chunk_fp) VALUES (?, ?, ?, ?)",
+            body_rows,
+        )
+    conn.execute("PRAGMA create_fts_index('git_search', 'id', 'searchtext')")
+
+
 def _check_verdict(conn: sqlite3.Connection, stats: dict, body_stale: bool) -> None:
     """The `write=False` (--check) verdict: print staleness, close stats.
 
@@ -666,7 +938,10 @@ def _check_verdict(conn: sqlite3.Connection, stats: dict, body_stale: bool) -> N
             refresh_cmd="python3 helpers/maintenance/rebuild_git_search.py",
         )
     stats["indexed"] = 0
-    stats["total_rows"] = conn.execute("SELECT COUNT(*) FROM git_search").fetchone()[0]
+    try:
+        stats["total_rows"] = conn.execute("SELECT COUNT(*) FROM git_search").fetchone()[0]
+    except Exception:  # noqa: BLE001  # no store yet (fresh --check) -> 0
+        stats["total_rows"] = 0
 
 
 def _embed_pass(
@@ -681,15 +956,22 @@ def _embed_pass(
     basis_stale: bool,
     body_stale: bool,
     incremental: bool,
+    cache_conn=None,
 ) -> tuple[str, dict, dict]:
     """Resolve the embedder, run the head/chunk batches, stamp the bases.
 
     Split out of `rebuild` for C901. Returns (label, vec_by_sha,
     chunk_vec_map). The demotion guard and the mixed-vector-space refusal
-    keep their exact wording — they are doctrine, not diagnostics."""
+    keep their exact wording — they are doctrine, not diagnostics.
+
+    ``cache_conn`` (duckdb_sidecar_fold S4): a dedicated sqlite handle
+    for the pooled embed cache — a duckdb conn cannot host the vecdb
+    attach (S1 lesson). The cache batch calls use it; the info stamps
+    still land on ``conn``."""
     # The embedder resolves BEFORE the texts compose: the basis is
     # per-model (gemma's prefix contract), so label must be known first.
     embed_missing, dims, label, _ = resolve_git_embedder()
+    batch_conn = cache_conn if cache_conn is not None else conn
     prev_model = _stored_embed_model(conn)
     # Demotion guard for the gemma-adopted state: the follow-availability
     # selector must never silently populate the fallback model over a
@@ -718,7 +1000,7 @@ def _embed_pass(
 
         if embed_shas:
             vecs, emb_stats = cached_embed_batch(
-                conn, texts, label, embed_missing, source=SOURCE_COHORT
+                batch_conn, texts, label, embed_missing, source=SOURCE_COHORT
             )
             vec_by_sha = dict(zip(embed_shas, vecs))
             stats["embedded"] = emb_stats["unique_misses"]
@@ -726,7 +1008,7 @@ def _embed_pass(
             stats["embed_cache_misses"] = emb_stats["misses"]
         if chunk_plan:
             chunk_vecs, body_stats = cached_embed_batch(
-                conn,
+                batch_conn,
                 [
                     _chunk_embed_text(label, messages[s][1].split("\n", 1)[0], t)
                     for s, _i, t in chunk_plan
@@ -848,13 +1130,19 @@ def _write_rows(
 # --------------------------------------------------------------------------- #
 
 
-def git_index_ready(conn: sqlite3.Connection) -> bool:
+def git_index_ready(conn) -> bool:
     """True when the git_search table exists (at least one rebuild ran)."""
     try:
-        row = conn.execute(
-            "SELECT 1 FROM sqlite_master WHERE type='table' AND name='git_search'"
-        ).fetchone()
-    except sqlite3.Error:
+        if isinstance(conn, duckdb.DuckDBPyConnection):
+            row = conn.execute(
+                "SELECT 1 FROM information_schema.tables "
+                "WHERE table_schema = 'main' AND table_name = 'git_search'"
+            ).fetchone()
+        else:
+            row = conn.execute(
+                "SELECT 1 FROM sqlite_master WHERE type='table' AND name='git_search'"
+            ).fetchone()
+    except Exception:  # noqa: S110  # engine error / absent store -> not ready
         return False
     return row is not None
 
@@ -867,8 +1155,12 @@ def git_index_stale(conn: sqlite3.Connection, *, root: Path | None = None) -> bo
     seconds. Fingerprint drift (an exclude-list retune) is the --check's
     business. Any error counts as stale (safe side)."""
     try:
-        meta = {r[0] for r in conn.execute("SELECT sha FROM git_search_meta")}
-    except sqlite3.Error:
+        meta = {
+            r[0]
+            for r in conn.execute("SELECT sha FROM git_search_meta").fetchall()
+            # fetchall: duckdb conns are not row-iterable (S1 lesson)
+        }
+    except Exception:  # noqa: S110  # engine error / absent meta -> stale (safe side)
         return True
     if not meta:
         return True
@@ -942,12 +1234,12 @@ def _cosine_leg(
     rid_by_sha: dict[str, int] = {}
     for rid, sha, emb in conn.execute(
         "SELECT rowid, sha, embedding FROM git_search WHERE embedding IS NOT NULL AND embedding != ''"
-    ):
+    ).fetchall():  # fetchall: duckdb conns are not row-iterable (S1 lesson)
         rid_by_sha[sha] = rid
         vec = load_vec(emb)
         if vec is not None:
             _consider(rid, vec, body=False)
-    for sha, emb in conn.execute("SELECT sha, embedding FROM git_search_body"):
+    for sha, emb in conn.execute("SELECT sha, embedding FROM git_search_body").fetchall():
         rid = rid_by_sha.get(sha)
         if rid is not None:
             vec = load_vec(emb)
@@ -981,16 +1273,24 @@ def _has_rare_literal(conn: sqlite3.Connection, q: str) -> bool:
 
     try:
         terms = re.findall(r'"([^"]+)"', rds.fts_match_expr(q))
+        is_duckdb = isinstance(conn, duckdb.DuckDBPyConnection)
         for term in terms:
             if len(term) < 4 or term.lower() in _ROUTER_STOPWORDS:
                 continue
-            n = conn.execute(
-                "SELECT COUNT(*) FROM git_search WHERE git_search MATCH ?",  # noqa: S608  # quoted literal
-                (f'"{term}"',),
-            ).fetchone()[0]
+            if is_duckdb:
+                sc = "fts_main_git_search.match_bm25(id, ?)"
+                n = conn.execute(
+                    f"SELECT COUNT(*) FROM git_search WHERE {sc} IS NOT NULL",  # noqa: S608  # quoted literal
+                    (term,),
+                ).fetchone()[0]
+            else:
+                n = conn.execute(
+                    "SELECT COUNT(*) FROM git_search WHERE git_search MATCH ?",  # noqa: S608  # quoted literal
+                    (f'"{term}"',),
+                ).fetchone()[0]
             if 0 < n <= _RARE_LITERAL_ROWS:
                 return True
-    except sqlite3.Error:
+    except Exception:  # noqa: S110  # engine error -> hybrid stays the default shape
         return False
     return False
 
@@ -1119,6 +1419,18 @@ def search_commits(
     cosine generics buried the truth under synthetic extra positions).
     `since` is a cutoff ISO date (YYYY-MM-DD), `path` a touched-path
     substring (LIKE-escaped)."""
+    if isinstance(conn, duckdb.DuckDBPyConnection):
+        return _search_commits_duckdb(
+            conn,
+            q,
+            limit,
+            offset,
+            since=since,
+            path=path,
+            hybrid=hybrid,
+            query_vec=query_vec,
+            vector_only=vector_only,
+        )
     from helpers.maintenance import rebuild_doc_search as rds
     from helpers.maintenance import rebuild_script_search as rss
 
@@ -1187,6 +1499,81 @@ def search_commits(
 # --------------------------------------------------------------------------- #
 
 
+def _search_commits_duckdb(
+    conn,
+    q: str,
+    limit: int = 25,
+    offset: int = 0,
+    *,
+    since: str | None = None,
+    path: str | None = None,
+    hybrid: bool = True,
+    query_vec: object = None,
+    vector_only: bool = False,
+) -> dict:
+    """Native match_bm25 + Python highlight + cosine leg over the DuckDB
+    store. Result-dict shape identical to the FTS5 path (mode/results;
+    sha/date/subject/files/snippet/score/similarity/vector_from), so
+    git_query/search_tui/app consumers are untouched. The lexical router
+    (identifier-shaped / rare-literal) is preserved verbatim.
+    """
+    from helpers.maintenance import rebuild_doc_search as rds
+    from helpers.maintenance import rebuild_script_search as rss
+
+    expr = rds.fts_match_expr(q)
+    if not expr:
+        return {"mode": "bm25", "results": []}
+    routed_lexical = (
+        hybrid and not vector_only and (rss.is_identifier_query(q) or _has_rare_literal(conn, q))
+    )
+    where, params = _where_and_params(since, path)
+    sc = "fts_main_git_search.match_bm25(id, ?)"
+    where = f"{sc} IS NOT NULL{where}"
+    params = [expr, expr, *params]
+    try:
+        page = conn.execute(
+            f"SELECT id, sha, adate, subject, files, content, {sc} AS score "  # noqa: S608  # where built from parameterized clauses only
+            f"FROM git_search WHERE {where} "
+            f"ORDER BY score DESC LIMIT ?",
+            [*params, limit + offset],
+        ).fetchall()
+    except duckdb.Error:
+        return {"mode": "bm25", "results": []}
+
+    run_cosine = (hybrid and not routed_lexical) or vector_only
+    scored, sims, from_body = _cosine_leg(conn, q, query_vec) if run_cosine else ([], {}, set())
+    if vector_only:
+        return {
+            "mode": "vector",
+            "results": _hit_dicts(
+                _vector_hits(conn, scored, sims, since, path, limit, offset), sims, from_body
+            ),
+        }
+    candidates: list[tuple[int, sqlite3.Row, str, bool]] = [
+        (pos, row, rds._highlight_window(row[5], q), False) for pos, row in enumerate(page)
+    ]
+    cos_rank: dict[int, int] | None = None
+    if scored:
+        cos_rank = {rid: pos for pos, (rid, _s) in enumerate(scored)}
+        page_ids = {row[0] for row in page}
+        rows_by_rid = _rows_by_rid(conn, since, path)
+        page_max_sim = max((sims.get(row[0], 0.0) for row in page), default=0.0)
+        extra_pos = 0
+        for rid, _sim in scored[: limit + offset]:
+            if rid in page_ids:
+                continue
+            row = rows_by_rid.get(rid)
+            if row is None:
+                continue
+            head = " ".join((row[5] or "").split())[:200]
+            earned = sims.get(rid, 0.0) > page_max_sim
+            candidates.append((len(page) + extra_pos, row, head, not earned))
+            extra_pos += 1
+    hits = _fuse_scores(candidates, cos_rank)[offset : offset + limit]
+    mode = "hybrid" if cos_rank is not None else "bm25"
+    return {"mode": mode, "results": _hit_dicts(hits, sims, from_body)}
+
+
 def _summary_line(stats: dict) -> str:
     return (
         f"git_search: {stats.get('total_units', 0)} commits on {REF} / "
@@ -1223,7 +1610,7 @@ def main(argv: list[str] | None = None) -> int:
         rbc.RebuildCliSpec(
             description=__doc__.split("\n\n")[0],
             default_db=str(GIT_SEARCH_DB),
-            db_help="Path to the git_search sidecar (default: memory/git_search.db).",
+            db_help="Path to the git_search sidecar (default: memory/git_search.duckdb).",
             check_help="Dry-run: count reachable commits, report index freshness "
             "(new/changed/deleted shas), no writes. Exits 1 when stale.",
             incremental_help="Incremental apply (SHA-set reconciliation; only new/changed shas extracted).",

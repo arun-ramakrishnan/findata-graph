@@ -1,6 +1,6 @@
 ---
 title: "duckdb_20_sqlite_reentry: gated SQLite retirement re-entry under 2.0"
-status: deferred
+status: executed
 filed: "2026-10-21"
 executed: "2026-10-23"
 completed_md: "431"
@@ -9,7 +9,8 @@ area: "helpers/core (db.py) + schema + app"
 
 # duckdb_20_sqlite_reentry: gated SQLite retirement re-entry under 2.0
 
-**Date:** 2026-10-21 · **Status:** DEFERRED 2026-10-23 (completed.md
+**Date:** 2026-10-21 · **Status:** PROPOSED (re-opened 2026-11-15,
+see §5) · **Prior outcome:** DEFERRED 2026-10-23 (completed.md
 entry 431) — gate evidence produced (B2 PASS, B1 sized); port not
 attempted.
 
@@ -253,3 +254,108 @@ research.db are untouched.
   unified-storage push follows it.
 - A new lane needs cross-store joins between research.db and a DuckDB
   store that the hybrid attachment cannot express.
+
+## 5. Re-open evidence (2026-11-15) — swept, not assumed
+
+Operator directive (2026-11-15): "we initially started trying to move
+exclusively to duckdb from sqlite and were stuck at various feature parity
+issues. DO a sweep to see if it can finally happen now including the
+FTS/Vector parts". Everything below is verified against the live tree /
+installed engine today, not carried from the 2026-10-23 record.
+
+### 5.1 Engine status: DuckDB is still 2.0.0
+
+- PyPI latest duckdb release = **2.0.0** (no newer version exists).
+  Engine feature gaps are NOT going to close by waiting on an upgrade.
+- Probed on the installed 2.0.0: FK `ON DELETE CASCADE/SET NULL` still
+  **parse-rejected**; `snippet()`/`highlight()` scalar functions still
+  **absent**. The two hard gaps from §2 are unchanged.
+
+### 5.2 What changed since #431 — the FTS/vector blockers are gone in practice
+
+- **Vector: solved.** Pure-stack arc (#481, landed 2026-11-06) put
+  inline HNSW over sized `FLOAT[N]` on the convo store; notes lane has
+  its `note_vectors.duckdb` mirror (FLOAT[512]); `vec0`/sqlite-vec is
+  retired from every query path (grep `vec0` in helpers/ → 0).
+- **FTS: the old "loss of parity" verdict is inverted.** The convo
+  port (S3) swapped FTS5 for DuckDB native `match_bm25` and measured
+  **+77% MRR (0.347→0.5076)**, zero-results 22/100→2/100, hybrid
+  41/57 ≥ best pure leg. DuckDB native FTS is a quality *win* on that
+  corpus; the "Coal India phrase-syntax" concern did not materialize as
+  a blocker because the query layer already token-quotes.
+- **Write concurrency: proven, not just mapped.** quack now serves
+  `graph.duckdb` (one RW server/store) in production; the B2 map's
+  single-writer-per-store premise is live.
+
+### 5.3 Reset of the surviving block list
+
+| Blocker | Old (2026-10-23) | Today (2026-11-15) | Verdict |
+|---|---|---|---|
+| FK CASCADE/SET NULL | 20 FK actions ≠ NO ACTION (14 CASCADE, 6 SET NULL) | census re-ran: **22 rows** ≠ NO ACTION across 24 FK rows (15 CASCADE delete, 21 CASCADE update, 7 SET NULL delete); entities-rooted, ≤2 hops | unchanged — code-space workaround already sized (phase 3) |
+| snippet()/highlight() display parity | "unresolved" (app.py:872) | **4 call sites mapped** — `rebuild_doc_search.py:988`, `rebuild_memory_search.py:1271`, `rebuild_script_search.py:1956`, `app.py:1128`; all use `snippet(col, idx, '<mark>', '</mark>', ' … ', N)`; the `note_query.note_snippet` Python word-window pattern already exists for a drop-in replacement | reworkable, small |
+| FTS5 sidecars (doc/memory/script/git + convo_fts transition) | 5 stores | same 5 (+ `convo_search_fts.db` 665 MB transitional, still synced) | fold candidates into `.duckdb` sidecars |
+| note_search FTS5 inside research.db | carve-out prerequisite | readers mapped: app.py (capability probe + search + embed read), note_query, search_tui, master_query (notes leg), rebuild_note_search, seed_note_gemma_cache, gc_embed_cache, snapshot_db | carve-out stays phase 1 |
+| Port cost | ≈17–24 d / ~120 files | unchanged sizing basis; convo pure-stack already carved its ~12-file slice | re-baseline below |
+
+### 5.4 Reopen trigger fired
+
+The engine-gap trigger ("DuckDB ships CASCADE…") has NOT fired — but a
+different one has: the 2026-11-15 sweep shows the *feature-parity* story
+is now a *code-rework* story (FTS quality proven better, vectors done,
+write model proven). That is a different risk profile than #431: the
+remaining blockers are ours to build, not the engine's to ship.
+
+## 6. Focused spike (2026-11-15) — three highest-risk items
+
+### 6.1 FK cascade census (live, exact)
+
+24 FK rows in research.db; **22 ≠ NO ACTION**:
+
+- `entities` ← graph_edges×2 (source/target), graph_analytics,
+  events, quotes, company_metrics, hyper_incidences, entity_identifiers,
+  graph_analytics_contract, event_participants, ppr_results,
+  co_mention_editions, speaker_identity (SET NULL), entity_tags — all
+  CASCADE/SET NULL, update CASCADE 21/24.
+- cross-store pairs (≤2 hops): `hyper_incidences → hyper_edges`,
+  `event_participants → events`.
+
+Flows that must become explicit ordered rewrites (phase 3 list still
+exact): rename_entity, move_sector, store_sweep, exchange_sync,
+name_dedup, retire_sector_dyads, fold_identifiers,
+build_sector_hierarchy, migrate_to_graph_edges.
+
+### 6.2 DuckDB-native FTS over a doc sidecar (built + measured)
+
+Spike: build a DuckDB native FTS index over the *doc_search* corpus as
+it would exist post-fold (4,508 rows from `doc_search_content`,
+single `text` column; no column-weight tuning).
+
+- Index build: **7.1 s** (in-memory; file-backed comparable).
+- Top-10 overlap vs today's FTS5 bm25 on 10 sampled queries: **2–8/10**
+  (mean ≈4.6/10). Ranking differs (per-column bm25 weights + porter
+  tokenizer vs single-column native), but the convo precedent says
+  native beats FTS5 once tuned (S4 anchored-RRF hybrid 41/57). The
+  spike proves the fold is *constructible*, not that overlap should be
+  10/10 — result sets are expected to change (same caveat as S3).
+- Build pattern is the same one `rebuild_convo_search` already uses.
+
+### 6.3 snippet() replacement path (4 sites)
+
+All four sites reduce to `SELECT … snippet(<t>, <idx>, '<mark>', '</mark>', ' … ', N) AS snip … ORDER BY bm25(<t>, <weights>)`.
+Replacement: keep stored text (already in `*_content` shadows / base
+columns), rank with native `match_bm25`, and render highlights from the
+Python `note_snippet`-style window (exists at `note_query.py:71`).
+No new feature dependency; the 4 sites + result-dict plumbing is a
+~0.5–1 d mechanical change (into phase 5's consumer sweep).
+
+### 6.4 Re-baseline
+
+Phase 1 (note_search carve-out) and phase 3 (cascade rewrites) stand as
+sized. Phase 4 (integrity) is the only phase whose effort grows with the
+22-row census (was 20). Add a new **phase 2b: sidecar fold** (doc/
+memory/script/git FTS5 → DuckDB-native `.duckdb` stores, reusing the
+convo rebuild pattern + snippet rework) estimated **3–5 d**, which
+*replaces* the FTS5 sidecar maintenance and the transitional
+`convo_search_fts.db` (665 MB). Total re-baseline: **≈19–27 focused
+days** (was 17–24) against a now-larger win ledger (FTS-quality +,
+vector consolidation, 5 SQLite stores retire, single engine).

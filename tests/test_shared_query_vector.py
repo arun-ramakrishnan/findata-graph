@@ -393,10 +393,9 @@ def _live_scripts():
 
 
 def _live_memory():
-    from helpers.core.db import connect as db_connect
     from helpers.maintenance import rebuild_memory_search as rms
 
-    conn = db_connect(rms.MEMORY_DB, read_only=True, wal=False)
+    conn = rms.connect_memory_db(rms.MEMORY_DB)
     return rms, conn
 
 

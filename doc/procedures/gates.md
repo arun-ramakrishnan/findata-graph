@@ -25,20 +25,21 @@ Set by the operator 2026-10-02 ("our gates run arc is very problematic").
 
 ## Phase 0 — preflight (once, arc start)
 
-1. `make search-fresh APPLY=1` + `make convo-fresh APPLY=1` — the ONLY APPLY
-   this arc; never re-APPLY mid-arc. Check-mode reds on these advisory legs
-   afterwards are expected noise, not failures — say so in the trailer.
-   **Pass `ARGS="--allow-stale"` whenever the arc's HEAD has moved off the
-   shared index's stamp** — which is the normal case, since the stamp is
-   written on main and this tree carries unlanded patches. Without the flag
-   the rebuild REFUSES (`worktree_fresh_trample_guard`: "this tree has
-   DIVERGED from it … nothing was written") and the arc starts with a stale
-   index nobody can fix later, because mid-arc re-APPLY is forbidden. Same
-   for any per-index rebuild invoked from the fix loop
-   (`rebuild_doc_search.py --allow-stale`, etc.). The guard exists to stop
-   an ACCIDENTAL trample, not a deliberate arc-start refresh — pass the flag
-   on purpose, and note in the trailer which indexes were refreshed this
-   way.
+1. `make search-fresh APPLY=1 ARGS=--allow-stale` + `make convo-fresh
+   APPLY=1 ARGS=--allow-stale` — slot 1 of the arc's budget of TWO APPLYs
+   (the second is the close-out convergence, Phase 3 step 8); never
+   re-APPLY mid-arc outside those two slots. Check-mode reds on these
+   advisory legs afterwards are expected noise, not failures — say so in
+   the trailer. Pass `--allow-stale` directly, on purpose: the arc's HEAD
+   has moved off the shared index's stamp in the normal case (the stamp is
+   written on main and this tree carries unlanded patches), and without
+   the flag the rebuild REFUSES (`worktree_fresh_trample_guard`: "this
+   tree has DIVERGED from it … nothing was written") and the arc starts
+   with a stale index that then stays stale until the close-out slot
+   (Phase 3 step 8). Same for any per-index rebuild invoked from the fix
+   loop (`rebuild_doc_search.py --allow-stale`, etc.). The guard exists
+   to stop an ACCIDENTAL trample, not a deliberate arc-start refresh —
+   note in the trailer which indexes were refreshed this way.
 2. `make maint` — regenerate derived state (snapshot, DuckDB graph cache,
    centrality stamps, CSR substrate) so the baseline gates compare fresh
    state, not last arc's. Data-writing arcs (anything that touched
@@ -321,6 +322,15 @@ slowness class at the cycle that causes it:
    disjointness zero, golden `git diff PRE..HEAD --stat` empty (PRE =
    pre-distribution tree, fixes already in it); delete the emptied
    collector and free the name.
+8. Final index convergence — the arc's SECOND and last `make
+   search-fresh APPLY=1` + `make convo-fresh APPLY=1`
+   (ARGS="--allow-stale"), run ONCE here after the last commit-rewriting
+   operation (`stg edit`, `refresh -p`, collector deletion all rewrite
+   commits and re-diverge the index stamps — that mid-arc divergence is
+   routine and WAITS for this slot). Never loop the refresh per-edit:
+   two APPLYs per arc, start and close-out, no more (2026-11-15: the
+   agent re-APPLYed after every trailer edit until the operator capped
+   it at two).
 
 ## Hard lines
 

@@ -114,6 +114,25 @@ STAMP_TS_KEY = APPLY_STAMP_PREFIX + "ts"
 _STAMP_KEYS = (STAMP_HEAD_KEY, STAMP_WORKTREE_KEY, STAMP_TS_KEY)
 
 
+def _open_stamp_db(db_path: Path, *, read_only: bool = False):
+    """Engine-aware handle for stamp tables (.duckdb → DuckDB, else SQLite).
+
+    duckdb_sidecar_fold S1: the sidecar stores are now DuckDB-native;
+    the shared stamp helpers must not assume SQLite. Read-only is a
+    SQLite-side nicety (duckdb read_only would fail on a missing file,
+    which the callers treat as "no stamp").
+    """
+    if Path(db_path).suffix.lower() == ".duckdb":
+        import duckdb
+
+        from helpers.core.duckdb_shared import memory_cap_config
+
+        return duckdb.connect(str(db_path), **memory_cap_config())
+    from helpers.core.db import connect
+
+    return connect(db_path, read_only=read_only)
+
+
 def read_apply_stamp(db_path: Path, table: str) -> dict[str, str]:
     """The index's last-apply stamp rows, or {} when there is nothing to read.
 
@@ -122,20 +141,18 @@ def read_apply_stamp(db_path: Path, table: str) -> dict[str, str]:
     evidence, so refusing here would break every pre-S1 index and every
     git-less fixture instead of protecting them.
     """
-    from helpers.core.db import connect
-
     if not db_path.exists():
         return {}
     try:
-        conn = connect(db_path, read_only=True)
-    except sqlite3.Error:
+        conn = _open_stamp_db(db_path, read_only=True)
+    except Exception:  # noqa: S110
         return {}
     try:
         rows = conn.execute(
             f"SELECT key, value FROM {table} WHERE key IN (?, ?, ?)",  # noqa: S608  # interpolated part is a schema-constant table name from the spec
             _STAMP_KEYS,
         ).fetchall()
-    except sqlite3.Error:
+    except Exception:  # noqa: S110
         return {}
     finally:
         conn.close()
@@ -152,13 +169,13 @@ def write_apply_stamp(db_path: Path, table: str) -> None:
     arms the guard instead of checking it.
     """
     from helpers.core import git_state
-    from helpers.core.db import connect, utc_now
+    from helpers.core.db import utc_now
 
     head = git_state.head_sha()
     if not head:
         return
     try:
-        conn = connect(db_path)
+        conn = _open_stamp_db(db_path)
         try:
             conn.execute(
                 f"CREATE TABLE IF NOT EXISTS {table} "  # noqa: S608  # schema-constant table name from the spec
@@ -175,7 +192,7 @@ def write_apply_stamp(db_path: Path, table: str) -> None:
             conn.commit()
         finally:
             conn.close()
-    except sqlite3.Error as exc:
+    except Exception as exc:  # noqa: S110  # best-effort diagnostic stamp
         print(
             f"WARNING: could not record the apply stamp in {db_path.name}: {exc}",
             file=sys.stderr,

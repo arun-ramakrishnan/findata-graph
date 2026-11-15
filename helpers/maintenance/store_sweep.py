@@ -79,7 +79,7 @@ _PRIMARIES = {"memory/research.db", "memory/graph.duckdb"}  # noqa: E402
 # These stores have distinct lifecycle owners and deliberately stay out of
 # db_maint's backup/reclaim estate. Keep the exception visible in each census.
 _OWNED_ELSEWHERE: dict[str, str] = {
-    "memory/git_search.db": "rebuilt by helpers/maintenance/rebuild_git_search.py; not snapshotted",
+    "memory/git_search.duckdb": "rebuilt by helpers/maintenance/rebuild_git_search.py; not snapshotted",
     "memory/note_vectors.duckdb": "derived vector mirror owned by helpers/core/vec_search.py",
 }
 
@@ -275,7 +275,6 @@ _FILING_MB: dict[str, float] = {
     "memory/graph.xdist-shared.duckdb": 66.26,
     "memory/convo_search.duckdb": 3170.01,
     "memory/embed_store.db": 450.09,
-    "memory/convo_search_fts.db": 486.66,
     "memory/corpus.db": 58.46,
     "memory/doc_search.db": 30.19,
     "memory/script_search.db": 4.32,

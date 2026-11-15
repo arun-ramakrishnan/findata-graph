@@ -15492,3 +15492,59 @@ near-inert (≥0.955); cross-projection economic-vs-relational Jaccard μ
 0.973 (20/20). Data: `edge_attribution.json` + `edge_attribution_report.md`
 in `bench_data/graph_kernels_ppr/`; perf leg `ppr_edge_attribution`
 (live, 90 s budget). Suites: tests/test_ppr_edge_attribution.py 8/8.
+
+## 524. duckdb_sidecar_fold — doc/memory/script/git FTS5 sidecars → DuckDB native FTS (+ convo sidecar retirement)
+
+Same-day arc (2026-11-15) on
+`archive/database/duckdb_sidecar_fold.md` (filed 2026-11-15; phase 2b
+of duckdb_20_sqlite_reentry). All four FTS5 sidecars folded to
+DuckDB-native `.duckdb` stores with native FTS; the transitional
+`convo_search_fts.db` sidecar retired.
+
+**S1 doc** — `rebuild_doc_search.py` gains the `doc_search.duckdb`
+store (`DOC_DB` default flipped; legacy `.db` openable via `--db`):
+native `create_fts_index` + `fts_main_doc_search.match_bm25` hybrid
+query (`_DuckCachedEmbed` dedicated sqlite cache handle, Python
+`_highlight_window` `<mark>` word-window, RRF fuse; composed searchtext =
+title+section_title+content+meta+links+trail). One-time cache seed from
+legacy rows (4,510 keys, gemma basis, bit-exact f32); rebuild 4,510
+hits/7 misses <90 s. Live: 488 files/4,517 rows; `doc_query` hybrid OK;
+`--check` FRESH(488) exit 0, content drift → STALE. Consumers flipped:
+search_tui/master_query (doc leg)/db_maint. Tests: test_doc_query_duckdb.py
+5 new; 101/101 green.
+
+**S2 memory** — `rebuild_memory_search.py` `memory_search.duckdb`:
+no seed needed (memory leg already pooled; 385/385 hits), ranking parity
+top-5 overlap 4.6/5 vs FTS5, kind/history SQL filters preserved. Fixed
+latent GC data-loss bug: `gc_embed_cache` doc Ref lacked gemma
+`text_by_model` recipe → GC would have deleted 4,753 live pooled rows
+(`_doc_text_gemma` added; post-fix doc 4,517/4,517 referenced). Tests:
+test_memory_query_duckdb.py 8 new; legacy suites green.
+
+**S3 script** — `rebuild_script_search.py` `script_search.duckdb`:
+composed searchtext = title+content; kind/rel_path/area plain SQL
+predicates; mojo/ts content-addressed doc caches live in same store;
+1,840 hits/1 miss. Verified gotcha: DuckDB `with conn:` CLOSES the
+connection on exit → decl-cache blocks engine-branched. Contract bug
+fixed: S1 doc `anchor` VARCHAR vs `number|null` → int() normalization.
+Test 8 new; 193 green across suites; live parity 4.8/5.
+
+**S4 git** — `rebuild_git_search.py` `git_search.duckdb` (+
+`git_search_body` chunks): 574 commits/574 rows/1,677 chunks, 574/574
+cache hits; parity 4.5/5. Fresh/aborted-store safety: `drop_fts_index`
+try/except; replacement rebuild drops FTS shadows + base; corrupt vtable
+→ deleted derived `.duckdb`, rebuilt warm. Tests: test_git_query_duckdb.py
+8 new; 51 pass.
+
+**S5 convo retirement** — FTS5 sidecar sync removed
+(`FTS_DDL`/`fts_db_for`/`_fts_sync`/`_fts_hits_sqlite` gone); convo
+embed-cache host → shared `memory/embed_store.db`; `convo_query` native
+only, missing schema → empty lexical leg; store deleted (669 MB freed).
+Rebuild flow now 4 windows: read → embed → write → native-FTS refresh
+(own io.lock) → meta. Tests reworked; 105 pass.
+
+Engine-tolerance class shared across S2–S4: `.fetchall()` (duckdb conns
+not row-iterable), information_schema checks, dedicated sqlite cache
+handles (duckdb rejects `PRAGMA busy_timeout`). `grep -r "fts5" helpers/`
+→ 0 (note_search excluded per plan). Proposal archived; S6 full gates
+(qa/integration/perf/advisory) pending operator go.

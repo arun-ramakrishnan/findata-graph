@@ -104,12 +104,12 @@ ALL_LEGS = (
 # approximate there; documented, not load-bearing). gates is exempt
 # (self-refreshing before every query verb), code/literal stateless.
 _SIDECAR_BY_LEG: dict[str, str] = {
-    "docs": "memory/doc_search.db",
-    "scripts": "memory/script_search.db",
+    "docs": "memory/doc_search.duckdb",
+    "scripts": "memory/script_search.duckdb",
     "notes": "memory/research.db",
-    "memory": "memory/memory_search.db",
+    "memory": "memory/memory_search.duckdb",
     "convo": "memory/convo_search.duckdb",
-    "git": "memory/git_search.db",
+    "git": "memory/git_search.duckdb",
 }
 _REFRESH_BY_LEG: dict[str, str] = {
     "docs": "make search-fresh APPLY=1",

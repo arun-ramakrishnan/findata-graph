@@ -536,11 +536,11 @@ rust-install:   ## Release-build cosine_knn + graph_kernels, install the abi3 mo
 
 script-search-rebuild: ## Rebuild the script metadata index (script_search sidecar; query via helpers/misc/script_query.py)
 > python3 helpers/maintenance/rebuild_script_search.py
-> @echo "✓ script_search index rebuilt (memory/script_search.db; gate: make search-fresh / advisory)"
+> @echo "✓ script_search index rebuilt (memory/script_search.duckdb; gate: make search-fresh / advisory)"
 
 memory-search-rebuild: ## Rebuild the harness-memory index (memory_search sidecar; query via helpers/misc/memory_query.py)
 > python3 helpers/maintenance/rebuild_memory_search.py
-> @echo "✓ memory_search index rebuilt (memory/memory_search.db; gate: make search-fresh / advisory)"
+> @echo "✓ memory_search index rebuilt (memory/memory_search.duckdb; gate: make search-fresh / advisory)"
 
 convo-search-rebuild: ## Compact convo_search.duckdb in place (COPY FROM DATABASE + os.replace; no re-embed)
 > MAINT_TARGET=convo-search-rebuild python3 helpers/maintenance/rebuild_convo_search.py --compact
@@ -590,17 +590,24 @@ gate-fresh: ## Check gate-run index freshness for helpers/misc/gate_query.py (de
 > 	python3 helpers/misc/gate_query.py refresh --check; \
 > fi
 
-convo-fresh:      ## Check conversation corpus+index freshness — harness sources vs parquet corpus vs pointer index (every check runs even if one fails; exit 1 on drift; APPLY=1 harvests+incrementally rebuilds — MAIN TREE ONLY, refused from worktrees; ARGS reaches harvest_conversations.py, e.g. ARGS=--verbose prints per-unit quiet lines; also run by make advisory)
+convo-fresh:      ## Check conversation corpus+index freshness — harness sources vs parquet corpus vs pointer index (every check runs even if one fails; exit 1 on drift; APPLY=1 harvests+incrementally rebuilds — MAIN TREE ONLY, refused from worktrees; ARGS reaches harvest_conversations.py, e.g. ARGS=--verbose prints per-unit quiet lines, while --allow-stale/--sandbox are routed to rebuild_convo_search.py for the shared-store guard; also run by make advisory)
 > @$(if $(APPLY),$(apply_main_guard),true)
 > @rc=0; \
+>   harvest_args=""; rebuild_args=""; \
+>   for a in $(ARGS); do \
+>     case "$$a" in \
+>       --allow-stale|--sandbox) rebuild_args="$$rebuild_args $$a";; \
+>       *) harvest_args="$$harvest_args $$a";; \
+>     esac; \
+>   done; \
 >   echo "convo-fresh: $(if $(APPLY),APPLY — harvesting+rebuilding,check) mode"; \
 >   t0=$$(date +%s%3N); \
->   echo "--- harvest_conversations $(if $(APPLY),,--check) $(ARGS)"; \
->   MAINT_TARGET=convo-fresh python3 helpers/maintenance/harvest_conversations.py $(if $(APPLY),,--check) $(ARGS) || rc=1; \
+>   echo "--- harvest_conversations $(if $(APPLY),,--check) $$harvest_args"; \
+>   MAINT_TARGET=convo-fresh python3 helpers/maintenance/harvest_conversations.py $(if $(APPLY),,--check) $$harvest_args || rc=1; \
 >   echo "    took $$(( $$(date +%s%3N) - t0 ))ms"; \
 >   t1=$$(date +%s%3N); \
->   echo "--- rebuild_convo_search $(if $(APPLY),--incremental,--check)"; \
->   MAINT_TARGET=convo-fresh python3 helpers/maintenance/rebuild_convo_search.py $(if $(APPLY),--incremental,--check) || rc=1; \
+>   echo "--- rebuild_convo_search $(if $(APPLY),--incremental,--check) $$rebuild_args"; \
+>   MAINT_TARGET=convo-fresh python3 helpers/maintenance/rebuild_convo_search.py $(if $(APPLY),--incremental,--check) $$rebuild_args || rc=1; \
 >   echo "    took $$(( $$(date +%s%3N) - t1 ))ms"; \
 >   if [ $$rc -eq 0 ]; then echo "✓ convo corpus+index fresh"; fi; \
 >   exit $$rc

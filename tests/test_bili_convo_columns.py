@@ -14,7 +14,6 @@ no snapshot mount.
 
 from __future__ import annotations
 
-import sqlite3
 import sys
 from pathlib import Path
 
@@ -268,7 +267,7 @@ _BILI_ROWS = [
 
 
 def _store(tmp_path):
-    """duckdb index + sqlite FTS sidecar, hand-assembled, no embedder."""
+    """duckdb index (native FTS inside), hand-assembled, no embedder."""
     db = tmp_path / "c.duckdb"
     con = _make_db(db, with_bili=True)
     con.execute("INSERT INTO convo_meta VALUES ('embed_dims', ?)", [str(DIMS)])
@@ -282,13 +281,7 @@ def _store(tmp_path):
             [pid, row_no, agent, part_type, len(text), text[:80], vec, active, tier, pid],
         )
     con.close()
-    sdb = tmp_path / cq.FTS_DB_NAME
-    sconn = sqlite3.connect(str(sdb))
-    sconn.execute(rcs.FTS_DDL)
-    for _pid, _a, _pt, _act, _t, _v, text in _BILI_ROWS:
-        sconn.execute("INSERT INTO convo_fts VALUES (?, 'opencode', ?, 'ses_x')", [text, _pid])
-    sconn.commit()
-    return cq.ConvoConnections(duckdb.connect(str(db), read_only=True), sconn, None)
+    return cq.ConvoConnections(duckdb.connect(str(db), read_only=True), None)
 
 
 def _qv():

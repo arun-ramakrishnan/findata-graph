@@ -120,6 +120,15 @@ def _script_text_gemma(row: tuple) -> str:
     return _gemma_basis(row[0] or "", row[1] or "", row[2] or "")
 
 
+def _doc_text_gemma(row: tuple) -> str:
+    """The gemma doc basis (trial-pinned pure-prose form, #386) — the
+    recipe the gemma rebuild actually hashed; must match it or live rows
+    read dead."""
+    from helpers.maintenance.rebuild_doc_search import _doc_basis
+
+    return _doc_basis(row[0] or "", row[1] or "", row[2] or "", gemma=True)
+
+
 # --- git cohort (git_search leg, 2026-10-17) -------------------------------- #
 # Two tables, one recipe pair: heads live in git_search (chunk_idx = -1),
 # body chunks in git_search_body. The stored texts are NOT in the DB —
@@ -183,14 +192,17 @@ from helpers.core.gemma_embedder import MODEL_LABEL as _GEMMA_MODEL_LABEL  # noq
 DEFAULT_REFS: tuple[Ref, ...] = (
     Ref(
         "doc",
-        REPO / "memory/doc_search.db",
+        REPO
+        / "memory/doc_search.duckdb",  # duckdb_sidecar_fold S1: live store (legacy .db is the rollback artifact)
         "SELECT title, section_title, content FROM doc_search",
         _doc_text,
         stamp_sql="SELECT value FROM doc_search_info WHERE key = 'embed_model'",
+        text_by_model={_GEMMA_MODEL_LABEL: _doc_text_gemma},
     ),
     Ref(
         "script",
-        REPO / "memory/script_search.db",
+        REPO
+        / "memory/script_search.duckdb",  # duckdb_sidecar_fold S3: live store (legacy .db is the rollback artifact)
         "SELECT title, purpose, content FROM script_search",
         _doc_text,
         stamp_sql="SELECT value FROM script_search_info WHERE key = 'embed_model'",
@@ -198,7 +210,8 @@ DEFAULT_REFS: tuple[Ref, ...] = (
     ),
     Ref(
         "memory",
-        REPO / "memory/memory_search.db",
+        REPO
+        / "memory/memory_search.duckdb",  # duckdb_sidecar_fold S2: live store (legacy .db is the rollback artifact)
         "SELECT title, purpose, content FROM memory_search",
         _doc_text,
         stamp_sql="SELECT value FROM memory_search_info WHERE key = 'embed_model'",
@@ -239,7 +252,7 @@ DEFAULT_REFS: tuple[Ref, ...] = (
         "git",
         # the git-history leg (rebuild_git_search): heads + body chunks in
         # one UNION (heads marked chunk_idx = -1); text recipes above
-        REPO / "memory/git_search.db",
+        REPO / "memory/git_search.duckdb",
         "SELECT sha, -1 AS chunk_idx FROM git_search "
         "UNION ALL SELECT sha, chunk_idx FROM git_search_body",
         _git_text,

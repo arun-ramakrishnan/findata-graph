@@ -240,13 +240,18 @@ class TestDocsSearch:
         from helpers.maintenance import rebuild_doc_search as rds
 
         expr = rds.fts_match_expr("sector")
-        probe = sqlite3.connect(f"file:{rds.DOC_DB}?mode=ro", uri=True)
+        if rds.DOC_DB.suffix == ".duckdb":
+            probe = rds.connect_doc_db(rds.DOC_DB)
+            match_sql = (
+                "SELECT COUNT(*) FROM doc_search WHERE file_path = ? "
+                "AND fts_main_doc_search.match_bm25(id, ?) IS NOT NULL"
+            )
+        else:
+            probe = sqlite3.connect(f"file:{rds.DOC_DB}?mode=ro", uri=True)
+            match_sql = "SELECT COUNT(*) FROM doc_search WHERE file_path = ? AND doc_search MATCH ?"
         try:
             for hit in data["results"]:
-                n = probe.execute(
-                    "SELECT COUNT(*) FROM doc_search WHERE file_path = ? AND doc_search MATCH ?",
-                    (hit["path"], expr),
-                ).fetchone()[0]
+                n = probe.execute(match_sql, (hit["path"], expr)).fetchone()[0]
                 assert n >= 1, hit["path"]
         finally:
             probe.close()

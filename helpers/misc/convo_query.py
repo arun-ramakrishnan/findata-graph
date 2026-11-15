@@ -2,9 +2,9 @@
 """convo_query — hybrid search over the harvested conversation corpus.
 
 The conversation-history counterpart of doc_query / script_query /
-gate_query: BM25 (SQLite FTS5 porter sidecar) fused with cosine
-(granite 384-d vectors in ``memory/convo_search.duckdb``) by reciprocal
-rank fusion, over the pointer index built by
+gate_query: BM25 (native DuckDB FTS in the same ``memory/convo_search.duckdb``
+store) fused with cosine (granite 384-d vectors in the same file) by
+reciprocal rank fusion, over the pointer index built by
 ``helpers/maintenance/rebuild_convo_search.py``. Hits carry the parquet
 pointer (file:row) — the corpus stays the archive of record, the index
 never stores full bodies. Trial-verified contract (convo_search
@@ -20,7 +20,6 @@ from __future__ import annotations
 import argparse
 import json
 import logging
-import sqlite3
 import sys
 from collections import OrderedDict
 from dataclasses import dataclass
@@ -36,7 +35,6 @@ if str(_REPO_ROOT) not in sys.path:
 
 REPO = _REPO_ROOT
 DEFAULT_DB = REPO / "memory/convo_search.duckdb"
-FTS_DB_NAME = "convo_search_fts.db"
 # Compression summaries are not a peer harness: billion-context is a
 # harness-specific plugin (2026-10-17), so harvest_conversations.py routes
 # its blocks into the OWNING harness's session file (source='bili-index/*')
@@ -148,21 +146,19 @@ class RowFilters:
 
 @dataclass
 class ConvoConnections:
-    """The two-index handle: DuckDB pointers/vectors + FTS5 sidecar."""
+    """The single-index handle: DuckDB pointers/vectors + native FTS."""
 
     ddb: duckdb.DuckDBPyConnection
-    sconn: sqlite3.Connection
     # Store path — the cache key for the exact-KNN matrix (S1 of proposal
     # convo_search_drop_hnsw_numpy_copy_compact). None for connections
     # built by hand (tests): the leg then skips the cache and reloads.
     db_path: Path | None = None
 
     def close(self) -> None:
-        for c in (self.ddb, self.sconn):
-            try:
-                c.close()
-            except Exception:  # noqa: S110  # close is best-effort
-                pass
+        try:
+            self.ddb.close()
+        except Exception:  # noqa: S110  # close is best-effort
+            pass
 
 
 def connect(db_path: Path) -> ConvoConnections:
@@ -173,10 +169,10 @@ def connect(db_path: Path) -> ConvoConnections:
     from helpers.misc.duckdb_lock import open_read_only
 
     con = open_read_only(db_path)
-    # S3 (duckdb_pure_stack): the native FTS schema is the only index the
-    # read path still needs. LOAD is session-scoped and legal on a
-    # read-only connection; failure degrades to the sqlite fallback leg,
-    # never raises (pre-S3 stores have no native schema).
+    # The native FTS schema is the only index the read path needs. LOAD
+    # is session-scoped and legal on a read-only connection; failure
+    # degrades the lexical leg to empty, never raises (pre-S5 stores
+    # without the native schema answer by cosine alone).
     #
     # The vss/HNSW lines are GONE by design (proposal
     # convo_search_drop_hnsw_numpy_copy_compact S1): the cosine leg is an
@@ -188,10 +184,7 @@ def connect(db_path: Path) -> ConvoConnections:
         con.execute("LOAD fts")
     except duckdb.Error:  # noqa: S110  # missing extension: leg degrades
         pass
-    sconn = sqlite3.connect(  # noqa: S608  # FTS sidecar is a plain sqlite file, read-only URI
-        f"file:{db_path.parent / FTS_DB_NAME}?mode=ro", uri=True
-    )
-    return ConvoConnections(con, sconn, Path(db_path))
+    return ConvoConnections(con, Path(db_path))
 
 
 def _stored_dims(con: ConvoConnections) -> int | None:
@@ -216,26 +209,36 @@ def _stored_model(con: ConvoConnections) -> str | None:
 
 
 def _fts_hits(
-    con: ConvoConnections, query: str, limit: int, harness: str | None = None
+    con: ConvoConnections,
+    query: str,
+    limit: int,
+    harness: str | None = None,
+    source: str | None = None,
 ) -> list[tuple[Key, float]]:
-    """Lexical bm25 hits: native DuckDB FTS first (S3), sqlite FTS5 fallback.
+    """Lexical bm25 hits: native DuckDB FTS only (S5 retired the sqlite
+    FTS5 sidecar and its fallback leg).
 
-    Pre-S3 stores raise CatalogException on the native schema and take
-    the unchanged sqlite leg. The duckdb form MUST filter IS NOT NULL:
-    without it, once true matches fall below the limit, NULL-score rows
-    leak into the tail (probe 2026-11-05) and a zero-match query returns
-    arbitrary rows as hits.
+    The native form MUST filter IS NOT NULL: without it, once true matches
+    fall below the limit, NULL-score rows leak into the tail (probe
+    2026-11-05) and a zero-match query returns arbitrary rows as hits.
+    Pre-S5 stores (no native schema) answer with no lexical leg — an
+    empty list, never an error; the cosine leg alone carries the search
+    until the store's next rebuild.
     """
     if not query.strip():
         return []
     try:
-        return _fts_hits_duckdb(con, query, limit, harness)
+        return _fts_hits_duckdb(con, query, limit, harness, source)
     except duckdb.CatalogException:
-        return _fts_hits_sqlite(con, query, limit, harness)
+        return []
 
 
 def _fts_hits_duckdb(
-    con: ConvoConnections, query: str, limit: int, harness: str | None = None
+    con: ConvoConnections,
+    query: str,
+    limit: int,
+    harness: str | None = None,
+    source: str | None = None,
 ) -> list[tuple[Key, float]]:
     """Native match_bm25 over the stored full text (higher-is-better)."""
     q = " ".join(f'"{w.replace(chr(34), chr(34) * 2)}"' for w in query.split())
@@ -249,26 +252,17 @@ def _fts_hits_duckdb(
         # bili rows to filter down to).
         sql += "AND harness = ? "
         params.append(harness)
+    if source:
+        # The native index lives INSIDE the duckdb store that carries
+        # provenance, so the lexical leg can pre-filter exactly (the
+        # retired sqlite sidecar could not; S5 removes the over-fetch
+        # workaround).
+        sql += "AND provenance LIKE ? ESCAPE '\\' "
+        params.append(_like_pattern(source))
     sql += f"ORDER BY {sc} DESC LIMIT ?"
     params.extend([q, limit])
     rows = con.ddb.execute(sql, params).fetchall()
     return [((h, pid), -float(s)) for h, pid, s in rows]
-
-
-def _fts_hits_sqlite(
-    con: ConvoConnections, query: str, limit: int, harness: str | None = None
-) -> list[tuple[Key, float]]:
-    """Token-quoted FTS5 bm25 (lower-is-better rank → negate to score)."""
-    q = " ".join(f'"{w.replace(chr(34), chr(34) * 2)}"' for w in query.split())
-    sql = "SELECT harness, part_id, rank FROM convo_fts WHERE convo_fts MATCH ? "
-    params: list = [q]
-    if harness:
-        sql += "AND harness = ? "
-        params.append(harness)
-    sql += "ORDER BY rank LIMIT ?"
-    params.append(limit)
-    rows = con.sconn.execute(sql, params).fetchall()
-    return [((harness, pid), -float(rank)) for harness, pid, rank in rows]
 
 
 # --- exact KNN leg (S1: proposal convo_search_drop_hnsw_numpy_copy_compact) ---
@@ -644,9 +638,7 @@ def _cos_hits_sql(
         params.append(harness)
     if source:
         # Pre-filter in SQL on the leg that CAN: `convo_search` carries
-        # provenance, so this is exact and free. The FTS leg cannot do the same
-        # — `convo_fts` lives in a separate sqlite file with no provenance
-        # column — which is why the search() caller over-fetches that leg.
+        # provenance, so this is exact and free.
         sql += "AND provenance LIKE ? ESCAPE '\\' "
         params.append(_like_pattern(source))
     sql += _rf_sql(rf, params)
@@ -829,7 +821,7 @@ def _partition_summaries(
 def _kinds_of(con: ConvoConnections, keys: list[Key]) -> dict[Key, tuple[str, str]]:
     """(role, part_type) per candidate — one OR-ed query for the whole pool.
 
-    The FTS sidecar stores no part_type, so the type comes from here.
+    The native store carries role/part_type, so the type comes from here.
     """
     if not keys:
         return {}
@@ -895,12 +887,7 @@ def search(
     # limit-sized: over-fetching would only cost latency. `kinds` still needs
     # its 3x because it filters AFTER fusion.
     pool = max(limit * 4, 20) * (3 if kinds else 1)
-    # The FTS leg lives in a separate sqlite file with no provenance column, so
-    # it cannot pre-filter and has to over-fetch instead. `orphan:` is ~10% of
-    # the corpus (11,711 of 121,007 rows), so a 25x pool still lands ~60
-    # candidates for a 5-hit page; the cosine leg filters in SQL exactly.
-    fts_pool = pool * (25 if source else 1)
-    fts = _fts_hits(con, query, fts_pool, harness)
+    fts = _fts_hits(con, query, pool, harness, source)
     if not hybrid or not dims:
         ranked = fts
         mode = "bm25"
@@ -910,10 +897,10 @@ def search(
         mode = "hybrid"
     ranked = _apply_prior(con, ranked, kinds)
     if rf is not None and rf.any():
-        # Safety net, not the primary filter: both cosine legs already
-        # pre-filtered, but the FTS leg can only post-filter (its sidecar
-        # carries no agent/part_type — see _fts_hits). Subtract, never
-        # starve: the cosine pool was drawn from the filtered population.
+        # Safety net, not the primary filter: both legs already pre-filtered
+        # (the cosine in SQL, the native FTS in SQL with provenance).
+        # Subtract, never starve: the cosine pool was drawn from the
+        # filtered population.
         keep = _rf_keys(con, [k for k, _ in ranked], rf)
         ranked = [(k, s) for k, s in ranked if k in keep]
     if summary_first:

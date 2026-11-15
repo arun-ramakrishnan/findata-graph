@@ -66,12 +66,20 @@ from helpers.core.rank_fusion import rrf_two_leg  # noqa: E402  (algorithms_adop
 from helpers.maintenance import rebuild_common as rbc  # noqa: E402
 from helpers.maintenance import rebuild_doc_search as rds  # noqa: E402
 
+import duckdb  # noqa: E402  (duckdb_sidecar_fold S2: native-FTS memory sidecar path)
+
 # Monkeypatchable (the VAULT_ROOT lesson: import-bound root constants
 # silently point tests at the live tree — tests MUST retarget all of
 # these). ZCODE_PROJECTS is the projects DIR (scopes are walked, deduped
 # by realpath); PRIME_STATE the global harness store; OPENCODE_MEM the
 # repo-local logfmt dir (same through the worktree's .opencode symlink).
-MEMORY_DB = _REPO_ROOT / "memory" / "memory_search.db"
+# duckdb_sidecar_fold S2 default: the DuckDB-native store (native FTS +
+# inline embeddings). The legacy FTS5 sidecar stays openable via --db
+# (rollback path; both engines are tested — tests/test_memory_query_duckdb.py
+# keeps the duckdb contract, tests/test_memory_snapshot_lane.py the legacy one).
+MEMORY_DB = _REPO_ROOT / "memory" / "memory_search.duckdb"
+MEMORY_DUCKDB_DB = MEMORY_DB
+_MEMORY_SQLITE_DB = _REPO_ROOT / "memory" / "memory_search.db"
 ZCODE_PROJECTS = Path.home() / ".zcode" / "cli" / "memories" / "projects"
 PRIME_STATE = Path.home() / ".prime" / "agent" / "harness" / "harness_state.json"
 OPENCODE_MEM = _REPO_ROOT / ".opencode" / "memory"
@@ -151,11 +159,20 @@ _LOGFMT_KV = re.compile(r'(\w+)=("(?:[^"\\]|\\.)*"|\S+)')
 _LOGFMT_ESCAPES = {'"': '"', "\\": "\\", "n": "\n", "r": "\r", "t": "\t"}
 
 
-def connect_memory_db(db_path: Path | str | None = None) -> sqlite3.Connection:
-    """Open (creating if needed) the memory_search sidecar via the house
-    connection helper (standard pragmas: Row factory, WAL, busy_timeout)."""
+def connect_memory_db(db_path: Path | str | None = None):
+    """Open (creating if needed) the memory_search sidecar.
+
+    Engine dispatch (duckdb_sidecar_fold S2): a ``.duckdb`` suffix opens a
+    DuckDB-native store (native FTS + inline embeddings, house memory cap);
+    anything else opens the legacy FTS5 sidecar via the house sqlite helper
+    (standard pragmas: Row factory, WAL, busy_timeout)."""
     path = Path(db_path) if db_path is not None else MEMORY_DB
     path.parent.mkdir(parents=True, exist_ok=True)
+    if path.suffix.lower() == ".duckdb":
+        from helpers.core.duckdb_shared import memory_cap_config
+
+        return duckdb.connect(str(path), **memory_cap_config())
+
     from helpers.core.db import connect as _db_connect
 
     return _db_connect(path)
@@ -791,10 +808,12 @@ def _stamp_model(conn: sqlite3.Connection, model_label: str, dims: int) -> None:
     )
 
 
-def _stored_meta(conn: sqlite3.Connection) -> dict[str, tuple[float, str]]:
+def _stored_meta(conn) -> dict[str, tuple[float, str]]:
     return {
         r[0]: (r[1], r[2])
-        for r in conn.execute("SELECT unit_path, mtime, content_hash FROM memory_search_meta")
+        for r in conn.execute(
+            "SELECT unit_path, mtime, content_hash FROM memory_search_meta"
+        ).fetchall()  # fetchall: duckdb conns are not row-iterable (S1 lesson)
     }
 
 
@@ -947,6 +966,20 @@ def rebuild(
 
     from helpers.maintenance.maint_timing import current as _mt_timer
 
+    db_path = Path(db_path) if db_path is not None else MEMORY_DB
+    if db_path.suffix.lower() == ".duckdb":
+        # duckdb_sidecar_fold S2: the DuckDB-native store is rebuild-only
+        # (replacement rebuild; the corpus is a few hundred records).
+        return rebuild_memory_duckdb(
+            db_path,
+            write=write,
+            embed_fn=embed_fn,
+            zcode_projects=zcode_projects,
+            prime_state=prime_state,
+            opencode_dir=opencode_dir,
+            snap_root=snap_root,
+        )
+
     conn = connect_memory_db(db_path)
     stats: dict = {}
     _mt = _mt_timer()  # None outside a CLI run (tests): all timing below is a no-op
@@ -960,26 +993,15 @@ def rebuild(
             conn, write, stats, embed_fn
         )
 
-        _collect_started = datetime.now()
-        units, files_meta = _collect_units(zcode_projects, prime_state, opencode_dir)
-        hist_units, hist_meta = _collect_history_units(
-            zcode_projects, prime_state, opencode_dir, snap_root
+        units, files_meta, all_rows, hist_units = _collect_and_compose(
+            zcode_projects,
+            prime_state,
+            opencode_dir,
+            snap_root,
+            embed_fn,
+            gemma_active,
+            _mt,
         )
-        units += hist_units
-        files_meta.update(hist_meta)
-        if _mt:
-            _mt.record_phase(
-                "collect", _collect_started, datetime.now(), extra=f"units={len(units)}"
-            )
-        _compose_started = datetime.now()
-        all_rows = _compose_rows(units, embed_fn, gemma=gemma_active)
-        if _mt:
-            _mt.record_phase(
-                "compose_embed",
-                _compose_started,
-                datetime.now(),
-                extra=f"rows={len(all_rows)}",
-            )
 
         if isinstance(embed_fn, CachedEmbed):
             stats["embed_cache_hits"] = embed_fn.hits
@@ -1034,6 +1056,35 @@ def rebuild(
         conn.close()
 
 
+def _collect_and_compose(
+    zcode_projects, prime_state, opencode_dir, snap_root, embed_fn, gemma_active, _mt
+):
+    """Collect live + snapshot-history units, then compose/embed all rows.
+    ``_mt`` is the maint-timing handle (None outside a CLI run: timing
+    no-ops). Returns (units, files_meta, all_rows, hist_units)."""
+    from datetime import datetime
+
+    _collect_started = datetime.now()
+    units, files_meta = _collect_units(zcode_projects, prime_state, opencode_dir)
+    hist_units, hist_meta = _collect_history_units(
+        zcode_projects, prime_state, opencode_dir, snap_root
+    )
+    units += hist_units
+    files_meta.update(hist_meta)
+    if _mt:
+        _mt.record_phase("collect", _collect_started, datetime.now(), extra=f"units={len(units)}")
+    _compose_started = datetime.now()
+    all_rows = _compose_rows(units, embed_fn, gemma=gemma_active)
+    if _mt:
+        _mt.record_phase(
+            "compose_embed",
+            _compose_started,
+            datetime.now(),
+            extra=f"rows={len(all_rows)}",
+        )
+    return units, files_meta, all_rows, hist_units
+
+
 def _print_staleness(stats: dict) -> None:
     """--check verdict: FRESH, or the drift breakdown + remediation."""
     rbc.print_staleness(
@@ -1058,13 +1109,19 @@ def _summary_line(stats: dict) -> str:
 # --- read-path gates (memory_query CLI) --------------------------------------
 
 
-def memory_index_ready(conn: sqlite3.Connection) -> bool:
+def memory_index_ready(conn) -> bool:
     """True when the memory_search table exists (at least one rebuild ran)."""
     try:
-        row = conn.execute(
-            "SELECT 1 FROM sqlite_master WHERE type='table' AND name='memory_search'"
-        ).fetchone()
-    except sqlite3.Error:
+        if isinstance(conn, duckdb.DuckDBPyConnection):
+            row = conn.execute(
+                "SELECT 1 FROM information_schema.tables "
+                "WHERE table_schema = 'main' AND table_name = 'memory_search'"
+            ).fetchone()
+        else:
+            row = conn.execute(
+                "SELECT 1 FROM sqlite_master WHERE type='table' AND name='memory_search'"
+            ).fetchone()
+    except Exception:  # noqa: S110  # engine error / absent store -> not ready
         return False
     return row is not None
 
@@ -1083,9 +1140,11 @@ def memory_index_stale(
     try:
         meta = {
             r[0]: (r[1], r[2])
-            for r in conn.execute("SELECT unit_path, mtime, content_hash FROM memory_search_meta")
+            for r in conn.execute(
+                "SELECT unit_path, mtime, content_hash FROM memory_search_meta"
+            ).fetchall()
         }
-    except sqlite3.Error:
+    except Exception:  # sqlite3.Error or duckdb.CatalogException: stale (safe side)
         return True
     if not meta:
         return True
@@ -1261,6 +1320,10 @@ def search_memories(
     "include" adds the recovered doctrine, "only" asks "was this ever true".
     An explicit ``kind`` wins over ``history`` — naming a kind is unambiguous.
     """
+    if isinstance(conn, duckdb.DuckDBPyConnection):
+        return _search_memory_duckdb(
+            conn, q, limit, kind=kind, hybrid=hybrid, query_vec=query_vec, history=history
+        )
     expr = rds.fts_match_expr(q)
     if not expr:
         return {"mode": "bm25", "results": []}
@@ -1300,13 +1363,360 @@ def search_memories(
     return {"mode": mode, "results": results}
 
 
+# ---------------------------------------------------------------------------
+# DuckDB-native sidecar (duckdb_sidecar_fold S2, 2026-11-15)
+#
+# Native FTS (fts_main_memory_search.match_bm25) over a composed searchtext
+# (title + purpose + content — the legacy bm25 weight ordering); kind/name/
+# source_path become plain SQL columns (better filters than the legacy
+# UNINDEXED FTS5 columns). The doc S1 lessons apply unchanged: dedicated
+# sqlite cache handle (rds._DuckCachedEmbed), replacement rebuild, no
+# snippet()/highlight() (rds._highlight_window replacement).
+MEMORY_DUCKDB_DDL = """
+CREATE TABLE IF NOT EXISTS memory_search (
+  id BIGINT PRIMARY KEY,
+  title TEXT,
+  kind TEXT,
+  name TEXT,
+  source_path TEXT,
+  purpose TEXT,
+  content TEXT,
+  embedding BLOB,
+  searchtext TEXT
+)
+"""
+MEMORY_DUCKDB_META_DDL = """
+CREATE TABLE IF NOT EXISTS memory_search_meta (
+  unit_path TEXT PRIMARY KEY,
+  mtime REAL NOT NULL,
+  content_hash TEXT NOT NULL
+)
+"""
+MEMORY_DUCKDB_INFO_DDL = """
+CREATE TABLE IF NOT EXISTS memory_search_info ( key TEXT PRIMARY KEY, value TEXT NOT NULL)
+"""
+
+
+def _compose_memory_searchtext(row: tuple) -> str:
+    """Composed native-FTS field: title first (the legacy 2.0 weight), then
+    purpose (1.5), then content (1.0)."""
+    title, _kind, _name, _source_path, purpose, content, _emb = row
+    return " ".join(s for s in (title, purpose, content) if s)
+
+
+def rebuild_memory_duckdb(
+    db_path: Path | str | None = None,
+    *,
+    write: bool = True,
+    embed_fn=None,
+    zcode_projects: Path | None = None,
+    prime_state: Path | None = None,
+    opencode_dir: Path | None = None,
+    snap_root: Path | None = None,
+) -> dict:
+    """Build/rebuild the DuckDB-native memory_search store (S2).
+
+    Reuses the engine-agnostic extraction pipeline (``_collect_units`` +
+    ``_collect_history_units`` + ``_compose_rows``) and the pooled embed
+    cache via the dedicated-sqlite-handle subclass (``rds._DuckCachedEmbed`` —
+    a duckdb conn cannot host the vecdb attach). Replacement rebuild
+    (delete-all + insert): the corpus is a few hundred records, the full
+    rewrite IS the everyday path (legacy header doctrine, same as doc S1).
+    ``write=False`` (--check): freshness verdict only — no DDL, no writes,
+    no embedder resolution (content hashes are the identity of record).
+    """
+    from helpers.maintenance.rebuild_doc_search import _DuckCachedEmbed
+
+    db_path = Path(db_path) if db_path is not None else MEMORY_DUCKDB_DB
+    stats: dict = {}
+
+    units, files_meta = _collect_units(zcode_projects, prime_state, opencode_dir)
+    hist_units, hist_meta = _collect_history_units(
+        zcode_projects, prime_state, opencode_dir, snap_root
+    )
+    units += hist_units
+    files_meta.update(hist_meta)
+    stats["total_units"] = len(units)
+    stats["history_units"] = len(hist_units)
+    stats["history_snapshots"] = len(_snap_stamps(Path(snap_root or SNAP_ROOT)))
+    stats["mode"] = "full"
+
+    if not write:
+        # Freshness verdict vs the stored meta (same doctrine as the legacy
+        # --check: source-file content hashes; stale = new/changed/deleted).
+        by_kind: dict[str, int] = {}
+        for u in units:
+            by_kind[u["kind"]] = by_kind.get(u["kind"], 0) + 1
+        stats["by_kind"] = by_kind
+        stats.update(_check_freshness_memory_duckdb(db_path, files_meta, stats))
+        _print_staleness(stats)
+        return stats
+
+    conn = connect_memory_db(db_path)
+    try:
+        conn.execute(MEMORY_DUCKDB_DDL)
+        conn.execute(MEMORY_DUCKDB_META_DDL)
+        conn.execute(MEMORY_DUCKDB_INFO_DDL)
+
+        embed_fn, embed_dims, model_label, gemma_active = _resolve_memory_embedder_duckdb(
+            conn, embed_fn, stats
+        )
+
+        all_rows = _compose_rows(units, embed_fn, gemma=gemma_active)
+        stats["total_rows"] = len(all_rows)
+        stats["embedded"] = sum(1 for r in all_rows if r[6])
+        by_kind: dict[str, int] = {}
+        for r in all_rows:
+            by_kind[r[1]] = by_kind.get(r[1], 0) + 1
+        stats["by_kind"] = by_kind
+
+        _write_memory_store(conn, all_rows, files_meta, model_label, embed_dims)
+
+        stats["indexed"] = conn.execute("SELECT COUNT(*) FROM memory_search").fetchone()[0]
+        if isinstance(embed_fn, CachedEmbed):
+            stats["embed_cache_hits"] = embed_fn.hits
+            stats["embed_cache_misses"] = embed_fn.misses
+            stats["embed_cache_state"] = embed_fn.status_line()
+            if isinstance(embed_fn, _DuckCachedEmbed) and embed_fn.dirty:
+                embed_fn.commit()  # content-addressed: early commit is safe
+        return stats
+    finally:
+        if isinstance(embed_fn, _DuckCachedEmbed):
+            embed_fn.close()
+        conn.close()
+
+
+def _check_freshness_memory_duckdb(db_path: Path, files_meta: dict, stats: dict) -> dict:
+    """--check staleness verdict vs the stored meta; absent store reads as
+    all-new. Mutates stats["total_rows"] and returns the staleness part."""
+    try:
+        conn = connect_memory_db(db_path)
+        try:
+            stats["total_rows"] = conn.execute("SELECT COUNT(*) FROM memory_search").fetchone()[0]
+            stats_part, _stored = _source_staleness(conn, files_meta)
+        finally:
+            conn.close()
+    except Exception:  # noqa: S110  # store absent/unreadable: everything reads as new
+        stats_part = {
+            "stale_new": sorted(files_meta),
+            "stale_changed": [],
+            "stale_deleted": [],
+            "index_stale": bool(files_meta),
+        }
+        stats["total_rows"] = 0
+    return stats_part
+
+
+def _resolve_memory_embedder_duckdb(conn, embed_fn, stats: dict):
+    """Resolve the memory embedder for the DuckDB store. An injected
+    embed_fn passes through as the dry-run pseudo-embedder."""
+    from helpers.maintenance.rebuild_doc_search import _DuckCachedEmbed
+
+    embed_dims = rds._PSEUDO_DIMS
+    model_label: str | None = None
+    gemma_active = False
+    if embed_fn is None:
+        embed_fn, embed_dims, model_label, gemma_active = resolve_memory_embedder()
+        stats["embed_model"] = model_label
+        # Top-level demotion guard (mirrors the legacy sqlite path): a
+        # gemma-stamped store is never silently re-embedded by the
+        # fallback model. MEMORY_EMBEDDER=granite is the explicit escape.
+        gemma_embedder.guard_gemma_stamp(
+            _stored_embed_model(conn),
+            model_label,
+            os.environ.get(MEMORY_EMBEDDER_ENV),
+        )
+        if model_label != f"dry-run-v{rds._PSEUDO_DIMS}":
+            # Dedicated-sqlite cache handle (duckdb conns can't host the
+            # pooled-store attach — see rds._DuckCachedEmbed).
+            embed_fn = _DuckCachedEmbed(embed_fn, model_label, source="memory")
+    return embed_fn, embed_dims, model_label, gemma_active
+
+
+def _write_memory_store(
+    conn, all_rows: list[tuple], files_meta: dict, model_label: str | None, embed_dims: int
+) -> None:
+    """Replacement write: delete-all + insert rows/meta/info stamps, then
+    rebuild the native FTS index (one-shot structure; drop+recreate covers
+    both fresh and pre-existing stores)."""
+    conn.execute("DELETE FROM memory_search")
+    conn.execute("DELETE FROM memory_search_meta")
+    if all_rows:
+        conn.executemany(
+            "INSERT INTO memory_search "
+            "(id, title, kind, name, source_path, purpose, content, embedding, searchtext) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            [(i, *r, _compose_memory_searchtext(r)) for i, r in enumerate(all_rows)],
+        )
+    conn.executemany(
+        "INSERT OR REPLACE INTO memory_search_meta (unit_path, mtime, content_hash) "
+        "VALUES (?, ?, ?)",
+        [(u, m, h) for u, (m, h) in sorted(files_meta.items())],
+    )
+    if model_label is not None:
+        conn.executemany(
+            "INSERT OR REPLACE INTO memory_search_info (key, value) VALUES (?, ?)",
+            [("embed_model", model_label), ("embed_dims", str(embed_dims))],
+        )
+    try:
+        conn.execute("PRAGMA drop_fts_index('memory_search')")
+    except duckdb.Error:
+        pass
+    conn.execute("PRAGMA create_fts_index('memory_search', 'id', 'searchtext')")
+
+
+def _search_memory_duckdb(
+    conn,
+    q: str,
+    limit: int = 5,
+    *,
+    kind: str | None = None,
+    hybrid: bool = True,
+    query_vec: rbc.QueryVector | None = None,
+    history: str = "exclude",
+) -> dict:
+    """Native match_bm25 + Python highlight + cosine leg over the DuckDB store.
+
+    Result dict shape is identical to the FTS5 path (mode/results), so
+    memory_query/master_query/search_tui consumers are untouched. The kind/
+    history axis rides as plain SQL predicates on the kind column (the
+    native store needs no UNINDEXED-column workaround).
+    """
+    expr = rds.fts_match_expr(q)
+    if not expr:
+        return {"mode": "bm25", "results": []}
+    sc = "fts_main_memory_search.match_bm25(id, ?)"
+    where = f"{sc} IS NOT NULL"
+    params: list = [expr, expr]
+    if kind:
+        where += " AND kind = ?"
+        params.append(kind)
+    elif history in ("only", "exclude"):
+        placeholders = ", ".join("?" * len(_HISTORY_KINDS))
+        where += f" AND kind {'IN' if history == 'only' else 'NOT IN'} ({placeholders})"  # noqa: S608  # fixed keyword + fixed placeholder count
+        params.extend(_HISTORY_KINDS)
+    try:
+        page = conn.execute(
+            f"SELECT id, title, kind, name, source_path, purpose, content, {sc} AS score "  # noqa: S608  # WHERE fully parameterized; f-string interpolates fixed columns only
+            f"FROM memory_search WHERE {where} "
+            f"ORDER BY score DESC LIMIT ?",
+            [*params, limit],
+        ).fetchall()
+    except duckdb.Error:
+        return {"mode": "bm25", "results": []}
+
+    scored, sims, cos_rank = _cosine_leg_memory_duckdb(conn, q, hybrid, query_vec)
+
+    # candidates: bm25 page first (highlight via the Python window), then
+    # cosine-only extras (200-char head) — the legacy _memory_candidates shape.
+    candidates: list[tuple[int, tuple, str]] = [
+        (pos, row, rds._highlight_window(row[6], q)) for pos, row in enumerate(page)
+    ]
+    _append_cosine_extras(conn, candidates, page, scored, cos_rank, limit, kind, history)
+
+    worst = len(cos_rank) if cos_rank else 0
+    fused = rrf_two_leg(candidates, cos_rank, worst)
+
+    results = [
+        {
+            "name": row[3],
+            "title": row[1],
+            "kind": row[2],
+            "path": row[4],
+            "purpose": row[5],
+            "snippet": snippet,
+            "score": round(rrf, 6),
+            "similarity": round(sims[row[0]], 6) if row[0] in sims else None,
+        }
+        for rrf, row, snippet in fused[:limit]
+    ]
+    mode = "hybrid" if cos_rank is not None else "bm25"
+    return {"mode": mode, "results": results}
+
+
+def _cosine_leg_memory_duckdb(conn, q: str, hybrid: bool, query_vec: rbc.QueryVector | None):
+    """Cosine leg over the DuckDB store (same stamp-keyed embedder +
+    degradation contract as the legacy _cosine_leg, keyed on id instead of
+    rowid). Returns (scored, sims, cos_rank); ([], {}, None) when the
+    embedder is unavailable or dims mismatch — BM25-only then."""
+    scored: list[tuple[int, float]] = []
+    sims: dict[int, float] = {}
+    if not hybrid:
+        return scored, sims, None
+    try:
+        idx_dims = _stored_embed_dims(conn)
+        q_vec: list[float] | None = None
+        if query_vec is not None:
+            q_vec = rbc.check_query_vector(_stored_embed_model(conn), idx_dims, query_vec)
+        if q_vec is None:
+            embed_q, _dims = _query_embedder_for(_stored_embed_model(conn))
+            candidate = embed_q(q)
+            if idx_dims == len(candidate):
+                q_vec = candidate
+        if q_vec is not None:
+            from helpers.core.vec_codec import load_vec
+
+            norm_q = sum(x * x for x in q_vec) ** 0.5 or 1.0
+            for rid, emb in conn.execute(
+                "SELECT id, embedding FROM memory_search "
+                "WHERE embedding IS NOT NULL AND embedding != ''"
+            ).fetchall():
+                vec = load_vec(emb)
+                if not vec or len(vec) != len(q_vec):
+                    continue
+                norm_v = sum(x * x for x in vec) ** 0.5 or 1.0
+                sim = sum(a * b for a, b in zip(q_vec, vec)) / (norm_q * norm_v)
+                scored.append((rid, sim))
+                sims[rid] = sim
+            scored.sort(key=lambda t: t[1], reverse=True)
+    except Exception:  # noqa: S110  # embedder unavailable -> BM25 only
+        scored, sims = [], {}
+    cos_rank = {rid: pos for pos, (rid, _s) in enumerate(scored)} if scored else None
+    return scored, sims, cos_rank
+
+
+def _append_cosine_extras(
+    conn,
+    candidates: list[tuple[int, tuple, str]],
+    page: list[tuple],
+    scored: list[tuple[int, float]],
+    cos_rank: dict | None,
+    limit: int,
+    kind: str | None,
+    history: str,
+) -> None:
+    """Append cosine-only rows (not already on the bm25 page) to the
+    candidate list, 200-char head as snippet — the legacy shape."""
+    if cos_rank is None:
+        return
+    page_ids = {row[0] for row in page}
+    rows_by_id = {
+        r[0]: r
+        for r in conn.execute(
+            "SELECT id, title, kind, name, source_path, purpose, content FROM memory_search"
+        ).fetchall()
+        if _kind_ok(r[2], kind, history)
+    }
+    extra = 0
+    for rid, _sim in scored[:limit]:
+        if rid in page_ids:
+            continue
+        row = rows_by_id.get(rid)
+        if row is None:
+            continue
+        head = " ".join((row[6] or "").split())[:200]
+        candidates.append((len(page) + extra, row, head))
+        extra += 1
+
+
 def main(argv: list[str] | None = None) -> int:
     return rbc.run_rebuild_cli(
         argv,
         rbc.RebuildCliSpec(
             description=__doc__.split("\n\n")[0],
             default_db=str(MEMORY_DB),
-            db_help="Path to the memory_search sidecar (default: memory/memory_search.db).",
+            db_help="Path to the memory_search sidecar (default: memory/memory_search.duckdb; "
+            "the legacy FTS5 .db stays openable via --db).",
             check_help="Dry-run: count records, report index freshness "
             "(changed/new/deleted), no writes. Exits 1 when stale.",
             incremental_help="Incremental rebuild (row-keyed diff; unchanged rows not rewritten).",

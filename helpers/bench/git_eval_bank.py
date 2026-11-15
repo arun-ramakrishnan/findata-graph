@@ -20,7 +20,7 @@ NO row in the index is SKIPPED (reported) — e.g. when history rewrite
 renames an arc. Floor denominators use the graded count.
 
 Usage:
-    python3 helpers/bench/git_eval_bank.py --db memory/git_search.db
+    python3 helpers/bench/git_eval_bank.py --db memory/git_search.duckdb
 """
 
 from __future__ import annotations

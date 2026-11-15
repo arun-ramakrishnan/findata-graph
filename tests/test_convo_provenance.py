@@ -23,7 +23,6 @@ Two traps this file exists to pin, both hit during the build:
 
 from __future__ import annotations
 
-import sqlite3
 from pathlib import Path
 
 import duckdb
@@ -308,8 +307,8 @@ class TestQuerySurface:
             "VALUES ('opencode','ses_x','p0','f',0,'assistant','text','s','orphan:opencode')"
         )
         con.close()
-        # connect() opens the FTS sidecar eagerly; _fetch_rows never reads it.
-        sqlite3.connect(str(db.parent / rcs.FTS_DB_NAME)).close()
+        # connect() no longer opens any sidecar (S5); _fetch_rows reads
+        # the duckdb store only.
         conn = cq.connect(db)
         try:
             rows = cq._fetch_rows(conn, [("opencode", "p0")])

@@ -20,7 +20,7 @@ does not chase it. Ident ground truth is substring containment in the
 vector-visible columns (title/purpose/content), same rule as the eval.
 
 Usage:
-    python3 helpers/bench/script_eval_bank.py --db memory/script_search.db
+    python3 helpers/bench/script_eval_bank.py --db memory/script_search.duckdb
 """
 
 from __future__ import annotations

@@ -595,11 +595,19 @@ def test_incremental_indexes_only_the_delta(convo_env, monkeypatch):
     def _open():
         return duckdb.connect(str(idx), read_only=True)
 
+    def _native_fts(con, term):
+        con.execute("LOAD fts")
+        return {
+            pid
+            for (pid,) in con.execute(
+                "SELECT part_id FROM convo_search "
+                "WHERE fts_main_convo_search.match_bm25(part_id, ?) IS NOT NULL",
+                [term],
+            ).fetchall()
+        }
+
     con = _open()
     before = con.execute("SELECT COUNT(*) FROM convo_search").fetchone()[0]
-    fts_before = (
-        sqlite3.connect(rcs.fts_db_for(idx)).execute("SELECT COUNT(*) FROM convo_fts").fetchone()[0]
-    )
     con.close()
 
     # 1) append ONE new part to the session file (what the harvester does)
@@ -628,10 +636,10 @@ def test_incremental_indexes_only_the_delta(convo_env, monkeypatch):
     con = _open()
     after = con.execute("SELECT COUNT(*) FROM convo_search").fetchone()[0]
     assert after == before + 1
-    fts_after = (
-        sqlite3.connect(rcs.fts_db_for(idx)).execute("SELECT COUNT(*) FROM convo_fts").fetchone()[0]
-    )
-    assert fts_after == fts_before + 1, "FTS must track the delta, not the file"
+    # the fresh part is searchable ("delta" matches exactly the new part)
+    assert _native_fts(con, "delta") == {"pNEW"}
+    # and the untouched rows still answer on their own text
+    assert _native_fts(con, "igraph") == {"p1"}
     # the untouched rows survived (delta-only, not reinsert)
     assert (
         con.execute(
@@ -654,10 +662,12 @@ def test_incremental_indexes_only_the_delta(convo_env, monkeypatch):
     got = con.execute("SELECT snippet FROM convo_search WHERE part_id = 'p1'").fetchone()[0]
     con.close()
     assert "REWRITTEN" in got, got
-    # and FTS agrees (the old text is gone, the new one searchable)
-    s = sqlite3.connect(rcs.fts_db_for(idx))
-    assert s.execute("SELECT COUNT(*) FROM convo_fts WHERE part_id = 'p1'").fetchone()[0] == 1
-    s.close()
+    # and the native FTS agrees (the old text is gone, the new one searchable)
+    con = _open()
+    fts_rewritten = _native_fts(con, "REWRITTEN")
+    assert "p1" in fts_rewritten
+    assert "p1" not in _native_fts(con, "igraph")
+    con.close()
 
 
 def test_compaction_noop_and_drops_propagate(convo_env, monkeypatch):
@@ -803,11 +813,8 @@ def test_query_hybrid_fuse(convo_env, monkeypatch):
     con = cq.connect(idx)
     try:
         # cosine leg stubbed to a fixed ranking; FTS leg is real
-        fts_rows = con.sconn.execute(
-            "SELECT part_id FROM convo_fts WHERE convo_fts MATCH ? ORDER BY rank LIMIT 5",
-            ('"hello"',),
-        ).fetchall()
-        assert fts_rows, "fts sidecar empty"
+        fts_rows = cq._fts_hits_duckdb(con, "igraph", 5)
+        assert fts_rows, "native FTS empty"
         monkeypatch.setattr(
             cq,
             "_cos_hits",
@@ -876,40 +883,6 @@ def test_rebuild_toctou_redo_on_mid_embed_change(convo_env, monkeypatch, capsys)
     # the landed state is consistent: check mode sees no drift
     fresh = rcs.rebuild(db, write=False)
     assert fresh["index_stale"] is False
-
-
-def test_rebuild_fts_sync_runs_outside_the_duckdb_window(convo_env, monkeypatch):
-    """Contention-window S3 de-nesting: when the FTS sync runs, the
-    convo duckdb connection must be CLOSED — an RO open succeeding at
-    that moment is the discriminator (an RW holder would refuse it)."""
-    tmp = convo_env
-    db = tmp / "idx" / "convo_search.duckdb"
-    hc.harvest(corpus_root=tmp / "corpus", db=db)
-    monkeypatch.setattr(rcs, "REPO", tmp)
-    monkeypatch.setattr(rcs, "CORPUS_DIR_GLOB", "corpus/*/*/*.parquet")
-    monkeypatch.setattr(
-        rcs,
-        "_embed",
-        lambda texts: (
-            [[float(len(t) % 7), 1.0, 0.0] for t in texts],
-            {"hits": 0, "misses": len(texts)},
-            3,
-            "test-model",
-        ),
-    )
-    real = rcs._fts_sync
-    observed = {"ro_open_ok": None}
-
-    def probing(sconn, drop_keys, rows, full):
-        con = duckdb.connect(str(db), read_only=True)  # fails under an RW holder
-        con.close()
-        observed["ro_open_ok"] = True
-        return real(sconn, drop_keys, rows, full=full)
-
-    monkeypatch.setattr(rcs, "_fts_sync", probing)
-    stats = rcs.rebuild(db, write=True)
-    assert stats["indexed"] > 0
-    assert observed["ro_open_ok"] is True
 
 
 def test_harness_filter_constrains_legs_not_post_fusion(convo_env, monkeypatch):
@@ -1040,7 +1013,9 @@ class TestDuckNativeFTS:
             con.close()
         assert n == 0, f"{n} rows lost full text or desynced from snippet"
 
-    def test_falls_back_to_sqlite_when_index_missing(self, convo_env, monkeypatch):
+    def test_native_fts_missing_returns_empty(self, convo_env, monkeypatch):
+        """S5: no sqlite fallback — a store without the native schema
+        answers with cosine alone (empty lexical leg, never an error)."""
         from helpers.misc import convo_query as cq
 
         idx = self._build(convo_env, monkeypatch)
@@ -1052,8 +1027,7 @@ class TestDuckNativeFTS:
             con.close()
         cc = cq.connect(idx)
         try:
-            hits = cq._fts_hits(cc, "igraph", limit=5)
-            assert hits, "sqlite fallback leg returned no hits"
+            assert cq._fts_hits(cc, "igraph", limit=5) == []
         finally:
             cc.close()
 

@@ -31,9 +31,11 @@ doc/improvements/archive/tooling/mojo_doc_script_search.md):
   rebuild_doc_search, NOT forked.
 
 RESIDENCE — own sidecar DB, never research.db, same doctrine as doc_search:
-memory/script_search.db is gitignored via memory/, never snapshotted, never
-attached to DuckDB. Derived state; delete it and one warm rebuild restores
-everything (embeddings included — the cache is content-addressed).
+memory/script_search.duckdb (duckdb_sidecar_fold S3 native-FTS store; the
+legacy FTS5 sidecar memory/script_search.db remains as the rollback path)
+is gitignored via memory/, never snapshotted, never attached to DuckDB.
+Derived state; delete it and one warm rebuild restores everything
+(embeddings included — the cache is content-addressed).
 
 Usage:
     python3 helpers/maintenance/rebuild_script_search.py            # rebuild, exit 0
@@ -89,13 +91,17 @@ from helpers.maintenance import rebuild_common as rbc  # noqa: E402
 from helpers.core.rank_fusion import rrf_two_leg  # noqa: E402  (algorithms_adoption_sweep S7)
 from helpers.maintenance import rebuild_doc_search as rds  # noqa: E402
 
+import duckdb  # noqa: E402  (duckdb_sidecar_fold S3: native-FTS script sidecar path)
+
 # Monkeypatchable (the VAULT_ROOT lesson: import-bound root constants silently
 # point tests at the live tree — tests MUST retarget all of these).
 HELPERS_ROOT = _REPO_ROOT / "helpers"
 TESTS_ROOT = _REPO_ROOT / "tests"
 APP_PY = _REPO_ROOT / "app.py"
 MAKEFILE = _REPO_ROOT / "Makefile"
-SCRIPT_DB = _REPO_ROOT / "memory" / "script_search.db"
+SCRIPT_DB = _REPO_ROOT / "memory" / "script_search.duckdb"
+SCRIPT_DUCKDB_DB = SCRIPT_DB
+_SCRIPT_SQLITE_DB = _REPO_ROOT / "memory" / "script_search.db"
 # Mojo footprint (mojo_doc_script_search proposal): every src/test module is
 # one 'mojo' row, composed from `mojo doc` JSON (cached content-addressed in
 # the sidecar — ~3.5 s/file compiler cost must not ride every rebuild) plus
@@ -201,11 +207,21 @@ _ADD_PARSER = re.compile(r"add_parser\(\s*[\"']([\w-]+)[\"']")
 _ROW_COLS = "title, kind, rel_path, area, purpose, content, embedding"
 
 
-def connect_script_db(db_path: Path | str | None = None) -> sqlite3.Connection:
-    """Open (creating if needed) the script_search sidecar via the house
-    connection helper (standard pragmas: Row factory, WAL, busy_timeout)."""
+def connect_script_db(db_path: Path | str | None = None):
+    """Open (creating if needed) the script_search sidecar.
+
+    Engine dispatch (duckdb_sidecar_fold S3): a ``.duckdb`` suffix opens a
+    DuckDB-native store (native FTS + inline embeddings + the mojo/ts doc
+    caches, house memory cap); anything else opens the legacy FTS5 sidecar
+    via the house sqlite helper (standard pragmas: Row factory, WAL,
+    busy_timeout)."""
     path = Path(db_path) if db_path is not None else SCRIPT_DB
     path.parent.mkdir(parents=True, exist_ok=True)
+    if path.suffix.lower() == ".duckdb":
+        from helpers.core.duckdb_shared import memory_cap_config
+
+        return duckdb.connect(str(path), **memory_cap_config())
+
     from helpers.core.db import connect as _db_connect
 
     return _db_connect(path)
@@ -748,7 +764,7 @@ def _mojo_stored_doc(
             (rel,),
         ).fetchone()
         return (old[0], False) if old else (None, False)
-    except sqlite3.Error:
+    except sqlite3.Error, duckdb.Error:
         return None, False
 
 
@@ -774,13 +790,22 @@ def _mojo_decl_cached(
         if decl is not None:
             if conn is not None:
                 try:
-                    with conn:
+                    if isinstance(conn, duckdb.DuckDBPyConnection):
+                        # duckdb autocommits per statement; `with conn:` would
+                        # CLOSE the connection on exit (verified 2026-11-15).
                         conn.execute(
                             "INSERT OR REPLACE INTO script_search_mojo_doc "
                             "(unit_path, content_hash, doc_json) VALUES (?, ?, ?)",
                             (rel, chash, generated),
                         )
-                except sqlite3.Error:
+                    else:
+                        with conn:
+                            conn.execute(
+                                "INSERT OR REPLACE INTO script_search_mojo_doc "
+                                "(unit_path, content_hash, doc_json) VALUES (?, ?, ?)",
+                                (rel, chash, generated),
+                            )
+                except sqlite3.Error, duckdb.Error:
                     pass
             return decl
     return _unwrap_mojo_decl(stored)
@@ -962,7 +987,7 @@ def _ts_stored_doc(
             (rel,),
         ).fetchone()
         return (old[0], False) if old else (None, False)
-    except sqlite3.Error:
+    except sqlite3.Error, duckdb.Error:
         return None, False
 
 
@@ -985,13 +1010,22 @@ def _ts_decl_cached(
         if decl is not None:
             if conn is not None:
                 try:
-                    with conn:
+                    if isinstance(conn, duckdb.DuckDBPyConnection):
+                        # duckdb autocommits per statement; `with conn:` would
+                        # CLOSE the connection on exit (verified 2026-11-15).
                         conn.execute(
                             "INSERT OR REPLACE INTO script_search_ts_doc "
                             "(unit_path, content_hash, doc_json) VALUES (?, ?, ?)",
                             (rel, chash, generated),
                         )
-                except sqlite3.Error:
+                    else:
+                        with conn:
+                            conn.execute(
+                                "INSERT OR REPLACE INTO script_search_ts_doc "
+                                "(unit_path, content_hash, doc_json) VALUES (?, ?, ?)",
+                                (rel, chash, generated),
+                            )
+                except sqlite3.Error, duckdb.Error:
                     pass
             return decl
     return _unwrap_ts_decl(stored)
@@ -1183,10 +1217,12 @@ def _unit_bases(helpers_root, tests_root, app_py, makefile) -> list[Path]:
     return bases
 
 
-def _stored_meta(conn: sqlite3.Connection) -> dict[str, tuple[float, str]]:
+def _stored_meta(conn) -> dict[str, tuple[float, str]]:
     return {
         r[0]: (r[1], r[2])
-        for r in conn.execute("SELECT unit_path, mtime, content_hash FROM script_search_meta")
+        for r in conn.execute(
+            "SELECT unit_path, mtime, content_hash FROM script_search_meta"
+        ).fetchall()  # fetchall: duckdb conns are not row-iterable (S1 lesson)
     }
 
 
@@ -1343,6 +1379,19 @@ def rebuild(
     from helpers.maintenance.maint_timing import current as _mt_timer
 
     db_path = Path(db_path) if db_path is not None else SCRIPT_DB
+    if db_path.suffix.lower() == ".duckdb":
+        # duckdb_sidecar_fold S3: the DuckDB-native store is rebuild-only
+        # (replacement rebuild; the corpus is ~1.9k rows).
+        return rebuild_script_duckdb(
+            db_path,
+            write=write,
+            embed_fn=embed_fn,
+            helpers_root=helpers_root,
+            tests_root=tests_root,
+            app_py=app_py,
+            makefile=makefile,
+        )
+
     conn = connect_script_db(db_path)
     stats: dict = {}
     _mt = _mt_timer()  # None outside a CLI run (tests): all timing below is a no-op
@@ -1462,13 +1511,19 @@ def _print_staleness(stats: dict) -> None:
 # --- read-path gates (script_query CLI; an /api endpoint would reuse these) ---
 
 
-def script_index_ready(conn: sqlite3.Connection) -> bool:
+def script_index_ready(conn) -> bool:
     """True when the script_search table exists (at least one rebuild ran)."""
     try:
-        row = conn.execute(
-            "SELECT 1 FROM sqlite_master WHERE type='table' AND name='script_search'"
-        ).fetchone()
-    except sqlite3.Error:
+        if isinstance(conn, duckdb.DuckDBPyConnection):
+            row = conn.execute(
+                "SELECT 1 FROM information_schema.tables "
+                "WHERE table_schema = 'main' AND table_name = 'script_search'"
+            ).fetchone()
+        else:
+            row = conn.execute(
+                "SELECT 1 FROM sqlite_master WHERE type='table' AND name='script_search'"
+            ).fetchone()
+    except Exception:  # noqa: S110  # engine error / absent store -> not ready
         return False
     return row is not None
 
@@ -1575,9 +1630,12 @@ def script_index_stale(
     try:
         meta = {
             r[0]: (r[1], r[2])
-            for r in conn.execute("SELECT unit_path, mtime, content_hash FROM script_search_meta")
+            for r in conn.execute(
+                "SELECT unit_path, mtime, content_hash FROM script_search_meta"
+            ).fetchall()
+            # fetchall: duckdb conns are not row-iterable (S1 lesson)
         }
-    except sqlite3.Error:
+    except Exception:  # noqa: S110  # engine error / absent meta -> stale (safe side)
         return True
     if not meta:
         return True
@@ -1720,9 +1778,13 @@ def _cosine_rank_rows(
 
 
 def _cosine_leg(
-    conn: sqlite3.Connection, q: str, query_vec: rbc.QueryVector | None = None
+    conn: sqlite3.Connection,
+    q: str,
+    query_vec: rbc.QueryVector | None = None,
+    *,
+    key_col: str = "rowid",
 ) -> tuple[list[tuple[int, float]], dict[int, float]]:
-    """Cosine ranking: (scored [(rowid, sim)] sorted desc, sims map).
+    """Cosine ranking: (scored [(key, sim)] sorted desc, sims map), keyed on key_col.
 
     ([], {}) when the embedder is unavailable or the stored dims mismatch —
     the BM25 leg then carries the whole ranking (same degradation contract
@@ -1732,6 +1794,8 @@ def _cosine_leg(
 
     Scoring runs through _cosine_rank_rows (SCRIPT_KNN backend selector:
     numpy default, rust opt-in, pure fallback — rust_cosine_knn_port S2)."""
+    if key_col not in ("rowid", "id"):
+        raise ValueError(f"key_col must be 'rowid' or 'id', got {key_col!r}")
     try:
         idx_dims = _script_stored_embed_dims(conn)
         q_vec: list[float] | None = None
@@ -1751,8 +1815,8 @@ def _cosine_leg(
     vecs: list[list[float]] = []
     blobs: list[bytes | str | None] = []
     for rid, emb in conn.execute(
-        "SELECT rowid, embedding FROM script_search WHERE embedding IS NOT NULL AND embedding != ''"
-    ):
+        f"SELECT {key_col}, embedding FROM script_search WHERE embedding IS NOT NULL AND embedding != ''"  # noqa: S608  # key_col is a whitelisted identifier (rowid|id)
+    ).fetchall():  # fetchall: duckdb conns are not row-iterable (S1 lesson)
         # Stored embeddings are vec_codec blobs (dump_vec), NOT JSON —
         # json.loads here decoded zero rows and silently killed the cosine
         # leg (mode never "hybrid", similarity always null). Found via the
@@ -1768,11 +1832,18 @@ def _cosine_leg(
 
 
 def _rows_by_rid(
-    conn: sqlite3.Connection, kind: str | None, area: str | None
+    conn: sqlite3.Connection,
+    kind: str | None,
+    area: str | None,
+    *,
+    key_col: str = "rowid",
 ) -> dict[int, sqlite3.Row]:
-    """rowid -> row map for cosine-only candidates, filtered like the page
+    """key_col -> row map for cosine-only candidates, filtered like the page
     (UNINDEXED kind/area can't take part in MATCH, but a plain Python-side
-    predicate is free at this scale)."""
+    predicate is free at this scale). key_col: 'rowid' (SQLite path) or
+    'id' (DuckDB path — the explicit id column, not the implicit rowid)."""
+    if key_col not in ("rowid", "id"):
+        raise ValueError(f"key_col must be 'rowid' or 'id', got {key_col!r}")
 
     def _match(r) -> bool:
         return (kind is None or r[2] == kind) and (area is None or r[4] == area)
@@ -1780,8 +1851,8 @@ def _rows_by_rid(
     return {
         r[0]: r
         for r in conn.execute(
-            "SELECT rowid, title, kind, rel_path, area, purpose, content FROM script_search"
-        )
+            f"SELECT {key_col}, title, kind, rel_path, area, purpose, content FROM script_search"  # noqa: S608  # key_col is a whitelisted identifier (rowid|id)
+        ).fetchall()  # fetchall: duckdb conns are not row-iterable (S1 lesson)
         if _match(r)
     }
 
@@ -1856,13 +1927,17 @@ def _vector_hits(
     area: str | None,
     limit: int,
     offset: int,
+    *,
+    key_col: str = "rowid",
 ) -> list[tuple[float, sqlite3.Row, str]]:
     """Vector-only page: cosine-ranked rows (kind/area-filtered like the
     BM25 page), score = cosine similarity (no RRF — there is nothing to
     fuse). A dead cosine leg yields an empty page, never a silent BM25
     substitution (the mode says "vector"; the fan-out's other legs still
-    answer). Snippet = content head, same as cosine-only extras above."""
-    rows_by_rid = _rows_by_rid(conn, kind, area)
+    answer). Snippet = content head, same as cosine-only extras above.
+    key_col must match the cosine leg's key (rowid for SQLite, id for
+    DuckDB) or the rows_by_rid lookup misses every row."""
+    rows_by_rid = _rows_by_rid(conn, kind, area, key_col=key_col)
     hits: list[tuple[float, sqlite3.Row, str]] = []
     for rid, sim in scored[: limit + offset]:
         row = rows_by_rid.get(rid)
@@ -1932,6 +2007,18 @@ def search_scripts(
     Granite-stamped indexes keep today's hybrid default untouched.
     Explicit vector_only=True forces the vector shape on any index;
     explicit hybrid=False keeps the BM25 shape on any index."""
+    if isinstance(conn, duckdb.DuckDBPyConnection):
+        return _search_scripts_duckdb(
+            conn,
+            q,
+            limit,
+            offset,
+            kind=kind,
+            area=area,
+            hybrid=hybrid,
+            query_vec=query_vec,
+            vector_only=vector_only,
+        )
     expr = rds.fts_match_expr(q)
     if not expr:
         return {"mode": "bm25", "results": []}
@@ -1997,13 +2084,340 @@ def _summary_line(stats: dict) -> str:
     )
 
 
+# ---------------------------------------------------------------------------
+# DuckDB-native sidecar (duckdb_sidecar_fold S3, 2026-11-15)
+#
+# Native FTS (fts_main_script_search.match_bm25) over a composed searchtext
+# (title + content — the legacy bm25 weight matrix, title 2.0 / content
+# 1.0; purpose rides inside content as the "purpose:" block). kind/rel_path/
+# area become plain SQL columns (better filters than the legacy UNINDEXED
+# FTS5 columns). The doc/memory S1/S2 lessons apply unchanged: dedicated
+# sqlite cache handle (rds._DuckCachedEmbed), replacement rebuild, no
+# snippet()/highlight() (rds._highlight_window replacement). The mojo/ts
+# content-addressed doc caches live in the same duckdb store (same tables).
+SCRIPT_DUCKDB_DDL = """
+CREATE TABLE IF NOT EXISTS script_search (
+  id BIGINT PRIMARY KEY,
+  title TEXT,
+  kind TEXT,
+  rel_path TEXT,
+  area TEXT,
+  purpose TEXT,
+  content TEXT,
+  embedding BLOB,
+  searchtext TEXT
+)
+"""
+SCRIPT_DUCKDB_META_DDL = """
+CREATE TABLE IF NOT EXISTS script_search_meta (
+  unit_path TEXT PRIMARY KEY,
+  mtime REAL NOT NULL,
+  content_hash TEXT NOT NULL
+)
+"""
+SCRIPT_DUCKDB_INFO_DDL = """
+CREATE TABLE IF NOT EXISTS script_search_info ( key TEXT PRIMARY KEY, value TEXT NOT NULL)
+"""
+SCRIPT_DUCKDB_MOJO_DOC_DDL = """
+CREATE TABLE IF NOT EXISTS script_search_mojo_doc (
+  unit_path TEXT PRIMARY KEY,
+  content_hash TEXT NOT NULL,
+  doc_json TEXT NOT NULL
+)
+"""
+SCRIPT_DUCKDB_TS_DOC_DDL = """
+CREATE TABLE IF NOT EXISTS script_search_ts_doc (
+  unit_path TEXT PRIMARY KEY,
+  content_hash TEXT NOT NULL,
+  doc_json TEXT NOT NULL
+)
+"""
+
+
+def _compose_script_searchtext(row: tuple) -> str:
+    """Composed native-FTS field: title first (the legacy 2.0 weight), then
+    content (the legacy 1.0 weight; the labeled content block already
+    carries purpose/details/cli/defs/wiring)."""
+    title, _kind, _rel_path, _area, _purpose, content, _emb = row
+    return " ".join(s for s in (title, content) if s)
+
+
+def rebuild_script_duckdb(
+    db_path: Path | str | None = None,
+    *,
+    write: bool = True,
+    embed_fn=None,
+    helpers_root: Path | None = None,
+    tests_root: Path | None = None,
+    app_py: Path | None = None,
+    makefile: Path | None = None,
+) -> dict:
+    """Build/rebuild the DuckDB-native script_search store (S3).
+
+    Reuses the engine-agnostic extraction pipeline (``_collect_units`` —
+    with the mojo/ts content-addressed doc caches living in the SAME
+    duckdb store — and ``_compose_rows``) plus the pooled embed cache via
+    the dedicated-sqlite-handle subclass (``rds._DuckCachedEmbed`` — a
+    duckdb conn cannot host the vecdb attach). Replacement rebuild
+    (delete-all + insert): the corpus is ~1.9k rows, full rebuild is
+    seconds. ``write=False`` (--check): freshness verdict only — no DDL,
+    no writes, no embedder resolution (content hashes are the identity of
+    record; the mojo/ts caches still serve the collection the same way
+    the legacy --check pre-warms them).
+    """
+    from helpers.maintenance.rebuild_doc_search import _DuckCachedEmbed
+
+    db_path = Path(db_path) if db_path is not None else SCRIPT_DUCKDB_DB
+    stats: dict = {}
+
+    if not write:
+        # Freshness verdict vs the stored meta (same doctrine as the legacy
+        # --check: source-file content hashes; stale = new/changed/deleted).
+        _check_freshness_script_duckdb(db_path, helpers_root, tests_root, app_py, makefile, stats)
+        _print_staleness(stats)
+        return stats
+
+    conn = connect_script_db(db_path)
+    try:
+        conn.execute(SCRIPT_DUCKDB_DDL)
+        conn.execute(SCRIPT_DUCKDB_META_DDL)
+        conn.execute(SCRIPT_DUCKDB_INFO_DDL)
+        conn.execute(SCRIPT_DUCKDB_MOJO_DOC_DDL)
+        conn.execute(SCRIPT_DUCKDB_TS_DOC_DDL)
+
+        embed_fn, embed_dims, model_label, gemma_active = _resolve_script_embedder_duckdb(
+            conn, embed_fn, stats
+        )
+
+        py_units, make_unit, units_meta = _collect_units(
+            helpers_root, tests_root, app_py, makefile, conn=conn
+        )
+        all_rows = _compose_rows(py_units, make_unit, embed_fn, gemma=gemma_active)
+        stats["total_rows"] = len(all_rows)
+        stats["total_units"] = len(py_units) + (1 if make_unit else 0)
+        stats["embedded"] = sum(1 for r in all_rows if r[6])
+        by_kind = {}
+        for r in all_rows:
+            by_kind[r[1]] = by_kind.get(r[1], 0) + 1
+        stats["by_kind"] = by_kind
+
+        _write_script_store(conn, all_rows, units_meta, model_label, embed_dims)
+
+        stats["indexed"] = conn.execute("SELECT COUNT(*) FROM script_search").fetchone()[0]
+        if isinstance(embed_fn, CachedEmbed):
+            stats["embed_cache_hits"] = embed_fn.hits
+            stats["embed_cache_misses"] = embed_fn.misses
+            stats["embed_cache_state"] = embed_fn.status_line()
+            if isinstance(embed_fn, _DuckCachedEmbed) and embed_fn.dirty:
+                embed_fn.commit()  # content-addressed: early commit is safe
+        return stats
+    finally:
+        if isinstance(embed_fn, _DuckCachedEmbed):
+            embed_fn.close()
+        conn.close()
+
+
+def _check_freshness_script_duckdb(
+    db_path: Path, helpers_root, tests_root, app_py, makefile, stats: dict
+) -> None:
+    """--check staleness verdict vs the stored meta; absent store reads as
+    all-new. Mutates stats in place (by_kind/total_units/total_rows + the
+    staleness part)."""
+    try:
+        conn = connect_script_db(db_path)
+        try:
+            py_units, make_unit, units_meta = _collect_units(
+                helpers_root, tests_root, app_py, makefile, conn=conn
+            )
+            stats["total_rows"] = conn.execute("SELECT COUNT(*) FROM script_search").fetchone()[0]
+            stats_part, _stored = _source_staleness(conn, units_meta)
+        finally:
+            conn.close()
+        by_kind: dict[str, int] = {}
+        for u in py_units:
+            by_kind[u["kind"]] = by_kind.get(u["kind"], 0) + 1
+        stats["by_kind"] = by_kind
+        stats["total_units"] = len(py_units) + (1 if make_unit else 0)
+    except Exception:  # noqa: S110  # store absent/unreadable: everything reads as new
+        py_units, make_unit, units_meta = _collect_units(
+            helpers_root, tests_root, app_py, makefile, conn=None
+        )
+        stats_part = {
+            "stale_new": sorted(units_meta),
+            "stale_changed": [],
+            "stale_deleted": [],
+            "index_stale": bool(units_meta),
+        }
+        stats["total_rows"] = 0
+        by_kind = {}
+        for u in py_units:
+            by_kind[u["kind"]] = by_kind.get(u["kind"], 0) + 1
+        stats["by_kind"] = by_kind
+        stats["total_units"] = len(py_units) + (1 if make_unit else 0)
+    stats.update(stats_part)
+
+
+def _resolve_script_embedder_duckdb(conn, embed_fn, stats: dict):
+    """Resolve the script embedder for the DuckDB store. An injected
+    embed_fn passes through as the dry-run pseudo-embedder."""
+    from helpers.maintenance.rebuild_doc_search import _DuckCachedEmbed
+
+    embed_dims = rds._PSEUDO_DIMS
+    model_label: str | None = None
+    gemma_active = False
+    if embed_fn is None:
+        embed_fn, embed_dims, model_label, gemma_active = resolve_script_embedder()
+        stats["embed_model"] = model_label
+        # Top-level demotion guard (mirrors the legacy sqlite path): a
+        # gemma-stamped store is never silently re-embedded by the
+        # fallback model. SCRIPT_EMBEDDER=granite is the explicit escape.
+        gemma_embedder.guard_gemma_stamp(
+            _script_stored_embed_model(conn),
+            model_label,
+            os.environ.get(SCRIPT_EMBEDDER_ENV),
+        )
+        if model_label != f"dry-run-v{rds._PSEUDO_DIMS}":
+            # Dedicated-sqlite cache handle (duckdb conns can't host the
+            # pooled-store attach — see rds._DuckCachedEmbed).
+            embed_fn = _DuckCachedEmbed(embed_fn, model_label, source="script")
+    return embed_fn, embed_dims, model_label, gemma_active
+
+
+def _write_script_store(
+    conn, all_rows: list[tuple], units_meta: dict, model_label: str | None, embed_dims: int
+) -> None:
+    """Replacement write: delete-all + insert rows/meta/info stamps, then
+    rebuild the native FTS index (one-shot structure; drop+recreate covers
+    both fresh and pre-existing stores)."""
+    conn.execute("DELETE FROM script_search")
+    conn.execute("DELETE FROM script_search_meta")
+    if all_rows:
+        conn.executemany(
+            "INSERT INTO script_search "
+            "(id, title, kind, rel_path, area, purpose, content, embedding, searchtext) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            [(i, *r, _compose_script_searchtext(r)) for i, r in enumerate(all_rows)],
+        )
+    conn.executemany(
+        "INSERT OR REPLACE INTO script_search_meta (unit_path, mtime, content_hash) "
+        "VALUES (?, ?, ?)",
+        [(u, m, h) for u, (m, h) in sorted(units_meta.items())],
+    )
+    if model_label is not None:
+        conn.executemany(
+            "INSERT OR REPLACE INTO script_search_info (key, value) VALUES (?, ?)",
+            [("embed_model", model_label), ("embed_dims", str(embed_dims))],
+        )
+    try:
+        conn.execute("PRAGMA drop_fts_index('script_search')")
+    except duckdb.Error:
+        pass
+    conn.execute("PRAGMA create_fts_index('script_search', 'id', 'searchtext')")
+
+
+def _search_scripts_duckdb(
+    conn,
+    q: str,
+    limit: int = 25,
+    offset: int = 0,
+    *,
+    kind: str | None = None,
+    area: str | None = None,
+    hybrid: bool = True,
+    query_vec: rbc.QueryVector | None = None,
+    vector_only: bool = False,
+) -> dict:
+    """Native match_bm25 + Python highlight + cosine leg over the DuckDB store.
+
+    Result dict shape is identical to the FTS5 path (mode/results, the
+    script ``area`` key), so script_query/app.py consumers are untouched.
+    The kind/area axis rides as plain SQL predicates on the kind/area
+    columns; the gemma shape switch (identifier → lexical, paraphrase →
+    vector-only) is preserved verbatim.
+    """
+    expr = rds.fts_match_expr(q)
+    if not expr:
+        return {"mode": "bm25", "results": []}
+    gemma_idx = hybrid and not vector_only and _is_gemma_index(conn)
+    routed_vector = vector_only or (gemma_idx and not is_identifier_query(q))
+    routed_lexical = gemma_idx and is_identifier_query(q)
+    sc = "fts_main_script_search.match_bm25(id, ?)"
+    where = f"{sc} IS NOT NULL"
+    params: list = [expr, expr]
+    if kind:
+        where += " AND kind = ?"
+        params.append(kind)
+    if area:
+        where += " AND area = ?"
+        params.append(area)
+    try:
+        page = conn.execute(
+            f"SELECT id, title, kind, rel_path, area, purpose, content, {sc} AS score "  # noqa: S608  # WHERE fully parameterized; f-string interpolates fixed columns only
+            f"FROM script_search WHERE {where} "
+            f"ORDER BY score DESC LIMIT ?",
+            [*params, limit + offset],
+        ).fetchall()
+    except duckdb.Error:
+        return {"mode": "bm25", "results": []}
+
+    scored, sims = (
+        _cosine_leg(conn, q, query_vec, key_col="id")
+        if (routed_vector or (hybrid and not routed_lexical))
+        else ([], {})
+    )  # key_col="id": the DuckDB page/candidates key on the explicit id column
+    if routed_vector:
+        return {
+            "mode": "vector",
+            "results": _hit_dicts(
+                _vector_hits(conn, scored, sims, kind, area, limit, offset, key_col="id"),
+                sims,
+            ),
+        }
+
+    cos_rank = {rid: pos for pos, (rid, _s) in enumerate(scored)} if scored else None
+    # candidates: bm25 page first (highlight via the Python window), then
+    # cosine-only extras (200-char head) — the legacy _fused_hits shape.
+    candidates: list[tuple[int, tuple, str]] = [
+        (pos, row, rds._highlight_window(row[6], q)) for pos, row in enumerate(page)
+    ]
+    if cos_rank is not None:
+        page_ids = {row[0] for row in page}
+        # Keyed on id (not the shared _rows_by_rid's rowid): the DuckDB page
+        # and the id-keyed cosine leg above both key on the explicit id
+        # column, so the extras map must too — and the rows are plain tuples
+        # (DuckDB fetchall), matching the candidates annotation.
+        rows_by_id = {
+            r[0]: r
+            for r in conn.execute(
+                "SELECT id, title, kind, rel_path, area, purpose, content FROM script_search"
+            ).fetchall()
+            if (kind is None or r[2] == kind) and (area is None or r[4] == area)
+        }
+        extra_pos = 0
+        for rid, _sim in scored[: limit + offset]:
+            if rid in page_ids:
+                continue
+            row = rows_by_id.get(rid)
+            if row is None:
+                continue
+            head = " ".join((row[6] or "").split())[:200]
+            candidates.append((len(page) + extra_pos, row, head))
+            extra_pos += 1
+
+    fused = rrf_two_leg(candidates, cos_rank, len(cos_rank) if cos_rank else 0)
+    return {
+        "mode": "hybrid" if cos_rank is not None else "bm25",
+        "results": _hit_dicts(fused[offset : offset + limit], sims),
+    }
+
+
 def main(argv: list[str] | None = None) -> int:
     return rbc.run_rebuild_cli(
         argv,
         rbc.RebuildCliSpec(
             description=__doc__.split("\n\n")[0],
             default_db=str(SCRIPT_DB),
-            db_help="Path to the script_search sidecar (default: memory/script_search.db).",
+            db_help="Path to the script_search sidecar (default: memory/script_search.duckdb; legacy FTS5 path: memory/script_search.db).",
             check_help="Dry-run: count units/rows, report index freshness "
             "(changed/new/deleted), no writes. Exits 1 when stale.",
             incremental_help="Incremental rebuild (row-keyed diff; unchanged rows not rewritten).",

@@ -1190,8 +1190,9 @@ def api_search():
 # --------------------------------------------------------------------------- #
 # The docs corpus lives on disk (markdown + plain-text), NOT in the research
 # DB, so the catalog/content routes read the filesystem directly. Search is
-# served from the doc_search sidecar index (memory/doc_search.db — FTS5 +
-# per-section embeddings, helpers/maintenance/rebuild_doc_search.py) when it
+# served from the doc_search sidecar index (memory/doc_search.duckdb —
+# DuckDB native FTS + per-section embeddings,
+# helpers/maintenance/rebuild_doc_search.py) when it
 # is present and fresh, degrading to the #107 linear scan otherwise; the
 # sidecar is gitignored and structurally never touches research.db or the
 # published snapshots (doc/local/ privacy).
@@ -1456,7 +1457,9 @@ def _snippet(text: str, q: str, radius: int = 140) -> str:
 def _docs_index_search(query: str, limit: int, offset: int, hybrid_on: bool):
     """Serve /api/docs/search from the doc_search sidecar; None -> scan.
 
-    Read-only: opens its own short-lived connection to memory/doc_search.db
+    Read-only: opens its own short-lived connection to the doc_search
+    sidecar (engine routed by suffix via rds.connect_doc_db;
+    duckdb_sidecar_fold S1: memory/doc_search.duckdb)
     (module attrs are read at call time so tests can retarget them). Request
     handlers never write — a missing, stale, or corrupt index degrades to
     the #107 filesystem scan instead of failing.

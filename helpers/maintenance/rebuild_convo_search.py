@@ -3,9 +3,10 @@
 
 The index is POINTERS, not payloads: one DuckDB table
 (``memory/convo_search.duckdb``) keyed (harness, part_id) with the
-parquet file/row pointer, digest metadata, an 8 KiB snippet and the
-granite 384-d embedding; lexical recall lives in the SQLite FTS5
-sidecar (``memory/convo_search_fts.db``, porter). The corpus itself is
+parquet file/row pointer, digest metadata, an 8 KiB snippet, the
+granite 384-d embedding, and the native FTS index over the full text
+(S3; the SQLite FTS5 sidecar ``memory/convo_search_fts.db`` was RETIRED
+in S5 of the duckdb_sidecar_fold proposal). The corpus itself is
 the parquet archive written by ``harvest_conversations.py`` — the index
 is fully rebuildable from it and never stores full bodies (convo_search
 proposal, 2026-09-27; trial-measured: FTS ~1 ms, cosine linear-scan
@@ -25,7 +26,6 @@ from __future__ import annotations
 import contextlib
 import hashlib
 import os
-import sqlite3
 import sys
 from pathlib import Path
 
@@ -43,7 +43,6 @@ from helpers.misc.duckdb_lock import connect_with_lock_retry, io_lock, open_read
 
 REPO = _REPO_ROOT
 CORPUS_DIR_GLOB = "memory/data/harness/*/conversations/*.parquet"
-FTS_DB_NAME = "convo_search_fts.db"
 SNIPPET_CAP = 8 * 1024
 MIN_TEXT_LEN = 1
 EMBED_DIMS = 384
@@ -122,15 +121,6 @@ CONVO_META_DDL = "CREATE TABLE IF NOT EXISTS convo_meta (key VARCHAR PRIMARY KEY
 # by hand (_carry_harvest_state) because it rebuilt from the corpus; COPY
 # carries every table, so the parity gate below is what protects them.
 _COMPACT_TABLES = ("convo_search", "convo_meta", "harvest_meta", "part_index")
-FTS_DDL = (
-    "CREATE VIRTUAL TABLE IF NOT EXISTS convo_fts USING fts5("
-    "text, harness UNINDEXED, part_id UNINDEXED, session_id UNINDEXED, "
-    "tokenize='porter unicode61')"
-)
-
-
-def fts_db_for(db_path: Path) -> Path:
-    return db_path.parent / FTS_DB_NAME
 
 
 def _corpus_files() -> list[Path]:
@@ -576,63 +566,14 @@ def _indexed_state(
     return out
 
 
-def _fts_delete_keys(
-    sconn: sqlite3.Connection, keys: list[tuple[str, str]], chunk: int = 400
-) -> None:
-    """Delete FTS rows for many keys in ONE statement, chunked.
-
-    T8 (2026-09-27): this used to be ``executemany`` per key. `harness`
-    and `part_id` are UNINDEXED columns in FTS5, so every statement
-    full-scanned the content table — 2,000 statements over 53k rows cost
-    **137 s** (68.8 ms/key), which was the entire runtime of an
-    incremental rebuild (measured). One OR-ed statement scans once.
-
-    The chunk keeps the OR-chain under SQLite's expression-depth limit
-    (SQLITE_MAX_EXPR_DEPTH=1000), so ~400 pairs per statement: a
-    5k-row session file is ~13 statements instead of 5,000.
-    """
-    for i in range(0, len(keys), chunk):
-        part = keys[i : i + chunk]
-        where = " OR ".join(["(harness = ? AND part_id = ?)"] * len(part))
-        sconn.execute(
-            f"DELETE FROM convo_fts WHERE {where}",  # noqa: S608  # built from a constant template
-            [v for k in part for v in k],
-        )
-
-
-def _fts_sync(
-    sconn: sqlite3.Connection,
-    drop_keys: list[tuple[str, str]],
-    rows: list[dict],
-    full: bool,
-) -> None:
-    """Transitional FTS5 sidecar sync (pre-S3 readers; retires post-merge).
-
-    The sidecar indexes the SNIPPET (8 KB cap) while the S3 native index
-    covers the full text column — a documented divergence that only
-    affects the fallback leg of pre-S3 stores.
-    """
-    sconn.execute(FTS_DDL)
-    if full:
-        # a full rebuild must not leave rows the DuckDB side dropped
-        sconn.execute("DELETE FROM convo_fts")
-    if drop_keys:
-        _fts_delete_keys(sconn, drop_keys)
-    sconn.executemany(
-        "INSERT INTO convo_fts VALUES (?, ?, ?, ?)",
-        [(r["snippet"], r["harness"], r["part_id"], r["session_id"]) for r in rows],
-    )
-    sconn.commit()
-
-
 def _refresh_fts_index(db_path: Path) -> None:
     """Recreate the native FTS index after an in-place write window.
 
     DuckDB's FTS index is a one-shot structure: rows written after
     PRAGMA create_fts_index are invisible to it (no incremental
     maintenance), so any in-place window ends with drop + recreate.
-    Best-effort by design: a pre-S3 store (no text column yet) keeps
-    its sqlite fallback leg until its next swap rebuild.
+    Best-effort by design: a store that cannot host the index answers
+    with cosine alone until its next swap rebuild.
     """
     try:
         with io_lock(db_path, exclusive=True):
@@ -677,12 +618,19 @@ def _embed(texts: list[str]) -> tuple[list[list[float]], dict, int, str]:
 
 
 def _cached_batch(texts: list[str], model_label: str, le) -> tuple[list[list[float]], dict]:
-    """cached_embed_batch against the FTS sidecar's sqlite conn (vec store host)."""
+    """cached_embed_batch against the shared embed_store sqlite conn.
+
+    S5: the retired FTS5 sidecar was the convo cache host; the cache now
+    lives on the shared memory/embed_store.db, like the doc/script/git
+    legs.
+    """
     from helpers.core.embed_cache import cached_embed_batch
 
     from helpers.core.db import connect as db_connect
+    from helpers.core.vec_search import EMBED_DB_PATH
 
-    sconn = db_connect(_FTS_DB_PATH)
+    EMBED_DB_PATH.parent.mkdir(parents=True, exist_ok=True)
+    sconn = db_connect(EMBED_DB_PATH)
     try:
         # No automatic model-difference purge (2026-10-08): a prior-model
         # row is rollback insurance, dead-text eviction is `make embed-gc`.
@@ -695,9 +643,6 @@ def _cached_batch(texts: list[str], model_label: str, le) -> tuple[list[list[flo
         )
     finally:
         sconn.close()
-
-
-_FTS_DB_PATH: Path = REPO / "memory" / FTS_DB_NAME
 
 
 _STAGE = "convo_stage_arrow"
@@ -819,9 +764,9 @@ def _bulk_insert(con: duckdb.DuckDBPyConnection, rows: list[dict], vecs: list[li
 
 class _Phases:
     """Cumulative phase timer. Every rebuild reports where its seconds
-    went, because the two defects that cost the most here (T6's 45-min
-    row-by-row insert, T8's 137 s per-key FTS delete) were both invisible
-    in a single total."""
+    went, because the defects that cost the most here (T6's 45-min
+    row-by-row insert, T8's 137 s per-key FTS delete) were invisible in
+    a single total."""
 
     def __init__(self) -> None:
         import time
@@ -891,8 +836,8 @@ def _rebuild_full_mode(
     current = {rel: h for rel, (h, _rows) in target.items()}
     diff = _diff(current, stored)
     # Wholesale delete is deliberate (T8 lesson, converse of the delta path):
-    # a full rebuild clears the index — and, via _fts_sync(full=True), the FTS
-    # sidecar — instead of reconciling row-by-row against it.
+    # a full rebuild clears the index instead of reconciling row-by-row
+    # against it (the native FTS refresh right after rebuilds from it).
     con.execute("DELETE FROM convo_search")
     con.execute("DELETE FROM convo_meta")
     drop_keys: list[tuple[str, str]] = []
@@ -948,7 +893,7 @@ def _rebuild_embed_and_persist(
     incremental: bool,
     timer: _Phases,
 ) -> tuple[dict, str, int]:
-    """Embed rows, persist to DuckDB and FTS, return (cstats, model_label, dims).
+    """Embed rows and persist to DuckDB, return (cstats, model_label, dims).
 
     Retained as the single-write-window variant used by tests; the CLI
     rebuild() uses the three-window flow (contention-window
@@ -962,14 +907,6 @@ def _rebuild_embed_and_persist(
     if rows:
         _bulk_insert(con, rows, vecs)
     timer.mark("duckdb_insert")
-    from helpers.core.db import connect as db_connect
-
-    sconn = db_connect(_FTS_DB_PATH)
-    try:
-        _fts_sync(sconn, drop_keys, rows, full=not incremental)
-    finally:
-        sconn.close()
-    timer.mark("fts_sync")
     con.executemany(
         "INSERT OR REPLACE INTO convo_meta VALUES (?, ?)",
         [(f"file:{rel}", h) for rel, h in current.items()]
@@ -1241,17 +1178,15 @@ def rebuild(
        window);
     3. write window (io.lock EX, seconds): TOCTOU re-verify of the
        stored hashes, then delete + bulk insert; close;
-    4. FTS sync on the independent sqlite store, THEN a tiny meta window
-       (meta is written only after FTS succeeded — the old one-window
-       failure ordering preserved: a failed FTS leaves meta stale and
-       the next run redoes).
+    4. native-FTS refresh (drop + recreate, its own io.lock window),
+       THEN a tiny meta window (meta is written only after the refresh
+       succeeded — the old one-window failure ordering preserved: a
+       failed refresh leaves meta stale and the next run redoes).
     """
     if write:
         ds.assert_not_served(db_path)  # in-place write windows: forbidden against a served store
     db_path = Path(db_path)
     db_path.parent.mkdir(parents=True, exist_ok=True)
-    global _FTS_DB_PATH
-    _FTS_DB_PATH = fts_db_for(db_path)
     timer = _Phases()
 
     files = _corpus_files()
@@ -1318,16 +1253,8 @@ def rebuild(
     if rows or drop_keys or not incremental:
         _refresh_fts_index(db_path)
     timer.mark("fts_refresh")
-    from helpers.core.db import connect as db_connect
 
-    sconn = db_connect(_FTS_DB_PATH)
-    try:
-        _fts_sync(sconn, drop_keys, rows, full=not incremental)
-    finally:
-        sconn.close()
-    timer.mark("fts_sync")
-
-    # -- meta window: only after FTS succeeded (failure ordering preserved) -
+    # -- meta window: only after the FTS refresh succeeded (ordering kept) -
     with io_lock(db_path, exclusive=True):
         con = connect_with_lock_retry(
             lambda: duckdb.connect(str(db_path), **ds.memory_cap_config())
@@ -1414,6 +1341,12 @@ def main(argv: list[str] | None = None) -> int:
         rebuild_fn=rebuild,
         summary=summary,
         migrated_msg="",
+        # The duckdb convo lane has no stamp_table (no shared-store guard),
+        # but it still rides the *-fresh loop, which forwards ARGS verbatim
+        # to every rebuilder. allow_stale_noop keeps --allow-stale accepted
+        # (and ignored) so `make convo-fresh APPLY=1 ARGS=--allow-stale`
+        # does not crash — same precedent as rebuild_git_search.
+        allow_stale_noop=True,
     )
     return rbc.run_rebuild_cli(argv, spec)
 

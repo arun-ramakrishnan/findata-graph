@@ -131,11 +131,9 @@ from helpers.core.db import connect  # noqa: E402
 # are db_maint's own maintained objects.
 SIDECAR_SQLITE: tuple[str, ...] = (
     "memory/embed_store.db",
-    "memory/convo_search_fts.db",
     "memory/corpus.db",
-    "memory/doc_search.db",
-    "memory/script_search.db",
-    "memory/memory_search.db",
+    "memory/doc_search.db",  # legacy FTS5 sidecar (duckdb_sidecar_fold; rollback path)
+    "memory/memory_search.db",  # legacy FTS5 sidecar (duckdb_sidecar_fold; rollback path)
     "memory/md_lint_cache.db",
 )
 # (path, vacuum) — convo_search is CHECKPOINT-only: its compact-copy
@@ -143,6 +141,15 @@ SIDECAR_SQLITE: tuple[str, ...] = (
 # (§5.4 ruling). xdist-shared is registered skip-busy (§5.3 ruling).
 SIDECAR_DUCKDB: tuple[tuple[str, bool], ...] = (
     ("memory/convo_search.duckdb", False),
+    ("memory/script_search.duckdb", False),
+    (
+        "memory/doc_search.duckdb",
+        False,
+    ),  # duckdb_sidecar_fold S1: native FTS; small file, CHECKPOINT rides maint
+    (
+        "memory/memory_search.duckdb",
+        False,
+    ),  # duckdb_sidecar_fold S2: native FTS; small file, CHECKPOINT rides maint
     ("memory/graph.xdist-shared.duckdb", True),
     ("memory/data/agent_traces.duckdb", True),
     ("memory/data/sources.duckdb", True),
@@ -632,12 +639,11 @@ class DBMaintainer:
         stays backed up: the embed-store twin (same lane, downtime-window
         insurance — see _backup_embed_store) plus this copy together
         avoid the 2h10m cold re-embed pool lane (2026-09-27). The FTS5
-        sidecar ``memory/convo_search_fts.db`` was RETIRED from this
-        lane 2026-10-19 (production_db_copy_audit addendum, operator
-        ruling): a derived lookup index with zero unique content —
-        rebuild is a mechanical re-index from the corpus tar,
-        minutes-class (convo_search_swap_rebuild, completed.md #355).
-        Skipped silently while a rebuild holds the lock.
+        sidecar ``memory/convo_search_fts.db`` was RETIRED
+        2026-11-15 (duckdb_sidecar_fold S5): the native FTS index lives
+        inside this store, and a derived lookup index with zero unique
+        content adds nothing. Skipped silently while a rebuild holds the
+        lock.
         """
         from helpers.maintenance.rebuild_convo_search import (
             REPO,
@@ -800,10 +806,10 @@ class DBMaintainer:
             "embed_store.db",
             "corpus.db",
             "doc_search.db",
-            "script_search.db",
             "memory_search.db",
+            "memory_search.duckdb",
+            "script_search.duckdb",
             "convo_search.duckdb",
-            "convo_search_fts.db",
             "data/sources.duckdb",
             "data/agent_traces.duckdb",
             "data/model_usage.duckdb",

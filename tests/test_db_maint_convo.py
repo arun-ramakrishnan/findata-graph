@@ -2,7 +2,7 @@
 """Tests for the convo_search backup registrations in db_maint.
 
 Two artifacts, two reasons (see the method docstrings):
-- the index pair (duckdb + FTS sidecar) — rebuildable, but a cold
+- the index (duckdb, native FTS inside) — rebuildable, but a cold
   rebuild embeds 50k+ texts and the pool lane took 2h10m;
 - the harvested corpus — the archive of record for history the
   harnesses delete, with no rebuild path at all.
@@ -35,8 +35,8 @@ def _maintainer(tmp_path: Path) -> DBMaintainer:
     return DBMaintainer(db, tmp_path / "db-backup/research_backup.db")
 
 
-def _make_index(tmp_path: Path) -> tuple[Path, Path]:
-    """A tiny convo_search duckdb + its FTS5 sidecar under tmp REPO."""
+def _make_index(tmp_path: Path) -> Path:
+    """A tiny convo_search duckdb (native index lives inside) under tmp REPO."""
     mem = tmp_path / "memory"
     mem.mkdir(parents=True, exist_ok=True)
     idx = mem / "convo_search.duckdb"
@@ -44,21 +44,14 @@ def _make_index(tmp_path: Path) -> tuple[Path, Path]:
     con.execute("CREATE TABLE convo_search (harness VARCHAR, part_id VARCHAR)")
     con.execute("INSERT INTO convo_search VALUES ('opencode', 'p1')")
     con.close()
-    fts = mem / "convo_search_fts.db"
-    s = sqlite3.connect(fts)
-    s.execute(rcs.FTS_DDL)
-    s.execute("INSERT INTO convo_fts VALUES ('hello world', 'opencode', 'p1', 's1')")
-    s.commit()
-    s.close()
-    return idx, fts
+    return idx
 
 
-def test_backup_convo_search_writes_primary_not_fts_sidecar(tmp_path, monkeypatch):
-    """2026-10-19 census re-run (production_db_copy_audit addendum):
-    the convo_search PRIMARY stays backed up (vectors included — the
-    2h10m cold re-embed insurance); the FTS5 sidecar is retired from
-    the lane (derived lookup index, zero unique content, minutes-class
-    re-index) — its zst must NOT be written."""
+def test_backup_convo_search_writes_primary_only(tmp_path, monkeypatch):
+    """The convo_search PRIMARY stays backed up (vectors included — the
+    2h10m cold re-embed insurance); the FTS5 sidecar is gone (native FTS
+    lives inside the store, duckdb_sidecar_fold S5), so nothing else is
+    expected in the backup dir."""
     from helpers.maintenance import db_maint
 
     monkeypatch.setattr(rcs, "REPO", tmp_path)
@@ -69,7 +62,6 @@ def test_backup_convo_search_writes_primary_not_fts_sidecar(tmp_path, monkeypatc
     assert total > 0
     out = tmp_path / "db-backup"
     assert (out / "convo_search_backup.duckdb.zst").exists()
-    assert not (out / "convo_search_fts_backup.db.zst").exists()
 
     # the duckdb copy must be a real, openable database
     restored = tmp_path / "restored.duckdb"
@@ -129,9 +121,8 @@ def test_backup_memory_sidecars_covers_all_and_hides_secrets(tmp_path):
         "embed_store.db": b"x",
         "corpus.db": b"x",
         "doc_search.db": b"x",
-        "script_search.db": b"x",
+        "script_search.duckdb": b"x",
         "convo_search.duckdb": b"x",
-        "convo_search_fts.db": b"x",
         "data/sources.duckdb": b"x",
         "data/agent_traces.duckdb": b"x",
         "data/model_usage.duckdb": b"x",
@@ -222,7 +213,7 @@ class TestF4DeadBlockProbe:
 
         from helpers.maintenance import db_maint as dm
 
-        idx, _fts = _make_index(tmp_path)
+        idx = _make_index(tmp_path)
         # retarget the registered estate at the tmp store
         monkeypatch.setattr(dm, "SIDECAR_DUCKDB", ((str(idx), False),))
         monkeypatch.setattr(dm, "REPO_ROOT", tmp_path)

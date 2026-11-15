@@ -470,21 +470,23 @@ def _run_memory(q: str, limit: int, mode: str = "hybrid", query_vec=None) -> tup
     ``memory_query.py`` exposes) — this lane only maps rows to ``Hit``.
     In-process like notes (the pools are small; a subprocess would cost
     more than the query)."""
-    from helpers.core.db import connect as _db_connect
     from helpers.maintenance import rebuild_memory_search as rms
 
     db = rms.MEMORY_DB
     if not db.exists():
         return [], "memory_search sidecar missing — rebuild_memory_search.py"
     try:
-        conn = _db_connect(db, read_only=True, wal=False)
+        # Engine-aware open (duckdb_sidecar_fold S2): .duckdb → duckdb,
+        # legacy .db → house sqlite. The lane is read-only in spirit but
+        # house sqlite pragmas (WAL/busy_timeout) are harmless here.
+        conn = rms.connect_memory_db(db)
         try:
             out = rms.search_memories(
                 conn, q, limit=limit, hybrid=(mode != "bm25"), query_vec=query_vec
             )
         finally:
             conn.close()
-    except sqlite3.Error as e:  # pragma: no cover - defensive
+    except Exception as e:  # pragma: no cover - defensive
         return [], f"memory_search error: {e}"
     hits = [
         Hit(
@@ -694,19 +696,19 @@ def call_chain(symbol: str) -> dict:
 
 
 INDEXES: tuple[tuple[str, str, str], ...] = (
-    ("docs", "memory/doc_search.db", "helpers/maintenance/rebuild_doc_search.py"),
+    ("docs", "memory/doc_search.duckdb", "helpers/maintenance/rebuild_doc_search.py"),
     (
         "scripts",
-        "memory/script_search.db",
+        "memory/script_search.duckdb",
         "helpers/maintenance/rebuild_script_search.py",
     ),
     ("notes", "memory/research.db", "helpers/maintenance/rebuild_note_search.py"),
     (
         "memory",
-        "memory/memory_search.db",
+        "memory/memory_search.duckdb",
         "helpers/maintenance/rebuild_memory_search.py",
     ),
-    ("git", "memory/git_search.db", "helpers/maintenance/rebuild_git_search.py"),
+    ("git", "memory/git_search.duckdb", "helpers/maintenance/rebuild_git_search.py"),
 )
 
 # ---------------------------------------------------------------------------
@@ -2145,12 +2147,12 @@ def index_ages(root: Path) -> str:
     """Human ages of the search-fresh sidecars, for the status bar."""
     parts = []
     for label, rel in (
-        ("docs", "memory/doc_search.db"),
-        ("scripts", "memory/script_search.db"),
+        ("docs", "memory/doc_search.duckdb"),
+        ("scripts", "memory/script_search.duckdb"),
         ("notes", "memory/research.db"),
-        ("memory", "memory/memory_search.db"),
+        ("memory", "memory/memory_search.duckdb"),
         ("convo", "memory/convo_search.duckdb"),
-        ("git", "memory/git_search.db"),
+        ("git", "memory/git_search.duckdb"),
     ):
         f = root / rel
         if f.exists():
