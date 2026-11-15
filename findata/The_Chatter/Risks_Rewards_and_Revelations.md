@@ -6,6 +6,8 @@ generated:
   at: '2026-08-15T00:00:00Z'
 stale_after: '2027-02-11'
 tags:
+- series/the_chatter
+- publisher/zerodha
 - company/ccl_products
 - company/godrej_agrovet
 - company/godrej_properties
@@ -16,8 +18,6 @@ tags:
 - company/sportking_india
 - company/tatva_chintan_pharma_chem
 - company/ultratech_cement
-- publisher/zerodha
-- series/the_chatter
 ---
 ---
 # The Chatter: Risks, Rewards, and Revelation 

@@ -6,6 +6,8 @@ generated:
   at: '2026-08-15T00:00:00Z'
 stale_after: '2027-02-11'
 tags:
+- series/the_chatter
+- publisher/zerodha
 - company/airbnb
 - company/amara_raja_energy_and_mobility
 - company/bajaj_auto
@@ -25,8 +27,6 @@ tags:
 - company/tilaknagar_industries
 - company/torrent_power
 - company/vodafone_idea
-- publisher/zerodha
-- series/the_chatter
 ---
 ---
 # The Chatter: The Blind Spots 

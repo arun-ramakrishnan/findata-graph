@@ -10,6 +10,7 @@ tags:
 generated:
   by: pdf_conv_md.py/pymupdf4llm-1.28.2
   at: '2026-10-10T07:24:19Z'
+stale_after: '2027-04-06'
 sources:
 - id: PNB_Central_Bank_Rentomojo
   resource: /Reports/PNB_Central_Bank_Rentomojo.pdf

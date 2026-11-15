@@ -6,7 +6,7 @@ sector: Renewables
 industry: Engineering & Construction
 market_cap: small_cap
 normalized_name: Waaree_Renewable_Technologies
-file_path: findata/Companies/Energy/Waaree_Renewable_Technologies.md
+file_path: findata/Companies/Renewables/Waaree_Renewable_Technologies.md
 permalink: /companies/renewables/waaree_renewable_technologies
 geography: india
 tags:

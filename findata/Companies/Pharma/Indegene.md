@@ -6,7 +6,7 @@ sector: Pharma
 industry: Health Information Services
 market_cap: small_cap
 normalized_name: Indegene
-file_path: findata/Companies/Healthcare/Indegene.md
+file_path: findata/Companies/Pharma/Indegene.md
 permalink: /companies/pharma/indegene
 geography: india
 tags:

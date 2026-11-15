@@ -6,6 +6,8 @@ generated:
   at: '2026-08-15T00:00:00Z'
 stale_after: '2027-02-11'
 tags:
+- series/the_chatter
+- publisher/zerodha
 - company/apl_apollo_tubes
 - company/asian_paints
 - company/ather_energy
@@ -33,8 +35,6 @@ tags:
 - company/solarium_green_energy
 - company/sunteck_realty
 - company/swiggy
-- publisher/zerodha
-- series/the_chatter
 ---
 ---
 # The Chatter: Discovering Hidden Signals 

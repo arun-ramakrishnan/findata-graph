@@ -6,7 +6,7 @@ sector: Renewables
 industry: Solar
 market_cap: small_cap
 normalized_name: Emmvee_Photovoltaic
-file_path: findata/Companies/Engineering_Capital_Goods/Emmvee_Photovoltaic.md
+file_path: findata/Companies/Renewables/Emmvee_Photovoltaic.md
 permalink: /companies/renewables/emmvee_photovoltaic
 geography: india
 tags:

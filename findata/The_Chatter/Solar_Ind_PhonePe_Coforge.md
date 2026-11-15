@@ -12,6 +12,7 @@ tags:
 generated:
   by: pdf_conv_md.py/pymupdf4llm-1.28.2
   at: '2026-09-17T02:19:47Z'
+stale_after: '2027-03-15'
 sources:
 - id: Solar_Ind_PhonePe_Coforge
   resource: /Reports/Solar_Ind_PhonePe_Coforge.pdf

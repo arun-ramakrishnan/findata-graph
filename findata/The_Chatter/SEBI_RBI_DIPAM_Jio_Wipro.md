@@ -7,6 +7,7 @@ tags:
 generated:
   by: pdf_conv_md.py/pymupdf4llm-2.0
   at: '2026-10-27T11:34:49Z'
+stale_after: '2027-04-25'
 sources:
 - id: SEBI_RBI_DIPAM_Jio_Wipro
   resource: /Reports/SEBI_RBI_DIPAM_Jio_Wipro.pdf

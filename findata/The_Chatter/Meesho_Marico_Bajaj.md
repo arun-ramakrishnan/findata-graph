@@ -6,6 +6,8 @@ generated:
   at: '2026-08-15T00:00:00Z'
 stale_after: '2027-02-11'
 tags:
+- series/the_chatter
+- publisher/zerodha
 - company/adani_power
 - company/aditya_birla_real_estate
 - company/bajaj_auto
@@ -21,8 +23,6 @@ tags:
 - company/polycab_india
 - company/raymond_realty
 - company/shoppers_stop
-- publisher/zerodha
-- series/the_chatter
 ---
 ---
 ![[images/Meesho_Marico_Bajaj_p1_img1.jpeg]]

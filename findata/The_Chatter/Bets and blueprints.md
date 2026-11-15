@@ -6,6 +6,8 @@ generated:
   at: '2026-08-15T00:00:00Z'
 stale_after: '2027-02-11'
 tags:
+- series/the_chatter
+- publisher/zerodha
 - company/apollo_hospitals
 - company/britannia_industries
 - company/divis_laboratories
@@ -24,8 +26,6 @@ tags:
 - company/narayana_hrudayalaya
 - company/petronet_lng
 - company/torrent_pharmaceuticals
-- publisher/zerodha
-- series/the_chatter
 ---
 ---
 ---

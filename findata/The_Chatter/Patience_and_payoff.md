@@ -6,6 +6,8 @@ generated:
   at: '2026-08-15T00:00:00Z'
 stale_after: '2027-02-11'
 tags:
+- series/the_chatter
+- publisher/zerodha
 - company/abb_india
 - company/apex_frozen_foods_ltd
 - company/bajaj_auto
@@ -22,8 +24,6 @@ tags:
 - company/schaeffler_india
 - company/skp_bearing_industries
 - company/sun_pharmaceutical_industries
-- publisher/zerodha
-- series/the_chatter
 ---
 ---
 <div align="center">

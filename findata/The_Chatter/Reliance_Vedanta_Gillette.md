@@ -6,6 +6,8 @@ generated:
   at: '2026-08-15T00:00:00Z'
 stale_after: '2027-02-11'
 tags:
+- series/the_chatter
+- publisher/zerodha
 - company/beml
 - company/coforge
 - company/dhara_rail_projects
@@ -16,8 +18,6 @@ tags:
 - company/reliance_industries
 - company/rmc_switchgears
 - company/vedanta_ltd
-- publisher/zerodha
-- series/the_chatter
 ---
 ---
 <div align="center">

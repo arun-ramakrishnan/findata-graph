@@ -6,7 +6,7 @@ sector: Renewables
 industry: Electrical Equipment & Parts
 market_cap: small_cap
 normalized_name: Oswal_Pumps
-file_path: findata/Companies/Engineering_Capital_Goods/Oswal_Pumps.md
+file_path: findata/Companies/Renewables/Oswal_Pumps.md
 permalink: /companies/renewables/oswal_pumps
 geography: india
 tags:

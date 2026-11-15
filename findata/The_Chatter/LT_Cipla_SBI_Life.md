@@ -7,6 +7,13 @@ tags:
 generated:
   by: pdf_conv_md.py/pymupdf4llm-2.0
   at: '2026-10-31T16:26:34Z'
+stale_after: '2027-04-29'
+sources:
+- id: LT_Cipla_SBI_Life
+  resource: /Reports/LT_Cipla_SBI_Life.pdf
+  title: 'The Chatter: SEBI, L&T, Cipla, SBI Life Insurance & More'
+  author: process:pdf_conv_md
+  last_modified: '2026-10-31'
 ---
 
 10/31/26, 9:48 PM The Chatter: SEBI, L&T, Cipla, SBI Life Insurance & More

@@ -6,6 +6,8 @@ generated:
   at: '2026-08-15T00:00:00Z'
 stale_after: '2027-02-11'
 tags:
+- series/the_chatter
+- publisher/zerodha
 - company/amagi_media_labs
 - company/carraro_india
 - company/dollar_industries
@@ -19,8 +21,6 @@ tags:
 - company/shadowfax_technologies
 - company/talbros_automotive_components
 - company/yatra_online
-- publisher/zerodha
-- series/the_chatter
 ---
 ---
 <div align="center">

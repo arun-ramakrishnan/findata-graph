@@ -6,7 +6,7 @@ sector: Renewables
 industry: null
 market_cap: micro_cap
 normalized_name: Shubhshree_Biofuels_Energy
-file_path: findata/Companies/Energy/Shubhshree_Biofuels_Energy.md
+file_path: findata/Companies/Renewables/Shubhshree_Biofuels_Energy.md
 permalink: /companies/renewables/shubhshree_biofuels_energy
 geography: india
 tags:

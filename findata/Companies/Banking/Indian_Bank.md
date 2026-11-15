@@ -7,7 +7,7 @@ industry: Banks - Regional
 subsector: Public_Sector
 market_cap: large_cap
 normalized_name: Indian_Bank
-file_path: findata/Companies/Financial_Services/Indian_Bank.md
+file_path: findata/Companies/Banking/Indian_Bank.md
 permalink: /companies/banking/indian_bank
 geography: india
 tags:

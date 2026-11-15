@@ -11,6 +11,7 @@ tags:
 generated:
   by: pdf_conv_md.py/pymupdf4llm-1.28.2
   at: '2026-10-03T16:39:12Z'
+stale_after: '2027-04-01'
 sources:
 - id: Adani_Power_Motilal_Oswal
   resource: /Reports/Adani_Power_Motilal_Oswal.pdf

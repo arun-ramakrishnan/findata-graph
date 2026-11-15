@@ -7,7 +7,7 @@ industry: Metal Fabrication
 subsector: Minor_Metals
 market_cap: small_cap
 normalized_name: Gravita_India
-file_path: findata/Companies/Consumer/Gravita_India.md
+file_path: findata/Companies/Metals/Gravita_India.md
 permalink: /companies/metals/gravita_india
 geography: india
 tags:

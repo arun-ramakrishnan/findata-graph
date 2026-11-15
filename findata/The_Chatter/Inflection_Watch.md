@@ -6,6 +6,8 @@ generated:
   at: '2026-08-15T00:00:00Z'
 stale_after: '2027-02-11'
 tags:
+- series/the_chatter
+- publisher/zerodha
 - company/apollo_hospitals
 - company/avanti_feeds
 - company/bharat_electronics
@@ -22,8 +24,6 @@ tags:
 - company/pi_industries
 - company/reliance_industries
 - company/wockhardt_limited
-- publisher/zerodha
-- series/the_chatter
 ---
 ---
 # The Chatter: Inflection Watch 

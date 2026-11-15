@@ -12,6 +12,7 @@ tags:
 generated:
   by: pdf_conv_md.py/pymupdf4llm-1.28.2
   at: '2026-09-04T17:19:42Z'
+stale_after: '2027-03-02'
 sources:
 - id: Milky_Mist_Bluestone
   resource: /Reports/Milky_Mist_Bluestone.pdf

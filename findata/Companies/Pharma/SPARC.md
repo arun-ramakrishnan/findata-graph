@@ -6,7 +6,7 @@ sector: Pharma
 industry: Drug Manufacturers - Specialty & Generic
 market_cap: small_cap
 normalized_name: SPARC
-file_path: findata/Companies/Healthcare/SPARC.md
+file_path: findata/Companies/Pharma/SPARC.md
 permalink: /companies/pharma/sparc
 geography: india
 tags:

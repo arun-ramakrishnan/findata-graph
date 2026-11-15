@@ -6,7 +6,7 @@ sector: Renewables
 industry: null
 market_cap: micro_cap
 normalized_name: Smarten_Power_Systems
-file_path: findata/Companies/Energy/Smarten_Power_Systems.md
+file_path: findata/Companies/Renewables/Smarten_Power_Systems.md
 permalink: /companies/renewables/smarten_power_systems
 exchange: NSE
 geography: india

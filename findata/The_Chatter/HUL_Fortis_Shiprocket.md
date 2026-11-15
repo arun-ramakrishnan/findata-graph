@@ -12,6 +12,7 @@ tags:
 generated:
   by: pdf_conv_md.py/pymupdf4llm-1.28.2
   at: '2026-09-17T02:19:34Z'
+stale_after: '2027-03-10'
 sources:
 - id: HUL_Fortis_Shiprocket
   resource: /Reports/HUL_Fortis_Shiprocket.pdf

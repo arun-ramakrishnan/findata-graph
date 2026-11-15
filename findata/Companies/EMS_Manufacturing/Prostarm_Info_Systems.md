@@ -6,7 +6,7 @@ sector: EMS_Manufacturing
 industry: Electrical Equipment & Parts
 market_cap: micro_cap
 normalized_name: Prostarm_Info_Systems
-file_path: findata/Companies/Engineering_Capital_Goods/Prostarm_Info_Systems.md
+file_path: findata/Companies/EMS_Manufacturing/Prostarm_Info_Systems.md
 permalink: /companies/ems_manufacturing/prostarm_info_systems
 geography: india
 tags:

@@ -12,6 +12,7 @@ tags:
 generated:
   by: pdf_conv_md.py/pymupdf4llm-1.28.2
   at: '2026-08-28T13:01:59Z'
+stale_after: '2027-02-24'
 sources:
 - id: Borosil_Orchid_Welspun
   resource: /Reports/Borosil_Orchid_Welspun.pdf

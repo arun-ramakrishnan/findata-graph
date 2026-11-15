@@ -11,6 +11,7 @@ tags:
 generated:
   by: pdf_conv_md.py/pymupdf4llm-1.28.2
   at: '2026-09-25T16:31:42Z'
+stale_after: '2027-03-24'
 sources:
 - id: NSE_ONGC_SEBI
   resource: /Reports/NSE_ONGC_SEBI.pdf

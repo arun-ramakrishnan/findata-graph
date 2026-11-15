@@ -11,6 +11,7 @@ tags:
 generated:
   by: pdf_conv_md.py/pymupdf4llm-1.28.2
   at: '2026-08-31T03:37:56Z'
+stale_after: '2027-02-25'
 sources:
 - id: Max_Life_Tempsens_TCS
   resource: /Reports/Max_Life_Tempsens_TCS.pdf

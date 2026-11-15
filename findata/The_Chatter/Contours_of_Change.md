@@ -6,6 +6,8 @@ generated:
   at: '2026-08-15T00:00:00Z'
 stale_after: '2027-02-11'
 tags:
+- series/the_chatter
+- publisher/zerodha
 - company/acrysil
 - company/barbeque_nation_hospitality
 - company/colgate_palmolive_company
@@ -32,8 +34,6 @@ tags:
 - company/teamlease_services
 - company/vrl_logistics
 - company/zen_technologies
-- publisher/zerodha
-- series/the_chatter
 ---
 ---
 ---

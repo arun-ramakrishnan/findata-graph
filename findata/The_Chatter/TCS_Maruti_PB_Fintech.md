@@ -12,6 +12,7 @@ tags:
 generated:
   by: pdf_conv_md.py/pymupdf4llm-1.28.2
   at: '2026-10-10T07:24:16Z'
+stale_after: '2027-04-07'
 sources:
 - id: TCS_Maruti_PB_Fintech
   resource: /Reports/TCS_Maruti_PB_Fintech.pdf

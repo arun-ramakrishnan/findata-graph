@@ -6,6 +6,8 @@ generated:
   at: '2026-08-15T00:00:00Z'
 stale_after: '2027-02-11'
 tags:
+- series/the_chatter
+- publisher/zerodha
 - company/accenture
 - company/adani_total_gas
 - company/ajanta_pharma
@@ -19,8 +21,6 @@ tags:
 - company/maruti_suzuki_india
 - company/persistent_systems
 - company/tech_mahindra
-- publisher/zerodha
-- series/the_chatter
 ---
 ---
 <div align="center">

@@ -6,6 +6,8 @@ generated:
   at: '2026-08-15T00:00:00Z'
 stale_after: '2027-02-11'
 tags:
+- series/the_chatter
+- publisher/zerodha
 - company/allcargo_logistics
 - company/ashapura_minechem
 - company/basf_india
@@ -19,8 +21,6 @@ tags:
 - company/paradeep_parivahan
 - company/solarium_green_energy
 - company/titagarh_rail_systems
-- publisher/zerodha
-- series/the_chatter
 ---
 ---
 # The Chatter: Bottlenecks \& Breakouts 

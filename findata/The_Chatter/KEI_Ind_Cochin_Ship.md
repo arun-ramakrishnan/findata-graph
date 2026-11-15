@@ -10,6 +10,7 @@ tags:
 generated:
   by: pdf_conv_md.py/pymupdf4llm-1.28.2
   at: '2026-09-17T02:19:44Z'
+stale_after: '2027-03-13'
 sources:
 - id: KEI_Ind_Cochin_Ship
   resource: /Reports/KEI_Ind_Cochin_Ship.pdf

@@ -12,6 +12,7 @@ tags:
 generated:
   by: pdf_conv_md.py/pymupdf4llm-1.28.2
   at: '2026-09-24T18:34:09Z'
+stale_after: '2027-03-18'
 sources:
 - id: MazDock_Mphasis_Redington
   resource: /Reports/MazDock_Mphasis_Redington.pdf

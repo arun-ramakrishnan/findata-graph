@@ -7,6 +7,13 @@ tags:
 generated:
   by: pdf_conv_md.py/pymupdf4llm-2.0
   at: '2026-10-31T16:26:47Z'
+stale_after: '2027-04-29'
+sources:
+- id: Asian_Paints_Motilal_Gulf_Oil
+  resource: /Reports/Asian_Paints_Motilal_Gulf_Oil.pdf
+  title: 'The Chatter: SEBI, Asian Paints, Motilal Oswal, Gulf Oil & More'
+  author: process:pdf_conv_md
+  last_modified: '2026-10-31'
 ---
 
 10/31/26, 9:49 PM The Chatter: SEBI, Asian Paints, Motilal Oswal, Gulf Oil & More

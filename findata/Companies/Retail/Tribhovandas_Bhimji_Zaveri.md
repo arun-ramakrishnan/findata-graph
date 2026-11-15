@@ -6,7 +6,7 @@ sector: Retail
 industry: Luxury Goods
 market_cap: micro_cap
 normalized_name: Tribhovandas_Bhimji_Zaveri
-file_path: findata/Companies/Retail/Tribhovandas_Bhimji_Zaveri_TBZ.md
+file_path: findata/Companies/Retail/Tribhovandas_Bhimji_Zaveri.md
 permalink: /companies/retail/tribhovandas_bhimji_zaveri
 geography: india
 tags:

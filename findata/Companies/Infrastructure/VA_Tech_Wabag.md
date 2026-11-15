@@ -6,7 +6,7 @@ sector: Infrastructure
 industry: Engineering & Construction
 market_cap: small_cap
 normalized_name: VA_Tech_Wabag
-file_path: findata/Companies/Consumer/VA_Tech_Wabag.md
+file_path: findata/Companies/Infrastructure/VA_Tech_Wabag.md
 permalink: /companies/infrastructure/va_tech_wabag
 geography: india
 tags:

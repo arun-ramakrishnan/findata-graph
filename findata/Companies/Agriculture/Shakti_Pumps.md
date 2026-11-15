@@ -6,7 +6,7 @@ sector: Agriculture
 industry: Specialty Industrial Machinery
 market_cap: small_cap
 normalized_name: Shakti_Pumps
-file_path: findata/Companies/Engineering_Capital_Goods/Shakti_Pumps.md
+file_path: findata/Companies/Agriculture/Shakti_Pumps.md
 permalink: /companies/agriculture/shakti_pumps
 geography: india
 tags:

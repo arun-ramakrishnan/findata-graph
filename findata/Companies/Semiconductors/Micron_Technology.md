@@ -7,7 +7,7 @@ industry: Semiconductors
 subsector: Memory
 market_cap: large_cap
 normalized_name: Micron_Technology
-file_path: findata/Companies/Technology/Micron_Technology.md
+file_path: findata/Companies/Semiconductors/Micron_Technology.md
 permalink: /companies/semiconductors/micron_technology
 geography: usa
 tags:

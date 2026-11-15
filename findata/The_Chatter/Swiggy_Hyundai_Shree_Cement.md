@@ -6,6 +6,8 @@ generated:
   at: '2026-08-15T00:00:00Z'
 stale_after: '2027-02-11'
 tags:
+- series/the_chatter
+- publisher/zerodha
 - company/au_small_finance_bank
 - company/canara_bank
 - company/ceat
@@ -25,8 +27,6 @@ tags:
 - company/varun_beverages
 - company/voltas
 - company/yes_bank
-- publisher/zerodha
-- series/the_chatter
 ---
 ---
 <div align="center">

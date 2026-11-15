@@ -6,7 +6,7 @@ sector: FMCG
 industry: Household & Personal Products
 market_cap: small_cap
 normalized_name: Honasa_Consumer
-file_path: findata/Companies/Consumer/Honasa_Consumer.md
+file_path: findata/Companies/FMCG/Honasa_Consumer.md
 permalink: /companies/fmcg/honasa_consumer
 geography: india
 tags:

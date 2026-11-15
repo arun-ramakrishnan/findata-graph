@@ -6,7 +6,7 @@ sector: NBFC
 industry: Asset Management
 market_cap: large_cap
 normalized_name: Jio_Financial_Services
-file_path: findata/Companies/Financial_Services/Jio_Financial_Services.md
+file_path: findata/Companies/NBFC/Jio_Financial_Services.md
 permalink: /companies/nbfc/jio_financial_services
 geography: india
 tags:

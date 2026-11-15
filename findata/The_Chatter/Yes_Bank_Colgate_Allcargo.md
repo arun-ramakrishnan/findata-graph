@@ -2,14 +2,14 @@
 type: newsletter
 title: 'The Chatter: YES Bank, Colgate, Allcargo, & More'
 tags:
+- series/the_chatter
+- publisher/zerodha
 - company/allcargo_global
 - company/apex_frozen_foods_ltd
 - company/colgate_palmolive_company
 - company/olectra_greentech
 - company/uflex
 - company/yes_bank
-- publisher/zerodha
-- series/the_chatter
 sources:
 - id: Yes_Bank_Colgate_Allcargo
   resource: /Reports/Yes_Bank_Colgate_Allcargo.pdf

@@ -7,7 +7,7 @@ industry: Packaging & Containers
 subsector: Flexible_Packaging
 market_cap: mid_cap
 normalized_name: Uflex
-file_path: findata/Companies/Packaging/Uflex_Limited.md
+file_path: findata/Companies/Packaging/Uflex.md
 permalink: /companies/packaging/uflex
 geography: india
 tags:

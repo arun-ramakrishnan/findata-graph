@@ -6,6 +6,8 @@ generated:
   at: '2026-08-15T00:00:00Z'
 stale_after: '2027-02-11'
 tags:
+- series/the_chatter
+- publisher/zerodha
 - company/all_time_plastics
 - company/apollo_hospitals
 - company/avanti_feeds
@@ -30,8 +32,6 @@ tags:
 - company/texmaco_rail_and_engineering
 - company/vikram_solar
 - company/vinfast_auto
-- publisher/zerodha
-- series/the_chatter
 ---
 ---
 # The Chatter: Moves and Motives 

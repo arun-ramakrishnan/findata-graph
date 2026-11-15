@@ -7,6 +7,7 @@ tags:
 generated:
   by: pdf_conv_md.py/pymupdf4llm-2.0
   at: '2026-10-27T11:34:53Z'
+stale_after: '2027-04-25'
 sources:
 - id: HCL_RBL_Bank_Canara_Bank
   resource: /Reports/HCL_RBL_Bank_Canara_Bank.pdf

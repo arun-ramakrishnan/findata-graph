@@ -6,6 +6,8 @@ generated:
   at: '2026-08-15T00:00:00Z'
 stale_after: '2027-02-11'
 tags:
+- series/the_chatter
+- publisher/zerodha
 - company/campus_activewear
 - company/company20_microns
 - company/cummins_india
@@ -23,8 +25,6 @@ tags:
 - company/tbo_tek
 - company/tvs_supply_chain_solutions
 - company/unitedspirits
-- publisher/zerodha
-- series/the_chatter
 ---
 ---
 # The Chatter: Sharp Takes 

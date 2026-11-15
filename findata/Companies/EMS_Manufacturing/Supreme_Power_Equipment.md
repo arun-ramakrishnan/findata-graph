@@ -6,7 +6,7 @@ listed: false
 sector: EMS_Manufacturing
 market_cap: micro_cap
 normalized_name: Supreme_Power_Equipment
-file_path: findata/Companies/Engineering_Capital_Goods/Supreme_Power_Equipment.md
+file_path: findata/Companies/EMS_Manufacturing/Supreme_Power_Equipment.md
 permalink: /companies/ems_manufacturing/supreme_power_equipment
 geography: india
 tags:

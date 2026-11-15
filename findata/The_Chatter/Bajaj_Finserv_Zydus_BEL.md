@@ -7,6 +7,7 @@ tags:
 generated:
   by: pdf_conv_md.py/pymupdf4llm-2.1
   at: '2026-11-08T05:04:05Z'
+stale_after: '2027-05-07'
 sources:
 - id: Bajaj_Finserv_Zydus_BEL
   resource: /Reports/Bajaj_Finserv_Zydus_BEL.pdf

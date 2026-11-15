@@ -6,7 +6,7 @@ sector: EMS_Manufacturing
 industry: Electrical Equipment & Parts
 market_cap: small_cap
 normalized_name: Atlanta_Electricals
-file_path: findata/Companies/Engineering_Capital_Goods/Atlanta_Electricals.md
+file_path: findata/Companies/EMS_Manufacturing/Atlanta_Electricals.md
 permalink: /companies/ems_manufacturing/atlanta_electricals
 geography: india
 tags:

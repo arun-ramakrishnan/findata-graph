@@ -6,7 +6,7 @@ sector: NBFC
 industry: Credit Services
 market_cap: large_cap
 normalized_name: Shriram_Finance
-file_path: findata/Companies/Financial_Services/Shriram_Finance.md
+file_path: findata/Companies/NBFC/Shriram_Finance.md
 permalink: /companies/nbfc/shriram_finance
 exchange: NSE
 geography: india

@@ -6,7 +6,7 @@ sector: Capital_Markets
 industry: Software - Application
 market_cap: small_cap
 normalized_name: KFin_Technologies
-file_path: findata/Companies/Financial_Services/KFin_Technologies.md
+file_path: findata/Companies/Capital_Markets/KFin_Technologies.md
 permalink: /companies/capital_markets/kfin_technologies
 geography: india
 tags:

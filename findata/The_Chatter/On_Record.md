@@ -6,6 +6,8 @@ generated:
   at: '2026-08-15T00:00:00Z'
 stale_after: '2027-02-11'
 tags:
+- series/the_chatter
+- publisher/zerodha
 - company/credo_brands_marketing
 - company/godrej_industries
 - company/hatsun_agro_products
@@ -23,8 +25,6 @@ tags:
 - company/scoda_tubes
 - company/shriram_finance
 - company/usha_martin
-- publisher/zerodha
-- series/the_chatter
 ---
 ---
 # The Chatter: On Record 

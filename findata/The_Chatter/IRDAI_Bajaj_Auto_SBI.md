@@ -11,6 +11,7 @@ tags:
 generated:
   by: pdf_conv_md.py/pymupdf4llm-1.28.2
   at: '2026-10-10T07:24:22Z'
+stale_after: '2027-04-04'
 sources:
 - id: IRDAI_Bajaj_Auto_SBI
   resource: /Reports/IRDAI_Bajaj_Auto_SBI.pdf

@@ -10,6 +10,7 @@ tags:
 generated:
   by: pdf_conv_md.py/pymupdf4llm-1.28.2
   at: '2026-09-24T18:34:01Z'
+stale_after: '2027-03-23'
 sources:
 - id: Maruti_Hy-Tech_Symbiotec
   resource: /Reports/Maruti_Hy-Tech_Symbiotec.pdf

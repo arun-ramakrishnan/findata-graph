@@ -6,6 +6,8 @@ generated:
   at: '2026-08-15T00:00:00Z'
 stale_after: '2027-02-11'
 tags:
+- series/the_chatter
+- publisher/zerodha
 - company/anand_rathi_share_and_stock_brokers
 - company/anand_rathi_wealth
 - company/baba_jewellers
@@ -16,8 +18,6 @@ tags:
 - company/icici_prudential_life_insurance
 - company/krishana_phoschem
 - company/tejas_networks
-- publisher/zerodha
-- series/the_chatter
 ---
 ---
 <div align="center">

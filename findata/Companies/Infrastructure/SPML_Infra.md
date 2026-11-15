@@ -6,7 +6,7 @@ sector: Infrastructure
 industry: Engineering & Construction
 market_cap: small_cap
 normalized_name: SPML_Infra
-file_path: findata/Companies/Engineering_Capital_Goods/SPML_Infra.md
+file_path: findata/Companies/Infrastructure/SPML_Infra.md
 permalink: /companies/infrastructure/spml_infra
 geography: india
 tags:

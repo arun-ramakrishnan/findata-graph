@@ -7,7 +7,7 @@ industry: Aerospace & Defense
 industry_code: '26104'
 market_cap: small_cap
 normalized_name: CyientDlm
-file_path: findata/Companies/Engineering_Capital_Goods/CyientDlm.md
+file_path: findata/Companies/EMS_Manufacturing/CyientDlm.md
 permalink: /companies/ems_manufacturing/cyientdlm
 geography: india
 tags:

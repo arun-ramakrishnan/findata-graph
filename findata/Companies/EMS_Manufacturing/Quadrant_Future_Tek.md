@@ -6,7 +6,7 @@ sector: EMS_Manufacturing
 industry: Railroads
 market_cap: micro_cap
 normalized_name: Quadrant_Future_Tek
-file_path: findata/Companies/Engineering_Capital_Goods/Quadrant_Future_Tek.md
+file_path: findata/Companies/EMS_Manufacturing/Quadrant_Future_Tek.md
 permalink: /companies/ems_manufacturing/quadrant_future_tek
 geography: india
 tags:

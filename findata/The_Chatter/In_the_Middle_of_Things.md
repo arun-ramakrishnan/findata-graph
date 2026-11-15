@@ -6,6 +6,8 @@ generated:
   at: '2026-08-15T00:00:00Z'
 stale_after: '2027-02-11'
 tags:
+- series/the_chatter
+- publisher/zerodha
 - company/5paisa_capital
 - company/anand_rathi_wealth
 - company/arisinfra_solutions
@@ -23,8 +25,6 @@ tags:
 - company/tata_consultancy_services
 - company/tata_elxsi
 - company/tejas_networks
-- publisher/zerodha
-- series/the_chatter
 ---
 ---
 # The Chatter: In the Middle of Things 

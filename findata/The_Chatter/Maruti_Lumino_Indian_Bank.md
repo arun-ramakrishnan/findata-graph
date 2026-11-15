@@ -12,6 +12,7 @@ tags:
 generated:
   by: pdf_conv_md.py/pymupdf4llm-1.28.2
   at: '2026-09-08T11:30:06Z'
+stale_after: '2027-03-06'
 sources:
 - id: Maruti_Lumino_Indian_Bank
   resource: /Reports/Maruti_Lumino_Indian_Bank.pdf

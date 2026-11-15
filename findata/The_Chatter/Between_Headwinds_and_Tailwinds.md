@@ -6,6 +6,8 @@ generated:
   at: '2026-08-15T00:00:00Z'
 stale_after: '2027-02-11'
 tags:
+- series/the_chatter
+- publisher/zerodha
 - company/ashapura_minechem
 - company/bectors_food_specialities
 - company/crocs
@@ -24,8 +26,6 @@ tags:
 - company/sharda_cropchem
 - company/tci_express
 - company/virgin_galactic
-- publisher/zerodha
-- series/the_chatter
 ---
 ---
 # The Chatter: Between Headwinds and Tailwinds 

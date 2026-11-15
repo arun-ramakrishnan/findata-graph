@@ -6,7 +6,7 @@ sector: EMS_Manufacturing
 industry: Electrical Equipment & Parts
 market_cap: small_cap
 normalized_name: Transformers_and_Rectifiers_India
-file_path: findata/Companies/Engineering_Capital_Goods/Transformers_and_Rectifiers_India.md
+file_path: findata/Companies/EMS_Manufacturing/Transformers_and_Rectifiers_India.md
 permalink: /companies/ems_manufacturing/transformers_and_rectifiers_india
 geography: india
 tags:

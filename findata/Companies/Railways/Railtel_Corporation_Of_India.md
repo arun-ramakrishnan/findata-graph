@@ -6,7 +6,7 @@ sector: Railways
 industry: Telecom Services
 market_cap: small_cap
 normalized_name: Railtel_Corporation_Of_India
-file_path: findata/Companies/Engineering_Capital_Goods/Railtel_Corporation_Of_India.md
+file_path: findata/Companies/Railways/Railtel_Corporation_Of_India.md
 permalink: /companies/railways/railtel_corporation_of_india
 index_membership: null
 geography: india
