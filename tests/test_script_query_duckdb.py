@@ -249,3 +249,50 @@ def test_topk_path_with_kind_filter(seeded, fake_local):
         assert {r["path"] for r in out["results"]} == {"helpers/pack.py", "helpers/query.py"}
     finally:
         conn.close()
+
+
+# --- duckdb_rebuild_incremental_carry S3/S5: delta refreshes the shadow ----
+
+
+def test_incremental_upsert_refreshes_fts_shadow(seeded, fake_local):
+    """The one-shot shadow must see incremental upserts (S3): without the
+    post-delta refresh, the new token is invisible to fts_topk/search until
+    the next --full."""
+    db = seeded
+    rss.rebuild(db, embed_fn=fake_local.embed_document, incremental=True)
+    # alter a COMPOSED row: a new def changes the per-file defs summary
+    # (module-level constants never appear in any row, so they cannot
+    # register as a delta -- row-keyed doctrine, same as the sqlite path)
+    (rss.HELPERS_ROOT / "pack.py").write_text(
+        "def pack_f32(vec):\n    return b''\n\n\ndef zebra_lane_probe():\n    return 7\n",
+        encoding="utf-8",
+    )
+    stats = rss.rebuild(db, embed_fn=fake_local.embed_document, incremental=True)
+    assert stats["mode"] == "incremental"
+    assert stats.get("upserts", 0) >= 1
+
+    conn = rss.connect_script_db(db)
+    try:
+        dict_terms = conn.execute(
+            "SELECT term FROM fts_main_script_search.dict WHERE term LIKE 'zebra%'"
+        ).fetchall()
+        assert dict_terms, "upserted token never reached the FTS dict"
+        rows, mode = fts_topk(
+            conn,
+            fts_table="fts_main_script_search",
+            base_table="script_search",
+            tokens=[dict_terms[0][0]],
+            limit=5,
+        )
+        assert mode == "topk", "expected SQL top-k path, got macro fallback"
+        assert rows, "FTS shadow missed the incremental upsert (one-shot law)"
+        titles = [
+            t[0]
+            for t in conn.execute(
+                f"SELECT title FROM script_search WHERE id IN ({','.join('?' * len(rows))})",
+                [r[0] for r in rows],
+            ).fetchall()
+        ]
+        assert any("pack.py" in t for t in titles)
+    finally:
+        conn.close()

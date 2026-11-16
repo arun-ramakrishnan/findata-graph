@@ -239,3 +239,65 @@ def test_legacy_sqlite_path_still_works(repo, tmp_path):
         assert out["results"], "legacy path must stay queryable"
     finally:
         conn.close()
+
+
+# --- duckdb_rebuild_incremental_carry S2/S5: scoped apply + shadow ---------
+
+
+def test_incremental_carry_after_new_commit(repo, tmp_path):
+    from helpers.core.duckdb_shared import fts_topk
+
+    repo.commit({"helpers/misc/thing.py": "def thing():\n    pass\n"}, "add thing lane")
+    repo.commit({"tests/test_thing.py": "def test_thing():\n    assert True\n"}, "test thing lane")
+    db = tmp_path / "git_search.duckdb"
+    first = rgs.rebuild_git_duckdb(db, git_root=repo.root)
+    assert first["mode"] == "full"
+    assert first["total_rows"] == 2
+
+    sha3 = repo.commit({"helpers/misc/zebra.py": "ZEBRALANECARRY = 1\n"}, "zebra lane carry probe")
+    second = rgs.rebuild_git_duckdb(db, git_root=repo.root)
+    assert second["mode"] == "incremental"
+    assert second["changed_units"] == 1
+    assert second["carried_units"] == 2
+    assert second["deleted_units"] == 0
+    assert second["total_rows"] == 3
+
+    conn = rgs.connect_git_db(db)
+    try:
+        # stable row id for the delta commit (hash, not positional)
+        rid = conn.execute("SELECT id FROM git_search WHERE sha = ?", (sha3,)).fetchone()[0]
+        assert rid == rgs._git_row_id(sha3)
+        # the delta row is present in the refreshed one-shot FTS shadow
+        assert (
+            conn.execute(
+                "SELECT COUNT(*) FROM fts_main_git_search.docs WHERE name = ?", (rid,)
+            ).fetchone()[0]
+            == 1
+        )
+        # end-to-end: lexical search finds the delta commit's unique token.
+        # fts_topk resolves query tokens through the index's porter stemming
+        # and returns (None, "macro") on any unresolvable guess — resolve
+        # the query token FROM the dict instead of guessing the stem.
+        dict_terms = conn.execute(
+            "SELECT term FROM fts_main_git_search.dict WHERE term LIKE 'zebralanecarr%'"
+        ).fetchall()
+        assert dict_terms, "delta commit token never reached the FTS dict"
+        rows, mode = fts_topk(
+            conn,
+            fts_table="fts_main_git_search",
+            base_table="git_search",
+            tokens=[dict_terms[0][0]],
+            limit=5,
+        )
+        assert mode == "topk", "expected SQL top-k path, got macro fallback"
+        assert rows, "FTS shadow missed the incremental delta (one-shot law)"
+        shas = {
+            r[0]
+            for r in conn.execute(
+                f"SELECT sha FROM git_search WHERE id IN ({','.join('?' * len(rows))})",
+                [r[0] for r in rows],
+            ).fetchall()
+        }
+        assert sha3 in shas, "top-k hit does not include the delta commit"
+    finally:
+        conn.close()

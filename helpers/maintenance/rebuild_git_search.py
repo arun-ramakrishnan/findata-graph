@@ -532,7 +532,7 @@ def rebuild(
     if db_path.suffix.lower() == ".duckdb":
         # duckdb_sidecar_fold S4: the DuckDB-native store is rebuild-only
         # (replacement rebuild; corpus ~574 commits).
-        return rebuild_git_duckdb(db_path, write=write, git_root=git_root)
+        return rebuild_git_duckdb(db_path, write=write, git_root=git_root, incremental=incremental)
     root = primary_repo_root(git_root)
     messages = _messages(root)
     numstats = _numstats(root)
@@ -688,9 +688,9 @@ def rebuild_git_duckdb(
     *,
     write: bool = True,
     git_root: Path | None = None,
+    incremental: bool = True,
 ) -> dict:
-    """Build/rebuild the DuckDB-native git_search store (duckdb_sidecar_fold
-    S4).
+    """Build/apply the DuckDB-native git_search store (duckdb_sidecar_fold S4).
 
     Reuses the whole reconciliation pipeline (``_messages``/``_numstats``/
     ``_fp``, ``_body_chunks``, ``_diffs_for``, ``_embed_pass``) on the
@@ -698,9 +698,17 @@ def rebuild_git_duckdb(
     store (embed-store fold S0 — no dedicated sqlite handle); its info
     stamps land in the duckdb ``git_search_info``.
 
-    Replacement rebuild (delete-all + insert): the corpus is ~574 commits,
-    full rebuild is seconds with a warm cache. ``write=False`` (--check):
-    the same meta-vs-fp verdict as the FTS5 path, printed by the shared
+    ``incremental`` (the CLI default via rebuild_common —
+    duckdb_rebuild_incremental_carry S2): reconcile the stored sha
+    fingerprints (same verdict axes as --check) and apply only the delta —
+    new+changed commits are re-extracted/re-embedded (through the cache)
+    and their rows replaced with stable row ids; dropped shas are
+    deleted; the corpus otherwise carries verbatim. A cold store, an
+    embed/body basis bump, or ``incremental=False`` (--full) forces the
+    replacement rebuild. Row inserts go through one Arrow batch
+    (convo-leg T6 doctrine; per-row executemany dominated the measured
+    40 s replacement apply). ``write=False`` (--check): the same
+    meta-vs-fp verdict as the FTS5 path, printed by the shared
     ``_check_verdict``.
     """
     root = primary_repo_root(git_root)
@@ -718,17 +726,46 @@ def rebuild_git_duckdb(
         conn.execute(GIT_DUCKDB_META_DDL)
         conn.execute(GIT_DUCKDB_INFO_DDL)
         conn.execute(GIT_DUCKDB_BODY_DDL)
-        _drop_stale_git_tables(conn)
 
-        # Whole-corpus embed: the replacement rebuild re-extracts every row
-        # (basis version = current; body basis = current).
-        embed_shas = list(reversed(ordered))
-        chunk_shas = list(reversed(ordered))
+        # Reconciliation, same axes as the FTS5 path: sha fingerprints
+        # for rows+chunks, stamp bases for embed vectors.
+        try:
+            meta = {
+                r[0]: (r[1], r[2])
+                for r in conn.execute("SELECT sha, adate, fp FROM git_search_meta").fetchall()
+            }
+        except duckdb.Error:
+            meta = {}
+        dropped = sorted(set(meta) - reachable)
+        new_shas = [s for s in reversed(ordered) if s not in meta]
+        changed = [
+            s
+            for s in ordered
+            if s in meta and _fp(messages[s][1], _files_block(numstats.get(s, []))) != meta[s][1]
+        ]
+        changed.reverse()
+        basis_stale = _stored_embed_basis(conn) != str(EMBED_BASIS_VERSION)
+        body_stale = _stored_body_basis(conn) != str(BODY_BASIS_VERSION)
+        touched = new_shas + changed
+        can_carry = bool(incremental) and bool(meta) and not (basis_stale or body_stale)
+
+        stats: dict = {"total_units": len(reachable)}
+
+        if can_carry:
+            embed_shas = touched  # oldest first (new then changed, both reversed)
+        else:
+            dropped = []  # replacement flushes the store anyway
+            embed_shas = list(reversed(ordered))
+        chunk_shas = embed_shas
         chunk_plan = [
             (s, i, t) for s in chunk_shas for i, t in enumerate(_body_chunks(messages[s][1]))
         ]
-        diffs = _diffs_for(root, list(ordered))
-        stats: dict = {"total_units": len(reachable)}
+        # Diffs only for what gets (re)written — _diffs_for over the whole
+        # corpus was the other half of the 40 s replacement apply.
+        diffs = _diffs_for(root, embed_shas)
+
+        if not can_carry:
+            _drop_stale_git_tables(conn)
 
         label, vec_by_sha, chunk_vec_map = _embed_pass(
             conn,
@@ -739,20 +776,26 @@ def rebuild_git_duckdb(
             embed_shas,
             chunk_shas,
             chunk_plan,
-            basis_stale=True,
-            body_stale=True,
-            incremental=False,
+            basis_stale,
+            body_stale,
+            can_carry,
         )
 
         rows, body_rows, meta_rows = _compose_git_rows(
-            ordered, messages, numstats, diffs, vec_by_sha, chunk_vec_map, chunk_plan
+            embed_shas, messages, numstats, diffs, vec_by_sha, chunk_vec_map, chunk_plan
         )
 
-        _write_git_store(conn, rows, body_rows, meta_rows)
+        _write_git_store(conn, rows, body_rows, meta_rows, full=not can_carry, deleted_shas=dropped)
 
-        stats["indexed"] = len(ordered)
+        stats["mode"] = "incremental" if can_carry else "full"
+        stats["carried_units"] = len(reachable) - len(touched) if can_carry else 0
+        stats["changed_units"] = len(touched)
+        stats["deleted_units"] = len(dropped)
+        stats["indexed"] = len(embed_shas)
         stats["total_rows"] = conn.execute("SELECT COUNT(*) FROM git_search").fetchone()[0]
-        stats["total_body_chunks"] = len(body_rows)
+        stats["total_body_chunks"] = conn.execute(
+            "SELECT COUNT(*) FROM git_search_body"
+        ).fetchone()[0]
         stats["embed_model"] = label
         return stats
     finally:
@@ -857,29 +900,96 @@ def _compose_git_rows(
     return rows, body_rows, meta_rows
 
 
-def _write_git_store(conn, rows: list, body_rows: list, meta_rows: list) -> None:
-    """Replacement write: delete-all + insert main/meta/body rows, then
-    create the native FTS index."""
-    conn.execute("DELETE FROM git_search")
-    conn.execute("DELETE FROM git_search_meta")
-    conn.execute("DELETE FROM git_search_body")
-    if rows:
-        conn.executemany(
-            "INSERT INTO git_search "
-            "(id, sha, adate, subject, files, content, embedding, searchtext) "
-            "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-            [(i, *r) for i, r in enumerate(rows)],
+def _git_row_id(sha: str) -> int:
+    """Stable per-commit row id: 47 masked blake2b bits of the sha.
+
+    Positional ids (``enumerate`` over the corpus) shift every row after
+    a rebase/reorder and collide with carried rows on a delta apply;
+    ids are opaque join keys (FTS shadow ``docs.name``), so only
+    uniqueness matters. Legacy positional ids 0..N sit far below the
+    47-bit range. The 128-bit digest must be MASKED to int64 width
+    before the Arrow batch insert (_bulk_insert_git_rows infers int64
+    and OverflowErrors on the raw shift)."""
+    return int(hashlib_blake2b(f"git-row:{sha}"), 16) & 0x7FFF_FFFF_FFFF
+
+
+def _bulk_insert_git_rows(conn, table: str, columns: str, rows: list[tuple]) -> None:
+    """Insert rows as ONE Arrow batch (convo-leg T6; duckdb_rebuild_
+    incremental_carry S2).
+
+    Per-row executemany bound the main rows + body chunks one tuple at a
+    time — a dominant share of the measured 40 s replacement apply.
+    Column types are inferred; DuckDB casts to the target types."""
+    if not rows:
+        return
+    import pyarrow as pa
+
+    names = [c.strip() for c in columns.split(",")]
+    staged = pa.table({name: [r[i] for r in rows] for i, name in enumerate(names)})
+    stage = f"_{table}_row_stage"
+    conn.execute("SELECT 1").fetchall()  # duckdb2-drain: pending result blocks register()
+    conn.register(stage, staged)
+    try:
+        conn.execute(
+            f"INSERT INTO {table} ({columns}) "  # noqa: S608  fixed table+column list
+            f"SELECT {columns} FROM {stage}"  # noqa: S608
         )
+    finally:
+        conn.unregister(stage)
+
+
+def _write_git_store(
+    conn,
+    rows: list,
+    body_rows: list,
+    meta_rows: list,
+    *,
+    full: bool = True,
+    deleted_shas: list | None = None,
+) -> None:
+    """Apply rows to the store, then rebuild the native FTS index.
+
+    Full mode: delete-all + insert (the historical replacement write,
+    positional ids). Incremental mode: delete only the touched+dropped
+    shas' rows, insert the delta with stable row ids
+    (:func:`_git_row_id`), carry the rest verbatim. The FTS shadow is
+    one-shot — dropped+recreated after any dirty apply (plain DML
+    leaves it stale and lexical search misses the delta)."""
+    deleted_shas = deleted_shas or []
+    if full:
+        conn.execute("DELETE FROM git_search")
+        conn.execute("DELETE FROM git_search_meta")
+        conn.execute("DELETE FROM git_search_body")
+        insert_rows = [(i, *r) for i, r in enumerate(rows)]
+    else:
+        touched = sorted({r[0] for r in rows} | {b[0] for b in body_rows} | set(deleted_shas))
+        if not touched:
+            return  # no-op apply: nothing written, shadow left as-is
+        conn.executemany("DELETE FROM git_search WHERE sha = ?", [(s,) for s in touched])
+        conn.executemany("DELETE FROM git_search_body WHERE sha = ?", [(s,) for s in touched])
+        conn.executemany("DELETE FROM git_search_meta WHERE sha = ?", [(s,) for s in touched])
+        insert_rows = [(_git_row_id(r[0]), *r) for r in rows]
+    _bulk_insert_git_rows(
+        conn,
+        "git_search",
+        "id, sha, adate, subject, files, content, embedding, searchtext",
+        insert_rows,
+    )
     if meta_rows:
         conn.executemany(
             "INSERT OR REPLACE INTO git_search_meta (sha, adate, fp) VALUES (?, ?, ?)",
             meta_rows,
         )
-    if body_rows:
-        conn.executemany(
-            "INSERT INTO git_search_body (sha, chunk_idx, embedding, chunk_fp) VALUES (?, ?, ?, ?)",
-            body_rows,
-        )
+    _bulk_insert_git_rows(
+        conn,
+        "git_search_body",
+        "sha, chunk_idx, embedding, chunk_fp",
+        body_rows,
+    )
+    try:
+        conn.execute("PRAGMA drop_fts_index('git_search')")
+    except duckdb.Error:
+        pass
     conn.execute("PRAGMA create_fts_index('git_search', 'id', 'searchtext')")
 
 

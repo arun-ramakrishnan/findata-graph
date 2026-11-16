@@ -3,6 +3,17 @@
 Full annotated triage map with live-verified trigger status.
 Open items below keep their revisit triggers inline; executed work is compressed to records.
 
+- **DuckDB rebuild deferred candidates — OPEN** (from
+  `duckdb_rebuild_incremental_carry`, completed.md #528; measured
+  2026-11-16, all three non-blocking): (1) delta-apply on a
+  100%-changed corpus ran **26.9 s vs 17.0 s full** — add a
+  threshold fallback when the delta set approaches full size;
+  (2) CachedEmbed point-lookup preload (4,576 lookups × 1.7 ms even
+  at 100% hits ≈ 7.8 s of the remaining doc-rebuild wall);
+  (3) `--allow-stale` stamped legs still apply as full rebuilds
+  (script one-off 84 s mid-arc). Trigger: any `make search-fresh`
+  APPLY leg regressing past its 2026-11-16 baseline.
+
 - **Entity-alias fold round 2 — EXECUTED 2026-11-08** (menu+rulings:
   `bench_data/entity_alias_triage/round2/`). Operator ruled the 19
   un-ruled plan rows: 17 folds (the 16 legal-name variants — Allied

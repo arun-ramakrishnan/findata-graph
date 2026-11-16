@@ -868,7 +868,7 @@ def _read_note_info(conn, key: str) -> str | None:
     return row[0] if row else None
 
 
-def rebuild_note_duckdb(
+def rebuild_note_duckdb(  # noqa: C901  # full duckdb rebuild: stage ladder
     db_path: Path | str | None = None,
     *,
     write: bool = True,
@@ -1029,6 +1029,26 @@ def _write_note_store(
     except duckdb.Error:
         pass
     conn.execute("PRAGMA create_fts_index('note_search', 'id', 'searchtext')")
+
+
+def _stable_note_row_id(row: tuple) -> int:
+    """Stable per-section id: 47 masked blake2b bits of the row key.
+
+    duckdb_rebuild_incremental_carry S3: the full writer's positional
+    enumerate ids shift on any delta and collide with carried rows; ids
+    are opaque join keys (FTS shadow docs.name), so only uniqueness
+    matters. The 128-bit digest is MASKED to 47 bits (int64-safe for
+    Arrow-batch inserts; the raw shift left 111 bits)."""
+    return (
+        int(
+            hashlib.blake2b(
+                f"note-row:{vec_row_key(row)}".encode("utf-8", errors="replace"),
+                digest_size=16,
+            ).hexdigest(),
+            16,
+        )
+        & 0x7FFF_FFFF_FFFF
+    )
 
 
 def _check_freshness_note_duckdb(
@@ -1430,6 +1450,11 @@ def rebuild(  # noqa: C901
             stats["mode"] = "incremental"
             stats["upserts"] = len(to_upsert)
             stats["deletes"] = len(to_delete)
+            if to_upsert or to_delete:
+                # S3 (duckdb_rebuild_incremental_carry): the native FTS
+                # shadow is one-shot - the delta above is invisible to
+                # match_bm25 until the index is dropped + recreated.
+                rbc.refresh_fts_shadow(conn, "note_search")
             # A1/S2: mirror the same delta into the vector sidecar. Keys are
             # composite "{file_path}#{anchor}" row keys; every upserted file
             # is prefix-deleted first so dropped sections leave no stale

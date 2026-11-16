@@ -101,10 +101,12 @@ rebuild still succeeds with deterministic 64-dim pseudo-embeddings
 .venv/bin/python3 helpers/maintenance/rebuild_doc_search.py --check
 ```
 
-Measured 2026-08-23: warm full ≈ 0.7 s, warm incremental ≈ 0.02 s
-(51 files / 382 sections at the time — scale with corpus). Apply runs
-report absorbed drift: `index was STALE before this rebuild: … — now
-fresh`.
+Measured 2026-11-16 (DuckDB store, 495 files / 4,576 section rows):
+warm full **16.98 s**, no-op incremental carry **4.68 s** (0 embed
+calls), live APPLY no-op **6.5–6.9 s** — the pre-DuckDB sqlite-carry
+numbers (2026-08-23: full ≈ 0.7 s, incremental ≈ 0.02 s at 51 files)
+are historical scale references only. Apply runs report absorbed drift:
+`index was STALE before this rebuild: … — now fresh`.
 
 ### Query
 

@@ -968,11 +968,12 @@ def rebuild(
 
     db_path = Path(db_path) if db_path is not None else MEMORY_DB
     if db_path.suffix.lower() == ".duckdb":
-        # duckdb_sidecar_fold S2: the DuckDB-native store is rebuild-only
-        # (replacement rebuild; the corpus is a few hundred records).
+        # duckdb_rebuild_incremental_carry S3: the DuckDB-native store
+        # carries a row-keyed delta; --full forces the replacement rebuild.
         return rebuild_memory_duckdb(
             db_path,
             write=write,
+            incremental=incremental,
             embed_fn=embed_fn,
             zcode_projects=zcode_projects,
             prime_state=prime_state,
@@ -1048,6 +1049,11 @@ def rebuild(
         stats["upserts"], stats["deletes"] = _write_incremental(
             conn, all_rows, files_meta, stored_meta, model_label, embed_dims
         )
+        if stats["upserts"] or stats["deletes"]:
+            # S3 (duckdb_rebuild_incremental_carry): the native FTS shadow
+            # is one-shot - plain DML leaves it stale and lexical search
+            # would silently miss the delta until the next --full.
+            rbc.refresh_fts_shadow(conn, "memory_search")
         stats["indexed"] = conn.execute("SELECT COUNT(*) FROM memory_search").fetchone()[0]
         if _mt:
             _mt.record_phase("write", _write_started, datetime.now())
@@ -1413,6 +1419,7 @@ def rebuild_memory_duckdb(
     prime_state: Path | None = None,
     opencode_dir: Path | None = None,
     snap_root: Path | None = None,
+    incremental: bool = True,
 ) -> dict:
     """Build/rebuild the DuckDB-native memory_search store (S2).
 
@@ -1420,11 +1427,15 @@ def rebuild_memory_duckdb(
     ``_collect_history_units`` + ``_compose_rows``) and the pooled embed
     cache via the native duckdb handle (``rds.CachedEmbed`` — the
     duckdb host conn IS the cache conn, embed-store fold S0).
-    Replacement rebuild
-    (delete-all + insert): the corpus is a few hundred records, the full
-    rewrite IS the everyday path (legacy header doctrine, same as doc S1).
-    ``write=False`` (--check): freshness verdict only — no DDL, no writes,
-    no embedder resolution (content hashes are the identity of record).
+    ``incremental`` (the CLI default via rebuild_common —
+    duckdb_rebuild_incremental_carry S3) writes a row-keyed delta: rows
+    are recomposed for everyone (cross-file inputs) but only titles whose
+    tuple moved are DELETE+INSERTed with stable row ids; a no-change
+    cycle writes nothing and leaves the one-shot FTS shadow untouched.
+    A cold store, an embed-model stamp mismatch, or ``incremental=False``
+    (--full) forces the replacement rebuild. ``write=False`` (--check):
+    freshness verdict only — no DDL, no writes, no embedder resolution
+    (content hashes are the identity of record).
     """
     db_path = Path(db_path) if db_path is not None else MEMORY_DUCKDB_DB
     stats: dict = {}
@@ -1469,7 +1480,36 @@ def rebuild_memory_duckdb(
             by_kind[r[1]] = by_kind.get(r[1], 0) + 1
         stats["by_kind"] = by_kind
 
-        _write_memory_store(conn, all_rows, files_meta, model_label, embed_dims)
+        stored_meta: dict = {}
+        try:
+            stored_meta = {
+                r[0]: (r[1], r[2])
+                for r in conn.execute(
+                    "SELECT unit_path, mtime, content_hash FROM memory_search_meta"
+                ).fetchall()
+            }
+        except duckdb.Error:
+            stored_meta = {}
+        try:
+            stamp_row = conn.execute(
+                "SELECT value FROM memory_search_info WHERE key = 'embed_model'"
+            ).fetchone()
+            stamp = stamp_row[0] if stamp_row else None
+        except duckdb.Error:
+            stamp = None
+        can_carry = (
+            bool(incremental)
+            and bool(stored_meta)
+            and (model_label is None or stamp is None or model_label == stamp)
+        )
+        if can_carry:
+            stats["mode"] = "incremental"
+            stats["upserts"], stats["deletes"] = _write_memory_incremental(
+                conn, all_rows, files_meta, stored_meta, model_label, embed_dims
+            )
+        else:
+            stats["mode"] = "full"
+            _write_memory_store(conn, all_rows, files_meta, model_label, embed_dims)
 
         stats["indexed"] = conn.execute("SELECT COUNT(*) FROM memory_search").fetchone()[0]
         if isinstance(embed_fn, CachedEmbed):
@@ -1526,6 +1566,102 @@ def _resolve_memory_embedder_duckdb(conn, embed_fn, stats: dict):
             # cache conn (embed-store fold S0 — no sqlite attach).
             embed_fn = rds.CachedEmbed(embed_fn, model_label, conn, source="memory")
     return embed_fn, embed_dims, model_label, gemma_active
+
+
+def _memory_row_key(row: tuple) -> str:
+    """Content identity of a memory row (title..content).
+
+    duckdb_rebuild_incremental_carry S5 lesson: titles are NOT unique
+    across the live/history axis — a zcode memory and its history
+    snapshot share a title, so a title-keyed diff dict collapses the
+    pair and masks the live delta entirely. The delta is keyed by row
+    content instead; ids stay stable because the key is stable.
+    """
+    return hashlib.blake2b(
+        chr(31).join(str(x) for x in row[:6]).encode("utf-8", errors="replace"),
+        digest_size=16,
+    ).hexdigest()
+
+
+def _stable_memory_row_id(key_hex: str) -> int:
+    """Stable row id: 47 masked blake2b bits of the content key.
+
+    The 128-bit key digest is re-hashed and MASKED to 47 bits
+    (int64-safe for the row binds; a raw 128-bit shift would overflow).
+    """
+    return (
+        int(
+            hashlib.blake2b(
+                f"memory-row:{key_hex}".encode("utf-8", errors="replace"), digest_size=16
+            ).hexdigest(),
+            16,
+        )
+        & 0x7FFF_FFFF_FFFF
+    )
+
+
+def _write_memory_incremental(
+    conn, all_rows: list, files_meta: dict, stored_meta: dict, model_label, embed_dims
+) -> tuple[int, int]:
+    """Content-keyed delta write for the duckdb store (S3/S5).
+
+    Rows are recomposed for everyone (cross-file inputs), then matched
+    against the stored rows by CONTENT key (titles are not unique — live
+    vs history rows share one); only moved rows get DELETE+INSERT with
+    stable ids (:func:`_stable_memory_row_id`); meta is refreshed for
+    changed units and garbage-collected for vanished ones. A no-change
+    cycle writes nothing and leaves the one-shot FTS shadow untouched —
+    any dirty apply refreshes it (plain DML leaves the shadow stale and
+    lexical search would miss the delta until the next --full)."""
+    stored: dict = {}
+    for r in conn.execute(
+        "SELECT id, title, kind, name, source_path, purpose, content, embedding FROM memory_search"
+    ).fetchall():
+        stored[_memory_row_key(tuple(r[1:]))] = (r[0], tuple(r[1:]))
+    new: dict = {}
+    for r in all_rows:
+        new[_memory_row_key(tuple(r))] = tuple(r)
+    to_upsert_keys = [k for k, row in new.items() if stored.get(k, (None, None))[1] != row]
+    to_delete_ids = [stored[k][0] for k in stored if k not in new]
+    changed_units = [
+        u for u in files_meta if u not in stored_meta or stored_meta[u][1] != files_meta[u][1]
+    ]
+    if not to_upsert_keys and not to_delete_ids and not changed_units:
+        return 0, 0
+    for rid in to_delete_ids:
+        conn.execute("DELETE FROM memory_search WHERE id = ?", (rid,))
+    for k in to_upsert_keys:
+        row = new[k]
+        conn.execute(
+            "DELETE FROM memory_search WHERE id = ?",
+            (_stable_memory_row_id(k),),
+        )
+        conn.execute(
+            "INSERT INTO memory_search "
+            "(id, title, kind, name, source_path, purpose, content, embedding, searchtext) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            (
+                _stable_memory_row_id(k),
+                *row,
+                _compose_memory_searchtext(row),
+            ),
+        )
+    for u in stored_meta:
+        if u not in files_meta:
+            conn.execute("DELETE FROM memory_search_meta WHERE unit_path = ?", (u,))
+    conn.executemany(
+        "INSERT OR REPLACE INTO memory_search_meta "
+        "(unit_path, mtime, content_hash) VALUES (?, ?, ?)",
+        [(u, *files_meta[u]) for u in changed_units],
+    )
+    if (to_upsert_keys or to_delete_ids) and model_label is not None:
+        conn.executemany(
+            "INSERT OR REPLACE INTO memory_search_info (key, value) VALUES (?, ?)",
+            [("embed_model", model_label), ("embed_dims", str(embed_dims))],
+        )
+    if to_upsert_keys or to_delete_ids:
+        rbc.refresh_fts_shadow(conn, "memory_search")
+    return len(to_upsert_keys), len(to_delete_ids)
 
 
 def _write_memory_store(

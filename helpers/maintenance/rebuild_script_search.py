@@ -1364,7 +1364,7 @@ def _source_staleness(conn, units_meta: dict) -> tuple[dict, dict]:
     return stats_part, stored_meta
 
 
-def rebuild(
+def rebuild(  # noqa: C901  # rebuild: stage ladder
     db_path: Path | None = None,
     write: bool = True,
     incremental: bool = False,
@@ -1381,11 +1381,12 @@ def rebuild(
 
     db_path = Path(db_path) if db_path is not None else SCRIPT_DB
     if db_path.suffix.lower() == ".duckdb":
-        # duckdb_sidecar_fold S3: the DuckDB-native store is rebuild-only
-        # (replacement rebuild; the corpus is ~1.9k rows).
+        # duckdb_rebuild_incremental_carry S3: the DuckDB-native store
+        # carries a row-keyed delta; --full forces the replacement rebuild.
         return rebuild_script_duckdb(
             db_path,
             write=write,
+            incremental=incremental,
             embed_fn=embed_fn,
             helpers_root=helpers_root,
             tests_root=tests_root,
@@ -1490,6 +1491,11 @@ def rebuild(
         stats["upserts"], stats["deletes"] = _write_incremental(
             conn, all_rows, units_meta, stored_meta, model_label, embed_dims
         )
+        if stats["upserts"] or stats["deletes"]:
+            # S3 (duckdb_rebuild_incremental_carry): the native FTS shadow
+            # is one-shot - plain DML leaves it stale and lexical search
+            # would silently miss the delta until the next --full.
+            rbc.refresh_fts_shadow(conn, "script_search")
         stats["indexed"] = conn.execute("SELECT COUNT(*) FROM script_search").fetchone()[0]
         if _mt:
             _mt.record_phase("write", _write_started, datetime.now())
@@ -2152,6 +2158,7 @@ def rebuild_script_duckdb(
     tests_root: Path | None = None,
     app_py: Path | None = None,
     makefile: Path | None = None,
+    incremental: bool = True,
 ) -> dict:
     """Build/rebuild the DuckDB-native script_search store (S3).
 
@@ -2159,9 +2166,14 @@ def rebuild_script_duckdb(
     with the mojo/ts content-addressed doc caches living in the SAME
     duckdb store — and ``_compose_rows``) plus the pooled embed cache via
     the native duckdb handle (``rds.CachedEmbed`` — the duckdb host conn
-    IS the cache conn, embed-store fold S0). Replacement rebuild
-    (delete-all + insert): the corpus is ~1.9k rows, full rebuild is
-    seconds. ``write=False`` (--check): freshness verdict only — no DDL,
+    IS the cache conn, embed-store fold S0). ``incremental`` (the CLI
+    default via rebuild_common — duckdb_rebuild_incremental_carry S3)
+    writes a row-keyed delta: rows are recomposed for everyone (cross-file
+    inputs) but only titles whose tuple moved are DELETE+INSERTed with
+    stable row ids; a no-change cycle writes nothing and leaves the
+    one-shot FTS shadow untouched. A cold store, an embed-model stamp
+    mismatch, or ``incremental=False`` (--full) forces the replacement
+    rebuild. ``write=False`` (--check): freshness verdict only — no DDL,
     no writes, no embedder resolution (content hashes are the identity of
     record; the mojo/ts caches still serve the collection the same way
     the legacy --check pre-warms them).
@@ -2200,7 +2212,30 @@ def rebuild_script_duckdb(
             by_kind[r[1]] = by_kind.get(r[1], 0) + 1
         stats["by_kind"] = by_kind
 
-        _write_script_store(conn, all_rows, units_meta, model_label, embed_dims)
+        stored_meta: dict = {}
+        try:
+            stored_meta = {
+                r[0]: (r[1], r[2])
+                for r in conn.execute(
+                    "SELECT unit_path, mtime, content_hash FROM script_search_meta"
+                ).fetchall()
+            }
+        except duckdb.Error:
+            stored_meta = {}
+        stamp = _script_stored_embed_model(conn)
+        can_carry = (
+            bool(incremental)
+            and bool(stored_meta)
+            and (model_label is None or stamp is None or model_label == stamp)
+        )
+        if can_carry:
+            stats["mode"] = "incremental"
+            stats["upserts"], stats["deletes"] = _write_script_incremental(
+                conn, all_rows, units_meta, stored_meta, model_label, embed_dims
+            )
+        else:
+            stats["mode"] = "full"
+            _write_script_store(conn, all_rows, units_meta, model_label, embed_dims)
 
         stats["indexed"] = conn.execute("SELECT COUNT(*) FROM script_search").fetchone()[0]
         if isinstance(embed_fn, CachedEmbed):
@@ -2278,6 +2313,81 @@ def _resolve_script_embedder_duckdb(conn, embed_fn, stats: dict):
     return embed_fn, embed_dims, model_label, gemma_active
 
 
+def _stable_script_row_id(title: str) -> int:
+    """Stable per-title row id: 47 masked blake2b bits of the title.
+
+    duckdb_rebuild_incremental_carry S3: the full writer's positional
+    enumerate ids shift on any delta and collide with carried rows; ids
+    are opaque join keys (FTS shadow docs.name), so only uniqueness
+    matters. The 128-bit digest is MASKED to 47 bits (int64-safe for the
+    row binds; the raw >> 17 shift would leave 111 bits and overflow)."""
+    return (
+        int(
+            hashlib.blake2b(
+                f"script-row:{title}".encode("utf-8", errors="replace"), digest_size=16
+            ).hexdigest(),
+            16,
+        )
+        & 0x7FFF_FFFF_FFFF
+    )
+
+
+def _write_script_incremental(
+    conn, all_rows: list, units_meta: dict, stored_meta: dict, model_label, embed_dims
+) -> tuple[int, int]:
+    """Row-keyed delta write for the duckdb store (S3).
+
+    Rows are recomposed for everyone (cross-file inputs), but only titles
+    whose tuple moved get DELETE+INSERT with stable row ids
+    (:func:`_stable_script_row_id`); meta is refreshed for changed units
+    and GC'd for vanished ones. A no-change cycle writes nothing and
+    leaves the one-shot FTS shadow untouched — any dirty apply refreshes
+    it (plain DML leaves the shadow stale and lexical search would miss
+    the delta until the next --full)."""
+    row_cols = "title, kind, rel_path, area, purpose, content, embedding"
+    stored_by_title = {
+        r[0]: tuple(r) for r in conn.execute(f"SELECT {row_cols} FROM script_search").fetchall()
+    }
+    new_by_title = {r[0]: tuple(r) for r in all_rows}
+    to_delete = [t for t in stored_by_title if t not in new_by_title]
+    to_upsert = sorted(t for t, row in new_by_title.items() if stored_by_title.get(t) != row)
+    changed_units = [
+        u for u in units_meta if u not in stored_meta or stored_meta[u][1] != units_meta[u][1]
+    ]
+    if not to_upsert and not to_delete and not changed_units:
+        return 0, 0
+    for t in to_delete:
+        conn.execute("DELETE FROM script_search WHERE title = ?", (t,))
+    for t in to_upsert:
+        conn.execute("DELETE FROM script_search WHERE title = ?", (t,))
+        conn.execute(
+            "INSERT INTO script_search "
+            "(id, title, kind, rel_path, area, purpose, content, embedding, searchtext) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            (
+                _stable_script_row_id(t),
+                *new_by_title[t],
+                _compose_script_searchtext(new_by_title[t]),
+            ),
+        )
+    for u in stored_meta:
+        if u not in units_meta:
+            conn.execute("DELETE FROM script_search_meta WHERE unit_path = ?", (u,))
+    conn.executemany(
+        "INSERT OR REPLACE INTO script_search_meta "
+        "(unit_path, mtime, content_hash) VALUES (?, ?, ?)",
+        [(u, *units_meta[u]) for u in changed_units],
+    )
+    if (to_upsert or to_delete) and model_label is not None:
+        conn.executemany(
+            "INSERT OR REPLACE INTO script_search_info (key, value) VALUES (?, ?)",
+            [("embed_model", model_label), ("embed_dims", str(embed_dims))],
+        )
+    if to_upsert or to_delete:
+        rbc.refresh_fts_shadow(conn, "script_search")
+    return len(to_upsert), len(to_delete)
+
+
 def _write_script_store(
     conn, all_rows: list[tuple], units_meta: dict, model_label: str | None, embed_dims: int
 ) -> None:
@@ -2310,7 +2420,7 @@ def _write_script_store(
     conn.execute("PRAGMA create_fts_index('script_search', 'id', 'searchtext')")
 
 
-def _search_scripts_duckdb(
+def _search_scripts_duckdb(  # noqa: C901  # search: topk/macro/fallback ladder
     conn,
     q: str,
     limit: int = 25,

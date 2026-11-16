@@ -544,7 +544,7 @@ def _migrate_schema(conn: sqlite3.Connection) -> bool:
     return True
 
 
-def rebuild(  # noqa: C901
+def rebuild(
     db_path: Path | None = None,
     write: bool = True,
     incremental: bool = False,
@@ -554,13 +554,15 @@ def rebuild(  # noqa: C901
     """Rebuild the doc_search index. Returns a stats dict.
 
     Engine dispatch (duckdb_sidecar_fold S1): a ``.duckdb`` target uses
-    the native-FTS path (``rebuild_duckdb``; full rebuild — incremental
-    carry is a later slice); anything else uses the historical SQLite
-    FTS5 path below.
+    the native-FTS path (``rebuild_duckdb``; incremental carry by
+    default, ``--full`` forces the replacement rebuild — same CLI
+    contract as the sqlite path below).
     """
     db_path = Path(db_path) if db_path is not None else DOC_DB
     if db_path.suffix.lower() == ".duckdb":
-        return rebuild_duckdb(db_path, write=write, embed_fn=embed_fn, root=root)
+        return rebuild_duckdb(
+            db_path, write=write, embed_fn=embed_fn, root=root, incremental=incremental
+        )
     return _rebuild_sqlite(
         db_path, write=write, incremental=incremental, embed_fn=embed_fn, root=root
     )
@@ -987,7 +989,7 @@ def doc_index_stale(conn, root: Path | None = None) -> bool:
     return bool(meta.keys() - on_disk)
 
 
-def search_docs(  # noqa: C901
+def search_docs(
     conn,
     q: str,
     limit: int = 25,
@@ -1236,42 +1238,122 @@ def _compose_searchtext(row: tuple) -> str:
     return " ".join(s for s in (title, section_title, content, meta, links, trail) if s)
 
 
-def rebuild_duckdb(
+def _section_id(rel: str, section_idx: int, taken: set[int]) -> int:
+    """Stable per-section id: 47 blake2b bits of the file path << 16 | idx.
+
+    Positional ids (``enumerate`` over the whole corpus) force every row
+    after an edit point to be rewritten on an incremental apply; stable
+    ids let the delta insert only the changed files' sections and keep
+    every carried row's id byte-identical. Ids are opaque join keys to
+    every consumer (FTS shadow ``docs.name``, the ``doc_vectors``
+    mirror), so only uniqueness matters: legacy positional ids 0..N sit
+    far below the 47-bit range, and a (never-in-practice) collision
+    bumps the section salt until the id is free — deterministic per
+    (rel, idx) against a given store."""
+    salt = 0
+    while True:
+        digest = hashlib.blake2b(f"{rel}#{salt}".encode(), digest_size=8).digest()
+        sid = ((int.from_bytes(digest, "big") >> 17) << 16) | (section_idx & 0xFFFF)
+        if sid not in taken:
+            taken.add(sid)
+            return sid
+        salt += 1
+
+
+_DOC_ROW_COLS = (
+    "id, title, section_title, file_path, anchor, content, embedding, "
+    "meta, links, trail, searchtext"
+)
+_DOC_ROW_NAMES = (
+    "id",
+    "title",
+    "section_title",
+    "file_path",
+    "anchor",
+    "content",
+    "embedding",
+    "meta",
+    "links",
+    "trail",
+    "searchtext",
+)
+
+
+def _bulk_insert_doc_rows(conn, rows: list[tuple]) -> None:
+    """Insert doc rows as ONE Arrow batch (convo-leg T6 precedent,
+    rebuild_convo_search.py ``_bulk_insert``).
+
+    DuckDB ``executemany`` binds one Python tuple per call — measured
+    7.7 ms/row on this corpus (35.3 s for the 4.6k-row doc_search insert
+    plus 34.2 s for the vector mirror = 80% of an 86 s warm rebuild).
+    One Arrow batch hands DuckDB columnar buffers with no per-row
+    Python churn. ``rows`` are full 11-tuples in ``_DOC_ROW_NAMES``
+    order."""
+    if not rows:
+        return
+    import pyarrow as pa
+
+    # Types are INFERRED (anchor arrives as an int line number; DuckDB
+    # casts each column to the target type on INSERT — same doctrine as
+    # the convo _bulk_insert: strict schemas push the burden back into
+    # every producer).
+    table = pa.table({name: [r[i] for r in rows] for i, name in enumerate(_DOC_ROW_NAMES)})
+    conn.execute("SELECT 1").fetchall()  # duckdb2-drain: pending result blocks register()
+    conn.register("_doc_row_stage", table)
+    try:
+        conn.execute(
+            f"INSERT INTO doc_search ({_DOC_ROW_COLS}) SELECT {_DOC_ROW_COLS} FROM _doc_row_stage"  # noqa: S608  fixed column list
+        )
+    finally:
+        conn.unregister("_doc_row_stage")
+
+
+def rebuild_duckdb(  # noqa: C901  # full duckdb rebuild: stage ladder
     db_path: Path | str | None = None,
     *,
     write: bool = True,
     embed_fn=None,
     root: Path | None = None,
+    incremental: bool = True,
 ) -> dict:
-    """Build/rebuild the DuckDB-native doc_search store (S1).
+    """Build/apply the DuckDB-native doc_search store (S1).
 
     Reuses the engine-agnostic walk/chunk/embed pipeline (``_iter_doc_files``
     + ``_file_rows``); writes one ``doc_search`` table + meta/info stamp
-    tables, then builds the native FTS index over ``searchtext``.
-    Replacement rebuild (delete-all + insert) — incremental carry is a
-    later slice (the corpus is 4.5k rows; full rebuild is seconds).
+    tables, then rebuilds the two derived structures (native FTS shadow +
+    ``doc_vectors`` mirror) wholesale.
+
+    ``incremental`` (the CLI default via rebuild_common) applies a per-file
+    delta: a file whose stored mtime matches (fast path) is CARRIED — no
+    read, no chunk, no embed, no id churn; an mtime drift falls back to a
+    content-hash compare (mtime is only a hint — the shared-index/worktree
+    lesson from the sqlite carry), and only changed/new files are
+    re-chunked and re-embedded (through the cache) with stable ids
+    (:func:`_section_id`). Deleted files' rows are removed. A cold store,
+    a model-stamp mismatch, or ``incremental=False`` (--full) forces the
+    full replacement rebuild.
+
     ``write=False`` (--check): freshness verdict only — no DDL, no
     writes, no embedder resolution (mirrors the legacy check posture:
     the verdict is content-hash only, hash is the identity of record).
     """
     db_path = Path(db_path) if db_path is not None else DOC_DUCKDB_DB
-    stats: dict = {}
+    stats: dict = {"mode": "full"}
 
-    rows_by_file: dict[str, list[tuple]] = {}
-    hash_by_file: dict[str, str] = {}
+    files: dict[str, Path] = {}
+    mtimes: dict[str, float] = {}
     for rel, abs_path in _iter_doc_files(root):
-        chash = _text_hash(abs_path)
-        if chash is None:
-            continue
-        hash_by_file[rel] = chash
-        if write:
-            rows_by_file[rel] = []  # populated below, post embedder resolve
-
-    stats["total_files"] = len(hash_by_file)
-    stats["mode"] = "full"
+        files[rel] = abs_path
+        try:
+            mtimes[rel] = abs_path.stat().st_mtime
+        except OSError:
+            mtimes[rel] = 0.0
 
     if not write:
+        hash_by_file = {rel: h for rel in files if (h := _text_hash(files[rel])) is not None}
+        stats["total_files"] = len(hash_by_file)
         return _check_freshness_duckdb(hash_by_file, db_path, stats)
+    stats["total_files"] = len(files)
 
     conn = connect_doc_db(db_path)
     try:
@@ -1283,23 +1365,91 @@ def rebuild_duckdb(
             conn, embed_fn, stats
         )
 
-        for rel, abs_path in _iter_doc_files(root):
-            rows, chash, _carried = _file_rows(abs_path, rel, embed_fn, gemma=gemma_active)
-            if chash is None:
-                hash_by_file.pop(rel, None)
-                rows_by_file.pop(rel, None)
+        stored: dict[str, tuple[float, str]] = {}
+        try:
+            stored = {
+                r[0]: (r[1], r[2])
+                for r in conn.execute(
+                    "SELECT file_path, mtime, content_hash FROM doc_search_meta"
+                ).fetchall()
+            }
+        except duckdb.Error:
+            stored = {}
+        existing_ids: set[int] = {
+            r[0] for r in conn.execute("SELECT id FROM doc_search").fetchall()
+        }
+
+        # A stamped store is only carried into the SAME embedder (the meta
+        # basis is model-agnostic, the vectors are not). An injected
+        # embed_fn (tests — model_label None) carries against whatever is
+        # stamped; an unstamped legacy store carries unchecked.
+        stamp = stored_embed_model(conn)
+        can_carry = (
+            bool(incremental)
+            and bool(stored)
+            and (model_label is None or stamp is None or model_label == stamp)
+        )
+
+        hash_by_file: dict[str, str] = {}
+        rows_by_file: dict[str, list[tuple]] = {}
+        carried: set[str] = set()
+        dropped: set[str] = set()
+        for rel, abs_path in files.items():
+            st = stored.get(rel) if can_carry else None
+            if st is not None and mtimes[rel] == st[0]:
+                carried.add(rel)  # mtime fast path: no read, no hash, no embed
                 continue
-            rows_by_file[rel] = rows
+            chash = _text_hash(abs_path)
+            if chash is None:
+                if can_carry and rel in stored:
+                    dropped.add(rel)  # unreadable now → treated as absent
+                continue
             hash_by_file[rel] = chash
+            if st is not None and chash == st[1]:
+                carried.add(rel)  # mtime drift, content identical (worktree skew)
+                continue
+            rows, rhash, _carried = _file_rows(abs_path, rel, embed_fn, gemma=gemma_active)
+            if rhash is None:
+                hash_by_file.pop(rel, None)
+                if can_carry and rel in stored:
+                    dropped.add(rel)
+                continue
+            hash_by_file[rel] = rhash
+            rows_by_file[rel] = rows
 
-        all_rows = [r for rows in rows_by_file.values() for r in rows]
-        stats["total_rows"] = len(all_rows)
-        stats["sections_carried"] = 0
-        stats["embedded"] = sum(1 for r in all_rows if r[5])
+        if can_carry:
+            deleted_files = sorted((set(stored) - set(files)) | dropped)
+            mode = "incremental"
+        else:
+            carried = set()
+            deleted_files = []
+            mode = "full"
 
-        _write_doc_store(conn, all_rows, rows_by_file, hash_by_file, root, model_label, embed_dims)
+        _write_doc_store(
+            conn,
+            rows_by_file=rows_by_file,
+            carried=carried,
+            deleted_files=deleted_files,
+            mtimes=mtimes,
+            root=root,
+            hash_by_file=hash_by_file,
+            existing_ids=existing_ids,
+            model_label=model_label,
+            embed_dims=embed_dims,
+            full=not can_carry,
+        )
 
-        stats["indexed"] = conn.execute("SELECT COUNT(*) FROM doc_search").fetchone()[0]
+        stats["mode"] = mode
+        stats["carried_files"] = len(carried)
+        stats["changed_files"] = len(rows_by_file)
+        stats["deleted_files"] = len(deleted_files)
+        total = conn.execute("SELECT COUNT(*) FROM doc_search").fetchone()[0]
+        stats["total_rows"] = total
+        stats["sections_carried"] = total - sum(len(r) for r in rows_by_file.values())
+        stats["embedded"] = conn.execute(
+            "SELECT COUNT(*) FROM doc_search WHERE embedding IS NOT NULL"
+        ).fetchone()[0]
+        stats["indexed"] = total
         if isinstance(embed_fn, CachedEmbed):
             stats["embed_cache_hits"] = embed_fn.hits
             stats["embed_cache_misses"] = embed_fn.misses
@@ -1311,83 +1461,144 @@ def rebuild_duckdb(
         conn.close()
 
 
-def _write_doc_store(
-    conn,
-    all_rows: list[tuple],
-    rows_by_file: dict[str, list[tuple]],
-    hash_by_file: dict[str, str],
-    root: Path | None,
-    model_label: str | None,
-    embed_dims: int,
-) -> None:
-    """Replacement write: delete-all + insert rows/meta/info stamps, then
-    rebuild the native FTS index (one-shot structure; drop+recreate covers
-    both fresh and pre-existing stores)."""
-    conn.execute("DELETE FROM doc_search")
-    conn.execute("DELETE FROM doc_search_meta")
-    if all_rows:
-        conn.executemany(
-            "INSERT INTO doc_search "
-            "(id, title, section_title, file_path, anchor, content, embedding, "
-            "meta, links, trail, searchtext) "
-            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-            [(i, *r, _compose_searchtext(r)) for i, r in enumerate(all_rows)],
-        )
-    # S6 (duckdb_fts_sql_topk_regression): colocated vector mirror for the
-    # hybrid cosine leg — drop + recreate every full rebuild (the mirror is
-    # derived state, same doctrine as the FTS index). Absent when nothing is
-    # embedded, in which case the query leg falls back to the Python scan.
+def _rebuild_doc_vectors_mirror(conn) -> int:
+    """Drop + recreate the ``doc_vectors`` cosine mirror from stored
+    embeddings (S6, duckdb_fts_sql_topk_regression).
+
+    Derived state, rebuilt wholesale every apply: the persisted vss HNSW
+    index cannot absorb incremental inserts. Reads the packed f32 blobs
+    back and reloads them as one Arrow batch. Absent when nothing is
+    embedded (query leg falls back to the Python scan). Returns the
+    mirror row count."""
     conn.execute("DROP TABLE IF EXISTS doc_vectors")
+    packed = conn.execute(
+        "SELECT id, embedding FROM doc_search WHERE embedding IS NOT NULL ORDER BY id"
+    ).fetchall()
     vectors = []
-    if embed_dims:
-        for i, r in enumerate(all_rows):
-            if r[5]:
-                vec = load_vec(r[5])
-                if vec:
-                    vectors.append((i, vec))
-        if vectors:
-            actual_dims = len(vectors[0][1])
-            conn.execute(
-                "CREATE TABLE doc_vectors (id BIGINT PRIMARY KEY, "
-                f"embedding FLOAT[{int(actual_dims)}])"
-            )
-            conn.executemany(
-                "INSERT INTO doc_vectors (id, embedding) VALUES (?, ?)",
-                vectors,
-            )
-            # S3 (duckdb_watchlist_hardening): HNSW cosine index on the
-            # mirror — mirrors the note mirror (vss extension +
-            # experimental persistence, see _HNSW_PRAGMAS in
-            # helpers/core/vec_search.py). The hybrid round uses a
-            # corpus-wide scan (k=None) which the index does not serve,
-            # but bounded-k readers (future top-k of the cosine leg) get
-            # the index path. Best-effort: if the extension is
-            # unavailable the mirror still serves the full-scan path.
-            try:
-                conn.execute("INSTALL vss")
-                conn.execute("LOAD vss")
-                conn.execute("SET hnsw_enable_experimental_persistence = true")
-                conn.execute(
-                    "CREATE INDEX IF NOT EXISTS idx_doc_vectors_emb ON doc_vectors "
-                    "USING HNSW (embedding) WITH (metric='cosine', "
-                    "ef_construction=128)"
-                )
-            except duckdb.Error:  # noqa: S110  # index is optional hardening
-                pass
-    conn.executemany(
-        "INSERT OR REPLACE INTO doc_search_meta VALUES (?, ?, ?)",
-        [(rel, _mtime_of(root, rel), hash_by_file[rel]) for rel in rows_by_file],
+    for rid, blob in packed:
+        vec = load_vec(blob)
+        if vec:
+            vectors.append((rid, vec))
+    if not vectors:
+        return 0
+    import pyarrow as pa
+
+    dims = len(vectors[0][1])
+    conn.execute(f"CREATE TABLE doc_vectors (id BIGINT PRIMARY KEY, embedding FLOAT[{int(dims)}])")
+    table = pa.table(
+        {
+            "id": pa.array([v[0] for v in vectors], pa.int64()),
+            "embedding": pa.array([v[1] for v in vectors], pa.list_(pa.float32())),
+        }
     )
-    if model_label is not None:
-        conn.executemany(
-            "INSERT OR REPLACE INTO doc_search_info VALUES (?, ?)",
-            [("embed_model", model_label), ("embed_dims", str(embed_dims))],
+    conn.execute("SELECT 1").fetchall()  # duckdb2-drain: pending result blocks register()
+    conn.register("_doc_vec_stage", table)
+    try:
+        conn.execute("INSERT INTO doc_vectors SELECT * FROM _doc_vec_stage")
+    finally:
+        conn.unregister("_doc_vec_stage")
+    # S3 (duckdb_watchlist_hardening): HNSW cosine index on the mirror —
+    # best-effort; without the extension the mirror still serves the
+    # full-scan path.
+    try:
+        conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_doc_vectors_emb ON doc_vectors "
+            "USING HNSW (embedding) WITH (metric='cosine', ef_construction=128)"
         )
+    except duckdb.Error:  # noqa: S110  # index is optional hardening
+        pass
+    return len(vectors)
+
+
+def _refresh_fts_shadow(conn) -> None:
+    """Rebuild the native FTS shadow over ``searchtext``.
+
+    One-shot structure: plain INSERTs leave the shadow unchanged (probe
+    2026-11-16 — ``fts_main_<t>.docs`` count static after an insert), so
+    any apply that wrote or deleted rows must drop + recreate it or
+    lexical search silently misses the delta until the next --full."""
     try:
         conn.execute("PRAGMA drop_fts_index('doc_search')")
     except duckdb.Error:
         pass
     conn.execute("PRAGMA create_fts_index('doc_search', 'id', 'searchtext')")
+
+
+def _write_doc_store(
+    conn,
+    *,
+    rows_by_file: dict[str, list[tuple]],
+    carried: set[str],
+    deleted_files: list[str],
+    mtimes: dict[str, float],
+    root: Path | None,
+    hash_by_file: dict[str, str],
+    existing_ids: set[int],
+    model_label: str | None,
+    embed_dims: int,
+    full: bool,
+) -> None:
+    """Apply the rebuild to the store, then rebuild the two derived
+    structures wholesale (``doc_vectors`` mirror + HNSW, native FTS
+    shadow).
+
+    Full mode: delete-all + insert every row/meta. Incremental mode:
+    delete only the changed/deleted files' rows, carry the rest
+    verbatim, insert the delta with stable ids (:func:`_section_id`).
+    Row writes go through one Arrow batch (:func:`_bulk_insert_doc_rows`)
+    — per-row executemany was 80% of the pre-fix rebuild wall time.
+    ``carried``/``mtimes`` are the carry bookkeeping from
+    ``rebuild_duckdb`` (accepted for signature symmetry; the writer
+    derives everything it writes from ``rows_by_file``/``hash_by_file``/
+    ``deleted_files``)."""
+    if full:
+        conn.execute("DELETE FROM doc_search")
+        conn.execute("DELETE FROM doc_search_meta")
+    else:
+        touched = sorted(set(rows_by_file) | set(deleted_files))
+        if touched:
+            conn.executemany(
+                "DELETE FROM doc_search WHERE file_path = ?", [(fp,) for fp in touched]
+            )
+            conn.executemany(
+                "DELETE FROM doc_search_meta WHERE file_path = ?", [(fp,) for fp in touched]
+            )
+
+    # hash_by_file = every file whose hash was (re)computed this apply:
+    # changed files (fresh hash) + hash-verified carried files. Upserting
+    # their meta heals drifted mtimes so the next apply takes the fast
+    # path; mtime-matched files already hold correct meta rows.
+    meta_rows = [(rel, _mtime_of(root, rel), hash_by_file[rel]) for rel in sorted(hash_by_file)]
+    if meta_rows:
+        conn.executemany("INSERT OR REPLACE INTO doc_search_meta VALUES (?, ?, ?)", meta_rows)
+    if model_label is not None:
+        conn.executemany(
+            "INSERT OR REPLACE INTO doc_search_info VALUES (?, ?)",
+            [("embed_model", model_label), ("embed_dims", str(embed_dims))],
+        )
+
+    # Stable ids for the delta; in full mode the table was just emptied,
+    # so a fresh pool (not the pre-delete ids) keeps ids deterministic.
+    id_pool: set[int] = set() if full else existing_ids
+    delta_rows = []
+    for rel in sorted(rows_by_file):
+        for i, row in enumerate(rows_by_file[rel]):
+            sid = _section_id(rel, i, id_pool)
+            delta_rows.append((sid, *row, _compose_searchtext(row)))
+    _bulk_insert_doc_rows(conn, delta_rows)
+
+    # Derived state — wholesale every apply (~1.3 s HNSW + ~2.5 s FTS at
+    # 4.6k rows: fixed seconds bought for not re-embedding the corpus).
+    # The vss bind law: LOAD vss BEFORE any window that touches the
+    # HNSW-bearing mirror, else 'unknown index type HNSW'.
+    try:
+        conn.execute("INSTALL vss")
+        conn.execute("LOAD vss")
+        conn.execute("SET hnsw_enable_experimental_persistence = true")
+    except duckdb.Error:
+        pass
+    _rebuild_doc_vectors_mirror(conn)
+    _refresh_fts_shadow(conn)
 
 
 def _resolve_doc_embedder_duckdb(conn, embed_fn, stats: dict):
@@ -1558,7 +1769,7 @@ def _cosine_leg_duckdb(
     return scored, sims, cos_rank
 
 
-def _search_docs_duckdb(
+def _search_docs_duckdb(  # noqa: C901  # search: topk/macro/fallback ladder
     conn,
     q: str,
     limit: int = 25,

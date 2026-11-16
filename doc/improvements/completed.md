@@ -15676,3 +15676,34 @@ the remaining differences are load-bearing, pinned by a new three-tier contract
 test (`test_entity_identity.py::test_s4_normalisation_tiers_are_intentionally_distinct`).
 Targeted suites 81 passed (4 files); `static_checks.py` clean (8 advisory)
 and `markdown_lint.py` clean. Proposal archived (database/).
+
+## 528. DuckDB rebuild legs got their incremental carry back — Arrow bulk writes, git-leg scoping, FTS-shadow delta refresh
+
+`--incremental` (CLI default True, `rebuild_common.py:370`) was silently
+dropped at every DuckDB dispatch, so `make search-fresh` ran full
+replacement rebuilds through per-row `executemany` — measured **80% of
+wall time** (doc leg 81.7 s warm; git leg 40 s incremental == 40 s full).
+**S1** restored the doc leg's carry (mtime fast path + hash fallback,
+stable hash row ids, one Arrow batch insert): warm full rebuild
+**81.7 s → 16.98 s**, no-op incremental carry **4.68 s** (495 files, 0
+embed calls), live APPLY no-op **6.5–6.9 s**. **S2** scoped the git leg's
+duckdb apply the same way: live incremental delta **13.9 s** vs the
+measured 40 s, no-op carry **7.4 s**, Arrow full replacement **25.5 s**
+(cold stores / basis bumps). **S3** fixed a correctness class, not just
+latency: DuckDB 2.0's native FTS shadow is a **one-shot structure** —
+plain DML never updates it — so the script/memory/note incremental paths
+silently missed every delta until the next `--full`; all three now
+`refresh_fts_shadow` after delta writes. The memory diff is **content-keyed**
+(`_memory_row_key`) after a title-keyed masking bug (a history snapshot
+sharing a title hid live deltas), and a latent note-leg bug (delta rows
+carrying NULL id/searchtext) is fixed. **S4** compacted the live
+`doc_search.duckdb` **89,665,536 → 70,266,880 B** (seeded-cache fresh
+rebuild + `os.replace`; meta multiset parity verified, `doc --check`
+rc 0) — the 3× bloat was delete-all churn; the remaining weight (HNSW
+mirror + native FTS shadow + consolidated embed cache) is legitimate.
+**S5**: carry tests (no-op/delta/deleted/mtime-drift/forced-full ×
+doc/git/script/memory) + `fts_topk` parity green — **104 passed**, ruff
+clean. Deferred (measured): delta on a 100%-changed corpus ran **26.9 s
+vs 17.0 s full** (threshold-fallback candidate); CachedEmbed point-lookup
+preload; `--allow-stale` stamped legs still apply as full rebuilds
+(script one-off 84 s mid-arc). Proposal archived (database/).

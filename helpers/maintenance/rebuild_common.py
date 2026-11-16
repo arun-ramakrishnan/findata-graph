@@ -592,6 +592,36 @@ def _guard_and_stage(
     return db_path, sandbox_dir
 
 
+def refresh_fts_shadow(conn, table: str, *, key: str = "id", text_col: str = "searchtext") -> None:
+    """Drop + recreate a DuckDB native FTS index (one-shot structure).
+
+    duckdb_rebuild_incremental_carry S3: the native FTS shadow is NOT
+    auto-updated by DML (probe 2026-11-16 - fts_main_<t>.docs count is
+    static across a plain INSERT), so any incremental apply that wrote
+    or deleted rows must drop + recreate it or lexical search silently
+    misses the delta until the next --full. Callers guard on a non-empty
+    delta so no-op applies stay fast.
+
+    No-op for a non-DuckDB connection: the legacy SQLite FTS5 stores
+    (research.db `note_search` and the old sidecars) maintain their own
+    index through the virtual table itself, and `PRAGMA
+    create_fts_index` on them raises `sqlite3.OperationalError: near
+    ",": syntax error` — which surfaced as 11 spurious qa failures once
+    the S3 call site was reachable from the SQLite incremental branch
+    (2026-11-17). DuckDB connections are the ones exposing
+    `duckdb.DuckDBPyConnection`.
+    """
+    import duckdb
+
+    if not isinstance(conn, duckdb.DuckDBPyConnection):
+        return
+    try:
+        conn.execute(f"PRAGMA drop_fts_index('{table}')")
+    except duckdb.Error:
+        pass
+    conn.execute(f"PRAGMA create_fts_index('{table}', '{key}', '{text_col}')")
+
+
 def run_rebuild_cli(argv: list[str] | None, spec: RebuildCliSpec) -> int:
     """The shared main() flow: parse → rebuild → report → exit code.
 

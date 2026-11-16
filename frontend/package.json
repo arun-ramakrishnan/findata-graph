@@ -19,6 +19,6 @@
     "graphology": "^0.25.4",
     "graphology-layout-forceatlas2": "^0.10.1",
     "sigma": "^3.0.3",
-    "sugar-high": "^2.6.4"
+    "sugar-high": "^2.7.0"
   }
 }

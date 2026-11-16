@@ -38,15 +38,18 @@ entry number and stale DONE pointers):
 
 ## Current live proposals
 
-- `duckdb_rebuild_incremental_carry` (database/, filed 2026-11-16) —
+*(none)*
+- *(archived 2026-11-16)* — `duckdb_rebuild_incremental_carry` (database/,
+  filed 2026-11-16, executed 2026-11-16, completed.md #528 —
   restore the silently-dropped `--incremental` contract to the DuckDB
   rebuild legs: doc-leg per-file carry (mtime fast path + hash fallback)
   with stable section ids + one Arrow batch insert replacing 69.5 s of
-  per-row executemany (warm rebuild 86 s → ~7 s apply / ~13 s full);
-  git-leg duckdb apply scoping (40 s == full today); FTS-shadow delta
-  refresh on the script/memory/note incremental paths (shadow is one-shot,
-  lexical search currently misses deltas — correctness); one-off
-  compaction of the 3×-bloated live doc_search.duckdb.
+  per-row executemany (warm rebuild 81.7 s → 16.98 s / no-op carry
+  4.68 s); git-leg duckdb apply scoping (delta 13.9 s vs 40 s full);
+  FTS-shadow delta refresh on the script/memory/note incremental paths
+  (shadow is one-shot, not DML-updated — lexical search was missing
+  deltas); content-keyed memory diff; one-off compaction of
+  doc_search.duckdb 89.7 → 70.3 MB).
 - *(archived 2026-11-14)* — `graph_kernels_ppr_lane` (graph/, filed
   2026-11-14, executed 2026-11-14, completed.md #523 — first-party
   power-iteration PPR kernel wired kernel-first into

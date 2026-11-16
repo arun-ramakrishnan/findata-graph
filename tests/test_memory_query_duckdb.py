@@ -254,3 +254,43 @@ def test_legacy_sqlite_path_still_works(tmp_path, pools, monkeypatch):
         assert out["results"][0]["name"] == "user-workflow"
     finally:
         conn.close()
+
+
+# --- duckdb_rebuild_incremental_carry S3/S5: no-op carry + delta --------
+
+
+def test_incremental_noop_carry_then_delta(seeded, fake_local):
+    db, pools = seeded
+    first = rms.rebuild(db, embed_fn=fake_local.embed_document, incremental=True, **pools)
+    assert first["mode"] == "full"
+
+    second = rms.rebuild(db, embed_fn=fake_local.embed_document, incremental=True, **pools)
+    assert second["mode"] == "incremental"
+    assert second["upserts"] == 0
+    assert second["deletes"] == 0
+
+    zmem = pools["zcode_projects"] / "scope-main" / "memory" / "user-workflow.md"
+    zmem.write_text(_ZCODE + "\nZEGRAMTOKEN carry probe marker\n", encoding="utf-8")
+    third = rms.rebuild(db, embed_fn=fake_local.embed_document, incremental=True, **pools)
+    assert third["mode"] == "incremental"
+    assert third["upserts"] >= 1
+
+    from helpers.core.duckdb_shared import fts_topk
+
+    conn = rms.connect_memory_db(db)
+    try:
+        dict_terms = conn.execute(
+            "SELECT term FROM fts_main_memory_search.dict WHERE term LIKE 'zegram%'"
+        ).fetchall()
+        assert dict_terms, "delta token never reached the FTS dict"
+        rows, mode = fts_topk(
+            conn,
+            fts_table="fts_main_memory_search",
+            base_table="memory_search",
+            tokens=[dict_terms[0][0]],
+            limit=5,
+        )
+        assert mode == "topk", "expected SQL top-k path, got macro fallback"
+        assert rows, "FTS shadow missed the incremental delta (one-shot law)"
+    finally:
+        conn.close()

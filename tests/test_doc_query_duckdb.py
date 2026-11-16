@@ -177,3 +177,108 @@ def test_cosine_leg_uses_mirror_and_falls_back(seeded, fake_local):
             assert abs(sim - sims_py.get(rid, -2.0)) < 1e-9
     finally:
         conn.close()
+
+
+# --- duckdb_rebuild_incremental_carry S1/S5: carry + delta + shadow --------
+
+
+def test_incremental_noop_carries(seeded, fake_local):
+    first = rds.rebuild_duckdb(seeded, embed_fn=fake_local.embed_document)
+    assert first["mode"] == "full"
+
+    calls: list[str] = []
+    real = fake_local.embed_document
+
+    def counting(text: str) -> list[float]:
+        calls.append(text)
+        return real(text)
+
+    def _ids():
+        conn = rds.connect_doc_db(seeded)
+        try:
+            return {r[0] for r in conn.execute("SELECT id FROM doc_search").fetchall()}
+        finally:
+            conn.close()
+
+    ids_before = _ids()
+    second = rds.rebuild_duckdb(seeded, embed_fn=counting)
+    assert second["mode"] == "incremental"
+    assert second["carried_files"] == 1
+    assert second["changed_files"] == 0
+    assert second["deleted_files"] == 0
+    assert calls == []  # mtime fast path (or hash fallback): zero embed calls
+    assert _ids() == ids_before  # carried rows keep byte-identical ids
+    assert second["total_rows"] == first["total_rows"]
+
+
+def test_incremental_delta_new_file_visible_in_fts(seeded, fake_local):
+    rds.rebuild_duckdb(seeded, embed_fn=fake_local.embed_document)
+    (rds.DOC_ROOT / "extra.md").write_text(
+        "# Extra\n\n## Zebra Section\n\nunique zeta token prose\n", encoding="utf-8"
+    )
+    stats = rds.rebuild_duckdb(seeded, embed_fn=fake_local.embed_document)
+    assert stats["mode"] == "incremental"
+    assert stats["carried_files"] == 1
+    assert stats["changed_files"] == 1
+    assert stats["total_rows"] == 5  # 3 carried + preamble + zebra section
+
+    conn = rds.connect_doc_db(seeded)
+    try:
+        new_ids = [
+            r[0]
+            for r in conn.execute(
+                "SELECT id FROM doc_search WHERE file_path LIKE '%extra.md'"
+            ).fetchall()
+        ]
+        assert len(new_ids) == 2
+        # S3 law: the one-shot FTS shadow must SEE the delta - the new
+        # rows are indexed under their base-table ids (docs.name).
+        for sid in new_ids:
+            seen = conn.execute(
+                "SELECT COUNT(*) FROM fts_main_doc_search.docs WHERE name = ?", (sid,)
+            ).fetchone()[0]
+            assert seen == 1, f"row {sid} missing from the FTS shadow"
+        n_docs = conn.execute("SELECT COUNT(*) FROM fts_main_doc_search.docs").fetchone()[0]
+        assert n_docs == stats["total_rows"]
+    finally:
+        conn.close()
+
+
+def test_incremental_deleted_file(seeded, fake_local):
+    rds.rebuild_duckdb(seeded, embed_fn=fake_local.embed_document)
+    (rds.DOC_ROOT / "guide.md").unlink()
+    stats = rds.rebuild_duckdb(seeded, embed_fn=fake_local.embed_document)
+    assert stats["mode"] == "incremental"
+    assert stats["deleted_files"] == 1
+    assert stats["total_rows"] == 0
+
+    conn = rds.connect_doc_db(seeded)
+    try:
+        assert conn.execute("SELECT COUNT(*) FROM fts_main_doc_search.docs").fetchone()[0] == 0
+    finally:
+        conn.close()
+
+
+def test_incremental_mtime_drift_same_hash_carries(seeded, fake_local):
+    import os
+
+    rds.rebuild_duckdb(seeded, embed_fn=fake_local.embed_document)
+    p = rds.DOC_ROOT / "guide.md"
+    p.write_text(_GUIDE, encoding="utf-8")  # rewrite: new inode mtime, same content
+    os.utime(p, (p.stat().st_atime, p.stat().st_mtime + 5.0))
+    stats = rds.rebuild_duckdb(seeded, embed_fn=fake_local.embed_document)
+    assert stats["mode"] == "incremental"
+    assert stats["carried_files"] == 1  # hash-verified carry, no re-embed
+    assert stats["changed_files"] == 0
+    # meta mtime healed by the apply -> the next no-op takes the fast path
+    again = rds.rebuild_duckdb(seeded, embed_fn=fake_local.embed_document)
+    assert again["carried_files"] == 1 and again["changed_files"] == 0
+
+
+def test_forced_full_still_works(seeded, fake_local):
+    rds.rebuild_duckdb(seeded, embed_fn=fake_local.embed_document)
+    (rds.DOC_ROOT / "extra.md").write_text("# Extra\n\n## New\n\nprose\n", encoding="utf-8")
+    stats = rds.rebuild_duckdb(seeded, embed_fn=fake_local.embed_document, incremental=False)
+    assert stats["mode"] == "full"
+    assert stats["total_rows"] == 5
+    assert stats["carried_files"] == 0
