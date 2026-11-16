@@ -565,6 +565,18 @@ commit, referenced by nothing). Entry numbers point at
 
 ## database/ — Databases — DuckDB/SQLite engine and SQL query improvements
 
+- [`entity_fold_fk_cascade_repair.md`](database/entity_fold_fk_cascade_repair.md) —
+  entity fold re-points every child before deleting: nine data-loss defects
+  (D1 child FKs never re-pointed; D2 ledger-sweep-only memberships; D3
+  move-then-dedupe rolls back the whole `with con:` block on a UNIQUE
+  collision; D4 key-column-is-moving-column; D5 wrong `hyper_incidences` key;
+  D6 ledger recorded intent not outcome; D7 a rehearsal could write the
+  tracked ledger; D8 `hyper_edges.label` orphaned 3 subsidiary hyperedges;
+  D9 already-absent reported as retained), fixed by `_REFOLD_COLUMNS` +
+  `_refold_entity_refs` (collide-before-move) + `entity_fk_children`
+  coverage gate + `_ledger_write_allowed`. Live: 12 variants folded,
+  entities 27,826→27,814, edges 87,117→87,082, integrity ok, 0 FK
+  violations, fileless dup groups 14→3 — completed.md #526
 - [`company_metrics_grain_and_bank.md`](database/company_metrics_grain_and_bank.md) —
   `company_metrics` grain rule (scope-keyed), `metric_value` gate shape, and
   the NL->SQL question bank: 79,396 rows / 49,826 distinct
@@ -651,6 +663,7 @@ commit, referenced by nothing). Entry numbers point at
 - [`snapshot_parallel_and_compressed_backups.md`](database/snapshot_parallel_and_compressed_backups.md) — Parallel per-DB snapshot + zstd-compressed recovery backups — completed.md #175
 - [`zstd_binary_backups.md`](database/zstd_binary_backups.md) — zstd binary backups — `.gz` → `.zst` for db-backup/ recovery artifacts — completed.md #176
 - [`duckdb_read_side_tuning_trial.md`](database/duckdb_read_side_tuning_trial.md) — DuckDB read-side tuning trial — measured-not-adopted (default threads=4 optimal; 1.5 GB/512 MB memory caps perf-neutral; mmap/read-ahead not exposed on 2.0.0); repo-wide 5 GB `memory_limit` cap landed as operator-requested policy via `memory_cap_config()` on every file-backed connection — completed.md #505
+- [`name_key_letter_run_collapse.md`](database/name_key_letter_run_collapse.md) — name_key letter-run collapse (S0–S4, Option A + B): single-char legal-token runs join post-casefold (`A S`≡`AS`, `N V`≡`NV`, `S A B`≡`SAB`) via lambda JOIN; guarded camel split (S0); census red 51→folded back to 0; 2 S1 FK bugs fixed (resolver fold-target existence + ledger-sweep missing canonical); cross-type merge guarded by ASSERTION; 51 clusters folded on live store (27,802→27,751 entities, 0 loss); four normalization homes documented as three intentional tiers (identity / storage format / filer detector) + contract test — completed.md #527
 
 ## okf/ — OKF v0.2 — provenance vocabulary, activation, sources maintenance, read-side
 

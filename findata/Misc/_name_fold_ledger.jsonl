@@ -170,3 +170,27 @@
 {"variant": "MRF Corp", "canonical": "MRF", "folded_at": "2026-11-12T05:41:54+00:00", "kind": "canonical", "ruled_by": "operator (session m06302): R2 table recos accepted + R3 unify; bench_data/canon_review_triage/"}
 {"variant": "Sbi Life Insurance Co. Ltd", "canonical": "SBI Life Insurance Company", "folded_at": "2026-11-12T05:41:54+00:00", "kind": "canonical", "ruled_by": "operator (session m06302): R2 table recos accepted + R3 unify; bench_data/canon_review_triage/"}
 {"variant": "The Bombay Burmah Trading Corp", "canonical": "Bombay Burmah Trading Corporation", "folded_at": "2026-11-12T05:41:54+00:00", "kind": "canonical", "ruled_by": "operator (session m06302): R2 table recos accepted + R3 unify; bench_data/canon_review_triage/"}
+{"variant": "Central UP Gas", "canonical": "Central U.P. Gas", "folded_at": "2026-11-16T13:22:26+00:00", "kind": "canonical"}
+{"variant": "Grijze Poort B.V", "canonical": "Grijze Poort BV", "folded_at": "2026-11-16T13:22:26+00:00", "kind": "canonical"}
+{"variant": "K.T.V. Health Food", "canonical": "KTV Health Food", "folded_at": "2026-11-16T13:22:26+00:00", "kind": "canonical"}
+{"variant": "Layde Steel S.L", "canonical": "Layde Steel SL", "folded_at": "2026-11-16T13:22:26+00:00", "kind": "canonical"}
+{"variant": "Orchid Netherlands No.1 B.V", "canonical": "Orchid Netherlands No1 BV", "folded_at": "2026-11-16T13:22:26+00:00", "kind": "canonical"}
+{"variant": "Orchid Netherlands No.1 BV", "canonical": "Orchid Netherlands No1 BV", "folded_at": "2026-11-16T13:22:26+00:00", "kind": "canonical"}
+{"variant": "S A B Profiel B.V", "canonical": "S A B Profiel BV", "folded_at": "2026-11-16T13:22:26+00:00", "kind": "canonical"}
+{"variant": "Service Centre Maastricht B.V", "canonical": "Service Centre Maastricht BV", "folded_at": "2026-11-16T13:22:26+00:00", "kind": "canonical"}
+{"variant": "Tata Steel Belgium Packaging Steels N.V", "canonical": "Tata Steel Belgium Packaging Steels NV", "folded_at": "2026-11-16T13:22:26+00:00", "kind": "canonical"}
+{"variant": "Tata Steel Netherlands Holdings B.V", "canonical": "Tata Steel Netherlands Holdings BV", "folded_at": "2026-11-16T13:22:26+00:00", "kind": "canonical"}
+{"variant": "Tata Steel Norway Byggsystemer A/s", "canonical": "Tata Steel Norway Byggsystemer As", "folded_at": "2026-11-16T13:22:26+00:00", "kind": "canonical"}
+{"variant": "Universal Voltas L.L.C", "canonical": "Universal Voltas LLC", "folded_at": "2026-11-16T13:22:26+00:00", "kind": "canonical"}
+{"variant": "Hille & Muller GmbH", "canonical": "Hille Muller Gmbh", "folded_at": "2026-11-16T14:25:42+00:00", "kind": "canonical"}
+{"variant": "Jio BLAST eSports", "canonical": "Jio Blast Esports", "folded_at": "2026-11-16T14:25:42+00:00", "kind": "canonical"}
+{"variant": "S A B Profil Gmbh", "canonical": "S.A.B. Profil GmbH", "folded_at": "2026-11-16T14:25:42+00:00", "kind": "canonical"}
+{"variant": "TECOSIM , Gmbh", "canonical": "Tecosim GmbH", "folded_at": "2026-11-16T14:25:42+00:00", "kind": "canonical"}
+{"variant": "Tata 1mg Healthcare Solutions", "canonical": "TATA 1MG HEALTHCARE SOLUTIONS", "folded_at": "2026-11-16T14:25:42+00:00", "kind": "canonical"}
+{"variant": "Tata 1mg Technologies", "canonical": "TATA 1MG TECHNOLOGIES", "folded_at": "2026-11-16T14:25:42+00:00", "kind": "canonical"}
+{"variant": "Tata Technologies GmbH", "canonical": "Tata Technologies Gmbh", "folded_at": "2026-11-16T14:25:42+00:00", "kind": "canonical"}
+{"variant": "CyberTech Systems and Software", "canonical": "Cyber Tech Systems and Software", "folded_at": "2026-11-16T14:37:17+00:00", "kind": "canonical"}
+{"variant": "N A Estate", "canonical": "N.A. Estate", "folded_at": "2026-11-16T14:38:20+00:00", "kind": "canonical"}
+{"variant": "Quesscorp Holdings Pte", "canonical": "Quess Corp Holdings Pte", "folded_at": "2026-11-16 15:17:07", "kind": "alias", "ruled_by": "operator (session m01338): Class-2 word-segmentation merge — no safe general rule (space-deletion explodes to 143 clusters); name_key_letter_run_collapse §2.5"}
+{"variant": "UNOMINDA EUROPE GMBH", "canonical": "UNO MINDA EUROPE GMBH", "folded_at": "2026-11-16 15:17:07", "kind": "alias", "ruled_by": "operator (session m01338): Class-2 word-segmentation merge — no safe general rule (space-deletion explodes to 143 clusters); name_key_letter_run_collapse §2.5"}
+{"variant": "Yunghsin Contain Industry Co", "canonical": "Yung Hsin Contain Industry Co", "folded_at": "2026-11-16 15:17:07", "kind": "alias", "ruled_by": "operator (session m01338): Class-2 word-segmentation merge — no safe general rule (space-deletion explodes to 143 clusters); name_key_letter_run_collapse §2.5"}

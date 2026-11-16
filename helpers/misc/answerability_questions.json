@@ -611,9 +611,9 @@
         "sql": "SELECT COUNT(*) AS n FROM sqlite__hidden_connections"
       },
       "expected": [
-        "41671"
+        "41328"
       ],
-      "note": "re-pinned 2026-11-11 after the ruled rpt_attribution replay (proposal archive/graph/rpt_attribution_filer_resolution_and_group_family.md): filer-subject artifacts corrected under entity-relative attribution re-pinned 2026-11-12 after the name-dedup fold (#508-era derived rebuild)"
+      "note": "re-pinned 2026-11-11 after the ruled rpt_attribution replay (proposal archive/graph/rpt_attribution_filer_resolution_and_group_family.md): filer-subject artifacts corrected under entity-relative attribution re-pinned 2026-11-12 after the name-dedup fold (#508-era derived rebuild); re-pinned 2026-11-17 after gate arc re-derivation (the 2026-11-16 name-dedup fold edited hidden_connections directly — it carries no FK — leaving 41,319 vs the derived 41,328)"
     },
     {
       "id": "bank-sql-insight-overlap-20microns",

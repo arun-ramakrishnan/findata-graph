@@ -15586,3 +15586,93 @@ pass; ruff clean; live-verified on `ses_e464ba95fffey2TwBleYG47aWf`
 (saved=4.40b, payback=$43.83/$0.21, act=6, blocked=[1:6,2:4,3:1]).
 Running daemons need a restart to pick up the module. Proposal
 archived (tooling/).
+
+## 526. Entity fold FK-cascade repair — re-point every child before deleting (D1–D9)
+
+`name_dedup.apply_plan` re-pointed only `graph_edges` + `hyper_incidences`
+before `DELETE FROM entities`, while the live schema carries 13 FKs onto
+`entities(name)` (11 CASCADE, 2 SET NULL) plus 4 no-FK bare-name tables
+(`hidden_connections.a/.b`, `ultimate_parent.company/.ultimate_parent`,
+`ppr_results.entity`). On the 29 rows of the 2026-11-16 RPT spelling audit
+that meant 16 authored `events`/`event_participants` rows and 7
+`speaker_identity` links destroyed silently. Nine defects found, all by
+rehearsal against a byte-copy: **D1** child FKs never re-pointed (every
+delete raised and was swallowed by an `except IntegrityError` written for a
+different case → `entities_folded: 0`, looked like a no-op); **D2**
+`hyper_incidences` re-pointed only by the ledger sweep, which skips variants
+present in the current plan (−30 memberships); **D3** move-then-dedupe is
+wrong — UNIQUE is enforced per statement, so the raise rolled back every
+other table's re-point in the same `with con:` block
+(`UNIQUE constraint failed: hidden_connections.a, hidden_connections.b`);
+**D4** when the UNIQUE key column IS the moving column the "other key
+columns" predicate degenerates to nothing; **D5** `hyper_incidences` key
+recorded as `(edge_id, entity_name, role)` when the real
+`sqlite_autoindex_hyper_incidences_1` is `(edge_id, entity_name)` (`role` NULL
+on all 15,113 subsidiary incidences); **D6** the ledger recorded PLAN INTENT
+not outcome, so a variant that survived was recorded as folded and
+`fold_registry` then routed to a canonical while the variant still existed;
+**D7** a rehearsal could append to the repo-tracked ledger, and because the
+append is idempotent the REAL run then appended 0 — observed live, 12 false
+rows swept into patch `graph_dedupe`; **D8** `hyper_edges.label` is a bare
+string with no FK, so folding a parent name orphaned 3 `subsidiary`
+hyperedges (ids 35061/35366/35448) — found only on the live store; **D9**
+already-folded variants were reported as `retained` ("stuck") instead of
+`already_absent`. Fix: `_REFOLD_COLUMNS` (19 `(table, column, unique_key)`
+entries) + `_refold_entity_refs` with COLLIDE-BEFORE-MOVE, called at BOTH
+deletion sites; `entity_fk_children` + `TestRefoldCoverage` fail the build
+when a new FK onto `entities(name)` lacks an entry; `_ledger_write_allowed`
+refuses a repo-tracked ledger from any DB that is not `memory/research.db`;
+`apply_plan` ledgers only genuinely-deleted variants. Live run behind a
+verified recovery point (`research_pre_live_fold.db.zst`, 102,385,882 B,
+integrity ok): `entities_folded: 12`, `fold_ledger_appended: 12`,
+`zero_loss_ok: true`; entities 27,826→27,814, edges 87,117→87,082,
+hyper_incidences 59,816→59,800, graph_analytics 204,256→204,132, all
+authored tables unchanged; `integrity_check` ok, `foreign_key_check` 0,
+`dup-census 0 <= baseline 0`, fileless dup groups 14→3. D8 closed by
+`derive_hyperedges --families subsidiary --apply` (prune 1464, insert 1461
+edges / 15,082 incidences, orphans 3→0, label collisions 11→9 — the
+remaining 9 are genuinely distinct entities, deferred to
+`name_key_letter_run_collapse`). 27 tests pass (`test_name_dedup` 24 +
+`test_person_dedup` 3); the 3 HUF person pairs were already folded
+2026-10-16. Proposal archived (database/).
+
+## 527. name_key letter-run collapse — S0–S4 landed (Option A + B: census sees what the writer stopped minting)
+
+`name_key` now joins runs of ≤4 single-character alphanumeric tokens post-casefold
+(`_LETTER_RUN_RE` + `_collapse_letter_runs`, `helpers/core/entity_identity.py:55/58`,
+applied at `:112`) so letter-spaced legal forms key as their glued twins:
+`designit a s` ≡ `designit as`, `s a b profiel bv` ≡ `sab profiel bv`,
+`tata steel belgium services n v` ≡ `… nv`. JOIN semantics via a lambda — a
+`\1` backreference captures only the last token (deletion, not join). **S0**
+(earlier, same arc): guarded camel split — `_camel_split` refuses any boundary
+leaving a <2-char fragment, so `GmbH`/`SpA`/`ApS`/`KGaA` no longer fracture
+while real compounds (`TechMahindra`, `HDFCBank`, `IndianOil`) still split.
+**S1** added 5 Class-1 pair tests + non-merge regressions; census went red
+(0 → 51 clusters on today's folded store, 57 on the proposal-date store) —
+the expected, recorded signal. Two S1-induced robustness bugs found and fixed:
+(1) `_resolve_party` (`related_party_sync.py:541`) honours a fold/census target
+only if that canonical exists in the current registry — under S1 both dotted and
+bare spellings share one key, so an absent global canonical no longer aborts
+graph_edges with an FK failure on fresh/partial DBs; within-run twins still mint
+ONE entity. (2) `apply_plan` ledger sweep (`name_dedup.py:698`) skips stale rows
+whose canonical is already absent — re-pointing onto a missing canonical violated
+FKs AFTER the signed fold had committed; 5 such pre-existing rows found on the
+live store. Cross-`entity_type` guard is an ASSERTION in `apply_plan`
+(`name_dedup.py:526-542`), not a review step. **S2**: all 51 clusters triaged —
+genuine spelling/letter-run variants, 0 cross-type, 0 ticker/CIN conflicts — and
+folded via gated `--apply --yes` behind a verified SQLite backup
+(`research.db.pre_s1_s2_backup`); `variants_folded: 51`, 0 rows lost, idempotent
+on re-run. Entities 27,802→27,751; `integrity_check` ok, `foreign_key_check` 0,
+census 22,832 names / 0 clusters, `dup-census 0 <= baseline 0`. §2.4: 3 pairs
+now `name_key`-equal and folded; the 4th (`UNO MINDA`/`UNOMINDA`, Class-2
+inner-space) stays an operator-ruled `kind: alias` ledger row (accepted residue).
+**S3** needed no baseline change (fold returned census to 0). **S4**: audited the
+four normalisation homes and DOCUMENTED them as three intentional tiers —
+`name_dedup.normalise` ≡ `name_key` (identity, already converged);
+`parse_newsletter.normalize_name` (PascalCase-underscore STORAGE format);
+`related_party_sync._loose_key` (writer-side FILER detector, strips legal tails +
+THE). S1 closed the one genuine §2.2 disagreement (dotted suffix `B.V` ≡ `BV`);
+the remaining differences are load-bearing, pinned by a new three-tier contract
+test (`test_entity_identity.py::test_s4_normalisation_tiers_are_intentionally_distinct`).
+Targeted suites 81 passed (4 files); `static_checks.py` clean (8 advisory)
+and `markdown_lint.py` clean. Proposal archived (database/).

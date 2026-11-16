@@ -106,7 +106,8 @@ def test_canonical_rule_listing_beats_degree_footnote_never_wins(con):
 def test_census_clusters_and_report_only_transpositions(con):
     cen = nd.census(con)
     keys = {c["key"] for c in cen["clusters"]}
-    assert "e i d parry india" in keys
+    # name_key_letter_run_collapse S1: the 'e i d' letter run joins to 'eid'.
+    assert "eid parry india" in keys
     hdfc = next(c for c in cen["clusters"] if c["key"] == "hdfc bank")
     assert hdfc["listed_hit"] is True
     assert hdfc["canonical"] == "HDFC Bank"
@@ -215,7 +216,8 @@ def test_person_clusters_excluded_and_listed_exempt(con):
     assert "d sivanandhan" not in keys  # excluded as a person cluster
     assert {pc["key"] for pc in cen["person_clusters"]} >= {"d sivanandhan"}
     # listed exemption: the A. O. Smith cluster stays mergeable
-    assert "a o smith india" in keys
+    # S1: 'a o' letter run joins to 'ao'.
+    assert "ao smith india" in keys
 
 
 def test_apply_skips_person_rows_from_stale_plan(con, tmp_path: Path):
@@ -292,6 +294,239 @@ def test_check_gate_baseline(con, tmp_path: Path):
 def test_apply_refuses_missing_plan(con, tmp_path: Path):
     with pytest.raises(SystemExit, match="missing"):
         nd.apply_plan(con, tmp_path / "nope.txt", yes=True)
+
+
+def test_apply_refuses_cross_entity_type_fold(tmp_path: Path):
+    """name_key_letter_run_collapse §4 acceptance #3: zero cross-type merges,
+    enforced by an assertion (not by operator review). A signed plan that
+    would fold a company spelling onto an index spelling must be refused
+    wholesale before any write."""
+    conn = sqlite3.connect(tmp_path / "g.db")
+    conn.execute(
+        "CREATE TABLE entities (name TEXT PRIMARY KEY, entity_type TEXT NOT NULL,"
+        " normalized_name TEXT, file_path TEXT)"
+    )
+    conn.execute(
+        "CREATE TABLE graph_edges (id INTEGER PRIMARY KEY, source TEXT NOT NULL,"
+        " target TEXT NOT NULL, edge_type TEXT, source_ref TEXT, symmetric INTEGER)"
+    )
+    conn.executemany(
+        "INSERT INTO entities VALUES (?, ?, 'x', NULL)",
+        [("RR KABEL", "company"), ("RR Kabel", "index")],
+    )
+    conn.commit()
+    plan = tmp_path / "cross_type_plan.jsonl"
+    plan.write_text(
+        json.dumps(
+            {
+                "canonical": "RR Kabel",
+                "variants": ["RR KABEL"],
+                "key": "rr kabel",
+                "listed_hit": False,
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    plan.with_suffix(".txt").write_text("# cross-type plan\n", encoding="utf-8")
+    with pytest.raises(AssertionError, match="cross-entity_type fold refused"):
+        nd.apply_plan(conn, plan, yes=True)
+    # nothing written
+    assert conn.execute("SELECT COUNT(*) FROM entities").fetchone()[0] == 2
+    conn.close()
+
+
+def test_apply_repoints_every_fk_child_before_deleting(tmp_path: Path):
+    """The 2026-11-16 defect: ``apply_plan`` re-pointed ``graph_edges`` and
+    ``hyper_incidences``, then deleted the variant entity — but every OTHER
+    foreign key onto ``entities(name)`` is ON DELETE CASCADE (or SET NULL),
+    so authored rows died with the row.
+
+    Measured on the live store while planning the RPT-spelling fold: the
+    duplicate-name groups would have taken 16 ``events`` /
+    ``event_participants`` rows and 7 ``speaker_identity`` links silently.
+    The fold must move every reference to the canonical instead."""
+    conn = sqlite3.connect(tmp_path / "fk.db")
+    conn.execute("PRAGMA foreign_keys=ON")
+    conn.execute("CREATE TABLE entities (name TEXT PRIMARY KEY, entity_type TEXT)")
+    conn.execute(
+        "CREATE TABLE graph_edges (id INTEGER PRIMARY KEY,"
+        " source TEXT REFERENCES entities(name) ON DELETE CASCADE,"
+        " target TEXT REFERENCES entities(name) ON DELETE CASCADE, edge_type TEXT,"
+        " source_ref TEXT, symmetric INTEGER)"
+    )
+    conn.execute(
+        "CREATE TABLE hyper_incidences (edge_id INTEGER, entity_name TEXT"
+        " REFERENCES entities(name) ON DELETE CASCADE, role TEXT)"
+    )
+    # the four shapes that actually bite: authored, cascade-deleted, no re-point
+    conn.execute(
+        "CREATE TABLE events (id INTEGER PRIMARY KEY, entity TEXT"
+        " REFERENCES entities(name) ON DELETE CASCADE,"
+        " counterparty_entity TEXT REFERENCES entities(name) ON DELETE SET NULL)"
+    )
+    conn.execute(
+        "CREATE TABLE event_participants (event_id INTEGER, participant TEXT"
+        " REFERENCES entities(name) ON DELETE CASCADE, role TEXT)"
+    )
+    conn.execute(
+        "CREATE TABLE speaker_identity (alias_name TEXT UNIQUE,"
+        " canonical_name TEXT, person_name TEXT REFERENCES entities(name) ON DELETE SET NULL)"
+    )
+    conn.execute(
+        "CREATE TABLE entity_tags (entity_name TEXT REFERENCES entities(name)"
+        " ON DELETE CASCADE, tag TEXT, UNIQUE(entity_name, tag))"
+    )
+    conn.executemany(
+        "INSERT INTO entities VALUES (?, 'company')",
+        [("Acme Ltd",), ("Acme Limited",), ("ThirdCo",)],
+    )
+    conn.executemany(
+        "INSERT INTO graph_edges (source, target, edge_type) VALUES (?, 'ThirdCo', 'supplier_to')",
+        [("Acme Ltd",), ("Acme Limited",)],
+    )
+    # authored rows hanging off the VARIANT — these are what the fold loses
+    conn.execute(
+        "INSERT INTO events (entity, counterparty_entity) VALUES ('Acme Limited', 'Acme Limited')"
+    )
+    conn.execute("INSERT INTO event_participants VALUES (1, 'Acme Limited', 'subject')")
+    conn.execute(
+        "INSERT INTO speaker_identity VALUES ('Acme Ltd (speaker)', 'Acme Limited', 'Acme Limited')"
+    )
+    conn.executemany(
+        "INSERT INTO entity_tags VALUES (?, 'rpt')", [("Acme Ltd",), ("Acme Limited",)]
+    )
+    conn.commit()
+
+    plan = tmp_path / "plan.txt"
+    plan.write_text(
+        "== Acme Ltd  (key: acme ltd; edge rows 2)\n   Acme Ltd\n   Acme Limited  -> fold\n"
+    )
+    plan.with_suffix(".jsonl").write_text(
+        json.dumps({"canonical": "Acme Ltd", "variants": ["Acme Limited"]}) + "\n"
+    )
+    res = nd.apply_plan(conn, plan, yes=True)
+
+    # nothing authored was lost
+    assert conn.execute("SELECT COUNT(*) FROM events").fetchone()[0] == 1
+    assert conn.execute("SELECT COUNT(*) FROM event_participants").fetchone()[0] == 1
+    assert conn.execute("SELECT COUNT(*) FROM speaker_identity").fetchone()[0] == 1
+    # ...and every one of them now points at the canonical spelling
+    assert conn.execute("SELECT entity FROM events").fetchone()[0] == "Acme Ltd"
+    assert conn.execute("SELECT counterparty_entity FROM events").fetchone()[0] == "Acme Ltd"
+    assert conn.execute("SELECT participant FROM event_participants").fetchone()[0] == "Acme Ltd"
+    assert conn.execute("SELECT person_name FROM speaker_identity").fetchone()[0] == "Acme Ltd"
+    # the UNIQUE(entity_name, tag) collision collapsed instead of exploding
+    assert conn.execute("SELECT COUNT(*) FROM entity_tags").fetchone()[0] == 1
+    assert res["refs_collapsed"] == 1
+    assert res["refs_repointed"]["events.entity"] == 1
+    assert res["entities_folded"] == 1
+    # the variant row is gone
+    assert (
+        conn.execute("SELECT COUNT(*) FROM entities WHERE name='Acme Limited'").fetchone()[0] == 0
+    )
+    conn.close()
+
+
+def test_ledger_records_only_variants_that_actually_folded(tmp_path: Path):
+    """A rehearsal (``apply_plan`` against a byte-copy) wrote a repo-tracked
+    ledger asserting 12 folds that never happened; because the append is
+    idempotent, the REAL run then appended nothing and the audit trail lied.
+
+    Two guards, both asserted here: (1) a variant whose entity SURVIVED is
+    never recorded; (2) a repo-tracked ledger is refused for a non-live DB.
+    """
+    conn = sqlite3.connect(tmp_path / "g.db")
+    conn.execute("PRAGMA foreign_keys=ON")
+    conn.execute("CREATE TABLE entities (name TEXT PRIMARY KEY, entity_type TEXT)")
+    conn.execute(
+        "CREATE TABLE graph_edges (id INTEGER PRIMARY KEY, source TEXT, target TEXT,"
+        " edge_type TEXT, source_ref TEXT, symmetric INTEGER)"
+    )
+    conn.executemany(
+        "INSERT INTO entities VALUES (?, 'company')",
+        [("Acme Ltd",), ("Acme Limited",), ("ThirdCo",)],
+    )
+    conn.execute(
+        "INSERT INTO graph_edges (source, target, edge_type) VALUES"
+        " ('Acme Limited', 'ThirdCo', 'supplier_to')"
+    )
+    conn.commit()
+
+    plan = tmp_path / "plan.txt"
+    plan.write_text("== Acme Ltd\n   Acme Ltd\n   Acme Limited  -> fold\n")
+    plan.with_suffix(".jsonl").write_text(
+        json.dumps({"canonical": "Acme Ltd", "variants": ["Acme Limited"]}) + "\n"
+    )
+    ledger = tmp_path / "ledger.jsonl"
+    res = nd.apply_plan(conn, plan, yes=True, ledger_path=ledger)
+    assert res["entities_folded"] == 1
+    assert res["fold_ledger_appended"] == 1
+    assert res["entities_retained_names"] == []
+
+    # (1) a variant that could not be deleted is reported, not recorded
+    conn.execute("INSERT INTO entities VALUES ('Acme Limited', 'company')")
+    # a NO ACTION child the fold does not know about keeps the row alive
+    conn.execute("CREATE TABLE stranger (entity TEXT REFERENCES entities(name))")
+    conn.execute("INSERT INTO stranger VALUES ('Acme Limited')")
+    conn.commit()
+    assert conn.execute("PRAGMA foreign_keys").fetchone()[0] == 1
+    plan2 = tmp_path / "plan2.txt"
+    plan2.write_text("== Acme Ltd\n   Acme Ltd\n   Acme Limited  -> fold\n")
+    plan2.with_suffix(".jsonl").write_text(
+        json.dumps({"canonical": "Acme Ltd", "variants": ["Acme Limited"]}) + "\n"
+    )
+    ledger2 = tmp_path / "ledger2.jsonl"
+    res2 = nd.apply_plan(conn, plan2, yes=True, ledger_path=ledger2)
+    assert res2["entities_folded"] == 0
+    assert res2["entities_retained_names"] == ["Acme Limited"]
+    assert res2["fold_ledger_appended"] == 0
+    assert not ledger2.exists() or ledger2.read_text(encoding="utf-8") == ""
+    conn.close()
+
+
+def test_repo_ledger_refused_for_non_live_db(tmp_path: Path):
+    """The durable ledger only accepts the store it describes."""
+    conn = sqlite3.connect(tmp_path / "copy.db")
+    allowed, why = nd._ledger_write_allowed(conn, nd.LEDGER_PATH)
+    assert allowed is False
+    assert "repo-tracked" in why
+    # a ledger outside the repo is always writable
+    allowed, _ = nd._ledger_write_allowed(conn, tmp_path / "l.jsonl")
+    assert allowed is True
+    # in-memory has no file to point at
+    mem = sqlite3.connect(":memory:")
+    allowed, why = nd._ledger_write_allowed(mem, tmp_path / "l.jsonl")
+    assert allowed is False and "in-memory" in why
+    conn.close()
+    mem.close()
+
+
+@pytest.mark.live
+class TestRefoldCoverage:
+    """A new foreign key onto ``entities(name)`` without a ``_REFOLD_COLUMNS``
+    entry turns the next fold into silent data loss. This guard makes that
+    a gate failure instead."""
+
+    def test_every_entity_fk_has_a_refold_entry(self):
+        from helpers.core.db import connect  # noqa: E402, PLC0415
+
+        con = connect()
+        try:
+            children = nd.entity_fk_children(con)
+        finally:
+            con.close()
+        covered = {(table, column) for table, column, _ in nd._REFOLD_COLUMNS}
+        # graph_edges and hyper_incidences have DEDICATED re-point loops in
+        # apply_plan (they carry the relation payload + intra-variant
+        # self-loop and UNIQUE(source, target, edge_type) consolidation), so
+        # they are not _REFOLD_COLUMNS entries by design.
+        covered |= {("graph_edges", "source"), ("graph_edges", "target")}
+        covered |= {("hyper_incidences", "entity_name")}
+        assert not (children - covered), (
+            "FK children of entities(name) missing a _REFOLD_COLUMNS re-point entry"
+            f" (apply_plan would cascade-delete them): {sorted(children - covered)}"
+        )
 
 
 @pytest.mark.live

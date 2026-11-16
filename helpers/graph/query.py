@@ -878,7 +878,7 @@ def _note_sidecar_path(duckdb_path: Path) -> Path | None:
     return cand if cand.is_file() else None
 
 
-def _probe_note_embed_state(
+def _probe_note_embed_state(  # noqa: C901  # probe: schema-variant ladder
     duckdb_path: Path, db_path: Path | None = None
 ) -> tuple[str | None, str | None]:
     """Live (note_embed_dims, note_embed_model) probe for _is_warm.
@@ -956,7 +956,9 @@ def _probe_note_embed_state(
     return None, None
 
 
-def _mark_warm(con: duckdb.DuckDBPyConnection, db_path: Path) -> None:
+def _mark_warm(  # noqa: C901  # warm-mark: per-table/per-mode branches
+    con: duckdb.DuckDBPyConnection, db_path: Path
+) -> None:
     """Record build provenance in _build_meta after a successful build."""
     con.execute(_BUILD_META_DDL)
     # P0: stamp generation from SQLite db_meta so _is_warm can do O(1) staleness
@@ -1152,7 +1154,9 @@ _FP_KEY_PREFIX = "fp:"
 _EDGE_FP_COLS = "source, target, weight, properties, source_ref, valid_from, valid_to"
 
 
-def _compute_input_fingerprints(con: duckdb.DuckDBPyConnection) -> dict[str, str]:
+def _compute_input_fingerprints(  # noqa: C901  # fingerprints: per-input-kind branch ladder
+    con: duckdb.DuckDBPyConnection,
+) -> dict[str, str]:
     """Fingerprint every materialised table's input slice, one scan each.
 
     Requires ``fin`` ATTACHed (the build and patch paths both do). The edge

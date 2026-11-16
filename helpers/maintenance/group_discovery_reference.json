@@ -1,7 +1,7 @@
 [
   {
-    "size": 1082,
-    "internal_edges": 3178,
+    "size": 1081,
+    "internal_edges": 3177,
     "density": 0.0054,
     "top_refs": [
       [
@@ -27,8 +27,8 @@
         3
       ],
       [
-        "Engineering_Capital_Goods",
-        2
+        "Consumer",
+        3
       ]
     ],
     "family_members": [
@@ -98,8 +98,6 @@
       "TACO Prestolite Electric",
       "TACO Punch Powertrain",
       "TAJ SATS AIR CATERING",
-      "TATA 1MG HEALTHCARE SOLUTIONS",
-      "TATA 1MG TECHNOLOGIES",
       "TATA AUTOCOMP SYSTEMS",
       "TATA Africa Holdings (Kenya)",
       "TATA COMMUNICATIONS TRANSFORMATION SERVICES",
@@ -136,6 +134,8 @@
       "Taj GVK Hotels And Resorts",
       "Taj International Hotels",
       "Tata",
+      "Tata 1mg Healthcare Solutions",
+      "Tata 1mg Technologies",
       "Tata AIA Life Insurance Company",
       "Tata AIG General Insurance Company",
       "Tata Advanced Systems",
@@ -239,7 +239,7 @@
       "Tata Steel Utilities and Infrastructure Services",
       "Tata Technologies",
       "Tata Technologies Europe",
-      "Tata Technologies Gmbh",
+      "Tata Technologies GmbH",
       "Tata Technologies Inc",
       "Tata Technologies Pte",
       "Tata Tele NXTGEN Solutions",
@@ -275,10 +275,10 @@
     "members_sample": [
       "Auxilo Finserve",
       "Tata Teleservices (Maharashtra)",
-      "Tata Passenger Electric Mobility",
-      "TATA INDUSTRIES",
-      "TCS Foundation",
-      "TALAKRIT FOUNDATION"
+      "AIR INDIA",
+      "Benares Hotels",
+      "Oriental Hotels",
+      "United Overseas Holdings Inc"
     ]
   },
   {
@@ -479,15 +479,15 @@
     ],
     "members_sample": [
       "Aditya Birla Sun Life AMC",
-      "Grasim Industries - Paints Division",
-      "Aditya Birla ARC",
+      "Aditya Birla wellness",
       "Aditya Birla Health Insurance Company",
-      "Vodafone Idea",
-      "Vodafone Roaming Services S.\u00e0 r.l"
+      "Vodafone Idea Shared Services",
+      "Vodafone Idea Technology Solutions",
+      "Aditya Birla Fashion and Retail"
     ]
   },
   {
-    "size": 798,
+    "size": 793,
     "internal_edges": 1451,
     "density": 0.0046,
     "top_refs": [
@@ -645,9 +645,9 @@
       "AIA Engineering",
       "Torrent Power",
       "Central Transmission Utility of India",
-      "Torrent Green Energy",
-      "Torrent Saurya Urja 2",
-      "Torrent Solar Power"
+      "Airpower Windfarms",
+      "Torrent Power Grid",
+      "Torrent Saurya Urja 2"
     ]
   },
   {
@@ -750,11 +750,11 @@
     "merge_flags": [],
     "members_sample": [
       "ACC Concrete South",
-      "Bulk Cement Corporation (India)",
+      "ACC Concrete West",
       "Ambuja Cements",
-      "Victorlane Projects",
-      "ACC Mineral Resources",
-      "Chasepoint Projects"
+      "Sanghi Industries",
+      "Samruddhi Investors Services . ( As part of promoter group)",
+      "Adani Cement Industries"
     ]
   },
   {
@@ -777,12 +777,12 @@
     ],
     "sectors": [
       [
-        "Media_Entertainment",
-        3
+        "Metals",
+        4
       ],
       [
-        "Telecommunications",
-        2
+        "Media_Entertainment",
+        3
       ],
       [
         "FMCG",
@@ -934,10 +934,10 @@
     "members_sample": [
       "Afcons - Vijeta Joint Venture",
       "Shapoorji Pallonji & Company",
-      "Afcons JAL Joint Venture",
       "Afcons \u2013 Sibmost \u2013 Joint Venture",
-      "Transtonnelstroy-Afcons Joint Venture",
-      "Forvol International Service"
+      "Afcons Overseas Singapore Pte",
+      "S P Engineering Service Pte",
+      "Transtonnelstroy-Afcons Joint Venture"
     ]
   },
   {
@@ -969,11 +969,11 @@
     "merge_flags": [],
     "members_sample": [
       "C&S Electric",
-      "Siemens Industrial , Bangladesh",
+      "Siemens Energy, Inc., USA",
       "Siemens",
-      "Siemens Energy S.r.l., Italy",
-      "Siemens, Inc., Philippines",
-      "Siemens (N.Z.) , New Zealand"
+      "Siemens Industrial LLC, UAE",
+      "Siemens LLC, UAE",
+      "Siemens Eletroeletronica Limitada"
     ]
   },
   {
@@ -1211,25 +1211,25 @@
     "merge_flags": [],
     "members_sample": [
       "Aaralyn Builders & Developers",
-      "DLF Cyber City Developers",
-      "NIABI BUILDERS & DEVELOPERS",
-      "Jayanti Real Estate Developers (merged with DLF w.e.f. 14.01.2026)",
-      "Zanobi Builders & Constructions",
-      "ATHEROL BUILDERS & DEVELOPERS (merged with DLF w.e.f. 14.01.2026)"
+      "Ananti Builders & Construction",
+      "Hoshi Builders & Developers",
+      "DLF LUXURY HOMES",
+      "Musetta Builders & Developers",
+      "TANE ESTATE"
     ]
   },
   {
-    "size": 195,
-    "internal_edges": 427,
-    "density": 0.0226,
+    "size": 192,
+    "internal_edges": 424,
+    "density": 0.0231,
     "top_refs": [
       [
         "vigil:rpt:GODREJCP",
-        230
+        228
       ],
       [
         "vigil:rpt:GODREJPROP",
-        126
+        125
       ],
       [
         "vigil:rpt:GODREJIND",
@@ -1238,15 +1238,15 @@
     ],
     "sectors": [
       [
+        "Diversified",
+        1
+      ],
+      [
         "Real_Estate",
         1
       ],
       [
         "Agriculture",
-        1
-      ],
-      [
-        "FMCG",
         1
       ]
     ],
@@ -1260,11 +1260,11 @@
     "merge_flags": [],
     "members_sample": [
       "Astec Lifesciences",
-      "GODREJ FOODS",
-      "GODREJ ONE PREMISES MANAGEMENT",
-      "Godrej Finance",
-      "Godrej Wealth and Asset Management",
-      "Godrej Investment"
+      "Godrej Industries",
+      "Godrej Vestamark LLP",
+      "Godrej and Boyce Manufacturing Company",
+      "Godrej Properties",
+      "Godrej Greenview Housing"
     ]
   },
   {
@@ -1477,10 +1477,10 @@
     "members_sample": [
       "Airmid Properties",
       "Sepset Real Estate",
-      "Tapir Constructions",
-      "Airmid Real Estate",
-      "Embassy International Riding School",
-      "Reque Developers"
+      "Diana Infrastructure",
+      "Lucina Land Development",
+      "Elena Properties",
+      "Devona Constructions"
     ]
   },
   {
@@ -1677,20 +1677,20 @@
     "members_sample": [
       "Aero Treatment",
       "Motherson Air Travel Agencies",
-      "Samvardhana Motherson Adsys Tech",
-      "Motherson Technology Service (Formerly MothersonSumi Infotech and Designs )",
-      "AEES Inc",
-      "SMR Automotive Operations Japan k.k"
+      "MSSL Japan",
+      "Motherson Technology Services Kabushiki Gaisha",
+      "Motherson Yachiyo Automotive Systems Co., (formerly Yachiyo Industry Co., )",
+      "Motherson Yachiyo Automobile"
     ]
   },
   {
-    "size": 159,
-    "internal_edges": 158,
-    "density": 0.0126,
+    "size": 158,
+    "internal_edges": 157,
+    "density": 0.0127,
     "top_refs": [
       [
         "vigil:rpt:HONAUT",
-        158
+        157
       ]
     ],
     "sectors": [
@@ -1705,10 +1705,10 @@
     "members_sample": [
       "AO\u00a0Honeywell",
       "Honeywell Automation India",
-      "Honeywell\u00a0Advanced",
-      "Tridium Inc",
-      "Honeywell\u00a0Control\u00a0Systems",
-      "HONEYWELL\u00a0AUTOMATION\u00a0TECHNOLOGY CHINA CO"
+      "Honeywell\u00a0Life\u00a0Safety\u00a0AS",
+      "Maxon\u00a0International\u00a0BV",
+      "Life\u00a0Safety\u00a0Germany\u00a0GmbH",
+      "Sine Group Pty"
     ]
   },
   {
@@ -1733,16 +1733,16 @@
     "members_sample": [
       "AMERICAN POWER CONVERSION",
       "Schneider Electric Infrastructure",
-      "Schneider Electric De Colombia Sa",
-      "Schneider Electric Ireland",
-      "SCHNEIDER ELECTRIC FINLAND OY",
-      "Schneider Electric Industries SAS Dubai"
+      "Schneider Electric (Malaysia) Sdn Bhd",
+      "Schneider Elektrik",
+      "Schneider Electric President Systems",
+      "Schneider Electric It Logistics Europe"
     ]
   },
   {
-    "size": 150,
+    "size": 148,
     "internal_edges": 327,
-    "density": 0.0293,
+    "density": 0.0301,
     "top_refs": [
       [
         "vigil:rpt:CHOLAHLDNG",
@@ -1777,10 +1777,10 @@
     "members_sample": [
       "CUMI (Australia) Pty",
       "Wendt (India)",
-      "E.I.D. Parry (India)",
-      "Algavistha green tech",
-      "Cholamandalam MS Risk Services Limi",
-      "M M Murugappan"
+      "Tube Investments of India",
+      "Cholamandalam Ms Risk Services",
+      "Ambadi Investments",
+      "Murugappa Management Services"
     ]
   },
   {
@@ -1799,11 +1799,11 @@
     ],
     "sectors": [
       [
-        "Aviation",
+        "Energy",
         1
       ],
       [
-        "Energy",
+        "Aviation",
         1
       ]
     ],
@@ -1812,21 +1812,21 @@
     "merge_flags": [],
     "members_sample": [
       "Delhi Airport Parking Services",
-      "GMR Airport Developers",
-      "GMR VISAKHAPATNAM INTERNATIONAL AIR",
-      "GMR Krishnagiri SIR",
-      "Gerbera Properties",
-      "GMR Highways"
+      "GMR Energy Trading",
+      "GMR Airports (formerly GMR Airports Infrastructure )",
+      "GMR SEZ & Port Holdings",
+      "GMR Pochanpalli Expressways",
+      "GMR Ambala-Chandigarh Expressways"
     ]
   },
   {
-    "size": 136,
-    "internal_edges": 400,
-    "density": 0.0436,
+    "size": 132,
+    "internal_edges": 389,
+    "density": 0.045,
     "top_refs": [
       [
         "vigil:rpt:TVSSCS",
-        320
+        309
       ],
       [
         "vigil:rpt:ASHOKLEY",
@@ -1847,7 +1847,7 @@
         1
       ],
       [
-        "Energy",
+        "FMCG",
         1
       ]
     ],
@@ -1860,11 +1860,11 @@
     "merge_flags": [],
     "members_sample": [
       "Albonair (Taicang) Automotive Technology Co. ., China",
-      "Albonair GmbH, Germany",
       "Albonair India",
-      "Gro Digital Platforms",
-      "Vishwa Bus and Coaches",
-      "Global TVS Bus Body Builders"
+      "Hinduja Tech",
+      "Ashok Leyland",
+      "Hinduja Global Solutions",
+      "Gulf Oil Lubricants India"
     ]
   },
   {
@@ -2020,10 +2020,10 @@
     "members_sample": [
       "ASAP Electronics GmbH",
       "HCL Technologies",
-      "Shiv Nadar",
-      "Symplicit Pty",
-      "DWS (NSW) Pty",
-      "DWS"
+      "HCL Technologies UK",
+      "Datawave (An HCL Technologies Company)",
+      "Point to Point",
+      "Axon Solutions Pty"
     ]
   },
   {
@@ -2048,10 +2048,10 @@
     "members_sample": [
       "ABB (China)",
       "ABB India",
-      "ABB Guangdong Winride Switchgear Co",
-      "ABB Xiamen Smart Technology Co",
-      "B&R Industrial Automation",
-      "ABB SIA"
+      "ABB E-mobility B.V",
+      "ABB Industries FZE",
+      "ABB Business Services",
+      "ABB AG; Mannheim; Germany"
     ]
   },
   {
@@ -2087,10 +2087,10 @@
     "merge_flags": [],
     "members_sample": [
       "Bharat Petroleum Corporation",
-      "Fino Paytech",
       "Fino Payments Bank",
-      "Petronet LNG",
-      "Indian Oil Corporation IOCL",
+      "Indraprastha Gas",
+      "Central U.P. Gas",
+      "IGL Genesis Technology",
       "GAIL India"
     ]
   },
@@ -2228,19 +2228,19 @@
       "GE T&D India",
       "LM Wind Power Blades (India)",
       "GE Vernova T&D India",
-      "GE Vernova Electrification Software France",
-      "UK Grid Solutions",
-      "Grid Solutions (Thailand)"
+      "Grid Solutions SAS - Bahrein Branch",
+      "GE Energy Power Conversion Group",
+      "GE Vernova Electrification Software France"
     ]
   },
   {
-    "size": 106,
-    "internal_edges": 378,
-    "density": 0.0679,
+    "size": 104,
+    "internal_edges": 369,
+    "density": 0.0689,
     "top_refs": [
       [
         "vigil:rpt:ENTERO",
-        378
+        369
       ]
     ],
     "sectors": [
@@ -2286,7 +2286,6 @@
       "Dhanvanthari Super Speciality",
       "Entero Healthcare Sol",
       "Entero Healthcare Solutions",
-      "Entero R.S.Enterprises",
       "Entero Rs Enterprises",
       "Evaevo Lifescience",
       "G S Pharmaceutical Distributors",
@@ -2312,7 +2311,6 @@
       "Novacare",
       "Novacare Healthcare Solutions",
       "Peerless Biotech",
-      "R S M Pharma",
       "R.S. Enterprises (Bangalore)",
       "R.S.Enterpirses (Mysore)A/C",
       "R.S.Enterprises(B) , (Ret)",
@@ -2357,15 +2355,15 @@
       "Western Healthcare Solutions",
       "White Hope Pharmaceutical"
     ],
-    "family_hit_count": 106,
+    "family_hit_count": 104,
     "merge_flags": [],
     "members_sample": [
       "Ace Cardiopathy Solutions",
       "Entero Healthcare Solutions",
-      "Ujjain Maheshwari Pharma Distributors",
-      "Sree Venkateshwara Medisolutions",
-      "R S M Pharma",
-      "City Pharma Distributor"
+      "Chethana Healthcare Solutions",
+      "Curever Pharm",
+      "Gourav Medical Agencies",
+      "Suprabhat Pharmaceuticals -Reimb"
     ]
   },
   {
@@ -2492,21 +2490,21 @@
     "merge_flags": [],
     "members_sample": [
       "Ace Realty Ventures",
-      "Sublime",
-      "Prestige Projects",
-      "Rezwan Razack",
-      "Morph",
-      "Faiz Rezwan"
+      "Morph Design Company",
+      "Prestige Property Management & Services",
+      "Uzma Irfan",
+      "Northland Holding Company",
+      "Fajr Qureishi"
     ]
   },
   {
-    "size": 96,
-    "internal_edges": 157,
-    "density": 0.0344,
+    "size": 95,
+    "internal_edges": 155,
+    "density": 0.0347,
     "top_refs": [
       [
         "vigil:rpt:UNOMINDA",
-        142
+        140
       ],
       [
         "vigil:rpt:MINDACORP",
@@ -2526,9 +2524,9 @@
       "MIL - (Minda Instrument )",
       "Minda Capital",
       "Minda Corporation",
-      "Minda Silca Engineering",
       "Minda Furukawa Electrical",
-      "Minda HCMF"
+      "Minda Infac",
+      "Minda Silca"
     ]
   },
   {
@@ -2552,11 +2550,11 @@
     "merge_flags": [],
     "members_sample": [
       "Oracle (OFSS) BPO Services Inc",
-      "Oracle Financial Services Software, Inc",
-      "Oracle Financial Services Software Chile Limitada",
-      "Sistemas Oracle de Chile Limitada",
-      "Oracle do Brasil Sistemas Limitada",
-      "Oracle Colombia Limitada"
+      "Oracle Financial Services Software",
+      "Oracle Systems Hong Kong",
+      "Oracle East Central Europe",
+      "Oracle Financial Services Software SA",
+      "Oracle Iberica, S.R.L"
     ]
   },
   {
@@ -2591,11 +2589,11 @@
     "merge_flags": [],
     "members_sample": [
       "Bellissimo Digital Infrastructure Development Management",
-      "Palava Induslogic 2",
       "Cowtown Infotech Services",
+      "Palava Induslogic 4",
       "National Standard (India)",
-      "Bellissimo In City FC Mumbai 1",
-      "V Hotels"
+      "Roselabs Finance",
+      "Janus Logistics And Industrial Parks"
     ]
   },
   {
@@ -2620,10 +2618,10 @@
     "members_sample": [
       "BASF (Shanghai) Coatings Manufacturing Company",
       "BASF India Coatings",
-      "BASF Chemicals India",
-      "BASF India",
-      "BASF Italia S.p.A",
-      "BASF Chemicals Company"
+      "BASF Coatings (Guangdong) Co",
+      "BASF Coatings Vietnam Co",
+      "BASF Coatings Gmbh",
+      "BASF India"
     ]
   },
   {
@@ -2667,10 +2665,10 @@
     "members_sample": [
       "Associated CEAT ( .)",
       "CEAT",
-      "Ceat Kelani International Tyres ( .)",
-      "Ceat OHT Lanka ( )",
       "Chattarpati Apartments LLP",
-      "Zensar Technologies"
+      "Zensar Technologies",
+      "Instant Holdings",
+      "STEL Holdings"
     ]
   },
   {
@@ -2776,11 +2774,11 @@
     "merge_flags": [],
     "members_sample": [
       "Adeline Pharmaceuticals",
-      "Assam Hospitals",
-      "Apollo Hospital Educational Trust",
-      "Apollo Health & Lifestyle",
-      "Apollo Rajshree Hospital P",
-      "Rajshree Catering Services"
+      "Apollo Healthco",
+      "Palepu Pharma Distributors",
+      "Focus Medisales",
+      "Medihauxe Pharmaceuticals",
+      "Indraprastha Medical Corporation"
     ]
   },
   {
@@ -2887,33 +2885,38 @@
     "members_sample": [
       "Ashoka Highway Research Centre",
       "Viva Highways",
-      "Ashoka Highways Bhandara",
-      "Ashoka Highway Ad",
-      "Unique Hyport Renewable Energy - Loan",
+      "Viva Infrastructures",
+      "Unique Hyport Renewable Energy",
+      "Ashoka Infrastructure",
       "Unique Hybrid Renewable Energy"
     ]
   },
   {
-    "size": 79,
-    "internal_edges": 78,
-    "density": 0.0253,
+    "size": 77,
+    "internal_edges": 76,
+    "density": 0.026,
     "top_refs": [
       [
         "vigil:rpt:VESUVIUS",
-        78
+        76
       ]
     ],
-    "sectors": [],
+    "sectors": [
+      [
+        "Engineering_Capital_Goods",
+        1
+      ]
+    ],
     "family_members": [],
     "family_hit_count": 0,
     "merge_flags": [],
     "members_sample": [
       "Foseco (Thailand)",
       "Vesuvius India",
-      "Vesuvius Ceska Republic A.S",
-      "Vesuvius Zyarock Ceramics (Suzhou) Co",
-      "Vesuvius South Africa (Pty)",
-      "Yingkou Ying Wei Mag Co"
+      "Vesuvius GmbH",
+      "Vesuvius Refractory India",
+      "PROCESS METRIX SAS",
+      "Vesuvius Poland Sp.z.o.o"
     ]
   },
   {
@@ -2942,10 +2945,10 @@
     "members_sample": [
       "AxleTech India",
       "Cummins India",
-      "Cummins Power Generation Inc",
-      "Distribuidora Cummins Centroamerica Honduras, S.de R.L",
-      "Cummins Brasil a",
-      "Cummins Saudi Arabia LLC"
+      "Cummins Westport Inc",
+      "Cummins Power Generation UK",
+      "Cummins DKSH (Vietnam) LLC",
+      "Cummins Deutschland GmbH"
     ]
   },
   {
@@ -2970,10 +2973,10 @@
     "members_sample": [
       "Canadian Kay Pump",
       "KSB",
-      "KSB PUMPS AND VALVES (NAMIBIA)",
-      "KSB Valves (Changzhou) Co",
-      "KSB MIL Controls",
-      "KSB Pumps and Valves Nigeria"
+      "KSB Singapore",
+      "KSB Finland Oy",
+      "KSB Service GmbH",
+      "KSB Pumps and valves L.t.d"
     ]
   },
   {
@@ -3001,39 +3004,11 @@
     "merge_flags": [],
     "members_sample": [
       "Arcolab",
+      "Biolexis Pte (formerly Stelis Pte )",
       "Onesource Specialty Pte",
-      "Strides Pharma Global Pte",
-      "Strides Pharma (SA) (Pty)",
-      "Strides CIS",
-      "Arco Lab"
-    ]
-  },
-  {
-    "size": 73,
-    "internal_edges": 120,
-    "density": 0.0457,
-    "top_refs": [
-      [
-        "vigil:rpt:DBREALTY",
-        120
-      ]
-    ],
-    "sectors": [
-      [
-        "Real_Estate",
-        1
-      ]
-    ],
-    "family_members": [],
-    "family_hit_count": 0,
-    "merge_flags": [],
-    "members_sample": [
-      "Advent Hotels International",
-      "Shiva Buildcon",
-      "Bamboo Hotel & Global Centre (Delhi)",
-      "NeelKamal Realtors Suburban",
-      "Goodspot Enterprises",
-      "Horizontal Ventures"
+      "Strides Pharma Inc",
+      "OneSource Softgels Pte",
+      "Strides Pharma (Cyprus)"
     ]
   },
   {
@@ -3131,11 +3106,11 @@
     "merge_flags": [],
     "members_sample": [
       "Cadensworth FZE",
-      "Ensure Gulf FZE",
-      "Redington Ghana",
-      "Redington Gulf & CO LLC",
-      "Redington Bahrain W.L.L",
-      "Redington Saudi Arabia Dist. Co"
+      "Proconnect UAE",
+      "Redington Gulf FZE",
+      "REDINGTON RWANDA",
+      "Proconnect Supply Chain Logistics LLC-UAE",
+      "Proconnect Saudi LLC \u2013 KSA"
     ]
   },
   {
@@ -3160,10 +3135,38 @@
     "members_sample": [
       "Ewellix India ., India",
       "Schaeffler India",
-      "Schaeffler B\u00fchl Verwaltungs GmbH",
-      "Schaeffler Japan Co. , Japan",
       "Schaeffler Brasil a., Brazil",
-      "Schaeffler (UK) , UK"
+      "Schaeffler Industrial Remanufacturing Services AG & Co, KG., Germany",
+      "Vitesco Technologies India . , India",
+      "Schaeffler Vehicle Lifetime Solutions USA LLC"
+    ]
+  },
+  {
+    "size": 71,
+    "internal_edges": 118,
+    "density": 0.0475,
+    "top_refs": [
+      [
+        "vigil:rpt:DBREALTY",
+        118
+      ]
+    ],
+    "sectors": [
+      [
+        "Real_Estate",
+        1
+      ]
+    ],
+    "family_members": [],
+    "family_hit_count": 0,
+    "merge_flags": [],
+    "members_sample": [
+      "Advent Hotels International",
+      "Shiva Buildcon",
+      "Bamboo Hotel & Global Centre (Delhi)",
+      "NeelKamal Realtors Suburban",
+      "Goregaon Hotel And Realty",
+      "Om Metals Consortium"
     ]
   },
   {
@@ -3259,11 +3262,11 @@
     "merge_flags": [],
     "members_sample": [
       "A.S. Packers",
-      "Copmed Pharmaceuticals",
-      "Sirmour Remedies",
-      "Pharma Force Lab",
-      "JPR Labs",
-      "Upakarma Ayurveda"
+      "Mankind Life sciences",
+      "Alankrit Handicrafts",
+      "Broadway Hospitality Services",
+      "Prolijune lifesciences",
+      "Jaspack Industries"
     ]
   },
   {
@@ -3359,11 +3362,11 @@
     "merge_flags": [],
     "members_sample": [
       "Blink Interactive, Inc",
-      "Digital Risk, LLC",
-      "Digital Risk Valuation Services, LLC",
-      "Digital Risk Mortgage Services, India Branch",
-      "Msource (India)",
-      "Mphasis Australia- Taiwan Branch"
+      "Mphasis Corporation",
+      "Mphasis Infrastructure Services, Inc",
+      "Wyde Corp - Mexico Branch",
+      "Mphasis Ireland",
+      "eBECS Business Solutions (Ireland)"
     ]
   },
   {
@@ -3388,10 +3391,10 @@
     "members_sample": [
       "Akzo Nobel Boya Sanayi ve Ticaret A.S",
       "Akzo Nobel India",
-      "Akzo Nobel HK (Holdings) - CFIN HK11",
-      "Akzo Nobel Coatings S.A",
-      "Oy International Paint (Finland) AB",
-      "Akzo Nobel Performance Coatings (Changzhou) Co"
+      "Akzo Nobel Performance Coatings (Changzhou) Co",
+      "Akzo\u00a0Nobel\u00a0Paints\u00a0(Malaysia)\u00a0Sdn.\u00a0Bhd",
+      "International\u00a0Paint\u00a0(Panama)\u00a0Inc",
+      "Akzo\u00a0Nobel a"
     ]
   },
   {
@@ -3416,10 +3419,10 @@
     "members_sample": [
       "Avaada MHYavat",
       "Linde India",
-      "Linde Philippines, INC",
-      "Helium Linde Inc",
-      "Linde CryoPlants",
-      "Kirlosakar Ferrous Industries"
+      "Praxair India",
+      "Linde Lienhwa China",
+      "Linde Ecuador S.A",
+      "FPEL Solar Shakti"
     ]
   },
   {
@@ -3439,7 +3442,7 @@
     "sectors": [
       [
         "FMCG",
-        2
+        3
       ]
     ],
     "family_members": [],
@@ -3449,9 +3452,9 @@
       "Hindustan Unilever Foundation",
       "Unilever Industries",
       "Hindustan Unilever",
-      "PT\u00a0Unilever\u00a0Oleochemical\u00a0Indonesia",
-      "PT\u00a0Unilever\u00a0Indonesia\u00a0Tbk",
-      "Unilever PLC"
+      "Unilever Europe Business Centre",
+      "Unilever Nepal",
+      "Unilever Europe Business Center"
     ]
   },
   {
@@ -3470,11 +3473,11 @@
     ],
     "sectors": [
       [
-        "FMCG",
+        "Travel",
         1
       ],
       [
-        "Travel",
+        "FMCG",
         1
       ]
     ],
@@ -3483,11 +3486,11 @@
     "merge_flags": [],
     "members_sample": [
       "Fortune Park Hotels",
-      "ITC",
-      "BAT Exports",
-      "Mother Sparsh Baby Care",
-      "British American Tobacco (Investments)",
-      "ITC Infotech India"
+      "International Travel House",
+      "Srinivasa Resorts",
+      "ITC Integrated Business Services",
+      "Russell Credit",
+      "Russell Investments"
     ]
   },
   {
@@ -3514,11 +3517,11 @@
         1
       ],
       [
-        "Textiles",
+        "Infrastructure",
         1
       ],
       [
-        "Infrastructure",
+        "Textiles",
         1
       ]
     ],
@@ -3531,10 +3534,10 @@
     "merge_flags": [],
     "members_sample": [
       "Anjar TMT Steel",
-      "Welspun Home Solutions (Previously known as Welspun Advanced Materials (India)",
-      "Welspun Bhargavi",
-      "Welspun Newgen",
+      "Welspun Wasco Coatings",
+      "Welspun Anjar SEZ",
       "Welspun Transformation services",
+      "Welspun USA Inc",
       "Welspun UK"
     ]
   },
@@ -3621,11 +3624,11 @@
     "merge_flags": [],
     "members_sample": [
       "H.G. Ajmer Solar Project",
-      "Poonam Singh Choudhary",
-      "H.G. Behror Solar Project",
+      "Navneet Choudhary",
+      "H.G. Sanchore Solar Project",
+      "H.G. Ghiloth Solar Proiect",
       "Girish Pal Singh",
-      "H.G. Solar Park Developer",
-      "Harshvardhan Singh"
+      "Rasisar Solar Developer"
     ]
   },
   {
@@ -3650,46 +3653,10 @@
     "members_sample": [
       "3M APAC RDC Pte",
       "3M India",
-      "3M Vietnam",
+      "3M Technologies S Pte",
+      "3M Panama Pacifico S Der L",
       "3M Do Brasil Limitada",
-      "3M United Kingdom PLC",
-      "3M Material Tech Hefei Co"
-    ]
-  },
-  {
-    "size": 59,
-    "internal_edges": 78,
-    "density": 0.0456,
-    "top_refs": [
-      [
-        "vigil:rpt:ELGIEQUIP",
-        62
-      ],
-      [
-        "vigil:rpt:PRICOLLTD",
-        16
-      ]
-    ],
-    "sectors": [
-      [
-        "Engineering_Capital_Goods",
-        1
-      ],
-      [
-        "Automotive",
-        1
-      ]
-    ],
-    "family_members": [],
-    "family_hit_count": 0,
-    "merge_flags": [],
-    "members_sample": [
-      "ATS Elgi",
-      "Elgi Compressors Europe S.r.l",
-      "Elgi Equipments",
-      "Festo Controls",
-      "L.G. Balakrishnan & Bros (Firm)",
-      "PPL Enterprises"
+      "3M Matl Tech Suzhou Co"
     ]
   },
   {
@@ -3773,11 +3740,47 @@
     "merge_flags": [],
     "members_sample": [
       "Evolutionary Systems Consultancy LLC",
-      "Mastek Arabia FZ-LLC",
-      "Evosys Kuwait WLL (Kuwait)",
-      "Mastek Systems Malaysia SDN BHD",
-      "Mr Aminuddin Bushra",
-      "Mastek"
+      "Mastek UK",
+      "Mr Abhishek Singh",
+      "Soutik Sarkar",
+      "Mrs Judith Halkerston",
+      "Mr David Obrien"
+    ]
+  },
+  {
+    "size": 58,
+    "internal_edges": 77,
+    "density": 0.0466,
+    "top_refs": [
+      [
+        "vigil:rpt:ELGIEQUIP",
+        62
+      ],
+      [
+        "vigil:rpt:PRICOLLTD",
+        15
+      ]
+    ],
+    "sectors": [
+      [
+        "Engineering_Capital_Goods",
+        1
+      ],
+      [
+        "Automotive",
+        1
+      ]
+    ],
+    "family_members": [],
+    "family_hit_count": 0,
+    "merge_flags": [],
+    "members_sample": [
+      "ATS Elgi",
+      "Elgi Gulf FZE",
+      "Elgi Compressors (M) SDN. BHD",
+      "Elgi Equipments Australia Pty",
+      "PT Elgi Equipments Indonesia",
+      "F.R.Pulford & Son Pty"
     ]
   },
   {
@@ -3801,11 +3804,11 @@
     "merge_flags": [],
     "members_sample": [
       "Pinnacle Mobility Solutions",
-      "ZF CV Control Systems Manufacturing India",
-      "ZF CV Systems Global GmbH",
-      "ZF Automotive Brasil a",
-      "ZF Commercial Vehicle Systems (Qingdao) Co",
-      "ZF India"
+      "ZF Commercial Vehicle Control Systems India",
+      "ZF CV Middle East and Africa FZCO",
+      "ZF North America, Inc",
+      "ZF Active Safety and Electronics US",
+      "ZF CV Systems Europe BV"
     ]
   },
   {
@@ -3834,10 +3837,10 @@
     "members_sample": [
       "Colgate Global Business Services",
       "Colgate Palmolive India",
-      "Norwood International Incorporated U S A",
-      "Colgate Palmolive Del Equador SA",
-      "Colgate Palmolive ACI Bangladesh",
-      "Colgate Global Business Services India"
+      "Colgate Tolaram LFTZ Enterprise",
+      "Colgate Palmolive Viet Nam",
+      "Colgate Palmolive PTY Boksburg",
+      "Colgate Palmolive Ghana"
     ]
   },
   {
@@ -3861,7 +3864,7 @@
     "sectors": [
       [
         "Engineering_Capital_Goods",
-        2
+        3
       ]
     ],
     "family_members": [],
@@ -3870,33 +3873,10 @@
     "members_sample": [
       "Braybar Pumps Proprietary",
       "SPP Pumps International (PTY)",
-      "SPP Pumps",
-      "Kirloskar Ebara Pumps",
-      "The Kolhapur Steel",
-      "Sunsure Solarapark Nineteen"
-    ]
-  },
-  {
-    "size": 47,
-    "internal_edges": 46,
-    "density": 0.0426,
-    "top_refs": [
-      [
-        "vigil:rpt:INGERRAND",
-        46
-      ]
-    ],
-    "sectors": [],
-    "family_members": [],
-    "family_hit_count": 0,
-    "merge_flags": [],
-    "members_sample": [
-      "383-Friulair Srl",
-      "Ingersoll-Rand (India)",
-      "Ingersoll Rand Industrial Ireland",
-      "Gardner Denver International",
-      "Gardner Denver Inc",
-      "Hibon Inc"
+      "Kirloskar Brothers International B.V",
+      "Syncroflo Inc",
+      "SPP Pumps Real Estate LLC",
+      "Kirloskar Pompen B.V"
     ]
   },
   {
@@ -3920,7 +3900,7 @@
     "sectors": [
       [
         "Technology",
-        2
+        3
       ],
       [
         "NBFC",
@@ -3932,11 +3912,11 @@
     "merge_flags": [],
     "members_sample": [
       "L&T Construction Equipment",
-      "L&T Technology Services",
-      "L&T - MHI Power Boilers",
-      "L&T Semiconductor Technologies",
-      "L&T Realty Developers",
-      "Larsen & Toubro Oman LLC"
+      "LTIMindtree",
+      "L&T Finance (formerly known as L&T Finance Holdings )",
+      "L&T Financial Consultants",
+      "Nabha Power",
+      "L&T Metro Rail (Hyderabad)"
     ]
   },
   {
@@ -3967,7 +3947,7 @@
         1
       ],
       [
-        "Infrastructure",
+        "Housing_Finance",
         1
       ]
     ],
@@ -3995,11 +3975,34 @@
     "merge_flags": [],
     "members_sample": [
       "Bajaj Electricals",
-      "Bajel Projects",
-      "Bajaj Consumer Care",
-      "Hind Lamps",
-      "Bajaj General Insurance",
-      "Bajaj Finserv Health"
+      "Bajaj Allianz General Insurance Company",
+      "BFS Asset Management Company",
+      "Bajaj Allianz Financial Distributors",
+      "Bajaj Holdings and Investments",
+      "Bajaj Housing Finance"
+    ]
+  },
+  {
+    "size": 46,
+    "internal_edges": 46,
+    "density": 0.0444,
+    "top_refs": [
+      [
+        "vigil:rpt:INGERRAND",
+        46
+      ]
+    ],
+    "sectors": [],
+    "family_members": [],
+    "family_hit_count": 0,
+    "merge_flags": [],
+    "members_sample": [
+      "383-Friulair Srl",
+      "Ingersoll-Rand (India)",
+      "GARDNER DENVER DEUTSCHLAND GMBH",
+      "INGERSOLL RAND INTERNATIONAL INDIA",
+      "Compair International Trading Shanghai Co , China",
+      "EVERST BLOWERS"
     ]
   },
   {
@@ -4023,11 +4026,11 @@
     "merge_flags": [],
     "members_sample": [
       "Haevichi Hotel & Resort Co",
-      "Hyundai Motor India",
-      "Bluewalnut Co",
-      "Kia Motors Mexico S.A De C.V",
-      "Hyundai Motor Group (China)",
-      "HEC India"
+      "Hyundai Motor India Engineering",
+      "Hyundai Engineering India",
+      "Kia Corporation",
+      "Hyundai Autoever India",
+      "Mobis India"
     ]
   },
   {
@@ -4059,11 +4062,11 @@
     "merge_flags": [],
     "members_sample": [
       "Cyient DLM",
-      "Cyient Defense Services Inc",
-      "Cyient Singapore",
-      "Cyient Australia Pty",
-      "Citec Norway AS",
-      "Grit Consulting Pte"
+      "Cyient Europe",
+      "Cyient Canada Inc",
+      "Grit Consulting Pte",
+      "Workforce Delta Pty",
+      "Integrated Global Partners Pty"
     ]
   },
   {
@@ -4082,11 +4085,11 @@
     "merge_flags": [],
     "members_sample": [
       "Better & Brighter Home care",
-      "Healthyhey Foods Llp",
-      "Solarista Renewables",
-      "Digital Age Retail",
-      "Intellibees Solutions",
-      "Prayosha Expo"
+      "Merhaki Foods and Nutrition",
+      "JW Brands",
+      "Prayosha Expo (P)",
+      "Cloud Lifestyle",
+      "Digital Age Retail"
     ]
   },
   {
@@ -4109,11 +4112,11 @@
     ],
     "sectors": [
       [
-        "Chemicals",
+        "Renewables",
         1
       ],
       [
-        "Renewables",
+        "Chemicals",
         1
       ]
     ],
@@ -4122,10 +4125,10 @@
     "merge_flags": [],
     "members_sample": [
       "Flurry Wind Energy",
-      "Gujarat Fluorochemcials",
-      "Vuelta Wind Energy",
-      "Vigodi Wind Energy",
-      "Vasuprada Renewables",
+      "Inox Green Energy Services",
+      "Inox Neo Energies",
+      "Inox Neo Energies Priavte",
+      "Vinirrmaa Energy Generation",
       "Inox Clean Energy"
     ]
   },
@@ -4149,11 +4152,11 @@
     ],
     "sectors": [
       [
-        "Banking",
+        "Housing_Finance",
         2
       ],
       [
-        "Housing_Finance",
+        "Banking",
         2
       ],
       [
@@ -4166,11 +4169,11 @@
     "merge_flags": [],
     "members_sample": [
       "Andhra Pragati Grameen Bank",
-      "Canara Bank",
-      "Karnataka Gramin Bank",
-      "Can Fin Homes",
+      "Canara Robecco Asset Management Co",
+      "Canara Bank Venture Capital",
       "Kerela Gramin Bank",
-      "Karnataka Grameena Bank"
+      "Can Fin Homes",
+      "CRMF TRUSTEE"
     ]
   },
   {
@@ -4192,8 +4195,8 @@
       "NIROSHA POWER",
       "ACME Rewa Solar Energy",
       "ACME Solar Technologies Gujarat",
-      "ACME Mahbubnagar Solar Energy",
-      "ACME Solar Energy (Madhya Pradesh)"
+      "ACME Odisha Solar Power",
+      "Saibliss Power"
     ]
   },
   {
@@ -4218,10 +4221,10 @@
     "members_sample": [
       "Ashok Kumar Arora",
       "Daawat Foods",
-      "Raghuvesh Holdings",
-      "LT Foods",
-      "Sakshi Arora",
-      "Munish Kumar Arora"
+      "Lt Foods U.K",
+      "LTF Global Investments LLC",
+      "Nature Bio Foods Bv",
+      "Leev.NU. B.V"
     ]
   },
   {
@@ -4245,11 +4248,11 @@
     "merge_flags": [],
     "members_sample": [
       "Caresoft Engineering Services",
-      "KPIT Technologies",
-      "Microfuzzy Industrie-Elektronic GmbH",
+      "OXI SRL",
+      "KPIT Technologies (UK)",
       "KPIT Technologies Inc",
-      "PathPartner Technology",
-      "Future Mobility Solutions GmbH"
+      "MicroFuzzy KPIT Technologia a, Brazil",
+      "KPIT Technologies AB"
     ]
   },
   {
@@ -4274,10 +4277,10 @@
     "members_sample": [
       "Absolute Sports",
       "Datawrkz Business Solution",
-      "Nextwave Multimedia",
-      "Mediawrkz Pte",
-      "Datawrkz UK",
-      "Mediawrkz Inc"
+      "Sports Unity",
+      "Openplay Technologies",
+      "Halaplay Technologies",
+      "Moonshine Technology"
     ]
   },
   {
@@ -4301,11 +4304,11 @@
     "merge_flags": [],
     "members_sample": [
       "Drivex Mobility",
-      "Tvs Digital",
-      "TVS Motor (Singapore) Pte",
-      "TVS Motor Gmbh",
-      "TVS EBike Company GmbH, Germany",
-      "Swiss E-Mobility Group \u200b(\u00d6sterreich) GmbH, Germany"
+      "TVS TRAINING AND SERVICES",
+      "TVS Motor Company",
+      "Bagalur Development LLP, Chennai",
+      "Harita Receivables and Collection Services LLP, Chennai",
+      "Ultraviolette Automotive"
     ]
   },
   {
@@ -4333,11 +4336,11 @@
     "merge_flags": [],
     "members_sample": [
       "Biocon Biologics Global Plc",
-      "Biocon Biologics Inc, US",
-      "Biosimilars Newco",
-      "Biocon Biologics Brasil a",
-      "Biocon Biologics Croatia",
-      "Biocon Biologics Morocco S.R.L"
+      "Biocon Biologics Inc",
+      "Biosimilar collaborations Ireland",
+      "Biocon Biologics FZ-LLC, UAE",
+      "Biocon Pharma",
+      "Biocon Biologics"
     ]
   },
   {
@@ -4361,43 +4364,11 @@
     "merge_flags": [],
     "members_sample": [
       "AB Benzlers",
-      "Radicon Transmission (Thailand)",
-      "Radicon Transmission UK",
-      "Emtici Engineering",
-      "Elecon Radicon Africe Pty",
-      "Emitici Engineering"
-    ]
-  },
-  {
-    "size": 34,
-    "internal_edges": 54,
-    "density": 0.0963,
-    "top_refs": [
-      [
-        "vigil:rpt:VBL",
-        48
-      ],
-      [
-        "vigil:rpt:DEVYANI",
-        6
-      ]
-    ],
-    "sectors": [
-      [
-        "FMCG",
-        2
-      ]
-    ],
-    "family_members": [],
-    "family_hit_count": 0,
-    "merge_flags": [],
-    "members_sample": [
-      "Cryoviva Biotech",
-      "Devyani International",
-      "Cryoviva Life Sciences",
-      "Devyani Food Industries",
-      "Modern Montessori International (India)",
-      "Lineage Healthcare"
+      "Power Build",
+      "Elecon Middle East FZCO",
+      "Prayas Engineering",
+      "Emitici Engineering",
+      "Benzlers T.B.A B.V"
     ]
   },
   {
@@ -4422,10 +4393,10 @@
     "members_sample": [
       "ESCORTS KUBOTA C/O BOLOGNA FIERE",
       "Escorts Kubota",
-      "Kubota Engine (Thailand) Co",
+      "Kubota Agricultural Machinery (Suzhou) Co. , China",
       "Nitasha Nanda",
-      "Sietz Technologies India",
-      "Kubota Agricultural Machinery (Suzhou) Co. , China"
+      "Kubota Tractor Corporation",
+      "Kubota Europe S.A.S"
     ]
   },
   {
@@ -4461,11 +4432,11 @@
     "merge_flags": [],
     "members_sample": [
       "Bengal & Assam Company",
-      "JK Lakshmi Cement",
-      "Bengal and Assam Company",
-      "YPL Enterprises",
-      "Umang Dairies",
-      "SIDHIVINAYAK TRADING AND INVESTMENT"
+      "Cavendish Industries",
+      "Hari Shankar Singhania Elastomer and Tyre Research Institute",
+      "SAGO TRADING",
+      "Valiant Pacific LLC",
+      "Compa\u00f1\u00eda Hulera Tornel, S.A. de C.V"
     ]
   },
   {
@@ -4486,9 +4457,41 @@
       "Powergrid Beawar Dausa Transmission",
       "Powergrid Sikar Transmission",
       "Powergrid Energy Services",
-      "Powergrid Rampur Sambhal Transmission",
-      "Powergrid KPS3 Transmission",
-      "Powergrid Southern Interconnector Transmission System"
+      "Powergrid Bikaner Transmission System",
+      "Powergrid Bhadla Transmission",
+      "Powergrid Khetri Transmission System"
+    ]
+  },
+  {
+    "size": 33,
+    "internal_edges": 54,
+    "density": 0.1023,
+    "top_refs": [
+      [
+        "vigil:rpt:VBL",
+        48
+      ],
+      [
+        "vigil:rpt:DEVYANI",
+        6
+      ]
+    ],
+    "sectors": [
+      [
+        "FMCG",
+        2
+      ]
+    ],
+    "family_members": [],
+    "family_hit_count": 0,
+    "merge_flags": [],
+    "members_sample": [
+      "Cryoviva Biotech",
+      "Varun Beverages",
+      "RJ Corp International UK",
+      "CV Biotech",
+      "SVS India",
+      "RJ Corp"
     ]
   },
   {
@@ -4519,7 +4522,7 @@
         1
       ],
       [
-        "Consumer",
+        "FMCG",
         1
       ]
     ],
@@ -4529,10 +4532,10 @@
     "members_sample": [
       "Aeon Trading LLP",
       "Lloyds Engineering Works",
-      "M/s. Lloyds Infrastructure & Construction",
-      "M/s. Lloyds Infinite Foundation",
-      "Hemdil Estates",
-      "M/s. Trofi Chain Factory"
+      "M/s Lloyds Infinited Foundation",
+      "Lloyds Enterprises (Formerly known as Shree Global Tradefin )",
+      "Lloyds Metals & Energy",
+      "Hemdil Estates"
     ]
   },
   {
@@ -4561,10 +4564,10 @@
     "members_sample": [
       "BF Elbit Advanced Systems",
       "Kalyani Strategic Systems",
-      "Edgelab Spa",
       "Aeron Systems",
       "Bharat Forge",
-      "Bharat Forge International"
+      "Talbahn GmbH",
+      "Avaada MHVidarbha"
     ]
   },
   {
@@ -4589,10 +4592,10 @@
     "members_sample": [
       "Aspac Lubricants (Malaysia) Sdn Bhd",
       "Castrol India",
-      "Castrol France Sas",
       "Castrol Madeni Yaglar Ticaret",
-      "Bp Japan K.K",
-      "Castrol Belgium Bv"
+      "Bp Korea",
+      "Castrol Bp Petco",
+      "Castrol (Shanghai) Management Co"
     ]
   },
   {
@@ -4617,10 +4620,10 @@
     "members_sample": [
       "Australian Timken Proprietary",
       "Timken India",
-      "PT TIMKEN BEARINGS INDONESIA",
       "Timken De Mexico, S.A. De C.V",
-      "Timken Canada LP",
-      "Timken (Hunan) Bearing Co"
+      "Timken Shanghai Distribution and Sales Co",
+      "Timken Engineering and Research India",
+      "PT TIMKEN BEARINGS INDONESIA"
     ]
   },
   {
@@ -4649,10 +4652,10 @@
     "members_sample": [
       "GILLETTE (SHANGHAI)",
       "Gillette India",
-      "PROCTER & GAMBLE PHILIPPINES BUSINESS SERVICES, INC",
-      "PROCTER & GAMBLE NIGERIA",
-      "PROCTER & GAMBLE BANGLADESH",
-      "THE PROCTER & GAMBLE DISTRIBUTING LLC"
+      "PROCTER & GAMBLE DO BRASIL A",
+      "PROCTER & GAMBLE HYGIENE & HEALTH CARE",
+      "TAMBRANDS INC",
+      "PROCTER & GAMBLE HAIR CARE, LLC"
     ]
   },
   {
@@ -4677,10 +4680,10 @@
     "members_sample": [
       "AD Hydro Power",
       "HEG",
-      "Bharat Investments Growth",
-      "LNJ Leasing & Finance",
-      "Abhav Realtors",
-      "Dreamon Commercial"
+      "LNJ Reality",
+      "Malana Power Company",
+      "Dreamon Commercial",
+      "Mr.Rishabh Jhunjhunwala"
     ]
   },
   {
@@ -4709,10 +4712,10 @@
     "members_sample": [
       "AMP SOLAR URJA",
       "JK Cement",
-      "FPEL UJWAL",
-      "J.K.CEMENT (WESTERN)",
-      "TRUERE CURRENT",
-      "DAYA CHARAN & COMPANY"
+      "TRUERE 100 ENERGY (GREATER NOIDA)",
+      "Oriana Power",
+      "ORIANA POWER (TRUERE GUJ SPV & TRUERE CURRENT )",
+      "LALA KAMLAPAT SINGHANIA EDUCATION CENTRE,NIMBAHERA(KAILASH NAGAR EDUCATION SOCIETY)"
     ]
   },
   {
@@ -4725,7 +4728,12 @@
         31
       ]
     ],
-    "sectors": [],
+    "sectors": [
+      [
+        "Real_Estate",
+        1
+      ]
+    ],
     "family_members": [],
     "family_hit_count": 0,
     "merge_flags": [],
@@ -4734,8 +4742,8 @@
       "MICL Builders LLP",
       "Suketu R Shah",
       "Man Aaradhya Infraconstruction LLP",
-      "Man Vastucon LLP",
-      "Starcrete LLP"
+      "Rajesh H Shah",
+      "Suketu P Shah"
     ]
   },
   {
@@ -4760,10 +4768,10 @@
     "members_sample": [
       "Ashwath Technologies",
       "RHI Magnesita GmbH",
-      "RHI Magnesita India Refractories",
-      "Sapref Refractory Products",
+      "RHI MAGNESITA INDIA",
       "RHI Magnesita D.o.o",
-      "RHI Magnesita KREMEN doo"
+      "Magnesita Refractories Middle East FZE",
+      "Refractory Intellectual Property GmbH & Co KG"
     ]
   },
   {
@@ -4788,10 +4796,10 @@
     "members_sample": [
       "365Squared",
       "Call 2 Connect India",
-      "Call 2 Connect",
       "Belgacom International Carrier Services SA",
-      "Route Mobile LLC",
-      "Route Mobile Communication Services"
+      "Route Mobile",
+      "Telesign Corp",
+      "Masivian SAS"
     ]
   },
   {
@@ -4806,6 +4814,10 @@
     ],
     "sectors": [
       [
+        "Energy",
+        1
+      ],
+      [
         "Mining",
         1
       ]
@@ -4815,11 +4827,11 @@
     "merge_flags": [],
     "members_sample": [
       "Bharat Coking Coal",
-      "Central Mine Planning & Design Institute",
-      "Eastern Coalfieds",
-      "South Easten Coalfields",
-      "Western Coalfields",
-      "Northern Coalfields"
+      "CMPDI",
+      "Coal India",
+      "Central Coalfields",
+      "Central Mine Plan Design Institute",
+      "Eastern Coalfields"
     ]
   },
   {
@@ -4843,10 +4855,10 @@
     "merge_flags": [],
     "members_sample": [
       "EIH Holdings",
-      "Island Resort",
-      "PT Astina Graha Ubud",
-      "EIH International",
       "PT Widja Putra Karya",
+      "Svara Hotels",
+      "EIH London Investments",
+      "Regent Tours & Travels",
       "EIH Associated Hotels"
     ]
   },
@@ -4871,11 +4883,11 @@
     "merge_flags": [],
     "members_sample": [
       "Edlon Psi Inc",
-      "Pfaudler",
-      "Pfaudler Interseal Gmbh",
+      "Pfaudler (Chang Zou) Process Equipment Company",
       "GMM Pfaudler",
-      "Panna Shailendra Patel",
-      "Uttarak Enterprises"
+      "Shri A. J. Patel Charitable Trust",
+      "Tarak A Patel",
+      "Panna Shailendra Patel"
     ]
   },
   {
@@ -4900,10 +4912,10 @@
     "members_sample": [
       "Asirvad Micro Finance",
       "Manappuram Finance",
-      "INDIAN INSTITUTE OF MANAGEMENT KOZHIKODE",
-      "Manappuram Home Finance",
-      "MACOM",
-      "Manappuram Foundation"
+      "Manappuram Travels",
+      "MANAPPURAM HEALTH CARE",
+      "SUHAS NANDAN",
+      "INDIAN INSTITUTE OF MANAGEMENT KOZHIKODE"
     ]
   },
   {
@@ -4928,10 +4940,10 @@
     "members_sample": [
       "Etergo Operations B.V, Netherlands",
       "Ola Electric Mobility B.V",
-      "Ola Electric Technologies",
-      "Goddard Technical Solutions",
-      "Ola Financial Services , India",
-      "Ola Electric Mobility"
+      "Ola Cell Technologies",
+      "Ola Electric UK",
+      "Ola Electric Mobility",
+      "Krutrim SI Designs Inc"
     ]
   },
   {
@@ -4956,10 +4968,10 @@
     "members_sample": [
       "Canson Sas France",
       "Pioneer Stationery",
-      "Fila Chile a",
-      "Uniclan Healthcare",
-      "Skido Industries",
-      "Clapjoy Innovations"
+      "Groupo Peru FILA SAC",
+      "Dixon Ticonderoga Company",
+      "Daler Rowney",
+      "Uniclan Healthcare"
     ]
   },
   {
@@ -4978,11 +4990,11 @@
     "merge_flags": [],
     "members_sample": [
       "Generic Health Pty , Australia",
-      "Lupin Inc., USA",
-      "Lupin Pharma Canada , Canada",
-      "Lupin Research Inc., USA",
-      "Lupin Healthcare (UK) , UK",
-      "Renascience Pharma , UK"
+      "Lupin Australia Pty , Australia",
+      "Lupin Manufacturing Solutions , India",
+      "Lupin Pharmaceuticals, Inc., USA",
+      "Lupin Oncology Inc., USA",
+      "Lupin Pharma Canada , Canada"
     ]
   },
   {
@@ -5012,9 +5024,9 @@
       "BSES Rajdhani Power",
       "Sasan Power",
       "Reliance Natural Resources",
-      "Reliance NU Suntech One (Formerly known as Tato Hydro Power )",
-      "Reliance Velocity",
-      "Reliance NU Suntech One w.e.f. 20.1.2025"
+      "Reliance CleanGen",
+      "Reliance NU Wind One",
+      "Reliance GAH2"
     ]
   },
   {
@@ -5038,11 +5050,11 @@
     "merge_flags": [],
     "members_sample": [
       "Addressable Health LLC",
-      "Biopharm Communications, LLC",
+      "Indegene",
+      "Indegene Spain SL",
       "Indegene, Inc",
-      "Indegene Europe LLC",
-      "Warn & Co",
-      "Indegene Fareast Pte"
+      "Trilogy Writing and Consulting GMBH",
+      "Indegene Healthcare Germany GmbH"
     ]
   },
   {
@@ -5071,10 +5083,10 @@
     "members_sample": [
       "Cigniti Technologies UK",
       "Coforge",
-      "Coforge BPS Philippines Inc",
-      "Coforge Business Process Solutions",
-      "Cigniti Technologies Inc , Canada",
-      "Cigniti Technologies Inc;USA"
+      "Coforge BPS America Inc",
+      "Fifth Third Bank",
+      "Cigniti Technologies Inc;USA",
+      "Coforge, Inc"
     ]
   },
   {
@@ -5093,11 +5105,11 @@
     "merge_flags": [],
     "members_sample": [
       "Encore IT Services Solutions",
-      "Encore Software Services, Inc",
-      "Sonata Software Solutions",
-      "Sonata Software Solutions North America, Inc",
-      "Sonata Software Technology (formerly known as Quant Cloud Solutions )",
-      "Srihari Veeravalli"
+      "Sonata Software North America Inc",
+      "Sonata Software Malaysia SDN. BHD",
+      "Sonata Australia Pty",
+      "Gapbuster Worldwide Pty",
+      "Sonata Software (Qatar) LLC"
     ]
   },
   {
@@ -5122,10 +5134,10 @@
     "members_sample": [
       "Adventz Industries India",
       "Texmaco Rail & Engineering",
-      "Kalindee Karthik JV",
-      "Kalindee Cobra JV",
-      "Bright-Texmaco JV",
-      "Texmaco-Rahee JV"
+      "Kalindee VNC JV",
+      "Texmaco Infrastructure & Holdings",
+      "Bright-Kalindee JV",
+      "Texmaco Asis JV"
     ]
   },
   {
@@ -5150,10 +5162,10 @@
     "members_sample": [
       "Apollo (South Africa) Holding (Pty)",
       "Apollo Tyres",
-      "Apollo Tyres Holdings (Singapore) Pte",
-      "Apollo Tyres (Greenfield) B.V",
-      "Apollo Tyres Global Business Services (Formerly known as Apollo Tyres Center of Excellence )",
-      "Trusted Mobility Services"
+      "Apollo Tyres Global R&D B.V",
+      "Apollo Tyres Iberica S.A",
+      "Apollo Tyres (R&D) GmbH",
+      "Apollo Tyres (Polska) Sp. Z.o.o"
     ]
   },
   {
@@ -5178,10 +5190,10 @@
     "members_sample": [
       "Aepona Group",
       "Persistent Systems",
-      "Gayatri Hemadri Buzruk",
-      "Persistent Systems France SAS",
+      "Persistent Systems Germany GmbH",
       "Persistent Systems Mexico, S.A. de C.V",
-      "Hemadri Narayan Buzruk"
+      "Gayatri Hemadri Buzruk",
+      "Chinmay Hemadri Buzruk"
     ]
   },
   {
@@ -5206,10 +5218,10 @@
     "members_sample": [
       "BEKO EUROPE MANAGEMENT SRL",
       "Elica PB Whirlpool Kitchen Appliances",
-      "Shubh Enterprises",
-      "WHIRLPOOL PROPERTIES , INC",
-      "Whirlpool of India",
-      "Whirlpool Southeast Asia Pte"
+      "Europlak SV Cucine India",
+      "Elica S.p.A., Italy",
+      "Nirmal Enterprises",
+      "Shubh Enterprises"
     ]
   },
   {
@@ -5234,10 +5246,10 @@
     "members_sample": [
       "Blink Commerce",
       "Zomato Entertainment",
-      "Eternal Technology Solutions formerly known as Zomato Financial Services",
-      "Zomato Hyperpure",
+      "Zomato Foods",
+      "Zomato Middle East FZ LLC",
       "Zomato Payments",
-      "Orbgen Technologies"
+      "Zomato Local Services"
     ]
   },
   {
@@ -5256,11 +5268,11 @@
     "merge_flags": [],
     "members_sample": [
       "Dot & Key Wellness",
-      "FSN INTERNATIONAL",
+      "Nykaa E-Retail",
+      "Earth Rhythm",
       "Nykaa Fashion",
-      "Illuminar Media",
-      "Nessa International Holdings",
-      "Nysaa Cosmetics Trading"
+      "Nudge Wellness",
+      "Onesto Labs"
     ]
   },
   {
@@ -5297,10 +5309,10 @@
     "members_sample": [
       "Euro API Germany GMBH",
       "Sanofi India",
+      "Sanofi Winthrop Industrie",
+      "Hoechst GmbH, Germany, holding Company",
       "Sanofi Consumer Healthcare",
-      "Sanofi-Aventis Recherche & Development",
-      "Hoechst GmbH",
-      "Sanofi US Services Inc"
+      "Sanofi Healthcare India"
     ]
   },
   {
@@ -5324,11 +5336,11 @@
     "merge_flags": [],
     "members_sample": [
       "BookaBed AG",
-      "TBO Tek Ireland",
-      "Tek Travels DMCC",
-      "TBO Tek Greece Single Member Company",
-      "TBO Holidays Pte",
-      "Travel Boutique Online S.A. De C.V"
+      "TBO Tek",
+      "Classic Vacations LLC",
+      "TBO LLC",
+      "Tek Travels Arabia for Travel and Tourism",
+      "United Experts for Information Systems technology Co"
     ]
   },
   {
@@ -5353,10 +5365,10 @@
     "members_sample": [
       "BATA THAILAND",
       "Bata India",
-      "MANISOL SAS COLOMBIA BATA COLOMBIA",
-      "Bata Nederland BV",
-      "EMPRESAS COMERCIALES SA",
-      "EMPRESAS COMERCIALES SA BATA PERU"
+      "CALZACUERO CA BATA ECUADOR",
+      "Global Footwear Services Pte",
+      "International Footwear Investment BV",
+      "Bata Canada erstwhile Power Athletics"
     ]
   },
   {
@@ -5384,11 +5396,11 @@
     "merge_flags": [],
     "members_sample": [
       "Agilus Diagnostics",
-      "Premier Integrated Labs Sdn Bhd",
-      "Bharat Certis Agriscience",
-      "Bharat Insecticides",
       "Gleneagles Healthcare India",
-      "Fortis Healthcare"
+      "Fortis Healthcare",
+      "Acibadem Teknoloj A.S",
+      "Escorts Heart Institute and Research Centre",
+      "Fortis Health management"
     ]
   },
   {
@@ -5407,11 +5419,11 @@
     "merge_flags": [],
     "members_sample": [
       "Evey Trans",
-      "Evey Trans (GTC)",
       "OLECTR GREENTECH",
-      "ICOMM Tele",
-      "Evey Trans (UKS)",
-      "OHA COMMUTE"
+      "Megha Fiber Glass Industries",
+      "Evey Trans (NGP)",
+      "Evey Trans (MUM)",
+      "Evey Trans (UKS)"
     ]
   },
   {
@@ -5430,11 +5442,11 @@
         1
       ],
       [
-        "Real_Estate",
+        "Consumer",
         1
       ],
       [
-        "Consumer",
+        "Real_Estate",
         1
       ]
     ],
@@ -5448,10 +5460,10 @@
     "members_sample": [
       "Everblue Apparel",
       "Raymond Lifestyle",
-      "RING PLUS AQUA",
-      "Raymond Realty",
-      "Raymond",
-      "Raymond Luxury Cottons"
+      "MAINI PRECISION PRODUCTS",
+      "JK Maini Precision Technology",
+      "RAY GLOBAL CONSUMER ENTERPRISE (RGCEL)",
+      "J.K.INVESTORS (BOMBAY)"
     ]
   },
   {
@@ -5480,10 +5492,10 @@
     "members_sample": [
       "Adroit Inspection Services",
       "Shriram Finance",
+      "Shriram Investment Holdings",
+      "Shriram Ownership Trust",
       "Shriram Fortune Solutions",
-      "Augeo Asset Management",
-      "Adroit Inspection Service",
-      "Way2wealth Brokers"
+      "Shriram Capital"
     ]
   },
   {
@@ -5509,9 +5521,9 @@
       "DBL ERCP Bandh Baretha",
       "DBL SIPL JV",
       "Dilip Buildcon",
-      "DBL-MBZ JV",
+      "HCC-DBL JV",
       "Ramdil EPC Works",
-      "Dbl Nadiad Modasa Tollways"
+      "DBL-RBL (JV)"
     ]
   },
   {
@@ -5542,8 +5554,8 @@
       "Sangam Solar One",
       "Waaree Transpower",
       "Waaree Renewable Technologies",
-      "Waa Cables",
-      "Dhari Solar Park"
+      "Waaree Technologies",
+      "Indosolar"
     ]
   },
   {
@@ -5588,11 +5600,11 @@
     "merge_flags": [],
     "members_sample": [
       "Arteria Technologies",
-      "ICICI Lombard General Insurance",
-      "NIIT Institute of Finance, Banking and Insurance Training",
-      "ICICI Prudential Pension Funds Management Company",
+      "ICICI Investment Management Company",
+      "ICICI Prudential Life Insurance",
+      "ICICI Pension Fund Management",
       "ICICI Home Finance Company",
-      "ICICI Prudential Life Insurance"
+      "i-Process Services (India)"
     ]
   },
   {
@@ -5616,11 +5628,11 @@
     "merge_flags": [],
     "members_sample": [
       "Arb Maestro",
-      "JM Financial Properties and Holdings",
-      "Astute Investments",
-      "CR Retail Malls (India)",
-      "Infinite India Investment Management",
-      "JM Financial Services"
+      "JM Financial Credit Solutions",
+      "JM Financial Services",
+      "JM Financial Asset Reconstruction Company",
+      "Mr. Nimesh Kampani",
+      "JM Financial Trustee Company"
     ]
   },
   {
@@ -5645,10 +5657,10 @@
     "members_sample": [
       "Ashwini V. Chheda",
       "Prince Pipes and Fittings",
-      "Gunvanti Jayantilal Gada",
-      "Vaishali Hitesh Shah",
-      "Mansukh Koovarji Shah HUF",
-      "Tarla J. Chheda"
+      "Tarla J. Chheda",
+      "Jayant S. Chheda",
+      "M/S Prince Marketing",
+      "Gunvanti Jayantilal Gada"
     ]
   },
   {
@@ -5690,11 +5702,11 @@
     "merge_flags": [],
     "members_sample": [
       "Ahluwalia Contracts (India)",
-      "Jiwanjyoti Traders",
+      "Mr. Shobhit Uppal",
+      "Sudershan Walia",
       "Tidal Securities",
-      "Ms Mukta Ahluwalia",
-      "Bikramjit Ahluwalia",
-      "Mr. Bikramjit Ahluwalia"
+      "Splendor Distributors",
+      "Premsagar Merchants"
     ]
   },
   {
@@ -5718,11 +5730,11 @@
     "merge_flags": [],
     "members_sample": [
       "AGL Warehousing",
-      "Gati Logistic Parks Limted",
+      "Zen Cargo Movers",
       "Gati Projects",
-      "Gati Import Export Trading",
-      "Gati Ship",
-      "Comptech Solutions"
+      "Allcargo Logistics",
+      "Transindia Real Estate",
+      "Allcargo Corporate Services"
     ]
   },
   {
@@ -5746,11 +5758,11 @@
     "merge_flags": [],
     "members_sample": [
       "AR Digital Wealth",
-      "Anand Rathi Global Finance",
-      "Freedom Wealth Solutions",
-      "Amit Capital and Securities",
+      "Ffreedom Intermediary Infrastructure",
+      "Anand Rathi Financial Services",
       "Anand Rathi Wealth",
-      "Anand Rathi Insurance Brokers"
+      "Pooja Rathi Maru Family Trust",
+      "Sapphire Human Capital"
     ]
   },
   {
@@ -5792,11 +5804,11 @@
     "merge_flags": [],
     "members_sample": [
       "Arvind",
+      "Torrent Urja 28",
       "The Anup Engineering",
       "Atul",
-      "Atul Rural Development Fund",
-      "Urmi Stree Sansthan",
-      "Atul Club Trust"
+      "Atul Kelvani Mandal",
+      "Amal Speciality Chemicals"
     ]
   },
   {
@@ -5820,11 +5832,11 @@
     "merge_flags": [],
     "members_sample": [
       "Blue Dart Aviation",
-      "DHL Aviation EEMEA, Kingdom of Bahrain",
+      "Deutsche Post IT Services, GMBH",
       "Blue Dart Express",
-      "DHL eCommerce Holding GmbH",
-      "DHL eCommerce (India) Limted, India",
-      "DHL Information Services (India) LLP"
+      "DHL Supply Chain India , India",
+      "PDP Life Science Logistic India",
+      "Deutsche Post Global Mail (Australia Pty ), Australia"
     ]
   },
   {
@@ -5843,11 +5855,11 @@
     "merge_flags": [],
     "members_sample": [
       "Aureya FM Services Formerly Known as WTC Trades and Projects",
-      "Perungudi Real Estates",
+      "Mr M R Jaishankar",
+      "Brigade Hospitality Services",
       "Brigade Hotel Ventures",
-      "Brigade Innovations LLP",
-      "Brigade Estates and Projects",
-      "Brigade Tetrarch"
+      "Ananthay Properties",
+      "WTC Trades Projects"
     ]
   },
   {
@@ -5867,10 +5879,10 @@
     "members_sample": [
       "African Consumer Care",
       "Hair Rejuvenation and Revitalization LLC",
-      "Dabur International FZE",
-      "Badshah Masala",
-      "Dabur International IOM",
-      "Excel Investments LLC"
+      "Naturelle LLC",
+      "Dabur Bangladesh",
+      "Dabur Nepal",
+      "Dabur Lanka"
     ]
   },
   {
@@ -5889,11 +5901,11 @@
     "merge_flags": [],
     "members_sample": [
       "Freya Renewables",
-      "Shreya Wind Park",
       "Shreya Green Urja",
-      "Suzlon Green",
-      "Varadvinayak Renewables",
-      "Suryoday Renewables"
+      "Vignaharta Renewable Energy",
+      "Suzlon Shared Services",
+      "Suryoday Renewables",
+      "Gale Green Urja"
     ]
   },
   {
@@ -5917,11 +5929,11 @@
     "merge_flags": [],
     "members_sample": [
       "Alpha Clothing",
-      "Norp Knit Industries",
+      "Pearl Global USA Inc",
+      "Pearl Global Vietnam Co",
       "DSSP Global",
-      "Pearl Global Fareast Limted",
-      "SHORETEX SA",
-      "Pearl Global (HK)"
+      "Pearl Global Fareast",
+      "PT Pinnacle Apparels"
     ]
   },
   {
@@ -5945,11 +5957,11 @@
     "merge_flags": [],
     "members_sample": [
       "PPL Healthcare LLC",
-      "PPL Pharma Solutions Riverview LLC",
+      "Piramal Healthcare (Canada)",
       "Piramal Pharma",
       "Piramal Healthcare Inc",
-      "Piramal Critical Care",
-      "Piramal Critical Care Italia, S.P.A"
+      "Piramal Dutch Holdings B.V",
+      "Piramal Critical Care Deutschland GmbH"
     ]
   },
   {
@@ -5979,8 +5991,8 @@
       "Alkem Laboratories",
       "Galpha Laboratories",
       "Cachet Pharmaceuticals",
-      "Alkem Wellness",
       "Indchemie Health Specialities",
+      "Alkem Wellness",
       "Haystack Analytics"
     ]
   },
@@ -6005,11 +6017,11 @@
     "merge_flags": [],
     "members_sample": [
       "Anant Raj Cons. & Development",
+      "Pasupati Aluminium",
+      "Century Promotes",
       "Echo Properties",
-      "Oriental Buildtech",
-      "Spring View Developers",
-      "Woodland Promoters",
-      "Pioneer Promoters"
+      "Romano Inftrastructure",
+      "ANEKVARNA ESTATE LLP"
     ]
   },
   {
@@ -6034,10 +6046,10 @@
     "members_sample": [
       "Bhujialalji",
       "Bikaji Foods International",
-      "Hazelnut Factory Food Products",
-      "THF Retail",
-      "BIKAJI FOODS RETAIL",
-      "THF Food Products LLP"
+      "Shiv Ratan Agarwal",
+      "BIKAJI MEGA FOOD PARK",
+      "Nikita Goyal",
+      "Shiv Ratan Agarwal HUF"
     ]
   },
   {
@@ -6050,7 +6062,12 @@
         39
       ]
     ],
-    "sectors": [],
+    "sectors": [
+      [
+        "Technology",
+        1
+      ]
+    ],
     "family_members": [],
     "family_hit_count": 0,
     "merge_flags": [],
@@ -6059,8 +6076,8 @@
       "eMudhra Inc",
       "eMudhra BV",
       "eMudhra (MU)",
-      "eMudhra PTE",
-      "Taarav PTE"
+      "eMudhra",
+      "Two95 International Inc"
     ]
   },
   {
@@ -6080,9 +6097,9 @@
     "members_sample": [
       "Apex Buildsys",
       "G R Infraprojects",
-      "GR Dwarka Devariya Highway",
-      "GR Galgalia Bahadurganj Highway",
       "Mr. Vinod Kumar Agarwal",
+      "Varanasi Sangam Expressway",
+      "Indus Infra Trust",
       "GR Phagwara Expressway"
     ]
   },
@@ -6108,10 +6125,10 @@
     "members_sample": [
       "BSS Microfinance",
       "Zurich Kotak General Insurance Company (India)",
-      "Kotak Mahindra Asset Management Company",
       "Kotak Mahindra Trusteeship Services",
-      "BSS Sonata Microcredit",
-      "Kotak Securities"
+      "Kotak Mahindra Pension Fund",
+      "Kotak Mahindra Prime",
+      "Phoenix ARC"
     ]
   },
   {
@@ -6130,11 +6147,11 @@
     "merge_flags": [],
     "members_sample": [
       "Nuvama Asset Management",
-      "Nuvama Wealth Finance",
+      "Nuvama Wealth And Investment",
+      "Nuvama And Cushman & Wakefield Management",
+      "Nuvama Wealth Management",
       "Nuvama Custodial Services",
-      "Nuvama Investment Advisors LLC",
-      "Nuvama Investment Advisors",
-      "Nuvama Wealth Management"
+      "Nuvama Financial Services (UK)"
     ]
   },
   {
@@ -6154,10 +6171,10 @@
     "members_sample": [
       "Indo Maroc Phosphare S.A. Morocco",
       "Paradeep Phosphates",
-      "Pakistan Maroc Phosphore",
-      "Jorf Fertiliser SA IV",
-      "Mangalore Chemicals and Fertilizers",
-      "OCP Nutricrops SA"
+      "Jorf Fertiliser SA III",
+      "Jorf Fertiliser SA II",
+      "Zuari FarmHub",
+      "Jorf Fertiliser I"
     ]
   },
   {
@@ -6179,8 +6196,8 @@
       "Mobiquest Mobile Technologies",
       "Paytm Financial Services",
       "Paytm Payments Services",
-      "Paytm Payments Bank",
-      "One 97 Communications India"
+      "Paytm Services",
+      "Paytm Payments Bank"
     ]
   },
   {
@@ -6205,10 +6222,10 @@
     "members_sample": [
       "Buildnext Constructions Solutions",
       "Finemake Technologies",
+      "Solstice Business Solutions",
       "Pargro Investments",
       "Pidilite Industries",
-      "Axonwise . (Sarvam AI)",
-      "Imagimake Play Solutions"
+      "Parekh Marketing"
     ]
   },
   {
@@ -6229,9 +6246,9 @@
       "OOO RUTGERS Severtar",
       "Rain Carbon bv",
       "Rain CII Carbon (Vizag)",
+      "Rain Carbon Shangai",
       "Rain Cements",
-      "Renuka Cement",
-      "Rain Holdings"
+      "Renuka Cement"
     ]
   },
   {
@@ -6258,8 +6275,8 @@
       "Vaibhav Global",
       "Vaibhav Vistar",
       "Shop LC GMBH",
-      "STS (Guangzhou) Trading",
-      "Shop TJC"
+      "VGL Retail Ventures",
+      "Shop LC Global Inc"
     ]
   },
   {
@@ -6284,10 +6301,10 @@
     "members_sample": [
       "AT Railway Subsystems",
       "Yujin Machinery India",
-      "Power One Micro Systems",
+      "Sidwal refrigeration Industries",
+      "PICL India",
       "Ascent Circuits",
-      "Ever Electronics",
-      "Pravartaka tooling Services"
+      "Ever Electronics"
     ]
   },
   {
@@ -6306,11 +6323,11 @@
     "merge_flags": [],
     "members_sample": [
       "BLS International FZE",
-      "Rahyab Gozar Arta, Iran",
+      "VisaMetric LLC Kyrgyzstan",
       "Visametric Vize Hiz. Ve Dan.\nDis Tic. A.S. (Turkey)",
+      "Visametric LLC Uzbekistan",
       "VisaMetric Albenia SHPK",
-      "VisaMetric Dooel Macedonia",
-      "VisaMetric D.O.O"
+      "Visametric DOO, Serbia"
     ]
   },
   {
@@ -6334,11 +6351,11 @@
     "merge_flags": [],
     "members_sample": [
       "Birlasoft (UK) (Including Netherland Branch)",
-      "Birlasoft Technologies Canada Corporation",
+      "Birlasoft Solutions GmbH",
+      "Birlasoft",
+      "Central India Industries",
       "Birlasoft Solutions Mexico, S.A. DE C.V",
-      "Birlasoft Solutions ME FZE (includes Australia branch)",
-      "Birlasoft (UK) (Including Netherlands Branch)",
-      "Birlasoft Sdn. Bhd"
+      "Birlasoft Inc"
     ]
   },
   {
@@ -6362,11 +6379,11 @@
     "merge_flags": [],
     "members_sample": [
       "Delhivery",
-      "Delhivery Bangladesh Logistics",
-      "FALCON AUTOTECH",
-      "Delhivery USA LLC",
+      "Delhivery Corp , London, United Kingdom",
       "Spoton Supply Chain Solutions",
-      "Delhivery Hk Pte"
+      "Spoton Logistics",
+      "FALCON AUTOTECH",
+      "Ecom Express"
     ]
   },
   {
@@ -6391,10 +6408,10 @@
     "members_sample": [
       "Axiom Ayurveda",
       "Emami",
-      "Prashant Goenka HUF",
-      "Jayant Goenka HUF",
       "Aditya Vardhan Agarwal HUF",
-      "Tru Native F&B"
+      "Jayant Goenka HUF",
+      "Axiom Packwell",
+      "Harsh Vardhan Agarwal HUF"
     ]
   },
   {
@@ -6418,11 +6435,11 @@
     "merge_flags": [],
     "members_sample": [
       "APRICA HEALTHCARE",
-      "SWISS PARENTERALS",
-      "ERIS BIONXT",
-      "Levim lifetech",
-      "PIYUSH THAKKAR",
-      "ERIS THERAPEUTICS"
+      "ERIS HEALTHCARE",
+      "Eris Pharmaceutical",
+      "Eris Pharmaceuticals",
+      "ERIS THERAPEUTICS",
+      "Eris Lifesciences"
     ]
   },
   {
@@ -6447,10 +6464,10 @@
     "members_sample": [
       "Al balagh Trading & Contracting Company WLL",
       "Hexaware Technologies",
-      "Hexaware Technologies GmbH",
+      "Hexaware Technologies Saudi LLC",
+      "Hexaware Technologies Asia Pacific Pte",
       "Carlyle Investment Management, LLC",
-      "CA Magnum Holdings",
-      "Softcrylic LLC"
+      "Hexaware Technologies Canada"
     ]
   },
   {
@@ -6475,9 +6492,9 @@
     "members_sample": [
       "Bandhav Resorts",
       "Totally Foxed Solutions",
-      "Oriole Dr. Fresh Hotels",
-      "Carnation Hotels",
+      "Iora Hotels",
       "Mind Leaders Learning India",
+      "Carnation Hotels",
       "Lemon Tree Hotels"
     ]
   },
@@ -6498,10 +6515,10 @@
     "members_sample": [
       "MOmentum CapEdge",
       "Motilal Oswal Wealth",
+      "Motilal Oswal Investment Advisors",
+      "Motilal Oswal Commodities Broker",
       "Motilal Oswal Asset Management Company",
-      "MO Alternative IFSC",
-      "Motilal Oswal Finsec IFSC",
-      "Motilal Oswal Investment Advisors"
+      "Motilal Oswal Broking and Distribution"
     ]
   },
   {
@@ -6525,11 +6542,11 @@
     "merge_flags": [],
     "members_sample": [
       "Meridian Medical Research & Hospitals",
-      "Dharamshila Cancer Foundation and Research Centre",
-      "Narayana Vaishno Devi Specialty Hospitals",
-      "Narayana Hrudayalaya Surgical Hospital",
-      "Narayana Vaishno Devi Specialty Hospitals (NVDSHPL)",
-      "Narayana Hrudayalaya Foundation"
+      "NARAYANA HRUDAYALAYA FOUNDATIONS",
+      "Narayana Health Insurance",
+      "NH Integrated Care",
+      "Hrudaylaya Pharmacy",
+      "Narayana Hrudayalaya"
     ]
   },
   {
@@ -6545,6 +6562,10 @@
     "sectors": [
       [
         "Building_Materials",
+        2
+      ],
+      [
+        "Technology",
         1
       ]
     ],
@@ -6555,9 +6576,9 @@
       "Ramco Industrial and Technology Services",
       "Ramco Industries",
       "The Ramco Cements",
-      "P.A.C.Ramasamy Raja Centenary Trust",
-      "P.A.C.R. Sethuramammal Charity Trust",
-      "Ramco Welfare Trust"
+      "Ramco Welfare Trust",
+      "Madurai Trans Carrier",
+      "Ramasubrahmaneya Rajha Ramco Foundation"
     ]
   },
   {
@@ -6622,10 +6643,10 @@
     "members_sample": [
       "GSK India Global Services",
       "GlaxoSmithKline Pharmaceuticals",
-      "GlaxoSmithKline LLC, U.S.A",
-      "GlaxoSmithKline Biologicals S.A., Belgium",
-      "GlaxoSmithKline Services Un , U.K",
-      "PT Glaxo welcome Indonesia"
+      "GlaxoSmithKline Research & Development , U.K",
+      "GSK Trading Services",
+      "Glaxo Operations UK",
+      "GlaxoSmithKline Philippines Inc"
     ]
   },
   {
@@ -6644,11 +6665,11 @@
     "merge_flags": [],
     "members_sample": [
       "KJ LLC-OMAN",
-      "Kalyan Jewellers LLC, UAE",
-      "Kalyan Jewellers W.L.L., Qatar",
-      "Kalyan Jewellers LLC",
-      "Kalyan Jewelers for Golden Jewelries W.L.L., Kuwait",
-      "Kalyan Jewellers SPC- Oman"
+      "Kalyan Jewellers Procurement SPC, Oman",
+      "Kalyan Jewellers FZE, UAE",
+      "Kalyan Al Sharq Jewellers Procurement WLL",
+      "Kalyan Jewellers FZE",
+      "Kalyan Jewellers Procurement LLC"
     ]
   },
   {
@@ -6673,10 +6694,10 @@
     "members_sample": [
       "Docprime Technologies",
       "Paisabazaar Marketing and Consulting",
-      "PB Financial Account Aggregators",
-      "MyLoanCare Ventures",
+      "MLC Finotech",
       "PB Marketing and Consulting",
-      "MLC Finotech"
+      "PB Financial Account Aggregators",
+      "MyLoanCare Ventures"
     ]
   },
   {
@@ -6716,10 +6737,10 @@
     "members_sample": [
       "Cliantha Research",
       "Torrent Urja 25",
-      "Zydus Pharmaceuticals",
       "Zydus Wellness",
+      "Zydus Pharmaceuticals",
       "Zydus Animal Health And Investment",
-      "Zydus MedTech"
+      "Zydus Lifesciences"
     ]
   },
   {
@@ -6744,10 +6765,10 @@
     "members_sample": [
       "Aayush M Agrawal",
       "Ajanta Pharma",
-      "Manisha Yogesh Agrawal foundation",
-      "Seth Bhagwandas Charitable Trust",
-      "Ravi P Agrawal",
-      "Samta Foundation"
+      "Ravi P Agrawal, trustee Ravi Agrawal Trust",
+      "Yogesh M Agrawal, trustee Yogesh Agrawal Trust",
+      "Mamta and Madhusudan Agrawal Memorial Foundation",
+      "Rivea Foundation"
     ]
   },
   {
@@ -6767,10 +6788,10 @@
     "members_sample": [
       "Akumentis Healtcare",
       "Unosource Pharma",
-      "Akumentis Healthcare",
-      "Upadhrish Reserchem LLP",
+      "Malik Lifesciences",
       "Qualymed Pharma",
-      "Akums Healhcare"
+      "Akums Healhcare",
+      "Upadhrish Reserchem LLP"
     ]
   },
   {
@@ -6796,32 +6817,9 @@
       "Blue Star Climatech",
       "Blue Star Engineering & Electronics",
       "Blue Star",
-      "Blue Star AC&R (SINGAPORE) PTE",
       "M/s SMA Associates",
-      "M/s AMA Associates"
-    ]
-  },
-  {
-    "size": 15,
-    "internal_edges": 28,
-    "density": 0.2667,
-    "top_refs": [
-      [
-        "vigil:rpt:BRITANNIA",
-        28
-      ]
-    ],
-    "sectors": [],
-    "family_members": [],
-    "family_hit_count": 0,
-    "merge_flags": [],
-    "members_sample": [
-      "Boribunder Finance and Investments",
-      "JB Mangharam Foods",
-      "Ganges Vally Foods",
-      "Flora Investment Company",
-      "Britannia Employees Medical Welfare Association",
-      "Britannia Employees General Welfare Association"
+      "Blue Star Air Conditioning & Refrigeration (U)",
+      "Other Omnibus related party transactions"
     ]
   },
   {
@@ -6846,10 +6844,10 @@
     "members_sample": [
       "AK Kajaria HUF",
       "Kajaria Ceramics",
-      "Rishi Kajaria HUF",
-      "Mrs. Shikha Kajaria",
-      "Mr. Kartik Kajaria",
-      "Rishi Kajaria Family Trust"
+      "Rishi Kajaria Family Trust",
+      "Chetan Kajaria HUF",
+      "Raghav Kajaria Family Trust",
+      "Mrs. Versha Devi Kajaria"
     ]
   },
   {
@@ -6874,10 +6872,33 @@
     "members_sample": [
       "Mr. Gaurav Kumaar Dua",
       "Relaxo Footwears",
-      "Mr. Nikhil Dua",
-      "Mr. Rahul Dua",
-      "Mr. Mukand Lal Dua",
-      "Ms.Usha Dua"
+      "Ms.Usha Dua",
+      "Mr. Ritesh Dua",
+      "Mukand Lal Dua (H.U.F)",
+      "Ms. Sakshi Dua"
+    ]
+  },
+  {
+    "size": 14,
+    "internal_edges": 28,
+    "density": 0.3077,
+    "top_refs": [
+      [
+        "vigil:rpt:BRITANNIA",
+        28
+      ]
+    ],
+    "sectors": [],
+    "family_members": [],
+    "family_hit_count": 0,
+    "merge_flags": [],
+    "members_sample": [
+      "Boribunder Finance and Investments",
+      "Gilt Edge Finance and Investments",
+      "Britannia Employees General Welfare Association",
+      "Flora Investments Company",
+      "Britannia Employees Medical Welfare Association",
+      "Sunrise Biscuit Company"
     ]
   },
   {
@@ -6907,11 +6928,11 @@
     "merge_flags": [],
     "members_sample": [
       "Emcure Pharmaceuticals",
-      "Mr. Satish Mehta",
-      "Mr. Sanjay Mehta",
-      "Mr. Sunil Mehta",
-      "Mr. Vikas Thapar",
-      "Torrent Urja 37"
+      "Mrs. Bhavana Mehta",
+      "Mr. Samit Mehta",
+      "Gennova Biopharmaceuticals",
+      "Dr. Shailesh Kripalu Ayyangar",
+      "Zuventus Healthcare"
     ]
   },
   {
@@ -6930,11 +6951,11 @@
     "merge_flags": [],
     "members_sample": [
       "EPL Americas LLC",
-      "Laminate Packaging Colombia SAS",
-      "EPL Packaging (Guangzhou)",
-      "EPL PACKAGING (THAILAND)",
-      "EPL Propack Philippines, INC",
-      "EPL Packaging (Jiangsu)"
+      "EPL Poland SP. z.o.o",
+      "EPL Propack UK",
+      "Lamitube Technology , Mauritius",
+      "EPL Propack De Mexico S.A. De C.V",
+      "EPL Packaging (Guangzhou)"
     ]
   },
   {
@@ -6959,10 +6980,10 @@
     "members_sample": [
       "Aton Shanghai Biotech Co",
       "Gland Pharma",
-      "Fosun Pharma USA Inc",
-      "Avanc Pharmaceutical Co",
+      "Chongqing Carelife Pharmaceutical Co",
       "Tridem Pharma SAS",
-      "Suzhou Erye Pharmaceutical Co"
+      "Suzhou Erye Pharmaceutical Co",
+      "Shanghai Fosun Pharmaceutical Industrial Development Co"
     ]
   },
   {
@@ -6981,11 +7002,11 @@
     "merge_flags": [],
     "members_sample": [
       "COVINGTON S.A.R.L",
+      "MHR HOLDINGS (MAURITIUS)",
       "HOLIDAY CLUB RESORTS OY",
-      "TROPIIKIN RANTASAUNA OY",
+      "KESKIN\u00c4INEN KIINTEIST\u00d6 OY SALLA STAR, FINLAND",
       "HOLIDAY CLUB SWEDEN AB ARE",
-      "OWNERSHIP SERVICES SWEDEN AB",
-      "HOLIDAY CLUB CANARIAS SALES AND MARKETING S.L.U"
+      "OWNERSHIP SERVICES SWEDEN AB"
     ]
   },
   {
@@ -7009,11 +7030,11 @@
     "merge_flags": [],
     "members_sample": [
       "Alexis Multi-Speciality Hospital",
-      "Jaypee Healthcare",
+      "Dr. B. L. Kapur Memorial Hospital",
       "Muthoot Hospital",
       "Max Healthcare FZ-LLC",
-      "Dr. Balabhai Nanavati Hospital",
-      "Radiant Life Care"
+      "Max Lab",
+      "Dr. Balabhai Nanavati Hospital"
     ]
   },
   {
@@ -7033,10 +7054,10 @@
     "members_sample": [
       "APEEEJAY ORFORD BOOKSTORE",
       "Apeejay Surrendra Park Hotels",
-      "Apeejay Shipping",
-      "apeejay",
+      "APEEJAY SURRENDRA MANGEMENT SERVICES",
+      "West bengal tourism corporateion",
       "Apeejay Oxford Bookstores",
-      "APEEJAY SURRENDRA MANGEMENT SERVICES"
+      "Apeejay Surrendra Management Services"
     ]
   },
   {
@@ -7062,9 +7083,9 @@
       "Polyplex Corporation",
       "Taghleef Latin America S.A",
       "Polyplex Europe Polyester Film Sannayi Ve Ticaret Anonim Siriketi",
-      "Taghleef Industries S.L",
-      "Polyplex Thailand Public Co",
-      "TAGHLEEF INDUSTRIES S.A.E"
+      "Taghleef Industries LLC",
+      "PT. Polyplex Films Indonesia",
+      "Taghleef industries Pty"
     ]
   },
   {
@@ -7083,11 +7104,11 @@
     "merge_flags": [],
     "members_sample": [
       "Emul Tek",
-      "Solar Defence and Arospace",
-      "ZmotionAutonomous System",
-      "Solar Nitro Chemical",
-      "Solar Nitro Ghana",
-      "Solar Mining Services (Pty) South Africa"
+      "Solar Explochem",
+      "Solar Industries India",
+      "Shri Kailashchandra Nuwal",
+      "Solar Nigachem",
+      "Solar Defence and Arospace"
     ]
   },
   {
@@ -7112,10 +7133,10 @@
     "members_sample": [
       "Bimla Devi Kajaria",
       "Titagarh Rail Systems",
-      "Titagarh Logistics Infrastructures",
-      "Titagarh Firema S.p.A, Italy",
-      "Vinita Bajroria",
-      "Jagdish Prasad Chowdhary (Trustee or Chowdhary Foundation)"
+      "Ms. Bimla Devi Kajaria",
+      "Jagdish Prasad Chowdhary",
+      "Rashmi Chowdhary",
+      "Vinita Bajroria"
     ]
   },
   {
@@ -7134,11 +7155,11 @@
     "merge_flags": [],
     "members_sample": [
       "Brunton Wire Ropes FZCo",
-      "Usha Martin Americas Inc",
-      "Usha Siam Specialty Wire Rope Company",
-      "Usha Martin UK",
+      "Usha Siam Steel Industries Public Company",
+      "PT Usha Martin Indonesia",
+      "Usha Martin Vietnam Company",
       "Usha Martin Australia Pty",
-      "Usha Martin Vietnam Company"
+      "Brunton Wire Ropes Industrial Company"
     ]
   },
   {
@@ -7177,8 +7198,8 @@
       "Aarti Industries",
       "Dilesh Roadlines (Division : Shree Amulya Techline Engineers)",
       "Alchemie Finechem",
-      "Kalpesh Roadlines imited",
-      "Parimal Hasmukhlal Desai"
+      "Alchemie Speciality Chemical",
+      "Valiant Organics"
     ]
   },
   {
@@ -7202,11 +7223,11 @@
     "merge_flags": [],
     "members_sample": [
       "ALEMBIC PHARMACEUTICALS SA de CV",
-      "Alembic Pharmaceuticals",
+      "Alembic Global Holding SA",
       "Rhizen Pharmaceuticals AG",
-      "Shreno Engineering",
-      "Shreno",
-      "Fenix Research Labs"
+      "Alembic Pharmaceuticals",
+      "Bhailal Amin General Hospital",
+      "Shreno Publications"
     ]
   },
   {
@@ -7225,11 +7246,11 @@
     "merge_flags": [],
     "members_sample": [
       "Al Sallan Food Industries Company SAOC, Oman",
-      "Strategic Food International Co. LLC, Dubai",
-      "Strategic Brands Holdings Co",
       "Britannia and Associates (Dubai) Company , Dubai",
-      "Catalyst Britania Brands",
-      "Britannia and Associates (Mauritius) , Mauritius"
+      "Britannia and Associates (Mauritius)",
+      "Britannia Dairy Holdings",
+      "Britannia Egypt LLC, Egypt",
+      "Catalyst Britania Brands , Mauritius"
     ]
   },
   {
@@ -7254,9 +7275,9 @@
     "members_sample": [
       "Birthright Games & Entertainment",
       "Capri Global Capital",
-      "Mr. Kalpesh Dhirajbhai Rathod",
-      "Capri Global Ventures",
-      "Capri Global Capital Markets",
+      "Capri Global Holdings",
+      "Capri Global Housing Finance",
+      "Capri Global Securities",
       "Mr. Yashesh Bhatt"
     ]
   },
@@ -7282,10 +7303,10 @@
     "members_sample": [
       "AMP Energy Green Eleven",
       "Cipla",
-      "AMPIN Energy Green Eleven",
       "Clean Max Auriga Power Llp",
-      "M K Hamied",
-      "Samina Hamied"
+      "Icaltech Innovations",
+      "AMPSolar Power Systems",
+      "Achira Labs"
     ]
   },
   {
@@ -7304,11 +7325,11 @@
     "merge_flags": [],
     "members_sample": [
       "Avenue Supermarts",
-      "Palya Footwear",
+      "Shivkishan Mindaram Damani Charitable Trust",
       "Derive Trading and Resorts",
-      "Damani Estates and Finance",
       "Mr.Radhakishan S. Damani",
-      "FP Ampere Energy"
+      "Shivkishan Mindaram Damani Charitable Trus",
+      "Palya Footwear"
     ]
   },
   {
@@ -7321,17 +7342,22 @@
         12
       ]
     ],
-    "sectors": [],
+    "sectors": [
+      [
+        "Chemicals",
+        1
+      ]
+    ],
     "family_members": [],
     "family_hit_count": 0,
     "merge_flags": [],
     "members_sample": [
       "ARJAN OWNERS LLP",
       "Epigral",
-      "MEGHMANI DYES- & INTERMEDIATES LLP",
-      "Meghmani Foundation",
       "Atvantic Finechem",
-      "Renew Green GJS three"
+      "Kilburn Chemicals",
+      "MEGHMANI DYES- & INTERMEDIATES LLP",
+      "Meghmani Organics"
     ]
   },
   {
@@ -7351,10 +7377,10 @@
     "members_sample": [
       "Aryan Hospitality",
       "Modern Road Makers",
+      "IRB MP Expressway",
+      "Pathankot Mandi Highway",
       "IRB Ahmedabad Vadodara Super Express Tollway",
-      "IRB Sindhudurg Airport",
-      "MRM Mining",
-      "Chittoor Thachur Highway"
+      "IRB Sindhudurg Airport"
     ]
   },
   {
@@ -7380,9 +7406,9 @@
       "Ecolife Mobility EV",
       "JBM Auto",
       "Ecolife Mobility Odisa",
+      "JBM Eco Tech",
       "Ecolife Mobility Vehicles",
-      "JBM Ecolife Mobility Haryana",
-      "TL Ecolife Mobility"
+      "JBM Ecolife Mobility Haryana"
     ]
   },
   {
@@ -7402,10 +7428,10 @@
     "members_sample": [
       "Eastern Solid Fuels (Pty)",
       "Jindal Africa investment Pty",
-      "Goedhoop Coal Pty",
-      "Jindal Mining Namibia (pty)",
+      "Jindal Kzn Processing (Pty)",
       "Jspl Mozambique Minerais Lda",
-      "Jindal Investimentos SA"
+      "Jindal Steel Chhatisgarh",
+      "Jindal Investimentos Lda"
     ]
   },
   {
@@ -7435,7 +7461,7 @@
       "Mangalore Coal Terminal",
       "JSW Tuticorin Multipurpose Terminal",
       "JSW Dharamtar Port",
-      "JSW Jaigarh Port"
+      "PNP Maritime Services"
     ]
   },
   {
@@ -7454,11 +7480,11 @@
     "merge_flags": [],
     "members_sample": [
       "Fantabulous Town Developers",
-      "Signature Builders",
-      "Signatureglobal Homes",
-      "Gurugram Commercity",
+      "Signatureglobal Business Park",
+      "Rose Building Solutions",
       "Signature Infrabuild",
-      "Forever Buildtech"
+      "Indeed fincap",
+      "Signatureglobal Homes"
     ]
   },
   {
@@ -7482,11 +7508,11 @@
     "merge_flags": [],
     "members_sample": [
       "SRF Altech",
+      "SRF Holiday Home",
       "SRF",
-      "SRF Global BV",
       "SRF Transnational Holdings",
-      "Shri Educare",
-      "Vaayu Renewable Energy (Tapti)"
+      "SRF EMPLOYEES WELFARE TRUST",
+      "Shri Educare"
     ]
   },
   {
@@ -7506,10 +7532,10 @@
     "members_sample": [
       "Karix Digital Labs FZ LLC",
       "Karix Mobile",
+      "Tanla Digital India",
       "Tanla Mobile Asia Pacific Pte ,Singapore",
-      "ValueFirst Digital Media Pte",
       "PT Karix Communications Indonesia",
-      "Tanla Foundation"
+      "ValueFirst Digital Media Pte"
     ]
   },
   {
@@ -7534,9 +7560,9 @@
     "members_sample": [
       "B K KISHORELAL",
       "Thangamayil Jewellery",
-      "YAMUNAVASINI DEVA DASI",
-      "N B ARUN",
-      "BALUSAMY SILVEARS JEWELLERY",
+      "R SHALINI",
+      "B RAJESHKANNA",
+      "THANGAMAYIL GOLD AND DIAMOND",
       "P SHYLAJA"
     ]
   },
@@ -7563,9 +7589,9 @@
       "Nueclear Healthcare",
       "Pulse Hitech Health Services (Ghatkopar) LLP",
       "Thyrocare Technologies",
+      "Equinox Labs",
       "Threpsi Solutions",
-      "Aycon Graph Connect",
-      "Thyrocare Laboratories (Tanzania)"
+      "Avighna Medicare"
     ]
   },
   {
@@ -7593,11 +7619,11 @@
     "merge_flags": [],
     "members_sample": [
       "Diageo Business Service India",
-      "Royal Challengers Sports",
       "United Spirits",
-      "Diageo Brands BV",
-      "Diageo MENA holding FZE",
-      "Diageo Ireland"
+      "Diageo Korea Co",
+      "Diageo Great Britain",
+      "Diageo Ireland",
+      "Diageo Brands BV"
     ]
   },
   {
@@ -7618,9 +7644,9 @@
       "KBJ Hotel and Restaurants",
       "Premsagar Infra Realty",
       "Ventive Hospitality",
-      "Lifestyle Interior LLP",
-      "Panchshil Infrastructure Holdings",
-      "Panchshil Techpark"
+      "Eon Kharadi infrastructure",
+      "Kudakurathu Island Resort",
+      "Panchshil Realty & Developers"
     ]
   },
   {
@@ -7644,11 +7670,11 @@
     "merge_flags": [],
     "members_sample": [
       "Edelweiss Financial Services",
-      "Mr. A V Ramaswamy",
+      "Edelweiss Trusteeship Company",
+      "Ms. Kaavya Venkat",
       "Mr. Neel Shah",
-      "Spire Investment Advisors LLP",
-      "Ms. Aparna T. C",
-      "Edelweiss Trusteeship Company"
+      "Ms. Sejal Premal Parekh",
+      "Ms. Aparna T. C"
     ]
   },
   {
@@ -7672,11 +7698,11 @@
     "merge_flags": [],
     "members_sample": [
       "HCG Manavata Oncology LLP",
+      "HCG Oncology Hospitals LLP (formerly, Apex HCG Oncology Hospitals LLP)",
+      "HCG KOLKATA CANCER CARE LLP",
       "HCG NCHRI Oncology LLP",
-      "Healthcare Global Enterprises",
       "HCG RAJKOT HOSPITALS LLP",
-      "HCG Oncology Hospitals LLP",
-      "Suchirayu Health Care Solutions"
+      "Malnad Hospital & Institute of Oncology"
     ]
   },
   {
@@ -7701,10 +7727,10 @@
     "members_sample": [
       "Bharat Financial Inclusion",
       "IndusInd Bank",
-      "Indusind General Insurance Company",
-      "IndusInd Securities",
-      "Reliance General Insurance Company",
-      "Reliance Securities"
+      "Harshada Pipaliya",
+      "Reliance Capital",
+      "IndusInd Marketing and Financial Services",
+      "NDL Ventures"
     ]
   },
   {
@@ -7729,8 +7755,8 @@
     "members_sample": [
       "PREMIER ENERGIES STORAGE SOLUTIONS",
       "Premier Energies",
-      "Transcon Ind",
-      "Premier Energies International",
+      "Premier Photovoltaic Zaheerabad",
+      "Mavyatho Ventures",
       "Premier Energies Photovoltaic",
       "Premier Solar Powertech"
     ]
@@ -7751,11 +7777,11 @@
     "merge_flags": [],
     "members_sample": [
       "Argon Hotels",
-      "DUET India Hotels (Hyderabad)",
-      "Duet India Hotels (Chennai OMR)",
-      "DUET INDIA HOTELS (AHMEDABAD)",
+      "SAMHI JV Business Hotels",
+      "Caspia Hotels",
       "DUET INDIA HOTELS (CHENNAI)",
-      "DUET India Hotels (Navi Mumbai)"
+      "DUET India Hotels (Navi Mumbai)",
+      "Innmar Tourism and Hotels"
     ]
   },
   {
@@ -7780,10 +7806,10 @@
     "members_sample": [
       "Aditya Shivrao Ghorpade",
       "Sandur Manganese & Iron Ores",
-      "Lohagiri Industrials",
-      "Euro Industrial Enterprises",
-      "Sandur Udyog",
-      "Ajai M Ghorpade"
+      "Ekambar Ajai Ghorpade",
+      "Ajai M Ghorpade",
+      "S Y Ghorpade",
+      "Dhananjai Shivrao Ghorpade"
     ]
   },
   {
@@ -7803,10 +7829,10 @@
     "members_sample": [
       "Comenergia Automotive Technologies Mexicana, S.de R.L.de C.V",
       "Comestel Automotive Technologies Mexicana",
+      "Comestel Automotive Technologies Mexicana, S.de R.L.de C.V",
       "Comstar Automotive Technologies Services",
       "Comstar Automotive USA LLC",
-      "Comstar Automotive Hongkong",
-      "Comstar Automotive Hangzhou Co"
+      "Comstar Automotive Hongkong"
     ]
   },
   {
@@ -7831,10 +7857,10 @@
     "members_sample": [
       "Koei Chemical Company",
       "Sumitomo Chemical India",
-      "Sumitomo Chemical Agro Europe S.A.S",
-      "Sumitomo Chemical Asia Pte",
+      "Sumitomo Chemical Philippines, INC",
       "Mycorrhizal Applications, LLC",
-      "Sumitomo Chemical Vietnam Co"
+      "Sumitomo Chemical Vietnam Co",
+      "Sumika Agrotech Co"
     ]
   },
   {
@@ -7854,10 +7880,10 @@
     "members_sample": [
       "Adani Global Pte",
       "Adani Green Energy PTE",
-      "Phuoc Minh Renewables Pte ., Singapore",
-      "Phuoc Minh Wind Pte ., Singapore (Formerly known as Adani Renewable Pte )",
-      "Phuoc Minh Renewables Pte ., Singapore (Formerly known as Adani Phuoc Minh Renewables Pte )",
-      "Adani Phuoc Minh Solar Power Joint Stock Company, Vietnam"
+      "Phuoc Minh Solar Pte ., Singapore Pte )",
+      "Adani Green Energy SL",
+      "Phuoc Minh Wind Pte ., Singapore",
+      "Phuoc Minh Renewables Pte ., Singapore (Formerly known as Adani Phuoc Minh Renewables Pte )"
     ]
   },
   {
@@ -7885,11 +7911,11 @@
     "merge_flags": [],
     "members_sample": [
       "Aegis Gas (LPG)",
-      "Sealord Containers",
-      "Konkan Storage Systems (Kochi)",
-      "CRL Terminals",
+      "Eastern India LPG Company",
+      "Aegis Vopak Terminals",
+      "Vopak India B.V",
       "Aegis Terminal (Pipavav)",
-      "Hindustan Aegis LPG"
+      "Sealord Containers"
     ]
   },
   {
@@ -7908,11 +7934,11 @@
     "merge_flags": [],
     "members_sample": [
       "Argus Salud Pharma LLP",
-      "Drogueria Saimed de Honduras S.A",
       "Caplin Steriles",
+      "Caplin One Labs",
+      "Caplin Point Far East , (Hong Kong)",
       "Caplin Point Laboratories Colombia SAS",
-      "Caplin One Labs (Formerly Known as Caplin Onco )",
-      "Nuevos Eticos Neo Ethicals S.A - Guatemala"
+      "Caplin One Labs (Formerly Known as Caplin Onco )"
     ]
   },
   {
@@ -7945,10 +7971,10 @@
     "members_sample": [
       "Akangsha Dhanuka",
       "Dhanuka Agritech",
-      "Dhanuka Marketing Company",
-      "Madhuri Dhanuka",
-      "Megha Dhanuka",
-      "Dhanuka Laboratories"
+      "Orchid Pharma",
+      "ORBION PHARMACEUTICALS",
+      "Mridul Dhanuka (HUF)",
+      "Dhanuka"
     ]
   },
   {
@@ -7972,10 +7998,10 @@
     "merge_flags": [],
     "members_sample": [
       "HDFC Asset Management Company",
+      "HDFC Trustee Company",
       "HDFC ERGO General Insurance Company",
-      "HDFC Pension Fund Management",
+      "HDB Financial Services",
       "ERGO Insurance PTE",
-      "HDFC Sales",
       "HDFC Capital Advisors"
     ]
   },
@@ -8024,10 +8050,10 @@
     "members_sample": [
       "Drill Pipe International LLC",
       "Tube Technologies INC",
-      "World Transload & Logistics LLC",
-      "Jindal Saw Holding FZE",
-      "JINDAL SEAMLESS PIPE MANUFACTURING LLC",
-      "S.V. Trading"
+      "JINDAL SAW USA, LLC",
+      "S.V. Trading",
+      "Ralael holdings",
+      "Jindal Saw"
     ]
   },
   {
@@ -8055,11 +8081,11 @@
     "merge_flags": [],
     "members_sample": [
       "KNR Constructions",
-      "Kamidi Reality",
       "Patel KNR Infrastructures",
-      "Patel KNR heavy Infrastructures",
-      "Patel Engineering",
-      "Landview India"
+      "Patel KNR Infrastructure",
+      "Kamidi Reality",
+      "M Rajesh Reddy",
+      "Patel KNR heavy Infrastructures"
     ]
   },
   {
@@ -8079,10 +8105,10 @@
     "members_sample": [
       "Deccan Medisales",
       "Optival Health Solutions",
-      "Nova Sud Pharmaceuticals",
-      "Sidson Pharma Distributors",
-      "Wynclark Pharmaceuticals",
-      "Shri Banashankari Pharma"
+      "Medplus Insurance Brokers",
+      "Venkata Krishna Enterprises",
+      "Sai Sridhar Pharma",
+      "Wynclark Pharmaceuticals"
     ]
   },
   {
@@ -8108,8 +8134,8 @@
       "Dharmesh Naraindas Genomal",
       "Page Industries",
       "Madhuri Genomal",
+      "Rohan Genomal",
       "Sunder Genomal",
-      "Pamela Kirpalani",
       "Simran Keshav Mahtani"
     ]
   },
@@ -8123,17 +8149,22 @@
         10
       ]
     ],
-    "sectors": [],
+    "sectors": [
+      [
+        "Engineering_Capital_Goods",
+        1
+      ]
+    ],
     "family_members": [],
     "family_hit_count": 0,
     "merge_flags": [],
     "members_sample": [
       "KGR WORLDWIDE SOLUTIONS LLP",
-      "R R KABEL",
+      "RR Kabel",
+      "TRIBHUVANPRASAD RAMESHWARLAL KABRA",
+      "SHREEGOPAL KABRA HUF",
       "RAJESH SHREEGOPAL KABRA",
-      "KIRTIDEVI SHREEGOPAL KABRA",
-      "MAHHESH TRIBHUVANPRASAD KABRA",
-      "RAM RATNA INFRA STRUCTURE"
+      "KIRTIDEVI SHREEGOPAL KABRA"
     ]
   },
   {
@@ -8152,11 +8183,11 @@
     "merge_flags": [],
     "members_sample": [
       "AE Rotor Holding B.V",
-      "Suzlon Wind Energy Uruguay SA",
+      "Suzlon Wind Energy",
+      "Suzlon Wind Energy South-Africa (PTY)",
       "Suzlon Wind Energy Portugal Energia Elocia Unipessoal Lda",
-      "Suzlon Wind Energy Espana, S.L",
       "Suzlon Wind Energy Romania SRL",
-      "Suzlon Energy Australia Pty"
+      "Suzlon Wind Enerji Sanayi Ve Ticaret Sirketi"
     ]
   },
   {
@@ -8180,11 +8211,11 @@
     "merge_flags": [],
     "members_sample": [
       "Varroc Electronics Romania S.r.l",
-      "Varroc Germany GmBH",
       "Varroc Vietnam Co",
       "Varroc Japan Co",
       "Varroc Romania S.A",
-      "Varroc Poland s.p.z.oo"
+      "Varroc Poland s.p.z.oo",
+      "Chongqing Varroc TYC Auto Lamps Co, China"
     ]
   },
   {
@@ -8203,11 +8234,11 @@
     "merge_flags": [],
     "members_sample": [
       "AUTHUM INVESTMENT AND INFRASTRUCTURE",
-      "MIRC",
+      "Rivaara Labs",
+      "REJOICE REALTY",
       "INDIA SME ASSET RECONSTRUCTION COMPANY TRUST-2",
-      "MENTOR CAPITAL",
-      "NITCO REALITIES",
-      "Rivaara Labs"
+      "RECONDO",
+      "NITCO REALITIES"
     ]
   },
   {
@@ -8232,10 +8263,10 @@
     "members_sample": [
       "AstraZeneca FZ LLC, Dubai",
       "AstraZeneca Pharma India",
+      "AstraZeneca Pharmaceuticals , Kenya",
       "AstraZeneca Singapore Pte , Singapore",
       "AstraZeneca Pharmaceuticals (Pty) , South Africa",
-      "AstraZeneca Vietnam",
-      "AstraZeneca Pharmaceuticals , Kenya"
+      "P.T. AstraZeneca Indonesia"
     ]
   },
   {
@@ -8250,6 +8281,10 @@
     ],
     "sectors": [
       [
+        "Textiles",
+        1
+      ],
+      [
         "FMCG",
         1
       ]
@@ -8259,11 +8294,11 @@
     "merge_flags": [],
     "members_sample": [
       "Baymanco Investments",
+      "Bombay Dyeing & Manufacturing Company",
+      "Naira Holdings",
       "Naperol Investments",
       "Bombay Burmah Trading Corporation",
-      "Macrofil Investments",
-      "Wallace Brothers Trading and Industrial",
-      "The Bombay Dyeing & Manufacturing Company"
+      "National Peroxide"
     ]
   },
   {
@@ -8286,7 +8321,7 @@
       "BLS Kendras",
       "Starfin India",
       "BLS IT Services",
-      "BLS E Services"
+      "Bls International Services LLC, UAE"
     ]
   },
   {
@@ -8311,10 +8346,10 @@
     "members_sample": [
       "Dream Digital Technology",
       "Ethos",
-      "VBL Innovations",
+      "Pylania SA",
+      "Cognition Digital LLP",
       "Silvercity Brands AG",
-      "Saboo Housing Projects LLP",
-      "Mahen Distribution"
+      "Saboo Ventures LLP"
     ]
   },
   {
@@ -8327,17 +8362,22 @@
         9
       ]
     ],
-    "sectors": [],
+    "sectors": [
+      [
+        "Infrastructure",
+        1
+      ]
+    ],
     "family_members": [],
     "family_hit_count": 0,
     "merge_flags": [],
     "members_sample": [
       "Blue Water Enterprises",
       "ISGEC Heavy Engineering",
-      "Isgec SFW Boilers",
-      "Isgec Hitachi Zosen",
-      "Isgec Redecam Enviro Solutions",
-      "The Yamuna Syndicate"
+      "The Yamuna Syndicate",
+      "Saraswati Sugar Mills",
+      "Isgec Titan Metal Fabricators",
+      "Yamuna Syndicate"
     ]
   },
   {
@@ -8357,8 +8397,8 @@
     "members_sample": [
       "Blazeclan Americas Inc",
       "Blazeclan Technologies Inc",
-      "Blazeclan Technologies LLC",
       "Blazeclan Technologies PTE",
+      "Blazeclan Technologies Corporation",
       "Blazeclan Technologies SDN. BHD",
       "ITC Infotech Malaysia SDN. BHD"
     ]
@@ -8385,10 +8425,10 @@
     "members_sample": [
       "Bhavubha Lalubha Jadeja",
       "Jyoti CNC Automation",
-      "Jyoti Enterprise",
-      "Kiya Products",
+      "Jyoti International LLP",
       "Vikramsinh Raghuvirsinh Rana",
-      "Parakramsinh Ghanshyamsinh Jadeja"
+      "Parakramsinh Ghanshyamsinh Jadeja",
+      "Kiya Products"
     ]
   },
   {
@@ -8408,10 +8448,10 @@
     "members_sample": [
       "BEAS ROVUMA ENERGY MOZAMBIQUE (BREML Subsidiary of OVL)",
       "Oil & Natural Gas Corporation",
-      "OVL Overseas IFSC (OOIL)",
       "Petronet LNG (PLL)",
+      "OGL One",
       "ONGC Campos a, Brazil",
-      "ONGC Nile Ganga B.V, Netherlands"
+      "ONGC VIDESH Rovuma (OVRL Subsidiary of OVL)"
     ]
   },
   {
@@ -8431,10 +8471,10 @@
     "members_sample": [
       "One Nine Seven Communication Saudi Arabia for Communication & Information Technology",
       "One97 Communications FZ LLC",
-      "One97 Communications Bangladesh",
-      "One97 Uganda",
+      "One97 Benin SA",
+      "One97 Communications Rwanda",
       "One97 Communications Tanzania",
-      "One97 Communications Nigeria"
+      "One97 Uganda"
     ]
   },
   {
@@ -8458,11 +8498,11 @@
     "merge_flags": [],
     "members_sample": [
       "Care Health Insurance",
-      "Religare Housing Development Finance Corporation",
-      "Religare Enterprises",
+      "Religare Finvest",
       "Religare Capital Markets",
       "Religare Commodities",
-      "MIC Insurance web Aggregator"
+      "Religare Enterprises",
+      "Religare Broking"
     ]
   },
   {
@@ -8487,10 +8527,10 @@
     "members_sample": [
       "BRIJ BHUSHAN AGARWAL & SONS HUF",
       "Shyam Metalics and Energy",
-      "Kalpataru Housefin & Trading",
+      "MITTU AGARWAL",
+      "SHYAM SEL AND POWER",
       "NARANTAK DEALCOMM",
-      "SUBHAM BUILDWELL",
-      "DORITE TRACON"
+      "Kalpataru Housefin & Trading"
     ]
   },
   {
@@ -8515,10 +8555,10 @@
     "members_sample": [
       "EXPEDIENT HEALTHCARE MARKETING",
       "Star Health and Allied Insurance Company",
-      "M/s Trust Capital (India) Services",
-      "MOUNTAIN MANAGERS",
-      "M/s. Roppen Transportation Services",
-      "M/s. Rare Enterprises"
+      "M/s Pegasus Assets Reconstruction",
+      "TRUST CAPITAL SERVICES (LNDIA)",
+      "RARE ENTERPRISES",
+      "M/s. Roppen Transportation Services"
     ]
   },
   {
@@ -8538,9 +8578,9 @@
     "members_sample": [
       "Mithra Buildcon",
       "Sahrish Construction",
-      "Rammit Corporate Solutions",
-      "Sahrish Constructions",
       "Sunteck Realty (Refer Note 4)",
+      "Sunteck Real Estates",
+      "Sunteck Realty Holdings",
       "Sunteck lifespace"
     ]
   },
@@ -8568,8 +8608,8 @@
       "TSR Darashaw HR Services",
       "TeamLease Digital",
       "TeamLease HRTech",
-      "TeamLease Regtech",
-      "Teamlease Foundation"
+      "TeamLease Skills University (\u2018TLSU\u2019)",
+      "TeamLease Services"
     ]
   },
   {
@@ -8596,8 +8636,8 @@
       "Dr Agarwals Eye Hospital",
       "Dr. Ashvin Agarwal",
       "Dr. Agarwal's Health Care",
-      "Dr. Anosh Agarwal",
-      "Dr. Ashar Agarwal"
+      "IdeaRx Services",
+      "Dr. Anosh Agarwal"
     ]
   },
   {
@@ -8616,11 +8656,11 @@
     "merge_flags": [],
     "members_sample": [
       "Alok Industries International",
-      "Alok International Inc",
+      "Alok International (Middle East) FZE",
+      "Alok Infrastructure",
       "Alok Singapore PTE",
       "Grabal Alok (UK)",
-      "Alok Infrastructure",
-      "Alok International (Middle East) FZE"
+      "Alok International Inc"
     ]
   },
   {
@@ -8648,10 +8688,10 @@
     "merge_flags": [],
     "members_sample": [
       "Ather Energy (formerly known as Ather Energy )",
-      "Hero FinCorp",
       "Hero MotoCorp",
+      "Euler Motors",
       "Clean Max Karakoram",
-      "Hero InvestCorp",
+      "Bahadur Chand Investments",
       "Ather Energy"
     ]
   },
@@ -8676,10 +8716,10 @@
     "merge_flags": [],
     "members_sample": [
       "Avanti Feeds",
-      "Thai Union Feed Mill Public Company",
-      "Srinivasa Cystine",
+      "Thai Union Group Public Company",
       "Avanti Frozen Foods",
       "Thai Union Seafood Company",
+      "Okeanos Food Company",
       "Tri Union Frozen Products Inc, USA"
     ]
   },
@@ -8705,10 +8745,10 @@
     "members_sample": [
       "Bannatyne Enterprises Pte , Singapore",
       "Britannia Industries",
-      "Nacupa Enterprises Pte , Singapore",
-      "Spargo Enterprises Pte , Singapore",
       "Sunandaram Foods",
-      "Fairsun Solar"
+      "Fairsun Solar",
+      "Nalanda Biscuits Company",
+      "Spargo Enterprises Pte , Singapore"
     ]
   },
   {
@@ -8727,7 +8767,7 @@
     "merge_flags": [],
     "members_sample": [
       "Avenues Infinite",
-      "Infibeam Projects Management",
+      "Nueromind Technologies",
       "Rediff.com India",
       "Pirimid Technologies",
       "Infibeam Avenues",
@@ -8757,9 +8797,9 @@
       "Akshay Gupta",
       "KRBL",
       "Ashish Mittal",
-      "Anulika Gupta",
-      "Preeti Mittal",
-      "Ayush Gupta"
+      "Ayush Gupta",
+      "Anoop Kumar Gupta HUF",
+      "Kunal Gupta"
     ]
   },
   {
@@ -8780,8 +8820,8 @@
       "GDN Enterprises",
       "Optiemus Electronics",
       "Optiemus Display Technology",
-      "Optiemus Micro Electronics",
-      "Troosol Enterprises",
+      "XO Ventures",
+      "Optiemus Vision Technology",
       "FineMS Electronics"
     ]
   },
@@ -8807,10 +8847,10 @@
     "members_sample": [
       "Sagility (Jamaica)",
       "Sagility India",
+      "Sagility Philippines B.V. - Philippines Branch",
       "Sagility Provider Solutions LLC",
       "Sagility",
-      "Sagility Philippines B.V. Branch",
-      "Sagility (Colombia) SAS"
+      "Sagility Philippines B.V. Branch"
     ]
   },
   {
@@ -8830,9 +8870,9 @@
     "members_sample": [
       "Tega Holdings Pte",
       "Tega Industries Inc",
+      "Tega Industries Africa Proprietary",
       "Tega Industries Chile SpA",
       "Tega Do Brasil Servicos Technicos a",
-      "Tega Industries Africa Proprietary",
       "Tega Industries Canada Inc"
     ]
   },
@@ -8852,11 +8892,11 @@
     "merge_flags": [],
     "members_sample": [
       "Al Nakhla Crusher, LLC, Fujairah, UAE",
-      "Star Cement Co LLC, RAK, UAE",
+      "Star Super Cement Industry LLC",
       "Star Cement Co LLC, Dubai, UAE",
-      "Duqm Cement Project International LLC",
+      "UltraTech Cement Co W.L.L, Bahrain",
       "UltraTech Cement Lanka",
-      "UltraTech Cement Co W.L.L, Bahrain"
+      "Duqm Cement Project International LLC"
     ]
   },
   {
@@ -8880,10 +8920,10 @@
     "merge_flags": [],
     "members_sample": [
       "Bandhan Bank",
-      "Bandhan Financial Holdings",
-      "Bandhan Konnagar",
       "North East Financial Inclusion Trust",
       "Financial Inclusion Trust",
+      "Bandhan Konnagar",
+      "Bandhan Financial Holdings",
       "Bandhan Financial Services"
     ]
   },
@@ -8909,10 +8949,10 @@
     "members_sample": [
       "Berger Paints (Bangaladesh)",
       "Berger Paints India",
-      "Wang Investment And Finance",
+      "Bigg Investment & Finance",
       "Jenson & Nicholson (Asia)",
-      "Citland Commercial Credits",
-      "Bigg Investment & Finance"
+      "Wang Investment And Finance",
+      "Citland Commercial Credits"
     ]
   },
   {
@@ -8929,6 +8969,10 @@
       [
         "Building_Materials",
         1
+      ],
+      [
+        "Engineering_Capital_Goods",
+        1
       ]
     ],
     "family_members": [],
@@ -8937,9 +8981,9 @@
     "members_sample": [
       "Belle Vue Clinic",
       "Birla Corporation",
-      "Hindustan Gum & Chemicals",
-      "Gwalior Webbing Co",
+      "Vindhya Telelinks",
       "The Punjab Produce & Trading Co",
+      "East India Investment Co",
       "Universal Cables"
     ]
   },
@@ -8965,10 +9009,10 @@
     "members_sample": [
       "CAMS Financial Information Services",
       "Computer Age Management Services",
-      "Think Analytics India",
-      "Sterling Software",
       "CAMS Insurance Repository Services",
-      "Fintuple Technologies"
+      "Fintuple Technologies",
+      "Sterling Software",
+      "Think Analytics India"
     ]
   },
   {
@@ -8993,10 +9037,10 @@
     "members_sample": [
       "Diamond Power Infrastructure",
       "Krone Finstock",
-      "Smart Meters Technologies",
-      "GSEC",
       "IMP power",
-      "Electrify Energy"
+      "GSEC",
+      "Monarch Infraparks",
+      "Gomax Aviation"
     ]
   },
   {
@@ -9018,7 +9062,7 @@
       "Easy Trip Planners",
       "Planet Education Australia Pty",
       "Pflege Home Health Care Center L.L.C",
-      "Priyanka Tiwari",
+      "Jeewani Hospitality",
       "Rollins International"
     ]
   },
@@ -9044,10 +9088,10 @@
     "members_sample": [
       "ANAND CY MYUTEC AUTOMOTIVE",
       "Gabriel India",
-      "Anevolve Mando E Mobility",
-      "Anand Automotive",
       "SK Enmove Gabriel India",
-      "Anand I Power"
+      "Anevolve Mando E Mobility",
+      "Anand I Power",
+      "Anand Automotive"
     ]
   },
   {
@@ -9060,7 +9104,12 @@
         7
       ]
     ],
-    "sectors": [],
+    "sectors": [
+      [
+        "Real_Estate",
+        1
+      ]
+    ],
     "family_members": [],
     "family_hit_count": 0,
     "merge_flags": [],
@@ -9095,10 +9144,10 @@
     "members_sample": [
       "Aikya Chemicals",
       "Gujarat Mineral Development",
-      "Gujarat Credo Mineral Industries",
-      "GMDC Science & Research Center",
+      "Gujarat Mineral Research & Industrial Counsultancy Society",
+      "GMDC Science & Research Centre",
       "Gujarat Mineral Research & Industrial Consultancy Society",
-      "GMDC Science & Research Centre"
+      "GMDC Science & Research Center"
     ]
   },
   {
@@ -9125,7 +9174,7 @@
       "Happiest Minds Technologies",
       "Veena Soota",
       "Kunku Soota",
-      "Jayalakshmi\nVenkatraman",
+      "Usha Samuel",
       "Happiest Health System"
     ]
   },
@@ -9180,9 +9229,9 @@
       "JSW Steel Netherlands",
       "JSW Steel USA, Inc",
       "Jsw Steel Usa Ohio Inc",
+      "Acero Junction Holdings, Inc",
       "Planck Holding, LLC",
-      "Planck Holdings",
-      "Acero Junction Holdings, Inc"
+      "Plank Holdings"
     ]
   },
   {
@@ -9202,10 +9251,10 @@
     "members_sample": [
       "Harrisons Shipping ( )",
       "Kansai Paints Lanka ( )",
+      "The Capital Maharaja Organisation",
       "PE Plus ( )Lid",
       "Jones Carriers ( )",
-      "International Cosmetics ( )",
-      "MBC Networks ( )"
+      "S-Lon Lanka ( )"
     ]
   },
   {
@@ -9225,10 +9274,10 @@
     "members_sample": [
       "CloudCruze Aviation Leasing Services IFSC",
       "Lloyds Metals and Energy",
-      "THRIVENI PELLETS",
-      "Thriveni Earthmovers And Infra (Teipl)",
+      "THRIVENI EARTHMOVERS AND INFRA (TEIPL) (PNG)",
+      "LLOYDS GLOBAL RESOURCES FZCO",
       "Lloyds Infinite Foundation",
-      "LLOYDS GLOBAL RESOURCES FZCO"
+      "Thriveni Earthmovers And Infra"
     ]
   },
   {
@@ -9254,8 +9303,8 @@
       "NCC Infrastructure Holdings",
       "Pondicherry-Tindivanam Tollway",
       "NCC",
+      "Ekana Sprorts city",
       "Sri A Sanjith Raju",
-      "Nagarjuna Facility Management",
       "UHPFRC NAGPUR LLP"
     ]
   },
@@ -9281,10 +9330,10 @@
     "members_sample": [
       "Lotus Global Foundation",
       "Trident",
-      "Mintleaf People Connect",
-      "Mr.Rajinder Gupta",
-      "Madhuraj Foundation",
-      "Trident Humanity Foundation"
+      "Trident Group",
+      "Trident Humanity Foundation",
+      "Trident Global Corp",
+      "Madhuraj Foundation"
     ]
   },
   {
@@ -9307,7 +9356,7 @@
       "Biocon SA",
       "Biocon Pharma Malta I",
       "Biocon Pharma UK",
-      "Biocon Pharma Malta"
+      "Biocon Pharma Ireland"
     ]
   },
   {
@@ -9326,11 +9375,11 @@
     "merge_flags": [],
     "members_sample": [
       "Bill Forge De Mexico SA de CV",
-      "Gescrap Autometal Mexico Sociedad Anonima De Capital Variable",
       "GAT Mexico",
-      "Pintura, Estampado y Montaje, S.A. de C.V",
-      "CIE GOIAN",
-      "Maquinados de Precisi\u00f3n M\u00e9xico"
+      "Gescrap Autometal Mexico Sociedad Anonima De Capital Variable",
+      "CIE Automotive de Mexico, SAPI de C.V",
+      "Maquinados de Precisi\u00f3n M\u00e9xico",
+      "Pintura, Estampado y Montaje, S.A. de C.V"
     ]
   },
   {
@@ -9350,10 +9399,10 @@
     "members_sample": [
       "PT VECV Automotive Indonesia",
       "VE Commercial Vehicles",
-      "VECV South Africa Pty",
-      "V E C V Lanka ( )",
       "VE Connected Solutions formerly Aquila Mobility Solutions",
-      "VE Connected Solutions"
+      "V E C V Lanka ( )",
+      "VE Connected Solutions",
+      "VECV South Africa Pty"
     ]
   },
   {
@@ -9378,9 +9427,9 @@
     "members_sample": [
       "Anjali Kunal Patil (legal heir of Late Mr. Prakash Damodar Kamat)",
       "Fine Organic Industries",
-      "Smoothex Chemicals",
       "Olefine Organics",
       "Fine Organics",
+      "Smoothex Chemicals",
       "Oleofine Organics Sdn. Bhd"
     ]
   },
@@ -9406,10 +9455,10 @@
     "members_sample": [
       "Goldi Sun",
       "Havells India",
-      "QRG Enterprises",
-      "SHRI ANIL RAI GUPTA",
+      "Kundan Solar (Pali)",
+      "SHRI AMEET KUMAR GUPTA",
       "QRG Investments and Holdings",
-      "Kundan Solar (Pali)"
+      "QRG Enterprises"
     ]
   },
   {
@@ -9437,7 +9486,7 @@
       "India Cements",
       "India Cements Capital",
       "Super King Ventures P (Wholly owned subsidiary of CSKCL)",
-      "PT Mitra Setia Tanah Bumbu, Indonesia"
+      "Chennai Super Kings Cricket"
     ]
   },
   {
@@ -9462,10 +9511,10 @@
     "members_sample": [
       "Adansa Solutions",
       "IndiaMART InterMESH",
+      "Mobisy Technologies",
       "Simply Vyapar Apps",
-      "Mansa Enterprises",
       "Fleetx Technologies",
-      "Mobisy Technologies"
+      "Mansa Enterprises"
     ]
   },
   {
@@ -9490,10 +9539,10 @@
     "members_sample": [
       "Alok Mehta",
       "Interglobe Aviation",
-      "InterGlobe Enterprises",
+      "Mr. Rahul Bhatia",
       "Mr. Kapil Bhatia",
-      "Mrs. Rohini Bhatia",
-      "Mr. Rahul Bhatia"
+      "Rakesh Gangwal",
+      "Mrs. Rohini Bhatia"
     ]
   },
   {
@@ -9512,11 +9561,11 @@
     "merge_flags": [],
     "members_sample": [
       "Caretta Minerals, LLC",
-      "Hutchinson Minerals, LLC",
-      "Purest Energy, LLC",
       "Meadow Creek Minerals, LLC",
-      "Lower Hutchinson Minerals, LLC",
-      "Planck Holdings, LLC"
+      "Purest Energy, LLC",
+      "Planck Holdings, LLC",
+      "Periama Holdings, LLC",
+      "Lower Hutchinson Minerals, LLC"
     ]
   },
   {
@@ -9540,10 +9589,10 @@
     "members_sample": [
       "GSI LUCCHINI",
       "JSW Steel Italy Piombino SpA",
-      "GSI Lucchini SpA",
-      "JSW Severfield structures",
+      "JSW Steel Italy S.r.l",
       "PIOMBINO LOGISTICS SPA",
-      "GSI Luchhini SpA"
+      "GSI Luchhini SpA",
+      "GSI Lucchini SpA"
     ]
   },
   {
@@ -9566,7 +9615,7 @@
       "Kaveri Microtech",
       "Kaveri Seed Company",
       "Gundavaram Vanaja Bhaskarrao Vidyapeet",
-      "Bhaskara Investments"
+      "Kaveri Infra"
     ]
   },
   {
@@ -9586,9 +9635,9 @@
     "members_sample": [
       "Decision Point Analytics Inc., USA",
       "Decision Point",
+      "LatentView Analytics UK",
       "Decision Point Latam SPA",
       "Decision Point LATAM, Mexico",
-      "LatentView Analytics UK",
       "LatentView Analytics Corporation"
     ]
   },
@@ -9609,10 +9658,10 @@
     "members_sample": [
       "Brady Investments",
       "LAXMI ORGANIC INDUSTRIES",
-      "Laxmi Petrochem",
       "Cleanwin Energy One LLP",
+      "Saideep Traders",
       "R.R.Investments & Estates",
-      "Saideep Traders"
+      "Radiance MH Sunrise Seven"
     ]
   },
   {
@@ -9637,10 +9686,10 @@
     "members_sample": [
       "Jindal Drilling & Industries",
       "Maharshtra Seamless",
-      "Sigma Infrasture",
-      "Jindal Global Finance & Investment",
+      "Jindal Pipes",
       "RAIGAD PLASTIC",
-      "Jindal Pipes"
+      "Jindal Global Finance & Investment",
+      "SIGMA INFRASTRUCTURE"
     ]
   },
   {
@@ -9665,10 +9714,10 @@
     "members_sample": [
       "Emnar Pharma",
       "MTAR Technologies",
-      "K. Shalini",
-      "KALLEM SHALINI",
+      "K.SHALINI REDDY",
       "Nettlinx",
-      "P. Sasidhar Reddy"
+      "K. Shalini",
+      "KALLEM SHALINI"
     ]
   },
   {
@@ -9692,34 +9741,11 @@
     "merge_flags": [],
     "members_sample": [
       "Pfizer",
-      "Pfizer Service Company BVBA, Belgium",
       "Pfizer Worldwide Services Company",
-      "Pfizer Products India , India",
-      "Pfizer Products India",
-      "Pfizer Healthcare India"
-    ]
-  },
-  {
-    "size": 7,
-    "internal_edges": 6,
-    "density": 0.2857,
-    "top_refs": [
-      [
-        "vigil:rpt:PRIVISCL",
-        6
-      ]
-    ],
-    "sectors": [],
-    "family_members": [],
-    "family_hit_count": 0,
-    "merge_flags": [],
-    "members_sample": [
-      "GIVAUDAN SINGAPORE PPE",
-      "Prigiv Specialties",
-      "Givaudan India",
-      "Givaudan S.A.& others",
-      "Givaudan - Finance SA",
-      "Givaudan S.A"
+      "Pfizer Service Company BVBA, Belgium",
+      "Pfizer Healthcare India",
+      "Pfizer export B.V",
+      "Pfizer Products India"
     ]
   },
   {
@@ -9744,9 +9770,9 @@
     "members_sample": [
       "Argan Properties",
       "Puravankara",
-      "Handiman Services",
-      "Ravi Puravankara",
+      "Kenstream Ventures LLP",
       "Puravankara Investments",
+      "Ravi Puravankara",
       "Whitefield Ventures"
     ]
   },
@@ -9818,10 +9844,10 @@
     "members_sample": [
       "Geetganga Investment",
       "Styrenix Performance Materials",
-      "Shiva Premises Owners Association",
+      "Shiva Performance Solutions",
+      "SES ENGINEERING",
       "Monet Properties LLP",
-      "Shiva Performance Materials",
-      "Shiva Performance Solutions"
+      "Shiva Performance Materials"
     ]
   },
   {
@@ -9848,8 +9874,8 @@
       "Supr Infotech Solutions",
       "Swiggy Networks",
       "Swiggy",
-      "Swiggy Instamart",
-      "Swiggy Sports"
+      "Swiggy Sports",
+      "Swiggy Instamart"
     ]
   },
   {
@@ -9869,10 +9895,10 @@
     "members_sample": [
       "Bonaire USA, LLC",
       "IMPCO S DE RL DE C V., Mexico",
-      "Dongguan GSK Appliances Co",
+      "Guangdong Symphony Keruilai Air Coolers Co",
       "Symphony Climatizadores a",
-      "Climate Techinologies",
-      "Guangdong Symphony Keruilai Air Coolers Co"
+      "Climate Technologies Pty",
+      "Dongguan GSK Appliances Co"
     ]
   },
   {
@@ -9897,10 +9923,10 @@
     "members_sample": [
       "DGP REALTY NAGPUR",
       "V.I.P. Industries",
-      "DGP REALTY NASHIK",
-      "KEMP AND CO",
+      "Kemp And Company",
+      "Piramal Vibhuti Investments , formally known as Vibhuti Investments Company",
       "Vibhuti Investments Company",
-      "Kemp And Company"
+      "DGP REALTY NASHIK"
     ]
   },
   {
@@ -9919,11 +9945,11 @@
     "merge_flags": [],
     "members_sample": [
       "CP Pharmaceuticals",
-      "Pinewood Laboratories",
-      "Wockhardt UK",
-      "Wockhardt UK Holdings (Consolidated)",
       "Wockhardt UK Holdings",
-      "Wockahrdt UK"
+      "Pinewood Healthcare",
+      "Wockhardt UK",
+      "Pinewood Laboratories",
+      "Wockhardt UK Holdings (Consolidated)"
     ]
   },
   {
@@ -9950,7 +9976,7 @@
       "Zee Entertainment Enterprises",
       "Z5X Global FZ LLC",
       "Asia Today",
-      "Zee Studios",
+      "Zee Multimedia Worldwide (Mauritius)",
       "ATL Media"
     ]
   },
@@ -9975,11 +10001,11 @@
     "merge_flags": [],
     "members_sample": [
       "Archean Chemical Industries",
-      "Chemikas Speciality LLP",
-      "Sea Salt Holdings Pte",
+      "Cloudgen Digital",
       "Jakhau Salt Company",
       "Goodearth Maritime",
-      "Cloudgen Digital"
+      "Chemikas Speciality LLP",
+      "Sea Salt Holdings Pte"
     ]
   },
   {
@@ -10004,9 +10030,9 @@
     "members_sample": [
       "Ampoil Apar Lubricants",
       "Apar Industries",
-      "APAR CORPORATION",
       "Devharsh Chaitanya Desai",
       "Clean Max Rudra",
+      "APAR CORPORATION",
       "Haribol Foods"
     ]
   },
@@ -10035,11 +10061,11 @@
     "merge_flags": [],
     "members_sample": [
       "APL Apollo Building Products",
-      "Apollo Pipes",
-      "APL Apollo Tubes",
       "APL Apollo Tubes Company LLC",
       "Apollo Metalex",
-      "APL Apollo Mart"
+      "APL Apollo Mart",
+      "Apollo Pipes",
+      "APL Apollo Tubes"
     ]
   },
   {
@@ -10059,10 +10085,10 @@
     "members_sample": [
       "Amara Raja Circular Solutions (ARCSPL)",
       "Mangal Industries (MIL)",
+      "Amara Raja Power Systems (ARPSL)",
       "Amara Raja Energy & Mobility",
-      "Amara Raja Enterprises (AREPL)",
       "RN Galla Family (RFPL)",
-      "Amara Raja Power Systems (ARPSL)"
+      "Amara Raja Enterprises (AREPL)"
     ]
   },
   {
@@ -10081,11 +10107,11 @@
     "merge_flags": [],
     "members_sample": [
       "AIS Adhesives",
-      "AIS Distribution Services",
-      "GX Glass Sales & Services Ltimited",
-      "AIS GLASS SOLUTIONS",
       "Shield Autoglass",
-      "AIS Consumer Glass Solutions"
+      "AIS Consumer Glass Solutions",
+      "AIS GLASS SOLUTIONS",
+      "GX Glass Sales & Services Ltimited",
+      "AIS Distribution Services"
     ]
   },
   {
@@ -10109,11 +10135,11 @@
     "merge_flags": [],
     "members_sample": [
       "Asian Paints Industrial Coatings",
-      "PPG Asian Paints",
+      "Asian Paints PPG",
       "Asian Paints",
       "Revocoat India",
       "Harind Chemicals and Pharmaceuticals",
-      "Asian Paints PPG"
+      "PPG Asian Paints"
     ]
   },
   {
@@ -10138,10 +10164,10 @@
     "members_sample": [
       "Aelius Semiconductors Pte. , Singapore",
       "Astra Microwave Products",
-      "Astra Defence Technologies",
-      "Bhavyabhanu Electronics",
+      "Astra formerly Astra Foundation",
       "Janyu Technologies",
-      "Astra formerly Astra Foundation"
+      "Bhavyabhanu Electronics",
+      "Astra Defence Technologies"
     ]
   },
   {
@@ -10161,10 +10187,10 @@
     "members_sample": [
       "Abhay Rameshkumar Aggarwal",
       "Mrs. Bectors Food Specialities",
-      "Anoop Bector HUF",
       "Neena Ramesh Aggarwal",
+      "Cremica Agro Foods",
       "Uday Rameshkumar Aggarwal",
-      "Cremica Agro Foods"
+      "Anoop Bector HUF"
     ]
   },
   {
@@ -10193,9 +10219,9 @@
     "members_sample": [
       "Borosil",
       "Borosil Renewables",
-      "Croton Trading",
-      "Pradeep Kumar Kheruka",
       "Renew Green (GJS Two)",
+      "Pradeep Kumar Kheruka",
+      "Croton Trading",
       "Clean Max Prithvi"
     ]
   },
@@ -10215,11 +10241,11 @@
     "merge_flags": [],
     "members_sample": [
       "Cipla Empowerment Trust",
-      "Cipla Medpro Manufacturing (Pty)",
       "Cipla Medpro Manufacturing Proprietary",
       "The Cipla Foundation, South Africa",
+      "Medpro Pharmaceutica Proprietary",
       "Medpro Pharmaceutica (Pty)",
-      "Medpro Pharmaceutica Proprietary"
+      "Cipla Medpro Manufacturing (Pty)"
     ]
   },
   {
@@ -10246,8 +10272,8 @@
       "Federal Bank",
       "Equirus Insurance Broking",
       "Equirus Capital",
-      "Equirus Securities",
-      "Equirus Wealth"
+      "Equirus Wealth",
+      "Equirus Securities"
     ]
   },
   {
@@ -10271,11 +10297,11 @@
     "merge_flags": [],
     "members_sample": [
       "Excel Controlinkage",
-      "MLR Auto",
-      "Bestway Agencies",
       "Pygmalion Foundation",
       "Greaves Cotton",
-      "Premium Transmission"
+      "Premium Transmission",
+      "MLR Auto",
+      "Bestway Agencies"
     ]
   },
   {
@@ -10300,10 +10326,10 @@
     "members_sample": [
       "BLUESKY PROJECTS",
       "Greenpanel Industries",
-      "MR. SHIV PRAKASH MITTAL",
+      "GREENPLY MIDDLE EAST",
       "PRIME HOLDINGS",
-      "MR. SHOBHAN MITTAL",
-      "GREENPLY MIDDLE EAST"
+      "MR. SHIV PRAKASH MITTAL",
+      "MR. SHOBHAN MITTAL"
     ]
   },
   {
@@ -10329,9 +10355,9 @@
       "HCC Infrastructure Company",
       "Steiner Projekte AG",
       "Highbar Technologies",
-      "Steiner India",
       "Highbar Technocrat",
-      "Hindustan Construction Co"
+      "Hindustan Construction Co",
+      "Steiner India"
     ]
   },
   {
@@ -10383,11 +10409,11 @@
     "merge_flags": [],
     "members_sample": [
       "Ipca Laboratories",
-      "Makers Laboratories",
-      "RESONANCE SPECIALITIES",
+      "Kaygee Investments",
       "KAYGEE LABORATORIES",
-      "Krebs Biochemicals & Industries",
-      "Kaygee Investments"
+      "RESONANCE SPECIALITIES",
+      "Makers Laboratories",
+      "Krebs Biochemicals & Industries"
     ]
   },
   {
@@ -10406,11 +10432,11 @@
     "merge_flags": [],
     "members_sample": [
       "Horizon Packs",
+      "JKPL Packaging Products",
       "Securipax Packaging",
       "JKPL Utility Packaging Solutions",
-      "JKPL Packaging Products",
-      "The Sirpur Paper Mills",
-      "Securipax Packaging Limitd"
+      "Securipax Packaging Limitd",
+      "The Sirpur Paper Mills"
     ]
   },
   {
@@ -10435,9 +10461,9 @@
     "members_sample": [
       "Kansai Helios - France",
       "Kansai Nerolac Paints",
-      "Kansai Paint Philippines Inc",
-      "Kansai Helios RUS",
       "Kansai Paint Co. , Japan",
+      "Kansai Helios RUS",
+      "Kansai Paint Philippines Inc",
       "PT Kansai Prakarsa Coatings"
     ]
   },
@@ -10509,10 +10535,10 @@
     "members_sample": [
       "Centrapath Labs",
       "Lal Pathlabs Foundation",
-      "Paliwal Diagnostics",
       "Dr. Lal PathLabs",
       "Dr. Lal Pathlabs Employee Welfare Trust",
-      "ALVL Foundation"
+      "ALVL Foundation",
+      "Paliwal Diagnostics"
     ]
   },
   {
@@ -10533,9 +10559,9 @@
       "AYUSH MANISH SHAH",
       "MICL Creators LLP",
       "Vyas Family LLP",
-      "Manmantra Infracon LLP",
+      "Manan P. Shah",
       "VISHANT MANISH SHAH",
-      "Manan P. Shah"
+      "Manmantra Infracon LLP"
     ]
   },
   {
@@ -10556,9 +10582,9 @@
       "Ila Haresh Vyas",
       "Man Infra Contracts LLP",
       "Ketan Vinod Vyas",
+      "Kapil Vinod Vyas",
       "Manan Dhruv Vyas",
-      "Yash Urvish Vora",
-      "Kapil Vinod Vyas"
+      "Yash Urvish Vora"
     ]
   },
   {
@@ -10578,8 +10604,8 @@
     "members_sample": [
       "IndusInd Nippon Life Insurance Company",
       "Nippon Life India Asset Management",
-      "Nippon Life India Trustee (NLITL)",
       "Reliance Nippon Life Insurance Company",
+      "Nippon Life India Trustee (NLITL)",
       "Nissay Asset Management",
       "Nippon Life India"
     ]
@@ -10601,10 +10627,10 @@
     "members_sample": [
       "Dayawanti bikhchandani",
       "Info Edge (India)",
-      "Divya Batra",
       "Minik Enterprises",
-      "Surabhi Bikhchandani",
-      "Endeavour Holding Trust"
+      "Endeavour Holding Trust",
+      "Divya Batra",
+      "Surabhi Bikhchandani"
     ]
   },
   {
@@ -10636,6 +10662,29 @@
     "density": 0.3333,
     "top_refs": [
       [
+        "vigil:rpt:PRIVISCL",
+        5
+      ]
+    ],
+    "sectors": [],
+    "family_members": [],
+    "family_hit_count": 0,
+    "merge_flags": [],
+    "members_sample": [
+      "GIVAUDAN SINGAPORE PPE",
+      "Prigiv Specialties",
+      "Givaudan S.A",
+      "Givaudan India",
+      "Givaudan -Finance S A",
+      "Givaudan S.A.& others"
+    ]
+  },
+  {
+    "size": 6,
+    "internal_edges": 5,
+    "density": 0.3333,
+    "top_refs": [
+      [
         "vigil:rpt:PRSMJOHNSN",
         5
       ]
@@ -10652,10 +10701,10 @@
     "members_sample": [
       "Bloomingdale Investments",
       "Prism Johnson",
-      "CSE Solar Parks Satna",
-      "Sunspring Solar",
       "Matsyagandha Investments",
-      "Matsyagandha Investment & Finance"
+      "Sunspring Solar",
+      "Matsyagandha Investment & Finance",
+      "CSE Solar Parks Satna"
     ]
   },
   {
@@ -10675,10 +10724,10 @@
     "members_sample": [
       "PT Avaneesh Coal Resources",
       "Reliance Power Netherlands BV",
-      "Reliance Power Holding FZC",
-      "Reliance Natural Resources (Singapore) Pte",
+      "PT Heremba Coal Resources",
       "Reliance Natural Resources Singapore",
-      "PT Heremba Coal Resources"
+      "Reliance Natural Resources (Singapore) Pte",
+      "Reliance Power Holding FZC"
     ]
   },
   {
@@ -10697,10 +10746,10 @@
     "merge_flags": [],
     "members_sample": [
       "Neotec Enterprises",
+      "Neotec Insurance Broker",
       "Revolt Coco",
       "Neotec Insurance Brokers",
       "Revolt Coco (Formerly known as Neoseller )",
-      "Neotec Insurance Broker",
       "Revolt Coco (Formely known as Neoseller )"
     ]
   },
@@ -10726,8 +10775,8 @@
     "members_sample": [
       "Mr. Ravi PNC Menon",
       "Sobha",
-      "Constrobot Robotics",
       "Mrs. Sobha Menon",
+      "Constrobot Robotics",
       "Sobha Projects and Trade",
       "Sobha Glazing and Metal Works"
     ]
@@ -10750,9 +10799,9 @@
       "Nirsen d.o.o",
       "Square Coin d.o.o",
       "Novelic d.o.o",
-      "Novelic SRL",
       "Novelic GmbH",
-      "Quadrixsoft d.o.o"
+      "Quadrixsoft d.o.o",
+      "Novelic SRL"
     ]
   },
   {
@@ -10772,10 +10821,10 @@
     "members_sample": [
       "GGB Bearing Technology Suzhou Co , China",
       "Timken GGB Technology",
-      "Garlock Glacier Bearings, Slovakia",
-      "Garlock Glacier Bearings, France EURL",
       "Garlock Glacier Bearings, Thorofare",
-      "Garlock Glacier Bearings, Heilbronn GmbH"
+      "Garlock Glacier Bearings, Heilbronn GmbH",
+      "Garlock Glacier Bearings, France EURL",
+      "Garlock Glacier Bearings, Slovakia"
     ]
   },
   {
@@ -10801,9 +10850,9 @@
       "Heumann Pharma GmbH & Co Generica KG, Germany",
       "Torrent Pharma GmbH (TPG), Germany",
       "Heunet Pharma GmbH, Germany",
-      "Torrent Pharma (UK) (TPUK), UK",
       "Torrent Pharma (Malta)",
-      "Torrent Pharma Inc.(TPI), USA"
+      "Torrent Pharma Inc.(TPI), USA",
+      "Torrent Pharma (UK) (TPUK), UK"
     ]
   },
   {
@@ -10822,8 +10871,8 @@
     "merge_flags": [],
     "members_sample": [
       "VA Tech Wabag (Philippines) Inc, Philippines",
-      "VA Tech Wabag (Singapore) Pte. , Singapore",
       "Wabag Belhasa JV WLL, Bahrain",
+      "VA Tech Wabag (Singapore) Pte. , Singapore",
       "VA Tech Wabag GmbH, Austria",
       "VA Tech Wabag Muscat LLC, Oman",
       "Windhoek Goreangab Operating Company (Pty) , Namibia"
@@ -10845,10 +10894,10 @@
     "merge_flags": [],
     "members_sample": [
       "Tecosim , UK",
-      "TECOSIM Engineering Services , India",
       "Tecosim Engineering s.r.l., Romania",
+      "Tecosim Inc, USA",
       "Tecosim GmbH, Germany",
-      "Tecosim Inc, USA"
+      "TECOSIM Engineering Services , India"
     ]
   },
   {
@@ -10872,10 +10921,10 @@
     "merge_flags": [],
     "members_sample": [
       "BEML",
-      "Systems Testing and Research for Advanced Materials foundation",
-      "Communication (Defence) Testing Foundation",
       "UAS Testing Foundation",
-      "Systems Testing and Resarch for Advanced Materials Foundation"
+      "Systems Testing and Resarch for Advanced Materials Foundation",
+      "Communication (Defence) Testing Foundation",
+      "Systems Testing and Research for Advanced Materials foundation"
     ]
   },
   {
@@ -10901,8 +10950,8 @@
       "Asterope Properties",
       "Chalet Hotels",
       "Casa Maria Properties LLP",
-      "Trion Properties",
-      "Rafferty Developments"
+      "Rafferty Developments",
+      "Trion Properties"
     ]
   },
   {
@@ -10926,10 +10975,10 @@
     "merge_flags": [],
     "members_sample": [
       "Chambal Fertilisers and Chemicals",
+      "Simon India",
       "HT Media",
       "Lionel India",
-      "Zuari Finserv",
-      "Simon India"
+      "Zuari Finserv"
     ]
   },
   {
@@ -10948,10 +10997,10 @@
     "merge_flags": [],
     "members_sample": [
       "CMS Info Foundation",
-      "Securitrans India",
-      "Quality Logistics Services",
       "Hemabh Technology",
-      "Securens Systems"
+      "Securens Systems",
+      "Securitrans India",
+      "Quality Logistics Services"
     ]
   },
   {
@@ -10972,8 +11021,8 @@
       "Coforge BPM Inc",
       "Coforge Healthcare Digital Automation LLC",
       "Coforge Branch",
-      "Coforge (Branch Office)",
-      "Coforge DPA (Canada branch)"
+      "Coforge DPA (Canada branch)",
+      "Coforge (Branch Office)"
     ]
   },
   {
@@ -11020,9 +11069,9 @@
     "members_sample": [
       "KUNSHAN Q TECHNOLOGY INTERNATIONAL",
       "Kunshan QTech Microelectronics (India)",
+      "KUNSHAN Q TECHNOLOGY (HONG KONG)",
       "KUNSHAN QTECH MICROELECTRONICS CO",
-      "Kunshan QTech Biological Recognition Technology",
-      "KUNSHAN Q TECHNOLOGY (HONG KONG)"
+      "Kunshan QTech Biological Recognition Technology"
     ]
   },
   {
@@ -11046,8 +11095,8 @@
     "merge_flags": [],
     "members_sample": [
       "Dodla Dairy",
-      "Hanslot Pile Foundation",
       "Global Vetmed Concepts India",
+      "Hanslot Pile Foundation",
       "Surekha Milk Chilling Centre",
       "Dodla Nutri Feeds LLP"
     ]
@@ -11074,8 +11123,8 @@
     "members_sample": [
       "Godfrey Phillips India",
       "Philip Morris India Trading",
-      "KKM Managment Centre",
       "Mr. Samir Kumaar Modi",
+      "KKM Managment Centre",
       "IPM India Wholesale Trading"
     ]
   },
@@ -11096,9 +11145,9 @@
     "members_sample": [
       "HMCL Niloy Bangladesh",
       "Nitol Insurance Company",
-      "Nitol Machineries",
       "Niloy Motors",
-      "Nitol Motors"
+      "Nitol Motors",
+      "Nitol Machineries"
     ]
   },
   {
@@ -11150,8 +11199,8 @@
     "members_sample": [
       "Adrenalin eSystems , India",
       "Intellect Design Arena",
-      "Adrenalin esystems",
       "Adrenalineesystems India",
+      "Adrenalin esystems",
       "MAVERIC SYSTEMS"
     ]
   },
@@ -11227,9 +11276,9 @@
     "members_sample": [
       "ANISH CONSULTANTS & CREDITS",
       "Jupiter Wagons",
+      "KARISMA GOODS",
       "MURARI LAL LOHIA",
-      "RITU LOHIA",
-      "KARISMA GOODS"
+      "RITU LOHIA"
     ]
   },
   {
@@ -11325,9 +11374,9 @@
     "members_sample": [
       "Anju Devi",
       "KRN Heat Exchanger and Refrigeration",
-      "Yashpal Yadav",
+      "Sudesh Devi",
       "KRN Coils",
-      "Sudesh Devi"
+      "Yashpal Yadav"
     ]
   },
   {
@@ -11347,9 +11396,9 @@
     "members_sample": [
       "AMP Energy Green (C&I) Two",
       "NU Vista",
-      "Vanya Corporation",
       "Vadraj Cement",
-      "AMPIN Energy Green (C&I) Two"
+      "AMPIN Energy Green (C&I) Two",
+      "Vanya Corporation"
     ]
   },
   {
@@ -11374,9 +11423,9 @@
     "members_sample": [
       "Krishna Devi",
       "PC Jeweller",
-      "New Track Garments",
       "Nitin Gupta",
-      "Balram Garg HUF"
+      "Balram Garg HUF",
+      "New Track Garments"
     ]
   },
   {
@@ -11396,9 +11445,9 @@
     "members_sample": [
       "Buildnext Solutions",
       "Nina Percept",
-      "Nina Concrete Systems",
+      "Pyramid Waterproofing Services LLP",
       "Impact Floors India",
-      "Pyramid Waterproofing Services LLP"
+      "Nina Concrete Systems"
     ]
   },
   {
@@ -11424,8 +11473,8 @@
       "GTA Power Mech FZE",
       "Power Mech Projects",
       "Power Mech LLC (Qatar)",
-      "PM Green Pivate",
-      "MAS Power Mech Arabia"
+      "MAS Power Mech Arabia",
+      "PM Green Pivate"
     ]
   },
   {
@@ -11444,10 +11493,10 @@
     "merge_flags": [],
     "members_sample": [
       "PTC Energy",
-      "RS India Global Energy",
       "PTC India Financial Services",
+      "R.S. India Wind Energy",
       "Varam Bio Energy",
-      "R.S. India Wind Energy"
+      "RS India Global Energy"
     ]
   },
   {
@@ -11519,8 +11568,8 @@
     "merge_flags": [],
     "members_sample": [
       "STAR CEMENT MEGHALAYA",
-      "Star Cement (I)",
       "Star Smart Building Solutions",
+      "Star Cement (I)",
       "Star Cement North East",
       "Star Smart Building Solution"
     ]
@@ -11548,8 +11597,8 @@
       "Vardhman Special Steels",
       "Vardhman Textiles",
       "Vardhman Yarns and Threads",
-      "Vardhman Yarns & Threads",
-      "Vardhman Spinning and General Mills"
+      "Vardhman Spinning and General Mills",
+      "Vardhman Yarns & Threads"
     ]
   },
   {
@@ -11574,9 +11623,9 @@
     "members_sample": [
       "DK Sewage Project , India",
       "VA Tech Wabag",
+      "Ganga STP Project , India",
       "VA Tech Wabag and Roots Contracting LLC , Qatar",
-      "GHAZIABAD BIOENERGY",
-      "Ganga STP Project , India"
+      "GHAZIABAD BIOENERGY"
     ]
   },
   {
@@ -11674,8 +11723,8 @@
     "members_sample": [
       "AU Small Finance Bank",
       "Mys Holdings",
-      "Jyoti Agarwal",
-      "Shakuntala Agarwal"
+      "Shakuntala Agarwal",
+      "Jyoti Agarwal"
     ]
   },
   {
@@ -11699,9 +11748,9 @@
     "merge_flags": [],
     "members_sample": [
       "Apitoria Pharma",
-      "NVNR (Ramannapet II) Power Plant , India",
+      "NVNR (Ramannapet I) Power Plant , India",
       "Aurobindo Pharma",
-      "NVNR (Ramannapet I) Power Plant , India"
+      "NVNR (Ramannapet II) Power Plant , India"
     ]
   },
   {
@@ -11726,8 +11775,8 @@
     "members_sample": [
       "BNP Paribas Bank",
       "Bank of Baroda",
-      "SHAREKHAN",
-      "BNP Paribas SA (France)"
+      "BNP Paribas SA (France)",
+      "SHAREKHAN"
     ]
   },
   {
@@ -11773,8 +11822,8 @@
     "members_sample": [
       "BLS International USA Inc",
       "Consular Outsourcing BLS Services Inc., USA",
-      "BLS United Ventures, Mexico",
-      "BLS INTERNATIONAL REALTY INC., USA"
+      "BLS INTERNATIONAL REALTY INC., USA",
+      "BLS United Ventures, Mexico"
     ]
   },
   {
@@ -11793,9 +11842,9 @@
     "merge_flags": [],
     "members_sample": [
       "CONCOR Air",
+      "Narmadeshwar Jha",
       "D.MANOJ KUMAR",
-      "Harish Girdhar",
-      "Narmadeshwar Jha"
+      "Harish Girdhar"
     ]
   },
   {
@@ -11815,8 +11864,8 @@
     "members_sample": [
       "Alok Badkul",
       "Fresh And Healthy Enterprises",
-      "Ravindra Raghuram Bhat",
-      "Pushpender Banduni"
+      "Pushpender Banduni",
+      "Ravindra Raghuram Bhat"
     ]
   },
   {
@@ -11857,8 +11906,8 @@
     "members_sample": [
       "Atul kumar Singh",
       "SIDCUL CONCOR Infra Company",
-      "Madhubala Kapoor",
-      "State Infrastructure & Industrial Development Corporation of Uttarakhand (SIIDCUL)"
+      "State Infrastructure & Industrial Development Corporation of Uttarakhand (SIIDCUL)",
+      "Madhubala Kapoor"
     ]
   },
   {
@@ -11882,9 +11931,9 @@
     "merge_flags": [],
     "members_sample": [
       "DCB Bank",
+      "PLATINUM JUBILEE INVESTMENTS",
       "PLATINUM JUBILEE PUBLISHERS",
-      "PLATINUM JUBILEE INVESTMENTS (PJI)",
-      "PLATINUM JUBILEE INVESTMENTS"
+      "PLATINUM JUBILEE INVESTMENTS (PJI)"
     ]
   },
   {
@@ -12000,8 +12049,8 @@
     "merge_flags": [],
     "members_sample": [
       "Finolex Cables",
-      "Finolex Industries",
       "Finolex Plasson Industries",
+      "Finolex Industries",
       "Orbit Electricals"
     ]
   },
@@ -12021,8 +12070,8 @@
     "merge_flags": [],
     "members_sample": [
       "Force MTU Power Systems",
-      "Rolls-Royce Solutions America Inc",
       "MTU Asia Pte",
+      "Rolls-Royce Solutions America Inc",
       "MTU India"
     ]
   },
@@ -12064,8 +12113,8 @@
     "members_sample": [
       "CELEBI DELHI CARGO TERMINAL MANAGEMENT (I)",
       "Delhi Duty Free Services",
-      "Yalorvin",
-      "AER RIANTA INTERNATIONAL CPT"
+      "AER RIANTA INTERNATIONAL CPT",
+      "Yalorvin"
     ]
   },
   {
@@ -12085,8 +12134,8 @@
     "members_sample": [
       "Gujarat Green Revolution Company (GGRCL)",
       "Gujarat Narmada Valley Fertilizers & Chemicals",
-      "Gujarat State Investments (GSIL)",
-      "Gujarat State Fertilizers & Chemicals (GSFC)"
+      "Gujarat State Fertilizers & Chemicals (GSFC)",
+      "Gujarat State Investments (GSIL)"
     ]
   },
   {
@@ -12110,9 +12159,9 @@
     "merge_flags": [],
     "members_sample": [
       "HBL Engineering",
-      "Naval Systems and Technologies",
+      "Tonbo Imaging India",
       "HBL Power Systems",
-      "Tonbo Imaging India"
+      "Naval Systems and Technologies"
     ]
   },
   {
@@ -12131,9 +12180,9 @@
     "merge_flags": [],
     "members_sample": [
       "HRL Township Developers",
+      "HRL(Thane) Real Estate",
       "Panchkutir Developers",
-      "Western Securities",
-      "HRL(Thane) Real Estate"
+      "Western Securities"
     ]
   },
   {
@@ -12153,8 +12202,8 @@
     "members_sample": [
       "Cybersolve (I)",
       "Identity and Access solutions LLC",
-      "Identity And Access Solutions Canada Inc",
-      "IT Glitterz LLC"
+      "IT Glitterz LLC",
+      "Identity And Access Solutions Canada Inc"
     ]
   },
   {
@@ -12178,9 +12227,9 @@
     "merge_flags": [],
     "members_sample": [
       "H.G. Choraniya Bess",
+      "Hodel Singh",
       "Hodal Singh",
-      "H.G. Gujarat Bess",
-      "Hodel Singh"
+      "H.G. Gujarat Bess"
     ]
   },
   {
@@ -12200,8 +12249,8 @@
     "members_sample": [
       "JSP Green wind 1",
       "Jindal Steel ( Formerly known as Jindal Steel & Power )",
-      "Sunbreeze Renewables Nine",
-      "Jindal Green Wind1"
+      "Jindal Green Wind1",
+      "Sunbreeze Renewables Nine"
     ]
   },
   {
@@ -12214,15 +12263,20 @@
         3
       ]
     ],
-    "sectors": [],
+    "sectors": [
+      [
+        "Textiles",
+        1
+      ]
+    ],
     "family_members": [],
     "family_hit_count": 0,
     "merge_flags": [],
     "members_sample": [
       "Jindal Worldwide",
+      "Kashyap Tele Medicines",
       "Goodcore Spintex",
-      "Planet Spinning Mills",
-      "Kashyap Tele Medicines"
+      "Planet Spinning Mills"
     ]
   },
   {
@@ -12242,8 +12296,8 @@
     "members_sample": [
       "Enovate Lifestyles",
       "Kalyan Jewellers India",
-      "Kalyan Jewelers Inc., USA",
-      "Kalyan Gold & Diamond Jewellery -UK"
+      "Kalyan Gold & Diamond Jewellery -UK",
+      "Kalyan Jewelers Inc., USA"
     ]
   },
   {
@@ -12294,8 +12348,8 @@
     "members_sample": [
       "C.E. Info Systems",
       "Prashant Advanced Survey LLP",
-      "Vineet Jaipuriar",
-      "Kogo Techs Lab"
+      "Kogo Techs Lab",
+      "Vineet Jaipuriar"
     ]
   },
   {
@@ -12319,9 +12373,9 @@
     "merge_flags": [],
     "members_sample": [
       "Shenyang SMP Automotive Trim Co",
-      "Tianjin SMP Automotive Component Company",
       "Zhaoqing SMP Automotive Components Co",
-      "Foshan Peguform Automotive Plastics Technology Co"
+      "Foshan Peguform Automotive Plastics Technology Co",
+      "Tianjin SMP Automotive Component Company"
     ]
   },
   {
@@ -12418,9 +12472,9 @@
     "merge_flags": [],
     "members_sample": [
       "PI Industries",
-      "PI Kumiai",
       "Solinnos Agro Sciences",
-      "PI Life Science Research"
+      "PI Life Science Research",
+      "PI Kumiai"
     ]
   },
   {
@@ -12439,9 +12493,9 @@
     "merge_flags": [],
     "members_sample": [
       "Addverb Technologies Pte",
+      "Addverb Technologies Pty",
       "Addverb Technologies USA Inc",
-      "Addverb Technologies B.V",
-      "Addverb Technologies Pty"
+      "Addverb Technologies B.V"
     ]
   },
   {
@@ -12466,8 +12520,8 @@
     "members_sample": [
       "Maia Pharmaceuticals INC. USA",
       "Shilpa Medicare",
-      "Sagar Inani",
-      "Sravathi Advance Process Technologies"
+      "Sravathi Advance Process Technologies",
+      "Sagar Inani"
     ]
   },
   {
@@ -12492,8 +12546,8 @@
     "members_sample": [
       "SITAARE GOLD AND DIAMONDS",
       "SKY GOLD AND DIAMONDS",
-      "Sparkling Chains",
-      "Starmangalsutra"
+      "Starmangalsutra",
+      "Sparkling Chains"
     ]
   },
   {
@@ -12513,8 +12567,8 @@
     "members_sample": [
       "Echo Buildtech",
       "TARC Projects",
-      "Ganga Bishan & Co",
-      "TARC Buildtech"
+      "TARC Buildtech",
+      "Ganga Bishan & Co"
     ]
   },
   {
@@ -12717,8 +12771,8 @@
     "members_sample": [
       "Durovalves India",
       "Scarpa & Colombo Srl - Italy",
-      "Freccia International S.r.l, Italy",
-      "Varroc Connect"
+      "Varroc Connect",
+      "Freccia International S.r.l, Italy"
     ]
   },
   {
@@ -12737,9 +12791,9 @@
     "merge_flags": [],
     "members_sample": [
       "Industria Meccanica E Stampaggio S.p.a",
+      "Nuova CTS S.r.l, Italy",
       "VarrocCorp Holding B.V., The Netherlands",
-      "Varroc European Holding B.V.,The Netherlands",
-      "Nuova CTS S.r.l, Italy"
+      "Varroc European Holding B.V.,The Netherlands"
     ]
   },
   {
@@ -12764,8 +12818,8 @@
     "members_sample": [
       "Gegadyne Energy Labs",
       "V-Guard Industries",
-      "Mithun K Chittilappilly",
-      "Kochouseph Chittilappilly"
+      "Kochouseph Chittilappilly",
+      "Mithun K Chittilappilly"
     ]
   },
   {
@@ -12778,15 +12832,20 @@
         3
       ]
     ],
-    "sectors": [],
+    "sectors": [
+      [
+        "FMCG",
+        1
+      ]
+    ],
     "family_members": [],
     "family_hit_count": 0,
     "merge_flags": [],
     "members_sample": [
       "Rothmans International Enterprises",
       "VST Industries",
-      "Tobacco Manufacturers (India)",
-      "The Raleigh Investment Company"
+      "The Raleigh Investment Company",
+      "Tobacco Manufacturers (India)"
     ]
   },
   {
@@ -12805,9 +12864,9 @@
     "merge_flags": [],
     "members_sample": [
       "Wockhardt Bio Ag",
+      "Wockhardt Service SA DE CV",
       "Wockhardt France (Holdings) S.A.S. (consolidated) (liquidated on 07.11.2024)",
-      "Wockhardt Europe",
-      "Wockhardt Service SA DE CV"
+      "Wockhardt Europe"
     ]
   },
   {
@@ -12832,8 +12891,8 @@
     "members_sample": [
       "Aituring Technologies",
       "Zen Technologies",
-      "Bhairav Robotics",
-      "Veersamman Foundation"
+      "Veersamman Foundation",
+      "Bhairav Robotics"
     ]
   },
   {
@@ -12907,6 +12966,10 @@
       ]
     ],
     "sectors": [
+      [
+        "Engineering_Capital_Goods",
+        1
+      ],
       [
         "Building_Materials",
         1
@@ -13027,8 +13090,8 @@
     "merge_flags": [],
     "members_sample": [
       "Anupam Rasayan India",
-      "Kiran Pallavi Investments LLC",
-      "Tangent Science"
+      "Tangent Science",
+      "Kiran Pallavi Investments LLC"
     ]
   },
   {
@@ -13071,8 +13134,8 @@
     "merge_flags": [],
     "members_sample": [
       "Hinduja Tech GMBH",
-      "Hinduja Tech UK",
-      "Hinduja Tech Inc"
+      "Hinduja Tech Inc",
+      "Hinduja Tech UK"
     ]
   },
   {
@@ -13091,8 +13154,8 @@
     "merge_flags": [],
     "members_sample": [
       "ABV Electronics Inc (D/B/A Sienna Corporation)",
-      "Avalon Technology & Services",
-      "Sienna ECAD Technologies"
+      "Sienna ECAD Technologies",
+      "Avalon Technology & Services"
     ]
   },
   {
@@ -13111,8 +13174,28 @@
     "merge_flags": [],
     "members_sample": [
       "Afco Industrials & Chemicals",
-      "Sea Wind Investment & Trading Co",
-      "Medical Microtechnology"
+      "Medical Microtechnology",
+      "Sea Wind Investment & Trading Co"
+    ]
+  },
+  {
+    "size": 3,
+    "internal_edges": 2,
+    "density": 0.6667,
+    "top_refs": [
+      [
+        "vigil:rpt:BHARATFORG",
+        2
+      ]
+    ],
+    "sectors": [],
+    "family_members": [],
+    "family_hit_count": 0,
+    "merge_flags": [],
+    "members_sample": [
+      "BF Industrial Solutions",
+      "JS Auto Cast Foundry India",
+      "Ratnakar Energy"
     ]
   },
   {
@@ -13131,8 +13214,8 @@
     "merge_flags": [],
     "members_sample": [
       "Blackbuck (Formerly known as Zinka Logistics Solutions )",
-      "Ramasubramaniam B",
-      "Chanakya Hridaya"
+      "Chanakya Hridaya",
+      "Ramasubramaniam B"
     ]
   },
   {
@@ -13221,8 +13304,8 @@
     "merge_flags": [],
     "members_sample": [
       "Caplin Point Laboratories",
-      "Caplin Point laboratories Colombia, SAS, (Colombia)",
-      "Caplin Point Meenakshi CSR Trust"
+      "Caplin Point Meenakshi CSR Trust",
+      "Caplin Point laboratories Colombia, SAS, (Colombia)"
     ]
   },
   {
@@ -13291,8 +13374,8 @@
     "merge_flags": [],
     "members_sample": [
       "Cera Sanitaryware",
-      "Madhusudan Industries",
-      "Indian Council of Sanitaryware Manufactures"
+      "Indian Council of Sanitaryware Manufactures",
+      "Madhusudan Industries"
     ]
   },
   {
@@ -13351,8 +13434,8 @@
     "merge_flags": [],
     "members_sample": [
       "Cipla (EU)",
-      "MKC Biotherapeutics",
-      "MKC Biotherapeutics Inc"
+      "MKC Biotherapeutics Inc",
+      "MKC Biotherapeutics"
     ]
   },
   {
@@ -13401,8 +13484,8 @@
     "merge_flags": [],
     "members_sample": [
       "Dynamatic Technologies",
-      "Udayant Malhoutra",
-      "Wavell Investments"
+      "Wavell Investments",
+      "Udayant Malhoutra"
     ]
   },
   {
@@ -13421,8 +13504,8 @@
     "merge_flags": [],
     "members_sample": [
       "Michigan Air Solutions, LLC",
-      "Pattons Medical LLC",
-      "Pattons Inc"
+      "Pattons Inc",
+      "Pattons Medical LLC"
     ]
   },
   {
@@ -13441,8 +13524,8 @@
     "merge_flags": [],
     "members_sample": [
       "Endurance GmbH",
-      "Endurance Overseas SpA",
-      "Ingenia Automation Srl"
+      "Ingenia Automation Srl",
+      "Endurance Overseas SpA"
     ]
   },
   {
@@ -13511,8 +13594,8 @@
     "merge_flags": [],
     "members_sample": [
       "Gateway Distriparks",
-      "Prism International",
-      "Perfect Communications"
+      "Perfect Communications",
+      "Prism International"
     ]
   },
   {
@@ -13706,8 +13789,8 @@
     "merge_flags": [],
     "members_sample": [
       "Jamna Auto Industries",
-      "Mr. Randeep Singh Jauhar",
-      "Mr P S Jauhar"
+      "Mr P S Jauhar",
+      "Mr. Randeep Singh Jauhar"
     ]
   },
   {
@@ -13810,8 +13893,8 @@
     "merge_flags": [],
     "members_sample": [
       "KAYNES TECHNOLOGY INDIA",
-      "Kaynes Technology Inc",
-      "Kemsys Technologies Inc"
+      "Kemsys Technologies Inc",
+      "Kaynes Technology Inc"
     ]
   },
   {
@@ -13830,8 +13913,8 @@
     "merge_flags": [],
     "members_sample": [
       "KEC Asian Cables",
-      "KEC Power India",
-      "KEC Spur Infrastructure"
+      "KEC Spur Infrastructure",
+      "KEC Power India"
     ]
   },
   {
@@ -13965,8 +14048,8 @@
     "merge_flags": [],
     "members_sample": [
       "Brahmaputra Cracker and Polymer",
-      "Oil India",
-      "Numaligarh Refinery"
+      "Numaligarh Refinery",
+      "Oil India"
     ]
   },
   {
@@ -14010,8 +14093,8 @@
     "merge_flags": [],
     "members_sample": [
       "ICA Pidilite",
-      "Industria Chimica Adritica Spa (ICA Italy)",
-      "Valspar (India) Coating Corporation"
+      "Valspar (India) Coating Corporation",
+      "Industria Chimica Adritica Spa (ICA Italy)"
     ]
   },
   {
@@ -14095,8 +14178,8 @@
     "merge_flags": [],
     "members_sample": [
       "Ratnamani Finow Spooling Solutions",
-      "Technoenergy AG Switzerland",
-      "Technoenergy AG"
+      "Technoenergy AG",
+      "Technoenergy AG Switzerland"
     ]
   },
   {
@@ -14259,8 +14342,8 @@
     "merge_flags": [],
     "members_sample": [
       "GGICO Sunteck - UAE",
-      "Sunteck Lifestyle - UAE",
-      "Sunteck MAS Real Estate Developmet LLC"
+      "Sunteck MAS Real Estate Developmet LLC",
+      "Sunteck Lifestyle - UAE"
     ]
   },
   {
@@ -14279,8 +14362,8 @@
     "merge_flags": [],
     "members_sample": [
       "Perfect ID India",
-      "Syrma Technology Inc, USA",
-      "SGS Teknik Manufacturing"
+      "SGS Teknik Manufacturing",
+      "Syrma Technology Inc, USA"
     ]
   },
   {
@@ -14597,8 +14680,8 @@
     "merge_flags": [],
     "members_sample": [
       "Muthoot Capital Services",
-      "Muthoot Microfin",
-      "Muthoot Finance"
+      "Muthoot Finance",
+      "Muthoot Microfin"
     ]
   },
   {
@@ -15000,7 +15083,12 @@
         1
       ]
     ],
-    "sectors": [],
+    "sectors": [
+      [
+        "Engineering_Capital_Goods",
+        1
+      ]
+    ],
     "family_members": [],
     "family_hit_count": 0,
     "merge_flags": [],
@@ -15064,44 +15152,6 @@
     "members_sample": [
       "Afco Industrial and Chemicals",
       "Seawind Investment and Trading Company"
-    ]
-  },
-  {
-    "size": 2,
-    "internal_edges": 1,
-    "density": 1.0,
-    "top_refs": [
-      [
-        "vigil:rpt:BHARATFORG",
-        1
-      ]
-    ],
-    "sectors": [],
-    "family_members": [],
-    "family_hit_count": 0,
-    "merge_flags": [],
-    "members_sample": [
-      "BF Industrial Solutions",
-      "J S Auto Cast Foundry India"
-    ]
-  },
-  {
-    "size": 2,
-    "internal_edges": 1,
-    "density": 1.0,
-    "top_refs": [
-      [
-        "vigil:rpt:BHARATFORG",
-        1
-      ]
-    ],
-    "sectors": [],
-    "family_members": [],
-    "family_hit_count": 0,
-    "merge_flags": [],
-    "members_sample": [
-      "JS Auto Cast Foundry India",
-      "Ratnakar Energy"
     ]
   },
   {
@@ -15977,7 +16027,12 @@
         1
       ]
     ],
-    "sectors": [],
+    "sectors": [
+      [
+        "Chemicals",
+        1
+      ]
+    ],
     "family_members": [
       "Aditya Birla Renewables SPV 4"
     ],
@@ -16036,7 +16091,12 @@
         1
       ]
     ],
-    "sectors": [],
+    "sectors": [
+      [
+        "Healthcare",
+        1
+      ]
+    ],
     "family_members": [],
     "family_hit_count": 0,
     "merge_flags": [],
@@ -18269,7 +18329,12 @@
         1
       ]
     ],
-    "sectors": [],
+    "sectors": [
+      [
+        "Textiles",
+        1
+      ]
+    ],
     "family_members": [
       "Torrent Urja 21"
     ],

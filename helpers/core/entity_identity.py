@@ -45,9 +45,50 @@ _REPO_ROOT = Path(__file__).resolve().parents[2]
 
 FOOTNOTE_RE = re.compile(r"(?<!\s)\s*\*+\s*$")
 _APOSTROPHE_RE = re.compile("['’]")
-_CAMEL_RE_1 = re.compile(r"(?<=[a-z0-9])(?=[A-Z])")
-_CAMEL_RE_2 = re.compile(r"(?<=[A-Z])(?=[A-Z][a-z])")
+_CAMEL_BOUNDARY_RE = re.compile(r"(?<=[a-z0-9])(?=[A-Z])|(?<=[A-Z])(?=[A-Z][a-z])")
 _PUNCT_RE = re.compile(r"[^\w\s]")
+# name_key_letter_run_collapse S1: legal-form letter spacing (``A S`` /
+# ``N V`` / ``S A B``) keys apart from its glued twin (``AS``/``NV``/``SAB``).
+# Collapse runs of ≤4 single alphanumeric tokens into one, post-casefold.
+# A ``\1`` replacement is WRONG here — it captures only the LAST token of
+# the run (deletion); the lambda rejoins every token.
+_LETTER_RUN_RE = re.compile(r"\b((?:[a-z0-9] ){1,4}[a-z0-9])\b")
+
+
+def _collapse_letter_runs(s: str) -> str:
+    """Join runs of ≤4 single alphanumeric tokens into one
+    (name_key_letter_run_collapse S1): ``designit a s`` → ``designit as``,
+    ``n v`` → ``nv``, ``s a b profiel`` → ``sab profiel``."""
+    return _LETTER_RUN_RE.sub(lambda m: m.group(1).replace(" ", ""), s)
+
+
+def _camel_split(s: str) -> str:
+    """CamelCase → words, one whitespace token at a time, never splitting
+    when either side of the boundary would be a single character.
+
+    The old unconditional ``_CAMEL_RE_1/2`` subs fractured legal-form
+    suffixes (``GmbH`` → ``gmb h`` vs ``Gmbh`` → ``gmbh``; also SpA, ApS,
+    KGaA) and shredded abbreviations (``ITeS`` → ``i te s``, ``EDandS``
+    → ``e dand s``) — spellings of the SAME company then keyed apart
+    (entity_name_dedup §2.5 class 3, name_key_letter_run_collapse S0).
+    Real compounds keep fragments ≥ 2 on both sides and still split:
+    TechMahindra, USSteel, HDFCBank, McDonald, IndianOil."""
+    out = []
+    for tok in s.split():
+        if len(tok) < 4:  # a ≥2/≥2 split needs ≥4 chars
+            out.append(tok)
+            continue
+        parts: list[str] = []
+        start = 0
+        for m in _CAMEL_BOUNDARY_RE.finditer(tok):
+            i = m.start()
+            if i - start >= 2 and len(tok) - i >= 2:
+                parts.append(tok[start:i])
+                start = i
+        parts.append(tok[start:])
+        out.append(" ".join(parts))
+    return " ".join(out)
+
 
 DEFAULT_PLAN_PATH = _REPO_ROOT / "findata" / "Misc" / "_name_merge_plan.txt"
 DEFAULT_LEDGER_PATH = _REPO_ROOT / "findata" / "Misc" / "_name_fold_ledger.jsonl"
@@ -57,15 +98,18 @@ def name_key(name: str) -> str:
     """The one normalisation key. Deterministic, conservative (no
     token re-ordering, no initials logic): ``E.I.D.PARRY (INDIA)`` ≡
     ``E.I.D. Parry (India)`` ≡ ``e.i.d. - parry india``, while
-    ``HDFC Bank`` and ``HDFC Securities`` stay apart."""
+    ``HDFC Bank`` and ``HDFC Securities`` stay apart. Letter-spaced legal
+    forms (S1): ``designit a s`` ≡ ``designit as``, ``n v`` ≡ ``nv`` —
+    short runs of single alphanumeric tokens are joined post-casefold;
+    ``Acme Gmb H`` still stays apart from ``Acme GmbH`` (a real word
+    boundary, not a letter run)."""
     s = unicodedata.normalize("NFKD", name.strip())
     s = "".join(ch for ch in s if not unicodedata.combining(ch))
     s = FOOTNOTE_RE.sub("", s)
     s = _APOSTROPHE_RE.sub("", s)
-    s = _CAMEL_RE_1.sub(" ", s)
-    s = _CAMEL_RE_2.sub(" ", s)
+    s = _camel_split(s)
     s = _PUNCT_RE.sub(" ", s)
-    return re.sub(r"\s+", " ", s).casefold().strip()
+    return _collapse_letter_runs(re.sub(r"\s+", " ", s).casefold().strip())
 
 
 def token_sort_key(name: str) -> str:

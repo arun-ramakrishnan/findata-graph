@@ -1596,3 +1596,118 @@ class TestSubjectAttribution:
         assert counts == {"subsidiary_of": 1, "same_group": 1}
         rows = conn.execute("SELECT edge_type FROM graph_edges").fetchall()
         assert rows == [("jv_with",)]  # non-vigil rows are never purged
+
+
+class TestLooseKeyTwinIndex:
+    """name_key_letter_run_collapse option B (2026-11-16): within-run mints
+    are also indexed by `_loose_key`, so two legal-suffix spellings of one
+    company mint ONE entity. `name_key` punctuates 'B.V' into 'b v' and 'BV'
+    into 'bv', so the census key alone never matched and the 2026-09-22
+    RPT/VIGIL run minted 14 such groups (29 rows, folded one-off by the
+    entity_fold_fk_cascade_repair arc). Option B stops the re-minting."""
+
+    def _resolve(self, raw: str, new_entities: dict, new_entities_lk: dict):
+        return rps._resolve_party(
+            raw,
+            {},
+            {},
+            {},
+            set(),
+            new_entities,
+            max_new_entities=10,
+            new_entities_lk=new_entities_lk,
+        )
+
+    def test_twin_spellings_mint_one_entity(self):
+        """The §4.4 acceptance fixture: both spellings, one entity."""
+        ne, ne_lk = {}, {}
+        first = self._resolve("Service Centre Maastricht B.V", ne, ne_lk)
+        second = self._resolve("Service Centre Maastricht BV", ne, ne_lk)
+        assert first and second == first, "the second spelling must resolve to the first"
+        assert len(ne) == 1, "one mint, not a twin"
+
+    def test_twin_spellings_resolve_across_role_flips(self):
+        """a/b bare-name twins: the dotted spelling appearing as counterparty
+        after the bare one (or vice versa) must find the same mint."""
+        ne, ne_lk = {}, {}
+        a = self._resolve("Universal Voltas LLC", ne, ne_lk)
+        b = self._resolve("Universal Voltas L.L.C", ne, ne_lk)
+        assert a and b == a and len(ne) == 1
+
+    def test_letter_run_twins_unify_without_lk_index_under_s1(self):
+        """name_key_letter_run_collapse S1: the census key itself now joins
+        ``b v`` and ``bv``, so the B.V/BV twins unify through
+        ``new_entities[ck]`` even with NO loose-key index at all. The index is
+        no longer load-bearing for letter-run twins (it still is for
+        legal-tail twins where name_key differs, e.g. 'Indian Hotels Company
+        Limited' vs 'Indian Hotels'). Callers that omit the optional kwarg
+        therefore still mint ONE entity for this pair under S1."""
+        ne = {}
+        first = rps._resolve_party(
+            "Service Centre Maastricht B.V", {}, {}, {}, set(), ne, max_new_entities=10
+        )
+        second = rps._resolve_party(
+            "Service Centre Maastricht BV", {}, {}, {}, set(), ne, max_new_entities=10
+        )
+        assert first and second and second == first
+        assert len(ne) == 1
+
+    def test_distinct_legal_forms_do_not_merge(self):
+        """The loose key drops punctuation, not meaning: BV and LLC stay two
+        entities even though name_key sees both as letter runs."""
+        ne, ne_lk = {}, {}
+        bv = self._resolve("HDFC Bank B.V", ne, ne_lk)
+        llc = self._resolve("HDFC Bank LLC", ne, ne_lk)
+        assert bv and llc and bv != llc and len(ne) == 2
+
+    def test_ingestion_with_both_spellings_mints_one_entity(self, lane):
+        """End-to-end §4.4: a fresh RPT pair run whose counterparties carry
+        both spellings writes exactly one entity row."""
+        con, conn = lane
+        conn.execute(
+            "INSERT INTO entities VALUES "
+            "('Service Centre Maastricht N.V', 'company', 'SERVICE_CENTRE_MAASTRICHT_NV', NULL)"
+        )
+        conn.commit()
+        _seed_rpt(
+            con,
+            [
+                (
+                    "SECMACE",
+                    "Service Centre Maastricht N.V",
+                    "Service Centre Maastricht B.V",
+                    "Holding Company",
+                    "Group Companies",
+                    "Any other transaction",
+                    None,
+                    "31-MAR-2026",
+                    "2026-03-31",
+                    "https://x/1.xml",
+                ),
+                (
+                    "SECMACE",
+                    "Service Centre Maastricht N.V",
+                    "Service Centre Maastricht BV",
+                    "Group Companies",
+                    "Group Companies",
+                    "Any other transaction",
+                    None,
+                    "30-JUN-2026",
+                    "2026-06-30",
+                    "https://x/2.xml",
+                ),
+            ],
+        )
+        companies = {"SECMACE": "Service Centre Maastricht N.V"}
+        norm = {"SERVICE_CENTRE_MAASTRICHT_NV": "Service Centre Maastricht N.V"}
+        pairs = rps.build_pairs(con)
+        _n_ent, _n_edges, written, _u, _c, _nc, n_su, _vd = rps.apply_pairs(
+            conn, pairs, companies, norm, dry_run=False
+        )
+        assert n_su == 0, "both spellings must resolve, not drop"
+        rows = conn.execute(
+            "SELECT name FROM entities WHERE name LIKE 'Service Centre Maastricht%' "
+            "AND name != 'Service Centre Maastricht N.V'"
+        ).fetchall()
+        assert len(rows) == 1, f"one mint besides the filer, got {rows}"
+        assert written == 2, "each filing still writes its edge"

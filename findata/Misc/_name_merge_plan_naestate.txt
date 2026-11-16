@@ -1,0 +1,2 @@
+# N.A. Estate single-row fold — person-defense override: both members entity_type=company
+   N.A. Estate <- N A Estate

@@ -1,0 +1,49 @@
+# Entity-name merge plan (recommendation 4a — RPT legal-spelling variants)
+# clusters: 11 | source: 2026-11-16 duplicate-normalized_name audit
+# canonical rule: highest edge-degree spelling (the graph's own usage)
+# S2 applies ONLY on operator sign-off (name_dedup.py --apply --yes)
+== Service Centre Maastricht BV
+   Service Centre Maastricht BV
+   Service Centre Maastricht B.V  -> fold
+
+== S A B Profiel BV
+   S A B Profiel BV
+   S A B Profiel B.V  -> fold
+
+== Layde Steel SL
+   Layde Steel SL
+   Layde Steel S.L  -> fold
+
+== Universal Voltas LLC
+   Universal Voltas LLC
+   Universal Voltas L.L.C  -> fold
+
+== Tata Steel Netherlands Holdings BV
+   Tata Steel Netherlands Holdings BV
+   Tata Steel Netherlands Holdings B.V  -> fold
+
+== Orchid Netherlands No1 BV
+   Orchid Netherlands No1 BV
+   Orchid Netherlands No.1 B.V  -> fold
+   Orchid Netherlands No.1 BV  -> fold
+
+== Central U.P. Gas
+   Central U.P. Gas
+   Central UP Gas  -> fold
+
+== Tata Steel Norway Byggsystemer As
+   Tata Steel Norway Byggsystemer As
+   Tata Steel Norway Byggsystemer A/s  -> fold
+
+== Tata Steel Belgium Packaging Steels NV
+   Tata Steel Belgium Packaging Steels NV
+   Tata Steel Belgium Packaging Steels N.V  -> fold
+
+== KTV Health Food
+   KTV Health Food
+   K.T.V. Health Food  -> fold
+
+== Grijze Poort BV
+   Grijze Poort BV
+   Grijze Poort B.V  -> fold
+

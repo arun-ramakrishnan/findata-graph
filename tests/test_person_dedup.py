@@ -102,7 +102,8 @@ def test_census_classes(con):
     # person census carries none, and its review partition is empty)
     assert not any("Packers" in " ".join(cs["variants"]) for cs in cen["company_shaped"])
     company_keys = {c["key"] for c in nd.census(con)["clusters"]}
-    assert "a s packers" in company_keys
+    # name_key_letter_run_collapse S1: 'a s' letter run joins to 'as'.
+    assert "as packers" in company_keys
 
 
 def test_plan_and_apply_via_shared_machinery(con, tmp_path: Path):

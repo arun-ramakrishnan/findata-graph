@@ -499,7 +499,7 @@ def _loose_key(name: str | None) -> str:
         key = nxt
 
 
-def _resolve_party(  # the shared disclosed-party resolution ladder
+def _resolve_party(  # the shared disclosed-party resolution ladder  # noqa: C901  # filer/subject/counter resolution ladder
     raw: str,
     norm_to_name: dict[str, str],
     fold: dict[str, str],
@@ -508,19 +508,38 @@ def _resolve_party(  # the shared disclosed-party resolution ladder
     new_entities: dict[str, tuple[str, str]],
     *,
     max_new_entities: int,
+    new_entities_lk: dict[str, str] | None = None,
 ) -> str | None:
     """S2 (rpt_attribution A4): resolve a disclosed party name to an
     entity — the same ladder the counter-party walk uses: normalized hit
     → fold/census variant → mint under the shared cap. None = unresolvable
     (the caller drops the pair and counts it). No filer guard: a subject
-    that resolves to the counterparty is a self-edge and drops there."""
+    that resolves to the counterparty is a self-edge and drops there.
+
+    Within-run mints are ALSO indexed by ``_loose_key`` (name_key_proposal
+    option B, 2026-11-16): ``name_key`` punctuates ``B.V`` into ``b v`` and
+    ``BV`` into ``bv``, so two suffix spellings of one company minted in the
+    same run never saw each other through ``ck`` alone — the 2026-09-22
+    RPT/VIGIL batch minted 14 such groups (29 rows). The loose key drops
+    punctuation before the legal-tail strip, so both spellings land on one
+    entry and the second spelling resolves to the first."""
     from helpers.core.entity_identity import FOOTNOTE_RE, name_key  # noqa: PLC0415
 
     norm = _normalize(raw)
     hit = norm_to_name.get(norm.upper())
     ck = name_key(FOOTNOTE_RE.sub("", raw.strip()))
     if hit is None:
-        hit = fold.get(ck) or census_map.get(ck)
+        candidate = fold.get(ck) or census_map.get(ck)
+        # name_key_letter_run_collapse S1: fold/ledger maps are repo-global, so
+        # their canonical can be absent from a fresh or partially-rebuilt
+        # registry. Trusting it blindly points the edge at a name that was never
+        # minted here (FK failure on graph_edges). Honour a fold/census target
+        # only when the entity it names actually exists in this registry;
+        # otherwise fall through to the mint ladder below. Both spellings of an
+        # S1-equal name share ck, so the ladder still mints ONE entity and every
+        # edge resolves to it.
+        if candidate is not None and candidate in existing:
+            hit = candidate
     if hit is None:
         display = _safe_display(raw)
         if display:
@@ -532,12 +551,18 @@ def _resolve_party(  # the shared disclosed-party resolution ladder
             # replay minted 402 case-variant twins). First spelling wins,
             # exactly like registry_index.
             minted = new_entities.get(ck)
+            if minted is None and new_entities_lk is not None:
+                twin_ck = new_entities_lk.get(_loose_key(raw))
+                if twin_ck is not None:
+                    minted = new_entities.get(twin_ck)
             if minted is not None:
                 hit = minted[0]
             elif display in existing:
                 hit = display
             elif len(new_entities) < max_new_entities:
                 new_entities[ck] = (display, norm)
+                if new_entities_lk is not None:
+                    new_entities_lk[_loose_key(raw)] = ck
                 hit = display
     return hit
 
@@ -628,6 +653,12 @@ def apply_pairs(  # noqa: C901  # the filer/subject/counter/edge-class resolutio
             filer_ancestors.setdefault(p["symbol"], set()).add(_loose_key(p["counter"]))
     edges: list[dict] = []
     new_entities: dict[str, tuple[str, str]] = {}
+    # Loose-key twin index for within-run mints (name_key_proposal option B):
+    # lk -> ck, consulted by _resolve_party so two suffix spellings of one
+    # company minted in THIS run resolve to one entity (name_key alone sees
+    # 'B.V' and 'BV' as different names). Only new_entities is iterated at
+    # mint time; this index holds no rows of its own.
+    new_entities_lk: dict[str, str] = {}
     unresolved_filers: set[str] = set()
     n_noncompany_dropped = 0
     n_subject_unresolvable = 0
@@ -657,6 +688,7 @@ def apply_pairs(  # noqa: C901  # the filer/subject/counter/edge-class resolutio
                 existing,
                 new_entities,
                 max_new_entities=max_new_entities,
+                new_entities_lk=new_entities_lk,
             )
             if subject is None:
                 n_subject_unresolvable += 1
@@ -669,6 +701,7 @@ def apply_pairs(  # noqa: C901  # the filer/subject/counter/edge-class resolutio
             existing,
             new_entities,
             max_new_entities=max_new_entities,
+            new_entities_lk=new_entities_lk,
         )
         if cp_ent is None or cp_ent == subject:
             continue
