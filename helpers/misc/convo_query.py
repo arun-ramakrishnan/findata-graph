@@ -169,10 +169,11 @@ def connect(db_path: Path) -> ConvoConnections:
     from helpers.misc.duckdb_lock import open_read_only
 
     con = open_read_only(db_path)
-    # The native FTS schema is the only index the read path needs. LOAD
-    # is session-scoped and legal on a read-only connection; failure
-    # degrades the lexical leg to empty, never raises (pre-S5 stores
-    # without the native schema answer by cosine alone).
+    # The native FTS schema is the only index the read path needs. No
+    # explicit LOAD: DuckDB 2.0.0 auto-loads core extensions on first
+    # use (verified 2026-11-16), and the top-k path reads the backing
+    # tables without the extension at all. A store without the native
+    # schema answers by cosine alone (pre-S5).
     #
     # The vss/HNSW lines are GONE by design (proposal
     # convo_search_drop_hnsw_numpy_copy_compact S1): the cosine leg is an
@@ -180,10 +181,6 @@ def connect(db_path: Path) -> ConvoConnections:
     # consulted. A store that still carries a persisted HNSW index from
     # the pre-2026-11-09 era opens fine without vss loaded (probed
     # 2026-11-09) — it is simply dead weight until the next --compact.
-    try:
-        con.execute("LOAD fts")
-    except duckdb.Error:  # noqa: S110  # missing extension: leg degrades
-        pass
     return ConvoConnections(con, Path(db_path))
 
 
@@ -240,23 +237,64 @@ def _fts_hits_duckdb(
     harness: str | None = None,
     source: str | None = None,
 ) -> list[tuple[Key, float]]:
-    """Native match_bm25 over the stored full text (higher-is-better)."""
-    q = " ".join(f'"{w.replace(chr(34), chr(34) * 2)}"' for w in query.split())
-    sc = "fts_main_convo_search.match_bm25(part_id, ?)"
-    sql = f"SELECT harness, part_id, {sc} FROM convo_search WHERE {sc} IS NOT NULL "  # noqa: S608  # sc is a constant score-expression string
-    params: list = [q, q]
+    """Native BM25 over the stored full text (higher-is-better).
+
+    Fast path: SQL top-k over the FTS postings (macro-free). Falls back
+    to the match_bm25 macro below when any token is unresolvable.
+    """
+    tokens = [w for w in query.split() if w.strip()]
+    where_extra = ""
+    params_extra: list = []
     if harness:
         # Filter in the leg, not after fusion: a post-fusion filter on a
         # fixed pool starves narrow harnesses on generic terms (bili lane:
         # "context" has 6839 corpus hits, 10 bili — top-20 fusion holds no
         # bili rows to filter down to).
-        sql += "AND harness = ? "
-        params.append(harness)
+        where_extra += " AND ss.harness = ?"
+        params_extra.append(harness)
     if source:
         # The native index lives INSIDE the duckdb store that carries
         # provenance, so the lexical leg can pre-filter exactly (the
         # retired sqlite sidecar could not; S5 removes the over-fetch
         # workaround).
+        where_extra += " AND ss.provenance LIKE ? ESCAPE '\\'"
+        params_extra.append(_like_pattern(source))
+    rows, mode = fts_topk(
+        con.ddb,
+        fts_table="fts_main_convo_search",
+        base_table="convo_search",
+        tokens=tokens,
+        limit=limit,
+        where_extra=where_extra,
+        params_extra=params_extra,
+        id_column="part_id",
+    )
+    if mode == "topk" and rows is not None:
+        pids = [pid for pid, _ in rows]
+        out: list[tuple[Key, float]] = []
+        if pids:
+            ph = ", ".join("?" for _ in pids)
+            by_id = {
+                r[1]: r
+                for r in con.ddb.execute(
+                    f"SELECT harness, part_id FROM convo_search WHERE part_id IN ({ph})",
+                    pids,
+                ).fetchall()
+            }
+            for pid, s in rows:
+                hit = by_id.get(pid)
+                if hit is not None:
+                    out.append(((str(hit[0]), str(pid)), -float(s)))
+        return out
+
+    q = " ".join(f'"{w.replace(chr(34), chr(34) * 2)}"' for w in query.split())
+    sc = "fts_main_convo_search.match_bm25(part_id, ?)"
+    sql = f"SELECT harness, part_id, {sc} FROM convo_search WHERE {sc} IS NOT NULL "  # noqa: S608  # sc is a constant score-expression string
+    params: list = [q, q]
+    if harness:
+        sql += "AND harness = ? "
+        params.append(harness)
+    if source:
         sql += "AND provenance LIKE ? ESCAPE '\\' "
         params.append(_like_pattern(source))
     sql += f"ORDER BY {sc} DESC LIMIT ?"
@@ -720,6 +758,7 @@ def _like_pattern(source: str) -> str:
 
 
 from helpers.core.rank_fusion import anchored_fusion as _anchored_fusion  # noqa: E402  (algorithms_adoption_sweep S7 — the convo named variant lives in the one RRF home; frozen-bank verdict 2026-10-27, #442: granite 25/57, gemma 27/57)
+from helpers.core.duckdb_shared import fts_topk  # noqa: E402  (duckdb_fts_sql_topk_regression S3)
 
 
 def _fetch_rows(con: ConvoConnections, keys: list[Key]) -> dict[Key, dict]:

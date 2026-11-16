@@ -886,6 +886,8 @@ def _mtime_of(root: Path | None, rel: str) -> float:
 # --- query core (shared by app.py /api/docs/search and helpers/misc/doc_query) ---
 
 # RRF constant, identical to app.py::_hybrid_search_results.
+from helpers.core.duckdb_shared import fts_topk  # noqa: E402  (duckdb_fts_sql_topk_regression S3)
+
 from helpers.core.rank_fusion import rrf_two_leg  # noqa: E402  (algorithms_adoption_sweep S7)
 
 # Diversification cap: max section-chunks per file in a result page.
@@ -912,6 +914,16 @@ def fts_match_expr(q: str) -> str:
     """
     tokens = [f'"{_FT_TOKEN.sub("", t)}"' for t in q.split() if t.strip()]
     return " OR ".join(tokens)
+
+
+def fts_query_tokens(q: str) -> list[str]:
+    """Free-text query -> raw whitespace tokens (cleaned, unquoted).
+
+    Same cleaning as :func:`fts_match_expr` uses for its quoted forms —
+    both the FTS5 MATCH expression and the DuckDB FTS posting-table top-k
+    resolution must see the identical token stream.
+    """
+    return [_FT_TOKEN.sub("", t) for t in q.split() if t.strip()]
 
 
 def doc_index_ready(conn) -> bool:
@@ -1321,6 +1333,28 @@ def _write_doc_store(
             "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
             [(i, *r, _compose_searchtext(r)) for i, r in enumerate(all_rows)],
         )
+    # S6 (duckdb_fts_sql_topk_regression): colocated vector mirror for the
+    # hybrid cosine leg — drop + recreate every full rebuild (the mirror is
+    # derived state, same doctrine as the FTS index). Absent when nothing is
+    # embedded, in which case the query leg falls back to the Python scan.
+    conn.execute("DROP TABLE IF EXISTS doc_vectors")
+    vectors = []
+    if embed_dims:
+        for i, r in enumerate(all_rows):
+            if r[5]:
+                vec = load_vec(r[5])
+                if vec:
+                    vectors.append((i, vec))
+        if vectors:
+            actual_dims = len(vectors[0][1])
+            conn.execute(
+                "CREATE TABLE doc_vectors (id BIGINT PRIMARY KEY, "
+                f"embedding FLOAT[{int(actual_dims)}])"
+            )
+            conn.executemany(
+                "INSERT INTO doc_vectors (id, embedding) VALUES (?, ?)",
+                vectors,
+            )
     conn.executemany(
         "INSERT OR REPLACE INTO doc_search_meta VALUES (?, ?, ?)",
         [(rel, _mtime_of(root, rel), hash_by_file[rel]) for rel in rows_by_file],
@@ -1462,9 +1496,31 @@ def _cosine_leg_duckdb(
 ) -> tuple[list[tuple[int, float]], dict[int, float], dict[int, int] | None]:
     """Cosine-score every stored embedding against q_vec (keyed on id):
     (scored desc, sims, cos_rank). ([], {}, None) when q_vec is None —
-    the BM25 leg then carries the whole ranking."""
+    the BM25 leg then carries the whole ranking.
+
+    S6 fast path: whole-table vectorized cosine over the colocated
+    ``doc_vectors`` mirror (built at rebuild). Falls back to the Python
+    scan for pre-S6 stores or schema drift (mirror absent, dims mismatch).
+    """
     if q_vec is None:
         return [], {}, None
+    try:
+        from helpers.core.vec_search import _vec_literal
+
+        lit = _vec_literal(q_vec, len(q_vec))
+        hits = conn.execute(
+            "SELECT id, "
+            "CASE WHEN sqrt(array_dot_product(embedding, embedding)) = 0 THEN 0.0 "
+            "ELSE array_cosine_similarity(embedding, " + lit + ") END AS sim "
+            "FROM doc_vectors ORDER BY sim DESC"
+        ).fetchall()
+        if hits:
+            scored: list[tuple[int, float]] = [(rid, float(sim)) for rid, sim in hits]
+            sims: dict[int, float] = dict(scored)
+            cos_rank: dict[int, int] = {rid: pos for pos, (rid, _s) in enumerate(scored)}
+            return scored, sims, cos_rank
+    except Exception:  # noqa: S110  # mirror absent/wrong-dims → python scan
+        pass
     norm_q = sum(x * x for x in q_vec) ** 0.5 or 1.0
     scored: list[tuple[int, float]] = []
     sims: dict[int, float] = {}
@@ -1500,17 +1556,45 @@ def _search_docs_duckdb(
     expr = fts_match_expr(q)
     if not expr:
         return {"mode": "bm25", "results": []}
-    sc = "fts_main_doc_search.match_bm25(id, ?)"
+    # Fast path: SQL top-k over the FTS postings (macro-free). Falls back
+    # to the match_bm25 macro below when any token is unresolvable.
+    page: list[tuple]
     try:
-        page = conn.execute(
-            "SELECT id, title, section_title, file_path, anchor, content, "  # noqa: S608  # sc is a fixed literal (match_bm25 macro call), not user input
-            f"embedding, {sc} AS score "
-            f"FROM doc_search WHERE {sc} IS NOT NULL "
-            f"ORDER BY score DESC LIMIT ?",
-            (expr, expr, limit + offset),
-        ).fetchall()
+        rows, mode = fts_topk(
+            conn,
+            fts_table="fts_main_doc_search",
+            base_table="doc_search",
+            tokens=fts_query_tokens(q),
+            limit=limit + offset,
+        )
     except duckdb.Error:
-        return {"mode": "bm25", "results": []}
+        mode = "macro"
+    if mode == "topk":
+        ids = [rid for rid, _ in rows]
+        page = []
+        if ids:
+            ph = ", ".join("?" for _ in ids)
+            by_id = {
+                r[0]: r
+                for r in conn.execute(
+                    "SELECT id, title, section_title, file_path, anchor, content, embedding "  # noqa: S608  # ph is a computed ?, list, not user input
+                    f"FROM doc_search WHERE id IN ({ph})",
+                    ids,
+                ).fetchall()
+            }
+            page = [by_id[i] for i in ids if i in by_id]
+    else:
+        sc = "fts_main_doc_search.match_bm25(id, ?)"
+        try:
+            page = conn.execute(
+                "SELECT id, title, section_title, file_path, anchor, content, "  # noqa: S608  # sc is a fixed literal (match_bm25 macro call), not user input
+                f"embedding, {sc} AS score "
+                f"FROM doc_search WHERE {sc} IS NOT NULL "
+                f"ORDER BY score DESC LIMIT ?",
+                (expr, expr, limit + offset),
+            ).fetchall()
+        except duckdb.Error:
+            return {"mode": "bm25", "results": []}
 
     q_vec, note = _resolve_q_vec_duckdb(conn, q, hybrid, query_vec)
     scored, sims, cos_rank = _cosine_leg_duckdb(conn, q_vec)

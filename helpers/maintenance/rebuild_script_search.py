@@ -90,6 +90,7 @@ from helpers.core.vec_codec import load_vec, pack_f32  # noqa: E402
 from helpers.maintenance import rebuild_common as rbc  # noqa: E402
 from helpers.core.rank_fusion import rrf_two_leg  # noqa: E402  (algorithms_adoption_sweep S7)
 from helpers.maintenance import rebuild_doc_search as rds  # noqa: E402
+from helpers.core.duckdb_shared import fts_topk  # noqa: E402  (duckdb_fts_sql_topk_regression S2)
 
 import duckdb  # noqa: E402  (duckdb_sidecar_fold S3: native-FTS script sidecar path)
 
@@ -2335,23 +2336,62 @@ def _search_scripts_duckdb(
     gemma_idx = hybrid and not vector_only and _is_gemma_index(conn)
     routed_vector = vector_only or (gemma_idx and not is_identifier_query(q))
     routed_lexical = gemma_idx and is_identifier_query(q)
-    sc = "fts_main_script_search.match_bm25(id, ?)"
-    where = f"{sc} IS NOT NULL"
-    params: list = [expr, expr]
+
+    # SQL top-k over the FTS posting tables (macro-free; DuckDB 2.0.0's
+    # match_bm25 macro-predicate form seq-scans, 30–80× slower than sqlite
+    # FTS5 — duckdb_fts_sql_topk_regression S2). Fallback to the macro
+    # path unchanged when schema/token resolution fails.
+    where_extra = ""
+    params_extra: list = []
     if kind:
-        where += " AND kind = ?"
-        params.append(kind)
+        where_extra += " AND ss.kind = ?"
+        params_extra.append(kind)
     if area:
-        where += " AND area = ?"
-        params.append(area)
-    try:
-        page = conn.execute(
-            f"SELECT id, title, kind, rel_path, area, purpose, content, {sc} AS score "  # noqa: S608  # WHERE fully parameterized; f-string interpolates fixed columns only
-            f"FROM script_search WHERE {where} "
-            f"ORDER BY score DESC LIMIT ?",
-            [*params, limit + offset],
-        ).fetchall()
-    except duckdb.Error:
+        where_extra += " AND ss.area = ?"
+        params_extra.append(area)
+    rows, topk_mode = fts_topk(
+        conn,
+        fts_table="fts_main_script_search",
+        base_table="script_search",
+        tokens=rds.fts_query_tokens(q),
+        limit=limit + offset,
+        where_extra=where_extra,
+        params_extra=params_extra,
+    )
+    page = None
+    if topk_mode == "topk" and rows is not None:
+        ids = [rid for rid, _s in rows]
+        if ids:
+            ph = ", ".join("?" for _ in ids)
+            by_id = {
+                r[0]: r
+                for r in conn.execute(
+                    f"SELECT id, title, kind, rel_path, area, purpose, content "
+                    f"FROM script_search WHERE id IN ({ph})",
+                    ids,
+                ).fetchall()
+            }
+            page = [by_id[rid] for rid in ids if rid in by_id]
+    else:
+        sc = "fts_main_script_search.match_bm25(id, ?)"
+        where = f"{sc} IS NOT NULL"
+        params: list = [expr, expr]
+        if kind:
+            where += " AND kind = ?"
+            params.append(kind)
+        if area:
+            where += " AND area = ?"
+            params.append(area)
+        try:
+            page = conn.execute(
+                f"SELECT id, title, kind, rel_path, area, purpose, content, {sc} AS score "  # noqa: S608  # WHERE fully parameterized; f-string interpolates fixed columns only
+                f"FROM script_search WHERE {where} "
+                f"ORDER BY score DESC LIMIT ?",
+                [*params, limit + offset],
+            ).fetchall()
+        except duckdb.Error:
+            return {"mode": "bm25", "results": []}
+    if page is None:
         return {"mode": "bm25", "results": []}
 
     scored, sims = (

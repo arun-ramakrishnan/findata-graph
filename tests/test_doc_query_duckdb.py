@@ -134,3 +134,44 @@ def test_stale_detects_new_file(seeded, fake_local):
         assert rds.doc_index_stale(conn, root=rds.DOC_ROOT) is True
     finally:
         conn.close()
+
+
+def test_rebuild_builds_doc_vectors_mirror(seeded, fake_local):
+    """S6: the rebuild writes a colocated doc_vectors mirror so the hybrid
+    cosine leg can run vectorized (same rows as doc_search's embedded set)."""
+    rds.rebuild_duckdb(seeded, embed_fn=fake_local.embed_document)
+    conn = rds.connect_doc_db(seeded)
+    try:
+        n_vec = conn.execute("SELECT COUNT(*) FROM doc_vectors").fetchone()[0]
+        n_emb = conn.execute(
+            "SELECT COUNT(*) FROM doc_search WHERE embedding IS NOT NULL"
+        ).fetchone()[0]
+        assert n_vec == n_emb == 3
+        dims = conn.execute(
+            "SELECT embedding FROM doc_vectors LIMIT 1"
+        ).fetchone()[0]
+        assert len(dims) == 8
+    finally:
+        conn.close()
+
+
+def test_cosine_leg_uses_mirror_and_falls_back(seeded, fake_local):
+    """S6: the SQL mirror path and the Python scan agree on the ranking; a
+    pre-S6 store (no mirror) still answers via the fallback."""
+    rds.rebuild_duckdb(seeded, embed_fn=fake_local.embed_document)
+    conn = rds.connect_doc_db(seeded)
+    try:
+        qv = fake_local.embed_query("cache design")
+        scored_sql, sims_sql, rank_sql = rds._cosine_leg_duckdb(conn, qv)
+        assert rank_sql is not None
+        assert len(scored_sql) == 3
+        # Python path (fallback) rank — recompute by dropping the mirror
+        conn.execute("DROP TABLE doc_vectors")
+        scored_py, sims_py, rank_py = rds._cosine_leg_duckdb(conn, qv)
+        assert rank_py is not None
+        assert [rid for rid, _ in scored_py] == [rid for rid, _ in scored_sql]
+        for rid, sim in scored_sql:
+            assert abs(sim - sims_py.get(rid, -2.0)) < 1e-9
+    finally:
+        conn.close()
+

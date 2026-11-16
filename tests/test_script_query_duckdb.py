@@ -23,6 +23,8 @@ import pytest
 
 from helpers.maintenance import rebuild_script_search as rss
 
+from helpers.core.duckdb_shared import fts_topk
+
 pytestmark = [pytest.mark.integration]
 
 _HELPERS_PY = (
@@ -224,3 +226,26 @@ def test_legacy_sqlite_path_still_works(tmp_path, corpus, monkeypatch):
 def _fake_embed_8(text: str) -> list[float]:
     """8-dim fake embedder (short vectors keep the store tiny)."""
     return [0.5] * 8
+
+
+def test_topk_path_with_kind_filter(seeded, fake_local):
+    """SQL top-k path (resolvable term, exact dict stem) + kind filter."""
+    db = seeded
+    rss.rebuild_script_duckdb(db, embed_fn=fake_local.embed_document)
+    conn = rss.connect_script_db(db)
+    try:
+        rows, mode = fts_topk(
+            conn,
+            fts_table="fts_main_script_search",
+            base_table="script_search",
+            tokens=["pack"],
+            limit=10,
+        )
+        assert mode == "topk", "expected SQL top-k path, got macro fallback"
+        assert rows, "topk returned no rows for resolvable term"
+        out = rss.search_scripts(conn, "pack", limit=5, kind="script")
+        assert out["results"], "topk path returned nothing for resolvable term"
+        assert {r["kind"] for r in out["results"]} == {"script"}
+        assert {r["path"] for r in out["results"]} == {"helpers/pack.py", "helpers/query.py"}
+    finally:
+        conn.close()

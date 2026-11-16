@@ -503,3 +503,233 @@ def _probe(entry: dict[str, Any]) -> bool:
             con.close()
     except Exception:  # noqa: BLE001 — readiness loop, retry until deadline
         return False
+
+
+def fts_topk(
+    conn: duckdb.DuckDBPyConnection,
+    *,
+    fts_table: str,
+    base_table: str,
+    tokens: list[str],
+    limit: int,
+    offset: int = 0,
+    where_extra: str = "",
+    params_extra: list[Any] | None = None,
+    id_column: str = "id",
+) -> tuple[list[tuple[Any, float]] | None, str]:
+    """DuckDB native-FTS top-k over the posting tables (macro-free).
+
+    The FTS extension stores its inverted index in schema-qualified
+    backing tables (``fts_main_<table>.terms/dict/docs/stats``). The
+    ``match_bm25`` macro-predicate form cannot be pushed down in DuckDB
+    2.0.0 — EXPLAIN ANALYZE shows a per-row sequential scan, 30–80×
+    slower than sqlite FTS5 (measurements 2026-11-16). This helper
+    scores BM25 (k1=1.2, b=0.75, DuckDB FTS defaults) directly from the
+    postings:
+
+      score(doc) = Σ_terms ln((N − df + 0.5)/(df + 0.5) + 1)
+                     · (tf·(k1+1)) / (tf + k1·(1 − b + b·dl/avgdl))
+
+    Term resolution mirrors the index's porter stemming (``cache`` →
+    ``cach``): exact dict match per stem guess first, prefix fallback for
+    long tokens only. Any unresolvable token (stopword, short token,
+    schema mismatch) returns ``(None, "macro")`` so callers fall back to
+    the macro path unchanged — the helper never silently narrows recall.
+
+    ``where_extra`` is spliced verbatim after ``WHERE 1=1`` (must
+    reference the base-table alias ``ss``, e.g. ``" AND ss.kind = ?"``);
+    ``params_extra`` supplies its bound values.
+
+    Returns (rows, "topk") with rows = [(id, score)] ordered by score
+    desc, or (None, "macro") to trigger the caller's fallback. ``id``
+    keeps the base-table key's native type (BIGINT for scripts/doc/note;
+    VARCHAR for convo's composite ``part_id``).
+    """
+    if not tokens or not all(t for t in tokens):
+        return None, "macro"
+    try:
+        # schema guard: the four backing tables must exist in the FTS schema
+        n = conn.execute(
+            "SELECT count(*) FROM duckdb_tables() "
+            "WHERE schema_name = ? AND table_name IN ('terms','dict','docs','stats')",
+            [fts_table],
+        ).fetchone()
+        if n is None or n[0] != 4:
+            return None, "macro"
+    except duckdb.Error:
+        return None, "macro"
+
+    termids: list[int] = []
+    for tok in tokens:
+        resolved: list[int] | None = None
+        for guess in _stem_guesses(tok):
+            rows = conn.execute(
+                f"SELECT termid FROM {fts_table}.dict WHERE term = ?", [guess]
+            ).fetchall()
+            if rows:
+                resolved = [r[0] for r in rows]
+                break
+        if resolved is None:
+            if len(tok) >= 4:
+                rows = conn.execute(
+                    f"SELECT termid FROM {fts_table}.dict WHERE term LIKE ?",
+                    [tok + "%"],
+                ).fetchall()
+                if rows:
+                    resolved = [r[0] for r in rows]
+            if resolved is None:
+                return None, "macro"
+        termids.extend(resolved)
+    termids = list(dict.fromkeys(termids))
+    if not termids:
+        return None, "macro"
+
+    tlist = ", ".join("?" for _ in termids)
+    params: list[Any] = list(termids)
+    if params_extra:
+        params.extend(params_extra)
+    params.append(offset + limit)
+    sql = f"""
+    WITH qterms AS (SELECT unnest([{tlist}]) AS termid),
+         post AS (
+           SELECT t.docid, t.termid, COUNT(*) AS tf
+           FROM {fts_table}.terms t JOIN qterms USING (termid)
+           GROUP BY t.docid, t.termid
+         ),
+         scored AS (
+           SELECT p.docid,
+                  SUM( ln((s.num_docs - d.df + 0.5)/(d.df + 0.5) + 1)
+                       * (p.tf * 2.2)
+                         / (p.tf + 1.2 * (1 - 0.75 + 0.75 * dc.len / s.avgdl)) ) AS score
+           FROM post p
+           JOIN {fts_table}.dict d USING (termid)
+           JOIN {fts_table}.docs dc USING (docid)
+           CROSS JOIN {fts_table}.stats s
+           GROUP BY p.docid
+         )
+    SELECT dc.name AS {id_column}, sc.score
+    FROM scored sc
+    JOIN {fts_table}.docs dc USING (docid)
+    JOIN {base_table} ss ON ss.{id_column} = dc.name
+    WHERE 1=1{where_extra}
+    ORDER BY sc.score DESC
+    LIMIT ?"""
+    try:
+        rows = conn.execute(sql, params).fetchall()
+    except duckdb.Error:
+        return None, "macro"
+    return [(r[0], float(r[1])) for r in rows], "topk"
+
+
+def fts_topk_count(
+    conn: duckdb.DuckDBPyConnection,
+    *,
+    fts_table: str,
+    base_table: str,
+    tokens: list[str],
+    where_extra: str = "",
+    params_extra: list[Any] | None = None,
+    id_column: str = "id",
+    count_col: str = "id",
+) -> int | None:
+    """Count distinct rows in the top-k match space (no LIMIT).
+
+    Mirrors :func:`fts_topk`'s term resolution and scoring CTE — same
+    ``(None, "macro")``-style contract via ``None`` on any unresolvable
+    token or schema mismatch. Used to preserve the legacy "total counts
+    the OR space" contract (note search) without a second macro scan.
+    """
+    if not tokens or not all(t for t in tokens):
+        return None
+    try:
+        n = conn.execute(
+            "SELECT count(*) FROM duckdb_tables() "
+            "WHERE schema_name = ? AND table_name IN ('terms','dict','docs','stats')",
+            [fts_table],
+        ).fetchone()
+        if n is None or n[0] != 4:
+            return None
+    except duckdb.Error:
+        return None
+
+    termids: list[int] = []
+    for tok in tokens:
+        resolved: list[int] | None = None
+        for guess in _stem_guesses(tok):
+            rows = conn.execute(
+                f"SELECT termid FROM {fts_table}.dict WHERE term = ?", [guess]
+            ).fetchall()
+            if rows:
+                resolved = [r[0] for r in rows]
+                break
+        if resolved is None:
+            if len(tok) >= 4:
+                rows = conn.execute(
+                    f"SELECT termid FROM {fts_table}.dict WHERE term LIKE ?",
+                    [tok + "%"],
+                ).fetchall()
+                if rows:
+                    resolved = [r[0] for r in rows]
+            if resolved is None:
+                return None
+        termids.extend(resolved)
+    termids = list(dict.fromkeys(termids))
+    if not termids:
+        return None
+
+    tlist = ", ".join("?" for _ in termids)
+    params: list[Any] = list(termids)
+    if params_extra:
+        params.extend(params_extra)
+    sql = f"""
+    WITH qterms AS (SELECT unnest([{tlist}]) AS termid),
+         post AS (
+           SELECT t.docid, t.termid, COUNT(*) AS tf
+           FROM {fts_table}.terms t JOIN qterms USING (termid)
+           GROUP BY t.docid, t.termid
+         ),
+         scored AS (
+           SELECT p.docid,
+                  SUM( ln((s.num_docs - d.df + 0.5)/(d.df + 0.5) + 1)
+                       * (p.tf * 2.2)
+                         / (p.tf + 1.2 * (1 - 0.75 + 0.75 * dc.len / s.avgdl)) ) AS score
+           FROM post p
+           JOIN {fts_table}.dict d USING (termid)
+           JOIN {fts_table}.docs dc USING (docid)
+           CROSS JOIN {fts_table}.stats s
+           GROUP BY p.docid
+         )
+    SELECT COUNT(DISTINCT ss.{count_col})
+    FROM scored sc
+    JOIN {fts_table}.docs dc USING (docid)
+    JOIN {base_table} ss ON ss.{id_column} = dc.name
+    WHERE 1=1{where_extra}"""
+    try:
+        row = conn.execute(sql, params).fetchone()
+        if row is None:
+            return None
+        return int(row[0])
+    except duckdb.Error:
+        return None
+
+
+def _stem_guesses(tok: str) -> list[str]:
+    """Porter-ish suffix-strip candidates matching dict-term stems."""
+    s = {tok}
+    L = len(tok)
+    if L > 4 and tok.endswith("ies"):
+        s.add(tok[:-3] + "y")
+    if L > 4 and tok.endswith("ing"):
+        s.add(tok[:-3])
+        s.add(tok[:-3] + "e")
+    if L > 3 and tok.endswith("ed"):
+        s.add(tok[:-2])
+        s.add(tok[:-1])
+    if L > 3 and tok.endswith("es"):
+        s.add(tok[:-2])
+        s.add(tok[:-1])
+    if L > 3 and tok.endswith("s"):
+        s.add(tok[:-1])
+    if L > 3 and tok.endswith("e"):
+        s.add(tok[:-1])
+    return sorted(s)

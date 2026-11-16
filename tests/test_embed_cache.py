@@ -125,6 +125,47 @@ class TestCachedEmbedBatch:
         assert len(calls) == 2  # re-embedded, and the row was healed
         assert vecs == [[2.0, 1.0]]
 
+    def test_read_through_copies_pool_rows_before_embedding(self, tmp_path, monkeypatch):
+        """S4b (duckdb_fts_sql_topk_regression): a cold sidecar cache
+        copies donor rows (same text_hash+model) from the shared pool
+        before paying for fresh embeddings."""
+        from helpers.core.vec_codec import pack_f32
+
+        sidecar = duckdb.connect(str(tmp_path / "sidecar.duckdb"))
+        sidecar.execute(EC.EMBED_CACHE_DDL)
+        pool = duckdb.connect(str(tmp_path / "pool.duckdb"))
+        pool.execute(EC.EMBED_CACHE_DDL)
+        donor = "the donor text"
+        pool.execute(
+            "INSERT OR REPLACE INTO embed_cache (text_hash, model, embedding, source) "
+            "VALUES (?, ?, ?, ?)",
+            [EC._hash(donor), "m1", pack_f32([9.0, 9.0]), "doc"],
+        )
+        monkeypatch.setattr(VS, "open_cache_conn", lambda read_only=False: pool)
+        fn, calls = _fake_embed()
+        vecs, st = cached_embed_batch(sidecar, [donor, "other"], "m1", fn, source="cold")
+        assert vecs[0] == [9.0, 9.0]  # donor served from pool, not embedded
+        assert vecs[1] == [5.0, 1.0]  # remaining miss embedded normally
+        assert st["read_through"] == 1
+        assert calls == [["other"]]  # only the real miss hit the embedder
+        # donor row now exists locally with the local cohort source; the
+        # pool row is untouched (source still "doc") — re-open the pool
+        # file read-only (the read-through path closed its handle).
+        local = sidecar.execute(
+            "SELECT source FROM embed_cache WHERE text_hash = ?",
+            [EC._hash(donor)],
+        ).fetchone()
+        assert local == ("cold",)
+        pool_check = duckdb.connect(str(tmp_path / "pool.duckdb"), read_only=True)
+        pool_source = pool_check.execute(
+            "SELECT source FROM embed_cache WHERE text_hash = ?",
+            [EC._hash(donor)],
+        ).fetchone()
+        assert pool_source == ("doc",)
+        pool_check.close()
+        sidecar.close()
+        pool.close()
+
 
 class TestPurgeIsPerCohort:
     """Per-cohort purge. The cohort-in-``INSERT OR REPLACE``-statement trick

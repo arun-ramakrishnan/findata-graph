@@ -13,6 +13,7 @@ import json
 import math
 import sqlite3
 
+import duckdb
 import pytest
 
 from helpers.core import gemma_embedder
@@ -346,7 +347,10 @@ class TestGuardGemmaStamp:
     def test_foreign_rows_survive_without_purge(self, tmp_path):
         from helpers.core.embed_cache import CachedEmbed
 
-        conn = sqlite3.connect(str(tmp_path / "c.db"))
+        # S0 store semantics: the cache table lives in a DuckDB store
+        # (sqlite hosts get a duckdb pool), so use a hermetic duckdb
+        # file as the host connection.
+        conn = duckdb.connect(str(tmp_path / "c.duckdb"))
         cached_embed_batch(
             conn,
             ["granite text"],
@@ -357,6 +361,7 @@ class TestGuardGemmaStamp:
         CachedEmbed(lambda t: [0.0, 1.0], gemma_embedder.MODEL_LABEL, conn, source="script")
         after = conn.execute(f"SELECT COUNT(*) FROM {EMBED_CACHE_TABLE}").fetchone()[0]  # noqa: S608
         assert (before, after) == (1, 1)
+        conn.close()
 
 
 @pytest.mark.skipif(not gemma_embedder.available(), reason="embgemma sidecar down")

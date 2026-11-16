@@ -52,9 +52,11 @@ def open_note_index(db_path):
 
     Engine is ``"duckdb"`` for the S1 sidecar (``.duckdb``) and
     ``"sqlite"`` for the legacy research.db FTS5 host. Read-only in both
-    cases. The native FTS extension is loaded explicitly — it is an
-    extension and fresh reader connections must load it (the build
-    connection's PRAGMA creates it implicitly; readers don't).
+    cases. The native FTS extension is NOT loaded explicitly: DuckDB
+    2.0.0 auto-loads core extensions on first use (verified 2026-11-16
+    — ``duckdb_extensions()`` shows fts autoload/autoinstall, and the
+    macro fallback path resolves without ``LOAD fts``; explicit LOAD
+    costs ~34 ms per fresh connection).
     """
     if str(db_path).endswith(".duckdb"):
         import duckdb
@@ -62,14 +64,6 @@ def open_note_index(db_path):
         from helpers.core.duckdb_shared import memory_cap_config
 
         con = duckdb.connect(str(db_path), read_only=True, **memory_cap_config())
-        try:
-            con.execute("INSTALL fts")
-        except duckdb.Error:
-            pass
-        try:
-            con.execute("LOAD fts")
-        except duckdb.Error:
-            pass
         return con, "duckdb"
     from helpers.core.db import connect as db_connect
 
@@ -178,11 +172,77 @@ def search_notes_duckdb(
     section per file_path — rows arrive score-desc, so first occurrence
     wins). total_count always counts the OR space, like the legacy route.
     """
-    from helpers.maintenance.rebuild_doc_search import fts_match_expr
+    from helpers.maintenance.rebuild_doc_search import fts_match_expr, fts_query_tokens
+    from helpers.core.duckdb_shared import fts_topk, fts_topk_count
 
     or_expr = fts_match_expr(q)
     if not or_expr:
         return [], 0
+
+    # Fast path: SQL top-k over the FTS postings (macro-free). The
+    # blended score keeps docs matching ALL tokens on top (more term
+    # summands), mirroring the legacy AND-first/OR-fill policy; the
+    # count mirrors the legacy OR-space total. Falls back to the macro
+    # block below when any token is unresolvable.
+    where_extra = ""
+    params_extra: list = []
+    if doc_type:
+        where_extra = " AND ss.doc_type = ?"
+        params_extra.append(doc_type)
+    rows_tk, mode = fts_topk(
+        conn,
+        fts_table="fts_main_note_search",
+        base_table="note_search",
+        tokens=fts_query_tokens(q),
+        limit=1024,
+        where_extra=where_extra,
+        params_extra=params_extra,
+    )
+    if mode == "topk" and rows_tk is not None:
+        total_count = (
+            fts_topk_count(
+                conn,
+                fts_table="fts_main_note_search",
+                base_table="note_search",
+                tokens=fts_query_tokens(q),
+                where_extra=where_extra,
+                params_extra=params_extra,
+                count_col="file_path",
+            )
+            or 0
+        )
+        nids = [rid for rid, _ in rows_tk]
+        rows: list[tuple] = []
+        if nids:
+            ph = ", ".join("?" for _ in nids)
+            fetch_rows = conn.execute(
+                "SELECT id, doc_type, file_path, title, sector, embedding, content, "
+                f"section_title, anchor FROM note_search WHERE id IN ({ph})",  # noqa: S608  # ph is a computed ?, list
+                nids,
+            ).fetchall()
+            by_id = {r[0]: r for r in fetch_rows}
+            score_of = dict(rows_tk)
+            best: dict[str, tuple] = {}
+            for rid in nids:
+                r = by_id.get(rid)
+                if r is None:
+                    continue
+                if r[2] not in best:
+                    best[r[2]] = (
+                        r[1],
+                        r[2],
+                        r[3],
+                        r[4],
+                        r[5],
+                        float(score_of.get(rid, 0.0)),
+                        note_snippet_highlighted(r[6], q),
+                        r[7],
+                        r[8],
+                    )
+            rows = list(best.values())
+        contract = rows
+        return contract, total_count
+
     and_expr = or_expr.replace(" OR ", " ") if or_expr else ""
     sc = "fts_main_note_search.match_bm25(id, ?)"
 
@@ -205,7 +265,7 @@ def search_notes_duckdb(
         return list(best.values())
 
     window = limit + offset  # both legs paginate notes in Python
-    rows: list[tuple] = list(_fetch(and_expr)) if and_expr else []
+    rows = list(_fetch(and_expr)) if and_expr else []
     if len(rows) < window and or_expr != and_expr:
         seen = {r[1] for r in rows}
         for r in _fetch(or_expr):
@@ -337,14 +397,15 @@ def _index_count_dims(db_path: Path) -> tuple[int, int | None]:
 
         con = duckdb.connect(str(db_path), read_only=True, **memory_cap_config())
         try:
-            row_count = con.execute("SELECT COUNT(*) FROM note_search").fetchone()[0]
+            row_count = con.execute("SELECT COUNT(*) FROM note_search").fetchone()
             dims_row = con.execute(
                 "SELECT value FROM note_search_info WHERE key = 'embed_dims'"
             ).fetchone()
             dims = int(dims_row[0]) if dims_row and dims_row[0] else None
+            rc = int(row_count[0]) if row_count is not None else 0
         finally:
             con.close()
-        return row_count, dims
+        return rc, dims
     from helpers.core.db import connect as db_connect
     from helpers.maintenance.rebuild_note_search import stored_embed_dims
 

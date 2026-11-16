@@ -37,11 +37,14 @@ search-fresh / maint-full discipline), readers open the file read-only.
 with the attach shim; it was a trial bench, never installed.)
 """
 
+from __future__ import annotations
+
 import hashlib
 import os
 import sys
 import time
 from collections.abc import Callable
+from typing import Any
 
 from helpers.core.vec_codec import load_vec, pack_f32
 
@@ -142,7 +145,12 @@ class CachedEmbed:
     (doc_leg_embed_cache_persistence S1, 2026-10-17: a full doc pass
     embedded 377 sections uncached because a concurrent writer held the
     store at init, and nothing reported it).
+
+    ``_conn`` is a DuckDB or sqlite connection (whichever the resolver
+    returned), or None before init / after close.
     """
+
+    _conn: Any | None
 
     def __init__(
         self,
@@ -164,6 +172,9 @@ class CachedEmbed:
         self._attach_error: str | None = None
         self._conn = None
         self._owns_conn = False
+        self._donor: dict[str, bytes] | None = None
+        self._donor_tried = False
+        self._donor_pending: list[tuple] = []
         self._ok = self._try_init()
         if not self._ok:
             _progress(
@@ -203,7 +214,9 @@ class CachedEmbed:
     def close(self) -> None:
         """Close a dedicated cache conn opened for a non-duckdb host.
 
-        No-op for adopted duckdb hosts (the caller owns that conn)."""
+        No-op for adopted duckdb hosts (the caller owns that conn). Flushes
+        pending donor copies first (S4b)."""
+        self._flush_donor()
         if self._owns_conn and self._conn is not None:
             try:
                 self._conn.close()
@@ -211,6 +224,33 @@ class CachedEmbed:
                 pass
             self._conn = None
             self._owns_conn = False
+
+    def _flush_donor(self) -> None:
+        """Batch-write queued donor copies (S4b). Donor rows are cheap to
+        re-derive (they live in the shared pool), so a crash mid-pass only
+        costs a re-copy, not a re-embed — batching the commits is safe and
+        avoids DuckDB's per-commit overhead on cold first builds."""
+        if not (self._ok and self._donor_pending):
+            return
+        conn = self._conn
+        if conn is None:
+            return
+        try:
+            conn.executemany(
+                "INSERT OR REPLACE INTO "
+                f"{EMBED_CACHE_TABLE} "  # noqa: S608  # constant table name
+                "(text_hash, model, embedding, source) VALUES (?, ?, ?, ?)",
+                self._donor_pending,
+            )
+            conn.commit()
+        except Exception as exc:  # noqa: S110  # copies are best-effort
+            self._store_errors += 1
+            if self._store_errors == 1:
+                _progress(
+                    f"[embed-cache] donor flush failed "
+                    f"({type(exc).__name__}: {exc}) — copies dropped"
+                )
+        self._donor_pending = []
 
     def status_line(self) -> str:
         """One-line cache state for rebuild summaries (S1 surfacing)."""
@@ -255,13 +295,16 @@ class CachedEmbed:
         # embeds, ~17 min, evaporated when the sidecar was SIGKILLed).
         if not (self._ok and h is not None):
             return
+        conn = self._conn
+        if conn is None:
+            return
         try:
-            self._conn.execute(
+            conn.execute(
                 f"INSERT OR REPLACE INTO {EMBED_CACHE_TABLE} "  # noqa: S608  # constant table name
                 "(text_hash, model, embedding, source) VALUES (?, ?, ?, ?)",
                 (h, self._model, pack_f32(vec), self._source),
             )
-            self._conn.commit()
+            conn.commit()
             self.dirty += 1
         except Exception as exc:  # vector still returned; count + surface
             self._store_errors += 1
@@ -272,12 +315,47 @@ class CachedEmbed:
                     f"uncached; per-row retries continue"
                 )
 
+    def _donor_lookup(self, h: str | None) -> bytes | None:
+        """S4b read-through (duckdb_fts_sql_topk_regression): for a cold
+        sidecar cache (host duckdb conn == cache conn), pull matching
+        (text_hash, model, cohort) rows from the shared pool once and
+        serve misses from the in-memory donor map. The donor only populates
+        when the local cache is a DIFFERENT file than the pool (the
+        sidecar case); sqlite hosts already cache in the pool itself.
+        Content-addressed rows are immutable, so the snapshot cannot go
+        stale. Best-effort: any failure degrades to fresh embedding."""
+        if not (self._ok and self._conn is self._host_conn and h):
+            return None
+        if self._donor is not None:
+            return self._donor.get(h)
+        if self._donor_tried:
+            return None
+        self._donor_tried = True
+        try:
+            from helpers.core.vec_search import open_cache_conn
+
+            pool = open_cache_conn(read_only=True)
+            try:
+                rows = pool.execute(
+                    "SELECT text_hash, embedding FROM "
+                    f"{EMBED_CACHE_TABLE} "  # noqa: S608  # constant table name
+                    "WHERE model = ? AND source = ?",
+                    (self._model, self._source),
+                ).fetchall()
+                self._donor = {r[0]: r[1] for r in rows}
+            finally:
+                pool.close()
+        except Exception:  # noqa: S110  # donor is best-effort
+            self._donor = {}
+        return self._donor.get(h) if self._donor else None
+
     def __call__(self, text: str) -> list[float]:
         self._maybe_reinit()
         h = _hash(text) if self._ok else None
-        if h is not None:
+        conn = self._conn
+        if h is not None and conn is not None:
             try:
-                row = self._conn.execute(
+                row = conn.execute(
                     f"SELECT embedding FROM {EMBED_CACHE_TABLE} "  # noqa: S608  # constant table name
                     "WHERE text_hash = ? AND model = ?",
                     (h, self._model),
@@ -291,6 +369,16 @@ class CachedEmbed:
                 pass
         self._miss_total += 1
         self._tick_miss_progress()
+        donor_blob = self._donor_lookup(h)
+        if donor_blob is not None:
+            vec = load_vec(donor_blob)
+            if vec:
+                self.hits += 1
+                self.dirty += 1
+                self._donor_pending.append((h, self._model, donor_blob, self._source))
+                if len(self._donor_pending) >= 64:
+                    self._flush_donor()
+                return vec
         vec = self._fn(text)
         self.misses += 1
         self._store_vec(h, vec)
@@ -488,6 +576,52 @@ def cached_embed_batch(
 
         stats["hits"] = sum(v is not None for v in vecs)
         stats["misses"] = len(miss_idx)
+        if miss_idx and cache_conn is conn:
+            # S4b read-through (duckdb_fts_sql_topk_regression): the
+            # shared pool (memory/embed_store.duckdb) already holds rows
+            # for other cohorts — before paying for fresh embeddings on a
+            # cold sidecar cache, copy matching (text_hash, model) rows in
+            # (RO pool read; writes local only). Skipped when the local
+            # cache IS the pool (legacy sqlite callers): a second RO
+            # handle on the same file would conflict with the RW one, so
+            # the open fails and we bypass — which is correct, since the
+            # pool already covers those rows.
+            try:
+                from helpers.core.vec_search import open_cache_conn
+
+                pool = open_cache_conn(read_only=True)
+                try:
+                    miss_hashes = [hashes[i] for i in miss_idx]
+                    ph = ", ".join("?" for _ in miss_hashes)
+                    rows = pool.execute(
+                        "SELECT text_hash, embedding FROM "
+                        f"{EMBED_CACHE_TABLE} "  # noqa: S608  constant table name
+                        f"WHERE text_hash IN ({ph}) AND model = ?",
+                        miss_hashes + [model_label],
+                    ).fetchall()
+                    if rows:
+                        cache_conn.executemany(
+                            "INSERT OR REPLACE INTO "
+                            f"{EMBED_CACHE_TABLE} "
+                            "(text_hash, model, embedding, source) "
+                            "VALUES (?, ?, ?, ?)",
+                            [(h, model_label, blob, source) for h, blob in rows],
+                        )
+                        copy_of = {h: blob for h, blob in rows}
+                        filled = 0
+                        for i in miss_idx:
+                            blob = copy_of.get(hashes[i])
+                            if blob is not None:
+                                vecs[i] = load_vec(blob)
+                                filled += 1
+                        if filled:
+                            stats["dirty"] += filled
+                            stats["read_through"] = filled
+                            miss_idx = [i for i in miss_idx if vecs[i] is None]
+                finally:
+                    pool.close()
+            except Exception:  # noqa: S110  # best-effort donor; fall through to embed
+                pass
         if miss_idx:
             _embed_and_fill_misses(
                 cache_conn,
