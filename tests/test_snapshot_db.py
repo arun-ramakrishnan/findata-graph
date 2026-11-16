@@ -796,7 +796,9 @@ def test_note_sidecar_parquet_roundtrip(tmp_path):
         "embedding BLOB, section_title VARCHAR, anchor VARCHAR, ticker VARCHAR, "
         "edge_context VARCHAR, searchtext VARCHAR)"
     )
-    con.execute("CREATE TABLE note_search_meta (file_path VARCHAR PRIMARY KEY, mtime REAL, content_hash VARCHAR)")
+    con.execute(
+        "CREATE TABLE note_search_meta (file_path VARCHAR PRIMARY KEY, mtime REAL, content_hash VARCHAR)"
+    )
     con.execute("CREATE TABLE note_search_info (key VARCHAR PRIMARY KEY, value VARCHAR)")
     con.execute(
         "INSERT INTO note_search VALUES "
@@ -806,7 +808,9 @@ def test_note_sidecar_parquet_roundtrip(tmp_path):
         "'sec2', 'b', '', 'ctx2', 'sector B S2 body2 sec2 b ctx2')"
     )
     con.execute("INSERT INTO note_search_meta VALUES ('findata/Companies/A.md', 1.0, 'h1')")
-    con.execute("INSERT INTO note_search_info VALUES ('embed_model', 'embeddinggemma-2-q8_512'), ('embed_dims', '512'), ('row_count', '2')")
+    con.execute(
+        "INSERT INTO note_search_info VALUES ('embed_model', 'embeddinggemma-2-q8_512'), ('embed_dims', '512'), ('row_count', '2')"
+    )
     con.close()
 
     pq_base = tmp_path / "snapshots" / "parquet"
@@ -826,13 +830,97 @@ def test_note_sidecar_parquet_roundtrip(tmp_path):
     assert res["tables_checked"] == 3
 
     restored = tmp_path / "restored_note.duckdb"
-    info = restore_duckdb_from_parquet(pq_base / "note", restored, _log, schema_filename="_schema.note.sql")
+    info = restore_duckdb_from_parquet(
+        pq_base / "note", restored, _log, schema_filename="_schema.note.sql"
+    )
     assert info["tables"]["note_search"] == 2
     assert info["tables"]["note_search_info"] == 3
     con = duckdb.connect(str(restored), read_only=True)
     assert con.execute("SELECT COUNT(*) FROM note_search").fetchone()[0] == 2
-    assert con.execute("SELECT value FROM note_search_info WHERE key='embed_model'").fetchone()[0] == "embeddinggemma-2-q8_512"
+    assert (
+        con.execute("SELECT value FROM note_search_info WHERE key='embed_model'").fetchone()[0]
+        == "embeddinggemma-2-q8_512"
+    )
     con.close()
+
+
+def test_fts_shadow_present_true_false(tmp_path):
+    """Watchlist G1 probe: the FTS shadow schema is the thing lexical
+    search depends on; restored stores lack it until rebuild."""
+    duckdb = pytest.importorskip("duckdb")
+
+    store = tmp_path / "note_search.duckdb"
+    con = duckdb.connect(str(store))
+    con.execute("CREATE SCHEMA fts_main_note_search")
+    con.close()
+    assert snapshot_db._fts_shadow_present(store, "note_search") is True
+
+    con = duckdb.connect(str(store))
+    con.execute("DROP SCHEMA fts_main_note_search CASCADE")
+    con.close()
+    assert snapshot_db._fts_shadow_present(store, "note_search") is False
+
+    assert snapshot_db._fts_shadow_present(tmp_path / "missing.duckdb", "note_search") is False
+
+
+def test_note_restore_warns_missing_fts_shadow(tmp_path, caplog):
+    """Restoring a note sidecar (manifest excludes the derived FTS shadow)
+    must warn loudly — search would raise CatalogException until the
+    rebuild runs."""
+    duckdb = pytest.importorskip("duckdb")
+
+    note = tmp_path / "note_search.duckdb"
+    con = duckdb.connect(str(note))
+    con.execute(
+        "CREATE TABLE note_search (id BIGINT PRIMARY KEY, doc_type VARCHAR, "
+        "file_path VARCHAR, title VARCHAR, sector VARCHAR, content VARCHAR, "
+        "embedding BLOB, section_title VARCHAR, anchor VARCHAR, ticker VARCHAR, "
+        "edge_context VARCHAR, searchtext VARCHAR)"
+    )
+    con.execute(
+        "CREATE TABLE note_search_meta (file_path VARCHAR PRIMARY KEY, mtime REAL, content_hash VARCHAR)"
+    )
+    con.execute("CREATE TABLE note_search_info (key VARCHAR PRIMARY KEY, value VARCHAR)")
+    con.execute(
+        "INSERT INTO note_search VALUES "
+        "(1, 'company', 'findata/Companies/A.md', 'A', 'S', 'body', NULL, "
+        "'sec', 'a', 'TCK', 'ctx', 'company A S body sec a TCK ctx')"
+    )
+    con.execute("CREATE SCHEMA fts_main_note_search")
+    con.close()
+
+    pq_base = tmp_path / "snapshots" / "parquet"
+    export_parquet_duckdb(
+        note,
+        pq_base / "note",
+        _log,
+        manifest=snapshot_db.NOTE_SEARCH_TABLES,
+        schema_filename="_schema.note.sql",
+    )
+
+    restored = tmp_path / "restored_note.duckdb"
+    # sqlite parquet dir must exist (schema file lives in its parent) for
+    # _cmd_restore to proceed past the sources branch; no table parquets
+    # means nothing to restore there.
+    sqlite_pq = tmp_path / "snapshots" / "parquet" / "sqlite"
+    sqlite_pq.mkdir(parents=True)
+    (tmp_path / "snapshots" / "parquet" / "_schema.sqlite.sql").write_text("", encoding="utf-8")
+    with caplog.at_level(logging.WARNING, logger="snapshot_db"):
+        rc = snapshot_db._cmd_restore(
+            tmp_path / "research.db",
+            tmp_path / "graph.duckdb",
+            sqlite_pq,
+            tmp_path / "snapshots" / "parquet" / "duckdb",
+            with_duckdb=False,
+            force=True,
+            logger=_log,
+            with_sources=False,
+            note_path=restored,
+            parquet_note_dir=pq_base / "note",
+            with_note=True,
+        )
+        assert rc == 0
+    assert any("FTS shadow" in r.message for r in caplog.records)
 
 
 def test_note_sidecar_stray_table_warns_and_skips(tmp_path, caplog):
@@ -842,7 +930,9 @@ def test_note_sidecar_stray_table_warns_and_skips(tmp_path, caplog):
 
     note = tmp_path / "note_search.duckdb"
     con = duckdb.connect(str(note))
-    con.execute("CREATE TABLE note_search (id BIGINT PRIMARY KEY, file_path VARCHAR, content VARCHAR, searchtext VARCHAR)")
+    con.execute(
+        "CREATE TABLE note_search (id BIGINT PRIMARY KEY, file_path VARCHAR, content VARCHAR, searchtext VARCHAR)"
+    )
     con.execute("CREATE TABLE note_search_info (key VARCHAR PRIMARY KEY, value VARCHAR)")
     con.execute("CREATE TABLE scratch_bench (a VARCHAR)")
     con.execute("INSERT INTO note_search VALUES (1, 'findata/Companies/A.md', 'body', 'A body')")

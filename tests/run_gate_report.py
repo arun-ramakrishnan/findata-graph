@@ -428,6 +428,12 @@ GATES: dict[str, Gate] = {
                 "memory-search-check",
                 (_PY, "helpers/maintenance/rebuild_memory_search.py", "--check"),
             ),
+            # perf-smoke (duckdb_watchlist_hardening S1, 2026-11-16):
+            # reports per-engine FTS mode (topk/macro) + medians + mirror
+            # presence; always exits 0 (advisory) — a silent fallback slide
+            # (L2/L3/L4) shows up here instead of unnoticed. Cheap: one
+            # RO connect per store, 4 queries × 3 runs.
+            Step("perf-smoke", (_PY, "helpers/maintenance/perf_smoke.py")),
             Step("convo-fresh-check", (_MAKE, "convo-fresh")),
             Step("csr-fresh-check", (_MAKE, "csr-check")),
             Step("lint-audit", (_RUFF, "check", "--select", "S,UP,C901", ".")),

@@ -1355,6 +1355,25 @@ def _write_doc_store(
                 "INSERT INTO doc_vectors (id, embedding) VALUES (?, ?)",
                 vectors,
             )
+            # S3 (duckdb_watchlist_hardening): HNSW cosine index on the
+            # mirror — mirrors the note mirror (vss extension +
+            # experimental persistence, see _HNSW_PRAGMAS in
+            # helpers/core/vec_search.py). The hybrid round uses a
+            # corpus-wide scan (k=None) which the index does not serve,
+            # but bounded-k readers (future top-k of the cosine leg) get
+            # the index path. Best-effort: if the extension is
+            # unavailable the mirror still serves the full-scan path.
+            try:
+                conn.execute("INSTALL vss")
+                conn.execute("LOAD vss")
+                conn.execute("SET hnsw_enable_experimental_persistence = true")
+                conn.execute(
+                    "CREATE INDEX IF NOT EXISTS idx_doc_vectors_emb ON doc_vectors "
+                    "USING HNSW (embedding) WITH (metric='cosine', "
+                    "ef_construction=128)"
+                )
+            except duckdb.Error:  # noqa: S110  # index is optional hardening
+                pass
     conn.executemany(
         "INSERT OR REPLACE INTO doc_search_meta VALUES (?, ?, ?)",
         [(rel, _mtime_of(root, rel), hash_by_file[rel]) for rel in rows_by_file],
@@ -1569,7 +1588,7 @@ def _search_docs_duckdb(
         )
     except duckdb.Error:
         mode = "macro"
-    if mode == "topk":
+    if mode == "topk" and rows is not None:
         ids = [rid for rid, _ in rows]
         page = []
         if ids:

@@ -1532,9 +1532,37 @@ def _cmd_restore(  # noqa: C901  # restore orchestrator: arg branches mirror _cm
                 logger,
                 schema_filename="_schema.note.sql",
             )
+            if not _fts_shadow_present(note_path, "note_search"):
+                logger.warning(
+                    "  restored note sidecar has no FTS shadow — run "
+                    "rebuild_note_search.py before searching (lexical search "
+                    "will raise CatalogException)"
+                )
         else:
             logger.info(f"Note Parquet snapshot not found (skip): {parquet_note_dir}")
     return 0
+
+
+def _fts_shadow_present(store: Path, shadow_prefix: str) -> bool:
+    """True when the DuckDB FTS shadow schema (``fts_main_<shadow_prefix>``)
+    exists on the store. Derived state: restored stores legitimately lack it
+    until the rebuild runs (watchlist G1 — lexical search would raise
+    CatalogException without it). Best-effort: unreadable stores read as
+    absent (the caller warns, never fails on this probe)."""
+    try:
+        from helpers.misc.duckdb_lock import open_read_only
+
+        con = open_read_only(store)
+        try:
+            row = con.execute(
+                "SELECT COUNT(*) FROM information_schema.schemata WHERE schema_name = ?",
+                (f"fts_main_{shadow_prefix}",),
+            ).fetchone()
+            return bool(row and row[0])
+        finally:
+            con.close()
+    except Exception:
+        return False
 
 
 def _read_sqlite_generation(db_path: Path) -> str | None:
@@ -1778,6 +1806,11 @@ def _cmd_check(
             )
         else:
             logger.info(f"Parquet verify (note): {rn['tables_checked']} tables checked, all OK")
+        if not _fts_shadow_present(note_path, "note_search"):
+            logger.warning(
+                "  note FTS shadow (fts_main_note_search) missing — lexical "
+                "search will raise CatalogException until rebuild_note_search.py runs"
+            )
     return 0 if ok else 1
 
 

@@ -138,7 +138,8 @@ def test_stale_detects_new_file(seeded, fake_local):
 
 def test_rebuild_builds_doc_vectors_mirror(seeded, fake_local):
     """S6: the rebuild writes a colocated doc_vectors mirror so the hybrid
-    cosine leg can run vectorized (same rows as doc_search's embedded set)."""
+    cosine leg can run vectorized (same rows as doc_search's embedded set).
+    S3: the mirror carries an HNSW cosine index (watchlist hardening)."""
     rds.rebuild_duckdb(seeded, embed_fn=fake_local.embed_document)
     conn = rds.connect_doc_db(seeded)
     try:
@@ -147,10 +148,12 @@ def test_rebuild_builds_doc_vectors_mirror(seeded, fake_local):
             "SELECT COUNT(*) FROM doc_search WHERE embedding IS NOT NULL"
         ).fetchone()[0]
         assert n_vec == n_emb == 3
-        dims = conn.execute(
-            "SELECT embedding FROM doc_vectors LIMIT 1"
-        ).fetchone()[0]
+        dims = conn.execute("SELECT embedding FROM doc_vectors LIMIT 1").fetchone()[0]
         assert len(dims) == 8
+        idx = conn.execute(
+            "SELECT index_name FROM duckdb_indexes() WHERE table_name='doc_vectors'"
+        ).fetchall()
+        assert any(r[0] == "idx_doc_vectors_emb" for r in idx), idx
     finally:
         conn.close()
 
@@ -174,4 +177,3 @@ def test_cosine_leg_uses_mirror_and_falls_back(seeded, fake_local):
             assert abs(sim - sims_py.get(rid, -2.0)) < 1e-9
     finally:
         conn.close()
-
