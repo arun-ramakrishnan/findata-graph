@@ -202,36 +202,34 @@ class TestDashboardDiscoveryIsCached:
         assert "http://127.0.0.1:19999/__bili" in first
 
 
-class TestReasoningPairViolationsAreLoud:
-    """A reasoning-pair violation is a TERMINAL event, not a warning.
+class TestReasoningPairViolationsAreQuiet:
+    """A reasoning-pair violation used to be LOUD: a `viol` table column plus a
+    two-line `!!` banner above the table. The operator removed both from the
+    display on 2026-11-16 — the signal stays in `--json`
+    (`reason_pair_violations`) and in `--detail`, which also reports the
+    measured gap.
 
-    Measured 2026-10-17 across the retained log family: all 3 violating
-    sessions ended 3, 10 and 29 minutes after their LAST violation and never
-    resumed. It used to be invisible — a row field no column read, shown only
-    by `--detail`, which you consult once you already suspect trouble.
+    Measured 2026-10-17 across the retained log family: violating sessions
+    ended 3, 10 and 29 minutes after their LAST violation and never resumed —
+    the field stays worth computing, just not worth a permanent row of screen
+    real estate.
     """
 
-    def test_column_marks_nonzero(self):
-        assert bs._natural({"reason_pair_violations": 13}, "reason_pair_violations") == "*13"
-        assert bs._natural({"reason_pair_violations": 1}, "reason_pair_violations") == "*1"
-
-    def test_column_blank_when_zero(self):
-        for row in (
-            {},
-            {"reason_pair_violations": 0},
-            {"reason_pair_violations": None},
-        ):
-            assert bs._natural(row, "reason_pair_violations") == ""
-
-    def test_viol_is_a_table_column(self):
+    def test_viol_and_switches_are_not_table_columns(self):
         keys = [k for k, *_ in bs._COLUMNS]
-        assert "reason_pair_violations" in keys
-        # Last column, unsqueezeable: a marker that can be squeezed off a
-        # narrow terminal is not a marker.
-        assert keys[-1] == "reason_pair_violations"
-        assert bs._COLUMNS[-1][4] is False
+        assert "reason_pair_violations" not in keys
+        assert "switches" not in keys
 
-    def test_callout_is_two_lines_and_dedupes_subsessions(self, capsys):
+    def test_row_keys_survive_for_json(self):
+        # The display contract changed, not the data contract: run_for_sid
+        # still emits both keys for --json consumers.
+        import inspect
+
+        src = inspect.getsource(bs.run_for_sid)
+        assert '"reason_pair_violations"' in src
+        assert '"switches"' in src
+
+    def test_table_prints_no_banner_even_when_flagged(self, capsys):
         rows = [
             {
                 "session": "ses_p",
@@ -239,57 +237,17 @@ class TestReasoningPairViolationsAreLoud:
                 "model": "glm",
                 "last_seen": "2026-10-17T02:54:20Z",
                 "_viol_gap": "10 min",
-            },
-            # a sub-session shares the parent transcript — same violation
-            {
-                "session": "ses_p|sub:abc",
-                "reason_pair_violations": 13,
-                "model": "glm",
-                "last_seen": "2026-10-17T02:54:20Z",
-                "_viol_gap": "10 min",
-            },
-            {
-                "session": "ses_q",
-                "reason_pair_violations": 1,
-                "model": "mimo",
-                "last_seen": "2026-10-14T03:22:58Z",
-                "_viol_gap": "29 min",
-            },
+            }
         ]
-        bs.print_violations(rows, None)
+        bs.print_table(rows)
         out = capsys.readouterr().out
-        assert "3 session(s)" not in out, "sub-session must not be counted twice"
-        assert "2 session(s) flagged" in out
-        assert "*13 ses_p" in out and "*1 ses_q" in out
-        assert "ses_p|sub" not in out, "the sub-session row is collapsed away"
-        # The mechanism lives in --detail; the table view only points at it.
-        assert "--detail <session>" in out
-        assert out.count("\n") == 2, f"callout must stay 2 lines, got:\n{out}"
+        assert "reasoning-pair violation" not in out
+        assert "!!" not in out
+        assert "--detail <session>" not in out
 
-    def test_callout_carries_no_essay(self, capsys):
-        bs.print_violations([{"session": "s", "reason_pair_violations": 3}], None)
-        out = capsys.readouterr().out
-        for banned in (
-            "strict-echo",
-            "reasoning_content",
-            "tool-call",
-            "DeepSeek",
-            "zAI",
-            "ended",
-            "terminal risk —",
-        ):
-            assert banned not in out, f"the callout must not explain itself ({banned!r})"
-
-    def test_callout_can_go_to_stderr(self, capsys):
-        import io
-
-        buf = io.StringIO()
-        bs.print_violations([{"session": "s", "reason_pair_violations": 1}], None, stream=buf)
-        assert buf.getvalue(), "stream= must receive the callout"
-        assert capsys.readouterr().out == "", "nothing may leak to stdout"
-
-    def test_json_path_keeps_stdout_pure(self, capsys, monkeypatch):
-        """A human callout in front of the array breaks every `--json` consumer."""
+    def test_json_path_keeps_stdout_pure_and_stderr_silent(self, capsys, monkeypatch):
+        """`--json` is machine-readable: nothing in front of the array on
+        stdout, and (since the banner removal) nothing on stderr either."""
         import json as _json
 
         rows = [
@@ -297,21 +255,15 @@ class TestReasoningPairViolationsAreLoud:
             {"session": "ses_q", "reason_pair_violations": 0, "model": "mimo"},
         ]
         monkeypatch.setattr(bs, "dashboard_sessions", lambda: [{"id": "ses_p"}, {"id": "ses_q"}])
-        monkeypatch.setattr(bs, "run_for_sid", lambda sid: rows[0] if sid == "ses_p" else rows[1])
+        monkeypatch.setattr(
+            bs, "run_for_sid", lambda sid, only=None: rows[0] if sid == "ses_p" else rows[1]
+        )
         assert bs.main(["--json"]) == 0
         cap = capsys.readouterr()
         # stdout parses as JSON with nothing in front of it ...
         assert _json.loads(cap.out)[0]["session"] == "ses_p"
-        # ... and the callout went to stderr.
-        assert "reasoning-pair violation" in cap.err
-
-    def test_callout_silent_when_clean(self, capsys):
-        bs.print_violations([{"session": "s", "reason_pair_violations": 0}], None)
-        assert capsys.readouterr().out == ""
-
-    def test_callout_silent_on_empty_rows(self, capsys):
-        bs.print_violations([], None)
-        assert capsys.readouterr().out == ""
+        # ... and stderr carries no violation callout.
+        assert "reasoning-pair violation" not in cap.err
 
     def test_gap_is_measured_from_the_last_violation(self, tmp_path: Path):
         from helpers.analytics.bili_analytics import Warning
@@ -375,7 +327,7 @@ class TestSinceAcceptsRanges:
             lambda: [{"id": r["session"], "lastSeen": r.get("last_seen")} for r in rows],
         )
         monkeypatch.setattr(
-            bs, "run_for_sid", lambda sid: next(r for r in rows if r["session"] == sid)
+            bs, "run_for_sid", lambda sid, only=None: next(r for r in rows if r["session"] == sid)
         )
         return bs.main(argv), capsys.readouterr()
 
@@ -449,7 +401,9 @@ class TestLastSeenWindow:
                 {"id": "ses_new", "lastSeen": None},
             ],
         )
-        monkeypatch.setattr(bs, "run_for_sid", lambda sid: rows[0] if sid == "ses_old" else rows[1])
+        monkeypatch.setattr(
+            bs, "run_for_sid", lambda sid, only=None: rows[0] if sid == "ses_old" else rows[1]
+        )
         bs.main(["--since", "7"])
         out = capsys.readouterr().out
         assert "ses_new" in out, "a row with no parsable lastSeen must still print"
@@ -462,10 +416,9 @@ class TestLastSeenWindow:
             {"session": "ses_new", "last_seen": "2099-01-01T00:00:00Z"},
         ]
         monkeypatch.setattr(bs, "dashboard_sessions", lambda: [])  # dashboard down
-        monkeypatch.setattr(bs, "sid_log_index", lambda: {"ses_old": [], "ses_new": []})
-        monkeypatch.setattr(bs, "_prime_details", lambda sids: None)
+        monkeypatch.setattr(bs, "sid_log_index", lambda want=None: {"ses_old": [], "ses_new": []})
         monkeypatch.setattr(
-            bs, "run_for_sid", lambda sid: next(r for r in rows if r["session"] == sid)
+            bs, "run_for_sid", lambda sid, only=None: next(r for r in rows if r["session"] == sid)
         )
         rc = bs.main(["--since", "7"])
         assert rc == 0
@@ -475,7 +428,7 @@ class TestLastSeenWindow:
     def test_all_disables_the_window(self, capsys, monkeypatch):
         rows = [{"session": "ses_old", "last_seen": "2020-01-01T00:00:00Z"}]
         monkeypatch.setattr(bs, "dashboard_sessions", lambda: [{"id": "ses_old"}])
-        monkeypatch.setattr(bs, "run_for_sid", lambda sid: rows[0])
+        monkeypatch.setattr(bs, "run_for_sid", lambda sid, only=None: rows[0])
         bs.main(["--all"])
         assert "ses_old" in capsys.readouterr().out
 
@@ -505,7 +458,7 @@ class TestContextNowIsNotContextTokens:
         monkeypatch.setattr(bs, "dashboard_detail", lambda s: dict(self.DASH))
         monkeypatch.setattr(bs, "dashboard_stats_map", lambda: {"ses_x": dict(self.DASH)})
         monkeypatch.setattr(bs, "find_report", lambda s: None)
-        monkeypatch.setattr(bs, "_session_analysis", lambda p, s: None)
+        monkeypatch.setattr(bs, "_session_analysis", lambda p, s, only=None: None)
         row = bs.run_for_sid("ses_x")
         assert row["context_now"] == 201_084, "must not be the 734_357 decoy"
         assert row["dashboard_context_tokens"] == 734_357, "kept, but not rendered"
@@ -523,7 +476,7 @@ class TestContextNowIsNotContextTokens:
         monkeypatch.setattr(bs, "dashboard_detail", lambda s: dict(self.DASH))
         monkeypatch.setattr(bs, "dashboard_stats_map", lambda: {"ses_x": dict(self.DASH)})
         monkeypatch.setattr(bs, "find_report", lambda s: None)
-        monkeypatch.setattr(bs, "_session_analysis", lambda p, s: a)
+        monkeypatch.setattr(bs, "_session_analysis", lambda p, s, only=None: a)
         monkeypatch.setattr(bs, "file_logs_for_sid", lambda s: [log])
         row = bs.run_for_sid("ses_x")
         assert row["context_now"] == 150_000, "the log is the ground truth"
@@ -545,7 +498,7 @@ class TestContextNowIsNotContextTokens:
         monkeypatch.setattr(bs, "dashboard_detail", lambda s: dict(self.DASH))
         monkeypatch.setattr(bs, "dashboard_stats_map", lambda: {"ses_x": dict(self.DASH)})
         monkeypatch.setattr(bs, "find_report", lambda s: None)
-        monkeypatch.setattr(bs, "_session_analysis", lambda p, s: a)
+        monkeypatch.setattr(bs, "_session_analysis", lambda p, s, only=None: a)
         monkeypatch.setattr(bs, "file_logs_for_sid", lambda s: [log])
         row = bs.run_for_sid("ses_x")
         assert row["shrink_pct"] == 46.4
@@ -619,7 +572,7 @@ class TestDisagreementsAreNamed:
         monkeypatch.setattr(bs, "dashboard_detail", lambda s: dash)
         monkeypatch.setattr(bs, "dashboard_stats_map", lambda: {"ses_x": dash})
         monkeypatch.setattr(bs, "find_report", lambda s: None)
-        monkeypatch.setattr(bs, "_session_analysis", lambda p, s: self._a(n_usages=7))
+        monkeypatch.setattr(bs, "_session_analysis", lambda p, s, only=None: self._a(n_usages=7))
         row = bs.run_for_sid("ses_x")
         assert any("requests" in d for d in row["_disagreements"])
 
@@ -757,7 +710,7 @@ class TestEveryProducerSidFormIsIndexed:
             encoding="utf-8",
         )
         monkeypatch.setattr(bs, "file_logs_for_sid", lambda s: [log])
-        monkeypatch.setattr(bs, "_SID_INDEX", None)
+        monkeypatch.setattr(bs, "_SID_INDEX", {})
         idx = bs.sid_log_index()
         missing = [i for i in ids if not idx.get(i)]
         assert missing == [], f"sid forms the index cannot see: {missing}"
@@ -823,40 +776,151 @@ class TestRotatorArchiveDirectoryIsInTheFamily:
         monkeypatch.setattr(bs, "dashboard_detail", lambda s: {"requests": 1})
         monkeypatch.setattr(bs, "dashboard_stats_map", lambda: {"ses_aaa": {"requests": 1}})
         monkeypatch.setattr(bs, "find_report", lambda s: None)
-        monkeypatch.setattr(bs, "sid_log_index", lambda: {"ses_aaa": [arch / "bili.log", live]})
+        monkeypatch.setattr(
+            bs, "sid_log_index", lambda want=None: {"ses_aaa": [arch / "bili.log", live]}
+        )
         row = bs.run_for_sid("ses_aaa")
         assert row["folds"] == 2
         assert row["saved"] == 333
 
 
-class TestSavedPrefersTheLog:
-    """`saved` was `dashboard or folds`, so the dashboard's own (much larger)
-    counter won whenever present — 4.4x corpus-wide on 2026-11-15 (16.2M vs
-    3.7M) and 463,447 vs 335,348 on one session. Cross-session tallies mixed
-    two units under one label."""
+class TestSavedFollowsThePageLedger:
+    """`saved` once preferred the log's per-fold sum over the dashboard's own
+    counter (2026-11-15 ruling) so cross-session tallies compared one unit.
+    That made the table disagree with the dashboard PAGE, whose saved cell is
+    `netSaved ?? tokensSaved` (the ledger identity: netSaved = grossSaved −
+    repayCost − summaryCost, with grossSaved = Σ saved-per-fold × requests
+    AFTER the fold — ses_e464ba95 2026-11-16: 4,263,196,220 − 2,140,144 −
+    99,273 = 4,260,956,803 vs a raw fold sum of 1.55M). The operator called
+    the fold-sum figure "still wrong" (2026-11-16), so `saved` now follows the
+    page rule and the raw fold sum lives under `saved_folds`.
+    """
 
-    def test_log_folds_win_and_the_dashboard_figure_is_kept(self, tmp_path: Path, monkeypatch):
-        dash = {"tokensSaved": 999_999}
+    def test_net_saved_wins_and_both_other_figures_are_kept(self, tmp_path: Path, monkeypatch):
+        dash = {"netSaved": 4_260_956_803, "tokensSaved": 125_343}
         monkeypatch.setattr(bs, "dashboard_detail", lambda s: dash)
         monkeypatch.setattr(bs, "dashboard_stats_map", lambda: {"ses_aaa": dash})
         monkeypatch.setattr(bs, "find_report", lambda s: None)
-        monkeypatch.setattr(bs, "sid_log_index", lambda: {})
+        monkeypatch.setattr(bs, "sid_log_index", lambda want=None: {})
         log = tmp_path / "bili.log"
         log.write_text(_fold_line("ses_aaa", saved=111) + "\n", encoding="utf-8")
         monkeypatch.setattr(bs, "LIVE_LOG", log)
         monkeypatch.setattr(bs, "file_logs_for_sid", lambda s: [log])
 
         row = bs.run_for_sid("ses_aaa")
-        assert row["saved"] == 111, "the log's per-fold sum is the comparable figure"
-        assert row["saved_dashboard"] == 999_999, "the dashboard counter stays reachable"
+        assert row["saved"] == 4_260_956_803, "the page rule: netSaved ?? tokensSaved"
+        assert row["saved_dashboard"] == 125_343, "the dashboard counter stays reachable"
+        assert row["saved_folds"] == 111, "the raw fold sum keeps its own key"
+
+    def test_tokens_saved_when_the_ledger_has_no_net(self, monkeypatch):
+        dash = {"tokensSaved": 555}
+        monkeypatch.setattr(bs, "dashboard_detail", lambda s: dash)
+        monkeypatch.setattr(bs, "dashboard_stats_map", lambda: {"ses_aaa": dash})
+        monkeypatch.setattr(bs, "find_report", lambda s: None)
+        monkeypatch.setattr(bs, "sid_log_index", lambda want=None: {})
+        monkeypatch.setattr(bs, "LIVE_LOG", Path("/nonexistent/bili.log"))
+        monkeypatch.setattr(bs, "_session_analysis", lambda p, s, only=None: None)
+        row = bs.run_for_sid("ses_aaa")
+        assert row["saved"] == 555, "savedTd's fallback: tokensSaved"
+
+    def test_log_folds_stand_in_when_the_dashboard_has_nothing(self, tmp_path: Path, monkeypatch):
+        """No netSaved, no tokensSaved: the raw fold sum stands in rather than
+        faking 0 — savedTd's honest-dash rule, log side."""
+        monkeypatch.setattr(bs, "dashboard_detail", lambda s: {})
+        monkeypatch.setattr(bs, "dashboard_stats_map", lambda: {})
+        monkeypatch.setattr(bs, "find_report", lambda s: None)
+        monkeypatch.setattr(bs, "sid_log_index", lambda want=None: {})
+        log = tmp_path / "bili.log"
+        log.write_text(_fold_line("ses_aaa", saved=222) + "\n", encoding="utf-8")
+        monkeypatch.setattr(bs, "LIVE_LOG", log)
+        monkeypatch.setattr(bs, "file_logs_for_sid", lambda s: [log])
+
+        row = bs.run_for_sid("ses_aaa")
+        assert row["saved"] == 222
+        assert row["saved_folds"] == 222
 
     def test_dashboard_figure_used_when_the_log_has_no_folds(self, monkeypatch):
         dash = {"tokensSaved": 555}
         monkeypatch.setattr(bs, "dashboard_detail", lambda s: dash)
         monkeypatch.setattr(bs, "dashboard_stats_map", lambda: {"ses_aaa": dash})
         monkeypatch.setattr(bs, "find_report", lambda s: None)
-        monkeypatch.setattr(bs, "sid_log_index", lambda: {})
+        monkeypatch.setattr(bs, "sid_log_index", lambda want=None: {})
         monkeypatch.setattr(bs, "LIVE_LOG", Path("/nonexistent/bili.log"))
-        monkeypatch.setattr(bs, "_session_analysis", lambda p, s: None)
+        monkeypatch.setattr(bs, "_session_analysis", lambda p, s, only=None: None)
         row = bs.run_for_sid("ses_aaa")
         assert row["saved"] == 555, "no log evidence: fall back rather than zero"
+
+
+class TestStartupFastPath:
+    """m00827: `--since 1d` took ~5s because every row fanned out to a 6.3 MB
+    /detail payload and the sid index findall'd the full 30 MB corpus. The
+    bulk /sessions list already carries every ledger field, `--top N` trims
+    the row set, and the parse is restricted to the kept sids."""
+
+    def test_top_trims_to_the_n_newest_sessions(self, capsys, monkeypatch):
+        seen: list[str] = []
+        meta = [
+            {"id": f"ses_{i}", "lastSeen": f"2026-11-1{6 - i}T00:00:00Z"} for i in range(4)
+        ]  # ses_0 newest (2026-11-16) … ses_3 oldest (2026-11-13)
+        monkeypatch.setattr(bs, "dashboard_sessions", lambda: meta)
+        monkeypatch.setattr(
+            bs,
+            "run_for_sid",
+            lambda sid, only=None: seen.append(sid) or {"session": sid, "last_seen": "2026-11-16"},
+        )
+        bs.main(["--top", "2"])
+        out = capsys.readouterr().out
+        assert seen == ["ses_0", "ses_1"], "only the 2 newest sessions are built"
+        assert "ses_2" not in out and "ses_3" not in out
+
+    def test_row_comes_from_the_list_map_without_detail(self, monkeypatch):
+        """The fast path must not touch /detail at all: ledger fields flow
+        from the bulk list map (dashboard_sessions_map)."""
+        dash = {
+            "netSaved": 4_260_956_803,
+            "tokensSaved": 125_343,
+            "grossSaved": 4_263_196_220,
+            "costUsd": {"total": 7.47},
+            "savedUsd": 49.34,
+            "savedUsdGross": 42.63,
+            "payback": {"spentUsd": 0.22, "breakevenTurns": 1365.35, "actualTurns": 285294},
+        }
+
+        def _no_detail(s):
+            raise AssertionError("the fast path must not fetch /detail")
+
+        monkeypatch.setattr(bs, "dashboard_detail", _no_detail)
+        monkeypatch.setattr(bs, "dashboard_sessions_map", lambda: {"ses_aaa": dash})
+        monkeypatch.setattr(bs, "dashboard_stats_map", lambda: {})
+        monkeypatch.setattr(bs, "find_report", lambda s: None)
+        monkeypatch.setattr(bs, "sid_log_index", lambda want=None: {})
+        monkeypatch.setattr(bs, "LIVE_LOG", Path("/nonexistent/bili.log"))
+        monkeypatch.setattr(bs, "_session_analysis", lambda p, s, only=None: None)
+
+        row = bs.run_for_sid("ses_aaa")
+        assert row["saved"] == 4_260_956_803
+        assert row["cost_usd"] == 7.47
+        assert row["saved_usd"] == 49.34
+        assert row["payback_spent_usd"] == 0.22
+        assert row["payback_breakeven"] == 1365.35
+
+    def test_parse_filter_drops_other_sessions_lines(self, tmp_path):
+        """parse_logs(session_filter=frozenset) is what keeps the 10 MB live
+        log cheap under --top/--since: other sessions' lines die at the
+        prefix match and never become samples."""
+        from helpers.analytics.bili_analytics import parse_logs
+
+        log = tmp_path / "bili.log"
+        log.write_text(
+            "2026-11-16T09:00:00.000Z [info] [sess=ses_keep] [v=0.1.215] [ses_keep] "
+            "[acp-usage] input=150000 cached=149000 (cache hit 99.0%)\n"
+            "2026-11-16T09:01:00.000Z [info] [sess=ses_drop] [v=0.1.215] [ses_drop] "
+            "[acp-usage] input=999999 cached=900000 (cache hit 90.0%)\n",
+            encoding="utf-8",
+        )
+        a = parse_logs([log], session_filter=frozenset({"ses_keep"}))
+        assert [u.session for u in a.usages] == ["ses_keep"], "the other session is gone"
+        assert a.usages[0].input_tok == 150_000
+        # a str filter still means EXACT session identity, not a substring
+        a2 = parse_logs([log], session_filter="ses_keep")
+        assert [u.session for u in a2.usages] == ["ses_keep"]

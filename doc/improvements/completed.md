@@ -15548,3 +15548,41 @@ not row-iterable), information_schema checks, dedicated sqlite cache
 handles (duckdb rejects `PRAGMA busy_timeout`). `grep -r "fts5" helpers/`
 → 0 (note_search excluded per plan). Proposal archived; S6 full gates
 (qa/integration/perf/advisory) pending operator go.
+
+## 525. Bili display parity — ledger-netted saved, spend/payback, ladder + fold-detail columns
+
+The `bili_sessions.py` table disagreed 4.4× with the dashboard on
+`saved` (dashboard 16.2M vs log fold-sum 3.7M corpus-wide) because the
+page renders the LEDGER net `netSaved = grossSaved − repayCost −
+summaryCost` (fold savings weighted by requests-after-fold) while the
+table summed raw per-fold `saved_tok`. `saved` now follows the page
+rule (netSaved → tokensSaved → raw fold-sum under `saved_folds`, never
+fake 0) and gained `spend` (`costUsd.total`) + `payback`
+(`$net/$spent`, net = savedUsdGross − spentUsd) columns; `_fmt_w`
+(lowercase k/m/b, SPA fmtW mirror) formats saved/ctxNow/cumInput +
+AGGREGATE totals. Tier-ladder state ported from the tier-watch
+heartbeat: `abs` as `13/95.6k`, tier cells as `23f/21.3k/43.0k` with
+ordering-ready `*`, `growth` as `11.6k/20.0k` (floor =
+max(HARD_GROWTH_FLOOR=20_000, round(0.45 × nudgeGrowthTokens)) from
+/config), `act` (active blocks via `bili_tier_nudge.load_session_state`,
+lru-cached, cleared in `reset_caches()`), `blocked` as per-session
+gate holdbacks `[1:6,2:4,3:1]` — distinct from tier-watch's
+cross-session aggregate (grep census: 52 `blocked: T1` lines across
+live+2 archives, 6 tagged to ses_e464ba95). Operator removals:
+`switches`/`viol`/`proto` columns and the `!! reasoning-pair violation`
+banner (`print_violations` deleted; `--json` stdout pure and stderr
+silent; row keys survive for --json/--detail). `bili_tier_watch.py`
+distills the ~8-line bili.log fold burst into one `fold@…` heartbeat
+line (ranges/ctx/first-msgs/shrink/cum/foldPoint/blocks/act/anchor/
+postCtx/ceiling, V/Vraw/Vp attribution, result/excluded/lastUser,
+`· bN summary` char counts, tool outcome); each fold renders ONCE (the
+first heartbeat after the burst completes consumes it) and is
+kind-tagged with its trigger — `[T1]` from the preceding nudge,
+`[Abs]` after an absorb, `[Degen]` from the degen warn line; untagged
+`· bN` lines attach
+via last tagged sid; the obs-branch keys on `"shrink "` because
+fold-attribution lines also carry `[acp-compress-obs]`. 125 bili tests
+pass; ruff clean; live-verified on `ses_e464ba95fffey2TwBleYG47aWf`
+(saved=4.40b, payback=$43.83/$0.21, act=6, blocked=[1:6,2:4,3:1]).
+Running daemons need a restart to pick up the module. Proposal
+archived (tooling/).

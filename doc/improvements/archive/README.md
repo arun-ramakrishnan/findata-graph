@@ -756,6 +756,16 @@ commit, referenced by nothing). Entry numbers point at
 - [`refresh_chain_parallel.md`](pipeline/refresh_chain_parallel.md) — Refresh chain, parallel — fetch/apply split so independent sources overlap; per-lane `--fetch-only` stages writing scratch JSON under `$TMPDIR/findata-graph/`, parallel phase A, sequential store applies under per-store lock, per-item failure containment; `refresh-chain` Makefile target (default), `refresh-chain-ser` for the original sequential chain — completed.md #403
 
 ## tooling/ — Tooling & performance — MCP eval, doc browser/search, perf review, tech survey
+- [`bili_table_tier_watch_display_parity.md`](tooling/bili_table_tier_watch_display_parity.md) —
+  bili display parity: the sessions table's `saved` now follows the
+  dashboard page's LEDGER rule (`netSaved = grossSaved − repayCost −
+  summaryCost`; the old raw fold-sum disagreed 4.4× corpus-wide), plus
+  spend/payback (`$43.83/$0.21`), lowercase k/m/b formats, tier-ladder
+  cells (`23f/21.3k/43.0k` + ord-star, abs `13/95.6k`, growth
+  `11.6k/20.0k`, act, per-session blocked `[1:6,2:4,3:1]`),
+  switches/viol/proto + violation-banner removal, and a `fold@…`
+  tier-watch heartbeat line distilling the ~8-line bili.log fold
+  burst — completed.md #525
 - [`group_growth_gate.md`](tooling/group_growth_gate.md) —
   growth monitor promoted to blocking qa leg `group-growth-check`:
   `gate_check` fails on family-hit loss / removed merge flags / gone

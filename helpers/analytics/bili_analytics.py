@@ -559,12 +559,14 @@ def _open_log(path: Path):
     return path.open("r", encoding="utf-8", errors="replace")
 
 
-def parse_logs(paths, session_filter: str | None = None) -> Analysis:
+def parse_logs(paths, session_filter: str | frozenset[str] | None = None) -> Analysis:
     """`parse_log` over a rotation family, merged and ordered oldest-first.
 
     Every list member is re-sorted by timestamp after the union so that
     `nudges[-1]` is genuinely the newest sample regardless of how the
-    rotation happened to split the session across files.
+    rotation happened to split the session across files. `session_filter` is
+    one sid or a set of sids (m00827: the table passes the rows it will
+    render, so other sessions' lines die before the regex battery).
     """
     paths = [Path(p) for p in paths if Path(p).is_file()]
     if not paths:
@@ -594,10 +596,14 @@ def parse_logs(paths, session_filter: str | None = None) -> Analysis:
 
 
 def parse_log(  # noqa: C901
-    path: Path, session_filter: str | None = None
+    path: Path, session_filter: str | frozenset[str] | None = None
 ) -> Analysis:
     a = Analysis(log_path=str(path))
     seen_folds: list[tuple[datetime, int, int]] = []
+    if isinstance(session_filter, str):
+        # str-membership is SUBSTRING semantics — normalize to an exact set
+        # so `session_filter="ses"` would not match every ses_* line.
+        session_filter = frozenset({session_filter})
 
     with _open_log(path) as fh:
         for raw in fh:
@@ -620,7 +626,7 @@ def parse_log(  # noqa: C901
             # session-index sids and the --session filters downstream.
             if session.startswith("session-"):
                 session = session[len("session-") :]
-            if session_filter and session != session_filter:
+            if session_filter and session not in session_filter:
                 continue
             body = pm["body"]
 

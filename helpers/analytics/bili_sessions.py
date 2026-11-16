@@ -41,6 +41,12 @@ from helpers.analytics.bili_analytics import (  # noqa: E402
     parse_report,
     session_is_live,
 )
+from helpers.analytics.bili_tier_nudge import (  # noqa: E402
+    DEFAULT_DB,
+    HARD_GROWTH_FLOOR,
+    MIN_GROWTH_RATIO,
+    load_session_state,
+)
 
 RE_SES = re.compile(r"ses_[A-Za-z0-9]+")
 LIVE_LOG = Path.home() / ".local" / "state" / "billion-context" / "bili.log"
@@ -101,31 +107,24 @@ def dashboard_sessions() -> list[dict]:
     return [dict(s) for s in _fetch_sessions()]
 
 
+@functools.lru_cache(maxsize=1)
+def dashboard_sessions_map() -> dict[str, dict]:
+    """The `/sessions` LIST payload keyed by session id (m00827 perf).
+
+    The list endpoint carries the whole compression ledger per session —
+    tokensSaved / netSaved / grossSaved / costUsd / savedUsd / payback{...} —
+    which previously forced one `/sessions/{sid}/detail` PER ROW. Detail is
+    the full fold ledger: 6.3 MB of JSON for the live session alone (measured
+    2026-11-16), ~2.8 s of json.load + 1.6 s of socket read across a
+    10-row table even with the m00708 fan-out. One ~1 MB list call replaces
+    the entire leg; `_fetch_detail` stays as the fallback for sessions the
+    list doesn't know (dashboard restarted mid-run) and for `--detail`.
+    """
+    return {s["id"]: s for s in _fetch_sessions()}
+
+
 def dashboard_detail(sid: str) -> dict:
     return _fetch_detail(sid)
-
-
-def _prime_details(sids: list[str]) -> None:
-    """Warm the per-session detail cache concurrently before the row loops.
-
-    Startup regression (m00708): run_for_sid fetched one
-    /sessions/{sid}/detail per session SEQUENTIALLY — 53 × ~110 ms ≈ 5.8 s,
-    72% of an 8 s wall on 50 sessions. _fetch_detail is functools.cache'd, so
-    priming it fan-out keeps every call site untouched and pays only the
-    slowest wave instead of the sum of all fetches.
-    """
-    if not sids:
-        return
-
-    def _safe(sid: str) -> dict:
-        try:
-            return dashboard_detail(sid)
-        except Exception:  # noqa: S112  # best-effort; same contract as the fetch itself
-            return {}
-
-    with ThreadPoolExecutor(max_workers=min(8, len(sids))) as pool:
-        for _ in pool.map(_safe, sids):
-            pass
 
 
 @functools.cache
@@ -171,6 +170,47 @@ def _tier_bar_override(cfg: dict, tier: str) -> int | None:
             except TypeError, ValueError:
                 return None
     return None
+
+
+def _growth_floor(cfg: dict) -> int:
+    """The plugin's growth gate, resolved the way
+    helpers/analytics/bili_tier_nudge.Bars.from_file resolves it:
+    max(HARD_GROWTH_FLOOR, round(MIN_GROWTH_RATIO × nudgeGrowthTokens)) — fed
+    from the proxy's live /config (50000 fallback when nothing answers, the
+    same default Bars uses)."""
+    base = cfg.get("nudgeGrowthTokens") if isinstance(cfg, dict) else None
+    try:
+        base = int(base) if base else 0
+    except TypeError, ValueError:
+        base = 0
+    if not base:
+        base = 50_000
+    return max(HARD_GROWTH_FLOOR, round(MIN_GROWTH_RATIO * base))
+
+
+@functools.lru_cache(maxsize=512)
+def _active_blocks(sid: str) -> int | None:
+    """Blocks still carrying the active flag — the live working set — read
+    from the sessions index DB via bili_tier_nudge.load_session_state, the
+    same source bili_tier_watch's `act=` renders. None (renders '-') when
+    the DB is missing; a session absent from the DB has no live blocks, so
+    it counts 0 honestly."""
+    if not DEFAULT_DB.is_file():
+        return None
+    try:
+        return len(load_session_state(DEFAULT_DB, sid).active)
+    except Exception:
+        return None
+
+
+def _blocked_cell(row: dict) -> str:
+    """Per-tier gate holdbacks, tier-watch style: `[1:50,2:4,3:1]` — the
+    gate said "not yet" 50 times for T1 despite the tier qualifying. The
+    fires half of the pair lives in the t1/t2/t3 cells (`24f/…`), so it is
+    not repeated here (operator 2026-11-16). Blocked counts are keyed
+    `1/2/3` (Analysis.tier_blocked_counts, from `blocked: T<N>` reasons)."""
+    blocked = row.get("tier_blocked") or {}
+    return "[" + ",".join(f"{t}:{blocked.get(t, 0)}" for t in ("1", "2", "3")) + "]"
 
 
 def _with_tier_overrides(bars: dict[str, int], cfg: dict) -> dict[str, int]:
@@ -279,20 +319,29 @@ def file_logs_for_sid(sid: str) -> list[Path]:  # noqa: C901
 _SID_RE = re.compile(
     r"ses_[A-Za-z0-9]+|session_[0-9a-fA-F]+|session-[0-9a-fA-F-]+|[0-9a-f]{8}-[0-9a-fA-F-]{27}"
 )
-_SID_INDEX: dict[str, list[Path]] | None = None
+_SID_INDEX: dict[frozenset[str] | None, dict[str, list[Path]]] = {}
 
 
-def sid_log_index() -> dict[str, list[Path]]:
+def sid_log_index(want: frozenset[str] | None = None) -> dict[str, list[Path]]:
     """session id -> log files mentioning it, built in ONE pass.
 
     The previous check read every candidate log in full for every session —
     35 sessions x ~12 MB of rotation history — and it could not read a
     `.gz` member at all. Scanning each file once also makes the rotated
     logs reachable, which is where every older session's `model=` lives.
+
+    `want` (m00827) narrows the scan: a file is opened only after a C-speed
+    substring probe says it names one of the wanted sids, and only the
+    wanted sids are indexed. The stale 20 MB archives — none of whose
+    sessions a `--top`/`--since` table will render — then cost one
+    bytes-scan each instead of a full regex findall (measured 2.3 s →
+    ~0.3 s on a 30 MB corpus).
     """
     global _SID_INDEX
-    if _SID_INDEX is not None:
-        return _SID_INDEX
+    cached = _SID_INDEX.get(want)
+    if cached is not None:
+        return cached
+    probes = tuple((w, w.encode()) for w in want) if want else None
     idx: dict[str, set[Path]] = {}
     seen: set[Path] = set()
     for p in file_logs_for_sid(""):
@@ -307,17 +356,30 @@ def sid_log_index() -> dict[str, list[Path]]:
             continue
         seen.add(rp)
         try:
-            text = _read_log_text(p)
+            raw = _read_log_bytes(p)
         except OSError:
             continue
+        if probes is not None:
+            # Restricted scan: C-speed substring probes instead of a full
+            # `_SID_RE.findall` — findall still MATCHES every sid in a 10 MB
+            # file (~100k of them, ~1.0 s) even when only 5 sids are wanted
+            # (measured 2026-11-16). A needle hit indexes the wanted sid for
+            # this file; sub-session tags carry the parent id as a substring,
+            # so `<parent>|sub:<id>` files resolve the same way.
+            for w, needle in probes:
+                if needle in raw:
+                    idx.setdefault(w, set()).add(rp)
+            continue
+        text = raw.decode("utf-8", errors="replace")
         for sid in _SID_RE.findall(text):
             # a sub-session logs under its PARENT id; index both so
             # `session-<id>|sub:<id>` resolves to the same file
             idx.setdefault(sid, set()).add(rp)
             if "|" in sid:
                 idx.setdefault(sid.split("|", 1)[0], set()).add(rp)
-    _SID_INDEX = {k: sorted(v, key=lambda q: q.stat().st_mtime) for k, v in idx.items()}
-    return _SID_INDEX
+    result = {k: sorted(v, key=lambda q: q.stat().st_mtime) for k, v in idx.items()}
+    _SID_INDEX[want] = result
+    return result
 
 
 def _read_log_text(p: Path) -> str:
@@ -329,8 +391,17 @@ def _read_log_text(p: Path) -> str:
     return p.read_text(errors="replace")
 
 
+def _read_log_bytes(p: Path) -> bytes:
+    if p.name.endswith(".gz"):
+        import gzip
+
+        with gzip.open(p, "rb") as fh:
+            return fh.read()
+    return p.read_bytes()
+
+
 @functools.lru_cache(maxsize=4)
-def _family_index(log_path: Path) -> dict[str, Analysis]:
+def _family_index(log_path: Path, only: frozenset[str] | None = None) -> dict[str, Analysis]:
     """Parse the rotation family ONCE and bucket every sample by session.
 
     This replaces a per-session `parse_logs(log_rotation_family(log_path),
@@ -338,12 +409,17 @@ def _family_index(log_path: Path) -> dict[str, Analysis]:
     session. Measured on a 35-session table that was 4.1 s of the 7.7 s total,
     plus a full `log_path.read_text()` per session purely to test whether the
     session id appeared in the file at all.
+
+    `only` restricts the parse to that sid set (m00827): rows outside the set
+    are skipped right after the prefix match, before the body-regex battery.
     """
-    return _index_paths(tuple(log_rotation_family(log_path)))
+    return _index_paths(tuple(log_rotation_family(log_path)), only)
 
 
 @functools.lru_cache(maxsize=4)
-def _index_paths(paths: tuple[Path, ...]) -> dict[str, Analysis]:
+def _index_paths(
+    paths: tuple[Path, ...], only: frozenset[str] | None = None
+) -> dict[str, Analysis]:
     """`_family_index` over an explicit file set (the per-session UNION).
 
     A session's history can be split across files that no single member's
@@ -353,7 +429,7 @@ def _index_paths(paths: tuple[Path, ...]) -> dict[str, Analysis]:
     (measured 2026-11-15: three sessions under-reported folds because the
     archive won the size tie-break against the live log).
     """
-    whole = parse_logs(list(paths))
+    whole = parse_logs(list(paths), session_filter=only)
     by_sid: dict[str, Analysis] = {}
     for n in whole.nudges:
         by_sid.setdefault(n.session, Analysis(log_path=whole.log_path)).nudges.append(n)
@@ -407,13 +483,17 @@ def reset_caches() -> None:
     """
     _fetch_detail.cache_clear()
     dashboard_stats_map.cache_clear()
+    dashboard_sessions_map.cache_clear()
     _family_index.cache_clear()
+    _active_blocks.cache_clear()
     global _SID_INDEX
-    _SID_INDEX = None
+    _SID_INDEX = {}
 
 
 def _session_analysis(
-    log_path: Path | list[Path] | tuple[Path, ...] | None, sid: str
+    log_path: Path | list[Path] | tuple[Path, ...] | None,
+    sid: str,
+    only: frozenset[str] | None = None,
 ) -> Analysis | None:
     """The bucket for `sid`, or None when the given log set has no samples.
 
@@ -423,20 +503,22 @@ def _session_analysis(
 
     `log_path` is normally ONE file (its rotation family is parsed); a session
     whose history is SPLIT across files passes the explicit list instead,
-    because neither file's own family reaches the other.
+    because neither file's own family reaches the other. `only` narrows the
+    parse to that sid set (perf, m00827) — it must cover the PARENT id, since
+    that is what the log lines carry.
     """
     if log_path is None:
         return None
     if isinstance(log_path, (list, tuple)):
         if not log_path:
             return None
-        index = _index_paths(tuple(dict.fromkeys(log_path)))
+        index = _index_paths(tuple(dict.fromkeys(log_path)), only)
     else:
-        index = _family_index(log_path)
+        index = _family_index(log_path, only)
     return index.get(sid.split("|", 1)[0]) or index.get(sid)
 
 
-def run_for_sid(sid: str) -> dict:
+def run_for_sid(sid: str, only: frozenset[str] | None = None) -> dict:
     # Id-form hazard: the log parser strips the `session-` prefix from dsh ids,
     # while the DB and sid_log_index may hand us `session-<uuid>` — and --detail
     # re-filters the bili_analytics subprocess with row["session"], so a
@@ -444,11 +526,15 @@ def run_for_sid(sid: str) -> dict:
     # row identity bare, but probe dashboard/report lookups with both forms;
     # the sub-session suffix (`<parent>|sub:<id>`) must survive.
     bare = sid.removeprefix("session-")
-    d = dashboard_detail(sid) or dashboard_detail(bare)
+    # Ledger fields come from the /sessions LIST map first (one bulk call for
+    # the whole table — m00827); the per-session 6.3 MB /detail payload is the
+    # fallback for sessions the list doesn't know.
+    smap = dashboard_sessions_map()
+    d = smap.get(sid) or smap.get(bare) or dashboard_detail(sid) or dashboard_detail(bare)
     st = dashboard_stats_map().get(sid) or dashboard_stats_map().get(bare, {})
     report = find_report(sid) or find_report(bare)
 
-    idx = sid_log_index()
+    idx = sid_log_index(only)
     containing = (
         idx.get(sid)
         or idx.get(bare)  # opencode-style logs key sessions bare
@@ -494,14 +580,25 @@ def run_for_sid(sid: str) -> dict:
         "context_now": d.get("lastInputTokens", st.get("lastInputTokens", 0)),
         "cum_input": d.get("inputTokens", st.get("inputTokens", 0)),
         "cached_input": d.get("cachedTokens", st.get("cachedTokens", 0)),
-        # The dashboard's own counter, kept under its own key. `saved` below is
-        # the LOG-derived figure (sum of per-fold savings), which is the one
-        # every other row in this table is comparable against. Measured
-        # 2026-11-15: the two disagree by 4.4x corpus-wide (16.2M dashboard vs
-        # 3.7M folds) and a single session 463,447 vs 335,348, so mixing them
-        # under one label made cross-session tallies drift.
+        # Three "saved" ledgers, named: `saved_dashboard` is the dashboard's
+        # own tokensSaved counter; `saved_folds` is the LOG-derived raw sum of
+        # per-fold window savings (the compression-tuning number — what each
+        # fold actually removed); `saved` follows the dashboard page's own
+        # rule (savedTd: netSaved first, tokensSaved fallback) so the table
+        # and the page agree. The ledger's netSaved = grossSaved − repayCost
+        # − summaryCost, where grossSaved = Σ(tokens saved per fold ×
+        # requests AFTER that fold) — measured on ses_e464ba95 2026-11-16:
+        # 4,263,196,220 − 2,140,144 − 99,273 = 4,260,956,803, vs a raw fold
+        # sum of 1.55M. Different quantities, different magnitudes; mixing
+        # them under one label made cross-session tallies drift (measured
+        # 2026-11-15: 4.4x corpus-wide).
         "saved_dashboard": d.get("tokensSaved", st.get("tokensSaved", 0)),
-        "saved": d.get("tokensSaved", st.get("tokensSaved", 0)),
+        "net_saved": d.get("netSaved"),
+        "gross_saved": d.get("grossSaved"),
+        "saved": d.get("netSaved")
+        if d.get("netSaved") is not None
+        else d.get("tokensSaved", st.get("tokensSaved", 0)),
+        "saved_folds": 0,
         "hit_pct": d.get("cacheHitPct", st.get("cacheHitPct", 0)),
         "blocks": d.get("blocks", st.get("blocks", 0)),
         "shrink_pct": 0,
@@ -510,6 +607,17 @@ def run_for_sid(sid: str) -> dict:
         "context_window": d.get("contextWindow", st.get("contextWindow", 0)),
         "comp_repay": d.get("compRepay", 0),
         "ttl_repay": d.get("ttlRepay", 0),
+        # Money faces from the detail payload's compression ledger (#4899 on
+        # the dashboard): what the session spent, and the 压缩回本 (payback)
+        # card inputs — net $ saved = savedUsdGross − spentUsd, "paid back"
+        # when actualTurns ≥ breakevenTurns. Dashboard-only (no log twin), so
+        # None on log-only rows renders '-' honestly.
+        "cost_usd": (d.get("costUsd") or {}).get("total"),
+        "gross_saved_usd": d.get("savedUsdGross"),
+        "saved_usd": d.get("savedUsd"),
+        "payback_spent_usd": (d.get("payback") or {}).get("spentUsd"),
+        "payback_breakeven": (d.get("payback") or {}).get("breakevenTurns"),
+        "payback_actual": (d.get("payback") or {}).get("actualTurns"),
         "last_seen": d.get("lastSeen", st.get("lastSeen", "")),
         "context_now_src": "dashboard",
         "model": d.get("lastModel") or st.get("lastModel", ""),
@@ -524,7 +632,13 @@ def run_for_sid(sid: str) -> dict:
         "tier_fires": {"T1": 0, "T2": 0, "T3": 0},
         "tier_pending": {},
         "tier_bars": {},
+        "growth": 0,
+        "growth_floor": 0,
         "tier_blocked": {},
+        # Blocks still carrying the active flag (the live working set) —
+        # filled from the sessions index DB when the log bucket exists;
+        # None renders '-' so a dashboard-only row never fakes a count.
+        "active_blocks": None,
         "log": str(log_path) if log_path else None,
         "logs": [str(p) for p in containing],
         "report": str(report) if report else None,
@@ -536,7 +650,7 @@ def run_for_sid(sid: str) -> dict:
     # prefixed id from the dashboard meta or the log index would find no
     # bucket and silently skip the whole log merge (nudges/folds/etc. stay
     # unset and the row renders '-').
-    a = _session_analysis(containing or log_path, bare)
+    a = _session_analysis(containing or log_path, bare, only)
     if a is not None:
         if report:
             parse_report(report)
@@ -576,6 +690,10 @@ def run_for_sid(sid: str) -> dict:
                 "tier_pending": a.tier_pending(),
                 "tier_bars": _with_tier_overrides(a.tier_bars(), _compress_config()),
                 "tier_blocked": a.tier_blocked_counts(),
+                # The live working set: blocks still active in the session
+                # store (folds deactivate the blocks they consumed). Same
+                # source and number as bili_tier_watch's `act=`.
+                "active_blocks": _active_blocks(bare),
                 # Ordering tests from the tier ladder: T2 needs t2_pen > t1_eff
                 # (ord2), T3 needs t3_pen > t2_pen and t3_pen > t1_eff (ord3).
                 # `tier_rung` is the tier that would fire next, STRANDED when a
@@ -587,6 +705,11 @@ def run_for_sid(sid: str) -> dict:
                     a.tier_pending(),
                     _with_tier_overrides(a.tier_bars(), _compress_config()),
                 ),
+                # The tier-watch heartbeat's growth pair: the LATEST nudge's
+                # window growth since its ref point, vs the plugin's growth
+                # gate (max(20_000, 0.45 × nudgeGrowthTokens)).
+                "growth": a.nudges[-1].growth if a.nudges else 0,
+                "growth_floor": _growth_floor(_compress_config()),
                 "warnings": sorted(set(w.kind for w in a.warnings)),
                 "reason_pair_violations": a.reasoning_pair_violations,
                 "degenerate_folds": sum(1 for w in a.warnings if w.kind == "degenerate-fold"),
@@ -602,9 +725,14 @@ def run_for_sid(sid: str) -> dict:
                 "context_now_src": ("log" if a.usages else row.get("context_now_src", "")),
                 "model": row.get("model")
                 or (last_nudge.model if last_nudge else row.get("model", "")),
-                "saved": sum(f.saved_tok for f in a.folds)
-                or row.get("saved")
-                or row.get("saved_dashboard", 0),
+                "saved_folds": sum(f.saved_tok for f in a.folds),
+                # `saved` keeps the page rule (netSaved ?? tokensSaved). Only
+                # when BOTH are absent does the raw fold sum stand in — a
+                # log-only row still shows its real fold savings instead of
+                # faking 0 (savedTd's "honest dash, never fake 0", log side).
+                "saved": row.get("saved")
+                or row.get("saved_dashboard")
+                or sum(f.saved_tok for f in a.folds),
                 # Average shrink percentage from [acp-compress-obs] lines.
                 # Rounded HERE at the row build — an unrounded float used to
                 # hit the dashboard's `…` truncator and get cut mid-digit
@@ -784,7 +912,30 @@ def main(argv: list[str]) -> int:  # noqa: C901
         const="0",
         help="ignore the lastSeen window; every session the proxy or logs know about",
     )
+    ap.add_argument(
+        "--top",
+        type=int,
+        metavar="N",
+        help=(
+            "keep only the N most recently seen sessions (by lastSeen; needs "
+            "the dashboard's session list for the ordering). Cheap enough to "
+            "loop under `watch -n30` — the log parse skips every session "
+            "outside the set before its line is regexed."
+        ),
+    )
     args = ap.parse_args(argv)
+
+    # The three small dashboard GETs each cost ~0.4s serially (TCP setup +
+    # server-side ledger render, measured 2026-11-16) — run them as one
+    # concurrent wave (m00827). All three are lru_cached, so the row loop's
+    # plain calls hit the warm cache.
+    with ThreadPoolExecutor(max_workers=3) as pool:
+        for fut in (
+            pool.submit(_fetch_sessions),
+            pool.submit(dashboard_stats_map),
+            pool.submit(_compress_config),
+        ):
+            fut.result()
 
     try:
         since_text = str(args.since)
@@ -818,6 +969,11 @@ def main(argv: list[str]) -> int:  # noqa: C901
         return stamp is None or stamp >= since_cutoff
 
     kept_sids = [s for s in sids if _meta_kept(s)]
+    if args.top is not None and args.top >= 0:
+        # newest-lastSeen first; ISO stamps sort lexically. Without dashboard
+        # meta the order is the sid sort — --top still caps the table.
+        kept_sids = sorted(kept_sids, key=lambda s: meta_seen.get(s, ""), reverse=True)
+        kept_sids = kept_sids[: args.top]
     if since_cutoff is not None and meta_sessions:
         dropped = len(sids) - len(kept_sids)
         if dropped:
@@ -826,8 +982,14 @@ def main(argv: list[str]) -> int:  # noqa: C901
                 f"{since_cutoff:%Y-%m-%d} ({since_text}) hidden — use --all to show",
                 file=sys.stderr,
             )
-    _prime_details(kept_sids)
-    rows = [run_for_sid(s) for s in kept_sids]
+    # The log parse only needs rows we will actually render: restrict it to
+    # the kept sid set (m00827) so every other session's lines die right
+    # after the prefix match. `--detail` parses unrestricted — its target may
+    # be a session the window/top cut, and the old behaviour let it through.
+    only = None
+    if not args.detail:
+        only = frozenset(s.removeprefix("session-") for s in kept_sids)
+    rows = [run_for_sid(s, only) for s in kept_sids]
 
     rows.sort(key=lambda r: r.get("last_seen") or "", reverse=True)
 
@@ -969,10 +1131,11 @@ def main(argv: list[str]) -> int:  # noqa: C901
         raise SystemExit(subprocess.call(cmd))  # noqa: S603  # list-form call, shell=False (default); argv is a fixed script path plus a validated session id
 
     if args.json:
-        # stderr, never stdout: `--json` is a machine-readable path and a human
-        # callout in front of the array breaks every consumer that pipes it.
-        # The `reason_pair_violations` field carries the same information.
-        print_violations(rows, args, stream=sys.stderr)
+        # stderr, never stdout: `--json` is a machine-readable path and any
+        # human-readable callout in front of the array breaks every consumer
+        # that pipes it. The `reason_pair_violations` field carries that
+        # information instead (the `!!` banner was removed per operator
+        # 2026-11-16).
         json.dump(rows, sys.stdout, indent=2)
         print()
         return 0
@@ -1007,13 +1170,20 @@ _COLUMNS: tuple[tuple[str, str, str, int, bool], ...] = (
     ("session", "session", "<", 55, False),
     ("client", "client", "<", 34, True),
     ("model", "model", "<", 40, True),
-    ("protocol", "proto", "<", 12, False),
+    # `protocol` was removed from the DISPLAY per operator 2026-11-16; the
+    # row key stays for --json and --detail.
     ("requests", "reqs", ">", 7, False),
     ("context_now", "ctxNow", ">", 10, False),
     ("cum_input", "cumInput", ">", 11, False),
     ("saved", "saved", ">", 8, False),
+    # spend = costUsd.total (what the session cost); payback = the dashboard
+    # 压缩回本 card: net $ saved (savedUsdGross − spentUsd) with the paid-back
+    # badge — ✓ when actualTurns ≥ breakevenTurns, else ⏳Nt (≈N turns short).
+    ("spend", "spend", ">", 7, False),
+    ("payback", "payback", ">", 15, False),
     ("hit_pct", "hit%", ">", 6, False),
-    ("switches", "switches", ">", 8, False),
+    # `switches` was removed from the DISPLAY per operator 2026-11-16 (not
+    # useful day-to-day); the row key survives for --json consumers.
     # FOUR distinct counts, not one. `compacts` was showing `blocks` beside a
     # `saved` figure summed over FOLDS, so a single row mixed two units and
     # overstated compactions ~3x. Measured 2026-10-17 on ses_ec7af063:
@@ -1027,29 +1197,38 @@ _COLUMNS: tuple[tuple[str, str, str, int, bool], ...] = (
     ("folds", "folds", ">", 6, False),
     # Tool-acp absorbs: long tool outputs replaced by a compact summary
     # BEFORE they enter the window (per-block shrink, cache stays warm).
-    ("absorbs", "abs", ">", 5, False),
+    ("absorbs", "abs", ">", 9, False),
     ("degenerate_folds", "degen", ">", 6, False),
     ("blocks", "blocks", ">", 7, False),
+    # Blocks still live in the working set (sessions index DB `active` flag).
+    ("active_blocks", "act", ">", 5, False),
     ("shrink_pct", "shrink", ">", 6, True),
     ("esc_fires", "esc", ">", 5, False),
-    # The compress ladder, per tier: `<fires>f/<pending>` — how many times the
-    # tier injected a nudge, and the compressible mass it is carrying. The
-    # pending is the number compared against THAT TIER'S BAR, so a tier that
-    # never cleared its bar shows `-`: T1's mass is on every nudge line, but
-    # T2/T3 appear in the log's `ready:` hint only while they qualify. Three
-    # columns because the ladder is the thing being tuned and a single
-    # `T1/T2/T3` blob cannot be read column-wise.
-    ("tier_t1", "t1", "<", 9, False),
-    ("tier_t2", "t2", "<", 9, False),
-    ("tier_t3", "t3", "<", 9, False),
-    # `*N` when the session has recorded reasoning-pair violations, blank when
-    # none. At the far right and unsqueezeable so a flagged session is
-    # impossible to miss — `*` pops against a column of numbers, and the count
-    # says whether it is one blip or a trend. The marker is NOT a death
-    # sentence: of 4 violating sessions measured, 3 died within 3-29 min and one
-    # (ses_eb005c4d7, z.ai) ran 3.8 h past its violation. `--detail` prints the
-    # session's own measured gap.
-    ("reason_pair_violations", "viol", ">", 6, False),
+    # Per-tier gate holdbacks, tier-watch style: `[1:50,2:4,3:1]` — T1
+    # qualified 50 times but the gate said "not yet". Fires already render
+    # in the t1/t2/t3 cells, so they are not repeated here. All three
+    # rungs always render so the cell stays column-comparable.
+    ("tier_blocked", "blocked", "<", 14, False),
+    # The tier-watch heartbeat pair (`11602/20000`): the latest nudge's window
+    # growth since its ref point vs the plugin's growth gate.
+    ("growth", "growth", ">", 13, False),
+    # The compress ladder, per tier: `<fires>f/<pending>/<bar>` (e.g.
+    # `23f/21.3k/43.0k`, the tier-watch format) — how many times the tier
+    # injected a nudge, the compressible mass it is carrying, and the bar
+    # that mass is measured against. The pending is compared against THAT
+    # TIER'S BAR, so a tier that never cleared its bar shows `-` for pending:
+    # T1's mass is on every nudge line, but T2/T3 appear in the log's
+    # `ready:` hint only while they qualify. Three columns because the ladder
+    # is the thing being tuned and a single `T1/T2/T3` blob cannot be read
+    # column-wise.
+    ("tier_t1", "t1", "<", 16, False),
+    ("tier_t2", "t2", "<", 16, False),
+    ("tier_t3", "t3", "<", 16, False),
+    # `viol` was removed from the DISPLAY per operator 2026-11-16 (banner
+    # too) — the `reason_pair_violations` key stays in --json and `--detail`
+    # still reports it. Historical context for that signal: of 4 violating
+    # sessions measured, 3 died within 3-29 min
+    # and one (ses_eb005c4d7, z.ai) ran 3.8 h past its violation.
 )
 _LAST_SEEN = ("lastSeen", "<", 19, False)
 _MIN_AVAIL, _MAX_AVAIL = 96, 200
@@ -1101,11 +1280,47 @@ def _compact_tokens(v: int | None) -> str:
     return str(v)
 
 
+def _fmt_k(v: int | float | None) -> str:
+    """Token count in the tier-watch format (`bili_tier_watch.fmt`): 95.6k,
+    1.51M — one decimal on k, two on M. `-` for absent (the tier never
+    reported a pending mass, or no bar was derivable)."""
+    if v is None:
+        return "-"
+    if v >= 1_000_000:
+        return f"{v / 1e6:.2f}M"
+    if v >= 1_000:
+        return f"{v / 1e3:.1f}k"
+    return str(v)
+
+
+def _fmt_w(v: int | float | None) -> str:
+    """Token counts the way the dashboard's fmtW renders them, in lowercase
+    monikers per operator 2026-11-16: 4.26b / 447.0m / 112.6k — so the
+    `saved`/ctxNow/cumInput cells read like the tier-watch columns."""
+    if v is None:
+        return "-"
+    n = abs(v)
+    if n >= 1e9:
+        return f"{v / 1e9:.2f}b"
+    if n >= 1e6:
+        return f"{v / 1e6:.1f}m"
+    if n >= 1e3:
+        return f"{v / 1e3:.1f}k"
+    return str(v)
+
+
 def _tier_cell(row: dict, tier: str) -> str:
-    """`f{fires}` for one tier of the compress ladder — how many times the
-    tier's nudge fired. Pending/bar detail lives under `[TIERS]` in --detail."""
+    """`<fires>f/<pending>/<bar>` for one tier of the compress ladder, in the
+    tier-watch format — e.g. `23f/21.3k/43.0k`: fired 23 times, carrying
+    21.3k of compressible mass against a 43.0k bar. A trailing `*` marks the
+    tier's ORDERING test as cleared (ord2: t2_pen > t1_eff; ord3: t3_pen >
+    t2_pen AND > t1_eff) — ladder-ready, the same flags bili_tier_watch
+    renders as ord2/ord3."""
     fires = (row.get("tier_fires") or {}).get(tier, 0)
-    return f"{fires}f"
+    pend = (row.get("tier_pending") or {}).get(tier)
+    bar = (row.get("tier_bars") or {}).get(tier)
+    ord_ok = row.get(f"tier_ord{tier[-1]}") if tier in ("T2", "T3") else False
+    return f"{fires}f/{_fmt_k(pend)}/{_fmt_k(bar)}{'*' if ord_ok else ''}"
 
 
 def _tier_ord2(pend: Mapping[str, int | None]) -> bool:
@@ -1152,13 +1367,49 @@ def _tier_rung(pend: Mapping[str, int | None], bars: dict[str, int]) -> str:
 def _natural(row: dict, key: str) -> str:
     """The cell's text. hit_pct keeps one decimal — the store may hand back
     int 97, and str() of that loses the decimal the column always showed."""
+    if key == "saved":
+        # fmtW, the dashboard's own renderer (savedTd feeds fmtW on the page).
+        return _fmt_w(row.get("saved"))
+    if key == "spend":
+        v = row.get("cost_usd")
+        return f"${v:.2f}" if v is not None else ""
+    if key == "payback":
+        # The dashboard's 压缩回本 card as two fields: net $ saved (gross −
+        # compression spend) over the $ the compression ledger spent to earn
+        # it — $43.83/$0.21. fmtUsd rules (sign kept on the net, <1 → 4dp).
+        spent = row.get("payback_spent_usd")
+        gross = row.get("gross_saved_usd")
+        if spent is None and gross is None:
+            return ""
+        pnet = (gross or 0) - (spent or 0)
+
+        def _usd(v: float) -> str:
+            return f"${abs(v):.2f}"
+
+        return ("-" if pnet < 0 else "") + _usd(pnet) + "/" + _usd(spent or 0)
+    if key == "absorbs":
+        # Count over absorb credit, tier-watch format: `13/95.6k`.
+        n = row.get("absorbs") or 0
+        credit = row.get("absorb_credit")
+        return f"{n}/{_fmt_k(credit)}" if credit else str(n)
     if key == "hit_pct":
         return f"{(row.get('hit_pct') or 0):.1f}"
     if key in ("tier_t1", "tier_t2", "tier_t3"):
         return _tier_cell(row, key[-2:].upper())
-    if key == "reason_pair_violations":
-        n = row.get(key) or 0
-        return f"*{n}" if n else ""
+    if key == "growth":
+        # The tier-watch heartbeat pair, k/m-formatted like the token
+        # columns: window growth since the last nudge's ref point vs the
+        # plugin's growth gate (11602/20000 → 11.6k/20.0k).
+        return f"{_fmt_w(row.get('growth'))}/{_fmt_w(row.get('growth_floor'))}"
+    if key == "active_blocks":
+        # None (dashboard-only row, or no session DB at all) renders '-'.
+        v = row.get("active_blocks")
+        return "-" if v is None else str(v)
+    if key == "tier_blocked":
+        return _blocked_cell(row)
+    if key in ("context_now", "cum_input"):
+        # fmtW like the page and the saved column: 112.6k / 447.0M / 4.26B.
+        return _fmt_w(row.get(key))
     v = row.get(key, 0 if key in _COUNTERS else "")
     if v is None:
         return ""
@@ -1232,45 +1483,20 @@ def print_table(rows: list[dict]) -> None:
     widths = _fit_widths(rows, max(_MIN_AVAIL, min(cols - 1, _MAX_AVAIL)))
     header = [_cell(spec[1], widths[i], spec[2]) for i, spec in enumerate(_COLUMNS)]
     header.append(_cell(_LAST_SEEN[0], widths[-1], _LAST_SEEN[1]))
-    print_violations(rows, None)
     print("  ".join(header).rstrip())
     for r in rows:
         print("  ".join(_row_cells(r, widths)).rstrip())
     print(
-        "tier cells: <fires>f/<pending tokens>  — pending is the compressible "
-        "mass vs that tier's bar; '-' means the tier is carrying nothing"
-    )
-
-
-def print_violations(rows: list[dict], args, stream=None) -> None:
-    """ONE line above the table. The `viol` column is the indicator; the essay
-    lives in `--detail <session>`.
-
-    A reasoning-pair violation is worth surfacing at the top of the default
-    view: strict-echo upstreams reject the request, and 3 of 4 violating
-    sessions measured ended within 3-29 minutes of their last violation. It is
-    NOT a guaranteed kill — the 4th (ses_eb005c4d7, z.ai) ran 3.8 h past it —
-    so the count is what belongs here and `--detail` carries the session's own
-    measured gap. Keeping it to one line is what makes the default view
-    readable when the answer is usually `-`.
-    """
-    hit = [r for r in rows if r.get("reason_pair_violations")]
-    if not hit:
-        return
-    # Sub-sessions share the parent transcript, so a violation on `session-…`
-    # also shows on `session-…|sub:<id>`. Collapse on the parent so the count
-    # names transcripts at risk, not rows.
-    seen: dict[str, dict] = {}
-    for r in sorted(hit, key=lambda r: -r["reason_pair_violations"]):
-        seen.setdefault(r.get("session", "").split("|", 1)[0], r)
-    out = stream or sys.stdout
-    marks = ", ".join(
-        f"*{r['reason_pair_violations']} {r.get('session', '')}" for r in seen.values()
-    )
-    print(
-        f"!! reasoning-pair violation — {len(seen)} session(s) flagged: {marks}"
-        f"\n   bili_sessions.py --detail <session>",
-        file=out,
+        "tier cells: <fires>f/<pending>/<bar> in k/M tokens (tier-watch format)"
+        " — pending is the compressible mass vs that tier's bar; '-' means the"
+        " tier never reported it. abs = <events>/<credit tok>. growth ="
+        " <window-growth>/<floor> (the tier-watch heartbeat pair, floor ="
+        " max(20k, 0.45 × nudgeGrowthTokens)). act = blocks still live in"
+        " the working set. blocked = [tier:held-back ×3] — the gate"
+        " withheld a qualifying tier that many times (fires live in the"
+        " t1/t2/t3 cells). saved follows"
+        " the dashboard ledger (netSaved = Σ saved-per-fold × later requests,"
+        " netted for replay+summary); payback = $net-saved/$compression-spend."
     )
 
 
@@ -1282,14 +1508,16 @@ def print_aggregate(rows: list[dict], args) -> int:
     total_cached = sum(r.get("cached_input", 0) for r in rows)
     total_saved = sum(r.get("saved", 0) for r in rows)
     total_ctx = sum(r.get("context_now", 0) for r in rows)
+    total_spend = sum(r.get("cost_usd") or 0 for r in rows)
     agg_hit = (100.0 * total_cached / total_input) if total_input else 0.0
     total_shrink = sum(r.get("shrink_pct", 0) for r in rows if r.get("shrink_pct", 0) > 0)
     shrink_count = sum(1 for r in rows if r.get("shrink_pct", 0) > 0)
     avg_shrink = (total_shrink / shrink_count) if shrink_count else 0
     agg_text = (
         f"AGGREGATE: sessions={len(rows)} requests={total_reqs} "
-        f"cumInput={total_input} cached={total_cached} hit={agg_hit:.2f}% "
-        f"contextNow={total_ctx} saved={total_saved} blocks={sum(r.get('blocks', 0) for r in rows)} avgShrink%={avg_shrink:.0f}"
+        f"cumInput={_fmt_w(total_input)} cached={_fmt_w(total_cached)} hit={agg_hit:.2f}% "
+        f"contextNow={_fmt_w(total_ctx)} saved={_fmt_w(total_saved)} blocks={sum(r.get('blocks', 0) for r in rows)} avgShrink%={avg_shrink:.0f} "
+        f"spend=${total_spend:.2f}"
     )
 
     if args.aggregate or args.markdown:
@@ -1303,8 +1531,8 @@ def print_aggregate(rows: list[dict], args) -> int:
             "",
             agg_text,
             "",
-            "| session | client | model | proto | upstream | reqs | ctxNow | cumInput | saved | hit% | switches | nudges | folds | degen | blocks | shrink% | lastSeen |",
-            "|---|---|---|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---|---|",
+            "| session | client | model | proto | upstream | reqs | ctxNow | cumInput | saved | spend | paybk | hit% | switches | nudges | folds | abs | degen | blocks | shrink% | lastSeen |",
+            "|---|---|---|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---|---|",
         ]
         for r in rows:
             ls = (r.get("last_seen") or "").replace("T", " ").replace("Z", "")
@@ -1320,8 +1548,10 @@ def print_aggregate(rows: list[dict], args) -> int:
             lines.append(
                 f"| {r.get('session', '')} | {r.get('client', '')} | {r.get('model', '')} | {r.get('protocol', '')} | "
                 f"{r.get('upstream', '')} | {r.get('requests', 0)} | {r.get('context_now', 0)} | "
-                f"{r.get('cum_input', 0)} | {r.get('saved', 0)} | {(r.get('hit_pct') or 0):.1f} | "
+                f"{r.get('cum_input', 0)} | {_fmt_w(r.get('saved'))} | {_natural(r, 'spend') or '-'} | "
+                f"{_natural(r, 'payback') or '-'} | {(r.get('hit_pct') or 0):.1f} | "
                 f"{r.get('switches', 0)} | {r.get('nudges', 0)} | {r.get('folds', 0)} | "
+                f"{_natural(r, 'absorbs') or '-'} | "
                 f"{r.get('degenerate_folds', 0)} | {r.get('blocks', 0)} | {r.get('shrink_pct', 0):.0f} | {ls} |"
             )
         path.write_text("\n".join(lines) + "\n", encoding="utf-8")

@@ -266,11 +266,51 @@ class TestConfigOverride:
 class TestTierCell:
     def test_fires_and_pending(self):
         row = {"tier_fires": {"T1": 25}, "tier_pending": {"T1": 113124}}
-        assert bs._tier_cell(row, "T1") == "25f"
+        assert bs._tier_cell(row, "T1") == "25f/113.1k/-"
+
+    def test_fires_pending_and_bar(self):
+        # The full tier-watch format: fires / pending mass / the bar it is
+        # measured against (bars come from tier_bars / _with_tier_overrides).
+        row = {
+            "tier_fires": {"T1": 25},
+            "tier_pending": {"T1": 113124},
+            "tier_bars": {"T1": 43000},
+        }
+        assert bs._tier_cell(row, "T1") == "25f/113.1k/43.0k"
 
     def test_a_tier_that_never_cleared_its_bar(self):
         row = {"tier_fires": {"T3": 0}, "tier_pending": {}}
-        assert bs._tier_cell(row, "T3") == "0f"
+        assert bs._tier_cell(row, "T3") == "0f/-/-"
+
+    def test_ordering_ready_gets_a_star(self):
+        # ord2/ord3 cleared → ladder-ready, marked with a trailing star
+        # (T1 is the base rung and never carries one).
+        row = {
+            "tier_fires": {"T2": 7, "T3": 4},
+            "tier_pending": {"T2": 34000, "T3": 65000},
+            "tier_bars": {"T2": 65000, "T3": 65000},
+            "tier_ord2": True,
+            "tier_ord3": False,
+        }
+        assert bs._tier_cell(row, "T2") == "7f/34.0k/65.0k*"
+        assert bs._tier_cell(row, "T3") == "4f/65.0k/65.0k"
+        assert bs._tier_cell({"tier_fires": {"T1": 1}, "tier_ord2": True}, "T1") == "1f/-/-"
+
+    def test_blocked_cell_format(self):
+        # Operator format: [tier:held-back ×3] — fires live in the t1/t2/t3
+        # cells, so they are not repeated here (m00580). Blocked counts are
+        # keyed "1/2/3" (tier_blocked_counts); all three rungs always
+        # render so the cell stays column-comparable.
+        row = {"tier_blocked": {"1": 50, "2": 4, "3": 1}}
+        assert bs._blocked_cell(row) == "[1:50,2:4,3:1]"
+        # Empty dict (dashboard-only row) renders all-zero rungs, not '-'.
+        assert bs._blocked_cell({}) == "[1:0,2:0,3:0]"
+
+    def test_active_blocks_cell(self):
+        # None (no session DB / dashboard-only row) renders '-', never a
+        # faked count; a number renders as itself.
+        assert bs._natural({"active_blocks": None}, "active_blocks") == "-"
+        assert bs._natural({"active_blocks": 6}, "active_blocks") == "6"
 
     def test_compact_tokens(self):
         assert bs._compact_tokens(None) == "-"
@@ -309,9 +349,9 @@ class TestTable:
         }
         widths = bs._fit_widths([row], 200)
         cells = bs._row_cells(row, widths)
-        assert "9f" in cells
-        assert "4f" in cells
-        assert "0f" in cells
+        assert "9f/18.8k/-" in cells
+        assert "4f/35.5k/-" in cells
+        assert "0f/-/-" in cells
 
     def test_the_model_column_is_not_crushed_to_its_header(self):
         # The tier columns take fixed width; without a floor the squeeze lands

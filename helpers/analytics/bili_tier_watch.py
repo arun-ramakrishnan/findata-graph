@@ -103,6 +103,34 @@ RE_ABSORB = re.compile(
     r"\[acp-absorb\] absorbed (?P<ref>m\d+) \(~(?P<orig>[\d.]+[KM]?) tokens"
 )
 
+# --- fold-detail noise (m00528) -------------------------------------------
+# bili.log emits ~8 noisy lines around every fold; these distill them into
+# one per-session `fold_details` dict the heartbeat renders as a second
+# line. Matched tolerantly: a line that fails to parse just doesn't
+# contribute its field.
+RE_REQ = re.compile(r"compress requested (\d+) range\(s\): ([^\]]+)")
+RE_CTXREF = re.compile(r"ctx has (\d+) message\(s\), state has (\d+) ref\(s\) mapped")
+RE_FIRSTIDS = re.compile(r"first msg ids: (.*)")
+RE_IDPAIR = re.compile(r"\S*\((\d+)c\)")
+RE_OBS_EXTRA = re.compile(
+    r"foldPoint=(\S+) blocks=(\d+) anchor≈(\d+) tok \((\d+) active blocks"
+    r".*?postCtx≈(\d+).*?ceiling ≥(\d+)%"
+)
+RE_CUM = re.compile(r"cumulative (\d+)%")
+RE_ATTR = re.compile(r"fold-attribution .*?V=(\d+) Vraw=(\d+) Vp=(\d+) \(#(\d+)\)")
+RE_RESULT = re.compile(r"\[Compressed .*?→ (\d+) block\(s\), ~(\d+) tokens saved")
+RE_EXCLUDED = re.compile(r"Excluded (\d+) protected")
+RE_LAST_ANCHOR = re.compile(r"Last-user anchor: (\S+)")
+RE_BSUM = re.compile(r"· (b\d+) summary (\d+)ch")
+# What started the fold (m00687): the last nudge (INJECT T1/T2/T3, idle) or
+# absorb seen before the fold's `compress requested` line — the heartbeat
+# shows it as the fold's kind tag. Degenerate folds are stamped at the
+# [warn: degenerate-fold] obs line instead.
+RE_TRIGGER = re.compile(r"nudge (?:(INJECT(?:-ESC)? T[123?])|(idle)):")
+RE_TOOL = re.compile(
+    r"tool compress executed via plugin \(routed by body, #(\d+)\) \((\d+) chars, outcome=(\w+)\)"
+)
+
 
 def _tok_k(s: str) -> int:
     """`5.5K` → 5500, `781` → 781, `2.1M` → 2_100_000."""
@@ -308,6 +336,21 @@ class Watch:
     per_session_absorbs: dict[str, int] = field(default_factory=dict)
     per_session_absorb_credit: dict[str, int] = field(default_factory=dict)
     _seen_absorbs: set[tuple[str, str, str]] = field(default_factory=set)
+    # Fold-detail noise, per session (m00528): the ~8 lines bili.log wraps
+    # around every fold (compress requested ranges / ctx+refs / first-msg
+    # ids / shrink-obs / fold-attribution / Compressed result / block-sum
+    # sizes / tool ack), merged into one dict. The heartbeat renders a
+    # fold's detail line ONCE — the first heartbeat after the burst
+    # completes (`res_blocks` set) consumes it (m00687).
+    fold_details: dict[str, dict] = field(default_factory=dict)
+    # What triggered the fold in flight, per session (m00687): the last
+    # nudge (T1/T2/T3/idle) or absorb seen before the `compress requested`
+    # line, stamped onto the fold dict as `kind`.
+    last_trigger: dict[str, str] = field(default_factory=dict)
+    # The `· b5 summary 848ch` ack lines carry NO session tag, so they
+    # attach to the session of the last tagged detail line (always their
+    # own fold's [Compressed …] line, emitted milliseconds earlier).
+    _last_detail_sid: str = field(default="")
     pending_injects: list[dict] = field(default_factory=list)
     _seen_injects: set[tuple[str, str]] = field(default_factory=set)
     inject_packets_written: set[str] = field(default_factory=set)
@@ -338,10 +381,19 @@ class Watch:
             ts = tm.group(1) if tm else ""
             if "nudge " in line:
                 self._consume_nudge(line, ts)
+                self._stamp_trigger(line)
             if "[acp-compress-obs]" in line and ts:
                 self._consume_fold(line, ts)
             if "[acp-absorb]" in line and ts:
+                self._stamp_trigger(line)
                 self._consume_absorb(line, ts)
+            if ts and (
+                "acp-proxy:" in line
+                or "[acp-compress-obs]" in line
+                or "· b" in line
+                or "tool compress executed" in line
+            ):
+                self._consume_detail(line, ts)
 
     def _consume_nudge(self, line: str, ts: str) -> None:
         m = RE_NUDGE.search(line)
@@ -411,6 +463,108 @@ class Watch:
             self.shrink_sum = getattr(self, "shrink_sum", 0) + shrink_pct
             self.shrink_count = getattr(self, "shrink_count", 0) + 1
             self.per_session_saved[sid] = self.per_session_saved.get(sid, 0) + int(mf.group(2))
+
+    def _stamp_trigger(self, line: str) -> None:
+        """Record what will have triggered the session's next fold
+        (m00687): tier nudges → T1/T2/T3, idle nudges → idle, absorb
+        acts → Abs. The fold's `compress requested` line reads this."""
+        sid = line_session(line)
+        if not sid:
+            return
+        m = RE_TRIGGER.search(line)
+        if m:
+            tag = m.group(1) or m.group(2)
+            # "INJECT T1"/"INJECT-ESC T1" → T1 (display kind, m00687)
+            self.last_trigger[sid] = tag.split()[-1] if tag.startswith("INJECT") else tag
+        elif "[acp-absorb]" in line:
+            self.last_trigger[sid] = "Abs"
+
+    def _consume_detail(self, line: str, ts: str) -> None:
+        """Merge one fold-detail noise line into the session's latest fold
+        dict (m00528). Merge is idempotent — a rotation replay rewrites the
+        same fields — and the [acp-compress-obs] line restamps `ts`, so the
+        heartbeat always shows the LAST fold's details for the session.
+        Untagged lines (`· b5 summary 848ch`) attach to the last tagged
+        session, which is always their own fold's [Compressed …] line."""
+        sid = line_session(line)
+        if sid:
+            self._last_detail_sid = sid
+        else:
+            sid = self._last_detail_sid
+        if not sid or (self.session and sid != self.session):
+            return
+        fd = self.fold_details.get(sid)
+        m = RE_REQ.search(line)
+        if m:
+            # A new fold STARTS here — use a fresh dict (m00778): the
+            # previous fold's dict must not leak its kind/sums into this
+            # one (a seeded window replays several folds back-to-back).
+            fd = {"ts": ts}
+            self.fold_details[sid] = fd
+            fd["kind"] = self.last_trigger.get(sid, "auto")
+            ranges = [r.strip() for r in m.group(2).split(",") if r.strip()]
+            fd["nranges"] = int(m.group(1))
+            fd["range_first"] = ranges[0] if ranges else "-"
+            fd["range_last"] = ranges[-1] if len(ranges) > 1 else "-"
+            return
+        if fd is None:
+            # Seed window cut mid-burst (first detail line seen without its
+            # fold's `compress requested` line) — create as before.
+            fd = self.fold_details.setdefault(sid, {"ts": ts})
+        if m := RE_CTXREF.search(line):
+            fd["ctx_msgs"] = int(m.group(1))
+            fd["refs"] = int(m.group(2))
+            return
+        if m := RE_FIRSTIDS.search(line):
+            pairs = RE_IDPAIR.findall(m.group(1))
+            fd["first_n"] = len(pairs)
+            fd["first_chars"] = sum(int(p) for p in pairs)
+            return
+        if "[acp-compress-obs]" in line and "shrink " in line:
+            fd["ts"] = ts
+            mf = RE_FOLD.search(line)
+            if mf:
+                fd["shrink"] = int(mf.group(1))
+                fd["shr_saved"] = int(mf.group(2))
+                fd["shr_orig"] = int(mf.group(3))
+                fd["fold_point"] = mf.group(4) or "-"
+            if mc := RE_CUM.search(line):
+                fd["cum"] = int(mc.group(1))
+            if mo := RE_OBS_EXTRA.search(line):
+                fd["fold_point"] = mo.group(1)
+                fd["blocks"] = int(mo.group(2))
+                fd["anchor"] = int(mo.group(3))
+                fd["actb"] = int(mo.group(4))
+                fd["post"] = int(mo.group(5))
+                fd["ceil"] = int(mo.group(6))
+            return
+        if "[warn: degenerate-fold]" in line:
+            # The degen warn is its own [acp-compress-obs] line (covers …%
+            # of the live context) — it names the fold's kind outright.
+            fd["kind"] = "Degen"
+            return
+        if m := RE_ATTR.search(line):
+            fd["v"] = int(m.group(1))
+            fd["vraw"] = int(m.group(2))
+            fd["vp"] = int(m.group(3))
+            return
+        if m := RE_RESULT.search(line):
+            fd["res_blocks"] = int(m.group(1))
+            fd["res_saved"] = int(m.group(2))
+            excl_m = RE_EXCLUDED.search(line)
+            fd["excluded"] = int(excl_m.group(1)) if excl_m else 0
+            anchor_m = RE_LAST_ANCHOR.search(line)
+            fd["last_anchor"] = anchor_m.group(1) if anchor_m else "-"
+            return
+        if m := RE_BSUM.search(line):
+            entry = (m.group(1), int(m.group(2)))
+            sums: list = fd.setdefault("sums", [])
+            if entry not in sums:
+                sums.append(entry)
+            return
+        if m := RE_TOOL.search(line):
+            fd["outcome"] = m.group(3)
+            fd["outcome_chars"] = int(m.group(2))
 
     def _consume_absorb(self, line: str, ts: str) -> None:
         ma = RE_ABSORB.search(line)
@@ -534,12 +688,15 @@ class Sample:
     cached_input: int = 0  # session-lifetime cached subset
     absorbs: int = 0  # tool-acp absorbs seen in the tail window
     absorb_credit: int = 0  # tokens credited back for absorbed outputs
+    # Latest fold's block details (m00528) — the noise lines bili.log wraps
+    # around a fold, distilled; None until the session's first fold.
+    fold_detail: dict | None = None
 
     def render(self) -> str:
         age = f" log_age={self.log_age}s" if self.log_age is not None else ""
         blk = ",".join(f"{k}:{v}" for k, v in sorted(self.blocked.items()))
         fires = self.fires
-        return (
+        line = (
             f"{self.sampled_at} vts={self.ts} sess={self.session or '-'} "
             f"ctx={fmt(self.ctx):>7} "
             f"growth={self.growth:>6}/{self.floor:<6} "
@@ -557,6 +714,28 @@ class Sample:
             f"blocked[{blk}] {' '.join(self.flags) or '-'} rung={self.tier or '-'}"
             f" blocked_by={self.blocked_by or '-'}{age} | {self.reason[:90]}"
         )
+        fd = self.fold_detail
+        if fd:
+            sums = ",".join(f"{b}:{c}ch" for b, c in fd.get("sums", [])) or "-"
+            rf, rl = fd.get("range_first", "-"), fd.get("range_last", "-")
+            ranges = f"{rf}…{rl}" if rl != "-" else rf
+            line += (
+                f"\n  fold@{fd.get('ts', '?')} [{fd.get('kind', '?')}]: "
+                f"ranges={fd.get('nranges', 0)} [{ranges}]"
+                f" ctx={fd.get('ctx_msgs', 0)}msg/{fd.get('refs', 0)}ref"
+                f" first={fd.get('first_n', 0)}msg/{fmt(fd.get('first_chars', 0))}ch"
+                f" shrink={fd.get('shrink', 0)}%"
+                f" ({fmt(fd.get('shr_saved', 0))}/{fmt(fd.get('shr_orig', 0))})"
+                f" cum={fd.get('cum', 0)}% foldPoint={fd.get('fold_point', '-')}"
+                f" blocks={fd.get('blocks', 0)} act={fd.get('actb', 0)}"
+                f" anchor={fmt(fd.get('anchor', 0))} postCtx={fmt(fd.get('post', 0))}"
+                f" ceil≥{fd.get('ceil', 0)}%"
+                f" V={fmt(fd.get('v', 0))} Vraw={fmt(fd.get('vraw', 0))} Vp={fmt(fd.get('vp', 0))}"
+                f" res={fd.get('res_blocks', 0)}blk/~{fmt(fd.get('res_saved', 0))}"
+                f" excluded={fd.get('excluded', 0)} lastUser={fd.get('last_anchor', '-')}"
+                f" sums=[{sums}] outcome={fd.get('outcome', '-')}"
+            )
+        return line
 
     def as_dict(self) -> dict:
         return {
@@ -581,6 +760,7 @@ class Sample:
             "shrink_pct": (self.shrink_sum / self.shrink_count if self.shrink_count else 0),
             "absorbs": self.absorbs,
             "absorb_credit": self.absorb_credit,
+            "fold_detail": self.fold_detail,
             "blocked": dict(self.blocked),
             "rung": self.tier,
             "blocked_by": self.blocked_by,
@@ -606,6 +786,18 @@ def _session_metrics(sid: str) -> dict:
     """
     bili_sessions.reset_caches()
     return bili_sessions.run_for_sid(sid) if sid else {}
+
+
+def _take_fold_detail(watch: Watch, sid: str) -> dict | None:
+    """Attach the session's latest fold detail and consume it (m00687):
+    each fold renders ONCE, on the first heartbeat after its burst
+    completes (`res_blocks` set); incomplete bursts render nothing yet
+    and stay queued for the next cycle."""
+    fd = watch.fold_details.get(sid)
+    if fd is None or fd.get("res_blocks") is None:
+        return None
+    watch.fold_details.pop(sid, None)
+    return fd
 
 
 def build_sample(
@@ -706,6 +898,7 @@ def build_sample(
         fires=fires,
         absorbs=absorbs,
         absorb_credit=absorb_credit,
+        fold_detail=_take_fold_detail(watch, sid),
         folds=folds,
         saved=saved,
         # `blocks` was len(state.active) — the active-flag subset the tier

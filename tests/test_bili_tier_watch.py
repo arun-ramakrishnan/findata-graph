@@ -55,6 +55,42 @@ FOLD_REAL_SHAPE = (
     "[acp-compress-obs] shrink 1% (~31062/2460899 tok) foldPoint=m11413 "
     "blocks=2 anchor≈24811 tok (26 active blocks, sys excluded) postCtx≈2429837"
 )
+
+
+# The ~8-line burst bili.log wraps around one fold (operator paste, m00528),
+# condensed to the parse-relevant shapes. The `· b5 summary` ack lines carry
+# NO session tag on purpose — they must attach via the last tagged line.
+FOLD_BURST = [
+    # A T1 nudge precedes the fold (m00687) — the fold's kind tag source.
+    "2026-11-16T08:11:16.000 [info] [v=0.1.215] [ses_real1] nudge INJECT T1: "
+    "usage=10% (86679/868928), growth=50887/20000 (ref=35792, interval=23000), "
+    'pendingT1=43679/23000 model=glm-5.3-flash, reason="T1 effective 43679 '
+    '>= 43000, growth 50887, usage 10%"',
+    "2026-11-16T08:11:16.931 [info] [v=0.1.215] [ses_real1] [plugin] [acp-proxy: "
+    "compress requested 5 range(s): m00232–m00254, m00257–m00315, m00316–m00417, "
+    "m00418–m00464, m00465–m00466]",
+    "2026-11-16T08:11:16.932 [info] [v=0.1.215] [ses_real1] [plugin] [acp-proxy: "
+    "ctx has 273 message(s), state has 476 ref(s) mapped]",
+    "2026-11-16T08:11:16.932 [info] [v=0.1.215] [ses_real1] [plugin] [acp-proxy: "
+    "first msg ids: x_e6d56f4efe(52c), x_24bf47e2d0(2318c), x_66b5a889e4(4035c)]",
+    "2026-11-16T08:11:16.955 [info] [v=0.1.215] [ses_real1] [plugin] "
+    "[acp-compress-obs] shrink 71% this-fold (~43679/61156 tok) · cumulative 72% "
+    "(~43900/61156 tok) foldPoint=m00232 blocks=4 anchor≈3600 tok (8 active "
+    "blocks, sys excluded) postCtx≈17256 → next-request cache ceiling ≥20%",
+    "2026-11-16T08:11:16.956 [info] [v=0.1.215] [ses_real1] [plugin] "
+    "[acp-compress-obs] fold-attribution X(firstFoldStartTokens)=m00232=4122 "
+    "m00257=4213 m00316=4773 m00418=5092 · V=61156 Vraw=187966 Vp=17256 (#3307)",
+    "2026-11-16T08:11:16.970 [info] [v=0.1.215] [ses_real1] [plugin] [acp-proxy: "
+    "[Compressed m00232–m00254, m00257–m00315, m00316–m00417, m00418–m00464, "
+    "m00465–m00466 → 4 block(s), ~43679 tokens saved. Excluded 2 protected "
+    "message(s) m00463, m00464 from compression range — Last-user anchor: "
+    'm00465 "add act column after blocks in bili_sess".]',
+    "2026-11-16T08:11:16.970 [info] [v=0.1.215]  · b5 summary 848ch",
+    "2026-11-16T08:11:16.970 [info] [v=0.1.215]  · b6 summary 1129ch",
+    "2026-11-16T08:11:16.974 [info] [v=0.1.215] [ses_real1] [plugin] tool "
+    "compress executed via plugin (routed by body, #1685) (1845 chars, "
+    "outcome=applied)",
+]
 INJECT_REAL_SHAPE = (
     "2026-10-20T04:39:41.717Z [info] [sess=ses_real1] [v=0.1.202] [ses_real1] "
     "nudge INJECT T1: usage=9% (83270/917504), growth=21038/20000 "
@@ -172,6 +208,118 @@ def test_consume_counts_a_fire_once():
     w.consume(NUDGE_T2)
     w.consume(NUDGE_T2)  # a re-scan after a rotation must not double count
     assert w.fires["T2"] == 1
+
+
+def test_fold_burst_details_merge_into_one_dict():
+    # m00528: the ~8-line noise burst around a fold distills into the
+    # session's fold_details dict; the untagged `· b5 summary` lines attach
+    # via the last tagged line; a replay (consume twice) is idempotent.
+    w = btw.Watch()
+    w.consume("\n".join(FOLD_BURST))
+    w.consume("\n".join(FOLD_BURST))
+    fd = w.fold_details["ses_real1"]
+    assert fd["kind"] == "T1"  # stamped from the preceding INJECT T1 nudge
+    assert fd["nranges"] == 5
+    assert fd["range_first"] == "m00232–m00254"
+    assert fd["range_last"] == "m00465–m00466"
+    assert fd["ctx_msgs"] == 273 and fd["refs"] == 476
+    assert fd["first_n"] == 3 and fd["first_chars"] == 52 + 2318 + 4035
+    assert fd["shrink"] == 71 and fd["shr_saved"] == 43679 and fd["shr_orig"] == 61156
+    assert fd["cum"] == 72
+    assert fd["fold_point"] == "m00232"
+    assert fd["blocks"] == 4 and fd["actb"] == 8
+    assert fd["anchor"] == 3600 and fd["post"] == 17256 and fd["ceil"] == 20
+    assert fd["v"] == 61156 and fd["vraw"] == 187966 and fd["vp"] == 17256
+    assert fd["res_blocks"] == 4 and fd["res_saved"] == 43679
+    assert fd["excluded"] == 2
+    assert fd["last_anchor"] == "m00465"
+    assert fd["sums"] == [("b5", 848), ("b6", 1129)]
+    assert fd["outcome"] == "applied" and fd["outcome_chars"] == 1845
+
+
+def test_fold_detail_renders_on_the_heartbeat(tmp_path):
+    w = btw.Watch()
+    w.consume("\n".join(FOLD_BURST))
+    db = _make_db(tmp_path)
+    s = btw.build_sample(w, _bars(), db, session="ses_real1")
+    out = s.render()
+    assert "fold@2026-11-16T08:11:16 [T1]: ranges=5 [m00232–m00254…m00465–m00466]" in out
+    assert "ctx=273msg/476ref" in out
+    assert "shrink=71% (43.7k/61.2k)" in out
+    assert "foldPoint=m00232 blocks=4 act=8" in out
+    assert "V=61.2k Vraw=188.0k Vp=17.3k" in out
+    assert "res=4blk/~43.7k excluded=2 lastUser=m00465" in out
+    assert "sums=[b5:848ch,b6:1129ch] outcome=applied" in out
+    # Rendered ONCE (m00687): the completed fold is consumed by the first
+    # heartbeat that shows it — the next cycle has no fold line.
+    assert w.fold_details.get("ses_real1") is None
+    s2 = btw.build_sample(w, _bars(), db, session="ses_real1")
+    assert s2.fold_detail is None
+    assert "\n  fold@" not in s2.render()
+    # No fold → no detail line at all.
+    w2 = btw.Watch()
+    w2.consume(NUDGE)
+    assert "\n  fold@" not in btw.build_sample(w2, _bars(), db, session="ses_real1").render()
+
+
+def test_fold_kind_from_absorb_and_degen_warn():
+    # m00687: an absorb act before the fold stamps kind=Abs; the
+    # [warn: degenerate-fold] obs line stamps kind=Degen outright.
+    w = btw.Watch()
+    w.consume(
+        "2026-11-16T09:00:00.000 [info] [v=0.1.215] [ses_k] [plugin] "
+        "[acp-absorb] absorbed m09287 (~4.2K tokens → summary ~577). The "
+        "original tool output is now hidden; your summary is the durable "
+        "record. (credit -4157 tok)"
+    )
+    w.consume(
+        "2026-11-16T09:00:01.000 [info] [v=0.1.215] [ses_k] [plugin] "
+        "[acp-proxy: compress requested 1 range(s): m00001–m00009]"
+    )
+    assert w.fold_details["ses_k"]["kind"] == "Abs"
+    w2 = btw.Watch()
+    w2.consume(
+        "2026-11-16T09:01:00.000 [info] [v=0.1.215] [ses_d] [plugin] "
+        "[warn: degenerate-fold] [acp-compress-obs] covers 81% of the live "
+        "context (~75863/93511 tok) leaving 5 active block(s), anchor≈4837 tok"
+    )
+    assert w2.fold_details["ses_d"]["kind"] == "Degen"
+
+
+def test_a_new_fold_starts_a_fresh_detail_dict():
+    # m00778 regression: a seeded window replays several folds back-to-back
+    # with no heartbeat between them; the second fold must NOT inherit the
+    # first one's kind (here [Degen] from a [warn: degenerate-fold] line)
+    # or its block sums.
+    w = btw.Watch()
+    fold1 = [
+        "2026-11-16T07:19:00.000 [info] [v=0.1.215] [ses_real1] nudge INJECT T1: "
+        "usage=10% (86679/868928), growth=50887/20000 (ref=35792, interval=23000), "
+        'pendingT1=43679/23000 model=glm-5.3-flash, reason="T1 effective 43679 '
+        '>= 43000, growth 50887, usage 10%"',
+        "2026-11-16T07:19:10.000 [info] [v=0.1.215] [ses_real1] [plugin] [acp-proxy: "
+        "compress requested 1 range(s): m00001–m00010]",
+        "2026-11-16T07:19:10.010 [info] [v=0.1.215] [ses_real1] [plugin] "
+        "[acp-compress-obs] shrink 88% this-fold (~68000/77000 tok) foldPoint=m00001 "
+        "blocks=1 anchor≈1600 tok (3 active blocks, sys excluded) postCtx≈9000 → "
+        "next-request cache ceiling ≥30%",
+        "2026-11-16T07:19:10.011 [info] [v=0.1.215] [ses_real1] [plugin] "
+        "[warn: degenerate-fold] [acp-compress-obs] covers 88% of the live context "
+        "(~68241/77735 tok) leaving 3 active block(s), anchor≈1622 tok",
+        "2026-11-16T07:19:10.012 [info] [v=0.1.215]  · b1 summary 800ch",
+        "2026-11-16T07:19:10.013 [info] [v=0.1.215] [ses_real1] [plugin] [acp-proxy: "
+        "[Compressed m00001–m00010 → 1 block(s), ~68000 tokens saved.]",
+    ]
+    w.consume("\n".join(fold1))
+    assert w.fold_details["ses_real1"]["kind"] == "Degen"
+    assert w.fold_details["ses_real1"]["sums"] == [("b1", 800)]
+    # The later 08:11 fold (same session) starts fresh:
+    w.consume("\n".join(FOLD_BURST))
+    fd = w.fold_details["ses_real1"]
+    assert fd["kind"] == "T1"
+    assert fd["ts"] == "2026-11-16T08:11:16"  # restamped by the new fold
+    assert fd["sums"] == [("b5", 848), ("b6", 1129)]  # b1 from fold1 is gone
+    assert fd["shrink"] == 71 and fd["res_blocks"] == 4
 
 
 def test_consume_counts_a_fold_once():
