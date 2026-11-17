@@ -45,7 +45,7 @@ Usage::
 
 Scratch-census numbers of record live in the proposal; this tool is the
 repeatable runner behind it. ``size_watch`` extends the census with an
-advisory growth line per store against the 2026-11-08 live census
+advisory growth line per store against the 2026-11-17 live census
 baseline (warn at 1.5×, ACT at 2× — the production_db_copy_audit
 doubling trigger); advisory never moves the exit code.
 """
@@ -78,9 +78,15 @@ _PRIMARIES = {"memory/research.db", "memory/graph.duckdb"}  # noqa: E402
 
 # These stores have distinct lifecycle owners and deliberately stay out of
 # db_maint's backup/reclaim estate. Keep the exception visible in each census.
+# The legacy FTS5 rollback sidecars carry the same doctrine: the rebuild
+# tools own them (rebuild_git_search.py / rebuild_script_search.py default to
+# the .duckdb paths and keep the .db files as rollback-only); adopting them
+# into SIDECAR_* would double-manage a file nothing rewrites.
 _OWNED_ELSEWHERE: dict[str, str] = {
     "memory/git_search.duckdb": "rebuilt by helpers/maintenance/rebuild_git_search.py; not snapshotted",
     "memory/note_vectors.duckdb": "derived vector mirror owned by helpers/core/vec_search.py",
+    "memory/git_search.db": "legacy FTS5 rollback owned by helpers/maintenance/rebuild_git_search.py (live path is memory/git_search.duckdb); not snapshotted",
+    "memory/script_search.db": "legacy FTS5 rollback owned by helpers/maintenance/rebuild_script_search.py (live path is memory/script_search.duckdb); not snapshotted",
 }
 
 MB = 1048576
@@ -261,29 +267,34 @@ def _fmt(n: int | None) -> str:
     return f"{n / MB:7.1f}M" if n is not None else "      -"
 
 
-# Census-of-record baseline (S2 of the 2026-11-08 census re-run; MiB
-# re-derived from the live store measurements, not transcribed — the
-# 2026-10-27 refresh claimed in pending.md never reached this dict, so two of the
-# three ACT lines were stale-baseline artifacts, not growth).
-# size_watch compares the live sweep against it: a sanction is sized
-# against the data of its day and decays silently otherwise (the keep_all
-# lesson — 307 MiB × 30 per run). Sidecar estate only: the primaries
+# Census-of-record baseline (2026-11-17 re-baseline; MiB re-derived
+# from the live store measurements, not transcribed — the 2026-11-08
+# census drifted silently over the following nine days: #524 cut
+# convo_search 3170.01 → 1286.76 and sources shrank 47.26 → 22.51).
+# Two consistency fixes ride along: the dead `memory/script_search.db`
+# entry (never a sweep row — the legacy rollback is owned-elsewhere) is
+# dropped, and baselines are recorded for the swept stores that lacked
+# one (embed_store.db, script_search.duckdb, doc_search.duckdb,
+# memory_search.duckdb). Sidecar estate only: the primaries
 # (research.db / graph.duckdb) are db_maint's own maintained objects
 # and never appear as sweep rows (single-owner rule), so they take no
 # entry here. Advisory only, never the exit code.
 _FILING_MB: dict[str, float] = {
-    "memory/graph.xdist-shared.duckdb": 66.26,
-    "memory/convo_search.duckdb": 3170.01,
-    "memory/embed_store.duckdb": 387.26,
-    "memory/note_search.duckdb": 216.75,
-    "memory/corpus.db": 58.46,
-    "memory/doc_search.db": 30.19,
-    "memory/script_search.db": 4.32,
-    "memory/memory_search.db": 3.14,
-    "memory/md_lint_cache.db": 0.30,
-    "memory/data/agent_traces.duckdb": 211.76,
-    "memory/data/sources.duckdb": 47.26,
-    "memory/data/model_usage.duckdb": 1.76,
+    "memory/graph.xdist-shared.duckdb": 74.51,
+    "memory/convo_search.duckdb": 1286.76,
+    "memory/embed_store.duckdb": 424.01,
+    "memory/note_search.duckdb": 216.76,
+    "memory/corpus.db": 58.81,
+    "memory/doc_search.db": 43.55,
+    "memory/memory_search.db": 6.64,
+    "memory/md_lint_cache.db": 0.32,
+    "memory/embed_store.db": 527.07,
+    "memory/script_search.duckdb": 17.26,
+    "memory/doc_search.duckdb": 99.76,
+    "memory/memory_search.duckdb": 13.26,
+    "memory/data/agent_traces.duckdb": 221.01,
+    "memory/data/sources.duckdb": 22.51,
+    "memory/data/model_usage.duckdb": 1.26,
 }
 
 WARN_RATIO = 1.5  # growth notable — next census re-run should look here
@@ -291,7 +302,7 @@ ACT_RATIO = 2.0  # the pending.md doubling trigger — census re-run owed
 
 
 def size_watch(rows: list[dict]) -> list[str]:
-    """Advisory growth lines vs the 2026-11-08 measured filing baseline.
+    """Advisory growth lines vs the 2026-11-17 measured filing baseline.
 
     Warn at WARN_RATIO and ACT at ACT_RATIO. A store with no baseline
     gets one baseline-prompt line; quiet stores print nothing. Pure
