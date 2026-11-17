@@ -22,6 +22,7 @@ if str(_REPO) not in sys.path:
     sys.path.insert(0, str(_REPO))
 
 from helpers.maintenance import harvest_conversations as hc  # noqa: E402
+from helpers.analytics import agent_traces as at  # noqa: E402
 from helpers.analytics import model_analytics as ma  # noqa: E402
 
 V2_SCHEMA = """
@@ -440,3 +441,116 @@ def test_lane_scalar_guard_skips_groupby_when_clean(tmp_path):
     assert any("GROUP BY" in s for s in traced), traced
     assert set(out) == {"v2", "evt"}
     con.set_trace_callback(None)
+
+
+def test_parse_opencode_repeated_block_id_keeps_both_calls(tmp_path, monkeypatch):
+    """v2 block ids (`functions.<tool>:<n>`) are per-session counters that
+    RESTART and re-emit (measured 2026-11-17: `functions.shell:21` fires
+    twice in ses_e16b2c6f6ffeQ1souXQgYGF51P ~24 min apart, and appears
+    again in a different session on 2026-11-10), so the raw callId cannot
+    key fact_tool_call (PK source+tool_call_id). Rows must be keyed on the
+    composite `{sid}:{mid}:{callId}` and BOTH calls must survive (the old
+    keying let the second call silently overwrite the first in-memory)."""
+    db = tmp_path / "opencode.db"
+    con = sqlite3.connect(db)
+    con.executescript(
+        """
+        CREATE TABLE session (
+            id TEXT PRIMARY KEY, time_created INTEGER NOT NULL,
+            time_updated INTEGER NOT NULL, directory TEXT NOT NULL,
+            slug TEXT NOT NULL, agent TEXT, model TEXT,
+            summary_additions INTEGER DEFAULT 0, summary_deletions INTEGER DEFAULT 0,
+            summary_files INTEGER DEFAULT 0, tokens_input INTEGER DEFAULT 0,
+            tokens_output INTEGER DEFAULT 0, tokens_reasoning INTEGER DEFAULT 0,
+            tokens_cache_read INTEGER DEFAULT 0, cost REAL DEFAULT 0);
+        CREATE TABLE session_v2 (
+            id TEXT PRIMARY KEY, project_id TEXT NOT NULL, workspace_id TEXT,
+            parent_id TEXT, slug TEXT NOT NULL, directory TEXT NOT NULL,
+            path TEXT, title TEXT, version TEXT NOT NULL,
+            cost REAL DEFAULT 0 NOT NULL, agent TEXT, model TEXT,
+            time_created INTEGER NOT NULL, time_updated INTEGER NOT NULL,
+            summary_additions INTEGER DEFAULT 0, summary_deletions INTEGER DEFAULT 0,
+            summary_files INTEGER DEFAULT 0, tokens_input INTEGER DEFAULT 0,
+            tokens_output INTEGER DEFAULT 0, tokens_reasoning INTEGER DEFAULT 0,
+            tokens_cache_read INTEGER DEFAULT 0);
+        CREATE TABLE session_message (
+            id TEXT PRIMARY KEY, session_id TEXT NOT NULL, type TEXT NOT NULL,
+            seq INTEGER NOT NULL, time_created INTEGER NOT NULL,
+            time_updated INTEGER NOT NULL, data TEXT NOT NULL);
+        CREATE TABLE message (
+            id TEXT PRIMARY KEY, session_id TEXT NOT NULL,
+            time_created INTEGER NOT NULL, time_updated INTEGER NOT NULL,
+            data TEXT NOT NULL);
+        CREATE TABLE part (
+            id TEXT PRIMARY KEY, message_id TEXT NOT NULL,
+            session_id TEXT NOT NULL, time_created INTEGER NOT NULL,
+            time_updated INTEGER NOT NULL, data TEXT NOT NULL);
+        CREATE TABLE event (
+            id TEXT PRIMARY KEY, aggregate_id TEXT NOT NULL, seq INTEGER NOT NULL,
+            type TEXT NOT NULL, data TEXT NOT NULL, created INTEGER DEFAULT 0 NOT NULL);
+        """
+    )
+    con.execute(
+        "INSERT INTO session_v2 "
+        "(id, project_id, slug, directory, title, version, cost, agent, model, "
+        "time_created, time_updated) VALUES "
+        "('s9', 'p', 'slug', '/repo', 'Nine', '2.0.26', 0, 'build', "
+        '\'{"providerID": "opencode", "id": "glm-5.3-flash"}\', 1000, 5000)'
+    )
+
+    def _tool_msg(mid: str, t: int) -> str:
+        return json.dumps(
+            {
+                "role": "assistant",
+                "model": {"providerID": "opencode", "id": "glm-5.3-flash"},
+                "time": {"created": t, "completed": t + 1000},
+                "content": [
+                    {
+                        "type": "tool",
+                        "id": "functions.shell:21",  # same id, two real calls
+                        "name": "shell",
+                        "state": {
+                            "status": "completed",
+                            "content": [{"type": "text", "text": f"out{mid}"}],
+                        },
+                        "time": {"created": t + 10, "completed": t + 20},
+                    }
+                ],
+                "tokens": {
+                    "input": 1,
+                    "output": 1,
+                    "reasoning": 0,
+                    "cache": {"read": 0, "write": 0},
+                },
+            }
+        )
+
+    con.execute(
+        "INSERT INTO session_message VALUES ('m-a1', 's9', 'assistant', 1, 2000, 3000, ?)",
+        (_tool_msg("m-a1", 2000),),
+    )
+    con.execute(
+        "INSERT INTO session_message VALUES ('m-a2', 's9', 'assistant', 2, 4000, 5000, ?)",
+        (_tool_msg("m-a2", 4000),),
+    )
+    con.commit()
+    con.close()
+    monkeypatch.setattr(at, "OC_DB", db)
+    monkeypatch.setattr(at, "OC_SNAPSHOTS", [])
+
+    import duckdb
+
+    dcon = duckdb.connect(":memory:")
+    try:
+        dcon.execute(at.SCHEMA)
+        at._parse_opencode(dcon, None)  # must not raise ConstraintException
+        rows = dcon.execute(
+            "SELECT tool_call_id, session_id, tool_name "
+            "FROM fact_tool_call WHERE source='opencode' ORDER BY ts"
+        ).fetchall()
+        assert rows == [
+            ("s9:m-a1:functions.shell:21", "s9", "shell"),
+            ("s9:m-a2:functions.shell:21", "s9", "shell"),
+        ], rows
+    finally:
+        dcon.close()

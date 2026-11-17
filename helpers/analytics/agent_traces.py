@@ -1149,11 +1149,19 @@ def _parse_opencode(con, since=None):  # noqa: C901  # moved verbatim; split nee
                     d.get("cost"),
                     "harness" if d.get("cost") is not None else None,
                 )
-            # v2 tool calls: block ids are callIDs — stable across snapshots,
-            # unlike v1 part ids, so cross-db dedupe holds. Output text lives
-            # in state.content[] (v2 states have no `output` key). Steps count
-            # tool blocks (the v2 equivalent of step-finish parts); v2
-            # sessions have no v1 part rows, so the part loop below never
+            # v2 tool calls: block ids look like `functions.<tool>:<n>` —
+            # per-session counters that RESTART and re-emit (measured
+            # 2026-11-17: `functions.shell:21` fired twice in the same
+            # session ~24 min apart, and appears again in a different
+            # session on 2026-11-10), so the raw callId is NOT unique and
+            # cannot key fact_tool_call (PK source+tool_call_id). Store the
+            # composite `{sid}:{mid}:{callId}`: message ids are stable
+            # across snapshot/live copies, so cross-db dedupe still holds
+            # (live wins), and the composite is unique within a session
+            # because a message never repeats a block id. Output text lives
+            # in state.content[] (v2 states have no `output` key). Steps
+            # count tool blocks (the v2 equivalent of step-finish parts);
+            # v2 sessions have no v1 part rows, so the part loop below never
             # double-counts them.
             for mid, sid, tc, tu, typ, data in v2rows:
                 d = jsonio.loads(data)
@@ -1173,8 +1181,9 @@ def _parse_opencode(con, since=None):  # noqa: C901  # moved verbatim; split nee
                     if since and (bday or day) and (bday or day) < since:
                         continue
                     err = st.get("status") == "error"
-                    tools[b.get("id") or mid] = (
-                        b.get("id") or mid,
+                    tid = f"{sid}:{mid}:{b.get('id') or mid}"
+                    tools[tid] = (
+                        tid,
                         sid,
                         mid,
                         b.get("name"),
