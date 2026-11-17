@@ -552,3 +552,54 @@ class TestCliNoBackupSidecars:
         rc = db_maint.main(["--db", str(db), "--backup", str(tmp_path / "b.db")])
         assert rc == 0
         assert captured["sidecars"] is True
+
+
+class TestCheckMode:
+    """Step 6 spike: DBMaintainer.check() / ``--check`` — read-only
+    diagnostics pass (no backups, no vacuum, no sidecar writes), engine
+    agnostic via the Step 5 connect_funnel.``"""
+
+    def test_check_sqlite_branch(self, tmp_path, capsys):
+        db = tmp_path / "research.db"
+        con = sqlite3.connect(str(db))
+        con.execute("CREATE TABLE t (i INT)")
+        con.execute("INSERT INTO t VALUES (1)")
+        con.close()
+        rc = db_maint.main(["--check", "--db", str(db), "--backup", str(tmp_path / "b.db")])
+        out = capsys.readouterr().out
+        assert rc == 0
+        assert '"engine": "sqlite"' in out
+        assert '"metrics"' in out
+        assert '"stat_staleness"' in out
+
+    def test_check_duckdb_branch_runs_fk_scan(self, tmp_path, capsys):
+        store = tmp_path / "converted.duckdb"
+        con = duckdb.connect(str(store))
+        con.execute("CREATE TABLE entities (name VARCHAR PRIMARY KEY)")
+        con.execute("CREATE TABLE quotes (id BIGINT PRIMARY KEY, entity VARCHAR)")
+        con.execute("INSERT INTO entities VALUES ('A'), ('B')")
+        con.execute("INSERT INTO quotes VALUES (1, 'A'), (2, 'B')")
+        con.close()
+        rc = db_maint.main(["--check", "--db", str(store), "--backup", str(tmp_path / "b.db")])
+        out = capsys.readouterr().out
+        assert rc == 0
+        assert '"engine": "duckdb"' in out
+        assert '"fk_ok": true' in out
+        assert '"fk_edges_checked": 22' in out
+
+    def test_check_duckdb_branch_detects_orphan(self, tmp_path):
+        store = tmp_path / "broken.duckdb"
+        con = duckdb.connect(str(store))
+        con.execute("CREATE TABLE entities (name VARCHAR PRIMARY KEY)")
+        con.execute("CREATE TABLE quotes (id BIGINT PRIMARY KEY, entity VARCHAR)")
+        con.execute("INSERT INTO entities VALUES ('A')")
+        con.execute("INSERT INTO quotes VALUES (100, '__ghost__')")
+        con.close()
+        rc = db_maint.main(["--check", "--db", str(store), "--backup", str(tmp_path / "b.db")])
+        assert rc == 1
+
+    def test_check_missing_store_exits_1(self, tmp_path):
+        rc = db_maint.main(
+            ["--check", "--db", str(tmp_path / "nope.duckdb"), "--backup", str(tmp_path / "b.db")]
+        )
+        assert rc == 1

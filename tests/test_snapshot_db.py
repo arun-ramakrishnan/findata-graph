@@ -954,3 +954,97 @@ def test_note_sidecar_stray_table_warns_and_skips(tmp_path, caplog):
     res = snapshot_db._verify_parquet_duckdb_side(pq_base, note, _log, subdir="note")
     assert res["mismatches"] == [], res
     assert res["tables_checked"] == 2
+
+
+def test_duckdb_restore_warns_on_missing_expected_shadow(tmp_path, caplog):
+    """Step 6 restore-guard extension (watchlist G1): restoring a store
+    whose schema carries none of the expected FTS shadow schemas warns —
+    lexical search on it would raise CatalogException until a rebuild."""
+    duckdb = pytest.importorskip("duckdb")
+    src = tmp_path / "src.duckdb"
+    con = duckdb.connect(str(src))
+    con.execute("CREATE TABLE note_search (id BIGINT, file_path VARCHAR)")
+    con.execute("INSERT INTO note_search VALUES (1, 'a.md')")
+    con.close()
+
+    pq_base = tmp_path / "snapshots" / "parquet"
+    export_parquet_duckdb(src, pq_base / "duckdb", _log)
+
+    target = tmp_path / "restored.duckdb"
+    with caplog.at_level(logging.WARNING, logger="snapshot_db"):
+        restore_duckdb_from_parquet(
+            pq_base / "duckdb",
+            target,
+            _log,
+            expected_shadow_prefixes=("note_search",),
+        )
+    assert any("FTS shadow" in r.message for r in caplog.records)
+
+
+def test_duckdb_restore_silent_when_expected_shadow_present(tmp_path, caplog):
+    duckdb = pytest.importorskip("duckdb")
+    src = tmp_path / "src.duckdb"
+    con = duckdb.connect(str(src))
+    con.execute("CREATE TABLE note_search (id BIGINT, file_path VARCHAR)")
+    con.execute("INSERT INTO note_search VALUES (1, 'a.md')")
+    con.close()
+
+    pq_base = tmp_path / "snapshots" / "parquet"
+    export_parquet_duckdb(src, pq_base / "duckdb", _log)
+    # mark the shadow schema present in the applied DDL (derived-state
+    # marker: schema existence is what the guard probes)
+    schema_path = pq_base / "_schema.duckdb.sql"
+    schema_path.write_text(
+        "CREATE SCHEMA IF NOT EXISTS fts_main_note_search;\n" + schema_path.read_text()
+    )
+
+    target = tmp_path / "restored.duckdb"
+    with caplog.at_level(logging.WARNING, logger="snapshot_db"):
+        restore_duckdb_from_parquet(
+            pq_base / "duckdb",
+            target,
+            _log,
+            expected_shadow_prefixes=("note_search",),
+        )
+    assert not any("FTS shadow" in r.message for r in caplog.records)
+
+
+def test_research_shape_parquet_roundtrip(tmp_path):
+    """Step 6 proof: snapshot export/verify round-trips a research-shaped
+    store (FK chains + a view) — the shape Step 1 converted."""
+    duckdb = pytest.importorskip("duckdb")
+    src = tmp_path / "research.duckdb"
+    con = duckdb.connect(str(src))
+    con.execute("CREATE TABLE entities (name VARCHAR PRIMARY KEY)")
+    con.execute(
+        "CREATE TABLE events (id BIGINT PRIMARY KEY, entity VARCHAR REFERENCES entities(name))"
+    )
+    con.execute(
+        "CREATE TABLE quotes (id BIGINT PRIMARY KEY, entity VARCHAR REFERENCES entities(name))"
+    )
+    con.execute(
+        "CREATE TABLE hyper_edges (id BIGINT PRIMARY KEY, source VARCHAR REFERENCES entities(name), target VARCHAR REFERENCES entities(name))"
+    )
+    con.execute("INSERT INTO entities VALUES ('A'), ('B'), ('C')")
+    con.execute("INSERT INTO events VALUES (1, 'A'), (2, 'B'), (3, 'C')")
+    con.execute("INSERT INTO quotes VALUES (1, 'A'), (2, 'B'), (3, 'C')")
+    con.execute("INSERT INTO hyper_edges VALUES (1, 'A', 'B'), (2, 'B', 'C')")
+    con.execute(
+        "CREATE VIEW relations AS SELECT e.name FROM entities e WHERE e.name IN (SELECT entity FROM quotes)"
+    )
+    con.close()
+
+    pq_base = tmp_path / "snapshots" / "parquet"
+    research_manifest = frozenset({"entities", "events", "quotes", "hyper_edges"})
+    export_parquet_duckdb(src, pq_base / "duckdb", _log, manifest=research_manifest)
+
+    target = tmp_path / "restored.duckdb"
+    info = restore_duckdb_from_parquet(pq_base / "duckdb", target, _log)
+    assert info["tables"]["entities"] == 3
+    assert info["tables"]["events"] == 3
+    assert info["tables"]["quotes"] == 3
+    assert info["tables"]["hyper_edges"] == 2
+
+    ver = snapshot_db._verify_parquet_duckdb_side(pq_base, target, _log)
+    assert ver["mismatches"] == [], ver
+    assert ver["tables_checked"] == 4

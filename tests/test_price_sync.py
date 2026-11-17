@@ -384,5 +384,24 @@ def test_load_tickers_reads_entities_table(tmp_path: Path, monkeypatch: pytest.M
     )
     con.commit()
     con.close()
-    monkeypatch.setattr(ps, "connect", lambda *a, **k: sqlite3.connect(str(db)))
+    monkeypatch.setattr(ps, "_DB_CONNECT", lambda *a, **k: sqlite3.connect(str(db)))
     assert ps.load_tickers() == ["A.NS", "B.BO"]  # deduped, sorted, empties out
+
+
+def test_load_tickers_duckdb_branch(tmp_path: Path):
+    """The real load_tickers over a DuckDB entities store: the Step 5
+    funnel's duckdb branch passes the same read query (same dedupe /
+    sort / empties-out contract) as the sqlite branch."""
+    import duckdb
+
+    db = tmp_path / "research.duckdb"
+    con = duckdb.connect(str(db))
+    con.execute(
+        "CREATE TABLE entities (name VARCHAR PRIMARY KEY, entity_type VARCHAR, ticker VARCHAR)"
+    )
+    con.executemany(
+        "INSERT INTO entities (name, entity_type, ticker) VALUES (?, 'company', ?)",
+        [("A Ltd", "A.NS"), ("B Ltd", "B.BO"), ("C Ltd", "A.NS"), ("D Ltd", None), ("E Ltd", "")],
+    )
+    con.close()
+    assert ps.load_tickers(db) == ["A.NS", "B.BO"]

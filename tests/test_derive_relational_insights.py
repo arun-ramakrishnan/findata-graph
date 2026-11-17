@@ -338,7 +338,9 @@ class TestCohortStaleness:
     def test_repointed_stamp_blocks(self, db):
         _, conn = db
         self._ensure(conn, {"hidden_connections": ("repointed", "CURRENT")})
-        reason, message = dri.cohort_staleness(conn, "hidden_connections")
+        stale = dri.cohort_staleness(conn, "hidden_connections")
+        assert stale is not None
+        reason, message = stale
         assert reason == dri.STALE_REPOINTED
         assert "repointed" in message
         assert dri.STALE_REMEDY in message
@@ -346,14 +348,18 @@ class TestCohortStaleness:
     def test_missing_row_in_a_present_table_blocks(self, db):
         _, conn = db
         self._ensure(conn, {"ultimate_parent": ("derived", "CURRENT")})
-        reason, message = dri.cohort_staleness(conn, "supply_chokepoints")
+        stale = dri.cohort_staleness(conn, "supply_chokepoints")
+        assert stale is not None
+        reason, message = stale
         assert reason == dri.STALE_UNSTAMPED
         assert dri.STALE_REMEDY in message
 
     def test_fingerprint_drift_blocks(self, db):
         _, conn = db
         self._ensure(conn, {"ultimate_parent": ("derived", "DEADBEEF00000000")})
-        reason, message = dri.cohort_staleness(conn, "ultimate_parent")
+        stale = dri.cohort_staleness(conn, "ultimate_parent")
+        assert stale is not None
+        reason, message = stale
         assert reason == dri.STALE_FINGERPRINT
         assert "DEADBEEF00000000" in message
 

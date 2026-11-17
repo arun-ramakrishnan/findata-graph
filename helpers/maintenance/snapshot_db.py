@@ -1410,6 +1410,7 @@ def restore_duckdb_from_parquet(
     target: Path,
     logger: logging.Logger,
     schema_filename: str = "_schema.duckdb.sql",
+    expected_shadow_prefixes: tuple[str, ...] = (),
 ) -> dict:
     """Rebuild a DuckDB file at ``target`` from ``parquet_dir``/*.parquet.
 
@@ -1417,6 +1418,13 @@ def restore_duckdb_from_parquet(
     each Parquet via ``read_parquet``, checkpoints, then atomically replaces
     ``target``. ``schema_filename`` selects the DDL next to the parquet dir
     (D15: ``_schema.sources.sql`` for sources.duckdb).
+
+    ``expected_shadow_prefixes``: FTS shadow schemas (``fts_main_<p>``)
+    the applied schema is supposed to carry (watchlist G1). After the
+    restore, each expected shadow that is absent is warned about — lexical
+    search on that store would raise CatalogException until the rebuild
+    runs. Derived state, not an error; empty by default (stores without
+    FTS expectations stay silent).
     """
     import duckdb
 
@@ -1463,6 +1471,13 @@ def restore_duckdb_from_parquet(
     logger.info(
         f"Restore DuckDB: {target} ({len(restored)} tables, {sum(restored.values()):,} rows)"
     )
+    for prefix in expected_shadow_prefixes:
+        if not _fts_shadow_present(target, prefix):
+            logger.warning(
+                f"  restored store has no FTS shadow (fts_main_{prefix}) — run the "
+                "rebuild for this store before searching (lexical search will raise "
+                "CatalogException)"
+            )
     return {"target": str(target), "tables": restored}
 
 
@@ -1540,13 +1555,8 @@ def _cmd_restore(  # noqa: C901  # restore orchestrator: arg branches mirror _cm
                 note_path,
                 logger,
                 schema_filename="_schema.note.sql",
+                expected_shadow_prefixes=("note_search",),
             )
-            if not _fts_shadow_present(note_path, "note_search"):
-                logger.warning(
-                    "  restored note sidecar has no FTS shadow — run "
-                    "rebuild_note_search.py before searching (lexical search "
-                    "will raise CatalogException)"
-                )
         else:
             logger.info(f"Note Parquet snapshot not found (skip): {parquet_note_dir}")
     return 0

@@ -15926,3 +15926,54 @@ best-effort try/except, so the k≠None path can use the index before corpus
 growth makes the full scan matter (k=None corpus-wide still scans by
 design). 35 snapshot tests pass including the missing-shadow warning;
 engine parity pinned by `tests/test_fts_topk_parity.py`.
+----
+## 533. DuckDB research-swap readiness program (Steps 0–8) complete; swap execution parked
+
+The research.db SQLite→DuckDB swap readiness program landed in one arc
+(`duckdb_research_swap_steps.md`, archived at `doc/improvements/archive/database/`):
+all eight steps EXECUTED 2026-11-17, each with acceptance verified, no
+production store written.
+
+- **Step 0** census instrument `helpers/misc/swap_prep_census.py` (advisory,
+  wired into `make advisory` as `swap-prep-census`): 38 tables, schema_version
+  17, 24 FK links across 15 tables, 22 FK action clauses across 14 tables
+  (15 DELETE CASCADE / 7 DELETE SET NULL / 21 UPDATE CASCADE), 150 PRAGMA
+  sites, 485 `connect(` sites, 92 writer files, 118 importers.
+- **Step 1** dry-run conversion (sqlite_scanner → duckdb): 38/38 row-count
+  and column-order parity; 0 FK orphans on both engines; finding:
+  `entities.created_at` rowid 746 malformed and the all-VARCHAR fallback
+  needed (entities only).
+- **Step 2** DDL draft (`findata/Misc/duckdb_research_swap_ddl_draft.sql`)
+  + cascade manifest (`..._cascade_manifest.json`): renders 38 tables + 23
+  indexes under duckdb 2.0.0; FK actions lowered to RESTRICT; NOCASE →
+  `(lower(name))` expression index; `datetime('now')` → CURRENT_TIMESTAMP.
+- **Step 3** `helpers/misc/swap_rewrite_flows.py`: DuckDB refuses in-place
+  UPDATE of FK-participating columns on referenced rows, so `rename_entity`
+  uses clone-move-delete (negative-id temp clones + repointing + re-insert
+  under the original id); `drop_entity` deletes children-before-parents.
+  6/6 dual-engine snapshot-equality tests.
+- **Step 4** `helpers/misc/swap_fk_integrity.py` first-party checker
+  (edges from the Step 2 manifest; NULL-child guards; rowid reporting;
+  `--json`; exits 1/0/2); 7/7 tests incl seeded broken-copy validation.
+- **Step 5** `helpers/core/db_engine.py` `connect_funnel` router
+  (DuckDBRow name-index shim, table_info/column_names/schema_version
+  introspection parity); `price_sync.load_tickers` is the first routed
+  reader; PRAGMA disposition re-verified against 150 live sites.
+- **Step 6** `db_maint --check` (read-only diagnostics via the funnel +
+  FK orphan scan) — live on the converted artifact: 38 tables/22 edges,
+  rc=0; snapshot export/verify round-trips the research shape; restore
+  guard extended via `expected_shadow_prefixes` on `restore_duckdb_from_parquet`.
+- **Step 7** wire write-batch matrix against a quack-served copy of the
+  converted store: autocommit per-row 9.31 ms/row, 25-row batch 2.99
+  ms/row (3.1× over wire autocommit), upsert idempotent both engines,
+  ROLLBACK consistent (0 rows landed), bulk 1000-row 2.0× local — no
+  breaking pattern. Finding: the conversion carries no UNIQUE/PRIMARY
+  KEY constraints, so idempotent upserts depend on preserving the user
+  indexes in the swap DDL.
+- **Step 8** canonical status table (phases de-risked, acceptance
+  verdicts, live census) with a re-verify marker.
+
+The swap execution itself is **PARKED/DEFERRED** by operator decision on
+2026-11-17 — the re-file (when unparked) must carry the mandatory
+eval-gate bullet (`helpers/misc/ontology_eval_gate.py` over the frozen
+question set) per the proposal's §4 house rule.

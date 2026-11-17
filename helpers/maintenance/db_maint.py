@@ -68,6 +68,7 @@ Usage:
 """
 
 import argparse
+import json
 import logging
 import os
 import re
@@ -994,6 +995,47 @@ class DBMaintainer:
         conn.execute("VACUUM")
         return "vacuum"
 
+    def check(self) -> dict:
+        """Read-only diagnostics pass (``--check``): open the target store
+        and run every non-mutating diagnostic — no backups, no vacuum, no
+        sidecar writes. Engine-agnostic via ``connect_funnel``: a
+        ``.duckdb`` target routes to the DuckDB branch (Step 5 funnel).
+        DuckDB targets additionally run the first-party FK orphan scan
+        (Step 4 checker) over the Step 2 manifest edges.
+        """
+        from helpers.core.db_engine import connect_funnel, is_duckdb_conn
+
+        result: dict = {"status": "check"}
+        conn = connect_funnel(self.db_path, read_only=True)
+        try:
+            if is_duckdb_conn(conn):
+                result["engine"] = "duckdb"
+                try:
+                    row = conn.execute(
+                        "SELECT COUNT(*) FROM information_schema.tables "
+                        "WHERE table_schema = 'main' AND table_type = 'BASE TABLE'"
+                    ).fetchone()
+                    result["tables"] = int(row[0]) if row else 0
+                except Exception:  # noqa: BLE001 — diagnostic best-effort
+                    result["tables"] = None
+                try:
+                    from helpers.misc.swap_fk_integrity import scan_orphans
+
+                    orphans, checked = scan_orphans(conn)
+                    result["fk_orphans"] = orphans
+                    result["fk_edges_checked"] = checked
+                    result["fk_ok"] = not orphans
+                except Exception as e:  # noqa: BLE001 — diagnostic best-effort
+                    result["fk_error"] = str(e)
+            else:
+                result["engine"] = "sqlite"
+                result["settings"] = self.settings(conn)
+                result["metrics"] = self.metrics(conn)
+                result["stat_staleness"] = self.stat_staleness(conn)
+            return result
+        finally:
+            conn.close()
+
     def run(self) -> dict:  # noqa: C901
         steps = [
             "SNAPSHOT",
@@ -1526,6 +1568,15 @@ def main(argv: list[str] | None = None) -> int:  # noqa: C901
         help="After maintenance, run verify_notes.py + database_integrity_check.py.",
     )
     parser.add_argument(
+        "--check",
+        action="store_true",
+        help="Read-only diagnostics pass (Step 6): open the --db store and "
+        "run the non-mutating diagnostics only — no backups, no vacuum. "
+        "A .duckdb target routes through the Step 5 funnel and adds the "
+        "Step 4 FK orphan scan. Exit 0 when the store opens and all "
+        "diagnostics pass (duckdb: fk_ok; sqlite: no hard errors).",
+    )
+    parser.add_argument(
         "--migrate-incremental",
         action="store_true",
         help="One-time migration: set PRAGMA auto_vacuum=INCREMENTAL and VACUUM to convert file (P2.5). File will be rewritten once.",
@@ -1587,6 +1638,16 @@ def main(argv: list[str] | None = None) -> int:  # noqa: C901
         duckdb_backup_path=duckdb_backup_path,
         backup_sidecars=not args.no_backup_sidecars,
     )
+    if args.check:
+        try:
+            summary = maintainer.check()
+        except Exception as e:  # noqa: BLE001 — CLI hard-error path: any open/diagnostic failure → rc 1
+            print(f"ERROR: {e}")
+            return 1
+        print(json.dumps(summary, indent=2, default=str))
+        if summary.get("engine") == "duckdb":
+            return 0 if summary.get("fk_ok", False) else 1
+        return 0
     try:
         results = maintainer.run()
     except FileNotFoundError as e:

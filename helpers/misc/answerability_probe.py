@@ -54,6 +54,7 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import re
 import sqlite3
 import sys
 from collections import Counter, defaultdict
@@ -638,6 +639,26 @@ def _stale_for_question(question: dict, stale_by_table: dict[str, str]) -> list[
     return [stale_by_table[t] for t in tables if t in stale_by_table]
 
 
+def _answer_sql_live(conn: sqlite3.Connection, params: dict) -> list[str]:
+    """Run a bank ``sql`` body against the live SQLite store.
+
+    The bank SQL carries the snapshot-only ``sqlite__`` prefix; the live
+    store mounts the same tables under their bare names. Rows come back
+    stringified one per row, cells joined with ``|`` — the same contract
+    the DuckDB probe side applies, so pins and parity compare like with
+    like. Only read-only SELECT/WITH is accepted, mirroring the probe's
+    guard; the whole point of this path is that a parity run may touch
+    the live store but never mutate it.
+    """
+    sql = params.get("sql")
+    if not isinstance(sql, str) or not sql.strip():
+        raise ProbeError("sql question needs params.sql (one read-only SELECT)")
+    if sql.strip().split(None, 1)[0].upper() not in {"SELECT", "WITH"}:
+        raise ProbeError("params.sql must be a read-only query (SELECT or WITH)")
+    rows = conn.execute(re.sub(r"\bsqlite__", "", sql)).fetchall()
+    return [" | ".join("" if cell is None else str(cell) for cell in row) for row in rows]
+
+
 def check_parity(
     questions_path: Path | str = DEFAULT_QUESTIONS,
     *,
@@ -649,8 +670,11 @@ def check_parity(
     The probe is only a snapshot instrument if the snapshot agrees with the
     live store. Live answers come from the eval gate itself, so this compares
     the two implementations as well as the two datasets — for the frozen set
-    AND the bank, whose metric_value entries prove the live certified view
-    and the probe's inline grain rule agree.
+    (via the gate) and for the bank, whose metric_value entries prove the live
+    certified view and the probe's inline grain rule agree and whose sql
+    entries are re-run on the live store with the ``sqlite__`` view prefix
+    stripped (the eval gate has no ``sql`` shape; the bank SQL is the only
+    definition of those questions).
     """
     from helpers.core.db import connect as connect_live
     from helpers.misc.ontology_eval_gate import answer_question as answer_live
@@ -665,9 +689,14 @@ def check_parity(
     snapshot = connect_snapshots(repo_root)
     mismatches: list[dict] = []
     try:
-        for q in doc["questions"]:
+        for q in questions:
             try:
-                live_answer = sorted(set(map(str, answer_live(live, q))))
+                if q.get("shape") == "sql":
+                    live_answer = sorted(
+                        set(map(str, _answer_sql_live(live, q.get("params") or {})))
+                    )
+                else:
+                    live_answer = sorted(set(map(str, answer_live(live, q))))
             except Exception as exc:  # noqa: BLE001 - gate raises many types
                 mismatches.append(
                     {"id": q["id"], "side": "live", "error": f"{type(exc).__name__}: {exc}"}

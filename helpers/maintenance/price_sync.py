@@ -31,16 +31,21 @@ _REPO_ROOT = Path(__file__).resolve().parents[2]
 if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
-from helpers.core.db import connect  # noqa: E402
+from helpers.core.db_engine import connect_funnel as _DB_CONNECT  # noqa: E402
 
 OUT_PATH = _REPO_ROOT / "memory" / "data" / "price_history_weekly.parquet"
 BATCH = 200
 PERIOD = "5y"
 
 
-def load_tickers() -> list[str]:
-    """Yahoo-suffixed tickers from entities, sorted for stable batches."""
-    con = connect(read_only=True)
+def load_tickers(db_path: Path | str | None = None) -> list[str]:
+    """Yahoo-suffixed tickers from entities, sorted for stable batches.
+
+    ``db_path`` defaults to the research store and routes through the
+    engine-agnostic ``connect_funnel`` (Step 5 of the swap-readiness
+    program: a ``.duckdb`` path selects the DuckDB branch).
+    """
+    con = _DB_CONNECT(db_path, read_only=True)
     try:
         rows = con.execute(
             "SELECT ticker FROM entities WHERE ticker IS NOT NULL AND ticker != '' ORDER BY ticker"

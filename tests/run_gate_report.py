@@ -434,6 +434,21 @@ GATES: dict[str, Gate] = {
             # (L2/L3/L4) shows up here instead of unnoticed. Cheap: one
             # RO connect per store, 4 queries × 3 runs.
             Step("perf-smoke", (_PY, "helpers/maintenance/perf_smoke.py")),
+            # swap-prep-census (duckdb_research_swap_steps.md Step 0, 2026-11-17):
+            # read-only census of the research.db SQLite→DuckDB swap surface
+            # (tables/schema_version/FK clauses/PRAGMA+connect sites/writer
+            # files/importers). Pins the dated Step-0 baseline; always exits
+            # 0 (advisory). No writes. See helpers/misc/swap_prep_census.py.
+            Step("swap-prep-census", (_PY, "helpers/misc/swap_prep_census.py")),
+            # swap-fk-integrity (duckdb_research_swap_steps.md Step 4
+            # wiring, landed post-archive 2026-11-17): FK-orphan scan of
+            # a converted research-store copy via the Step-4 checker.
+            # Reuses the scratch converted artifact when fresher than the
+            # live store, CTAS-rebuilds (sqlite_scanner, full type
+            # fidelity - the Step-1 all-varchar fallback is obsolete,
+            # its cause fixed 2026-11-17) otherwise. Always exits 0
+            # (advisory). See helpers/misc/swap_fk_gate.py.
+            Step("swap-fk-integrity", (_PY, "helpers/misc/swap_fk_gate.py")),
             Step("convo-fresh-check", (_MAKE, "convo-fresh")),
             Step("csr-fresh-check", (_MAKE, "csr-check")),
             Step("lint-audit", (_RUFF, "check", "--select", "S,UP,C901", ".")),
