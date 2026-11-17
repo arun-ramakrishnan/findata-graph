@@ -322,7 +322,9 @@ _SID_RE = re.compile(
 _SID_INDEX: dict[frozenset[str] | None, dict[str, list[Path]]] = {}
 
 
-def sid_log_index(want: frozenset[str] | None = None) -> dict[str, list[Path]]:
+def sid_log_index(  # noqa: C901  # session log index scan: per-harness/per-sid branches
+    want: frozenset[str] | None = None,
+) -> dict[str, list[Path]]:
     """session id -> log files mentioning it, built in ONE pass.
 
     The previous check read every candidate log in full for every session —
@@ -1364,7 +1366,7 @@ def _tier_rung(pend: Mapping[str, int | None], bars: dict[str, int]) -> str:
     return "STRANDED" if over_bar else "-"
 
 
-def _natural(row: dict, key: str) -> str:
+def _natural(row: dict, key: str) -> str:  # noqa: C901  # natural-key sort: numeric/alpha segment ladder
     """The cell's text. hit_pct keeps one decimal — the store may hand back
     int 97, and str() of that loses the decimal the column always showed."""
     if key == "saved":

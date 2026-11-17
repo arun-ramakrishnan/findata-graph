@@ -151,7 +151,7 @@ def note_snippet_highlighted(content: str, query: str) -> str:
     return out
 
 
-def search_notes_duckdb(
+def search_notes_duckdb(  # noqa: C901  # search: topk/macro/fallback ladder
     conn,
     q: str,
     limit: int = 20,

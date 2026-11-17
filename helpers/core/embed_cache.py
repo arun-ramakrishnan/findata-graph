@@ -237,8 +237,8 @@ class CachedEmbed:
             return
         try:
             conn.executemany(
-                "INSERT OR REPLACE INTO "
-                f"{EMBED_CACHE_TABLE} "  # noqa: S608  # constant table name
+                "INSERT OR REPLACE INTO "  # noqa: S608  # constant table name
+                f"{EMBED_CACHE_TABLE} "
                 "(text_hash, model, embedding, source) VALUES (?, ?, ?, ?)",
                 self._donor_pending,
             )
@@ -502,7 +502,7 @@ def _lookup_vectors(
     return vecs, hashes, miss_idx, backend, time.perf_counter() - lookup_started
 
 
-def cached_embed_batch(
+def cached_embed_batch(  # noqa: C901  # embed batch: cache-miss/mixed/purge branches
     conn,
     texts: list[str],
     model_label: str,

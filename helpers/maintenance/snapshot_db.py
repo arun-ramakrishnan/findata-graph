@@ -1987,7 +1987,7 @@ def _create_binary_snapshot(
     return ok
 
 
-def _create_parquet_snapshot(
+def _create_parquet_snapshot(  # noqa: C901  # parquet snapshot: per-side export ladder
     db_path: Path,
     parquet_base: Path | None,
     parquet_sqlite_dir: Path | None,

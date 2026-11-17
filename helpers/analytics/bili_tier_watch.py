@@ -479,7 +479,9 @@ class Watch:
         elif "[acp-absorb]" in line:
             self.last_trigger[sid] = "Abs"
 
-    def _consume_detail(self, line: str, ts: str) -> None:
+    def _consume_detail(  # noqa: C901  # fold-detail merge: one branch per detail kind
+        self, line: str, ts: str
+    ) -> None:
         """Merge one fold-detail noise line into the session's latest fold
         dict (m00528). Merge is idempotent — a rotation replay rewrites the
         same fields — and the [acp-compress-obs] line restamps `ts`, so the

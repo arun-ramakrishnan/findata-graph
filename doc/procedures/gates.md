@@ -56,25 +56,46 @@ Set by the operator 2026-10-02 ("our gates run arc is very problematic").
 
 ## Phase 1 — baseline (once, on the user's go)
 
-    make qa && make perf && make advisory
+    make qa && make advisory && make perf
 
-Advisory runs last: its informational legs never block. Read results via
-`gate_query` (`gate_query failures`, `gate_query latest --gate <name>`),
-not raw tails.
+**Order rationale (set 2026-11-17).** `perf` runs LAST, not in the middle:
+
+- perf is the only leg whose *verdict* depends on a quiet box (Phase 0
+  item 3). Putting it after qa + advisory gives the machine a chance to
+  settle from their pytest load instead of timing against it, and makes
+  the confound legible — if the box is still loaded when perf starts, the
+  run is CONTENDED and parked, and nothing else in the battery was
+  waiting on it.
+- perf is the leg most often SKIPPED or PARKED (timing failures are
+  parked, not chased — Phase 2). Scheduling it last means a parked or
+  skipped perf never gates the two correctness batteries: on
+  `skip the perf` instructions, qa and advisory have already completed
+  and their results stand.
+- advisory's legs are informational and never block; running it second
+  keeps the two correctness gates adjacent and finishing early.
+
+Advisory runs before perf: its informational legs never block. Read
+results via `gate_query` (`gate_query failures`, `gate_query latest
+--gate <name>`), not raw tails. If perf is skipped by operator
+instruction, say so in the trailer as `make perf — SKIPPED (operator)`
+rather than omitting it; a skipped leg and a parked leg are different
+records.
 
 ### The full gate surface (why some names are missing from the battery)
 
 `outputs/gate_runs.duckdb` indexes SEVEN gate names — `qa`, `integration`,
-`perf`, `advisory`, `maint`, `integrity`, `verify`. Only the first four are
-Phase 1 targets; the other three are reporting surfaces the same scripts
-already cover from inside the battery, so the arc does not run them twice:
+`perf`, `advisory`, `maint`, `integrity`, `verify`. Three are Phase 1
+targets (`qa`, `advisory`, `perf` — in that order, see above); `integration`
+is manual-only since 2026-11-09; the remaining three are reporting surfaces
+the same scripts already cover from inside the battery, so the arc does not
+run them twice:
 
 | gate name | report | runs in the arc as |
 |---|---|---|
-| `qa` | `qa_report.md` | Phase 1 target |
-| `integration` | `integration_report.md` | Phase 1 target (see the redundancy note below) |
-| `perf` | `perf_report.md` | Phase 1 target |
-| `advisory` | `advisory_report.md` | Phase 1 target |
+| `qa` | `qa_report.md` | Phase 1 target (first) |
+| `advisory` | `advisory_report.md` | Phase 1 target (second) |
+| `perf` | `perf_report.md` | Phase 1 target (third — quiet-box, parkable) |
+| `integration` | `integration_report.md` | **manual only** since 2026-11-09 (see the redundancy note below) |
 | `maint` | `maint_report.md` | **Phase 0** `make maint` — steps + timings land in `maint_runs`/`maint_phases` |
 | `integrity` | `database_integrity_report.md` | the `integrity_check` leg **inside qa** |
 | `verify` | `verify_notes_report.md` | the `verify_notes` leg **inside qa** |
@@ -92,9 +113,9 @@ Measured cost map (medians since 2026-11-01, `outputs/gate_runs.duckdb`
 | gate | wall | who owns it |
 |---|---|---|
 | qa | ~348 s | `pytest` ~333 s (exclusive: runs alone after the short legs drain) |
-| integration | ~141 s | one `pytest-integration` leg, 783 tests |
-| perf | ~92 s | 31 benches, longest ~10 s (plus ~20 s of qa-leg preflight re-runs) |
 | advisory | ~352 s | `live-invariants` ~352 s IS the wall; everything else packs under it |
+| perf | ~92 s | 31 benches, longest ~10 s (plus ~20 s of qa-leg preflight re-runs) |
+| integration | ~141 s | one `pytest-integration` leg, 783 tests (manual only — see below) |
 
 Three levers, in descending payoff:
 
@@ -313,9 +334,11 @@ slowness class at the cycle that causes it:
    `doc/templates/commit_message.md` seed via `stg edit -f <file> <patch>`
    — WHY-first body, one concrete number per bullet.
 6. Trailer — two parts, so it never claims more than ran:
-   `Gates: make qa 9/9, make perf 22/22 (2 timing
-   parked), make advisory 9/11 (freshness expected-red); post-fix
-   targeted: pytest tests/test_x.py::<id>`
+   `Gates: make qa 9/9, make advisory 9/11 (freshness expected-red),
+   make perf 22/22 (2 timing parked); post-fix targeted: pytest
+   tests/test_x.py::<id>` — battery order matches Phase 1 (qa, advisory,
+   perf). A perf leg skipped on operator instruction is recorded as
+   `make perf — SKIPPED (operator)`, distinct from parked.
    (`make integration` is no longer in the battery — cite it only if you
    ran it by hand, and then say "manual".)
 7. Close the books: per-patch stat reconciliation (split_patch.md rule 10),

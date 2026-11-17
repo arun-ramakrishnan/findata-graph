@@ -505,7 +505,19 @@ def _probe(entry: dict[str, Any]) -> bool:
         return False
 
 
-def fts_topk(
+def _is_sql_identifier(v: str) -> bool:
+    """True when ``v`` is a bare SQL identifier safe to interpolate.
+
+    The FTS helpers take ``fts_table``/``base_table``/``id_column`` as
+    arguments and splice them into SQL, so the S608 suppressions for this
+    module rest on this being enforced — not on callers happening to pass
+    module constants. Anything containing a quote, dot, space or other
+    punctuation is rejected and the helper falls back to the macro path.
+    """
+    return bool(v) and v.replace("_", "").isalnum() and not v[0].isdigit()
+
+
+def fts_topk(  # noqa: C901  # native-FTS top-k: stem-guess ladder + SQL assembly
     conn: duckdb.DuckDBPyConnection,
     *,
     fts_table: str,
@@ -547,8 +559,9 @@ def fts_topk(
     """
     if not tokens or not all(t for t in tokens):
         return None, "macro"
+    if not _is_sql_identifier(fts_table) or not _is_sql_identifier(base_table):
+        return None, "macro"
     try:
-        # schema guard: the four backing tables must exist in the FTS schema
         n = conn.execute(
             "SELECT count(*) FROM duckdb_tables() "
             "WHERE schema_name = ? AND table_name IN ('terms','dict','docs','stats')",
@@ -621,7 +634,7 @@ def fts_topk(
     return [(r[0], float(r[1])) for r in rows], "topk"
 
 
-def fts_topk_count(
+def fts_topk_count(  # noqa: C901  # native-FTS count: same stem-guess ladder
     conn: duckdb.DuckDBPyConnection,
     *,
     fts_table: str,
@@ -640,6 +653,8 @@ def fts_topk_count(
     the OR space" contract (note search) without a second macro scan.
     """
     if not tokens or not all(t for t in tokens):
+        return None
+    if not _is_sql_identifier(fts_table) or not _is_sql_identifier(base_table):
         return None
     try:
         n = conn.execute(

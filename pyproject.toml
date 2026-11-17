@@ -223,6 +223,26 @@ ignore = ["E501"]
 # identifiers; values always bound). Per-file rule beats ~15 inline noqas
 # that ruff-format keeps stranding off their anchor lines (corpus_uniformity S7b).
 "helpers/graph/query.py" = ["S608"]
+# duckdb_shared.py / embed_cache.py / note_query.py / convo_query.py /
+# rebuild_script_search.py: the DuckDB-native FTS lane. Every interpolation is
+# either a constant table/column identifier (fts_table, base_table, id_column,
+# EMBED_CACHE_TABLE are all module constants or literal call-site arguments, no
+# user input) or a computed "?, ?, ?" placeholder builder; values are ALWAYS
+# bound. `where_extra` is assembled only from literal " AND x = ?" fragments.
+# These carried inline `# noqa: S608` that ruff-format had stranded onto a
+# continuation line — the diagnostic spans the whole implicit concatenation, so
+# a mid-string noqa never suppresses. Same remedy and same rationale as
+# query.py above (lint-audit debt close-out, 2026-11-17).
+"helpers/core/duckdb_shared.py" = ["S608"]
+"helpers/core/embed_cache.py" = ["S608"]
+"helpers/misc/note_query.py" = ["S608"]
+"helpers/misc/convo_query.py" = ["S608"]
+"helpers/maintenance/rebuild_script_search.py" = ["S608"]
+# tests/test_embed_cache.py: EMBED_CACHE_TABLE is a module constant; the
+# git/script query tests build "? IN" placeholder lists — values bound.
+"tests/test_embed_cache.py" = ["S608"]
+"tests/test_git_query_duckdb.py" = ["S608"]
+"tests/test_script_query_duckdb.py" = ["S608"]
 # hyper_hif.py: same reviewed pattern as query.py — DuckDB ATTACH-count and
 # export queries interpolate only ?-clause builders (ph) / constant
 # identifiers; values always bound (S18(d) roundtrip validator).
