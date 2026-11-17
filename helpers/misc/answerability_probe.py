@@ -54,6 +54,7 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import sqlite3
 import sys
 from collections import Counter, defaultdict
 from pathlib import Path
@@ -95,6 +96,10 @@ _FAILURE_SETS: dict[str, frozenset[str]] = {
     "any": frozenset({STATUS_DRIFTED, STATUS_EMPTY, STATUS_ERRORED}),
     "none": frozenset(),
 }
+
+# Frozen-cohort shapes read the derived tables whose freshness the live store
+# records; `cohort_freshness` (below) annotates their records.
+COHORT_SHAPES: frozenset[str] = frozenset({"ultimate_parent_of", "insight_counterparts"})
 
 # Shape -> (business intent, one-line capability description). Ordered by the
 # ontology surfaces in doc/design/ontology.md §2 so a reader can walk the
@@ -477,6 +482,52 @@ def probe_question(con: duckdb.DuckDBPyConnection, question: dict) -> dict:
     return record
 
 
+def cohort_freshness(live_db: Path | str | None = None) -> list[dict]:
+    """Staleness of the four derived cohorts, read from the LIVE store.
+
+    The snapshot exports deliberately exclude ``derived_cohort_meta`` (it
+    changes on every derive while the cohort rows may not, so a tracked
+    parquet would sit under permanent drift — see
+    ``helpers/maintenance/snapshot_db.py``), so the stamp can only be read
+    from ``memory/research.db``. That asymmetry is the point: the cohort
+    ROWS are probed in the snapshot, while "was this a derivation of the
+    entity set I am probing" is a fact about the live store.
+
+    The entity fingerprint is hashed ONCE for the whole sweep (~27.8k names),
+    not once per cohort — pass it through so a probe run pays for it once.
+
+    Returns one entry per cohort with ``table``/``reason``/``message`` and an
+    empty list when the live store is unavailable or predates S2 (a pre-stamp
+    store cannot answer the question, so the probe stays quiet rather than
+    inventing a warning).
+    """
+    from helpers.core.db import connect as connect_live
+    from helpers.graph.derive_relational_insights import (
+        DERIVED_COHORT_TABLES,
+        stale_cohorts,
+    )
+
+    try:
+        conn = connect_live(live_db, read_only=True) if live_db else connect_live(read_only=True)
+    except sqlite3.Error, OSError:
+        return []
+    try:
+        stale = {
+            table: (reason, message)
+            for table, reason, message in stale_cohorts(conn, sorted(DERIVED_COHORT_TABLES))
+        }
+    finally:
+        conn.close()
+    return [
+        {
+            "table": table,
+            "reason": stale[table][0] if table in stale else None,
+            "message": stale[table][1] if table in stale else None,
+        }
+        for table in sorted(DERIVED_COHORT_TABLES)
+    ]
+
+
 def _load_questions(questions_path: Path | str) -> dict:
     path = Path(questions_path)
     if not path.is_file():
@@ -490,7 +541,13 @@ def _load_questions(questions_path: Path | str) -> dict:
     return doc
 
 
-def _summarise(doc: dict, records: list[dict], source: str, bank: dict | None = None) -> dict:
+def _summarise(
+    doc: dict,
+    records: list[dict],
+    source: str,
+    bank: dict | None = None,
+    cohorts: list[dict] | None = None,
+) -> dict:
     by_intent: dict[str, Counter] = defaultdict(Counter)
     for rec in records:
         by_intent[rec["intent"]][rec["status"]] += 1
@@ -501,6 +558,10 @@ def _summarise(doc: dict, records: list[dict], source: str, bank: dict | None = 
         "questions": len(records),
         "totals": dict(Counter(rec["status"] for rec in records)),
         "by_intent": {k: dict(v) for k, v in sorted(by_intent.items())},
+        "cohorts": cohorts or [],
+        "cohort_stale": sorted(
+            {c["table"] for c in (cohorts or []) if c.get("reason")},
+        ),
         "records": records,
     }
 
@@ -510,6 +571,7 @@ def probe_all(
     *,
     repo_root: Path | None = None,
     bank_path: Path | str | None = DEFAULT_BANK,
+    live_db: Path | str | None = None,
 ) -> dict:
     """Probe the whole frozen set — plus the question bank, when present —
     against the parquet snapshot.
@@ -519,6 +581,14 @@ def probe_all(
     text -> SQL -> pinned answer entries. It loads when it exists and is
     skipped silently when it does not (pre-bank checkouts, adhoc fixtures);
     pass ``bank_path=None`` to force it off.
+
+    ``live_db`` points at the store holding ``derived_cohort_meta``; the
+    snapshot cannot carry it. Records for ``COHORT_SHAPES`` gain a
+    ``cohort_stale`` list naming any derived table they read that is not a
+    verified derivation of the current entity set, and the report gains a
+    ``cohorts`` block. An untrustworthy cohort is still ANSWERED — the rows
+    are the best data available — but a reader can no longer mistake a
+    patched table for a derived one.
     """
     doc = _load_questions(questions_path)
     bank_doc, bank_source = None, None
@@ -526,12 +596,16 @@ def probe_all(
         bank_source = Path(bank_path)
         if bank_source.is_file():
             bank_doc = _load_questions(bank_source)
+    cohorts = cohort_freshness(live_db)
+    stale_by_table = {c["table"]: c["message"] for c in cohorts if c.get("reason")}
     con = connect_snapshots(repo_root)
     try:
         records = []
         for q in doc["questions"]:
             rec = probe_question(con, q)
             rec["set"] = "frozen"
+            if q.get("shape") in COHORT_SHAPES:
+                rec["cohort_stale"] = _stale_for_question(q, stale_by_table)
             records.append(rec)
         if bank_doc:
             for q in bank_doc["questions"]:
@@ -547,7 +621,21 @@ def probe_all(
             "version": bank_doc.get("version"),
             "questions": len(bank_doc["questions"]),
         }
-    return _summarise(doc, records, str(questions_path), bank=bank)
+    return _summarise(doc, records, str(questions_path), bank=bank, cohorts=cohorts)
+
+
+def _stale_for_question(question: dict, stale_by_table: dict[str, str]) -> list[str]:
+    """Warnings for the cohorts ONE question's shape actually reads."""
+    shape = question.get("shape")
+    params = question.get("params") or {}
+    if shape == "ultimate_parent_of":
+        tables = ["ultimate_parent"]
+    elif shape == "insight_counterparts":
+        kind = params.get("kind")
+        tables = [kind] if isinstance(kind, str) else []
+    else:  # pragma: no cover - COHORT_SHAPES is the closed set
+        tables = []
+    return [stale_by_table[t] for t in tables if t in stale_by_table]
 
 
 def check_parity(
@@ -633,6 +721,13 @@ def _print_report(report: dict) -> None:
         b = report["bank"]
         print(f"bank: {b['source']} (v{b['version']}, {b['questions']} questions)")
     print("  " + " · ".join(f"{s} {totals.get(s, 0)}" for s in STATUSES if totals.get(s, 0)))
+    stale = report.get("cohorts") or []
+    stale = [c for c in stale if c.get("reason")]
+    if stale:
+        print()
+        print(f"--- derived cohorts not verifiable as fresh ({len(stale)}) ---")
+        for cohort in stale:
+            print(f"  {cohort['table']:<22} [{cohort['reason']}]  {cohort['message']}")
     print()
     cols = ("answered", "negative", "drifted", "empty", "errored")
     header = f"{'intent':<14}" + "".join(f"{c:>10}" for c in cols)

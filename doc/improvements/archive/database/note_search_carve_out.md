@@ -1,9 +1,9 @@
 ---
 title: "note_search carve-out: last FTS5 out of research.db into a DuckDB native-FTS sidecar"
-status: proposed
+status: executed
 filed: "2026-11-15"
-executed:
-completed_md:
+executed: "2026-11-16"
+completed_md: "530"
 area: "helpers/maintenance/rebuild_note_search.py + helpers/misc/note_query.py + app.py + helpers/graph/query.py"
 ---
 
@@ -14,7 +14,7 @@ area: "helpers/maintenance/rebuild_note_search.py + helpers/misc/note_query.py +
 
 # note_search carve-out: last FTS5 out of research.db → DuckDB native-FTS sidecar
 
-**Date:** 2026-11-15 · **Status:** PROPOSED · **Area:**
+**Date:** 2026-11-15 · **Status:** EXECUTED (S0 2026-11-15, S1–S5 2026-11-16) · **Area:**
 `helpers/maintenance/rebuild_note_search.py` + `helpers/misc/note_query.py` +
 `app.py` + `helpers/graph/query.py` + `search_tui`/`master_query` (notes legs)
 + snapshot/db_maint/gc/seed wiring + tests.

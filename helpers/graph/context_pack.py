@@ -303,6 +303,27 @@ def _q(scon: sqlite3.Connection, sql: str, params: tuple = ()) -> list:
         return []
 
 
+def _cohort_warnings(scon: sqlite3.Connection, tables: tuple[str, ...]) -> list[str]:
+    """Staleness warnings for the derived cohorts this section is about to read.
+
+    S2/the fold stamp how each cohort was produced; a cohort that is not a
+    verified derivation of the CURRENT entity set is still served (the rows are
+    the best answer available) but must say so — a silent `repointed` cohort is
+    how 41,319 mixed `hidden_connections` pairs looked authoritative on
+    2026-11-16 when a true re-derivation gave 41,328.
+
+    Import is local: `derive_relational_insights` pulls `metapath`, which this
+    module otherwise never needs, and `context_pack` is imported by CLI paths
+    that must stay light.
+    """
+    from helpers.graph.derive_relational_insights import stale_cohorts
+
+    try:
+        return [message for _table, _reason, message in stale_cohorts(scon, tables)]
+    except sqlite3.Error:  # pre-S2 store: no meta table to consult
+        return []
+
+
 def _deep_control(scon: sqlite3.Connection, seed_name: str) -> list[str]:
     """Control rollup: the ultimate_parent row + the descendant forest."""
     lines: list[str] = []
@@ -498,6 +519,14 @@ def _deep_relations(
     """Assemble the whole deep-relations section; empty when nothing rolls
     up (the header is then omitted)."""
     L: list[str] = []
+    # Freshness first: a reader must know the cohort rows are patched, not
+    # derived, BEFORE reading numbers off them.
+    stale = _cohort_warnings(
+        scon,
+        ("ultimate_parent", "hidden_connections", "competitive_overlap", "supply_chokepoints"),
+    )
+    if stale:
+        L += ["### Data freshness", ""] + [f"- ⚠ {line}" for line in stale] + [""]
     ctrl = _deep_control(scon, seed_name)
     if ctrl:
         L += ["### Control", ""] + ctrl + [""]

@@ -45,6 +45,7 @@ import re
 import sqlite3
 import sys
 from collections import defaultdict
+from collections.abc import Iterable
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -108,6 +109,18 @@ _DDL = [
         c TEXT NOT NULL,
         computed_at DATETIME NOT NULL,
         PRIMARY KEY (a, b, c))""",
+    # Freshness marker (S2 of derived_name_columns_guard). These four tables
+    # hold entity names as bare TEXT with no FK, so a rename can leave them
+    # patched-but-not-re-derived. One row per table records which it is:
+    # 'derived' (a full lane run computed it) or 'repointed' (a fold re-pointed
+    # the names in place — counts may differ from a true re-derivation; the
+    # 2026-11-16 incident's 41,319-vs-41,328 is exactly that gap). Readers that
+    # care can refuse a 'repointed' cohort instead of trusting it.
+    """CREATE TABLE IF NOT EXISTS derived_cohort_meta (
+        table_name TEXT PRIMARY KEY,
+        mode TEXT NOT NULL,
+        entities_fingerprint TEXT NOT NULL,
+        stamped_at DATETIME NOT NULL)""",
 ]
 
 
@@ -284,6 +297,182 @@ _TABLES = {
     "competitive-overlap": ("competitive_overlap", derive_competitive_overlap),
 }
 
+#: The wholly-derived cohort tables this module owns. Their name columns carry
+#: no foreign key onto ``entities``, so ``helpers/graph/name_dedup`` re-points
+#: them by hand during a fold — see ``derived_name_columns_guard``. Imported by
+#: the fold so both sides agree on the set instead of keeping two lists.
+DERIVED_COHORT_TABLES: frozenset[str] = frozenset(
+    {
+        "competitive_overlap",
+        "hidden_connections",
+        "supply_chokepoints",
+        "ultimate_parent",
+    }
+)
+
+#: ``derived_cohort_meta.mode`` values. ``derived`` means a full lane run
+#: computed the rows; ``repointed`` means a fold rewrote names in place, so the
+#: rows are patched rather than recomputed (counts can differ from a true
+#: re-derivation — measured 41,319 vs 41,328 on 2026-11-16).
+MODE_DERIVED = "derived"
+MODE_REPOINTED = "repointed"
+
+
+def entities_fingerprint(conn: sqlite3.Connection) -> str:
+    """Cheap fingerprint of the live entity-name set (S2).
+
+    Order-independent and stable across a fold that changes no name, so a
+    reader can tell "this cohort was computed against the entity set I am
+    looking at" from "this cohort predates a rename". Sorted + hashed in
+    Python rather than SQL because ``group_concat`` ordering is not portable.
+    """
+    names = sorted(r[0] for r in conn.execute("SELECT name FROM entities").fetchall())
+    return hashlib.sha256("\n".join(names).encode()).hexdigest()[:16]
+
+
+def stamp_cohort(
+    conn: sqlite3.Connection, table: str, mode: str, *, now: str | None = None
+) -> None:
+    """Record how ``table`` came to hold its current rows.
+
+    Caller owns the transaction — the deriver stamps inside the same ``with
+    conn`` block that rewrote the table, and the fold stamps inside its own, so
+    the marker can never describe rows that failed to land.
+    """
+    stamp = now or datetime.now(UTC).isoformat(timespec="seconds")
+    conn.execute(
+        "INSERT INTO derived_cohort_meta (table_name, mode, entities_fingerprint, stamped_at)"
+        " VALUES (?, ?, ?, ?)"
+        " ON CONFLICT(table_name) DO UPDATE SET mode=excluded.mode,"
+        " entities_fingerprint=excluded.entities_fingerprint, stamped_at=excluded.stamped_at",
+        (table, mode, entities_fingerprint(conn), stamp),
+    )
+
+
+def _meta_table_exists(conn: sqlite3.Connection) -> bool:
+    return (
+        conn.execute(
+            "SELECT 1 FROM sqlite_master WHERE name='derived_cohort_meta' AND type='table'"
+        ).fetchone()
+        is not None
+    )
+
+
+def cohort_meta(conn: sqlite3.Connection) -> dict[str, tuple[str, str, str]]:
+    """``{table: (mode, fingerprint, stamped_at)}`` for the derived cohorts."""
+    if not _meta_table_exists(conn):
+        return {}
+    return {
+        row[0]: (row[1], row[2], row[3])
+        for row in conn.execute(
+            "SELECT table_name, mode, entities_fingerprint, stamped_at FROM derived_cohort_meta"
+        )
+    }
+
+
+#: Why ``cohort_staleness`` reported a cohort as untrustworthy. Ordered from
+#: the strongest signal to the weakest so a caller reporting one reason names
+#: the most actionable.
+STALE_UNSTAMPED = "unstamped"
+STALE_REPOINTED = "repointed"
+STALE_FINGERPRINT = "fingerprint"
+
+#: Remedy named in every warning — one command recomputes all four lanes.
+STALE_REMEDY = "make derive-relational-insights APPLY=1"
+
+
+def cohort_staleness(
+    conn: sqlite3.Connection, table: str, *, fingerprint: str | None = None
+) -> tuple[str, str] | None:
+    """Why ``table``'s rows must not be trusted as a derivation, or ``None``.
+
+    The reader-side twin of ``stamp_cohort``: S2 records how each cohort was
+    produced, and this decides whether that record licenses serving it.
+
+    Three ways a cohort fails to be a derivation of the current entity set:
+
+    * ``unstamped`` — ``derived_cohort_meta`` EXISTS but has no row for this
+      table, so something wrote the cohort outside a lane. This is the state a
+      hand-edit leaves behind.
+    * ``repointed`` — a fold rewrote names in place. Counts can differ from a
+      true re-derivation (measured 41,319 vs 41,328 on 2026-11-16).
+    * ``fingerprint`` — stamped, but against a different entity-name set than
+      the caller is now looking at, so a rename landed after the compute.
+
+    A store with NO ``derived_cohort_meta`` table at all returns ``None``: it
+    predates S2 (or is a fixture), nothing is knowable, and warning on every
+    row would be noise on every pre-S2 restore. The distinction is deliberate —
+    "cannot answer" is not "answered no".
+
+    ``fingerprint`` lets a caller that already hashed the entity set (once per
+    request, not once per cohort) avoid re-hashing it here.
+
+    Returns ``(reason, message)`` — the message names the stamp and the
+    remedy, so a warning can be read without consulting this docstring.
+    """
+    if not _meta_table_exists(conn):
+        return None
+    meta = cohort_meta(conn).get(table)
+    if meta is None:
+        return (
+            STALE_UNSTAMPED,
+            f"{table}: derived_cohort_meta has no stamp for this table — rows "
+            f"were not written by a derive lane; remedy: {STALE_REMEDY}",
+        )
+    mode, stamped_fp, stamped_at = meta
+    if mode != MODE_DERIVED:
+        return (
+            STALE_REPOINTED,
+            f"{table}: stamped {mode!r} at {stamped_at} — a fold rewrote names "
+            f"in place, so counts may differ from a true re-derivation; "
+            f"remedy: {STALE_REMEDY}",
+        )
+    current = fingerprint if fingerprint is not None else entities_fingerprint(conn)
+    if stamped_fp != current:
+        return (
+            STALE_FINGERPRINT,
+            f"{table}: computed against entities {stamped_fp} at {stamped_at}, "
+            f"but the entity set is now {current} — a rename landed after the "
+            f"compute; remedy: {STALE_REMEDY}",
+        )
+    return None
+
+
+def stale_cohorts(conn: sqlite3.Connection, tables: Iterable[str]) -> list[tuple[str, str, str]]:
+    """``[(table, reason, message)]`` for the cohorts that fail verification.
+
+    The batch form of ``cohort_staleness``, and the one readers should call:
+    the entity fingerprint is hashed AT MOST ONCE per batch even when several
+    cohorts are stale, instead of once per cohort. A healthy store hashes zero
+    times (every stamp is ``derived`` with no comparison needed).
+
+    Tables absent from the store are skipped silently — a cohort that was never
+    created cannot be stale.
+    """
+    wanted = [t for t in tables if _table_exists(conn, t)]
+    if not wanted:
+        return []
+    # Which cohorts need a fingerprint comparison at all? Only those whose stamp
+    # says 'derived'; an unstamped or repointed cohort is already answered.
+    meta = cohort_meta(conn)
+    needs_fp = any(meta.get(t) is not None and meta[t][0] == MODE_DERIVED for t in wanted)
+    fingerprint = entities_fingerprint(conn) if needs_fp else None
+    out: list[tuple[str, str, str]] = []
+    for table in wanted:
+        reason = cohort_staleness(conn, table, fingerprint=fingerprint)
+        if reason is not None:
+            out.append((table, reason[0], reason[1]))
+    return out
+
+
+def _table_exists(conn: sqlite3.Connection, table: str) -> bool:
+    return (
+        conn.execute(
+            "SELECT 1 FROM sqlite_master WHERE name=? AND type='table'", (table,)
+        ).fetchone()
+        is not None
+    )
+
 
 def _digest(rows: list[tuple]) -> str:
     """Content parity pin — sha256 over the rows MINUS computed_at."""
@@ -313,6 +502,9 @@ def run_lane(
                     f"INSERT INTO {table} VALUES ({','.join('?' * len(rows[0]))})",  # noqa: S608
                     rows,
                 )
+            # Same transaction as the rewrite: the freshness marker can never
+            # claim 'derived' for rows that failed to land.
+            stamp_cohort(conn, table, MODE_DERIVED, now=now)
     digest = _digest([r[:-1] for r in rows])
     mode = "APPLIED" if apply_ else "dry-run"
     print(f"[{mode}] {lane} -> {table}: {len(rows)} rows, content digest {digest}")

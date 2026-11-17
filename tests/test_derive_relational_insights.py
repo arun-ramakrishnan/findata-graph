@@ -304,3 +304,124 @@ class TestIdempotencyAndDryRun:
         n2, d2 = dri.run_lane(conn, "ultimate-parent", apply_=True, db_path=path)
         assert (n1, d1) == (n2, d2)
         assert conn.execute("SELECT COUNT(*) FROM ultimate_parent").fetchone()[0] == n2
+
+
+class TestCohortStaleness:
+    """S2 reader guard: `cohort_staleness` decides whether a cohort's stamp
+    licenses serving its rows as a derivation of the CURRENT entity set."""
+
+    def _ensure(self, conn, stamps: dict[str, tuple[str, str]]):
+        dri.ensure_tables(conn)
+        conn.commit()
+        from helpers.graph.derive_relational_insights import entities_fingerprint
+
+        current = entities_fingerprint(conn)
+        for table, (mode, fp) in stamps.items():
+            conn.execute(
+                "INSERT INTO derived_cohort_meta VALUES (?, ?, ?, '2026-11-17')",
+                (table, mode, current if fp == "CURRENT" else fp),
+            )
+        conn.commit()
+        return current
+
+    def test_absent_meta_table_is_not_a_verdict(self, db):
+        # A pre-S2 store cannot answer the question, so it must not warn on
+        # every cohort (noise on every restore).
+        _, conn = db
+        assert dri.cohort_staleness(conn, "ultimate_parent") is None
+
+    def test_fresh_stamp_passes(self, db):
+        _, conn = db
+        self._ensure(conn, {"ultimate_parent": ("derived", "CURRENT")})
+        assert dri.cohort_staleness(conn, "ultimate_parent") is None
+
+    def test_repointed_stamp_blocks(self, db):
+        _, conn = db
+        self._ensure(conn, {"hidden_connections": ("repointed", "CURRENT")})
+        reason, message = dri.cohort_staleness(conn, "hidden_connections")
+        assert reason == dri.STALE_REPOINTED
+        assert "repointed" in message
+        assert dri.STALE_REMEDY in message
+
+    def test_missing_row_in_a_present_table_blocks(self, db):
+        _, conn = db
+        self._ensure(conn, {"ultimate_parent": ("derived", "CURRENT")})
+        reason, message = dri.cohort_staleness(conn, "supply_chokepoints")
+        assert reason == dri.STALE_UNSTAMPED
+        assert dri.STALE_REMEDY in message
+
+    def test_fingerprint_drift_blocks(self, db):
+        _, conn = db
+        self._ensure(conn, {"ultimate_parent": ("derived", "DEADBEEF00000000")})
+        reason, message = dri.cohort_staleness(conn, "ultimate_parent")
+        assert reason == dri.STALE_FINGERPRINT
+        assert "DEADBEEF00000000" in message
+
+    def test_caller_supplied_fingerprint_avoids_a_reread(self, db):
+        _, conn = db
+        current = self._ensure(conn, {"ultimate_parent": ("derived", "CURRENT")})
+        # Equal fingerprint passed in -> fresh, no recompute needed.
+        assert dri.cohort_staleness(conn, "ultimate_parent", fingerprint=current) is None
+        # A different one supplied by the caller is trusted over the store.
+        assert dri.cohort_staleness(conn, "ultimate_parent", fingerprint="0" * 16) is not None
+
+    def test_apply_stamps_derived_and_clears_a_repointed_mark(self, db):
+        path, conn = db
+        self._ensure(conn, {"ultimate_parent": ("repointed", "CURRENT")})
+        assert dri.cohort_staleness(conn, "ultimate_parent")[0] == dri.STALE_REPOINTED
+        dri.run_lane(conn, "ultimate-parent", apply_=True, db_path=path)
+        assert dri.cohort_staleness(conn, "ultimate_parent") is None
+
+    def test_stale_cohorts_hashes_at_most_once(self, db, monkeypatch):
+        """The batch form must not re-hash the entity set per stale cohort."""
+        _, conn = db
+        self._ensure(
+            conn,
+            {
+                "ultimate_parent": ("derived", "0000000000000000"),
+                "hidden_connections": ("derived", "0000000000000000"),
+                "competitive_overlap": ("derived", "0000000000000000"),
+            },
+        )
+        calls = []
+        original = dri.entities_fingerprint
+        monkeypatch.setattr(
+            dri, "entities_fingerprint", lambda c: (calls.append(1), original(c))[1]
+        )
+        stale = dri.stale_cohorts(
+            conn, ["ultimate_parent", "hidden_connections", "competitive_overlap"]
+        )
+        # Order follows the caller's list, so a reader reports cohorts in the
+        # order it walks them.
+        assert [t for t, _r, _m in stale] == [
+            "ultimate_parent",
+            "hidden_connections",
+            "competitive_overlap",
+        ]
+        assert all(reason == dri.STALE_FINGERPRINT for _t, reason, _m in stale)
+        assert len(calls) == 1
+
+    def test_stale_cohorts_hashes_zero_times_when_only_modes_are_wrong(self, db, monkeypatch):
+        _, conn = db
+        self._ensure(
+            conn,
+            {
+                "ultimate_parent": ("repointed", "CURRENT"),
+                "hidden_connections": ("repointed", "CURRENT"),
+            },
+        )
+        calls = []
+        original = dri.entities_fingerprint
+        monkeypatch.setattr(
+            dri, "entities_fingerprint", lambda c: (calls.append(1), original(c))[1]
+        )
+        stale = dri.stale_cohorts(conn, ["ultimate_parent", "hidden_connections"])
+        assert {r for _t, r, _m in stale} == {dri.STALE_REPOINTED}
+        assert calls == []  # no stamp needs a fingerprint comparison
+
+    def test_stale_cohorts_skips_absent_tables(self, db):
+        _, conn = db
+        dri.ensure_tables(conn)
+        conn.commit()
+        # An absent table cannot be stale; a PRESENT table with no meta row is.
+        assert dri.stale_cohorts(conn, ["never_created"]) == []

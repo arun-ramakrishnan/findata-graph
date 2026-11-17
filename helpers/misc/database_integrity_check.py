@@ -181,6 +181,12 @@ _CHECKS: tuple[Check, ...] = (
         "Row Provenance Coverage",
     ),
     Check("concepts", "check_concepts", "warning", "SKOS Concepts"),
+    Check(
+        "derived_names",
+        "check_derived_names",
+        "error",
+        "Derived Name Columns (FK-less)",
+    ),
     Check("identifiers", "check_identifiers", "warning", "Identifiers (CIN + registry)"),
     Check("cin_nic2008", "check_cin_nic2008", "warning", "CIN nic5 <-> NIC-2008 (vintage)"),
     Check("graph_summary", "check_graph_summary", "warning", "Graph Summary"),
@@ -1573,6 +1579,72 @@ class DatabaseIntegrityChecker:
     # ------------------------------------------------------------------ #
     # Edge validity-window coverage (advisory)
     # ------------------------------------------------------------------ #
+    def check_derived_names(self) -> dict:
+        """Dangling entity names in FK-less derived columns (S4).
+
+        Derived cohort tables store entity names as bare ``TEXT`` with no
+        foreign key, so SQLite does not stop a row from naming an entity that
+        no longer exists, and ``check_*`` sections built on
+        ``PRAGMA foreign_key_list`` cannot see the column at all. On
+        2026-11-16 a fold left ``hidden_connections`` mixed between old and
+        new spellings — 9 pairs adrift, green integrity check.
+
+        The column registry is the one ``helpers/graph/name_dedup``
+        enumerates (``derived_name_columns``), so this check and the fold
+        re-point path share a single source of truth instead of drifting
+        into two lists.
+
+        ``hyper_edges.label`` is scoped to the entity-label families only —
+        ``event``/``group``/``edition``/``industry``/``merger`` carry free
+        text by design (2,089 live rows), and counting those as dangling
+        would make the section permanently red and therefore ignored.
+
+        ERROR severity: all nine columns measured 0 dangling on 2026-11-17,
+        so a nonzero count is a real desync rather than a convention.
+        Tolerates a DB without the derived tables (fresh / partial restore).
+        """
+        from helpers.graph.name_dedup import (  # noqa: PLC0415
+            _HYPEREDGE_ENTITY_LABEL_FAMILIES,
+            derived_name_columns,
+        )
+
+        conn = self.get_connection()
+        cur = conn.cursor()
+        try:
+            columns = sorted(derived_name_columns(conn))
+        except Exception:  # noqa: BLE001  # a pre-schema restore: report nothing rather than crash the gate
+            return {"checked_columns": 0, "dangling": 0, "by_column": {}, "errors": 0}
+        fam_list = ",".join(f"'{f}'" for f in sorted(_HYPEREDGE_ENTITY_LABEL_FAMILIES))
+        by_column: dict[str, int] = {}
+        for table, column in columns:
+            where = f'x."{column}" IS NOT NULL'
+            if table == "hyper_edges":
+                where += f" AND x.edge_type IN ({fam_list})"
+            by_column[f"{table}.{column}"] = cur.execute(
+                f'SELECT COUNT(*) FROM "{table}" x WHERE {where} '  # noqa: S608  # table/column from the closed name_dedup registry, never input; fam_list is a module vocabulary
+                f'AND NOT EXISTS (SELECT 1 FROM entities e WHERE e.name = x."{column}")'
+            ).fetchone()[0]
+        dangling = sum(by_column.values())
+        # S2/S3: a cohort patched by a fold is not a re-derived cohort. Surface
+        # it here rather than failing — 'repointed' is a legitimate state whose
+        # counts may differ from a true re-derivation (41,319 vs 41,328 on
+        # 2026-11-16), and the remedy is `make derive-relational-insights`.
+        from helpers.graph.derive_relational_insights import (  # noqa: PLC0415
+            MODE_REPOINTED,
+            cohort_meta,
+        )
+
+        stale = sorted(
+            t for t, (mode, *_rest) in cohort_meta(conn).items() if mode == MODE_REPOINTED
+        )
+        return {
+            "checked_columns": len(columns),
+            "dangling": dangling,
+            "by_column": by_column,
+            "repointed_cohorts": stale,
+            "errors": dangling,
+        }
+
     def check_concepts(self) -> dict:
         """SKOS concept hygiene (ontology_convention_stack S2): acyclicity
         of ``broader_id``, dangling references, duplicate pref_labels
@@ -2877,6 +2949,21 @@ class DatabaseIntegrityChecker:
         lines.append(f"duplicate_ticker_groups={len(dup_groups)} -> errors={dup.get('errors', 0)}")
         for ticker, names in dup_groups.items():
             lines.append(f"  - {ticker}: {', '.join(names)}")
+        lines.append("")
+
+        dn = results.get("derived_names", {})
+        lines.append("## DERIVED NAME COLUMNS (FK-less) (ERROR-level; gate-failing)")
+        lines.append(
+            f"checked_columns={dn.get('checked_columns', 0)} -> errors={dn.get('errors', 0)}"
+        )
+        for col, count in sorted((dn.get("by_column") or {}).items()):
+            if count:
+                lines.append(f"  - {col}: {count} row(s) naming a missing entity")
+        for table in dn.get("repointed_cohorts") or []:
+            lines.append(
+                f"  WARNING {table}: patched by a fold, not re-derived"
+                " (run `make derive-relational-insights` to recompute)"
+            )
         lines.append("")
 
         fuzzy = results.get("fuzzy_duplicates", {})

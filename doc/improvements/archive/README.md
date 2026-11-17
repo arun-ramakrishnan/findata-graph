@@ -565,6 +565,43 @@ commit, referenced by nothing). Entry numbers point at
 
 ## database/ — Databases — DuckDB/SQLite engine and SQL query improvements
 
+- [`duckdb_watchlist_hardening.md`](database/duckdb_watchlist_hardening.md) —
+  recorded the DuckDB watchlist (G1 post-restore note store = uncaught
+  `CatalogException: Scalar Function with name match_bm25 does not exist!`;
+  G2 doc sidecar not snapshotted; G3 internal `fts_main_<table>.*` layout
+  dependence with `duckdb` unpinned; G4 measured tokenization parity drift —
+  `cattle-feed` overmatches, `R&D` under-matches, both pinned by test) and
+  closed three slices: S1 `perf_smoke.py` advisory leg (per-query
+  topk/macro/python-cosine mode + latency), S2 `_fts_shadow_present()`
+  post-restore guard (loud warning, no uncaught crash), S3
+  `idx_doc_vectors_emb` HNSW (cosine, ef_construction=128) — completed.md #532
+- [`duckdb_fts_sql_topk_regression.md`](database/duckdb_fts_sql_topk_regression.md) —
+  lexical search ranked via macro-predicate full scans after the sidecar move;
+  S1 proved the SQL-top-k fix first (100% top-5 overlap 23/23, avg 6.2×,
+  e2e 29–31 ms vs 76–100 ms), S2 `fts_topk` in `helpers/core/duckdb_shared.py`,
+  S3 doc/convo/note rollout (convo lexical 663 ms → 53 ms, hybrid 1.4–1.7 s →
+  323 ms; found a `by_id`-keyed-on-`harness` bug), S4 removed explicit
+  `LOAD fts` (auto-load measured; connection caching rejected — stale-inode
+  risk across `os.replace`), S4b donor-embed read-through (cold script rebuild
+  20m7s → 88s), S6 vectorized doc cosine leg (326 ms → 34.4 ms) — completed.md #531
+- [`note_search_carve_out.md`](database/note_search_carve_out.md) —
+  the last FTS5 index left `research.db` (19,356 content rows + shadows) for
+  `memory/note_search.duckdb`: S0 embed-cache fold, S1 sidecar build with
+  composed `searchtext` + hash-only `--check`, S2 query-surface flip
+  (`match_bm25`, sidecar model/dims stamps, `/api/search` hybrid, engine-aware
+  TUI/master_query legs), S3 graph-projection RO-ATTACH reads, S4 ops wiring
+  (snapshot export/verify, db_maint, gc_embed_cache, seed, store_sweep),
+  S5 legacy FTS5 rollback kept green + 15 new tests (python snippet
+  highlighting, since DuckDB FTS has no `snippet()`) — completed.md #530
+- [`derived_name_columns_guard.md`](database/derived_name_columns_guard.md) —
+  FK-shaped integrity for the 6 derived tables / 10 columns that carry entity
+  names with no FK (`hidden_connections.a/.b`, `ultimate_parent.company/
+  .ultimate_parent`, `competitive_overlap.a/.b/.c`, `supply_chokepoints.
+  supplier`, `ppr_results.seed`, `hyper_edges.label`). The 2026-11-16 fold
+  hand-rewrote `hidden_connections`, leaving 41,319 where re-derivation gives
+  41,328. S1 `derived_name_columns` + two-way registry guard (caught 5
+  columns missing from `_REFOLD_COLUMNS`), S2 `derived_cohort_meta`, S3 folds
+  stamp `repointed`, S4 ERROR-level `check_derived_names` — completed.md #529
 - [`entity_fold_fk_cascade_repair.md`](database/entity_fold_fk_cascade_repair.md) —
   entity fold re-points every child before deleting: nine data-loss defects
   (D1 child FKs never re-pointed; D2 ledger-sweep-only memberships; D3

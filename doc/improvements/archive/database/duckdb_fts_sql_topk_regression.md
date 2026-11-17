@@ -1,9 +1,9 @@
 ---
 title: "DuckDB FTS regression fix: SQL top-k over FTS posting tables (replaces macro-predicate full scans)"
-status: proposed
+status: executed
 filed: "2026-11-16"
-executed:
-completed_md:
+executed: "2026-11-16"
+completed_md: "531"
 area: "helpers/maintenance/rebuild_script_search.py + rebuild_doc_search.py + rebuild_convo_search.py + rebuild_note_search.py query paths (+ tests)"
 ---
 
@@ -14,7 +14,7 @@ area: "helpers/maintenance/rebuild_script_search.py + rebuild_doc_search.py + re
 
 # DuckDB FTS regression fix: SQL top-k over FTS posting tables
 
-**Date:** 2026-11-16 · **Status:** PROPOSED · **Area:** query paths in
+**Date:** 2026-11-16 · **Status:** EXECUTED (S1–S6 landed 2026-11-16) · **Area:** query paths in
 `helpers/maintenance/rebuild_{script,doc,convo,note}_search.py` (+ `app.py`
 delegation for docs/notes) + tests.
 

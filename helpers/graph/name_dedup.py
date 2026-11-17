@@ -411,17 +411,116 @@ _REFOLD_COLUMNS: tuple[tuple[str, str, str | None], ...] = (
     ("graph_analytics_contract", "entity_name", "metric, entity_name"),
     # Derived-cohort tables with NO foreign key onto entities: they hold the
     # name as a bare string, so the entity delete leaves them pointing at a
-    # row that no longer exists. Re-pointed here for the same reason. Two of
-    # them are UNIQUE, so the collide-before-move rule applies.
+    # row that no longer exists. Re-pointed here for the same reason. The
+    # UNIQUE keys are the tables' PRIMARY KEYs, so a re-point that lands the
+    # variant on a canonical row that already exists collapses instead of
+    # raising (collide-before-move).
     ("hidden_connections", "a", "a, b"),
     ("hidden_connections", "b", "a, b"),
     ("ultimate_parent", "company", "company"),
     ("ultimate_parent", "ultimate_parent", None),
+    ("competitive_overlap", "a", "a, b, c"),
+    ("competitive_overlap", "b", "a, b, c"),
+    ("competitive_overlap", "c", "a, b, c"),
+    ("ppr_results", "seed", "seed, entity"),
+    ("supply_chokepoints", "supplier", "supplier"),
 )
 
 
 def _table_names(con) -> set[str]:
     return {r[0] for r in con.execute("SELECT name FROM sqlite_master WHERE type='table'")}
+
+
+#: Column names that CAN carry an entity name in a derived table. SQLite has no
+#: type-level signal (these are plain ``TEXT``), so the registry is a code-side
+#: convention — ``derived_name_columns`` intersects it with "has no FK to
+#: entities(name)". ``hyper_edges.label`` is deliberately absent here and
+#: handled by family below: the column is polymorphic (see
+#: :data:`_HYPEREDGE_ENTITY_LABEL_FAMILIES`).
+_NAME_SHAPED_COLUMNS: frozenset[str] = frozenset(
+    {"a", "b", "c", "company", "ultimate_parent", "supplier", "seed"}
+)
+
+#: Name-shaped columns that are NOT entity names. ``concept_schemes.label`` is
+#: a SKOS scheme title ("sector", "entity type"), not a company.
+_NON_ENTITY_NAME_COLUMNS: frozenset[tuple[str, str]] = frozenset({("concept_schemes", "label")})
+
+#: ``hyper_edges.label`` families whose label IS an entity name (measured
+#: 2026-11-17: every label in these families resolves to ``entities.name``).
+#: The remaining families carry free text by design — ``event`` holds
+#: ``acquisition:12`` ids, ``group`` holds promoter-group nicknames ("Adani"),
+#: ``merger`` holds prose ("merger: X + Y"), ``edition`` holds newsletter
+#: titles, ``industry``/``sub_sector`` hold taxonomy strings. Treating the
+#: column as uniformly entity-shaped would fire on 2,089 legitimate rows.
+_HYPEREDGE_ENTITY_LABEL_FAMILIES: frozenset[str] = frozenset(
+    {
+        "country",
+        "demerger",
+        "index",
+        "org_membership",
+        "sector",
+        "sub_sector",
+        "subsidiary",
+        "supply",
+        "theme",
+    }
+)
+
+#: The declared answer to :func:`derived_name_columns` — the two-way guard.
+#: Derived tables store entity names as bare ``TEXT`` with no FK, so a rename
+#: leaves them silently mixed between old and new spellings. This tuple is what
+#: ``tests/test_name_dedup.py::TestDerivedNameCoverage`` asserts against the
+#: machine enumeration, so a NEW unguarded column fails the test instead of
+#: escaping the way ``hidden_connections`` did on 2026-11-16 (9 pairs lost,
+#: invisible to the FK-based integrity check; see
+#: ``doc/improvements/archive/database/derived_name_columns_guard.md``).
+_DERIVED_NAME_COLUMNS: tuple[tuple[str, str], ...] = (
+    ("competitive_overlap", "a"),
+    ("competitive_overlap", "b"),
+    ("competitive_overlap", "c"),
+    ("hidden_connections", "a"),
+    ("hidden_connections", "b"),
+    ("hyper_edges", "label"),
+    ("ppr_results", "seed"),
+    ("supply_chokepoints", "supplier"),
+    ("ultimate_parent", "company"),
+    ("ultimate_parent", "ultimate_parent"),
+)
+
+
+def derived_name_columns(con) -> set[tuple[str, str]]:
+    """Every ``(table, column)`` holding an entity name with NO FK to entities.
+
+    The FK-less counterpart of :func:`entity_fk_children`. A name column with
+    an FK is protected by CASCADE/SET NULL (and covered by
+    :data:`_REFOLD_COLUMNS`); a name column WITHOUT one is invisible to
+    ``PRAGMA foreign_key_list`` and therefore to the integrity check, so it
+    must be enumerated structurally instead of remembered.
+
+    ``hyper_edges.label`` is returned when any of
+    :data:`_HYPEREDGE_ENTITY_LABEL_FAMILIES` is live, because the column is
+    polymorphic — the family decides whether a label is an entity name."""
+    out: set[tuple[str, str]] = set()
+    tables = _table_names(con)
+    for table in sorted(tables):
+        guarded = {
+            fk[3]
+            for fk in con.execute(f"PRAGMA foreign_key_list('{table}')").fetchall()
+            if fk[2] == "entities"
+        }
+        for col in (r[1] for r in con.execute(f"PRAGMA table_info('{table}')")):
+            if col in guarded:
+                continue
+            if col in _NAME_SHAPED_COLUMNS and (table, col) not in _NON_ENTITY_NAME_COLUMNS:
+                out.add((table, col))
+    if "hyper_edges" in tables:
+        fam_list = ",".join(f"'{f}'" for f in sorted(_HYPEREDGE_ENTITY_LABEL_FAMILIES))
+        has_entity_family = con.execute(
+            f"SELECT 1 FROM hyper_edges WHERE edge_type IN ({fam_list}) LIMIT 1"  # noqa: S608  # fam_list is a module-constant vocabulary, never user input
+        ).fetchone()
+        if has_entity_family is not None:
+            out.add(("hyper_edges", "label"))
+    return out
 
 
 def entity_fk_children(con) -> set[tuple[str, str]]:
@@ -488,6 +587,36 @@ def _refold_entity_refs(
         if n:
             touched[f"{table}.{column}"] = n
     return touched, collapsed
+
+
+def _stamp_repointed_cohorts(con, touched: dict[str, int]) -> None:
+    """Mark every derived cohort the fold just re-pointed (S3, chosen behaviour).
+
+    Re-pointing keeps rows from orphaning — that is why the columns are in
+    ``_REFOLD_COLUMNS`` at all — but it is NOT equivalent to re-deriving: the
+    deriver recomputes pairs/triangles from the current graph, so a patched
+    table can hold a different count (2026-11-16: 41,319 repointed vs 41,328
+    re-derived). Stamping ``repointed`` keeps that distinction visible instead
+    of letting the table silently claim to be derived.
+
+    The marker table belongs to ``derive_relational_insights``; when it does
+    not exist yet (a store whose deriver never ran) the fold proceeds without
+    stamping rather than inventing schema mid-transaction."""
+    from helpers.graph.derive_relational_insights import (  # noqa: PLC0415
+        DERIVED_COHORT_TABLES,
+        MODE_REPOINTED,
+        stamp_cohort,
+    )
+
+    if (
+        con.execute(
+            "SELECT 1 FROM sqlite_master WHERE name='derived_cohort_meta' AND type='table'"
+        ).fetchone()
+        is None
+    ):
+        return
+    for table in sorted({key.split(".", 1)[0] for key in touched} & DERIVED_COHORT_TABLES):
+        stamp_cohort(con, table, MODE_REPOINTED)
 
 
 def apply_plan(  # noqa: C901
@@ -648,6 +777,11 @@ def apply_plan(  # noqa: C901
                     if not deleted:
                         raise sqlite3.IntegrityError("entity row vanished mid-fold")
                     entities_folded += deleted
+                    # S3 of derived_name_columns_guard: a re-point is NOT a
+                    # re-derivation. Stamp every derived cohort we patched so a
+                    # reader can tell patched rows from recomputed ones (the
+                    # 2026-11-16 gap was 41,319 repointed vs 41,328 derived).
+                    _stamp_repointed_cohorts(con, touched)
                 folded_now[variant] = folded[variant]
                 for key, n in touched.items():
                     refs_repointed[key] = refs_repointed.get(key, 0) + n

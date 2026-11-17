@@ -15707,3 +15707,222 @@ clean. Deferred (measured): delta on a 100%-changed corpus ran **26.9 s
 vs 17.0 s full** (threshold-fallback candidate); CachedEmbed point-lookup
 preload; `--allow-stale` stamped legs still apply as full rebuilds
 (script one-off 84 s mid-arc). Proposal archived (database/).
+
+## 529. Derived bare-name columns got an FK-shaped guard — 10 columns machine-enumerated, folds now say "repointed" instead of claiming derivation
+
+Five derived cohort tables store entity names as plain `TEXT` with no foreign
+key, so a rename leaves them silently mixed between old and new spellings and
+`check_*` sections built on `PRAGMA foreign_key_list` cannot see the column at
+all. Measured 2026-11-16: the entity fold hand-rewrote `hidden_connections`
+in place, leaving **41,319** pairs where a true re-derivation gives **41,328** —
+9 pairs adrift, green integrity check, and only a pinned bank question noticed
+one session later.
+
+**S1** replaced hand-maintained knowledge with a computed one.
+`helpers/graph/name_dedup.py::derived_name_columns(con)` enumerates every
+table/column matching a name-shaped registry (`a`, `b`, `c`, `company`,
+`ultimate_parent`, `supplier`, `seed`) that has no FK covering it, and asserts
+equality against `_DERIVED_NAME_COLUMNS` — the FK-less twin of
+`entity_fk_children` + `TestRefoldCoverage`. Measurement corrected the
+proposal twice: the naive registry returned **11 pairs / 7 tables**, of which
+`concept_schemes.label` is a SKOS scheme title (excluded via
+`_NON_ENTITY_NAME_COLUMNS`), and `hyper_edges.label` is polymorphic.
+`_HYPEREDGE_ENTITY_LABEL_FAMILIES` classifies it: 9 families are 100%
+entity-resolved (subsidiary 1,450, supply 688, sub_sector 112, index 54,
+sector 42, org_membership 34, country 21, theme 12, demerger 2) while 6 carry
+free text by design (event ids, group nicknames, merger prose, edition titles,
+taxonomy strings) — **2,089** rows that a uniform rule would have false-fired
+on. Final scope: **6 tables / 10 columns**.
+
+The same guard found a live gap: 5 of those 10 columns were **not**
+re-pointable — `competitive_overlap.a/.b/.c` (3-column PK),
+`ppr_results.seed` (PK `seed, entity`), `supply_chokepoints.supplier` (PK) were
+missing from `_REFOLD_COLUMNS` entirely. Added with their real PRIMARY KEYs;
+the existing collide-before-move logic derives the non-moving key columns from
+the unique string, so multi-column PKs needed no new code.
+
+**S2** added `derived_cohort_meta(table_name, mode, entities_fingerprint,
+stamped_at)` — one row per cohort, stamped inside the same `with conn` block
+that rewrites the table, so the marker can never describe rows that failed to
+land. One side table rather than a column pair per cohort: the lanes rewrite
+wholesale via `DELETE` + `INSERT VALUES (len(rows[0]))`, so an extra column
+would change every row tuple and every row-count assertion to carry
+per-table information.
+
+**S3 landed as re-point + stamp, not the proposal's recommended drop +
+re-derive** (operator-ruled). Option (b) contradicts S1: registering the
+derived columns exists precisely so a fold does not orphan their rows.
+`_stamp_repointed_cohorts` marks each patched cohort `mode='repointed'`, and a
+full lane run overwrites it with `mode='derived'`. The lie is removed without
+making the fold depend on the deriver. `DERIVED_COHORT_TABLES` is imported by
+the fold from the deriver, so the two modules share one set.
+
+**S4** registered `check_derived_names` in the integrity registry at **ERROR**
+severity: it counts rows whose name has no matching `entities.name` across all
+10 columns, family-scoped for `hyper_edges.label`, and surfaces `repointed`
+cohorts as advisory warnings naming the remedy.
+
+Verification: `database_integrity_check.py` → `checked_columns=10 -> errors=0`,
+exit 0. All four lane digests **byte-identical** before and after
+(`dbfd08d1e8174924`, `e36294d2e0b7ec90`, `fc1d5b02f1540faf`, `ab50560dabb7c4f2`),
+so no ontology-visible content changed. `schema ok: 22 DBs` after
+`make schema-dump`; snapshot check 74 tables OK with `derived_cohort_meta`
+excluded from the parquet export (like `db_bump_log` — it changes on every
+derive while the rows may not, which would put a tracked parquet under
+permanent drift). Tests: `tests/test_name_dedup.py` 30 passed,
+`tests/test_database_integrity_check.py` 97 passed (4 new),
+`tests/test_derive_relational_insights.py` 11 passed, combined lane sweep 153
+passed. ruff format + check clean, `make lint-audit` clean, static-checks pass
+with `✓ Proposal lifecycle`.
+
+**S2b — the readers now honour the marker** (same day, completing the arc).
+The stamp existed but nothing read it, so a `repointed` cohort still presented
+as derived — the exact silence that hid the 41,319-vs-41,328 drift.
+`derive_relational_insights.cohort_staleness(conn, table, *, fingerprint=None)`
+returns `(reason, message)` over three reasons — `unstamped` (meta table exists,
+no row: written outside a lane), `repointed` (`mode != 'derived'`), and
+`fingerprint` (a rename landed after the compute) — and `None` when the store
+has no `derived_cohort_meta` at all, because a pre-S2 store *cannot answer* and
+warning on every cohort would be noise on every restore. "Cannot answer" is
+deliberately not "answered no". `stale_cohorts(conn, tables)` batches it and
+hashes the entity set **at most once** per call, **zero** times when every
+failing stamp is `unstamped`/`repointed` (measured: healthy 1, stale 1, pre-S2
+0; full probe sweep 0.108 s). `context_pack` prepends a `### Data freshness`
+block before the numbers so the caveat is read first, and the answerability
+probe reads the stamp from the LIVE store (the snapshot excludes it by design)
+to annotate each cohort-reading record with `cohort_stale` and print a
+`--- derived cohorts not verifiable as fresh ---` section; the probe stays a
+report, not a gate. In both cases the rows are STILL SERVED — the warning
+annotates, never hides.
+
+**The two deferred criteria were then closed by measurement.** The eval gate
+RAN: `ontology_eval_gate.py --parent <pre-fold 2026-11-17 backup> --candidate
+memory/research.db` → **ACCEPT, 239 questions, 0 reasons, all unchanged, 0
+errored**, including all 9 questions that read the cohorts directly — a strict
+reject-on-any-undeclared-change gate, so this is a positive result rather than
+a vacuous one. One number had to be explained first: `ultimate_parent` fell
+26,145 → 25,200, and the delta is exactly **865 rows whose `company` was never
+an entity + 85 person rows** (pre-R3 residue a full re-derivation correctly
+drops; rows-not-a-company 85 → 0, company roster 25,200 in both stores,
+unchanged). The ≥3 repeat-count is measured too: three gate runs produced
+byte-identical reports (`md5 836a4c9c5bff3de5ca6b1f5a7d3ffbcd`) and
+`entities_fingerprint` returned `d42e140ffa7d535a` on three consecutive calls.
+Tests: 224 passed across context_pack / answerability_probe /
+derive_relational_insights / name_dedup / database_integrity_check (20 new).
+
+## 530. note_search left research.db — the last FTS5 index became a DuckDB native-FTS sidecar
+
+The canonical store still carried an FTS5 `note_search` table plus its two
+shadow tables (19,356 content / 10,288 data rows), which meant every
+note rebuild wrote to `research.db` and every snapshot had to back up a
+virtual table. Carved out over six slices, S0 first because the attach was
+clunky before the carve-out even started.
+
+**S0** (2026-11-15) folded the embed-cache store: the sidecar carries a
+colocated cache and the shared `embed_store.duckdb` serves as donor.
+**S1** built the store — `NOTE_DUCKDB_DB` = `memory/note_search.duckdb`,
+`connect_note_db(path)` suffix-routing `.duckdb` to `duckdb.connect` +
+`memory_cap_config`, `rebuild_note_duckdb()` reusing the existing
+walk/section/entity pipeline, three DDL tables (`note_search` with a
+composed `searchtext` column, `note_search_meta`, `note_search_info`), a
+one-time cache seed from the legacy rows, and a hash-only `--check`.
+**S2** flipped the query surface: `bm25_hits` dispatches to a native
+`match_bm25` branch, `load_notes_matrix`'s staleness gate and the embedder
+stamp read the sidecar info table, `app.py`'s `/api/search` hybrid runs
+native FTS + the existing KNN path, and the TUI/master_query notes legs
+became engine-aware. **S3** moved every `fin.note_search` RO-ATTACH read in
+`helpers/graph/query.py` and the `context_pack` bootstrap mirror onto the
+sidecar. **S4** wired ops: `snapshot_db.py` virtual-table backup became a
+sidecar export/verify, `db_maint` gained the store, `gc_embed_cache` and
+`seed_note_gemma_cache` retargeted, `store_sweep` census updated. **S5**
+kept the sqlite rollback route green and added `tests/test_note_query_duckdb.py`
+(15 tests: route-by-suffix, build+schema, hybrid shape, bm25-only
+independence with a NULL embedding still ranking lexically, stale-on-new,
+check-mode no-stamp, and the full legacy FTS5 rollback).
+
+The legacy path is deliberately preserved — `--db <legacy .db>` still
+works and `app.py` keeps its FTS5 branch as documented rollback. Note
+snippet highlighting had to move to Python (`note_snippet_highlighted`)
+because DuckDB native FTS has no `snippet()`/`highlight()`. Verified: note
+batch 103 passed, graph regression battery 185 passed, maintenance batch
+88 passed, ruff clean across 13 touched files. The composed `searchtext`
+replaced the per-column bm25 weights (accepted deviation from the
+sidecar-fold arc; the hybrid cosine leg stays the quality guard).
+
+## 531. DuckDB FTS regression: top-k now ranks in SQL over the posting tables
+
+The DuckDB sidecar move left every lexical query doing a **macro-predicate
+full scan** — `match_bm25` as a WHERE predicate over the whole base table,
+which is O(corpus) per query and was the single reason the DuckDB move
+looked slower than the sqlite FTS5 it replaced. S1 proved the fix before
+engineering it: scoring directly over the FTS posting tables gave **100%
+top-5 overlap (23/23)** on the 24-query set, avg **6.2× per-call** speedup
+(range 2–30×), fresh-connection end-to-end 29–31 ms vs 76–100 ms.
+
+**S2** extracted `fts_topk(conn, fts_table, query, limit, offset, ...)` into
+`helpers/core/duckdb_shared.py` (schema guard on `duckdb_tables()`,
+stem-guess exact resolution, prefix fallback for tokens ≥4 chars, macro
+fallback for unresolvable tokens, base key returned in its native type —
+BIGINT or VARCHAR `part_id`) and put script search on it: warm 10.5–13.3 ms
+against 62–157 ms macro. **S3** rolled out to doc, convo, and note — and
+found a real bug while doing it: `convo_query`'s `by_id` lookup keyed on
+`harness` instead of `part_id`, caught by `test_convo_search.py`. Live:
+note candidates+total 113 ms warm (was 260–360 ms), convo lexical 53 ms
+(was ~663 ms, 12.5×), convo hybrid 323 ms (was ~1.4–1.7 s).
+
+**S4** removed the explicit `INSTALL/LOAD fts` from read-path openers after
+measuring that DuckDB 2.0.0 auto-loads the core extension on first use
+(`LOAD fts` cost 34–50 ms per fresh connection, A/B: 73 ms with vs 24 ms
+without). Connection *caching* was deliberately rejected: a cached RO
+handle would pin the old inode across a rebuild's `os.replace` and serve
+stale reads. **S4b** killed a second regression the arc surfaced — a fresh
+sidecar carries a cold colocated cache, so the first rebuild re-embedded
+everything through gemma (**20m7s** for script's 845 rows). `cached_embed_batch`
+and `CachedEmbed` now hydrate a donor map from the shared `embed_store.duckdb`
+on local miss and copy rows in (batch-flushed 64/commit, since donor copies
+are re-derivable and a crash costs only a re-copy): cold cliff **20m7s →
+88s**, residual being subprocess polling, not embedding; warm 21.1s.
+
+**S6** then fixed the leg the top-k work exposed as dominant: doc search's
+cosine leg was a whole-table Python `f32` scan (4,518 embeddings, ~326 ms of
+a 352 ms query, pre-existing). A colocated `doc_vectors FLOAT[dims]` mirror
+rebuilt on every full rebuild plus vectorized `array_cosine_similarity` with
+a zero-norm guard (so degenerate vectors rank 0.0 exactly as the Python path
+did, avoiding NaN skew) took it **326 ms → 34.4 ms (~9.5×)**, full hybrid
+352 ms → ~197 ms — the residual being the gemma query-embed HTTP round-trip
+(~96 ms). Engine suites: doc+note 161, convo 21, script 79, embed-cache 55.
+
+## 532. DuckDB watchlist got hardened: perf smoke, post-restore FTS guard, doc_vectors HNSW
+
+The sidecar move was validated but un-instrumented, so the audit recorded
+five gap classes and closed the three highest-value ones. The recorded
+watchlist (no slice — documentation so it does not slide further): doc
+sidecar not in snapshots (G2, regenerable); internal `fts_main_<table>.*`
+layout dependence with `duckdb` unpinned (G3); tokenization parity drift
+(G4, measured — `cattle-feed` overmatches on DuckDB via "feed", `R&D`
+under-matches to empty, both pinned by test); and the DuckDB API footguns
+(`with conn:` CLOSES rather than commits; executemany param-count
+strictness; non-iterable cursors silently swallowed in broad excepts).
+
+**S1** added `helpers/maintenance/perf_smoke.py` — representative queries
+against the live sidecars reporting per-engine mode (topk / macro /
+python-cosine) plus latency, so a silent fallback slide shows up in
+`make advisory` instead of unnoticed. Wired as the `perf-smoke` step after
+memory-search-check. Baseline: doc topk 12.8–17.8 ms, note 21.6–125.5 ms,
+convo 50–132 ms, script 11.4–14.1 ms; 3 of 16 pairs fell to macro, all
+absent-term zero-result queries as expected.
+
+**S2** closed the real bug: a restored note store has no FTS shadow (it is
+derived state, excluded from the parquet manifest), so
+`note_query.bm25_hits` raised an uncaught
+`CatalogException: Scalar Function with name match_bm25 does not exist!`
+while doc search degraded silently to an empty result set.
+`_fts_shadow_present()` now probes `information_schema.schemata` on
+`--check` and warns loudly on restore; the shadow stays excluded from
+backup by derived-state doctrine and the rebuild trigger stays manual.
+**S3** mirrored note's HNSW build into `_write_doc_store`: `doc_vectors`
+gains `idx_doc_vectors_emb` (cosine, `ef_construction=128`) behind a
+best-effort try/except, so the k≠None path can use the index before corpus
+growth makes the full scan matter (k=None corpus-wide still scans by
+design). 35 snapshot tests pass including the missing-shadow warning;
+engine parity pinned by `tests/test_fts_topk_parity.py`.

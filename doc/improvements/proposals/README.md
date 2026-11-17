@@ -39,6 +39,40 @@ entry number and stale DONE pointers):
 ## Current live proposals
 
 *(none)*
+- *(archived 2026-11-16)* — `note_search_carve_out` (database/, filed
+  2026-11-15, executed 2026-11-16, completed.md #530 — the last FTS5 index
+  left `research.db` for a DuckDB native-FTS sidecar: S0 embed-cache fold,
+  S1 sidecar build (`memory/note_search.duckdb`, composed `searchtext`,
+  hash-only `--check`), S2 query-surface flip (`match_bm25` branch,
+  sidecar model/dims stamps, `/api/search` hybrid, engine-aware TUI legs),
+  S3 graph-projection reads, S4 ops wiring (snapshot export/verify, db_maint,
+  gc, seed, store_sweep), S5 legacy FTS5 rollback kept green + 15 new tests).
+- *(archived 2026-11-16)* — `duckdb_fts_sql_topk_regression` (database/,
+  filed 2026-11-16, executed 2026-11-16, completed.md #531 — lexical queries
+  were doing macro-predicate full scans; S1 proved 100% top-5 overlap
+  (23/23) at 6.2× before engineering, S2 `fts_topk` in
+  `helpers/core/duckdb_shared.py`, S3 doc/convo/note rollout (found and fixed
+  a `convo_query` `by_id`-keyed-on-`harness` bug), S4 dropped explicit
+  `LOAD fts` after measuring auto-load, S4b donor-embed read-through (cold
+  script rebuild 20m7s → 88s), S6 vectorized doc cosine leg 326ms → 34.4ms).
+- *(archived 2026-11-16)* — `duckdb_watchlist_hardening` (database/, filed
+  2026-11-16, executed 2026-11-16, completed.md #532 — recorded the DuckDB
+  watchlist (doc sidecar not snapshotted, internal `fts_main_*` layout
+  dependence with `duckdb` unpinned, measured tokenization drift, three API
+  footguns) and closed three slices: S1 `perf_smoke.py` advisory leg, S2
+  post-restore FTS-shadow probe (fixes the uncaught
+  `CatalogException: Scalar Function with name match_bm25 does not exist!`),
+  S3 `idx_doc_vectors_emb` HNSW on `doc_vectors`).
+- *(archived 2026-11-17)* — `derived_name_columns_guard` (database/,
+  filed 2026-11-17, executed 2026-11-17, completed.md #529 —
+  FK-shaped integrity for the 6 derived tables / 10 columns that carry
+  entity names with no FK: the 2026-11-16 fold hand-rewrote
+  `hidden_connections` in place, leaving 41,319 pairs where a true
+  re-derivation gives 41,328, and only a pinned bank question noticed.
+  S1 machine-enumerated registry + two-way test guard (which immediately
+  caught 5 columns missing from `_REFOLD_COLUMNS`), S2
+  `derived_cohort_meta` freshness marker, S3 fold stamps `repointed`
+  instead of claiming derivation, S4 ERROR-level dangling-name check).
 - *(archived 2026-11-16)* — `duckdb_rebuild_incremental_carry` (database/,
   filed 2026-11-16, executed 2026-11-16, completed.md #528 —
   restore the silently-dropped `--incremental` contract to the DuckDB

@@ -643,6 +643,15 @@ def _list_sqlite_tables(con: sqlite3.Connection) -> list[str]:
         # Not content: never exported. The schema DDL still carries the table,
         # so a restored index has it like any other.
         "AND name != 'db_bump_log' "
+        # derived_name_columns_guard S2: the freshness marker records WHICH RUN
+        # wrote a derived cohort (mode + entity-set fingerprint + timestamp), so
+        # it changes on every derive while the cohort rows may not. Not research
+        # content — exporting it would put a git-tracked parquet under permanent
+        # drift for no informational gain (the snapshot's own generation counter
+        # already covers "is this export current"). The restore path keeps the
+        # table via the exported DDL; a restored store re-stamps on its first
+        # `make derive-relational-insights`.
+        "AND name != 'derived_cohort_meta' "
         "AND sql NOT LIKE '%VIRTUAL TABLE%fts5%' "
         "ORDER BY name"
     )

@@ -428,6 +428,119 @@ def test_apply_repoints_every_fk_child_before_deleting(tmp_path: Path):
     conn.close()
 
 
+def test_apply_repoints_derived_tables_without_fk(tmp_path: Path):
+    """The FK-less half (S1/S3 of derived_name_columns_guard): derived cohort
+    tables hold entity names as bare TEXT with no FK, so nothing re-points them
+    and nothing cascades. Before 2026-11-17 they were left pointing at a
+    deleted entity — silently — and the FK-based integrity check could not see
+    it. ``competitive_overlap`` is the worst case: a 3-column PK, so a re-point
+    can collide on EITHER moving column."""
+    conn = sqlite3.connect(tmp_path / "derived.db")
+    conn.execute("PRAGMA foreign_keys=ON")
+    conn.execute("CREATE TABLE entities (name TEXT PRIMARY KEY, entity_type TEXT)")
+    conn.execute(
+        "CREATE TABLE graph_edges (id INTEGER PRIMARY KEY, source TEXT, target TEXT,"
+        " edge_type TEXT, source_ref TEXT, symmetric INTEGER)"
+    )
+    conn.execute(
+        "CREATE TABLE hidden_connections (a TEXT NOT NULL, b TEXT NOT NULL,"
+        " shared_count INTEGER, PRIMARY KEY (a, b))"
+    )
+    conn.execute(
+        "CREATE TABLE competitive_overlap (a TEXT NOT NULL, b TEXT NOT NULL,"
+        " c TEXT NOT NULL, PRIMARY KEY (a, b, c))"
+    )
+    conn.execute(
+        "CREATE TABLE supply_chokepoints (supplier TEXT PRIMARY KEY, competitors_served INTEGER)"
+    )
+    conn.executemany(
+        "INSERT INTO entities VALUES (?, 'company')",
+        [("Acme Ltd",), ("Acme Limited",), ("OtherCo",)],
+    )
+    conn.execute("INSERT INTO hidden_connections VALUES ('Acme Limited', 'OtherCo', 2)")
+    conn.execute("INSERT INTO supply_chokepoints VALUES ('Acme Limited', 3)")
+    # variant-side and canonical-side triangle that BECOMES identical after the
+    # fold: ('Acme Limited','OtherCo','ThirdCo') -> ('Acme Ltd','OtherCo','ThirdCo')
+    conn.execute("INSERT INTO competitive_overlap VALUES ('Acme Ltd', 'OtherCo', 'ThirdCo')")
+    conn.execute("INSERT INTO competitive_overlap VALUES ('Acme Limited', 'OtherCo', 'ThirdCo')")
+    conn.commit()
+
+    plan = tmp_path / "plan.txt"
+    plan.write_text(
+        "== Acme Ltd  (key: acme ltd; edge rows 0)\n   Acme Ltd\n   Acme Limited  -> fold\n"
+    )
+    plan.with_suffix(".jsonl").write_text(
+        json.dumps({"canonical": "Acme Ltd", "variants": ["Acme Limited"]}) + "\n"
+    )
+    res = nd.apply_plan(conn, plan, yes=True)
+
+    # re-pointed, not orphaned
+    assert conn.execute("SELECT a FROM hidden_connections").fetchone()[0] == "Acme Ltd"
+    assert conn.execute("SELECT supplier FROM supply_chokepoints").fetchone()[0] == "Acme Ltd"
+    # the 3-column PK collision collapsed to the canonical row instead of raising
+    rows = conn.execute("SELECT a, b, c FROM competitive_overlap").fetchall()
+    assert rows == [("Acme Ltd", "OtherCo", "ThirdCo")]
+    assert res["refs_repointed"]["hidden_connections.a"] == 1
+    assert res["refs_repointed"]["supply_chokepoints.supplier"] == 1
+    assert (
+        conn.execute("SELECT COUNT(*) FROM entities WHERE name='Acme Limited'").fetchone()[0] == 0
+    )
+    conn.close()
+
+
+def test_fold_stamps_touched_cohorts_as_repointed(tmp_path: Path):
+    """S3: a re-point is not a re-derivation. The patched cohorts must be
+    marked ``repointed`` so nothing downstream claims they were recomputed —
+    2026-11-16 measured 41,319 repointed vs 41,328 re-derived."""
+    from helpers.graph.derive_relational_insights import (  # noqa: PLC0415
+        MODE_REPOINTED,
+        cohort_meta,
+    )
+
+    conn = sqlite3.connect(tmp_path / "stamp.db")
+    conn.execute("PRAGMA foreign_keys=ON")
+    conn.execute("CREATE TABLE entities (name TEXT PRIMARY KEY, entity_type TEXT)")
+    conn.execute(
+        "CREATE TABLE graph_edges (id INTEGER PRIMARY KEY, source TEXT, target TEXT,"
+        " edge_type TEXT, source_ref TEXT, symmetric INTEGER)"
+    )
+    conn.execute(
+        "CREATE TABLE hidden_connections (a TEXT NOT NULL, b TEXT NOT NULL,"
+        " shared_count INTEGER, PRIMARY KEY (a, b))"
+    )
+    # untouched cohort — must NOT be stamped
+    conn.execute(
+        "CREATE TABLE supply_chokepoints (supplier TEXT PRIMARY KEY, competitors_served INTEGER)"
+    )
+    conn.execute(
+        "CREATE TABLE derived_cohort_meta (table_name TEXT PRIMARY KEY, mode TEXT NOT NULL,"
+        " entities_fingerprint TEXT NOT NULL, stamped_at DATETIME NOT NULL)"
+    )
+    conn.executemany(
+        "INSERT INTO entities VALUES (?, 'company')",
+        [("Acme Ltd",), ("Acme Limited",), ("OtherCo",)],
+    )
+    conn.execute("INSERT INTO hidden_connections VALUES ('Acme Limited', 'OtherCo', 2)")
+    conn.execute("INSERT INTO supply_chokepoints VALUES ('Untouched Co', 1)")
+    conn.commit()
+
+    plan = tmp_path / "plan.txt"
+    plan.write_text(
+        "== Acme Ltd  (key: acme ltd; edge rows 0)\n   Acme Ltd\n   Acme Limited  -> fold\n"
+    )
+    plan.with_suffix(".jsonl").write_text(
+        json.dumps({"canonical": "Acme Ltd", "variants": ["Acme Limited"]}) + "\n"
+    )
+    nd.apply_plan(conn, plan, yes=True)
+
+    meta = cohort_meta(conn)
+    assert meta["hidden_connections"][0] == MODE_REPOINTED
+    assert "supply_chokepoints" not in meta, "an untouched cohort must not be stamped"
+    # the fingerprint tracks the entity set the patched rows now name
+    assert meta["hidden_connections"][1]
+    conn.close()
+
+
 def test_ledger_records_only_variants_that_actually_folded(tmp_path: Path):
     """A rehearsal (``apply_plan`` against a byte-copy) wrote a repo-tracked
     ledger asserting 12 folds that never happened; because the append is
@@ -527,6 +640,72 @@ class TestRefoldCoverage:
             "FK children of entities(name) missing a _REFOLD_COLUMNS re-point entry"
             f" (apply_plan would cascade-delete them): {sorted(children - covered)}"
         )
+
+
+@pytest.mark.live
+class TestDerivedNameCoverage:
+    """The FK-less half of the same guard: a derived table holding entity names
+    as bare TEXT cannot be protected by CASCADE, so a rename leaves it silently
+    mixed and the FK-based integrity check cannot see it. Lives on the live
+    store only — the toy fixtures have none of these tables."""
+
+    def test_enumeration_matches_declared_registry(self):
+        from helpers.core.db import connect  # noqa: E402, PLC0415
+
+        con = connect()
+        try:
+            found = nd.derived_name_columns(con)
+        finally:
+            con.close()
+        declared = set(nd._DERIVED_NAME_COLUMNS)
+        assert found == declared, (
+            "derived_name_columns() and _DERIVED_NAME_COLUMNS disagree — a new"
+            " entity-name column appeared without a registry entry (silent rename"
+            f" drift) or a stale entry survived: {sorted(found ^ declared)}"
+        )
+
+    def test_every_derived_column_is_declared_refoldable(self):
+        """S1's whole point: the registry must not be a second list that drifts
+        from ``_REFOLD_COLUMNS``. Every non-``hyper_edges.label`` derived column
+        has to be re-pointable by the fold, or the next rename desyncs it."""
+        refoldable = {(table, column) for table, column, _ in nd._REFOLD_COLUMNS}
+        missing = {
+            pair
+            for pair in nd._DERIVED_NAME_COLUMNS
+            if pair not in refoldable and pair != ("hyper_edges", "label")
+        }
+        assert not missing, (
+            "_DERIVED_NAME_COLUMNS carries columns _REFOLD_COLUMNS cannot re-point,"
+            f" so a fold would desync them: {sorted(missing)}"
+        )
+
+    def test_hyperedge_label_family_split_is_exhaustive(self):
+        """Every live hyperedge family must be classified — entity-label or
+        free-text. An unclassified family would make ``hyper_edges.label`` a
+        coin flip for S4's dangling-name check."""
+        from helpers.core.db import connect  # noqa: E402, PLC0415
+        from helpers.graph.hyperedge_types import HYPEREDGE_TYPES  # noqa: E402, PLC0415
+
+        con = connect()
+        try:
+            live = {r[0] for r in con.execute("SELECT DISTINCT edge_type FROM hyper_edges")}
+        finally:
+            con.close()
+        known = set(HYPEREDGE_TYPES)
+        assert live <= known, (
+            f"live hyperedge families outside the registry: {sorted(live - known)}"
+        )
+        assert nd._HYPEREDGE_ENTITY_LABEL_FAMILIES <= known, (
+            f"_HYPEREDGE_ENTITY_LABEL_FAMILIES names unknown families: {sorted(nd._HYPEREDGE_ENTITY_LABEL_FAMILIES - known)}"
+        )
+        # The split is exhaustive by construction (live ⊆ known, entity set ⊆
+        # known): everything live is in exactly one of entity-label / free-text.
+        unsplit = (
+            live
+            - nd._HYPEREDGE_ENTITY_LABEL_FAMILIES
+            - (known - nd._HYPEREDGE_ENTITY_LABEL_FAMILIES)
+        )
+        assert not unsplit, f"live families classified as neither: {sorted(unsplit)}"
 
 
 @pytest.mark.live

@@ -1,9 +1,9 @@
 ---
 title: "DuckDB watchlist & hardening: known limitations + perf smoke leg + post-restore FTS guard + doc_vectors HNSW"
-status: proposed
+status: executed
 filed: "2026-11-16"
-executed:
-completed_md:
+executed: "2026-11-16"
+completed_md: "532"
 area: "helpers/maintenance/rebuild_doc_search.py + tests/test_fts_topk_parity.py + helpers/maintenance/snapshot_db.py + helpers/misc/note_query.py + Makefile/helpers/maintenance (perf smoke leg)"
 ---
 
@@ -11,6 +11,8 @@ area: "helpers/maintenance/rebuild_doc_search.py + tests/test_fts_topk_parity.py
      below STAYS for human readers; the block above is the
      machine-checkable status (static_checks: Proposal lifecycle). On
      archival, flip status/executed/completed_md in the same change. -->
+
+**Date:** 2026-11-16 · **Status:** EXECUTED (S1–S3 landed 2026-11-16)
 
 **DuckDB watchlist & hardening — known limitations of the duckdb move (recorded 2026-11-16) + three hardening slices.**
 

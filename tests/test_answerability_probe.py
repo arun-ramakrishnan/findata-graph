@@ -388,6 +388,90 @@ class TestShapeAnswers:
 # --------------------------------------------------------------------------- #
 # Probe records and the report                                               #
 # --------------------------------------------------------------------------- #
+class TestCohortFreshness:
+    """The probe annotates cohort-reading questions with the LIVE store's
+    freshness stamp — the snapshot excludes `derived_cohort_meta` by design."""
+
+    def _live_db(self, tmp_path: Path, stamps: dict[str, tuple[str, str]]) -> Path:
+        import sqlite3
+
+        from helpers.graph.derive_relational_insights import entities_fingerprint
+
+        p = tmp_path / "live.db"
+        c = sqlite3.connect(p)
+        c.execute("CREATE TABLE entities (name TEXT PRIMARY KEY)")
+        c.execute("INSERT INTO entities VALUES ('HDFC Bank')")
+        # The cohort tables must exist — stale_cohorts skips an absent table
+        # (nothing to serve, so nothing to warn about).
+        for table, ddl in (
+            ("ultimate_parent", "company TEXT PRIMARY KEY, ultimate_parent TEXT"),
+            ("hidden_connections", "a TEXT, b TEXT"),
+            ("supply_chokepoints", "supplier TEXT PRIMARY KEY"),
+            ("competitive_overlap", "a TEXT, b TEXT, c TEXT"),
+        ):
+            c.execute(f"CREATE TABLE {table} ({ddl})")
+        c.execute(
+            "CREATE TABLE derived_cohort_meta (table_name TEXT PRIMARY KEY, mode TEXT "
+            "NOT NULL, entities_fingerprint TEXT NOT NULL, stamped_at DATETIME NOT NULL)"
+        )
+        current = entities_fingerprint(c)
+        for table, (mode, fp) in stamps.items():
+            c.execute(
+                "INSERT INTO derived_cohort_meta VALUES (?, ?, ?, '2026-11-17')",
+                (table, mode, current if fp == "CURRENT" else fp),
+            )
+        c.commit()
+        c.close()
+        return p
+
+    def test_fresh_live_store_marks_nothing_stale(self, tmp_path: Path):
+        live = self._live_db(
+            tmp_path,
+            {
+                "ultimate_parent": ("derived", "CURRENT"),
+                "hidden_connections": ("derived", "CURRENT"),
+                "supply_chokepoints": ("derived", "CURRENT"),
+                "competitive_overlap": ("derived", "CURRENT"),
+            },
+        )
+        out = probe.cohort_freshness(live)
+        assert len(out) == 4
+        assert all(c["reason"] is None for c in out)
+
+    def test_repointed_cohort_reports_the_stamp_and_remedy(self, tmp_path: Path):
+        live = self._live_db(tmp_path, {"hidden_connections": ("repointed", "CURRENT")})
+        out = {c["table"]: c for c in probe.cohort_freshness(live)}
+        assert out["hidden_connections"]["reason"] == "repointed"
+        assert "make derive-relational-insights APPLY=1" in out["hidden_connections"]["message"]
+        # An unstamped sibling is flagged too — the meta table exists, so the
+        # absence of a row is evidence, not silence.
+        assert out["ultimate_parent"]["reason"] == "unstamped"
+
+    def test_stale_fingerprint_reports_the_mismatch(self, tmp_path: Path):
+        live = self._live_db(tmp_path, {"ultimate_parent": ("derived", "DEADBEEF00000000")})
+        out = {c["table"]: c for c in probe.cohort_freshness(live)}
+        assert out["ultimate_parent"]["reason"] == "fingerprint"
+        assert "DEADBEEF00000000" in out["ultimate_parent"]["message"]
+
+    def test_missing_live_store_is_silent(self, tmp_path: Path):
+        assert probe.cohort_freshness(tmp_path / "nope.db") == []
+
+    def test_stale_for_question_names_only_the_tables_it_reads(self):
+        stale = {"hidden_connections": "hc-msg", "ultimate_parent": "up-msg"}
+        assert probe._stale_for_question(
+            {"shape": "insight_counterparts", "params": {"kind": "hidden_connections"}}, stale
+        ) == ["hc-msg"]
+        assert probe._stale_for_question(
+            {"shape": "ultimate_parent_of", "params": {"company": "X"}}, stale
+        ) == ["up-msg"]
+        assert (
+            probe._stale_for_question(
+                {"shape": "insight_counterparts", "params": {"kind": "competitive_overlap"}}, stale
+            )
+            == []
+        )
+
+
 class TestProbeRecords:
     def test_probe_question_marks_a_matching_pin_answered(self, snapshot_root: Path):
         con = probe.connect_snapshots(snapshot_root)

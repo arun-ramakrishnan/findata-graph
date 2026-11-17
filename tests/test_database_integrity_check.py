@@ -1418,3 +1418,81 @@ class TestExpectedComentionCount:
             assert checker._expected_comention_count() == 0
         finally:
             checker.close()
+
+
+# --- check_derived_names (S4 of derived_name_columns_guard) -----------------
+
+
+class TestCheckDerivedNames:
+    """FK-less derived name columns: a row may name an entity that no longer
+    exists and SQLite will not stop it. Measured live on 2026-11-16 — the fold
+    left ``hidden_connections`` 9 pairs adrift with a GREEN integrity check."""
+
+    @staticmethod
+    def _seed(tmp_path: Path, *, dangling: bool) -> DatabaseIntegrityChecker:
+        db_path = tmp_path / "derived.db"
+        conn = sqlite3.connect(db_path)
+        conn.execute("CREATE TABLE entities (name TEXT PRIMARY KEY, entity_type TEXT)")
+        conn.execute(
+            "CREATE TABLE hidden_connections (a TEXT NOT NULL, b TEXT NOT NULL, PRIMARY KEY (a, b))"
+        )
+        conn.execute(
+            "CREATE TABLE hyper_edges (id INTEGER PRIMARY KEY, edge_type TEXT, label TEXT)"
+        )
+        conn.executemany("INSERT INTO entities VALUES (?, 'company')", [("Alpha",), ("Beta",)])
+        conn.execute("INSERT INTO hidden_connections VALUES ('Alpha', 'Beta')")
+        # an entity-family label (must be checked) and a free-text label
+        # (event ids — must NOT be counted)
+        conn.execute("INSERT INTO hyper_edges VALUES (1, 'subsidiary', 'Beta')")
+        conn.execute("INSERT INTO hyper_edges VALUES (2, 'event', 'acquisition:12')")
+        conn.execute("INSERT INTO hyper_edges VALUES (3, 'subsidiary', 'Ghost Co')")
+        if not dangling:
+            # the point of the exercise: a free-text label naming no entity is
+            # NOT an error, so a clean store reports 0 even though
+            # 'acquisition:12' resolves to nothing
+            conn.execute("DELETE FROM hyper_edges WHERE id=3")
+        conn.commit()
+        conn.close()
+        return DatabaseIntegrityChecker(db_path=str(db_path), base_path=str(tmp_path))
+
+    def test_clean_store_reports_zero(self, tmp_path: Path):
+        checker = self._seed(tmp_path, dangling=False)
+        try:
+            res = checker.check_derived_names()
+        finally:
+            checker.close()
+        assert res["errors"] == 0
+        assert res["checked_columns"] == 3  # hidden_connections.a/.b + hyper_edges.label
+
+    def test_dangling_entity_label_is_an_error(self, tmp_path: Path):
+        checker = self._seed(tmp_path, dangling=True)
+        try:
+            res = checker.check_derived_names()
+        finally:
+            checker.close()
+        assert res["errors"] == 1
+        assert res["by_column"]["hyper_edges.label"] == 1
+
+    def test_hyperedge_free_text_family_is_not_counted(self, tmp_path: Path):
+        """``event``/``group``/``edition`` labels are prose, not entity names —
+        counting them would make the section permanently red (2,089 live rows)
+        and therefore ignored."""
+        checker = self._seed(tmp_path, dangling=False)
+        try:
+            res = checker.check_derived_names()
+        finally:
+            checker.close()
+        assert res["by_column"]["hyper_edges.label"] == 0
+
+    def test_absent_tables_yield_zero(self, tmp_path: Path):
+        db_path = tmp_path / "bare.db"
+        conn = sqlite3.connect(db_path)
+        conn.execute("CREATE TABLE entities (name TEXT PRIMARY KEY, entity_type TEXT)")
+        conn.commit()
+        conn.close()
+        checker = DatabaseIntegrityChecker(db_path=str(db_path), base_path=str(tmp_path))
+        try:
+            res = checker.check_derived_names()
+        finally:
+            checker.close()
+        assert res["errors"] == 0

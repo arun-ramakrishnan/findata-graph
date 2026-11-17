@@ -399,6 +399,96 @@ class TestDeepRelations:
         assert "## Deep relations" not in pack  # nothing rolls up on a pre-R3 store
 
 
+class TestCohortFreshness:
+    """S2 reader guard: a cohort that is not a verified derivation of the
+    CURRENT entity set is still served, but must say so."""
+
+    def test_fresh_cohorts_emit_no_warning(self, con, r3db):
+        import sqlite3
+
+        c = sqlite3.connect(r3db)
+        c.execute(
+            "CREATE TABLE derived_cohort_meta (table_name TEXT PRIMARY KEY, mode TEXT "
+            "NOT NULL, entities_fingerprint TEXT NOT NULL, stamped_at DATETIME NOT NULL)"
+        )
+        from helpers.graph.derive_relational_insights import entities_fingerprint
+
+        c.execute("CREATE TABLE entities (name TEXT PRIMARY KEY)")
+        c.executemany(
+            "INSERT INTO entities VALUES (?)",
+            [("Acme",), ("Sub One",), ("SubSub Co",), ("JV Friend",)],
+        )
+        current = entities_fingerprint(c)
+        for table in (
+            "ultimate_parent",
+            "hidden_connections",
+            "supply_chokepoints",
+            "competitive_overlap",
+        ):
+            c.execute(
+                "INSERT INTO derived_cohort_meta VALUES (?, 'derived', ?, '2026-11-17')",
+                (table, current),
+            )
+        c.commit()
+        c.close()
+        pack = CP.build_context_pack(con, "Acme", budget=50, research_db=r3db)
+        assert "### Data freshness" not in pack
+        assert "⚠" not in pack
+
+    def test_repointed_cohort_is_flagged(self, con, r3db):
+        import sqlite3
+
+        c = sqlite3.connect(r3db)
+        c.execute(
+            "CREATE TABLE derived_cohort_meta (table_name TEXT PRIMARY KEY, mode TEXT "
+            "NOT NULL, entities_fingerprint TEXT NOT NULL, stamped_at DATETIME NOT NULL)"
+        )
+        c.execute("CREATE TABLE entities (name TEXT PRIMARY KEY)")
+        c.execute("INSERT INTO entities VALUES ('Acme')")
+        for table, mode in (
+            ("ultimate_parent", "derived"),
+            ("hidden_connections", "repointed"),
+        ):
+            c.execute(
+                "INSERT INTO derived_cohort_meta VALUES (?, ?, 'fp', '2026-11-16')",
+                (table, mode),
+            )
+        c.commit()
+        c.close()
+        pack = CP.build_context_pack(con, "Acme", budget=50, research_db=r3db)
+        assert "### Data freshness" in pack
+        assert "hidden_connections: stamped 'repointed'" in pack
+        assert "make derive-relational-insights APPLY=1" in pack
+        # The rollup itself is still served — the warning annotates, never hides.
+        assert "- hidden connections (1): Rival Co" in pack
+
+    def test_stale_fingerprint_is_flagged(self, con, r3db):
+        import sqlite3
+
+        c = sqlite3.connect(r3db)
+        c.execute(
+            "CREATE TABLE derived_cohort_meta (table_name TEXT PRIMARY KEY, mode TEXT "
+            "NOT NULL, entities_fingerprint TEXT NOT NULL, stamped_at DATETIME NOT NULL)"
+        )
+        c.execute("CREATE TABLE entities (name TEXT PRIMARY KEY)")
+        c.execute("INSERT INTO entities VALUES ('Acme')")
+        c.execute(
+            "INSERT INTO derived_cohort_meta VALUES "
+            "('ultimate_parent', 'derived', 'DEADBEEF00000000', '2026-11-16')"
+        )
+        c.commit()
+        c.close()
+        pack = CP.build_context_pack(con, "Acme", budget=50, research_db=r3db)
+        assert "### Data freshness" in pack
+        assert "computed against entities DEADBEEF00000000" in pack
+
+    def test_pre_s2_store_is_silent(self, con, r3db):
+        # No derived_cohort_meta table at all: nothing is knowable, so no
+        # warning on every pre-S2 restore.
+        pack = CP.build_context_pack(con, "Acme", budget=50, research_db=r3db)
+        assert "### Data freshness" not in pack
+
+
 @pytest.mark.live
 class TestLiveDeepRelations:
     LIVE = REPO_ROOT / "memory" / "graph.duckdb"
