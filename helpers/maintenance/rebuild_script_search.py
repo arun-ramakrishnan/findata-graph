@@ -319,6 +319,16 @@ def _import_candidates(tree: ast.Module | None) -> set[str]:
     return names
 
 
+def _unit_hash(src: str) -> str:
+    """The one definition of a unit's content fingerprint (search_check_corpus_walk_s3
+    S1): 8-byte blake2b hex of the decoded text. The write path and the
+    --check meta-only walk MUST hash identically or a fresh store reads as
+    stale. Used by both _extract_py_unit and _collect_units(meta_only=True)."""
+    return hashlib.blake2b(
+        src.encode("utf-8", errors="replace"), digest_size=8
+    ).hexdigest()
+
+
 def _extract_py_unit(abs_path: Path, rel: str, kind: str) -> dict | None:
     """Read + AST-parse one Python file into its unit dict, or None on read
     error (caller treats unreadable files as absent, mirroring doc_search).
@@ -350,7 +360,7 @@ def _extract_py_unit(abs_path: Path, rel: str, kind: str) -> dict | None:
         "defs": _top_level_names(tree),
         "imports": _import_candidates(tree),
         "mtime": mtime,
-        "hash": hashlib.blake2b(src.encode("utf-8", errors="replace"), digest_size=8).hexdigest(),
+        "hash": _unit_hash(src),
     }
 
 
@@ -1151,6 +1161,7 @@ def _collect_units(
     ts_src=None,
     ts_types=None,
     node_bin=None,
+    meta_only: bool = False,
 ):
     """Extract every unit: py files + the Makefile + Mojo sources/tests +
     frontend TS modules. Returns (py_units, make_unit, units_meta) where
@@ -1163,9 +1174,28 @@ def _collect_units(
     explicitly — the VAULT_ROOT lesson applied to each corpus: tmp-tree
     tests that retarget helpers_root must not silently sweep the LIVE
     Mojo tree (and its ~3.5 s/file `mojo doc`) or the live frontend into
-    their fixtures."""
+    their fixtures.
+
+    ``meta_only`` (search_check_corpus_walk_s3 S1): --check needs only the
+    (rel, mtime, hash) triples ``_source_staleness`` compares, plus
+    ``by_kind`` from the iterator — never purpose/details/defs/imports or
+    a Mojo `mojo doc` / tsc decl. Setting it skips the AST parse and the
+    decl cache entirely (measured 2,909 ms -> 178.5 ms warm) and yields
+    minimal unit dicts with exactly the fields the stale check reads;
+    callers that need unit bodies must NOT set it. Both modes hash through
+    :func:`_unit_hash` so a fresh store cannot read as stale."""
     py_units = []
     for rel, path, kind in _iter_py_units(helpers_root, tests_root, app_py):
+        if meta_only:
+            try:
+                src = path.read_text(encoding="utf-8", errors="replace")
+                mtime = path.stat().st_mtime
+            except OSError:
+                continue  # unreadable == absent, same as _extract_py_unit
+            py_units.append(
+                {"rel": rel, "kind": kind, "mtime": mtime, "hash": _unit_hash(src)}
+            )
+            continue
         unit = _extract_py_unit(path, rel, kind)
         if unit is not None:
             py_units.append(unit)
@@ -1183,7 +1213,9 @@ def _collect_units(
         except OSError:
             continue
         chash = hashlib.blake2b(src_bytes, digest_size=8).hexdigest()
-        decl = _mojo_decl_cached(conn, rel, chash, path, src_root, mojo_bin)
+        decl = None
+        if not meta_only:
+            decl = _mojo_decl_cached(conn, rel, chash, path, src_root, mojo_bin)
         py_units.append(_extract_mojo_unit(rel, path, area, decl, mtime, chash))
         units_meta[rel] = (mtime, chash)
     ts_src_root = Path(ts_src) if ts_src else base / "frontend" / "src"
@@ -1195,7 +1227,9 @@ def _collect_units(
         except OSError:
             continue
         chash = hashlib.blake2b(src_bytes, digest_size=8).hexdigest()
-        decl = _ts_decl_cached(conn, rel, chash, path, node_bin)
+        decl = None
+        if not meta_only:
+            decl = _ts_decl_cached(conn, rel, chash, path, node_bin)
         py_units.append(_extract_ts_unit(rel, path, area, decl, mtime, chash))
         units_meta[rel] = (mtime, chash)
     return py_units, make_unit, units_meta
@@ -2259,7 +2293,7 @@ def _check_freshness_script_duckdb(
         conn = connect_script_db(db_path)
         try:
             py_units, make_unit, units_meta = _collect_units(
-                helpers_root, tests_root, app_py, makefile, conn=conn
+                helpers_root, tests_root, app_py, makefile, conn=conn, meta_only=True
             )
             stats["total_rows"] = conn.execute("SELECT COUNT(*) FROM script_search").fetchone()[0]
             stats_part, _stored = _source_staleness(conn, units_meta)
@@ -2272,7 +2306,7 @@ def _check_freshness_script_duckdb(
         stats["total_units"] = len(py_units) + (1 if make_unit else 0)
     except Exception:  # noqa: S110  # store absent/unreadable: everything reads as new
         py_units, make_unit, units_meta = _collect_units(
-            helpers_root, tests_root, app_py, makefile, conn=None
+            helpers_root, tests_root, app_py, makefile, conn=None, meta_only=True
         )
         stats_part = {
             "stale_new": sorted(units_meta),

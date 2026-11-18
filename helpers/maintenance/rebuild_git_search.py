@@ -92,6 +92,24 @@ REF = "main"
 # fingerprint, so the whole corpus re-extracts exactly once.
 EXCLUDE_VERSION = 1
 DIFF_CAP = 64_000  # per-commit diff text cap (head+tail), recorded in the fp
+
+
+# Extraction-policy stamp (search_check_corpus_walk_s3 S2): every input to
+# _fp except a sha's own immutable message/paths/diff. Stored in
+# git_search_info as 'fp_policy'; --check compares it BEFORE paying the
+# whole-history numstat walk, because if the sha set matches AND this
+# stamp matches, every stored fp is provably unchanged and the 5.96 s
+# numstat pass is dead work. Absent stamp == unknown -> full path once,
+# then stamped by the writer.
+def _fp_policy() -> str:
+    """The current extraction policy as one comparable string. Any change
+    to these inputs must bump a version constant so the stamp moves."""
+    return (
+        f"v{EXCLUDE_VERSION}|cap{DIFF_CAP}|fdc{_FILES_DISPLAY_CAP}"
+        f"|ex{_EXCLUDE_DIRS}|{(_EXCLUDE_SUFFIXES,)}"
+    )
+
+
 # One source of truth, two consumers: the pathspec list drives git's own diff
 # generation; _excluded() mirrors it for the numstat paths so an excluded
 # file's PATH never reaches the files block or the lexical content either.
@@ -287,7 +305,16 @@ def _messages(root: Path) -> dict[str, tuple[int, str]]:
 
 def _numstats(root: Path) -> dict[str, list[tuple[str, int | None, int | None]]]:
     """sha -> [(path, ins, del)] with None for binary entries. One pass,
-    --no-textconv (the parquet textconv driver is the >7 min trap)."""
+    --no-textconv (the parquet textconv driver is the >7 min trap). Walks
+    all of REF — the write path's cost, ~10 ms/commit linear (5,962 ms for
+    595). Merge commits yield no numstat rows.
+
+    search_check_corpus_walk_s3 S2 note: a scoped ``--no-walk <shas>``
+    form was prototyped for the check delta path (63.6 ms for 5 commits)
+    and deliberately NOT kept — when the fp_policy stamp matches, the
+    check needs no numstat call at all, and when it does not match, every
+    fp must be re-derived anyway. The only caller left is the write path,
+    which needs all of REF."""
     raw = _git(root, "log", "--numstat", "--no-textconv", "--format=%x1f%H", REF)
     out: dict[str, list[tuple[str, int | None, int | None]]] = {}
     cur: str | None = None
@@ -712,16 +739,42 @@ def rebuild_git_duckdb(
     ``_check_verdict``.
     """
     root = primary_repo_root(git_root)
-    messages = _messages(root)
-    numstats = _numstats(root)
-    reachable = set(messages)
-    ordered = list(messages)  # newest first
-
     conn = connect_git_db(db_path)
     try:
         if not write:
-            return _check_freshness_git_duckdb(conn, messages, numstats, reachable, ordered)
+            # search_check_corpus_walk_s3 S2: the 5.96 s whole-history
+            # numstat pass is only needed when a sha's fp could actually
+            # have changed. A sha's message/paths/diff are immutable, and
+            # _fp's only drift-capable inputs are the extraction policy —
+            # so if the stored sha set matches `git rev-list` AND the
+            # stored fp_policy matches the current one, every stored fp is
+            # provably unchanged. Fast path: rev-list + one SELECT. Any
+            # mismatch falls through to the scoped-numstat delta path.
+            fast = _check_freshness_fast(conn, root)
+            if fast is not None:
+                return fast
+        messages = _messages(root)
+        reachable = set(messages)
+        ordered = list(messages)  # newest first
 
+        if not write:
+            # search_check_corpus_walk_s3 S2 delta path. When the stored
+            # fp_policy matches, the fp comparison is unnecessary (immutable
+            # inputs) — skip numstats entirely. When it does not match, run
+            # the full pass: every fp is re-derived and a rebuild follows.
+            try:
+                prow = conn.execute(
+                    "SELECT value FROM git_search_info WHERE key = 'fp_policy'"
+                ).fetchone()
+            except Exception:  # noqa: BLE001  store absent/unreadable -> all new
+                prow = None
+            policy_ok = prow is not None and prow[0] == _fp_policy()
+            numstats = {} if policy_ok else _numstats(root)
+            return _check_freshness_git_duckdb(
+                conn, messages, numstats, reachable, ordered, policy_ok=policy_ok
+            )
+
+        numstats = _numstats(root)
         conn.execute(GIT_DUCKDB_DDL)
         conn.execute(GIT_DUCKDB_META_DDL)
         conn.execute(GIT_DUCKDB_INFO_DDL)
@@ -803,10 +856,23 @@ def rebuild_git_duckdb(
 
 
 def _check_freshness_git_duckdb(
-    conn, messages: dict, numstats: dict, reachable: set, ordered: list
+    conn,
+    messages: dict,
+    numstats: dict,
+    reachable: set,
+    ordered: list,
+    *,
+    policy_ok: bool = True,
 ) -> dict:
     """--check staleness verdict vs the stored meta (sha fingerprints);
-    absent store reads as all-new. Prints the verdict and returns stats."""
+    absent store reads as all-new. Prints the verdict and returns stats.
+
+    ``policy_ok`` (search_check_corpus_walk_s3 S2) asserts that the stored
+    extraction policy matches the current one, so a sha present in both the
+    store and REF has immutable message/paths/diff and its fp cannot have
+    changed. Skipping the fp comparison is what lets ``numstats`` arrive
+    scoped to the divergent shas only — passing {} with policy_ok unset
+    would false-flag every carried commit as changed."""
     try:
         meta = {
             r[0]: (r[1], r[2])
@@ -819,6 +885,8 @@ def _check_freshness_git_duckdb(
     changed = []
     for s in ordered:
         if s in meta:
+            if policy_ok:
+                continue  # immutable inputs + matching policy -> fp unchanged
             _adate, body = messages[s]
             if _fp(body, _files_block(numstats.get(s, []))) != meta[s][1]:
                 changed.append(s)
@@ -833,6 +901,47 @@ def _check_freshness_git_duckdb(
     body_stale = prev_body_basis != str(BODY_BASIS_VERSION)
     stats["stale_body_basis"] = body_stale
     stats["index_stale"] = bool(new_shas or changed or dropped or body_stale)
+    _check_verdict(conn, stats, body_stale)
+    return stats
+
+
+def _check_freshness_fast(conn, root: Path) -> dict | None:
+    """search_check_corpus_walk_s3 S2 — the 42 ms fast path. Returns a
+    complete stats dict (same shape as _check_freshness_git_duckdb) when
+    the store is provably fresh, else None so the caller falls through to
+    the numstat paths.
+
+    Provably fresh == (a) the stored sha set equals `git rev-list REF` and
+    (b) the stored fp_policy equals the current one. (a) means no commit
+    was added, amended away, or rebased; (b) means no extraction policy
+    changed; a sha's message/paths/diff are immutable by git's object
+    model — so every stored fp is necessarily identical. Any absent store,
+    unreadable meta, missing/stale fp_policy stamp, set mismatch, or body
+    basis bump reads as None: the caller once pays the full extraction
+    path and re-stamps. The body-basis check is repeated here because a
+    stale basis alone makes the index stale even with a perfect sha set.
+    """
+    try:
+        stored = {r[0] for r in conn.execute("SELECT sha FROM git_search_meta").fetchall()}
+        row = conn.execute("SELECT value FROM git_search_info WHERE key = 'fp_policy'").fetchone()
+    except Exception:  # noqa: BLE001  absent/unreadable store -> full path
+        return None
+    policy = _fp_policy()
+    if not stored or row is None or row[0] != policy:
+        return None  # unknown or stale policy: the interlock must fire
+    reachable = set(_messages(root))  # 23 ms: message head+body only
+    if stored != reachable:
+        return None
+    body_stale = _stored_body_basis(conn) != str(BODY_BASIS_VERSION)
+    stats: dict = {
+        "total_units": len(reachable),
+        "stale_new": [],
+        "stale_changed": [],
+        "stale_deleted": [],
+        "stale_body_basis": body_stale,
+        "index_stale": body_stale,
+        "fast_path": True,
+    }
     _check_verdict(conn, stats, body_stale)
     return stats
 
@@ -1146,6 +1255,14 @@ def _embed_pass(
             "INSERT OR REPLACE INTO git_search_info (key, value) VALUES ('body_basis', ?)",
             (str(BODY_BASIS_VERSION),),
         )
+    # search_check_corpus_walk_s3 S2: stamp the extraction policy next to
+    # the basis versions. --check's fast path requires an exact match; any
+    # EXCLUDE_VERSION / DIFF_CAP / files-display-cap / exclude-list change
+    # invalidates it so the slow path re-derives every fp once.
+    conn.execute(
+        "INSERT OR REPLACE INTO git_search_info (key, value) VALUES ('fp_policy', ?)",
+        (_fp_policy(),),
+    )
     chunk_vec_map = {(s, i): v for (s, i, _t), v in zip(chunk_plan, chunk_vecs, strict=True)}
     return label, vec_by_sha, chunk_vec_map
 

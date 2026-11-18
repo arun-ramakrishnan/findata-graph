@@ -135,6 +135,93 @@ def test_diff_cap_truncates_with_marker(repo, tmp_path):
         conn.close()
 
 
+class TestFastPathPolicyStamp:
+    """search_check_corpus_walk_s3 S2: the sha-set + fp_policy short
+    circuit. The fast path must return the same verdict shape as the
+    slow path, and the policy stamp must be the interlock that keeps a
+    policy bump from reading as fresh."""
+
+    def test_fresh_store_takes_fast_path_and_stamps_policy(self, repo, tmp_path):
+        repo.commit({"a.txt": "a\n"}, "first WHY\n")
+        db = tmp_path / "git_search.duckdb"
+        rgs.rebuild(db, git_root=repo.root)
+        conn = rgs.connect_git_db(db)
+        try:
+            row = conn.execute(
+                "SELECT value FROM git_search_info WHERE key = 'fp_policy'"
+            ).fetchone()
+        finally:
+            conn.close()
+        assert row is not None, "writer must stamp fp_policy"
+        assert row[0] == rgs._fp_policy()
+
+        stats = rgs.rebuild(db, write=False, git_root=repo.root)
+        assert stats["fast_path"] is True
+        assert stats["index_stale"] is False
+        assert stats["stale_new"] == []
+        assert stats["stale_changed"] == []
+        assert stats["stale_deleted"] == []
+
+    def test_new_commit_falls_off_fast_path_and_is_named(self, repo, tmp_path):
+        repo.commit({"a.txt": "a\n"}, "first WHY\n")
+        db = tmp_path / "git_search.duckdb"
+        rgs.rebuild(db, git_root=repo.root)
+        new_sha = repo.commit({"b.txt": "b\n"}, "second WHY\n")
+        stats = rgs.rebuild(db, write=False, git_root=repo.root)
+        assert stats.get("fast_path") is not True
+        assert stats["index_stale"] is True
+        assert stats["stale_new"] == [new_sha]
+
+    def test_stale_policy_stamp_refuses_fast_path(self, repo, tmp_path):
+        """Acceptance criterion 5: a policy mismatch must never let the
+        FAST path claim freshness — it falls through to the real fp
+        comparison, whose answer is authoritative. Corrupting only the
+        stamp (fps still match) therefore stays FRESH; actually bumping
+        the policy (fps differ) reads stale."""
+        repo.commit({"a.txt": "a\n"}, "first WHY\n")
+        db = tmp_path / "git_search.duckdb"
+        rgs.rebuild(db, git_root=repo.root)
+        conn = rgs.connect_git_db(db)
+        try:
+            conn.execute(
+                "INSERT OR REPLACE INTO git_search_info (key, value) "
+                "VALUES ('fp_policy', 'v0|cap1|fdc1|ex()|((),)')"
+            )
+        finally:
+            conn.close()
+        stats = rgs.rebuild(db, write=False, git_root=repo.root)
+        assert stats.get("fast_path") is not True  # slow path decided
+        assert stats["index_stale"] is False  # fps still match: genuinely fresh
+
+    def test_policy_bump_reads_stale_even_with_matching_shas(self, repo, tmp_path, monkeypatch):
+        """The real interlock: an extraction-policy change (EXCLUDE_VERSION
+        bump) makes every stored fp stale, so the check must flag the
+        store even though the sha set is unchanged."""
+        repo.commit({"a.txt": "a\n"}, "first WHY\n")
+        db = tmp_path / "git_search.duckdb"
+        rgs.rebuild(db, git_root=repo.root)
+        monkeypatch.setattr(rgs, "EXCLUDE_VERSION", rgs.EXCLUDE_VERSION + 1)
+        stats = rgs.rebuild(db, write=False, git_root=repo.root)
+        assert stats.get("fast_path") is not True
+        assert stats["index_stale"] is True
+        assert stats["stale_changed"], "a policy bump must re-derive every fp"
+
+    def test_missing_policy_stamp_reads_as_stale(self, repo, tmp_path):
+        """A store written before S2 has no fp_policy row: it must take
+        the slow path (and so be re-stamped on the next APPLY), never
+        claim freshness it cannot prove."""
+        repo.commit({"a.txt": "a\n"}, "first WHY\n")
+        db = tmp_path / "git_search.duckdb"
+        rgs.rebuild(db, git_root=repo.root)
+        conn = rgs.connect_git_db(db)
+        try:
+            conn.execute("DELETE FROM git_search_info WHERE key = 'fp_policy'")
+        finally:
+            conn.close()
+        stats = rgs.rebuild(db, write=False, git_root=repo.root)
+        assert stats.get("fast_path") is not True
+
+
 def test_check_flags_new_commit_without_writes(repo, tmp_path):
     repo.commit({"a.txt": "a\n"}, "first WHY\n")
     db = tmp_path / "git_search.db"
