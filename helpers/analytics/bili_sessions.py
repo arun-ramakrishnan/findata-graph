@@ -203,6 +203,45 @@ def _active_blocks(sid: str) -> int | None:
         return None
 
 
+@functools.lru_cache(maxsize=512)
+def _tier_pools(sid: str) -> tuple[int, int] | None:
+    """T2/T3's pending pools from the session store: `(pool(1), pool(2))` —
+    the plugin's own `pendingByTier`, the same numbers bili_tier_watch
+    renders as `t2pen=`/`t3pen=`. None (→ the log's `ready:` hint is the
+    fallback) when the DB is missing; a session the store doesn't know
+    yields (0, 0) honestly, exactly like _active_blocks.
+
+    WHY NOT the log: the nudge line exposes per-tier pending only through
+    the `ready:` hint, which the plugin lists only while its evaluation
+    branch names the tier — and the idle branch zeroes every tier the hint
+    omits. With tierNudgeTokens {t1: 85000, t2/t3: 8500} the T1 pool dwarfs
+    the T2 bar, so `ready:` names T2 rarely and the log-derived cell read
+    `0f/0/8.5k` while tier-watch showed `t2pen= 5.6k/8.5k` for the same
+    session (operator 2026-11-18)."""
+    if not DEFAULT_DB.is_file():
+        return None
+    try:
+        st = load_session_state(DEFAULT_DB, sid)
+        return (st.pool(1), st.pool(2))
+    except Exception:
+        return None
+
+
+def _with_store_pools(log_pending: dict[str, int], pools: tuple[int, int] | None) -> dict[str, int]:
+    """The effective pending map the tier cells / ord flags / rung render.
+
+    T1 stays the log's `pendingT1` — measured on the request's message
+    window, which the session store does NOT reproduce, and
+    bili_tier_nudge.decide reads it from the verdict the same way. T2/T3
+    come from the store's block pools whenever the store knows the session;
+    without one the log hint is the honest fallback."""
+    out = dict(log_pending)
+    if pools is not None:
+        out["T2"] = pools[0]
+        out["T3"] = pools[1]
+    return out
+
+
 def _blocked_cell(row: dict) -> str:
     """Per-tier gate holdbacks, tier-watch style: `[1:50,2:4,3:1]` — the
     gate said "not yet" 50 times for T1 despite the tier qualifying. The
@@ -488,6 +527,7 @@ def reset_caches() -> None:
     dashboard_sessions_map.cache_clear()
     _family_index.cache_clear()
     _active_blocks.cache_clear()
+    _tier_pools.cache_clear()
     global _SID_INDEX
     _SID_INDEX = {}
 
@@ -564,6 +604,9 @@ def run_for_sid(sid: str, only: frozenset[str] | None = None) -> dict:
         + st.get("projSwitches", 0)
     )
 
+    # One store read per row feeds both act= and the T2/T3 pools.
+    pools = _tier_pools(bare)
+
     row = {
         "session": bare,
         "title": d.get("title") or st.get("title"),
@@ -634,6 +677,7 @@ def run_for_sid(sid: str, only: frozenset[str] | None = None) -> dict:
         "tier_fires": {"T1": 0, "T2": 0, "T3": 0},
         "tier_pending": {},
         "tier_bars": {},
+        "tier_pools": None,
         "growth": 0,
         "growth_floor": 0,
         "tier_blocked": {},
@@ -696,15 +740,22 @@ def run_for_sid(sid: str, only: frozenset[str] | None = None) -> dict:
                 # store (folds deactivate the blocks they consumed). Same
                 # source and number as bili_tier_watch's `act=`.
                 "active_blocks": _active_blocks(bare),
+                # T2/T3 pending from the store's block pools (the plugin's
+                # pendingByTier, tier-watch's t2pen/t3pen) — the log's
+                # `ready:` hint alone reads 0 for an over-bar tier the hint
+                # omits (m01857). Log-derived fallback when the store
+                # doesn't know the session.
+                "tier_pools": pools,
                 # Ordering tests from the tier ladder: T2 needs t2_pen > t1_eff
                 # (ord2), T3 needs t3_pen > t2_pen and t3_pen > t1_eff (ord3).
                 # `tier_rung` is the tier that would fire next, STRANDED when a
                 # pool is over its bar but blocked, else '-'. Mirrors
-                # helpers/analytics/bili_tier_watch.py's ord2/ord3 flags.
-                "tier_ord2": _tier_ord2(a.tier_pending()),
-                "tier_ord3": _tier_ord3(a.tier_pending()),
+                # helpers/analytics/bili_tier_watch.py's ord2/ord3 flags —
+                # computed on the SAME effective pending the cells render.
+                "tier_ord2": _tier_ord2(_with_store_pools(a.tier_pending(), pools)),
+                "tier_ord3": _tier_ord3(_with_store_pools(a.tier_pending(), pools)),
                 "tier_rung": _tier_rung(
-                    a.tier_pending(),
+                    _with_store_pools(a.tier_pending(), pools),
                     _with_tier_overrides(a.tier_bars(), _compress_config()),
                 ),
                 # The tier-watch heartbeat's growth pair: the LATEST nudge's
@@ -1079,9 +1130,11 @@ def main(argv: list[str]) -> int:  # noqa: C901
             )
         # The compress ladder, per tier. The three numbers a tier is tuned by:
         # how many times it fired, the compressible mass it is carrying, and
-        # the bar that mass is measured against.
+        # the bar that mass is measured against. Pending is the SAME
+        # effective map the table cells render (store pools for T2/T3, log
+        # hint fallback) — not the raw log dict.
         fires = row.get("tier_fires") or {}
-        pend = row.get("tier_pending") or {}
+        pend = _with_store_pools(row.get("tier_pending") or {}, row.get("tier_pools"))
         blocked = row.get("tier_blocked") or {}
         print("  [TIERS]")
         for tier in ("T1", "T2", "T3"):
@@ -1314,12 +1367,15 @@ def _fmt_w(v: int | float | None) -> str:
 def _tier_cell(row: dict, tier: str) -> str:
     """`<fires>f/<pending>/<bar>` for one tier of the compress ladder, in the
     tier-watch format — e.g. `23f/21.3k/43.0k`: fired 23 times, carrying
-    21.3k of compressible mass against a 43.0k bar. A trailing `*` marks the
-    tier's ORDERING test as cleared (ord2: t2_pen > t1_eff; ord3: t3_pen >
-    t2_pen AND > t1_eff) — ladder-ready, the same flags bili_tier_watch
-    renders as ord2/ord3."""
+    21.3k of compressible mass against a 43.0k bar. T2/T3's pending comes
+    from the session store's block pools (`tier_pools`, the plugin's
+    pendingByTier) with the log's `ready:` hint as fallback — the log hint
+    alone reads 0 while tier-watch shows a live pool (m01857). A trailing
+    `*` marks the tier's ORDERING test as cleared (ord2: t2_pen > t1_eff;
+    ord3: t3_pen > t2_pen AND > t1_eff) — ladder-ready, the same flags
+    bili_tier_watch renders as ord2/ord3."""
     fires = (row.get("tier_fires") or {}).get(tier, 0)
-    pend = (row.get("tier_pending") or {}).get(tier)
+    pend = _with_store_pools(row.get("tier_pending") or {}, row.get("tier_pools")).get(tier)
     bar = (row.get("tier_bars") or {}).get(tier)
     ord_ok = row.get(f"tier_ord{tier[-1]}") if tier in ("T2", "T3") else False
     return f"{fires}f/{_fmt_k(pend)}/{_fmt_k(bar)}{'*' if ord_ok else ''}"
@@ -1490,8 +1546,10 @@ def print_table(rows: list[dict]) -> None:
         print("  ".join(_row_cells(r, widths)).rstrip())
     print(
         "tier cells: <fires>f/<pending>/<bar> in k/M tokens (tier-watch format)"
-        " — pending is the compressible mass vs that tier's bar; '-' means the"
-        " tier never reported it. abs = <events>/<credit tok>. growth ="
+        " — pending is the compressible mass vs that tier's bar (T1 from the"
+        " log's pendingT1, T2/T3 from the session store's block pools, log"
+        " `ready:` hint as fallback); '-' means neither reported it. abs ="
+        " <events>/<credit tok>. growth ="
         " <window-growth>/<floor> (the tier-watch heartbeat pair, floor ="
         " max(20k, 0.45 × nudgeGrowthTokens)). act = blocks still live in"
         " the working set. blocked = [tier:held-back ×3] — the gate"

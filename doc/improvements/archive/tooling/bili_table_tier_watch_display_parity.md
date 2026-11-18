@@ -119,6 +119,26 @@ absorb act, `[Degen]` from the `[warn: degenerate-fold]` obs line;
 restarted to import the new module (fresh `watch -n90` loops are
 unaffected).
 
+### 5.1 Fold kind tags — reference
+
+The tag answers "what set this fold in motion": whatever the watcher
+last saw in `bili.log` before the fold's `compress requested` line.
+Degenerate overrides the trigger tag, so blown-up folds are always
+visible at a glance (a T1-triggered fold that produced a non-smaller
+summary renders `[Degen]`, not `[T1]`).
+
+| tag | log trigger | reading |
+|-----|-------------|---------|
+| `[T1]`/`[T2]`/`[T3]` | `nudge INJECT T1/T2/T3` | a ladder rung fired — the tier's bar cleared and the gate allowed the nudge |
+| `[Esc]` | `nudge INJECT-ESC T?` | escalation (forced) nudge, rare |
+| `[Idle]` | `nudge idle:` | routine ladder evaluation where nothing injected — housekeeping fold, common on quiet sessions (usually the bulk of folds) |
+| `[Abs]` | `[acp-absorb]` line | fold came right after a tool-output absorb (big tool result compacted in place) |
+| `[Degen]` | `[warn: degenerate-fold]` on the fold's obs line | degenerate fold — the summary was NOT smaller than the source; wasted work, and what `degen=Y`/the `degen` column counts |
+| `[auto]` | no trigger in view | fallback when the burst opened without a tagged predecessor |
+
+`[Idle]` is normal volume; `[Degen]` is the quality signal — each one
+paid for a summary that didn't pay for itself.
+
 ## 6. Tests + verification
 
 - `tests/test_bili_tier_ladder.py`: `TestSavedFollowsThePageLedger`

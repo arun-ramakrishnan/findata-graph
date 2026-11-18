@@ -4,17 +4,21 @@ The ladder is three rungs, and the log exposes them only partially:
 
 * FIRES   — a tier's nudge was injected. Observed directly (`INJECT T2`).
 * PENDING — the compressible mass a tier is carrying. T1's is on every line
-  (`pendingT1=N/thr`); T2's and T3's appear only while they are OVER their
-  bar, in the `ready:` hint.
+  (`pendingT1=N/thr`). T2's and T3's come from the SESSION STORE's block
+  pools (`state.pool(1/2)`, the plugin's pendingByTier — what tier-watch
+  renders); the log's `ready:` hint (only present while a tier is over its
+  bar) is the fallback when no store entry exists (m01857).
 * BAR     — the threshold the tier is measured against. T1's is the log's
   `interval`; T2's and T3's are NOT in the log at all.
 
 These tests pin the parsing of the `ready:`/`blocked:` hints, the derivation
-of the bars T2/T3 never state, and the table cell that shows all three.
+of the bars T2/T3 never state, the store-pool lookup, and the table cell
+that shows all three.
 """
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 from helpers.analytics import bili_sessions as bs
@@ -281,6 +285,95 @@ class TestTierCell:
     def test_a_tier_that_never_cleared_its_bar(self):
         row = {"tier_fires": {"T3": 0}, "tier_pending": {}}
         assert bs._tier_cell(row, "T3") == "0f/-/-"
+
+    def test_store_pools_override_the_log_hint_for_t2_t3(self):
+        # m01857: the log's `ready:` hint reads 0 while the session store
+        # carries a live pool — the cell must render the store number
+        # (tier-watch's t2pen= 5.6k/8.5k), not the log's zeroed dict.
+        row = {
+            "tier_fires": {"T2": 0},
+            "tier_pending": {"T1": 67827, "T2": 0, "T3": 0},
+            "tier_bars": {"T1": 85000, "T2": 8500, "T3": 8500},
+            "tier_pools": (5600, 0),
+        }
+        assert bs._tier_cell(row, "T2") == "0f/5.6k/8.5k"
+        assert bs._tier_cell(row, "T3") == "0f/0/8.5k"
+        # T1 is NOT a store pool — its effective mass is the log's
+        # pendingT1 (measured on the request window, not reproducible
+        # from the store; bili_tier_nudge.decide reads it the same way).
+        assert bs._tier_cell(row, "T1") == "0f/67.8k/85.0k"
+
+    def test_log_hint_is_the_fallback_without_a_store_entry(self):
+        # tier_pools None (no session DB / dashboard-only row) → the
+        # log-derived tier_pending renders exactly as before.
+        row = {
+            "tier_fires": {"T2": 3},
+            "tier_pending": {"T2": 12733},
+            "tier_bars": {"T2": 8500},
+            "tier_pools": None,
+        }
+        assert bs._tier_cell(row, "T2") == "3f/12.7k/8.5k"
+
+    def test_with_store_pools_merge_semantics(self):
+        # Pools override T2/T3 only; T1 passes through; None is a no-op.
+        log = {"T1": 3492, "T2": 0}
+        assert bs._with_store_pools(log, (12733, 500)) == {
+            "T1": 3492,
+            "T2": 12733,
+            "T3": 500,
+        }
+        assert bs._with_store_pools(log, None) == {"T1": 3492, "T2": 0}
+        # Input dicts are copied, never mutated.
+        assert log == {"T1": 3492, "T2": 0}
+
+    def test_tier_pools_returns_none_without_the_store_db(self, tmp_path, monkeypatch):
+        # No session store at the configured path → the honest None (log
+        # fallback), never a faked (0, 0) — same contract as _active_blocks.
+        # Cache cleared around the call: earlier tests may have cached an
+        # entry for any sid against the real (live) DEFAULT_DB.
+        monkeypatch.setattr(bs, "DEFAULT_DB", tmp_path / "absent" / "index.db")
+        bs._tier_pools.cache_clear()
+        try:
+            assert bs._tier_pools("ses_whatever") is None
+        finally:
+            bs._tier_pools.cache_clear()
+
+    def test_tier_pools_reads_the_store_pools(self, tmp_path, monkeypatch):
+        # With a store row carrying blocks, (pool(1), pool(2)) come back —
+        # the plugin's pendingByTier, tier-watch's t2pen/t3pen.
+        import sqlite3
+
+        db = tmp_path / "index.db"
+        db.parent.mkdir(parents=True, exist_ok=True)
+        db.parent.mkdir(parents=True, exist_ok=True)
+        con = sqlite3.connect(db)
+        con.execute("CREATE TABLE sessions (session_id TEXT PRIMARY KEY, kstate_json TEXT)")
+        # Real store schema (subset): load_session_state filters
+        # WHERE session_id=? ORDER BY ord.
+        con.execute(
+            "CREATE TABLE blocks (block_id TEXT, session_id TEXT, ord INTEGER, "
+            "tier INTEGER, active INTEGER, payload_json TEXT)"
+        )
+        con.execute("INSERT INTO sessions VALUES ('ses_x', '{}')")
+        # Two tier-1 blocks (T2's pool = 700) and one tier-2 block (T3 = 300).
+        # A block's pool mass is ceil(len(summary)/4) — the summary text,
+        # not a stored token count.
+        con.executemany(
+            "INSERT INTO blocks VALUES (?,?,?,?,?,?)",
+            [
+                ("b1", "ses_x", 1, 1, 1, json.dumps({"summary": "x" * 1600})),
+                ("b2", "ses_x", 2, 1, 1, json.dumps({"summary": "x" * 1200})),
+                ("b3", "ses_x", 3, 2, 1, json.dumps({"summary": "x" * 1200})),
+            ],
+        )
+        con.commit()
+        con.close()
+        monkeypatch.setattr(bs, "DEFAULT_DB", db)
+        bs._tier_pools.cache_clear()
+        try:
+            assert bs._tier_pools("ses_x") == (700, 300)
+        finally:
+            bs._tier_pools.cache_clear()
 
     def test_ordering_ready_gets_a_star(self):
         # ord2/ord3 cleared → ladder-ready, marked with a trailing star
