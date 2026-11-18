@@ -108,22 +108,119 @@ _VSS_DECODE_CACHE: dict[str, list] = {}
 _VSS_DECODE_CACHE_MAX = 8
 
 
-def _decoded_vss_table(rows):
-    """[(name, vec|None)] with one literal_eval pass per table content."""
-    # usedforsecurity=False: content fingerprint for a cache key, not security.
-    # Rows may be TEXT (legacy) or BLOB (embedding_blob_migration S2) — bytes-join both.
+def _vss_digest(rows) -> str:
+    """sha1 content fingerprint of the fetched embedding rows.
+
+    usedforsecurity=False: content fingerprint for a cache key, not security.
+    Rows may be TEXT (legacy) or BLOB (embedding_blob_migration S2) — bytes-join both.
+    """
     parts = [
         r[1] if isinstance(r[1], (bytes, bytearray)) else str(r[1] or "").encode() for r in rows
     ]
-    digest = hashlib.sha1(b"|".join(parts), usedforsecurity=False).hexdigest()
+    return hashlib.sha1(b"|".join(parts), usedforsecurity=False).hexdigest()
+
+
+def _decoded_vss_table_cached(rows):
+    """(digest, [(name, vec|None)]) with one literal_eval pass per content."""
+    digest = _vss_digest(rows)
     hit = _VSS_DECODE_CACHE.get(digest)
     if hit is not None:
-        return hit
+        return digest, hit
     table = [(r[0], _raw_vec(r[1])) for r in rows]
     _VSS_DECODE_CACHE[digest] = table
     while len(_VSS_DECODE_CACHE) > _VSS_DECODE_CACHE_MAX:
         _VSS_DECODE_CACHE.pop(next(iter(_VSS_DECODE_CACHE)))
-    return table
+    return digest, table
+
+
+def _decoded_vss_table(rows):
+    """[(name, vec|None)] with one literal_eval pass per table content."""
+    return _decoded_vss_table_cached(rows)[1]
+
+
+# ---------------------------------------------------------------------------
+# Matrix tier (S1.5, live_search_perf_slices): the per-call python zip-sum
+# loop over 1,209 x 512 floats cost ~38 ms per call; the same arithmetic as
+# ONE float64 matvec costs ~0.6 ms. The matrix is built once per table
+# content and reused across calls.
+#
+# The cache key is the table's CONTENT identity:
+#   * fast path — the DB file identity (main file + WAL mtime/size) and the
+#     row count, supplied by the caller (vss_match). A committed write to
+#     the table changes the WAL (or the main file after a checkpoint) -> a
+#     new key -> the matrix is rebuilt. Two stats, no content hashing.
+#   * fallback — the sha1 content digest when no DB fingerprint is available
+#     (in-memory DBs, direct _best_vss_match callers): sound, but it costs
+#     ~3 ms per call on the live table.
+# ---------------------------------------------------------------------------
+
+_VSS_MATRIX_CACHE: dict[tuple, tuple[list, object]] = {}
+_VSS_MATRIX_CACHE_MAX = 8
+
+
+def _db_fingerprint(conn, rows):
+    """Cheap content key for rows fetched from a connection; None if unavailable.
+
+    The DB file identity plus the row count: a committed write to the table
+    changes the WAL (or the main file after a checkpoint), so the key changes
+    with the content. In-memory / temporary databases have no file -> None
+    (the caller falls back to the sha1 content digest).
+    """
+    try:
+        row = conn.execute("PRAGMA database_list").fetchone()
+    except Exception:  # noqa: BLE001 - best-effort key
+        return None
+    if not row or len(row) < 3 or not row[2]:
+        return None
+    path = Path(row[2])
+    try:
+        st = path.stat()
+    except OSError:
+        return None
+    wal = None
+    try:
+        wst = Path(str(path) + "-wal").stat()
+        wal = (wst.st_mtime_ns, wst.st_size)
+    except OSError:
+        wal = None
+    return (str(path), st.st_mtime_ns, st.st_size, wal, len(rows))
+
+
+def _vss_matrix(rows, dims, cache_key=None):
+    """(names, float64 matrix) of the usable rows at dims; None if unusable.
+
+    Only rows whose vector decodes and matches dims are in the matrix --
+    exactly the rows the python loop used -- so the first-maximum tie order
+    is preserved.
+    """
+    try:
+        import numpy as np
+    except ImportError:
+        return None
+    if cache_key is None:
+        # No DB fingerprint: fall back to the sha1 content digest as the key.
+        digest, table = _decoded_vss_table_cached(rows)
+        key = (digest, int(dims))
+    else:
+        key = (cache_key, int(dims))
+    hit = _VSS_MATRIX_CACHE.get(key)
+    if hit is not None:
+        return hit
+    if cache_key is not None:
+        digest, table = _decoded_vss_table_cached(rows)
+    names, vecs = [], []
+    for name, vec in table:
+        if vec is None or len(vec) != dims:
+            continue
+        names.append(name)
+        vecs.append(vec)
+    if not names:
+        return None
+    built = (names, np.asarray(vecs, dtype=np.float64))
+    _VSS_MATRIX_CACHE[key] = built
+    while len(_VSS_MATRIX_CACHE) > _VSS_MATRIX_CACHE_MAX:
+        _VSS_MATRIX_CACHE.pop(next(iter(_VSS_MATRIX_CACHE)))
+    return built
 
 
 def _raw_vec(emb_str):
@@ -137,9 +234,32 @@ def _raw_vec(emb_str):
         return None
 
 
-def _best_vss_match(qvec, rows, dims, entity_set):
+def _best_vss_match(qvec, rows, dims, entity_set, *, cache_key=None):
     """Scan stored embeddings, return (best_name, best_score) via cosine
-    (both vectors L2-normalized, so cosine == dot product)."""
+    (both vectors L2-normalized, so cosine == dot product).
+
+    The matrix tier (S1.5) answers the same contract with ONE float64
+    matvec: the first maximum wins (strict >, like the loop), names outside
+    entity_set are skipped, and a non-positive maximum yields (None, 0.0) --
+    the python loop's behaviour, bit-for-bit on the same inputs. The loop
+    stays as the fallback when numpy is missing or the matrix is unusable.
+    """
+    built = _vss_matrix(rows, dims, cache_key)
+    if built is not None:
+        import numpy as np
+
+        names, matrix = built
+        scores = matrix @ np.asarray(qvec, dtype=np.float64)
+        if entity_set is not None:
+            mask = np.fromiter((name in entity_set for name in names), dtype=bool, count=len(names))
+            if not mask.any():
+                return None, 0.0
+            scores = np.where(mask, scores, -np.inf)
+        best_i = int(np.argmax(scores))
+        best_score = float(scores[best_i])
+        if best_score > 0.0:
+            return names[best_i], best_score
+        return None, 0.0
     table = _decoded_vss_table(rows)
     best_name, best_score = None, 0.0
     for name, vec in table:

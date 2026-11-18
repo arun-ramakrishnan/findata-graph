@@ -16301,3 +16301,65 @@ question set) per the proposal's §4 house rule.
   candidate costs one dict probe, never a wrong result; every macro
   fallback path preserved for unresolvable tokens.
 
+## 545. Four measured latency slices on the live search and integrity paths
+
+- **Filed/provenance:** `doc/improvements/archive/tooling/live_search_perf_slices.md`
+  (filed 2026-11-18, executed 2026-11-19; grew out of the 2026-11-18
+  Mojo/Rust idea sweep — §2 of the proposal is the rejection ledger, 20
+  candidates each with measured evidence).
+- **S1 — production note_search cosine path** (`helpers/core/vec_search.py`):
+  `knn_similarities(k=None)` 504.3 → **50.28 ms** (bar ≤ 60 ms), `k=10`
+  476.1 → **21.4 ms** (bar ≤ 50 ms); ~445 of the 504 ms was per-call
+  overhead (availability probe 251.3 ms, connection per call, Python
+  sort). 200-query parity vs pre-change: 0 degraded / 0 key-set / 0
+  order mismatches, max |Δsim| 0.000e+00. Design deviation: the sort
+  stayed client-side — SQL `ORDER BY` is not stable and the tie order is
+  load-bearing (`app.py:785 _cosine_positions` → RRF ranks) — implemented
+  as a bound-vector parameter + numpy stable argsort over scan order
+  (bit-identical; 3.0 ms vs 14.5 ms at k=10). Found and fixed en route:
+  DuckDB reuses the live instance per path+config, so the cached
+  read-only connection served the pre-swap inode after a copy-on-write
+  mirror rewrite — the reader now closes the stale handle before
+  reopening.
+- **S1.5 — company_embeddings matrix tier** (`helpers/core/vss_index.py`):
+  `_best_vss_match` 38.33 → **0.07–0.15 ms/call** (DB-identity cache key;
+  sha1 digest fallback 13.4 ms), parity 7.772e-16 over 30 queries.
+- **S2 — standing cosine bench harness repaired**
+  (`Mojo/bench/bench_cosine_knn.py`): BLOB f32 decode + dims derived from
+  the store (was hardcoded 384 vs live 512, JSON-decode crash); loud
+  shape-mismatch failure; published shape changes 384 → 512; raw
+  `sqlite3.connect` → house connect.
+- **S3 — fuzzy-name candidate loop pruned**
+  (`helpers/misc/database_integrity_check.py`): `fuzzy_duplicate_names`
+  3,814–3,879 → **269–278 ms** (bar ≤ 1,000 ms) with an identical pair
+  list — 8,764 pairs, membership-identical (the old output order was
+  PYTHONHASHSEED-randomised, so membership is the strongest claim the
+  baseline supports); equivalence is proven, not heuristic (superset
+  relation over token postings). Whole `check_integrity()` 7,771 →
+  3,406 ms. **S3b** mirrored in the Mojo port
+  (`Mojo/src/common/integrity_check.mojo`): names section 5,488 →
+  1,521 ms, golden parity 92/92.
+- **S4 — cosine gate honesty** (`Rust/bench/cosine_gate.py`): the
+  illustrative 0.40× floor failed 5/5 healthy runs; rebuilt on a
+  two-sided feasibility rule — floor ∈ (max_healthy/2, min_healthy],
+  Rayon pinned to 1 worker (narrows the healthy band to 0.17–0.24×),
+  median-of-rounds instead of min, top-1 compared by score not id.
+  Post-change 3/3 PASS (production 2.77–2.90× vs numpy; live-note
+  0.18–0.19×; scale 0.18–0.20× against the 0.14× floor); sensitivity
+  1× → rc 0, 2× → rc 1, 3× → rc 1; leg 11.4–12.1 s of its 15 s budget.
+- **Perf snafu resolved:** the `derive_insights` leg (15.49–36.25 s vs a
+  9.0 s budget, red since 2026-11-13) was not corpus growth — the vault
+  grew +0.1% across the step window. The per-file scan ProcessPool pays
+  ~23–27 s of fork + child-import + IPC overhead on a 131-file corpus
+  whose entire scan CPU is ~7 s (30.8 s pooled at 3.6 s CPU vs 7.9 s
+  serial at 7.2 s CPU, no BrokenProcessPool warning). Serial is now the
+  default (`scan(workers=1)`, `--workers N` opts in); the leg runs
+  **8.77 s**, byte-identical output.
+- **Verification:** 216 targeted + 245 wider tests, `ruff check`/`format
+  --check` clean, Mojo golden parity 92/92; all four acceptance probes
+  reproduce on the final tree. Deferred ledger re-checked 2026-11-19 and
+  unchanged: M3 MAX (trigger ≥1e5 rows cold — largest searched corpus
+  19,356), M4 A–K (39.6 MB < 50 MB gate), M5 graph-algos (all 16 CLI
+  cases owned), HNSW/ANN + FLOAT[512] (brute stays shipped at 50 ms
+  k=None), numba (absent).
+

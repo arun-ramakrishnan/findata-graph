@@ -1,60 +1,77 @@
 #!/usr/bin/env python3
-"""Standing harness: Python vs Mojo for the note-embedding cosine-KNN
-workload (lives in Mojo/bench/, driven by `make mojo-bench`).
+"""Standing cosine-KNN harness for the live note and script mirrors.
 
-Context (doc/local/mojo_pilot.md): every production numeric path in this
-repo is already native (extension KNN, DuckDB VSS, onager, llama.cpp,
-MuPDF); the only pure-Python vector math left is the app.py hybrid-search
-cosine fallback. This bench measures exactly that workload four ways:
+This harness measures the same corpus through four independent numeric lanes:
 
-  a. py_math    — the fallback math verbatim (dot + two norms per row,
-                  generator-expression sums), vectors pre-parsed
-  b. py_json    — same + per-row json.loads (the fallback's real cost:
-                  embeddings live as JSON text in the note_search table)
-  c. duckdb     — the production native path (knn_similarities,
-                  vectorized cosine over the DuckDB mirror in
-                  memory/note_vectors.duckdb)
-  d. mojo_simd  — Mojo/src/bench/bench_cosine.mojo binary: SIMD
-                  (hardware-width f32 lanes) whole-corpus scan over a
-                  float32 dump of the same corpus
+  python  — the app.py pure-Python fallback (dot product and two norms)
+  numpy   — pre-normalized-row matvec (the proposed run-index shape)
+  rust    — the shipped ``cosine_knn`` extension (rayon lane)
+  mojo    — the SIMD whole-corpus scan in ``Mojo/src/bench/bench_cosine.mojo``
 
-Corpus scales x1/x4/x16 (whole-corpus row replication) project corpus
-growth; the duckdb leg runs at x1 only (it queries the live table).
+The production DuckDB note path is retained as a separate correctness check.
+Every source row is decoded: binary embeddings use little-endian float32 BLOBs,
+legacy JSON rows are accepted, and a shape mismatch is a hard error.  No row is
+silently skipped.  The measured source shape is printed in every table so a
+re-embed or dimension drift is visible.
 
-NOT wired into `make perf` — a Mojo toolchain dependency does not
-belong in a regression gate.
+Usage::
 
-Usage: python3 Mojo/bench/bench_cosine_knn.py [--scales 1,4,16] [--reps 5]
-       (or just: make mojo-bench [MOJO_BENCH_SCALE=1,4,16] [MOJO_BENCH_REPS=5])
-Exit 0 when all cross-validations pass, 1 otherwise.
+    .venv/bin/python3 Mojo/bench/bench_cosine_knn.py --scales 1 --reps 3
+
+Exit 0 when every lane agrees and the production note check passes, 1 otherwise.
 """
 
 from __future__ import annotations
 
-import array
 import argparse
-import itertools
 import json
 import math
+import os
 import subprocess
 import sys
 import tempfile
 import time
+from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
+
+import numpy as np
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
-import sqlite3  # noqa: E402  # after sys.path bootstrap (typing only)
-from collections.abc import Callable  # noqa: E402
-
+import duckdb  # noqa: E402  # after sys.path bootstrap
 from helpers.core.db import connect  # noqa: E402
 from helpers.core.vec_search import knn_similarities  # noqa: E402
 
-DIMS = 384
 # Built by `make mojo-build` (Makefile.mojo) — the driver does not compile.
 _MOJO_BIN = _REPO_ROOT / "Mojo" / "bin" / "bench_cosine"
+_SCRIPT_DB = _REPO_ROOT / "memory" / "script_search.duckdb"
+_SCRIPT_DB_LEGACY = _REPO_ROOT / "memory" / "script_search.db"
+_RESEARCH_DB = _REPO_ROOT / "memory" / "research.db"
+_SCRATCH_ROOT = Path(os.environ.get("TMPDIR", "/mnt/data/tmp"))
+
+
+@dataclass(frozen=True)
+class Corpus:
+    name: str
+    source: str
+    keys: list[str]
+    vectors: list[np.ndarray]
+    matrix: np.ndarray
+
+    @property
+    def dims(self) -> int:
+        return int(self.matrix.shape[1])
+
+    @property
+    def rows(self) -> int:
+        return int(self.matrix.shape[0])
+
+    @property
+    def shape(self) -> str:
+        return f"{self.rows}x{self.dims}"
 
 
 def _cosine(a: list[float], b: list[float]) -> float:
@@ -68,25 +85,16 @@ def _cosine(a: list[float], b: list[float]) -> float:
     return dot / (na * nb)
 
 
-def _scan(vecs: list[list[float]], q: list[float]) -> tuple[int, float]:
+def _scan(vectors: list[np.ndarray], query: list[float]) -> tuple[int, float]:
     best_idx, best_score = -1, -2.0
-    for i, v in enumerate(vecs):
-        score = _cosine(q, v)
+    for i, vector in enumerate(vectors):
+        score = _cosine(query, vector.tolist())
         if score > best_score:
             best_idx, best_score = i, score
     return best_idx, best_score
 
 
-def _scan_json(jsons: list[str], q: list[float]) -> tuple[int, float]:
-    best_idx, best_score = -1, -2.0
-    for i, s in enumerate(jsons):
-        score = _cosine(q, json.loads(s))
-        if score > best_score:
-            best_idx, best_score = i, score
-    return best_idx, best_score
-
-
-def _best_of(fn: Callable[[], object], reps: int) -> float:
+def _best_of(fn: Any, reps: int) -> float:
     best = float("inf")
     for _ in range(reps):
         t0 = time.perf_counter()
@@ -95,30 +103,126 @@ def _best_of(fn: Callable[[], object], reps: int) -> float:
     return best
 
 
-def _load_corpus(
-    conn: sqlite3.Connection,
-) -> tuple[list[str], list[str], list[list[float]]]:
-    rows = conn.execute("SELECT file_path, embedding FROM note_search ORDER BY rowid").fetchall()
-    file_paths: list[str] = []
-    jsons: list[str] = []
-    vecs: list[list[float]] = []
-    for file_path, embedding in rows:
-        if not embedding:
-            continue
-        vec = json.loads(embedding)
-        if len(vec) != DIMS:
-            continue
-        file_paths.append(str(file_path))
-        jsons.append(str(embedding))
-        vecs.append(vec)
-    return file_paths, jsons, vecs
+def _decode_embedding(value: Any, location: str) -> np.ndarray:
+    """Decode one stored embedding without hiding malformed input."""
+    if isinstance(value, np.ndarray):
+        vector = value.astype(np.float32, copy=False)
+    elif isinstance(value, (bytes, bytearray, memoryview)):
+        raw = bytes(value)
+        if not raw:
+            raise ValueError(f"{location}: empty embedding")
+        stripped = raw.lstrip()
+        if stripped.startswith((b"[", b"{")):
+            # Legacy stores may still contain a JSON vector as text/BLOB. A raw
+            # f32 blob can also start with either byte, so only use JSON when
+            # the complete value actually parses.
+            try:
+                vector = np.asarray(json.loads(raw.decode("utf-8")), dtype=np.float32)
+            except UnicodeDecodeError, json.JSONDecodeError:
+                vector = None
+        else:
+            vector = None
+        if vector is None:
+            if len(raw) % 4 != 0:
+                raise ValueError(
+                    f"{location}: binary embedding length {len(raw)} is not f32-aligned"
+                )
+            vector = np.frombuffer(raw, dtype="<f4")
+    elif isinstance(value, str):
+        vector = np.asarray(json.loads(value), dtype=np.float32)
+    else:
+        # DuckDB FLOAT[N] values arrive as list/tuple.
+        vector = np.asarray(value, dtype=np.float32)
+
+    if vector.ndim != 1:
+        raise ValueError(f"{location}: expected a 1-D embedding, got shape {vector.shape}")
+    if vector.size == 0:
+        raise ValueError(f"{location}: empty embedding")
+    return vector
 
 
-def _write_dump(path: Path, vecs: list[list[float]], block_reps: int) -> None:
-    base = array.array("f", itertools.chain.from_iterable(vecs))
-    with open(path, "wb") as fh:
-        for _ in range(block_reps):
-            base.tofile(fh)
+def _decode_rows(rows: list[tuple[Any, Any]], source: str) -> tuple[list[str], list[np.ndarray]]:
+    """Decode every row and fail on the first shape mismatch."""
+    keys: list[str] = []
+    vectors: list[np.ndarray] = []
+    dims: int | None = None
+    for row_index, (key, raw_embedding) in enumerate(rows):
+        location = f"{source} row {row_index}"
+        vector = _decode_embedding(raw_embedding, location)
+        if dims is None:
+            dims = int(vector.size)
+        elif vector.size != dims:
+            raise ValueError(
+                f"{location}: embedding shape {vector.shape[0]} does not match "
+                f"the source dimension {dims}"
+            )
+        keys.append(str(key))
+        vectors.append(vector)
+    if not vectors:
+        raise ValueError(f"{source}: no embedded rows found")
+    return keys, vectors
+
+
+def _load_note_corpus() -> Corpus:
+    """Load the BLOB-backed note rows consumed by the app fallback."""
+    conn = connect(_RESEARCH_DB, read_only=True)
+    try:
+        rows = conn.execute(
+            "SELECT file_path, embedding FROM note_search ORDER BY rowid"
+        ).fetchall()
+    finally:
+        conn.close()
+    keys, vectors = _decode_rows(rows, "note_search")
+    return Corpus(
+        name="note",
+        source="memory/research.db:note_search (BLOB f32)",
+        keys=keys,
+        vectors=vectors,
+        matrix=np.ascontiguousarray(np.stack(vectors), dtype=np.float32),
+    )
+
+
+def _load_script_corpus() -> Corpus:
+    """Load the live DuckDB script mirror, with legacy SQLite fallback."""
+    if _SCRIPT_DB.exists():
+        conn = duckdb.connect(str(_SCRIPT_DB), read_only=True)
+        try:
+            rows = conn.execute(
+                "SELECT rel_path, embedding FROM script_search ORDER BY id"
+            ).fetchall()
+        finally:
+            conn.close()
+        source = "memory/script_search.duckdb:script_search (BLOB f32)"
+    elif _SCRIPT_DB_LEGACY.exists():
+        # read_only=True is the mode=ro URI behind the house helper (the legacy
+        # store is frozen; a read-write open would create/rewrite it).
+        conn = connect(_SCRIPT_DB_LEGACY, read_only=True)
+        try:
+            rows = conn.execute(
+                "SELECT rel_path, embedding FROM script_search ORDER BY rowid"
+            ).fetchall()
+        finally:
+            conn.close()
+        source = "memory/script_search.db:script_search (legacy SQLite BLOB f32)"
+    else:
+        raise FileNotFoundError(f"script mirror not found: {_SCRIPT_DB} or {_SCRIPT_DB_LEGACY}")
+    keys, vectors = _decode_rows(rows, "script_search")
+    return Corpus(
+        name="script",
+        source=source,
+        keys=keys,
+        vectors=vectors,
+        matrix=np.ascontiguousarray(np.stack(vectors), dtype=np.float32),
+    )
+
+
+def _write_dump(path: Path, matrix: np.ndarray, block_reps: int) -> None:
+    matrix.astype("<f4", copy=False).tofile(path)
+    if block_reps > 1:
+        with path.open("ab") as fh:
+            block = matrix.astype("<f4", copy=False).tobytes()
+            for _ in range(block_reps - 1):
+                fh.write(block)
 
 
 def _ensure_mojo_bin() -> str | None:
@@ -131,12 +235,16 @@ def _ensure_mojo_bin() -> str | None:
     return None
 
 
-def _run_mojo(mojo_bin: str, matrix: Path, query: Path, rows: int, reps: int) -> dict[str, str]:
+def _run_mojo(
+    mojo_bin: str, matrix: Path, query: Path, rows: int, dims: int, reps: int
+) -> tuple[dict[str, str], float]:
+    t0 = time.perf_counter()
     result = subprocess.run(  # noqa: S603  # list-form call; shell=False (default); args are locally constructed constants (repo-local binary + dump paths)
-        [mojo_bin, str(matrix), str(query), str(rows), str(DIMS), str(reps)],
+        [mojo_bin, str(matrix), str(query), str(rows), str(dims), str(reps)],
         capture_output=True,
         text=True,
     )
+    wall = time.perf_counter() - t0
     if result.returncode != 0:
         raise RuntimeError(f"mojo bench failed: {result.stderr.strip()}")
     out: dict[str, str] = {}
@@ -144,11 +252,11 @@ def _run_mojo(mojo_bin: str, matrix: Path, query: Path, rows: int, reps: int) ->
         if "=" in line:
             key, _, value = line.partition("=")
             out[key.strip()] = value.strip()
-    return out
+    return out, wall
 
 
 def _startup_legs(
-    mojo_bin: str | None, matrix: Path, query: Path, rows: int
+    mojo_bin: str | None, matrix: Path, query: Path, rows: int, dims: int
 ) -> list[tuple[str, float]]:
     """Fixed cost per CLI invocation — the real price of Python-side
     maintenance scripts is import tax, not the numeric loops."""
@@ -157,25 +265,190 @@ def _startup_legs(
         best = float("inf")
         for _ in range(3):
             t0 = time.perf_counter()
-            subprocess.run(cmd, capture_output=True)  # noqa: S603  # list-form call; shell=False (default); cmd is [sys.executable | repo-local mojo binary, constants]
+            subprocess.run(cmd, capture_output=True)  # noqa: S603  # list-form call; shell=False (default); cmd is [sys.executable | repo-local mojo binary, constants])
             best = min(best, time.perf_counter() - t0)
         return best
 
     legs = [
         ("python -c pass (interpreter start)", wall([sys.executable, "-c", "pass"])),
         (
-            "python -c 'import pandas' (import tax)",
-            wall([sys.executable, "-c", "import pandas"]),
+            "python -c 'import numpy' (import tax)",
+            wall([sys.executable, "-c", "import numpy"]),
         ),
     ]
     if mojo_bin:
         legs.append(
             (
                 "mojo binary, full run (start+load+KNN, reps=1)",
-                wall([mojo_bin, str(matrix), str(query), str(rows), str(DIMS), "1"]),
+                wall([mojo_bin, str(matrix), str(query), str(rows), str(dims), "1"]),
             )
         )
     return legs
+
+
+def _normalized_rows(matrix: np.ndarray) -> np.ndarray:
+    norms = np.linalg.norm(matrix, axis=1)
+    return matrix / np.maximum(norms, 1e-12)[:, None]
+
+
+def _bench_corpus(
+    corpus: Corpus,
+    scales: list[int],
+    reps: int,
+    mojo_bin: str | None,
+    scratch: Path,
+) -> tuple[list[list[str]], bool]:
+    query_raw = corpus.matrix[0].copy()
+    query_python = query_raw.tolist()
+    query_norm = query_raw / max(float(np.linalg.norm(query_raw)), 1e-12)
+    query_norm = np.ascontiguousarray(query_norm, dtype=np.float32)
+    normalized = _normalized_rows(corpus.matrix)
+
+    python_idx, python_score = _scan(corpus.vectors, query_python)
+    matrix_path = scratch / f"{corpus.name}_matrix.f32"
+    query_path = scratch / f"{corpus.name}_query.f32"
+    query_norm.astype("<f4", copy=False).tofile(query_path)
+
+    headers = [
+        "source",
+        "shape",
+        "scale",
+        "rows",
+        "python",
+        "numpy",
+        "rust",
+        "mojo",
+    ]
+    table_rows: list[list[str]] = []
+    ok = True
+
+    for scale in scales:
+        if scale == 1:
+            matrix = corpus.matrix
+            normalized_matrix = normalized
+        else:
+            matrix = np.ascontiguousarray(np.tile(corpus.matrix, (scale, 1)), dtype=np.float32)
+            normalized_matrix = np.ascontiguousarray(
+                np.tile(normalized, (scale, 1)), dtype=np.float32
+            )
+        rows = matrix.shape[0]
+
+        def python_lane() -> tuple[int, float]:
+            return _scan(corpus.vectors * scale, query_python)
+
+        def numpy_lane() -> tuple[int, float]:
+            scores = normalized_matrix @ query_norm
+            idx = int(np.argmax(scores))
+            return idx, float(scores[idx])
+
+        t_python = _best_of(python_lane, reps)
+        t_numpy = _best_of(numpy_lane, reps)
+        numpy_idx, numpy_score = numpy_lane()
+
+        rust_idx = -1
+        rust_score = float("nan")
+        t_rust = float("nan")
+        try:
+            import cosine_knn
+
+            def rust_lane() -> tuple[int, float]:
+                hits = cosine_knn.knn(query_raw, matrix, 10)
+                return int(hits[0][0]), float(hits[0][1])
+
+            rust_lane()
+            t_rust = _best_of(rust_lane, reps)
+            rust_idx, rust_score = rust_lane()
+        except ImportError:
+            print("rust leg unavailable: cosine_knn extension is not installed", file=sys.stderr)
+
+        mojo_idx = -1
+        mojo_score = float("nan")
+        t_mojo = float("nan")
+        mojo_detail = "—"
+        if mojo_bin:
+            _write_dump(matrix_path, matrix, 1)
+            mojo_out, t_mojo = _run_mojo(mojo_bin, matrix_path, query_path, rows, corpus.dims, reps)
+            mojo_idx = int(mojo_out["top1_idx"])
+            mojo_score = float(mojo_out["top1_score"])
+            load_ms = float(mojo_out.get("load_ms", "nan"))
+            compute_ms = float(mojo_out.get("compute_ms", "nan"))
+            mojo_detail = f"{t_mojo * 1e3:.1f}ms ({compute_ms:.2f}+{load_ms:.1f})"
+
+        expected_idx = python_idx
+        for label, idx, score in (
+            ("numpy", numpy_idx, numpy_score),
+            ("rust", rust_idx, rust_score),
+            ("mojo", mojo_idx, mojo_score),
+        ):
+            if idx < 0:
+                continue
+            if idx != expected_idx:
+                ok = False
+                print(
+                    f"VALIDATION FAIL {corpus.name} scale={scale}: {label} top1 "
+                    f"({idx}, {score}) != python ({expected_idx}, {python_score})",
+                    file=sys.stderr,
+                )
+            elif abs(score - python_score) > 1e-4:
+                ok = False
+                print(
+                    f"VALIDATION FAIL {corpus.name} scale={scale}: {label} score "
+                    f"{score} != python score {python_score}",
+                    file=sys.stderr,
+                )
+
+        table_rows.append(
+            [
+                corpus.name,
+                corpus.shape,
+                f"x{scale}",
+                str(rows),
+                f"{t_python * 1e3:.1f}ms",
+                f"{t_numpy * 1e3:.3f}ms",
+                f"{t_rust * 1e3:.3f}ms" if math.isfinite(t_rust) else "—",
+                mojo_detail,
+            ]
+        )
+
+    widths = [max(len(h), *(len(row[i]) for row in table_rows)) for i, h in enumerate(headers)]
+
+    def render(cells: list[str]) -> str:
+        return "| " + " | ".join(c.ljust(widths[i]) for i, c in enumerate(cells)) + " |"
+
+    print(f"source: {corpus.source}")
+    print(f"corpus: {corpus.shape} ({corpus.dims} dimensions), query = row 0")
+    print()
+    print(render(headers))
+    print("|" + "|".join("-" * (width + 2) for width in widths) + "|")
+    for row in table_rows:
+        print(render(row))
+    print()
+    return table_rows, ok
+
+
+def _check_note_production(corpus: Corpus) -> tuple[bool, float]:
+    """Validate the production DuckDB note path against the BLOB source."""
+    conn = connect(_RESEARCH_DB, read_only=True)
+    try:
+        query = corpus.matrix[0].tolist()
+        knn_similarities(conn, query, None, corpus.dims)  # warm-up
+        t0 = time.perf_counter()
+        result = knn_similarities(conn, query, None, corpus.dims)
+        elapsed = time.perf_counter() - t0
+    finally:
+        conn.close()
+    if not result:
+        return False, elapsed
+    best_key, best_score = max(result.items(), key=lambda item: item[1])
+    query_key = corpus.keys[0]
+    key_ok = best_key == query_key or best_key.startswith(query_key + "#")
+    score_ok = abs(best_score - 1.0) <= 1e-4
+    if not key_ok:
+        print(
+            f"VALIDATION FAIL note production top1 key {best_key!r} does not match {query_key!r}",
+            file=sys.stderr,
+        )
+    return key_ok and score_ok, elapsed
 
 
 def main() -> int:
@@ -183,131 +456,67 @@ def main() -> int:
     parser.add_argument(
         "--scales", default="1,4,16", help="corpus replication factors (comma list)"
     )
+    parser.add_argument("--reps", type=int, default=5, help="best-of reps for the numeric lanes")
     parser.add_argument(
-        "--reps", type=int, default=5, help="best-of reps for the Python/sqlite legs"
+        "--source",
+        choices=("note", "script", "both"),
+        default="both",
+        help="live mirror to exercise (default: both)",
     )
     args = parser.parse_args()
     scales = [int(s) for s in args.scales.split(",")]
+    if not scales or any(scale < 1 for scale in scales):
+        parser.error("--scales values must be positive integers")
+    if args.reps < 1:
+        parser.error("--reps must be positive")
 
-    conn = connect()
-    try:
-        file_paths, jsons, vecs = _load_corpus(conn)
-        # duckdb leg (x1 only): the production native path.
-        _ = knn_similarities(conn, vecs[0], None, DIMS)  # warm-up (ATTACH etc.)
-        vec_best = _best_of(lambda: knn_similarities(conn, vecs[0], None, DIMS), args.reps)
-        vec_knn = knn_similarities(conn, vecs[0], None, DIMS)
-    finally:
-        conn.close()
-
-    if not vecs:
-        print("no embedded notes found in note_search", file=sys.stderr)
-        return 1
-    q = vecs[0]
-    rows_n = len(vecs)
-
-    py_idx, py_score = _scan(vecs, q)
+    sources = ("note", "script") if args.source == "both" else (args.source,)
+    corpora = [
+        corpus
+        for corpus in (
+            _load_note_corpus() if "note" in sources else None,
+            _load_script_corpus() if "script" in sources else None,
+        )
+        if corpus is not None
+    ]
 
     mojo_bin = _ensure_mojo_bin()
-    if mojo_bin is None:
-        print("WARNING: mojo toolchain unavailable — mojo legs skipped", file=sys.stderr)
-
-    with tempfile.TemporaryDirectory(prefix="knn_bench_") as tmp:
-        tmp_dir = Path(tmp)
-        matrix = tmp_dir / f"matrix_{rows_n}x1.f32"
-        query = tmp_dir / f"query_{rows_n}.f32"
-        _write_dump(query, [q], 1)
-
-        ok = True
-        print(
-            f"corpus: {rows_n} docs x {DIMS} dims (bge-small f32), "
-            f"query = doc[0] embedding (top-1 must be itself, score ~1.0)"
-        )
-        print()
-        headers = [
-            "scale",
-            "rows",
-            "py_math",
-            "py_json",
-            "duckdb",
-            "mojo_simd",
-            "mojo vs py_math",
-            "mojo vs py_json",
-        ]
-        table_rows: list[list[str]] = []
-        for scale in scales:
-            scaled_vecs = vecs * scale
-            scaled_jsons = jsons * scale
-            mat_path = tmp_dir / f"matrix_{rows_n}x{scale}.f32"
-            _write_dump(mat_path, vecs, scale)
-
-            t_math = _best_of(lambda: _scan(scaled_vecs, q), args.reps)
-            t_json = _best_of(lambda: _scan_json(scaled_jsons, q), args.reps)
-            t_vec = vec_best if scale == 1 else None
-
-            t_mojo: float | None = None
-            if mojo_bin:
-                mojo_out = _run_mojo(mojo_bin, mat_path, query, rows_n * scale, 50)
-                t_mojo = float(mojo_out["compute_ms"]) / 1e3
-                m_idx, m_score = (
-                    int(mojo_out["top1_idx"]),
-                    float(mojo_out["top1_score"]),
-                )
-                if m_idx != py_idx or abs(m_score - py_score) > 1e-4:
-                    ok = False
-                    print(
-                        f"VALIDATION FAIL scale={scale}: mojo top1 ({m_idx}, "
-                        f"{m_score}) != python ({py_idx}, {py_score})",
-                        file=sys.stderr,
-                    )
-
-            vec_cell = f"{t_vec * 1e3:.2f}ms" if t_vec is not None else "—"
-            mojo_cell = f"{t_mojo * 1e3:.3f}ms" if t_mojo is not None else "—"
-            sp_math = f"{t_math / t_mojo:.0f}x" if t_mojo else "—"
-            sp_json = f"{t_json / t_mojo:.0f}x" if t_mojo else "—"
-            table_rows.append(
-                [
-                    f"x{scale}",
-                    str(rows_n * scale),
-                    f"{t_math * 1e3:.2f}ms",
-                    f"{t_json * 1e3:.2f}ms",
-                    vec_cell,
-                    mojo_cell,
-                    sp_math,
-                    sp_json,
-                ]
-            )
-
-        # Aligned grid: pad every cell to its column's widest entry.
-        widths = [max(len(h), *(len(r[i]) for r in table_rows)) for i, h in enumerate(headers)]
-
-        def _render(cells: list[str]) -> str:
-            return "| " + " | ".join(c.ljust(widths[i]) for i, c in enumerate(cells)) + " |"
-
-        print(_render(headers))
-        print("|" + "|".join("-" * (w + 2) for w in widths) + "|")
-        for row in table_rows:
-            print(_render(row))
-
-        # duckdb correctness: production top-1 must be the query doc itself.
-        if vec_knn is None:
-            print("NOTE: duckdb mirror unavailable — native leg skipped in validation")
-        else:
-            vec_top1 = next(iter(vec_knn))
-            vec_ok = vec_top1 == file_paths[py_idx]
-            ok = ok and vec_ok
+    ok = True
+    _SCRATCH_ROOT.mkdir(parents=True, exist_ok=True)
+    with tempfile.TemporaryDirectory(prefix="knn_bench_", dir=_SCRATCH_ROOT) as tmp:
+        scratch = Path(tmp)
+        for corpus in corpora:
             print()
+            _, corpus_ok = _bench_corpus(corpus, scales, args.reps, mojo_bin, scratch)
+            ok = ok and corpus_ok
+
+        note_corpus = next((c for c in corpora if c.name == "note"), None)
+        if note_corpus is not None:
+            production_ok, production_seconds = _check_note_production(note_corpus)
+            ok = ok and production_ok
             print(
-                f"validation: python top1 idx={py_idx} score={py_score:.6f} ({file_paths[py_idx]})"
+                f"production note DuckDB check: {production_seconds * 1e3:.1f}ms "
+                f"[{'OK' if production_ok else 'FAIL'}]"
             )
-            print(f"validation: duckdb top1 = {vec_top1} [{'OK' if vec_ok else 'MISMATCH'}]")
-            print(f"validation: mojo top1 matches python at every scale [{'OK' if ok else 'FAIL'}]")
 
-        print()
-        print("Fixed cost per invocation (best of 3):")
-        for label, seconds in _startup_legs(mojo_bin, matrix, query, rows_n):
-            print(f"  {label}: {seconds * 1e3:.0f}ms")
+        if corpora:
+            first = corpora[0]
+            matrix_path = scratch / f"{first.name}_matrix.f32"
+            query_path = scratch / f"{first.name}_query.f32"
+            _write_dump(matrix_path, first.matrix, 1)
+            query = np.ascontiguousarray(
+                first.matrix[0] / max(float(np.linalg.norm(first.matrix[0])), 1e-12),
+                dtype=np.float32,
+            )
+            query.astype("<f4", copy=False).tofile(query_path)
+            print()
+            print("Fixed cost per invocation (best of 3):")
+            for label, seconds in _startup_legs(
+                mojo_bin, matrix_path, query_path, first.rows, first.dims
+            ):
+                print(f"  {label}: {seconds * 1e3:.0f}ms")
 
-        return 0 if ok else 1
+    return 0 if ok else 1
 
 
 if __name__ == "__main__":

@@ -38,6 +38,20 @@ entry number and stale DONE pointers):
 
 ## Current live proposals
 
+- *(none)*
+- *(archived 2026-11-19)* — `live_search_perf_slices` (tooling/, filed
+  2026-11-18, executed 2026-11-19, completed.md #545 — four measured latency
+  slices: S1 note_search cosine 504.3 → 50.28 ms k=None / 21.4 ms k=10 at
+  bit-identical parity (sort stayed client-side — SQL ORDER BY is not stable
+  and the tie order feeds RRF ranks), S1.5 company_embeddings 38.33 →
+  0.07–0.15 ms/call (parity 7.8e-16), S2 bench harness reads live BLOBs at
+  derived dims (published shape 384 → 512), S3 fuzzy_duplicate_names 3,814 →
+  269 ms with the same 8,764 pairs (whole check 7,771 → 3,406 ms), S3b Mojo
+  names 5,488 → 1,521 ms at 92/92 parity, S4 cosine gate rebuilt on a
+  two-sided feasibility rule (Rayon pinned 1, floor 0.14×, median-of-rounds,
+  top-1 by score; 3/3 healthy PASS, red at 2×); plus the derive_insights
+  perf snafu resolved — the scan ProcessPool's fork/IPC overhead dominated
+  (30.8 s pooled vs 7.9 s serial), serial is now the default, leg 8.77 s.)
 - *(archived 2026-11-18)* — `search_check_corpus_walk_s3` +
   `fts_query_token_parity` + `fts_stem_ladder_and_topk_coverage`
   (tooling/, filed + executed 2026-11-18, completed.md #542 / #543 / #544

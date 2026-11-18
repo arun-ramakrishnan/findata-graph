@@ -22,6 +22,7 @@ numpy would make every parity test above vacuous.
 from __future__ import annotations
 
 import tempfile
+from collections.abc import Iterator
 from pathlib import Path
 
 import numpy as np
@@ -56,7 +57,7 @@ def _rel(a: np.ndarray, b: np.ndarray) -> float:
 
 
 @pytest.fixture()
-def fixture_db() -> Path:
+def fixture_db() -> Iterator[Path]:
     with tempfile.TemporaryDirectory(prefix="l1-kernel-") as tmp:
         yield build_graph_fixture_db(Path(tmp) / "fixture.db")
 

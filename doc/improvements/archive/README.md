@@ -1328,6 +1328,21 @@ commit, referenced by nothing). Entry numbers point at
   `window-shingles`, golden oracle, parity 210/210 exact rationals, perf
   smoke 0.001 ms — completed.md #520
 - [`mojo_12_build_api_drift.md`](tooling/mojo_12_build_api_drift.md) — Fix `make mojo-build` on Mojo 1.2.0: migrate removed `has_{nvidia,amd,apple}_gpu_accelerator` to `default_accelerator().is_*_gpu()` in analyzer.mojo + analyzer_intel.mojo; 29 binaries green, mojo-test + parity 92/92 — completed.md #537
+- [`live_search_perf_slices.md`](tooling/live_search_perf_slices.md) —
+  four measured latency slices off the 2026-11-18 Mojo/Rust idea sweep
+  (§2 of the proposal is the rejection ledger): S1 production note_search
+  cosine 504.3 → 50.28 ms k=None / 21.4 ms k=10 at bit-identical parity
+  (sort kept client-side — SQL ORDER BY is not stable and the tie order
+  feeds RRF ranks; DuckDB instance-reuse inode bug found and fixed),
+  S1.5 company_embeddings 38.33 → 0.07–0.15 ms/call (parity 7.8e-16), S2
+  bench harness reads live BLOBs at derived dims (published shape
+  384 → 512), S3 fuzzy_duplicate_names 3,814 → 269 ms with the same
+  8,764 pairs (whole check 7,771 → 3,406 ms), S3b Mojo names 5,488 →
+  1,521 ms at 92/92 parity, S4 cosine gate rebuilt on a two-sided
+  feasibility rule (Rayon pinned 1, floor 0.14×, median-of-rounds, top-1
+  by score; 3/3 healthy PASS, red at 2×/3×); derive_insights perf snafu
+  resolved (scan ProcessPool fork/IPC overhead dominated — 30.8 s pooled
+  vs 7.9 s serial; serial now default, leg 8.77 s) — completed.md #545
 
 ## maintenance/ — Maintenance, backfills, and operational tooling
 

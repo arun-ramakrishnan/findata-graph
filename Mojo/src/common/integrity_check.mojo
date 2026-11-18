@@ -1093,27 +1093,29 @@ def main() raises:
     var nc = comp_rows.__len__()
     var names = List[String]()
     var tickers = List[String]()
-    var tokens_s = Dict[String, String]()  # i -> comma-joined tokens
+    # Keep each row's token set in memory instead of serialising it into a
+    # comma-joined string.  The old representation had to split every row
+    # again for each candidate, which made the fuzzy-name section dominate
+    # the checker runtime.
+    var token_rows = List[List[String]]()
     for i in range(nc):
         names.append(py_str(comp_rows[i][0]))
         var tk = String("")
         if comp_rows[i][1].__bool__():
             tk = py_str(comp_rows[i][1])
         tickers.append(tk)
-        tokens_s[String(i)] = join_list(
-            meaningful_tokens(names[i], lower_fn), ","
-        )
-    # inverted index: token -> comma-joined candidate row indices
-    var inv = Dict[String, String]()
+        token_rows.append(meaningful_tokens(names[i], lower_fn))
+    # Inverted index: token -> row indices.  This is the same candidate
+    # universe as the old comma-joined index, but membership is now O(1) and
+    # row tokens are never re-split.
+    var inv = Dict[String, List[Int]]()
     for i in range(nc):
-        var row_toks = tokens_s[String(i)].split(",")
+        var row_toks = token_rows[i].copy()
         for ti in range(len(row_toks)):
-            var key = String(row_toks[ti])
-            var cur = inv.get(key, String(""))
-            if cur.byte_length() > 0:
-                inv[key] = cur + "," + String(i)
-            else:
-                inv[key] = String(i)
+            var key = row_toks[ti]
+            var members = inv.get(key, List[Int]())
+            members.append(i)
+            inv[key] = members^
     # NB: keys are sorted within the pair (pk is built from sort_strs)
     var SUPPRESSED = List[String]()
     SUPPRESSED.append("3M Company|3M India")
@@ -1125,36 +1127,29 @@ def main() raises:
     SUPPRESSED.append("Sanofi|Sanofi India")
     SUPPRESSED.append("Shree Cement|Shree Digvijay Cement")
     var pairs = List[String]()
+    # The pair set was previously checked with contains(pairs, pk), scanning
+    # every accumulated pair for every candidate.  A dictionary gives the
+    # same exact membership test in constant time.
+    var pair_seen = Dict[String, Bool]()
     var keys = List[String]()
     for i in range(nc):
-        var ci_parts = tokens_s[String(i)].split(",")
-        var ci = List[String]()
-        for ti in range(len(ci_parts)):
-            if String(ci_parts[ti]).byte_length() > 0:
-                ci.append(String(ci_parts[ti]))
+        var ci = token_rows[i].copy()
         if len(ci) == 0:
             continue
         var cands = List[Int]()
+        var cand_seen = Dict[Int, Bool]()
         for ti in range(len(ci)):
-            var members = inv[ci[ti]].split(",")
+            var members = inv[ci[ti]].copy()
             for li in range(len(members)):
-                var j = Int(String(members[li]))
+                var j = members[li]
                 if j <= i:
                     continue
-                var dup = False
-                for cj_i in range(len(cands)):
-                    if cands[cj_i] == j:
-                        dup = True
-                        break
-                if not dup:
+                if not cand_seen.get(j, False):
+                    cand_seen[j] = True
                     cands.append(j)
         for ci_j in range(len(cands)):
             var j = cands[ci_j]
-            var cj_parts = tokens_s[String(j)].split(",")
-            var cj = List[String]()
-            for tj in range(len(cj_parts)):
-                if String(cj_parts[tj]).byte_length() > 0:
-                    cj.append(String(cj_parts[tj]))
+            var cj = token_rows[j].copy()
             var tk_i = tickers[i]
             var tk_j = tickers[j]
             var dominated = False
@@ -1172,7 +1167,8 @@ def main() raises:
             var pk = join_list(sort_strs(pair), "|")
             if contains(SUPPRESSED, pk):
                 continue
-            if not contains(pairs, pk):
+            if not pair_seen.get(pk, False):
+                pair_seen[pk] = True
                 pairs.append(pk)
                 # ORDER KEY (converged 2026-10-14). The parity fixture
                 # (mojo_db_integrity.py:322-328) sorts the pair LIST by the

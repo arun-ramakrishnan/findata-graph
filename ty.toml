@@ -59,3 +59,14 @@ include = [
 
   [overrides.rules]
   import-not-found = "warn"
+
+# cosine_knn: locally-built Rust pyo3 abi3 module (make rust-install), same
+# class as graph_kernels — .so in site-packages with no stubs, so ty cannot
+# resolve it. The bench harness guards the import with try/except ImportError
+# and SKIPs cleanly when the extension is absent; this file is bench/tooling,
+# not production. Scoped to WARN like the other locally-built extension.
+[[overrides]]
+include = ["Mojo/bench/bench_cosine_knn.py"]
+
+  [overrides.rules]
+  import-not-found = "warn"

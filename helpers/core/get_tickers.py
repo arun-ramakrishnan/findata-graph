@@ -301,6 +301,7 @@ def _candidate_vec(emb_str, dims):
 # `gt.*` attr access in test_get_tickers keep working).
 from helpers.core.vss_index import (  # module-level re-export (E402 via per-file ignore)
     _best_vss_match,  # noqa: F401  # re-export: callers import from this module
+    _db_fingerprint,  # noqa: F401  # re-export
     _decoded_vss_table,  # noqa: F401  # re-export
     _pick_embedder,
     _raw_vec,  # noqa: F401  # re-export
@@ -363,6 +364,10 @@ def vss_match(
             conn.close()
         return None, 0.0
 
+    # Cheap content key for the matrix tier (S1.5): the DB file identity
+    # plus the row count. Computed BEFORE the connection is closed.
+    fingerprint = _db_fingerprint(conn, rows) if conn is not None else None
+
     if owns and conn is not None:
         conn.close()
 
@@ -378,7 +383,7 @@ def vss_match(
 
     qvec = embed_fn(query, dims)
 
-    best_name, best_score = _best_vss_match(qvec, rows, dims, entity_set)
+    best_name, best_score = _best_vss_match(qvec, rows, dims, entity_set, cache_key=fingerprint)
 
     if best_name and best_score >= threshold:
         return best_name, best_score

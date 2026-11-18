@@ -60,6 +60,7 @@ import shutil
 import sqlite3
 import sys
 import tempfile
+import threading
 from pathlib import Path
 
 # Repo root: helpers/core/vec_search.py -> parents[2]. Must be on sys.path
@@ -198,6 +199,96 @@ def _open_ro(path: Path):
     return con
 
 
+# --- cached mirror reader -------------------------------------------------
+# The vector mirror is rewritten copy-on-write (temp file + os.replace), so a
+# cached reader must notice the swap: os.replace gives the new file a fresh
+# inode, hence (st_ino, st_mtime_ns, st_size) is the swap signal.
+#
+# The cache is PER THREAD: a DuckDB connection is not safe for concurrent use
+# from several threads, and every worker thread then pays the extension-load
+# cost (INSTALL/LOAD fts+vss) ONCE instead of on every query.
+_TLS = threading.local()
+
+
+class _MirrorReader:
+    """Cached read-only handle on the vector mirror."""
+
+    __slots__ = ("path", "sig", "con", "dims", "rows")
+
+    def __init__(
+        self, path: Path, sig: tuple[int, int, int], con, dims: int | None, rows: int
+    ) -> None:
+        self.path = path
+        self.sig = sig
+        self.con = con
+        self.dims = dims
+        self.rows = rows
+
+
+def _mirror_sig(path: Path) -> tuple[int, int, int] | None:
+    """Identity of the mirror file, or None when it is absent."""
+    try:
+        st = path.stat()
+    except OSError:
+        return None
+    return (st.st_ino, st.st_mtime_ns, st.st_size)
+
+
+def _dims_from_con(con) -> int | None:
+    """Dims of the mirror's embedding column, read from an open catalog."""
+    try:
+        row = con.execute(
+            "SELECT data_type FROM duckdb_columns "
+            "WHERE table_name = ? AND column_name = 'embedding'",
+            (VEC_TABLE,),
+        ).fetchone()
+    except Exception:  # noqa: BLE001 - best-effort gate
+        return None
+    if not row or not row[0]:
+        return None
+    m = _DIM_RE.search(str(row[0]))
+    return int(m.group(1)) if m else None
+
+
+def _reader(path: Path) -> _MirrorReader | None:
+    """Thread-local cached reader on the mirror (None when unavailable).
+
+    Re-opens when the mirror file was swapped (copy-on-write rebuild), so a
+    long-lived process never serves a stale snapshot.
+    """
+    sig = _mirror_sig(path)
+    if sig is None:
+        return None
+    cached = getattr(_TLS, "reader", None)
+    if cached is not None and cached.path == path and cached.sig == sig:
+        return cached
+    # Close the stale handle BEFORE opening the new one: DuckDB reuses the
+    # live instance for the same path + config, and that instance keeps
+    # serving the PRE-SWAP inode -- a copy-on-write rewrite would stay
+    # invisible until every handle to the old file is closed (verified on
+    # DuckDB 2.0.0: a fresh read-only connect while the old handle was open
+    # returned the OLD rows; closing first returned the new ones).
+    if cached is not None:
+        try:
+            cached.con.close()
+        except Exception:  # noqa: BLE001 - best-effort
+            pass
+        _TLS.reader = None
+    try:
+        con = _open_ro(path)
+    except Exception:  # noqa: BLE001 - best-effort
+        return None
+    dims = _dims_from_con(con)
+    try:
+        rows = con.execute(f"SELECT COUNT(*) FROM {VEC_TABLE}").fetchone()[0]  # noqa: S608  # VEC_TABLE is a module constant
+    except Exception:  # noqa: BLE001
+        con.close()
+        return None
+    reader = _MirrorReader(path, sig, con, dims, int(rows))
+    _TLS.reader = reader
+    return reader
+
+
 def _mirror_path(conn: sqlite3.Connection) -> Path:
     """Resolve the mirror sidecar for this connection.
 
@@ -209,7 +300,14 @@ def _mirror_path(conn: sqlite3.Connection) -> Path:
 
 
 def _mirror_dims(path: Path) -> int | None:
-    """Dims of the existing mirror column from the catalog (None if absent)."""
+    """Dims of the existing mirror column from the catalog (None if absent).
+
+    Served from the cached reader when possible: the catalog read used to
+    open (and extension-load) a connection on every call.
+    """
+    reader = _reader(path)
+    if reader is not None:
+        return reader.dims
     if not path.exists():
         return None
     try:
@@ -217,19 +315,9 @@ def _mirror_dims(path: Path) -> int | None:
     except Exception:  # noqa: BLE001 - best-effort gate
         return None
     try:
-        row = con.execute(
-            "SELECT data_type FROM duckdb_columns "
-            "WHERE table_name = ? AND column_name = 'embedding'",
-            (VEC_TABLE,),
-        ).fetchone()
-    except Exception:  # noqa: BLE001
-        return None
+        return _dims_from_con(con)
     finally:
         con.close()
-    if not row or not row[0]:
-        return None
-    m = _DIM_RE.search(str(row[0]))
-    return int(m.group(1)) if m else None
 
 
 def stored_dims(conn: sqlite3.Connection) -> int | None:
@@ -447,21 +535,18 @@ def vec_available(conn: sqlite3.Connection, dims: int, *, lazy_backfill: bool = 
     query after a rebuild-from-scratch or snapshot restore.
     """
     path = _mirror_path(conn)
-    if _mirror_dims(path) != dims:
+    reader = _reader(path)
+    if reader is None or reader.dims != dims:
         if not lazy_backfill:
             return False
-        if backfill_from_fts(conn, dims) == 0 and _mirror_dims(path) != dims:
+        written = backfill_from_fts(conn, dims)
+        # The backfill rewrites the mirror copy-on-write -> re-open the reader.
+        reader = _reader(path)
+        if reader is None:
             return False
-    try:
-        con = _open_ro(path)
-    except Exception:  # noqa: BLE001 - best-effort gate
-        return False
-    try:
-        return con.execute(f"SELECT COUNT(*) FROM {VEC_TABLE}").fetchone()[0] > 0  # noqa: S608  # VEC_TABLE is a module constant
-    except Exception:  # noqa: BLE001
-        return False
-    finally:
-        con.close()
+        if written == 0 and reader.dims != dims:
+            return False
+    return reader.rows > 0
 
 
 # The sqlite-vec era hard-capped a single KNN query at k=4096, which at
@@ -469,6 +554,50 @@ def vec_available(conn: sqlite3.Connection, dims: int, *, lazy_backfill: bool = 
 # the flat-matrix fallback (note sectioning, 2026-09-06). The DuckDB mirror
 # has no such cap: k=None runs a vectorized whole-table cosine scan and
 # k=<int> uses the HNSW index -- no silent truncation at any corpus size.
+
+
+def _whole_corpus_similarities(con, vec: list[float], dims: int) -> dict[str, float] | None:
+    """Whole-corpus cosine map (the k=None leg), best first.
+
+    The query vector is BOUND as a FLOAT[dim] parameter instead of inlined:
+    a 512-float text literal was re-parsed by DuckDB on every query (~11 ms
+    per call). The bound parameter computes the identical value -- same cast,
+    same function -- and the returned map and its order are bit-identical to
+    the inline-literal form (verified on the live 19,356-row mirror).
+
+    No ORDER BY in SQL: the previous implementation sorted in python, and
+    app.py's RRF ranks depend on that order (ties keep scan order). A STABLE
+    numpy argsort over the scan order reproduces it exactly.
+    """
+    sql = (
+        "SELECT row_key, array_cosine_similarity(embedding, $1::FLOAT[{dims}]) AS sim FROM {table}"
+    ).format(dims=int(dims), table=VEC_TABLE)
+    try:
+        res = con.execute(sql, [vec]).fetchnumpy()
+        import numpy as np
+    except Exception:  # noqa: BLE001 - no numpy (or the fetch failed): pure python
+        sql_lit = (
+            "SELECT row_key, array_cosine_similarity(embedding, " + _vec_literal(vec, dims) + ") "
+            "FROM {table}"
+        ).format(table=VEC_TABLE)
+        hits = con.execute(sql_lit).fetchall()
+        hits.sort(key=lambda r: r[1], reverse=True)
+        out: dict[str, float] = {}
+        for row_key, sim in hits:
+            try:
+                out[str(row_key)] = float(sim)  # raw cosine, no clamp
+            except TypeError, ValueError:
+                continue
+        return out
+    keys = res["row_key"].tolist()
+    sims = res["sim"]
+    if np.isnan(sims).any():
+        # A NULL embedding yields a NULL similarity; the old python sort
+        # raised on it and degraded the whole KNN path. Keep degrading.
+        return None
+    order = np.argsort(-sims, kind="stable")
+    values = sims.tolist()
+    return {str(keys[i]): values[i] for i in order}
 
 
 def knn_similarities(
@@ -499,19 +628,19 @@ def knn_similarities(
         return None
     if k is not None:
         k = max(int(k), 1)
-    vec_lit = _vec_literal(q_vec, dims)
-    try:
-        con = _open_ro(_mirror_path(conn))
-    except Exception:  # noqa: BLE001 - best-effort
+    reader = _reader(_mirror_path(conn))
+    if reader is None:
         return None
+    con = reader.con
+    vec = [float(x) for x in q_vec]
     try:
         if k is None:
-            hits = con.execute(
-                "SELECT row_key, array_cosine_similarity(embedding, " + vec_lit + ") "
-                f"FROM {VEC_TABLE}"
-            ).fetchall()
-            hits.sort(key=lambda r: r[1], reverse=True)
+            out = _whole_corpus_similarities(con, vec, dims)
         else:
+            # The HNSW leg keeps the inline literal (the proven form for
+            # ORDER-BY positions, 2026-11-05 trial forensics) -- binding the
+            # vector here risks the index plan.
+            vec_lit = _vec_literal(vec, dims)
             hits = con.execute(
                 "SELECT row_key, array_cosine_distance(embedding, " + vec_lit + ") AS dist "
                 f"FROM {VEC_TABLE} "
@@ -521,16 +650,14 @@ def knn_similarities(
             ).fetchall()
             # Convert distance to similarity AFTER the top-k to preserve HNSW routing
             hits = [(rk, 1.0 - dist) for rk, dist in hits]
+            out = {}
+            for row_key, sim in hits:
+                try:
+                    out[str(row_key)] = float(sim)  # raw cosine, no clamp
+                except TypeError, ValueError:
+                    continue
     except Exception:  # noqa: BLE001 - best-effort
         return None
-    finally:
-        con.close()
-    out: dict[str, float] = {}
-    for row_key, sim in hits:
-        try:
-            out[str(row_key)] = float(sim)  # raw cosine, no clamp
-        except TypeError, ValueError:
-            continue
     return out
 
 

@@ -481,25 +481,29 @@ BENCHMARKS: list[tuple[str, list[str], float]] = [
         8.0,
     ),
     # rust_cosine_knn_port: the Rust kernel's reason-to-exist, measured as
-    # RATIOS at the live script-search shape (717 x 512) — the leg asserts
-    # rust >= 1.3x numpy and >= 5x the pure loop, NOT an absolute q/s.
+    # RATIOS, NOT absolute q/s. The production script-search shape (717 x 512)
+    # asserts rust >= 1.3x numpy and >= 5x the pure loop. S4 adds the shapes
+    # where Rust currently loses — live-note (19,356 x 512) and scale
+    # (250k/500k/1M x 384) — with an honest rust/numpy >= 0.14x floor. The
+    # gate prints one per-shape table and a score-based top-1 parity check
+    # (ids are not a stable contract where similarities tie within float32 ulps).
     # Absolute numbers were deliberately avoided: they encode this CPU and
     # would punish a faster box, and this 4-core i5-6500 runs `powersave`
     # (3300-3488 MHz observed), so absolute budgets are flaky here.
-    # Calibration 2026-10-27, quiet box (interleaved): rust 1.00-1.11 ms/query
-    # (~900-1000 q/s), numpy 2.62-2.88 ms (350-382 q/s) = 2.53-2.59x, pure
-    # 42.9-43.8 ms (23 q/s) = 41-44x; per-round numpy ratio held 2.36-2.86,
-    # so 1.3x sits outside the noise floor, not inside it. The 1.3x bar exists
-    # to catch SILENT DEGRADATION: with no abi3 module the selector falls
-    # back to numpy and both halves time the same code, collapsing the
-    # ratio to ~1.0 — rankings stay correct, so only this leg notices.
-    # Verified red on exactly that failure (0.96x, exit 1) and green on the
-    # rest; also verified SKIP-exit-0 with the module hidden.
-    # Runtime ~2.5 s (warm-up + 5 rounds x 60 queries x2 + 5 pure); the 15.0 s
-    # budget only guards the harness itself, like route_graph_stats does.
+    # The floor is not "below the loss regime": it is set by the feasible-window
+    # rule (must beat half the widest healthy ratio, stay under the narrowest).
+    # The old 0.40x floor failed healthy builds 5/5 because Rayon-4 medians span
+    # 0.42-0.77x. Pinning Rayon to one worker narrows the band to 0.17-0.24x, so
+    # 0.14x passes a healthy build 3/3 and still fails a 2x/3x slowdown.
     # SKIPs with exit 0 when the module is not built; qa's
     # SCRIPT_KNN_STRICT=1 remains the hard pin for a vanished .so.
-    ("cosine_knn_ratios", ["Rust/bench/cosine_gate.py"], 15.0),
+    # Budget 25.0s since 2026-11-19 (operator call): S4 grew the leg from
+    # 2.4s to ~11.3s (production + live-note + 250k/1M scale shapes; the
+    # redundant 500k middle point was dropped), and the house rule is
+    # measured x2 — 11.3s x2 = 22.6s, rounded to 25.0s. The inner ratio
+    # bars remain the real gate; this outer budget only catches super-linear
+    # decay of the harness itself.
+    ("cosine_knn_ratios", ["Rust/bench/cosine_gate.py"], 25.0),
 ]
 
 

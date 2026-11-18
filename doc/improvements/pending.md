@@ -759,6 +759,12 @@ Open items below keep their revisit triggers inline; executed work is compressed
   stays deferred (brute cosine remains the shipped path). Next-check
   on a vss build with an index-only top-k plan (no semi-join re-sort)
   or vectors → 10⁶.**
+  **Re-checked 2026-11-18 on the live 19,356×512 note mirror: the apparent
+  3.85× "ANN win" (13.97 ms vs 53.75 ms exact, recall@10 1.0) is the TOP-K
+  QUERY SHAPE, not ANN traversal — `EXPLAIN` still shows a Seq Scan over all
+  19,356 rows. Brute stays shipped. The production win came from removing
+  per-call connection/pragma overhead instead (`live_search_perf_slices` S1:
+  504 ms → 50 ms at k=None, parity bit-identical).**
 - **MAX engine = the viable future small-batch GEMM route** (recorded
   2026-10-26, Mojo-vs-Rust review; no execution yet). When embedding
   scale hits the trigger below, the small-batch rung of the kernel
@@ -778,6 +784,14 @@ Open items below keep their revisit triggers inline; executed work is compressed
   1.000); custom zero-copy logic → Rust/PyO3; set-SQL → DuckDB.
   Trigger: embeddings ~10⁵+ (current 1,209, DuckDB brute ~3 ms) or any
   measured batch-GEMM wall in production.
+  **Re-measured 2026-11-18 (`live_search_perf_slices`): trigger still cold —
+  no searched corpus reaches 10⁵ (note_search_vec 19,356 is the largest;
+  company_embeddings 1,209; script_search 840). `max.engine` imports and
+  exposes `InferenceSession`/`Model`/`CompiledModel`, but the specific
+  `Inner_matmul_default` entry point this rung depends on is ABSENT from the
+  installed build, so the rung is not actionable even if it fired. numpy sgemm
+  at the live shapes: 717×512 batch-8 ≈ 19 ms, 19,356×512 ≈ 27 ms, batch-64
+  4.3 ms. Rung stays parked.**
 - **Rust/PyO3 rung of the ladder — FIRED for BFS-shaped work (not GEMM)**
   (2026-11-09, `rust_bfs_kernels_stats_trails`, executed same day):
   `graph_kernels` (Rust/graph_kernels, abi3) ships two adopted entrants —
@@ -788,6 +802,14 @@ Open items below keep their revisit triggers inline; executed work is compressed
   is the design rule: batch ALL sources into one in-process call. Kernel
   ladder for embeddings is unchanged — cosine-shaped Rust stays closed
   (0.47–0.49× vs numpy, refuted with rayon).
+  **Re-measured 2026-11-18 (`live_search_perf_slices`): the 0.46–0.49× gap is
+  FLAT from 250k to 1M rows, so it is a per-row efficiency gap, not dispatch
+  overhead — and it is NOT a threading gap: rayon is already active and the
+  old "817 ms single-thread @1M" figure does not reproduce (139 ms on the
+  current build). Single-threaded, Rust is 1.42× slower than numpy sgemv and
+  2.4× slower than numpy on 4 threads. The fix direction is the per-row
+  kernel, not more rayon. `Rust/bench/cosine_gate.py` now also covers the
+  shapes where Rust loses (see pending.md:745-761 for the ANN note).**
 
 - **Wrap `onager_ctr_personalized_pagerank`** (deferred N5 item 6). Onager bug:
   personalisation column ignored, restart node hardcoded to `node_id 1`, and it

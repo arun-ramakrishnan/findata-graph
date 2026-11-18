@@ -1300,6 +1300,10 @@ class DatabaseIntegrityChecker:
         "group",
         "holdings",
     }
+    # Compiled tokenizer for _meaningful_tokens (one pass, same tokens as
+    # re.sub(r"[^a-z0-9 ]", " ", name.lower()).split()).
+    _MEANINGFUL_TOKEN_RE = re.compile(r"[a-z0-9]+")
+
     # Generic words that are NOT distinctive on their own. A fuzzy name match
     # must share at least one token NOT in this set, so two unrelated companies
     # sharing only "life insurance" / "power gas" don't false-match.
@@ -1358,14 +1362,24 @@ class DatabaseIntegrityChecker:
 
     @staticmethod
     def _meaningful_tokens(name: str | None) -> set[str]:
+        # _MEANINGFUL_TOKEN_RE yields the same tokens as the previous
+        # re.sub(r"[^a-z0-9 ]", " ", ...).split() form (maximal [a-z0-9]+ runs)
+        # in one pass instead of two.
         return {
             t
-            for t in re.sub(r"[^a-z0-9 ]", " ", (name or "").lower()).split()
+            for t in DatabaseIntegrityChecker._MEANINGFUL_TOKEN_RE.findall((name or "").lower())
             if t and t not in DatabaseIntegrityChecker._STOPWORDS
         }
 
-    def _fuzzy_names_match(self, tokens_i: set[str], tokens_j: set[str]) -> bool:
-        """Return True if two token sets represent a fuzzy-name match."""
+    def _fuzzy_names_match(
+        self, tokens_i: frozenset[str], tokens_j: frozenset[str]
+    ) -> bool:
+        """Return True if two token sets represent a fuzzy-name match.
+
+        Token sets are built as frozensets in ``check_fuzzy_duplicate_names``
+        (shared via ``_meaningful_tokens``), so accept the immutable set type
+        at the boundary instead of forcing a lossy copy at each call site.
+        """
         shared = tokens_i & tokens_j
         # Single-token exact match (e.g. 'Hindalco' == 'Hindalco').
         if len(tokens_i) == 1 and len(tokens_j) == 1 and shared:
@@ -1407,25 +1421,77 @@ class DatabaseIntegrityChecker:
             "SELECT name, ticker FROM entities WHERE entity_type = 'company'"
         ).fetchall()
 
-        pairs = []
-        token_cache = [(ni, ti, self._meaningful_tokens(ni)) for (ni, ti) in rows]
-
         from collections import defaultdict
 
-        token_to_indices: dict[str, set[int]] = defaultdict(set)
-        for idx, (_, _, tokens) in enumerate(token_cache):
-            for t in tokens:
-                token_to_indices[t].add(idx)
+        # Token sets, memoised by name (duplicate renderings are common).
+        token_cache: list[tuple[str, str | None, frozenset[str]]] = []
+        memo: dict[str, frozenset[str]] = {}
+        for ni, ti in rows:
+            tokens = memo.get(ni)
+            if tokens is None:
+                tokens = frozenset(self._meaningful_tokens(ni))
+                memo[ni] = tokens
+            token_cache.append((ni, ti, tokens))
 
+        # Two indexes over the token sets:
+        #   by_token_set — rows whose token set is EXACTLY a given set
+        #   postings     — token -> rows carrying it
+        by_token_set: dict[frozenset[str], list[int]] = defaultdict(list)
+        postings: dict[str, set[int]] = defaultdict(set)
+        for idx, (_, _, tokens) in enumerate(token_cache):
+            if not tokens:
+                continue
+            by_token_set[tokens].append(idx)
+            for t in tokens:
+                postings[t].add(idx)
+
+        # The fuzzy rule accepts a pair only when one token set is a SUBSET of
+        # the other and the two share >= 2 tokens, at least one of them not
+        # generic. So the only relation worth computing is "row j carries
+        # EVERY token of row i" (one set intersection over the postings):
+        #
+        #   supersets[i] = {j : tokens(j) is a superset of tokens(i)}
+        #
+        # It serves both directions — supersets[i] gives the rows whose tokens
+        # CONTAIN tokens(i), and its transpose gives the rows whose tokens are
+        # CONTAINED BY tokens(i). The old scan unioned every token posting
+        # (every row sharing ONE token) and then re-tested each candidate,
+        # which cost ~3.8 s over 25,200 companies; the relation above costs
+        # ~0.3 s and yields exactly the matching candidates.
+        supersets: list[frozenset[int]] = []
+        for _, _, ci in token_cache:
+            if len(ci) < 2 or not (ci - self._GENERIC_WORDS):
+                # A single token (handled by the exact-set index) or a token
+                # set with no distinctive token can never satisfy the rule.
+                supersets.append(frozenset())
+                continue
+            sets = sorted((postings[t] for t in ci), key=len)
+            cur = set(sets[0])
+            for other in sets[1:]:
+                if not cur:
+                    break
+                cur.intersection_update(other)
+            supersets.append(frozenset(cur))
+
+        # Transpose: rows whose token set is a subset of row i's.
+        subset_rows: dict[int, list[int]] = defaultdict(list)
+        for j, sj in enumerate(supersets):
+            for i in sj:
+                if i != j:
+                    subset_rows[i].append(j)
+
+        pairs = []
         seen_pairs: set[frozenset[str]] = set()
         for i, (ni, ti, ci) in enumerate(token_cache):
             if not ci:
                 continue
-            candidates: set[int] = set()
-            for t in ci:
-                candidates.update(token_to_indices[t])
-            candidates.discard(i)
-            for j in candidates:
+            if len(ci) == 1:
+                # Single-token exact match ('Hindalco' == 'Hindalco').
+                candidates = by_token_set.get(ci, ())
+            else:
+                candidates = set(supersets[i])
+                candidates.update(subset_rows.get(i, ()))
+            for j in sorted(candidates):
                 if j <= i:
                     continue
                 nj, tj, cj = token_cache[j]
