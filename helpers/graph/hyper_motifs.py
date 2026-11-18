@@ -37,7 +37,10 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import os
+import subprocess
 import sys
+import tempfile
 from pathlib import Path
 from typing import Any
 
@@ -52,6 +55,104 @@ from helpers.graph.hyper_spectral import load_family  # noqa: E402
 
 DEFAULT_FAMILIES = ("edition", "industry", "sub_sector", "org_membership")
 DEFAULT_ORDERS = (2, 3)
+
+# Opt-in Mojo accelerated null lane (proposal mojo_hyper_motifs_null_scaling).
+# Same shape as hyper_trails' MOJO_TRAIL_BATCH: env read at call time, default
+# OFF, first-party binary at a constant path, byte-compatible output, and a
+# silent fall-through to the Python oracle on any failure. The kernel consumes
+# PRE-DEALT postings shipped from Python so the RNG stream is shared — parity
+# is on the census compute alone, not on a re-implemented PCG64.
+_MOJO_NULL_BIN = _PROJECT_ROOT / "Mojo" / "bin" / "motifs_null_batch"
+
+
+def _mojo_null(
+    edges: list[list[str]],
+    *,
+    orders: tuple[int, ...],
+    runs: int,
+    seed: int,
+) -> dict[str, Any] | None:
+    """Return the configuration-null result via the Mojo kernel, or None when
+    MOTIF_NULL_MOJO != 1, the binary is missing, or any failure occurs.
+
+    Builds the per-replicate postings with EXACTLY the Python reference's
+    shuffle semantics (np.repeat(arange(N), degrees) stub ordering, in-place
+    compounding rng.shuffle(seed)), so the kernel's census sees draw-identical
+    data. Returns the same {pairs_ge_k_null_mean, ..._null_std, runs, seed}
+    shape as the Python path; callers fall through on None so the default
+    lane is untouched.
+    """
+    if os.environ.get("MOTIF_NULL_MOJO") != "1" or not edges:
+        return None
+    if not _MOJO_NULL_BIN.exists():
+        return None
+
+    node_ids: dict[str, int] = {}
+    degrees: list[int] = []
+    for members in edges:
+        for v in members:
+            idx = node_ids.get(v)
+            if idx is None:
+                idx = len(degrees)
+                node_ids[v] = idx
+                degrees.append(0)
+            degrees[idx] += 1
+    stubs = np.repeat(np.arange(len(degrees), dtype=np.int32), degrees)
+    sizes = [len(e) for e in edges]
+
+    bin_path = None
+    try:
+        with tempfile.NamedTemporaryFile(suffix=".bin", delete=False) as tf:
+            bin_path = Path(tf.name)
+        rng = np.random.default_rng(seed)
+        work = stubs.copy()
+        with bin_path.open("wb") as f:
+            f.write(np.array([runs, len(sizes), len(orders), *orders], dtype=np.int32).tobytes())
+            for _ in range(runs):
+                rng.shuffle(work)  # in-place compounding — exact Python semantics
+                pos = 0
+                postings: dict[int, list[int]] = {}
+                for eid, s in enumerate(sizes):
+                    for ni in {int(x) for x in work[pos : pos + s]}:
+                        postings.setdefault(ni, []).append(eid)
+                    pos += s
+                groups = sorted(postings.items())
+                f.write(np.array([len(groups)], dtype=np.int32).tobytes())
+                for node, eids in groups:
+                    f.write(np.array([node, len(eids), *eids], dtype=np.int32).tobytes())
+
+        env = dict(os.environ)
+        env["PATH"] = f"{_PROJECT_ROOT / '.venv' / 'bin'}:{env.get('PATH', '')}"
+        proc = subprocess.run(  # noqa: S603 — first-party binary, fixed numeric argv
+            [str(_MOJO_NULL_BIN), str(bin_path), str(runs), "1"],
+            capture_output=True,
+            text=True,
+            timeout=120,
+            cwd=str(_PROJECT_ROOT),
+            env=env,
+        )
+        if proc.returncode != 0:
+            raise RuntimeError(f"mojo null kernel rc={proc.returncode}: {proc.stderr[:200]!r}")
+        got: dict[int, tuple[float, float]] = {}
+        for line in proc.stdout.splitlines():
+            fields = line.split()
+            if len(fields) != 3 or not fields[0].lstrip("-").isdigit():
+                continue
+            got[int(fields[0])] = (float(fields[1]), float(fields[2]))
+        if any(k not in got for k in orders):
+            raise RuntimeError("mojo null kernel omitted an order")
+
+        out: dict[str, Any] = {"runs": runs, "seed": seed}
+        for k in orders:
+            out[f"pairs_ge_{k}_null_mean"] = got[k][0]
+            out[f"pairs_ge_{k}_null_std"] = got[k][1]
+        return out
+    except (RuntimeError, OSError, subprocess.TimeoutExpired) as exc:
+        print(f"mojo null lane unavailable ({exc}); falling back", file=sys.stderr)
+        return None
+    finally:
+        if bin_path is not None:
+            bin_path.unlink(missing_ok=True)
 
 
 def pair_shared_counts(edges: list[list[str]]) -> dict[tuple[int, int], int]:
@@ -133,6 +234,11 @@ def configuration_null(
     replicate edges can be slightly smaller than their slot size, which
     makes the null conservative (understates cross-edge overlap).
     """
+    # Opt-in Mojo lane: byte-compatible result on the same RNG draws, or None.
+    mojo = _mojo_null(edges, orders=orders, runs=runs, seed=seed)
+    if mojo is not None:
+        return mojo
+
     node_ids: dict[str, int] = {}
     degrees: list[int] = []
     for members in edges:

@@ -75,28 +75,36 @@ def a2_kernel(supplier_incidence, top_k=10):
     The diagonal entries are each supplier's degree (consumer count).
 
     Returns top-K pairs by shared count (excluding self-pairs i==j).
+
+    The product B·Bᵀ is sparse (only supplier pairs sharing ≥1 consumer),
+    so stay sparse and top-K the COO triplets — the old dense ``.toarray()``
+    materialized an n×n int64 matrix (~370 MB at n=6,780) and then scanned
+    it with a Python O(n²) double loop. Also promote to int32 before the
+    product: the incidence data is int8, so shared counts for high-degree
+    suppliers (>127 consumers) overflowed int8 (diagonal only at live scale,
+    but a latent correctness bug). Tie-break is (-shared, i, j), matching
+    the previous stable sort of insertion order.
     """
     mat = supplier_incidence["matrix"]  # n × m sparse 0-1
-    n = mat.shape[0]
-    # compute shared count matrix (i,j) = |consumers(i) ∩ consumers(j)|
-    shared = (mat @ mat.transpose()).toarray().astype(np.int64)
-    # zero out diagonal (self-shared = degree, not a candidate pair)
-    np.fill_diagonal(shared, 0)
-    # find top-K entries (i<j pairs with shared > 0)
-    results = []
-    for i in range(n):
-        for j in range(i + 1, n):
-            val = int(shared[i, j])
-            if val > 0:
-                results.append(
-                    (
-                        val,
-                        supplier_incidence["suppliers"][i],
-                        supplier_incidence["suppliers"][j],
-                    )
-                )
-    results.sort(key=lambda x: x[0], reverse=True)
-    return results[:top_k]
+    # int32 avoids int8 overflow; product stays sparse
+    m32 = mat.astype(np.int32) if mat.dtype != np.int32 else mat
+    prod = (m32 @ m32.transpose()).tocoo()
+    rows = prod.row.astype(np.int64)
+    cols = prod.col.astype(np.int64)
+    vals = prod.data.astype(np.int64)
+    # upper triangle only: excludes self-pairs and the mirrored (j,i) entry
+    keep = (rows < cols) & (vals > 0)
+    rows, cols, vals = rows[keep], cols[keep], vals[keep]
+    if vals.size == 0:
+        return []
+    k = min(top_k, vals.size)
+    idx = np.argpartition(-vals, k - 1)[:k]
+    thr = vals[idx].min()
+    # resolve boundary ties exactly by (row, col) order, then take top-K
+    cand = np.flatnonzero(vals >= thr)
+    cand = cand[np.lexsort((cols[cand], rows[cand], -vals[cand]))][:k]
+    suppliers = supplier_incidence["suppliers"]
+    return [(int(vals[t]), suppliers[int(rows[t])], suppliers[int(cols[t])]) for t in cand]
 
 
 def _cli(argv=None) -> int:

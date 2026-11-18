@@ -18,13 +18,8 @@
 
 from std.math import sqrt
 from std.bit import log2_floor
-from std.sys import has_accelerator, simd_width_of
-from std.sys.info import (
-    has_nvidia_gpu_accelerator,
-    has_amd_gpu_accelerator,
-    has_apple_gpu_accelerator,
-    num_logical_cores,
-)
+from std.sys import default_accelerator, has_accelerator, simd_width_of
+from std.sys.info import num_logical_cores
 from std.algorithm.functional import vectorize
 from std.time import perf_counter_ns
 from max.gpu import global_idx, thread_idx, block_idx
@@ -170,11 +165,11 @@ def main() raises:
     print("  logical cores:", num_logical_cores())
     print(
         "  NVIDIA/CUDA:",
-        has_nvidia_gpu_accelerator(),
+        default_accelerator().is_nvidia_gpu(),
         " AMD/ROCm:",
-        has_amd_gpu_accelerator(),
+        default_accelerator().is_amd_gpu(),
         " Apple/Metal:",
-        has_apple_gpu_accelerator(),
+        default_accelerator().is_apple_gpu(),
     )
 
     # --- benchmark: 1M synthetic temperature samples -----------------------

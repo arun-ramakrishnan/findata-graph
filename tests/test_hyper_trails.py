@@ -450,3 +450,43 @@ class TestMojoTrailDispatch:
         }
         os.environ["MOJO_TRAIL_BFS"] = "0"
         assert res_mojo == res_scipy
+
+
+class TestMojoTrailBatch:
+    """S3 (mojo_trail_bfs_batch_taskgroup): opt-in MOJO_TRAIL_BATCH lane
+    batches ALL sources through ONE Mojo kernel call with TaskGroup fan-out
+    and must return byte-compatible per-source stats vs the scipy oracle."""
+
+    BIN = _REPO / "Mojo" / "bin" / "bfs_bipartite_all_batch"
+
+    def test_opt_in_default_off(self, monkeypatch):
+        monkeypatch.delenv("MOJO_TRAIL_BATCH", raising=False)
+        g = bipartite_from_pairs(CHAIN5)
+        rows = ht._trail_stats_mojo_batch(g, ["a", "b"], limit=40, workers=1)
+        assert rows is None  # default lane untouched
+
+    def test_batch_parity_and_order(self, monkeypatch):
+        if not self.BIN.exists():
+            pytest.skip("bfs_bipartite_all_batch not built (make mojo-build)")
+        monkeypatch.setenv("MOJO_TRAIL_BATCH", "1")
+        monkeypatch.setenv("TRAIL_BFS_RUST", "0")
+        g = bipartite_from_pairs(CHAIN5)
+        srcs = ["a", "b", "c"]
+        got = trail_source_stats_parallel(g, srcs, limit=40, workers=2)
+        want = [trail_source_stats(g, s, limit=40) for s in srcs]
+        assert len(got) == len(want)
+        for g_row, w_row in zip(got, want):
+            assert g_row["reachable"] == w_row["reachable"]
+            assert g_row["hop_histogram"] == w_row["hop_histogram"]
+            assert g_row["limit"] == w_row["limit"]
+
+    def test_fallback_on_bad_binary_path(self, monkeypatch):
+        if not self.BIN.exists():
+            pytest.skip("bfs_bipartite_all_batch not built (make mojo-build)")
+        monkeypatch.setenv("MOJO_TRAIL_BATCH", "1")
+        monkeypatch.setenv("TRAIL_BFS_RUST", "0")
+        monkeypatch.setattr(ht, "_MOJO_BATCH_BIN", _REPO / "Mojo" / "bin" / "nonexistent_batch")
+        g = bipartite_from_pairs(CHAIN5)
+        rows = trail_source_stats_parallel(g, ["a", "b"], limit=40, workers=2)
+        want = [trail_source_stats(g, s, limit=40) for s in ["a", "b"]]
+        assert [r["reachable"] for r in rows] == [r["reachable"] for r in want]

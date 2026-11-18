@@ -17,6 +17,7 @@ if str(_REPO) not in sys.path:
 import numpy as np  # noqa: E402
 import pytest  # noqa: E402
 
+import helpers.graph.hyper_motifs as hm  # noqa: E402
 from helpers.graph.hyper_motifs import (  # noqa: E402
     census,
     configuration_null,
@@ -102,6 +103,46 @@ def test_null_determinism():
     a = configuration_null(edges, runs=5, seed=42)
     b = configuration_null(edges, runs=5, seed=42)
     assert a == b
+
+
+class TestMojoNullOptIn:
+    """S3 (mojo_hyper_motifs_null_scaling): opt-in MOTIF_NULL_MOJO lane
+    runs the same RNG draws through the Mojo kernel and must return a
+    byte-compatible null result vs the Python oracle."""
+
+    BIN = _REPO / "Mojo" / "bin" / "motifs_null_batch"
+
+    def test_opt_in_default_off(self, monkeypatch):
+        monkeypatch.delenv("MOTIF_NULL_MOJO", raising=False)
+        edges = [["a", "b", "c"], ["b", "c", "d"], ["d", "e"]]
+        assert hm._mojo_null(edges, orders=(2, 3), runs=3, seed=42) is None
+
+    def test_mojo_parity_vs_python(self, monkeypatch):
+        if not self.BIN.exists():
+            pytest.skip("motifs_null_batch not built (make mojo-build)")
+        edges = [
+            ["a", "b", "c", "x"],
+            ["b", "c", "d", "y"],
+            ["d", "e", "f", "x", "y"],
+            ["a", "e", "g"],
+            ["c", "f", "g", "x"],
+        ]
+        monkeypatch.delenv("MOTIF_NULL_MOJO", raising=False)
+        py = configuration_null(edges, runs=10, seed=42)
+        monkeypatch.setenv("MOTIF_NULL_MOJO", "1")
+        mo = configuration_null(edges, runs=10, seed=42)
+        assert py["runs"] == mo["runs"] and py["seed"] == mo["seed"]
+        for k in (2, 3):
+            assert abs(py[f"pairs_ge_{k}_null_mean"] - mo[f"pairs_ge_{k}_null_mean"]) < 1e-6
+            assert abs(py[f"pairs_ge_{k}_null_std"] - mo[f"pairs_ge_{k}_null_std"]) < 1e-6
+
+    def test_fallback_on_bad_binary_path(self, monkeypatch):
+        if not self.BIN.exists():
+            pytest.skip("motifs_null_batch not built (make mojo-build)")
+        monkeypatch.setenv("MOTIF_NULL_MOJO", "1")
+        monkeypatch.setattr(hm, "_MOJO_NULL_BIN", _REPO / "Mojo" / "bin" / "nonexistent_null")
+        edges = [["a", "b", "c"], ["b", "c", "d"], ["d", "e"]]
+        assert hm._mojo_null(edges, orders=(2, 3), runs=3, seed=42) is None
 
 
 def test_verdict_bands():

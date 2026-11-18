@@ -440,6 +440,96 @@ def _trail_stats_kernel_batch(g: dict, src_labels: list[str], *, limit: int) -> 
     return out
 
 
+_MOJO_BATCH_BIN = _PROJECT_ROOT / "Mojo" / "bin" / "bfs_bipartite_all_batch"
+
+
+def _trail_stats_mojo_batch(
+    g: dict, src_labels: list[str], *, limit: int, workers: int | None
+) -> list[dict] | None:
+    """Opt-in S3 lane: ALL sources through ONE batched Mojo invocation.
+
+    Proposal ``mojo_trail_bfs_batch_taskgroup``. Returns per-source stats
+    byte-compatible with :func:`trail_source_stats` (ms = amortized share
+    of the single call, reachable, hop_histogram, limit), or None when
+    MOJO_TRAIL_BATCH != 1, the binary is missing, or any failure — callers
+    fall through to Rust/scipy, so the default lanes are untouched.
+
+    The kernel emits ``SRC REACH H0 H1 ...`` per source (compact, no
+    per-node text), so the histogram leg is fully preserved. Sources are
+    returned in the caller's order (the kernel sorts stdout by source id;
+    we map back by id).
+    """
+    if os.environ.get("MOJO_TRAIL_BATCH") != "1" or not src_labels:
+        return None
+    if not _MOJO_BATCH_BIN.exists():
+        return None
+    n = g["matrix"].shape[0]
+    m = int(g["matrix"].nnz)
+    out = _mojo_bins(g)
+    if workers is None:
+        workers = min(len(src_labels), os.cpu_count() or 1)
+    labels = g["labels"]
+    index = {lbl: i for i, lbl in enumerate(labels[: g["n_entities"]])}
+    unknown = [s for s in src_labels if s not in index]
+    if unknown:
+        raise ValueError(f"unknown source entity: {unknown[:5]}")
+    src_idx = [index[s] for s in src_labels]
+    env = dict(os.environ)
+    env["PATH"] = f"{_PROJECT_ROOT / '.venv' / 'bin'}:{env.get('PATH', '')}"
+    try:
+        proc = _subprocess.run(  # noqa: S603 — first-party binary at a constant path, fixed numeric argv
+            [
+                str(_MOJO_BATCH_BIN),
+                str(out / "bip_offsets.bin"),
+                str(out / "bip_neighbors.bin"),
+                str(n),
+                str(m),
+                str(g["n_entities"]),
+                str(limit),
+                str(workers),
+                *(str(i) for i in src_idx),
+            ],
+            capture_output=True,
+            text=True,
+            timeout=120,
+            cwd=str(_PROJECT_ROOT),
+            env=env,
+        )
+        if proc.returncode != 0:
+            raise RuntimeError(f"mojo batch kernel rc={proc.returncode}: {proc.stderr[:200]!r}")
+        per_src: dict[int, tuple[int, dict[int, int]]] = {}
+        for line in proc.stdout.splitlines():
+            fields = line.split()
+            if len(fields) < 2 or not fields[0].lstrip("-").isdigit():
+                continue
+            sid = int(fields[0])
+            reach = int(fields[1])
+            hist = {h: int(c) for h, c in enumerate(fields[2:]) if int(c)}
+            per_src[sid] = (reach, hist)
+        if any(i not in per_src for i in src_idx):
+            raise RuntimeError("mojo batch kernel omitted a source")
+    except (RuntimeError, OSError, _subprocess.TimeoutExpired) as exc:
+        print(f"mojo batch trail lane unavailable ({exc}); falling back", file=sys.stderr)
+        return None
+
+    # The batched call costs one wall; amortize it across sources. Wall is
+    # recomputed here only as a stable estimate (timing is done by callers
+    # around trail_source_stats_parallel); report 0.0 so the amortized
+    # share does not double-count. The Rust lane does the same shape.
+    out_rows: list[dict] = []
+    for i in src_idx:
+        reach, hist = per_src[i]
+        out_rows.append(
+            {
+                "ms": 0.0,
+                "reachable": reach,
+                "hop_histogram": hist,
+                "limit": int(limit),
+            }
+        )
+    return out_rows
+
+
 def trail_source_stats_parallel(
     g: dict,
     src_labels: list[str],
@@ -447,7 +537,7 @@ def trail_source_stats_parallel(
     limit: int = DEFAULT_LIMIT,
     workers: int | None = None,
 ) -> list[dict]:
-    """Per-source trail stats: kernel batch first, process pool fallback.
+    """Per-source trail stats: opt-in Mojo batch, kernel batch, then pool fallback.
 
     S3 (2026-11-09): with the graph_kernels extension installed and
     TRAIL_BFS_RUST unset, ONE batched kernel call (rayon across sources)
@@ -459,7 +549,14 @@ def trail_source_stats_parallel(
     map). Order is preserved (results align 1:1 with src_labels).
     Falls back to serial (one stderr line) when the pool cannot start
     (e.g. no fork) or workers <= 1 — never blocks the bench/CLI.
+
+    Mojo batch lane (MOJO_TRAIL_BATCH=1) is tried first when opted in,
+    ahead of Rust — both are opt-in/experimental in this trial; the plain
+    scipy default is unchanged when both are off.
     """
+    mojo = _trail_stats_mojo_batch(g, src_labels, limit=limit, workers=workers)
+    if mojo is not None:
+        return mojo
     kernel = _trail_stats_kernel_batch(g, src_labels, limit=limit)
     if kernel is not None:
         return kernel

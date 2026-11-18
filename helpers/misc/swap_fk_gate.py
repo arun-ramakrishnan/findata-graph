@@ -36,7 +36,9 @@ from pathlib import Path
 
 REPO = Path(__file__).resolve().parent.parent.parent
 SOURCE = REPO / "memory" / "research.db"
-CACHE_DIR = Path(os.environ["TMPDIR"]) / "opencode" / "swap_fk_gate"  # TMPDIR is required; /tmp is never the fallback
+CACHE_DIR = (
+    Path(os.environ["TMPDIR"]) / "opencode" / "swap_fk_gate"
+)  # TMPDIR is required; /tmp is never the fallback
 CACHE = CACHE_DIR / "research_converted.duckdb"
 
 sys.path.insert(0, str(REPO))
