@@ -8,6 +8,7 @@ injected/monkeypatched embedder (mirrors tests/test_rebuild_script_search.py
 
 import json
 import os
+import threading
 import time
 from pathlib import Path
 from typing import Any
@@ -465,3 +466,179 @@ class TestQueryCli:
         assert rc == 0
         err = capsys.readouterr().err
         assert "WARNING" in err
+
+
+class TestWriterCoordination:
+    """The rebuild takes LOCK_EX on <db>.io.lock across its window; a reader
+    arriving mid-window must QUEUE on LOCK_SH and then open clean, not fail
+    with DuckDB's "Conflicting lock is held"."""
+
+    def test_reader_queues_during_duckdb_rebuild(self, tree, monkeypatch):
+        from helpers.misc.duckdb_lock import open_read_only
+
+        db = tree / "memory_search.duckdb"
+        entered = threading.Event()
+        release = threading.Event()
+        orig_rows = rms._compose_rows
+
+        def _slow_rows(*a, **kw):
+            entered.set()
+            assert release.wait(timeout=15)
+            return orig_rows(*a, **kw)
+
+        monkeypatch.setattr(rms, "_compose_rows", _slow_rows)
+        result: dict[str, Any] = {}
+
+        def _run():
+            try:
+                result["stats"] = rms.rebuild_memory_duckdb(
+                    db,
+                    embed_fn=_fake_embed,
+                    zcode_projects=tree / "zcode-projects",
+                    prime_state=tree / "prime" / "harness" / "harness_state.json",
+                    opencode_dir=tree / "opencode",
+                )
+            except Exception as exc:  # noqa: BLE001
+                result["exc"] = exc
+
+        t = threading.Thread(target=_run)
+        t.start()
+        assert entered.wait(timeout=15)
+
+        # Release the window from a timer so the reader can be observed
+        # queueing for a bounded interval rather than deadlocking the test.
+        threading.Timer(1.0, release.set).start()
+        t0 = time.monotonic()
+        conn = open_read_only(db, delays=(0.05, 0.1))
+        waited = time.monotonic() - t0
+        try:
+            assert rms.memory_index_ready(conn) is True
+        finally:
+            conn.close()
+        assert waited >= 0.8, f"reader did not queue on the writer flock ({waited:.2f}s)"
+
+        t.join(timeout=30)
+        assert "exc" not in result, result.get("exc")
+        assert result["stats"]["indexed"] > 0
+
+    def test_waits_for_a_foreign_write_holder(self, tree):
+        """A writer that never took the flock (a manual CLI, a db_maint
+        backup) is waited out by the ladder instead of failing the rebuild.
+        A same-PROCESS DuckDB connection refuses a second open outright
+        ("same database file with a different configuration"), so the
+        foreign writer runs in a child process while the parent's rebuild
+        retries the transient open until the child releases the file."""
+        import subprocess
+        import sys
+
+        db = tree / "memory_search.duckdb"
+        _rebuild(tree, db=db)  # build first so the open never hits a cold-file race
+
+        child = subprocess.Popen(
+            [
+                sys.executable,
+                "-c",
+                (
+                    "import duckdb, time, sys\n"
+                    "c = duckdb.connect(sys.argv[1], "
+                    "config={'memory_limit': '5GB'})\n"
+                    "print('ready', flush=True)\n"
+                    "time.sleep(2.0)\n"
+                    "c.close()\n"
+                ),
+                str(db),
+            ],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            text=True,
+        )
+        try:
+            assert child.stdout is not None
+            assert "ready" in child.stdout.readline(), "foreign writer never became ready"
+            t0 = time.monotonic()
+            stats = rms.rebuild_memory_duckdb(
+                db,
+                embed_fn=_fake_embed,
+                zcode_projects=tree / "zcode-projects",
+                prime_state=tree / "prime" / "harness" / "harness_state.json",
+                opencode_dir=tree / "opencode",
+            )
+            waited = time.monotonic() - t0
+        finally:
+            if child.poll() is None:
+                child.kill()
+            child.wait()
+        assert waited >= 0.8, f"rebuild did not wait out the foreign writer ({waited:.2f}s)"
+        assert stats["indexed"] > 0
+
+    def test_rebuild_retries_transient_open_then_writes(self, tree, monkeypatch):
+        import duckdb
+
+        from helpers.misc import duckdb_lock
+
+        db = tree / "memory_search.duckdb"
+        _rebuild(tree, db=db)
+
+        attempts: list[int] = []
+        real_connect = duckdb.connect
+
+        def _flaky_connect(*a, **kw):
+            attempts.append(1)
+            if len(attempts) == 1:
+                raise duckdb.IOException(
+                    f'Could not set lock on file "{db}": Conflicting lock is held'
+                )
+            return real_connect(*a, **kw)
+
+        monkeypatch.setattr(duckdb, "connect", _flaky_connect)
+        sleeps: list[float] = []
+        # The ladder binds `time.sleep` as a DEFAULT ARG at import, so a
+        # module-level patch cannot intercept it — patch the parameter's
+        # __kwdefaults__ slot on the function object the writer calls.
+        params = duckdb_lock.connect_with_lock_retry.__kwdefaults__
+        assert params is not None and params.get("sleep") is not None
+        monkeypatch.setattr(
+            duckdb_lock.connect_with_lock_retry,
+            "__kwdefaults__",
+            {**params, "sleep": sleeps.append},
+        )
+
+        stats = rms.rebuild_memory_duckdb(
+            db,
+            embed_fn=_fake_embed,
+            zcode_projects=tree / "zcode-projects",
+            prime_state=tree / "prime" / "harness" / "harness_state.json",
+            opencode_dir=tree / "opencode",
+        )
+        assert len(attempts) >= 2
+        assert stats["indexed"] > 0
+        assert sleeps, "the transient ladder never slept"
+
+    def test_served_store_skips_the_writer_flock(self, tree, monkeypatch):
+        """A served store is not in the flock: the rebuild's open stays a
+        plain file open (the quack server serializes writes over the wire),
+        so no LOCK_EX window is taken."""
+        import duckdb
+
+        db = tree / "memory_search.duckdb"
+        _rebuild(tree, db=db)
+
+        monkeypatch.setattr(rms.ds, "is_served", lambda path: True)
+        real_connect = duckdb.connect
+        calls: list[int] = []
+
+        def _tracking_connect(*a, **kw):
+            calls.append(1)
+            return real_connect(*a, **kw)
+
+        monkeypatch.setattr(duckdb, "connect", _tracking_connect)
+
+        stats = rms.rebuild_memory_duckdb(
+            db,
+            embed_fn=_fake_embed,
+            zcode_projects=tree / "zcode-projects",
+            prime_state=tree / "prime" / "harness" / "harness_state.json",
+            opencode_dir=tree / "opencode",
+        )
+        assert calls  # opened exactly once (no retry noise)
+        assert stats["indexed"] > 0

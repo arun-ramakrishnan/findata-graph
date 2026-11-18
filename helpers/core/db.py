@@ -165,7 +165,11 @@ def connect(
             snapshots that must stay byte-frozen (e.g. legacy cache files
             about to be renamed away by a migration). ``wal`` is ignored
             (an RO connection cannot switch journal modes); the other
-            pragmas still apply.
+            pragmas still apply. The MISSING-file case keeps raising
+            ``OperationalError`` (documented contract, tests/test_db.py);
+            call sites whose absent-store is a normal state (query CLIs
+            whose ``ready_fn`` reports "not built") gate on ``exists()``
+            before opening.
 
     Returns:
         A `sqlite3.Connection` with the requested settings. Caller is
@@ -174,7 +178,8 @@ def connect(
     path = Path(db_path) if db_path else DEFAULT_DB_PATH
     if read_only:
         # as_uri() percent-encodes ?/# so unusual filenames stay one arg;
-        # resolve() because the URI form demands an absolute path.
+        # resolve() because the URI form demands an absolute path. The
+        # missing-file OperationalError is the documented contract.
         conn = sqlite3.connect(f"{path.resolve().as_uri()}?mode=ro", uri=True)
     else:
         conn = sqlite3.connect(str(path))

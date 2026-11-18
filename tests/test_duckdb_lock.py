@@ -22,6 +22,7 @@ from pathlib import Path
 import pytest
 
 from helpers.misc.duckdb_lock import (
+    _EXTENDED_RETRY_DELAYS_S,
     connect_with_lock_retry,
     is_transient_lock_error,
     lock_retry_delay,
@@ -62,6 +63,44 @@ def test_ladder_is_pinned():
         None,
         None,
     ]
+
+
+def test_extended_ladder_is_pinned():
+    """60 s / 3-retry long-holder schedule: 2 + 10 + 48 s cumulative,
+    every delay ≤ 60 s. Default ladder stays pinned by test_ladder_is_pinned."""
+    assert _EXTENDED_RETRY_DELAYS_S == (2.0, 10.0, 48.0)
+    assert sum(_EXTENDED_RETRY_DELAYS_S) == 60.0
+    assert [lock_retry_delay(i, _EXTENDED_RETRY_DELAYS_S) for i in range(5)] == [
+        2.0,
+        10.0,
+        48.0,
+        None,
+        None,
+    ]
+
+
+def test_extended_ladder_retries_transient_conflict():
+    slept: list[float] = []
+
+    def flaky():
+        raise OSError(ARCHIVED)
+
+    with pytest.raises(OSError):
+        connect_with_lock_retry(flaky, delays=_EXTENDED_RETRY_DELAYS_S, sleep=slept.append)
+    assert slept == [2.0, 10.0, 48.0]
+
+
+def test_extended_ladder_non_lock_error_fails_fast():
+    """Conjunction holds for the extended schedule too: no 60 s wait on a
+    genuine non-lock failure."""
+    slept: list[float] = []
+
+    def boom():
+        raise OSError('No such file or directory: cannot open file "/m/x"')
+
+    with pytest.raises(OSError, match="No such file"):
+        connect_with_lock_retry(boom, delays=_EXTENDED_RETRY_DELAYS_S, sleep=slept.append)
+    assert slept == []
 
 
 def test_retry_then_success():

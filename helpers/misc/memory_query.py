@@ -87,7 +87,7 @@ def main(argv: list[str] | None = None) -> int:
             description="Query the harness-memory index (memory_search sidecar).",
             default_db=lambda: rms.MEMORY_DB,
             db_flag_help="sidecar path (default: module MEMORY_DB)",
-            connect_fn=rms.connect_memory_db,
+            connect_fn=rms.connect_memory_read_only,
             ready_fn=rms.memory_index_ready,
             not_built_msg=(
                 "memory_search index not built. Run:\n"

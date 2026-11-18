@@ -15977,3 +15977,110 @@ The swap execution itself is **PARKED/DEFERRED** by operator decision on
 2026-11-17 — the re-file (when unparked) must carry the mandatory
 eval-gate bullet (`helpers/misc/ontology_eval_gate.py` over the frozen
 question set) per the proposal's §4 house rule.
+
+## 534. Batched + TaskGroup Mojo bipartite BFS kernel — opt-in perf lane, Rust stays default
+
+- **Filed/provenance:** `doc/improvements/archive/graph/mojo_trail_bfs_batch_taskgroup.md`
+  (filed + executed 2026-11-18). Out of the 2026-11-18 hyper_trails BFS
+  trial (`bench_data/mojo_hyper_trails_trial_2026-11-18.md`, gitignored).
+- **Finding:** the Mojo bipartite BFS kernel is genuinely fast once all
+  sources run in ONE process (batched 0.65 ms/src vs scipy 5.75 ms/src,
+  ~9–10×; 600k/2.6M arcs 33.9 vs 322 ms/src) — but the SHIPPED
+  per-source-subprocess integration threw the win away (~37 ms/src,
+  ~6× slower than scipy). Rust batched (0.20 ms/src) already owns the lane.
+- **Shipped:** `Mojo/src/bench/bfs_bipartite_all_batch.mojo` (+ `Mojo/bin/`
+  binary) — CSR bins read once, all sources in one process, compact
+  `SRC REACH H0 H1 ...` output; w1 sequential (S1), w>1 `TaskGroup`
+  fan-out over disjoint per-worker frontier buffers (S2). `def`-only,
+  `unsafe_offset(i)[]` (Mojo 1.2). Measured w1→w4: live 18.65→13.93 ms,
+  120k 89.79→35.29, 600k 536.61→263.69; fan-out < the probe's 2.89×
+  because the BFS inner loop is memory-bound. Parity 20/20 at every
+  worker count and size. `helpers/graph/hyper_trails.py`
+  `_trail_stats_mojo_batch` (S3): opt-in `MOJO_TRAIL_BATCH=1`, default OFF,
+  falls back on missing binary / rc≠0 / timeout; Rust `limited_bfs_sources`
+  stays the DEFAULT path (operator ruling m01231). Tests
+  `tests/test_hyper_trails.py::TestMojoTrailBatch` (3), 24 passed/1 skipped;
+  `make mojo-parity` 92/92.
+- **Posture:** pattern validation + survey, NOT an unfreeze of the Mojo
+  lane (freeze ruling `archive/tooling/mojo_12_adoptions.md:112`
+  UNAFFECTED). S4 survey in-proposal ranked the no-Rust-kernel lanes that
+  fed the two follow-up spikes (#535, #536). Perf-only, opt-in → no
+  query-visible semantics change → no eval-gate bullet required.
+  Full gate arc NOT run (gates parked per operator m01133); targeted
+  Mojo build/test/parity only.
+
+## 535. A² supplier-peer kernel — numpy-first fix wins; Mojo scaling spike stays parked
+
+- **Filed/provenance:** `doc/improvements/archive/graph/mojo_a2_kernel_scaling.md`
+  (filed + executed 2026-11-18). Spin-off of #534 S4 survey (top-ranked
+  no-Rust-kernel lane).
+- **Spike (positive):** `Mojo/src/bench/a2_topk_batch.mojo` — dense int64
+  shared bin, row-block TaskGroup fan-out, per-worker top-K, exact
+  `(-shared,i,j)` merge. Parity exact at all scales; gap grows with n:
+  n=1k w1 19.0 ms (Python 239 ms, 12.6×); n=2k 55.7 (2,184, 39.2×);
+  n=4k 226 (35,257, 156×). w4 adds a further 1.2–1.7× (memory-bound).
+- **Cutover debate → numpy-first (operator m01409/m01410, "agree with all
+  4. Do the numpy bits for 2"):** declined blanket Mojo cutover citing
+  `archive/graph/rust_cosine_knn_port.md:118` "the first fix is numpy,
+  not Rust". Found a latent int8 overflow in `mat@mat.T` (shared capped
+  at 126 vs correct 316; 532 suppliers have degree>127 — overflow was
+  all on the excluded diagonal, so live output unchanged). Rewrote
+  `helpers/graph/a2_candidates.py:71 a2_kernel` to stay sparse with
+  int32 promotion + `argpartition`/`lexsort` top-K: live wall
+  4,000–4,600 ms → **16.9 ms (~250×)**, exact parity at k=1..1000.
+  `tests/test_a2_candidates.py` + `test_suggest_relations.py` 20 passed.
+- **Posture:** numpy owns this lane; the Mojo kernel stays a documented
+  parked scaling fallback, NOT wired. No unfreeze needed. No query-visible
+  semantics change (exact parity) → no eval-gate bullet. Gates parked;
+  targeted tests only.
+
+## 536. Hyperedge motif configuration-null — opt-in Mojo lane; default untouched
+
+- **Filed/provenance:** `doc/improvements/archive/graph/mojo_hyper_motifs_null_scaling.md`
+  (filed + executed 2026-11-18). Spin-off of #534 S4 survey (second-ranked
+  no-Rust-kernel lane).
+- **Spike (positive):** `Mojo/src/bench/motifs_null_batch.mojo` — pre-dealt
+  replicate postings, TaskGroup fan-out over replicates, population std
+  (ddof=0). Parity exact; gap grows with R: R=3 546→143 ms (3.8×),
+  R=10 1,826→254 (7.2×), R=30 5,434→643 (8.5×), R=100 20,037→1,964
+  (10.2×); w4 further ~2× at R=100 (913 ms). RNG parity was solved by
+  shipping permutation tables from Python, not porting NumPy's PCG64.
+- **Opt-in wired (operator m01468, "do the motif opt-in"):**
+  `helpers/graph/hyper_motifs.py` `_mojo_null()` (`:68`) — env
+  `MOTIF_NULL_MOJO` default OFF, builds per-replicate postings with EXACT
+  Python shuffle semantics (`np.repeat(arange(N), degrees)` node-major
+  stub ordering + in-place compounding `rng.shuffle(seed)`), ships them to
+  the kernel as a temp bin, returns the same result dict shape;
+  `configuration_null()` dispatches at `:245`, falling back on missing
+  binary / rc≠0 / timeout / any error. First bin attempt used edge-major
+  stub ordering + fresh shuffles → mismatch (deltas 50–150); fixed by the
+  exact node-major + compounding order → parity at runs=3 and 10,
+  synthetic + live (4,547 edges). Tests
+  `tests/test_hyper_motifs.py::TestMojoNullOptIn` (3), 15 passed; ruff
+  clean; CLI default and `MOTIF_NULL_MOJO=1` identical output.
+- **Posture:** opt-in perf lane only (no blanket cutover); default
+  `configuration_null` untouched; Rust owns no lane here. Promotion to
+  default deferred pending async stabilization + a gate arc. No
+  query-visible semantics change (exact parity) → no eval-gate bullet.
+  Gates parked; targeted tests only.
+
+## 537. Fix `make mojo-build` — migrate removed GPU-accelerator APIs (Mojo 1.2.0)
+
+- **Filed/provenance:** `doc/improvements/archive/tooling/mojo_12_build_api_drift.md`
+  (filed + executed 2026-11-18).
+- **Break:** `make mojo-build` was RED on Mojo 1.2.0 stable (2016d0cd,
+  2026-10-22): `std.sys.info.has_{nvidia,amd,apple}_gpu_accelerator`
+  removed. Two files, six compile errors — `Mojo/src/bench/analyzer.mojo`
+  and `Mojo/src/gpu/analyzer_intel.mojo`.
+- **Fix:** import `default_accelerator` from `std.sys`; census print now
+  calls `default_accelerator().is_nvidia_gpu()/.is_amd_gpu()/.is_apple_gpu()`;
+  imports collapsed to `from std.sys import default_accelerator,
+  has_accelerator, simd_width_of` + `from std.sys.info import
+  num_logical_cores`. `comptime if has_accelerator()` GPU tier unchanged.
+- **Verified:** `make -f Makefile.mojo -k mojo-build` ZERO errors, all 29
+  binaries built; `make mojo-test` (5 files, yaml 8/8); `make mojo-parity`
+  92/92 GOLDEN PARITY OK. No behavior change on this accelerator-free host.
+  Mechanically part of the "re-run trials each minor" doctrine
+  (`mojo_12_changelog_trials.md:156-159`); NOT an unfreeze of the Mojo lane.
+  No query-visible change → no eval-gate bullet. Gates parked; targeted
+  Mojo build/test/parity only.

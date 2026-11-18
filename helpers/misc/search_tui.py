@@ -475,10 +475,10 @@ def _run_memory(q: str, limit: int, mode: str = "hybrid", query_vec=None) -> tup
     if not db.exists():
         return [], "memory_search sidecar missing — rebuild_memory_search.py"
     try:
-        # Engine-aware open (duckdb_sidecar_fold S2): .duckdb → duckdb,
-        # legacy .db → house sqlite. The lane is read-only in spirit but
-        # house sqlite pragmas (WAL/busy_timeout) are harmless here.
-        conn = rms.connect_memory_db(db)
+        # Engine-aware read-only open (duckdb_long_holder_backoff): .duckdb
+        # → retry+flock ladder for long rebuild holders; legacy .db → house
+        # sqlite (WAL/busy_timeout).
+        conn = rms.connect_memory_read_only(db)
         try:
             out = rms.search_memories(
                 conn, q, limit=limit, hybrid=(mode != "bm25"), query_vec=query_vec

@@ -49,6 +49,7 @@ import os
 import re
 import sqlite3
 import sys
+from contextlib import contextmanager
 from pathlib import Path
 
 # Repo root: helpers/maintenance/rebuild_memory_search.py -> parents[2].
@@ -61,10 +62,12 @@ if str(_REPO_ROOT) not in sys.path:
 
 from helpers.core import jsonio  # noqa: E402  (orjson parse cutover; dumps stay stdlib per db_scaling_tuning §6.3 criteria)
 from helpers.core import gemma_embedder  # noqa: E402
+from helpers.core import duckdb_shared as ds  # noqa: E402  (served-store guard for the writer flock)
 from helpers.core.embed_cache import CachedEmbed  # noqa: E402
 from helpers.core.rank_fusion import rrf_two_leg  # noqa: E402  (algorithms_adoption_sweep S7)
 from helpers.maintenance import rebuild_common as rbc  # noqa: E402
 from helpers.maintenance import rebuild_doc_search as rds  # noqa: E402
+from helpers.misc.duckdb_lock import connect_with_lock_retry, io_lock  # noqa: E402  (writer queue + transient ladder)
 
 import duckdb  # noqa: E402  (duckdb_sidecar_fold S2: native-FTS memory sidecar path)
 
@@ -176,6 +179,38 @@ def connect_memory_db(db_path: Path | str | None = None):
     from helpers.core.db import connect as _db_connect
 
     return _db_connect(path)
+
+
+def connect_memory_read_only(db_path: Path | str | None = None):
+    """Reader entry for the memory_search sidecar (duckdb_long_holder_backoff).
+
+    Routes the DuckDB-native store through the shared retry+flock entry with
+    the 60 s / 3-retry ladder, so a reader arriving while a sidecar rebuild
+    holds the file waits instead of failing with ``Conflicting lock is held``.
+    The legacy FTS5 sidecar uses house sqlite (WAL/busy_timeout already set).
+    An ABSENT store answers with an empty in-memory handle (no table →
+    ``ready_fn`` False → the CLI's "not built" hint), because a missing
+    sidecar is a normal state here, not a crash. Writers keep using
+    :func:`connect_memory_db` with the extended ladder (see
+    :func:`_memory_writer_conn`).
+    """
+    # An in-memory scratch handle has no table, so ready_fn answers False
+    # ("not built") — the shared query-CLI idiom for an absent sidecar.
+    path = Path(db_path) if db_path is not None else MEMORY_DB
+    if path.suffix.lower() == ".duckdb":
+        if not path.exists():
+            return duckdb.connect(":memory:", **ds.memory_cap_config())
+        from helpers.misc.duckdb_lock import (
+            _EXTENDED_RETRY_DELAYS_S,
+            open_read_only,
+        )
+
+        return open_read_only(path, delays=_EXTENDED_RETRY_DELAYS_S)
+    from helpers.core.db import connect as _db_connect
+
+    if not path.exists():
+        return _db_connect(":memory:")
+    return _db_connect(path, read_only=True, wal=False)
 
 
 def _folded_fm_field(fm: str, key: str) -> str:
@@ -1410,6 +1445,39 @@ def _compose_memory_searchtext(row: tuple) -> str:
     return " ".join(s for s in (title, purpose, content) if s)
 
 
+@contextmanager
+def _memory_writer_conn(db_path: Path):
+    """Writer-window coordination for the memory_search sidecar rebuild.
+
+    The sidecar rebuild holds its DuckDB connection across the whole
+    window (DDL + embed + delta write, ~2 s warm). Without coordination a
+    concurrent reader's open fails with ``Conflicting lock is held`` and
+    the writer's own open races any lifetime reader. Mirroring the convo
+    rebuild: an UNSERVED store takes ``LOCK_EX`` on ``<db>.io.lock``
+    across the window so readers queue on their ``LOCK_SH`` instead of
+    failing, and the open itself retries the transient ladder for
+    holders that never took the flock (a manual CLI, a db_maint backup).
+    A SERVED store does not participate in the flock (the quack server
+    serializes writes), so the queue is skipped and the plain open stays.
+    """
+    if ds.is_served(db_path):
+        yield connect_memory_db(db_path)
+        return
+    with io_lock(db_path, exclusive=True):
+        # The writer's open retries the transient ladder for holders that
+        # never took the flock. The default 1.55 s ladder is right for
+        # sub-second holds; the extended 60 s schedule (duckdb_long_holder_
+        # backoff) covers the manual-CLI / db_maint-backup case the convo
+        # rebuild also faces, so a writer waits out a long foreign holder
+        # instead of failing after 1.55 s.
+        from helpers.misc.duckdb_lock import _EXTENDED_RETRY_DELAYS_S
+
+        yield connect_with_lock_retry(
+            lambda: connect_memory_db(db_path),
+            delays=_EXTENDED_RETRY_DELAYS_S,
+        )
+
+
 def rebuild_memory_duckdb(
     db_path: Path | str | None = None,
     *,
@@ -1462,72 +1530,74 @@ def rebuild_memory_duckdb(
         _print_staleness(stats)
         return stats
 
-    conn = connect_memory_db(db_path)
-    try:
-        conn.execute(MEMORY_DUCKDB_DDL)
-        conn.execute(MEMORY_DUCKDB_META_DDL)
-        conn.execute(MEMORY_DUCKDB_INFO_DDL)
-
-        embed_fn, embed_dims, model_label, gemma_active = _resolve_memory_embedder_duckdb(
-            conn, embed_fn, stats
-        )
-
-        all_rows = _compose_rows(units, embed_fn, gemma=gemma_active)
-        stats["total_rows"] = len(all_rows)
-        stats["embedded"] = sum(1 for r in all_rows if r[6])
-        by_kind: dict[str, int] = {}
-        for r in all_rows:
-            by_kind[r[1]] = by_kind.get(r[1], 0) + 1
-        stats["by_kind"] = by_kind
-
-        stored_meta: dict = {}
+    with _memory_writer_conn(db_path) as conn:
         try:
-            stored_meta = {
-                r[0]: (r[1], r[2])
-                for r in conn.execute(
-                    "SELECT unit_path, mtime, content_hash FROM memory_search_meta"
-                ).fetchall()
-            }
-        except duckdb.Error:
-            stored_meta = {}
-        try:
-            stamp_row = conn.execute(
-                "SELECT value FROM memory_search_info WHERE key = 'embed_model'"
-            ).fetchone()
-            stamp = stamp_row[0] if stamp_row else None
-        except duckdb.Error:
-            stamp = None
-        can_carry = (
-            bool(incremental)
-            and bool(stored_meta)
-            and (model_label is None or stamp is None or model_label == stamp)
-        )
-        if can_carry:
-            stats["mode"] = "incremental"
-            stats["upserts"], stats["deletes"] = _write_memory_incremental(
-                conn, all_rows, files_meta, stored_meta, model_label, embed_dims
+            conn.execute(MEMORY_DUCKDB_DDL)
+            conn.execute(MEMORY_DUCKDB_META_DDL)
+            conn.execute(MEMORY_DUCKDB_INFO_DDL)
+
+            embed_fn, embed_dims, model_label, gemma_active = _resolve_memory_embedder_duckdb(
+                conn, embed_fn, stats
             )
-        else:
-            stats["mode"] = "full"
-            _write_memory_store(conn, all_rows, files_meta, model_label, embed_dims)
 
-        stats["indexed"] = conn.execute("SELECT COUNT(*) FROM memory_search").fetchone()[0]
-        if isinstance(embed_fn, CachedEmbed):
-            stats["embed_cache_hits"] = embed_fn.hits
-            stats["embed_cache_misses"] = embed_fn.misses
-            stats["embed_cache_state"] = embed_fn.status_line()
-        return stats
-    finally:
-        if isinstance(embed_fn, CachedEmbed):
-            embed_fn.close()
-        conn.close()
+            all_rows = _compose_rows(units, embed_fn, gemma=gemma_active)
+            stats["total_rows"] = len(all_rows)
+            stats["embedded"] = sum(1 for r in all_rows if r[6])
+            by_kind: dict[str, int] = {}
+            for r in all_rows:
+                by_kind[r[1]] = by_kind.get(r[1], 0) + 1
+            stats["by_kind"] = by_kind
+
+            stored_meta: dict = {}
+            try:
+                stored_meta = {
+                    r[0]: (r[1], r[2])
+                    for r in conn.execute(
+                        "SELECT unit_path, mtime, content_hash FROM memory_search_meta"
+                    ).fetchall()
+                }
+            except duckdb.Error:
+                stored_meta = {}
+            try:
+                stamp_row = conn.execute(
+                    "SELECT value FROM memory_search_info WHERE key = 'embed_model'"
+                ).fetchone()
+                stamp = stamp_row[0] if stamp_row else None
+            except duckdb.Error:
+                stamp = None
+            can_carry = (
+                bool(incremental)
+                and bool(stored_meta)
+                and (model_label is None or stamp is None or model_label == stamp)
+            )
+            if can_carry:
+                stats["mode"] = "incremental"
+                stats["upserts"], stats["deletes"] = _write_memory_incremental(
+                    conn, all_rows, files_meta, stored_meta, model_label, embed_dims
+                )
+            else:
+                stats["mode"] = "full"
+                _write_memory_store(conn, all_rows, files_meta, model_label, embed_dims)
+
+            stats["indexed"] = conn.execute("SELECT COUNT(*) FROM memory_search").fetchone()[0]
+            if isinstance(embed_fn, CachedEmbed):
+                stats["embed_cache_hits"] = embed_fn.hits
+                stats["embed_cache_misses"] = embed_fn.misses
+                stats["embed_cache_state"] = embed_fn.status_line()
+            return stats
+        finally:
+            if isinstance(embed_fn, CachedEmbed):
+                embed_fn.close()
+            conn.close()
 
 
 def _check_freshness_memory_duckdb(db_path: Path, files_meta: dict, stats: dict) -> dict:
     """--check staleness verdict vs the stored meta; absent store reads as
     all-new. Mutates stats["total_rows"] and returns the staleness part."""
     try:
-        conn = connect_memory_db(db_path)
+        # Reader path: --check must never take the writer flock or fail on a
+        # rebuild window (it runs routinely against the live sidecar).
+        conn = connect_memory_read_only(db_path)
         try:
             stats["total_rows"] = conn.execute("SELECT COUNT(*) FROM memory_search").fetchone()[0]
             stats_part, _stored = _source_staleness(conn, files_meta)

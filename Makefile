@@ -57,7 +57,7 @@ export PATH := $(CURDIR)/.venv/bin:$(PATH)
 export TMPDIR ?= $(shell test -d /mnt/data/tmp && { mkdir -p /mnt/data/tmp/findata; echo /mnt/data/tmp/findata; } || echo /tmp)
 
 
-.PHONY: help qa test live-invariants perf cover fuzz integration snapshot snapshot-check snapshot-restore sync-tags sync-coverage-tags sync-sector-links static-checks license-check tmp-sweep install-dev triage-quotes gate-fresh graph-smoke graph-stats graph-algos graph-matching graph-mst graph-rebuild graph-rebuild-bench update-extensions recompute-graph recompute-hyper search-fresh convo-fresh embed-gc search-tui tier-nudge tier-watch derive-relations derive-co-mentions derive-org-membership derive-event-participants derive-merger-hyperedges dup-census person-census derive-themes derive-events derive-insights derive-indices quote-coverage derive-themes-rebuild derive-cited-in derive-cited-in-rebuild derive-hyperedges derive-relational-insights derive-all refresh-indices refresh-vigil refresh-shp rust-clippy rust-format rust-install rust-test rust-deny frontend frontend-check fold-identifiers format maint maint-full md-lint metrics-rebuild mojo-bench mojo-parity mojo-build mojo-test mojo-format relations-enrich lint types types-tests lint-audit deptry advisory ocr-version-check onager-build secret-scan cargo-audit script-search-rebuild memory-search-rebuild triage-relations teleocr-server embgemma-server granite-server llamacpp-build llamacpp-health quack-start quack-stop quack-status quack-restart quack-health hyper-star-centrality csr csr-check csr-rebuild convo-search-rebuild convo-search-check analytics-parquet analytics-fresh app-server schema-check schema-dump bili-status bili-monitor bili-stop-monitor bili-report bili-snap bili-watch-event bili-thresh-replay cosupply-score answerability-probe
+.PHONY: help qa test live-invariants perf cover fuzz integration snapshot snapshot-check snapshot-restore sync-tags sync-coverage-tags sync-sector-links static-checks license-check tmp-sweep install-dev triage-quotes gate-fresh graph-smoke graph-stats graph-algos graph-matching graph-mst graph-rebuild graph-rebuild-bench update-extensions recompute-graph recompute-hyper search-fresh convo-fresh embed-gc search-tui signal-sweep signal-sweep-smoke tier-nudge tier-watch derive-relations derive-co-mentions derive-org-membership derive-event-participants derive-merger-hyperedges dup-census person-census derive-themes derive-events derive-insights derive-indices quote-coverage derive-themes-rebuild derive-cited-in derive-cited-in-rebuild derive-hyperedges derive-relational-insights derive-all refresh-indices refresh-vigil refresh-shp rust-clippy rust-format rust-install rust-test rust-deny frontend frontend-check fold-identifiers format maint maint-full md-lint metrics-rebuild mojo-bench mojo-parity mojo-build mojo-test mojo-format relations-enrich lint types types-tests lint-audit deptry advisory ocr-version-check onager-build secret-scan cargo-audit script-search-rebuild memory-search-rebuild triage-relations teleocr-server embgemma-server granite-server llamacpp-build llamacpp-health quack-start quack-stop quack-status quack-restart quack-health hyper-star-centrality csr csr-check csr-rebuild convo-search-rebuild convo-search-check analytics-parquet analytics-fresh app-server schema-check schema-dump bili-status bili-monitor bili-stop-monitor bili-report bili-snap bili-watch-event bili-thresh-replay cosupply-score answerability-probe
 
 help:           ## Show available targets (alphabetical; entries generated from the ## annotations — keep both in sync)
 > @echo "FinData targets (alphabetical):"
@@ -180,6 +180,8 @@ help:           ## Show available targets (alphabetical; entries generated from 
 > @echo "  security-queue           Regenerate the gap work queue (triage idiom): JSONL of (surface, class) pairs with no ledger row and no exclusion (SCOPE=..., OUT=<path> defaults to doc/local/security/coverage_queue.jsonl)"
 > @echo "  security-scopes          Print the scope-family security inventories (SCOPE=graph|harness|desktop|frontend|data|extractors); sync checks the inventory areas against the ledger's surface names"
 > @echo "  security-verify          Verifier role (A6): emit a blind brief for ONE candidate (FP=<fingerprint>, RUN=<id>), or merge a verifier result with RECORD=<file> OUT=<file> (the input findings file is never overwritten)"
+> @echo "  signal-sweep             Graph-signal cross-sectional rank-IC report (report-only research instrument; ARGS=\"--horizons 4,13\")"
+> @echo "  signal-sweep-smoke       Fast hermetic self-check of the sweep math (no live DB; deterministic closed-form values)"
 > @echo "  snapshot                 Refresh the versioned DB snapshot"
 > @echo "  snapshot-check           Verify the snapshot round-trips against the live DB"
 > @echo "  snapshot-fresh           Generation-only snapshot freshness (fail fast on drift; fix: make snapshot)"
@@ -441,6 +443,13 @@ bili-thresh-replay: ## Replay the tier fire curve offline (read-only): REPLAY_AR
 
 suggest-relations: ## Print link-prediction relation suggestions (C2; append with --append)
 > python3 helpers/graph/suggest_relations.py
+
+signal-sweep:  ## Graph-signal cross-sectional rank-IC report over 18 quarter-ends (report-only, exploratory; ARGS="--horizons 4,13")
+> python3 helpers/research/signal_sweep.py sweep $(ARGS)
+
+signal-sweep-smoke: ## Fast hermetic self-check of the sweep math (no live DB; deterministic closed-form values)
+> python3 helpers/research/signal_sweep.py smoke
+> @echo "✓ signal sweep smoke passed"
 
 triage-relations: ## Triage the _pending_relations queue: report + bucketed decisions file (pending_relations_triage)
 > python3 helpers/graph/triage_pending_relations.py

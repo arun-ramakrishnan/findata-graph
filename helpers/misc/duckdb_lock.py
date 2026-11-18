@@ -69,6 +69,12 @@ _LOCK_PHRASES = (
 # 50, 100, 200, 400, 800 ms — then give up. Total worst-case wait 1.55 s.
 _RETRY_DELAYS_S = (0.05, 0.1, 0.2, 0.4, 0.8)
 
+# Long-holder schedule (duckdb_long_holder_backoff): 3 retries at 2/10/48 s
+# = 60 s cumulative. Used by reader CLIs that must wait out a multi-minute
+# sidecar rebuild; every delay is ≤ 60 s, matching the class of holder that
+# outlives the 1.55 s default ladder.
+_EXTENDED_RETRY_DELAYS_S = (2.0, 10.0, 48.0)
+
 
 def is_transient_lock_error(message: str) -> bool:
     """True only for messages carrying BOTH a file-open phrase and a lock
@@ -78,30 +84,37 @@ def is_transient_lock_error(message: str) -> bool:
     return any(p in msg for p in _FILE_OPEN_PHRASES) and any(p in msg for p in _LOCK_PHRASES)
 
 
-def lock_retry_delay(attempt: int) -> float | None:
+def lock_retry_delay(
+    attempt: int,
+    delays: tuple[float, ...] = _RETRY_DELAYS_S,
+) -> float | None:
     """Backoff before retry ``attempt`` (0-based), or None when the
-    ladder is exhausted and the original error must surface."""
-    if 0 <= attempt < len(_RETRY_DELAYS_S):
-        return _RETRY_DELAYS_S[attempt]
+    ladder is exhausted and the original error must surface. ``delays``
+    defaults to the 1.55 s ladder; pass ``_EXTENDED_RETRY_DELAYS_S`` for
+    the 60 s long-holder schedule."""
+    if 0 <= attempt < len(delays):
+        return delays[attempt]
     return None
 
 
 def connect_with_lock_retry[T](
     open_fn: Callable[[], T],
     *,
+    delays: tuple[float, ...] = _RETRY_DELAYS_S,
     sleep: Callable[[float], None] = time.sleep,
 ) -> T:
     """Call ``open_fn`` retrying only transient lock conflicts across the
     bounded ladder. Callers opt in explicitly; a non-lock failure raises
     immediately on the first attempt, and a genuine long hold surfaces as
-    the original error 1.55 s later — masked deadlocks are not a thing
-    here by construction."""
+    the original error once the ladder is exhausted — masked deadlocks are
+    not a thing here by construction. ``delays`` selects the schedule:
+    the default 1.55 s ladder or ``_EXTENDED_RETRY_DELAYS_S`` (60 s)."""
     attempt = 0
     while True:
         try:
             return open_fn()
         except Exception as exc:  # duckdb raises IOException (an OSError)
-            delay = lock_retry_delay(attempt)
+            delay = lock_retry_delay(attempt, delays)
             if delay is None or not is_transient_lock_error(str(exc)):
                 raise
             sleep(delay)
@@ -162,7 +175,11 @@ def is_rebuild_in_progress(db_path: Path | str) -> bool:
     return False
 
 
-def open_read_only(db_path: Path | str):
+def open_read_only(
+    db_path: Path | str,
+    *,
+    delays: tuple[float, ...] = _RETRY_DELAYS_S,
+):
     """The S3 reader entry: queue on ``<db>.io.lock`` (``LOCK_SH``), then
     open DuckDB read-only with the S1 ladder as belt-and-braces for
     holders that never took the flock (a ``db_maint`` backup, a manual
@@ -172,6 +189,10 @@ def open_read_only(db_path: Path | str):
     flock releases the moment the open succeeds — DuckDB's own
     lock protects the connection from then on. DuckDB is imported lazily
     so this module stays dependency-light for classification-only users.
+
+    ``delays`` selects the retry schedule — the 1.55 s default or
+    ``_EXTENDED_RETRY_DELAYS_S`` for reader CLIs that must wait out a
+    multi-minute sidecar rebuild.
     """
     import duckdb
 
@@ -182,7 +203,8 @@ def open_read_only(db_path: Path | str):
     with io_lock(db_path, exclusive=False):
         try:
             return connect_with_lock_retry(
-                lambda: duckdb.connect(str(db_path), read_only=True, **ds.memory_cap_config())
+                lambda: duckdb.connect(str(db_path), read_only=True, **ds.memory_cap_config()),
+                delays=delays,
             )
         except Exception as exc:
             # S1 wire-attach fallback: the file-mode open failed with a

@@ -59,11 +59,15 @@ def open_note_index(db_path):
     costs ~34 ms per fresh connection).
     """
     if str(db_path).endswith(".duckdb"):
-        import duckdb
+        from helpers.misc.duckdb_lock import (
+            _EXTENDED_RETRY_DELAYS_S,
+            open_read_only,
+        )
 
-        from helpers.core.duckdb_shared import memory_cap_config
-
-        con = duckdb.connect(str(db_path), read_only=True, **memory_cap_config())
+        # duckdb_long_holder_backoff: queue + 60 s / 3-retry ladder for a
+        # reader arriving while a sidecar rebuild holds the file. Native
+        # FTS stays auto-loaded (DuckDB 2.0.0) — no explicit LOAD (~34 ms).
+        con = open_read_only(db_path, delays=_EXTENDED_RETRY_DELAYS_S)
         return con, "duckdb"
     from helpers.core.db import connect as db_connect
 

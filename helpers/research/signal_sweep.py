@@ -17,6 +17,9 @@ confirmatory test. Survivorship caveat (S2's) applies throughout.
 
 Usage:
     python3 helpers/research/signal_sweep.py sweep --horizons 4,13,26
+    python3 helpers/research/signal_sweep.py smoke   # fast hermetic math check
+    make signal-sweep-smoke   # same check via Make (no live DB)
+    make signal-sweep         # full report-only sweep (ARGS="--horizons 4,13")
 """
 
 from __future__ import annotations
@@ -124,29 +127,41 @@ def _forward_return(
     ticker: str,
     t: str,
     h_bars: int,
+    cache: dict | None = None,
 ) -> float | None:
     """Forward return from the last close <= T to the close h bars later.
 
     The anchor is the last bar ON or BEFORE T (lookahead guard); the
     horizon counts BARS, not calendar weeks (halted weeks shift both
     legs equally — the relative read is unaffected).
+
+    ``cache`` (shared across the whole sweep) memoizes by ``(ticker, t,
+    h_bars)``: the value depends only on those three, yet the naive sweep
+    recomputes it for every mode and every sector peer (~42× redundancy,
+    36 s of a 55 s profile). The anchor walk (``max(earlier)``) is folded
+    in for free.
     """
+    key = (ticker, t, h_bars)
+    if cache is not None and key in cache:
+        return cache[key]
     bars = prices.get(ticker)
     mi = idx_map.get(ticker)
+    result: float | None
     if not bars or mi is None:
-        return None
-    idx = mi.get(t)
-    if idx is None:
-        earlier = [d for d in mi if d <= t]
-        if not earlier:
-            return None
-        idx = mi[max(earlier)]
-    if idx + h_bars >= len(bars):
-        return None
-    base = bars[idx][1]
-    if base <= 0:
-        return None
-    return bars[idx + h_bars][1] / base - 1.0
+        result = None
+    else:
+        idx = mi.get(t)
+        if idx is None:
+            earlier = [d for d in mi if d <= t]
+            idx = mi[max(earlier)] if earlier else None
+        if idx is None or idx + h_bars >= len(bars):
+            result = None
+        else:
+            base = bars[idx][1]
+            result = bars[idx + h_bars][1] / base - 1.0 if base > 0 else None
+    if cache is not None:
+        cache[key] = result
+    return result
 
 
 def _abnormal(
@@ -156,16 +171,17 @@ def _abnormal(
     t: str,
     h_bars: int,
     peer_tickers: list[str],
+    fwd_cache: dict | None = None,
 ) -> float | None:
     """Subject forward return minus the sector-mate median (None if the
     subject or the peer set lacks the window)."""
-    subj = _forward_return(prices, idx_map, ticker, t, h_bars)
+    subj = _forward_return(prices, idx_map, ticker, t, h_bars, fwd_cache)
     if subj is None:
         return None
     peer_r = [
         r
         for pt in peer_tickers
-        if (r := _forward_return(prices, idx_map, pt, t, h_bars)) is not None
+        if (r := _forward_return(prices, idx_map, pt, t, h_bars, fwd_cache)) is not None
     ]
     if not peer_r:
         return None
@@ -198,13 +214,24 @@ def sweep(  # noqa: C901 — per-date × per-mode × per-horizon cross-section; 
         n_by_date: dict[tuple[str, str], int] = {}
         from helpers.graph import as_of as ao
 
+        # One anchor walk per (ticker, t, h) for the whole sweep — shared
+        # across both modes and all sector peers (see _forward_return).
+        fwd_cache: dict[tuple[str, str, int], float | None] = {}
+
         for t in QUARTER_ENDS:
+            # as-of visibility depends on t only, not on mode (mode is a
+            # post-filter over the same edge set) — fetch once per quarter.
+            quarter_edges = ao.edges_as_of(con, t)
             for mode in ("all", "dated"):
-                edges = ao.edges_as_of(con, t)
-                if mode == "dated":
-                    edges = [
-                        e for e in edges if e["valid_from"] is not None and e["valid_from"] <= t
+                edges = (
+                    [
+                        e
+                        for e in quarter_edges
+                        if e["valid_from"] is not None and e["valid_from"] <= t
                     ]
+                    if mode == "dated"
+                    else quarter_edges
+                )
                 touch: dict[str, list[tuple[str, str, str]]] = {}
                 for e in edges:
                     touch.setdefault(e["source"], []).append(
@@ -218,10 +245,10 @@ def sweep(  # noqa: C901 — per-date × per-mode × per-horizon cross-section; 
                     fwd: list[float] = []
                     abn: list[float] = []
                     for name, ticker in tickers.items():
-                        subj = _forward_return(prices, idx_map, ticker, t, h)
+                        subj = _forward_return(prices, idx_map, ticker, t, h, fwd_cache)
                         if subj is None or name not in touch:
                             continue
-                        a = _abnormal(prices, idx_map, ticker, t, h, peers.get(name, []))
+                        a = _abnormal(prices, idx_map, ticker, t, h, peers.get(name, []), fwd_cache)
                         if a is None:
                             continue  # abnormal target needs the peer window too
                         fwd.append(subj)
@@ -259,15 +286,64 @@ def sweep(  # noqa: C901 — per-date × per-mode × per-horizon cross-section; 
         con.close()
 
 
+def _smoke() -> dict:
+    """Hermetic self-check of the sweep's math — no live DB, deterministic.
+
+    Exercises the full computation chain (bar index → cached forward
+    return → abnormal target → Spearman rank-IC) on fixed synthetic data
+    with closed-form expected values. Returns the checks that ran.
+    """
+    prices = {
+        "AAA": [("2024-01-01", 10.0, 100), ("2024-01-08", 12.0, 100), ("2024-01-15", 15.0, 100)],
+        "BBB": [("2024-01-01", 100.0, 100), ("2024-01-08", 110.0, 100), ("2024-01-15", 121.0, 100)],
+    }
+    idx = _bar_index(prices)
+    cache: dict = {}
+    checks: dict[str, float | None] = {}
+
+    checks["fwd_1bar"] = _forward_return(prices, idx, "AAA", "2024-01-01", 1, cache)
+    checks["fwd_2bar"] = _forward_return(prices, idx, "AAA", "2024-01-01", 2, cache)
+    checks["abnormal"] = _abnormal(prices, idx, "AAA", "2024-01-01", 1, ["BBB"], cache)
+    checks["spearman_perfect"] = _spearman([1, 2, 3, 4, 5, 6, 7, 8], [1, 2, 3, 4, 5, 6, 7, 8])
+    checks["spearman_inverse"] = _spearman([1, 2, 3, 4, 5, 6, 7, 8], [8, 7, 6, 5, 4, 3, 2, 1])
+    checks["spearman_short"] = _spearman([1, 2, 3], [3, 2, 1])  # n<8 -> None
+
+    expected = {
+        "fwd_1bar": 0.2,
+        "fwd_2bar": 0.5,
+        "abnormal": 0.1,
+        "spearman_perfect": 1.0,
+        "spearman_inverse": -1.0,
+        "spearman_short": None,
+    }
+    for name, want in expected.items():
+        got = checks[name]
+        if (want is None and got is not None) or (
+            want is not None and (got is None or abs(got - want) > 1e-12)
+        ):
+            raise AssertionError(f"signal-sweep smoke: {name} = {got!r}, expected {want!r}")
+    return checks
+
+
 def _cli(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    p.add_argument("command", choices=["sweep"], help="run the cross-sectional sweep")
+    p.add_argument(
+        "command",
+        choices=["sweep", "smoke"],
+        help="run the cross-sectional sweep, or a fast hermetic smoke check",
+    )
     p.add_argument(
         "--horizons",
         default="4,13,26",
         help="comma list of forward horizons in bars (weeks)",
     )
     args = p.parse_args(argv)
+    if args.command == "smoke":
+        checks = _smoke()
+        print("✓ signal sweep smoke OK (synthetic, hermetic):")
+        for name, val in checks.items():
+            print(f"    {name:<20} {val!r}")
+        return 0
     horizons = tuple(int(x) for x in args.horizons.split(",") if x.strip())
     out = sweep(horizons=horizons)
     print(
