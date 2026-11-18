@@ -324,9 +324,7 @@ def _unit_hash(src: str) -> str:
     S1): 8-byte blake2b hex of the decoded text. The write path and the
     --check meta-only walk MUST hash identically or a fresh store reads as
     stale. Used by both _extract_py_unit and _collect_units(meta_only=True)."""
-    return hashlib.blake2b(
-        src.encode("utf-8", errors="replace"), digest_size=8
-    ).hexdigest()
+    return hashlib.blake2b(src.encode("utf-8", errors="replace"), digest_size=8).hexdigest()
 
 
 def _extract_py_unit(abs_path: Path, rel: str, kind: str) -> dict | None:
@@ -1192,9 +1190,7 @@ def _collect_units(
                 mtime = path.stat().st_mtime
             except OSError:
                 continue  # unreadable == absent, same as _extract_py_unit
-            py_units.append(
-                {"rel": rel, "kind": kind, "mtime": mtime, "hash": _unit_hash(src)}
-            )
+            py_units.append({"rel": rel, "kind": kind, "mtime": mtime, "hash": _unit_hash(src)})
             continue
         unit = _extract_py_unit(path, rel, kind)
         if unit is not None:
@@ -2497,7 +2493,7 @@ def _search_scripts_duckdb(  # noqa: C901  # search: topk/macro/fallback ladder
         conn,
         fts_table="fts_main_script_search",
         base_table="script_search",
-        tokens=rds.fts_query_tokens(q),
+        tokens=rds.fts_query_tokens_duckdb(q),  # fts_query_token_parity S1
         limit=limit + offset,
         where_extra=where_extra,
         params_extra=params_extra,

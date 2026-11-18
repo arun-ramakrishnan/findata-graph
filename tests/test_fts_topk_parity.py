@@ -22,6 +22,8 @@ import pytest
 
 from helpers.maintenance import rebuild_doc_search as rds
 from helpers.core import local_embedder as LE
+from helpers.core import duckdb_shared as ds_shared
+from helpers.core.duckdb_shared import fts_query_tokens_duckdb as fts_qtd
 
 pytestmark = [pytest.mark.integration]
 
@@ -35,20 +37,34 @@ _EDGE_QUERIES = [
 ]
 
 # Documented DuckDB-vs-FTS5 tokenization drift (recorded 2026-11-16 in
-# duckdb_watchlist_hardening.md §2). Each entry says WHY the engines
-# differ today; the parity test pins the CURRENT behavior so any future
-# engine change flips it red and forces the record to be updated
-# (either the drift is fixed, or the note becomes stale).
+# duckdb_watchlist_hardening.md §2; mechanism updated 2026-11-18 by
+# fts_query_token_parity S1/S2). Each entry says WHY the engines differ
+# today; the parity test pins the CURRENT behavior so any future engine
+# change flips it red and forces the record to be updated (either the
+# drift is fixed, or the note becomes stale).
+#
+# S1 changed the PATH but not these result sets: "cattle-feed" now
+# resolves on the SQL top-k leg (['cattle','feed'], dict-honest) instead
+# of falling back to the whole-table match_bm25 macro — same rows, 8x
+# cheaper, and the overmatch is now the top-k OR ranking rather than the
+# macro's. "R&D" is UNFIXABLE at the query side: the analyzer drops
+# 1-character tokens (measured on a fixture indexed with the same PRAGMA
+# call the rebuilds use), so R&D has no lexical representation in the
+# index — no query tokenizer can recover it. Only a substring/ILIKE lane
+# or the vector leg can find it, which is why hybrid mode still surfaces
+# those 3 doc rows.
 _KNOWN_DRIFT = {
-    # DuckDB's analyzer splits the hyphen and treats the parts loosely
-    # (doc/plain.md matches via "feed"); legacy FTS5 keeps
-    # "cattle-feed" as one unicode61 token.
+    # S1: DuckDB top-k now ORs the analyzer's own parts (cattl/feed →
+    # cattle.md via "cattle", plain.md via "feed"); legacy FTS5 keeps
+    # "cattle-feed" as one unicode61 phrase token, so only the doc that
+    # contains the literal phrase matches.
     "cattle-feed": {
         "duckdb": {"doc/cattle.md", "doc/plain.md"},
         "legacy": {"doc/cattle.md"},
     },
-    # DuckDB resolves "R&D" to nothing (ampersand-split parts don't
-    # compose); legacy FTS5 matches the "R&D" token in art.md.
+    # DuckDB's analyzer drops 1-char tokens, so "R&D" leaves nothing to
+    # index and nothing to resolve — bm25 returns 0 on both the macro and
+    # (now) the top-k path. legacy FTS5 phrase-matches art.md.
     "R&D": {
         "duckdb": set(),
         "legacy": {"doc/art.md"},
@@ -168,3 +184,194 @@ def test_duckdb_topk_and_macro_fallback_agree(seeded, fake_local):
         )
     finally:
         dconn.close()
+
+
+class TestAnalyzerMatchedTokenizer:
+    """fts_query_token_parity S1: `fts_query_tokens_duckdb` mirrors the
+    analyzer rules pinned 2026-11-18 (separator split, letter/digit split,
+    digit-only and 1-char tokens dropped). The contract that matters is
+    the PATH a query takes, because the macro fallback is the safety net,
+    not an alternative ranking."""
+
+    def test_hyphenated_compound_resolves_on_topk(self, seeded, fake_local):
+        """cattle-feed used to fall to the whole-table macro (8x slower,
+        overmatching via the OR inside match_bm25). With the analyzer-
+        matched splitter both parts resolve, so the top-k leg serves it."""
+        import duckdb as _d
+
+        ddb, _sdb = seeded
+        rds.rebuild_duckdb(ddb, embed_fn=fake_local.embed_document)
+        dconn = rds.connect_doc_db(ddb)
+        try:
+            assert fts_qtd("cattle-feed") == ["cattle", "feed"]
+            rows, mode = ds_shared.fts_topk(
+                dconn,
+                fts_table="fts_main_doc_search",
+                base_table="doc_search",
+                tokens=fts_qtd("cattle-feed"),
+                limit=5,
+            )
+            assert mode == "topk", f"cattle-feed still takes {mode}"
+            assert rows is not None and len(rows) > 0
+            # the splitter must NOT turn R&D into an r-OR-d scan
+            assert fts_qtd("R&D") == [], (
+                "1-char tokens must drop: the dict carries bare r/d from "
+                "other rows and r-OR-d would overmatch everything"
+            )
+            _ = _d  # keep the import meaningful for the monkeypatch target
+        finally:
+            dconn.close()
+
+    def test_digit_and_apostrophe_forms_follow_the_analyzer(self):
+        # letter/digit boundary: FY2026 -> fy (digit part dropped)
+        assert fts_qtd("FY2026") == ["fy"]
+        # apostrophe is a separator; the 1-char remainder drops
+        assert fts_qtd("don't") == ["don"]
+        # underscore is a separator
+        assert fts_qtd("co_mention") == ["co", "mention"]
+        # digit-only tokens drop; 3M collapses to the 1-char m -> gone
+        assert fts_qtd("3M") == []
+        # plain queries unchanged
+        assert fts_qtd("market share") == ["market", "share"]
+        assert fts_qtd("") == []
+
+
+class TestStemLadderParity:
+    """fts_stem_ladder S1/S4 oracle: the ladder must generate the analyzer's
+    true stem for every measured morphological class.
+
+    Every pair below was pinned on 2026-11-18 by indexing the word into a
+    fixture with the same ``PRAGMA create_fts_index`` call the rebuilds use
+    and reading the dict term back (probes: stem_probe{1,2,3}.py). The old
+    six-suffix ladder missed 101/400 sampled corpus words (28%) — every
+    miss took the whole-table match_bm25 macro detour. The replacement
+    superset generator measured 0/400 real-vocabulary misses on the same
+    sample; the residual 7 are analyzer stopwords (dropped from the dict
+    by design) plus one proper noun. If a pair here goes red, either the
+    engine's stemmer changed or a ladder regression narrowed a class —
+    re-run the fixture oracle before touching ``_stem_guesses``.
+    """
+
+    # word -> measured dict stem (one representative per class + keeps)
+    _STEM_BANK = {
+        # plurals / ies (ies→i AND ies→y both live: studies→studi,
+        # activities→activity→activ)
+        "studies": "studi",
+        "activities": "activ",
+        "boxes": "box",
+        "indices": "indic",
+        # y→i (universal) and y-drop (ency family)
+        "registry": "registri",
+        "query": "queri",
+        "agency": "agenc",
+        "fluency": "fluenci",
+        "city": "citi",
+        # -ation/-ization/-ication/-ion(s|t)
+        "generation": "gener",
+        "tokenization": "token",
+        "deduplication": "dedupl",
+        "edition": "edit",
+        "relation": "relat",
+        "nation": "nation",  # keeps: m('nat')=0
+        # -ize/-ise
+        "normalize": "normal",
+        "apologize": "apolog",
+        # -al/-ical/-ic with m>1
+        "critical": "critic",
+        "historical": "histor",
+        "financial": "financi",
+        "minimal": "minim",
+        "central": "central",  # keeps: m('centr')=1
+        # -ness/-ful at m>0
+        "freshness": "fresh",
+        "business": "busi",
+        "witness": "wit",
+        "truthful": "truth",
+        # -ment with m>1
+        "alignment": "align",
+        "assessment": "assess",
+        "document": "document",  # keeps: m('docu')=1
+        # -ency/-ence with m>1
+        "consistency": "consist",
+        "currency": "currenc",
+        # gemination after ed/ing (ll included, ss kept)
+        "planned": "plan",
+        "controlled": "control",
+        "assessed": "assess",
+        "falling": "fall",
+        # e-restore after ed
+        "stored": "store",
+        "created": "creat",
+        "agreed": "agre",
+        # -er with m>1 ('or' words keep: processor)
+        "converter": "convert",
+        "computer": "comput",
+        "registered": "regist",
+        "builder": "builder",  # keeps: m('build')=1
+        "processor": "processor",  # keeps: ends 'or', no -er match
+        # -ly with m>1 (quickly keeps li via y→i)
+        "accurately": "accur",
+        "quickly": "quickli",
+        # -able/-ible with m>1
+        "auditable": "audit",
+        "constructible": "construct",
+        "salvageable": "salvag",
+        # -ility/-ibility/-ability family
+        "scalability": "scalabl",
+        "visibility": "visibl",
+        "compatibility": "compat",
+        "availability": "avail",
+        # -ivity
+        "connectivity": "connect",
+        # -ism/-ent/-ive/-ous
+        "nondeterminism": "nondetermin",
+        "constituents": "constitu",
+        "aggressive": "aggress",
+        "synchronously": "synchron",
+        # e-final keeps under the stemmer's *o rule
+        "node": "node",
+        "store": "store",
+        "monitor": "monitor",
+        "operator": "oper",  # -ator with m>1
+    }
+
+    def test_ladder_generates_measured_stems(self):
+        for word, stem in self._STEM_BANK.items():
+            assert stem in ds_shared._stem_guesses(word), (
+                f"{word}: stemmer stem {stem!r} missing from ladder candidates "
+                f"{ds_shared._stem_guesses(word)}"
+            )
+
+    def test_ladder_resolves_fixture_topk(self):
+        import duckdb
+
+        words = sorted(self._STEM_BANK)
+        con = duckdb.connect(":memory:")
+        con.execute("CREATE TABLE t (id INTEGER, s VARCHAR)")
+        con.execute("INSERT INTO t VALUES (1, ?)", [" ".join(words)])
+        con.execute("PRAGMA create_fts_index('t', 'id', 's')")
+        try:
+            for word in words:
+                rows, mode = ds_shared.fts_topk(
+                    con,
+                    fts_table="fts_main_t",
+                    base_table="t",
+                    tokens=[word],
+                    limit=3,
+                )
+                assert mode == "topk" and rows, (
+                    f"{word}: topk leg did not resolve (mode={mode}) — "
+                    "ladder regression or stemmer drift; re-run the oracle"
+                )
+        finally:
+            con.close()
+
+    def test_ladder_keeps_exact_token_and_parity_edges(self):
+        # the word itself is always a candidate (dict-honest exact hit)
+        for word in self._STEM_BANK:
+            assert word in ds_shared._stem_guesses(word)
+        # parity edge queries from the S1 tokenization slice stay intact
+        assert fts_qtd("cattle-feed") == ["cattle", "feed"]
+        assert fts_qtd("R&D") == []
+        assert "cattl" in ds_shared._stem_guesses("cattle")
+        assert "feed" in ds_shared._stem_guesses("feeding")

@@ -38,16 +38,18 @@ entry number and stale DONE pointers):
 
 ## Current live proposals
 
-- *(filed 2026-11-18)* — `search_check_corpus_walk_s3` (tooling/, PROPOSED)
-  — hash-only `--check` verdicts: script AST walk dropped from 2.9 s to
-  178 ms (18×), git whole-history numstat short-circuited from 6.98 s to
-  42 ms (146×) via a sha-set + extraction-policy stamp. Slices S1 script,
-  S2 git.
-- *(filed 2026-11-18)* — `fts_query_token_parity` (tooling/, PROPOSED)
-  — align `fts_query_tokens` with the DuckDB analyzer to close the macro
-  fallback: `R&D` lexical recall 0 → 3 of 3 rows, punctuated queries leave
-  the 12–28 ms macro scan for the 1–8 ms top-k path. Slices S1 tokenizer,
-  S2 retire `_KNOWN_DRIFT`, S3 advise-the-fallback.
+- *(archived 2026-11-18)* — `search_check_corpus_walk_s3` +
+  `fts_query_token_parity` + `fts_stem_ladder_and_topk_coverage`
+  (tooling/, filed + executed 2026-11-18, completed.md #542 / #543 / #544
+  — the DuckDB search-index sweep: `--check` verdicts made hash-only
+  (script AST walk 3.18 s → 0.33 s, git whole-history numstat
+  short-circuited 6,890 ms → 77 ms median via a sha-set + extraction-
+  policy stamp), `fts_query_tokens_duckdb` aligned with the DuckDB
+  analyzer (punctuated queries leave the 12–160 ms macro scan for the
+  top-k path; `R&D` documented as unfixable), `_stem_guesses` rebuilt as
+  a depth-3 superset generator at stemmer parity (corpus misses
+  112/400 → 7/400, residuals = analyzer stopwords), and the memory/git
+  legs routed through `fts_topk`.)
 - *(archived 2026-11-18)* — `rust_betweenness_kernel` + `rust_closeness_kernel`
   (graph/, filed + executed 2026-11-18, completed.md #538 / #539 — the two
   L1 fold lanes' BFS-shaped work moved into `graph_kernels` as opt-in

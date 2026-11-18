@@ -16204,3 +16204,100 @@ question set) per the proposal's §4 house rule.
   inputs, so it cannot go stale within a call; default `None` means no
   cross-call state. Perf-only, identical outputs → no eval-gate bullet.
   Gates parked (m01133): `tests/test_signal_sweep.py` (4 tests) + ruff.
+
+## 542. Search `--check` corpus walks made hash-only — script 3.18 s → 0.33 s, git 6,890 ms → 77 ms
+
+- **Filed/provenance:** `doc/improvements/archive/tooling/search_check_corpus_walk_s3.md`
+  (filed + executed 2026-11-18, out of the DuckDB/Rust/Mojo post-gate
+  exploration sweep).
+- **Finding:** `make search-fresh` spent ~10.2 s of its 12.5 s on work
+  the staleness verdict never reads. `_check_freshness_script_duckdb`
+  AST-parsed all 648 py/mojo/ts files (cProfile: `_import_candidates`
+  5.8 s of 7.9 s) although the verdict compares only
+  `(rel, mtime, blake2b)`; `_check_freshness_git_duckdb` ran
+  `git log --numstat` over the whole 595-commit history
+  (~10 ms/commit, linear) before checking whether anything changed.
+- **Shipped:** script side — `_unit_hash(src)` +
+  `_collect_units(meta_only=True)` skips `_extract_py_unit` and the
+  mojo/ts declaration caches; `units_meta` verified byte-identical.
+  git side — `_fp_policy()` stamp
+  (`v1|cap64000|fdc30|ex(...)|(('.parquet','.lock','.gguf'),)`) written
+  beside `body_basis`, `_check_freshness_fast` short-circuits on
+  sha-set + policy match, `_check_freshness_git_duckdb(..., policy_ok=)`
+  skips numstat fetch when the policy pins the carried commits; the
+  scoped-numstat `_numstats(shas=...)` form was prototyped then dropped
+  (no caller left, reasoning in the docstring). EXCLUDE_VERSION bumps
+  still force the slow path (interlock test).
+- **Measured:** script `--check` 3.18 s → 0.34/0.34/0.33 s; live-tree
+  drift proof (`STALE — 1 changed`, named). git delta path 77.0 ms
+  median (scratch-stamped store) vs 6,890 ms = **89×**, verdict names
+  the exact new/deleted shas. 79 targeted tests green.
+- **Posture:** pure check-path work; write paths and index contents
+  unchanged. The live git store picks the stamp up at the next APPLY.
+
+## 543. `fts_query_tokens` aligned with the DuckDB analyzer — punctuated queries off the macro scan
+
+- **Filed/provenance:** `doc/improvements/archive/tooling/fts_query_token_parity.md`
+  (filed + executed 2026-11-18, same sweep as #542).
+- **Finding:** the macro fallback fed whole punctuated tokens
+  (`cattle-feed`, `R&D`, `state-of-the-art`) into `match_bm25` while the
+  analyzer splits on non-alphanumeric runs — zero dict terms contain
+  `-` or `&`, so every such query missed the 1–8 ms top-k path for a
+  12–160 ms macro scan (`doc cattle-feed` 49.5 ms with overmatch via
+  "feed"; `note state-of-the-art` 162.5 ms). Analyzer rules pinned on a
+  fixture: letter/digit split (`FY2026`→`fy`), digit-only and 1-char
+  tokens dropped (`R&D` has NO lexical representation), english stemmer.
+- **Shipped:** `fts_query_tokens_duckdb()` in
+  `helpers/core/duckdb_shared.py` (mechanical analyzer-matched rules,
+  no stopword list — the dict ladder owns resolution), wired at five
+  call sites (doc/script rebuilds, note_query, convo_query,
+  perf_smoke); orphaned `fts_query_tokens` deleted; `_KNOWN_DRIFT`
+  notes updated; `perf_smoke` gained `EXPECTED_MACRO` allowlist so a
+  new macro fallback warns (rc stays 0, advisory contract).
+- **Measured:** doc `cattle-feed` 49.5 → 12.5 ms; note `cattle-feed`
+  147.2 → 54.3 ms; note `state-of-the-art` 162.5 → 71.9 ms; mode mix
+  dict-honest per store (e.g. `aquaculture` on script is correctly
+  macro: 0 rows contain it). Acceptance criterion "R&D recall 0 → 3"
+  amended to a documented limitation: the analyzer drops 1-char tokens,
+  so `r`/`d` cannot resolve — splitting would overmatch. 110 targeted
+  tests green.
+- **Posture:** query-side only; indexes untouched; every query that
+  cannot resolve still falls through to the unchanged macro block.
+
+## 544. Stem ladder to stemmer parity + memory/git top-k routing — corpus misses 112/400 → 7/400
+
+- **Filed/provenance:** `doc/improvements/archive/tooling/fts_stem_ladder_and_topk_coverage.md`
+  (filed + executed 2026-11-18, follow-on to the silent-degradation
+  audit).
+- **Finding:** `_stem_guesses` (six suffix classes) missed the real
+  stemmer on 25% of sampled corpus vocabulary — `registry` (469 uses),
+  `recovery` (206), `taxonomy` (182), `-ation`/`-ize`/`-al`/`-ness`
+  families all unresolvable → macro detour 4.3× on `registry dedup`
+  (59.7 ms vs 13.9 ms) plus loose-OR ranking. Independently, the memory
+  and git DuckDB legs fed FTS5-quoted strings straight into
+  `match_bm25`: `"search-fresh"` matched 222/386 memory rows (57%) and
+  **493/595 git commits (83%)**. An 183-word oracle battery (fixture
+  index, dict-term probes) pinned the engine as Porter-shaped with an
+  m>1 measure — including the traps the old ladder got wrong (`ies`→i
+  not y; y→i universal; `ion` needs s/t; `ss` survives gemination).
+- **Shipped:** `_stem_guesses` rebuilt as an iterative depth-3 superset
+  generator (helpers `_is_vowel_char`, `_porters_measure`,
+  `_undouble_consonant`, `_stem_step`; suffix tuple covers
+  ization/ation/ency/ility/ment/ness/ful/er/ism/ent/ive/ous/ivity/ability
+  ...), shared by `fts_topk` + `fts_topk_count`; `_search_memory_duckdb`
+  and `_search_commits_duckdb` gained the `_search_docs_duckdb`-shaped
+  `fts_topk` fast path (kind/history filter on `ss.kind`, since/path
+  requalified to `ss.adate`/`ss.files`), macro blocks unchanged;
+  `perf_smoke._STORES` grew memory + git engines (24 probes, 21/24
+  top-k, 3 allowlisted macro); parity bank gained a 57-word stem oracle
+  (`TestStemLadderParity`).
+- **Measured:** 400-word live-corpus sample misses 112/400 (28%) →
+  7/400, all residuals analyzer stopwords + one proper noun (≤5%
+  acceptance met at 1.75%); battery 0/183 vs legacy 106/183. `doc
+  registry dedup` 13.0 ms top-k (was 59.7 ms macro); memory/git lexical
+  legs run top-k internally (25.3/137.9 ms full hybrid=False call,
+  median×7). 221 targeted tests green.
+- **Posture:** candidates are a superset of dict terms — a wrong extra
+  candidate costs one dict probe, never a wrong result; every macro
+  fallback path preserved for unresolvable tokens.
+

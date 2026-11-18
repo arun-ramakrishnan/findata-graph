@@ -176,7 +176,8 @@ def search_notes_duckdb(  # noqa: C901  # search: topk/macro/fallback ladder
     section per file_path — rows arrive score-desc, so first occurrence
     wins). total_count always counts the OR space, like the legacy route.
     """
-    from helpers.maintenance.rebuild_doc_search import fts_match_expr, fts_query_tokens
+    from helpers.core.duckdb_shared import fts_query_tokens_duckdb
+    from helpers.maintenance.rebuild_doc_search import fts_match_expr
     from helpers.core.duckdb_shared import fts_topk, fts_topk_count
 
     or_expr = fts_match_expr(q)
@@ -197,7 +198,7 @@ def search_notes_duckdb(  # noqa: C901  # search: topk/macro/fallback ladder
         conn,
         fts_table="fts_main_note_search",
         base_table="note_search",
-        tokens=fts_query_tokens(q),
+        tokens=fts_query_tokens_duckdb(q),  # fts_query_token_parity S1
         limit=1024,
         where_extra=where_extra,
         params_extra=params_extra,
@@ -208,7 +209,7 @@ def search_notes_duckdb(  # noqa: C901  # search: topk/macro/fallback ladder
                 conn,
                 fts_table="fts_main_note_search",
                 base_table="note_search",
-                tokens=fts_query_tokens(q),
+                tokens=fts_query_tokens_duckdb(q),  # fts_query_token_parity S1
                 where_extra=where_extra,
                 params_extra=params_extra,
                 count_col="file_path",

@@ -38,7 +38,7 @@ _QUERIES = [
     "shrimp feed",
     "aquaculture",
     "market share",
-    "to",  # short token → macro fallback path
+    "to",  # allowlisted macro on script (dict stopword); topk elsewhere
 ]
 
 _STORES = {
@@ -76,6 +76,22 @@ _STORES = {
         "mirror": None,
         "shadow": "script_search",
     },
+    "memory": {
+        "path": _REPO_ROOT / "memory" / "memory_search.duckdb",
+        "fts_table": "fts_main_memory_search",
+        "base_table": "memory_search",
+        "id_column": "id",
+        "mirror": None,
+        "shadow": "memory_search",
+    },
+    "git": {
+        "path": _REPO_ROOT / "memory" / "git_search.duckdb",
+        "fts_table": "fts_main_git_search",
+        "base_table": "git_search",
+        "id_column": "id",
+        "mirror": None,
+        "shadow": "git_search",
+    },
 }
 
 
@@ -108,6 +124,16 @@ def _engine_search(engine: str, conn, q: str) -> int:
 
         out = rss._search_scripts_duckdb(conn, q, limit=10, hybrid=False)
         return len(out.get("results", []))
+    if engine == "memory":
+        from helpers.maintenance import rebuild_memory_search as rms
+
+        out = rms.search_memories(conn, q, limit=10, hybrid=False)
+        return len(out.get("results", []))
+    if engine == "git":
+        from helpers.maintenance import rebuild_git_search as rgs
+
+        out = rgs.search_commits(conn, q, limit=10, hybrid=False)
+        return len(out.get("results", []))
     return 0
 
 
@@ -120,7 +146,7 @@ def _topk_mode(conn, spec: dict, q: str) -> str:
             conn,
             fts_table=spec["fts_table"],
             base_table=spec["base_table"],
-            tokens=rds.fts_query_tokens(q),
+            tokens=rds.fts_query_tokens_duckdb(q),  # fts_query_token_parity S1
             limit=10,
             id_column=spec["id_column"],
         )
@@ -232,10 +258,50 @@ def main(argv: list[str] | None = None) -> int:
             f"{r['median_ms']:>9.1f} {r['results']:>8} {str(r['mirror']):>7}"
         )
     print("-" * len(header))
-    # advisory summary: any macro-mode run is a watch flag
-    macros = [r for r in rows if r.get("mode") == "macro" and "skipped" not in r]
-    if macros:
-        print(f"NOTE: {len(macros)} query/engine pair(s) took the MACRO fallback (L2 watch).")
+    # advisory summary: any macro-mode run is a watch flag. Since
+    # fts_query_token_parity S1 (2026-11-18) the splitter mirrors the
+    # analyzer, so a query should reach the macro fallback ONLY when its
+    # tokens genuinely cannot resolve in that store's dict. The bank is
+    # therefore an ALLOWLIST with a reason per pair; anything else joining
+    # it is a regression signal (a punctuated query the splitter should
+    # have resolved, or a dict term that vanished), and an allowlisted
+    # pair leaving it means the corpus grew and the entry can retire.
+    EXPECTED_MACRO = {
+        (
+            "script",
+            "aquaculture",
+        ): "0 script rows contain the term — token absent from the script dict; macro is the designed empty-result path",
+        (
+            "script",
+            "to",
+        ): "'to' is not in the script dict (corpus-scale stopword); macro is the designed path",
+        (
+            "memory",
+            "aquaculture",
+        ): "0 memory rows contain the term — token absent from the memory dict; macro is the designed empty-result path (fts_stem_ladder S4)",
+    }
+    probed = {r["engine"] for r in rows if "skipped" not in r}
+    macros = [
+        (r["engine"], r["query"]) for r in rows if r.get("mode") == "macro" and "skipped" not in r
+    ]
+    unexpected = [p for p in macros if p not in EXPECTED_MACRO]
+    retired = [p for p in EXPECTED_MACRO if p[0] in probed and p not in macros]
+    if unexpected:
+        reasons = "; ".join(f"{e}/{q}" for e, q in unexpected)
+        print(
+            f"WARNING (macro regression): {reasons} took the whole-table "
+            "match_bm25 fallback — the S1 analyzer-matched splitter should "
+            "have resolved this, or a dict term vanished. Investigate "
+            "before the next perf gate."
+        )
+    elif retired:
+        names = "; ".join(f"{e}/{q}" for e, q in retired)
+        print(
+            f"NOTE: expected-macro pair(s) now resolve on topk — retire the "
+            f"allowlist entry: {names}"
+        )
+    else:
+        print(f"OK: macro bank matches the allowlist ({len(macros)} pair(s), all expected).")
     return 0
 
 

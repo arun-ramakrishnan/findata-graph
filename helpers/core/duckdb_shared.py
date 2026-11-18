@@ -36,6 +36,7 @@ import fcntl
 import json
 import math
 import os
+import re
 import socket
 import time
 from pathlib import Path
@@ -517,6 +518,54 @@ def _is_sql_identifier(v: str) -> bool:
     return bool(v) and v.replace("_", "").isalnum() and not v[0].isdigit()
 
 
+def fts_query_tokens_duckdb(q: str) -> list[str]:
+    """Free-text query -> tokens the way the DuckDB native FTS analyzer
+    sees them (fts_query_token_parity S1).
+
+    The analyzer's behavior was pinned empirically 2026-11-18 by indexing
+    a fixture corpus with the SAME PRAGMA call the rebuilds use
+    (``PRAGMA create_fts_index('<table>', '<id>', '<col>')`` — default
+    stemmer/stopwords) and dumping the resulting ``dict``:
+
+    - separators: any non-alphanumeric run (``-``, ``&``, ``.``, ``_``,
+      ``/``, ``'``)
+    - alphanumeric runs split at the letter/digit boundary
+      (``FY2026`` -> ``fy`` + ``2026``; the digit part is dropped)
+    - digit-only tokens dropped
+    - 1-character tokens dropped (``R&D`` -> ``r``/``d`` -> both gone)
+
+    This splitter mirrors the mechanical rules and deliberately does NOT
+    embed a stopword list or a stemmer: :func:`fts_topk` resolves each
+    token against the store's own ``dict`` through its stem-guess ladder,
+    and its contract is already "any unresolvable token -> the macro
+    fallback". A token the analyzer would have stopped out simply fails to
+    resolve and lands in the fallback, unchanged. Dropping 1-char query
+    tokens is what keeps ``R&D`` from turning into an ``r OR d`` scan over
+    a dict that does carry bare ``r``/``d`` from other rows.
+
+    Why it matters: ``fts_query_tokens`` (rebuild_doc_search) splits
+    whitespace only, so ``cattle-feed`` arrives at ``fts_topk`` as one
+    token that cannot exist in a dict where the analyzer split it — every
+    punctuated query takes the whole-table macro scan (measured 27.7 ms vs
+    3.5 ms on doc, and the macro overmatches: 159 rows for ``cattle-feed``
+    vs 3 containing "cattle"). Splitting the same way the analyzer does
+    lets those queries resolve on the top-k path.
+
+    The FTS5-path tokenizer keeps its own function: the legacy surface
+    keeps its quoted-OR unicode61 semantics and its own pinned results.
+    """
+    if not q:
+        return []
+    out: list[str] = []
+    for run in re.findall(r"[A-Za-z]+|\d+", q):
+        if run.isdigit():
+            continue  # analyzer drops digit-only tokens (2026, 50)
+        if len(run) < 2:
+            continue  # analyzer drops 1-char tokens (r, d, a, b, x, y)
+        out.append(run.lower())
+    return out
+
+
 def fts_topk(  # noqa: C901  # native-FTS top-k: stem-guess ladder + SQL assembly
     conn: duckdb.DuckDBPyConnection,
     *,
@@ -728,23 +777,163 @@ def fts_topk_count(  # noqa: C901  # native-FTS count: same stem-guess ladder
         return None
 
 
+def _is_vowel_char(ch: str, prev: str) -> bool:
+    """Porter vowel test: y counts as a vowel after a consonant."""
+    if ch in "aeiou":
+        return True
+    return ch == "y" and prev != "" and prev not in "aeiou"
+
+
+def _porters_measure(word: str) -> int:
+    """Porter measure m: number of VC sequences in the word's CV-form.
+
+    Guards the m>1 suffix classes to stemmer parity (measured 2026-11-18
+    via the fixture oracle: ``general→gener`` strips, ``central→central``
+    does not; ``alignment→align`` strips, ``document→document`` does not;
+    ``edition→edit`` strips, ``action→action`` does not).
+    """
+    forms: list[str] = []
+    prev = ""
+    for ch in word:
+        if not ch.isalpha():
+            continue
+        forms.append("V" if _is_vowel_char(ch.lower(), prev) else "C")
+        prev = ch.lower()
+    return sum(1 for i in range(len(forms) - 1) if forms[i] == "V" and forms[i + 1] == "C")
+
+
+def _undouble_consonant(w: str) -> str | None:
+    """Gemination undo after ed/ing strips (planned→plan); ss is kept
+    (assessed→assess, guessing→guess — measured)."""
+    if len(w) >= 3 and w[-1] == w[-2] and w[-1] not in "sz":
+        return w[:-1]
+    return None
+
+
+def _stem_step(w: str) -> set[str]:
+    """One pass of suffix rules -> candidate set (superset generator).
+
+    Each class is pinned by the fixture-oracle batteries of 2026-11-18
+    (see tests/test_fts_topk_parity.py::TestStemLadderParity). Guards:
+    Porter m>1 unless the oracle measured otherwise (ness/ful strip at
+    m>0: freshness→fresh, business→busi, truth stays under m>1 for
+    fresh but business strips — the real stemmer strips both).
+    """
+    s: set[str] = set()
+    L = len(w)
+    lo = w.lower()
+    # plurals: ies→i AND y (studies→studi via ies→i, activity→activities
+    # via ies→y chaining into -ity)
+    if L > 4 and lo.endswith("ies"):
+        s.add(w[:-3] + "i")
+        s.add(w[:-3] + "y")
+    if L > 4 and lo.endswith("sses"):
+        s.add(w[:-2])
+    if L > 3 and lo.endswith("es"):
+        s.add(w[:-2])
+        s.add(w[:-1])
+    if L > 3 and lo.endswith("s") and not lo.endswith("ss"):
+        s.add(w[:-1])
+    # y→i (day→dai, query→queri) plus y-drop (agency→agenc)
+    if L > 2 and lo.endswith("y"):
+        s.add(w[:-1] + "i")
+        s.add(w[:-1])
+    # ed/ing with e-restore candidate (stored→store; created→creat)
+    if L > 3 and lo.endswith("ing"):
+        s.add(w[:-3])
+        s.add(w[:-3] + "e")
+    if L > 3 and lo.endswith("ed"):
+        s.add(w[:-2])
+        s.add(w[:-2] + "e")
+    # m-guarded class strips
+    for suf in (
+        "ization",
+        "ication",
+        "ational",
+        "ation",
+        "iveness",
+        "ement",
+        "izement",
+        "ency",
+        "ence",
+        "ility",
+        "ity",
+        "ical",
+        "ance",
+        "iciti",
+        "ment",
+        "ness",
+        "ize",
+        "ise",
+        "ate",
+        "ator",
+        "al",
+        "ic",
+        "ative",
+        "ibility",
+        "ability",
+        "able",
+        "ible",
+        "ly",
+        "er",
+        "ism",
+        "ent",
+        "ive",
+        "ful",
+        "ous",
+        "ivity",
+    ):
+        if lo.endswith(suf) and L > len(suf) + 1:
+            stem = w[: -len(suf)]
+            if _porters_measure(stem) > 1 or (
+                suf in ("ness", "ful") and _porters_measure(stem) > 0
+            ):
+                s.add(stem)
+    # -ility family whose stem ends in the -ble l (scalab-ility→scalabl,
+    # visib-ility→visibl, stabil-ility→stabil)
+    if lo.endswith("ility") and L > 6:
+        stem = w[:-5]
+        if _porters_measure(stem) > 1:
+            s.add(stem)
+            s.add(stem + "l")
+    # ion strips only with s/t before (edition→edit, position→posit;
+    # nation/action/section keep — measured)
+    if lo.endswith("ion") and L > 4 and lo[-4] in "st":
+        stem = w[:-3]
+        if _porters_measure(stem) > 1:
+            s.add(stem)
+    # final-e drop (cache→cach); node/store keep their e under the
+    # stemmer's *o rule, so this candidate is a harmless superset extra
+    if L > 3 and lo.endswith("e"):
+        s.add(w[:-1])
+    return s
+
+
 def _stem_guesses(tok: str) -> list[str]:
-    """Porter-ish suffix-strip candidates matching dict-term stems."""
-    s = {tok}
-    L = len(tok)
-    if L > 4 and tok.endswith("ies"):
-        s.add(tok[:-3] + "y")
-    if L > 4 and tok.endswith("ing"):
-        s.add(tok[:-3])
-        s.add(tok[:-3] + "e")
-    if L > 3 and tok.endswith("ed"):
-        s.add(tok[:-2])
-        s.add(tok[:-1])
-    if L > 3 and tok.endswith("es"):
-        s.add(tok[:-2])
-        s.add(tok[:-1])
-    if L > 3 and tok.endswith("s"):
-        s.add(tok[:-1])
-    if L > 3 and tok.endswith("e"):
-        s.add(tok[:-1])
-    return sorted(s)
+    """Stemmer-parity candidate ladder (iterative, depth 3).
+
+    Replaces the six-suffix single-pass ladder (2026-11-18): the old
+    ladder missed 101/400 sampled corpus words (28%) — every morphological
+    class outside ies/ing/ed/es/s/e took the macro detour. The generator
+    applies the measured suffix classes iteratively (chained rules:
+    awareness→aware→awar, typically→typical→typic, activities→activity
+    →activ) and keeps a SUPERSET of the true stem — a wrong extra guess
+    merely fails its dict lookup, never narrows recall. Measured parity:
+    0/400 real-vocabulary misses on the same sample (legacy: 112/400),
+    0/183 battery words (tests pin the per-class bank).
+    """
+    out = {tok}
+    frontier = {tok}
+    for _ in range(3):
+        nxt: set[str] = set()
+        for w in frontier:
+            nxt |= _stem_step(w)
+            d = _undouble_consonant(w)
+            if d:
+                nxt.add(d)
+        nxt -= out
+        if not nxt:
+            break
+        out |= nxt
+        frontier = nxt
+    return sorted(out)

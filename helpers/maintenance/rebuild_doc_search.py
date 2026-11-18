@@ -888,7 +888,7 @@ def _mtime_of(root: Path | None, rel: str) -> float:
 # --- query core (shared by app.py /api/docs/search and helpers/misc/doc_query) ---
 
 # RRF constant, identical to app.py::_hybrid_search_results.
-from helpers.core.duckdb_shared import fts_topk  # noqa: E402  (duckdb_fts_sql_topk_regression S3)
+from helpers.core.duckdb_shared import fts_query_tokens_duckdb, fts_topk  # noqa: E402  (duckdb_fts_sql_topk_regression S3; fts_query_token_parity S1)
 
 from helpers.core.rank_fusion import rrf_two_leg  # noqa: E402  (algorithms_adoption_sweep S7)
 
@@ -916,16 +916,6 @@ def fts_match_expr(q: str) -> str:
     """
     tokens = [f'"{_FT_TOKEN.sub("", t)}"' for t in q.split() if t.strip()]
     return " OR ".join(tokens)
-
-
-def fts_query_tokens(q: str) -> list[str]:
-    """Free-text query -> raw whitespace tokens (cleaned, unquoted).
-
-    Same cleaning as :func:`fts_match_expr` uses for its quoted forms —
-    both the FTS5 MATCH expression and the DuckDB FTS posting-table top-k
-    resolution must see the identical token stream.
-    """
-    return [_FT_TOKEN.sub("", t) for t in q.split() if t.strip()]
 
 
 def doc_index_ready(conn) -> bool:
@@ -1794,7 +1784,7 @@ def _search_docs_duckdb(  # noqa: C901  # search: topk/macro/fallback ladder
             conn,
             fts_table="fts_main_doc_search",
             base_table="doc_search",
-            tokens=fts_query_tokens(q),
+            tokens=fts_query_tokens_duckdb(q),  # fts_query_token_parity S1
             limit=limit + offset,
         )
     except duckdb.Error:

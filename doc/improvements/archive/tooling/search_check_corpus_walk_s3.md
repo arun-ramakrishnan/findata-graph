@@ -1,9 +1,9 @@
 ---
 title: "Search --check corpus walks: hash-only verdicts for script and git (18x / 146x)"
-status: proposed
+status: executed
 filed: "2026-11-18"
-executed: null
-completed_md: null
+executed: "2026-11-18"
+completed_md: "542"
 area: "helpers/maintenance"
 ---
 

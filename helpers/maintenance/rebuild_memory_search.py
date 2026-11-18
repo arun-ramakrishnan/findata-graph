@@ -1786,25 +1786,70 @@ def _search_memory_duckdb(
     expr = rds.fts_match_expr(q)
     if not expr:
         return {"mode": "bm25", "results": []}
-    sc = "fts_main_memory_search.match_bm25(id, ?)"
-    where = f"{sc} IS NOT NULL"
-    params: list = [expr, expr]
-    if kind:
-        where += " AND kind = ?"
-        params.append(kind)
-    elif history in ("only", "exclude"):
-        placeholders = ", ".join("?" * len(_HISTORY_KINDS))
-        where += f" AND kind {'IN' if history == 'only' else 'NOT IN'} ({placeholders})"  # noqa: S608  # fixed keyword + fixed placeholder count
-        params.extend(_HISTORY_KINDS)
-    try:
-        page = conn.execute(
-            f"SELECT id, title, kind, name, source_path, purpose, content, {sc} AS score "  # noqa: S608  # WHERE fully parameterized; f-string interpolates fixed columns only
-            f"FROM memory_search WHERE {where} "
-            f"ORDER BY score DESC LIMIT ?",
-            [*params, limit],
-        ).fetchall()
-    except duckdb.Error:
-        return {"mode": "bm25", "results": []}
+    # Fast path: SQL top-k over the FTS postings (fts_stem_ladder S2).
+    # Falls back to the match_bm25 macro below when any token is
+    # unresolvable. kind/history ride as ss.kind predicates via
+    # where_extra; the macro path keeps its unqualified form.
+    tokens = ds.fts_query_tokens_duckdb(q)
+    page: list[tuple]
+    rows: list[tuple] | None = None
+    mode = "macro"
+    if tokens:
+        tk_where = ""
+        tk_params: list = []
+        if kind:
+            tk_where = " AND ss.kind = ?"
+            tk_params = [kind]
+        elif history in ("only", "exclude"):
+            tk_ph = ", ".join("?" * len(_HISTORY_KINDS))
+            tk_where = f" AND ss.kind {'IN' if history == 'only' else 'NOT IN'} ({tk_ph})"  # noqa: S608  # fixed keyword + fixed placeholder count
+            tk_params = list(_HISTORY_KINDS)
+        try:
+            rows, mode = ds.fts_topk(
+                conn,
+                fts_table="fts_main_memory_search",
+                base_table="memory_search",
+                tokens=tokens,
+                limit=limit,
+                where_extra=tk_where,
+                params_extra=tk_params,
+            )
+        except duckdb.Error:
+            rows, mode = None, "macro"
+    if mode == "topk" and rows is not None:
+        ids = [rid for rid, _ in rows]
+        page = []
+        if ids:
+            ph = ", ".join("?" for _ in ids)
+            by_id = {
+                r[0]: r
+                for r in conn.execute(
+                    "SELECT id, title, kind, name, source_path, purpose, content "  # noqa: S608  # ph is a computed ?, list, not user input
+                    f"FROM memory_search WHERE id IN ({ph})",
+                    ids,
+                ).fetchall()
+            }
+            page = [by_id[i] for i in ids if i in by_id]
+    else:
+        sc = "fts_main_memory_search.match_bm25(id, ?)"
+        where = f"{sc} IS NOT NULL"
+        params: list = [expr, expr]
+        if kind:
+            where += " AND kind = ?"
+            params.append(kind)
+        elif history in ("only", "exclude"):
+            placeholders = ", ".join("?" * len(_HISTORY_KINDS))
+            where += f" AND kind {'IN' if history == 'only' else 'NOT IN'} ({placeholders})"  # noqa: S608  # fixed keyword + fixed placeholder count
+            params.extend(_HISTORY_KINDS)
+        try:
+            page = conn.execute(
+                f"SELECT id, title, kind, name, source_path, purpose, content, {sc} AS score "  # noqa: S608  # WHERE fully parameterized; f-string interpolates fixed columns only
+                f"FROM memory_search WHERE {where} "
+                f"ORDER BY score DESC LIMIT ?",
+                [*params, limit],
+            ).fetchall()
+        except duckdb.Error:
+            return {"mode": "bm25", "results": []}
 
     scored, sims, cos_rank = _cosine_leg_memory_duckdb(conn, q, hybrid, query_vec)
 

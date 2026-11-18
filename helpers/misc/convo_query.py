@@ -242,7 +242,7 @@ def _fts_hits_duckdb(
     Fast path: SQL top-k over the FTS postings (macro-free). Falls back
     to the match_bm25 macro below when any token is unresolvable.
     """
-    tokens = [w for w in query.split() if w.strip()]
+    tokens = fts_query_tokens_duckdb(query)  # fts_query_token_parity S1
     where_extra = ""
     params_extra: list = []
     if harness:
@@ -758,7 +758,7 @@ def _like_pattern(source: str) -> str:
 
 
 from helpers.core.rank_fusion import anchored_fusion as _anchored_fusion  # noqa: E402  (algorithms_adoption_sweep S7 — the convo named variant lives in the one RRF home; frozen-bank verdict 2026-10-27, #442: granite 25/57, gemma 27/57)
-from helpers.core.duckdb_shared import fts_topk  # noqa: E402  (duckdb_fts_sql_topk_regression S3)
+from helpers.core.duckdb_shared import fts_query_tokens_duckdb, fts_topk  # noqa: E402  (duckdb_fts_sql_topk_regression S3; fts_query_token_parity S1)
 
 
 def _fetch_rows(con: ConvoConnections, keys: list[Key]) -> dict[Key, dict]:
