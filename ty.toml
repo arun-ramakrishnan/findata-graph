@@ -53,6 +53,8 @@ include = [
   "helpers/graph/stats.py",
   "helpers/graph/hyper_trails.py",
   "helpers/graph/scipy_bridge.py",
+  "helpers/graph/l1_betweenness.py",
+  "helpers/graph/l1_closeness.py",
 ]
 
   [overrides.rules]

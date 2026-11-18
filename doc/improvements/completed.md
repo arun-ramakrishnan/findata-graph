@@ -16084,3 +16084,123 @@ question set) per the proposal's §4 house rule.
   (`mojo_12_changelog_trials.md:156-159`); NOT an unfreeze of the Mojo lane.
   No query-visible change → no eval-gate bullet. Gates parked; targeted
   Mojo build/test/parity only.
+
+## 538. Rust Brandes fold for L1b betweenness — 13.3x at jobs=1, parity 4.6e-13
+
+- **Filed/provenance:** `doc/improvements/archive/graph/rust_betweenness_kernel.md`
+  (filed 2026-11-18, executed 2026-11-18).
+- **Finding:** `helpers/graph/l1_betweenness.py::compute` took 59.6 s at
+  jobs=1 / 22.4 s at jobs=4 on the live store. `_brandes_source` is
+  already numpy-vectorized, so the wall was pure BFS-shaped work
+  (11,448 core nodes x 1 BFS per core source) — exactly what
+  `graph_kernels` owns.
+- **Shipped:** `brandes_fold_sources` PyO3 export returning `(U, TU, KK)`;
+  `BrandesGraph` (borrowed-args struct for clippy's 7-arg limit),
+  `BrandesScratch` with O(visited) `clear()` (not an O(n) refill),
+  `brandes_source_fold` (level-synchronous core BFS + reverse-level fold),
+  rayon in `SOURCE_CHUNK = 256` blocks, `PARALLEL_THRESHOLD = 1_024`.
+  Python dispatch DEFAULT-ON (house convention: unset = kernel when the
+  extension imports, `L1B_RUST=0` opts out to the numpy lane, `=1` demands
+  the kernel and fails loud). Fold decomposition and
+  `raw = U/2 + TU + KK/2` stay in Python.
+- **Measured:** jobs=1 51.8 s → 3.9 s (**13.3x**, target was >2x);
+  jobs=4 19.2 s → 4.6 s (4.1x). Parity: max relative deviation `U`
+  4.5e-13 / `TU` 4.6e-13 / `KK` 1.4e-14; `compute()` scores 2.7e-13 over
+  all 22,130 names with an identical `info`.
+- **Guards:** proptest against a textbook Brandes pass with explicit
+  predecessor lists (a genuinely different accumulation path) at 1e-9 +
+  seq-vs-par at 1e-12; `tests/test_l1_kernel_parity.py` pins the selector
+  vocabulary and asserts the kernel is actually taken (a silent fallback
+  would make parity vacuous); `tests/bench_l1_kernels.py` registered as
+  perf leg `l1_kernels` (240 s) asserting parity and the >2x bar.
+- **Posture:** kernel-only, default-on with an opt-out env var (a box
+  without the extension degrades to numpy rather than failing), no
+  routing change → no eval-gate bullet. Gates parked (operator m01133) —
+  targeted `cargo test` + clippy + parity + L1 suites + bench leg only.
+
+## 539. Rust batched core-BFS for L1c closeness — 2.42x, bit-identical scores
+
+- **Filed/provenance:** `doc/improvements/archive/graph/rust_closeness_kernel.md`
+  (filed 2026-11-18, executed 2026-11-18).
+- **Finding:** `helpers/graph/l1_closeness.py::compute` ran 8.8–10.1 s at
+  jobs=1; cProfile put 57% in 1,486 `core_bfs` calls and 33% in the
+  `np.unique` frontier dedup inside them — 1,486 small numpy level loops,
+  the shape a batched kernel erases.
+- **Shipped:** `core_bfs_sources_batch` PyO3 export returning a
+  `sources x n` int32 distance matrix (`-1` unreachable), rayon over rows.
+  Python `_scores_chunk` was restructured into classify-then-score so all
+  needed roots (core source `u`, or `forest["root"][u]` for peeled ones)
+  go through ONE batched call; `_SOURCE_BATCH = 256` caps peak memory
+  (the full contract would be 1,486 x 22,125 int32 ~ 130 MB).
+  `L1C_RUST` with the same DEFAULT-ON semantics and opt-out.
+- **Measured:** jobs=1 7.44 s → 3.07 s (**2.42x**, target was >2x);
+  jobs=4 3.62 s → 1.76 s (2.06x). Scores BIT-IDENTICAL between lanes at
+  both job counts (`assert ref == got` over all 1,731 names, identical
+  `info`) — distances are integers, so nothing can drift.
+- **Guards:** proptest with EXACT equality against a naive `VecDeque` BFS;
+  `core_bfs_batch_unreachable_rows_are_minus_one`; kernel-parity test
+  covers batched-vs-single, the `_SOURCE_BATCH` split boundary, and a
+  full-pipeline exact-equality run.
+- **Parity fixture:** `l1_closeness_compute` added to
+  `helpers/misc/parity_harness.py`; the fixture store had to gain a
+  `graph_analytics` table first (8 contract rows) because `compute()`
+  reads its contract from it — without those rows the render was empty
+  and proved nothing. 2/2 fixtures byte-identical to HEAD at seeds 0/1/7.
+- **Posture:** kernel-only, default-on with an opt-out env var; the lane
+  stays UNDER the SCIPY routing (promotion is a separate operator
+  decision) → no eval-gate bullet. Gates parked (operator m01133).
+
+## 540. DuckDB long-holder backoff — 60 s reader ladder + memory_search writer coordination
+
+- **Filed/provenance:** `doc/improvements/archive/tooling/duckdb_long_holder_backoff.md`
+  (filed + executed 2026-11-18).
+- **Finding:** reader CLIs failed with `Could not set lock on file
+  ".../memory_search.duckdb"` because the retry ladder was
+  `_RETRY_DELAYS_S = (0.05, 0.1, 0.2, 0.4, 0.8)` = 1.55 s total, while a
+  sidecar rebuild holds the store ~2 min. The S3 `io_lock` flock covered
+  cooperating writers, but four reader CLIs had never adopted it.
+- **Shipped:** `helpers/misc/duckdb_lock.py` gained
+  `_EXTENDED_RETRY_DELAYS_S = (2.0, 10.0, 48.0)` (60 s cumulative) and
+  threaded `delays=` through `connect_with_lock_retry` /
+  `open_read_only`, leaving the 1.55 s default untouched. Wired
+  `connect_memory_read_only` (`rebuild_memory_search.py:184`, the
+  reported failing store) into `memory_query.py` + `search_tui.py`, plus
+  `note_query.py:70` and `master_query.py:188`. Writers stayed unwired.
+- **S4 (beyond the proposal):** `_memory_writer_conn`
+  (`rebuild_memory_search.py:1449`) takes `LOCK_EX` on `<db>.io.lock`
+  across the write window for UNSERVED stores, so readers queue instead
+  of failing; `_check_freshness_memory_duckdb` switched to the reader
+  path so `--check` never takes the writer flock; absent-store reads
+  answer with an empty handle instead of raising.
+- **Posture:** the classifier is a conjunction, so non-lock failures
+  (missing file, permissions) still raise immediately — only live-holder
+  conflicts wait. No query-visible semantics change → no eval-gate
+  bullet. Gates parked (m01133): targeted `tests/test_duckdb_lock.py` +
+  `tests/test_rebuild_memory_search.py` + ruff.
+
+## 541. Signal-sweep forward-return memoization — 55.1 s → 17.1 s, zero parity diffs
+
+- **Filed/provenance:** `doc/improvements/archive/tooling/signal_sweep_forward_return_cache.md`
+  (filed + executed 2026-11-18, out of the 2026-11-18 Python-lane hunt).
+- **Finding:** `helpers/research/signal_sweep.py::sweep` took 55.077 s;
+  `_forward_return` was 65% of it at 2,749,949 calls over only ~65k
+  distinct keys — a ~42× redundancy. The earlier guess that `_spearman`'s
+  pure-Python ranking was the bottleneck was WRONG (1.8 s, 3%);
+  profiling corrected it before any code changed. `edges_as_of` was also
+  called twice per quarter (once per mode) for the same as-of set.
+- **Shipped:** `_forward_return(..., cache=None)` memoizes by
+  `(ticker, t, h_bars)`; `_abnormal(..., fwd_cache=None)` threads it
+  through subject and peer lookups; `sweep` allocates ONE cache per run
+  and ONE `edges_as_of` per quarter reused by both modes. No new
+  dependency, no kernel.
+- **Measured:** 55.077 s → 18.903 s (2.91×) with 0 parity diffs across
+  all 90 summary rows and 36 date rows (floats within 1e-12); confirmed
+  live at landing at **17.10 s** for `sweep --horizons 4,13`.
+- **R14 closed:** the lane had zero callers (goldfish R14). Now has a
+  `smoke` subcommand (hermetic, closed-form expectations), `make
+  signal-sweep-smoke` and `make signal-sweep ARGS="--horizons 4,13"`,
+  all in `.PHONY` + `help`.
+- **Posture:** the cache is per-`sweep`-call and keyed on the three true
+  inputs, so it cannot go stale within a call; default `None` means no
+  cross-call state. Perf-only, identical outputs → no eval-gate bullet.
+  Gates parked (m01133): `tests/test_signal_sweep.py` (4 tests) + ruff.

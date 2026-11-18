@@ -988,6 +988,12 @@ Open items below keep their revisit triggers inline; executed work is compressed
   manifest ephemerality, gate re-tightening. CLOSED 2026-09-23
   (completed.md #277 — all legs green: centrality 2.66/5.0,
   betweenness 3.67/8.0, link-prediction 2.08/4.0; perf gate 23/23).
+  KERNEL FOLLOW-UP EXECUTED 2026-11-18 (completed.md #538/#539):
+  the two L1 fold lanes' BFS-shaped work moved into `graph_kernels` —
+  `brandes_fold_sources` (betweenness 51.8 s → 3.9 s at jobs=1, 13.3x,
+  parity 4.6e-13) and `core_bfs_sources_batch` (closeness 7.44 s → 3.07 s,
+  2.42x, scores bit-identical), both opt-in `L1B_RUST` / `L1C_RUST` with
+  the Python fold decomposition and score assembly unchanged.
 - **test_fuzz_shortest_path leaks a 176MB sp.db tempdir per run** —
   DONE 2026-09-17 (#245; `archive/testing/tmpdir_sanitization.md`): the
   tmpdir-hygiene arc — fixture onto pytest basetemp with a vacuumed copy,

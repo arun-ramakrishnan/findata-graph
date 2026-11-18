@@ -26,7 +26,7 @@ on this (accelerator-free) host.
 
 Two distinct failing files, six errors:
 
-```
+```text
 Mojo/src/bench/analyzer.mojo:22:5: error: module 'info' does not contain 'has_nvidia_gpu_accelerator'
 Mojo/src/bench/analyzer.mojo:23:5: error: module 'info' does not contain 'has_amd_gpu_accelerator'
 Mojo/src/bench/analyzer.mojo:24:5: error: module 'info' does not contain 'has_apple_gpu_accelerator'

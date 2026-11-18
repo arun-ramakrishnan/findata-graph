@@ -67,6 +67,24 @@ ENTITY_TAGS: list[tuple[str, str]] = [
 ]
 
 
+#: (entity_name, metric, value) — the ``graph_analytics`` stamp surface.
+#: ``l1_closeness.compute`` reads its CONTRACT from this table
+#: (``get_contract`` = DISTINCT entity_name WHERE metric =
+#: 'closeness_centrality'), so a fixture without these rows renders an
+#: empty score dict and proves nothing. Values are placeholders: the
+#: render recomputes them, it never reads the stored number.
+GRAPH_ANALYTICS: list[tuple[str, str, float]] = [
+    ("Tata Steel", "closeness_centrality", 0.0),
+    ("Tata Motors", "closeness_centrality", 0.0),
+    ("Titan", "closeness_centrality", 0.0),
+    ("Infosys", "closeness_centrality", 0.0),
+    ("Wipro", "closeness_centrality", 0.0),
+    ("HDFC Bank", "closeness_centrality", 0.0),
+    ("Tata Sons", "closeness_centrality", 0.0),
+    ("Nifty 50", "closeness_centrality", 0.0),
+]
+
+
 def build_graph_fixture_db(path: Path) -> Path:
     """Write the minimal graph-schema SQLite fixture (idempotent overwrite)."""
     path = Path(path)
@@ -98,6 +116,12 @@ def build_graph_fixture_db(path: Path) -> Path:
                 source_ref TEXT DEFAULT '',
                 PRIMARY KEY (source, target, edge_type, source_ref)
             );
+            CREATE TABLE graph_analytics (
+                entity_name TEXT NOT NULL,
+                metric TEXT NOT NULL,
+                value REAL NOT NULL,
+                PRIMARY KEY (entity_name, metric)
+            );
             """
         )
         con.executemany(
@@ -109,6 +133,10 @@ def build_graph_fixture_db(path: Path) -> Path:
         con.executemany(
             "INSERT INTO graph_edges (source, target, edge_type) VALUES (?, ?, ?)",
             GRAPH_EDGES,
+        )
+        con.executemany(
+            "INSERT INTO graph_analytics (entity_name, metric, value) VALUES (?, ?, ?)",
+            GRAPH_ANALYTICS,
         )
         con.commit()
     finally:

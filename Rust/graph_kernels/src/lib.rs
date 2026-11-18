@@ -643,6 +643,423 @@ fn ppr_power_iterate(
     x
 }
 
+// --------------------------------------------------------------------- //
+// L1 fold kernels: Brandes core fold + core BFS distances
+// (proposals rust_betweenness_kernel / rust_closeness_kernel, executed
+// 2026-11-18). Both port ONLY the BFS-shaped work; the Python lanes keep
+// the peel/tree decomposition and every score assembly.
+// --------------------------------------------------------------------- //
+
+/// Sources per rayon task for the L1 kernels; each task owns a scratch
+/// struct plus three local accumulators (n f64 each).
+const SOURCE_CHUNK: usize = 256;
+
+/// The four read-only inputs every Brandes fold call needs: the full
+/// projection CSR (both directions), the per-attachment tree weight
+/// `kw`, and the 0/1 core mask that restricts the BFS to the 2-core.
+struct BrandesGraph<'a> {
+    indptr: &'a [i32],
+    indices: &'a [i32],
+    kw: &'a [f64],
+    is_core: &'a [u8],
+}
+
+/// Per-source scratch for [`brandes_source_fold`]: path counts, the two
+/// dependency accumulators, the frontier buffers and the reverse-level
+/// edge lists. Everything a source touches is recorded in `touched`, so
+/// the reset is O(visited) instead of O(n) — a 22k-node `fill` per
+/// source would dominate the fold at 11k sources.
+struct BrandesScratch {
+    dist: Vec<i32>,
+    sigma: Vec<f64>,
+    delta_u: Vec<f64>,
+    delta_k: Vec<f64>,
+    touched: Vec<u32>,
+    frontier: Vec<u32>,
+    next: Vec<u32>,
+    edges: Vec<(u32, u32)>,
+    level_bounds: Vec<usize>,
+}
+
+impl BrandesScratch {
+    fn new(n: usize) -> Self {
+        Self {
+            dist: vec![-1; n],
+            sigma: vec![0.0; n],
+            delta_u: vec![0.0; n],
+            delta_k: vec![0.0; n],
+            touched: Vec::with_capacity(n),
+            frontier: Vec::with_capacity(n),
+            next: Vec::with_capacity(n),
+            edges: Vec::new(),
+            level_bounds: Vec::new(),
+        }
+    }
+
+    fn clear(&mut self) {
+        for &x in &self.touched {
+            let i = x as usize;
+            self.dist[i] = -1;
+            self.sigma[i] = 0.0;
+            self.delta_u[i] = 0.0;
+            self.delta_k[i] = 0.0;
+        }
+        self.touched.clear();
+        self.frontier.clear();
+        self.next.clear();
+        self.edges.clear();
+        self.level_bounds.clear();
+    }
+}
+
+/// One source's two-accumulator Brandes fold over the CORE-INDUCED graph.
+///
+/// Mirrors `helpers/graph/l1_betweenness.py::_brandes_source` op-for-op
+/// (pinned by the parity harness and `tests/properties.rs`): level-
+/// synchronous BFS whose expansion keeps only neighbours with
+/// `is_core[w] != 0`, `sigma` accumulated in CSR/edge order, then the
+/// reverse-level dependency fold for both accumulators. Writes
+/// `delta_u`/`delta_k` (zeroed on entry by [`BrandesScratch::clear`]) and
+/// returns `kk_world` — the sum of `kw` over reachable attachments other
+/// than the source, which the caller weights by `kw[s]` at `v = s`.
+///
+/// Edge order is load-bearing, not incidental: `np.bincount` sums each
+/// bin in input order, so the level edge list is built frontier-order ×
+/// CSR-neighbour-order and the dependency fold re-sums each `v` group in
+/// that same order. With `force_parallel = false` the results are
+/// therefore bit-identical to the numpy lane at `jobs = 1`.
+fn brandes_source_fold(g: &BrandesGraph<'_>, s: usize, sc: &mut BrandesScratch) -> f64 {
+    let indptr = g.indptr;
+    let indices = g.indices;
+    let kw = g.kw;
+    let is_core = g.is_core;
+    sc.clear();
+    sc.dist[s] = 0;
+    sc.sigma[s] = 1.0;
+    sc.touched.push(s as u32);
+    sc.frontier.push(s as u32);
+    let mut level: i32 = 0;
+    loop {
+        level += 1;
+        let start = sc.edges.len();
+        sc.next.clear();
+        for &v in &sc.frontier {
+            let lo = indptr[v as usize] as usize;
+            let hi = indptr[v as usize + 1] as usize;
+            for &w in &indices[lo..hi] {
+                let wu = w as usize;
+                // numpy: keep = is_core[w_arr]; newly = dist[w_arr] < 0,
+                // both evaluated before this level's dist update.
+                if is_core[wu] != 0 && sc.dist[wu] < 0 {
+                    sc.edges.push((v, w as u32));
+                    sc.next.push(w as u32);
+                }
+            }
+        }
+        if sc.edges.len() == start {
+            break;
+        }
+        // numpy's fresh = np.flatnonzero(...) is ASCENDING node id; the
+        // next level's edge order (np.repeat over the frontier) depends
+        // on it.
+        sc.next.sort_unstable();
+        sc.next.dedup();
+        for &w in &sc.next {
+            let i = w as usize;
+            sc.dist[i] = level;
+            sc.sigma[i] = 0.0;
+            sc.touched.push(w);
+        }
+        for &(v, w) in &sc.edges[start..] {
+            sc.sigma[w as usize] += sc.sigma[v as usize];
+        }
+        sc.level_bounds.push(sc.edges.len());
+        std::mem::swap(&mut sc.frontier, &mut sc.next);
+    }
+    for li in (0..sc.level_bounds.len()).rev() {
+        let lo = if li == 0 { 0 } else { sc.level_bounds[li - 1] };
+        let hi = sc.level_bounds[li];
+        let edges = &sc.edges[lo..hi];
+        let mut i = 0usize;
+        while i < edges.len() {
+            let v = edges[i].0 as usize;
+            let sv = sc.sigma[v];
+            let mut su = 0.0f64;
+            let mut sk = 0.0f64;
+            while i < edges.len() && edges[i].0 as usize == v {
+                let w = edges[i].1 as usize;
+                let ratio = sv / sc.sigma[w];
+                su += ratio * (1.0 + sc.delta_u[w]);
+                sk += ratio * (kw[w] + sc.delta_k[w]);
+                i += 1;
+            }
+            sc.delta_u[v] += su;
+            sc.delta_k[v] += sk;
+        }
+    }
+    // reach = dist >= 0 minus the source itself; kw is an integer
+    // attachment count, so this sum is exact in any order.
+    let mut kk_world = 0.0f64;
+    for &x in &sc.touched {
+        let i = x as usize;
+        if i != s {
+            kk_world += kw[i];
+            if kw[i] > 0.0 {
+                sc.delta_k[i] += kw[i];
+            }
+        }
+    }
+    kk_world
+}
+
+/// Fold one source chunk into the three accumulators (`_brandes_chunk`).
+/// Accumulation runs over `touched` only: every untouched `delta_*` slot
+/// is exactly 0.0, so `x + 0.0` is a no-op and the per-element order of
+/// the (one add per source) accumulation is preserved.
+fn brandes_chunk(
+    g: &BrandesGraph<'_>,
+    sources: &[i32],
+    u_out: &mut [f64],
+    tu_out: &mut [f64],
+    kk_out: &mut [f64],
+) {
+    let kw = g.kw;
+    let n = g.indptr.len() - 1;
+    let mut sc = BrandesScratch::new(n);
+    for &s in sources {
+        let s = s as usize;
+        let kk_world = brandes_source_fold(g, s, &mut sc);
+        // Standard Brandes never credits the source's own dependency
+        // entry; KK's source-side self term comes from kk_world instead.
+        sc.delta_u[s] = 0.0;
+        sc.delta_k[s] = 0.0;
+        for &x in &sc.touched {
+            let i = x as usize;
+            u_out[i] += sc.delta_u[i];
+            tu_out[i] += sc.delta_k[i];
+        }
+        let k_s = kw[s];
+        if k_s > 0.0 {
+            for &x in &sc.touched {
+                let i = x as usize;
+                kk_out[i] += k_s * sc.delta_k[i];
+            }
+            kk_out[s] += k_s * kk_world;
+        }
+    }
+}
+
+/// Two-accumulator Brandes over every source in `sources`.
+///
+/// `U`/`TU`/`KK` follow the Python lane's disjoint unordered coverage
+/// (U halved and KK halved on assembly; TU not). Sequential below
+/// `PARALLEL_THRESHOLD` (or `force_parallel` for tests pinning seq/par
+/// parity); otherwise rayon over `SOURCE_CHUNK` source chunks, each with
+/// its own scratch + accumulators, summed once in chunk order.
+pub fn brandes_fold(
+    indptr: &[i32],
+    indices: &[i32],
+    kw: &[f64],
+    is_core: &[u8],
+    sources: &[i32],
+    force_parallel: bool,
+) -> (Vec<f64>, Vec<f64>, Vec<f64>) {
+    let g = BrandesGraph {
+        indptr,
+        indices,
+        kw,
+        is_core,
+    };
+    let n = indptr.len() - 1;
+    if !force_parallel && sources.len() < PARALLEL_THRESHOLD {
+        let mut u = vec![0.0; n];
+        let mut tu = vec![0.0; n];
+        let mut kk = vec![0.0; n];
+        brandes_chunk(&g, sources, &mut u, &mut tu, &mut kk);
+        return (u, tu, kk);
+    }
+    let parts: Vec<(Vec<f64>, Vec<f64>, Vec<f64>)> = sources
+        .chunks(SOURCE_CHUNK)
+        .collect::<Vec<_>>()
+        .par_iter()
+        .map(|chunk| {
+            let mut u = vec![0.0; n];
+            let mut tu = vec![0.0; n];
+            let mut kk = vec![0.0; n];
+            brandes_chunk(&g, chunk, &mut u, &mut tu, &mut kk);
+            (u, tu, kk)
+        })
+        .collect();
+    let mut u = vec![0.0; n];
+    let mut tu = vec![0.0; n];
+    let mut kk = vec![0.0; n];
+    for (pu, ptu, pkk) in parts {
+        for i in 0..n {
+            u[i] += pu[i];
+            tu[i] += ptu[i];
+            kk[i] += pkk[i];
+        }
+    }
+    (u, tu, kk)
+}
+
+/// BFS distances from `src` over the core-induced CSR, `-1` unreachable.
+/// Mirrors `helpers/graph/l1_closeness.py::core_bfs` (integer distances,
+/// so the two lanes agree exactly).
+fn core_bfs_into(
+    indptr: &[i32],
+    indices: &[i32],
+    src: usize,
+    dist: &mut [i32],
+    frontier: &mut Vec<u32>,
+    next: &mut Vec<u32>,
+) {
+    dist.fill(-1);
+    dist[src] = 0;
+    frontier.clear();
+    frontier.push(src as u32);
+    let mut level: i32 = 0;
+    while !frontier.is_empty() {
+        level += 1;
+        next.clear();
+        for &v in frontier.iter() {
+            let lo = indptr[v as usize] as usize;
+            let hi = indptr[v as usize + 1] as usize;
+            for &w in &indices[lo..hi] {
+                let wu = w as usize;
+                if dist[wu] < 0 {
+                    dist[wu] = level;
+                    next.push(w as u32);
+                }
+            }
+        }
+        std::mem::swap(frontier, next);
+    }
+}
+
+/// Batched core BFS distances: one row per source, row width = n.
+///
+/// Sources are independent → rayon over them (`par_chunks_mut` writes the
+/// flat row-major output in place, no per-row Vec to collect).
+pub fn core_bfs_distances(indptr: &[i32], indices: &[i32], sources: &[i32]) -> Vec<i32> {
+    let n = indptr.len() - 1;
+    let mut out = vec![-1i32; sources.len() * n];
+    out.par_chunks_mut(n)
+        .zip(sources.par_iter())
+        .for_each(|(row, &s)| {
+            let mut frontier: Vec<u32> = Vec::with_capacity(n);
+            let mut next: Vec<u32> = Vec::with_capacity(n);
+            core_bfs_into(indptr, indices, s as usize, row, &mut frontier, &mut next);
+        });
+    out
+}
+
+/// Two-accumulator Brandes fold over a batch of core sources.
+///
+/// `indptr`/`indices` are the FULL projection CSR (both directions) and
+/// `is_core` (0/1, one entry per node) restricts the BFS to the 2-core,
+/// exactly like the numpy lane. `kw` is the per-attachment tree weight.
+/// Returns `(U, TU, KK)`, each `float64[n]`, to be assembled by the
+/// caller as `U/2 + TU + KK/2`. `force_parallel=True` runs the rayon lane
+/// even for small batches (tests pin seq/par parity).
+#[pyfunction]
+#[pyo3(signature = (indptr, indices, kw, is_core, sources, force_parallel=false))]
+#[allow(clippy::type_complexity)] // 3 numpy arrays — the API shape
+fn brandes_fold_sources<'py>(
+    py: Python<'py>,
+    indptr: PyReadonlyArray1<'py, i32>,
+    indices: PyReadonlyArray1<'py, i32>,
+    kw: PyReadonlyArray1<'py, f64>,
+    is_core: PyReadonlyArray1<'py, u8>,
+    sources: PyReadonlyArray1<'py, i32>,
+    force_parallel: bool,
+) -> PyResult<(
+    Bound<'py, PyArray1<f64>>,
+    Bound<'py, PyArray1<f64>>,
+    Bound<'py, PyArray1<f64>>,
+)> {
+    let ip: &[i32] = indptr.as_slice()?;
+    let ix: &[i32] = indices.as_slice()?;
+    let kwv: &[f64] = kw.as_slice()?;
+    let icv: &[u8] = is_core.as_slice()?;
+    let srcs: &[i32] = sources.as_slice()?;
+    if ip.is_empty() {
+        return Err(PyValueError::new_err(
+            "indptr must carry at least the [0] terminator",
+        ));
+    }
+    if ip.windows(2).any(|w| w[0] > w[1]) {
+        return Err(PyValueError::new_err("indptr must be non-decreasing"));
+    }
+    let n = ip.len() - 1;
+    if *ip.last().unwrap() as usize != ix.len() {
+        return Err(PyValueError::new_err("indptr[-1] must equal len(indices)"));
+    }
+    if ix.iter().any(|&v| v < 0 || v as usize >= n) {
+        return Err(PyValueError::new_err("indices out of range"));
+    }
+    if kwv.len() != n {
+        return Err(PyValueError::new_err("kw must have one entry per node"));
+    }
+    if icv.len() != n {
+        return Err(PyValueError::new_err(
+            "is_core must have one entry per node",
+        ));
+    }
+    if srcs.iter().any(|&v| v < 0 || v as usize >= n) {
+        return Err(PyValueError::new_err("sources out of range"));
+    }
+    let (u, tu, kk) = py.detach(|| brandes_fold(ip, ix, kwv, icv, srcs, force_parallel));
+    Ok((
+        ndarray::Array1::from(u).into_pyarray(py),
+        ndarray::Array1::from(tu).into_pyarray(py),
+        ndarray::Array1::from(kk).into_pyarray(py),
+    ))
+}
+
+/// Batched core-BFS distance rows for a source batch.
+///
+/// Returns `int32[n_sources, n]` row-major; `-1` marks unreachable.
+/// `indptr`/`indices` are the CORE-INDUCED CSR in the ORIGINAL node id
+/// space (rows of non-core nodes are empty), which is what
+/// `helpers/graph/l1_closeness.py::build_core_adjacency` produces.
+/// Distances are integers, so this lane agrees with the numpy one bit for
+/// bit; the caller batches sources (e.g. 256/row-chunk) to bound the
+/// matrix at 135 MB on the live 11.4k-core / 1.5k-source shape.
+#[pyfunction]
+fn core_bfs_sources_batch<'py>(
+    py: Python<'py>,
+    indptr: PyReadonlyArray1<'py, i32>,
+    indices: PyReadonlyArray1<'py, i32>,
+    sources: PyReadonlyArray1<'py, i32>,
+) -> PyResult<Bound<'py, PyArray2<i32>>> {
+    let ip: &[i32] = indptr.as_slice()?;
+    let ix: &[i32] = indices.as_slice()?;
+    let srcs: &[i32] = sources.as_slice()?;
+    if ip.is_empty() {
+        return Err(PyValueError::new_err(
+            "indptr must carry at least the [0] terminator",
+        ));
+    }
+    if ip.windows(2).any(|w| w[0] > w[1]) {
+        return Err(PyValueError::new_err("indptr must be non-decreasing"));
+    }
+    let n = ip.len() - 1;
+    if *ip.last().unwrap() as usize != ix.len() {
+        return Err(PyValueError::new_err("indptr[-1] must equal len(indices)"));
+    }
+    if ix.iter().any(|&v| v < 0 || v as usize >= n) {
+        return Err(PyValueError::new_err("indices out of range"));
+    }
+    if srcs.iter().any(|&v| v < 0 || v as usize >= n) {
+        return Err(PyValueError::new_err("sources out of range"));
+    }
+    let flat = py.detach(|| core_bfs_distances(ip, ix, srcs));
+    let arr = ndarray::Array2::from_shape_vec((srcs.len(), n), flat)
+        .map_err(|e| PyValueError::new_err(format!("dist shape: {e}")))?;
+    Ok(PyArray2::from_owned_array(py, arr))
+}
+
 #[pymodule]
 fn graph_kernels(m: &Bound<'_, pyo3::types::PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(all_pairs_bfs_stats, m)?)?;
@@ -650,6 +1067,8 @@ fn graph_kernels(m: &Bound<'_, pyo3::types::PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(personalized_pagerank, m)?)?;
     m.add_function(wrap_pyfunction!(personalized_pagerank_vec, m)?)?;
     m.add_function(wrap_pyfunction!(personalized_pagerank_batch, m)?)?;
+    m.add_function(wrap_pyfunction!(brandes_fold_sources, m)?)?;
+    m.add_function(wrap_pyfunction!(core_bfs_sources_batch, m)?)?;
     Ok(())
 }
 

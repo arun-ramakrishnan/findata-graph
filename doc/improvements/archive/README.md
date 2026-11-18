@@ -549,6 +549,8 @@ commit, referenced by nothing). Entry numbers point at
 - [`group_dyad_wave2.md`](graph/group_dyad_wave2.md) — Wave-2 extraction from the triaged same_group dyads: S1 PSU/state catalog (`psu_dyad_pass.py`, 26 labels / 419 members, central/state/borderline); S2 JV census (`jv_dyad_census.py` — 208 JV-shaped entities, 1,507 live `jv_with` edges in graph_edges — NOT hyper_edges; anchors AWL 29 / RENUKA 10); S3 residual MNC arms probe (`mnc_arm_probe.py`) — ZFCV already-homed in `vigil:rpt:ZFCVINDIA` (56 members, dynad pass keyed wrong ticker), ASTRAZENEC/NOVARTIS/ABBOTINDIA documented absence (appended mnc_arm_lane.md §5); S4 index-label hygiene verified (NIFTY 500 ≡ Nifty500 Multicap 499/1.0, finding only) — catalog-only default, no seeds/gate pins; 14/14 tests — completed.md #521
 - [`rust_kernel_expansion_derive_insights_ipc.md`](graph/rust_kernel_expansion_derive_insights_ipc.md) — Rust kernel expansion (S6 scratch-reuse stamp ~6–7% faster NOT as filed, S7 caller-copy premise corrected to 0.000 ms and landed as `kernel_csr_arrays()`; §6 same-day trials: S4 articulation PASS, S1 matrix-cache CONFIRMED, S2 PPR seed-dependence CONFIRMED, S5 PARTIAL) + derive_insights IPC/YAML wall — executed-partial — completed.md #522
 - [`graph_kernels_ppr_lane.md`](graph/graph_kernels_ppr_lane.md) — First-party PPR kernel wired kernel-first into `personalized_pagerank_scores` (parity 1.69e-13, 10.3×/seed live; spsolve fill-in-blowup finding on unstructured graphs) + batch (16.7 ms/seed), set-teleport (50 ms note-style), α-curve, pair-asymmetry (TCS 90.7×) surfaces; cross-sector signal history verdict recorded (§6: composition lives above the solve engine) — completed.md #523 (+ Q3 edge-type attribution harness `ppr_edge_attribution.py`, 2026-11-14)
+- [`rust_betweenness_kernel.md`](graph/rust_betweenness_kernel.md) — Rust/PyO3 Brandes fold for the L1b betweenness lane: `brandes_fold_sources` returns the three accumulators (U/TU/KK) for a batched source set, level-synchronous core BFS + O(visited) scratch reset, rayon in 256-source chunks; default-on `L1B_RUST` (unset = kernel, `=0` opts out, `=1` fails loud); 51.8 s → 3.9 s at jobs=1 (**13.3×**), parity 4.6e-13 max relative, textbook-Brandes proptest + `tests/test_l1_kernel_parity.py` + `l1_kernels` perf leg — completed.md #538
+- [`rust_closeness_kernel.md`](graph/rust_closeness_kernel.md) — Rust/PyO3 batched core-BFS for the L1c closeness/harmonic lane: `core_bfs_sources_batch` returns a `sources × n` int32 distance matrix (`-1` unreachable); `_scores_chunk` restructured to classify-then-score so every needed root goes through one call, `_SOURCE_BATCH = 256` caps peak memory; default-on `L1C_RUST`; 7.44 s → 3.07 s at jobs=1 (**2.42×**), scores BIT-IDENTICAL at both job counts, exact-equality proptest + new `l1_closeness_compute` parity fixture — completed.md #539
 
 - [`jv_promoter_capture_upgrade.md`](graph/jv_promoter_capture_upgrade.md) — Proposal: JV venture + promoter-group capture upgrade — name-before-marker venture patterns + cross-note group accumulation in `extract_relations.py` (D5+D6 capture arc, no schema change); triage ledger: 30 low-attribution edges removed, 17 real company-note edges kept, post-triage jv_with 69 / same_group 34 — completed.md #237
 - [`company_subsector_authored_lane.md`](graph/company_subsector_authored_lane.md) — Proposal: company sub_sector authored lane — optional `subsector:` YAML with canonical precedence in `derive_hyperedges.py` + `sync_tags.py` entity_tags mirror (D7, no schema change); S4 no-op proof at 0 authored values (55 hyperedges / 600 members unchanged); adoption via `findata/Misc/subsector_worklist.json` — completed.md #238
@@ -1181,6 +1183,22 @@ commit, referenced by nothing). Entry numbers point at
   writers (convo rebuild ~2 min, graph stamp, bench ETL, db_maint
   checkpoint) hold LOCK_EX across the compute window while readers queue;
   two real-subprocess cross-process tests — completed.md #319
+- [`duckdb_long_holder_backoff.md`](tooling/duckdb_long_holder_backoff.md) —
+  the 60 s reader ladder for multi-minute holders:
+  `_EXTENDED_RETRY_DELAYS_S = (2.0, 10.0, 48.0)` beside the untouched
+  1.55 s default, wired into the four reader CLIs the #319 arc missed
+  (`connect_memory_read_only` for `memory_query`/`search_tui`,
+  `note_query`, `master_query` maint leg), plus memory_search WRITER
+  coordination (`_memory_writer_conn` takes LOCK_EX across the window so
+  readers queue instead of failing; `--check` uses the reader path;
+  absent stores answer empty instead of raising) — completed.md #540
+- [`signal_sweep_forward_return_cache.md`](tooling/signal_sweep_forward_return_cache.md) —
+  `signal_sweep::sweep` 55.077 s → 17.10 s live: `_forward_return`
+  memoized by `(ticker, t, h_bars)` (2,749,949 calls over ~65k distinct
+  keys = 42× redundancy) with `edges_as_of` reused per quarter, 0 parity
+  diffs over 90 summary + 36 date rows; R14 closed with a hermetic
+  `smoke` subcommand + `make signal-sweep` / `signal-sweep-smoke` —
+  completed.md #541
 - [`database_contention_window_minimization.md`](tooling/database_contention_window_minimization.md) —
   "open with intent, hold locks minimally" made structural: estate census
   (sqlite + duckdb + cross-store nesting map) → the stamp lane swaps (live

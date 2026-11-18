@@ -416,6 +416,16 @@ BENCHMARKS: list[tuple[str, list[str], float]] = [
     # outer budget guards the harness itself (10 projection loads + 10
     # batch solves on research.db — measured ~30-40s warm on a quiet box).
     ("ppr_edge_attribution", ["tests/bench_ppr_edge_attribution.py"], 90.0),
+    # L1 fold-kernel legs (rust_betweenness_kernel / rust_closeness_kernel,
+    # 2026-11-18): both lanes run twice on the live store (numpy vs Rust).
+    # The leg asserts its own parity epsilon (betweenness 1e-9 relative,
+    # closeness exact — distances are integers) and a 1.5x speedup floor.
+    # The proposals' >2x acceptance target was verified once on a quiet box
+    # (13.3x / 2.42x, recorded in the archived proposals); the leg's floor
+    # sits below it so a contended box does not fail a haltable timing gate.
+    # Budget 240 s = both lanes (numpy 51.8 s + 7.4 s dominate) plus the
+    # ~1.7x headroom the other live legs carry.
+    ("l1_kernels", ["tests/bench_l1_kernels.py"], 240.0),
     # quick_wins S1 guard (proposal #504, archived): stdlib json.dumps vs
     # jsonio.dumps (orjson) ratio floor 2.5x (measured 3.9-9.1x across the
     # five shapes + ledger row loop). A regression re-introducing stdlib

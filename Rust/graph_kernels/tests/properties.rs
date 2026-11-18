@@ -5,7 +5,10 @@
 //! cares about reachability), plus closed-form families where every
 //! histogram slot has an analytic value.
 
-use graph_kernels::{all_pairs_hist, all_pairs_hist_seq, limited_bfs_hists, stats_from_hist};
+use graph_kernels::{
+    all_pairs_hist, all_pairs_hist_seq, brandes_fold, core_bfs_distances, limited_bfs_hists,
+    stats_from_hist,
+};
 use proptest::prelude::*;
 
 /// Naive per-source reference BFS (out-neighbours, first-touch wins) —
@@ -206,4 +209,203 @@ proptest! {
             prop_assert_eq!(&hists[..], &row_ref[..]);
         }
     }
+}
+
+// --------------------------------------------------------------------- //
+// L1 fold kernels (proposals rust_betweenness_kernel / rust_closeness_kernel)
+// --------------------------------------------------------------------- //
+
+/// Independent reference for the two-accumulator Brandes fold: textbook
+/// Brandes over the core-induced subgraph with explicit predecessor
+/// lists and a reverse BFS-order dependency pass. Deliberately NOT
+/// level-synchronous — a different accumulation path, so agreeing with
+/// the kernel is a real check on the fold algebra, not a re-run of it.
+fn ref_brandes_fold(
+    indptr: &[i32],
+    indices: &[i32],
+    kw: &[f64],
+    is_core: &[u8],
+    sources: &[i32],
+) -> (Vec<f64>, Vec<f64>, Vec<f64>) {
+    let n = indptr.len() - 1;
+    let mut u = vec![0.0f64; n];
+    let mut tu = vec![0.0f64; n];
+    let mut kk = vec![0.0f64; n];
+    for &s in sources {
+        let s = s as usize;
+        let mut dist = vec![-1i32; n];
+        let mut sigma = vec![0.0f64; n];
+        let mut pred: Vec<Vec<usize>> = vec![Vec::new(); n];
+        let mut order: Vec<usize> = Vec::new();
+        dist[s] = 0;
+        sigma[s] = 1.0;
+        let mut q = std::collections::VecDeque::new();
+        q.push_back(s);
+        order.push(s);
+        while let Some(v) = q.pop_front() {
+            let lo = indptr[v] as usize;
+            let hi = indptr[v + 1] as usize;
+            for &w in &indices[lo..hi] {
+                let wu = w as usize;
+                if is_core[wu] == 0 {
+                    continue;
+                }
+                if dist[wu] < 0 {
+                    dist[wu] = dist[v] + 1;
+                    order.push(wu);
+                    q.push_back(wu);
+                }
+                if dist[wu] == dist[v] + 1 {
+                    sigma[wu] += sigma[v];
+                    pred[wu].push(v);
+                }
+            }
+        }
+        let mut du = vec![0.0f64; n];
+        let mut dk = vec![0.0f64; n];
+        for &w in order.iter().rev() {
+            for &v in &pred[w] {
+                let ratio = sigma[v] / sigma[w];
+                du[v] += ratio * (1.0 + du[w]);
+                dk[v] += ratio * (kw[w] + dk[w]);
+            }
+        }
+        let mut kk_world = 0.0f64;
+        for i in 0..n {
+            if i != s && dist[i] >= 0 {
+                kk_world += kw[i];
+                if kw[i] > 0.0 {
+                    dk[i] += kw[i];
+                }
+            }
+        }
+        du[s] = 0.0;
+        dk[s] = 0.0;
+        for i in 0..n {
+            if du[i] != 0.0 {
+                u[i] += du[i];
+            }
+            if dk[i] != 0.0 {
+                tu[i] += dk[i];
+            }
+            if dk[i] != 0.0 && kw[s] > 0.0 {
+                kk[i] += kw[s] * dk[i];
+            }
+        }
+        if kw[s] > 0.0 {
+            kk[s] += kw[s] * kk_world;
+        }
+    }
+    (u, tu, kk)
+}
+
+/// Independent BFS reference: VecDeque + explicit dist array.
+fn ref_core_bfs(indptr: &[i32], indices: &[i32], src: usize) -> Vec<i32> {
+    ref_bfs(indptr, indices, src)
+}
+
+fn assert_close(a: &[f64], b: &[f64], tol: f64, what: &str) {
+    assert_eq!(a.len(), b.len(), "{what}: length");
+    for (i, (x, y)) in a.iter().zip(b).enumerate() {
+        let denom = x.abs().max(y.abs()).max(1.0);
+        assert!(
+            (x - y).abs() / denom <= tol,
+            "{what}[{i}]: {x} vs {y} (rel {:e})",
+            (x - y).abs() / denom
+        );
+    }
+}
+
+proptest! {
+    /// The kernel fold matches a textbook Brandes pass on the same
+    /// core-induced subgraph, with random core masks and attachment
+    /// weights (kw is an integer tree size, so 0..=4 covers attachment
+    /// and non-attachment nodes).
+    #[test]
+    fn brandes_fold_matches_textbook(
+        (ip, ix) in arb_csr(),
+        mask_seed in any::<u64>(),
+        kw_seed in any::<u64>(),
+        n_sources in 1usize..6,
+    ) {
+        let n = ip.len() - 1;
+        let mut st = mask_seed | 1;
+        let mut is_core = vec![0u8; n];
+        for b in is_core.iter_mut() {
+            st = st.wrapping_mul(6364136223846793005).wrapping_add(1442695040888963407);
+            *b = if st >> 63 == 0 { 1 } else { 0 };
+        }
+        let mut kws = kw_seed | 1;
+        let kw: Vec<f64> = (0..n)
+            .map(|_| {
+                kws = kws.wrapping_mul(6364136223846793005).wrapping_add(1442695040888963407);
+                ((kws >> 60) % 5) as f64
+            })
+            .collect();
+        let sources: Vec<i32> = (0..n_sources).map(|i| (i % n) as i32).collect();
+
+        let got = brandes_fold(&ip, &ix, &kw, &is_core, &sources, false);
+        let want = ref_brandes_fold(&ip, &ix, &kw, &is_core, &sources);
+        assert_close(&got.0, &want.0, 1e-9, "U");
+        assert_close(&got.1, &want.1, 1e-9, "TU");
+        assert_close(&got.2, &want.2, 1e-9, "KK");
+
+        // Seq and par lanes must agree (par sums parts in chunk order).
+        let par = brandes_fold(&ip, &ix, &kw, &is_core, &sources, true);
+        assert_close(&got.0, &par.0, 1e-12, "U seq/par");
+        assert_close(&got.1, &par.1, 1e-12, "TU seq/par");
+        assert_close(&got.2, &par.2, 1e-12, "KK seq/par");
+    }
+
+    /// Core BFS distances are integers, so the batched lane must be
+    /// EXACTLY the naive reference on the same CSR — no epsilon.
+    #[test]
+    fn core_bfs_batch_matches_reference((ip, ix) in arb_csr()) {
+        let n = ip.len() - 1;
+        let sources: Vec<i32> = (0..n).map(|i| i as i32).collect();
+        let flat = core_bfs_distances(&ip, &ix, &sources);
+        prop_assert_eq!(flat.len(), n * n);
+        for (si, &s) in sources.iter().enumerate() {
+            let row = &flat[si * n..(si + 1) * n];
+            let want = ref_core_bfs(&ip, &ix, s as usize);
+            prop_assert_eq!(row, &want[..]);
+        }
+    }
+}
+
+/// Undirected path 0-1-...-(n-1) as symmetric CSR.
+fn path_csr(n: usize) -> (Vec<i32>, Vec<i32>) {
+    let mut ip = vec![0i32];
+    let mut ix = Vec::new();
+    for v in 0..n {
+        if v > 0 {
+            ix.push((v - 1) as i32);
+        }
+        if v + 1 < n {
+            ix.push((v + 1) as i32);
+        }
+        ip.push(ix.len() as i32);
+    }
+    (ip, ix)
+}
+
+#[test]
+fn brandes_fold_empty_sources_is_all_zero() {
+    let (ip, ix) = path_csr(8);
+    let n = ip.len() - 1;
+    let kw = vec![0.0; n];
+    let is_core = vec![1u8; n];
+    let (u, tu, kk) = brandes_fold(&ip, &ix, &kw, &is_core, &[], false);
+    assert_eq!(u, vec![0.0; n]);
+    assert_eq!(tu, vec![0.0; n]);
+    assert_eq!(kk, vec![0.0; n]);
+}
+
+#[test]
+fn core_bfs_batch_unreachable_rows_are_minus_one() {
+    // two components: 0-1 and 2-3 — BFS from 0 never reaches 2, 3
+    let ip = vec![0i32, 1, 2, 3, 4];
+    let ix = vec![1i32, 0, 3, 2];
+    let flat = core_bfs_distances(&ip, &ix, &[0i32]);
+    assert_eq!(flat, vec![0, 1, -1, -1]);
 }

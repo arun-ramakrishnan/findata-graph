@@ -160,7 +160,10 @@ the record).
   docstrings stripped; static_checks/frontmatter chain steps are
   pass-through stubs (:530-546).
 - signal_sweep.py zero callers (host-confirmed) — smoke test or Make
-  target, or park with a verdict.
+  target, or park with a verdict. **CLOSED 2026-11-18** — smoke subcommand
+  + `make signal-sweep` / `signal-sweep-smoke` landed with the
+  forward-return memoization (`archive/tooling/signal_sweep_forward_return_cache.md`,
+  completed.md #541).
 - Stale-discovery port-reuse false-liveness (host watch; mitigated by
   served_entry path match + wire token auth) — recorded, no action.
 
@@ -258,7 +261,8 @@ for the operator):
   NIT bullets closed as recorded: workers-cap probe optional (skip —
   probe-verified real), sharding waiver (11.5× below trigger is fine),
   bipartite_communities keep (thin but real chain lane), docstring/stub
-  drift + signal_sweep parked for a future nit sweep, stale-discovery
+  drift parked for a future nit sweep, signal_sweep **CLOSED 2026-11-18**
+  (#541 — wiring landed with the memoization), stale-discovery
   false-liveness recorded (mitigated: path match + wire token auth).
 
 Validation: targeted batteries only (never make pytest) —

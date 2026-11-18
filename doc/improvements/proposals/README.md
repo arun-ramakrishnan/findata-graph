@@ -39,6 +39,25 @@ entry number and stale DONE pointers):
 ## Current live proposals
 
 *(none)*
+- *(archived 2026-11-18)* — `rust_betweenness_kernel` + `rust_closeness_kernel`
+  (graph/, filed + executed 2026-11-18, completed.md #538 / #539 — the two
+  L1 fold lanes' BFS-shaped work moved into `graph_kernels` as opt-in
+  kernels: `brandes_fold_sources` returns the U/TU/KK accumulators for a
+  batched source set (51.8 s → 3.9 s at jobs=1, **13.3×**, parity
+  4.6e-13), `core_bfs_sources_batch` returns a `sources × n` distance
+  matrix (7.44 s → 3.07 s, **2.42×**, scores bit-identical). Fold
+  decomposition and score assembly stay in Python; lanes are DEFAULT-ON
+  with an opt-out (`L1B_RUST=0` / `L1C_RUST=0`) and loud failure when
+  forced.)
+- *(archived 2026-11-18)* — `duckdb_long_holder_backoff` +
+  `signal_sweep_forward_return_cache` (tooling/, filed + executed
+  2026-11-18, completed.md #540 / #541 — the 60 s reader ladder
+  `_EXTENDED_RETRY_DELAYS_S = (2.0, 10.0, 48.0)` beside the untouched
+  1.55 s default, wired into the four reader CLIs #319 missed plus
+  memory_search writer LOCK_EX coordination; and
+  `signal_sweep::sweep` 55.077 s → 17.10 s via `(ticker, t, h_bars)`
+  memoization at 0 parity diffs, closing R14 with a hermetic `smoke`
+  subcommand.)
 - *(archived 2026-11-16)* — `note_search_carve_out` (database/, filed
   2026-11-15, executed 2026-11-16, completed.md #530 — the last FTS5 index
   left `research.db` for a DuckDB native-FTS sidecar: S0 embed-cache fold,

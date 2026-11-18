@@ -34,6 +34,7 @@ implementation of the same lane, not a new metric).
 from __future__ import annotations
 
 import argparse
+import os
 import sys
 import time
 from collections import defaultdict, deque
@@ -55,6 +56,11 @@ HARMONIC_METRIC = "harmonic_centrality"
 
 #: centrality projection rule (mirrors l1_betweenness.INDEX_NOISE)
 INDEX_NOISE = frozenset({"listed_on_index"})
+
+#: Sources per batched core-BFS kernel call. The contract is ~1,486 BFS
+#: runs; one call would materialize 1,486 x n int32 (~130 MB), so the cap
+#: keeps peak RSS at a single 256 x n slab instead.
+_SOURCE_BATCH = 256
 
 
 # --------------------------------------------------------------------------- #
@@ -267,6 +273,89 @@ def _core_bfs_ranges(indptr: np.ndarray, frontier: np.ndarray) -> np.ndarray:
     offsets = np.zeros(len(frontier), dtype=np.int64)
     np.cumsum(counts[:-1], out=offsets[1:])
     return np.arange(total, dtype=np.int64) + np.repeat(starts - offsets, counts)
+
+
+def _rust_lane(var: str) -> str:
+    """Rust-kernel selector mode for ``var``: "off", "auto" or "force".
+
+    Mirrors ``l1_betweenness._rust_lane`` so the two folded lanes read the
+    same way, and follows the same house convention: UNSET = "auto" (the
+    kernel is the default when it imports, else the numpy lane);
+    "0"/"off"/"numpy" = the incumbent numpy lane; "auto" = unset stated
+    explicitly; anything else = kernel or a loud RuntimeError (a silent
+    fallback would hide a stale build behind a slower lane).
+    """
+    raw = os.environ.get(var, "").strip().lower()
+    if raw in ("0", "off", "false", "no", "numpy"):
+        return "off"
+    if raw in ("", "auto"):
+        return "auto"
+    return "force"
+
+
+def _kernel_core_bfs(
+    core_indptr: np.ndarray,
+    core_indices: np.ndarray,
+    sources: np.ndarray,
+) -> np.ndarray | None:
+    """Batched core BFS distances (one row per source), or None.
+
+    ``None`` means the kernel lane is unavailable (extension missing or
+    stale, int32 overflow, mode off) and the caller keeps ``core_bfs``.
+    """
+    mode = _rust_lane("L1C_RUST")
+    if mode == "off":
+        return None
+    try:
+        import graph_kernels
+    except ImportError:
+        if mode == "force":
+            raise RuntimeError("L1C_RUST is set but graph_kernels is not installed") from None
+        return None
+    if not hasattr(graph_kernels, "core_bfs_sources_batch"):
+        if mode == "force":
+            raise RuntimeError(
+                "L1C_RUST is set but graph_kernels lacks core_bfs_sources_batch "
+                "(stale build — run `make rust-install`)"
+            )
+        return None
+    n = len(core_indptr) - 1
+    if n >= 2**31 - 1 or len(core_indices) >= 2**31 - 1:
+        if mode == "force":
+            raise RuntimeError("L1C_RUST: graph too large for int32 CSR")
+        return None
+    ip = np.ascontiguousarray(core_indptr, dtype=np.int32)
+    ix = np.ascontiguousarray(core_indices, dtype=np.int32)
+    src = np.ascontiguousarray(sources, dtype=np.int32)
+    rows = graph_kernels.core_bfs_sources_batch(ip, ix, src)
+    return np.asarray(rows, dtype=np.int64)
+
+
+def core_bfs_batch(
+    sources: list[int],
+    core_indptr: np.ndarray,
+    core_indices: np.ndarray,
+) -> dict[int, np.ndarray]:
+    """``{source: dist}`` for every requested source, batched.
+
+    One kernel call per ``_SOURCE_BATCH`` sources (the full contract is
+    ~1,486 BFS runs; a single call would materialize 1,486 x n int32
+    ≈ 130 MB, so the cap keeps peak RSS flat). Duplicate sources collapse.
+    """
+    uniq = list(dict.fromkeys(int(s) for s in sources))
+    out: dict[int, np.ndarray] = {}
+    if not uniq:
+        return out
+    for start in range(0, len(uniq), _SOURCE_BATCH):
+        batch = uniq[start : start + _SOURCE_BATCH]
+        rows = _kernel_core_bfs(core_indptr, core_indices, np.asarray(batch, dtype=np.int64))
+        if rows is None:
+            for s in batch:
+                out[s] = core_bfs(s, core_indptr, core_indices)
+            continue
+        for i, s in enumerate(batch):
+            out[s] = rows[i]
+    return out
 
 
 def core_bfs(
@@ -493,24 +582,39 @@ def _scores_chunk(
     n: int,
 ) -> dict[str, dict[str, float]]:
     results: dict[str, dict[str, float]] = {}
-    core_dist_cache: dict[int, np.ndarray] = {}
+    # Pass 1: classify and collect the core BFS roots this chunk needs, so
+    # the BFS work is one batched kernel call instead of ~1,486 numpy
+    # level-loop runs (the 57% of wall the kernel exists to remove).
+    plan: list[tuple[str, int, int | None]] = []
+    needed: list[int] = []
     for name in chunk:
         if name not in pos:
             results[name] = {"closeness": 0.0, "harmonic": 0.0}
             continue
         u = pos[name]
         if is_core[u]:
-            core_dist = core_bfs(u, core_indptr, core_indices)
-            clo, harm = core_source_scores(u, core_dist, forest, n)
+            plan.append((name, u, None))
+            needed.append(u)
         elif u in forest["root"]:
             h = forest["root"][u]
-            if h not in core_dist_cache:
-                core_dist_cache[h] = core_bfs(h, core_indptr, core_indices)
-            core_dist = core_dist_cache[h]
-            clo, harm = peeled_source_scores(u, forest, core_dist, adj_sets, n)
+            plan.append((name, u, h))
+            needed.append(h)
         else:
             clo, harm = special_source_scores(u, forest, adj_sets, n)
-        results[name] = {"closeness": clo, "harmonic": harm}
+            results[name] = {"closeness": clo, "harmonic": harm}
+
+    # Pass 2: score. Core sources use their own distances; peeled sources
+    # use the distances of their forest root (d(u,w) = delta + d(h,·)).
+    if plan:
+        dist_by_source = core_bfs_batch(needed, core_indptr, core_indices)
+        for name, u, h in plan:
+            if h is None:
+                core_dist = dist_by_source[u]
+                clo, harm = core_source_scores(u, core_dist, forest, n)
+            else:
+                core_dist = dist_by_source[h]
+                clo, harm = peeled_source_scores(u, forest, core_dist, adj_sets, n)
+            results[name] = {"closeness": clo, "harmonic": harm}
     return results
 
 

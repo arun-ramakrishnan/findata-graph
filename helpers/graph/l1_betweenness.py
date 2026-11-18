@@ -45,6 +45,7 @@ Write surface: ``graph_analytics`` (the contract's home), UPSERT via
 from __future__ import annotations
 
 import argparse
+import os
 import sys
 import time
 from collections import defaultdict, deque
@@ -327,6 +328,80 @@ def _brandes_chunk(
     return U, TU, KK
 
 
+def _rust_lane(var: str) -> str:
+    """Rust-kernel selector mode for ``var``: "off", "auto" or "force".
+
+    House convention (``stats.py``, ``scipy_bridge._ppr_kernel_lane``,
+    ``hyper_trails.TRAIL_BFS_RUST``): the kernel is the DEFAULT when the
+    extension imports, and the env var exists to opt OUT. So UNSET =
+    "auto" (kernel when ``graph_kernels`` exposes the symbol, else the
+    numpy lane — a contributor without cargo still gets correct numbers);
+    "0"/"off"/"numpy" = the incumbent numpy lane (bit-for-bit the
+    pre-kernel numbers, for A/B and fallback pinning); "auto" = the same
+    as unset, stated explicitly; anything else ("1"/"on"/"rust") =
+    kernel or a loud RuntimeError. Fail-loud on the forced mode is
+    deliberate — a silent fallback would mask a build problem behind a
+    13x slower lane (the Onager-fallthrough lesson).
+    """
+    raw = os.environ.get(var, "").strip().lower()
+    if raw in ("0", "off", "false", "no", "numpy"):
+        return "off"
+    if raw in ("", "auto"):
+        return "auto"
+    return "force"
+
+
+def _kernel_brandes_core(
+    indptr: np.ndarray,
+    indices: np.ndarray,
+    sources: np.ndarray,
+    kw: np.ndarray,
+    is_core: np.ndarray,
+    *,
+    force_parallel: bool,
+):
+    """Rust graph_kernels fold over ``sources``, or None when unavailable.
+
+    Returns ``(U, TU, KK)`` float64[n] — the same three accumulators
+    ``_brandes_chunk`` sums in Python, assembled by the caller as
+    ``U/2 + TU + KK/2``. None means "kernel lane unavailable" (extension
+    missing/stale, int32 overflow, mode off) and the caller keeps the
+    numpy/fork lane.
+    """
+    mode = _rust_lane("L1B_RUST")
+    if mode == "off":
+        return None
+    try:
+        import graph_kernels
+    except ImportError:
+        if mode == "force":
+            raise RuntimeError("L1B_RUST is set but graph_kernels is not installed") from None
+        return None
+    if not hasattr(graph_kernels, "brandes_fold_sources"):
+        if mode == "force":
+            raise RuntimeError(
+                "L1B_RUST is set but graph_kernels lacks brandes_fold_sources "
+                "(stale build — run `make rust-install`)"
+            )
+        return None
+    n = len(indptr) - 1
+    if n >= 2**31 - 1 or len(indices) >= 2**31 - 1:
+        if mode == "force":
+            raise RuntimeError("L1B_RUST: graph too large for int32 CSR")
+        return None
+    ip = np.ascontiguousarray(indptr, dtype=np.int32)
+    ix = np.ascontiguousarray(indices, dtype=np.int32)
+    kw64 = np.ascontiguousarray(kw, dtype=np.float64)
+    ic = np.ascontiguousarray(is_core, dtype=np.uint8)
+    src = np.ascontiguousarray(sources, dtype=np.int32)
+    u, tu, kk = graph_kernels.brandes_fold_sources(ip, ix, kw64, ic, src, bool(force_parallel))
+    return (
+        np.asarray(u, dtype=np.float64),
+        np.asarray(tu, dtype=np.float64),
+        np.asarray(kk, dtype=np.float64),
+    )
+
+
 def brandes_core(
     indptr: np.ndarray,
     indices: np.ndarray,
@@ -342,9 +417,18 @@ def brandes_core(
     - ``U(v)  = sum_s delta_u_s(v)``               — core-core pairs
     - ``TU(v) = sum_s delta_k_s(v)``               — core<->tree pairs
     - ``KK(v) = 1/2 sum_{k_s>0} k_s delta_k_s(v)`` — tree<->tree pairs
+
+    Lane selection (2026-11-18, ``rust_betweenness_kernel``): the Rust
+    ``graph_kernels.brandes_fold_sources`` kernel is the DEFAULT when the
+    extension imports. ``L1B_RUST=0`` pins the numpy lane below
+    (bit-for-bit the pre-kernel numbers); ``L1B_RUST=1`` demands the
+    kernel and raises without it.
     """
     if is_core is None:
         is_core = np.ones(len(indptr) - 1, dtype=bool)
+    kernel = _kernel_brandes_core(indptr, indices, sources, kw, is_core, force_parallel=jobs > 1)
+    if kernel is not None:
+        return kernel
     chunks = np.array_split(sources, jobs)
     parts = fork_map(
         partial(_brandes_chunk, indptr=indptr, indices=indices, kw=kw, is_core=is_core),

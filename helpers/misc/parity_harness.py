@@ -196,6 +196,28 @@ def _render_l1b_compute(mod: ModuleType) -> str:
     return "\n".join(rows)
 
 
+def _render_l1c_compute(mod: ModuleType) -> str:
+    """Fixture graph DB through the closeness/harmonic fold; sorted scores.
+
+    The fixture carries ``graph_analytics`` rows so the contract is
+    non-empty (``get_contract`` reads it) — without them the render would
+    print nothing and prove nothing. Kernel lanes stay OFF here (the env
+    flags are unset), so live-vs-baseline is a pure Python-lane check;
+    the Rust-vs-numpy agreement is pinned by
+    ``tests/test_l1_kernel_parity.py`` at a documented epsilon.
+    """
+    import json
+    import tempfile
+    from helpers.graph.fixture_graph_db import build_graph_fixture_db
+
+    with tempfile.TemporaryDirectory(prefix="parity-l1c-") as tmp:
+        db = build_graph_fixture_db(Path(tmp) / "fixture.db")
+        scores, info = mod.compute(db_path=str(db), jobs=1)
+    rows = [f"{n}={s['closeness']:.9f}/{s['harmonic']:.9f}" for n, s in sorted(scores.items())]
+    rows.append("info=" + json.dumps(info, sort_keys=True, default=str))
+    return "\n".join(rows)
+
+
 def _render_near_duplicate_notes(mod: ModuleType) -> str:
     """The seeded fixture DB through the full parameter matrix.
 
@@ -272,6 +294,12 @@ REGISTRY: dict[str, Fixture] = {
         relpath="helpers/graph/l1_betweenness.py",
         render=_render_l1b_compute,
         note="folded betweenness over a fixture graph DB (noise/self-loop rows included)",
+    ),
+    "l1_closeness_compute": Fixture(
+        name="l1_closeness_compute",
+        relpath="helpers/graph/l1_closeness.py",
+        render=_render_l1c_compute,
+        note="folded closeness/harmonic over a fixture graph DB (graph_analytics contract rows included)",
     ),
     "near_duplicate_notes": Fixture(
         name="near_duplicate_notes",
