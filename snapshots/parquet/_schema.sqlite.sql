@@ -341,6 +341,12 @@ CREATE TABLE co_mention_editions (
     PRIMARY KEY (edition_title, entity_name)
 );
 
+CREATE TABLE derived_cohort_meta (
+        table_name TEXT PRIMARY KEY,
+        mode TEXT NOT NULL,
+        entities_fingerprint TEXT NOT NULL,
+        stamped_at DATETIME NOT NULL);
+
 CREATE INDEX idx_entity_tags_tag ON entity_tags(tag);
 
 CREATE INDEX idx_entities_sector_classification ON entities(sector_classification);
