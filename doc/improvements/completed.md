@@ -16363,3 +16363,42 @@ question set) per the proposal's §4 house rule.
   cases owned), HNSW/ANN + FLOAT[512] (brute stays shipped at 50 ms
   k=None), numba (absent).
 
+
+## 546. Sidecar reader lock queueing, embed-cache dict preload, de-pathologized bench probe
+
+- **S1 — sidecar readers queue on a held DuckDB lock** (`helpers/maintenance/gc_embed_cache.py`
+  + 7 more files): `make embed-gc` crashed on a held lock (`_duckdb.IOException …
+  Conflicting lock is held … PID 678232` at `_open_store`); all raw `.duckdb`
+  openers now route through `duckdb_lock.connect_with_lock_retry` on the
+  60 s long-holder ladder (`_EXTENDED_RETRY_DELAYS_S` = 2/10/48 s) —
+  `connect_doc_db`/`connect_git_db`/`connect_script_db`/`connect_memory_db`/
+  `connect_note_db`, five `rebuild_convo_search.py` opens, and
+  `rebuild_common._open_stamp_db` (a held stamp lock previously read as "no
+  stamp" → spurious full rebuild). Nastiest subclass: the two convo migration
+  PROBES swallowed `except duckdb.Error: return False`, reading a held lock as
+  "table absent" → ~45-min pointless re-embeds; they queue first now.
+  Excluded as not-bugs: `:memory:` scratch, one-shot probes,
+  `quack_server_child`. Tests: `tests/test_sidecar_lock_queue.py` +
+  `tests/test_embed_gc.py::TestOpenStoreQueuesOnALongHolder`; 190 green.
+- **S2 — `CachedEmbed.preload()`** (`helpers/core/embed_cache.py`, wired at
+  both doc rebuild sites): one 44.2 ms model scan into a dict replaces the
+  per-call 0.91 ms point SELECT — 4,807 rows ≈ 4.4 s of every doc-apply pass
+  (#528 deferred candidate 2, projected 7.8 s at 1.7 ms/lookup); dict miss IS
+  a cache miss (model-complete), `_store_vec`/donor hits keep the dict
+  coherent, content-addressed immutability keeps the snapshot safe;
+  `status_line()` reports `preloaded=N`; opt-in per construction site.
+  Tests: `TestCachedEmbedPreload` ×3 (no-SQL proven by dropping the table —
+  DuckDB conns reject attribute patching). Warm doc-apply ~17 s → ~9–12 s.
+- **S3 — `bench_shortest_path._unreachable_dst`** (`tests/bench_shortest_path.py`):
+  the recursive-CTE component walk was 10.65 s of a 12.0 s leg wall (planner
+  pathology — `e_all_und` scans in 0.07 s at 201,534 rows, fully symmetric;
+  a correlated `NOT EXISTS` costs 13.7 s). Replaced with a Python BFS over
+  one edge scan; leg **11.9 s → 1.15–1.21 s**, same destination, worst-case
+  traversal semantics unchanged (default 0.7 ms / unreachable 83 ms);
+  budget stays 12.0. Calibration comment in `tests/run_perf_benchmarks.py`
+  updated.
+- **Doctrine:** psi in perf FAIL tags = Pressure Stall Information
+  contention attribution, not a baseline (nothing to re-seat); Mojo perf
+  work continues — only the replace-Python goal retired (#437).
+- **Verification:** 190 + 71 + 49 tests green across touched suites; ruff
+  clean; repo md-lint clean. Proposal: `archive/tooling/embed_preload_sidecar_lock_bfs.md`.

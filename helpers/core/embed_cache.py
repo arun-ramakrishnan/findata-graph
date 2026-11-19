@@ -175,6 +175,7 @@ class CachedEmbed:
         self._donor: dict[str, bytes] | None = None
         self._donor_tried = False
         self._donor_pending: list[tuple] = []
+        self._preload: dict[str, bytes] | None = None
         self._ok = self._try_init()
         if not self._ok:
             _progress(
@@ -257,6 +258,8 @@ class CachedEmbed:
         if not self._ok:
             return f"OFF — init failed: {self._attach_error}"
         extra = f", {self._store_errors} store failures" if self._store_errors else ""
+        if self._preload is not None:
+            extra += f", preloaded={len(self._preload)}"
         return f"on (hits={self.hits}, misses={self.misses}, cached={self.dirty}{extra})"
 
     def _maybe_reinit(self) -> None:
@@ -306,6 +309,8 @@ class CachedEmbed:
             )
             conn.commit()
             self.dirty += 1
+            if self._preload is not None and h is not None:
+                self._preload[h] = pack_f32(vec)
         except Exception as exc:  # vector still returned; count + surface
             self._store_errors += 1
             if self._store_errors == 1:
@@ -349,19 +354,56 @@ class CachedEmbed:
             self._donor = {}
         return self._donor.get(h) if self._donor else None
 
+    def preload(self) -> int:
+        """Load every ``(text_hash, embedding)`` row for this model into an
+        in-memory dict; ``__call__`` then serves hits from the dict instead
+        of one point SELECT per text (duckdb_rebuild_incremental_carry §6
+        deferred candidate: 4,576 lookups × 1.7 ms ≈ 7.8 s of a doc-apply
+        wall). Content-addressed rows are immutable, so the snapshot cannot
+        go stale for the hashes it holds; rows written or donor-copied
+        mid-pass land in the dict too. Best-effort: any failure leaves
+        ``_preload`` None and the per-call SQL path in charge. Returns the
+        row count, or -1 when the store was unavailable."""
+        if not (self._ok and self._conn is not None):
+            return -1
+        try:
+            rows = self._conn.execute(
+                f"SELECT text_hash, embedding FROM {EMBED_CACHE_TABLE} "  # noqa: S608  # constant table name
+                "WHERE model = ?",
+                (self._model,),
+            ).fetchall()
+        except Exception as exc:  # noqa: S110  # degrade to the SQL path
+            self._preload = None
+            _progress(
+                f"[embed-cache] preload failed ({type(exc).__name__}: {exc}) "
+                "— point lookups stay on the SQL path"
+            )
+            return -1
+        self._preload = {r[0]: r[1] for r in rows}
+        return len(self._preload)
+
     def __call__(self, text: str) -> list[float]:
         self._maybe_reinit()
         h = _hash(text) if self._ok else None
         conn = self._conn
         if h is not None and conn is not None:
+            preload = self._preload
+            blob: bytes | None = None
             try:
-                row = conn.execute(
-                    f"SELECT embedding FROM {EMBED_CACHE_TABLE} "  # noqa: S608  # constant table name
-                    "WHERE text_hash = ? AND model = ?",
-                    (h, self._model),
-                ).fetchone()
-                if row:
-                    vec = load_vec(row[0])
+                if preload is not None:
+                    # Dict hit replaces the per-call point SELECT (1.7 ms
+                    # each); a dict miss IS a cache miss — the dict is
+                    # model-complete, so no SQL probe on this path.
+                    blob = preload.get(h)
+                else:
+                    row = conn.execute(
+                        f"SELECT embedding FROM {EMBED_CACHE_TABLE} "  # noqa: S608  # constant table name
+                        "WHERE text_hash = ? AND model = ?",
+                        (h, self._model),
+                    ).fetchone()
+                    blob = row[0] if row else None
+                if blob is not None:
+                    vec = load_vec(blob)
                     if vec:
                         self.hits += 1
                         return vec
@@ -375,6 +417,8 @@ class CachedEmbed:
             if vec:
                 self.hits += 1
                 self.dirty += 1
+                if self._preload is not None and h is not None:
+                    self._preload[h] = donor_blob
                 self._donor_pending.append((h, self._model, donor_blob, self._source))
                 if len(self._donor_pending) >= 64:
                     self._flush_donor()

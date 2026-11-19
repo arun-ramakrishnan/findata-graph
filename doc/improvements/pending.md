@@ -8,8 +8,9 @@ Open items below keep their revisit triggers inline; executed work is compressed
   2026-11-16, all three non-blocking): (1) delta-apply on a
   100%-changed corpus ran **26.9 s vs 17.0 s full** — add a
   threshold fallback when the delta set approaches full size;
-  (2) CachedEmbed point-lookup preload (4,576 lookups × 1.7 ms even
-  at 100% hits ≈ 7.8 s of the remaining doc-rebuild wall);
+  (2) ~~CachedEmbed point-lookup preload~~ **DONE 2026-11-19**
+  (`CachedEmbed.preload()`, opt-in, wired at both doc rebuild
+  sites; one 44 ms scan replaces 4,807 × 0.91 ms point lookups);
   (3) `--allow-stale` stamped legs still apply as full rebuilds
   (script one-off 84 s mid-arc). Trigger: any `make search-fresh`
   APPLY leg regressing past its 2026-11-16 baseline.

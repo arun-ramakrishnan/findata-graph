@@ -345,3 +345,66 @@ class TestCachedEmbedDegradation:
         ce, _ = self._make(tmp_path)
         assert ce("aa") == [0.0, 1.0]
         assert ce.status_line() == "on (hits=0, misses=1, cached=1)"
+
+
+class TestCachedEmbedPreload:
+    """Dict preload replaces the per-call point SELECT (duckdb_rebuild
+    incremental_carry §6: 4,576 lookups × 1.7 ms ≈ 7.8 s of a doc apply)."""
+
+    def _cached(self, conn, fn):
+        ce = EC.CachedEmbed(fn, "m", conn, source="doc")
+        return ce
+
+    def test_preload_serves_hits_without_a_point_select(self):
+        conn = duckdb.connect(":memory:")
+        text = "hello world"
+        calls: list[str] = []
+
+        def fn(t: str) -> list[float]:
+            calls.append(t)
+            return [float(len(t)), 1.0]
+
+        ce = self._cached(conn, fn)  # constructor creates the cache DDL
+        from helpers.core.vec_codec import pack_f32
+
+        conn.execute(
+            f"INSERT INTO {EMBED_CACHE_TABLE} "  # noqa: S608
+            "(text_hash, model, embedding, source) VALUES (?, ?, ?, ?)",
+            (EC._hash(text), "m", pack_f32([4.0, 1.0]), "doc"),
+        )
+        assert ce.preload() == 1
+        # Structural proof the hit came from the dict, not SQL: drop the
+        # table — any point SELECT would raise (-> miss + embed) instead
+        # of returning the cached vector.
+        conn.execute(f"DROP TABLE {EMBED_CACHE_TABLE}")  # noqa: S608
+        assert ce(text) == [4.0, 1.0]
+        assert ce.hits == 1 and calls == []
+        assert "preloaded=1" in ce.status_line()
+
+    def test_dict_miss_embeds_then_dict_serves_the_repeat(self):
+        conn = duckdb.connect(":memory:")
+        calls: list[str] = []
+
+        def fn(t: str) -> list[float]:
+            calls.append(t)
+            return [float(len(t)), 1.0]
+
+        ce = self._cached(conn, fn)
+        assert ce.preload() == 0
+        assert ce("abc") == [3.0, 1.0]  # dict miss -> embed -> store + dict
+        assert calls == ["abc"] and ce.misses == 1
+        assert ce("abc") == [3.0, 1.0]  # repeat served from the dict
+        assert calls == ["abc"] and ce.hits == 1
+
+    def test_preload_failure_degrades_to_the_sql_path(self):
+        conn = duckdb.connect(":memory:")
+
+        def fn(t: str) -> list[float]:
+            return [float(len(t)), 1.0]
+
+        ce = self._cached(conn, fn)
+        conn.execute(f"DROP TABLE {EMBED_CACHE_TABLE}")  # noqa: S608
+        assert ce.preload() == -1
+        assert ce._preload is None
+        assert ce("xyz") == [3.0, 1.0]  # SQL path absent too -> fresh embed
+        assert ce.misses == 1

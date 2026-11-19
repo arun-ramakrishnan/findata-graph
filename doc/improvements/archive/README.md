@@ -1361,3 +1361,13 @@ commit, referenced by nothing). Entry numbers point at
 - [`findata_graph_desktop.md`](ui/findata_graph_desktop.md) — Proposal: Tauri v2 + Vue 3 desktop viewer promoted from accepted demo to full app — docs browser (doc_search sidecar), metrics/rank tint, Chronoscope as_of, hyperedge halos, opener + deb/AppImage, PRF hybrid search, vue-tsc baseline; 14 commands, 20 core tests, 9 smoke scenarios — completed.md #308
 - [`ts_contract_hardening.md`](ui/ts_contract_hardening.md) — TS↔server contract hardening — type-aware contract assertions (`api_contract.py` parser/asserter replacing type-blind spot checks), coverage 25/25 frontend-consumed routes, valibot ^1.5.0 runtime guards generated (`schemas_valibot.ts` + `guards.ts` via `gen_api_guards.py`, `--check` + 14-case bun battery wired into `frontend-check`) passed to `fetchJson` at every view call site (per-bundle guard shaking; spike §3a–c incl. the generator union-bug fix), static bundle `no-cache` header (S4; D3 premise corrected — Flask already no-caches all static); desktop twin filed as `desktop_ipc_shape_guards` — completed.md #361
 - [`desktop_ipc_shape_guards.md`](ui/desktop_ipc_shape_guards.md) — desktop IPC shape guards — hand-written valibot schemas over the 20 `findata-core` wire structs (`Db` handle excluded), one `ipc()` wrapper validating all 14 Tauri `invoke()` results (`IpcShapeError` names cmd + dot path), MetricsPanel prober on `AnalyticsValue`, fixture-driven contract gate (`make contract`/`make check`, node:test 14/14) that caught the live stats tuple drift in-survey, build-hygiene note (dist compiled-in) — completed.md #362
+- [`embed_preload_sidecar_lock_bfs.md`](tooling/embed_preload_sidecar_lock_bfs.md) —
+  sidecar readers queue on a held DuckDB lock (embed-gc crash + 7 raw
+  openers incl. the two convo migration probes that misread a held lock
+  as "table absent" → ~45-min pointless re-embeds), `CachedEmbed.preload()`
+  dict preload closes #528 deferred candidate 2 (one 44.2 ms scan replaces
+  4,807 × 0.91 ms point lookups per doc apply; warm doc-apply ~17 s →
+  ~9–12 s), `bench_shortest_path._unreachable_dst` recursive CTE (10.65 s
+  planner pathology of a 12.0 s leg wall) replaced by a Python BFS over
+  one `e_all_und` scan: leg 11.9 s → 1.15–1.21 s at unchanged worst-case
+  semantics; psi = contention attribution, not a baseline — completed.md #546

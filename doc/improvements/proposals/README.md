@@ -44,6 +44,17 @@ entry number and stale DONE pointers):
   `test_facts` but the only source for a `--rebuild-tests` — at retain time,
   teach `gate_query._test_metadata_by_node` the `.json.zst` form, and backfill
   the 120 kept run dirs; expected `.artifacts` 176.9 → ~80 MB at keep=40.
+- *(archived 2026-11-19)* — `embed_preload_sidecar_lock_bfs` (tooling/, filed
+  + executed 2026-11-19, completed.md #546 — sidecar readers queue on a held
+  DuckDB lock (embed-gc crash + 7 raw openers incl. the two convo migration
+  probes that misread a held lock as "table absent" → ~45-min pointless
+  re-embeds), `CachedEmbed.preload()` dict preload closes #528 deferred
+  candidate 2 (one 44.2 ms scan replaces 4,807 × 0.91 ms point lookups per
+  doc apply), and `bench_shortest_path._unreachable_dst`'s recursive CTE
+  (10.65 s of a 12.0 s leg wall — planner pathology) replaced by a Python
+  BFS over one `e_all_und` scan: leg 11.9 s → 1.21 s at unchanged worst-case
+  semantics; plus doctrine corrections (psi = contention attribution, not a
+  baseline; Mojo perf work continues — only the replace-Python goal retired)).
 - *(archived 2026-11-19)* — `live_search_perf_slices` (tooling/, filed
   2026-11-18, executed 2026-11-19, completed.md #545 — four measured latency
   slices: S1 note_search cosine 504.3 → 50.28 ms k=None / 21.4 ms k=10 at

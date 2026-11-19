@@ -625,6 +625,7 @@ def _rebuild_sqlite(  # noqa: C901
                     # prior-model row is rollback insurance, dead-text
                     # eviction is `make embed-gc`.
                     embed_fn = CachedEmbed(embed_fn, model_label, conn, source="doc")
+                    embed_fn.preload()
             else:
                 # --check: verdict is content-hash only — skip model
                 # resolution + sidecar cache lookups (mirror of the
@@ -1621,6 +1622,7 @@ def _resolve_doc_embedder_duckdb(conn, embed_fn, stats: dict):
     )
     if model_label != f"dry-run-v{_PSEUDO_DIMS}":
         embed_fn = CachedEmbed(embed_fn, model_label, conn, source="doc")
+        embed_fn.preload()
     return embed_fn, embed_dims, model_label, gemma_active
 
 

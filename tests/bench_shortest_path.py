@@ -44,24 +44,35 @@ _REPS = 3
 
 def _unreachable_dst(con) -> str:
     """A node in a different undirected component than CEAT (full-traversal
-    worst case: the BFS exhausts CEAT's component before giving up)."""
-    row = con.execute(
-        """
-        WITH RECURSIVE comp(node) AS (
-            SELECT id FROM v_node WHERE name = 'CEAT'
-          UNION
-            SELECT CASE WHEN e.a_id = c.node THEN e.b_id ELSE e.a_id END
-            FROM comp c
-            JOIN e_all_und e ON e.a_id = c.node OR e.b_id = c.node
-        )
-        SELECT v.name FROM v_node v
-        WHERE v.id NOT IN (SELECT node FROM comp)
-        ORDER BY v.name LIMIT 1
-        """
-    ).fetchone()
-    if row is None:
-        raise SystemExit("live graph is fully connected — no unreachable pair")
-    return row[0]
+    worst case: the BFS exhausts CEAT's component before giving up).
+
+    The component set is computed in Python over ONE e_all_und scan
+    (~0.1 s for 201,534 edges; the table stores both orientations per
+    dyad, so a single a->b pass is complete). The previous recursive CTE
+    walked the component with per-iteration UNION anti-joins — 10.6 s of
+    a 12.0 s leg wall (2026-11-19), pure planner pathology: the same
+    relation serves the BFS itself in <100 ms, and a correlated
+    NOT EXISTS over it costs 13.7 s."""
+    src = con.execute("SELECT id FROM v_node WHERE name = 'CEAT'").fetchone()
+    if src is None:
+        raise SystemExit("CEAT not in the live graph")
+    comp = {src[0]}
+    frontier = [src[0]]
+    adj: dict[int, list[int]] = {}
+    for a, b in con.execute("SELECT a_id, b_id FROM e_all_und").fetchall():
+        adj.setdefault(a, []).append(b)
+    while frontier:
+        nxt = []
+        for node in frontier:
+            for nb in adj.get(node, ()):
+                if nb not in comp:
+                    comp.add(nb)
+                    nxt.append(nb)
+        frontier = nxt
+    for nid, name in con.execute("SELECT id, name FROM v_node ORDER BY name").fetchall():
+        if nid not in comp:
+            return name
+    raise SystemExit("live graph is fully connected — no unreachable pair")
 
 
 def _best_of(con, src: str, dst: str, hops: int, label: str | None):

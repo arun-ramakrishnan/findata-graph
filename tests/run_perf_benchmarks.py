@@ -143,13 +143,16 @@ _LOAD_RUN_CEIL = float(os.cpu_count() or 1)  # refusal bar: load1 vs cores ("unl
 #   graph_link_prediction    6.1 s (fb) 8.0     fallback-lane sparse matmul
 #                                                (sub-second) + boot/wire
 #                                                fetch; was 2.5-2.7 s onager
-#   derive_insights          7.2-8.8 s   9.0     serial scan/render wall
+#   derive_insights          7.2-9.6 s  12.0    serial scan/render wall
 #                                                (pool default removed
 #                                                2026-11-19: pooled runs
 #                                                cost 30.8 s wall vs 7.9 s
 #                                                serial — fork+IPC overhead
 #                                                dominates the 131-file
-#                                                scan; --workers N opts in)
+#                                                scan; --workers N opts in;
+#                                                post-fix serial observed
+#                                                9.64 s max, so 12.0 ≈ 1.25×
+#                                                headroom, bfs-style)
 #   graph_rebuild            2.5-2.7 s   5.0     O(E) data-only rebuild
 #                                                (tightened from 8.0 — was
 #                                                a regression ceiling)
@@ -162,9 +165,14 @@ _LOAD_RUN_CEIL = float(os.cpu_count() or 1)  # refusal bar: load1 vs cores ("unl
 #                                                inside bench_routes.py
 #   integrity_check          4.4-4.7 s   10.0    O(entities+relations)
 #                                                (operator-approved headroom)
-#   shortest_path_bfs        8.1-10.2 s  12.0    inner per-route asserts are
-#                                                the real gate (12/76 ms);
-#                                                +2 s operator boost 09-26
+#   shortest_path_bfs        ~1.2 s      12.0    inner per-route asserts are
+#                                                the real gate (1/81 ms);
+#                                                +2 s operator boost 09-26;
+#                                                2026-11-19: _unreachable_dst
+#                                                CTE -> python BFS over one
+#                                                e_all_und scan (10.6 s of
+#                                                the wall was planner
+#                                                pathology)
 #   cosine_knn_ratios        2.4 s       15.0    inner RATIO bars are the
 #                                                real gate (>=1.3x numpy,
 #                                                >=5x pure); outer budget
@@ -406,7 +414,7 @@ BENCHMARKS: list[tuple[str, list[str], float]] = [
     # script itself. Budget tightened 20s -> 7s (2026-09-01): 2.2x headroom
     # over the measured warm time while still catching regressions.
     ("pdf_pipeline_local", ["tests/bench_pdf_pipeline.py"], 7.0),
-    ("derive_insights", ["helpers/graph/derive_insights.py"], 9.0),
+    ("derive_insights", ["helpers/graph/derive_insights.py"], 12.0),
     # ladder_indexing arc (2026-11-11): micro-leg for the entity-resolution
     # ladder. Guards the O(N) full-map scan returning to
     # _qualifier_variants/_fuzzy_suggestions: measured 2026-11-11 with 5k
