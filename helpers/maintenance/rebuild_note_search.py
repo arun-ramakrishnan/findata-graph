@@ -102,8 +102,17 @@ def connect_note_db(path):
     anything else → the legacy SQLite research.db FTS5 host."""
     if Path(path).suffix.lower() == ".duckdb":
         from helpers.core.duckdb_shared import memory_cap_config
+        from helpers.misc.duckdb_lock import (
+            _EXTENDED_RETRY_DELAYS_S,
+            connect_with_lock_retry,
+        )
 
-        con = duckdb.connect(str(path), **memory_cap_config())
+        # Queue behind a live holder (note_query readers vs a rebuild
+        # APPLY) instead of asserting.
+        con = connect_with_lock_retry(
+            lambda: duckdb.connect(str(path), **memory_cap_config()),
+            delays=_EXTENDED_RETRY_DELAYS_S,
+        )
         # Native FTS is an extension: load it on EVERY connection (the
         # build connection's PRAGMA create_fts_index loads it implicitly,
         # but fresh reader connections must load it explicitly — the

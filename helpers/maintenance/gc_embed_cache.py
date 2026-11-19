@@ -52,12 +52,22 @@ CACHE_TABLE = "embed_cache"
 def _open_store(read_only: bool = False):
     """Open the DuckDB embed store (S0): read-only for survey/classify,
     read-write for gc/retire. A missing store raises (same fail-fast as
-    the legacy sqlite connect)."""
+    the legacy sqlite connect). A store lock held by another process
+    queues on the house retry ladder instead of asserting: report mode
+    (no APPLY) must wait out a long holder, not die (2026-11-19 operator
+    report — conflicting PID during a plain ``make embed-gc`` survey)."""
     import duckdb
 
     from helpers.core.duckdb_shared import memory_cap_config
+    from helpers.misc.duckdb_lock import (
+        _EXTENDED_RETRY_DELAYS_S,
+        connect_with_lock_retry,
+    )
 
-    return duckdb.connect(str(STORE), read_only=read_only, **memory_cap_config())
+    return connect_with_lock_retry(
+        lambda: duckdb.connect(str(STORE), read_only=read_only, **memory_cap_config()),
+        delays=_EXTENDED_RETRY_DELAYS_S,
+    )
 
 
 @dataclass(frozen=True)

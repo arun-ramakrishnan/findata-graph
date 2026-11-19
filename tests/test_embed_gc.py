@@ -315,3 +315,48 @@ def test_git_recipes_match_builder_basis(monkeypatch):
     # unknown sha / out-of-range chunk read as empty (never a live hash)
     assert gc._git_text(("missing", -1)) == ""
     assert gc._git_text_gemma(("deadbeef", 99)) == ""
+
+
+class TestOpenStoreQueuesOnALongHolder:
+    """Report mode (no APPLY) must wait out a conflicting holder, not
+    assert (2026-11-19 operator report: a background convo-fresh APPLY
+    held memory/embed_store.duckdb during a plain `make embed-gc`)."""
+
+    LOCK_MSG = (
+        'IO Error: Could not set lock on file "/x/memory/embed_store.duckdb": '
+        "Conflicting lock is held in /x/python3.14 (PID 678232) by user arun."
+    )
+
+    def test_transient_lock_conflict_queues_then_succeeds(self, monkeypatch):
+        import helpers.misc.duckdb_lock as lock_mod
+
+        calls = {"n": 0}
+
+        def flaky_connect(path, *, read_only, **kw):
+            calls["n"] += 1
+            if calls["n"] == 1:
+                raise duckdb.IOException(self.LOCK_MSG)
+            return "CON"
+
+        monkeypatch.setattr(duckdb, "connect", flaky_connect)
+        seen: dict = {}
+        real_delay = lock_mod.lock_retry_delay
+
+        def recording_delay(attempt, delays=lock_mod._RETRY_DELAYS_S):
+            seen["delays"] = delays
+            return real_delay(attempt, (0.0,))
+
+        monkeypatch.setattr(lock_mod, "lock_retry_delay", recording_delay)
+        assert gce._open_store(read_only=True) == "CON"
+        assert calls["n"] == 2
+        assert seen["delays"] == lock_mod._EXTENDED_RETRY_DELAYS_S
+
+    def test_non_lock_error_fails_fast(self, monkeypatch):
+        def missing(path, *, read_only, **kw):
+            raise duckdb.IOException(
+                'IO Error: No such file or directory: cannot open file "/x/absent.duckdb"'
+            )
+
+        monkeypatch.setattr(duckdb, "connect", missing)
+        with pytest.raises(duckdb.IOException, match="No such file"):
+            gce._open_store(read_only=True)

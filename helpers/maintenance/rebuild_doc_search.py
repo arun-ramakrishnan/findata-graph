@@ -162,8 +162,17 @@ def connect_doc_db(db_path: Path | str | None = None):
     path.parent.mkdir(parents=True, exist_ok=True)
     if path.suffix.lower() == ".duckdb":
         from helpers.core.duckdb_shared import memory_cap_config
+        from helpers.misc.duckdb_lock import (
+            _EXTENDED_RETRY_DELAYS_S,
+            connect_with_lock_retry,
+        )
 
-        return duckdb.connect(str(path), **memory_cap_config())
+        # Queue behind a live holder (rebuild/apply in flight) instead of
+        # asserting — query CLIs share this opener with the rebuild paths.
+        return connect_with_lock_retry(
+            lambda: duckdb.connect(str(path), **memory_cap_config()),
+            delays=_EXTENDED_RETRY_DELAYS_S,
+        )
     from helpers.core.db import connect as _db_connect
 
     return _db_connect(path)

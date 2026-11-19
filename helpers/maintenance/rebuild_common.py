@@ -126,8 +126,18 @@ def _open_stamp_db(db_path: Path, *, read_only: bool = False):
         import duckdb
 
         from helpers.core.duckdb_shared import memory_cap_config
+        from helpers.misc.duckdb_lock import (
+            _EXTENDED_RETRY_DELAYS_S,
+            connect_with_lock_retry,
+        )
 
-        return duckdb.connect(str(db_path), **memory_cap_config())
+        # Stamp reads queue behind a live holder (an APPLY in flight)
+        # instead of reading it as "no stamp" — a stamp flip under a held
+        # lock must not trigger a spurious rebuild decision.
+        return connect_with_lock_retry(
+            lambda: duckdb.connect(str(db_path), **memory_cap_config()),
+            delays=_EXTENDED_RETRY_DELAYS_S,
+        )
     from helpers.core.db import connect
 
     return connect(db_path, read_only=read_only)

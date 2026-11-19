@@ -39,7 +39,12 @@ if str(_REPO_ROOT) not in sys.path:
 import duckdb  # noqa: E402  # after the sys.path shim (bare-script convention)
 from helpers.core import duckdb_shared as ds  # noqa: E402  (bare-script entry point; bootstrap above)
 from helpers.core import jsonio  # noqa: E402  (tolerant JSON: corpus meta is data, not trust)
-from helpers.misc.duckdb_lock import connect_with_lock_retry, io_lock, open_read_only  # noqa: E402
+from helpers.misc.duckdb_lock import (  # noqa: E402
+    _EXTENDED_RETRY_DELAYS_S,
+    connect_with_lock_retry,
+    io_lock,
+    open_read_only,
+)
 
 REPO = _REPO_ROOT
 CORPUS_DIR_GLOB = "memory/data/harness/*/conversations/*.parquet"
@@ -141,7 +146,13 @@ def _provenance_migration(db_path: Path) -> bool:
     if not db_path.exists():
         return False
     try:
-        con = duckdb.connect(str(db_path), **ds.memory_cap_config())
+        # A lock conflict here previously read as "table absent" and
+        # triggered a pointless rebuild — queue behind the holder first;
+        # only after the 60 s ladder gives up do we treat it as absent.
+        con = connect_with_lock_retry(
+            lambda: duckdb.connect(str(db_path), **ds.memory_cap_config()),
+            delays=_EXTENDED_RETRY_DELAYS_S,
+        )
     except duckdb.Error:
         return False
     try:
@@ -152,7 +163,10 @@ def _provenance_migration(db_path: Path) -> bool:
         con.close()
     if "provenance" in cols:
         return False
-    con = duckdb.connect(str(db_path), **ds.memory_cap_config())
+    con = connect_with_lock_retry(
+        lambda: duckdb.connect(str(db_path), **ds.memory_cap_config()),
+        delays=_EXTENDED_RETRY_DELAYS_S,
+    )
     try:
         _load_vss(con)  # ALTER on a post-S1 store binds the HNSW index
         con.execute(
@@ -178,7 +192,13 @@ def _bili_column_migration(db_path: Path) -> bool:
     if not db_path.exists():
         return False
     try:
-        con = duckdb.connect(str(db_path), **ds.memory_cap_config())
+        # A lock conflict here previously read as "table absent" and
+        # triggered a pointless rebuild — queue behind the holder first;
+        # only after the 60 s ladder gives up do we treat it as absent.
+        con = connect_with_lock_retry(
+            lambda: duckdb.connect(str(db_path), **ds.memory_cap_config()),
+            delays=_EXTENDED_RETRY_DELAYS_S,
+        )
     except duckdb.Error:
         return False
     try:
@@ -189,7 +209,10 @@ def _bili_column_migration(db_path: Path) -> bool:
         con.close()
     if {"bili_active", "bili_tier"} <= cols:
         return False
-    con = duckdb.connect(str(db_path), **ds.memory_cap_config())
+    con = connect_with_lock_retry(
+        lambda: duckdb.connect(str(db_path), **ds.memory_cap_config()),
+        delays=_EXTENDED_RETRY_DELAYS_S,
+    )
     try:
         _load_vss(con)  # ALTER on a post-S1 store binds the HNSW index
         con.execute("ALTER TABLE convo_search ADD COLUMN IF NOT EXISTS bili_active BOOLEAN")
@@ -1067,7 +1090,10 @@ def _drop_ann_indexes(db_path: Path) -> list[str]:
     index never reaches the DROP. Idempotent and best-effort: a store from
     the post-retirement era has nothing to drop.
     """
-    con = duckdb.connect(str(db_path), **ds.memory_cap_config())
+    con = connect_with_lock_retry(
+        lambda: duckdb.connect(str(db_path), **ds.memory_cap_config()),
+        delays=_EXTENDED_RETRY_DELAYS_S,
+    )
     try:
         rows = con.execute(
             "SELECT index_name FROM duckdb_indexes() WHERE table_name = 'convo_search'"
